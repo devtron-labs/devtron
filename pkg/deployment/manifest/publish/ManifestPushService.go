@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/pkg/app/bean"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
@@ -187,11 +188,11 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(ctx context.Context, manife
 		impl.SaveTimelineForError(manifestPushTemplate, err)
 		return manifestPushResponse
 	}
-	gitCommitTimeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(manifestPushTemplate.WorkflowRunnerId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, pipelineConfig.TIMELINE_DESCRIPTION_ARGOCD_GIT_COMMIT, manifestPushTemplate.UserId)
+	gitCommitTimeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(manifestPushTemplate.WorkflowRunnerId, timelineStatus.TIMELINE_STATUS_GIT_COMMIT, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_GIT_COMMIT, manifestPushTemplate.UserId)
 	timelines := []*pipelineConfig.PipelineStatusTimeline{gitCommitTimeline}
 	if impl.acdConfig.IsManualSyncEnabled() {
 		// if manual sync is enabled, add ARGOCD_SYNC_INITIATED_TIMELINE
-		argoCDSyncInitiatedTimeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(manifestPushTemplate.WorkflowRunnerId, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, pipelineConfig.TIMELINE_DESCRIPTION_ARGOCD_SYNC_INITIATED, manifestPushTemplate.UserId)
+		argoCDSyncInitiatedTimeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(manifestPushTemplate.WorkflowRunnerId, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_INITIATED, manifestPushTemplate.UserId)
 		timelines = append(timelines, argoCDSyncInitiatedTimeline)
 	}
 	timelineErr := impl.pipelineStatusTimelineService.SaveMultipleTimelinesIfNotAlreadyPresent(timelines, tx)
@@ -258,7 +259,7 @@ func (impl *GitOpsManifestPushServiceImpl) commitValuesToGit(ctx context.Context
 }
 
 func (impl *GitOpsManifestPushServiceImpl) SaveTimelineForError(manifestPushTemplate *bean.ManifestPushTemplate, gitCommitErr error) {
-	timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(manifestPushTemplate.WorkflowRunnerId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", gitCommitErr), manifestPushTemplate.UserId)
+	timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(manifestPushTemplate.WorkflowRunnerId, timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", gitCommitErr), manifestPushTemplate.UserId)
 	timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
 	if timelineErr != nil {
 		impl.logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)

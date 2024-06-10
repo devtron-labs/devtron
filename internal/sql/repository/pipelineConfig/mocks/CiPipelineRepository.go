@@ -4,8 +4,7 @@ package mocks
 
 import (
 	context "context"
-
-	bean "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
+	bean "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/ciPipeline"
 
 	mock "github.com/stretchr/testify/mock"
 

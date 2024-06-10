@@ -24,7 +24,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
@@ -376,7 +376,7 @@ func (impl *EAModeDeploymentServiceImpl) DeleteACDAppObject(ctx context.Context,
 	return errors.New("this is not implemented")
 }
 
-func (impl *EAModeDeploymentServiceImpl) SaveTimelineForHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status pipelineConfig.TimelineStatus, statusDetail string, statusTime time.Time, tx *pg.Tx) error {
+func (impl *EAModeDeploymentServiceImpl) SaveTimelineForHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status timelineStatus.TimelineStatus, statusDetail string, statusTime time.Time, tx *pg.Tx) error {
 	return errors.New("this is not implemented")
 }
 

@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
@@ -175,8 +176,8 @@ func (impl *FullModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 	if impl.acdConfig.IsManualSyncEnabled() {
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
-			Status:                       pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
-			StatusDetail:                 pipelineConfig.TIMELINE_DESCRIPTION_ARGOCD_SYNC_COMPLETED,
+			Status:                       timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
+			StatusDetail:                 timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_COMPLETED,
 			StatusTime:                   syncTime,
 			AuditLog: sql.AuditLog{
 				CreatedBy: installAppVersionRequest.UserId,
@@ -276,7 +277,7 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 
 	//creating deployment started status timeline when mono repo migration is not required
 	deploymentInitiatedTimeline := impl.pipelineStatusTimelineService.
-		NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", installedApp.UserId)
+		NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", installedApp.UserId)
 
 	err = impl.pipelineStatusTimelineService.SaveTimeline(deploymentInitiatedTimeline, tx)
 	if err != nil {
@@ -286,10 +287,10 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 	if versionHistory.InstalledAppVersionId != activeInstalledAppVersion.Id {
 		err = impl.updateRequirementYamlInGit(installedApp, &installedAppVersion.AppStoreApplicationVersion)
 		if err != nil {
-			if errors.Is(err, errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString())) {
+			if errors.Is(err, errors.New(timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString())) {
 				impl.Logger.Errorw("error", "err", err)
 				GitCommitFailTimeline := impl.pipelineStatusTimelineService.
-					NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, "Git commit failed.", installedApp.UserId)
+					NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED, "Git commit failed.", installedApp.UserId)
 				_ = impl.pipelineStatusTimelineService.SaveTimeline(GitCommitFailTimeline, tx)
 			}
 			return installedApp, false, nil
@@ -305,9 +306,9 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 	installedApp, err = impl.updateValuesYamlInGit(installedApp)
 	if err != nil {
 		impl.Logger.Errorw("error", "err", err)
-		if errors.Is(err, errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString())) {
+		if errors.Is(err, errors.New(timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString())) {
 			GitCommitFailTimeline := impl.pipelineStatusTimelineService.
-				NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, "Git commit failed.", installedApp.UserId)
+				NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED, "Git commit failed.", installedApp.UserId)
 			_ = impl.pipelineStatusTimelineService.SaveTimeline(GitCommitFailTimeline, tx)
 		}
 		return installedApp, false, nil
@@ -322,12 +323,12 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 	isManualSync := impl.acdConfig.IsManualSyncEnabled()
 
 	GitCommitSuccessTimeline := impl.pipelineStatusTimelineService.
-		NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, pipelineConfig.TIMELINE_DESCRIPTION_ARGOCD_GIT_COMMIT, installedApp.UserId)
+		NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_GIT_COMMIT, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_GIT_COMMIT, installedApp.UserId)
 	timelines := []*pipelineConfig.PipelineStatusTimeline{GitCommitSuccessTimeline}
 	if isManualSync {
 		// add ARGOCD_SYNC_INITIATED timeline if manual sync
 		ArgocdSyncInitiatedTimeline := impl.pipelineStatusTimelineService.
-			NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, pipelineConfig.TIMELINE_DESCRIPTION_ARGOCD_SYNC_INITIATED, installedApp.UserId)
+			NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_INITIATED, installedApp.UserId)
 		timelines = append(timelines, ArgocdSyncInitiatedTimeline)
 	}
 	err = impl.pipelineStatusTimelineService.SaveMultipleTimelinesIfNotAlreadyPresent(timelines, tx)
@@ -342,7 +343,7 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 	}
 	if isManualSync {
 		ArgocdSyncCompletedTimeline := impl.pipelineStatusTimelineService.
-			NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED, pipelineConfig.TIMELINE_DESCRIPTION_ARGOCD_SYNC_COMPLETED, installedApp.UserId)
+			NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_COMPLETED, installedApp.UserId)
 		err = impl.pipelineStatusTimelineService.SaveTimeline(ArgocdSyncCompletedTimeline, tx)
 		if err != nil {
 			impl.Logger.Errorw("error in creating timeline status for deployment initiation for update of installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installedApp.InstalledAppVersionHistoryId)

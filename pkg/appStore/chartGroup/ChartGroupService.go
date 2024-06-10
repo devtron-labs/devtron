@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/appStore/adapter"
@@ -892,7 +893,7 @@ func (impl *ChartGroupServiceImpl) PerformDeployStage(installedAppVersionId int,
 		ctx = context.WithValue(ctx, "token", acdToken)
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			InstalledAppVersionHistoryId: installedAppVersion.InstalledAppVersionHistoryId,
-			Status:                       pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED,
+			Status:                       timelineStatus.TIMELINE_STATUS_DEPLOYMENT_INITIATED,
 			StatusDetail:                 "Deployment initiated successfully.",
 			StatusTime:                   time.Now(),
 			AuditLog: sql.AuditLog{
@@ -954,7 +955,7 @@ func (impl *ChartGroupServiceImpl) performDeployStageOnAcd(installedAppVersion *
 			}
 			timeline := &pipelineConfig.PipelineStatusTimeline{
 				InstalledAppVersionHistoryId: installedAppVersion.InstalledAppVersionHistoryId,
-				Status:                       pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED,
+				Status:                       timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED,
 				StatusDetail:                 fmt.Sprintf("Git commit failed - %v", err),
 				StatusTime:                   time.Now(),
 				AuditLog: sql.AuditLog{
@@ -970,8 +971,8 @@ func (impl *ChartGroupServiceImpl) performDeployStageOnAcd(installedAppVersion *
 
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			InstalledAppVersionHistoryId: installedAppVersion.InstalledAppVersionHistoryId,
-			Status:                       pipelineConfig.TIMELINE_STATUS_GIT_COMMIT,
-			StatusDetail:                 pipelineConfig.TIMELINE_DESCRIPTION_ARGOCD_GIT_COMMIT,
+			Status:                       timelineStatus.TIMELINE_STATUS_GIT_COMMIT,
+			StatusDetail:                 timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_GIT_COMMIT,
 			StatusTime:                   time.Now(),
 		}
 		timeline.CreateAuditLog(installedAppVersion.UserId)
@@ -984,12 +985,12 @@ func (impl *ChartGroupServiceImpl) performDeployStageOnAcd(installedAppVersion *
 		}
 
 		GitCommitSuccessTimeline := impl.pipelineStatusTimelineService.
-			NewHelmAppDeploymentStatusTimelineDbObject(installedAppVersion.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, pipelineConfig.TIMELINE_DESCRIPTION_ARGOCD_GIT_COMMIT, installedAppVersion.UserId)
+			NewHelmAppDeploymentStatusTimelineDbObject(installedAppVersion.InstalledAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_GIT_COMMIT, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_GIT_COMMIT, installedAppVersion.UserId)
 
 		timelines := []*pipelineConfig.PipelineStatusTimeline{GitCommitSuccessTimeline}
 		if impl.acdConfig.IsManualSyncEnabled() {
 			ArgocdSyncInitiatedTimeline := impl.pipelineStatusTimelineService.
-				NewHelmAppDeploymentStatusTimelineDbObject(installedAppVersion.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, pipelineConfig.TIMELINE_DESCRIPTION_ARGOCD_SYNC_INITIATED, installedAppVersion.UserId)
+				NewHelmAppDeploymentStatusTimelineDbObject(installedAppVersion.InstalledAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_INITIATED, installedAppVersion.UserId)
 
 			timelines = append(timelines, ArgocdSyncInitiatedTimeline)
 		}

@@ -24,7 +24,8 @@ import (
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkFlow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -117,8 +118,8 @@ func (impl *CdWorkflowCommonServiceImpl) SupersedePreviousDeployments(ctx contex
 		previousRunner.UpdatedBy = triggeredBy
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: previousRunner.Id,
-			Status:             pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED,
-			StatusDetail:       pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_SUPERSEDED,
+			Status:             timelineStatus.TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED,
+			StatusDetail:       timelineStatus.TIMELINE_DESCRIPTION_DEPLOYMENT_SUPERSEDED,
 			StatusTime:         time.Now(),
 		}
 		timeline.CreateAuditLog(1)
@@ -184,7 +185,7 @@ func (impl *CdWorkflowCommonServiceImpl) MarkCurrentDeploymentFailed(runner *pip
 				return err
 			}
 		}
-		globalUtil.TriggerCDMetrics(adapter.GetTriggerMetricsFromRunnerObj(runner), impl.config.ExposeCDMetrics)
+		globalUtil.TriggerCDMetrics(cdWorkFlow.GetTriggerMetricsFromRunnerObj(runner), impl.config.ExposeCDMetrics)
 	}
 	return nil
 }
@@ -241,7 +242,7 @@ func (impl *CdWorkflowCommonServiceImpl) UpdatePreviousQueuedRunnerStatus(cdWfrI
 				Pipeline: pipeline,
 			}
 		}
-		globalUtil.TriggerCDMetrics(adapter.GetTriggerMetricsFromRunnerObj(queuedRunner), impl.config.ExposeCDMetrics)
+		globalUtil.TriggerCDMetrics(cdWorkFlow.GetTriggerMetricsFromRunnerObj(queuedRunner), impl.config.ExposeCDMetrics)
 		queuedRunnerIds = append(queuedRunnerIds, queuedRunner.Id)
 	}
 	err = impl.cdWorkflowRepository.UpdateRunnerStatusToFailedForIds(pipelineConfig.ErrorDeploymentSuperseded.Error(), triggeredBy, queuedRunnerIds...)
@@ -256,7 +257,7 @@ func extractTimelineFailedStatusDetails(err error) string {
 	errorString := util.GetClientErrorDetailedMessage(err)
 	switch errorString {
 	case pipelineConfig.FOUND_VULNERABILITY:
-		return pipelineConfig.TIMELINE_DESCRIPTION_VULNERABLE_IMAGE
+		return timelineStatus.TIMELINE_DESCRIPTION_VULNERABLE_IMAGE
 	default:
 		return util.GetTruncatedMessage(fmt.Sprintf("Deployment failed: %s", errorString), 255)
 	}

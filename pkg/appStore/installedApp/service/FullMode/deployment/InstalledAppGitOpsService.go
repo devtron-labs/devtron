@@ -21,7 +21,7 @@ import (
 	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
@@ -253,7 +253,7 @@ func (impl *FullModeDeploymentServiceImpl) updateValuesYamlInGit(installAppVersi
 	commitHash, _, err := impl.gitOperationService.CommitValues(context.Background(), valuesGitConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in git commit", "err", err)
-		return installAppVersionRequest, errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString())
+		return installAppVersionRequest, errors.New(timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString())
 	}
 	//update timeline status for git commit state
 	installAppVersionRequest.GitHash = commitHash
@@ -276,7 +276,7 @@ func (impl *FullModeDeploymentServiceImpl) updateRequirementYamlInGit(installApp
 	_, _, err = impl.gitOperationService.CommitValues(context.Background(), requirementsGitConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in values commit", "err", err)
-		return errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString())
+		return errors.New(timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString())
 	}
 
 	return nil

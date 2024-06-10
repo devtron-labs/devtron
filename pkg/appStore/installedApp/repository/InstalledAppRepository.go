@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
@@ -830,8 +831,8 @@ func (impl InstalledAppRepositoryImpl) GetArgoPipelinesHavingTriggersStuckInLast
 					and iavh.updated_on > NOW() - INTERVAL '? minutes' and ia.deployment_app_type=? and iav.active=?;`
 
 	_, err := impl.dbConnection.Query(&installedAppVersions, queryString,
-		pg.In([]pipelineConfig.TimelineStatus{pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED,
-			pipelineConfig.TIMELINE_STATUS_FETCH_TIMED_OUT, pipelineConfig.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS}),
+		pg.In([]timelineStatus.TimelineStatus{timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED,
+			timelineStatus.TIMELINE_STATUS_FETCH_TIMED_OUT, timelineStatus.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS}),
 		pendingSinceSeconds, timeForDegradation, util2.PIPELINE_DEPLOYMENT_TYPE_ACD, true)
 	if err != nil {
 		impl.Logger.Errorw("error in GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelinesForAppStore", "err", err)

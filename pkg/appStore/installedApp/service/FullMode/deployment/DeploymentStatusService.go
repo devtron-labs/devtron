@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -29,12 +30,12 @@ import (
 
 type DeploymentStatusService interface {
 	// TODO refactoring: Move to DB service
-	SaveTimelineForHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status pipelineConfig.TimelineStatus, statusDetail string, statusTime time.Time, tx *pg.Tx) error
+	SaveTimelineForHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status timelineStatus.TimelineStatus, statusDetail string, statusTime time.Time, tx *pg.Tx) error
 	// UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus updates failed status in pipelineConfig.PipelineStatusTimeline table
 	UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, triggeredAt time.Time, err error) error
 }
 
-func (impl *FullModeDeploymentServiceImpl) SaveTimelineForHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status pipelineConfig.TimelineStatus, statusDetail string, statusTime time.Time, tx *pg.Tx) error {
+func (impl *FullModeDeploymentServiceImpl) SaveTimelineForHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status timelineStatus.TimelineStatus, statusDetail string, statusTime time.Time, tx *pg.Tx) error {
 
 	if !util.IsAcdApp(installAppVersionRequest.DeploymentAppType) && !util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
 		return nil
@@ -70,7 +71,7 @@ func (impl *FullModeDeploymentServiceImpl) UpdateInstalledAppAndPipelineStatusFo
 			impl.Logger.Infow("marking pipeline deployment failed", "err", err)
 			timeline := &pipelineConfig.PipelineStatusTimeline{
 				InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
-				Status:                       pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED,
+				Status:                       timelineStatus.TIMELINE_STATUS_DEPLOYMENT_FAILED,
 				StatusDetail:                 fmt.Sprintf("Deployment failed: %v", err),
 				StatusTime:                   time.Now(),
 			}
@@ -132,7 +133,7 @@ func (impl *FullModeDeploymentServiceImpl) UpdateInstalledAppAndPipelineStatusFo
 			previousHistory.UpdatedBy = installAppVersionRequest.UserId
 			timeline := &pipelineConfig.PipelineStatusTimeline{
 				InstalledAppVersionHistoryId: previousHistory.Id,
-				Status:                       pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED,
+				Status:                       timelineStatus.TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED,
 				StatusDetail:                 "This deployment is superseded.",
 				StatusTime:                   time.Now(),
 				AuditLog: sql.AuditLog{

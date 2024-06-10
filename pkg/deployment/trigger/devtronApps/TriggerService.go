@@ -39,6 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	repository4 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -78,6 +79,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
 	"google.golang.org/grpc/codes"
 	status2 "google.golang.org/grpc/status"
 	"k8s.io/helm/pkg/proto/hapi/chart"
@@ -444,7 +446,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		}
 		overrideRequest.CdWorkflowId = cdWorkflowId
 		// creating cd pipeline status timeline for deployment initialisation
-		timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(savedWfr.Id, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED, overrideRequest.UserId)
+		timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(savedWfr.Id, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_INITIATED, timelineStatus.TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED, overrideRequest.UserId)
 		_, span := otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimelineForACDHelmApps")
 		_, err = impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
 
@@ -580,7 +582,7 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	// creating cd pipeline status timeline for deployment initialisation
 	timeline := &pipelineConfig.PipelineStatusTimeline{
 		CdWorkflowRunnerId: runner.Id,
-		Status:             pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED,
+		Status:             timelineStatus.TIMELINE_STATUS_DEPLOYMENT_INITIATED,
 		StatusDetail:       "Deployment initiated successfully.",
 		StatusTime:         time.Now(),
 	}
@@ -709,7 +711,7 @@ func (impl *TriggerServiceImpl) handleCDTriggerRelease(ctx context.Context, over
 		impl.logger.Errorw("error in saving new userDeploymentRequest", "overrideRequest", overrideRequest, "err", err)
 		return releaseNo, err
 	}
-	timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(overrideRequest.WfrId, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_REQUEST_VALIDATED, deployedBy)
+	timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(overrideRequest.WfrId, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED, timelineStatus.TIMELINE_DESCRIPTION_DEPLOYMENT_REQUEST_VALIDATED, deployedBy)
 	// creating cd pipeline status timeline for deployment trigger request validated
 	_, err = impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, tx)
 	err = impl.transactionUtilImpl.CommitTx(tx)
@@ -736,7 +738,7 @@ func (impl *TriggerServiceImpl) auditDeploymentTriggerHistory(cdWfrId int, value
 		return nil
 	}
 	// creating cd pipeline status timeline for deployment trigger history saved
-	timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(cdWfrId, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_AUDIT_COMPLETED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_AUDIT_COMPLETED, triggeredBy)
+	timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(cdWfrId, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_AUDIT_COMPLETED, timelineStatus.TIMELINE_DESCRIPTION_DEPLOYMENT_AUDIT_COMPLETED, triggeredBy)
 	_, err = impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
 	if err != nil {
 		impl.logger.Errorw("error in creating timeline status for deployment trigger history saved", "err", err, "timeline", timeline)
@@ -779,7 +781,7 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 		return 0, err
 	} else if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, pipelineConfig.ErrorDeploymentSuperseded) {
 		// creating cd pipeline status timeline for deployment triggered - Also for context deadline exceeded requests
-		timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(overrideRequest.WfrId, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_COMPLETED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_COMPLETED, overrideRequest.UserId)
+		timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(overrideRequest.WfrId, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_COMPLETED, timelineStatus.TIMELINE_DESCRIPTION_DEPLOYMENT_COMPLETED, overrideRequest.UserId)
 		_, dbErr := impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
 		if dbErr != nil {
 			impl.logger.Errorw("error in creating timeline status for deployment completed", "err", dbErr, "timeline", timeline)
@@ -787,7 +789,7 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 		return 0, err
 	}
 	// creating cd pipeline status timeline for deployment triggered - for successfully triggered requests
-	timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(overrideRequest.WfrId, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_COMPLETED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_COMPLETED, overrideRequest.UserId)
+	timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(overrideRequest.WfrId, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_COMPLETED, timelineStatus.TIMELINE_DESCRIPTION_DEPLOYMENT_COMPLETED, overrideRequest.UserId)
 	_, dbErr := impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
 	if dbErr != nil {
 		impl.logger.Errorw("error in creating timeline status for deployment completed", "err", dbErr, "timeline", timeline)
@@ -828,61 +830,39 @@ func (impl *TriggerServiceImpl) buildTriggerEventForOverrideRequest(overrideRequ
 	triggerEvent = helper.NewTriggerEvent(overrideRequest.DeploymentAppType, triggeredAt, overrideRequest.UserId)
 	request := statusBean.NewTimelineGetRequest().
 		WithCdWfrId(overrideRequest.WfrId).
-		ExcludingStatuses(pipelineConfig.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS)
-	latestTimelineStatus, err := impl.pipelineStatusTimelineService.GetLastTimelineStatusFor(request)
+		ExcludingStatuses(timelineStatus.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS,
+			timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_STARTED,
+			timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED)
+	timelineStatuses, err := impl.pipelineStatusTimelineService.GetTimelineStatusesFor(request)
 	if err != nil {
 		impl.logger.Errorw("error in getting last timeline status by cdWfrId", "cdWfrId", overrideRequest.WfrId, "err", err)
 		return triggerEvent, skipRequest, err
-	}
-	if latestTimelineStatus.IsTerminalTimelineStatus() {
-		impl.logger.Info("deployment is already terminated", "cdWfrId", overrideRequest.WfrId, "latestTimelineStatus", latestTimelineStatus)
+	} else if timelineStatus.ContainsTerminalTimelineStatus(timelineStatuses) {
+		impl.logger.Info("deployment is already terminated", "cdWfrId", overrideRequest.WfrId, "timelineStatuses", timelineStatuses)
 		skipRequest = true
 		return triggerEvent, skipRequest, nil
-	}
-	switch latestTimelineStatus {
-	case pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED:
-		return triggerEvent, skipRequest, fmt.Errorf("invalid deployment request recieved")
-	case pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED:
-		// perform all trigger events
+	} else if !slices.Contains(timelineStatuses, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED) {
+		impl.logger.Info("deployment is already terminated", "cdWfrId", overrideRequest.WfrId, "timelineStatuses", timelineStatuses)
 		return triggerEvent, skipRequest, nil
-	case pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_AUDIT_COMPLETED,
-		pipelineConfig.TIMELINE_STATUS_MANIFEST_GENERATED:
-		// trigger history has already been saved
-		triggerEvent.SaveTriggerHistory = false
-		return triggerEvent, skipRequest, nil
-	case pipelineConfig.TIMELINE_STATUS_GIT_COMMIT,
-		pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED:
-		// trigger history has already been saved
-		triggerEvent.SaveTriggerHistory = false
-		// git commit has already been performed
-		triggerEvent.PerformChartPush = false
-		return triggerEvent, skipRequest, nil
-	case pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED:
-		// trigger history has already been saved
-		triggerEvent.SaveTriggerHistory = false
-		// git commit has already been performed
-		triggerEvent.PerformChartPush = false
-		// ArgoCd sync has already been performed
-		triggerEvent.DeployArgoCdApp = false
-		return triggerEvent, skipRequest, nil
-	case pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_TRIGGERED:
-		// trigger history has already been saved
-		triggerEvent.SaveTriggerHistory = false
-		// git commit has already been performed
-		triggerEvent.PerformChartPush = false
-		// ArgoCd sync has already been performed
-		triggerEvent.DeployArgoCdApp = false
-		// deployment has already been performed
-		triggerEvent.PerformDeploymentOnCluster = false
-		return triggerEvent, skipRequest, nil
-	case pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_COMPLETED,
-		pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED,
-		pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED:
-		impl.logger.Info("deployment has been performed. skipping", "cdWfrId", overrideRequest.WfrId, "latestTimelineStatus", latestTimelineStatus)
+	} else if slices.Contains(timelineStatuses, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_COMPLETED) {
+		impl.logger.Info("deployment has been performed. skipping", "cdWfrId", overrideRequest.WfrId, "timelineStatuses", timelineStatuses)
 		skipRequest = true
 		return triggerEvent, skipRequest, nil
 	}
 
+	if slices.Contains(timelineStatuses, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_AUDIT_COMPLETED) {
+		// trigger history has already been saved
+		triggerEvent.SaveTriggerHistory = false
+	}
+	if slices.Contains(timelineStatuses, timelineStatus.TIMELINE_STATUS_GIT_COMMIT) ||
+		slices.Contains(timelineStatuses, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED) {
+		// git commit has already been performed
+		triggerEvent.PerformChartPush = false
+	}
+	if slices.Contains(timelineStatuses, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED) {
+		// ArgoCd sync has already been performed
+		triggerEvent.DeployArgoCdApp = false
+	}
 	return triggerEvent, skipRequest, nil
 }
 
@@ -995,12 +975,6 @@ func (impl *TriggerServiceImpl) deployApp(ctx context.Context, overrideRequest *
 			impl.logger.Errorw("error in creating or updating helm application for cd pipeline", "err", err)
 			return err
 		}
-	}
-	// creating cd pipeline status timeline for deployment triggered
-	timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(overrideRequest.WfrId, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_TRIGGERED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_TRIGGERED, overrideRequest.UserId)
-	_, err := impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
-	if err != nil {
-		impl.logger.Errorw("error in creating timeline status for deployment triggered", "err", err, "timeline", timeline)
 	}
 	return nil
 }
@@ -1178,8 +1152,8 @@ func (impl *TriggerServiceImpl) deployArgoCdApp(ctx context.Context, overrideReq
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: overrideRequest.WfrId,
 			StatusTime:         syncTime,
-			Status:             pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
-			StatusDetail:       pipelineConfig.TIMELINE_DESCRIPTION_ARGOCD_SYNC_COMPLETED,
+			Status:             timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
+			StatusDetail:       timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_COMPLETED,
 		}
 		timeline.CreateAuditLog(overrideRequest.UserId)
 		_, err = impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)

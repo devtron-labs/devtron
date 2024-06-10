@@ -19,7 +19,7 @@ type TriggerEventEvaluator interface {
 
 type TriggerEventEvaluatorImpl struct {
 	logger              *zap.SugaredLogger
-	imageTagRepository  repository.ImageTaggingRepository // TODO Asutosh: fix import cycle issue for pipeline.ImageTaggingService
+	imageTagRepository  repository.ImageTaggingRepository // TODO: fix import cycle issue for pipeline.ImageTaggingService
 	teamService         team.TeamService
 	attributesService   attributes.AttributesService
 	celEvaluatorService cel.EvaluatorService

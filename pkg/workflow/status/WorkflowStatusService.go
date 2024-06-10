@@ -27,7 +27,8 @@ import (
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkFlow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	app_status "github.com/devtron-labs/devtron/pkg/appStatus"
@@ -171,7 +172,7 @@ func (impl *WorkflowStatusServiceImpl) CheckHelmAppStatusPeriodicallyAndUpdateIn
 			return err
 		}
 		if slices.Contains(pipelineConfig.WfrTerminalStatusList, wfr.Status) {
-			util3.TriggerCDMetrics(adapter.GetTriggerMetricsFromRunnerObj(wfr), impl.config.ExposeCDMetrics)
+			util3.TriggerCDMetrics(cdWorkFlow.GetTriggerMetricsFromRunnerObj(wfr), impl.config.ExposeCDMetrics)
 		}
 
 		impl.logger.Infow("updated workflow runner status for helm app", "wfr", wfr)
@@ -242,7 +243,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 			// creating cd pipeline status timeline
 			timeline := &pipelineConfig.PipelineStatusTimeline{
 				CdWorkflowRunnerId: cdWfr.Id,
-				Status:             pipelineConfig.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS,
+				Status:             timelineStatus.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS,
 				StatusDetail:       "Failed to connect to Argo CD to fetch deployment status.",
 				StatusTime:         time.Now(),
 				AuditLog: sql.AuditLog{
@@ -344,7 +345,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 			// creating installedApp pipeline status timeline
 			timeline := &pipelineConfig.PipelineStatusTimeline{
 				InstalledAppVersionHistoryId: installedAppVersionHistory.Id,
-				Status:                       pipelineConfig.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS,
+				Status:                       timelineStatus.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS,
 				StatusDetail:                 "Failed to connect to Argo CD to fetch deployment status.",
 				StatusTime:                   time.Now(),
 				AuditLog: sql.AuditLog{
@@ -413,7 +414,22 @@ func (impl *WorkflowStatusServiceImpl) CheckAndSendArgoPipelineStatusSyncEventIf
 		// for devtron applications, all restart cases has been handled through user deployment request processing.
 		// refer function: WorkflowEventProcessorImpl.ProcessIncompleteDeploymentReq()
 		// hence, sync ACD app for cd pipeline will not be necessary.
-		// skipping...
+
+		// checking if git commit timeline exists for the latest CdWorkflowRunner
+		latestCdWfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean2.CD_WORKFLOW_TYPE_DEPLOY)
+		if err != nil {
+			impl.logger.Errorw("error in checking if terminal status timeline exists by wfrId", "err", err, "pipelineId", pipelineId)
+			return
+		}
+		preRequiredStatusExists, err := impl.pipelineStatusTimelineRepository.CheckIfTimelineStatusPresentByWfrId(latestCdWfr.Id, timelineStatus.TIMELINE_STATUS_GIT_COMMIT)
+		if err != nil {
+			impl.logger.Errorw("error in checking if terminal status timeline exists by wfrId", "err", err, "wfrId", latestCdWfr.Id)
+			return
+		}
+		if !preRequiredStatusExists {
+			impl.logger.Errorw("pre-condition failed: timeline for GIT_COMMIT is missing for wfrId", "wfrId", latestCdWfr.Id)
+			return
+		}
 	}
 	if installedAppVersionId != 0 {
 		err := impl.syncACDHelmApps(impl.AppConfig.ArgoCdManualSyncCronPipelineDeployedBefore, installedAppVersionId)
@@ -503,7 +519,7 @@ func (impl *WorkflowStatusServiceImpl) syncACDHelmApps(deployedBeforeMinutes int
 		impl.logger.Errorw("error in fetching latest pipeline status by cdWfrId", "err", err)
 		return err
 	}
-	if pipelineStatusTimeline.Status == pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED && time.Since(pipelineStatusTimeline.StatusTime) >= time.Minute*time.Duration(deployedBeforeMinutes) {
+	if pipelineStatusTimeline.Status == timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED && time.Since(pipelineStatusTimeline.StatusTime) >= time.Minute*time.Duration(deployedBeforeMinutes) {
 		installedApp, err := impl.installedAppRepository.GetInstalledAppByInstalledAppVersionId(installedAppVersionHistory.InstalledAppVersionId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching installed_app by installedAppVersionId", "err", err)
@@ -530,7 +546,7 @@ func (impl *WorkflowStatusServiceImpl) syncACDHelmApps(deployedBeforeMinutes int
 		syncErr := impl.argocdClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, argoAppName)
 		if syncErr != nil {
 			impl.logger.Errorw("error in syncing argoCD app", "err", syncErr)
-			timelineObject := impl.pipelineStatusTimelineService.NewHelmAppDeploymentStatusTimelineDbObject(installedAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED, fmt.Sprintf("error occured in syncing argocd application. err: %s", syncErr.Error()), 1)
+			timelineObject := impl.pipelineStatusTimelineService.NewHelmAppDeploymentStatusTimelineDbObject(installedAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_FAILED, fmt.Sprintf("error occured in syncing argocd application. err: %s", syncErr.Error()), 1)
 			_ = impl.pipelineStatusTimelineService.SaveTimeline(timelineObject, nil)
 			installedAppVersionHistory.Status = pipelineConfig.WorkflowFailed
 			installedAppVersionHistory.UpdatedBy = 1
@@ -545,8 +561,8 @@ func (impl *WorkflowStatusServiceImpl) syncACDHelmApps(deployedBeforeMinutes int
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			InstalledAppVersionHistoryId: installedAppVersionHistoryId,
 			StatusTime:                   syncTime,
-			Status:                       pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
-			StatusDetail:                 pipelineConfig.TIMELINE_DESCRIPTION_ARGOCD_SYNC_COMPLETED,
+			Status:                       timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
+			StatusDetail:                 timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_COMPLETED,
 		}
 		timeline.CreateAuditLog(1)
 		_, err = impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)

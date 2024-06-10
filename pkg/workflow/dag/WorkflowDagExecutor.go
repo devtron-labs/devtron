@@ -27,7 +27,7 @@ import (
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	client "github.com/devtron-labs/devtron/client/events"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkFlow"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
@@ -323,7 +323,7 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 				}
 			}
 			if util4.IsTerminalRunnerStatus(cdWfr.Status) {
-				util4.TriggerCDMetrics(adapter.GetTriggerMetricsFromRunnerObj(cdWfr), impl.config.ExposeCDMetrics)
+				util4.TriggerCDMetrics(cdWorkFlow.GetTriggerMetricsFromRunnerObj(cdWfr), impl.config.ExposeCDMetrics)
 			}
 			impl.logger.Infow("updated workflow runner status for helm app", "wfr", cdWfr)
 		} else {

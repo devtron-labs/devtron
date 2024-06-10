@@ -808,7 +808,7 @@ func (impl *WorkflowEventProcessorImpl) ProcessIncompleteDeploymentReq() {
 	}
 	for index, cdAsyncInstallReq := range cdAsyncInstallRequests {
 		impl.logger.Infow("processing incomplete deployment request", "cdAsyncInstallReq", cdAsyncInstallReq, "request sequence", index+1)
-		err = impl.setAdditionalDataInAsyncInstallReq(context.Background(), cdAsyncInstallReq)
+		err = impl.setAdditionalDataInAsyncInstallReq(ctx, cdAsyncInstallReq)
 		if err != nil {
 			impl.logger.Errorw("error in setting additional data to UserDeploymentRequest, skipping", "err", err)
 			continue

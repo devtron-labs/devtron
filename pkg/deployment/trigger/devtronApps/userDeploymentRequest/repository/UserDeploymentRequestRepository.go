@@ -22,6 +22,7 @@ import (
 	apiBean "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
@@ -126,7 +127,6 @@ func (impl *UserDeploymentRequestRepositoryImpl) GetLatestIdForPipeline(ctx cont
 	return latestId, err
 }
 
-// TODO Asutosh: analyse query execution time
 func (impl *UserDeploymentRequestRepositoryImpl) GetAllInCompleteRequests(ctx context.Context) ([]UserDeploymentRequestWithAdditionalFields, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "UserDeploymentRequestRepositoryImpl.GetAllInCompleteRequests")
 	defer span.End()
@@ -135,7 +135,7 @@ func (impl *UserDeploymentRequestRepositoryImpl) GetAllInCompleteRequests(ctx co
 		Table("pipeline_status_timeline").
 		ColumnExpr("1").
 		Where("pipeline_status_timeline.cd_workflow_runner_id = cdwfr.id").
-		Where("pipeline_status_timeline.status = ?", pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_COMPLETED)
+		Where("pipeline_status_timeline.status = ?", timelineStatus.TIMELINE_STATUS_DEPLOYMENT_COMPLETED)
 	latestRequestQuery := impl.dbConnection.Model().
 		Table("user_deployment_request").
 		ColumnExpr("MAX(user_deployment_request.id)").
@@ -147,7 +147,7 @@ func (impl *UserDeploymentRequestRepositoryImpl) GetAllInCompleteRequests(ctx co
 		JoinOn("cdwfr.id = pst.cd_workflow_runner_id").
 		Where("cdwfr.workflow_type = ?", apiBean.CD_WORKFLOW_TYPE_DEPLOY).
 		Where("cdwfr.status NOT IN (?)", pg.In(append(pipelineConfig.WfrTerminalStatusList, pipelineConfig.WorkflowInQueue))).
-		Where("pst.status = ?", pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED).
+		Where("pst.status = ?", timelineStatus.TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED).
 		Where("NOT EXISTS (?)", subQuery).
 		Group("pipeline_id")
 	err := impl.dbConnection.Model().
