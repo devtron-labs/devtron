@@ -8,42 +8,37 @@ global:
     runAsUser: 1000
     runAsNonRoot: true
   containerRegistry: "quay.io/devtron"
-
+  
 installer:
   repo: "devtron-labs/devtron"
-  release: "v0.6.29"
+  release: "v0.7.0"
   registry: ""
   image: inception
   tag: 473deaa4-185-21582
   source: "github" # Available options are github and gitee
-#  mode: "dashboard" # Available options are dashboard, full and hyperion (deprecated) NOT USING THIS
   modules: [] # Available options are cicd
   openshift: false # Set this to true if you are installing on openshift
   production_overrides: "" # Set true if you want to use this Devtron stack in Production (This will require more resources)
-
 # Change the below values for full mode only
 
 #Use secrets in plaintext, they'll be encoded to base64 automatically.
 secrets: {}
-
 #  REQUIRED IF BLOB_STORAGE_PROVIDER=AZURE Token with read write access to AZURE_BLOB_CONTAINER_CI_LOG and AZURE_BLOB_CONTAINER_CI_CACHE
 #  AZURE_ACCOUNT_KEY: "xxxxxxxxxx"
 configs:
-  BLOB_STORAGE_PROVIDER: ""   #AZURE|S3|MINIO|GCP
-  ENABLE_LEGACY_API: "false"  # Set to true if you are installing Devtron on a kubernetes version < k8s 1.19
-# Amazon AWS S3 bucket and region for storing Build-cache for faster build process. Mandatory if BLOB_STORAGE_PROVIDER is AWS.
+  BLOB_STORAGE_PROVIDER: "" #AZURE|S3|MINIO|GCP
+  # Amazon AWS S3 bucket and region for storing Build-cache for faster build process. Mandatory if BLOB_STORAGE_PROVIDER is AWS.
   #DEFAULT_CACHE_BUCKET: "change-me"   #Do not include s3://
   #DEFAULT_CACHE_BUCKET_REGION: "us-east-1"
-# Amazon AWS S3 bucket and region for storing Build-logs. Mandatory if BLOB_STORAGE_PROVIDER is AWS.
+  # Amazon AWS S3 bucket and region for storing Build-logs. Mandatory if BLOB_STORAGE_PROVIDER is AWS.
   #DEFAULT_BUILD_LOGS_BUCKET: "change-me"   #Do not include s3://
   #DEFAULT_CD_LOGS_BUCKET_REGION: "us-east-1"
-# Amazon AWS Secret Region if you will be using AWS Secret manager for storing secrets.
+  # Amazon AWS Secret Region if you will be using AWS Secret manager for storing secrets.
   #EXTERNAL_SECRET_AMAZON_REGION: ""
-# Azure Blob storage Info for storing Build Logs and Build cache for faster build process.
+  # Azure Blob storage Info for storing Build Logs and Build cache for faster build process.
   #AZURE_ACCOUNT_NAME: "test-account"
   #AZURE_BLOB_CONTAINER_CI_LOG: "ci-log-container"
   #AZURE_BLOB_CONTAINER_CI_CACHE: "ci-cache-container"
-
 # Change the below values for hyperion only mode (Refer https://docs.devtron.ai/#hyperion )
 components:
   dashboard:
@@ -66,13 +61,13 @@ components:
         SERVICE_WORKER_TIMEOUT: "1"
         API_BATCH_SIZE: "30"
     registry: ""
-    image: "dashboard:1c86e84e-325-22108"
+    image: "dashboard:87aaf7ac-690-23135"
     imagePullPolicy: IfNotPresent
-
+    
   devtron:
     registry: ""
-    image: "hyperion:e7f34f5a-280-22107"
-    cicdImage: "devtron:e7f34f5a-434-22106"
+    image: "hyperion:3aa7e420-280-23147"
+    cicdImage: "devtron:3aa7e420-434-23146"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
@@ -89,28 +84,28 @@ components:
       className: nginx
       labels: {}
       annotations: {}
-        # kubernetes.io/tls-acme: "true"
+      # kubernetes.io/tls-acme: "true"
       pathType: ImplementationSpecific
       host: devtron.example.com
       tls: []
       #  - secretName: devtron-tls
       #    hosts:
       #      - devtron.example.com
+      
   ciRunner:
     registry: ""
-    image: "ci-runner:f5614d79-541-22176"
-
-
+    image: "ci-runner:6e721248-138-23081"
+    
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
     imagePullPolicy: IfNotPresent
     initContainer:
       authenticator: "authenticator:e414faff-393-13273"
-
+      
   kubelink:
     registry: ""
-    image: "kubelink:2610ac5a-564-22109"
+    image: "kubelink:a810dbae-564-23055"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
@@ -125,10 +120,10 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
-
+      
   kubewatch:
     registry: ""
-    image: "kubewatch:50d4d32d-419-22116"
+    image: "kubewatch:f8ac0fe6-419-23054"
     imagePullPolicy: IfNotPresent
     configs:
       devtroncd_NAMESPACE: "devtron-ci"
@@ -136,7 +131,7 @@ components:
       ACD_NAMESPACE: "devtroncd"
       ACD_INFORMER: "true"
       NATS_STREAM_MAX_AGE: "10800"
-
+      
   postgres:
     registry: ""
     image: "postgres:11.9.0-debian-10-r26"
@@ -148,7 +143,7 @@ components:
       armImage: postgres_exporter:v0.10.1
     persistence:
       volumeSize: "20Gi"
-
+      
   gitsensor:
     registry: ""
     image: "git-sensor:8545feb5-200-22005"
@@ -166,10 +161,10 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
-# Values for lens
+  # Values for lens
   lens:
     registry: ""
-    image: "lens:70577aaa-333-21179"
+    image: "lens:3d3e8f08-333-23057"
     imagePullPolicy: IfNotPresent
     secrets: {}
     resources: {}
@@ -184,7 +179,7 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
-# Change below values for nats
+  # Change below values for nats
   nats:
     registry: ""
     image: nats:2.9.3-alpine
@@ -200,6 +195,7 @@ components:
       enabled: false
     persistence:
       storage: 5Gi
+      
   migrator:
     registry: ""
     image: "migrator:v4.16.2"
@@ -212,13 +208,12 @@ components:
         DB_NAME: "casbin"
       gitsensor:
         DB_NAME: "git_sensor"
-      lens: 
+      lens:
         DB_NAME: "lens"
-
+        
   chartSync:
     registry: ""
-    image: chart-sync:d0dcc590-373-21074
-  
+    image: chart-sync:b67ab589-150-23082
 # values for argocd integration
 argo-cd:
   enabled: false
@@ -250,37 +245,37 @@ argo-cd:
       # -- define the application controller `--repo-server-timeout-seconds`
       repoServerTimeoutSeconds: "200"
     extraArgs:
-    - --kubectl-parallelism-limit
-    - "35"
+      - --kubectl-parallelism-limit
+      - "35"
     containerSecurityContext:
       allowPrivilegeEscalation: false
       capabilities:
         drop:
-        - all
+          - all
       readOnlyRootFilesystem: true
       runAsNonRoot: true
     env:
-    - name: ARGOCD_RECONCILIATION_TIMEOUT
-      valueFrom:
-        configMapKeyRef:
-          key: timeout.reconciliation
-          name: argocd-cm
-          optional: true
+      - name: ARGOCD_RECONCILIATION_TIMEOUT
+        valueFrom:
+          configMapKeyRef:
+            key: timeout.reconciliation
+            name: argocd-cm
+            optional: true
     affinity:
       podAntiAffinity:
         preferredDuringSchedulingIgnoredDuringExecution:
-        - podAffinityTerm:
-            labelSelector:
-              matchLabels:
-                app.kubernetes.io/name: argocd-application-controller
-            topologyKey: kubernetes.io/hostname
-          weight: 100
-        - podAffinityTerm:
-            labelSelector:
-              matchLabels:
-                app.kubernetes.io/part-of: argocd
-            topologyKey: kubernetes.io/hostname
-          weight: 5
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-application-controller
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname
+            weight: 5
   # argocd-dex-server
   dex:
     enabled: false
@@ -289,18 +284,18 @@ argo-cd:
     affinity:
       podAntiAffinity:
         preferredDuringSchedulingIgnoredDuringExecution:
-        - podAffinityTerm:
-            labelSelector:
-              matchLabels:
-                app.kubernetes.io/name: argocd-redis
-            topologyKey: kubernetes.io/hostname
-          weight: 100
-        - podAffinityTerm:
-            labelSelector:
-              matchLabels:
-                app.kubernetes.io/part-of: argocd
-            topologyKey: kubernetes.io/hostname
-          weight: 5
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-redis
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname
+            weight: 5
     image:
       repository: public.ecr.aws/docker/library/redis
       tag: 7.0.5-alpine
@@ -310,23 +305,23 @@ argo-cd:
     affinity:
       podAntiAffinity:
         preferredDuringSchedulingIgnoredDuringExecution:
-        - podAffinityTerm:
-            labelSelector:
-              matchLabels:
-                app.kubernetes.io/name: argocd-server
-            topologyKey: kubernetes.io/hostname
-          weight: 100
-        - podAffinityTerm:
-            labelSelector:
-              matchLabels:
-                app.kubernetes.io/part-of: argocd
-            topologyKey: kubernetes.io/hostname
-          weight: 5
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-server
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname
+            weight: 5
     containerSecurityContext:
       allowPrivilegeEscalation: false
       capabilities:
         drop:
-        - all
+          - all
       readOnlyRootFilesystem: true
       runAsNonRoot: true
     # argocd-rbac-cm
@@ -337,37 +332,37 @@ argo-cd:
     affinity:
       podAntiAffinity:
         preferredDuringSchedulingIgnoredDuringExecution:
-        - podAffinityTerm:
-            labelSelector:
-              matchLabels:
-                app.kubernetes.io/name: argocd-repo-server
-            topologyKey: kubernetes.io/hostname
-          weight: 100
-        - podAffinityTerm:
-            labelSelector:
-              matchLabels:
-                app.kubernetes.io/part-of: argocd
-            topologyKey: kubernetes.io/hostname
-          weight: 5
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-repo-server
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname
+            weight: 5
     extraArgs:
-    - --repo-cache-expiration
-    - 24h
-    - --parallelismlimit
-    - "50"
+      - --repo-cache-expiration
+      - 24h
+      - --parallelismlimit
+      - "50"
     env:
-    - name: ARGOCD_RECONCILIATION_TIMEOUT
-      valueFrom:
-        configMapKeyRef:
-          key: timeout.reconciliation
-          name: argocd-cm
-          optional: true
-    - name: ARGOCD_EXEC_TIMEOUT
-      value: 180s
+      - name: ARGOCD_RECONCILIATION_TIMEOUT
+        valueFrom:
+          configMapKeyRef:
+            key: timeout.reconciliation
+            name: argocd-cm
+            optional: true
+      - name: ARGOCD_EXEC_TIMEOUT
+        value: 180s
     containerSecurityContext:
       allowPrivilegeEscalation: false
       capabilities:
         drop:
-        - all
+          - all
       readOnlyRootFilesystem: true
       runAsNonRoot: true
   applicationSet:
@@ -378,7 +373,7 @@ argo-cd:
 security:
   enabled: false
   imageScanner:
-    image: "image-scanner:c0416bc2-334-22111"
+    image: "image-scanner:3ab2ba46-141-23064"
   # Values for trivy
   trivy:
     enabled: false
@@ -425,8 +420,6 @@ workflowController:
   executorImage: "argoexec:v3.4.3"
   IMDSv1Image: "workflow-controller:v3.0.7"
   IMDSv1ExecutorImage: "argoexec:v3.0.7"
-
-
 # Values for grafana integration
 monitoring:
   grafana:
