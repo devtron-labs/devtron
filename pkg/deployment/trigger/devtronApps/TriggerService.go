@@ -769,15 +769,7 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 		return releaseNo, err
 	}
 	releaseNo, err = impl.triggerPipeline(overrideRequest, valuesOverrideResponse, builtChartPath, triggerEvent, newCtx)
-	if err != nil && !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, pipelineConfig.ErrorDeploymentSuperseded) {
-		return 0, err
-	} else if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, pipelineConfig.ErrorDeploymentSuperseded) {
-		// creating cd pipeline status timeline for deployment triggered - Also for context deadline exceeded requests
-		timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(overrideRequest.WfrId, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_TRIGGERED, timelineStatus.TIMELINE_DESCRIPTION_DEPLOYMENT_COMPLETED, overrideRequest.UserId)
-		_, dbErr := impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
-		if dbErr != nil {
-			impl.logger.Errorw("error in creating timeline status for deployment completed", "err", dbErr, "timeline", timeline)
-		}
+	if err != nil {
 		return 0, err
 	}
 	// creating cd pipeline status timeline for deployment triggered - for successfully triggered requests

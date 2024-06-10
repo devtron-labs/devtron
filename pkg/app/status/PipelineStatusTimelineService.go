@@ -370,6 +370,14 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesForAppStore(install
 func (impl *PipelineStatusTimelineServiceImpl) SaveTimelineIfNotAlreadyPresent(timeline *pipelineConfig.PipelineStatusTimeline, tx *pg.Tx) (isTimelineUpdated bool, err error) {
 	isTimelineUpdated = false
 	if timeline.InstalledAppVersionHistoryId != 0 {
+		terminalStatusExists, timelineErr := impl.pipelineStatusTimelineRepository.CheckIfTerminalStatusTimelinePresentByInstalledAppVersionHistoryId(timeline.InstalledAppVersionHistoryId)
+		if timelineErr != nil {
+			impl.logger.Errorw("error in checking if terminal status timeline exists by installedAppVersionHistoryId", "err", timelineErr, "installedAppVersionHistoryId", timeline.InstalledAppVersionHistoryId)
+			return isTimelineUpdated, timelineErr
+		}
+		if terminalStatusExists {
+			return isTimelineUpdated, nil
+		}
 		_, err := impl.pipelineStatusTimelineRepository.FetchTimelineByInstalledAppVersionHistoryIdAndStatus(timeline.InstalledAppVersionHistoryId, timeline.Status)
 		if err != nil && !errors.Is(err, pg.ErrNoRows) {
 			impl.logger.Errorw("error in getting latest timeline", "err", err)
@@ -383,6 +391,14 @@ func (impl *PipelineStatusTimelineServiceImpl) SaveTimelineIfNotAlreadyPresent(t
 			isTimelineUpdated = true
 		}
 	} else if timeline.CdWorkflowRunnerId != 0 {
+		terminalStatusExists, timelineErr := impl.pipelineStatusTimelineRepository.CheckIfTerminalStatusTimelinePresentByWfrId(timeline.CdWorkflowRunnerId)
+		if timelineErr != nil {
+			impl.logger.Errorw("error in checking if terminal status timeline exists by wfrId", "err", timelineErr, "wfrId", timeline.CdWorkflowRunnerId)
+			return isTimelineUpdated, timelineErr
+		}
+		if terminalStatusExists {
+			return isTimelineUpdated, nil
+		}
 		_, err := impl.pipelineStatusTimelineRepository.FetchTimelineByWfrIdAndStatus(timeline.CdWorkflowRunnerId, timeline.Status)
 		if err != nil && !errors.Is(err, pg.ErrNoRows) {
 			impl.logger.Errorw("error in getting latest timeline", "err", err)

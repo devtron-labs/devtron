@@ -18,7 +18,6 @@ package publish
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -260,14 +259,6 @@ func (impl *GitOpsManifestPushServiceImpl) commitValuesToGit(ctx context.Context
 }
 
 func (impl *GitOpsManifestPushServiceImpl) SaveTimelineForError(manifestPushTemplate *bean.ManifestPushTemplate, gitCommitErr error) {
-	if errors.Is(gitCommitErr, context.DeadlineExceeded) {
-		// creating cd pipeline status timeline for deployment triggered - Also for context deadline exceeded requests
-		timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(manifestPushTemplate.WorkflowRunnerId, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_TRIGGERED, timelineStatus.TIMELINE_DESCRIPTION_DEPLOYMENT_COMPLETED, manifestPushTemplate.UserId)
-		_, dbErr := impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
-		if dbErr != nil {
-			impl.logger.Errorw("error in creating timeline status for deployment completed", "err", dbErr, "timeline", timeline)
-		}
-	}
 	timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(manifestPushTemplate.WorkflowRunnerId, timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", gitCommitErr), manifestPushTemplate.UserId)
 	timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
 	if timelineErr != nil {
