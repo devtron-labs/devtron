@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
 	userHelper "github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
+	util3 "github.com/devtron-labs/devtron/pkg/auth/user/util"
 	"net/http"
 	"strconv"
 	"strings"
@@ -1364,7 +1365,7 @@ func (impl *UserServiceImpl) GetEmailAndVersionFromToken(token string) (string, 
 		email = "admin"
 	}
 
-	return email, tokenVersion, nil
+	return util3.ConvertEmailToLowerCase(email), tokenVersion, nil
 }
 
 func (impl *UserServiceImpl) GetByIds(ids []int32) ([]bean.UserInfo, error) {
