@@ -27,7 +27,7 @@ import (
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkFlow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/app/status"
@@ -172,7 +172,7 @@ func (impl *WorkflowStatusServiceImpl) CheckHelmAppStatusPeriodicallyAndUpdateIn
 			return err
 		}
 		if slices.Contains(pipelineConfig.WfrTerminalStatusList, wfr.Status) {
-			util3.TriggerCDMetrics(cdWorkFlow.GetTriggerMetricsFromRunnerObj(wfr), impl.config.ExposeCDMetrics)
+			util3.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(wfr), impl.config.ExposeCDMetrics)
 		}
 
 		impl.logger.Infow("updated workflow runner status for helm app", "wfr", wfr)

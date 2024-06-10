@@ -1,4 +1,4 @@
-package cdWorkFlow
+package cdWorkflow
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"

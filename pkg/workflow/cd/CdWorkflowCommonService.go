@@ -24,7 +24,7 @@ import (
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkFlow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app/status"
@@ -185,7 +185,7 @@ func (impl *CdWorkflowCommonServiceImpl) MarkCurrentDeploymentFailed(runner *pip
 				return err
 			}
 		}
-		globalUtil.TriggerCDMetrics(cdWorkFlow.GetTriggerMetricsFromRunnerObj(runner), impl.config.ExposeCDMetrics)
+		globalUtil.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(runner), impl.config.ExposeCDMetrics)
 	}
 	return nil
 }
@@ -242,7 +242,7 @@ func (impl *CdWorkflowCommonServiceImpl) UpdatePreviousQueuedRunnerStatus(cdWfrI
 				Pipeline: pipeline,
 			}
 		}
-		globalUtil.TriggerCDMetrics(cdWorkFlow.GetTriggerMetricsFromRunnerObj(queuedRunner), impl.config.ExposeCDMetrics)
+		globalUtil.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(queuedRunner), impl.config.ExposeCDMetrics)
 		queuedRunnerIds = append(queuedRunnerIds, queuedRunner.Id)
 	}
 	err = impl.cdWorkflowRepository.UpdateRunnerStatusToFailedForIds(pipelineConfig.ErrorDeploymentSuperseded.Error(), triggeredBy, queuedRunnerIds...)
