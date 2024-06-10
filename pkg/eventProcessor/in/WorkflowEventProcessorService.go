@@ -788,6 +788,12 @@ func (impl *WorkflowEventProcessorImpl) getPipelineModelById(pipelineId int) (*p
 		return nil, err
 	} else if errors.Is(err, pg.ErrNoRows) || pipelineModel == nil || pipelineModel.Id == 0 {
 		impl.logger.Warnw("invalid request received pipeline not active, terminating all userDeploymentRequest", "pipelineId", pipelineId, "err", err)
+		cdWfr, dbErr := impl.cdWorkflowRepository.FindLatestByPipelineIdAndRunnerType(pipelineId, apiBean.CD_WORKFLOW_TYPE_DEPLOY)
+		if dbErr != nil {
+			impl.logger.Errorw("err on fetching cd workflow runner", "pipelineId", pipelineId, "err", dbErr)
+		} else if dbErr = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(&cdWfr, errors.New("CD pipeline has been deleted"), 1); dbErr != nil {
+			impl.logger.Errorw("error while updating current runner status to failed", "cdWfr", cdWfr.Id, "err", dbErr)
+		}
 		return nil, err
 	}
 	return pipelineModel, nil

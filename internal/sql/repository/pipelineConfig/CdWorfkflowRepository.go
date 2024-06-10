@@ -64,7 +64,7 @@ type CdWorkflowRepository interface {
 	FindLastPreOrPostTriggeredByEnvironmentId(appId int, environmentId int) (CdWorkflowRunner, error)
 
 	FindByWorkflowIdAndRunnerType(ctx context.Context, wfId int, runnerType apiBean.WorkflowType) (CdWorkflowRunner, error)
-	FindLastStatusByPipelineIdAndRunnerType(pipelineId int, runnerType apiBean.WorkflowType) (CdWorkflowRunner, error)
+	FindLatestByPipelineIdAndRunnerType(pipelineId int, runnerType apiBean.WorkflowType) (CdWorkflowRunner, error)
 	SaveWorkFlows(wfs ...*CdWorkflow) error
 	IsLatestWf(pipelineId int, wfId int) (bool, error)
 	FindLatestCdWorkflowByPipelineId(pipelineIds []int) (*CdWorkflow, error)
@@ -619,7 +619,7 @@ func (impl *CdWorkflowRepositoryImpl) FindByWorkflowIdAndRunnerType(ctx context.
 	return wfr, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) FindLastStatusByPipelineIdAndRunnerType(pipelineId int, runnerType apiBean.WorkflowType) (CdWorkflowRunner, error) {
+func (impl *CdWorkflowRepositoryImpl) FindLatestByPipelineIdAndRunnerType(pipelineId int, runnerType apiBean.WorkflowType) (CdWorkflowRunner, error) {
 	wfr := CdWorkflowRunner{}
 	err := impl.dbConnection.
 		Model(&wfr).

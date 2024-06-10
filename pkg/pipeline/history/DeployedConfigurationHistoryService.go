@@ -134,7 +134,7 @@ func (impl *DeployedConfigurationHistoryServiceImpl) CreateHistoriesForDeploymen
 }
 
 func (impl *DeployedConfigurationHistoryServiceImpl) GetLatestDeployedArtifactByPipelineId(pipelineId int) (*repository2.CiArtifact, error) {
-	wfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+	wfr, err := impl.cdWorkflowRepository.FindLatestByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	if err != nil {
 		impl.logger.Infow("error in getting latest deploy stage wfr by pipelineId", "err", err, "pipelineId", pipelineId)
 		return nil, err
@@ -250,7 +250,7 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetDeployedHistoryComponent
 
 func (impl *DeployedConfigurationHistoryServiceImpl) GetAllDeployedConfigurationByPipelineIdAndLatestWfrId(ctx context.Context, pipelineId int, userHasAdminAccess bool) (*AllDeploymentConfigurationDetail, error) {
 	//getting latest wfr from pipelineId
-	wfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+	wfr, err := impl.cdWorkflowRepository.FindLatestByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	if err != nil {
 		impl.logger.Errorw("error in getting latest deploy stage wfr by pipelineId", "err", err, "pipelineId", pipelineId)
 		return nil, err
