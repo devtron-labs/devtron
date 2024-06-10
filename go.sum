@@ -127,8 +127,6 @@ github.com/argoproj/pkg v0.13.7-0.20230627120311-a4dd357b057e/go.mod h1:xBN5PLx2
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5 h1:0CwZNZbxp69SHPdPJAN/hZIm0C4OItdklCFmMRWYpio=
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5/go.mod h1:wHh0iHkYZB8zMSxRWpUBQtwG5a7fFgvEO+odwuTv2gs=
 github.com/asaskevich/govalidator v0.0.0-20190424111038-f61b66f89f4a/go.mod h1:lB+ZfQJz7igIIfQNfa7Ml4HSf2uFQQRzpGGRXenZAgY=
-github.com/ash-exp/go-bitbucket v0.9.60-beta3 h1:JTiEy5U1gucNHjTqOMumAH/RM2PFfToEOlfht2Spa0U=
-github.com/ash-exp/go-bitbucket v0.9.60-beta3/go.mod h1:4w7aHbBH9PHACfarjSCJEw7UNoMnisGCh90HAMA14FA=
 github.com/aws/aws-sdk-go v1.44.290 h1:Md4+os9DQtJjow0lWLMzeJljsimD+XS2xwwHDr5Z+Lk=
 github.com/aws/aws-sdk-go v1.44.290/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
 github.com/aws/aws-sdk-go-v2 v1.21.0/go.mod h1:/RfNgGmRxI+iFOB1OeJUyxiU+9s88k3pfHvDagGEp0M=
@@ -213,6 +211,8 @@ github.com/devtron-labs/authenticator v0.4.35-0.20240405091826-a91813c53470 h1:A
 github.com/devtron-labs/authenticator v0.4.35-0.20240405091826-a91813c53470/go.mod h1:JQxTCMmQisrpjzETJr0tzVadV+wW23rHEZAY7JVyK3s=
 github.com/devtron-labs/common-lib v0.0.17-beta2 h1:A/ed+OS6WiMQOV1P7qXjuwIIIsGvJkSEhGHpDW6u/zw=
 github.com/devtron-labs/common-lib v0.0.17-beta2/go.mod h1:deAcJ5IjUjM6ozZQLJEgPWDUA0mKa632LBsKx8uM9TE=
+github.com/devtron-labs/go-bitbucket v0.9.60-beta h1:VEx1jvDgdtDPS6A1uUFoaEi0l1/oLhbr+90xOwr6sDU=
+github.com/devtron-labs/go-bitbucket v0.9.60-beta/go.mod h1:GnuiCesvh8xyHeMCb+twm8lBR/kQzJYSKL28ZfObp1Y=
 github.com/devtron-labs/protos v0.0.3-0.20240326053929-48e42d9d4534 h1:TElPRU69QedW7DIQiiQxtjwSQ6cK0fCTAMGvSLhP0ac=
 github.com/devtron-labs/protos v0.0.3-0.20240326053929-48e42d9d4534/go.mod h1:ypUknVph8Ph4dxSlrFoouf7wLedQxHku2LQwgRrdgS4=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=

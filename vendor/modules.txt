@@ -229,9 +229,6 @@ github.com/argoproj/pkg/json
 github.com/argoproj/pkg/rand
 github.com/argoproj/pkg/sync
 github.com/argoproj/pkg/time
-# github.com/ash-exp/go-bitbucket v0.9.60-beta3
-## explicit; go 1.14
-github.com/ash-exp/go-bitbucket
 # github.com/aws/aws-sdk-go v1.44.290
 ## explicit; go 1.11
 github.com/aws/aws-sdk-go/aws
@@ -403,6 +400,9 @@ github.com/devtron-labs/common-lib/utils/k8s/health
 github.com/devtron-labs/common-lib/utils/k8sObjectsUtil
 github.com/devtron-labs/common-lib/utils/remoteConnection/bean
 github.com/devtron-labs/common-lib/utils/yaml
+# github.com/devtron-labs/go-bitbucket v0.9.60-beta
+## explicit; go 1.14
+github.com/devtron-labs/go-bitbucket
 # github.com/devtron-labs/protos v0.0.3-0.20240326053929-48e42d9d4534
 ## explicit; go 1.17
 github.com/devtron-labs/protos/gitSensor
