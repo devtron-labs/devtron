@@ -123,6 +123,11 @@ autoscaling:
 #        targetAverageValue: "2"
 #      type: External
 #
+
+customPodLabels:
+  release: lq1952
+
+
 EnvVariablesFromSecretKeys: 
   - name: ENV_NAME
     secretName: SECRET_NAME
