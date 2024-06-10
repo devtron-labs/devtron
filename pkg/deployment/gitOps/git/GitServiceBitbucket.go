@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
-	bitbucket "github.com/devtron-labs/go-bitbucket"
+	"github.com/devtron-labs/go-bitbucket"
 	"go.uber.org/zap"
 	"io/ioutil"
 	"os"
