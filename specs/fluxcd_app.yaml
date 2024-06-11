@@ -1,0 +1,103 @@
+openapi: 3.0.0
+info:
+  title: Flux Application Orchestrator API
+  version: 1.0.0
+paths:
+  /orchestrator/flux-application:
+    get:
+      summary: List Flux Applications
+      operationId: listFluxApplications
+      parameters:
+        - name: token
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Authorization token
+        - name: clusterIds
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Comma-separated list of cluster IDs, by default it will take account for all active cluster.
+      responses:
+        '200':
+          description: List of Flux applications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppListDto'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    AppListDto:
+      type: object
+      properties:
+        clusterIds:
+          type: array
+          description: Clusters to which the result corresponds
+          example: [1, 2]
+          items:
+            type: integer
+        fluxApplication:
+          type: array
+          description: List of Flux applications
+          items:
+            $ref: '#/components/schemas/FluxAppDto'
+    FluxAppDto:
+      type: object
+      properties:
+        appName:
+          type: string
+          description: Name of the application
+          example: flux-system
+        appStatus:
+          type: string
+          description: Status of the application
+          example: True
+        syncStatus:
+          type: string
+          description: Sync status of the application
+          example: "Applied revision: main@sha1:a3c3de4083eca4ca01d63f9f1b07599b64f3f8ca"
+        clusterId:
+          type: integer
+          description: ID of the cluster
+          example: 2
+        clusterName:
+          type: string
+          description: Name of the cluster
+          example: test-cluster-1
+        namespace:
+          type: string
+          description: Namespace of the application
+          example: flux-system
+        isKustomizeApp:
+          type: boolean
+          description: Indicates if the application is a Kustomize type or standalone flux made HelmRelease app
+          example: true
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Error message
+          example: unauthorized
