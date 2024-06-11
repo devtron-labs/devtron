@@ -300,6 +300,18 @@ func (impl *ScopedVariableServiceImpl) GetMatchedScopedVariables(varScope []*res
 
 }
 
+func (impl *ScopedVariableServiceImpl) GetScopeWithPriority(variableIdToVariableScopes map[int][]*resourceQualifiers.QualifierMapping) map[int]int {
+	variableIdToSelectedScopeId := make(map[int]int)
+	var minScope *resourceQualifiers.QualifierMapping
+	for variableId, scopes := range variableIdToVariableScopes {
+		minScope = helper.FindMinWithComparator(scopes, helper.QualifierComparator)
+		if minScope != nil {
+			variableIdToSelectedScopeId[variableId] = minScope.Id
+		}
+	}
+	return variableIdToSelectedScopeId
+}
+
 func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []*resourceQualifiers.QualifierMapping, qualifier resourceQualifiers.Qualifier) *resourceQualifiers.QualifierMapping {
 	numQualifiers := resourceQualifiers.GetNumOfChildQualifiers(qualifier)
 	parentIdToChildScopes := make(map[int][]*resourceQualifiers.QualifierMapping)
@@ -332,18 +344,6 @@ func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []
 		}
 	}
 	return selectedParentScope
-}
-
-func (impl *ScopedVariableServiceImpl) GetScopeWithPriority(variableIdToVariableScopes map[int][]*resourceQualifiers.QualifierMapping) map[int]int {
-	variableIdToSelectedScopeId := make(map[int]int)
-	var minScope *resourceQualifiers.QualifierMapping
-	for variableId, scopes := range variableIdToVariableScopes {
-		minScope = helper.FindMinWithComparator(scopes, helper.QualifierComparator)
-		if minScope != nil {
-			variableIdToSelectedScopeId[variableId] = minScope.Id
-		}
-	}
-	return variableIdToSelectedScopeId
 }
 
 func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifiers.Scope, varNames []string, unmaskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
