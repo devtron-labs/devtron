@@ -25,8 +25,6 @@ type QualifierMappingService interface {
 	CreateMappings(tx *pg.Tx, userId int32, resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector, selectionIdentifiers []*SelectionIdentifier) error
 	GetResourceMappingsForSelections(resourceType ResourceType, qualifierSelector QualifierSelector, selectionIdentifiers []*SelectionIdentifier) ([]ResourceQualifierMappings, error)
 	GetResourceMappingsForResources(resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector) ([]ResourceQualifierMappings, error)
-	GetMatchedScopedVariables(varScope []*QualifierMapping) map[int][]*QualifierMapping
-	GetScopeWithPriority(variableIdToVariableScopes map[int][]*QualifierMapping) map[int]int
 }
 
 type QualifierMappingServiceImpl struct {
@@ -293,87 +291,3 @@ func (impl QualifierMappingServiceImpl) processMappings(resourceType ResourceTyp
 	}
 	return qualifierMappings, nil
 }
-
-// Below functions useful for Scoped Variable type data structure
-
-func (impl *QualifierMappingServiceImpl) GetMatchedScopedVariables(varScope []*QualifierMapping) map[int][]*QualifierMapping {
-	variableIdToVariableScopes := make(map[int][]*QualifierMapping)
-	for _, vScope := range varScope {
-		variableId := vScope.ResourceId
-		variableIdToVariableScopes[variableId] = append(variableIdToVariableScopes[variableId], vScope)
-	}
-	// Filter out the unneeded scoped which were fetched from DB for the same variable and qualifier
-	for variableId, scopes := range variableIdToVariableScopes {
-
-		selectedScopes := make([]*QualifierMapping, 0)
-		compoundQualifierToScopes := make(map[Qualifier][]*QualifierMapping)
-
-		for _, variableScope := range scopes {
-			qualifier := Qualifier(variableScope.QualifierId)
-			if slices.Contains(CompoundQualifiers, qualifier) {
-				compoundQualifierToScopes[qualifier] = append(compoundQualifierToScopes[qualifier], variableScope)
-			} else {
-				selectedScopes = append(selectedScopes, variableScope)
-			}
-		}
-
-		for _, qualifier := range CompoundQualifiers {
-			selectedScope := impl.selectScopeForCompoundQualifier(compoundQualifierToScopes[qualifier], qualifier)
-			if selectedScope != nil {
-				selectedScopes = append(selectedScopes, selectedScope)
-			}
-		}
-		variableIdToVariableScopes[variableId] = selectedScopes
-	}
-
-	return variableIdToVariableScopes
-
-}
-
-func (impl *QualifierMappingServiceImpl) selectScopeForCompoundQualifier(scopes []*QualifierMapping, qualifier Qualifier) *QualifierMapping {
-	numQualifiers := GetNumOfChildQualifiers(qualifier)
-	parentIdToChildScopes := make(map[int][]*QualifierMapping)
-	parentScopeIdToScope := make(map[int]*QualifierMapping, 0)
-	parentScopeIds := make([]int, 0)
-	for _, scope := range scopes {
-		// is not parent so append it to the list in the map with key as its parent scopeID
-		if scope.ParentIdentifier > 0 {
-			parentIdToChildScopes[scope.ParentIdentifier] = append(parentIdToChildScopes[scope.ParentIdentifier], scope)
-		} else {
-			// is parent so collect IDs and put it in a map for easy retrieval
-			parentScopeIds = append(parentScopeIds, scope.Id)
-			parentScopeIdToScope[scope.Id] = scope
-		}
-	}
-
-	for parentScopeId, _ := range parentIdToChildScopes {
-		// this deletes the keys in the map where the key does not exist in the collected IDs for parent
-		if !slices.Contains(parentScopeIds, parentScopeId) {
-			delete(parentIdToChildScopes, parentScopeId)
-		}
-	}
-
-	// Now in the map only those will exist with all child matched or partial matches.
-	// Because only one will entry exist with all matched we'll return that scope.
-	var selectedParentScope *QualifierMapping
-	for parentScopeId, childScopes := range parentIdToChildScopes {
-		if len(childScopes) == numQualifiers {
-			selectedParentScope = parentScopeIdToScope[parentScopeId]
-		}
-	}
-	return selectedParentScope
-}
-
-func (impl *QualifierMappingServiceImpl) GetScopeWithPriority(variableIdToVariableScopes map[int][]*QualifierMapping) map[int]int {
-	variableIdToSelectedScopeId := make(map[int]int)
-	var minScope *QualifierMapping
-	for variableId, scopes := range variableIdToVariableScopes {
-		minScope = FindMinWithComparator(scopes, QualifierComparator)
-		if minScope != nil {
-			variableIdToSelectedScopeId[variableId] = minScope.Id
-		}
-	}
-	return variableIdToSelectedScopeId
-}
-
-//end

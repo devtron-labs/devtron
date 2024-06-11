@@ -28,6 +28,8 @@ type ScopedVariableService interface {
 	GetJsonForVariables() (*models.Payload, error)
 	CheckForSensitiveVariables(variableNames []string) (map[string]bool, error)
 	GetFormattedVariableForName(name string) string
+	GetMatchedScopedVariables(varScope []*resourceQualifiers.QualifierMapping) map[int][]*resourceQualifiers.QualifierMapping
+	GetScopeWithPriority(variableIdToVariableScopes map[int][]*resourceQualifiers.QualifierMapping) map[int]int
 }
 
 type ScopedVariableServiceImpl struct {
@@ -264,6 +266,86 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 	return scopeIdToVarData, nil
 }
 
+func (impl *ScopedVariableServiceImpl) GetMatchedScopedVariables(varScope []*resourceQualifiers.QualifierMapping) map[int][]*resourceQualifiers.QualifierMapping {
+	variableIdToVariableScopes := make(map[int][]*resourceQualifiers.QualifierMapping)
+	for _, vScope := range varScope {
+		variableId := vScope.ResourceId
+		variableIdToVariableScopes[variableId] = append(variableIdToVariableScopes[variableId], vScope)
+	}
+	// Filter out the unneeded scoped which were fetched from DB for the same variable and qualifier
+	for variableId, scopes := range variableIdToVariableScopes {
+
+		selectedScopes := make([]*resourceQualifiers.QualifierMapping, 0)
+		compoundQualifierToScopes := make(map[resourceQualifiers.Qualifier][]*resourceQualifiers.QualifierMapping)
+
+		for _, variableScope := range scopes {
+			qualifier := resourceQualifiers.Qualifier(variableScope.QualifierId)
+			if slices.Contains(resourceQualifiers.CompoundQualifiers, qualifier) {
+				compoundQualifierToScopes[qualifier] = append(compoundQualifierToScopes[qualifier], variableScope)
+			} else {
+				selectedScopes = append(selectedScopes, variableScope)
+			}
+		}
+
+		for _, qualifier := range resourceQualifiers.CompoundQualifiers {
+			selectedScope := impl.selectScopeForCompoundQualifier(compoundQualifierToScopes[qualifier], qualifier)
+			if selectedScope != nil {
+				selectedScopes = append(selectedScopes, selectedScope)
+			}
+		}
+		variableIdToVariableScopes[variableId] = selectedScopes
+	}
+
+	return variableIdToVariableScopes
+
+}
+
+func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []*resourceQualifiers.QualifierMapping, qualifier resourceQualifiers.Qualifier) *resourceQualifiers.QualifierMapping {
+	numQualifiers := resourceQualifiers.GetNumOfChildQualifiers(qualifier)
+	parentIdToChildScopes := make(map[int][]*resourceQualifiers.QualifierMapping)
+	parentScopeIdToScope := make(map[int]*resourceQualifiers.QualifierMapping, 0)
+	parentScopeIds := make([]int, 0)
+	for _, scope := range scopes {
+		// is not parent so append it to the list in the map with key as its parent scopeID
+		if scope.ParentIdentifier > 0 {
+			parentIdToChildScopes[scope.ParentIdentifier] = append(parentIdToChildScopes[scope.ParentIdentifier], scope)
+		} else {
+			// is parent so collect IDs and put it in a map for easy retrieval
+			parentScopeIds = append(parentScopeIds, scope.Id)
+			parentScopeIdToScope[scope.Id] = scope
+		}
+	}
+
+	for parentScopeId, _ := range parentIdToChildScopes {
+		// this deletes the keys in the map where the key does not exist in the collected IDs for parent
+		if !slices.Contains(parentScopeIds, parentScopeId) {
+			delete(parentIdToChildScopes, parentScopeId)
+		}
+	}
+
+	// Now in the map only those will exist with all child matched or partial matches.
+	// Because only one will entry exist with all matched we'll return that scope.
+	var selectedParentScope *resourceQualifiers.QualifierMapping
+	for parentScopeId, childScopes := range parentIdToChildScopes {
+		if len(childScopes) == numQualifiers {
+			selectedParentScope = parentScopeIdToScope[parentScopeId]
+		}
+	}
+	return selectedParentScope
+}
+
+func (impl *ScopedVariableServiceImpl) GetScopeWithPriority(variableIdToVariableScopes map[int][]*resourceQualifiers.QualifierMapping) map[int]int {
+	variableIdToSelectedScopeId := make(map[int]int)
+	var minScope *resourceQualifiers.QualifierMapping
+	for variableId, scopes := range variableIdToVariableScopes {
+		minScope = helper.FindMinWithComparator(scopes, helper.QualifierComparator)
+		if minScope != nil {
+			variableIdToSelectedScopeId[variableId] = minScope.Id
+		}
+	}
+	return variableIdToSelectedScopeId
+}
+
 func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifiers.Scope, varNames []string, unmaskSensitiveData bool) (scopedVariableDataObj []*models.ScopedVariableData, err error) {
 
 	//populating system variables from system metadata
@@ -322,8 +404,8 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 		return nil, err
 	}
 
-	matchedScopes := impl.qualifierMappingService.GetMatchedScopedVariables(varScope)
-	variableIdToSelectedScopeId := impl.qualifierMappingService.GetScopeWithPriority(matchedScopes)
+	matchedScopes := impl.GetMatchedScopedVariables(varScope)
+	variableIdToSelectedScopeId := impl.GetScopeWithPriority(matchedScopes)
 
 	scopeIds := make([]int, 0)
 	foundVarIds := make([]int, 0) // the variable IDs which have data
