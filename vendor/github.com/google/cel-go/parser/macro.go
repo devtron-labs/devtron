@@ -132,11 +132,8 @@ func makeVarArgMacroKey(name string, receiverStyle bool) string {
 	return fmt.Sprintf("%s:*:%v", name, receiverStyle)
 }
 
-// MacroExpander converts a call and its associated arguments into a new CEL abstract syntax tree.
-//
-// If the MacroExpander determines within the implementation that an expansion is not needed it may return
-// a nil Expr value to indicate a non-match. However, if an expansion is to be performed, but the arguments
-// are not well-formed, the result of the expansion will be an error.
+// MacroExpander converts a call and its associated arguments into a new CEL abstract syntax tree, or an error
+// if the input arguments are not suitable for the expansion requirements for the macro in question.
 //
 // The MacroExpander accepts as arguments a MacroExprHelper as well as the arguments used in the function call
 // and produces as output an Expr ast node.
@@ -150,9 +147,6 @@ type MacroExpander func(eh ExprHelper,
 // consistent with the source position and expression id generation code leveraged by both
 // the parser and type-checker.
 type ExprHelper interface {
-	// Copy the input expression with a brand new set of identifiers.
-	Copy(*exprpb.Expr) *exprpb.Expr
-
 	// LiteralBool creates an Expr value for a bool literal.
 	LiteralBool(value bool) *exprpb.Expr
 
@@ -180,14 +174,14 @@ type ExprHelper interface {
 	NewMap(entries ...*exprpb.Expr_CreateStruct_Entry) *exprpb.Expr
 
 	// NewMapEntry creates a Map Entry for the key, value pair.
-	NewMapEntry(key *exprpb.Expr, val *exprpb.Expr, optional bool) *exprpb.Expr_CreateStruct_Entry
+	NewMapEntry(key *exprpb.Expr, val *exprpb.Expr) *exprpb.Expr_CreateStruct_Entry
 
 	// NewObject creates a CreateStruct instruction for an object with a given type name and
 	// optional set of field initializers.
 	NewObject(typeName string, fieldInits ...*exprpb.Expr_CreateStruct_Entry) *exprpb.Expr
 
 	// NewObjectFieldInit creates a new Object field initializer from the field name and value.
-	NewObjectFieldInit(field string, init *exprpb.Expr, optional bool) *exprpb.Expr_CreateStruct_Entry
+	NewObjectFieldInit(field string, init *exprpb.Expr) *exprpb.Expr_CreateStruct_Entry
 
 	// Fold creates a fold comprehension instruction.
 	//
@@ -232,9 +226,6 @@ type ExprHelper interface {
 
 	// OffsetLocation returns the Location of the expression identifier.
 	OffsetLocation(exprID int64) common.Location
-
-	// NewError associates an error message with a given expression id.
-	NewError(exprID int64, message string) *common.Error
 }
 
 var (
@@ -318,16 +309,14 @@ func MakeExistsOne(eh ExprHelper, target *exprpb.Expr, args []*exprpb.Expr) (*ex
 // input to produce an output list.
 //
 // There are two call patterns supported by map:
-//
-//	<iterRange>.map(<iterVar>, <transform>)
-//	<iterRange>.map(<iterVar>, <predicate>, <transform>)
-//
+//   <iterRange>.map(<iterVar>, <transform>)
+//   <iterRange>.map(<iterVar>, <predicate>, <transform>)
 // In the second form only iterVar values which return true when provided to the predicate expression
 // are transformed.
 func MakeMap(eh ExprHelper, target *exprpb.Expr, args []*exprpb.Expr) (*exprpb.Expr, *common.Error) {
 	v, found := extractIdent(args[0])
 	if !found {
-		return nil, eh.NewError(args[0].GetId(), "argument is not an identifier")
+		return nil, &common.Error{Message: "argument is not an identifier"}
 	}
 
 	var fn *exprpb.Expr
@@ -358,7 +347,7 @@ func MakeMap(eh ExprHelper, target *exprpb.Expr, args []*exprpb.Expr) (*exprpb.E
 func MakeFilter(eh ExprHelper, target *exprpb.Expr, args []*exprpb.Expr) (*exprpb.Expr, *common.Error) {
 	v, found := extractIdent(args[0])
 	if !found {
-		return nil, eh.NewError(args[0].GetId(), "argument is not an identifier")
+		return nil, &common.Error{Message: "argument is not an identifier"}
 	}
 
 	filter := args[1]
@@ -375,13 +364,17 @@ func MakeHas(eh ExprHelper, target *exprpb.Expr, args []*exprpb.Expr) (*exprpb.E
 	if s, ok := args[0].ExprKind.(*exprpb.Expr_SelectExpr); ok {
 		return eh.PresenceTest(s.SelectExpr.GetOperand(), s.SelectExpr.GetField()), nil
 	}
-	return nil, eh.NewError(args[0].GetId(), "invalid argument to has() macro")
+	return nil, &common.Error{Message: "invalid argument to has() macro"}
 }
 
 func makeQuantifier(kind quantifierKind, eh ExprHelper, target *exprpb.Expr, args []*exprpb.Expr) (*exprpb.Expr, *common.Error) {
 	v, found := extractIdent(args[0])
 	if !found {
-		return nil, eh.NewError(args[0].GetId(), "argument must be a simple name")
+		location := eh.OffsetLocation(args[0].GetId())
+		return nil, &common.Error{
+			Message:  "argument must be a simple name",
+			Location: location,
+		}
 	}
 
 	var init *exprpb.Expr
@@ -410,7 +403,7 @@ func makeQuantifier(kind quantifierKind, eh ExprHelper, target *exprpb.Expr, arg
 			eh.GlobalCall(operators.Add, eh.AccuIdent(), oneExpr), eh.AccuIdent())
 		result = eh.GlobalCall(operators.Equals, eh.AccuIdent(), oneExpr)
 	default:
-		return nil, eh.NewError(args[0].GetId(), fmt.Sprintf("unrecognized quantifier '%v'", kind))
+		return nil, &common.Error{Message: fmt.Sprintf("unrecognized quantifier '%v'", kind)}
 	}
 	return eh.Fold(v, target, AccumulatorName, init, condition, step, result), nil
 }

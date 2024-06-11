@@ -18,21 +18,20 @@ import (
 	"fmt"
 	"reflect"
 
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
-
 	"github.com/google/cel-go/common/types/pb"
 	"github.com/google/cel-go/common/types/ref"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	anypb "google.golang.org/protobuf/types/known/anypb"
 	structpb "google.golang.org/protobuf/types/known/structpb"
 )
 
 type protoObj struct {
-	Adapter
+	ref.TypeAdapter
 	value     proto.Message
 	typeDesc  *pb.TypeDescription
-	typeValue ref.Val
+	typeValue *TypeValue
 }
 
 // NewObject returns an object based on a proto.Message value which handles
@@ -42,18 +41,18 @@ type protoObj struct {
 // Note: the type value is pulled from the list of registered types within the
 // type provider. If the proto type is not registered within the type provider,
 // then this will result in an error within the type adapter / provider.
-func NewObject(adapter Adapter,
+func NewObject(adapter ref.TypeAdapter,
 	typeDesc *pb.TypeDescription,
-	typeValue ref.Val,
+	typeValue *TypeValue,
 	value proto.Message) ref.Val {
 	return &protoObj{
-		Adapter:   adapter,
-		value:     value,
-		typeDesc:  typeDesc,
-		typeValue: typeValue}
+		TypeAdapter: adapter,
+		value:       value,
+		typeDesc:    typeDesc,
+		typeValue:   typeValue}
 }
 
-func (o *protoObj) ConvertToNative(typeDesc reflect.Type) (any, error) {
+func (o *protoObj) ConvertToNative(typeDesc reflect.Type) (interface{}, error) {
 	srcPB := o.value
 	if reflect.TypeOf(srcPB).AssignableTo(typeDesc) {
 		return srcPB, nil
@@ -134,11 +133,6 @@ func (o *protoObj) IsSet(field ref.Val) ref.Val {
 	return False
 }
 
-// IsZeroValue returns true if the protobuf object is empty.
-func (o *protoObj) IsZeroValue() bool {
-	return proto.Equal(o.value, o.typeDesc.Zero())
-}
-
 func (o *protoObj) Get(index ref.Val) ref.Val {
 	protoFieldName, ok := index.(String)
 	if !ok {
@@ -157,9 +151,9 @@ func (o *protoObj) Get(index ref.Val) ref.Val {
 }
 
 func (o *protoObj) Type() ref.Type {
-	return o.typeValue.(ref.Type)
+	return o.typeValue
 }
 
-func (o *protoObj) Value() any {
+func (o *protoObj) Value() interface{} {
 	return o.value
 }

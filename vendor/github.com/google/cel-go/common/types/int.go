@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/google/cel-go/common/types/ref"
+	"github.com/google/cel-go/common/types/traits"
 
 	anypb "google.golang.org/protobuf/types/known/anypb"
 	structpb "google.golang.org/protobuf/types/known/structpb"
@@ -40,6 +41,16 @@ const (
 )
 
 var (
+	// IntType singleton.
+	IntType = NewTypeValue("int",
+		traits.AdderType,
+		traits.ComparerType,
+		traits.DividerType,
+		traits.ModderType,
+		traits.MultiplierType,
+		traits.NegatorType,
+		traits.SubtractorType)
+
 	// int32WrapperType reflected type for protobuf int32 wrapper type.
 	int32WrapperType = reflect.TypeOf(&wrapperspb.Int32Value{})
 
@@ -55,7 +66,7 @@ func (i Int) Add(other ref.Val) ref.Val {
 	}
 	val, err := addInt64Checked(int64(i), int64(otherInt))
 	if err != nil {
-		return WrapErr(err)
+		return wrapErr(err)
 	}
 	return Int(val)
 }
@@ -78,7 +89,7 @@ func (i Int) Compare(other ref.Val) ref.Val {
 }
 
 // ConvertToNative implements ref.Val.ConvertToNative.
-func (i Int) ConvertToNative(typeDesc reflect.Type) (any, error) {
+func (i Int) ConvertToNative(typeDesc reflect.Type) (interface{}, error) {
 	switch typeDesc.Kind() {
 	case reflect.Int, reflect.Int32:
 		// Enums are also mapped as int32 derivations.
@@ -165,7 +176,7 @@ func (i Int) ConvertToType(typeVal ref.Type) ref.Val {
 	case UintType:
 		u, err := int64ToUint64Checked(int64(i))
 		if err != nil {
-			return WrapErr(err)
+			return wrapErr(err)
 		}
 		return Uint(u)
 	case DoubleType:
@@ -193,7 +204,7 @@ func (i Int) Divide(other ref.Val) ref.Val {
 	}
 	val, err := divideInt64Checked(int64(i), int64(otherInt))
 	if err != nil {
-		return WrapErr(err)
+		return wrapErr(err)
 	}
 	return Int(val)
 }
@@ -215,11 +226,6 @@ func (i Int) Equal(other ref.Val) ref.Val {
 	}
 }
 
-// IsZeroValue returns true if integer is equal to 0
-func (i Int) IsZeroValue() bool {
-	return i == IntZero
-}
-
 // Modulo implements traits.Modder.Modulo.
 func (i Int) Modulo(other ref.Val) ref.Val {
 	otherInt, ok := other.(Int)
@@ -228,7 +234,7 @@ func (i Int) Modulo(other ref.Val) ref.Val {
 	}
 	val, err := moduloInt64Checked(int64(i), int64(otherInt))
 	if err != nil {
-		return WrapErr(err)
+		return wrapErr(err)
 	}
 	return Int(val)
 }
@@ -241,7 +247,7 @@ func (i Int) Multiply(other ref.Val) ref.Val {
 	}
 	val, err := multiplyInt64Checked(int64(i), int64(otherInt))
 	if err != nil {
-		return WrapErr(err)
+		return wrapErr(err)
 	}
 	return Int(val)
 }
@@ -250,7 +256,7 @@ func (i Int) Multiply(other ref.Val) ref.Val {
 func (i Int) Negate() ref.Val {
 	val, err := negateInt64Checked(int64(i))
 	if err != nil {
-		return WrapErr(err)
+		return wrapErr(err)
 	}
 	return Int(val)
 }
@@ -263,7 +269,7 @@ func (i Int) Subtract(subtrahend ref.Val) ref.Val {
 	}
 	val, err := subtractInt64Checked(int64(i), int64(subtraInt))
 	if err != nil {
-		return WrapErr(err)
+		return wrapErr(err)
 	}
 	return Int(val)
 }
@@ -274,7 +280,7 @@ func (i Int) Type() ref.Type {
 }
 
 // Value implements ref.Val.Value.
-func (i Int) Value() any {
+func (i Int) Value() interface{} {
 	return int64(i)
 }
 

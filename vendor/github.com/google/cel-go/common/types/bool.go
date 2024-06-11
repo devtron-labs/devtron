@@ -20,6 +20,7 @@ import (
 	"strconv"
 
 	"github.com/google/cel-go/common/types/ref"
+	"github.com/google/cel-go/common/types/traits"
 
 	anypb "google.golang.org/protobuf/types/known/anypb"
 	structpb "google.golang.org/protobuf/types/known/structpb"
@@ -30,6 +31,11 @@ import (
 type Bool bool
 
 var (
+	// BoolType singleton.
+	BoolType = NewTypeValue("bool",
+		traits.ComparerType,
+		traits.NegatorType)
+
 	// boolWrapperType golang reflected type for protobuf bool wrapper type.
 	boolWrapperType = reflect.TypeOf(&wrapperspb.BoolValue{})
 )
@@ -56,7 +62,7 @@ func (b Bool) Compare(other ref.Val) ref.Val {
 }
 
 // ConvertToNative implements the ref.Val interface method.
-func (b Bool) ConvertToNative(typeDesc reflect.Type) (any, error) {
+func (b Bool) ConvertToNative(typeDesc reflect.Type) (interface{}, error) {
 	switch typeDesc.Kind() {
 	case reflect.Bool:
 		return reflect.ValueOf(b).Convert(typeDesc).Interface(), nil
@@ -108,11 +114,6 @@ func (b Bool) Equal(other ref.Val) ref.Val {
 	return Bool(ok && b == otherBool)
 }
 
-// IsZeroValue returns true if the boolean value is false.
-func (b Bool) IsZeroValue() bool {
-	return b == False
-}
-
 // Negate implements the traits.Negater interface method.
 func (b Bool) Negate() ref.Val {
 	return !b
@@ -124,7 +125,7 @@ func (b Bool) Type() ref.Type {
 }
 
 // Value implements the ref.Val interface method.
-func (b Bool) Value() any {
+func (b Bool) Value() interface{} {
 	return bool(b)
 }
 

@@ -24,7 +24,9 @@ import (
 	"time"
 )
 
-type AppStoreRepository interface{}
+type AppStoreRepository interface {
+	FindAppStoreByName(name string) (*AppStore, error)
+}
 
 type AppStoreRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -47,4 +49,10 @@ type AppStore struct {
 	UpdatedOn             time.Time `sql:"updated_on,notnull"`
 	ChartRepo             *chartRepoRepository.ChartRepo
 	DockerArtifactStore   *dockerArtifactStoreRegistry.DockerArtifactStore
+}
+
+func (impl *AppStoreRepositoryImpl) FindAppStoreByName(name string) (*AppStore, error) {
+	var AppStore AppStore
+	err := impl.dbConnection.Model(&AppStore).Where("name = ? ", name).Limit(1).Select()
+	return &AppStore, err
 }

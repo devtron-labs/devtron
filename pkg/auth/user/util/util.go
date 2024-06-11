@@ -18,9 +18,24 @@ package util
 
 import "strings"
 
+const (
+	ApiTokenPrefix = "API-TOKEN:"
+)
+
 func CheckValidationForRoleGroupCreation(name string) bool {
 	if strings.Contains(name, ",") {
 		return false
 	}
 	return true
+}
+
+func CheckIfAdminOrApiToken(email string) bool {
+	if email == "admin" || CheckIfApiToken(email) {
+		return true
+	}
+	return false
+}
+
+func CheckIfApiToken(email string) bool {
+	return strings.HasPrefix(email, ApiTokenPrefix)
 }

@@ -752,6 +752,7 @@ func InitializeApp() (*App, error) {
 
 		app.NewAppCrudOperationServiceImpl,
 		wire.Bind(new(app.AppCrudOperationService), new(*app.AppCrudOperationServiceImpl)),
+		app.GetCrudOperationServiceConfig,
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 

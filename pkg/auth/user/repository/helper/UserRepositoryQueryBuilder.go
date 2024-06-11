@@ -91,3 +91,10 @@ func GetQueryForGroupListingWithFilters(req *bean.ListingRequest) string {
 	return query
 
 }
+
+func GetEmailSearchQuery(usersTableAlias string, emailId string) string {
+	expression := fmt.Sprintf(
+		"( (%s.user_type is NULL and %s.email_id ILIKE '%s' ) or (%s.user_type='apiToken' and %s.email_id='%s') )",
+		usersTableAlias, usersTableAlias, emailId, usersTableAlias, usersTableAlias, emailId)
+	return expression
+}

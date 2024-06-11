@@ -468,10 +468,12 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 				impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", artifact.Id)
 			}
 		}
-		validationErr := impl.validateDeploymentTriggerRequest(ctx, runner, cdPipeline, artifact.ImageDigest, overrideRequest.UserId)
-		if validationErr != nil {
-			impl.logger.Errorw("validation error deployment request", "cdWfr", runner.Id, "err", validationErr)
-			return 0, validationErr
+		if isNotHibernateRequest(overrideRequest.DeploymentType) {
+			validationErr := impl.validateDeploymentTriggerRequest(ctx, runner, cdPipeline, artifact.ImageDigest, overrideRequest.UserId)
+			if validationErr != nil {
+				impl.logger.Errorw("validation error deployment request", "cdWfr", runner.Id, "err", validationErr)
+				return 0, validationErr
+			}
 		}
 		// Deploy the release
 		var releaseErr error
@@ -533,6 +535,10 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	}
 
 	return releaseId, err
+}
+
+func isNotHibernateRequest(deploymentType models.DeploymentType) bool {
+	return deploymentType != models.DEPLOYMENTTYPE_STOP && deploymentType != models.DEPLOYMENTTYPE_START
 }
 
 // TODO: write a wrapper to handle auto and manual trigger

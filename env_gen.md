@@ -179,6 +179,7 @@
  | NATS_MSG_MAX_AGE | 86400 |  | 
  | NATS_MSG_PROCESSING_BATCH_SIZE | 1 |  | 
  | NATS_SERVER_HOST | nats://devtron-nats.devtroncd:4222 |  | 
+ | NOTIFICATION_MEDIUM | rest |  | 
  | ORCH_HOST | http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats |  | 
  | ORCH_TOKEN |  |  | 
  | OTEL_COLLECTOR_URL |  |  | 
@@ -196,11 +197,13 @@
  | PIPELINE_DEGRADED_TIME | 10 |  | 
  | PLUGIN_NAME | Pull images from container repository |  | 
  | PRE_CI_CACHE_PATH | /devtroncd-cache |  | 
+ | PROPAGATE_EXTRA_LABELS | false |  | 
  | PROXY_SERVICE_CONFIG | {} |  | 
  | REQ_CI_CPU | 0.5 |  | 
  | REQ_CI_MEM | 3G |  | 
  | RESOURCE_LIST_FOR_REPLICAS | Deployment,Rollout,StatefulSet,ReplicaSet |  | 
  | RESOURCE_LIST_FOR_REPLICAS_BATCH_SIZE | 5 |  | 
+ | RESTRICT_TERMINAL_ACCESS_FOR_NON_SUPER_USER | false |  | 
  | REVISION_HISTORY_LIMIT_DEVTRON_APP | 1 |  | 
  | REVISION_HISTORY_LIMIT_EXTERNAL_HELM_APP | 0 |  | 
  | REVISION_HISTORY_LIMIT_HELM_APP | 1 |  | 
