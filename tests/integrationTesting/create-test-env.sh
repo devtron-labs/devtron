@@ -1,3 +1,19 @@
+#
+# Copyright (c) 2024. Devtron Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 # shellcheck disable=SC2155
 #export TEST_BRANCH=$(echo $TEST_BRANCH | awk -F '/' '{print $NF}')
 export LATEST_HASH=`git log --pretty=format:'%H' -n 1`
@@ -16,8 +32,13 @@ install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 kubectl create ns devtroncd
 kubectl create ns devtron-cd
 kubectl create ns devtron-ci
+kubectl -n devtroncd create cm git-hash-cm --from-literal=GIT_HASH=$GIT_HASH
 kubectl -n devtroncd apply -f $PWD/tests/integrationTesting/postgresql-secret.yaml
 kubectl -ndevtroncd apply -f $PWD/tests/integrationTesting/postgresql.yaml
+kubectl -n devtroncd apply -f $PWD/tests/integrationTesting/devtron-secret.yaml
+kubectl -n devtroncd apply -f $PWD/tests/integrationTesting/nats-server.yaml
+# we are copying sql scripts into node container and this conainer's name is fixed
+docker cp $PWD/scripts/sql/ k3d-it-cluster-server-0:./tmp/scripts
 yq '(select(.metadata.name == "postgresql-migrate-devtron") | .spec.template.spec.containers[0].env[0].value) = env(TEST_BRANCH)' $PWD/tests/integrationTesting/migrator.yaml -i
 yq '(select(.metadata.name == "postgresql-migrate-devtron") | .spec.template.spec.containers[0].env[9].value) = env(LATEST_HASH)' $PWD/tests/integrationTesting/migrator.yaml -i
 kubectl -ndevtroncd apply -f $PWD/tests/integrationTesting/migrator.yaml

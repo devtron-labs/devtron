@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package CiPipeline
 
 type CiBuildType string
@@ -12,17 +28,16 @@ const Main = "main"
 const UniquePlaceHolderForAppName = "$etron"
 
 const PIPELINE_NAME_ALREADY_EXISTS_ERROR = "pipeline name already exist"
+const PIPELINE_TYPE_IS_NOT_VALID = "PipelineType is not valid  for pipeline %s"
 
 type PipelineType string
 
 const (
-	NORMAL PipelineType = "NORMAL"
-	LINKED PipelineType = "LINKED"
-	// CI_EXTERNAL field is been sent from the dashboard in CreateLinkedCI request and directly gets saved to Database without any validations
-	CI_EXTERNAL PipelineType = "CI_EXTERNAL" // Deprecated Enum: TODO fix the PipelineTypes in code and database
-	EXTERNAL    PipelineType = "EXTERNAL"
-	CI_JOB      PipelineType = "CI_JOB"
-	LINKED_CD   PipelineType = "LINKED_CD"
+	CI_BUILD  PipelineType = "CI_BUILD"
+	LINKED    PipelineType = "LINKED"
+	EXTERNAL  PipelineType = "EXTERNAL"
+	CI_JOB    PipelineType = "CI_JOB"
+	LINKED_CD PipelineType = "LINKED_CD"
 )
 
 type CiBuildConfigBean struct {
@@ -57,4 +72,13 @@ type BuildPackConfig struct {
 	BuildPacks      []string          `json:"buildPacks"`
 	Args            map[string]string `json:"args"`
 	ProjectPath     string            `json:"projectPath,omitempty"`
+}
+
+func (pType PipelineType) IsValidPipelineType() bool {
+	switch pType {
+	case CI_BUILD, LINKED, EXTERNAL, CI_JOB, LINKED_CD:
+		return true
+	default:
+		return false
+	}
 }

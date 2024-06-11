@@ -137,6 +137,11 @@ Users need to have [Build and deploy permission](../user-guide/global-configurat
 
 ### Hibernating and Unhibernating Apps
 
+{% hint style="warning" %}
+### Who Can Perform This Action?
+Users need to have [Build & deploy permission](./global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and application) to hibernate or unhibernate applications.
+{% endhint %}
+
 Since every application comes with an option to hibernate, the same is true for application groups. Using application group, you can hibernate one or more applications belonging to the same environment if you do not want them to consume resources (replica count will be set to 0). 
 
 In other words, you can hibernate running applications or unhibernate hibernated applications as per your requirement.
@@ -145,11 +150,11 @@ In other words, you can hibernate running applications or unhibernate hibernated
 
 1. In the `Overview` page of your application group, use the checkboxes to choose the applications you wish to hibernate, and click the **Hibernate** button.
 
-    ![Figure 18a: Selecting Apps to Hibernate](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/hibernate-apps.jpg)
+    ![Figure 18a: Selecting Apps to Hibernate](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/hibernate-apps-v1.jpg)
 
 2. Confirm the hibernation.
 
-    ![Figure 18b: Confirming Hibernation](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/confirm-hibernation.jpg)
+    ![Figure 18b: Confirming Hibernation](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/confirm-hibernation-v1.jpg)
 
 3. Hibernation will initiate as shown below. You may close the window. 
 
@@ -161,11 +166,11 @@ Your applications pods would be scaled down and would stop incurring costs.
 
 1. In the same `Overview` page, you can use the checkboxes to choose the hibernated applications you wish to unhibernate, and click the **Unhibernate** button.
 
-    ![Figure 19a: Selecting Hibernated Apps to Unhibernate](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/unhibernate-apps.jpg)
+    ![Figure 19a: Selecting Hibernated Apps to Unhibernate](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/unhibernate-apps-v1.jpg)
 
 2. Confirm the unhibernation.
 
-    ![Figure 19b: Confirming Unhibernation](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/confirm-unhibernation.jpg)
+    ![Figure 19b: Confirming Unhibernation](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/confirm-unhibernation-v1.jpg)
 
 3. Unhibernation will initiate as shown below. You may close the window. 
 
@@ -173,33 +178,62 @@ Your applications pods would be scaled down and would stop incurring costs.
 
 Your applications would be up and running in some time.
 
+### Restart Workloads
+
+{% hint style="warning" %}
+### Who Can Perform This Action?
+Users need to have [Build & deploy permission](./global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and application) to restart workloads in bulk.
+{% endhint %}
+
+Restarting workloads might be necessary if you want your new code or configuration to come into effect, or you are experiencing issues like crashing of pods.  
+
+Using application group, you can select the workloads (i.e., Pod, Deployment, ReplicaSet, etc.) of specific applications and restart them. 
+
+1. Use the checkboxes to choose the applications whose workloads you wish to restart, and click the **Restart Workload** button.
+
+    ![Figure 20a: Selecting Apps to Restart](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/restart-workloads-v1.jpg)
+
+2. Next to the application, click the workload dropdown to view all the individual workloads of an application. Choose only the ones you wish to restart.
+
+    ![Figure 20b: Choosing Workloads](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/choose-workload.jpg)
+
+    Moreover, you can easily select, deselect, or choose multiple workloads as shown below.
+
+    ![Figure 20c: Selecting and Unselecting Workloads](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/bulk-restart.gif)
+
+3. Click **Restart Workloads**.
+
+    ![Figure 20d: Restarting Workloads](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/select-workloads.jpg)
+
+Restarting workloads might take time depending on the number of applications.
+
 ### Filtering Applications
 
 Assume you have multiple applications (maybe 10, 50, 100, or more) showing up in an application group. If you want to limit your operations (build/deploy/other) to a specific set of applications, the filter feature will help you narrow down the list. Thus, you will see only those applications you select from the filter (be it on the `Overview` page, `Build & Deploy` page, and so on.)
 
 1. Click the filter next to the application group as shown below.
 
-    ![Figure 20: Filter Option](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/app-filter-1.jpg)
+    ![Figure 21: Filter Option](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/app-filter-1.jpg)
 
 2. The filter will show all the applications present in the group. Click to select the relevant ones.
 
-    ![Figure 21: All Apps](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/app-filter-2.jpg)
+    ![Figure 22: All Apps](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/app-filter-2.jpg)
 
 3. The filter narrows down the list of applications as shown below.
 
-    ![Figure 22: Filtered Apps](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/app-filter-3.jpg)
+    ![Figure 23: Filtered Apps](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/app-filter-3.jpg)
 
 4. (Optional) If required, you can save the filter for future use by clicking **Save selection as filter**.
 
-    ![Figure 23: Saving a Filter](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/save-filter.jpg)
+    ![Figure 24: Saving a Filter](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/save-filter.jpg)
 
 5. Add a name and description to the filter to help you know its purpose, and click **Save**.
 
-    ![Figure 24: Naming a Filter](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/save-filter-2.jpg)
+    ![Figure 25: Naming a Filter](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/save-filter-2.jpg)
 
 Now when you access the application group, your saved filter will be visible on top.
 
-![Figure 25: Saved Filter](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/save-filter-3.jpg)
+![Figure 26: Saved Filter](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/save-filter-3.jpg)
 
 {% hint style="info" %}
 
@@ -234,16 +268,17 @@ Users can delete a saved filter if they have Admin/Manager access on all applica
 
 ### Changing Branch
 
+{% hint style="warning" %}
+### Who Can Perform This Action?
+Users need to have [Admin role](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and applications) to update their branch.
+{% endhint %}
+
 Assume you have a few applications whose [build pipelines](../reference/glossary.md#build-pipeline) fetch from the `main` branch of your code repository. However, you decided to maintain a `master` branch, and you want all the upcoming CI builds to consider the `master` branch as the source. Devtron provides you the option to change the branch at both levels—individual application as well as application group.
 
 1. In the **Build & Deploy** tab of your application group, select the intended applications and click the **Change Branch** button present at the bottom.
 
-    ![Figure 26: Changing Branch](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/change-branch.jpg)
+    ![Figure 27: Changing Branch](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/change-branch.jpg)
 
 2. Enter the new branch name. If your build pipeline has `Branch Regex` as the Source Type, you must ensure your new branch name matches the regex (regular expression) provided in that build pipeline. Once done, click **Update Branch**.
 
-    ![Figure 27: Updating Branch Name](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/update-branch.jpg)
-
-{% hint style="info" %}
-Users need to have [Admin role](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and applications) to update their branch
-{% endhint %}
+    ![Figure 28: Updating Branch Name](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/update-branch.jpg)

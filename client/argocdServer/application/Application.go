@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package application
@@ -332,22 +331,21 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 		}
 	}
 
-	//podMetaData := make([]*PodMetadata, 0)
-	duplicateCheck := make(map[string]bool)
+	//duplicatePodToReplicasetMapping can contain following data {Pod1: RS1, Pod2: RS1, Pod4: RS2, Pod5:RS2}, it contains pod
+	//to replica set mapping, where key is podName and value is its respective replicaset name, multiple keys(podName) can have
+	//single value (replicasetName)
+	duplicatePodToReplicasetMapping := make(map[string]string)
 	if len(newReplicaSets) > 0 {
-		results := buildPodMetadataFromReplicaSet(resp, newReplicaSets, replicaSetManifests)
+		results, duplicateMapping := buildPodMetadataFromReplicaSet(resp, newReplicaSets, replicaSetManifests)
 		for _, meta := range results {
-			duplicateCheck[meta.Name] = true
 			podMetaData = append(podMetaData, meta)
 		}
+		duplicatePodToReplicasetMapping = duplicateMapping
 	}
+
 	if newPodNames != nil {
-		results := buildPodMetadataFromPod(resp, podManifests, newPodNames)
-		for _, meta := range results {
-			if _, ok := duplicateCheck[meta.Name]; !ok {
-				podMetaData = append(podMetaData, meta)
-			}
-		}
+		podsMetadataFromPods := buildPodMetadataFromPod(resp, podManifests, newPodNames)
+		podMetaData = updateMetadataOfDuplicatePods(podsMetadataFromPods, duplicatePodToReplicasetMapping, podMetaData)
 	}
 	return
 }
