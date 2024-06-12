@@ -17,8 +17,8 @@
 package imageDigestPolicy
 
 import (
-	"github.com/devtron-labs/devtron/pkg/devtronResource"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/bean"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/read"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -44,13 +44,13 @@ type ImageDigestPolicyService interface {
 type ImageDigestPolicyServiceImpl struct {
 	logger                       *zap.SugaredLogger
 	qualifierMappingService      resourceQualifiers.QualifierMappingService
-	devtronResourceSearchableKey devtronResource.DevtronResourceSearchableKeyService
+	devtronResourceSearchableKey read.DevtronResourceSearchableKeyService
 }
 
 func NewImageDigestPolicyServiceImpl(
 	logger *zap.SugaredLogger,
 	qualifierMappingService resourceQualifiers.QualifierMappingService,
-	devtronResourceSearchableKey devtronResource.DevtronResourceSearchableKeyService,
+	devtronResourceSearchableKey read.DevtronResourceSearchableKeyService,
 ) *ImageDigestPolicyServiceImpl {
 	return &ImageDigestPolicyServiceImpl{
 		logger:                       logger,
