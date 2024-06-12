@@ -722,13 +722,21 @@ func (impl PipelineRepositoryImpl) FindDeploymentTypeByPipelineIds(cdPipelineIds
 	pipelineIdsMap := make(map[int]DeploymentObject)
 
 	var deploymentType []DeploymentObject
-	query := "with pcos as(select max(id) as id from pipeline_config_override where pipeline_id in (?) " +
-		"group by pipeline_id) select pco.deployment_type,pco.pipeline_id, aps.status from pipeline_config_override " +
+	//query := "with pcos as(select max(id) as id from pipeline_config_override where pipeline_id in (?) " +
+	//	"group by pipeline_id) select pco.deployment_type,pco.pipeline_id, aps.status from pipeline_config_override " +
+	//	"pco inner join pcos on pcos.id=pco.id" +
+	//	" inner join pipeline p on p.id=pco.pipeline_id left join app_status aps on aps.app_id=p.app_id " +
+	//	"and aps.env_id=p.environment_id;"
+	query := " WITH pcos AS " +
+		" (SELECT max(p.id) AS id FROM pipeline_config_override p " +
+		" INNER JOIN cd_workflow_runner cdwr ON cdwr.cd_workflow_id = p.cd_workflow_id " +
+		//                  pipeline ids               deploy type         initiated,queued,failed
+		" WHERE p.pipeline_id in (?) AND cdwr.workflow_type = ? AND cdwr.status NOT IN (?) " +
+		" GROUP BY p.pipeline_id) select pco.deployment_type,pco.pipeline_id, aps.status from pipeline_config_override " +
 		"pco inner join pcos on pcos.id=pco.id" +
 		" inner join pipeline p on p.id=pco.pipeline_id left join app_status aps on aps.app_id=p.app_id " +
 		"and aps.env_id=p.environment_id;"
-
-	_, err := impl.dbConnection.Query(&deploymentType, query, pg.In(cdPipelineIds), true)
+	_, err := impl.dbConnection.Query(&deploymentType, query, pg.In(cdPipelineIds), bean.CD_WORKFLOW_TYPE_DEPLOY, pg.In([]string{WorkflowInitiated, WorkflowInQueue, WorkflowFailed}))
 	if err != nil {
 		return pipelineIdsMap, err
 	}
