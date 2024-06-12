@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package util
 
 import (
@@ -8,6 +24,7 @@ type EnvironmentVariables struct {
 	GlobalEnvVariables          *GlobalEnvVariables
 	DevtronSecretConfig         *DevtronSecretConfig
 	DeploymentServiceTypeConfig *DeploymentServiceTypeConfig
+	TerminalEnvVariables        *TerminalEnvVariables
 }
 
 type DeploymentServiceTypeConfig struct {
@@ -27,11 +44,16 @@ type DevtronSecretConfig struct {
 	DevtronDexSecretNamespace string `env:"DEVTRON_DEX_SECRET_NAMESPACE" envDefault:"devtroncd"`
 }
 
+type TerminalEnvVariables struct {
+	RestrictTerminalAccessForNonSuperUser bool `env:"RESTRICT_TERMINAL_ACCESS_FOR_NON_SUPER_USER" envDefault:"false"`
+}
+
 func GetEnvironmentVariables() (*EnvironmentVariables, error) {
 	cfg := &EnvironmentVariables{
 		GlobalEnvVariables:          &GlobalEnvVariables{},
 		DevtronSecretConfig:         &DevtronSecretConfig{},
 		DeploymentServiceTypeConfig: &DeploymentServiceTypeConfig{},
+		TerminalEnvVariables:        &TerminalEnvVariables{},
 	}
 	err := env.Parse(cfg)
 	if err != nil {

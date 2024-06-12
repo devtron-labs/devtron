@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package devtronApps
 
 import (
@@ -410,19 +426,21 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 				impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", artifact.Id)
 			}
 		}
-		vulnerabilityCheckRequest := adapter.GetVulnerabilityCheckRequest(cdPipeline, artifact.ImageDigest)
-		isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(ctx, vulnerabilityCheckRequest)
-		if err != nil {
-			impl.logger.Errorw("error in getting Artifact vulnerability status, ManualCdTrigger", "err", err)
-			return 0, err
-		}
-
-		if isVulnerable == true {
-			// if image vulnerable, update timeline status and return
-			if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(pipelineConfig.FOUND_VULNERABILITY), overrideRequest.UserId); err != nil {
-				impl.logger.Errorw("error while updating current runner status to failed, TriggerDeployment", "wfrId", runner.Id, "err", err)
+		if isNotHibernateRequest(overrideRequest.DeploymentType) {
+			vulnerabilityCheckRequest := adapter.GetVulnerabilityCheckRequest(cdPipeline, artifact.ImageDigest)
+			isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(ctx, vulnerabilityCheckRequest)
+			if err != nil {
+				impl.logger.Errorw("error in getting Artifact vulnerability status, ManualCdTrigger", "err", err)
+				return 0, err
 			}
-			return 0, fmt.Errorf("found vulnerability for image digest %s", artifact.ImageDigest)
+
+			if isVulnerable == true {
+				// if image vulnerable, update timeline status and return
+				if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(pipelineConfig.FOUND_VULNERABILITY), overrideRequest.UserId); err != nil {
+					impl.logger.Errorw("error while updating current runner status to failed, TriggerDeployment", "wfrId", runner.Id, "err", err)
+				}
+				return 0, fmt.Errorf("found vulnerability for image digest %s", artifact.ImageDigest)
+			}
 		}
 
 		// Deploy the release
@@ -519,6 +537,13 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	}
 
 	return releaseId, err
+}
+
+func isNotHibernateRequest(deploymentType models.DeploymentType) bool {
+	if deploymentType == models.DEPLOYMENTTYPE_STOP || deploymentType == models.DEPLOYMENTTYPE_START {
+		return false
+	}
+	return true
 }
 
 // TODO: write a wrapper to handle auto and manual trigger
