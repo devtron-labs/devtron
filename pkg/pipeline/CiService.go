@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
@@ -62,6 +63,10 @@ type CiService interface {
 	TriggerCiPipeline(trigger types.Trigger) (int, error)
 	GetCiMaterials(pipelineId int, ciMaterials []*pipelineConfig.CiPipelineMaterial) ([]*pipelineConfig.CiPipelineMaterial, error)
 }
+type BuildxCache struct {
+	BuildxCacheModeMin     bool `env:"BuildxCacheModeMin" envDefault:"false"`
+	AsyncBuildxCacheExport bool `env:"AsyncBuildxCacheExport" envDefault:"false"`
+}
 
 type CiServiceImpl struct {
 	Logger                       *zap.SugaredLogger
@@ -83,6 +88,7 @@ type CiServiceImpl struct {
 	pluginInputVariableParser    PluginInputVariableParser
 	globalPluginService          plugin.GlobalPluginService
 	infraProvider                infraProviders.InfraProvider
+	buildxCache                  *BuildxCache
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -99,6 +105,11 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	globalPluginService plugin.GlobalPluginService,
 	infraProvider infraProviders.InfraProvider,
 ) *CiServiceImpl {
+	buildxCache := &BuildxCache{}
+	err := env.Parse(buildxCache)
+	if err != nil {
+		Logger.Infow("error occurred while parsing BuildxCache env,so setting BuildxCacheModeMin and AsyncBuildxCacheExport to default value", "err", err)
+	}
 	cis := &CiServiceImpl{
 		Logger:                       Logger,
 		workflowService:              workflowService,
@@ -118,6 +129,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		pluginInputVariableParser:    pluginInputVariableParser,
 		globalPluginService:          globalPluginService,
 		infraProvider:                infraProvider,
+		buildxCache:                  buildxCache,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -219,7 +231,8 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		return 0, err
 	}
 	workflowRequest.Scope = scope
-
+	workflowRequest.BuildxCacheModeMin = impl.buildxCache.BuildxCacheModeMin
+	workflowRequest.AsyncBuildxCacheExport = impl.buildxCache.AsyncBuildxCacheExport
 	if impl.config != nil && impl.config.BuildxK8sDriverOptions != "" {
 		err = impl.setBuildxK8sDriverData(workflowRequest)
 		if err != nil {
