@@ -939,15 +939,18 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 		}
 		IsOCIRepo = true
 		registryCredential = &gRPC.RegistryCredential{
-			RegistryUrl:  appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL,
-			Username:     appStoreAppVersion.AppStore.DockerArtifactStore.Username,
-			Password:     appStoreAppVersion.AppStore.DockerArtifactStore.Password,
-			AwsRegion:    appStoreAppVersion.AppStore.DockerArtifactStore.AWSRegion,
-			AccessKey:    appStoreAppVersion.AppStore.DockerArtifactStore.AWSAccessKeyId,
-			SecretKey:    appStoreAppVersion.AppStore.DockerArtifactStore.AWSSecretAccessKey,
-			RegistryType: string(appStoreAppVersion.AppStore.DockerArtifactStore.RegistryType),
-			RepoName:     appStoreAppVersion.AppStore.Name,
-			IsPublic:     ociRegistryConfig.IsPublic,
+			RegistryUrl:         appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL,
+			Username:            appStoreAppVersion.AppStore.DockerArtifactStore.Username,
+			Password:            appStoreAppVersion.AppStore.DockerArtifactStore.Password,
+			AwsRegion:           appStoreAppVersion.AppStore.DockerArtifactStore.AWSRegion,
+			AccessKey:           appStoreAppVersion.AppStore.DockerArtifactStore.AWSAccessKeyId,
+			SecretKey:           appStoreAppVersion.AppStore.DockerArtifactStore.AWSSecretAccessKey,
+			RegistryType:        string(appStoreAppVersion.AppStore.DockerArtifactStore.RegistryType),
+			RepoName:            appStoreAppVersion.AppStore.Name,
+			IsPublic:            ociRegistryConfig.IsPublic,
+			Connection:          appStoreAppVersion.AppStore.DockerArtifactStore.Connection,
+			RegistryName:        appStoreAppVersion.AppStore.DockerArtifactStoreId,
+			RegistryCertificate: appStoreAppVersion.AppStore.DockerArtifactStore.Cert,
 		}
 	} else {
 		chartRepository = &gRPC.ChartRepository{

@@ -55,6 +55,7 @@ type CdWorkflowRepository interface {
 	FindBasicWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error)
 	FindRetriedWorkflowCountByReferenceId(wfrId int) (int, error)
 	FindLatestWfrByAppIdAndEnvironmentId(appId int, environmentId int) (*CdWorkflowRunner, error)
+	FindLastUnFailedProcessedRunner(appId int, environmentId int) (*CdWorkflowRunner, error)
 	IsLatestCDWfr(pipelineId, wfrId int) (bool, error)
 	FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId int, environmentId int, runnerType apiBean.WorkflowType) (CdWorkflowRunner, error)
 	FindAllTriggeredWorkflowCountInLast24Hour() (cdWorkflowCount int, err error)
@@ -481,6 +482,27 @@ func (impl *CdWorkflowRepositoryImpl) FindLatestWfrByAppIdAndEnvironmentId(appId
 		return wfr, err
 	}
 	return wfr, nil
+}
+
+func (impl *CdWorkflowRepositoryImpl) FindLastUnFailedProcessedRunner(appId int, environmentId int) (*CdWorkflowRunner, error) {
+	wfr := &CdWorkflowRunner{}
+	err := impl.dbConnection.
+		Model(wfr).
+		Column("cd_workflow_runner.*", "CdWorkflow.Pipeline.id", "CdWorkflow.Pipeline.deployment_app_delete_request", "CdWorkflow.Pipeline.deployment_app_type").
+		Where("p.environment_id = ?", environmentId).
+		Where("p.app_id = ?", appId).
+		Where("cd_workflow_runner.workflow_type = ?", bean.CD_WORKFLOW_TYPE_DEPLOY).
+		Where("cd_workflow_runner.status NOT IN (?)", pg.In([]string{WorkflowInitiated, WorkflowInQueue, WorkflowFailed})).
+		Order("cd_workflow_runner.id DESC").
+		Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
+		Join("inner join pipeline p on p.id = wf.pipeline_id").
+		Limit(1).
+		Select()
+	if err != nil {
+		return wfr, err
+	}
+	return wfr, nil
+
 }
 
 func (impl *CdWorkflowRepositoryImpl) IsLatestCDWfr(pipelineId, wfrId int) (bool, error) {

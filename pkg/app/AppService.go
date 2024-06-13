@@ -21,7 +21,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	health2 "github.com/argoproj/gitops-engine/pkg/health"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
@@ -119,6 +121,7 @@ type AppServiceImpl struct {
 	gitOpsConfigReadService                config.GitOpsConfigReadService
 	gitOperationService                    git.GitOperationService
 	deploymentTemplateService              deploymentTemplate.DeploymentTemplateService
+	appListingService                      AppListingService
 }
 
 type AppService interface {
@@ -134,6 +137,7 @@ type AppService interface {
 
 	// TODO: move inside reader service
 	GetActiveCiCdAppsCount() (int, error)
+	ComputeAppstatus(appId, envId int, status health2.HealthStatusCode) (string, error)
 }
 
 func NewAppService(
@@ -157,7 +161,8 @@ func NewAppService(
 	installedAppVersionHistoryRepository repository4.InstalledAppVersionHistoryRepository,
 	scopedVariableManager variables.ScopedVariableCMCSManager, acdConfig *argocdServer.ACDConfig,
 	gitOpsConfigReadService config.GitOpsConfigReadService, gitOperationService git.GitOperationService,
-	deploymentTemplateService deploymentTemplate.DeploymentTemplateService) *AppServiceImpl {
+	deploymentTemplateService deploymentTemplate.DeploymentTemplateService,
+	appListingService AppListingService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -187,6 +192,7 @@ func NewAppService(
 		gitOpsConfigReadService:                gitOpsConfigReadService,
 		gitOperationService:                    gitOperationService,
 		deploymentTemplateService:              deploymentTemplateService,
+		appListingService:                      appListingService,
 	}
 	return appServiceImpl
 }
@@ -258,6 +264,42 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusAndCheckIsSucceeded(app *v1alp
 	return isSucceeded, pipelineOverride, nil
 }
 
+func (impl *AppServiceImpl) ComputeAppstatus(appId, envId int, status health2.HealthStatusCode) (string, error) {
+	appStatusInternal := string(status)
+
+	// get the last accepted deploy type workflow runner, accepted state -> not in (initiated/queued/failed)
+	cdWfr, err := impl.cdWorkflowRepository.FindLastUnFailedProcessedRunner(appId, envId)
+	if err != nil {
+		impl.logger.Errorw("error in getting latest wfr by appId and envId", "err", err, "appId", appId, "envId", envId)
+		return "", err
+	}
+
+	override, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(cdWfr.CdWorkflowId)
+	if err != nil {
+		impl.logger.Errorw("error in getting latest wfr by pipelineId", "cdWorkflowId", cdWfr.CdWorkflowId, "err", err)
+		return "", err
+	}
+
+	if errors.Is(err, pg.ErrNoRows) {
+		// not deployed
+		return appStatusInternal, nil
+	}
+
+	// this is not stop/start type
+	if override.DeploymentType != models.DEPLOYMENTTYPE_STOP && override.DeploymentType != models.DEPLOYMENTTYPE_START {
+		return appStatusInternal, nil
+	}
+
+	// for stop, then user requested for hibernate, then check for hibernation.
+	IslastAcceptedReleaseIsStopRequest := models.DEPLOYMENTTYPE_STOP == override.DeploymentType
+	// request essentially means that the previous state of the release was hibernation/partial hibernation
+
+	if IslastAcceptedReleaseIsStopRequest {
+		appStatusInternal = appStatus.GetHibernationStatus(status)
+	}
+	return appStatusInternal, nil
+}
+
 func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alpha1.Application, statusTime time.Time, isAppStore bool) (bool, bool, *chartConfig.PipelineOverride, error) {
 	isSucceeded := false
 	isTimelineUpdated := false
@@ -291,7 +333,13 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 			impl.logger.Errorw("error in getting latest timeline before update", "err", err, "cdWfrId", cdWfr.Id)
 			return isSucceeded, isTimelineUpdated, pipelineOverride, err
 		}
-		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(cdPipeline.AppId, cdPipeline.EnvironmentId, string(app.Status.Health.Status))
+
+		appStatusInternal, err := impl.ComputeAppstatus(cdPipeline.AppId, cdPipeline.EnvironmentId, app.Status.Health.Status)
+		if err != nil {
+			impl.logger.Errorw("error in checking if last release is stop type", "err", err, cdPipeline.AppId, "envId", cdPipeline.EnvironmentId)
+			return isSucceeded, isTimelineUpdated, pipelineOverride, err
+		}
+		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(cdPipeline.AppId, cdPipeline.EnvironmentId, appStatusInternal)
 		if err != nil {
 			impl.logger.Errorw("error occurred while updating app status in app_status table", "error", err, "appId", cdPipeline.AppId, "envId", cdPipeline.EnvironmentId)
 		}
