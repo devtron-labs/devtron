@@ -34,7 +34,6 @@ func NewFluxApplicationRestHandlerImpl(fluxApplicationService fluxApplication.Fl
 }
 
 func (handler *FluxApplicationRestHandlerImpl) ListFluxApplications(w http.ResponseWriter, r *http.Request) {
-
 	//handle super-admin RBAC
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
