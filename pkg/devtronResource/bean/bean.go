@@ -85,3 +85,32 @@ const (
 func (v ValueType) ToString() string {
 	return string(v)
 }
+
+type DevtronResourceKind string
+
+const (
+	DevtronResourceApplication        DevtronResourceKind = "application"
+	DevtronResourceDevtronApplication DevtronResourceKind = "devtron-application"
+	DevtronResourceHelmApplication    DevtronResourceKind = "helm-application"
+	DevtronResourceCluster            DevtronResourceKind = "cluster"
+	DevtronResourceJob                DevtronResourceKind = "job"
+	DevtronResourceUser               DevtronResourceKind = "users"
+	DevtronResourceCdPipeline         DevtronResourceKind = "cd-pipeline"
+	DevtronResourceEnvironment        DevtronResourceKind = "environment" // DevtronResourceEnvironment is an internal only resource kind used for filtering
+	DevtronResourceAppWorkflow        DevtronResourceKind = "appWorkflow" // DevtronResourceAppWorkflow is an internal only resource kind used for filtering
+)
+
+func (n DevtronResourceKind) ToString() string {
+	return string(n)
+}
+
+type DevtronResourceVersion string
+
+const (
+	DevtronResourceVersion1      DevtronResourceVersion = "v1"
+	DevtronResourceVersionAlpha1 DevtronResourceVersion = "alpha1"
+)
+
+func (n DevtronResourceVersion) ToString() string {
+	return string(n)
+}

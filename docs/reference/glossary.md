@@ -58,7 +58,7 @@ An OCI-compliant registry can also store artifacts (such as helm charts). Here, 
 
 ### Cordoning
 
-Temporarily marking a node as unschedulable, preventing new pods from being assigned to it. In Devtron, you can cordon a node by going to Resource Browser → (choose a cluster) → Nodes → (click on a node) → Cordon (available in blue). [Read More...](../user-guide/clusters.md#cordon-a-node)
+Temporarily marking a node as unschedulable, preventing new pods from being assigned to it. In Devtron, you can cordon a node by going to Resource Browser → (choose a cluster) → Nodes → (click on a node) → Cordon (available in blue). [Read More...](../user-guide/resource-browser.md#cordon-a-node)
 
 ### CronJob
 
