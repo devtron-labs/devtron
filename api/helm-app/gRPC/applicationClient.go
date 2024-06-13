@@ -49,6 +49,7 @@ type HelmAppClient interface {
 	InstallReleaseWithCustomChart(ctx context.Context, in *HelmInstallCustomRequest) (*HelmInstallCustomResponse, error)
 	GetNotes(ctx context.Context, request *InstallReleaseRequest) (*ChartNotesResponse, error)
 	ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *RegistryCredential) (*OCIRegistryResponse, error)
+	GetExternalFluxAppDetail(ctx context.Context, in *FluxAppDetailRequest) (*FluxAppDetail, error)
 }
 
 type HelmAppClientImpl struct {
@@ -370,4 +371,16 @@ func (impl *HelmAppClientImpl) ListFluxApplication(ctx context.Context, req *App
 		return nil, err
 	}
 	return stream, nil
+}
+
+func (impl *HelmAppClientImpl) GetExternalFluxAppDetail(ctx context.Context, in *FluxAppDetailRequest) (*FluxAppDetail, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	detail, err := applicationClient.GetExternalFluxAppDetail(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return detail, nil
 }

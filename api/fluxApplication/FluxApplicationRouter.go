@@ -22,4 +22,7 @@ func (impl *FluxApplicationRouterImpl) InitFluxApplicationRouter(fluxApplication
 	fluxApplicationRouter.Path("").
 		Methods("GET").
 		HandlerFunc(impl.fluxApplicationRestHandler.ListFluxApplications)
+
+	fluxApplicationRouter.Path("/app").Queries("appId", "{appId}").
+		HandlerFunc(impl.fluxApplicationRestHandler.GetApplicationDetail).Methods("GET")
 }
