@@ -491,7 +491,7 @@ func (impl *CdWorkflowRepositoryImpl) FindLastUnFailedProcessedRunner(appId int,
 		Column("cd_workflow_runner.*", "CdWorkflow.Pipeline.id", "CdWorkflow.Pipeline.deployment_app_delete_request", "CdWorkflow.Pipeline.deployment_app_type").
 		Where("p.environment_id = ?", environmentId).
 		Where("p.app_id = ?", appId).
-		Where("cd_workflow_runner.workflow_type = ?", bean.CD_WORKFLOW_TYPE_DEPLOY).
+		Where("cd_workflow_runner.workflow_type = ?", apiBean.CD_WORKFLOW_TYPE_DEPLOY).
 		Where("cd_workflow_runner.status NOT IN (?)", pg.In([]string{WorkflowInitiated, WorkflowInQueue, WorkflowFailed})).
 		Order("cd_workflow_runner.id DESC").
 		Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
