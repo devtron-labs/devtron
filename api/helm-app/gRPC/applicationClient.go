@@ -378,7 +378,7 @@ func (impl *HelmAppClientImpl) GetExternalFluxAppDetail(ctx context.Context, in 
 	if err != nil {
 		return nil, err
 	}
-	detail, err := applicationClient.GetExternalFluxAppDetail(ctx, in)
+	detail, err := applicationClient.GetFluxAppDetail(ctx, in)
 	if err != nil {
 		return nil, err
 	}

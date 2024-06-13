@@ -43,7 +43,7 @@ service ApplicationService {
   rpc UpgradeReleaseWithCustomChart(UpgradeReleaseRequest) returns(UpgradeReleaseResponse){}
   rpc ValidateOCIRegistry(RegistryCredential) returns(OCIRegistryResponse) {}
   rpc GetResourceTreeForExternalResources(ExternalResourceTreeRequest) returns(ResourceTreeResponse){}
-  rpc GetExternalFluxAppDetail(FluxAppDetailRequest)returns(FluxAppDetail){}
+  rpc GetFluxAppDetail(FluxAppDetailRequest)returns(FluxAppDetail){}
 }
 
 message ExternalResourceTreeRequest{
@@ -82,7 +82,7 @@ message FluxAppDetailRequest{
 
 message FluxAppDetail{
   FluxAppStatusDetail FluxAppStatusDetail = 1;
-  repeated ResourceTreeResponse resourceTreeResponse = 2;
+  ResourceTreeResponse resourceTreeResponse = 2;
   EnvironmentDetails environmentDetails = 3;
   bool IsKustomizeApp = 4;
   string name =5;

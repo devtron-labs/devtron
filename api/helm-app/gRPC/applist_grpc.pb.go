@@ -42,7 +42,7 @@ const (
 	ApplicationService_UpgradeReleaseWithCustomChart_FullMethodName       = "/ApplicationService/UpgradeReleaseWithCustomChart"
 	ApplicationService_ValidateOCIRegistry_FullMethodName                 = "/ApplicationService/ValidateOCIRegistry"
 	ApplicationService_GetResourceTreeForExternalResources_FullMethodName = "/ApplicationService/GetResourceTreeForExternalResources"
-	ApplicationService_GetExternalFluxAppDetail_FullMethodName            = "/ApplicationService/GetExternalFluxAppDetail"
+	ApplicationService_GetFluxAppDetail_FullMethodName                    = "/ApplicationService/GetFluxAppDetail"
 )
 
 // ApplicationServiceClient is the client API for ApplicationService service.
@@ -72,7 +72,7 @@ type ApplicationServiceClient interface {
 	UpgradeReleaseWithCustomChart(ctx context.Context, in *UpgradeReleaseRequest, opts ...grpc.CallOption) (*UpgradeReleaseResponse, error)
 	ValidateOCIRegistry(ctx context.Context, in *RegistryCredential, opts ...grpc.CallOption) (*OCIRegistryResponse, error)
 	GetResourceTreeForExternalResources(ctx context.Context, in *ExternalResourceTreeRequest, opts ...grpc.CallOption) (*ResourceTreeResponse, error)
-	GetExternalFluxAppDetail(ctx context.Context, in *FluxAppDetailRequest, opts ...grpc.CallOption) (*FluxAppDetail, error)
+	GetFluxAppDetail(ctx context.Context, in *FluxAppDetailRequest, opts ...grpc.CallOption) (*FluxAppDetail, error)
 }
 
 type applicationServiceClient struct {
@@ -336,9 +336,9 @@ func (c *applicationServiceClient) GetResourceTreeForExternalResources(ctx conte
 	return out, nil
 }
 
-func (c *applicationServiceClient) GetExternalFluxAppDetail(ctx context.Context, in *FluxAppDetailRequest, opts ...grpc.CallOption) (*FluxAppDetail, error) {
+func (c *applicationServiceClient) GetFluxAppDetail(ctx context.Context, in *FluxAppDetailRequest, opts ...grpc.CallOption) (*FluxAppDetail, error) {
 	out := new(FluxAppDetail)
-	err := c.cc.Invoke(ctx, ApplicationService_GetExternalFluxAppDetail_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, ApplicationService_GetFluxAppDetail_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -372,7 +372,7 @@ type ApplicationServiceServer interface {
 	UpgradeReleaseWithCustomChart(context.Context, *UpgradeReleaseRequest) (*UpgradeReleaseResponse, error)
 	ValidateOCIRegistry(context.Context, *RegistryCredential) (*OCIRegistryResponse, error)
 	GetResourceTreeForExternalResources(context.Context, *ExternalResourceTreeRequest) (*ResourceTreeResponse, error)
-	GetExternalFluxAppDetail(context.Context, *FluxAppDetailRequest) (*FluxAppDetail, error)
+	GetFluxAppDetail(context.Context, *FluxAppDetailRequest) (*FluxAppDetail, error)
 	mustEmbedUnimplementedApplicationServiceServer()
 }
 
@@ -449,8 +449,8 @@ func (UnimplementedApplicationServiceServer) ValidateOCIRegistry(context.Context
 func (UnimplementedApplicationServiceServer) GetResourceTreeForExternalResources(context.Context, *ExternalResourceTreeRequest) (*ResourceTreeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetResourceTreeForExternalResources not implemented")
 }
-func (UnimplementedApplicationServiceServer) GetExternalFluxAppDetail(context.Context, *FluxAppDetailRequest) (*FluxAppDetail, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetExternalFluxAppDetail not implemented")
+func (UnimplementedApplicationServiceServer) GetFluxAppDetail(context.Context, *FluxAppDetailRequest) (*FluxAppDetail, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetFluxAppDetail not implemented")
 }
 func (UnimplementedApplicationServiceServer) mustEmbedUnimplementedApplicationServiceServer() {}
 
@@ -885,20 +885,20 @@ func _ApplicationService_GetResourceTreeForExternalResources_Handler(srv interfa
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ApplicationService_GetExternalFluxAppDetail_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ApplicationService_GetFluxAppDetail_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(FluxAppDetailRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ApplicationServiceServer).GetExternalFluxAppDetail(ctx, in)
+		return srv.(ApplicationServiceServer).GetFluxAppDetail(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ApplicationService_GetExternalFluxAppDetail_FullMethodName,
+		FullMethod: ApplicationService_GetFluxAppDetail_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ApplicationServiceServer).GetExternalFluxAppDetail(ctx, req.(*FluxAppDetailRequest))
+		return srv.(ApplicationServiceServer).GetFluxAppDetail(ctx, req.(*FluxAppDetailRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -995,8 +995,8 @@ var ApplicationService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ApplicationService_GetResourceTreeForExternalResources_Handler,
 		},
 		{
-			MethodName: "GetExternalFluxAppDetail",
-			Handler:    _ApplicationService_GetExternalFluxAppDetail_Handler,
+			MethodName: "GetFluxAppDetail",
+			Handler:    _ApplicationService_GetFluxAppDetail_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

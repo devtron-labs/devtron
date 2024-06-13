@@ -158,13 +158,14 @@ func (impl *FluxApplicationServiceImpl) GetFluxAppDetail(ctx context.Context, ap
 			Namespace:      app.Namespace,
 			ClusterId:      app.ClusterId,
 			IsKustomizeApp: app.IsKustomizeApp,
+			ClusterName:    fluxDetailResponse.EnvironmentDetails.GetClusterName(),
 		},
 		FluxAppStatusDetail: &bean.FluxAppStatusDetail{
 			Status:  fluxDetailResponse.FluxAppStatusDetail.GetStatus(),
 			Reason:  fluxDetailResponse.FluxAppStatusDetail.GetReason(),
 			Message: fluxDetailResponse.FluxAppStatusDetail.GetMessage(),
 		},
-		ResourceTreeArray: fluxDetailResponse.ResourceTreeResponse,
+		ResourceTreeResponse: fluxDetailResponse.ResourceTreeResponse,
 	}
 
 	return appDetail, nil
