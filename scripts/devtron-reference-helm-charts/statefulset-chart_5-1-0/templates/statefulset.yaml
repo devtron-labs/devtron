@@ -60,11 +60,15 @@ spec:
       {{- end }}
   replicas: {{ $.Values.replicaCount }}
   minReadySeconds: {{ $.Values.MinReadySeconds }}
+  {{- if $.Values.statefulSetConfig.serviceName }}
+  serviceName: {{ $.Values.statefulSetConfig.serviceName }}
+  {{- else }}
   {{- if or  .Values.service.enabled .Values.serviceheadless.enabled  }}
   {{- if .Values.serviceheadless.name  }}
   serviceName: {{ .Values.serviceheadless.name }}
   {{- else }}
   serviceName: {{ template ".servicename" . }}-headless
+  {{- end }}
   {{- end }}
   {{- end }}
   {{- if $.Values.statefulSetConfig.podManagementPolicy }}
@@ -80,7 +84,7 @@ spec:
     {{- end }}
       labels:
       {{- if .Values.customPodLabels }}
-{{ toYaml .Values.customPodLabels | indent 8 }}
+{{ toYaml .Values.customPodLabels | indent 8 }}  
       {{- else }}
         app: {{ template ".Chart.Name .name" $ }}
         appId: {{ $.Values.app | quote }}
@@ -92,7 +96,7 @@ spec:
         {{- if .Values.podLabels }}
         {{ toYaml .Values.podLabels | indent 8 }}
         {{- end }}
-      {{- end }}
+      {{- end }}  
     spec:
 {{- if $.Values.podExtraSpecs }}	
 {{ toYaml .Values.podExtraSpecs | indent 6 }}	
@@ -566,8 +570,8 @@ spec:
           {{- if and .metadata .metadata.annotations }}
           annotations: {{ toYaml .metadata.annotations | nindent 14 }}
           {{- end}}
-          labels:
           {{- if and .metadata .metadata.labels -}}
+          labels:
           {{ toYaml .metadata.labels | nindent 14 }}
           {{- end}}
           {{- if and .metadata .metadata.name }}
