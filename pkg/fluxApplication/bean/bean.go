@@ -5,13 +5,13 @@ type FluxApplicationListDto struct {
 	FluxAppDto []*FluxApplication
 }
 type FluxApplication struct {
-	Name           string `json:"appName"`
-	HealthStatus   string `json:"appStatus"`
-	SyncStatus     string `json:"syncStatus"`
-	ClusterId      int    `json:"clusterId"`
-	ClusterName    string `json:"clusterName"`
-	Namespace      string `json:"namespace"`
-	IsKustomizeApp bool   `json:"isKustomizeApp"`
+	Name         string `json:"appName"`
+	HealthStatus string `json:"appStatus"`
+	SyncStatus   string `json:"syncStatus"`
+	ClusterId    int    `json:"clusterId"`
+	ClusterName  string `json:"clusterName"`
+	Namespace    string `json:"namespace"`
+	AppType      string `json:"appType"`
 }
 
 type FluxAppList struct {

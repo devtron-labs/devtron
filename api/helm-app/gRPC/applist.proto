@@ -59,14 +59,14 @@ message ExternalResourceDetail {
 }
 message FluxApplicationList {
   int32 clusterId = 1;
-  repeated FluxApplicationDetail FluxApplicationDetail =2;
+  repeated FluxApplication FluxApplication =2;
 }
-message FluxApplicationDetail{
+message FluxApplication{
   string Name=1;
   string HealthStatus=2;
   string SyncStatus=3;
   EnvironmentDetails environmentDetail = 4;
-  bool IsKustomizeApp=5;
+  string AppType=5;
 }
 
 message DeployedAppList {

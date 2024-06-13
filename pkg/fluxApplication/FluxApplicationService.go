@@ -94,16 +94,16 @@ func (impl *FluxApplicationServiceImpl) appListRespProtoTransformer(deployedApps
 
 	fluxApps := make([]bean.FluxApplication, 0)
 
-	for _, deployedapp := range deployedApps.FluxApplicationDetail {
+	for _, deployedapp := range deployedApps.FluxApplication {
 
 		fluxApp := bean.FluxApplication{
-			Name:           deployedapp.Name,
-			HealthStatus:   deployedapp.HealthStatus,
-			SyncStatus:     deployedapp.SyncStatus,
-			ClusterId:      int(deployedapp.EnvironmentDetail.ClusterId),
-			ClusterName:    deployedapp.EnvironmentDetail.ClusterName,
-			Namespace:      deployedapp.EnvironmentDetail.Namespace,
-			IsKustomizeApp: deployedapp.IsKustomizeApp,
+			Name:         deployedapp.Name,
+			HealthStatus: deployedapp.HealthStatus,
+			SyncStatus:   deployedapp.SyncStatus,
+			ClusterId:    int(deployedapp.EnvironmentDetail.ClusterId),
+			ClusterName:  deployedapp.EnvironmentDetail.ClusterName,
+			Namespace:    deployedapp.EnvironmentDetail.Namespace,
+			AppType:      deployedapp.AppType,
 		}
 		fluxApps = append(fluxApps, fluxApp)
 	}
