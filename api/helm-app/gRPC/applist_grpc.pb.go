@@ -44,6 +44,31 @@ const (
 	ApplicationService_GetResourceTreeForExternalResources_FullMethodName = "/ApplicationService/GetResourceTreeForExternalResources"
 )
 
+const (
+	ApplicationService_ListApplications_FullMethodName                    = "/ApplicationService/ListApplications"
+	ApplicationService_GetAppDetail_FullMethodName                        = "/ApplicationService/GetAppDetail"
+	ApplicationService_GetAppStatus_FullMethodName                        = "/ApplicationService/GetAppStatus"
+	ApplicationService_Hibernate_FullMethodName                           = "/ApplicationService/Hibernate"
+	ApplicationService_UnHibernate_FullMethodName                         = "/ApplicationService/UnHibernate"
+	ApplicationService_GetDeploymentHistory_FullMethodName                = "/ApplicationService/GetDeploymentHistory"
+	ApplicationService_GetValuesYaml_FullMethodName                       = "/ApplicationService/GetValuesYaml"
+	ApplicationService_GetDesiredManifest_FullMethodName                  = "/ApplicationService/GetDesiredManifest"
+	ApplicationService_UninstallRelease_FullMethodName                    = "/ApplicationService/UninstallRelease"
+	ApplicationService_UpgradeRelease_FullMethodName                      = "/ApplicationService/UpgradeRelease"
+	ApplicationService_GetDeploymentDetail_FullMethodName                 = "/ApplicationService/GetDeploymentDetail"
+	ApplicationService_InstallRelease_FullMethodName                      = "/ApplicationService/InstallRelease"
+	ApplicationService_UpgradeReleaseWithChartInfo_FullMethodName         = "/ApplicationService/UpgradeReleaseWithChartInfo"
+	ApplicationService_IsReleaseInstalled_FullMethodName                  = "/ApplicationService/IsReleaseInstalled"
+	ApplicationService_RollbackRelease_FullMethodName                     = "/ApplicationService/RollbackRelease"
+	ApplicationService_TemplateChart_FullMethodName                       = "/ApplicationService/TemplateChart"
+	ApplicationService_TemplateChartBulk_FullMethodName                   = "/ApplicationService/TemplateChartBulk"
+	ApplicationService_InstallReleaseWithCustomChart_FullMethodName       = "/ApplicationService/InstallReleaseWithCustomChart"
+	ApplicationService_GetNotes_FullMethodName                            = "/ApplicationService/GetNotes"
+	ApplicationService_UpgradeReleaseWithCustomChart_FullMethodName       = "/ApplicationService/UpgradeReleaseWithCustomChart"
+	ApplicationService_ValidateOCIRegistry_FullMethodName                 = "/ApplicationService/ValidateOCIRegistry"
+	ApplicationService_GetResourceTreeForExternalResources_FullMethodName = "/ApplicationService/GetResourceTreeForExternalResources"
+)
+
 // ApplicationServiceClient is the client API for ApplicationService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
