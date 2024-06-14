@@ -6,4 +6,5 @@
 - feat: air gap registry v2 (#5220)
 - feat: tenants and installations migration (#5187)
 ## Documentation
+- docs: Created a file for listing Devtron Users (#5310)
 ## Others
