@@ -125,11 +125,15 @@ type CiProjectDetails struct {
 	WebhookData pipelineConfig.WebhookData
 }
 type GitOptions struct {
-	UserName      string               `json:"userName"`
-	Password      string               `json:"password"`
-	SshPrivateKey string               `json:"sshPrivateKey"`
-	AccessToken   string               `json:"accessToken"`
-	AuthMode      repository2.AuthMode `json:"authMode"`
+	UserName               string               `json:"userName"`
+	Password               string               `json:"password"`
+	SshPrivateKey          string               `json:"sshPrivateKey"`
+	AccessToken            string               `json:"accessToken"`
+	AuthMode               repository2.AuthMode `json:"authMode"`
+	TlsKey                 string               `json:"tlsKey"`
+	TlsCert                string               `json:"tlsCert"`
+	CaCert                 string               `json:"caCert"`
+	TlsVerificationEnabled bool                 `json:"tlsVerificationEnabled"`
 }
 
 type NodeConstraints struct {
