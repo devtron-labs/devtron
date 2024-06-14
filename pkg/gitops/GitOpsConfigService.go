@@ -636,6 +636,7 @@ func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request 
 
 func (impl *GitOpsConfigServiceImpl) createRepoElement(secretName string, request *apiBean.GitOpsConfigDto) *gitOpsBean.RepositoryCredentialsDto {
 	repoData := &gitOpsBean.RepositoryCredentialsDto{}
+	repoData.Url = request.Host
 
 	usernameSecret := &gitOpsBean.KeyDto{Name: secretName, Key: gitOpsBean.USERNAME}
 	passwordSecret := &gitOpsBean.KeyDto{Name: secretName, Key: gitOpsBean.PASSWORD}
