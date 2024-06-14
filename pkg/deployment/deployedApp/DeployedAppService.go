@@ -19,6 +19,7 @@ package deployedApp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	util5 "github.com/devtron-labs/common-lib/utils/k8s"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
@@ -29,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
@@ -81,6 +83,9 @@ func (impl *DeployedAppServiceImpl) StopStartApp(ctx context.Context, stopReques
 		//FIXME
 	}
 	wf, err := impl.cdWorkflowRepository.FindLatestCdWorkflowByPipelineId(pipelineIds)
+	if errors.Is(err, pg.ErrNoRows) {
+		return 0, errors.New("no deployment history found,this app was never deployed")
+	}
 	if err != nil {
 		impl.logger.Errorw("error in fetching latest release", "err", err)
 		return 0, err

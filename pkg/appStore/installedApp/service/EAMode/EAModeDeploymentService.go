@@ -111,15 +111,18 @@ func (impl *EAModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *ap
 		}
 		IsOCIRepo = true
 		registryCredential = &gRPC.RegistryCredential{
-			RegistryUrl:  appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL,
-			Username:     appStoreAppVersion.AppStore.DockerArtifactStore.Username,
-			Password:     appStoreAppVersion.AppStore.DockerArtifactStore.Password,
-			AwsRegion:    appStoreAppVersion.AppStore.DockerArtifactStore.AWSRegion,
-			AccessKey:    appStoreAppVersion.AppStore.DockerArtifactStore.AWSAccessKeyId,
-			SecretKey:    appStoreAppVersion.AppStore.DockerArtifactStore.AWSSecretAccessKey,
-			RegistryType: string(appStoreAppVersion.AppStore.DockerArtifactStore.RegistryType),
-			RepoName:     appStoreAppVersion.AppStore.Name,
-			IsPublic:     ociRegistryConfig.IsPublic,
+			RegistryUrl:         appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL,
+			Username:            appStoreAppVersion.AppStore.DockerArtifactStore.Username,
+			Password:            appStoreAppVersion.AppStore.DockerArtifactStore.Password,
+			AwsRegion:           appStoreAppVersion.AppStore.DockerArtifactStore.AWSRegion,
+			AccessKey:           appStoreAppVersion.AppStore.DockerArtifactStore.AWSAccessKeyId,
+			SecretKey:           appStoreAppVersion.AppStore.DockerArtifactStore.AWSSecretAccessKey,
+			RegistryType:        string(appStoreAppVersion.AppStore.DockerArtifactStore.RegistryType),
+			RepoName:            appStoreAppVersion.AppStore.Name,
+			IsPublic:            ociRegistryConfig.IsPublic,
+			Connection:          appStoreAppVersion.AppStore.DockerArtifactStore.Connection,
+			RegistryName:        appStoreAppVersion.AppStore.DockerArtifactStoreId,
+			RegistryCertificate: appStoreAppVersion.AppStore.DockerArtifactStore.Cert,
 		}
 	} else {
 		chartRepository = &gRPC.ChartRepository{
@@ -320,15 +323,18 @@ func (impl *EAModeDeploymentServiceImpl) updateApplicationWithChartInfo(ctx cont
 		}
 		IsOCIRepo = true
 		registryCredential = &gRPC.RegistryCredential{
-			RegistryUrl:  appStoreApplicationVersion.AppStore.DockerArtifactStore.RegistryURL,
-			Username:     appStoreApplicationVersion.AppStore.DockerArtifactStore.Username,
-			Password:     appStoreApplicationVersion.AppStore.DockerArtifactStore.Password,
-			AwsRegion:    appStoreApplicationVersion.AppStore.DockerArtifactStore.AWSRegion,
-			AccessKey:    appStoreApplicationVersion.AppStore.DockerArtifactStore.AWSAccessKeyId,
-			SecretKey:    appStoreApplicationVersion.AppStore.DockerArtifactStore.AWSSecretAccessKey,
-			RegistryType: string(appStoreApplicationVersion.AppStore.DockerArtifactStore.RegistryType),
-			RepoName:     appStoreApplicationVersion.AppStore.Name,
-			IsPublic:     ociRegistryConfig.IsPublic,
+			RegistryUrl:         appStoreApplicationVersion.AppStore.DockerArtifactStore.RegistryURL,
+			Username:            appStoreApplicationVersion.AppStore.DockerArtifactStore.Username,
+			Password:            appStoreApplicationVersion.AppStore.DockerArtifactStore.Password,
+			AwsRegion:           appStoreApplicationVersion.AppStore.DockerArtifactStore.AWSRegion,
+			AccessKey:           appStoreApplicationVersion.AppStore.DockerArtifactStore.AWSAccessKeyId,
+			SecretKey:           appStoreApplicationVersion.AppStore.DockerArtifactStore.AWSSecretAccessKey,
+			RegistryType:        string(appStoreApplicationVersion.AppStore.DockerArtifactStore.RegistryType),
+			RepoName:            appStoreApplicationVersion.AppStore.Name,
+			IsPublic:            ociRegistryConfig.IsPublic,
+			Connection:          appStoreApplicationVersion.AppStore.DockerArtifactStore.Connection,
+			RegistryName:        appStoreApplicationVersion.AppStore.DockerArtifactStoreId,
+			RegistryCertificate: appStoreApplicationVersion.AppStore.DockerArtifactStore.Cert,
 		}
 	} else {
 		chartRepository = &gRPC.ChartRepository{
