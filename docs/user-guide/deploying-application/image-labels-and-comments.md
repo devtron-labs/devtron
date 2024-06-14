@@ -68,7 +68,7 @@ This action marks the label as invalid but doesn't delete the label. Therefore, 
 2. Use the (-) icon to strike off the label. This icon is available on the left-side of a label.
 3. Click **Save**. 
 
-![Figure 6: Soft Deletion of a Label](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/tag-comment/tag-app-details.gif)
+![Figure 6: Soft Deletion of a Label](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/tag-comment/soft-delete-tag.gif)
 
 ### Hard-Delete Labels
 
@@ -83,7 +83,7 @@ This action deletes the label and makes it available for reuse in same or any ot
 2. Use the (x) icon to permanently remove the label. This icon is available on the right-side of a label.
 3. Click **Save**.
 
-![Figure 7: Hard Deletion of a Label](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/tag-comment/tag-app-details.gif)
+![Figure 7: Hard Deletion of a Label](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/tag-comment/hard-delete-tag.gif)
 
 ### Removing Comments
 
@@ -98,7 +98,7 @@ If you wish to permanently remove a comment, do the following:
 2. Empty the content of an existing comment.
 3. Click **Save**.
 
-![Figure 8: Removing a Comment](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/tag-comment/tag-app-details.gif)
+![Figure 8: Removing a Comment](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/tag-comment/remove-comment.gif)
 
 ---
 
