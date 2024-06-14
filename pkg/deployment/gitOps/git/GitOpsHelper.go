@@ -19,6 +19,7 @@ package git
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/bean"
 	apiGitOpsBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	git "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/commandManager"
 	"github.com/devtron-labs/devtron/util"
@@ -36,13 +37,15 @@ type GitOpsHelper struct {
 	Auth              *git.BasicAuth
 	logger            *zap.SugaredLogger
 	gitCommandManager git.GitCommandManager
+	tlsConfig         *bean.TLSConfig
 }
 
-func NewGitOpsHelperImpl(auth *git.BasicAuth, logger *zap.SugaredLogger) *GitOpsHelper {
+func NewGitOpsHelperImpl(auth *git.BasicAuth, logger *zap.SugaredLogger, tlsConfig *bean.TLSConfig) *GitOpsHelper {
 	return &GitOpsHelper{
 		Auth:              auth,
 		logger:            logger,
 		gitCommandManager: git.NewGitCommandManager(logger),
+		tlsConfig:         tlsConfig,
 	}
 }
 
@@ -67,7 +70,8 @@ func (impl *GitOpsHelper) Clone(url, targetDir string) (clonedDir string, err er
 	impl.logger.Debugw("git checkout ", "url", url, "dir", targetDir)
 	clonedDir = filepath.Join(GIT_WORKING_DIR, targetDir)
 
-	ctx := git.BuildGitContext(context.Background()).WithCredentials(impl.Auth)
+	ctx := git.BuildGitContext(context.Background()).WithCredentials(impl.Auth).
+		WithTLSData(impl.tlsConfig.CaData, impl.tlsConfig.TLSKeyData, impl.tlsConfig.TLSCertData)
 	err = impl.init(ctx, clonedDir, url, false)
 	if err != nil {
 		return "", err
@@ -92,7 +96,8 @@ func (impl *GitOpsHelper) Pull(repoRoot string) (err error) {
 	defer func() {
 		util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
 	}()
-	ctx := git.BuildGitContext(context.Background()).WithCredentials(impl.Auth)
+	ctx := git.BuildGitContext(context.Background()).WithCredentials(impl.Auth).
+		WithTLSData(impl.tlsConfig.CaData, impl.tlsConfig.TLSKeyData, impl.tlsConfig.TLSCertData)
 	return impl.gitCommandManager.Pull(ctx, repoRoot)
 }
 
@@ -103,7 +108,8 @@ func (impl GitOpsHelper) CommitAndPushAllChanges(repoRoot, commitMsg, name, emai
 	defer func() {
 		util.TriggerGitOpsMetrics("CommitAndPushAllChanges", "GitService", start, err)
 	}()
-	ctx := git.BuildGitContext(context.Background()).WithCredentials(impl.Auth)
+	ctx := git.BuildGitContext(context.Background()).WithCredentials(impl.Auth).
+		WithTLSData(impl.tlsConfig.CaData, impl.tlsConfig.TLSKeyData, impl.tlsConfig.TLSCertData)
 	commitHash, err = impl.gitCommandManager.CommitAndPush(ctx, repoRoot, commitMsg, name, emailId)
 	if err != nil && strings.Contains(err.Error(), PushErrorMessage) {
 		return commitHash, fmt.Errorf("%s %v", "push failed due to conflicts", err)

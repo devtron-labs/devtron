@@ -20,12 +20,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	certificate2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
+	"github.com/devtron-labs/devtron/client/argocdServer/certificate"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation"
 	gitOpsBean "github.com/devtron-labs/devtron/pkg/gitops/bean"
+	util2 "github.com/devtron-labs/devtron/util"
 	"net/http"
 	"strings"
 	"time"
@@ -64,6 +68,7 @@ type GitOpsConfigServiceImpl struct {
 	gitOpsConfigReadService config.GitOpsConfigReadService
 	gitOperationService     git.GitOperationService
 	gitOpsValidationService validation.GitOpsValidationService
+	argoCertificateClient   certificate.Client
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
@@ -74,7 +79,8 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
 	clusterServiceCD cluster2.ServiceClient,
 	gitOperationService git.GitOperationService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOpsValidationService validation.GitOpsValidationService) *GitOpsConfigServiceImpl {
+	gitOpsValidationService validation.GitOpsValidationService,
+	argoCertificateClient certificate.Client) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
 		logger:                  Logger,
 		gitOpsRepository:        gitOpsRepository,
@@ -86,6 +92,7 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
 		gitOpsConfigReadService: gitOpsConfigReadService,
 		gitOperationService:     gitOperationService,
 		gitOpsValidationService: gitOpsValidationService,
+		argoCertificateClient:   argoCertificateClient,
 	}
 }
 
@@ -157,16 +164,26 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 		Provider:              strings.ToUpper(request.Provider),
 		Username:              request.Username,
 		Token:                 request.Token,
-		GitHubOrgId:           request.GitHubOrgId,
 		GitLabGroupId:         request.GitLabGroupId,
+		GitHubOrgId:           request.GitHubOrgId,
+		AzureProject:          request.AzureProjectName,
 		Host:                  request.Host,
 		Active:                true,
-		AzureProject:          request.AzureProjectName,
+		AllowCustomRepository: request.AllowCustomRepository,
 		BitBucketWorkspaceId:  request.BitBucketWorkspaceId,
 		BitBucketProjectKey:   request.BitBucketProjectKey,
-		AllowCustomRepository: request.AllowCustomRepository,
+		TlsCert:               request.TLSConfig.TLSCertData,
+		TlsKey:                request.TLSConfig.TLSKeyData,
+		CaCert:                request.TLSConfig.CaData,
 		AuditLog:              sql.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
+
+	if request.EnableTLSVerification {
+		model.TlsCert = request.TLSConfig.TLSCertData
+		model.TlsKey = request.TLSConfig.TLSKeyData
+		model.CaCert = request.TLSConfig.CaData
+	}
+
 	model, err = impl.gitOpsRepository.CreateGitOpsConfig(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving gitops config", "data", model, "err", err)
@@ -197,8 +214,10 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 		return nil, err
 	}
 	data := make(map[string][]byte)
-	data["username"] = []byte(request.Username)
-	data["password"] = []byte(request.Token)
+	data[gitOpsBean.USERNAME] = []byte(request.Username)
+	data[gitOpsBean.PASSWORD] = []byte(request.Token)
+	data[gitOpsBean.TLSKey] = []byte(request.TLSConfig.TLSKeyData)
+	data[gitOpsBean.TLSCert] = []byte(request.TLSConfig.TLSCertData)
 	if secret == nil {
 		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, impl.aCDAuthConfig.GitOpsSecretName, "", client, nil, nil)
 		if err != nil {
@@ -229,6 +248,22 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 			}
 
 		}
+	}
+	if len(request.TLSConfig.CaData) > 0 {
+		host, err := util2.GetHost(request.Host)
+		if err != nil {
+			impl.logger.Errorw("invalid gitOps host", "host", host, "err", err)
+			return nil, err
+		}
+		_, err = impl.argoCertificateClient.CreateCertificate(ctx, &certificate2.RepositoryCertificateCreateRequest{
+			Certificates: &v1alpha1.RepositoryCertificateList{
+				Items: []v1alpha1.RepositoryCertificate{v1alpha1.RepositoryCertificate{
+					ServerName: host,
+					CertData:   []byte(request.TLSConfig.CaData),
+				}},
+			},
+			Upsert: true,
+		})
 	}
 	err = impl.gitOperationService.UpdateGitHostUrlByProvider(request)
 	if err != nil {
@@ -352,6 +387,13 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 	model.AllowCustomRepository = request.AllowCustomRepository
 	model.UpdatedBy = request.UserId
 	model.UpdatedOn = time.Now()
+
+	if request.EnableTLSVerification {
+		model.TlsCert = request.TLSConfig.TLSCertData
+		model.TlsKey = request.TLSConfig.TLSKeyData
+		model.CaCert = request.TLSConfig.CaData
+	}
+
 	err = impl.gitOpsRepository.UpdateGitOpsConfig(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating team", "data", model, "err", err)
@@ -384,8 +426,10 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 		return err
 	}
 	data := make(map[string][]byte)
-	data["username"] = []byte(request.Username)
-	data["password"] = []byte(request.Token)
+	data[gitOpsBean.USERNAME] = []byte(request.Username)
+	data[gitOpsBean.PASSWORD] = []byte(request.Token)
+	data[gitOpsBean.TLSKey] = []byte(request.TLSConfig.TLSKeyData)
+	data[gitOpsBean.TLSCert] = []byte(request.TLSConfig.TLSCertData)
 	if secret == nil {
 		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, impl.aCDAuthConfig.GitOpsSecretName, "", client, nil, nil)
 		if err != nil {
@@ -592,10 +636,15 @@ func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request 
 
 func (impl *GitOpsConfigServiceImpl) createRepoElement(secretName string, request *apiBean.GitOpsConfigDto) *gitOpsBean.RepositoryCredentialsDto {
 	repoData := &gitOpsBean.RepositoryCredentialsDto{}
-	usernameSecret := &gitOpsBean.KeyDto{Name: secretName, Key: "username"}
-	passwordSecret := &gitOpsBean.KeyDto{Name: secretName, Key: "password"}
+
+	usernameSecret := &gitOpsBean.KeyDto{Name: secretName, Key: gitOpsBean.USERNAME}
+	passwordSecret := &gitOpsBean.KeyDto{Name: secretName, Key: gitOpsBean.PASSWORD}
+	tlsClientCertSecret := &gitOpsBean.KeyDto{Name: secretName, Key: gitOpsBean.TLSCert}
+	tlsClientKeySecret := &gitOpsBean.KeyDto{Name: secretName, Key: gitOpsBean.TLSKey}
+
 	repoData.PasswordSecret = passwordSecret
 	repoData.UsernameSecret = usernameSecret
-	repoData.Url = request.Host
+	repoData.TLSClientCertData = tlsClientCertSecret
+	repoData.TLSClientCertKey = tlsClientKeySecret
 	return repoData
 }

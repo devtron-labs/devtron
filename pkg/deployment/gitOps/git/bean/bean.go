@@ -17,6 +17,7 @@
 package bean
 
 import (
+	"github.com/devtron-labs/devtron/api/bean"
 	git "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/commandManager"
 )
 
@@ -32,6 +33,9 @@ type GitConfig struct {
 	AzureProject         string
 	BitbucketWorkspaceId string
 	BitbucketProjectKey  string
+	CaCert               string
+	TLSCert              string
+	TLSKey               string
 }
 
 type PushChartToGitRequestDTO struct {
@@ -47,5 +51,13 @@ func (cfg GitConfig) GetAuth() *git.BasicAuth {
 	return &git.BasicAuth{
 		Username: cfg.GitUserName,
 		Password: cfg.GitToken,
+	}
+}
+
+func (cfg GitConfig) GetTLSConfig() *bean.TLSConfig {
+	return &bean.TLSConfig{
+		CaData:      cfg.CaCert,
+		TLSCertData: cfg.TLSCert,
+		TLSKeyData:  cfg.TLSKey,
 	}
 }

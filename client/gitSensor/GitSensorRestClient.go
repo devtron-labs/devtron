@@ -98,6 +98,9 @@ type GitProvider struct {
 	AccessToken   string
 	Active        bool
 	AuthMode      repository.AuthMode
+	CaCert        string
+	TlsCert       string
+	TlsKey        string
 }
 
 type GitCommit struct {

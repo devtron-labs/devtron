@@ -118,10 +118,13 @@ func (client *GrpcApiClientImpl) SaveGitProvider(ctx context.Context, provider *
 		Url:           provider.Url,
 		UserName:      provider.UserName,
 		Password:      provider.Password,
-		AccessToken:   provider.AccessToken,
 		SshPrivateKey: provider.SshPrivateKey,
+		AccessToken:   provider.AccessToken,
 		AuthMode:      string(provider.AuthMode),
 		Active:        provider.Active,
+		TlsCert:       provider.TlsCert,
+		TlsKey:        provider.TlsKey,
+		CaCert:        provider.CaCert,
 	}
 
 	// fetch

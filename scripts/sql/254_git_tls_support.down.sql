@@ -1,0 +1,7 @@
+ALTER TABLE gitops_config DROP COLUMN IF EXISTS tlsCert,
+ALTER TABLE gitops_config DROP COLUMN IF EXISTS tlsKey;
+ALTER TABLE gitops_config DROP COLUMN IF EXISTS caCert;
+
+ALTER TABLE git_provider DROP COLUMN IF EXISTS tlsCert,
+ALTER TABLE git_provider DROP COLUMN IF EXISTS tlsKey;
+ALTER TABLE git_provider DROP COLUMN IF EXISTS caCert;

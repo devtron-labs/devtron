@@ -54,6 +54,9 @@ type GitOpsConfig struct {
 	BitBucketWorkspaceId  string   `sql:"bitbucket_workspace_id"`
 	BitBucketProjectKey   string   `sql:"bitbucket_project_key"`
 	EmailId               string   `sql:"email_id"`
+	TlsCert               string   `sql:"tls_cert"`
+	TlsKey                string   `sql:"tls_key"`
+	CaCert                string   `sql:"ca_cert"`
 	sql.AuditLog
 }
 

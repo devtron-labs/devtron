@@ -43,6 +43,9 @@ type GitProvider struct {
 	Active        bool     `sql:"active,notnull"`
 	Deleted       bool     `sql:"deleted,notnull"`
 	GitHostId     int      `sql:"git_host_id"` //id stored in db git_host( foreign key)
+	TlsCert       string   `sql:"tls_cert"`
+	TlsKey        string   `sql:"tls_key"`
+	CaCert        string   `sql:"ca_cert"`
 	sql.AuditLog
 }
 

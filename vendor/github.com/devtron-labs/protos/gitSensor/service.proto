@@ -20,6 +20,9 @@ message GitProvider {
   string accessToken = 7;
   string authMode = 8;
   bool active = 9;
+  string TlsCert =10;
+  string TlsKey  =11;
+  string CaCert  =12;
 }
 
 message GitMaterial {

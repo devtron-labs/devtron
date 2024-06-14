@@ -18,6 +18,7 @@ package git
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
@@ -45,10 +46,11 @@ func (impl GitAzureClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl st
 	}
 }
 
-func NewGitAzureClient(token string, host string, project string, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper) (GitAzureClient, error) {
+func NewGitAzureClient(token string, host string, project string, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper, tlsConfig *tls.Config) (GitAzureClient, error) {
 	ctx := context.Background()
 	// Create a connection to your organization
 	connection := azuredevops.NewPatConnection(host, token)
+	connection.TlsConfig = tlsConfig
 	// Create a client to interact with the Core area
 	coreClient, err := git.NewClient(ctx, connection)
 	if err != nil {

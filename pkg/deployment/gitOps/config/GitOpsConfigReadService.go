@@ -18,6 +18,7 @@ package config
 
 import (
 	"fmt"
+	bean3 "github.com/devtron-labs/devtron/api/bean"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -150,6 +151,11 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsC
 		BitBucketWorkspaceId:  model.BitBucketWorkspaceId,
 		BitBucketProjectKey:   model.BitBucketProjectKey,
 		AllowCustomRepository: model.AllowCustomRepository,
+		TLSConfig: bean3.TLSConfig{
+			CaData:      model.CaCert,
+			TLSCertData: model.TlsCert,
+			TLSKeyData:  model.TlsKey,
+		},
 	}
 	return config, err
 }
