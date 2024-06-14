@@ -26,6 +26,10 @@ spec:
   {{- end }}
   selector:
     matchLabels:
+    {{- if .Values.customPodLabels }}
+{{ toYaml .Values.customPodLabels | indent 6 }}  
+    {{- else }}
       appId: {{ $.Values.app | quote }}
       envId: {{ $.Values.env | quote }}
+    {{- end }}
   {{- end }}
