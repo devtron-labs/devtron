@@ -704,6 +704,10 @@ func (impl *TriggerServiceImpl) triggerAsyncRelease(userDeploymentRequestId int,
 func (impl *TriggerServiceImpl) handleCDTriggerRelease(ctx context.Context, overrideRequest *bean3.ValuesOverrideRequest, triggeredAt time.Time, deployedBy int32) (releaseNo int, err error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.handleCDTriggerRelease")
 	defer span.End()
+	// Handling for auto trigger
+	if overrideRequest.UserId == 0 {
+		overrideRequest.UserId = deployedBy
+	}
 	tx, err := impl.transactionUtilImpl.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting transaction to update userDeploymentRequest", "error", err)
@@ -750,10 +754,6 @@ func (impl *TriggerServiceImpl) auditDeploymentTriggerHistory(cdWfrId int, value
 func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, err error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.TriggerRelease")
 	defer span.End()
-	// Handling for auto trigger
-	if overrideRequest.UserId == 0 {
-		overrideRequest.UserId = triggeredBy
-	}
 	triggerEvent, skipRequest, err := impl.buildTriggerEventForOverrideRequest(overrideRequest, triggeredAt)
 	if err != nil {
 		return releaseNo, err
@@ -1084,9 +1084,9 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 				if pgErr != nil {
 					impl.logger.Errorw("failed to update deployment app created flag in pipelineModel table", "err", err)
 				}
-				if errors.Is(err, context.Canceled) {
+				if util.IsErrorContextCancelled(err) {
 					return false, pipelineConfig.ErrorDeploymentSuperseded
-				} else if errors.Is(err, context.DeadlineExceeded) {
+				} else if util.IsErrorContextDeadlineExceeded(err) {
 					return false, context.DeadlineExceeded
 				}
 				apiError := clientErrors.ConvertToApiError(err)

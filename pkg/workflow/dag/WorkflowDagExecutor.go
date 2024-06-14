@@ -246,7 +246,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 		}
 		// If release not found, mark the deployment as failure
 		wfr.Status = pipelineConfig.WorkflowFailed
-		wfr.Message = util.GetClientErrorDetailedMessage(err)
+		wfr.Message = fmt.Sprintf("helm client error: %s", util.GetClientErrorDetailedMessage(err))
 		wfr.FinishedOn = time.Now()
 		return true
 	}

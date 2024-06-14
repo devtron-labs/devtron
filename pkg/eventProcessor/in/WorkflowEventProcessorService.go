@@ -870,7 +870,6 @@ func (impl *WorkflowEventProcessorImpl) ProcessConcurrentAsyncDeploymentReq(ctx 
 		return err
 	}
 	releaseContext, skipRequest, err := impl.getDevtronAppReleaseContextWithLock(acdCtx, cdAsyncInstallReq, cdWfr)
-	defer impl.cleanUpDevtronAppReleaseContextMap(pipelineId, cdWfrId)
 	if err != nil {
 		impl.logger.Errorw("error, getDevtronAppReleaseContextWithLock", "err", err, "cdWfrId", cdWfrId, "cdWfrStatus", cdWfr.Status, "pipelineId", pipelineId)
 		return err
@@ -879,6 +878,7 @@ func (impl *WorkflowEventProcessorImpl) ProcessConcurrentAsyncDeploymentReq(ctx 
 		impl.logger.Debugw("skipping async deployment request", "req", cdAsyncInstallReq.ValuesOverrideRequest)
 		return nil
 	}
+	defer impl.cleanUpDevtronAppReleaseContextMap(pipelineId, cdWfrId)
 	err = impl.workflowDagExecutor.ProcessDevtronAsyncInstallRequest(cdAsyncInstallReq, releaseContext)
 	if err != nil {
 		impl.logger.Errorw("error, ProcessDevtronAsyncInstallRequest", "err", err, "req", cdAsyncInstallReq)
