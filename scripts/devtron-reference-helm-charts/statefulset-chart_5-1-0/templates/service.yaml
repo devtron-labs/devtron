@@ -51,7 +51,11 @@ spec:
       name: envoy-admin
       {{- end }}
   selector:
+    {{- if .Values.customPodLabels }}
+{{ toYaml .Values.customPodLabels | indent 4 }}  
+    {{- else }}
     app: {{ template ".Chart.Name .name" . }}
+    {{- end }}
 {{- end }}
 ---
 {{- if or  .Values.service.enabled .Values.serviceheadless.enabled  }}
