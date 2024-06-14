@@ -16,11 +16,11 @@ Currently, Devtron is being used by the following organizations:
 10. [KHEL Group](https://thekhelgroup.com/)
 11. [Lemnisk](https://www.lemnisk.co/) 
 12. [OTPLess](https://otpless.com/)
-13. [Unity Small Finance Bank](https://theunitybank.com/)
 14. [Spinny](https://www.spinny.com/)
 15. [Tata 1Mg](https://www.1mg.com/)
 16. [TravClan](https://www.travclan.com/) 
-17. [Xoxoday](https://www.xoxoday.com/)
+17. [Unity Small Finance Bank](https://theunitybank.com/)
+18. [Xoxoday](https://www.xoxoday.com/)
 
 
 
