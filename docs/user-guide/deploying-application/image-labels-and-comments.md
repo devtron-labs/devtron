@@ -62,7 +62,7 @@ Refer [Deleting Labels](#deleting-labels--comments) if you commit a mistake whil
 Users need to have [Build & deploy permission](../global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and application) to perform soft deletion of labels.
 {% endhint %}
 
-This action will not delete the label; therefore, it still won't be available for reuse.
+This action marks the label as invalid but doesn't delete the label. Therefore, you can recover it again.
 
 1. Click the edit option.
 2. Use the (-) icon to strike off the label. This icon is available on the left-side of a label.
@@ -77,7 +77,7 @@ This action will not delete the label; therefore, it still won't be available fo
 Users need to have super-admin permission to perform hard deletion of labels.
 {% endhint %}
 
-This action will make the label available for reuse in same or any other image.
+This action deletes the label and makes it available for reuse in same or any other image.
 
 1. Click the edit option.
 2. Use the (x) icon to permanently remove the label. This icon is available on the right-side of a label.
