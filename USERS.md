@@ -1,6 +1,6 @@
 # Who is using Devtron?
 
-As the community grows, we want to keep track of the users and organizations using Devtron. If you're using Devtron, please raise a PR to add your organization name and a short description of what you do.
+As the community grows, we want to keep track of the users and organizations using Devtron. If you're using Devtron, please raise a PR to add your organization name and link.
 
 Currently, Devtron is being used by the following organizations:
 
