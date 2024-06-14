@@ -1,5 +1,5 @@
 
-# Rollout Deployment Chart - v4.18
+# Rollout Deployment Chart - v4.19
 
 ## 1. Yaml File -
 
@@ -74,6 +74,9 @@ LivenessProbe:
       value: abc
   scheme: ""
   tcp: true
+  grpc:
+    port: 8000
+    service: ""
 ```
 
 | Key | Description |
@@ -87,6 +90,7 @@ LivenessProbe:
 | `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
+| `grpc` | GRPC specifies an action involving a GRPC port. Port is a required field if using gRPC service for health probes. Number must be in the range 1 to 65535. Service (optional) is the name of the service to place in the gRPC HealthCheckRequest. |
 
 
 ### MaxUnavailable
@@ -129,6 +133,9 @@ ReadinessProbe:
       value: abc
   scheme: ""
   tcp: true
+  grpc: 
+    port: 8000
+    service: ""
 ```
 
 | Key | Description |
@@ -142,6 +149,7 @@ ReadinessProbe:
 | `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
+| `grpc` | GRPC specifies an action involving a GRPC port. Port is a required field if using gRPC service for health probes. Number must be in the range 1 to 65535. Service (optional) is the name of the service to place in the gRPC HealthCheckRequest. |
 
 ### Pod Disruption Budget
 
