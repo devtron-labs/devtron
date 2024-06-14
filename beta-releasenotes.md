@@ -1,4 +1,5 @@
 ## Bugs
+- fix: restart workloads fix in app group (#5313)
 - fix: deployment chart fix (#5215)
 - fix: docker file version fix (#5299)
 - fix: hibernating status is not being updated in app listing page (#5294)
