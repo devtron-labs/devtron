@@ -23,6 +23,7 @@ import (
 	certificate2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/api/bean"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/client/argocdServer/certificate"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -172,16 +173,24 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 		AllowCustomRepository: request.AllowCustomRepository,
 		BitBucketWorkspaceId:  request.BitBucketWorkspaceId,
 		BitBucketProjectKey:   request.BitBucketProjectKey,
-		TlsCert:               request.TLSConfig.TLSCertData,
-		TlsKey:                request.TLSConfig.TLSKeyData,
-		CaCert:                request.TLSConfig.CaData,
+		EnableTLSVerification: request.EnableTLSVerification,
 		AuditLog:              sql.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
 
 	if request.EnableTLSVerification {
-		model.TlsCert = request.TLSConfig.TLSCertData
-		model.TlsKey = request.TLSConfig.TLSKeyData
-		model.CaCert = request.TLSConfig.CaData
+		if len(request.TLSConfig.CaData) > 0 {
+			model.CaCert = request.TLSConfig.CaData
+		}
+		if len(request.TLSConfig.TLSCertData) > 0 && len(request.TLSConfig.TLSKeyData) > 0 {
+			model.TlsKey = request.TLSConfig.TLSKeyData
+			model.TlsCert = request.TLSConfig.TLSCertData
+		} else if (len(request.TLSConfig.TLSKeyData) > 0 && len(request.TLSConfig.TLSCertData) == 0) || (len(request.TLSConfig.TLSKeyData) == 0 && len(request.TLSConfig.TLSCertData) > 0) {
+			return nil, &util.ApiError{
+				HttpStatusCode:  http.StatusPreconditionFailed,
+				InternalMessage: "failed to update gitOps config in db",
+				UserMessage:     "failed to update gitOps config in db",
+			}
+		}
 	}
 
 	model, err = impl.gitOpsRepository.CreateGitOpsConfig(model, tx)
@@ -192,6 +201,23 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 			UserMessage:     "gitops config failed to create in db",
 		}
 		return nil, err
+	}
+
+	if len(model.CaCert) > 0 {
+		host, err := util2.GetHost(request.Host)
+		if err != nil {
+			impl.logger.Errorw("invalid gitOps host", "host", host, "err", err)
+			return nil, err
+		}
+		_, err = impl.argoCertificateClient.CreateCertificate(ctx, &certificate2.RepositoryCertificateCreateRequest{
+			Certificates: &v1alpha1.RepositoryCertificateList{
+				Items: []v1alpha1.RepositoryCertificate{v1alpha1.RepositoryCertificate{
+					ServerName: host,
+					CertData:   []byte(model.CaCert),
+				}},
+			},
+			Upsert: true,
+		})
 	}
 
 	clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
@@ -216,8 +242,8 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 	data := make(map[string][]byte)
 	data[gitOpsBean.USERNAME] = []byte(request.Username)
 	data[gitOpsBean.PASSWORD] = []byte(request.Token)
-	data[gitOpsBean.TLSKey] = []byte(request.TLSConfig.TLSKeyData)
-	data[gitOpsBean.TLSCert] = []byte(request.TLSConfig.TLSCertData)
+	data[gitOpsBean.TLSKey] = []byte(model.TlsKey)
+	data[gitOpsBean.TLSCert] = []byte(model.TlsCert)
 	if secret == nil {
 		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, impl.aCDAuthConfig.GitOpsSecretName, "", client, nil, nil)
 		if err != nil {
@@ -249,7 +275,7 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 
 		}
 	}
-	if len(request.TLSConfig.CaData) > 0 {
+	if len(model.CaCert) > 0 {
 		host, err := util2.GetHost(request.Host)
 		if err != nil {
 			impl.logger.Errorw("invalid gitOps host", "host", host, "err", err)
@@ -259,7 +285,7 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 			Certificates: &v1alpha1.RepositoryCertificateList{
 				Items: []v1alpha1.RepositoryCertificate{v1alpha1.RepositoryCertificate{
 					ServerName: host,
-					CertData:   []byte(request.TLSConfig.CaData),
+					CertData:   []byte(model.CaCert),
 				}},
 			},
 			Upsert: true,
@@ -385,13 +411,24 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 	model.BitBucketWorkspaceId = request.BitBucketWorkspaceId
 	model.BitBucketProjectKey = request.BitBucketProjectKey
 	model.AllowCustomRepository = request.AllowCustomRepository
+	model.EnableTLSVerification = request.EnableTLSVerification
 	model.UpdatedBy = request.UserId
 	model.UpdatedOn = time.Now()
 
 	if request.EnableTLSVerification {
-		model.TlsCert = request.TLSConfig.TLSCertData
-		model.TlsKey = request.TLSConfig.TLSKeyData
-		model.CaCert = request.TLSConfig.CaData
+		if len(request.TLSConfig.CaData) > 0 {
+			model.CaCert = request.TLSConfig.CaData
+		}
+		if len(model.TlsCert) > 0 && len(model.TlsKey) > 0 {
+			model.TlsKey = request.TLSConfig.TLSKeyData
+			model.TlsCert = request.TLSConfig.TLSCertData
+		} else if (len(model.TlsKey) > 0 && len(model.TlsCert) == 0) || (len(model.TlsKey) == 0 && len(model.TlsCert) > 0) {
+			return &util.ApiError{
+				HttpStatusCode:  http.StatusPreconditionFailed,
+				InternalMessage: "failed to update gitOps config in db",
+				UserMessage:     "failed to update gitOps config in db",
+			}
+		}
 	}
 
 	err = impl.gitOpsRepository.UpdateGitOpsConfig(model, tx)
@@ -428,8 +465,8 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 	data := make(map[string][]byte)
 	data[gitOpsBean.USERNAME] = []byte(request.Username)
 	data[gitOpsBean.PASSWORD] = []byte(request.Token)
-	data[gitOpsBean.TLSKey] = []byte(request.TLSConfig.TLSKeyData)
-	data[gitOpsBean.TLSCert] = []byte(request.TLSConfig.TLSCertData)
+	data[gitOpsBean.TLSKey] = []byte(model.TlsKey)
+	data[gitOpsBean.TLSCert] = []byte(model.TlsCert)
 	if secret == nil {
 		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, impl.aCDAuthConfig.GitOpsSecretName, "", client, nil, nil)
 		if err != nil {
@@ -522,8 +559,13 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigById(id int) (*apiBean.GitOp
 		BitBucketWorkspaceId:  model.BitBucketWorkspaceId,
 		BitBucketProjectKey:   model.BitBucketProjectKey,
 		AllowCustomRepository: model.AllowCustomRepository,
+		EnableTLSVerification: model.EnableTLSVerification,
+		TLSConfig: &bean.TLSConfig{ // sending empty values as they are hidden in FE
+			CaData:      "",
+			TLSCertData: "",
+			TLSKeyData:  "",
+		},
 	}
-
 	return config, err
 }
 
@@ -549,6 +591,12 @@ func (impl *GitOpsConfigServiceImpl) GetAllGitOpsConfig() ([]*apiBean.GitOpsConf
 			BitBucketWorkspaceId:  model.BitBucketWorkspaceId,
 			BitBucketProjectKey:   model.BitBucketProjectKey,
 			AllowCustomRepository: model.AllowCustomRepository,
+			EnableTLSVerification: model.EnableTLSVerification,
+			TLSConfig: &bean.TLSConfig{ // sending empty values as they are hidden in FE
+				CaData:      "",
+				TLSCertData: "",
+				TLSKeyData:  "",
+			},
 		}
 		configs = append(configs, config)
 	}
@@ -575,6 +623,12 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) 
 		BitBucketWorkspaceId:  model.BitBucketWorkspaceId,
 		BitBucketProjectKey:   model.BitBucketProjectKey,
 		AllowCustomRepository: model.AllowCustomRepository,
+		EnableTLSVerification: model.EnableTLSVerification,
+		TLSConfig: &bean.TLSConfig{ // sending empty values as they are hidden in FE
+			CaData:      "",
+			TLSCertData: "",
+			TLSKeyData:  "",
+		},
 	}
 
 	return config, err

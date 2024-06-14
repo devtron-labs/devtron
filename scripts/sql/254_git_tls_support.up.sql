@@ -1,7 +1,9 @@
-ALTER TABLE gitops_config ADD COLUMN tlsCert TEXT,
-ALTER TABLE gitops_config ADD COLUMN tlsKey TEXT;
-ALTER TABLE gitops_config ADD COLUMN caCert TEXT;
+ALTER TABLE gitops_config ADD COLUMN tls_cert TEXT,
+ALTER TABLE gitops_config ADD COLUMN tls_key TEXT;
+ALTER TABLE gitops_config ADD COLUMN ca_cert TEXT;
+ALTER TABLE gitops_config ADD COLUMN enable_tls_verification TEXT;
 
-ALTER TABLE git_provider ADD COLUMN tlsCert TEXT,
-ALTER TABLE git_provider ADD COLUMN tlsKey TEXT;
-ALTER TABLE git_provider ADD COLUMN caCert TEXT;
+ALTER TABLE git_provider ADD COLUMN tls_cert TEXT,
+ALTER TABLE git_provider ADD COLUMN tls_cert TEXT;
+ALTER TABLE git_provider ADD COLUMN ca_cert TEXT;
+ALTER TABLE gitops_config ADD COLUMN enable_tls_verification TEXT;

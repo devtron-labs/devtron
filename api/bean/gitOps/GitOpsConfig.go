@@ -22,20 +22,20 @@ import (
 )
 
 type GitOpsConfigDto struct {
-	Id                    int            `json:"id,omitempty"`
-	Provider              string         `json:"provider" validate:"oneof=GITLAB GITHUB AZURE_DEVOPS BITBUCKET_CLOUD"`
-	Username              string         `json:"username"`
-	Token                 string         `json:"token"`
-	GitLabGroupId         string         `json:"gitLabGroupId"`
-	GitHubOrgId           string         `json:"gitHubOrgId"`
-	Host                  string         `json:"host"`
-	Active                bool           `json:"active"`
-	AzureProjectName      string         `json:"azureProjectName"`
-	BitBucketWorkspaceId  string         `json:"bitBucketWorkspaceId"`
-	BitBucketProjectKey   string         `json:"bitBucketProjectKey"`
-	AllowCustomRepository bool           `json:"allowCustomRepository"`
-	EnableTLSVerification bool           `json:"enableTLSVerification"`
-	TLSConfig             bean.TLSConfig `json:"tlsConfig"`
+	Id                    int             `json:"id,omitempty"`
+	Provider              string          `json:"provider" validate:"oneof=GITLAB GITHUB AZURE_DEVOPS BITBUCKET_CLOUD"`
+	Username              string          `json:"username"`
+	Token                 string          `json:"token"`
+	GitLabGroupId         string          `json:"gitLabGroupId"`
+	GitHubOrgId           string          `json:"gitHubOrgId"`
+	Host                  string          `json:"host"`
+	Active                bool            `json:"active"`
+	AzureProjectName      string          `json:"azureProjectName"`
+	BitBucketWorkspaceId  string          `json:"bitBucketWorkspaceId"`
+	BitBucketProjectKey   string          `json:"bitBucketProjectKey"`
+	AllowCustomRepository bool            `json:"allowCustomRepository"`
+	EnableTLSVerification bool            `json:"enableTLSVerification"`
+	TLSConfig             *bean.TLSConfig `json:"tlsConfig"`
 	// TODO refactoring: create different struct for internal fields
 	GitRepoName string `json:"-"`
 	UserEmailId string `json:"-"`

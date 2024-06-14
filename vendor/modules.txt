@@ -399,7 +399,7 @@ github.com/devtron-labs/common-lib/utils/k8s/health
 github.com/devtron-labs/common-lib/utils/k8sObjectsUtil
 github.com/devtron-labs/common-lib/utils/remoteConnection/bean
 github.com/devtron-labs/common-lib/utils/yaml
-# github.com/devtron-labs/protos v0.0.3-0.20240613123522-f9b02995eb55
+# github.com/devtron-labs/protos v0.0.3-0.20240614064039-c8647dc19a48
 ## explicit; go 1.17
 github.com/devtron-labs/protos/gitSensor
 # github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f

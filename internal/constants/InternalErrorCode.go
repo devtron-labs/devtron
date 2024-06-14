@@ -65,6 +65,7 @@ const (
 	DockerRegDeleteFailedInDb            string = "3009"
 	DockerRegDeleteFailedInGocd          string = "3010"
 	GitProviderUpdateFailedInSync        string = "3011"
+	GitProviderUpdateRequestIsInvalid    string = "3012"
 	// For conflicts use 900 series
 	GitOpsConfigValidationConflict string = "3900"
 
