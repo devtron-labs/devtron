@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/devtron-labs/common-lib/async"
 	"net/http"
 	"strconv"
 	"time"
@@ -71,6 +72,7 @@ type ClusterRestHandlerImpl struct {
 	argoUserService           argo.ArgoUserService
 	environmentService        cluster.EnvironmentService
 	clusterRbacService        cluster.ClusterRbacService
+	async                     *async.Async
 }
 
 func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
@@ -83,6 +85,7 @@ func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 	deleteService delete2.DeleteService,
 	argoUserService argo.ArgoUserService,
 	environmentService cluster.EnvironmentService,
+	async *async.Async,
 	clusterRbacService cluster.ClusterRbacService) *ClusterRestHandlerImpl {
 	return &ClusterRestHandlerImpl{
 		clusterService:            clusterService,
@@ -96,6 +99,7 @@ func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 		argoUserService:           argoUserService,
 		environmentService:        environmentService,
 		clusterRbacService:        clusterRbacService,
+		async:                     async,
 	}
 }
 
@@ -125,13 +129,15 @@ func (impl ClusterRestHandlerImpl) SaveClusters(w http.ResponseWriter, r *http.R
 	//RBAC enforcer Ends
 	ctx, cancel := context.WithCancel(r.Context())
 	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
+		impl.async.RunAsync(func() {
+			func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		})
 	}
 	if util2.IsBaseStack() {
 		ctx = context.WithValue(ctx, "token", token)
@@ -201,13 +207,15 @@ func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) 
 	//RBAC enforcer Ends
 	ctx, cancel := context.WithCancel(r.Context())
 	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
+		impl.async.RunAsync(func() {
+			func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		})
 	}
 	if util2.IsBaseStack() {
 		ctx = context.WithValue(ctx, "token", token)
@@ -270,13 +278,15 @@ func (impl ClusterRestHandlerImpl) ValidateKubeconfig(w http.ResponseWriter, r *
 	//RBAC enforcer Ends
 	ctx, cancel := context.WithCancel(r.Context())
 	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
+		impl.async.RunAsync(func() {
+			func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		})
 	}
 	if util2.IsBaseStack() {
 		ctx = context.WithValue(ctx, "token", token)
@@ -420,13 +430,15 @@ func (impl ClusterRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request
 	// RBAC enforcer ends
 	ctx, cancel := context.WithCancel(r.Context())
 	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
+		impl.async.RunAsync(func() {
+			func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		})
 	}
 	if util2.IsBaseStack() {
 		ctx = context.WithValue(ctx, "token", token)

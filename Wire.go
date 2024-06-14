@@ -21,6 +21,7 @@ package main
 
 import (
 	"github.com/devtron-labs/authenticator/middleware"
+	async "github.com/devtron-labs/common-lib/async"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
@@ -245,7 +246,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(chartConfig.PipelineOverrideRepository), new(*chartConfig.PipelineOverrideRepositoryImpl)),
 		wire.Struct(new(util.MergeUtil), "*"),
 		util.NewSugardLogger,
-
+		async.NewAsync,
 		deployment.NewDeploymentConfigRestHandlerImpl,
 		wire.Bind(new(deployment.DeploymentConfigRestHandler), new(*deployment.DeploymentConfigRestHandlerImpl)),
 		deployment.NewDeploymentRouterImpl,

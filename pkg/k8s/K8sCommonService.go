@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -63,6 +64,7 @@ type K8sCommonServiceImpl struct {
 	clusterService              cluster.ClusterService
 	K8sApplicationServiceConfig *K8sApplicationServiceConfig
 	argoApplicationService      argoApplication.ArgoApplicationService
+	async                       *async.Async
 }
 type K8sApplicationServiceConfig struct {
 	BatchSize        int `env:"BATCH_SIZE" envDefault:"5"`
@@ -71,6 +73,7 @@ type K8sApplicationServiceConfig struct {
 
 func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sServiceImpl,
 	clusterService cluster.ClusterService,
+	async *async.Async,
 	argoApplicationService argoApplication.ArgoApplicationService) *K8sCommonServiceImpl {
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
@@ -83,6 +86,7 @@ func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sService
 		clusterService:              clusterService,
 		K8sApplicationServiceConfig: cfg,
 		argoApplicationService:      argoApplicationService,
+		async:                       async,
 	}
 }
 
@@ -234,7 +238,7 @@ func (impl *K8sCommonServiceImpl) GetManifestsByBatch(ctx context.Context, reque
 	var res []BatchResourceResponse
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(impl.K8sApplicationServiceConfig.TimeOutInSeconds)*time.Second)
 	defer cancel()
-	go func() {
+	impl.async.RunAsync(func() {
 		ans := impl.getManifestsByBatch(ctx, requests)
 		select {
 		case <-ctx.Done():
@@ -242,7 +246,7 @@ func (impl *K8sCommonServiceImpl) GetManifestsByBatch(ctx context.Context, reque
 		default:
 			ch <- ans
 		}
-	}()
+	})
 	select {
 	case ans := <-ch:
 		res = ans
@@ -341,16 +345,18 @@ func (impl *K8sCommonServiceImpl) getManifestsByBatch(ctx context.Context, reque
 		var wg sync.WaitGroup
 		for j := 0; j < batchSize; j++ {
 			wg.Add(1)
-			go func(j int) {
-				resp := BatchResourceResponse{}
-				response, err := impl.GetResource(ctx, &requests[i+j])
-				if response != nil {
-					resp.ManifestResponse = response.ManifestResponse
-				}
-				resp.Err = err
-				res[i+j] = resp
-				wg.Done()
-			}(j)
+			impl.async.RunAsync(func() {
+				func(j int) {
+					resp := BatchResourceResponse{}
+					response, err := impl.GetResource(ctx, &requests[i+j])
+					if response != nil {
+						resp.ManifestResponse = response.ManifestResponse
+					}
+					resp.Err = err
+					res[i+j] = resp
+					wg.Done()
+				}(j)
+			})
 		}
 		wg.Wait()
 		i += batchSize

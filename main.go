@@ -20,6 +20,7 @@ import (
 	"fmt"
 	_ "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	_ "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	"github.com/devtron-labs/common-lib/async"
 	util2 "github.com/devtron-labs/devtron/util"
 	"log"
 	"os"
@@ -45,12 +46,13 @@ func main() {
 	var gracefulStop = make(chan os.Signal)
 	signal.Notify(gracefulStop, syscall.SIGTERM)
 	signal.Notify(gracefulStop, syscall.SIGINT)
-	go func() {
+	async := async.NewAsync(nil)
+	async.RunAsync(func() {
 		sig := <-gracefulStop
 		fmt.Printf("caught sig: %+v", sig)
 		app.Stop()
 		os.Exit(0)
-	}()
+	})
 	//      gracefulStop end
 
 	app.Start()

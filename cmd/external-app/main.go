@@ -18,6 +18,7 @@ package main
 
 import (
 	"fmt"
+	async2 "github.com/devtron-labs/common-lib/async"
 	"log"
 	"os"
 	"os/signal"
@@ -33,12 +34,13 @@ func main() {
 	var gracefulStop = make(chan os.Signal)
 	signal.Notify(gracefulStop, syscall.SIGTERM)
 	signal.Notify(gracefulStop, syscall.SIGINT)
-	go func() {
+	async := async2.NewAsync(nil)
+	async.RunAsync(func() {
 		sig := <-gracefulStop
 		fmt.Printf("caught sig: %+v", sig)
 		app.Stop()
 		os.Exit(0)
-	}()
+	})
 	//      gracefulStop end
 	app.Start()
 }

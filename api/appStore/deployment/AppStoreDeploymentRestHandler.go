@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib/async"
 	service2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	"net/http"
@@ -70,6 +71,7 @@ type AppStoreDeploymentRestHandlerImpl struct {
 	argoUserService             argo.ArgoUserService
 	attributesService           attributes.AttributesService
 	installAppService           EAMode.InstalledAppDBService
+	async                       *async.Async
 }
 
 func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
@@ -78,6 +80,7 @@ func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthSer
 	appStoreDeploymentDBService service.AppStoreDeploymentDBService,
 	validator *validator.Validate, helmAppService service2.HelmAppService,
 	argoUserService argo.ArgoUserService, attributesService attributes.AttributesService,
+	async *async.Async,
 	installAppService EAMode.InstalledAppDBService) *AppStoreDeploymentRestHandlerImpl {
 	return &AppStoreDeploymentRestHandlerImpl{
 		Logger:                      Logger,
@@ -92,6 +95,7 @@ func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthSer
 		argoUserService:             argoUserService,
 		attributesService:           attributesService,
 		installAppService:           installAppService,
+		async:                       async,
 	}
 }
 
@@ -158,13 +162,15 @@ func (handler AppStoreDeploymentRestHandlerImpl) InstallApp(w http.ResponseWrite
 	handler.Logger.Infow("request payload, CreateInstalledApp", "payload", request)
 	ctx, cancel := context.WithCancel(r.Context())
 	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
+		handler.async.RunAsync(func() {
+			func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		})
 	}
 	if util2.IsBaseStack() || util2.IsHelmApp(request.AppOfferingMode) {
 		ctx = context.WithValue(r.Context(), "token", token)
@@ -341,13 +347,15 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 	request.AcdPartialDelete = partialDelete
 	ctx, cancel := context.WithCancel(r.Context())
 	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
+		handler.async.RunAsync(func() {
+			func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		})
 	}
 	if util2.IsBaseStack() || util2.IsHelmApp(request.AppOfferingMode) {
 		ctx = context.WithValue(r.Context(), "token", token)
@@ -469,13 +477,15 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 	request.UserId = userId
 	ctx, cancel := context.WithCancel(r.Context())
 	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
+		handler.async.RunAsync(func() {
+			func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		})
 	}
 	if util2.IsBaseStack() || util2.IsHelmApp(request.AppOfferingMode) {
 		ctx = context.WithValue(r.Context(), "token", token)
