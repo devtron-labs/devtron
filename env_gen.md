@@ -11,6 +11,7 @@
  | APP_SYNC_JOB_RESOURCES_OBJ |  |  | 
  | ARGO_APP_MANUAL_SYNC_TIME | 3 |  | 
  | ARGO_AUTO_SYNC_ENABLED | true |  | 
+ | ASYNC_BUILDX_CACHE_EXPORT | false |  | 
  | AZURE_ACCOUNT_KEY |  |  | 
  | AZURE_ACCOUNT_NAME |  |  | 
  | AZURE_BLOB_CONTAINER_CI_CACHE |  |  | 
@@ -27,6 +28,7 @@
  | BLOB_STORAGE_S3_ENDPOINT |  |  | 
  | BLOB_STORAGE_S3_ENDPOINT_INSECURE | false |  | 
  | BLOB_STORAGE_S3_SECRET_KEY |  |  | 
+ | BUILDX_CACHE_MODE_MIN | false |  | 
  | BUILDX_CACHE_PATH | /var/lib/devtron/buildx |  | 
  | BUILDX_K8S_DRIVER_OPTIONS |  |  | 
  | BUILDX_PROVENANCE_MODE |  |  | 

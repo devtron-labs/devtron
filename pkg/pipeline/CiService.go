@@ -64,8 +64,8 @@ type CiService interface {
 	GetCiMaterials(pipelineId int, ciMaterials []*pipelineConfig.CiPipelineMaterial) ([]*pipelineConfig.CiPipelineMaterial, error)
 }
 type BuildxCache struct {
-	BuildxCacheModeMin     bool `env:"BuildxCacheModeMin" envDefault:"false"`
-	AsyncBuildxCacheExport bool `env:"AsyncBuildxCacheExport" envDefault:"false"`
+	BuildxCacheModeMin     bool `env:"BUILDX_CACHE_MODE_MIN" envDefault:"false"`
+	AsyncBuildxCacheExport bool `env:"ASYNC_BUILDX_CACHE_EXPORT" envDefault:"false"`
 }
 
 type CiServiceImpl struct {
