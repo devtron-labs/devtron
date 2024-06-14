@@ -109,7 +109,11 @@ spec:
       name: envoy-admin
       {{- end }}
   selector:
+    {{- if .Values.customPodLabels }}
+{{ toYaml .Values.customPodLabels | indent 4 }}  
+    {{- else }}
     app: {{ template ".Chart.Name .name" . }}
+    {{- end }}
   type: ClusterIP
 {{- if (and (eq .Values.service.type "LoadBalancer") .Values.service.loadBalancerSourceRanges )}}
   loadBalancerSourceRanges: 
