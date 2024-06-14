@@ -187,7 +187,7 @@ Devtron is built on some of the most trusted and loved technologies:
 
 ## :muscle: Trusted By
  
-Devtron is trusted by communities all across the globe. The list of organisations using Devtron can be found[here](./USERS.MD).
+Devtron is trusted by communities all across the globe. The list of organisations using Devtron can be found [here](./USERS.MD).
 
  
 ## :question: FAQs & Troubleshooting
