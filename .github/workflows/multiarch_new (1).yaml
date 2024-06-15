@@ -35,6 +35,10 @@ jobs:
       run: |
          yq '.' charts/devtron/values.yaml > values.json
 
+         #fetching container registry
+         container_registry=$(yq -r '.global.containerRegistry' values.json)
+         echo "Container Registry: $container_registry"
+
          #function to check the architecture of image
          get_image_arch() {
              local image="$1"
@@ -45,7 +49,7 @@ jobs:
                  return
              fi
             
-             local arch=$(docker manifest inspect "quay.io/devtron/$image" | jq -r '.manifests[].platform.architecture' | sort | uniq)
+             local arch=$(docker manifest inspect "$container_registry/$image" | jq -r '.manifests[].platform.architecture' | sort | uniq)
 
              # printing the error, if found any
              if [ $? -ne 0 ]; then
