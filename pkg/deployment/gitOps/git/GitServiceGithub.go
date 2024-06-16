@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
+	"github.com/devtron-labs/devtron/util/retryFunc"
 	"github.com/google/go-github/github"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
@@ -202,8 +203,11 @@ func (impl GitHubClient) CommitValues(ctx context.Context, config *ChartConfig, 
 			Name:  &config.UserName,
 		},
 	}
-	c, _, err := impl.client.Repositories.CreateFile(ctx, impl.org, config.ChartRepoName, path, options)
-	if err != nil {
+	c, httpRes, err := impl.client.Repositories.CreateFile(ctx, impl.org, config.ChartRepoName, path, options)
+	if err != nil && httpRes != nil && httpRes.StatusCode == http2.StatusConflict {
+		impl.logger.Warn("conflict found in commit github", "err", err, "config", config)
+		return "", time.Time{}, retryFunc.NewRetryableError(err)
+	} else if err != nil {
 		impl.logger.Errorw("error in commit github", "err", err, "config", config)
 		return "", time.Time{}, err
 	}

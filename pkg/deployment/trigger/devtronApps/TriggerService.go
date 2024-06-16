@@ -1049,10 +1049,10 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(newCtx, req)
 			if err != nil {
 				impl.logger.Errorw("error in updating helm application for cd pipelineModel", "err", err)
-				if errors.Is(err, context.Canceled) {
+				if util.IsErrorContextCancelled(err) {
 					return false, pipelineConfig.ErrorDeploymentSuperseded
-				} else if errors.Is(err, context.DeadlineExceeded) {
-					return false, err
+				} else if util.IsErrorContextDeadlineExceeded(err) {
+					return false, context.DeadlineExceeded
 				}
 				apiError := clientErrors.ConvertToApiError(err)
 				if apiError != nil {

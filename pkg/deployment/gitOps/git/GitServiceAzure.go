@@ -18,11 +18,14 @@ package git
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
+	"github.com/devtron-labs/devtron/util/retryFunc"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
 	"go.uber.org/zap"
+	http2 "net/http"
 	"path/filepath"
 	"time"
 )
@@ -242,8 +245,10 @@ func (impl GitAzureClient) CommitValues(ctx context.Context, config *ChartConfig
 		RepositoryId: &config.ChartRepoName,
 		Project:      &impl.project,
 	})
-
-	if err != nil {
+	if e := (azuredevops.WrappedError{}); errors.As(err, &e) && e.StatusCode != nil && *e.StatusCode == http2.StatusConflict {
+		impl.logger.Warn("conflict found in commit azure", "err", err, "config", config)
+		return "", time.Time{}, retryFunc.NewRetryableError(err)
+	} else if err != nil {
 		impl.logger.Errorw("error in commit azure", "err", err)
 		return "", time.Time{}, err
 	}

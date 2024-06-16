@@ -18,6 +18,7 @@ package git
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -25,6 +26,7 @@ import (
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
+	"github.com/devtron-labs/devtron/util/retryFunc"
 	dirCopy "github.com/otiai10/copy"
 	"go.uber.org/zap"
 	"net/url"
@@ -216,12 +218,23 @@ func (impl *GitOperationServiceImpl) CommitValues(ctx context.Context, chartGitA
 		return commitHash, commitTime, err
 	}
 	gitOpsConfig := &apiBean.GitOpsConfigDto{BitBucketWorkspaceId: bitbucketMetadata.BitBucketWorkspaceId}
-	commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(ctx, chartGitAttr, gitOpsConfig)
+	callback := func() error {
+		commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(ctx, chartGitAttr, gitOpsConfig)
+		return err
+	}
+	err = retryFunc.Retry(callback, impl.isRetryableGitCommitError, 3, time.Second, impl.logger)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return commitHash, commitTime, err
 	}
 	return commitHash, commitTime, nil
+}
+
+func (impl *GitOperationServiceImpl) isRetryableGitCommitError(err error) bool {
+	if retryErr := (&retryFunc.RetryableError{}); errors.As(err, &retryErr) {
+		return true
+	}
+	return false
 }
 
 func (impl *GitOperationServiceImpl) CreateRepository(ctx context.Context, dto *apiBean.GitOpsConfigDto, userId int32) (string, bool, error) {

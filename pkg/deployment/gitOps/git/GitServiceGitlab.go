@@ -21,8 +21,10 @@ import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
+	"github.com/devtron-labs/devtron/util/retryFunc"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
+	"net/http"
 	"net/url"
 	"path/filepath"
 	"strconv"
@@ -293,9 +295,12 @@ func (impl GitLabClient) CommitValues(ctx context.Context, config *ChartConfig, 
 		AuthorEmail:   &config.UserEmailId,
 		AuthorName:    &config.UserName,
 	}
-	c, _, err := impl.client.Commits.CreateCommit(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath,
+	c, httpRes, err := impl.client.Commits.CreateCommit(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath,
 		config.ChartRepoName), actions, gitlab.WithContext(ctx))
-	if err != nil {
+	if err != nil && httpRes != nil && httpRes.StatusCode == http.StatusBadRequest {
+		impl.logger.Warn("conflict found in commit gitlab", "err", err, "config", config)
+		return "", time.Time{}, retryFunc.NewRetryableError(err)
+	} else if err != nil {
 		return "", time.Time{}, err
 	}
 	commitTime = time.Now() //default is current time, if found then will get updated accordingly
