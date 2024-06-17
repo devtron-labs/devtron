@@ -17,12 +17,15 @@
 package generateManifest
 
 import (
+	"context"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/yaml"
 	"github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"go.opentelemetry.io/otel"
+	"golang.org/x/exp/maps"
 )
 
 func (impl DeploymentTemplateServiceImpl) constructRotatePodResponse(templateChartResponse []*gRPC.TemplateChartResponse, appNameToId map[string]int, environment *repository.Environment) (*RestartPodResponse, error) {
@@ -37,23 +40,15 @@ func (impl DeploymentTemplateServiceImpl) constructRotatePodResponse(templateCha
 		for _, manifest := range manifests {
 			gvk := manifest.GroupVersionKind()
 			name := manifest.GetName()
-			labels := manifest.GetLabels()
 			switch gvk.Kind {
 			case string(Deployment), string(StatefulSet), string(DemonSet), string(Rollout):
-				if labels != nil && labels[LabelReleaseKey] != "" {
-					resourceMeta = append(resourceMeta, &ResourceMetadata{
-						Name:             labels[LabelReleaseKey],
-						GroupVersionKind: gvk,
-					})
-				} else {
-					resourceMeta = append(resourceMeta, &ResourceMetadata{
-						Name:             name,
-						GroupVersionKind: gvk,
-					})
-				}
-
+				resourceMeta = append(resourceMeta, &ResourceMetadata{
+					Name:             name,
+					GroupVersionKind: gvk,
+				})
 			}
 		}
+
 		appIdToResourceIdentifier[appNameToId[tcResp.AppName]] = &ResourceIdentifierResponse{
 			ResourceMetaData: resourceMeta,
 			AppName:          appName,
@@ -91,10 +86,12 @@ func (impl DeploymentTemplateServiceImpl) constructInstallReleaseBulkReq(apps []
 	if appIdToInstallReleaseRequest == nil || len(appIdToInstallReleaseRequest) == 0 {
 		return nil, err
 	}
-	err = impl.setChartContent(applicationIds, appIdToInstallReleaseRequest)
-	if err != nil {
-		impl.Logger.Errorw("error in setting chart content", "appIds", applicationIds, "err", err)
-		return nil, err
+
+	for _, app := range apps {
+		if _, ok := appIdToInstallReleaseRequest[app.Id]; ok {
+			appIdToInstallReleaseRequest[app.Id].AppName = app.AppName
+			appIdToInstallReleaseRequest[app.Id].ChartRepository = ChartRepository
+		}
 	}
 
 	k8sServerVersion, err := impl.K8sUtil.GetKubeVersion()
@@ -111,8 +108,6 @@ func (impl DeploymentTemplateServiceImpl) constructInstallReleaseBulkReq(apps []
 		if _, ok := appIdToInstallReleaseRequest[app.Id]; ok {
 			appIdToInstallReleaseRequest[app.Id].ReleaseIdentifier = impl.getReleaseIdentifier(config, app, environment)
 			appIdToInstallReleaseRequest[app.Id].K8SVersion = k8sServerVersion.String()
-			appIdToInstallReleaseRequest[app.Id].AppName = app.AppName
-			appIdToInstallReleaseRequest[app.Id].ChartRepository = ChartRepository
 		}
 	}
 
@@ -122,30 +117,26 @@ func (impl DeploymentTemplateServiceImpl) constructInstallReleaseBulkReq(apps []
 	return installReleaseRequests, nil
 }
 
-func (impl DeploymentTemplateServiceImpl) setChartContent(appIds []int, appIdToInstallReleaseRequest map[int]*gRPC.InstallReleaseRequest) error {
-	charts, err := impl.chartRepository.FindLatestChartByAppIds(appIds)
+func (impl DeploymentTemplateServiceImpl) setChartContent(ctx context.Context, installReleaseRequests []*gRPC.InstallReleaseRequest, appNameToId map[string]int) error {
+	appIdToInstallReleaseRequest := make(map[int]*gRPC.InstallReleaseRequest)
+	requestAppNameToId := make(map[int]string)
+	for _, req := range installReleaseRequests {
+		appId := appNameToId[req.AppName]
+		requestAppNameToId[appId] = req.AppName
+		appIdToInstallReleaseRequest[appId] = req
+	}
+
+	_, span := otel.Tracer("orchestrator").Start(ctx, "chartRefService.GetChartBytesForApps")
+	appIdToBytes, err := impl.chartRefService.GetChartBytesForApps(ctx, requestAppNameToId)
+	span.End()
 	if err != nil {
-		impl.Logger.Errorw("error in fetching chart", "err", err, "appIds", appIds)
+		impl.Logger.Errorw("error in fetching chartRefBean", "err", err, "appNames", maps.Keys(appNameToId))
 		return err
 	}
-	appIdToChartRefId := make(map[int]int)
-	var chartRefIds []int
-	for _, chart := range charts {
-		appIdToChartRefId[chart.AppId] = chart.ChartRefId
-		chartRefIds = append(chartRefIds, chart.ChartRefId)
+	for appId, _ := range appIdToInstallReleaseRequest {
+		appIdToInstallReleaseRequest[appId].ChartContent = &gRPC.ChartContent{Content: appIdToBytes[appId]}
 	}
-	chartRefIdToBytes, err := impl.chartRefService.GetChartBytesInBulk(chartRefIds, false)
-	if err != nil {
-		impl.Logger.Errorw("error in fetching chartRefBean", "err", err, "chartRefIds", chartRefIds)
-		return err
-	}
-	for appId, chartRefId := range appIdToChartRefId {
-		if bytes, ok := chartRefIdToBytes[chartRefId]; ok {
-			if _, ok := appIdToInstallReleaseRequest[appId]; ok {
-				appIdToInstallReleaseRequest[appId].ChartContent = &gRPC.ChartContent{Content: bytes}
-			}
-		}
-	}
+
 	return err
 }
 
