@@ -452,13 +452,11 @@ spec:
 
 ---
 
-## Port Forwarding
+## Running Kubectl Commands Locally
 
 ### Introduction
 
-Assume your applications are running in a Kubernetes cluster on cloud. Now, if you wish to test or debug them on your local machine, you can perform [port forwarding](https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster/). It creates a tunnel between a port on your machine and a port on a resource within your cluster. Therefore, you can access applications running inside the cluster as though they are running locally on your machine.
-
-But first, you would need access to that cluster. Traditionally, the kubeconfig file (`./kube/config`) helps you connect with the cluster. 
+If you wish to run kubectl commands from your local system, you need to have access to your cluster. Traditionally, the kubeconfig file (`./kube/config`) helps you connect with the cluster from your local system.
 
 ![Figure 21: Kubeconfig File](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/kubeconfig.jpg)
 
@@ -520,7 +518,16 @@ If you are not a super-admin and can't generate a token yourself, you can find t
 
 3. Test the connection to the cluster by running any kubectl command, e.g., `kubectl get ns` or `kubectl get po -A`
 
-4. Once you have successfully connected to the cluster, you may run the port-forward command. Refer [kubectl port-forward](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_port-forward/) to see a few examples.
+{% hint style="info" %}
+### Additional References
+Once the connection is successful, you may run any [kubectl operations](https://kubernetes.io/docs/reference/kubectl/#operations) from your system.
+{% endhint %}
 
-  ![Figure 24: Example - Port Forwarding](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/port-forward.gif)
+### Use Case - Port Forwarding
+
+Assume your applications are running in a Kubernetes cluster on cloud. Now, if you wish to test or debug them on your local machine, you can perform [port forwarding](https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster/). It creates a tunnel between a port on your machine and a port on a resource within your cluster. Therefore, you can access applications running inside the cluster as though they are running locally on your machine.
+
+Once you have successfully connected to the cluster, you may run the port-forward command. Refer [kubectl port-forward](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_port-forward/) to see a few examples.
+
+![Figure 24: Example - Port Forwarding](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/port-forward.gif)
 
