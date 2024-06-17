@@ -8,13 +8,11 @@ global:
     runAsUser: 1000
     runAsNonRoot: true
   containerRegistry: "quay.io/devtron"
-  
 installer:
-  release: "v0.7.0"
+  release: "v0.7.1-rc.0"
   registry: ""
   image: "inception"
   tag: "473deaa4-185-21582"
-  
 components:
   dashboard:
     config:
@@ -33,25 +31,21 @@ components:
     registry: ""
     image: "dashboard:87aaf7ac-690-23135"
     imagePullPolicy: IfNotPresent
-    
   devtron:
     registry: ""
     image: "hyperion:3aa7e420-280-23147"
     cicdImage: "devtron:3aa7e420-434-23146"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
-    
   ciRunner:
     registry: ""
     image: "ci-runner:6e721248-138-23081"
-    
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
     imagePullPolicy: IfNotPresent
     initContainer:
       authenticator: "authenticator:e414faff-393-13273"
-      
   kubelink:
     registry: ""
     image: "kubelink:a810dbae-564-23055"
@@ -69,7 +63,6 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
-      
   kubewatch:
     registry: ""
     image: "kubewatch:f8ac0fe6-419-23054"
@@ -80,7 +73,6 @@ components:
       ACD_NAMESPACE: "devtroncd"
       ACD_INFORMER: "true"
       NATS_STREAM_MAX_AGE: "10800"
-      
   postgres:
     registry: ""
     image: "postgres:11.9.0-debian-10-r26"
@@ -90,7 +82,6 @@ components:
     metrics:
       image: postgres_exporter:v0.4.7
       armImage: postgres_exporter:v0.10.1
-      
   gitsensor:
     registry: ""
     image: "git-sensor:8545feb5-200-22005"
@@ -140,7 +131,6 @@ components:
       enabled: false
     persistence:
       storage: 5Gi
-      
   migrator:
     registry: ""
     image: "migrator:v4.16.2"
@@ -175,10 +165,9 @@ workflowController:
   executorImage: "argoexec:v3.4.3"
   IMDSv1Image: "workflow-controller:v3.0.7"
   IMDSv1ExecutorImage: "argoexec:v3.0.7"
-  
 security:
   imageScanner:
-    image: "image-scanner:3ab2ba46-141-23064"
+    image: "image-scanner:137872c2-141-23389"
   clair:
     image:
       repository: clair
@@ -186,7 +175,6 @@ security:
 # Values for notifier integration
 notifier:
   image: "notifier:924a17f6-372-22110"
-  
 minio:
   image: "minio:RELEASE.2021-02-14T04-01-33Z"
   mbImage: "minio-mc:RELEASE.2021-02-14T04-28-06Z"
