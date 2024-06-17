@@ -18,14 +18,17 @@ package git
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
+	"github.com/devtron-labs/devtron/util/retryFunc"
 	"github.com/devtron-labs/go-bitbucket"
 	"go.uber.org/zap"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -250,6 +253,9 @@ func (impl GitBitbucketClient) CommitValues(ctx context.Context, config *ChartCo
 	err = impl.client.Repositories.Repository.WriteFileBlob(repoWriteOptions)
 	_ = os.Remove(bitbucketCommitFilePath)
 	if err != nil {
+		if e := (&bitbucket.UnexpectedResponseStatusError{}); errors.As(err, &e) && strings.Contains(e.Error(), "500 Internal Server Error") {
+			return "", time.Time{}, retryFunc.NewRetryableError(err)
+		}
 		return "", time.Time{}, err
 	}
 	commitOptions := &bitbucket.CommitsOptions{
