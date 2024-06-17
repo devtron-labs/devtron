@@ -16,10 +16,10 @@ paths:
           description: Authorization token
         - name: clusterIds
           in: query
-          required: false
+          required: true
           schema:
             type: string
-          description: Comma-separated list of cluster IDs, by default it will take account for all active cluster.
+          description: Comma-separated list of cluster IDs.
       responses:
         '200':
           description: List of Flux applications
@@ -54,8 +54,8 @@ components:
       properties:
         clusterIds:
           type: array
-          description: Clusters to which the result corresponds
-          example: [1, 2]
+          description: Cluster Id to which the result corresponds
+          example: [1]
           items:
             type: integer
         fluxApplication:
@@ -90,8 +90,9 @@ components:
           type: string
           description: Namespace of the application
           example: flux-system
-        isKustomizeApp:
-          type: boolean
+        fluxAppDeploymentType:
+          type: string
+          enum": ["Kustomization", "HelmRelease"]
           description: Indicates if the application is a Kustomize type or standalone flux made HelmRelease app
           example: true
     Error:
