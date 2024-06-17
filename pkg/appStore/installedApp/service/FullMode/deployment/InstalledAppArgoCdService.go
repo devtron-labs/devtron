@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package deployment
 
 import (
@@ -87,19 +103,29 @@ func (impl *FullModeDeploymentServiceImpl) CheckIfArgoAppExists(acdAppName strin
 	return isFound, nil
 }
 
-func (impl *FullModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error {
-	if isMonoRepoMigrationRequired {
-		// update repo details on ArgoCD as repo is changed
-		err := impl.UpgradeDeployment(installAppVersionRequest, ChartGitAttribute, 0, ctx)
-		if err != nil {
-			return err
-		}
+func isArgoCdGitOpsRepoUrlOutOfSync(argoApplication *v1alpha1.Application, gitOpsRepoURLInDb string) bool {
+	if argoApplication != nil && argoApplication.Spec.Source != nil {
+		return argoApplication.Spec.Source.RepoURL != gitOpsRepoURLInDb
 	}
+	return false
+}
+
+func (impl *FullModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error {
 	acdAppName := installAppVersionRequest.ACDAppName
 	argoApplication, err := impl.acdClient.Get(ctx, &application.ApplicationQuery{Name: &acdAppName})
 	if err != nil {
 		impl.Logger.Errorw("Service err:UpdateAndSyncACDApps - error in acd app by name", "acdAppName", acdAppName, "err", err)
 		return err
+	}
+	//if either monorepo case is true or there is diff. in git-ops repo url registered with argo-cd and git-ops repo url saved in db,
+	//then sync argo with git-ops repo url from db because we have already pushed changes to that repo
+	isArgoRepoUrlOutOfSync := isArgoCdGitOpsRepoUrlOutOfSync(argoApplication, installAppVersionRequest.GitOpsRepoURL)
+	if isMonoRepoMigrationRequired || isArgoRepoUrlOutOfSync {
+		// update repo details on ArgoCD as repo is changed
+		err := impl.UpgradeDeployment(installAppVersionRequest, ChartGitAttribute, 0, ctx)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = impl.argoClientWrapperService.UpdateArgoCDSyncModeIfNeeded(ctx, argoApplication)
@@ -117,7 +143,7 @@ func (impl *FullModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersio
 		}
 		return err
 	}
-	if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+	if impl.acdConfig.IsManualSyncEnabled() {
 		err = impl.SaveTimelineForHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED, "argocd sync completed", syncTime, tx)
 		if err != nil {
 			impl.Logger.Errorw("error in saving timeline for acd helm apps", "err", err)

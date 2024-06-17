@@ -1,7 +1,24 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package chartRef
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,8 +30,10 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	dirCopy "github.com/otiai10/copy"
 	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 	"io/ioutil"
 	"k8s.io/helm/pkg/chartutil"
+	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"os"
 	"path"
 	"path/filepath"
@@ -53,7 +72,8 @@ type ChartRefFileOpService interface {
 	GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) ([]byte, []byte, error)
 	GetRefChart(chartRefId int) (string, string, string, string, error)
 	ExtractChartIfMissing(chartData []byte, refChartDir string, location string) (*bean.ChartDataInfo, error)
-	GetChartInBytes(chartRefId int) ([]byte, error)
+	GetChartInBytes(chartRefId int, deleteChart bool) ([]byte, error)
+	GetChartBytesForApps(ctx context.Context, appIdToAppName map[int]string) (map[int][]byte, error)
 }
 
 type ChartRefServiceImpl struct {
@@ -61,11 +81,13 @@ type ChartRefServiceImpl struct {
 	chartRefRepository   chartRepoRepository.ChartRefRepository
 	chartTemplateService util.ChartTemplateService
 	mergeUtil            util.MergeUtil
+	chartRepository      chartRepoRepository.ChartRepository
 }
 
 func NewChartRefServiceImpl(logger *zap.SugaredLogger,
 	chartRefRepository chartRepoRepository.ChartRefRepository,
 	chartTemplateService util.ChartTemplateService,
+	chartRepository chartRepoRepository.ChartRepository,
 	mergeUtil util.MergeUtil) *ChartRefServiceImpl {
 	// cache devtron reference charts list
 	devtronChartList, _ := chartRefRepository.FetchAllNonUserUploadedChartInfo()
@@ -75,6 +97,7 @@ func NewChartRefServiceImpl(logger *zap.SugaredLogger,
 		chartRefRepository:   chartRefRepository,
 		chartTemplateService: chartTemplateService,
 		mergeUtil:            mergeUtil,
+		chartRepository:      chartRepository,
 	}
 }
 
@@ -269,24 +292,104 @@ func (impl *ChartRefServiceImpl) ChartRefAutocomplete() ([]*bean.ChartRefAutocom
 	return chartRefs, nil
 }
 
-func (impl *ChartRefServiceImpl) GetChartInBytes(chartRefId int) ([]byte, error) {
+func (impl *ChartRefServiceImpl) GetChartInBytes(chartRefId int, performCleanup bool) ([]byte, error) {
 	chartRef, err := impl.chartRefRepository.FindById(chartRefId)
 	if err != nil {
 		impl.logger.Errorw("error getting chart data", "chartRefId", chartRefId, "err", err)
 		return nil, err
 	}
+	return impl.extractChartInBytes(chartRef, performCleanup)
+}
+
+func (impl *ChartRefServiceImpl) extractChartInBytes(chartRef *chartRepoRepository.ChartRef, performCleanup bool) ([]byte, error) {
 	// For user uploaded charts ChartData will be retrieved from DB
 	if chartRef.ChartData != nil {
 		return chartRef.ChartData, nil
 	}
 	// For Devtron reference charts the chart will be load from the directory location
 	refChartPath := filepath.Join(bean.RefChartDirPath, chartRef.Location)
-	manifestByteArr, err := impl.chartTemplateService.LoadChartInBytes(refChartPath, false)
+	manifestByteArr, err := impl.chartTemplateService.LoadChartInBytes(refChartPath, performCleanup)
 	if err != nil {
 		impl.logger.Errorw("error in converting chart to bytes", "err", err)
 		return nil, err
 	}
 	return manifestByteArr, nil
+}
+
+func (impl *ChartRefServiceImpl) getChartPath(chartRef *chartRepoRepository.ChartRef) (string, error) {
+	refChartPath := filepath.Join(bean.RefChartDirPath, chartRef.Location)
+	// For user uploaded charts ChartData will be retrieved from DB
+	if chartRef.ChartData != nil {
+		chartInfo, err := impl.ExtractChartIfMissing(chartRef.ChartData, bean.RefChartDirPath, chartRef.Location)
+		if chartInfo != nil && chartInfo.TemporaryFolder != "" {
+			err1 := os.RemoveAll(chartInfo.TemporaryFolder)
+			if err1 != nil {
+				impl.logger.Errorw("error in deleting temp dir ", "err", err)
+			}
+		}
+	} else {
+		// For Devtron reference charts the chart will be load from the directory location
+	}
+	return refChartPath, nil
+}
+
+func (impl *ChartRefServiceImpl) GetChartBytesForApps(ctx context.Context, appIdToAppName map[int]string) (map[int][]byte, error) {
+
+	appIds := maps.Keys(appIdToAppName)
+	charts, err := impl.chartRepository.FindLatestChartByAppIds(appIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching chart", "err", err, "appIds", appIds)
+		return nil, err
+	}
+
+	chartRefIdTOAppIds := make(map[int][]int)
+	var chartRefIds []int
+	chartRefToChartVersion := make(map[int]string)
+
+	for _, chart := range charts {
+		chartRefIds = append(chartRefIds, chart.ChartRefId)
+		chartRefToChartVersion[chart.ChartRefId] = chart.ChartVersion
+		refAppIds, ok := chartRefIdTOAppIds[chart.ChartRefId]
+		if !ok {
+			refAppIds = make([]int, 0)
+		}
+		refAppIds = append(refAppIds, chart.AppId)
+		chartRefIdTOAppIds[chart.ChartRefId] = refAppIds
+	}
+
+	chartRefs, err := impl.chartRefRepository.FindByIds(chartRefIds)
+	if err != nil {
+		impl.logger.Errorw("error getting chart data", "chartRefIds", chartRefIds, "err", err)
+		return nil, err
+	}
+
+	appIdToBytes := make(map[int][]byte)
+
+	// this loops run with O(len(apps)) T.C
+	for _, chartRef := range chartRefs {
+		refChartPath, err := impl.getChartPath(chartRef)
+		if err != nil {
+			impl.logger.Errorw("error in converting chart to bytes", "chartRefId", chartRef.Id, "err", err)
+			return nil, err
+		}
+
+		refAppIds := chartRefIdTOAppIds[chartRef.Id]
+		for _, appId := range refAppIds {
+			chartMetaData := &chart2.Metadata{
+				Name:    appIdToAppName[appId],
+				Version: chartRefToChartVersion[chartRef.Id],
+			}
+			tempReferenceTemplateDir, err := impl.chartTemplateService.BuildChart(ctx, chartMetaData, refChartPath)
+			if err != nil {
+				impl.logger.Errorw("error in building chart", "chartMetaData", chartMetaData, "refChartPath", refChartPath)
+				return nil, err
+			}
+			chartInBytes, err := impl.chartTemplateService.LoadChartInBytes(tempReferenceTemplateDir, true)
+			appIdToBytes[appId] = chartInBytes
+		}
+
+	}
+	return appIdToBytes, nil
 }
 
 func (impl *ChartRefServiceImpl) FetchCustomChartsInfo() ([]*bean.ChartDto, error) {

@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package repository
 
 import (
@@ -21,7 +37,7 @@ type GitMaterialHistory struct {
 }
 
 type GitMaterialHistoryRepository interface {
-	SaveGitMaterialHistory(material *GitMaterialHistory) error
+	SaveGitMaterialHistory(tx *pg.Tx, material *GitMaterialHistory) error
 	SaveDeleteMaterialHistory(materials []*GitMaterialHistory) error
 }
 
@@ -35,8 +51,8 @@ func NewGitMaterialHistoryRepositoyImpl(dbConnection *pg.DB) *GitMaterialHistory
 	}
 }
 
-func (repo GitMaterialHistoryRepositoryImpl) SaveGitMaterialHistory(material *GitMaterialHistory) error {
-	return repo.dbConnection.Insert(material)
+func (repo GitMaterialHistoryRepositoryImpl) SaveGitMaterialHistory(tx *pg.Tx, material *GitMaterialHistory) error {
+	return tx.Insert(material)
 }
 
 func (repo GitMaterialHistoryRepositoryImpl) SaveDeleteMaterialHistory(materials []*GitMaterialHistory) error {

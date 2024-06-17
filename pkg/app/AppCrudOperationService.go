@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package app
@@ -20,6 +19,13 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/caarlos0/env"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
+	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
+	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/bean"
 	"regexp"
 	"strconv"
 	"strings"
@@ -27,7 +33,6 @@ import (
 
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
@@ -42,13 +47,17 @@ const (
 	ZERO_ENVIRONMENT_ID   = 0
 )
 
+type CrudOperationServiceConfig struct {
+	PropagateExtraLabels bool `env:"PROPAGATE_EXTRA_LABELS" envDefault:"false"`
+}
+
 type AppCrudOperationService interface {
 	Create(request *bean.AppLabelDto, tx *pg.Tx) (*bean.AppLabelDto, error)
 	FindById(id int) (*bean.AppLabelDto, error)
 	FindAll() ([]*bean.AppLabelDto, error)
 	GetAppMetaInfo(appId int, installedAppId int, envId int) (*bean.AppMetaInfoDto, error)
 	GetHelmAppMetaInfo(appId string) (*bean.AppMetaInfoDto, error)
-	GetLabelsByAppIdForDeployment(appId int) ([]byte, error)
+	GetAppLabelsForDeployment(appId int, appName, envName string) ([]byte, error)
 	GetLabelsByAppId(appId int) (map[string]string, error)
 	UpdateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
 	UpdateProjectForApps(request *bean.UpdateProjectBulkAppsRequest) (*bean.UpdateProjectBulkAppsRequest, error)
@@ -56,22 +65,36 @@ type AppCrudOperationService interface {
 	GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error)
 }
 
+func GetCrudOperationServiceConfig() (*CrudOperationServiceConfig, error) {
+	cfg := &CrudOperationServiceConfig{}
+	err := env.Parse(cfg)
+	if err != nil {
+		fmt.Println("failed to parse server CrudOperationServiceConfig,: " + err.Error())
+		return nil, err
+	}
+	return cfg, nil
+}
+
 type AppCrudOperationServiceImpl struct {
-	logger                 *zap.SugaredLogger
-	appLabelRepository     pipelineConfig.AppLabelRepository
-	appRepository          appRepository.AppRepository
-	userRepository         repository.UserRepository
-	installedAppRepository repository2.InstalledAppRepository
-	genericNoteService     genericNotes.GenericNoteService
-	gitMaterialRepository  pipelineConfig.MaterialRepository
+	logger                     *zap.SugaredLogger
+	appLabelRepository         pipelineConfig.AppLabelRepository
+	appRepository              appRepository.AppRepository
+	userRepository             repository.UserRepository
+	installedAppRepository     repository2.InstalledAppRepository
+	genericNoteService         genericNotes.GenericNoteService
+	gitMaterialRepository      pipelineConfig.MaterialRepository
+	installedAppDbService      EAMode.InstalledAppDBService
+	crudOperationServiceConfig *CrudOperationServiceConfig
 }
 
 func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository,
 	logger *zap.SugaredLogger, appRepository appRepository.AppRepository, userRepository repository.UserRepository,
 	installedAppRepository repository2.InstalledAppRepository,
 	genericNoteService genericNotes.GenericNoteService,
-	gitMaterialRepository pipelineConfig.MaterialRepository) *AppCrudOperationServiceImpl {
-	return &AppCrudOperationServiceImpl{
+	gitMaterialRepository pipelineConfig.MaterialRepository,
+	installedAppDbService EAMode.InstalledAppDBService,
+	crudOperationServiceConfig *CrudOperationServiceConfig) *AppCrudOperationServiceImpl {
+	impl := &AppCrudOperationServiceImpl{
 		appLabelRepository:     appLabelRepository,
 		logger:                 logger,
 		appRepository:          appRepository,
@@ -79,7 +102,14 @@ func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRe
 		installedAppRepository: installedAppRepository,
 		genericNoteService:     genericNoteService,
 		gitMaterialRepository:  gitMaterialRepository,
+		installedAppDbService:  installedAppDbService,
 	}
+	crudOperationServiceConfig, err := GetCrudOperationServiceConfig()
+	if err != nil {
+		return nil
+	}
+	impl.crudOperationServiceConfig = crudOperationServiceConfig
+	return impl
 }
 
 type AppBean struct {
@@ -342,7 +372,7 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int, installedAppId
 		}
 	}
 	appName := app.AppName
-	if app.AppType == helper.Job {
+	if app.IsAppJobOrExternalType() {
 		appName = app.DisplayName
 	}
 	noteResp, err := impl.genericNoteService.GetGenericNotesForAppIds([]int{app.Id})
@@ -424,6 +454,60 @@ func convertUrlToHttpsIfSshType(url string) string {
 	return httpsURL
 }
 
+// getAppAndProjectForAppIdentifier, returns app db model for an app unique identifier or from display_name if both exists else it throws pg.ErrNoRows
+func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIdentifier *client.AppIdentifier) (*appRepository.App, error) {
+	app := &appRepository.App{}
+	var err error
+	appNameUniqueIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
+	app, err = impl.appRepository.FindAppAndProjectByAppName(appNameUniqueIdentifier)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching app meta data by unique app identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
+		return app, err
+	}
+	if util.IsErrNoRows(err) {
+		//find app by display name if not found by unique identifier
+		app, err = impl.appRepository.FindAppAndProjectByAppName(appIdentifier.ReleaseName)
+		if err != nil {
+			impl.logger.Errorw("error in fetching app meta data by display name", "displayName", appIdentifier.ReleaseName, "err", err)
+			return app, err
+		}
+	}
+	return app, nil
+}
+
+// updateAppNameToUniqueAppIdentifierInApp, migrates values of app_name col. in app table to unique identifier and also updates display_name with releaseName
+// returns is requested external app is migrated or other app (linked to chart store) with same name is migrated(which is tracked via namespace).
+func (impl AppCrudOperationServiceImpl) updateAppNameToUniqueAppIdentifierInApp(app *appRepository.App, appIdentifier *client.AppIdentifier) error {
+	appNameUniqueIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
+	isLinked, installedApps, err := impl.installedAppDbService.IsExternalAppLinkedToChartStore(app.Id)
+	if err != nil {
+		impl.logger.Errorw("error in checking IsExternalAppLinkedToChartStore", "appId", app.Id, "err", err)
+		return err
+	}
+	//if isLinked is true then installed_app found for this app then this app name is already linked to an installed app then
+	//create new appEntry for all those installedApps and link installedApp.AppId to the newly created app.
+	if isLinked {
+		// if installed_apps are already present for that display_name then migrate the app_name to unique identifier with installedApp's ns and clusterId.
+		// creating new entry for app all installedApps with uniqueAppNameIdentifier and display name
+		err := impl.installedAppDbService.CreateNewAppEntryForAllInstalledApps(installedApps)
+		if err != nil {
+			impl.logger.Errorw("error in CreateNewAppEntryForAllInstalledApps", "appName", app.AppName, "err", err)
+			//not returning from here as we have to migrate the app for requested ext-app and return the response for meta info
+		}
+	}
+	// migrating the requested ext-app
+	app.AppName = appNameUniqueIdentifier
+	app.DisplayName = appIdentifier.ReleaseName
+	app.UpdatedBy = bean2.SystemUserId
+	app.UpdatedOn = time.Now()
+	err = impl.appRepository.Update(app)
+	if err != nil {
+		impl.logger.Errorw("error in migrating displayName and appName to unique identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
+		return err
+	}
+	return nil
+}
+
 func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.AppMetaInfoDto, error) {
 
 	// adding separate function for helm apps because for CLI helm apps, apps can be of form "1|clusterName|releaseName"
@@ -431,17 +515,34 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 	appIdSplitted := strings.Split(appId, "|")
 	app := &appRepository.App{}
 	var err error
+	var displayName string
 	impl.logger.Info("request payload, appId", appId)
 	if len(appIdSplitted) > 1 {
-		appName := appIdSplitted[2]
-		app, err = impl.appRepository.FindAppAndProjectByAppName(appName)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in fetching app meta data", "err", err)
+		appIdDecoded, err := client.DecodeExternalAppAppId(appId)
+		if err != nil {
+			impl.logger.Errorw("error in decoding app id for external app", "appId", appId, "err", err)
 			return nil, err
 		}
-		if app.Id == 0 {
-			app.AppName = appName
+		app, err = impl.getAppAndProjectForAppIdentifier(appIdDecoded)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.logger.Errorw("GetHelmAppMetaInfo, error in getAppAndProjectForAppIdentifier for external apps", "appIdentifier", appIdDecoded, "err", err)
+			return nil, err
 		}
+		// if app.DisplayName is empty then that app_name is not yet migrated to app name unique identifier
+		if app.Id > 0 && len(app.DisplayName) == 0 {
+			err = impl.updateAppNameToUniqueAppIdentifierInApp(app, appIdDecoded)
+			if err != nil {
+				impl.logger.Errorw("GetHelmAppMetaInfo, error in migrating displayName and appName to unique identifier for external apps", "appIdentifier", appIdDecoded, "err", err)
+				//not returning from here as we need to show helm app metadata even if migration of app_name fails, then migration can happen on project update
+			}
+		}
+		if app.Id == 0 {
+			app.AppName = appIdDecoded.ReleaseName
+		}
+		if util2.IsExternalChartStoreApp(app.DisplayName) {
+			displayName = app.DisplayName
+		}
+
 	} else {
 		installedAppIdInt, err := strconv.Atoi(appId)
 		if err != nil {
@@ -459,10 +560,9 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 		app.Team.Name = InstalledApp.App.Team.Name
 		app.CreatedBy = InstalledApp.App.CreatedBy
 		app.Active = InstalledApp.App.Active
-
-		if err != nil {
-			impl.logger.Errorw("error in fetching App Meta Info", "error", err)
-			return nil, err
+		if util2.IsExternalChartStoreApp(InstalledApp.App.DisplayName) {
+			// in case of external apps, we will send display name as appName will be a unique identifier
+			displayName = InstalledApp.App.DisplayName
 		}
 	}
 
@@ -488,17 +588,20 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 		CreatedOn:   app.CreatedOn,
 		Active:      app.Active,
 	}
+	if util2.IsExternalChartStoreApp(displayName) {
+		//special handling for ext-helm apps where name visible on UI is display name
+		info.AppName = displayName
+	}
 	return info, nil
 }
 
-func (impl AppCrudOperationServiceImpl) GetLabelsByAppIdForDeployment(appId int) ([]byte, error) {
-	appLabelJson := &bean.AppLabelsJsonForDeployment{}
+func (impl AppCrudOperationServiceImpl) getLabelsByAppIdForDeployment(appId int) (map[string]string, error) {
+	labelsDto := make(map[string]string)
 	labels, err := impl.appLabelRepository.FindAllByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting app labels by appId", "err", err, "appId", appId)
-		return nil, err
+		return labelsDto, err
 	}
-	labelsDto := make(map[string]string)
 	for _, label := range labels {
 		labelKey := strings.TrimSpace(label.Key)
 		labelValue := strings.TrimSpace(label.Value)
@@ -524,7 +627,57 @@ func (impl AppCrudOperationServiceImpl) GetLabelsByAppIdForDeployment(appId int)
 
 		labelsDto[labelKey] = labelValue
 	}
-	appLabelJson.Labels = labelsDto
+	return labelsDto, nil
+}
+
+func (impl AppCrudOperationServiceImpl) getExtraAppLabelsToPropagate(appId int, appName, envName string) (map[string]string, error) {
+	appMetaInfo, err := impl.appRepository.FindAppAndProjectByAppId(appId)
+	if err != nil {
+		impl.logger.Errorw("error in finding app and project by appId", "appId", appId, "err", err)
+		return nil, err
+	}
+	regexp := regexp.MustCompile(LabelMatchingRegex)
+	extraAppLabels := make(map[string]string)
+
+	extraAppLabels[bean3.AppNameDevtronLabel] = appName
+	extraAppLabels[bean3.EnvNameDevtronLabel] = envName
+	extraAppLabels[bean3.ProjectNameDevtronLabel] = appMetaInfo.Team.Name
+
+	extraAppLabels = sanitizeLabels(extraAppLabels)
+	for labelKey, labelValue := range extraAppLabels {
+		if regexp.MatchString(labelValue) {
+			extraAppLabels[labelKey] = labelValue
+		} else {
+			// in case extra labels are failing k8s official label matching regex  even after sanitization then
+			//delete the label as this can break deployments.
+			impl.logger.Warnw("extra label failed LabelMatchingRegex validation, regex:- ^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$", "labelKey", labelKey, "labelValue", labelValue)
+			delete(extraAppLabels, labelKey)
+		}
+	}
+	return extraAppLabels, nil
+}
+
+func (impl AppCrudOperationServiceImpl) GetAppLabelsForDeployment(appId int, appName, envName string) ([]byte, error) {
+	appLabelJson := &bean.AppLabelsJsonForDeployment{}
+	appLabelsMapFromDb, err := impl.getLabelsByAppIdForDeployment(appId)
+	if err != nil {
+		impl.logger.Errorw("error in getting app labels from db using appId", "appId", appId, "err", err)
+		return nil, err
+	}
+	mergedAppLabels := appLabelsMapFromDb
+
+	if impl.crudOperationServiceConfig.PropagateExtraLabels {
+		extraAppLabelsToPropagate, err := impl.getExtraAppLabelsToPropagate(appId, appName, envName)
+		if err != nil {
+			impl.logger.Errorw("error in getting extra app labels to propagate", "appName", appName, "envName", envName, "err", err)
+			return nil, err
+		}
+		//when app labels are provided by the user and share the same label key names as those in the extraAppLabelsToPropagate map,
+		//priority will be given to the user-provided label keys.
+		mergedAppLabels = MergeChildMapToParentMap(appLabelsMapFromDb, extraAppLabelsToPropagate)
+	}
+
+	appLabelJson.Labels = mergedAppLabels
 	appLabelByte, err := json.Marshal(appLabelJson)
 	if err != nil {
 		impl.logger.Errorw("error in marshaling appLabels json", "err", err, "appLabelJson", appLabelJson)
@@ -532,6 +685,7 @@ func (impl AppCrudOperationServiceImpl) GetLabelsByAppIdForDeployment(appId int)
 	}
 	return appLabelByte, nil
 }
+
 func (impl AppCrudOperationServiceImpl) GetLabelsByAppId(appId int) (map[string]string, error) {
 	labels, err := impl.appLabelRepository.FindAllByAppId(appId)
 	if err != nil {
@@ -578,12 +732,16 @@ func (impl AppCrudOperationServiceImpl) GetAppListByTeamIds(teamIds []int, appTy
 		return nil, err
 	}
 	for _, app := range apps {
+		appName := app.AppName
+		if util2.IsExternalChartStoreApp(app.DisplayName) {
+			appName = app.DisplayName
+		}
 		if _, ok := teamMap[app.TeamId]; ok {
-			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
+			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: appName})
 		} else {
 
 			teamMap[app.TeamId] = &TeamAppBean{ProjectId: app.Team.Id, ProjectName: app.Team.Name}
-			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
+			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: appName})
 		}
 	}
 

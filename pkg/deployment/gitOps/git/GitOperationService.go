@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package git
 
 import (
@@ -25,8 +41,6 @@ type GitOperationService interface {
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
 
 	CommitValues(chartGitAttr *ChartConfig) (commitHash string, commitTime time.Time, err error)
-	CommitRequirementsAndValues(appStoreName, repoUrl string, requirementsConfig *ChartConfig,
-		valuesConfig *ChartConfig) (gitHash string, err error)
 	CommitAndPushAllChanges(clonedDir, commitMsg, userName, userEmailId string) (commitHash string, err error)
 	PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version,
 		tempReferenceTemplateDir string, repoUrl string, userId int32) (err error)
@@ -329,32 +343,6 @@ func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(PushChartTo
 	impl.logger.Debugw("template committed", "url", PushChartToGitRequest.RepoURL, "commit", commit)
 	defer impl.chartTemplateService.CleanDir(clonedDir)
 	return &commonBean.ChartGitAttribute{RepoUrl: PushChartToGitRequest.RepoURL, ChartLocation: acdAppName}, commit, err
-}
-
-func (impl *GitOperationServiceImpl) CommitRequirementsAndValues(appStoreName, repoUrl string, requirementsConfig *ChartConfig, valuesConfig *ChartConfig) (gitHash string, err error) {
-	clonedDir := GIT_WORKING_DIR + appStoreName
-	_, _, err = impl.CommitValues(requirementsConfig)
-	if err != nil {
-		impl.logger.Errorw("error in committing dependency config to git", "err", err)
-		return gitHash, err
-	}
-	err = impl.GitPull(clonedDir, repoUrl, appStoreName)
-	if err != nil {
-		impl.logger.Errorw("error in git pull", "err", err)
-		return gitHash, err
-	}
-
-	gitHash, _, err = impl.CommitValues(valuesConfig)
-	if err != nil {
-		impl.logger.Errorw("error in committing values config to git", "err", err)
-		return gitHash, err
-	}
-	err = impl.GitPull(clonedDir, repoUrl, appStoreName)
-	if err != nil {
-		impl.logger.Errorw("error in git pull", "err", err)
-		return gitHash, err
-	}
-	return gitHash, nil
 }
 
 func (impl *GitOperationServiceImpl) GetClonedDir(chartDir, repoUrl string) (string, error) {

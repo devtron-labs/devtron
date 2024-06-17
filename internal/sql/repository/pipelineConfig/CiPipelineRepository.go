@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package pipelineConfig
@@ -128,7 +127,8 @@ type CiPipelineRepository interface {
 	FetchParentCiPipelinesForDG() ([]*bean.CiPipelinesMap, error)
 	FetchCiPipelinesForDG(parentId int, childCiPipelineIds []int) (*CiPipeline, int, error)
 	FinDByParentCiPipelineAndAppId(parentCiPipeline int, appIds []int) ([]*CiPipeline, error)
-	FindAllPipelineInLast24Hour() (pipelines []*CiPipeline, err error)
+	FindAllPipelineCreatedCountInLast24Hour() (pipelineCount int, err error)
+	FindAllDeletedPipelineCountInLast24Hour() (pipelineCount int, err error)
 	FindNumberOfAppsWithCiPipeline(appIds []int) (count int, err error)
 	FindAppAndProjectByCiPipelineIds(ciPipelineIds []int) ([]*CiPipeline, error)
 	FindCiPipelineConfigsByIds(ids []int) ([]*CiPipeline, error)
@@ -149,11 +149,11 @@ type CiPipelineRepositoryImpl struct {
 	*sql.TransactionUtilImpl
 }
 
-func NewCiPipelineRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *CiPipelineRepositoryImpl {
+func NewCiPipelineRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, TransactionUtilImpl *sql.TransactionUtilImpl) *CiPipelineRepositoryImpl {
 	return &CiPipelineRepositoryImpl{
 		dbConnection:        dbConnection,
 		logger:              logger,
-		TransactionUtilImpl: sql.NewTransactionUtilImpl(dbConnection),
+		TransactionUtilImpl: TransactionUtilImpl,
 	}
 }
 
@@ -502,12 +502,17 @@ func (impl *CiPipelineRepositoryImpl) FinDByParentCiPipelineAndAppId(parentCiPip
 	return ciPipelines, err
 }
 
-func (impl *CiPipelineRepositoryImpl) FindAllPipelineInLast24Hour() (pipelines []*CiPipeline, err error) {
-	err = impl.dbConnection.Model(&pipelines).
-		Column("ci_pipeline.*").
+func (impl *CiPipelineRepositoryImpl) FindAllPipelineCreatedCountInLast24Hour() (pipelineCount int, err error) {
+	pipelineCount, err = impl.dbConnection.Model(&CiPipeline{}).
 		Where("created_on > ?", time.Now().AddDate(0, 0, -1)).
-		Select()
-	return pipelines, err
+		Count()
+	return pipelineCount, err
+}
+func (impl *CiPipelineRepositoryImpl) FindAllDeletedPipelineCountInLast24Hour() (pipelineCount int, err error) {
+	pipelineCount, err = impl.dbConnection.Model(&CiPipeline{}).
+		Where("created_on > ? and deleted=?", time.Now().AddDate(0, 0, -1), true).
+		Count()
+	return pipelineCount, err
 }
 
 func (impl *CiPipelineRepositoryImpl) FindNumberOfAppsWithCiPipeline(appIds []int) (count int, err error) {
