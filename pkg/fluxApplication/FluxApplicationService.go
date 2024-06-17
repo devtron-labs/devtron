@@ -2,8 +2,8 @@ package fluxApplication
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
@@ -43,9 +43,14 @@ func NewFluxApplicationServiceImpl(logger *zap.SugaredLogger,
 }
 
 func (impl *FluxApplicationServiceImpl) listApplications(ctx context.Context, clusterIds []int) (gRPC.ApplicationService_ListFluxApplicationsClient, error) {
-	var clusters []*cluster.ClusterBean
 	var err error
 	req := &gRPC.AppListRequest{}
+
+	if len(clusterIds) <= 0 {
+		err = errors.New("no clusterIds provided")
+		impl.logger.Errorw("please provide any valid clusterIds", "err", err)
+		return nil, err
+	}
 	if len(clusterIds) > 0 {
 		for _, clusterId := range clusterIds {
 			clusterConfig, err := impl.helmAppService.GetClusterConf(clusterId)
@@ -59,24 +64,10 @@ func (impl *FluxApplicationServiceImpl) listApplications(ctx context.Context, cl
 			req.Clusters = append(req.Clusters, clusterConfig)
 		}
 
-	} else {
-		clusters, err = impl.clusterService.FindAll()
-		if err != nil {
-			impl.logger.Errorw("error in getting all active clusters", "err", err)
-			return nil, err
-		}
-		var configs []*gRPC.ClusterConfig
-		configs, err = convertClusterBeanToClusterConfig(clusters)
-		if err != nil {
-			impl.logger.Errorw("error in getting all active clusters", "err", err)
-			return nil, err
-		}
-		req.Clusters = configs
-
 	}
-	applicatonStream, err := impl.helmAppClient.ListFluxApplication(ctx, req)
+	applicationStream, err := impl.helmAppClient.ListFluxApplication(ctx, req)
 
-	return applicatonStream, err
+	return applicationStream, err
 }
 
 func (impl *FluxApplicationServiceImpl) ListFluxApplications(ctx context.Context, clusterIds []int, w http.ResponseWriter) {
@@ -97,40 +88,16 @@ func (impl *FluxApplicationServiceImpl) appListRespProtoTransformer(deployedApps
 	for _, deployedapp := range deployedApps.FluxApplication {
 
 		fluxApp := bean.FluxApplication{
-			Name:         deployedapp.Name,
-			HealthStatus: deployedapp.HealthStatus,
-			SyncStatus:   deployedapp.SyncStatus,
-			ClusterId:    int(deployedapp.EnvironmentDetail.ClusterId),
-			ClusterName:  deployedapp.EnvironmentDetail.ClusterName,
-			Namespace:    deployedapp.EnvironmentDetail.Namespace,
-			AppType:      deployedapp.AppType,
+			Name:                  deployedapp.Name,
+			HealthStatus:          deployedapp.HealthStatus,
+			SyncStatus:            deployedapp.SyncStatus,
+			ClusterId:             int(deployedapp.EnvironmentDetail.ClusterId),
+			ClusterName:           deployedapp.EnvironmentDetail.ClusterName,
+			Namespace:             deployedapp.EnvironmentDetail.Namespace,
+			FluxAppDeploymentType: deployedapp.FluxAppDeploymentType,
 		}
 		fluxApps = append(fluxApps, fluxApp)
 	}
 	appList.FluxApps = &fluxApps
 	return appList
-}
-
-func convertClusterBeanToClusterConfig(clusters []*cluster.ClusterBean) ([]*gRPC.ClusterConfig, error) {
-	clusterConfigs := make([]*gRPC.ClusterConfig, 0)
-	if len(clusters) > 0 {
-		for _, cluster := range clusters {
-
-			config := &gRPC.ClusterConfig{
-				ApiServerUrl:          cluster.ServerUrl,
-				Token:                 cluster.Config[k8s.BearerToken],
-				ClusterId:             int32(cluster.Id),
-				ClusterName:           cluster.ClusterName,
-				InsecureSkipTLSVerify: cluster.InsecureSkipTLSVerify,
-			}
-			if cluster.InsecureSkipTLSVerify == false {
-				config.KeyData = cluster.Config[k8s.TlsKey]
-				config.CertData = cluster.Config[k8s.CertData]
-				config.CaData = cluster.Config[k8s.CertificateAuthorityData]
-			}
-
-			clusterConfigs = append(clusterConfigs, config)
-		}
-	}
-	return clusterConfigs, nil
 }

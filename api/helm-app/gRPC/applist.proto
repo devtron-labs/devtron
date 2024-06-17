@@ -62,11 +62,11 @@ message FluxApplicationList {
   repeated FluxApplication FluxApplication =2;
 }
 message FluxApplication{
-  string Name=1;
-  string HealthStatus=2;
-  string SyncStatus=3;
+  string name=1;
+  string healthStatus=2;
+  string syncStatus=3;
   EnvironmentDetails environmentDetail = 4;
-  string AppType=5;
+  string fluxAppDeploymentType=5;
 }
 
 message DeployedAppList {
