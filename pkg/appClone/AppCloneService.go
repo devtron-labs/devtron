@@ -925,7 +925,7 @@ func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []appWorkflow.A
 				sourceToNewPipelineId: sourceToNewPipelineIdMapping,
 				externalCiPipelineId:  createWorkflowMappingDto.externalCiPipelineId,
 			}
-			refPipelines, err := impl.pipelineBuilder.GetCdPipelinesForApp(cdCloneReq.appId)
+			refPipelines, err := impl.pipelineBuilder.GetCdPipelinesForApp(cdCloneReq.refAppId)
 			if err != nil {
 				return createWorkflowMappingDto, err
 			}
