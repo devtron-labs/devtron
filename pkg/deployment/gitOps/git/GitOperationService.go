@@ -26,6 +26,7 @@ import (
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/retryFunc"
 	dirCopy "github.com/otiai10/copy"
 	"go.uber.org/zap"
@@ -61,16 +62,19 @@ type GitOperationServiceImpl struct {
 	gitFactory              *GitFactory
 	gitOpsConfigReadService config.GitOpsConfigReadService
 	chartTemplateService    util.ChartTemplateService
+	globalEnvVariables      *globalUtil.GlobalEnvVariables
 }
 
 func NewGitOperationServiceImpl(logger *zap.SugaredLogger, gitFactory *GitFactory,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	chartTemplateService util.ChartTemplateService) *GitOperationServiceImpl {
+	chartTemplateService util.ChartTemplateService,
+	envVariables *globalUtil.EnvironmentVariables) *GitOperationServiceImpl {
 	return &GitOperationServiceImpl{
 		logger:                  logger,
 		gitFactory:              gitFactory,
 		gitOpsConfigReadService: gitOpsConfigReadService,
 		chartTemplateService:    chartTemplateService,
+		globalEnvVariables:      envVariables.GlobalEnvVariables,
 	}
 
 }
@@ -222,7 +226,10 @@ func (impl *GitOperationServiceImpl) CommitValues(ctx context.Context, chartGitA
 		commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(ctx, chartGitAttr, gitOpsConfig)
 		return err
 	}
-	err = retryFunc.Retry(callback, impl.isRetryableGitCommitError, 3, time.Second, impl.logger)
+	err = retryFunc.Retry(callback, impl.isRetryableGitCommitError,
+		impl.globalEnvVariables.ArgoGitCommitRetryCountOnConflict,
+		time.Duration(impl.globalEnvVariables.ArgoGitCommitRetryDelayOnConflict)*time.Second,
+		impl.logger)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return commitHash, commitTime, err
