@@ -18,12 +18,13 @@ package git
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/google/go-github/github"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
-	http2 "net/http"
 	"net/url"
 	"path"
 	"path/filepath"
@@ -38,10 +39,9 @@ type GitHubClient struct {
 }
 
 func NewGithubClient(host string, token string, org string, logger *zap.SugaredLogger,
-	gitOpsHelper *GitOpsHelper) (GitHubClient, error) {
+	gitOpsHelper *GitOpsHelper, tlsConfig *tls.Config) (GitHubClient, error) {
 	ctx := context.Background()
-	httpTransport := &http2.Transport{Proxy: http2.ProxyFromEnvironment}
-	httpClient := &http2.Client{Transport: httpTransport}
+	httpClient := util.GetHTTPClientWithTLSConfig(tlsConfig)
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
 	)

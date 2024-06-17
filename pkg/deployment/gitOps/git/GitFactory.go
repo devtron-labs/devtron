@@ -60,7 +60,12 @@ func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *gitOps.GitOpsConfigD
 	defer func() {
 		util.TriggerGitOpsMetrics("GetGitLabGroupPath", "GitOpsHelper", start, err)
 	}()
-	gitLabClient, err := CreateGitlabClient(gitOpsConfig.Host, gitOpsConfig.Token)
+	tlsConfig, err := util.GetTlsConfig(gitOpsConfig.TLSConfig.TLSKeyData, gitOpsConfig.TLSConfig.TLSCertData, gitOpsConfig.TLSConfig.CaData, GIT_TLS_DIR)
+	if err != nil {
+		factory.logger.Errorw("error in getting tls config", "err", err)
+		return "", err
+	}
+	gitLabClient, err := CreateGitlabClient(gitOpsConfig.Host, gitOpsConfig.Token, tlsConfig)
 	if err != nil {
 		factory.logger.Errorw("error in creating gitlab client", "err", err)
 		return "", err
@@ -85,7 +90,7 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *gitOps.GitOpsCon
 	}()
 	cfg := adapter.ConvertGitOpsConfigToGitConfig(gitOpsConfig)
 	//factory.GitOpsHelper.SetAuth(cfg.GetAuth())
-	gitOpsHelper := NewGitOpsHelperImpl(cfg.GetAuth(), factory.logger)
+	gitOpsHelper := NewGitOpsHelperImpl(cfg.GetAuth(), factory.logger, cfg.GetTLSConfig())
 
 	client, err := NewGitOpsClient(cfg, factory.logger, gitOpsHelper)
 	if err != nil {
@@ -102,7 +107,7 @@ func NewGitFactory(logger *zap.SugaredLogger, gitOpsConfigReadService config.Git
 	if err != nil {
 		return nil, err
 	}
-	gitOpsHelper := NewGitOpsHelperImpl(cfg.GetAuth(), logger)
+	gitOpsHelper := NewGitOpsHelperImpl(cfg.GetAuth(), logger, cfg.GetTLSConfig())
 	client, err := NewGitOpsClient(cfg, logger, gitOpsHelper)
 	if err != nil {
 		logger.Errorw("error in creating gitOps client", "err", err, "gitProvider", cfg.GitProvider)

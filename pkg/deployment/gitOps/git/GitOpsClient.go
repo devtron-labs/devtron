@@ -20,6 +20,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -59,22 +60,32 @@ func GetGitConfig(gitOpsConfigReadService config.GitOpsConfigReadService) (*bean
 		AzureProject:         gitOpsConfig.AzureProjectName,
 		BitbucketWorkspaceId: gitOpsConfig.BitBucketWorkspaceId,
 		BitbucketProjectKey:  gitOpsConfig.BitBucketProjectKey,
+		TLSCert:              gitOpsConfig.TLSConfig.TLSCertData,
+		TLSKey:               gitOpsConfig.TLSConfig.TLSKeyData,
+		CaCert:               gitOpsConfig.TLSConfig.CaData,
 	}
 	return cfg, err
 }
 
 func NewGitOpsClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper) (GitOpsClient, error) {
+
+	tlsConfig, err := util.GetTlsConfig(config.TLSKey, config.TLSCert, config.CaCert, GIT_TLS_DIR)
+	if err != nil {
+		logger.Errorw("error in getting tls config", "err", err)
+		return nil, err
+	}
+
 	if config.GitProvider == GITLAB_PROVIDER {
-		gitLabClient, err := NewGitLabClient(config, logger, gitOpsHelper)
+		gitLabClient, err := NewGitLabClient(config, logger, gitOpsHelper, tlsConfig)
 		return gitLabClient, err
 	} else if config.GitProvider == GITHUB_PROVIDER {
-		gitHubClient, err := NewGithubClient(config.GitHost, config.GitToken, config.GithubOrganization, logger, gitOpsHelper)
+		gitHubClient, err := NewGithubClient(config.GitHost, config.GitToken, config.GithubOrganization, logger, gitOpsHelper, tlsConfig)
 		return gitHubClient, err
 	} else if config.GitProvider == AZURE_DEVOPS_PROVIDER {
-		gitAzureClient, err := NewGitAzureClient(config.AzureToken, config.GitHost, config.AzureProject, logger, gitOpsHelper)
+		gitAzureClient, err := NewGitAzureClient(config.AzureToken, config.GitHost, config.AzureProject, logger, gitOpsHelper, tlsConfig)
 		return gitAzureClient, err
 	} else if config.GitProvider == BITBUCKET_PROVIDER {
-		gitBitbucketClient := NewGitBitbucketClient(config.GitUserName, config.GitToken, config.GitHost, logger, gitOpsHelper)
+		gitBitbucketClient := NewGitBitbucketClient(config.GitUserName, config.GitToken, config.GitHost, logger, gitOpsHelper, tlsConfig)
 		return gitBitbucketClient, nil
 	} else {
 		logger.Errorw("no gitops config provided, gitops will not work ")

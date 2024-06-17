@@ -21,13 +21,25 @@ import (
 	"time"
 )
 
+const TLS_FOLDER = "/tmp/tls"
+
 type GitContext struct {
 	context.Context
-	auth *BasicAuth
+	auth           *BasicAuth
+	CACert         string
+	TLSKey         string
+	TLSCertificate string
 }
 
 func (gitCtx GitContext) WithCredentials(auth *BasicAuth) GitContext {
 	gitCtx.auth = auth
+	return gitCtx
+}
+
+func (gitCtx GitContext) WithTLSData(caData string, tlsKey string, tlsCertificate string) GitContext {
+	gitCtx.CACert = caData
+	gitCtx.TLSKey = tlsKey
+	gitCtx.TLSCertificate = tlsCertificate
 	return gitCtx
 }
 
@@ -46,4 +58,10 @@ func (gitCtx GitContext) WithTimeout(timeoutSeconds int) (GitContext, context.Ca
 // BasicAuth represent a HTTP basic auth
 type BasicAuth struct {
 	Username, Password string
+}
+
+type TlsPathInfo struct {
+	CaCertPath  string
+	TlsKeyPath  string
+	TlsCertPath string
 }

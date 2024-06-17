@@ -29,4 +29,5 @@ const (
 	BITBUCKET_PROVIDER    = "BITBUCKET_CLOUD"
 	GITHUB_API_V3         = "api/v3"
 	GITHUB_HOST           = "github.com"
+	GIT_TLS_DIR           = "/tmp/gitops/tls"
 )

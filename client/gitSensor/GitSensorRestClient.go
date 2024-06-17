@@ -89,15 +89,19 @@ type GitMaterial struct {
 	FilterPattern    []string
 }
 type GitProvider struct {
-	Id            int
-	Name          string
-	Url           string
-	UserName      string
-	Password      string
-	SshPrivateKey string
-	AccessToken   string
-	Active        bool
-	AuthMode      repository.AuthMode
+	Id                    int
+	Name                  string
+	Url                   string
+	UserName              string
+	Password              string
+	SshPrivateKey         string
+	AccessToken           string
+	Active                bool
+	AuthMode              repository.AuthMode
+	EnableTlsVerification bool
+	CaCert                string
+	TlsCert               string
+	TlsKey                string
 }
 
 type GitCommit struct {

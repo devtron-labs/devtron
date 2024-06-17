@@ -17,9 +17,11 @@
 package git
 
 import (
+	"crypto/tls"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
 	"net/url"
@@ -35,8 +37,8 @@ type GitLabClient struct {
 	gitOpsHelper *GitOpsHelper
 }
 
-func NewGitLabClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper) (GitOpsClient, error) {
-	gitLabClient, err := CreateGitlabClient(config.GitHost, config.GitToken)
+func NewGitLabClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper, tlsConfig *tls.Config) (GitOpsClient, error) {
+	gitLabClient, err := CreateGitlabClient(config.GitHost, config.GitToken, tlsConfig)
 	if err != nil {
 		logger.Errorw("error in creating gitlab client", "err", err)
 		return nil, err
@@ -86,15 +88,16 @@ func NewGitLabClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitOpsHe
 	}, nil
 }
 
-func CreateGitlabClient(host, token string) (*gitlab.Client, error) {
+func CreateGitlabClient(host, token string, tlsConfig *tls.Config) (*gitlab.Client, error) {
 	var gitLabClient *gitlab.Client
 	var err error
+	httpClient := util.GetHTTPClientWithTLSConfig(tlsConfig)
 	if len(host) > 0 {
 		_, err = url.ParseRequestURI(host)
 		if err != nil {
 			return nil, err
 		}
-		gitLabClient, err = gitlab.NewClient(token, gitlab.WithBaseURL(host))
+		gitLabClient, err = gitlab.NewClient(token, gitlab.WithBaseURL(host), gitlab.WithHTTPClient(httpClient))
 		if err != nil {
 			return nil, err
 		}
