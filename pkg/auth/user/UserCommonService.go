@@ -572,13 +572,16 @@ func (impl UserCommonServiceImpl) CheckRbacForClusterEntity(cluster, namespace, 
 		resourceObj = "*"
 	}
 
-	rbacResource := fmt.Sprintf("%s/%s/%s", strings.ToLower(cluster), strings.ToLower(namespaceObj), casbin.ResourceUser)
 	resourcesArray := strings.Split(resourceObj, ",")
-	for _, resourceVal := range resourcesArray {
-		rbacObject := fmt.Sprintf("%s/%s/%s", groupObj, kindObj, resourceVal)
-		allowed := managerAuth(rbacResource, token, rbacObject)
-		if !allowed {
-			return false
+	namespacesArray := strings.Split(namespaceObj, ",")
+	for _, namespaceInArray := range namespacesArray {
+		rbacResource := fmt.Sprintf("%s/%s/%s", strings.ToLower(cluster), strings.ToLower(namespaceInArray), casbin.ResourceUser)
+		for _, resourceVal := range resourcesArray {
+			rbacObject := fmt.Sprintf("%s/%s/%s", groupObj, kindObj, resourceVal)
+			allowed := managerAuth(rbacResource, token, rbacObject)
+			if !allowed {
+				return false
+			}
 		}
 	}
 	return true
@@ -690,8 +693,8 @@ func (impl UserCommonServiceImpl) GetUniqueKeyForAllEntity(role repository.RoleM
 		key = fmt.Sprintf("%s_%s_%s_%s", role.Team, role.Action, role.AccessType, role.Entity)
 	} else if len(role.Entity) > 0 {
 		if role.Entity == bean.CLUSTER_ENTITIY {
-			key = fmt.Sprintf("%s_%s_%s_%s_%s_%s", role.Entity, role.Action, role.Cluster,
-				role.Namespace, role.Group, role.Kind)
+			key = fmt.Sprintf("%s_%s_%s_%s_%s", role.Entity, role.Action, role.Cluster,
+				role.Group, role.Kind)
 		} else {
 			key = fmt.Sprintf("%s_%s", role.Entity, role.Action)
 		}

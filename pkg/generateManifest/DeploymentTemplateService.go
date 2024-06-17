@@ -46,6 +46,7 @@ import (
 	"github.com/gammazero/workerpool"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 	"net/http"
 	"os"
 	"regexp"
@@ -422,6 +423,12 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 	var finalError error
 	for i, _ := range partitionedRequests {
 		req := partitionedRequests[i]
+		err = impl.setChartContent(ctx, req, appNameToId)
+		if err != nil {
+			impl.Logger.Errorw("error in setting chart content for apps", "appNames", maps.Keys(appNameToId), "err", err)
+			// continue processing next batch
+			continue
+		}
 		wp.Submit(func() {
 			resp, err := impl.helmAppClient.TemplateChartBulk(ctx, &gRPC.BulkInstallReleaseRequest{BulkInstallReleaseRequest: req})
 			if err != nil {
