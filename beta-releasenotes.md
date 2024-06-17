@@ -1,4 +1,5 @@
 ## Bugs
+- fix: chart group rbac issue (#5183)
 - fix: Multiple choice option for namespace in Kubernetes resource permission (#5293)
 - fix: restart workloads fix in app group (#5313)
 - fix: deployment chart fix (#5215)
