@@ -12,7 +12,7 @@
   {{- end }}
 
   {{- $hasPVCExists := false -}}
-  {{- if .Values.peristentVolumeClaim.name }}
+  {{- if .Values.persistentVolumeClaim.name }}
   {{- $hasPVCExists = true }}
   {{- end }}
 
@@ -490,6 +490,14 @@ spec:
         - name: {{ $.Chart.Name }}-sidecontainer-{{ add1 $i }}
           image: "{{ $.Values.server.deployment.image }}:{{ $.Values.server.deployment.image_tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
+{{- if .env }}
+          env:
+{{ toYaml .env | indent 12 }}
+{{- end }}
+ {{- if .envFrom }}
+          envFrom:
+{{ toYaml .env | indent 12 }}
+{{- end }}                   
 {{- if .securityContext }}
           securityContext:
 {{ toYaml .securityContext | indent 12 }}
@@ -512,6 +520,7 @@ spec:
 {{- end}}
 {{- end}}
 {{- end}}
+
 
       volumes:
   {{- if $.Values.appMetrics }}
