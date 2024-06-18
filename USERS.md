@@ -12,7 +12,7 @@ Currently, Devtron is being used by the following organizations:
 6. [Chitale Bandhu](https://www.chitalebandhu.in/) 
 7. [Centricity](https://centricity.co.in/) 
 8. [Delhivery](https://www.delhivery.com/)
-9. [KHEL Group](https://thekhelgroup.com/)
+9. [KHELGroup](https://thekhelgroup.com/)
 10. [Lemnisk](https://www.lemnisk.co/) 
 11. [OTPLess](https://otpless.com/)
 12. [Spinny](https://www.spinny.com/)
