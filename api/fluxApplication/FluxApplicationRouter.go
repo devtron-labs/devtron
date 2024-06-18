@@ -19,10 +19,6 @@ func NewFluxApplicationRouterImpl(fluxApplicationRestHandler FluxApplicationRest
 }
 
 func (impl *FluxApplicationRouterImpl) InitFluxApplicationRouter(fluxApplicationRouter *mux.Router) {
-	fluxApplicationRouter.Path("").
-		Methods("GET").
-		HandlerFunc(impl.fluxApplicationRestHandler.ListFluxApplications)
-
 	fluxApplicationRouter.Path("/app").Queries("appId", "{appId}").
 		HandlerFunc(impl.fluxApplicationRestHandler.GetApplicationDetail).Methods("GET")
 }

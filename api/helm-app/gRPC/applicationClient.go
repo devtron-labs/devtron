@@ -28,7 +28,6 @@ import (
 
 type HelmAppClient interface {
 	ListApplication(ctx context.Context, req *AppListRequest) (ApplicationService_ListApplicationsClient, error)
-	ListFluxApplication(ctx context.Context, req *AppListRequest) (ApplicationService_ListFluxApplicationsClient, error)
 	GetAppDetail(ctx context.Context, in *AppDetailRequest) (*AppDetail, error)
 	GetResourceTreeForExternalResources(ctx context.Context, in *ExternalResourceTreeRequest) (*ResourceTreeResponse, error)
 	GetAppStatus(ctx context.Context, in *AppDetailRequest) (*AppStatus, error)
@@ -361,18 +360,6 @@ func (impl *HelmAppClientImpl) ValidateOCIRegistry(ctx context.Context, in *Regi
 	}
 	return response, nil
 }
-func (impl *HelmAppClientImpl) ListFluxApplication(ctx context.Context, req *AppListRequest) (ApplicationService_ListFluxApplicationsClient, error) {
-	applicationClient, err := impl.getApplicationClient()
-	if err != nil {
-		return nil, err
-	}
-	stream, err := applicationClient.ListFluxApplications(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	return stream, nil
-}
-
 func (impl *HelmAppClientImpl) GetExternalFluxAppDetail(ctx context.Context, in *FluxAppDetailRequest) (*FluxAppDetail, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
