@@ -82,7 +82,7 @@ func (impl *FluxApplicationServiceImpl) ListFluxApplications(ctx context.Context
 }
 
 func (impl *FluxApplicationServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.FluxApplicationList) bean.FluxAppList {
-	appList := bean.FluxAppList{ClusterId: deployedApps.ClusterId}
+	appList := bean.FluxAppList{ClusterId: &deployedApps.ClusterId}
 
 	fluxApps := make([]bean.FluxApplication, 0)
 

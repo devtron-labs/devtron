@@ -17,7 +17,7 @@ type FluxApplication struct {
 }
 
 type FluxAppList struct {
-	ClusterId int32              `json:"clusterIds,omitempty"`
+	ClusterId *int32             `json:"clusterIds,omitempty"`
 	FluxApps  *[]FluxApplication `json:"fluxApplication,omitempty"`
 }
 
@@ -31,7 +31,7 @@ type FluxAppIdentifier struct {
 type FluxApplicationDetailDto struct {
 	*FluxApplication
 	FluxAppStatusDetail  *FluxAppStatusDetail
-	ResourceTreeResponse *gRPC.ResourceTreeResponse `json:"resourceTreeArray"`
+	ResourceTreeResponse *gRPC.ResourceTreeResponse `json:"resourceTreeResponse"`
 }
 
 type FluxAppStatusDetail struct {
