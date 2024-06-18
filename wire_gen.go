@@ -469,7 +469,7 @@ func InitializeApp() (*App, error) {
 	utilMergeUtil := util.MergeUtil{
 		Logger: sugaredLogger,
 	}
-	chartRefServiceImpl := chartRef.NewChartRefServiceImpl(sugaredLogger, chartRefRepositoryImpl, chartTemplateServiceImpl, utilMergeUtil)
+	chartRefServiceImpl := chartRef.NewChartRefServiceImpl(sugaredLogger, chartRefRepositoryImpl, chartTemplateServiceImpl, chartRepositoryImpl, utilMergeUtil)
 	deploymentTemplateServiceImpl := deploymentTemplate.NewDeploymentTemplateServiceImpl(sugaredLogger, chartRefServiceImpl, chartTemplateServiceImpl, chartRepositoryImpl)
 	appServiceImpl := app2.NewAppService(envConfigOverrideRepositoryImpl, pipelineOverrideRepositoryImpl, mergeUtil, sugaredLogger, pipelineRepositoryImpl, eventRESTClientImpl, eventSimpleFactoryImpl, applicationServiceClientImpl, appRepositoryImpl, configMapRepositoryImpl, chartRepositoryImpl, cdWorkflowRepositoryImpl, commonServiceImpl, chartTemplateServiceImpl, argoUserServiceImpl, pipelineStatusTimelineRepositoryImpl, pipelineStatusTimelineResourcesServiceImpl, pipelineStatusSyncDetailServiceImpl, pipelineStatusTimelineServiceImpl, appServiceConfig, appStatusServiceImpl, installedAppRepositoryImpl, installedAppVersionHistoryRepositoryImpl, scopedVariableCMCSManagerImpl, acdConfig, gitOpsConfigReadServiceImpl, gitOperationServiceImpl, deploymentTemplateServiceImpl)
 	globalCMCSRepositoryImpl := repository2.NewGlobalCMCSRepositoryImpl(sugaredLogger, db)

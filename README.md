@@ -187,14 +187,8 @@ Devtron is built on some of the most trusted and loved technologies:
 
 ## :muscle: Trusted By
  
-Devtron is trusted by Enterprises and Communities all across the globe:
-<br>
+Devtron is trusted by communities all across the globe. The list of organizations using Devtron can be found [here](./USERS.MD).
 
-- [Delhivery:](https://www.delhivery.com/) Delhivery is an Indian delivery and e-commerce logistics company, that provides end-to-end Supply Chain solutions through cutting-edge technology
-- [BharatPe:](https://bharatpe.com/) Bharatpe is an Indian fintech company that offers a range of products including interoperable QR codes for UPI payments, POS machines for card acceptance, and small business financing
-- [Livspace:](https://www.livspace.com/in) Livspace is a home interior and renovation company, that provides interior design and renovation services in Singapore and India
-- [Moglix:](https://www.moglix.com/) Moglix is an industrial B2B marketplace and an e-commerce platform for industrial tools and equipment, used largely by businesses in India
-- [Xoxoday:](https://www.xoxoday.com/) Xoxoday provides technology infrastructure to enable businesses to automate rewards, incentives & payouts for employees, customers & channel partners
  
 ## :question: FAQs & Troubleshooting
  
