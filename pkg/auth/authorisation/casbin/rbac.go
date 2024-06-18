@@ -19,6 +19,7 @@ package casbin
 import (
 	"encoding/json"
 	"fmt"
+	casbinv2 "github.com/casbin/casbin/v2"
 	"log"
 	"math"
 	"strings"
@@ -44,12 +45,13 @@ type Enforcer interface {
 	//EnforceByEmailInBatch(emailId string, resource string, action string, vals []string) map[string]bool
 	InvalidateCache(emailId string) bool
 	InvalidateCompleteCache()
-	ReloadPolicy() error
+	ReloadPolicy() (bool, error)
 	GetCacheDump() string
 }
 
 func NewEnforcerImpl(
 	enforcer *casbin.SyncedEnforcer,
+	enforcerV2 *casbinv2.SyncedEnforcer,
 	sessionManager *middleware.SessionManager,
 	logger *zap.SugaredLogger) (*EnforcerImpl, error) {
 	lock := make(map[string]*CacheData)
@@ -59,7 +61,7 @@ func NewEnforcerImpl(
 		return nil, err
 	}
 	enf := &EnforcerImpl{lockCacheData: lock, enforcerRWLock: &sync.RWMutex{}, batchRequestLock: batchRequestLock, enforcerConfig: enforcerConfig,
-		Cache: getEnforcerCache(logger, enforcerConfig), SyncedEnforcer: enforcer, logger: logger, SessionManager: sessionManager}
+		Cache: getEnforcerCache(logger, enforcerConfig), Enforcer: enforcer, EnforcerV2: enforcerV2, logger: logger, SessionManager: sessionManager}
 	setEnforcerImpl(enf)
 	return enf, nil
 }
@@ -74,6 +76,7 @@ type EnforcerConfig struct {
 	CacheEnabled          bool `env:"ENFORCER_CACHE" envDefault:"false"`
 	CacheExpirationInSecs int  `env:"ENFORCER_CACHE_EXPIRATION_IN_SEC" envDefault:"86400"`
 	EnforcerBatchSize     int  `env:"ENFORCER_MAX_BATCH_SIZE" envDefault:"1"`
+	UseCasbinV2           bool `env:"USE_CASBIN_V2" envDefault:"false"`
 }
 
 func getConfig() (*EnforcerConfig, error) {
@@ -106,7 +109,8 @@ type EnforcerImpl struct {
 	lockCacheData    map[string]*CacheData
 	batchRequestLock map[string]*sync.Mutex
 	*cache.Cache
-	*casbin.SyncedEnforcer
+	Enforcer   *casbin.SyncedEnforcer
+	EnforcerV2 *casbinv2.SyncedEnforcer
 	*middleware.SessionManager
 	logger         *zap.SugaredLogger
 	enforcerConfig *EnforcerConfig
@@ -127,10 +131,13 @@ func (e *EnforcerImpl) EnforceInBatch(token string, resource string, action stri
 	return e.enforceInBatch(token, resource, action, vals)
 }
 
-func (e *EnforcerImpl) ReloadPolicy() error {
+func (e *EnforcerImpl) ReloadPolicy() (bool, error) {
 	//e.enforcerRWLock.Lock()
 	//defer e.enforcerRWLock.Unlock()
-	return e.SyncedEnforcer.LoadPolicy()
+	if e.enforcerConfig.UseCasbinV2 {
+		return true, e.EnforcerV2.LoadPolicy()
+	}
+	return false, e.Enforcer.LoadPolicy()
 }
 
 // EnforceErr is a convenience helper to wrap a failed enforcement with a detailed error about the request
@@ -413,10 +420,20 @@ func (e *EnforcerImpl) enforceAndUpdateCache(email string, resource string, acti
 func (e *EnforcerImpl) enforcerEnforce(email string, resource string, action string, resourceItem string) (bool, error) {
 	//e.enforcerRWLock.RLock()
 	//defer e.enforcerRWLock.RUnlock()
-	response, err := e.SyncedEnforcer.EnforceSafe(email, resource, action, resourceItem)
-	if err != nil {
-		e.logger.Errorw("error occurred while enforcing safe", "email", email,
-			"resource", resource, "action", action, "resourceItem", resourceItem, "reason", err)
+	var response bool
+	var err error
+	if isV2() {
+		response, err = e.EnforcerV2.Enforce(email, resource, action, resourceItem)
+		if err != nil {
+			e.logger.Errorw("error occurred while  EnforcerV2 Enforce", "email", email,
+				"resource", resource, "action", action, "resourceItem", resourceItem, "reason", err)
+		}
+	} else {
+		response, err = e.Enforcer.EnforceSafe(email, resource, action, resourceItem)
+		if err != nil {
+			e.logger.Errorw("error occurred while enforcing safe", "email", email,
+				"resource", resource, "action", action, "resourceItem", resourceItem, "reason", err)
+		}
 	}
 	return response, err
 }
