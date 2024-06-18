@@ -71,6 +71,7 @@ type PipelineRepository interface {
 	Update(pipeline *Pipeline, tx *pg.Tx) error
 	FindActiveByAppId(appId int) (pipelines []*Pipeline, err error)
 	Delete(id int, userId int32, tx *pg.Tx) error
+	MarkPartiallyDeleted(id int, userId int32, tx *pg.Tx) error
 	FindByName(pipelineName string) (pipeline *Pipeline, err error)
 	PipelineExists(pipelineName string) (bool, error)
 	FindById(id int) (pipeline *Pipeline, err error)
@@ -84,7 +85,6 @@ type PipelineRepository interface {
 	GetByEnvOverrideId(envOverrideId int) ([]Pipeline, error)
 	GetByEnvOverrideIdAndEnvId(envOverrideId, envId int) (Pipeline, error)
 	FindActiveByAppIdAndEnvironmentId(appId int, environmentId int) (pipelines []*Pipeline, err error)
-	UndoDelete(id int) error
 	UniqueAppEnvironmentPipelines() ([]*Pipeline, error)
 	FindByCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error)
 	FindByParentCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error)
@@ -274,11 +274,18 @@ func (impl PipelineRepositoryImpl) Delete(id int, userId int32, tx *pg.Tx) error
 	return err
 }
 
-func (impl PipelineRepositoryImpl) UndoDelete(id int) error {
+func (impl PipelineRepositoryImpl) MarkPartiallyDeleted(id int, userId int32, tx *pg.Tx) error {
 	pipeline := &Pipeline{}
-	_, err := impl.dbConnection.Model(pipeline).Set("deleted =?", false).Where("id =?", id).Update()
+	_, err := tx.Model(pipeline).
+		Set("deployment_app_delete_request = ?", true).
+		Set("updated_on = ?", time.Now()).
+		Set("updated_by = ?", userId).
+		Where("deleted = ?", false).
+		Where("id = ?", id).
+		Update()
 	return err
 }
+
 func (impl PipelineRepositoryImpl) FindByName(pipelineName string) (pipeline *Pipeline, err error) {
 	pipeline = &Pipeline{}
 	err = impl.dbConnection.Model(pipeline).
@@ -660,6 +667,7 @@ func (impl PipelineRepositoryImpl) FindIdsByProjectIdsAndEnvironmentIds(projectI
 func (impl PipelineRepositoryImpl) GetArgoPipelineByArgoAppName(argoAppName string) (Pipeline, error) {
 	var pipeline Pipeline
 	err := impl.dbConnection.Model(&pipeline).
+		Column("pipeline.*", "Environment").
 		Where("deployment_app_name = ?", argoAppName).
 		Where("deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_ACD).
 		Where("deleted = ?", false).
