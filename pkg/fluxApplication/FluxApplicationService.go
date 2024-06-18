@@ -18,6 +18,8 @@ import (
 
 type FluxApplicationService interface {
 	ListFluxApplications(ctx context.Context, clusterIds []int, w http.ResponseWriter)
+	DecodeFluxAppId(appId string) (*bean.FluxAppIdentifier, error)
+	GetFluxAppDetail(ctx context.Context, app *bean.FluxAppIdentifier) (*bean.FluxApplicationDetailDto, error)
 }
 
 type FluxApplicationServiceImpl struct {
@@ -63,7 +65,6 @@ func (impl *FluxApplicationServiceImpl) listApplications(ctx context.Context, cl
 			}
 			req.Clusters = append(req.Clusters, clusterConfig)
 		}
-
 	}
 	applicationStream, err := impl.helmAppClient.ListFluxApplication(ctx, req)
 
@@ -81,7 +82,7 @@ func (impl *FluxApplicationServiceImpl) ListFluxApplications(ctx context.Context
 }
 
 func (impl *FluxApplicationServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.FluxApplicationList) bean.FluxAppList {
-	appList := bean.FluxAppList{ClusterId: &deployedApps.ClusterId}
+	appList := bean.FluxAppList{ClusterId: deployedApps.ClusterId}
 
 	fluxApps := make([]bean.FluxApplication, 0)
 
@@ -100,4 +101,48 @@ func (impl *FluxApplicationServiceImpl) appListRespProtoTransformer(deployedApps
 	}
 	appList.FluxApps = &fluxApps
 	return appList
+}
+func (impl *FluxApplicationServiceImpl) DecodeFluxAppId(appId string) (*bean.FluxAppIdentifier, error) {
+	return DecodeFluxExternalAppAppId(appId)
+}
+func (impl *FluxApplicationServiceImpl) GetFluxAppDetail(ctx context.Context, app *bean.FluxAppIdentifier) (*bean.FluxApplicationDetailDto, error) {
+	config, err := impl.helmAppService.GetClusterConf(app.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster config", "appIdentifier", app, "err", err)
+		return nil, fmt.Errorf("failed to get cluster config for app %s in namespace %s: %w", app.Name, app.Namespace, err)
+	}
+	fluxDetailResponse, err := impl.getFluxAppDetailTree(ctx, config, app)
+	if err != nil {
+		impl.logger.Errorw("error in getting Flux app detail tree", "appIdentifier", app, "err", err)
+		return nil, fmt.Errorf("failed to get Flux app detail tree for app %s in namespace %s: %w", app.Name, app.Namespace, err)
+	}
+
+	appDetail := &bean.FluxApplicationDetailDto{
+		FluxApplication: &bean.FluxApplication{
+			Name:                  app.Name,
+			SyncStatus:            fluxDetailResponse.FluxApplication.SyncStatus,
+			HealthStatus:          fluxDetailResponse.FluxApplication.HealthStatus,
+			Namespace:             app.Namespace,
+			ClusterId:             app.ClusterId,
+			FluxAppDeploymentType: fluxDetailResponse.FluxApplication.FluxAppDeploymentType,
+			ClusterName:           fluxDetailResponse.FluxApplication.EnvironmentDetail.GetClusterName(),
+		},
+		FluxAppStatusDetail: &bean.FluxAppStatusDetail{
+			Status:  fluxDetailResponse.FluxAppStatusDetail.GetStatus(),
+			Reason:  fluxDetailResponse.FluxAppStatusDetail.GetReason(),
+			Message: fluxDetailResponse.FluxAppStatusDetail.GetMessage(),
+		},
+		ResourceTreeResponse: fluxDetailResponse.ResourceTreeResponse,
+	}
+
+	return appDetail, nil
+}
+func (impl *FluxApplicationServiceImpl) getFluxAppDetailTree(ctx context.Context, config *gRPC.ClusterConfig, appIdentifier *bean.FluxAppIdentifier) (*gRPC.FluxAppDetail, error) {
+	req := &gRPC.FluxAppDetailRequest{
+		ClusterConfig:  config,
+		Namespace:      appIdentifier.Namespace,
+		Name:           appIdentifier.Name,
+		IsKustomizeApp: appIdentifier.IsKustomizeApp,
+	}
+	return impl.helmAppClient.GetExternalFluxAppDetail(ctx, req)
 }

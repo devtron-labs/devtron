@@ -43,6 +43,8 @@ service ApplicationService {
   rpc UpgradeReleaseWithCustomChart(UpgradeReleaseRequest) returns(UpgradeReleaseResponse){}
   rpc ValidateOCIRegistry(RegistryCredential) returns(OCIRegistryResponse) {}
   rpc GetResourceTreeForExternalResources(ExternalResourceTreeRequest) returns(ResourceTreeResponse){}
+  rpc GetFluxAppDetail(FluxAppDetailRequest)returns(FluxAppDetail){}
+
 }
 
 message ExternalResourceTreeRequest{
@@ -68,7 +70,26 @@ message FluxApplication{
   EnvironmentDetails environmentDetail = 4;
   string fluxAppDeploymentType=5;
 }
+//---------------flux external app detail-------
+message FluxAppDetailRequest{
+  ClusterConfig clusterConfig = 1;
+  string namespace = 2;
+  string name = 3;
+  bool IsKustomizeApp =4;
+}
 
+message FluxAppDetail{
+  FluxApplication fluxApplication=1;
+  FluxAppStatusDetail FluxAppStatusDetail = 2;
+  ResourceTreeResponse resourceTreeResponse =3;
+}
+
+message FluxAppStatusDetail{
+  string Status = 1;
+  string Reason = 2;
+  string Message = 3;
+}
+//---------------flux external app detail ends here-------
 message DeployedAppList {
   repeated DeployedAppDetail DeployedAppDetail = 1;
   int32 clusterId = 2;
