@@ -14,3 +14,4 @@
 ## Documentation
 - docs: Created a file for listing Devtron Users (#5310)
 ## Others
+- chore: updated go version in EA dockerfile (#5327)
