@@ -70,7 +70,6 @@ type ChartRepositoryService interface {
 	GetChartRepoByName(name string) (*ChartRepoDto, error)
 	GetChartRepoList() ([]*ChartRepoWithIsEditableDto, error)
 	GetChartRepoListMin() ([]*ChartRepoDto, error)
-	ValidateDeploymentCount(request *ChartRepoDto) error
 	ValidateChartRepo(request *ChartRepoDto) *DetailedErrorHelmRepoValidation
 	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
@@ -225,17 +224,13 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	return chartRepo, nil
 }
 
-func (impl *ChartRepositoryServiceImpl) ValidateDeploymentCount(request *ChartRepoDto) error {
-	activeDeploymentCount, err := impl.repoRepository.FindDeploymentCountByChartRepoId(request.Id)
+func (impl *ChartRepositoryServiceImpl) getCountOfDeployedCharts(chartRepoId int) (int, error) {
+	activeDeploymentCount, err := impl.repoRepository.FindDeploymentCountByChartRepoId(chartRepoId)
 	if err != nil {
-		impl.logger.Errorw("error in getting deployment count, CheckDeploymentCount", "err", err, "payload", request)
-		return err
+		impl.logger.Errorw("error in getting deployment count, CheckDeploymentCount", "chartRepoId", chartRepoId, "err", err)
+		return 0, err
 	}
-	if activeDeploymentCount > 0 {
-		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "cannot update, found charts deployed using this repo"}
-		return err
-	}
-	return err
+	return activeDeploymentCount, nil
 }
 
 func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error) {
@@ -256,6 +251,18 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 	if request.Name != previousName && strings.ToLower(request.Name) != request.Name {
 		return nil, errors.New("invalid repo name: please use lowercase")
 	}
+
+	deployedChartCount, err := impl.getCountOfDeployedCharts(request.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting charts deployed via chart repo", "chartRepoId", request.Id, "err", err)
+		return nil, err
+	}
+
+	if deployedChartCount > 0 && (request.Name != previousName || request.Url != previousUrl) {
+		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "cannot update, found charts deployed using this repo"}
+		return nil, err
+	}
+
 	chartRepo.Url = request.Url
 	chartRepo.Name = request.Name
 	chartRepo.AuthMode = request.AuthMode
