@@ -924,10 +924,11 @@ func (impl *AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(insta
 	}
 	if chartRepoInfo != nil {
 		updateReleaseRequest.ChartRepository = &bean4.ChartRepository{
-			Name:     chartRepoInfo.Name,
-			Url:      chartRepoInfo.Url,
-			Username: chartRepoInfo.UserName,
-			Password: chartRepoInfo.Password,
+			Name:                    chartRepoInfo.Name,
+			Url:                     chartRepoInfo.Url,
+			Username:                chartRepoInfo.UserName,
+			Password:                chartRepoInfo.Password,
+			AllowInsecureConnection: chartRepoInfo.AllowInsecureConnection,
 		}
 	}
 	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installAppVersionRequest.ClusterId, updateReleaseRequest)
