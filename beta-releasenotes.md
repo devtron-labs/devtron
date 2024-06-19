@@ -6,6 +6,7 @@
 - fix: docker file version fix (#5299)
 - fix: hibernating status is not being updated in app listing page (#5294)
 ## Enhancements
+- feat: GitOps async install for devtron applications (#5169)
 - feat: chart ref schema db migration (#5319)
 - feat: Up and Down Script for BitBucket Plugin v1.0.0 (#4949)
 - feat: Added statefulset chart 5.1.0 (#5199)
