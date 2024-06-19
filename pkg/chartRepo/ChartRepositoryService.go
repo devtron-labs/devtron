@@ -24,6 +24,7 @@ import (
 	util3 "github.com/devtron-labs/common-lib/utils/k8s"
 	"io"
 	"io/ioutil"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -354,11 +355,24 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 		} else {
 			secretData := impl.CreateSecretDataForHelmChart(request, isPrivateChart)
 			secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, previousName, client)
-			if err != nil {
+			statusError, ok := err.(*errors2.StatusError)
+			if err != nil && (ok && statusError != nil && statusError.Status().Code != http.StatusNotFound) {
 				impl.logger.Errorw("error in fetching secret", "err", err)
 				continue
 			}
-			secret.StringData = secretData
+
+			if ok && statusError != nil && statusError.Status().Code == http.StatusNotFound {
+				secretLabel := make(map[string]string)
+				secretLabel[LABEL] = REPOSITORY
+				_, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, nil, chartRepo.Name, "", client, secretLabel, secretData)
+				if err != nil {
+					impl.logger.Errorw("Error in creating secret for chart repo", "Chart Name", chartRepo.Name, "err", err)
+					continue
+				}
+				updateSuccess = true
+				break
+			}
+
 			if previousName != request.Name {
 				err = impl.DeleteChartSecret(previousName)
 				if err != nil {
@@ -372,6 +386,7 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 					impl.logger.Errorw("Error in creating secret for chart repo", "Chart Name", chartRepo.Name, "err", err)
 				}
 			} else {
+				secret.StringData = secretData
 				_, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
 				if err != nil {
 					impl.logger.Errorw("Error in creating secret for chart repo", "Chart Name", chartRepo.Name, "err", err)
