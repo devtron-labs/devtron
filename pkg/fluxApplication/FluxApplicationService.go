@@ -18,7 +18,6 @@ import (
 
 type FluxApplicationService interface {
 	ListFluxApplications(ctx context.Context, clusterIds []int, w http.ResponseWriter)
-	DecodeFluxAppId(appId string) (*bean.FluxAppIdentifier, error)
 	GetFluxAppDetail(ctx context.Context, app *bean.FluxAppIdentifier) (*bean.FluxApplicationDetailDto, error)
 }
 
@@ -101,9 +100,6 @@ func (impl *FluxApplicationServiceImpl) appListRespProtoTransformer(deployedApps
 	}
 	appList.FluxApps = &fluxApps
 	return appList
-}
-func (impl *FluxApplicationServiceImpl) DecodeFluxAppId(appId string) (*bean.FluxAppIdentifier, error) {
-	return DecodeFluxExternalAppAppId(appId)
 }
 func (impl *FluxApplicationServiceImpl) GetFluxAppDetail(ctx context.Context, app *bean.FluxAppIdentifier) (*bean.FluxApplicationDetailDto, error) {
 	config, err := impl.helmAppService.GetClusterConf(app.ClusterId)

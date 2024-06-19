@@ -62,7 +62,7 @@ func (handler *FluxApplicationRestHandlerImpl) ListFluxApplications(w http.Respo
 func (handler *FluxApplicationRestHandlerImpl) GetApplicationDetail(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	clusterIdString := vars["appId"]
-	appIdentifier, err := handler.fluxApplicationService.DecodeFluxAppId(clusterIdString)
+	appIdentifier, err := fluxApplication.DecodeFluxExternalAppAppId(clusterIdString)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
