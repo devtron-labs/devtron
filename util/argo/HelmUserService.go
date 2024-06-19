@@ -46,7 +46,7 @@ func (impl *HelmUserServiceImpl) GetOrUpdateArgoCdUserDetail() string {
 	return ""
 }
 
-func (impl *HelmUserServiceImpl) BuildACDContext() (acdContext context.Context, err error) {
+func (impl *HelmUserServiceImpl) GetACDContext(context.Context) (acdContext context.Context, err error) {
 	return context.Background(), nil
 }
 
