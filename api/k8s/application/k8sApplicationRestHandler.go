@@ -31,6 +31,9 @@ import (
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/argoApplication"
+
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -41,7 +44,12 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util"
+
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/go-pg/pg"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	//"github.com/go-pg/pg"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	errors2 "github.com/juju/errors"
@@ -80,6 +88,7 @@ type K8sApplicationRestHandler interface {
 type K8sApplicationRestHandlerImpl struct {
 	logger                 *zap.SugaredLogger
 	k8sApplicationService  application2.K8sApplicationService
+	argoApplicationService argoApplication.ArgoApplicationService
 	pump                   connector.Pump
 	terminalSessionHandler terminal.TerminalSessionHandler
 	enforcer               casbin.Enforcer
@@ -90,9 +99,10 @@ type K8sApplicationRestHandlerImpl struct {
 	userService            user.UserService
 	k8sCommonService       k8s.K8sCommonService
 	terminalEnvVariables   *util.TerminalEnvVariables
+	pipelineRepository     pipelineConfig.PipelineRepository
 }
 
-func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate, envVariables *util.EnvironmentVariables) *K8sApplicationRestHandlerImpl {
+func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate, envVariables *util.EnvironmentVariables, pipelineRepository pipelineConfig.PipelineRepository, argoApplicationService argoApplication.ArgoApplicationService) *K8sApplicationRestHandlerImpl {
 	return &K8sApplicationRestHandlerImpl{
 		logger:                 logger,
 		k8sApplicationService:  k8sApplicationService,
@@ -106,6 +116,8 @@ func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationS
 		userService:            userService,
 		k8sCommonService:       k8sCommonService,
 		terminalEnvVariables:   envVariables.TerminalEnvVariables,
+		pipelineRepository:     pipelineRepository,
+		argoApplicationService: argoApplicationService,
 	}
 }
 
@@ -798,10 +810,112 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 		}
 		//RBAC enforcer Ends
 	} else if request.DevtronAppIdentifier != nil {
+		appId := request.DevtronAppIdentifier.AppId
+		envId := request.DevtronAppIdentifier.EnvId
+		pipelines, err := handler.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
+		if err == pg.ErrNoRows {
+			common.WriteJsonResp(w, err, "pipeline Not found in database", http.StatusNotFound)
+			return
+		}
+		if err != nil {
+			handler.logger.Errorw("error in fetching pipelines from db", "appId", request.DevtronAppIdentifier.AppId, "envId", request.DevtronAppIdentifier.EnvId)
+			common.WriteJsonResp(w, err, "error in fetching pipeline from database", http.StatusInternalServerError)
+			return
+		}
+		if len(pipelines) == 0 {
+			common.WriteJsonResp(w, fmt.Errorf("app deleted"), nil, http.StatusNotFound)
+			return
+		}
+		if len(pipelines) != 1 {
+			common.WriteJsonResp(w, err, "multiple pipelines found for an envId", http.StatusBadRequest)
+			return
+		}
+		cdPipeline := pipelines[0]
 		if request.DeploymentType == bean2.HelmInstalledType {
 			//TODO Implement ResourceRequest Validation for Helm Installed Devtron APPs
+
+			request.AppIdentifier = &client.AppIdentifier{
+				ClusterId:   request.DevtronAppIdentifier.ClusterId,
+				Namespace:   cdPipeline.Environment.Namespace,
+				ReleaseName: cdPipeline.DeploymentAppName,
+			}
+			valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
+			if err != nil || !valid {
+				handler.logger.Errorw("error in validating resource request", "err", err, "request.AppIdentifier", request.AppIdentifier, "request.K8sRequest", request.K8sRequest)
+				apiError := util2.ApiError{
+					InternalMessage: "failed to validate the resource with error " + err.Error(),
+					UserMessage:     "Failed to validate resource",
+				}
+				if !valid {
+					apiError.InternalMessage = "failed to validate the resource"
+					apiError.UserMessage = "requested Pod or Container doesn't exist"
+				}
+				common.WriteJsonResp(w, &apiError, nil, http.StatusBadRequest)
+				return
+			}
 		} else if request.DeploymentType == bean2.ArgoInstalledType {
 			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
+			resp, err := handler.argoApplicationService.FetchAppDetailArgo(r.Context(), cdPipeline)
+			if err != nil {
+				handler.logger.Errorw("error in fetching argo app details")
+				common.WriteJsonResp(w, err, "error in fetching argo app details", http.StatusInternalServerError)
+				return
+			}
+			valid := false
+			for _, node := range resp.Nodes {
+				nodeDetails := util3.ResourceIdentifier{
+					Name:      node.Name,
+					Namespace: node.Namespace,
+					GroupVersionKind: schema.GroupVersionKind{
+						Group:   node.Group,
+						Version: node.Version,
+						Kind:    node.Kind,
+					},
+				}
+				if nodeDetails == request.K8sRequest.ResourceIdentifier {
+					valid = true
+					break
+				}
+			}
+			if !valid {
+				requestContainerName := request.K8sRequest.PodLogsRequest.ContainerName
+				podName := request.K8sRequest.ResourceIdentifier.Name
+				for _, pod := range resp.PodMetadata {
+					if pod.Name == podName {
+
+						// finding the container name in main Containers
+						for _, container := range pod.Containers {
+							if container == &requestContainerName {
+								valid = true
+							}
+						}
+
+						// finding the container name in init containers
+						for _, initContainer := range pod.InitContainers {
+							if initContainer == &requestContainerName {
+								valid = true
+							}
+						}
+
+						// finding the container name in ephemeral containers
+						for _, ephemeralContainer := range pod.EphemeralContainers {
+							if ephemeralContainer.Name == requestContainerName {
+								valid = true
+							}
+						}
+
+					}
+				}
+			}
+			if !valid {
+				handler.logger.Errorw("error in validating resource request", "err", err, "request.AppIdentifier", request.AppIdentifier, "request.K8sRequest", request.K8sRequest)
+				apiError := util2.ApiError{
+					InternalMessage: "failed to validate the resource with error " + err.Error(),
+					UserMessage:     "requested Pod or Container doesn't exist",
+				}
+				common.WriteJsonResp(w, &apiError, nil, http.StatusBadRequest)
+				return
+			}
 		}
 		// RBAC enforcer applying For Devtron App
 		envObject := handler.enforcerUtil.GetEnvRBACNameByAppId(request.DevtronAppIdentifier.AppId, request.DevtronAppIdentifier.EnvId)
