@@ -16,4 +16,5 @@
 - docs: removed users (#5324)
 - docs: Created a file for listing Devtron Users (#5310)
 ## Others
+- chore: update common-lib tag version (#5333)
 - chore: updated go version in EA dockerfile (#5327)
