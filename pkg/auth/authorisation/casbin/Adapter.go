@@ -17,7 +17,6 @@
 package casbin
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -76,7 +75,7 @@ func setCasbinVersion() {
 func Create() (*casbin.SyncedEnforcer, error) {
 	setCasbinVersion()
 	if isV2() {
-		return nil, errors.New("not supported in casbin v2 ")
+		return nil, nil
 	}
 	metav1.Now()
 	config, err := sql.GetConfig() //FIXME: use this from wire
@@ -114,7 +113,7 @@ func Create() (*casbin.SyncedEnforcer, error) {
 func CreateV2() (*casbinv2.SyncedEnforcer, error) {
 	setCasbinVersion()
 	if !isV2() {
-		return nil, errors.New("not supported in casbin v2 ")
+		return nil, nil
 	}
 
 	metav1.Now()
