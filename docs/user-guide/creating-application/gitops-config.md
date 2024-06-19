@@ -59,23 +59,25 @@ You can [deploy a helm chart](../deploy-chart/overview-of-charts.md#deploying-ch
 
     ![Figure 6: Configure & Deploy Button](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/gitops/configure-deploy.jpg)
 
-3. After you enter the `App Name`, `Project`, and `Environment`; an option to choose the deployment approach (i.e., Helm or GitOps) would appear.
+3. After you enter the `App Name`, `Project`, and `Environment`; an option to choose the deployment approach (i.e., Helm or GitOps) would appear. Select **GitOps**.
 
-    ![Figure 7: Deployment Approach](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/gitops/deployment-method.jpg)
+{% hint style="info" %}
+The option to choose between 'Helm' or 'GitOps' is only available in <img src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg">
+{% endhint %}
 
-4. Select **GitOps**.
+![Figure 7a: Deployment Approach](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/gitops/deployment-method.jpg)
 
-    ![Figure 8: Selecting GitOps Method](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/gitops/select-gitops.jpg)
+![Figure 7b: Selecting GitOps Method](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/gitops/select-gitops.jpg)
 
-5. A modal window will appear for you to enter a Git repository. Just like [Devtron Apps](#for-devtron-apps) (step 2), you get two options:
+4. A modal window will appear for you to enter a Git repository. Just like [Devtron Apps](#for-devtron-apps) (step 2), you get two options:
     * Auto-create repository
     * Commit manifests to a desired repository
 
-    ![Figure 9: Adding a Repo](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/gitops/git-repository-helm-app.jpg)
+    ![Figure 8: Adding a Repo](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/gitops/git-repository-helm-app.jpg)
 
-6. Enter your custom Git Repo URL, and click **Save**.
+5. Enter your custom Git Repo URL, and click **Save**.
 
-    ![Figure 10: Saved GitOps Config for Helm App](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/gitops/custom-git-repo-helm-apps.jpg)
+    ![Figure 9: Saved GitOps Config for Helm App](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/gitops/custom-git-repo-helm-apps.jpg)
 
 Next, you may proceed to deploy the chart.
 

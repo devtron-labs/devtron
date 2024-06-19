@@ -1,7 +1,7 @@
 # CI Pipeline
 
 {% hint style="info" %}
-For Devtron version older than v0.4.0, please refer the [CI Pipeline (legacy)](./ci-pipeline-legacy.md) page.
+For Devtron version older than v0.4.0, please refer the [CI Pipeline (legacy)](https://docs.devtron.ai/v/v0.4/devtron/user-guide/creating-application/workflow/ci-pipeline-legacy) page.
 {% endhint %}
 
 ## Creating CI Pipeline
