@@ -20,6 +20,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"strings"
+	"time"
 )
 
 type PluginType string
@@ -71,14 +73,59 @@ const (
 	NEW_TAG_TYPE      = "new_tags"
 )
 
+type PluginParentMetadata struct {
+	tableName  struct{} `sql:"plugin_parent_metadata" pg:",discard_unknown_columns"`
+	Id         int      `sql:"id,pk"`
+	Name       string   `sql:"name, notnull"`
+	Identifier string   `sql:"identifier, notnull"`
+	Deleted    bool     `sql:"deleted, notnull"`
+	sql.AuditLog
+}
+
+func NewPluginParentMetadata() *PluginParentMetadata {
+	return &PluginParentMetadata{}
+}
+func (r *PluginParentMetadata) CreateAuditLog(userId int32) *PluginParentMetadata {
+	r.CreatedBy = userId
+	r.CreatedOn = time.Now()
+	r.UpdatedBy = userId
+	r.UpdatedOn = time.Now()
+	return r
+}
+
+func (r *PluginParentMetadata) SetName(name string) *PluginParentMetadata {
+	r.Name = name
+	return r
+}
+
+func (r *PluginParentMetadata) SetDeleted(isDeleted bool) *PluginParentMetadata {
+	r.Deleted = isDeleted
+	return r
+}
+
+func (r *PluginParentMetadata) CreateAndSetPluginIdentifier(pluginName string) *PluginParentMetadata {
+	r.Identifier = r.CreatePluginIdentifier(pluginName)
+	return r
+}
+
+func (r *PluginParentMetadata) CreatePluginIdentifier(pluginName string) string {
+	identifier := strings.ToLower(pluginName)
+	identifier = strings.ReplaceAll(pluginName, " ", "_")
+	return identifier
+}
+
 type PluginMetadata struct {
-	tableName   struct{}   `sql:"plugin_metadata" pg:",discard_unknown_columns"`
-	Id          int        `sql:"id,pk"`
-	Name        string     `sql:"name"`
-	Description string     `sql:"description"`
-	Type        PluginType `sql:"type"`
-	Icon        string     `sql:"icon"`
-	Deleted     bool       `sql:"deleted, notnull"`
+	tableName              struct{}   `sql:"plugin_metadata" pg:",discard_unknown_columns"`
+	Id                     int        `sql:"id,pk"`
+	Name                   string     `sql:"name"`
+	Description            string     `sql:"description"`
+	Type                   PluginType `sql:"type"`
+	Icon                   string     `sql:"icon"`
+	Deleted                bool       `sql:"deleted, notnull"`
+	PluginParentMetadataId int        `sql:"plugin_parent_metadata_id, notnull"`
+	PluginVersion          string     `sql:"plugin_version, notnull"`
+	IsDeprecated           bool       `sql:"is_deprecated, notnull"`
+	DocLink                string     `sql:"doc_link"`
 	sql.AuditLog
 }
 
@@ -235,6 +282,8 @@ type GlobalPluginRepository interface {
 	UpdateInBulkPluginSteps(pluginSteps []*PluginStep, tx *pg.Tx) error
 	UpdateInBulkPluginStepVariables(pluginStepVariables []*PluginStepVariable, tx *pg.Tx) error
 	UpdateInBulkPluginStepConditions(pluginStepConditions []*PluginStepCondition, tx *pg.Tx) error
+
+	GetPluginParentMetadataByIdentifier(pluginIdentifier string) (*PluginParentMetadata, error)
 }
 
 func NewGlobalPluginRepository(logger *zap.SugaredLogger, dbConnection *pg.DB) *GlobalPluginRepositoryImpl {
@@ -626,4 +675,15 @@ func (impl *GlobalPluginRepositoryImpl) UpdateInBulkPluginStepVariables(pluginSt
 func (impl *GlobalPluginRepositoryImpl) UpdateInBulkPluginStepConditions(pluginStepConditions []*PluginStepCondition, tx *pg.Tx) error {
 	_, err := tx.Model(&pluginStepConditions).Update()
 	return err
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetPluginParentMetadataByIdentifier(pluginIdentifier string) (*PluginParentMetadata, error) {
+	var pluginParentMetadata PluginParentMetadata
+	err := impl.dbConnection.Model(&pluginParentMetadata).Where("identifier = ?", pluginIdentifier).
+		Where("deleted = ?", false).Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting plugin parent metadata by pluginIdentifier", "pluginIdentifier", pluginIdentifier, "err", err)
+		return nil, err
+	}
+	return &pluginParentMetadata, nil
 }

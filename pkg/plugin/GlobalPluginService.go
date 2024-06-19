@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -215,6 +216,8 @@ func (impl *GlobalPluginServiceImpl) ListAllPlugins(stageTypeReq string) ([]*Plu
 			impl.logger.Errorw("error in getting plugins", "err", err)
 			return nil, err
 		}
+		// migrating data for pre-existing entries in plugin_metadata into plugin_parent_metadata
+		impl.MigratePluginDataToParentPluginMetadata(pluginsMetadata)
 	} else {
 		stageType, err := getStageType(stageTypeReq)
 		if err != nil {
@@ -256,6 +259,19 @@ func (impl *GlobalPluginServiceImpl) ListAllPlugins(stageTypeReq string) ([]*Plu
 		pluginDetails = append(pluginDetails, pluginDetail)
 	}
 	return pluginDetails, nil
+}
+
+func (impl *GlobalPluginServiceImpl) MigratePluginDataToParentPluginMetadata(pluginsMetadata []*repository.PluginMetadata) {
+	pluginsParentMetadata := make([]*repository.PluginParentMetadata, 0)
+	for _, pluginVersionMetadata := range pluginsMetadata {
+		pluginParentMetadata := repository.NewPluginParentMetadata()
+		pluginParentMetadata.SetName(pluginVersionMetadata.Name).
+			SetDeleted(false).
+			CreateAuditLog(bean.SystemUserId).
+			CreateAndSetPluginIdentifier(pluginVersionMetadata.Name)
+	}
+	identifierExists, err := impl.globalPluginRepository.
+	pluginUniqueIdentifier := pluginParentMetadata.CreatePlug
 }
 
 func (impl *GlobalPluginServiceImpl) GetPluginDetailById(pluginId int) (*PluginDetailDto, error) {

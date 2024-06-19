@@ -37,9 +37,17 @@ type PluginDetailDto struct {
 }
 
 type PluginListComponentDto struct { //created new struct for backward compatibility (needed to add input and output Vars along with metadata fields)
-	*PluginMetadataDto
-	InputVariables  []*PluginVariableDto `json:"inputVariables"`
-	OutputVariables []*PluginVariableDto `json:"outputVariables"`
+	*PluginParentMetadataDto `json:"pluginParentMetadataDto"`
+	PluginCount              int                  `json:"pluginCount"`
+	InputVariables           []*PluginVariableDto `json:"inputVariables"`
+	OutputVariables          []*PluginVariableDto `json:"outputVariables"`
+}
+
+type PluginParentMetadataDto struct {
+	Id               int                  `json:"id"`
+	Name             string               `json:"name"`
+	PluginIdentifier string               `json:"pluginIdentifier"`
+	Versions         []*PluginMetadataDto `json:"pluginVersions"`
 }
 
 type PluginMetadataDto struct {
@@ -52,6 +60,13 @@ type PluginMetadataDto struct {
 	Action      int               `json:"action"`
 	PluginStage string            `json:"pluginStage,omitempty"`
 	PluginSteps []*PluginStepsDto `json:"pluginSteps,omitempty"`
+	DocLink     string            `json:"docLink"`
+	Version     string            `json:"pluginVersion"`
+	IsLatest    string            `json:"isLatest"`
+}
+
+type PluginTagDto struct {
+	TagName string `json:"tagName"`
 }
 
 func (r *PluginMetadataDto) getPluginMetadataSqlObj(userId int32) *repository.PluginMetadata {
