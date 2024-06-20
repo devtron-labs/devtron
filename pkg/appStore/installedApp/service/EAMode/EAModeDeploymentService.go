@@ -128,10 +128,11 @@ func (impl *EAModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *ap
 		}
 	} else {
 		chartRepository = &gRPC.ChartRepository{
-			Name:     appStoreAppVersion.AppStore.ChartRepo.Name,
-			Url:      appStoreAppVersion.AppStore.ChartRepo.Url,
-			Username: appStoreAppVersion.AppStore.ChartRepo.UserName,
-			Password: appStoreAppVersion.AppStore.ChartRepo.Password,
+			Name:                    appStoreAppVersion.AppStore.ChartRepo.Name,
+			Url:                     appStoreAppVersion.AppStore.ChartRepo.Url,
+			Username:                appStoreAppVersion.AppStore.ChartRepo.UserName,
+			Password:                appStoreAppVersion.AppStore.ChartRepo.Password,
+			AllowInsecureConnection: appStoreAppVersion.AppStore.ChartRepo.AllowInsecureConnection,
 		}
 	}
 	installReleaseRequest := &gRPC.InstallReleaseRequest{
@@ -340,10 +341,11 @@ func (impl *EAModeDeploymentServiceImpl) updateApplicationWithChartInfo(ctx cont
 		}
 	} else {
 		chartRepository = &gRPC.ChartRepository{
-			Name:     appStoreApplicationVersion.AppStore.ChartRepo.Name,
-			Url:      appStoreApplicationVersion.AppStore.ChartRepo.Url,
-			Username: appStoreApplicationVersion.AppStore.ChartRepo.UserName,
-			Password: appStoreApplicationVersion.AppStore.ChartRepo.Password,
+			Name:                    appStoreApplicationVersion.AppStore.ChartRepo.Name,
+			Url:                     appStoreApplicationVersion.AppStore.ChartRepo.Url,
+			Username:                appStoreApplicationVersion.AppStore.ChartRepo.UserName,
+			Password:                appStoreApplicationVersion.AppStore.ChartRepo.Password,
+			AllowInsecureConnection: appStoreApplicationVersion.AppStore.ChartRepo.AllowInsecureConnection,
 		}
 	}
 

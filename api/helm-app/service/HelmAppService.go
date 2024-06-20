@@ -954,10 +954,11 @@ func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChart
 		}
 	} else {
 		chartRepository = &gRPC.ChartRepository{
-			Name:     appStoreAppVersion.AppStore.ChartRepo.Name,
-			Url:      appStoreAppVersion.AppStore.ChartRepo.Url,
-			Username: appStoreAppVersion.AppStore.ChartRepo.UserName,
-			Password: appStoreAppVersion.AppStore.ChartRepo.Password,
+			Name:                    appStoreAppVersion.AppStore.ChartRepo.Name,
+			Url:                     appStoreAppVersion.AppStore.ChartRepo.Url,
+			Username:                appStoreAppVersion.AppStore.ChartRepo.UserName,
+			Password:                appStoreAppVersion.AppStore.ChartRepo.Password,
+			AllowInsecureConnection: appStoreAppVersion.AppStore.ChartRepo.AllowInsecureConnection,
 		}
 	}
 
