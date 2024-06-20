@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/ciPipeline"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	ciPipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -124,7 +124,7 @@ type CiPipelineRepository interface {
 	FindByParentCiPipelineId(parentCiPipelineId int) ([]*CiPipeline, error)
 	FindByParentIdAndType(parentCiPipelineId int, pipelineType string) ([]*CiPipeline, error)
 
-	FetchParentCiPipelinesForDG() ([]*bean.CiPipelinesMap, error)
+	FetchParentCiPipelinesForDG() ([]*ciPipeline.CiPipelinesMap, error)
 	FetchCiPipelinesForDG(parentId int, childCiPipelineIds []int) (*CiPipeline, int, error)
 	FinDByParentCiPipelineAndAppId(parentCiPipeline int, appIds []int) ([]*CiPipeline, error)
 	FindAllPipelineCreatedCountInLast24Hour() (pipelineCount int, err error)
@@ -140,7 +140,7 @@ type CiPipelineRepository interface {
 	FindLinkedCiCount(ciPipelineId int) (int, error)
 	GetLinkedCiPipelines(ctx context.Context, ciPipelineId int) ([]*CiPipeline, error)
 	GetDownStreamInfo(ctx context.Context, sourceCiPipelineId int,
-		appNameMatch, envNameMatch string, req *pagination.RepositoryRequest) ([]bean.LinkedCIDetails, int, error)
+		appNameMatch, envNameMatch string, req *pagination.RepositoryRequest) ([]ciPipeline.LinkedCIDetails, int, error)
 }
 
 type CiPipelineRepositoryImpl struct {
@@ -439,8 +439,8 @@ func (impl *CiPipelineRepositoryImpl) CheckIfPipelineExistsByNameAndAppId(pipeli
 	return found, err
 }
 
-func (impl *CiPipelineRepositoryImpl) FetchParentCiPipelinesForDG() ([]*bean.CiPipelinesMap, error) {
-	var ciPipelinesMap []*bean.CiPipelinesMap
+func (impl *CiPipelineRepositoryImpl) FetchParentCiPipelinesForDG() ([]*ciPipeline.CiPipelinesMap, error) {
+	var ciPipelinesMap []*ciPipeline.CiPipelinesMap
 	query := "SELECT cip.id, cip.parent_ci_pipeline" +
 		" FROM ci_pipeline cip" +
 		" WHERE cip.external = TRUE and cip.parent_ci_pipeline > 0 and cip.parent_ci_pipeline IS NOT NULL and cip.deleted = FALSE"
@@ -637,10 +637,10 @@ func (impl *CiPipelineRepositoryImpl) GetLinkedCiPipelines(ctx context.Context, 
 }
 
 func (impl *CiPipelineRepositoryImpl) GetDownStreamInfo(ctx context.Context, sourceCiPipelineId int,
-	appNameMatch, envNameMatch string, req *pagination.RepositoryRequest) ([]bean.LinkedCIDetails, int, error) {
+	appNameMatch, envNameMatch string, req *pagination.RepositoryRequest) ([]ciPipeline.LinkedCIDetails, int, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "GetDownStreamInfo")
 	defer span.End()
-	linkedCIDetails := make([]bean.LinkedCIDetails, 0)
+	linkedCIDetails := make([]ciPipeline.LinkedCIDetails, 0)
 	query := impl.dbConnection.Model().
 		Table("ci_pipeline").
 		// added columns that has no duplicated reference across joined tables
