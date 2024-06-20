@@ -39,10 +39,27 @@ type CdStageCompleteEvent struct {
 	PluginRegistryArtifactDetails map[string][]string          `json:"PluginRegistryArtifactDetails"`
 }
 
-type AsyncCdDeployEvent struct {
-	ValuesOverrideRequest *bean.ValuesOverrideRequest `json:"valuesOverrideRequest"`
-	TriggeredAt           time.Time                   `json:"triggeredAt"`
-	TriggeredBy           int32                       `json:"triggeredBy"`
+type UserDeploymentRequest struct {
+	Id                    int                         `json:"id"`
+	ValuesOverrideRequest *bean.ValuesOverrideRequest `json:"valuesOverrideRequest"` // Internal field - will be extracted from UserDeploymentRequest, handled for backward compatibility
+	TriggeredAt           time.Time                   `json:"triggeredAt"`           // Internal field - will be extracted from UserDeploymentRequest, handled for backward compatibility
+	TriggeredBy           int32                       `json:"triggeredBy"`           // Internal field - will be extracted from UserDeploymentRequest, handled for backward compatibility
+}
+
+func (r *UserDeploymentRequest) WithCdWorkflowRunnerId(id int) *UserDeploymentRequest {
+	if r.ValuesOverrideRequest == nil {
+		return r
+	}
+	r.ValuesOverrideRequest.WfrId = id
+	return r
+}
+
+func (r *UserDeploymentRequest) WithPipelineOverrideId(id int) *UserDeploymentRequest {
+	if r.ValuesOverrideRequest == nil {
+		return r
+	}
+	r.ValuesOverrideRequest.PipelineOverrideId = id
+	return r
 }
 
 type ImageDetailsFromCR struct {
@@ -70,6 +87,7 @@ type CiCompleteEvent struct {
 }
 
 type DevtronAppReleaseContextType struct {
-	CancelContext context.CancelFunc
-	RunnerId      int
+	CancelParentContext context.CancelFunc
+	CancelContext       context.CancelCauseFunc
+	RunnerId            int
 }

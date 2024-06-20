@@ -16,9 +16,15 @@
 
 package out
 
-import "github.com/google/wire"
+import (
+	"github.com/devtron-labs/devtron/pkg/eventProcessor/celEvaluator"
+	"github.com/google/wire"
+)
 
 var EventProcessorOutWireSet = wire.NewSet(
+	celEvaluator.NewTriggerEventEvaluatorImpl,
+	wire.Bind(new(celEvaluator.TriggerEventEvaluator), new(*celEvaluator.TriggerEventEvaluatorImpl)),
+
 	NewWorkflowEventPublishServiceImpl,
 	wire.Bind(new(WorkflowEventPublishService), new(*WorkflowEventPublishServiceImpl)),
 
