@@ -97,7 +97,7 @@ Fill the following mandatory fields:
 | **Git Host** | Shows the URL of GitHub, e.g., https://github.com/ |
 | **GitHub Organisation Name** | Enter the GitHub organization name. <br />If you do not have one, refer [How to create organization in GitHub](#creating-organization-in-github). |
 | **GitHub Username** | Provide the username of your GitHub account |
-| **Personal Access Token** | Provide your personal access token (PAT). It is used as an alternate password to authenticate your GitHub account. <br />If you do not have one, create a GitHub PAT [here](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token). <br /><br /> **Access Required**: <br /> `repo` - Full control of private repositories (able to access commit status, deployment status, and public repositories). <br /> `admin:org` - Full control of organizations and teams (Read and Write access). <br /> `delete_repo` - Grants delete repo access on private repositories. |
+| **Personal Access Token** | Provide your personal access token (PAT). It is used as an alternate password to authenticate your GitHub account. <br />If you do not have one, create a GitHub PAT [here](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token). <br /><br /> **Access Required**: <br /> `repo` - Full control of private repositories (able to access commit status, deployment status, and public repositories). <br /> `admin:org` - Full control of organizations and teams (Read and Write access). May not be required if you are using user-defined git repo. <br /> `delete_repo` - Grants delete repo access on private repositories. |
 
 
 ### GitLab
