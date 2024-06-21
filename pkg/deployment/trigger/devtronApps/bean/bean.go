@@ -29,13 +29,14 @@ const (
 )
 
 type TriggerEvent struct {
+	SaveTriggerHistory         bool
 	PerformChartPush           bool
 	PerformDeploymentOnCluster bool
-	GetManifestInResponse      bool
+	DeployArgoCdApp            bool
 	DeploymentAppType          string
 	ManifestStorageType        string
 	TriggeredBy                int32
-	TriggerdAt                 time.Time
+	TriggeredAt                time.Time
 }
 
 type TriggerRequest struct {

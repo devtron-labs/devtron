@@ -97,6 +97,20 @@ func GetClientDetailedError(err error) (*errors.ClientStatusCode, string) {
 	return grpcCode, err.Error()
 }
 
+func IsErrorContextCancelled(err error) bool {
+	if errStatus, ok := status.FromError(err); ok {
+		return errStatus.Message() == context.Canceled.Error()
+	}
+	return errors2.Is(err, context.Canceled)
+}
+
+func IsErrorContextDeadlineExceeded(err error) bool {
+	if errStatus, ok := status.FromError(err); ok {
+		return errStatus.Message() == context.DeadlineExceeded.Error()
+	}
+	return errors2.Is(err, context.DeadlineExceeded)
+}
+
 func IsErrorContextCancelledOrDeadlineExceeded(err error) (int, bool) {
 	if errors2.Is(err, context.Canceled) {
 		return constants.HttpClientSideTimeout, true
