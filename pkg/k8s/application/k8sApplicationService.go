@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	bean2 "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -73,7 +74,7 @@ type K8sApplicationService interface {
 	ValidateTerminalRequestQuery(r *http.Request) (*terminal.TerminalSessionRequest, *k8s.ResourceRequestBean, error)
 	DecodeDevtronAppId(applicationId string) (*bean3.DevtronAppIdentifier, error)
 	GetPodLogs(ctx context.Context, request *k8s.ResourceRequestBean) (io.ReadCloser, error)
-	ValidateResourceRequest(ctx context.Context, appIdentifier *bean.AppIdentifier, request *k8s2.K8sRequestBean) (bool, error)
+	ValidateResourceRequest(ctx context.Context, appIdentifier *bean2.AppIdentifier, request *k8s2.K8sRequestBean) (bool, error)
 	ValidateClusterResourceRequest(ctx context.Context, clusterResourceRequest *k8s.ResourceRequestBean,
 		rbacCallback func(clusterName string, resourceIdentifier k8s2.ResourceIdentifier) bool) (bool, error)
 	ValidateClusterResourceBean(ctx context.Context, clusterId int, manifest unstructured.Unstructured, gvk schema.GroupVersionKind, rbacCallback func(clusterName string, resourceIdentifier k8s2.ResourceIdentifier) bool) bool
@@ -159,12 +160,12 @@ func (impl *K8sApplicationServiceImpl) ValidateResourceRequestForArgoInstalledTy
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
+	defer cancel()
 	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token")
 		return false, err
 	}
-	defer cancel()
 	ctx = context.WithValue(ctx, "token", acdToken)
 	resp, err := impl.acdClient.ResourceTree(ctx, &query)
 	if err != nil {
@@ -199,8 +200,6 @@ func (impl *K8sApplicationServiceImpl) ValidateResourceRequestForArgoInstalledTy
 		}
 	}
 	return impl.validateContainerNameIfReqdForInstalledTypeArgo(valid, request, resp), nil
-	//return resp, nil
-	//return nil
 }
 func (impl *K8sApplicationServiceImpl) validateContainerNameIfReqdForInstalledTypeArgo(valid bool, request *k8s2.K8sRequestBean, resourceTree *bean.ResourceTreeResponse) bool {
 	if !valid {
@@ -541,7 +540,7 @@ func (impl *K8sApplicationServiceImpl) ValidateClusterResourceBean(ctx context.C
 	return impl.validateResourceManifest(clusterBean.ClusterName, manifest, gvk, rbacCallback)
 }
 
-func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(ctx context.Context, appIdentifier *bean.AppIdentifier, request *k8s2.K8sRequestBean) (bool, error) {
+func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(ctx context.Context, appIdentifier *bean2.AppIdentifier, request *k8s2.K8sRequestBean) (bool, error) {
 	app, err := impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error in getting app detail", "err", err, "appDetails", appIdentifier)
