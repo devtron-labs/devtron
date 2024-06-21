@@ -35,7 +35,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
-	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -85,7 +84,6 @@ type K8sApplicationRestHandler interface {
 type K8sApplicationRestHandlerImpl struct {
 	logger                 *zap.SugaredLogger
 	k8sApplicationService  application2.K8sApplicationService
-	argoApplicationService argoApplication.ArgoApplicationService
 	pump                   connector.Pump
 	terminalSessionHandler terminal.TerminalSessionHandler
 	enforcer               casbin.Enforcer
@@ -100,7 +98,7 @@ type K8sApplicationRestHandlerImpl struct {
 	installedAppService    EAMode.InstalledAppDBService
 }
 
-func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate, envVariables *util.EnvironmentVariables, pipelineRepository pipelineConfig.PipelineRepository, argoApplicationService argoApplication.ArgoApplicationService, installedAppService EAMode.InstalledAppDBService) *K8sApplicationRestHandlerImpl {
+func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate, envVariables *util.EnvironmentVariables, pipelineRepository pipelineConfig.PipelineRepository, installedAppService EAMode.InstalledAppDBService) *K8sApplicationRestHandlerImpl {
 	return &K8sApplicationRestHandlerImpl{
 		logger:                 logger,
 		k8sApplicationService:  k8sApplicationService,
@@ -115,7 +113,6 @@ func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationS
 		k8sCommonService:       k8sCommonService,
 		terminalEnvVariables:   envVariables.TerminalEnvVariables,
 		pipelineRepository:     pipelineRepository,
-		argoApplicationService: argoApplicationService,
 		installedAppService:    installedAppService,
 	}
 }
