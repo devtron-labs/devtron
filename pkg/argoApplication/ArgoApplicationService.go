@@ -20,19 +20,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
-	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
-	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
-	bean2 "github.com/devtron-labs/devtron/client/argocdServer/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	application3 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/util/argo"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -48,74 +42,31 @@ type ArgoApplicationService interface {
 		clusterWithApplicationObject clusterRepository.Cluster, clusterServerUrlIdMap map[string]int) (*rest.Config, error)
 	GetClusterConfigFromAllClusters(clusterId int) (*k8s.ClusterConfig, clusterRepository.Cluster, map[string]int, error)
 	GetRestConfigForExternalArgo(ctx context.Context, clusterId int, externalArgoApplicationName string) (*rest.Config, error)
-	FetchAppDetailArgo(ctx context.Context, cdPipeline *pipelineConfig.Pipeline) (*bean2.ResourceTreeResponse, error)
 }
 
 type ArgoApplicationServiceImpl struct {
-	logger                *zap.SugaredLogger
-	clusterRepository     clusterRepository.ClusterRepository
-	k8sUtil               *k8s.K8sServiceImpl
-	argoUserService       argo.ArgoUserService
-	helmAppService        service.HelmAppService
-	application           application2.ServiceClient
-	k8sApplicationService application3.K8sApplicationService
+	logger            *zap.SugaredLogger
+	clusterRepository clusterRepository.ClusterRepository
+	k8sUtil           *k8s.K8sServiceImpl
+	argoUserService   argo.ArgoUserService
+	helmAppService    service.HelmAppService
 }
 
 func NewArgoApplicationServiceImpl(logger *zap.SugaredLogger,
 	clusterRepository clusterRepository.ClusterRepository,
 	k8sUtil *k8s.K8sServiceImpl,
 	argoUserService argo.ArgoUserService,
-	helmAppService service.HelmAppService, application application2.ServiceClient, k8sApplicationService application3.K8sApplicationService) *ArgoApplicationServiceImpl {
+	helmAppService service.HelmAppService) *ArgoApplicationServiceImpl {
 	return &ArgoApplicationServiceImpl{
-		logger:                logger,
-		clusterRepository:     clusterRepository,
-		k8sUtil:               k8sUtil,
-		argoUserService:       argoUserService,
-		helmAppService:        helmAppService,
-		application:           application,
-		k8sApplicationService: k8sApplicationService,
+		logger:            logger,
+		clusterRepository: clusterRepository,
+		k8sUtil:           k8sUtil,
+		argoUserService:   argoUserService,
+		helmAppService:    helmAppService,
 	}
 
 }
-func (impl *ArgoApplicationServiceImpl) FetchAppDetailArgo(ctx context.Context, cdPipeline *pipelineConfig.Pipeline) (*bean2.ResourceTreeResponse, error) {
-	query := &application.ResourcesQuery{
-		ApplicationName: &cdPipeline.DeploymentAppName,
-	}
-	//ctx, cancel := context.WithCancel(r.Context())
-	//if cn, ok := w.(http.CloseNotifier); ok {
-	//	go func(done <-chan struct{}, closed <-chan bool) {
-	//		select {
-	//		case <-done:
-	//		case <-closed:
-	//			cancel()
-	//		}
-	//	}(ctx.Done(), cn.CloseNotify())
-	//}
-	//defer cancel()
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		impl.logger.Errorw("error in getting acd token")
-		return &bean2.ResourceTreeResponse{}, nil
-	}
-	ctx = context.WithValue(ctx, "token", acdToken)
-	resp, err := impl.application.ResourceTree(ctx, query)
-	if err != nil {
-		impl.logger.Errorw("service err, FetchAppDetailArgo, resource tree", "err", err)
-		return &bean2.ResourceTreeResponse{}, err
-	}
-	// we currently add appId and envId as labels for devtron apps deployed via acd
-	label := fmt.Sprintf("appId=%v,envId=%v", cdPipeline.AppId, cdPipeline.EnvironmentId)
-	pods, err := impl.k8sApplicationService.GetPodListByLabel(cdPipeline.Environment.ClusterId, cdPipeline.Environment.Namespace, label)
-	if err != nil {
-		impl.logger.Errorw("error in getting pods by label", "err", err, "clusterId", cdPipeline.Environment.ClusterId, "namespace", cdPipeline.Environment.Namespace, "label", label)
-		return &bean2.ResourceTreeResponse{}, err
-	}
-	ephemeralContainersMap := k8sObjectsUtil.ExtractEphemeralContainers(pods)
-	for _, metaData := range resp.PodMetadata {
-		metaData.EphemeralContainers = ephemeralContainersMap[metaData.Name]
-	}
-	return resp, nil
-}
+
 func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*bean.ArgoApplicationListDto, error) {
 	var clusters []clusterRepository.Cluster
 	var err error
