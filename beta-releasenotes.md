@@ -15,6 +15,7 @@
 - feat: air gap registry v2 (#5220)
 - feat: tenants and installations migration (#5187)
 ## Documentation
+- docs: Fixes +  Corrections in Docs (#5335)
 - docs: fixed broken link in readme (#5337)
 - docs: removed users (#5324)
 - docs: Created a file for listing Devtron Users (#5310)
