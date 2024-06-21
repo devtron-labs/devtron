@@ -100,7 +100,7 @@ This involves the process of applying the deployment window you created above to
 
 1. Go to the **Apply To** tab and click the **No windows** dropdown next to the application you wish to apply deployment window(s).
 
-    ![Figure 12: Selecting Apps](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/apply-window-single.gif)
+    ![Figure 12: Applying Windows](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/apply-window-single.gif)
 
 2. Select the deployment windows from the dropdown and click **Save Changes**.
 
