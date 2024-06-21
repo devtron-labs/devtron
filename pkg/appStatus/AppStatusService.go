@@ -17,6 +17,7 @@
 package appStatus
 
 import (
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -102,4 +103,12 @@ func (impl *AppStatusServiceImpl) DeleteWithAppIdEnvId(tx *pg.Tx, appId, envId i
 		return err
 	}
 	return nil
+}
+
+func GetHibernationStatus(status health.HealthStatusCode) string {
+	switch status {
+	case health.HealthStatusHealthy:
+		return HealthStatusHibernatingFilter
+	}
+	return string(status)
 }

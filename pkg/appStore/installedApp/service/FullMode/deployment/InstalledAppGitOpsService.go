@@ -17,10 +17,11 @@
 package deployment
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
@@ -50,7 +51,7 @@ type InstalledAppGitOpsService interface {
 	// GitOpsOperations (If Repo is deleted OR Repo migration is required) OR
 	// git.GitOperationService.CommitValues (If repo exists and Repo migration is not needed)
 	// functions to perform GitOps during upgrade deployments (GitOps based Helm Apps)
-	UpdateAppGitOpsOperations(manifest *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, monoRepoMigrationRequired *bool, commitRequirements bool) (*bean.AppStoreGitOpsResponse, error)
+	UpdateAppGitOpsOperations(manifest *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, monoRepoMigrationRequired bool, commitRequirements bool) (*bean.AppStoreGitOpsResponse, error)
 	ValidateCustomGitRepoURL(request validationBean.ValidateCustomGitRepoURLRequest) (string, bool, error)
 	GetGitRepoUrl(gitOpsRepoName string) (string, error)
 }
@@ -109,23 +110,25 @@ func (impl *FullModeDeploymentServiceImpl) GenerateManifestAndPerformGitOperatio
 	return appStoreGitOpsResponse, nil
 }
 
-func (impl *FullModeDeploymentServiceImpl) UpdateAppGitOpsOperations(manifest *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, monoRepoMigrationRequired *bool, commitRequirements bool) (*bean.AppStoreGitOpsResponse, error) {
+func (impl *FullModeDeploymentServiceImpl) UpdateAppGitOpsOperations(manifest *bean.AppStoreManifestResponse,
+	installAppVersionRequest *appStoreBean.InstallAppVersionDTO, monoRepoMigrationRequired bool, commitRequirements bool) (*bean.AppStoreGitOpsResponse, error) {
 	var requirementsCommitErr, valuesCommitErr error
 	var gitHash string
-	if *monoRepoMigrationRequired {
+	if monoRepoMigrationRequired {
 		// overriding GitOpsRepoURL to migrate to new repo
 		installAppVersionRequest.GitOpsRepoURL = ""
 		return impl.GitOpsOperations(manifest, installAppVersionRequest)
 	}
 
 	gitOpsResponse := &bean.AppStoreGitOpsResponse{}
+	ctx := context.Background()
 	if commitRequirements {
 		// update dependency if chart or chart version is changed
-		_, _, requirementsCommitErr = impl.gitOperationService.CommitValues(manifest.RequirementsConfig)
-		gitHash, _, valuesCommitErr = impl.gitOperationService.CommitValues(manifest.ValuesConfig)
+		_, _, requirementsCommitErr = impl.gitOperationService.CommitValues(ctx, manifest.RequirementsConfig)
+		gitHash, _, valuesCommitErr = impl.gitOperationService.CommitValues(ctx, manifest.ValuesConfig)
 	} else {
 		// only values are changed in update, so commit values config
-		gitHash, _, valuesCommitErr = impl.gitOperationService.CommitValues(manifest.ValuesConfig)
+		gitHash, _, valuesCommitErr = impl.gitOperationService.CommitValues(ctx, manifest.ValuesConfig)
 	}
 
 	if valuesCommitErr != nil || requirementsCommitErr != nil {
@@ -135,7 +138,7 @@ func (impl *FullModeDeploymentServiceImpl) UpdateAppGitOpsOperations(manifest *b
 			//create repo again and try again  -  auto fix
 			_, _, err := impl.createGitOpsRepo(impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(installAppVersionRequest.GitOpsRepoURL), installAppVersionRequest.UserId)
 			if err != nil {
-				impl.Logger.Errorw("error in creating gitops repo for valuesCommitErr or requirementsCommitErr", "gitRepoUrl", installAppVersionRequest.GitOpsRepoURL)
+				impl.Logger.Errorw("error in creating GitOps repo for valuesCommitErr or requirementsCommitErr", "gitRepoUrl", installAppVersionRequest.GitOpsRepoURL)
 				return nil, err
 			}
 			return impl.GitOpsOperations(manifest, installAppVersionRequest)
@@ -205,7 +208,7 @@ func (impl *FullModeDeploymentServiceImpl) createGitOpsRepoAndPushChart(installA
 
 	}
 	pushChartToGitRequest := adapter.ParseChartGitPushRequest(installAppVersionRequest, builtChartPath)
-	chartGitAttribute, commitHash, err := impl.gitOperationService.PushChartToGitOpsRepoForHelmApp(pushChartToGitRequest, requirementsConfig, valuesConfig)
+	chartGitAttribute, commitHash, err := impl.gitOperationService.PushChartToGitOpsRepoForHelmApp(context.Background(), pushChartToGitRequest, requirementsConfig, valuesConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in pushing chart to git", "err", err)
 		return nil, "", err
@@ -227,7 +230,7 @@ func (impl *FullModeDeploymentServiceImpl) createGitOpsRepo(gitOpsRepoName strin
 		BitBucketWorkspaceId: bitbucketMetadata.BitBucketWorkspaceId,
 		BitBucketProjectKey:  bitbucketMetadata.BitBucketProjectKey,
 	}
-	repoUrl, isNew, err := impl.gitOperationService.CreateRepository(gitRepoRequest, userId)
+	repoUrl, isNew, err := impl.gitOperationService.CreateRepository(context.Background(), gitRepoRequest, userId)
 	if err != nil {
 		impl.Logger.Errorw("error in creating git project", "name", gitOpsRepoName, "err", err)
 		return "", false, err
@@ -247,10 +250,10 @@ func (impl *FullModeDeploymentServiceImpl) updateValuesYamlInGit(installAppVersi
 		impl.Logger.Errorw("error in getting git commit config", "err", err)
 	}
 
-	commitHash, _, err := impl.gitOperationService.CommitValues(valuesGitConfig)
+	commitHash, _, err := impl.gitOperationService.CommitValues(context.Background(), valuesGitConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in git commit", "err", err)
-		return installAppVersionRequest, errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED)
+		return installAppVersionRequest, errors.New(timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString())
 	}
 	//update timeline status for git commit state
 	installAppVersionRequest.GitHash = commitHash
@@ -270,10 +273,10 @@ func (impl *FullModeDeploymentServiceImpl) updateRequirementYamlInGit(installApp
 		return err
 	}
 
-	_, _, err = impl.gitOperationService.CommitValues(requirementsGitConfig)
+	_, _, err = impl.gitOperationService.CommitValues(context.Background(), requirementsGitConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in values commit", "err", err)
-		return errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED)
+		return errors.New(timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString())
 	}
 
 	return nil

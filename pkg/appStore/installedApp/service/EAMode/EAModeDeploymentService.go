@@ -22,7 +22,9 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
@@ -111,22 +113,26 @@ func (impl *EAModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *ap
 		}
 		IsOCIRepo = true
 		registryCredential = &gRPC.RegistryCredential{
-			RegistryUrl:  appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL,
-			Username:     appStoreAppVersion.AppStore.DockerArtifactStore.Username,
-			Password:     appStoreAppVersion.AppStore.DockerArtifactStore.Password,
-			AwsRegion:    appStoreAppVersion.AppStore.DockerArtifactStore.AWSRegion,
-			AccessKey:    appStoreAppVersion.AppStore.DockerArtifactStore.AWSAccessKeyId,
-			SecretKey:    appStoreAppVersion.AppStore.DockerArtifactStore.AWSSecretAccessKey,
-			RegistryType: string(appStoreAppVersion.AppStore.DockerArtifactStore.RegistryType),
-			RepoName:     appStoreAppVersion.AppStore.Name,
-			IsPublic:     ociRegistryConfig.IsPublic,
+			RegistryUrl:         appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL,
+			Username:            appStoreAppVersion.AppStore.DockerArtifactStore.Username,
+			Password:            appStoreAppVersion.AppStore.DockerArtifactStore.Password,
+			AwsRegion:           appStoreAppVersion.AppStore.DockerArtifactStore.AWSRegion,
+			AccessKey:           appStoreAppVersion.AppStore.DockerArtifactStore.AWSAccessKeyId,
+			SecretKey:           appStoreAppVersion.AppStore.DockerArtifactStore.AWSSecretAccessKey,
+			RegistryType:        string(appStoreAppVersion.AppStore.DockerArtifactStore.RegistryType),
+			RepoName:            appStoreAppVersion.AppStore.Name,
+			IsPublic:            ociRegistryConfig.IsPublic,
+			Connection:          appStoreAppVersion.AppStore.DockerArtifactStore.Connection,
+			RegistryName:        appStoreAppVersion.AppStore.DockerArtifactStoreId,
+			RegistryCertificate: appStoreAppVersion.AppStore.DockerArtifactStore.Cert,
 		}
 	} else {
 		chartRepository = &gRPC.ChartRepository{
-			Name:     appStoreAppVersion.AppStore.ChartRepo.Name,
-			Url:      appStoreAppVersion.AppStore.ChartRepo.Url,
-			Username: appStoreAppVersion.AppStore.ChartRepo.UserName,
-			Password: appStoreAppVersion.AppStore.ChartRepo.Password,
+			Name:                    appStoreAppVersion.AppStore.ChartRepo.Name,
+			Url:                     appStoreAppVersion.AppStore.ChartRepo.Url,
+			Username:                appStoreAppVersion.AppStore.ChartRepo.UserName,
+			Password:                appStoreAppVersion.AppStore.ChartRepo.Password,
+			AllowInsecureConnection: appStoreAppVersion.AppStore.ChartRepo.AllowInsecureConnection,
 		}
 	}
 	installReleaseRequest := &gRPC.InstallReleaseRequest{
@@ -158,7 +164,7 @@ func (impl *EAModeDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context,
 	if installAppVersionRequest.ForceDelete {
 		return nil
 	}
-	appIdentifier := &client.AppIdentifier{
+	appIdentifier := &helmBean.AppIdentifier{
 		ClusterId:   installAppVersionRequest.ClusterId,
 		ReleaseName: installAppVersionRequest.AppName,
 		Namespace:   installAppVersionRequest.Namespace,
@@ -198,7 +204,7 @@ func (impl *EAModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, in
 	// TODO : fetch values yaml from DB instead of fetching from helm cli
 	// TODO Dependency : on updating helm APP, DB is not being updated. values yaml is sent directly to helm cli. After DB updatation development, we can fetch values yaml from DB, not from CLI.
 
-	helmAppIdeltifier := &client.AppIdentifier{
+	helmAppIdeltifier := &helmBean.AppIdentifier{
 		ClusterId:   installedApp.ClusterId,
 		Namespace:   installedApp.Namespace,
 		ReleaseName: installedApp.AppName,
@@ -231,7 +237,7 @@ func (impl *EAModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, in
 }
 
 func (impl *EAModeDeploymentServiceImpl) GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*gRPC.HelmAppDeploymentHistory, error) {
-	helmAppIdentifier := &client.AppIdentifier{
+	helmAppIdentifier := &helmBean.AppIdentifier{
 		ClusterId:   installedApp.ClusterId,
 		Namespace:   installedApp.Namespace,
 		ReleaseName: installedApp.AppName,
@@ -247,7 +253,7 @@ func (impl *EAModeDeploymentServiceImpl) GetDeploymentHistory(ctx context.Contex
 }
 
 func (impl *EAModeDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int32) (*openapi.HelmAppDeploymentManifestDetail, error) {
-	helmAppIdeltifier := &client.AppIdentifier{
+	helmAppIdeltifier := &helmBean.AppIdentifier{
 		ClusterId:   installedApp.ClusterId,
 		Namespace:   installedApp.Namespace,
 		ReleaseName: installedApp.AppName,
@@ -320,22 +326,26 @@ func (impl *EAModeDeploymentServiceImpl) updateApplicationWithChartInfo(ctx cont
 		}
 		IsOCIRepo = true
 		registryCredential = &gRPC.RegistryCredential{
-			RegistryUrl:  appStoreApplicationVersion.AppStore.DockerArtifactStore.RegistryURL,
-			Username:     appStoreApplicationVersion.AppStore.DockerArtifactStore.Username,
-			Password:     appStoreApplicationVersion.AppStore.DockerArtifactStore.Password,
-			AwsRegion:    appStoreApplicationVersion.AppStore.DockerArtifactStore.AWSRegion,
-			AccessKey:    appStoreApplicationVersion.AppStore.DockerArtifactStore.AWSAccessKeyId,
-			SecretKey:    appStoreApplicationVersion.AppStore.DockerArtifactStore.AWSSecretAccessKey,
-			RegistryType: string(appStoreApplicationVersion.AppStore.DockerArtifactStore.RegistryType),
-			RepoName:     appStoreApplicationVersion.AppStore.Name,
-			IsPublic:     ociRegistryConfig.IsPublic,
+			RegistryUrl:         appStoreApplicationVersion.AppStore.DockerArtifactStore.RegistryURL,
+			Username:            appStoreApplicationVersion.AppStore.DockerArtifactStore.Username,
+			Password:            appStoreApplicationVersion.AppStore.DockerArtifactStore.Password,
+			AwsRegion:           appStoreApplicationVersion.AppStore.DockerArtifactStore.AWSRegion,
+			AccessKey:           appStoreApplicationVersion.AppStore.DockerArtifactStore.AWSAccessKeyId,
+			SecretKey:           appStoreApplicationVersion.AppStore.DockerArtifactStore.AWSSecretAccessKey,
+			RegistryType:        string(appStoreApplicationVersion.AppStore.DockerArtifactStore.RegistryType),
+			RepoName:            appStoreApplicationVersion.AppStore.Name,
+			IsPublic:            ociRegistryConfig.IsPublic,
+			Connection:          appStoreApplicationVersion.AppStore.DockerArtifactStore.Connection,
+			RegistryName:        appStoreApplicationVersion.AppStore.DockerArtifactStoreId,
+			RegistryCertificate: appStoreApplicationVersion.AppStore.DockerArtifactStore.Cert,
 		}
 	} else {
 		chartRepository = &gRPC.ChartRepository{
-			Name:     appStoreApplicationVersion.AppStore.ChartRepo.Name,
-			Url:      appStoreApplicationVersion.AppStore.ChartRepo.Url,
-			Username: appStoreApplicationVersion.AppStore.ChartRepo.UserName,
-			Password: appStoreApplicationVersion.AppStore.ChartRepo.Password,
+			Name:                    appStoreApplicationVersion.AppStore.ChartRepo.Name,
+			Url:                     appStoreApplicationVersion.AppStore.ChartRepo.Url,
+			Username:                appStoreApplicationVersion.AppStore.ChartRepo.UserName,
+			Password:                appStoreApplicationVersion.AppStore.ChartRepo.Password,
+			AllowInsecureConnection: appStoreApplicationVersion.AppStore.ChartRepo.AllowInsecureConnection,
 		}
 	}
 
@@ -374,7 +384,7 @@ func (impl *EAModeDeploymentServiceImpl) DeleteACDAppObject(ctx context.Context,
 	return errors.New("this is not implemented")
 }
 
-func (impl *EAModeDeploymentServiceImpl) SaveTimelineForHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status string, statusDetail string, statusTime time.Time, tx *pg.Tx) error {
+func (impl *EAModeDeploymentServiceImpl) SaveTimelineForHelmApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, status timelineStatus.TimelineStatus, statusDetail string, statusTime time.Time, tx *pg.Tx) error {
 	return errors.New("this is not implemented")
 }
 
@@ -416,7 +426,7 @@ func (impl *EAModeDeploymentServiceImpl) CheckIfArgoAppExists(acdAppName string)
 	return isFound, errors.New("this is not implemented")
 }
 
-func (impl *EAModeDeploymentServiceImpl) UpdateAppGitOpsOperations(manifest *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, monoRepoMigrationRequired *bool, commitRequirements bool) (*bean.AppStoreGitOpsResponse, error) {
+func (impl *EAModeDeploymentServiceImpl) UpdateAppGitOpsOperations(manifest *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, monoRepoMigrationRequired bool, commitRequirements bool) (*bean.AppStoreGitOpsResponse, error) {
 	return nil, errors.New("this is not implemented")
 }
 

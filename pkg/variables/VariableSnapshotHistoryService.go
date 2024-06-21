@@ -43,6 +43,14 @@ func NewVariableSnapshotHistoryServiceImpl(repository repository2.VariableSnapsh
 func (impl VariableSnapshotHistoryServiceImpl) SaveVariableHistoriesForTrigger(variableHistories []*repository2.VariableSnapshotHistoryBean, userId int32) error {
 	variableSnapshotHistoryList := make([]*repository2.VariableSnapshotHistory, 0)
 	for _, history := range variableHistories {
+		exists, err := impl.repository.CheckIfVariableSnapshotExists(history.HistoryReference)
+		if err != nil {
+			impl.logger.Errorw("error in checking if variable snapshot exists", "historyReference", history.HistoryReference, "err", err)
+			return err
+		}
+		if exists {
+			continue
+		}
 		variableSnapshotHistoryList = append(variableSnapshotHistoryList, &repository2.VariableSnapshotHistory{
 			VariableSnapshotHistoryBean: *history,
 			AuditLog: sql.AuditLog{
