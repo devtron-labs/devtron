@@ -32,20 +32,27 @@ const (
 )
 
 type ConfigMapHistoryRepository interface {
-	CreateHistory(model *ConfigmapAndSecretHistory) (*ConfigmapAndSecretHistory, error)
+	sql.TransactionWrapper
+	CreateHistory(tx *pg.Tx, model *ConfigmapAndSecretHistory) (*ConfigmapAndSecretHistory, error)
 	GetHistoryForDeployedCMCSById(id, pipelineId int, configType ConfigType) (*ConfigmapAndSecretHistory, error)
 	GetDeploymentDetailsForDeployedCMCSHistory(pipelineId int, configType ConfigType) ([]*ConfigmapAndSecretHistory, error)
 	GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, configType ConfigType) (*ConfigmapAndSecretHistory, error)
+	GetDeployedHistoryForPipelineIdOnTime(pipelineId int, deployedOn time.Time, configType ConfigType) (*ConfigmapAndSecretHistory, error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int, configType ConfigType, componentName string) ([]*ConfigmapAndSecretHistory, error)
 }
 
 type ConfigMapHistoryRepositoryImpl struct {
-	dbConnection *pg.DB
 	logger       *zap.SugaredLogger
+	dbConnection *pg.DB
+	*sql.TransactionUtilImpl
 }
 
-func NewConfigMapHistoryRepositoryImpl(logger *zap.SugaredLogger, dbConnection *pg.DB) *ConfigMapHistoryRepositoryImpl {
-	return &ConfigMapHistoryRepositoryImpl{dbConnection: dbConnection, logger: logger}
+func NewConfigMapHistoryRepositoryImpl(logger *zap.SugaredLogger, dbConnection *pg.DB, transactionUtilImpl *sql.TransactionUtilImpl) *ConfigMapHistoryRepositoryImpl {
+	return &ConfigMapHistoryRepositoryImpl{
+		logger:              logger,
+		dbConnection:        dbConnection,
+		TransactionUtilImpl: transactionUtilImpl,
+	}
 }
 
 type ConfigmapAndSecretHistory struct {
@@ -64,8 +71,13 @@ type ConfigmapAndSecretHistory struct {
 	DeployedByEmailId string `sql:"-"`
 }
 
-func (impl ConfigMapHistoryRepositoryImpl) CreateHistory(model *ConfigmapAndSecretHistory) (*ConfigmapAndSecretHistory, error) {
-	err := impl.dbConnection.Insert(model)
+func (impl ConfigMapHistoryRepositoryImpl) CreateHistory(tx *pg.Tx, model *ConfigmapAndSecretHistory) (*ConfigmapAndSecretHistory, error) {
+	var err error
+	if tx != nil {
+		err = tx.Insert(model)
+	} else {
+		err = impl.dbConnection.Insert(model)
+	}
 	if err != nil {
 		impl.logger.Errorw("err in creating env config map/secret history entry", "err", err)
 		return model, err
@@ -125,4 +137,15 @@ func (impl ConfigMapHistoryRepositoryImpl) GetDeployedHistoryList(pipelineId, ba
 		return histories, err
 	}
 	return histories, nil
+}
+
+func (impl ConfigMapHistoryRepositoryImpl) GetDeployedHistoryForPipelineIdOnTime(pipelineId int, deployedOn time.Time, configType ConfigType) (*ConfigmapAndSecretHistory, error) {
+	var history ConfigmapAndSecretHistory
+	err := impl.dbConnection.Model(&history).
+		Where("pipeline_id = ?", pipelineId).
+		Where("data_type = ?", configType).
+		Where("deployed_on = ?", deployedOn).
+		Where("deployed = ?", true).
+		Select()
+	return &history, err
 }

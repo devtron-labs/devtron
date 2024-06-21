@@ -72,6 +72,7 @@ import (
 	"github.com/devtron-labs/devtron/api/terminal"
 	util5 "github.com/devtron-labs/devtron/api/util"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
+	"github.com/devtron-labs/devtron/cel"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
@@ -121,6 +122,7 @@ import (
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	deployment2 "github.com/devtron-labs/devtron/pkg/deployment"
 	git2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/publish"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor"
@@ -932,8 +934,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(executors.SystemWorkflowExecutor), new(*executors.SystemWorkflowExecutorImpl)),
 		repository5.NewManifestPushConfigRepository,
 		wire.Bind(new(repository5.ManifestPushConfigRepository), new(*repository5.ManifestPushConfigRepositoryImpl)),
-		app.NewGitOpsManifestPushServiceImpl,
-		wire.Bind(new(app.GitOpsPushService), new(*app.GitOpsManifestPushServiceImpl)),
+		publish.NewGitOpsManifestPushServiceImpl,
+		wire.Bind(new(publish.GitOpsPushService), new(*publish.GitOpsManifestPushServiceImpl)),
 
 		// start: docker registry wire set injection
 		router.NewDockerRegRouterImpl,
@@ -971,6 +973,9 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(imageDigestPolicy.ImageDigestPolicyService), new(*imageDigestPolicy.ImageDigestPolicyServiceImpl)),
 
 		appStoreRestHandler.AppStoreWireSet,
+
+		cel.NewCELServiceImpl,
+		wire.Bind(new(cel.EvaluatorService), new(*cel.EvaluatorServiceImpl)),
 	)
 	return &App{}, nil
 }
