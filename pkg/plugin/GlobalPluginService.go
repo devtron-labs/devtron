@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	repository3 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -65,14 +66,17 @@ type GlobalPluginService interface {
 	PatchPlugin(pluginDto *PluginMetadataDto, userId int32) (*PluginMetadataDto, error)
 	GetDetailedPluginInfoByPluginId(pluginId int) (*PluginMetadataDto, error)
 	GetAllDetailedPluginInfo() ([]*PluginMetadataDto, error)
+
+	ListAllPluginsV2(filter *PluginsListFilter) (*PluginsDto, error)
 }
 
 func NewGlobalPluginService(logger *zap.SugaredLogger, globalPluginRepository repository.GlobalPluginRepository,
-	pipelineStageRepository repository2.PipelineStageRepository) *GlobalPluginServiceImpl {
+	pipelineStageRepository repository2.PipelineStageRepository, userRepository repository3.UserRepository) *GlobalPluginServiceImpl {
 	return &GlobalPluginServiceImpl{
 		logger:                  logger,
 		globalPluginRepository:  globalPluginRepository,
 		pipelineStageRepository: pipelineStageRepository,
+		userRepository:          userRepository,
 	}
 }
 
@@ -80,6 +84,7 @@ type GlobalPluginServiceImpl struct {
 	logger                  *zap.SugaredLogger
 	globalPluginRepository  repository.GlobalPluginRepository
 	pipelineStageRepository repository2.PipelineStageRepository
+	userRepository          repository3.UserRepository
 }
 
 func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables(appType helper.AppType) ([]*GlobalVariable, error) {
@@ -216,8 +221,6 @@ func (impl *GlobalPluginServiceImpl) ListAllPlugins(stageTypeReq string) ([]*Plu
 			impl.logger.Errorw("error in getting plugins", "err", err)
 			return nil, err
 		}
-		// migrating data for pre-existing entries in plugin_metadata into plugin_parent_metadata
-		impl.MigratePluginDataToParentPluginMetadata(pluginsMetadata)
 	} else {
 		stageType, err := getStageType(stageTypeReq)
 		if err != nil {
@@ -259,19 +262,6 @@ func (impl *GlobalPluginServiceImpl) ListAllPlugins(stageTypeReq string) ([]*Plu
 		pluginDetails = append(pluginDetails, pluginDetail)
 	}
 	return pluginDetails, nil
-}
-
-func (impl *GlobalPluginServiceImpl) MigratePluginDataToParentPluginMetadata(pluginsMetadata []*repository.PluginMetadata) {
-	pluginsParentMetadata := make([]*repository.PluginParentMetadata, 0)
-	for _, pluginVersionMetadata := range pluginsMetadata {
-		pluginParentMetadata := repository.NewPluginParentMetadata()
-		pluginParentMetadata.SetName(pluginVersionMetadata.Name).
-			SetDeleted(false).
-			CreateAuditLog(bean.SystemUserId).
-			CreateAndSetPluginIdentifier(pluginVersionMetadata.Name)
-	}
-	identifierExists, err := impl.globalPluginRepository.
-	pluginUniqueIdentifier := pluginParentMetadata.CreatePlug
 }
 
 func (impl *GlobalPluginServiceImpl) GetPluginDetailById(pluginId int) (*PluginDetailDto, error) {
@@ -1668,4 +1658,167 @@ func (impl *GlobalPluginServiceImpl) deletePlugin(pluginDeleteReq *PluginMetadat
 		return nil, err
 	}
 	return pluginDeleteReq, nil
+}
+
+func (impl *GlobalPluginServiceImpl) ListAllPluginsV2(filter *PluginsListFilter) (*PluginsDto, error) {
+	impl.logger.Infow("request received, ListAllPluginsV2")
+	pluginsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins()
+	if err != nil {
+		impl.logger.Errorw("error in getting plugins", "err", err)
+		return nil, err
+	}
+	//migrate plugin_metadata to plugin_parent_metadata, also pluginsMetadata will have updated entries after migrating
+	err = impl.MigratePluginDataToParentPluginMetadata(pluginsMetadata)
+	if err != nil {
+		impl.logger.Errorw("error in migrating plugin data into parent metadata table", "err", err)
+		return nil, err
+	}
+
+	allPluginParentMetadata, err := impl.globalPluginRepository.GetAllPluginParentMetadata(filter)
+	if err != nil {
+		impl.logger.Errorw("error in getting all plugin parent metadata", "err", err)
+		return nil, err
+	}
+	pluginParentMetadataDtos := make([]*PluginParentMetadataDto, 0, len(allPluginParentMetadata))
+
+	for _, pluginParentMetadata := range allPluginParentMetadata {
+		pluginParentDto, err := impl.GetPluginParentDto(pluginParentMetadata)
+		if err != nil {
+			impl.logger.Errorw("error in getting plugin parent dto for", "pluginParentId", pluginParentMetadata.Id, "err", err)
+			return nil, err
+		}
+		pluginParentMetadataDtos = append(pluginParentMetadataDtos, pluginParentDto)
+	}
+
+	pluginDetails := NewPluginsDto().WithPluginsDto(pluginParentMetadataDtos).WithTotalCount(len(pluginParentMetadataDtos))
+
+	return pluginDetails, nil
+}
+
+// GetPluginParentDto populates PluginParentMetadataDto with all metadata and returns the same with error if any
+func (impl *GlobalPluginServiceImpl) GetPluginParentDto(pluginParentMetadata *repository.PluginParentMetadata) (*PluginParentMetadataDto, error) {
+	pluginParentDto := NewPluginParentMetadataDto()
+	pluginParentDto.WithName(pluginParentMetadata.Name).
+		WithIcon(pluginParentMetadata.Icon).
+		WithDescription(pluginParentMetadata.Description).
+		WithPluginIdentifier(pluginParentMetadata.Identifier).
+		WithType(string(pluginParentMetadata.Type))
+	//get all versions of a plugin
+	pluginVersionsMetadata, err := impl.globalPluginRepository.GetPluginVersionsMetadataByParentPluginId(pluginParentMetadata.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting all plugin versions metadata by parent plugin id", "err", err)
+		return nil, err
+	}
+
+	detailedPluginVersionsMetadataDtos := make([]*PluginsVersionDetail, 0) //contains detailed plugin version data
+	minimalPluginVersionsMetadataDtos := make([]*PluginsVersionDetail, 0)
+	pluginVersion := NewPluginVersions()
+
+	for _, pluginVersionMetadata := range pluginVersionsMetadata {
+		lastUpdatedEmail, err := impl.userRepository.GetEmailByIds([]int32{pluginVersionMetadata.UpdatedBy})
+		if err != nil {
+			impl.logger.Errorw("error in fetching email by plugin version's last updated by", "pluginVersionMetadataId", pluginVersionMetadata.Id, "err", err)
+			// not returning from here as this functionality is not core to the plugin ecosystem
+		}
+		pluginVersionDetails := NewPluginsVersionDetail()
+		pluginVersionDetails.SetPluginsVersionDetailForNonLatestVersions(pluginVersionMetadata)
+		if lastUpdatedEmail != nil && len(lastUpdatedEmail) > 0 {
+			pluginVersionDetails.WithLastUpdatedEmail(lastUpdatedEmail[0])
+		}
+		if pluginVersionMetadata.IsLatest {
+
+			//fetch input and output variables mappings
+			pluginIdInputVariablesMap, pluginIdOutputVariablesMap, err := impl.getPluginIdVariablesMap()
+			if err != nil {
+				impl.logger.Errorw("error, getPluginIdVariablesMap", "err", err)
+				return nil, err
+			}
+			inputVariables, ok := pluginIdInputVariablesMap[pluginVersionMetadata.Id]
+			if ok {
+				pluginVersionDetails.WithInputVariables(inputVariables)
+			}
+			outputVariables, ok := pluginIdOutputVariablesMap[pluginVersionMetadata.Id]
+			if ok {
+				pluginVersionDetails.WithOutputVariables(outputVariables)
+			}
+			//fetch tags mappings
+			pluginIdTagsMap, err := impl.getPluginIdTagsMap()
+			if err != nil {
+				impl.logger.Errorw("error, getPluginIdTagsMap", "err", err)
+				return nil, err
+			}
+			tags, ok := pluginIdTagsMap[pluginVersionMetadata.Id]
+			if ok {
+				pluginVersionDetails.WithTags(tags)
+			}
+
+			detailedPluginVersionsMetadataDtos = append(detailedPluginVersionsMetadataDtos, pluginVersionDetails)
+		} else {
+			minimalPluginVersionsMetadataDtos = append(minimalPluginVersionsMetadataDtos, pluginVersionDetails)
+		}
+		pluginVersion.WithDetailedPluginVersionData(detailedPluginVersionsMetadataDtos).WithMinimalPluginVersionData(minimalPluginVersionsMetadataDtos)
+	}
+	pluginParentDto.WithVersions(pluginVersion)
+	return pluginParentDto, nil
+}
+
+// MigratePluginDataToParentPluginMetadata migrates pre-existing plugin metadata from plugin_metadata table into plugin_parent_metadata table,
+// and also populate plugin_parent_metadata_id in plugin_metadata.
+// this operation will happen only once when the get all plugin list v2 api is being called, returns error if any
+func (impl *GlobalPluginServiceImpl) MigratePluginDataToParentPluginMetadata(pluginsMetadata []*repository.PluginMetadata) error {
+	dbConnection := impl.globalPluginRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("MigratePluginDataToParentPluginMetadata, error in beginning transaction", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	pluginMetadataToUpdate := make([]*repository.PluginMetadata, 0)
+	identifierVsPluginMetadata := make(map[string]*repository.PluginMetadata)
+	for _, item := range pluginsMetadata {
+		identifier := CreateUniqueIdentifier(item.Name, 0)
+		if _, ok := identifierVsPluginMetadata[identifier]; ok {
+			identifier = CreateUniqueIdentifier(item.Name, item.Id)
+		}
+		identifierVsPluginMetadata[identifier] = item
+	}
+
+	for identifier, pluginMetadata := range identifierVsPluginMetadata {
+		pluginParentMetadata, err := impl.globalPluginRepository.GetPluginParentMetadataByIdentifier(identifier)
+		if err != nil {
+			impl.logger.Errorw("MigratePluginDataToParentPluginMetadata, error in GetPluginParentMetadataByIdentifier", "pluginIdentifier", identifier, "err", err)
+			return err
+		}
+		if pluginParentMetadata.Id > 0 {
+			//plugin data already migrated
+			continue
+		}
+		parentMetadata := repository.NewPluginParentMetadata()
+		parentMetadata.SetParentPluginMetadata(pluginMetadata).CreateAuditLog(bean.SystemUserId)
+		parentMetadata.Identifier = identifier
+		parentMetadata, err = impl.globalPluginRepository.SavePluginParentMetadata(tx, parentMetadata)
+		if err != nil {
+			impl.logger.Errorw("MigratePluginDataToParentPluginMetadata, error in saving plugin parent metadata", "err", err)
+			return err
+		}
+		pluginMetadata.PluginParentMetadataId = parentMetadata.Id
+		pluginMetadataToUpdate = append(pluginMetadataToUpdate, pluginMetadata)
+
+	}
+
+	if len(pluginMetadataToUpdate) > 0 {
+		err = impl.globalPluginRepository.UpdatePluginMetadataInBulk(pluginMetadataToUpdate, tx)
+		if err != nil {
+			impl.logger.Errorw("MigratePluginDataToParentPluginMetadata, error in updating plugin metadata in bulk", "err", err)
+			return err
+		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("MigratePluginDataToParentPluginMetadata, error in committing db transaction", "err", err)
+		return err
+	}
+	return nil
 }

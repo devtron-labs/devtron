@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -41,6 +42,9 @@ type GlobalPluginRestHandler interface {
 	GetPluginDetailById(w http.ResponseWriter, r *http.Request)
 	GetDetailedPluginInfoByPluginId(w http.ResponseWriter, r *http.Request)
 	GetAllDetailedPluginInfo(w http.ResponseWriter, r *http.Request)
+
+	ListAllPluginsV2(w http.ResponseWriter, r *http.Request)
+	GetPluginDetailByIds(w http.ResponseWriter, r *http.Request)
 }
 
 func NewGlobalPluginRestHandler(logger *zap.SugaredLogger, globalPluginService plugin.GlobalPluginService,
@@ -252,4 +256,77 @@ func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailById(w http.ResponseW
 		return
 	}
 	common.WriteJsonResp(w, err, pluginDetail, http.StatusOK)
+}
+
+func (handler *GlobalPluginRestHandlerImpl) ListAllPluginsV2(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	v := r.URL.Query()
+	appIdQueryParam := v.Get("appId")
+	appId, err := strconv.Atoi(appIdQueryParam)
+	if appIdQueryParam == "" || err != nil {
+		common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
+		return
+	}
+	offsetDefault := 0
+	offset, err := common.ExtractIntQueryParam(w, r, "offset", &offsetDefault)
+	if err != nil {
+		common.WriteJsonResp(w, err, "invalid offset value", http.StatusBadRequest)
+		return
+	}
+
+	limitDefault := 20
+	limit, err := common.ExtractIntQueryParam(w, r, "size", &limitDefault)
+	if err != nil {
+		common.WriteJsonResp(w, err, "invalid size value", http.StatusBadRequest)
+		return
+	}
+	searchQueryParam := v.Get("searchKey")
+	tags := v.Get("tags")
+	var fetchLatestVersionDetailsOnly bool
+	isLatest := v.Get("fetchLatestVersionDetailsOnly")
+	if len(isLatest) > 0 {
+		fetchLatestVersionDetailsOnly, err = strconv.ParseBool(isLatest)
+		if err != nil {
+			common.WriteJsonResp(w, err, "invalid size value", http.StatusBadRequest)
+			return
+		}
+	}
+
+	var tagArray []string
+	if tags != "" {
+		tagArray = strings.Split(tags, ",")
+	}
+	listFilter := plugin.NewPluginsListFilter()
+	listFilter.WithOffset(offset).WithLimit(limit).WithTags(tagArray).WithSearchKey(searchQueryParam)
+	listFilter.FetchLatestVersionDetailsOnly = fetchLatestVersionDetailsOnly
+
+	app, err := handler.pipelineBuilder.GetApp(appId)
+	if err != nil {
+		handler.logger.Infow("service error, ListAllPluginsV2", "appId", appId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//using appId for rbac in plugin(global resource), because this data must be visible to person having create permission
+	//on atleast one app & we can't check this without iterating through every app
+	//TODO: update plugin as a resource in casbin and make rbac independent of appId
+	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionCreate)
+	if !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	plugins, err := handler.globalPluginService.ListAllPluginsV2(listFilter)
+	if err != nil {
+		handler.logger.Errorw("error in getting cd plugin list", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, plugins, http.StatusOK)
+}
+
+func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailByIds(w http.ResponseWriter, r *http.Request) {
+	//capture query parameter as list of plugin ids
+
 }

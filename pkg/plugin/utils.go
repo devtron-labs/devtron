@@ -18,7 +18,9 @@ package plugin
 
 import (
 	"errors"
+	"fmt"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
+	"strings"
 )
 
 func getStageType(stageTypeReq string) (int, error) {
@@ -34,4 +36,14 @@ func getStageType(stageTypeReq string) (int, error) {
 		return 0, errors.New("stage type not recognised, please add valid stage type in query parameter")
 	}
 	return stageType, nil
+}
+
+// CreateUniqueIdentifier helper func to create plugin identifier
+func CreateUniqueIdentifier(pluginName string, pluginId int) string {
+	identifier := strings.ToLower(pluginName)
+	identifier = strings.ReplaceAll(identifier, " ", "_")
+	if pluginId > 0 {
+		identifier = fmt.Sprintf("%s_%d", identifier, pluginId)
+	}
+	return identifier
 }

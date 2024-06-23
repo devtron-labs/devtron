@@ -17,9 +17,12 @@
 package repository
 
 import (
+	"fmt"
+	"github.com/devtron-labs/devtron/pkg/plugin"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -74,17 +77,21 @@ const (
 )
 
 type PluginParentMetadata struct {
-	tableName  struct{} `sql:"plugin_parent_metadata" pg:",discard_unknown_columns"`
-	Id         int      `sql:"id,pk"`
-	Name       string   `sql:"name, notnull"`
-	Identifier string   `sql:"identifier, notnull"`
-	Deleted    bool     `sql:"deleted, notnull"`
+	tableName   struct{}   `sql:"plugin_parent_metadata" pg:",discard_unknown_columns"`
+	Id          int        `sql:"id,pk"`
+	Name        string     `sql:"name, notnull"`
+	Identifier  string     `sql:"identifier, notnull"`
+	Description string     `sql:"description"`
+	Type        PluginType `sql:"type"`
+	Icon        string     `sql:"icon"`
+	Deleted     bool       `sql:"deleted, notnull"`
 	sql.AuditLog
 }
 
 func NewPluginParentMetadata() *PluginParentMetadata {
 	return &PluginParentMetadata{}
 }
+
 func (r *PluginParentMetadata) CreateAuditLog(userId int32) *PluginParentMetadata {
 	r.CreatedBy = userId
 	r.CreatedOn = time.Now()
@@ -93,25 +100,27 @@ func (r *PluginParentMetadata) CreateAuditLog(userId int32) *PluginParentMetadat
 	return r
 }
 
-func (r *PluginParentMetadata) SetName(name string) *PluginParentMetadata {
-	r.Name = name
+// SetParentPluginMetadata method signature used only for migration purposes, sets pluginVersionsMetadata into plugin_parent_metadata
+func (r *PluginParentMetadata) SetParentPluginMetadata(pluginMetadata *PluginMetadata) *PluginParentMetadata {
+	r.Name = pluginMetadata.Name
+	r.Deleted = false
+	r.Type = pluginMetadata.Type
+	r.Icon = pluginMetadata.Icon
+	r.Description = pluginMetadata.Description
+	//identifier := strings.ToLower(pluginMetadata.Name)
+	//identifier = strings.ReplaceAll(identifier, " ", "_")
+	//r.Identifier = identifier
 	return r
 }
 
-func (r *PluginParentMetadata) SetDeleted(isDeleted bool) *PluginParentMetadata {
-	r.Deleted = isDeleted
+func (r *PluginParentMetadata) CreateAndSetPluginIdentifier(pluginName string, pluginId int, isIdentifierDuplicated bool) *PluginParentMetadata {
+	pluginName = strings.ToLower(pluginName)
+	pluginName = strings.ReplaceAll(pluginName, " ", "_")
+	r.Identifier = pluginName
+	if isIdentifierDuplicated {
+		r.Identifier = fmt.Sprintf("%s_%d", r.Identifier, pluginId)
+	}
 	return r
-}
-
-func (r *PluginParentMetadata) CreateAndSetPluginIdentifier(pluginName string) *PluginParentMetadata {
-	r.Identifier = r.CreatePluginIdentifier(pluginName)
-	return r
-}
-
-func (r *PluginParentMetadata) CreatePluginIdentifier(pluginName string) string {
-	identifier := strings.ToLower(pluginName)
-	identifier = strings.ReplaceAll(pluginName, " ", "_")
-	return identifier
 }
 
 type PluginMetadata struct {
@@ -119,13 +128,14 @@ type PluginMetadata struct {
 	Id                     int        `sql:"id,pk"`
 	Name                   string     `sql:"name"`
 	Description            string     `sql:"description"`
-	Type                   PluginType `sql:"type"`
-	Icon                   string     `sql:"icon"`
+	Type                   PluginType `sql:"type"` //deprecated
+	Icon                   string     `sql:"icon"` //deprecated
 	Deleted                bool       `sql:"deleted, notnull"`
 	PluginParentMetadataId int        `sql:"plugin_parent_metadata_id, notnull"`
 	PluginVersion          string     `sql:"plugin_version, notnull"`
 	IsDeprecated           bool       `sql:"is_deprecated, notnull"`
 	DocLink                string     `sql:"doc_link"`
+	IsLatest               bool       `sql:"is_latest"`
 	sql.AuditLog
 }
 
@@ -258,6 +268,10 @@ type GlobalPluginRepository interface {
 	GetConditionsByPluginId(pluginId int) ([]*PluginStepCondition, error)
 	GetPluginStageMappingByPluginId(pluginId int) (*PluginStageMapping, error)
 	GetConnection() (dbConnection *pg.DB)
+	GetPluginVersionsMetadataByParentPluginId(parentPluginId int) ([]*PluginMetadata, error)
+
+	GetPluginParentMetadataByIdentifier(pluginIdentifier string) (*PluginParentMetadata, error)
+	GetAllPluginParentMetadata(filter *plugin.PluginsListFilter) ([]*PluginParentMetadata, error)
 
 	SavePluginMetadata(pluginMetadata *PluginMetadata, tx *pg.Tx) (*PluginMetadata, error)
 	SavePluginStageMapping(pluginStageMapping *PluginStageMapping, tx *pg.Tx) (*PluginStageMapping, error)
@@ -269,8 +283,11 @@ type GlobalPluginRepository interface {
 	SavePluginTagRelation(pluginTagRelation *PluginTagRelation, tx *pg.Tx) (*PluginTagRelation, error)
 	SavePluginTagInBulk(pluginTag []*PluginTag, tx *pg.Tx) error
 	SavePluginTagRelationInBulk(pluginTagRelation []*PluginTagRelation, tx *pg.Tx) error
+	//SavePluginParentMetadataInBulk(tx *pg.Tx, pluginParentMetadata []*PluginParentMetadata) error
+	SavePluginParentMetadata(tx *pg.Tx, pluginParentMetadata *PluginParentMetadata) (*PluginParentMetadata, error)
 
 	UpdatePluginMetadata(pluginMetadata *PluginMetadata, tx *pg.Tx) error
+	UpdatePluginMetadataInBulk(pluginsMetadata []*PluginMetadata, tx *pg.Tx) error
 	UpdatePluginStageMapping(pluginStageMapping *PluginStageMapping, tx *pg.Tx) error
 	UpdatePluginSteps(pluginStep *PluginStep, tx *pg.Tx) error
 	UpdatePluginPipelineScript(pluginPipelineScript *PluginPipelineScript, tx *pg.Tx) error
@@ -282,8 +299,6 @@ type GlobalPluginRepository interface {
 	UpdateInBulkPluginSteps(pluginSteps []*PluginStep, tx *pg.Tx) error
 	UpdateInBulkPluginStepVariables(pluginStepVariables []*PluginStepVariable, tx *pg.Tx) error
 	UpdateInBulkPluginStepConditions(pluginStepConditions []*PluginStepCondition, tx *pg.Tx) error
-
-	GetPluginParentMetadataByIdentifier(pluginIdentifier string) (*PluginParentMetadata, error)
 }
 
 func NewGlobalPluginRepository(logger *zap.SugaredLogger, dbConnection *pg.DB) *GlobalPluginRepositoryImpl {
@@ -686,4 +701,54 @@ func (impl *GlobalPluginRepositoryImpl) GetPluginParentMetadataByIdentifier(plug
 		return nil, err
 	}
 	return &pluginParentMetadata, nil
+}
+
+//
+//func (impl *GlobalPluginRepositoryImpl) SavePluginParentMetadataInBulk(tx *pg.Tx, pluginParentMetadata []*PluginParentMetadata) error {
+//	err := tx.Insert(&pluginParentMetadata)
+//	return err
+//}
+
+func (impl *GlobalPluginRepositoryImpl) SavePluginParentMetadata(tx *pg.Tx, pluginParentMetadata *PluginParentMetadata) (*PluginParentMetadata, error) {
+	err := tx.Insert(&pluginParentMetadata)
+	return pluginParentMetadata, err
+}
+
+func (impl *GlobalPluginRepositoryImpl) UpdatePluginMetadataInBulk(pluginsMetadata []*PluginMetadata, tx *pg.Tx) error {
+	err := tx.Insert(&pluginsMetadata)
+	return err
+}
+func (impl *GlobalPluginRepositoryImpl) GetAllPluginParentMetadata(filter *plugin.PluginsListFilter) ([]*PluginParentMetadata, error) {
+	var plugins []*PluginParentMetadata
+	query := "select ppm.id, ppm.identifier,ppm.name,ppm.description,ppm.type,ppm.icon,ppm.deleted,ppm.created_by, ppm.created_on,ppm.updated_by,ppm.updated_on from plugin_parent_metadata ppm " +
+		"inner join plugin_metadata pm on pm.plugin_parent_metadata_id=ppm.id"
+
+	if len(filter.Tags) > 0 {
+		query = query + "inner join plugin_tag_relation ptr on ptr.plugin_id=pm.id inner join plugin_tag pt on ptr.tag_id=pt.id" +
+			fmt.Sprintf("where pt.name in ()")
+	}
+	if filter.Limit > 0 {
+		query = query + " OFFSET " + strconv.Itoa(filter.Offset) + " LIMIT " + strconv.Itoa(filter.Limit) + ""
+	}
+	query = query + ";"
+	err := impl.dbConnection.Model(&plugins).
+		Where("deleted = ?", false).Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting all parent plugins metadata", "err", err)
+		return nil, err
+	}
+	return plugins, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetPluginVersionsMetadataByParentPluginId(parentPluginId int) ([]*PluginMetadata, error) {
+	var pluginVersions []*PluginMetadata
+	err := impl.dbConnection.Model(&pluginVersions).
+		Where("plugin_parent_metadata_id = ?", parentPluginId).
+		Where("deleted = ?", false).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting pluginVersionsMetadata by parentPluginId", "parentPluginId", parentPluginId, "err", err)
+		return nil, err
+	}
+	return pluginVersions, nil
 }

@@ -39,6 +39,7 @@ type GlobalPluginRouterImpl struct {
 }
 
 func (impl *GlobalPluginRouterImpl) initGlobalPluginRouter(globalPluginRouter *mux.Router) {
+	// versioning impact handling to be done for below apis,
 	globalPluginRouter.Path("").
 		HandlerFunc(impl.globalPluginRestHandler.PatchPlugin).Methods("POST")
 	globalPluginRouter.Path("/detail/all").
@@ -49,9 +50,17 @@ func (impl *GlobalPluginRouterImpl) initGlobalPluginRouter(globalPluginRouter *m
 	globalPluginRouter.Path("/list/global-variable").
 		HandlerFunc(impl.globalPluginRestHandler.GetAllGlobalVariables).Methods("GET")
 
+	//TODO to deprecate this api
 	globalPluginRouter.Path("/list").
 		HandlerFunc(impl.globalPluginRestHandler.ListAllPlugins).Methods("GET")
-
+	//TODO to deprecate this api
 	globalPluginRouter.Path("/{pluginId}").
 		HandlerFunc(impl.globalPluginRestHandler.GetPluginDetailById).Methods("GET")
+
+	globalPluginRouter.Path("/list/v2").
+		HandlerFunc(impl.globalPluginRestHandler.ListAllPluginsV2).Methods("GET")
+
+	globalPluginRouter.Path("/detail").
+		HandlerFunc(impl.globalPluginRestHandler.GetPluginDetailByIds).Methods("GET")
+
 }

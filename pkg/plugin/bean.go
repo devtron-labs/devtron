@@ -30,6 +30,9 @@ const (
 	CI_CD_TYPE_PLUGIN = "CI_CD"
 )
 
+// TODO:- deprecate these structs once V2 adoption is completed
+// structs to be deprecated starts
+
 type PluginDetailDto struct {
 	Metadata        *PluginMetadataDto   `json:"metadata"`
 	InputVariables  []*PluginVariableDto `json:"inputVariables"`
@@ -37,32 +40,181 @@ type PluginDetailDto struct {
 }
 
 type PluginListComponentDto struct { //created new struct for backward compatibility (needed to add input and output Vars along with metadata fields)
-	*PluginParentMetadataDto `json:"pluginParentMetadataDto"`
-	PluginCount              int                  `json:"pluginCount"`
-	InputVariables           []*PluginVariableDto `json:"inputVariables"`
-	OutputVariables          []*PluginVariableDto `json:"outputVariables"`
-}
-
-type PluginParentMetadataDto struct {
-	Id               int                  `json:"id"`
-	Name             string               `json:"name"`
-	PluginIdentifier string               `json:"pluginIdentifier"`
-	Versions         []*PluginMetadataDto `json:"pluginVersions"`
+	*PluginMetadataDto
+	InputVariables  []*PluginVariableDto `json:"inputVariables"`
+	OutputVariables []*PluginVariableDto `json:"outputVariables"`
 }
 
 type PluginMetadataDto struct {
 	Id          int               `json:"id"`
 	Name        string            `json:"name"`
 	Description string            `json:"description"`
-	Type        string            `json:"type" validate:"oneof=SHARED PRESET"` // SHARED, PRESET etc
-	Icon        string            `json:"icon"`
+	Type        string            `json:"type,omitempty" validate:"oneof=SHARED PRESET"` // SHARED, PRESET etc
+	Icon        string            `json:"icon,omitempty"`
 	Tags        []string          `json:"tags"`
-	Action      int               `json:"action"`
+	Action      int               `json:"action,omitempty"`
 	PluginStage string            `json:"pluginStage,omitempty"`
 	PluginSteps []*PluginStepsDto `json:"pluginSteps,omitempty"`
-	DocLink     string            `json:"docLink"`
-	Version     string            `json:"pluginVersion"`
-	IsLatest    string            `json:"isLatest"`
+}
+
+// structs to be deprecated end
+
+type PluginsDto struct {
+	ParentPlugins []*PluginParentMetadataDto `json:"parentPlugins"`
+	TotalCount    int                        `json:"totalCount"`
+}
+
+func NewPluginsDto() *PluginsDto {
+	return &PluginsDto{}
+}
+
+func (r *PluginsDto) WithPluginsDto(parentPlugins []*PluginParentMetadataDto) *PluginsDto {
+	r.ParentPlugins = parentPlugins
+	return r
+}
+
+func (r *PluginsDto) WithTotalCount(count int) *PluginsDto {
+	r.TotalCount = count
+	return r
+}
+
+type PluginParentMetadataDto struct {
+	Id               int             `json:"id"`
+	Name             string          `json:"name"`
+	PluginIdentifier string          `json:"pluginIdentifier"`
+	Description      string          `json:"description"`
+	Type             string          `json:"type,omitempty" validate:"oneof=SHARED PRESET"`
+	Icon             string          `json:"icon,omitempty"`
+	Versions         *PluginVersions `json:"pluginVersions"`
+}
+
+func NewPluginParentMetadataDto() *PluginParentMetadataDto {
+	return &PluginParentMetadataDto{}
+}
+
+func (r *PluginParentMetadataDto) WithName(name string) *PluginParentMetadataDto {
+	r.Name = name
+	return r
+}
+
+func (r *PluginParentMetadataDto) WithPluginIdentifier(identifier string) *PluginParentMetadataDto {
+	r.Name = identifier
+	return r
+}
+
+func (r *PluginParentMetadataDto) WithDescription(desc string) *PluginParentMetadataDto {
+	r.Name = desc
+	return r
+}
+
+func (r *PluginParentMetadataDto) WithIcon(icon string) *PluginParentMetadataDto {
+	r.Name = icon
+	return r
+}
+
+func (r *PluginParentMetadataDto) WithType(pluginType string) *PluginParentMetadataDto {
+	r.Name = pluginType
+	return r
+}
+
+func (r *PluginParentMetadataDto) WithVersions(versions *PluginVersions) *PluginParentMetadataDto {
+	r.Versions = versions
+	return r
+}
+
+type PluginVersions struct {
+	DetailedPluginVersionData []*PluginsVersionDetail `json:"detailedPluginVersionData"` // contains detailed data with all input and output variables
+	MinimalPluginVersionData  []*PluginsVersionDetail `json:"minimalPluginVersionData"`  // contains only few metadata
+}
+
+func NewPluginVersions() *PluginVersions {
+	return &PluginVersions{}
+}
+
+func (r *PluginVersions) WithDetailedPluginVersionData(detailedPluginVersionData []*PluginsVersionDetail) *PluginVersions {
+	r.DetailedPluginVersionData = detailedPluginVersionData
+	return r
+}
+
+func (r *PluginVersions) WithMinimalPluginVersionData(minimalPluginVersionData []*PluginsVersionDetail) *PluginVersions {
+	r.MinimalPluginVersionData = minimalPluginVersionData
+	return r
+}
+
+type PluginsVersionDetail struct {
+	*PluginMetadataDto
+	InputVariables  []*PluginVariableDto `json:"inputVariables"`
+	OutputVariables []*PluginVariableDto `json:"outputVariables"`
+	DocLink         string               `json:"docLink"`
+	Version         string               `json:"pluginVersion"`
+	IsLatest        bool                 `json:"isLatest"`
+	UpdatedBy       string               `json:"updatedBy"`
+}
+
+func NewPluginsVersionDetail() *PluginsVersionDetail {
+	return &PluginsVersionDetail{}
+}
+
+// SetPluginsVersionDetailForNonLatestVersions sets and return PluginsVersionDetail obj, returns lightweight obj e.g. excluding input and output variables
+func (r *PluginsVersionDetail) SetPluginsVersionDetailForNonLatestVersions(pluginVersionMetadata *repository.PluginMetadata) *PluginsVersionDetail {
+	r.Id = pluginVersionMetadata.Id
+	r.Name = pluginVersionMetadata.Name
+	r.Description = pluginVersionMetadata.Description
+	r.Version = pluginVersionMetadata.PluginVersion
+	r.IsLatest = pluginVersionMetadata.IsLatest
+	return r
+}
+
+func (r *PluginsVersionDetail) WithLastUpdatedEmail(email string) *PluginsVersionDetail {
+	r.UpdatedBy = email
+	return r
+}
+
+func (r *PluginsVersionDetail) WithInputVariables(inputVariables []*PluginVariableDto) *PluginsVersionDetail {
+	r.InputVariables = inputVariables
+	return r
+}
+
+func (r *PluginsVersionDetail) WithOutputVariables(outputVariables []*PluginVariableDto) *PluginsVersionDetail {
+	r.OutputVariables = outputVariables
+	return r
+}
+
+func (r *PluginsVersionDetail) WithTags(tags []string) *PluginsVersionDetail {
+	r.Tags = tags
+	return r
+}
+
+type PluginsListFilter struct {
+	Offset                        int
+	Limit                         int
+	SearchKey                     string
+	Tags                          []string
+	FetchLatestVersionDetailsOnly bool
+}
+
+func NewPluginsListFilter() *PluginsListFilter {
+	return &PluginsListFilter{}
+}
+
+func (r *PluginsListFilter) WithOffset(offset int) *PluginsListFilter {
+	r.Offset = offset
+	return r
+}
+
+func (r *PluginsListFilter) WithLimit(limit int) *PluginsListFilter {
+	r.Limit = limit
+	return r
+}
+
+func (r *PluginsListFilter) WithSearchKey(searchKey string) *PluginsListFilter {
+	r.SearchKey = searchKey
+	return r
+}
+
+func (r *PluginsListFilter) WithTags(tags []string) *PluginsListFilter {
+	r.Tags = tags
+	return r
 }
 
 type PluginTagDto struct {

@@ -7,6 +7,9 @@ CREATE TABLE IF NOT EXISTS public.plugin_parent_metadata
     "name"                  TEXT         NOT NULL,
     "identifier"            TEXT         NOT NULL,
     "deleted"               BOOL         NOT NULL,
+    "description"           TEXT,
+    "type"                  varchar(255),  -- SHARED, PRESET etc
+    "icon"                  TEXT,
     "created_on"            timestamptz  NOT NULL,
     "created_by"            int4         NOT NULL,
     "updated_on"            timestamptz,
