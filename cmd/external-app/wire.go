@@ -51,6 +51,8 @@ import (
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/terminal"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
+	"github.com/devtron-labs/devtron/client/argocdServer/application"
+	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/telemetry"
@@ -95,6 +97,12 @@ func InitializeApp() (*App, error) {
 		cluster.ClusterWireSetEa,
 		dashboard.DashboardWireSet,
 		client.HelmAppWireSet,
+		connection.GetConfig,
+		connection.SettingsManager,
+		application.NewApplicationClientImpl,
+		connection.NewArgoCDConnectionManagerImpl,
+		wire.Bind(new(connection.ArgoCDConnectionManager), new(*connection.ArgoCDConnectionManagerImpl)),
+		wire.Bind(new(application.ServiceClient), new(*application.ServiceClientImpl)),
 		k8s.K8sApplicationWireSet,
 		chartRepo.ChartRepositoryWireSet,
 		appStoreDiscover.AppStoreDiscoverWireSet,
