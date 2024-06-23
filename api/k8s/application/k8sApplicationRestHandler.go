@@ -32,7 +32,6 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	bean3 "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -45,7 +44,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
-	"github.com/go-pg/pg"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	errors2 "github.com/juju/errors"
@@ -94,11 +92,10 @@ type K8sApplicationRestHandlerImpl struct {
 	userService            user.UserService
 	k8sCommonService       k8s.K8sCommonService
 	terminalEnvVariables   *util.TerminalEnvVariables
-	pipelineRepository     pipelineConfig.PipelineRepository
 	installedAppService    EAMode.InstalledAppDBService
 }
 
-func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate, envVariables *util.EnvironmentVariables, pipelineRepository pipelineConfig.PipelineRepository, installedAppService EAMode.InstalledAppDBService) *K8sApplicationRestHandlerImpl {
+func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate, envVariables *util.EnvironmentVariables, installedAppService EAMode.InstalledAppDBService) *K8sApplicationRestHandlerImpl {
 	return &K8sApplicationRestHandlerImpl{
 		logger:                 logger,
 		k8sApplicationService:  k8sApplicationService,
@@ -112,7 +109,6 @@ func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationS
 		userService:            userService,
 		k8sCommonService:       k8sCommonService,
 		terminalEnvVariables:   envVariables.TerminalEnvVariables,
-		pipelineRepository:     pipelineRepository,
 		installedAppService:    installedAppService,
 	}
 }
@@ -208,20 +204,22 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return
 			}
-			deploymentAppName := fmt.Sprintf("%s-%s", installedApp.AppName, installedApp.EnvironmentName)
-			valid, err := handler.k8sApplicationService.ValidateResourceRequestForArgoInstalledType(r.Context(), cn, request.K8sRequest, installedApp.AppId, installedApp.EnvironmentId, request.ClusterId, request.AppIdentifier.Namespace, deploymentAppName)
-			if err != nil {
-				handler.logger.Errorw("error in validating resource request", "err", err)
-				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-				return
-			}
-			if !valid {
-				apiError := utils.ApiError{
-					InternalMessage: fmt.Sprintf("resource %s: \"%s\" doesn't exist", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, request.K8sRequest.ResourceIdentifier.Name),
-					UserMessage:     fmt.Sprintf("resource %s: \"%s\" doesn't exist", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, request.K8sRequest.ResourceIdentifier.Name),
+			if installedApp != nil {
+				deploymentAppName := fmt.Sprintf("%s-%s", installedApp.AppName, installedApp.EnvironmentName)
+				valid, err := handler.k8sApplicationService.ValidateResourceRequestForArgoInstalledType(r.Context(), cn, request.K8sRequest, installedApp.AppId, installedApp.EnvironmentId, request.ClusterId, request.AppIdentifier.Namespace, deploymentAppName)
+				if err != nil {
+					handler.logger.Errorw("error in validating resource request", "err", err)
+					common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+					return
 				}
-				common.WriteJsonResp(w, &apiError, nil, http.StatusBadRequest)
-				return
+				if !valid {
+					apiError := utils.ApiError{
+						InternalMessage: fmt.Sprintf("resource %s: \"%s\" doesn't exist", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, request.K8sRequest.ResourceIdentifier.Name),
+						UserMessage:     fmt.Sprintf("resource %s: \"%s\" doesn't exist", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, request.K8sRequest.ResourceIdentifier.Name),
+					}
+					common.WriteJsonResp(w, &apiError, nil, http.StatusBadRequest)
+					return
+				}
 			}
 		}
 		// RBAC enforcer applying for Helm App
@@ -244,7 +242,12 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		request.ClusterId = request.DevtronAppIdentifier.ClusterId
 		appId := request.DevtronAppIdentifier.AppId
 		envId := request.DevtronAppIdentifier.EnvId
-		cdPipeline := handler.getPipelineByAppIdEnvId(w, appId, envId)
+		cdPipeline, err := handler.k8sApplicationService.GetPipelineByAppIdEnvId(appId, envId)
+		if err != nil {
+			handler.logger.Errorw("error in fetching pipelines by app id and env id", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest) //confirm this
+			return
+		}
 		if request.DeploymentType == bean2.HelmInstalledType {
 			//TODO Implement ResourceRequest Validation for Helm Installed Devtron APPs
 			request.AppIdentifier = &bean3.AppIdentifier{
@@ -486,20 +489,22 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return
 			}
-			deploymentAppName := fmt.Sprintf("%s-%s", installedApp.AppName, installedApp.EnvironmentName)
-			valid, err := handler.k8sApplicationService.ValidateResourceRequestForArgoInstalledType(r.Context(), cn, request.K8sRequest, installedApp.AppId, installedApp.EnvironmentId, request.ClusterId, request.AppIdentifier.Namespace, deploymentAppName)
-			if err != nil {
-				handler.logger.Errorw("error in validating resource request", "err", err)
-				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-				return
-			}
-			if !valid {
-				apiError := utils.ApiError{
-					InternalMessage: fmt.Sprintf("resource %s: \"%s\" doesn't exist", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, request.K8sRequest.ResourceIdentifier.Name),
-					UserMessage:     fmt.Sprintf("resource %s: \"%s\" doesn't exist", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, request.K8sRequest.ResourceIdentifier.Name),
+			if installedApp != nil {
+				deploymentAppName := fmt.Sprintf("%s-%s", installedApp.AppName, installedApp.EnvironmentName)
+				valid, err := handler.k8sApplicationService.ValidateResourceRequestForArgoInstalledType(r.Context(), cn, request.K8sRequest, installedApp.AppId, installedApp.EnvironmentId, request.ClusterId, request.AppIdentifier.Namespace, deploymentAppName)
+				if err != nil {
+					handler.logger.Errorw("error in validating resource request", "err", err)
+					common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+					return
 				}
-				common.WriteJsonResp(w, &apiError, nil, http.StatusBadRequest)
-				return
+				if !valid {
+					apiError := utils.ApiError{
+						InternalMessage: fmt.Sprintf("resource %s: \"%s\" doesn't exist", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, request.K8sRequest.ResourceIdentifier.Name),
+						UserMessage:     fmt.Sprintf("resource %s: \"%s\" doesn't exist", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, request.K8sRequest.ResourceIdentifier.Name),
+					}
+					common.WriteJsonResp(w, &apiError, nil, http.StatusBadRequest)
+					return
+				}
 			}
 		}
 		// RBAC enforcer applying
@@ -524,7 +529,12 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 		request.ClusterId = request.DevtronAppIdentifier.ClusterId
 		appId := request.DevtronAppIdentifier.AppId
 		envId := request.DevtronAppIdentifier.EnvId
-		cdPipeline := handler.getPipelineByAppIdEnvId(w, appId, envId)
+		cdPipeline, err := handler.k8sApplicationService.GetPipelineByAppIdEnvId(appId, envId)
+		if err != nil {
+			handler.logger.Errorw("error in fetching pipelines by app id and env id", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest) //confirm this
+			return
+		}
 		if request.DeploymentType == bean2.HelmInstalledType {
 			//TODO Implement ResourceRequest Validation for Helm Installed Devtron APPs
 			request.AppIdentifier = &bean3.AppIdentifier{
@@ -655,20 +665,22 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return
 			}
-			deploymentAppName := fmt.Sprintf("%s-%s", installedApp.AppName, installedApp.EnvironmentName)
-			valid, err := handler.k8sApplicationService.ValidateResourceRequestForArgoInstalledType(r.Context(), cn, request.K8sRequest, installedApp.AppId, installedApp.EnvironmentId, request.ClusterId, request.AppIdentifier.Namespace, deploymentAppName)
-			if err != nil {
-				handler.logger.Errorw("error in validating resource request", "err", err)
-				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-				return
-			}
-			if !valid {
-				apiError := utils.ApiError{
-					InternalMessage: fmt.Sprintf("resource %s: \"%s\" doesn't exist", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, request.K8sRequest.ResourceIdentifier.Name),
-					UserMessage:     fmt.Sprintf("resource %s: \"%s\" doesn't exist", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, request.K8sRequest.ResourceIdentifier.Name),
+			if installedApp != nil {
+				deploymentAppName := fmt.Sprintf("%s-%s", installedApp.AppName, installedApp.EnvironmentName)
+				valid, err := handler.k8sApplicationService.ValidateResourceRequestForArgoInstalledType(r.Context(), cn, request.K8sRequest, installedApp.AppId, installedApp.EnvironmentId, request.ClusterId, request.AppIdentifier.Namespace, deploymentAppName)
+				if err != nil {
+					handler.logger.Errorw("error in validating resource request", "err", err)
+					common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+					return
 				}
-				common.WriteJsonResp(w, &apiError, nil, http.StatusBadRequest)
-				return
+				if !valid {
+					apiError := utils.ApiError{
+						InternalMessage: fmt.Sprintf("resource %s: \"%s\" doesn't exist", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, request.K8sRequest.ResourceIdentifier.Name),
+						UserMessage:     fmt.Sprintf("resource %s: \"%s\" doesn't exist", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, request.K8sRequest.ResourceIdentifier.Name),
+					}
+					common.WriteJsonResp(w, &apiError, nil, http.StatusBadRequest)
+					return
+				}
 			}
 		}
 		// RBAC enforcer applying for Helm App
@@ -694,7 +706,12 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 		request.ClusterId = request.DevtronAppIdentifier.ClusterId
 		appId := request.DevtronAppIdentifier.AppId
 		envId := request.DevtronAppIdentifier.EnvId
-		cdPipeline := handler.getPipelineByAppIdEnvId(w, appId, envId)
+		cdPipeline, err := handler.k8sApplicationService.GetPipelineByAppIdEnvId(appId, envId)
+		if err != nil {
+			handler.logger.Errorw("error in fetching pipelines by app id and env id", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest) //confirm this
+			return
+		}
 		if request.DeploymentType == bean2.HelmInstalledType {
 			//TODO Implement ResourceRequest Validation for Helm Installed Devtron APPs
 			request.AppIdentifier = &bean3.AppIdentifier{
@@ -818,20 +835,22 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return
 			}
-			deploymentAppName := fmt.Sprintf("%s-%s", installedApp.AppName, installedApp.EnvironmentName)
-			valid, err := handler.k8sApplicationService.ValidateResourceRequestForArgoInstalledType(r.Context(), cn, request.K8sRequest, installedApp.AppId, installedApp.EnvironmentId, request.ClusterId, request.AppIdentifier.Namespace, deploymentAppName)
-			if err != nil {
-				handler.logger.Errorw("error in validating resource request", "err", err)
-				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-				return
-			}
-			if !valid {
-				apiError := utils.ApiError{
-					InternalMessage: fmt.Sprintf("resource %s: \"%s\" doesn't exist", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, request.K8sRequest.ResourceIdentifier.Name),
-					UserMessage:     fmt.Sprintf("resource %s: \"%s\" doesn't exist", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, request.K8sRequest.ResourceIdentifier.Name),
+			if installedApp != nil {
+				deploymentAppName := fmt.Sprintf("%s-%s", installedApp.AppName, installedApp.EnvironmentName)
+				valid, err := handler.k8sApplicationService.ValidateResourceRequestForArgoInstalledType(r.Context(), cn, request.K8sRequest, installedApp.AppId, installedApp.EnvironmentId, request.ClusterId, request.AppIdentifier.Namespace, deploymentAppName)
+				if err != nil {
+					handler.logger.Errorw("error in validating resource request", "err", err)
+					common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+					return
 				}
-				common.WriteJsonResp(w, &apiError, nil, http.StatusBadRequest)
-				return
+				if !valid {
+					apiError := utils.ApiError{
+						InternalMessage: fmt.Sprintf("resource %s: \"%s\" doesn't exist", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, request.K8sRequest.ResourceIdentifier.Name),
+						UserMessage:     fmt.Sprintf("resource %s: \"%s\" doesn't exist", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, request.K8sRequest.ResourceIdentifier.Name),
+					}
+					common.WriteJsonResp(w, &apiError, nil, http.StatusBadRequest)
+					return
+				}
 			}
 		}
 		// RBAC enforcer applying for Helm App
@@ -855,7 +874,12 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 		request.ClusterId = request.DevtronAppIdentifier.ClusterId
 		appId := request.DevtronAppIdentifier.AppId
 		envId := request.DevtronAppIdentifier.EnvId
-		cdPipeline := handler.getPipelineByAppIdEnvId(w, appId, envId)
+		cdPipeline, err := handler.k8sApplicationService.GetPipelineByAppIdEnvId(appId, envId)
+		if err != nil {
+			handler.logger.Errorw("error in fetching pipelines by app id and env id", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest) //confirm this
+			return
+		}
 		if request.DeploymentType == bean2.HelmInstalledType {
 			//TODO Implement ResourceRequest Validation for Helm Installed Devtron APPs
 			request.AppIdentifier = &bean3.AppIdentifier{
@@ -1076,20 +1100,22 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return false
 			}
-			deploymentAppName := fmt.Sprintf("%s-%s", installedApp.AppName, installedApp.EnvironmentName)
-			valid, err := handler.k8sApplicationService.ValidateResourceRequestForArgoInstalledType(r.Context(), cn, request.K8sRequest, installedApp.AppId, installedApp.EnvironmentId, request.ClusterId, request.AppIdentifier.Namespace, deploymentAppName)
-			if err != nil {
-				handler.logger.Errorw("error in validating resource request", "err", err)
-				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-				return false
-			}
-			if !valid {
-				apiError := utils.ApiError{
-					InternalMessage: fmt.Sprintf("resource %s: \"%s\" doesn't exist", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, request.K8sRequest.ResourceIdentifier.Name),
-					UserMessage:     fmt.Sprintf("resource %s: \"%s\" doesn't exist", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, request.K8sRequest.ResourceIdentifier.Name),
+			if installedApp != nil {
+				deploymentAppName := fmt.Sprintf("%s-%s", installedApp.AppName, installedApp.EnvironmentName)
+				valid, err := handler.k8sApplicationService.ValidateResourceRequestForArgoInstalledType(r.Context(), cn, request.K8sRequest, installedApp.AppId, installedApp.EnvironmentId, request.ClusterId, request.AppIdentifier.Namespace, deploymentAppName)
+				if err != nil {
+					handler.logger.Errorw("error in validating resource request", "err", err)
+					common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+					return false
 				}
-				common.WriteJsonResp(w, &apiError, nil, http.StatusBadRequest)
-				return false
+				if !valid {
+					apiError := utils.ApiError{
+						InternalMessage: fmt.Sprintf("resource %s: \"%s\" doesn't exist", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, request.K8sRequest.ResourceIdentifier.Name),
+						UserMessage:     fmt.Sprintf("resource %s: \"%s\" doesn't exist", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, request.K8sRequest.ResourceIdentifier.Name),
+					}
+					common.WriteJsonResp(w, &apiError, nil, http.StatusBadRequest)
+					return false
+				}
 			}
 		}
 		// RBAC enforcer applying for Helm App
@@ -1104,7 +1130,12 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 	} else if request.DevtronAppIdentifier != nil {
 		appId := request.DevtronAppIdentifier.AppId
 		envId := request.DevtronAppIdentifier.EnvId
-		cdPipeline := handler.getPipelineByAppIdEnvId(w, appId, envId)
+		cdPipeline, err := handler.k8sApplicationService.GetPipelineByAppIdEnvId(appId, envId)
+		if err != nil {
+			handler.logger.Errorw("error in fetching pipelines by app id and env id", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest) //confirm this
+			return false
+		}
 
 		if request.DeploymentType == bean2.HelmInstalledType {
 			//TODO Implement ResourceRequest Validation for Helm Installed Devtron APPs
@@ -1165,28 +1196,7 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 	}
 	return true
 }
-func (handler *K8sApplicationRestHandlerImpl) getPipelineByAppIdEnvId(w http.ResponseWriter, appId int, envId int) *pipelineConfig.Pipeline {
-	pipelines, err := handler.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
-	if err == pg.ErrNoRows {
-		common.WriteJsonResp(w, err, "pipeline Not found in database", http.StatusNotFound)
-		return &pipelineConfig.Pipeline{}
-	}
-	if err != nil {
-		handler.logger.Errorw("error in fetching pipelines from db", "appId", appId, "envId", envId)
-		common.WriteJsonResp(w, err, "error in fetching pipeline from database", http.StatusInternalServerError)
-		return &pipelineConfig.Pipeline{}
-	}
-	if len(pipelines) == 0 {
-		common.WriteJsonResp(w, fmt.Errorf("app deleted"), nil, http.StatusNotFound)
-		return &pipelineConfig.Pipeline{}
-	}
-	if len(pipelines) != 1 {
-		common.WriteJsonResp(w, err, "multiple pipelines found for an envId", http.StatusBadRequest)
-		return &pipelineConfig.Pipeline{}
-	}
-	cdPipeline := pipelines[0]
-	return cdPipeline
-}
+
 func (handler *K8sApplicationRestHandlerImpl) restrictTerminalAccessForNonSuperUsers(w http.ResponseWriter, token string) bool {
 	// if RESTRICT_TERMINAL_ACCESS_FOR_NON_SUPER_USER is set to true, only super admins can access terminal/ephemeral containers
 	if handler.terminalEnvVariables.RestrictTerminalAccessForNonSuperUser {

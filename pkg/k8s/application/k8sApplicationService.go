@@ -28,9 +28,11 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/util/argo"
+	"github.com/go-pg/pg"
 	"io"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"net/http"
@@ -90,6 +92,7 @@ type K8sApplicationService interface {
 	RecreateResource(ctx context.Context, request *k8s.ResourceRequestBean) (*k8s2.ManifestResponse, error)
 	DeleteResourceWithAudit(ctx context.Context, request *k8s.ResourceRequestBean, userId int32) (*k8s2.ManifestResponse, error)
 	GetUrlsByBatchForIngress(ctx context.Context, resp []k8s.BatchResourceResponse) []interface{}
+	GetPipelineByAppIdEnvId(appId int, envId int) (*pipelineConfig.Pipeline, error)
 	ValidateResourceRequestForArgoInstalledType(rctx context.Context, cn http.CloseNotifier, request *k8s2.K8sRequestBean, appId int, envId int, clusterId int, namespace string, deploymentAppName string) (bool, error)
 }
 
@@ -109,6 +112,7 @@ type K8sApplicationServiceImpl struct {
 	argoApplicationService       argoApplication.ArgoApplicationService
 	argoUserService              argo.ArgoUserService
 	acdClient                    application2.ServiceClient
+	pipelineRepository           pipelineConfig.PipelineRepository
 }
 
 func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, pump connector.Pump, helmAppService client.HelmAppService, K8sUtil *k8s2.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
@@ -116,7 +120,7 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService clus
 	ephemeralContainerService cluster.EphemeralContainerService,
 	ephemeralContainerRepository repository.EphemeralContainersRepository,
 	argoApplicationService argoApplication.ArgoApplicationService, argoUserService argo.ArgoUserService,
-	acdClient application2.ServiceClient) (*K8sApplicationServiceImpl, error) {
+	acdClient application2.ServiceClient, pipelineRepository pipelineConfig.PipelineRepository) (*K8sApplicationServiceImpl, error) {
 	ephemeralContainerConfig := &EphemeralContainerConfig{}
 	err := env.Parse(ephemeralContainerConfig)
 	if err != nil {
@@ -139,6 +143,7 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService clus
 		argoApplicationService:       argoApplicationService,
 		argoUserService:              argoUserService,
 		acdClient:                    acdClient,
+		pipelineRepository:           pipelineRepository,
 	}, nil
 }
 
@@ -146,6 +151,23 @@ type EphemeralContainerConfig struct {
 	EphemeralServerVersionRegex string `env:"EPHEMERAL_SERVER_VERSION_REGEX" envDefault:"v[1-9]\\.\\b(2[3-9]|[3-9][0-9])\\b.*"`
 }
 
+func (handler *K8sApplicationServiceImpl) GetPipelineByAppIdEnvId(appId int, envId int) (*pipelineConfig.Pipeline, error) {
+	pipelines, err := handler.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
+	if err == pg.ErrNoRows {
+		return &pipelineConfig.Pipeline{}, errors.New("pipeline Not found in database")
+	}
+	if err != nil {
+		return &pipelineConfig.Pipeline{}, errors.New("error in fetching pipeline from database")
+	}
+	if len(pipelines) == 0 {
+		return &pipelineConfig.Pipeline{}, errors.New("pipeline not found in database")
+	}
+	if len(pipelines) != 1 {
+		return &pipelineConfig.Pipeline{}, errors.New("multiple pipelines found for an envId")
+	}
+	cdPipeline := pipelines[0]
+	return cdPipeline, nil
+}
 func (impl *K8sApplicationServiceImpl) ValidateResourceRequestForArgoInstalledType(rctx context.Context, cn http.CloseNotifier, request *k8s2.K8sRequestBean, appId int, envId int, clusterId int, namespace string, deploymentAppName string) (bool, error) {
 	query := application.ResourcesQuery{
 		ApplicationName: &deploymentAppName,
