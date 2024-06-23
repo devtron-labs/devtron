@@ -269,9 +269,11 @@ type GlobalPluginRepository interface {
 	GetPluginStageMappingByPluginId(pluginId int) (*PluginStageMapping, error)
 	GetConnection() (dbConnection *pg.DB)
 	GetPluginVersionsMetadataByParentPluginId(parentPluginId int) ([]*PluginMetadata, error)
+	GetMetaDataForAllPluginsVersionsByIds(ids []int) ([]*PluginMetadata, error)
 
 	GetPluginParentMetadataByIdentifier(pluginIdentifier string) (*PluginParentMetadata, error)
 	GetAllPluginParentMetadata(filter *plugin.PluginsListFilter) ([]*PluginParentMetadata, error)
+	GetPluginParentMetadataByIds(ids []int) ([]*PluginParentMetadata, error)
 
 	SavePluginMetadata(pluginMetadata *PluginMetadata, tx *pg.Tx) (*PluginMetadata, error)
 	SavePluginStageMapping(pluginStageMapping *PluginStageMapping, tx *pg.Tx) (*PluginStageMapping, error)
@@ -740,6 +742,19 @@ func (impl *GlobalPluginRepositoryImpl) GetAllPluginParentMetadata(filter *plugi
 	return plugins, nil
 }
 
+func (impl *GlobalPluginRepositoryImpl) GetPluginParentMetadataByIds(ids []int) ([]*PluginParentMetadata, error) {
+	var plugins []*PluginParentMetadata
+	err := impl.dbConnection.Model(&plugins).
+		Where("id in (?)", pg.In(ids)).
+		Where("deleted = ?", false).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting pluginParentMetadata by ids", "ids", ids, "err", err)
+		return nil, err
+	}
+	return plugins, nil
+}
+
 func (impl *GlobalPluginRepositoryImpl) GetPluginVersionsMetadataByParentPluginId(parentPluginId int) ([]*PluginMetadata, error) {
 	var pluginVersions []*PluginMetadata
 	err := impl.dbConnection.Model(&pluginVersions).
@@ -748,6 +763,19 @@ func (impl *GlobalPluginRepositoryImpl) GetPluginVersionsMetadataByParentPluginI
 		Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting pluginVersionsMetadata by parentPluginId", "parentPluginId", parentPluginId, "err", err)
+		return nil, err
+	}
+	return pluginVersions, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetMetaDataForAllPluginsVersionsByIds(ids []int) ([]*PluginMetadata, error) {
+	var pluginVersions []*PluginMetadata
+	err := impl.dbConnection.Model(&pluginVersions).
+		Where("id in (?)", pg.In(ids)).
+		Where("deleted = ?", false).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting plugin versions metadata by ids", "ids", ids, "err", err)
 		return nil, err
 	}
 	return pluginVersions, nil

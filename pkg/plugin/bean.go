@@ -68,7 +68,7 @@ func NewPluginsDto() *PluginsDto {
 	return &PluginsDto{}
 }
 
-func (r *PluginsDto) WithPluginsDto(parentPlugins []*PluginParentMetadataDto) *PluginsDto {
+func (r *PluginsDto) WithParentPlugins(parentPlugins []*PluginParentMetadataDto) *PluginsDto {
 	r.ParentPlugins = parentPlugins
 	return r
 }
@@ -155,8 +155,8 @@ func NewPluginsVersionDetail() *PluginsVersionDetail {
 	return &PluginsVersionDetail{}
 }
 
-// SetPluginsVersionDetailForNonLatestVersions sets and return PluginsVersionDetail obj, returns lightweight obj e.g. excluding input and output variables
-func (r *PluginsVersionDetail) SetPluginsVersionDetailForNonLatestVersions(pluginVersionMetadata *repository.PluginMetadata) *PluginsVersionDetail {
+// SetMinimalPluginsVersionDetail sets and return PluginsVersionDetail obj, returns lightweight obj e.g. excluding input and output variables
+func (r *PluginsVersionDetail) SetMinimalPluginsVersionDetail(pluginVersionMetadata *repository.PluginMetadata) *PluginsVersionDetail {
 	r.Id = pluginVersionMetadata.Id
 	r.Name = pluginVersionMetadata.Name
 	r.Description = pluginVersionMetadata.Description

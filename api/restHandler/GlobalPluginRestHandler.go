@@ -327,6 +327,50 @@ func (handler *GlobalPluginRestHandlerImpl) ListAllPluginsV2(w http.ResponseWrit
 }
 
 func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailByIds(w http.ResponseWriter, r *http.Request) {
-	//capture query parameter as list of plugin ids
+	token := r.Header.Get("token")
+	appIdQueryParam := r.URL.Query().Get("appId")
+	appId, err := strconv.Atoi(appIdQueryParam)
+	if appIdQueryParam == "" || err != nil {
+		common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
+		return
+	}
+	pluginIds, err := common.ExtractIntArrayQueryParam(w, r, "pluginId")
+	if err != nil {
+		common.WriteJsonResp(w, err, "invalid pluginId value", http.StatusBadRequest)
+		return
+	}
+	parentPluginIds, err := common.ExtractIntArrayQueryParam(w, r, "parentPluginId")
+	if err != nil {
+		common.WriteJsonResp(w, err, "invalid parentPluginId value", http.StatusBadRequest)
+		return
+	}
+	isLatest, err := common.ExtractBoolQueryParam(w, r, "isLatest")
+	if err != nil {
+		common.WriteJsonResp(w, err, "invalid isLatest value", http.StatusBadRequest)
+		return
+	}
+	app, err := handler.pipelineBuilder.GetApp(appId)
+	if err != nil {
+		handler.logger.Infow("service error, GetPluginDetailById", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//using appId for rbac in plugin(global resource), because this data must be visible to person having create permission
+	//on atleast one app & we can't check this without iterating through every app
+	//TODO: update plugin as a resource in casbin and make rbac independent of appId
+	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionCreate)
+	if !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	pluginDetail, err := handler.globalPluginService.GetPluginDetailV2(pluginIds, parentPluginIds, isLatest)
+	if err != nil {
+		handler.logger.Errorw("error in getting plugin detail", "pluginIds", pluginIds, "parentPluginIds", parentPluginIds, "isLatest", isLatest, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, pluginDetail, http.StatusOK)
 
 }

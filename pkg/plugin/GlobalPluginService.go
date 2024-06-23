@@ -20,8 +20,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
-	repository3 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -68,15 +68,16 @@ type GlobalPluginService interface {
 	GetAllDetailedPluginInfo() ([]*PluginMetadataDto, error)
 
 	ListAllPluginsV2(filter *PluginsListFilter) (*PluginsDto, error)
+	GetPluginDetailV2(pluginVersionIds, parentPluginIds []int, isLatest bool) (*PluginsDto, error)
 }
 
 func NewGlobalPluginService(logger *zap.SugaredLogger, globalPluginRepository repository.GlobalPluginRepository,
-	pipelineStageRepository repository2.PipelineStageRepository, userRepository repository3.UserRepository) *GlobalPluginServiceImpl {
+	pipelineStageRepository repository2.PipelineStageRepository, userService user.UserService) *GlobalPluginServiceImpl {
 	return &GlobalPluginServiceImpl{
 		logger:                  logger,
 		globalPluginRepository:  globalPluginRepository,
 		pipelineStageRepository: pipelineStageRepository,
-		userRepository:          userRepository,
+		userService:             userService,
 	}
 }
 
@@ -84,7 +85,7 @@ type GlobalPluginServiceImpl struct {
 	logger                  *zap.SugaredLogger
 	globalPluginRepository  repository.GlobalPluginRepository
 	pipelineStageRepository repository2.PipelineStageRepository
-	userRepository          repository3.UserRepository
+	userService             user.UserService
 }
 
 func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables(appType helper.AppType) ([]*GlobalVariable, error) {
@@ -1690,12 +1691,13 @@ func (impl *GlobalPluginServiceImpl) ListAllPluginsV2(filter *PluginsListFilter)
 		pluginParentMetadataDtos = append(pluginParentMetadataDtos, pluginParentDto)
 	}
 
-	pluginDetails := NewPluginsDto().WithPluginsDto(pluginParentMetadataDtos).WithTotalCount(len(pluginParentMetadataDtos))
+	pluginDetails := NewPluginsDto().WithParentPlugins(pluginParentMetadataDtos).WithTotalCount(len(pluginParentMetadataDtos))
 
 	return pluginDetails, nil
 }
 
-// GetPluginParentDto populates PluginParentMetadataDto with all metadata and returns the same with error if any
+// GetPluginParentDto populates PluginParentMetadataDto with all metadata(if a version is not latest then ignores populating heavy
+// objects such as input and output variables in the dto) and returns the same with error if any.
 func (impl *GlobalPluginServiceImpl) GetPluginParentDto(pluginParentMetadata *repository.PluginParentMetadata) (*PluginParentMetadataDto, error) {
 	pluginParentDto := NewPluginParentMetadataDto()
 	pluginParentDto.WithName(pluginParentMetadata.Name).
@@ -1715,16 +1717,14 @@ func (impl *GlobalPluginServiceImpl) GetPluginParentDto(pluginParentMetadata *re
 	pluginVersion := NewPluginVersions()
 
 	for _, pluginVersionMetadata := range pluginVersionsMetadata {
-		lastUpdatedEmail, err := impl.userRepository.GetEmailByIds([]int32{pluginVersionMetadata.UpdatedBy})
+		lastUpdatedEmail, err := impl.userService.GetEmailById(pluginVersionMetadata.UpdatedBy)
 		if err != nil {
 			impl.logger.Errorw("error in fetching email by plugin version's last updated by", "pluginVersionMetadataId", pluginVersionMetadata.Id, "err", err)
 			// not returning from here as this functionality is not core to the plugin ecosystem
 		}
 		pluginVersionDetails := NewPluginsVersionDetail()
-		pluginVersionDetails.SetPluginsVersionDetailForNonLatestVersions(pluginVersionMetadata)
-		if lastUpdatedEmail != nil && len(lastUpdatedEmail) > 0 {
-			pluginVersionDetails.WithLastUpdatedEmail(lastUpdatedEmail[0])
-		}
+		pluginVersionDetails.SetMinimalPluginsVersionDetail(pluginVersionMetadata)
+		pluginVersionDetails.WithLastUpdatedEmail(lastUpdatedEmail)
 		if pluginVersionMetadata.IsLatest {
 
 			//fetch input and output variables mappings
@@ -1757,6 +1757,66 @@ func (impl *GlobalPluginServiceImpl) GetPluginParentDto(pluginParentMetadata *re
 			minimalPluginVersionsMetadataDtos = append(minimalPluginVersionsMetadataDtos, pluginVersionDetails)
 		}
 		pluginVersion.WithDetailedPluginVersionData(detailedPluginVersionsMetadataDtos).WithMinimalPluginVersionData(minimalPluginVersionsMetadataDtos)
+	}
+	pluginParentDto.WithVersions(pluginVersion)
+	return pluginParentDto, nil
+}
+
+// GetDetailedPluginParentDtoForAllVersions populates PluginParentMetadataDto with all metadata for all versions and returns the same with error if any
+func (impl *GlobalPluginServiceImpl) GetDetailedPluginParentDtoForAllVersions(pluginParentMetadata *repository.PluginParentMetadata) (*PluginParentMetadataDto, error) {
+	pluginParentDto := NewPluginParentMetadataDto()
+	pluginParentDto.WithName(pluginParentMetadata.Name).
+		WithIcon(pluginParentMetadata.Icon).
+		WithDescription(pluginParentMetadata.Description).
+		WithPluginIdentifier(pluginParentMetadata.Identifier).
+		WithType(string(pluginParentMetadata.Type))
+	//get all versions of a plugin
+	pluginVersionsMetadata, err := impl.globalPluginRepository.GetPluginVersionsMetadataByParentPluginId(pluginParentMetadata.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting all plugin versions metadata by parent plugin id", "err", err)
+		return nil, err
+	}
+
+	detailedPluginVersionsMetadataDtos := make([]*PluginsVersionDetail, 0) //contains detailed plugin version data
+	pluginVersion := NewPluginVersions()
+
+	for _, pluginVersionMetadata := range pluginVersionsMetadata {
+		lastUpdatedEmail, err := impl.userService.GetEmailById(pluginVersionMetadata.UpdatedBy)
+		if err != nil {
+			impl.logger.Errorw("error in fetching email by plugin version's last updated by", "pluginVersionMetadataId", pluginVersionMetadata.Id, "err", err)
+			// not returning from here as this functionality is not core to the plugin ecosystem
+		}
+		pluginVersionDetails := NewPluginsVersionDetail()
+		pluginVersionDetails.SetMinimalPluginsVersionDetail(pluginVersionMetadata)
+		pluginVersionDetails.WithLastUpdatedEmail(lastUpdatedEmail)
+
+		//fetch input and output variables mappings
+		pluginIdInputVariablesMap, pluginIdOutputVariablesMap, err := impl.getPluginIdVariablesMap()
+		if err != nil {
+			impl.logger.Errorw("error, getPluginIdVariablesMap", "err", err)
+			return nil, err
+		}
+		inputVariables, ok := pluginIdInputVariablesMap[pluginVersionMetadata.Id]
+		if ok {
+			pluginVersionDetails.WithInputVariables(inputVariables)
+		}
+		outputVariables, ok := pluginIdOutputVariablesMap[pluginVersionMetadata.Id]
+		if ok {
+			pluginVersionDetails.WithOutputVariables(outputVariables)
+		}
+		//fetch tags mappings
+		pluginIdTagsMap, err := impl.getPluginIdTagsMap()
+		if err != nil {
+			impl.logger.Errorw("error, getPluginIdTagsMap", "err", err)
+			return nil, err
+		}
+		tags, ok := pluginIdTagsMap[pluginVersionMetadata.Id]
+		if ok {
+			pluginVersionDetails.WithTags(tags)
+		}
+
+		detailedPluginVersionsMetadataDtos = append(detailedPluginVersionsMetadataDtos, pluginVersionDetails)
+		pluginVersion.WithDetailedPluginVersionData(detailedPluginVersionsMetadataDtos)
 	}
 	pluginParentDto.WithVersions(pluginVersion)
 	return pluginParentDto, nil
@@ -1821,4 +1881,92 @@ func (impl *GlobalPluginServiceImpl) MigratePluginDataToParentPluginMetadata(plu
 		return err
 	}
 	return nil
+}
+
+/*
+GetPluginDetailV2
+if len(pluginIds)>0, this returns all the details of all the plugin versions provided
+if len(parentPluginIds)>0 && isLatest=false, this returns all the details of all the versions in a plugin.
+if len(parentPluginIds)>0 && isLatest=true, this returns all the details of the latest version of a plugin only and minimal data for all the non-latest versions.
+*/
+func (impl *GlobalPluginServiceImpl) GetPluginDetailV2(pluginVersionIds, parentPluginIds []int, isLatest bool) (*PluginsDto, error) {
+	pluginParentMetadataDtos := make([]*PluginParentMetadataDto, 0)
+	var err error
+	var totalPluginCount int
+	if len(pluginVersionIds) > 0 {
+		totalPluginCount = len(pluginVersionIds)
+
+		pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPluginsVersionsByIds(pluginVersionIds)
+		if err != nil {
+			impl.logger.Errorw("error in getting all plugin versions metadata by ids", "err", err)
+			return nil, err
+		}
+		pluginParentMetadataIds := make([]int, 0, len(pluginVersionsMetadata))
+		for _, version := range pluginVersionsMetadata {
+			pluginParentMetadataIds = append(pluginParentMetadataIds, version.PluginParentMetadataId)
+		}
+		pluginParentMetadataDtos, err = impl.GetDetailedPluginParentDtosForIds(pluginParentMetadataIds)
+		if err != nil {
+			impl.logger.Errorw("error in getting all plugin parent metadata dtos by pluginParentMetadata ids", "pluginParentMetadataIds", pluginParentMetadataIds, "err", err)
+			return nil, err
+		}
+	} else if len(parentPluginIds) > 0 {
+		totalPluginCount = len(parentPluginIds)
+		if isLatest {
+			pluginParentMetadataDtos, err = impl.GetMinimalPluginParentDtosForIds(parentPluginIds)
+			if err != nil {
+				impl.logger.Errorw("error in getting minimal plugin parent metadata dtos by pluginParentMetadata ids", "pluginParentMetadataIds", parentPluginIds, "err", err)
+				return nil, err
+			}
+		} else {
+			pluginParentMetadataDtos, err = impl.GetDetailedPluginParentDtosForIds(parentPluginIds)
+			if err != nil {
+				impl.logger.Errorw("error in getting detailed plugin parent metadata dtos by pluginParentMetadata ids", "pluginParentMetadataIds", parentPluginIds, "err", err)
+				return nil, err
+			}
+		}
+	}
+
+	pluginsDto := NewPluginsDto().WithParentPlugins(pluginParentMetadataDtos).WithTotalCount(totalPluginCount)
+	return pluginsDto, nil
+}
+
+// GetMinimalPluginParentDtosForIds fetches PluginParentMetadata db object for all ids provided and provides a light weight PluginParentMetadataDto object,
+// with minimal info about version unless it's latest version of a plugin for all plugin with id present in ids parameter of this func.
+func (impl *GlobalPluginServiceImpl) GetMinimalPluginParentDtosForIds(ids []int) ([]*PluginParentMetadataDto, error) {
+	pluginParentMetadataDtos := make([]*PluginParentMetadataDto, 0)
+	pluginParentDetails, err := impl.globalPluginRepository.GetPluginParentMetadataByIds(ids)
+	if err != nil {
+		impl.logger.Errorw("error in getting all plugin parent metadata by ids", "err", err)
+		return nil, err
+	}
+	for _, pluginParent := range pluginParentDetails {
+		pluginParentDto, err := impl.GetPluginParentDto(pluginParent)
+		if err != nil {
+			impl.logger.Errorw("error in getting detailed plugin parent metadata dto for all versions", "pluginParentMetadataId", pluginParent.Id, "err", err)
+			return nil, err
+		}
+		pluginParentMetadataDtos = append(pluginParentMetadataDtos, pluginParentDto)
+	}
+	return pluginParentMetadataDtos, nil
+}
+
+// GetDetailedPluginParentDtosForIds fetches PluginParentMetadata db object for all ids provided and provides a complete PluginParentMetadataDto object with
+// detailed information about all versions of all plugins with id present in ids parameter.
+func (impl *GlobalPluginServiceImpl) GetDetailedPluginParentDtosForIds(ids []int) ([]*PluginParentMetadataDto, error) {
+	pluginParentMetadataDtos := make([]*PluginParentMetadataDto, 0)
+	pluginParentDetails, err := impl.globalPluginRepository.GetPluginParentMetadataByIds(ids)
+	if err != nil {
+		impl.logger.Errorw("error in getting all plugin parent metadata by ids", "err", err)
+		return nil, err
+	}
+	for _, pluginParent := range pluginParentDetails {
+		pluginParentDto, err := impl.GetDetailedPluginParentDtoForAllVersions(pluginParent)
+		if err != nil {
+			impl.logger.Errorw("error in getting detailed plugin parent metadata dto for all versions", "pluginParentMetadataId", pluginParent.Id, "err", err)
+			return nil, err
+		}
+		pluginParentMetadataDtos = append(pluginParentMetadataDtos, pluginParentDto)
+	}
+	return pluginParentMetadataDtos, nil
 }

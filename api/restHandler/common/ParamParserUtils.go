@@ -77,3 +77,10 @@ func ExtractIntArrayQueryParam(w http.ResponseWriter, r *http.Request, paramName
 	paramIntValues, err := convertToIntArray(w, paramValue)
 	return paramIntValues, err
 }
+
+func ExtractBoolQueryParam(w http.ResponseWriter, r *http.Request, paramName string) (bool, error) {
+	queryParams := r.URL.Query()
+	paramValue := queryParams.Get(paramName)
+	boolValue, err := strconv.ParseBool(paramValue)
+	return boolValue, err
+}
