@@ -101,10 +101,11 @@ func (impl *InstalledAppResourceServiceImpl) findNotesForArgoApplication(install
 			ValuesYaml:   installedAppVerison.ValuesYaml,
 			K8SVersion:   k8sServerVersion.String(),
 			ChartRepository: &gRPC.ChartRepository{
-				Name:     appStoreAppVersion.AppStore.ChartRepo.Name,
-				Url:      appStoreAppVersion.AppStore.ChartRepo.Url,
-				Username: appStoreAppVersion.AppStore.ChartRepo.UserName,
-				Password: appStoreAppVersion.AppStore.ChartRepo.Password,
+				Name:                    appStoreAppVersion.AppStore.ChartRepo.Name,
+				Url:                     appStoreAppVersion.AppStore.ChartRepo.Url,
+				Username:                appStoreAppVersion.AppStore.ChartRepo.UserName,
+				Password:                appStoreAppVersion.AppStore.ChartRepo.Password,
+				AllowInsecureConnection: appStoreAppVersion.AppStore.ChartRepo.AllowInsecureConnection,
 			},
 			ReleaseIdentifier: &gRPC.ReleaseIdentifier{
 				ReleaseNamespace: installedAppVerison.InstalledApp.Environment.Namespace,

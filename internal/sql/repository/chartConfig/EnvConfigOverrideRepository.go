@@ -55,7 +55,7 @@ type EnvConfigOverrideRepository interface {
 	Save(*EnvConfigOverride) error
 	GetByChartAndEnvironment(chartId, targetEnvironmentId int) (*EnvConfigOverride, error)
 	ActiveEnvConfigOverride(appId, environmentId int) (*EnvConfigOverride, error) //successful env config
-	Get(id int) (*EnvConfigOverride, error)
+	GetByIdIncludingInactive(id int) (*EnvConfigOverride, error)
 	//this api updates only EnvOverrideValues, EnvMergedValues, Status, ManualReviewed, active based on id
 	UpdateProperties(config *EnvConfigOverride) error
 	GetByEnvironment(targetEnvironmentId int) ([]EnvConfigOverride, error)
@@ -187,12 +187,12 @@ func (r EnvConfigOverrideRepositoryImpl) GetByChartAndEnvironment(chartId, targe
 	return eco, err
 }
 
-func (r EnvConfigOverrideRepositoryImpl) Get(id int) (*EnvConfigOverride, error) {
+func (r EnvConfigOverrideRepositoryImpl) GetByIdIncludingInactive(id int) (*EnvConfigOverride, error) {
 	eco := &EnvConfigOverride{}
 	err := r.dbConnection.
 		Model(eco).
-		Where("env_config_override.id = ?", id).
 		Column("env_config_override.*", "Chart").
+		Where("env_config_override.id = ?", id).
 		Select()
 	return eco, err
 }

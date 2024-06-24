@@ -26,13 +26,21 @@ const (
 	WorkflowSucceeded = "Succeeded"
 )
 
-func IsTerminalStatus(status string) bool {
+func IsTerminalRunnerStatus(status string) bool {
 	switch status {
 	case
 		string(health.HealthStatusHealthy),
 		WorkflowAborted,
 		WorkflowFailed,
 		WorkflowSucceeded:
+		return true
+	}
+	return false
+}
+
+func IsRunnerStatusFailed(status string) bool {
+	switch status {
+	case WorkflowFailed:
 		return true
 	}
 	return false
