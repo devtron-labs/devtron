@@ -32,6 +32,7 @@ if [ "$MountAs" == "volume" ]; then
     fi
     if [ ! $FilePermission ]; then
         echo "File permissions not provided, using the default: 0644"
+        FilePermission="0644"
     fi
     if [ ! "$FileNameToBeMounted" ]; then
         echo "FileNameToBeMounted is empty, taking same as FileName"
@@ -46,10 +47,8 @@ if [ "$ResourceType" == "cm" ]; then
         echo "Error: No such file named $FileName found or the file is empty...."
         exit 1
     fi
-    # app_id=$(echo "$CI_CD_EVENT" | jq ".commonWorkflowRequest.appId")
-    # env_id=$(echo "$CI_CD_EVENT" | jq ".commonWorkflowRequest.Env.Id")
-    app_id=1
-    env_id=1
+    app_id=$(echo "$CI_CD_EVENT" | jq ".commonWorkflowRequest.appId")
+    env_id=$(echo "$CI_CD_EVENT" | jq ".commonWorkflowRequest.Env.Id")
 
     cm_data=$(curl \\
     -s "${DashboardUrl}/orchestrator/config/environment/cm/${app_id}/${env_id}" \\
@@ -284,14 +283,14 @@ INSERT INTO "plugin_step" ("id", "plugin_id","name","description","index","step_
 
 -- Input Variables
 
-INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value", "variable_type", "value_type", "variable_step_index", "deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Config Updater v1.0.0' and ps."index"=1 and ps.deleted=false), 'ResourceType','STRING','Specify the type of resource the file is to be mounted as configMap or COnfigSecret. Options: cm/cs',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
-(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Config Updater v1.0.0' and ps."index"=1 and ps.deleted=false), 'DashboardUrl','STRING','Dashboard url of Devtron for eg. https://previw.devtron.ai',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
-(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Config Updater v1.0.0' and ps."index"=1 and ps.deleted=false), 'DevtronApiToken','STRING','Devtron API token with required permissions.',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
-(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Config Updater v1.0.0' and ps."index"=1 and ps.deleted=false), 'FileName','STRING','Name of the file to be mounted.',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
-(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Config Updater v1.0.0' and ps."index"=1 and ps.deleted=false), 'FileNameToBeMounted','STRING','Name of the file to be mounted as volume. Default is same as FileName',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
-(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Config Updater v1.0.0' and ps."index"=1 and ps.deleted=false), 'path','STRING','Path on which the file is to be mounted.',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
-(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Config Updater v1.0.0' and ps."index"=1 and ps.deleted=false), 'setSubpath','STRING','true or false, true if you want to set subpath. Default is false',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
-(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Config Updater v1.0.0' and ps."index"=1 and ps.deleted=false), 'MountAs','STRING','How do you want to mount this file? Options: volume/environment.',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
-(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Config Updater v1.0.0' and ps."index"=1 and ps.deleted=false), 'ResourceName','STRING','Name of the resource to be created.',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
-(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Config Updater v1.0.0' and ps."index"=1 and ps.deleted=false), 'FilePermission','STRING','Set the permission of the file after mounting as a volume.',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1),
-(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Config Updater v1.0.0' and ps."index"=1 and ps.deleted=false), 'ExecutionScript','STRING','Provide the script to create the config/secret file.',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1);
+INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value", "variable_type", "value_type", "variable_step_index", "deleted", "created_on", "created_by", "updated_on", "updated_by", "default_value") VALUES(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Config Updater v1.0.0' and ps."index"=1 and ps.deleted=false), 'ResourceType','STRING','Specify the type of resource the file is to be mounted as configMap or COnfigSecret. Options: cm/cs',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1, null),
+(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Config Updater v1.0.0' and ps."index"=1 and ps.deleted=false), 'DashboardUrl','STRING','Dashboard url of Devtron for eg. https://previw.devtron.ai',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1,null),
+(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Config Updater v1.0.0' and ps."index"=1 and ps.deleted=false), 'DevtronApiToken','STRING','Devtron API token with required permissions.',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1, null),
+(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Config Updater v1.0.0' and ps."index"=1 and ps.deleted=false), 'FileName','STRING','Name of the file to be mounted.',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1, null),
+(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Config Updater v1.0.0' and ps."index"=1 and ps.deleted=false), 'FileNameToBeMounted','STRING','Name of the file to be mounted as volume. Default is same as FileName',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1, null),
+(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Config Updater v1.0.0' and ps."index"=1 and ps.deleted=false), 'path','STRING','Path on which the file is to be mounted.',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1, null),
+(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Config Updater v1.0.0' and ps."index"=1 and ps.deleted=false), 'setSubpath','STRING','true or false, true if you want to set subpath. Default is false',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1, 'false'),
+(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Config Updater v1.0.0' and ps."index"=1 and ps.deleted=false), 'MountAs','STRING','How do you want to mount this file? Options: volume/environment.',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1, null),
+(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Config Updater v1.0.0' and ps."index"=1 and ps.deleted=false), 'ResourceName','STRING','Name of the resource to be created.',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1, null),
+(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Config Updater v1.0.0' and ps."index"=1 and ps.deleted=false), 'FilePermission','STRING','Set the permission of the file after mounting as a volume.',true,true,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1, null),
+(nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Config Updater v1.0.0' and ps."index"=1 and ps.deleted=false), 'ExecutionScript','STRING','Provide the script to create the config/secret file.',true,false,'INPUT','NEW',1 ,'f','now()', 1, 'now()', 1, null);
