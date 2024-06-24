@@ -1762,65 +1762,65 @@ func (impl *GlobalPluginServiceImpl) GetPluginParentDto(pluginParentMetadata *re
 	return pluginParentDto, nil
 }
 
-// GetDetailedPluginParentDtoForAllVersions populates PluginParentMetadataDto with all metadata for all versions and returns the same with error if any
-func (impl *GlobalPluginServiceImpl) GetDetailedPluginParentDtoForAllVersions(pluginParentMetadata *repository.PluginParentMetadata) (*PluginParentMetadataDto, error) {
-	pluginParentDto := NewPluginParentMetadataDto()
-	pluginParentDto.WithName(pluginParentMetadata.Name).
-		WithIcon(pluginParentMetadata.Icon).
-		WithDescription(pluginParentMetadata.Description).
-		WithPluginIdentifier(pluginParentMetadata.Identifier).
-		WithType(string(pluginParentMetadata.Type))
-	//get all versions of a plugin
-	pluginVersionsMetadata, err := impl.globalPluginRepository.GetPluginVersionsMetadataByParentPluginId(pluginParentMetadata.Id)
-	if err != nil {
-		impl.logger.Errorw("error in getting all plugin versions metadata by parent plugin id", "err", err)
-		return nil, err
-	}
-
-	detailedPluginVersionsMetadataDtos := make([]*PluginsVersionDetail, 0) //contains detailed plugin version data
-	pluginVersion := NewPluginVersions()
-
-	for _, pluginVersionMetadata := range pluginVersionsMetadata {
-		lastUpdatedEmail, err := impl.userService.GetEmailById(pluginVersionMetadata.UpdatedBy)
-		if err != nil {
-			impl.logger.Errorw("error in fetching email by plugin version's last updated by", "pluginVersionMetadataId", pluginVersionMetadata.Id, "err", err)
-			// not returning from here as this functionality is not core to the plugin ecosystem
-		}
-		pluginVersionDetails := NewPluginsVersionDetail()
-		pluginVersionDetails.SetMinimalPluginsVersionDetail(pluginVersionMetadata)
-		pluginVersionDetails.WithLastUpdatedEmail(lastUpdatedEmail)
-
-		//fetch input and output variables mappings
-		pluginIdInputVariablesMap, pluginIdOutputVariablesMap, err := impl.getPluginIdVariablesMap()
-		if err != nil {
-			impl.logger.Errorw("error, getPluginIdVariablesMap", "err", err)
-			return nil, err
-		}
-		inputVariables, ok := pluginIdInputVariablesMap[pluginVersionMetadata.Id]
-		if ok {
-			pluginVersionDetails.WithInputVariables(inputVariables)
-		}
-		outputVariables, ok := pluginIdOutputVariablesMap[pluginVersionMetadata.Id]
-		if ok {
-			pluginVersionDetails.WithOutputVariables(outputVariables)
-		}
-		//fetch tags mappings
-		pluginIdTagsMap, err := impl.getPluginIdTagsMap()
-		if err != nil {
-			impl.logger.Errorw("error, getPluginIdTagsMap", "err", err)
-			return nil, err
-		}
-		tags, ok := pluginIdTagsMap[pluginVersionMetadata.Id]
-		if ok {
-			pluginVersionDetails.WithTags(tags)
-		}
-
-		detailedPluginVersionsMetadataDtos = append(detailedPluginVersionsMetadataDtos, pluginVersionDetails)
-		pluginVersion.WithDetailedPluginVersionData(detailedPluginVersionsMetadataDtos)
-	}
-	pluginParentDto.WithVersions(pluginVersion)
-	return pluginParentDto, nil
-}
+//// GetDetailedPluginParentDtoForAllVersions populates PluginParentMetadataDto with all metadata for all versions and returns the same with error if any
+//func (impl *GlobalPluginServiceImpl) GetDetailedPluginParentDtoForAllVersions(pluginParentMetadata *repository.PluginParentMetadata) (*PluginParentMetadataDto, error) {
+//	pluginParentDto := NewPluginParentMetadataDto()
+//	pluginParentDto.WithName(pluginParentMetadata.Name).
+//		WithIcon(pluginParentMetadata.Icon).
+//		WithDescription(pluginParentMetadata.Description).
+//		WithPluginIdentifier(pluginParentMetadata.Identifier).
+//		WithType(string(pluginParentMetadata.Type))
+//	//get all versions of a plugin
+//	pluginVersionsMetadata, err := impl.globalPluginRepository.GetPluginVersionsMetadataByParentPluginId(pluginParentMetadata.Id)
+//	if err != nil {
+//		impl.logger.Errorw("error in getting all plugin versions metadata by parent plugin id", "err", err)
+//		return nil, err
+//	}
+//
+//	detailedPluginVersionsMetadataDtos := make([]*PluginsVersionDetail, 0) //contains detailed plugin version data
+//	pluginVersion := NewPluginVersions()
+//
+//	for _, pluginVersionMetadata := range pluginVersionsMetadata {
+//		lastUpdatedEmail, err := impl.userService.GetEmailById(pluginVersionMetadata.UpdatedBy)
+//		if err != nil {
+//			impl.logger.Errorw("error in fetching email by plugin version's last updated by", "pluginVersionMetadataId", pluginVersionMetadata.Id, "err", err)
+//			// not returning from here as this functionality is not core to the plugin ecosystem
+//		}
+//		pluginVersionDetails := NewPluginsVersionDetail()
+//		pluginVersionDetails.SetMinimalPluginsVersionDetail(pluginVersionMetadata)
+//		pluginVersionDetails.WithLastUpdatedEmail(lastUpdatedEmail)
+//
+//		//fetch input and output variables mappings
+//		pluginIdInputVariablesMap, pluginIdOutputVariablesMap, err := impl.getPluginIdVariablesMap()
+//		if err != nil {
+//			impl.logger.Errorw("error, getPluginIdVariablesMap", "err", err)
+//			return nil, err
+//		}
+//		inputVariables, ok := pluginIdInputVariablesMap[pluginVersionMetadata.Id]
+//		if ok {
+//			pluginVersionDetails.WithInputVariables(inputVariables)
+//		}
+//		outputVariables, ok := pluginIdOutputVariablesMap[pluginVersionMetadata.Id]
+//		if ok {
+//			pluginVersionDetails.WithOutputVariables(outputVariables)
+//		}
+//		//fetch tags mappings
+//		pluginIdTagsMap, err := impl.getPluginIdTagsMap()
+//		if err != nil {
+//			impl.logger.Errorw("error, getPluginIdTagsMap", "err", err)
+//			return nil, err
+//		}
+//		tags, ok := pluginIdTagsMap[pluginVersionMetadata.Id]
+//		if ok {
+//			pluginVersionDetails.WithTags(tags)
+//		}
+//
+//		detailedPluginVersionsMetadataDtos = append(detailedPluginVersionsMetadataDtos, pluginVersionDetails)
+//		pluginVersion.WithDetailedPluginVersionData(detailedPluginVersionsMetadataDtos)
+//	}
+//	pluginParentDto.WithVersions(pluginVersion)
+//	return pluginParentDto, nil
+//}
 
 // MigratePluginDataToParentPluginMetadata migrates pre-existing plugin metadata from plugin_metadata table into plugin_parent_metadata table,
 // and also populate plugin_parent_metadata_id in plugin_metadata.
