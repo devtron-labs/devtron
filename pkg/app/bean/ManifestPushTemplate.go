@@ -43,14 +43,14 @@ type ManifestPushTemplate struct {
 }
 
 type ManifestPushResponse struct {
-	OverRiddenRepoUrl string
-	CommitHash        string
-	CommitTime        time.Time
-	Error             error
+	NewGitRepoUrl string
+	CommitHash    string
+	CommitTime    time.Time
+	Error         error
 }
 
-func (m ManifestPushResponse) IsGitOpsRepoMigrated() bool {
-	return len(m.OverRiddenRepoUrl) != 0
+func (m ManifestPushResponse) IsNewGitRepoConfigured() bool {
+	return len(m.NewGitRepoUrl) != 0
 }
 
 type HelmRepositoryConfig struct {

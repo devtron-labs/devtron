@@ -17,6 +17,7 @@
 package dockerRegistry
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -26,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -36,7 +38,7 @@ import (
 
 type DockerRegistryIpsConfigService interface {
 	IsImagePullSecretAccessProvided(dockerRegistryId string, clusterId int, isVirtualEnv bool) (bool, error)
-	HandleImagePullSecretOnApplicationDeployment(environment *repository2.Environment, artifact *repository3.CiArtifact, ciPipelineId int, valuesFileContent []byte) ([]byte, error)
+	HandleImagePullSecretOnApplicationDeployment(ctx context.Context, environment *repository2.Environment, artifact *repository3.CiArtifact, ciPipelineId int, valuesFileContent []byte) ([]byte, error)
 }
 
 type DockerRegistryIpsConfigServiceImpl struct {
@@ -78,7 +80,9 @@ func (impl DockerRegistryIpsConfigServiceImpl) IsImagePullSecretAccessProvided(d
 	return isAccessProvided, nil
 }
 
-func (impl DockerRegistryIpsConfigServiceImpl) HandleImagePullSecretOnApplicationDeployment(environment *repository2.Environment, artifact *repository3.CiArtifact, ciPipelineId int, valuesFileContent []byte) ([]byte, error) {
+func (impl DockerRegistryIpsConfigServiceImpl) HandleImagePullSecretOnApplicationDeployment(ctx context.Context, environment *repository2.Environment, artifact *repository3.CiArtifact, ciPipelineId int, valuesFileContent []byte) ([]byte, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "DockerRegistryIpsConfigServiceImpl.HandleImagePullSecretOnApplicationDeployment")
+	defer span.End()
 	clusterId := environment.ClusterId
 	impl.logger.Infow("handling ips if access given", "ciPipelineId", ciPipelineId, "clusterId", clusterId)
 

@@ -17,6 +17,7 @@
 package git
 
 import (
+	"context"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/util"
 	git "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/commandManager"
@@ -66,7 +67,7 @@ func TestGitHubClient_CreateRepository(t *testing.T) {
 				BitBucketWorkspaceId: tt.args.bitbucketWorkspaceId,
 				BitBucketProjectKey:  tt.args.bitbucketProjectKey,
 			}
-			_, gotIsNew, _ := impl.CreateRepository(gitOpsConfigDTO)
+			_, gotIsNew, _ := impl.CreateRepository(context.Background(), gitOpsConfigDTO)
 
 			if gotIsNew != tt.wantIsNew {
 				t.Errorf("CreateRepository() gotIsNew = %v, want %v", gotIsNew, tt.wantIsNew)
