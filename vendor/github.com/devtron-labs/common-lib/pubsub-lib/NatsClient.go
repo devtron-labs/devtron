@@ -64,14 +64,15 @@ func (ncc NatsClientConfig) GetDefaultNatsConsumerConfig() NatsConsumerConfig {
 		NatsMsgProcessingBatchSize: ncc.NatsMsgProcessingBatchSize,
 		NatsMsgBufferSize:          ncc.GetNatsMsgBufferSize(),
 		AckWaitInSecs:              ncc.NatsMsgAckWaitInSecs,
-		Replicas:                   ncc.Replicas,
+		//Replicas:                   ncc.Replicas,
 	}
 }
 
 func (ncc NatsClientConfig) GetDefaultNatsStreamConfig() NatsStreamConfig {
 	return NatsStreamConfig{
 		StreamConfig: StreamConfig{
-			MaxAge: time.Duration(ncc.NatsMsgMaxAge) * time.Second,
+			MaxAge:   time.Duration(ncc.NatsMsgMaxAge) * time.Second,
+			Replicas: ncc.Replicas,
 		},
 	}
 }

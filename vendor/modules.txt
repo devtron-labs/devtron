@@ -381,7 +381,7 @@ github.com/devtron-labs/authenticator/jwt
 github.com/devtron-labs/authenticator/middleware
 github.com/devtron-labs/authenticator/oidc
 github.com/devtron-labs/authenticator/password
-# github.com/devtron-labs/common-lib v0.0.20-0.20240624084400-555b0938dee8
+# github.com/devtron-labs/common-lib v0.0.20-0.20240624105554-349c152dcbe7
 ## explicit; go 1.21
 github.com/devtron-labs/common-lib/blob-storage
 github.com/devtron-labs/common-lib/cloud-provider-identifier

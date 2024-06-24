@@ -20,7 +20,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deckarep/golang-set v1.8.0
 	github.com/devtron-labs/authenticator v0.4.35-0.20240607135426-c86e868ecee1
-	github.com/devtron-labs/common-lib v0.0.20-0.20240624084400-555b0938dee8
+	github.com/devtron-labs/common-lib v0.0.20-0.20240624105554-349c152dcbe7
 	github.com/devtron-labs/go-bitbucket v0.9.60-beta
 	github.com/devtron-labs/protos v0.0.3-0.20240326053929-48e42d9d4534
 	github.com/evanphx/json-patch v5.7.0+incompatible
