@@ -272,7 +272,7 @@ func (handler *GlobalPluginRestHandlerImpl) ListAllPluginsV2(w http.ResponseWrit
 	}
 	searchQueryParam := v.Get("searchKey")
 	tags := v.Get("tagNames")
-	var fetchLatestVersionDetails bool
+	fetchLatestVersionDetails := true
 	isLatest := v.Get("fetchLatestVersionDetails")
 	if len(isLatest) > 0 {
 		fetchLatestVersionDetails, err = strconv.ParseBool(isLatest)
@@ -329,7 +329,8 @@ func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailByIds(w http.Response
 		common.WriteJsonResp(w, err, "invalid parentPluginId value", http.StatusBadRequest)
 		return
 	}
-	fetchLatestVersionDetailsOnly, err := common.ExtractBoolQueryParam(w, r, "fetchLatestVersionDetails")
+	fetchLatestVersionDetailsOnly := true
+	fetchLatestVersionDetailsOnly, err = common.ExtractBoolQueryParam(w, r, "fetchLatestVersionDetails")
 	if err != nil {
 		common.WriteJsonResp(w, err, "invalid isLatest value", http.StatusBadRequest)
 		return
