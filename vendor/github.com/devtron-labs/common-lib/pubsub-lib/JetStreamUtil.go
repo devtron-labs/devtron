@@ -167,7 +167,6 @@ var natsTopicMapping = map[string]NatsTopic{
 	CD_PIPELINE_DELETE_EVENT_TOPIC: {topicName: CD_PIPELINE_DELETE_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: CD_PIPELINE_DELETE_EVENT_GROUP, consumerName: CD_PIPELINE_DELETE_EVENT_DURABLE},
 	NOTIFICATION_EVENT_TOPIC:       {topicName: NOTIFICATION_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: NOTIFICATION_EVENT_GROUP, consumerName: NOTIFICATION_EVENT_DURABLE},
 	CHART_SCAN_TOPIC:               {topicName: CHART_SCAN_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: CHART_SCAN_GROUP, consumerName: CHART_SCAN_DURABLE},
-	NOTIFICATION_EVENT_TOPIC:       {topicName: NOTIFICATION_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: NOTIFICATION_EVENT_GROUP, consumerName: NOTIFICATION_EVENT_DURABLE},
 }
 
 var NatsStreamWiseConfigMapping = map[string]NatsStreamConfig{
@@ -367,18 +366,12 @@ func checkConfigChangeReqd(existingConfig *nats.StreamConfig, toUpdateConfig *na
 		configChanged = true
 	}
 	if replicas := toUpdateConfig.Replicas; replicas > 0 && existingConfig.Replicas != replicas && replicas < 5 {
-		if replicas > 1 && isClustered {
+		if replicas > 1 && !isClustered {
+			log.Println("replicas >1 is not possible in non-clustered mode ")
+		} else {
 			existingConfig.Replicas = replicas
 			configChanged = true
-		} else {
-			if replicas > 1 {
-				log.Println("replicas >1 is not possible in non-clustered mode ")
-			} else {
-				existingConfig.Replicas = replicas
-				configChanged = true
-			}
 		}
-
 	}
 	return configChanged
 }
