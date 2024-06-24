@@ -273,15 +273,16 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appLi
 	}
 	return whereCondition
 }
-func GetCommaSepratedString[T int | string](appIds []T) string {
-	appIdsString := ""
-	for i, appId := range appIds {
-		appIdsString += fmt.Sprintf("%v", appId)
-		if i != len(appIds)-1 {
-			appIdsString += ","
+
+func GetCommaSepratedString[T int | string](request []T) string {
+	respString := ""
+	for i, item := range request {
+		respString += fmt.Sprintf("%v", item)
+		if i != len(request)-1 {
+			respString += ","
 		}
 	}
-	return appIdsString
+	return respString
 }
 
 func GetCommaSepratedStringWithComma[T int | string](appIds []T) string {
