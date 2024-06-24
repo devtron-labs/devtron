@@ -281,11 +281,11 @@ func (handler *GlobalPluginRestHandlerImpl) ListAllPluginsV2(w http.ResponseWrit
 		return
 	}
 	searchQueryParam := v.Get("searchKey")
-	tags := v.Get("tags")
-	var fetchLatestVersionDetailsOnly bool
-	isLatest := v.Get("fetchLatestVersionDetailsOnly")
+	tags := v.Get("tagNames")
+	var fetchLatestVersionDetails bool
+	isLatest := v.Get("fetchLatestVersionDetails")
 	if len(isLatest) > 0 {
-		fetchLatestVersionDetailsOnly, err = strconv.ParseBool(isLatest)
+		fetchLatestVersionDetails, err = strconv.ParseBool(isLatest)
 		if err != nil {
 			common.WriteJsonResp(w, err, "invalid size value", http.StatusBadRequest)
 			return
@@ -298,7 +298,7 @@ func (handler *GlobalPluginRestHandlerImpl) ListAllPluginsV2(w http.ResponseWrit
 	}
 	listFilter := plugin.NewPluginsListFilter()
 	listFilter.WithOffset(offset).WithLimit(limit).WithTags(tagArray).WithSearchKey(searchQueryParam)
-	listFilter.FetchLatestVersionDetailsOnly = fetchLatestVersionDetailsOnly
+	listFilter.FetchLatestVersionDetails = fetchLatestVersionDetails
 
 	app, err := handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
@@ -344,7 +344,7 @@ func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailByIds(w http.Response
 		common.WriteJsonResp(w, err, "invalid parentPluginId value", http.StatusBadRequest)
 		return
 	}
-	isLatest, err := common.ExtractBoolQueryParam(w, r, "isLatest")
+	fetchLatestVersionDetailsOnly, err := common.ExtractBoolQueryParam(w, r, "fetchLatestVersionDetails")
 	if err != nil {
 		common.WriteJsonResp(w, err, "invalid isLatest value", http.StatusBadRequest)
 		return
@@ -365,9 +365,9 @@ func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailByIds(w http.Response
 		return
 	}
 
-	pluginDetail, err := handler.globalPluginService.GetPluginDetailV2(pluginIds, parentPluginIds, isLatest)
+	pluginDetail, err := handler.globalPluginService.GetPluginDetailV2(pluginIds, parentPluginIds, fetchLatestVersionDetailsOnly)
 	if err != nil {
-		handler.logger.Errorw("error in getting plugin detail", "pluginIds", pluginIds, "parentPluginIds", parentPluginIds, "isLatest", isLatest, "err", err)
+		handler.logger.Errorw("error in getting plugin detail", "pluginIds", pluginIds, "parentPluginIds", parentPluginIds, "fetchLatestVersionDetails", fetchLatestVersionDetailsOnly, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

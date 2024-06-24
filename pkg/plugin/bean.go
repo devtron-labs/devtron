@@ -186,11 +186,11 @@ func (r *PluginsVersionDetail) WithTags(tags []string) *PluginsVersionDetail {
 }
 
 type PluginsListFilter struct {
-	Offset                        int
-	Limit                         int
-	SearchKey                     string
-	Tags                          []string
-	FetchLatestVersionDetailsOnly bool
+	Offset                    int
+	Limit                     int
+	SearchKey                 string
+	Tags                      []string
+	FetchLatestVersionDetails bool
 }
 
 func NewPluginsListFilter() *PluginsListFilter {
@@ -217,8 +217,8 @@ func (r *PluginsListFilter) WithTags(tags []string) *PluginsListFilter {
 	return r
 }
 
-type PluginTagDto struct {
-	TagName string `json:"tagName"`
+type PluginTagsDto struct {
+	TagNames []string `json:"tagNames"`
 }
 
 func (r *PluginMetadataDto) getPluginMetadataSqlObj(userId int32) *repository.PluginMetadata {
