@@ -41,9 +41,9 @@ func getStageType(stageTypeReq string) (int, error) {
 // CreateUniqueIdentifier helper func to create plugin identifier
 func CreateUniqueIdentifier(pluginName string, pluginId int) string {
 	identifier := strings.ToLower(pluginName)
-	identifier = strings.ReplaceAll(identifier, " ", "_")
+	identifier = strings.ReplaceAll(identifier, " ", "-")
 	if pluginId > 0 {
-		identifier = fmt.Sprintf("%s_%d", identifier, pluginId)
+		identifier = fmt.Sprintf("%s-%d", identifier, pluginId)
 	}
 	return identifier
 }
