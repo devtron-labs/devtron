@@ -1762,8 +1762,8 @@ func (impl *GlobalPluginServiceImpl) GetPluginParentDto(pluginParentMetadata *re
 	return pluginParentDto, nil
 }
 
-// GetDetailedPluginParentDtoForGivenVersionIds returns pluginParentDto for given pluginMetadataVersionIds
-func (impl *GlobalPluginServiceImpl) GetDetailedPluginParentDtoForGivenVersionIds(pluginParentMetadata *repository.PluginParentMetadata, pluginVersionsIdMap map[int]bool) (*PluginParentMetadataDto, error) {
+// GetDetailedPluginParentDtoByVersionIds returns pluginParentDto for given pluginMetadataVersionIds
+func (impl *GlobalPluginServiceImpl) GetDetailedPluginParentDtoByVersionIds(pluginParentMetadata *repository.PluginParentMetadata, pluginVersionsIdMap map[int]bool) (*PluginParentMetadataDto, error) {
 	pluginParentDto, err := impl.GetPluginParentDto(pluginParentMetadata, false)
 	if err != nil {
 		impl.logger.Errorw("error in getting detailed plugin parent metadata dto for all versions", "pluginParentMetadataId", pluginParentMetadata.Id, "err", err)
@@ -1795,7 +1795,7 @@ func (impl *GlobalPluginServiceImpl) MigratePluginDataToParentPluginMetadata(plu
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	pluginMetadataToUpdate := make([]*repository.PluginMetadata, 0)
+	pluginMetadataToUpdate := make([]*repository.PluginMetadata, 0, len(pluginsMetadata))
 	identifierVsPluginMetadata := make(map[string]*repository.PluginMetadata)
 	for _, item := range pluginsMetadata {
 		identifier := CreateUniqueIdentifier(item.Name, 0)
@@ -1914,7 +1914,7 @@ func (impl *GlobalPluginServiceImpl) GetPluginParentDtosForGivenVersionsByParent
 		return nil, err
 	}
 	for _, pluginParent := range pluginParentDetails {
-		pluginParentDto, err := impl.GetDetailedPluginParentDtoForGivenVersionIds(pluginParent, pluginVersionsIdMap)
+		pluginParentDto, err := impl.GetDetailedPluginParentDtoByVersionIds(pluginParent, pluginVersionsIdMap)
 		if err != nil {
 			impl.logger.Errorw("error in getting detailed plugin parent metadata dto for all versions", "pluginParentMetadataId", pluginParent.Id, "err", err)
 			return nil, err
