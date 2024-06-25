@@ -4,7 +4,16 @@
 
 Unplanned or last minute deployments of applications can affect the services of an organization. Consequently, its business impact will be severe if such disruptions occur during peak hours or critical periods (say festive season or no deployment on Fridays).
 
-Therefore, Devtron comes with a feature called 'Deployment Window' that allows you to define specific timeframes during which application deployments are either blocked or allowed in specific environments.
+Therefore, Devtron comes with a feature called 'Deployment Window' that allows you to define specific timeframes during which application deployments are either blocked or allowed in specific environments. Moreover, actions that can potentially impact the existing deployment are also restricted, which include:
+
+* [Hibernation](#hibernation)
+* [Restart Workloads](#restart-workloads)
+* [Deletion of Workloads](#deletion-of-workloads)
+* [Deployment](#deployment)
+* [Rollback](#rollback)
+* [Deletion of CD Pipeline](#deletion-of-cd-pipeline)
+
+However, exempted users can still perform the above actions even during blocked periods.
 
 ![Figure 1: Deployment Window](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/overview-deployment-v2.jpg)
 
@@ -35,10 +44,10 @@ Go to **Global Configurations** → **Deployment Window**.
 ![Figure 2: Deployment Window in Global Configurations](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/gc-deployment-window.jpg)
 
 This involves two parts:
-* [Creating Window](#creating-window)
-* [Applying Window](#applying-window)
+* [Creating Deployment Window](#creating-deployment-window)
+* [Applying Window to Deployment Pipelines](#applying-window-to-deployment-pipelines)
 
-### Creating Window
+### Creating Deployment Window
 
 This involves the process of creating a blackout window or a maintenance window.
 
@@ -50,13 +59,24 @@ This involves the process of creating a blackout window or a maintenance window.
 
     ![Figure 4: Name and Description](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/name-description.jpg)
 
-3. Choose a deployment window type, i.e., maintenance window or blackout window. Also ensure you choose the correct time zone (by default it is determined from the browser you use).
+3. Choose a deployment window type, i.e., maintenance window or blackout window. 
 
-    ![Figure 5: Selecting Deployment Window and Timezone](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/window-type-timezone.jpg)
+    ![Figure 5: Selecting Deployment Window and Timezone](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/window-type-v2.jpg)
+
+4. In your deployment window, make sure to choose the correct time zone (by default it is determined from the browser you use).
+
+    ![Figure 6: Selecting Timezone](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/time-zone.jpg)
+
+{% hint style="info" %}
+### Why Time Zone?
+Let's say you are a super-admin located in New Delhi (GMT +5:30) and you wish to restrict midnight deployments according to the Californian timings (GMT -07:00) for your team in the US. Therefore, it's crucial to choose the correct time zone (i.e., GMT -07:00) and then add the duration (see next steps). 
+
+This ensures that deployments occur at the intended local time, helping to avoid disruptions, and facilitating co-ordinated operations across different regions.
+{% endhint %}
 
 4. Click **+ Add duration**. 
 
-    ![Figure 6: Adding Duration](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/add-duration.jpg)
+    ![Figure 7: Adding Duration](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/add-duration.jpg)
 
 5. The following options are available for you to enforce the deployment window:
     * **Once**: Use this to make your deployment window active between two specific date and time, e.g., 20 Jun 2024, 08:00 PM ➝ 26 Jun 2024, 05:00 PM
@@ -65,75 +85,84 @@ This involves the process of creating a blackout window or a maintenance window.
     * **Weekly Range**: Between days of the week, e.g., Mon (02:00 AM) to Fri (05:30 AM) 
     * **Monthly**: On or between days of the month, e.g., Day 1 (10:30 PM) to Day 2 (06:30 AM)
 
-    ![Figure 7: Setting Window Duration](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/set-duration.jpg)
+    ![Figure 8: Setting Window Duration](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/set-duration.jpg)
 
-{% hint style="info" %}
-You can also add **Start Date** and **End Date** to your deployment window.
-{% endhint %}
+You can also add **Start Date** and **End Date** to your recurring deployment window. 
+
+| Option                    | When To Use                                                                      |
+|---------------------------|----------------------------------------------------------------------------------|
+| Start Date                | Use this to enforce restrictions of a deployment window only after a specific date|
+| End Date                  | Use this to stop restrictions of a deployment window beyond a specific date       |
+| Both Start Date and End Date | Use these to confine your deployment window restrictions between two dates       |
+
+Let's say you wish to enforce a blackout window every weekend to prevent unsolicited deployments by your team. If you select a weekly range (e.g., Saturday 12:00 AM to Monday 12:00 AM) and apply the deployment window without specifying dates, the weekend restrictions will persist indefinitely. 
+
+However, by specifying a start date and an end date (as shown below), your deployment window will have a defined validity period. This ensures that the deployment window restrictions are temporary and do not extend beyond the intended timeframe.
+
+![Figure 9: Setting Start and End Date](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/start-end-date-v2.jpg)
 
 {% hint style="info" %}
 After clicking **Done**, you can use the **+ Add duration** button to add more than one duration (for e.g., one monthly and one weekly) in a given deployment window.
 {% endhint %}
 
-6. You can also determine the users who can take actions (say deployment) even when restrictions are in place. These can be superadmins, specific users, both, or none.
+6. You can also determine the users who can take actions (say deployment) even when restrictions are in place. These can be super-admins, specific users, both, or none.
 
-    ![Figure 8: Selecting Unrestricted Users](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/user-selection.jpg)
+    ![Figure 10: Selecting Unrestricted Users](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/user-selection.jpg)
 
 7. Enter a display message to show the user whose deployment gets blocked, e.g., *Try deploying on Monday - Weekend deployment is not a best practice - Contact your Admin*. This will help the user understand the restriction better.
 
-    ![Figure 9: Writing Display Message](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/display-message.jpg)
+    ![Figure 11: Writing Display Message](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/display-message.jpg)
 
 8. Click **Save Changes**.
 
 If required, you can edit a deployment window to modify it as shown below.
 
-![Figure 10: Editing Window](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/edit-window.gif)
+![Figure 12: Editing Window](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/edit-window.gif)
 
-You may delete a deployment window if it's not needed anymore. If the deployment window was attached to any application, it will no longer apply. 
+You may delete a deployment window if it's not needed anymore. If the deployment window was applied to any deployment pipeline (application + environment), the restrictions would no longer exist.
 
-![Figure 11: Deleting Window](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/delete-window.gif)
+![Figure 13: Deleting Window](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/delete-window.gif)
 
 
-### Applying Window
+### Applying Window to Deployment Pipelines
 
-This involves the process of applying the deployment window you created above to your application(s).
+This involves the process of applying the deployment window you created above to your deployment pipeline(s).
 
-1. Go to the **Apply To** tab and click the **No windows** dropdown next to the application you wish to apply deployment window(s).
+1. Go to the **Apply To** tab and click the **No windows** dropdown next to the [application + environment] you wish to apply deployment window(s).
 
-    ![Figure 12: Applying Windows](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/apply-window-single.gif)
+    ![Figure 14: Applying Windows](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/apply-window-single.gif)
 
 2. Select the deployment windows from the dropdown and click **Save Changes**.
 
 #### Bulk Apply
 
-1. If you wish to apply deployment windows to multiple applications at once, use the checkbox to select the applications. 
+1. If you wish to apply deployment windows to multiple applications and environments at once, use the checkbox.
 
-    ![Figure 13: Selecting Apps](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/select-apps.jpg)
+    ![Figure 15: Selecting Deployment Pipelines](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/select-apps.jpg)
 
-    We recommend you to use the available filters (Application, Environment, Deployment Window) to simplify the process of application selection.
+    We recommend you to use the available filters (Application, Environment, Deployment Window) to simplify the process of application + environment selection.
 
-    ![Figure 14a: Using Filters](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/filter-apply.jpg)
+    ![Figure 16a: Using Filters](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/filter-apply.jpg)
 
-    ![Figure 14b: Filtered Results](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/filter-apply-2.jpg)
+    ![Figure 16b: Filtered Results](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/filter-apply-2.jpg)
 
 2. On the floating widget, click **Manage Windows**.
 
-    ![Figure 15: Manage Windows](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/manage-window.jpg)
+    ![Figure 17: Manage Windows](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/manage-window.jpg)
 
 3. Click the **Add Deployment Windows** dropdown to choose the deployment window(s).
 
-    ![Figure 16: Attaching Windows to Applications](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/attach-windows.gif)
+    ![Figure 18: Attaching Windows to Applications](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/attach-windows.gif)
 
 4. Use the **Review Changes** option to confirm the impacted environment(s) and click **Save**.
 
-    ![Figure 17: Checking Impacted Environments](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/review-environment.gif)
+    ![Figure 19: Checking Impacted Apps + Environments](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/review-environment.gif)
 
-You can remove deployment window(s) applied to one or more apps as shown below.
+You can remove deployment window(s) applied to one or more deployment pipelines as shown below.
 
-![Figure 18a: Removing Windows from Single App](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/remove-window-single.gif)
+![Figure 20a: Removing Windows from Single Deployment Pipeline](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/remove-window-single.gif)
 
-![Figure 18b: Removing Windows from Multiple Apps](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/remove-window.gif)
-
+![Figure 20b: Removing Windows from Multiple Deployment Pipeline](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/remove-window.gif)
 
 ---
 
@@ -141,14 +170,14 @@ You can remove deployment window(s) applied to one or more apps as shown below.
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
-Users need to have view-only permission or above (along with access to the environment and application) to check deployment windows.
+Users with view only permission or above for an application can view all deployment windows configured for its deployment pipelines.
 {% endhint %}
 
 ### Overview Page
 
-The **Deployment window** section shows the deployment windows configured for each [environment](../../reference/glossary.md#environment).
+The **Deployment window** section shows the blackout and maintenance windows configured for each [environment](../../reference/glossary.md#environment) of the application.
 
-![Figure 19: Overview Page - Deployment Window](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/deployment-window.jpg)
+![Figure 21: Overview Page - Deployment Window](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/deployment-window.jpg)
 
 However, if a deployment window doesn't exist for an environment, the message `No deployment windows are configured` would be displayed next to it.
 
@@ -156,20 +185,27 @@ You may click the dropdown icon to view the details which include:
 * Type of deployment window (Blackout/Maintenance)
 * Name and description
 * Frequency of window (once, weekly, monthly, yearly)
-* Start date and time 
-* End date and time
+* Duration
 
 ### App Details Page
 
-Unlike the **Overview** page which shows deployment windows for all environments, the **App Details** page shows the deployment windows for one environment at a time.
+Unlike the **Overview** page which shows deployment windows for all environments, the **App Details** page does not show all deployment windows configured for the environment. It shows:
+* Active deployment windows
+* Upcoming deployment windows
 
-![Figure 20: App Details Page - Deployment Window](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/app-details-deployment-win-v2.jpg)
+![Figure 22: App Details Page - Deployment Window](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/app-details-deployment-win-v2.jpg)
 
-If configured, the ongoing and upcoming deployment windows would be visible in the form of cards (in the same row that has `Application Status`, `Deployment Status`, etc.)
+For example, if the super-admin has configured 4 deployment windows (say 2 Blackout and 2 Maintenance), you will see 4 cards stacked upon each other. However, no cards will be shown if deployment windows aren't configured. You may click on the windows card stack to view the details of active and upcoming deployment windows.
 
-For example, if the super-admin has configured 4 deployment windows (say 2 Blackout and 2 Maintenance), you will see 4 cards stacked upon each other. However, no cards will be shown if deployment windows aren't configured.
+The default time period for showing upcoming deployment windows is 90 days. You can configure this individually for blackout and maintenance windows, via ConfigMap, in the `Orchestrator` microservice as shown below:
 
-You may click on any of them to view the details of the deployment windows.
+```json
+DEPLOYMENT_WINDOW_FETCH_DAYS_BLACKOUT: "90"
+DEPLOYMENT_WINDOW_FETCH_DAYS_MAINTENANCE: "90"
+```
+
+![Figure 23: Additional Configuration - ConfigMap](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/deployment-window-cm.jpg)
+
 
 ---
 
@@ -185,7 +221,7 @@ The below functions are blocked during an ongoing blackout window or outside mai
 * [Deletion of CD Pipeline](#deletion-of-cd-pipeline)
 
 {% hint style="info" %}
-For exceptional cases, the exempted users specified in the deployment window configuration can perform the above actions. In case you have configured [SES or SMTP on Devtron](../global-configurations/manage-notification.md#notification-configurations), an email notification will be sent as well.
+The exempted users specified in the deployment window configuration can perform the above actions.
 {% endhint %}
 
 
@@ -193,57 +229,57 @@ For exceptional cases, the exempted users specified in the deployment window con
 
 When you hibernate an application, it becomes non-functional. To avoid this, hibernation of application is blocked.
 
-![Figure 21a: Hibernate App](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/hibernate-1-v2.jpg)
+![Figure 24a: Hibernate App](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/hibernate-1-v2.jpg)
 
-![Figure 21b: Hibernation Dialog](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/hibernate-2.jpg)
+![Figure 24b: Hibernation Dialog](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/hibernate-2.jpg)
 
 ### Restart Workloads
 
 Although Kubernetes handles the restart process smoothly, there is a possibility of interruptions or downtime. To avoid this, restarting workloads (say Pod, Deployment, ReplicaSet) of an application is blocked when deployment is restricted.
 
-![Figure 22a: Restart Workload](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/restart-workloads-1-v2.jpg)
+![Figure 25a: Restart Workload](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/restart-workloads-1-v2.jpg)
 
-![Figure 22b: Selecting Workloads](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/restart-workloads-2.jpg)
+![Figure 25b: Selecting Workloads](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/restart-workloads-2.jpg)
 
-![Figure 22c: Restart Workloads Dialog](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/restart-workloads-3.jpg)
+![Figure 25c: Restart Workloads Dialog](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/restart-workloads-3.jpg)
 
 ### Deletion of Workloads
 
 Similar to [restart workloads](#restart-workloads), deletion of workloads might disrupt the desired state and behavior of the application, hence it is barred during a deployment block.
 
-![Figure 23a: Workload Deletion](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/workload-deletion-1-v2.jpg)
+![Figure 26a: Workload Deletion](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/workload-deletion-1-v2.jpg)
 
-![Figure 23b: Workload Deletion Dialog](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/workload-deletion-2.jpg)
+![Figure 26b: Workload Deletion Dialog](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/workload-deletion-2.jpg)
 
 ### Deployment
 
 Go to the `Build & Deploy` tab. The CD pipelines with restricted deployment will carry a **`DO NOT DEPLOY`** label. 
 
-![Figure 24: Do Not Deploy Labels](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/deployment-restricted.jpg)
+![Figure 27: Do Not Deploy Labels](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/deployment-restricted.jpg)
 
 Despite that, if a user selects an eligible image and proceeds to deploy, it will show `Deployment is blocked` along with a list of exempted users who are allowed to deploy.
 
-![Figure 25a: Selecting an Image](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/select-image.jpg)
+![Figure 28a: Selecting an Image](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/select-image.jpg)
 
-![Figure 25b: Deployment Dialog](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/blocked-deployment-dialog.jpg)
+![Figure 28b: Deployment Dialog](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/blocked-deployment-dialog.jpg)
 
 {% hint style="warning" %}
-Not just manual trigger, deployments remain blocked even if the trigger mode is automatic. In such cases, if a new container image comes into picture, the user has to manually deploy once the deployment block is lifted.
+Not just manual trigger, deployments remain blocked even if the trigger mode is automatic. In such cases, if a new CI image is built, the user has to manually deploy once the deployment block is lifted.
 {% endhint %}
 
-The `Deployment History` tab will also log whether a given deployment was initiated inside or outside the deployment window.
+The `Deployment History` tab will also log whether a given deployment was initiated during a blackout window or outside a maintenance window.
 
-![Figure 26: Deployment Log](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/deployment-log-v2.jpg)
+![Figure 29: Deployment Log](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/deployment-log-v2.jpg)
 
 ### Rollback
 
 Rolling back to an older version, by using a previously deployed image, is barred during a deployment block.
 
-![Figure 27a: Rollback Deployment](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/rollback-1.jpg)
+![Figure 30a: Rollback Deployment](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/rollback-1.jpg)
 
-![Figure 27b: Selecting Previously Deployed Image](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/rollback-2.jpg)
+![Figure 30b: Selecting Previously Deployed Image](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/rollback-2.jpg)
 
-![Figure 27c: Rollback Dialog](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/rollback-3.jpg)
+![Figure 30c: Rollback Dialog](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/rollback-3.jpg)
 
 
 ### Deletion of CD Pipeline
@@ -254,9 +290,9 @@ In Devtron, deleting a CD pipeline affects the current state of the deployed app
 
 If you attempt to delete any CD pipeline with restricted deployment, it will show `Pipeline deletion is blocked`.
 
-![Figure 28a: Pipeline Deletion](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/pipeline-deletion-1.jpg)
+![Figure 31a: Pipeline Deletion](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/pipeline-deletion-1.jpg)
 
-![Figure 28b: Pipeline Deletion Dialog](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/pipeline-deletion-2.jpg)
+![Figure 31b: Pipeline Deletion Dialog](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/pipeline-deletion-2.jpg)
 
 ---
 
@@ -264,11 +300,11 @@ If you attempt to delete any CD pipeline with restricted deployment, it will sho
 
 Just like application, [application groups](../application-groups.md) are also subjected to deployment windows.
 
-![Figure 29: Deployment Window in Application Group](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/app-group-blackout.jpg)
+![Figure 32: Deployment Window in Application Group](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/app-group-blackout.jpg)
 
 Let's say you have 10 applications in your application group, and a blackout window is ongoing for 3 of them. In such a case, if you deploy your application group, those 3 applications will not get deployed. Therefore, you might experience a partial success along with an option to retry the failed deployments.
 
-![Figure 30: Partial Deployment of Application Group](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/ag-deploy.jpg)
+![Figure 33: Partial Deployment of Application Group](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/ag-deploy.gif)
 
 The same stands true for other bulk actions like hibernate, unhibernate, and restart workloads.
 
