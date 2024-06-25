@@ -1,4 +1,5 @@
 ## Bugs
+- fix: panic issue in get/ download pod logs api (#5342)
 - fix: encountering panic in application groups in build and deploy page (#5330)
 - fix: chart group rbac issue (#5183)
 - fix: Multiple choice option for namespace in Kubernetes resource permission (#5293)
