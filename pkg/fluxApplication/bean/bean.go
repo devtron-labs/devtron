@@ -31,7 +31,7 @@ type FluxAppIdentifier struct {
 type FluxApplicationDetailDto struct {
 	*FluxApplication
 	FluxAppStatusDetail  *FluxAppStatusDetail
-	ResourceTreeResponse *gRPC.ResourceTreeResponse `json:"resourceTreeResponse"`
+	ResourceTreeResponse *gRPC.ResourceTreeResponse `json:"resourceTree"`
 }
 
 type FluxAppStatusDetail struct {
