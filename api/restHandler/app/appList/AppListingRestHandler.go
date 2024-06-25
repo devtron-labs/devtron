@@ -547,7 +547,7 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		apiError, ok := err.(*util.ApiError)
 		if ok && apiError != nil {
 			if apiError.Code == constants.AppDetailResourceTreeNotFound && appDetail.DeploymentAppDeleteRequest == true {
-				acdAppFound, _ := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId, envId, acdToken, cdPipeline)
+				acdAppFound, _ := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(acdToken, cdPipeline)
 				if acdAppFound {
 					common.WriteJsonResp(w, fmt.Errorf("unable to fetch resource tree"), nil, http.StatusInternalServerError)
 					return
@@ -638,20 +638,20 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 	resourceTree, err := handler.fetchResourceTree(w, r, appId, envId, acdToken, cdPipeline)
 	if err != nil {
 		handler.logger.Errorw("error in fetching resource tree", "err", err, "appId", appId, "envId", envId)
-		handler.handleResourceTreeErrAndDeletePipelineIfNeeded(w, err, appId, envId, acdToken, cdPipeline)
+		handler.handleResourceTreeErrAndDeletePipelineIfNeeded(w, err, acdToken, cdPipeline)
 		return
 	}
 	common.WriteJsonResp(w, err, resourceTree, http.StatusOK)
 }
 
 func (handler AppListingRestHandlerImpl) handleResourceTreeErrAndDeletePipelineIfNeeded(w http.ResponseWriter, err error,
-	appId int, envId int, acdToken string, cdPipeline *pipelineConfig.Pipeline) {
+	acdToken string, cdPipeline *pipelineConfig.Pipeline) {
 	var apiError *util.ApiError
 	ok := errors.As(err, &apiError)
 	if cdPipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		if ok && apiError != nil {
 			if apiError.Code == constants.AppDetailResourceTreeNotFound && cdPipeline.DeploymentAppDeleteRequest == true && cdPipeline.DeploymentAppCreated == true {
-				acdAppFound, appDeleteErr := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(appId, envId, acdToken, cdPipeline)
+				acdAppFound, appDeleteErr := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(acdToken, cdPipeline)
 				if appDeleteErr != nil {
 					apiError.UserMessage = constants.ErrorDeletingPipelineForDeletedArgoAppMsg
 					common.WriteJsonResp(w, apiError, nil, http.StatusInternalServerError)

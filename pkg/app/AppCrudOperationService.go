@@ -17,15 +17,18 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/caarlos0/env"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/bean"
+	"go.opentelemetry.io/otel"
 	"regexp"
 	"strconv"
 	"strings"
@@ -57,7 +60,7 @@ type AppCrudOperationService interface {
 	FindAll() ([]*bean.AppLabelDto, error)
 	GetAppMetaInfo(appId int, installedAppId int, envId int) (*bean.AppMetaInfoDto, error)
 	GetHelmAppMetaInfo(appId string) (*bean.AppMetaInfoDto, error)
-	GetAppLabelsForDeployment(appId int, appName, envName string) ([]byte, error)
+	GetAppLabelsForDeployment(ctx context.Context, appId int, appName, envName string) ([]byte, error)
 	GetLabelsByAppId(appId int) (map[string]string, error)
 	UpdateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
 	UpdateProjectForApps(request *bean.UpdateProjectBulkAppsRequest) (*bean.UpdateProjectBulkAppsRequest, error)
@@ -455,7 +458,7 @@ func convertUrlToHttpsIfSshType(url string) string {
 }
 
 // getAppAndProjectForAppIdentifier, returns app db model for an app unique identifier or from display_name if both exists else it throws pg.ErrNoRows
-func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIdentifier *client.AppIdentifier) (*appRepository.App, error) {
+func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIdentifier *helmBean.AppIdentifier) (*appRepository.App, error) {
 	app := &appRepository.App{}
 	var err error
 	appNameUniqueIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
@@ -477,7 +480,7 @@ func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIden
 
 // updateAppNameToUniqueAppIdentifierInApp, migrates values of app_name col. in app table to unique identifier and also updates display_name with releaseName
 // returns is requested external app is migrated or other app (linked to chart store) with same name is migrated(which is tracked via namespace).
-func (impl AppCrudOperationServiceImpl) updateAppNameToUniqueAppIdentifierInApp(app *appRepository.App, appIdentifier *client.AppIdentifier) error {
+func (impl AppCrudOperationServiceImpl) updateAppNameToUniqueAppIdentifierInApp(app *appRepository.App, appIdentifier *helmBean.AppIdentifier) error {
 	appNameUniqueIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
 	isLinked, installedApps, err := impl.installedAppDbService.IsExternalAppLinkedToChartStore(app.Id)
 	if err != nil {
@@ -657,7 +660,9 @@ func (impl AppCrudOperationServiceImpl) getExtraAppLabelsToPropagate(appId int, 
 	return extraAppLabels, nil
 }
 
-func (impl AppCrudOperationServiceImpl) GetAppLabelsForDeployment(appId int, appName, envName string) ([]byte, error) {
+func (impl AppCrudOperationServiceImpl) GetAppLabelsForDeployment(ctx context.Context, appId int, appName, envName string) ([]byte, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "AppCrudOperationServiceImpl.GetAppLabelsForDeployment")
+	defer span.End()
 	appLabelJson := &bean.AppLabelsJsonForDeployment{}
 	appLabelsMapFromDb, err := impl.getLabelsByAppIdForDeployment(appId)
 	if err != nil {

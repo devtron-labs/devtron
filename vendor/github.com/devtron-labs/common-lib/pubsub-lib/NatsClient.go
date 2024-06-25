@@ -20,6 +20,7 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
+	"sync"
 	"time"
 )
 
@@ -27,6 +28,7 @@ type NatsClient struct {
 	logger     *zap.SugaredLogger
 	JetStrCtxt nats.JetStreamContext
 	Conn       *nats.Conn
+	ConnWg     *sync.WaitGroup
 }
 
 type NatsClientConfig struct {
@@ -106,7 +108,8 @@ func (consumerConf NatsConsumerConfig) GetNatsMsgBufferSize() int {
 // }
 
 func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
-
+	connWg := new(sync.WaitGroup)
+	connWg.Add(1)
 	cfg := &NatsClientConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -116,6 +119,9 @@ func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 
 	// Connect to NATS
 	nc, err := nats.Connect(cfg.NatsServerHost,
+		// Because draining can involve messages flowing to the server, for a flush and asynchronous message processing,
+		// the timeout for drain should generally be higher than the timeout for a simple message request-reply or similar.
+		nats.DrainTimeout(time.Duration(cfg.NatsMsgAckWaitInSecs)*time.Second),
 		nats.ReconnectWait(10*time.Second), nats.MaxReconnects(100),
 		nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
 			logger.Errorw("Nats Connection got disconnected!", "Reason", err)
@@ -125,6 +131,7 @@ func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 		}),
 		nats.ClosedHandler(func(nc *nats.Conn) {
 			logger.Errorw("Nats Client Connection closed!", "Reason", nc.LastError())
+			connWg.Done()
 		}))
 	if err != nil {
 		logger.Error("err", err)
@@ -142,6 +149,7 @@ func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 		logger:     logger,
 		JetStrCtxt: js,
 		Conn:       nc,
+		ConnWg:     connWg,
 	}
 	return natsClient, nil
 }

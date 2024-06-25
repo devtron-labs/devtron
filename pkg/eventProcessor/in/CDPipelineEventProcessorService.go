@@ -17,6 +17,7 @@
 package in
 
 import (
+	context2 "context"
 	"encoding/json"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
@@ -76,7 +77,7 @@ func (impl *CDPipelineEventProcessorImpl) SubscribeCDBulkTriggerTopic() error {
 		}
 		event.ValuesOverrideRequest.UserId = event.UserId
 		// trigger
-		ctx, err := impl.argoUserService.BuildACDContext()
+		ctx, err := impl.argoUserService.GetACDContext(context2.Background())
 		if err != nil {
 			impl.logger.Errorw("error in creating acd context", "err", err)
 			return
