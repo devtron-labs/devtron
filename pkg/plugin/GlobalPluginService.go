@@ -1675,7 +1675,7 @@ func (impl *GlobalPluginServiceImpl) ListAllPluginsV2(filter *PluginsListFilter)
 		return nil, err
 	}
 
-	allPluginParentMetadata, err := impl.globalPluginRepository.GetAllFilteredPluginParentMetadata(filter)
+	allPluginParentMetadata, err := impl.globalPluginRepository.GetAllFilteredPluginParentMetadata(filter.SearchKey, filter.Tags, filter.Limit, filter.Offset)
 	if err != nil {
 		impl.logger.Errorw("error in getting all plugin parent metadata", "err", err)
 		return nil, err

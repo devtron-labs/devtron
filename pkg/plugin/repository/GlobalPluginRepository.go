@@ -19,7 +19,6 @@ package repository
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	"github.com/devtron-labs/devtron/pkg/plugin"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -270,7 +269,7 @@ type GlobalPluginRepository interface {
 	GetMetaDataForAllPluginsVersionsByIds(ids []int) ([]*PluginMetadata, error)
 
 	GetPluginParentMetadataByIdentifier(pluginIdentifier string) (*PluginParentMetadata, error)
-	GetAllFilteredPluginParentMetadata(filter *plugin.PluginsListFilter) ([]*PluginParentMetadata, error)
+	GetAllFilteredPluginParentMetadata(searchKey string, tags []string, limit, offset int) ([]*PluginParentMetadata, error)
 	GetPluginParentMetadataByIds(ids []int) ([]*PluginParentMetadata, error)
 
 	SavePluginMetadata(pluginMetadata *PluginMetadata, tx *pg.Tx) (*PluginMetadata, error)
@@ -719,23 +718,23 @@ func (impl *GlobalPluginRepositoryImpl) UpdatePluginMetadataInBulk(pluginsMetada
 	return err
 }
 
-func (impl *GlobalPluginRepositoryImpl) GetAllFilteredPluginParentMetadata(filter *plugin.PluginsListFilter) ([]*PluginParentMetadata, error) {
+func (impl *GlobalPluginRepositoryImpl) GetAllFilteredPluginParentMetadata(searchKey string, tags []string, limit, offset int) ([]*PluginParentMetadata, error) {
 	var plugins []*PluginParentMetadata
 	var whereCondition string
 	var orderCondition string
 
 	query := "select ppm.id, ppm.identifier,ppm.name,ppm.description,ppm.type,ppm.icon,ppm.deleted,ppm.created_by, ppm.created_on,ppm.updated_by,ppm.updated_on from plugin_parent_metadata ppm"
 
-	if len(filter.Tags) > 0 {
+	if len(tags) > 0 {
 		query = query + " inner join plugin_metadata pm on pm.plugin_parent_metadata_id=ppm.id inner join plugin_tag_relation ptr on ptr.plugin_id=pm.id inner join plugin_tag pt on ptr.tag_id=pt.id"
-		whereCondition += fmt.Sprintf(" where pt.name in (%s)", helper.GetCommaSepratedString(filter.Tags))
+		whereCondition += fmt.Sprintf(" where pt.name in (%s)", helper.GetCommaSepratedString(tags))
 	}
-	if len(filter.SearchKey) > 0 {
-		searchKeyLike := "%" + filter.SearchKey + "%"
+	if len(searchKey) > 0 {
+		searchKeyLike := "%" + searchKey + "%"
 		whereCondition += fmt.Sprintf(" AND ppm.description ilike '%s' or ppm.name ilike '%s'", searchKeyLike, searchKeyLike)
 	}
-	if filter.Limit > 0 {
-		orderCondition = orderCondition + " OFFSET " + strconv.Itoa(filter.Offset) + " LIMIT " + strconv.Itoa(filter.Limit)
+	if limit > 0 {
+		orderCondition = orderCondition + " OFFSET " + strconv.Itoa(offset) + " LIMIT " + strconv.Itoa(limit)
 	}
 	query += whereCondition + orderCondition + ";"
 
