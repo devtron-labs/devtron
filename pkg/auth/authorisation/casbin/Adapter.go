@@ -141,11 +141,11 @@ func CreateV2() (*casbinv2.SyncedEnforcer, error) {
 	}
 	e2 = auth
 	err = e2.LoadPolicy()
-	log.Println("v2 casbin Policies Loaded Successfully")
 	if err != nil {
 		log.Println(err)
 		return nil, err
 	}
+	log.Println("v2 casbin Policies Loaded Successfully")
 	//adding our key matching func - MatchKeyFunc, to enforcer
 	e2.AddFunction("matchKeyByPart", MatchKeyByPartFunc)
 	return e2, nil
@@ -205,15 +205,9 @@ func AddPolicy(policies []Policy) []Policy {
 
 func LoadPolicy() {
 	defer handlePanic()
-	isCasbinV2, err := enforcerImplRef.ReloadPolicy()
+	err := enforcerImplRef.ReloadPolicy()
 	if err != nil {
 		fmt.Println("error in reloading policies", err)
-	} else {
-		if isCasbinV2 {
-			fmt.Println("V2 policy reloaded successfully")
-		} else {
-			fmt.Println("policy reloaded successfully")
-		}
 	}
 }
 

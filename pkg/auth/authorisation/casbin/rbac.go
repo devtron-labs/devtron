@@ -45,7 +45,7 @@ type Enforcer interface {
 	//EnforceByEmailInBatch(emailId string, resource string, action string, vals []string) map[string]bool
 	InvalidateCache(emailId string) bool
 	InvalidateCompleteCache()
-	ReloadPolicy() (bool, error)
+	ReloadPolicy() error
 	GetCacheDump() string
 }
 
@@ -131,13 +131,24 @@ func (e *EnforcerImpl) EnforceInBatch(token string, resource string, action stri
 	return e.enforceInBatch(token, resource, action, vals)
 }
 
-func (e *EnforcerImpl) ReloadPolicy() (bool, error) {
+func (e *EnforcerImpl) ReloadPolicy() error {
 	//e.enforcerRWLock.Lock()
 	//defer e.enforcerRWLock.Unlock()
+	var err error
 	if e.enforcerConfig.UseCasbinV2 {
-		return true, e.EnforcerV2.LoadPolicy()
+		err = e.EnforcerV2.LoadPolicy()
+		if err != nil {
+			return err
+		}
+		fmt.Println("V2 policy reloaded successfully")
+		return nil
 	}
-	return false, e.Enforcer.LoadPolicy()
+	err = e.Enforcer.LoadPolicy()
+	if err != nil {
+		return err
+	}
+	fmt.Println("policy reloaded successfully")
+	return nil
 }
 
 // EnforceErr is a convenience helper to wrap a failed enforcement with a detailed error about the request
