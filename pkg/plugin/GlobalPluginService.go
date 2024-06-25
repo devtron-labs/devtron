@@ -20,7 +20,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	//"github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -71,12 +72,12 @@ type GlobalPluginService interface {
 }
 
 func NewGlobalPluginService(logger *zap.SugaredLogger, globalPluginRepository repository.GlobalPluginRepository,
-	pipelineStageRepository repository2.PipelineStageRepository) *GlobalPluginServiceImpl {
+	pipelineStageRepository repository2.PipelineStageRepository, userService user.UserService) *GlobalPluginServiceImpl {
 	return &GlobalPluginServiceImpl{
 		logger:                  logger,
 		globalPluginRepository:  globalPluginRepository,
 		pipelineStageRepository: pipelineStageRepository,
-		//userService:             userService,
+		userService:             userService,
 	}
 }
 
@@ -84,7 +85,7 @@ type GlobalPluginServiceImpl struct {
 	logger                  *zap.SugaredLogger
 	globalPluginRepository  repository.GlobalPluginRepository
 	pipelineStageRepository repository2.PipelineStageRepository
-	//userService             repository3.UserRepository
+	userService             user.UserService
 }
 
 func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables(appType helper.AppType) ([]*GlobalVariable, error) {
@@ -1716,14 +1717,14 @@ func (impl *GlobalPluginServiceImpl) GetPluginParentDto(pluginParentMetadata *re
 	pluginVersion := NewPluginVersions()
 
 	for _, pluginVersionMetadata := range pluginVersionsMetadata {
-		//lastUpdatedEmail, err := impl.userService.GetEmailById(pluginVersionMetadata.UpdatedBy)
+		lastUpdatedEmail, err := impl.userService.GetEmailById(pluginVersionMetadata.UpdatedBy)
 		if err != nil {
 			impl.logger.Errorw("error in fetching email by plugin version's last updated by", "pluginVersionMetadataId", pluginVersionMetadata.Id, "err", err)
 			// not returning from here as this functionality is not core to the plugin ecosystem
 		}
 		pluginVersionDetails := NewPluginsVersionDetail()
 		pluginVersionDetails.SetMinimalPluginsVersionDetail(pluginVersionMetadata)
-		pluginVersionDetails.WithLastUpdatedEmail("lastUpdatedEmail")
+		pluginVersionDetails.WithLastUpdatedEmail(lastUpdatedEmail)
 		if fetchLatestVersionDetailsOnly && pluginVersionMetadata.IsLatest {
 
 			//fetch input and output variables mappings
@@ -1815,7 +1816,7 @@ func (impl *GlobalPluginServiceImpl) MigratePluginDataToParentPluginMetadata(plu
 			continue
 		}
 		parentMetadata := repository.NewPluginParentMetadata()
-		parentMetadata.SetParentPluginMetadata(pluginMetadata).CreateAuditLog(1)
+		parentMetadata.SetParentPluginMetadata(pluginMetadata).CreateAuditLog(bean.SystemUserId)
 		parentMetadata.Identifier = identifier
 		parentMetadata, err = impl.globalPluginRepository.SavePluginParentMetadata(tx, parentMetadata)
 		if err != nil {
