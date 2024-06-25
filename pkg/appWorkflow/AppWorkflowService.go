@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package appWorkflow
@@ -20,6 +19,7 @@ package appWorkflow
 import (
 	"errors"
 	"fmt"
+	util2 "github.com/devtron-labs/devtron/util"
 	"time"
 
 	mapset "github.com/deckarep/golang-set"
@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -58,7 +59,7 @@ type AppWorkflowService interface {
 	FindAppWorkflowMappingByComponent(id int, compType string) ([]*appWorkflow.AppWorkflowMapping, error)
 	CheckCdPipelineByCiPipelineId(id int) bool
 	FindAppWorkflowByName(name string, appId int) (AppWorkflowDto, error)
-
+	IsWorkflowNameFound(workflowName string, appId int) (bool, error)
 	FindAllWorkflowsComponentDetails(appId int) (*AllAppWorkflowComponentDetails, error)
 	FindAppWorkflowsByEnvironmentId(request resourceGroup2.ResourceGroupingRequest, token string) ([]*AppWorkflowDto, error)
 	FindAllWorkflowsForApps(request WorkflowNamesRequest) (*WorkflowNamesResponse, error)
@@ -77,6 +78,7 @@ type AppWorkflowServiceImpl struct {
 	appRepository            appRepository.AppRepository
 	enforcerUtil             rbac.EnforcerUtil
 	userAuthService          user.UserAuthService
+	chartService             chart.ChartService
 }
 
 type AppWorkflowDto struct {
@@ -157,7 +159,7 @@ type PipelineIdentifier struct {
 func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup2.ResourceGroupService,
-	appRepository appRepository.AppRepository, userAuthService user.UserAuthService) *AppWorkflowServiceImpl {
+	appRepository appRepository.AppRepository, userAuthService user.UserAuthService, chartService chart.ChartService) *AppWorkflowServiceImpl {
 	return &AppWorkflowServiceImpl{
 		Logger:                   logger,
 		appWorkflowRepository:    appWorkflowRepository,
@@ -168,6 +170,7 @@ func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository 
 		resourceGroupService:     resourceGroupService,
 		appRepository:            appRepository,
 		userAuthService:          userAuthService,
+		chartService:             chartService,
 	}
 }
 
@@ -175,7 +178,10 @@ func (impl AppWorkflowServiceImpl) CreateAppWorkflow(req AppWorkflowDto) (AppWor
 	var wf *appWorkflow.AppWorkflow
 	var savedAppWf *appWorkflow.AppWorkflow
 	var err error
-
+	ok, err := impl.IsWorkflowNameFound(req.Name, req.AppId)
+	if err != nil {
+		return req, err
+	}
 	if req.Id != 0 {
 		wf = &appWorkflow.AppWorkflow{
 			Id:     req.Id,
@@ -186,19 +192,20 @@ func (impl AppWorkflowServiceImpl) CreateAppWorkflow(req AppWorkflowDto) (AppWor
 				UpdatedBy: req.UserId,
 			},
 		}
-		savedAppWf, err = impl.appWorkflowRepository.UpdateAppWorkflow(wf)
-	} else {
-		workflow, err := impl.appWorkflowRepository.FindByNameAndAppId(req.Name, req.AppId)
-		if err != nil && err != pg.ErrNoRows {
-			impl.Logger.Errorw("error in finding workflow by app id and name", "name", req.Name, "appId", req.AppId)
-			return req, err
-		}
-		if workflow.Id != 0 {
+		// if workflow name already exists then we will not allow update workflow name with same name
+		if ok {
 			impl.Logger.Errorw("workflow with this name already exist", "err", err)
 			return req, errors.New(bean2.WORKFLOW_EXIST_ERROR)
 		}
+		savedAppWf, err = impl.appWorkflowRepository.UpdateAppWorkflow(wf)
+	} else {
+		workflowName := req.Name
+		// if workflow already exists then we will assign a new name to the workflow
+		if ok {
+			workflowName = util2.GenerateNewWorkflowName(workflowName)
+		}
 		wf := &appWorkflow.AppWorkflow{
-			Name:   req.Name,
+			Name:   workflowName,
 			AppId:  req.AppId,
 			Active: true,
 			AuditLog: sql.AuditLog{
@@ -836,17 +843,25 @@ func (impl AppWorkflowServiceImpl) FindCdPipelinesByAppId(appId int) (*bean.CdPi
 	cdPipelines := &bean.CdPipelines{
 		AppId: appId,
 	}
+
+	isAppLevelGitOpsConfigured, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(appId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching latest chart details for app by appId")
+		return nil, err
+	}
+
 	for _, pipeline := range dbPipelines {
 		cdPipelineConfigObj := &bean.CDPipelineConfigObject{
-			Id:                pipeline.Id,
-			EnvironmentId:     pipeline.EnvironmentId,
-			EnvironmentName:   pipeline.Environment.Name,
-			CiPipelineId:      pipeline.CiPipelineId,
-			TriggerType:       pipeline.TriggerType,
-			Name:              pipeline.Name,
-			DeploymentAppType: pipeline.DeploymentAppType,
-			AppName:           pipeline.DeploymentAppName,
-			AppId:             pipeline.AppId,
+			Id:                        pipeline.Id,
+			EnvironmentId:             pipeline.EnvironmentId,
+			EnvironmentName:           pipeline.Environment.Name,
+			CiPipelineId:              pipeline.CiPipelineId,
+			TriggerType:               pipeline.TriggerType,
+			Name:                      pipeline.Name,
+			DeploymentAppType:         pipeline.DeploymentAppType,
+			AppName:                   pipeline.DeploymentAppName,
+			AppId:                     pipeline.AppId,
+			IsGitOpsRepoNotConfigured: !isAppLevelGitOpsConfigured,
 		}
 		cdPipelines.Pipelines = append(cdPipelines.Pipelines, cdPipelineConfigObj)
 	}
@@ -899,4 +914,16 @@ func getMappingsFromIds(identifierToNodeMapping map[PipelineIdentifier]*AppWorkf
 		result = append(result, *identifierToNodeMapping[identifier])
 	}
 	return result
+}
+
+func (impl AppWorkflowServiceImpl) IsWorkflowNameFound(workflowName string, appId int) (bool, error) {
+	workflow, err := impl.appWorkflowRepository.FindByNameAndAppId(workflowName, appId)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) && !errors.Is(err, pg.ErrMultiRows) {
+		impl.Logger.Errorw("error in finding workflow by app id and name", "name", workflowName, "appId", appId)
+		return false, err
+	}
+	if workflow.Id != 0 {
+		return true, nil
+	}
+	return false, nil
 }

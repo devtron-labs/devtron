@@ -1,25 +1,23 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package router
 
 import (
 	"encoding/json"
-	pubsub2 "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	"github.com/devtron-labs/devtron/api/appStore"
 	"github.com/devtron-labs/devtron/api/appStore/chartGroup"
@@ -31,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
 	"github.com/devtron-labs/devtron/api/deployment"
+	"github.com/devtron-labs/devtron/api/devtronResource"
 	"github.com/devtron-labs/devtron/api/externalLink"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/infraConfig"
@@ -39,7 +38,6 @@ import (
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/router/app"
-	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/team"
 	terminal2 "github.com/devtron-labs/devtron/api/terminal"
@@ -69,12 +67,7 @@ type MuxRouter struct {
 	DockerRegRouter                    DockerRegRouter
 	NotificationRouter                 NotificationRouter
 	TeamRouter                         team.TeamRouter
-	pubsubClient                       *pubsub2.PubSubClientServiceImpl
 	UserRouter                         user.UserRouter
-	gitWebhookHandler                  pubsub.GitWebhookHandler
-	workflowUpdateHandler              pubsub.WorkflowStatusUpdateHandler
-	appUpdateHandler                   pubsub.ApplicationStatusHandler
-	ciEventHandler                     pubsub.CiEventHandler
 	ChartRefRouter                     ChartRefRouter
 	ConfigMapRouter                    ConfigMapRouter
 	AppStoreRouter                     appStore.AppStoreRouter
@@ -123,6 +116,7 @@ type MuxRouter struct {
 	deploymentConfigurationRouter      DeploymentConfigurationRouter
 	infraConfigRouter                  infraConfig.InfraConfigRouter
 	argoApplicationRouter              argoApplication.ArgoApplicationRouter
+	devtronResourceRouter              devtronResource.DevtronResourceRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger,
@@ -132,10 +126,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	DockerRegRouter DockerRegRouter,
 	NotificationRouter NotificationRouter,
 	TeamRouter team.TeamRouter,
-	gitWebhookHandler pubsub.GitWebhookHandler,
-	workflowUpdateHandler pubsub.WorkflowStatusUpdateHandler,
-	appUpdateHandler pubsub.ApplicationStatusHandler,
-	ciEventHandler pubsub.CiEventHandler, pubsubClient *pubsub2.PubSubClientServiceImpl, UserRouter user.UserRouter,
+	UserRouter user.UserRouter,
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter appStore.AppStoreRouter, chartRepositoryRouter chartRepo.ChartRepositoryRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter chartGroup.ChartGroupRouter, imageScanRouter ImageScanRouter,
@@ -157,7 +148,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	deploymentConfigurationRouter DeploymentConfigurationRouter,
 	infraConfigRouter infraConfig.InfraConfigRouter,
 	argoApplicationRouter argoApplication.ArgoApplicationRouter,
-) *MuxRouter {
+	devtronResourceRouter devtronResource.DevtronResourceRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		EnvironmentClusterMappingsRouter:   EnvironmentClusterMappingsRouter,
@@ -170,11 +161,6 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		NotificationRouter:                 NotificationRouter,
 		TeamRouter:                         TeamRouter,
 		logger:                             logger,
-		gitWebhookHandler:                  gitWebhookHandler,
-		workflowUpdateHandler:              workflowUpdateHandler,
-		appUpdateHandler:                   appUpdateHandler,
-		ciEventHandler:                     ciEventHandler,
-		pubsubClient:                       pubsubClient,
 		UserRouter:                         UserRouter,
 		ChartRefRouter:                     ChartRefRouter,
 		ConfigMapRouter:                    ConfigMapRouter,
@@ -225,6 +211,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		deploymentConfigurationRouter:      deploymentConfigurationRouter,
 		infraConfigRouter:                  infraConfigRouter,
 		argoApplicationRouter:              argoApplicationRouter,
+		devtronResourceRouter:              devtronResourceRouter,
 	}
 	return r
 }
@@ -424,6 +411,9 @@ func (r MuxRouter) Init() {
 
 	rbacRoleRouter := r.Router.PathPrefix("/orchestrator/rbac/role").Subrouter()
 	r.rbacRoleRouter.InitRbacRoleRouter(rbacRoleRouter)
+
+	devtronResourceRouter := r.Router.PathPrefix("/orchestrator/resource").Subrouter()
+	r.devtronResourceRouter.InitDevtronResourceRouter(devtronResourceRouter)
 
 	infraConfigRouter := r.Router.PathPrefix("/orchestrator/infra-config").Subrouter()
 	r.infraConfigRouter.InitInfraConfigRouter(infraConfigRouter)

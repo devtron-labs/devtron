@@ -2,7 +2,7 @@
 
 You will see all your environments associated with an application under the `Environment Overrides` section.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/environment-overrides/environment-override.jpg)
+![Figure 1: App Configuration → Environment Overrides](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/environment-overrides/environment-override-v2.jpg)
 
 
 You can customize your `Deployment template, ConfigMap, Secrets` in Environment Overrides section to add separate customizations for different environments such as dev, test, integration, prod, etc.
@@ -34,11 +34,15 @@ In the `Environment Overrides` section, click on `Allow Override` and make chang
 
 The basic deployment configuration which you specified on the **Basic** GUI section will be visible for you to customize for your environment.
 
-If you want to configure **Basic** GUI at the application level, then you can provide the required information in the [Basic Configuration](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#2.-basic-configuration).
+If you want to configure **Basic** GUI at the application level, then you can provide the required information in the [Basic Configuration](../creating-application/deployment-template/rollout-deployment.md#2.-basic-configuration).
 
 If `Basic` is locked, you can modify the configurations on `Advanced (YAML)` which will be the default page.
 
-**Note**: **Delete Override** will discard the current overrides and the base configuration will be applicable to the environment.
+{% hint style="warning" %}
+Super-admins can lock keys in deployment template to prevent non-super-admins from modifying those locked keys. Refer [Lock Deployment Configuration](../global-configurations/lock-deployment-config.md) to know more.
+{% endhint %}
+
+**Note**: **Delete Override** will discard the current overrides and the base configuration will be applicable to the environment. 
 
 ### ConfigMaps & Secrets
 
@@ -46,9 +50,16 @@ The same goes for `ConfigMap` and `Secrets`. You can also create an environment-
 
 If you want to configure your ConfigMap and secrets at the application level then you can provide them in [ConfigMaps](config-maps.md) and [Secrets](secrets.md), but if you want to have environment-specific ConfigMap and secrets then provide them under the Environment override Section. At the time of deployment, it will pick both of them and provide them inside your cluster.
 
-Click on `Update ConfigMap` to update Configmaps.
+To update a ConfigMap, follow the steps below:
+1. In your environment, click **ConfigMaps**.
+2. Click the ConfigMap you wish to update.
+3. Click **Allow Override**.
+4. Edit your ConfigMap.
+5. Click **Save Changes**.
 
-Click on `Update Secrets` to update Secrets.
+![Figure 2: Updating ConfigMap](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/environment-overrides/update-configmap.gif)
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/arora4.gif)
+Similarly, you can update Secrets too as shown below.
+
+![Figure 3: Updating Secret](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/environment-overrides/update-secret.gif)
 

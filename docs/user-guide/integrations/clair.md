@@ -1,6 +1,6 @@
 # Security Integration (Clair)
 
-**Prerequisite**: Please make sure to install **Build and Deploy (CI/CD)** integration. To install it, click [here](https://docs.devtron.ai/usage/integrations/build-and-deploy-ci-cd).
+**Prerequisite**: Please make sure to install **Build and Deploy (CI/CD)** integration. To install it, click [here](../integrations/build-and-deploy-ci-cd.md).
 
 Clair integration enables you to scan the vulnerabilities of the images during the time of image build only.
 

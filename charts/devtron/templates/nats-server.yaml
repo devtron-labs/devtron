@@ -29,6 +29,9 @@ data:
     jetstream {
       max_mem: 1Gi
       domain: devtron-jet
+      max_file_store: 5Gi
+      store_dir: "/data"
+
     }
     lame_duck_duration: 120s
 ---
@@ -120,7 +123,7 @@ spec:
       terminationGracePeriodSeconds: 120
       containers:
       - name: nats
-        image: {{ .image }}
+        image: {{ include "common.image" (dict "component" $.Values.components.nats "global" $.Values.global) }}
         imagePullPolicy: {{ .imagePullPolicy }}
         resources:
           {}
@@ -165,7 +168,7 @@ spec:
           - name: pid
             mountPath: /var/run/nats
           - name: data
-            mountPath: /tmp/nats/jetstream
+            mountPath: /data
 
         # Liveness/Readiness probes against the monitoring.
         #
@@ -203,7 +206,7 @@ spec:
       #################################
 
       - name: reloader
-        image: {{ .reloader.image }}
+        image: {{ include "common.image" (dict "component" $.Values.components.nats.reloader "global" $.Values.global) }}
         imagePullPolicy: {{ .reloader.imagePullPolicy }}
         resources:
           null
@@ -227,7 +230,7 @@ spec:
       ##############################
 
       - name: metrics
-        image: {{ .metrics.image }}
+        image: {{ include "common.image" (dict "component" $.Values.components.nats.metrics "global" $.Values.global) }}
         imagePullPolicy: {{ .metrics.imagePullPolicy }}
         resources:
           {}
@@ -266,7 +269,7 @@ metadata:
 spec:
   containers:
     - name: nats-box
-      image: quay.io/devtron/nats-box
+      image: {{ include "common.image" (dict "component" $.Values.components.nats.natsBox "global" $.Values.global) }}
       env:
         - name: NATS_HOST
           value: devtron-nats

@@ -18,15 +18,66 @@ body:
       description: "A clear and concise description of what the bug is."
       placeholder: "It bugs out when ..."
   - type: dropdown
-    id: criticality
+    id: affected-areas
     attributes:
-      label: "Criticality"
-      description: "How critical is the issue? Please include the impact in the  "
+      label: "Affected areas"
+      description: "What areas of Devtron are impacted by the issue?"
       options:
-        - P0 - Critical/Blocking
-        - P1 - High
-        - P2 - Medium
-        - P3 - Low
+        - Devtron dashboard completely down 
+        - Login issues 
+        - RBAC Issues 
+        - CI 
+        - CD 
+        - App creation 
+        - Deployment from Chart store 
+        - Security features 
+        - CI/CD Plugins 
+        - Other CRITICAL functionality 
+        - Other NON-CRITICAL functionality
+  - type: dropdown
+    id: additional-affected-areas
+    attributes:
+      label: "Additional affected areas"
+      description: "Are there any additional affected areas?"
+      options:
+        - Devtron dashboard completely down 
+        - Login issues 
+        - RBAC Issues 
+        - CI 
+        - CD 
+        - App creation 
+        - Deployment from Chart store 
+        - Security features
+        - CI/CD Plugins 
+        - Other CRITICAL functionality 
+        - Other NON-CRITICAL functionality 
+  - type: dropdown
+    id: prod-environment
+    attributes:
+      label: "Prod/Non-prod environments?"
+      description: "Is the issue affecting Prod environments?"
+      options:
+        - Prod 
+        - Non-prod 
+  - type: dropdown
+    id: user-unblocked
+    attributes:
+      label: "Is User unblocked?"
+      description: "Is the User unblocked?"
+      options:
+        - 'Yes' 
+        - 'No'
+  - type: dropdown
+    id: user-unblocked-reason
+    attributes:
+      label: "How was the user un-blocked?"
+      description: "If the user was unblocked. How was the user un-blocked?"
+      options:
+        - TEMPORARILY - By disabling a CRITICAL functionality 
+        - TEMPORARILY - By disabling a NON-CRITICAL functionality 
+        - TEMPORARILY - By doing some changes from the backend/DB 
+        - PERMANENTLY - By giving a workaround (From outside Devtron) 
+        - PERMANENTLY - By giving a workaround (Within Devtron) 
   - type: textarea
     id: impact
     validations:
@@ -91,14 +142,6 @@ body:
         - Something Else
     validations:
       required: true
-  - type: textarea
-    id: environment
-    validations:
-      required: false
-    attributes:
-      label: "🧱 Your Environment"
-      description: "Is your environment customized in any way? Provide your Browser version as well."
-      placeholder: "I use XYZ for ..."
   - type: textarea
     id: solution
     validations:

@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package bean
@@ -30,20 +29,21 @@ type UserRole struct {
 }
 
 type UserInfo struct {
-	Id            int32        `json:"id" validate:"number,not-system-admin-userid"`
-	EmailId       string       `json:"email_id" validate:"required,not-system-admin-user"` // TODO : have to migrate json key to emailId and also handle backward compatibility
-	Roles         []string     `json:"roles,omitempty"`
-	AccessToken   string       `json:"access_token,omitempty"`
-	RoleFilters   []RoleFilter `json:"roleFilters"`
-	Status        string       `json:"status,omitempty"`
-	Groups        []string     `json:"groups"` // this will be deprecated in future do not use
-	SuperAdmin    bool         `json:"superAdmin,notnull"`
-	LastLoginTime time.Time    `json:"lastLoginTime"`
-	UserType      string       `json:"-"`
-	LastUsedAt    time.Time    `json:"-"`
-	LastUsedByIp  string       `json:"-"`
-	Exist         bool         `json:"-"`
-	UserId        int32        `json:"-"` // created or modified user id
+	Id            int32           `json:"id" validate:"number,not-system-admin-userid"`
+	EmailId       string          `json:"email_id" validate:"required,not-system-admin-user"` // TODO : have to migrate json key to emailId and also handle backward compatibility
+	Roles         []string        `json:"roles,omitempty"`
+	AccessToken   string          `json:"access_token,omitempty"`
+	RoleFilters   []RoleFilter    `json:"roleFilters"`
+	Status        string          `json:"status,omitempty"`
+	Groups        []string        `json:"groups"`         // this will be deprecated in future do not use
+	UserRoleGroup []UserRoleGroup `json:"userRoleGroups"` // role group with metadata
+	SuperAdmin    bool            `json:"superAdmin,notnull"`
+	LastLoginTime time.Time       `json:"lastLoginTime"`
+	UserType      string          `json:"-"`
+	LastUsedAt    time.Time       `json:"-"`
+	LastUsedByIp  string          `json:"-"`
+	Exist         bool            `json:"-"`
+	UserId        int32           `json:"-"` // created or modified user id
 }
 
 type RoleGroup struct {
@@ -130,6 +130,11 @@ type RoleGroupListingResponse struct {
 	TotalCount int          `json:"totalCount"`
 }
 
+type RestrictedGroup struct {
+	Group                   string
+	HasSuperAdminPermission bool
+}
+
 type ListingRequest struct {
 	SearchKey  string         `json:"searchKey"`
 	SortOrder  bean.SortOrder `json:"sortOrder"`
@@ -144,4 +149,8 @@ type BulkDeleteRequest struct {
 	Ids            []int32         `json:"ids"`
 	ListingRequest *ListingRequest `json:"listingRequest,omitempty"`
 	LoggedInUserId int32           `json:"-"`
+}
+
+type UserRoleGroup struct {
+	RoleGroup *RoleGroup `json:"roleGroup"`
 }

@@ -1,12 +1,29 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package config
 
 import (
 	"fmt"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
+	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/gitUtil"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"regexp"
@@ -14,7 +31,7 @@ import (
 )
 
 type GitOpsConfigReadService interface {
-	IsGitOpsConfigured() (bool, error)
+	IsGitOpsConfigured() (*bean.GitOpsConfigurationStatus, error)
 	GetUserEmailIdAndNameForGitOpsCommit(userId int32) (string, string)
 	GetGitOpsRepoName(appName string) string
 	GetGitOpsRepoNameFromUrl(gitRepoUrl string) string
@@ -33,26 +50,28 @@ type GitOpsConfigReadServiceImpl struct {
 func NewGitOpsConfigReadServiceImpl(logger *zap.SugaredLogger,
 	gitOpsRepository repository.GitOpsConfigRepository,
 	userService user.UserService,
-	globalEnvVariables *util.GlobalEnvVariables) *GitOpsConfigReadServiceImpl {
+	envVariables *util.EnvironmentVariables) *GitOpsConfigReadServiceImpl {
 	return &GitOpsConfigReadServiceImpl{
 		logger:             logger,
 		gitOpsRepository:   gitOpsRepository,
 		userService:        userService,
-		globalEnvVariables: globalEnvVariables,
+		globalEnvVariables: envVariables.GlobalEnvVariables,
 	}
 }
 
-func (impl *GitOpsConfigReadServiceImpl) IsGitOpsConfigured() (bool, error) {
-	isGitOpsConfigured := false
+func (impl *GitOpsConfigReadServiceImpl) IsGitOpsConfigured() (*bean.GitOpsConfigurationStatus, error) {
+	gitOpsConfigurationStatus := &bean.GitOpsConfigurationStatus{}
 	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
-		return false, err
+		return gitOpsConfigurationStatus, err
 	}
 	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
-		isGitOpsConfigured = true
+		gitOpsConfigurationStatus.IsGitOpsConfigured = true
+		gitOpsConfigurationStatus.AllowCustomRepository = gitOpsConfig.AllowCustomRepository
+		gitOpsConfigurationStatus.Provider = gitOpsConfig.Provider
 	}
-	return isGitOpsConfigured, nil
+	return gitOpsConfigurationStatus, nil
 }
 
 func (impl *GitOpsConfigReadServiceImpl) GetUserEmailIdAndNameForGitOpsCommit(userId int32) (string, string) {
@@ -94,9 +113,7 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsRepoName(appName string) strin
 }
 
 func (impl *GitOpsConfigReadServiceImpl) GetGitOpsRepoNameFromUrl(gitRepoUrl string) string {
-	gitRepoUrl = gitRepoUrl[strings.LastIndex(gitRepoUrl, "/")+1:]
-	gitRepoUrl = strings.ReplaceAll(gitRepoUrl, ".git", "")
-	return gitRepoUrl
+	return gitUtil.GetGitRepoNameFromGitRepoUrl(gitRepoUrl)
 }
 
 func (impl *GitOpsConfigReadServiceImpl) GetBitbucketMetadata() (*bean.BitbucketProviderMetadata, error) {
@@ -120,26 +137,24 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsC
 		return nil, err
 	}
 	config := &bean2.GitOpsConfigDto{
-		Id:                   model.Id,
-		Provider:             model.Provider,
-		GitHubOrgId:          model.GitHubOrgId,
-		GitLabGroupId:        model.GitLabGroupId,
-		Active:               model.Active,
-		UserId:               model.CreatedBy,
-		AzureProjectName:     model.AzureProject,
-		BitBucketWorkspaceId: model.BitBucketWorkspaceId,
-		BitBucketProjectKey:  model.BitBucketProjectKey,
+		Id:                    model.Id,
+		Provider:              model.Provider,
+		GitHubOrgId:           model.GitHubOrgId,
+		GitLabGroupId:         model.GitLabGroupId,
+		Active:                model.Active,
+		Token:                 model.Token,
+		Host:                  model.Host,
+		Username:              model.Username,
+		UserId:                model.CreatedBy,
+		AzureProjectName:      model.AzureProject,
+		BitBucketWorkspaceId:  model.BitBucketWorkspaceId,
+		BitBucketProjectKey:   model.BitBucketProjectKey,
+		AllowCustomRepository: model.AllowCustomRepository,
 	}
 	return config, err
 }
 
 func (impl *GitOpsConfigReadServiceImpl) GetConfiguredGitOpsCount() (int, error) {
-	count := 0
-	models, err := impl.gitOpsRepository.GetAllGitOpsConfig()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error, GetGitOpsConfigActive", "err", err)
-		return count, err
-	}
-	count = len(models)
-	return count, nil
+	count, err := impl.gitOpsRepository.GetAllGitOpsConfigCount()
+	return count, err
 }

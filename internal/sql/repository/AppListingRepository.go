@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 /*
@@ -24,7 +23,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/middleware"
+	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.opentelemetry.io/otel"
 	"strings"
@@ -75,6 +76,7 @@ type AppNameTypeIdContainerDBResponse struct {
 }
 
 type LastDeployed struct {
+	CiArtifactId      int    `sql:"ci_artifact_id"`
 	LastDeployedBy    string `sql:"last_deployed_by"`
 	LastDeployedImage string `sql:"last_deployed_image"`
 }
@@ -84,10 +86,24 @@ type AppListingRepositoryImpl struct {
 	Logger                           *zap.SugaredLogger
 	appListingRepositoryQueryBuilder helper.AppListingRepositoryQueryBuilder
 	environmentRepository            repository2.EnvironmentRepository
+	gitOpsRepository                 GitOpsConfigRepository
+	appWorkflowRepository            appWorkflow2.AppWorkflowRepository
 }
 
-func NewAppListingRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB, appListingRepositoryQueryBuilder helper.AppListingRepositoryQueryBuilder, environmentRepository repository2.EnvironmentRepository) *AppListingRepositoryImpl {
-	return &AppListingRepositoryImpl{dbConnection: dbConnection, Logger: Logger, appListingRepositoryQueryBuilder: appListingRepositoryQueryBuilder, environmentRepository: environmentRepository}
+func NewAppListingRepositoryImpl(
+	Logger *zap.SugaredLogger,
+	dbConnection *pg.DB,
+	appListingRepositoryQueryBuilder helper.AppListingRepositoryQueryBuilder,
+	environmentRepository repository2.EnvironmentRepository,
+	gitOpsRepository GitOpsConfigRepository, appWorkflowRepository appWorkflow2.AppWorkflowRepository) *AppListingRepositoryImpl {
+	return &AppListingRepositoryImpl{
+		dbConnection:                     dbConnection,
+		Logger:                           Logger,
+		appListingRepositoryQueryBuilder: appListingRepositoryQueryBuilder,
+		environmentRepository:            environmentRepository,
+		gitOpsRepository:                 gitOpsRepository,
+		appWorkflowRepository:            appWorkflowRepository,
+	}
 }
 
 func (impl AppListingRepositoryImpl) FetchJobs(appIds []int, statuses []string, environmentIds []int, sortOrder string) ([]*bean.JobListingContainer, error) {
@@ -144,7 +160,7 @@ func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit
 func (impl AppListingRepositoryImpl) FetchLastDeployedImage(appId, envId int) (*LastDeployed, error) {
 	var lastDeployed []*LastDeployed
 	// we are adding a case in the query to concatenate the string "(inactive)" to the users' email id when user is inactive
-	query := `select ca.image as last_deployed_image, 
+	query := `select ca.id as ci_artifact_id,ca.image as last_deployed_image, 
 			    case
 					when u.active = false then u.email_id || ' (inactive)'
 					else u.email_id
@@ -307,6 +323,20 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironmentV2(appListingFilter h
 	return appEnvArr, appsSize, nil
 }
 
+func (impl AppListingRepositoryImpl) getEnvironmentNameFromPipelineId(pipelineID int) (string, error) {
+	var environmentName string
+	query := "SELECT e.environment_name " +
+		"FROM pipeline p " +
+		"JOIN environment e ON p.environment_id = e.id WHERE p.id = ?"
+
+	_, err := impl.dbConnection.Query(&environmentName, query, pipelineID)
+	if err != nil {
+		impl.Logger.Errorw("error in finding environment", "err", err, "pipelineID", pipelineID)
+		return "", err
+	}
+	return environmentName, nil
+}
+
 // DeploymentDetailsByAppIdAndEnvId It will return the deployment detail of any cd pipeline which is latest triggered for Environment of any App
 func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx context.Context, appId int, envId int) (bean.DeploymentDetailContainer, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "DeploymentDetailsByAppIdAndEnvId")
@@ -326,7 +356,10 @@ func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx contex
 		" cl.k8s_version," +
 		" env.cluster_id," +
 		" env.is_virtual_environment," +
-		" cl.cluster_name" +
+		" cl.cluster_name," +
+		" p.id as cd_pipeline_id," +
+		" p.ci_pipeline_id," +
+		" p.trigger_type" +
 		" FROM pipeline p" +
 		" INNER JOIN pipeline_config_override pco on pco.pipeline_id=p.id" +
 		" INNER JOIN environment env ON env.id=p.environment_id" +
@@ -408,6 +441,11 @@ func (impl AppListingRepositoryImpl) FetchAppDetail(ctx context.Context, appId i
 	deploymentDetail, err := impl.deploymentDetailsByAppIdAndEnvId(newCtx, appId, envId)
 	if err != nil {
 		impl.Logger.Warn("unable to fetch deployment detail for app")
+	}
+	appWfMapping, _ := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(deploymentDetail.CdPipelineId)
+	if appWfMapping.ParentType == appWorkflow2.CDPIPELINE {
+		parentEnvironmentName, _ := impl.getEnvironmentNameFromPipelineId(appWfMapping.ParentId)
+		deploymentDetail.ParentEnvironmentName = parentEnvironmentName
 	}
 	appDetailContainer.DeploymentDetailContainer = deploymentDetail
 	return appDetailContainer, nil
@@ -500,17 +538,18 @@ func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int, appType int)
 	var appStageStatus []bean.AppStageStatus
 
 	var stages struct {
-		AppId        int  `json:"app_id,omitempty"`
-		CiTemplateId int  `json:"ci_template_id,omitempty"`
-		CiPipelineId int  `json:"ci_pipeline_id,omitempty"`
-		ChartId      int  `json:"chart_id,omitempty"`
-		PipelineId   int  `json:"pipeline_id,omitempty"`
-		YamlStatus   int  `json:"yaml_status,omitempty"`
-		YamlReviewed bool `json:"yaml_reviewed,omitempty"`
+		AppId           int    `json:"app_id,omitempty"`
+		CiTemplateId    int    `json:"ci_template_id,omitempty"`
+		CiPipelineId    int    `json:"ci_pipeline_id,omitempty"`
+		ChartId         int    `json:"chart_id,omitempty"`
+		ChartGitRepoUrl string `json:"chart_git_repo_url,omitempty"`
+		PipelineId      int    `json:"pipeline_id,omitempty"`
+		YamlStatus      int    `json:"yaml_status,omitempty"`
+		YamlReviewed    bool   `json:"yaml_reviewed,omitempty"`
 	}
 
 	query := "SELECT " +
-		" app.id as app_id, ct.id as ci_template_id, cp.id as ci_pipeline_id, ch.id as chart_id," +
+		" app.id as app_id, ct.id as ci_template_id, cp.id as ci_pipeline_id, ch.id as chart_id, ch.git_repo_url as chart_git_repo_url," +
 		" p.id as pipeline_id, ceco.status as yaml_status, ceco.reviewed as yaml_reviewed " +
 		" FROM app app" +
 		" LEFT JOIN ci_template ct on ct.app_id=app.id" +
@@ -541,19 +580,36 @@ func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int, appType int)
 	if isMaterialExists {
 		materialExists = 1
 	}
-
-	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(0, "APP", stages.AppId), impl.makeAppStageStatus(1, "MATERIAL", materialExists), impl.makeAppStageStatus(2, "TEMPLATE", stages.CiTemplateId), impl.makeAppStageStatus(3, "CI_PIPELINE", stages.CiPipelineId), impl.makeAppStageStatus(4, "CHART", stages.ChartId), impl.makeAppStageStatus(5, "CD_PIPELINE", stages.PipelineId), bean.AppStageStatus{Stage: 6, StageName: "CHART_ENV_CONFIG", Status: func() bool {
-		if stages.YamlStatus == 3 && stages.YamlReviewed == true {
-			return true
-		} else {
-			return false
-		}
-	}(), Required: true})
+	isCustomGitopsRepoUrl := false
+	model, err := impl.gitOpsRepository.GetGitOpsConfigActive()
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error while getting GetGitOpsConfigActive", "err", err)
+		return appStageStatus, err
+	}
+	if model != nil && model.Id > 0 && model.AllowCustomRepository {
+		isCustomGitopsRepoUrl = true
+	}
+	if gitOps.IsGitOpsRepoNotConfigured(stages.ChartGitRepoUrl) && stages.CiPipelineId == 0 {
+		stages.ChartGitRepoUrl = ""
+	}
+	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(0, "APP", stages.AppId, true),
+		impl.makeAppStageStatus(1, "MATERIAL", materialExists, true),
+		impl.makeAppStageStatus(2, "TEMPLATE", stages.CiTemplateId, true),
+		impl.makeAppStageStatus(3, "CI_PIPELINE", stages.CiPipelineId, true),
+		impl.makeAppStageStatus(4, "CHART", stages.ChartId, true),
+		impl.makeAppStageStatus(5, "GITOPS_CONFIG", len(stages.ChartGitRepoUrl), isCustomGitopsRepoUrl),
+		impl.makeAppStageStatus(6, "CD_PIPELINE", stages.PipelineId, true),
+		impl.makeAppStageChartEnvConfigStatus(7, "CHART_ENV_CONFIG", stages.YamlStatus == 3 && stages.YamlReviewed),
+	)
 
 	return appStageStatus, nil
 }
 
-func (impl AppListingRepositoryImpl) makeAppStageStatus(stage int, stageName string, id int) bean.AppStageStatus {
+func (impl AppListingRepositoryImpl) makeAppStageChartEnvConfigStatus(stage int, stageName string, status bool) bean.AppStageStatus {
+	return bean.AppStageStatus{Stage: stage, StageName: stageName, Status: status, Required: true}
+}
+
+func (impl AppListingRepositoryImpl) makeAppStageStatus(stage int, stageName string, id int, isRequired bool) bean.AppStageStatus {
 	return bean.AppStageStatus{
 		Stage:     stage,
 		StageName: stageName,
@@ -564,7 +620,7 @@ func (impl AppListingRepositoryImpl) makeAppStageStatus(stage int, stageName str
 				return false
 			}
 		}(),
-		Required: true,
+		Required: isRequired,
 	}
 }
 
@@ -573,8 +629,8 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
 	var otherEnvironments []*bean.Environment
 	//TODO: remove infra metrics from query as it is not being used from here
 	query := `select pcwr.pipeline_id, pcwr.last_deployed, pcwr.latest_cd_workflow_runner_id, pcwr.environment_id, pcwr.deployment_app_delete_request,   
-       			e.cluster_id, e.environment_name, e.default as prod, e.description, ca.image as last_deployed_image, 
-      			u.email_id as last_deployed_by, elam.app_metrics, elam.infra_metrics, ap.status as app_status 
+       			e.cluster_id, e.environment_name, e.default as prod, e.description, ca.image as last_deployed_image,
+      			u.email_id as last_deployed_by, elam.app_metrics, elam.infra_metrics, ap.status as app_status,ca.id as ci_artifact_id
     			from (select * 
       				from (select p.id as pipeline_id, p.app_id, cwr.started_on as last_deployed, cwr.triggered_by, cwr.id as latest_cd_workflow_runner_id,  
                   	 	cw.ci_artifact_id, p.environment_id, p.deployment_app_delete_request, 

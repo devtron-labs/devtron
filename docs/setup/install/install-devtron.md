@@ -1,6 +1,6 @@
 # Install Devtron
 
-In this section, we describe on how you can install Helm Dashboard by Devtron without any integrations. Integrations can be added later using [Devtron Stack Manager](https://docs.devtron.ai/v/v0.6/usage/integrations).
+In this section, we describe on how you can install Helm Dashboard by Devtron without any integrations. Integrations can be added later using [Devtron Stack Manager](../../user-guide/stack-manager.md).
 
 If you want to install Devtron on Minikube, Microk8s, K3s, Kind, refer this [section](./Install-devtron-on-Minikube-Microk8s-K3s-Kind.md).
 
@@ -21,7 +21,7 @@ helm repo update devtron
 
 ## Install Helm Dashboard by Devtron
 
-**Note**: This installation command will not install CI/CD integration. For CI/CD, refer [install Devtron with CI/CD](https://docs.devtron.ai/install/install-devtron-with-cicd) section.
+**Note**: This installation command will not install CI/CD integration. For CI/CD, refer [install Devtron with CI/CD](../install/install-devtron-with-cicd.md) section.
 
 Run the following command to install Helm Dashboard by Devtron:
 
@@ -106,9 +106,9 @@ kubectl -n devtroncd get secret devtron-secret \
 </details>
 
 
-**Note**: If you want to uninstall Devtron or clean Devtron helm installer, refer our [uninstall Devtron](https://docs.devtron.ai/install/uninstall-devtron).
+**Note**: If you want to uninstall Devtron or clean Devtron helm installer, refer our [uninstall Devtron](../install/uninstall-devtron.md).
 
 
 ## Upgrade
 
-To use the CI/CD capabilities with Devtron, you can Install the [Devtron with CI/CD](https://docs.devtron.ai/install/install-devtron-with-cicd) or [Devtron with CI/CD along with GitOps (Argo CD)](https://docs.devtron.ai/install/install-devtron-with-cicd-with-gitops).
+To use the CI/CD capabilities with Devtron, you can Install the [Devtron with CI/CD](../install/install-devtron-with-cicd.md) or [Devtron with CI/CD along with GitOps (Argo CD)](../install/install-devtron-with-cicd-with-gitops.md).

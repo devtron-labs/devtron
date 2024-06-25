@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package cluster
 
 import (
@@ -30,7 +46,6 @@ type ClusterServiceImplExtended struct {
 	grafanaClient           grafana.GrafanaClient
 	installedAppRepository  repository2.InstalledAppRepository
 	clusterServiceCD        cluster2.ServiceClient
-	K8sInformerFactory      informer.K8sInformerFactory
 	gitOpsConfigReadService config.GitOpsConfigReadService
 	*ClusterServiceImpl
 }
@@ -158,7 +173,7 @@ func (impl *ClusterServiceImplExtended) FindAllExceptVirtual() ([]*ClusterBean, 
 }
 
 func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
-	isGitOpsConfigured, err1 := impl.gitOpsConfigReadService.IsGitOpsConfigured()
+	gitOpsConfigurationStatus, err1 := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err1 != nil {
 		return nil, err1
 	}
@@ -236,7 +251,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 	}
 
 	// if git-ops configured, then only update cluster in ACD, otherwise ignore
-	if isGitOpsConfigured {
+	if gitOpsConfigurationStatus.IsGitOpsConfigured {
 		configMap := bean.Config
 		serverUrl := bean.ServerUrl
 		bearerToken := ""
@@ -338,7 +353,7 @@ func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *Clu
 }
 
 func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
-	isGitOpsConfigured, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
+	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil {
 		return nil, err
 	}
@@ -349,7 +364,7 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 	}
 
 	// if git-ops configured, then only add cluster in ACD, otherwise ignore
-	if isGitOpsConfigured {
+	if gitOpsConfigurationStatus.IsGitOpsConfigured {
 		//create it into argo cd as well
 		cl := impl.ConvertClusterBeanObjectToCluster(bean)
 

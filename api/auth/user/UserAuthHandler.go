@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package user
@@ -238,7 +237,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 
 }
 func (handler UserAuthHandlerImpl) AuthVerification(w http.ResponseWriter, r *http.Request) {
-	verified, err := handler.userAuthService.AuthVerification(r)
+	verified, _, err := handler.userAuthService.AuthVerification(r)
 	if err != nil {
 		handler.logger.Errorw("service err, AuthVerification", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -254,7 +253,7 @@ func (handler UserAuthHandlerImpl) AuthVerificationV2(w http.ResponseWriter, r *
 		isSuperAdmin = true
 	}
 	response := make(map[string]interface{})
-	verified, err := handler.userAuthService.AuthVerification(r)
+	verified, emailId, err := handler.userAuthService.AuthVerification(r)
 	if err != nil {
 		handler.logger.Errorw("service err, AuthVerification", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -262,5 +261,6 @@ func (handler UserAuthHandlerImpl) AuthVerificationV2(w http.ResponseWriter, r *
 	}
 	response["isSuperAdmin"] = isSuperAdmin
 	response["isVerified"] = verified
+	response["emailId"] = emailId
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }

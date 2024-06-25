@@ -7,7 +7,7 @@ Like any enterprise product, Devtron supports fine grained access control to the
 1. Type of action allowed on Devtron resources (Create Vs View)
 2. Sensitivity of the data (Editing image Vs Editing memory)
 
-Access can be added to the User either directly or via [Permission groups](https://docs.devtron.ai/global-configurations/authorization/permission-groups).
+Access can be added to the User either directly or via [Permission groups](./permission-groups.md).
 
 ## Role-based Access Levels
 
@@ -103,7 +103,7 @@ To assign a specific permission, go to the `Authorization > User Permissions` se
 
 In `Devtron Apps` option, you can provide access to a user to manage permission for custom apps created using Devtron.
 
-**Note**: The `Devtron Apps` option will be available only if you install [CI/CD integration](https://docs.devtron.ai/usage/integrations/build-and-deploy-ci-cd).
+**Note**: The `Devtron Apps` option will be available only if you install [CI/CD integration](../../integrations/build-and-deploy-ci-cd.md).
 
 Provide the information in the following fields:
 
@@ -142,7 +142,7 @@ Once you have finished assigning the appropriate permissions for the users, Clic
 
 ### Kubernetes Resources Permissions
 
-In `Kubernetes Resources` option, you can provide permission to view, inspect, manage, and delete resources in your clusters from [Kubernetes Resource Browser](https://docs.devtron.ai/usage/resource-browser) page in Devtron. You can also create resources from the `Kubernetes Resource Browser` page.
+In `Kubernetes Resources` option, you can provide permission to view, inspect, manage, and delete resources in your clusters from [Kubernetes Resource Browser](../../resource-browser.md) page in Devtron. You can also create resources from the `Kubernetes Resource Browser` page.
 
 **Note**: Only super admin users will be able to see `Kubernetes Resources` tab and provide permission to other users to access `Resource Browser`.
 
@@ -172,7 +172,7 @@ Once you have finished assigning the appropriate permissions for the users, Clic
 
 In `Chart group permission` option, you can manage the access of users for Chart Groups in your project.
 
-**Note**: The `Chart group permission` option will be available only if you install [CI/CD integration](https://docs.devtron.ai/usage/integrations/build-and-deploy-ci-cd).
+**Note**: The `Chart group permission` option will be available only if you install [CI/CD integration](../../integrations/build-and-deploy-ci-cd.md).
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/user-permission/specific-permission-chart-group.jpg)
 

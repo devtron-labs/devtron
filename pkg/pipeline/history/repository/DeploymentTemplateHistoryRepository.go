@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package repository
 
 import (
@@ -13,6 +29,7 @@ type DeploymentTemplateHistoryRepository interface {
 	GetHistoryForDeployedTemplateById(id, pipelineId int) (*DeploymentTemplateHistory, error)
 	GetDeploymentDetailsForDeployedTemplateHistory(pipelineId, offset, limit int) ([]*DeploymentTemplateHistory, error)
 	GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int) (*DeploymentTemplateHistory, error)
+	GetDeployedHistoryForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (*DeploymentTemplateHistory, error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*DeploymentTemplateHistory, error)
 }
 
@@ -115,4 +132,14 @@ func (impl DeploymentTemplateHistoryRepositoryImpl) GetDeployedHistoryList(pipel
 		return histories, err
 	}
 	return histories, nil
+}
+
+func (impl DeploymentTemplateHistoryRepositoryImpl) GetDeployedHistoryForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (*DeploymentTemplateHistory, error) {
+	var history DeploymentTemplateHistory
+	err := impl.dbConnection.Model(&history).
+		Where("deployment_template_history.deployed_on = ?", deployedOn).
+		Where("deployment_template_history.pipeline_id = ?", pipelineId).
+		Where("deployment_template_history.deployed = ?", true).
+		Select()
+	return &history, err
 }

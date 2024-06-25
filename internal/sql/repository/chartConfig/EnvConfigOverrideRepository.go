@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package chartConfig
@@ -56,7 +55,7 @@ type EnvConfigOverrideRepository interface {
 	Save(*EnvConfigOverride) error
 	GetByChartAndEnvironment(chartId, targetEnvironmentId int) (*EnvConfigOverride, error)
 	ActiveEnvConfigOverride(appId, environmentId int) (*EnvConfigOverride, error) //successful env config
-	Get(id int) (*EnvConfigOverride, error)
+	GetByIdIncludingInactive(id int) (*EnvConfigOverride, error)
 	//this api updates only EnvOverrideValues, EnvMergedValues, Status, ManualReviewed, active based on id
 	UpdateProperties(config *EnvConfigOverride) error
 	GetByEnvironment(targetEnvironmentId int) ([]EnvConfigOverride, error)
@@ -188,12 +187,12 @@ func (r EnvConfigOverrideRepositoryImpl) GetByChartAndEnvironment(chartId, targe
 	return eco, err
 }
 
-func (r EnvConfigOverrideRepositoryImpl) Get(id int) (*EnvConfigOverride, error) {
+func (r EnvConfigOverrideRepositoryImpl) GetByIdIncludingInactive(id int) (*EnvConfigOverride, error) {
 	eco := &EnvConfigOverride{}
 	err := r.dbConnection.
 		Model(eco).
-		Where("env_config_override.id = ?", id).
 		Column("env_config_override.*", "Chart").
+		Where("env_config_override.id = ?", id).
 		Select()
 	return eco, err
 }

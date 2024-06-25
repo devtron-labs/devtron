@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package configure
@@ -22,9 +21,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"io"
 	"net/http"
 	"strconv"
@@ -38,7 +39,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
-	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
@@ -104,6 +104,7 @@ type PipelineConfigRestHandlerImpl struct {
 	Logger                              *zap.SugaredLogger
 	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService
 	chartService                        chart.ChartService
+	devtronAppGitOpConfigService        gitOpsConfig.DevtronAppGitOpConfigService
 	propertiesConfigService             pipeline.PropertiesConfigService
 	userAuthService                     user.UserService
 	validator                           *validator.Validate
@@ -127,11 +128,13 @@ type PipelineConfigRestHandlerImpl struct {
 	ciArtifactRepository                repository.CiArtifactRepository
 	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
 	chartRefService                     chartRef.ChartRefService
+	ciCdPipelineOrchestrator            pipeline.CiCdPipelineOrchestrator
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
 	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService,
 	chartService chart.ChartService,
+	devtronAppGitOpConfigService gitOpsConfig.DevtronAppGitOpConfigService,
 	propertiesConfigService pipeline.PropertiesConfigService,
 	userAuthService user.UserService,
 	teamService team.TeamService,
@@ -152,7 +155,8 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	imageTaggingService pipeline.ImageTaggingService,
 	ciArtifactRepository repository.CiArtifactRepository,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
-	chartRefService chartRef.ChartRefService) *PipelineConfigRestHandlerImpl {
+	chartRefService chartRef.ChartRefService,
+	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
 	if err != nil {
@@ -163,6 +167,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		Logger:                              Logger,
 		deploymentTemplateValidationService: deploymentTemplateValidationService,
 		chartService:                        chartService,
+		devtronAppGitOpConfigService:        devtronAppGitOpConfigService,
 		propertiesConfigService:             propertiesConfigService,
 		userAuthService:                     userAuthService,
 		validator:                           validator,
@@ -189,6 +194,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		ciArtifactRepository:                ciArtifactRepository,
 		deployedAppMetricsService:           deployedAppMetricsService,
 		chartRefService:                     chartRefService,
+		ciCdPipelineOrchestrator:            ciCdPipelineOrchestrator,
 	}
 }
 
@@ -198,7 +204,7 @@ const (
 	HTTPS_URL_PREFIX = "https://"
 )
 
-func (handler PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -240,7 +246,7 @@ func (handler PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r 
 	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) DeleteACDAppWithNonCascade(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) DeleteACDAppWithNonCascade(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -320,7 +326,7 @@ func (handler PipelineConfigRestHandlerImpl) DeleteACDAppWithNonCascade(w http.R
 	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
@@ -396,7 +402,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetApp(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) GetApp(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
@@ -425,7 +431,7 @@ func (handler PipelineConfigRestHandlerImpl) GetApp(w http.ResponseWriter, r *ht
 	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) FindAppsByTeamId(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) FindAppsByTeamId(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	teamId, err := strconv.Atoi(vars["teamId"])
 	if err != nil {
@@ -443,7 +449,7 @@ func (handler PipelineConfigRestHandlerImpl) FindAppsByTeamId(w http.ResponseWri
 	common.WriteJsonResp(w, err, project, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) FindAppsByTeamName(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) FindAppsByTeamName(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	teamName := vars["teamName"]
 	handler.Logger.Infow("request payload, FindAppsByTeamName", "teamName", teamName)
@@ -560,7 +566,7 @@ func (handler *PipelineConfigRestHandlerImpl) sendData(event []byte, w http.Resp
 	}
 }
 
-func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerView(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerView(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -633,7 +639,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 	common.WriteJsonResp(w, err, triggerWorkflowStatus, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
@@ -659,7 +665,7 @@ func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.Respo
 	common.WriteJsonResp(w, err, suggestedName, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerViewByEnvironment(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerViewByEnvironment(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -737,7 +743,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 	common.WriteJsonResp(w, err, triggerWorkflowStatus, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetEnvironmentListWithAppData(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) GetEnvironmentListWithAppData(w http.ResponseWriter, r *http.Request) {
 	v := r.URL.Query()
 	token := r.Header.Get("token")
 	envName := v.Get("envName")
@@ -775,7 +781,7 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvironmentListWithAppData(w htt
 	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetApplicationsByEnvironment(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) GetApplicationsByEnvironment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
@@ -830,7 +836,7 @@ func (handler PipelineConfigRestHandlerImpl) GetApplicationsByEnvironment(w http
 	common.WriteJsonResp(w, err, results, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) FetchAppDeploymentStatusForEnvironments(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) FetchAppDeploymentStatusForEnvironments(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {

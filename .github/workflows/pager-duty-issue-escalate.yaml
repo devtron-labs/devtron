@@ -15,7 +15,7 @@ jobs:
 
     - name: List issues with 'pager-duty' label
       env:
-        GITHUB_TOKEN: ${{ secrets.GIT_TARGET_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GH_SYSTEMSDT_TOKEN }}
       run: |
         issues=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
           -H "Accept: application/vnd.github.v3+json" \
@@ -39,7 +39,7 @@ jobs:
             assignee3="vivek-devtron"
 
             curl -X POST \
-              -H "Authorization: token ${{ secrets.GIT_TARGET_TOKEN }}" \
+              -H "Authorization: token ${{ secrets.GH_SYSTEMSDT_TOKEN }}" \
               -H "Accept: application/vnd.github.v3+json" \
               -d "{\"assignees\": [\"$assignee1\", \"$assignee2\", \"$assignee3\"]}" \
               "https://api.github.com/repos/${{ github.repository }}/issues/$issue_number/assignees"

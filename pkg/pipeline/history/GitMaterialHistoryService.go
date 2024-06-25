@@ -1,16 +1,33 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package history
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
 type GitMaterialHistoryService interface {
-	CreateMaterialHistory(inputMaterial *pipelineConfig.GitMaterial) error
+	CreateMaterialHistory(tx *pg.Tx, inputMaterial *pipelineConfig.GitMaterial) error
 	CreateDeleteMaterialHistory(materials []*pipelineConfig.GitMaterial) error
-	MarkMaterialDeletedAndCreateHistory(material *pipelineConfig.GitMaterial) error
+	MarkMaterialDeletedAndCreateHistory(tx *pg.Tx, material *pipelineConfig.GitMaterial) error
 }
 
 type GitMaterialHistoryServiceImpl struct {
@@ -27,7 +44,7 @@ func NewGitMaterialHistoryServiceImpl(gitMaterialHistoryRepository repository.Gi
 	}
 }
 
-func (impl GitMaterialHistoryServiceImpl) CreateMaterialHistory(inputMaterial *pipelineConfig.GitMaterial) error {
+func (impl GitMaterialHistoryServiceImpl) CreateMaterialHistory(tx *pg.Tx, inputMaterial *pipelineConfig.GitMaterial) error {
 
 	material := &repository.GitMaterialHistory{
 		GitMaterialId:   inputMaterial.Id,
@@ -41,7 +58,7 @@ func (impl GitMaterialHistoryServiceImpl) CreateMaterialHistory(inputMaterial *p
 		FilterPattern:   inputMaterial.FilterPattern,
 		AuditLog:        sql.AuditLog{UpdatedBy: inputMaterial.UpdatedBy, CreatedBy: inputMaterial.CreatedBy, UpdatedOn: inputMaterial.UpdatedOn, CreatedOn: inputMaterial.CreatedOn},
 	}
-	err := impl.gitMaterialHistoryRepository.SaveGitMaterialHistory(material)
+	err := impl.gitMaterialHistoryRepository.SaveGitMaterialHistory(tx, material)
 	if err != nil {
 		impl.logger.Errorw("error in saving create/update history for git repository")
 	}
@@ -86,11 +103,11 @@ func (impl GitMaterialHistoryServiceImpl) CreateDeleteMaterialHistory(materials 
 
 }
 
-func (impl GitMaterialHistoryServiceImpl) MarkMaterialDeletedAndCreateHistory(material *pipelineConfig.GitMaterial) error {
+func (impl GitMaterialHistoryServiceImpl) MarkMaterialDeletedAndCreateHistory(tx *pg.Tx, material *pipelineConfig.GitMaterial) error {
 
 	material.Active = false
 
-	err := impl.CreateMaterialHistory(material)
+	err := impl.CreateMaterialHistory(tx, material)
 
 	if err != nil {
 		impl.logger.Errorw("error in saving delete history for git material repository")

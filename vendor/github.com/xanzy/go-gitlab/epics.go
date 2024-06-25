@@ -51,6 +51,7 @@ type Epic struct {
 	Title                   string      `json:"title"`
 	Description             string      `json:"description"`
 	State                   string      `json:"state"`
+	Confidential            bool        `json:"confidential"`
 	WebURL                  string      `json:"web_url"`
 	Author                  *EpicAuthor `json:"author"`
 	StartDate               *ISOTime    `json:"start_date"`
@@ -118,7 +119,7 @@ func (s *EpicsService) ListGroupEpics(gid interface{}, opt *ListGroupEpicsOption
 		return nil, resp, err
 	}
 
-	return es, resp, err
+	return es, resp, nil
 }
 
 // GetEpic gets a single group epic.
@@ -142,7 +143,7 @@ func (s *EpicsService) GetEpic(gid interface{}, epic int, options ...RequestOpti
 		return nil, resp, err
 	}
 
-	return e, resp, err
+	return e, resp, nil
 }
 
 // GetEpicLinks gets all child epics of an epic.
@@ -166,7 +167,7 @@ func (s *EpicsService) GetEpicLinks(gid interface{}, epic int, options ...Reques
 		return nil, resp, err
 	}
 
-	return e, resp, err
+	return e, resp, nil
 }
 
 // CreateEpicOptions represents the available CreateEpic() options.
@@ -203,7 +204,7 @@ func (s *EpicsService) CreateEpic(gid interface{}, opt *CreateEpicOptions, optio
 		return nil, resp, err
 	}
 
-	return e, resp, err
+	return e, resp, nil
 }
 
 // UpdateEpicOptions represents the available UpdateEpic() options.
@@ -211,6 +212,7 @@ func (s *EpicsService) CreateEpic(gid interface{}, opt *CreateEpicOptions, optio
 // GitLab API docs: https://docs.gitlab.com/ee/api/epics.html#update-epic
 type UpdateEpicOptions struct {
 	Title            *string  `url:"title,omitempty" json:"title,omitempty"`
+	Confidential     *bool    `url:"confidential,omitempty" json:"confidential,omitempty"`
 	Description      *string  `url:"description,omitempty" json:"description,omitempty"`
 	Labels           *Labels  `url:"labels,comma,omitempty" json:"labels,omitempty"`
 	StartDateIsFixed *bool    `url:"start_date_is_fixed,omitempty" json:"start_date_is_fixed,omitempty"`
@@ -242,7 +244,7 @@ func (s *EpicsService) UpdateEpic(gid interface{}, epic int, opt *UpdateEpicOpti
 		return nil, resp, err
 	}
 
-	return e, resp, err
+	return e, resp, nil
 }
 
 // DeleteEpic deletes a single group epic.

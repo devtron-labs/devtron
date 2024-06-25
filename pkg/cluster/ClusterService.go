@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package cluster
@@ -88,7 +87,6 @@ type ClusterBean struct {
 	ErrorInConnecting       string                     `json:"errorInConnecting"`
 	IsCdArgoSetup           bool                       `json:"isCdArgoSetup"`
 	IsVirtualCluster        bool                       `json:"isVirtualCluster"`
-	isClusterNameEmpty      bool                       `json:"-"`
 	ClusterUpdated          bool                       `json:"clusterUpdated"`
 }
 
@@ -187,6 +185,7 @@ type ClusterService interface {
 	ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster
 
 	GetClusterConfigByClusterId(clusterId int) (*k8s.ClusterConfig, error)
+	IsClusterReachable(clusterId int) (bool, error)
 }
 
 type ClusterServiceImpl struct {
@@ -197,7 +196,6 @@ type ClusterServiceImpl struct {
 	userAuthRepository  repository3.UserAuthRepository
 	userRepository      repository3.UserRepository
 	roleGroupRepository repository3.RoleGroupRepository
-	*ClusterRbacServiceImpl
 }
 
 func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.SugaredLogger,
@@ -212,9 +210,6 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 		userAuthRepository:  userAuthRepository,
 		userRepository:      userRepository,
 		roleGroupRepository: roleGroupRepository,
-		ClusterRbacServiceImpl: &ClusterRbacServiceImpl{
-			logger: logger,
-		},
 	}
 	go clusterService.buildInformer()
 	return clusterService
@@ -1129,4 +1124,17 @@ func (impl ClusterServiceImpl) GetClusterConfigByClusterId(clusterId int) (*k8s.
 		return nil, err
 	}
 	return clusterConfig, nil
+}
+
+func (impl ClusterServiceImpl) IsClusterReachable(clusterId int) (bool, error) {
+	cluster, err := impl.clusterRepository.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in finding cluster from clusterId", "envId", clusterId)
+		return false, err
+	}
+	if len(cluster.ErrorInConnecting) > 0 {
+		return false, nil
+	}
+	return true, nil
+
 }

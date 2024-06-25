@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package git
@@ -20,6 +19,7 @@ package git
 import (
 	"context"
 	"fmt"
+	apiGitOpsBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	git "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/commandManager"
 	"github.com/devtron-labs/devtron/util"
 	"os"
@@ -74,7 +74,7 @@ func (impl *GitOpsHelper) Clone(url, targetDir string) (clonedDir string, err er
 	}
 	_, errMsg, err := impl.gitCommandManager.Fetch(ctx, clonedDir)
 	if err == nil && errMsg == "" {
-		impl.logger.Warn("git fetch completed, pulling master branch data from remote origin")
+		impl.logger.Debugw("git fetch completed, pulling master branch data from remote origin")
 		_, errMsg, err := impl.pullFromBranch(ctx, clonedDir)
 		if err != nil {
 			impl.logger.Errorw("error on git pull", "err", err)
@@ -96,13 +96,19 @@ func (impl *GitOpsHelper) Pull(repoRoot string) (err error) {
 	return impl.gitCommandManager.Pull(ctx, repoRoot)
 }
 
-func (impl GitOpsHelper) CommitAndPushAllChanges(repoRoot, commitMsg, name, emailId string) (commitHash string, err error) {
+const PushErrorMessage = "failed to push some refs"
+
+func (impl *GitOpsHelper) CommitAndPushAllChanges(ctx context.Context, repoRoot, commitMsg, name, emailId string) (commitHash string, err error) {
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("CommitAndPushAllChanges", "GitService", start, err)
 	}()
-	ctx := git.BuildGitContext(context.Background()).WithCredentials(impl.Auth)
-	return impl.gitCommandManager.CommitAndPush(ctx, repoRoot, commitMsg, name, emailId)
+	newCtx := git.BuildGitContext(ctx).WithCredentials(impl.Auth)
+	commitHash, err = impl.gitCommandManager.CommitAndPush(newCtx, repoRoot, commitMsg, name, emailId)
+	if err != nil && strings.Contains(err.Error(), PushErrorMessage) {
+		return commitHash, fmt.Errorf("%s %v", "push failed due to conflicts", err)
+	}
+	return commitHash, nil
 }
 
 func (impl *GitOpsHelper) pullFromBranch(ctx git.GitContext, rootDir string) (string, string, error) {
@@ -158,4 +164,31 @@ func (impl *GitOpsHelper) getBranch(ctx git.GitContext, rootDir string) (string,
 		branch = strings.ReplaceAll(branches[0], "origin/", "")
 	}
 	return branch, nil
+}
+
+/*
+SanitiseCustomGitRepoURL
+- It will sanitise the user given repository url based on GitOps provider
+
+Case BITBUCKET_PROVIDER:
+  - The clone URL format https://<user-name>@bitbucket.org/<workspace-name>/<repo-name>.git
+  - Here the <user-name> can differ from user to user. SanitiseCustomGitRepoURL will return the repo url in format : https://bitbucket.org/<workspace-name>/<repo-name>.git
+
+Case AZURE_DEVOPS_PROVIDER:
+  - The clone URL format https://<organisation-name>@dev.azure.com/<organisation-name>/<project-name>/_git/<repo-name>
+  - Here the <user-name> can differ from user to user. SanitiseCustomGitRepoURL will return the repo url in format : https://dev.azure.com/<organisation-name>/<project-name>/_git/<repo-name>
+*/
+func SanitiseCustomGitRepoURL(activeGitOpsConfig apiGitOpsBean.GitOpsConfigDto, gitRepoURL string) (sanitisedGitRepoURL string) {
+	sanitisedGitRepoURL = gitRepoURL
+	if activeGitOpsConfig.Provider == BITBUCKET_PROVIDER && strings.Contains(gitRepoURL, fmt.Sprintf("://%s@%s", activeGitOpsConfig.Username, "bitbucket.org/")) {
+		sanitisedGitRepoURL = strings.ReplaceAll(gitRepoURL, fmt.Sprintf("://%s@%s", activeGitOpsConfig.Username, "bitbucket.org/"), "://bitbucket.org/")
+	}
+	if activeGitOpsConfig.Provider == AZURE_DEVOPS_PROVIDER {
+		azureDevopsOrgName := activeGitOpsConfig.Host[strings.LastIndex(activeGitOpsConfig.Host, "/")+1:]
+		invalidBaseUrlFormat := fmt.Sprintf("://%s@%s", azureDevopsOrgName, "dev.azure.com/")
+		if invalidBaseUrlFormat != "" && strings.Contains(gitRepoURL, invalidBaseUrlFormat) {
+			sanitisedGitRepoURL = strings.ReplaceAll(gitRepoURL, invalidBaseUrlFormat, "://dev.azure.com/")
+		}
+	}
+	return sanitisedGitRepoURL
 }

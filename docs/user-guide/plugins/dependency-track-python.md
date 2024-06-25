@@ -1,0 +1,31 @@
+# Dependency Track for Python
+
+Configuring `Dependency Track for Python` in pre-build or post build task creates a bill of materials from Python projects and environments and uploads it to D-track for [Component Analysis](https://owasp.org/www-community/Component_Analysis) to identify and reduce risk in the software supply chain.
+
+**Prerequisite**: Make sure you have set up an account in `dependency track` or get the API keys from an admin.
+
+1. On the **Edit build pipeline** page, select the **Pre-Build Stage** (or Post-Build Stage).
+2. Click **+ Add task**.
+3. Select **Dependency track for Python** from **PRESET PLUGINS**.
+
+
+
+* Enter a relevant name in the `Task name` field. It is a mandatory field.
+* Enter a descriptive message for the task in the `Description` field. It is an optional field.
+* Provide a value for the input variable.<br> Note: The value may be any of the values from the previous build stages, a global variable, or a custom value.</br>
+
+ | Variable | Format | Description |
+| ---- | ---- | ---- |
+| ProjectManifestType | String | Type of your Python project manifest which is used to build cycloneDx [Software Bill of Materials (SBOM)](https://owasp.org/www-community/Component_Analysis#software-bill-of-materials-sbom). E.g., PIP, Poetry etc. |
+| RelativePathToPoetryLock | String | Path to your poetry.lock file inside your project |
+| RelativePathToPipfile | String | Path to your Pipfile.lock file inside your project |
+| RelativePathToRequirementTxt | String | Path to your requirements.txt file inside your project |
+| DTrackEndpoint | String | API endpoint of your dependency track account |
+| DTrackProjectName | String | Name of your dependency track project |
+| DTrackProjectVersion | String | Version of dependency track project |
+| DTrackApiKey | String | API key of your dependency track account |
+| CheckoutPath | String | Checkout path of Git material |
+
+* `Trigger/Skip Condition` refers to a conditional statement to execute or skip the task. You can select either:<ul><li>`Set trigger conditions` or</li><li>`Set skip conditions`</li></ul> 
+
+* Click **Update Pipeline**.

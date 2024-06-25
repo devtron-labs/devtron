@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package app
@@ -41,8 +40,11 @@ type App struct {
 	sql.AuditLog
 }
 
+func (r *App) IsAppJobOrExternalType() bool {
+	return len(r.DisplayName) > 0
+}
+
 type AppRepository interface {
-	Save(pipelineGroup *App) error
 	SaveWithTxn(pipelineGroup *App, tx *pg.Tx) error
 	Update(app *App) error
 	UpdateWithTxn(app *App, tx *pg.Tx) error
@@ -78,6 +80,8 @@ type AppRepository interface {
 	FindAppAndProjectByIdsIn(ids []int) ([]*App, error)
 	FetchAppIdsByDisplayNamesForJobs(names []string) (map[int]string, []int, error)
 	GetActiveCiCdAppsCount() (int, error)
+
+	UpdateAppOfferingModeForAppIds(successAppIds []*int, appOfferingMode string, userId int32) error
 }
 
 const DevtronApp = "DevtronApp"
@@ -98,11 +102,6 @@ func NewAppRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *AppRe
 
 func (repo AppRepositoryImpl) GetConnection() *pg.DB {
 	return repo.dbConnection
-}
-
-func (repo AppRepositoryImpl) Save(pipelineGroup *App) error {
-	err := repo.dbConnection.Insert(pipelineGroup)
-	return err
 }
 
 func (repo AppRepositoryImpl) SaveWithTxn(pipelineGroup *App, tx *pg.Tx) error {
@@ -471,4 +470,11 @@ func (repo AppRepositoryImpl) GetActiveCiCdAppsCount() (int, error) {
 		Where("active=?", true).
 		Where("app_type=?", helper.CustomApp).
 		Count()
+}
+
+func (repo AppRepositoryImpl) UpdateAppOfferingModeForAppIds(successAppIds []*int, appOfferingMode string, userId int32) error {
+	query := "update app set app_offering_mode = ?,updated_by = ?, updated_on = ? where id in (?);"
+	var app *App
+	_, err := repo.dbConnection.Query(app, query, appOfferingMode, userId, time.Now(), pg.In(successAppIds))
+	return err
 }

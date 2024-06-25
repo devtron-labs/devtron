@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package repository
@@ -85,12 +84,16 @@ type CiArtifact struct {
 	sql.AuditLog
 }
 
-func (c *CiArtifact) IsMigrationRequired() bool {
+func (artifact *CiArtifact) IsMigrationRequired() bool {
 	validDataSourceTypeList := []string{CI_RUNNER, WEBHOOK, PRE_CD, POST_CD, POST_CI, GOCD}
-	if slices.Contains(validDataSourceTypeList, c.DataSource) {
+	if slices.Contains(validDataSourceTypeList, artifact.DataSource) {
 		return false
 	}
 	return true
+}
+
+func (artifact *CiArtifact) IsRegistryCredentialMapped() bool {
+	return artifact.CredentialsSourceType == GLOBAL_CONTAINER_REGISTRY
 }
 
 type CiArtifactRepository interface {
@@ -502,12 +505,12 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineAndRunnerType(cdPip
 }
 
 // return map of gitUrl:hash
-func (info *CiArtifact) ParseMaterialInfo() (map[string]string, error) {
-	if info.DataSource != GOCD && info.DataSource != CI_RUNNER && info.DataSource != WEBHOOK && info.DataSource != EXT {
-		return nil, fmt.Errorf("datasource: %s not supported", info.DataSource)
+func (artifact *CiArtifact) ParseMaterialInfo() (map[string]string, error) {
+	if artifact.DataSource != GOCD && artifact.DataSource != CI_RUNNER && artifact.DataSource != WEBHOOK && artifact.DataSource != EXT {
+		return nil, fmt.Errorf("datasource: %s not supported", artifact.DataSource)
 	}
 	var ciMaterials []*CiMaterialInfo
-	err := json.Unmarshal([]byte(info.MaterialInfo), &ciMaterials)
+	err := json.Unmarshal([]byte(artifact.MaterialInfo), &ciMaterials)
 	scmMap := map[string]string{}
 	for _, material := range ciMaterials {
 		var url string

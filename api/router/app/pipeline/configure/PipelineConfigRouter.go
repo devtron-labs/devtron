@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package configure
@@ -57,7 +56,12 @@ func (router PipelineConfigRouterImpl) InitPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/template/update").HandlerFunc(router.restHandler.UpdateAppOverride).Methods("POST")
 	configRouter.Path("/template/list").Queries("appId", "{appId}").Queries("envId", "{envId}").HandlerFunc(router.restHandler.GetTemplateComparisonMetadata).Methods("GET")
 	configRouter.Path("/template/data").HandlerFunc(router.restHandler.GetDeploymentTemplateData).Methods("POST")
-
+	configRouter.Path("/template/workloads").HandlerFunc(router.restHandler.GetRestartWorkloadData).Queries("appIds", "{appIds}").
+		Queries("envId", "{envId}").Methods("GET")
+	// Start -- user defined gitops repository
+	configRouter.Path("/template/gitops/config/{appId}").HandlerFunc(router.restHandler.GetGitOpsConfiguration).Methods("GET")
+	configRouter.Path("/template/gitops/config").HandlerFunc(router.restHandler.SaveGitOpsConfiguration).Methods("POST")
+	// End --
 	configRouter.Path("/cd-pipeline").HandlerFunc(router.restHandler.CreateCdPipeline).Methods("POST")
 	configRouter.Path("/cd-pipeline/patch").HandlerFunc(router.restHandler.PatchCdPipeline).Methods("POST")
 	configRouter.Path("/cd-pipeline/patch/deployment").HandlerFunc(router.restHandler.HandleChangeDeploymentRequest).Methods("POST")
@@ -81,6 +85,9 @@ func (router PipelineConfigRouterImpl) InitPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/ci-pipeline/patch-source").HandlerFunc(router.restHandler.PatchCiMaterialSourceWithAppIdAndEnvironmentId).Methods("PATCH")
 	configRouter.Path("/ci-pipeline/bulk/branch-update").HandlerFunc(router.restHandler.PatchCiMaterialSourceWithAppIdsAndEnvironmentId).Methods("PUT")
 	configRouter.Path("/ci-pipeline/patch/regex").HandlerFunc(router.restHandler.UpdateBranchCiPipelinesWithRegex).Methods("POST")
+
+	configRouter.Path("/ci-pipeline/{ciPipelineId}/linked-ci/downstream/env").HandlerFunc(router.restHandler.GetSourceCiDownStreamFilters).Methods("GET")
+	configRouter.Path("/ci-pipeline/{ciPipelineId}/linked-ci/downstream/cd").HandlerFunc(router.restHandler.GetSourceCiDownStreamInfo).Methods("GET")
 
 	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material").HandlerFunc(router.restHandler.GetArtifactsByCDPipeline).Methods("GET")
 	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material/rollback").HandlerFunc(router.restHandler.GetArtifactsForRollback).Methods("GET")

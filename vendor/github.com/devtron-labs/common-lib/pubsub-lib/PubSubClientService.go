@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package pubsub_lib
 
 import (
@@ -15,6 +31,7 @@ import (
 )
 
 const NATS_MSG_LOG_PREFIX = "NATS_LOG"
+const NATS_PANIC_MSG_LOG_PREFIX = "NATS_PANIC_LOG"
 
 type ValidateMsg func(msg model.PubSubMsg) bool
 
@@ -26,6 +43,7 @@ type LoggerFunc func(msg model.PubSubMsg) (logMsg string, keysAndValues []interf
 type PubSubClientService interface {
 	Publish(topic string, msg string) error
 	Subscribe(topic string, callback func(msg *model.PubSubMsg), loggerFunc LoggerFunc, validations ...ValidateMsg) error
+	ShutDown() error
 }
 
 type PubSubClientServiceImpl struct {
@@ -34,29 +52,46 @@ type PubSubClientServiceImpl struct {
 	logsConfig *model.LogsConfig
 }
 
-func NewPubSubClientServiceImpl(logger *zap.SugaredLogger) *PubSubClientServiceImpl {
+func NewPubSubClientServiceImpl(logger *zap.SugaredLogger) (*PubSubClientServiceImpl, error) {
 	natsClient, err := NewNatsClient(logger)
 	if err != nil {
-		logger.Fatalw("error occurred while creating nats client stopping now!!")
+		logger.Errorw("error occurred while creating nats client stopping now!!")
+		return nil, err
 	}
 	logsConfig := &model.LogsConfig{}
 	err = env.Parse(logsConfig)
 	if err != nil {
 		logger.Errorw("error occurred while parsing LogsConfig", "err", err)
+		return nil, err
 	}
-	ParseAndFillStreamWiseAndConsumerWiseConfigMaps()
+	err = ParseAndFillStreamWiseAndConsumerWiseConfigMaps()
+	if err != nil {
+		return nil, err
+	}
 	pubSubClient := &PubSubClientServiceImpl{
 		Logger:     logger,
 		NatsClient: natsClient,
 		logsConfig: logsConfig,
 	}
-	return pubSubClient
+	return pubSubClient, nil
+}
+
+func (impl PubSubClientServiceImpl) ShutDown() error {
+	// Drain the connection, which will close it when done.
+	if err := impl.NatsClient.Conn.Drain(); err != nil {
+		return err
+	}
+	// Wait for the connection to be closed.
+	impl.NatsClient.ConnWg.Wait()
+	return nil
 }
 
 func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
 	impl.Logger.Debugw("Published message on pubsub client", "topic", topic, "msg", msg)
 	status := model.PUBLISH_FAILURE
-	defer metrics.IncPublishCount(topic, status)
+	defer func() {
+		metrics.IncPublishCount(topic, status)
+	}()
 	natsClient := impl.NatsClient
 	jetStrCtxt := natsClient.JetStrCtxt
 	natsTopic := GetNatsTopic(topic)
@@ -91,6 +126,7 @@ func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
 // invokes callback(+required) func for each message received.
 // loggerFunc(+optional) is invoked before passing the message to the callback function.
 // validations(+optional) methods were called before passing the message to the callback func.
+
 func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *model.PubSubMsg), loggerFunc LoggerFunc, validations ...ValidateMsg) error {
 	impl.Logger.Infow("Subscribed to pubsub client", "topic", topic)
 	natsTopic := GetNatsTopic(topic)
@@ -124,10 +160,11 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *m
 		nats.AckWait(ackWait), // if ackWait is 0 , nats sets this option to 30secs by default
 		nats.BindStream(streamName))
 	if err != nil {
-		impl.Logger.Fatalw("error while subscribing to nats ", "stream", streamName, "topic", topic, "error", err)
+		impl.Logger.Errorw("error while subscribing to nats ", "stream", streamName, "topic", topic, "error", err)
 		return err
 	}
 	go impl.startListeningForEvents(processingBatchSize, channel, callback, loggerFunc, validations...)
+
 	impl.Logger.Infow("Successfully subscribed with Nats", "stream", streamName, "topic", topic, "queue", queueName, "consumer", consumerName)
 	return nil
 }
@@ -140,6 +177,7 @@ func (impl PubSubClientServiceImpl) startListeningForEvents(processingBatchSize 
 		go impl.processMessages(wg, channel, callback, loggerFunc, validations...)
 	}
 	wg.Wait()
+
 	impl.Logger.Warn("msgs received Done from Nats side, going to end listening!!")
 }
 
@@ -196,13 +234,6 @@ func (impl PubSubClientServiceImpl) TryCatchCallBack(msg *nats.Msg, callback fun
 	// call loggersFunc
 	impl.Log(loggerFunc, msg.Subject, *subMsg)
 
-	// run validations
-	for _, validation := range validations {
-		if !validation(*subMsg) {
-			impl.Logger.Warnw("nats: message validation failed, not processing the message...", "subject", msg.Subject, "msg", string(msg.Data))
-			return
-		}
-	}
 	defer func() {
 		// Acknowledge the message delivery
 		err := msg.Ack()
@@ -212,13 +243,14 @@ func (impl PubSubClientServiceImpl) TryCatchCallBack(msg *nats.Msg, callback fun
 
 		// publish metrics for msg delivery count if msgDeliveryCount > 1
 		if msgDeliveryCount > 1 {
-			metrics.NatsEventDeliveryCount.WithLabelValues(msg.Subject, natsMsgId).Observe(float64(msgDeliveryCount))
+			metrics.NatsEventDeliveryCount.WithLabelValues(msg.Subject).Observe(float64(msgDeliveryCount))
 		}
 
 		// Panic recovery handling
 		if panicInfo := recover(); panicInfo != nil {
-			impl.Logger.Warnw("nats: found panic error", "subject", msg.Subject, "payload", string(msg.Data), "logs", string(debug.Stack()))
+			impl.Logger.Warnw(fmt.Sprintf("%s: found panic error", NATS_PANIC_MSG_LOG_PREFIX), "subject", msg.Subject, "payload", string(msg.Data), "logs", string(debug.Stack()))
 			err = fmt.Errorf("%v\nPanic Logs:\n%s", panicInfo, string(debug.Stack()))
+			metrics.IncPanicRecoveryCount("nats", msg.Subject, "", "")
 			// Publish the panic info to PANIC_ON_PROCESSING_TOPIC
 			publishErr := impl.publishPanicError(msg, err)
 			if publishErr != nil {
@@ -227,6 +259,15 @@ func (impl PubSubClientServiceImpl) TryCatchCallBack(msg *nats.Msg, callback fun
 			return
 		}
 	}()
+
+	// run validations
+	for _, validation := range validations {
+		if !validation(*subMsg) {
+			impl.Logger.Warnw("nats: message validation failed, not processing the message...", "subject", msg.Subject, "msg", string(msg.Data))
+			return
+		}
+	}
+
 	// Process the event message
 	callback(subMsg)
 }

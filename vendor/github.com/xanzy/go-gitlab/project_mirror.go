@@ -25,14 +25,14 @@ import (
 // ProjectMirrorService handles communication with the project mirror
 // related methods of the GitLab API.
 //
-// GitLAb API docs: https://docs.gitlab.com/ce/api/remote_mirrors.html
+// GitLAb API docs: https://docs.gitlab.com/ee/api/remote_mirrors.html
 type ProjectMirrorService struct {
 	client *Client
 }
 
 // ProjectMirror represents a project mirror configuration.
 //
-// GitLAb API docs: https://docs.gitlab.com/ce/api/remote_mirrors.html
+// GitLAb API docs: https://docs.gitlab.com/ee/api/remote_mirrors.html
 type ProjectMirror struct {
 	Enabled                bool       `json:"enabled"`
 	ID                     int        `json:"id"`
@@ -52,7 +52,7 @@ type ListProjectMirrorOptions ListOptions
 // ListProjectMirror gets a list of mirrors configured on the project.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/remote_mirrors.html#list-a-projects-remote-mirrors
+// https://docs.gitlab.com/ee/api/remote_mirrors.html#list-a-projects-remote-mirrors
 func (s *ProjectMirrorService) ListProjectMirror(pid interface{}, opt *ListProjectMirrorOptions, options ...RequestOptionFunc) ([]*ProjectMirror, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
@@ -71,14 +71,39 @@ func (s *ProjectMirrorService) ListProjectMirror(pid interface{}, opt *ListProje
 		return nil, resp, err
 	}
 
-	return pm, resp, err
+	return pm, resp, nil
+}
+
+// GetProjectMirror gets a single mirror configured on the project.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/remote_mirrors.html#get-a-single-projects-remote-mirror
+func (s *ProjectMirrorService) GetProjectMirror(pid interface{}, mirror int, options ...RequestOptionFunc) (*ProjectMirror, *Response, error) {
+	project, err := parseID(pid)
+	if err != nil {
+		return nil, nil, err
+	}
+	u := fmt.Sprintf("projects/%s/remote_mirrors/%d", PathEscape(project), mirror)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil, options)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	pm := new(ProjectMirror)
+	resp, err := s.client.Do(req, &pm)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return pm, resp, nil
 }
 
 // AddProjectMirrorOptions contains the properties requires to create
 // a new project mirror.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/remote_mirrors.html#create-a-remote-mirror
+// https://docs.gitlab.com/ee/api/remote_mirrors.html#create-a-push-mirror
 type AddProjectMirrorOptions struct {
 	URL                   *string `url:"url,omitempty" json:"url,omitempty"`
 	Enabled               *bool   `url:"enabled,omitempty" json:"enabled,omitempty"`
@@ -89,7 +114,7 @@ type AddProjectMirrorOptions struct {
 // AddProjectMirror creates a new mirror on the project.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/remote_mirrors.html#create-a-remote-mirror
+// https://docs.gitlab.com/ee/api/remote_mirrors.html#create-a-push-mirror
 func (s *ProjectMirrorService) AddProjectMirror(pid interface{}, opt *AddProjectMirrorOptions, options ...RequestOptionFunc) (*ProjectMirror, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
@@ -108,14 +133,14 @@ func (s *ProjectMirrorService) AddProjectMirror(pid interface{}, opt *AddProject
 		return nil, resp, err
 	}
 
-	return pm, resp, err
+	return pm, resp, nil
 }
 
 // EditProjectMirrorOptions contains the properties requires to edit
 // an existing project mirror.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/remote_mirrors.html#update-a-remote-mirrors-attributes
+// https://docs.gitlab.com/ee/api/remote_mirrors.html#update-a-remote-mirrors-attributes
 type EditProjectMirrorOptions struct {
 	Enabled               *bool `url:"enabled,omitempty" json:"enabled,omitempty"`
 	OnlyProtectedBranches *bool `url:"only_protected_branches,omitempty" json:"only_protected_branches,omitempty"`
@@ -125,7 +150,7 @@ type EditProjectMirrorOptions struct {
 // EditProjectMirror updates a project team member to a specified access level..
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/remote_mirrors.html#update-a-remote-mirrors-attributes
+// https://docs.gitlab.com/ee/api/remote_mirrors.html#update-a-remote-mirrors-attributes
 func (s *ProjectMirrorService) EditProjectMirror(pid interface{}, mirror int, opt *EditProjectMirrorOptions, options ...RequestOptionFunc) (*ProjectMirror, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
@@ -144,5 +169,24 @@ func (s *ProjectMirrorService) EditProjectMirror(pid interface{}, mirror int, op
 		return nil, resp, err
 	}
 
-	return pm, resp, err
+	return pm, resp, nil
+}
+
+// DeleteProjectMirror deletes a project mirror.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/remote_mirrors.html#delete-a-remote-mirror
+func (s *ProjectMirrorService) DeleteProjectMirror(pid interface{}, mirror int, options ...RequestOptionFunc) (*Response, error) {
+	project, err := parseID(pid)
+	if err != nil {
+		return nil, err
+	}
+	u := fmt.Sprintf("projects/%s/remote_mirrors/%d", PathEscape(project), mirror)
+
+	req, err := s.client.NewRequest(http.MethodDelete, u, nil, options)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.client.Do(req, nil)
 }

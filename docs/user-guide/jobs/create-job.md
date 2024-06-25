@@ -20,7 +20,7 @@ Provide below information on the `Create job` page:
 | **Job Name** | User-defined name for the job in Devtron. |
 | **Description** | Enter the description of a job. |
 | **Registry URL** | This is the URL of your private registry in Quay. E.g. `quay.io` |
-| **Select one of them** |  <ul><li>**Create from scratch** :Select the project from the drop-down list.<br>`Note`: You have to add [project under Global Configurations](https://docs.devtron.ai/global-configurations/projects). Only then, it will appear in the drop-down list here.</li><li>**Clone existing application**: Select an app you want to clone from and the project from the drop-down list.<br>`Note`: You have to add [project under Global Configurations](https://docs.devtron.ai/global-configurations/projects). Only then, it will appear in the drop-down list here.</li></ul> |
+| **Select one of them** |  <ul><li>**Create from scratch** :Select the project from the drop-down list.<br>`Note`: You have to add [project under Global Configurations](../global-configurations/projects.md). Only then, it will appear in the drop-down list here.</li><li>**Clone existing application**: Select an app you want to clone from and the project from the drop-down list.<br>`Note`: You have to add [project under Global Configurations](../global-configurations/projects.md). Only then, it will appear in the drop-down list here.</li></ul> |
 
 **Note**: Do not forget to modify git repositories and corresponding branches to be used for each Job Pipeline if required.
 

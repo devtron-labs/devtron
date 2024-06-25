@@ -31,7 +31,7 @@ You can either grant [super-admin](../../global-configurations/authorization/use
 In `Devtron Apps` option, you can provide access to a group to manage permission for custom apps created using Devtron.
 
 {% hint style="info" %}
-The `Devtron Apps` option will be available only if you install [CI/CD integration](https://docs.devtron.ai/usage/integrations/build-and-deploy-ci-cd).
+The `Devtron Apps` option will be available only if you install [CI/CD integration](../../integrations/build-and-deploy-ci-cd.md).
 {% endhint %}
 
 Provide the information in the following fields:
@@ -92,7 +92,7 @@ Once you have finished assigning the appropriate permissions for the groups, Cli
 
 ### Kubernetes Resources Permissions
 
-In `Kubernetes Resources` option, you can provide permission to view, inspect, manage, and delete resources in your clusters from [Kubernetes Resource Browser](https://docs.devtron.ai/usage/resource-browser) page in Devtron. You can also create resources from the `Kubernetes Resource Browser` page.
+In `Kubernetes Resources` option, you can provide permission to view, inspect, manage, and delete resources in your clusters from [Kubernetes Resource Browser](../../../user-guide/resource-browser.md) page in Devtron. You can also create resources from the `Kubernetes Resource Browser` page.
 
 {% hint style="info" %}
 Only super admin users will be able to see `Kubernetes Resources` tab and provide permission to other users to access `Resource Browser`.
@@ -125,7 +125,7 @@ Once you have finished assigning the appropriate permissions for the groups, Cli
 In `Chart group permission` option, you can manage the access of groups for Chart Groups in your project.
 
 {% hint style="info" %}
-The `Chart group permission` option will be available only if you install [CI/CD integration](https://docs.devtron.ai/usage/integrations/build-and-deploy-ci-cd).
+The `Chart group permission` option will be available only if you install [CI/CD integration](../../integrations/build-and-deploy-ci-cd.md).
 {% endhint %}
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/permission-group/permission-group-chart-v2.jpg)

@@ -2,7 +2,7 @@
 
 Once Devtron is installed, it has a built-in `admin` user with super admin privileges with unrestricted access to all Devtron resources. We recommended to use a user with super admin privileges for initial and global configurations only and then switch to local users or configure SSO integration.
 
-Only users with [super-admin](https://docs.devtron.ai/v/v0.6/global-configurations/authorization/user-access#role-based-access-levels) privileges can create SSO configuration. Devtron uses [Dex](https://dexidp.io/docs/connectors/google/) for authenticating a user against the identity provider.
+Only users with [super-admin](../global-configurations/authorization/user-access.md#role-based-access-levels) privileges can create SSO configuration. Devtron uses [Dex](https://dexidp.io/docs/connectors/google/) for authenticating a user against the identity provider.
 
 
 To add/edit SSO configuration, go to the `SSO Login Services` section of `Global Configurations`. 
@@ -28,7 +28,7 @@ Refer the following documents for more detail.
 
 ### 1. Create new SSO Configuration
 
-Make sure that you have a [super admin access](https://docs.devtron.ai/global-configurations/authorization/user-access#assign-super-admin-permission).
+Make sure that you have a [super admin access](../global-configurations/authorization/user-access.md#assign-super-admin-permission).
 
 * Go to the `Global Configurations` → `SSO Login Services` and click any `SSO Provider` of your choice.
 * In the `URL` field, enter the valid Devtron application `URL` where it is hosted.
