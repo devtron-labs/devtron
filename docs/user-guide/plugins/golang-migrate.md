@@ -19,11 +19,11 @@ Migrate reads migrations from sources file and applies them in correct order to 
  | Variable | Format | Description |
 | ---- | ---- | ---- |
 | DB_TYPE | String | Currently this plugin support postgres,mongodb,mongodb+srv,mysql,sqlserver. |
-| DB_HOST | String | Database service name which is accessible from the environment. |
-| DB_PORT | String | Port number for database service. |
-| DB_NAME | String | Database name. |
-| DB_USER | String | Database user name.|
-| DB_PASSWORD | String | Password for DB_USER. |
+| DB_HOST | String | The hostname, service endpoint or IP address of the database server. |
+| DB_PORT | String | The port number on which the database server is listening. |
+| DB_NAME | String | The name of the specific database instance you want to connect to. |
+| DB_USER | String | The username required to authenticate to the database.|
+| DB_PASSWORD | String | The password required to authenticate to the database. |
 | SCRIPT_LOCATION | String | Location of SQL files that need to be run on desired database. |
 | MIGRATE_IMAGE | String | Docker image of golang-migrate default:migrate/migrate. |
 | MIGRATE_TO_VERSION | String | migrate to which version of sql script need to be run on desired database(default: 0 is for all files in directory). |
