@@ -20,18 +20,18 @@ import (
 	"context"
 	"encoding/json"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
-	bean3 "github.com/devtron-labs/devtron/api/bean"
+	apiBean "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	internalUtil "github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/app/status"
-	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
-	bean7 "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
+	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor/celEvaluator"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
-	util4 "github.com/devtron-labs/devtron/util"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"time"
@@ -39,19 +39,18 @@ import (
 
 type WorkflowEventPublishService interface {
 	TriggerBulkHibernateAsync(request bean.StopDeploymentGroupRequest) (interface{}, error)
-	TriggerHelmAsyncRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time,
-		triggeredBy int32) (releaseNo int, manifest []byte, err error)
+	TriggerAsyncRelease(userDeploymentRequestId int, overrideRequest *apiBean.ValuesOverrideRequest,
+		valuesOverrideResponse *app.ValuesOverrideResponse, ctx context.Context, triggeredBy int32) (releaseNo int, err error)
 	TriggerBulkDeploymentAsync(requests []*bean.BulkTriggerRequest, UserId int32) (interface{}, error)
 }
 
 type WorkflowEventPublishServiceImpl struct {
-	logger                              *zap.SugaredLogger
-	pubSubClient                        *pubsub.PubSubClientServiceImpl
-	cdWorkflowCommonService             cd.CdWorkflowCommonService
-	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService
-	manifestCreationService             manifest.ManifestCreationService
-	pipelineStatusTimelineService       status.PipelineStatusTimelineService
-	config                              *types.CdConfig
+	logger                        *zap.SugaredLogger
+	pubSubClient                  *pubsub.PubSubClientServiceImpl
+	cdWorkflowCommonService       cd.CdWorkflowCommonService
+	pipelineStatusTimelineService status.PipelineStatusTimelineService
+	config                        *types.CdConfig
+	triggerEventEvaluator         celEvaluator.TriggerEventEvaluator
 
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
 	pipelineRepository   pipelineConfig.PipelineRepository
@@ -61,9 +60,8 @@ type WorkflowEventPublishServiceImpl struct {
 func NewWorkflowEventPublishServiceImpl(logger *zap.SugaredLogger,
 	pubSubClient *pubsub.PubSubClientServiceImpl,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
-	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService,
-	manifestCreationService manifest.ManifestCreationService,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
+	triggerEventEvaluator celEvaluator.TriggerEventEvaluator,
 
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
@@ -73,13 +71,12 @@ func NewWorkflowEventPublishServiceImpl(logger *zap.SugaredLogger,
 		return nil, err
 	}
 	impl := &WorkflowEventPublishServiceImpl{
-		logger:                              logger,
-		pubSubClient:                        pubSubClient,
-		cdWorkflowCommonService:             cdWorkflowCommonService,
-		deployedConfigurationHistoryService: deployedConfigurationHistoryService,
-		manifestCreationService:             manifestCreationService,
-		pipelineStatusTimelineService:       pipelineStatusTimelineService,
-		config:                              config,
+		logger:                        logger,
+		pubSubClient:                  pubSubClient,
+		cdWorkflowCommonService:       cdWorkflowCommonService,
+		pipelineStatusTimelineService: pipelineStatusTimelineService,
+		config:                        config,
+		triggerEventEvaluator:         triggerEventEvaluator,
 
 		cdWorkflowRepository: cdWorkflowRepository,
 		pipelineRepository:   pipelineRepository,
@@ -118,84 +115,40 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerBulkHibernateAsync(request b
 	return nil, nil
 }
 
-// TriggerHelmAsyncRelease will publish async helm Install/Upgrade request event for Devtron App releases
-func (impl *WorkflowEventPublishServiceImpl) TriggerHelmAsyncRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifest []byte, err error) {
-	// build merged values and save PCO history for the release
-	valuesOverrideResponse, err := impl.manifestCreationService.GetValuesOverrideForTrigger(overrideRequest, triggeredAt, ctx)
-	_, span := otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
-	// save triggered deployment history
-	err1 := impl.deployedConfigurationHistoryService.CreateHistoriesForDeploymentTrigger(valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggeredAt, triggeredBy)
-	if err1 != nil {
-		impl.logger.Errorw("error in saving histories for trigger", "err", err1, "pipelineId", valuesOverrideResponse.Pipeline.Id, "wfrId", overrideRequest.WfrId)
-	}
-	span.End()
+// TriggerAsyncRelease will publish async Install/Upgrade request event for Devtron App releases
+func (impl *WorkflowEventPublishServiceImpl) TriggerAsyncRelease(userDeploymentRequestId int, overrideRequest *apiBean.ValuesOverrideRequest,
+	valuesOverrideResponse *app.ValuesOverrideResponse, ctx context.Context, triggeredBy int32) (releaseNo int, err error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "WorkflowEventPublishServiceImpl.TriggerAsyncRelease")
+	defer span.End()
+	topic, msg, err := impl.getAsyncDeploymentTopicAndPayload(userDeploymentRequestId, overrideRequest.DeploymentAppType, valuesOverrideResponse)
 	if err != nil {
 		impl.logger.Errorw("error in fetching values for trigger", "err", err)
-		return releaseNo, manifest, err
+		return releaseNo, err
 	}
-
-	event := &bean7.AsyncCdDeployEvent{
-		ValuesOverrideRequest: overrideRequest,
-		TriggeredAt:           triggeredAt,
-		TriggeredBy:           triggeredBy,
-	}
-	payload, err := json.Marshal(event)
-	if err != nil {
-		impl.logger.Errorw("failed to marshal helm async CD deploy event request", "request", event, "err", err)
-		return 0, manifest, err
-	}
-
 	// publish nats event for async installation
-	err = impl.pubSubClient.Publish(pubsub.DEVTRON_CHART_INSTALL_TOPIC, string(payload))
+	err = impl.pubSubClient.Publish(topic, msg)
 	if err != nil {
-		impl.logger.Errorw("failed to publish trigger request event", "topic", pubsub.DEVTRON_CHART_INSTALL_TOPIC, "payload", payload, "err", err)
+		impl.logger.Errorw("failed to publish trigger request event", "topic", topic, "msg", msg, "err", err)
 		//update workflow runner status, used in app workflow view
-		err1 = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggeredAt, pipelineConfig.WorkflowFailed, err.Error())
+		err1 := impl.cdWorkflowCommonService.MarkDeploymentFailedForRunnerId(overrideRequest.WfrId, err, overrideRequest.UserId)
 		if err1 != nil {
-			impl.logger.Errorw("error in updating the workflow runner status, TriggerHelmAsyncRelease", "err", err1)
+			impl.logger.Errorw("error in updating the workflow runner status, TriggerAsyncRelease", "err", err1)
 		}
-		return 0, manifest, err
+		return 0, err
 	}
 
 	//update workflow runner status, used in app workflow view
-	err = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggeredAt, pipelineConfig.WorkflowInQueue, "")
+	err = impl.cdWorkflowCommonService.UpdateNonTerminalStatusInRunner(newCtx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowInQueue)
 	if err != nil {
-		impl.logger.Errorw("error in updating the workflow runner status, TriggerHelmAsyncRelease", "err", err)
-		return 0, manifest, err
+		impl.logger.Errorw("error in updating the workflow runner status, TriggerAsyncRelease", "err", err)
+		return 0, err
 	}
-	err = impl.UpdatePreviousQueuedRunnerStatus(overrideRequest.WfrId, overrideRequest.PipelineId, triggeredBy)
+	err = impl.cdWorkflowCommonService.UpdatePreviousQueuedRunnerStatus(overrideRequest.WfrId, overrideRequest.PipelineId, triggeredBy)
 	if err != nil {
-		impl.logger.Errorw("error in updating the previous queued workflow runner status, TriggerHelmAsyncRelease", "err", err)
-		return 0, manifest, err
+		impl.logger.Errorw("error in updating the previous queued workflow runner status, TriggerAsyncRelease", "err", err)
+		return 0, err
 	}
-	return 0, manifest, nil
-}
-
-func (impl *WorkflowEventPublishServiceImpl) UpdatePreviousQueuedRunnerStatus(cdWfrId, pipelineId int, triggeredBy int32) error {
-	cdWfrs, err := impl.cdWorkflowRepository.UpdatePreviousQueuedRunnerStatus(cdWfrId, pipelineId, triggeredBy)
-	if err != nil {
-		impl.logger.Errorw("error on update previous queued cd workflow runner, UpdatePreviousQueuedRunnerStatus", "cdWfrId", cdWfrId, "err", err)
-		return err
-	}
-	for _, cdWfr := range cdWfrs {
-		err = impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineFailed(cdWfr.Id, pipelineConfig.NEW_DEPLOYMENT_INITIATED)
-		if err != nil {
-			impl.logger.Errorw("error updating CdPipelineStatusTimeline, UpdatePreviousQueuedRunnerStatus", "err", err)
-			return err
-		}
-		if cdWfr.CdWorkflow == nil {
-			pipeline, err := impl.pipelineRepository.FindById(pipelineId)
-			if err != nil {
-				impl.logger.Errorw("error in fetching cd pipeline, UpdatePreviousQueuedRunnerStatus", "pipelineId", pipelineId, "err", err)
-				return err
-			}
-			cdWfr.CdWorkflow = &pipelineConfig.CdWorkflow{
-				Pipeline: pipeline,
-			}
-		}
-		util4.TriggerCDMetrics(pipelineConfig.GetTriggerMetricsFromRunnerObj(cdWfr), impl.config.ExposeCDMetrics)
-	}
-	return nil
+	return 0, nil
 }
 
 func (impl *WorkflowEventPublishServiceImpl) TriggerBulkDeploymentAsync(requests []*bean.BulkTriggerRequest, UserId int32) (interface{}, error) {
@@ -236,4 +189,35 @@ func (impl *WorkflowEventPublishServiceImpl) triggerNatsEventForBulkAction(cdWor
 			impl.logger.Errorw("error in publishing wf msg", "wf", wf, "err", err)
 		}
 	}
+}
+
+func (impl *WorkflowEventPublishServiceImpl) getAsyncDeploymentTopicAndPayload(userDeploymentRequestId int,
+	deploymentAppType string, valuesOverrideResponse *app.ValuesOverrideResponse) (topic string, msg string, err error) {
+	isPriorityEvent, err := impl.triggerEventEvaluator.IsPriorityDeployment(valuesOverrideResponse)
+	if err != nil {
+		impl.logger.Errorw("error while CEL expression evaluation", "err", err)
+		return topic, msg, err
+	}
+	if internalUtil.IsAcdApp(deploymentAppType) {
+		topic = pubsub.DEVTRON_CHART_GITOPS_INSTALL_TOPIC
+		if isPriorityEvent {
+			topic = pubsub.DEVTRON_CHART_GITOPS_PRIORITY_INSTALL_TOPIC
+		}
+	}
+	if internalUtil.IsHelmApp(deploymentAppType) {
+		topic = pubsub.DEVTRON_CHART_INSTALL_TOPIC
+		if isPriorityEvent {
+			topic = pubsub.DEVTRON_CHART_PRIORITY_INSTALL_TOPIC
+		}
+	}
+	event := &eventProcessorBean.UserDeploymentRequest{
+		Id: userDeploymentRequestId,
+	}
+	payload, err := json.Marshal(event)
+	if err != nil {
+		impl.logger.Errorw("failed to marshal async CD deploy event request", "request", event, "err", err)
+		return topic, msg, err
+	}
+	msg = string(payload)
+	return topic, msg, nil
 }

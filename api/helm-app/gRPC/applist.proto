@@ -313,6 +313,7 @@ message ChartRepository {
   string url = 2;
   string username = 3;
   string password = 4;
+  bool   allowInsecureConnection = 5;
 }
 
 message InstallReleaseRequest {

@@ -19,6 +19,7 @@ package history
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 
@@ -44,6 +45,7 @@ type ConfigMapHistoryService interface {
 	GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, configType repository.ConfigType) (history *repository.ConfigmapAndSecretHistory, exists bool, cmCsNames []string, err error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int, configType repository.ConfigType, componentName string) ([]*DeployedHistoryComponentMetadataDto, error)
 
+	CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (cmId int, csId int, exists bool, err error)
 	GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int, configType repository.ConfigType, userHasAdminAccess bool) ([]*ComponentLevelHistoryDetailDto, error)
 	ConvertConfigDataToComponentLevelDto(config *bean.ConfigData, configType repository.ConfigType, userHasAdminAccess bool) (*ComponentLevelHistoryDetailDto, error)
 }
@@ -98,7 +100,7 @@ func (impl ConfigMapHistoryServiceImpl) CreateHistoryFromAppLevelConfig(appLevel
 			UpdatedOn: appLevelConfig.UpdatedOn,
 		},
 	}
-	_, err = impl.configMapHistoryRepository.CreateHistory(historyModel)
+	_, err = impl.configMapHistoryRepository.CreateHistory(nil, historyModel)
 	if err != nil {
 		impl.logger.Errorw("error in creating new entry for CM/CS history", "historyModel", historyModel)
 		return err
@@ -127,7 +129,7 @@ func (impl ConfigMapHistoryServiceImpl) CreateHistoryFromAppLevelConfig(appLevel
 				UpdatedOn: appLevelConfig.UpdatedOn,
 			},
 		}
-		_, err = impl.configMapHistoryRepository.CreateHistory(historyModel)
+		_, err = impl.configMapHistoryRepository.CreateHistory(nil, historyModel)
 		if err != nil {
 			impl.logger.Errorw("error in creating new entry for CM/CS history", "historyModel", historyModel)
 			return err
@@ -167,7 +169,7 @@ func (impl ConfigMapHistoryServiceImpl) CreateHistoryFromEnvLevelConfig(envLevel
 				UpdatedOn: envLevelConfig.UpdatedOn,
 			},
 		}
-		_, err = impl.configMapHistoryRepository.CreateHistory(historyModel)
+		_, err = impl.configMapHistoryRepository.CreateHistory(nil, historyModel)
 		if err != nil {
 			impl.logger.Errorw("error in creating new entry for CM/CS history", "historyModel", historyModel)
 			return err
@@ -208,7 +210,14 @@ func (impl ConfigMapHistoryServiceImpl) CreateCMCSHistoryForDeploymentTrigger(pi
 			UpdatedOn: deployedOn,
 		},
 	}
-	cmHistory, err := impl.configMapHistoryRepository.CreateHistory(&historyModelForCM)
+
+	tx, err := impl.configMapHistoryRepository.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting transaction to create new cm/cs history", "error", err)
+		return 0, 0, err
+	}
+	defer impl.configMapHistoryRepository.RollbackTx(tx)
+	cmHistory, err := impl.configMapHistoryRepository.CreateHistory(tx, &historyModelForCM)
 	if err != nil {
 		impl.logger.Errorw("error in creating new entry for cm history", "historyModel", historyModelForCM)
 		return 0, 0, err
@@ -222,12 +231,16 @@ func (impl ConfigMapHistoryServiceImpl) CreateCMCSHistoryForDeploymentTrigger(pi
 	historyModelForCS.DataType = repository.SECRET_TYPE
 	historyModelForCS.Data = secretData
 	historyModelForCS.Id = 0
-	csHistory, err := impl.configMapHistoryRepository.CreateHistory(&historyModelForCS)
+	csHistory, err := impl.configMapHistoryRepository.CreateHistory(tx, &historyModelForCS)
 	if err != nil {
 		impl.logger.Errorw("error in creating new entry for secret history", "historyModel", historyModelForCS)
 		return 0, 0, err
 	}
-
+	err = impl.configMapHistoryRepository.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction to create new cm/cs history", "error", err)
+		return 0, 0, err
+	}
 	return cmHistory.Id, csHistory.Id, nil
 }
 
@@ -635,4 +648,27 @@ func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(con
 		HistoryConfig: historyDto,
 	}
 	return componentLevelData, nil
+}
+
+func (impl ConfigMapHistoryServiceImpl) CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (cmId int, csId int, exists bool, err error) {
+	cmHistory, cmErr := impl.configMapHistoryRepository.GetDeployedHistoryForPipelineIdOnTime(pipelineId, deployedOn, repository.SECRET_TYPE)
+	if cmErr != nil && !errors.Is(cmErr, pg.ErrNoRows) {
+		impl.logger.Errorw("error in checking if config map history exists for pipelineId and deployedOn", "err", cmErr, "pipelineId", pipelineId, "deployedOn", deployedOn)
+		return cmId, csId, exists, cmErr
+	}
+	if cmErr == nil {
+		cmId = cmHistory.Id
+	}
+	csHistory, csErr := impl.configMapHistoryRepository.GetDeployedHistoryForPipelineIdOnTime(pipelineId, deployedOn, repository.SECRET_TYPE)
+	if csErr != nil && !errors.Is(csErr, pg.ErrNoRows) {
+		impl.logger.Errorw("error in checking if secret history exists for pipelineId and deployedOn", "err", csErr, "pipelineId", pipelineId, "deployedOn", deployedOn)
+		return cmId, csId, exists, csErr
+	}
+	if csErr == nil {
+		csId = csHistory.Id
+	}
+	if cmErr == nil && csErr == nil {
+		exists = true
+	}
+	return cmId, csId, exists, nil
 }

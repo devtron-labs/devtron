@@ -235,7 +235,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 
 func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties, userId int32) (*bean.EnvironmentProperties, error) {
 	//check if exists
-	oldEnvOverride, err := impl.envConfigRepo.Get(propertiesRequest.Id)
+	oldEnvOverride, err := impl.envConfigRepo.GetByIdIncludingInactive(propertiesRequest.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -457,7 +457,7 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentPropertiesById(envId int) 
 
 func (impl PropertiesConfigServiceImpl) GetAppIdByChartEnvId(chartEnvId int) (*chartConfig.EnvConfigOverride, error) {
 
-	envOverride, err := impl.envConfigRepo.Get(chartEnvId)
+	envOverride, err := impl.envConfigRepo.GetByIdIncludingInactive(chartEnvId)
 	if err != nil {
 		impl.logger.Error("error fetching override config", "err", err)
 		return nil, err
@@ -508,7 +508,7 @@ func (impl PropertiesConfigServiceImpl) GetLatestEnvironmentProperties(appId, en
 }
 
 func (impl PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int) (bool, error) {
-	envOverride, err := impl.envConfigRepo.Get(id)
+	envOverride, err := impl.envConfigRepo.GetByIdIncludingInactive(id)
 	if err != nil {
 		return false, err
 	}
@@ -559,7 +559,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespace
 		}
 		environmentProperties.AppMetrics = &appMetrics
 	} else {
-		envOverride, err = impl.envConfigRepo.Get(environmentProperties.Id)
+		envOverride, err = impl.envConfigRepo.GetByIdIncludingInactive(environmentProperties.Id)
 		if err != nil {
 			impl.logger.Errorw("error in fetching envOverride", "err", err)
 		}

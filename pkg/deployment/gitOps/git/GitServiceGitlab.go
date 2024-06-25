@@ -17,11 +17,14 @@
 package git
 
 import (
+	"context"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
+	"github.com/devtron-labs/devtron/util/retryFunc"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
+	"net/http"
 	"net/url"
 	"path/filepath"
 	"strconv"
@@ -115,7 +118,7 @@ func (impl GitLabClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
 	return err
 }
 
-func (impl GitLabClient) CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+func (impl GitLabClient) CreateRepository(ctx context.Context, config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	impl.logger.Debugw("gitlab app create request ", "name", config.GitRepoName, "description", config.Description)
 	repoUrl, err := impl.GetRepoUrl(config)
@@ -147,7 +150,7 @@ func (impl GitLabClient) CreateRepository(config *bean2.GitOpsConfigDto) (url st
 		return "", true, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
-	_, err = impl.CreateReadme(config)
+	_, err = impl.CreateReadme(ctx, config)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme ", "gitlab project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
@@ -250,7 +253,7 @@ func (impl GitLabClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl stri
 	return "", nil
 }
 
-func (impl GitLabClient) CreateReadme(config *bean2.GitOpsConfigDto) (string, error) {
+func (impl GitLabClient) CreateReadme(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
 	fileAction := gitlab.FileCreate
 	filePath := "README.md"
 	fileContent := "devtron licence"
@@ -262,7 +265,7 @@ func (impl GitLabClient) CreateReadme(config *bean2.GitOpsConfigDto) (string, er
 		AuthorName:    &config.Username,
 	}
 	gitRepoName := fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, config.GitRepoName)
-	c, _, err := impl.client.Commits.CreateCommit(gitRepoName, actions)
+	c, _, err := impl.client.Commits.CreateCommit(gitRepoName, actions, gitlab.WithContext(ctx))
 	if err != nil {
 		impl.logger.Errorw("gitlab commit readme file err", "gitRepoName", gitRepoName, "err", err)
 		return "", err
@@ -275,7 +278,7 @@ func (impl GitLabClient) checkIfFileExists(projectName, ref, file string) (exist
 	return err == nil, err
 }
 
-func (impl GitLabClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
+func (impl GitLabClient) CommitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
 	branch := "master"
 	path := filepath.Join(config.ChartLocation, config.FileName)
 	exists, err := impl.checkIfFileExists(config.ChartRepoName, branch, path)
@@ -292,8 +295,12 @@ func (impl GitLabClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.G
 		AuthorEmail:   &config.UserEmailId,
 		AuthorName:    &config.UserName,
 	}
-	c, _, err := impl.client.Commits.CreateCommit(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, config.ChartRepoName), actions)
-	if err != nil {
+	c, httpRes, err := impl.client.Commits.CreateCommit(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath,
+		config.ChartRepoName), actions, gitlab.WithContext(ctx))
+	if err != nil && httpRes != nil && httpRes.StatusCode == http.StatusBadRequest {
+		impl.logger.Warn("conflict found in commit gitlab", "err", err, "config", config)
+		return "", time.Time{}, retryFunc.NewRetryableError(err)
+	} else if err != nil {
 		return "", time.Time{}, err
 	}
 	commitTime = time.Now() //default is current time, if found then will get updated accordingly
