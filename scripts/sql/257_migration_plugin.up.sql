@@ -1,5 +1,5 @@
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by)
-VALUES (nextval('id_seq_plugin_metadata'),'GoLang-migrate','This plugin is use for running golang-migrate. ','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/plugin-golang-migrate.png',false,'now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_metadata'),'GoLang-migrate','This plugin is use for running golang-migrate. ','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/migrate-plugin/assets/plugin-golang-migrate.png',false,'now()',1,'now()',1);
 
 INSERT INTO plugin_stage_mapping (id,plugin_id,stage_type,created_on,created_by,updated_on,updated_by)
 VALUES (nextval('id_seq_plugin_stage_mapping'),(SELECT id from plugin_metadata where name='GoLang-migrate'), 0,'now()',1,'now()',1);
@@ -44,6 +44,7 @@ if [ "$DB_TYPE" = "postgres" ]; then
     else
         docker run -v $PWD:$PWD $MIGRATE_IMAGE   -path $PWD/$SCRIPT_LOCATION -database postgres://$DB_CRED$DB_HOST:$DB_PORT/$DB_NAME?"$PARAM" goto $MIGRATE_TO_VERSION;
     fi
+    docker run -v "$PWD:$PWD" "$MIGRATE_IMAGE" -path "$PWD/$SCRIPT_LOCATION" -database "postgres://$DB_CRED$DB_HOST:$DB_PORT/$DB_NAME?$PARAM" version > migration-golang-current-version.txt 2>&1
 elif [ "$DB_TYPE" = "mongodb" ]; then
     echo "migration for mongodb"
     if [ $MIGRATE_TO_VERSION -eq "0" ]; then
@@ -51,6 +52,7 @@ elif [ "$DB_TYPE" = "mongodb" ]; then
     else
         docker run -v $PWD:$PWD $MIGRATE_IMAGE   -path $PWD/$SCRIPT_LOCATION -database mongodb://$DB_CRED$DB_HOST:$DB_PORT/$DB_NAME?"$PARAM" goto $MIGRATE_TO_VERSION;
     fi
+    docker run -v $PWD:$PWD $MIGRATE_IMAGE   -path $PWD/$SCRIPT_LOCATION -database mongodb://$DB_CRED$DB_HOST:$DB_PORT/$DB_NAME?"$PARAM" version > migration-golang-current-version.txt 2>&1
 elif [ "$DB_TYPE" = "mongodb+srv" ]; then
     echo "migration for mongodb"
     if [ $MIGRATE_TO_VERSION -eq "0" ]; then
@@ -58,6 +60,7 @@ elif [ "$DB_TYPE" = "mongodb+srv" ]; then
     else
         docker run -v $PWD:$PWD $MIGRATE_IMAGE   -path $PWD/$SCRIPT_LOCATION -database mongodb+srv://$DB_CRED$DB_HOST:$DB_PORT/$DB_NAME?"$PARAM" goto $MIGRATE_TO_VERSION;
     fi
+    docker run -v $PWD:$PWD $MIGRATE_IMAGE   -path $PWD/$SCRIPT_LOCATION -database mongodb+srv://$DB_CRED$DB_HOST:$DB_PORT/$DB_NAME?"$PARAM" version > migration-golang-current-version.txt 2>&1
 elif [ "$DB_TYPE" = "mysql" ]; then
     echo "migration for mysql"
     DB="tcp($DB_HOST:$DB_PORT)"
@@ -66,6 +69,7 @@ elif [ "$DB_TYPE" = "mysql" ]; then
     else
         docker run -v $PWD:$PWD $MIGRATE_IMAGE   -path $PWD/$SCRIPT_LOCATION -database mysql://$DB_CRED$DB_HOST:$DB?"$PARAM" goto $MIGRATE_TO_VERSION;
     fi
+    docker run -v $PWD:$PWD $MIGRATE_IMAGE   -path $PWD/$SCRIPT_LOCATION -database mysql://$DB_CRED$DB/$DB_NAME?"$PARAM" version > migration-golang-current-version.txt 2>&1
 elif [ "$DB_TYPE" = "sqlserver" ]; then
     echo "migration for sqlserver"
     if [ $MIGRATE_TO_VERSION -eq "0" ]; then
@@ -73,10 +77,15 @@ elif [ "$DB_TYPE" = "sqlserver" ]; then
     else
         docker run -v $PWD:$PWD $MIGRATE_IMAGE   -path $PWD/$SCRIPT_LOCATION -database sqlserver://$DB_CRED$DB_HOST:$DB_PORT?"$PARAM" goto $MIGRATE_TO_VERSION;
     fi
+    docker run -v $PWD:$PWD $MIGRATE_IMAGE   -path $PWD/$SCRIPT_LOCATION -database sqlserver://$DB_CRED$DB_HOST:$DB_PORT?"$PARAM" version > migration-golang-current-version.txt 2>&1
 else
     echo "no database matched"
 fi
 $POST_COMMAND
+export POST_MIGRATION_VERION=$(cat migration-golang-current-version.txt)
+if [ -z $POST_MIGRATION_VERION  ]; then
+    POST_MIGRATION_VERION="0"
+fi
 echo "migration completed"$$,
         'SHELL',
         'f',
@@ -106,4 +115,5 @@ INSERT INTO plugin_step_variable (id,plugin_step_id,name,format, description,is_
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='GoLang-migrate' and ps."index"=1 and ps.deleted=false),'MIGRATE_IMAGE','STRING','Docker image of golang-migrate default:migrate/migrate','t','t','migrate/migrate',null,'INPUT','NEW',null,1,null,null, 'f','now()',1,'now()',1),
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='GoLang-migrate' and ps."index"=1 and ps.deleted=false),'MIGRATE_TO_VERSION','STRING','migrate to which version of sql script (default: 0 is for all files in directory)','t','f','0',null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='GoLang-migrate' and ps."index"=1 and ps.deleted=false),'PARAM','STRING','extra params that runs with db queries', 't','t',-1,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
-(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='GoLang-migrate' and ps."index"=1 and ps.deleted=false),'POST_COMMAND','STRING','post commands that runs at the end of script','t','t',null,null,'INPUT','NEW',null,1,null,null, 'f','now()',1,'now()',1);
+(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='GoLang-migrate' and ps."index"=1 and ps.deleted=false),'POST_COMMAND','STRING','post commands that runs at the end of script','t','t',null,null,'INPUT','NEW',null,1,null,null, 'f','now()',1,'now()',1),
+(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='GoLang-migrate' and ps."index"=1 and ps.deleted=false),'POST_MIGRATION_VERION','STRING','migration version after running the SQL files', 't','t',-1,null,'OUTPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
