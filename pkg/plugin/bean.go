@@ -221,6 +221,15 @@ type PluginTagsDto struct {
 	TagNames []string `json:"tagNames"`
 }
 
+func NewPluginTagsDto() *PluginTagsDto {
+	return &PluginTagsDto{}
+}
+
+func (r *PluginTagsDto) WithTagNames(tags []string) *PluginTagsDto {
+	r.TagNames = tags
+	return r
+}
+
 func (r *PluginMetadataDto) getPluginMetadataSqlObj(userId int32) *repository.PluginMetadata {
 	return &repository.PluginMetadata{
 		Name:        r.Name,

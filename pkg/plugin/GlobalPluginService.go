@@ -69,6 +69,7 @@ type GlobalPluginService interface {
 
 	ListAllPluginsV2(filter *PluginsListFilter) (*PluginsDto, error)
 	GetPluginDetailV2(pluginVersionIds, parentPluginIds []int, fetchLatestVersionDetailsOnly bool) (*PluginsDto, error)
+	GetAllUniqueTags() (*PluginTagsDto, error)
 }
 
 func NewGlobalPluginService(logger *zap.SugaredLogger, globalPluginRepository repository.GlobalPluginRepository,
@@ -1922,4 +1923,15 @@ func (impl *GlobalPluginServiceImpl) GetPluginParentDtosForGivenVersionsByParent
 		pluginParentMetadataDtos = append(pluginParentMetadataDtos, pluginParentDto)
 	}
 	return pluginParentMetadataDtos, nil
+}
+
+func (impl *GlobalPluginServiceImpl) GetAllUniqueTags() (*PluginTagsDto, error) {
+	tags, err := impl.globalPluginRepository.GetAllPluginTags()
+	if err != nil {
+		impl.logger.Errorw("GetAllUniqueTags, error in getting all plugin tags", "err", err)
+		return nil, err
+	}
+	allUniqueTags := getAllUniqueTags(tags)
+
+	return NewPluginTagsDto().WithTagNames(allUniqueTags), nil
 }

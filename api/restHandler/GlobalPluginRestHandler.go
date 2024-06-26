@@ -45,6 +45,7 @@ type GlobalPluginRestHandler interface {
 
 	ListAllPluginsV2(w http.ResponseWriter, r *http.Request)
 	GetPluginDetailByIds(w http.ResponseWriter, r *http.Request)
+	GetAllUniqueTags(w http.ResponseWriter, r *http.Request)
 }
 
 func NewGlobalPluginRestHandler(logger *zap.SugaredLogger, globalPluginService plugin.GlobalPluginService,
@@ -284,6 +285,32 @@ func (handler *GlobalPluginRestHandlerImpl) ListAllPluginsV2(w http.ResponseWrit
 	common.WriteJsonResp(w, err, plugins, http.StatusOK)
 }
 
+func (handler *GlobalPluginRestHandlerImpl) GetAllUniqueTags(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	appIdQueryParam := r.URL.Query().Get("appId")
+	appId, err := strconv.Atoi(appIdQueryParam)
+	if appIdQueryParam == "" || err != nil {
+		common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
+		return
+	}
+	ok, err := handler.IsUserAuthorised(token, appId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	pluginDetail, err := handler.globalPluginService.GetAllUniqueTags()
+	if err != nil {
+		handler.logger.Errorw("error in getting all unique tags", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, pluginDetail, http.StatusOK)
+}
+
 func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailByIds(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	appIdQueryParam := r.URL.Query().Get("appId")
@@ -299,7 +326,6 @@ func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailByIds(w http.Response
 
 	ok, err := handler.IsUserAuthorised(token, appId)
 	if err != nil {
-		handler.logger.Infow("service error, GetPluginDetailById", "appId", appId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -329,23 +355,18 @@ func (handler *GlobalPluginRestHandlerImpl) IsUserAuthorised(token string, appId
 	//TODO: update plugin as a resource in casbin and make rbac independent of appId
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	ok = handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionCreate)
-	if !ok {
-		return ok, err
-	}
 	return ok, nil
 }
 
 func (handler *GlobalPluginRestHandlerImpl) getListFilterFromQueryParam(w http.ResponseWriter, r *http.Request) (*plugin.PluginsListFilter, error) {
 	v := r.URL.Query()
-	offsetDefault := 0
-	offset, err := common.ExtractIntQueryParam(w, r, "offset", &offsetDefault)
+	offset, err := common.ExtractIntQueryParam(w, r, "offset")
 	if err != nil {
 		common.WriteJsonResp(w, err, "invalid offset value", http.StatusBadRequest)
 		return nil, err
 	}
 
-	limitDefault := 20
-	limit, err := common.ExtractIntQueryParam(w, r, "size", &limitDefault)
+	limit, err := common.ExtractIntQueryParam(w, r, "size")
 	if err != nil {
 		common.WriteJsonResp(w, err, "invalid size value", http.StatusBadRequest)
 		return nil, err
