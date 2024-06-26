@@ -109,6 +109,28 @@ In the following example, we are creating a single-step plugin named **Secret Ma
 ```
 {% endcode %}
 
+Required fields to edit in the above sample payload are:
+
+| Key Path     | Description                                                   |
+| ------------ | ------------------------------------------------------------- |
+| name         | Plugin name                                                   |
+| description  | Plugin description                                            |
+| tags         | Array of tags                                                 |
+| icon         | Plugin icon url                                               |
+| Plugin steps | Array of tasks to execute (Details of fields discussed below) |
+
+Fields of a plugin steps are:
+
+| Key Path                    | Description                                  |
+| --------------------------- | -------------------------------------------- |
+| name                        | Step name                                    |
+| description                 | Description of step                          |
+| index                       | Sequence at which the step needs to executed |
+| outputDirectoryPath         | Artifact output path                         |
+| pluginStepVariable          | Array of required input / output variables   |
+| pluginPipelineScript.script | Stringified bash script                      |
+
+
 ### Result
 
 Your new plugin will appear under **Shared Plugins** depending on which stage you have created it for: pre/post build (`pluginStage = CI`), pre/post deployment (`pluginStage = CD`), or both (`pluginStage = CI_CD`)
