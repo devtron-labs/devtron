@@ -1712,8 +1712,8 @@ func (impl *GlobalPluginServiceImpl) GetPluginParentDto(pluginParentMetadata *re
 		return nil, err
 	}
 
-	detailedPluginVersionsMetadataDtos := make([]*PluginsVersionDetail, 0) //contains detailed plugin version data
-	minimalPluginVersionsMetadataDtos := make([]*PluginsVersionDetail, 0)
+	detailedPluginVersionsMetadataDtos := make([]*PluginsVersionDetail, 0, len(pluginVersionsMetadata)) //contains detailed plugin version data
+	minimalPluginVersionsMetadataDtos := make([]*PluginsVersionDetail, 0, len(pluginVersionsMetadata))
 	pluginVersion := NewPluginVersions()
 
 	for _, pluginVersionMetadata := range pluginVersionsMetadata {
@@ -1889,7 +1889,7 @@ func (impl *GlobalPluginServiceImpl) GetPluginDetailV2(pluginVersionIds, parentP
 // GetPluginParentDtosForIds fetches PluginParentMetadata db object for all ids provided and provides a light weight PluginParentMetadataDto object,
 // with minimal info about version unless it's latest version of a plugin for all plugin with id present in ids parameter of this func.
 func (impl *GlobalPluginServiceImpl) GetPluginParentDtosForIds(parentPluginIds []int, fetchLatestVersionDetailsOnly bool) ([]*PluginParentMetadataDto, error) {
-	pluginParentMetadataDtos := make([]*PluginParentMetadataDto, 0)
+	pluginParentMetadataDtos := make([]*PluginParentMetadataDto, 0, len(parentPluginIds))
 	pluginParentDetails, err := impl.globalPluginRepository.GetPluginParentMetadataByIds(parentPluginIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting all plugin parent metadata by ids", "err", err)
@@ -1907,7 +1907,7 @@ func (impl *GlobalPluginServiceImpl) GetPluginParentDtosForIds(parentPluginIds [
 }
 
 func (impl *GlobalPluginServiceImpl) GetPluginParentDtosForGivenVersionsByParentPluginIds(parentPluginIds []int, pluginVersionsIdMap map[int]bool) ([]*PluginParentMetadataDto, error) {
-	pluginParentMetadataDtos := make([]*PluginParentMetadataDto, 0)
+	pluginParentMetadataDtos := make([]*PluginParentMetadataDto, 0, len(parentPluginIds))
 	pluginParentDetails, err := impl.globalPluginRepository.GetPluginParentMetadataByIds(parentPluginIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting all plugin parent metadata by ids", "err", err)
