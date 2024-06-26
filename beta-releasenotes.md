@@ -17,6 +17,7 @@
 - feat: air gap registry v2 (#5220)
 - feat: tenants and installations migration (#5187)
 ## Documentation
+- docs: Added specs for the global plugin Apis (#5362)
 - docs: Fixes +  Corrections in Docs (#5335)
 - docs: fixed broken link in readme (#5337)
 - docs: removed users (#5324)
