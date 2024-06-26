@@ -111,7 +111,7 @@ In the following example, we are creating a single-step plugin named **Secret Ma
 
 ### Result
 
-Your new plugin will appear under **Shared Plugins** depending on which stage you have created: pre/post build (`pluginStage = CI`), pre/post deployment (`pluginStage = CD`), or both (`pluginStage = CI_CD`)
+Your new plugin will appear under **Shared Plugins** depending on which stage you have created it for: pre/post build (`pluginStage = CI`), pre/post deployment (`pluginStage = CD`), or both (`pluginStage = CI_CD`)
 
 ![New Shared Plugin](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/plugins/create-plugin/shared-plugin.jpg)
 
