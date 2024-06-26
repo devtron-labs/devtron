@@ -177,7 +177,8 @@ type CustomK8sHttpTransportConfig struct {
 	TimeOut             int  `env:"K8s_TCP_TIMEOUT" envDefault:"30"`
 	KeepAlive           int  `env:"K8s_TCP_KEEPALIVE" envDefault:"30"`
 	TLSHandshakeTimeout int  `env:"K8s_TLS_HANDSHAKE_TIMEOUT" envDefault:"10"`
-	MaxIdleConnsPerHost int  `env:"K8s_CLIENT_MAX_IDLE_CONNS_PER_SECOND" envDefault:"25"`
+	MaxIdleConnsPerHost int  `env:"K8s_CLIENT_MAX_IDLE_CONNS_PER_HOST" envDefault:"25"`
+	IdleConnTimeout     int  `env:"K8s_TCP_IDLE_CONN_TIMEOUT" envDefault:"300"`
 }
 
 func NewCustomK8sHttpTransportConfig() *CustomK8sHttpTransportConfig {
@@ -191,9 +192,9 @@ func NewCustomK8sHttpTransportConfig() *CustomK8sHttpTransportConfig {
 
 // OverrideConfigWithCustomTransport
 // overrides the given rest config with custom transport if UseCustomTransport is enabled.
-// if the config already has a defined transport, we dont override it.
+// if the config already has a defined transport or tls is config is secure, we don't override it.
 func (impl *CustomK8sHttpTransportConfig) OverrideConfigWithCustomTransport(config *rest.Config) (*rest.Config, error) {
-	if !impl.UseCustomTransport || config.Transport != nil {
+	if !impl.UseCustomTransport || config.Transport != nil || !config.TLSClientConfig.Insecure {
 		return config, nil
 	}
 
@@ -212,12 +213,13 @@ func (impl *CustomK8sHttpTransportConfig) OverrideConfigWithCustomTransport(conf
 		Proxy:               http.ProxyFromEnvironment,
 		TLSHandshakeTimeout: time.Duration(impl.TLSHandshakeTimeout) * time.Second,
 		TLSClientConfig:     tlsConfig,
+		MaxIdleConns:        impl.MaxIdleConnsPerHost,
+		MaxConnsPerHost:     impl.MaxIdleConnsPerHost,
 		MaxIdleConnsPerHost: impl.MaxIdleConnsPerHost,
 		DialContext:         dial,
 		DisableCompression:  config.DisableCompression,
+		IdleConnTimeout:     time.Duration(impl.IdleConnTimeout) * time.Second,
 	})
-
-	config.Transport = transport
 
 	rt, err := rest.HTTPWrappersForConfig(config, transport)
 	if err != nil {
@@ -226,5 +228,12 @@ func (impl *CustomK8sHttpTransportConfig) OverrideConfigWithCustomTransport(conf
 
 	config.Transport = rt
 	config.Timeout = time.Duration(impl.TimeOut) * time.Second
+
+	// set default tls config and remove auth/exec provides since we use it in a custom transport.
+	// we already set tls config in the transport
+	config.TLSClientConfig = rest.TLSClientConfig{}
+	config.AuthProvider = nil
+	config.ExecProvider = nil
+
 	return config, nil
 }
