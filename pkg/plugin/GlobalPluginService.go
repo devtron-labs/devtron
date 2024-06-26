@@ -1677,14 +1677,17 @@ func (impl *GlobalPluginServiceImpl) ListAllPluginsV2(filter *PluginsListFilter)
 		return nil, err
 	}
 
-	allPluginParentMetadata, err := impl.globalPluginRepository.GetAllFilteredPluginParentMetadata(filter.SearchKey, filter.Tags, filter.Limit, filter.Offset)
+	allPluginParentMetadata, err := impl.globalPluginRepository.GetAllFilteredPluginParentMetadata(filter.SearchKey, filter.Tags)
 	if err != nil {
 		impl.logger.Errorw("error in getting all plugin parent metadata", "err", err)
 		return nil, err
 	}
-	pluginParentMetadataDtos := make([]*PluginParentMetadataDto, 0, len(allPluginParentMetadata))
 
-	for _, pluginParentMetadata := range allPluginParentMetadata {
+	paginatedPluginParentMetadata := paginatePluginParentMetadataFromDb(allPluginParentMetadata, filter.Limit, filter.Offset)
+
+	pluginParentMetadataDtos := make([]*PluginParentMetadataDto, 0, len(paginatedPluginParentMetadata))
+
+	for _, pluginParentMetadata := range paginatedPluginParentMetadata {
 		pluginParentDto, err := impl.GetPluginParentDto(pluginParentMetadata, filter.FetchLatestVersionDetails)
 		if err != nil {
 			impl.logger.Errorw("error in getting plugin parent dto for", "pluginParentId", pluginParentMetadata.Id, "err", err)
@@ -1693,7 +1696,7 @@ func (impl *GlobalPluginServiceImpl) ListAllPluginsV2(filter *PluginsListFilter)
 		pluginParentMetadataDtos = append(pluginParentMetadataDtos, pluginParentDto)
 	}
 
-	pluginDetails := NewPluginsDto().WithParentPlugins(pluginParentMetadataDtos).WithTotalCount(len(pluginParentMetadataDtos))
+	pluginDetails := NewPluginsDto().WithParentPlugins(pluginParentMetadataDtos).WithTotalCount(len(allPluginParentMetadata))
 
 	return pluginDetails, nil
 }

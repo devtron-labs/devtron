@@ -18,3 +18,14 @@ func getAllUniqueTags(tags []*repository.PluginTag) []string {
 	}
 	return uniqueTags
 }
+
+func paginatePluginParentMetadataFromDb(allPluginParentMetadata []*repository.PluginParentMetadata, size, offset int) []*repository.PluginParentMetadata {
+	if size > 0 {
+		if offset+size <= len(allPluginParentMetadata) {
+			allPluginParentMetadata = allPluginParentMetadata[offset : offset+size]
+		} else {
+			allPluginParentMetadata = allPluginParentMetadata[offset:]
+		}
+	}
+	return allPluginParentMetadata
+}

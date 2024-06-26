@@ -22,7 +22,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -269,7 +268,7 @@ type GlobalPluginRepository interface {
 	GetMetaDataForAllPluginsVersionsByIds(ids []int) ([]*PluginMetadata, error)
 
 	GetPluginParentMetadataByIdentifier(pluginIdentifier string) (*PluginParentMetadata, error)
-	GetAllFilteredPluginParentMetadata(searchKey string, tags []string, limit, offset int) ([]*PluginParentMetadata, error)
+	GetAllFilteredPluginParentMetadata(searchKey string, tags []string) ([]*PluginParentMetadata, error)
 	GetPluginParentMetadataByIds(ids []int) ([]*PluginParentMetadata, error)
 
 	SavePluginMetadata(pluginMetadata *PluginMetadata, tx *pg.Tx) (*PluginMetadata, error)
@@ -718,11 +717,10 @@ func (impl *GlobalPluginRepositoryImpl) UpdatePluginMetadataInBulk(pluginsMetada
 	return err
 }
 
-func (impl *GlobalPluginRepositoryImpl) GetAllFilteredPluginParentMetadata(searchKey string, tags []string, limit, offset int) ([]*PluginParentMetadata, error) {
+func (impl *GlobalPluginRepositoryImpl) GetAllFilteredPluginParentMetadata(searchKey string, tags []string) ([]*PluginParentMetadata, error) {
 	var plugins []*PluginParentMetadata
 	query := "select ppm.id, ppm.identifier,ppm.name,ppm.description,ppm.type,ppm.icon,ppm.deleted,ppm.created_by, ppm.created_on,ppm.updated_by,ppm.updated_on from plugin_parent_metadata ppm"
 	whereCondition := fmt.Sprintf(" where ppm.deleted = false")
-	var orderCondition string
 	if len(tags) > 0 {
 		query = query + " inner join plugin_metadata pm on pm.plugin_parent_metadata_id=ppm.id inner join plugin_tag_relation ptr on ptr.plugin_id=pm.id inner join plugin_tag pt on ptr.tag_id=pt.id"
 		whereCondition += fmt.Sprintf(" AND pt.name in (%s)", helper.GetCommaSepratedString(tags))
@@ -731,10 +729,8 @@ func (impl *GlobalPluginRepositoryImpl) GetAllFilteredPluginParentMetadata(searc
 		searchKeyLike := "%" + searchKey + "%"
 		whereCondition += fmt.Sprintf(" AND ppm.description ilike '%s' or ppm.name ilike '%s'", searchKeyLike, searchKeyLike)
 	}
-	if limit > 0 {
-		orderCondition = orderCondition + " OFFSET " + strconv.Itoa(offset) + " LIMIT " + strconv.Itoa(limit)
-	}
-	query += whereCondition + orderCondition + ";"
+
+	query += whereCondition + ";"
 
 	_, err := impl.dbConnection.Query(&plugins, query)
 	if err != nil {
