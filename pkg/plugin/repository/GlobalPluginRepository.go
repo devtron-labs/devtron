@@ -128,7 +128,7 @@ type PluginMetadata struct {
 	Type                   PluginType `sql:"type"` //deprecated
 	Icon                   string     `sql:"icon"` //deprecated
 	Deleted                bool       `sql:"deleted, notnull"`
-	PluginParentMetadataId int        `sql:"plugin_parent_metadata_id, notnull"`
+	PluginParentMetadataId int        `sql:"plugin_parent_metadata_id"`
 	PluginVersion          string     `sql:"plugin_version, notnull"`
 	IsDeprecated           bool       `sql:"is_deprecated, notnull"`
 	DocLink                string     `sql:"doc_link"`
@@ -709,25 +709,23 @@ func (impl *GlobalPluginRepositoryImpl) GetPluginParentMetadataByIdentifier(plug
 //}
 
 func (impl *GlobalPluginRepositoryImpl) SavePluginParentMetadata(tx *pg.Tx, pluginParentMetadata *PluginParentMetadata) (*PluginParentMetadata, error) {
-	err := tx.Insert(&pluginParentMetadata)
+	err := tx.Insert(pluginParentMetadata)
 	return pluginParentMetadata, err
 }
 
 func (impl *GlobalPluginRepositoryImpl) UpdatePluginMetadataInBulk(pluginsMetadata []*PluginMetadata, tx *pg.Tx) error {
-	err := tx.Insert(&pluginsMetadata)
+	_, err := tx.Model(&pluginsMetadata).Update()
 	return err
 }
 
 func (impl *GlobalPluginRepositoryImpl) GetAllFilteredPluginParentMetadata(searchKey string, tags []string, limit, offset int) ([]*PluginParentMetadata, error) {
 	var plugins []*PluginParentMetadata
-	var whereCondition string
-	var orderCondition string
-
 	query := "select ppm.id, ppm.identifier,ppm.name,ppm.description,ppm.type,ppm.icon,ppm.deleted,ppm.created_by, ppm.created_on,ppm.updated_by,ppm.updated_on from plugin_parent_metadata ppm"
-
+	whereCondition := fmt.Sprintf(" where ppm.deleted = false")
+	var orderCondition string
 	if len(tags) > 0 {
 		query = query + " inner join plugin_metadata pm on pm.plugin_parent_metadata_id=ppm.id inner join plugin_tag_relation ptr on ptr.plugin_id=pm.id inner join plugin_tag pt on ptr.tag_id=pt.id"
-		whereCondition += fmt.Sprintf(" where pt.name in (%s)", helper.GetCommaSepratedString(tags))
+		whereCondition += fmt.Sprintf(" AND pt.name in (%s)", helper.GetCommaSepratedString(tags))
 	}
 	if len(searchKey) > 0 {
 		searchKeyLike := "%" + searchKey + "%"

@@ -92,28 +92,29 @@ func NewPluginParentMetadataDto() *PluginParentMetadataDto {
 	return &PluginParentMetadataDto{}
 }
 
-func (r *PluginParentMetadataDto) WithName(name string) *PluginParentMetadataDto {
+func (r *PluginParentMetadataDto) WithNameAndId(name string, id int) *PluginParentMetadataDto {
+	r.Id = id
 	r.Name = name
 	return r
 }
 
 func (r *PluginParentMetadataDto) WithPluginIdentifier(identifier string) *PluginParentMetadataDto {
-	r.Name = identifier
+	r.PluginIdentifier = identifier
 	return r
 }
 
 func (r *PluginParentMetadataDto) WithDescription(desc string) *PluginParentMetadataDto {
-	r.Name = desc
+	r.Description = desc
 	return r
 }
 
 func (r *PluginParentMetadataDto) WithIcon(icon string) *PluginParentMetadataDto {
-	r.Name = icon
+	r.Icon = icon
 	return r
 }
 
 func (r *PluginParentMetadataDto) WithType(pluginType string) *PluginParentMetadataDto {
-	r.Name = pluginType
+	r.Type = pluginType
 	return r
 }
 
@@ -152,7 +153,7 @@ type PluginsVersionDetail struct {
 }
 
 func NewPluginsVersionDetail() *PluginsVersionDetail {
-	return &PluginsVersionDetail{}
+	return &PluginsVersionDetail{PluginMetadataDto: &PluginMetadataDto{}}
 }
 
 // SetMinimalPluginsVersionDetail sets and return PluginsVersionDetail obj, returns lightweight obj e.g. excluding input and output variables

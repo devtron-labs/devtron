@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -1701,7 +1702,7 @@ func (impl *GlobalPluginServiceImpl) ListAllPluginsV2(filter *PluginsListFilter)
 // objects such as input and output variables in the dto) and returns the same with error if any.
 func (impl *GlobalPluginServiceImpl) GetPluginParentDto(pluginParentMetadata *repository.PluginParentMetadata, fetchLatestVersionDetailsOnly bool) (*PluginParentMetadataDto, error) {
 	pluginParentDto := NewPluginParentMetadataDto()
-	pluginParentDto.WithName(pluginParentMetadata.Name).
+	pluginParentDto.WithNameAndId(pluginParentMetadata.Name, pluginParentMetadata.Id).
 		WithIcon(pluginParentMetadata.Icon).
 		WithDescription(pluginParentMetadata.Description).
 		WithPluginIdentifier(pluginParentMetadata.Identifier).
@@ -1726,7 +1727,7 @@ func (impl *GlobalPluginServiceImpl) GetPluginParentDto(pluginParentMetadata *re
 		pluginVersionDetails := NewPluginsVersionDetail()
 		pluginVersionDetails.SetMinimalPluginsVersionDetail(pluginVersionMetadata)
 		pluginVersionDetails.WithLastUpdatedEmail(lastUpdatedEmail)
-		if fetchLatestVersionDetailsOnly && pluginVersionMetadata.IsLatest {
+		if !fetchLatestVersionDetailsOnly || (fetchLatestVersionDetailsOnly && pluginVersionMetadata.IsLatest) {
 
 			//fetch input and output variables mappings
 			pluginIdInputVariablesMap, pluginIdOutputVariablesMap, err := impl.getPluginIdVariablesMap()
@@ -1808,11 +1809,11 @@ func (impl *GlobalPluginServiceImpl) MigratePluginDataToParentPluginMetadata(plu
 
 	for identifier, pluginMetadata := range identifierVsPluginMetadata {
 		pluginParentMetadata, err := impl.globalPluginRepository.GetPluginParentMetadataByIdentifier(identifier)
-		if err != nil {
+		if err != nil && !util.IsErrNoRows(err) {
 			impl.logger.Errorw("MigratePluginDataToParentPluginMetadata, error in GetPluginParentMetadataByIdentifier", "pluginIdentifier", identifier, "err", err)
 			return err
 		}
-		if pluginParentMetadata.Id > 0 {
+		if pluginParentMetadata != nil && pluginParentMetadata.Id > 0 {
 			//plugin data already migrated
 			continue
 		}
