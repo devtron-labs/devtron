@@ -125,6 +125,7 @@ type PipelineRepository interface {
 	UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg.Tx, oldCiPipelineId, newCiPipelineId int) error
 	// FindWithEnvironmentByCiIds Possibility of duplicate environment names when filtered by unique pipeline ids
 	FindWithEnvironmentByCiIds(ctx context.Context, cIPipelineIds []int) ([]*Pipeline, error)
+	FindDeploymentAppTypeByAppIdAndEnvId(appId, envId int) (string, error)
 }
 
 type CiArtifactDTO struct {
@@ -782,4 +783,13 @@ func (impl PipelineRepositoryImpl) FindWithEnvironmentByCiIds(ctx context.Contex
 		return nil, err
 	}
 	return cDPipelines, nil
+}
+
+func (impl PipelineRepositoryImpl) FindDeploymentAppTypeByAppIdAndEnvId(appId, envId int) (string, error) {
+	var deploymentAppType string
+	err := impl.dbConnection.Model((*Pipeline)(nil)).
+		Column("deployment_app_type").
+		Where("app_id = ? and environment_id=? and active=true", appId, envId).
+		Select(&deploymentAppType)
+	return deploymentAppType, err
 }

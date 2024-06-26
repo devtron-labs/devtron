@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics/bean"
@@ -85,6 +86,7 @@ type ChartServiceImpl struct {
 	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
 	chartRefService                  chartRef.ChartRefService
 	gitOpsConfigReadService          config.GitOpsConfigReadService
+	deploymentConfigService          common.DeploymentConfigService
 }
 
 func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
@@ -100,7 +102,8 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	scopedVariableManager variables.ScopedVariableManager,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	chartRefService chartRef.ChartRefService,
-	gitOpsConfigReadService config.GitOpsConfigReadService) *ChartServiceImpl {
+	gitOpsConfigReadService config.GitOpsConfigReadService,
+	deploymentConfigService common.DeploymentConfigService) *ChartServiceImpl {
 	return &ChartServiceImpl{
 		chartRepository:                  chartRepository,
 		logger:                           logger,
@@ -116,6 +119,7 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 		deployedAppMetricsService:        deployedAppMetricsService,
 		chartRefService:                  chartRefService,
 		gitOpsConfigReadService:          gitOpsConfigReadService,
+		deploymentConfigService:          deploymentConfigService,
 	}
 }
 
@@ -258,15 +262,15 @@ func (impl *ChartServiceImpl) Create(templateRequest TemplateRequest, ctx contex
 		ChartVersion:            chartMeta.Version,
 		Status:                  models.CHARTSTATUS_NEW,
 		Active:                  true,
-		ChartLocation:           chartLocation,
-		GitRepoUrl:              gitRepoUrl,
-		ReferenceTemplate:       templateName,
-		ChartRefId:              templateRequest.ChartRefId,
-		Latest:                  true,
-		Previous:                false,
-		IsBasicViewLocked:       templateRequest.IsBasicViewLocked,
-		CurrentViewEditor:       templateRequest.CurrentViewEditor,
-		AuditLog:                sql.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
+		//ChartLocation:           chartLocation,
+		//GitRepoUrl:              gitRepoUrl,
+		ReferenceTemplate: templateName,
+		ChartRefId:        templateRequest.ChartRefId,
+		Latest:            true,
+		Previous:          false,
+		IsBasicViewLocked: templateRequest.IsBasicViewLocked,
+		CurrentViewEditor: templateRequest.CurrentViewEditor,
+		AuditLog:          sql.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
 	}
 
 	err = impl.chartRepository.Save(chart)

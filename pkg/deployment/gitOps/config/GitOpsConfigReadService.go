@@ -38,6 +38,7 @@ type GitOpsConfigReadService interface {
 	GetBitbucketMetadata() (*bean.BitbucketProviderMetadata, error)
 	GetGitOpsConfigActive() (*bean2.GitOpsConfigDto, error)
 	GetConfiguredGitOpsCount() (int, error)
+	GetGitOpsProviderByRepoURL(gitRepoUrl string) (*bean2.GitOpsConfigDto, error)
 }
 
 type GitOpsConfigReadServiceImpl struct {
@@ -157,4 +158,46 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsC
 func (impl *GitOpsConfigReadServiceImpl) GetConfiguredGitOpsCount() (int, error) {
 	count, err := impl.gitOpsRepository.GetAllGitOpsConfigCount()
 	return count, err
+}
+
+func (impl *GitOpsConfigReadServiceImpl) GetGitOpsProviderByRepoURL(gitRepoUrl string) (*bean2.GitOpsConfigDto, error) {
+	models, err := impl.gitOpsRepository.GetAllGitOpsConfig()
+	if err != nil {
+		impl.logger.Errorw("error, GetGitOpsConfigActive", "err", err)
+		return nil, err
+	}
+
+	var gitOpsConfig *bean2.GitOpsConfigDto
+
+	requestHost, err := util.GetHost(gitRepoUrl)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse host from repo URL: %s", gitRepoUrl)
+	}
+
+	for _, model := range models {
+		if host, err := util.GetHost(model.Host); err != nil && host == requestHost {
+			gitOpsConfig = &bean2.GitOpsConfigDto{
+				Id:                    model.Id,
+				Provider:              model.Provider,
+				GitHubOrgId:           model.GitHubOrgId,
+				GitLabGroupId:         model.GitLabGroupId,
+				Active:                model.Active,
+				Token:                 model.Token,
+				Host:                  model.Host,
+				Username:              model.Username,
+				UserId:                model.CreatedBy,
+				AzureProjectName:      model.AzureProject,
+				BitBucketWorkspaceId:  model.BitBucketWorkspaceId,
+				BitBucketProjectKey:   model.BitBucketProjectKey,
+				AllowCustomRepository: model.AllowCustomRepository,
+			}
+			// written with assumption that only one GitOpsConfig is present in DB for each provider(github, gitlab, etc)
+			break
+		}
+	}
+	if gitOpsConfig == nil {
+		return nil, fmt.Errorf("no gitops config found in DB for given repoURL: %s", gitRepoUrl)
+	}
+
+	return gitOpsConfig, nil
 }

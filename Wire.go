@@ -93,6 +93,7 @@ import (
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository8 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
@@ -121,6 +122,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	deployment2 "github.com/devtron-labs/devtron/pkg/deployment"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	git2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/publish"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
@@ -872,8 +874,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository.UserAttributesRepository), new(*repository.UserAttributesRepositoryImpl)),
 		pipelineConfig.NewPipelineStatusTimelineRepositoryImpl,
 		wire.Bind(new(pipelineConfig.PipelineStatusTimelineRepository), new(*pipelineConfig.PipelineStatusTimelineRepositoryImpl)),
-		wire.Bind(new(pipeline.DeploymentConfigService), new(*pipeline.DeploymentConfigServiceImpl)),
-		pipeline.NewDeploymentConfigServiceImpl,
+		wire.Bind(new(pipeline.PipelineDeploymentConfigService), new(*pipeline.PipelineDeploymentConfigServiceImpl)),
+		pipeline.NewPipelineDeploymentConfigServiceImpl,
 		pipelineConfig.NewCiTemplateOverrideRepositoryImpl,
 		wire.Bind(new(pipelineConfig.CiTemplateOverrideRepository), new(*pipelineConfig.CiTemplateOverrideRepositoryImpl)),
 		pipelineConfig.NewCiBuildConfigRepositoryImpl,
@@ -970,6 +972,12 @@ func InitializeApp() (*App, error) {
 
 		cel.NewCELServiceImpl,
 		wire.Bind(new(cel.EvaluatorService), new(*cel.EvaluatorServiceImpl)),
+
+		deploymentConfig.NewRepositoryImpl,
+		wire.Bind(new(deploymentConfig.Repository), new(*deploymentConfig.RepositoryImpl)),
+
+		common.NewDeploymentConfigServiceImpl,
+		wire.Bind(new(common.DeploymentConfigService), new(*common.DeploymentConfigServiceImpl)),
 	)
 	return &App{}, nil
 }
