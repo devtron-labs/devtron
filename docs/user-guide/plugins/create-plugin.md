@@ -29,7 +29,7 @@ In the following example, we are creating a single-step plugin named **Secret Ma
 
 {% code title="Plugin Request Body" overflow="wrap" lineNumbers="true" %}
 
-```yaml
+```json
 {
     "name": "Secret Management Validator",
     "description": "The Secret Management Validator plugin integrates with your CI/CD pipeline to automatically detect and prevent the inclusion of secrets or sensitive information in your codebase, ensuring compliance and security.",
