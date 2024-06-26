@@ -61,7 +61,7 @@ This involves the process of creating a blackout window or a maintenance window.
 
 3. Choose a deployment window type, i.e., maintenance window or blackout window. 
 
-    ![Figure 5: Selecting Deployment Window and Timezone](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/window-type-v2.jpg)
+    ![Figure 5: Selecting Deployment Window Type](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-window/window-type-v2.jpg)
 
 4. In your deployment window, make sure to choose the correct time zone (by default it is determined from the browser you use).
 
