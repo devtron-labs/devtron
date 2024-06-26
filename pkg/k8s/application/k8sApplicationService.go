@@ -27,6 +27,8 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
+	"github.com/devtron-labs/devtron/pkg/fluxApplication"
+	bean2 "github.com/devtron-labs/devtron/pkg/fluxApplication/bean"
 	"io"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"net/http"
@@ -86,6 +88,7 @@ type K8sApplicationService interface {
 	RecreateResource(ctx context.Context, request *k8s.ResourceRequestBean) (*k8s2.ManifestResponse, error)
 	DeleteResourceWithAudit(ctx context.Context, request *k8s.ResourceRequestBean, userId int32) (*k8s2.ManifestResponse, error)
 	GetUrlsByBatchForIngress(ctx context.Context, resp []k8s.BatchResourceResponse) []interface{}
+	ValidateFluxResourceRequest(ctx context.Context, appIdentifier *bean2.FluxAppIdentifier, request *k8s2.K8sRequestBean) (bool, error)
 }
 
 type K8sApplicationServiceImpl struct {
@@ -102,13 +105,14 @@ type K8sApplicationServiceImpl struct {
 	ephemeralContainerRepository repository.EphemeralContainersRepository
 	ephemeralContainerConfig     *EphemeralContainerConfig
 	argoApplicationService       argoApplication.ArgoApplicationService
+	fluxApplicationService       fluxApplication.FluxApplicationService
 }
 
 func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, pump connector.Pump, helmAppService client.HelmAppService, K8sUtil *k8s2.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
 	k8sCommonService k8s.K8sCommonService, terminalSession terminal.TerminalSessionHandler,
 	ephemeralContainerService cluster.EphemeralContainerService,
 	ephemeralContainerRepository repository.EphemeralContainersRepository,
-	argoApplicationService argoApplication.ArgoApplicationService) (*K8sApplicationServiceImpl, error) {
+	argoApplicationService argoApplication.ArgoApplicationService, fluxApplicationService fluxApplication.FluxApplicationService) (*K8sApplicationServiceImpl, error) {
 	ephemeralContainerConfig := &EphemeralContainerConfig{}
 	err := env.Parse(ephemeralContainerConfig)
 	if err != nil {
@@ -129,6 +133,7 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService clus
 		ephemeralContainerRepository: ephemeralContainerRepository,
 		ephemeralContainerConfig:     ephemeralContainerConfig,
 		argoApplicationService:       argoApplicationService,
+		fluxApplicationService:       fluxApplicationService,
 	}, nil
 }
 
@@ -220,13 +225,13 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 	}
 	request.K8sRequest = k8sRequest
 	if appId != "" {
-		if len(appTypeStr) > 0 && !(appType == bean3.DevtronAppType || appType == bean3.HelmAppType || appType == bean3.ArgoAppType) {
+		if len(appTypeStr) > 0 && !(appType == bean3.DevtronAppType || appType == bean3.HelmAppType || appType == bean3.ArgoAppType || appType == bean3.FluxAppType) {
 			impl.logger.Errorw("Invalid appType", "err", err, "appType", appType)
 			return nil, err
 		}
 		// Validate Deployment Type
 		deploymentType, err := strconv.Atoi(v.Get("deploymentType"))
-		if err != nil || !(deploymentType == bean3.HelmInstalledType || deploymentType == bean3.ArgoInstalledType) {
+		if err != nil || !(deploymentType == bean3.HelmInstalledType || deploymentType == bean3.ArgoInstalledType || deploymentType == bean3.FluxInstalledType) {
 			impl.logger.Errorw("Invalid deploymentType", "err", err, "deploymentType", deploymentType)
 			return nil, err
 		}
@@ -258,6 +263,16 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 				return nil, err
 			}
 			request.K8sRequest.ResourceIdentifier.Namespace = namespace
+		} else if request.AppType == bean3.FluxAppType {
+			// For flux App resources
+			appIdentifier, err := fluxApplication.DecodeFluxExternalAppAppId(appId)
+			if err != nil {
+				impl.logger.Errorw("error in decoding appId", "err", err, "appId", appId)
+				return nil, err
+			}
+			request.ExternalFluxAppIdentifier = appIdentifier
+			request.ClusterId = appIdentifier.ClusterId
+			request.K8sRequest.ResourceIdentifier.Namespace = appIdentifier.Namespace
 		}
 	} else if clusterIdString != "" {
 		// Validate Cluster Id
@@ -469,6 +484,38 @@ func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(ctx context.Conte
 		}
 	}
 	return impl.validateContainerNameIfReqd(valid, request, app), nil
+}
+func (impl *K8sApplicationServiceImpl) ValidateFluxResourceRequest(ctx context.Context, appIdentifier *bean2.FluxAppIdentifier, request *k8s2.K8sRequestBean) (bool, error) {
+	app, err := impl.fluxApplicationService.GetFluxAppDetail(ctx, appIdentifier)
+	if err != nil {
+		impl.logger.Errorw("error in getting app detail", "err", err, "appDetails", appIdentifier)
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
+		return false, err
+	}
+
+	valid := false
+	for _, node := range app.ResourceTreeResponse.Nodes {
+		nodeDetails := k8s2.ResourceIdentifier{
+			Name:      node.Name,
+			Namespace: node.Namespace,
+			GroupVersionKind: schema.GroupVersionKind{
+				Group:   node.Group,
+				Version: node.Version,
+				Kind:    node.Kind,
+			},
+		}
+		if nodeDetails == request.ResourceIdentifier {
+			valid = true
+			break
+		}
+	}
+	appDetail := &gRPC.AppDetail{
+		ResourceTreeResponse: app.ResourceTreeResponse,
+	}
+	return impl.validateContainerNameIfReqd(valid, request, appDetail), nil
 }
 
 func (impl *K8sApplicationServiceImpl) validateContainerNameIfReqd(valid bool, request *k8s2.K8sRequestBean, app *gRPC.AppDetail) bool {

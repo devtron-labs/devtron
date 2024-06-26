@@ -36,6 +36,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
+	"github.com/devtron-labs/devtron/pkg/fluxApplication"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	bean2 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
@@ -90,6 +91,7 @@ type K8sApplicationRestHandlerImpl struct {
 	userService            user.UserService
 	k8sCommonService       k8s.K8sCommonService
 	terminalEnvVariables   *util.TerminalEnvVariables
+	//fluxAppService fluxApplication.FluxApplicationService
 }
 
 func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate, envVariables *util.EnvironmentVariables) *K8sApplicationRestHandlerImpl {
@@ -533,6 +535,32 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 			return
 		}
 		// RBAC enforcer Ends
+	} else if request.AppId != "" && request.AppType == bean2.FluxAppType {
+		// For flux app resource
+		appIdentifier, err := fluxApplication.DecodeFluxExternalAppAppId(request.AppId)
+		if err != nil {
+			handler.logger.Errorw("error in decoding appId", "err", err, "appId", request.AppId)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+
+		//setting fluxAppIdentifier value in request
+		request.ExternalFluxAppIdentifier = appIdentifier
+		request.ClusterId = appIdentifier.ClusterId
+		if request.DeploymentType == bean2.FluxInstalledType {
+			valid, err := handler.k8sApplicationService.ValidateFluxResourceRequest(r.Context(), request.ExternalFluxAppIdentifier, request.K8sRequest)
+			if err != nil || !valid {
+				handler.logger.Errorw("error in validating resource request", "err", err)
+				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+				return
+			}
+		}
+
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			return
+		}
+
 	} else if request.ClusterId > 0 {
 		// RBAC enforcer applying for resource Browser
 		if ok := handler.handleRbac(r, w, request, token, casbin.ActionDelete); !ok {
@@ -627,6 +655,28 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 			return
 		}
 		//RBAC enforcer Ends
+	} else if request.AppId != "" && request.AppType == bean2.FluxAppType {
+		// For Helm app resource
+		appIdentifier, err := fluxApplication.DecodeFluxExternalAppAppId(request.AppId)
+		if err != nil {
+			handler.logger.Errorw("error in decoding appId", "err", err, "appId", request.AppId)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		request.ExternalFluxAppIdentifier = appIdentifier
+
+		valid, err := handler.k8sApplicationService.ValidateFluxResourceRequest(r.Context(), request.ExternalFluxAppIdentifier, request.K8sRequest)
+		if err != nil || !valid {
+			handler.logger.Errorw("error in validating resource request", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			return
+		}
+
 	} else if request.ClusterId > 0 && request.AppType != bean2.ArgoAppType {
 		// RBAC enforcer applying for resource Browser
 		if ok := handler.handleRbac(r, w, request, token, casbin.ActionGet); !ok {

@@ -19,18 +19,20 @@ package k8s
 import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/fluxApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 )
 
 type ResourceRequestBean struct {
 	AppId                       string                     `json:"appId"`
-	AppType                     int                        `json:"appType,omitempty"`        // 0: DevtronApp, 1: HelmApp, 2:ArgoApp
+	AppType                     int                        `json:"appType,omitempty"`        // 0: DevtronApp, 1: HelmApp, 2:ArgoApp, 3 fluxApp
 	DeploymentType              int                        `json:"deploymentType,omitempty"` // 0: DevtronApp, 1: HelmApp
 	AppIdentifier               *helmBean.AppIdentifier    `json:"-"`
 	K8sRequest                  *k8s.K8sRequestBean        `json:"k8sRequest"`
 	DevtronAppIdentifier        *bean.DevtronAppIdentifier `json:"-"`         // For Devtron App Resources
 	ClusterId                   int                        `json:"clusterId"` // clusterId is used when request is for direct cluster (not for helm release)
 	ExternalArgoApplicationName string                     `json:"externalArgoApplicationName,omitempty"`
+	ExternalFluxAppIdentifier   *bean2.FluxAppIdentifier   `json: "-"`
 }
 
 type LogsDownloadBean struct {

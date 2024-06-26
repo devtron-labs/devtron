@@ -32,9 +32,11 @@ const (
 	DevtronAppType = 0 // Identifier for Devtron Apps
 	HelmAppType    = 1 // Identifier for Helm Apps
 	ArgoAppType    = 2
+	FluxAppType    = 3 //Identifier for Flux Apps
 	// Deployment Type Identifiers
 	HelmInstalledType = 0 // Identifier for Helm deployment
 	ArgoInstalledType = 1 // Identifier for ArgoCD deployment
+	FluxInstalledType = 2 //identifier for fluxCd Deployment
 )
 
 const (
