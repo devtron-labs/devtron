@@ -35,6 +35,7 @@ import (
 	"github.com/go-pg/pg"
 	"io"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/utils/ptr"
 	"net/http"
 	"strconv"
 	"strings"
@@ -76,7 +77,6 @@ type K8sApplicationService interface {
 	ValidateTerminalRequestQuery(r *http.Request) (*terminal.TerminalSessionRequest, *k8s.ResourceRequestBean, error)
 	DecodeDevtronAppId(applicationId string) (*bean3.DevtronAppIdentifier, error)
 	GetPodLogs(ctx context.Context, request *k8s.ResourceRequestBean) (io.ReadCloser, error)
-	ValidateResourceRequest(ctx context.Context, appIdentifier *bean2.AppIdentifier, request *k8s2.K8sRequestBean) (bool, error)
 	ValidateClusterResourceRequest(ctx context.Context, clusterResourceRequest *k8s.ResourceRequestBean,
 		rbacCallback func(clusterName string, resourceIdentifier k8s2.ResourceIdentifier) bool) (bool, error)
 	ValidateClusterResourceBean(ctx context.Context, clusterId int, manifest unstructured.Unstructured, gvk schema.GroupVersionKind, rbacCallback func(clusterName string, resourceIdentifier k8s2.ResourceIdentifier) bool) bool
@@ -93,7 +93,16 @@ type K8sApplicationService interface {
 	DeleteResourceWithAudit(ctx context.Context, request *k8s.ResourceRequestBean, userId int32) (*k8s2.ManifestResponse, error)
 	GetUrlsByBatchForIngress(ctx context.Context, resp []k8s.BatchResourceResponse) []interface{}
 	GetPipelineByAppIdEnvId(appId int, envId int) (*pipelineConfig.Pipeline, error)
-	ValidateResourceRequestForArgoInstalledType(rctx context.Context, cn http.CloseNotifier, request *k8s2.K8sRequestBean, appId int, envId int, clusterId int, namespace string, deploymentAppName string) (bool, error)
+	HelmAppResourceValidator
+	ArgoAppResourceValidator
+}
+
+type HelmAppResourceValidator interface {
+	ValidateResourceRequestForHelmApp(ctx context.Context, appIdentifier *bean2.AppIdentifier, request *k8s2.K8sRequestBean) (bool, error)
+}
+
+type ArgoAppResourceValidator interface {
+	ValidateResourceRequestForArgoApp(ctx context.Context, request *k8s2.K8sRequestBean, appId int, envId int, clusterId int, namespace string, deploymentAppName string) (bool, error)
 }
 
 type K8sApplicationServiceImpl struct {
@@ -168,21 +177,12 @@ func (handler *K8sApplicationServiceImpl) GetPipelineByAppIdEnvId(appId int, env
 	cdPipeline := pipelines[0]
 	return cdPipeline, nil
 }
-func (impl *K8sApplicationServiceImpl) ValidateResourceRequestForArgoInstalledType(rctx context.Context, cn http.CloseNotifier, request *k8s2.K8sRequestBean, appId int, envId int, clusterId int, namespace string, deploymentAppName string) (bool, error) {
+
+func (impl *K8sApplicationServiceImpl) ValidateResourceRequestForArgoApp(ctx context.Context, request *k8s2.K8sRequestBean, appId int, envId int, clusterId int, namespace string, deploymentAppName string) (bool, error) {
 	query := application.ResourcesQuery{
 		ApplicationName: &deploymentAppName,
 	}
-	ctx, cancel := context.WithCancel(rctx)
-	if cn != nil {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	defer cancel()
+
 	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token")
@@ -194,6 +194,7 @@ func (impl *K8sApplicationServiceImpl) ValidateResourceRequestForArgoInstalledTy
 		impl.logger.Errorw("service err, FetchAppDetailArgo, resource tree", "err", err)
 		return false, err
 	}
+
 	// we currently add appId and envId as labels for devtron apps deployed via acd
 	label := fmt.Sprintf("appId=%v,envId=%v", appId, envId)
 	pods, err := impl.GetPodListByLabel(clusterId, namespace, label)
@@ -205,6 +206,7 @@ func (impl *K8sApplicationServiceImpl) ValidateResourceRequestForArgoInstalledTy
 	for _, metaData := range resp.PodMetadata {
 		metaData.EphemeralContainers = ephemeralContainersMap[metaData.Name]
 	}
+
 	valid := false
 	for _, node := range resp.Nodes {
 		nodeDetails := k8s2.ResourceIdentifier{
@@ -221,41 +223,9 @@ func (impl *K8sApplicationServiceImpl) ValidateResourceRequestForArgoInstalledTy
 			break
 		}
 	}
-	return impl.validateContainerNameIfReqdForInstalledTypeArgo(valid, request, resp), nil
+	return impl.validateContainerNameIfReqd(valid, request, resp.PodMetadata), nil
 }
-func (impl *K8sApplicationServiceImpl) validateContainerNameIfReqdForInstalledTypeArgo(valid bool, request *k8s2.K8sRequestBean, resourceTree *bean.ResourceTreeResponse) bool {
-	if !valid {
-		requestContainerName := request.PodLogsRequest.ContainerName
-		podName := request.ResourceIdentifier.Name
-		for _, pod := range resourceTree.PodMetadata {
-			if pod.Name == podName {
 
-				// finding the container name in main Containers
-				for _, container := range pod.Containers {
-					if *container == requestContainerName {
-						return true
-					}
-				}
-
-				// finding the container name in init containers
-				for _, initContainer := range pod.InitContainers {
-					if *initContainer == requestContainerName {
-						return true
-					}
-				}
-
-				// finding the container name in ephemeral containers
-				for _, ephemeralContainer := range pod.EphemeralContainers {
-					if ephemeralContainer.Name == requestContainerName {
-						return true
-					}
-				}
-
-			}
-		}
-	}
-	return valid
-}
 func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Request) (*k8s.ResourceRequestBean, error) {
 	v, vars := r.URL.Query(), mux.Vars(r)
 	request := &k8s.ResourceRequestBean{}
@@ -562,7 +532,7 @@ func (impl *K8sApplicationServiceImpl) ValidateClusterResourceBean(ctx context.C
 	return impl.validateResourceManifest(clusterBean.ClusterName, manifest, gvk, rbacCallback)
 }
 
-func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(ctx context.Context, appIdentifier *bean2.AppIdentifier, request *k8s2.K8sRequestBean) (bool, error) {
+func (impl *K8sApplicationServiceImpl) ValidateResourceRequestForHelmApp(ctx context.Context, appIdentifier *bean2.AppIdentifier, request *k8s2.K8sRequestBean) (bool, error) {
 	app, err := impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error in getting app detail", "err", err, "appDetails", appIdentifier)
@@ -588,26 +558,56 @@ func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(ctx context.Conte
 			break
 		}
 	}
-	return impl.validateContainerNameIfReqd(valid, request, app), nil
+	podsMetadata := util2.Transform(app.ResourceTreeResponse.PodMetadata, func(metadata *gRPC.PodMetadata) *bean.PodMetadata {
+		return convertToPodMetadata(metadata)
+	})
+
+	return impl.validateContainerNameIfReqd(valid, request, podsMetadata), nil
 }
 
-func (impl *K8sApplicationServiceImpl) validateContainerNameIfReqd(valid bool, request *k8s2.K8sRequestBean, app *gRPC.AppDetail) bool {
+func convertToPodMetadata(metadata *gRPC.PodMetadata) *bean.PodMetadata {
+
+	ephemeralContainers := util2.Transform(metadata.GetEphemeralContainers(), func(ec *gRPC.EphemeralContainerData) *k8sObjectUtils.EphemeralContainerData {
+		return &k8sObjectUtils.EphemeralContainerData{
+			Name:       ec.Name,
+			IsExternal: ec.IsExternal,
+		}
+	})
+
+	containers := util2.Transform(metadata.GetContainers(), func(c string) *string {
+		return ptr.To(c)
+	})
+
+	initContainers := util2.Transform(metadata.GetInitContainers(), func(ic string) *string {
+		return ptr.To(ic)
+	})
+
+	return &bean.PodMetadata{
+		Name:                metadata.GetName(),
+		UID:                 metadata.GetUid(),
+		Containers:          containers,
+		InitContainers:      initContainers,
+		EphemeralContainers: ephemeralContainers,
+	}
+}
+
+func (impl *K8sApplicationServiceImpl) validateContainerNameIfReqd(valid bool, request *k8s2.K8sRequestBean, podsMetadata []*bean.PodMetadata) bool {
 	if !valid {
 		requestContainerName := request.PodLogsRequest.ContainerName
 		podName := request.ResourceIdentifier.Name
-		for _, pod := range app.ResourceTreeResponse.PodMetadata {
+		for _, pod := range podsMetadata {
 			if pod.Name == podName {
 
 				// finding the container name in main Containers
 				for _, container := range pod.Containers {
-					if container == requestContainerName {
+					if *container == requestContainerName {
 						return true
 					}
 				}
 
 				// finding the container name in init containers
 				for _, initContainer := range pod.InitContainers {
-					if initContainer == requestContainerName {
+					if *initContainer == requestContainerName {
 						return true
 					}
 				}
