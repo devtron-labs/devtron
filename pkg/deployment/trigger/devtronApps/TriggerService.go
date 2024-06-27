@@ -739,7 +739,7 @@ func (impl *TriggerServiceImpl) handleCDTriggerRelease(ctx context.Context, over
 
 func (impl *TriggerServiceImpl) auditDeploymentTriggerHistory(cdWfrId int, valuesOverrideResponse *app.ValuesOverrideResponse, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (err error) {
 	if valuesOverrideResponse.Pipeline == nil || valuesOverrideResponse.EnvOverride == nil {
-		impl.logger.Warnw("unable to save histories for deployment trigger, invalid valuesOverrideResponse received", "pipelineId", valuesOverrideResponse.Pipeline.Id, "cdWfrId", cdWfrId)
+		impl.logger.Warnw("unable to save histories for deployment trigger, invalid valuesOverrideResponse received", "cdWfrId", cdWfrId)
 		return nil
 	}
 	err1 := impl.deployedConfigurationHistoryService.CreateHistoriesForDeploymentTrigger(ctx, valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggeredAt, triggeredBy)
