@@ -104,6 +104,7 @@ type WorkflowRequest struct {
 	IsExtRun                   bool                              `json:"isExtRun"`
 	ImageRetryCount            int                               `json:"imageRetryCount"`
 	ImageRetryInterval         int                               `json:"imageRetryInterval"`
+	EnableSecretMasking        bool                              `json:"enableSecretMasking"`
 	// Data from CD Workflow service
 	WorkflowRunnerId            int                                   `json:"workflowRunnerId"`
 	CdPipelineId                int                                   `json:"cdPipelineId"`
@@ -148,6 +149,22 @@ func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
 		workflowRequest.EnvironmentId = env.Id
 		workflowRequest.IsExtRun = true
 	}
+}
+
+type SecretMaskingFlagUpdater interface {
+	UpdateSecretMaskingFlag(workflowRequest *WorkflowRequest)
+}
+
+type SecretMaskingFlagUpdaterImpl struct {
+}
+
+func NewSecretMaskingFlagUpdaterImpl() *SecretMaskingFlagUpdaterImpl {
+	return &SecretMaskingFlagUpdaterImpl{}
+}
+
+func (impl SecretMaskingFlagUpdaterImpl) UpdateSecretMaskingFlag(workflowRequest *WorkflowRequest) {
+	fmt.Println("Secret masking is disabled in OSS by default!")
+	workflowRequest.EnableSecretMasking = false
 }
 
 func (workflowRequest *WorkflowRequest) CheckBlobStorageConfig(config *CiCdConfig) bool {
