@@ -9,6 +9,7 @@
 - fix: docker file version fix (#5299)
 - fix: hibernating status is not being updated in app listing page (#5294)
 ## Enhancements
+- feat: Reload materials api added (#5182)
 - feat: mirgator plugin (#5347)
 - feat: insecure support for chart-sync (#5328)
 - feat: GitOps async install for devtron applications (#5169)
