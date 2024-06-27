@@ -113,6 +113,7 @@ type MuxRouter struct {
 	rbacRoleRouter                     user.RbacRoleRouter
 	scopedVariableRouter               ScopedVariableRouter
 	ciTriggerCron                      cron.CiTriggerCron
+	deploymentConfigurationRouter      DeploymentConfigurationRouter
 	infraConfigRouter                  infraConfig.InfraConfigRouter
 	argoApplicationRouter              argoApplication.ArgoApplicationRouter
 	devtronResourceRouter              devtronResource.DevtronResourceRouter
@@ -144,6 +145,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	scopedVariableRouter ScopedVariableRouter,
 	ciTriggerCron cron.CiTriggerCron,
 	proxyRouter proxy.ProxyRouter,
+	deploymentConfigurationRouter DeploymentConfigurationRouter,
 	infraConfigRouter infraConfig.InfraConfigRouter,
 	argoApplicationRouter argoApplication.ArgoApplicationRouter,
 	devtronResourceRouter devtronResource.DevtronResourceRouter) *MuxRouter {
@@ -206,6 +208,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		rbacRoleRouter:                     rbacRoleRouter,
 		scopedVariableRouter:               scopedVariableRouter,
 		ciTriggerCron:                      ciTriggerCron,
+		deploymentConfigurationRouter:      deploymentConfigurationRouter,
 		infraConfigRouter:                  infraConfigRouter,
 		argoApplicationRouter:              argoApplicationRouter,
 		devtronResourceRouter:              devtronResourceRouter,
@@ -288,8 +291,9 @@ func (r MuxRouter) Init() {
 	chartRefRouter := r.Router.PathPrefix("/orchestrator/chartref").Subrouter()
 	r.ChartRefRouter.initChartRefRouter(chartRefRouter)
 
-	configMapRouter := r.Router.PathPrefix("/orchestrator/config").Subrouter()
-	r.ConfigMapRouter.initConfigMapRouter(configMapRouter)
+	configRouter := r.Router.PathPrefix("/orchestrator/config").Subrouter()
+	r.ConfigMapRouter.initConfigMapRouter(configRouter)
+	r.deploymentConfigurationRouter.initDeploymentConfigurationRouter(configRouter)
 
 	appStoreRouter := r.Router.PathPrefix("/orchestrator/app-store").Subrouter()
 	r.AppStoreRouter.Init(appStoreRouter)
