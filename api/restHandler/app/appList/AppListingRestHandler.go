@@ -29,6 +29,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"net/http"
 	"strconv"
 	"time"
@@ -110,6 +112,7 @@ type AppListingRestHandlerImpl struct {
 	genericNoteService               genericNotes.GenericNoteService
 	k8sApplicationService            application3.K8sApplicationService
 	deploymentTemplateService        generateManifest.DeploymentTemplateService
+	deploymentConfigService          common2.DeploymentConfigService
 }
 
 type AppStatus struct {
@@ -140,7 +143,9 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appStatusService appStatus.AppStatusService, installedAppRepository repository.InstalledAppRepository,
 	genericNoteService genericNotes.GenericNoteService,
-	k8sApplicationService application3.K8sApplicationService, deploymentTemplateService generateManifest.DeploymentTemplateService,
+	k8sApplicationService application3.K8sApplicationService,
+	deploymentTemplateService generateManifest.DeploymentTemplateService,
+	deploymentConfigService common2.DeploymentConfigService,
 ) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
 		application:                      application,
@@ -164,6 +169,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		genericNoteService:               genericNoteService,
 		k8sApplicationService:            k8sApplicationService,
 		deploymentTemplateService:        deploymentTemplateService,
+		deploymentConfigService:          deploymentConfigService,
 	}
 	return appListingHandler
 }
@@ -542,7 +548,13 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		common.WriteJsonResp(w, fmt.Errorf("error in getting acd token"), nil, http.StatusInternalServerError)
 		return
 	}
-	resourceTree, err := handler.fetchResourceTree(w, r, appId, envId, acdToken, cdPipeline)
+	envDeploymentConfig, err := handler.deploymentConfigService.GetDeploymentConfig(appId, envId)
+	if err != nil {
+		handler.logger.Errorw("error in fetching deployment config", "appId", appId, "envId", envId, "err", err)
+		common.WriteJsonResp(w, fmt.Errorf("error in getting deployment config for env"), nil, http.StatusInternalServerError)
+		return
+	}
+	resourceTree, err := handler.fetchResourceTree(w, r, appId, envId, acdToken, cdPipeline, envDeploymentConfig)
 	if appDetail.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		apiError, ok := err.(*util.ApiError)
 		if ok && apiError != nil {
@@ -635,20 +647,26 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 		common.WriteJsonResp(w, fmt.Errorf("error in getting acd token"), nil, http.StatusInternalServerError)
 		return
 	}
-	resourceTree, err := handler.fetchResourceTree(w, r, appId, envId, acdToken, cdPipeline)
+	envDeploymentConfig, err := handler.deploymentConfigService.GetDeploymentConfig(appId, envId)
+	if err != nil {
+		handler.logger.Errorw("error in fetching deployment config", "appId", appId, "envId", envId, "err", err)
+		common.WriteJsonResp(w, fmt.Errorf("error in getting deployment config for env"), nil, http.StatusInternalServerError)
+		return
+	}
+	resourceTree, err := handler.fetchResourceTree(w, r, appId, envId, acdToken, cdPipeline, envDeploymentConfig)
 	if err != nil {
 		handler.logger.Errorw("error in fetching resource tree", "err", err, "appId", appId, "envId", envId)
-		handler.handleResourceTreeErrAndDeletePipelineIfNeeded(w, err, acdToken, cdPipeline)
+		handler.handleResourceTreeErrAndDeletePipelineIfNeeded(w, err, acdToken, cdPipeline, envDeploymentConfig)
 		return
 	}
 	common.WriteJsonResp(w, err, resourceTree, http.StatusOK)
 }
 
 func (handler AppListingRestHandlerImpl) handleResourceTreeErrAndDeletePipelineIfNeeded(w http.ResponseWriter, err error,
-	acdToken string, cdPipeline *pipelineConfig.Pipeline) {
+	acdToken string, cdPipeline *pipelineConfig.Pipeline, deploymentConfig *bean3.DeploymentConfig) {
 	var apiError *util.ApiError
 	ok := errors.As(err, &apiError)
-	if cdPipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+	if deploymentConfig.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		if ok && apiError != nil {
 			if apiError.Code == constants.AppDetailResourceTreeNotFound && cdPipeline.DeploymentAppDeleteRequest == true && cdPipeline.DeploymentAppCreated == true {
 				acdAppFound, appDeleteErr := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(acdToken, cdPipeline)
@@ -943,7 +961,13 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		}
 
 		cdPipeline := pipelines[0]
-		resourceTree, err = handler.fetchResourceTree(w, r, appId, envId, acdToken, cdPipeline)
+		envDeploymentConfig, err := handler.deploymentConfigService.GetDeploymentConfig(appId, envId)
+		if err != nil {
+			handler.logger.Errorw("error in fetching deployment config", "appId", appId, "envId", envId, "err", err)
+			common.WriteJsonResp(w, fmt.Errorf("error in getting deployment config for env"), nil, http.StatusInternalServerError)
+			return
+		}
+		resourceTree, err = handler.fetchResourceTree(w, r, appId, envId, acdToken, cdPipeline, envDeploymentConfig)
 	}
 	_, ok := resourceTree["nodes"]
 	if !ok {
@@ -991,13 +1015,14 @@ func (handler AppListingRestHandlerImpl) getAppDetails(ctx context.Context, appI
 }
 
 // TODO: move this to service
-func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appId int, envId int, acdToken string, cdPipeline *pipelineConfig.Pipeline) (map[string]interface{}, error) {
+func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appId int, envId int, acdToken string, cdPipeline *pipelineConfig.Pipeline, deploymentConfig *bean3.DeploymentConfig) (map[string]interface{}, error) {
 	var resourceTree map[string]interface{}
 	if !cdPipeline.DeploymentAppCreated {
 		handler.logger.Infow("deployment for this pipeline does not exist", "pipelineId", cdPipeline.Id)
 		return resourceTree, nil
 	}
-	if len(cdPipeline.DeploymentAppName) > 0 && cdPipeline.EnvironmentId > 0 && util.IsAcdApp(cdPipeline.DeploymentAppType) {
+
+	if len(cdPipeline.DeploymentAppName) > 0 && cdPipeline.EnvironmentId > 0 && util.IsAcdApp(deploymentConfig.DeploymentAppType) {
 		// RBAC enforcer Ends
 		query := &application2.ResourcesQuery{
 			ApplicationName: &cdPipeline.DeploymentAppName,
@@ -1075,7 +1100,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			}
 		}()
 
-	} else if len(cdPipeline.DeploymentAppName) > 0 && cdPipeline.EnvironmentId > 0 && util.IsHelmApp(cdPipeline.DeploymentAppType) {
+	} else if len(cdPipeline.DeploymentAppName) > 0 && cdPipeline.EnvironmentId > 0 && util.IsHelmApp(deploymentConfig.DeploymentAppType) {
 		config, err := handler.helmAppService.GetClusterConf(cdPipeline.Environment.ClusterId)
 		if err != nil {
 			handler.logger.Errorw("error in fetching cluster detail", "err", err)

@@ -789,7 +789,7 @@ func (impl PipelineRepositoryImpl) FindDeploymentAppTypeByAppIdAndEnvId(appId, e
 	var deploymentAppType string
 	err := impl.dbConnection.Model((*Pipeline)(nil)).
 		Column("deployment_app_type").
-		Where("app_id = ? and environment_id=? and active=true", appId, envId).
+		Where("app_id = ? and environment_id=?", appId, envId).
 		Select(&deploymentAppType)
 	return deploymentAppType, err
 }

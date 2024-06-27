@@ -43,6 +43,8 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	clutserBean "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	bean4 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
@@ -157,6 +159,7 @@ type CdPipelineConfigServiceImpl struct {
 	imageDigestPolicyService          imageDigestPolicy.ImageDigestPolicyService
 	pipelineConfigEventPublishService out.PipelineConfigEventPublishService
 	deploymentTypeOverrideService     config2.DeploymentTypeOverrideService
+	deploymentConfigService           common.DeploymentConfigService
 }
 
 func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -180,7 +183,8 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 	chartService chart.ChartService,
 	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService,
 	pipelineConfigEventPublishService out.PipelineConfigEventPublishService,
-	deploymentTypeOverrideService config2.DeploymentTypeOverrideService) *CdPipelineConfigServiceImpl {
+	deploymentTypeOverrideService config2.DeploymentTypeOverrideService,
+	deploymentConfigService common.DeploymentConfigService) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                            logger,
 		pipelineRepository:                pipelineRepository,
@@ -217,6 +221,7 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 		imageDigestPolicyService:          imageDigestPolicyService,
 		pipelineConfigEventPublishService: pipelineConfigEventPublishService,
 		deploymentTypeOverrideService:     deploymentTypeOverrideService,
+		deploymentConfigService:           deploymentConfigService,
 	}
 }
 
@@ -322,6 +327,12 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 		return nil, err
 	}
 
+	envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(dbPipeline.AppId, dbPipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", dbPipeline.AppId, "envId", dbPipeline.EnvironmentId, "err", err)
+		return nil, err
+	}
+
 	cdPipeline = &bean.CDPipelineConfigObject{
 		Id:                            dbPipeline.Id,
 		Name:                          dbPipeline.Name,
@@ -340,7 +351,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 		CdArgoSetup:                   environment.Cluster.CdArgoSetup,
 		ParentPipelineId:              appWorkflowMapping.ParentId,
 		ParentPipelineType:            appWorkflowMapping.ParentType,
-		DeploymentAppType:             dbPipeline.DeploymentAppType,
+		DeploymentAppType:             envDeploymentConfig.DeploymentAppType,
 		DeploymentAppCreated:          dbPipeline.DeploymentAppCreated,
 		IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
 		CustomTagObject:               customTag,
@@ -402,13 +413,15 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 
 	// TODO: creating git repo for all apps irrespective of acd or helm
 	if gitOpsConfigurationStatus.IsGitOpsConfigured && isGitOpsRequiredForCD && !pipelineCreateRequest.IsCloneAppReq {
-		chart, err := impl.chartService.FindLatestChartForAppByAppId(app.Id)
+
+		AppDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(app.Id, 0)
 		if err != nil {
-			impl.logger.Errorw("Error in fetching latest chart for pipeline", "err", err, "appId", app.Id)
+			impl.logger.Errorw("error in fetching deployment config by appId", "appId", app.Id, "err", err)
 			return nil, err
 		}
-		if gitOps.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
-			if gitOpsConfigurationStatus.AllowCustomRepository || chart.IsCustomGitRepository {
+
+		if gitOps.IsGitOpsRepoNotConfigured(AppDeploymentConfig.RepoURL) {
+			if gitOpsConfigurationStatus.AllowCustomRepository || AppDeploymentConfig.ConfigType == bean4.CUSTOM.String() {
 				apiErr := &util.ApiError{
 					HttpStatusCode:  http.StatusConflict,
 					UserMessage:     pipelineConfig.GITOPS_REPO_NOT_CONFIGURED,
@@ -426,13 +439,35 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				impl.logger.Errorw("error in registering app in acd", "err", err)
 				return nil, err
 			}
-			// below function will update gitRepoUrl for charts if user has not already provided gitOps repoURL
-			err = impl.chartService.ConfigureGitOpsRepoUrl(pipelineCreateRequest.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, false, pipelineCreateRequest.UserId)
+			AppDeploymentConfig.RepoURL = chartGitAttr.RepoUrl
+			AppDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(AppDeploymentConfig, pipelineCreateRequest.UserId)
 			if err != nil {
-				impl.logger.Errorw("error in updating git repo url in charts", "err", err)
+				impl.logger.Errorw("error in fetching creating env config", "appId", app.Id, "err", err)
 				return nil, err
 			}
 		}
+		for _, pipeline := range pipelineCreateRequest.Pipelines {
+			envDeploymentConfig := &bean4.DeploymentConfig{
+				AppId:              app.Id,
+				EnvironmentId:      pipeline.EnvironmentId,
+				ConfigType:         AppDeploymentConfig.ConfigType,
+				DeploymentAppType:  AppDeploymentConfig.DeploymentAppType,
+				RepoURL:            AppDeploymentConfig.RepoURL,
+				RepoName:           AppDeploymentConfig.RepoName,
+				ChartLocation:      AppDeploymentConfig.ChartLocation,
+				CredentialType:     AppDeploymentConfig.CredentialType,
+				CredentialIdInt:    AppDeploymentConfig.CredentialIdInt,
+				CredentialIdString: AppDeploymentConfig.CredentialIdString,
+				Active:             true,
+			}
+			envDeploymentConfig, err := impl.deploymentConfigService.CreateOrUpdateConfig(envDeploymentConfig, pipelineCreateRequest.UserId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching creating env config", "appId", app.Id, "envId", pipeline.EnvironmentId, "err", err)
+				return nil, err
+			}
+
+		}
+
 	}
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
@@ -820,10 +855,15 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 		impl.logger.Errorw("error in deleting imageDigestPolicy for pipeline", "err", err, "pipelineId", pipeline.Id)
 		return nil, err
 	}
+	envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(pipeline.AppId, pipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+		return nil, err
+	}
 	//delete app from argo cd, if created
 	if pipeline.DeploymentAppCreated == true {
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
-		if util.IsAcdApp(pipeline.DeploymentAppType) {
+		if util.IsAcdApp(envDeploymentConfig.DeploymentAppType) {
 			if !forceDelete && !deleteResponse.ClusterReachable {
 				impl.logger.Errorw("cluster connection error", "err", clusterBean.ErrorInConnecting)
 				if cascadeDelete {
@@ -859,7 +899,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 				}
 				impl.logger.Infow("app deleted from argocd", "id", pipeline.Id, "pipelineName", pipeline.Name, "app", deploymentAppName)
 			}
-		} else if util.IsHelmApp(pipeline.DeploymentAppType) {
+		} else if util.IsHelmApp(envDeploymentConfig.DeploymentAppType) {
 			err = impl.DeleteHelmTypePipelineDeploymentApp(ctx, forceDelete, pipeline)
 			if err != nil {
 				impl.logger.Errorw("error, DeleteHelmTypePipelineDeploymentApp", "err", err, "pipelineId", pipeline.Id)
@@ -909,8 +949,13 @@ func (impl *CdPipelineConfigServiceImpl) DeleteACDAppCdPipelineWithNonCascade(pi
 		_, err := impl.DeleteCdPipeline(pipeline, ctx, bean.FORCE_DELETE, false, userId)
 		return err
 	}
+	envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(pipeline.AppId, pipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+		return err
+	}
 	//delete app from argo cd with non-cascade, if created
-	if pipeline.DeploymentAppCreated && util.IsAcdApp(pipeline.DeploymentAppType) {
+	if pipeline.DeploymentAppCreated && util.IsAcdApp(envDeploymentConfig.DeploymentAppType) {
 		appDetails, err := impl.appRepo.FindById(pipeline.AppId)
 		deploymentAppName := fmt.Sprintf("%s-%s", appDetails.AppName, pipeline.Environment.Name)
 		impl.logger.Debugw("acd app is already deleted for this pipeline", "pipeline", pipeline)
@@ -1288,12 +1333,19 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironmentMin(request 
 			//if user unauthorized, skip items
 			continue
 		}
+
+		envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(dbPipeline.AppId, dbPipeline.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", dbPipeline.AppId, "envId", dbPipeline.EnvironmentId, "err", err)
+			return nil, err
+		}
+
 		pcObject := &bean.CDPipelineConfigObject{
 			AppId:                dbPipeline.AppId,
 			AppName:              dbPipeline.App.AppName,
 			EnvironmentId:        dbPipeline.EnvironmentId,
 			Id:                   dbPipeline.Id,
-			DeploymentAppType:    dbPipeline.DeploymentAppType,
+			DeploymentAppType:    envDeploymentConfig.DeploymentAppType,
 			IsVirtualEnvironment: dbPipeline.Environment.IsVirtualEnvironment,
 		}
 		cdPipelines = append(cdPipelines, pcObject)
@@ -1983,8 +2035,13 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipelinePartial(pipeline *pipel
 
 	//delete app from argo cd, if created
 	if pipeline.DeploymentAppCreated && !pipeline.DeploymentAppDeleteRequest {
+		envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(pipeline.AppId, pipeline.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+			return deleteResponse, err
+		}
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
-		if util.IsAcdApp(pipeline.DeploymentAppType) {
+		if util.IsAcdApp(envDeploymentConfig.DeploymentAppType) {
 			if !forceDelete && !deleteResponse.ClusterReachable {
 				impl.logger.Errorw("cluster connection error", "err", clusterBean.ErrorInConnecting)
 				if cascadeDelete {

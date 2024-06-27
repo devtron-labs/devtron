@@ -19,6 +19,7 @@ package appWorkflow
 import (
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	util2 "github.com/devtron-labs/devtron/util"
 	"time"
 
@@ -79,6 +80,7 @@ type AppWorkflowServiceImpl struct {
 	enforcerUtil             rbac.EnforcerUtil
 	userAuthService          user.UserAuthService
 	chartService             chart.ChartService
+	deploymentConfigService  common.DeploymentConfigService
 }
 
 type AppWorkflowDto struct {
@@ -159,7 +161,9 @@ type PipelineIdentifier struct {
 func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup2.ResourceGroupService,
-	appRepository appRepository.AppRepository, userAuthService user.UserAuthService, chartService chart.ChartService) *AppWorkflowServiceImpl {
+	appRepository appRepository.AppRepository, userAuthService user.UserAuthService, chartService chart.ChartService,
+	deploymentConfigService common.DeploymentConfigService,
+) *AppWorkflowServiceImpl {
 	return &AppWorkflowServiceImpl{
 		Logger:                   logger,
 		appWorkflowRepository:    appWorkflowRepository,
@@ -171,6 +175,7 @@ func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository 
 		appRepository:            appRepository,
 		userAuthService:          userAuthService,
 		chartService:             chartService,
+		deploymentConfigService:  deploymentConfigService,
 	}
 }
 
@@ -851,6 +856,13 @@ func (impl AppWorkflowServiceImpl) FindCdPipelinesByAppId(appId int) (*bean.CdPi
 	}
 
 	for _, pipeline := range dbPipelines {
+
+		envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(appId, pipeline.EnvironmentId)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", pipeline.EnvironmentId, "err", err)
+			return nil, err
+		}
+
 		cdPipelineConfigObj := &bean.CDPipelineConfigObject{
 			Id:                        pipeline.Id,
 			EnvironmentId:             pipeline.EnvironmentId,
@@ -858,7 +870,7 @@ func (impl AppWorkflowServiceImpl) FindCdPipelinesByAppId(appId int) (*bean.CdPi
 			CiPipelineId:              pipeline.CiPipelineId,
 			TriggerType:               pipeline.TriggerType,
 			Name:                      pipeline.Name,
-			DeploymentAppType:         pipeline.DeploymentAppType,
+			DeploymentAppType:         envDeploymentConfig.DeploymentAppType,
 			AppName:                   pipeline.DeploymentAppName,
 			AppId:                     pipeline.AppId,
 			IsGitOpsRepoNotConfigured: !isAppLevelGitOpsConfigured,

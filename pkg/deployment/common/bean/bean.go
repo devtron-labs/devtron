@@ -22,8 +22,16 @@ const (
 	SYSTEM_GENERATED DeploymentConfigType = "system_generated"
 )
 
+func (d DeploymentConfigType) String() string {
+	return string(d)
+}
+
 type DeploymentConfigCredentialType string
 
 const (
 	GitOps DeploymentConfigCredentialType = "gitOps"
 )
+
+func (d DeploymentConfigCredentialType) String() string {
+	return string(d)
+}
