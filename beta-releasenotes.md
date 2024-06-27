@@ -19,6 +19,7 @@
 - feat: air gap registry v2 (#5220)
 - feat: tenants and installations migration (#5187)
 ## Documentation
+- doc: Redirection Fixes for 0.7 (#5381)
 - doc: Redirection Issue Trial Fix (#5378)
 - doc: Plugin Creation Doc (#5372)
 - docs: Added specs for the global plugin Apis (#5362)
