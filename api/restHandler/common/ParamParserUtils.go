@@ -50,7 +50,6 @@ func convertToIntArray(w http.ResponseWriter, paramValue string) ([]int, error) 
 	for _, splittedParamValue := range splittedParamValues {
 		paramIntValue, err := strconv.Atoi(splittedParamValue)
 		if err != nil {
-			WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return paramValues, err
 		}
 		paramValues = append(paramValues, paramIntValue)

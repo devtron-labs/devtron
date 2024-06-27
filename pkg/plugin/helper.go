@@ -19,7 +19,7 @@ func getAllUniqueTags(tags []*repository.PluginTag) []string {
 	return uniqueTags
 }
 
-func paginatePluginParentMetadataFromDb(allPluginParentMetadata []*repository.PluginParentMetadata, size, offset int) []*repository.PluginParentMetadata {
+func paginatePluginParentMetadata(allPluginParentMetadata []*repository.PluginParentMetadata, size, offset int) []*repository.PluginParentMetadata {
 	if size > 0 {
 		if offset+size <= len(allPluginParentMetadata) {
 			allPluginParentMetadata = allPluginParentMetadata[offset : offset+size]
@@ -28,4 +28,14 @@ func paginatePluginParentMetadataFromDb(allPluginParentMetadata []*repository.Pl
 		}
 	}
 	return allPluginParentMetadata
+}
+
+func filterOnlyRequiredPluginVersions(versionIdVsPluginsVersionDetailMap map[int]map[int]*PluginsVersionDetail, pluginVersionsIdMap map[int]bool) {
+	for pluginParentId, versionMap := range versionIdVsPluginsVersionDetailMap {
+		for pluginVersionId, _ := range versionMap {
+			if _, ok := pluginVersionsIdMap[pluginVersionId]; !ok {
+				delete(versionIdVsPluginsVersionDetailMap[pluginParentId], pluginVersionId)
+			}
+		}
+	}
 }

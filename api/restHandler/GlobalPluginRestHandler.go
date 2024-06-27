@@ -321,6 +321,7 @@ func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailByIds(w http.Response
 	}
 	pluginIds, parentPluginIds, fetchLatestVersionDetailsOnly, err := handler.extractAllRequiredQueryParamsForPluginDetail(w, r)
 	if err != nil {
+		common.WriteJsonResp(w, err, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -395,20 +396,21 @@ func (handler *GlobalPluginRestHandlerImpl) getListFilterFromQueryParam(w http.R
 
 func (handler *GlobalPluginRestHandlerImpl) extractAllRequiredQueryParamsForPluginDetail(w http.ResponseWriter, r *http.Request) ([]int, []int, bool, error) {
 	fetchLatestVersionDetailsOnly := true
-	pluginIds, err := common.ExtractIntArrayQueryParam(w, r, "pluginId")
+	var err error
+	var pluginIds []int
+	var parentPluginIds []int
+	pluginIds, err = common.ExtractIntArrayQueryParam(w, r, "pluginId")
 	if err != nil {
-		common.WriteJsonResp(w, err, "invalid pluginId value", http.StatusBadRequest)
-		return nil, nil, fetchLatestVersionDetailsOnly, err
+		parentPluginIds, err = common.ExtractIntArrayQueryParam(w, r, "parentPluginId")
+		if err != nil {
+			return nil, nil, fetchLatestVersionDetailsOnly, errors.New("no pluginId or parentPluginId value provided")
+		}
+
 	}
-	parentPluginIds, err := common.ExtractIntArrayQueryParam(w, r, "parentPluginId")
-	if err != nil {
-		common.WriteJsonResp(w, err, "invalid parentPluginId value", http.StatusBadRequest)
-		return nil, nil, fetchLatestVersionDetailsOnly, err
-	}
+
 	fetchLatestVersionDetailsOnly, err = common.ExtractBoolQueryParam(w, r, "fetchLatestVersionDetails")
 	if err != nil {
-		common.WriteJsonResp(w, err, "invalid isLatest value", http.StatusBadRequest)
-		return nil, nil, fetchLatestVersionDetailsOnly, err
+		return nil, nil, fetchLatestVersionDetailsOnly, errors.New("invalid isLatest value")
 	}
 	return pluginIds, parentPluginIds, fetchLatestVersionDetailsOnly, nil
 }

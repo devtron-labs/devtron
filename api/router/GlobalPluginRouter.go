@@ -60,7 +60,7 @@ func (impl *GlobalPluginRouterImpl) initGlobalPluginRouter(globalPluginRouter *m
 	globalPluginRouter.Path("/list/v2").
 		HandlerFunc(impl.globalPluginRestHandler.ListAllPluginsV2).Methods("GET")
 
-	globalPluginRouter.Path("/detail").
+	globalPluginRouter.Path("/detail/v2").
 		HandlerFunc(impl.globalPluginRestHandler.GetPluginDetailByIds).Methods("GET")
 
 	globalPluginRouter.Path("/list/tags").

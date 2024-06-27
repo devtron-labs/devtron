@@ -265,6 +265,7 @@ type GlobalPluginRepository interface {
 	GetPluginStageMappingByPluginId(pluginId int) (*PluginStageMapping, error)
 	GetConnection() (dbConnection *pg.DB)
 	GetPluginVersionsMetadataByParentPluginId(parentPluginId int) ([]*PluginMetadata, error)
+	GetPluginVersionsMetadataByParentPluginIds(parentPluginIds []int) ([]*PluginMetadata, error)
 	GetMetaDataForAllPluginsVersionsByIds(ids []int) ([]*PluginMetadata, error)
 
 	GetPluginParentMetadataByIdentifier(pluginIdentifier string) (*PluginParentMetadata, error)
@@ -766,6 +767,19 @@ func (impl *GlobalPluginRepositoryImpl) GetPluginVersionsMetadataByParentPluginI
 		Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting pluginVersionsMetadata by parentPluginId", "parentPluginId", parentPluginId, "err", err)
+		return nil, err
+	}
+	return pluginVersions, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetPluginVersionsMetadataByParentPluginIds(parentPluginIds []int) ([]*PluginMetadata, error) {
+	var pluginVersions []*PluginMetadata
+	err := impl.dbConnection.Model(&pluginVersions).
+		Where("plugin_parent_metadata_id in (?)", pg.In(parentPluginIds)).
+		Where("deleted = ?", false).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting pluginVersionsMetadata by parentPluginIds", "parentPluginIds", parentPluginIds, "err", err)
 		return nil, err
 	}
 	return pluginVersions, nil
