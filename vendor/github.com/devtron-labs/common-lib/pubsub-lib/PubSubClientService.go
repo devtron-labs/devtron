@@ -78,11 +78,13 @@ func NewPubSubClientServiceImpl(logger *zap.SugaredLogger) (*PubSubClientService
 
 func (impl PubSubClientServiceImpl) ShutDown() error {
 	// Drain the connection, which will close it when done.
-	if err := impl.NatsClient.Conn.Drain(); err != nil {
-		return err
-	}
+	//if err := impl.NatsClient.Conn.Drain(); err != nil {
+	//	return err
+	//}
 	// Wait for the connection to be closed.
-	impl.NatsClient.ConnWg.Wait()
+	//impl.NatsClient.ConnWg.Wait()
+	// TODO: Currently the drain mechanism deletes the Ephemeral consumers.
+	//       Implement the fix for the Ephemeral consumers first to enable graceful shutdown.
 	return nil
 }
 
