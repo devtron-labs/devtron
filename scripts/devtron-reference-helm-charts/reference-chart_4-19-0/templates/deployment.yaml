@@ -30,8 +30,8 @@
   {{- end }}
 
 
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   name: {{ include ".Chart.Name .fullname" $ }}
   labels:
@@ -40,16 +40,15 @@ metadata:
     release: {{ $.Release.Name }}
     releaseVersion: {{ $.Values.releaseVersion | quote }}
     pipelineName: {{ .Values.pipelineName }}
-{{- if .Values.deploymentLabels }}
-{{ toYaml .Values.deploymentLabels | indent 4 }}
+{{- if .Values.rolloutLabels }}
+{{ toYaml .Values.rolloutLabels | indent 4 }}
 {{- end }}
 {{- if .Values.appLabels }}
 {{ toYaml .Values.appLabels | indent 4 }}
 {{- end }}
-
-{{- if .Values.deploymentAnnotations }}
+{{- if .Values.rolloutAnnotations }}
   annotations:
-{{ toYaml .Values.deploymentAnnotations | indent 4 }}
+{{ toYaml .Values.rolloutAnnotations | indent 4 }}
 {{- end }}
 spec:
   selector:
@@ -124,7 +123,7 @@ spec:
 {{- range $.Values.topologySpreadConstraints }}
       - maxSkew: {{ .maxSkew }}
         topologyKey: {{ .topologyKey }}
-        whenUnsatisfiable: {{ .whenUnsatisfiable }}
+        whenUnsatisfiable: {{ .whenUnsatisfiable }}             
         labelSelector:
           matchLabels:
           {{- if and .autoLabelSelector .customLabelSelector }}
@@ -138,17 +137,13 @@ spec:
 {{ toYaml .customLabelSelector | indent 12 }}
           {{- end }}
 {{- end }}
-{{- end }}
-{{- if $.Values.topologySpreadConstraint }}
-      topologySpreadConstraints: 
-{{ toYaml .Values.topologySpreadConstraint }}  
 {{- end }}    
 {{- if $.Values.podSecurityContext }}
       securityContext:
 {{ toYaml .Values.podSecurityContext | indent 8 }}
 {{- end }}
 {{- if $.Values.restartPolicy }}
-      restartPolicy: {{  $.Values.restartPolicy }}
+      restartPolicy: {{  $.Values.restartPolicy  }}
 {{- end }}
 {{- if $.Values.initContainers}}
       initContainers:
@@ -245,11 +240,13 @@ spec:
             - name: DEVTRON_CONTAINER_TAG
               value: "{{ .Values.server.deployment.image_tag }}"
           {{- range $.Values.EnvVariablesFromFieldPath }}
+          {{- if and .name .fieldPath }}
             - name: {{ .name }}
               valueFrom:
                 fieldRef:
                  fieldPath: {{ .fieldPath }}
-          {{- end}}
+          {{- end }}
+          {{- end }}
           {{- range $.Values.EnvVariables }}
           {{- if and .name .value }}
             - name: {{ .name }}
@@ -302,7 +299,7 @@ spec:
           {{- end }}
           {{- end }}
 
-{{- if or $.Values.LivenessProbe.Path $.Values.LivenessProbe.command $.Values.LivenessProbe.tcp $.Values.LivenessProbe.grpc }}
+{{- if or $.Values.LivenessProbe.Path $.Values.LivenessProbe.command $.Values.LivenessProbe.tcp }}
           livenessProbe:
 {{- if $.Values.LivenessProbe.Path }}
             httpGet:
@@ -331,12 +328,8 @@ spec:
             successThreshold: {{ $.Values.LivenessProbe.successThreshold  }}
             timeoutSeconds: {{ $.Values.LivenessProbe.timeoutSeconds  }}
             failureThreshold: {{ $.Values.LivenessProbe.failureThreshold  }}
-          {{- if $.Values.LivenessProbe.grpc }}
-            grpc:
-{{ toYaml .Values.LivenessProbe.grpc | indent 14 }}
-          {{- end }}
 {{- end }}
-{{- if or $.Values.ReadinessProbe.Path  $.Values.ReadinessProbe.command $.Values.ReadinessProbe.tcp $.Values.ReadinessProbe.grpc }}
+{{- if or $.Values.ReadinessProbe.Path  $.Values.ReadinessProbe.command $.Values.ReadinessProbe.tcp }}
           readinessProbe:
 {{- if $.Values.ReadinessProbe.Path }}
             httpGet:
@@ -365,14 +358,10 @@ spec:
             successThreshold: {{ $.Values.ReadinessProbe.successThreshold  }}
             timeoutSeconds: {{ $.Values.ReadinessProbe.timeoutSeconds  }}
             failureThreshold: {{ $.Values.ReadinessProbe.failureThreshold  }}
-          {{- if $.Values.ReadinessProbe.grpc }}
-            grpc:
-{{ toYaml .Values.ReadinessProbe.grpc | indent 14 }}
-            {{- end}}
 {{- end }}
           resources:
 {{ toYaml $.Values.resources | trim | indent 12 }}
-{{- if or $.Values.StartupProbe.Path  $.Values.StartupProbe.command $.Values.StartupProbe.tcp $.Values.StartupProbe.grpc }}
+{{- if or $.Values.StartupProbe.Path  $.Values.StartupProbe.command $.Values.StartupProbe.tcp }}
           startupProbe:
 {{- if $.Values.StartupProbe.Path }}
             httpGet:
@@ -400,10 +389,6 @@ spec:
             successThreshold: {{ $.Values.StartupProbe.successThreshold  }}
             timeoutSeconds: {{ $.Values.StartupProbe.timeoutSeconds  }}
             failureThreshold: {{ $.Values.StartupProbe.failureThreshold  }}
-            {{- if $.Values.StartupProbe.grpc }}
-            grpc:
-{{ toYaml .Values.StartupProbe.grpc | indent 14 }}
-            {{- end}}
 {{- end }}
           volumeMounts:
 {{- with .Values.volumeMounts }}
@@ -490,14 +475,6 @@ spec:
         - name: {{ $.Chart.Name }}-sidecontainer-{{ add1 $i }}
           image: "{{ $.Values.server.deployment.image }}:{{ $.Values.server.deployment.image_tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
-{{- if .env }}
-          env:
-{{ toYaml .env | indent 12 }}
-{{- end }}
- {{- if .envFrom }}
-          envFrom:
-{{ toYaml .env | indent 12 }}
-{{- end }}                   
 {{- if .securityContext }}
           securityContext:
 {{ toYaml .securityContext | indent 12 }}
@@ -520,22 +497,20 @@ spec:
 {{- end}}
 {{- end}}
 {{- end}}
-
-
       volumes:
   {{- if $.Values.appMetrics }}
         - name: envoy-config-volume
           configMap:
             name: sidecar-config-{{ template ".Chart.Name .name" $ }}
   {{- end }}
-{{- with .Values.volumes }}
-{{ toYaml . | trim | indent 8 }}
-{{- end }}
 {{- if .Values.persistentVolumeClaim.name }}
         - name: {{.Values.persistentVolumeClaim.name}}-vol
           persistentVolumeClaim:
             claimName: {{.Values.persistentVolumeClaim.name }}
 {{- end}}
+{{- with .Values.volumes }}
+{{ toYaml . | trim | indent 8 }}
+{{- end }}
       {{- if .Values.ConfigMaps.enabled }}
       {{- range .Values.ConfigMaps.maps }}
       {{- if eq .type "volume"}}
@@ -553,7 +528,6 @@ spec:
       {{- end }}
       {{- end }}
       {{- end }}
-
       {{- if .Values.ConfigSecrets.enabled }}
       {{- range .Values.ConfigSecrets.secrets }}
       {{- if eq .type "volume"}}
@@ -571,19 +545,33 @@ spec:
       {{- end }}
       {{- end }}
       {{- end }}
-      {{- if and (eq (len .Values.volumes) 0) (eq ($hasPVCExists) false) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) }} []{{- end }}
-      {{- if and (eq (len .Values.volumeMounts) 0) (eq ($hasPVCExists) false) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) }} [] {{- end }}
-
+          {{- if and (eq (len .Values.volumes) 0) (eq ($hasPVCExists) false) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) }} []{{- end }}
+          {{- if and (eq (len .Values.volumeMounts) 0) (eq ($hasPVCExists) false) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) }} [] {{- end }}
   revisionHistoryLimit: 3
 ##  pauseForSecondsBeforeSwitchActive: {{ $.Values.pauseForSecondsBeforeSwitchActive }}
 #  waitForSecondsBeforeScalingDown: {{ $.Values.waitForSecondsBeforeScalingDown }}
   strategy:
-    {{- if eq .Values.deploymentType "ROLLING" }}
-    type: "RollingUpdate"
-    rollingUpdate:
+    {{- if eq .Values.deploymentType "BLUE-GREEN" }}
+    blueGreen: # A new field that used to provide configurable options for a BlueGreenUpdate strategy
+      previewService: {{ template ".previewservicename" . }} # Reference to a service that can serve traffic to a new image before it receives the active traffic
+      activeService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
+      autoPromotionSeconds: {{ $.Values.deployment.strategy.blueGreen.autoPromotionSeconds  }}
+      scaleDownDelaySeconds: {{ $.Values.deployment.strategy.blueGreen.scaleDownDelaySeconds }}
+      previewReplicaCount: {{ $.Values.deployment.strategy.blueGreen.previewReplicaCount  }}
+      autoPromotionEnabled: {{ $.Values.deployment.strategy.blueGreen.autoPromotionEnabled  }}
+    {{- else if eq .Values.deploymentType "ROLLING" }}
+    canary:
+      stableService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
       maxSurge: {{ $.Values.deployment.strategy.rolling.maxSurge }}
       maxUnavailable: {{ $.Values.deployment.strategy.rolling.maxUnavailable }}
-    {{- end }}
-    {{- if eq .Values.deploymentType "RECREATE" }}
-    type: "Recreate"
+    {{- else if eq .Values.deploymentType "RECREATE" }}
+    recreate:
+      activeService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
+    {{- else if eq .Values.deploymentType "CANARY" }}
+    canary:
+      stableService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
+      maxSurge: {{ $.Values.deployment.strategy.canary.maxSurge }}
+      maxUnavailable: {{ $.Values.deployment.strategy.canary.maxUnavailable }}
+      steps:
+{{ toYaml .Values.deployment.strategy.canary.steps | indent 8 }}
     {{- end }}
