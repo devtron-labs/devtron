@@ -86,7 +86,7 @@ redirects:
     user-guide/use-cases/connect-expressjs-with-mongodb-database: resources/use-cases/connect-expressjs-with-mongodb-database
     user-guide/use-cases/connect-django-with-mysql-database: resources/use-cases/connect-django-with-mysql-database
     user-guide/telemetry: resources/telemetry
-    getting-started/global-configurations: user-guide/global-configurations
+    getting-started/global-configurations: user-guide/global-configurations/README.md
     getting-started/global-configurations/container-registries: user-guide/global-configurations/container-registries.md
     getting-started/global-configurations/sso-login: user-guide/global-configurations/sso-login.md
     getting-started/global-configurations/docker-registries: user-guide/global-configurations/container-registries.md
@@ -109,7 +109,6 @@ redirects:
     getting-started/global-configurations/build-infra: user-guide/global-configurations/build-infra.md
     getting-started/global-configurations/gitops: user-guide/global-configurations/gitops.md
     getting-started/global-configurations/custom-charts: user-guide/global-configurations/custom-charts.md
-    getting-started/global-configurations/user-access: user-guide/global-configurations/authorization/user-access.md
     getting-started/global-configurations/external-links: user-guide/global-configurations/external-links.md
     getting-started/global-configurations/projects: user-guide/global-configurations/projects.md
     getting-started/global-configurations/manage-notification: user-guide/global-configurations/manage-notification.md
@@ -117,6 +116,7 @@ redirects:
     getting-started/global-configurations/chart-repo: user-guide/global-configurations/chart-repo.md
     getting-started/global-configurations/cluster-and-environments: user-guide/global-configurations/cluster-and-environments.md
     getting-started/global-configurations/authorization: user-guide/global-configurations/authorization/README.md
+    getting-started/global-configurations/authorization/user-access: user-guide/global-configurations/authorization/user-access.md
     getting-started/global-configurations/authorization/permission-groups: user-guide/global-configurations/authorization/permission-groups.md
     getting-started/global-configurations/authorization/api-tokens: user-guide/global-configurations/authorization/api-tokens.md
     global-configurations/sso-login: user-guide/global-configurations/sso-login.md
@@ -125,7 +125,3 @@ redirects:
     user-guide/creating-application/workflow/ci-pipeline2: user-guide/creating-application/workflow/ci-pipeline.md
     user-guide/clusters: user-guide/resource-browser.md
     usage/clusters: user-guide/resource-browser.md
-
-
-
-    
