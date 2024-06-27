@@ -439,3 +439,5 @@ monitoring:
       resources: {}
     persistence:
       storage: "2Gi"
+selfSignedCert:
+  enabled: false
