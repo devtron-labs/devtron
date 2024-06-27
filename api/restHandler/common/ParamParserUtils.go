@@ -58,15 +58,15 @@ func convertToIntArray(w http.ResponseWriter, paramValue string) ([]int, error) 
 	return paramValues, nil
 }
 
-func ExtractIntQueryParam(w http.ResponseWriter, r *http.Request, paramName string) (int, error) {
+func ExtractIntQueryParam(w http.ResponseWriter, r *http.Request, paramName string, defaultValue int) (int, error) {
 	queryParams := r.URL.Query()
 	paramValue := queryParams.Get(paramName)
 	if len(paramValue) == 0 {
-		return 0, nil
+		return defaultValue, nil
 	}
 	paramIntValue, err := convertToInt(w, paramValue)
 	if err != nil {
-		return 0, err
+		return defaultValue, err
 	}
 	return paramIntValue, nil
 }

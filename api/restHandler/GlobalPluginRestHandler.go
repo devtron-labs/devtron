@@ -360,13 +360,13 @@ func (handler *GlobalPluginRestHandlerImpl) IsUserAuthorised(token string, appId
 
 func (handler *GlobalPluginRestHandlerImpl) getListFilterFromQueryParam(w http.ResponseWriter, r *http.Request) (*plugin.PluginsListFilter, error) {
 	v := r.URL.Query()
-	offset, err := common.ExtractIntQueryParam(w, r, "offset")
+	offset, err := common.ExtractIntQueryParam(w, r, "offset", 0)
 	if err != nil {
 		common.WriteJsonResp(w, err, "invalid offset value", http.StatusBadRequest)
 		return nil, err
 	}
 
-	limit, err := common.ExtractIntQueryParam(w, r, "size")
+	limit, err := common.ExtractIntQueryParam(w, r, "size", 20)
 	if err != nil {
 		common.WriteJsonResp(w, err, "invalid size value", http.StatusBadRequest)
 		return nil, err
