@@ -177,9 +177,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		request.AppIdentifier = appIdentifier
 		request.ClusterId = request.AppIdentifier.ClusterId
 		if request.DeploymentType == bean2.HelmInstalledType {
-			valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
-			if err != nil || !valid {
-				handler.logger.Errorw("error in validating resource request", "err", err)
+			if err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest); err != nil {
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return
 			}
@@ -388,9 +386,7 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 		request.AppIdentifier = appIdentifier
 		request.ClusterId = appIdentifier.ClusterId
 		if request.DeploymentType == bean2.HelmAppType {
-			valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
-			if err != nil || !valid {
-				handler.logger.Errorw("error in validating resource request", "err", err)
+			if err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest); err != nil {
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return
 			}
@@ -490,9 +486,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 		request.AppIdentifier = appIdentifier
 		request.ClusterId = appIdentifier.ClusterId
 		if request.DeploymentType == bean2.HelmInstalledType {
-			valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
-			if err != nil || !valid {
-				handler.logger.Errorw("error in validating resource request", "err", err)
+			if err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest); err != nil {
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return
 			}
@@ -586,9 +580,7 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 		request.AppIdentifier = appIdentifier
 		request.ClusterId = appIdentifier.ClusterId
 		if request.DeploymentType == bean2.HelmInstalledType {
-			valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
-			if err != nil || !valid {
-				handler.logger.Errorw("error in validating resource request", "err", err)
+			if err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest); err != nil {
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return
 			}
@@ -771,18 +763,8 @@ func generatePodLogsFilename(filename string) string {
 func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.ResponseWriter, r *http.Request, token string, request *k8s.ResourceRequestBean) {
 	if request.AppIdentifier != nil {
 		if request.DeploymentType == bean2.HelmInstalledType {
-			valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
-			if err != nil || !valid {
-				handler.logger.Errorw("error in validating resource request", "err", err, "request.AppIdentifier", request.AppIdentifier, "request.K8sRequest", request.K8sRequest)
-				apiError := util2.ApiError{
-					InternalMessage: "failed to validate the resource with error " + err.Error(),
-					UserMessage:     "Failed to validate resource",
-				}
-				if !valid {
-					apiError.InternalMessage = "failed to validate the resource"
-					apiError.UserMessage = "requested Pod or Container doesn't exist"
-				}
-				common.WriteJsonResp(w, &apiError, nil, http.StatusBadRequest)
+			if err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest); err != nil {
+				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return
 			}
 		} else if request.DeploymentType == bean2.ArgoInstalledType {

@@ -20,7 +20,7 @@ kubectl get pods -n devtroncd
 kubectl delete jobs <job1-name> <job2-name> -n devtroncd
 ```
 
-- Now download `migrator.yaml` file from our github repository using the command:
+- Now download `migrator.yaml` file from our GitHub repository using the command:
 ```bash
 wget https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls/migrator.yaml
 ```

@@ -108,8 +108,8 @@ func (consumerConf NatsConsumerConfig) GetNatsMsgBufferSize() int {
 // }
 
 func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
-	connWg := new(sync.WaitGroup)
-	connWg.Add(1)
+	//connWg := new(sync.WaitGroup)
+	//connWg.Add(1)
 	cfg := &NatsClientConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -131,7 +131,7 @@ func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 		}),
 		nats.ClosedHandler(func(nc *nats.Conn) {
 			logger.Errorw("Nats Client Connection closed!", "Reason", nc.LastError())
-			connWg.Done()
+			//connWg.Done()
 		}))
 	if err != nil {
 		logger.Error("err", err)
@@ -149,7 +149,7 @@ func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 		logger:     logger,
 		JetStrCtxt: js,
 		Conn:       nc,
-		ConnWg:     connWg,
+		//ConnWg:     connWg,
 	}
 	return natsClient, nil
 }
