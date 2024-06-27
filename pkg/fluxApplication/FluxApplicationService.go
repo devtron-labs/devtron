@@ -81,24 +81,31 @@ func (impl *FluxApplicationServiceImpl) ListFluxApplications(ctx context.Context
 }
 
 func (impl *FluxApplicationServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.FluxApplicationList) bean.FluxAppList {
-	appList := bean.FluxAppList{ClusterId: &deployedApps.ClusterId}
+	appList := bean.FluxAppList{ClusterIds: &[]int32{deployedApps.ClusterId}}
 
-	fluxApps := make([]bean.FluxApplication, 0)
+	if deployedApps.Errored {
+		appList.Errored = &deployedApps.Errored
+		appList.ErrorMsg = &deployedApps.ErrorMsg
+		appList.FluxApps = nil
+	} else {
+		fluxApps := make([]bean.FluxApplication, 0)
 
-	for _, deployedapp := range deployedApps.FluxApplication {
+		for _, deployedapp := range deployedApps.FluxApplication {
 
-		fluxApp := bean.FluxApplication{
-			Name:                  deployedapp.Name,
-			HealthStatus:          deployedapp.HealthStatus,
-			SyncStatus:            deployedapp.SyncStatus,
-			ClusterId:             int(deployedapp.EnvironmentDetail.ClusterId),
-			ClusterName:           deployedapp.EnvironmentDetail.ClusterName,
-			Namespace:             deployedapp.EnvironmentDetail.Namespace,
-			FluxAppDeploymentType: deployedapp.FluxAppDeploymentType,
+			fluxApp := bean.FluxApplication{
+				Name:                  deployedapp.Name,
+				HealthStatus:          deployedapp.HealthStatus,
+				SyncStatus:            deployedapp.SyncStatus,
+				ClusterId:             int(deployedapp.EnvironmentDetail.ClusterId),
+				ClusterName:           deployedapp.EnvironmentDetail.ClusterName,
+				Namespace:             deployedapp.EnvironmentDetail.Namespace,
+				FluxAppDeploymentType: deployedapp.FluxAppDeploymentType,
+			}
+			fluxApps = append(fluxApps, fluxApp)
 		}
-		fluxApps = append(fluxApps, fluxApp)
+		appList.FluxApps = &fluxApps
 	}
-	appList.FluxApps = &fluxApps
+
 	return appList
 }
 func (impl *FluxApplicationServiceImpl) GetFluxAppDetail(ctx context.Context, app *bean.FluxAppIdentifier) (*bean.FluxApplicationDetailDto, error) {

@@ -17,8 +17,10 @@ type FluxApplication struct {
 }
 
 type FluxAppList struct {
-	ClusterId *int32             `json:"clusterIds,omitempty"`
-	FluxApps  *[]FluxApplication `json:"fluxApplication,omitempty"`
+	ClusterIds *[]int32           `json:"clusterIds,omitempty"`
+	FluxApps   *[]FluxApplication `json:"fluxApplication,omitempty"`
+	Errored    *bool              `json:"errored,omitempty"`
+	ErrorMsg   *string            `json:"errorMsg,omitempty"`
 }
 
 type FluxAppIdentifier struct {
