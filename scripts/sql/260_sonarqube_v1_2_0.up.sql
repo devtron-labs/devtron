@@ -97,7 +97,7 @@ VALUES (
     if [[ -z "$UsePropertiesFileFromProject" || $UsePropertiesFileFromProject == false ]]
     then
     echo "sonar.projectKey=$GlobalSonarqubeProjectName" > sonar-project.properties
-    else 
+    else
     echo "sonar.projectKey=$GlobalSonarqubeProjectName" > sonar-project.properties
     echo "$SonarqubeExtraArgs" >> sonar-project.properties
     fi
@@ -151,7 +151,7 @@ VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadat
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Sonarqube v1.2.0' and ps."index"=1 and ps.deleted=false),'SonarqubeHighHotspots','STRING','Total number of SonarQube hotspots (HIGH) in the source code','t','f',false,null,'OUTPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Sonarqube v1.2.0' and ps."index"=1 and ps.deleted=false),'SonarqubeProjectStatus','STRING','Quality gate status of Sonarqube Project ,it may be "ERROR","OK" ,"NONE"','t','f',false,null,'OUTPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Sonarqube v1.2.0' and ps."index"=1 and ps.deleted=false),'SonarqubeVulnerabilities','STRING','Total number of SonarQube vulnerabilities in the source code','t','f',false,null,'OUTPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
-(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Sonarqube v1.2.0' and ps."index"=1 and ps.deleted=false),'SonarqubeExtraArgs','STRING','Branch name to be used to send the scanned result on sonarqube project','t','t',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
+(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Sonarqube v1.2.0' and ps."index"=1 and ps.deleted=false),'SonarqubeExtraArgs','STRING','Define additional Sonar analysis parameters, each on a new line.','t','t',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
 
 
 
