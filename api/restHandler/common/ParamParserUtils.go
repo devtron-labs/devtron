@@ -101,7 +101,7 @@ func ExtractIntArrayFromQueryParam(r *http.Request, paramName string) ([]int, er
 	paramValue := queryParams[paramName]
 	paramIntValues := make([]int, 0)
 	var err error
-	if len(paramValue) > 0 {
+	if paramValue != nil && len(paramValue) > 0 {
 		if strings.Contains(paramValue[0], ",") {
 			paramIntValues, err = convertToIntArray(paramValue[0])
 		} else {

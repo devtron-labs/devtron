@@ -30,16 +30,6 @@ func paginatePluginParentMetadata(allPluginParentMetadata []*repository.PluginPa
 	return allPluginParentMetadata
 }
 
-func filterOnlyRequiredPluginVersions(versionIdVsPluginsVersionDetailMap map[int]map[int]*PluginsVersionDetail, pluginVersionsIdMap map[int]bool) {
-	for pluginParentId, versionMap := range versionIdVsPluginsVersionDetailMap {
-		for pluginVersionId, _ := range versionMap {
-			if _, ok := pluginVersionsIdMap[pluginVersionId]; !ok {
-				delete(versionIdVsPluginsVersionDetailMap[pluginParentId], pluginVersionId)
-			}
-		}
-	}
-}
-
 func getParentPluginDtoMappings(pluginsParentMetadata []*repository.PluginParentMetadata) (map[int]*PluginParentMetadataDto, []int) {
 	pluginParentIdVsPluginParentDtoMap := make(map[int]*PluginParentMetadataDto, len(pluginsParentMetadata))
 	pluginParentIds := make([]int, 0, len(pluginsParentMetadata))

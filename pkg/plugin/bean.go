@@ -320,3 +320,7 @@ type RegistryCredentials struct {
 	AWSSecretAccessKey string `json:"awsSecretAccessKey,omitempty"`
 	AWSRegion          string `json:"awsRegion,omitempty"`
 }
+
+const (
+	NoPluginOrParentIdProvidedErr = "no value for pluginVersionIds and parentPluginIds provided in query param"
+)

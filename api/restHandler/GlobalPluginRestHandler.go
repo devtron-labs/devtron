@@ -361,7 +361,7 @@ func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailByIds(w http.Response
 
 	}
 
-	pluginIds, parentPluginIds, fetchAllVersionDetails, err := handler.extractAllRequiredQueryParamsForPluginDetail(r)
+	pluginIds, parentPluginIds, fetchAllVersionDetails, err := handler.extractQueryParamsForPluginDetail(r)
 	if err != nil {
 		common.WriteJsonResp(w, err, err.Error(), http.StatusBadRequest)
 		return
@@ -409,7 +409,7 @@ func (handler *GlobalPluginRestHandlerImpl) getListFilterFromQueryParam(w http.R
 
 	fetchAllVersionDetails, err := common.ExtractBoolQueryParam(r, "fetchAllVersionDetails")
 	if err != nil {
-		common.WriteJsonResp(w, err, "invalid size value", http.StatusBadRequest)
+		common.WriteJsonResp(w, err, "invalid fetchAllVersionDetails value", http.StatusBadRequest)
 		return nil, err
 	}
 
@@ -419,19 +419,20 @@ func (handler *GlobalPluginRestHandlerImpl) getListFilterFromQueryParam(w http.R
 	return listFilter, nil
 }
 
-func (handler *GlobalPluginRestHandlerImpl) extractAllRequiredQueryParamsForPluginDetail(r *http.Request) ([]int, []int, bool, error) {
+func (handler *GlobalPluginRestHandlerImpl) extractQueryParamsForPluginDetail(r *http.Request) ([]int, []int, bool, error) {
 	pluginIds, parentPluginIds := make([]int, 0), make([]int, 0)
 
 	pluginIds, err := common.ExtractIntArrayFromQueryParam(r, "pluginId")
 	if err != nil {
-		parentPluginIds, err = common.ExtractIntArrayFromQueryParam(r, "parentPluginId")
-		if err != nil {
-			return nil, nil, false, errors.New("no pluginId or parentPluginId value provided")
-		}
+		return nil, nil, false, errors.New("invalid pluginId")
+	}
+	parentPluginIds, err = common.ExtractIntArrayFromQueryParam(r, "parentPluginId")
+	if err != nil {
+		return nil, nil, false, errors.New("invalid parentPluginId")
 	}
 	fetchAllVersionDetails, err := common.ExtractBoolQueryParam(r, "fetchAllVersionDetails")
 	if err != nil {
-		return nil, nil, fetchAllVersionDetails, errors.New("invalid isLatest value")
+		return nil, nil, fetchAllVersionDetails, errors.New("invalid fetchAllVersionDetails value")
 	}
 	return pluginIds, parentPluginIds, fetchAllVersionDetails, nil
 }
