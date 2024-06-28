@@ -1,4 +1,5 @@
 ## Bugs
+- fix: optimised FetchLatestDeploymentWithChartRefs query (#5393)
 - fix: nats consumer deleted on shutdown (#5377)
 - fix: panic issue in get/ download pod logs api (#5342)
 - fix: encountering panic in application groups in build and deploy page (#5330)
