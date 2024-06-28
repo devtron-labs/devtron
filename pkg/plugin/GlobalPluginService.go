@@ -1682,27 +1682,13 @@ func (impl *GlobalPluginServiceImpl) getUserIdToEmailMap() (map[int32]string, er
 // another map is plugin version ids vs plugin version details map, also returns error if any else nil.
 func (impl *GlobalPluginServiceImpl) getPluginEntitiesIdToPluginEntitiesDtoMap(pluginsParentMetadata []*repository.PluginParentMetadata) (map[int]*PluginParentMetadataDto,
 	map[int]map[int]*PluginsVersionDetail, error) {
-
-	pluginParentIdVsPluginParentDtoMap := make(map[int]*PluginParentMetadataDto, len(pluginsParentMetadata))
-	pluginVersionsVsPluginsVersionDetailMap := make(map[int]map[int]*PluginsVersionDetail)
-	pluginParentIds := make([]int, 0, len(pluginsParentMetadata))
 	userIdVsEmailMap, err := impl.getUserIdToEmailMap()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	for _, metadata := range pluginsParentMetadata {
-		pluginParentIds = append(pluginParentIds, metadata.Id)
-		if _, ok := pluginParentIdVsPluginParentDtoMap[metadata.Id]; !ok {
-			pluginParentDto := NewPluginParentMetadataDto()
-			pluginParentDto.WithNameAndId(metadata.Name, metadata.Id).
-				WithIcon(metadata.Icon).
-				WithDescription(metadata.Description).
-				WithPluginIdentifier(metadata.Identifier).
-				WithType(string(metadata.Type))
-			pluginParentIdVsPluginParentDtoMap[metadata.Id] = pluginParentDto
-		}
-	}
+	pluginParentIdVsPluginParentDtoMap, pluginParentIds := getParentPluginDtoMappings(pluginsParentMetadata)
+
 	//get all versions of a plugin
 	pluginVersionsMetadata, err := impl.globalPluginRepository.GetPluginVersionsMetadataByParentPluginIds(pluginParentIds)
 	if err != nil {
@@ -1710,26 +1696,10 @@ func (impl *GlobalPluginServiceImpl) getPluginEntitiesIdToPluginEntitiesDtoMap(p
 		return nil, nil, err
 	}
 
-	for _, versionMetadata := range pluginVersionsMetadata {
-		pluginVersionDetails := NewPluginsVersionDetail()
-		pluginVersionDetails.SetMinimalPluginsVersionDetail(versionMetadata)
-		pluginVersionDetails.WithLastUpdatedEmail(userIdVsEmailMap[versionMetadata.UpdatedBy])
+	pluginVersionsVsPluginsVersionDetailMap := getPluginVersionAndDetailsMapping(pluginVersionsMetadata, userIdVsEmailMap)
 
-		if _, ok := pluginVersionsVsPluginsVersionDetailMap[versionMetadata.PluginParentMetadataId]; !ok {
-			pluginVersionsVsPluginsVersionDetailMap[versionMetadata.PluginParentMetadataId] = make(map[int]*PluginsVersionDetail)
-		}
-		pluginVersionsVsPluginsVersionDetailMap[versionMetadata.PluginParentMetadataId][versionMetadata.Id] = pluginVersionDetails
-	}
 	//appending minimal data for all plugin versions
-	for parentPluginId, versionMap := range pluginVersionsVsPluginsVersionDetailMap {
-		minimalPluginVersionsMetadataDtos := make([]*PluginsVersionDetail, 0, len(versionMap))
-		pluginVersion := NewPluginVersions()
-		for _, versionDetail := range versionMap {
-			minimalPluginVersionsMetadataDtos = append(minimalPluginVersionsMetadataDtos, versionDetail)
-		}
-		pluginVersion.WithMinimalPluginVersionData(minimalPluginVersionsMetadataDtos)
-		pluginParentIdVsPluginParentDtoMap[parentPluginId].WithVersions(pluginVersion)
-	}
+	appendMinimalVersionDetailsInParentMetadataDtos(pluginParentIdVsPluginParentDtoMap, pluginVersionsVsPluginsVersionDetailMap)
 
 	return pluginParentIdVsPluginParentDtoMap, pluginVersionsVsPluginsVersionDetailMap, nil
 }

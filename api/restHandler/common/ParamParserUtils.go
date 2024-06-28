@@ -44,7 +44,7 @@ func convertToInt(w http.ResponseWriter, paramValue string) (int, error) {
 	return paramIntValue, nil
 }
 
-func convertToIntArray(w http.ResponseWriter, paramValue string) ([]int, error) {
+func convertToIntArray(paramValue string) ([]int, error) {
 	var paramValues []int
 	splittedParamValues := strings.Split(paramValue, ",")
 	for _, splittedParamValue := range splittedParamValues {
@@ -70,10 +70,12 @@ func ExtractIntQueryParam(w http.ResponseWriter, r *http.Request, paramName stri
 	return paramIntValue, nil
 }
 
+// ExtractIntArrayQueryParam don't use this func, doesn't handle all cases to capture query params
+// use ExtractIntArrayFromQueryParam over this func to capture int array from query param.
 func ExtractIntArrayQueryParam(w http.ResponseWriter, r *http.Request, paramName string) ([]int, error) {
 	queryParams := r.URL.Query()
 	paramValue := queryParams.Get(paramName)
-	paramIntValues, err := convertToIntArray(w, paramValue)
+	paramIntValues, err := convertToIntArray(paramValue)
 	return paramIntValues, err
 }
 
@@ -82,4 +84,34 @@ func ExtractBoolQueryParam(w http.ResponseWriter, r *http.Request, paramName str
 	paramValue := queryParams.Get(paramName)
 	boolValue, err := strconv.ParseBool(paramValue)
 	return boolValue, err
+}
+
+// ExtractIntArrayFromQueryParam returns list of all ids in []int extracted from query param
+// use this method over ExtractIntArrayQueryParam if there is list of query params
+func ExtractIntArrayFromQueryParam(r *http.Request, paramName string) ([]int, error) {
+	queryParams := r.URL.Query()
+	paramValue := queryParams[paramName]
+	paramIntValues := make([]int, 0)
+	var err error
+	if len(paramValue) > 0 {
+		if strings.Contains(paramValue[0], ",") {
+			paramIntValues, err = convertToIntArray(paramValue[0])
+		} else {
+			paramIntValues, err = convertStringArrayToIntArray(paramValue)
+		}
+	}
+
+	return paramIntValues, err
+}
+
+func convertStringArrayToIntArray(strArr []string) ([]int, error) {
+	var paramValues []int
+	for _, item := range strArr {
+		paramIntValue, err := strconv.Atoi(item)
+		if err != nil {
+			return paramValues, err
+		}
+		paramValues = append(paramValues, paramIntValue)
+	}
+	return paramValues, nil
 }

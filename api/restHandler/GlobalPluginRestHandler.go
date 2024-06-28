@@ -20,10 +20,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"strconv"
-	"strings"
-
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -32,6 +28,8 @@ import (
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
+	"net/http"
+	"strconv"
 )
 
 type GlobalPluginRestHandler interface {
@@ -194,7 +192,7 @@ func (handler *GlobalPluginRestHandlerImpl) ListAllPlugins(w http.ResponseWriter
 		return
 	}
 	stageType := r.URL.Query().Get("stage")
-	ok, err := handler.IsUserAuthorised(token, appId)
+	ok, err := handler.IsUserAuthorisedForThisApp(token, appId)
 	if err != nil {
 		handler.logger.Infow("service error, ListAllPlugins", "appId", appId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -223,7 +221,7 @@ func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailById(w http.ResponseW
 		common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
 		return
 	}
-	ok, err := handler.IsUserAuthorised(token, appId)
+	ok, err := handler.IsUserAuthorisedForThisApp(token, appId)
 	if err != nil {
 		handler.logger.Infow("service error, GetPluginDetailById", "appId", appId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -253,25 +251,35 @@ func (handler *GlobalPluginRestHandlerImpl) ListAllPluginsV2(w http.ResponseWrit
 	token := r.Header.Get("token")
 	v := r.URL.Query()
 	appIdQueryParam := v.Get("appId")
-	appId, err := strconv.Atoi(appIdQueryParam)
-	if appIdQueryParam == "" || err != nil {
-		common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
-		return
+	var appId int
+	var err error
+	if len(appIdQueryParam) > 0 {
+		appId, err = strconv.Atoi(appIdQueryParam)
+		if err != nil {
+			common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
+			return
+		}
+	}
+	if appId > 0 {
+		ok, err := handler.IsUserAuthorisedForThisApp(token, appId)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		if !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
+	} else { //check for super-admin, to be used in global policy
+		if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin {
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			return
+		}
+
 	}
 
 	listFilter, err := handler.getListFilterFromQueryParam(w, r)
 	if err != nil {
-		return
-	}
-
-	ok, err := handler.IsUserAuthorised(token, appId)
-	if err != nil {
-		handler.logger.Infow("service error, ListAllPluginsV2", "appId", appId, "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	if !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 
@@ -288,19 +296,31 @@ func (handler *GlobalPluginRestHandlerImpl) ListAllPluginsV2(w http.ResponseWrit
 func (handler *GlobalPluginRestHandlerImpl) GetAllUniqueTags(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	appIdQueryParam := r.URL.Query().Get("appId")
-	appId, err := strconv.Atoi(appIdQueryParam)
-	if appIdQueryParam == "" || err != nil {
-		common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
-		return
+	var appId int
+	var err error
+	if len(appIdQueryParam) > 0 {
+		appId, err = strconv.Atoi(appIdQueryParam)
+		if err != nil {
+			common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
+			return
+		}
 	}
-	ok, err := handler.IsUserAuthorised(token, appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	if !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
+	if appId > 0 {
+		ok, err := handler.IsUserAuthorisedForThisApp(token, appId)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		if !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
+	} else { //check for super-admin, to be used in global policy
+		if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin {
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			return
+		}
+
 	}
 	pluginDetail, err := handler.globalPluginService.GetAllUniqueTags()
 	if err != nil {
@@ -314,24 +334,36 @@ func (handler *GlobalPluginRestHandlerImpl) GetAllUniqueTags(w http.ResponseWrit
 func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailByIds(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	appIdQueryParam := r.URL.Query().Get("appId")
-	appId, err := strconv.Atoi(appIdQueryParam)
-	if appIdQueryParam == "" || err != nil {
-		common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
-		return
+	var appId int
+	var err error
+	if len(appIdQueryParam) > 0 {
+		appId, err = strconv.Atoi(appIdQueryParam)
+		if err != nil {
+			common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
+			return
+		}
 	}
+	if appId > 0 {
+		ok, err := handler.IsUserAuthorisedForThisApp(token, appId)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		if !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
+	} else { //check for super-admin, to be used in global policy
+		if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin {
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			return
+		}
+
+	}
+
 	pluginIds, parentPluginIds, fetchLatestVersionDetailsOnly, err := handler.extractAllRequiredQueryParamsForPluginDetail(w, r)
 	if err != nil {
 		common.WriteJsonResp(w, err, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	ok, err := handler.IsUserAuthorised(token, appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	if !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 
@@ -345,7 +377,7 @@ func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailByIds(w http.Response
 
 }
 
-func (handler *GlobalPluginRestHandlerImpl) IsUserAuthorised(token string, appId int) (bool, error) {
+func (handler *GlobalPluginRestHandlerImpl) IsUserAuthorisedForThisApp(token string, appId int) (bool, error) {
 	var ok bool
 	app, err := handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
@@ -373,7 +405,7 @@ func (handler *GlobalPluginRestHandlerImpl) getListFilterFromQueryParam(w http.R
 		return nil, err
 	}
 	searchQueryParam := v.Get("searchKey")
-	tags := v.Get("tagNames")
+	tagArray := v["tag"]
 	fetchLatestVersionDetails := true
 	isLatest := v.Get("fetchLatestVersionDetails")
 	if len(isLatest) > 0 {
@@ -384,10 +416,6 @@ func (handler *GlobalPluginRestHandlerImpl) getListFilterFromQueryParam(w http.R
 		}
 	}
 
-	var tagArray []string
-	if tags != "" {
-		tagArray = strings.Split(tags, ",")
-	}
 	listFilter := plugin.NewPluginsListFilter()
 	listFilter.WithOffset(offset).WithLimit(limit).WithTags(tagArray).WithSearchKey(searchQueryParam)
 	listFilter.FetchLatestVersionDetails = fetchLatestVersionDetails
@@ -399,9 +427,9 @@ func (handler *GlobalPluginRestHandlerImpl) extractAllRequiredQueryParamsForPlug
 	var err error
 	var pluginIds []int
 	var parentPluginIds []int
-	pluginIds, err = common.ExtractIntArrayQueryParam(w, r, "pluginId")
+	pluginIds, err = common.ExtractIntArrayFromQueryParam(r, "pluginId")
 	if err != nil {
-		parentPluginIds, err = common.ExtractIntArrayQueryParam(w, r, "parentPluginId")
+		parentPluginIds, err = common.ExtractIntArrayFromQueryParam(r, "parentPluginId")
 		if err != nil {
 			return nil, nil, fetchLatestVersionDetailsOnly, errors.New("no pluginId or parentPluginId value provided")
 		}

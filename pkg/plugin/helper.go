@@ -39,3 +39,50 @@ func filterOnlyRequiredPluginVersions(versionIdVsPluginsVersionDetailMap map[int
 		}
 	}
 }
+
+func getParentPluginDtoMappings(pluginsParentMetadata []*repository.PluginParentMetadata) (map[int]*PluginParentMetadataDto, []int) {
+	pluginParentIdVsPluginParentDtoMap := make(map[int]*PluginParentMetadataDto, len(pluginsParentMetadata))
+	pluginParentIds := make([]int, 0, len(pluginsParentMetadata))
+	for _, metadata := range pluginsParentMetadata {
+		pluginParentIds = append(pluginParentIds, metadata.Id)
+		if _, ok := pluginParentIdVsPluginParentDtoMap[metadata.Id]; !ok {
+			pluginParentDto := NewPluginParentMetadataDto()
+			pluginParentDto.WithNameAndId(metadata.Name, metadata.Id).
+				WithIcon(metadata.Icon).
+				WithDescription(metadata.Description).
+				WithPluginIdentifier(metadata.Identifier).
+				WithType(string(metadata.Type))
+			pluginParentIdVsPluginParentDtoMap[metadata.Id] = pluginParentDto
+		}
+	}
+	return pluginParentIdVsPluginParentDtoMap, pluginParentIds
+}
+
+func getPluginVersionAndDetailsMapping(pluginVersionsMetadata []*repository.PluginMetadata, userIdVsEmailMap map[int32]string) map[int]map[int]*PluginsVersionDetail {
+	pluginVersionsVsPluginsVersionDetailMap := make(map[int]map[int]*PluginsVersionDetail)
+	for _, versionMetadata := range pluginVersionsMetadata {
+		pluginVersionDetails := NewPluginsVersionDetail()
+		pluginVersionDetails.SetMinimalPluginsVersionDetail(versionMetadata)
+		pluginVersionDetails.WithLastUpdatedEmail(userIdVsEmailMap[versionMetadata.UpdatedBy])
+
+		if _, ok := pluginVersionsVsPluginsVersionDetailMap[versionMetadata.PluginParentMetadataId]; !ok {
+			pluginVersionsVsPluginsVersionDetailMap[versionMetadata.PluginParentMetadataId] = make(map[int]*PluginsVersionDetail)
+		}
+		pluginVersionsVsPluginsVersionDetailMap[versionMetadata.PluginParentMetadataId][versionMetadata.Id] = pluginVersionDetails
+	}
+	return pluginVersionsVsPluginsVersionDetailMap
+}
+
+func appendMinimalVersionDetailsInParentMetadataDtos(pluginParentIdVsPluginParentDtoMap map[int]*PluginParentMetadataDto,
+	pluginVersionsVsPluginsVersionDetailMap map[int]map[int]*PluginsVersionDetail) {
+
+	for parentPluginId, versionMap := range pluginVersionsVsPluginsVersionDetailMap {
+		minimalPluginVersionsMetadataDtos := make([]*PluginsVersionDetail, 0, len(versionMap))
+		pluginVersion := NewPluginVersions()
+		for _, versionDetail := range versionMap {
+			minimalPluginVersionsMetadataDtos = append(minimalPluginVersionsMetadataDtos, versionDetail)
+		}
+		pluginVersion.WithMinimalPluginVersionData(minimalPluginVersionsMetadataDtos)
+		pluginParentIdVsPluginParentDtoMap[parentPluginId].WithVersions(pluginVersion)
+	}
+}
