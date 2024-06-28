@@ -1709,6 +1709,7 @@ func (impl *GlobalPluginServiceImpl) getPluginEntitiesIdToPluginEntitiesDtoMap(p
 		impl.logger.Errorw("error in getting all plugin versions metadata by parent plugin id", "err", err)
 		return nil, nil, err
 	}
+
 	for _, versionMetadata := range pluginVersionsMetadata {
 		pluginVersionDetails := NewPluginsVersionDetail()
 		pluginVersionDetails.SetMinimalPluginsVersionDetail(versionMetadata)
@@ -1718,6 +1719,16 @@ func (impl *GlobalPluginServiceImpl) getPluginEntitiesIdToPluginEntitiesDtoMap(p
 			pluginVersionsVsPluginsVersionDetailMap[versionMetadata.PluginParentMetadataId] = make(map[int]*PluginsVersionDetail)
 		}
 		pluginVersionsVsPluginsVersionDetailMap[versionMetadata.PluginParentMetadataId][versionMetadata.Id] = pluginVersionDetails
+	}
+	//appending minimal data for all plugin versions
+	for parentPluginId, versionMap := range pluginVersionsVsPluginsVersionDetailMap {
+		minimalPluginVersionsMetadataDtos := make([]*PluginsVersionDetail, 0, len(versionMap))
+		pluginVersion := NewPluginVersions()
+		for _, versionDetail := range versionMap {
+			minimalPluginVersionsMetadataDtos = append(minimalPluginVersionsMetadataDtos, versionDetail)
+		}
+		pluginVersion.WithMinimalPluginVersionData(minimalPluginVersionsMetadataDtos)
+		pluginParentIdVsPluginParentDtoMap[parentPluginId].WithVersions(pluginVersion)
 	}
 
 	return pluginParentIdVsPluginParentDtoMap, pluginVersionsVsPluginsVersionDetailMap, nil
@@ -1743,8 +1754,6 @@ func (impl *GlobalPluginServiceImpl) GetPluginParentMetadataDtos(parentIdVsPlugi
 
 	for parentPluginId, versionMap := range versionIdVsPluginsVersionDetailMap {
 		detailedPluginVersionsMetadataDtos := make([]*PluginsVersionDetail, 0, len(versionMap)) //contains detailed plugin version data
-		minimalPluginVersionsMetadataDtos := make([]*PluginsVersionDetail, 0, len(versionMap))
-		pluginVersion := NewPluginVersions()
 
 		for pluginVersionId, versionDetail := range versionMap {
 			if !fetchLatestVersionDetailsOnly || (fetchLatestVersionDetailsOnly && versionDetail.IsLatest) {
@@ -1761,12 +1770,9 @@ func (impl *GlobalPluginServiceImpl) GetPluginParentMetadataDtos(parentIdVsPlugi
 					versionDetail.WithTags(tags)
 				}
 				detailedPluginVersionsMetadataDtos = append(detailedPluginVersionsMetadataDtos, versionDetail)
-			} else {
-				minimalPluginVersionsMetadataDtos = append(minimalPluginVersionsMetadataDtos, versionDetail)
 			}
 		}
-		pluginVersion.WithDetailedPluginVersionData(detailedPluginVersionsMetadataDtos).WithMinimalPluginVersionData(minimalPluginVersionsMetadataDtos)
-		parentIdVsPluginParentDtoMap[parentPluginId].WithVersions(pluginVersion)
+		parentIdVsPluginParentDtoMap[parentPluginId].Versions.WithDetailedPluginVersionData(detailedPluginVersionsMetadataDtos)
 	}
 
 	for _, pluginParentDto := range parentIdVsPluginParentDtoMap {
