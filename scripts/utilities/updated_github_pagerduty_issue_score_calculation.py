@@ -105,7 +105,7 @@ def process_issue_body(issue_body):
         try:
             subprocess.run(['gh', 'issue', 'edit', str(issue_number), '--remove-label', 'pager-duty'])
             print("Removing pager-duty label", issue_number)
-            subprocess.run(['gh', 'issue', 'edit', str(issue_number), '--add-label', 'pager-duty validation failed'], capture_output=True, check=True, text=True)
+            subprocess.run(['gh', 'issue', 'edit', str(issue_number), '--add-label', 'pager-duty-validation-failed'], capture_output=True, check=True, text=True)
             print("Pager-duty vlaidation failed label added to issue", issue_number)
             sys.exit(0)
         except subprocess.CalledProcessError as e:
