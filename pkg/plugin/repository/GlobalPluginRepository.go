@@ -720,11 +720,11 @@ func (impl *GlobalPluginRepositoryImpl) UpdatePluginMetadataInBulk(pluginsMetada
 
 func (impl *GlobalPluginRepositoryImpl) GetAllFilteredPluginParentMetadata(searchKey string, tags []string) ([]*PluginParentMetadata, error) {
 	var plugins []*PluginParentMetadata
-	query := "select ppm.id, ppm.identifier,ppm.name,ppm.description,ppm.type,ppm.icon,ppm.deleted,ppm.created_by, ppm.created_on,ppm.updated_by,ppm.updated_on from plugin_parent_metadata ppm"
+	subQuery := "select ppm.id, ppm.identifier,ppm.name,ppm.description,ppm.type,ppm.icon,ppm.deleted,ppm.created_by, ppm.created_on,ppm.updated_by,ppm.updated_on from plugin_parent_metadata ppm"
 	whereCondition := fmt.Sprintf(" where ppm.deleted=false")
 	orderCondition := fmt.Sprintf(" ORDER BY ppm.id asc")
 	if len(tags) > 0 {
-		query = "select DISTINCT ON(ppm.id) ppm.id, ppm.identifier,ppm.name,ppm.description,ppm.type,ppm.icon,ppm.deleted,ppm.created_by, ppm.created_on,ppm.updated_by,ppm.updated_on from plugin_parent_metadata ppm" +
+		subQuery = "select DISTINCT ON(ppm.id) ppm.id, ppm.identifier,ppm.name,ppm.description,ppm.type,ppm.icon,ppm.deleted,ppm.created_by, ppm.created_on,ppm.updated_by,ppm.updated_on from plugin_parent_metadata ppm" +
 			" inner join plugin_metadata pm on pm.plugin_parent_metadata_id=ppm.id" +
 			" left join plugin_tag_relation ptr on ptr.plugin_id=pm.id" +
 			" left join plugin_tag pt on ptr.tag_id=pt.id"
@@ -735,8 +735,8 @@ func (impl *GlobalPluginRepositoryImpl) GetAllFilteredPluginParentMetadata(searc
 		whereCondition += fmt.Sprintf(" AND (ppm.description ilike '%s' or ppm.name ilike '%s')", searchKeyLike, searchKeyLike)
 	}
 
-	query += whereCondition + orderCondition + ";"
-
+	subQuery += whereCondition + orderCondition
+	query := fmt.Sprintf(" select * from (%s) x ORDER BY name asc;", subQuery)
 	_, err := impl.dbConnection.Query(&plugins, query)
 	if err != nil {
 		return nil, err
