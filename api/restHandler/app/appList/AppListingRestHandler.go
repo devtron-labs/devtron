@@ -25,6 +25,8 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	util3 "github.com/devtron-labs/devtron/api/util"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
@@ -990,12 +992,27 @@ func (handler AppListingRestHandlerImpl) getAppDetails(ctx context.Context, appI
 	return appDetail, err, appId
 }
 
+func getApplicationStatusFromLatestDeployment(latestDeployment *chartConfig.LatestDeployment) string {
+	if latestDeployment != nil {
+		if latestDeployment.RunnerStatus == argoApplication.Progressing {
+			return argoApplication.Progressing
+		} else if latestDeployment.DeploymentType == models.DEPLOYMENTTYPE_STOP {
+			return argoApplication.HIBERNATING
+		}
+	}
+	return argoApplication.Healthy
+}
+
 // TODO: move this to service
 func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appId int, envId int, acdToken string, cdPipeline *pipelineConfig.Pipeline) (map[string]interface{}, error) {
 	var resourceTree map[string]interface{}
 	if !cdPipeline.DeploymentAppCreated {
 		handler.logger.Infow("deployment for this pipeline does not exist", "pipelineId", cdPipeline.Id)
 		return resourceTree, nil
+	}
+	latestDeployment, err := handler.appListingService.GetLastestNonFailedDeployment(appId, envId)
+	if err != nil {
+		handler.logger.Errorw("service err, GetLastestNonFailedDeployment", "err", err, "app", appId, "env", envId)
 	}
 	if len(cdPipeline.DeploymentAppName) > 0 && cdPipeline.EnvironmentId > 0 && util.IsAcdApp(cdPipeline.DeploymentAppType) {
 		// RBAC enforcer Ends
@@ -1045,12 +1062,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		}
 
 		if resp.Status == string(health.HealthStatusHealthy) {
-			status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
-			if err != nil {
-				handler.logger.Errorw("service err, FetchAppDetailsV2", "err", err, "app", appId, "env", envId)
-			} else if status {
-				resp.Status = argoApplication.HIBERNATING
-			}
+			resp.Status = getApplicationStatusFromLatestDeployment(latestDeployment)
 		}
 		if resp.Status == string(health.HealthStatusDegraded) {
 			count, err := handler.appListingService.GetReleaseCount(appId, envId)
@@ -1096,12 +1108,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			resourceTree["releaseStatus"] = releaseStatus
 			resourceTree["status"] = applicationStatus
 			if applicationStatus == argoApplication.Healthy {
-				status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
-				if err != nil {
-					handler.logger.Errorw("service err, FetchAppDetailsV2", "err", err, "app", appId, "env", envId)
-				} else if status {
-					resourceTree["status"] = argoApplication.HIBERNATING
-				}
+				resourceTree["status"] = getApplicationStatusFromLatestDeployment(latestDeployment)
 			}
 			handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", cdPipeline.DeploymentAppName, "env", cdPipeline.Environment.Name)
 		}
