@@ -12,6 +12,8 @@
  | ARGO_APP_MANUAL_SYNC_TIME | 3 |  | 
  | ARGO_AUTO_SYNC_ENABLED | true |  | 
  | ASYNC_BUILDX_CACHE_EXPORT | false |  | 
+ | ARGO_GIT_COMMIT_RETRY_COUNT_ON_CONFLICT | 3 |  | 
+ | ARGO_GIT_COMMIT_RETRY_DELAY_ON_CONFLICT | 1 |  | 
  | AZURE_ACCOUNT_KEY |  |  | 
  | AZURE_ACCOUNT_NAME |  |  | 
  | AZURE_BLOB_CONTAINER_CI_CACHE |  |  | 
@@ -90,6 +92,7 @@
  | DEFAULT_TIMEOUT | 3600 |  | 
  | DEPLOY_STATUS_CRON_GET_PIPELINE_DEPLOYED_WITHIN_HOURS | 12 |  | 
  | DEVTRON_BOM_URL | https://raw.githubusercontent.com/devtron-labs/devtron/%s/charts/devtron/devtron-bom.yaml |  | 
+ | DEVTRON_CHART_ARGO_CD_INSTALL_REQUEST_TIMEOUT | 1 |  | 
  | DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT | 6 |  | 
  | DEVTRON_DEFAULT_NAMESPACE | devtroncd |  | 
  | DEVTRON_DEX_SECRET_NAMESPACE | devtroncd |  | 
@@ -113,6 +116,7 @@
  | DEX_URL |  |  | 
  | DOCKER_BUILD_CACHE_PATH | /var/lib/docker |  | 
  | ECR_REPO_NAME_PREFIX | test/ |  | 
+ | ENABLE_ASYNC_ARGO_CD_INSTALL_DEVTRON_CHART | false |  | 
  | ENABLE_ASYNC_INSTALL_DEVTRON_CHART | false |  | 
  | ENABLE_BUILD_CONTEXT | false |  | 
  | ENFORCER_CACHE | false |  | 

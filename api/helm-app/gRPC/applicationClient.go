@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/caarlos0/env"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"time"
@@ -228,11 +229,13 @@ func (impl *HelmAppClientImpl) DeleteApplication(ctx context.Context, in *Releas
 }
 
 func (impl *HelmAppClientImpl) UpdateApplication(ctx context.Context, in *UpgradeReleaseRequest) (*UpgradeReleaseResponse, error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "HelmAppClientImpl.UpdateApplication")
+	defer span.End()
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
 	}
-	manifest, err := applicationClient.UpgradeRelease(ctx, in)
+	manifest, err := applicationClient.UpgradeRelease(newCtx, in)
 	if err != nil {
 		return nil, err
 	}
