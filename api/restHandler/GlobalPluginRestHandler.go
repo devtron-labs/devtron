@@ -361,15 +361,15 @@ func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailByIds(w http.Response
 
 	}
 
-	pluginIds, parentPluginIds, fetchLatestVersionDetailsOnly, err := handler.extractAllRequiredQueryParamsForPluginDetail(w, r)
+	pluginIds, parentPluginIds, fetchAllVersionDetails, err := handler.extractAllRequiredQueryParamsForPluginDetail(r)
 	if err != nil {
 		common.WriteJsonResp(w, err, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	pluginDetail, err := handler.globalPluginService.GetPluginDetailV2(pluginIds, parentPluginIds, fetchLatestVersionDetailsOnly)
+	pluginDetail, err := handler.globalPluginService.GetPluginDetailV2(pluginIds, parentPluginIds, fetchAllVersionDetails)
 	if err != nil {
-		handler.logger.Errorw("error in getting plugin detail", "pluginIds", pluginIds, "parentPluginIds", parentPluginIds, "fetchLatestVersionDetails", fetchLatestVersionDetailsOnly, "err", err)
+		handler.logger.Errorw("error in getting plugin detail", "pluginIds", pluginIds, "parentPluginIds", parentPluginIds, "fetchAllVersionDetails", fetchAllVersionDetails, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -406,39 +406,32 @@ func (handler *GlobalPluginRestHandlerImpl) getListFilterFromQueryParam(w http.R
 	}
 	searchQueryParam := v.Get("searchKey")
 	tagArray := v["tag"]
-	fetchLatestVersionDetails := true
-	isLatest := v.Get("fetchLatestVersionDetails")
-	if len(isLatest) > 0 {
-		fetchLatestVersionDetails, err = strconv.ParseBool(isLatest)
-		if err != nil {
-			common.WriteJsonResp(w, err, "invalid size value", http.StatusBadRequest)
-			return nil, err
-		}
+
+	fetchAllVersionDetails, err := common.ExtractBoolQueryParam(r, "fetchAllVersionDetails")
+	if err != nil {
+		common.WriteJsonResp(w, err, "invalid size value", http.StatusBadRequest)
+		return nil, err
 	}
 
 	listFilter := plugin.NewPluginsListFilter()
 	listFilter.WithOffset(offset).WithLimit(limit).WithTags(tagArray).WithSearchKey(searchQueryParam)
-	listFilter.FetchLatestVersionDetails = fetchLatestVersionDetails
+	listFilter.FetchAllVersionDetails = fetchAllVersionDetails
 	return listFilter, nil
 }
 
-func (handler *GlobalPluginRestHandlerImpl) extractAllRequiredQueryParamsForPluginDetail(w http.ResponseWriter, r *http.Request) ([]int, []int, bool, error) {
-	fetchLatestVersionDetailsOnly := true
-	var err error
-	var pluginIds []int
-	var parentPluginIds []int
-	pluginIds, err = common.ExtractIntArrayFromQueryParam(r, "pluginId")
+func (handler *GlobalPluginRestHandlerImpl) extractAllRequiredQueryParamsForPluginDetail(r *http.Request) ([]int, []int, bool, error) {
+	pluginIds, parentPluginIds := make([]int, 0), make([]int, 0)
+
+	pluginIds, err := common.ExtractIntArrayFromQueryParam(r, "pluginId")
 	if err != nil {
 		parentPluginIds, err = common.ExtractIntArrayFromQueryParam(r, "parentPluginId")
 		if err != nil {
-			return nil, nil, fetchLatestVersionDetailsOnly, errors.New("no pluginId or parentPluginId value provided")
+			return nil, nil, false, errors.New("no pluginId or parentPluginId value provided")
 		}
-
 	}
-
-	fetchLatestVersionDetailsOnly, err = common.ExtractBoolQueryParam(w, r, "fetchLatestVersionDetails")
+	fetchAllVersionDetails, err := common.ExtractBoolQueryParam(r, "fetchAllVersionDetails")
 	if err != nil {
-		return nil, nil, fetchLatestVersionDetailsOnly, errors.New("invalid isLatest value")
+		return nil, nil, fetchAllVersionDetails, errors.New("invalid isLatest value")
 	}
-	return pluginIds, parentPluginIds, fetchLatestVersionDetailsOnly, nil
+	return pluginIds, parentPluginIds, fetchAllVersionDetails, nil
 }

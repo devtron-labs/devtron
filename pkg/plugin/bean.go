@@ -187,11 +187,11 @@ func (r *PluginsVersionDetail) WithTags(tags []string) *PluginsVersionDetail {
 }
 
 type PluginsListFilter struct {
-	Offset                    int
-	Limit                     int
-	SearchKey                 string
-	Tags                      []string
-	FetchLatestVersionDetails bool
+	Offset                 int
+	Limit                  int
+	SearchKey              string
+	Tags                   []string
+	FetchAllVersionDetails bool
 }
 
 func NewPluginsListFilter() *PluginsListFilter {

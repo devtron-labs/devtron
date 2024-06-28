@@ -79,11 +79,19 @@ func ExtractIntArrayQueryParam(w http.ResponseWriter, r *http.Request, paramName
 	return paramIntValues, err
 }
 
-func ExtractBoolQueryParam(w http.ResponseWriter, r *http.Request, paramName string) (bool, error) {
+func ExtractBoolQueryParam(r *http.Request, paramName string) (bool, error) {
 	queryParams := r.URL.Query()
 	paramValue := queryParams.Get(paramName)
-	boolValue, err := strconv.ParseBool(paramValue)
-	return boolValue, err
+	var boolValue bool
+	var err error
+	if len(paramValue) > 0 {
+		boolValue, err = strconv.ParseBool(paramValue)
+		if err != nil {
+			return boolValue, err
+		}
+	}
+
+	return boolValue, nil
 }
 
 // ExtractIntArrayFromQueryParam returns list of all ids in []int extracted from query param

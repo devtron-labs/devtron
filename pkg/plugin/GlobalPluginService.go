@@ -69,7 +69,7 @@ type GlobalPluginService interface {
 	GetAllDetailedPluginInfo() ([]*PluginMetadataDto, error)
 
 	ListAllPluginsV2(filter *PluginsListFilter) (*PluginsDto, error)
-	GetPluginDetailV2(pluginVersionIds, parentPluginIds []int, fetchLatestVersionDetailsOnly bool) (*PluginsDto, error)
+	GetPluginDetailV2(pluginVersionIds, parentPluginIds []int, fetchAllVersionDetails bool) (*PluginsDto, error)
 	GetAllUniqueTags() (*PluginTagsDto, error)
 }
 
@@ -1707,7 +1707,7 @@ func (impl *GlobalPluginServiceImpl) getPluginEntitiesIdToPluginEntitiesDtoMap(p
 // GetPluginParentMetadataDtos populates PluginParentMetadataDto with all metadata(if a version is not latest then ignores populating heavy
 // objects such as input and output variables in the dto) and returns the same with error if any.
 func (impl *GlobalPluginServiceImpl) GetPluginParentMetadataDtos(parentIdVsPluginParentDtoMap map[int]*PluginParentMetadataDto,
-	versionIdVsPluginsVersionDetailMap map[int]map[int]*PluginsVersionDetail, fetchLatestVersionDetailsOnly bool) ([]*PluginParentMetadataDto, error) {
+	versionIdVsPluginsVersionDetailMap map[int]map[int]*PluginsVersionDetail, fetchAllVersionDetails bool) ([]*PluginParentMetadataDto, error) {
 	//fetch input and output variables mappings
 	pluginIdInputVariablesMap, pluginIdOutputVariablesMap, err := impl.getPluginIdVariablesMap()
 	if err != nil {
@@ -1726,7 +1726,7 @@ func (impl *GlobalPluginServiceImpl) GetPluginParentMetadataDtos(parentIdVsPlugi
 		detailedPluginVersionsMetadataDtos := make([]*PluginsVersionDetail, 0, len(versionMap)) //contains detailed plugin version data
 
 		for pluginVersionId, versionDetail := range versionMap {
-			if !fetchLatestVersionDetailsOnly || (fetchLatestVersionDetailsOnly && versionDetail.IsLatest) {
+			if fetchAllVersionDetails || (!fetchAllVersionDetails && versionDetail.IsLatest) {
 				inputVariables, ok := pluginIdInputVariablesMap[pluginVersionId]
 				if ok {
 					versionDetail.WithInputVariables(inputVariables)
@@ -1780,7 +1780,7 @@ func (impl *GlobalPluginServiceImpl) ListAllPluginsV2(filter *PluginsListFilter)
 		return nil, err
 	}
 
-	pluginParentMetadataDtos, err := impl.GetPluginParentMetadataDtos(parentIdVsPluginParentDtoMap, versionIdVsPluginsVersionDetailMap, filter.FetchLatestVersionDetails)
+	pluginParentMetadataDtos, err := impl.GetPluginParentMetadataDtos(parentIdVsPluginParentDtoMap, versionIdVsPluginsVersionDetailMap, filter.FetchAllVersionDetails)
 	if err != nil {
 		impl.logger.Errorw("error in getting plugin parent metadata dtos for plugin list", "err", err)
 		return nil, err
@@ -1858,7 +1858,7 @@ if len(pluginIds)>0, this returns all the details of all the plugin versions pro
 if len(parentPluginIds)>0 && isLatest=false, this returns all the details of all the versions in a plugin.
 if len(parentPluginIds)>0 && isLatest=true, this returns all the details of the latest version of a plugin only and minimal data for all the non-latest versions.
 */
-func (impl *GlobalPluginServiceImpl) GetPluginDetailV2(pluginVersionIds, parentPluginIds []int, fetchLatestVersionDetailsOnly bool) (*PluginsDto, error) {
+func (impl *GlobalPluginServiceImpl) GetPluginDetailV2(pluginVersionIds, parentPluginIds []int, fetchAllVersionDetails bool) (*PluginsDto, error) {
 	pluginParentMetadataDtos := make([]*PluginParentMetadataDto, 0)
 	var err error
 	var totalPluginCount int
@@ -1866,7 +1866,7 @@ func (impl *GlobalPluginServiceImpl) GetPluginDetailV2(pluginVersionIds, parentP
 	pluginVersionsIdMap := make(map[int]bool)
 	if len(pluginVersionIds) > 0 {
 		//will be fetching detailed data for all versions if pluginVersionIds are provided
-		fetchLatestVersionDetailsOnly = false
+		fetchAllVersionDetails = true
 		totalPluginCount = len(pluginVersionIds)
 		pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPluginsVersionsByIds(pluginVersionIds)
 		if err != nil {
@@ -1897,7 +1897,7 @@ func (impl *GlobalPluginServiceImpl) GetPluginDetailV2(pluginVersionIds, parentP
 		filterOnlyRequiredPluginVersions(versionIdVsPluginsVersionDetailMap, pluginVersionsIdMap)
 	}
 
-	pluginParentMetadataDtos, err = impl.GetPluginParentMetadataDtos(parentIdVsPluginParentDtoMap, versionIdVsPluginsVersionDetailMap, fetchLatestVersionDetailsOnly)
+	pluginParentMetadataDtos, err = impl.GetPluginParentMetadataDtos(parentIdVsPluginParentDtoMap, versionIdVsPluginsVersionDetailMap, fetchAllVersionDetails)
 	if err != nil {
 		impl.logger.Errorw("error in getting plugin parent metadata dtos by pluginParentMetadata ids", "pluginParentMetadataIds", pluginParentMetadataIds, "err", err)
 		return nil, err
