@@ -13,19 +13,25 @@ VALUES(nextval('id_seq_plugin_step_variable'),2,'CheckForSonarAnalysisReport','B
 INSERT INTO plugin_step_variable (id,plugin_step_id,name,format,description,is_exposed,allow_empty_value,default_value,value,variable_type,value_type,previous_step_index,variable_step_index,variable_step_index_in_plugin,reference_variable_name,deleted,created_on,created_by,updated_on,updated_by) 
 VALUES(nextval('id_seq_plugin_step_variable'),2,'AbortPipelineOnPolicyCheckFailed','BOOL','Boolean value - true or false. Set true to abort on report check failed.','t','f',false,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
 
+INSERT INTO plugin_step_variable (id,plugin_step_id,name,format,description,is_exposed,allow_empty_value,default_value,value,variable_type,value_type,previous_step_index,variable_step_index,variable_step_index_in_plugin,reference_variable_name,deleted,created_on,created_by,updated_on,updated_by) 
+VALUES(nextval('id_seq_plugin_step_variable'),2,'SonarqubeExtraArgs','STRING','Define additional Sonar analysis parameters, each on a new line.','t','t',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
+
 
 UPDATE plugin_pipeline_script SET script=E'PathToCodeDir=/devtroncd$CheckoutPath
 cd $PathToCodeDir
 if [[ -z "$UsePropertiesFileFromProject" || $UsePropertiesFileFromProject == false ]]
 then
   echo "sonar.projectKey=$SonarqubeProjectKey" > sonar-project.properties
+else
+  echo "sonar.projectKey=$GlobalSonarqubeProjectName" > sonar-project.properties
+  echo "$SonarqubeExtraArgs" >> sonar-project.properties
 fi
 docker run \\
 --rm \\
 -e SONAR_HOST_URL=$SonarqubeEndpoint \\
--e SONAR_LOGIN=$SonarqubeApiKey \\
+-e SONAR_TOKEN=$SonarqubeApiKey \\
 -v "/$PWD:/usr/src" \\
-sonarsource/sonar-scanner-cli
+sonarsource/sonar-scanner-cli:5.0.1
 
 if [[ $CheckForSonarAnalysisReport == true && ! -z "$CheckForSonarAnalysisReport" ]]
 then
