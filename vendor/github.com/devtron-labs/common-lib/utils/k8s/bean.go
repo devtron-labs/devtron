@@ -192,9 +192,9 @@ func NewCustomK8sHttpTransportConfig() *CustomK8sHttpTransportConfig {
 
 // OverrideConfigWithCustomTransport
 // overrides the given rest config with custom transport if UseCustomTransport is enabled.
-// if the config already has a defined transport or tls is config is secure, we don't override it.
+// if the config already has a defined transport, we don't override it.
 func (impl *CustomK8sHttpTransportConfig) OverrideConfigWithCustomTransport(config *rest.Config) (*rest.Config, error) {
-	if !impl.UseCustomTransport || config.Transport != nil || !config.TLSClientConfig.Insecure {
+	if !impl.UseCustomTransport || config.Transport != nil {
 		return config, nil
 	}
 
