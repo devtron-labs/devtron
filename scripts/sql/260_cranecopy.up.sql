@@ -1,8 +1,8 @@
 INSERT INTO plugin_metadata (id,name,description,type,icon,deleted,created_on,created_by,updated_on,updated_by)
-VALUES (nextval('id_seq_plugin_metadata'),'CraneCopy v1.0.0','The Crane Copy plugin can be used to copy container images from one registry to another.','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/cranecopy.png',false,'now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_metadata'),'CraneCopy','The Crane Copy plugin can be used to copy container images from one registry to another.The Plugin can only be used in Post build Stage.','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/cranecopy.png',false,'now()',1,'now()',1);
 
 INSERT INTO plugin_stage_mapping (id,plugin_id,stage_type,created_on,created_by,updated_on,updated_by)
-VALUES (nextval('id_seq_plugin_stage_mapping'),(SELECT id from plugin_metadata where name='CraneCopy v1.0.0'), 0,'now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_stage_mapping'),(SELECT id from plugin_metadata where name='CraneCopy'), 0,'now()',1,'now()',1);
 
 INSERT INTO "plugin_pipeline_script" ("id", "script","type","deleted","created_on", "created_by", "updated_on", "updated_by")
 VALUES (
@@ -151,13 +151,13 @@ $$,
 
 
 INSERT INTO "plugin_step" ("id", "plugin_id","name","description","index","step_type","script_id","deleted", "created_on", "created_by", "updated_on", "updated_by")
-VALUES (nextval('id_seq_plugin_step'), (SELECT id FROM plugin_metadata WHERE name='CraneCopy v1.0.0'),'Step 1','Step 1 - CraneCopy v1.0.0','1','INLINE',(SELECT last_value FROM id_seq_plugin_pipeline_script),'f','now()', 1, 'now()', 1);
+VALUES (nextval('id_seq_plugin_step'), (SELECT id FROM plugin_metadata WHERE name='CraneCopy'),'Step 1','Step 1 - CraneCopy','1','INLINE',(SELECT last_value FROM id_seq_plugin_pipeline_script),'f','now()', 1, 'now()', 1);
 
 INSERT INTO plugin_step_variable (id,plugin_step_id,name,format,description,is_exposed,allow_empty_value,default_value,value,variable_type,value_type,previous_step_index,variable_step_index,variable_step_index_in_plugin,reference_variable_name,deleted,created_on,created_by,updated_on,updated_by) 
-VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='CraneCopy v1.0.0' and ps."index"=1 and ps.deleted=false),'TargetRegistry','STRING','The target registry to push the image.','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='CraneCopy' and ps."index"=1 and ps.deleted=false),'TargetRegistry','STRING','The target registry to push the image.In the format taregtregistry.com/repo','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
 
 INSERT INTO plugin_step_variable (id,plugin_step_id,name,format,description,is_exposed,allow_empty_value,default_value,value,variable_type,value_type,previous_step_index,variable_step_index,variable_step_index_in_plugin,reference_variable_name,deleted,created_on,created_by,updated_on,updated_by) 
-VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='CraneCopy v1.0.0' and ps."index"=1 and ps.deleted=false),'RegistryUsername','STRING','The username for authentication.(Provide AWS Access key ID in case of ECR)','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='CraneCopy' and ps."index"=1 and ps.deleted=false),'RegistryUsername','STRING','The username for authentication.(Provide AWS Access key ID in case of ECR)','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
 
 INSERT INTO plugin_step_variable (id,plugin_step_id,name,format,description,is_exposed,allow_empty_value,default_value,value,variable_type,value_type,previous_step_index,variable_step_index,variable_step_index_in_plugin,reference_variable_name,deleted,created_on,created_by,updated_on,updated_by) 
-VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='CraneCopy v1.0.0' and ps."index"=1 and ps.deleted=false),'RegistryPassword','STRING','The password to the registry for authentication.(Provide AWS Secret Access key in case of ECR).','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
+VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='CraneCopy' and ps."index"=1 and ps.deleted=false),'RegistryPassword','STRING','The password to the registry for authentication.(Provide AWS Secret Access key in case of ECR).','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
