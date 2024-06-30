@@ -440,7 +440,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				return nil, err
 			}
 			AppDeploymentConfig.RepoURL = chartGitAttr.RepoUrl
-			AppDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(AppDeploymentConfig, pipelineCreateRequest.UserId)
+			AppDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, AppDeploymentConfig, pipelineCreateRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("error in fetching creating env config", "appId", app.Id, "err", err)
 				return nil, err
@@ -460,7 +460,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				CredentialIdString: AppDeploymentConfig.CredentialIdString,
 				Active:             true,
 			}
-			envDeploymentConfig, err := impl.deploymentConfigService.CreateOrUpdateConfig(envDeploymentConfig, pipelineCreateRequest.UserId)
+			envDeploymentConfig, err := impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, pipelineCreateRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("error in fetching creating env config", "appId", app.Id, "envId", pipeline.EnvironmentId, "err", err)
 				return nil, err
@@ -858,6 +858,12 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 	envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(pipeline.AppId, pipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+		return nil, err
+	}
+	envDeploymentConfig.Active = false
+	envDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(tx, envDeploymentConfig, userId)
+	if err != nil {
+		impl.logger.Errorw("error in deleting deployment config for pipeline", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
 		return nil, err
 	}
 	//delete app from argo cd, if created

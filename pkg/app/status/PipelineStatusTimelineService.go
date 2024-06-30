@@ -302,6 +302,11 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesForAppStore(install
 		impl.logger.Errorw("error in getting installed_app_version by appId and envId", "err", err, "appId", installedAppId, "envId", envId)
 		return nil, err
 	}
+	deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfigForHelmApp(installedAppVersion.InstalledApp.AppId, installedAppVersion.InstalledApp.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", installedAppVersion.InstalledApp.AppId, "envId", installedAppVersion.InstalledApp.EnvironmentId, "err", err)
+		return nil, err
+	}
 	installedAppVersionHistory := &repository.InstalledAppVersionHistory{}
 	if installedAppVersionHistoryId == 0 {
 		//fetching latest installed_app_version_history from installed_app_version_id
@@ -327,7 +332,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesForAppStore(install
 		deploymentFinishedOn = installedAppVersionHistory.FinishedOn
 	}
 	installedAppVersionHistoryStatus = installedAppVersionHistory.Status
-	deploymentAppType = installedAppVersion.InstalledApp.DeploymentAppType
+	deploymentAppType = deploymentConfig.DeploymentAppType
 	triggeredByUserEmailId, err := impl.userService.GetEmailById(installedAppVersionHistory.CreatedBy)
 	if err != nil {
 		impl.logger.Errorw("error in getting user email by id", "err", err, "userId", installedAppVersionHistory.CreatedBy)

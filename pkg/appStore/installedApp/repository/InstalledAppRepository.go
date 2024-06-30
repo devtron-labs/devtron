@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	util2 "github.com/devtron-labs/devtron/internal/util"
@@ -53,6 +54,7 @@ type InstalledApps struct {
 	Notes                      string                                `json:"notes"`
 	App                        app.App
 	Environment                repository.Environment
+	DeploymentConfig           deploymentConfig.DeploymentConfig
 	sql.AuditLog
 }
 
@@ -711,14 +713,16 @@ func (impl InstalledAppRepositoryImpl) GetDeploymentSuccessfulStatusCountForTele
 }
 
 func (impl InstalledAppRepositoryImpl) GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) (InstalledApps, error) {
+	//TODO: test
 	var installedApps InstalledApps
 	err := impl.dbConnection.Model(&installedApps).
-		Column("installed_apps.*", "App.app_name", "Environment.namespace", "Environment.cluster_id", "Environment.environment_name").
+		Column("installed_apps.*", "App.app_name", "Environment.namespace", "Environment.cluster_id", "Environment.environment_name", "DeploymentConfig").
+		Join(" LEFT JOIN deployment_configuration dc on  (installed_apps.app_id=dc.app_id and installed_apps.environment_id=dc.environment_id)").
 		Where("deployment_app_delete_request = ?", true).
 		Where("installed_apps.active = ?", true).
 		Where("installed_apps.id = ?", installedAppId).
 		Where("installed_apps.environment_id = ?", envId).
-		Where("deployment_app_type = ?", util2.PIPELINE_DEPLOYMENT_TYPE_ACD).
+		Where("(installed_apps.deployment_app_type = ? or dc.deployment_app_type = ? )", util2.PIPELINE_DEPLOYMENT_TYPE_ACD, util2.PIPELINE_DEPLOYMENT_TYPE_ACD).
 		Select()
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in fetching pipeline while udating delete status", "err", err)
@@ -861,8 +865,9 @@ func (impl InstalledAppRepositoryImpl) GetActiveInstalledAppByEnvIdAndDeployment
 
 	query := impl.dbConnection.
 		Model(&installedApps).
-		Column("installed_apps.*", "App", "Environment").
+		Column("installed_apps.*", "App", "Environment", "DeploymentConfig").
 		Join("inner join app a on installed_apps.app_id = a.id").
+		Join("inner join ").
 		Where("installed_apps.environment_id = ?", envId).
 		Where("installed_apps.deployment_app_type = ?", deploymentType).
 		Where("installed_apps.active = ?", true)

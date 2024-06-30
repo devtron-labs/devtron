@@ -83,7 +83,13 @@ func (impl *InstalledAppResourceServiceImpl) findNotesForArgoApplication(install
 	}
 	var notes string
 
-	if util.IsAcdApp(installedAppVerison.InstalledApp.DeploymentAppType) {
+	deploymentConfig, err := impl.deploymentConfigurationService.GetDeploymentConfigForHelmApp(installedAppVerison.InstalledApp.AppId, installedAppVerison.InstalledApp.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", installedAppVerison.InstalledApp.AppId, "envId", installedAppVerison.InstalledApp.EnvironmentId, "err", err)
+		return "", err
+	}
+
+	if util.IsAcdApp(deploymentConfig.DeploymentAppType) {
 		appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installedAppVerison.AppStoreApplicationVersion.Id)
 		if err != nil {
 			impl.logger.Errorw("error fetching app store app version in installed app service", "err", err)

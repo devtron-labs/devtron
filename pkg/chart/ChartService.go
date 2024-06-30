@@ -307,7 +307,7 @@ func (impl *ChartServiceImpl) Create(templateRequest TemplateRequest, ctx contex
 		CredentialIdInt: activeGitOpsConfig.Id,
 		Active:          true,
 	}
-	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(deploymentConfig, templateRequest.UserId)
+	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, templateRequest.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in saving deployment config", "appId", templateRequest.AppId, "err", err)
 		return nil, err
@@ -411,7 +411,7 @@ func (impl *ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Templat
 		CredentialIdInt: activeGitOpsConfig.Id,
 		Active:          true,
 	}
-	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(deploymentConfig, templateRequest.UserId)
+	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, templateRequest.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in saving deployment config", "appId", templateRequest.AppId, "err", err)
 		return nil, err
@@ -978,7 +978,7 @@ func (impl *ChartServiceImpl) ConfigureGitOpsRepoUrlForApp(appId int, repoUrl, c
 		ChartLocation: chartLocation,
 		Active:        true,
 	}
-	deploymentConfig, err := impl.deploymentConfigService.CreateOrUpdateConfig(deploymentConfig, userId)
+	deploymentConfig, err := impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, userId)
 	if err != nil {
 		impl.logger.Errorw("error in saving deployment config for app", "appId", appId, "err", err)
 		return err

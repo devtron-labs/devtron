@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	clutserBean "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"time"
 )
 
@@ -114,7 +115,7 @@ func NewInstalledAppDeploymentAction(deploymentAppType string) *appStoreBean.Ins
 }
 
 // GenerateInstallAppVersionDTO converts repository.InstalledApps and repository.InstalledAppVersions db object to appStoreBean.InstallAppVersionDTO bean
-func GenerateInstallAppVersionDTO(installedApp *repository.InstalledApps, installedAppVersion *repository.InstalledAppVersions) *appStoreBean.InstallAppVersionDTO {
+func GenerateInstallAppVersionDTO(installedApp *repository.InstalledApps, installedAppVersion *repository.InstalledAppVersions, config *bean2.DeploymentConfig) *appStoreBean.InstallAppVersionDTO {
 	chartVersionApp := installedAppVersion.AppStoreApplicationVersion
 
 	var chartRepoName, chartRepoUrl, Username, Password string
@@ -149,7 +150,7 @@ func GenerateInstallAppVersionDTO(installedApp *repository.InstalledApps, instal
 			},
 		},
 	}
-	UpdateInstallAppDetails(installAppDto, installedApp)
+	UpdateInstallAppDetails(installAppDto, installedApp, config)
 	UpdateInstalledAppVersionsMetaData(installAppDto, installedAppVersion)
 	UpdateAppDetails(installAppDto, &installedApp.App)
 	UpdateAdditionalEnvDetails(installAppDto, envBean)
@@ -159,7 +160,7 @@ func GenerateInstallAppVersionDTO(installedApp *repository.InstalledApps, instal
 // GenerateInstallAppVersionMinDTO converts repository.InstalledApps db object to appStoreBean.InstallAppVersionDTO bean;
 // Note: It only generates a minimal DTO and doesn't include repository.InstalledAppVersions data, also it's safe not to
 // use this bean for creating db model again
-func GenerateInstallAppVersionMinDTO(installedApp *repository.InstalledApps) *appStoreBean.InstallAppVersionDTO {
+func GenerateInstallAppVersionMinDTO(installedApp *repository.InstalledApps, config *bean2.DeploymentConfig) *appStoreBean.InstallAppVersionDTO {
 	installAppVersionDto := &appStoreBean.InstallAppVersionDTO{
 		EnvironmentId:        installedApp.EnvironmentId,
 		InstalledAppId:       installedApp.Id,
@@ -171,7 +172,7 @@ func GenerateInstallAppVersionMinDTO(installedApp *repository.InstalledApps) *ap
 		EnvironmentName:      installedApp.Environment.Name,
 		TeamId:               installedApp.App.TeamId,
 		TeamName:             installedApp.App.Team.Name,
-		DeploymentAppType:    installedApp.DeploymentAppType,
+		DeploymentAppType:    config.DeploymentAppType,
 		IsVirtualEnvironment: installedApp.Environment.IsVirtualEnvironment,
 	}
 	if util4.IsExternalChartStoreApp(installedApp.App.DisplayName) {
@@ -245,7 +246,7 @@ func UpdateAppDetails(request *appStoreBean.InstallAppVersionDTO, app *app.App) 
 }
 
 // UpdateInstallAppDetails update repository.InstalledApps data into the same InstallAppVersionDTO
-func UpdateInstallAppDetails(request *appStoreBean.InstallAppVersionDTO, installedApp *repository.InstalledApps) {
+func UpdateInstallAppDetails(request *appStoreBean.InstallAppVersionDTO, installedApp *repository.InstalledApps, config *bean2.DeploymentConfig) {
 	if request == nil || installedApp == nil {
 		return
 	}
@@ -253,9 +254,9 @@ func UpdateInstallAppDetails(request *appStoreBean.InstallAppVersionDTO, install
 	request.AppId = installedApp.AppId
 	request.EnvironmentId = installedApp.EnvironmentId
 	request.Status = installedApp.Status
-	request.DeploymentAppType = installedApp.DeploymentAppType
-	if util.IsAcdApp(installedApp.DeploymentAppType) {
-		request.GitOpsRepoURL = installedApp.GitOpsRepoUrl
+	request.DeploymentAppType = config.DeploymentAppType
+	if util.IsAcdApp(config.DeploymentAppType) {
+		request.GitOpsRepoURL = config.RepoURL
 	}
 }
 

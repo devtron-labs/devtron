@@ -22,6 +22,7 @@ import (
 	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"net/http"
 	"strconv"
 	"strings"
@@ -66,6 +67,7 @@ type InstalledAppDBServiceImpl struct {
 	UserService                   user.UserService
 	EnvironmentService            cluster.EnvironmentService
 	InstalledAppRepositoryHistory appStoreRepo.InstalledAppVersionHistoryRepository
+	deploymentConfigService       common.DeploymentConfigService
 }
 
 func NewInstalledAppDBServiceImpl(logger *zap.SugaredLogger,
@@ -73,7 +75,8 @@ func NewInstalledAppDBServiceImpl(logger *zap.SugaredLogger,
 	appRepository app.AppRepository,
 	userService user.UserService,
 	environmentService cluster.EnvironmentService,
-	installedAppRepositoryHistory appStoreRepo.InstalledAppVersionHistoryRepository) *InstalledAppDBServiceImpl {
+	installedAppRepositoryHistory appStoreRepo.InstalledAppVersionHistoryRepository,
+	deploymentConfigService common.DeploymentConfigService) *InstalledAppDBServiceImpl {
 	return &InstalledAppDBServiceImpl{
 		Logger:                        logger,
 		InstalledAppRepository:        installedAppRepository,
@@ -177,6 +180,13 @@ func (impl *InstalledAppDBServiceImpl) FindAppDetailsForAppstoreApplication(inst
 		impl.Logger.Errorw("error in getting helm release status from db", "err", err)
 		return bean2.AppDetailContainer{}, err
 	}
+
+	deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfigForHelmApp(installedAppVerison.InstalledApp.AppId, installedAppVerison.InstalledApp.EnvironmentId)
+	if err != nil {
+		impl.Logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", installedAppVerison.InstalledApp.AppId, "envId", installedAppVerison.InstalledApp.EnvironmentId, "err", err)
+		return bean2.AppDetailContainer{}, err
+	}
+
 	var chartName string
 	if installedAppVerison.AppStoreApplicationVersion.AppStore.ChartRepoId != 0 {
 		chartName = installedAppVerison.AppStoreApplicationVersion.AppStore.ChartRepo.Name
@@ -200,11 +210,12 @@ func (impl *InstalledAppDBServiceImpl) FindAppDetailsForAppstoreApplication(inst
 		Deprecated:                    installedAppVerison.AppStoreApplicationVersion.Deprecated,
 		ClusterId:                     installedAppVerison.InstalledApp.Environment.ClusterId,
 		ClusterName:                   installedAppVerison.InstalledApp.Environment.Cluster.ClusterName,
-		DeploymentAppType:             installedAppVerison.InstalledApp.DeploymentAppType,
+		DeploymentAppType:             deploymentConfig.DeploymentAppType,
 		DeploymentAppDeleteRequest:    installedAppVerison.InstalledApp.DeploymentAppDeleteRequest,
 		IsVirtualEnvironment:          installedAppVerison.InstalledApp.Environment.IsVirtualEnvironment,
 		HelmReleaseInstallStatus:      helmReleaseInstallStatus,
 		Status:                        status,
+		DeploymentConfig:              deploymentConfig,
 	}
 	if util4.IsExternalChartStoreApp(installedAppVerison.InstalledApp.App.DisplayName) {
 		deploymentContainer.AppName = installedAppVerison.InstalledApp.App.DisplayName
@@ -247,7 +258,12 @@ func (impl *InstalledAppDBServiceImpl) GetInstalledAppByClusterNamespaceAndName(
 		if err != nil {
 			return nil, err
 		}
-		return adapter.GenerateInstallAppVersionDTO(installedApp, installedAppVersion), nil
+		deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfigForHelmApp(installedApp.AppId, installedApp.EnvironmentId)
+		if err != nil {
+			impl.Logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", installedApp.AppId, "envId", installedApp.EnvironmentId, "err", err)
+			return nil, err
+		}
+		return adapter.GenerateInstallAppVersionDTO(installedApp, installedAppVersion, deploymentConfig), nil
 	}
 
 	return nil, nil
@@ -259,7 +275,12 @@ func (impl *InstalledAppDBServiceImpl) GetInstalledAppByInstalledAppId(installed
 		return nil, err
 	}
 	installedApp := &installedAppVersion.InstalledApp
-	return adapter.GenerateInstallAppVersionDTO(installedApp, installedAppVersion), nil
+	deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfigForHelmApp(installedApp.AppId, installedApp.EnvironmentId)
+	if err != nil {
+		impl.Logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", installedApp.AppId, "envId", installedApp.EnvironmentId, "err", err)
+		return nil, err
+	}
+	return adapter.GenerateInstallAppVersionDTO(installedApp, installedAppVersion, deploymentConfig), nil
 }
 
 func (impl *InstalledAppDBServiceImpl) GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
@@ -269,6 +290,11 @@ func (impl *InstalledAppDBServiceImpl) GetInstalledAppVersion(id int, userId int
 			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "400", UserMessage: "values are outdated. please fetch the latest version and try again", InternalMessage: err.Error()}
 		}
 		impl.Logger.Errorw("error while fetching from db", "error", err)
+		return nil, err
+	}
+	deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfigForHelmApp(model.InstalledApp.AppId, model.InstalledApp.EnvironmentId)
+	if err != nil {
+		impl.Logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", model.InstalledApp.AppId, "envId", model.InstalledApp.EnvironmentId, "err", err)
 		return nil, err
 	}
 	// update InstallAppVersion configurations
@@ -287,7 +313,7 @@ func (impl *InstalledAppDBServiceImpl) GetInstalledAppVersion(id int, userId int
 	adapter.UpdateAppDetails(installAppVersion, &model.InstalledApp.App)
 
 	// update InstallApp configurations
-	adapter.UpdateInstallAppDetails(installAppVersion, &model.InstalledApp)
+	adapter.UpdateInstallAppDetails(installAppVersion, &model.InstalledApp, deploymentConfig)
 
 	// update AppStoreApplication configurations
 	adapter.UpdateAppStoreApplicationDetails(installAppVersion, &model.AppStoreApplicationVersion)

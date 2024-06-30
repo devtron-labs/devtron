@@ -161,6 +161,16 @@ func (impl *GitOpsConfigReadServiceImpl) GetConfiguredGitOpsCount() (int, error)
 }
 
 func (impl *GitOpsConfigReadServiceImpl) GetGitOpsProviderByRepoURL(gitRepoUrl string) (*bean2.GitOpsConfigDto, error) {
+
+	if gitRepoUrl == bean2.GIT_REPO_NOT_CONFIGURED {
+		model, err := impl.GetGitOpsConfigActive()
+		if err != nil {
+			impl.logger.Errorw("error in getting default gitOps provider", "err", err)
+			return nil, err
+		}
+		return model, nil
+	}
+
 	models, err := impl.gitOpsRepository.GetAllGitOpsConfig()
 	if err != nil {
 		impl.logger.Errorw("error, GetGitOpsConfigActive", "err", err)
