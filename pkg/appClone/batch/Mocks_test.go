@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package batch
@@ -24,7 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	bean3 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/ciPipeline"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	bean3 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
@@ -376,7 +375,7 @@ func (impl CiPipelineRepositoryMock) FindByParentCiPipelineId(parentCiPipelineId
 	panic("implement me")
 }
 
-func (impl CiPipelineRepositoryMock) FetchParentCiPipelinesForDG() ([]*bean3.CiPipelinesMap, error) {
+func (impl CiPipelineRepositoryMock) FetchParentCiPipelinesForDG() ([]*ciPipeline.CiPipelinesMap, error) {
 	panic("implement me")
 }
 func (impl CiPipelineRepositoryMock) FetchCiPipelinesForDG(parentId int, childCiPipelineIds []int) (*pipelineConfig.CiPipeline, int, error) {

@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package deployment
 
 import (
@@ -7,7 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
@@ -128,7 +144,7 @@ func (impl *FullModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersio
 		return err
 	}
 	if impl.acdConfig.IsManualSyncEnabled() {
-		err = impl.SaveTimelineForHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED, "argocd sync completed", syncTime, tx)
+		err = impl.SaveTimelineForHelmApps(installAppVersionRequest, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_COMPLETED, syncTime, tx)
 		if err != nil {
 			impl.Logger.Errorw("error in saving timeline for acd helm apps", "err", err)
 			return err
@@ -165,7 +181,7 @@ func (impl *FullModeDeploymentServiceImpl) DeleteACD(acdAppName string, ctx cont
 	return nil
 }
 
-func (impl *FullModeDeploymentServiceImpl) createInArgo(chartGitAttribute *commonBean.ChartGitAttribute, envModel bean.EnvironmentBean, argocdAppName string) error {
+func (impl *FullModeDeploymentServiceImpl) createInArgo(ctx context.Context, chartGitAttribute *commonBean.ChartGitAttribute, envModel bean.EnvironmentBean, argocdAppName string) error {
 	appNamespace := envModel.Namespace
 	if appNamespace == "" {
 		appNamespace = cluster2.DEFAULT_NAMESPACE
@@ -181,7 +197,7 @@ func (impl *FullModeDeploymentServiceImpl) createInArgo(chartGitAttribute *commo
 		RepoUrl:         chartGitAttribute.RepoUrl,
 		AutoSyncEnabled: impl.acdConfig.ArgoCDAutoSyncEnabled,
 	}
-	_, err := impl.argoK8sClient.CreateAcdApp(appReq, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
+	_, err := impl.argoK8sClient.CreateAcdApp(ctx, appReq, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
 	//create
 	if err != nil {
 		impl.Logger.Errorw("error in creating argo cd app ", "err", err)

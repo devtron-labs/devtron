@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package variables
 
 import (
@@ -6,7 +22,7 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/devtronResource"
+	"github.com/devtron-labs/devtron/pkg/devtronResource/read"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables/cache"
@@ -20,7 +36,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"time"
 )
 
 type ScopedVariableService interface {
@@ -29,6 +44,8 @@ type ScopedVariableService interface {
 	GetJsonForVariables() (*models.Payload, error)
 	CheckForSensitiveVariables(variableNames []string) (map[string]bool, error)
 	GetFormattedVariableForName(name string) string
+	GetMatchedScopedVariables(varScope []*resourceQualifiers.QualifierMapping) map[int][]*resourceQualifiers.QualifierMapping
+	GetScopeWithPriority(variableIdToVariableScopes map[int][]*resourceQualifiers.QualifierMapping) map[int]int
 }
 
 type ScopedVariableServiceImpl struct {
@@ -39,7 +56,7 @@ type ScopedVariableServiceImpl struct {
 	VariableCache            *cache.VariableCacheObj
 }
 
-func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository.EnvironmentRepository, devtronResourceSearchableKeyService devtronResource.DevtronResourceSearchableKeyService, clusterRepository repository.ClusterRepository,
+func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository.EnvironmentRepository, devtronResourceSearchableKeyService read.DevtronResourceSearchableKeyService, clusterRepository repository.ClusterRepository,
 	qualifierMappingService resourceQualifiers.QualifierMappingService) (*ScopedVariableServiceImpl, error) {
 	scopedVariableService := &ScopedVariableServiceImpl{
 		logger:                   logger,
@@ -135,7 +152,7 @@ func (impl *ScopedVariableServiceImpl) CreateVariables(payload models.Payload) e
 		return err
 	}
 
-	auditLog := getAuditLog(payload)
+	auditLog := resourceQualifiers.GetAuditLog(payload.UserId)
 	// Begin Transaction
 	tx, err := impl.scopedVariableRepository.StartTx()
 	if err != nil {
@@ -265,7 +282,7 @@ func (impl *ScopedVariableServiceImpl) createVariableScopes(payload models.Paylo
 	return scopeIdToVarData, nil
 }
 
-func (impl *ScopedVariableServiceImpl) getMatchedScopedVariables(varScope []*resourceQualifiers.QualifierMapping) map[int][]*resourceQualifiers.QualifierMapping {
+func (impl *ScopedVariableServiceImpl) GetMatchedScopedVariables(varScope []*resourceQualifiers.QualifierMapping) map[int][]*resourceQualifiers.QualifierMapping {
 	variableIdToVariableScopes := make(map[int][]*resourceQualifiers.QualifierMapping)
 	for _, vScope := range varScope {
 		variableId := vScope.ResourceId
@@ -299,7 +316,7 @@ func (impl *ScopedVariableServiceImpl) getMatchedScopedVariables(varScope []*res
 
 }
 
-func (impl *ScopedVariableServiceImpl) getScopeWithPriority(variableIdToVariableScopes map[int][]*resourceQualifiers.QualifierMapping) map[int]int {
+func (impl *ScopedVariableServiceImpl) GetScopeWithPriority(variableIdToVariableScopes map[int][]*resourceQualifiers.QualifierMapping) map[int]int {
 	variableIdToSelectedScopeId := make(map[int]int)
 	var minScope *resourceQualifiers.QualifierMapping
 	for variableId, scopes := range variableIdToVariableScopes {
@@ -321,7 +338,7 @@ func (impl *ScopedVariableServiceImpl) selectScopeForCompoundQualifier(scopes []
 		if scope.ParentIdentifier > 0 {
 			parentIdToChildScopes[scope.ParentIdentifier] = append(parentIdToChildScopes[scope.ParentIdentifier], scope)
 		} else {
-			//is parent so collect IDs and put it in a map for easy retrieval
+			// is parent so collect IDs and put it in a map for easy retrieval
 			parentScopeIds = append(parentScopeIds, scope.Id)
 			parentScopeIdToScope[scope.Id] = scope
 		}
@@ -403,8 +420,8 @@ func (impl *ScopedVariableServiceImpl) GetScopedVariables(scope resourceQualifie
 		return nil, err
 	}
 
-	matchedScopes := impl.getMatchedScopedVariables(varScope)
-	variableIdToSelectedScopeId := impl.getScopeWithPriority(matchedScopes)
+	matchedScopes := impl.GetMatchedScopedVariables(varScope)
+	variableIdToSelectedScopeId := impl.GetScopeWithPriority(matchedScopes)
 
 	scopeIds := make([]int, 0)
 	foundVarIds := make([]int, 0) // the variable IDs which have data
@@ -667,14 +684,4 @@ func (impl *ScopedVariableServiceImpl) getVariableScopeData(scopeIds []int) (map
 		scopeIdVsVarDataMap[variableScopeId] = variableData
 	}
 	return scopeIdVsVarDataMap, nil
-}
-
-func getAuditLog(payload models.Payload) sql.AuditLog {
-	auditLog := sql.AuditLog{
-		CreatedOn: time.Now(),
-		CreatedBy: payload.UserId,
-		UpdatedOn: time.Now(),
-		UpdatedBy: payload.UserId,
-	}
-	return auditLog
 }

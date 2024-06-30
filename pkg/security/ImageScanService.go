@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package security
@@ -372,6 +371,10 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 				Package:  item.CveStore.Package,
 				Severity: item.CveStore.Severity.String(),
 				//Permission: "BLOCK", TODO
+			}
+			if len(item.Package) > 0 {
+				// data already migrated hence get package from image_scan_execution_result
+				vulnerability.Package = item.Package
 			}
 			if item.CveStore.Severity == security.Critical {
 				highCount = highCount + 1

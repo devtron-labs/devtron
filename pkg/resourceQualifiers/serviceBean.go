@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package resourceQualifiers
 
 import (
@@ -104,7 +120,7 @@ func GetValuesFromSelectionIdentifier(selector QualifierSelector, selectionIdent
 		return 0, ""
 	}
 }
-func getAuditLog(userid int32) sql.AuditLog {
+func GetAuditLog(userid int32) sql.AuditLog {
 	auditLog := sql.AuditLog{
 		CreatedOn: time.Now(),
 		CreatedBy: userid,
@@ -124,6 +140,6 @@ func (selection *ResourceMappingSelection) toResourceMapping(selector QualifierS
 		IdentifierValueString: valueString,
 		Active:                true,
 		CompositeKey:          compositeString,
-		AuditLog:              getAuditLog(userId),
+		AuditLog:              GetAuditLog(userId),
 	}
 }

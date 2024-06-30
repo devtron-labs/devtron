@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package chartGroup
 
 // / bean for v2
@@ -17,6 +33,23 @@ type ChartGroupInstallChartRequest struct {
 	ReferenceValueKind string `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED"`
 	ChartGroupEntryId  int    `json:"chartGroupEntryId"` //optional
 }
-
-type ChartGroupInstallAppRes struct {
+type ChartGroupInstallMetadata struct {
+	AppName       string `json:"appName"`
+	EnvironmentId int    `json:"environmentId"`
+	TriggerStatus string `json:"triggerStatus"`
+	Reason        string `json:"reason"`
 }
+type ChartGroupInstallAppRes struct {
+	ChartGroupInstallMetadata []ChartGroupInstallMetadata `json:"chartGroupInstallMetadata"`
+	Summary                   string                      `json:"summary"`
+}
+type TriggerStatus string
+type Reason string
+
+const FAILED_TO_TRIGGER = "%d/%d failed to trigger"
+const (
+	StatusFailed       TriggerStatus = "failed"
+	StatusSuccess      TriggerStatus = "success"
+	ReasonNotAuthorize Reason        = "not authorized"
+	ReasonTriggered    Reason        = "triggered"
+)

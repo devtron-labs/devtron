@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package bean
@@ -50,21 +49,29 @@ func (workflowType WorkflowType) WorkflowTypeToStageType() repository.PipelineSt
 	}
 }
 
+func (workflowType WorkflowType) IsStageTypeDeploy() bool {
+	switch workflowType {
+	case CD_WORKFLOW_TYPE_DEPLOY:
+		return true
+	}
+	return false
+}
+
 type ValuesOverrideRequest struct {
 	PipelineId                            int                         `json:"pipelineId" validate:"required"`
 	AppId                                 int                         `json:"appId" validate:"required"`
 	CiArtifactId                          int                         `json:"ciArtifactId" validate:"required"`
 	AdditionalOverride                    json.RawMessage             `json:"additionalOverride,omitempty"`
-	TargetDbVersion                       int                         `json:"targetDbVersion"`
 	ForceTrigger                          bool                        `json:"forceTrigger,notnull"`
 	DeploymentTemplate                    string                      `json:"strategy,omitempty"` // validate:"oneof=BLUE-GREEN ROLLING"`
 	DeploymentWithConfig                  DeploymentConfigurationType `json:"deploymentWithConfig"`
-	WfrIdForDeploymentWithSpecificTrigger int                         `json:"wfrIdForDeploymentWithSpecificTrigger"`
+	WfrIdForDeploymentWithSpecificTrigger int                         `json:"wfrIdForDeploymentWithSpecificTrigger"` // target cd_workflow_runner_id for rollback. Used in rollback deployment cases
 	CdWorkflowType                        WorkflowType                `json:"cdWorkflowType,notnull"`
 	WfrId                                 int                         `json:"wfrId,notnull"`
 	CdWorkflowId                          int                         `json:"cdWorkflowId"`
-	PipelineOverrideId                    int                         `json:"pipelineOverrideId"` //required for async install/upgrade event;
-	DeploymentType                        models.DeploymentType       `json:"deploymentType"`     //required for async install/upgrade handling; previously if was used internally
+	PipelineOverrideId                    int                         `json:"pipelineOverrideId"` // required for async install/upgrade event;
+	DeploymentType                        models.DeploymentType       `json:"deploymentType"`     // required for async install/upgrade handling; previously if was used internally
+	ForceSyncDeployment                   bool                        `json:"forceSyncDeployment,notnull"`
 	UserId                                int32                       `json:"-"`
 	EnvId                                 int                         `json:"-"`
 	EnvName                               string                      `json:"-"`
@@ -72,6 +79,8 @@ type ValuesOverrideRequest struct {
 	AppName                               string                      `json:"-"`
 	PipelineName                          string                      `json:"-"`
 	DeploymentAppType                     string                      `json:"-"`
+	Namespace                             string                      `json:"-"`
+	ReleaseName                           string                      `json:"-"`
 	Image                                 string                      `json:"-"`
 }
 

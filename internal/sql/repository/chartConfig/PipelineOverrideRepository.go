@@ -1,23 +1,23 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package chartConfig
 
 import (
+	"context"
 	"github.com/devtron-labs/devtron/api/bean"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -27,7 +27,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	deploymentStatus "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	"github.com/juju/errors"
+	"go.opentelemetry.io/otel"
 	"time"
 )
 
@@ -35,10 +37,10 @@ type PipelineOverride struct {
 	tableName              struct{}              `sql:"pipeline_config_override" pg:",discard_unknown_columns"`
 	Id                     int                   `sql:"id,pk"`
 	RequestIdentifier      string                `sql:"request_identifier,unique,notnull"`
-	EnvConfigOverrideId    int                   `sql:"env_config_override_id, notnull"`
+	EnvConfigOverrideId    int                   `sql:"env_config_override_id,notnull"`
 	PipelineOverrideValues string                `sql:"pipeline_override_yaml,notnull"`
-	PipelineMergedValues   string                `sql:"merged_values_yaml, notnull"` //merge of appOverride, envOverride, pipelineOverride
-	Status                 models.ChartStatus    `sql:"status,notnull"`              // new , deployment-in-progress, success, rollbacked
+	PipelineMergedValues   string                `sql:"merged_values_yaml,notnull"` // merge of appOverride, envOverride, pipelineOverride
+	Status                 models.ChartStatus    `sql:"status,notnull"`             // new , deployment-in-progress, success, rollbacked
 	GitHash                string                `sql:"git_hash"`
 	CommitTime             time.Time             `sql:"commit_time,type:timestamptz"`
 	PipelineId             int                   `sql:"pipeline_id"`
@@ -62,7 +64,8 @@ type PipelineOverrideRepository interface {
 	UpdateStatusByRequestIdentifier(requestId string, newStatus models.ChartStatus) (int, error)
 	GetLatestConfigByRequestIdentifier(requestIdentifier string) (pipelineOverride *PipelineOverride, err error)
 	GetLatestConfigByEnvironmentConfigOverrideId(envConfigOverrideId int) (pipelineOverride *PipelineOverride, err error)
-	Update(pipelineOverride *PipelineOverride) error
+	UpdatePipelineMergedValues(ctx context.Context, tx *pg.Tx, id int, pipelineMergedValues string, userId int32) error
+	UpdateCommitDetails(ctx context.Context, tx *pg.Tx, id int, gitHash string, commitTime time.Time, userId int32) error
 	GetCurrentPipelineReleaseCounter(pipelineId int) (releaseCounter int, err error)
 	GetByPipelineIdAndReleaseNo(pipelineId, releaseNo int) (pipelineOverrides []*PipelineOverride, err error)
 	GetAllRelease(appId, environmentId int) (pipelineOverrides []*PipelineOverride, err error)
@@ -86,10 +89,47 @@ func (impl PipelineOverrideRepositoryImpl) Save(pipelineOverride *PipelineOverri
 	return impl.dbConnection.Insert(pipelineOverride)
 }
 
-func (impl PipelineOverrideRepositoryImpl) Update(pipelineOverride *PipelineOverride) error {
-	_, err := impl.dbConnection.Model(pipelineOverride).WherePK().UpdateNotNull()
+func (impl PipelineOverrideRepositoryImpl) UpdatePipelineMergedValues(ctx context.Context, tx *pg.Tx, id int, pipelineMergedValues string, userId int32) error {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "PipelineOverrideRepositoryImpl.UpdatePipelineMergedValues")
+	defer span.End()
+	var query *orm.Query
+	if tx != nil {
+		query = tx.
+			Model((*PipelineOverride)(nil))
+	} else {
+		query = impl.dbConnection.
+			Model((*PipelineOverride)(nil))
+	}
+	_, err := query.
+		Set("merged_values_yaml = ?", pipelineMergedValues).
+		Set("updated_by = ?", userId).
+		Set("updated_on = ?", time.Now()).
+		Where("id = ?", id).
+		Update()
 	return err
 }
+
+func (impl PipelineOverrideRepositoryImpl) UpdateCommitDetails(ctx context.Context, tx *pg.Tx, id int, gitHash string, commitTime time.Time, userId int32) error {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "PipelineOverrideRepositoryImpl.UpdateCommitDetails")
+	defer span.End()
+	var query *orm.Query
+	if tx != nil {
+		query = tx.
+			Model((*PipelineOverride)(nil))
+	} else {
+		query = impl.dbConnection.
+			Model((*PipelineOverride)(nil))
+	}
+	_, err := query.
+		Set("git_hash = ?", gitHash).
+		Set("commit_time = ?", commitTime).
+		Set("updated_by = ?", userId).
+		Set("updated_on = ?", time.Now()).
+		Where("id = ?", id).
+		Update()
+	return err
+}
+
 func (impl PipelineOverrideRepositoryImpl) UpdateStatusByRequestIdentifier(requestId string, newStatus models.ChartStatus) (int, error) {
 	pipelineOverride := &PipelineOverride{RequestIdentifier: requestId, Status: newStatus}
 	res, err := impl.dbConnection.Model(pipelineOverride).

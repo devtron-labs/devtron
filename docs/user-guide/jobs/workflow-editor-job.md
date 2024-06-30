@@ -45,7 +45,7 @@ The **Source type** - "Pull Request" allows you to configure the CI Pipeline usi
 
 > Before you begin, [configure the webhook](../creating-application/workflow/ci-pipeline.md#configuring-webhook) for either GitHub or Bitbucket.
 
-> The "Pull Request" source type feature only works for the host GitHub or Bitbucket cloud for now. To request support for a different Git host, please create a github issue [here](https://github.com/devtron-labs/devtron/issues).
+> The "Pull Request" source type feature only works for the host GitHub or Bitbucket cloud for now. To request support for a different Git host, please create a GitHub issue [here](https://github.com/devtron-labs/devtron/issues).
 
 
 To trigger the build from specific PRs, you can filter the PRs based on the following keys:

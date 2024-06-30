@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package chartRepo
@@ -25,6 +24,7 @@ import (
 	util3 "github.com/devtron-labs/common-lib/utils/k8s"
 	"io"
 	"io/ioutil"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -71,7 +71,6 @@ type ChartRepositoryService interface {
 	GetChartRepoByName(name string) (*ChartRepoDto, error)
 	GetChartRepoList() ([]*ChartRepoWithIsEditableDto, error)
 	GetChartRepoListMin() ([]*ChartRepoDto, error)
-	ValidateDeploymentCount(request *ChartRepoDto) error
 	ValidateChartRepo(request *ChartRepoDto) *DetailedErrorHelmRepoValidation
 	ValidateAndCreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
@@ -112,12 +111,12 @@ func (impl *ChartRepositoryServiceImpl) CreateSecretDataForHelmChart(request *Ch
 	if isPrivateChart {
 		secretData[USERNAME] = request.UserName
 		secretData[PASSWORD] = request.Password
-		isInsecureConnection := "true"
-		if !request.AllowInsecureConnection {
-			isInsecureConnection = "false"
-		}
-		secretData[INSECRUE] = isInsecureConnection
 	}
+	isInsecureConnection := "true"
+	if !request.AllowInsecureConnection {
+		isInsecureConnection = "false"
+	}
+	secretData[INSECRUE] = isInsecureConnection
 
 	return secretData
 }
@@ -226,17 +225,13 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	return chartRepo, nil
 }
 
-func (impl *ChartRepositoryServiceImpl) ValidateDeploymentCount(request *ChartRepoDto) error {
-	activeDeploymentCount, err := impl.repoRepository.FindDeploymentCountByChartRepoId(request.Id)
+func (impl *ChartRepositoryServiceImpl) getCountOfDeployedCharts(chartRepoId int) (int, error) {
+	activeDeploymentCount, err := impl.repoRepository.FindDeploymentCountByChartRepoId(chartRepoId)
 	if err != nil {
-		impl.logger.Errorw("error in getting deployment count, CheckDeploymentCount", "err", err, "payload", request)
-		return err
+		impl.logger.Errorw("error in getting deployment count, CheckDeploymentCount", "chartRepoId", chartRepoId, "err", err)
+		return 0, err
 	}
-	if activeDeploymentCount > 0 {
-		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "cannot update, found charts deployed using this repo"}
-		return err
-	}
-	return err
+	return activeDeploymentCount, nil
 }
 
 func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error) {
@@ -257,6 +252,18 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 	if request.Name != previousName && strings.ToLower(request.Name) != request.Name {
 		return nil, errors.New("invalid repo name: please use lowercase")
 	}
+
+	deployedChartCount, err := impl.getCountOfDeployedCharts(request.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting charts deployed via chart repo", "chartRepoId", request.Id, "err", err)
+		return nil, err
+	}
+
+	if deployedChartCount > 0 && (request.Name != previousName || request.Url != previousUrl) {
+		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "cannot update, found charts deployed using this repo"}
+		return nil, err
+	}
+
 	chartRepo.Url = request.Url
 	chartRepo.Name = request.Name
 	chartRepo.AuthMode = request.AuthMode
@@ -348,11 +355,24 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 		} else {
 			secretData := impl.CreateSecretDataForHelmChart(request, isPrivateChart)
 			secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, previousName, client)
-			if err != nil {
+			statusError, ok := err.(*errors2.StatusError)
+			if err != nil && (ok && statusError != nil && statusError.Status().Code != http.StatusNotFound) {
 				impl.logger.Errorw("error in fetching secret", "err", err)
 				continue
 			}
-			secret.StringData = secretData
+
+			if ok && statusError != nil && statusError.Status().Code == http.StatusNotFound {
+				secretLabel := make(map[string]string)
+				secretLabel[LABEL] = REPOSITORY
+				_, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, nil, chartRepo.Name, "", client, secretLabel, secretData)
+				if err != nil {
+					impl.logger.Errorw("Error in creating secret for chart repo", "Chart Name", chartRepo.Name, "err", err)
+					continue
+				}
+				updateSuccess = true
+				break
+			}
+
 			if previousName != request.Name {
 				err = impl.DeleteChartSecret(previousName)
 				if err != nil {
@@ -366,6 +386,7 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 					impl.logger.Errorw("Error in creating secret for chart repo", "Chart Name", chartRepo.Name, "err", err)
 				}
 			} else {
+				secret.StringData = secretData
 				_, err = impl.K8sUtil.UpdateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, secret, client)
 				if err != nil {
 					impl.logger.Errorw("Error in creating secret for chart repo", "Chart Name", chartRepo.Name, "err", err)

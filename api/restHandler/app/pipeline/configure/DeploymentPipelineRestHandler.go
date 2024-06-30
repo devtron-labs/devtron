@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package configure
 
 import (
@@ -40,13 +56,16 @@ type DeploymentHistoryResp struct {
 	AppReleaseTagNames         []string                                `json:"appReleaseTagNames"` //unique list of tags exists in the app
 	HideImageTaggingHardDelete bool                                    `json:"hideImageTaggingHardDelete"`
 }
+
 type DevtronAppDeploymentRestHandler interface {
 	CreateCdPipeline(w http.ResponseWriter, r *http.Request)
 	GetCdPipelineById(w http.ResponseWriter, r *http.Request)
 	PatchCdPipeline(w http.ResponseWriter, r *http.Request)
+
 	HandleChangeDeploymentRequest(w http.ResponseWriter, r *http.Request)
 	HandleChangeDeploymentTypeRequest(w http.ResponseWriter, r *http.Request)
 	HandleTriggerDeploymentAfterTypeChange(w http.ResponseWriter, r *http.Request)
+
 	GetCdPipelines(w http.ResponseWriter, r *http.Request)
 	GetCdPipelinesForAppAndEnv(w http.ResponseWriter, r *http.Request)
 

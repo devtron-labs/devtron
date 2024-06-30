@@ -10,7 +10,7 @@ With the 'Build Infra' feature, Devtron makes it possible for you to tweak the r
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
-Users need to have super-admin permission to configure build Infra.
+Users need to have super-admin permission to configure Build Infra.
 {% endhint %}
 
 ---

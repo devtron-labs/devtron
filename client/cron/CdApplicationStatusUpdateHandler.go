@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package cron
 
 import (
@@ -157,12 +173,12 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) ArgoPipelineTimelineUpdate() {
 }
 
 func (impl *CdApplicationStatusUpdateHandlerImpl) SyncPipelineStatusForResourceTreeCall(pipeline *pipelineConfig.Pipeline) error {
-	cdWfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
+	cdWfr, err := impl.cdWorkflowRepository.FindLatestByPipelineIdAndRunnerType(pipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	if err != nil {
 		impl.logger.Errorw("error in getting latest cdWfr by cdPipelineId", "err", err, "pipelineId", pipeline.Id)
 		return nil
 	}
-	if !util.IsTerminalStatus(cdWfr.Status) {
+	if !util.IsTerminalRunnerStatus(cdWfr.Status) {
 		impl.workflowStatusService.CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipeline.Id, 0, 1, false)
 	}
 	return nil
@@ -175,7 +191,7 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) SyncPipelineStatusForAppStoreF
 		impl.logger.Errorw("error in getting latest installedAppVersionHistory by installedAppVersionId", "err", err, "installedAppVersionId", installedAppVersion.Id)
 		return nil
 	}
-	if !util.IsTerminalStatus(installedAppVersionHistory.Status) {
+	if !util.IsTerminalRunnerStatus(installedAppVersionHistory.Status) {
 		impl.workflowStatusService.CheckAndSendArgoPipelineStatusSyncEventIfNeeded(0, installedAppVersion.Id, 1, true)
 	}
 	return nil

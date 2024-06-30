@@ -11,6 +11,8 @@
  | APP_SYNC_JOB_RESOURCES_OBJ |  |  | 
  | ARGO_APP_MANUAL_SYNC_TIME | 3 |  | 
  | ARGO_AUTO_SYNC_ENABLED | true |  | 
+ | ARGO_GIT_COMMIT_RETRY_COUNT_ON_CONFLICT | 3 |  | 
+ | ARGO_GIT_COMMIT_RETRY_DELAY_ON_CONFLICT | 1 |  | 
  | AZURE_ACCOUNT_KEY |  |  | 
  | AZURE_ACCOUNT_NAME |  |  | 
  | AZURE_BLOB_CONTAINER_CI_CACHE |  |  | 
@@ -88,6 +90,7 @@
  | DEFAULT_TIMEOUT | 3600 |  | 
  | DEPLOY_STATUS_CRON_GET_PIPELINE_DEPLOYED_WITHIN_HOURS | 12 |  | 
  | DEVTRON_BOM_URL | https://raw.githubusercontent.com/devtron-labs/devtron/%s/charts/devtron/devtron-bom.yaml |  | 
+ | DEVTRON_CHART_ARGO_CD_INSTALL_REQUEST_TIMEOUT | 1 |  | 
  | DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT | 6 |  | 
  | DEVTRON_DEFAULT_NAMESPACE | devtroncd |  | 
  | DEVTRON_DEX_SECRET_NAMESPACE | devtroncd |  | 
@@ -111,6 +114,7 @@
  | DEX_URL |  |  | 
  | DOCKER_BUILD_CACHE_PATH | /var/lib/docker |  | 
  | ECR_REPO_NAME_PREFIX | test/ |  | 
+ | ENABLE_ASYNC_ARGO_CD_INSTALL_DEVTRON_CHART | false |  | 
  | ENABLE_ASYNC_INSTALL_DEVTRON_CHART | false |  | 
  | ENABLE_BUILD_CONTEXT | false |  | 
  | ENFORCER_CACHE | false |  | 
@@ -118,6 +122,7 @@
  | ENFORCER_MAX_BATCH_SIZE | 1 |  | 
  | EPHEMERAL_SERVER_VERSION_REGEX | v[1-9]\.\b(2[3-9]|[3-9][0-9])\b.* |  | 
  | EVENT_URL | http://localhost:3000/notify |  | 
+ | EXECUTE_WIRE_NIL_CHECKER | false |  | 
  | EXPOSE_CD_METRICS | false |  | 
  | EXPOSE_CI_METRICS | false |  | 
  | EXTERNAL_BLOB_STORAGE_CM_NAME | blob-storage-cm |  | 
@@ -159,6 +164,11 @@
  | IN_APP_LOGGING_ENABLED | false |  | 
  | IS_INTERNAL_USE | false |  | 
  | JwtExpirationTime | 120 |  | 
+ | K8s_CLIENT_MAX_IDLE_CONNS_PER_HOST | 25 |  | 
+ | K8s_TCP_IDLE_CONN_TIMEOUT | 300 |  | 
+ | K8s_TCP_KEEPALIVE | 30 |  | 
+ | K8s_TCP_TIMEOUT | 30 |  | 
+ | K8s_TLS_HANDSHAKE_TIMEOUT | 10 |  | 
  | LENS_TIMEOUT | 0 |  | 
  | LENS_URL | http://lens-milandevtron-service:80 |  | 
  | LIMIT_CI_CPU | 0.5 |  | 
@@ -176,6 +186,7 @@
  | NATS_MSG_MAX_AGE | 86400 |  | 
  | NATS_MSG_PROCESSING_BATCH_SIZE | 1 |  | 
  | NATS_SERVER_HOST | nats://devtron-nats.devtroncd:4222 |  | 
+ | NOTIFICATION_MEDIUM | rest |  | 
  | ORCH_HOST | http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats |  | 
  | ORCH_TOKEN |  |  | 
  | OTEL_COLLECTOR_URL |  |  | 
@@ -193,11 +204,13 @@
  | PIPELINE_DEGRADED_TIME | 10 |  | 
  | PLUGIN_NAME | Pull images from container repository |  | 
  | PRE_CI_CACHE_PATH | /devtroncd-cache |  | 
- | PROXY_SERVICE_CONFIG |  |  | 
+ | PROPAGATE_EXTRA_LABELS | false |  | 
+ | PROXY_SERVICE_CONFIG | {} |  | 
  | REQ_CI_CPU | 0.5 |  | 
  | REQ_CI_MEM | 3G |  | 
  | RESOURCE_LIST_FOR_REPLICAS | Deployment,Rollout,StatefulSet,ReplicaSet |  | 
  | RESOURCE_LIST_FOR_REPLICAS_BATCH_SIZE | 5 |  | 
+ | RESTRICT_TERMINAL_ACCESS_FOR_NON_SUPER_USER | false |  | 
  | REVISION_HISTORY_LIMIT_DEVTRON_APP | 1 |  | 
  | REVISION_HISTORY_LIMIT_EXTERNAL_HELM_APP | 0 |  | 
  | REVISION_HISTORY_LIMIT_HELM_APP | 1 |  | 
@@ -207,6 +220,7 @@
  | SCOPED_VARIABLE_FORMAT | @{{%s}} |  | 
  | SCOPED_VARIABLE_HANDLE_PRIMITIVES | false |  | 
  | SCOPED_VARIABLE_NAME_REGEX | ^[a-zA-Z][a-zA-Z0-9_-]{0,62}[a-zA-Z0-9]$ |  | 
+ | SHOW_DOCKER_BUILD_ARGS | true |  | 
  | SKIP_CREATING_ECR_REPO | false |  | 
  | SOCKET_DISCONNECT_DELAY_SECONDS | 5 |  | 
  | SOCKET_HEARTBEAT_SECONDS | 25 |  | 
@@ -231,6 +245,7 @@
  | USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW | true |  | 
  | USE_BLOB_STORAGE_CONFIG_IN_CI_WORKFLOW | true |  | 
  | USE_BUILDX | false |  | 
+ | USE_CUSTOM_HTTP_TRANSPORT | false |  | 
  | USE_EXTERNAL_NODE | false |  | 
  | USE_GIT_CLI | false |  | 
  | USE_IMAGE_TAG_FROM_GIT_PROVIDER_FOR_TAG_BASED_BUILD | false |  | 

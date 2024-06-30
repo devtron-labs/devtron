@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package service
@@ -26,10 +25,12 @@ import (
 	bean4 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/adapter"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
@@ -55,7 +56,7 @@ type AppStoreDeploymentService interface {
 	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
 	DeleteInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
-	LinkHelmApplicationToChartStore(ctx context.Context, request *openapi.UpdateReleaseWithChartLinkingRequest, appIdentifier *service.AppIdentifier, userId int32) (*openapi.UpdateReleaseResponse, bool, error)
+	LinkHelmApplicationToChartStore(ctx context.Context, request *openapi.UpdateReleaseWithChartLinkingRequest, appIdentifier *bean.AppIdentifier, userId int32) (*openapi.UpdateReleaseResponse, bool, error)
 	UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectHelmAppDTO) error
 	RollbackApplication(ctx context.Context, request *openapi2.RollbackReleaseRequest, installedApp *appStoreBean.InstallAppVersionDTO, userId int32) (bool, error)
 	GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*bean3.DeploymentHistoryAndInstalledAppInfo, error)
@@ -149,11 +150,11 @@ func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 	installedAppDeploymentAction := adapter.NewInstalledAppDeploymentAction(installAppVersionRequest.DeploymentAppType)
 
 	if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) || util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
-		_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", time.Now(), tx)
+		_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", time.Now(), tx)
 	}
 
 	if util.IsManifestDownload(installAppVersionRequest.DeploymentAppType) {
-		_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_DESCRIPTION_MANIFEST_GENERATED, "Manifest generated successfully.", time.Now(), tx)
+		_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, timelineStatus.TIMELINE_STATUS_MANIFEST_GENERATED, "Manifest generated successfully.", time.Now(), tx)
 	}
 
 	var gitOpsResponse *bean2.AppStoreGitOpsResponse
@@ -167,14 +168,14 @@ func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 		if err != nil {
 			impl.logger.Errorw("error in doing gitops operation", "err", err)
 			if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
-				_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", err), time.Now(), tx)
+				_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", err), time.Now(), tx)
 			}
 			return nil, err
 		}
 		if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) {
-			_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", time.Now(), tx)
+			_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, timelineStatus.TIMELINE_STATUS_GIT_COMMIT, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_GIT_COMMIT, time.Now(), tx)
 			if impl.aCDConfig.IsManualSyncEnabled() {
-				_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, "argocd sync initiated.", time.Now(), tx)
+				_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(installAppVersionRequest, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_INITIATED, time.Now(), tx)
 			}
 		}
 		installAppVersionRequest.GitHash = gitOpsResponse.GitHash
@@ -344,7 +345,7 @@ func (impl *AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Contex
 }
 
 func (impl *AppStoreDeploymentServiceImpl) LinkHelmApplicationToChartStore(ctx context.Context, request *openapi.UpdateReleaseWithChartLinkingRequest,
-	appIdentifier *service.AppIdentifier, userId int32) (*openapi.UpdateReleaseResponse, bool, error) {
+	appIdentifier *bean.AppIdentifier, userId int32) (*openapi.UpdateReleaseResponse, bool, error) {
 
 	impl.logger.Infow("Linking helm application to chart store", "appId", request.GetAppId())
 
@@ -372,7 +373,7 @@ func (impl *AppStoreDeploymentServiceImpl) LinkHelmApplicationToChartStore(ctx c
 
 	// Initialise bean
 	installAppVersionRequestDto := &appStoreBean.InstallAppVersionDTO{
-		AppName:            appIdentifier.ReleaseName,
+		AppName:            appIdentifier.GetUniqueAppNameIdentifier(),
 		UserId:             userId,
 		AppOfferingMode:    util2.SERVER_MODE_HYPERION,
 		ClusterId:          appIdentifier.ClusterId,
@@ -382,6 +383,7 @@ func (impl *AppStoreDeploymentServiceImpl) LinkHelmApplicationToChartStore(ctx c
 		ReferenceValueId:   int(request.GetReferenceValueId()),
 		ReferenceValueKind: request.GetReferenceValueKind(),
 		DeploymentAppType:  util.PIPELINE_DEPLOYMENT_TYPE_HELM,
+		DisplayName:        appIdentifier.ReleaseName,
 	}
 
 	// STEP-2 InstallApp with only DB operations
@@ -396,21 +398,35 @@ func (impl *AppStoreDeploymentServiceImpl) LinkHelmApplicationToChartStore(ctx c
 	return res, isChartRepoActive, nil
 }
 
+func isExternalHelmApp(appId string) bool {
+	// for external helm apps, updateAppRequest.AppId is of the form clusterId|namespace|displayAppName
+	return len(strings.Split(appId, "|")) > 1
+}
+
 func (impl *AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectHelmAppDTO) error {
-
-	appIdSplitted := strings.Split(updateAppRequest.AppId, "|")
-
-	appName := updateAppRequest.AppName
-
-	if len(appIdSplitted) > 1 {
-		// app id is zero for CLI apps
-		appIdentifier, _ := impl.helmAppService.DecodeAppId(updateAppRequest.AppId)
-		appName = appIdentifier.ReleaseName
+	var appName string
+	var displayName string
+	appName = updateAppRequest.AppName
+	if isExternalHelmApp(updateAppRequest.AppId) {
+		appIdentifier, err := impl.helmAppService.DecodeAppId(updateAppRequest.AppId)
+		if err != nil {
+			impl.logger.Errorw("error in decoding app id for external helm apps", "err", err)
+			return err
+		}
+		appName = appIdentifier.GetUniqueAppNameIdentifier()
+		displayName = updateAppRequest.AppName
+	} else {
+		//in case the external app is linked, then it's unique identifier is set in app_name col. hence retrieving appName
+		//for this case, although this will also handle the case for non-external apps
+		appNameUniqueIdentifier := impl.getAppNameForInstalledApp(updateAppRequest.InstalledAppId)
+		if len(appNameUniqueIdentifier) > 0 {
+			appName = appNameUniqueIdentifier
+		}
 	}
 	impl.logger.Infow("update helm project request", updateAppRequest)
-	err := impl.appStoreDeploymentDBService.UpdateProjectForHelmApp(appName, updateAppRequest.TeamId, updateAppRequest.UserId)
+	err := impl.appStoreDeploymentDBService.UpdateProjectForHelmApp(appName, displayName, updateAppRequest.TeamId, updateAppRequest.UserId)
 	if err != nil {
-		impl.logger.Errorw("error in linking project to helm app", "appName", appName, "err", err)
+		impl.logger.Errorw("error in linking project to helm app", "appName", updateAppRequest.AppName, "err", err)
 		return err
 	}
 	return nil
@@ -679,10 +695,10 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		return nil, err
 	}
 	upgradeAppRequest.InstalledAppVersionHistoryId = installedAppVersionHistory.Id
-	_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", time.Now(), tx)
+	_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", time.Now(), tx)
 
 	if util.IsManifestDownload(upgradeAppRequest.DeploymentAppType) {
-		_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, pipelineConfig.TIMELINE_DESCRIPTION_MANIFEST_GENERATED, "Manifest generated successfully.", time.Now(), tx)
+		_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, timelineStatus.TIMELINE_STATUS_MANIFEST_GENERATED, "Manifest generated successfully.", time.Now(), tx)
 	}
 	// gitOps operation
 	monoRepoMigrationRequired := false
@@ -704,17 +720,17 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		upgradeAppRequest.ACDAppName = argocdAppName
 
 		var gitOpsErr error
-		gitOpsResponse, gitOpsErr = impl.fullModeDeploymentService.UpdateAppGitOpsOperations(manifest, upgradeAppRequest, &monoRepoMigrationRequired, isChartChanged || isVersionChanged)
+		gitOpsResponse, gitOpsErr = impl.fullModeDeploymentService.UpdateAppGitOpsOperations(manifest, upgradeAppRequest, monoRepoMigrationRequired, isChartChanged || isVersionChanged)
 		if gitOpsErr != nil {
 			impl.logger.Errorw("error in performing GitOps operation", "err", gitOpsErr)
-			_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", gitOpsErr), time.Now(), tx)
+			_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED, fmt.Sprintf("Git commit failed - %v", gitOpsErr), time.Now(), tx)
 			return nil, gitOpsErr
 		}
 
 		upgradeAppRequest.GitHash = gitOpsResponse.GitHash
-		_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", time.Now(), tx)
+		_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, timelineStatus.TIMELINE_STATUS_GIT_COMMIT, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_GIT_COMMIT, time.Now(), tx)
 		if impl.aCDConfig.IsManualSyncEnabled() {
-			_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, "Argocd sync initiated", time.Now(), tx)
+			_ = impl.fullModeDeploymentService.SaveTimelineForHelmApps(upgradeAppRequest, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_INITIATED, time.Now(), tx)
 		}
 		installedAppVersionHistory.GitHash = gitOpsResponse.GitHash
 		_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, tx)
@@ -870,9 +886,6 @@ func (impl *AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(insta
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	// skipAppCreation flag is set for CLI apps because for CLI Helm apps if project is created first before linking to chart store then app is created during project update time.
-	// skipAppCreation - This flag will skip app creation if app already exists.
-
 	//step 1 db operation initiated
 	appModel, err := impl.appRepository.FindActiveByName(installAppVersionRequest.AppName)
 	if err != nil && !util.IsErrNoRows(err) {
@@ -906,17 +919,18 @@ func (impl *AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(insta
 			ChartVersion: appStoreAppVersion.Version,
 			ReleaseIdentifier: &bean4.ReleaseIdentifier{
 				ReleaseNamespace: installAppVersionRequest.Namespace,
-				ReleaseName:      installAppVersionRequest.AppName,
+				ReleaseName:      installAppVersionRequest.DisplayName,
 			},
 		},
 		SourceAppType: bean3.SOURCE_HELM_APP,
 	}
 	if chartRepoInfo != nil {
 		updateReleaseRequest.ChartRepository = &bean4.ChartRepository{
-			Name:     chartRepoInfo.Name,
-			Url:      chartRepoInfo.Url,
-			Username: chartRepoInfo.UserName,
-			Password: chartRepoInfo.Password,
+			Name:                    chartRepoInfo.Name,
+			Url:                     chartRepoInfo.Url,
+			Username:                chartRepoInfo.UserName,
+			Password:                chartRepoInfo.Password,
+			AllowInsecureConnection: chartRepoInfo.AllowInsecureConnection,
 		}
 	}
 	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installAppVersionRequest.ClusterId, updateReleaseRequest)
@@ -1007,4 +1021,17 @@ func (impl *AppStoreDeploymentServiceImpl) handleGitOpsRepoUrlMigration(tx *pg.T
 		}
 	}
 	return err
+}
+
+// getAppNameForInstalledApp will fetch and returns AppName from app table
+func (impl *AppStoreDeploymentServiceImpl) getAppNameForInstalledApp(installedAppId int) string {
+	installedApp, err := impl.installedAppRepository.GetInstalledApp(installedAppId)
+	if err != nil {
+		impl.logger.Errorw("UpdateProjectHelmApp, error in finding app by installedAppId", "installedAppId", installedAppId, "err", err)
+		return ""
+	}
+	if installedApp != nil {
+		return installedApp.App.AppName
+	}
+	return ""
 }

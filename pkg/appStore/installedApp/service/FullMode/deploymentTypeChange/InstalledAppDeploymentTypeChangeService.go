@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package deploymentTypeChange
 
 import (
@@ -9,6 +25,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -141,8 +158,13 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) MigrateDeploymentType(c
 		return response, err
 	}
 	var installedAppIds []int
-	for _, item := range installedApps {
-		installedAppIds = append(installedAppIds, item.Id)
+	for _, installedApp := range installedApps {
+		if util2.IsExternalChartStoreApp(installedApp.App.DisplayName) {
+			//for ext-apps, appName is a unique identifier pertaining to devtron environment hence changing appName to ReleaseName, as going
+			//further interactions with helm/argo-cd will happen via release name only so refrain from doing any db updates using this installed apps
+			installedApp.App.AppName = installedApp.App.DisplayName
+		}
+		installedAppIds = append(installedAppIds, installedApp.Id)
 	}
 
 	if len(installedAppIds) == 0 {
@@ -400,8 +422,13 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) TriggerAfterMigration(c
 	}
 
 	var installedAppIds []int
-	for _, item := range installedApps {
-		installedAppIds = append(installedAppIds, item.Id)
+	for _, installedApp := range installedApps {
+		if util2.IsExternalChartStoreApp(installedApp.App.DisplayName) {
+			//for ext-apps, appName is a unique identifier pertaining to devtron environment hence changing appName to ReleaseName, as going
+			//further interactions with helm/argo-cd will happen via release name only so refrain from doing any db updates using this installed apps
+			installedApp.App.AppName = installedApp.App.DisplayName
+		}
+		installedAppIds = append(installedAppIds, installedApp.Id)
 	}
 
 	if len(installedAppIds) == 0 {
@@ -568,7 +595,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) fetchDeletedInstalledAp
 		deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
 		var err error
 		if installedApp.DeploymentAppType == bean2.ArgoCd {
-			appIdentifier := &client.AppIdentifier{
+			appIdentifier := &helmBean.AppIdentifier{
 				ClusterId:   installedApp.Environment.ClusterId,
 				ReleaseName: deploymentAppName,
 				Namespace:   installedApp.Environment.Namespace,

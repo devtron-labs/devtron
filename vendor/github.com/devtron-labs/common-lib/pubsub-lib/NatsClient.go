@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package pubsub_lib
@@ -21,6 +20,7 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
+	"sync"
 	"time"
 )
 
@@ -28,6 +28,7 @@ type NatsClient struct {
 	logger     *zap.SugaredLogger
 	JetStrCtxt nats.JetStreamContext
 	Conn       *nats.Conn
+	ConnWg     *sync.WaitGroup
 }
 
 type NatsClientConfig struct {
@@ -76,6 +77,7 @@ func (ncc NatsClientConfig) GetDefaultNatsStreamConfig() NatsStreamConfig {
 type StreamConfig struct {
 	MaxAge time.Duration `json:"max_age"`
 }
+
 type NatsStreamConfig struct {
 	StreamConfig StreamConfig `json:"streamConfig"`
 }
@@ -106,7 +108,8 @@ func (consumerConf NatsConsumerConfig) GetNatsMsgBufferSize() int {
 // }
 
 func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
-
+	//connWg := new(sync.WaitGroup)
+	//connWg.Add(1)
 	cfg := &NatsClientConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -116,6 +119,9 @@ func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 
 	// Connect to NATS
 	nc, err := nats.Connect(cfg.NatsServerHost,
+		// Because draining can involve messages flowing to the server, for a flush and asynchronous message processing,
+		// the timeout for drain should generally be higher than the timeout for a simple message request-reply or similar.
+		nats.DrainTimeout(time.Duration(cfg.NatsMsgAckWaitInSecs)*time.Second),
 		nats.ReconnectWait(10*time.Second), nats.MaxReconnects(100),
 		nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
 			logger.Errorw("Nats Connection got disconnected!", "Reason", err)
@@ -125,6 +131,7 @@ func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 		}),
 		nats.ClosedHandler(func(nc *nats.Conn) {
 			logger.Errorw("Nats Client Connection closed!", "Reason", nc.LastError())
+			//connWg.Done()
 		}))
 	if err != nil {
 		logger.Error("err", err)
@@ -142,6 +149,7 @@ func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 		logger:     logger,
 		JetStrCtxt: js,
 		Conn:       nc,
+		//ConnWg:     connWg,
 	}
 	return natsClient, nil
 }

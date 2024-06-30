@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package pipeline
@@ -23,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
+	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
@@ -34,6 +34,7 @@ import (
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	bean2 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
 	"github.com/juju/errors"
@@ -43,19 +44,19 @@ import (
 )
 
 type AppDeploymentTypeChangeManager interface {
-	//ChangeDeploymentType : takes in DeploymentAppTypeChangeRequest struct and
+	// ChangeDeploymentType : takes in DeploymentAppTypeChangeRequest struct and
 	// deletes all the cd pipelines for that deployment type in all apps that belongs to
 	// that environment and updates the db with desired deployment app type
 	ChangeDeploymentType(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
-	//ChangePipelineDeploymentType : takes in DeploymentAppTypeChangeRequest struct and
+	// ChangePipelineDeploymentType : takes in DeploymentAppTypeChangeRequest struct and
 	// deletes all the cd pipelines for that deployment type in all apps that belongs to
 	// that environment and updates the db with desired deployment app type
 	ChangePipelineDeploymentType(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
-	//TriggerDeploymentAfterTypeChange :
+	// TriggerDeploymentAfterTypeChange : triggers a new deployment after type change
 	TriggerDeploymentAfterTypeChange(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
-	//DeleteDeploymentApps : takes in a list of pipelines and delete the applications
+	// DeleteDeploymentApps : takes in a list of pipelines and delete the applications
 	DeleteDeploymentApps(ctx context.Context, pipelines []*pipelineConfig.Pipeline, userId int32) *bean.DeploymentAppTypeChangeResponse
-	//DeleteDeploymentAppsForEnvironment : takes in environment id and current deployment app type
+	// DeleteDeploymentAppsForEnvironment : takes in environment id and current deployment app type
 	// and deletes all the cd pipelines for that deployment type in all apps that belongs to
 	// that environment.
 	DeleteDeploymentAppsForEnvironment(ctx context.Context, environmentId int, currentDeploymentAppType bean3.DeploymentType, exclusionList []int, includeApps []int, userId int32) (*bean.DeploymentAppTypeChangeResponse, error)
@@ -325,7 +326,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) TriggerDeploymentAfterTypeChange
 		return response, nil
 	}
 
-	deleteResponse := impl.FetchDeletedApp(ctx, cdPipelines)
+	deleteResponse := impl.fetchDeletedApp(ctx, cdPipelines)
 
 	response.SuccessfulPipelines = deleteResponse.SuccessfulPipelines
 	response.FailedPipelines = deleteResponse.FailedPipelines
@@ -455,7 +456,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 						if gitOpsConfigurationStatus.AllowCustomRepository || chart.IsCustomGitRepository {
 							gitOpsRepoNotFound = fmt.Errorf(pipelineConfig.GITOPS_REPO_NOT_CONFIGURED)
 						} else {
-							_, chartGitAttr, createGitRepoErr = impl.appService.CreateGitopsRepo(&app.App{Id: pipeline.AppId, AppName: pipeline.App.AppName}, userId)
+							_, chartGitAttr, createGitRepoErr = impl.appService.CreateGitOpsRepo(&app.App{Id: pipeline.AppId, AppName: pipeline.App.AppName}, userId)
 							if createGitRepoErr == nil {
 								AcdRegisterErr = impl.cdPipelineConfigService.RegisterInACD(ctx, chartGitAttr, userId)
 								if AcdRegisterErr != nil {
@@ -648,7 +649,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) handleFailedDeploymentAppChange(
 		bean.Failed)
 }
 
-func (impl *AppDeploymentTypeChangeManagerImpl) FetchDeletedApp(ctx context.Context,
+func (impl *AppDeploymentTypeChangeManagerImpl) fetchDeletedApp(ctx context.Context,
 	pipelines []*pipelineConfig.Pipeline) *bean.DeploymentAppTypeChangeResponse {
 
 	successfulPipelines := make([]*bean.DeploymentChangeStatus, 0)
@@ -659,7 +660,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) FetchDeletedApp(ctx context.Cont
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
 		var err error
 		if pipeline.DeploymentAppType == bean3.ArgoCd {
-			appIdentifier := &service.AppIdentifier{
+			appIdentifier := &helmBean.AppIdentifier{
 				ClusterId:   pipeline.Environment.ClusterId,
 				ReleaseName: pipeline.DeploymentAppName,
 				Namespace:   pipeline.Environment.Namespace,
@@ -751,7 +752,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) deleteHelmApp(ctx context.Contex
 	}
 
 	// create app identifier
-	appIdentifier := &service.AppIdentifier{
+	appIdentifier := &helmBean.AppIdentifier{
 		ClusterId:   pipeline.Environment.ClusterId,
 		ReleaseName: pipeline.DeploymentAppName,
 		Namespace:   pipeline.Environment.Namespace,
@@ -762,6 +763,10 @@ func (impl *AppDeploymentTypeChangeManagerImpl) deleteHelmApp(ctx context.Contex
 
 	if err != nil {
 		impl.logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", appIdentifier)
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		return err
 	}
 

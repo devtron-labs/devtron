@@ -1,6 +1,23 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package git
 
 import (
+	"context"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
@@ -10,11 +27,11 @@ import (
 )
 
 type GitOpsClient interface {
-	CreateRepository(config *gitOps.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
-	CommitValues(config *ChartConfig, gitOpsConfig *gitOps.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error)
+	CreateRepository(ctx context.Context, config *gitOps.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
+	CommitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *gitOps.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error)
 	GetRepoUrl(config *gitOps.GitOpsConfigDto) (repoUrl string, err error)
 	DeleteRepository(config *gitOps.GitOpsConfigDto) error
-	CreateReadme(config *gitOps.GitOpsConfigDto) (string, error)
+	CreateReadme(ctx context.Context, config *gitOps.GitOpsConfigDto) (string, error)
 }
 
 func GetGitConfig(gitOpsConfigReadService config.GitOpsConfigReadService) (*bean.GitConfig, error) {

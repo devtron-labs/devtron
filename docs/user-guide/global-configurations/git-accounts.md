@@ -14,7 +14,7 @@ Provide the information in the following fields to add your git account:
 | :--- | :--- |
 | `Name` | Provide a name to your Git provider.<br>Note: This name will be available on the App Configuration > [Git repository](../creating-application/git-material.md) drop-down list.</br> |
 | `Git host` |  It is the git provider on which corresponding application git repository is hosted.<br>Note: By default, `Bitbucket` and `GitHub` are available in the drop-down list. You can add many as you want by clicking `[+ Add Git Host]`.</br>  |
-| `URL` | Provide the Git host `URL`.<br>As an example: [https://github.com](https://github.com) for Github, [https://gitlab.com](https://gitlab.com) for GitLab etc. |
+| `URL` | Provide the Git host `URL`.<br>As an example: [https://github.com](https://github.com) for GitHub, [https://gitlab.com](https://gitlab.com) for GitLab etc. |
 | `Authentication Type` | Devtron supports three types of authentications:<ul><li>**User auth:** If you select `User auth` as an authentication type, then you must provide the `Username` and `Password`or `Auth token` for the authentication of your version control account.</li></ul> <ul><li>**Anonymous:** If you select `Anonymous` as an authentication type, then you do not need to provide the `Username` and `Password`.<br>Note: If authentication type is set as `Anonymous`, only public git repository will be accessible.</li></ul><ul><li>**SSH Key:** If you choose `SSH Key` as an authentication type, then you must provide the `Private SSH Key` corresponding to the public key added in your version control account.</li></ul> |
 
 

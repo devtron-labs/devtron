@@ -1,10 +1,26 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package adapter
 
 import (
 	"encoding/json"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/ciPipeline"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -185,7 +201,7 @@ func IsCIJob(ci pipelineConfig.CiPipeline) bool {
 }
 
 // GetSourceCiDownStreamResponse will take the models []bean.LinkedCIDetails and []pipelineConfig.CdWorkflowRunner (for last deployment status) and generate the []CiPipeline.SourceCiDownStreamResponse
-func GetSourceCiDownStreamResponse(linkedCIDetails []bean.LinkedCIDetails, latestWfrs ...pipelineConfig.CdWorkflowRunner) []CiPipeline.SourceCiDownStreamResponse {
+func GetSourceCiDownStreamResponse(linkedCIDetails []ciPipeline.LinkedCIDetails, latestWfrs ...pipelineConfig.CdWorkflowRunner) []CiPipeline.SourceCiDownStreamResponse {
 	response := make([]CiPipeline.SourceCiDownStreamResponse, 0)
 	cdWfrStatusMap := make(map[int]string)
 	for _, latestWfr := range latestWfrs {

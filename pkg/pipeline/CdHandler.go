@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package pipeline
@@ -21,6 +20,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -244,14 +244,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 			impl.Logger.Error("update wf failed for id " + strconv.Itoa(savedWorkflow.Id))
 			return 0, "", err
 		}
-		cdMetrics := util3.CDMetrics{
-			AppName:         savedWorkflow.CdWorkflow.Pipeline.DeploymentAppName,
-			Status:          savedWorkflow.Status,
-			DeploymentType:  savedWorkflow.CdWorkflow.Pipeline.DeploymentAppType,
-			EnvironmentName: savedWorkflow.CdWorkflow.Pipeline.Environment.Name,
-			Time:            time.Since(savedWorkflow.StartedOn).Seconds() - time.Since(savedWorkflow.FinishedOn).Seconds(),
-		}
-		util3.TriggerCDMetrics(cdMetrics, impl.config.ExposeCDMetrics)
+		util3.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(savedWorkflow), impl.config.ExposeCDMetrics)
 		if string(v1alpha1.NodeError) == savedWorkflow.Status || string(v1alpha1.NodeFailed) == savedWorkflow.Status {
 			impl.Logger.Warnw("cd stage failed for workflow: ", "wfId", savedWorkflow.Id)
 		}
@@ -777,7 +770,7 @@ func (impl *CdHandlerImpl) converterWFRList(wfrList []pipelineConfig.CdWorkflowR
 
 func (impl *CdHandlerImpl) FetchCdPrePostStageStatus(pipelineId int) ([]pipelineConfig.CdWorkflowWithArtifact, error) {
 	var results []pipelineConfig.CdWorkflowWithArtifact
-	wfrPre, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_PRE)
+	wfrPre, err := impl.cdWorkflowRepository.FindLatestByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_PRE)
 	if err != nil && err != pg.ErrNoRows {
 		return results, err
 	}
@@ -789,7 +782,7 @@ func (impl *CdHandlerImpl) FetchCdPrePostStageStatus(pipelineId int) ([]pipeline
 		results = append(results, workflowPre)
 	}
 
-	wfrPost, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_POST)
+	wfrPost, err := impl.cdWorkflowRepository.FindLatestByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_POST)
 	if err != nil && err != pg.ErrNoRows {
 		return results, err
 	}

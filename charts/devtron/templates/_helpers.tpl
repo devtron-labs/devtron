@@ -19,7 +19,6 @@ it randomly.
 {{- end -}}
 {{- end }}
 
-
 {{/*
 Return full image
 {{ include "common.image" ( dict "component" .Values.path.to.the.component "global" .Values.global .extraImage .extraImageTag .extraImageDigest ) }}
