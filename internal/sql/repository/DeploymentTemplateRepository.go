@@ -89,42 +89,39 @@ func (impl DeploymentTemplateRepositoryImpl) FetchLatestDeploymentWithChartRefs(
 	var result []*DeploymentTemplateComparisonMetadata
 
 	query := `
-        WITH ranked_rows AS (
-            SELECT 
-                p.id as pipeline_id,
-                p.environment_id, 
-                dth.id as deployment_template_history_id, 
-                c.chart_ref_id, 
-                c.chart_version, 
-                ROW_NUMBER() OVER (PARTITION BY p.environment_id ORDER BY pco.id DESC) AS row_num
-            FROM 
-                pipeline p
-            JOIN deployment_template_history dth ON dth.pipeline_id = p.id
-            JOIN 
-                pipeline_config_override pco ON pco.pipeline_id = p.id
-            JOIN 
-                chart_env_config_override ceco ON ceco.id = pco.env_config_override_id
-            JOIN 
-                charts c ON c.id = ceco.chart_id
-            WHERE 
-                p.app_id = ?
-                AND p.deleted = false  
-                AND p.environment_id NOT IN (?)
-                AND dth.deployed = true
-        )
-        SELECT
-            rr.pipeline_id, 
-            rr.environment_id, 
-            rr.deployment_template_history_id, 
-            rr.chart_ref_id, 
-            rr.chart_version, 
-            e.environment_name
-        FROM 
-            ranked_rows rr
-        JOIN 
-            environment e ON rr.environment_id = e.id
-        WHERE 
-            rr.row_num = 1;
+        WITH pip AS (
+		  SELECT 
+		  p.id AS pipeline_id, 
+		  MAX(dth.id) AS deployment_template_history_id,
+		  p.environment_id,
+		  e.environment_name
+		  FROM pipeline AS p 
+		  INNER JOIN deployment_template_history dth ON dth.pipeline_id = p.id 
+		  INNER JOIN environment e ON e.id = p.environment_id 
+		  WHERE p.deleted = false 
+		  AND p.app_id = ? 
+		  AND p.environment_id != ?
+		  AND dth.deployed = true
+		  GROUP BY p.id, e.environment_name
+		)
+		
+		SELECT
+				pip.pipeline_id,
+				pip.environment_id, 
+				pip.environment_name,
+				pip.deployment_template_history_id,
+				c.chart_ref_id, 
+				c.chart_version
+		FROM pip
+		INNER JOIN pipeline_config_override pco ON pco.pipeline_id = pip.pipeline_id
+		INNER JOIN chart_env_config_override ceco ON ceco.id = pco.env_config_override_id
+		INNER JOIN charts c ON c.id = ceco.chart_id
+		WHERE pco.id IN (
+		  SELECT max(pco.id) 
+		  FROM pipeline_config_override AS pco 
+		  WHERE pipeline_id IN (SELECT pipeline_id FROM pip)
+		  GROUP BY pipeline_id
+		);  
     `
 
 	_, err := impl.dbConnection.Query(&result, query, appId, envId)
