@@ -98,7 +98,7 @@ type K8sApplicationService interface {
 }
 
 type HelmAppResourceValidator interface {
-	ValidateResourceRequestForHelmApp(ctx context.Context, appIdentifier *bean2.AppIdentifier, request *k8s2.K8sRequestBean) (bool, error)
+	ValidateResourceRequestForHelmApp(ctx context.Context, appIdentifier *bean2.AppIdentifier, request *k8s2.K8sRequestBean) error
 }
 
 type ArgoAppResourceValidator interface {
@@ -532,7 +532,24 @@ func (impl *K8sApplicationServiceImpl) ValidateClusterResourceBean(ctx context.C
 	return impl.validateResourceManifest(clusterBean.ClusterName, manifest, gvk, rbacCallback)
 }
 
-func (impl *K8sApplicationServiceImpl) ValidateResourceRequestForHelmApp(ctx context.Context, appIdentifier *bean2.AppIdentifier, request *k8s2.K8sRequestBean) (bool, error) {
+func (impl *K8sApplicationServiceImpl) ValidateResourceRequestForHelmApp(ctx context.Context, appIdentifier *bean2.AppIdentifier, request *k8s2.K8sRequestBean) error {
+	if valid, err := impl.validateResourceRequestForHelmApp(ctx, appIdentifier, request); err != nil || !valid {
+		if !valid {
+			impl.logger.Errorw("validation error in resource request", "request.AppIdentifier", appIdentifier, "request.K8sRequest", request)
+			err = &util.ApiError{
+				HttpStatusCode:  http.StatusBadRequest,
+				InternalMessage: "validation failed for the requested resource",
+				UserMessage:     fmt.Sprintf("resource %s: \"%s\" doesn't exist", request.ResourceIdentifier.GroupVersionKind.Kind, request.ResourceIdentifier.Name),
+			}
+		} else if err != nil {
+			impl.logger.Errorw("error in validating resource request", "err", err, "request.AppIdentifier", appIdentifier, "request.K8sRequest", request)
+		}
+		return err
+	}
+	return nil
+}
+
+func (impl *K8sApplicationServiceImpl) validateResourceRequestForHelmApp(ctx context.Context, appIdentifier *bean2.AppIdentifier, request *k8s2.K8sRequestBean) (bool, error) {
 	app, err := impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error in getting app detail", "err", err, "appDetails", appIdentifier)

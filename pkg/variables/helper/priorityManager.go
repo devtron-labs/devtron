@@ -16,9 +16,7 @@
 
 package helper
 
-import (
-	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
-)
+import "github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 
 func QualifierComparator(a, b resourceQualifiers.Qualifier) bool {
 	return GetPriority(a) < GetPriority(b)

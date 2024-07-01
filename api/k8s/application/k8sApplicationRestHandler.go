@@ -192,12 +192,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		// RBAC enforcer Ends
 
 		if request.DeploymentType == bean2.HelmInstalledType {
-			valid, err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
-			if !valid {
-				err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request")
-			}
-			if err != nil {
-				handler.logger.Errorw("error in validating resource request", "err", err)
+			if err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest); err != nil {
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return
 			}
@@ -256,10 +251,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 				Namespace:   cdPipeline.Environment.Namespace,
 				ReleaseName: cdPipeline.DeploymentAppName,
 			}
-			valid, err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
-			if !valid {
-				err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request")
-			}
+			err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
 			if err != nil {
 				handler.logger.Errorw("error in validating resource request", "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -461,10 +453,7 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 		//RBAC enforcer Ends
 
 		if request.DeploymentType == bean2.HelmInstalledType {
-			valid, err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
-			if !valid {
-				err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request")
-			}
+			err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
 			if err != nil {
 				handler.logger.Errorw("error in validating resource request", "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -526,10 +515,7 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 				Namespace:   cdPipeline.Environment.Namespace,
 				ReleaseName: cdPipeline.DeploymentAppName,
 			}
-			valid, err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
-			if !valid {
-				err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request")
-			}
+			err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
 			if err != nil {
 				handler.logger.Errorw("error in validating resource request", "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -609,12 +595,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 		request.AppIdentifier = appIdentifier
 		request.ClusterId = appIdentifier.ClusterId
 		if request.DeploymentType == bean2.HelmInstalledType {
-			valid, err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
-			if !valid {
-				err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request")
-			}
-			if err != nil {
-				handler.logger.Errorw("error in validating resource request", "err", err)
+			if err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest); err != nil {
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return
 			}
@@ -675,10 +656,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 				Namespace:   cdPipeline.Environment.Namespace,
 				ReleaseName: cdPipeline.DeploymentAppName,
 			}
-			valid, err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
-			if !valid {
-				err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request")
-			}
+			err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
 			if err != nil {
 				handler.logger.Errorw("error in validating resource request", "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -770,12 +748,7 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 		//RBAC enforcer Ends
 
 		if request.DeploymentType == bean2.HelmInstalledType {
-			valid, err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
-			if !valid {
-				err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request")
-			}
-			if err != nil {
-				handler.logger.Errorw("error in validating resource request", "err", err)
+			if err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest); err != nil {
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return
 			}
@@ -835,10 +808,7 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 				Namespace:   cdPipeline.Environment.Namespace,
 				ReleaseName: cdPipeline.DeploymentAppName,
 			}
-			valid, err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
-			if !valid {
-				err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request")
-			}
+			err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
 			if err != nil {
 				handler.logger.Errorw("error in validating resource request", "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -1018,10 +988,7 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 		//RBAC enforcer Ends
 
 		if request.DeploymentType == bean2.HelmInstalledType {
-			valid, err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
-			if !valid {
-				err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request")
-			}
+			err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
 			if err != nil {
 				handler.logger.Errorw("error in validating resource request", "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -1073,10 +1040,7 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 				Namespace:   cdPipeline.Environment.Namespace,
 				ReleaseName: cdPipeline.DeploymentAppName,
 			}
-			valid, err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
-			if !valid {
-				err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request")
-			}
+			err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
 			if err != nil {
 				handler.logger.Errorw("error in validating resource request", "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
