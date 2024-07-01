@@ -488,7 +488,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 									envDeploymentConfig.CredentialIdInt = activeGitOpsConfig.Id
 									envDeploymentConfig.CredentialType = bean4.GitOps.String()
 
-									envDeploymentConfig, RepoURLUpdateErr = impl.deploymentConfigService.CreateOrUpdateConfig(envDeploymentConfig, userId)
+									envDeploymentConfig, RepoURLUpdateErr = impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, userId)
 									if RepoURLUpdateErr != nil {
 										impl.logger.Errorw("error in saving deployment config for app", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
 									}

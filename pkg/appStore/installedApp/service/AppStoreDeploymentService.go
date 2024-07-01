@@ -863,7 +863,14 @@ func (impl *AppStoreDeploymentServiceImpl) MarkGitOpsInstalledAppsDeletedIfArgoA
 		apiError.InternalMessage = "error in fetching partially deleted argoCd apps from installed app repo"
 		return apiError
 	}
-	if (!util.IsAcdApp(installedApp.DeploymentAppType) && !util.IsAcdApp(installedApp.DeploymentConfig.DeploymentAppType)) || !installedApp.DeploymentAppDeleteRequest {
+	deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(installedAppId, envId)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", installedAppId, "envId", envId, "err", err)
+		apiError.HttpStatusCode = http.StatusInternalServerError
+		apiError.InternalMessage = "error in fetching partially deleted argoCd apps from installed app repo"
+		return apiError
+	}
+	if (!util.IsAcdApp(installedApp.DeploymentAppType) && !util.IsAcdApp(deploymentConfig.DeploymentAppType)) || !installedApp.DeploymentAppDeleteRequest {
 		return nil
 	}
 	// Operates for ArgoCd apps only

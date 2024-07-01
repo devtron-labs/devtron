@@ -185,7 +185,11 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsProviderByRepoURL(gitRepoUrl s
 	}
 
 	for _, model := range models {
-		if host, err := util.GetHost(model.Host); err != nil && host == requestHost {
+		host, err := util.GetHost(model.Host)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse host from repo URL: %s", gitRepoUrl)
+		}
+		if host == requestHost {
 			gitOpsConfig = &bean2.GitOpsConfigDto{
 				Id:                    model.Id,
 				Provider:              model.Provider,

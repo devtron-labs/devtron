@@ -70,6 +70,7 @@ func (impl *DeploymentConfigServiceImpl) CreateOrUpdateConfig(tx *pg.Tx, config 
 			return nil, err
 		}
 	} else {
+		newDBObj.Id = configDbObj.Id
 		newDBObj.AuditLog.UpdateAuditLog(userId)
 		newDBObj, err = impl.deploymentConfigRepository.Update(tx, newDBObj)
 		if err != nil {
@@ -163,7 +164,7 @@ func (impl *DeploymentConfigServiceImpl) migrateAppAndEnvLevelDataToDeploymentCo
 		gitOpsConfig, err := impl.gitOpsConfigReadService.GetGitOpsProviderByRepoURL(configDbObj.RepoUrl)
 		if err != nil {
 			impl.logger.Infow("error in fetching gitOps config by repoUrl, skipping migration to deployment config", "repoURL", configDbObj.RepoUrl)
-			return configDbObj, nil
+			return configDbObj, err
 		}
 		configDbObj.CredentialIdInt = gitOpsConfig.Id
 	}
@@ -240,7 +241,7 @@ func (impl *DeploymentConfigServiceImpl) migrateHelmAppDataToDeploymentConfig(ap
 			impl.logger.Infow("error in fetching gitOps config by repoUrl, skipping migration to deployment config", "repoURL", installedApp.GitOpsRepoUrl)
 			return nil, err
 		}
-		helmDeploymentConfig.ConfigType = bean.GitOps.String()
+		helmDeploymentConfig.ConfigType = bean.SYSTEM_GENERATED.String()
 		helmDeploymentConfig.CredentialIdInt = gitOpsConfig.Id
 	}
 	helmDeploymentConfig.CreateAuditLog(bean3.SYSTEM_USER_ID)

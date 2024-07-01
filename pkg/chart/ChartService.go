@@ -288,16 +288,6 @@ func (impl *ChartServiceImpl) Create(templateRequest TemplateRequest, ctx contex
 		return nil, err
 	}
 
-	currentDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(templateRequest.AppId, 0)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting current deployment config for appId", "appId", templateRequest.AppId, "err", err)
-		return nil, err
-	}
-
-	if currentDeploymentConfig != nil && currentDeploymentConfig.Id > 0 {
-		gitRepoUrl = currentDeploymentConfig.RepoURL
-	}
-
 	deploymentConfig := &bean2.DeploymentConfig{
 		AppId:           templateRequest.AppId,
 		ConfigType:      common.GetDeploymentConfigType(templateRequest.IsCustomGitRepository),
