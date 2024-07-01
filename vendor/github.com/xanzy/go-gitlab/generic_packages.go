@@ -123,7 +123,7 @@ func (s *GenericPackagesService) PublishPackageFile(pid interface{}, packageName
 		return nil, resp, err
 	}
 
-	return f, resp, err
+	return f, resp, nil
 }
 
 // DownloadPackageFile allows you to download the package file.

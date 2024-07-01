@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package appClone
@@ -29,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -45,6 +45,7 @@ type AppCloneService interface {
 type AppCloneServiceImpl struct {
 	logger                  *zap.SugaredLogger
 	pipelineBuilder         pipeline.PipelineBuilder
+	attributesService       attributes.AttributesService
 	chartService            chart.ChartService
 	configMapService        pipeline.ConfigMapService
 	appWorkflowService      appWorkflow.AppWorkflowService
@@ -61,6 +62,7 @@ type AppCloneServiceImpl struct {
 
 func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	pipelineBuilder pipeline.PipelineBuilder,
+	attributesService attributes.AttributesService,
 	chartService chart.ChartService,
 	configMapService pipeline.ConfigMapService,
 	appWorkflowService appWorkflow.AppWorkflowService,
@@ -74,6 +76,7 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	return &AppCloneServiceImpl{
 		logger:                  logger,
 		pipelineBuilder:         pipelineBuilder,
+		attributesService:       attributesService,
 		chartService:            chartService,
 		configMapService:        configMapService,
 		appWorkflowService:      appWorkflowService,
@@ -551,6 +554,8 @@ func (impl *AppCloneServiceImpl) configDataClone(cfData []*bean3.ConfigData) []*
 			DefaultMountPath:   refdata.DefaultMountPath,
 			Global:             refdata.Global,
 			ExternalSecretType: refdata.ExternalSecretType,
+			FilePermission:     refdata.FilePermission,
+			SubPath:            refdata.SubPath,
 		}
 		copiedData = append(copiedData, data)
 	}
@@ -976,7 +981,7 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		util.PIPELINE_DEPLOYMENT_TYPE_ACD:  true,
 		util.PIPELINE_DEPLOYMENT_TYPE_HELM: true,
 	}
-	DeploymentAppConfigForEnvironment, err := impl.pipelineBuilder.GetDeploymentConfigMap(refCdPipeline.EnvironmentId)
+	DeploymentAppConfigForEnvironment, err := impl.attributesService.GetDeploymentEnforcementConfig(refCdPipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching deployment config for environment", "err", err)
 	}

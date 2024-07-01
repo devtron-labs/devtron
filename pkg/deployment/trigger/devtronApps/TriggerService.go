@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package devtronApps
 
 import (
@@ -23,29 +39,36 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	repository4 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
 	"github.com/devtron-labs/devtron/pkg/app/status"
+	statusBean "github.com/devtron-labs/devtron/pkg/app/status/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
-	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/publish"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/helper"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/service"
+	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
+	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean8 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
+	security2 "github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
@@ -56,11 +79,13 @@ import (
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
 	"google.golang.org/grpc/codes"
 	status2 "google.golang.org/grpc/status"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"net/http"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -75,27 +100,19 @@ type TriggerService interface {
 	ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest) (int, error)
 	TriggerAutomaticDeployment(request bean.TriggerRequest) error
 
-	HandleCDTriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context,
-		triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error)
-
-	TriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse,
-		builtChartPath string, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifest []byte, err error)
-
-	//TODO: make this method private and move all usages in this service since TriggerService should own if async mode is enabled and if yes then how to act on it
-	IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool
+	TriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, err error)
 }
 
 type TriggerServiceImpl struct {
 	logger                              *zap.SugaredLogger
 	cdWorkflowCommonService             cd.CdWorkflowCommonService
-	gitOpsManifestPushService           app.GitOpsPushService
+	gitOpsManifestPushService           publish.GitOpsPushService
 	gitOpsConfigReadService             config.GitOpsConfigReadService
 	argoK8sClient                       argocdServer.ArgoK8sClient
 	ACDConfig                           *argocdServer.ACDConfig
 	argoClientWrapperService            argocdServer.ArgoClientWrapperService
 	pipelineStatusTimelineService       status.PipelineStatusTimelineService
 	chartTemplateService                util.ChartTemplateService
-	chartService                        chartService.ChartService
 	eventFactory                        client.EventFactory
 	eventClient                         client.EventClient
 	globalEnvVariables                  *util3.GlobalEnvVariables
@@ -115,13 +132,12 @@ type TriggerServiceImpl struct {
 	gitSensorGrpcClient                 gitSensorClient.Client
 	config                              *types.CdConfig
 	helmAppService                      client2.HelmAppService
-
-	enforcerUtil  rbac.EnforcerUtil
-	helmAppClient gRPC.HelmAppClient //TODO refactoring: use helm app service instead
+	imageScanService                    security2.ImageScanService
+	enforcerUtil                        rbac.EnforcerUtil
+	userDeploymentRequestService        service.UserDeploymentRequestService
+	helmAppClient                       gRPC.HelmAppClient //TODO refactoring: use helm app service instead
 
 	appRepository                 appRepository.AppRepository
-	scanResultRepository          security.ImageScanResultRepository
-	cvePolicyRepository           security.CvePolicyRepository
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
 	imageScanHistoryRepository    security.ImageScanHistoryRepository
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository
@@ -139,17 +155,19 @@ type TriggerServiceImpl struct {
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	appWorkflowRepository         appWorkflow.AppWorkflowRepository
 	dockerArtifactStoreRepository repository4.DockerArtifactStoreRepository
+	K8sUtil                       *util5.K8sServiceImpl
+	transactionUtilImpl           *sql.TransactionUtilImpl
 }
 
-func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd.CdWorkflowCommonService,
-	gitOpsManifestPushService app.GitOpsPushService,
+func NewTriggerServiceImpl(logger *zap.SugaredLogger,
+	cdWorkflowCommonService cd.CdWorkflowCommonService,
+	gitOpsManifestPushService publish.GitOpsPushService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	argoK8sClient argocdServer.ArgoK8sClient,
 	ACDConfig *argocdServer.ACDConfig,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	chartTemplateService util.ChartTemplateService,
-	chartService chartService.ChartService,
 	workflowEventPublishService out.WorkflowEventPublishService,
 	manifestCreationService manifest.ManifestCreationService,
 	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService,
@@ -166,13 +184,12 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	gitSensorGrpcClient gitSensorClient.Client,
 	helmAppService client2.HelmAppService,
 	enforcerUtil rbac.EnforcerUtil,
+	userDeploymentRequestService service.UserDeploymentRequestService,
 	helmAppClient gRPC.HelmAppClient,
 	eventFactory client.EventFactory,
 	eventClient client.EventClient,
-	globalEnvVariables *util3.GlobalEnvVariables,
+	envVariables *util3.EnvironmentVariables,
 	appRepository appRepository.AppRepository,
-	scanResultRepository security.ImageScanResultRepository,
-	cvePolicyRepository security.CvePolicyRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	imageScanHistoryRepository security.ImageScanHistoryRepository,
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository,
@@ -189,7 +206,10 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 	appLabelRepository pipelineConfig.AppLabelRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	dockerArtifactStoreRepository repository4.DockerArtifactStoreRepository) (*TriggerServiceImpl, error) {
+	dockerArtifactStoreRepository repository4.DockerArtifactStoreRepository,
+	imageScanService security2.ImageScanService,
+	K8sUtil *util5.K8sServiceImpl,
+	transactionUtilImpl *sql.TransactionUtilImpl) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -200,7 +220,6 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		argoClientWrapperService:            argoClientWrapperService,
 		pipelineStatusTimelineService:       pipelineStatusTimelineService,
 		chartTemplateService:                chartTemplateService,
-		chartService:                        chartService,
 		workflowEventPublishService:         workflowEventPublishService,
 		manifestCreationService:             manifestCreationService,
 		deployedConfigurationHistoryService: deployedConfigurationHistoryService,
@@ -219,11 +238,10 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		enforcerUtil:                        enforcerUtil,
 		eventFactory:                        eventFactory,
 		eventClient:                         eventClient,
-		globalEnvVariables:                  globalEnvVariables,
+		globalEnvVariables:                  envVariables.GlobalEnvVariables,
+		userDeploymentRequestService:        userDeploymentRequestService,
 		helmAppClient:                       helmAppClient,
 		appRepository:                       appRepository,
-		scanResultRepository:                scanResultRepository,
-		cvePolicyRepository:                 cvePolicyRepository,
 		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
 		imageScanHistoryRepository:          imageScanHistoryRepository,
 		imageScanDeployInfoRepository:       imageScanDeployInfoRepository,
@@ -241,6 +259,9 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger, cdWorkflowCommonService cd
 		ciPipelineRepository:                ciPipelineRepository,
 		appWorkflowRepository:               appWorkflowRepository,
 		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
+		imageScanService:                    imageScanService,
+		K8sUtil:                             K8sUtil,
+		transactionUtilImpl:                 transactionUtilImpl,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -280,6 +301,57 @@ func (impl *TriggerServiceImpl) TriggerStageForBulk(triggerRequest bean.TriggerR
 	}
 }
 
+func (impl *TriggerServiceImpl) getCdPipelineForManualCdTrigger(ctx context.Context, pipelineId int) (*pipelineConfig.Pipeline, error) {
+	_, span := otel.Tracer("TriggerService").Start(ctx, "getCdPipelineForManualCdTrigger")
+	defer span.End()
+	cdPipeline, err := impl.pipelineRepository.FindById(pipelineId)
+	if err != nil {
+		impl.logger.Errorw("manual trigger request with invalid pipelineId, ManualCdTrigger", "pipelineId", pipelineId, "err", err)
+		return nil, err
+	}
+	//checking if namespace exist or not
+	clusterIdToNsMap := map[int]string{
+		cdPipeline.Environment.ClusterId: cdPipeline.Environment.Namespace,
+	}
+
+	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap)
+	if err != nil {
+		impl.logger.Errorw("manual trigger request with invalid namespace, ManualCdTrigger", "pipelineId", pipelineId, "err", err)
+		return nil, err
+	}
+	return cdPipeline, nil
+}
+
+func (impl *TriggerServiceImpl) validateDeploymentTriggerRequest(ctx context.Context, runner *pipelineConfig.CdWorkflowRunner,
+	cdPipeline *pipelineConfig.Pipeline, imageDigest string, triggeredBy int32) error {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.validateDeploymentTriggerRequest")
+	defer span.End()
+	// custom GitOps repo url validation --> Start
+	err := impl.handleCustomGitOpsRepoValidation(runner, cdPipeline, triggeredBy)
+	if err != nil {
+		impl.logger.Errorw("custom GitOps repository validation error, TriggerStage", "err", err)
+		return err
+	}
+	// custom GitOps repo url validation --> Ends
+
+	// checking vulnerability for deploying image
+	vulnerabilityCheckRequest := adapter.GetVulnerabilityCheckRequest(cdPipeline, imageDigest)
+	isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(newCtx, vulnerabilityCheckRequest)
+	if err != nil {
+		impl.logger.Errorw("error in getting Artifact vulnerability status, ManualCdTrigger", "err", err)
+		return err
+	}
+
+	if isVulnerable == true {
+		// if image vulnerable, update timeline status and return
+		if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(pipelineConfig.FOUND_VULNERABILITY), triggeredBy); err != nil {
+			impl.logger.Errorw("error while updating current runner status to failed, TriggerDeployment", "wfrId", runner.Id, "err", err)
+		}
+		return fmt.Errorf("found vulnerability for image digest %s", imageDigest)
+	}
+	return nil
+}
+
 // TODO: write a wrapper to handle auto and manual trigger
 func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest) (int, error) {
 	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
@@ -287,18 +359,15 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	releaseId := 0
 	ctx := triggerContext.Context
 	var err error
-	_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineRepository.FindById")
-	cdPipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
-	span.End()
+	cdPipeline, err := impl.getCdPipelineForManualCdTrigger(ctx, overrideRequest.PipelineId)
 	if err != nil {
-		impl.logger.Errorw("manual trigger request with invalid pipelineId, ManualCdTrigger", "pipelineId", overrideRequest.PipelineId, "err", err)
 		return 0, err
 	}
-	SetPipelineFieldsInOverrideRequest(overrideRequest, cdPipeline)
+	adapter.SetPipelineFieldsInOverrideRequest(overrideRequest, cdPipeline)
 
 	switch overrideRequest.CdWorkflowType {
 	case bean3.CD_WORKFLOW_TYPE_PRE:
-		_, span = otel.Tracer("orchestrator").Start(ctx, "ciArtifactRepository.Get")
+		_, span := otel.Tracer("orchestrator").Start(ctx, "ciArtifactRepository.Get")
 		artifact, err := impl.ciArtifactRepository.Get(overrideRequest.CiArtifactId)
 		span.End()
 		if err != nil {
@@ -377,16 +446,14 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		}
 		overrideRequest.CdWorkflowId = cdWorkflowId
 		// creating cd pipeline status timeline for deployment initialisation
-		timeline := impl.pipelineStatusTimelineService.GetTimelineDbObjectByTimelineStatusAndTimelineDescription(savedWfr.Id, 0, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, pipelineConfig.TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED, overrideRequest.UserId, time.Now())
-		_, span = otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimelineForACDHelmApps")
-		err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, false)
+		timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(savedWfr.Id, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_INITIATED, timelineStatus.TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED, overrideRequest.UserId)
+		_, span := otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimelineForACDHelmApps")
+		_, err = impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
 
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in creating timeline status for deployment initiation, ManualCdTrigger", "err", err, "timeline", timeline)
 		}
-
-		//checking vulnerability for deploying image
 		_, span = otel.Tracer("orchestrator").Start(ctx, "ciArtifactRepository.Get")
 		artifact, err := impl.ciArtifactRepository.Get(overrideRequest.CiArtifactId)
 		span.End()
@@ -401,64 +468,23 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 				impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", artifact.Id)
 			}
 		}
-		isVulnerable, err := impl.GetArtifactVulnerabilityStatus(artifact, cdPipeline, ctx)
-		if err != nil {
-			impl.logger.Errorw("error in getting Artifact vulnerability status, ManualCdTrigger", "err", err)
-			return 0, err
-		}
-
-		if isVulnerable == true {
-			// if image vulnerable, update timeline status and return
-			if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(pipelineConfig.FOUND_VULNERABILITY), overrideRequest.UserId); err != nil {
-				impl.logger.Errorw("error while updating current runner status to failed, TriggerDeployment", "wfrId", runner.Id, "err", err)
+		if isNotHibernateRequest(overrideRequest.DeploymentType) {
+			validationErr := impl.validateDeploymentTriggerRequest(ctx, runner, cdPipeline, artifact.ImageDigest, overrideRequest.UserId)
+			if validationErr != nil {
+				impl.logger.Errorw("validation error deployment request", "cdWfr", runner.Id, "err", validationErr)
+				return 0, validationErr
 			}
-			return 0, fmt.Errorf("found vulnerability for image digest %s", artifact.ImageDigest)
 		}
-
 		// Deploy the release
-		_, span = otel.Tracer("orchestrator").Start(ctx, "appService.TriggerRelease")
 		var releaseErr error
-		releaseId, _, releaseErr = impl.HandleCDTriggerRelease(overrideRequest, ctx, triggeredAt, overrideRequest.UserId)
-		span.End()
+		releaseId, releaseErr = impl.handleCDTriggerRelease(ctx, overrideRequest, triggeredAt, overrideRequest.UserId)
 		// if releaseErr found, then the mark current deployment Failed and return
 		if releaseErr != nil {
 			err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, releaseErr, overrideRequest.UserId)
 			if err != nil {
-				impl.logger.Errorw("error while updating current runner status to failed, updatePreviousDeploymentStatus", "cdWfr", runner.Id, "err", err)
+				impl.logger.Errorw("error while updating current runner status to failed", "cdWfr", runner.Id, "err", err)
 			}
 			return 0, releaseErr
-		}
-
-		// skip updatePreviousDeploymentStatus if Async Install is enabled; handled inside SubscribeDevtronAsyncHelmInstallRequest
-		if !impl.IsDevtronAsyncInstallModeEnabled(cdPipeline.DeploymentAppType) {
-			// Update previous deployment runner status (in transaction): Failed
-			_, span = otel.Tracer("orchestrator").Start(ctx, "updatePreviousDeploymentStatus")
-			err1 := impl.cdWorkflowCommonService.UpdatePreviousDeploymentStatus(runner, cdPipeline.Id, triggeredAt, overrideRequest.UserId)
-			span.End()
-			if err1 != nil {
-				impl.logger.Errorw("error while update previous cd workflow runners, ManualCdTrigger", "err", err, "runner", runner, "pipelineId", cdPipeline.Id)
-				return 0, err1
-			}
-		}
-
-		if overrideRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_MANIFEST_DOWNLOAD {
-			runner := &pipelineConfig.CdWorkflowRunner{
-				Id:           runner.Id,
-				Name:         cdPipeline.Name,
-				WorkflowType: bean3.CD_WORKFLOW_TYPE_DEPLOY,
-				ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-				TriggeredBy:  overrideRequest.UserId,
-				StartedOn:    triggeredAt,
-				Status:       pipelineConfig.WorkflowSucceeded,
-				Namespace:    impl.config.GetDefaultNamespace(),
-				CdWorkflowId: overrideRequest.CdWorkflowId,
-				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
-			}
-			updateErr := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
-			if updateErr != nil {
-				impl.logger.Errorw("error in updating runner for manifest_download type, ManualCdTrigger", "CdWorkflowId", overrideRequest.CdWorkflowId, "err", err)
-				return 0, updateErr
-			}
 		}
 
 	case bean3.CD_WORKFLOW_TYPE_POST:
@@ -481,7 +507,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 				return 0, err
 			}
 		} else {
-			_, span = otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.FindById")
+			_, span := otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.FindById")
 			cdWf, err = impl.cdWorkflowRepository.FindById(overrideRequest.CdWorkflowId)
 			span.End()
 			if err != nil && !util.IsErrNoRows(err) {
@@ -489,7 +515,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 				return 0, err
 			}
 		}
-		_, span = otel.Tracer("orchestrator").Start(ctx, "TriggerPostStage")
+		_, span := otel.Tracer("orchestrator").Start(ctx, "TriggerPostStage")
 		triggerRequest := bean.TriggerRequest{
 			CdWf:                  cdWf,
 			Pipeline:              cdPipeline,
@@ -511,6 +537,10 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	return releaseId, err
 }
 
+func isNotHibernateRequest(deploymentType models.DeploymentType) bool {
+	return deploymentType != models.DEPLOYMENTTYPE_STOP && deploymentType != models.DEPLOYMENTTYPE_START
+}
+
 // TODO: write a wrapper to handle auto and manual trigger
 func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerRequest) error {
 	//in case of manual trigger auth is already applied and for auto triggers there is no need for auth check here
@@ -521,6 +551,7 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 	cdWf := request.CdWf
+	ctx := context.Background()
 
 	if cdWf == nil || (cdWf != nil && cdWf.CiArtifactId != artifact.Id) {
 		// cdWf != nil && cdWf.CiArtifactId != artifact.Id for auto trigger case when deployment is triggered with image generated by plugin
@@ -529,7 +560,7 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 			PipelineId:   pipeline.Id,
 			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
 		}
-		err := impl.cdWorkflowRepository.SaveWorkFlow(context.Background(), cdWf)
+		err := impl.cdWorkflowRepository.SaveWorkFlow(ctx, cdWf)
 		if err != nil {
 			return err
 		}
@@ -557,64 +588,22 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	// creating cd pipeline status timeline for deployment initialisation
 	timeline := &pipelineConfig.PipelineStatusTimeline{
 		CdWorkflowRunnerId: runner.Id,
-		Status:             pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED,
+		Status:             timelineStatus.TIMELINE_STATUS_DEPLOYMENT_INITIATED,
 		StatusDetail:       "Deployment initiated successfully.",
 		StatusTime:         time.Now(),
-		AuditLog: sql.AuditLog{
-			CreatedBy: 1,
-			CreatedOn: time.Now(),
-			UpdatedBy: 1,
-			UpdatedOn: time.Now(),
-		},
 	}
-	isAppStore := false
-	err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil, isAppStore)
+	timeline.CreateAuditLog(1)
+	err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
 	if err != nil {
 		impl.logger.Errorw("error in creating timeline status for deployment initiation", "err", err, "timeline", timeline)
 	}
-
-	// custom GitOps repo url validation --> Start
-	err = impl.handleCustomGitOpsRepoValidation(runner, pipeline, triggeredBy)
-	if err != nil {
-		impl.logger.Errorw("custom GitOps repository validation error, TriggerPreStage", "err", err)
-		return err
+	// setting triggeredBy as 1(system user) since case of auto trigger
+	validationErr := impl.validateDeploymentTriggerRequest(ctx, runner, pipeline, artifact.ImageDigest, 1)
+	if validationErr != nil {
+		impl.logger.Errorw("validation error deployment request", "cdWfr", runner.Id, "err", validationErr)
+		return validationErr
 	}
-	// custom GitOps repo url validation --> Ends
-
-	//checking vulnerability for deploying image
-	isVulnerable := false
-	if len(artifact.ImageDigest) > 0 {
-		var cveStores []*security.CveStore
-		imageScanResult, err := impl.scanResultRepository.FindByImageDigest(artifact.ImageDigest)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error fetching image digest", "digest", artifact.ImageDigest, "err", err)
-			return err
-		}
-		for _, item := range imageScanResult {
-			cveStores = append(cveStores, &item.CveStore)
-		}
-		env, err := impl.envRepository.FindById(pipeline.EnvironmentId)
-		if err != nil {
-			impl.logger.Errorw("error while fetching env", "err", err)
-			return err
-		}
-		blockCveList, err := impl.cvePolicyRepository.GetBlockedCVEList(cveStores, env.ClusterId, pipeline.EnvironmentId, pipeline.AppId, false)
-		if err != nil {
-			impl.logger.Errorw("error while fetching blocked cve list", "err", err)
-			return err
-		}
-		if len(blockCveList) > 0 {
-			isVulnerable = true
-		}
-	}
-	if isVulnerable == true {
-		if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(pipelineConfig.FOUND_VULNERABILITY), triggeredBy); err != nil {
-			impl.logger.Errorw("error while updating current runner status to failed, TriggerDeployment", "wfrId", runner.Id, "err", err)
-		}
-		return nil
-	}
-
-	releaseErr := impl.TriggerCD(artifact, cdWf.Id, savedWfr.Id, pipeline, triggeredAt)
+	releaseErr := impl.TriggerCD(ctx, artifact, cdWf.Id, savedWfr.Id, pipeline, triggeredAt)
 	// if releaseErr found, then the mark current deployment Failed and return
 	if releaseErr != nil {
 		err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, releaseErr, triggeredBy)
@@ -623,25 +612,17 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		}
 		return releaseErr
 	}
-	//skip updatePreviousDeploymentStatus if Async Install is enabled; handled inside SubscribeDevtronAsyncHelmInstallRequest
-	if !impl.IsDevtronAsyncInstallModeEnabled(pipeline.DeploymentAppType) {
-		err1 := impl.cdWorkflowCommonService.UpdatePreviousDeploymentStatus(runner, pipeline.Id, triggeredAt, triggeredBy)
-		if err1 != nil {
-			impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", pipeline.Id)
-			return err1
-		}
-	}
 	return nil
 }
 
-func (impl *TriggerServiceImpl) TriggerCD(artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) error {
+func (impl *TriggerServiceImpl) TriggerCD(ctx context.Context, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) error {
 	impl.logger.Debugw("automatic pipeline trigger attempt async", "artifactId", artifact.Id)
 
-	return impl.triggerReleaseAsync(artifact, cdWorkflowId, wfrId, pipeline, triggeredAt)
+	return impl.triggerReleaseAsync(ctx, artifact, cdWorkflowId, wfrId, pipeline, triggeredAt)
 }
 
-func (impl *TriggerServiceImpl) triggerReleaseAsync(artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) error {
-	err := impl.validateAndTrigger(pipeline, artifact, cdWorkflowId, wfrId, triggeredAt)
+func (impl *TriggerServiceImpl) triggerReleaseAsync(ctx context.Context, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) error {
+	err := impl.validateAndTrigger(ctx, pipeline, artifact, cdWorkflowId, wfrId, triggeredAt)
 	if err != nil {
 		impl.logger.Errorw("error in trigger for pipeline", "pipelineId", strconv.Itoa(pipeline.Id))
 	}
@@ -649,21 +630,24 @@ func (impl *TriggerServiceImpl) triggerReleaseAsync(artifact *repository3.CiArti
 	return err
 }
 
-func (impl *TriggerServiceImpl) validateAndTrigger(p *pipelineConfig.Pipeline, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time) error {
-	//TODO: verify this logicc
+func (impl *TriggerServiceImpl) validateAndTrigger(ctx context.Context, p *pipelineConfig.Pipeline, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time) error {
+	//TODO: verify this logic
 	object := impl.enforcerUtil.GetAppRBACNameByAppId(p.AppId)
 	envApp := strings.Split(object, "/")
 	if len(envApp) != 2 {
 		impl.logger.Error("invalid req, app and env not found from rbac")
 		return errors.New("invalid req, app and env not found from rbac")
 	}
-	err := impl.releasePipeline(p, artifact, cdWorkflowId, wfrId, triggeredAt)
+	err := impl.releasePipeline(ctx, p, artifact, cdWorkflowId, wfrId, triggeredAt)
 	return err
 }
 
-func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time) error {
-	impl.logger.Debugw("triggering release for ", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id)
-
+func (impl *TriggerServiceImpl) releasePipeline(ctx context.Context, pipeline *pipelineConfig.Pipeline, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time) error {
+	startTime := time.Now()
+	defer func() {
+		impl.logger.Debugw("auto trigger release process completed", "timeTaken", time.Since(startTime), "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "wfrId", wfrId)
+	}()
+	impl.logger.Debugw("auto triggering release for", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "wfrId", wfrId)
 	pipeline, err := impl.pipelineRepository.FindById(pipeline.Id)
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipeline by pipelineId", "err", err)
@@ -680,143 +664,228 @@ func (impl *TriggerServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipelin
 		DeploymentWithConfig: bean3.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED,
 		WfrId:                wfrId,
 	}
-	SetPipelineFieldsInOverrideRequest(request, pipeline)
+	adapter.SetPipelineFieldsInOverrideRequest(request, pipeline)
 
-	ctx, err := impl.argoUserService.BuildACDContext()
+	releaseCtx, err := impl.argoUserService.GetACDContext(ctx)
 	if err != nil {
 		impl.logger.Errorw("error in creating acd sync context", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
 		return err
 	}
-	//setting deployedBy as 1(system user) since case of auto trigger
-	id, _, err := impl.HandleCDTriggerRelease(request, ctx, triggeredAt, 1)
+	// setting deployedBy as 1(system user) since case of auto trigger
+	id, err := impl.handleCDTriggerRelease(releaseCtx, request, triggeredAt, 1)
 	if err != nil {
 		impl.logger.Errorw("error in auto  cd pipeline trigger", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
 	} else {
-		impl.logger.Infow("pipeline successfully triggered ", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "releaseId", id)
+		impl.logger.Infow("pipeline successfully triggered", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id, "releaseId", id)
 	}
 	return err
 }
 
-func SetPipelineFieldsInOverrideRequest(overrideRequest *bean3.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline) {
-	overrideRequest.PipelineId = pipeline.Id
-	overrideRequest.PipelineName = pipeline.Name
-	overrideRequest.EnvId = pipeline.EnvironmentId
-	overrideRequest.EnvName = pipeline.Environment.Name
-	overrideRequest.ClusterId = pipeline.Environment.ClusterId
-	overrideRequest.AppId = pipeline.AppId
-	overrideRequest.AppName = pipeline.App.AppName
-	overrideRequest.DeploymentAppType = pipeline.DeploymentAppType
+func (impl *TriggerServiceImpl) triggerAsyncRelease(userDeploymentRequestId int, overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, err error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.triggerAsyncRelease")
+	defer span.End()
+	// build merged values and save PCO history for the release
+	valuesOverrideResponse, err := impl.manifestCreationService.GetValuesOverrideForTrigger(overrideRequest, triggeredAt, newCtx)
+	// auditDeploymentTriggerHistory is performed irrespective of GetValuesOverrideForTrigger error - for auditing purposes
+	historyErr := impl.auditDeploymentTriggerHistory(overrideRequest.WfrId, valuesOverrideResponse, newCtx, triggeredAt, deployedBy)
+	if historyErr != nil {
+		impl.logger.Errorw("error in auditing deployment trigger history", "cdWfrId", overrideRequest.WfrId, "err", err)
+		return releaseNo, err
+	}
+	// handling GetValuesOverrideForTrigger error
+	if err != nil {
+		impl.logger.Errorw("error in fetching values for trigger", "err", err)
+		return releaseNo, err
+	}
+	// asynchronous mode of Helm/ArgoCd installation starts
+	return impl.workflowEventPublishService.TriggerAsyncRelease(userDeploymentRequestId, overrideRequest, valuesOverrideResponse, newCtx, deployedBy)
 }
 
-func (impl *TriggerServiceImpl) HandleCDTriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context,
-	triggeredAt time.Time, deployedBy int32) (releaseNo int, manifest []byte, err error) {
-	if impl.IsDevtronAsyncInstallModeEnabled(overrideRequest.DeploymentAppType) {
-		// asynchronous mode of installation starts
-		return impl.workflowEventPublishService.TriggerHelmAsyncRelease(overrideRequest, ctx, triggeredAt, deployedBy)
+func (impl *TriggerServiceImpl) handleCDTriggerRelease(ctx context.Context, overrideRequest *bean3.ValuesOverrideRequest, triggeredAt time.Time, deployedBy int32) (releaseNo int, err error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.handleCDTriggerRelease")
+	defer span.End()
+	// Handling for auto trigger
+	if overrideRequest.UserId == 0 {
+		overrideRequest.UserId = deployedBy
+	}
+	tx, err := impl.transactionUtilImpl.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting transaction to update userDeploymentRequest", "error", err)
+		return releaseNo, err
+	}
+	defer impl.transactionUtilImpl.RollbackTx(tx)
+	newDeploymentRequest := adapter.NewUserDeploymentRequest(overrideRequest, triggeredAt, overrideRequest.UserId)
+	// creating new user deployment request
+	userDeploymentRequestId, err := impl.userDeploymentRequestService.SaveNewDeployment(newCtx, tx, newDeploymentRequest)
+	if err != nil {
+		impl.logger.Errorw("error in saving new userDeploymentRequest", "overrideRequest", overrideRequest, "err", err)
+		return releaseNo, err
+	}
+	timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(overrideRequest.WfrId, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED, timelineStatus.TIMELINE_DESCRIPTION_DEPLOYMENT_REQUEST_VALIDATED, deployedBy)
+	// creating cd pipeline status timeline for deployment trigger request validated
+	_, err = impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, tx)
+	err = impl.transactionUtilImpl.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction to update userDeploymentRequest", "error", err)
+		return userDeploymentRequestId, err
+	}
+
+	if impl.isDevtronAsyncInstallModeEnabled(overrideRequest.DeploymentAppType, overrideRequest.ForceSyncDeployment) {
+		return impl.triggerAsyncRelease(userDeploymentRequestId, overrideRequest, newCtx, triggeredAt, deployedBy)
 	}
 	// synchronous mode of installation starts
+	return impl.TriggerRelease(overrideRequest, newCtx, triggeredAt, deployedBy)
+}
 
-	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(overrideRequest, triggeredAt, ctx)
-	_, span := otel.Tracer("orchestrator").Start(ctx, "CreateHistoriesForDeploymentTrigger")
-	err1 := impl.deployedConfigurationHistoryService.CreateHistoriesForDeploymentTrigger(valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggeredAt, deployedBy)
+func (impl *TriggerServiceImpl) auditDeploymentTriggerHistory(cdWfrId int, valuesOverrideResponse *app.ValuesOverrideResponse, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (err error) {
+	if valuesOverrideResponse.Pipeline == nil || valuesOverrideResponse.EnvOverride == nil {
+		impl.logger.Warnw("unable to save histories for deployment trigger, invalid valuesOverrideResponse received", "cdWfrId", cdWfrId)
+		return nil
+	}
+	err1 := impl.deployedConfigurationHistoryService.CreateHistoriesForDeploymentTrigger(ctx, valuesOverrideResponse.Pipeline, valuesOverrideResponse.PipelineStrategy, valuesOverrideResponse.EnvOverride, triggeredAt, triggeredBy)
 	if err1 != nil {
-		impl.logger.Errorw("error in saving histories for trigger", "err", err1, "pipelineId", valuesOverrideResponse.Pipeline.Id, "wfrId", overrideRequest.WfrId)
+		impl.logger.Errorw("error in saving histories for deployment trigger", "err", err1, "pipelineId", valuesOverrideResponse.Pipeline.Id, "cdWfrId", cdWfrId)
+		return nil
 	}
-	span.End()
-	if err != nil {
-		impl.logger.Errorw("error in building merged manifest for trigger", "err", err)
-		return releaseNo, manifest, err
-	}
-	return impl.TriggerRelease(overrideRequest, valuesOverrideResponse, builtChartPath, ctx, triggeredAt, deployedBy)
+	return nil
 }
 
 // TriggerRelease will trigger Install/Upgrade request for Devtron App releases synchronously
-func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse,
-	builtChartPath string, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifest []byte, err error) {
-	// Handling for auto trigger
-	if overrideRequest.UserId == 0 {
-		overrideRequest.UserId = triggeredBy
-	}
-	triggerEvent := helper.GetTriggerEvent(overrideRequest.DeploymentAppType, triggeredAt, triggeredBy)
-	releaseNo, manifest, err = impl.triggerPipeline(overrideRequest, valuesOverrideResponse, builtChartPath, triggerEvent, ctx)
+func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, err error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.TriggerRelease")
+	defer span.End()
+	triggerEvent, skipRequest, err := impl.buildTriggerEventForOverrideRequest(overrideRequest, triggeredAt)
 	if err != nil {
-		return 0, manifest, err
+		return releaseNo, err
 	}
-	return releaseNo, manifest, nil
+	// request has already been served, skipping
+	if skipRequest {
+		return releaseNo, nil
+	}
+	// build merged values and save PCO history for the release
+	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(overrideRequest, triggeredAt, newCtx)
+	// auditDeploymentTriggerHistory is performed irrespective of BuildManifestForTrigger error - for auditing purposes
+	historyErr := impl.auditDeploymentTriggerHistory(overrideRequest.WfrId, valuesOverrideResponse, newCtx, triggeredAt, triggeredBy)
+	if historyErr != nil {
+		impl.logger.Errorw("error in auditing deployment trigger history", "cdWfrId", overrideRequest.WfrId, "err", err)
+		return releaseNo, err
+	}
+	if err != nil {
+		impl.logger.Errorw("error in building merged manifest for trigger", "err", err)
+		return releaseNo, err
+	}
+	releaseNo, err = impl.triggerPipeline(overrideRequest, valuesOverrideResponse, builtChartPath, triggerEvent, newCtx)
+	if err != nil {
+		return 0, err
+	}
+	// creating cd pipeline status timeline for deployment triggered - for successfully triggered requests
+	timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(overrideRequest.WfrId, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_TRIGGERED, timelineStatus.TIMELINE_DESCRIPTION_DEPLOYMENT_COMPLETED, overrideRequest.UserId)
+	_, dbErr := impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
+	if dbErr != nil {
+		impl.logger.Errorw("error in creating timeline status for deployment completed", "err", dbErr, "timeline", timeline)
+	}
+	return releaseNo, nil
 }
 
-func (impl *TriggerServiceImpl) triggerPipeline(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse,
-	builtChartPath string, triggerEvent bean.TriggerEvent, ctx context.Context) (releaseNo int, manifest []byte, err error) {
-	isRequestValid, err := helper.ValidateTriggerEvent(triggerEvent)
-	if !isRequestValid {
-		return releaseNo, manifest, err
+func (impl *TriggerServiceImpl) performGitOps(ctx context.Context,
+	overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse,
+	builtChartPath string, triggerEvent bean.TriggerEvent) error {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.performGitOps")
+	defer span.End()
+	// update workflow runner status, used in app workflow view
+	err := impl.cdWorkflowCommonService.UpdateNonTerminalStatusInRunner(newCtx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowInProgress)
+	if err != nil {
+		impl.logger.Errorw("error in updating the workflow runner status", "err", err)
+		return err
 	}
+	manifestPushTemplate, err := impl.buildManifestPushTemplate(overrideRequest, valuesOverrideResponse, builtChartPath)
+	if err != nil {
+		impl.logger.Errorw("error in building manifest push template", "err", err)
+		return err
+	}
+	manifestPushService := impl.getManifestPushService(triggerEvent)
+	manifestPushResponse := manifestPushService.PushChart(newCtx, manifestPushTemplate)
+	if manifestPushResponse.Error != nil {
+		impl.logger.Errorw("error in pushing manifest to git", "err", manifestPushResponse.Error, "git_repo_url", manifestPushTemplate.RepoUrl)
+		return manifestPushResponse.Error
+	}
+	if manifestPushResponse.IsNewGitRepoConfigured() {
+		// Update GitOps repo url after repo new repo created
+		valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl = manifestPushResponse.NewGitRepoUrl
+	}
+	return nil
+}
 
+func (impl *TriggerServiceImpl) buildTriggerEventForOverrideRequest(overrideRequest *bean3.ValuesOverrideRequest, triggeredAt time.Time) (triggerEvent bean.TriggerEvent, skipRequest bool, err error) {
+	triggerEvent = helper.NewTriggerEvent(overrideRequest.DeploymentAppType, triggeredAt, overrideRequest.UserId)
+	request := statusBean.NewTimelineGetRequest().
+		WithCdWfrId(overrideRequest.WfrId).
+		ExcludingStatuses(timelineStatus.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS,
+			timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_STARTED,
+			timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED)
+	timelineStatuses, err := impl.pipelineStatusTimelineService.GetTimelineStatusesFor(request)
+	if err != nil {
+		impl.logger.Errorw("error in getting last timeline status by cdWfrId", "cdWfrId", overrideRequest.WfrId, "err", err)
+		return triggerEvent, skipRequest, err
+	} else if !slices.Contains(timelineStatuses, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED) {
+		impl.logger.Errorw("pre-condition missing: timeline for deployment request validation", "cdWfrId", overrideRequest.WfrId, "timelineStatuses", timelineStatuses)
+		return triggerEvent, skipRequest, fmt.Errorf("pre-condition missing: timeline for deployment request validation")
+	} else if timelineStatus.ContainsTerminalTimelineStatus(timelineStatuses) {
+		impl.logger.Info("deployment is already terminated", "cdWfrId", overrideRequest.WfrId, "timelineStatuses", timelineStatuses)
+		skipRequest = true
+		return triggerEvent, skipRequest, nil
+	} else if slices.Contains(timelineStatuses, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_TRIGGERED) {
+		impl.logger.Info("deployment has been performed. skipping", "cdWfrId", overrideRequest.WfrId, "timelineStatuses", timelineStatuses)
+		skipRequest = true
+		return triggerEvent, skipRequest, nil
+	}
+	if slices.Contains(timelineStatuses, timelineStatus.TIMELINE_STATUS_GIT_COMMIT) ||
+		slices.Contains(timelineStatuses, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED) {
+		// git commit has already been performed
+		triggerEvent.PerformChartPush = false
+	}
+	if slices.Contains(timelineStatuses, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED) {
+		// ArgoCd sync has already been performed
+		triggerEvent.DeployArgoCdApp = false
+	}
+	return triggerEvent, skipRequest, nil
+}
+
+func (impl *TriggerServiceImpl) triggerPipeline(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, triggerEvent bean.TriggerEvent, ctx context.Context) (releaseNo int, err error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.triggerPipeline")
+	defer span.End()
 	if triggerEvent.PerformChartPush {
-		//update workflow runner status, used in app workflow view
-		err = impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggerEvent.TriggerdAt, pipelineConfig.WorkflowInProgress, "")
+		err = impl.performGitOps(newCtx, overrideRequest, valuesOverrideResponse, builtChartPath, triggerEvent)
 		if err != nil {
-			impl.logger.Errorw("error in updating the workflow runner status, createHelmAppForCdPipeline", "err", err)
-			return releaseNo, manifest, err
+			impl.logger.Errorw("error in performing GitOps", "cdWfrId", overrideRequest.WfrId, "err", err)
+			return releaseNo, err
 		}
-		manifestPushTemplate, err := impl.buildManifestPushTemplate(overrideRequest, valuesOverrideResponse, builtChartPath, &manifest)
-		if err != nil {
-			impl.logger.Errorw("error in building manifest push template", "err", err)
-			return releaseNo, manifest, err
-		}
-		manifestPushService := impl.getManifestPushService(triggerEvent)
-		manifestPushResponse := manifestPushService.PushChart(manifestPushTemplate, ctx)
-		if manifestPushResponse.Error != nil {
-			impl.logger.Errorw("Error in pushing manifest to git", "err", err, "git_repo_url", manifestPushTemplate.RepoUrl)
-			return releaseNo, manifest, manifestPushResponse.Error
-		}
-		// Update GitOps repo url after repo migration
-		if manifestPushResponse.IsGitOpsRepoMigrated() {
-			valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl = manifestPushResponse.OverRiddenRepoUrl
-			// below function will override gitRepoUrl for charts even if user has already configured gitOps repoURL
-			err = impl.chartService.OverrideGitOpsRepoUrl(manifestPushTemplate.AppId, manifestPushResponse.OverRiddenRepoUrl, manifestPushTemplate.UserId)
-			if err != nil {
-				impl.logger.Errorw("error in updating git repo url in charts", "err", err)
-				return releaseNo, manifest, fmt.Errorf("No repository configured for Gitops! Error while migrating gitops repository: '%s'", manifestPushResponse.OverRiddenRepoUrl)
-			}
-		}
-		pipelineOverrideUpdateRequest := &chartConfig.PipelineOverride{
-			Id:                     valuesOverrideResponse.PipelineOverride.Id,
-			GitHash:                manifestPushResponse.CommitHash,
-			CommitTime:             manifestPushResponse.CommitTime,
-			EnvConfigOverrideId:    valuesOverrideResponse.EnvOverride.Id,
-			PipelineOverrideValues: valuesOverrideResponse.ReleaseOverrideJSON,
-			PipelineId:             overrideRequest.PipelineId,
-			CiArtifactId:           overrideRequest.CiArtifactId,
-			PipelineMergedValues:   valuesOverrideResponse.MergedValues,
-			AuditLog:               sql.AuditLog{UpdatedOn: triggerEvent.TriggerdAt, UpdatedBy: overrideRequest.UserId},
-		}
-		_, span := otel.Tracer("orchestrator").Start(ctx, "pipelineOverrideRepository.Update")
-		err = impl.pipelineOverrideRepository.Update(pipelineOverrideUpdateRequest)
-		span.End()
 	}
-
 	if triggerEvent.PerformDeploymentOnCluster {
-		err = impl.deployApp(overrideRequest, valuesOverrideResponse, triggerEvent.TriggerdAt, ctx)
+		err = impl.deployApp(newCtx, overrideRequest, valuesOverrideResponse, triggerEvent)
 		if err != nil {
 			impl.logger.Errorw("error in deploying app", "err", err)
-			return releaseNo, manifest, err
+			return releaseNo, err
 		}
 	}
 
 	go impl.writeCDTriggerEvent(overrideRequest, valuesOverrideResponse.Artifact, valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, valuesOverrideResponse.PipelineOverride.Id)
 
-	_, span := otel.Tracer("orchestrator").Start(ctx, "markImageScanDeployed")
-	_ = impl.markImageScanDeployed(overrideRequest.AppId, valuesOverrideResponse.EnvOverride.TargetEnvironment, valuesOverrideResponse.Artifact.ImageDigest, overrideRequest.ClusterId, valuesOverrideResponse.Artifact.ScanEnabled, valuesOverrideResponse.Artifact.Image)
-	span.End()
+	_ = impl.markImageScanDeployed(newCtx, overrideRequest.AppId, overrideRequest.EnvId, overrideRequest.ClusterId,
+		valuesOverrideResponse.Artifact.ImageDigest, valuesOverrideResponse.Artifact.ScanEnabled, valuesOverrideResponse.Artifact.Image)
 
 	middleware.CdTriggerCounter.WithLabelValues(overrideRequest.AppName, overrideRequest.EnvName).Inc()
 
-	return valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, manifest, nil
-
+	// Update previous deployment runner status (in transaction): Failed
+	dbErr := impl.cdWorkflowCommonService.SupersedePreviousDeployments(newCtx, overrideRequest.WfrId, overrideRequest.PipelineId, triggerEvent.TriggeredAt, overrideRequest.UserId)
+	if dbErr != nil {
+		impl.logger.Errorw("error while update previous cd workflow runners", "err", dbErr, "currentRunnerId", overrideRequest.WfrId, "pipelineId", overrideRequest.PipelineId)
+		return releaseNo, dbErr
+	}
+	return valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, nil
 }
 
-func (impl *TriggerServiceImpl) buildManifestPushTemplate(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, manifest *[]byte) (*bean4.ManifestPushTemplate, error) {
+func (impl *TriggerServiceImpl) buildManifestPushTemplate(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string) (*bean4.ManifestPushTemplate, error) {
 
 	manifestPushTemplate := &bean4.ManifestPushTemplate{
 		WorkflowRunnerId:      overrideRequest.WfrId,
@@ -829,7 +898,6 @@ func (impl *TriggerServiceImpl) buildManifestPushTemplate(overrideRequest *bean3
 		AppName:               overrideRequest.AppName,
 		TargetEnvironmentName: valuesOverrideResponse.EnvOverride.TargetEnvironment,
 		BuiltChartPath:        builtChartPath,
-		BuiltChartBytes:       manifest,
 		MergedValues:          valuesOverrideResponse.MergedValues,
 	}
 
@@ -851,32 +919,8 @@ func (impl *TriggerServiceImpl) buildManifestPushTemplate(overrideRequest *bean3
 		manifestPushTemplate.ChartLocation = valuesOverrideResponse.EnvOverride.Chart.ChartLocation
 		manifestPushTemplate.RepoUrl = valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl
 		manifestPushTemplate.IsCustomGitRepository = valuesOverrideResponse.EnvOverride.Chart.IsCustomGitRepository
-		manifestPushTemplate.GitOpsRepoMigrationRequired = impl.checkIfRepoMigrationRequired(manifestPushTemplate)
 	}
 	return manifestPushTemplate, err
-}
-
-// checkIfRepoMigrationRequired checks if gitOps repo name is changed
-func (impl *TriggerServiceImpl) checkIfRepoMigrationRequired(manifestPushTemplate *bean4.ManifestPushTemplate) bool {
-	monoRepoMigrationRequired := false
-	if gitOps.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) || manifestPushTemplate.IsCustomGitRepository {
-		return false
-	}
-	var err error
-	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(manifestPushTemplate.RepoUrl)
-	if len(gitOpsRepoName) == 0 {
-		gitOpsRepoName, err = impl.getAcdAppGitOpsRepoName(manifestPushTemplate.AppName, manifestPushTemplate.EnvironmentName)
-		if err != nil || gitOpsRepoName == "" {
-			return false
-		}
-	}
-	//here will set new git repo name if required to migrate
-	newGitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(manifestPushTemplate.AppName)
-	//checking weather git repo migration needed or not, if existing git repo and new independent git repo is not same than go ahead with migration
-	if newGitOpsRepoName != gitOpsRepoName {
-		monoRepoMigrationRequired = true
-	}
-	return monoRepoMigrationRequired
 }
 
 // getAcdAppGitOpsRepoName returns the GitOps repository name, configured for the argoCd app
@@ -893,29 +937,25 @@ func (impl *TriggerServiceImpl) getAcdAppGitOpsRepoName(appName string, environm
 	return impl.argoClientWrapperService.GetGitOpsRepoName(ctx, acdAppName)
 }
 
-func (impl *TriggerServiceImpl) getManifestPushService(triggerEvent bean.TriggerEvent) app.ManifestPushService {
-	var manifestPushService app.ManifestPushService
+func (impl *TriggerServiceImpl) getManifestPushService(triggerEvent bean.TriggerEvent) publish.ManifestPushService {
+	var manifestPushService publish.ManifestPushService
 	if triggerEvent.ManifestStorageType == bean2.ManifestStorageGit {
 		manifestPushService = impl.gitOpsManifestPushService
 	}
 	return manifestPushService
 }
 
-func (impl *TriggerServiceImpl) deployApp(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse,
-	triggeredAt time.Time, ctx context.Context) error {
-
-	if util.IsAcdApp(overrideRequest.DeploymentAppType) {
-		_, span := otel.Tracer("orchestrator").Start(ctx, "deployArgocdApp")
-		err := impl.deployArgocdApp(overrideRequest, valuesOverrideResponse, triggeredAt, ctx)
-		span.End()
+func (impl *TriggerServiceImpl) deployApp(ctx context.Context, overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, triggerEvent bean.TriggerEvent) error {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.deployApp")
+	defer span.End()
+	if util.IsAcdApp(overrideRequest.DeploymentAppType) && triggerEvent.DeployArgoCdApp {
+		err := impl.deployArgoCdApp(newCtx, overrideRequest, valuesOverrideResponse)
 		if err != nil {
-			impl.logger.Errorw("error in deploying app on argocd", "err", err)
+			impl.logger.Errorw("error in deploying app on ArgoCd", "err", err)
 			return err
 		}
 	} else if util.IsHelmApp(overrideRequest.DeploymentAppType) {
-		_, span := otel.Tracer("orchestrator").Start(ctx, "createHelmAppForCdPipeline")
-		_, err := impl.createHelmAppForCdPipeline(overrideRequest, valuesOverrideResponse, triggeredAt, ctx)
-		span.End()
+		_, err := impl.createHelmAppForCdPipeline(newCtx, overrideRequest, valuesOverrideResponse)
 		if err != nil {
 			impl.logger.Errorw("error in creating or updating helm application for cd pipeline", "err", err)
 			return err
@@ -924,20 +964,34 @@ func (impl *TriggerServiceImpl) deployApp(overrideRequest *bean3.ValuesOverrideR
 	return nil
 }
 
-func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse,
-	triggeredAt time.Time, ctx context.Context) (bool, error) {
-
-	pipeline := valuesOverrideResponse.Pipeline
+func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse) (bool, error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.createHelmAppForCdPipeline")
+	defer span.End()
+	pipelineModel := valuesOverrideResponse.Pipeline
 	envOverride := valuesOverrideResponse.EnvOverride
 	mergeAndSave := valuesOverrideResponse.MergedValues
 
 	chartMetaData := &chart.Metadata{
-		Name:    pipeline.App.AppName,
+		Name:    pipelineModel.App.AppName,
 		Version: envOverride.Chart.ChartVersion,
 	}
-	referenceTemplatePath := path.Join(bean5.RefChartDirPath, envOverride.Chart.ReferenceTemplate)
+	referenceTemplate := envOverride.Chart.ReferenceTemplate
+	referenceTemplatePath := path.Join(bean5.RefChartDirPath, referenceTemplate)
 
-	if util.IsHelmApp(pipeline.DeploymentAppType) {
+	if util.IsHelmApp(pipelineModel.DeploymentAppType) {
+		var sanitizedK8sVersion string
+		//handle specific case for all cronjob charts from cronjob-chart_1-2-0 to cronjob-chart_1-5-0 where semverCompare
+		//comparison func has wrong api version mentioned, so for already installed charts via these charts that comparison
+		//is always false, handles the gh issue:- https://github.com/devtron-labs/devtron/issues/4860
+		cronJobChartRegex := regexp.MustCompile(bean.CronJobChartRegexExpression)
+		if cronJobChartRegex.MatchString(referenceTemplate) {
+			k8sServerVersion, err := impl.K8sUtil.GetKubeVersion()
+			if err != nil {
+				impl.logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
+				return false, err
+			}
+			sanitizedK8sVersion = k8s2.StripPrereleaseFromK8sVersion(k8sServerVersion.String())
+		}
 		referenceChartByte := envOverride.Chart.ReferenceChart
 		// here updating reference chart into database.
 		if len(envOverride.Chart.ReferenceChart) == 0 {
@@ -958,7 +1012,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 			referenceChartByte = refChartByte
 		}
 
-		releaseName := pipeline.DeploymentAppName
+		releaseName := pipelineModel.DeploymentAppName
 		cluster := envOverride.Environment.Cluster
 		bearerToken := cluster.Config[util5.BearerToken]
 		clusterConfig := &gRPC.ClusterConfig{
@@ -978,22 +1032,31 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 			ClusterConfig:    clusterConfig,
 		}
 
-		if pipeline.DeploymentAppCreated {
+		if pipelineModel.DeploymentAppCreated {
 			req := &gRPC.UpgradeReleaseRequest{
 				ReleaseIdentifier: releaseIdentifier,
 				ValuesYaml:        mergeAndSave,
 				HistoryMax:        impl.helmAppService.GetRevisionHistoryMaxValue(bean6.SOURCE_DEVTRON_APP),
 				ChartContent:      &gRPC.ChartContent{Content: referenceChartByte},
 			}
-			if impl.IsDevtronAsyncInstallModeEnabled(bean.Helm) {
+			if len(sanitizedK8sVersion) > 0 {
+				req.K8SVersion = sanitizedK8sVersion
+			}
+			if impl.isDevtronAsyncHelmInstallModeEnabled(overrideRequest.ForceSyncDeployment) {
 				req.RunInCtx = true
 			}
 			// For cases where helm release was not found, kubelink will install the same configuration
-			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
+			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(newCtx, req)
 			if err != nil {
-				impl.logger.Errorw("error in updating helm application for cd pipeline", "err", err)
-				if util.GetGRPCErrorDetailedMessage(err) == context.Canceled.Error() {
-					err = errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED)
+				impl.logger.Errorw("error in updating helm application for cd pipelineModel", "err", err)
+				if util.IsErrorContextCancelled(err) {
+					return false, pipelineConfig.ErrorDeploymentSuperseded
+				} else if util.IsErrorContextDeadlineExceeded(err) {
+					return false, context.DeadlineExceeded
+				}
+				apiError := clientErrors.ConvertToApiError(err)
+				if apiError != nil {
+					return false, apiError
 				}
 				return false, err
 			} else {
@@ -1002,33 +1065,39 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 
 		} else {
 
-			helmResponse, err := impl.helmInstallReleaseWithCustomChart(ctx, releaseIdentifier, referenceChartByte, mergeAndSave)
+			helmResponse, err := impl.helmInstallReleaseWithCustomChart(newCtx, releaseIdentifier, referenceChartByte,
+				mergeAndSave, sanitizedK8sVersion, overrideRequest.ForceSyncDeployment)
 
 			// For connection related errors, no need to update the db
 			if err != nil && strings.Contains(err.Error(), "connection error") {
 				impl.logger.Errorw("error in helm install custom chart", "err", err)
 				return false, err
 			}
-			if util.GetGRPCErrorDetailedMessage(err) == context.Canceled.Error() {
-				err = errors.New(pipelineConfig.NEW_DEPLOYMENT_INITIATED)
-			}
 
-			// IMP: update cd pipeline to mark deployment app created, even if helm install fails
+			// IMP: update cd pipelineModel to mark deployment app created, even if helm install fails
 			// If the helm install fails, it still creates the app in failed state, so trying to
 			// re-create the app results in error from helm that cannot re-use name which is still in use
-			_, pgErr := impl.updatePipeline(pipeline, overrideRequest.UserId)
+			_, pgErr := impl.updatePipeline(pipelineModel, overrideRequest.UserId)
 
 			if err != nil {
 				impl.logger.Errorw("error in helm install custom chart", "err", err)
-
 				if pgErr != nil {
-					impl.logger.Errorw("failed to update deployment app created flag in pipeline table", "err", err)
+					impl.logger.Errorw("failed to update deployment app created flag in pipelineModel table", "err", err)
+				}
+				if util.IsErrorContextCancelled(err) {
+					return false, pipelineConfig.ErrorDeploymentSuperseded
+				} else if util.IsErrorContextDeadlineExceeded(err) {
+					return false, context.DeadlineExceeded
+				}
+				apiError := clientErrors.ConvertToApiError(err)
+				if apiError != nil {
+					return false, apiError
 				}
 				return false, err
 			}
 
 			if pgErr != nil {
-				impl.logger.Errorw("failed to update deployment app created flag in pipeline table", "err", err)
+				impl.logger.Errorw("failed to update deployment app created flag in pipelineModel table", "err", err)
 				return false, err
 			}
 
@@ -1036,7 +1105,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 		}
 
 		//update workflow runner status, used in app workflow view
-		err := impl.cdWorkflowCommonService.UpdateCDWorkflowRunnerStatus(ctx, overrideRequest, triggeredAt, pipelineConfig.WorkflowInProgress, "")
+		err := impl.cdWorkflowCommonService.UpdateNonTerminalStatusInRunner(newCtx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowInProgress)
 		if err != nil {
 			impl.logger.Errorw("error in updating the workflow runner status, createHelmAppForCdPipeline", "err", err)
 			return false, err
@@ -1045,50 +1114,43 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean
 	return true, nil
 }
 
-func (impl *TriggerServiceImpl) deployArgocdApp(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, triggeredAt time.Time, ctx context.Context) error {
-
+func (impl *TriggerServiceImpl) deployArgoCdApp(ctx context.Context, overrideRequest *bean3.ValuesOverrideRequest,
+	valuesOverrideResponse *app.ValuesOverrideResponse) error {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.deployArgoCdApp")
+	defer span.End()
 	impl.logger.Debugw("new pipeline found", "pipeline", valuesOverrideResponse.Pipeline)
-	_, span := otel.Tracer("orchestrator").Start(ctx, "createArgoApplicationIfRequired")
-	name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, valuesOverrideResponse.EnvOverride, valuesOverrideResponse.Pipeline, overrideRequest.UserId)
-	span.End()
+	name, err := impl.createArgoApplicationIfRequired(newCtx, overrideRequest.AppId, valuesOverrideResponse.EnvOverride, valuesOverrideResponse.Pipeline, overrideRequest.UserId)
 	if err != nil {
 		impl.logger.Errorw("acd application create error on cd trigger", "err", err, "req", overrideRequest)
 		return err
 	}
-	impl.logger.Debugw("argocd application created", "name", name)
+	impl.logger.Debugw("ArgoCd application created", "name", name)
 
-	_, span = otel.Tracer("orchestrator").Start(ctx, "updateArgoPipeline")
-	updateAppInArgocd, err := impl.updateArgoPipeline(valuesOverrideResponse.Pipeline, valuesOverrideResponse.EnvOverride, ctx)
-	span.End()
+	updateAppInArgoCd, err := impl.updateArgoPipeline(newCtx, valuesOverrideResponse.Pipeline, valuesOverrideResponse.EnvOverride)
 	if err != nil {
 		impl.logger.Errorw("error in updating argocd app ", "err", err)
 		return err
 	}
 	syncTime := time.Now()
-	err = impl.argoClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, valuesOverrideResponse.Pipeline.DeploymentAppName)
+	err = impl.argoClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(newCtx, valuesOverrideResponse.Pipeline.DeploymentAppName)
 	if err != nil {
 		impl.logger.Errorw("error in getting argo application with normal refresh", "argoAppName", valuesOverrideResponse.Pipeline.DeploymentAppName)
-		return fmt.Errorf("%s. err: %s", bean.ARGOCD_SYNC_ERROR, err.Error())
+		return fmt.Errorf("%s. err: %s", bean.ARGOCD_SYNC_ERROR, util.GetClientErrorDetailedMessage(err))
 	}
-	if !impl.ACDConfig.ArgoCDAutoSyncEnabled {
+	if impl.ACDConfig.IsManualSyncEnabled() {
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: overrideRequest.WfrId,
 			StatusTime:         syncTime,
-			AuditLog: sql.AuditLog{
-				CreatedBy: 1,
-				CreatedOn: time.Now(),
-				UpdatedBy: 1,
-				UpdatedOn: time.Now(),
-			},
-			Status:       pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
-			StatusDetail: "argocd sync completed",
+			Status:             timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
+			StatusDetail:       timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_COMPLETED,
 		}
-		_, err, _ = impl.pipelineStatusTimelineService.SavePipelineStatusTimelineIfNotAlreadyPresent(overrideRequest.WfrId, timeline.Status, timeline, false)
+		timeline.CreateAuditLog(overrideRequest.UserId)
+		_, err = impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
 		if err != nil {
 			impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 		}
 	}
-	if updateAppInArgocd {
+	if updateAppInArgoCd {
 		impl.logger.Debug("argo-cd successfully updated")
 	} else {
 		impl.logger.Debug("argo-cd failed to update, ignoring it")
@@ -1097,14 +1159,16 @@ func (impl *TriggerServiceImpl) deployArgocdApp(overrideRequest *bean3.ValuesOve
 }
 
 // update repoUrl, revision and argo app sync mode (auto/manual) if needed
-func (impl *TriggerServiceImpl) updateArgoPipeline(pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) (bool, error) {
+func (impl *TriggerServiceImpl) updateArgoPipeline(ctx context.Context, pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride) (bool, error) {
 	if ctx == nil {
 		impl.logger.Errorw("err in syncing ACD, ctx is NULL", "pipelineName", pipeline.Name)
 		return false, nil
 	}
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.updateArgoPipeline")
+	defer span.End()
 	argoAppName := pipeline.DeploymentAppName
-	impl.logger.Infow("received payload, updateArgoPipeline", "appId", pipeline.AppId, "pipelineName", pipeline.Name, "envId", envOverride.TargetEnvironment, "argoAppName", argoAppName, "context", ctx)
-	argoApplication, err := impl.argoClientWrapperService.GetArgoAppByName(ctx, argoAppName)
+	impl.logger.Infow("received payload, updateArgoPipeline", "appId", pipeline.AppId, "pipelineName", pipeline.Name, "envId", envOverride.TargetEnvironment, "argoAppName", argoAppName)
+	argoApplication, err := impl.argoClientWrapperService.GetArgoAppByName(newCtx, argoAppName)
 	if err != nil {
 		impl.logger.Errorw("no argo app exists", "app", argoAppName, "pipeline", pipeline.Name)
 		return false, err
@@ -1113,7 +1177,7 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(pipeline *pipelineConfig.Pipe
 	appStatus, _ := status2.FromError(err)
 	if appStatus.Code() == codes.OK {
 		impl.logger.Debugw("argo app exists", "app", argoAppName, "pipeline", pipeline.Name)
-		if argoApplication.Spec.Source.Path != envOverride.Chart.ChartLocation || argoApplication.Spec.Source.TargetRevision != "master" {
+		if impl.argoClientWrapperService.IsArgoAppPatchRequired(argoApplication.Spec.Source, envOverride.Chart.GitRepoUrl, envOverride.Chart.ChartLocation) {
 			patchRequestDto := &bean7.ArgoCdAppPatchReqDto{
 				ArgoAppName:    argoAppName,
 				ChartLocation:  envOverride.Chart.ChartLocation,
@@ -1121,16 +1185,19 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(pipeline *pipelineConfig.Pipe
 				TargetRevision: bean7.TargetRevisionMaster,
 				PatchType:      bean7.PatchTypeMerge,
 			}
-			err = impl.argoClientWrapperService.PatchArgoCdApp(ctx, patchRequestDto)
+			err = impl.argoClientWrapperService.PatchArgoCdApp(newCtx, patchRequestDto)
 			if err != nil {
 				impl.logger.Errorw("error in patching argo pipeline", "err", err, "req", patchRequestDto)
 				return false, err
+			}
+			if envOverride.Chart.GitRepoUrl != argoApplication.Spec.Source.RepoURL {
+				impl.logger.Infow("patching argo application's repo url", "argoAppName", argoAppName)
 			}
 			impl.logger.Debugw("pipeline update req", "res", patchRequestDto)
 		} else {
 			impl.logger.Debug("pipeline no need to update ")
 		}
-		err := impl.argoClientWrapperService.UpdateArgoCDSyncModeIfNeeded(ctx, argoApplication)
+		err := impl.argoClientWrapperService.UpdateArgoCDSyncModeIfNeeded(newCtx, argoApplication)
 		if err != nil {
 			impl.logger.Errorw("error in updating argocd sync mode", "err", err)
 			return false, err
@@ -1145,8 +1212,10 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(pipeline *pipelineConfig.Pipe
 	}
 }
 
-func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(appId int, envConfigOverride *chartConfig.EnvConfigOverride, pipeline *pipelineConfig.Pipeline, userId int32) (string, error) {
-	//repo has been registered while helm create
+func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(ctx context.Context, appId int, envConfigOverride *chartConfig.EnvConfigOverride, pipeline *pipelineConfig.Pipeline, userId int32) (string, error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.createArgoApplicationIfRequired")
+	defer span.End()
+	// repo has been registered while helm create
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("no chart found ", "app", appId)
@@ -1173,12 +1242,12 @@ func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(appId int, envCo
 			TargetNamespace: appNamespace,
 			TargetServer:    envModel.Cluster.ServerUrl,
 			Project:         "default",
-			ValuesFile:      getValuesFileForEnv(envModel.Id),
+			ValuesFile:      helper.GetValuesFileForEnv(envModel.Id),
 			RepoPath:        chart.ChartLocation,
 			RepoUrl:         chart.GitRepoUrl,
 			AutoSyncEnabled: impl.ACDConfig.ArgoCDAutoSyncEnabled,
 		}
-		argoAppName, err := impl.argoK8sClient.CreateAcdApp(appRequest, envModel.Cluster, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
+		argoAppName, err := impl.argoK8sClient.CreateAcdApp(newCtx, appRequest, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
 		if err != nil {
 			return "", err
 		}
@@ -1192,10 +1261,6 @@ func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(appId int, envCo
 	}
 }
 
-func getValuesFileForEnv(environmentId int) string {
-	return fmt.Sprintf("_%d-values.yaml", environmentId) //-{envId}-values.yaml
-}
-
 func (impl *TriggerServiceImpl) updatePipeline(pipeline *pipelineConfig.Pipeline, userId int32) (bool, error) {
 	err := impl.pipelineRepository.SetDeploymentAppCreatedInPipeline(true, pipeline.Id, userId)
 	if err != nil {
@@ -1206,18 +1271,23 @@ func (impl *TriggerServiceImpl) updatePipeline(pipeline *pipelineConfig.Pipeline
 }
 
 // helmInstallReleaseWithCustomChart performs helm install with custom chart
-func (impl *TriggerServiceImpl) helmInstallReleaseWithCustomChart(ctx context.Context, releaseIdentifier *gRPC.ReleaseIdentifier, referenceChartByte []byte, valuesYaml string) (*gRPC.HelmInstallCustomResponse, error) {
-
+func (impl *TriggerServiceImpl) helmInstallReleaseWithCustomChart(ctx context.Context, releaseIdentifier *gRPC.ReleaseIdentifier,
+	referenceChartByte []byte, valuesYaml, k8sServerVersion string, forceSync bool) (*gRPC.HelmInstallCustomResponse, error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.helmInstallReleaseWithCustomChart")
+	defer span.End()
 	helmInstallRequest := gRPC.HelmInstallCustomRequest{
 		ValuesYaml:        valuesYaml,
 		ChartContent:      &gRPC.ChartContent{Content: referenceChartByte},
 		ReleaseIdentifier: releaseIdentifier,
 	}
-	if impl.IsDevtronAsyncInstallModeEnabled(bean.Helm) {
+	if len(k8sServerVersion) > 0 {
+		helmInstallRequest.K8SVersion = k8sServerVersion
+	}
+	if impl.isDevtronAsyncHelmInstallModeEnabled(forceSync) {
 		helmInstallRequest.RunInCtx = true
 	}
 	// Request exec
-	return impl.helmAppClient.InstallReleaseWithCustomChart(ctx, &helmInstallRequest)
+	return impl.helmAppClient.InstallReleaseWithCustomChart(newCtx, &helmInstallRequest)
 }
 
 func (impl *TriggerServiceImpl) writeCDTriggerEvent(overrideRequest *bean3.ValuesOverrideRequest, artifact *repository3.CiArtifact, releaseId, pipelineOverrideId int) {
@@ -1258,18 +1328,28 @@ func (impl *TriggerServiceImpl) writeCDTriggerEvent(overrideRequest *bean3.Value
 	}
 }
 
-func (impl *TriggerServiceImpl) markImageScanDeployed(appId int, envId int, imageDigest string, clusterId int, isScanEnabled bool, image string) error {
-	impl.logger.Debugw("mark image scan deployed for normal app, from cd auto or manual trigger", "imageDigest", imageDigest)
+func (impl *TriggerServiceImpl) markImageScanDeployed(ctx context.Context, appId, envId, clusterId int,
+	imageDigest string, isScanEnabled bool, image string) error {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.markImageScanDeployed")
+	defer span.End()
+	impl.logger.Debugw("mark image scan deployed for devtron app, from cd auto or manual trigger", "imageDigest", imageDigest)
 	executionHistory, err := impl.imageScanHistoryRepository.FindByImageAndDigest(imageDigest, image)
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in fetching execution history", "err", err)
 		return err
 	}
-	if executionHistory == nil || executionHistory.Id == 0 {
-		impl.logger.Errorw("no execution history found for digest", "digest", imageDigest)
-		return fmt.Errorf("no execution history found for digest - %s", imageDigest)
+	if errors.Is(err, pg.ErrNoRows) || executionHistory == nil || executionHistory.Id == 0 {
+		if isScanEnabled {
+			// There should ImageScanHistory for ScanEnabled artifacts
+			impl.logger.Errorw("no execution history found for digest", "digest", imageDigest)
+			return fmt.Errorf("no execution history found for digest - %s", imageDigest)
+		} else {
+			// For ScanDisabled artifacts it should be an expected condition
+			impl.logger.Infow("no execution history found for digest", "digest", imageDigest)
+			return nil
+		}
 	}
-	impl.logger.Debugw("mark image scan deployed for normal app, from cd auto or manual trigger", "executionHistory", executionHistory)
+	impl.logger.Debugw("saving image_scan_deploy_info for cd auto or manual trigger", "executionHistory", executionHistory)
 	var ids []int
 	ids = append(ids, executionHistory.Id)
 
@@ -1317,9 +1397,21 @@ func (impl *TriggerServiceImpl) markImageScanDeployed(appId int, envId int, imag
 	return err
 }
 
-func (impl *TriggerServiceImpl) IsDevtronAsyncInstallModeEnabled(deploymentAppType string) bool {
-	return impl.globalEnvVariables.EnableAsyncInstallDevtronChart &&
-		deploymentAppType == bean.Helm
+func (impl *TriggerServiceImpl) isDevtronAsyncHelmInstallModeEnabled(forceSync bool) bool {
+	return impl.globalEnvVariables.EnableAsyncHelmInstallDevtronChart && !forceSync
+}
+
+func (impl *TriggerServiceImpl) isDevtronAsyncArgoCdInstallModeEnabled(forceSync bool) bool {
+	return impl.globalEnvVariables.EnableAsyncArgoCdInstallDevtronChart && !forceSync
+}
+
+func (impl *TriggerServiceImpl) isDevtronAsyncInstallModeEnabled(deploymentAppType string, forceSync bool) bool {
+	if util.IsHelmApp(deploymentAppType) {
+		return impl.isDevtronAsyncHelmInstallModeEnabled(forceSync)
+	} else if util.IsAcdApp(deploymentAppType) {
+		return impl.isDevtronAsyncArgoCdInstallModeEnabled(forceSync)
+	}
+	return false
 }
 
 func (impl *TriggerServiceImpl) deleteCorruptedPipelineStage(pipelineStage *repository.PipelineStage, triggeredBy int32) (error, bool) {
@@ -1357,16 +1449,8 @@ func (impl *TriggerServiceImpl) handleCustomGitOpsRepoValidation(runner *pipelin
 			return err
 		}
 		if gitOps.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
-			// if image vulnerable, update timeline status and return
-			runner.Status = pipelineConfig.WorkflowFailed
-			runner.Message = pipelineConfig.GITOPS_REPO_NOT_CONFIGURED
-			runner.FinishedOn = time.Now()
-			runner.UpdatedOn = time.Now()
-			runner.UpdatedBy = triggeredBy
-			err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
-			if err != nil {
-				impl.logger.Errorw("error in updating wfr status due to vulnerable image", "err", err)
-				return err
+			if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(pipelineConfig.GITOPS_REPO_NOT_CONFIGURED), triggeredBy); err != nil {
+				impl.logger.Errorw("error while updating current runner status to failed, TriggerDeployment", "wfrId", runner.Id, "err", err)
 			}
 			apiErr := &util.ApiError{
 				HttpStatusCode:  http.StatusConflict,

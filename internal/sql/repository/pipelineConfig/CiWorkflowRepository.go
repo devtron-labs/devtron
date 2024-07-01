@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package pipelineConfig
@@ -43,6 +42,7 @@ type CiWorkflowRepository interface {
 	FindLastTriggeredWorkflowByCiIds(pipelineId []int) (ciWorkflow []*CiWorkflow, err error)
 	FindLastTriggeredWorkflowByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error)
 	FindAllLastTriggeredWorkflowByArtifactId(ciArtifactId []int) (ciWorkflow []*CiWorkflow, err error)
+	FindAllTriggeredWorkflowCountInLast24Hour() (ciWorkflowCount int, err error)
 	FindLastTriggeredWorkflowGitTriggersByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error)
 	FindLastTriggeredWorkflowGitTriggersByArtifactIds(ciArtifactIds []int) ([]*WorkflowWithArtifact, error)
 	ExistsByStatus(status string) (bool, error)
@@ -286,7 +286,16 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByArtifactId(ciAr
 		Select()
 	return workflow, err
 }
-
+func (impl *CiWorkflowRepositoryImpl) FindAllTriggeredWorkflowCountInLast24Hour() (ciWorkflowCount int, err error) {
+	cnt, err := impl.dbConnection.Model(&CiWorkflow{}).
+		ColumnExpr("DISTINCT ci_pipeline_id").
+		Where("started_on > ? ", time.Now().AddDate(0, 0, -1)).
+		Count()
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching ci workflow", "err", err)
+	}
+	return cnt, err
+}
 func (impl *CiWorkflowRepositoryImpl) FindAllLastTriggeredWorkflowByArtifactId(ciArtifactIds []int) (ciWorkflows []*CiWorkflow, err error) {
 	err = impl.dbConnection.Model(&ciWorkflows).
 		Column("ci_workflow.git_triggers", "ci_workflow.ci_pipeline_id", "CiPipeline", "cia.id").

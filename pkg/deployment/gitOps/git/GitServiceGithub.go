@@ -1,9 +1,26 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package git
 
 import (
 	"context"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
+	"github.com/devtron-labs/devtron/util/retryFunc"
 	"github.com/google/go-github/github"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
@@ -64,9 +81,8 @@ func (impl GitHubClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
 	return nil
 }
 
-func (impl GitHubClient) CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+func (impl GitHubClient) CreateRepository(ctx context.Context, config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
-	ctx := context.Background()
 	repoExists := true
 	url, err := impl.GetRepoUrl(config)
 	if err != nil {
@@ -111,7 +127,7 @@ func (impl GitHubClient) CreateRepository(config *bean2.GitOpsConfigDto) (url st
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
 
-	_, err = impl.CreateReadme(config)
+	_, err = impl.CreateReadme(ctx, config)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme github", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
@@ -134,7 +150,7 @@ func (impl GitHubClient) CreateRepository(config *bean2.GitOpsConfigDto) (url st
 	return *r.CloneURL, true, detailedErrorGitOpsConfigActions
 }
 
-func (impl GitHubClient) CreateReadme(config *bean2.GitOpsConfigDto) (string, error) {
+func (impl GitHubClient) CreateReadme(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
 	cfg := &ChartConfig{
 		ChartName:      config.GitRepoName,
 		ChartLocation:  "",
@@ -145,17 +161,16 @@ func (impl GitHubClient) CreateReadme(config *bean2.GitOpsConfigDto) (string, er
 		UserName:       config.Username,
 		UserEmailId:    config.UserEmailId,
 	}
-	hash, _, err := impl.CommitValues(cfg, config)
+	hash, _, err := impl.CommitValues(ctx, cfg, config)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme github", "repo", config.GitRepoName, "err", err)
 	}
 	return hash, err
 }
 
-func (impl GitHubClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
+func (impl GitHubClient) CommitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
 	branch := "master"
 	path := filepath.Join(config.ChartLocation, config.FileName)
-	ctx := context.Background()
 	newFile := false
 	fc, _, _, err := impl.client.Repositories.GetContents(ctx, impl.org, config.ChartRepoName, path, &github.RepositoryContentGetOptions{Ref: branch})
 	if err != nil {
@@ -188,8 +203,11 @@ func (impl GitHubClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.G
 			Name:  &config.UserName,
 		},
 	}
-	c, _, err := impl.client.Repositories.CreateFile(ctx, impl.org, config.ChartRepoName, path, options)
-	if err != nil {
+	c, httpRes, err := impl.client.Repositories.CreateFile(ctx, impl.org, config.ChartRepoName, path, options)
+	if err != nil && httpRes != nil && httpRes.StatusCode == http2.StatusConflict {
+		impl.logger.Warn("conflict found in commit github", "err", err, "config", config)
+		return "", time.Time{}, retryFunc.NewRetryableError(err)
+	} else if err != nil {
 		impl.logger.Errorw("error in commit github", "err", err, "config", config)
 		return "", time.Time{}, err
 	}

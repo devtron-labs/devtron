@@ -10,7 +10,7 @@ Click the '**+**' sign on CI Pipeline to attach a CD Pipeline to it.
 
 A basic `Create deployment pipeline` window will pop up.
 
-![Figure 1b: Creating CD Pipeline](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/ca-workflow-basic-v2.jpg)
+![Figure 1b: Creating CD Pipeline](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/cd-workflow-basic-v3.jpg)
 
 Here, you get three sections:
 
@@ -20,13 +20,14 @@ Here, you get three sections:
 
 ### Deploy to Environment
 
-This section expects three inputs from you:
+This section expects four inputs from you:
 
 | Setting     | Description                                                | Options                   |
 | ----------- | ---------------------------------------------------------- | ------------------------- |
 | Environment | Select the environment where you want to deploy your application | (List of available environments)  |
 | Namespace   | Automatically populated based on the selected environment | Not Applicable                           |
 | Trigger     | When to execute the deployment pipeline                   | **Automatic**: Deployment triggers automatically when a new image completes the previous stage (build pipeline or another deployment pipeline) <br /> **Manual**: Deployment is not initiated automatically. You can trigger deployment with a desired image. |
+| Deployment Approach | How to deploy the application | **Helm** or **GitOps** <br /> Refer [GitOps](../../global-configurations/gitops.md)  |
 
 ### Deployment Strategy
 

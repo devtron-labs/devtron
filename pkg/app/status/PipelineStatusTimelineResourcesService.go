@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package status
 
 import (
@@ -11,7 +27,7 @@ import (
 )
 
 type PipelineStatusTimelineResourcesService interface {
-	SaveOrUpdatePipelineTimelineResources(pipelineId int, application *v1alpha1.Application, tx *pg.Tx, userId int32, isAppStore bool) error
+	SaveOrUpdatePipelineTimelineResources(runnerHistoryId int, application *v1alpha1.Application, tx *pg.Tx, userId int32, isAppStore bool) error
 	GetTimelineResourcesForATimeline(cdWfrIds []int) (map[int][]*SyncStageResourceDetailDto, error)
 	GetTimelineResourcesForATimelineForAppStore(installedAppVersionHistoryId int) ([]*SyncStageResourceDetailDto, error)
 }
@@ -44,21 +60,21 @@ type SyncStageResourceDetailDto struct {
 	TimelineStage                pipelineConfig.ResourceTimelineStage `json:"timelineStage,omitempty"`
 }
 
-func (impl *PipelineStatusTimelineResourcesServiceImpl) SaveOrUpdatePipelineTimelineResources(pipelineId int, application *v1alpha1.Application, tx *pg.Tx, userId int32, isAppStore bool) error {
+func (impl *PipelineStatusTimelineResourcesServiceImpl) SaveOrUpdatePipelineTimelineResources(runnerHistoryId int, application *v1alpha1.Application, tx *pg.Tx, userId int32, isAppStore bool) error {
 	var err error
 	var timelineResources []*pipelineConfig.PipelineStatusTimelineResources
 	if isAppStore {
 		//getting all timeline resources by installedAppVersionHistoryId
-		timelineResources, err = impl.pipelineStatusTimelineResourcesRepository.GetByInstalledAppVersionHistoryIdAndTimelineStage(pipelineId)
+		timelineResources, err = impl.pipelineStatusTimelineResourcesRepository.GetByInstalledAppVersionHistoryIdAndTimelineStage(runnerHistoryId)
 		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in getting timelineResources for installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", pipelineId)
+			impl.logger.Errorw("error in getting timelineResources for installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", runnerHistoryId)
 			return err
 		}
 	} else {
 		//getting all timeline resources by cdWfrId
-		timelineResources, err = impl.pipelineStatusTimelineResourcesRepository.GetByCdWfrIdAndTimelineStage(pipelineId)
+		timelineResources, err = impl.pipelineStatusTimelineResourcesRepository.GetByCdWfrIdAndTimelineStage(runnerHistoryId)
 		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in getting timelineResources for wfrId", "err", err, "wfrId", pipelineId)
+			impl.logger.Errorw("error in getting timelineResources for wfrId", "err", err, "wfrId", runnerHistoryId)
 			return err
 		}
 	}
@@ -97,9 +113,9 @@ func (impl *PipelineStatusTimelineResourcesServiceImpl) SaveOrUpdatePipelineTime
 						},
 					}
 					if isAppStore {
-						newTimelineResource.InstalledAppVersionHistoryId = pipelineId
+						newTimelineResource.InstalledAppVersionHistoryId = runnerHistoryId
 					} else {
-						newTimelineResource.CdWorkflowRunnerId = pipelineId
+						newTimelineResource.CdWorkflowRunnerId = runnerHistoryId
 					}
 					if resource.HookType != "" {
 						newTimelineResource.ResourcePhase = string(resource.HookType)

@@ -13,7 +13,7 @@ jobs:
         uses: danhellem/github-actions-issue-to-work-item@v2.1
         env:
           ado_token: "${{ secrets.ADO_PERSONAL_ACCESS_TOKEN }}"
-          github_token: "${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}"
+          github_token: "${{ secrets.GH_SYSTEMSDT_TOKEN }}"
           ado_organization: "DevtronLabs"
           ado_project: "Devtron"
           ado_wit: "Bug"
@@ -26,7 +26,7 @@ jobs:
         uses: danhellem/github-actions-issue-to-work-item@v2.1
         env:
           ado_token: "${{ secrets.ADO_PERSONAL_ACCESS_TOKEN }}"
-          github_token: "${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}"
+          github_token: "${{ secrets.GH_SYSTEMSDT_TOKEN }}"
           ado_organization: "DevtronLabs"
           ado_project: "Devtron"
           ado_wit: "User Story"
@@ -50,7 +50,7 @@ jobs:
     steps:
       - uses: wow-actions/potential-duplicates@v1
         with:
-          GITHUB_TOKEN: "${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}"
+          GITHUB_TOKEN: "${{ secrets.GH_SYSTEMSDT_TOKEN }}"
           # Issue title filter work with anymatch https://www.npmjs.com/package/anymatch.
           # Any matched issue will stop detection immediately.
           # You can specify multi filters in each line.

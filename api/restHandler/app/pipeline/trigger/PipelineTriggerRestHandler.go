@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package trigger
@@ -27,7 +26,6 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	bean4 "github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
-	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	"net/http"
 	"strconv"
 
@@ -65,7 +63,6 @@ type PipelineTriggerRestHandlerImpl struct {
 	enforcer                    casbin.Enforcer
 	teamService                 team.TeamService
 	logger                      *zap.SugaredLogger
-	workflowDagExecutor         dag.WorkflowDagExecutor
 	enforcerUtil                rbac.EnforcerUtil
 	deploymentGroupService      deploymentGroup.DeploymentGroupService
 	argoUserService             argo.ArgoUserService
@@ -77,7 +74,7 @@ type PipelineTriggerRestHandlerImpl struct {
 
 func NewPipelineRestHandler(appService app.AppService, userAuthService user.UserService, validator *validator.Validate,
 	enforcer casbin.Enforcer, teamService team.TeamService, logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
-	workflowDagExecutor dag.WorkflowDagExecutor, deploymentGroupService deploymentGroup.DeploymentGroupService,
+	deploymentGroupService deploymentGroup.DeploymentGroupService,
 	argoUserService argo.ArgoUserService, deploymentConfigService pipeline.DeploymentConfigService,
 	deployedAppService deployedApp.DeployedAppService,
 	cdTriggerService devtronApps.TriggerService,
@@ -89,7 +86,6 @@ func NewPipelineRestHandler(appService app.AppService, userAuthService user.User
 		enforcer:                    enforcer,
 		teamService:                 teamService,
 		logger:                      logger,
-		workflowDagExecutor:         workflowDagExecutor,
 		enforcerUtil:                enforcerUtil,
 		deploymentGroupService:      deploymentGroupService,
 		argoUserService:             argoUserService,

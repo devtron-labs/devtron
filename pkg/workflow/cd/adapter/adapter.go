@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package adapter
 
 import (
@@ -44,5 +60,28 @@ func ConvertCdWorkflowDtoToDbObj(dto *bean.CdWorkflowDto) *pipelineConfig.CdWork
 			UpdatedOn: time.Now(),
 			UpdatedBy: dto.UserId,
 		},
+	}
+}
+
+func ConvertCdWorkflowRunnerDtoToDbObj(dto *bean.CdWorkflowRunnerDto) *pipelineConfig.CdWorkflowRunner {
+	return &pipelineConfig.CdWorkflowRunner{
+		Id:                      dto.Id,
+		Name:                    dto.Name,
+		WorkflowType:            dto.WorkflowType,
+		ExecutorType:            dto.ExecutorType,
+		Status:                  dto.Status,
+		PodStatus:               dto.PodStatus,
+		Message:                 dto.Message,
+		StartedOn:               dto.StartedOn,
+		FinishedOn:              dto.FinishedOn,
+		Namespace:               dto.Namespace,
+		LogLocation:             dto.LogLocation,
+		TriggeredBy:             dto.TriggeredBy,
+		CdWorkflowId:            dto.CdWorkflowId,
+		PodName:                 dto.PodName,
+		BlobStorageEnabled:      dto.BlobStorageEnabled,
+		RefCdWorkflowRunnerId:   dto.RefCdWorkflowRunnerId,
+		ImagePathReservationIds: dto.ImagePathReservationIds,
+		ReferenceId:             dto.ReferenceId,
 	}
 }

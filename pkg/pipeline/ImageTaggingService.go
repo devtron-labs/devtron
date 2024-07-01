@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package pipeline
@@ -40,10 +39,10 @@ type ImageTaggingServiceConfig struct {
 }
 
 type ImageTaggingService interface {
-	// GetTagsData returns the following fields in reponse Object
-	//ImageReleaseTags -> this will get the tags of the artifact,
-	//AppReleaseTags -> all the tags of the given appId,
-	//imageComment -> comment of the given artifactId,
+	// GetTagsData returns the following fields in response Object
+	// ImageReleaseTags -> this will get the tags of the artifact,
+	// AppReleaseTags -> all the tags of the given appId,
+	// imageComment -> comment of the given artifactId,
 	// ProdEnvExists -> implies the existence of prod environment in any workflow of given ciPipelineId or its child ciPipelineRequest's
 	GetTagsData(ciPipelineId, appId, artifactId int, externalCi bool) (*types.ImageTaggingResponseDTO, error)
 	CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, userId int, imageTaggingRequest *types.ImageTaggingRequestDTO) (*types.ImageTaggingResponseDTO, error)
@@ -51,10 +50,10 @@ type ImageTaggingService interface {
 	GetProdEnvByCdPipelineId(pipelineId int) (bool, error)
 	// ValidateImageTaggingRequest validates the requested payload
 	ValidateImageTaggingRequest(imageTaggingRequest *types.ImageTaggingRequestDTO, appId, artifactId int) (bool, error)
-	GetTagsByArtifactId(artifactId int) ([]*repository.ImageTag, error)
-	// GetTaggingDataMapByAppId this will fetch a map of artifact vs []tags for given appId
+	GetTagNamesByArtifactId(artifactId int) ([]string, error)
+	// GetTagsDataMapByAppId this will fetch a map of artifact vs []tags for given appId
 	GetTagsDataMapByAppId(appId int) (map[int][]*repository.ImageTag, error)
-	// GetTaggingDataMapByAppId this will fetch a map of artifact vs imageComment for given artifactIds
+	// GetImageCommentsDataMapByArtifactIds this will fetch a map of artifact vs imageComment for given artifactIds
 	GetImageCommentsDataMapByArtifactIds(artifactIds []int) (map[int]*repository.ImageComment, error)
 	// GetUniqueTagsByAppId gets all the unique tag names for the given appId
 	GetUniqueTagsByAppId(appId int) ([]string, error)
@@ -112,7 +111,7 @@ func (impl ImageTaggingServiceImpl) GetTagsData(ciPipelineId, appId, artifactId 
 		impl.logger.Errorw("error in fetching image tags using appId", "err", err, "appId", appId)
 		return resp, err
 	}
-	imageReleaseTags, err := impl.GetTagsByArtifactId(artifactId)
+	imageReleaseTags, err := impl.getTagsByArtifactId(artifactId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching image tags using artifactId", "err", err, "artifactId", artifactId)
 		return resp, err
@@ -135,9 +134,9 @@ func (impl ImageTaggingServiceImpl) GetTagsData(ciPipelineId, appId, artifactId 
 	return resp, err
 }
 
-func (impl ImageTaggingServiceImpl) GetTagsByArtifactId(artifactId int) ([]*repository.ImageTag, error) {
+func (impl ImageTaggingServiceImpl) getTagsByArtifactId(artifactId int) ([]*repository.ImageTag, error) {
 	imageReleaseTags, err := impl.imageTaggingRepo.GetTagsByArtifactId(artifactId)
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		//log error
 		impl.logger.Errorw("error in fetching image tags using artifactId", "err", err, "artifactId", artifactId)
 		return imageReleaseTags, err
@@ -145,7 +144,20 @@ func (impl ImageTaggingServiceImpl) GetTagsByArtifactId(artifactId int) ([]*repo
 	return imageReleaseTags, nil
 }
 
-// GetTaggingDataMapByAppId this will fetch a map of artifact vs []tags for given appId
+func (impl ImageTaggingServiceImpl) GetTagNamesByArtifactId(artifactId int) ([]string, error) {
+	imageReleaseTags, err := impl.getTagsByArtifactId(artifactId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching image tags using artifactId", "err", err, "artifactId", artifactId)
+		return nil, err
+	}
+	releaseTags := make([]string, 0, len(imageReleaseTags))
+	for _, imageTag := range imageReleaseTags {
+		releaseTags = append(releaseTags, imageTag.TagName)
+	}
+	return releaseTags, nil
+}
+
+// GetTagsDataMapByAppId this will fetch a map of artifact vs []tags for given appId
 func (impl ImageTaggingServiceImpl) GetTagsDataMapByAppId(appId int) (map[int][]*repository.ImageTag, error) {
 	tags, err := impl.imageTaggingRepo.GetTagsByAppId(appId)
 	if err != nil {

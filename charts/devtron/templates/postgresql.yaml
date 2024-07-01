@@ -117,7 +117,7 @@ spec:
         fsGroup: 1001
       initContainers:
         - name: init-chmod-data
-          image: "quay.io/devtron/minideb:latest"
+          image: {{ include "common.image" (dict "component" $.Values.components.postgres "global" $.Values.global "extraImage" $.Values.components.postgres.initImage ) }}
           imagePullPolicy: "IfNotPresent"
           command:
             - /bin/sh
@@ -145,7 +145,7 @@ spec:
               mountPath: /dev/shm
       containers:
         - name: postgresql-postgresql
-          image: {{ .image }}
+          image: {{ include "common.image" (dict "component" $.Values.components.postgres "global" $.Values.global ) }}
           imagePullPolicy: {{ .imagePullPolicy }}
           securityContext:
             runAsUser: 1001
@@ -212,7 +212,7 @@ spec:
               mountPath: /bitnami/postgresql
               subPath:
         - name: metrics
-          image: quay.io/devtron/postgres_exporter:v0.4.7
+          image: {{ include "common.image" (dict "component" $.Values.components.postgres.metrics "global" $.Values.global ) }}
           imagePullPolicy: "IfNotPresent"
           env:
             - name: DATA_SOURCE_URI
@@ -453,7 +453,7 @@ spec:
             runAsGroup: 999
             runAsNonRoot: true
             runAsUser: 999
-          image: {{ .armImage }}
+          image: {{ include "common.image" (dict "component" $.Values.components.postgres "global" $.Values.global "extraImage" $.Values.components.postgres.armImage ) }}
           imagePullPolicy: {{ .imagePullPolicy }}
           {{- if .initContainer }}
           {{- if .initContainer.resources }}
@@ -480,7 +480,7 @@ spec:
             runAsGroup: 999
             runAsNonRoot: true
             runAsUser: 999
-          image: {{ .armImage }}
+          image: {{ include "common.image" (dict "component" $.Values.components.postgres "global" $.Values.global "extraImage" $.Values.components.postgres.armImage ) }}
           imagePullPolicy: {{ .imagePullPolicy }}
           {{- if .resources }}
           resources:
@@ -546,7 +546,7 @@ spec:
             - mountPath: /etc/postgresql
               name: configs
         - name: metrics
-          image: prometheuscommunity/postgres-exporter:v0.10.1
+          image: {{ include "common.image" (dict "component" $.Values.components.postgres.metrics "global" $.Values.global "extraImage" $.Values.components.postgres.metrics.armImage ) }}
           imagePullPolicy: "IfNotPresent"
           env:
             - name: DATA_SOURCE_URI

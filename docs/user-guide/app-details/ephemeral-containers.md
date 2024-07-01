@@ -57,14 +57,7 @@ Wherever you can access pod resources in Devtron, you can launch an ephemeral co
 
 ### From Devtron (Resource Browser)
 
-{% embed url="https://www.youtube.com/watch?v=Ml19i29Ivc4" caption="Launching Ephemeral Containers from Resource Browser" %}
-
-1. In the left sidebar, go to **Resource Browser**.
-2. Select **Pod** inside `Workloads`.
-3. Use the searchbar to find and locate the pod you wish to debug. Click the pod.
-4. Go to the **Terminal** tab 
-
-The rest is same as steps 6, 7, and 8 mentioned in the [previous section](#from-devtron-app-details).
+Click [here](../resource-browser.md#launching-ephemeral-container) to know more.
 
 ### From Devtron's Cluster Terminal
 

@@ -38,7 +38,7 @@ A place where all Helm charts are centrally listed for users to deploy applicati
 
 A cluster in Kubernetes refers to a set of connected computers (nodes) that collectively manage containerized applications using Kubernetes. It provides resources and services to run, manage, and scale applications. 
 
-In Devtron, you can view the list of clusters in ‘Global Configurations’ available in the left sidebar. [Read More...](../user-guide/clusters.md)
+In Devtron, you can view the list of clusters in 'Global Configurations' as well as 'Resource Browser'. [Read More...](../user-guide/resource-browser.md)
 
 ### Commit Hash
 
@@ -58,7 +58,7 @@ An OCI-compliant registry can also store artifacts (such as helm charts). Here, 
 
 ### Cordoning
 
-Temporarily marking a node as unschedulable, preventing new pods from being assigned to it. In Devtron, you can cordon a node by going to Resource Browser → (choose a cluster) → Nodes → (click on a node) → Cordon (available in blue). [Read More...](../user-guide/clusters.md#cordon-a-node)
+Temporarily marking a node as unschedulable, preventing new pods from being assigned to it. In Devtron, you can cordon a node by going to Resource Browser → (choose a cluster) → Nodes → (click on a node) → Cordon (available in blue). [Read More...](../user-guide/resource-browser.md#cordon-a-node)
 
 ### CronJob
 
@@ -98,7 +98,7 @@ However, in case you don't have a Dockerfile, Devtron helps you create one. Go t
 
 Evacuating pods from a node before cordoning it, ensuring that running pods are gracefully rescheduled on other nodes. 
 
-In Devtron, you can drain a node by going to Resource Browser → (choose a cluster) → Nodes → (click on a node) → Drain (available in blue). [Read More...](../user-guide/clusters.md#drain-a-node)
+In Devtron, you can drain a node by going to Resource Browser → (choose a cluster) → Nodes → (click on a node) → Drain (available in blue). [Read More...](../user-guide/resource-browser.md#drain-a-node)
 
 ### Environment
 
@@ -164,7 +164,7 @@ In Devtron, you can view a list of namespaces by going to Resource Browser → (
 
 A setting applied to a node that influences the scheduling of pods. Taints can restrict which pods are allowed to run on the node. 
 
-In Devtron, you can edit the taints of a node by going to Resource Browser → (choose a cluster) → Nodes → (click on a node) → Edit taints (available in blue). [Read More...](../user-guide/clusters.md#taint-a-node)
+In Devtron, you can edit the taints of a node by going to Resource Browser → (choose a cluster) → Nodes → (click on a node) → Edit taints (available in blue). [Read More...](../user-guide/resource-browser.md#taint-a-node)
 
 ### NodePort
 
@@ -174,7 +174,13 @@ A Kubernetes service type that exposes a port on each node in the cluster, makin
 
 The physical or virtual machines that make up a Kubernetes cluster, where containers are scheduled to run. 
 
-In Devtron, you can view nodes by going to Resource Browser → (choose a cluster) → Nodes. [Read More...](../user-guide/clusters.md#nodes)
+In Devtron, you can view nodes by going to Resource Browser → (choose a cluster) → Nodes. [Read More...](../user-guide/resource-browser.md#nodes)
+
+### Objects
+
+Kubernetes objects are the building blocks that define and manage your applications running on the platform. They are also known as 'Resources' or 'Kinds'. This includes nodes, pods, deployment, cronjob, configmap, and many more. 
+
+Devtron's [Resource Browser](../user-guide/resource-browser.md) helps you manage all such objects present in your clusters.
 
 ### Pod
 

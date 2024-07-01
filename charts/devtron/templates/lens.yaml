@@ -8,6 +8,7 @@ metadata:
   labels:
     app: lens
     release: devtron
+type: Opaque
 {{- if .secrets }}
 data:
 {{- range $k, $v := .secrets }}
@@ -73,7 +74,7 @@ spec:
       {{- end }}
       containers:
         - name: lens
-          image: {{ .image }}
+          image: {{ include "common.image" (dict "component" $.Values.components.lens "global" $.Values.global) }}
           {{- if  .imagePullPolicy }}
           imagePullPolicy: {{ .imagePullPolicy }}
           {{- end }}

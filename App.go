@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package main
@@ -22,7 +21,9 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/devtron-labs/common-lib/middlewares"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor/in"
 	"log"
 	"net/http"
 	"os"
@@ -35,7 +36,6 @@ import (
 
 	"github.com/casbin/casbin"
 	authMiddleware "github.com/devtron-labs/authenticator/middleware"
-	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/internal/middleware"
@@ -52,14 +52,15 @@ type App struct {
 	Enforcer              *casbin.SyncedEnforcer
 	server                *http.Server
 	db                    *pg.DB
-	pubsubClient          *pubsub.PubSubClientServiceImpl
 	posthogClient         *telemetry.PosthogClient
 	centralEventProcessor *eventProcessor.CentralEventProcessor
 	// used for local dev only
-	serveTls           bool
-	sessionManager2    *authMiddleware.SessionManager
-	OtelTracingService *otel.OtelTracingServiceImpl
-	loggingMiddleware  util.LoggingMiddleware
+	serveTls                   bool
+	sessionManager2            *authMiddleware.SessionManager
+	OtelTracingService         *otel.OtelTracingServiceImpl
+	loggingMiddleware          util.LoggingMiddleware
+	pubSubClient               *pubsub.PubSubClientServiceImpl
+	workflowEventProcessorImpl *in.WorkflowEventProcessorImpl
 }
 
 func NewApp(router *router.MuxRouter,
@@ -67,27 +68,29 @@ func NewApp(router *router.MuxRouter,
 	sse *sse.SSE,
 	enforcer *casbin.SyncedEnforcer,
 	db *pg.DB,
-	pubsubClient *pubsub.PubSubClientServiceImpl,
 	sessionManager2 *authMiddleware.SessionManager,
 	posthogClient *telemetry.PosthogClient,
 	loggingMiddleware util.LoggingMiddleware,
 	centralEventProcessor *eventProcessor.CentralEventProcessor,
+	pubSubClient *pubsub.PubSubClientServiceImpl,
+	workflowEventProcessorImpl *in.WorkflowEventProcessorImpl,
 ) *App {
 	//check argo connection
 	//todo - check argo-cd version on acd integration installation
 	app := &App{
-		MuxRouter:             router,
-		Logger:                Logger,
-		SSE:                   sse,
-		Enforcer:              enforcer,
-		db:                    db,
-		pubsubClient:          pubsubClient,
-		serveTls:              false,
-		sessionManager2:       sessionManager2,
-		posthogClient:         posthogClient,
-		OtelTracingService:    otel.NewOtelTracingServiceImpl(Logger),
-		loggingMiddleware:     loggingMiddleware,
-		centralEventProcessor: centralEventProcessor,
+		MuxRouter:                  router,
+		Logger:                     Logger,
+		SSE:                        sse,
+		Enforcer:                   enforcer,
+		db:                         db,
+		serveTls:                   false,
+		sessionManager2:            sessionManager2,
+		posthogClient:              posthogClient,
+		OtelTracingService:         otel.NewOtelTracingServiceImpl(Logger),
+		loggingMiddleware:          loggingMiddleware,
+		centralEventProcessor:      centralEventProcessor,
+		pubSubClient:               pubSubClient,
+		workflowEventProcessorImpl: workflowEventProcessorImpl,
 	}
 	return app
 }
@@ -137,6 +140,11 @@ func (app *App) Start() {
 
 func (app *App) Stop() {
 	app.Logger.Info("orchestrator shutdown initiating")
+	err := app.pubSubClient.ShutDown()
+	if err != nil {
+		app.Logger.Errorw("error in NATS client shutdown", "err", err)
+	}
+	app.workflowEventProcessorImpl.ShutDownDevtronAppReleaseContext()
 	posthogCl := app.posthogClient.Client
 	if posthogCl != nil {
 		app.Logger.Info("flushing messages of posthog")
@@ -144,7 +152,7 @@ func (app *App) Stop() {
 	}
 	timeoutContext, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	app.Logger.Infow("closing router")
-	err := app.server.Shutdown(timeoutContext)
+	err = app.server.Shutdown(timeoutContext)
 	if err != nil {
 		app.Logger.Errorw("error in mux router shutdown", "err", err)
 	}

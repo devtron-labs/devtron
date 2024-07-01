@@ -1,36 +1,27 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package pipelineConfig
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
-)
-
-type TimelineStatus = string
-
-var TimelineStatusDescription string
-
-const (
-	TIMELINE_STATUS_DEPLOYMENT_INITIATED   TimelineStatus = "DEPLOYMENT_INITIATED"
-	TIMELINE_STATUS_GIT_COMMIT             TimelineStatus = "GIT_COMMIT"
-	TIMELINE_STATUS_GIT_COMMIT_FAILED      TimelineStatus = "GIT_COMMIT_FAILED"
-	TIMELINE_STATUS_ARGOCD_SYNC_INITIATED  TimelineStatus = "ARGOCD_SYNC_INITIATED"
-	TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED  TimelineStatus = "ARGOCD_SYNC_COMPLETED"
-	TIMELINE_STATUS_KUBECTL_APPLY_STARTED  TimelineStatus = "KUBECTL_APPLY_STARTED"
-	TIMELINE_STATUS_KUBECTL_APPLY_SYNCED   TimelineStatus = "KUBECTL_APPLY_SYNCED"
-	TIMELINE_STATUS_APP_HEALTHY            TimelineStatus = "HEALTHY"
-	TIMELINE_STATUS_DEPLOYMENT_FAILED      TimelineStatus = "FAILED"
-	TIMELINE_STATUS_FETCH_TIMED_OUT        TimelineStatus = "TIMED_OUT"
-	TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS TimelineStatus = "UNABLE_TO_FETCH_STATUS"
-	TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED  TimelineStatus = "DEPLOYMENT_SUPERSEDED"
-	TIMELINE_STATUS_MANIFEST_GENERATED     TimelineStatus = "MANIFEST_GENERATED"
-)
-
-const (
-	TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED string = "Deployment initiated successfully."
-	TIMELINE_DESCRIPTION_VULNERABLE_IMAGE     string = "Deployment failed: Vulnerability policy violated."
-	TIMELINE_DESCRIPTION_MANIFEST_GENERATED   string = "HELM_PACKAGE_GENERATED"
 )
 
 type PipelineStatusTimelineRepository interface {
@@ -39,17 +30,23 @@ type PipelineStatusTimelineRepository interface {
 	UpdateTimelines(timelines []*PipelineStatusTimeline) error
 	UpdateTimelinesWithTxn(timelines []*PipelineStatusTimeline, tx *pg.Tx) error
 	FetchTimelinesByPipelineId(pipelineId int) ([]*PipelineStatusTimeline, error)
+	// FetchTimelinesByWfrId - Gets the exposed timelines for Helm Applications,
+	// ignoring internalTimelineStatusList in sql query as it is not handled at FE
 	FetchTimelinesByWfrId(wfrId int) ([]*PipelineStatusTimeline, error)
-	FetchTimelineByWfrIdAndStatus(wfrId int, status TimelineStatus) (*PipelineStatusTimeline, error)
-	FetchTimelineByInstalledAppVersionHistoryIdAndStatus(installedAppVersionHistoryId int, status TimelineStatus) (*PipelineStatusTimeline, error)
-	FetchTimelineByWfrIdAndStatuses(wfrId int, statuses []TimelineStatus) ([]*PipelineStatusTimeline, error)
-	FetchTimelineByInstalledAppVersionHistoryIdAndPipelineStatuses(installedAppVersionHistoryId int, statuses []TimelineStatus) ([]*PipelineStatusTimeline, error)
-	FetchLatestTimelineByWfrId(wfrId int) (*PipelineStatusTimeline, error)
+	FetchTimelineByWfrIdAndStatus(wfrId int, status timelineStatus.TimelineStatus) (*PipelineStatusTimeline, error)
+	FetchTimelineByInstalledAppVersionHistoryIdAndStatus(installedAppVersionHistoryId int, status timelineStatus.TimelineStatus) (*PipelineStatusTimeline, error)
+	FetchTimelineByWfrIdAndStatuses(wfrId int, statuses []timelineStatus.TimelineStatus) ([]*PipelineStatusTimeline, error)
+	FetchTimelineByInstalledAppVersionHistoryIdAndPipelineStatuses(installedAppVersionHistoryId int, statuses []timelineStatus.TimelineStatus) ([]*PipelineStatusTimeline, error)
+	GetLastStatusPublishedTimeForWfrId(wfrId int) (time.Time, error)
+	FetchTimelinesForWfrIdExcludingStatuses(wfrId int, statuses ...timelineStatus.TimelineStatus) ([]*PipelineStatusTimeline, error)
 	CheckIfTerminalStatusTimelinePresentByWfrId(wfrId int) (bool, error)
+	CheckIfTimelineStatusPresentByWfrId(wfrId int, status timelineStatus.TimelineStatus) (bool, error)
 	CheckIfTerminalStatusTimelinePresentByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) (bool, error)
-	FetchLatestTimelineByAppIdAndEnvId(appId, envId int) (*PipelineStatusTimeline, error)
-	DeleteByCdWfrIdAndTimelineStatuses(cdWfrId int, status []TimelineStatus) error
-	DeleteByCdWfrIdAndTimelineStatusesWithTxn(cdWfrId int, status []TimelineStatus, tx *pg.Tx) error
+	CheckIfTimelineStatusPresentByInstalledAppVersionHistoryId(installedAppVersionHistoryId int, status timelineStatus.TimelineStatus) (bool, error)
+	DeleteByCdWfrIdAndTimelineStatuses(cdWfrId int, status []timelineStatus.TimelineStatus) error
+	DeleteByCdWfrIdAndTimelineStatusesWithTxn(cdWfrId int, status []timelineStatus.TimelineStatus, tx *pg.Tx) error
+	// FetchTimelinesByInstalledAppVersionHistoryId - Gets the exposed timelines for Helm Applications,
+	// ignoring internalTimelineStatusList in sql query as it is not handled at FE
 	FetchTimelinesByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) ([]*PipelineStatusTimeline, error)
 	FetchLatestTimelinesByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) (*PipelineStatusTimeline, error)
 	GetConnection() *pg.DB
@@ -69,13 +66,13 @@ func NewPipelineStatusTimelineRepositoryImpl(dbConnection *pg.DB,
 }
 
 type PipelineStatusTimeline struct {
-	tableName                    struct{}       `sql:"pipeline_status_timeline" pg:",discard_unknown_columns"`
-	Id                           int            `sql:"id,pk"`
-	InstalledAppVersionHistoryId int            `sql:"installed_app_version_history_id,type:integer"`
-	CdWorkflowRunnerId           int            `sql:"cd_workflow_runner_id,type:integer"`
-	Status                       TimelineStatus `sql:"status"`
-	StatusDetail                 string         `sql:"status_detail"`
-	StatusTime                   time.Time      `sql:"status_time"`
+	tableName                    struct{}                      `sql:"pipeline_status_timeline" pg:",discard_unknown_columns"`
+	Id                           int                           `sql:"id,pk"`
+	InstalledAppVersionHistoryId int                           `sql:"installed_app_version_history_id,type:integer"`
+	CdWorkflowRunnerId           int                           `sql:"cd_workflow_runner_id,type:integer"`
+	Status                       timelineStatus.TimelineStatus `sql:"status"`
+	StatusDetail                 string                        `sql:"status_detail"`
+	StatusTime                   time.Time                     `sql:"status_time"`
 	sql.AuditLog
 }
 
@@ -128,10 +125,10 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelinesByPipelineId(pip
 }
 
 func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelinesByWfrId(wfrId int) ([]*PipelineStatusTimeline, error) {
-	//ignoring 'ARGOCD_SYNC_INITIATED' in sql query as it is not handled at FE
 	var timelines []*PipelineStatusTimeline
 	err := impl.dbConnection.Model(&timelines).
-		Where("cd_workflow_runner_id = ? and status !='ARGOCD_SYNC_INITIATED' ", wfrId).
+		Where("cd_workflow_runner_id = ?", wfrId).
+		Where("status NOT IN (?)", pg.In(timelineStatus.InternalTimelineStatusList)).
 		Order("status_time ASC").Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting timelines by wfrId", "err", err, "wfrId", wfrId)
@@ -140,20 +137,16 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelinesByWfrId(wfrId in
 	return timelines, nil
 }
 
-func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByWfrIdAndStatus(wfrId int, status TimelineStatus) (*PipelineStatusTimeline, error) {
+func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByWfrIdAndStatus(wfrId int, status timelineStatus.TimelineStatus) (*PipelineStatusTimeline, error) {
 	timeline := &PipelineStatusTimeline{}
 	err := impl.dbConnection.Model(timeline).
 		Where("cd_workflow_runner_id = ?", wfrId).
 		Where("status = ?", status).
 		Limit(1).Select()
-	if err != nil {
-		impl.logger.Errorw("error in getting timeline of latest wf by wfrId and status", "err", err, "wfrId", wfrId, "status", status)
-		return nil, err
-	}
-	return timeline, nil
+	return timeline, err
 }
 
-func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByInstalledAppVersionHistoryIdAndStatus(installedAppVersionHistoryId int, status TimelineStatus) (*PipelineStatusTimeline, error) {
+func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByInstalledAppVersionHistoryIdAndStatus(installedAppVersionHistoryId int, status timelineStatus.TimelineStatus) (*PipelineStatusTimeline, error) {
 	timeline := &PipelineStatusTimeline{}
 	err := impl.dbConnection.Model(timeline).
 		Where("installed_app_version_history_id = ?", installedAppVersionHistoryId).
@@ -166,7 +159,7 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByInstalledAppVer
 	return timeline, nil
 }
 
-func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByWfrIdAndStatuses(wfrId int, statuses []TimelineStatus) ([]*PipelineStatusTimeline, error) {
+func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByWfrIdAndStatuses(wfrId int, statuses []timelineStatus.TimelineStatus) ([]*PipelineStatusTimeline, error) {
 	var timelines []*PipelineStatusTimeline
 	err := impl.dbConnection.Model(&timelines).
 		Where("cd_workflow_runner_id = ?", wfrId).
@@ -178,7 +171,7 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByWfrIdAndStatuse
 	return timelines, nil
 }
 
-func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByInstalledAppVersionHistoryIdAndPipelineStatuses(installedAppVersionHistoryId int, statuses []TimelineStatus) ([]*PipelineStatusTimeline, error) {
+func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByInstalledAppVersionHistoryIdAndPipelineStatuses(installedAppVersionHistoryId int, statuses []timelineStatus.TimelineStatus) ([]*PipelineStatusTimeline, error) {
 	var timelines []*PipelineStatusTimeline
 	err := impl.dbConnection.Model(&timelines).
 		Where("installed_app_version_history_id = ?", installedAppVersionHistoryId).
@@ -190,25 +183,34 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByInstalledAppVer
 	return timelines, nil
 }
 
-func (impl *PipelineStatusTimelineRepositoryImpl) FetchLatestTimelineByWfrId(wfrId int) (*PipelineStatusTimeline, error) {
+func (impl *PipelineStatusTimelineRepositoryImpl) GetLastStatusPublishedTimeForWfrId(wfrId int) (time.Time, error) {
 	timeline := &PipelineStatusTimeline{}
 	err := impl.dbConnection.Model(timeline).
+		Column("status_time").
 		Where("cd_workflow_runner_id = ?", wfrId).
+		Where("status NOT IN (?)", pg.In(timelineStatus.InternalTimelineStatusList)).
 		Order("status_time DESC").
 		Limit(1).Select()
-	if err != nil {
-		impl.logger.Errorw("error in getting timeline of latest wf by wfrId", "err", err, "wfrId", wfrId)
-		return nil, err
+	return timeline.StatusTime, err
+}
+
+func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelinesForWfrIdExcludingStatuses(wfrId int, statuses ...timelineStatus.TimelineStatus) ([]*PipelineStatusTimeline, error) {
+	var timelines []*PipelineStatusTimeline
+	query := impl.dbConnection.Model(&timelines).
+		Where("cd_workflow_runner_id = ?", wfrId)
+	if len(statuses) > 0 {
+		query = query.Where("status NOT in (?)", pg.In(statuses))
 	}
-	return timeline, nil
+	err := query.Order("status_time DESC").
+		Select()
+	return timelines, err
 }
 
 func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTerminalStatusTimelinePresentByWfrId(wfrId int) (bool, error) {
-	terminalStatus := []string{string(TIMELINE_STATUS_APP_HEALTHY), string(TIMELINE_STATUS_DEPLOYMENT_FAILED), string(TIMELINE_STATUS_GIT_COMMIT_FAILED), string(TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED)}
 	timeline := &PipelineStatusTimeline{}
 	exists, err := impl.dbConnection.Model(timeline).
 		Where("cd_workflow_runner_id = ?", wfrId).
-		Where("status in (?)", pg.In(terminalStatus)).Exists()
+		Where("status in (?)", pg.In(timelineStatus.TerminalTimelineStatusList)).Exists()
 	if err != nil {
 		impl.logger.Errorw("error in checking if terminal timeline of latest wf by pipelineId and status", "err", err, "wfrId", wfrId)
 		return false, err
@@ -216,12 +218,24 @@ func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTerminalStatusTimelineP
 	return exists, nil
 }
 
+func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTimelineStatusPresentByWfrId(wfrId int, status timelineStatus.TimelineStatus) (bool, error) {
+	timeline := &PipelineStatusTimeline{}
+	exists, err := impl.dbConnection.Model(timeline).
+		Where("cd_workflow_runner_id = ?", wfrId).
+		Where("status = ?", status).
+		Exists()
+	if err != nil {
+		impl.logger.Errorw("error in checking if timeline status exists for wfrId", "err", err, "wfrId", wfrId, "status", status)
+		return false, err
+	}
+	return exists, nil
+}
+
 func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTerminalStatusTimelinePresentByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) (bool, error) {
-	terminalStatus := []string{string(TIMELINE_STATUS_APP_HEALTHY), string(TIMELINE_STATUS_DEPLOYMENT_FAILED), string(TIMELINE_STATUS_GIT_COMMIT_FAILED), string(TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED)}
 	timeline := &PipelineStatusTimeline{}
 	exists, err := impl.dbConnection.Model(timeline).
 		Where("installed_app_version_history_id = ?", installedAppVersionHistoryId).
-		Where("status in (?)", pg.In(terminalStatus)).Exists()
+		Where("status in (?)", pg.In(timelineStatus.TerminalTimelineStatusList)).Exists()
 	if err != nil {
 		impl.logger.Errorw("error in checking if terminal timeline of latest installed app by installedAppVersionHistoryId and status", "err", err, "wfrId", installedAppVersionHistoryId)
 		return false, err
@@ -229,27 +243,20 @@ func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTerminalStatusTimelineP
 	return exists, nil
 }
 
-func (impl *PipelineStatusTimelineRepositoryImpl) FetchLatestTimelineByAppIdAndEnvId(appId, envId int) (*PipelineStatusTimeline, error) {
-	var timeline PipelineStatusTimeline
-	err := impl.dbConnection.Model(&timeline).
-		Column("pipeline_status_timeline.*").
-		Join("INNER JOIN cd_workflow_runner wfr ON wfr.id = pipeline_status_timeline.cd_workflow_runner_id").
-		Join("INNER JOIN cd_workflow cw ON cw.id=wfr.cd_workflow_id").
-		Join("INNER JOIN pipeline p ON p.id=cw.pipeline_id").
-		Where("p.app_id = ?", appId).
-		Where("p.environment_id = ?", envId).
-		Where("p.deleted = false").
-		Order("pipeline_status_timeline.status_time DESC").
-		Limit(1).
-		Select()
+func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTimelineStatusPresentByInstalledAppVersionHistoryId(installedAppVersionHistoryId int, status timelineStatus.TimelineStatus) (bool, error) {
+	timeline := &PipelineStatusTimeline{}
+	exists, err := impl.dbConnection.Model(timeline).
+		Where("installed_app_version_history_id = ?", installedAppVersionHistoryId).
+		Where("status = ?", status).
+		Exists()
 	if err != nil {
-		impl.logger.Errorw("error in getting timelines by pipelineId", "err", err, "appId", appId, "envId", envId)
-		return nil, err
+		impl.logger.Errorw("error in checking if timeline status exists for wfrId", "err", err, "installedAppVersionHistoryId", installedAppVersionHistoryId, "status", status)
+		return false, err
 	}
-	return &timeline, nil
+	return exists, nil
 }
 
-func (impl *PipelineStatusTimelineRepositoryImpl) DeleteByCdWfrIdAndTimelineStatuses(cdWfrId int, status []TimelineStatus) error {
+func (impl *PipelineStatusTimelineRepositoryImpl) DeleteByCdWfrIdAndTimelineStatuses(cdWfrId int, status []timelineStatus.TimelineStatus) error {
 	var timeline PipelineStatusTimeline
 	_, err := impl.dbConnection.Model(&timeline).
 		Where("cd_workflow_runner_id = ?", cdWfrId).
@@ -261,7 +268,7 @@ func (impl *PipelineStatusTimelineRepositoryImpl) DeleteByCdWfrIdAndTimelineStat
 	return nil
 }
 
-func (impl *PipelineStatusTimelineRepositoryImpl) DeleteByCdWfrIdAndTimelineStatusesWithTxn(cdWfrId int, status []TimelineStatus, tx *pg.Tx) error {
+func (impl *PipelineStatusTimelineRepositoryImpl) DeleteByCdWfrIdAndTimelineStatusesWithTxn(cdWfrId int, status []timelineStatus.TimelineStatus, tx *pg.Tx) error {
 	var timeline PipelineStatusTimeline
 	_, err := tx.Model(&timeline).
 		Where("cd_workflow_runner_id = ?", cdWfrId).
@@ -274,10 +281,10 @@ func (impl *PipelineStatusTimelineRepositoryImpl) DeleteByCdWfrIdAndTimelineStat
 }
 
 func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelinesByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) ([]*PipelineStatusTimeline, error) {
-	//ignoring 'ARGOCD_SYNC_INITIATED' in sql query as it is not handled at FE
 	var timelines []*PipelineStatusTimeline
 	err := impl.dbConnection.Model(&timelines).
-		Where("installed_app_version_history_id = ? and status !='ARGOCD_SYNC_INITIATED'", installedAppVersionHistoryId).
+		Where("installed_app_version_history_id = ?", installedAppVersionHistoryId).
+		Where("status NOT IN (?)", pg.In(timelineStatus.InternalTimelineStatusList)).
 		Order("status_time ASC").Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting timelines by installAppVersionHistoryId", "err", err, "wfrId", installedAppVersionHistoryId)

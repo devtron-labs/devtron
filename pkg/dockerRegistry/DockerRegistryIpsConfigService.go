@@ -1,41 +1,44 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package dockerRegistry
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
 type DockerRegistryIpsConfigService interface {
 	IsImagePullSecretAccessProvided(dockerRegistryId string, clusterId int, isVirtualEnv bool) (bool, error)
-	HandleImagePullSecretOnApplicationDeployment(environment *repository2.Environment, artifact *repository3.CiArtifact, ciPipelineId int, valuesFileContent []byte) ([]byte, error)
+	HandleImagePullSecretOnApplicationDeployment(ctx context.Context, environment *repository2.Environment, artifact *repository3.CiArtifact, ciPipelineId int, valuesFileContent []byte) ([]byte, error)
 }
 
 type DockerRegistryIpsConfigServiceImpl struct {
@@ -77,7 +80,9 @@ func (impl DockerRegistryIpsConfigServiceImpl) IsImagePullSecretAccessProvided(d
 	return isAccessProvided, nil
 }
 
-func (impl DockerRegistryIpsConfigServiceImpl) HandleImagePullSecretOnApplicationDeployment(environment *repository2.Environment, artifact *repository3.CiArtifact, ciPipelineId int, valuesFileContent []byte) ([]byte, error) {
+func (impl DockerRegistryIpsConfigServiceImpl) HandleImagePullSecretOnApplicationDeployment(ctx context.Context, environment *repository2.Environment, artifact *repository3.CiArtifact, ciPipelineId int, valuesFileContent []byte) ([]byte, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "DockerRegistryIpsConfigServiceImpl.HandleImagePullSecretOnApplicationDeployment")
+	defer span.End()
 	clusterId := environment.ClusterId
 	impl.logger.Infow("handling ips if access given", "ciPipelineId", ciPipelineId, "clusterId", clusterId)
 
@@ -274,6 +279,10 @@ func (impl DockerRegistryIpsConfigServiceImpl) createOrUpdateDockerRegistryImage
 		ipsData := BuildIpsData(registryURL, username, password, email)
 		_, err = impl.k8sUtil.CreateSecret(namespace, ipsData, ipsName, v1.SecretTypeDockerConfigJson, k8sClient, nil, nil)
 		if err != nil {
+			if statusError, ok = err.(*k8sErrors.StatusError); ok {
+				errorCode := int(statusError.ErrStatus.Code)
+				err = &util2.ApiError{Code: strconv.Itoa(errorCode), HttpStatusCode: errorCode, UserMessage: statusError.Error(), InternalMessage: statusError.Error()}
+			}
 			impl.logger.Errorw("error in creating secret", "clusterId", clusterId, "namespace", namespace, "ipsName", ipsName, "error", err)
 			return err
 		}

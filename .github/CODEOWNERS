@@ -11,6 +11,7 @@ scripts/devtron-reference-helm-charts @prakarsh-dt @pawan-mehta-dt @nishant-d
 
 #Migration scripts
 scripts/sql @prakarsh-dt @vikramdevtron @kripanshdevtron @nishant-d
+scripts/utilities @prakarsh-dt @nishant-d @pawan-mehta-dt
 
 #Github Specific
 .github/ @prakarsh-dt @nishant-d @pawan-mehta-dt

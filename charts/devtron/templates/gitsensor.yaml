@@ -8,6 +8,7 @@ metadata:
   labels:
     app: git-sensor
     release: devtron
+type: Opaque
 {{- if .secrets }}
 data:
 {{- range $k, $v := .secrets }}
@@ -77,7 +78,7 @@ spec:
           - /bin/sh
           - -c
           - mkdir -p /git-base/ssh-keys && chown -R devtron:devtron /git-base && chmod 777 /git-base/ssh-keys
-          image: {{ .image }}
+          image: {{ include "common.image" (dict "component" $.Values.components.gitsensor "global" $.Values.global) }}
           imagePullPolicy: IfNotPresent
           name: chown-git-base
           resources: {}
@@ -90,7 +91,7 @@ spec:
             name: git-volume
       containers:
         - name: git-sensor
-          image: {{ .image }}
+          image: {{ include "common.image" (dict "component" $.Values.components.gitsensor "global" $.Values.global) }}
           {{- if  .imagePullPolicy }}
           imagePullPolicy: {{ .imagePullPolicy }}
           {{- end }}

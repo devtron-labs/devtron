@@ -10,7 +10,7 @@ Devtron is installed over a Kubernetes cluster. Once you create a Kubernetes clu
 In this section, we will cover the basic details on how you can quickly get started with **Devtron**.
 First, lets see what are the prerequisite requirements before you install Devtron.
 
-## Pre-requisite Requirements
+## Prerequisites
 * Create a [Kubernetes cluster, preferably K8s version 1.16 or higher](#create-a-kubernetes-cluster)
 * [Helm Installation](https://helm.sh/docs/intro/install/)
 * [Recommended Resources](#recommended-resources)

@@ -1,8 +1,23 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package util
 
 import (
 	"context"
-	"github.com/devtron-labs/devtron/util"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/helm/pkg/chartutil"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
@@ -29,9 +44,8 @@ func TestChartTemplateService(t *testing.T) {
 		logger, err := NewSugardLogger()
 		assert.Nil(t, err)
 		impl := ChartTemplateServiceImpl{
-			logger:          logger,
-			randSource:      rand.NewSource(0),
-			chartWorkingDir: "/tmp/charts/",
+			logger:     logger,
+			randSource: rand.NewSource(0),
 		}
 		chartMetaData := &chart2.Metadata{
 			Name:    "sample-app",
@@ -52,9 +66,8 @@ func TestChartTemplateService(t *testing.T) {
 		logger, err := NewSugardLogger()
 		assert.Nil(t, err)
 		impl := ChartTemplateServiceImpl{
-			logger:          logger,
-			randSource:      rand.NewSource(0),
-			chartWorkingDir: "/tmp/charts/",
+			logger:     logger,
+			randSource: rand.NewSource(0),
 		}
 		chartMetaData := &chart2.Metadata{
 			Name:    "sample-app",
@@ -76,9 +89,8 @@ func TestChartTemplateService(t *testing.T) {
 		logger, err := NewSugardLogger()
 		assert.Nil(t, err)
 		impl := ChartTemplateServiceImpl{
-			logger:          logger,
-			randSource:      rand.NewSource(0),
-			chartWorkingDir: "/tmp/charts/",
+			logger:     logger,
+			randSource: rand.NewSource(0),
 		}
 		chartMetaData := &chart2.Metadata{
 			Name:    "sample-app",
@@ -97,20 +109,4 @@ func TestChartTemplateService(t *testing.T) {
 		assert.NotEqual(t, chartBytesLen, 0)
 
 	})
-
-	t.Run("getGitOpsRepoName", func(t *testing.T) {
-		logger, err := NewSugardLogger()
-		assert.Nil(t, err)
-		globalEnvVariables, err := util.GetGlobalEnvVariables()
-		globalEnvVariables.GitOpsRepoPrefix = "devtron"
-		impl := ChartTemplateServiceImpl{
-			logger:             logger,
-			globalEnvVariables: globalEnvVariables,
-		}
-		appName := "sample"
-		wantedRepoName := "devtron-sample"
-		gitOpsRepoName := impl.GetGitOpsRepoName(appName)
-		assert.Equal(t, wantedRepoName, gitOpsRepoName)
-	})
-
 }

@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package argocdServer
 
 import (
@@ -36,7 +52,7 @@ const (
 )
 
 type ArgoK8sClient interface {
-	CreateAcdApp(appRequest *AppTemplate, cluster *repository.Cluster, applicationTemplatePath string) (string, error)
+	CreateAcdApp(ctx context.Context, appRequest *AppTemplate, applicationTemplatePath string) (string, error)
 	GetArgoApplication(namespace string, appName string, cluster *repository.Cluster) (map[string]interface{}, error)
 }
 type ArgoK8sClientImpl struct {
@@ -66,7 +82,7 @@ func (impl ArgoK8sClientImpl) tprintf(tmpl string, data interface{}) (string, er
 	return buf.String(), nil
 }
 
-func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *repository.Cluster, applicationTemplatePath string) (string, error) {
+func (impl ArgoK8sClientImpl) CreateAcdApp(ctx context.Context, appRequest *AppTemplate, applicationTemplatePath string) (string, error) {
 	chartYamlContent, err := ioutil.ReadFile(filepath.Clean(applicationTemplatePath))
 	if err != nil {
 		impl.logger.Errorw("err in reading template", "err", err)
@@ -87,7 +103,7 @@ func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *rep
 	config.NegotiatedSerializer = serializer.NewCodecFactory(runtime.NewScheme())
 	config.APIPath = "/apis"
 	config.Timeout = TimeoutSlow
-	err = impl.CreateArgoApplication(appRequest.Namespace, applicationRequestString, config)
+	err = impl.CreateArgoApplication(ctx, appRequest.Namespace, applicationRequestString, config)
 	if err != nil {
 		impl.logger.Errorw("error in creating acd application", "err", err)
 		return "", err
@@ -96,7 +112,7 @@ func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *rep
 	return appRequest.ApplicationName, nil
 }
 
-func (impl ArgoK8sClientImpl) CreateArgoApplication(namespace string, application string, config *rest.Config) error {
+func (impl ArgoK8sClientImpl) CreateArgoApplication(ctx context.Context, namespace string, application string, config *rest.Config) error {
 	client, err := rest.RESTClientFor(config)
 	if err != nil {
 		return fmt.Errorf("error creating argo cd app")
@@ -107,7 +123,7 @@ func (impl ArgoK8sClientImpl) CreateArgoApplication(namespace string, applicatio
 		Resource("applications").
 		Namespace(namespace).
 		Body([]byte(application)).
-		Do(context.Background()).Raw()
+		Do(ctx).Raw()
 
 	if err != nil {
 		response := make(map[string]interface{})

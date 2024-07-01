@@ -4,7 +4,7 @@ In this section, we describe the steps in detail on how you can install Devtron 
 
 ---
 
-## Pre-requisites
+## Prerequisites
 
 Install [Helm](https://helm.sh/docs/intro/install/), if you have not installed it already.
 

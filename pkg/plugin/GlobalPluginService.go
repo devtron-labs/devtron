@@ -1,8 +1,25 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package plugin
 
 import (
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -21,12 +38,15 @@ type GlobalVariable struct {
 }
 
 const (
+	APP                          = "app"
+	JOB                          = "job"
 	DOCKER_IMAGE                 = "DOCKER_IMAGE"
 	DEPLOYMENT_RELEASE_ID        = "DEPLOYMENT_RELEASE_ID"
 	DEPLOYMENT_UNIQUE_ID         = "DEPLOYMENT_UNIQUE_ID"
 	CD_TRIGGERED_BY              = "CD_TRIGGERED_BY"
 	CD_TRIGGER_TIME              = "CD_TRIGGER_TIME"
 	APP_NAME                     = "APP_NAME"
+	JOB_NAME                     = "JOB_NAME"
 	DEVTRON_CD_TRIGGERED_BY      = "DEVTRON_CD_TRIGGERED_BY"
 	DEVTRON_CD_TRIGGER_TIME      = "DEVTRON_CD_TRIGGER_TIME"
 	CD_PIPELINE_ENV_NAME_KEY     = "CD_PIPELINE_ENV_NAME"
@@ -37,7 +57,7 @@ const (
 )
 
 type GlobalPluginService interface {
-	GetAllGlobalVariables() ([]*GlobalVariable, error)
+	GetAllGlobalVariables(appType helper.AppType) ([]*GlobalVariable, error)
 	ListAllPlugins(stageTypeReq string) ([]*PluginListComponentDto, error)
 	GetPluginDetailById(pluginId int) (*PluginDetailDto, error)
 	GetRefPluginIdByRefPluginName(pluginName string) (refPluginId int, err error)
@@ -61,7 +81,7 @@ type GlobalPluginServiceImpl struct {
 	pipelineStageRepository repository2.PipelineStageRepository
 }
 
-func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables() ([]*GlobalVariable, error) {
+func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables(appType helper.AppType) ([]*GlobalVariable, error) {
 	globalVariables := []*GlobalVariable{
 		{
 			Name:        "WORKING_DIRECTORY",
@@ -91,12 +111,6 @@ func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables() ([]*GlobalVariable,
 			Name:        "DOCKER_IMAGE",
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 			Description: "Complete image name(repository+registry+tag).",
-			Type:        "ci",
-		},
-		{
-			Name:        "APP_NAME",
-			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
-			Description: "Name of the app this pipeline resides in.",
 			Type:        "ci",
 		},
 		{
@@ -172,6 +186,19 @@ func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables() ([]*GlobalVariable,
 			Type:        "cd",
 		},
 	}
+	appName := APP_NAME
+	entityType := APP
+	if appType == helper.Job {
+		appName = JOB_NAME
+		entityType = JOB
+	}
+	globalVariable := &GlobalVariable{
+		Name:        appName,
+		Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+		Description: fmt.Sprintf("Name of the %s this pipeline resides in.", entityType),
+		Type:        "ci",
+	}
+	globalVariables = append(globalVariables, globalVariable)
 	return globalVariables, nil
 }
 

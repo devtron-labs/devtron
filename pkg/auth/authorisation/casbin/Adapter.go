@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package casbin
@@ -48,11 +47,12 @@ type Policy struct {
 	Obj  Object     `json:"obj"`
 }
 
-func Create() *casbin.SyncedEnforcer {
+func Create() (*casbin.SyncedEnforcer, error) {
 	metav1.Now()
 	config, err := sql.GetConfig() //FIXME: use this from wire
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return nil, err
 	}
 	dbSpecified := true
 	if config.CasbinDatabase == CasbinDefaultDatabase {
@@ -61,21 +61,24 @@ func Create() *casbin.SyncedEnforcer {
 	dataSource := fmt.Sprintf("dbname=%s user=%s password=%s host=%s port=%s sslmode=disable", config.CasbinDatabase, config.User, config.Password, config.Addr, config.Port)
 	a, err := xormadapter.NewAdapter("postgres", dataSource, dbSpecified) // Your driver and data source.
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return nil, err
 	}
 	auth, err1 := casbin.NewSyncedEnforcerSafe("./auth_model.conf", a)
 	if err1 != nil {
-		log.Fatal(err1)
+		log.Println(err1)
+		return nil, err1
 	}
 	e = auth
 	err = e.LoadPolicy()
-	log.Println("casbin Policies Loaded Successfully")
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return nil, err
 	}
+	log.Println("casbin Policies Loaded Successfully")
 	//adding our key matching func - MatchKeyFunc, to enforcer
 	e.AddFunction("matchKeyByPart", MatchKeyByPartFunc)
-	return e
+	return e, nil
 }
 
 func setEnforcerImpl(ref *EnforcerImpl) {

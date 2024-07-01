@@ -87,7 +87,7 @@ func (s *IssuesStatisticsService) GetIssuesStatistics(opt *GetIssuesStatisticsOp
 		return nil, resp, err
 	}
 
-	return is, resp, err
+	return is, resp, nil
 }
 
 // GetGroupIssuesStatisticsOptions represents the available GetGroupIssuesStatistics()
@@ -135,7 +135,7 @@ func (s *IssuesStatisticsService) GetGroupIssuesStatistics(gid interface{}, opt 
 		return nil, resp, err
 	}
 
-	return is, resp, err
+	return is, resp, nil
 }
 
 // GetProjectIssuesStatisticsOptions represents the available
@@ -146,7 +146,7 @@ func (s *IssuesStatisticsService) GetGroupIssuesStatistics(gid interface{}, opt 
 type GetProjectIssuesStatisticsOptions struct {
 	IIDs             *[]int     `url:"iids[],omitempty" json:"iids,omitempty"`
 	Labels           *Labels    `url:"labels,omitempty" json:"labels,omitempty"`
-	Milestone        *Milestone `url:"milestone,omitempty" json:"milestone,omitempty"`
+	Milestone        *string    `url:"milestone,omitempty" json:"milestone,omitempty"`
 	Scope            *string    `url:"scope,omitempty" json:"scope,omitempty"`
 	AuthorID         *int       `url:"author_id,omitempty" json:"author_id,omitempty"`
 	AuthorUsername   *string    `url:"author_username,omitempty" json:"author_username,omitempty"`
@@ -183,5 +183,5 @@ func (s *IssuesStatisticsService) GetProjectIssuesStatistics(pid interface{}, op
 		return nil, resp, err
 	}
 
-	return is, resp, err
+	return is, resp, nil
 }
