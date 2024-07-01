@@ -206,6 +206,7 @@
  | PRE_CI_CACHE_PATH | /devtroncd-cache |  | 
  | PROPAGATE_EXTRA_LABELS | false |  | 
  | PROXY_SERVICE_CONFIG | {} |  | 
+ | REPLICAS | 0 |  | 
  | REQ_CI_CPU | 0.5 |  | 
  | REQ_CI_MEM | 3G |  | 
  | RESOURCE_LIST_FOR_REPLICAS | Deployment,Rollout,StatefulSet,ReplicaSet |  | 

@@ -75,6 +75,11 @@ func NewPubSubClientServiceImpl(logger *zap.SugaredLogger) (*PubSubClientService
 	}
 	return pubSubClient, nil
 }
+func (impl PubSubClientServiceImpl) isClustered() bool {
+	// This is only ever set, no need for lock here.
+	clusterInfo := impl.NatsClient.Conn.ConnectedClusterName()
+	return clusterInfo != ""
+}
 
 func (impl PubSubClientServiceImpl) ShutDown() error {
 	// Drain the connection, which will close it when done.
@@ -99,8 +104,9 @@ func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
 	natsTopic := GetNatsTopic(topic)
 	streamName := natsTopic.streamName
 	streamConfig := impl.getStreamConfig(streamName)
-	// streamConfig := natsClient.streamConfig
-	_ = AddStream(jetStrCtxt, streamConfig, streamName)
+	isClustered := impl.isClustered()
+	_ = AddStream(isClustered, jetStrCtxt, streamConfig, streamName)
+
 	// Generate random string for passing as Header Id in message
 	randString := "MsgHeaderId-" + utils.Generate(10)
 
@@ -137,8 +143,8 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *m
 	consumerName := natsTopic.consumerName
 	natsClient := impl.NatsClient
 	streamConfig := impl.getStreamConfig(streamName)
-	// streamConfig := natsClient.streamConfig
-	_ = AddStream(natsClient.JetStrCtxt, streamConfig, streamName)
+	isClustered := impl.isClustered()
+	_ = AddStream(isClustered, natsClient.JetStrCtxt, streamConfig, streamName)
 	deliveryOption := nats.DeliverLast()
 	if streamConfig.Retention == nats.WorkQueuePolicy {
 		deliveryOption = nats.DeliverAll()
@@ -153,7 +159,6 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *m
 
 	// Update consumer config if new changes detected
 	impl.updateConsumer(natsClient, streamName, consumerName, &consumerConfig)
-
 	channel := make(chan *nats.Msg, msgBufferSize)
 	_, err := natsClient.JetStrCtxt.ChanQueueSubscribe(topic, queueName, channel,
 		nats.Durable(consumerName),
@@ -314,7 +319,14 @@ func (impl PubSubClientServiceImpl) updateConsumer(natsClient *NatsClient, strea
 		existingConfig.MaxAckPending = messageBufferSize
 		updatesDetected = true
 	}
-
+	if replicas := overrideConfig.Replicas; replicas > 0 && existingConfig.Replicas != replicas && replicas < 5 {
+		if replicas > 1 && !impl.isClustered() {
+			impl.Logger.Warnw("replicas > 1 is not possible in non-clustered mode")
+		} else {
+			existingConfig.Replicas = replicas
+			updatesDetected = true
+		}
+	}
 	if updatesDetected {
 		_, err = natsClient.JetStrCtxt.UpdateConsumer(streamName, &existingConfig)
 		if err != nil {
