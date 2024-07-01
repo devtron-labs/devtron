@@ -68,6 +68,11 @@ func (handler *FluxApplicationRestHandlerImpl) GetApplicationDetail(w http.Respo
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	if appIdentifier.IsKustomizeApp == true && appIdentifier.Name == "flux-system" && appIdentifier.Namespace == "flux-system" {
+
+		common.WriteJsonResp(w, errors.New("flux-system is not processed due to its "), nil, http.StatusBadRequest)
+		return
+	}
 
 	// handle super-admin RBAC
 	token := r.Header.Get("token")
