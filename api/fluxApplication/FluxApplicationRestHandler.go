@@ -70,7 +70,7 @@ func (handler *FluxApplicationRestHandlerImpl) GetApplicationDetail(w http.Respo
 	}
 	if appIdentifier.IsKustomizeApp == true && appIdentifier.Name == "flux-system" && appIdentifier.Namespace == "flux-system" {
 
-		common.WriteJsonResp(w, errors.New("flux-system is not processed due to its "), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New("cannot proceed for the flux system root level "), nil, http.StatusBadRequest)
 		return
 	}
 
