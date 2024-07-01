@@ -2,18 +2,17 @@ package fluxApplication
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/fluxApplication/bean"
 	"github.com/gogo/protobuf/proto"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"net/http"
-	"strconv"
 )
 
 type FluxApplicationService interface {
@@ -46,25 +45,44 @@ func NewFluxApplicationServiceImpl(logger *zap.SugaredLogger,
 func (impl *FluxApplicationServiceImpl) listApplications(ctx context.Context, clusterIds []int) (gRPC.ApplicationService_ListFluxApplicationsClient, error) {
 	var err error
 	req := &gRPC.AppListRequest{}
-
-	if len(clusterIds) <= 0 {
-		err = errors.New("no clusterIds provided")
-		impl.logger.Errorw("please provide any valid clusterIds", "err", err)
+	if len(clusterIds) == 0 {
+		return nil, nil
+	}
+	_, span := otel.Tracer("clusterService").Start(ctx, "FindByIds")
+	clusters, err := impl.clusterService.FindByIds(clusterIds)
+	span.End()
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
 	}
-	if len(clusterIds) > 0 {
-		for _, clusterId := range clusterIds {
-			clusterConfig, err := impl.helmAppService.GetClusterConf(clusterId)
-			if err != nil && !util.IsErrNoRows(err) {
-				impl.logger.Errorw("error in getting clusters by ids", "err", err, "clusterIds", clusterIds)
-				return nil, err
-			} else if err != nil && util.IsErrNoRows(err) {
-				errMsg := fmt.Sprintf("cluster id %d not found", clusterId)
-				return nil, util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(errMsg).WithUserMessage(errMsg).WithCode(strconv.Itoa(http.StatusNotFound))
-			}
-			req.Clusters = append(req.Clusters, clusterConfig)
+	for _, clusterDetail := range clusters {
+		config := &gRPC.ClusterConfig{
+			ApiServerUrl:          clusterDetail.ServerUrl,
+			Token:                 clusterDetail.Config[k8s.BearerToken],
+			ClusterId:             int32(clusterDetail.Id),
+			ClusterName:           clusterDetail.ClusterName,
+			InsecureSkipTLSVerify: clusterDetail.InsecureSkipTLSVerify,
 		}
+		if clusterDetail.InsecureSkipTLSVerify == false {
+			config.KeyData = clusterDetail.Config[k8s.TlsKey]
+			config.CertData = clusterDetail.Config[k8s.CertData]
+			config.CaData = clusterDetail.Config[k8s.CertificateAuthorityData]
+		}
+		req.Clusters = append(req.Clusters, config)
 	}
+	//if len(clusterIds) > 0 {
+	//	for _, clusterId := range clusterIds {
+	//		clusterConfig, err := impl.helmAppService.GetClusterConf(clusterId)
+	//		if err != nil && !util.IsErrNoRows(err) {
+	//			impl.logger.Errorw("error in getting clusters by ids", "err", err, "clusterIds", clusterIds)
+	//			return nil, err
+	//		} else if err != nil && util.IsErrNoRows(err) {
+	//			errMsg := fmt.Sprintf("cluster id %d not found", clusterId)
+	//			return nil, util.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(errMsg).WithUserMessage(errMsg).WithCode(strconv.Itoa(http.StatusNotFound))
+	//		}
+	//		req.Clusters = append(req.Clusters, clusterConfig)
+	//	}
+	//}
 	applicationStream, err := impl.helmAppClient.ListFluxApplication(ctx, req)
 
 	return applicationStream, err
@@ -81,24 +99,26 @@ func (impl *FluxApplicationServiceImpl) ListFluxApplications(ctx context.Context
 }
 
 func (impl *FluxApplicationServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.FluxApplicationList) bean.FluxAppList {
-	appList := bean.FluxAppList{ClusterId: &deployedApps.ClusterId}
-
-	fluxApps := make([]bean.FluxApplication, 0)
-
-	for _, deployedapp := range deployedApps.FluxApplication {
-
-		fluxApp := bean.FluxApplication{
-			Name:                  deployedapp.Name,
-			HealthStatus:          deployedapp.HealthStatus,
-			SyncStatus:            deployedapp.SyncStatus,
-			ClusterId:             int(deployedapp.EnvironmentDetail.ClusterId),
-			ClusterName:           deployedapp.EnvironmentDetail.ClusterName,
-			Namespace:             deployedapp.EnvironmentDetail.Namespace,
-			FluxAppDeploymentType: deployedapp.FluxAppDeploymentType,
+	appList := bean.FluxAppList{ClusterId: &[]int32{deployedApps.ClusterId}}
+	if deployedApps.Errored {
+		appList.Errored = &deployedApps.Errored
+		appList.ErrorMsg = &deployedApps.ErrorMsg
+	} else {
+		fluxApps := make([]bean.FluxApplication, 0)
+		for _, deployedapp := range deployedApps.FluxApplication {
+			fluxApp := bean.FluxApplication{
+				Name:                  deployedapp.Name,
+				HealthStatus:          deployedapp.HealthStatus,
+				SyncStatus:            deployedapp.SyncStatus,
+				ClusterId:             int(deployedapp.EnvironmentDetail.ClusterId),
+				ClusterName:           deployedapp.EnvironmentDetail.ClusterName,
+				Namespace:             deployedapp.EnvironmentDetail.Namespace,
+				FluxAppDeploymentType: deployedapp.FluxAppDeploymentType,
+			}
+			fluxApps = append(fluxApps, fluxApp)
 		}
-		fluxApps = append(fluxApps, fluxApp)
+		appList.FluxApps = &fluxApps
 	}
-	appList.FluxApps = &fluxApps
 	return appList
 }
 func (impl *FluxApplicationServiceImpl) GetFluxAppDetail(ctx context.Context, app *bean.FluxAppIdentifier) (*bean.FluxApplicationDetailDto, error) {
