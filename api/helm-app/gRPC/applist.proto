@@ -62,8 +62,6 @@ message ExternalResourceDetail {
 message FluxApplicationList {
   int32 clusterId = 1;
   repeated FluxApplication FluxApplication =2;
-  string errorMsg = 3;
-  bool errored = 4;
 }
 message FluxApplication{
   string name=1;

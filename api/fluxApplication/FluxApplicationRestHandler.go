@@ -46,11 +46,10 @@ func (handler *FluxApplicationRestHandlerImpl) ListFluxApplications(w http.Respo
 	var clusterIds []int
 	var err error
 
-	//handling when the clusterIds string is empty ,it will give the prompt to give ids of cluster
+	//handling when the clusterIds string is empty ,it will not support the
 	if len(clusterIdString) == 0 {
-		//handler.logger.Errorw("error in getting cluster ids", "error", err, "clusterIds", clusterIds)
+		handler.logger.Errorw("error in getting cluster ids", "error", err, "clusterIds", clusterIds)
 		common.WriteJsonResp(w, errors.New("error in getting cluster ids"), nil, http.StatusBadRequest)
-		return
 	}
 	clusterIds, err = common.ExtractIntArrayQueryParam(w, r, "clusterIds")
 	if err != nil {
