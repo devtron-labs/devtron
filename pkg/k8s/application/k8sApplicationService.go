@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
+	"github.com/devtron-labs/devtron/pkg/module"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
 	"io"
@@ -122,6 +123,7 @@ type K8sApplicationServiceImpl struct {
 	argoUserService              argo.ArgoUserService
 	acdClient                    application2.ServiceClient
 	pipelineRepository           pipelineConfig.PipelineRepository
+	moduleService                module.ModuleService
 }
 
 func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, pump connector.Pump, helmAppService client.HelmAppService, K8sUtil *k8s2.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
@@ -129,7 +131,7 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService clus
 	ephemeralContainerService cluster.EphemeralContainerService,
 	ephemeralContainerRepository repository.EphemeralContainersRepository,
 	argoApplicationService argoApplication.ArgoApplicationService, argoUserService argo.ArgoUserService,
-	acdClient application2.ServiceClient, pipelineRepository pipelineConfig.PipelineRepository) (*K8sApplicationServiceImpl, error) {
+	acdClient application2.ServiceClient, pipelineRepository pipelineConfig.PipelineRepository, moduleService module.ModuleService) (*K8sApplicationServiceImpl, error) {
 	ephemeralContainerConfig := &EphemeralContainerConfig{}
 	err := env.Parse(ephemeralContainerConfig)
 	if err != nil {
@@ -153,6 +155,7 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService clus
 		argoUserService:              argoUserService,
 		acdClient:                    acdClient,
 		pipelineRepository:           pipelineRepository,
+		moduleService:                moduleService,
 	}, nil
 }
 
@@ -179,6 +182,17 @@ func (handler *K8sApplicationServiceImpl) GetPipelineByAppIdEnvId(appId int, env
 }
 
 func (impl *K8sApplicationServiceImpl) ValidateResourceRequestForArgoApp(ctx context.Context, request *k8s2.K8sRequestBean, appId int, envId int, clusterId int, namespace string, deploymentAppName string) (bool, error) {
+
+	moduleInfo, err := impl.moduleService.GetModuleInfo(module.ModuleNameArgoCd)
+	if err != nil {
+		impl.logger.Errorw("error while getting notification module status", "err", err)
+		return false, err
+	}
+	if moduleInfo.Status != module.ModuleStatusInstalled {
+		impl.logger.Warnw("Notification module is not installed, hence skipping sending notification", "currentModuleStatus", moduleInfo.Status)
+		return false, nil
+	}
+
 	query := application.ResourcesQuery{
 		ApplicationName: &deploymentAppName,
 	}
