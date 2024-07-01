@@ -1778,6 +1778,9 @@ func (impl *GlobalPluginServiceImpl) ListAllPluginsV2(filter *PluginsListFilter)
 		impl.logger.Errorw("error in getting all plugin parent metadata", "err", err)
 		return nil, err
 	}
+	if allPluginParentMetadata == nil {
+		return nil, &util.ApiError{HttpStatusCode: http.StatusNotFound, Code: strconv.Itoa(http.StatusNotFound), InternalMessage: NoPluginFoundForThisSearchQueryErr, UserMessage: NoPluginFoundForThisSearchQueryErr}
+	}
 
 	paginatedPluginParentMetadata := paginatePluginParentMetadata(allPluginParentMetadata, filter.Limit, filter.Offset)
 
