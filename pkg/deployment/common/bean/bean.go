@@ -15,6 +15,11 @@ type DeploymentConfig struct {
 	Active             bool
 }
 
+type DeploymentConfigSelector struct {
+	AppId         int
+	EnvironmentId int
+}
+
 type DeploymentConfigType string
 
 const (

@@ -3,6 +3,7 @@ package common
 import (
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
@@ -19,6 +20,7 @@ type DeploymentConfigService interface {
 	CreateOrUpdateConfig(tx *pg.Tx, config *bean.DeploymentConfig, userId int32) (*bean.DeploymentConfig, error)
 	GetDeploymentConfig(appId, envId int) (*bean.DeploymentConfig, error)
 	GetDeploymentConfigForHelmApp(appId, envId int) (*bean.DeploymentConfig, error)
+	GetDeploymentConfigInBulk(configSelector []*bean.DeploymentConfigSelector) ([]*bean.DeploymentConfig, error)
 }
 
 type DeploymentConfigServiceImpl struct {
@@ -251,4 +253,287 @@ func (impl *DeploymentConfigServiceImpl) migrateHelmAppDataToDeploymentConfig(ap
 		return nil, err
 	}
 	return helmDeploymentConfig, nil
+}
+
+func (impl *DeploymentConfigServiceImpl) GetDeploymentConfigInBulk(configSelector []*bean.DeploymentConfigSelector) ([]*bean.DeploymentConfig, error) {
+
+	appIds := make([]*int, len(configSelector))
+	appIdToEnvIdMapping := make(map[int]int)
+	for _, s := range configSelector {
+		appIds = append(appIds, &s.AppId)
+		if s.EnvironmentId > 0 {
+			appIdToEnvIdMapping[s.AppId] = s.EnvironmentId
+		}
+	}
+
+	apps, err := impl.appRepository.FindByIds(appIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching apps by ids", "ids", appIds, "err", err)
+		return nil, err
+	}
+
+	devtronAppIds := make([]int, len(appIds))
+	helmAppIds := make([]int, len(appIds))
+	devtronAppsEnvToAppIdMapping := make(map[int]int)
+	helmAppsEnvToAppIdMapping := make(map[int]int)
+
+	for _, a := range apps {
+		switch a.AppType {
+		case helper.CustomApp:
+			devtronAppIds = append(devtronAppIds, a.Id)
+			devtronAppsEnvToAppIdMapping[appIdToEnvIdMapping[a.Id]] = a.Id
+		case helper.ChartStoreApp:
+			helmAppIds = append(helmAppIds, a.Id)
+			helmAppsEnvToAppIdMapping[appIdToEnvIdMapping[a.Id]] = a.Id
+		}
+	}
+
+	devtronAppConfigs, err := impl.GetDevtronAppConfigInBulk(devtronAppIds, devtronAppsEnvToAppIdMapping)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment config for devtron apps", "devtronAppsEnvToAppIdMapping", devtronAppsEnvToAppIdMapping, "err", err)
+		return nil, err
+	}
+
+	helmAppConfigs, err := impl.GetHelmAppConfigInBulk(helmAppIds, helmAppsEnvToAppIdMapping)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment config for helm apps", "devtronAppsEnvToAppIdMapping", devtronAppsEnvToAppIdMapping, "err", err)
+		return nil, err
+	}
+
+	allConfigs := make([]*bean.DeploymentConfig, len(devtronAppConfigs)+len(helmAppConfigs))
+	allConfigs = append(allConfigs, devtronAppConfigs...)
+	allConfigs = append(allConfigs, helmAppConfigs...)
+
+	return allConfigs, nil
+}
+
+func (impl *DeploymentConfigServiceImpl) GetDevtronAppConfigInBulk(appIds []int, envIdToAppIdMapping map[int]int) ([]*bean.DeploymentConfig, error) {
+
+	AppLevelDeploymentConfigs, err := impl.deploymentConfigRepository.GetAppLevelConfigByAppIds(appIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching deployment configs by appIds", "appIds", appIds, "err", err)
+		return nil, err
+	}
+
+	AllAppLevelConfigs := make([]*deploymentConfig.DeploymentConfig, len(appIds))
+	AllAppLevelConfigs = append(AllAppLevelConfigs, AppLevelDeploymentConfigs...)
+
+	if len(AppLevelDeploymentConfigs) < len(appIds) {
+		presentAppIds := make(map[int]bool)
+		for _, c := range AppLevelDeploymentConfigs {
+			presentAppIds[c.AppId] = true
+		}
+
+		notFoundAppIds := make([]int, len(appIds))
+		for _, id := range appIds {
+			if _, ok := presentAppIds[id]; !ok {
+				notFoundAppIds = append(notFoundAppIds, id)
+			}
+		}
+		migratedAppLevelDeploymentConfigs, err := impl.migrateAppLevelDataTODeploymentConfigInBulk(notFoundAppIds)
+		if err != nil {
+			impl.logger.Errorw("error in migrating all level deployment configs", "appIds", notFoundAppIds, "err", err)
+			return nil, err
+		}
+		AllAppLevelConfigs = append(AllAppLevelConfigs, migratedAppLevelDeploymentConfigs...)
+	}
+
+	appIdToAppLevelConfigMapping := make(map[int]*deploymentConfig.DeploymentConfig, len(appIds))
+	for _, appLevelConfig := range AllAppLevelConfigs {
+		appIdToAppLevelConfigMapping[appLevelConfig.AppId] = appLevelConfig
+	}
+
+	AllEnvLevelConfigs := make([]*deploymentConfig.DeploymentConfig, len(envIdToAppIdMapping))
+
+	if len(envIdToAppIdMapping) > 0 {
+		envLevelConfig, err := impl.deploymentConfigRepository.GetAppAndEnvLevelConfigsInBulk(envIdToAppIdMapping)
+		if err != nil {
+			impl.logger.Errorw("error in getting and and env level config in bulk", "envIdToAppIdMapping", envIdToAppIdMapping, "err", err)
+			return nil, err
+		}
+		AllEnvLevelConfigs = append(AllEnvLevelConfigs, envLevelConfig...)
+		if len(envLevelConfig) < len(envIdToAppIdMapping) {
+			notFoundEnvIdToAppIdsMap := make(map[int]int, len(envIdToAppIdMapping))
+			presentEnvIds := make(map[int]bool)
+			for _, c := range envLevelConfig {
+				presentEnvIds[c.EnvironmentId] = true
+			}
+			for envId, appId := range envIdToAppIdMapping {
+				if _, ok := presentEnvIds[envId]; !ok {
+					notFoundEnvIdToAppIdsMap[envId] = appId
+				}
+			}
+			migratedEnvLevelDeploymentConfigs, err := impl.migrateEnvLevelDataTODeploymentConfigInBulk(notFoundEnvIdToAppIdsMap, envIdToAppIdMapping, appIdToAppLevelConfigMapping)
+			if err != nil {
+				impl.logger.Errorw("error in migrating env level configs", "envIdToAppIdMapping", envIdToAppIdMapping, "err", err)
+				return nil, err
+			}
+			AllEnvLevelConfigs = append(AllEnvLevelConfigs, migratedEnvLevelDeploymentConfigs...)
+		}
+	}
+
+	allConfigs := make([]*bean.DeploymentConfig, len(appIds)+len(envIdToAppIdMapping))
+	for _, c := range AllAppLevelConfigs {
+		allConfigs = append(allConfigs, ConvertDeploymentConfigDbObjToDTO(c))
+	}
+	for _, c := range AllEnvLevelConfigs {
+		allConfigs = append(allConfigs, ConvertDeploymentConfigDbObjToDTO(c))
+	}
+
+	return allConfigs, err
+}
+
+func (impl *DeploymentConfigServiceImpl) migrateAppLevelDataTODeploymentConfigInBulk(appIds []int) ([]*deploymentConfig.DeploymentConfig, error) {
+	charts, err := impl.chartRepository.FindLatestChartByAppIds(appIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching latest chart by appIds", "appIds", appIds, "err", err)
+		return nil, err
+	}
+	configDBObjects := make([]*deploymentConfig.DeploymentConfig, len(appIds))
+	for _, c := range charts {
+		dbObj := &deploymentConfig.DeploymentConfig{
+			ConfigType:    GetDeploymentConfigType(c.IsCustomGitRepository),
+			AppId:         c.AppId,
+			Active:        true,
+			RepoUrl:       c.GitRepoUrl,
+			ChartLocation: c.ChartLocation,
+		}
+		dbObj.AuditLog.CreateAuditLog(bean3.SYSTEM_USER_ID)
+		configDBObjects = append(configDBObjects, dbObj)
+	}
+	configDBObjects, err = impl.deploymentConfigRepository.SaveAll(nil, configDBObjects)
+	if err != nil {
+		impl.logger.Errorw("error in saving deployment config in DB", "appIds", appIds, "err", err)
+		return nil, err
+	}
+	return configDBObjects, nil
+}
+
+func (impl *DeploymentConfigServiceImpl) migrateEnvLevelDataTODeploymentConfigInBulk(notFoundEnvToAppIdMapping map[int]int, envToAppIdMapping map[int]int, appIdToAppLevelConfigMapping map[int]*deploymentConfig.DeploymentConfig) ([]*deploymentConfig.DeploymentConfig, error) {
+
+	pipelines, err := impl.pipelineRepository.FindByEnvToAppIdMapping(notFoundEnvToAppIdMapping)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipeline by envToAppId mapping", "envToAppIdMapping", envToAppIdMapping, "err", err)
+		return nil, err
+	}
+
+	deploymentAppTypeMap := make(map[int]map[int]string)
+	for _, p := range pipelines {
+		deploymentAppTypeMap[p.AppId][p.EnvironmentId] = p.DeploymentAppType
+	}
+
+	allRepoUrls := make([]string, 0)
+	for _, c := range appIdToAppLevelConfigMapping {
+		allRepoUrls = append(allRepoUrls, c.RepoUrl)
+	}
+
+	repoUrlToConfigMapping, err := impl.gitOpsConfigReadService.GetGitOpsProviderMapByRepoURL(allRepoUrls)
+	if err != nil {
+		impl.logger.Errorw("error in fetching repoUrl to config mapping", "err", err)
+		return nil, err
+	}
+
+	configDBObjects := make([]*deploymentConfig.DeploymentConfig, len(notFoundEnvToAppIdMapping))
+
+	for envId, appId := range notFoundEnvToAppIdMapping {
+		deploymentAppType := deploymentAppTypeMap[appId][envId]
+		appLevelConfig := appIdToAppLevelConfigMapping[appId]
+		configDbObj := &deploymentConfig.DeploymentConfig{
+			AppId:             appId,
+			EnvironmentId:     envId,
+			ConfigType:        appLevelConfig.ConfigType,
+			RepoUrl:           appLevelConfig.RepoUrl,
+			ChartLocation:     appLevelConfig.ChartLocation,
+			Active:            true,
+			DeploymentAppType: deploymentAppType,
+			CredentialType:    bean.GitOps.String(),
+			CredentialIdInt:   repoUrlToConfigMapping[appLevelConfig.RepoUrl].Id,
+		}
+		configDbObj.AuditLog.CreateAuditLog(bean3.SYSTEM_USER_ID)
+		configDBObjects = append(configDBObjects, configDbObj)
+	}
+
+	configDBObjects, err = impl.deploymentConfigRepository.SaveAll(nil, configDBObjects)
+	if err != nil {
+		impl.logger.Errorw("error in saving deployment config in DB", "envIdToAppIdMapping", notFoundEnvToAppIdMapping, "err", err)
+		return nil, err
+	}
+
+	return configDBObjects, nil
+}
+
+func (impl *DeploymentConfigServiceImpl) GetHelmAppConfigInBulk(appIds []int, envIdToAppIdMapping map[int]int) ([]*bean.DeploymentConfig, error) {
+
+	allDeploymentConfigs := make([]*deploymentConfig.DeploymentConfig, len(appIds))
+
+	helmDeploymentConfig, err := impl.deploymentConfigRepository.GetAppAndEnvLevelConfigsInBulk(envIdToAppIdMapping)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching deployment config by by appId and envId", "envIdToAppIdMapping", envIdToAppIdMapping, "err", err)
+		return nil, err
+	}
+
+	allDeploymentConfigs = append(allDeploymentConfigs, helmDeploymentConfig...)
+
+	if len(helmDeploymentConfig) < len(envIdToAppIdMapping) {
+		notFoundEnvIdToAppIdsMap := make(map[int]int, len(envIdToAppIdMapping))
+		presentEnvIds := make(map[int]bool)
+		for _, c := range helmDeploymentConfig {
+			presentEnvIds[c.EnvironmentId] = true
+		}
+		for envId, appId := range envIdToAppIdMapping {
+			if _, ok := presentEnvIds[envId]; !ok {
+				notFoundEnvIdToAppIdsMap[envId] = appId
+			}
+		}
+		migratedConfigs, err := impl.migrateDeploymentConfigInBulkForHelmApps(appIds, notFoundEnvIdToAppIdsMap)
+		if err != nil {
+			impl.logger.Errorw("error in migrating helm apps config data in bult to deployment config", "migratedEnvToAppIdMapping", notFoundEnvIdToAppIdsMap, "err", err)
+			return nil, err
+		}
+		allDeploymentConfigs = append(allDeploymentConfigs, migratedConfigs...)
+	}
+
+	deploymentConfigsResult := make([]*bean.DeploymentConfig, len(appIds))
+	for _, c := range allDeploymentConfigs {
+		deploymentConfigsResult = append(deploymentConfigsResult, ConvertDeploymentConfigDbObjToDTO(c))
+	}
+	return deploymentConfigsResult, nil
+}
+
+func (impl *DeploymentConfigServiceImpl) migrateDeploymentConfigInBulkForHelmApps(appIds []int, envIdToAppIdMapping map[int]int) ([]*deploymentConfig.DeploymentConfig, error) {
+	installedApps, err := impl.installedAppRepository.FindInstalledAppByIds(appIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting installed app by appId", "appIds", appIds, "err", err)
+		return nil, err
+	}
+
+	appIdToInstalledAppMapping := make(map[int]*repository.InstalledApps)
+
+	for _, ia := range installedApps {
+		appIdToInstalledAppMapping[ia.AppId] = ia
+	}
+
+	configDBObjects := make([]*deploymentConfig.DeploymentConfig, len(envIdToAppIdMapping))
+
+	for envId, appId := range envIdToAppIdMapping {
+		installedApp := appIdToInstalledAppMapping[appId]
+		helmDeploymentConfig := &deploymentConfig.DeploymentConfig{
+			AppId:             appId,
+			EnvironmentId:     envId,
+			DeploymentAppType: installedApp.DeploymentAppType,
+			ConfigType:        GetDeploymentConfigType(installedApp.IsCustomRepository),
+			RepoUrl:           installedApp.GitOpsRepoUrl,
+			RepoName:          installedApp.GitOpsRepoName,
+			Active:            true,
+		}
+		helmDeploymentConfig.AuditLog.CreateAuditLog(bean3.SYSTEM_USER_ID)
+		configDBObjects = append(configDBObjects, helmDeploymentConfig)
+	}
+
+	configDBObjects, err = impl.deploymentConfigRepository.SaveAll(nil, configDBObjects)
+	if err != nil {
+		impl.logger.Errorw("error in saving deployment config in DB", "envIdToAppIdMapping", envIdToAppIdMapping, "err", err)
+		return nil, err
+	}
+	return configDBObjects, nil
 }

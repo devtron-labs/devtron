@@ -159,6 +159,7 @@ type InstalledAppRepository interface {
 	FindInstalledAppByIds(ids []int) ([]*InstalledApps, error)
 	// FindInstalledAppsByAppId returns multiple installed apps for an appId, this only happens for external-apps with same name installed in diff namespaces
 	FindInstalledAppsByAppId(appId int) ([]*InstalledApps, error)
+	FindInstalledAppByAppIds(appIds []int) ([]*InstalledApps, error)
 }
 
 type InstalledAppRepositoryImpl struct {
@@ -919,5 +920,17 @@ func (impl InstalledAppRepositoryImpl) FindInstalledAppsByAppId(appId int) ([]*I
 	if err != nil {
 		impl.Logger.Errorw("error on fetching installed apps by appId", "appId", appId)
 	}
+	return installedApps, err
+}
+
+func (impl InstalledAppRepositoryImpl) FindInstalledAppByAppIds(appIds []int) ([]*InstalledApps, error) {
+	var installedApps []*InstalledApps
+	if len(appIds) == 0 {
+		return nil, nil
+	}
+	err := impl.dbConnection.Model(&installedApps).
+		Column("installed_apps.*").
+		Where("installed_apps.app_id in (?)", appIds).
+		Select()
 	return installedApps, err
 }

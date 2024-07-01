@@ -39,6 +39,7 @@ type GitOpsConfigReadService interface {
 	GetGitOpsConfigActive() (*bean2.GitOpsConfigDto, error)
 	GetConfiguredGitOpsCount() (int, error)
 	GetGitOpsProviderByRepoURL(gitRepoUrl string) (*bean2.GitOpsConfigDto, error)
+	GetGitOpsProviderMapByRepoURL(allGitRepoUrls []string) (map[string]*bean2.GitOpsConfigDto, error)
 }
 
 type GitOpsConfigReadServiceImpl struct {
@@ -214,4 +215,65 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsProviderByRepoURL(gitRepoUrl s
 	}
 
 	return gitOpsConfig, nil
+}
+
+func (impl *GitOpsConfigReadServiceImpl) GetGitOpsProviderMapByRepoURL(allGitRepoUrls []string) (map[string]*bean2.GitOpsConfigDto, error) {
+
+	models, err := impl.gitOpsRepository.GetAllGitOpsConfig()
+	if err != nil {
+		impl.logger.Errorw("error, GetGitOpsConfigActive", "err", err)
+		return nil, err
+	}
+
+	modelHostToConfigMapping := make(map[string]*bean2.GitOpsConfigDto)
+	for _, model := range models {
+		host, err := util.GetHost(model.Host)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse host from repo URL: %s", model.Host)
+		}
+		gitOpsConfig := &bean2.GitOpsConfigDto{
+			Id:                    model.Id,
+			Provider:              model.Provider,
+			GitHubOrgId:           model.GitHubOrgId,
+			GitLabGroupId:         model.GitLabGroupId,
+			Active:                model.Active,
+			Token:                 model.Token,
+			Host:                  model.Host,
+			Username:              model.Username,
+			UserId:                model.CreatedBy,
+			AzureProjectName:      model.AzureProject,
+			BitBucketWorkspaceId:  model.BitBucketWorkspaceId,
+			BitBucketProjectKey:   model.BitBucketProjectKey,
+			AllowCustomRepository: model.AllowCustomRepository,
+		}
+		modelHostToConfigMapping[host] = gitOpsConfig
+	}
+
+	activeConfig, err := impl.GetGitOpsConfigActive()
+	if err != nil {
+		impl.logger.Errorw("error in getting active gitOps config", "err", err)
+		return nil, err
+	}
+
+	repoUrlTOConfigMap := make(map[string]*bean2.GitOpsConfigDto)
+
+	for _, gitRepoUrl := range allGitRepoUrls {
+		if gitRepoUrl == bean2.GIT_REPO_NOT_CONFIGURED {
+			repoUrlTOConfigMap[gitRepoUrl] = activeConfig
+			continue
+		}
+		requestHost, err := util.GetHost(gitRepoUrl)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse host from repo URL: %s", gitRepoUrl)
+		}
+
+		if config, ok := modelHostToConfigMapping[requestHost]; ok {
+			repoUrlTOConfigMap[gitRepoUrl] = config
+		} else if !ok {
+			impl.logger.Infow("no gitops config found in DB for given url", "repoURL", gitRepoUrl)
+			repoUrlTOConfigMap[gitRepoUrl] = activeConfig // default behaviour
+		}
+	}
+
+	return repoUrlTOConfigMap, nil
 }

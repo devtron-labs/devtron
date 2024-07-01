@@ -3,6 +3,7 @@ package deploymentConfig
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 )
 
 type DeploymentConfig struct {
@@ -24,10 +25,13 @@ type DeploymentConfig struct {
 
 type Repository interface {
 	Save(tx *pg.Tx, config *DeploymentConfig) (*DeploymentConfig, error)
+	SaveAll(tx *pg.Tx, configs []*DeploymentConfig) ([]*DeploymentConfig, error)
 	Update(tx *pg.Tx, config *DeploymentConfig) (*DeploymentConfig, error)
 	GetById(id int) (*DeploymentConfig, error)
 	GetByAppIdAndEnvId(appId, envId int) (*DeploymentConfig, error)
 	GetAppLevelConfig(appId int) (*DeploymentConfig, error)
+	GetAppLevelConfigByAppIds(appIds []int) ([]*DeploymentConfig, error)
+	GetAppAndEnvLevelConfigsInBulk(envIdToAppIdMap map[int]int) ([]*DeploymentConfig, error)
 }
 
 type RepositoryImpl struct {
@@ -46,6 +50,16 @@ func (impl RepositoryImpl) Save(tx *pg.Tx, config *DeploymentConfig) (*Deploymen
 		err = impl.dbConnection.Insert(config)
 	}
 	return config, err
+}
+
+func (impl RepositoryImpl) SaveAll(tx *pg.Tx, configs []*DeploymentConfig) ([]*DeploymentConfig, error) {
+	var err error
+	if tx != nil {
+		err = tx.Insert(configs)
+	} else {
+		err = impl.dbConnection.Insert(configs)
+	}
+	return configs, err
 }
 
 func (impl RepositoryImpl) Update(tx *pg.Tx, config *DeploymentConfig) (*DeploymentConfig, error) {
@@ -79,6 +93,29 @@ func (impl RepositoryImpl) GetAppLevelConfig(appId int) (*DeploymentConfig, erro
 	err := impl.dbConnection.Model(result).
 		Where("app_id = ? ", appId).
 		Where("environment_id is NULL").
+		Where("active = ?", true).
+		Select()
+	return result, err
+}
+
+func (impl RepositoryImpl) GetAppLevelConfigByAppIds(appIds []int) ([]*DeploymentConfig, error) {
+	var result []*DeploymentConfig
+	err := impl.dbConnection.Model(&result).
+		Where("app_id in (?) ", appIds).
+		Where("active = ?", true).
+		Select()
+	return result, err
+}
+
+func (impl RepositoryImpl) GetAppAndEnvLevelConfigsInBulk(envIdToAppIdMap map[int]int) ([]*DeploymentConfig, error) {
+	var result []*DeploymentConfig
+	err := impl.dbConnection.Model(&result).
+		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+			for envId, appId := range envIdToAppIdMap {
+				query = query.Where("environment_id = ? and app_id = ? ", envId, appId)
+			}
+			return query, nil
+		}).
 		Where("active = ?", true).
 		Select()
 	return result, err
