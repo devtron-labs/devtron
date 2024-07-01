@@ -165,14 +165,11 @@ type EphemeralContainerConfig struct {
 
 func (handler *K8sApplicationServiceImpl) GetPipelineByAppIdEnvId(appId int, envId int) (*pipelineConfig.Pipeline, error) {
 	pipelines, err := handler.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
-	if err == pg.ErrNoRows {
+	if err == pg.ErrNoRows || len(pipelines) == 0 {
 		return &pipelineConfig.Pipeline{}, errors.New("pipeline Not found in database")
 	}
 	if err != nil {
 		return &pipelineConfig.Pipeline{}, errors.New("error in fetching pipeline from database")
-	}
-	if len(pipelines) == 0 {
-		return &pipelineConfig.Pipeline{}, errors.New("pipeline not found in database")
 	}
 	if len(pipelines) != 1 {
 		return &pipelineConfig.Pipeline{}, errors.New("multiple pipelines found for an envId")

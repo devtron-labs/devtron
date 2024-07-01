@@ -594,6 +594,18 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 		//setting appIdentifier value in request
 		request.AppIdentifier = appIdentifier
 		request.ClusterId = appIdentifier.ClusterId
+
+		// RBAC enforcer applying for Helm App
+		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
+
+		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, rbacObject2)
+
+		if !ok {
+			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+			return
+		}
+		//RBAC enforcer Ends
+
 		if request.DeploymentType == bean2.HelmInstalledType {
 			if err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest); err != nil {
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -620,16 +632,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 				}
 			}
 		}
-		// RBAC enforcer applying for Helm App
-		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
 
-		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, rbacObject2)
-
-		if !ok {
-			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
-			return
-		}
-		//RBAC enforcer Ends
 	} else if request.AppId != "" && request.AppType == bean2.DevtronAppType {
 		// For Devtron App resources
 		devtronAppIdentifier, err := handler.k8sApplicationService.DecodeDevtronAppId(request.AppId)
@@ -641,9 +644,17 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 		//setting devtronAppIdentifier value in request
 		request.DevtronAppIdentifier = devtronAppIdentifier
 		request.ClusterId = request.DevtronAppIdentifier.ClusterId
-		appId := request.DevtronAppIdentifier.AppId
-		envId := request.DevtronAppIdentifier.EnvId
-		cdPipeline, err := handler.k8sApplicationService.GetPipelineByAppIdEnvId(appId, envId)
+
+		// RBAC enforcer applying for Devtron App
+		envObject := handler.enforcerUtil.GetEnvRBACNameByAppId(request.DevtronAppIdentifier.AppId, request.DevtronAppIdentifier.EnvId)
+		hasAccessForEnv := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionDelete, envObject)
+		if !hasAccessForEnv {
+			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+			return
+		}
+		// RBAC enforcer Ends
+
+		cdPipeline, err := handler.k8sApplicationService.GetPipelineByAppIdEnvId(request.DevtronAppIdentifier.AppId, request.DevtronAppIdentifier.EnvId)
 		if err != nil {
 			handler.logger.Errorw("error in fetching pipelines by app id and env id", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest) //confirm this
@@ -674,14 +685,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 				return
 			}
 		}
-		// RBAC enforcer applying for Devtron App
-		envObject := handler.enforcerUtil.GetEnvRBACNameByAppId(request.DevtronAppIdentifier.AppId, request.DevtronAppIdentifier.EnvId)
-		hasAccessForEnv := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionDelete, envObject)
-		if !hasAccessForEnv {
-			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
-			return
-		}
-		// RBAC enforcer Ends
+
 	} else if request.ClusterId > 0 {
 		// RBAC enforcer applying for resource Browser
 		if ok := handler.handleRbac(r, w, request, token, casbin.ActionDelete); !ok {
