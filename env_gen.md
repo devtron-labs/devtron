@@ -164,6 +164,11 @@
  | IN_APP_LOGGING_ENABLED | false |  | 
  | IS_INTERNAL_USE | false |  | 
  | JwtExpirationTime | 120 |  | 
+ | K8s_CLIENT_MAX_IDLE_CONNS_PER_HOST | 25 |  | 
+ | K8s_TCP_IDLE_CONN_TIMEOUT | 300 |  | 
+ | K8s_TCP_KEEPALIVE | 30 |  | 
+ | K8s_TCP_TIMEOUT | 30 |  | 
+ | K8s_TLS_HANDSHAKE_TIMEOUT | 10 |  | 
  | LENS_TIMEOUT | 0 |  | 
  | LENS_URL | http://lens-milandevtron-service:80 |  | 
  | LIMIT_CI_CPU | 0.5 |  | 
@@ -201,6 +206,7 @@
  | PRE_CI_CACHE_PATH | /devtroncd-cache |  | 
  | PROPAGATE_EXTRA_LABELS | false |  | 
  | PROXY_SERVICE_CONFIG | {} |  | 
+ | REPLICAS | 0 |  | 
  | REQ_CI_CPU | 0.5 |  | 
  | REQ_CI_MEM | 3G |  | 
  | RESOURCE_LIST_FOR_REPLICAS | Deployment,Rollout,StatefulSet,ReplicaSet |  | 
@@ -240,6 +246,7 @@
  | USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW | true |  | 
  | USE_BLOB_STORAGE_CONFIG_IN_CI_WORKFLOW | true |  | 
  | USE_BUILDX | false |  | 
+ | USE_CUSTOM_HTTP_TRANSPORT | false |  | 
  | USE_EXTERNAL_NODE | false |  | 
  | USE_GIT_CLI | false |  | 
  | USE_IMAGE_TAG_FROM_GIT_PROVIDER_FOR_TAG_BASED_BUILD | false |  | 
