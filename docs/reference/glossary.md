@@ -98,7 +98,7 @@ However, in case you don't have a Dockerfile, Devtron helps you create one. Go t
 
 Evacuating pods from a node before cordoning it, ensuring that running pods are gracefully rescheduled on other nodes. 
 
-In Devtron, you can drain a node by going to Resource Browser → (choose a cluster) → Nodes → (click on a node) → Drain (available in blue). [Read More...](../user-guide/clusters.md#drain-a-node)
+In Devtron, you can drain a node by going to Resource Browser → (choose a cluster) → Nodes → (click on a node) → Drain (available in blue). [Read More...](../user-guide/resource-browser.md#drain-a-node)
 
 ### Environment
 
@@ -164,7 +164,7 @@ In Devtron, you can view a list of namespaces by going to Resource Browser → (
 
 A setting applied to a node that influences the scheduling of pods. Taints can restrict which pods are allowed to run on the node. 
 
-In Devtron, you can edit the taints of a node by going to Resource Browser → (choose a cluster) → Nodes → (click on a node) → Edit taints (available in blue). [Read More...](../user-guide/clusters.md#taint-a-node)
+In Devtron, you can edit the taints of a node by going to Resource Browser → (choose a cluster) → Nodes → (click on a node) → Edit taints (available in blue). [Read More...](../user-guide/resource-browser.md#taint-a-node)
 
 ### NodePort
 
@@ -174,7 +174,7 @@ A Kubernetes service type that exposes a port on each node in the cluster, makin
 
 The physical or virtual machines that make up a Kubernetes cluster, where containers are scheduled to run. 
 
-In Devtron, you can view nodes by going to Resource Browser → (choose a cluster) → Nodes. [Read More...](../user-guide/clusters.md#nodes)
+In Devtron, you can view nodes by going to Resource Browser → (choose a cluster) → Nodes. [Read More...](../user-guide/resource-browser.md#nodes)
 
 ### Objects
 
