@@ -22,7 +22,7 @@ import (
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/plugin"
+	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
 	"github.com/go-pg/pg"
 	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
@@ -43,7 +43,7 @@ const (
 )
 
 type PluginInputVariableParser interface {
-	HandleCopyContainerImagePluginInputVariables(inputVariables []*bean.VariableObject, dockerImageTag string, pluginTriggerImage string, sourceImageDockerRegistry string) (registryDestinationImageMap map[string][]string, registryCredentials map[string]plugin.RegistryCredentials, err error)
+	HandleCopyContainerImagePluginInputVariables(inputVariables []*bean.VariableObject, dockerImageTag string, pluginTriggerImage string, sourceImageDockerRegistry string) (registryDestinationImageMap map[string][]string, registryCredentials map[string]bean2.RegistryCredentials, err error)
 }
 
 type PluginInputVariableParserImpl struct {
@@ -67,7 +67,7 @@ func NewPluginInputVariableParserImpl(
 func (impl *PluginInputVariableParserImpl) HandleCopyContainerImagePluginInputVariables(inputVariables []*bean.VariableObject,
 	dockerImageTag string,
 	pluginTriggerImage string,
-	sourceImageDockerRegistry string) (registryDestinationImageMap map[string][]string, registryCredentials map[string]plugin.RegistryCredentials, err error) {
+	sourceImageDockerRegistry string) (registryDestinationImageMap map[string][]string, registryCredentials map[string]bean2.RegistryCredentials, err error) {
 
 	var DestinationInfo string
 	for _, ipVariable := range inputVariables {
@@ -129,8 +129,8 @@ func (impl *PluginInputVariableParserImpl) getRegistryRepoMapping(destinationInf
 	return destinationRegistryRepositoryMap
 }
 
-func (impl *PluginInputVariableParserImpl) getRegistryDetails(destinationRegistryRepositoryMap map[string][]string, sourceRegistry string) (map[string]plugin.RegistryCredentials, error) {
-	registryCredentialsMap := make(map[string]plugin.RegistryCredentials)
+func (impl *PluginInputVariableParserImpl) getRegistryDetails(destinationRegistryRepositoryMap map[string][]string, sourceRegistry string) (map[string]bean2.RegistryCredentials, error) {
+	registryCredentialsMap := make(map[string]bean2.RegistryCredentials)
 	//saving source registry credentials
 	sourceRegistry = strings.Trim(sourceRegistry, " ")
 	sourceRegistryCredentials, err := impl.getPluginRegistryCredentialsByRegistryName(sourceRegistry)
@@ -150,7 +150,7 @@ func (impl *PluginInputVariableParserImpl) getRegistryDetails(destinationRegistr
 	return registryCredentialsMap, nil
 }
 
-func (impl *PluginInputVariableParserImpl) getPluginRegistryCredentialsByRegistryName(registryName string) (*plugin.RegistryCredentials, error) {
+func (impl *PluginInputVariableParserImpl) getPluginRegistryCredentialsByRegistryName(registryName string) (*bean2.RegistryCredentials, error) {
 	registryCredentials, err := impl.dockerRegistryConfig.FetchOneDockerAccount(registryName)
 	if err != nil {
 		impl.logger.Errorw("error in fetching registry details by registry name", "err", err)
@@ -159,7 +159,7 @@ func (impl *PluginInputVariableParserImpl) getPluginRegistryCredentialsByRegistr
 		}
 		return nil, err
 	}
-	return &plugin.RegistryCredentials{
+	return &bean2.RegistryCredentials{
 		RegistryType:       string(registryCredentials.RegistryType),
 		RegistryURL:        registryCredentials.RegistryURL,
 		Username:           registryCredentials.Username,
@@ -173,7 +173,7 @@ func (impl *PluginInputVariableParserImpl) getPluginRegistryCredentialsByRegistr
 func (impl *PluginInputVariableParserImpl) getRegistryDestinationImageMapping(
 	registryRepoMapping map[string][]string,
 	dockerImageTag string,
-	registryCredentials map[string]plugin.RegistryCredentials) map[string][]string {
+	registryCredentials map[string]bean2.RegistryCredentials) map[string][]string {
 
 	// creating map with registry as key and list of destination images in that registry
 	registryDestinationImageMapping := make(map[string][]string)
@@ -190,7 +190,7 @@ func (impl *PluginInputVariableParserImpl) getRegistryDestinationImageMapping(
 	return registryDestinationImageMapping
 }
 
-func (impl *PluginInputVariableParserImpl) createEcrRepoIfRequired(registryCredentials map[string]plugin.RegistryCredentials, registryRepoMapping map[string][]string) error {
+func (impl *PluginInputVariableParserImpl) createEcrRepoIfRequired(registryCredentials map[string]bean2.RegistryCredentials, registryRepoMapping map[string][]string) error {
 	for registry, registryCredential := range registryCredentials {
 		if registryCredential.RegistryType == dockerRegistryRepository.REGISTRYTYPE_ECR {
 			repositories := registryRepoMapping[registry]

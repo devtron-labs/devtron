@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/plugin"
+	"github.com/devtron-labs/devtron/pkg/plugin/bean"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -75,7 +76,7 @@ func (handler *GlobalPluginRestHandlerImpl) PatchPlugin(w http.ResponseWriter, r
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var pluginDataDto plugin.PluginMetadataDto
+	var pluginDataDto bean.PluginMetadataDto
 	err = decoder.Decode(&pluginDataDto)
 	if err != nil {
 		handler.logger.Errorw("request err, PatchPlugin", "error", err, "payload", pluginDataDto)
@@ -202,7 +203,7 @@ func (handler *GlobalPluginRestHandlerImpl) ListAllPlugins(w http.ResponseWriter
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	var plugins []*plugin.PluginListComponentDto
+	var plugins []*bean.PluginListComponentDto
 	plugins, err = handler.globalPluginService.ListAllPlugins(stageType)
 	if err != nil {
 		handler.logger.Errorw("error in getting cd plugin list", "err", err)
@@ -260,26 +261,19 @@ func (handler *GlobalPluginRestHandlerImpl) ListAllPluginsV2(w http.ResponseWrit
 			return
 		}
 	}
-	if appId > 0 {
-		ok, err := handler.IsUserAuthorisedForThisApp(token, appId)
-		if err != nil {
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
-		if !ok {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-			return
-		}
-	} else { //check for super-admin, to be used in global policy
-		if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin {
-			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-			return
-		}
-
+	ok, err := handler.IsUserAuthorized(token, appId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
 	}
 
 	listFilter, err := handler.getListFilterFromQueryParam(w, r)
 	if err != nil {
+		common.WriteJsonResp(w, err, "invalid filter value in query param", http.StatusBadRequest)
 		return
 	}
 
@@ -305,23 +299,16 @@ func (handler *GlobalPluginRestHandlerImpl) GetAllUniqueTags(w http.ResponseWrit
 			return
 		}
 	}
-	if appId > 0 {
-		ok, err := handler.IsUserAuthorisedForThisApp(token, appId)
-		if err != nil {
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
-		if !ok {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-			return
-		}
-	} else { //check for super-admin, to be used in global policy
-		if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin {
-			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-			return
-		}
-
+	ok, err := handler.IsUserAuthorized(token, appId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
+	if !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
 	pluginDetail, err := handler.globalPluginService.GetAllUniqueTags()
 	if err != nil {
 		handler.logger.Errorw("error in getting all unique tags", "err", err)
@@ -343,22 +330,15 @@ func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailByIds(w http.Response
 			return
 		}
 	}
-	if appId > 0 {
-		ok, err := handler.IsUserAuthorisedForThisApp(token, appId)
-		if err != nil {
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
-		if !ok {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-			return
-		}
-	} else { //check for super-admin, to be used in global policy
-		if isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !isSuperAdmin {
-			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-			return
-		}
 
+	ok, err := handler.IsUserAuthorized(token, appId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
 	}
 
 	pluginIds, parentPluginIds, fetchAllVersionDetails, err := handler.extractQueryParamsForPluginDetail(r)
@@ -379,29 +359,23 @@ func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailByIds(w http.Response
 
 func (handler *GlobalPluginRestHandlerImpl) IsUserAuthorisedForThisApp(token string, appId int) (bool, error) {
 	var ok bool
-	app, err := handler.pipelineBuilder.GetApp(appId)
-	if err != nil {
-		return ok, err
-	}
 	//using appId for rbac in plugin(global resource), because this data must be visible to person having create permission
 	//on atleast one app & we can't check this without iterating through every app
 	//TODO: update plugin as a resource in casbin and make rbac independent of appId
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	ok = handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionCreate)
 	return ok, nil
 }
 
-func (handler *GlobalPluginRestHandlerImpl) getListFilterFromQueryParam(w http.ResponseWriter, r *http.Request) (*plugin.PluginsListFilter, error) {
+func (handler *GlobalPluginRestHandlerImpl) getListFilterFromQueryParam(w http.ResponseWriter, r *http.Request) (*bean.PluginsListFilter, error) {
 	v := r.URL.Query()
 	offset, err := common.ExtractIntQueryParam(w, r, "offset", 0)
 	if err != nil {
-		common.WriteJsonResp(w, err, "invalid offset value", http.StatusBadRequest)
 		return nil, err
 	}
 
 	limit, err := common.ExtractIntQueryParam(w, r, "size", 20)
 	if err != nil {
-		common.WriteJsonResp(w, err, "invalid size value", http.StatusBadRequest)
 		return nil, err
 	}
 	searchQueryParam := v.Get("searchKey")
@@ -409,11 +383,10 @@ func (handler *GlobalPluginRestHandlerImpl) getListFilterFromQueryParam(w http.R
 
 	fetchAllVersionDetails, err := common.ExtractBoolQueryParam(r, "fetchAllVersionDetails")
 	if err != nil {
-		common.WriteJsonResp(w, err, "invalid fetchAllVersionDetails value", http.StatusBadRequest)
 		return nil, err
 	}
 
-	listFilter := plugin.NewPluginsListFilter()
+	listFilter := bean.NewPluginsListFilter()
 	listFilter.WithOffset(offset).WithLimit(limit).WithTags(tagArray).WithSearchKey(searchQueryParam)
 	listFilter.FetchAllVersionDetails = fetchAllVersionDetails
 	return listFilter, nil
@@ -435,4 +408,18 @@ func (handler *GlobalPluginRestHandlerImpl) extractQueryParamsForPluginDetail(r 
 		return nil, nil, fetchAllVersionDetails, errors.New("invalid fetchAllVersionDetails value")
 	}
 	return pluginIds, parentPluginIds, fetchAllVersionDetails, nil
+}
+
+func (handler *GlobalPluginRestHandlerImpl) IsUserAuthorized(token string, appId int) (bool, error) {
+	var isAuthorised bool
+	var err error
+	if appId > 0 {
+		isAuthorised, err = handler.IsUserAuthorisedForThisApp(token, appId)
+		if err != nil {
+			return isAuthorised, err
+		}
+	} else { //check for super-admin, to be used in global policy
+		isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+	}
+	return isAuthorised, nil
 }

@@ -21,7 +21,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
-	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
 	"strings"
 	"time"
@@ -265,10 +264,6 @@ type GlobalPluginRepository interface {
 	GetConditionsByPluginId(pluginId int) ([]*PluginStepCondition, error)
 	GetPluginStageMappingByPluginId(pluginId int) (*PluginStageMapping, error)
 	GetConnection() (dbConnection *pg.DB)
-	GetPluginVersionsMetadataByParentPluginId(parentPluginId int) ([]*PluginMetadata, error)
-	GetPluginVersionsMetadataByParentPluginIds(parentPluginIds []int) ([]*PluginMetadata, error)
-	GetMetaDataForAllPluginsVersionsByIds(ids []int) ([]*PluginMetadata, error)
-	GetPluginVersionPluginIdOrPluginParentId(versionIds, pluginParentIds []int, fetchAllVersionDetails bool) ([]*PluginMetadata, error)
 
 	GetPluginParentMetadataByIdentifier(pluginIdentifier string) (*PluginParentMetadata, error)
 	GetAllFilteredPluginParentMetadata(searchKey string, tags []string) ([]*PluginParentMetadata, error)
@@ -757,66 +752,4 @@ func (impl *GlobalPluginRepositoryImpl) GetPluginParentMetadataByIds(ids []int) 
 		return nil, err
 	}
 	return plugins, nil
-}
-
-func (impl *GlobalPluginRepositoryImpl) GetPluginVersionsMetadataByParentPluginId(parentPluginId int) ([]*PluginMetadata, error) {
-	var pluginVersions []*PluginMetadata
-	err := impl.dbConnection.Model(&pluginVersions).
-		Where("plugin_parent_metadata_id = ?", parentPluginId).
-		Where("deleted = ?", false).
-		Select()
-	if err != nil {
-		impl.logger.Errorw("err in getting pluginVersionsMetadata by parentPluginId", "parentPluginId", parentPluginId, "err", err)
-		return nil, err
-	}
-	return pluginVersions, nil
-}
-
-func (impl *GlobalPluginRepositoryImpl) GetPluginVersionsMetadataByParentPluginIds(parentPluginIds []int) ([]*PluginMetadata, error) {
-	var pluginVersions []*PluginMetadata
-	err := impl.dbConnection.Model(&pluginVersions).
-		Where("plugin_parent_metadata_id in (?)", pg.In(parentPluginIds)).
-		Where("deleted = ?", false).
-		Select()
-	if err != nil {
-		impl.logger.Errorw("err in getting pluginVersionsMetadata by parentPluginIds", "parentPluginIds", parentPluginIds, "err", err)
-		return nil, err
-	}
-	return pluginVersions, nil
-}
-
-func (impl *GlobalPluginRepositoryImpl) GetMetaDataForAllPluginsVersionsByIds(ids []int) ([]*PluginMetadata, error) {
-	var pluginVersions []*PluginMetadata
-	err := impl.dbConnection.Model(&pluginVersions).
-		Where("id in (?)", pg.In(ids)).
-		Where("deleted = ?", false).
-		Select()
-	if err != nil {
-		impl.logger.Errorw("err in getting plugin versions metadata by ids", "ids", ids, "err", err)
-		return nil, err
-	}
-	return pluginVersions, nil
-}
-
-func (impl *GlobalPluginRepositoryImpl) GetPluginVersionPluginIdOrPluginParentId(versionIds, pluginParentIds []int, fetchAllVersionDetails bool) ([]*PluginMetadata, error) {
-	var pluginVersions []*PluginMetadata
-	err := impl.dbConnection.Model(&pluginVersions).
-		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
-			if len(versionIds) > 0 {
-				query.WhereOr("id in (?)", pg.In(versionIds))
-			}
-			if len(pluginParentIds) > 0 {
-				query.WhereOr("plugin_parent_metadata_id in (?)", pg.In(pluginParentIds))
-				if !fetchAllVersionDetails {
-					query.Where("is_latest=true")
-				}
-			}
-			return query, nil
-		}).
-		Select()
-	if err != nil {
-		impl.logger.Errorw("err in getting plugin versions metadata by plugin ids or plugin parent ids ", "versionIds", versionIds, "pluginParentIds", pluginParentIds, "err", err)
-		return nil, err
-	}
-	return pluginVersions, nil
 }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package plugin
+package bean
 
 import (
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
@@ -231,7 +231,7 @@ func (r *PluginTagsDto) WithTagNames(tags []string) *PluginTagsDto {
 	return r
 }
 
-func (r *PluginMetadataDto) getPluginMetadataSqlObj(userId int32) *repository.PluginMetadata {
+func (r *PluginMetadataDto) GetPluginMetadataSqlObj(userId int32) *repository.PluginMetadata {
 	return &repository.PluginMetadata{
 		Name:        r.Name,
 		Description: r.Description,
