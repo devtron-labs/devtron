@@ -692,8 +692,9 @@ func (impl InstalledAppRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypeIn
 	err := impl.dbConnection.
 		Model(&installedApps).
 		Column("installed_apps.id", "App.app_name", "App.display_name", "Environment.cluster_id", "Environment.namespace").
+		Join("LEFT JOIN deployment_config dc on dc.app_id = installed_apps.app_id and dc.environment_id=installed_apps.environment_id").
 		Where("environment.cluster_id in (?)", pg.In(clusterIds)).
-		Where("installed_apps.deployment_app_type = ?", deploymentAppType).
+		Where("(installed_apps.deployment_app_type = ? or dc.deployment_app_type = ?)", deploymentAppType, deploymentAppType).
 		Where("app.active = ?", true).
 		Where("installed_apps.active = ?", true).
 		Select()
