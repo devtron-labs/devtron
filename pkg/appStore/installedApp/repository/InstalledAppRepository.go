@@ -863,8 +863,9 @@ func (impl InstalledAppRepositoryImpl) GetActiveInstalledAppByEnvIdAndDeployment
 		Model(&installedApps).
 		Column("installed_apps.*", "App", "Environment").
 		Join("inner join app a on installed_apps.app_id = a.id").
+		Join("LEFT JOIN deployment_config dc on dc.app_id = installed_apps.app_id and dc.environment_id=installed_apps.environment_id").
 		Where("installed_apps.environment_id = ?", envId).
-		Where("installed_apps.deployment_app_type = ?", deploymentType).
+		Where("installed_apps.deployment_app_type = ? or dc.deployment_app_type = ?", deploymentType, deploymentType).
 		Where("installed_apps.active = ?", true)
 
 	if len(excludeAppIds) > 0 {
