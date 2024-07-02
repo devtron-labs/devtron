@@ -17,6 +17,7 @@
 package pipeline
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -97,7 +98,7 @@ func (impl *BuildPipelineSwitchServiceImpl) SwitchToExternalCi(tx *pg.Tx, appWor
 		return err
 	}
 
-	//setting new ci_pipeline_id to 0 because we dont store ci_pipeline_id if the ci_pipeline is external/webhook type.
+	// setting new ci_pipeline_id to 0 because we dont store ci_pipeline_id if the ci_pipeline is external/webhook type.
 	err = impl.pipelineRepository.UpdateOldCiPipelineIdToNewCiPipelineId(tx, switchFromCiPipelineId, 0)
 	if err != nil {
 		impl.logger.Errorw("error in updating pipelines ci_pipeline_ids with new ci_pipelineId", "oldCiPipelineId", switchFromCiPipelineId)
@@ -130,11 +131,17 @@ func (impl *BuildPipelineSwitchServiceImpl) SwitchToCiPipelineExceptExternal(req
 		return nil, err
 	}
 
-	//delete old pipeline and it's appworkflow mapping
+	// delete old pipeline and it's appworkflow mapping
 	return impl.createNewPipelineAndReplaceOldPipelineLinks(request.CiPipeline, ciConfig, switchFromPipelineId, switchFromType, request.UserId)
 }
 
 func (impl *BuildPipelineSwitchServiceImpl) createNewPipelineAndReplaceOldPipelineLinks(ciPipelineReq *bean.CiPipeline, ciConfig *bean.CiConfigRequest, switchFromPipelineId int, switchFromType pipelineConfigBean.PipelineType, userId int32) (*bean.CiConfigRequest, error) {
+
+	isSelfLinkedCiPipeline := switchFromType != pipelineConfigBean.EXTERNAL && ciPipelineReq.IsLinkedCi() && ciPipelineReq.ParentCiPipeline == switchFromPipelineId
+	if isSelfLinkedCiPipeline {
+		return nil, fmt.Errorf("cannot create linked ci pipeline from the same source")
+	}
+
 	tx, err := impl.ciPipelineRepository.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in starting transaction", "switchFromPipelineId", switchFromPipelineId, "switchFromType", switchFromType, "userId", userId, "err", err)
