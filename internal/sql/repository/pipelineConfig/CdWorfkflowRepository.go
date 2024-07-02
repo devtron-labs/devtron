@@ -488,7 +488,7 @@ func (impl *CdWorkflowRepositoryImpl) FindLastUnFailedProcessedRunner(appId int,
 	wfr := &CdWorkflowRunner{}
 	err := impl.dbConnection.
 		Model(wfr).
-		Column("cd_workflow_runner.*", "CdWorkflow.Pipeline.id", "CdWorkflow.Pipeline.deployment_app_delete_request", "CdWorkflow.Pipeline.deployment_app_type").
+		Column("cd_workflow_runner.*", "CdWorkflow.Pipeline.id", "CdWorkflow.Pipeline.deployment_app_delete_request").
 		Where("p.environment_id = ?", environmentId).
 		Where("p.app_id = ?", appId).
 		Where("cd_workflow_runner.workflow_type = ?", apiBean.CD_WORKFLOW_TYPE_DEPLOY).
