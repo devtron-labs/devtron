@@ -825,15 +825,16 @@ func (impl InstalledAppRepositoryImpl) GetArgoPipelinesHavingTriggersStuckInLast
 	var installedAppVersions []*InstalledAppVersions
 	queryString := `select iav.* from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id=ia.id 
 					inner join installed_app_version_history iavh on iavh.installed_app_version_id=iav.id
+					left join deployment_config dc on dc.app_id = ia.app_id and dc.environment_id=ia.environment_id
 					where iavh.id in (select DISTINCT ON (installed_app_version_history_id) max(id) as id from pipeline_status_timeline
 					                    where status in (?) and status_time < NOW() - INTERVAL '? seconds'
 										group by installed_app_version_history_id, id order by installed_app_version_history_id, id desc)
-					and iavh.updated_on > NOW() - INTERVAL '? minutes' and ia.deployment_app_type=? and iav.active=?;`
+					and iavh.updated_on > NOW() - INTERVAL '? minutes' and (ia.deployment_app_type=? or dc.deployment_app_type=?) and iav.active=?;`
 
 	_, err := impl.dbConnection.Query(&installedAppVersions, queryString,
 		pg.In([]timelineStatus.TimelineStatus{timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED,
 			timelineStatus.TIMELINE_STATUS_FETCH_TIMED_OUT, timelineStatus.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS}),
-		pendingSinceSeconds, timeForDegradation, util2.PIPELINE_DEPLOYMENT_TYPE_ACD, true)
+		pendingSinceSeconds, timeForDegradation, util2.PIPELINE_DEPLOYMENT_TYPE_ACD, util2.PIPELINE_DEPLOYMENT_TYPE_ACD, true)
 	if err != nil {
 		impl.Logger.Errorw("error in GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelinesForAppStore", "err", err)
 		return nil, err
