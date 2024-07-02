@@ -127,7 +127,7 @@ type PipelineRepository interface {
 	// FindWithEnvironmentByCiIds Possibility of duplicate environment names when filtered by unique pipeline ids
 	FindWithEnvironmentByCiIds(ctx context.Context, cIPipelineIds []int) ([]*Pipeline, error)
 	FindDeploymentAppTypeByAppIdAndEnvId(appId, envId int) (string, error)
-	FindByEnvToAppIdMapping(envToAppIdMap map[int]int) ([]*Pipeline, error)
+	FindByAppIdToEnvIdsMapping(appIdToEnvIds map[int][]int) ([]*Pipeline, error)
 }
 
 type CiArtifactDTO struct {
@@ -796,12 +796,15 @@ func (impl PipelineRepositoryImpl) FindDeploymentAppTypeByAppIdAndEnvId(appId, e
 	return deploymentAppType, err
 }
 
-func (impl PipelineRepositoryImpl) FindByEnvToAppIdMapping(envToAppIdMap map[int]int) ([]*Pipeline, error) {
+func (impl PipelineRepositoryImpl) FindByAppIdToEnvIdsMapping(appIdToEnvIds map[int][]int) ([]*Pipeline, error) {
 	var pipelines []*Pipeline
 	err := impl.dbConnection.Model(&pipelines).
 		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
-			for envId, appId := range envToAppIdMap {
-				query = query.Where("environment_id = ? and app_id = ? ", envId, appId)
+			for appId, envIds := range appIdToEnvIds {
+				if len(envIds) == 0 {
+					continue
+				}
+				query = query.WhereOr("app_id = ? and environment_id in (?) and deleted=false", appId, pg.In(envIds))
 			}
 			return query, nil
 		}).

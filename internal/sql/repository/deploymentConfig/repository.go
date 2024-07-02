@@ -19,7 +19,7 @@ type DeploymentConfig struct {
 	CredentialType     string   `sql:"credential_type"`
 	CredentialIdInt    int      `sql:"credential_id_int"`
 	CredentialIdString string   `sql:"credential_id_string"`
-	Active             bool     `sql:"active"`
+	Active             bool     `sql:"active,notnull"`
 	sql.AuditLog
 }
 
@@ -31,7 +31,7 @@ type Repository interface {
 	GetByAppIdAndEnvId(appId, envId int) (*DeploymentConfig, error)
 	GetAppLevelConfig(appId int) (*DeploymentConfig, error)
 	GetAppLevelConfigByAppIds(appIds []int) ([]*DeploymentConfig, error)
-	GetAppAndEnvLevelConfigsInBulk(envIdToAppIdMap map[int]int) ([]*DeploymentConfig, error)
+	GetAppAndEnvLevelConfigsInBulk(appIdToEnvIdsMap map[int][]int) ([]*DeploymentConfig, error)
 }
 
 type RepositoryImpl struct {
@@ -55,9 +55,9 @@ func (impl RepositoryImpl) Save(tx *pg.Tx, config *DeploymentConfig) (*Deploymen
 func (impl RepositoryImpl) SaveAll(tx *pg.Tx, configs []*DeploymentConfig) ([]*DeploymentConfig, error) {
 	var err error
 	if tx != nil {
-		err = tx.Insert(configs)
+		err = tx.Insert(&configs)
 	} else {
-		err = impl.dbConnection.Insert(configs)
+		err = impl.dbConnection.Insert(&configs)
 	}
 	return configs, err
 }
@@ -107,12 +107,15 @@ func (impl RepositoryImpl) GetAppLevelConfigByAppIds(appIds []int) ([]*Deploymen
 	return result, err
 }
 
-func (impl RepositoryImpl) GetAppAndEnvLevelConfigsInBulk(envIdToAppIdMap map[int]int) ([]*DeploymentConfig, error) {
+func (impl RepositoryImpl) GetAppAndEnvLevelConfigsInBulk(appIdToEnvIdsMap map[int][]int) ([]*DeploymentConfig, error) {
 	var result []*DeploymentConfig
 	err := impl.dbConnection.Model(&result).
 		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
-			for envId, appId := range envIdToAppIdMap {
-				query = query.Where("environment_id = ? and app_id = ? ", envId, appId)
+			for appId, envIds := range appIdToEnvIdsMap {
+				if len(envIds) == 0 {
+					continue
+				}
+				query = query.WhereOr(" app_id = ? and environment_id in (?) and active=true ", appId, pg.In(envIds))
 			}
 			return query, nil
 		}).
