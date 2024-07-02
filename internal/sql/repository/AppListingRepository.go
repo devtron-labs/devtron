@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.opentelemetry.io/otel"
 	"strings"
@@ -88,6 +89,7 @@ type AppListingRepositoryImpl struct {
 	environmentRepository            repository2.EnvironmentRepository
 	gitOpsRepository                 GitOpsConfigRepository
 	appWorkflowRepository            appWorkflow2.AppWorkflowRepository
+	deploymentConfigRepository       deploymentConfig.Repository
 }
 
 func NewAppListingRepositoryImpl(
@@ -95,7 +97,8 @@ func NewAppListingRepositoryImpl(
 	dbConnection *pg.DB,
 	appListingRepositoryQueryBuilder helper.AppListingRepositoryQueryBuilder,
 	environmentRepository repository2.EnvironmentRepository,
-	gitOpsRepository GitOpsConfigRepository, appWorkflowRepository appWorkflow2.AppWorkflowRepository) *AppListingRepositoryImpl {
+	gitOpsRepository GitOpsConfigRepository, appWorkflowRepository appWorkflow2.AppWorkflowRepository,
+	deploymentConfigRepository deploymentConfig.Repository) *AppListingRepositoryImpl {
 	return &AppListingRepositoryImpl{
 		dbConnection:                     dbConnection,
 		Logger:                           Logger,
@@ -103,6 +106,7 @@ func NewAppListingRepositoryImpl(
 		environmentRepository:            environmentRepository,
 		gitOpsRepository:                 gitOpsRepository,
 		appWorkflowRepository:            appWorkflowRepository,
+		deploymentConfigRepository:       deploymentConfigRepository,
 	}
 }
 
@@ -374,6 +378,15 @@ func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx contex
 		return deploymentDetail, err
 	}
 	deploymentDetail.EnvironmentId = envId
+	if len(deploymentDetail.DeploymentAppType) == 0 {
+		dc, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(appId, envId)
+		if err != nil {
+			impl.Logger.Errorw("error in getting deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
+			return deploymentDetail, err
+		}
+		deploymentDetail.DeploymentAppType = dc.DeploymentAppType
+	}
+
 	return deploymentDetail, nil
 }
 
