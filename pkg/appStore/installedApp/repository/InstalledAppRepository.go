@@ -767,8 +767,9 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppByAppName(appName string) 
 func (impl InstalledAppRepositoryImpl) GetInstalledAppByInstalledAppVersionId(installedAppVersionId int) (InstalledApps, error) {
 	var installedApps InstalledApps
 	queryString := `select ia.* from installed_apps ia inner join installed_app_versions iav on ia.id=iav.installed_app_id
-         			where iav.active=? and iav.id=? and ia.deployment_app_type=?;`
-	_, err := impl.dbConnection.Query(&installedApps, queryString, true, installedAppVersionId, util2.PIPELINE_DEPLOYMENT_TYPE_ACD)
+                    left join deployment_config dc on dc.app_id = ia.app_id and dc.environment_id=ia.environment_id
+         			where iav.active=? and iav.id=? and (ia.deployment_app_type=? or dc.deployment_app_type=?);`
+	_, err := impl.dbConnection.Query(&installedApps, queryString, true, installedAppVersionId, util2.PIPELINE_DEPLOYMENT_TYPE_ACD, util2.PIPELINE_DEPLOYMENT_TYPE_ACD)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching InstalledApp", "err", err)
 		return installedApps, err
