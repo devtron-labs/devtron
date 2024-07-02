@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Updating pr-issue-validator-script (#5384)
 - fix: optimised FetchLatestDeploymentWithChartRefs query (#5393)
 - fix: nats consumer deleted on shutdown (#5377)
 - fix: panic issue in get/ download pod logs api (#5342)
