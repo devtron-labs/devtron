@@ -68,6 +68,16 @@ user_unblocked_reason = {
     "PERMANENTLY - By giving a workaround (Within Devtron)": 1,
     "None": 0
 }
+
+# gh authentication 
+token = os.environ.get('GITHUB_TOKEN')
+subprocess.run(['gh', 'auth', 'login', '--with-token'], input=token, text=True, capture_output=True)
+
+# Retrieving environment variables
+issue_body = os.environ.get('ISSUE_BODY')
+issue_number = os.environ.get('ISSUE_NUMBER')
+pagerduty_score_threshold = os.environ.get('PAGERDUTY_SCORE_THRESHOLD')
+
 # Function to extract and process information from the issue body
 def process_issue_body(issue_body):
      # Regular expressions to extract specific sections from the issue body
@@ -106,8 +116,15 @@ def process_issue_body(issue_body):
 
     # Checking for required values and skipping execution of script, if not found
     if affected_areas_score == 0 or prod_non_prod_score == 0 or user_unblocked_score == 0:
-        print("One or more required values are missing. Exiting...")
-        sys.exit(0)
+        print("One or more required values are missing. Pager-duty validation failed ...")
+        try:
+            subprocess.run(['gh', 'issue', 'edit', str(issue_number), '--remove-label', 'pager-duty'])
+            print("Removing pager-duty label", issue_number)
+            subprocess.run(['gh', 'issue', 'edit', str(issue_number), '--add-label', 'pager-duty-validation-failed'], capture_output=True, check=True, text=True)
+            print("Pager-duty vlaidation failed label added to issue", issue_number)
+            sys.exit(0)
+        except subprocess.CalledProcessError as e:
+            print(e) 
 
     if user_unblocked_reason_score == 0:
         user_unblocked_reason_score = 1
@@ -133,16 +150,7 @@ def process_issue_body(issue_body):
         print(e.stderr)
     return final_score
 
-token = os.environ.get('GITHUB_TOKEN')
-subprocess.run(['gh', 'auth', 'login', '--with-token'], input=token, text=True, capture_output=True)
-
-# Retrieving environment variables
-issue_body = os.environ.get('ISSUE_BODY')
-issue_number = os.environ.get('ISSUE_NUMBER')
-pagerduty_score_threshold = os.environ.get('PAGERDUTY_SCORE_THRESHOLD')
-
 final_score = process_issue_body(issue_body)
-
 
 # Removing 'pager-duty' label from issue if final score is below the threshold
 if final_score <= int(pagerduty_score_threshold):
