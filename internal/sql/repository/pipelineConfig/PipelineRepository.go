@@ -372,8 +372,9 @@ func (impl PipelineRepositoryImpl) FindActiveByEnvIdAndDeploymentType(environmen
 		Model(&pipelines).
 		Column("pipeline.*", "App", "Environment").
 		Join("inner join app a on pipeline.app_id = a.id").
+		Join("LEFT JOIN deployment_config dc on dc.app_id = pipeline.app_id and dc.environment_id=pipeline.environment_id").
 		Where("pipeline.environment_id = ?", environmentId).
-		Where("pipeline.deployment_app_type = ?", deploymentAppType).
+		Where("(pipeline.deployment_app_type=? or dc.deployment_app_type=?)", deploymentAppType, deploymentAppType).
 		Where("pipeline.deleted = ?", false)
 
 	if len(exclusionListString) > 0 {
