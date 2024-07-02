@@ -10,7 +10,6 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -31,7 +30,6 @@ type DeploymentConfigServiceImpl struct {
 	gitOpsConfigReadService    config.GitOpsConfigReadService
 	appRepository              appRepository.AppRepository
 	installedAppRepository     repository.InstalledAppRepository
-	git.GitOperationService
 }
 
 func NewDeploymentConfigServiceImpl(
@@ -323,7 +321,6 @@ func (impl *DeploymentConfigServiceImpl) GetDevtronAppConfigInBulk(appIds []int,
 		for _, c := range AppLevelDeploymentConfigs {
 			presentAppIds[c.AppId] = true
 		}
-
 		notFoundAppIds := make([]int, len(appIds))
 		for _, id := range appIds {
 			if _, ok := presentAppIds[id]; !ok {
@@ -446,8 +443,11 @@ func (impl *DeploymentConfigServiceImpl) migrateEnvLevelDataTODeploymentConfigIn
 			ChartLocation:     appLevelConfig.ChartLocation,
 			Active:            true,
 			DeploymentAppType: deploymentAppType,
-			CredentialType:    bean.GitOps.String(),
-			CredentialIdInt:   repoUrlToConfigMapping[appLevelConfig.RepoUrl].Id,
+		}
+		switch deploymentAppType {
+		case bean2.ArgoCd:
+			configDbObj.CredentialType = bean.GitOps.String()
+			configDbObj.CredentialIdInt = repoUrlToConfigMapping[appLevelConfig.RepoUrl].Id
 		}
 		configDbObj.AuditLog.CreateAuditLog(bean3.SYSTEM_USER_ID)
 		configDBObjects = append(configDBObjects, configDbObj)
@@ -509,8 +509,17 @@ func (impl *DeploymentConfigServiceImpl) migrateDeploymentConfigInBulkForHelmApp
 
 	appIdToInstalledAppMapping := make(map[int]*repository.InstalledApps)
 
+	allRepoURLS := make([]string, len(installedApps))
+
 	for _, ia := range installedApps {
 		appIdToInstalledAppMapping[ia.AppId] = ia
+		allRepoURLS = append(allRepoURLS, ia.GitOpsRepoUrl)
+	}
+
+	repoUrlToConfigMapping, err := impl.gitOpsConfigReadService.GetGitOpsProviderMapByRepoURL(allRepoURLS)
+	if err != nil {
+		impl.logger.Errorw("error in fetching repoUrl to config mapping", "err", err)
+		return nil, err
 	}
 
 	configDBObjects := make([]*deploymentConfig.DeploymentConfig, len(envIdToAppIdMapping))
@@ -525,6 +534,11 @@ func (impl *DeploymentConfigServiceImpl) migrateDeploymentConfigInBulkForHelmApp
 			RepoUrl:           installedApp.GitOpsRepoUrl,
 			RepoName:          installedApp.GitOpsRepoName,
 			Active:            true,
+		}
+		switch installedApp.DeploymentAppType {
+		case bean2.ArgoCd:
+			helmDeploymentConfig.CredentialType = bean.GitOps.String()
+			helmDeploymentConfig.CredentialIdInt = repoUrlToConfigMapping[installedApp.GitOpsRepoUrl].Id
 		}
 		helmDeploymentConfig.AuditLog.CreateAuditLog(bean3.SYSTEM_USER_ID)
 		configDBObjects = append(configDBObjects, helmDeploymentConfig)
