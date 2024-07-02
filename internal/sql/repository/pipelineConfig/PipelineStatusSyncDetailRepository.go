@@ -100,7 +100,7 @@ func (impl *PipelineStatusSyncDetailRepositoryImpl) GetOfLatestCdWfrByCdPipeline
               	where cd_workflow_runner_id = (select cwr.id from cd_workflow_runner cwr inner join cd_workflow cw on cw.id=cwr.cd_workflow_id 
                 	inner join pipeline p on p.id=cw.pipeline_id
 					  left join deployment_config dc on dc.app_id = p.app_id and dc.environment_id=p.environment_id
-              	                                             where p.id=? and p.deleted=? and (p.deployment_app_type=? and dc.deployment_app_type=?)  order by cwr.id desc limit ?);`
+              	                                             where p.id=? and p.deleted=? and (p.deployment_app_type=? or dc.deployment_app_type=?)  order by cwr.id desc limit ?);`
 	_, err := impl.dbConnection.Query(&model, query, pipelineId, false, util.PIPELINE_DEPLOYMENT_TYPE_ACD, util.PIPELINE_DEPLOYMENT_TYPE_ACD, 1)
 	if err != nil {
 		impl.logger.Errorw("error in getting cd pipeline status sync detail of latest cdWfr by pipelineId", "err", err, "pipelineId", pipelineId)
