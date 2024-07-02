@@ -612,16 +612,17 @@ func (impl PipelineRepositoryImpl) GetArgoPipelinesHavingTriggersStuckInLastPoss
 	var pipelines []*Pipeline
 	queryString := `select p.* from pipeline p inner join cd_workflow cw on cw.pipeline_id = p.id  
     inner join cd_workflow_runner cwr on cwr.cd_workflow_id=cw.id  
+    left join deployment_config dc on dc.app_id = p.app_id and dc.environment_id=p.environment_id
     where cwr.id in (select cd_workflow_runner_id from pipeline_status_timeline  
 					where id in  
 						(select DISTINCT ON (cd_workflow_runner_id) max(id) as id from pipeline_status_timeline 
 							group by cd_workflow_runner_id, id order by cd_workflow_runner_id,id desc)  
 					and status in (?) and status_time < NOW() - INTERVAL '? seconds')  
-    and cwr.started_on > NOW() - INTERVAL '? minutes' and p.deployment_app_type=? and p.deleted=?;`
+    and cwr.started_on > NOW() - INTERVAL '? minutes' and (p.deployment_app_type=? or dc.deployment_app_type=?) and p.deleted=?;`
 	_, err := impl.dbConnection.Query(&pipelines, queryString,
 		pg.In([]timelineStatus.TimelineStatus{timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED,
 			timelineStatus.TIMELINE_STATUS_FETCH_TIMED_OUT, timelineStatus.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS}),
-		pendingSinceSeconds, timeForDegradation, util.PIPELINE_DEPLOYMENT_TYPE_ACD, false)
+		pendingSinceSeconds, timeForDegradation, util.PIPELINE_DEPLOYMENT_TYPE_ACD, util.PIPELINE_DEPLOYMENT_TYPE_ACD, false)
 	if err != nil {
 		impl.logger.Errorw("error in GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelines", "err", err)
 		return nil, err
