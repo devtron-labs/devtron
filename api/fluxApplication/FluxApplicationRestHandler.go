@@ -50,6 +50,7 @@ func (handler *FluxApplicationRestHandlerImpl) ListFluxApplications(w http.Respo
 	if len(clusterIdString) == 0 {
 		handler.logger.Errorw("error in getting cluster ids", "error", err, "clusterIds", clusterIds)
 		common.WriteJsonResp(w, errors.New("error in getting cluster ids"), nil, http.StatusBadRequest)
+		return
 	}
 	clusterIds, err = common.ExtractIntArrayQueryParam(w, r, "clusterIds")
 	if err != nil {
@@ -65,6 +66,11 @@ func (handler *FluxApplicationRestHandlerImpl) GetApplicationDetail(w http.Respo
 	appIdentifier, err := fluxApplication.DecodeFluxExternalAppAppId(clusterIdString)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if appIdentifier.IsKustomizeApp == true && appIdentifier.Name == "flux-system" && appIdentifier.Namespace == "flux-system" {
+
+		common.WriteJsonResp(w, errors.New("cannot proceed for the flux system root level "), nil, http.StatusBadRequest)
 		return
 	}
 
