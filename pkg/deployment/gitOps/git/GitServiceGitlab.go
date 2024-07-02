@@ -263,6 +263,10 @@ func (impl GitLabClient) CreateReadme(ctx context.Context, config *bean2.GitOpsC
 	fileAction := gitlab.FileCreate
 	filePath := "README.md"
 	fileContent := "devtron licence"
+	exists, _ := impl.checkIfFileExists(config.GitRepoName, "master", filePath)
+	if exists {
+		fileAction = gitlab.FileUpdate
+	}
 	actions := &gitlab.CreateCommitOptions{
 		Branch:        gitlab.String("master"),
 		CommitMessage: gitlab.String("test commit"),
