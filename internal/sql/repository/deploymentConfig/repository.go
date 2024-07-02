@@ -101,7 +101,7 @@ func (impl RepositoryImpl) GetAppLevelConfig(appId int) (*DeploymentConfig, erro
 func (impl RepositoryImpl) GetAppLevelConfigByAppIds(appIds []int) ([]*DeploymentConfig, error) {
 	var result []*DeploymentConfig
 	err := impl.dbConnection.Model(&result).
-		Where("app_id in (?) ", appIds).
+		Where("app_id in (?) and environment_id is NULL ", pg.In(appIds)).
 		Where("active = ?", true).
 		Select()
 	return result, err

@@ -930,7 +930,7 @@ func (impl InstalledAppRepositoryImpl) FindInstalledAppByAppIds(appIds []int) ([
 	}
 	err := impl.dbConnection.Model(&installedApps).
 		Column("installed_apps.*").
-		Where("installed_apps.app_id in (?)", appIds).
+		Where("installed_apps.app_id in (?)", pg.In(appIds)).
 		Select()
 	return installedApps, err
 }

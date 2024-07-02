@@ -313,7 +313,7 @@ func (impl *DeploymentConfigServiceImpl) GetDevtronAppConfigInBulk(appIds []int,
 		return nil, err
 	}
 
-	AllAppLevelConfigs := make([]*deploymentConfig.DeploymentConfig, len(appIds))
+	AllAppLevelConfigs := make([]*deploymentConfig.DeploymentConfig, 0, len(appIds))
 	AllAppLevelConfigs = append(AllAppLevelConfigs, AppLevelDeploymentConfigs...)
 
 	if len(AppLevelDeploymentConfigs) < len(appIds) {
@@ -321,7 +321,7 @@ func (impl *DeploymentConfigServiceImpl) GetDevtronAppConfigInBulk(appIds []int,
 		for _, c := range AppLevelDeploymentConfigs {
 			presentAppIds[c.AppId] = true
 		}
-		notFoundAppIds := make([]int, len(appIds))
+		notFoundAppIds := make([]int, 0, len(appIds))
 		for _, id := range appIds {
 			if _, ok := presentAppIds[id]; !ok {
 				notFoundAppIds = append(notFoundAppIds, id)
@@ -340,7 +340,7 @@ func (impl *DeploymentConfigServiceImpl) GetDevtronAppConfigInBulk(appIds []int,
 		appIdToAppLevelConfigMapping[appLevelConfig.AppId] = appLevelConfig
 	}
 
-	AllEnvLevelConfigs := make([]*deploymentConfig.DeploymentConfig, len(envIdToAppIdMapping))
+	AllEnvLevelConfigs := make([]*deploymentConfig.DeploymentConfig, 0, len(envIdToAppIdMapping))
 
 	if len(envIdToAppIdMapping) > 0 {
 		envLevelConfig, err := impl.deploymentConfigRepository.GetAppAndEnvLevelConfigsInBulk(envIdToAppIdMapping)
@@ -369,7 +369,7 @@ func (impl *DeploymentConfigServiceImpl) GetDevtronAppConfigInBulk(appIds []int,
 		}
 	}
 
-	allConfigs := make([]*bean.DeploymentConfig, len(appIds)+len(envIdToAppIdMapping))
+	allConfigs := make([]*bean.DeploymentConfig, 0, len(appIds)+len(envIdToAppIdMapping))
 	for _, c := range AllAppLevelConfigs {
 		allConfigs = append(allConfigs, ConvertDeploymentConfigDbObjToDTO(c))
 	}
@@ -386,7 +386,7 @@ func (impl *DeploymentConfigServiceImpl) migrateAppLevelDataTODeploymentConfigIn
 		impl.logger.Errorw("error in fetching latest chart by appIds", "appIds", appIds, "err", err)
 		return nil, err
 	}
-	configDBObjects := make([]*deploymentConfig.DeploymentConfig, len(appIds))
+	configDBObjects := make([]*deploymentConfig.DeploymentConfig, 0, len(appIds))
 	for _, c := range charts {
 		dbObj := &deploymentConfig.DeploymentConfig{
 			ConfigType:    GetDeploymentConfigType(c.IsCustomGitRepository),
@@ -430,7 +430,7 @@ func (impl *DeploymentConfigServiceImpl) migrateEnvLevelDataTODeploymentConfigIn
 		return nil, err
 	}
 
-	configDBObjects := make([]*deploymentConfig.DeploymentConfig, len(notFoundEnvToAppIdMapping))
+	configDBObjects := make([]*deploymentConfig.DeploymentConfig, 0, len(notFoundEnvToAppIdMapping))
 
 	for envId, appId := range notFoundEnvToAppIdMapping {
 		deploymentAppType := deploymentAppTypeMap[appId][envId]
@@ -464,7 +464,7 @@ func (impl *DeploymentConfigServiceImpl) migrateEnvLevelDataTODeploymentConfigIn
 
 func (impl *DeploymentConfigServiceImpl) GetHelmAppConfigInBulk(appIds []int, envIdToAppIdMapping map[int]int) ([]*bean.DeploymentConfig, error) {
 
-	allDeploymentConfigs := make([]*deploymentConfig.DeploymentConfig, len(appIds))
+	allDeploymentConfigs := make([]*deploymentConfig.DeploymentConfig, 0, len(appIds))
 
 	helmDeploymentConfig, err := impl.deploymentConfigRepository.GetAppAndEnvLevelConfigsInBulk(envIdToAppIdMapping)
 	if err != nil && err != pg.ErrNoRows {
@@ -475,7 +475,7 @@ func (impl *DeploymentConfigServiceImpl) GetHelmAppConfigInBulk(appIds []int, en
 	allDeploymentConfigs = append(allDeploymentConfigs, helmDeploymentConfig...)
 
 	if len(helmDeploymentConfig) < len(envIdToAppIdMapping) {
-		notFoundEnvIdToAppIdsMap := make(map[int]int, len(envIdToAppIdMapping))
+		notFoundEnvIdToAppIdsMap := make(map[int]int)
 		presentEnvIds := make(map[int]bool)
 		for _, c := range helmDeploymentConfig {
 			presentEnvIds[c.EnvironmentId] = true
@@ -493,7 +493,7 @@ func (impl *DeploymentConfigServiceImpl) GetHelmAppConfigInBulk(appIds []int, en
 		allDeploymentConfigs = append(allDeploymentConfigs, migratedConfigs...)
 	}
 
-	deploymentConfigsResult := make([]*bean.DeploymentConfig, len(appIds))
+	deploymentConfigsResult := make([]*bean.DeploymentConfig, 0, len(appIds))
 	for _, c := range allDeploymentConfigs {
 		deploymentConfigsResult = append(deploymentConfigsResult, ConvertDeploymentConfigDbObjToDTO(c))
 	}
@@ -509,7 +509,7 @@ func (impl *DeploymentConfigServiceImpl) migrateDeploymentConfigInBulkForHelmApp
 
 	appIdToInstalledAppMapping := make(map[int]*repository.InstalledApps)
 
-	allRepoURLS := make([]string, len(installedApps))
+	allRepoURLS := make([]string, 0, len(installedApps))
 
 	for _, ia := range installedApps {
 		appIdToInstalledAppMapping[ia.AppId] = ia
@@ -522,7 +522,7 @@ func (impl *DeploymentConfigServiceImpl) migrateDeploymentConfigInBulkForHelmApp
 		return nil, err
 	}
 
-	configDBObjects := make([]*deploymentConfig.DeploymentConfig, len(envIdToAppIdMapping))
+	configDBObjects := make([]*deploymentConfig.DeploymentConfig, 0, len(envIdToAppIdMapping))
 
 	for envId, appId := range envIdToAppIdMapping {
 		installedApp := appIdToInstalledAppMapping[appId]

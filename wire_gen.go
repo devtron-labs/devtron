@@ -948,6 +948,11 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	deploymentConfigs, err := deploymentConfigServiceImpl.GetDevtronAppConfigInBulk([]int{1,6}, map[int]int{1:1,2:1,3:1,4:1} )
+	if err!=nil{
+
+	}
+	_  = len(deploymentConfigs)
 	mainApp := NewApp(muxRouter, sugaredLogger, sseSSE, syncedEnforcer, db, sessionManager, posthogClient, loggingMiddlewareImpl, centralEventProcessor, pubSubClientServiceImpl, workflowEventProcessorImpl)
 	return mainApp, nil
 }
