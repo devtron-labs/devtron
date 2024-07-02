@@ -29,6 +29,7 @@ import (
 	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/retryFunc"
 	dirCopy "github.com/otiai10/copy"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"net/url"
 	"os"
@@ -51,7 +52,6 @@ type GitOperationService interface {
 	CreateRepository(ctx context.Context, dto *apiBean.GitOpsConfigDto, userId int32) (string, bool, error)
 	GetRepoUrlByRepoName(repoName string) (string, error)
 
-	GetClonedDir(chartDir, repoUrl string) (string, error)
 	CloneInDir(repoUrl, chartDir string) (string, error)
 	ReloadGitOpsProvider() error
 	UpdateGitHostUrlByProvider(request *apiBean.GitOpsConfigDto) error
@@ -109,8 +109,10 @@ func getChartDirPathFromCloneDir(cloneDirPath string) (string, error) {
 }
 
 func (impl *GitOperationServiceImpl) PushChartToGitRepo(ctx context.Context, gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir, repoUrl string, userId int32) (err error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "GitOperationServiceImpl.PushChartToGitRepo")
+	defer span.End()
 	chartDir := fmt.Sprintf("%s-%s", gitOpsRepoName, impl.chartTemplateService.GetDir())
-	clonedDir, err := impl.GetClonedDir(chartDir, repoUrl)
+	clonedDir, err := impl.getClonedDir(newCtx, chartDir, repoUrl)
 	defer impl.chartTemplateService.CleanDir(clonedDir)
 	if err != nil {
 		impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
@@ -157,11 +159,11 @@ func (impl *GitOperationServiceImpl) PushChartToGitRepo(ctx context.Context, git
 	// if push needed, then only push
 	if performFirstCommitPush {
 		userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(userId)
-		commit, err := impl.gitFactory.GitOpsHelper.CommitAndPushAllChanges(ctx, clonedDir, "first commit", userName, userEmailId)
+		commit, err := impl.gitFactory.GitOpsHelper.CommitAndPushAllChanges(newCtx, clonedDir, "first commit", userName, userEmailId)
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
 			callback := func() error {
-				commit, err = impl.commitAndPushAllChangesWithRetry(ctx, clonedDir, repoUrl,
+				commit, err = impl.commitAndPushAllChangesWithRetry(newCtx, clonedDir, repoUrl,
 					tempReferenceTemplateDir, dir, userName, userEmailId, impl.gitFactory.GitOpsHelper)
 				return err
 			}
@@ -373,7 +375,9 @@ func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(ctx context
 	return &commonBean.ChartGitAttribute{RepoUrl: PushChartToGitRequest.RepoURL, ChartLocation: acdAppName}, commit, err
 }
 
-func (impl *GitOperationServiceImpl) GetClonedDir(chartDir, repoUrl string) (string, error) {
+func (impl *GitOperationServiceImpl) getClonedDir(ctx context.Context, chartDir, repoUrl string) (string, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "GitOperationServiceImpl.getClonedDir")
+	defer span.End()
 	clonedDir := impl.gitFactory.GitOpsHelper.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
 		return impl.CloneInDir(repoUrl, chartDir)
