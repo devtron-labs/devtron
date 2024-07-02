@@ -217,6 +217,32 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 			return
 		}
 		// RBAC enforcer Ends
+	} else if request.AppId != "" && request.AppType == bean2.FluxAppType {
+		// For flux app resource
+		appIdentifier, err := fluxApplication.DecodeFluxExternalAppAppId(request.AppId)
+		if err != nil {
+			handler.logger.Errorw("error in decoding appId", "err", err, "appId", request.AppId)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+
+		//setting fluxAppIdentifier value in request
+		request.ExternalFluxAppIdentifier = appIdentifier
+		request.ClusterId = appIdentifier.ClusterId
+		if request.DeploymentType == bean2.FluxInstalledType {
+			valid, err := handler.k8sApplicationService.ValidateFluxResourceRequest(r.Context(), request.ExternalFluxAppIdentifier, request.K8sRequest)
+			if err != nil || !valid {
+				handler.logger.Errorw("error in validating resource request", "err", err)
+				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+				return
+			}
+		}
+
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			return
+		}
+
 	}
 	// Invalid cluster id
 	if request.ClusterId <= 0 {
@@ -428,6 +454,31 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 			return
 		}
 		// RBAC enforcer Ends
+	} else if request.AppId != "" && request.AppType == bean2.FluxAppType {
+		// For flux app resource
+		appIdentifier, err := fluxApplication.DecodeFluxExternalAppAppId(request.AppId)
+		if err != nil {
+			handler.logger.Errorw("error in decoding appId", "err", err, "appId", request.AppId)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+
+		//setting fluxAppIdentifier value in request
+		request.ExternalFluxAppIdentifier = appIdentifier
+		request.ClusterId = appIdentifier.ClusterId
+		if request.DeploymentType == bean2.FluxInstalledType {
+			valid, err := handler.k8sApplicationService.ValidateFluxResourceRequest(r.Context(), request.ExternalFluxAppIdentifier, request.K8sRequest)
+			if err != nil || !valid {
+				handler.logger.Errorw("error in validating resource request", "err", err)
+				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+				return
+			}
+		}
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			return
+		}
+
 	} else if request.ClusterId > 0 {
 		// RBAC enforcer applying for Resource Browser
 		if ok := handler.handleRbac(r, w, request, token, casbin.ActionUpdate); !ok {
