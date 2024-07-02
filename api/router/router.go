@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/api/deployment"
 	"github.com/devtron-labs/devtron/api/devtronResource"
 	"github.com/devtron-labs/devtron/api/externalLink"
+	fluxApplication2 "github.com/devtron-labs/devtron/api/fluxApplication"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/infraConfig"
 	"github.com/devtron-labs/devtron/api/k8s/application"
@@ -115,6 +116,7 @@ type MuxRouter struct {
 	ciTriggerCron                      cron.CiTriggerCron
 	infraConfigRouter                  infraConfig.InfraConfigRouter
 	argoApplicationRouter              argoApplication.ArgoApplicationRouter
+	fluxApplicationRouter              fluxApplication2.FluxApplicationRouter
 	devtronResourceRouter              devtronResource.DevtronResourceRouter
 }
 
@@ -146,7 +148,9 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	proxyRouter proxy.ProxyRouter,
 	infraConfigRouter infraConfig.InfraConfigRouter,
 	argoApplicationRouter argoApplication.ArgoApplicationRouter,
-	devtronResourceRouter devtronResource.DevtronResourceRouter) *MuxRouter {
+	devtronResourceRouter devtronResource.DevtronResourceRouter,
+	fluxApplicationRouter fluxApplication2.FluxApplicationRouter,
+	) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		EnvironmentClusterMappingsRouter:   EnvironmentClusterMappingsRouter,
@@ -209,6 +213,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		infraConfigRouter:                  infraConfigRouter,
 		argoApplicationRouter:              argoApplicationRouter,
 		devtronResourceRouter:              devtronResourceRouter,
+		fluxApplicationRouter:              fluxApplicationRouter,
 	}
 	return r
 }
@@ -416,4 +421,7 @@ func (r MuxRouter) Init() {
 
 	argoApplicationRouter := r.Router.PathPrefix("/orchestrator/argo-application").Subrouter()
 	r.argoApplicationRouter.InitArgoApplicationRouter(argoApplicationRouter)
+
+	fluxApplicationRouter := r.Router.PathPrefix("/orchestrator/flux-application").Subrouter()
+	r.fluxApplicationRouter.InitFluxApplicationRouter(fluxApplicationRouter)
 }
