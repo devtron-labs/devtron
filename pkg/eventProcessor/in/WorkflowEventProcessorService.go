@@ -33,6 +33,7 @@ import (
 	util3 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
 	deploymentBean "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
@@ -88,9 +89,10 @@ type WorkflowEventProcessorImpl struct {
 	appServiceConfig                *app.AppServiceConfig
 
 	// repositories import to be removed
-	pipelineRepository   pipelineConfig.PipelineRepository
-	ciArtifactRepository repository.CiArtifactRepository
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
+	pipelineRepository      pipelineConfig.PipelineRepository
+	ciArtifactRepository    repository.CiArtifactRepository
+	cdWorkflowRepository    pipelineConfig.CdWorkflowRepository
+	deploymentConfigService common.DeploymentConfigService
 }
 
 func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
@@ -111,7 +113,8 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	userDeploymentRequestService service.UserDeploymentRequestService,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciArtifactRepository repository.CiArtifactRepository,
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository) (*WorkflowEventProcessorImpl, error) {
+	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
+	deploymentConfigService common.DeploymentConfigService) (*WorkflowEventProcessorImpl, error) {
 	impl := &WorkflowEventProcessorImpl{
 		logger:                          logger,
 		pubSubClient:                    pubSubClient,
@@ -136,6 +139,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 		pipelineRepository:              pipelineRepository,
 		ciArtifactRepository:            ciArtifactRepository,
 		cdWorkflowRepository:            cdWorkflowRepository,
+		deploymentConfigService:         deploymentConfigService,
 	}
 	appServiceConfig, err := app.GetAppServiceConfig()
 	if err != nil {
@@ -753,7 +757,12 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDPipelineDeleteEvent() error {
 			impl.logger.Errorw("error in fetching pipeline by pipelineId", "err", err, "pipelineId", cdPipelineDeleteEvent.PipelineId)
 			return
 		}
-		if util3.IsHelmApp(pipeline.DeploymentAppType) || util3.IsAcdApp(pipeline.DeploymentAppType) {
+		envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(pipeline.AppId, pipeline.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+			return
+		}
+		if util3.IsHelmApp(envDeploymentConfig.DeploymentAppType) || util3.IsAcdApp(envDeploymentConfig.DeploymentAppType) {
 			impl.RemoveReleaseContextForPipeline(cdPipelineDeleteEvent.PipelineId, cdPipelineDeleteEvent.TriggeredBy)
 			// there is a possibility that when the pipeline was deleted, async request nats message was not consumed completely and could have led to dangling deployment app
 			// trying to delete deployment app once
@@ -1026,7 +1035,12 @@ func (impl *WorkflowEventProcessorImpl) setAdditionalDataInAsyncInstallReq(ctx c
 	if err != nil {
 		return err
 	}
-	triggerAdapter.SetPipelineFieldsInOverrideRequest(cdAsyncInstallReq.ValuesOverrideRequest, pipelineModel)
+	envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(pipelineModel.AppId, pipelineModel.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", pipelineModel.AppId, "envId", pipelineModel.EnvironmentId, "err", err)
+		return err
+	}
+	triggerAdapter.SetPipelineFieldsInOverrideRequest(cdAsyncInstallReq.ValuesOverrideRequest, pipelineModel, envDeploymentConfig)
 	if cdAsyncInstallReq.ValuesOverrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
 		cdAsyncInstallReq.ValuesOverrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
 	}

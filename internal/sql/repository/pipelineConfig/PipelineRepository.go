@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
@@ -125,6 +126,8 @@ type PipelineRepository interface {
 	UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg.Tx, oldCiPipelineId, newCiPipelineId int) error
 	// FindWithEnvironmentByCiIds Possibility of duplicate environment names when filtered by unique pipeline ids
 	FindWithEnvironmentByCiIds(ctx context.Context, cIPipelineIds []int) ([]*Pipeline, error)
+	FindDeploymentAppTypeByAppIdAndEnvId(appId, envId int) (string, error)
+	FindByEnvToAppIdMapping(envToAppIdMap map[int]int) ([]*Pipeline, error)
 }
 
 type CiArtifactDTO struct {
@@ -782,4 +785,26 @@ func (impl PipelineRepositoryImpl) FindWithEnvironmentByCiIds(ctx context.Contex
 		return nil, err
 	}
 	return cDPipelines, nil
+}
+
+func (impl PipelineRepositoryImpl) FindDeploymentAppTypeByAppIdAndEnvId(appId, envId int) (string, error) {
+	var deploymentAppType string
+	err := impl.dbConnection.Model((*Pipeline)(nil)).
+		Column("deployment_app_type").
+		Where("app_id = ? and environment_id=? and deleted=false", appId, envId).
+		Select(&deploymentAppType)
+	return deploymentAppType, err
+}
+
+func (impl PipelineRepositoryImpl) FindByEnvToAppIdMapping(envToAppIdMap map[int]int) ([]*Pipeline, error) {
+	var pipelines []*Pipeline
+	err := impl.dbConnection.Model(&pipelines).
+		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+			for envId, appId := range envToAppIdMap {
+				query = query.Where("environment_id = ? and app_id = ? ", envId, appId)
+			}
+			return query, nil
+		}).
+		Select()
+	return pipelines, err
 }

@@ -22,6 +22,8 @@ import (
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
+	"github.com/devtron-labs/devtron/util/gitUtil"
 	"time"
 )
 
@@ -168,6 +170,26 @@ type InstallAppVersionChartRepoDTO struct {
 	RepoUrl  string `json:"-"`
 	UserName string `json:"-"`
 	Password string `json:"-"`
+}
+
+func (chart *InstallAppVersionDTO) GetDeploymentConfig(gitOpsConfigId int) *bean2.DeploymentConfig {
+	var configType string
+	if chart.IsCustomRepository {
+		configType = bean2.CUSTOM.String()
+	} else {
+		configType = bean2.SYSTEM_GENERATED.String()
+	}
+	return &bean2.DeploymentConfig{
+		AppId:             chart.AppId,
+		EnvironmentId:     chart.EnvironmentId,
+		ConfigType:        configType,
+		DeploymentAppType: chart.DeploymentAppType,
+		RepoURL:           chart.GitOpsRepoURL,
+		RepoName:          gitUtil.GetGitRepoNameFromGitRepoUrl(chart.GitOpsRepoURL),
+		CredentialType:    bean2.GitOps.String(),
+		CredentialIdInt:   gitOpsConfigId,
+		Active:            true,
+	}
 }
 
 // /

@@ -26,6 +26,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
+	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
@@ -122,6 +124,7 @@ type AppServiceImpl struct {
 	gitOperationService                    git.GitOperationService
 	deploymentTemplateService              deploymentTemplate.DeploymentTemplateService
 	appListingService                      AppListingService
+	deploymentConfigService                common2.DeploymentConfigService
 }
 
 type AppService interface {
@@ -162,7 +165,8 @@ func NewAppService(
 	scopedVariableManager variables.ScopedVariableCMCSManager, acdConfig *argocdServer.ACDConfig,
 	gitOpsConfigReadService config.GitOpsConfigReadService, gitOperationService git.GitOperationService,
 	deploymentTemplateService deploymentTemplate.DeploymentTemplateService,
-	appListingService AppListingService) *AppServiceImpl {
+	appListingService AppListingService,
+	deploymentConfigService common2.DeploymentConfigService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -193,6 +197,7 @@ func NewAppService(
 		gitOperationService:                    gitOperationService,
 		deploymentTemplateService:              deploymentTemplateService,
 		appListingService:                      appListingService,
+		deploymentConfigService:                deploymentConfigService,
 	}
 	return appServiceImpl
 }
@@ -830,6 +835,7 @@ type ValuesOverrideResponse struct {
 	PipelineOverride    *chartConfig.PipelineOverride
 	Artifact            *repository.CiArtifact
 	Pipeline            *pipelineConfig.Pipeline
+	DeploymentConfig    *bean2.DeploymentConfig
 }
 
 func (impl *AppServiceImpl) buildACDContext() (acdContext context.Context, err error) {
@@ -1147,7 +1153,14 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 		impl.logger.Errorw("error on update cd workflow runner", "wfr", wfr, "app", app, "err", err)
 		return err
 	}
-	util2.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(wfr), impl.appStatusConfig.ExposeCDMetrics)
+	appId := wfr.CdWorkflow.Pipeline.AppId
+	envId := wfr.CdWorkflow.Pipeline.EnvironmentId
+	envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(appId, envId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
+		return err
+	}
+	util2.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(wfr, envDeploymentConfig), impl.appStatusConfig.ExposeCDMetrics)
 	return nil
 }
 

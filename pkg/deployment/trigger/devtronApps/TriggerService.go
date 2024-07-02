@@ -50,6 +50,8 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	bean9 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
@@ -157,6 +159,7 @@ type TriggerServiceImpl struct {
 	dockerArtifactStoreRepository repository4.DockerArtifactStoreRepository
 	K8sUtil                       *util5.K8sServiceImpl
 	transactionUtilImpl           *sql.TransactionUtilImpl
+	deploymentConfigService       common.DeploymentConfigService
 }
 
 func NewTriggerServiceImpl(logger *zap.SugaredLogger,
@@ -209,7 +212,8 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 	dockerArtifactStoreRepository repository4.DockerArtifactStoreRepository,
 	imageScanService security2.ImageScanService,
 	K8sUtil *util5.K8sServiceImpl,
-	transactionUtilImpl *sql.TransactionUtilImpl) (*TriggerServiceImpl, error) {
+	transactionUtilImpl *sql.TransactionUtilImpl,
+	deploymentConfigService common.DeploymentConfigService) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
 		cdWorkflowCommonService:             cdWorkflowCommonService,
@@ -262,6 +266,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 		imageScanService:                    imageScanService,
 		K8sUtil:                             K8sUtil,
 		transactionUtilImpl:                 transactionUtilImpl,
+		deploymentConfigService:             deploymentConfigService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -363,7 +368,12 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 	if err != nil {
 		return 0, err
 	}
-	adapter.SetPipelineFieldsInOverrideRequest(overrideRequest, cdPipeline)
+	envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(cdPipeline.AppId, cdPipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", cdPipeline.AppId, "envId", cdPipeline.EnvironmentId, "err", err)
+		return 0, err
+	}
+	adapter.SetPipelineFieldsInOverrideRequest(overrideRequest, cdPipeline, envDeploymentConfig)
 
 	switch overrideRequest.CdWorkflowType {
 	case bean3.CD_WORKFLOW_TYPE_PRE:
@@ -664,7 +674,12 @@ func (impl *TriggerServiceImpl) releasePipeline(ctx context.Context, pipeline *p
 		DeploymentWithConfig: bean3.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED,
 		WfrId:                wfrId,
 	}
-	adapter.SetPipelineFieldsInOverrideRequest(request, pipeline)
+	envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(pipeline.AppId, pipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+		return err
+	}
+	adapter.SetPipelineFieldsInOverrideRequest(request, pipeline, envDeploymentConfig)
 
 	releaseCtx, err := impl.argoUserService.GetACDContext(ctx)
 	if err != nil {
@@ -811,7 +826,7 @@ func (impl *TriggerServiceImpl) performGitOps(ctx context.Context,
 	}
 	if manifestPushResponse.IsNewGitRepoConfigured() {
 		// Update GitOps repo url after repo new repo created
-		valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl = manifestPushResponse.NewGitRepoUrl
+		valuesOverrideResponse.DeploymentConfig.RepoURL = manifestPushResponse.NewGitRepoUrl
 	}
 	return nil
 }
@@ -916,9 +931,9 @@ func (impl *TriggerServiceImpl) buildManifestPushTemplate(overrideRequest *bean3
 		manifestPushTemplate.ChartReferenceTemplate = valuesOverrideResponse.EnvOverride.Chart.ReferenceTemplate
 		manifestPushTemplate.ChartName = valuesOverrideResponse.EnvOverride.Chart.ChartName
 		manifestPushTemplate.ChartVersion = valuesOverrideResponse.EnvOverride.Chart.ChartVersion
-		manifestPushTemplate.ChartLocation = valuesOverrideResponse.EnvOverride.Chart.ChartLocation
-		manifestPushTemplate.RepoUrl = valuesOverrideResponse.EnvOverride.Chart.GitRepoUrl
-		manifestPushTemplate.IsCustomGitRepository = valuesOverrideResponse.EnvOverride.Chart.IsCustomGitRepository
+		manifestPushTemplate.ChartLocation = valuesOverrideResponse.DeploymentConfig.ChartLocation
+		manifestPushTemplate.RepoUrl = valuesOverrideResponse.DeploymentConfig.RepoURL
+		manifestPushTemplate.IsCustomGitRepository = common.IsCustomGitOpsRepo(valuesOverrideResponse.DeploymentConfig.ConfigType)
 	}
 	return manifestPushTemplate, err
 }
@@ -978,7 +993,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 	referenceTemplate := envOverride.Chart.ReferenceTemplate
 	referenceTemplatePath := path.Join(bean5.RefChartDirPath, referenceTemplate)
 
-	if util.IsHelmApp(pipelineModel.DeploymentAppType) {
+	if util.IsHelmApp(valuesOverrideResponse.DeploymentConfig.DeploymentAppType) {
 		var sanitizedK8sVersion string
 		//handle specific case for all cronjob charts from cronjob-chart_1-2-0 to cronjob-chart_1-5-0 where semverCompare
 		//comparison func has wrong api version mentioned, so for already installed charts via these charts that comparison
@@ -1126,7 +1141,7 @@ func (impl *TriggerServiceImpl) deployArgoCdApp(ctx context.Context, overrideReq
 	}
 	impl.logger.Debugw("ArgoCd application created", "name", name)
 
-	updateAppInArgoCd, err := impl.updateArgoPipeline(newCtx, valuesOverrideResponse.Pipeline, valuesOverrideResponse.EnvOverride)
+	updateAppInArgoCd, err := impl.updateArgoPipeline(newCtx, valuesOverrideResponse.Pipeline, valuesOverrideResponse.EnvOverride, valuesOverrideResponse.DeploymentConfig)
 	if err != nil {
 		impl.logger.Errorw("error in updating argocd app ", "err", err)
 		return err
@@ -1159,7 +1174,7 @@ func (impl *TriggerServiceImpl) deployArgoCdApp(ctx context.Context, overrideReq
 }
 
 // update repoUrl, revision and argo app sync mode (auto/manual) if needed
-func (impl *TriggerServiceImpl) updateArgoPipeline(ctx context.Context, pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride) (bool, error) {
+func (impl *TriggerServiceImpl) updateArgoPipeline(ctx context.Context, pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride, deploymentConfig *bean9.DeploymentConfig) (bool, error) {
 	if ctx == nil {
 		impl.logger.Errorw("err in syncing ACD, ctx is NULL", "pipelineName", pipeline.Name)
 		return false, nil
@@ -1177,11 +1192,11 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(ctx context.Context, pipeline
 	appStatus, _ := status2.FromError(err)
 	if appStatus.Code() == codes.OK {
 		impl.logger.Debugw("argo app exists", "app", argoAppName, "pipeline", pipeline.Name)
-		if impl.argoClientWrapperService.IsArgoAppPatchRequired(argoApplication.Spec.Source, envOverride.Chart.GitRepoUrl, envOverride.Chart.ChartLocation) {
+		if impl.argoClientWrapperService.IsArgoAppPatchRequired(argoApplication.Spec.Source, deploymentConfig.RepoURL, envOverride.Chart.ChartLocation) {
 			patchRequestDto := &bean7.ArgoCdAppPatchReqDto{
 				ArgoAppName:    argoAppName,
-				ChartLocation:  envOverride.Chart.ChartLocation,
-				GitRepoUrl:     envOverride.Chart.GitRepoUrl,
+				ChartLocation:  deploymentConfig.ChartLocation,
+				GitRepoUrl:     deploymentConfig.RepoURL,
 				TargetRevision: bean7.TargetRevisionMaster,
 				PatchType:      bean7.PatchTypeMerge,
 			}
@@ -1190,7 +1205,7 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(ctx context.Context, pipeline
 				impl.logger.Errorw("error in patching argo pipeline", "err", err, "req", patchRequestDto)
 				return false, err
 			}
-			if envOverride.Chart.GitRepoUrl != argoApplication.Spec.Source.RepoURL {
+			if deploymentConfig.RepoURL != argoApplication.Spec.Source.RepoURL {
 				impl.logger.Infow("patching argo application's repo url", "argoAppName", argoAppName)
 			}
 			impl.logger.Debugw("pipeline update req", "res", patchRequestDto)
@@ -1443,12 +1458,17 @@ func (impl *TriggerServiceImpl) handleCustomGitOpsRepoValidation(runner *pipelin
 		isGitOpsConfigured = true
 	}
 	if isGitOpsConfigured && gitOpsConfig.AllowCustomRepository {
-		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(pipeline.AppId)
+		//chart, err := impl.chartRepository.FindLatestChartForAppByAppId(pipeline.AppId)
+		//if err != nil {
+		//	impl.logger.Errorw("error in fetching latest chart for app by appId", "err", err, "appId", pipeline.AppId)
+		//	return err
+		//}
+		deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(pipeline.AppId, pipeline.EnvironmentId)
 		if err != nil {
-			impl.logger.Errorw("error in fetching latest chart for app by appId", "err", err, "appId", pipeline.AppId)
+			impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
 			return err
 		}
-		if gitOps.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
+		if gitOps.IsGitOpsRepoNotConfigured(deploymentConfig.RepoURL) {
 			if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(pipelineConfig.GITOPS_REPO_NOT_CONFIGURED), triggeredBy); err != nil {
 				impl.logger.Errorw("error while updating current runner status to failed, TriggerDeployment", "wfrId", runner.Id, "err", err)
 			}

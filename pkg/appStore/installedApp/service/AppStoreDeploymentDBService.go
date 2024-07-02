@@ -35,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	clusterService "github.com/devtron-labs/devtron/pkg/cluster"
 	clutserBean "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	gitOpsBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
 	validationBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
@@ -89,6 +90,7 @@ type AppStoreDeploymentDBServiceImpl struct {
 	fullModeDeploymentService            deployment.FullModeDeploymentService
 	appStoreValidator                    AppStoreValidator
 	installedAppDbService                EAMode.InstalledAppDBService
+	deploymentConfigService              common.DeploymentConfigService
 }
 
 func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
@@ -102,7 +104,8 @@ func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	deploymentTypeOverrideService providerConfig.DeploymentTypeOverrideService,
 	fullModeDeploymentService deployment.FullModeDeploymentService, appStoreValidator AppStoreValidator,
-	installedAppDbService EAMode.InstalledAppDBService) *AppStoreDeploymentDBServiceImpl {
+	installedAppDbService EAMode.InstalledAppDBService,
+	deploymentConfigService common.DeploymentConfigService) *AppStoreDeploymentDBServiceImpl {
 	return &AppStoreDeploymentDBServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -117,6 +120,7 @@ func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
 		fullModeDeploymentService:            fullModeDeploymentService,
 		appStoreValidator:                    appStoreValidator,
 		installedAppDbService:                installedAppDbService,
+		deploymentConfigService:              deploymentConfigService,
 	}
 }
 
@@ -203,8 +207,23 @@ func (impl *AppStoreDeploymentDBServiceImpl) AppStoreDeployOperationDB(installRe
 		impl.logger.Errorw("error while creating install app", "error", err)
 		return nil, err
 	}
+
 	installRequest.InstalledAppId = installedApp.Id
 	// Stage 3: ends
+
+	//save deployment config
+	gitOpsConfig, err := impl.gitOpsConfigReadService.GetGitOpsConfigActive()
+	if err != nil {
+		impl.logger.Errorw("error in getting active gitops config", "err", err)
+		return nil, err
+	}
+
+	deploymentConfig := installRequest.GetDeploymentConfig(gitOpsConfig.Id)
+	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(tx, deploymentConfig, installRequest.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in creating deployment config for installed app", "appId", installedApp.AppId, "envId", installedApp.EnvironmentId, "err", err)
+		return nil, err
+	}
 
 	// Stage 4: save installed_app_versions model
 	installedAppVersions := adapter.NewInstallAppVersionsModel(installRequest)
@@ -291,7 +310,12 @@ func (impl *AppStoreDeploymentDBServiceImpl) GetInstalledApp(id int) (*appStoreB
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
 	}
-	chartTemplate := adapter.GenerateInstallAppVersionMinDTO(app)
+	deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfigForHelmApp(app.AppId, app.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", app.AppId, "envId", app.EnvironmentId, "err", err)
+		return nil, err
+	}
+	chartTemplate := adapter.GenerateInstallAppVersionMinDTO(app, deploymentConfig)
 	return chartTemplate, nil
 }
 

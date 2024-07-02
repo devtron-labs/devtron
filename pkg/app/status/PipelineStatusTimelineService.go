@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/pkg/app/status/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -56,6 +57,7 @@ type PipelineStatusTimelineServiceImpl struct {
 	pipelineStatusSyncDetailService        PipelineStatusSyncDetailService
 	installedAppRepository                 repository.InstalledAppRepository
 	installedAppVersionHistory             repository.InstalledAppVersionHistoryRepository
+	deploymentConfigService                common.DeploymentConfigService
 }
 
 func NewPipelineStatusTimelineServiceImpl(logger *zap.SugaredLogger,
@@ -66,6 +68,7 @@ func NewPipelineStatusTimelineServiceImpl(logger *zap.SugaredLogger,
 	pipelineStatusSyncDetailService PipelineStatusSyncDetailService,
 	installedAppRepository repository.InstalledAppRepository,
 	installedAppVersionHistory repository.InstalledAppVersionHistoryRepository,
+	deploymentConfigService common.DeploymentConfigService,
 ) *PipelineStatusTimelineServiceImpl {
 	return &PipelineStatusTimelineServiceImpl{
 		logger:                                 logger,
@@ -76,6 +79,7 @@ func NewPipelineStatusTimelineServiceImpl(logger *zap.SugaredLogger,
 		pipelineStatusSyncDetailService:        pipelineStatusSyncDetailService,
 		installedAppRepository:                 installedAppRepository,
 		installedAppVersionHistory:             installedAppVersionHistory,
+		deploymentConfigService:                deploymentConfigService,
 	}
 }
 
@@ -215,11 +219,19 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 			return nil, err
 		}
 	}
+
 	deploymentStartedOn = wfr.StartedOn
 	deploymentFinishedOn = wfr.FinishedOn
 	triggeredBy = wfr.TriggeredBy
 	wfrStatus = wfr.Status
-	deploymentAppType = wfr.CdWorkflow.Pipeline.DeploymentAppType
+
+	envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(appId, envId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
+		return nil, err
+	}
+
+	deploymentAppType = envDeploymentConfig.DeploymentAppType
 	triggeredByUserEmailId, err := impl.userService.GetEmailById(triggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error in getting user email by id", "err", err, "userId", triggeredBy)
@@ -290,6 +302,11 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesForAppStore(install
 		impl.logger.Errorw("error in getting installed_app_version by appId and envId", "err", err, "appId", installedAppId, "envId", envId)
 		return nil, err
 	}
+	deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfigForHelmApp(installedAppVersion.InstalledApp.AppId, installedAppVersion.InstalledApp.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", installedAppVersion.InstalledApp.AppId, "envId", installedAppVersion.InstalledApp.EnvironmentId, "err", err)
+		return nil, err
+	}
 	installedAppVersionHistory := &repository.InstalledAppVersionHistory{}
 	if installedAppVersionHistoryId == 0 {
 		//fetching latest installed_app_version_history from installed_app_version_id
@@ -315,7 +332,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesForAppStore(install
 		deploymentFinishedOn = installedAppVersionHistory.FinishedOn
 	}
 	installedAppVersionHistoryStatus = installedAppVersionHistory.Status
-	deploymentAppType = installedAppVersion.InstalledApp.DeploymentAppType
+	deploymentAppType = deploymentConfig.DeploymentAppType
 	triggeredByUserEmailId, err := impl.userService.GetEmailById(installedAppVersionHistory.CreatedBy)
 	if err != nil {
 		impl.logger.Errorw("error in getting user email by id", "err", err, "userId", installedAppVersionHistory.CreatedBy)

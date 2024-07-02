@@ -34,6 +34,7 @@ import (
 	app_status "github.com/devtron-labs/devtron/pkg/appStatus"
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -86,7 +87,8 @@ type WorkflowStatusServiceImpl struct {
 	pipelineRepository                   pipelineConfig.PipelineRepository
 	appListingService                    app.AppListingService
 
-	application application.ServiceClient
+	application             application.ServiceClient
+	deploymentConfigService common2.DeploymentConfigService
 }
 
 func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
@@ -108,6 +110,7 @@ func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	application application.ServiceClient,
 	appListingService app.AppListingService,
+	deploymentConfigService common2.DeploymentConfigService,
 ) (*WorkflowStatusServiceImpl, error) {
 	impl := &WorkflowStatusServiceImpl{
 		logger:                               logger,
@@ -131,6 +134,7 @@ func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
 		pipelineRepository:                   pipelineRepository,
 		application:                          application,
 		appListingService:                    appListingService,
+		deploymentConfigService:              deploymentConfigService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -175,8 +179,15 @@ func (impl *WorkflowStatusServiceImpl) CheckHelmAppStatusPeriodicallyAndUpdateIn
 			impl.logger.Errorw("error on update cd workflow runner", "wfr", wfr, "err", err)
 			return err
 		}
+		appId := wfr.CdWorkflow.Pipeline.AppId
+		envId := wfr.CdWorkflow.Pipeline.EnvironmentId
+		envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(appId, envId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
+			return err
+		}
 		if slices.Contains(pipelineConfig.WfrTerminalStatusList, wfr.Status) {
-			util3.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(wfr), impl.config.ExposeCDMetrics)
+			util3.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(wfr, envDeploymentConfig), impl.config.ExposeCDMetrics)
 		}
 
 		impl.logger.Infow("updated workflow runner status for helm app", "wfr", wfr)
