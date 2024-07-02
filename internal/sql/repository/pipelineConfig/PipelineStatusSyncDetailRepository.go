@@ -118,7 +118,7 @@ func (impl *PipelineStatusSyncDetailRepositoryImpl) GetOfLatestInstalledAppVersi
               	                                            left join deployment_config dc on dc.app_id = ia.app_id and dc.environment_id=ia.environment_id
               	                                            where iav.id=? and iav.active=? and (ia.deployment_app_type=? or dc.deployment_app_type=?) 
               	                                            order by iavh.id desc limit ?);`
-	_, err := impl.dbConnection.Query(&model, query, installedAppVersionId, true, util.PIPELINE_DEPLOYMENT_TYPE_ACD, 1)
+	_, err := impl.dbConnection.Query(&model, query, installedAppVersionId, true, util.PIPELINE_DEPLOYMENT_TYPE_ACD, util.PIPELINE_DEPLOYMENT_TYPE_ACD, 1)
 	if err != nil {
 		impl.logger.Errorw("error in getting cd pipeline status sync detail of latest cdWfr by pipelineId", "err", err, "installedAppVersionId", installedAppVersionId)
 		return nil, err
