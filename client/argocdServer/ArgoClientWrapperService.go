@@ -42,7 +42,9 @@ import (
 )
 
 type ACDConfig struct {
-	ArgoCDAutoSyncEnabled bool `env:"ARGO_AUTO_SYNC_ENABLED" envDefault:"true"` // will gradually switch this flag to false in enterprise
+	ArgoCDAutoSyncEnabled     bool `env:"ARGO_AUTO_SYNC_ENABLED" envDefault:"true"` // will gradually switch this flag to false in enterprise
+	RegisterRepoMaxRetryCount int  `env:"ARGO_REPO_REGISTER_RETRY_COUNT" envDefault:"3"`
+	RegisterRepoMaxRetryDelay int  `env:"ARGO_REPO_REGISTER_RETRY_DELAY" envDefault:"10"`
 }
 
 func (config *ACDConfig) IsManualSyncEnabled() bool {
@@ -229,7 +231,11 @@ func (impl *ArgoClientWrapperServiceImpl) RegisterGitOpsRepoInArgoWithRetry(ctx 
 	callback := func() error {
 		return impl.createRepoInArgoCd(ctx, gitOpsRepoUrl)
 	}
-	argoCdErr := retryFunc.Retry(callback, impl.isRetryableArgoRepoCreationError, bean.RegisterRepoMaxRetryCount, 10*time.Second, impl.logger)
+	argoCdErr := retryFunc.Retry(callback,
+		impl.isRetryableArgoRepoCreationError,
+		impl.ACDConfig.RegisterRepoMaxRetryCount,
+		time.Duration(impl.ACDConfig.RegisterRepoMaxRetryCount)*time.Second,
+		impl.logger)
 	if argoCdErr != nil {
 		impl.logger.Errorw("error in registering GitOps repository", "repoName", gitOpsRepoUrl, "err", argoCdErr)
 		return impl.handleArgoRepoCreationError(argoCdErr, ctx, gitOpsRepoUrl, userId)
