@@ -633,14 +633,15 @@ func (impl PipelineRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckInNon
 	var pipelines []*Pipeline
 	queryString := `select p.id from pipeline p inner join cd_workflow cw on cw.pipeline_id = p.id  
     inner join cd_workflow_runner cwr on cwr.cd_workflow_id=cw.id  
+    left join deployment_config dc on dc.app_id = p.app_id and dc.environment_id=p.environment_id
     where cwr.id in (select id from cd_workflow_runner 
                      	where started_on < NOW() - INTERVAL '? minutes' and started_on > NOW() - INTERVAL '? hours' and status not in (?) 
                      	and workflow_type=? and cd_workflow_id in (select DISTINCT ON (pipeline_id) max(id) as id from cd_workflow
                      	  group by pipeline_id, id order by pipeline_id, id desc))
-    and p.deployment_app_type=? and p.deleted=?;`
+    and (p.deployment_app_type=? or dc.deployment_app_type=?) and p.deleted=?;`
 	_, err := impl.dbConnection.Query(&pipelines, queryString, getPipelineDeployedBeforeMinutes, getPipelineDeployedWithinHours,
 		pg.In(append(WfrTerminalStatusList, WorkflowInitiated, WorkflowInQueue)),
-		bean.CD_WORKFLOW_TYPE_DEPLOY, util.PIPELINE_DEPLOYMENT_TYPE_ACD, false)
+		bean.CD_WORKFLOW_TYPE_DEPLOY, util.PIPELINE_DEPLOYMENT_TYPE_ACD, util.PIPELINE_DEPLOYMENT_TYPE_ACD, false)
 	if err != nil {
 		impl.logger.Errorw("error in GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses", "err", err)
 		return nil, err
