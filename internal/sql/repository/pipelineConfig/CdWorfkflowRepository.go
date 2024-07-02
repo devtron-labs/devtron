@@ -756,6 +756,7 @@ func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNon
 		Join("INNER JOIN cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
 		Join("INNER JOIN pipeline p on p.id = wf.pipeline_id").
 		Join("INNER JOIN environment e on e.id = p.environment_id").
+		Join("LEFT JOIN deployment_config dc on dc.app_id = p.app_id and dc.environment_id=p.environment_id").
 		Where("cd_workflow_runner.workflow_type=?", apiBean.CD_WORKFLOW_TYPE_DEPLOY).
 		Where("cd_workflow_runner.status not in (?)", pg.In(excludedStatusList)).
 		Where("cd_workflow_runner.cd_workflow_id in"+
@@ -764,7 +765,7 @@ func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNon
 			" WHERE cd_workflow_runner.status != ?"+
 			" GROUP BY cd_workflow.pipeline_id"+
 			" ORDER BY cd_workflow.pipeline_id desc)", WorkflowInQueue).
-		Where("p.deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_HELM).
+		Where("(p.deployment_app_type=? or dc.deployment_app_type=?)", util.PIPELINE_DEPLOYMENT_TYPE_HELM, util.PIPELINE_DEPLOYMENT_TYPE_HELM).
 		Where("cd_workflow_runner.started_on > NOW() - INTERVAL '? hours'", getPipelineDeployedWithinHours).
 		Where("p.deleted=?", false).
 		Order("cd_workflow_runner.id DESC").
