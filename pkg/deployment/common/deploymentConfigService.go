@@ -17,6 +17,7 @@ import (
 
 type DeploymentConfigService interface {
 	CreateOrUpdateConfig(tx *pg.Tx, config *bean.DeploymentConfig, userId int32) (*bean.DeploymentConfig, error)
+	CreateOrUpdateConfigsInBulk(tx *pg.Tx, configs []*bean.DeploymentConfig, userId int32) ([]*bean.DeploymentConfig, error)
 	GetDeploymentConfig(appId, envId int) (*bean.DeploymentConfig, error)
 	GetDeploymentConfigForHelmApp(appId, envId int) (*bean.DeploymentConfig, error)
 	GetDeploymentConfigInBulk(configSelector []*bean.DeploymentConfigSelector) ([]*bean.DeploymentConfig, error)
@@ -80,6 +81,71 @@ func (impl *DeploymentConfigServiceImpl) CreateOrUpdateConfig(tx *pg.Tx, config 
 	}
 
 	return ConvertDeploymentConfigDbObjToDTO(newDBObj), nil
+}
+
+func (impl *DeploymentConfigServiceImpl) CreateOrUpdateConfigsInBulk(tx *pg.Tx, configs []*bean.DeploymentConfig, userId int32) ([]*bean.DeploymentConfig, error) {
+
+	appIdToEnvIdsMap := GetAppIdToEnvIsMapping(
+		configs,
+		func(config *bean.DeploymentConfig) int { return config.AppId },
+		func(config *bean.DeploymentConfig) int { return config.EnvironmentId })
+
+	deploymentConfigDbObj, err := impl.deploymentConfigRepository.GetAppAndEnvLevelConfigsInBulk(appIdToEnvIdsMap)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment configs by appIdToEnvIds", "appIdToEnvIdsMap", appIdToEnvIdsMap, "err", err)
+		return nil, err
+	}
+
+	foundDeploymentConfigsMap := make(map[bean.UniqueDeploymentConfigIdentifier]*deploymentConfig.DeploymentConfig)
+	for _, savedConfig := range deploymentConfigDbObj {
+		foundDeploymentConfigsMap[bean.GetConfigUniqueIdentifier(savedConfig.AppId, savedConfig.EnvironmentId)] = savedConfig
+	}
+
+	oldDeploymentConfigs := make([]*deploymentConfig.DeploymentConfig, 0)
+	newDeploymentConfigs := make([]*deploymentConfig.DeploymentConfig, 0)
+
+	for _, requestConfig := range configs {
+
+		if oldConfig, isConfigPresent := foundDeploymentConfigsMap[bean.GetConfigUniqueIdentifier(requestConfig.AppId, requestConfig.EnvironmentId)]; isConfigPresent {
+
+			oldConfigDbObject := ConvertDeploymentConfigDTOToDbObj(requestConfig)
+			oldConfigDbObject.Id = oldConfig.Id
+			oldConfigDbObject.AuditLog.UpdateAuditLog(userId)
+			oldDeploymentConfigs = append(oldDeploymentConfigs, oldConfigDbObject)
+
+		} else if !isConfigPresent {
+
+			newConfigDbObject := ConvertDeploymentConfigDTOToDbObj(requestConfig)
+			newConfigDbObject.AuditLog.CreateAuditLog(userId)
+			newDeploymentConfigs = append(newDeploymentConfigs, ConvertDeploymentConfigDTOToDbObj(requestConfig))
+
+		}
+	}
+
+	if len(newDeploymentConfigs) > 0 {
+		newDeploymentConfigs, err = impl.deploymentConfigRepository.SaveAll(tx, newDeploymentConfigs)
+		if err != nil {
+			impl.logger.Errorw("error in saving deployment config in db", "err", err)
+			return nil, err
+		}
+	}
+	if len(oldDeploymentConfigs) > 0 {
+		oldDeploymentConfigs, err = impl.deploymentConfigRepository.UpdateAll(tx, oldDeploymentConfigs)
+		if err != nil {
+			impl.logger.Errorw("error in saving deployment config in db", "err", err)
+			return nil, err
+		}
+	}
+
+	allDeploymentConfigs := make([]*bean.DeploymentConfig, 0, len(oldDeploymentConfigs)+len(newDeploymentConfigs))
+
+	for _, c := range oldDeploymentConfigs {
+		allDeploymentConfigs = append(allDeploymentConfigs, ConvertDeploymentConfigDbObjToDTO(c))
+	}
+	for _, c := range newDeploymentConfigs {
+		allDeploymentConfigs = append(allDeploymentConfigs, ConvertDeploymentConfigDbObjToDTO(c))
+	}
+	return allDeploymentConfigs, nil
 }
 
 func (impl *DeploymentConfigServiceImpl) GetDeploymentConfig(appId, envId int) (*bean.DeploymentConfig, error) {
@@ -352,7 +418,10 @@ func (impl *DeploymentConfigServiceImpl) GetDevtronAppConfigInBulk(appIds []int,
 
 	if len(configSelector) > 0 {
 
-		appIdToEnvIdsMap := GetAppIdToEnvIsMappingFromConfigSelectors(configSelector)
+		appIdToEnvIdsMap := GetAppIdToEnvIsMapping(
+			configSelector,
+			func(config *bean.DeploymentConfigSelector) int { return config.AppId },
+			func(config *bean.DeploymentConfigSelector) int { return config.EnvironmentId })
 
 		envLevelConfig, err := impl.deploymentConfigRepository.GetAppAndEnvLevelConfigsInBulk(appIdToEnvIdsMap)
 		if err != nil {
@@ -506,7 +575,10 @@ func (impl *DeploymentConfigServiceImpl) GetHelmAppConfigInBulk(appIds []int, co
 
 	allDeploymentConfigs := make([]*deploymentConfig.DeploymentConfig, 0, len(appIds))
 
-	appIdToEnvIdsMap := GetAppIdToEnvIsMappingFromConfigSelectors(configSelector)
+	appIdToEnvIdsMap := GetAppIdToEnvIsMapping(
+		configSelector,
+		func(config *bean.DeploymentConfigSelector) int { return config.AppId },
+		func(config *bean.DeploymentConfigSelector) int { return config.EnvironmentId })
 
 	helmDeploymentConfig, err := impl.deploymentConfigRepository.GetAppAndEnvLevelConfigsInBulk(appIdToEnvIdsMap)
 	if err != nil && err != pg.ErrNoRows {

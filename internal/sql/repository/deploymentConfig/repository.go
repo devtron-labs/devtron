@@ -27,6 +27,7 @@ type Repository interface {
 	Save(tx *pg.Tx, config *DeploymentConfig) (*DeploymentConfig, error)
 	SaveAll(tx *pg.Tx, configs []*DeploymentConfig) ([]*DeploymentConfig, error)
 	Update(tx *pg.Tx, config *DeploymentConfig) (*DeploymentConfig, error)
+	UpdateAll(tx *pg.Tx, config []*DeploymentConfig) ([]*DeploymentConfig, error)
 	GetById(id int) (*DeploymentConfig, error)
 	GetByAppIdAndEnvId(appId, envId int) (*DeploymentConfig, error)
 	GetAppLevelConfig(appId int) (*DeploymentConfig, error)
@@ -63,6 +64,16 @@ func (impl RepositoryImpl) SaveAll(tx *pg.Tx, configs []*DeploymentConfig) ([]*D
 }
 
 func (impl RepositoryImpl) Update(tx *pg.Tx, config *DeploymentConfig) (*DeploymentConfig, error) {
+	var err error
+	if tx != nil {
+		err = tx.Update(config)
+	} else {
+		err = impl.dbConnection.Update(config)
+	}
+	return config, err
+}
+
+func (impl RepositoryImpl) UpdateAll(tx *pg.Tx, config []*DeploymentConfig) ([]*DeploymentConfig, error) {
 	var err error
 	if tx != nil {
 		err = tx.Update(config)

@@ -15,13 +15,16 @@ func IsCustomGitOpsRepo(deploymentConfigType string) bool {
 	return deploymentConfigType == bean.CUSTOM.String()
 }
 
-func GetAppIdToEnvIsMappingFromConfigSelectors(configSelector []*bean.DeploymentConfigSelector) map[int][]int {
+func GetAppIdToEnvIsMapping[T any](configArr []T, appIdSelector func(config T) int, envIdSelector func(config T) int) map[int][]int {
+
 	appIdToEnvIdsMap := make(map[int][]int)
-	for _, c := range configSelector {
-		if _, ok := appIdToEnvIdsMap[c.AppId]; !ok {
-			appIdToEnvIdsMap[c.AppId] = make([]int, 0)
+	for _, c := range configArr {
+		appId := appIdSelector(c)
+		envId := envIdSelector(c)
+		if _, ok := appIdToEnvIdsMap[appId]; !ok {
+			appIdToEnvIdsMap[appId] = make([]int, 0)
 		}
-		appIdToEnvIdsMap[c.AppId] = append(appIdToEnvIdsMap[c.AppId], c.EnvironmentId)
+		appIdToEnvIdsMap[appId] = append(appIdToEnvIdsMap[appId], envId)
 	}
 	return appIdToEnvIdsMap
 }
