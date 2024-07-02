@@ -250,16 +250,9 @@ func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailById(w http.ResponseW
 
 func (handler *GlobalPluginRestHandlerImpl) ListAllPluginsV2(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
-	v := r.URL.Query()
-	appIdQueryParam := v.Get("appId")
-	var appId int
-	var err error
-	if len(appIdQueryParam) > 0 {
-		appId, err = strconv.Atoi(appIdQueryParam)
-		if err != nil {
-			common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
-			return
-		}
+	appId, err := common.ExtractIntQueryParam(w, r, "appId", 0)
+	if err != nil {
+		return
 	}
 	ok, err := handler.IsUserAuthorized(token, appId)
 	if err != nil {
@@ -289,15 +282,9 @@ func (handler *GlobalPluginRestHandlerImpl) ListAllPluginsV2(w http.ResponseWrit
 
 func (handler *GlobalPluginRestHandlerImpl) GetAllUniqueTags(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
-	appIdQueryParam := r.URL.Query().Get("appId")
-	var appId int
-	var err error
-	if len(appIdQueryParam) > 0 {
-		appId, err = strconv.Atoi(appIdQueryParam)
-		if err != nil {
-			common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
-			return
-		}
+	appId, err := common.ExtractIntQueryParam(w, r, "appId", 0)
+	if err != nil {
+		return
 	}
 	ok, err := handler.IsUserAuthorized(token, appId)
 	if err != nil {
@@ -320,15 +307,9 @@ func (handler *GlobalPluginRestHandlerImpl) GetAllUniqueTags(w http.ResponseWrit
 
 func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailByIds(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
-	appIdQueryParam := r.URL.Query().Get("appId")
-	var appId int
-	var err error
-	if len(appIdQueryParam) > 0 {
-		appId, err = strconv.Atoi(appIdQueryParam)
-		if err != nil {
-			common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
-			return
-		}
+	appId, err := common.ExtractIntQueryParam(w, r, "appId", 0)
+	if err != nil {
+		return
 	}
 
 	ok, err := handler.IsUserAuthorized(token, appId)
