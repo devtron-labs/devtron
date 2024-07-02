@@ -883,7 +883,7 @@ func (impl InstalledAppRepositoryImpl) GetActiveInstalledAppByEnvIdAndDeployment
 }
 
 // UpdateDeploymentAppTypeInInstalledApp takes in deploymentAppType and list of installedAppIds and
-// updates the deployment_app_type in the table for given ids.
+// updates the deploymentAppType in the table for given ids.
 func (impl InstalledAppRepositoryImpl) UpdateDeploymentAppTypeInInstalledApp(deploymentAppType string, installedAppIdIncludes []int, userId int32, deployStatus int) error {
 	query := "update installed_apps set deployment_app_type = ?,updated_by = ?, updated_on = ?, status = ? where id in (?);"
 	var installedApp *InstalledApps
