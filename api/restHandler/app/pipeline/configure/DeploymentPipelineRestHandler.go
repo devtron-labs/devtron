@@ -984,12 +984,13 @@ func (handler *PipelineConfigRestHandlerImpl) GetRestartWorkloadData(w http.Resp
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	envId, err := common.ExtractIntQueryParam(w, r, "envId", nil)
+	envId, err := common.ExtractIntQueryParam(w, r, "envId", 0)
 	if err != nil {
 		return
 	}
 	appIds, err := common.ExtractIntArrayQueryParam(w, r, "appIds")
 	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	// RBAC enforcer applying
