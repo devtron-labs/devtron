@@ -20,11 +20,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.uber.org/zap"
 	"io/ioutil"
+	k8sError "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -117,7 +120,7 @@ func (impl ArgoK8sClientImpl) CreateArgoApplication(ctx context.Context, namespa
 	if err != nil {
 		return fmt.Errorf("error creating argo cd app")
 	}
-	impl.logger.Infow("creating application", "req", application)
+	impl.logger.Debugw("creating argo application resource", "application", application)
 	res, err := client.
 		Post().
 		Resource("applications").
@@ -126,21 +129,46 @@ func (impl ArgoK8sClientImpl) CreateArgoApplication(ctx context.Context, namespa
 		Do(ctx).Raw()
 
 	if err != nil {
-		response := make(map[string]interface{})
-		err := json.Unmarshal(res, &response)
-		if err != nil {
-			impl.logger.Errorw("unmarshal error on app update status", "err", err)
-			return fmt.Errorf("error creating argo cd app")
-		}
-		message := "error creating argo cd app"
-		if response != nil && response["message"] != nil {
-			message = response["message"].(string)
-		}
-		return fmt.Errorf(message)
+		impl.logger.Errorw("error in argo application resource creation", "namespace", namespace, "res", res, "err", err)
+		return impl.handleArgoAppCreationError(res, err)
 	}
 
-	impl.logger.Infow("argo app create res", "res", string(res), "err", err)
+	impl.logger.Infow("argo app create successfully", "namespace", namespace, "res", string(res))
 	return err
+}
+
+func (impl ArgoK8sClientImpl) handleArgoAppCreationError(res []byte, err error) error {
+	// default error set
+	apiError := &util.ApiError{
+		InternalMessage: "error creating argo cd app",
+		UserMessage:     "error creating argo cd app",
+	}
+	// error override for errors.StatusError
+	if statusError := (&k8sError.StatusError{}); errors.As(err, &statusError) {
+		apiError.HttpStatusCode = int(statusError.Status().Code)
+		apiError.InternalMessage = statusError.Error()
+		apiError.UserMessage = statusError.Error()
+	}
+	response := make(map[string]interface{})
+	jsonErr := json.Unmarshal(res, &response)
+	if jsonErr != nil {
+		impl.logger.Errorw("unmarshal error on app update status", "err", jsonErr)
+		return apiError
+	}
+	// error override if API response exists, as response errors are more readable
+	if response != nil {
+		if statusCode, ok := response["code"]; apiError.HttpStatusCode == 0 && ok {
+			if statusCodeFloat, ok := statusCode.(float64); ok {
+				apiError.HttpStatusCode = int(statusCodeFloat)
+			}
+		}
+		if response["message"] != nil {
+			errMsg := response["message"].(string)
+			apiError.InternalMessage = errMsg
+			apiError.UserMessage = errMsg
+		}
+	}
+	return apiError
 }
 
 func (impl ArgoK8sClientImpl) GetArgoApplication(namespace string, appName string, cluster *repository.Cluster) (map[string]interface{}, error) {
