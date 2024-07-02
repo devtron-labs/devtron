@@ -545,7 +545,7 @@ func (_m *K8sApplicationService) ValidatePodLogsRequestQuery(r *http.Request) (*
 }
 
 // ValidateResourceRequest provides a mock function with given fields: ctx, appIdentifier, request
-func (_m *K8sApplicationService) ValidateResourceRequest(ctx context.Context, appIdentifier *helmBean.AppIdentifier, request *k8s.K8sRequestBean) (bool, error) {
+func (_m *K8sApplicationService) ValidateResourceRequestForHelmApp(ctx context.Context, appIdentifier *helmBean.AppIdentifier, request *k8s.K8sRequestBean) (bool, error) {
 	ret := _m.Called(ctx, appIdentifier, request)
 
 	var r0 bool

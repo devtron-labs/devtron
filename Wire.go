@@ -178,6 +178,12 @@ func InitializeApp() (*App, error) {
 		dashboard.DashboardWireSet,
 		proxy.ProxyWireSet,
 		client.HelmAppWireSet,
+		connection.GetConfig,
+		connection.SettingsManager,
+		application.NewApplicationClientImpl,
+		connection.NewArgoCDConnectionManagerImpl,
+		wire.Bind(new(connection.ArgoCDConnectionManager), new(*connection.ArgoCDConnectionManagerImpl)),
+		wire.Bind(new(application.ServiceClient), new(*application.ServiceClientImpl)),
 		k8s.K8sApplicationWireSet,
 		chartRepo.ChartRepositoryWireSet,
 		appStoreDiscover.AppStoreDiscoverWireSet,
@@ -211,10 +217,10 @@ func InitializeApp() (*App, error) {
 		// sql.NewDbConnection,
 		// app.GetACDAuthConfig,
 		util3.GetACDAuthConfig,
-		connection.SettingsManager,
+		//connection.SettingsManager,
 		// auth.GetConfig,
 
-		connection.GetConfig,
+		//connection.GetConfig,
 		wire.Bind(new(session2.ServiceClient), new(*middleware.LoginService)),
 
 		sse.NewSSE,
@@ -420,8 +426,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.CiPipelineMaterialRepository), new(*pipelineConfig.CiPipelineMaterialRepositoryImpl)),
 		git2.NewGitFactory,
 
-		application.NewApplicationClientImpl,
-		wire.Bind(new(application.ServiceClient), new(*application.ServiceClientImpl)),
+		//	application.NewApplicationClientImpl,
+		//wire.Bind(new(application.ServiceClient), new(*application.ServiceClientImpl)),
 		cluster2.NewServiceClientImpl,
 		wire.Bind(new(cluster2.ServiceClient), new(*cluster2.ServiceClientImpl)),
 		connector.NewPumpImpl,
@@ -831,8 +837,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.PipelineStageService), new(*pipeline.PipelineStageServiceImpl)),
 		// plugin ends
 
-		connection.NewArgoCDConnectionManagerImpl,
-		wire.Bind(new(connection.ArgoCDConnectionManager), new(*connection.ArgoCDConnectionManagerImpl)),
+		//connection.NewArgoCDConnectionManagerImpl,
+		//wire.Bind(new(connection.ArgoCDConnectionManager), new(*connection.ArgoCDConnectionManagerImpl)),
 		argo.NewArgoUserServiceImpl,
 		wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
 		//util2.GetEnvironmentVariables,
