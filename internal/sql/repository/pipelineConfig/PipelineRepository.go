@@ -559,7 +559,7 @@ func (impl PipelineRepositoryImpl) SetDeploymentAppCreatedInPipeline(deploymentA
 }
 
 // UpdateCdPipelineDeploymentAppInFilter takes in deployment app type and list of cd pipeline ids and
-// updates the deployment_app_type and sets deployment_app_created to false in the table for given ids.
+// updates the deploymentAppType and sets deployment_app_created to false in the table for given ids.
 func (impl PipelineRepositoryImpl) UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string,
 	cdPipelineIdIncludes []int, userId int32, deploymentAppCreated bool, isDeleted bool) error {
 	query := "update pipeline set deployment_app_created = ?, deployment_app_type = ?, " +
