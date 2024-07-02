@@ -807,13 +807,14 @@ func (impl InstalledAppRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckI
 	queryString := `select iav.* from installed_app_versions iav 
     				inner join installed_apps ia on iav.installed_app_id=ia.id 
     				inner join installed_app_version_history iavh on iavh.installed_app_version_id=iav.id 
-             		where iavh.id in (select DISTINCT ON (installed_app_version_id) max(id) as id from installed_app_version_history 
+             		left join deployment_config dc on dc.app_id = ia.app_id and dc.environment_id=ia.environment_id
+                    where iavh.id in (select DISTINCT ON (installed_app_version_id) max(id) as id from installed_app_version_history 
                          where updated_on < NOW() - INTERVAL '? minutes' and updated_on > NOW() - INTERVAL '? hours' and status not in (?)
-                         group by installed_app_version_id, id order by installed_app_version_id, id desc ) and ia.deployment_app_type=? and iav.active=?;`
+                         group by installed_app_version_id, id order by installed_app_version_id, id desc ) and (ia.deployment_app_type=? or dc.deployment_app_type=?) and iav.active=?;`
 
 	_, err := impl.dbConnection.Query(&installedAppVersions, queryString, getPipelineDeployedBeforeMinutes, getPipelineDeployedWithinHours,
 		pg.In([]string{pipelineConfig.WorkflowAborted, pipelineConfig.WorkflowFailed, pipelineConfig.WorkflowSucceeded, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded)}),
-		util2.PIPELINE_DEPLOYMENT_TYPE_ACD, true)
+		util2.PIPELINE_DEPLOYMENT_TYPE_ACD, util2.PIPELINE_DEPLOYMENT_TYPE_ACD, true)
 	if err != nil {
 		impl.Logger.Errorw("error in GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatusesForAppStore", "err", err)
 		return nil, err
