@@ -114,7 +114,7 @@ def process_issue_body(issue_body):
     print("Is User unblocked?:", user_unblocked_value)
     print("How was the user un-blocked?:", user_unblocked_reason_value)
 
-    # Checking for required values and skipping execution of script, if not found
+     # Checking for required values and skipping execution of script and adding pager-duty-validation-failed, if not found
     if affected_areas_score == 0 or prod_non_prod_score == 0 or user_unblocked_score == 0:
         print("One or more required values are missing. Pager-duty validation failed ...")
         try:
