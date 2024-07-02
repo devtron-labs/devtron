@@ -20,12 +20,13 @@ import (
 	apiBean "github.com/devtron-labs/devtron/api/bean"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"time"
 )
 
-func SetPipelineFieldsInOverrideRequest(overrideRequest *apiBean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline) {
+func SetPipelineFieldsInOverrideRequest(overrideRequest *apiBean.ValuesOverrideRequest, pipeline *pipelineConfig.Pipeline, deploymentConfig *bean2.DeploymentConfig) {
 	overrideRequest.PipelineId = pipeline.Id
 	overrideRequest.PipelineName = pipeline.Name
 	overrideRequest.EnvId = pipeline.EnvironmentId
@@ -33,7 +34,7 @@ func SetPipelineFieldsInOverrideRequest(overrideRequest *apiBean.ValuesOverrideR
 	overrideRequest.ClusterId = pipeline.Environment.ClusterId
 	overrideRequest.AppId = pipeline.AppId
 	overrideRequest.AppName = pipeline.App.AppName
-	overrideRequest.DeploymentAppType = pipeline.DeploymentAppType
+	overrideRequest.DeploymentAppType = deploymentConfig.DeploymentAppType
 	overrideRequest.Namespace = pipeline.Environment.Namespace
 	overrideRequest.ReleaseName = pipeline.DeploymentAppName
 }

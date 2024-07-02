@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 )
@@ -54,4 +55,16 @@ func ReadFromUrlWithRetry(url string) ([]byte, error) {
 		return body, nil
 	}
 	return nil, err
+}
+
+func GetHost(urlStr string) (string, error) {
+	u, err := url.Parse(urlStr)
+	if err == nil {
+		return u.Host, nil
+	}
+	u, err = url.Parse("//" + urlStr)
+	if err != nil {
+		return "", fmt.Errorf("invalid url: %w", err)
+	}
+	return u.Host, nil
 }

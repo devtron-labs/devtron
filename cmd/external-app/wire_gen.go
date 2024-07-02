@@ -47,6 +47,7 @@ import (
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
+	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
 	repository5 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
@@ -75,6 +76,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/clusterTerminalAccess"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
 	"github.com/devtron-labs/devtron/pkg/externalLink"
@@ -258,21 +260,24 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	installedAppVersionHistoryRepositoryImpl := repository4.NewInstalledAppVersionHistoryRepositoryImpl(sugaredLogger, db)
-	installedAppDBServiceImpl := EAMode.NewInstalledAppDBServiceImpl(sugaredLogger, installedAppRepositoryImpl, appRepositoryImpl, userServiceImpl, environmentServiceImpl, installedAppVersionHistoryRepositoryImpl)
+	repositoryImpl := deploymentConfig.NewRepositoryImpl(db)
+	chartRepositoryImpl := chartRepoRepository.NewChartRepository(db, transactionUtilImpl)
 	gitOpsConfigRepositoryImpl := repository3.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
 	gitOpsConfigReadServiceImpl := config.NewGitOpsConfigReadServiceImpl(sugaredLogger, gitOpsConfigRepositoryImpl, userServiceImpl, environmentVariables)
+	deploymentConfigServiceImpl := common.NewDeploymentConfigServiceImpl(repositoryImpl, sugaredLogger, chartRepositoryImpl, pipelineRepositoryImpl, gitOpsConfigReadServiceImpl, appRepositoryImpl, installedAppRepositoryImpl)
+	installedAppDBServiceImpl := EAMode.NewInstalledAppDBServiceImpl(sugaredLogger, installedAppRepositoryImpl, appRepositoryImpl, userServiceImpl, environmentServiceImpl, installedAppVersionHistoryRepositoryImpl, deploymentConfigServiceImpl)
 	attributesServiceImpl := attributes.NewAttributesServiceImpl(sugaredLogger, attributesRepositoryImpl)
 	deploymentTypeOverrideServiceImpl := providerConfig.NewDeploymentTypeOverrideServiceImpl(sugaredLogger, environmentVariables, attributesServiceImpl)
 	eaModeDeploymentServiceImpl := EAMode.NewEAModeDeploymentServiceImpl(sugaredLogger, helmAppServiceImpl, appStoreApplicationVersionRepositoryImpl, helmAppClientImpl, installedAppRepositoryImpl, ociRegistryConfigRepositoryImpl)
 	appStoreValidatorImpl := service2.NewAppAppStoreValidatorImpl(sugaredLogger)
-	appStoreDeploymentDBServiceImpl := service2.NewAppStoreDeploymentDBServiceImpl(sugaredLogger, installedAppRepositoryImpl, appStoreApplicationVersionRepositoryImpl, appRepositoryImpl, environmentServiceImpl, clusterServiceImpl, installedAppVersionHistoryRepositoryImpl, environmentVariables, gitOpsConfigReadServiceImpl, deploymentTypeOverrideServiceImpl, eaModeDeploymentServiceImpl, appStoreValidatorImpl, installedAppDBServiceImpl)
+	appStoreDeploymentDBServiceImpl := service2.NewAppStoreDeploymentDBServiceImpl(sugaredLogger, installedAppRepositoryImpl, appStoreApplicationVersionRepositoryImpl, appRepositoryImpl, environmentServiceImpl, clusterServiceImpl, installedAppVersionHistoryRepositoryImpl, environmentVariables, gitOpsConfigReadServiceImpl, deploymentTypeOverrideServiceImpl, eaModeDeploymentServiceImpl, appStoreValidatorImpl, installedAppDBServiceImpl, deploymentConfigServiceImpl)
 	chartGroupDeploymentRepositoryImpl := repository7.NewChartGroupDeploymentRepositoryImpl(db, sugaredLogger)
 	acdConfig, err := argocdServer.GetACDDeploymentConfig()
 	if err != nil {
 		return nil, err
 	}
 	deletePostProcessorImpl := service2.NewDeletePostProcessorImpl(sugaredLogger)
-	appStoreDeploymentServiceImpl := service2.NewAppStoreDeploymentServiceImpl(sugaredLogger, installedAppRepositoryImpl, installedAppDBServiceImpl, appStoreDeploymentDBServiceImpl, chartGroupDeploymentRepositoryImpl, appStoreApplicationVersionRepositoryImpl, appRepositoryImpl, eaModeDeploymentServiceImpl, eaModeDeploymentServiceImpl, environmentServiceImpl, helmAppServiceImpl, installedAppVersionHistoryRepositoryImpl, environmentVariables, acdConfig, gitOpsConfigReadServiceImpl, deletePostProcessorImpl, appStoreValidatorImpl)
+	appStoreDeploymentServiceImpl := service2.NewAppStoreDeploymentServiceImpl(sugaredLogger, installedAppRepositoryImpl, installedAppDBServiceImpl, appStoreDeploymentDBServiceImpl, chartGroupDeploymentRepositoryImpl, appStoreApplicationVersionRepositoryImpl, appRepositoryImpl, eaModeDeploymentServiceImpl, eaModeDeploymentServiceImpl, environmentServiceImpl, helmAppServiceImpl, installedAppVersionHistoryRepositoryImpl, environmentVariables, acdConfig, gitOpsConfigReadServiceImpl, deletePostProcessorImpl, appStoreValidatorImpl, deploymentConfigServiceImpl)
 	helmAppRestHandlerImpl := client2.NewHelmAppRestHandlerImpl(sugaredLogger, helmAppServiceImpl, enforcerImpl, clusterServiceImpl, enforcerUtilHelmImpl, appStoreDeploymentServiceImpl, installedAppDBServiceImpl, userServiceImpl, attributesServiceImpl, serverEnvConfigServerEnvConfig)
 	helmAppRouterImpl := client2.NewHelmAppRouterImpl(helmAppRestHandlerImpl)
 	argoApplicationServiceImpl := argoApplication.NewArgoApplicationServiceImpl(sugaredLogger, clusterRepositoryImpl, k8sServiceImpl, helmUserServiceImpl, helmAppServiceImpl)

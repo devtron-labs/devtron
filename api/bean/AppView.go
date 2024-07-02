@@ -19,6 +19,7 @@ package bean
 import (
 	"encoding/json"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"time"
 )
 
@@ -141,46 +142,47 @@ type AppEnvironmentContainer struct {
 }
 
 type DeploymentDetailContainer struct {
-	InstalledAppId                int             `json:"installedAppId,omitempty"`
-	AppId                         int             `json:"appId,omitempty"`
-	CdPipelineId                  int             `json:"cdPipelineId,omitempty"`
-	TriggerType                   string          `json:"triggerType,omitempty"`
-	ParentEnvironmentName         string          `json:"parentEnvironmentName"`
-	AppStoreInstalledAppVersionId int             `json:"appStoreInstalledAppVersionId,omitempty"`
-	AppStoreChartName             string          `json:"appStoreChartName,omitempty"`
-	AppStoreChartId               int             `json:"appStoreChartId,omitempty"`
-	AppStoreAppName               string          `json:"appStoreAppName,omitempty"`
-	AppStoreAppVersion            string          `json:"appStoreAppVersion,omitempty"`
-	AppName                       string          `json:"appName"`
-	EnvironmentId                 int             `json:"environmentId"`
-	EnvironmentName               string          `json:"environmentName"`
-	Namespace                     string          `json:"namespace,omitempty"`
-	Status                        string          `json:"status,omitempty"`
-	StatusMessage                 string          `json:"statusMessage,omitempty"`
-	LastDeployedTime              string          `json:"lastDeployedTime,omitempty"`
-	LastDeployedBy                string          `json:"lastDeployedBy,omitempty"`
-	MaterialInfo                  json.RawMessage `json:"materialInfo,omitempty"`
-	MaterialInfoJsonString        string          `json:"-"`
-	ReleaseVersion                string          `json:"releaseVersion,omitempty"`
-	Default                       bool            `json:"default,omitempty"`
-	DataSource                    string          `json:"dataSource,omitempty"`
-	LastDeployedPipeline          string          `json:"lastDeployedPipeline,omitempty"`
-	Deprecated                    bool            `json:"deprecated"`
-	K8sVersion                    string          `json:"k8sVersion"`
-	CiArtifactId                  int             `json:"ciArtifactId"`
-	ParentArtifactId              int             `json:"parentArtifactId"`
-	ClusterId                     int             `json:"clusterId"`
-	DeploymentAppType             string          `json:"deploymentAppType"`
-	CiPipelineId                  int             `json:"ciPipelineId,omitempty"`
-	IsExternalCi                  bool            `json:"externalCi"`
-	ClusterName                   string          `json:"clusterName,omitempty"`
-	DockerRegistryId              string          `json:"dockerRegistryId,omitempty"`
-	IpsAccessProvided             bool            `json:"ipsAccessProvided"`
-	DeploymentAppDeleteRequest    bool            `json:"deploymentAppDeleteRequest"`
-	Description                   string          `json:"description" validate:"max=40"`
-	IsVirtualEnvironment          bool            `json:"isVirtualEnvironment"`
-	HelmPackageName               string          `json:"helmPackageName"`
-	HelmReleaseInstallStatus      string          `json:"-"`
+	InstalledAppId                int                    `json:"installedAppId,omitempty"`
+	AppId                         int                    `json:"appId,omitempty"`
+	CdPipelineId                  int                    `json:"cdPipelineId,omitempty"`
+	TriggerType                   string                 `json:"triggerType,omitempty"`
+	ParentEnvironmentName         string                 `json:"parentEnvironmentName"`
+	AppStoreInstalledAppVersionId int                    `json:"appStoreInstalledAppVersionId,omitempty"`
+	AppStoreChartName             string                 `json:"appStoreChartName,omitempty"`
+	AppStoreChartId               int                    `json:"appStoreChartId,omitempty"`
+	AppStoreAppName               string                 `json:"appStoreAppName,omitempty"`
+	AppStoreAppVersion            string                 `json:"appStoreAppVersion,omitempty"`
+	AppName                       string                 `json:"appName"`
+	EnvironmentId                 int                    `json:"environmentId"`
+	EnvironmentName               string                 `json:"environmentName"`
+	Namespace                     string                 `json:"namespace,omitempty"`
+	Status                        string                 `json:"status,omitempty"`
+	StatusMessage                 string                 `json:"statusMessage,omitempty"`
+	LastDeployedTime              string                 `json:"lastDeployedTime,omitempty"`
+	LastDeployedBy                string                 `json:"lastDeployedBy,omitempty"`
+	MaterialInfo                  json.RawMessage        `json:"materialInfo,omitempty"`
+	MaterialInfoJsonString        string                 `json:"-"`
+	ReleaseVersion                string                 `json:"releaseVersion,omitempty"`
+	Default                       bool                   `json:"default,omitempty"`
+	DataSource                    string                 `json:"dataSource,omitempty"`
+	LastDeployedPipeline          string                 `json:"lastDeployedPipeline,omitempty"`
+	Deprecated                    bool                   `json:"deprecated"`
+	K8sVersion                    string                 `json:"k8sVersion"`
+	CiArtifactId                  int                    `json:"ciArtifactId"`
+	ParentArtifactId              int                    `json:"parentArtifactId"`
+	ClusterId                     int                    `json:"clusterId"`
+	DeploymentAppType             string                 `json:"deploymentAppType"`
+	CiPipelineId                  int                    `json:"ciPipelineId,omitempty"`
+	IsExternalCi                  bool                   `json:"externalCi"`
+	ClusterName                   string                 `json:"clusterName,omitempty"`
+	DockerRegistryId              string                 `json:"dockerRegistryId,omitempty"`
+	IpsAccessProvided             bool                   `json:"ipsAccessProvided"`
+	DeploymentAppDeleteRequest    bool                   `json:"deploymentAppDeleteRequest"`
+	Description                   string                 `json:"description" validate:"max=40"`
+	IsVirtualEnvironment          bool                   `json:"isVirtualEnvironment"`
+	HelmPackageName               string                 `json:"helmPackageName"`
+	HelmReleaseInstallStatus      string                 `json:"-"`
+	DeploymentConfig              *bean.DeploymentConfig `json:"-"`
 }
 
 type AppDetailContainer struct {

@@ -244,8 +244,9 @@ func (repositoryImpl ChartRepositoryImpl) FindChartByGitRepoUrl(gitRepoUrl strin
 	var chart Chart
 	err := repositoryImpl.dbConnection.Model(&chart).
 		Join("INNER JOIN app ON app.id=app_id").
+		Join("LEFT JOIN deployment_config dc on dc.app_id = chart.app_id and dc.environment_id is null").
 		Where("app.active = ?", true).
-		Where("chart.git_repo_url = ?", gitRepoUrl).
+		Where("(chart.git_repo_url = ? or dc.repo_url = ?)", gitRepoUrl, gitRepoUrl).
 		Where("chart.active = ?", true).
 		Limit(1).
 		Select()

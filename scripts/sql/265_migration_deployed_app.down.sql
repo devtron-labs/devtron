@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS deployment_app_migration_history;

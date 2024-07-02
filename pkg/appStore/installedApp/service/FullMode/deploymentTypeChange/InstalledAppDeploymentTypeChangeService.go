@@ -41,6 +41,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s"
@@ -79,6 +81,7 @@ type InstalledAppDeploymentTypeChangeServiceImpl struct {
 	helmAppService                client.HelmAppService
 	argoUserService               argo.ArgoUserService
 	clusterService                cluster.ClusterService
+	deploymentConfigService       common.DeploymentConfigService
 }
 
 func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
@@ -93,7 +96,8 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	chartGroupService chartGroup.ChartGroupService, helmAppService client.HelmAppService,
 	argoUserService argo.ArgoUserService, clusterService cluster.ClusterService,
-	appRepository appRepository.AppRepository) *InstalledAppDeploymentTypeChangeServiceImpl {
+	appRepository appRepository.AppRepository,
+	deploymentConfigService common.DeploymentConfigService) *InstalledAppDeploymentTypeChangeServiceImpl {
 	return &InstalledAppDeploymentTypeChangeServiceImpl{
 		logger:                        logger,
 		installedAppRepository:        installedAppRepository,
@@ -112,6 +116,7 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 		argoUserService:               argoUserService,
 		clusterService:                clusterService,
 		appRepository:                 appRepository,
+		deploymentConfigService:       deploymentConfigService,
 	}
 }
 
@@ -293,6 +298,12 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) deleteInstalledApps(ctx
 	for _, installedApp := range installedApps {
 		installedApp.Environment.Cluster = cluster
 
+		deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfigForHelmApp(installedApp.AppId, installedApp.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", installedApp.AppId, "envId", installedApp.EnvironmentId, "err", err)
+			return nil, err
+		}
+
 		var isValid bool
 		// check if installed app info like app name and environment is empty or not
 		if failedToDeleteApps, isValid = impl.isInstalledAppInfoValid(installedApp, failedToDeleteApps); !isValid {
@@ -301,17 +312,16 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) deleteInstalledApps(ctx
 
 		var healthChkErr error
 		// check health of the app if it is argo-cd deployment type
-		if _, healthChkErr = impl.handleNotDeployedAppsIfArgoDeploymentType(installedApp, failedToDeleteApps); healthChkErr != nil {
+		if _, healthChkErr = impl.handleNotDeployedAppsIfArgoDeploymentType(installedApp, deploymentConfig, failedToDeleteApps); healthChkErr != nil {
 			// cannot delete unhealthy app
 			continue
 		}
 
 		deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
-		var err error
 		// delete request
-		if installedApp.DeploymentAppType == bean2.ArgoCd {
+		if deploymentConfig.DeploymentAppType == bean2.ArgoCd {
 			err = impl.fullModeDeploymentService.DeleteACD(deploymentAppName, ctx, false)
-		} else if installedApp.DeploymentAppType == bean2.Helm {
+		} else if deploymentConfig.DeploymentAppType == bean2.Helm {
 			// For converting from Helm to ArgoCD, GitOps should be configured
 			if gitOpsConfigErr != nil || !gitOpsConfigStatus.IsGitOpsConfigured {
 				err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "200", UserMessage: errors.New("GitOps not configured or unable to fetch GitOps configuration")}
@@ -337,7 +347,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) deleteInstalledApps(ctx
 		}
 
 		if err != nil {
-			impl.logger.Errorw("error deleting app on "+installedApp.DeploymentAppType,
+			impl.logger.Errorw("error deleting app on "+deploymentConfig.DeploymentAppType,
 				"deployment app name", deploymentAppName,
 				"err", err)
 
@@ -369,9 +379,10 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) isInstalledAppInfoValid
 }
 
 func (impl *InstalledAppDeploymentTypeChangeServiceImpl) handleNotDeployedAppsIfArgoDeploymentType(installedApp *repository2.InstalledApps,
+	deploymentConfig *bean3.DeploymentConfig,
 	failedToDeleteApps []*bean.DeploymentChangeStatus) ([]*bean.DeploymentChangeStatus, error) {
 
-	if installedApp.DeploymentAppType == string(bean2.ArgoCd) {
+	if deploymentConfig.DeploymentAppType == bean2.ArgoCd {
 		// check if app status is Healthy
 		status, err := impl.appStatusRepository.Get(installedApp.AppId, installedApp.EnvironmentId)
 

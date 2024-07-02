@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	util3 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -48,6 +49,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -55,7 +57,6 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	"gopkg.in/go-playground/validator.v9"
 )
 
 type InstalledAppRestHandler interface {
@@ -744,8 +745,8 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 	resourceTreeAndNotesContainer.ResourceTree = map[string]interface{}{}
 
 	if len(installedApp.App.AppName) > 0 && len(installedApp.Environment.Name) > 0 {
-		err = handler.fetchResourceTree(w, r, &resourceTreeAndNotesContainer, *installedApp, "", "")
-		if installedApp.DeploymentAppType == util2.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		err = handler.fetchResourceTree(w, r, &resourceTreeAndNotesContainer, *installedApp, appDetail.DeploymentConfig, "", "")
+		if appDetail.DeploymentAppType == util2.PIPELINE_DEPLOYMENT_TYPE_ACD {
 			apiError, ok := err.(*util2.ApiError)
 			if ok && apiError != nil {
 				if apiError.Code == constants.AppDetailResourceTreeNotFound && installedApp.DeploymentAppDeleteRequest == true {
@@ -868,8 +869,8 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTree(w http.ResponseWri
 	resourceTreeAndNotesContainer.ResourceTree = map[string]interface{}{}
 
 	if len(installedApp.App.AppName) > 0 && len(installedApp.Environment.Name) > 0 {
-		err = handler.fetchResourceTree(w, r, &resourceTreeAndNotesContainer, *installedApp, appDetail.HelmReleaseInstallStatus, appDetail.Status)
-		if installedApp.DeploymentAppType == util2.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		err = handler.fetchResourceTree(w, r, &resourceTreeAndNotesContainer, *installedApp, appDetail.DeploymentConfig, appDetail.HelmReleaseInstallStatus, appDetail.Status)
+		if appDetail.DeploymentAppType == util2.PIPELINE_DEPLOYMENT_TYPE_ACD {
 			//resource tree has been fetched now prepare to sync application deployment status with this resource tree call
 			handler.syncDeploymentStatusWithResourceTreeCall(appDetail)
 			apiError, ok := err.(*util2.ApiError)
@@ -960,10 +961,10 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTreeForACDApp(w http.Re
 	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
 }
 
-func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, resourceTreeAndNotesContainer *bean2.AppDetailsContainer, installedApp repository.InstalledApps, helmReleaseInstallStatus string, status string) error {
+func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, resourceTreeAndNotesContainer *bean2.AppDetailsContainer, installedApp repository.InstalledApps, deploymentConfig *bean3.DeploymentConfig, helmReleaseInstallStatus string, status string) error {
 	ctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
-	err := handler.installedAppResourceService.FetchResourceTree(ctx, cn, resourceTreeAndNotesContainer, installedApp, helmReleaseInstallStatus, status)
+	err := handler.installedAppResourceService.FetchResourceTree(ctx, cn, resourceTreeAndNotesContainer, installedApp, deploymentConfig, helmReleaseInstallStatus, status)
 	return err
 }
 
