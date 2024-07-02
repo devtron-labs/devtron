@@ -18,14 +18,11 @@ package chartConfig
 
 import (
 	"context"
-	"github.com/devtron-labs/devtron/api/bean"
-	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	deploymentStatus "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"github.com/juju/errors"
@@ -76,7 +73,6 @@ type PipelineOverrideRepository interface {
 	GetByDeployedImage(appId, environmentId int, images []string) (pipelineOverride *PipelineOverride, err error)
 	GetLatestReleaseByPipelineIds(pipelineIds []int) (pipelineOverrides []*PipelineOverride, err error)
 	GetLatestReleaseDeploymentType(pipelineIds []int) ([]*PipelineOverride, error)
-	FetchHelmTypePipelineOverridesForStatusUpdate() (pipelines []*PipelineOverride, err error)
 	FindLatestByAppIdAndEnvId(appId, environmentId int, deploymentAppType string) (pipelineOverrides *PipelineOverride, err error)
 	FindLatestByCdWorkflowId(cdWorkflowId int) (pipelineOverride *PipelineOverride, err error)
 }
@@ -294,20 +290,6 @@ func (impl PipelineOverrideRepositoryImpl) FindById(id int) (*PipelineOverride, 
 		Where("pipeline_override.id =?", id).
 		Select()
 	return &pipelineOverride, err
-}
-
-func (impl PipelineOverrideRepositoryImpl) FetchHelmTypePipelineOverridesForStatusUpdate() (pipelines []*PipelineOverride, err error) {
-	err = impl.dbConnection.Model(&pipelines).
-		Column("pipeline_override.*", "Pipeline", "Pipeline.App", "Pipeline.Environment").
-		Join("inner join pipeline p on p.id = pipeline_override.pipeline_id").
-		Join("inner join cd_workflow cdwf on cdwf.pipeline_id = p.id").
-		Join("inner join cd_workflow_runner cdwfr on cdwfr.cd_workflow_id = cdwf.id").
-		Where("p.deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_HELM).
-		Where("cdwfr.status not in (?)", pg.In([]string{argoApplication.Degraded, argoApplication.HIBERNATING, argoApplication.Healthy, deploymentStatus.WorkflowFailed, deploymentStatus.WorkflowAborted})).
-		Where("cdwfr.workflow_type = ?", bean.CD_WORKFLOW_TYPE_DEPLOY).
-		Where("p.deleted = ?", false).
-		Select()
-	return pipelines, err
 }
 
 func (impl PipelineOverrideRepositoryImpl) FindLatestByAppIdAndEnvId(appId, environmentId int, deploymentAppType string) (pipelineOverrides *PipelineOverride, err error) {
