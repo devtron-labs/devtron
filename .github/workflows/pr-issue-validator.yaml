@@ -74,7 +74,7 @@ jobs:
         pattern3="((Fixes|Resolves):? devtron-labs/devtron#[0-9]+)"
 
         ### For ex: Fixes [#4839](https://github.com/devtron-labs/devtron/issues/4839)
-        pattern4="(Fixes|Resolves)\s+\[#([0-9]+)\]"
+        pattern4="(Fixes|Resolves):?\s+\[#([0-9]+)\]"
         
         # Get the pull request body
         PR_BODY=$(jq -r '.pull_request.body' $GITHUB_EVENT_PATH)
