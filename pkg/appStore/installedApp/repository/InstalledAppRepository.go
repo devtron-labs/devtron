@@ -798,7 +798,8 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppByGitRepoUrl(repoName, rep
 	model := &InstalledApps{}
 	err := impl.dbConnection.Model(model).
 		Column("installed_apps.*", "App").
-		Where("installed_apps.git_ops_repo_name = ? OR installed_apps.git_ops_repo_url = ?", repoName, repoUrl).
+		Join("LEFT JOIN deployment_config dc on dc.app_id = installed_apps.app_id and dc.environment_id=installed_apps.environment_id").
+		Where("installed_apps.git_ops_repo_name = ? OR (installed_apps.git_ops_repo_url = ? or dc.repo_url = ?)", repoName, repoUrl, repoUrl).
 		Where("installed_apps.active = true").
 		Where("app.active = true").
 		Limit(1).
