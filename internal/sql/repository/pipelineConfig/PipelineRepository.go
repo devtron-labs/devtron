@@ -600,10 +600,11 @@ func (impl PipelineRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypePipeli
 		Column("pipeline.id", "App.app_name", "Environment.cluster_id", "Environment.namespace", "Environment.environment_name").
 		Join("inner join app a on pipeline.app_id = a.id").
 		Join("inner join environment e on pipeline.environment_id = e.id").
+		Join("LEFT JOIN deployment_config dc on dc.app_id = pipeline.app_id and dc.environment_id=pipeline.environment_id").
 		Where("e.cluster_id in (?)", pg.In(clusterIds)).
 		Where("a.active = ?", true).
 		Where("pipeline.deleted = ?", false).
-		Where("pipeline.deployment_app_type = ?", deploymentAppType).
+		Where("(pipeline.deployment_app_type=? or dc.deployment_app_type=?)", deploymentAppType, deploymentAppType).
 		Select()
 	return pipelines, err
 }
