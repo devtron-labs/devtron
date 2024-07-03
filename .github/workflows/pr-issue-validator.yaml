@@ -63,13 +63,18 @@ jobs:
         fi
         
         ### For ex: Fixes #2123
-        pattern1="((Fixes|Resolves) #[0-9]+)"
+        ### For ex: Fixes: #2123
+        pattern1="((Fixes|Resolves):? #[0-9]+)"
         
         ### For ex: Resolves https://github.com/devtron-labs/devtron/issues/2123
-        pattern2="((Fixes|Resolves) https://github.com/devtron-labs/devtron/issues/[0-9]+)"
+        pattern2="((Fixes|Resolves):? https://github.com/devtron-labs/devtron/issues/[0-9]+)"
+
         
         ### For ex: Fixes devtron-labs/devtron#2123
-        pattern3="((Fixes|Resolves) devtron-labs/devtron#[0-9]+)"
+        pattern3="((Fixes|Resolves):? devtron-labs/devtron#[0-9]+)"
+
+        ### For ex: Fixes [#4839](https://github.com/devtron-labs/devtron/issues/4839)
+        pattern4="(Fixes|Resolves):?\s+\[#([0-9]+)\]"
         
         # Get the pull request body
         PR_BODY=$(jq -r '.pull_request.body' $GITHUB_EVENT_PATH)
@@ -90,6 +95,10 @@ jobs:
             echo "issue_num is : $issue_num"
         elif echo "$PR_BODY" | grep -iEq "$pattern3"; then
             echo "$PR_BODY" | grep -iE "$pattern3" | head -n1 | awk -F '#' '{print $NF}' | tr -d '\r\n' > issue_num
+            issue_num=$(cat issue_num)
+            echo "issue_num is : $issue_num"
+        elif echo "$PR_BODY" | grep -iEq "$pattern4"; then
+            echo "$PR_BODY" | grep -oP "$pattern4" | head -n1 | grep -oP '#\K[0-9]+' | tr -d '\r\n' > issue_num
             issue_num=$(cat issue_num)
             echo "issue_num is : $issue_num"
         else
