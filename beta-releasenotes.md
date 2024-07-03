@@ -11,6 +11,7 @@
 - fix: docker file version fix (#5299)
 - fix: hibernating status is not being updated in app listing page (#5294)
 ## Enhancements
+- feat: Integration of Cranecopy plugin (#5131)
 - feat: casbin upgraded to v2 (#5329)
 - feat: new scripts added for rescan sbom support , helm manifest scan flag and git container links  (#5406)
 - feat: Reload materials api added (#5182)
