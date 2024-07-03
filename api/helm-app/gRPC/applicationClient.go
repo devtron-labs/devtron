@@ -94,8 +94,6 @@ func (impl *HelmAppClientImpl) getConnection() (*grpc.ClientConn, error) {
 	var opts []grpc.DialOption
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	opts = append(opts,
-		grpc.WithDefaultCallOptions(),
-		grpc.WithDefaultCallOptions(),
 		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
 		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
 		grpc.WithBlock(),
