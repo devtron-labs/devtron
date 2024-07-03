@@ -23,7 +23,5 @@ func NewDeploymentConfigurationRouter(deploymentGroupRestHandler restHandler.Dep
 func (router DeploymentConfigurationRouterImpl) initDeploymentConfigurationRouter(configRouter *mux.Router) {
 	configRouter.Path("/autocomplete").
 		HandlerFunc(router.deploymentGroupRestHandler.ConfigAutoComplete).
-		Queries("appId", "{appId}").
-		Queries("envId", "{envId}").
 		Methods("GET")
 }

@@ -5,7 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
-	"github.com/devtron-labs/devtron/pkg/config"
+	"github.com/devtron-labs/devtron/pkg/configDiff"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -20,13 +20,13 @@ type DeploymentConfigurationRestHandlerImpl struct {
 	userAuthService                user.UserService
 	validator                      *validator.Validate
 	enforcerUtil                   rbac.EnforcerUtil
-	deploymentConfigurationService config.DeploymentConfigurationService
+	deploymentConfigurationService configDiff.DeploymentConfigurationService
 }
 
 func NewDeploymentConfigurationRestHandlerImpl(logger *zap.SugaredLogger,
 	userAuthService user.UserService,
 	enforcerUtil rbac.EnforcerUtil,
-	deploymentConfigurationService config.DeploymentConfigurationService,
+	deploymentConfigurationService configDiff.DeploymentConfigurationService,
 ) *DeploymentConfigurationRestHandlerImpl {
 	return &DeploymentConfigurationRestHandlerImpl{
 		logger:                         logger,
@@ -42,11 +42,11 @@ func (handler *DeploymentConfigurationRestHandlerImpl) ConfigAutoComplete(w http
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	appId, err := common.ExtractIntQueryParam(w, r, "appId", nil)
+	appId, err := common.ExtractIntQueryParam(w, r, "appId", 0)
 	if err != nil {
 		return
 	}
-	envId, err := common.ExtractIntQueryParam(w, r, "envId", nil)
+	envId, err := common.ExtractIntQueryParam(w, r, "envId", 0)
 	if err != nil {
 		return
 	}

@@ -984,7 +984,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetRestartWorkloadData(w http.Resp
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	envId, err := common.ExtractIntQueryParam(w, r, "envId", nil)
+	envId, err := common.ExtractIntQueryParam(w, r, "envId", 0)
 	if err != nil {
 		return
 	}
