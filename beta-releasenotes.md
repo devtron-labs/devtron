@@ -1,4 +1,5 @@
 ## Bugs
+- fix: gitops async failed for git cli mode in concurrent cases  (#5412)
 - fix: Updating pr-issue-validator-script (#5384)
 - fix: optimised FetchLatestDeploymentWithChartRefs query (#5393)
 - fix: nats consumer deleted on shutdown (#5377)
