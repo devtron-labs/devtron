@@ -31,9 +31,9 @@ import (
 	dirCopy "github.com/otiai10/copy"
 	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
+	"helm.sh/helm/v3/pkg/chart"
+	"helm.sh/helm/v3/pkg/chartutil"
 	"io/ioutil"
-	"k8s.io/helm/pkg/chartutil"
-	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"os"
 	"path"
 	"path/filepath"
@@ -375,7 +375,7 @@ func (impl *ChartRefServiceImpl) GetChartBytesForApps(ctx context.Context, appId
 
 		refAppIds := chartRefIdTOAppIds[chartRef.Id]
 		for _, appId := range refAppIds {
-			chartMetaData := &chart2.Metadata{
+			chartMetaData := &chart.Metadata{
 				Name:    appIdToAppName[appId],
 				Version: chartRefToChartVersion[chartRef.Id],
 			}
