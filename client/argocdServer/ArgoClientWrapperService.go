@@ -234,7 +234,7 @@ func (impl *ArgoClientWrapperServiceImpl) RegisterGitOpsRepoInArgoWithRetry(ctx 
 	argoCdErr := retryFunc.Retry(callback,
 		impl.isRetryableArgoRepoCreationError,
 		impl.ACDConfig.RegisterRepoMaxRetryCount,
-		time.Duration(impl.ACDConfig.RegisterRepoMaxRetryCount)*time.Second,
+		time.Duration(impl.ACDConfig.RegisterRepoMaxRetryDelay)*time.Second,
 		impl.logger)
 	if argoCdErr != nil {
 		impl.logger.Errorw("error in registering GitOps repository", "repoName", gitOpsRepoUrl, "err", argoCdErr)

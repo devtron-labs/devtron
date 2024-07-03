@@ -163,7 +163,7 @@ func (impl *GitOperationServiceImpl) PushChartToGitRepo(ctx context.Context, git
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
 			callback := func() error {
-				commit, err = impl.commitAndPushAllChangesWithRetry(newCtx, clonedDir, repoUrl,
+				commit, err = impl.updateRepoAndPushAllChanges(newCtx, clonedDir, repoUrl,
 					tempReferenceTemplateDir, dir, userName, userEmailId, impl.gitFactory.GitOpsHelper)
 				return err
 			}
@@ -183,7 +183,7 @@ func (impl *GitOperationServiceImpl) PushChartToGitRepo(ctx context.Context, git
 	return nil
 }
 
-func (impl *GitOperationServiceImpl) commitAndPushAllChangesWithRetry(ctx context.Context, clonedDir, repoUrl,
+func (impl *GitOperationServiceImpl) updateRepoAndPushAllChanges(ctx context.Context, clonedDir, repoUrl,
 	tempReferenceTemplateDir, dir, userName, userEmailId string, gitOpsHelper *GitOpsHelper) (commit string, err error) {
 	impl.logger.Warn("re-trying, taking pull and then push again")
 	err = impl.GitPull(clonedDir, repoUrl)
