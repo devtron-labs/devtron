@@ -36,6 +36,7 @@ import (
 	clusterService "github.com/devtron-labs/devtron/pkg/cluster"
 	clutserBean "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	gitOpsBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
 	validationBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
@@ -325,8 +326,24 @@ func (impl *AppStoreDeploymentDBServiceImpl) GetAllInstalledAppsByAppStoreId(app
 		impl.logger.Error(err)
 		return nil, err
 	}
+
+	deploymentSelectors := make([]*bean2.DeploymentConfigSelector, 0)
+	for _, ia := range installedApps {
+		deploymentSelectors = append(deploymentSelectors, &bean2.DeploymentConfigSelector{
+			AppId:         ia.AppId,
+			EnvironmentId: ia.EnvironmentId,
+		})
+	}
+
+	deploymentConfigMap, err := impl.deploymentConfigService.GetDeploymentConfigInBulk(deploymentSelectors)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment config by deployment selectors", "deploymentSelectors", deploymentSelectors, "err", err)
+		return nil, err
+	}
+
 	var installedAppsEnvResponse []appStoreBean.InstalledAppsResponse
 	for _, a := range installedApps {
+		deploymentConfig := deploymentConfigMap[bean2.GetConfigUniqueIdentifier(a.AppId, a.EnvironmentId)]
 		installedAppRes := appStoreBean.InstalledAppsResponse{
 			EnvironmentName:              a.EnvironmentName,
 			AppName:                      a.AppName,
@@ -338,9 +355,8 @@ func (impl *AppStoreDeploymentDBServiceImpl) GetAllInstalledAppsByAppStoreId(app
 			InstalledAppsId:              a.InstalledAppId,
 			EnvironmentId:                a.EnvironmentId,
 			AppOfferingMode:              a.AppOfferingMode,
-			DeploymentAppType:            a.DeploymentAppType,
+			DeploymentAppType:            deploymentConfig.DeploymentAppType,
 		}
-
 		// if hyperion mode app, then fill clusterId and namespace
 		if globalUtil.IsHelmApp(a.AppOfferingMode) {
 			environment, err := impl.environmentService.FindById(a.EnvironmentId)

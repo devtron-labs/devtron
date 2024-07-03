@@ -28,18 +28,6 @@ type DeploymentConfigSelector struct {
 	EnvironmentId int
 }
 
-func (d *DeploymentConfigSelector) GetAppIdSelector() func(config DeploymentConfig) int {
-	return func(config DeploymentConfig) int {
-		return config.AppId
-	}
-}
-
-func (d *DeploymentConfigSelector) GetEnvIdSelector() func(config DeploymentConfig) int {
-	return func(config DeploymentConfig) int {
-		return config.EnvironmentId
-	}
-}
-
 func (u UniqueDeploymentConfigIdentifier) String() string {
 	return string(u)
 }

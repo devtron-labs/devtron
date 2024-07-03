@@ -136,37 +136,8 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangeDeploymentType(ctx context
 	response.TriggeredPipelines = make([]*bean.CdPipelineTrigger, 0)
 
 	// Update the deployment app type to Helm and toggle deployment_app_created to false in db
-	var cdPipelineIds []int
-	for _, item := range response.SuccessfulPipelines {
-		cdPipelineIds = append(cdPipelineIds, item.PipelineId)
-	}
-
-	// If nothing to update in db
-	if len(cdPipelineIds) == 0 {
-		return response, nil
-	}
-
-	// Update in db
-	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(request.DesiredDeploymentType),
-		cdPipelineIds, request.UserId, false, true)
-
-	if err != nil {
-		impl.logger.Errorw("failed to update deployment app type in db",
-			"pipeline ids", cdPipelineIds,
-			"desired deployment type", request.DesiredDeploymentType,
-			"err", err)
-
-		return response, nil
-	}
-
-	if !request.AutoTriggerDeployment {
-		return response, nil
-	}
-
-	// Bulk trigger all the successfully changed pipelines (async)
-	bulkTriggerRequest := make([]*bean2.BulkTriggerRequest, 0)
-
 	pipelineIds := make([]int, 0, len(response.SuccessfulPipelines))
+
 	for _, item := range response.SuccessfulPipelines {
 		pipelineIds = append(pipelineIds, item.PipelineId)
 	}
@@ -180,6 +151,54 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangeDeploymentType(ctx context
 
 		return response, nil
 	}
+	// If nothing to update in db
+	if len(pipelineIds) == 0 {
+		return response, nil
+	}
+
+	deploymentConfigSelector := make([]*bean4.DeploymentConfigSelector, len(pipelineIds))
+	for _, pipeline := range pipelines {
+		deploymentConfigSelector = append(deploymentConfigSelector, &bean4.DeploymentConfigSelector{
+			AppId:         pipeline.AppId,
+			EnvironmentId: pipeline.EnvironmentId,
+		})
+	}
+
+	deploymentConfigs, err := impl.deploymentConfigService.GetDeploymentConfigInBulk(deploymentConfigSelector)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment config", "deploymentConfigSelector", deploymentConfigSelector, "err", err)
+		return nil, err
+	}
+	updatedDeploymentConfigs := make([]*bean4.DeploymentConfig, 0)
+	for _, c := range deploymentConfigs {
+		c.DeploymentAppType = request.DesiredDeploymentType
+		updatedDeploymentConfigs = append(updatedDeploymentConfigs, c)
+	}
+
+	updatedDeploymentConfigs, err = impl.deploymentConfigService.UpdateConfigs(nil, updatedDeploymentConfigs, request.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in updating configs", "err", err)
+		return nil, err
+	}
+
+	// Update in db
+	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(request.DesiredDeploymentType),
+		pipelineIds, request.UserId, false, true)
+	if err != nil {
+		impl.logger.Errorw("failed to update deployment app type in db",
+			"pipeline ids", pipelineIds,
+			"desired deployment type", request.DesiredDeploymentType,
+			"err", err)
+
+		return response, nil
+	}
+
+	if !request.AutoTriggerDeployment {
+		return response, nil
+	}
+
+	// Bulk trigger all the successfully changed pipelines (async)
+	bulkTriggerRequest := make([]*bean2.BulkTriggerRequest, 0)
 
 	for _, pipeline := range pipelines {
 
@@ -394,6 +413,31 @@ func (impl *AppDeploymentTypeChangeManagerImpl) TriggerDeploymentAfterTypeChange
 	if err != nil {
 		impl.logger.Errorw("failed to bulk trigger cd pipelines with error: "+err.Error(),
 			"err", err)
+	}
+
+	deploymentConfigSelector := make([]*bean4.DeploymentConfigSelector, len(pipelineIds))
+	for _, pipeline := range pipelines {
+		deploymentConfigSelector = append(deploymentConfigSelector, &bean4.DeploymentConfigSelector{
+			AppId:         pipeline.AppId,
+			EnvironmentId: pipeline.EnvironmentId,
+		})
+	}
+
+	deploymentConfigs, err := impl.deploymentConfigService.GetDeploymentConfigInBulk(deploymentConfigSelector)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment config", "deploymentConfigSelector", deploymentConfigSelector, "err", err)
+		return nil, err
+	}
+	updatedDeploymentConfigs := make([]*bean4.DeploymentConfig, 0)
+	for _, c := range deploymentConfigs {
+		c.DeploymentAppType = request.DesiredDeploymentType
+		updatedDeploymentConfigs = append(updatedDeploymentConfigs, c)
+	}
+
+	updatedDeploymentConfigs, err = impl.deploymentConfigService.UpdateConfigs(nil, updatedDeploymentConfigs, request.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in updating configs", "err", err)
+		return nil, err
 	}
 
 	err = impl.pipelineRepository.UpdateCdPipelineAfterDeployment(string(request.DesiredDeploymentType),

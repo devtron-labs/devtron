@@ -221,7 +221,38 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) MigrateDeploymentType(c
 func (impl *InstalledAppDeploymentTypeChangeServiceImpl) performDbOperationsAfterMigrations(desiredDeploymentType bean2.DeploymentType,
 	successInstalledAppIds []int, successAppIds []*int, userId int32, deployStatus int) error {
 
-	err := impl.installedAppRepository.UpdateDeploymentAppTypeInInstalledApp(desiredDeploymentType, successInstalledAppIds, userId, deployStatus)
+	installedApps, err := impl.installedAppRepository.FindInstalledAppByIds(successInstalledAppIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting installed apps by ids", "installedAppIds", successInstalledAppIds, "err", err)
+		return err
+	}
+
+	deploymentConfigSelector := make([]*bean3.DeploymentConfigSelector, len(successInstalledAppIds))
+	for _, ia := range installedApps {
+		deploymentConfigSelector = append(deploymentConfigSelector, &bean3.DeploymentConfigSelector{
+			AppId:         ia.AppId,
+			EnvironmentId: ia.EnvironmentId,
+		})
+	}
+
+	deploymentConfigs, err := impl.deploymentConfigService.GetDeploymentConfigInBulk(deploymentConfigSelector)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment config", "deploymentConfigSelector", deploymentConfigSelector, "err", err)
+		return err
+	}
+	updatedDeploymentConfigs := make([]*bean3.DeploymentConfig, 0)
+	for _, c := range deploymentConfigs {
+		c.DeploymentAppType = desiredDeploymentType
+		updatedDeploymentConfigs = append(updatedDeploymentConfigs, c)
+	}
+
+	updatedDeploymentConfigs, err = impl.deploymentConfigService.UpdateConfigs(nil, updatedDeploymentConfigs, userId)
+	if err != nil {
+		impl.logger.Errorw("error in updating configs", "err", err)
+		return err
+	}
+
+	err = impl.installedAppRepository.UpdateDeploymentAppTypeInInstalledApp(desiredDeploymentType, successInstalledAppIds, userId, deployStatus)
 	if err != nil {
 		impl.logger.Errorw("failed to update deployment app type for successfully deleted installed apps in db",
 			"successfully deleted installedApp ids", successInstalledAppIds,
