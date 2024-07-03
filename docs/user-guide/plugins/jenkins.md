@@ -12,9 +12,9 @@ Before integrating the Jenkins plugin, ensure that you have properly configured 
 1. Go to Applications → Devtron Apps (tab).
 2. Click on your app.
 3. Go to App Configuration (tab) → Workflow Editor.
-4. Click on your CI pipeline and navigate to the Pre-Deployment stage or Post-Deployment stage depending on where you want to   integrate the K6 load testing.
+4. Click on your CI pipeline and navigate to the Pre-Build stage or Post-Build stage depending on where you want to integrate the Jenkins testing.
 5. Under 'TASKS', click the Add task button.
-6. Click the Codacy plugin.
+6. Click the Jenkins plugin.
 ---
 
 ## User Inputs
