@@ -1,0 +1,1 @@
+DELETE FROM public.git_host where name='Gitlab'
