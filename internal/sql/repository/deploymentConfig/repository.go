@@ -30,7 +30,7 @@ type Repository interface {
 	UpdateAll(tx *pg.Tx, config []*DeploymentConfig) ([]*DeploymentConfig, error)
 	GetById(id int) (*DeploymentConfig, error)
 	GetByAppIdAndEnvId(appId, envId int) (*DeploymentConfig, error)
-	GetAppLevelConfig(appId int) (*DeploymentConfig, error)
+	GetAppLevelConfigForDevtronApps(appId int) (*DeploymentConfig, error)
 	GetAppLevelConfigByAppIds(appIds []int) ([]*DeploymentConfig, error)
 	GetAppAndEnvLevelConfigsInBulk(appIdToEnvIdsMap map[int][]int) ([]*DeploymentConfig, error)
 }
@@ -99,7 +99,7 @@ func (impl RepositoryImpl) GetByAppIdAndEnvId(appId, envId int) (*DeploymentConf
 	return result, err
 }
 
-func (impl RepositoryImpl) GetAppLevelConfig(appId int) (*DeploymentConfig, error) {
+func (impl RepositoryImpl) GetAppLevelConfigForDevtronApps(appId int) (*DeploymentConfig, error) {
 	result := &DeploymentConfig{}
 	err := impl.dbConnection.Model(result).
 		Where("app_id = ? ", appId).

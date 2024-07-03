@@ -175,7 +175,7 @@ func (impl *DeploymentConfigServiceImpl) UpdateConfigs(tx *pg.Tx, configs []*bea
 
 func (impl *DeploymentConfigServiceImpl) GetDeploymentConfig(appId, envId int) (*bean.DeploymentConfig, error) {
 
-	appLevelConfigDbObj, err := impl.deploymentConfigRepository.GetAppLevelConfig(appId)
+	appLevelConfigDbObj, err := impl.deploymentConfigRepository.GetAppLevelConfigForDevtronApps(appId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting deployment config db object by appId", "appId", appId, "err", err)
 		return nil, err
@@ -274,7 +274,7 @@ func (impl *DeploymentConfigServiceImpl) GetConfigDBObj(appId, envId int) (*depl
 	var configDbObj *deploymentConfig.DeploymentConfig
 	var err error
 	if envId == 0 {
-		configDbObj, err = impl.deploymentConfigRepository.GetAppLevelConfig(appId)
+		configDbObj, err = impl.deploymentConfigRepository.GetAppLevelConfigForDevtronApps(appId)
 		if err != nil {
 			impl.logger.Errorw("error in getting deployment config db object by appId", "appId", configDbObj.AppId, "err", err)
 			return nil, err

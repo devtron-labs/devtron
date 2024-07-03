@@ -64,7 +64,7 @@ type Pipeline struct {
 	RunPreStageInEnv              bool        `sql:"run_pre_stage_in_env"`               // secret names
 	RunPostStageInEnv             bool        `sql:"run_post_stage_in_env"`              // secret names
 	DeploymentAppCreated          bool        `sql:"deployment_app_created,notnull"`
-	DeploymentAppType             string      `sql:"deployment_app_type,notnull"` //helm, acd
+	DeploymentAppType             string      `sql:"deployment_app_type,notnull"` // Deprecated;
 	DeploymentAppName             string      `sql:"deployment_app_name"`
 	DeploymentAppDeleteRequest    bool        `sql:"deployment_app_delete_request,notnull"`
 	Environment                   repository.Environment
