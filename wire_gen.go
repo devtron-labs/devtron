@@ -130,6 +130,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/clusterTerminalAccess"
 	"github.com/devtron-labs/devtron/pkg/commonService"
+	config2 "github.com/devtron-labs/devtron/pkg/config"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -307,7 +308,11 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	enforcerImpl, err := casbin.NewEnforcerImpl(syncedEnforcer, sessionManager, sugaredLogger)
+	casbinSyncedEnforcer, err := casbin.CreateV2()
+	if err != nil {
+		return nil, err
+	}
+	enforcerImpl, err := casbin.NewEnforcerImpl(syncedEnforcer, casbinSyncedEnforcer, sessionManager, sugaredLogger)
 	if err != nil {
 		return nil, err
 	}
@@ -918,6 +923,12 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	deploymentConfigurationServiceImpl, err := config2.NewDeploymentConfigurationServiceImpl(sugaredLogger, configMapServiceImpl)
+	if err != nil {
+		return nil, err
+	}
+	deploymentConfigurationRestHandlerImpl := restHandler.NewDeploymentConfigurationRestHandlerImpl(sugaredLogger, userServiceImpl, enforcerUtilImpl, deploymentConfigurationServiceImpl)
+	deploymentConfigurationRouterImpl := router.NewDeploymentConfigurationRouter(deploymentConfigurationRestHandlerImpl)
 	infraConfigRestHandlerImpl := infraConfig2.NewInfraConfigRestHandlerImpl(sugaredLogger, infraConfigServiceImpl, userServiceImpl, enforcerImpl, enforcerUtilImpl, validate)
 	infraConfigRouterImpl := infraConfig2.NewInfraProfileRouterImpl(infraConfigRestHandlerImpl)
 	argoApplicationRestHandlerImpl := argoApplication2.NewArgoApplicationRestHandlerImpl(argoApplicationServiceImpl, sugaredLogger, enforcerImpl)
@@ -927,7 +938,7 @@ func InitializeApp() (*App, error) {
 	historyRestHandlerImpl := devtronResource2.NewHistoryRestHandlerImpl(sugaredLogger, enforcerImpl, deploymentHistoryServiceImpl, apiReqDecoderServiceImpl, enforcerUtilImpl)
 	historyRouterImpl := devtronResource2.NewHistoryRouterImpl(historyRestHandlerImpl)
 	devtronResourceRouterImpl := devtronResource2.NewDevtronResourceRouterImpl(historyRouterImpl)
-	muxRouter := router.NewMuxRouter(sugaredLogger, environmentRouterImpl, clusterRouterImpl, webhookRouterImpl, userAuthRouterImpl, gitProviderRouterImpl, gitHostRouterImpl, dockerRegRouterImpl, notificationRouterImpl, teamRouterImpl, userRouterImpl, chartRefRouterImpl, configMapRouterImpl, appStoreRouterImpl, chartRepositoryRouterImpl, releaseMetricsRouterImpl, deploymentGroupRouterImpl, batchOperationRouterImpl, chartGroupRouterImpl, imageScanRouterImpl, policyRouterImpl, gitOpsConfigRouterImpl, dashboardRouterImpl, attributesRouterImpl, userAttributesRouterImpl, commonRouterImpl, grafanaRouterImpl, ssoLoginRouterImpl, telemetryRouterImpl, telemetryEventClientImplExtended, bulkUpdateRouterImpl, webhookListenerRouterImpl, appRouterImpl, coreAppRouterImpl, helmAppRouterImpl, k8sApplicationRouterImpl, pProfRouterImpl, deploymentConfigRouterImpl, dashboardTelemetryRouterImpl, commonDeploymentRouterImpl, externalLinkRouterImpl, globalPluginRouterImpl, moduleRouterImpl, serverRouterImpl, apiTokenRouterImpl, cdApplicationStatusUpdateHandlerImpl, k8sCapacityRouterImpl, webhookHelmRouterImpl, globalCMCSRouterImpl, userTerminalAccessRouterImpl, jobRouterImpl, ciStatusUpdateCronImpl, resourceGroupingRouterImpl, rbacRoleRouterImpl, scopedVariableRouterImpl, ciTriggerCronImpl, proxyRouterImpl, infraConfigRouterImpl, argoApplicationRouterImpl, devtronResourceRouterImpl)
+	muxRouter := router.NewMuxRouter(sugaredLogger, environmentRouterImpl, clusterRouterImpl, webhookRouterImpl, userAuthRouterImpl, gitProviderRouterImpl, gitHostRouterImpl, dockerRegRouterImpl, notificationRouterImpl, teamRouterImpl, userRouterImpl, chartRefRouterImpl, configMapRouterImpl, appStoreRouterImpl, chartRepositoryRouterImpl, releaseMetricsRouterImpl, deploymentGroupRouterImpl, batchOperationRouterImpl, chartGroupRouterImpl, imageScanRouterImpl, policyRouterImpl, gitOpsConfigRouterImpl, dashboardRouterImpl, attributesRouterImpl, userAttributesRouterImpl, commonRouterImpl, grafanaRouterImpl, ssoLoginRouterImpl, telemetryRouterImpl, telemetryEventClientImplExtended, bulkUpdateRouterImpl, webhookListenerRouterImpl, appRouterImpl, coreAppRouterImpl, helmAppRouterImpl, k8sApplicationRouterImpl, pProfRouterImpl, deploymentConfigRouterImpl, dashboardTelemetryRouterImpl, commonDeploymentRouterImpl, externalLinkRouterImpl, globalPluginRouterImpl, moduleRouterImpl, serverRouterImpl, apiTokenRouterImpl, cdApplicationStatusUpdateHandlerImpl, k8sCapacityRouterImpl, webhookHelmRouterImpl, globalCMCSRouterImpl, userTerminalAccessRouterImpl, jobRouterImpl, ciStatusUpdateCronImpl, resourceGroupingRouterImpl, rbacRoleRouterImpl, scopedVariableRouterImpl, ciTriggerCronImpl, proxyRouterImpl, deploymentConfigurationRouterImpl, infraConfigRouterImpl, argoApplicationRouterImpl, devtronResourceRouterImpl)
 	loggingMiddlewareImpl := util4.NewLoggingMiddlewareImpl(userServiceImpl)
 	cdWorkflowServiceImpl := cd.NewCdWorkflowServiceImpl(sugaredLogger, cdWorkflowRepositoryImpl)
 	cdWorkflowRunnerServiceImpl := cd.NewCdWorkflowRunnerServiceImpl(sugaredLogger, cdWorkflowRepositoryImpl)
@@ -944,6 +955,6 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	mainApp := NewApp(muxRouter, sugaredLogger, sseSSE, syncedEnforcer, db, sessionManager, posthogClient, loggingMiddlewareImpl, centralEventProcessor, pubSubClientServiceImpl, workflowEventProcessorImpl)
+	mainApp := NewApp(muxRouter, sugaredLogger, sseSSE, syncedEnforcer, db, sessionManager, posthogClient, loggingMiddlewareImpl, centralEventProcessor, pubSubClientServiceImpl, workflowEventProcessorImpl, casbinSyncedEnforcer)
 	return mainApp, nil
 }
