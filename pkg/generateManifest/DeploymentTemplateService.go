@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/chart"
@@ -47,18 +48,19 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
+	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
+	"k8s.io/utils/pointer"
 	"net/http"
-	"os"
 	"regexp"
+	"sigs.k8s.io/yaml"
 	"strconv"
 	"sync"
-	"time"
 )
 
 type DeploymentTemplateService interface {
 	FetchDeploymentsWithChartRefs(appId int, envId int) ([]*repository.DeploymentTemplateComparisonMetadata, error)
 	GetDeploymentTemplate(ctx context.Context, request DeploymentTemplateRequest) (DeploymentTemplateResponse, error)
-	GenerateManifest(ctx context.Context, chartRefId int, valuesYaml string) (*openapi2.TemplateChartResponse, error)
+	GenerateManifest(ctx context.Context, request *DeploymentTemplateRequest, valuesYaml string) (*openapi2.TemplateChartResponse, error)
 	GetRestartWorkloadData(ctx context.Context, appIds []int, envId int) (*RestartPodResponse, error)
 }
 type DeploymentTemplateServiceImpl struct {
@@ -77,8 +79,10 @@ type DeploymentTemplateServiceImpl struct {
 	scopedVariableManager            variables.ScopedVariableManager
 	chartRefService                  chartRef.ChartRefService
 	pipelineOverrideRepository       chartConfig.PipelineOverrideRepository
+	pipelineRepository               pipelineConfig.PipelineRepository
 	chartRepository                  chartRepoRepository.ChartRepository
 	restartWorkloadConfig            *RestartWorkloadConfig
+	mergeUtil                        *util.MergeUtil
 }
 
 func GetRestartWorkloadConfig() (*RestartWorkloadConfig, error) {
@@ -102,6 +106,8 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 	chartRefService chartRef.ChartRefService,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository,
 	chartRepository chartRepoRepository.ChartRepository,
+	pipelineRepository pipelineConfig.PipelineRepository,
+	mergeUtil *util.MergeUtil,
 ) (*DeploymentTemplateServiceImpl, error) {
 	deploymentTemplateServiceImpl := &DeploymentTemplateServiceImpl{
 		Logger:                           Logger,
@@ -120,6 +126,8 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 		chartRefService:                  chartRefService,
 		pipelineOverrideRepository:       pipelineOverrideRepository,
 		chartRepository:                  chartRepository,
+		pipelineRepository:               pipelineRepository,
+		mergeUtil:                        mergeUtil,
 	}
 	cfg, err := GetRestartWorkloadConfig()
 	if err != nil {
@@ -226,12 +234,51 @@ func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Cont
 		return result, nil
 	}
 
-	manifest, err := impl.GenerateManifest(ctx, request.ChartRefId, resolvedValue)
+	request = impl.setRequestMetadata(&request)
+	manifest, err := impl.GenerateManifest(ctx, &request, resolvedValue)
 	if err != nil {
 		return result, err
 	}
 	result.Data = *manifest.Manifest
 	return result, nil
+}
+
+func (impl DeploymentTemplateServiceImpl) setRequestMetadata(request *DeploymentTemplateRequest) DeploymentTemplateRequest {
+	// set dummy data for templating.
+	// for some case we may not know the envname and pipelinename, so we want to show this dummy data as a placeholder
+	request.EnvName = "env-name"
+	request.PipelineName = "pipeline-name"
+	if request.AppId > 0 {
+		app, err := impl.appRepository.FindById(request.AppId)
+		if err != nil {
+			impl.Logger.Errorw("error in getting app", "appId", app.Id, "err", err)
+			// not returning the error as this will break the UX
+		} else {
+			request.AppName = app.AppName
+		}
+	}
+
+	if request.EnvId > 0 {
+		environment, err := impl.environmentRepository.FindById(request.EnvId)
+		if err != nil {
+			impl.Logger.Errorw("error in getting environment", "environmentId", request.EnvId, "err", err)
+			// not returning the error as this will break the UX
+		} else {
+			request.EnvName = environment.Name
+			request.Namespace = environment.Namespace
+		}
+	}
+
+	if request.PipelineId > 0 {
+		cdPipeline, err := impl.pipelineRepository.FindById(request.PipelineId)
+		if err != nil {
+			impl.Logger.Errorw("error in getting pipeline", "pipelineId", request.PipelineId, "err", err)
+			// not returning the error as this will break the UX
+		}
+		request.PipelineName = cdPipeline.Name
+	}
+
+	return *request
 }
 
 func (impl DeploymentTemplateServiceImpl) fetchResolvedTemplateForPublishedEnvs(ctx context.Context, request DeploymentTemplateRequest) (string, string, map[string]string, error) {
@@ -309,38 +356,36 @@ func (impl DeploymentTemplateServiceImpl) extractScopeData(request DeploymentTem
 	return scope, nil
 }
 
-func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, chartRefId int, valuesYaml string) (*openapi2.TemplateChartResponse, error) {
-	refChart, template, version, _, err := impl.chartRefService.GetRefChart(chartRefId)
+func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, request *DeploymentTemplateRequest, valuesYaml string) (*openapi2.TemplateChartResponse, error) {
+	chartRefId := request.ChartRefId
+	refChart, err := impl.chartRefService.FindById(chartRefId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
 		return nil, err
 	}
 
-	outputChartPathDir := fmt.Sprintf("%s-%v", refChart, strconv.FormatInt(time.Now().UnixNano(), 16))
-	if _, err := os.Stat(outputChartPathDir); os.IsNotExist(err) {
-		err = os.Mkdir(outputChartPathDir, 0755)
-		if err != nil {
-			impl.Logger.Errorw("error in creating temp outputChartPathDir", "err", err, "outputChartPathDir", outputChartPathDir, "chartRefId", chartRefId)
-			return nil, err
-		}
+	chartMetaData := &chart2.Metadata{
+		Name:    request.AppName,
+		Version: refChart.Version,
 	}
-	//load chart from given refChart
-	chart, err := impl.chartTemplateServiceImpl.LoadChartFromDir(refChart)
+
+	refChartPath, err := impl.chartRefService.GetChartLocation(refChart.Location, refChart.ChartData)
 	if err != nil {
-		impl.Logger.Errorw("error in LoadChartFromDir", "err", err, "chartRefId", chartRefId)
+		impl.Logger.Errorw("error in getting chart location", "chartMetaData", chartMetaData, "refChartLocation", refChart.Location)
 		return nil, err
 	}
 
-	//create the .tgz file in temp location
-	chartBytes, err := impl.chartTemplateServiceImpl.CreateZipFileForChart(chart, outputChartPathDir)
+	tempReferenceTemplateDir, err := impl.chartTemplateServiceImpl.BuildChart(ctx, chartMetaData, refChartPath)
 	if err != nil {
-		impl.Logger.Errorw("error in CreateZipFileForChart", "err", err, "chartRefId", chartRefId)
+		impl.Logger.Errorw("error in building chart", "chartMetaData", chartMetaData, "refChartPath", refChartPath)
 		return nil, err
 	}
 
-	//deleted the .tgz temp file after reading chart bytes
-	defer impl.chartTemplateServiceImpl.CleanDir(outputChartPathDir)
-
+	chartInBytes, err := impl.chartTemplateServiceImpl.LoadChartInBytes(tempReferenceTemplateDir, true)
+	if err != nil {
+		impl.Logger.Errorw("error in loading chart bytes from dir", "dir", tempReferenceTemplateDir, "chartMetadata", chartMetaData, "err", err)
+		return nil, err
+	}
 	k8sServerVersion, err := impl.K8sUtil.GetKubeVersion()
 	if err != nil {
 		impl.Logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
@@ -352,19 +397,24 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 	//comparison func has wrong api version mentioned, so for already installed charts via these charts that comparison
 	//is always false, handles the gh issue:- https://github.com/devtron-labs/devtron/issues/4860
 	cronJobChartRegex := regexp.MustCompile(bean2.CronJobChartRegexExpression)
-	if cronJobChartRegex.MatchString(template) {
+	if cronJobChartRegex.MatchString(refChart.Location) {
 		sanitizedK8sVersion = k8s2.StripPrereleaseFromK8sVersion(sanitizedK8sVersion)
 	}
 
+	mergedValuesYaml := impl.patchReleaseAttributes(request, valuesYaml)
 	installReleaseRequest := &gRPC.InstallReleaseRequest{
-		ChartName:         template,
-		ChartVersion:      version,
-		ValuesYaml:        valuesYaml,
-		K8SVersion:        sanitizedK8sVersion,
-		ChartRepository:   ChartRepository,
-		ReleaseIdentifier: ReleaseIdentifier,
+		AppName:         request.AppName,
+		ChartName:       refChart.Name,
+		ChartVersion:    refChart.Version,
+		ValuesYaml:      mergedValuesYaml,
+		K8SVersion:      sanitizedK8sVersion,
+		ChartRepository: ChartRepository,
+		ReleaseIdentifier: &gRPC.ReleaseIdentifier{
+			ReleaseName:      fmt.Sprintf("%s-%s", request.AppName, request.EnvName),
+			ReleaseNamespace: request.Namespace,
+		},
 		ChartContent: &gRPC.ChartContent{
-			Content: chartBytes,
+			Content: chartInBytes,
 		},
 	}
 	config, err := impl.helmAppService.GetClusterConf(bean.DEFAULT_CLUSTER_ID)
@@ -392,6 +442,45 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 
 	return response, nil
 }
+
+func (impl DeploymentTemplateServiceImpl) patchReleaseAttributes(request *DeploymentTemplateRequest, valuesYaml string) (mergedValuesYaml string) {
+	mergedValuesYaml = valuesYaml
+
+	valuesJsonByte, err := yaml.YAMLToJSON([]byte(valuesYaml))
+	if err != nil {
+		impl.Logger.Errorw("error in converting yaml to json ", "err", err)
+		return
+	}
+
+	chartDto, err := impl.chartService.GetByAppIdAndChartRefId(request.AppId, request.ChartRefId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting the chart using appId and chartRefId", "appId", request.AppId, "chartRefId", request.ChartRefId, "err", err)
+		return
+	}
+
+	releaseAttributeJson, err := app.NewReleaseAttributes("", "", request.PipelineName, "",
+		request.AppId, request.EnvId, 0, pointer.Bool(false)).RenderJson(chartDto.ImageDescriptorTemplate)
+
+	if err != nil {
+		return
+	}
+	mergedJsonBytes, err := impl.mergeUtil.JsonPatch(valuesJsonByte, []byte(releaseAttributeJson))
+	if err != nil {
+		impl.Logger.Errorw("error in patching release attributes in valuesYaml ", "releaseAttributeJson", releaseAttributeJson, "err", err)
+		return
+	}
+
+	mergedYamlBytes, err := yaml.JSONToYAML(mergedJsonBytes)
+	if err != nil {
+		impl.Logger.Errorw("error in converting json to yaml", "err", err)
+		return
+	}
+
+	mergedValuesYaml = string(mergedYamlBytes)
+
+	return mergedValuesYaml
+}
+
 func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Context, appIds []int, envId int) (*RestartPodResponse, error) {
 	wp := workerpool.New(impl.restartWorkloadConfig.WorkerPoolSize)
 	var templateChartResponse []*gRPC.TemplateChartResponse
