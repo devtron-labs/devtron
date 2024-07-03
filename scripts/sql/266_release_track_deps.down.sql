@@ -1,0 +1,2 @@
+ALTER TABLE devtron_resource_object_dep_relations DROP COLUMN dependency_object_identifier;
+ALTER TABLE devtron_resource_object_dep_relations DROP COLUMN component_object_identifier;
