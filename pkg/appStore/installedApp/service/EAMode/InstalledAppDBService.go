@@ -84,6 +84,7 @@ func NewInstalledAppDBServiceImpl(logger *zap.SugaredLogger,
 		UserService:                   userService,
 		EnvironmentService:            environmentService,
 		InstalledAppRepositoryHistory: installedAppRepositoryHistory,
+		deploymentConfigService:       deploymentConfigService,
 	}
 }
 
