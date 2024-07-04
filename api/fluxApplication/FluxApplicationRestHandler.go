@@ -1,7 +1,6 @@
 package fluxApplication
 
 import (
-	"context"
 	"errors"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -62,8 +61,8 @@ func (handler *FluxApplicationRestHandlerImpl) ListFluxApplications(w http.Respo
 
 func (handler *FluxApplicationRestHandlerImpl) GetApplicationDetail(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	clusterIdString := vars["appId"]
-	appIdentifier, err := fluxApplication.DecodeFluxExternalAppAppId(clusterIdString)
+	appIdString := vars["appId"]
+	appIdentifier, err := fluxApplication.DecodeFluxExternalAppId(appIdString)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -81,7 +80,7 @@ func (handler *FluxApplicationRestHandlerImpl) GetApplicationDetail(w http.Respo
 		return
 	}
 
-	res, err := handler.fluxApplicationService.GetFluxAppDetail(context.Background(), appIdentifier)
+	res, err := handler.fluxApplicationService.GetFluxAppDetail(r.Context(), appIdentifier)
 	if err != nil {
 		apiError := clientErrors.ConvertToApiError(err)
 		if apiError != nil {

@@ -7,7 +7,22 @@ import (
 	"strings"
 )
 
-func DecodeFluxExternalAppAppId(appId string) (*bean.FluxAppIdentifier, error) {
+/*
+* appIdString contains four fields, separated by '|':
+* 1. clusterId: The ID of the cluster, which is an integer value
+* 2. namespace: The namespace, which is a string.
+* 3. appName: The name of the Flux application (either Kustomization or HelmRelease), which is a string.
+* 4. isKustomize: A boolean value indicating whether the application is of type Kustomization (true) or HelmRelease (false).
+*
+*
+* Example: "123|my-namespace|my-app|true"
+* - clusterId: "123"
+* - namespace: "my-namespace"
+* - appName: "my-app"
+* - isKustomization: true
+ */
+
+func DecodeFluxExternalAppId(appId string) (*bean.FluxAppIdentifier, error) {
 	component := strings.Split(appId, "|")
 	if len(component) != 4 {
 		return nil, fmt.Errorf("malformed app id %s", appId)

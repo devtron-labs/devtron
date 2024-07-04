@@ -121,7 +121,7 @@ func (impl *FluxApplicationServiceImpl) appListRespProtoTransformer(deployedApps
 		appList.Errored = &deployedApps.Errored
 		appList.ErrorMsg = &deployedApps.ErrorMsg
 	} else {
-		fluxApps := make([]bean.FluxApplication, 0)
+		fluxApps := make([]bean.FluxApplication, 0, len(deployedApps.FluxApplication))
 		for _, deployedapp := range deployedApps.FluxApplication {
 			fluxApp := bean.FluxApplication{
 				Name:                  deployedapp.Name,
