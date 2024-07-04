@@ -21,6 +21,7 @@ package main
 
 import (
 	"github.com/devtron-labs/authenticator/middleware"
+	"github.com/devtron-labs/common-lib/async"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
@@ -228,6 +229,8 @@ func InitializeApp() (*App, error) {
 		router.NewPProfRouter,
 		wire.Bind(new(router.PProfRouter), new(*router.PProfRouterImpl)),
 		// ---- pprof end ----
+
+		async.NewAsync, // ---- goroutine async wrapper service
 
 		sql.NewTransactionUtilImpl,
 		wire.Bind(new(sql.TransactionWrapper), new(*sql.TransactionUtilImpl)),
