@@ -411,14 +411,14 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		return nil, err
 	}
 
+	AppDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(app.Id, 0)
+	if err != nil {
+		impl.logger.Errorw("error in fetching deployment config by appId", "appId", app.Id, "err", err)
+		return nil, err
+	}
+
 	// TODO: creating git repo for all apps irrespective of acd or helm
 	if gitOpsConfigurationStatus.IsGitOpsConfigured && isGitOpsRequiredForCD && !pipelineCreateRequest.IsCloneAppReq {
-
-		AppDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(app.Id, 0)
-		if err != nil {
-			impl.logger.Errorw("error in fetching deployment config by appId", "appId", app.Id, "err", err)
-			return nil, err
-		}
 
 		if gitOps.IsGitOpsRepoNotConfigured(AppDeploymentConfig.RepoURL) {
 			if gitOpsConfigurationStatus.AllowCustomRepository || AppDeploymentConfig.ConfigType == bean4.CUSTOM.String() {
@@ -446,28 +446,25 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				return nil, err
 			}
 		}
-		for _, pipeline := range pipelineCreateRequest.Pipelines {
-			envDeploymentConfig := &bean4.DeploymentConfig{
-				AppId:             app.Id,
-				EnvironmentId:     pipeline.EnvironmentId,
-				ConfigType:        AppDeploymentConfig.ConfigType,
-				DeploymentAppType: pipeline.DeploymentAppType,
-				RepoURL:           AppDeploymentConfig.RepoURL,
-				RepoName:          AppDeploymentConfig.RepoName,
-				ChartLocation:     AppDeploymentConfig.ChartLocation,
-				Active:            true,
-			}
-			envDeploymentConfig, err := impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, pipelineCreateRequest.UserId)
-			if err != nil {
-				impl.logger.Errorw("error in fetching creating env config", "appId", app.Id, "envId", pipeline.EnvironmentId, "err", err)
-				return nil, err
-			}
-
-		}
-
 	}
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
+
+		envDeploymentConfig := &bean4.DeploymentConfig{
+			AppId:             app.Id,
+			EnvironmentId:     pipeline.EnvironmentId,
+			ConfigType:        AppDeploymentConfig.ConfigType,
+			DeploymentAppType: pipeline.DeploymentAppType,
+			RepoURL:           AppDeploymentConfig.RepoURL,
+			RepoName:          AppDeploymentConfig.RepoName,
+			ChartLocation:     AppDeploymentConfig.ChartLocation,
+			Active:            true,
+		}
+		envDeploymentConfig, err := impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, pipelineCreateRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching creating env config", "appId", app.Id, "envId", pipeline.EnvironmentId, "err", err)
+			return nil, err
+		}
 
 		id, err := impl.createCdPipeline(ctx, app, pipeline, pipelineCreateRequest.UserId)
 		if err != nil {
