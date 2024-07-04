@@ -508,11 +508,11 @@ If you are not a super-admin and can't generate a token yourself, you can find t
 
 2. Edit the following placeholders in the `server` field and the `token` field:
 
-  | Placeholder         | Description                         | Example                                         |
-  | ------------------- | ----------------------------------- | ----------------------------------------------- |
-  | <devtron_host_name> | Hostname of the Devtron server      | demo.devtron.ai                                 |
-  | <cluster_name>      | Name of the cluster (or cluster ID) | devtron-cluster                                 |
-  | <devtron_token>     | API token or session token          | \-                                              |
+  | Placeholder         | Description                         | Example          | Where to Find      |
+  | ------------------- | ----------------------------------- | ---------------- | ------------------ |
+  | <devtron_host_name> | Hostname of the Devtron server      | demo.devtron.ai  | [Host URL Page](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/hostname-page.jpg)      |
+  | <cluster_name>      | Name of the cluster (or cluster ID) | devtron-cluster  | [Applications Page](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/applications-page.jpg)  |
+  | <devtron_token>     | API token or session token          | \-               | [Authorization Page](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/authorization-page.jpg) |
 
   ![Figure 23: Editing Kubeconfig File](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/kubeconfig.gif)
 
