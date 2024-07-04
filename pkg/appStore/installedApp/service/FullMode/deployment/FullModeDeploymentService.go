@@ -248,7 +248,7 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 		return installedApp, false, err
 	}
 
-	deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfigForHelmApp(installedApp.AppId, installedApp.EnvironmentId)
+	deploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForHelmApp(installedApp.AppId, installedApp.EnvironmentId)
 	if err != nil {
 		impl.Logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", installedApp.AppId, "envId", installedApp.EnvironmentId, "err", err)
 		return installedApp, false, err

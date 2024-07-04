@@ -757,12 +757,18 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDPipelineDeleteEvent() error {
 			impl.logger.Errorw("error in fetching pipeline by pipelineId", "err", err, "pipelineId", cdPipelineDeleteEvent.PipelineId)
 			return
 		}
-		envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(pipeline.AppId, pipeline.EnvironmentId)
-		if err != nil {
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigEvenIfInactive(pipeline.AppId, pipeline.EnvironmentId)
+		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
 			return
 		}
-		if util3.IsHelmApp(envDeploymentConfig.DeploymentAppType) || util3.IsAcdApp(envDeploymentConfig.DeploymentAppType) {
+		var deploymentAppType string
+		if err == pg.ErrNoRows {
+			deploymentAppType = pipeline.DeploymentAppType
+		} else {
+			deploymentAppType = envDeploymentConfig.DeploymentAppType
+		}
+		if util3.IsHelmApp(deploymentAppType) || util3.IsAcdApp(deploymentAppType) {
 			impl.RemoveReleaseContextForPipeline(cdPipelineDeleteEvent.PipelineId, cdPipelineDeleteEvent.TriggeredBy)
 			// there is a possibility that when the pipeline was deleted, async request nats message was not consumed completely and could have led to dangling deployment app
 			// trying to delete deployment app once
@@ -1035,7 +1041,7 @@ func (impl *WorkflowEventProcessorImpl) setAdditionalDataInAsyncInstallReq(ctx c
 	if err != nil {
 		return err
 	}
-	envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(pipelineModel.AppId, pipelineModel.EnvironmentId)
+	envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(pipelineModel.AppId, pipelineModel.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", pipelineModel.AppId, "envId", pipelineModel.EnvironmentId, "err", err)
 		return err

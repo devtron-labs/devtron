@@ -225,7 +225,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 	triggeredBy = wfr.TriggeredBy
 	wfrStatus = wfr.Status
 
-	envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(appId, envId)
+	envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
 		return nil, err
@@ -302,7 +302,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesForAppStore(install
 		impl.logger.Errorw("error in getting installed_app_version by appId and envId", "err", err, "appId", installedAppId, "envId", envId)
 		return nil, err
 	}
-	deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfigForHelmApp(installedAppVersion.InstalledApp.AppId, installedAppVersion.InstalledApp.EnvironmentId)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForHelmApps(installedAppVersion.InstalledApp.AppId, installedAppVersion.InstalledApp.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", installedAppVersion.InstalledApp.AppId, "envId", installedAppVersion.InstalledApp.EnvironmentId, "err", err)
 		return nil, err

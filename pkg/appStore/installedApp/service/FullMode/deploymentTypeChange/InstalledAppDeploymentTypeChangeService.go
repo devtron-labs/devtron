@@ -329,7 +329,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) deleteInstalledApps(ctx
 	for _, installedApp := range installedApps {
 		installedApp.Environment.Cluster = cluster
 
-		deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfigForHelmApp(installedApp.AppId, installedApp.EnvironmentId)
+		deploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForHelmApp(installedApp.AppId, installedApp.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", installedApp.AppId, "envId", installedApp.EnvironmentId, "err", err)
 			return nil, err

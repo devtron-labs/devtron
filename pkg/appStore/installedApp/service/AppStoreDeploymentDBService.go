@@ -212,14 +212,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) AppStoreDeployOperationDB(installRe
 	installRequest.InstalledAppId = installedApp.Id
 	// Stage 3: ends
 
-	//save deployment config
-	gitOpsConfig, err := impl.gitOpsConfigReadService.GetGitOpsConfigActive()
-	if err != nil {
-		impl.logger.Errorw("error in getting active gitops config", "err", err)
-		return nil, err
-	}
-
-	deploymentConfig := installRequest.GetDeploymentConfig(gitOpsConfig.Id)
+	deploymentConfig := installRequest.GetDeploymentConfig()
 	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(tx, deploymentConfig, installRequest.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in creating deployment config for installed app", "appId", installedApp.AppId, "envId", installedApp.EnvironmentId, "err", err)
@@ -311,7 +304,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) GetInstalledApp(id int) (*appStoreB
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
 	}
-	deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfigForHelmApp(app.AppId, app.EnvironmentId)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForHelmApps(app.AppId, app.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", app.AppId, "envId", app.EnvironmentId, "err", err)
 		return nil, err

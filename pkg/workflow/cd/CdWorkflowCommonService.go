@@ -191,7 +191,7 @@ func (impl *CdWorkflowCommonServiceImpl) MarkCurrentDeploymentFailed(runner *pip
 		}
 		appId := runner.CdWorkflow.Pipeline.AppId
 		envId := runner.CdWorkflow.Pipeline.EnvironmentId
-		envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(appId, envId)
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
 			return err
@@ -256,7 +256,7 @@ func (impl *CdWorkflowCommonServiceImpl) UpdatePreviousQueuedRunnerStatus(cdWfrI
 
 		appId := queuedRunner.CdWorkflow.Pipeline.AppId
 		envId := queuedRunner.CdWorkflow.Pipeline.EnvironmentId
-		envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(appId, envId)
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
 			return err

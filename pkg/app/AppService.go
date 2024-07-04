@@ -40,7 +40,6 @@ import (
 	"strconv"
 	"time"
 
-	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/caarlos0/env"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
@@ -1040,22 +1039,6 @@ func (impl *AppServiceImpl) GetConfigMapAndSecretJson(appId int, envId int, pipe
 	return merged, nil
 }
 
-func (impl *AppServiceImpl) synchCD(pipeline *pipelineConfig.Pipeline, ctx context.Context,
-	overrideRequest *bean.ValuesOverrideRequest, envOverride *chartConfig.EnvConfigOverride) {
-	req := new(application2.ApplicationSyncRequest)
-	pipelineName := pipeline.App.AppName + "-" + envOverride.Environment.Name
-	req.Name = &pipelineName
-	prune := true
-	req.Prune = &prune
-	if ctx == nil {
-		impl.logger.Errorw("err in syncing ACD, ctx is NULL", "pipelineId", overrideRequest.PipelineId)
-		return
-	}
-	if _, err := impl.acdClient.Sync(ctx, req); err != nil {
-		impl.logger.Errorw("err in syncing ACD", "pipelineId", overrideRequest.PipelineId, "err", err)
-	}
-}
-
 type DeploymentEvent struct {
 	ApplicationId      int
 	EnvironmentId      int
@@ -1155,7 +1138,7 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 	}
 	appId := wfr.CdWorkflow.Pipeline.AppId
 	envId := wfr.CdWorkflow.Pipeline.EnvironmentId
-	envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(appId, envId)
+	envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
 		return err

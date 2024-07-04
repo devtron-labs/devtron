@@ -208,13 +208,13 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(gitSensor.Client), new(*gitSensor.ClientImpl)),
 		// -------
 		helper.NewAppListingRepositoryQueryBuilder,
-		// sql.GetConfig,
+		// sql.GetConfigForDevtronApps,
 		eClient.GetEventClientConfig,
 		// sql.NewDbConnection,
 		// app.GetACDAuthConfig,
 		util3.GetACDAuthConfig,
 		connection.SettingsManager,
-		// auth.GetConfig,
+		// auth.GetConfigForDevtronApps,
 
 		connection.GetConfig,
 		wire.Bind(new(session2.ServiceClient), new(*middleware.LoginService)),
@@ -431,7 +431,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository2.ServiceClient), new(*repository2.ServiceClientImpl)),
 		wire.Bind(new(connector.Pump), new(*connector.PumpImpl)),
 
-		//app.GetConfig,
+		//app.GetConfigForDevtronApps,
 
 		pipeline.GetEcrConfig,
 		// otel.NewOtelTracingServiceImpl,

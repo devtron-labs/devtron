@@ -222,14 +222,6 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 	}
 	valuesOverrideResponse.EnvOverride = envOverride
 
-	envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(pipeline.AppId, pipeline.EnvironmentId)
-	if err != nil {
-		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
-		return valuesOverrideResponse, err
-	}
-
-	valuesOverrideResponse.DeploymentConfig = envDeploymentConfig
-
 	// Conditional Block based on PipelineOverrideCreated --> start
 	if !isPipelineOverrideCreated {
 		pipelineOverride, err = impl.savePipelineOverride(newCtx, overrideRequest, envOverride.Id, triggeredAt)

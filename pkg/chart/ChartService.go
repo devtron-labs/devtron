@@ -281,21 +281,12 @@ func (impl *ChartServiceImpl) Create(templateRequest TemplateRequest, ctx contex
 		return nil, err
 	}
 
-	// create deployment config
-	activeGitOpsConfig, err := impl.gitOpsConfigReadService.GetGitOpsConfigActive()
-	if err != nil {
-		impl.logger.Errorw("error in getting active gitOps config", "err", err)
-		return nil, err
-	}
-
 	deploymentConfig := &bean2.DeploymentConfig{
-		AppId:           templateRequest.AppId,
-		ConfigType:      common.GetDeploymentConfigType(templateRequest.IsCustomGitRepository),
-		RepoURL:         gitRepoUrl,
-		ChartLocation:   chartLocation,
-		CredentialType:  bean2.GitOps.String(),
-		CredentialIdInt: activeGitOpsConfig.Id,
-		Active:          true,
+		AppId:         templateRequest.AppId,
+		ConfigType:    common.GetDeploymentConfigType(templateRequest.IsCustomGitRepository),
+		RepoURL:       gitRepoUrl,
+		ChartLocation: chartLocation,
+		Active:        true,
 	}
 	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, templateRequest.UserId)
 	if err != nil {
@@ -375,7 +366,7 @@ func (impl *ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Templat
 		return nil, err
 	}
 
-	currentDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(templateRequest.AppId, 0)
+	currentDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(templateRequest.AppId, 0)
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
@@ -386,20 +377,12 @@ func (impl *ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Templat
 		gitRepoUrl = currentDeploymentConfig.RepoURL
 	}
 
-	// create deployment config
-	activeGitOpsConfig, err := impl.gitOpsConfigReadService.GetGitOpsConfigActive()
-	if err != nil {
-		impl.logger.Errorw("error in getting active gitOps config", "err", err)
-		return nil, err
-	}
 	deploymentConfig := &bean2.DeploymentConfig{
-		AppId:           templateRequest.AppId,
-		ConfigType:      common.GetDeploymentConfigType(templateRequest.IsCustomGitRepository),
-		RepoURL:         gitRepoUrl,
-		ChartLocation:   chartLocation,
-		CredentialType:  bean2.GitOps.String(),
-		CredentialIdInt: activeGitOpsConfig.Id,
-		Active:          true,
+		AppId:         templateRequest.AppId,
+		ConfigType:    common.GetDeploymentConfigType(templateRequest.IsCustomGitRepository),
+		RepoURL:       gitRepoUrl,
+		ChartLocation: chartLocation,
+		Active:        true,
 	}
 	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, templateRequest.UserId)
 	if err != nil {
@@ -588,7 +571,7 @@ func (impl *ChartServiceImpl) FindLatestChartForAppByAppId(appId int) (chartTemp
 		return nil, err
 	}
 
-	deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(appId, 0)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, 0)
 	if err != nil {
 		impl.logger.Errorw("error in fetching deployment config by appId", "appId", appId, "err", err)
 		return nil, err
@@ -614,7 +597,7 @@ func (impl *ChartServiceImpl) GetByAppIdAndChartRefId(appId int, chartRefId int)
 		impl.logger.Errorw("error in fetching app-metrics", "appId", appId, "err", err)
 		return nil, err
 	}
-	deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(appId, 0)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, 0)
 	if err != nil {
 		impl.logger.Errorw("error in fetching deployment config by appId", "appId", appId, "err", err)
 		return nil, err
@@ -850,7 +833,7 @@ func (impl *ChartServiceImpl) FindPreviousChartByAppId(appId int) (chartTemplate
 		impl.logger.Errorw("error in fetching chart ", "appId", appId, "err", err)
 		return nil, err
 	}
-	deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(appId, 0)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, 0)
 	if err != nil {
 		impl.logger.Errorw("error in fetching deployment config by appId", "appId", appId, "err", err)
 		return nil, err

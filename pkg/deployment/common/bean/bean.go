@@ -7,18 +7,15 @@ import (
 )
 
 type DeploymentConfig struct {
-	Id                 int
-	AppId              int
-	EnvironmentId      int
-	ConfigType         string
-	DeploymentAppType  string
-	RepoURL            string
-	RepoName           string
-	ChartLocation      string
-	CredentialType     string
-	CredentialIdInt    int
-	CredentialIdString string
-	Active             bool
+	Id                int
+	AppId             int
+	EnvironmentId     int
+	ConfigType        string
+	DeploymentAppType string
+	RepoURL           string
+	RepoName          string
+	ChartLocation     string
+	Active            bool
 }
 
 type UniqueDeploymentConfigIdentifier string

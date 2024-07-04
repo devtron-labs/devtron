@@ -250,7 +250,7 @@ func (impl *AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Contex
 		return nil, err
 	}
 
-	deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfigForHelmApp(model.AppId, model.EnvironmentId)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForHelmApps(model.AppId, model.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", model.AppId, "envId", model.EnvironmentId, "err", err)
 		return nil, err
@@ -458,7 +458,7 @@ func (impl *AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Conte
 			impl.logger.Errorw("error while fetching installed app", "error", err)
 			return false, err
 		}
-		deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfigForHelmApp(installedApp.AppId, installedApp.EnvironmentId)
+		deploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForHelmApp(installedApp.AppId, installedApp.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", installedApp.AppId, "envId", installedApp.EnvironmentId, "err", err)
 			return false, err
@@ -613,7 +613,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		installedApp.Environment.ClusterId: installedApp.Environment.Namespace,
 	}
 
-	deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfigForHelmApp(installedApp.AppId, installedApp.EnvironmentId)
+	deploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForHelmApp(installedApp.AppId, installedApp.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in getting deploymentConfig by appId and envId", "appId", installedApp.AppId, "envId", installedApp.EnvironmentId, "err", err)
 		return nil, err
@@ -863,7 +863,7 @@ func (impl *AppStoreDeploymentServiceImpl) MarkGitOpsInstalledAppsDeletedIfArgoA
 		apiError.InternalMessage = "error in fetching partially deleted argoCd apps from installed app repo"
 		return apiError
 	}
-	deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(installedAppId, envId)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForHelmApps(installedAppId, envId)
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", installedAppId, "envId", envId, "err", err)
 		apiError.HttpStatusCode = http.StatusInternalServerError

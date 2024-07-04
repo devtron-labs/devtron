@@ -57,7 +57,7 @@ type AppDeploymentTypeChangeManager interface {
 	// TriggerDeploymentAfterTypeChange : triggers a new deployment after type change
 	TriggerDeploymentAfterTypeChange(ctx context.Context, request *bean.DeploymentAppTypeChangeRequest) (*bean.DeploymentAppTypeChangeResponse, error)
 	// DeleteDeploymentApps : takes in a list of pipelines and delete the applications
-	DeleteDeploymentApps(ctx context.Context, pipelines []*pipelineConfig.Pipeline, userId int32) *bean.DeploymentAppTypeChangeResponse
+	DeleteDeploymentApps(ctx context.Context, pipelines []*pipelineConfig.Pipeline, deploymentConfig []*bean4.DeploymentConfig, userId int32) *bean.DeploymentAppTypeChangeResponse
 	// DeleteDeploymentAppsForEnvironment : takes in environment id and current deployment app type
 	// and deletes all the cd pipelines for that deployment type in all apps that belongs to
 	// that environment.
@@ -156,23 +156,15 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangeDeploymentType(ctx context
 		return response, nil
 	}
 
-	deploymentConfigSelector := make([]*bean4.DeploymentConfigSelector, len(pipelineIds))
-	for _, pipeline := range pipelines {
-		deploymentConfigSelector = append(deploymentConfigSelector, &bean4.DeploymentConfigSelector{
-			AppId:         pipeline.AppId,
-			EnvironmentId: pipeline.EnvironmentId,
-		})
-	}
-
-	deploymentConfigs, err := impl.deploymentConfigService.GetDeploymentConfigInBulk(deploymentConfigSelector)
-	if err != nil {
-		impl.logger.Errorw("error in getting deployment config", "deploymentConfigSelector", deploymentConfigSelector, "err", err)
-		return nil, err
-	}
 	updatedDeploymentConfigs := make([]*bean4.DeploymentConfig, 0)
-	for _, c := range deploymentConfigs {
-		c.DeploymentAppType = request.DesiredDeploymentType
-		updatedDeploymentConfigs = append(updatedDeploymentConfigs, c)
+	for _, pipeline := range pipelines {
+		deploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(pipeline.AppId, pipeline.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+			return nil, err
+		}
+		deploymentConfig.DeploymentAppType = request.DesiredDeploymentType
+		updatedDeploymentConfigs = append(updatedDeploymentConfigs, deploymentConfig)
 	}
 
 	updatedDeploymentConfigs, err = impl.deploymentConfigService.UpdateConfigs(nil, updatedDeploymentConfigs, request.UserId)
@@ -182,16 +174,16 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangeDeploymentType(ctx context
 	}
 
 	// Update in db
-	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(request.DesiredDeploymentType),
-		pipelineIds, request.UserId, false, true)
-	if err != nil {
-		impl.logger.Errorw("failed to update deployment app type in db",
-			"pipeline ids", pipelineIds,
-			"desired deployment type", request.DesiredDeploymentType,
-			"err", err)
-
-		return response, nil
-	}
+	//err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(request.DesiredDeploymentType),
+	//	pipelineIds, request.UserId, false, true)
+	//if err != nil {
+	//	impl.logger.Errorw("failed to update deployment app type in db",
+	//		"pipeline ids", pipelineIds,
+	//		"desired deployment type", request.DesiredDeploymentType,
+	//		"err", err)
+	//
+	//	return response, nil
+	//}
 
 	if !request.AutoTriggerDeployment {
 		return response, nil
@@ -280,18 +272,28 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 		return response, nil
 	}
 
-	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(request.DesiredDeploymentType),
-		pipelineIds, request.UserId, false, true)
-
-	if err != nil {
-		impl.logger.Errorw("failed to update deployment app type in db",
-			"pipeline ids", pipelineIds,
-			"desired deployment type", request.DesiredDeploymentType,
-			"err", err)
-
-		return response, nil
+	deploymentConfigs := make([]*bean4.DeploymentConfig, 0)
+	for _, p := range pipelines {
+		envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(p.AppId, p.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", p.AppId, "envId", p.EnvironmentId, "err", err)
+			return response, err
+		}
+		deploymentConfigs = append(deploymentConfigs, envDeploymentConfig)
 	}
-	deleteResponse := impl.DeleteDeploymentApps(ctx, pipelines, request.UserId)
+
+	//err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(request.DesiredDeploymentType),
+	//	pipelineIds, request.UserId, false, true)
+	//
+	//if err != nil {
+	//	impl.logger.Errorw("failed to update deployment app type in db",
+	//		"pipeline ids", pipelineIds,
+	//		"desired deployment type", request.DesiredDeploymentType,
+	//		"err", err)
+	//
+	//	return response, nil
+	//}
+	deleteResponse := impl.DeleteDeploymentApps(ctx, pipelines, deploymentConfigs, request.UserId)
 
 	response.SuccessfulPipelines = deleteResponse.SuccessfulPipelines
 	response.FailedPipelines = deleteResponse.FailedPipelines
@@ -452,21 +454,22 @@ func (impl *AppDeploymentTypeChangeManagerImpl) TriggerDeploymentAfterTypeChange
 }
 
 func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context.Context,
-	pipelines []*pipelineConfig.Pipeline, userId int32) *bean.DeploymentAppTypeChangeResponse {
+	pipelines []*pipelineConfig.Pipeline, deploymentConfig []*bean4.DeploymentConfig, userId int32) *bean.DeploymentAppTypeChangeResponse {
 
 	successfulPipelines := make([]*bean.DeploymentChangeStatus, 0)
 	failedPipelines := make([]*bean.DeploymentChangeStatus, 0)
 
 	gitOpsConfigurationStatus, gitOpsConfigErr := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 
+	deploymentConfigMap := make(map[bean4.UniqueDeploymentConfigIdentifier]*bean4.DeploymentConfig)
+	for _, c := range deploymentConfig {
+		deploymentConfigMap[bean4.GetConfigUniqueIdentifier(c.AppId, c.EnvironmentId)] = c
+	}
+
 	// Iterate over all the pipelines in the environment for given deployment app type
 	for _, pipeline := range pipelines {
 
-		envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(pipeline.AppId, pipeline.EnvironmentId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
-			continue
-		}
+		envDeploymentConfig := deploymentConfigMap[bean4.GetConfigUniqueIdentifier(pipeline.AppId, pipeline.EnvironmentId)]
 
 		var isValid bool
 		// check if pipeline info like app name and environment is empty or not
@@ -484,6 +487,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
 		// delete request
+		var err error
 		if envDeploymentConfig.DeploymentAppType == bean3.ArgoCd {
 			err = impl.deleteArgoCdApp(ctx, pipeline, deploymentAppName, true)
 
@@ -520,17 +524,9 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 									if RepoURLUpdateErr != nil {
 										impl.logger.Errorw("error in updating git repo url in charts", "err", RepoURLUpdateErr)
 									}
-									//configure gitOps repoUrl for ENV
-									activeGitOpsConfig, err := impl.gitOpsConfigReadService.GetGitOpsConfigActive()
-									if err != nil {
-										impl.logger.Errorw("error in getting active gitOps config", "err", err)
-									}
-									envDeploymentConfig.DeploymentAppType = bean3.ArgoCd
 									envDeploymentConfig.ConfigType = common.GetDeploymentConfigType(chart.IsCustomGitRepository)
 									envDeploymentConfig.RepoURL = chartGitAttr.RepoUrl
 									envDeploymentConfig.ChartLocation = chartGitAttr.ChartLocation
-									envDeploymentConfig.CredentialIdInt = activeGitOpsConfig.Id
-									envDeploymentConfig.CredentialType = bean4.GitOps.String()
 
 									envDeploymentConfig, RepoURLUpdateErr = impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, userId)
 									if RepoURLUpdateErr != nil {
@@ -614,6 +610,20 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentAppsForEnvironme
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvIdAndDeploymentType(environmentId,
 		string(currentDeploymentAppType), exclusionList, includeApps)
 
+	deploymentConfigs := make([]*bean4.DeploymentConfig, 0)
+	for _, p := range pipelines {
+		envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(p.AppId, p.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", p.AppId, "envId", p.EnvironmentId, "err", err)
+			return &bean.DeploymentAppTypeChangeResponse{
+				EnvId:               environmentId,
+				SuccessfulPipelines: []*bean.DeploymentChangeStatus{},
+				FailedPipelines:     []*bean.DeploymentChangeStatus{},
+			}, err
+		}
+		deploymentConfigs = append(deploymentConfigs, envDeploymentConfig)
+	}
+
 	if err != nil {
 		impl.logger.Errorw("Error fetching cd pipelines",
 			"environmentId", environmentId,
@@ -628,7 +638,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentAppsForEnvironme
 	}
 
 	// Currently deleting apps only in argocd is supported
-	return impl.DeleteDeploymentApps(ctx, pipelines, userId), nil
+	return impl.DeleteDeploymentApps(ctx, pipelines, deploymentConfigs, userId), nil
 }
 
 func (impl *AppDeploymentTypeChangeManagerImpl) isPipelineInfoValid(pipeline *pipelineConfig.Pipeline,
@@ -725,7 +735,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) fetchDeletedApp(ctx context.Cont
 	failedPipelines := make([]*bean.DeploymentChangeStatus, 0)
 	// Iterate over all the pipelines in the environment for given deployment app type
 	for _, pipeline := range pipelines {
-		envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(pipeline.AppId, pipeline.EnvironmentId)
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(pipeline.AppId, pipeline.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
 		}

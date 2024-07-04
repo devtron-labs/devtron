@@ -548,7 +548,7 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		common.WriteJsonResp(w, fmt.Errorf("error in getting acd token"), nil, http.StatusInternalServerError)
 		return
 	}
-	envDeploymentConfig, err := handler.deploymentConfigService.GetDeploymentConfig(appId, envId)
+	envDeploymentConfig, err := handler.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
 	if err != nil {
 		handler.logger.Errorw("error in fetching deployment config", "appId", appId, "envId", envId, "err", err)
 		common.WriteJsonResp(w, fmt.Errorf("error in getting deployment config for env"), nil, http.StatusInternalServerError)
@@ -647,7 +647,7 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 		common.WriteJsonResp(w, fmt.Errorf("error in getting acd token"), nil, http.StatusInternalServerError)
 		return
 	}
-	envDeploymentConfig, err := handler.deploymentConfigService.GetDeploymentConfig(appId, envId)
+	envDeploymentConfig, err := handler.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
 	if err != nil {
 		handler.logger.Errorw("error in fetching deployment config", "appId", appId, "envId", envId, "err", err)
 		common.WriteJsonResp(w, fmt.Errorf("error in getting deployment config for env"), nil, http.StatusInternalServerError)
@@ -961,7 +961,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		}
 
 		cdPipeline := pipelines[0]
-		envDeploymentConfig, err := handler.deploymentConfigService.GetDeploymentConfig(appId, envId)
+		envDeploymentConfig, err := handler.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
 		if err != nil {
 			handler.logger.Errorw("error in fetching deployment config", "appId", appId, "envId", envId, "err", err)
 			common.WriteJsonResp(w, fmt.Errorf("error in getting deployment config for env"), nil, http.StatusInternalServerError)

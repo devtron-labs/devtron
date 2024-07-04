@@ -172,7 +172,7 @@ type InstallAppVersionChartRepoDTO struct {
 	Password string `json:"-"`
 }
 
-func (chart *InstallAppVersionDTO) GetDeploymentConfig(gitOpsConfigId int) *bean2.DeploymentConfig {
+func (chart *InstallAppVersionDTO) GetDeploymentConfig() *bean2.DeploymentConfig {
 	var configType string
 	if chart.IsCustomRepository {
 		configType = bean2.CUSTOM.String()
@@ -186,8 +186,6 @@ func (chart *InstallAppVersionDTO) GetDeploymentConfig(gitOpsConfigId int) *bean
 		DeploymentAppType: chart.DeploymentAppType,
 		RepoURL:           chart.GitOpsRepoURL,
 		RepoName:          gitUtil.GetGitRepoNameFromGitRepoUrl(chart.GitOpsRepoURL),
-		CredentialType:    bean2.GitOps.String(),
-		CredentialIdInt:   gitOpsConfigId,
 		Active:            true,
 	}
 }

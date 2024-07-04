@@ -1783,7 +1783,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 	var pipelines []*bean.CDPipelineConfigObject
 	for _, dbPipeline := range dbPipelines {
 
-		envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(dbPipeline.AppId, dbPipeline.EnvironmentId)
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(dbPipeline.AppId, dbPipeline.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", dbPipeline.EnvironmentId, "err", err)
 			return nil, err
@@ -1897,7 +1897,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 			impl.logger.Errorw("error in fetching latest chart details for app by appId")
 			return nil, err
 		}
-		envDeploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfig(dbPipeline.AppId, dbPipeline.EnvironmentId)
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(dbPipeline.AppId, dbPipeline.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", dbPipeline.AppId, "envId", dbPipeline.EnvironmentId, "err", err)
 			return nil, err

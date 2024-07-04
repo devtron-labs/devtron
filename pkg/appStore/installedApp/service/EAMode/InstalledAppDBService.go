@@ -181,7 +181,7 @@ func (impl *InstalledAppDBServiceImpl) FindAppDetailsForAppstoreApplication(inst
 		return bean2.AppDetailContainer{}, err
 	}
 
-	deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfigForHelmApp(installedAppVerison.InstalledApp.AppId, installedAppVerison.InstalledApp.EnvironmentId)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForHelmApps(installedAppVerison.InstalledApp.AppId, installedAppVerison.InstalledApp.EnvironmentId)
 	if err != nil {
 		impl.Logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", installedAppVerison.InstalledApp.AppId, "envId", installedAppVerison.InstalledApp.EnvironmentId, "err", err)
 		return bean2.AppDetailContainer{}, err
@@ -258,7 +258,7 @@ func (impl *InstalledAppDBServiceImpl) GetInstalledAppByClusterNamespaceAndName(
 		if err != nil {
 			return nil, err
 		}
-		deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfigForHelmApp(installedApp.AppId, installedApp.EnvironmentId)
+		deploymentConfig, err := impl.deploymentConfigService.GetConfigForHelmApps(installedApp.AppId, installedApp.EnvironmentId)
 		if err != nil {
 			impl.Logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", installedApp.AppId, "envId", installedApp.EnvironmentId, "err", err)
 			return nil, err
@@ -275,7 +275,7 @@ func (impl *InstalledAppDBServiceImpl) GetInstalledAppByInstalledAppId(installed
 		return nil, err
 	}
 	installedApp := &installedAppVersion.InstalledApp
-	deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfigForHelmApp(installedApp.AppId, installedApp.EnvironmentId)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForHelmApps(installedApp.AppId, installedApp.EnvironmentId)
 	if err != nil {
 		impl.Logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", installedApp.AppId, "envId", installedApp.EnvironmentId, "err", err)
 		return nil, err
@@ -292,7 +292,7 @@ func (impl *InstalledAppDBServiceImpl) GetInstalledAppVersion(id int, userId int
 		impl.Logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
 	}
-	deploymentConfig, err := impl.deploymentConfigService.GetDeploymentConfigForHelmApp(model.InstalledApp.AppId, model.InstalledApp.EnvironmentId)
+	deploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForHelmApp(model.InstalledApp.AppId, model.InstalledApp.EnvironmentId)
 	if err != nil {
 		impl.Logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", model.InstalledApp.AppId, "envId", model.InstalledApp.EnvironmentId, "err", err)
 		return nil, err

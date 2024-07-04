@@ -6,20 +6,31 @@ import (
 	"github.com/go-pg/pg/orm"
 )
 
+type DeploymentAppType string
+
+const (
+	Argo DeploymentAppType = "argo_cd"
+	Helm DeploymentAppType = "helm"
+)
+
+type ConfigType string
+
+const (
+	Custom          ConfigType = "custom"
+	SystemGenerated            = "system_generated"
+)
+
 type DeploymentConfig struct {
-	tableName          struct{} `sql:"deployment_config" pg:",discard_unknown_columns"`
-	Id                 int      `sql:"id,pk"`
-	AppId              int      `sql:"app_id"`
-	EnvironmentId      int      `sql:"environment_id"`
-	DeploymentAppType  string   `sql:"deployment_app_type"`
-	ConfigType         string   `sql:"config_type"`
-	RepoUrl            string   `sql:"repo_url"`
-	RepoName           string   `sql:"repo_name"`
-	ChartLocation      string   `sql:"chart_location"`
-	CredentialType     string   `sql:"credential_type"`
-	CredentialIdInt    int      `sql:"credential_id_int"`
-	CredentialIdString string   `sql:"credential_id_string"`
-	Active             bool     `sql:"active,notnull"`
+	tableName         struct{} `sql:"deployment_config" pg:",discard_unknown_columns"`
+	Id                int      `sql:"id,pk"`
+	AppId             int      `sql:"app_id"`
+	EnvironmentId     int      `sql:"environment_id"`
+	DeploymentAppType string   `sql:"deployment_app_type"`
+	ConfigType        string   `sql:"config_type"`
+	RepoUrl           string   `sql:"repo_url"`
+	RepoName          string   `sql:"repo_name"`
+	ChartLocation     string   `sql:"chart_location"`
+	Active            bool     `sql:"active,notnull"`
 	sql.AuditLog
 }
 
@@ -33,6 +44,7 @@ type Repository interface {
 	GetAppLevelConfigForDevtronApps(appId int) (*DeploymentConfig, error)
 	GetAppLevelConfigByAppIds(appIds []int) ([]*DeploymentConfig, error)
 	GetAppAndEnvLevelConfigsInBulk(appIdToEnvIdsMap map[int][]int) ([]*DeploymentConfig, error)
+	GetByAppIdAndEnvIdEvenIfInactive(appId, envId int) (*DeploymentConfig, error)
 }
 
 type RepositoryImpl struct {
@@ -95,6 +107,7 @@ func (impl RepositoryImpl) GetByAppIdAndEnvId(appId, envId int) (*DeploymentConf
 		Where("app_id = ?", appId).
 		Where("environment_id = ? ", envId).
 		Where("active = ?", true).
+		Order("id DESC").Limit(1).
 		Select()
 	return result, err
 }
@@ -131,6 +144,23 @@ func (impl RepositoryImpl) GetAppAndEnvLevelConfigsInBulk(appIdToEnvIdsMap map[i
 			return query, nil
 		}).
 		Where("active = ?", true).
+		Select()
+	return result, err
+}
+
+func (impl RepositoryImpl) GetByAppIdAndEnvIdEvenIfInactive(appId, envId int) (*DeploymentConfig, error) {
+	result := &DeploymentConfig{}
+	err := impl.dbConnection.Model(result).
+		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+			query = query.Where("app_id = ?", appId)
+			if envId == 0 {
+				query = query.Where("environment_id is NULL")
+			} else {
+				query = query.Where("environment_id = ? ", envId)
+			}
+			return query, nil
+		}).
+		Order("id DESC").Limit(1).
 		Select()
 	return result, err
 }

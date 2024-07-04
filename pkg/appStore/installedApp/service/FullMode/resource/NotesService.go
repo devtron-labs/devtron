@@ -83,7 +83,7 @@ func (impl *InstalledAppResourceServiceImpl) findNotesForArgoApplication(install
 	}
 	var notes string
 
-	deploymentConfig, err := impl.deploymentConfigurationService.GetDeploymentConfigForHelmApp(installedAppVerison.InstalledApp.AppId, installedAppVerison.InstalledApp.EnvironmentId)
+	deploymentConfig, err := impl.deploymentConfigurationService.GetConfigForHelmApps(installedAppVerison.InstalledApp.AppId, installedAppVerison.InstalledApp.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", installedAppVerison.InstalledApp.AppId, "envId", installedAppVerison.InstalledApp.EnvironmentId, "err", err)
 		return "", err
