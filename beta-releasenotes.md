@@ -25,6 +25,7 @@
 - feat: air gap registry v2 (#5220)
 - feat: tenants and installations migration (#5187)
 ## Documentation
+- doc: Blob Storage Redirection + Other Fixes (#5432)
 - doc: Added migration steps for 0.6 to 0.7 upgrade (#5411)
 - doc: Created Deployment Window Draft (#4800)
 - doc: Redirection Fix for User Permissions Doc + Other Fixes (#5382)
