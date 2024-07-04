@@ -303,6 +303,16 @@ func (impl ChartTemplateServiceImpl) PackageChart(tempReferenceTemplateDir strin
 	if len(chartMetaData.APIVersion) > 0 {
 		chart.Metadata.APIVersion = chartMetaData.APIVersion
 	}
+	chartMetaDataBytes, err := yaml.Marshal(chart.Metadata)
+	if err != nil {
+		impl.logger.Errorw("error in marshaling chartMetadata", "err", err)
+		return nil, "", err
+	}
+	err = ioutil.WriteFile(filepath.Join(tempReferenceTemplateDir, "Chart.yaml"), chartMetaDataBytes, 0600)
+	if err != nil {
+		impl.logger.Errorw("err in writing Chart.yaml", "err", err)
+		return nil, "", err
+	}
 	archivePath, err := chartutil.Save(chart, tempReferenceTemplateDir)
 	if err != nil {
 		impl.logger.Errorw("error in saving", "err", err, "dir", tempReferenceTemplateDir)
