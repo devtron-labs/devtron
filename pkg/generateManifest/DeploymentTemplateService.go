@@ -462,6 +462,7 @@ func (impl DeploymentTemplateServiceImpl) patchReleaseAttributes(request *Deploy
 		request.AppId, request.EnvId, 0, pointer.Bool(false)).RenderJson(chartDto.ImageDescriptorTemplate)
 
 	if err != nil {
+		impl.Logger.Errorw("error in rendering release attributes into image descriptor template ", "releaseAttributeJson", releaseAttributeJson, "err", err)
 		return
 	}
 	mergedJsonBytes, err := impl.mergeUtil.JsonPatch(valuesJsonByte, []byte(releaseAttributeJson))
