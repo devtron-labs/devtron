@@ -17,11 +17,12 @@ require (
 	github.com/casbin/casbin v1.9.1
 	github.com/casbin/casbin/v2 v2.97.0
 	github.com/casbin/xorm-adapter v1.0.1-0.20190716004226-a317737a1007
+	github.com/casbin/xorm-adapter/v2 v2.5.1
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deckarep/golang-set v1.8.0
 	github.com/devtron-labs/authenticator v0.4.35-0.20240607135426-c86e868ecee1
-	github.com/devtron-labs/common-lib v0.0.21-0.20240628105542-603b4f777e00
+	github.com/devtron-labs/common-lib v0.0.22-0.20240704103133-ff5ff14e86de
 	github.com/devtron-labs/go-bitbucket v0.9.60-beta
 	github.com/devtron-labs/protos v0.0.3-0.20240527113333-08a3be5ec6c1
 	github.com/evanphx/json-patch v5.7.0+incompatible
@@ -130,7 +131,6 @@ require (
 	github.com/bombsimon/logrusr/v2 v2.0.1 // indirect
 	github.com/bradleyfalzon/ghinstallation/v2 v2.5.0 // indirect
 	github.com/casbin/govaluate v1.1.0 // indirect
-	github.com/casbin/xorm-adapter/v2 v2.5.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
