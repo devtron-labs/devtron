@@ -93,6 +93,8 @@ type ArgoClientWrapperService interface {
 
 	// GetGitOpsRepoName returns the GitOps repository name, configured for the argoCd app
 	GetGitOpsRepoName(ctx context.Context, appName string) (gitOpsRepoName string, err error)
+
+	GetGitOpsRepoURL(ctx context.Context, appName string) (gitOpsRepoURL string, err error)
 }
 
 type ArgoClientWrapperServiceImpl struct {
@@ -288,6 +290,20 @@ func (impl *ArgoClientWrapperServiceImpl) GetGitOpsRepoName(ctx context.Context,
 		return gitOpsRepoName, nil
 	}
 	return gitOpsRepoName, fmt.Errorf("unable to get any ArgoCd application '%s'", appName)
+}
+
+func (impl *ArgoClientWrapperServiceImpl) GetGitOpsRepoURL(ctx context.Context, appName string) (gitOpsRepoName string, err error) {
+	acdApplication, err := impl.acdClient.Get(ctx, &application2.ApplicationQuery{Name: &appName})
+	if err != nil {
+		impl.logger.Errorw("no argo app exists", "acdAppName", appName, "err", err)
+		return gitOpsRepoName, err
+	}
+	// safety checks nil pointers
+	if acdApplication != nil && acdApplication.Spec.Source != nil {
+		gitOpsRepoUrl := acdApplication.Spec.Source.RepoURL
+		return gitOpsRepoUrl, nil
+	}
+	return "", fmt.Errorf("unable to get any ArgoCd application '%s'", appName)
 }
 
 // createRepoInArgoCd is the wrapper function to Create Repository in ArgoCd
