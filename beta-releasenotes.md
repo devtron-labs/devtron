@@ -1,4 +1,5 @@
 ## Bugs
+- fix: empty the code and image scan script (#5434)
 - fix: K8s Resource list RBAC ignore for Superadmin (#5415)
 - fix: repo url and name handling with argocd (#5445)
 - fix: fix for terminal disconnect issue when custom transport is being used (#5436)
