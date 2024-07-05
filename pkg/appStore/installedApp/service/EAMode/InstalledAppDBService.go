@@ -378,7 +378,7 @@ func (impl *InstalledAppDBServiceImpl) CreateNewAppEntryForAllInstalledApps(inst
 			impl.Logger.Errorw("error in fetching app by unique app identifier", "appNameUniqueIdentifier", installedApp.GetUniqueAppNameIdentifier(), "err", err)
 			return err
 		}
-		if appMetadata.Id > 0 {
+		if appMetadata != nil && appMetadata.Id > 0 {
 			//app already exists for this unique identifier hence not creating new app entry for this
 			continue
 		}
