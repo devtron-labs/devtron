@@ -21,7 +21,6 @@ package main
 
 import (
 	"github.com/devtron-labs/authenticator/middleware"
-	"github.com/devtron-labs/common-lib/async"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
@@ -113,6 +112,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deploymentTypeChange"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
+	"github.com/devtron-labs/devtron/pkg/asyncWrapper"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/build"
 	"github.com/devtron-labs/devtron/pkg/bulkAction"
@@ -230,7 +230,9 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.PProfRouter), new(*router.PProfRouterImpl)),
 		// ---- pprof end ----
 
-		async.NewAsync, // ---- goroutine async wrapper service
+		// ---- goroutine async wrapper service start ----
+		asyncWrapper.ServiceWire,
+		// ---- goroutine async wrapper service end ----
 
 		sql.NewTransactionUtilImpl,
 		wire.Bind(new(sql.TransactionWrapper), new(*sql.TransactionUtilImpl)),

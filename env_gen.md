@@ -13,6 +13,8 @@
  | ARGO_AUTO_SYNC_ENABLED | true |  | 
  | ARGO_GIT_COMMIT_RETRY_COUNT_ON_CONFLICT | 3 |  | 
  | ARGO_GIT_COMMIT_RETRY_DELAY_ON_CONFLICT | 1 |  | 
+ | ARGO_REPO_REGISTER_RETRY_COUNT | 3 |  | 
+ | ARGO_REPO_REGISTER_RETRY_DELAY | 10 |  | 
  | AZURE_ACCOUNT_KEY |  |  | 
  | AZURE_ACCOUNT_NAME |  |  | 
  | AZURE_BLOB_CONTAINER_CI_CACHE |  |  | 
@@ -206,6 +208,7 @@
  | PRE_CI_CACHE_PATH | /devtroncd-cache |  | 
  | PROPAGATE_EXTRA_LABELS | false |  | 
  | PROXY_SERVICE_CONFIG | {} |  | 
+ | REPLICAS | 0 |  | 
  | REQ_CI_CPU | 0.5 |  | 
  | REQ_CI_MEM | 3G |  | 
  | RESOURCE_LIST_FOR_REPLICAS | Deployment,Rollout,StatefulSet,ReplicaSet |  | 

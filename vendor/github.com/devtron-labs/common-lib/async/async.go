@@ -10,18 +10,25 @@ import (
 )
 
 type Async struct {
-	logger *zap.SugaredLogger
+	logger           *zap.SugaredLogger
+	microServiceName MicroServiceName
+}
+
+type MicroServiceName string
+
+func (m MicroServiceName) ToString() string {
+	return string(m)
 }
 
 type RunAsyncMetaData struct {
-	MicroServiceName string
-	InterfaceName    string
-	MethodName       string
+	Method string
+	Path   string
 }
 
-func NewAsync(logger *zap.SugaredLogger) *Async {
+func NewAsync(logger *zap.SugaredLogger, microServiceName MicroServiceName) *Async {
 	return &Async{
-		logger: logger,
+		logger:           logger,
+		microServiceName: microServiceName,
 	}
 }
 
@@ -29,21 +36,15 @@ func NewRunAsyncMetaData() *RunAsyncMetaData {
 	return &RunAsyncMetaData{}
 }
 
-func RunningMicroService(microServiceName string) NewUpdateMetaData {
+func CallerMethod(methodName string) NewUpdateMetaData {
 	return func(m *RunAsyncMetaData) {
-		m.MicroServiceName = microServiceName
+		m.Method = methodName
 	}
 }
 
-func RunningInterface(interfaceName string) NewUpdateMetaData {
+func CallerPath(pathName string) NewUpdateMetaData {
 	return func(m *RunAsyncMetaData) {
-		m.InterfaceName = interfaceName
-	}
-}
-
-func RunningMethod(methodName string) NewUpdateMetaData {
-	return func(m *RunAsyncMetaData) {
-		m.MethodName = methodName
+		m.Path = pathName
 	}
 }
 
@@ -60,7 +61,7 @@ func (impl *Async) Run(fn func(), metadataOpts ...NewUpdateMetaData) {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				metrics.IncPanicRecoveryCount("go-routine", metaData.MicroServiceName, metaData.InterfaceName, metaData.MethodName)
+				metrics.IncPanicRecoveryCount("go-routine", impl.microServiceName.ToString(), metaData.Method, metaData.Path)
 				if impl.logger == nil {
 					log.Println(constants.GoRoutinePanicMsgLogPrefix, "go-routine recovered from panic", "err:", r, "stack:", string(debug.Stack()))
 				} else {
