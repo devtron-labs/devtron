@@ -492,7 +492,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 	}
 	//TODO fill these variables
 	//ciCdConfig.CiPipeline=
-	//--------pipeline population start
+	//--------pipeline population  asd fgrfds fsdstart
 	pipelines, err := impl.ciPipelineRepository.FindByAppId(appId)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error in fetching ci pipeline", "appId", appId, "err", err)
