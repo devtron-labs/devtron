@@ -40,6 +40,7 @@
 - docs: removed users (#5324)
 - docs: Created a file for listing Devtron Users (#5310)
 ## Others
+- chore: common-lib upgrade for nats replicas (#5446)
 - chore: migration for gitops config (#5383)
 - chore: update common-lib tag version (#5333)
 - chore: updated go version in EA dockerfile (#5327)
