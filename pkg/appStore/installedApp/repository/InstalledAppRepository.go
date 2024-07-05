@@ -691,7 +691,7 @@ func (impl InstalledAppRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypeIn
 	err := impl.dbConnection.
 		Model(&installedApps).
 		Column("installed_apps.id", "App.app_name", "App.display_name", "Environment.cluster_id", "Environment.namespace").
-		Join("LEFT JOIN deployment_config dc on dc.app_id = installed_apps.app_id and dc.environment_id=installed_apps.environment_id").
+		Join("LEFT JOIN deployment_config dc on dc.active=true and dc.app_id = installed_apps.app_id and dc.environment_id=installed_apps.environment_id").
 		Where("environment.cluster_id in (?)", pg.In(clusterIds)).
 		Where("(installed_apps.deployment_app_type = ? or dc.deployment_app_type = ?)", deploymentAppType, deploymentAppType).
 		Where("app.active = ?", true).
@@ -744,7 +744,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppByGitHash(gitHash string) 
 func (impl InstalledAppRepositoryImpl) GetInstalledAppByAppIdAndDeploymentType(appId int, deploymentAppType string) (InstalledApps, error) {
 	var installedApps InstalledApps
 	queryString := `select * from installed_apps 
-                      	left join deployment_config dc on dc.app_id = installed_apps.app_id and dc.environment_id=installed_apps.environment_id
+                      	left join deployment_config dc on dc.active=true and dc.app_id = installed_apps.app_id and dc.environment_id=installed_apps.environment_id
          				where active=? and app_id=? and (installed_apps.deployment_app_type=? or dc.deployment_app_type=?);`
 	_, err := impl.dbConnection.Query(&installedApps, queryString, true, appId, deploymentAppType, deploymentAppType)
 	if err != nil {
@@ -769,8 +769,8 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppByAppName(appName string) 
 func (impl InstalledAppRepositoryImpl) GetInstalledAppByInstalledAppVersionId(installedAppVersionId int) (InstalledApps, error) {
 	var installedApps InstalledApps
 	queryString := `select ia.* from installed_apps ia inner join installed_app_versions iav on ia.id=iav.installed_app_id
-                    left join deployment_config dc on dc.app_id = ia.app_id and dc.environment_id=ia.environment_id
-         			where iav.active=? and iav.id=? and (ia.deployment_app_type=? or dc.deployment_app_type=?);`
+                    left join deployment_config dc on dc.active=true and dc.app_id = ia.app_id and dc.environment_id=ia.environment_id
+         			where iav.active=? and iav.id=? and (ia.deployment_app_type=? or dc.deployment_app_type=? );`
 	_, err := impl.dbConnection.Query(&installedApps, queryString, true, installedAppVersionId, util2.PIPELINE_DEPLOYMENT_TYPE_ACD, util2.PIPELINE_DEPLOYMENT_TYPE_ACD)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching InstalledApp", "err", err)
@@ -811,7 +811,7 @@ func (impl InstalledAppRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckI
 	queryString := `select iav.* from installed_app_versions iav 
     				inner join installed_apps ia on iav.installed_app_id=ia.id 
     				inner join installed_app_version_history iavh on iavh.installed_app_version_id=iav.id 
-             		left join deployment_config dc on dc.app_id = ia.app_id and dc.environment_id=ia.environment_id
+             		left join deployment_config dc on dc.active=true and dc.app_id = ia.app_id and dc.environment_id=ia.environment_id
                     where iavh.id in (select DISTINCT ON (installed_app_version_id) max(id) as id from installed_app_version_history 
                          where updated_on < NOW() - INTERVAL '? minutes' and updated_on > NOW() - INTERVAL '? hours' and status not in (?)
                          group by installed_app_version_id, id order by installed_app_version_id, id desc ) and (ia.deployment_app_type=? or dc.deployment_app_type=?) and iav.active=?;`
@@ -830,7 +830,7 @@ func (impl InstalledAppRepositoryImpl) GetArgoPipelinesHavingTriggersStuckInLast
 	var installedAppVersions []*InstalledAppVersions
 	queryString := `select iav.* from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id=ia.id 
 					inner join installed_app_version_history iavh on iavh.installed_app_version_id=iav.id
-					left join deployment_config dc on dc.app_id = ia.app_id and dc.environment_id=ia.environment_id
+					left join deployment_config dc on dc.active=true and dc.app_id = ia.app_id and dc.environment_id=ia.environment_id
 					where iavh.id in (select DISTINCT ON (installed_app_version_history_id) max(id) as id from pipeline_status_timeline
 					                    where status in (?) and status_time < NOW() - INTERVAL '? seconds'
 										group by installed_app_version_history_id, id order by installed_app_version_history_id, id desc)
@@ -869,7 +869,7 @@ func (impl InstalledAppRepositoryImpl) GetActiveInstalledAppByEnvIdAndDeployment
 		Model(&installedApps).
 		Column("installed_apps.*", "App", "Environment").
 		Join("inner join app a on installed_apps.app_id = a.id").
-		Join("LEFT JOIN deployment_config dc on dc.app_id = installed_apps.app_id and dc.environment_id=installed_apps.environment_id").
+		Join("LEFT JOIN deployment_config dc on dc.active=true and dc.app_id = installed_apps.app_id and dc.environment_id=installed_apps.environment_id").
 		Where("installed_apps.environment_id = ?", envId).
 		Where("installed_apps.deployment_app_type = ? or dc.deployment_app_type = ?", deploymentType, deploymentType).
 		Where("installed_apps.active = ?", true)

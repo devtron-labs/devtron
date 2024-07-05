@@ -297,7 +297,7 @@ func (impl PipelineOverrideRepositoryImpl) FindLatestByAppIdAndEnvId(appId, envi
 	err = impl.dbConnection.Model(&override).
 		Column("pipeline_override.*", "Pipeline").
 		Join("inner join pipeline p on p.id = pipeline_override.pipeline_id").
-		Join("LEFT JOIN deployment_config dc on dc.app_id = p.app_id and dc.environment_id=p.environment_id").
+		Join("LEFT JOIN deployment_config dc on dc.app_id = p.app_id and dc.environment_id=p.environment_id and dc.active=true").
 		Where("pipeline.app_id =? ", appId).
 		Where("pipeline.environment_id =?", environmentId).
 		Where("(p.deployment_app_type=? or dc.deployment_app_type=?)", deploymentAppType, deploymentAppType).

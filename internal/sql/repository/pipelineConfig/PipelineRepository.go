@@ -372,7 +372,7 @@ func (impl PipelineRepositoryImpl) FindActiveByEnvIdAndDeploymentType(environmen
 		Model(&pipelines).
 		Column("pipeline.*", "App", "Environment").
 		Join("inner join app a on pipeline.app_id = a.id").
-		Join("LEFT JOIN deployment_config dc on dc.app_id = pipeline.app_id and dc.environment_id=pipeline.environment_id").
+		Join("LEFT JOIN deployment_config dc on dc.active=true and dc.app_id = pipeline.app_id and dc.environment_id=pipeline.environment_id").
 		Where("pipeline.environment_id = ?", environmentId).
 		Where("(pipeline.deployment_app_type=? or dc.deployment_app_type=?)", deploymentAppType, deploymentAppType).
 		Where("pipeline.deleted = ?", false)
@@ -601,7 +601,7 @@ func (impl PipelineRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypePipeli
 		Column("pipeline.id", "App.app_name", "Environment.cluster_id", "Environment.namespace", "Environment.environment_name").
 		Join("inner join app a on pipeline.app_id = a.id").
 		Join("inner join environment e on pipeline.environment_id = e.id").
-		Join("LEFT JOIN deployment_config dc on dc.app_id = pipeline.app_id and dc.environment_id=pipeline.environment_id").
+		Join("LEFT JOIN deployment_config dc on dc.active=true and dc.app_id = pipeline.app_id and dc.environment_id=pipeline.environment_id").
 		Where("e.cluster_id in (?)", pg.In(clusterIds)).
 		Where("a.active = ?", true).
 		Where("pipeline.deleted = ?", false).
@@ -614,7 +614,7 @@ func (impl PipelineRepositoryImpl) GetArgoPipelinesHavingTriggersStuckInLastPoss
 	var pipelines []*Pipeline
 	queryString := `select p.* from pipeline p inner join cd_workflow cw on cw.pipeline_id = p.id  
     inner join cd_workflow_runner cwr on cwr.cd_workflow_id=cw.id  
-    left join deployment_config dc on dc.app_id = p.app_id and dc.environment_id=p.environment_id
+    left join deployment_config dc on dc.active=true and dc.app_id = p.app_id and dc.environment_id=p.environment_id
     where cwr.id in (select cd_workflow_runner_id from pipeline_status_timeline  
 					where id in  
 						(select DISTINCT ON (cd_workflow_runner_id) max(id) as id from pipeline_status_timeline 
@@ -636,7 +636,7 @@ func (impl PipelineRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckInNon
 	var pipelines []*Pipeline
 	queryString := `select p.id from pipeline p inner join cd_workflow cw on cw.pipeline_id = p.id  
     inner join cd_workflow_runner cwr on cwr.cd_workflow_id=cw.id  
-    left join deployment_config dc on dc.app_id = p.app_id and dc.environment_id=p.environment_id
+    left join deployment_config dc on dc.active=true and dc.app_id = p.app_id and dc.environment_id=p.environment_id
     where cwr.id in (select id from cd_workflow_runner 
                      	where started_on < NOW() - INTERVAL '? minutes' and started_on > NOW() - INTERVAL '? hours' and status not in (?) 
                      	and workflow_type=? and cd_workflow_id in (select DISTINCT ON (pipeline_id) max(id) as id from cd_workflow
@@ -677,7 +677,7 @@ func (impl PipelineRepositoryImpl) FindIdsByProjectIdsAndEnvironmentIds(projectI
 func (impl PipelineRepositoryImpl) GetArgoPipelineByArgoAppName(argoAppName string) (Pipeline, error) {
 	var pipeline Pipeline
 	err := impl.dbConnection.Model(&pipeline).
-		Join("LEFT JOIN deployment_config dc on dc.app_id = pipeline.app_id and dc.environment_id=pipeline.environment_id").
+		Join("LEFT JOIN deployment_config dc on dc.active=true and dc.app_id = pipeline.app_id and dc.environment_id=pipeline.environment_id and dc.active=true").
 		Column("pipeline.*", "Environment").
 		Where("deployment_app_name = ?", argoAppName).
 		Where("(pipeline.deployment_app_type=? or dc.deployment_app_type=?)", util.PIPELINE_DEPLOYMENT_TYPE_ACD, util.PIPELINE_DEPLOYMENT_TYPE_ACD).

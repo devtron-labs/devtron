@@ -320,18 +320,14 @@ func (impl *AppStoreDeploymentDBServiceImpl) GetAllInstalledAppsByAppStoreId(app
 		return nil, err
 	}
 
-	deploymentSelectors := make([]*bean2.DeploymentConfigSelector, 0)
+	deploymentConfigMap := make(map[bean2.UniqueDeploymentConfigIdentifier]*bean2.DeploymentConfig)
 	for _, ia := range installedApps {
-		deploymentSelectors = append(deploymentSelectors, &bean2.DeploymentConfigSelector{
-			AppId:         ia.AppId,
-			EnvironmentId: ia.EnvironmentId,
-		})
-	}
-
-	deploymentConfigMap, err := impl.deploymentConfigService.GetDeploymentConfigInBulk(deploymentSelectors)
-	if err != nil {
-		impl.logger.Errorw("error in getting deployment config by deployment selectors", "deploymentSelectors", deploymentSelectors, "err", err)
-		return nil, err
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForHelmApps(ia.AppId, ia.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching deployment config by appId and envId", "appId", ia.AppId, "envId", ia.EnvironmentId, "err", err)
+			return nil, err
+		}
+		deploymentConfigMap[bean2.GetConfigUniqueIdentifier(envDeploymentConfig.AppId, envDeploymentConfig.EnvironmentId)] = envDeploymentConfig
 	}
 
 	var installedAppsEnvResponse []appStoreBean.InstalledAppsResponse

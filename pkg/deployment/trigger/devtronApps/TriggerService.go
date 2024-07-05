@@ -1152,7 +1152,6 @@ func (impl *TriggerServiceImpl) deployArgoCdApp(ctx context.Context, overrideReq
 		return err
 	}
 	impl.logger.Debugw("ArgoCd application created", "name", name)
-
 	updateAppInArgoCd, err := impl.updateArgoPipeline(newCtx, valuesOverrideResponse.Pipeline, valuesOverrideResponse.EnvOverride, valuesOverrideResponse.DeploymentConfig)
 	if err != nil {
 		impl.logger.Errorw("error in updating argocd app ", "err", err)

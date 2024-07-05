@@ -99,7 +99,7 @@ func (impl *PipelineStatusSyncDetailRepositoryImpl) GetOfLatestCdWfrByCdPipeline
 	query := `select * from pipeline_status_timeline_sync_detail 
               	where cd_workflow_runner_id = (select cwr.id from cd_workflow_runner cwr inner join cd_workflow cw on cw.id=cwr.cd_workflow_id 
                 	inner join pipeline p on p.id=cw.pipeline_id
-					  left join deployment_config dc on dc.app_id = p.app_id and dc.environment_id=p.environment_id
+					  left join deployment_config dc on dc.active=true and dc.app_id = p.app_id and dc.environment_id=p.environment_id
               	                                             where p.id=? and p.deleted=? and (p.deployment_app_type=? or dc.deployment_app_type=?)  order by cwr.id desc limit ?);`
 	_, err := impl.dbConnection.Query(&model, query, pipelineId, false, util.PIPELINE_DEPLOYMENT_TYPE_ACD, util.PIPELINE_DEPLOYMENT_TYPE_ACD, 1)
 	if err != nil {
@@ -115,7 +115,7 @@ func (impl *PipelineStatusSyncDetailRepositoryImpl) GetOfLatestInstalledAppVersi
               	where installed_app_version_history_id = (select iavh.id from installed_app_version_history iavh
               	                                            inner join installed_app_versions iav on iavh.installed_app_version_id=iav.id
               	                                            inner join installed_apps ia on iav.installed_app_id=ia.id
-              	                                            left join deployment_config dc on dc.app_id = ia.app_id and dc.environment_id=ia.environment_id
+              	                                            left join deployment_config dc on dc.active=true and dc.app_id = ia.app_id and dc.environment_id=ia.environment_id
               	                                            where iav.id=? and iav.active=? and (ia.deployment_app_type=? or dc.deployment_app_type=?) 
               	                                            order by iavh.id desc limit ?);`
 	_, err := impl.dbConnection.Query(&model, query, installedAppVersionId, true, util.PIPELINE_DEPLOYMENT_TYPE_ACD, util.PIPELINE_DEPLOYMENT_TYPE_ACD, 1)

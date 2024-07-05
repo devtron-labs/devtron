@@ -141,7 +141,7 @@ func (impl AppListingRepositoryQueryBuilder) CommonJoinSubQuery(appListingFilter
 	whereCondition := impl.buildAppListingWhereCondition(appListingFilter)
 
 	query := " LEFT JOIN pipeline p ON a.id=p.app_id  and p.deleted=false " +
-		" LEFT JOIN deployment_config dc ON ( p.app_id=dc.app_id and p.environment_id=dc.environment_id  )" +
+		" LEFT JOIN deployment_config dc ON ( p.app_id=dc.app_id and p.environment_id=dc.environment_id and dc.active=true )" +
 		" LEFT JOIN app_status aps on aps.app_id = a.id and p.environment_id = aps.env_id "
 
 	if appListingFilter.DeploymentGroupId != 0 {
