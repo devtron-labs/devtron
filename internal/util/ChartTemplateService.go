@@ -316,7 +316,7 @@ func (impl ChartTemplateServiceImpl) PackageChart(tempReferenceTemplateDir strin
 	}
 	chart, err := impl.overrideChartMetaDataInDir(tempReferenceTemplateDir, chartMetaData)
 	if err != nil {
-		impl.logger.Errorw("error in loading template chart", "chartPath", tempReferenceTemplateDir, "err", err)
+		impl.logger.Errorw("error in overriding chart metadata", "chartPath", tempReferenceTemplateDir, "err", err)
 		return nil, "", err
 	}
 	archivePath, err := chartutil.Save(chart, tempReferenceTemplateDir)
