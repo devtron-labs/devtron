@@ -227,23 +227,15 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) performDbOperationsAfte
 		return err
 	}
 
-	deploymentConfigSelector := make([]*bean3.DeploymentConfigSelector, len(successInstalledAppIds))
-	for _, ia := range installedApps {
-		deploymentConfigSelector = append(deploymentConfigSelector, &bean3.DeploymentConfigSelector{
-			AppId:         ia.AppId,
-			EnvironmentId: ia.EnvironmentId,
-		})
-	}
-
-	deploymentConfigs, err := impl.deploymentConfigService.GetDeploymentConfigInBulk(deploymentConfigSelector)
-	if err != nil {
-		impl.logger.Errorw("error in getting deployment config", "deploymentConfigSelector", deploymentConfigSelector, "err", err)
-		return err
-	}
 	updatedDeploymentConfigs := make([]*bean3.DeploymentConfig, 0)
-	for _, c := range deploymentConfigs {
-		c.DeploymentAppType = desiredDeploymentType
-		updatedDeploymentConfigs = append(updatedDeploymentConfigs, c)
+	for _, ia := range installedApps {
+		deploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(ia.AppId, ia.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", ia.AppId, "envId", ia.EnvironmentId, "err", err)
+			return err
+		}
+		deploymentConfig.DeploymentAppType = desiredDeploymentType
+		updatedDeploymentConfigs = append(updatedDeploymentConfigs, deploymentConfig)
 	}
 
 	updatedDeploymentConfigs, err = impl.deploymentConfigService.UpdateConfigs(nil, updatedDeploymentConfigs, userId)

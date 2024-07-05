@@ -142,6 +142,11 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangeDeploymentType(ctx context
 		pipelineIds = append(pipelineIds, item.PipelineId)
 	}
 
+	// If nothing to update in db
+	if len(pipelineIds) == 0 {
+		return response, nil
+	}
+
 	// Get all pipelines
 	pipelines, err := impl.pipelineRepository.FindByIdsIn(pipelineIds)
 	if err != nil {
@@ -149,10 +154,6 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangeDeploymentType(ctx context
 			"ids", pipelineIds,
 			"err", err)
 
-		return response, nil
-	}
-	// If nothing to update in db
-	if len(pipelineIds) == 0 {
 		return response, nil
 	}
 
@@ -425,18 +426,18 @@ func (impl *AppDeploymentTypeChangeManagerImpl) TriggerDeploymentAfterTypeChange
 		})
 	}
 
-	deploymentConfigs, err := impl.deploymentConfigService.GetDeploymentConfigInBulk(deploymentConfigSelector)
-	if err != nil {
-		impl.logger.Errorw("error in getting deployment config", "deploymentConfigSelector", deploymentConfigSelector, "err", err)
-		return nil, err
-	}
-	updatedDeploymentConfigs := make([]*bean4.DeploymentConfig, 0)
-	for _, c := range deploymentConfigs {
-		c.DeploymentAppType = request.DesiredDeploymentType
-		updatedDeploymentConfigs = append(updatedDeploymentConfigs, c)
+	deploymentConfigs := make([]*bean4.DeploymentConfig, 0)
+	for _, p := range pipelines {
+		envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(p.AppId, p.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", p.AppId, "envId", p.EnvironmentId, "err", err)
+			return response, err
+		}
+		envDeploymentConfig.DeploymentAppType = request.DesiredDeploymentType
+		deploymentConfigs = append(deploymentConfigs, envDeploymentConfig)
 	}
 
-	updatedDeploymentConfigs, err = impl.deploymentConfigService.UpdateConfigs(nil, updatedDeploymentConfigs, request.UserId)
+	deploymentConfigs, err = impl.deploymentConfigService.UpdateConfigs(nil, deploymentConfigs, request.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in updating configs", "err", err)
 		return nil, err
