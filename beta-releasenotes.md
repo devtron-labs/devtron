@@ -1,4 +1,5 @@
 ## Bugs
+- fix: fix for terminal disconnect issue when custom transport is being used (#5436)
 - fix: gitops async failed for git cli mode in concurrent cases  (#5412)
 - fix: Updating pr-issue-validator-script (#5384)
 - fix: optimised FetchLatestDeploymentWithChartRefs query (#5393)
