@@ -279,20 +279,11 @@ func (impl ChartTemplateServiceImpl) getValues(directory, pipelineStrategyPath s
 
 }
 
-func (impl ChartTemplateServiceImpl) PackageChart(tempReferenceTemplateDir string, chartMetaData *chart.Metadata) (*string, string, error) {
-	valid, err := chartutil.IsChartDir(tempReferenceTemplateDir)
+func (impl ChartTemplateServiceImpl) overrideChartMetaDataInDir(chartDir string, chartMetaData *chart.Metadata) (*chart.Chart, error) {
+	chart, err := loader.LoadDir(chartDir)
 	if err != nil {
-		impl.logger.Errorw("error in validating base chart", "dir", tempReferenceTemplateDir, "err", err)
-		return nil, "", err
-	}
-	if !valid {
-		impl.logger.Errorw("invalid chart at ", "dir", tempReferenceTemplateDir)
-		return nil, "", fmt.Errorf("invalid base chart")
-	}
-	chart, err := loader.LoadDir(tempReferenceTemplateDir)
-	if err != nil {
-		impl.logger.Errorw("error in loading template chart", "chartPath", tempReferenceTemplateDir, "err", err)
-		return nil, "", err
+		impl.logger.Errorw("error in loading template chart", "chartPath", chartDir, "err", err)
+		return nil, err
 	}
 	if len(chartMetaData.Name) > 0 {
 		chart.Metadata.Name = chartMetaData.Name
@@ -303,11 +294,29 @@ func (impl ChartTemplateServiceImpl) PackageChart(tempReferenceTemplateDir strin
 	chartMetaDataBytes, err := yaml.Marshal(chart.Metadata)
 	if err != nil {
 		impl.logger.Errorw("error in marshaling chartMetadata", "err", err)
-		return nil, "", err
+		return chart, err
 	}
-	err = ioutil.WriteFile(filepath.Join(tempReferenceTemplateDir, "Chart.yaml"), chartMetaDataBytes, 0600)
+	err = ioutil.WriteFile(filepath.Join(chartDir, "Chart.yaml"), chartMetaDataBytes, 0600)
 	if err != nil {
 		impl.logger.Errorw("err in writing Chart.yaml", "err", err)
+		return chart, err
+	}
+	return chart, nil
+}
+
+func (impl ChartTemplateServiceImpl) PackageChart(tempReferenceTemplateDir string, chartMetaData *chart.Metadata) (*string, string, error) {
+	valid, err := chartutil.IsChartDir(tempReferenceTemplateDir)
+	if err != nil {
+		impl.logger.Errorw("error in validating base chart", "dir", tempReferenceTemplateDir, "err", err)
+		return nil, "", err
+	}
+	if !valid {
+		impl.logger.Errorw("invalid chart at ", "dir", tempReferenceTemplateDir)
+		return nil, "", fmt.Errorf("invalid base chart")
+	}
+	chart, err := impl.overrideChartMetaDataInDir(tempReferenceTemplateDir, chartMetaData)
+	if err != nil {
+		impl.logger.Errorw("error in loading template chart", "chartPath", tempReferenceTemplateDir, "err", err)
 		return nil, "", err
 	}
 	archivePath, err := chartutil.Save(chart, tempReferenceTemplateDir)
