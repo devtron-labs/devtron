@@ -970,7 +970,9 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceList(w http.ResponseWri
 	}
 	clusterRbacFunc := handler.verifyRbacForCluster
 	if isSuperAdmin {
-		clusterRbacFunc = nil
+		clusterRbacFunc = func(token, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool {
+			return true
+		}
 	}
 	response, err := handler.k8sApplicationService.GetResourceList(r.Context(), token, &request, clusterRbacFunc)
 	if err != nil {
