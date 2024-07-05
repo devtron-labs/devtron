@@ -551,23 +551,25 @@ func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int, appType int)
 	var appStageStatus []bean.AppStageStatus
 
 	var stages struct {
-		AppId           int    `json:"app_id,omitempty"`
-		CiTemplateId    int    `json:"ci_template_id,omitempty"`
-		CiPipelineId    int    `json:"ci_pipeline_id,omitempty"`
-		ChartId         int    `json:"chart_id,omitempty"`
-		ChartGitRepoUrl string `json:"chart_git_repo_url,omitempty"`
-		PipelineId      int    `json:"pipeline_id,omitempty"`
-		YamlStatus      int    `json:"yaml_status,omitempty"`
-		YamlReviewed    bool   `json:"yaml_reviewed,omitempty"`
+		AppId                   int    `json:"app_id,omitempty"`
+		CiTemplateId            int    `json:"ci_template_id,omitempty"`
+		CiPipelineId            int    `json:"ci_pipeline_id,omitempty"`
+		ChartId                 int    `json:"chart_id,omitempty"`
+		ChartGitRepoUrl         string `json:"chart_git_repo_url,omitempty"`
+		PipelineId              int    `json:"pipeline_id,omitempty"`
+		YamlStatus              int    `json:"yaml_status,omitempty"`
+		YamlReviewed            bool   `json:"yaml_reviewed,omitempty"`
+		DeploymentConfigRepoURL string `json:"deployment_config_repo_url"`
 	}
 
 	query := "SELECT " +
-		" app.id as app_id, ct.id as ci_template_id, cp.id as ci_pipeline_id, ch.id as chart_id, ch.git_repo_url as chart_git_repo_url," +
+		" app.id as app_id, ct.id as ci_template_id, cp.id as ci_pipeline_id, ch.id as chart_id, ch.git_repo_url as chart_git_repo_url, dc.repo_url as deployment_config_repo_url, " +
 		" p.id as pipeline_id, ceco.status as yaml_status, ceco.reviewed as yaml_reviewed " +
 		" FROM app app" +
 		" LEFT JOIN ci_template ct on ct.app_id=app.id" +
 		" LEFT JOIN ci_pipeline cp on cp.app_id=app.id" +
 		" LEFT JOIN charts ch on ch.app_id=app.id" +
+		" LEFT JOIN deployment_config dc on dc.app_id=app.id" +
 		" LEFT JOIN pipeline p on p.app_id=app.id" +
 		" LEFT JOIN chart_env_config_override ceco on ceco.chart_id=ch.id" +
 		" WHERE app.id=? and app.app_type = ? limit 1;"
@@ -602,7 +604,7 @@ func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int, appType int)
 	if model != nil && model.Id > 0 && model.AllowCustomRepository {
 		isCustomGitopsRepoUrl = true
 	}
-	if gitOps.IsGitOpsRepoNotConfigured(stages.ChartGitRepoUrl) && stages.CiPipelineId == 0 {
+	if (gitOps.IsGitOpsRepoNotConfigured(stages.ChartGitRepoUrl) && gitOps.IsGitOpsRepoNotConfigured(stages.DeploymentConfigRepoURL)) && stages.CiPipelineId == 0 {
 		stages.ChartGitRepoUrl = ""
 	}
 	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(0, "APP", stages.AppId, true),
@@ -610,7 +612,7 @@ func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int, appType int)
 		impl.makeAppStageStatus(2, "TEMPLATE", stages.CiTemplateId, true),
 		impl.makeAppStageStatus(3, "CI_PIPELINE", stages.CiPipelineId, true),
 		impl.makeAppStageStatus(4, "CHART", stages.ChartId, true),
-		impl.makeAppStageStatus(5, "GITOPS_CONFIG", len(stages.ChartGitRepoUrl), isCustomGitopsRepoUrl),
+		impl.makeAppStageStatus(5, "GITOPS_CONFIG", len(stages.ChartGitRepoUrl)+len(stages.DeploymentConfigRepoURL), isCustomGitopsRepoUrl),
 		impl.makeAppStageStatus(6, "CD_PIPELINE", stages.PipelineId, true),
 		impl.makeAppStageChartEnvConfigStatus(7, "CHART_ENV_CONFIG", stages.YamlStatus == 3 && stages.YamlReviewed),
 	)
