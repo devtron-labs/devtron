@@ -35,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 
 	"github.com/casbin/casbin"
+	casbinv2 "github.com/casbin/casbin/v2"
 	authMiddleware "github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/sse"
@@ -50,6 +51,7 @@ type App struct {
 	Logger                *zap.SugaredLogger
 	SSE                   *sse.SSE
 	Enforcer              *casbin.SyncedEnforcer
+	EnforcerV2            *casbinv2.SyncedEnforcer
 	server                *http.Server
 	db                    *pg.DB
 	posthogClient         *telemetry.PosthogClient
@@ -74,6 +76,7 @@ func NewApp(router *router.MuxRouter,
 	centralEventProcessor *eventProcessor.CentralEventProcessor,
 	pubSubClient *pubsub.PubSubClientServiceImpl,
 	workflowEventProcessorImpl *in.WorkflowEventProcessorImpl,
+	enforcerV2 *casbinv2.SyncedEnforcer,
 ) *App {
 	//check argo connection
 	//todo - check argo-cd version on acd integration installation
@@ -82,6 +85,7 @@ func NewApp(router *router.MuxRouter,
 		Logger:                     Logger,
 		SSE:                        sse,
 		Enforcer:                   enforcer,
+		EnforcerV2:            enforcerV2,
 		db:                         db,
 		serveTls:                   false,
 		sessionManager2:            sessionManager2,

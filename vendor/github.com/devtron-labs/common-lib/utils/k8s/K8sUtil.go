@@ -165,13 +165,8 @@ func (impl K8sServiceImpl) GetRestConfigByCluster(clusterConfig *ClusterConfig) 
 			return nil, err
 		}
 	} else {
-		restConfig = &rest.Config{Host: clusterConfig.Host, BearerToken: bearerToken, TLSClientConfig: rest.TLSClientConfig{Insecure: clusterConfig.InsecureSkipTLSVerify}}
-		if clusterConfig.InsecureSkipTLSVerify == false {
-			restConfig.TLSClientConfig.ServerName = restConfig.ServerName
-			restConfig.TLSClientConfig.KeyData = []byte(clusterConfig.KeyData)
-			restConfig.TLSClientConfig.CertData = []byte(clusterConfig.CertData)
-			restConfig.TLSClientConfig.CAData = []byte(clusterConfig.CAData)
-		}
+		restConfig = &rest.Config{Host: clusterConfig.Host, BearerToken: bearerToken}
+		clusterConfig.PopulateTlsConfigurationsInto(restConfig)
 	}
 	restConfig, err = impl.httpClientConfig.OverrideConfigWithCustomTransport(restConfig)
 	if err != nil {
