@@ -300,9 +300,6 @@ func (impl ChartTemplateServiceImpl) PackageChart(tempReferenceTemplateDir strin
 	if len(chartMetaData.Version) > 0 {
 		chart.Metadata.Version = chartMetaData.Version
 	}
-	if len(chartMetaData.APIVersion) > 0 {
-		chart.Metadata.APIVersion = chartMetaData.APIVersion
-	}
 	chartMetaDataBytes, err := yaml.Marshal(chart.Metadata)
 	if err != nil {
 		impl.logger.Errorw("error in marshaling chartMetadata", "err", err)
