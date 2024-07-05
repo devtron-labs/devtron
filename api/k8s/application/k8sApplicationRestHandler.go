@@ -964,7 +964,15 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceList(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	response, err := handler.k8sApplicationService.GetResourceList(r.Context(), token, &request, handler.verifyRbacForCluster)
+	isSuperAdmin := false
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
+		isSuperAdmin = true
+	}
+	clusterRbacFunc := handler.verifyRbacForCluster
+	if isSuperAdmin {
+		clusterRbacFunc = nil
+	}
+	response, err := handler.k8sApplicationService.GetResourceList(r.Context(), token, &request, clusterRbacFunc)
 	if err != nil {
 		handler.logger.Errorw("error in getting resource list", "err", err)
 		if statusErr, ok := err.(*errors3.StatusError); ok && statusErr.Status().Code == 404 {
