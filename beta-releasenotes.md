@@ -1,4 +1,5 @@
 ## Bugs
+- fix: external helm app when linked to devtron and page breaks while adding project to it, without switching back to applist  (#5443)
 - fix: empty the code and image scan script (#5434)
 - fix: K8s Resource list RBAC ignore for Superadmin (#5415)
 - fix: repo url and name handling with argocd (#5445)
