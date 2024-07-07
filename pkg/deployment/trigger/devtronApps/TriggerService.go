@@ -84,7 +84,7 @@ import (
 	"golang.org/x/exp/slices"
 	"google.golang.org/grpc/codes"
 	status2 "google.golang.org/grpc/status"
-	"k8s.io/helm/pkg/proto/hapi/chart"
+	"helm.sh/helm/v3/pkg/chart"
 	"net/http"
 	"path"
 	"regexp"

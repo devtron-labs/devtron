@@ -696,11 +696,11 @@ func (impl AppListingRepositoryImpl) DeploymentDetailByArtifactId(ciArtifactId i
 		" INNER JOIN app a on a.id = p.app_id" +
 		" WHERE pco.ci_artifact_id = ? and p.deleted=false AND env.active = TRUE AND env.id = ?" +
 		" ORDER BY pco.pipeline_release_counter desc LIMIT 1;"
-	impl.Logger.Debugw("last success full deployed artifact query:", query)
+	impl.Logger.Debugw("last success full deployed artifact", "query", query)
 
 	_, err := impl.dbConnection.Query(&deploymentDetail, query, ciArtifactId, envId)
 	if err != nil {
-		impl.Logger.Errorw("Exception caught:", err)
+		impl.Logger.Errorw("Exception caught", "error", err)
 		return deploymentDetail, err
 	}
 

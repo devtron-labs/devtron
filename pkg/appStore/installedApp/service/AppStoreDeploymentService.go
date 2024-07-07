@@ -628,16 +628,15 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	installedAppDeploymentAction := adapter.NewInstalledAppDeploymentAction(deploymentConfig.DeploymentAppType)
 	// migrate installedApp.GitOpsRepoName to installedApp.GitOpsRepoUrl
 	if util.IsAcdApp(deploymentConfig.DeploymentAppType) &&
-		len(deploymentConfig.RepoName) != 0 &&
-		len(deploymentConfig.RepoURL) == 0 {
-		//as the installedApp.GitOpsRepoName is not an empty string; migrate installedApp.GitOpsRepoName to installedApp.GitOpsRepoUrl
-		gitRepoUrl, err := impl.fullModeDeploymentService.GetGitRepoUrl(installedApp.GitOpsRepoName)
+		len(deploymentConfig.GitOpsRepoUrl) == 0 {
+		gitRepoUrl, err := impl.fullModeDeploymentService.GetAcdAppGitOpsRepoURL(installedApp.App.AppName, installedApp.Environment.Name)
 		if err != nil {
 			impl.logger.Errorw("error in GitOps repository url migration", "err", err)
 			return nil, err
 		}
 		deploymentConfig.RepoURL = gitRepoUrl
 		installedApp.GitOpsRepoUrl = gitRepoUrl
+		installedApp.GitOpsRepoName = impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(gitRepoUrl)
 	}
 	// migration ends
 

@@ -43,7 +43,7 @@ import (
 	"github.com/juju/errors"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"k8s.io/helm/pkg/proto/hapi/chart"
+	"helm.sh/helm/v3/pkg/chart"
 	"path/filepath"
 	"sigs.k8s.io/yaml"
 	"strconv"

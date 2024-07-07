@@ -209,19 +209,18 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(ctx context.Context, manife
 }
 
 func (impl *GitOpsManifestPushServiceImpl) pushChartToGitRepo(ctx context.Context, manifestPushTemplate *bean.ManifestPushTemplate) error {
-
-	_, span := otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.getGitOpsRepoName")
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "GitOpsManifestPushServiceImpl.pushChartToGitRepo")
+	defer span.End()
 	// CHART COMMIT and PUSH STARTS HERE, it will push latest version, if found modified on deployment template and overrides
 	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(manifestPushTemplate.RepoUrl)
-	span.End()
-	_, span = otel.Tracer("orchestrator").Start(ctx, "chartService.CheckChartExists")
+	_, span = otel.Tracer("orchestrator").Start(newCtx, "ChartRefServiceImpl.CheckChartExists")
 	err := impl.chartRefService.CheckChartExists(manifestPushTemplate.ChartRefId)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("err in getting chart info", "err", err)
 		return err
 	}
-	err = impl.gitOperationService.PushChartToGitRepo(ctx, gitOpsRepoName, manifestPushTemplate.ChartReferenceTemplate, manifestPushTemplate.ChartVersion, manifestPushTemplate.BuiltChartPath, manifestPushTemplate.RepoUrl, manifestPushTemplate.UserId)
+	err = impl.gitOperationService.PushChartToGitRepo(newCtx, gitOpsRepoName, manifestPushTemplate.ChartReferenceTemplate, manifestPushTemplate.ChartVersion, manifestPushTemplate.BuiltChartPath, manifestPushTemplate.RepoUrl, manifestPushTemplate.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git", "err", err)
 		return err

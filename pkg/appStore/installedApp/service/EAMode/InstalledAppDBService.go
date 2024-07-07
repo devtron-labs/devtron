@@ -399,6 +399,17 @@ func (impl *InstalledAppDBServiceImpl) CreateNewAppEntryForAllInstalledApps(inst
 	// Rollback tx on error.
 	defer tx.Rollback()
 	for _, installedApp := range installedApps {
+		//check if for this unique identifier name an app already exists, if yes then continue
+		appMetadata, err := impl.AppRepository.FindActiveByName(installedApp.GetUniqueAppNameIdentifier())
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.Logger.Errorw("error in fetching app by unique app identifier", "appNameUniqueIdentifier", installedApp.GetUniqueAppNameIdentifier(), "err", err)
+			return err
+		}
+		if appMetadata != nil && appMetadata.Id > 0 {
+			//app already exists for this unique identifier hence not creating new app entry for this
+			continue
+		}
+
 		appModel := &app.App{
 			Active:          true,
 			AppName:         installedApp.GetUniqueAppNameIdentifier(),
@@ -408,7 +419,7 @@ func (impl *InstalledAppDBServiceImpl) CreateNewAppEntryForAllInstalledApps(inst
 			DisplayName:     installedApp.App.AppName,
 		}
 		appModel.CreateAuditLog(bean3.SystemUserId)
-		err := impl.AppRepository.SaveWithTxn(appModel, tx)
+		err = impl.AppRepository.SaveWithTxn(appModel, tx)
 		if err != nil {
 			impl.Logger.Errorw("error saving appModel", "err", err)
 			return err
