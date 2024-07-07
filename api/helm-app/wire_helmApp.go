@@ -17,6 +17,7 @@
 package client
 
 import (
+	grpcUtil "github.com/devtron-labs/common-lib/utils/grpc"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -24,6 +25,7 @@ import (
 )
 
 var HelmAppWireSet = wire.NewSet(
+	grpcUtil.GetConfiguration,
 	gRPC.NewHelmAppClientImpl,
 	wire.Bind(new(gRPC.HelmAppClient), new(*gRPC.HelmAppClientImpl)),
 	service.GetHelmReleaseConfig,
