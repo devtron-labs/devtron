@@ -144,7 +144,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(ctx context.Context, manife
 		manifestPushTemplate.RepoUrl = newGitRepoUrl
 		manifestPushResponse.NewGitRepoUrl = newGitRepoUrl
 		// below function will override gitRepoUrl for charts even if user has already configured gitOps repoURL
-		err = impl.chartService.ConfigureGitOpsRepoUrlForApp(manifestPushTemplate.AppId, newGitRepoUrl, manifestPushTemplate.ChartLocation, manifestPushTemplate.IsCustomGitRepository, manifestPushTemplate.UserId)
+		_, err = impl.chartService.ConfigureGitOpsRepoUrlForApp(manifestPushTemplate.AppId, newGitRepoUrl, manifestPushTemplate.ChartLocation, manifestPushTemplate.IsCustomGitRepository, manifestPushTemplate.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in updating git repo url in charts", "err", err)
 			manifestPushResponse.Error = fmt.Errorf("No repository configured for Gitops! Error while migrating gitops repository: '%s'", newGitRepoUrl)

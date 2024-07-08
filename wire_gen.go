@@ -434,7 +434,7 @@ func InitializeApp() (*App, error) {
 	pipelineStatusSyncDetailServiceImpl := status.NewPipelineStatusSyncDetailServiceImpl(sugaredLogger, pipelineStatusSyncDetailRepositoryImpl)
 	installedAppVersionHistoryRepositoryImpl := repository3.NewInstalledAppVersionHistoryRepositoryImpl(sugaredLogger, db)
 	repositoryImpl := deploymentConfig.NewRepositoryImpl(db)
-	deploymentConfigServiceImpl := common.NewDeploymentConfigServiceImpl(repositoryImpl, sugaredLogger, chartRepositoryImpl, pipelineRepositoryImpl, appRepositoryImpl, installedAppRepositoryImpl)
+	deploymentConfigServiceImpl := common.NewDeploymentConfigServiceImpl(repositoryImpl, sugaredLogger, chartRepositoryImpl, pipelineRepositoryImpl, appRepositoryImpl, installedAppRepositoryImpl, environmentVariables)
 	pipelineStatusTimelineServiceImpl := status.NewPipelineStatusTimelineServiceImpl(sugaredLogger, pipelineStatusTimelineRepositoryImpl, cdWorkflowRepositoryImpl, userServiceImpl, pipelineStatusTimelineResourcesServiceImpl, pipelineStatusSyncDetailServiceImpl, installedAppRepositoryImpl, installedAppVersionHistoryRepositoryImpl, deploymentConfigServiceImpl)
 	appServiceConfig, err := app2.GetAppServiceConfig()
 	if err != nil {

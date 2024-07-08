@@ -252,6 +252,7 @@
  | USE_BUILDX | false |  | 
  | USE_CASBIN_V2 | false |  | 
  | USE_CUSTOM_HTTP_TRANSPORT | false |  | 
+ | USE_DEPLOYMENT_CONFIG_DATA | false |  | 
  | USE_EXTERNAL_NODE | false |  | 
  | USE_GIT_CLI | false |  | 
  | USE_IMAGE_TAG_FROM_GIT_PROVIDER_FOR_TAG_BASED_BUILD | false |  | 

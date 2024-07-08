@@ -29,7 +29,7 @@ type DeploymentConfigServiceImpl struct {
 	pipelineRepository          pipelineConfig.PipelineRepository
 	appRepository               appRepository.AppRepository
 	installedAppRepository      repository.InstalledAppRepository
-	deploymentServiceTypeConfig util.DeploymentServiceTypeConfig
+	deploymentServiceTypeConfig *util.DeploymentServiceTypeConfig
 }
 
 func NewDeploymentConfigServiceImpl(
@@ -39,7 +39,7 @@ func NewDeploymentConfigServiceImpl(
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appRepository appRepository.AppRepository,
 	installedAppRepository repository.InstalledAppRepository,
-	deploymentServiceTypeConfig util.DeploymentServiceTypeConfig,
+	envVariables *util.EnvironmentVariables,
 ) *DeploymentConfigServiceImpl {
 	return &DeploymentConfigServiceImpl{
 		deploymentConfigRepository:  deploymentConfigRepository,
@@ -48,7 +48,7 @@ func NewDeploymentConfigServiceImpl(
 		pipelineRepository:          pipelineRepository,
 		appRepository:               appRepository,
 		installedAppRepository:      installedAppRepository,
-		deploymentServiceTypeConfig: deploymentServiceTypeConfig,
+		deploymentServiceTypeConfig: envVariables.DeploymentServiceTypeConfig,
 	}
 }
 
