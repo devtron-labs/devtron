@@ -29,7 +29,7 @@ components:
         SERVICE_WORKER_TIMEOUT: "1"
         API_BATCH_SIZE: "30"
     registry: ""
-    image: "dashboard:87aaf7ac-690-23135"
+    image: "dashboard:5f95d187-690-23841"
     imagePullPolicy: IfNotPresent
   devtron:
     registry: ""
