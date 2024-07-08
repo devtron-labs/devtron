@@ -142,7 +142,7 @@ func (impl *DevtronAppGitOpConfigServiceImpl) SaveAppLevelGitOpsConfiguration(ap
 		return err
 	}
 	isCustomGitOpsRepo := gitOpsConfigurationStatus.AllowCustomRepository && appGitOpsRequest.GitOpsRepoURL != apiGitOpsBean.GIT_REPO_DEFAULT
-	err = impl.chartService.ConfigureGitOpsRepoUrlForApp(appGitOpsRequest.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, isCustomGitOpsRepo, appGitOpsRequest.UserId)
+	_, err = impl.chartService.ConfigureGitOpsRepoUrlForApp(appGitOpsRequest.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, isCustomGitOpsRepo, appGitOpsRequest.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in updating git repo url in charts", "err", err)
 		return err

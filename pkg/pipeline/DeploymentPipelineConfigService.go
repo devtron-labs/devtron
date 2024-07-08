@@ -439,10 +439,10 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				impl.logger.Errorw("error in registering app in acd", "err", err)
 				return nil, err
 			}
-			AppDeploymentConfig.RepoURL = chartGitAttr.RepoUrl
-			AppDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, AppDeploymentConfig, pipelineCreateRequest.UserId)
+			// below function will update gitRepoUrl for charts if user has not already provided gitOps repoURL
+			AppDeploymentConfig, err = impl.chartService.ConfigureGitOpsRepoUrlForApp(pipelineCreateRequest.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, false, pipelineCreateRequest.UserId)
 			if err != nil {
-				impl.logger.Errorw("error in fetching creating env config", "appId", app.Id, "err", err)
+				impl.logger.Errorw("error in updating git repo url in charts", "err", err)
 				return nil, err
 			}
 		}

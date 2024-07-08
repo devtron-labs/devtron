@@ -157,7 +157,18 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangeDeploymentType(ctx context
 		return response, nil
 	}
 
-	updatedDeploymentConfigs := make([]*bean4.DeploymentConfig, 0)
+	//Update in db
+	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(request.DesiredDeploymentType),
+		pipelineIds, request.UserId, false, true)
+	if err != nil {
+		impl.logger.Errorw("failed to update deployment app type in db",
+			"pipeline ids", pipelineIds,
+			"desired deployment type", request.DesiredDeploymentType,
+			"err", err)
+
+		return response, nil
+	}
+
 	for _, pipeline := range pipelines {
 		deploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(pipeline.AppId, pipeline.EnvironmentId)
 		if err != nil {
@@ -165,26 +176,12 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangeDeploymentType(ctx context
 			return nil, err
 		}
 		deploymentConfig.DeploymentAppType = request.DesiredDeploymentType
-		updatedDeploymentConfigs = append(updatedDeploymentConfigs, deploymentConfig)
+		deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, request.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in updating configs", "err", err)
+			return nil, err
+		}
 	}
-
-	updatedDeploymentConfigs, err = impl.deploymentConfigService.UpdateConfigs(nil, updatedDeploymentConfigs, request.UserId)
-	if err != nil {
-		impl.logger.Errorw("error in updating configs", "err", err)
-		return nil, err
-	}
-
-	// Update in db
-	//err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(request.DesiredDeploymentType),
-	//	pipelineIds, request.UserId, false, true)
-	//if err != nil {
-	//	impl.logger.Errorw("failed to update deployment app type in db",
-	//		"pipeline ids", pipelineIds,
-	//		"desired deployment type", request.DesiredDeploymentType,
-	//		"err", err)
-	//
-	//	return response, nil
-	//}
 
 	if !request.AutoTriggerDeployment {
 		return response, nil
@@ -283,24 +280,13 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 		deploymentConfigs = append(deploymentConfigs, envDeploymentConfig)
 	}
 
-	//err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(request.DesiredDeploymentType),
-	//	pipelineIds, request.UserId, false, true)
-	//
-	//if err != nil {
-	//	impl.logger.Errorw("failed to update deployment app type in db",
-	//		"pipeline ids", pipelineIds,
-	//		"desired deployment type", request.DesiredDeploymentType,
-	//		"err", err)
-	//
-	//	return response, nil
-	//}
 	deleteResponse := impl.DeleteDeploymentApps(ctx, pipelines, deploymentConfigs, request.UserId)
 
 	response.SuccessfulPipelines = deleteResponse.SuccessfulPipelines
 	response.FailedPipelines = deleteResponse.FailedPipelines
 
 	var cdPipelineIds []int
-	for _, item := range response.FailedPipelines {
+	for _, item := range response.SuccessfulPipelines {
 		cdPipelineIds = append(cdPipelineIds, item.PipelineId)
 	}
 
@@ -308,7 +294,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 		return response, nil
 	}
 
-	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(deleteDeploymentType),
+	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(request.DesiredDeploymentType),
 		cdPipelineIds, request.UserId, true, false)
 
 	if err != nil {
@@ -318,6 +304,20 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 			"err", err)
 
 		return response, nil
+	}
+
+	for _, item := range response.SuccessfulPipelines {
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(item.AppId, item.EnvId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", item.AppId, "envId", item.EnvId, "err", err)
+			return response, err
+		}
+		envDeploymentConfig.DeploymentAppType = request.DesiredDeploymentType
+		envDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, request.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in updating deployment config", "err", err)
+			return nil, err
+		}
 	}
 
 	return response, nil
@@ -426,7 +426,6 @@ func (impl *AppDeploymentTypeChangeManagerImpl) TriggerDeploymentAfterTypeChange
 		})
 	}
 
-	deploymentConfigs := make([]*bean4.DeploymentConfig, 0)
 	for _, p := range pipelines {
 		envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(p.AppId, p.EnvironmentId)
 		if err != nil {
@@ -434,13 +433,11 @@ func (impl *AppDeploymentTypeChangeManagerImpl) TriggerDeploymentAfterTypeChange
 			return response, err
 		}
 		envDeploymentConfig.DeploymentAppType = request.DesiredDeploymentType
-		deploymentConfigs = append(deploymentConfigs, envDeploymentConfig)
-	}
-
-	deploymentConfigs, err = impl.deploymentConfigService.UpdateConfigs(nil, deploymentConfigs, request.UserId)
-	if err != nil {
-		impl.logger.Errorw("error in updating configs", "err", err)
-		return nil, err
+		envDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, request.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in updating configs", "err", err)
+			return nil, err
+		}
 	}
 
 	err = impl.pipelineRepository.UpdateCdPipelineAfterDeployment(string(request.DesiredDeploymentType),
@@ -521,7 +518,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 									impl.logger.Errorw("error in registering acd app", "err", AcdRegisterErr)
 								}
 								if AcdRegisterErr == nil {
-									RepoURLUpdateErr = impl.chartService.ConfigureGitOpsRepoUrlForApp(pipeline.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, false, userId)
+									_, RepoURLUpdateErr = impl.chartService.ConfigureGitOpsRepoUrlForApp(pipeline.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, false, userId)
 									if RepoURLUpdateErr != nil {
 										impl.logger.Errorw("error in updating git repo url in charts", "err", RepoURLUpdateErr)
 									}

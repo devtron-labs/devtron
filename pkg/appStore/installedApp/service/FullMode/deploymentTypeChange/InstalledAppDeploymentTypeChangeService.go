@@ -227,7 +227,6 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) performDbOperationsAfte
 		return err
 	}
 
-	updatedDeploymentConfigs := make([]*bean3.DeploymentConfig, 0)
 	for _, ia := range installedApps {
 		deploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(ia.AppId, ia.EnvironmentId)
 		if err != nil {
@@ -235,13 +234,11 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) performDbOperationsAfte
 			return err
 		}
 		deploymentConfig.DeploymentAppType = desiredDeploymentType
-		updatedDeploymentConfigs = append(updatedDeploymentConfigs, deploymentConfig)
-	}
-
-	updatedDeploymentConfigs, err = impl.deploymentConfigService.UpdateConfigs(nil, updatedDeploymentConfigs, userId)
-	if err != nil {
-		impl.logger.Errorw("error in updating configs", "err", err)
-		return err
+		deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, userId)
+		if err != nil {
+			impl.logger.Errorw("error in updating deployment config", "appId", ia.AppId, "envId", ia.EnvironmentId, "err", err)
+			return err
+		}
 	}
 
 	err = impl.installedAppRepository.UpdateDeploymentAppTypeInInstalledApp(desiredDeploymentType, successInstalledAppIds, userId, deployStatus)
