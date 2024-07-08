@@ -147,11 +147,9 @@ func (impl PumpImpl) StartStreamWithTransformer(w http.ResponseWriter, recv func
 	f, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "unexpected server doesnt support streaming", http.StatusInternalServerError)
-		impl.logger.Debugw("unexpected server doesnt support streaming", "internal Server error", http.StatusInternalServerError)
 	}
 	if err != nil {
 		http.Error(w, errors.Details(err), http.StatusInternalServerError)
-		impl.logger.Debugw("error occurred during the setting up the flusher in wrote header  ", "error", err)
 	}
 	w.Header().Set("Transfer-Encoding", "chunked")
 	w.Header().Set("Content-Type", "text/event-stream")
@@ -162,35 +160,26 @@ func (impl PumpImpl) StartStreamWithTransformer(w http.ResponseWriter, recv func
 	for {
 		resp, err := recv()
 		if err == io.EOF {
-			impl.logger.Debugw("error in receiving stream proto message ", "error", err)
 			return
 		}
-		impl.logger.Debugw("receiving stream proto message ", "response", resp, "error", err)
-
 		if err != nil {
 			impl.logger.Errorf("Error occurred while reading data from argocd %+v\n", err)
 			impl.handleForwardResponseStreamError(wroteHeader, w, err)
-			impl.logger.Debugw("Failed to send response chunk ", "error", err)
-
 			return
 		}
 		response := bean.Response{}
 		response.Result = transformer(resp)
 		buf, err := json.Marshal(response)
 		data := "data: " + string(buf)
-
 		if _, err = w.Write([]byte(data)); err != nil {
 			impl.logger.Errorf("Failed to send response chunk: %v", err)
-			impl.logger.Debugw("Failed to send response chunk ", "error", err)
 			return
 		}
 		wroteHeader = true
 		if _, err = w.Write(delimiter); err != nil {
 			impl.logger.Errorf("Failed to send delimiter chunk: %v", err)
-			impl.logger.Debugw("failed to send delimiter chunk ", "error", err)
 			return
 		}
-		impl.logger.Debugw("sending chunk data ", "data", data, "wroteheader", w)
 		f.Flush()
 	}
 }
