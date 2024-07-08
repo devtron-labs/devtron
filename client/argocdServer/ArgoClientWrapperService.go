@@ -187,7 +187,7 @@ func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefres
 		// running ArgoCd app refresh in asynchronous mode
 		refreshErr := impl.GetArgoAppWithNormalRefresh(newCtx, argoAppName)
 		if refreshErr != nil {
-			impl.logger.Errorw("error in refreshing argo app", "err", refreshErr)
+			impl.logger.Errorw("error in refreshing argo app", "argoAppName", argoAppName, "err", refreshErr)
 		}
 	}
 	impl.asyncRunnable.Execute(runnableFunc)
