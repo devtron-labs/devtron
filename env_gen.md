@@ -171,6 +171,8 @@
  | K8s_TCP_KEEPALIVE | 30 |  | 
  | K8s_TCP_TIMEOUT | 30 |  | 
  | K8s_TLS_HANDSHAKE_TIMEOUT | 10 |  | 
+ | KUBELINK_GRPC_MAX_RECEIVE_MSG_SIZE | 20 |  | 
+ | KUBELINK_GRPC_MAX_SEND_MSG_SIZE | 4 |  | 
  | LENS_TIMEOUT | 0 |  | 
  | LENS_URL | http://lens-milandevtron-service:80 |  | 
  | LIMIT_CI_CPU | 0.5 |  | 
@@ -208,6 +210,7 @@
  | PRE_CI_CACHE_PATH | /devtroncd-cache |  | 
  | PROPAGATE_EXTRA_LABELS | false |  | 
  | PROXY_SERVICE_CONFIG | {} |  | 
+ | REPLICAS | 0 |  | 
  | REQ_CI_CPU | 0.5 |  | 
  | REQ_CI_MEM | 3G |  | 
  | RESOURCE_LIST_FOR_REPLICAS | Deployment,Rollout,StatefulSet,ReplicaSet |  | 

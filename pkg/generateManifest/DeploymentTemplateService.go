@@ -48,7 +48,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
-	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
+	chart2 "helm.sh/helm/v3/pkg/chart"
 	"k8s.io/utils/pointer"
 	"net/http"
 	"regexp"
