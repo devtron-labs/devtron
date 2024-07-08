@@ -7,5 +7,5 @@ import (
 )
 
 func NewAsyncRunnable(logger *zap.SugaredLogger) *async.Runnable {
-	return async.NewAsyncRunnable(logger, constants.OrchestratorMicroService)
+	return async.NewAsyncRunnable(logger, constants.Orchestrator)
 }
