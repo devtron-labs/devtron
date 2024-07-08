@@ -74,6 +74,7 @@ type ChartRefFileOpService interface {
 	ExtractChartIfMissing(chartData []byte, refChartDir string, location string) (*bean.ChartDataInfo, error)
 	GetChartInBytes(chartRefId int, deleteChart bool) ([]byte, error)
 	GetChartBytesForApps(ctx context.Context, appIdToAppName map[int]string) (map[int][]byte, error)
+	GetChartLocation(chartRefLocation string, chartData []byte) (string, error)
 }
 
 type ChartRefServiceImpl struct {
@@ -316,11 +317,11 @@ func (impl *ChartRefServiceImpl) extractChartInBytes(chartRef *chartRepoReposito
 	return manifestByteArr, nil
 }
 
-func (impl *ChartRefServiceImpl) getChartPath(chartRef *chartRepoRepository.ChartRef) (string, error) {
-	refChartPath := filepath.Join(bean.RefChartDirPath, chartRef.Location)
+func (impl *ChartRefServiceImpl) GetChartLocation(chartRefLocation string, chartData []byte) (string, error) {
+	refChartPath := filepath.Join(bean.RefChartDirPath, chartRefLocation)
 	// For user uploaded charts ChartData will be retrieved from DB
-	if chartRef.ChartData != nil {
-		chartInfo, err := impl.ExtractChartIfMissing(chartRef.ChartData, bean.RefChartDirPath, chartRef.Location)
+	if chartData != nil {
+		chartInfo, err := impl.ExtractChartIfMissing(chartData, bean.RefChartDirPath, chartRefLocation)
 		if chartInfo != nil && chartInfo.TemporaryFolder != "" {
 			err1 := os.RemoveAll(chartInfo.TemporaryFolder)
 			if err1 != nil {
@@ -367,7 +368,7 @@ func (impl *ChartRefServiceImpl) GetChartBytesForApps(ctx context.Context, appId
 
 	// this loops run with O(len(apps)) T.C
 	for _, chartRef := range chartRefs {
-		refChartPath, err := impl.getChartPath(chartRef)
+		refChartPath, err := impl.GetChartLocation(chartRef.Location, chartRef.ChartData)
 		if err != nil {
 			impl.logger.Errorw("error in converting chart to bytes", "chartRefId", chartRef.Id, "err", err)
 			return nil, err
