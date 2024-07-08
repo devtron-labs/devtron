@@ -17,9 +17,9 @@
 package pipeline
 
 import (
-	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
@@ -29,6 +29,7 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
+	"net/http"
 	"time"
 )
 
@@ -139,7 +140,8 @@ func (impl *BuildPipelineSwitchServiceImpl) createNewPipelineAndReplaceOldPipeli
 
 	isSelfLinkedCiPipeline := switchFromType != pipelineConfigBean.EXTERNAL && ciPipelineReq.IsLinkedCi() && ciPipelineReq.ParentCiPipeline == switchFromPipelineId
 	if isSelfLinkedCiPipeline {
-		return nil, fmt.Errorf("cannot create linked ci pipeline from the same source")
+		errMsg := "cannot create linked ci pipeline from the same source"
+		return nil, util.NewApiError().WithInternalMessage(errMsg).WithUserMessage(errMsg).WithHttpStatusCode(http.StatusBadRequest)
 	}
 
 	tx, err := impl.ciPipelineRepository.StartTx()
