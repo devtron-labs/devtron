@@ -44,6 +44,9 @@ func NewFluxApplicationServiceImpl(logger *zap.SugaredLogger,
 
 func (impl *FluxApplicationServiceImpl) ListFluxApplications(ctx context.Context, clusterIds []int, w http.ResponseWriter) {
 	appStream, err := impl.listApplications(ctx, clusterIds)
+
+	impl.logger.Debugw("appStream received in flux service ", "app stream", appStream, "error", err)
+
 	impl.pump.StartStreamWithTransformer(w, func() (proto.Message, error) {
 		return appStream.Recv()
 	}, err,
@@ -96,6 +99,8 @@ func (impl *FluxApplicationServiceImpl) listApplications(ctx context.Context, cl
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
 	}
+	impl.logger.Debugw("successfully fetched the cluster details", "clusterIds", clusters)
+
 	for _, clusterDetail := range clusters {
 		config := &gRPC.ClusterConfig{
 			ApiServerUrl:          clusterDetail.ServerUrl,
@@ -117,6 +122,7 @@ func (impl *FluxApplicationServiceImpl) listApplications(ctx context.Context, cl
 }
 func (impl *FluxApplicationServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.FluxApplicationList) bean.FluxAppList {
 	appList := bean.FluxAppList{ClusterId: &[]int32{deployedApps.ClusterId}}
+	impl.logger.Debugw("flux app list received in the app list transformer", "clusterId", deployedApps.ClusterId, "Applist", deployedApps.FluxApplication, "error", deployedApps.Errored, "errorMsg", deployedApps.ErrorMsg)
 	if deployedApps.Errored {
 		appList.Errored = &deployedApps.Errored
 		appList.ErrorMsg = &deployedApps.ErrorMsg
@@ -136,6 +142,9 @@ func (impl *FluxApplicationServiceImpl) appListRespProtoTransformer(deployedApps
 		}
 		appList.FluxApps = &fluxApps
 	}
+
+	impl.logger.Debugw("flux app list  being transformed for the cluster Id", "clusterId", deployedApps.ClusterId, "Applist", deployedApps.FluxApplication, "error", deployedApps.Errored, "errorMsg", deployedApps.ErrorMsg)
+
 	return appList
 }
 func (impl *FluxApplicationServiceImpl) getFluxAppDetailTree(ctx context.Context, config *gRPC.ClusterConfig, appIdentifier *bean.FluxAppIdentifier) (*gRPC.FluxAppDetail, error) {

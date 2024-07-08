@@ -56,6 +56,7 @@ func (handler *FluxApplicationRestHandlerImpl) ListFluxApplications(w http.Respo
 		handler.logger.Errorw("error in parsing cluster ids", "error", err, "clusterIds", clusterIds)
 		return
 	}
+	handler.logger.Debugw("extracted ClusterIds successfully ", "clusterIds", clusterIds)
 	handler.fluxApplicationService.ListFluxApplications(r.Context(), clusterIds, w)
 }
 

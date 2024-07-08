@@ -365,14 +365,19 @@ func (impl *HelmAppClientImpl) ValidateOCIRegistry(ctx context.Context, in *Regi
 	return response, nil
 }
 func (impl *HelmAppClientImpl) ListFluxApplication(ctx context.Context, req *AppListRequest) (ApplicationService_ListFluxApplicationsClient, error) {
+
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
 	}
+	impl.logger.Debugw("established the app client successfully", "AppListRequest", req)
 	stream, err := applicationClient.ListFluxApplications(ctx, req)
 	if err != nil {
+		impl.logger.Debugw("error received from kubelink", "stream", stream, "error", err)
+
 		return nil, err
 	}
+	impl.logger.Debugw("stream received from kubelink", "stream", stream, "error", err)
 	return stream, nil
 }
 func (impl *HelmAppClientImpl) GetExternalFluxAppDetail(ctx context.Context, in *FluxAppDetailRequest) (*FluxAppDetail, error) {
