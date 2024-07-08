@@ -66,6 +66,7 @@ spec:
         app: lens
         release: devtron
     spec:
+      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.components.lens.nodeSelector "tolerations" $.Values.components.lens.tolerations "imagePullSecrets" $.Values.components.lens.imagePullSecrets "global" $.Values.global) | indent 6 }}
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
       {{- if and $.Values.global $.Values.global.podSecurityContext }}

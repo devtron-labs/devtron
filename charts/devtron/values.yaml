@@ -8,6 +8,13 @@ global:
     runAsUser: 1000
     runAsNonRoot: true
   containerRegistry: "quay.io/devtron"
+# The below values can be specified both at global as well as component level.Refer to documentation for more info.
+  nodeSelector: {}
+  tolerations: []
+  imagePullSecrets: []
+
+extraManifests: []
+
 installer:
   repo: "devtron-labs/devtron"
   release: "v0.7.1-rc.0"
