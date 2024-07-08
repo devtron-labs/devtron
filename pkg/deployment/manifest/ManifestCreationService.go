@@ -666,54 +666,47 @@ func (impl *ManifestCreationServiceImpl) getConfigMapAndSecretJsonV2(ctx context
 func (impl *ManifestCreationServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfigOverride, overrideRequest *bean.ValuesOverrideRequest,
 	artifact *repository.CiArtifact, pipelineReleaseCounter int, strategy *chartConfig.PipelineStrategy, appMetrics *bool) (releaseOverride string, err error) {
 
-	artifactImage := artifact.Image
-	imageTag := strings.Split(artifactImage, ":")
-
-	imageTagLen := len(imageTag)
-
-	imageName := ""
-
-	for i := 0; i < imageTagLen-1; i++ {
-		if i != imageTagLen-2 {
-			imageName = imageName + imageTag[i] + ":"
-		} else {
-			imageName = imageName + imageTag[i]
-		}
-	}
-
-	appId := strconv.Itoa(overrideRequest.AppId)
-	envId := strconv.Itoa(overrideRequest.EnvId)
-
 	deploymentStrategy := ""
 	if strategy != nil {
 		deploymentStrategy = string(strategy.Strategy)
 	}
 
-	digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{PipelineId: overrideRequest.PipelineId}
-	digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
-	if err != nil {
-		impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err, "pipelineId", overrideRequest.PipelineId)
-		return "", err
+	imageName := ""
+	tag := ""
+	if artifact != nil {
+		artifactImage := artifact.Image
+		imageTag := strings.Split(artifactImage, ":")
+
+		imageTagLen := len(imageTag)
+
+		for i := 0; i < imageTagLen-1; i++ {
+			if i != imageTagLen-2 {
+				imageName = imageName + imageTag[i] + ":"
+			} else {
+				imageName = imageName + imageTag[i]
+			}
+		}
+
+		digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{PipelineId: overrideRequest.PipelineId}
+		digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
+		if err != nil {
+			impl.logger.Errorw("error in checking if isImageDigestPolicyConfiguredForPipeline", "err", err, "clusterId", envOverride.Environment.ClusterId, "envId", envOverride.TargetEnvironment, "pipelineId", overrideRequest.PipelineId)
+			return "", err
+		}
+
+		if digestPolicyConfigurations.UseDigestForTrigger() {
+			imageTag[imageTagLen-1] = fmt.Sprintf("%s@%s", imageTag[imageTagLen-1], artifact.ImageDigest)
+		}
+
+		tag = imageTag[imageTagLen-1]
 	}
 
-	if digestPolicyConfigurations.UseDigestForTrigger() {
-		imageTag[imageTagLen-1] = fmt.Sprintf("%s@%s", imageTag[imageTagLen-1], artifact.ImageDigest)
-	}
-	releaseAttribute := app.ReleaseAttributes{
-		Name:           imageName,
-		Tag:            imageTag[imageTagLen-1],
-		PipelineName:   overrideRequest.PipelineName,
-		ReleaseVersion: strconv.Itoa(pipelineReleaseCounter),
-		DeploymentType: deploymentStrategy,
-		App:            appId,
-		Env:            envId,
-		AppMetrics:     appMetrics,
+	override, err := app.NewReleaseAttributes(imageName, tag, overrideRequest.PipelineName, deploymentStrategy,
+		overrideRequest.AppId, overrideRequest.EnvId, pipelineReleaseCounter, appMetrics).RenderJson(envOverride.Chart.ImageDescriptorTemplate)
+	if err != nil {
+		return "", &util.ApiError{HttpStatusCode: http.StatusUnprocessableEntity, UserMessage: "unable to render ImageDescriptorTemplate", InternalMessage: err.Error()}
 	}
 
-	override, err := util4.Tprintf(envOverride.Chart.ImageDescriptorTemplate, releaseAttribute)
-	if err != nil {
-		return "", &util.ApiError{HttpStatusCode: http.StatusUnprocessableEntity, InternalMessage: "unable to render ImageDescriptorTemplate"}
-	}
 	if overrideRequest.AdditionalOverride != nil {
 		userOverride, err := overrideRequest.AdditionalOverride.MarshalJSON()
 		if err != nil {
