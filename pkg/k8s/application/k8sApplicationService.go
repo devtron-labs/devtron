@@ -265,7 +265,7 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 			request.K8sRequest.ResourceIdentifier.Namespace = namespace
 		} else if request.AppType == bean3.FluxAppType {
 			// For flux App resources
-			appIdentifier, err := fluxApplication.DecodeFluxExternalAppAppId(appId)
+			appIdentifier, err := fluxApplication.DecodeFluxExternalAppId(appId)
 			if err != nil {
 				impl.logger.Errorw("error in decoding appId", "err", err, "appId", appId)
 				return nil, err
@@ -335,6 +335,16 @@ func (impl *K8sApplicationServiceImpl) ValidateTerminalRequestQuery(r *http.Requ
 			resourceRequestBean.DevtronAppIdentifier = devtronAppIdentifier
 			resourceRequestBean.ClusterId = devtronAppIdentifier.ClusterId
 			request.ClusterId = devtronAppIdentifier.ClusterId
+		} else if appType == bean3.FluxAppType {
+			fluxAppIdentifier, err := fluxApplication.DecodeFluxExternalAppId(request.ApplicationId)
+			if err != nil {
+				impl.logger.Errorw("invalid app id", "err", err, "appId", request.ApplicationId)
+				return nil, nil, err
+			}
+			resourceRequestBean.ExternalFluxAppIdentifier = fluxAppIdentifier
+			resourceRequestBean.ClusterId = fluxAppIdentifier.ClusterId
+			request.ClusterId = fluxAppIdentifier.ClusterId
+
 		}
 	} else {
 		// Validate Cluster Id

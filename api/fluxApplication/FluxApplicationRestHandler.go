@@ -53,7 +53,7 @@ func (handler *FluxApplicationRestHandlerImpl) ListFluxApplications(w http.Respo
 	}
 	clusterIds, err = common.ExtractIntArrayQueryParam(w, r, "clusterIds")
 	if err != nil {
-		handler.logger.Errorw("error in getting cluster ids", "error", err, "clusterIds", clusterIds)
+		handler.logger.Errorw("error in parsing cluster ids", "error", err, "clusterIds", clusterIds)
 		return
 	}
 	handler.fluxApplicationService.ListFluxApplications(r.Context(), clusterIds, w)
