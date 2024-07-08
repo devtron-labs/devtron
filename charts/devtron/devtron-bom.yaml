@@ -84,7 +84,7 @@ components:
       armImage: postgres_exporter:v0.10.1
   gitsensor:
     registry: ""
-    image: "git-sensor:8545feb5-200-22005"
+    image: "git-sensor:86e13283-200-23847"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
@@ -148,8 +148,6 @@ components:
   chartSync:
     registry: ""
     image: chart-sync:5a1d0301-150-23845
-  git-sensor:
-    image: git-sensor:86e13283-200-23847
 
 # values for argocd integration
 argo-cd:

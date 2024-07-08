@@ -143,7 +143,7 @@ components:
       volumeSize: "20Gi"
   gitsensor:
     registry: ""
-    image: "git-sensor:8545feb5-200-22005"
+    image: "git-sensor:86e13283-200-23847"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
@@ -209,10 +209,6 @@ components:
   chartSync:
     registry: ""
     image: chart-sync:5a1d0301-150-23845
-  git-sensor:
-    image: git-sensor:86e13283-200-23847
-  notifier:
-    image: notifier:9639b1ab-372-23850
 # values for argocd integration
 argo-cd:
   enabled: false
@@ -387,7 +383,7 @@ security:
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
-  image: "notifier:924a17f6-372-22110"
+  image: "notifier:9639b1ab-372-23850"
   configs:
     CD_ENVIRONMENT: PROD
     DB: orchestrator
