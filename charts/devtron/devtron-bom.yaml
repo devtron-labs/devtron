@@ -150,6 +150,8 @@ components:
     image: chart-sync:5a1d0301-150-23845
   git-sensor:
     image: git-sensor:86e13283-200-23847
+  notifier:
+    image: notifier:9639b1ab-372-23850
 # values for argocd integration
 argo-cd:
   global:
