@@ -169,6 +169,8 @@
  | K8s_TCP_KEEPALIVE | 30 |  | 
  | K8s_TCP_TIMEOUT | 30 |  | 
  | K8s_TLS_HANDSHAKE_TIMEOUT | 10 |  | 
+ | KUBELINK_GRPC_MAX_RECEIVE_MSG_SIZE | 20 |  | 
+ | KUBELINK_GRPC_MAX_SEND_MSG_SIZE | 4 |  | 
  | LENS_TIMEOUT | 0 |  | 
  | LENS_URL | http://lens-milandevtron-service:80 |  | 
  | LIMIT_CI_CPU | 0.5 |  | 
@@ -245,8 +247,8 @@
  | USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW | true |  | 
  | USE_BLOB_STORAGE_CONFIG_IN_CI_WORKFLOW | true |  | 
  | USE_BUILDX | false |  | 
- | USE_CUSTOM_HTTP_TRANSPORT | false |  | 
  | USE_CASBIN_V2 | false |  | 
+ | USE_CUSTOM_HTTP_TRANSPORT | false |  | 
  | USE_EXTERNAL_NODE | false |  | 
  | USE_GIT_CLI | false |  | 
  | USE_IMAGE_TAG_FROM_GIT_PROVIDER_FOR_TAG_BASED_BUILD | false |  | 

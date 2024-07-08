@@ -42,7 +42,9 @@ import (
 )
 
 type ACDConfig struct {
-	ArgoCDAutoSyncEnabled bool `env:"ARGO_AUTO_SYNC_ENABLED" envDefault:"true"` // will gradually switch this flag to false in enterprise
+	ArgoCDAutoSyncEnabled     bool `env:"ARGO_AUTO_SYNC_ENABLED" envDefault:"true"` // will gradually switch this flag to false in enterprise
+	RegisterRepoMaxRetryCount int  `env:"ARGO_REPO_REGISTER_RETRY_COUNT" envDefault:"3"`
+	RegisterRepoMaxRetryDelay int  `env:"ARGO_REPO_REGISTER_RETRY_DELAY" envDefault:"10"`
 }
 
 func (config *ACDConfig) IsManualSyncEnabled() bool {
@@ -91,6 +93,8 @@ type ArgoClientWrapperService interface {
 
 	// GetGitOpsRepoName returns the GitOps repository name, configured for the argoCd app
 	GetGitOpsRepoName(ctx context.Context, appName string) (gitOpsRepoName string, err error)
+
+	GetGitOpsRepoURL(ctx context.Context, appName string) (gitOpsRepoURL string, err error)
 }
 
 type ArgoClientWrapperServiceImpl struct {
@@ -229,7 +233,11 @@ func (impl *ArgoClientWrapperServiceImpl) RegisterGitOpsRepoInArgoWithRetry(ctx 
 	callback := func() error {
 		return impl.createRepoInArgoCd(ctx, gitOpsRepoUrl)
 	}
-	argoCdErr := retryFunc.Retry(callback, impl.isRetryableArgoRepoCreationError, bean.RegisterRepoMaxRetryCount, 10*time.Second, impl.logger)
+	argoCdErr := retryFunc.Retry(callback,
+		impl.isRetryableArgoRepoCreationError,
+		impl.ACDConfig.RegisterRepoMaxRetryCount,
+		time.Duration(impl.ACDConfig.RegisterRepoMaxRetryDelay)*time.Second,
+		impl.logger)
 	if argoCdErr != nil {
 		impl.logger.Errorw("error in registering GitOps repository", "repoName", gitOpsRepoUrl, "err", argoCdErr)
 		return impl.handleArgoRepoCreationError(argoCdErr, ctx, gitOpsRepoUrl, userId)
@@ -282,6 +290,20 @@ func (impl *ArgoClientWrapperServiceImpl) GetGitOpsRepoName(ctx context.Context,
 		return gitOpsRepoName, nil
 	}
 	return gitOpsRepoName, fmt.Errorf("unable to get any ArgoCd application '%s'", appName)
+}
+
+func (impl *ArgoClientWrapperServiceImpl) GetGitOpsRepoURL(ctx context.Context, appName string) (gitOpsRepoName string, err error) {
+	acdApplication, err := impl.acdClient.Get(ctx, &application2.ApplicationQuery{Name: &appName})
+	if err != nil {
+		impl.logger.Errorw("no argo app exists", "acdAppName", appName, "err", err)
+		return gitOpsRepoName, err
+	}
+	// safety checks nil pointers
+	if acdApplication != nil && acdApplication.Spec.Source != nil {
+		gitOpsRepoUrl := acdApplication.Spec.Source.RepoURL
+		return gitOpsRepoUrl, nil
+	}
+	return "", fmt.Errorf("unable to get any ArgoCd application '%s'", appName)
 }
 
 // createRepoInArgoCd is the wrapper function to Create Repository in ArgoCd
