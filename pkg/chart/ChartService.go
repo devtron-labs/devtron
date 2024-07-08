@@ -444,6 +444,7 @@ func (impl *ChartServiceImpl) chartAdaptor(chart *chartRepoRepository.Chart, isA
 		CurrentViewEditor:       chart.CurrentViewEditor,
 		GitRepoUrl:              gitRepoUrl,
 		IsCustomGitRepository:   chart.IsCustomGitRepository,
+		ImageDescriptorTemplate: chart.ImageDescriptorTemplate,
 	}
 	if chart.Latest {
 		templateRequest.LatestChartVersion = chart.ChartVersion
