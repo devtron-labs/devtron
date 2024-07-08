@@ -1,4 +1,5 @@
 ## Bugs
+- fix: compare manifest fixes (#5430)
 - fix: override clusterRbac with direct allow behaviour for super admin (#5449)
 - fix: external helm app when linked to devtron and page breaks while adding project to it, without switching back to applist  (#5443)
 - fix: empty the code and image scan script (#5434)
