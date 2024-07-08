@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/caarlos0/env"
+	grpcUtil "github.com/devtron-labs/common-lib/utils/grpc"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -55,12 +56,16 @@ type HelmAppClientImpl struct {
 	logger                   *zap.SugaredLogger
 	helmClientConfig         *HelmClientConfig
 	applicationServiceClient ApplicationServiceClient
+	grpcConfig               *grpcUtil.Configuration
 }
 
-func NewHelmAppClientImpl(logger *zap.SugaredLogger, helmClientConfig *HelmClientConfig) *HelmAppClientImpl {
+func NewHelmAppClientImpl(logger *zap.SugaredLogger,
+	helmClientConfig *HelmClientConfig,
+	grpcConfig *grpcUtil.Configuration) *HelmAppClientImpl {
 	return &HelmAppClientImpl{
 		logger:           logger,
 		helmClientConfig: helmClientConfig,
+		grpcConfig:       grpcConfig,
 	}
 }
 
@@ -94,7 +99,8 @@ func (impl *HelmAppClientImpl) getConnection() (*grpc.ClientConn, error) {
 		grpc.WithBlock(),
 		grpc.WithInsecure(),
 		grpc.WithDefaultCallOptions(
-			grpc.MaxCallRecvMsgSize(20*1024*1024),
+			grpc.MaxCallRecvMsgSize(impl.grpcConfig.KubelinkMaxSendMsgSize*1024*1024), // GRPC Request size
+			grpc.MaxCallSendMsgSize(impl.grpcConfig.KubelinkMaxRecvMsgSize*1024*1024), // GRPC Response size
 		),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
 	)
