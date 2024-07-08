@@ -161,7 +161,7 @@ This involves the deployment of the release to the specified tenant installation
     
 3. Use the checkbox to select the applications belonging to the first release stage. You may use the filters on the left-hand side to make it easier.
 
-    {% embed url="https://www.youtube.com/watch?v=ioGZP1CCuxI" caption="First Release Stage" %}
+    {% embed url="https://www.youtube.com/watch?v=HPYZ4-hhoDM" caption="First Release Stage" %}
 
 4. Click **Deploy**.
 
@@ -171,7 +171,7 @@ This involves the deployment of the release to the specified tenant installation
 
 5. Once the applications from the first release stage are successfully deployed, select the applications from the subsequent release stage and deploy.
 
-    {% embed url="https://www.youtube.com/watch?v=HPYZ4-hhoDM" caption="Last Release Stage" %}
+    {% embed url="https://www.youtube.com/watch?v=ioGZP1CCuxI" caption="Last Release Stage" %}
 
 {% hint style="warning" %}
 An application can be deployed on the tenant in the next release stage only if other applications in the previous stage are deployed successfully on the given tenant.
