@@ -134,17 +134,17 @@ Once you lock the requirements, Devtron will prevent any unsolicited modificatio
 
 ## Deploying Release
 
+{% hint style="warning" %}
+### Who Can Perform This Action?
+Users need to have super-admin permission to deploy a release.
+{% endhint %}
+
 {% hint style="info" %}
 ### Prerequisite
 All your requirements need to be locked and [tenants](./tenants.md) must be configured.
 {% endhint %}
 
 This involves the deployment of the release to the specified tenant installations.
-
-{% hint style="warning" %}
-### Who Can Perform This Action?
-Users need to have super-admin permission to deploy a release.
-{% endhint %}
 
 1. Go to the **Rollout Release** tab.
 
