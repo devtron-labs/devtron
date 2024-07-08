@@ -1098,6 +1098,25 @@ type ReleaseAttributes struct {
 	AppMetrics     *bool
 }
 
+func NewReleaseAttributes(image, imageTag, pipelineName, deploymentStrategy string, appId, envId, pipelineReleaseCounter int, appMetricsEnabled *bool) *ReleaseAttributes {
+	releaseAttribute := &ReleaseAttributes{
+		Name:           image,
+		Tag:            imageTag,
+		PipelineName:   pipelineName,
+		ReleaseVersion: strconv.Itoa(pipelineReleaseCounter),
+		DeploymentType: deploymentStrategy,
+		App:            strconv.Itoa(appId),
+		Env:            strconv.Itoa(envId),
+		AppMetrics:     appMetricsEnabled,
+	}
+	return releaseAttribute
+}
+
+func (releaseAttributes *ReleaseAttributes) RenderJson(jsonTemplate string) (string, error) {
+	override, err := util2.Tprintf(jsonTemplate, releaseAttributes)
+	return override, err
+}
+
 func (impl *AppServiceImpl) UpdateInstalledAppVersionHistoryByACDObject(app *v1alpha1.Application, installedAppVersionHistoryId int, updateTimedOutStatus bool) error {
 	installedAppVersionHistory, err := impl.installedAppVersionHistoryRepository.GetInstalledAppVersionHistory(installedAppVersionHistoryId)
 	if err != nil {
