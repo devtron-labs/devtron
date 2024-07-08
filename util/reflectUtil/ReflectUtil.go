@@ -12,13 +12,3 @@ func IsNullableValue(field reflect.Value) bool {
 		return false
 	}
 }
-
-func IsPointerType(field reflect.Type) bool {
-	kind := field.Kind()
-	switch kind {
-	case reflect.Pointer:
-		return true
-	default:
-		return false
-	}
-}

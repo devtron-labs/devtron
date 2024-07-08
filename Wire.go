@@ -112,7 +112,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deploymentTypeChange"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
-	"github.com/devtron-labs/devtron/pkg/asyncWrapper"
+	"github.com/devtron-labs/devtron/pkg/asyncProvider"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/build"
 	"github.com/devtron-labs/devtron/pkg/bulkAction"
@@ -231,7 +231,7 @@ func InitializeApp() (*App, error) {
 		// ---- pprof end ----
 
 		// ---- goroutine async wrapper service start ----
-		asyncWrapper.ServiceWire,
+		asyncProvider.WireSet,
 		// ---- goroutine async wrapper service end ----
 
 		sql.NewTransactionUtilImpl,

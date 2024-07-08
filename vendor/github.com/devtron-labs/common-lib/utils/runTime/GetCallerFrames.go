@@ -1,4 +1,4 @@
-package runTimeUtil
+package runTime
 
 import (
 	"runtime"

@@ -24,13 +24,13 @@ import (
 	repository2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/devtron/client/argocdServer/adapter"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/asyncWrapper"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/util/retryFunc"
@@ -105,12 +105,12 @@ type ArgoClientWrapperServiceImpl struct {
 	repositoryService       repository.ServiceClient
 	gitOpsConfigReadService config.GitOpsConfigReadService
 	gitOperationService     git.GitOperationService
-	asyncGoFuncService      asyncWrapper.AsyncGoFuncService
+	asyncRunnable           *async.Runnable
 }
 
 func NewArgoClientWrapperServiceImpl(logger *zap.SugaredLogger, acdClient application.ServiceClient,
 	ACDConfig *ACDConfig, repositoryService repository.ServiceClient, gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOperationService git.GitOperationService, asyncGoFuncService asyncWrapper.AsyncGoFuncService) *ArgoClientWrapperServiceImpl {
+	gitOperationService git.GitOperationService, asyncRunnable *async.Runnable) *ArgoClientWrapperServiceImpl {
 	return &ArgoClientWrapperServiceImpl{
 		logger:                  logger,
 		acdClient:               acdClient,
@@ -118,7 +118,7 @@ func NewArgoClientWrapperServiceImpl(logger *zap.SugaredLogger, acdClient applic
 		repositoryService:       repositoryService,
 		gitOpsConfigReadService: gitOpsConfigReadService,
 		gitOperationService:     gitOperationService,
-		asyncGoFuncService:      asyncGoFuncService,
+		asyncRunnable:           asyncRunnable,
 	}
 }
 
@@ -183,14 +183,14 @@ func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefres
 		impl.logger.Infow("ArgoCd sync completed", "argoAppName", argoAppName)
 	}
 
-	callback := func() {
+	runnableFunc := func() {
 		// running ArgoCd app refresh in asynchronous mode
 		refreshErr := impl.GetArgoAppWithNormalRefresh(newCtx, argoAppName)
 		if refreshErr != nil {
 			impl.logger.Errorw("error in refreshing argo app", "err", refreshErr)
 		}
 	}
-	impl.asyncGoFuncService.Execute(callback)
+	impl.asyncRunnable.Execute(runnableFunc)
 	return nil
 }
 
