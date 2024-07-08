@@ -48,7 +48,7 @@ type NatsClientConfig struct {
 	NatsMsgBufferSize    int `env:"NATS_MSG_BUFFER_SIZE" envDefault:"-1"`
 	NatsMsgMaxAge        int `env:"NATS_MSG_MAX_AGE" envDefault:"86400"`
 	NatsMsgAckWaitInSecs int `env:"NATS_MSG_ACK_WAIT_IN_SECS" envDefault:"120"`
-	Replicas             int `env:"REPLICAS" envDefault:"0"`
+	NatsMsgReplicas      int `env:"NATS_MSG_REPLICAS" envDefault:"0"`
 }
 
 func (ncc NatsClientConfig) GetNatsMsgBufferSize() int {
@@ -72,7 +72,7 @@ func (ncc NatsClientConfig) GetDefaultNatsStreamConfig() NatsStreamConfig {
 	return NatsStreamConfig{
 		StreamConfig: StreamConfig{
 			MaxAge:   time.Duration(ncc.NatsMsgMaxAge) * time.Second,
-			Replicas: ncc.Replicas,
+			Replicas: ncc.NatsMsgReplicas,
 		},
 	}
 }
