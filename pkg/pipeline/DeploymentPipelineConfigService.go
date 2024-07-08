@@ -386,12 +386,10 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		pipeline.DeploymentAppType = overrideDeploymentType
 	}
 
-	if len(envIds) > 0 {
-		err = impl.checkIfNsExistsForEnvIds(envIds)
-		if err != nil {
-			impl.logger.Errorw("error in checking existence of namespace for env's", "envIds", envIds, "err", err)
-			return nil, err
-		}
+	err = impl.checkIfNsExistsForEnvIds(envIds)
+	if err != nil {
+		impl.logger.Errorw("error in checking existence of namespace for env's", "envIds", envIds, "err", err)
+		return nil, err
 	}
 
 	isGitOpsRequiredForCD := impl.IsGitOpsRequiredForCD(pipelineCreateRequest)
@@ -2082,6 +2080,10 @@ func (impl *CdPipelineConfigServiceImpl) BulkDeleteCdPipelines(impactedPipelines
 
 }
 func (impl *CdPipelineConfigServiceImpl) checkIfNsExistsForEnvIds(envIds []*int) error {
+
+	if len(envIds) > 0 {
+		return nil
+	}
 	//fetching environments for the given environment Ids
 	environmentList, err := impl.environmentRepository.FindByIds(envIds)
 	if err != nil {
