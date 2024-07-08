@@ -181,6 +181,7 @@ type DeploymentDetailContainer struct {
 	IsVirtualEnvironment          bool            `json:"isVirtualEnvironment"`
 	HelmPackageName               string          `json:"helmPackageName"`
 	HelmReleaseInstallStatus      string          `json:"-"`
+	DeployedBy                    int32           `json:"deployedBy"`
 }
 
 type AppDetailContainer struct {

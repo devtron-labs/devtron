@@ -161,6 +161,7 @@ const Starting = "Starting"
 const POD_DELETED_MESSAGE = "pod deleted"
 const TERMINATE_MESSAGE = "workflow shutdown with strategy: Terminate"
 const ABORT_MESSAGE_AFTER_STARTING_STAGE = "workflow shutdown with strategy: Force Abort"
+const commitTimeLayout = "2006-01-02T15:04:05Z07:00"
 
 func (impl *CiHandlerImpl) CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error {
 
@@ -1467,105 +1468,47 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 
 	ciArtifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
 	if err != nil {
-		impl.Logger.Errorw("err", "ciArtifactId", ciArtifactId, "err", err)
-		return &types.GitTriggerInfoResponse{}, err
-	}
-
-	ciPipeline, err := impl.ciPipelineRepository.FindByIdIncludingInActive(ciArtifact.PipelineId)
-	if err != nil {
-		impl.Logger.Errorw("err", "ciArtifactId", ciArtifactId, "err", err)
-		return &types.GitTriggerInfoResponse{}, err
-	}
-
-	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(ciPipeline.Id)
-	if err != nil {
-		impl.Logger.Errorw("err", "err", err)
+		impl.Logger.Errorw("error in getting CiArtifact Details", "ciArtifactId", ciArtifactId, "err", err)
 		return &types.GitTriggerInfoResponse{}, err
 	}
 
 	deployDetail, err := impl.appListingRepository.DeploymentDetailByArtifactId(ciArtifactId, envId)
 	if err != nil {
-		impl.Logger.Errorw("err", "err", err)
+		impl.Logger.Errorw("error in getting deploy detail", "ciArtifactId", ciArtifactId, "envId", envId, "err", err)
 		return &types.GitTriggerInfoResponse{}, err
 	}
 
-	ciMaterialsArr := make([]pipelineConfig.CiPipelineMaterialResponse, 0)
 	var triggeredByUserEmailId string
-	//check workflow data only for non external builds
-	if !ciPipeline.IsExternal {
-		var workflow *pipelineConfig.CiWorkflow
-		if ciArtifact.ParentCiArtifact > 0 {
-			workflow, err = impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(ciArtifact.ParentCiArtifact)
-			if err != nil {
-				impl.Logger.Errorw("err", "ciArtifactId", ciArtifact.ParentCiArtifact, "err", err)
-				return &types.GitTriggerInfoResponse{}, err
-			}
-		} else {
-			workflow, err = impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(ciArtifactId)
-			if err != nil {
-				impl.Logger.Errorw("err", "ciArtifactId", ciArtifactId, "err", err)
-				return &types.GitTriggerInfoResponse{}, err
-			}
-		}
-
-		triggeredByUserEmailId, err = impl.userService.GetEmailById(workflow.TriggeredBy)
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.Logger.Errorw("err", "err", err)
-			return &types.GitTriggerInfoResponse{}, err
-		}
-
-		for _, m := range ciMaterials {
-			var history []*gitSensor.GitCommit
-			_gitTrigger := workflow.GitTriggers[m.Id]
-
-			// ignore git trigger which have commit and webhook both data nil
-			if len(_gitTrigger.Commit) == 0 && _gitTrigger.WebhookData.Id == 0 {
-				continue
-			}
-
-			_gitCommit := &gitSensor.GitCommit{
-				Message: _gitTrigger.Message,
-				Author:  _gitTrigger.Author,
-				Date:    _gitTrigger.Date,
-				Changes: _gitTrigger.Changes,
-				Commit:  _gitTrigger.Commit,
-			}
-
-			// set webhook data
-			_webhookData := _gitTrigger.WebhookData
-			if _webhookData.Id > 0 {
-				_gitCommit.WebhookData = &gitSensor.WebhookData{
-					Id:              _webhookData.Id,
-					EventActionType: _webhookData.EventActionType,
-					Data:            _webhookData.Data,
-				}
-			}
-
-			history = append(history, _gitCommit)
-
-			res := pipelineConfig.CiPipelineMaterialResponse{
-				Id:              m.Id,
-				GitMaterialId:   m.GitMaterialId,
-				GitMaterialName: m.GitMaterial.Name[strings.Index(m.GitMaterial.Name, "-")+1:],
-				Type:            string(m.Type),
-				Value:           m.Value,
-				Active:          m.Active,
-				Url:             m.GitMaterial.Url,
-				History:         history,
-			}
-			ciMaterialsArr = append(ciMaterialsArr, res)
-		}
-	}
-	imageTaggingData, err := impl.imageTaggingService.GetTagsData(ciPipeline.Id, ciPipeline.AppId, ciArtifactId, false)
-	if err != nil {
-		impl.Logger.Errorw("error in fetching imageTaggingData", "err", err, "ciPipelineId", ciPipeline.Id, "appId", ciPipeline.AppId, "ciArtifactId", ciArtifactId)
+	triggeredByUserEmailId, err = impl.userService.GetEmailById(deployDetail.DeployedBy)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.Logger.Errorw("error in getting the user email Id ", "userId", deployDetail.DeployedBy, "err", err)
 		return &types.GitTriggerInfoResponse{}, err
 	}
+
+	ciMaterials, err := repository.GetCiMaterialInfo(ciArtifact.MaterialInfo, ciArtifact.DataSource)
+	if err != nil {
+		impl.Logger.Info("error in unmarshalling material info", ciArtifact.MaterialInfo, "err", err)
+		return &types.GitTriggerInfoResponse{}, err
+	}
+
+	ciMaterialsArr := impl.parseCiMaterials(ciMaterials)
+
+	ciPipelineId, appId, isExternalCi, cdPipelineId, err := impl.fetchVariablesForImageTagging(ciArtifact.DataSource, ciArtifact.PipelineId, ciArtifact.ExternalCiPipelineId, ciArtifact.ComponentId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching variables for Image Tagging ", "PipelineId", ciArtifact.PipelineId, "ciArtifactId", ciArtifactId, "dataSource", ciArtifact.DataSource, "externalCiPipelineId", ciArtifact.ExternalCiPipelineId, "componentId", ciArtifact.ComponentId, "err", err)
+		return &types.GitTriggerInfoResponse{}, err
+	}
+	imageTaggingData, err := impl.imageTaggingService.GetTagsData(ciPipelineId, appId, ciArtifactId, isExternalCi, cdPipelineId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching imageTaggingData", "ciPipelineId", ciPipelineId, "appId", appId, "ciArtifactId", ciArtifactId, "cdPipelineId", cdPipelineId, "isExternalCi", isExternalCi, "err", err)
+		return &types.GitTriggerInfoResponse{}, err
+	}
+
 	gitTriggerInfoResponse := &types.GitTriggerInfoResponse{
 		//GitTriggers:      workflow.GitTriggers,
 		CiMaterials:      ciMaterialsArr,
 		TriggeredByEmail: triggeredByUserEmailId,
-		AppId:            ciPipeline.AppId,
+		AppId:            appId,
 		AppName:          deployDetail.AppName,
 		EnvironmentId:    deployDetail.EnvironmentId,
 		EnvironmentName:  deployDetail.EnvironmentName,
@@ -1575,6 +1518,120 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 		Image:            ciArtifact.Image,
 	}
 	return gitTriggerInfoResponse, nil
+}
+
+func (impl *CiHandlerImpl) parseCiMaterials(ciMaterials []repository.CiMaterialInfo) []pipelineConfig.CiPipelineMaterialResponse {
+	ciMaterialsArr := make([]pipelineConfig.CiPipelineMaterialResponse, 0)
+	for _, m := range ciMaterials {
+
+		var history []*gitSensor.GitCommit
+
+		var modification repository.Modification
+		if len(m.Modifications) > 0 {
+			modification = m.Modifications[0]
+		} else {
+			continue
+		}
+
+		if len(modification.Revision) == 0 && modification.WebhookData.Id == 0 {
+			continue
+		}
+
+		commitDate, err := time.Parse(commitTimeLayout, modification.ModifiedTime)
+		if err != nil {
+			impl.Logger.Errorw("error in parsing commit time", "commitTimeString", commitDate, "err", err)
+		}
+		gitCommit := &gitSensor.GitCommit{
+			Message: modification.Message,
+			Author:  modification.Author,
+			Date:    commitDate,
+			Commit:  modification.Revision,
+		}
+		if modification.WebhookData.Id > 0 {
+			gitCommit.WebhookData = &gitSensor.WebhookData{
+				Id:              modification.WebhookData.Id,
+				EventActionType: modification.WebhookData.EventActionType,
+				Data:            modification.WebhookData.Data,
+			}
+		}
+		history = append(history, gitCommit)
+
+		var url string
+		if m.Material.Type == repository.MATERIAL_TYPE_GIT {
+			url = m.Material.GitConfiguration.URL
+		} else if m.Material.Type == repository.MATERIAL_TYPE_SCM {
+			url = m.Material.ScmConfiguration.URL
+		} else {
+			continue
+		}
+
+		// urlFormat := https://github.com/foo/<repoName>.git, https://github.com/foo/<repoName>
+		var gitMaterialName string
+		urlSplit := strings.Split(url, "/")
+		repoName := urlSplit[len(urlSplit)-1]
+		repoNameSplit := strings.Split(repoName, ".")
+		gitMaterialName = repoNameSplit[0]
+
+		res := pipelineConfig.CiPipelineMaterialResponse{
+			GitMaterialName: gitMaterialName,
+			Type:            m.Material.Type,
+			Value:           modification.Branch,
+			Url:             url,
+			History:         history,
+		}
+		ciMaterialsArr = append(ciMaterialsArr, res)
+	}
+
+	return ciMaterialsArr
+}
+
+func (impl *CiHandlerImpl) fetchVariablesForImageTagging(dataSource string, ciPipelineId int, externalCiPipelineId int, componentId int) (int, int, bool, int, error) {
+
+	isExternalCi := false
+	var appId int
+	var cdPipelineId int
+
+	//CI_RUNNER,EXTERNAL,post_ci,pre_cd,post_cd
+	switch dataSource {
+	case repository.CI_RUNNER:
+		ciPipeline, err := impl.ciPipelineRepository.FindByIdIncludingInActive(ciPipelineId)
+		if err != nil {
+			impl.Logger.Errorw("err in fetching the ciPipeline", "ciPipelineId", ciPipelineId, "err", err)
+			return 0, 0, isExternalCi, 0, err
+		}
+		ciPipelineId = ciPipeline.Id
+		appId = ciPipeline.AppId
+
+	case repository.POST_CI:
+		ciPipeline, err := impl.ciPipelineRepository.FindByIdIncludingInActive(componentId)
+		if err != nil {
+			impl.Logger.Errorw("err in fetching the ciPipeline", "ciPipelineId", ciPipelineId, "componentId", componentId, "err", err)
+			return 0, 0, isExternalCi, 0, err
+		}
+		ciPipelineId = ciPipeline.Id
+		appId = ciPipeline.AppId
+	case repository.PRE_CD, repository.POST_CD:
+		cdPipeline, err := impl.cdPipelineRepository.FindById(componentId)
+		if err != nil {
+			impl.Logger.Errorw("err in fetching the cdPipeline", "ciPipelineId", ciPipelineId, "componentId", componentId, "err", err)
+			return 0, 0, isExternalCi, 0, err
+		}
+		cdPipelineId = cdPipeline.Id
+		appId = cdPipeline.AppId
+	case repository.WEBHOOK:
+		externalCiPipeline, err := impl.ciPipelineRepository.FindExternalCiById(externalCiPipelineId)
+		if err != nil {
+			impl.Logger.Errorw("err in fetching the external ciPipeline", "ciPipelineId", ciPipelineId, "externalCiPipelineId", externalCiPipelineId, "err", err)
+			return 0, 0, isExternalCi, 0, err
+		}
+		ciPipelineId = externalCiPipeline.Id
+		appId = externalCiPipeline.AppId
+		isExternalCi = true
+	default:
+		return 0, 0, false, 0, errors.New("invalid data source")
+	}
+	return ciPipelineId, appId, isExternalCi, cdPipelineId, nil
+
 }
 
 func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error {
