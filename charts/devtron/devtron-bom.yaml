@@ -150,8 +150,7 @@ components:
     image: chart-sync:5a1d0301-150-23845
   git-sensor:
     image: git-sensor:86e13283-200-23847
-  notifier:
-    image: notifier:9639b1ab-372-23850
+
 # values for argocd integration
 argo-cd:
   global:
@@ -178,7 +177,7 @@ security:
       tag: 4.3.6
 # Values for notifier integration
 notifier:
-  image: "notifier:924a17f6-372-22110"
+  image: "notifier:9639b1ab-372-23850"
 minio:
   image: "minio:RELEASE.2021-02-14T04-01-33Z"
   mbImage: "minio-mc:RELEASE.2021-02-14T04-28-06Z"
