@@ -20,6 +20,7 @@ type DeploymentConfigService interface {
 	GetConfigForHelmApps(appId, envId int) (*bean.DeploymentConfig, error)
 	GetConfigEvenIfInactive(appId, envId int) (*bean.DeploymentConfig, error)
 	GetAndMigrateConfigIfAbsentForHelmApp(appId, envId int) (*bean.DeploymentConfig, error)
+	GetAppLevelConfigForDevtronApp(appId int) (*bean.DeploymentConfig, error)
 }
 
 type DeploymentConfigServiceImpl struct {
@@ -378,4 +379,21 @@ func (impl *DeploymentConfigServiceImpl) parseFromOldTablesForDevtronApps(appId,
 		return ConvertDeploymentConfigDbObjToDTO(appAndEnvLevelConfig), nil
 	}
 	return ConvertDeploymentConfigDbObjToDTO(appLevelConfig), nil
+}
+
+func (impl *DeploymentConfigServiceImpl) GetAppLevelConfigForDevtronApp(appId int) (*bean.DeploymentConfig, error) {
+	appLevelConfigDbObj, err := impl.deploymentConfigRepository.GetAppLevelConfigForDevtronApps(appId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting deployment config db object by appId", "appId", appId, "err", err)
+		return nil, err
+	}
+	if err == pg.ErrNoRows {
+		impl.logger.Infow("app level deployment config not found, migrating data from charts to deployment_config", "appId", appId, "err", err)
+		appLevelConfigDbObj, err = impl.migrateChartsDataToDeploymentConfig(appId)
+		if err != nil {
+			impl.logger.Errorw("error in migrating app level config to deployment config", "appId", appId, "err", err)
+			return nil, err
+		}
+	}
+	return ConvertDeploymentConfigDbObjToDTO(appLevelConfigDbObj), nil
 }
