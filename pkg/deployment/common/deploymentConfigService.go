@@ -305,15 +305,6 @@ func (impl *DeploymentConfigServiceImpl) GetConfigEvenIfInactive(appId, envId in
 
 func (impl *DeploymentConfigServiceImpl) GetAndMigrateConfigIfAbsentForHelmApp(appId, envId int) (*bean.DeploymentConfig, error) {
 
-	if !impl.deploymentServiceTypeConfig.UseDeploymentConfigData {
-		configFromOldData, err := impl.parseConfigForHelmApps(appId, envId)
-		if err != nil {
-			impl.logger.Errorw("error in parsing config from charts and pipeline repository", "appId", appId, "envId", envId, "err", err)
-			return nil, err
-		}
-		return ConvertDeploymentConfigDbObjToDTO(configFromOldData), nil
-	}
-
 	helmDeploymentConfig, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(appId, envId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching deployment config by by appId and envId", "appId", appId, "envId", envId, "err", err)
@@ -327,6 +318,16 @@ func (impl *DeploymentConfigServiceImpl) GetAndMigrateConfigIfAbsentForHelmApp(a
 			return nil, err
 		}
 	}
+
+	if !impl.deploymentServiceTypeConfig.UseDeploymentConfigData {
+		configFromOldData, err := impl.parseConfigForHelmApps(appId, envId)
+		if err != nil {
+			impl.logger.Errorw("error in parsing config from charts and pipeline repository", "appId", appId, "envId", envId, "err", err)
+			return nil, err
+		}
+		return ConvertDeploymentConfigDbObjToDTO(configFromOldData), nil
+	}
+
 	return ConvertDeploymentConfigDbObjToDTO(helmDeploymentConfig), nil
 }
 
