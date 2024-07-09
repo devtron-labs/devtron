@@ -241,7 +241,7 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 			// For Helm App resources
 			appIdentifier, err := impl.helmAppService.DecodeAppId(appId)
 			if err != nil {
-				impl.logger.Errorw("error in decoding appId", "err", err, "appId", appId)
+				impl.logger.Errorw(bean3.AppIdDecodingError, "err", err, "appId", appId)
 				return nil, err
 			}
 			request.AppIdentifier = appIdentifier
@@ -251,7 +251,7 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 			// For Devtron App resources
 			devtronAppIdentifier, err := impl.DecodeDevtronAppId(appId)
 			if err != nil {
-				impl.logger.Errorw("error in decoding appId", "err", err, "appId", request.AppId)
+				impl.logger.Errorw(bean3.AppIdDecodingError, "err", err, "appId", request.AppId)
 				return nil, err
 			}
 			request.DevtronAppIdentifier = devtronAppIdentifier
@@ -267,7 +267,7 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 			// For flux App resources
 			appIdentifier, err := fluxApplication.DecodeFluxExternalAppId(appId)
 			if err != nil {
-				impl.logger.Errorw("error in decoding appId", "err", err, "appId", appId)
+				impl.logger.Errorw(bean3.AppIdDecodingError, "err", err, "appId", appId)
 				return nil, err
 			}
 			request.ExternalFluxAppIdentifier = appIdentifier
@@ -312,15 +312,17 @@ func (impl *K8sApplicationServiceImpl) ValidateTerminalRequestQuery(r *http.Requ
 	if strings.Contains(identifier, "|") {
 		// Validate App Type
 		appType, err := strconv.Atoi(v.Get("appType"))
-		if err != nil || appType < bean3.DevtronAppType && appType > bean3.HelmAppType {
+		resourceRequestBean.AppType = appType
+		if err != nil || !resourceRequestBean.IsValidAppType() {
 			impl.logger.Errorw("Invalid appType", "err", err, "appType", appType)
 			return nil, nil, err
 		}
 		request.ApplicationId = identifier
+
 		if appType == bean3.HelmAppType {
 			appIdentifier, err := impl.helmAppService.DecodeAppId(request.ApplicationId)
 			if err != nil {
-				impl.logger.Errorw("invalid app id", "err", err, "appId", request.ApplicationId)
+				impl.logger.Errorw(bean3.InvalidAppId, "err", err, "appId", request.ApplicationId)
 				return nil, nil, err
 			}
 			resourceRequestBean.AppIdentifier = appIdentifier
@@ -329,7 +331,7 @@ func (impl *K8sApplicationServiceImpl) ValidateTerminalRequestQuery(r *http.Requ
 		} else if appType == bean3.DevtronAppType {
 			devtronAppIdentifier, err := impl.DecodeDevtronAppId(request.ApplicationId)
 			if err != nil {
-				impl.logger.Errorw("invalid app id", "err", err, "appId", request.ApplicationId)
+				impl.logger.Errorw(bean3.InvalidAppId, "err", err, "appId", request.ApplicationId)
 				return nil, nil, err
 			}
 			resourceRequestBean.DevtronAppIdentifier = devtronAppIdentifier
@@ -338,7 +340,7 @@ func (impl *K8sApplicationServiceImpl) ValidateTerminalRequestQuery(r *http.Requ
 		} else if appType == bean3.FluxAppType {
 			fluxAppIdentifier, err := fluxApplication.DecodeFluxExternalAppId(request.ApplicationId)
 			if err != nil {
-				impl.logger.Errorw("invalid app id", "err", err, "appId", request.ApplicationId)
+				impl.logger.Errorw(bean3.InvalidAppId, "err", err, "appId", request.ApplicationId)
 				return nil, nil, err
 			}
 			resourceRequestBean.ExternalFluxAppIdentifier = fluxAppIdentifier

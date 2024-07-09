@@ -21,6 +21,10 @@ import (
 )
 
 const (
+	InvalidAppId       = "invalid app id"
+	AppIdDecodingError = "error in decoding appId"
+)
+const (
 	DEFAULT_NAMESPACE = "default"
 	EVENT_K8S_KIND    = "Event"
 	LIST_VERB         = "list"
