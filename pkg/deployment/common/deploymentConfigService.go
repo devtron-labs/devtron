@@ -21,6 +21,7 @@ type DeploymentConfigService interface {
 	GetConfigEvenIfInactive(appId, envId int) (*bean.DeploymentConfig, error)
 	GetAndMigrateConfigIfAbsentForHelmApp(appId, envId int) (*bean.DeploymentConfig, error)
 	GetAppLevelConfigForDevtronApp(appId int) (*bean.DeploymentConfig, error)
+	UpdateRepoUrlForAppAndEnvId(repoURL string, appId, envId int) error
 }
 
 type DeploymentConfigServiceImpl struct {
@@ -396,4 +397,13 @@ func (impl *DeploymentConfigServiceImpl) GetAppLevelConfigForDevtronApp(appId in
 		}
 	}
 	return ConvertDeploymentConfigDbObjToDTO(appLevelConfigDbObj), nil
+}
+
+func (impl *DeploymentConfigServiceImpl) UpdateRepoUrlForAppAndEnvId(repoURL string, appId, envId int) error {
+	err := impl.deploymentConfigRepository.UpdateRepoUrlByAppIdAndEnvId(repoURL, appId, envId)
+	if err != nil {
+		impl.logger.Errorw("error in updating repoUrl by app-id and env-id", "appId", appId, "envId", envId, "err", err)
+		return err
+	}
+	return nil
 }

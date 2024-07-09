@@ -45,6 +45,7 @@ type Repository interface {
 	GetAppLevelConfigByAppIds(appIds []int) ([]*DeploymentConfig, error)
 	GetAppAndEnvLevelConfigsInBulk(appIdToEnvIdsMap map[int][]int) ([]*DeploymentConfig, error)
 	GetByAppIdAndEnvIdEvenIfInactive(appId, envId int) (*DeploymentConfig, error)
+	UpdateRepoUrlByAppIdAndEnvId(repoUrl string, appId, envId int) error
 }
 
 type RepositoryImpl struct {
@@ -55,7 +56,7 @@ func NewRepositoryImpl(dbConnection *pg.DB) *RepositoryImpl {
 	return &RepositoryImpl{dbConnection: dbConnection}
 }
 
-func (impl RepositoryImpl) Save(tx *pg.Tx, config *DeploymentConfig) (*DeploymentConfig, error) {
+func (impl *RepositoryImpl) Save(tx *pg.Tx, config *DeploymentConfig) (*DeploymentConfig, error) {
 	var err error
 	if tx != nil {
 		err = tx.Insert(config)
@@ -65,7 +66,7 @@ func (impl RepositoryImpl) Save(tx *pg.Tx, config *DeploymentConfig) (*Deploymen
 	return config, err
 }
 
-func (impl RepositoryImpl) SaveAll(tx *pg.Tx, configs []*DeploymentConfig) ([]*DeploymentConfig, error) {
+func (impl *RepositoryImpl) SaveAll(tx *pg.Tx, configs []*DeploymentConfig) ([]*DeploymentConfig, error) {
 	var err error
 	if tx != nil {
 		err = tx.Insert(&configs)
@@ -75,7 +76,7 @@ func (impl RepositoryImpl) SaveAll(tx *pg.Tx, configs []*DeploymentConfig) ([]*D
 	return configs, err
 }
 
-func (impl RepositoryImpl) Update(tx *pg.Tx, config *DeploymentConfig) (*DeploymentConfig, error) {
+func (impl *RepositoryImpl) Update(tx *pg.Tx, config *DeploymentConfig) (*DeploymentConfig, error) {
 	var err error
 	if tx != nil {
 		err = tx.Update(config)
@@ -85,7 +86,7 @@ func (impl RepositoryImpl) Update(tx *pg.Tx, config *DeploymentConfig) (*Deploym
 	return config, err
 }
 
-func (impl RepositoryImpl) UpdateAll(tx *pg.Tx, config []*DeploymentConfig) ([]*DeploymentConfig, error) {
+func (impl *RepositoryImpl) UpdateAll(tx *pg.Tx, config []*DeploymentConfig) ([]*DeploymentConfig, error) {
 	var err error
 	if tx != nil {
 		err = tx.Update(config)
@@ -95,13 +96,13 @@ func (impl RepositoryImpl) UpdateAll(tx *pg.Tx, config []*DeploymentConfig) ([]*
 	return config, err
 }
 
-func (impl RepositoryImpl) GetById(id int) (*DeploymentConfig, error) {
+func (impl *RepositoryImpl) GetById(id int) (*DeploymentConfig, error) {
 	result := &DeploymentConfig{}
 	err := impl.dbConnection.Model(result).Where("id = ?", id).Where("active = ?", true).Select()
 	return result, err
 }
 
-func (impl RepositoryImpl) GetByAppIdAndEnvId(appId, envId int) (*DeploymentConfig, error) {
+func (impl *RepositoryImpl) GetByAppIdAndEnvId(appId, envId int) (*DeploymentConfig, error) {
 	result := &DeploymentConfig{}
 	err := impl.dbConnection.Model(result).
 		Where("app_id = ?", appId).
@@ -112,7 +113,7 @@ func (impl RepositoryImpl) GetByAppIdAndEnvId(appId, envId int) (*DeploymentConf
 	return result, err
 }
 
-func (impl RepositoryImpl) GetAppLevelConfigForDevtronApps(appId int) (*DeploymentConfig, error) {
+func (impl *RepositoryImpl) GetAppLevelConfigForDevtronApps(appId int) (*DeploymentConfig, error) {
 	result := &DeploymentConfig{}
 	err := impl.dbConnection.Model(result).
 		Where("app_id = ? ", appId).
@@ -122,7 +123,7 @@ func (impl RepositoryImpl) GetAppLevelConfigForDevtronApps(appId int) (*Deployme
 	return result, err
 }
 
-func (impl RepositoryImpl) GetAppLevelConfigByAppIds(appIds []int) ([]*DeploymentConfig, error) {
+func (impl *RepositoryImpl) GetAppLevelConfigByAppIds(appIds []int) ([]*DeploymentConfig, error) {
 	var result []*DeploymentConfig
 	err := impl.dbConnection.Model(&result).
 		Where("app_id in (?) and environment_id is NULL ", pg.In(appIds)).
@@ -131,7 +132,7 @@ func (impl RepositoryImpl) GetAppLevelConfigByAppIds(appIds []int) ([]*Deploymen
 	return result, err
 }
 
-func (impl RepositoryImpl) GetAppAndEnvLevelConfigsInBulk(appIdToEnvIdsMap map[int][]int) ([]*DeploymentConfig, error) {
+func (impl *RepositoryImpl) GetAppAndEnvLevelConfigsInBulk(appIdToEnvIdsMap map[int][]int) ([]*DeploymentConfig, error) {
 	var result []*DeploymentConfig
 	err := impl.dbConnection.Model(&result).
 		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
@@ -148,7 +149,7 @@ func (impl RepositoryImpl) GetAppAndEnvLevelConfigsInBulk(appIdToEnvIdsMap map[i
 	return result, err
 }
 
-func (impl RepositoryImpl) GetByAppIdAndEnvIdEvenIfInactive(appId, envId int) (*DeploymentConfig, error) {
+func (impl *RepositoryImpl) GetByAppIdAndEnvIdEvenIfInactive(appId, envId int) (*DeploymentConfig, error) {
 	result := &DeploymentConfig{}
 	err := impl.dbConnection.Model(result).
 		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
@@ -163,4 +164,12 @@ func (impl RepositoryImpl) GetByAppIdAndEnvIdEvenIfInactive(appId, envId int) (*
 		Order("id DESC").Limit(1).
 		Select()
 	return result, err
+}
+
+func (impl *RepositoryImpl) UpdateRepoUrlByAppIdAndEnvId(repoUrl string, appId, envId int) error {
+	_, err := impl.dbConnection.
+		Model((*DeploymentConfig)(nil)).
+		Where("app_id = ? and environment_id = ? ", appId, envId).
+		Update("repo_url = ? ", repoUrl)
+	return err
 }
