@@ -228,7 +228,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) performDbOperationsAfte
 	}
 
 	for _, ia := range installedApps {
-		deploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(ia.AppId, ia.EnvironmentId)
+		deploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForHelmApp(ia.AppId, ia.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", ia.AppId, "envId", ia.EnvironmentId, "err", err)
 			return err
