@@ -159,7 +159,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangeDeploymentType(ctx context
 
 	//Update in db
 	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(request.DesiredDeploymentType),
-		pipelineIds, request.UserId, false, true)
+		pipelineIds, request.UserId, false, false)
 	if err != nil {
 		impl.logger.Errorw("failed to update deployment app type in db",
 			"pipeline ids", pipelineIds,
@@ -295,7 +295,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 	}
 
 	err = impl.pipelineRepository.UpdateCdPipelineDeploymentAppInFilter(string(request.DesiredDeploymentType),
-		cdPipelineIds, request.UserId, true, false)
+		cdPipelineIds, request.UserId, false, false)
 
 	if err != nil {
 		impl.logger.Errorw("failed to update deployment app type in db",
