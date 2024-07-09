@@ -37,8 +37,8 @@ type Chart struct {
 	PipelineOverride        string                      `sql:"pipeline_override"` //json format  // pipeline values -> strategy values
 	Status                  models.ChartStatus          `sql:"status"`            //(new , deployment-in-progress, deployed-To-production, error )
 	Active                  bool                        `sql:"active"`
-	GitRepoUrl              string                      `sql:"git_repo_url"`   //git repository where chart is stored
-	ChartLocation           string                      `sql:"chart_location"` //location within git repo where current chart is pointing
+	GitRepoUrl              string                      `sql:"git_repo_url"`   // Deprecated;  use deployment_config table instead   //git repository where chart is stored
+	ChartLocation           string                      `sql:"chart_location"` // Deprecated;  use deployment_config table instead  //location within git repo where current chart is pointing
 	ReferenceTemplate       string                      `sql:"reference_template"`
 	ImageDescriptorTemplate string                      `sql:"image_descriptor_template"`
 	ChartRefId              int                         `sql:"chart_ref_id"`
@@ -47,7 +47,7 @@ type Chart struct {
 	ReferenceChart          []byte                      `sql:"reference_chart"`
 	IsBasicViewLocked       bool                        `sql:"is_basic_view_locked,notnull"`
 	CurrentViewEditor       models.ChartsViewEditorType `sql:"current_view_editor"`
-	IsCustomGitRepository   bool                        `sql:"is_custom_repository"`
+	IsCustomGitRepository   bool                        `sql:"is_custom_repository"` // Deprecated;  use deployment_config table instead
 	ResolvedGlobalOverride  string                      `sql:"-"`
 	sql.AuditLog
 }

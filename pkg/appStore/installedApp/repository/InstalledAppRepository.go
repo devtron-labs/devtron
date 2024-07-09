@@ -45,9 +45,9 @@ type InstalledApps struct {
 	EnvironmentId              int                                   `sql:"environment_id,notnull"`
 	Active                     bool                                  `sql:"active, notnull"`
 	GitOpsRepoName             string                                `sql:"git_ops_repo_name"` // Deprecated; currently in use for backward compatibility
-	GitOpsRepoUrl              string                                `sql:"git_ops_repo_url"`  // GitOpsRepoName has been migrated to GitOpsRepoUrl; Make sure to migrate from GitOpsRepoName for future flows
+	GitOpsRepoUrl              string                                `sql:"git_ops_repo_url"`  // Deprecated;  use deployment_config table instead  GitOpsRepoName has been migrated to GitOpsRepoUrl; Make sure to migrate from GitOpsRepoName for future flows
 	IsCustomRepository         bool                                  `sql:"is_custom_repository"`
-	DeploymentAppType          string                                `sql:"deployment_app_type"`
+	DeploymentAppType          string                                `sql:"deployment_app_type"` // Deprecated;  use deployment_config table instead
 	Status                     appStoreBean.AppstoreDeploymentStatus `sql:"status"`
 	DeploymentAppDeleteRequest bool                                  `sql:"deployment_app_delete_request"`
 	Notes                      string                                `json:"notes"`

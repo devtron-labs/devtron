@@ -476,7 +476,7 @@ func (impl *ChartServiceImpl) chartAdaptor(chart *chartRepoRepository.Chart, isA
 		IsBasicViewLocked:       chart.IsBasicViewLocked,
 		CurrentViewEditor:       chart.CurrentViewEditor,
 		GitRepoUrl:              gitRepoUrl,
-		IsCustomGitRepository:   chart.IsCustomGitRepository,
+		IsCustomGitRepository:   deploymentConfig.ConfigType == bean2.CUSTOM.String(),
 		ImageDescriptorTemplate: chart.ImageDescriptorTemplate,
 	}
 	if chart.Latest {
