@@ -293,7 +293,7 @@ func (impl *InstalledAppDBServiceImpl) GetInstalledAppVersion(id int, userId int
 		impl.Logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
 	}
-	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(model.InstalledApp.AppId, model.InstalledApp.EnvironmentId)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForHelmApps(model.InstalledApp.AppId, model.InstalledApp.EnvironmentId)
 	if err != nil {
 		impl.Logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", model.InstalledApp.AppId, "envId", model.InstalledApp.EnvironmentId, "err", err)
 		return nil, err
