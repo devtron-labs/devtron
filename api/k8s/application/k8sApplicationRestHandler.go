@@ -170,7 +170,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 
 	//rbac validation for the apps requests
 	if request.AppId != "" {
-		ok, err := handler.verifyRbacForAppRequests(token, request, r, casbin.ActionGet)
+		ok, err := handler.verifyRbacForAppRequests(token, &request, r, casbin.ActionGet)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
@@ -381,7 +381,7 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 
 	//rbac validation for the apps requests
 	if request.AppId != "" {
-		ok, err := handler.verifyRbacForAppRequests(token, request, r, casbin.ActionUpdate)
+		ok, err := handler.verifyRbacForAppRequests(token, &request, r, casbin.ActionUpdate)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
@@ -439,7 +439,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 
 	//rbac handle for the apps requests
 	if request.AppId != "" {
-		ok, err := handler.verifyRbacForAppRequests(token, request, r, casbin.ActionDelete)
+		ok, err := handler.verifyRbacForAppRequests(token, &request, r, casbin.ActionDelete)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
@@ -492,7 +492,7 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 
 	//rbac validation for the apps requests
 	if request.AppId != "" {
-		ok, err := handler.verifyRbacForAppRequests(token, request, r, casbin.ActionGet)
+		ok, err := handler.verifyRbacForAppRequests(token, &request, r, casbin.ActionGet)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
@@ -1054,7 +1054,7 @@ func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(podName, names
 		false and err !=nil --> during the validation of resources, we got an error, resulting the StatusBadRequest
 		false and err == nil --> denotes that user is not authorized, resulting in Unauthorized
 */
-func (handler *K8sApplicationRestHandlerImpl) verifyRbacForAppRequests(token string, request k8s.ResourceRequestBean, r *http.Request, actionType string) (bool, error) {
+func (handler *K8sApplicationRestHandlerImpl) verifyRbacForAppRequests(token string, request *k8s.ResourceRequestBean, r *http.Request, actionType string) (bool, error) {
 	rbacObject := ""
 	rbacObject2 := ""
 	envObject := ""
