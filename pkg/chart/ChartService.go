@@ -281,11 +281,11 @@ func (impl *ChartServiceImpl) Create(templateRequest TemplateRequest, ctx contex
 	}
 
 	deploymentConfig := &bean2.DeploymentConfig{
-		AppId:         templateRequest.AppId,
-		ConfigType:    common.GetDeploymentConfigType(templateRequest.IsCustomGitRepository),
-		RepoURL:       gitRepoUrl,
-		ChartLocation: chartLocation,
-		Active:        true,
+		AppId:      templateRequest.AppId,
+		ConfigType: common.GetDeploymentConfigType(templateRequest.IsCustomGitRepository),
+		RepoURL:    gitRepoUrl,
+		ChartPath:  chartLocation,
+		Active:     true,
 	}
 	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, templateRequest.UserId)
 	if err != nil {
@@ -376,11 +376,11 @@ func (impl *ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Templat
 	}
 
 	deploymentConfig := &bean2.DeploymentConfig{
-		AppId:         templateRequest.AppId,
-		ConfigType:    common.GetDeploymentConfigType(templateRequest.IsCustomGitRepository),
-		RepoURL:       gitRepoUrl,
-		ChartLocation: chartLocation,
-		Active:        true,
+		AppId:      templateRequest.AppId,
+		ConfigType: common.GetDeploymentConfigType(templateRequest.IsCustomGitRepository),
+		RepoURL:    gitRepoUrl,
+		ChartPath:  chartLocation,
+		Active:     true,
 	}
 	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, templateRequest.UserId)
 	if err != nil {
@@ -708,11 +708,11 @@ func (impl *ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateReq
 	}
 
 	deploymentConfig := &bean2.DeploymentConfig{
-		AppId:         template.AppId,
-		ConfigType:    common.GetDeploymentConfigType(template.IsCustomGitRepository),
-		RepoURL:       template.GitRepoUrl,
-		ChartLocation: template.ChartLocation,
-		Active:        true,
+		AppId:      template.AppId,
+		ConfigType: common.GetDeploymentConfigType(template.IsCustomGitRepository),
+		RepoURL:    template.GitRepoUrl,
+		ChartPath:  template.ChartLocation,
+		Active:     true,
 	}
 
 	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, templateRequest.UserId)
@@ -990,11 +990,11 @@ func (impl *ChartServiceImpl) ConfigureGitOpsRepoUrlForApp(appId int, repoUrl, c
 	}
 
 	deploymentConfig := &bean2.DeploymentConfig{
-		AppId:         appId,
-		ConfigType:    common.GetDeploymentConfigType(isCustom),
-		RepoURL:       repoUrl,
-		ChartLocation: chartLocation,
-		Active:        true,
+		AppId:      appId,
+		ConfigType: common.GetDeploymentConfigType(isCustom),
+		RepoURL:    repoUrl,
+		ChartPath:  chartLocation,
+		Active:     true,
 	}
 	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, userId)
 	if err != nil {

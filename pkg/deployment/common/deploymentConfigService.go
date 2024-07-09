@@ -200,11 +200,11 @@ func (impl *DeploymentConfigServiceImpl) parseAppLevelConfigForDevtronApps(appId
 		return nil, err
 	}
 	ConfigDbObj := &deploymentConfig.DeploymentConfig{
-		ConfigType:    GetDeploymentConfigType(chart.IsCustomGitRepository),
-		AppId:         appId,
-		Active:        true,
-		RepoUrl:       chart.GitRepoUrl,
-		ChartLocation: chart.ChartLocation,
+		ConfigType: GetDeploymentConfigType(chart.IsCustomGitRepository),
+		AppId:      appId,
+		Active:     true,
+		RepoUrl:    chart.GitRepoUrl,
+		ChartPath:  chart.ChartLocation,
 	}
 	return ConfigDbObj, nil
 }
@@ -234,7 +234,7 @@ func (impl *DeploymentConfigServiceImpl) parseEnvLevelConfigForDevtronApps(appLe
 		EnvironmentId: envId,
 		ConfigType:    appLevelConfig.ConfigType,
 		RepoUrl:       appLevelConfig.RepoUrl,
-		ChartLocation: appLevelConfig.ChartLocation,
+		ChartPath:     appLevelConfig.ChartPath,
 		Active:        true,
 	}
 

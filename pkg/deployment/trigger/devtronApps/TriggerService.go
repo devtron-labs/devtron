@@ -965,7 +965,7 @@ func (impl *TriggerServiceImpl) buildManifestPushTemplate(overrideRequest *bean3
 		manifestPushTemplate.ChartReferenceTemplate = valuesOverrideResponse.EnvOverride.Chart.ReferenceTemplate
 		manifestPushTemplate.ChartName = valuesOverrideResponse.EnvOverride.Chart.ChartName
 		manifestPushTemplate.ChartVersion = valuesOverrideResponse.EnvOverride.Chart.ChartVersion
-		manifestPushTemplate.ChartLocation = valuesOverrideResponse.DeploymentConfig.ChartLocation
+		manifestPushTemplate.ChartLocation = valuesOverrideResponse.DeploymentConfig.ChartPath
 		manifestPushTemplate.RepoUrl = valuesOverrideResponse.DeploymentConfig.RepoURL
 		manifestPushTemplate.IsCustomGitRepository = common.IsCustomGitOpsRepo(valuesOverrideResponse.DeploymentConfig.ConfigType)
 	}
@@ -1228,7 +1228,7 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(ctx context.Context, pipeline
 		if impl.argoClientWrapperService.IsArgoAppPatchRequired(argoApplication.Spec.Source, deploymentConfig.RepoURL, envOverride.Chart.ChartLocation) {
 			patchRequestDto := &bean7.ArgoCdAppPatchReqDto{
 				ArgoAppName:    argoAppName,
-				ChartLocation:  deploymentConfig.ChartLocation,
+				ChartLocation:  deploymentConfig.ChartPath,
 				GitRepoUrl:     deploymentConfig.RepoURL,
 				TargetRevision: bean7.TargetRevisionMaster,
 				PatchType:      bean7.PatchTypeMerge,

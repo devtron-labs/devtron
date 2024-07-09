@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS "public"."deployment_config"
     "config_type"                       VARCHAR(100),
     "repo_url"                          VARCHAR(250),
     "repo_name"                         VARCHAR(200),
-    "chart_location"                    VARCHAR(250),
+    "chart_path"                        VARCHAR(250),
     "credential_type"                   VARCHAR(100),
     "credential_id_int"                 int,
     "credential_id_string"              VARCHAR(100),
@@ -38,5 +38,7 @@ CREATE TABLE IF NOT EXISTS "public"."deployment_config"
     "created_by"                        integer,
     "updated_on"                        timestamptz,
     "updated_by"                        integer,
-    PRIMARY KEY ("id")
-    );
+    PRIMARY KEY ("id"),
+    CONSTRAINT "deployment_config_app_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."app" ("id"),
+    CONSTRAINT "deployment_config_env_id_fk" FOREIGN KEY ("environment_id") REFERENCES "public"."environment" ("id")
+);

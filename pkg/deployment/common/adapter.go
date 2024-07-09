@@ -13,7 +13,7 @@ func ConvertDeploymentConfigDTOToDbObj(config *bean.DeploymentConfig) *deploymen
 		DeploymentAppType: config.DeploymentAppType,
 		ConfigType:        config.ConfigType,
 		RepoUrl:           config.RepoURL,
-		ChartLocation:     config.ChartLocation,
+		ChartPath:         config.ChartPath,
 		Active:            config.Active,
 	}
 }
@@ -26,7 +26,7 @@ func ConvertDeploymentConfigDbObjToDTO(dbObj *deploymentConfig.DeploymentConfig)
 		DeploymentAppType: dbObj.DeploymentAppType,
 		ConfigType:        dbObj.ConfigType,
 		RepoURL:           dbObj.RepoUrl,
-		ChartLocation:     dbObj.ChartLocation,
+		ChartPath:         dbObj.ChartPath,
 		Active:            dbObj.Active,
 	}
 }

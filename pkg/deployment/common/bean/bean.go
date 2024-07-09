@@ -14,7 +14,7 @@ type DeploymentConfig struct {
 	DeploymentAppType string
 	RepoURL           string
 	RepoName          string
-	ChartLocation     string
+	ChartPath         string
 	Active            bool
 }
 
