@@ -14,6 +14,6 @@ CREATE TABLE IF NOT EXISTS public.plugin_parent_metadata
     "created_by"            int4         NOT NULL,
     "updated_on"            timestamptz NOT NULL,
     "updated_by"            int4 NOT NULL,
-    PRIMARY KEY ("id")
+    PRIMARY KEY ("id"),
     UNIQUE("identifier")
 );
