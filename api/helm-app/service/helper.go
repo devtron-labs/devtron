@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
+	"net/http"
 	"strconv"
 	"strings"
 )
@@ -76,4 +77,11 @@ func HibernateResponseAdaptor(in []*gRPC.HibernateStatus) []*openapi.HibernateSt
 		resStatus = append(resStatus, resObj)
 	}
 	return resStatus
+}
+
+func GetStatusCode(err error) int {
+	if err.Error() == "unauthorized" {
+		return http.StatusForbidden
+	}
+	return http.StatusInternalServerError
 }
