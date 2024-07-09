@@ -19,7 +19,9 @@ package plugin
 import (
 	"errors"
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
+	"sort"
 	"strings"
 )
 
@@ -46,4 +48,13 @@ func CreateUniqueIdentifier(pluginName string, pluginId int) string {
 		identifier = fmt.Sprintf("%s-%d", identifier, pluginId)
 	}
 	return identifier
+}
+
+func sortParentMetadataDtoSliceByName(pluginParentMetadataDtos []*bean2.PluginParentMetadataDto) {
+	sort.Slice(pluginParentMetadataDtos, func(i, j int) bool {
+		if strings.Compare(pluginParentMetadataDtos[i].Name, pluginParentMetadataDtos[j].Name) <= 0 {
+			return true
+		}
+		return false
+	})
 }

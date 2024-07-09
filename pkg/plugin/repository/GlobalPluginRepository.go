@@ -316,7 +316,8 @@ func (impl *GlobalPluginRepositoryImpl) GetConnection() (dbConnection *pg.DB) {
 func (impl *GlobalPluginRepositoryImpl) GetMetaDataForAllPlugins() ([]*PluginMetadata, error) {
 	var plugins []*PluginMetadata
 	err := impl.dbConnection.Model(&plugins).
-		Where("deleted = ?", false).Select()
+		Where("deleted = ?", false).
+		Order("created_on DESC").Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting all plugins", "err", err)
 		return nil, err
@@ -717,7 +718,8 @@ func (impl *GlobalPluginRepositoryImpl) UpdatePluginMetadataInBulk(pluginsMetada
 
 func (impl *GlobalPluginRepositoryImpl) GetAllFilteredPluginParentMetadata(searchKey string, tags []string) ([]*PluginParentMetadata, error) {
 	var plugins []*PluginParentMetadata
-	subQuery := "select ppm.id, ppm.identifier,ppm.name,ppm.description,ppm.type,ppm.icon,ppm.deleted,ppm.created_by, ppm.created_on,ppm.updated_by,ppm.updated_on from plugin_parent_metadata ppm"
+	subQuery := "select ppm.id, ppm.identifier,ppm.name,ppm.description,ppm.type,ppm.icon,ppm.deleted,ppm.created_by, ppm.created_on,ppm.updated_by,ppm.updated_on from plugin_parent_metadata ppm" +
+		" inner join plugin_metadata pm on pm.plugin_parent_metadata_id=ppm.id"
 	whereCondition := fmt.Sprintf(" where ppm.deleted=false")
 	orderCondition := fmt.Sprintf(" ORDER BY ppm.id asc")
 	if len(tags) > 0 {
@@ -729,9 +731,9 @@ func (impl *GlobalPluginRepositoryImpl) GetAllFilteredPluginParentMetadata(searc
 	}
 	if len(searchKey) > 0 {
 		searchKeyLike := "%" + searchKey + "%"
-		whereCondition += fmt.Sprintf(" AND (ppm.description ilike '%s' or ppm.name ilike '%s')", searchKeyLike, searchKeyLike)
+		whereCondition += fmt.Sprintf(" AND (pm.description ilike '%s' or pm.name ilike '%s')", searchKeyLike, searchKeyLike)
 	}
-
+	whereCondition += fmt.Sprintf(" AND pm.is_latest=true")
 	subQuery += whereCondition + orderCondition
 	query := fmt.Sprintf(" select * from (%s) x ORDER BY name asc;", subQuery)
 	_, err := impl.dbConnection.Query(&plugins, query)

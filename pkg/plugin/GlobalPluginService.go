@@ -1787,7 +1787,7 @@ func (impl *GlobalPluginServiceImpl) ListAllPluginsV2(filter *bean2.PluginsListF
 		return nil, err
 	}
 	if allPluginParentMetadata == nil {
-		return nil, &util.ApiError{HttpStatusCode: http.StatusNotFound, Code: strconv.Itoa(http.StatusNotFound), InternalMessage: bean2.NoPluginFoundForThisSearchQueryErr, UserMessage: bean2.NoPluginFoundForThisSearchQueryErr}
+		return bean2.NewPluginsDto(), nil
 	}
 
 	paginatedPluginParentMetadata := helper2.PaginatePluginParentMetadata(allPluginParentMetadata, filter.Limit, filter.Offset)
@@ -1804,6 +1804,7 @@ func (impl *GlobalPluginServiceImpl) ListAllPluginsV2(filter *bean2.PluginsListF
 		return nil, err
 	}
 
+	sortParentMetadataDtoSliceByName(pluginParentMetadataDtos)
 	pluginDetails := bean2.NewPluginsDto().WithParentPlugins(pluginParentMetadataDtos).WithTotalCount(len(allPluginParentMetadata))
 
 	return pluginDetails, nil
@@ -1907,7 +1908,7 @@ func (impl *GlobalPluginServiceImpl) GetPluginDetailV2(pluginVersionIds, parentP
 		impl.logger.Errorw("GetPluginDetailV2, error in getting all plugin parent metadata by ids", "err", err)
 		return nil, err
 	}
-	parentIdVsPluginParentDtoMap, versionIdVsPluginsVersionDetailMap, err := impl.getPluginEntitiesIdToPluginEntitiesDtoMap(filteredPluginVersionMetadata, pluginParentDetails)
+	parentIdVsPluginParentDtoMap, versionIdVsPluginsVersionDetailMap, err := impl.getPluginEntitiesIdToPluginEntitiesDtoMap(pluginVersionsMetadata, pluginParentDetails)
 	if err != nil {
 		impl.logger.Errorw("GetPluginDetailV2, error in getPluginEntitiesIdToPluginEntitiesDtoMap", "err", err)
 		return nil, err
