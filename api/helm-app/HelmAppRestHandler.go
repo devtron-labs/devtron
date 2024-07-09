@@ -226,126 +226,12 @@ func (handler *HelmAppRestHandlerImpl) handleHelmApplicationHibernate(r *http.Re
 
 	return handler.helmAppService.HibernateApplication(r.Context(), appIdentifier, hibernateRequest)
 }
-
-//func (handler *HelmAppRestHandlerImpl) Hibernate(w http.ResponseWriter, r *http.Request) {
-//	hibernateRequest := &openapi.HibernateRequest{}
-//	decoder := json.NewDecoder(r.Body)
-//	err := decoder.Decode(hibernateRequest)
-//	if err != nil {
-//		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-//		return
-//	}
-//	token := r.Header.Get("token")
-//	var res []*openapi.HibernateStatus
-//
-//	if k8s.IsClusterStringContainsFluxField(*hibernateRequest.AppId) {
-//		appIdentifier, err := fluxApplication.DecodeFluxExternalAppId(*hibernateRequest.AppId)
-//		if err != nil {
-//			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-//			return
-//		}
-//
-//		// RBAC enforcer applying
-//		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
-//			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-//			return
-//		}
-//		//RBAC enforcer Ends
-//
-//		res, err = handler.fluxApplication.HibernateFluxApplication(r.Context(), appIdentifier, hibernateRequest)
-//		if err != nil {
-//			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-//			return
-//		}
-//
-//	} else {
-//
-//		//for helm app identifier
-//		appIdentifier, err := handler.helmAppService.DecodeAppId(*hibernateRequest.AppId)
-//		if err != nil {
-//			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-//			return
-//		}
-//		// RBAC enforcer applying
-//		rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObjectByClusterIdNamespaceAndAppName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
-//		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
-//		if !ok {
-//			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-//			return
-//		}
-//		//RBAC enforcer Ends
-//
-//		res, err = handler.helmAppService.HibernateApplication(r.Context(), appIdentifier, hibernateRequest)
-//		if err != nil {
-//			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-//			return
-//		}
-//	}
-//
-//	common.WriteJsonResp(w, err, res, http.StatusOK)
-//}
-
-//func (handler *HelmAppRestHandlerImpl) UnHibernate(w http.ResponseWriter, r *http.Request) {
-//	hibernateRequest := &openapi.HibernateRequest{}
-//	decoder := json.NewDecoder(r.Body)
-//	err := decoder.Decode(hibernateRequest)
-//	if err != nil {
-//		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-//		return
-//	}
-//	token := r.Header.Get("token")
-//	var res []*openapi.HibernateStatus
-//
-//	if k8s.IsClusterStringContainsFluxField(*hibernateRequest.AppId) {
-//		appIdentifier, err := fluxApplication.DecodeFluxExternalAppId(*hibernateRequest.AppId)
-//		if err != nil {
-//			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-//			return
-//		}
-//		// RBAC enforcer applying
-//		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
-//			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-//			return
-//		}
-//		//RBAC enforcer Ends
-//		res, err = handler.fluxApplication.UnHibernateFluxApplication(r.Context(), appIdentifier, hibernateRequest)
-//		if err != nil {
-//			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-//			return
-//		}
-//
-//	} else {
-//		appIdentifier, err := handler.helmAppService.DecodeAppId(*hibernateRequest.AppId)
-//		if err != nil {
-//			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-//			return
-//		}
-//		// RBAC enforcer applying
-//		rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObjectByClusterIdNamespaceAndAppName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
-//		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
-//
-//		if !ok {
-//			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-//			return
-//		}
-//		//RBAC enforcer Ends
-//		res, err = handler.helmAppService.UnHibernateApplication(r.Context(), appIdentifier, hibernateRequest)
-//		if err != nil {
-//			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-//			return
-//		}
-//	}
-//
-//	common.WriteJsonResp(w, err, res, http.StatusOK)
-//}
-
 func (handler *HelmAppRestHandlerImpl) UnHibernate(w http.ResponseWriter, r *http.Request) {
 	hibernateRequest, err := decodeHibernateRequest(r)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
 	token := r.Header.Get("token")
 	var res []*openapi.HibernateStatus
 
