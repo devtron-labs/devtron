@@ -4,6 +4,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/configDiff/bean"
 	"github.com/devtron-labs/devtron/pkg/configDiff/helper"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"go.uber.org/zap"
 )
 
@@ -26,7 +27,6 @@ func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
 
 	return deploymentConfigurationService, nil
 }
-
 func (impl *DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, envId int) (*bean2.ConfigDataResponse, error) {
 	cMCSNamesAppLevel, cMCSNamesEnvLevel, err := impl.configMapService.FetchCmCsNamesAppAndEnvLevel(appId, envId)
 	if err != nil {
@@ -46,6 +46,8 @@ func (impl *DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, en
 		}
 	}
 	combinedProperties := helper.GetCombinedPropertiesMap(cmcsKeyPropertyAppLevelMap, cmcsKeyPropertyEnvLevelMap)
+	combinedProperties = append(combinedProperties, helper.GetConfigProperty(0, "", bean.DeploymentTemplate, bean2.PublishedConfigState))
 
-	return &bean2.ConfigDataResponse{ResourceConfig: combinedProperties}, nil
+	configDataResp := bean2.NewConfigDataResponse().WithResourceConfig(combinedProperties)
+	return configDataResp, nil
 }

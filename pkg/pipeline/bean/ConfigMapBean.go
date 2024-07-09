@@ -109,6 +109,7 @@ type SecretsList struct {
 }
 
 type ConfigNameAndType struct {
+	Id   int
 	Name string
 	Type ResourceType
 }

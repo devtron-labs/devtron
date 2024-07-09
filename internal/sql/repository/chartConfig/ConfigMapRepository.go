@@ -65,6 +65,7 @@ type ConfigMapAppModel struct {
 	sql.AuditLog
 }
 type cMCSNames struct {
+	Id     int    `json:"id"`
 	CMName string `json:"cm_name"`
 	CSName string `json:"cs_name"`
 }
@@ -78,6 +79,7 @@ func (impl ConfigMapRepositoryImpl) GetConfigNamesForAppAndEnvLevel(appId int, e
 	query := impl.dbConnection.
 		Model().
 		Table(tableName).
+		Column("id").
 		ColumnExpr("json_array_elements(CASE WHEN (config_map_data::json->'maps')::TEXT != 'null' THEN (config_map_data::json->'maps') ELSE '[]' END )->>'name' AS cm_name").
 		ColumnExpr("json_array_elements(CASE WHEN (secret_data::json->'secrets')::TEXT != 'null' THEN (secret_data::json->'secrets') ELSE '[]' END )->>'name' AS cs_name").
 		Where("app_id = ?", appId)
@@ -95,12 +97,14 @@ func (impl ConfigMapRepositoryImpl) GetConfigNamesForAppAndEnvLevel(appId int, e
 	for _, name := range cMCSNames {
 		if name.CMName != "" {
 			configNames = append(configNames, bean.ConfigNameAndType{
+				Id:   name.Id,
 				Name: name.CMName,
 				Type: bean.CM,
 			})
 		}
 		if name.CSName != "" {
 			configNames = append(configNames, bean.ConfigNameAndType{
+				Id:   name.Id,
 				Name: name.CSName,
 				Type: bean.CS,
 			})
