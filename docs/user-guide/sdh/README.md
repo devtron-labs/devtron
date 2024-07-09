@@ -70,7 +70,7 @@ Requirements refer to specific steps that should be taken before deployment of a
 
 ### Release Order/Stage
 
-This is a part of [requirements](#requirements) where you decide the sequence in which applications are deployed. This ensures that all dependencies are met and the software is implemented correctly. For example, you might need to deploy a database update before deploying a new application feature that relies on that update. The release order and stages ensures that everything happens in the correct sequence.
+This is a part of [requirements](#requirements) where you decide the stages in which applications are deployed. This ensures that all dependencies are met and the software is implemented correctly. For example, you might need to deploy a database update before deploying a new application feature that relies on that update. In such a case, release order ensures that the backend applications are deployed in first stage and then the frontend applications deploy as intended.
 
 ### Rollout
 

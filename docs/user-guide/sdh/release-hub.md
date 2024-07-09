@@ -73,10 +73,6 @@ This involves the inclusion of applications you wish to rollout in the release v
 
     ![Figure 9: Choosing Applications](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/search-apps.gif)
 
-4. Use the drag-and-drop feature to change the sequence ([release order](./README.md#release-orderstage)) of your applications if needed.
-
-    ![Figure 10: Changing the Release Order](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/change-sequence.gif)
-
 {% hint style="info" %}
 ### Importance of Release Stages
 By default, your selected applications will be set to release in one go. However, you can also release them in stages. In other words, you can decide which set of applications should be released first, subsequently which ones to release next, and the ones to release last. <br /><br /> For example, if you have a new login feature (backend) and a dashboard update (frontend), you might want to release the login feature first to ensure users can log in before seeing the updated dashboard. 
@@ -84,11 +80,15 @@ By default, your selected applications will be set to release in one go. However
 
 4. Click **Add Release Stage**.
 
-    ![Figure 11: Dividing Release in Stages](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/add-release-stage.jpg)
+    ![Figure 10: Dividing Release in Stages](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/add-release-stage.jpg)
 
-5. Use the drag and drop feature to move applications from one stage to another.
+5. Use the drag-and-drop feature to move applications from one stage to another.
 
-    ![Figure 12: Rearranging the Sequence](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/release-stage.gif)
+    ![Figure 11: Rearranging the Sequence](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/release-stage-v2.gif)
+
+{% hint style="warning" %}
+The drag-and-drop feature is not meant for changing the sequence of applications within a stage. Use it solely for moving applications from one release stage to another.
+{% endhint %}
 
 6. Once you have finalized the sequence and stages, click **Save Changes**.
 
@@ -103,13 +103,13 @@ Users need to have super-admin permission to select images for selected applicat
 
 1. Select a workflow available for your application. All the [images](../../reference/glossary.md#image) available in the selected workflow will appear.
 
-    ![Figure 13: Selecting Image from Specific Workflow](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/workflow-selection.gif)
+    ![Figure 12: Selecting Image from Specific Workflow](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/workflow-selection.gif)
 
 2. Click **SELECT** next to the image you wish to deploy from the list.
 
 3. Repeat the above steps for other applications you added in the release.
 
-    ![Figure 14: Repeating Steps for Other Applications](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/image-selections.gif)
+    ![Figure 13: Repeating Steps for Other Applications](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/image-selections.gif)
 
 4. Click **Save**.
 
@@ -120,11 +120,11 @@ In case you don’t have the correct images ready for any of your applications, 
 
 5. You may add release instructions for each application using the in-built Markdown editor. This can be detailed deployment notes and configuration guidelines for the team.
 
-    ![Figure 15: Adding Release Instructions](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/release-instructions-v2.gif)
+    ![Figure 14: Adding Release Instructions](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/release-instructions-v2.gif)
 
 6. Before freezing the requirements, make sure the release order is correct, add applications if needed, and include environments in tenants (if not done already). Once you have finalized them, click **Lock Requirements**. 
 
-    ![Figure 16: Locking Requirements](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/freeze-requirements.gif)
+    ![Figure 15: Locking Requirements](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/freeze-requirements.gif)
 
 {% hint style="info" %}
 Once you lock the requirements, Devtron will prevent any unsolicited modifications to your release by anyone (including you). However, you can re-edit it by clicking **Unlock To Edit**.
@@ -148,16 +148,16 @@ This involves the deployment of the release to the specified tenant installation
 
 1. Go to the **Rollout Release** tab.
 
-    ![Figure 17: Rollout Release Page](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/rollout-release.jpg)
+    ![Figure 16: Rollout Release Page](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/rollout-release.jpg)
 
 2. Your release needs to be marked as ready to proceed further. If it isn’t, you can mark it **Ready for release** from this screen.
 
-    ![Figure 18: Marking a Release as Ready](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/ready-release.gif)
+    ![Figure 17: Marking a Release as Ready](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/ready-release.gif)
 
 
     Optionally, you can also do so by changing the status from **Draft** state to **Ready for release** within your release track. 
 
-    ![Figure 19: Alternative Way of Marking](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/ready-for-release.jpg)
+    ![Figure 18: Alternative Way of Marking](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/ready-for-release.jpg)
     
 3. Use the checkbox to select the applications belonging to the first release stage. You may use the filters on the left-hand side to make it easier.
 
@@ -167,7 +167,7 @@ This involves the deployment of the release to the specified tenant installation
 
     If the application workflow has pre-deployment/post-deployment stage, you get a dropdown where you can specifically trigger either pre-deployment, deployment, or post-deployment stage.
 
-    ![Figure 20: Pre/Post Deployment](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/trigger-deployment.gif)
+    ![Figure 19: Pre/Post Deployment](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/trigger-deployment.gif)
 
 5. Once the applications from the first release stage are successfully deployed, select the applications from the subsequent release stage and deploy.
 
@@ -187,25 +187,25 @@ Here we covered the process of performing a production installation on one tenan
 
 You can view the status of installations under `Rollout Status`. Moreover, you can go to **Rollout History** tab to view the deployment history.
 
-![Figure 21: Checking Rollout Status](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/rollout-status-history.gif)
+![Figure 20: Checking Rollout Status](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/rollout-status-history.gif)
 
 If the applications are partially released, the release status shows `Partially released`.
 
-![Figure 22: Partial Release](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/partial-release.jpg)
+![Figure 21: Partial Release](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/partial-release.jpg)
 
 If all the applications in a release are successfully deployed, the release status shows `Completely Released`.
 
-![Figure 23: Full Release](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/complete-release.jpg)
+![Figure 22: Full Release](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/complete-release.jpg)
 
 You can view the status directly in the release track too.
 
-![Figure 24: Alternative Way of Checking Status](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/complete-release-2.jpg)
+![Figure 23: Alternative Way of Checking Status](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/complete-release-2.jpg)
 
 ### Putting a Release on Hold
 
 If a release is put on hold, none of the applications (in any release stage) can be deployed in that release. However, deploying from [Build & Deploy page](../deploying-application/README.md) of [Applications](../applications.md) or [Application Groups](../application-groups.md) will still be possible.
 
-![Figure 25: Pausing a Release](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/release-onhold.gif)
+![Figure 24: Pausing a Release](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/release-onhold.gif)
 
 **When to use**:
 
@@ -223,7 +223,7 @@ If a release is put on hold, none of the applications (in any release stage) can
 
 When a release is rescinded, it is marked as invalid or buggy, and cannot be used for further deployments. This action ensures that that the release cannot be modified further and no applications within the rescinded release can be deployed. However, deploying from the [Build & Deploy page](../deploying-application/README.md) of [Applications](../applications.md) or [Application Groups](../application-groups.md) will still be possible.
 
-![Figure 26: Cancelling a Release](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/rescind-release.gif)
+![Figure 25: Cancelling a Release](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/rescind-release.gif)
 
 **When to use**:
 
