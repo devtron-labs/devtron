@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/fluxApplication/bean"
@@ -18,6 +19,8 @@ import (
 type FluxApplicationService interface {
 	ListFluxApplications(ctx context.Context, clusterIds []int, w http.ResponseWriter)
 	GetFluxAppDetail(ctx context.Context, app *bean.FluxAppIdentifier) (*bean.FluxApplicationDetailDto, error)
+	HibernateFluxApplication(ctx context.Context, app *bean.FluxAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
+	UnHibernateFluxApplication(ctx context.Context, app *bean.FluxAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 }
 
 type FluxApplicationServiceImpl struct {
@@ -40,6 +43,36 @@ func NewFluxApplicationServiceImpl(logger *zap.SugaredLogger,
 		pump:           pump,
 	}
 
+}
+func (impl *FluxApplicationServiceImpl) HibernateFluxApplication(ctx context.Context, app *bean.FluxAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
+	conf, err := impl.helmAppService.GetClusterConf(app.ClusterId)
+	if err != nil {
+		return nil, err
+	}
+	req := service.HibernateReqAdaptor(hibernateRequest)
+	req.ClusterConfig = conf
+	res, err := impl.helmAppClient.Hibernate(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	response := service.HibernateResponseAdaptor(res.Status)
+	return response, nil
+}
+
+func (impl *FluxApplicationServiceImpl) UnHibernateFluxApplication(ctx context.Context, app *bean.FluxAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
+
+	conf, err := impl.helmAppService.GetClusterConf(app.ClusterId)
+	if err != nil {
+		return nil, err
+	}
+	req := service.HibernateReqAdaptor(hibernateRequest)
+	req.ClusterConfig = conf
+	res, err := impl.helmAppClient.UnHibernate(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	response := service.HibernateResponseAdaptor(res.Status)
+	return response, nil
 }
 
 func (impl *FluxApplicationServiceImpl) ListFluxApplications(ctx context.Context, clusterIds []int, w http.ResponseWriter) {
