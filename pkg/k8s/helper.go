@@ -19,6 +19,7 @@ package k8s
 import (
 	"fmt"
 	"github.com/Masterminds/semver"
+	"github.com/devtron-labs/devtron/pkg/fluxApplication"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
@@ -44,4 +45,12 @@ func StripPrereleaseFromK8sVersion(k8sVersion string) string {
 		k8sVersion = strings.Replace(k8sVersion, stringToReplace, "", 1)
 	}
 	return k8sVersion
+}
+
+func IsClusterStringContainsFluxField(str string) bool {
+	_, err := fluxApplication.DecodeFluxExternalAppId(str)
+	if err != nil {
+		return false
+	}
+	return true
 }

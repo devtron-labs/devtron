@@ -35,6 +35,14 @@ type ResourceRequestBean struct {
 	ExternalFluxAppIdentifier   *bean2.FluxAppIdentifier   `json: "-"`
 }
 
+func (r *ResourceRequestBean) IsValidAppType() bool {
+	return r.AppType == bean.DevtronAppType || r.AppType == bean.HelmAppType || r.AppType == bean.ArgoAppType || r.AppType == bean.FluxAppType
+}
+
+func (r *ResourceRequestBean) IsValidDeploymentType() bool {
+	return r.DeploymentType == bean.HelmInstalledType || r.DeploymentType == bean.ArgoInstalledType || r.DeploymentType == bean.FluxInstalledType
+}
+
 type LogsDownloadBean struct {
 	FileName string `json:"fileName"`
 	LogsData string `json:"data"`

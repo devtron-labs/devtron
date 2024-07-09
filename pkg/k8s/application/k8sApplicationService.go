@@ -225,13 +225,13 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 	}
 	request.K8sRequest = k8sRequest
 	if appId != "" {
-		if len(appTypeStr) > 0 && !(appType == bean3.DevtronAppType || appType == bean3.HelmAppType || appType == bean3.ArgoAppType || appType == bean3.FluxAppType) {
+		if len(appTypeStr) > 0 && !request.IsValidAppType() {
 			impl.logger.Errorw("Invalid appType", "err", err, "appType", appType)
 			return nil, err
 		}
 		// Validate Deployment Type
 		deploymentType, err := strconv.Atoi(v.Get("deploymentType"))
-		if err != nil || !(deploymentType == bean3.HelmInstalledType || deploymentType == bean3.ArgoInstalledType || deploymentType == bean3.FluxInstalledType) {
+		if err != nil || !request.IsValidDeploymentType() {
 			impl.logger.Errorw("Invalid deploymentType", "err", err, "deploymentType", deploymentType)
 			return nil, err
 		}
@@ -348,13 +348,13 @@ func (impl *K8sApplicationServiceImpl) ValidateTerminalRequestQuery(r *http.Requ
 		}
 	} else {
 		// Validate Cluster Id
-		clsuterId, err := strconv.Atoi(identifier)
-		if err != nil || clsuterId <= 0 {
+		clusterId, err := strconv.Atoi(identifier)
+		if err != nil || clusterId <= 0 {
 			impl.logger.Errorw("Invalid cluster id", "err", err, "clusterId", identifier)
 			return nil, nil, err
 		}
-		resourceRequestBean.ClusterId = clsuterId
-		request.ClusterId = clsuterId
+		resourceRequestBean.ClusterId = clusterId
+		request.ClusterId = clusterId
 		k8sRequest := &k8s2.K8sRequestBean{
 			ResourceIdentifier: k8s2.ResourceIdentifier{
 				Name:      request.PodName,
