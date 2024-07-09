@@ -192,12 +192,15 @@ func (impl *HelmAppServiceImpl) ListHelmApplications(ctx context.Context, cluste
 func (impl *HelmAppServiceImpl) HibernateApplication(ctx context.Context, app *helmBean.AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
 	conf, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
+
+		impl.logger.Errorw("HibernateApplication", "error in getting cluster config", "err", err, "clusterId", app.ClusterId)
 		return nil, err
 	}
 	req := HibernateReqAdaptor(hibernateRequest)
 	req.ClusterConfig = conf
 	res, err := impl.helmAppClient.Hibernate(ctx, req)
 	if err != nil {
+		impl.logger.Errorw("HibernateApplication", "error in hibernating the resources", "err", err, "clusterId", app.ClusterId, "appReleaseName", app.ReleaseName)
 		return nil, err
 	}
 	response := HibernateResponseAdaptor(res.Status)
@@ -208,12 +211,15 @@ func (impl *HelmAppServiceImpl) UnHibernateApplication(ctx context.Context, app 
 
 	conf, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
+		impl.logger.Errorw("UnHibernateApplication", "error in getting cluster config", "err", err, "clusterId", app.ClusterId)
 		return nil, err
 	}
 	req := HibernateReqAdaptor(hibernateRequest)
 	req.ClusterConfig = conf
 	res, err := impl.helmAppClient.UnHibernate(ctx, req)
 	if err != nil {
+		impl.logger.Errorw("UnHibernateApplication", "error in UnHibernating the resources", "err", err, "clusterId", app.ClusterId, "appReleaseName", app.ReleaseName)
+
 		return nil, err
 	}
 	response := HibernateResponseAdaptor(res.Status)

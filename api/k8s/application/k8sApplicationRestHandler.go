@@ -174,7 +174,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
-		} else if ok == false {
+		} else if !ok {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
@@ -231,8 +231,8 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 }
 func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	clusterIdString := vars["appId"]
-	if clusterIdString == "" {
+	appIdString := vars["appId"]
+	if appIdString == "" {
 		common.WriteJsonResp(w, fmt.Errorf("empty appid in request"), nil, http.StatusBadRequest)
 		return
 	}
@@ -245,8 +245,8 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 	var err error
 	var resourceTreeInf map[string]interface{}
 
-	if k8s.IsClusterStringContainsFluxField(clusterIdString) {
-		appIdentifier, err := fluxApplication.DecodeFluxExternalAppId(clusterIdString)
+	if k8s.IsClusterStringContainsFluxField(appIdString) {
+		appIdentifier, err := fluxApplication.DecodeFluxExternalAppId(appIdString)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
@@ -272,7 +272,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 		resourceTreeResponse = appDetail.ResourceTreeResponse
 
 	} else {
-		appIdentifier, err := handler.helmAppService.DecodeAppId(clusterIdString)
+		appIdentifier, err := handler.helmAppService.DecodeAppId(appIdString)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
@@ -317,9 +317,9 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 		return
 	}
 
-	validRequests := handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTreeInf, k8sAppDetail, clusterIdString, []string{k8sCommonBean.ServiceKind, k8sCommonBean.IngressKind})
+	validRequests := handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTreeInf, k8sAppDetail, appIdString, []string{k8sCommonBean.ServiceKind, k8sCommonBean.IngressKind})
 	if len(validRequests) == 0 {
-		handler.logger.Error("neither service nor ingress found for this app", "appId", clusterIdString)
+		handler.logger.Error("neither service nor ingress found for this app", "appId", appIdString)
 		common.WriteJsonResp(w, err, nil, http.StatusNoContent)
 		return
 	}
@@ -385,7 +385,7 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
-		} else if ok == false {
+		} else if !ok {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
@@ -443,7 +443,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
-		} else if ok == false {
+		} else if !ok {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
@@ -496,8 +496,8 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
-		} else if ok == false {
-			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+		} else if !ok {
+			common.WriteJsonResp(w, errors2.New("unauthorized user"), nil, http.StatusForbidden)
 			return
 		}
 	}

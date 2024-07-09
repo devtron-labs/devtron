@@ -47,12 +47,14 @@ func NewFluxApplicationServiceImpl(logger *zap.SugaredLogger,
 func (impl *FluxApplicationServiceImpl) HibernateFluxApplication(ctx context.Context, app *bean.FluxAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
 	conf, err := impl.helmAppService.GetClusterConf(app.ClusterId)
 	if err != nil {
+		impl.logger.Errorw("HibernateFluxApplication", "error in getting the cluster config", err, "clusterId", app.ClusterId)
 		return nil, err
 	}
 	req := service.HibernateReqAdaptor(hibernateRequest)
 	req.ClusterConfig = conf
 	res, err := impl.helmAppClient.Hibernate(ctx, req)
 	if err != nil {
+		impl.logger.Errorw("HibernateFluxApplication", "error in hibernating the requested resource", err, "clusterId", app.ClusterId)
 		return nil, err
 	}
 	response := service.HibernateResponseAdaptor(res.Status)
@@ -63,12 +65,14 @@ func (impl *FluxApplicationServiceImpl) UnHibernateFluxApplication(ctx context.C
 
 	conf, err := impl.helmAppService.GetClusterConf(app.ClusterId)
 	if err != nil {
+		impl.logger.Errorw("UnHibernateFluxApplication", "error in getting the cluster config", err, "clusterId", app.ClusterId, "appName", app.Name)
 		return nil, err
 	}
 	req := service.HibernateReqAdaptor(hibernateRequest)
 	req.ClusterConfig = conf
 	res, err := impl.helmAppClient.UnHibernate(ctx, req)
 	if err != nil {
+		impl.logger.Errorw("UnHibernateFluxApplication", "error in unHibernating the requested resources", err, "clusterId", app.ClusterId, "appName", app.Name)
 		return nil, err
 	}
 	response := service.HibernateResponseAdaptor(res.Status)
