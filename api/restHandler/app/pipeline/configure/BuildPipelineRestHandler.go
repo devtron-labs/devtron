@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"golang.org/x/exp/maps"
 	"io"
 	"net/http"
 	"strconv"
@@ -484,14 +485,17 @@ func (handler *PipelineConfigRestHandlerImpl) checkCiPatchAccess(token string, r
 		return handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName)
 	}
 
-	rbacObjects := make([]string, len(cdPipelines))
-	for i, cdPipeline := range cdPipelines {
-		envObject := handler.enforcerUtil.GetEnvRBACNameByAppId(cdPipeline.AppId, cdPipeline.EnvironmentId)
-		rbacObjects[i] = envObject
+	appId := 0
+	envIds := make([]int, len(cdPipelines))
+	for _, cdPipeline := range cdPipelines {
+		envIds = append(envIds, cdPipeline.EnvironmentId)
+		appId = cdPipeline.AppId
 	}
 
+	rbacObjectsMap, _ := handler.enforcerUtil.GetRbacObjectsByEnvIdsAndAppId(envIds, appId)
+	envRbacResultMap := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionUpdate, maps.Values(rbacObjectsMap))
+
 	atleastOneEnvHasAdminPermission := false
-	envRbacResultMap := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionUpdate, rbacObjects)
 	for _, rbacResultOk := range envRbacResultMap {
 		atleastOneEnvHasAdminPermission = atleastOneEnvHasAdminPermission || rbacResultOk
 	}
