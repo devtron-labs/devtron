@@ -1,1 +1,1 @@
-beta 0 v0.7.1-rc.0
+stable 0 v0.7.1-rc.0
