@@ -73,14 +73,14 @@ This involves the inclusion of applications you wish to rollout in the release v
 
     ![Figure 9: Choosing Applications](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/search-apps.gif)
 
+4. Click **Add Release Stage**.
+
+    ![Figure 10: Dividing Release in Stages](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/add-release-stage.jpg)
+
 {% hint style="info" %}
 ### Importance of Release Stages
 By default, your selected applications will be set to release in one go. However, you can also release them in stages. In other words, you can decide which set of applications should be released first, subsequently which ones to release next, and the ones to release last. <br /><br /> For example, if you have a new login feature (backend) and a dashboard update (frontend), you might want to release the login feature first to ensure users can log in before seeing the updated dashboard. 
 {% endhint %}
-
-4. Click **Add Release Stage**.
-
-    ![Figure 10: Dividing Release in Stages](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/add-release-stage.jpg)
 
 5. Use the drag-and-drop feature to move applications from one stage to another.
 
