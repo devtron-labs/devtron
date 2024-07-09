@@ -208,10 +208,10 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 				deploymentAppName := fmt.Sprintf("%s-%s", installedApp.AppName, installedApp.EnvironmentName)
 				valid, err := handler.k8sApplicationService.ValidateResourceRequestForArgoApp(r.Context(), request.K8sRequest, installedApp.AppId, installedApp.EnvironmentId, request.ClusterId, request.AppIdentifier.Namespace, deploymentAppName)
 				if !valid {
-					err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request")
+					err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request").WithHttpStatusCode(http.StatusNotFound)
 				}
 				if err != nil {
-					handler.logger.Errorw("error in validating resource request", "err", err)
+					handler.logger.Errorw("error in validating resource request", "request", request, "err", err)
 					common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 					return
 				}
@@ -253,7 +253,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 			}
 			err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
 			if err != nil {
-				handler.logger.Errorw("error in validating resource request", "err", err)
+				handler.logger.Errorw("error in validating resource request", "request", request, "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return
 			}
@@ -261,10 +261,10 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 			valid, err := handler.k8sApplicationService.ValidateResourceRequestForArgoApp(r.Context(), request.K8sRequest, cdPipeline.AppId, cdPipeline.EnvironmentId, cdPipeline.Environment.ClusterId, cdPipeline.Environment.Namespace, cdPipeline.DeploymentAppName)
 			if !valid {
-				err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request")
+				err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request").WithHttpStatusCode(http.StatusNotFound)
 			}
 			if err != nil {
-				handler.logger.Errorw("error in validating resource request", "err", err)
+				handler.logger.Errorw("error in validating resource request", "request", request, "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return
 			}
@@ -455,7 +455,7 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 		if request.DeploymentType == bean2.HelmInstalledType {
 			err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
 			if err != nil {
-				handler.logger.Errorw("error in validating resource request", "err", err)
+				handler.logger.Errorw("error in validating resource request", "request", request, "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return
 			}
@@ -471,10 +471,10 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 				deploymentAppName := fmt.Sprintf("%s-%s", installedApp.AppName, installedApp.EnvironmentName)
 				valid, err := handler.k8sApplicationService.ValidateResourceRequestForArgoApp(r.Context(), request.K8sRequest, installedApp.AppId, installedApp.EnvironmentId, request.ClusterId, request.AppIdentifier.Namespace, deploymentAppName)
 				if !valid {
-					err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request")
+					err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request").WithHttpStatusCode(http.StatusNotFound)
 				}
 				if err != nil {
-					handler.logger.Errorw("error in validating resource request", "err", err)
+					handler.logger.Errorw("error in validating resource request", "request", request, "err", err)
 					common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 					return
 				}
@@ -517,7 +517,7 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 			}
 			err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
 			if err != nil {
-				handler.logger.Errorw("error in validating resource request", "err", err)
+				handler.logger.Errorw("error in validating resource request", "request", request, "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return
 			}
@@ -525,10 +525,10 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 			valid, err := handler.k8sApplicationService.ValidateResourceRequestForArgoApp(r.Context(), request.K8sRequest, cdPipeline.AppId, cdPipeline.EnvironmentId, cdPipeline.Environment.ClusterId, cdPipeline.Environment.Namespace, cdPipeline.DeploymentAppName)
 			if !valid {
-				err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request")
+				err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request").WithHttpStatusCode(http.StatusNotFound)
 			}
 			if err != nil {
-				handler.logger.Errorw("error in validating resource request", "err", err)
+				handler.logger.Errorw("error in validating resource request", "request", request, "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return
 			}
@@ -623,10 +623,10 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 				deploymentAppName := fmt.Sprintf("%s-%s", installedApp.AppName, installedApp.EnvironmentName)
 				valid, err := handler.k8sApplicationService.ValidateResourceRequestForArgoApp(r.Context(), request.K8sRequest, installedApp.AppId, installedApp.EnvironmentId, request.ClusterId, request.AppIdentifier.Namespace, deploymentAppName)
 				if !valid {
-					err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request")
+					err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request").WithHttpStatusCode(http.StatusNotFound)
 				}
 				if err != nil {
-					handler.logger.Errorw("error in validating resource request", "err", err)
+					handler.logger.Errorw("error in validating resource request", "request", request, "err", err)
 					common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 					return
 				}
@@ -669,7 +669,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 			}
 			err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
 			if err != nil {
-				handler.logger.Errorw("error in validating resource request", "err", err)
+				handler.logger.Errorw("error in validating resource request", "request", request, "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return
 			}
@@ -677,10 +677,10 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 			valid, err := handler.k8sApplicationService.ValidateResourceRequestForArgoApp(r.Context(), request.K8sRequest, cdPipeline.AppId, cdPipeline.EnvironmentId, cdPipeline.Environment.ClusterId, cdPipeline.Environment.Namespace, cdPipeline.DeploymentAppName)
 			if !valid {
-				err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request")
+				err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request").WithHttpStatusCode(http.StatusNotFound)
 			}
 			if err != nil {
-				handler.logger.Errorw("error in validating resource request", "err", err)
+				handler.logger.Errorw("error in validating resource request", "request", request, "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return
 			}
@@ -768,10 +768,10 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 				deploymentAppName := fmt.Sprintf("%s-%s", installedApp.AppName, installedApp.EnvironmentName)
 				valid, err := handler.k8sApplicationService.ValidateResourceRequestForArgoApp(r.Context(), request.K8sRequest, installedApp.AppId, installedApp.EnvironmentId, request.ClusterId, request.AppIdentifier.Namespace, deploymentAppName)
 				if !valid {
-					err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request")
+					err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request").WithHttpStatusCode(http.StatusNotFound)
 				}
 				if err != nil {
-					handler.logger.Errorw("error in validating resource request", "err", err)
+					handler.logger.Errorw("error in validating resource request", "request", request, "err", err)
 					common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 					return
 				}
@@ -814,7 +814,7 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 			}
 			err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
 			if err != nil {
-				handler.logger.Errorw("error in validating resource request", "err", err)
+				handler.logger.Errorw("error in validating resource request", "request", request, "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return
 			}
@@ -822,10 +822,10 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 			valid, err := handler.k8sApplicationService.ValidateResourceRequestForArgoApp(r.Context(), request.K8sRequest, cdPipeline.AppId, cdPipeline.EnvironmentId, cdPipeline.Environment.ClusterId, cdPipeline.Environment.Namespace, cdPipeline.DeploymentAppName)
 			if !valid {
-				err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request")
+				err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request").WithHttpStatusCode(http.StatusNotFound)
 			}
 			if err != nil {
-				handler.logger.Errorw("error in validating resource request", "err", err)
+				handler.logger.Errorw("error in validating resource request", "request", request, "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return
 			}
@@ -994,7 +994,7 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 		if request.DeploymentType == bean2.HelmInstalledType {
 			err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
 			if err != nil {
-				handler.logger.Errorw("error in validating resource request", "err", err)
+				handler.logger.Errorw("error in validating resource request", "request", request, "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return false
 			}
@@ -1010,10 +1010,10 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 				deploymentAppName := fmt.Sprintf("%s-%s", installedApp.AppName, installedApp.EnvironmentName)
 				valid, err := handler.k8sApplicationService.ValidateResourceRequestForArgoApp(r.Context(), request.K8sRequest, installedApp.AppId, installedApp.EnvironmentId, request.ClusterId, request.AppIdentifier.Namespace, deploymentAppName)
 				if !valid {
-					err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request")
+					err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request").WithHttpStatusCode(http.StatusNotFound)
 				}
 				if err != nil {
-					handler.logger.Errorw("error in validating resource request", "err", err)
+					handler.logger.Errorw("error in validating resource request", "request", request, "err", err)
 					common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 					return false
 				}
@@ -1046,7 +1046,7 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 			}
 			err := handler.k8sApplicationService.ValidateResourceRequestForHelmApp(r.Context(), request.AppIdentifier, request.K8sRequest)
 			if err != nil {
-				handler.logger.Errorw("error in validating resource request", "err", err)
+				handler.logger.Errorw("error in validating resource request", "request", request, "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return false
 			}
@@ -1054,10 +1054,10 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 			//TODO Implement ResourceRequest Validation for ArgoCD Installed APPs From ResourceTree
 			valid, err := handler.k8sApplicationService.ValidateResourceRequestForArgoApp(r.Context(), request.K8sRequest, cdPipeline.AppId, cdPipeline.EnvironmentId, cdPipeline.Environment.ClusterId, cdPipeline.Environment.Namespace, cdPipeline.DeploymentAppName)
 			if !valid {
-				err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request")
+				err = util2.NewApiError().WithInternalMessage(resourceNotFoundErrMsg).WithUserMessage("invalid request").WithHttpStatusCode(http.StatusNotFound)
 			}
 			if err != nil {
-				handler.logger.Errorw("error in validating resource request", "err", err)
+				handler.logger.Errorw("error in validating resource request", "request", request, "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return false
 			}
