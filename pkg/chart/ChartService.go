@@ -707,6 +707,20 @@ func (impl *ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateReq
 		return nil, err
 	}
 
+	deploymentConfig := &bean2.DeploymentConfig{
+		AppId:         template.AppId,
+		ConfigType:    common.GetDeploymentConfigType(template.IsCustomGitRepository),
+		RepoURL:       template.GitRepoUrl,
+		ChartLocation: template.ChartLocation,
+		Active:        true,
+	}
+
+	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, templateRequest.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in creating or updating deploymentConfig", "appId", templateRequest.AppId, "err", err)
+		return nil, err
+	}
+
 	appLevelMetricsUpdateReq := &bean.DeployedAppMetricsRequest{
 		EnableMetrics: templateRequest.IsAppMetricsEnabled,
 		AppId:         templateRequest.AppId,
