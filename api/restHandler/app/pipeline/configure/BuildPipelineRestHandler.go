@@ -478,6 +478,7 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWr
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
+// checkCiPatchAccess assumes all the cdPipelines belong to same app
 func (handler *PipelineConfigRestHandlerImpl) checkCiPatchAccess(token string, resourceName string, cdPipelines []*pipelineConfig.Pipeline) bool {
 
 	if len(cdPipelines) == 0 {
@@ -495,12 +496,13 @@ func (handler *PipelineConfigRestHandlerImpl) checkCiPatchAccess(token string, r
 	rbacObjectsMap, _ := handler.enforcerUtil.GetRbacObjectsByEnvIdsAndAppId(envIds, appId)
 	envRbacResultMap := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionUpdate, maps.Values(rbacObjectsMap))
 
-	atleastOneEnvHasAdminPermission := false
-	for _, rbacResultOk := range envRbacResultMap {
-		atleastOneEnvHasAdminPermission = atleastOneEnvHasAdminPermission || rbacResultOk
+	for _, hasAccess := range envRbacResultMap {
+		if hasAccess {
+			return true
+		}
 	}
 
-	return atleastOneEnvHasAdminPermission
+	return false
 }
 
 func (handler *PipelineConfigRestHandlerImpl) GetCiPipeline(w http.ResponseWriter, r *http.Request) {
