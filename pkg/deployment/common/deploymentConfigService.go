@@ -128,15 +128,6 @@ func (impl *DeploymentConfigServiceImpl) GetConfigForDevtronApps(appId, envId in
 
 func (impl *DeploymentConfigServiceImpl) GetAndMigrateConfigIfAbsentForDevtronApps(appId, envId int) (*bean.DeploymentConfig, error) {
 
-	if !impl.deploymentServiceTypeConfig.UseDeploymentConfigData {
-		configFromOldData, err := impl.parseFromOldTablesForDevtronApps(appId, envId)
-		if err != nil {
-			impl.logger.Errorw("error in parsing config from charts and pipeline repository", "appId", appId, "envId", envId, "err", err)
-			return nil, err
-		}
-		return configFromOldData, nil
-	}
-
 	appLevelConfigDbObj, err := impl.deploymentConfigRepository.GetAppLevelConfigForDevtronApps(appId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting deployment config db object by appId", "appId", appId, "err", err)
@@ -150,7 +141,7 @@ func (impl *DeploymentConfigServiceImpl) GetAndMigrateConfigIfAbsentForDevtronAp
 			return nil, err
 		}
 	}
-
+	var envLevelConfig *bean.DeploymentConfig
 	if envId > 0 {
 		appAndEnvLevelConfig, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(appId, envId)
 		if err != nil && err != pg.ErrNoRows {
@@ -165,7 +156,20 @@ func (impl *DeploymentConfigServiceImpl) GetAndMigrateConfigIfAbsentForDevtronAp
 				return nil, err
 			}
 		}
-		return ConvertDeploymentConfigDbObjToDTO(appAndEnvLevelConfig), nil
+		envLevelConfig = ConvertDeploymentConfigDbObjToDTO(appAndEnvLevelConfig)
+	}
+
+	if !impl.deploymentServiceTypeConfig.UseDeploymentConfigData {
+		configFromOldData, err := impl.parseFromOldTablesForDevtronApps(appId, envId)
+		if err != nil {
+			impl.logger.Errorw("error in parsing config from charts and pipeline repository", "appId", appId, "envId", envId, "err", err)
+			return nil, err
+		}
+		return configFromOldData, nil
+	}
+
+	if envId > 0 {
+		return envLevelConfig, nil
 	}
 
 	return ConvertDeploymentConfigDbObjToDTO(appLevelConfigDbObj), nil

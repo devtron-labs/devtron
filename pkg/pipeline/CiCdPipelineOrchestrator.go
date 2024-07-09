@@ -1619,9 +1619,9 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean
 		RunPreStageInEnv:              pipelineRequest.RunPreStageInEnv,
 		RunPostStageInEnv:             pipelineRequest.RunPostStageInEnv,
 		DeploymentAppCreated:          false,
-		//DeploymentAppType:             pipelineRequest.DeploymentAppType,
-		DeploymentAppName: fmt.Sprintf("%s-%s", appName, env.Name),
-		AuditLog:          sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+		DeploymentAppType:             pipelineRequest.DeploymentAppType,
+		DeploymentAppName:             fmt.Sprintf("%s-%s", appName, env.Name),
+		AuditLog:                      sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
 	err = impl.pipelineRepository.Save([]*pipelineConfig.Pipeline{pipeline}, tx)
 	if err != nil {
