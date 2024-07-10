@@ -24,4 +24,8 @@ func (router DeploymentConfigurationRouterImpl) initDeploymentConfigurationRoute
 	configRouter.Path("/autocomplete").
 		HandlerFunc(router.deploymentGroupRestHandler.ConfigAutoComplete).
 		Methods("GET")
+	configRouter.Path("/data").
+		HandlerFunc(router.deploymentGroupRestHandler.GetConfigData).
+		Methods("GET")
+
 }

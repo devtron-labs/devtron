@@ -65,3 +65,17 @@ func (r *ConfigProperty) GetIdentifier() ConfigPropertyIdentifier {
 		Type: r.Type,
 	}
 }
+
+type DeploymentAndCmCsConfig struct {
+	Id          int         `json:"id ,omitempty"`
+	Name        string      `json:"name"`
+	CmCsType    string      `json:"cmcsType ,omitempty"` //example:- environment or volume, in case of cm cs
+	Data        string      `json:"data"`
+	ConfigState ConfigState `json:"configState"`
+}
+
+type DeploymentAndCmCsResponseDto struct {
+	AppId         int                        `json:"appId"`
+	EnvironmentId int                        `json:"environmentId"`
+	ConfigData    []*DeploymentAndCmCsConfig `json:"configData"`
+}

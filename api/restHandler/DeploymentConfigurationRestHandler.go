@@ -14,6 +14,7 @@ import (
 
 type DeploymentConfigurationRestHandler interface {
 	ConfigAutoComplete(w http.ResponseWriter, r *http.Request)
+	GetConfigData(w http.ResponseWriter, r *http.Request)
 }
 type DeploymentConfigurationRestHandlerImpl struct {
 	logger                         *zap.SugaredLogger
@@ -42,6 +43,41 @@ func (handler *DeploymentConfigurationRestHandlerImpl) ConfigAutoComplete(w http
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	appId, err := common.ExtractIntQueryParam(w, r, "appId", 0)
+	if err != nil {
+		return
+	}
+	envId, err := common.ExtractIntQueryParam(w, r, "envId", 0)
+	if err != nil {
+		return
+	}
+
+	//RBAC START
+	token := r.Header.Get(common.TokenHeaderKey)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
+	if !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC END
+
+	res, err := handler.deploymentConfigurationService.ConfigAutoComplete(appId, envId)
+	if err != nil {
+		handler.logger.Errorw("service err, ConfigAutoComplete ", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *DeploymentConfigurationRestHandlerImpl) GetConfigData(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
 	appId, err := common.ExtractIntQueryParam(w, r, "appId", 0)
 	if err != nil {
 		return
