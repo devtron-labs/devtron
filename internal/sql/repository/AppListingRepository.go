@@ -606,6 +606,7 @@ func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int, appType int)
 	}
 	if (gitOps.IsGitOpsRepoNotConfigured(stages.ChartGitRepoUrl) && gitOps.IsGitOpsRepoNotConfigured(stages.DeploymentConfigRepoURL)) && stages.CiPipelineId == 0 {
 		stages.ChartGitRepoUrl = ""
+		stages.DeploymentConfigRepoURL = ""
 	}
 	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(0, "APP", stages.AppId, true),
 		impl.makeAppStageStatus(1, "MATERIAL", materialExists, true),
