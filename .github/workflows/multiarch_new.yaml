@@ -24,12 +24,9 @@ jobs:
         sudo apt-get install -y python3-pip
         sudo pip3 install yq
 
-    - name: Authenticate with GitHub
-      run: echo "${{ secrets.github.token }}" | gh auth login --with-token
-
     - name: Check Multi-Arch Images
       env:
-         GITHUB_TOKEN: ${{ secrets.github.token }}
+         GITHUB_TOKEN: ${{ github.token }}
          PRNUM: ${{ github.event.pull_request.number }}
          REPO: ${{ github.repository }}
       run: |
