@@ -82,13 +82,13 @@ jobs:
          if [ ${#non_multiarch_images[@]} -ne 0 ]; then
              echo "The following images do not support multi-architecture:"
              printf '%s\n' "${non_multiarch_images[@]}"
-             gh pr edit $PRNUM --add-label "MultiArch-failed"
+             gh pr edit $PRNUM --add-label "PR:MultiArch-failed"
              gh pr edit $PRNUM --remove-label "PR:Ready-to-Review"
              exit 1
          else
              echo "All images support multi-architecture."
              echo "PR:Ready-to-Review, exiting gracefully"
              gh pr edit $PRNUM --add-label "PR:Ready-to-Review"
-             gh pr edit $PRNUM --remove-label "MultiArch-failed"
+             gh pr edit $PRNUM --remove-label "PR:MultiArch-failed"
              exit 0
          fi
