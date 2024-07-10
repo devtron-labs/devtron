@@ -19,8 +19,8 @@ package util
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/helm/pkg/chartutil"
-	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
+	"helm.sh/helm/v3/pkg/chart"
+	"helm.sh/helm/v3/pkg/chartutil"
 	"math/rand"
 	"testing"
 )
@@ -47,7 +47,7 @@ func TestChartTemplateService(t *testing.T) {
 			logger:     logger,
 			randSource: rand.NewSource(0),
 		}
-		chartMetaData := &chart2.Metadata{
+		chartMetaData := &chart.Metadata{
 			Name:    "sample-app",
 			Version: "1.0.0",
 		}
@@ -69,7 +69,7 @@ func TestChartTemplateService(t *testing.T) {
 			logger:     logger,
 			randSource: rand.NewSource(0),
 		}
-		chartMetaData := &chart2.Metadata{
+		chartMetaData := &chart.Metadata{
 			Name:    "sample-app",
 			Version: "1.0.0",
 		}
@@ -92,7 +92,7 @@ func TestChartTemplateService(t *testing.T) {
 			logger:     logger,
 			randSource: rand.NewSource(0),
 		}
-		chartMetaData := &chart2.Metadata{
+		chartMetaData := &chart.Metadata{
 			Name:    "sample-app",
 			Version: "1.0.0",
 		}

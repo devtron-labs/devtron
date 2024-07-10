@@ -20,6 +20,7 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
+	"sync"
 	"time"
 )
 
@@ -27,6 +28,7 @@ type NatsClient struct {
 	logger     *zap.SugaredLogger
 	JetStrCtxt nats.JetStreamContext
 	Conn       *nats.Conn
+	ConnWg     *sync.WaitGroup
 }
 
 type NatsClientConfig struct {
@@ -46,6 +48,7 @@ type NatsClientConfig struct {
 	NatsMsgBufferSize    int `env:"NATS_MSG_BUFFER_SIZE" envDefault:"-1"`
 	NatsMsgMaxAge        int `env:"NATS_MSG_MAX_AGE" envDefault:"86400"`
 	NatsMsgAckWaitInSecs int `env:"NATS_MSG_ACK_WAIT_IN_SECS" envDefault:"120"`
+	Replicas             int `env:"REPLICAS" envDefault:"0"`
 }
 
 func (ncc NatsClientConfig) GetNatsMsgBufferSize() int {
@@ -61,19 +64,23 @@ func (ncc NatsClientConfig) GetDefaultNatsConsumerConfig() NatsConsumerConfig {
 		NatsMsgProcessingBatchSize: ncc.NatsMsgProcessingBatchSize,
 		NatsMsgBufferSize:          ncc.GetNatsMsgBufferSize(),
 		AckWaitInSecs:              ncc.NatsMsgAckWaitInSecs,
+		//Replicas:                   ncc.Replicas,
 	}
 }
 
 func (ncc NatsClientConfig) GetDefaultNatsStreamConfig() NatsStreamConfig {
 	return NatsStreamConfig{
 		StreamConfig: StreamConfig{
-			MaxAge: time.Duration(ncc.NatsMsgMaxAge) * time.Second,
+			MaxAge:   time.Duration(ncc.NatsMsgMaxAge) * time.Second,
+			Replicas: ncc.Replicas,
 		},
 	}
 }
 
 type StreamConfig struct {
 	MaxAge time.Duration `json:"max_age"`
+	//it will show the instances created for the consumers on a particular subject(topic)
+	Replicas int `json:"num_replicas"`
 }
 
 type NatsStreamConfig struct {
@@ -106,7 +113,8 @@ func (consumerConf NatsConsumerConfig) GetNatsMsgBufferSize() int {
 // }
 
 func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
-
+	//connWg := new(sync.WaitGroup)
+	//connWg.Add(1)
 	cfg := &NatsClientConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -116,6 +124,9 @@ func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 
 	// Connect to NATS
 	nc, err := nats.Connect(cfg.NatsServerHost,
+		// Because draining can involve messages flowing to the server, for a flush and asynchronous message processing,
+		// the timeout for drain should generally be higher than the timeout for a simple message request-reply or similar.
+		nats.DrainTimeout(time.Duration(cfg.NatsMsgAckWaitInSecs)*time.Second),
 		nats.ReconnectWait(10*time.Second), nats.MaxReconnects(100),
 		nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
 			logger.Errorw("Nats Connection got disconnected!", "Reason", err)
@@ -125,6 +136,7 @@ func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 		}),
 		nats.ClosedHandler(func(nc *nats.Conn) {
 			logger.Errorw("Nats Client Connection closed!", "Reason", nc.LastError())
+			//connWg.Done()
 		}))
 	if err != nil {
 		logger.Error("err", err)
@@ -142,6 +154,7 @@ func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 		logger:     logger,
 		JetStrCtxt: js,
 		Conn:       nc,
+		//ConnWg:     connWg,
 	}
 	return natsClient, nil
 }

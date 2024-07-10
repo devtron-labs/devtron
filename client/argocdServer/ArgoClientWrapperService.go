@@ -33,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/util/retryFunc"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strconv"
@@ -41,7 +42,9 @@ import (
 )
 
 type ACDConfig struct {
-	ArgoCDAutoSyncEnabled bool `env:"ARGO_AUTO_SYNC_ENABLED" envDefault:"true"` // will gradually switch this flag to false in enterprise
+	ArgoCDAutoSyncEnabled     bool `env:"ARGO_AUTO_SYNC_ENABLED" envDefault:"true"` // will gradually switch this flag to false in enterprise
+	RegisterRepoMaxRetryCount int  `env:"ARGO_REPO_REGISTER_RETRY_COUNT" envDefault:"3"`
+	RegisterRepoMaxRetryDelay int  `env:"ARGO_REPO_REGISTER_RETRY_DELAY" envDefault:"10"`
 }
 
 func (config *ACDConfig) IsManualSyncEnabled() bool {
@@ -90,6 +93,8 @@ type ArgoClientWrapperService interface {
 
 	// GetGitOpsRepoName returns the GitOps repository name, configured for the argoCd app
 	GetGitOpsRepoName(ctx context.Context, appName string) (gitOpsRepoName string, err error)
+
+	GetGitOpsRepoURL(ctx context.Context, appName string) (gitOpsRepoURL string, err error)
 }
 
 type ArgoClientWrapperServiceImpl struct {
@@ -130,15 +135,16 @@ func (impl *ArgoClientWrapperServiceImpl) GetArgoAppWithNormalRefresh(context co
 	return nil
 }
 
-func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefresh(context context.Context, argoAppName string) error {
-
-	impl.logger.Info("argocd manual sync for app started", "argoAppName", argoAppName)
+func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefresh(ctx context.Context, argoAppName string) error {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ArgoClientWrapperServiceImpl.SyncArgoCDApplicationIfNeededAndRefresh")
+	defer span.End()
+	impl.logger.Info("ArgoCd manual sync for app started", "argoAppName", argoAppName)
 	if impl.ACDConfig.IsManualSyncEnabled() {
 
-		impl.logger.Debugw("syncing argocd app as manual sync is enabled", "argoAppName", argoAppName)
+		impl.logger.Debugw("syncing ArgoCd app as manual sync is enabled", "argoAppName", argoAppName)
 		revision := "master"
 		pruneResources := true
-		_, syncErr := impl.acdClient.Sync(context, &application2.ApplicationSyncRequest{Name: &argoAppName,
+		_, syncErr := impl.acdClient.Sync(newCtx, &application2.ApplicationSyncRequest{Name: &argoAppName,
 			Revision: &revision,
 			Prune:    &pruneResources,
 		})
@@ -147,14 +153,14 @@ func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefres
 			statusCode, msg := util.GetClientDetailedError(syncErr)
 			if statusCode.IsFailedPreconditionCode() && msg == ErrorOperationAlreadyInProgress {
 				impl.logger.Info("terminating ongoing sync operation and retrying manual sync", "argoAppName", argoAppName)
-				_, terminationErr := impl.acdClient.TerminateOperation(context, &application2.OperationTerminateRequest{
+				_, terminationErr := impl.acdClient.TerminateOperation(newCtx, &application2.OperationTerminateRequest{
 					Name: &argoAppName,
 				})
 				if terminationErr != nil {
 					impl.logger.Errorw("error in terminating sync operation")
 					return fmt.Errorf("error in terminating existing sync, err: %w", terminationErr)
 				}
-				_, syncErr = impl.acdClient.Sync(context, &application2.ApplicationSyncRequest{Name: &argoAppName,
+				_, syncErr = impl.acdClient.Sync(newCtx, &application2.ApplicationSyncRequest{Name: &argoAppName,
 					Revision: &revision,
 					Prune:    &pruneResources,
 					RetryStrategy: &v1alpha1.RetryStrategy{
@@ -169,9 +175,9 @@ func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefres
 				return syncErr
 			}
 		}
-		impl.logger.Infow("argocd sync completed", "argoAppName", argoAppName)
+		impl.logger.Infow("ArgoCd sync completed", "argoAppName", argoAppName)
 	}
-	refreshErr := impl.GetArgoAppWithNormalRefresh(context, argoAppName)
+	refreshErr := impl.GetArgoAppWithNormalRefresh(newCtx, argoAppName)
 	if refreshErr != nil {
 		impl.logger.Errorw("error in refreshing argo app", "err", refreshErr)
 	}
@@ -227,7 +233,11 @@ func (impl *ArgoClientWrapperServiceImpl) RegisterGitOpsRepoInArgoWithRetry(ctx 
 	callback := func() error {
 		return impl.createRepoInArgoCd(ctx, gitOpsRepoUrl)
 	}
-	argoCdErr := retryFunc.Retry(callback, impl.isRetryableArgoRepoCreationError, bean.RegisterRepoMaxRetryCount, 10*time.Second, impl.logger)
+	argoCdErr := retryFunc.Retry(callback,
+		impl.isRetryableArgoRepoCreationError,
+		impl.ACDConfig.RegisterRepoMaxRetryCount,
+		time.Duration(impl.ACDConfig.RegisterRepoMaxRetryDelay)*time.Second,
+		impl.logger)
 	if argoCdErr != nil {
 		impl.logger.Errorw("error in registering GitOps repository", "repoName", gitOpsRepoUrl, "err", argoCdErr)
 		return impl.handleArgoRepoCreationError(argoCdErr, ctx, gitOpsRepoUrl, userId)
@@ -282,6 +292,20 @@ func (impl *ArgoClientWrapperServiceImpl) GetGitOpsRepoName(ctx context.Context,
 	return gitOpsRepoName, fmt.Errorf("unable to get any ArgoCd application '%s'", appName)
 }
 
+func (impl *ArgoClientWrapperServiceImpl) GetGitOpsRepoURL(ctx context.Context, appName string) (gitOpsRepoName string, err error) {
+	acdApplication, err := impl.acdClient.Get(ctx, &application2.ApplicationQuery{Name: &appName})
+	if err != nil {
+		impl.logger.Errorw("no argo app exists", "acdAppName", appName, "err", err)
+		return gitOpsRepoName, err
+	}
+	// safety checks nil pointers
+	if acdApplication != nil && acdApplication.Spec.Source != nil {
+		gitOpsRepoUrl := acdApplication.Spec.Source.RepoURL
+		return gitOpsRepoUrl, nil
+	}
+	return "", fmt.Errorf("unable to get any ArgoCd application '%s'", appName)
+}
+
 // createRepoInArgoCd is the wrapper function to Create Repository in ArgoCd
 func (impl *ArgoClientWrapperServiceImpl) createRepoInArgoCd(ctx context.Context, gitOpsRepoUrl string) error {
 	repo := &v1alpha1.Repository{
@@ -313,7 +337,7 @@ func (impl *ArgoClientWrapperServiceImpl) handleArgoRepoCreationError(argoCdErr 
 	if isEmptyRepoError {
 		// - found empty repository, create some file in repository
 		gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(gitOpsRepoUrl)
-		err := impl.gitOperationService.CreateReadmeInGitRepo(gitOpsRepoName, userId)
+		err := impl.gitOperationService.CreateReadmeInGitRepo(ctx, gitOpsRepoName, userId)
 		if err != nil {
 			impl.logger.Errorw("error in creating file in git repo", "err", err)
 			return err

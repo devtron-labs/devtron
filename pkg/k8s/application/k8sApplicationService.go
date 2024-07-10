@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"io"
@@ -69,7 +70,7 @@ type K8sApplicationService interface {
 	ValidateTerminalRequestQuery(r *http.Request) (*terminal.TerminalSessionRequest, *k8s.ResourceRequestBean, error)
 	DecodeDevtronAppId(applicationId string) (*bean3.DevtronAppIdentifier, error)
 	GetPodLogs(ctx context.Context, request *k8s.ResourceRequestBean) (io.ReadCloser, error)
-	ValidateResourceRequest(ctx context.Context, appIdentifier *client.AppIdentifier, request *k8s2.K8sRequestBean) (bool, error)
+	ValidateResourceRequest(ctx context.Context, appIdentifier *bean.AppIdentifier, request *k8s2.K8sRequestBean) error
 	ValidateClusterResourceRequest(ctx context.Context, clusterResourceRequest *k8s.ResourceRequestBean,
 		rbacCallback func(clusterName string, resourceIdentifier k8s2.ResourceIdentifier) bool) (bool, error)
 	ValidateClusterResourceBean(ctx context.Context, clusterId int, manifest unstructured.Unstructured, gvk schema.GroupVersionKind, rbacCallback func(clusterName string, resourceIdentifier k8s2.ResourceIdentifier) bool) bool
@@ -441,7 +442,24 @@ func (impl *K8sApplicationServiceImpl) ValidateClusterResourceBean(ctx context.C
 	return impl.validateResourceManifest(clusterBean.ClusterName, manifest, gvk, rbacCallback)
 }
 
-func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(ctx context.Context, appIdentifier *client.AppIdentifier, request *k8s2.K8sRequestBean) (bool, error) {
+func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(ctx context.Context, appIdentifier *bean.AppIdentifier, request *k8s2.K8sRequestBean) error {
+	if valid, err := impl.validateResourceRequest(ctx, appIdentifier, request); err != nil || !valid {
+		if !valid {
+			impl.logger.Errorw("validation error in resource request", "request.AppIdentifier", appIdentifier, "request.K8sRequest", request)
+			err = &util.ApiError{
+				HttpStatusCode:  http.StatusBadRequest,
+				InternalMessage: "validation failed for the requested resource",
+				UserMessage:     fmt.Sprintf("resource %s: \"%s\" doesn't exist", request.ResourceIdentifier.GroupVersionKind.Kind, request.ResourceIdentifier.Name),
+			}
+		} else if err != nil {
+			impl.logger.Errorw("error in validating resource request", "err", err, "request.AppIdentifier", appIdentifier, "request.K8sRequest", request)
+		}
+		return err
+	}
+	return nil
+}
+
+func (impl *K8sApplicationServiceImpl) validateResourceRequest(ctx context.Context, appIdentifier *bean.AppIdentifier, request *k8s2.K8sRequestBean) (bool, error) {
 	app, err := impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error in getting app detail", "err", err, "appDetails", appIdentifier)
@@ -656,6 +674,9 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		return resourceList, err
 	}
 	checkForResourceCallback := func(namespace, group, kind, resourceName string) bool {
+		if validateResourceAccess == nil { // if resource validate rbac func is nil then allow
+			return true
+		}
 		resourceIdentifier := resourceIdentifierCloned
 		resourceIdentifier.Name = resourceName
 		resourceIdentifier.Namespace = namespace
@@ -670,13 +691,15 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		impl.logger.Errorw("error on parsing for k8s resource", "err", err)
 		return resourceList, err
 	}
-	k8sServerVersion, err := impl.k8sCommonService.GetK8sServerVersion(clusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting k8s server version", "clusterId", clusterId, "err", err)
-		// return nil, err
-	} else {
-		resourceList.ServerVersion = k8sServerVersion.String()
-	}
+	// Not used in FE side
+
+	//k8sServerVersion, err := impl.k8sCommonService.GetK8sServerVersion(clusterId)
+	//if err != nil {
+	//	impl.logger.Errorw("error in getting k8s server version", "clusterId", clusterId, "err", err)
+	//	// return nil, err
+	//} else {
+	//	resourceList.ServerVersion = k8sServerVersion.String()
+	//}
 	return resourceList, nil
 }
 
