@@ -32,6 +32,15 @@ import (
 	"github.com/tidwall/sjson"
 )
 
+const KeyNotFoundError = "empty-val-err"
+
+func IsResourceNotFoundErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	return err.Error() == KeyNotFoundError
+}
+
 func ResolveDeploymentTypeAndUpdate(overrideRequest *bean.ValuesOverrideRequest) {
 	if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
 		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
@@ -57,17 +66,20 @@ func GetDeploymentTemplateType(overrideRequest *bean.ValuesOverrideRequest) char
 
 func ExtractParamValue(inputMap map[string]interface{}, key string, merged []byte) (float64, error) {
 	if _, ok := inputMap[key]; !ok {
-		return 0, errors.New("empty-val-err")
+		return 0, errors.New(KeyNotFoundError)
 	}
 	return util4.ParseFloatNumber(gjson.Get(string(merged), inputMap[key].(string)).Value())
 }
 
 func SetScalingValues(templateMap map[string]interface{}, customScalingKey string, merged []byte, value interface{}) ([]byte, error) {
-	autoscalingJsonPath := templateMap[customScalingKey]
+	autoscalingJsonPath, ok := templateMap[customScalingKey]
+	if !ok {
+		return merged, errors.New(fmt.Sprintf("no json path found for [%s]", customScalingKey))
+	}
 	autoscalingJsonPathKey := autoscalingJsonPath.(string)
 	mergedRes, err := sjson.Set(string(merged), autoscalingJsonPathKey, value)
 	if err != nil {
-		return []byte{}, err
+		return merged, err
 	}
 	return []byte(mergedRes), nil
 }
