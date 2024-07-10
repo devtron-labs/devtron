@@ -936,7 +936,10 @@ metadata:
   namespace: devtron-cd
   labels:
     release: devtron
-{{- if $.Values.global.imagePullSecrets }}
+{{- if $.Values.components.ciRunner.imagePullSecrets }}
+imagePullSecrets:
+{{ toYaml .Values.components.ciRunner.imagePullSecrets | indent 2 }}
+{{- else if $.Values.global.imagePullSecrets }}
 imagePullSecrets:
 {{ toYaml .Values.global.imagePullSecrets | indent 2 }}
 {{- end }}
@@ -948,7 +951,10 @@ metadata:
   namespace: devtron-ci
   labels:
     release: devtron
-{{- if $.Values.global.imagePullSecrets }}
+{{- if $.Values.components.ciRunner.imagePullSecrets }}
+imagePullSecrets:
+{{ toYaml .Values.components.ciRunner.imagePullSecrets | indent 2 }}
+{{- else if $.Values.global.imagePullSecrets }}
 imagePullSecrets:
 {{ toYaml .Values.global.imagePullSecrets | indent 2 }}
 {{- end }}
