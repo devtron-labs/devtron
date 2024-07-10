@@ -17,6 +17,8 @@
 package git
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -24,7 +26,10 @@ import (
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
+	globalUtil "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/retryFunc"
 	dirCopy "github.com/otiai10/copy"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"net/url"
 	"os"
@@ -36,21 +41,17 @@ import (
 )
 
 type GitOperationService interface {
-	CreateGitRepositoryForApp(gitOpsRepoName string, userId int32) (chartGitAttribute *commonBean.ChartGitAttribute, err error)
-	CreateReadmeInGitRepo(gitOpsRepoName string, userId int32) error
-	GitPull(clonedDir string, repoUrl string, appStoreName string) error
+	CreateGitRepositoryForDevtronApp(ctx context.Context, gitOpsRepoName string, userId int32) (chartGitAttribute *commonBean.ChartGitAttribute, err error)
+	CreateReadmeInGitRepo(ctx context.Context, gitOpsRepoName string, userId int32) error
+	GitPull(clonedDir string, repoUrl string) error
 
-	CommitValues(chartGitAttr *ChartConfig) (commitHash string, commitTime time.Time, err error)
-	CommitAndPushAllChanges(clonedDir, commitMsg, userName, userEmailId string) (commitHash string, err error)
-	PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version,
-		tempReferenceTemplateDir string, repoUrl string, userId int32) (err error)
-	PushChartToGitOpsRepoForHelmApp(PushChartToGitRequest *bean.PushChartToGitRequestDTO,
-		requirementsConfig *ChartConfig, valuesConfig *ChartConfig) (*commonBean.ChartGitAttribute, string, error)
+	CommitValues(ctx context.Context, chartGitAttr *ChartConfig) (commitHash string, commitTime time.Time, err error)
+	PushChartToGitRepo(ctx context.Context, gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir, repoUrl string, userId int32) (err error)
+	PushChartToGitOpsRepoForHelmApp(ctx context.Context, PushChartToGitRequest *bean.PushChartToGitRequestDTO, requirementsConfig *ChartConfig, valuesConfig *ChartConfig) (*commonBean.ChartGitAttribute, string, error)
 
-	CreateRepository(dto *apiBean.GitOpsConfigDto, userId int32) (string, bool, error)
+	CreateRepository(ctx context.Context, dto *apiBean.GitOpsConfigDto, userId int32) (string, bool, error)
 	GetRepoUrlByRepoName(repoName string) (string, error)
 
-	GetClonedDir(chartDir, repoUrl string) (string, error)
 	CloneInDir(repoUrl, chartDir string) (string, error)
 	ReloadGitOpsProvider() error
 	UpdateGitHostUrlByProvider(request *apiBean.GitOpsConfigDto) error
@@ -61,21 +62,24 @@ type GitOperationServiceImpl struct {
 	gitFactory              *GitFactory
 	gitOpsConfigReadService config.GitOpsConfigReadService
 	chartTemplateService    util.ChartTemplateService
+	globalEnvVariables      *globalUtil.GlobalEnvVariables
 }
 
 func NewGitOperationServiceImpl(logger *zap.SugaredLogger, gitFactory *GitFactory,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	chartTemplateService util.ChartTemplateService) *GitOperationServiceImpl {
+	chartTemplateService util.ChartTemplateService,
+	envVariables *globalUtil.EnvironmentVariables) *GitOperationServiceImpl {
 	return &GitOperationServiceImpl{
 		logger:                  logger,
 		gitFactory:              gitFactory,
 		gitOpsConfigReadService: gitOpsConfigReadService,
 		chartTemplateService:    chartTemplateService,
+		globalEnvVariables:      envVariables.GlobalEnvVariables,
 	}
 
 }
 
-func (impl *GitOperationServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName string, userId int32) (chartGitAttribute *commonBean.ChartGitAttribute, err error) {
+func (impl *GitOperationServiceImpl) CreateGitRepositoryForDevtronApp(ctx context.Context, gitOpsRepoName string, userId int32) (chartGitAttribute *commonBean.ChartGitAttribute, err error) {
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	gitOpsRepoName = space.ReplaceAllString(gitOpsRepoName, "-")
@@ -85,36 +89,37 @@ func (impl *GitOperationServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName st
 		impl.logger.Errorw("error in getting bitbucket metadata", "err", err)
 		return nil, err
 	}
-	//getting user name & emailId for commit author data
-	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(userId)
+	//getting username & emailId for commit author data
 	gitRepoRequest := &apiBean.GitOpsConfigDto{
 		GitRepoName:          gitOpsRepoName,
 		Description:          fmt.Sprintf("helm chart for " + gitOpsRepoName),
-		Username:             userName,
-		UserEmailId:          userEmailId,
 		BitBucketWorkspaceId: bitbucketMetadata.BitBucketWorkspaceId,
 		BitBucketProjectKey:  bitbucketMetadata.BitBucketProjectKey,
 	}
-	repoUrl, isNew, detailedError := impl.gitFactory.Client.CreateRepository(gitRepoRequest)
-	for _, err := range detailedError.StageErrorMap {
-		if err != nil {
-			impl.logger.Errorw("error in creating git project", "name", gitOpsRepoName, "err", err)
-			return nil, err
-		}
+	repoUrl, isNew, err := impl.CreateRepository(ctx, gitRepoRequest, userId)
+	if err != nil {
+		impl.logger.Errorw("error in creating git project", "name", gitOpsRepoName, "err", err)
+		return nil, err
 	}
 	return &commonBean.ChartGitAttribute{RepoUrl: repoUrl, IsNewRepo: isNew}, nil
 }
 
-func (impl *GitOperationServiceImpl) PushChartToGitRepo(gitOpsRepoName, referenceTemplate, version,
-	tempReferenceTemplateDir string, repoUrl string, userId int32) (err error) {
+func getChartDirPathFromCloneDir(cloneDirPath string) (string, error) {
+	return filepath.Rel(GIT_WORKING_DIR, cloneDirPath)
+}
+
+func (impl *GitOperationServiceImpl) PushChartToGitRepo(ctx context.Context, gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir, repoUrl string, userId int32) (err error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "GitOperationServiceImpl.PushChartToGitRepo")
+	defer span.End()
 	chartDir := fmt.Sprintf("%s-%s", gitOpsRepoName, impl.chartTemplateService.GetDir())
-	clonedDir, err := impl.GetClonedDir(chartDir, repoUrl)
+	clonedDir, err := impl.getClonedDir(newCtx, chartDir, repoUrl)
 	defer impl.chartTemplateService.CleanDir(clonedDir)
 	if err != nil {
 		impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
 		return err
 	}
-	err = impl.GitPull(clonedDir, repoUrl, gitOpsRepoName)
+	// TODO: verify if GitPull is required or not; remove if not at all required.
+	err = impl.GitPull(clonedDir, repoUrl)
 	if err != nil {
 		impl.logger.Errorw("error in pulling git repo", "url", repoUrl, "err", err)
 		return err
@@ -154,20 +159,19 @@ func (impl *GitOperationServiceImpl) PushChartToGitRepo(gitOpsRepoName, referenc
 	// if push needed, then only push
 	if performFirstCommitPush {
 		userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(userId)
-		commit, err := impl.gitFactory.GitOpsHelper.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+		commit, err := impl.gitFactory.GitOpsHelper.CommitAndPushAllChanges(newCtx, clonedDir, "first commit", userName, userEmailId)
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
-			impl.logger.Warn("re-trying, taking pull and then push again")
-			err = impl.GitPull(clonedDir, repoUrl, gitOpsRepoName)
-			if err != nil {
+			callback := func() error {
+				commit, err = impl.updateRepoAndPushAllChanges(newCtx, clonedDir, repoUrl,
+					tempReferenceTemplateDir, dir, userName, userEmailId, impl.gitFactory.GitOpsHelper)
 				return err
 			}
-			err = dirCopy.Copy(tempReferenceTemplateDir, dir)
-			if err != nil {
-				impl.logger.Errorw("error copying dir", "err", err)
-				return err
-			}
-			commit, err = impl.gitFactory.GitOpsHelper.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+			err = retryFunc.Retry(callback,
+				impl.isRetryableGitCommitError,
+				impl.globalEnvVariables.ArgoGitCommitRetryCountOnConflict,
+				time.Duration(impl.globalEnvVariables.ArgoGitCommitRetryDelayOnConflict)*time.Second,
+				impl.logger)
 			if err != nil {
 				impl.logger.Errorw("error in pushing git", "err", err)
 				return err
@@ -179,7 +183,27 @@ func (impl *GitOperationServiceImpl) PushChartToGitRepo(gitOpsRepoName, referenc
 	return nil
 }
 
-func (impl *GitOperationServiceImpl) CreateReadmeInGitRepo(gitOpsRepoName string, userId int32) error {
+func (impl *GitOperationServiceImpl) updateRepoAndPushAllChanges(ctx context.Context, clonedDir, repoUrl,
+	tempReferenceTemplateDir, dir, userName, userEmailId string, gitOpsHelper *GitOpsHelper) (commit string, err error) {
+	impl.logger.Warn("re-trying, taking pull and then push again")
+	err = impl.GitPull(clonedDir, repoUrl)
+	if err != nil {
+		return commit, err
+	}
+	err = dirCopy.Copy(tempReferenceTemplateDir, dir)
+	if err != nil {
+		impl.logger.Errorw("error copying dir", "err", err)
+		return commit, err
+	}
+	commit, err = gitOpsHelper.CommitAndPushAllChanges(ctx, clonedDir, "first commit", userName, userEmailId)
+	if err != nil {
+		impl.logger.Errorw("error in pushing git", "err", err)
+		return commit, retryFunc.NewRetryableError(err)
+	}
+	return commit, nil
+}
+
+func (impl *GitOperationServiceImpl) CreateReadmeInGitRepo(ctx context.Context, gitOpsRepoName string, userId int32) error {
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(userId)
 	gitOpsConfig, err := impl.gitOpsConfigReadService.GetGitOpsConfigActive()
 	if err != nil {
@@ -192,7 +216,7 @@ func (impl *GitOperationServiceImpl) CreateReadmeInGitRepo(gitOpsRepoName string
 		gitOpsConfig.Username = userName
 		gitOpsConfig.GitRepoName = gitOpsRepoName
 	}
-	_, err = impl.gitFactory.Client.CreateReadme(gitOpsConfig)
+	_, err = impl.gitFactory.Client.CreateReadme(ctx, gitOpsConfig)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme", "err", err, "gitOpsRepoName", gitOpsRepoName, "userId", userId)
 		return err
@@ -200,14 +224,17 @@ func (impl *GitOperationServiceImpl) CreateReadmeInGitRepo(gitOpsRepoName string
 	return nil
 }
 
-func (impl *GitOperationServiceImpl) GitPull(clonedDir string, repoUrl string, appStoreName string) error {
-	//TODO refactoring: remove invalid param appStoreName
-	//TODO check for local repo exists before clone
-	//TODO verify remote has repoUrl; or delete and clone
+func (impl *GitOperationServiceImpl) GitPull(clonedDir string, repoUrl string) error {
 	err := impl.gitFactory.GitOpsHelper.Pull(clonedDir)
 	if err != nil {
 		impl.logger.Errorw("error in pulling git", "clonedDir", clonedDir, "err", err)
-		_, err := impl.gitFactory.GitOpsHelper.Clone(repoUrl, appStoreName)
+		impl.chartTemplateService.CleanDir(clonedDir)
+		chartDir, err := getChartDirPathFromCloneDir(clonedDir)
+		if err != nil {
+			impl.logger.Errorw("error in getting chart dir from cloned dir", "clonedDir", clonedDir, "err", err)
+			return err
+		}
+		_, err = impl.gitFactory.GitOpsHelper.Clone(repoUrl, chartDir)
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
 			return err
@@ -217,14 +244,21 @@ func (impl *GitOperationServiceImpl) GitPull(clonedDir string, repoUrl string, a
 	return nil
 }
 
-func (impl *GitOperationServiceImpl) CommitValues(chartGitAttr *ChartConfig) (commitHash string, commitTime time.Time, err error) {
+func (impl *GitOperationServiceImpl) CommitValues(ctx context.Context, chartGitAttr *ChartConfig) (commitHash string, commitTime time.Time, err error) {
 	bitbucketMetadata, err := impl.gitOpsConfigReadService.GetBitbucketMetadata()
 	if err != nil {
 		impl.logger.Errorw("error in getting bitbucket metadata", "err", err)
 		return commitHash, commitTime, err
 	}
 	gitOpsConfig := &apiBean.GitOpsConfigDto{BitBucketWorkspaceId: bitbucketMetadata.BitBucketWorkspaceId}
-	commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(chartGitAttr, gitOpsConfig)
+	callback := func() error {
+		commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(ctx, chartGitAttr, gitOpsConfig)
+		return err
+	}
+	err = retryFunc.Retry(callback, impl.isRetryableGitCommitError,
+		impl.globalEnvVariables.ArgoGitCommitRetryCountOnConflict,
+		time.Duration(impl.globalEnvVariables.ArgoGitCommitRetryDelayOnConflict)*time.Second,
+		impl.logger)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return commitHash, commitTime, err
@@ -232,23 +266,21 @@ func (impl *GitOperationServiceImpl) CommitValues(chartGitAttr *ChartConfig) (co
 	return commitHash, commitTime, nil
 }
 
-func (impl *GitOperationServiceImpl) CommitAndPushAllChanges(clonedDir, commitMsg, userName, userEmailId string) (commitHash string, err error) {
-	commitHash, err = impl.gitFactory.GitOpsHelper.CommitAndPushAllChanges(clonedDir, commitMsg, userName, userEmailId)
-	if err != nil {
-		impl.logger.Errorw("error in pushing git", "err", err)
-		return commitHash, err
+func (impl *GitOperationServiceImpl) isRetryableGitCommitError(err error) bool {
+	if retryErr := (&retryFunc.RetryableError{}); errors.As(err, &retryErr) {
+		return true
 	}
-	return commitHash, nil
+	return false
 }
 
-func (impl *GitOperationServiceImpl) CreateRepository(dto *apiBean.GitOpsConfigDto, userId int32) (string, bool, error) {
-	//getting user name & emailId for commit author data
+func (impl *GitOperationServiceImpl) CreateRepository(ctx context.Context, dto *apiBean.GitOpsConfigDto, userId int32) (string, bool, error) {
+	//getting username & emailId for commit author data
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(userId)
 	if dto != nil {
 		dto.UserEmailId = userEmailId
 		dto.Username = userName
 	}
-	repoUrl, isNew, detailedError := impl.gitFactory.Client.CreateRepository(dto)
+	repoUrl, isNew, detailedError := impl.gitFactory.Client.CreateRepository(ctx, dto)
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
 			impl.logger.Errorw("error in creating git project", "err", err, "req", dto)
@@ -278,11 +310,9 @@ func (impl *GitOperationServiceImpl) GetRepoUrlByRepoName(repoName string) (stri
 	return repoUrl, nil
 }
 
-// TODO refactoring: Make a common method for both PushChartToGitRepo and PushChartToGitOpsRepoForHelmApp
 // PushChartToGitOpsRepoForHelmApp pushes built chart to GitOps repo (Specific implementation for Helm Apps)
-func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(PushChartToGitRequest *bean.PushChartToGitRequestDTO, requirementsConfig *ChartConfig, valuesConfig *ChartConfig) (*commonBean.ChartGitAttribute, string, error) {
-	space := regexp.MustCompile(`\s+`)
-	appStoreName := space.ReplaceAllString(PushChartToGitRequest.ChartAppStoreName, "-")
+// TODO refactoring: Make a common method for both PushChartToGitRepo and PushChartToGitOpsRepoForHelmApp
+func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(ctx context.Context, PushChartToGitRequest *bean.PushChartToGitRequestDTO, requirementsConfig *ChartConfig, valuesConfig *ChartConfig) (*commonBean.ChartGitAttribute, string, error) {
 	chartDir := fmt.Sprintf("%s-%s", PushChartToGitRequest.AppName, impl.chartTemplateService.GetDir())
 	clonedDir := impl.gitFactory.GitOpsHelper.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
@@ -292,7 +322,7 @@ func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(PushChartTo
 			return nil, "", err
 		}
 	} else {
-		err = impl.GitPull(clonedDir, PushChartToGitRequest.RepoURL, appStoreName)
+		err = impl.GitPull(clonedDir, PushChartToGitRequest.RepoURL)
 		if err != nil {
 			return nil, "", err
 		}
@@ -320,11 +350,11 @@ func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(PushChartTo
 		return nil, "", err
 	}
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(PushChartToGitRequest.UserId)
-	commit, err := impl.gitFactory.GitOpsHelper.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+	commit, err := impl.gitFactory.GitOpsHelper.CommitAndPushAllChanges(ctx, clonedDir, "first commit", userName, userEmailId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing git", "err", err)
 		impl.logger.Warn("re-trying, taking pull and then push again")
-		err = impl.GitPull(clonedDir, PushChartToGitRequest.RepoURL, acdAppName)
+		err = impl.GitPull(clonedDir, PushChartToGitRequest.RepoURL)
 		if err != nil {
 			impl.logger.Errorw("error in git pull", "err", err, "appName", acdAppName)
 			return nil, "", err
@@ -334,7 +364,7 @@ func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(PushChartTo
 			impl.logger.Errorw("error copying dir", "err", err)
 			return nil, "", err
 		}
-		commit, err = impl.gitFactory.GitOpsHelper.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+		commit, err = impl.gitFactory.GitOpsHelper.CommitAndPushAllChanges(ctx, clonedDir, "first commit", userName, userEmailId)
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
 			return nil, "", err
@@ -345,7 +375,9 @@ func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(PushChartTo
 	return &commonBean.ChartGitAttribute{RepoUrl: PushChartToGitRequest.RepoURL, ChartLocation: acdAppName}, commit, err
 }
 
-func (impl *GitOperationServiceImpl) GetClonedDir(chartDir, repoUrl string) (string, error) {
+func (impl *GitOperationServiceImpl) getClonedDir(ctx context.Context, chartDir, repoUrl string) (string, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "GitOperationServiceImpl.getClonedDir")
+	defer span.End()
 	clonedDir := impl.gitFactory.GitOpsHelper.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
 		return impl.CloneInDir(repoUrl, chartDir)

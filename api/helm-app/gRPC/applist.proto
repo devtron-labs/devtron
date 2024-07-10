@@ -281,6 +281,7 @@ message ChartRepository {
   string url = 2;
   string username = 3;
   string password = 4;
+  bool   allowInsecureConnection = 5;
 }
 
 message InstallReleaseRequest {
@@ -371,7 +372,37 @@ message RegistryCredential {
   string RegistryType = 7;
   string RepoName = 8;
   bool IsPublic = 9;
+  RemoteConnectionConfig RemoteConnectionConfig = 10;
+  string Connection = 11;
+  string RegistryName = 12;
+  string RegistryCertificate = 13;
 }
+
+
+message RemoteConnectionConfig {
+  RemoteConnectionMethod RemoteConnectionMethod = 1;
+  ProxyConfig ProxyConfig = 2;
+  SSHTunnelConfig SSHTunnelConfig = 3;
+}
+
+enum RemoteConnectionMethod {
+  PROXY = 0;
+  SSH = 1;
+  DIRECT = 2;
+}
+
+message ProxyConfig {
+  string ProxyUrl = 1;
+}
+
+message SSHTunnelConfig {
+  string SSHServerAddress = 1;
+  string SSHUsername = 2;
+  string SSHPassword = 3;
+  string SSHAuthKey = 4;
+}
+
+
 
 message OCIRegistryResponse {
   bool IsLoggedIn = 1;

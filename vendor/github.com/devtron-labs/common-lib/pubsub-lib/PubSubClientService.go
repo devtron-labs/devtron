@@ -43,6 +43,7 @@ type LoggerFunc func(msg model.PubSubMsg) (logMsg string, keysAndValues []interf
 type PubSubClientService interface {
 	Publish(topic string, msg string) error
 	Subscribe(topic string, callback func(msg *model.PubSubMsg), loggerFunc LoggerFunc, validations ...ValidateMsg) error
+	ShutDown() error
 }
 
 type PubSubClientServiceImpl struct {
@@ -74,6 +75,23 @@ func NewPubSubClientServiceImpl(logger *zap.SugaredLogger) (*PubSubClientService
 	}
 	return pubSubClient, nil
 }
+func (impl PubSubClientServiceImpl) isClustered() bool {
+	// This is only ever set, no need for lock here.
+	clusterInfo := impl.NatsClient.Conn.ConnectedClusterName()
+	return clusterInfo != ""
+}
+
+func (impl PubSubClientServiceImpl) ShutDown() error {
+	// Drain the connection, which will close it when done.
+	//if err := impl.NatsClient.Conn.Drain(); err != nil {
+	//	return err
+	//}
+	// Wait for the connection to be closed.
+	//impl.NatsClient.ConnWg.Wait()
+	// TODO: Currently the drain mechanism deletes the Ephemeral consumers.
+	//       Implement the fix for the Ephemeral consumers first to enable graceful shutdown.
+	return nil
+}
 
 func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
 	impl.Logger.Debugw("Published message on pubsub client", "topic", topic, "msg", msg)
@@ -86,8 +104,9 @@ func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
 	natsTopic := GetNatsTopic(topic)
 	streamName := natsTopic.streamName
 	streamConfig := impl.getStreamConfig(streamName)
-	// streamConfig := natsClient.streamConfig
-	_ = AddStream(jetStrCtxt, streamConfig, streamName)
+	isClustered := impl.isClustered()
+	_ = AddStream(isClustered, jetStrCtxt, streamConfig, streamName)
+
 	// Generate random string for passing as Header Id in message
 	randString := "MsgHeaderId-" + utils.Generate(10)
 
@@ -124,8 +143,8 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *m
 	consumerName := natsTopic.consumerName
 	natsClient := impl.NatsClient
 	streamConfig := impl.getStreamConfig(streamName)
-	// streamConfig := natsClient.streamConfig
-	_ = AddStream(natsClient.JetStrCtxt, streamConfig, streamName)
+	isClustered := impl.isClustered()
+	_ = AddStream(isClustered, natsClient.JetStrCtxt, streamConfig, streamName)
 	deliveryOption := nats.DeliverLast()
 	if streamConfig.Retention == nats.WorkQueuePolicy {
 		deliveryOption = nats.DeliverAll()
@@ -140,7 +159,6 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *m
 
 	// Update consumer config if new changes detected
 	impl.updateConsumer(natsClient, streamName, consumerName, &consumerConfig)
-
 	channel := make(chan *nats.Msg, msgBufferSize)
 	_, err := natsClient.JetStrCtxt.ChanQueueSubscribe(topic, queueName, channel,
 		nats.Durable(consumerName),
@@ -288,6 +306,11 @@ func (impl PubSubClientServiceImpl) updateConsumer(natsClient *NatsClient, strea
 		return
 	}
 
+	streamInfo, err := natsClient.JetStrCtxt.StreamInfo(streamName)
+	if err != nil {
+		impl.Logger.Errorw("unable to retrieve stream info from NATS-server", "stream", streamName, "consumer", consumerName, "err", err)
+		return
+	}
 	existingConfig := info.Config
 	updatesDetected := false
 
@@ -299,6 +322,11 @@ func (impl PubSubClientServiceImpl) updateConsumer(natsClient *NatsClient, strea
 
 	if messageBufferSize := overrideConfig.GetNatsMsgBufferSize(); messageBufferSize > 0 && existingConfig.MaxAckPending != messageBufferSize {
 		existingConfig.MaxAckPending = messageBufferSize
+		updatesDetected = true
+	}
+
+	if info.Config.Replicas != streamInfo.Config.Replicas {
+		existingConfig.Replicas = streamInfo.Config.Replicas
 		updatesDetected = true
 	}
 

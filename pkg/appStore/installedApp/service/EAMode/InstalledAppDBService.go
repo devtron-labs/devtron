@@ -17,7 +17,7 @@
 package EAMode
 
 import (
-	"github.com/devtron-labs/devtron/api/helm-app/service"
+	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
@@ -54,7 +54,7 @@ type InstalledAppDBService interface {
 	UpdateInstalledAppVersion(installedAppVersion *appStoreRepo.InstalledAppVersions, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreRepo.InstalledAppVersions, error)
 
 	ChangeAppNameToDisplayNameForInstalledApp(installedApp *appStoreRepo.InstalledApps)
-	GetReleaseInfo(appIdentifier *service.AppIdentifier) (*appStoreBean.InstallAppVersionDTO, error)
+	GetReleaseInfo(appIdentifier *helmBean.AppIdentifier) (*appStoreBean.InstallAppVersionDTO, error)
 	IsExternalAppLinkedToChartStore(appId int) (bool, []*appStoreRepo.InstalledApps, error)
 	CreateNewAppEntryForAllInstalledApps(installedApps []*appStoreRepo.InstalledApps) error
 }
@@ -325,7 +325,7 @@ func (impl *InstalledAppDBServiceImpl) ChangeAppNameToDisplayNameForInstalledApp
 	installedApp.ChangeAppNameToDisplayName()
 }
 
-func (impl *InstalledAppDBServiceImpl) GetReleaseInfo(appIdentifier *service.AppIdentifier) (*appStoreBean.InstallAppVersionDTO, error) {
+func (impl *InstalledAppDBServiceImpl) GetReleaseInfo(appIdentifier *helmBean.AppIdentifier) (*appStoreBean.InstallAppVersionDTO, error) {
 	//for external-apps appName would be uniqueIdentifier
 	appName := appIdentifier.GetUniqueAppNameIdentifier()
 	installedAppVersionDto, err := impl.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appName)
@@ -372,6 +372,17 @@ func (impl *InstalledAppDBServiceImpl) CreateNewAppEntryForAllInstalledApps(inst
 	// Rollback tx on error.
 	defer tx.Rollback()
 	for _, installedApp := range installedApps {
+		//check if for this unique identifier name an app already exists, if yes then continue
+		appMetadata, err := impl.AppRepository.FindActiveByName(installedApp.GetUniqueAppNameIdentifier())
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.Logger.Errorw("error in fetching app by unique app identifier", "appNameUniqueIdentifier", installedApp.GetUniqueAppNameIdentifier(), "err", err)
+			return err
+		}
+		if appMetadata != nil && appMetadata.Id > 0 {
+			//app already exists for this unique identifier hence not creating new app entry for this
+			continue
+		}
+
 		appModel := &app.App{
 			Active:          true,
 			AppName:         installedApp.GetUniqueAppNameIdentifier(),
@@ -381,7 +392,7 @@ func (impl *InstalledAppDBServiceImpl) CreateNewAppEntryForAllInstalledApps(inst
 			DisplayName:     installedApp.App.AppName,
 		}
 		appModel.CreateAuditLog(bean3.SystemUserId)
-		err := impl.AppRepository.SaveWithTxn(appModel, tx)
+		err = impl.AppRepository.SaveWithTxn(appModel, tx)
 		if err != nil {
 			impl.Logger.Errorw("error saving appModel", "err", err)
 			return err

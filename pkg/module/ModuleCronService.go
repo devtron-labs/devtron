@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	moduleDataStore "github.com/devtron-labs/devtron/pkg/module/store"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
@@ -135,7 +136,7 @@ func (impl *ModuleCronServiceImpl) handleModuleStatus(moduleNameInput string) {
 				if err != nil {
 					continue
 				}
-				appIdentifier := client.AppIdentifier{
+				appIdentifier := bean.AppIdentifier{
 					ClusterId:   1,
 					Namespace:   impl.serverEnvConfig.DevtronHelmReleaseNamespace,
 					ReleaseName: impl.serverEnvConfig.DevtronHelmReleaseName,

@@ -22,6 +22,7 @@ import (
 	apiGitOpsBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	git "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/commandManager"
 	"github.com/devtron-labs/devtron/util"
+	"go.opentelemetry.io/otel"
 	"os"
 	"path/filepath"
 	"strings"
@@ -74,7 +75,7 @@ func (impl *GitOpsHelper) Clone(url, targetDir string) (clonedDir string, err er
 	}
 	_, errMsg, err := impl.gitCommandManager.Fetch(ctx, clonedDir)
 	if err == nil && errMsg == "" {
-		impl.logger.Warn("git fetch completed, pulling master branch data from remote origin")
+		impl.logger.Debugw("git fetch completed, pulling master branch data from remote origin")
 		_, errMsg, err := impl.pullFromBranch(ctx, clonedDir)
 		if err != nil {
 			impl.logger.Errorw("error on git pull", "err", err)
@@ -98,13 +99,15 @@ func (impl *GitOpsHelper) Pull(repoRoot string) (err error) {
 
 const PushErrorMessage = "failed to push some refs"
 
-func (impl GitOpsHelper) CommitAndPushAllChanges(repoRoot, commitMsg, name, emailId string) (commitHash string, err error) {
+func (impl *GitOpsHelper) CommitAndPushAllChanges(ctx context.Context, repoRoot, commitMsg, name, emailId string) (commitHash string, err error) {
 	start := time.Now()
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "GitOpsHelper.CommitAndPushAllChanges")
 	defer func() {
 		util.TriggerGitOpsMetrics("CommitAndPushAllChanges", "GitService", start, err)
+		span.End()
 	}()
-	ctx := git.BuildGitContext(context.Background()).WithCredentials(impl.Auth)
-	commitHash, err = impl.gitCommandManager.CommitAndPush(ctx, repoRoot, commitMsg, name, emailId)
+	gitCtx := git.BuildGitContext(newCtx).WithCredentials(impl.Auth)
+	commitHash, err = impl.gitCommandManager.CommitAndPush(gitCtx, repoRoot, commitMsg, name, emailId)
 	if err != nil && strings.Contains(err.Error(), PushErrorMessage) {
 		return commitHash, fmt.Errorf("%s %v", "push failed due to conflicts", err)
 	}

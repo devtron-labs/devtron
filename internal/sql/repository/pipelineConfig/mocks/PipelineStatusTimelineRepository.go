@@ -3,6 +3,7 @@
 package mocks
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	pg "github.com/go-pg/pg"
 	mock "github.com/stretchr/testify/mock"
 
@@ -36,11 +37,11 @@ func (_m *PipelineStatusTimelineRepository) CheckIfTerminalStatusTimelinePresent
 }
 
 // DeleteByCdWfrIdAndTimelineStatuses provides a mock function with given fields: cdWfrId, status
-func (_m *PipelineStatusTimelineRepository) DeleteByCdWfrIdAndTimelineStatuses(cdWfrId int, status []pipelineConfig.TimelineStatus) error {
+func (_m *PipelineStatusTimelineRepository) DeleteByCdWfrIdAndTimelineStatuses(cdWfrId int, status []timelineStatus.TimelineStatus) error {
 	ret := _m.Called(cdWfrId, status)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(int, []pipelineConfig.TimelineStatus) error); ok {
+	if rf, ok := ret.Get(0).(func(int, []timelineStatus.TimelineStatus) error); ok {
 		r0 = rf(cdWfrId, status)
 	} else {
 		r0 = ret.Error(0)
@@ -50,11 +51,11 @@ func (_m *PipelineStatusTimelineRepository) DeleteByCdWfrIdAndTimelineStatuses(c
 }
 
 // DeleteByCdWfrIdAndTimelineStatusesWithTxn provides a mock function with given fields: cdWfrId, status, tx
-func (_m *PipelineStatusTimelineRepository) DeleteByCdWfrIdAndTimelineStatusesWithTxn(cdWfrId int, status []pipelineConfig.TimelineStatus, tx *pg.Tx) error {
+func (_m *PipelineStatusTimelineRepository) DeleteByCdWfrIdAndTimelineStatusesWithTxn(cdWfrId int, status []timelineStatus.TimelineStatus, tx *pg.Tx) error {
 	ret := _m.Called(cdWfrId, status, tx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(int, []pipelineConfig.TimelineStatus, *pg.Tx) error); ok {
+	if rf, ok := ret.Get(0).(func(int, []timelineStatus.TimelineStatus, *pg.Tx) error); ok {
 		r0 = rf(cdWfrId, status, tx)
 	} else {
 		r0 = ret.Error(0)
@@ -110,11 +111,11 @@ func (_m *PipelineStatusTimelineRepository) FetchLatestTimelineByWfrId(wfrId int
 }
 
 // FetchTimelineByWfrIdAndStatus provides a mock function with given fields: wfrId, status
-func (_m *PipelineStatusTimelineRepository) FetchTimelineByWfrIdAndStatus(wfrId int, status pipelineConfig.TimelineStatus) (*pipelineConfig.PipelineStatusTimeline, error) {
+func (_m *PipelineStatusTimelineRepository) FetchTimelineByWfrIdAndStatus(wfrId int, status timelineStatus.TimelineStatus) (*pipelineConfig.PipelineStatusTimeline, error) {
 	ret := _m.Called(wfrId, status)
 
 	var r0 *pipelineConfig.PipelineStatusTimeline
-	if rf, ok := ret.Get(0).(func(int, pipelineConfig.TimelineStatus) *pipelineConfig.PipelineStatusTimeline); ok {
+	if rf, ok := ret.Get(0).(func(int, timelineStatus.TimelineStatus) *pipelineConfig.PipelineStatusTimeline); ok {
 		r0 = rf(wfrId, status)
 	} else {
 		if ret.Get(0) != nil {
@@ -123,7 +124,7 @@ func (_m *PipelineStatusTimelineRepository) FetchTimelineByWfrIdAndStatus(wfrId 
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(int, pipelineConfig.TimelineStatus) error); ok {
+	if rf, ok := ret.Get(1).(func(int, timelineStatus.TimelineStatus) error); ok {
 		r1 = rf(wfrId, status)
 	} else {
 		r1 = ret.Error(1)

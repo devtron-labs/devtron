@@ -24,6 +24,7 @@ type EnvironmentVariables struct {
 	GlobalEnvVariables          *GlobalEnvVariables
 	DevtronSecretConfig         *DevtronSecretConfig
 	DeploymentServiceTypeConfig *DeploymentServiceTypeConfig
+	TerminalEnvVariables        *TerminalEnvVariables
 }
 
 type DeploymentServiceTypeConfig struct {
@@ -32,10 +33,13 @@ type DeploymentServiceTypeConfig struct {
 }
 
 type GlobalEnvVariables struct {
-	GitOpsRepoPrefix               string `env:"GITOPS_REPO_PREFIX" envDefault:""`
-	EnableAsyncInstallDevtronChart bool   `env:"ENABLE_ASYNC_INSTALL_DEVTRON_CHART" envDefault:"false"`
-	ExposeCiMetrics                bool   `env:"EXPOSE_CI_METRICS" envDefault:"false"`
-	ExecuteWireNilChecker          bool   `env:"EXECUTE_WIRE_NIL_CHECKER" envDefault:"false"`
+	GitOpsRepoPrefix                     string `env:"GITOPS_REPO_PREFIX" envDefault:""`
+	EnableAsyncHelmInstallDevtronChart   bool   `env:"ENABLE_ASYNC_INSTALL_DEVTRON_CHART" envDefault:"false"`
+	EnableAsyncArgoCdInstallDevtronChart bool   `env:"ENABLE_ASYNC_ARGO_CD_INSTALL_DEVTRON_CHART" envDefault:"false"`
+	ArgoGitCommitRetryCountOnConflict    int    `env:"ARGO_GIT_COMMIT_RETRY_COUNT_ON_CONFLICT" envDefault:"3"`
+	ArgoGitCommitRetryDelayOnConflict    int    `env:"ARGO_GIT_COMMIT_RETRY_DELAY_ON_CONFLICT" envDefault:"1"`
+	ExposeCiMetrics                      bool   `env:"EXPOSE_CI_METRICS" envDefault:"false"`
+	ExecuteWireNilChecker                bool   `env:"EXECUTE_WIRE_NIL_CHECKER" envDefault:"false"`
 }
 
 type DevtronSecretConfig struct {
@@ -43,11 +47,16 @@ type DevtronSecretConfig struct {
 	DevtronDexSecretNamespace string `env:"DEVTRON_DEX_SECRET_NAMESPACE" envDefault:"devtroncd"`
 }
 
+type TerminalEnvVariables struct {
+	RestrictTerminalAccessForNonSuperUser bool `env:"RESTRICT_TERMINAL_ACCESS_FOR_NON_SUPER_USER" envDefault:"false"`
+}
+
 func GetEnvironmentVariables() (*EnvironmentVariables, error) {
 	cfg := &EnvironmentVariables{
 		GlobalEnvVariables:          &GlobalEnvVariables{},
 		DevtronSecretConfig:         &DevtronSecretConfig{},
 		DeploymentServiceTypeConfig: &DeploymentServiceTypeConfig{},
+		TerminalEnvVariables:        &TerminalEnvVariables{},
 	}
 	err := env.Parse(cfg)
 	if err != nil {

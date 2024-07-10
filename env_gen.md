@@ -11,6 +11,10 @@
  | APP_SYNC_JOB_RESOURCES_OBJ |  |  | 
  | ARGO_APP_MANUAL_SYNC_TIME | 3 |  | 
  | ARGO_AUTO_SYNC_ENABLED | true |  | 
+ | ARGO_GIT_COMMIT_RETRY_COUNT_ON_CONFLICT | 3 |  | 
+ | ARGO_GIT_COMMIT_RETRY_DELAY_ON_CONFLICT | 1 |  | 
+ | ARGO_REPO_REGISTER_RETRY_COUNT | 3 |  | 
+ | ARGO_REPO_REGISTER_RETRY_DELAY | 10 |  | 
  | AZURE_ACCOUNT_KEY |  |  | 
  | AZURE_ACCOUNT_NAME |  |  | 
  | AZURE_BLOB_CONTAINER_CI_CACHE |  |  | 
@@ -88,6 +92,7 @@
  | DEFAULT_TIMEOUT | 3600 |  | 
  | DEPLOY_STATUS_CRON_GET_PIPELINE_DEPLOYED_WITHIN_HOURS | 12 |  | 
  | DEVTRON_BOM_URL | https://raw.githubusercontent.com/devtron-labs/devtron/%s/charts/devtron/devtron-bom.yaml |  | 
+ | DEVTRON_CHART_ARGO_CD_INSTALL_REQUEST_TIMEOUT | 1 |  | 
  | DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT | 6 |  | 
  | DEVTRON_DEFAULT_NAMESPACE | devtroncd |  | 
  | DEVTRON_DEX_SECRET_NAMESPACE | devtroncd |  | 
@@ -111,6 +116,7 @@
  | DEX_URL |  |  | 
  | DOCKER_BUILD_CACHE_PATH | /var/lib/docker |  | 
  | ECR_REPO_NAME_PREFIX | test/ |  | 
+ | ENABLE_ASYNC_ARGO_CD_INSTALL_DEVTRON_CHART | false |  | 
  | ENABLE_ASYNC_INSTALL_DEVTRON_CHART | false |  | 
  | ENABLE_BUILD_CONTEXT | false |  | 
  | ENFORCER_CACHE | false |  | 
@@ -160,6 +166,13 @@
  | IN_APP_LOGGING_ENABLED | false |  | 
  | IS_INTERNAL_USE | false |  | 
  | JwtExpirationTime | 120 |  | 
+ | K8s_CLIENT_MAX_IDLE_CONNS_PER_HOST | 25 |  | 
+ | K8s_TCP_IDLE_CONN_TIMEOUT | 300 |  | 
+ | K8s_TCP_KEEPALIVE | 30 |  | 
+ | K8s_TCP_TIMEOUT | 30 |  | 
+ | K8s_TLS_HANDSHAKE_TIMEOUT | 10 |  | 
+ | KUBELINK_GRPC_MAX_RECEIVE_MSG_SIZE | 20 |  | 
+ | KUBELINK_GRPC_MAX_SEND_MSG_SIZE | 4 |  | 
  | LENS_TIMEOUT | 0 |  | 
  | LENS_URL | http://lens-milandevtron-service:80 |  | 
  | LIMIT_CI_CPU | 0.5 |  | 
@@ -197,10 +210,12 @@
  | PRE_CI_CACHE_PATH | /devtroncd-cache |  | 
  | PROPAGATE_EXTRA_LABELS | false |  | 
  | PROXY_SERVICE_CONFIG | {} |  | 
+ | REPLICAS | 0 |  | 
  | REQ_CI_CPU | 0.5 |  | 
  | REQ_CI_MEM | 3G |  | 
  | RESOURCE_LIST_FOR_REPLICAS | Deployment,Rollout,StatefulSet,ReplicaSet |  | 
  | RESOURCE_LIST_FOR_REPLICAS_BATCH_SIZE | 5 |  | 
+ | RESTRICT_TERMINAL_ACCESS_FOR_NON_SUPER_USER | false |  | 
  | REVISION_HISTORY_LIMIT_DEVTRON_APP | 1 |  | 
  | REVISION_HISTORY_LIMIT_EXTERNAL_HELM_APP | 0 |  | 
  | REVISION_HISTORY_LIMIT_HELM_APP | 1 |  | 
@@ -235,6 +250,8 @@
  | USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW | true |  | 
  | USE_BLOB_STORAGE_CONFIG_IN_CI_WORKFLOW | true |  | 
  | USE_BUILDX | false |  | 
+ | USE_CASBIN_V2 | false |  | 
+ | USE_CUSTOM_HTTP_TRANSPORT | false |  | 
  | USE_EXTERNAL_NODE | false |  | 
  | USE_GIT_CLI | false |  | 
  | USE_IMAGE_TAG_FROM_GIT_PROVIDER_FOR_TAG_BASED_BUILD | false |  | 

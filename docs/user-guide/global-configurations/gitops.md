@@ -95,9 +95,9 @@ Fill the following mandatory fields:
 | Field | Description |
 | --- | --- |
 | **Git Host** | Shows the URL of GitHub, e.g., https://github.com/ |
-| **GitHub Organisation Name** | Enter the GitHub organization name. <br />If you do not have one, refer [how to create organization in Github](#how-to-create-organization-in-github). |
+| **GitHub Organisation Name** | Enter the GitHub organization name. <br />If you do not have one, refer [How to create organization in GitHub](#creating-organization-in-github). |
 | **GitHub Username** | Provide the username of your GitHub account |
-| **Personal Access Token** | Provide your personal access token (PAT). It is used as an alternate password to authenticate your GitHub account. <br />If you do not have one, create a GitHub PAT [here](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token).|
+| **Personal Access Token** | Provide your personal access token (PAT). It is used as an alternate password to authenticate your GitHub account. <br />If you do not have one, create a GitHub PAT [here](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token). <br /><br /> **Access Required**: <br /> `repo` - Full control of private repositories (able to access commit status, deployment status, and public repositories). <br /> `admin:org` - Full control of organizations and teams (Read and Write access). May not be required if you are using user-defined git repo. <br /> `delete_repo` - Grants delete repo access on private repositories. |
 
 
 ### GitLab
@@ -114,9 +114,9 @@ Fill the following mandatory fields:
 | Field | Description |
 | --- | --- |
 | **Git Host** | Shows the URL of GitLab, e.g., https://gitlab.com/ |
-| **GitLab Group ID** | Enter the GitLab group ID. <br />If you do not have one, refer [GitLab Group ID](#how-to-create-organization-in-gitlab).|
+| **GitLab Group ID** | Enter the GitLab group ID. <br />If you do not have one, refer [GitLab Group ID](#creating-group-in-gitlab).|
 | **GitLab Username** | Provide the username of your GitLab account |
-| **Personal Access Token** | Provide your personal access token (PAT). It is used as an alternate password to authenticate your GitLab account. <br />If you do not have one, create a GitLab PAT [here](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html). |
+| **Personal Access Token** | Provide your personal access token (PAT). It is used as an alternate password to authenticate your GitLab account. <br />If you do not have one, create a GitLab PAT [here](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html). <br /><br /> **Access Required**: <br /> `api` - Grants complete read/write access to the scoped project API. <br /> `write_repository` - Allows read/write access (pull, push) to the repository.|
 
 
 ### Azure
@@ -133,9 +133,9 @@ Fill the following mandatory fields:
 | Field | Description |
 | --- | --- |
 | **Azure DevOps Organisation Url*** | Enter the Org URL of Azure DevOps. Format should be `https://dev.azure.com/<org-name>`, where `<org-name>` represents the organization name, e.g., [https://dev.azure.com/devtron-test](https://dev.azure.com/devtron-test)|
-| **Azure DevOps Project Name** | Enter the Azure DevOps project name. <br />If you do not have one, refer [Azure DevOps Project Name](#how-to-create-azure-devops-project-name).|
+| **Azure DevOps Project Name** | Enter the Azure DevOps project name. <br />If you do not have one, refer [Azure DevOps Project Name](#creating-project-in-azure-devops).|
 | **Azure DevOps Username*** | Provide the username of your Azure DevOps account |
-| **Azure DevOps Access Token*** | Provide your Azure DevOps access token. It is used as an alternate password to authenticate your Azure DevOps account. <br />If you do not have one, create a Azure DevOps access token [here](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=preview-page). |
+| **Azure DevOps Access Token*** | Provide your Azure DevOps access token. It is used as an alternate password to authenticate your Azure DevOps account. <br />If you do not have one, create a Azure DevOps access token [here](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=preview-page). <br /><br /> **Access Required**: <br /> `code` - Grants the ability to read source code and metadata about commits, change sets, branches, and other version control artifacts. [More information on scopes in Azure DevOps](https://docs.microsoft.com/en-us/azure/devops/integrate/get-started/authentication/oauth?view=azure-devops#scopes). |
 
 ### Bitbucket
 
@@ -160,10 +160,10 @@ Fill the following mandatory fields:
 | Field | Description |
 | --- | --- |
 | **Bitbucket Host** | Shows the URL of Bitbucket Cloud, e.g., https://bitbucket.org/ |
-| **Bitbucket Workspace ID** | Enter the Bitbucket workspace ID. <br />If you do not have one, refer [Bitbucket Workspace Id](#how-to-create-bitbucket-workspace-id)|
+| **Bitbucket Workspace ID** | Enter the Bitbucket workspace ID. <br />If you do not have one, refer [Bitbucket Workspace ID](#creating-workspace-in-bitbucket)|
 | **Bitbucket Project Key** | Enter the Bitbucket project key. <br />If you do not have one, refer [Bitbucket Project Key](https://support.atlassian.com/bitbucket-cloud/docs/group-repositories-into-projects/). <br />Note: If the project is not provided, the repository is automatically assigned to the oldest project in the workspace. |
 | **Bitbucket Username*** | Provide the username of your Bitbucket account |
-| **Personal Access Token** | Provide your personal access token (PAT). It is used as an alternate password to authenticate your Bitbucket Cloud account. <br />If you do not have one, create a Bitbucket Cloud PAT [here](https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/). |
+| **Personal Access Token** | Provide your personal access token (PAT). It is used as an alternate password to authenticate your Bitbucket Cloud account. <br />If you do not have one, create a Bitbucket Cloud PAT [here](https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/). <br /><br /> **Access Required**: <br /> `repo` - Full control of repositories (Read, Write, Admin, Delete) access. |
 
 #### Bitbucket Data Center
 
@@ -210,12 +210,11 @@ We do **NOT** recommend using GitHub organization that contains your source code
 
 7. Go to your profile and click **Your organizations** to view all the organizations you created.
 
+{% hint style="info" %}
+### Additional References
 For more information about the plans available for your team, see [GitHub's products](https://docs.github.com/en/get-started/learning-about-github/githubs-products). You can also refer [GitHub organization](https://docs.github.com/en/github/setting-up-and-managing-organizations-and-teams/about-organizations) official doc page for more detail.
+{% endhint %}
 
-**Note**: 
-* repo - Full control of private repositories (able to access commit status, deployment status, and public repositories).
-* admin:org - Full control of organizations and teams (Read and write access).
-* delete_repo - Grants delete repo access on private repositories.
 
 ### Creating Group in GitLab
 
@@ -228,9 +227,6 @@ For more information about the plans available for your team, see [GitHub's prod
 4. Enter the group name (required) and select the optional descriptions if required, and click **Create group**.
 5. Your group will be created and your group name will be assigned with a new `Group ID` (e.g. 61512475).
 
-**Note**:
-* api - Grants complete read/write access to the scoped project API.
-* write_repository - Allows read/write access (pull, push) to the repository.
 
 ### Creating Project in Azure DevOps
 
@@ -246,10 +242,11 @@ For more information about the plans available for your team, see [GitHub's prod
    * Click **Create**.
    * Azure DevOps displays the project welcome page with the `project name`.
 
+{% hint style="info" %}
+### Additional References
 You can also refer [Azure DevOps - Project Creation](https://docs.microsoft.com/en-us/azure/devops/organizations/projects/create-project?view=azure-devops&tabs=preview-page) official page for more details.
+{% endhint %}
 
-**Note**:
-* code - Grants the ability to read source code and metadata about commits, change sets, branches, and other version control artifacts. [More information on scopes in Azure DevOps](https://docs.microsoft.com/en-us/azure/devops/integrate/get-started/authentication/oauth?view=azure-devops#scopes).
 
 ### Creating Workspace in Bitbucket
 
@@ -265,7 +262,10 @@ You can also refer [Azure DevOps - Project Creation](https://docs.microsoft.com/
   * Click **Create**.
 6. Your `Workspace name` and `Workspace ID` will be created.
 
+{% hint style="info" %}
+### Additional References
 You can also refer [official Bitbucket Workspace page](https://support.atlassian.com/bitbucket-cloud/docs/what-is-a-workspace/) for more details.
+{% endhint %}
 
-**Note**:
-* repo - Full control of repositories (Read, Write, Admin, Delete) access. 
+
+

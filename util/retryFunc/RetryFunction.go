@@ -17,6 +17,7 @@
 package retryFunc
 
 import (
+	"errors"
 	"fmt"
 	"go.uber.org/zap"
 	"time"
@@ -31,10 +32,33 @@ func Retry(fn func() error, shouldRetry func(err error) bool, maxRetries int, de
 			return nil
 		}
 		if !shouldRetry(err) {
-			return err
+			return sanitiseError(err)
 		}
 		logger.Infow(fmt.Sprintf("Attempt %d failed, retrying in %v", i+1, delay), "err", err)
 		time.Sleep(delay)
 	}
 	return fmt.Errorf("after %d attempts, last error: %s", maxRetries, err)
+}
+
+// RetryableError is the error returned by callback function under Retry.
+// for RetryableError errors can be handled by shouldRetry func
+type RetryableError struct {
+	err error
+}
+
+func NewRetryableError(err error) *RetryableError {
+	return &RetryableError{
+		err: err,
+	}
+}
+
+func (r *RetryableError) Error() string { return r.err.Error() }
+
+func (r *RetryableError) GetError() error { return r.err }
+
+func sanitiseError(err error) error {
+	if retryErr := (&RetryableError{}); errors.As(err, &retryErr) {
+		return retryErr.GetError()
+	}
+	return err
 }
