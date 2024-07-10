@@ -110,6 +110,7 @@ components:
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
       MANIFEST_FETCH_BATCH_SIZE: "2"
+      USE_CUSTOM_HTTP_TRANSPORT: "true"
       NATS_MSG_PROCESSING_BATCH_SIZE: "1"
       NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
       PG_ADDR: postgresql-postgresql.devtroncd
@@ -126,6 +127,7 @@ components:
     imagePullPolicy: IfNotPresent
     configs:
       devtroncd_NAMESPACE: "devtron-ci"
+      USE_CUSTOM_HTTP_TRANSPORT: "true"
       CI_INFORMER: "true"
       ACD_NAMESPACE: "devtroncd"
       ACD_INFORMER: "true"
