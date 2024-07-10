@@ -1,3 +1,5 @@
+## v0.7.1
+
 ## Bugs
 - fix: EA mode wire fix (#5462)
 - fix: compare manifest fixes (#5430)
@@ -52,3 +54,6 @@
 - chore: migration for gitops config (#5383)
 - chore: update common-lib tag version (#5333)
 - chore: updated go version in EA dockerfile (#5327)
+
+
+
