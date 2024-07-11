@@ -1804,6 +1804,7 @@ func (impl *GlobalPluginServiceImpl) ListAllPluginsV2(filter *bean2.PluginsListF
 		return nil, err
 	}
 
+	sortParentMetadataDtoSliceByName(pluginParentMetadataDtos)
 	pluginDetails := bean2.NewPluginsDto().WithParentPlugins(pluginParentMetadataDtos).WithTotalCount(len(allPluginParentMetadata))
 
 	return pluginDetails, nil
