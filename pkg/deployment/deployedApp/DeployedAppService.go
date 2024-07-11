@@ -90,7 +90,7 @@ func (impl *DeployedAppServiceImpl) StopStartApp(ctx context.Context, stopReques
 		impl.logger.Errorw("error in fetching latest release", "err", err)
 		return 0, err
 	}
-	stopTemplate := `{"replicaCount":0,"autoscaling":{"MinReplicas":0,"MaxReplicas":0 ,"enabled": false} }`
+	stopTemplate := `{"replicaCount":0,"autoscaling":{"MinReplicas":0,"MaxReplicas":0 ,"enabled": false},"kedaAutoscaling":{"minReplicaCount":0,"maxReplicaCount":0 ,"enabled": false}}`
 	overrideRequest := &bean2.ValuesOverrideRequest{
 		PipelineId:     pipeline.Id,
 		AppId:          stopRequest.AppId,
