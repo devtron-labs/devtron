@@ -177,7 +177,7 @@ func (impl *BuildPipelineSwitchServiceImpl) createNewPipelineAndReplaceOldPipeli
 
 	if switchFromPipelineId > 0 {
 		// get all the cd workflow mappings whose parent component is our old pipeline
-		cdwfmappings, err := impl.appWorkflowRepository.FindWFCDMappingsByParentComponent(oldAppWorkflowMapping.Type, oldAppWorkflowMapping.ComponentId)
+		cdwfmappings, err := impl.appWorkflowRepository.FindWFCDMappingsByWorkflowId(oldAppWorkflowMapping.AppWorkflowId)
 		if err != nil {
 			impl.logger.Errorw("error in finding parent cd workflowMappings using parent component details", "parentComponentType", oldAppWorkflowMapping.Type, "parentComponentId", oldAppWorkflowMapping.ComponentId, "err", err)
 			return nil, err
