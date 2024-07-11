@@ -175,12 +175,21 @@ func (impl *BuildPipelineSwitchServiceImpl) createNewPipelineAndReplaceOldPipeli
 		return nil, err
 	}
 
-	//we don't store ci-pipeline-id in pipeline table for external ci's
-	if switchFromPipelineId > 0 && switchFromType != pipelineConfigBean.EXTERNAL {
-		// ciPipeline id is being set in res object in the addpipelineToTemplate method.
-		err = impl.pipelineRepository.UpdateOldCiPipelineIdToNewCiPipelineId(tx, switchFromPipelineId, res.CiPipelines[0].Id)
+	if switchFromPipelineId > 0 {
+		// get all the cd workflow mappings whose parent component is our old pipeline
+		cdwfmappings, err := impl.appWorkflowRepository.FindWFCDMappingsByParentComponent(oldAppWorkflowMapping.Type, oldAppWorkflowMapping.ComponentId)
 		if err != nil {
-			impl.logger.Errorw("error in updating pipelines ci_pipeline_ids with new ci_pipelineId", "oldCiPipelineId", switchFromPipelineId, "newCiPipelineId", res.CiPipelines[0].Id)
+			impl.logger.Errorw("error in finding parent cd workflowMappings using parent component details", "parentComponentType", oldAppWorkflowMapping.Type, "parentComponentId", oldAppWorkflowMapping.ComponentId, "err", err)
+			return nil, err
+		}
+		pipelineIds := make([]int, 0, len(cdwfmappings))
+		for _, cdwfMapping := range cdwfmappings {
+			pipelineIds = append(pipelineIds, cdwfMapping.ComponentId)
+		}
+
+		err = impl.pipelineRepository.UpdateCiPipelineId(tx, pipelineIds, res.CiPipelines[0].Id)
+		if err != nil {
+			impl.logger.Errorw("error in updating pipelines ci_pipeline_ids with new ci_pipelineId", "oldCiPipelineId", switchFromPipelineId, "newCiPipelineId", res.CiPipelines[0].Id, "err", err)
 			return nil, err
 		}
 	}
