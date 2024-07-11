@@ -221,25 +221,38 @@ func (impl GitBitbucketClient) ensureProjectAvailabilityOnSsh(repoOptions *bitbu
 	return false, nil
 }
 
-func (impl GitBitbucketClient) CommitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
+func (impl GitBitbucketClient) cleanUp(filePath string) {
+	if _, err := os.Stat(filePath); os.IsExist(err) {
+		impl.logger.Debugw("bitbucket commit file found, cleaning-up", "filePath", filePath)
+		osErr := os.Remove(filePath)
+		if osErr != nil {
+			impl.logger.Errorw("error in cleaning-up bitbucket commit file", "filePath", filePath, "err", osErr)
+		}
+	}
+}
 
+func (impl GitBitbucketClient) CommitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return "", time.Time{}, err
 	}
-	bitbucketGitOpsDirPath := path.Join(homeDir, BITBUCKET_GITOPS_DIR)
+	bitbucketGitOpsDirPath := path.Join(homeDir, BITBUCKET_GITOPS_DIR, config.GetBitBucketBaseDir())
 	if _, err = os.Stat(bitbucketGitOpsDirPath); !os.IsExist(err) {
-		os.Mkdir(bitbucketGitOpsDirPath, 0777)
+		impl.logger.Debugw("bitbucket commit base dir path not found, creating", "bitbucketGitOpsDirPath", bitbucketGitOpsDirPath)
+		osErr := os.MkdirAll(bitbucketGitOpsDirPath, os.ModePerm)
+		if osErr != nil {
+			impl.logger.Errorw("error in creating bitbucket commit base dir", "bitbucketGitOpsDirPath", bitbucketGitOpsDirPath, "err", osErr)
+		}
 	}
-
 	bitbucketCommitFilePath := path.Join(bitbucketGitOpsDirPath, config.FileName)
-
-	if _, err = os.Stat(bitbucketCommitFilePath); os.IsExist(err) {
-		os.Remove(bitbucketCommitFilePath)
-	}
-
+	defer func() {
+		impl.cleanUp(bitbucketGitOpsDirPath)
+	}()
+	impl.logger.Debugw("bitbucket commit FilePath", "bitbucketCommitFilePath", bitbucketCommitFilePath)
+	impl.cleanUp(bitbucketGitOpsDirPath)
 	err = ioutil.WriteFile(bitbucketCommitFilePath, []byte(config.FileContent), 0666)
 	if err != nil {
+		impl.logger.Errorw("error in writing bitbucket commit file", "bitbucketCommitFilePath", bitbucketCommitFilePath, "err", err)
 		return "", time.Time{}, err
 	}
 	fileName := filepath.Join(config.ChartLocation, config.FileName)
@@ -257,8 +270,8 @@ func (impl GitBitbucketClient) CommitValues(ctx context.Context, config *ChartCo
 	}
 	repoWriteOptions.WithContext(ctx)
 	err = impl.client.Repositories.Repository.WriteFileBlob(repoWriteOptions)
-	_ = os.Remove(bitbucketCommitFilePath)
 	if err != nil {
+		impl.logger.Errorw("error in committing file to bitbucket", "repoWriteOptions", repoWriteOptions, "err", err)
 		if e := (&bitbucket.UnexpectedResponseStatusError{}); errors.As(err, &e) && strings.Contains(e.Error(), "500 Internal Server Error") {
 			return "", time.Time{}, retryFunc.NewRetryableError(err)
 		}
@@ -271,6 +284,7 @@ func (impl GitBitbucketClient) CommitValues(ctx context.Context, config *ChartCo
 	}
 	commits, err := impl.client.Repositories.Commits.GetCommits(commitOptions)
 	if err != nil {
+		impl.logger.Errorw("error in getting commits from bitbucket", "commitOptions", commitOptions, "err", err)
 		return "", time.Time{}, err
 	}
 

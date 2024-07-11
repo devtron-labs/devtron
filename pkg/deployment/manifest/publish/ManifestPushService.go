@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app/bean"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
@@ -55,6 +56,7 @@ type GitOpsManifestPushServiceImpl struct {
 	chartService                  chartService.ChartService
 	gitOperationService           git.GitOperationService
 	argoClientWrapperService      argocdServer.ArgoClientWrapperService
+	chartTemplateService          util.ChartTemplateService
 	*sql.TransactionUtilImpl
 }
 
@@ -67,7 +69,8 @@ func NewGitOpsManifestPushServiceImpl(logger *zap.SugaredLogger,
 	chartService chartService.ChartService,
 	gitOperationService git.GitOperationService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
-	transactionUtilImpl *sql.TransactionUtilImpl) *GitOpsManifestPushServiceImpl {
+	transactionUtilImpl *sql.TransactionUtilImpl,
+	chartTemplateService util.ChartTemplateService) *GitOpsManifestPushServiceImpl {
 	return &GitOpsManifestPushServiceImpl{
 		logger:                        logger,
 		pipelineStatusTimelineService: pipelineStatusTimelineService,
@@ -79,6 +82,7 @@ func NewGitOpsManifestPushServiceImpl(logger *zap.SugaredLogger,
 		gitOperationService:           gitOperationService,
 		argoClientWrapperService:      argoClientWrapperService,
 		TransactionUtilImpl:           transactionUtilImpl,
+		chartTemplateService:          chartTemplateService,
 	}
 }
 
@@ -229,10 +233,12 @@ func (impl *GitOpsManifestPushServiceImpl) pushChartToGitRepo(ctx context.Contex
 }
 
 func (impl *GitOpsManifestPushServiceImpl) commitValuesToGit(ctx context.Context, manifestPushTemplate *bean.ManifestPushTemplate) (commitHash string, commitTime time.Time, err error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "GitOpsManifestPushServiceImpl.commitValuesToGit")
+	defer span.End()
 	commitHash = ""
 	commitTime = time.Time{}
 	chartRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(manifestPushTemplate.RepoUrl)
-	_, span := otel.Tracer("orchestrator").Start(ctx, "chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit")
+	_, span = otel.Tracer("orchestrator").Start(newCtx, "gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit")
 	//getting username & emailId for commit author data
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(manifestPushTemplate.UserId)
 	span.End()
@@ -246,10 +252,9 @@ func (impl *GitOpsManifestPushServiceImpl) commitValuesToGit(ctx context.Context
 		UserName:       userName,
 		UserEmailId:    userEmailId,
 	}
-
-	_, span = otel.Tracer("orchestrator").Start(ctx, "gitOperationService.CommitValues")
-	commitHash, commitTime, err = impl.gitOperationService.CommitValues(ctx, chartGitAttr)
-	span.End()
+	bitBucketBaseDir := fmt.Sprintf("%d-%s", manifestPushTemplate.PipelineOverrideId, impl.chartTemplateService.GetDir())
+	chartGitAttr.SetBitBucketBaseDir(bitBucketBaseDir)
+	commitHash, commitTime, err = impl.gitOperationService.CommitValues(newCtx, chartGitAttr)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return commitHash, commitTime, err

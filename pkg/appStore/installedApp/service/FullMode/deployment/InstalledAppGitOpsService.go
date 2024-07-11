@@ -334,6 +334,8 @@ func (impl *FullModeDeploymentServiceImpl) getGitCommitConfig(installAppVersionR
 		UserEmailId:    userEmailId,
 		UserName:       userName,
 	}
+	bitBucketBaseDir := fmt.Sprintf("%d-%s", appStoreAppVersion.Id, impl.chartTemplateService.GetDir())
+	YamlConfig.SetBitBucketBaseDir(bitBucketBaseDir)
 	return YamlConfig, nil
 }
 

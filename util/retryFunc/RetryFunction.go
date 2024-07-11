@@ -27,6 +27,7 @@ import (
 func Retry(fn func() error, shouldRetry func(err error) bool, maxRetries int, delay time.Duration, logger *zap.SugaredLogger) error {
 	var err error
 	for i := 0; i < maxRetries; i++ {
+		logger.Debugw("function called with retry", "attempt", i+1, "maxRetries", maxRetries, "delay", delay)
 		err = fn()
 		if err == nil {
 			return nil

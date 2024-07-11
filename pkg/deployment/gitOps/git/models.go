@@ -26,12 +26,22 @@ type DetailedErrorGitOpsConfigActions struct {
 }
 
 type ChartConfig struct {
-	ChartName      string
-	ChartLocation  string
-	FileName       string //filename
-	FileContent    string
-	ReleaseMessage string
-	ChartRepoName  string
-	UserName       string
-	UserEmailId    string
+	ChartName        string
+	ChartLocation    string
+	FileName         string //filename
+	FileContent      string
+	ReleaseMessage   string
+	ChartRepoName    string
+	UserName         string
+	UserEmailId      string
+	bitBucketBaseDir string // base directory is required for bitbucket to load the
+}
+
+func (c *ChartConfig) SetBitBucketBaseDir(dir string) {
+	c.bitBucketBaseDir = dir
+	return
+}
+
+func (c *ChartConfig) GetBitBucketBaseDir() string {
+	return c.bitBucketBaseDir
 }
