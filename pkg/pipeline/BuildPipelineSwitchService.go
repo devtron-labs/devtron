@@ -83,7 +83,12 @@ func NewBuildPipelineSwitchServiceImpl(logger *zap.SugaredLogger,
 
 func (impl *BuildPipelineSwitchServiceImpl) SwitchToExternalCi(tx *pg.Tx, appWorkflowMapping *appWorkflow.AppWorkflowMapping, switchFromCiPipelineId int, userId int32) error {
 
-	err := impl.deleteCiAndItsWorkflowMappings(tx, switchFromCiPipelineId, userId)
+	err := impl.validateSwitchPreConditions(switchFromCiPipelineId)
+	if err != nil {
+		return err
+	}
+
+	err = impl.deleteCiAndItsWorkflowMappings(tx, switchFromCiPipelineId, userId)
 	if err != nil {
 		impl.logger.Errorw("error in deleting old ci-pipeline and getting the appWorkflow mapping of that", "err", err, "userId", userId)
 		return err
@@ -209,29 +214,9 @@ func (impl *BuildPipelineSwitchServiceImpl) validateCiPipelineSwitch(switchFromC
 	// we should not check the below logic for external_ci type as builds are not built in devtron and
 	// linked pipelines won't be there as per current external-ci-pipeline architecture
 	if switchFromCiPipelineId > 0 && switchFromType != pipelineConfigBean.EXTERNAL {
-		// old ci_pipeline should not contain any linked ci_pipelines.
-		linkedCiPipelines, err := impl.ciPipelineRepository.FindLinkedCiCount(switchFromCiPipelineId)
+		err := impl.validateSwitchPreConditions(switchFromCiPipelineId)
 		if err != nil {
-			return nil
-		}
-		if linkedCiPipelines > 0 {
-			return errors.New(string(cannotConvertIfLinkedCiFound))
-		}
-
-		// note: ideally we should have found any builds running on old ci_pipeline, if yes block this conversion with proper message.
-		// but checking only latest wf for now.
-		ciWorkflow, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflow(switchFromCiPipelineId)
-		// no build is triggered case
-		if err == pg.ErrNoRows {
-			return nil
-		}
-		if err != nil {
-			impl.logger.Errorw("error in finding latest ciwokflow by ciPipelineId", "ciPipelineId", switchFromCiPipelineId)
 			return err
-		}
-
-		if ciWorkflow.InProgress() {
-			return errors.New(string(cannotConvertIfLatestWorkflowIsInNonTerminalState))
 		}
 	}
 
@@ -356,4 +341,35 @@ func (impl *BuildPipelineSwitchServiceImpl) saveHistoryOfOverriddenTemplate(ciPi
 
 func (impl *BuildPipelineSwitchServiceImpl) updateLinkedAppWorkflowMappings(tx *pg.Tx, oldAppWorkflowMapping *appWorkflow.AppWorkflowMapping, newAppWorkflowMapping *appWorkflow.AppWorkflowMapping) error {
 	return impl.appWorkflowRepository.UpdateParentComponentDetails(tx, oldAppWorkflowMapping.ComponentId, oldAppWorkflowMapping.Type, newAppWorkflowMapping.ComponentId, newAppWorkflowMapping.Type, nil)
+}
+
+func (impl *BuildPipelineSwitchServiceImpl) validateSwitchPreConditions(switchFromCiPipelineId int) error {
+
+	// old ci_pipeline should not contain any linked ci_pipelines.
+	linkedCiPipelines, err := impl.ciPipelineRepository.FindLinkedCiCount(switchFromCiPipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in finding the linkedCi count for the pipeline", "ciPipelineId", switchFromCiPipelineId, "err", err)
+		return err
+	}
+	if linkedCiPipelines > 0 {
+		return errors.New(string(cannotConvertIfLinkedCiFound))
+	}
+
+	// note: ideally we should have found any builds running on old ci_pipeline, if yes block this conversion with proper message.
+	// but checking only latest wf for now.
+	ciWorkflow, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflow(switchFromCiPipelineId)
+	// no build is triggered case
+	if err == pg.ErrNoRows {
+		return nil
+	}
+	if err != nil {
+		impl.logger.Errorw("error in finding latest ciwokflow by ciPipelineId", "ciPipelineId", switchFromCiPipelineId)
+		return err
+	}
+
+	if ciWorkflow.InProgress() {
+		return errors.New(string(cannotConvertIfLatestWorkflowIsInNonTerminalState))
+	}
+
+	return nil
 }
