@@ -928,7 +928,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	deploymentConfigurationServiceImpl, err := configDiff.NewDeploymentConfigurationServiceImpl(sugaredLogger, configMapServiceImpl)
+	deploymentConfigurationServiceImpl, err := configDiff.NewDeploymentConfigurationServiceImpl(sugaredLogger, configMapServiceImpl, appRepositoryImpl, environmentRepositoryImpl, chartServiceImpl, generateManifestDeploymentTemplateServiceImpl)
 	if err != nil {
 		return nil, err
 	}

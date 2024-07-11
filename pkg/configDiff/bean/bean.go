@@ -1,15 +1,21 @@
 package bean
 
 import (
+	"encoding/json"
 	"fmt"
+	v1 "github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 )
 
-type ConfigState int
+type ConfigState string
 
 const (
-	PublishedConfigState ConfigState = 3
+	PublishedConfigState ConfigState = "PublishedOnly"
 )
+
+func (r ConfigState) ToString() string {
+	return string(r)
+}
 
 type ConfigProperty struct {
 	Id          int               `json:"id"`
@@ -67,15 +73,96 @@ func (r *ConfigProperty) GetIdentifier() ConfigPropertyIdentifier {
 }
 
 type DeploymentAndCmCsConfig struct {
-	Id          int         `json:"id ,omitempty"`
-	Name        string      `json:"name"`
-	CmCsType    string      `json:"cmcsType ,omitempty"` //example:- environment or volume, in case of cm cs
-	Data        string      `json:"data"`
-	ConfigState ConfigState `json:"configState"`
+	Id           int               `json:"id ,omitempty"`
+	Name         string            `json:"name"`
+	ResourceType bean.ResourceType `json:"resourceType"`
+	Data         json.RawMessage   `json:"data"`
+	ConfigState  ConfigState       `json:"configState"`
 }
 
-type DeploymentAndCmCsResponseDto struct {
+func NewDeploymentAndCmCsConfig() *DeploymentAndCmCsConfig {
+	return &DeploymentAndCmCsConfig{}
+}
+
+func (r *DeploymentAndCmCsConfig) WithIdAndName(id int, name string) *DeploymentAndCmCsConfig {
+	r.Id = id
+	r.Name = name
+	return r
+}
+
+func (r *DeploymentAndCmCsConfig) WithConfigState(configState ConfigState) *DeploymentAndCmCsConfig {
+	r.ConfigState = configState
+	return r
+}
+
+func (r *DeploymentAndCmCsConfig) WithResourceType(resourceType bean.ResourceType) *DeploymentAndCmCsConfig {
+	r.ResourceType = resourceType
+	return r
+}
+
+func (r *DeploymentAndCmCsConfig) WithConfigData(data json.RawMessage) *DeploymentAndCmCsConfig {
+	r.Data = data
+	return r
+}
+
+type DeploymentAndCmCsConfigDto struct {
 	AppId         int                        `json:"appId"`
 	EnvironmentId int                        `json:"environmentId"`
 	ConfigData    []*DeploymentAndCmCsConfig `json:"configData"`
 }
+
+func NewDeploymentAndCmCsConfigDto() *DeploymentAndCmCsConfigDto {
+	return &DeploymentAndCmCsConfigDto{ConfigData: make([]*DeploymentAndCmCsConfig, 0)}
+}
+
+func (r *DeploymentAndCmCsConfigDto) WithConfigData(configData []*DeploymentAndCmCsConfig) *DeploymentAndCmCsConfigDto {
+	r.ConfigData = configData
+	return r
+}
+
+func (r *DeploymentAndCmCsConfigDto) WithAppAndEnvIdId(appId, envId int) *DeploymentAndCmCsConfigDto {
+	r.AppId = appId
+	r.EnvironmentId = envId
+	return r
+}
+
+type ConfigDataQueryParams struct {
+	AppName      string
+	EnvName      string
+	ConfigType   string
+	IdentifierId int
+	ResourceName string
+	ResourceType string
+}
+
+func (r *ConfigDataQueryParams) IsResourceTypeSecret() bool {
+	return r.ResourceType == v1.Secret
+}
+
+func (r *ConfigDataQueryParams) IsResourceTypeConfigMap() bool {
+	return r.ResourceType == v1.ConfigMap
+}
+
+func (r *ConfigDataQueryParams) IsEnvNameProvided() bool {
+	return len(r.EnvName) > 0
+}
+func (r *ConfigDataQueryParams) IsValidConfigType() bool {
+	return r.ConfigType == PublishedConfigState.ToString()
+}
+
+func (r *ConfigDataQueryParams) IsRequestMadeForOneResource() bool {
+	return len(r.ResourceName) > 0 && len(r.ResourceType) > 0
+}
+
+func (r *ConfigDataQueryParams) WithConfigDataQueryParams(appName, envName, configType, resourceName, resourceType string, identifierId int) {
+	r.AppName = appName
+	r.EnvName = envName
+	r.ConfigType = configType
+	r.ResourceName = resourceName
+	r.IdentifierId = identifierId
+	r.ResourceType = resourceType
+}
+
+const (
+	InvalidConfigTypeErr = "invalid config type provided, please send a valid config type"
+)

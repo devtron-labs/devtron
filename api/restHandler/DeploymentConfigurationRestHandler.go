@@ -6,10 +6,12 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/configDiff"
+	"github.com/devtron-labs/devtron/pkg/configDiff/bean"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
+	"strconv"
 )
 
 type DeploymentConfigurationRestHandler interface {
@@ -77,31 +79,53 @@ func (handler *DeploymentConfigurationRestHandlerImpl) GetConfigData(w http.Resp
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-
-	appId, err := common.ExtractIntQueryParam(w, r, "appId", 0)
+	configDataQueryParams, err := getConfigDataQueryParams(r)
 	if err != nil {
-		return
-	}
-	envId, err := common.ExtractIntQueryParam(w, r, "envId", 0)
-	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
-	//RBAC START
-	token := r.Header.Get(common.TokenHeaderKey)
-	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
-	if !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-		return
+	if len(configDataQueryParams.AppName) > 0 {
+		//RBAC START
+		token := r.Header.Get(common.TokenHeaderKey)
+		object := handler.enforcerUtil.GetAppRBACName(configDataQueryParams.AppName)
+		ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
+		if !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+			return
+		}
+		//RBAC END
 	}
-	//RBAC END
 
-	res, err := handler.deploymentConfigurationService.ConfigAutoComplete(appId, envId)
+	res, err := handler.deploymentConfigurationService.GetAllConfigData(r.Context(), configDataQueryParams)
 	if err != nil {
-		handler.logger.Errorw("service err, ConfigAutoComplete ", "err", err)
+		handler.logger.Errorw("service err, GetAllConfigData ", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
+}
+
+func getConfigDataQueryParams(r *http.Request) (*bean.ConfigDataQueryParams, error) {
+	v := r.URL.Query()
+	appName := v.Get("appName")
+	envName := v.Get("envName")
+	configType := v.Get("configType")
+	identifierIdStr := v.Get("identifierId")
+
+	identifierId, err := strconv.Atoi(identifierIdStr)
+	if err != nil {
+		return nil, err
+	}
+
+	resourceName := v.Get("resourceName")
+	resourceType := v.Get("resourceType")
+	return &bean.ConfigDataQueryParams{
+		AppName:      appName,
+		EnvName:      envName,
+		ConfigType:   configType,
+		IdentifierId: identifierId,
+		ResourceName: resourceName,
+		ResourceType: resourceType,
+	}, nil
 }
