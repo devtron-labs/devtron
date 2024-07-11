@@ -839,7 +839,7 @@ func (impl *ManifestCreationServiceImpl) getArgoCdHPAResourceManifest(ctx contex
 			impl.logger.Errorw("ArgoCd resource request timeout", "resourceName", hpaResourceRequest.ResourceName, "err", errMsg)
 			return resourceManifest, util.NewApiError().
 				WithHttpStatusCode(http.StatusRequestTimeout).
-				WithInternalMessage(argoErr.Error()).
+				WithInternalMessage(errMsg).
 				WithUserDetailMessage("ArgoCd server is not responding, please try again later")
 		}
 		impl.logger.Errorw("ArgoCd Get Resource API Failed", "resourceName", hpaResourceRequest.ResourceName, "err", errMsg)

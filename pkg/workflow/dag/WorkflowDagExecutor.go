@@ -45,6 +45,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/workflow/dag/bean"
 	error2 "github.com/devtron-labs/devtron/util/error"
 	util2 "github.com/devtron-labs/devtron/util/event"
+	"strings"
 	"sync"
 	"time"
 
@@ -292,7 +293,7 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 	if releaseErr == nil || errors.Is(context.Cause(newCtx), error2.ServerShutDown) {
 		// skipping
 		return
-	} else if errors.Is(releaseErr, context.DeadlineExceeded) {
+	} else if errors.Is(releaseErr, context.DeadlineExceeded) || strings.Contains(releaseErr.Error(), context.DeadlineExceeded.Error()) {
 		appIdentifier := triggerAdapter.NewAppIdentifierFromOverrideRequest(overrideRequest)
 		if util.IsHelmApp(overrideRequest.DeploymentAppType) {
 			// if context deadline is exceeded fetch release status and UpdateWorkflowRunnerStatusForDeployment
@@ -333,7 +334,7 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 			}
 		}
 		return
-	} else if errors.Is(releaseErr, context.Canceled) {
+	} else if errors.Is(releaseErr, context.Canceled) || strings.Contains(releaseErr.Error(), context.Canceled.Error()) {
 		if err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, pipelineConfig.ErrorDeploymentSuperseded, overrideRequest.UserId); err != nil {
 			impl.logger.Errorw("error while updating current runner status to failed, handleAsyncTriggerReleaseError", "cdWfr", cdWfr.Id, "err", err)
 		}
