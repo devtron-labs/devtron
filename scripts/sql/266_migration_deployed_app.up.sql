@@ -29,7 +29,6 @@ CREATE TABLE IF NOT EXISTS "public"."deployment_config"
     "config_type"                       VARCHAR(100),
     "repo_url"                          VARCHAR(250),
     "repo_name"                         VARCHAR(200),
-    "chart_path"                        VARCHAR(250),
     "credential_type"                   VARCHAR(100),
     "credential_id_int"                 int,
     "credential_id_string"              VARCHAR(100),
