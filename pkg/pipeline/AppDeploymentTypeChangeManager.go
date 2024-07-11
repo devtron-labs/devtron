@@ -524,7 +524,6 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 									}
 									envDeploymentConfig.ConfigType = common.GetDeploymentConfigType(chart.IsCustomGitRepository)
 									envDeploymentConfig.RepoURL = chartGitAttr.RepoUrl
-									envDeploymentConfig.ChartPath = chartGitAttr.ChartLocation
 
 									envDeploymentConfig, RepoURLUpdateErr = impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, userId)
 									if RepoURLUpdateErr != nil {

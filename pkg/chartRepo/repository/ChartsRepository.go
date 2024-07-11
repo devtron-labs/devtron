@@ -38,7 +38,7 @@ type Chart struct {
 	Status                  models.ChartStatus          `sql:"status"`            //(new , deployment-in-progress, deployed-To-production, error )
 	Active                  bool                        `sql:"active"`
 	GitRepoUrl              string                      `sql:"git_repo_url"`   // Deprecated;  use deployment_config table instead   //git repository where chart is stored
-	ChartLocation           string                      `sql:"chart_location"` // Deprecated;  use deployment_config table instead  //location within git repo where current chart is pointing
+	ChartLocation           string                      `sql:"chart_location"` //location within git repo where current chart is pointing
 	ReferenceTemplate       string                      `sql:"reference_template"`
 	ImageDescriptorTemplate string                      `sql:"image_descriptor_template"`
 	ChartRefId              int                         `sql:"chart_ref_id"`

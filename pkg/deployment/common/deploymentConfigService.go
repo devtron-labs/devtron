@@ -204,7 +204,6 @@ func (impl *DeploymentConfigServiceImpl) parseAppLevelConfigForDevtronApps(appId
 		AppId:      appId,
 		Active:     true,
 		RepoUrl:    chart.GitRepoUrl,
-		ChartPath:  chart.ChartLocation,
 	}
 	return ConfigDbObj, nil
 }
@@ -234,7 +233,6 @@ func (impl *DeploymentConfigServiceImpl) parseEnvLevelConfigForDevtronApps(appLe
 		EnvironmentId: envId,
 		ConfigType:    appLevelConfig.ConfigType,
 		RepoUrl:       appLevelConfig.RepoUrl,
-		ChartPath:     appLevelConfig.ChartPath,
 		Active:        true,
 	}
 

@@ -284,7 +284,6 @@ func (impl *ChartServiceImpl) Create(templateRequest TemplateRequest, ctx contex
 		AppId:      templateRequest.AppId,
 		ConfigType: common.GetDeploymentConfigType(templateRequest.IsCustomGitRepository),
 		RepoURL:    gitRepoUrl,
-		ChartPath:  chartLocation,
 		Active:     true,
 	}
 	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, templateRequest.UserId)
@@ -379,7 +378,6 @@ func (impl *ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Templat
 		AppId:      templateRequest.AppId,
 		ConfigType: common.GetDeploymentConfigType(templateRequest.IsCustomGitRepository),
 		RepoURL:    gitRepoUrl,
-		ChartPath:  chartLocation,
 		Active:     true,
 	}
 	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, templateRequest.UserId)
@@ -711,7 +709,6 @@ func (impl *ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateReq
 		AppId:      template.AppId,
 		ConfigType: common.GetDeploymentConfigType(template.IsCustomGitRepository),
 		RepoURL:    template.GitRepoUrl,
-		ChartPath:  template.ChartLocation,
 		Active:     true,
 	}
 
@@ -993,7 +990,6 @@ func (impl *ChartServiceImpl) ConfigureGitOpsRepoUrlForApp(appId int, repoUrl, c
 		AppId:      appId,
 		ConfigType: common.GetDeploymentConfigType(isCustom),
 		RepoURL:    repoUrl,
-		ChartPath:  chartLocation,
 		Active:     true,
 	}
 	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, userId)

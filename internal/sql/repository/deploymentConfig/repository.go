@@ -29,7 +29,6 @@ type DeploymentConfig struct {
 	ConfigType        string   `sql:"config_type"`
 	RepoUrl           string   `sql:"repo_url"`
 	RepoName          string   `sql:"repo_name"`
-	ChartPath         string   `sql:"chart_path"`
 	Active            bool     `sql:"active,notnull"`
 	sql.AuditLog
 }
