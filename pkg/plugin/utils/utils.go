@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package plugin
+package utils
 
 import (
 	"errors"
@@ -25,7 +25,7 @@ import (
 	"strings"
 )
 
-func getStageType(stageTypeReq string) (int, error) {
+func GetStageType(stageTypeReq string) (int, error) {
 	var stageType int
 	switch stageTypeReq {
 	case repository.CI_STAGE_TYPE:
@@ -50,9 +50,18 @@ func CreateUniqueIdentifier(pluginName string, pluginId int) string {
 	return identifier
 }
 
-func sortParentMetadataDtoSliceByName(pluginParentMetadataDtos []*bean2.PluginParentMetadataDto) {
+func SortParentMetadataDtoSliceByName(pluginParentMetadataDtos []*bean2.PluginParentMetadataDto) {
 	sort.Slice(pluginParentMetadataDtos, func(i, j int) bool {
 		if strings.Compare(pluginParentMetadataDtos[i].Name, pluginParentMetadataDtos[j].Name) <= 0 {
+			return true
+		}
+		return false
+	})
+}
+
+func SortPluginsVersionDetailSliceByCreatedOn(pluginsVersionDetail []*bean2.PluginsVersionDetail) {
+	sort.Slice(pluginsVersionDetail, func(i, j int) bool {
+		if pluginsVersionDetail[i].CreatedOn.After(pluginsVersionDetail[j].CreatedOn) {
 			return true
 		}
 		return false

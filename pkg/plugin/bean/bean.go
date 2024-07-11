@@ -19,6 +19,7 @@ package bean
 import (
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"time"
 )
 
 const (
@@ -150,6 +151,7 @@ type PluginsVersionDetail struct {
 	Version         string               `json:"pluginVersion"`
 	IsLatest        bool                 `json:"isLatest"`
 	UpdatedBy       string               `json:"updatedBy"`
+	CreatedOn       time.Time            `json:"-"`
 }
 
 func NewPluginsVersionDetail() *PluginsVersionDetail {
@@ -168,6 +170,11 @@ func (r *PluginsVersionDetail) SetMinimalPluginsVersionDetail(pluginVersionMetad
 
 func (r *PluginsVersionDetail) WithLastUpdatedEmail(email string) *PluginsVersionDetail {
 	r.UpdatedBy = email
+	return r
+}
+
+func (r *PluginsVersionDetail) WithCreatedOn(createdOn time.Time) *PluginsVersionDetail {
+	r.CreatedOn = createdOn
 	return r
 }
 

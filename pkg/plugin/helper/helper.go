@@ -3,6 +3,7 @@ package helper
 import (
 	"github.com/devtron-labs/devtron/pkg/plugin/bean"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
+	"github.com/devtron-labs/devtron/pkg/plugin/utils"
 )
 
 func GetAllUniqueTags(tags []*repository.PluginTag) []string {
@@ -60,6 +61,7 @@ func GetPluginVersionAndDetailsMapping(pluginVersionsMetadata []*repository.Plug
 		pluginVersionDetails := bean.NewPluginsVersionDetail()
 		pluginVersionDetails.SetMinimalPluginsVersionDetail(versionMetadata)
 		pluginVersionDetails.WithLastUpdatedEmail(userIdVsEmailMap[versionMetadata.UpdatedBy])
+		pluginVersionDetails.WithCreatedOn(versionMetadata.CreatedOn)
 
 		if _, ok := pluginVersionsVsPluginsVersionDetailMap[versionMetadata.PluginParentMetadataId]; !ok {
 			pluginVersionsVsPluginsVersionDetailMap[versionMetadata.PluginParentMetadataId] = make(map[int]*bean.PluginsVersionDetail)
@@ -78,6 +80,8 @@ func AppendMinimalVersionDetailsInParentMetadataDtos(pluginParentIdVsPluginParen
 		for _, versionDetail := range versionMap {
 			minimalPluginVersionsMetadataDtos = append(minimalPluginVersionsMetadataDtos, versionDetail)
 		}
+		utils.SortPluginsVersionDetailSliceByCreatedOn(minimalPluginVersionsMetadataDtos)
+
 		pluginVersion.WithMinimalPluginVersionData(minimalPluginVersionsMetadataDtos)
 		pluginParentIdVsPluginParentDtoMap[parentPluginId].WithVersions(pluginVersion)
 	}

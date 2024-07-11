@@ -27,6 +27,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
 	helper2 "github.com/devtron-labs/devtron/pkg/plugin/helper"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
+	"github.com/devtron-labs/devtron/pkg/plugin/utils"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -229,7 +230,7 @@ func (impl *GlobalPluginServiceImpl) ListAllPlugins(stageTypeReq string) ([]*bea
 			return nil, err
 		}
 	} else {
-		stageType, err := getStageType(stageTypeReq)
+		stageType, err := utils.GetStageType(stageTypeReq)
 		if err != nil {
 			return nil, err
 		}
@@ -1804,7 +1805,7 @@ func (impl *GlobalPluginServiceImpl) ListAllPluginsV2(filter *bean2.PluginsListF
 		return nil, err
 	}
 
-	sortParentMetadataDtoSliceByName(pluginParentMetadataDtos)
+	utils.SortParentMetadataDtoSliceByName(pluginParentMetadataDtos)
 	pluginDetails := bean2.NewPluginsDto().WithParentPlugins(pluginParentMetadataDtos).WithTotalCount(len(allPluginParentMetadata))
 
 	return pluginDetails, nil
@@ -1830,9 +1831,9 @@ func (impl *GlobalPluginServiceImpl) MigratePluginDataToParentPluginMetadata(plu
 			//data already migrated
 			continue
 		}
-		identifier := CreateUniqueIdentifier(item.Name, 0)
+		identifier := utils.CreateUniqueIdentifier(item.Name, 0)
 		if _, ok := identifierVsPluginMetadata[identifier]; ok {
-			identifier = CreateUniqueIdentifier(item.Name, item.Id)
+			identifier = utils.CreateUniqueIdentifier(item.Name, item.Id)
 		}
 		identifierVsPluginMetadata[identifier] = item
 	}
