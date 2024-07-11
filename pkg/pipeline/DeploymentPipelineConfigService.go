@@ -2081,7 +2081,7 @@ func (impl *CdPipelineConfigServiceImpl) BulkDeleteCdPipelines(impactedPipelines
 }
 func (impl *CdPipelineConfigServiceImpl) checkIfNsExistsForEnvIds(envIds []*int) error {
 
-	if len(envIds) > 0 {
+	if len(envIds) == 0 {
 		return nil
 	}
 	//fetching environments for the given environment Ids
