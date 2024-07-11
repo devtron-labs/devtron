@@ -95,7 +95,7 @@ type K8sApplicationRestHandlerImpl struct {
 	fluxAppService         fluxApplication.FluxApplicationService
 }
 
-func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate, envVariables *util.EnvironmentVariables) *K8sApplicationRestHandlerImpl {
+func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate, envVariables *util.EnvironmentVariables, fluxAppService fluxApplication.FluxApplicationService) *K8sApplicationRestHandlerImpl {
 	return &K8sApplicationRestHandlerImpl{
 		logger:                 logger,
 		k8sApplicationService:  k8sApplicationService,
@@ -109,6 +109,7 @@ func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationS
 		userService:            userService,
 		k8sCommonService:       k8sCommonService,
 		terminalEnvVariables:   envVariables.TerminalEnvVariables,
+		fluxAppService:         fluxAppService,
 	}
 }
 
@@ -675,6 +676,19 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 			return
 		}
 		//RBAC enforcer Ends
+	} else if request.ExternalFluxAppIdentifier != nil {
+		valid, err := handler.k8sApplicationService.ValidateFluxResourceRequest(r.Context(), request.ExternalFluxAppIdentifier, request.K8sRequest)
+		if err != nil || !valid {
+			handler.logger.Errorw("error in validating resource request", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		//RBAC enforcer starts here
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+			return
+		}
+		//RBAC enforcer ends here
 	} else if request.AppIdentifier == nil && request.DevtronAppIdentifier == nil && request.ClusterId > 0 && request.AppType != bean2.ArgoAppType {
 		//RBAC enforcer applying For Resource Browser
 		if !handler.handleRbac(r, w, *request, token, casbin.ActionGet) {
@@ -1043,6 +1057,13 @@ func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(podName, names
 			return resourceRequestBean
 		}
 		//RBAC enforcer Ends
+	} else if resourceRequestBean.ExternalFluxAppIdentifier != nil {
+		//RBAC enforcer starts here
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+			return resourceRequestBean
+		}
+		//RBAC enforcer ends here
 	} else if resourceRequestBean.AppIdentifier == nil && resourceRequestBean.DevtronAppIdentifier == nil && resourceRequestBean.ClusterId > 0 && appType != bean2.ArgoAppType {
 		//RBAC enforcer applying for Resource Browser
 		resourceRequestBean.K8sRequest.ResourceIdentifier.Name = podName
