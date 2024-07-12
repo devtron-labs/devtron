@@ -122,6 +122,7 @@ type PipelineRepository interface {
 	FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*Pipeline, err error)
 	FilterDeploymentDeleteRequestedPipelineIds(cdPipelineIds []int) (map[int]bool, error)
 	FindDeploymentTypeByPipelineIds(cdPipelineIds []int) (map[int]DeploymentObject, error)
+	UpdateCiPipelineId(tx *pg.Tx, pipelineIds []int, ciPipelineId int) error
 	UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg.Tx, oldCiPipelineId, newCiPipelineId int) error
 	// FindWithEnvironmentByCiIds Possibility of duplicate environment names when filtered by unique pipeline ids
 	FindWithEnvironmentByCiIds(ctx context.Context, cIPipelineIds []int) ([]*Pipeline, error)
@@ -770,6 +771,17 @@ func (impl PipelineRepositoryImpl) UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg
 		Where("deleted = ?", false).Update()
 	return err
 }
+
+func (impl PipelineRepositoryImpl) UpdateCiPipelineId(tx *pg.Tx, pipelineIds []int, ciPipelineId int) error {
+	if len(pipelineIds) == 0 {
+		return nil
+	}
+	_, err := tx.Model((*Pipeline)(nil)).Set("ci_pipeline_id = ?", ciPipelineId).
+		Where("id IN (?) ", pg.In(pipelineIds)).
+		Where("deleted = ?", false).Update()
+	return err
+}
+
 func (impl PipelineRepositoryImpl) FindWithEnvironmentByCiIds(ctx context.Context, cIPipelineIds []int) ([]*Pipeline, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "FindWithEnvironmentByCiIds")
 	defer span.End()
