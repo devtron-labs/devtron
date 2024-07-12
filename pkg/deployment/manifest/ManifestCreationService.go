@@ -855,12 +855,24 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 		if deploymentType == models.DEPLOYMENTTYPE_STOP {
 			merged, err = helper.SetScalingValues(templateMap, bean2.CustomAutoScalingEnabledPathKey, merged, false)
 			if err != nil {
-				impl.logger.Errorw("error occurred while setting autoscaling key", "templateMap", templateMap, "err", err)
+				impl.logger.Errorw("error occurred while setting autoscaling enabled key", "templateMap", templateMap, "err", err)
 				return merged
 			}
 			merged, err = helper.SetScalingValues(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged, 0)
 			if err != nil {
-				impl.logger.Errorw("error occurred while setting autoscaling key", "templateMap", templateMap, "err", err)
+				impl.logger.Errorw("error occurred while setting autoscaling replica count key", "templateMap", templateMap, "err", err)
+				return merged
+			}
+
+			merged, err = helper.SetScalingValues(templateMap, bean2.CustomAutoscalingMinPathKey, merged, 0)
+			if err != nil {
+				impl.logger.Errorw("error occurred while setting autoscaling min key", "templateMap", templateMap, "err", err)
+				return merged
+			}
+
+			merged, err = helper.SetScalingValues(templateMap, bean2.CustomAutoscalingMaxPathKey, merged, 0)
+			if err != nil {
+				impl.logger.Errorw("error occurred while setting autoscaling max key", "templateMap", templateMap, "err", err)
 				return merged
 			}
 		} else {

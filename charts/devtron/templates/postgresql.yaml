@@ -113,6 +113,7 @@ spec:
         release: "devtron"
         role: master
     spec:
+      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.components.postgres.nodeSelector "tolerations" $.Values.components.postgres.tolerations "imagePullSecrets" $.Values.components.postgres.imagePullSecrets "global" $.Values.global) | indent 6 }}
       securityContext:
         fsGroup: 1001
       initContainers:
@@ -442,6 +443,7 @@ spec:
         app.kubernetes.io/name: postgres
         app.kubernetes.io/instance: devtron
     spec:
+      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.components.postgres.nodeSelector "tolerations" $.Values.components.postgres.tolerations "imagePullSecrets" $.Values.components.postgres.imagePullSecrets "global" $.Values.global) | indent 6 }}
       securityContext:
         fsGroup: 999
       initContainers:
