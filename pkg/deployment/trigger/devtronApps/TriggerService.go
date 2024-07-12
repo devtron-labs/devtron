@@ -1170,7 +1170,7 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(ctx context.Context, pipeline
 	impl.logger.Infow("received payload, updateArgoPipeline", "appId", pipeline.AppId, "pipelineName", pipeline.Name, "envId", envOverride.TargetEnvironment, "argoAppName", argoAppName)
 	argoApplication, err := impl.argoClientWrapperService.GetArgoAppByName(newCtx, argoAppName)
 	if err != nil {
-		impl.logger.Errorw("no argo app exists", "app", argoAppName, "pipeline", pipeline.Name)
+		impl.logger.Errorw("unable to get ArgoCd app", "app", argoAppName, "pipeline", pipeline.Name, "err", err)
 		return false, err
 	}
 	//if status, ok:=status.FromError(err);ok{
