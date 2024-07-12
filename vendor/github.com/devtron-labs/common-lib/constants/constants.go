@@ -21,16 +21,10 @@ const (
 	GoRoutinePanicMsgLogPrefix = "GO_ROUTINE_PANIC_LOG:"
 )
 
-// service names constant
-
-type ServiceName string
-
-func (m ServiceName) ToString() string {
-	return string(m)
-}
+// microservice names constant
 
 const (
-	Orchestrator ServiceName = "ORCHESTRATOR"
+	OrchestratorMicroService = "ORCHESTRATOR"
 )
 
 // metrics name constants

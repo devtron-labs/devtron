@@ -6,12 +6,19 @@ import (
 	"github.com/devtron-labs/common-lib/pubsub-lib/metrics"
 	"github.com/devtron-labs/common-lib/utils/runTime"
 	"go.uber.org/zap"
+	"log"
 	"runtime/debug"
 )
 
 type Runnable struct {
 	logger      *zap.SugaredLogger
-	serviceName constants.ServiceName
+	serviceName ServiceName
+}
+
+type ServiceName string
+
+func (m ServiceName) ToString() string {
+	return string(m)
 }
 
 type RunAsyncMetaData struct {
@@ -19,7 +26,7 @@ type RunAsyncMetaData struct {
 	Path   string
 }
 
-func NewAsyncRunnable(logger *zap.SugaredLogger, serviceName constants.ServiceName) *Runnable {
+func NewAsyncRunnable(logger *zap.SugaredLogger, serviceName ServiceName) *Runnable {
 	return &Runnable{
 		logger:      logger,
 		serviceName: serviceName,
@@ -63,7 +70,11 @@ func (impl *Runnable) run(fn func(), metadataOpts ...NewUpdateMetaData) {
 		defer func() {
 			if r := recover(); r != nil {
 				metrics.IncPanicRecoveryCount("go-routine", impl.serviceName.ToString(), metaData.Method, metaData.Path)
-				impl.logger.Errorw(fmt.Sprintf("%s %s", constants.GoRoutinePanicMsgLogPrefix, "go-routine recovered from panic"), "err", r, "stack", string(debug.Stack()))
+				if impl.logger == nil {
+					log.Println(constants.GoRoutinePanicMsgLogPrefix, "go-routine recovered from panic", "err:", r, "stack:", string(debug.Stack()))
+				} else {
+					impl.logger.Errorw(fmt.Sprintf("%s %s", constants.GoRoutinePanicMsgLogPrefix, "go-routine recovered from panic"), "err", r, "stack", string(debug.Stack()))
+				}
 			}
 		}()
 		if fn != nil {
