@@ -849,7 +849,7 @@ func (impl *ManifestCreationServiceImpl) getArgoCdHPAResourceManifest(ctx contex
 	if recv != nil && len(*recv.Manifest) > 0 {
 		err := json.Unmarshal([]byte(*recv.Manifest), &resourceManifest)
 		if err != nil {
-			impl.logger.Errorw("failed to unmarshal hpa resource manifest", "err", err)
+			impl.logger.Errorw("failed to unmarshal hpa resource manifest", "manifest", recv.Manifest, "err", err)
 			return resourceManifest, err
 		}
 	} else {
