@@ -18,6 +18,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/util/reflectUtil"
 	"log"
 	"os"
 	"reflect"
@@ -81,14 +82,7 @@ func checkNilFields(obj interface{}, nilObjMap map[string]bool) {
 }
 
 func canFieldTypeBeNil(field reflect.Value) bool {
-	kind := field.Kind()
-	switch kind {
-	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.UnsafePointer,
-		reflect.Interface, reflect.Slice:
-		return true
-	default: //other types can not be nil
-		return false
-	}
+	return reflectUtil.IsNullableValue(field)
 }
 
 func canSkipFieldStructCheck(fieldName, valName string) bool {
