@@ -21,7 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	application3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	util5 "github.com/devtron-labs/common-lib/utils/k8s"
+	k8sUtil "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -52,7 +52,6 @@ import (
 	"github.com/tidwall/gjson"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"net/http"
 	"strings"
 	"time"
@@ -786,9 +785,21 @@ func (impl *ManifestCreationServiceImpl) getK8sHPAResourceManifest(ctx context.C
 	defer span.End()
 	resourceManifest := make(map[string]interface{})
 	version := "v2beta2"
-	k8sResource, err := impl.k8sCommonService.GetResource(newCtx, &k8s.ResourceRequestBean{ClusterId: clusterId,
-		K8sRequest: &util5.K8sRequestBean{ResourceIdentifier: util5.ResourceIdentifier{Name: hpaResourceRequest.ResourceName,
-			Namespace: namespace, GroupVersionKind: schema.GroupVersionKind{Group: hpaResourceRequest.Group, Kind: hpaResourceRequest.Kind, Version: version}}}})
+	k8sReq := &k8s.ResourceRequestBean{
+		ClusterId: clusterId,
+		K8sRequest: k8sUtil.NewK8sRequestBean(
+			k8sUtil.WithResourceIdentifier(
+				k8sUtil.NewResourceIdentifier(
+					k8sUtil.WithName(hpaResourceRequest.ResourceName),
+					k8sUtil.WithNameSpace(namespace),
+					k8sUtil.WithGroup(hpaResourceRequest.Group),
+					k8sUtil.WithKind(hpaResourceRequest.Kind),
+					k8sUtil.WithVersion(version),
+				),
+			),
+		),
+	}
+	k8sResource, err := impl.k8sCommonService.GetResource(newCtx, k8sReq)
 	if err != nil {
 		if k8s.IsResourceNotFoundErr(err) {
 			// this is a valid case for hibernated applications, so returning nil
