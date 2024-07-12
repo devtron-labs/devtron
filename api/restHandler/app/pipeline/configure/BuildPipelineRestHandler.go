@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"golang.org/x/exp/maps"
 	"io"
 	"net/http"
 	"strconv"
@@ -416,12 +417,19 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWr
 	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	workflowResourceName := handler.enforcerUtil.GetRbacObjectNameByAppAndWorkflow(app.AppName, appWorkflowName)
-	var ok bool
-	ok = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName)
-	if !ok {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, resourceName) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionCreate, workflowResourceName)
+
+	cdPipelines, err := handler.pipelineRepository.FindByCiPipelineId(patchRequest.CiPipeline.Id)
+	if err != nil && err != pg.ErrNoRows {
+		handler.Logger.Errorw("error in finding ccd cdPipelines by ciPipelineId", "ciPipelineId", patchRequest.CiPipeline.Id, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
 	}
-	if !ok {
+
+	haveCiPatchAccess := handler.checkCiPatchAccess(token, resourceName, cdPipelines)
+	if !haveCiPatchAccess {
+		haveCiPatchAccess = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, resourceName) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionCreate, workflowResourceName)
+	}
+	if !haveCiPatchAccess {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -468,6 +476,33 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWr
 		createResp.AppName = app.AppName
 	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
+}
+
+// checkCiPatchAccess assumes all the cdPipelines belong to same app
+func (handler *PipelineConfigRestHandlerImpl) checkCiPatchAccess(token string, resourceName string, cdPipelines []*pipelineConfig.Pipeline) bool {
+
+	if len(cdPipelines) == 0 {
+		// no cd pipelines are present , so user can edit if he has app admin access
+		return handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName)
+	}
+
+	appId := 0
+	envIds := make([]int, len(cdPipelines))
+	for _, cdPipeline := range cdPipelines {
+		envIds = append(envIds, cdPipeline.EnvironmentId)
+		appId = cdPipeline.AppId
+	}
+
+	rbacObjectsMap, _ := handler.enforcerUtil.GetRbacObjectsByEnvIdsAndAppId(envIds, appId)
+	envRbacResultMap := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionUpdate, maps.Values(rbacObjectsMap))
+
+	for _, hasAccess := range envRbacResultMap {
+		if hasAccess {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (handler *PipelineConfigRestHandlerImpl) GetCiPipeline(w http.ResponseWriter, r *http.Request) {
