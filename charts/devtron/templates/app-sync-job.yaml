@@ -11,6 +11,7 @@ spec:
   template:
     spec:
       serviceAccountName: devtron
+      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.components.chartSync.nodeSelector "tolerations" $.Values.components.chartSync.tolerations "imagePullSecrets" $.Values.components.chartSync.imagePullSecrets "global" $.Values.global) | indent 6 }}
       initContainers:
       - name: migration-wait
         image: {{ include "common.image" (dict "component" $.Values.components.migrator "global" $.Values.global "extraImage" $.Values.components.migrator.kubectlImage ) }}
@@ -74,6 +75,7 @@ spec:
     spec:
       template:
         spec:
+          {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.components.chartSync.nodeSelector "tolerations" $.Values.components.chartSync.tolerations "imagePullSecrets" $.Values.components.chartSync.imagePullSecrets "global" $.Values.global) | indent 10 }}
           {{- if and $.Values.global $.Values.global.podSecurityContext }}
           securityContext:
 {{- toYaml $.Values.global.podSecurityContext | nindent 12 }}
