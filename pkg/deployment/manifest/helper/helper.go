@@ -34,7 +34,7 @@ import (
 
 const KeyNotFoundError = "empty-val-err"
 
-func IsResourceNotFoundErr(err error) bool {
+func IsNotFoundErr(err error) bool {
 	if err == nil {
 		return false
 	}

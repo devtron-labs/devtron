@@ -795,6 +795,7 @@ func (impl *ManifestCreationServiceImpl) getK8sHPAResourceManifest(ctx context.C
 			// for hibernated applications, we don't have any hpa resource manifest
 			return resourceManifest, nil
 		} else if k8s.IsBadRequestErr(err) {
+			impl.logger.Errorw("bad request error occurred while fetching hpa resource for app", "resourceName", hpaResourceRequest.ResourceName, "err", err)
 			return resourceManifest, util.NewApiError().
 				WithHttpStatusCode(http.StatusPreconditionFailed).
 				WithInternalMessage(err.Error()).
@@ -845,13 +846,14 @@ func (impl *ManifestCreationServiceImpl) getArgoCdHPAResourceManifest(ctx contex
 		impl.logger.Errorw("ArgoCd Get Resource API Failed", "resourceName", hpaResourceRequest.ResourceName, "err", errMsg)
 		return resourceManifest, fmt.Errorf("ArgoCd client error: %s", errMsg)
 	}
-	impl.logger.Debugw("resource manifest get replica count", "response", recv)
 	if recv != nil && len(*recv.Manifest) > 0 {
 		err := json.Unmarshal([]byte(*recv.Manifest), &resourceManifest)
 		if err != nil {
 			impl.logger.Errorw("failed to unmarshal hpa resource manifest", "err", err)
 			return resourceManifest, err
 		}
+	} else {
+		impl.logger.Debugw("invalid resource manifest received from ArgoCd", "response", recv)
 	}
 	return resourceManifest, nil
 }
@@ -866,12 +868,12 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 	templateMap := make(map[string]interface{})
 	err := json.Unmarshal(merged, &templateMap)
 	if err != nil {
-		impl.logger.Errorw("unmarshal failed for hpa check", "err", err)
+		impl.logger.Errorw("unmarshal failed for hpa check", "pipelineId", pipelineId, "err", err)
 		return merged, err
 	}
 
 	hpaResourceRequest := helper.GetAutoScalingReplicaCount(templateMap, appName)
-	impl.logger.Debugw("autoscalingCheckBeforeTrigger", "hpaResourceRequest", hpaResourceRequest)
+	impl.logger.Debugw("autoscalingCheckBeforeTrigger", "pipelineId", pipelineId, "hpaResourceRequest", hpaResourceRequest)
 	if hpaResourceRequest.IsEnable {
 		var resourceManifest map[string]interface{}
 		if util.IsAcdApp(appDeploymentType) {
@@ -898,7 +900,7 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 			templateMap["replicaCount"] = reqReplicaCount
 			merged, err = json.Marshal(&templateMap)
 			if err != nil {
-				impl.logger.Errorw("marshaling failed for hpa check", "err", err)
+				impl.logger.Errorw("marshaling failed for hpa check", "reqReplicaCount", reqReplicaCount, "err", err)
 				return merged, err
 			}
 		}
@@ -957,30 +959,30 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 
 func (impl *ManifestCreationServiceImpl) getReplicaCountFromCustomChart(templateMap map[string]interface{}, merged []byte) (float64, error) {
 	autoscalingMinVal, err := helper.ExtractParamValue(templateMap, bean2.CustomAutoscalingMinPathKey, merged)
-	if helper.IsResourceNotFoundErr(err) {
+	if helper.IsNotFoundErr(err) {
 		return 0, util.NewApiError().
 			WithHttpStatusCode(http.StatusPreconditionFailed).
-			WithInternalMessage("empty-val-err").
+			WithInternalMessage(helper.KeyNotFoundError).
 			WithUserDetailMessage(fmt.Sprintf("empty value for key [%s]", bean2.CustomAutoscalingMinPathKey))
 	} else if err != nil {
 		impl.logger.Errorw("error occurred while parsing float number", "key", bean2.CustomAutoscalingMinPathKey, "err", err)
 		return 0, err
 	}
 	autoscalingMaxVal, err := helper.ExtractParamValue(templateMap, bean2.CustomAutoscalingMaxPathKey, merged)
-	if helper.IsResourceNotFoundErr(err) {
+	if helper.IsNotFoundErr(err) {
 		return 0, util.NewApiError().
 			WithHttpStatusCode(http.StatusPreconditionFailed).
-			WithInternalMessage("empty-val-err").
+			WithInternalMessage(helper.KeyNotFoundError).
 			WithUserDetailMessage(fmt.Sprintf("empty value for key [%s]", bean2.CustomAutoscalingMaxPathKey))
 	} else if err != nil {
 		impl.logger.Errorw("error occurred while parsing float number", "key", bean2.CustomAutoscalingMaxPathKey, "err", err)
 		return 0, err
 	}
 	autoscalingReplicaCountVal, err := helper.ExtractParamValue(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged)
-	if helper.IsResourceNotFoundErr(err) {
+	if helper.IsNotFoundErr(err) {
 		return 0, util.NewApiError().
 			WithHttpStatusCode(http.StatusPreconditionFailed).
-			WithInternalMessage("empty-val-err").
+			WithInternalMessage(helper.KeyNotFoundError).
 			WithUserDetailMessage(fmt.Sprintf("empty value for key [%s]", bean2.CustomAutoscalingReplicaCountPathKey))
 	} else if err != nil {
 		impl.logger.Errorw("error occurred while parsing float number", "key", bean2.CustomAutoscalingReplicaCountPathKey, "err", err)
