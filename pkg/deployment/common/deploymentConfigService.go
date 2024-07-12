@@ -1,6 +1,7 @@
 package common
 
 import (
+	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -122,7 +123,11 @@ func (impl *DeploymentConfigServiceImpl) GetConfigForDevtronApps(appId, envId in
 				impl.logger.Errorw("error in migrating app level config to deployment config", "appId", appId, "err", err)
 				return nil, err
 			}
+		} else if gitOps.IsGitOpsRepoNotConfigured(appAndEnvLevelConfig.RepoUrl) && gitOps.IsGitOpsRepoConfigured(appLevelConfigDbObj.RepoUrl) {
+			// if url is present at app level and not at env level then copy app level url to env level config
+			appAndEnvLevelConfig.RepoUrl = appLevelConfigDbObj.RepoUrl
 		}
+
 		return ConvertDeploymentConfigDbObjToDTO(appAndEnvLevelConfig), nil
 	}
 	return ConvertDeploymentConfigDbObjToDTO(appLevelConfigDbObj), nil
@@ -155,6 +160,16 @@ func (impl *DeploymentConfigServiceImpl) GetAndMigrateConfigIfAbsentForDevtronAp
 			appAndEnvLevelConfig, err = impl.migrateDevtronAppsPipelineDataToDeploymentConfig(appLevelConfigDbObj, appId, envId)
 			if err != nil {
 				impl.logger.Errorw("error in migrating app level config to deployment config", "appId", appId, "err", err)
+				return nil, err
+			}
+		} else if gitOps.IsGitOpsRepoNotConfigured(appAndEnvLevelConfig.RepoUrl) && gitOps.IsGitOpsRepoConfigured(appLevelConfigDbObj.RepoUrl) {
+			// if url is present at app level and not at env level then copy app level url to env level config
+			// will happen when custom gitOps is enabled and app is cloned. In this case when user configure app level gitOps , env level gitOps will not be updated
+			appAndEnvLevelConfig.RepoUrl = appLevelConfigDbObj.RepoUrl
+			appAndEnvLevelConfig.AuditLog.UpdateAuditLog(1)
+			appAndEnvLevelConfig, err = impl.deploymentConfigRepository.Update(nil, appAndEnvLevelConfig)
+			if err != nil {
+				impl.logger.Errorw("error in updating deploymentConfig", "appId", appAndEnvLevelConfig.AppId, "envId", appAndEnvLevelConfig.EnvironmentId, "err", err)
 				return nil, err
 			}
 		}

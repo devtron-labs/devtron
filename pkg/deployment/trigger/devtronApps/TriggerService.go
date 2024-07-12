@@ -794,24 +794,6 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 	}
 	valuesOverrideResponse.DeploymentConfig = envDeploymentConfig
 
-	if impl.deploymentServiceTypeConfig.UseDeploymentConfigData && gitOps.IsGitOpsRepoNotConfigured(valuesOverrideResponse.DeploymentConfig.RepoURL) {
-		appLevelConfig, err := impl.deploymentConfigService.GetAppLevelConfigForDevtronApp(overrideRequest.AppId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching app level config for devtron apps", "appId", overrideRequest.AppId, "err", err)
-			return releaseNo, err
-		}
-		// if url is present at app level and not at env level then copy app level url to env level config
-		if gitOps.IsGitOpsRepoConfigured(valuesOverrideResponse.DeploymentConfig.RepoURL) {
-			valuesOverrideResponse.DeploymentConfig.RepoURL = appLevelConfig.RepoURL
-			valuesOverrideResponse.DeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, valuesOverrideResponse.DeploymentConfig, overrideRequest.UserId)
-			if err != nil {
-				impl.logger.Errorw("error in copying  app level url to env level config", "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "err", err)
-				return 0, err
-			}
-
-		}
-	}
-
 	// auditDeploymentTriggerHistory is performed irrespective of BuildManifestForTrigger error - for auditing purposes
 	historyErr := impl.auditDeploymentTriggerHistory(overrideRequest.WfrId, valuesOverrideResponse, newCtx, triggeredAt, triggeredBy)
 	if historyErr != nil {
