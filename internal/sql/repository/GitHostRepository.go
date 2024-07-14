@@ -25,6 +25,7 @@ type GitHost struct {
 	tableName       struct{} `sql:"git_host" pg:",discard_unknown_columns"`
 	Id              int      `sql:"id,pk"`
 	Name            string   `sql:"name,notnull"`
+	DisplayName     string   `sql:"display_name,notnull"`
 	Active          bool     `sql:"active,notnull"`
 	WebhookUrl      string   `sql:"webhook_url"`
 	WebhookSecret   string   `sql:"webhook_secret"`
@@ -40,6 +41,7 @@ type GitHostRepository interface {
 	FindOneByName(name string) (GitHost, error)
 	Exists(name string) (bool, error)
 	Save(gitHost *GitHost) error
+	Update(gitHost *GitHost) error
 }
 
 type GitHostRepositoryImpl struct {
@@ -74,12 +76,17 @@ func (impl GitHostRepositoryImpl) Exists(name string) (bool, error) {
 	gitHost := &GitHost{}
 	exists, err := impl.dbConnection.
 		Model(gitHost).
-		Where("name = ?", name).
+		Where("display_name = ?", name).
 		Exists()
 	return exists, err
 }
 
 func (impl GitHostRepositoryImpl) Save(gitHost *GitHost) error {
 	err := impl.dbConnection.Insert(gitHost)
+	return err
+}
+
+func (impl GitHostRepositoryImpl) Update(gitHost *GitHost) error {
+	err := impl.dbConnection.Update(gitHost)
 	return err
 }

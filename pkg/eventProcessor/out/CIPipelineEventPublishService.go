@@ -24,7 +24,7 @@ import (
 )
 
 type CIPipelineEventPublishService interface {
-	PublishGitWebhookEvent(gitHostId int, eventType, requestJSON string) error
+	PublishGitWebhookEvent(gitHostId int, gitHostName string, eventType, requestJSON string) error
 }
 
 type CIPipelineEventPublishServiceImpl struct {
@@ -40,9 +40,10 @@ func NewCIPipelineEventPublishServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *CIPipelineEventPublishServiceImpl) PublishGitWebhookEvent(gitHostId int, eventType, requestJSON string) error {
+func (impl *CIPipelineEventPublishServiceImpl) PublishGitWebhookEvent(gitHostId int, gitHostName string, eventType, requestJSON string) error {
 	event := &bean.CIPipelineGitWebhookEvent{
 		GitHostId:          gitHostId,
+		GitHostName:        gitHostName,
 		EventType:          eventType,
 		RequestPayloadJson: requestJSON,
 	}
