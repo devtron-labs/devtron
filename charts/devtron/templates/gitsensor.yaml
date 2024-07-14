@@ -73,6 +73,7 @@ spec:
       securityContext:
         runAsGroup: 1000
         runAsUser: 1000
+      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.components.gitsensor.nodeSelector "tolerations" $.Values.components.gitsensor.tolerations "imagePullSecrets" $.Values.components.gitsensor.imagePullSecrets "global" $.Values.global) | indent 6 }}
       initContainers:
         - command:
           - /bin/sh

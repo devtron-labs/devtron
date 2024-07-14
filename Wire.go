@@ -112,6 +112,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deploymentTypeChange"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
+	"github.com/devtron-labs/devtron/pkg/asyncProvider"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/build"
 	"github.com/devtron-labs/devtron/pkg/bulkAction"
@@ -228,6 +229,10 @@ func InitializeApp() (*App, error) {
 		router.NewPProfRouter,
 		wire.Bind(new(router.PProfRouter), new(*router.PProfRouterImpl)),
 		// ---- pprof end ----
+
+		// ---- goroutine async wrapper service start ----
+		asyncProvider.WireSet,
+		// ---- goroutine async wrapper service end ----
 
 		sql.NewTransactionUtilImpl,
 		wire.Bind(new(sql.TransactionWrapper), new(*sql.TransactionUtilImpl)),
