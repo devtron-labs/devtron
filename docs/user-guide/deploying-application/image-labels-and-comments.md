@@ -2,12 +2,12 @@
 
 ## Introduction
 
-Typically in a CI pipeline, you [build container images](./triggering-ci.md), and the number of images gradually increases over a period of time. Devtron's image labels and comments feature helps you to mark and remember specific images from the repository by allowing you to add special instructions to them. 
+Typically in a CI pipeline, you [build container images](./triggering-ci.md), and the number of images gradually increases over a period of time. Devtron's image labels and comments feature helps you to mark and recall specific images from the repository by allowing you to add special instructions or notes to them. 
 
 For example:
 * You can label an image as `non-prod` to indicate that it is meant for 'Dev' or 'QA' environments, but not for production.
 * Add `hotfix image only` label to indicate a one-time patch on production.
-* Comments like `This image is buggy and shouldn't be used for deployment` to caution other users.
+* Comments like `This image is buggy and shouldn't be used for deployment` to caution other users from deploying an unwanted image.
 
 ![Figure 1: Labels and Comments](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/tag-comment/tag-and-comment.jpg)
 
