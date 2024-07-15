@@ -368,6 +368,9 @@ func (impl *DeploymentConfigServiceImpl) parseConfigForHelmApps(appId int, envId
 		impl.logger.Errorw("error in getting installed app by appId", "appId", appId, "err", err)
 		return nil, err
 	}
+	if installedApp.EnvironmentId != envId {
+		return nil, pg.ErrNoRows
+	}
 	helmDeploymentConfig := &deploymentConfig.DeploymentConfig{
 		AppId:             appId,
 		EnvironmentId:     envId,
