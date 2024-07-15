@@ -82,17 +82,17 @@ func (c ServiceClientImpl) Patch(ctxt context.Context, query *application.Applic
 	return resp, err
 }
 
-func (c ServiceClientImpl) Get(ctxt context.Context, query *application.ApplicationQuery) (*v1alpha1.Application, error) {
-	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutFast)
-	defer cancel()
-	token, ok := ctxt.Value("token").(string)
+func (c ServiceClientImpl) Get(ctx context.Context, query *application.ApplicationQuery) (*v1alpha1.Application, error) {
+	token, ok := ctx.Value("token").(string)
 	if !ok {
 		return nil, errors.New("Unauthorized")
 	}
+	newCtx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutFast)
+	defer cancel()
 	conn := c.argoCDConnectionManager.GetConnection(token)
 	defer util.Close(conn, c.logger)
 	asc := application.NewApplicationServiceClient(conn)
-	resp, err := asc.Get(ctx, query)
+	resp, err := asc.Get(newCtx, query)
 	return resp, err
 }
 

@@ -396,18 +396,24 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		}
 		pipeline.DeploymentAppType = overrideDeploymentType
 	}
+
 	err = impl.checkIfNsExistsForEnvIds(envIds)
 	if err != nil {
+		impl.logger.Errorw("error in checking existence of namespace for env's", "envIds", envIds, "err", err)
 		return nil, err
 	}
+
 	isGitOpsRequiredForCD := impl.IsGitOpsRequiredForCD(pipelineCreateRequest)
 	app, err := impl.appRepo.FindById(pipelineCreateRequest.AppId)
+
 	if err != nil {
 		impl.logger.Errorw("app not found", "err", err, "appId", pipelineCreateRequest.AppId)
 		return nil, err
 	}
+
 	_, err = impl.validateCDPipelineRequest(pipelineCreateRequest)
 	if err != nil {
+		impl.logger.Errorw("error in validating cd pipeline create request", "pipelineCreateRequest", pipelineCreateRequest, "err", err)
 		return nil, err
 	}
 
@@ -1816,18 +1822,20 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 			}
 
 		}
-	}
-	// save custom tag data
-	err = impl.CDPipelineCustomTagDBOperations(pipeline)
-	if err != nil {
-		return pipelineId, err
-	}
 
-	if pipeline.IsDigestEnforcedForPipeline {
-		_, err = impl.imageDigestPolicyService.CreatePolicyForPipeline(tx, pipelineId, pipeline.Name, userId)
+		// save custom tag data
+		err = impl.CDPipelineCustomTagDBOperations(pipeline)
 		if err != nil {
 			return pipelineId, err
 		}
+
+		if pipeline.IsDigestEnforcedForPipeline {
+			_, err = impl.imageDigestPolicyService.CreatePolicyForPipeline(tx, pipelineId, pipeline.Name, userId)
+			if err != nil {
+				return pipelineId, err
+			}
+		}
+
 	}
 
 	err = tx.Commit()
@@ -2128,6 +2136,10 @@ func (impl *CdPipelineConfigServiceImpl) BulkDeleteCdPipelines(impactedPipelines
 
 }
 func (impl *CdPipelineConfigServiceImpl) checkIfNsExistsForEnvIds(envIds []*int) error {
+
+	if len(envIds) == 0 {
+		return nil
+	}
 	//fetching environments for the given environment Ids
 	environmentList, err := impl.environmentRepository.FindByIds(envIds)
 	if err != nil {

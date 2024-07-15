@@ -141,6 +141,10 @@ type CiPipeline struct {
 	EnableCustomTag          bool                     `json:"enableCustomTag"`
 }
 
+func (ciPipeline *CiPipeline) IsLinkedCi() bool {
+	return ciPipeline.IsExternal
+}
+
 type DockerConfigOverride struct {
 	DockerRegistry   string                         `json:"dockerRegistry,omitempty"`
 	DockerRepository string                         `json:"dockerRepository,omitempty"`
