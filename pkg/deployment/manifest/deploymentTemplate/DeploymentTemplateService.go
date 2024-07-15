@@ -26,7 +26,7 @@ import (
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
+	"helm.sh/helm/v3/pkg/chart"
 	"os"
 	"path"
 	"path/filepath"
@@ -66,7 +66,7 @@ func (impl *DeploymentTemplateServiceImpl) BuildChartAndGetPath(appName string, 
 			return "", err
 		}
 	}
-	chartMetaData := &chart2.Metadata{
+	chartMetaData := &chart.Metadata{
 		Name:    appName,
 		Version: envOverride.Chart.ChartVersion,
 	}

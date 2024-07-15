@@ -69,3 +69,7 @@ const (
 func IsGitOpsRepoNotConfigured(gitRepoUrl string) bool {
 	return len(gitRepoUrl) == 0 || gitRepoUrl == GIT_REPO_NOT_CONFIGURED
 }
+
+func IsGitOpsRepoConfigured(gitRepoUrl string) bool {
+	return len(gitRepoUrl) != 0 || gitRepoUrl != GIT_REPO_NOT_CONFIGURED
+}

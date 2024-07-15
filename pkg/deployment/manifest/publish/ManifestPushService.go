@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app/bean"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	gitOpsBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
@@ -55,6 +56,7 @@ type GitOpsManifestPushServiceImpl struct {
 	chartService                  chartService.ChartService
 	gitOperationService           git.GitOperationService
 	argoClientWrapperService      argocdServer.ArgoClientWrapperService
+	deploymentConfigService       common.DeploymentConfigService
 	*sql.TransactionUtilImpl
 }
 
@@ -67,7 +69,8 @@ func NewGitOpsManifestPushServiceImpl(logger *zap.SugaredLogger,
 	chartService chartService.ChartService,
 	gitOperationService git.GitOperationService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
-	transactionUtilImpl *sql.TransactionUtilImpl) *GitOpsManifestPushServiceImpl {
+	transactionUtilImpl *sql.TransactionUtilImpl,
+	deploymentConfigService common.DeploymentConfigService) *GitOpsManifestPushServiceImpl {
 	return &GitOpsManifestPushServiceImpl{
 		logger:                        logger,
 		pipelineStatusTimelineService: pipelineStatusTimelineService,
@@ -79,6 +82,7 @@ func NewGitOpsManifestPushServiceImpl(logger *zap.SugaredLogger,
 		gitOperationService:           gitOperationService,
 		argoClientWrapperService:      argoClientWrapperService,
 		TransactionUtilImpl:           transactionUtilImpl,
+		deploymentConfigService:       deploymentConfigService,
 	}
 }
 
@@ -144,11 +148,18 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(ctx context.Context, manife
 		manifestPushTemplate.RepoUrl = newGitRepoUrl
 		manifestPushResponse.NewGitRepoUrl = newGitRepoUrl
 		// below function will override gitRepoUrl for charts even if user has already configured gitOps repoURL
-		err = impl.chartService.OverrideGitOpsRepoUrl(manifestPushTemplate.AppId, newGitRepoUrl, manifestPushTemplate.UserId)
+		_, err = impl.chartService.ConfigureGitOpsRepoUrlForApp(manifestPushTemplate.AppId, newGitRepoUrl, manifestPushTemplate.ChartLocation, manifestPushTemplate.IsCustomGitRepository, manifestPushTemplate.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in updating git repo url in charts", "err", err)
 			manifestPushResponse.Error = fmt.Errorf("No repository configured for Gitops! Error while migrating gitops repository: '%s'", newGitRepoUrl)
 			impl.SaveTimelineForError(manifestPushTemplate, manifestPushResponse.Error)
+			return manifestPushResponse
+		}
+
+		err := impl.deploymentConfigService.UpdateRepoUrlForAppAndEnvId(newGitRepoUrl, manifestPushTemplate.AppId, manifestPushTemplate.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in updating repo url in env config", "appId", manifestPushTemplate.AppId, "envId", manifestPushTemplate.EnvironmentId, "err", err)
+			manifestPushResponse.Error = err
 			return manifestPushResponse
 		}
 
