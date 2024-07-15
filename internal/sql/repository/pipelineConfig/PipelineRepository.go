@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
@@ -63,7 +64,7 @@ type Pipeline struct {
 	RunPreStageInEnv              bool        `sql:"run_pre_stage_in_env"`               // secret names
 	RunPostStageInEnv             bool        `sql:"run_post_stage_in_env"`              // secret names
 	DeploymentAppCreated          bool        `sql:"deployment_app_created,notnull"`
-	DeploymentAppType             string      `sql:"deployment_app_type,notnull"` //helm, acd
+	DeploymentAppType             string      `sql:"deployment_app_type,notnull"` // Deprecated;
 	DeploymentAppName             string      `sql:"deployment_app_name"`
 	DeploymentAppDeleteRequest    bool        `sql:"deployment_app_delete_request,notnull"`
 	Environment                   repository.Environment
@@ -117,14 +118,16 @@ type PipelineRepository interface {
 	FindIdsByProjectIdsAndEnvironmentIds(projectIds, environmentIds []int) ([]int, error)
 
 	GetArgoPipelineByArgoAppName(argoAppName string) (Pipeline, error)
-	GetPartiallyDeletedPipelineByStatus(appId int, envId int) (Pipeline, error)
 	FindActiveByAppIds(appIds []int) (pipelines []*Pipeline, err error)
 	FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*Pipeline, err error)
 	FilterDeploymentDeleteRequestedPipelineIds(cdPipelineIds []int) (map[int]bool, error)
 	FindDeploymentTypeByPipelineIds(cdPipelineIds []int) (map[int]DeploymentObject, error)
+	UpdateCiPipelineId(tx *pg.Tx, pipelineIds []int, ciPipelineId int) error
 	UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg.Tx, oldCiPipelineId, newCiPipelineId int) error
 	// FindWithEnvironmentByCiIds Possibility of duplicate environment names when filtered by unique pipeline ids
 	FindWithEnvironmentByCiIds(ctx context.Context, cIPipelineIds []int) ([]*Pipeline, error)
+	FindDeploymentAppTypeByAppIdAndEnvId(appId, envId int) (string, error)
+	FindByAppIdToEnvIdsMapping(appIdToEnvIds map[int][]int) ([]*Pipeline, error)
 }
 
 type CiArtifactDTO struct {
@@ -370,8 +373,9 @@ func (impl PipelineRepositoryImpl) FindActiveByEnvIdAndDeploymentType(environmen
 		Model(&pipelines).
 		Column("pipeline.*", "App", "Environment").
 		Join("inner join app a on pipeline.app_id = a.id").
+		Join("LEFT JOIN deployment_config dc on dc.active=true and dc.app_id = pipeline.app_id and dc.environment_id=pipeline.environment_id").
 		Where("pipeline.environment_id = ?", environmentId).
-		Where("pipeline.deployment_app_type = ?", deploymentAppType).
+		Where("(pipeline.deployment_app_type=? or dc.deployment_app_type=?)", deploymentAppType, deploymentAppType).
 		Where("pipeline.deleted = ?", false)
 
 	if len(exclusionListString) > 0 {
@@ -557,7 +561,7 @@ func (impl PipelineRepositoryImpl) SetDeploymentAppCreatedInPipeline(deploymentA
 }
 
 // UpdateCdPipelineDeploymentAppInFilter takes in deployment app type and list of cd pipeline ids and
-// updates the deployment_app_type and sets deployment_app_created to false in the table for given ids.
+// updates the deploymentAppType and sets deployment_app_created to false in the table for given ids.
 func (impl PipelineRepositoryImpl) UpdateCdPipelineDeploymentAppInFilter(deploymentAppType string,
 	cdPipelineIdIncludes []int, userId int32, deploymentAppCreated bool, isDeleted bool) error {
 	query := "update pipeline set deployment_app_created = ?, deployment_app_type = ?, " +
@@ -598,10 +602,11 @@ func (impl PipelineRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypePipeli
 		Column("pipeline.id", "App.app_name", "Environment.cluster_id", "Environment.namespace", "Environment.environment_name").
 		Join("inner join app a on pipeline.app_id = a.id").
 		Join("inner join environment e on pipeline.environment_id = e.id").
+		Join("LEFT JOIN deployment_config dc on dc.active=true and dc.app_id = pipeline.app_id and dc.environment_id=pipeline.environment_id").
 		Where("e.cluster_id in (?)", pg.In(clusterIds)).
 		Where("a.active = ?", true).
 		Where("pipeline.deleted = ?", false).
-		Where("pipeline.deployment_app_type = ?", deploymentAppType).
+		Where("(pipeline.deployment_app_type=? or dc.deployment_app_type=?)", deploymentAppType, deploymentAppType).
 		Select()
 	return pipelines, err
 }
@@ -610,16 +615,17 @@ func (impl PipelineRepositoryImpl) GetArgoPipelinesHavingTriggersStuckInLastPoss
 	var pipelines []*Pipeline
 	queryString := `select p.* from pipeline p inner join cd_workflow cw on cw.pipeline_id = p.id  
     inner join cd_workflow_runner cwr on cwr.cd_workflow_id=cw.id  
+    left join deployment_config dc on dc.active=true and dc.app_id = p.app_id and dc.environment_id=p.environment_id
     where cwr.id in (select cd_workflow_runner_id from pipeline_status_timeline  
 					where id in  
 						(select DISTINCT ON (cd_workflow_runner_id) max(id) as id from pipeline_status_timeline 
 							group by cd_workflow_runner_id, id order by cd_workflow_runner_id,id desc)  
 					and status in (?) and status_time < NOW() - INTERVAL '? seconds')  
-    and cwr.started_on > NOW() - INTERVAL '? minutes' and p.deployment_app_type=? and p.deleted=?;`
+    and cwr.started_on > NOW() - INTERVAL '? minutes' and (p.deployment_app_type=? or dc.deployment_app_type=?) and p.deleted=?;`
 	_, err := impl.dbConnection.Query(&pipelines, queryString,
 		pg.In([]timelineStatus.TimelineStatus{timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED,
 			timelineStatus.TIMELINE_STATUS_FETCH_TIMED_OUT, timelineStatus.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS}),
-		pendingSinceSeconds, timeForDegradation, util.PIPELINE_DEPLOYMENT_TYPE_ACD, false)
+		pendingSinceSeconds, timeForDegradation, util.PIPELINE_DEPLOYMENT_TYPE_ACD, util.PIPELINE_DEPLOYMENT_TYPE_ACD, false)
 	if err != nil {
 		impl.logger.Errorw("error in GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelines", "err", err)
 		return nil, err
@@ -631,14 +637,15 @@ func (impl PipelineRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckInNon
 	var pipelines []*Pipeline
 	queryString := `select p.id from pipeline p inner join cd_workflow cw on cw.pipeline_id = p.id  
     inner join cd_workflow_runner cwr on cwr.cd_workflow_id=cw.id  
+    left join deployment_config dc on dc.active=true and dc.app_id = p.app_id and dc.environment_id=p.environment_id
     where cwr.id in (select id from cd_workflow_runner 
                      	where started_on < NOW() - INTERVAL '? minutes' and started_on > NOW() - INTERVAL '? hours' and status not in (?) 
                      	and workflow_type=? and cd_workflow_id in (select DISTINCT ON (pipeline_id) max(id) as id from cd_workflow
                      	  group by pipeline_id, id order by pipeline_id, id desc))
-    and p.deployment_app_type=? and p.deleted=?;`
+    and (p.deployment_app_type=? or dc.deployment_app_type=?) and p.deleted=?;`
 	_, err := impl.dbConnection.Query(&pipelines, queryString, getPipelineDeployedBeforeMinutes, getPipelineDeployedWithinHours,
 		pg.In(append(WfrTerminalStatusList, WorkflowInitiated, WorkflowInQueue)),
-		bean.CD_WORKFLOW_TYPE_DEPLOY, util.PIPELINE_DEPLOYMENT_TYPE_ACD, false)
+		bean.CD_WORKFLOW_TYPE_DEPLOY, util.PIPELINE_DEPLOYMENT_TYPE_ACD, util.PIPELINE_DEPLOYMENT_TYPE_ACD, false)
 	if err != nil {
 		impl.logger.Errorw("error in GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses", "err", err)
 		return nil, err
@@ -671,9 +678,10 @@ func (impl PipelineRepositoryImpl) FindIdsByProjectIdsAndEnvironmentIds(projectI
 func (impl PipelineRepositoryImpl) GetArgoPipelineByArgoAppName(argoAppName string) (Pipeline, error) {
 	var pipeline Pipeline
 	err := impl.dbConnection.Model(&pipeline).
+		Join("LEFT JOIN deployment_config dc on dc.app_id = pipeline.app_id and dc.environment_id=pipeline.environment_id and dc.active=true").
 		Column("pipeline.*", "Environment").
 		Where("deployment_app_name = ?", argoAppName).
-		Where("deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_ACD).
+		Where("(pipeline.deployment_app_type=? or dc.deployment_app_type=?)", util.PIPELINE_DEPLOYMENT_TYPE_ACD, util.PIPELINE_DEPLOYMENT_TYPE_ACD).
 		Where("deleted = ?", false).
 		Select()
 	if err != nil {
@@ -681,21 +689,6 @@ func (impl PipelineRepositoryImpl) GetArgoPipelineByArgoAppName(argoAppName stri
 		return pipeline, err
 	}
 	return pipeline, nil
-}
-
-func (impl PipelineRepositoryImpl) GetPartiallyDeletedPipelineByStatus(appId int, envId int) (Pipeline, error) {
-	var pipeline Pipeline
-	err := impl.dbConnection.Model(&pipeline).
-		Column("pipeline.*", "App.app_name", "Environment.namespace").
-		Where("app_id = ?", appId).
-		Where("environment_id = ?", envId).
-		Where("deployment_app_delete_request = ?", true).
-		Where("deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_ACD).
-		Where("deleted = ?", false).Select()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in updating argo pipeline delete status")
-	}
-	return pipeline, err
 }
 
 func (impl PipelineRepositoryImpl) FindActiveByAppIds(appIds []int) (pipelines []*Pipeline, err error) {
@@ -770,6 +763,17 @@ func (impl PipelineRepositoryImpl) UpdateOldCiPipelineIdToNewCiPipelineId(tx *pg
 		Where("deleted = ?", false).Update()
 	return err
 }
+
+func (impl PipelineRepositoryImpl) UpdateCiPipelineId(tx *pg.Tx, pipelineIds []int, ciPipelineId int) error {
+	if len(pipelineIds) == 0 {
+		return nil
+	}
+	_, err := tx.Model((*Pipeline)(nil)).Set("ci_pipeline_id = ?", ciPipelineId).
+		Where("id IN (?) ", pg.In(pipelineIds)).
+		Where("deleted = ?", false).Update()
+	return err
+}
+
 func (impl PipelineRepositoryImpl) FindWithEnvironmentByCiIds(ctx context.Context, cIPipelineIds []int) ([]*Pipeline, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "FindWithEnvironmentByCiIds")
 	defer span.End()
@@ -782,4 +786,29 @@ func (impl PipelineRepositoryImpl) FindWithEnvironmentByCiIds(ctx context.Contex
 		return nil, err
 	}
 	return cDPipelines, nil
+}
+
+func (impl PipelineRepositoryImpl) FindDeploymentAppTypeByAppIdAndEnvId(appId, envId int) (string, error) {
+	var deploymentAppType string
+	err := impl.dbConnection.Model((*Pipeline)(nil)).
+		Column("deployment_app_type").
+		Where("app_id = ? and environment_id=? and deleted=false", appId, envId).
+		Select(&deploymentAppType)
+	return deploymentAppType, err
+}
+
+func (impl PipelineRepositoryImpl) FindByAppIdToEnvIdsMapping(appIdToEnvIds map[int][]int) ([]*Pipeline, error) {
+	var pipelines []*Pipeline
+	err := impl.dbConnection.Model(&pipelines).
+		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+			for appId, envIds := range appIdToEnvIds {
+				if len(envIds) == 0 {
+					continue
+				}
+				query = query.WhereOr("app_id = ? and environment_id in (?) and deleted=false", appId, pg.In(envIds))
+			}
+			return query, nil
+		}).
+		Select()
+	return pipelines, err
 }

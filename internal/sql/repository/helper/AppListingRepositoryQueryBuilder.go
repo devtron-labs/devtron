@@ -129,19 +129,6 @@ func getAppListingCommonQueryString() string {
 		" LEFT JOIN app_status aps on aps.app_id = a.id and p.environment_id = aps.env_id "
 }
 
-func (impl AppListingRepositoryQueryBuilder) BuildAppListingQuery(appListingFilter AppListingFilter) string {
-	whereCondition := impl.buildAppListingWhereCondition(appListingFilter)
-	orderByClause := impl.buildAppListingSortBy(appListingFilter)
-	query := "SELECT env.id AS environment_id, env.environment_name,env.namespace as namespace ,a.id AS app_id, a.app_name, env.default,aps.status as app_status," +
-		" p.id as pipeline_id, env.active, a.team_id, t.name as team_name" +
-		" , cluster.cluster_name as cluster_name" + getAppListingCommonQueryString()
-	if appListingFilter.DeploymentGroupId != 0 {
-		query = query + " INNER JOIN deployment_group_app dga ON a.id = dga.app_id "
-	}
-	query = query + whereCondition + orderByClause
-	return query
-}
-
 func (impl AppListingRepositoryQueryBuilder) GetQueryForAppEnvContainerss(appListingFilter AppListingFilter) string {
 
 	query := "SELECT p.environment_id , a.id AS app_id, a.app_name,p.id as pipeline_id, a.team_id ,aps.status as app_status "
@@ -154,6 +141,7 @@ func (impl AppListingRepositoryQueryBuilder) CommonJoinSubQuery(appListingFilter
 	whereCondition := impl.buildAppListingWhereCondition(appListingFilter)
 
 	query := " LEFT JOIN pipeline p ON a.id=p.app_id  and p.deleted=false " +
+		" LEFT JOIN deployment_config dc ON ( p.app_id=dc.app_id and p.environment_id=dc.environment_id and dc.active=true )" +
 		" LEFT JOIN app_status aps on aps.app_id = a.id and p.environment_id = aps.env_id "
 
 	if appListingFilter.DeploymentGroupId != 0 {
@@ -258,7 +246,7 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appLi
 	appStatuses := util.ProcessAppStatuses(appStatusExcludingNotDeployed)
 	if isNotDeployedFilterApplied {
 		deploymentAppType := "manifest_download"
-		whereCondition += fmt.Sprintf(" and (p.deployment_app_created=%v and p.deployment_app_type != '%s' or a.id NOT IN (SELECT app_id from pipeline) ", false, deploymentAppType)
+		whereCondition += fmt.Sprintf(" and (p.deployment_app_created=%v and (p.deployment_app_type != '%s' || dc.deployment_app_type != '%s' ) or a.id NOT IN (SELECT app_id from pipeline) ", false, deploymentAppType, deploymentAppType)
 		if len(appStatuses) > 0 {
 			whereCondition += fmt.Sprintf(" or aps.status IN ( %s ) ", appStatuses)
 		}
