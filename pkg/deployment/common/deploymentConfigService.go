@@ -74,6 +74,7 @@ func (impl *DeploymentConfigServiceImpl) CreateOrUpdateConfig(tx *pg.Tx, config 
 		}
 	} else {
 		newDBObj.Id = configDbObj.Id
+		newDBObj.AuditLog = configDbObj.AuditLog
 		newDBObj.AuditLog.UpdateAuditLog(userId)
 		newDBObj, err = impl.deploymentConfigRepository.Update(tx, newDBObj)
 		if err != nil {
