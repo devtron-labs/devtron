@@ -63,11 +63,14 @@ func ExtractParamValue(inputMap map[string]interface{}, key string, merged []byt
 }
 
 func SetScalingValues(templateMap map[string]interface{}, customScalingKey string, merged []byte, value interface{}) ([]byte, error) {
-	autoscalingJsonPath := templateMap[customScalingKey]
+	autoscalingJsonPath, ok := templateMap[customScalingKey]
+	if !ok {
+		return merged, errors.New(fmt.Sprintf("no json path found for [%s]", customScalingKey))
+	}
 	autoscalingJsonPathKey := autoscalingJsonPath.(string)
 	mergedRes, err := sjson.Set(string(merged), autoscalingJsonPathKey, value)
 	if err != nil {
-		return []byte{}, err
+		return merged, err
 	}
 	return []byte(mergedRes), nil
 }
