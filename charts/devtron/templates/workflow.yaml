@@ -936,6 +936,13 @@ metadata:
   namespace: devtron-cd
   labels:
     release: devtron
+{{- if $.Values.components.ciRunner.imagePullSecrets }}
+imagePullSecrets:
+{{ toYaml .Values.components.ciRunner.imagePullSecrets | indent 2 }}
+{{- else if $.Values.global.imagePullSecrets }}
+imagePullSecrets:
+{{ toYaml .Values.global.imagePullSecrets | indent 2 }}
+{{- end }}
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -944,6 +951,13 @@ metadata:
   namespace: devtron-ci
   labels:
     release: devtron
+{{- if $.Values.components.ciRunner.imagePullSecrets }}
+imagePullSecrets:
+{{ toYaml .Values.components.ciRunner.imagePullSecrets | indent 2 }}
+{{- else if $.Values.global.imagePullSecrets }}
+imagePullSecrets:
+{{ toYaml .Values.global.imagePullSecrets | indent 2 }}
+{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -1256,6 +1270,7 @@ spec:
       labels:
         app: workflow-controller
     spec:
+      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.workflowController.nodeSelector "tolerations" $.Values.workflowController.tolerations "imagePullSecrets" $.Values.workflowController.imagePullSecrets "global" $.Values.global) | indent 6 }}
       containers:
       - args:
         - --configmap

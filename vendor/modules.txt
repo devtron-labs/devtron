@@ -326,9 +326,30 @@ github.com/casbin/casbin/persist/file-adapter
 github.com/casbin/casbin/rbac
 github.com/casbin/casbin/rbac/default-role-manager
 github.com/casbin/casbin/util
+# github.com/casbin/casbin/v2 v2.97.0
+## explicit; go 1.13
+github.com/casbin/casbin/v2
+github.com/casbin/casbin/v2/config
+github.com/casbin/casbin/v2/constant
+github.com/casbin/casbin/v2/effector
+github.com/casbin/casbin/v2/errors
+github.com/casbin/casbin/v2/log
+github.com/casbin/casbin/v2/model
+github.com/casbin/casbin/v2/persist
+github.com/casbin/casbin/v2/persist/cache
+github.com/casbin/casbin/v2/persist/file-adapter
+github.com/casbin/casbin/v2/rbac
+github.com/casbin/casbin/v2/rbac/default-role-manager
+github.com/casbin/casbin/v2/util
+# github.com/casbin/govaluate v1.1.0
+## explicit; go 1.13
+github.com/casbin/govaluate
 # github.com/casbin/xorm-adapter v1.0.1-0.20190716004226-a317737a1007
 ## explicit
 github.com/casbin/xorm-adapter
+# github.com/casbin/xorm-adapter/v2 v2.5.1
+## explicit; go 1.12
+github.com/casbin/xorm-adapter/v2
 # github.com/cenkalti/backoff/v4 v4.2.1
 ## explicit; go 1.18
 github.com/cenkalti/backoff/v4
@@ -381,8 +402,9 @@ github.com/devtron-labs/authenticator/jwt
 github.com/devtron-labs/authenticator/middleware
 github.com/devtron-labs/authenticator/oidc
 github.com/devtron-labs/authenticator/password
-# github.com/devtron-labs/common-lib v0.0.21-0.20240628105542-603b4f777e00
+# github.com/devtron-labs/common-lib v0.0.23
 ## explicit; go 1.21
+github.com/devtron-labs/common-lib/async
 github.com/devtron-labs/common-lib/blob-storage
 github.com/devtron-labs/common-lib/cloud-provider-identifier
 github.com/devtron-labs/common-lib/cloud-provider-identifier/bean
@@ -394,12 +416,14 @@ github.com/devtron-labs/common-lib/pubsub-lib/metrics
 github.com/devtron-labs/common-lib/pubsub-lib/model
 github.com/devtron-labs/common-lib/utils
 github.com/devtron-labs/common-lib/utils/bean
+github.com/devtron-labs/common-lib/utils/grpc
 github.com/devtron-labs/common-lib/utils/http
 github.com/devtron-labs/common-lib/utils/k8s
 github.com/devtron-labs/common-lib/utils/k8s/commonBean
 github.com/devtron-labs/common-lib/utils/k8s/health
 github.com/devtron-labs/common-lib/utils/k8sObjectsUtil
 github.com/devtron-labs/common-lib/utils/remoteConnection/bean
+github.com/devtron-labs/common-lib/utils/runTime
 github.com/devtron-labs/common-lib/utils/yaml
 # github.com/devtron-labs/go-bitbucket v0.9.60-beta
 ## explicit; go 1.14
@@ -600,6 +624,9 @@ github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/empty
 github.com/golang/protobuf/ptypes/timestamp
 github.com/golang/protobuf/ptypes/wrappers
+# github.com/golang/snappy v0.0.4
+## explicit
+github.com/golang/snappy
 # github.com/google/btree v1.1.2
 ## explicit; go 1.18
 github.com/google/btree
@@ -1000,6 +1027,20 @@ github.com/stretchr/objx
 ## explicit; go 1.20
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/mock
+# github.com/syndtr/goleveldb v1.0.0
+## explicit
+github.com/syndtr/goleveldb/leveldb
+github.com/syndtr/goleveldb/leveldb/cache
+github.com/syndtr/goleveldb/leveldb/comparer
+github.com/syndtr/goleveldb/leveldb/errors
+github.com/syndtr/goleveldb/leveldb/filter
+github.com/syndtr/goleveldb/leveldb/iterator
+github.com/syndtr/goleveldb/leveldb/journal
+github.com/syndtr/goleveldb/leveldb/memdb
+github.com/syndtr/goleveldb/leveldb/opt
+github.com/syndtr/goleveldb/leveldb/storage
+github.com/syndtr/goleveldb/leveldb/table
+github.com/syndtr/goleveldb/leveldb/util
 # github.com/tidwall/gjson v1.14.3
 ## explicit; go 1.12
 github.com/tidwall/gjson
@@ -1519,6 +1560,14 @@ gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
+# helm.sh/helm/v3 v3.14.3
+## explicit; go 1.21
+helm.sh/helm/v3/internal/sympath
+helm.sh/helm/v3/internal/version
+helm.sh/helm/v3/pkg/chart
+helm.sh/helm/v3/pkg/chart/loader
+helm.sh/helm/v3/pkg/chartutil
+helm.sh/helm/v3/pkg/ignore
 # k8s.io/api v0.29.0 => k8s.io/api v0.26.11
 ## explicit; go 1.19
 k8s.io/api/admission/v1
@@ -1579,6 +1628,7 @@ k8s.io/api/storage/v1beta1
 ## explicit; go 1.19
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1
+k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1
 # k8s.io/apimachinery v0.29.0 => k8s.io/apimachinery v0.26.11
 ## explicit; go 1.19
 k8s.io/apimachinery/pkg/api/equality
@@ -2257,12 +2307,27 @@ upper.io/db.v3/lib/reflectx
 upper.io/db.v3/lib/sqlbuilder
 upper.io/db.v3/mysql
 upper.io/db.v3/postgresql
-# xorm.io/builder v0.3.6
+# xorm.io/builder v0.3.7
 ## explicit; go 1.11
 xorm.io/builder
 # xorm.io/core v0.7.2
 ## explicit
 xorm.io/core
+# xorm.io/xorm v1.0.3
+## explicit; go 1.11
+xorm.io/xorm
+xorm.io/xorm/caches
+xorm.io/xorm/contexts
+xorm.io/xorm/convert
+xorm.io/xorm/core
+xorm.io/xorm/dialects
+xorm.io/xorm/internal/json
+xorm.io/xorm/internal/statements
+xorm.io/xorm/internal/utils
+xorm.io/xorm/log
+xorm.io/xorm/names
+xorm.io/xorm/schemas
+xorm.io/xorm/tags
 # github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 # github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.5.7-v3refs
 # k8s.io/api => k8s.io/api v0.26.11

@@ -57,6 +57,7 @@ spec:
       labels:
         app: kubelink
     spec:
+      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.components.kubelink.nodeSelector "tolerations" $.Values.components.kubelink.tolerations "imagePullSecrets" $.Values.components.kubelink.imagePullSecrets "global" $.Values.global) | indent 6 }}
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
       serviceAccount: devtron
