@@ -15,7 +15,7 @@ global:
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
-  release: "v0.7.2-rc.0"
+  release: "v0.7.1"
   registry: ""
   image: inception
   tag: 473deaa4-185-21582
@@ -96,7 +96,7 @@ components:
       #      - devtron.example.com
   ciRunner:
     registry: ""
-    image: "ci-runner:48aca9f4-138-23844"
+    image: "ci-runner:f06f3e9e-138-23995"
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
