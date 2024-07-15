@@ -9,17 +9,17 @@ Software Distribution Hub is a platform that simplifies the packaging, versionin
 
 ### When and Why to Use
 
-Devtron's Software Distribution Hub Devtron is designed to be used in scenarios where:
+Devtron's Software Distribution Hub is designed to be used in scenarios where:
 
-* **Multi-Tenant Deployments**: You build software solutions for multiple clients (tenants) who require updates deployed to their distinct environments. For one client you may have to deploy a separate instance of your application, which has separate application layer and data layer on their infrastructure.
+* **Tenanted deployment**: You build software solutions for clients (tenants) who require updates deployed to their distinct environments. For every tenant, you may have to deploy a separate instance of your application, which has separate application layer and data layer on their infrastructure.
 
 * **Complex Release Management**: You need a centralized solution to manage the deployment of software updates across various environments and ensure smooth collaboration between different teams involved in the release process.
 
-* **Enhanced Visibility and Monitoring**: You need improved visibility into the release process for stakeholders such as Release Managers, Developers, DevOps teams, System Reliability Engineers (SREs), Tenant Points of Contact (POCs), and other stakeholders. They need to monitor releases, debug issues, and have access to current operational statuses.
+* **Poor Visibility and Monitoring**: You need improved visibility into the release process for stakeholders such as Release Managers, Developers, DevOps teams, System Reliability Engineers (SREs), Tenant Points of Contact (POCs), and other stakeholders. They need to monitor releases, debug issues, and have access to current operational statuses.
 
-* **Standardized Deployment Processes**: You want to standardize and automate deployment processes to ensure error-free releases and streamline operations across multiple tenant environments.
+* **Inconsistent Deployment Processes**: You need standardization because you face operational challenges and deviation in your release outcomes, while carrying out deployment processes across multiple tenant environments.
 
-* **Comprehensive Release Documentation**: You require detailed documentation and checklists for each release, specifying versioning, dependencies, configuration changes, and deployment prerequisites to ensure consistent and successful deployments.
+* **Insufficient Release Documentation**: You intend to eliminate confusion because your releases lack detailed documentation, including versioning, dependencies, configuration changes, and deployment prerequisites, causing inconsistencies and deployment failures.
 
 ---
 
@@ -32,9 +32,10 @@ Devtron's Software Distribution Hub goes beyond basic deployment by providing en
 | Aspect                                     | Normal Deployment                            | Software Distribution Hub                                      |
 |--------------------------------------------|----------------------------------------------|----------------------------------------------------------------|
 | **Release Management**                     | No versioned deployments                     | Centralizes versioning and deployment into a unified platform  |
-| **Visibility**                             | Limited visibility (Apps/App Groups)         | Comprehensive visibility                                       |
+| **Visibility**                             | Limited visibility                           | Comprehensive visibility                                       |
 | **Automated and Standardized Deployments** | Relies on manual scripts or basic automation (jobs) | Automates and standardizes deployments for consistency  |
 | **End-to-End Release Management**          | Focuses on pushing changes quickly           | Manages entire release lifecycle from planning to post-release |
+| **Collaboration**                          | Gap or siloed communication among teams	| Facilitates collaboration among developers, release managers, and other stakeholders |
 
 ---
 
@@ -45,7 +46,6 @@ Devtron's Software Distribution Hub has 2 sections:
 * [Tenants](./tenants.md)
 * [Release Hub](./release-hub.md)
 
-
 Feel free to familiarize yourself with the following concepts (terms) before you proceed to Software Distribution Hub.
 
 ### Tenants
@@ -54,11 +54,11 @@ Tenants are organizations or clients that use your software. You can think of ea
 
 ### Installations
 
-One installation is equivalent to one deployment of your software for a specific [tenant](#tenants). Each installation is a different instance of the software tailored to different stages of use. For example, Microsoft might have three installations: 
+One installation represents one deployment of your software for a specific [tenant](#tenants). Each installation serves as a separate instance of the software, customized for different stages of use or separate teams within your organization. For example, your organization might have three installations: 
 
-* **Production Installation**: Where the live environment of the software runs for everyday use.
-* **Development Installation**: Used for testing new features and changes before they go live.
-* **QA Installation**: Dedicated to quality assurance testing to ensure the software works correctly before it reaches users.
+* **Production Installation**: Where the live environment of the software runs for all your end-users.
+* **Development Installation**: Used by your team of developers for testing new features and changes before they go live.
+* **QA Installation**: Dedicated to quality assurance (team of testers) to ensure the software works correctly before it reaches users.
 
 ### Release Tracks
 
@@ -70,10 +70,9 @@ Requirements refer to specific steps that should be taken before deployment of a
 
 ### Release Order/Stage
 
-This is a part of [requirements](#requirements) where you decide the stages in which applications are deployed. This ensures that all dependencies are met and the software is implemented correctly. For example, you might need to deploy a database update before deploying a new application feature that relies on that update. In such a case, release order ensures that the backend applications are deployed in first stage and then the frontend applications deploy as intended.
+This is a part of [requirements](#requirements) where you decide the stages in which applications are deployed to ensure all dependencies are met. For example, you might need to deploy a backend service before a frontend feature that depends on it. In such a case, release order ensures that backend applications are deployed in the first stage, followed by frontend applications, ensuring a smooth and coordinated rollout.
 
 ### Rollout
 
-The process of deploying a release to the tenant's environment involves all necessary steps and stages to ensure successful deployment.
-
+It is a process of delivering a new release to the tenant's environment. In Software Distribution Hub, this comes right after you lock the basic requirements of a release (i.e., application selection, release order, image selection, and release instructions).
 

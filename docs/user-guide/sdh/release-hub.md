@@ -87,7 +87,7 @@ By default, your selected applications will be set to release in one go. However
     ![Figure 11: Rearranging the Sequence](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/release-stage-v2.gif)
 
 {% hint style="warning" %}
-The drag-and-drop feature is not meant for changing the sequence of applications within a stage. Use it solely for moving applications from one release stage to another.
+The drag-and-drop feature is designed specifically for moving applications between different release stages. It is not meant to alter the sequence of applications within the same stage.
 {% endhint %}
 
 6. Once you have finalized the sequence and stages, click **Save Changes**.
@@ -136,7 +136,7 @@ Once you lock the requirements, Devtron will prevent any unsolicited modificatio
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
-Users need to have super-admin permission to deploy a release.
+Users with build & deploy permission or above (for the application and target environment) can deploy a release.
 {% endhint %}
 
 {% hint style="info" %}
@@ -189,21 +189,33 @@ You can view the status of installations under `Rollout Status`. Moreover, you c
 
 ![Figure 20: Checking Rollout Status](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/rollout-status-history.gif)
 
-If the applications are partially released, the release status shows `Partially released`.
+You can view the following statuses
 
-![Figure 21: Partial Release](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/partial-release.jpg)
+| Rollout Status    | Description                                                 |
+|-------------------|-------------------------------------------------------------|
+| All Tenants       | Overview of rollout status across all tenants installations              |
+| Yet to Trigger    | Shows tenant installations for which rollout has not yet started  |
+| Ongoing           | Shows tenant installations for which deployment is currently in progress |
+| Failed            | Shows tenant installations where rollout has encountered issues because some deployment stage failed |
+| Completed         | Shows tenant installations where deployment has successfully finished and services are live   |
 
-If all the applications in a release are successfully deployed, the release status shows `Completely Released`.
+Apart from the rollout status, you can also see the release status:
 
-![Figure 22: Full Release](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/complete-release.jpg)
+* If the applications are partially released, the release status shows `Partially released`.
 
-You can view the status directly in the release track too.
+    ![Figure 21: Partial Release](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/partial-release.jpg)
 
-![Figure 23: Alternative Way of Checking Status](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/complete-release-2.jpg)
+* If all the applications in a release are successfully deployed, the release status shows `Completely Released`.
+
+    ![Figure 22: Full Release](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/complete-release.jpg)
+
+* Alternatively, you can view the release status directly in the release track too.
+
+    ![Figure 23: Alternative Way of Checking Status](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/complete-release-2.jpg)
 
 ### Putting a Release on Hold
 
-If a release is put on hold, none of the applications (in any release stage) can be deployed in that release. However, deploying from [Build & Deploy page](../deploying-application/README.md) of [Applications](../applications.md) or [Application Groups](../application-groups.md) will still be possible.
+If a release is put on hold, none of the applications (in any release stage) can be deployed in that release.
 
 ![Figure 24: Pausing a Release](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/release-onhold.gif)
 
@@ -236,3 +248,18 @@ When a release is rescinded, it is marked as invalid or buggy, and cannot be use
 * To ensure that faulty or incomplete software is not deployed
 * To maintain the integrity and reliability of the software environment
 * To provide a clear indication that the release is no longer valid and should not be used
+
+### Adding a Release Note
+
+In the **Overview** section, you get a Markdown editor to add release notes. You can add text, images, links, and many more to clearly communicate updates and changes in each release. This keeps everyone informed and might contribute to a smoother deployment process.
+
+![Figure 26: Release Note Section in SDH](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/release-note.jpg)
+
+### Release Catalog
+
+Based on the schema provided in the catalog framework, you can add relevant details for release. Refer [Catalog Framework](./global-configurations/catalog-framework.md) for more details. 
+
+![Figure 27: Release Catalog](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/release-catalog.jpg)
+
+
+
