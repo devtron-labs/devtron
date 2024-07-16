@@ -589,12 +589,8 @@ Below is a sample annotation for your reference.
 kubectl.kubernetes.io/last-applied-configuration: | {"apiVersion":"v1","data":{"foo":"bar"},"kind":"ConfigMap","metadata":{"annotations":{},"creationTimestamp":"2019-08-12T18:38:34Z","labels":{"argocd.argoproj.io/instance":"deploy-test-cd-argo"},"name":"test-cm-1154","namespace":"argo"}}
 ```
 
-You may take the help of JSON validators to identify where the unintended error has occured in the JSON. Rectifying the same should resolve this issue.
+You may take the help of JSON validators to identify where the unintended human error has occured in the JSON. Rectifying the same should resolve this issue.
 
 {% hint style="info" %}
 The annotation `kubectl.kubernetes.io/last-applied-configuration:` is automatically added to each object when you run `kubectl apply`. 
 {% endhint %}
-
-
-
-
