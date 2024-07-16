@@ -115,7 +115,13 @@ func (impl GitBitbucketClient) CreateRepository(ctx context.Context, config *bea
 	if err != nil {
 		impl.logger.Errorw("error in creating repo bitbucket", "repoOptions", repoOptions, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
-		return "", true, detailedErrorGitOpsConfigActions
+		repoUrl, repoExists, err = impl.repoExists(repoOptions)
+		if err != nil {
+			impl.logger.Errorw("error in creating repo bitbucket", "repoOptions", repoOptions, "err", err)
+		}
+		if err != nil || !repoExists {
+			return "", true, detailedErrorGitOpsConfigActions
+		}
 	}
 	repoUrl = fmt.Sprintf(BITBUCKET_CLONE_BASE_URL+"%s/%s.git", repoOptions.Owner, repoOptions.RepoSlug)
 	impl.logger.Infow("repo created ", "repoUrl", repoUrl)

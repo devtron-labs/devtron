@@ -37,7 +37,7 @@ type Chart struct {
 	PipelineOverride        string                      `sql:"pipeline_override"` //json format  // pipeline values -> strategy values
 	Status                  models.ChartStatus          `sql:"status"`            //(new , deployment-in-progress, deployed-To-production, error )
 	Active                  bool                        `sql:"active"`
-	GitRepoUrl              string                      `sql:"git_repo_url"`   //git repository where chart is stored
+	GitRepoUrl              string                      `sql:"git_repo_url"`   // Deprecated;  use deployment_config table instead   //git repository where chart is stored
 	ChartLocation           string                      `sql:"chart_location"` //location within git repo where current chart is pointing
 	ReferenceTemplate       string                      `sql:"reference_template"`
 	ImageDescriptorTemplate string                      `sql:"image_descriptor_template"`
@@ -47,7 +47,7 @@ type Chart struct {
 	ReferenceChart          []byte                      `sql:"reference_chart"`
 	IsBasicViewLocked       bool                        `sql:"is_basic_view_locked,notnull"`
 	CurrentViewEditor       models.ChartsViewEditorType `sql:"current_view_editor"`
-	IsCustomGitRepository   bool                        `sql:"is_custom_repository"`
+	IsCustomGitRepository   bool                        `sql:"is_custom_repository"` // Deprecated;  use deployment_config table instead
 	ResolvedGlobalOverride  string                      `sql:"-"`
 	sql.AuditLog
 }
@@ -244,8 +244,9 @@ func (repositoryImpl ChartRepositoryImpl) FindChartByGitRepoUrl(gitRepoUrl strin
 	var chart Chart
 	err := repositoryImpl.dbConnection.Model(&chart).
 		Join("INNER JOIN app ON app.id=app_id").
+		Join("LEFT JOIN deployment_config dc on dc.active=true and dc.app_id = chart.app_id and dc.environment_id is null").
 		Where("app.active = ?", true).
-		Where("chart.git_repo_url = ?", gitRepoUrl).
+		Where("(chart.git_repo_url = ? or dc.repo_url = ?)", gitRepoUrl, gitRepoUrl).
 		Where("chart.active = ?", true).
 		Limit(1).
 		Select()
