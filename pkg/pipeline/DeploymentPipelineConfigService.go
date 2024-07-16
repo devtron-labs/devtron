@@ -456,6 +456,11 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 
+		// skip creation of pipeline if envId is not set
+		if pipeline.EnvironmentId <= 0 {
+			continue
+		}
+
 		envDeploymentConfig := &bean4.DeploymentConfig{
 			AppId:             app.Id,
 			EnvironmentId:     pipeline.EnvironmentId,
