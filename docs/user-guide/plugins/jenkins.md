@@ -1,10 +1,13 @@
 # Jenkins
 
 ## Introduction
-The Jenkins Plugin for Devtron offers seamless integration of Jenkins jobs into Devtron's CI/CD pipeline workflow. This plugin allows users to trigger external Jenkins jobs directly from the Devtron dashboard, streamlining workflow management. By incorporating this plugin, teams can centralize their CI/CD operations.
+Jenkins is an open-source Continuous Integration (CI) server. You can manage multiple stages of software delivery using Jenkins including: Automated testing, Static Code Analysis, Building, Pacakaging, and Deploying.
+With Devtron's Jenkins plugin, you can: 
+- Trigger pre-configured Jenkins jobs from Devtron and stream the logs to Devtron dashboard.
+- Execute Jenkins build pipelines through Devtron and deploy to target environments using Devtron CD pipeline.
 
 ### Prerequisites
-Before integrating the Jenkins plugin, ensure that you have properly configured your Jenkins jobs.
+Before integrating the Jenkins plugin, ensure that you have properly configured your Jenkins job and also have the necessary parameters set for triggering from Devtron.
 
 ---
 
@@ -12,9 +15,11 @@ Before integrating the Jenkins plugin, ensure that you have properly configured 
 1. Go to Applications → **Devtron Apps**.
 2. Click on your **application**.
 3. Go to **App Configuration** → **Workflow Editor**.
-4. Click on your **CI pipeline** and navigate to the **Pre-Build** stage or **Post-Build** stage depending on where you want to integrate the Jenkins plugin.
-5. Under 'TASKS', click the **Add task** button.
+4. Click on **New Workflow** and navigate to the **CREATE JOB PIPELINE**.
+5. Enter the following fields on the **Basic configuration** window.
+6. Click on **Task to be executed** under 'TASKS', click the **Add task** button.
 6. Click the **Jenkins plugin**.
+7. Enter the following fields with appropriate values.
 ---
 
 ## User Inputs
@@ -34,11 +39,11 @@ Add a brief explanation of the task and the reason for choosing the plugin. Incl
 | Variable                 | Format       | Description | Sample Value |
 | ------------------------ | ------------ | ----------- | ------------ |
 |   URL                    | STRING       | The base URL of the Jenkins server.            | https://jenkins.example.com             |
-|   USERNAME               | STRING       | The username for authenticating with the Jenkins server,with appropriate permissions            | admin_user |
-|   PASSWORD               | STRING       | The password for the Jenkins user.             | securePass123!             |
+|   USERNAME               | STRING       | Username for Jenkins server.            | admin |
+|   PASSWORD               | STRING       | Password of the Jenkins user for authentication             | securePass123!             |
 |   JOB_NAME               | STRING       | The name of the Jenkins job to be triggered.           | CI-build-job             |
-|   JOB_TRIGGER_PARAMS     | STRING       | Parameters passed when triggering a job.            | branch=main&environment=production            |
-|   JENKINS_PLUGIN_TIMEOUT | INTEGER       | The maximum time (in seconds) to wait for a Jenkins plugin operation to complete before timing out.            |  300            |
+|   JOB_TRIGGER_PARAMS     | STRING       | Parameters to be passed for triggering a job.            | branch=main&environment=production            |
+|   JENKINS_PLUGIN_TIMEOUT | INTEGER       | The maximum time (in minutes) to wait for a Jenkins plugin operation to complete before timing out.            |  60            |
 
 ### Trigger/Skip Condition
 Here you can set conditions to execute or skip the task. You can select `Set trigger conditions` for the execution of a task or `Set skip conditions` to skip the task.

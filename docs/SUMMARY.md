@@ -129,6 +129,7 @@
     * [Dependency track - Maven & Gradle](user-guide/plugins/dependency-track-maven-gradle.md)
     * [Dependency track - NodeJS](user-guide/plugins/dependency-track-nodejs.md)
     * [Dependency track - Python](user-guide/plugins/dependency-track-python.md)
+    * [Jenkins](user-guide/plugins/jenkins.md)
     * [K6 Load Testing](user-guide/plugins/k6-load-testing.md)
     * [Semgrep](user-guide/plugins/semgrep.md)
     * [SonarQube](user-guide/plugins/sonarqube.md)
