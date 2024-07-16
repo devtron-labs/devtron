@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.opentelemetry.io/otel"
 	"strings"
@@ -88,6 +89,7 @@ type AppListingRepositoryImpl struct {
 	environmentRepository            repository2.EnvironmentRepository
 	gitOpsRepository                 GitOpsConfigRepository
 	appWorkflowRepository            appWorkflow2.AppWorkflowRepository
+	deploymentConfigRepository       deploymentConfig.Repository
 }
 
 func NewAppListingRepositoryImpl(
@@ -95,7 +97,8 @@ func NewAppListingRepositoryImpl(
 	dbConnection *pg.DB,
 	appListingRepositoryQueryBuilder helper.AppListingRepositoryQueryBuilder,
 	environmentRepository repository2.EnvironmentRepository,
-	gitOpsRepository GitOpsConfigRepository, appWorkflowRepository appWorkflow2.AppWorkflowRepository) *AppListingRepositoryImpl {
+	gitOpsRepository GitOpsConfigRepository, appWorkflowRepository appWorkflow2.AppWorkflowRepository,
+	deploymentConfigRepository deploymentConfig.Repository) *AppListingRepositoryImpl {
 	return &AppListingRepositoryImpl{
 		dbConnection:                     dbConnection,
 		Logger:                           Logger,
@@ -103,6 +106,7 @@ func NewAppListingRepositoryImpl(
 		environmentRepository:            environmentRepository,
 		gitOpsRepository:                 gitOpsRepository,
 		appWorkflowRepository:            appWorkflowRepository,
+		deploymentConfigRepository:       deploymentConfigRepository,
 	}
 }
 
@@ -374,6 +378,15 @@ func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx contex
 		return deploymentDetail, err
 	}
 	deploymentDetail.EnvironmentId = envId
+	if len(deploymentDetail.DeploymentAppType) == 0 {
+		dc, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(appId, envId)
+		if err != nil {
+			impl.Logger.Errorw("error in getting deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
+			return deploymentDetail, err
+		}
+		deploymentDetail.DeploymentAppType = dc.DeploymentAppType
+	}
+
 	return deploymentDetail, nil
 }
 
@@ -538,23 +551,25 @@ func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int, appType int)
 	var appStageStatus []bean.AppStageStatus
 
 	var stages struct {
-		AppId           int    `json:"app_id,omitempty"`
-		CiTemplateId    int    `json:"ci_template_id,omitempty"`
-		CiPipelineId    int    `json:"ci_pipeline_id,omitempty"`
-		ChartId         int    `json:"chart_id,omitempty"`
-		ChartGitRepoUrl string `json:"chart_git_repo_url,omitempty"`
-		PipelineId      int    `json:"pipeline_id,omitempty"`
-		YamlStatus      int    `json:"yaml_status,omitempty"`
-		YamlReviewed    bool   `json:"yaml_reviewed,omitempty"`
+		AppId                   int    `json:"app_id,omitempty"`
+		CiTemplateId            int    `json:"ci_template_id,omitempty"`
+		CiPipelineId            int    `json:"ci_pipeline_id,omitempty"`
+		ChartId                 int    `json:"chart_id,omitempty"`
+		ChartGitRepoUrl         string `json:"chart_git_repo_url,omitempty"`
+		PipelineId              int    `json:"pipeline_id,omitempty"`
+		YamlStatus              int    `json:"yaml_status,omitempty"`
+		YamlReviewed            bool   `json:"yaml_reviewed,omitempty"`
+		DeploymentConfigRepoURL string `json:"deployment_config_repo_url"`
 	}
 
 	query := "SELECT " +
-		" app.id as app_id, ct.id as ci_template_id, cp.id as ci_pipeline_id, ch.id as chart_id, ch.git_repo_url as chart_git_repo_url," +
+		" app.id as app_id, ct.id as ci_template_id, cp.id as ci_pipeline_id, ch.id as chart_id, ch.git_repo_url as chart_git_repo_url, dc.repo_url as deployment_config_repo_url, " +
 		" p.id as pipeline_id, ceco.status as yaml_status, ceco.reviewed as yaml_reviewed " +
 		" FROM app app" +
 		" LEFT JOIN ci_template ct on ct.app_id=app.id" +
 		" LEFT JOIN ci_pipeline cp on cp.app_id=app.id" +
 		" LEFT JOIN charts ch on ch.app_id=app.id" +
+		" LEFT JOIN deployment_config dc on dc.app_id=app.id" +
 		" LEFT JOIN pipeline p on p.app_id=app.id" +
 		" LEFT JOIN chart_env_config_override ceco on ceco.chart_id=ch.id" +
 		" WHERE app.id=? and app.app_type = ? limit 1;"
@@ -589,15 +604,16 @@ func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int, appType int)
 	if model != nil && model.Id > 0 && model.AllowCustomRepository {
 		isCustomGitopsRepoUrl = true
 	}
-	if gitOps.IsGitOpsRepoNotConfigured(stages.ChartGitRepoUrl) && stages.CiPipelineId == 0 {
+	if (gitOps.IsGitOpsRepoNotConfigured(stages.ChartGitRepoUrl) && gitOps.IsGitOpsRepoNotConfigured(stages.DeploymentConfigRepoURL)) && stages.CiPipelineId == 0 {
 		stages.ChartGitRepoUrl = ""
+		stages.DeploymentConfigRepoURL = ""
 	}
 	appStageStatus = append(appStageStatus, impl.makeAppStageStatus(0, "APP", stages.AppId, true),
 		impl.makeAppStageStatus(1, "MATERIAL", materialExists, true),
 		impl.makeAppStageStatus(2, "TEMPLATE", stages.CiTemplateId, true),
 		impl.makeAppStageStatus(3, "CI_PIPELINE", stages.CiPipelineId, true),
 		impl.makeAppStageStatus(4, "CHART", stages.ChartId, true),
-		impl.makeAppStageStatus(5, "GITOPS_CONFIG", len(stages.ChartGitRepoUrl), isCustomGitopsRepoUrl),
+		impl.makeAppStageStatus(5, "GITOPS_CONFIG", len(stages.ChartGitRepoUrl)+len(stages.DeploymentConfigRepoURL), isCustomGitopsRepoUrl),
 		impl.makeAppStageStatus(6, "CD_PIPELINE", stages.PipelineId, true),
 		impl.makeAppStageChartEnvConfigStatus(7, "CHART_ENV_CONFIG", stages.YamlStatus == 3 && stages.YamlReviewed),
 	)

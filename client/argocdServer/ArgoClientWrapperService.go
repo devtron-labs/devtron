@@ -24,6 +24,7 @@ import (
 	repository2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/common-lib/async"
 	"github.com/devtron-labs/devtron/client/argocdServer/adapter"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
@@ -104,11 +105,12 @@ type ArgoClientWrapperServiceImpl struct {
 	repositoryService       repository.ServiceClient
 	gitOpsConfigReadService config.GitOpsConfigReadService
 	gitOperationService     git.GitOperationService
+	asyncRunnable           *async.Runnable
 }
 
 func NewArgoClientWrapperServiceImpl(logger *zap.SugaredLogger, acdClient application.ServiceClient,
 	ACDConfig *ACDConfig, repositoryService repository.ServiceClient, gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitOperationService git.GitOperationService) *ArgoClientWrapperServiceImpl {
+	gitOperationService git.GitOperationService, asyncRunnable *async.Runnable) *ArgoClientWrapperServiceImpl {
 	return &ArgoClientWrapperServiceImpl{
 		logger:                  logger,
 		acdClient:               acdClient,
@@ -116,13 +118,16 @@ func NewArgoClientWrapperServiceImpl(logger *zap.SugaredLogger, acdClient applic
 		repositoryService:       repositoryService,
 		gitOpsConfigReadService: gitOpsConfigReadService,
 		gitOperationService:     gitOperationService,
+		asyncRunnable:           asyncRunnable,
 	}
 }
 
-func (impl *ArgoClientWrapperServiceImpl) GetArgoAppWithNormalRefresh(context context.Context, argoAppName string) error {
+func (impl *ArgoClientWrapperServiceImpl) GetArgoAppWithNormalRefresh(ctx context.Context, argoAppName string) error {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ArgoClientWrapperServiceImpl.GetArgoAppWithNormalRefresh")
+	defer span.End()
 	refreshType := bean.RefreshTypeNormal
 	impl.logger.Debugw("trying to normal refresh application through get ", "argoAppName", argoAppName)
-	_, err := impl.acdClient.Get(context, &application2.ApplicationQuery{Name: &argoAppName, Refresh: &refreshType})
+	_, err := impl.acdClient.Get(newCtx, &application2.ApplicationQuery{Name: &argoAppName, Refresh: &refreshType})
 	if err != nil {
 		internalMsg := fmt.Sprintf("%s, err:- %s", constants.CannotGetAppWithRefreshErrMsg, err.Error())
 		clientCode, _ := util.GetClientDetailedError(err)
@@ -177,10 +182,15 @@ func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefres
 		}
 		impl.logger.Infow("ArgoCd sync completed", "argoAppName", argoAppName)
 	}
-	refreshErr := impl.GetArgoAppWithNormalRefresh(newCtx, argoAppName)
-	if refreshErr != nil {
-		impl.logger.Errorw("error in refreshing argo app", "err", refreshErr)
+
+	runnableFunc := func() {
+		// running ArgoCd app refresh in asynchronous mode
+		refreshErr := impl.GetArgoAppWithNormalRefresh(context.Background(), argoAppName)
+		if refreshErr != nil {
+			impl.logger.Errorw("error in refreshing argo app", "argoAppName", argoAppName, "err", refreshErr)
+		}
 	}
+	impl.asyncRunnable.Execute(runnableFunc)
 	return nil
 }
 
