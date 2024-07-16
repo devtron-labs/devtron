@@ -641,41 +641,59 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		}
 	}
 
-	if len(childrenCiPipelineIds) > 0 {
-
-		ciPipelineMaterials, err := impl.ciPipelineMaterialRepository.FindByCiPipelineIdsIn(childrenCiPipelineIds)
-		if err != nil {
-			impl.logger.Errorw("error in fetching  ciPipelineMaterials", "err", err)
-			return nil, err
-		}
-		parentMaterialsMap := make(map[int]*bean.CiMaterial)
-		for _, material := range createRequest.CiMaterial {
-			parentMaterialsMap[material.GitMaterialId] = material
-		}
-		var linkedMaterials []*pipelineConfig.CiPipelineMaterial
-		for _, ciPipelineMaterial := range ciPipelineMaterials {
-			if parentMaterial, ok := parentMaterialsMap[ciPipelineMaterial.GitMaterialId]; ok {
-				pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
-					Id:            ciPipelineMaterial.Id,
-					Value:         parentMaterial.Source.Value,
-					Active:        createRequest.Active,
-					Regex:         parentMaterial.Source.Regex,
-					AuditLog:      sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now(), CreatedBy: userId},
-					Type:          parentMaterial.Source.Type,
-					GitMaterialId: parentMaterial.GitMaterialId,
-					CiPipelineId:  ciPipelineMaterial.CiPipelineId,
-				}
-				linkedMaterials = append(linkedMaterials, pipelineMaterial)
-			} else {
-				impl.logger.Errorw("material not fount in patent", "gitMaterialId", ciPipelineMaterial.GitMaterialId)
-				return nil, fmt.Errorf("error while updating linked pipeline")
-			}
-		}
-		err = impl.ciPipelineMaterialRepository.Update(tx, linkedMaterials...)
-		if err != nil {
-			return nil, err
-		}
-	}
+	//if len(childrenCiPipelineIds) > 0 {
+	//
+	//	ciPipelineMaterials, err := impl.ciPipelineMaterialRepository.FindByCiPipelineIdsIn(childrenCiPipelineIds)
+	//	if err != nil {
+	//		impl.logger.Errorw("error in fetching  ciPipelineMaterials", "err", err)
+	//		return nil, err
+	//	}
+	//	parentMaterialsMap := make(map[int]*bean.CiMaterial)
+	//	for _, material := range createRequest.CiMaterial {
+	//		parentMaterialsMap[material.GitMaterialId] = material
+	//	}
+	//	var linkedMaterials []*pipelineConfig.CiPipelineMaterial
+	//	for _, ciPipelineMaterial := range ciPipelineMaterials {
+	//
+	//		// context: linked-ci
+	//		// we never come here for child
+	//
+	//		// for parent, three cases are possible
+	//
+	//		// case-1: new git-material is added
+	//		//	-> we cannot find this in child, but can be found at parent
+	//		//     this should be added at child
+	//
+	//		// case-2: existing material is updated
+	//		//  -> we can find this in child and parent
+	//		//     this should be updated at child
+	//
+	//		// case-3: material was deleted
+	//		//	-> we can find at child but cannot find at parent
+	//		//     this should be deleted at child
+	//
+	//		if parentMaterial, ok := parentMaterialsMap[ciPipelineMaterial.GitMaterialId]; ok {
+	//			pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
+	//				Id:            ciPipelineMaterial.Id,
+	//				Value:         parentMaterial.Source.Value,
+	//				Active:        createRequest.Active,
+	//				Regex:         parentMaterial.Source.Regex,
+	//				AuditLog:      sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now(), CreatedBy: userId},
+	//				Type:          parentMaterial.Source.Type,
+	//				GitMaterialId: parentMaterial.GitMaterialId,
+	//				CiPipelineId:  ciPipelineMaterial.CiPipelineId,
+	//			}
+	//			linkedMaterials = append(linkedMaterials, pipelineMaterial)
+	//		} else {
+	//			//impl.logger.Errorw("material not fount in patent", "gitMaterialId", ciPipelineMaterial.GitMaterialId)
+	//			//return nil, fmt.Errorf("error while updating linked pipeline")
+	//		}
+	//	}
+	//	err = impl.ciPipelineMaterialRepository.Update(tx, linkedMaterials...)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//}
 
 	err = tx.Commit()
 	if err != nil {
