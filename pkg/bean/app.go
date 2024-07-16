@@ -300,8 +300,27 @@ type CiPatchRequest struct {
 	SwitchToCiPipelineType         CiPipeline2.PipelineType `json:"-"`
 }
 
+func (ciPatchRequest CiPatchRequest) SwitchSourceInfo() (int, CiPipeline2.PipelineType) {
+	// get the ciPipeline
+	var switchFromType CiPipeline2.PipelineType
+	var switchFromPipelineId int
+	if ciPatchRequest.SwitchFromExternalCiPipelineId != 0 {
+		switchFromType = CiPipeline2.EXTERNAL
+		switchFromPipelineId = ciPatchRequest.SwitchFromExternalCiPipelineId
+	} else {
+		switchFromPipelineId = ciPatchRequest.SwitchFromCiPipelineId
+		switchFromType = ciPatchRequest.SwitchFromCiPipelineType
+	}
+
+	return switchFromPipelineId, switchFromType
+}
+
 func (ciPatchRequest CiPatchRequest) IsSwitchCiPipelineRequest() bool {
 	return (ciPatchRequest.SwitchFromCiPipelineId != 0 || ciPatchRequest.SwitchFromExternalCiPipelineId != 0)
+}
+
+func (ciPatchRequest CiPatchRequest) IsCreateRequest() bool {
+	return ciPatchRequest.Action == CREATE && !ciPatchRequest.IsSwitchCiPipelineRequest()
 }
 
 type CiRegexPatchRequest struct {
