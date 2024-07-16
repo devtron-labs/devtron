@@ -1,10 +1,10 @@
 # Jenkins
 
 ## Introduction
-Jenkins is an open-source Continuous Integration (CI) server. You can manage multiple stages of software delivery using Jenkins including: Automated testing, Static Code Analysis, Building, Pacakaging, and Deploying.
+Jenkins is an open-source Continuous Integration (CI) server. You can manage multiple stages of software delivery using Jenkins including Automated testing, Static Code Analysis, Building, Packaging, and Deploying.
 With Devtron's Jenkins plugin, you can: 
-- Trigger pre-configured Jenkins jobs from Devtron and stream the logs to Devtron dashboard.
-- Execute Jenkins build pipelines through Devtron and deploy to target environments using Devtron CD pipeline.
+- Trigger pre-configured Jenkins jobs from Devtron and stream the logs to the Devtron dashboard.
+- Execute Jenkins build pipelines through Devtron and deploy to target environments using the Devtron CD pipeline.
 
 ### Prerequisites
 Before integrating the Jenkins plugin, ensure that you have properly configured your Jenkins job and also have the necessary parameters set for triggering from Devtron.
