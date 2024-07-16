@@ -56,6 +56,7 @@ type PluginMetadataDto struct {
 	Action      int               `json:"action,omitempty"`
 	PluginStage string            `json:"pluginStage,omitempty"`
 	PluginSteps []*PluginStepsDto `json:"pluginSteps,omitempty"`
+	NewTags     []string          `json:"newTags,omitempty"`
 }
 
 // structs to be deprecated end
@@ -127,6 +128,16 @@ func (r *PluginParentMetadataDto) WithVersions(versions *PluginVersions) *Plugin
 type PluginVersions struct {
 	DetailedPluginVersionData []*PluginsVersionDetail `json:"detailedPluginVersionData"` // contains detailed data with all input and output variables
 	MinimalPluginVersionData  []*PluginsVersionDetail `json:"minimalPluginVersionData"`  // contains only few metadata
+}
+
+type PluginMinDto struct {
+	PluginName     string                  `json:"pluginName"`
+	PluginVersions []*PluginVersionsMinDto `json:"pluginVersions"`
+}
+
+type PluginVersionsMinDto struct {
+	Id      int    `json:"id"`
+	Version string `json:"version"`
 }
 
 func NewPluginVersions() *PluginVersions {
