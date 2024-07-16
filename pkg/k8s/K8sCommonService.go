@@ -56,6 +56,7 @@ type K8sCommonService interface {
 	GetCoreClientByClusterIdForExternalArgoApps(req *cluster.EphemeralContainerRequest) (*kubernetes.Clientset, *v1.CoreV1Client, error)
 	GetK8sServerVersion(clusterId int) (*version.Info, error)
 	PortNumberExtraction(resp []BatchResourceResponse, resourceTree map[string]interface{}) map[string]interface{}
+	GetRestConfigOfCluster(ctx context.Context, request *ResourceRequestBean) (*rest.Config, error)
 }
 type K8sCommonServiceImpl struct {
 	logger                      *zap.SugaredLogger
@@ -90,23 +91,13 @@ func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *Reso
 	clusterId := request.ClusterId
 	//getting rest config by clusterId
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
-	var restConfigFinal *rest.Config
-	if len(request.ExternalArgoApplicationName) > 0 {
-		restConfig, err := impl.argoApplicationService.GetRestConfigForExternalArgo(ctx, clusterId, request.ExternalArgoApplicationName)
-		if err != nil {
-			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", clusterId, "externalArgoApplicationName", request.ExternalArgoApplicationName)
-			return nil, err
-		}
-		restConfigFinal = restConfig
-	} else {
-		restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
-		if err != nil {
-			impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
-			return nil, err
-		}
-		restConfigFinal = restConfig
+
+	restConfig, err := impl.GetRestConfigOfCluster(ctx, request)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", clusterId, "externalArgoApplicationName", request.ExternalArgoApplicationName)
+		return nil, err
 	}
-	resp, err := impl.K8sUtil.GetResource(ctx, resourceIdentifier.Namespace, resourceIdentifier.Name, resourceIdentifier.GroupVersionKind, restConfigFinal)
+	resp, err := impl.K8sUtil.GetResource(ctx, resourceIdentifier.Namespace, resourceIdentifier.Name, resourceIdentifier.GroupVersionKind, restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource", "err", err, "resource", resourceIdentifier.Name)
 		return nil, err
@@ -120,12 +111,14 @@ func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *Reso
 func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *ResourceRequestBean) (*k8s.ManifestResponse, error) {
 	//getting rest config by clusterId
 	clusterId := request.ClusterId
-	restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
+
+	resourceIdentifier := request.K8sRequest.ResourceIdentifier
+
+	restConfig, err := impl.GetRestConfigOfCluster(ctx, request)
 	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
+		impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", clusterId, "externalArgoApplicationName", request.ExternalArgoApplicationName)
 		return nil, err
 	}
-	resourceIdentifier := request.K8sRequest.ResourceIdentifier
 	resp, err := impl.K8sUtil.UpdateResource(ctx, restConfig, resourceIdentifier.GroupVersionKind, resourceIdentifier.Namespace, request.K8sRequest.Patch)
 	if err != nil {
 		impl.logger.Errorw("error in updating resource", "err", err, "clusterId", clusterId)
@@ -137,13 +130,32 @@ func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *R
 	}
 	return resp, nil
 }
+func (impl *K8sCommonServiceImpl) GetRestConfigOfCluster(ctx context.Context, request *ResourceRequestBean) (*rest.Config, error) {
+	//getting rest config by clusterId
+	clusterId := request.ClusterId
+	if len(request.ExternalArgoApplicationName) > 0 {
+		restConfig, err := impl.argoApplicationService.GetRestConfigForExternalArgo(ctx, clusterId, request.ExternalArgoApplicationName)
+		if err != nil {
+			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", clusterId, "externalArgoApplicationName", request.ExternalArgoApplicationName)
+			return nil, err
+		}
+		return restConfig, nil
+	} else {
+		restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
+		if err != nil {
+			impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
+			return nil, err
+		}
+		return restConfig, nil
+	}
+}
 
 func (impl *K8sCommonServiceImpl) DeleteResource(ctx context.Context, request *ResourceRequestBean) (*k8s.ManifestResponse, error) {
 	//getting rest config by clusterId
 	clusterId := request.ClusterId
-	restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
+	restConfig, err := impl.GetRestConfigOfCluster(ctx, request)
 	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
+		impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", clusterId, "externalArgoApplicationName", request.ExternalArgoApplicationName)
 		return nil, err
 	}
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
@@ -156,27 +168,16 @@ func (impl *K8sCommonServiceImpl) DeleteResource(ctx context.Context, request *R
 }
 
 func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *ResourceRequestBean) (*k8s.EventsResponse, error) {
-	clusterId := request.ClusterId
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
-	var restConfigFinal *rest.Config
-	if len(request.ExternalArgoApplicationName) > 0 {
-		restConfig, err := impl.argoApplicationService.GetRestConfigForExternalArgo(ctx, clusterId, request.ExternalArgoApplicationName)
-		if err != nil {
-			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", clusterId, "externalArgoApplicationName", request.ExternalArgoApplicationName)
-			return nil, err
-		}
-		restConfigFinal = restConfig
-	} else {
-		restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
-		if err != nil {
-			impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
-			return nil, err
-		}
-		restConfigFinal = restConfig
-	}
-	list, err := impl.K8sUtil.ListEvents(restConfigFinal, resourceIdentifier.Namespace, resourceIdentifier.GroupVersionKind, ctx, resourceIdentifier.Name)
+	restConfig, err := impl.GetRestConfigOfCluster(ctx, request)
 	if err != nil {
-		impl.logger.Errorw("error in listing events", "err", err, "clusterId", clusterId)
+		impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", request.ClusterId, "externalArgoApplicationName", request.ExternalArgoApplicationName)
+		return nil, err
+	}
+
+	list, err := impl.K8sUtil.ListEvents(restConfig, resourceIdentifier.Namespace, resourceIdentifier.GroupVersionKind, ctx, resourceIdentifier.Name)
+	if err != nil {
+		impl.logger.Errorw("error in listing events", "err", err, "clusterId", request.ClusterId)
 		return nil, err
 	}
 	return &k8s.EventsResponse{list}, nil

@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
+	bean4 "github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/fluxApplication"
@@ -89,6 +90,7 @@ type K8sApplicationService interface {
 	DeleteResourceWithAudit(ctx context.Context, request *k8s.ResourceRequestBean, userId int32) (*k8s2.ManifestResponse, error)
 	GetUrlsByBatchForIngress(ctx context.Context, resp []k8s.BatchResourceResponse) []interface{}
 	ValidateFluxResourceRequest(ctx context.Context, appIdentifier *bean2.FluxAppIdentifier, request *k8s2.K8sRequestBean) (bool, error)
+	ValidateArgoResourceRequest(ctx context.Context, appIdentifier *bean4.ArgoAppIdentifier, request *k8s2.K8sRequestBean) (bool, error)
 }
 
 type K8sApplicationServiceImpl struct {
@@ -237,7 +239,15 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 		}
 		request.DeploymentType = deploymentType
 		// Validate App Id
-		if request.AppType == bean3.HelmAppType {
+		if request.AppType == bean3.ArgoAppType {
+			appIdentifier, err := argoApplication.DecodeExternalArgoAppId(appId)
+			if err != nil {
+				impl.logger.Errorw(bean3.AppIdDecodingError, "err", err, "appId", appId)
+				return nil, err
+			}
+			request.ClusterId = appIdentifier.ClusterId
+			request.K8sRequest.ResourceIdentifier.Namespace = appIdentifier.Namespace
+		} else if request.AppType == bean3.HelmAppType {
 			// For Helm App resources
 			appIdentifier, err := impl.helmAppService.DecodeAppId(appId)
 			if err != nil {
@@ -404,22 +414,12 @@ func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *
 	clusterId := request.ClusterId
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
 	podLogsRequest := request.K8sRequest.PodLogsRequest
-	var restConfigFinal *rest.Config
-	if len(request.ExternalArgoApplicationName) > 0 {
-		restConfig, err := impl.argoApplicationService.GetRestConfigForExternalArgo(ctx, clusterId, request.ExternalArgoApplicationName)
-		if err != nil {
-			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", clusterId, "externalArgoApplicationName", request.ExternalArgoApplicationName)
-		}
-		restConfigFinal = restConfig
-	} else {
-		restConfig, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(ctx, clusterId)
-		if err != nil {
-			impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
-			return nil, err
-		}
-		restConfigFinal = restConfig
+
+	restConfig, err := impl.k8sCommonService.GetRestConfigOfCluster(ctx, request)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by clusterId", "err", err, "clusterId", clusterId, "")
 	}
-	resp, err := impl.K8sUtil.GetPodLogs(ctx, restConfigFinal, resourceIdentifier.Name, resourceIdentifier.Namespace, podLogsRequest.SinceTime, podLogsRequest.TailLines, podLogsRequest.SinceSeconds, podLogsRequest.Follow, podLogsRequest.ContainerName, podLogsRequest.IsPrevContainerLogsEnabled)
+	resp, err := impl.K8sUtil.GetPodLogs(ctx, restConfig, resourceIdentifier.Name, resourceIdentifier.Namespace, podLogsRequest.SinceTime, podLogsRequest.TailLines, podLogsRequest.SinceSeconds, podLogsRequest.Follow, podLogsRequest.ContainerName, podLogsRequest.IsPrevContainerLogsEnabled)
 	if err != nil {
 		impl.logger.Errorw("error in getting pod logs", "err", err, "clusterId", clusterId)
 		return nil, err
@@ -514,6 +514,40 @@ func (impl *K8sApplicationServiceImpl) validateResourceRequest(ctx context.Conte
 	}
 	return impl.validateContainerNameIfReqd(valid, request, app), nil
 }
+func (impl *K8sApplicationServiceImpl) ValidateArgoResourceRequest(ctx context.Context, appIdentifier *bean4.ArgoAppIdentifier, request *k8s2.K8sRequestBean) (bool, error) {
+	app, err := impl.argoApplicationService.GetAppDetail(appIdentifier.AppName, appIdentifier.Namespace, appIdentifier.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting app detail", "err", err, "appDetails", appIdentifier)
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
+		return false, err
+	}
+
+	valid := false
+
+	for _, node := range app.ResourceTree.Nodes {
+		nodeDetails := k8s2.ResourceIdentifier{
+			Name:      node.Name,
+			Namespace: node.Namespace,
+			GroupVersionKind: schema.GroupVersionKind{
+				Group:   node.Group,
+				Version: node.Version,
+				Kind:    node.Kind,
+			},
+		}
+		if nodeDetails == request.ResourceIdentifier {
+			valid = true
+			break
+		}
+	}
+	appDetail := &gRPC.AppDetail{
+		ResourceTreeResponse: app.ResourceTree,
+	}
+	return impl.validateContainerNameIfReqd(valid, request, appDetail), nil
+}
+
 func (impl *K8sApplicationServiceImpl) ValidateFluxResourceRequest(ctx context.Context, appIdentifier *bean2.FluxAppIdentifier, request *k8s2.K8sRequestBean) (bool, error) {
 	app, err := impl.fluxApplicationService.GetFluxAppDetail(ctx, appIdentifier)
 	if err != nil {
