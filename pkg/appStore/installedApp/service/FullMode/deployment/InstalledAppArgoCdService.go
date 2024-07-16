@@ -46,6 +46,7 @@ type InstalledAppArgoCdService interface {
 	// UpdateAndSyncACDApps this will update chart info in acd app if required in case of mono repo migration and will refresh argo app
 	UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error
 	DeleteACD(acdAppName string, ctx context.Context, isNonCascade bool) error
+	GetAcdAppGitOpsRepoURL(appName string, environmentName string) (string, error)
 }
 
 func (impl *FullModeDeploymentServiceImpl) GetAcdAppGitOpsRepoName(appName string, environmentName string) (string, error) {
@@ -229,4 +230,16 @@ func (impl *FullModeDeploymentServiceImpl) patchAcdApp(ctx context.Context, inst
 		return err
 	}
 	return nil
+}
+
+func (impl *FullModeDeploymentServiceImpl) GetAcdAppGitOpsRepoURL(appName string, environmentName string) (string, error) {
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		impl.Logger.Errorw("error in getting acd token", "err", err)
+		return "", err
+	}
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "token", acdToken)
+	acdAppName := fmt.Sprintf("%s-%s", appName, environmentName)
+	return impl.argoClientWrapperService.GetGitOpsRepoURL(ctx, acdAppName)
 }

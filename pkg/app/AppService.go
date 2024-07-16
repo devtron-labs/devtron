@@ -26,6 +26,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
+	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
@@ -38,7 +40,6 @@ import (
 	"strconv"
 	"time"
 
-	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/caarlos0/env"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
@@ -122,6 +123,7 @@ type AppServiceImpl struct {
 	gitOperationService                    git.GitOperationService
 	deploymentTemplateService              deploymentTemplate.DeploymentTemplateService
 	appListingService                      AppListingService
+	deploymentConfigService                common2.DeploymentConfigService
 }
 
 type AppService interface {
@@ -162,7 +164,8 @@ func NewAppService(
 	scopedVariableManager variables.ScopedVariableCMCSManager, acdConfig *argocdServer.ACDConfig,
 	gitOpsConfigReadService config.GitOpsConfigReadService, gitOperationService git.GitOperationService,
 	deploymentTemplateService deploymentTemplate.DeploymentTemplateService,
-	appListingService AppListingService) *AppServiceImpl {
+	appListingService AppListingService,
+	deploymentConfigService common2.DeploymentConfigService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -193,6 +196,7 @@ func NewAppService(
 		gitOperationService:                    gitOperationService,
 		deploymentTemplateService:              deploymentTemplateService,
 		appListingService:                      appListingService,
+		deploymentConfigService:                deploymentConfigService,
 	}
 	return appServiceImpl
 }
@@ -830,6 +834,7 @@ type ValuesOverrideResponse struct {
 	PipelineOverride    *chartConfig.PipelineOverride
 	Artifact            *repository.CiArtifact
 	Pipeline            *pipelineConfig.Pipeline
+	DeploymentConfig    *bean2.DeploymentConfig
 }
 
 func (impl *AppServiceImpl) buildACDContext() (acdContext context.Context, err error) {
@@ -1034,22 +1039,6 @@ func (impl *AppServiceImpl) GetConfigMapAndSecretJson(appId int, envId int, pipe
 	return merged, nil
 }
 
-func (impl *AppServiceImpl) synchCD(pipeline *pipelineConfig.Pipeline, ctx context.Context,
-	overrideRequest *bean.ValuesOverrideRequest, envOverride *chartConfig.EnvConfigOverride) {
-	req := new(application2.ApplicationSyncRequest)
-	pipelineName := pipeline.App.AppName + "-" + envOverride.Environment.Name
-	req.Name = &pipelineName
-	prune := true
-	req.Prune = &prune
-	if ctx == nil {
-		impl.logger.Errorw("err in syncing ACD, ctx is NULL", "pipelineId", overrideRequest.PipelineId)
-		return
-	}
-	if _, err := impl.acdClient.Sync(ctx, req); err != nil {
-		impl.logger.Errorw("err in syncing ACD", "pipelineId", overrideRequest.PipelineId, "err", err)
-	}
-}
-
 type DeploymentEvent struct {
 	ApplicationId      int
 	EnvironmentId      int
@@ -1096,6 +1085,25 @@ type ReleaseAttributes struct {
 	App            string // App here corresponds to appId
 	Env            string // Env here corresponds to envId
 	AppMetrics     *bool
+}
+
+func NewReleaseAttributes(image, imageTag, pipelineName, deploymentStrategy string, appId, envId, pipelineReleaseCounter int, appMetricsEnabled *bool) *ReleaseAttributes {
+	releaseAttribute := &ReleaseAttributes{
+		Name:           image,
+		Tag:            imageTag,
+		PipelineName:   pipelineName,
+		ReleaseVersion: strconv.Itoa(pipelineReleaseCounter),
+		DeploymentType: deploymentStrategy,
+		App:            strconv.Itoa(appId),
+		Env:            strconv.Itoa(envId),
+		AppMetrics:     appMetricsEnabled,
+	}
+	return releaseAttribute
+}
+
+func (releaseAttributes *ReleaseAttributes) RenderJson(jsonTemplate string) (string, error) {
+	override, err := util2.Tprintf(jsonTemplate, releaseAttributes)
+	return override, err
 }
 
 func (impl *AppServiceImpl) UpdateInstalledAppVersionHistoryByACDObject(app *v1alpha1.Application, installedAppVersionHistoryId int, updateTimedOutStatus bool) error {
@@ -1147,7 +1155,14 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 		impl.logger.Errorw("error on update cd workflow runner", "wfr", wfr, "app", app, "err", err)
 		return err
 	}
-	util2.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(wfr), impl.appStatusConfig.ExposeCDMetrics)
+	appId := wfr.CdWorkflow.Pipeline.AppId
+	envId := wfr.CdWorkflow.Pipeline.EnvironmentId
+	envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
+		return err
+	}
+	util2.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(wfr, envDeploymentConfig), impl.appStatusConfig.ExposeCDMetrics)
 	return nil
 }
 

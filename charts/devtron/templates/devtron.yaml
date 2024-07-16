@@ -85,6 +85,7 @@ data:
   ENFORCER_CACHE_EXPIRATION_IN_SEC: "345600"
   ENFORCER_MAX_BATCH_SIZE: "1"
   DEVTRON_SECRET_NAME: "devtron-secret"
+  ENABLE_ASYNC_ARGO_CD_INSTALL_DEVTRON_CHART: "false"
   USE_ARTIFACT_LISTING_API_V2: "true"
   RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS: "true"
   ENABLE_ASYNC_INSTALL_DEVTRON_CHART: "true"
@@ -200,6 +201,7 @@ spec:
         app: devtron
         release: devtron
     spec:
+      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.components.devtron.nodeSelector "tolerations" $.Values.components.devtron.tolerations "imagePullSecrets" $.Values.components.devtron.imagePullSecrets "global" $.Values.global) | indent 6 }}
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
       serviceAccountName: devtron

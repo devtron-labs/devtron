@@ -92,6 +92,7 @@ spec:
         app.kubernetes.io/instance: devtron-nats
     spec:
       # Common volumes for the containers.
+      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.components.nats.nodeSelector "tolerations" $.Values.components.nats.tolerations "imagePullSecrets" $.Values.components.nats.imagePullSecrets "global" $.Values.global) | indent 6 }}
       volumes:
       - name: config-volume
 
@@ -267,6 +268,7 @@ metadata:
     app.kubernetes.io/instance: devtron-nats
     app.kubernetes.io/managed-by: Helm
 spec:
+  {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.components.nats.nodeSelector "tolerations" $.Values.components.nats.tolerations "imagePullSecrets" $.Values.components.nats.imagePullSecrets "global" $.Values.global) | indent 2 }}
   containers:
     - name: nats-box
       image: {{ include "common.image" (dict "component" $.Values.components.nats.natsBox "global" $.Values.global) }}

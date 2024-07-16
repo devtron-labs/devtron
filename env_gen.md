@@ -13,6 +13,8 @@
  | ARGO_AUTO_SYNC_ENABLED | true |  | 
  | ARGO_GIT_COMMIT_RETRY_COUNT_ON_CONFLICT | 3 |  | 
  | ARGO_GIT_COMMIT_RETRY_DELAY_ON_CONFLICT | 1 |  | 
+ | ARGO_REPO_REGISTER_RETRY_COUNT | 3 |  | 
+ | ARGO_REPO_REGISTER_RETRY_DELAY | 10 |  | 
  | AZURE_ACCOUNT_KEY |  |  | 
  | AZURE_ACCOUNT_NAME |  |  | 
  | AZURE_BLOB_CONTAINER_CI_CACHE |  |  | 
@@ -164,6 +166,13 @@
  | IN_APP_LOGGING_ENABLED | false |  | 
  | IS_INTERNAL_USE | false |  | 
  | JwtExpirationTime | 120 |  | 
+ | K8s_CLIENT_MAX_IDLE_CONNS_PER_HOST | 25 |  | 
+ | K8s_TCP_IDLE_CONN_TIMEOUT | 300 |  | 
+ | K8s_TCP_KEEPALIVE | 30 |  | 
+ | K8s_TCP_TIMEOUT | 30 |  | 
+ | K8s_TLS_HANDSHAKE_TIMEOUT | 10 |  | 
+ | KUBELINK_GRPC_MAX_RECEIVE_MSG_SIZE | 20 |  | 
+ | KUBELINK_GRPC_MAX_SEND_MSG_SIZE | 4 |  | 
  | LENS_TIMEOUT | 0 |  | 
  | LENS_URL | http://lens-milandevtron-service:80 |  | 
  | LIMIT_CI_CPU | 0.5 |  | 
@@ -180,6 +189,7 @@
  | NATS_MSG_BUFFER_SIZE | -1 |  | 
  | NATS_MSG_MAX_AGE | 86400 |  | 
  | NATS_MSG_PROCESSING_BATCH_SIZE | 1 |  | 
+ | NATS_MSG_REPLICAS | 0 |  | 
  | NATS_SERVER_HOST | nats://devtron-nats.devtroncd:4222 |  | 
  | NOTIFICATION_MEDIUM | rest |  | 
  | ORCH_HOST | http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats |  | 
@@ -240,6 +250,9 @@
  | USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW | true |  | 
  | USE_BLOB_STORAGE_CONFIG_IN_CI_WORKFLOW | true |  | 
  | USE_BUILDX | false |  | 
+ | USE_CASBIN_V2 | false |  | 
+ | USE_CUSTOM_HTTP_TRANSPORT | false |  | 
+ | USE_DEPLOYMENT_CONFIG_DATA | false |  | 
  | USE_EXTERNAL_NODE | false |  | 
  | USE_GIT_CLI | false |  | 
  | USE_IMAGE_TAG_FROM_GIT_PROVIDER_FOR_TAG_BASED_BUILD | false |  | 

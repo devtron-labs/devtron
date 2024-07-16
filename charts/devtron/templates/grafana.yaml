@@ -14,6 +14,7 @@ metadata:
 spec:
   template:
     spec:
+      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.monitoring.grafana.nodeSelector "tolerations" $.Values.monitoring.grafana.tolerations "imagePullSecrets" $.Values.monitoring.grafana.imagePullSecrets "global" $.Values.global) | indent 6 }}
       serviceAccountName: devtron
       containers:
       - name: grafana-restart
@@ -510,6 +511,7 @@ spec:
         fsGroup: 472
         runAsGroup: 472
         runAsUser: 472
+      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.monitoring.grafana.nodeSelector "tolerations" $.Values.monitoring.grafana.tolerations "imagePullSecrets" $.Values.monitoring.grafana.imagePullSecrets "global" $.Values.global) | indent 6 }}
       initContainers:
         - name: init-chown-data
           image: {{ include "common.image" (dict "component" $.Values.monitoring.grafana "global" $.Values.global "extraImage" $.Values.monitoring.grafana.busyboxImage ) }}
@@ -658,6 +660,7 @@ metadata:
   namespace: devtroncd
 spec:
   serviceAccountName: devtron-grafana-test
+  {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.monitoring.grafana.nodeSelector "tolerations" $.Values.monitoring.grafana.tolerations "imagePullSecrets" $.Values.monitoring.grafana.imagePullSecrets "global" $.Values.global) | indent 2 }}
   containers:
     - name: devtron-test
       image: {{ include "common.image" (dict "component" $.Values.monitoring.grafana "global" $.Values.global "extraImage" $.Values.monitoring.grafana.batsImage ) }}

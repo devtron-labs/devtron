@@ -86,6 +86,7 @@ redirects:
     user-guide/use-cases/connect-expressjs-with-mongodb-database: resources/use-cases/connect-expressjs-with-mongodb-database
     user-guide/use-cases/connect-django-with-mysql-database: resources/use-cases/connect-django-with-mysql-database
     user-guide/telemetry: resources/telemetry
+    getting-started/install/installation-configuration: setup/install/installation-configuration.md
     getting-started/global-configurations: user-guide/global-configurations/README.md
     getting-started/global-configurations/container-registries: user-guide/global-configurations/container-registries.md
     getting-started/global-configurations/sso-login: user-guide/global-configurations/sso-login.md

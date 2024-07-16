@@ -16,7 +16,22 @@
 
 package constants
 
-const PanicLogIdentifier = "DEVTRON_PANIC_RECOVER"
+const (
+	PanicLogIdentifier         = "DEVTRON_PANIC_RECOVER"
+	GoRoutinePanicMsgLogPrefix = "GO_ROUTINE_PANIC_LOG:"
+)
+
+// service names constant
+
+type ServiceName string
+
+func (m ServiceName) ToString() string {
+	return string(m)
+}
+
+const (
+	Orchestrator ServiceName = "ORCHESTRATOR"
+)
 
 // metrics name constants
 
