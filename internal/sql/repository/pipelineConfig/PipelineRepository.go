@@ -18,11 +18,11 @@ package pipelineConfig
 
 import (
 	"context"
-	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/util"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -35,7 +35,11 @@ import (
 )
 
 type PipelineType string
-type TriggerType string //HOW pipeline should be triggered
+type TriggerType string // HOW pipeline should be triggered
+
+func (t TriggerType) ToString() string {
+	return string(t)
+}
 
 const TRIGGER_TYPE_AUTOMATIC TriggerType = "AUTOMATIC"
 const TRIGGER_TYPE_MANUAL TriggerType = "MANUAL"
@@ -71,6 +75,7 @@ type PipelineRepository interface {
 	Update(pipeline *Pipeline, tx *pg.Tx) error
 	FindActiveByAppId(appId int) (pipelines []*Pipeline, err error)
 	Delete(id int, userId int32, tx *pg.Tx) error
+	MarkPartiallyDeleted(id int, userId int32, tx *pg.Tx) error
 	FindByName(pipelineName string) (pipeline *Pipeline, err error)
 	PipelineExists(pipelineName string) (bool, error)
 	FindById(id int) (pipeline *Pipeline, err error)
@@ -84,7 +89,6 @@ type PipelineRepository interface {
 	GetByEnvOverrideId(envOverrideId int) ([]Pipeline, error)
 	GetByEnvOverrideIdAndEnvId(envOverrideId, envId int) (Pipeline, error)
 	FindActiveByAppIdAndEnvironmentId(appId int, environmentId int) (pipelines []*Pipeline, err error)
-	UndoDelete(id int) error
 	UniqueAppEnvironmentPipelines() ([]*Pipeline, error)
 	FindByCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error)
 	FindByParentCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error)
@@ -274,11 +278,18 @@ func (impl PipelineRepositoryImpl) Delete(id int, userId int32, tx *pg.Tx) error
 	return err
 }
 
-func (impl PipelineRepositoryImpl) UndoDelete(id int) error {
+func (impl PipelineRepositoryImpl) MarkPartiallyDeleted(id int, userId int32, tx *pg.Tx) error {
 	pipeline := &Pipeline{}
-	_, err := impl.dbConnection.Model(pipeline).Set("deleted =?", false).Where("id =?", id).Update()
+	_, err := tx.Model(pipeline).
+		Set("deployment_app_delete_request = ?", true).
+		Set("updated_on = ?", time.Now()).
+		Set("updated_by = ?", userId).
+		Where("deleted = ?", false).
+		Where("id = ?", id).
+		Update()
 	return err
 }
+
 func (impl PipelineRepositoryImpl) FindByName(pipelineName string) (pipeline *Pipeline, err error) {
 	pipeline = &Pipeline{}
 	err = impl.dbConnection.Model(pipeline).
@@ -606,8 +617,8 @@ func (impl PipelineRepositoryImpl) GetArgoPipelinesHavingTriggersStuckInLastPoss
 					and status in (?) and status_time < NOW() - INTERVAL '? seconds')  
     and cwr.started_on > NOW() - INTERVAL '? minutes' and p.deployment_app_type=? and p.deleted=?;`
 	_, err := impl.dbConnection.Query(&pipelines, queryString,
-		pg.In([]TimelineStatus{TIMELINE_STATUS_KUBECTL_APPLY_SYNCED,
-			TIMELINE_STATUS_FETCH_TIMED_OUT, TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS}),
+		pg.In([]timelineStatus.TimelineStatus{timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED,
+			timelineStatus.TIMELINE_STATUS_FETCH_TIMED_OUT, timelineStatus.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS}),
 		pendingSinceSeconds, timeForDegradation, util.PIPELINE_DEPLOYMENT_TYPE_ACD, false)
 	if err != nil {
 		impl.logger.Errorw("error in GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelines", "err", err)
@@ -626,7 +637,7 @@ func (impl PipelineRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckInNon
                      	  group by pipeline_id, id order by pipeline_id, id desc))
     and p.deployment_app_type=? and p.deleted=?;`
 	_, err := impl.dbConnection.Query(&pipelines, queryString, getPipelineDeployedBeforeMinutes, getPipelineDeployedWithinHours,
-		pg.In([]string{WorkflowAborted, WorkflowFailed, WorkflowSucceeded, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded)}),
+		pg.In(append(WfrTerminalStatusList, WorkflowInitiated, WorkflowInQueue)),
 		bean.CD_WORKFLOW_TYPE_DEPLOY, util.PIPELINE_DEPLOYMENT_TYPE_ACD, false)
 	if err != nil {
 		impl.logger.Errorw("error in GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses", "err", err)
@@ -660,6 +671,7 @@ func (impl PipelineRepositoryImpl) FindIdsByProjectIdsAndEnvironmentIds(projectI
 func (impl PipelineRepositoryImpl) GetArgoPipelineByArgoAppName(argoAppName string) (Pipeline, error) {
 	var pipeline Pipeline
 	err := impl.dbConnection.Model(&pipeline).
+		Column("pipeline.*", "Environment").
 		Where("deployment_app_name = ?", argoAppName).
 		Where("deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_ACD).
 		Where("deleted = ?", false).

@@ -78,7 +78,7 @@ func (impl *GitOpsHelper) Clone(url, targetDir string) (clonedDir string, err er
 	}
 	_, errMsg, err := impl.gitCommandManager.Fetch(ctx, clonedDir)
 	if err == nil && errMsg == "" {
-		impl.logger.Warn("git fetch completed, pulling master branch data from remote origin")
+		impl.logger.Debugw("git fetch completed, pulling master branch data from remote origin")
 		_, errMsg, err := impl.pullFromBranch(ctx, clonedDir)
 		if err != nil {
 			impl.logger.Errorw("error on git pull", "err", err)
@@ -103,14 +103,14 @@ func (impl *GitOpsHelper) Pull(repoRoot string) (err error) {
 
 const PushErrorMessage = "failed to push some refs"
 
-func (impl GitOpsHelper) CommitAndPushAllChanges(repoRoot, commitMsg, name, emailId string) (commitHash string, err error) {
+func (impl *GitOpsHelper) CommitAndPushAllChanges(ctx context.Context, repoRoot, commitMsg, name, emailId string) (commitHash string, err error) {
 	start := time.Now()
 	defer func() {
 		util.TriggerGitOpsMetrics("CommitAndPushAllChanges", "GitService", start, err)
 	}()
-	ctx := git.BuildGitContext(context.Background()).WithCredentials(impl.Auth).
+	newCtx := git.BuildGitContext(ctx).WithCredentials(impl.Auth).
 		WithTLSData(impl.tlsConfig.CaData, impl.tlsConfig.TLSKeyData, impl.tlsConfig.TLSCertData)
-	commitHash, err = impl.gitCommandManager.CommitAndPush(ctx, repoRoot, commitMsg, name, emailId)
+	commitHash, err = impl.gitCommandManager.CommitAndPush(newCtx, repoRoot, commitMsg, name, emailId)
 	if err != nil && strings.Contains(err.Error(), PushErrorMessage) {
 		return commitHash, fmt.Errorf("%s %v", "push failed due to conflicts", err)
 	}
