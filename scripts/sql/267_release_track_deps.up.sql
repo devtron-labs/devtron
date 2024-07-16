@@ -23,21 +23,21 @@ UPDATE global_policy set policy_json='{
                     "dependencyArtifactStatus": "*",
                     "rolloutStatus": "*",
                     "lockStatus": "*",
-                    "enforcementStatus": "*"
+                    "isReleaseTrackAppPropagationOffending": "*"
                 },
                 {
                     "configStatus": "readyForRelease",
                     "dependencyArtifactStatus": "*",
                     "rolloutStatus": "*",
                     "lockStatus": "*",
-                    "enforcementStatus": "*"
+                    "isReleaseTrackAppPropagationOffending": "*"
                 },
                 {
                     "configStatus": "hold",
                     "dependencyArtifactStatus": "*",
                     "rolloutStatus": "*",
                     "lockStatus": "*",
-                    "enforcementStatus": "*"
+                    "isReleaseTrackAppPropagationOffending": "*"
                 }
             ]
         },
@@ -53,7 +53,7 @@ UPDATE global_policy set policy_json='{
                 "dependencyArtifactStatus": "*",
                 "rolloutStatus": "notDeployed",
                 "lockStatus": "unLocked",
-                "enforcementStatus": "allowed"
+                "isReleaseTrackAppPropagationOffending": "yes"
             },
             "possibleFromStates":
             [
@@ -62,7 +62,7 @@ UPDATE global_policy set policy_json='{
                     "dependencyArtifactStatus": "*",
                     "rolloutStatus": "notDeployed",
                     "lockStatus": "unLocked",
-                    "enforcementStatus": "*"
+                    "isReleaseTrackAppPropagationOffending": "*"
                 }
             ]
         },
@@ -79,7 +79,7 @@ UPDATE global_policy set policy_json='{
                     "dependencyArtifactStatus": "*",
                     "rolloutStatus": "notDeployed",
                     "lockStatus": "unLocked",
-                    "enforcementStatus": "*"
+                    "isReleaseTrackAppPropagationOffending": "*"
                 }
             ]
         },
@@ -96,21 +96,21 @@ UPDATE global_policy set policy_json='{
                     "dependencyArtifactStatus": "*",
                     "rolloutStatus": "notDeployed",
                     "lockStatus": "unLocked",
-                    "enforcementStatus": "*"
+                    "isReleaseTrackAppPropagationOffending": "*"
                 },
                 {
                     "configStatus": "readyForRelease",
                     "dependencyArtifactStatus": "*",
                     "rolloutStatus": "notDeployed",
                     "lockStatus": "unLocked",
-                    "enforcementStatus": "*"
+                    "isReleaseTrackAppPropagationOffending": "*"
                 },
                 {
                     "configStatus": "hold",
                     "dependencyArtifactStatus": "*",
                     "rolloutStatus": "notDeployed",
                     "lockStatus": "unLocked",
-                    "enforcementStatus": "*"
+                    "isReleaseTrackAppPropagationOffending": "*"
                 }
             ]
         },
@@ -123,21 +123,21 @@ UPDATE global_policy set policy_json='{
                     "dependencyArtifactStatus": "*",
                     "rolloutStatus": "*",
                     "lockStatus": "locked",
-                    "enforcementStatus": "allowed"
+                    "isReleaseTrackAppPropagationOffending": "yes"
                 },
                 {
                     "configStatus": "readyForRelease",
                     "dependencyArtifactStatus": "*",
                     "rolloutStatus": "partiallyDeployed",
                     "lockStatus": "locked",
-                    "enforcementStatus": "*"
+                    "isReleaseTrackAppPropagationOffending": "*"
                 },
                 {
                     "configStatus": "readyForRelease",
                     "dependencyArtifactStatus": "*",
                     "rolloutStatus": "completelyDeployed",
                     "lockStatus": "locked",
-                    "enforcementStatus": "*"
+                    "isReleaseTrackAppPropagationOffending": "*"
                 }
             ]
         },
@@ -150,35 +150,35 @@ UPDATE global_policy set policy_json='{
                     "dependencyArtifactStatus": "*",
                     "rolloutStatus": "notDeployed",
                     "lockStatus": "*",
-                    "enforcementStatus": "*"
+                    "isReleaseTrackAppPropagationOffending": "*"
                 },
                 {
                     "configStatus": "readyForRelease",
                     "dependencyArtifactStatus": "*",
                     "rolloutStatus": "notDeployed",
                     "lockStatus": "*",
-                    "enforcementStatus": "*"
+                    "isReleaseTrackAppPropagationOffending": "*"
                 },
                 {
                     "configStatus": "hold",
                     "dependencyArtifactStatus": "*",
                     "rolloutStatus": "notDeployed",
                     "lockStatus": "*",
-                    "enforcementStatus": "*"
+                    "isReleaseTrackAppPropagationOffending": "*"
                 },
                 {
                     "configStatus": "rescind",
                     "dependencyArtifactStatus": "*",
                     "rolloutStatus": "*",
                     "lockStatus": "*",
-                    "enforcementStatus": "*"
+                    "isReleaseTrackAppPropagationOffending": "*"
                 },
                 {
                     "configStatus": "corrupted",
                     "dependencyArtifactStatus": "*",
                     "rolloutStatus": "*",
                     "lockStatus": "*",
-                    "enforcementStatus": "*"
+                    "isReleaseTrackAppPropagationOffending": "*"
                 }
             ]
         }
