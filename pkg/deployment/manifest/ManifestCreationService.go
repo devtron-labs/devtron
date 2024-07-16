@@ -787,17 +787,15 @@ func (impl *ManifestCreationServiceImpl) getK8sHPAResourceManifest(ctx context.C
 	version := "v2beta2"
 	k8sReq := &k8s.ResourceRequestBean{
 		ClusterId: clusterId,
-		K8sRequest: k8sUtil.NewK8sRequestBean(
-			k8sUtil.WithResourceIdentifier(
-				k8sUtil.NewResourceIdentifier(
-					k8sUtil.WithName(hpaResourceRequest.ResourceName),
-					k8sUtil.WithNameSpace(namespace),
-					k8sUtil.WithGroup(hpaResourceRequest.Group),
-					k8sUtil.WithKind(hpaResourceRequest.Kind),
-					k8sUtil.WithVersion(version),
-				),
+		K8sRequest: k8sUtil.NewK8sRequestBean().
+			WithResourceIdentifier(
+				k8sUtil.NewResourceIdentifier().
+					WithName(hpaResourceRequest.ResourceName).
+					WithNameSpace(namespace).
+					WithGroup(hpaResourceRequest.Group).
+					WithKind(hpaResourceRequest.Kind).
+					WithVersion(version),
 			),
-		),
 	}
 	k8sResource, err := impl.k8sCommonService.GetResource(newCtx, k8sReq)
 	if err != nil {
