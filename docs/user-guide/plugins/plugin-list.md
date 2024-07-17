@@ -7,6 +7,7 @@ We have multiple plugins available in Devtron. At the moment, here are the plugi
 * [Dependency track - Maven & Gradle](./dependency-track-maven-gradle.md)
 * [Dependency track - NodeJS](./dependency-track-nodejs.md)
 * [Dependency track - Python](./dependency-track-python.md)
+* [GoLang-migrate](./golang-migrate.md)
 * [K6 Load Testing](./k6-load-testing.md)
 * [Semgrep](./semgrep.md)
 * [SonarQube](./sonarqube.md)

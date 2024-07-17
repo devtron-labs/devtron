@@ -22,13 +22,18 @@ import (
 )
 
 func GetArgoCdPatchReqFromDto(dto *bean.ArgoCdAppPatchReqDto) v1alpha1.Application {
-	return v1alpha1.Application{
+	app := v1alpha1.Application{
 		Spec: v1alpha1.ApplicationSpec{
 			Source: &v1alpha1.ApplicationSource{
-				Path:           dto.ChartLocation,
-				RepoURL:        dto.GitRepoUrl,
 				TargetRevision: dto.TargetRevision,
 			},
 		},
 	}
+	if len(dto.ChartLocation) > 0 {
+		app.Spec.Source.Path = dto.ChartLocation
+	}
+	if len(dto.GitRepoUrl) > 0 {
+		app.Spec.Source.RepoURL = dto.GitRepoUrl
+	}
+	return app
 }

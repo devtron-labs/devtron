@@ -57,6 +57,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
+	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
@@ -67,6 +68,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
@@ -236,6 +238,12 @@ func InitializeApp() (*App, error) {
 		// end: docker registry wire set injection
 		cron.NewCronLoggerImpl,
 		appStore.AppStoreWireSet,
+
+		deploymentConfig.NewRepositoryImpl,
+		wire.Bind(new(deploymentConfig.Repository), new(*deploymentConfig.RepositoryImpl)),
+
+		common.NewDeploymentConfigServiceImpl,
+		wire.Bind(new(common.DeploymentConfigService), new(*common.DeploymentConfigServiceImpl)),
 	)
 	return &App{}, nil
 }

@@ -33,6 +33,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
@@ -90,6 +91,7 @@ type ManifestCreationServiceImpl struct {
 	strategyHistoryRepository           repository3.PipelineStrategyHistoryRepository
 	pipelineConfigRepository            chartConfig.PipelineConfigRepository
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository
+	deploymentConfigService             common.DeploymentConfigService
 }
 
 func NewManifestCreationServiceImpl(logger *zap.SugaredLogger,
@@ -113,7 +115,8 @@ func NewManifestCreationServiceImpl(logger *zap.SugaredLogger,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository,
 	strategyHistoryRepository repository3.PipelineStrategyHistoryRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
-	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository) *ManifestCreationServiceImpl {
+	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository,
+	deploymentConfigService common.DeploymentConfigService) *ManifestCreationServiceImpl {
 	return &ManifestCreationServiceImpl{
 		logger:                              logger,
 		dockerRegistryIpsConfigService:      dockerRegistryIpsConfigService,
@@ -137,6 +140,7 @@ func NewManifestCreationServiceImpl(logger *zap.SugaredLogger,
 		strategyHistoryRepository:           strategyHistoryRepository,
 		pipelineConfigRepository:            pipelineConfigRepository,
 		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
+		deploymentConfigService:             deploymentConfigService,
 	}
 }
 
