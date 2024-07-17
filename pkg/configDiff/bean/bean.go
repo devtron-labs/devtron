@@ -5,10 +5,10 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 )
 
-type ConfigState int
+type ConfigState string
 
 const (
-	PublishedConfigState ConfigState = 3
+	PublishedConfigState ConfigState = "Published"
 )
 
 type ConfigStage string
