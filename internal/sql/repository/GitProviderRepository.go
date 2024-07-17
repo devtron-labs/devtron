@@ -43,10 +43,10 @@ type GitProvider struct {
 	Active                bool     `sql:"active,notnull"`
 	Deleted               bool     `sql:"deleted,notnull"`
 	GitHostId             int      `sql:"git_host_id"` //id stored in db git_host( foreign key)
-	EnableTLSVerification bool     `sql:"enable_tls_verification"`
 	TlsCert               string   `sql:"tls_cert"`
 	TlsKey                string   `sql:"tls_key"`
 	CaCert                string   `sql:"ca_cert"`
+	EnableTLSVerification bool     `sql:"enable_tls_verification"`
 	sql.AuditLog
 }
 
