@@ -36,13 +36,14 @@ func (impl *DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, en
 	cmcsKeyPropertyAppLevelMap, cmcsKeyPropertyEnvLevelMap := helper.GetCmCsAppAndEnvLevelMap(cMCSNamesAppLevel, cMCSNamesEnvLevel)
 	for key, configProperty := range cmcsKeyPropertyAppLevelMap {
 		if _, ok := cmcsKeyPropertyEnvLevelMap[key]; !ok {
-			configProperty.Global = true
+			configProperty.ConfigStage = bean2.Inheriting
 		}
 	}
 	for key, configProperty := range cmcsKeyPropertyEnvLevelMap {
 		if _, ok := cmcsKeyPropertyAppLevelMap[key]; ok {
-			configProperty.Global = true
-			configProperty.Overridden = true
+			configProperty.ConfigStage = bean2.Overridden
+		} else {
+			configProperty.ConfigStage = bean2.Env
 		}
 	}
 	combinedProperties := helper.GetCombinedPropertiesMap(cmcsKeyPropertyAppLevelMap, cmcsKeyPropertyEnvLevelMap)

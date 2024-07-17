@@ -11,30 +11,24 @@ const (
 	PublishedConfigState ConfigState = 3
 )
 
+type ConfigStage string
+
+const (
+	Env        ConfigStage = "Env"
+	Inheriting ConfigStage = "Inheriting"
+	Overridden ConfigStage = "Overridden"
+)
+
 type ConfigProperty struct {
 	Id          int               `json:"id"`
 	Name        string            `json:"name"`
 	ConfigState ConfigState       `json:"configState"`
 	Type        bean.ResourceType `json:"type"`
-	Overridden  bool              `json:"overridden"`
-	Global      bool              `json:"global"`
-}
-
-func NewConfigProperty() *ConfigProperty {
-	return &ConfigProperty{}
+	ConfigStage ConfigStage       `json:"configStage"`
 }
 
 func (r *ConfigProperty) IsConfigPropertyGlobal() bool {
-	return r.Global
-}
-
-func (r *ConfigProperty) SetConfigProperty(Name string, ConfigState ConfigState, Type bean.ResourceType, Overridden bool, Global bool) *ConfigProperty {
-	r.Name = Name
-	r.ConfigState = ConfigState
-	r.Type = Type
-	r.Overridden = Overridden
-	r.Global = Global
-	return r
+	return r.ConfigStage == Inheriting
 }
 
 type ConfigDataResponse struct {
