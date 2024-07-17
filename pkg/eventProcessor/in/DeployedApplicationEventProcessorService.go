@@ -262,6 +262,10 @@ func (impl *DeployedApplicationEventProcessorImpl) updateArgoAppDeleteStatus(app
 		}
 	} else {
 		// devtron app
+		if pipeline.DeploymentAppDeleteRequest == false {
+			impl.logger.Infow("Deployment delete not requested for app, not deleting app from DB", "appName", app.Name, "app", app)
+			return nil
+		}
 		_, err = impl.pipelineBuilder.DeleteCdPipeline(&pipeline, context.Background(), bean.FORCE_DELETE, false, 1)
 		if err != nil {
 			impl.logger.Errorw("error in deleting cd pipeline", "err", err)
