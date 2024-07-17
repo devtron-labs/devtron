@@ -66,7 +66,7 @@ type PipelineTriggerRestHandlerImpl struct {
 	enforcerUtil                rbac.EnforcerUtil
 	deploymentGroupService      deploymentGroup.DeploymentGroupService
 	argoUserService             argo.ArgoUserService
-	deploymentConfigService     pipeline.DeploymentConfigService
+	deploymentConfigService     pipeline.PipelineDeploymentConfigService
 	deployedAppService          deployedApp.DeployedAppService
 	cdTriggerService            devtronApps.TriggerService
 	workflowEventPublishService out.WorkflowEventPublishService
@@ -75,7 +75,7 @@ type PipelineTriggerRestHandlerImpl struct {
 func NewPipelineRestHandler(appService app.AppService, userAuthService user.UserService, validator *validator.Validate,
 	enforcer casbin.Enforcer, teamService team.TeamService, logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
 	deploymentGroupService deploymentGroup.DeploymentGroupService,
-	argoUserService argo.ArgoUserService, deploymentConfigService pipeline.DeploymentConfigService,
+	argoUserService argo.ArgoUserService, deploymentConfigService pipeline.PipelineDeploymentConfigService,
 	deployedAppService deployedApp.DeployedAppService,
 	cdTriggerService devtronApps.TriggerService,
 	workflowEventPublishService out.WorkflowEventPublishService) *PipelineTriggerRestHandlerImpl {

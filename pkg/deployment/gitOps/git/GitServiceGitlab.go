@@ -137,7 +137,13 @@ func (impl GitLabClient) CreateRepository(ctx context.Context, config *bean2.Git
 		url, err = impl.createProject(config.GitRepoName, config.Description)
 		if err != nil {
 			detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
-			return "", true, detailedErrorGitOpsConfigActions
+			repoUrl, err = impl.GetRepoUrl(config)
+			if err != nil {
+				impl.logger.Errorw("error in getting repo url ", "gitlab project", config.GitRepoName, "err", err)
+			}
+			if err != nil || len(repoUrl) == 0 {
+				return "", true, detailedErrorGitOpsConfigActions
+			}
 		}
 		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateRepoStage)
 	}
@@ -260,6 +266,10 @@ func (impl GitLabClient) CreateReadme(ctx context.Context, config *bean2.GitOpsC
 	fileAction := gitlab.FileCreate
 	filePath := "README.md"
 	fileContent := "devtron licence"
+	exists, _ := impl.checkIfFileExists(config.GitRepoName, "master", filePath)
+	if exists {
+		fileAction = gitlab.FileUpdate
+	}
 	actions := &gitlab.CreateCommitOptions{
 		Branch:        gitlab.String("master"),
 		CommitMessage: gitlab.String("test commit"),

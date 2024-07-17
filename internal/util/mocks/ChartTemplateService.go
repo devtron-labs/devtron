@@ -5,7 +5,7 @@ package mocks
 import (
 	context "context"
 
-	chart "k8s.io/helm/pkg/proto/hapi/chart"
+	chart "helm.sh/helm/v3/pkg/chart"
 
 	mock "github.com/stretchr/testify/mock"
 

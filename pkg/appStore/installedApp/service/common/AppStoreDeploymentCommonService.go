@@ -22,7 +22,7 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"go.uber.org/zap"
-	"k8s.io/helm/pkg/chartutil"
+	"helm.sh/helm/v3/pkg/chartutil"
 	"sigs.k8s.io/yaml"
 )
 

@@ -8,10 +8,14 @@ global:
     runAsUser: 1000
     runAsNonRoot: true
   containerRegistry: "quay.io/devtron"
-  
+  # The below values can be specified both at global as well as component level
+  nodeSelector: {}
+  tolerations: []
+  imagePullSecrets: []
+extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
-  release: "v0.7.0"
+  release: "v0.7.1"
   registry: ""
   image: inception
   tag: 473deaa4-185-21582
@@ -61,13 +65,12 @@ components:
         SERVICE_WORKER_TIMEOUT: "1"
         API_BATCH_SIZE: "30"
     registry: ""
-    image: "dashboard:87aaf7ac-690-23135"
+    image: "dashboard:5f95d187-690-23841"
     imagePullPolicy: IfNotPresent
-    
   devtron:
     registry: ""
-    image: "hyperion:3aa7e420-280-23147"
-    cicdImage: "devtron:3aa7e420-434-23146"
+    image: "hyperion:291c4c75-280-23860"
+    cicdImage: "devtron:291c4c75-434-23853"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
@@ -91,25 +94,23 @@ components:
       #  - secretName: devtron-tls
       #    hosts:
       #      - devtron.example.com
-      
   ciRunner:
     registry: ""
-    image: "ci-runner:6e721248-138-23081"
-    
+    image: "ci-runner:48aca9f4-138-23844"
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
     imagePullPolicy: IfNotPresent
     initContainer:
       authenticator: "authenticator:e414faff-393-13273"
-      
   kubelink:
     registry: ""
-    image: "kubelink:a810dbae-564-23055"
+    image: "kubelink:0dee6306-564-23843"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
       MANIFEST_FETCH_BATCH_SIZE: "2"
+      USE_CUSTOM_HTTP_TRANSPORT: "true"
       NATS_MSG_PROCESSING_BATCH_SIZE: "1"
       NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
       PG_ADDR: postgresql-postgresql.devtroncd
@@ -120,18 +121,17 @@ components:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
-      
   kubewatch:
     registry: ""
-    image: "kubewatch:f8ac0fe6-419-23054"
+    image: "kubewatch:850b40d5-419-23840"
     imagePullPolicy: IfNotPresent
     configs:
       devtroncd_NAMESPACE: "devtron-ci"
+      USE_CUSTOM_HTTP_TRANSPORT: "true"
       CI_INFORMER: "true"
       ACD_NAMESPACE: "devtroncd"
       ACD_INFORMER: "true"
       NATS_STREAM_MAX_AGE: "10800"
-      
   postgres:
     registry: ""
     image: "postgres:11.9.0-debian-10-r26"
@@ -143,10 +143,9 @@ components:
       armImage: postgres_exporter:v0.10.1
     persistence:
       volumeSize: "20Gi"
-      
   gitsensor:
     registry: ""
-    image: "git-sensor:8545feb5-200-22005"
+    image: "git-sensor:86e13283-200-23847"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
@@ -164,7 +163,7 @@ components:
   # Values for lens
   lens:
     registry: ""
-    image: "lens:3d3e8f08-333-23057"
+    image: "lens:56211042-333-23839"
     imagePullPolicy: IfNotPresent
     secrets: {}
     resources: {}
@@ -195,7 +194,6 @@ components:
       enabled: false
     persistence:
       storage: 5Gi
-      
   migrator:
     registry: ""
     image: "migrator:v4.16.2"
@@ -210,10 +208,9 @@ components:
         DB_NAME: "git_sensor"
       lens:
         DB_NAME: "lens"
-        
   chartSync:
     registry: ""
-    image: chart-sync:b67ab589-150-23082
+    image: chart-sync:5a1d0301-150-23845
 # values for argocd integration
 argo-cd:
   enabled: false
@@ -373,7 +370,7 @@ argo-cd:
 security:
   enabled: false
   imageScanner:
-    image: "image-scanner:3ab2ba46-141-23064"
+    image: "image-scanner:137872c2-141-23848"
   # Values for trivy
   trivy:
     enabled: false
@@ -388,7 +385,7 @@ security:
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
-  image: "notifier:924a17f6-372-22110"
+  image: "notifier:9639b1ab-372-23850"
   configs:
     CD_ENVIRONMENT: PROD
     DB: orchestrator

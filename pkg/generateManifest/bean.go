@@ -41,6 +41,10 @@ const LabelReleaseKey = "release"
 type DeploymentTemplateRequest struct {
 	AppId                       int                               `json:"appId"`
 	EnvId                       int                               `json:"envId,omitempty"`
+	AppName                     string                            `json:"-"`
+	EnvName                     string                            `json:"-"`
+	Namespace                   string                            `json:"-"`
+	PipelineName                string                            `json:"-"`
 	ChartRefId                  int                               `json:"chartRefId"`
 	RequestDataMode             RequestDataMode                   `json:"valuesAndManifestFlag"`
 	Values                      string                            `json:"values"`

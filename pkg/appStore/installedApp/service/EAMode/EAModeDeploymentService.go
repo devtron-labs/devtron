@@ -441,3 +441,7 @@ func (impl *EAModeDeploymentServiceImpl) GetChartBytesForParticularDeployment(in
 func (impl *EAModeDeploymentServiceImpl) DeleteACD(acdAppName string, ctx context.Context, isNonCascade bool) error {
 	return errors.New("this is not implemented")
 }
+
+func (impl *EAModeDeploymentServiceImpl) GetAcdAppGitOpsRepoURL(appName string, environmentName string) (string, error) {
+	return "", errors.New("this is not implemented")
+}

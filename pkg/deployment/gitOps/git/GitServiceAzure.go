@@ -107,7 +107,13 @@ func (impl GitAzureClient) CreateRepository(ctx context.Context, config *bean2.G
 	if err != nil {
 		impl.logger.Errorw("error in creating repo azure", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
-		return "", true, detailedErrorGitOpsConfigActions
+		url, repoExists, err = impl.repoExists(config.GitRepoName, impl.project)
+		if err != nil {
+			impl.logger.Errorw("error in communication with azure", "err", err)
+		}
+		if err != nil || !repoExists {
+			return "", true, detailedErrorGitOpsConfigActions
+		}
 	}
 	impl.logger.Infow("repo created ", "r", operationReference.WebUrl)
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateRepoStage)

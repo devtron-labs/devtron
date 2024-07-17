@@ -111,7 +111,11 @@ func (impl GitHubClient) CreateRepository(ctx context.Context, config *bean2.Git
 	if err != nil {
 		impl.logger.Errorw("error in creating github repo, ", "repo", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
-		return "", true, detailedErrorGitOpsConfigActions
+		url, err = impl.GetRepoUrl(config)
+		if err != nil {
+			impl.logger.Errorw("error in getting github repo", "repo", config.GitRepoName, "err", err)
+			return "", true, detailedErrorGitOpsConfigActions
+		}
 	}
 	impl.logger.Infow("github repo created ", "r", r.CloneURL)
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateRepoStage)

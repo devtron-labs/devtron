@@ -15,7 +15,9 @@ require (
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/caarlos0/env/v6 v6.7.2
 	github.com/casbin/casbin v1.9.1
+	github.com/casbin/casbin/v2 v2.97.0
 	github.com/casbin/xorm-adapter v1.0.1-0.20190716004226-a317737a1007
+	github.com/casbin/xorm-adapter/v2 v2.5.1
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deckarep/golang-set v1.8.0
@@ -81,6 +83,7 @@ require (
 	gopkg.in/go-playground/validator.v9 v9.30.0
 	gopkg.in/igm/sockjs-go.v3 v3.0.0
 	gopkg.in/yaml.v2 v2.4.0
+	helm.sh/helm/v3 v3.14.3
 	k8s.io/api v0.29.0
 	k8s.io/apimachinery v0.29.0
 	k8s.io/client-go v0.29.0
@@ -128,6 +131,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.6.0 // indirect
 	github.com/bombsimon/logrusr/v2 v2.0.1 // indirect
 	github.com/bradleyfalzon/ghinstallation/v2 v2.5.0 // indirect
+	github.com/casbin/govaluate v1.1.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
@@ -158,6 +162,7 @@ require (
 	github.com/go-xorm/xorm v0.7.9 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/gnostic v0.6.9 // indirect
 	github.com/google/go-github/v53 v53.0.0 // indirect
@@ -234,6 +239,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stoewer/go-strcase v1.2.0 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
+	github.com/syndtr/goleveldb v1.0.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
@@ -291,8 +297,9 @@ require (
 	sigs.k8s.io/kustomize/kyaml v0.14.3-0.20230601165947-6ce0bf390ce3 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 	upper.io/db.v3 v3.8.0+incompatible // indirect
-	xorm.io/builder v0.3.6 // indirect
+	xorm.io/builder v0.3.7 // indirect
 	xorm.io/core v0.7.2 // indirect
+	xorm.io/xorm v1.0.3 // indirect
 )
 
 replace (
