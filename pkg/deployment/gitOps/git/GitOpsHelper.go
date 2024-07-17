@@ -111,7 +111,7 @@ func (impl *GitOpsHelper) CommitAndPushAllChanges(ctx context.Context, repoRoot,
 		util.TriggerGitOpsMetrics("CommitAndPushAllChanges", "GitService", start, err)
 		span.End()
 	}()
-	gitCtx := git.BuildGitContext(ctx).WithCredentials(impl.Auth).
+	gitCtx := git.BuildGitContext(newCtx).WithCredentials(impl.Auth).
 		WithTLSData(impl.tlsConfig.CaData, impl.tlsConfig.TLSKeyData, impl.tlsConfig.TLSCertData)
 	commitHash, err = impl.gitCommandManager.CommitAndPush(gitCtx, repoRoot, commitMsg, name, emailId)
 	if err != nil && strings.Contains(err.Error(), PushErrorMessage) {
