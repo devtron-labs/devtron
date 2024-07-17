@@ -342,12 +342,11 @@ components:
           description: |
             The value type of the variable. Specifies whether the plugin uses a new value provided by the user (marked as NEW), retrieves the value from the previous step (marked as FROM_PREVIOUS_STEP), or fetches a global value (marked as GLOBAL).
             This indicates whether the plugin utilizes a new user-provided value, a value from a previous step, or a global value.
-          enum:
+          enum: [NEW, FROM_PREVIOUS_STEP,GLOBAL]
+          example:
             - NEW
             - FROM_PREVIOUS_STEP
             - GLOBAL
-          example:
-            - NEW
         previousStepIndex:
           type: integer
           description: The index of the previous step.
@@ -478,6 +477,7 @@ components:
             - SECRET_PATH
           example:
             - CONTAINER_REGISTRY
+            - SECRET_PATH
 
         imagePullSecret:
           type: string

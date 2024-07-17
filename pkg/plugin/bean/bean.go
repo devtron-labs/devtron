@@ -133,6 +133,7 @@ type PluginVersions struct {
 type PluginMinDto struct {
 	PluginName     string                  `json:"pluginName"`
 	PluginVersions []*PluginVersionsMinDto `json:"pluginVersions"`
+	Icon           string                  `json:"icon"`
 }
 
 type PluginVersionsMinDto struct {
