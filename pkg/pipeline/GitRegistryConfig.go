@@ -100,7 +100,19 @@ func (impl GitRegistryConfigImpl) Create(request *types.GitRegistry) (*types.Git
 		if len(request.TLSConfig.TLSKeyData) > 0 && len(request.TLSConfig.TLSCertData) > 0 {
 			provider.TlsKey = request.TLSConfig.TLSKeyData
 			provider.TlsCert = request.TLSConfig.TLSCertData
-		} else if (len(request.TLSConfig.TLSKeyData) > 0 && len(request.TLSConfig.TLSCertData) == 0) || (len(request.TLSConfig.TLSKeyData) == 0 && len(request.TLSConfig.TLSCertData) > 0) {
+		}
+
+		if !request.IsCADataPresent {
+			provider.CaCert = ""
+		}
+		if !request.IsTLSCertDataPresent {
+			provider.TlsCert = ""
+		}
+		if !request.IsTLSKeyDataPresent {
+			provider.TlsKey = ""
+		}
+
+		if (len(provider.TlsKey) > 0 && len(provider.TlsCert) == 0) || (len(provider.TlsKey) == 0 && len(provider.TlsCert) > 0) {
 			return nil, &util.ApiError{
 				HttpStatusCode:  http.StatusPreconditionFailed,
 				Code:            constants.GitProviderUpdateRequestIsInvalid,
@@ -157,6 +169,9 @@ func (impl GitRegistryConfigImpl) GetAll() ([]types.GitRegistry, error) {
 				TLSCertData: "",
 				TLSKeyData:  "",
 			},
+			IsCADataPresent:      len(provider.CaCert) > 0,
+			IsTLSKeyDataPresent:  len(provider.TlsKey) > 0,
+			IsTLSCertDataPresent: len(provider.TlsCert) > 0,
 		}
 		gitProviders = append(gitProviders, providerRes)
 	}
@@ -190,6 +205,9 @@ func (impl GitRegistryConfigImpl) FetchAllGitProviders() ([]types.GitRegistry, e
 				TLSCertData: "",
 				TLSKeyData:  "",
 			},
+			IsCADataPresent:      len(provider.CaCert) > 0,
+			IsTLSKeyDataPresent:  len(provider.TlsKey) > 0,
+			IsTLSCertDataPresent: len(provider.TlsCert) > 0,
 		}
 		gitProviders = append(gitProviders, providerRes)
 	}
@@ -218,10 +236,13 @@ func (impl GitRegistryConfigImpl) FetchOneGitProvider(providerId string) (*types
 		GitHostId:             provider.GitHostId,
 		EnableTLSVerification: provider.EnableTLSVerification,
 		TLSConfig: bean.TLSConfig{
-			CaData:      provider.CaCert,
-			TLSCertData: provider.TlsCert,
-			TLSKeyData:  provider.TlsKey,
+			CaData:      "",
+			TLSCertData: "",
+			TLSKeyData:  "",
 		},
+		IsCADataPresent:      len(provider.CaCert) > 0,
+		IsTLSKeyDataPresent:  len(provider.TlsKey) > 0,
+		IsTLSCertDataPresent: len(provider.TlsCert) > 0,
 	}
 
 	return providerRes, err
@@ -284,7 +305,19 @@ func (impl GitRegistryConfigImpl) Update(request *types.GitRegistry) (*types.Git
 		if len(request.TLSConfig.TLSKeyData) > 0 && len(request.TLSConfig.TLSCertData) > 0 {
 			provider.TlsKey = request.TLSConfig.TLSKeyData
 			provider.TlsCert = request.TLSConfig.TLSCertData
-		} else if (len(request.TLSConfig.TLSKeyData) > 0 && len(request.TLSConfig.TLSCertData) == 0) || (len(request.TLSConfig.TLSKeyData) == 0 && len(request.TLSConfig.TLSCertData) > 0) {
+		}
+
+		if !request.IsCADataPresent {
+			provider.CaCert = ""
+		}
+		if !request.IsTLSCertDataPresent {
+			provider.TlsCert = ""
+		}
+		if !request.IsTLSKeyDataPresent {
+			provider.TlsKey = ""
+		}
+
+		if (len(provider.TlsKey) > 0 && len(provider.TlsCert) == 0) || (len(provider.TlsKey) == 0 && len(provider.TlsCert) > 0) {
 			return nil, &util.ApiError{
 				HttpStatusCode:  http.StatusPreconditionFailed,
 				Code:            constants.GitProviderUpdateRequestIsInvalid,
@@ -359,9 +392,9 @@ func (impl GitRegistryConfigImpl) UpdateGitSensor(provider *repository.GitProvid
 		AccessToken:   provider.AccessToken,
 		Active:        provider.Active,
 		AuthMode:      provider.AuthMode,
-		CaCert:        "",
-		TlsCert:       "",
-		TlsKey:        "",
+		CaCert:        provider.CaCert,
+		TlsCert:       provider.TlsCert,
+		TlsKey:        provider.TlsKey,
 	}
 	return impl.GitSensorGrpcClient.SaveGitProvider(context.Background(), sensorGitProvider)
 }

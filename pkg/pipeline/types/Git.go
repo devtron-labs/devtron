@@ -35,6 +35,9 @@ type GitRegistry struct {
 	GitHostId             int                 `json:"gitHostId"`
 	EnableTLSVerification bool                `json:"enableTLSVerification"`
 	TLSConfig             bean.TLSConfig      `json:"tlsConfig"`
+	IsCADataPresent       bool                `json:"isCADataPresent"`
+	IsTLSCertDataPresent  bool                `json:"isTLSCertDataPresent"`
+	IsTLSKeyDataPresent   bool                `json:"isTLSKeyDataPresent"`
 }
 
 type GitHostRequest struct {
