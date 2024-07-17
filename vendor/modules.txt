@@ -411,6 +411,8 @@ github.com/devtron-labs/common-lib/cloud-provider-identifier
 github.com/devtron-labs/common-lib/cloud-provider-identifier/bean
 github.com/devtron-labs/common-lib/cloud-provider-identifier/providers
 github.com/devtron-labs/common-lib/constants
+github.com/devtron-labs/common-lib/git-manager
+github.com/devtron-labs/common-lib/git-manager/util
 github.com/devtron-labs/common-lib/middlewares
 github.com/devtron-labs/common-lib/pubsub-lib
 github.com/devtron-labs/common-lib/pubsub-lib/metrics

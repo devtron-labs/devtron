@@ -18,6 +18,7 @@ package commandManager
 
 import (
 	"fmt"
+	git_manager "github.com/devtron-labs/common-lib/git-manager"
 	"github.com/devtron-labs/devtron/util"
 	"os/exec"
 	"strings"
@@ -88,12 +89,14 @@ func (impl *GitCliManagerImpl) gitInit(ctx GitContext, rootDir string) error {
 	impl.logger.Debugw("git inti", "rootDir", rootDir)
 	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "init")
 	defer cancel()
-	tlsInfo, err := createFilesForTlsData(ctx)
+	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), git_manager.TLS_FILES_DIR)
 	if err != nil {
+		//making it non-blocking
 		impl.logger.Errorw("error encountered in createFilesForTlsData", "err", err)
 	}
-	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth, tlsInfo)
-	impl.logger.Debugw("git init output","root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
+	defer git_manager.DeleteTlsFiles(tlsPathInfo)
+	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth, tlsPathInfo)
+	impl.logger.Debugw("git init output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return err
 }
 
@@ -110,11 +113,13 @@ func (impl *GitCliManagerImpl) commit(ctx GitContext, rootDir string, commitMsg 
 	author := fmt.Sprintf("%s <%s>", user, email)
 	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "commit", "--allow-empty", "-m", commitMsg, "--author", author)
 	defer cancel()
-	tlsInfo, err := createFilesForTlsData(ctx)
+	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), git_manager.TLS_FILES_DIR)
 	if err != nil {
+		//making it non-blocking
 		impl.logger.Errorw("error encountered in createFilesForTlsData", "err", err)
 	}
-	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth, tlsInfo)
+	defer git_manager.DeleteTlsFiles(tlsPathInfo)
+	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth, tlsPathInfo)
 	impl.logger.Debugw("git commit output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return output, errMsg, err
 }
@@ -123,11 +128,13 @@ func (impl *GitCliManagerImpl) lastCommitHash(ctx GitContext, rootDir string) (r
 	impl.logger.Debugw("git log", "location", rootDir)
 	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "log", "--format=format:%H", "-n", "1")
 	defer cancel()
-	tlsInfo, err := createFilesForTlsData(ctx)
+	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), git_manager.TLS_FILES_DIR)
 	if err != nil {
+		//making it non-blocking
 		impl.logger.Errorw("error encountered in createFilesForTlsData", "err", err)
 	}
-	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth, tlsInfo)
+	defer git_manager.DeleteTlsFiles(tlsPathInfo)
+	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth, tlsPathInfo)
 	impl.logger.Debugw("git commit output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return output, errMsg, err
 }
@@ -136,11 +143,13 @@ func (impl *GitCliManagerImpl) add(ctx GitContext, rootDir string) (response, er
 	impl.logger.Debugw("git add", "location", rootDir)
 	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "add", "-A")
 	defer cancel()
-	tlsInfo, err := createFilesForTlsData(ctx)
+	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), git_manager.TLS_FILES_DIR)
 	if err != nil {
+		//making it non-blocking
 		impl.logger.Errorw("error encountered in createFilesForTlsData", "err", err)
 	}
-	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth, tlsInfo)
+	defer git_manager.DeleteTlsFiles(tlsPathInfo)
+	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth, tlsPathInfo)
 	impl.logger.Debugw("git add output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return output, errMsg, err
 }
@@ -149,11 +158,13 @@ func (impl *GitCliManagerImpl) push(ctx GitContext, rootDir string) (response, e
 	impl.logger.Debugw("git push", "location", rootDir)
 	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "push", "origin", "master")
 	defer cancel()
-	tlsInfo, err := createFilesForTlsData(ctx)
+	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), git_manager.TLS_FILES_DIR)
 	if err != nil {
+		//making it non-blocking
 		impl.logger.Errorw("error encountered in createFilesForTlsData", "err", err)
 	}
-	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth, tlsInfo)
+	defer git_manager.DeleteTlsFiles(tlsPathInfo)
+	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth, tlsPathInfo)
 	impl.logger.Debugw("git add output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return output, errMsg, err
 }
@@ -162,39 +173,13 @@ func (impl *GitCliManagerImpl) gitCreateRemote(ctx GitContext, rootDir string, u
 	impl.logger.Debugw("git remote", "rootDir", rootDir, "url", url)
 	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "remote", "add", "origin", url)
 	defer cancel()
-	tlsInfo, err := createFilesForTlsData(ctx)
+	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), git_manager.TLS_FILES_DIR)
 	if err != nil {
+		//making it non-blocking
 		impl.logger.Errorw("error encountered in createFilesForTlsData", "err", err)
 	}
-	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth, tlsInfo)
-	impl.logger.Debugw("git remote output","url", url, "opt", output, "errMsg", errMsg, "error", err)
+	defer git_manager.DeleteTlsFiles(tlsPathInfo)
+	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth, tlsPathInfo)
+	impl.logger.Debugw("git remote output", "url", url, "opt", output, "errMsg", errMsg, "error", err)
 	return err
-}
-
-func createFilesForTlsData(gitContext GitContext) (*TlsPathInfo, error) {
-	var tlsKeyFilePath string
-	var tlsCertFilePath string
-	var caCertFilePath string
-	var err error
-	if gitContext.TLSKey != "" && gitContext.TLSCertificate != "" {
-		tlsKeyFileName := fmt.Sprintf("%s.pem", util.GetRandomName())
-		tlsKeyFilePath, err = util.CreateFileWithData(TLS_FOLDER, tlsKeyFileName, gitContext.TLSKey)
-		if err != nil {
-			return nil, err
-		}
-		tlsCertFileName := fmt.Sprintf("%s.pem", util.GetRandomName())
-		tlsCertFilePath, err = util.CreateFileWithData(TLS_FOLDER, tlsCertFileName, gitContext.TLSCertificate)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if gitContext.CACert != "" {
-		caCertFileName := fmt.Sprintf("%s.pem", util.GetRandomName())
-		caCertFilePath, err = util.CreateFileWithData(TLS_FOLDER, caCertFileName, gitContext.CACert)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return BuildTlsInfoPath(caCertFilePath, tlsKeyFilePath, tlsCertFilePath), nil
-
 }

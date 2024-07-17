@@ -25,10 +25,11 @@ const TLS_FOLDER = "/tmp/tls"
 
 type GitContext struct {
 	context.Context
-	auth           *BasicAuth
-	CACert         string
-	TLSKey         string
-	TLSCertificate string
+	auth                   *BasicAuth
+	CACert                 string
+	TLSKey                 string
+	TLSCertificate         string
+	TLSVerificationEnabled bool
 }
 
 func (gitCtx GitContext) WithCredentials(auth *BasicAuth) GitContext {
@@ -58,10 +59,4 @@ func (gitCtx GitContext) WithTimeout(timeoutSeconds int) (GitContext, context.Ca
 // BasicAuth represent a HTTP basic auth
 type BasicAuth struct {
 	Username, Password string
-}
-
-type TlsPathInfo struct {
-	CaCertPath  string
-	TlsKeyPath  string
-	TlsCertPath string
 }
