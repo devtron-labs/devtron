@@ -71,11 +71,6 @@ func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *gitOps.GitOpsConfigD
 		}
 	}
 
-	tlsConfig, err = util.GetTlsConfig(gitOpsConfig.TLSConfig.TLSKeyData, gitOpsConfig.TLSConfig.TLSCertData, gitOpsConfig.TLSConfig.CaData, GIT_TLS_DIR)
-	if err != nil {
-		factory.logger.Errorw("error in getting tls config", "err", err)
-		return "", err
-	}
 	gitLabClient, err := CreateGitlabClient(gitOpsConfig.Host, gitOpsConfig.Token, tlsConfig)
 	if err != nil {
 		factory.logger.Errorw("error in creating gitlab client", "err", err)
