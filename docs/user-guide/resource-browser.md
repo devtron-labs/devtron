@@ -424,8 +424,7 @@ In the below example, we have created a simple pod named `nginx`:
 Here's one more example that shows the required fields and object specifications for a Kubernetes Deployment:
 
 {% code title="Spec File" overflow="wrap" lineNumbers="true" %}
-
-```yaml
+```yml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -485,7 +484,7 @@ If you are not a super-admin and can't generate a token yourself, you can find t
 1. Go to `~/.kube` folder on your local machine and open the `config` file. Or you may create one with the following content:
 
   {% code title="kubeconfig" overflow="wrap" lineNumbers="true" %}
-  ```yaml
+  ```yml
   apiVersion: v1
   kind: Config
   clusters:

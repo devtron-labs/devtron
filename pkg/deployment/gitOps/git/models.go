@@ -16,7 +16,10 @@
 
 package git
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type DetailedErrorGitOpsConfigActions struct {
 	SuccessfulStages []string         `json:"successfulStages"`
@@ -26,12 +29,22 @@ type DetailedErrorGitOpsConfigActions struct {
 }
 
 type ChartConfig struct {
-	ChartName      string
-	ChartLocation  string
-	FileName       string //filename
-	FileContent    string
-	ReleaseMessage string
-	ChartRepoName  string
-	UserName       string
-	UserEmailId    string
+	ChartName        string
+	ChartLocation    string
+	FileName         string //filename
+	FileContent      string
+	ReleaseMessage   string
+	ChartRepoName    string
+	UserName         string
+	UserEmailId      string
+	bitBucketBaseDir string // base directory is required for bitbucket to load the
+}
+
+func (c *ChartConfig) SetBitBucketBaseDir(dir string) {
+	c.bitBucketBaseDir = fmt.Sprintf("temp-%s", dir)
+	return
+}
+
+func (c *ChartConfig) GetBitBucketBaseDir() string {
+	return c.bitBucketBaseDir
 }
