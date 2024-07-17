@@ -17,6 +17,7 @@
 package git
 
 import (
+	"crypto/tls"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -60,7 +61,17 @@ func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *gitOps.GitOpsConfigD
 	defer func() {
 		util.TriggerGitOpsMetrics("GetGitLabGroupPath", "GitOpsHelper", start, err)
 	}()
-	tlsConfig, err := util.GetTlsConfig(gitOpsConfig.TLSConfig.TLSKeyData, gitOpsConfig.TLSConfig.TLSCertData, gitOpsConfig.TLSConfig.CaData, GIT_TLS_DIR)
+
+	var tlsConfig *tls.Config
+	if gitOpsConfig.TLSConfig != nil {
+		tlsConfig, err = util.GetTlsConfig(gitOpsConfig.TLSConfig.TLSKeyData, gitOpsConfig.TLSConfig.TLSCertData, gitOpsConfig.TLSConfig.CaData, GIT_TLS_DIR)
+		if err != nil {
+			factory.logger.Errorw("error in getting tls config", "err", err)
+			return "", err
+		}
+	}
+
+	tlsConfig, err = util.GetTlsConfig(gitOpsConfig.TLSConfig.TLSKeyData, gitOpsConfig.TLSConfig.TLSCertData, gitOpsConfig.TLSConfig.CaData, GIT_TLS_DIR)
 	if err != nil {
 		factory.logger.Errorw("error in getting tls config", "err", err)
 		return "", err

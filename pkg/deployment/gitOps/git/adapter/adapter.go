@@ -33,5 +33,8 @@ func ConvertGitOpsConfigToGitConfig(dto *bean2.GitOpsConfigDto) *bean.GitConfig 
 		AzureProject:         dto.AzureProjectName,
 		BitbucketWorkspaceId: dto.BitBucketWorkspaceId,
 		BitbucketProjectKey:  dto.BitBucketProjectKey,
+		CaCert:               dto.TLSConfig.CaData,
+		TLSCert:              dto.TLSConfig.TLSCertData,
+		TLSKey:               dto.TLSConfig.TLSKeyData,
 	}
 }

@@ -125,6 +125,22 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *apiBe
 		}
 		config.Token = model.Token
 	}
+	if config.EnableTLSVerification && (len(config.TLSConfig.CaData) == 0 && len(config.TLSConfig.TLSCertData) == 0 && len(config.TLSConfig.TLSKeyData) == 0) {
+		model, err := impl.gitOpsRepository.GetGitOpsConfigById(config.Id)
+		if err != nil {
+			impl.logger.Errorw("No matching entry found for update.", "id", config.Id)
+			err = &util.ApiError{
+				InternalMessage: "gitops config update failed, does not exist",
+				UserMessage:     "gitops config update failed, does not exist",
+			}
+			return apiBean.DetailedErrorGitOpsConfigResponse{}, err
+		}
+		config.TLSConfig = &bean.TLSConfig{
+			CaData:      model.CaCert,
+			TLSCertData: model.TlsCert,
+			TLSKeyData:  model.TlsKey,
+		}
+	}
 	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
 		err := impl.updateGitOpsConfig(config)
@@ -184,7 +200,18 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 		if len(request.TLSConfig.TLSCertData) > 0 && len(request.TLSConfig.TLSKeyData) > 0 {
 			model.TlsKey = request.TLSConfig.TLSKeyData
 			model.TlsCert = request.TLSConfig.TLSCertData
-		} else if (len(request.TLSConfig.TLSKeyData) > 0 && len(request.TLSConfig.TLSCertData) == 0) || (len(request.TLSConfig.TLSKeyData) == 0 && len(request.TLSConfig.TLSCertData) > 0) {
+		}
+		if !request.IsCADataPresent {
+			model.CaCert = ""
+		}
+		if !request.IsTLSCertDataPresent {
+			model.TlsCert = ""
+		}
+		if !request.IsTLSKeyDataPresent {
+			model.TlsKey = ""
+		}
+
+		if (len(model.TlsKey) > 0 && len(model.TlsCert) == 0) || (len(model.TlsKey) == 0 && len(model.TlsCert) > 0) {
 			return nil, &util.ApiError{
 				HttpStatusCode:  http.StatusPreconditionFailed,
 				InternalMessage: "failed to update gitOps config in db",
@@ -565,6 +592,9 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigById(id int) (*apiBean.GitOp
 			TLSCertData: "",
 			TLSKeyData:  "",
 		},
+		IsCADataPresent:      len(model.CaCert) > 0,
+		IsTLSCertDataPresent: len(model.TlsCert) > 0,
+		IsTLSKeyDataPresent:  len(model.TlsKey) > 0,
 	}
 	return config, err
 }
@@ -597,6 +627,9 @@ func (impl *GitOpsConfigServiceImpl) GetAllGitOpsConfig() ([]*apiBean.GitOpsConf
 				TLSCertData: "",
 				TLSKeyData:  "",
 			},
+			IsCADataPresent:      len(model.CaCert) > 0,
+			IsTLSCertDataPresent: len(model.TlsCert) > 0,
+			IsTLSKeyDataPresent:  len(model.TlsKey) > 0,
 		}
 		configs = append(configs, config)
 	}
@@ -629,6 +662,9 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) 
 			TLSCertData: "",
 			TLSKeyData:  "",
 		},
+		IsCADataPresent:      len(model.CaCert) > 0,
+		IsTLSCertDataPresent: len(model.TlsCert) > 0,
+		IsTLSKeyDataPresent:  len(model.TlsKey) > 0,
 	}
 
 	return config, err

@@ -41,6 +41,7 @@ type GitOpsConfigReadService interface {
 	GetConfiguredGitOpsCount() (int, error)
 	GetGitOpsProviderByRepoURL(gitRepoUrl string) (*bean2.GitOpsConfigDto, error)
 	GetGitOpsProviderMapByRepoURL(allGitRepoUrls []string) (map[string]*bean2.GitOpsConfigDto, error)
+	GetGitOpsById(id int) (*bean2.GitOpsConfigDto, error)
 }
 
 type GitOpsConfigReadServiceImpl struct {
@@ -282,4 +283,33 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsProviderMapByRepoURL(allGitRep
 	}
 
 	return repoUrlTOConfigMap, nil
+}
+
+func (impl *GitOpsConfigReadServiceImpl) GetGitOpsById(id int) (*bean2.GitOpsConfigDto, error) {
+	model, err := impl.gitOpsRepository.GetGitOpsConfigById(id)
+	if err != nil {
+		impl.logger.Errorw("error, GetGitOpsConfigById", "id", id, "err", err)
+		return nil, err
+	}
+	config := &bean2.GitOpsConfigDto{
+		Id:                    model.Id,
+		Provider:              model.Provider,
+		GitHubOrgId:           model.GitHubOrgId,
+		GitLabGroupId:         model.GitLabGroupId,
+		Active:                model.Active,
+		Token:                 model.Token,
+		Host:                  model.Host,
+		Username:              model.Username,
+		UserId:                model.CreatedBy,
+		AzureProjectName:      model.AzureProject,
+		BitBucketWorkspaceId:  model.BitBucketWorkspaceId,
+		BitBucketProjectKey:   model.BitBucketProjectKey,
+		AllowCustomRepository: model.AllowCustomRepository,
+		TLSConfig: &bean3.TLSConfig{
+			CaData:      model.CaCert,
+			TLSCertData: model.TlsCert,
+			TLSKeyData:  model.TlsKey,
+		},
+	}
+	return config, err
 }

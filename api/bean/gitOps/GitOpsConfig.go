@@ -36,6 +36,11 @@ type GitOpsConfigDto struct {
 	AllowCustomRepository bool            `json:"allowCustomRepository"`
 	EnableTLSVerification bool            `json:"enableTLSVerification"`
 	TLSConfig             *bean.TLSConfig `json:"tlsConfig"`
+
+	IsCADataPresent      bool `json:"isCADataPresent"`
+	IsTLSCertDataPresent bool `json:"isTLSCertDataPresent"`
+	IsTLSKeyDataPresent  bool `json:"isTLSKeyDataPresent"`
+
 	// TODO refactoring: create different struct for internal fields
 	GitRepoName string `json:"-"`
 	UserEmailId string `json:"-"`
