@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"golang.org/x/exp/maps"
 	"io"
 	"net/http"
@@ -418,7 +419,7 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWr
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	workflowResourceName := handler.enforcerUtil.GetRbacObjectNameByAppAndWorkflow(app.AppName, appWorkflowName)
 
-	cdPipelines, err := handler.pipelineRepository.FindByCiPipelineId(patchRequest.CiPipeline.Id)
+	cdPipelines, err := handler.getCdPipelinesForCIPatchRbac(&patchRequest)
 	if err != nil && err != pg.ErrNoRows {
 		handler.Logger.Errorw("error in finding ccd cdPipelines by ciPipelineId", "ciPipelineId", patchRequest.CiPipeline.Id, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -476,6 +477,57 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWr
 		createResp.AppName = app.AppName
 	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
+}
+
+func (handler *PipelineConfigRestHandlerImpl) getCdPipelinesForCIPatchRbac(patchRequest *bean.CiPatchRequest) (cdPipelines []*pipelineConfig.Pipeline, err error) {
+	// if the request is for create, then there will be no cd pipelines created yet
+	if patchRequest.IsCreateRequest() {
+		return
+	}
+	// request is to either patch the existing pipeline or patch it by switching the source pipeline or delete or update-source
+
+	// for switch , this API handles following switches
+	// any -> any (except switching to external-ci)
+
+	// to find the cd pipelines of the current ci pipelines workflow , we should query from appWorkflow Mappings.
+	// cannot directly query cd-pipeline table as we don't store info about external pipeline in cdPipeline.
+
+	// approach:
+	// find the workflow in which we are patching and use the workflow id to fetch all the workflow mappings using the workflow.
+	// get cd pipeline ids from those workflows and fetch the cd pipelines.
+
+	// get the ciPipeline
+	switchFromPipelineId, switchFromType := patchRequest.SwitchSourceInfo()
+
+	// in app workflow mapping all the build source types are 'CI_PIPELINE' type, except external -> WEBHOOK.
+	componentType := appWorkflow.CIPIPELINE
+	if switchFromType == CiPipeline.EXTERNAL {
+		componentType = appWorkflow.WEBHOOK
+	}
+
+	// the appWorkflowId can be taken from patchRequest.AppWorkflowId but doing this can make 2 sources of truth to find the workflow
+	sourceAppWorkflowMapping, err := handler.appWorkflowService.FindWFMappingByComponent(componentType, switchFromPipelineId)
+	if err != nil {
+		handler.Logger.Errorw("error in finding the appWorkflowMapping using componentId and componentType", "componentType", componentType, "componentId", switchFromPipelineId, "err", err)
+		return nil, err
+	}
+
+	cdPipelineWFMappings, err := handler.appWorkflowService.FindWFCDMappingsByWorkflowId(sourceAppWorkflowMapping.AppWorkflowId)
+	if err != nil {
+		handler.Logger.Errorw("error in finding the appWorkflowMappings of cd pipeline for an appWorkflow", "appWorkflowId", sourceAppWorkflowMapping.AppWorkflowId, "err", err)
+		return cdPipelines, err
+	}
+
+	if len(cdPipelineWFMappings) == 0 {
+		return
+	}
+
+	cdPipelineIds := make([]int, 0, len(cdPipelineWFMappings))
+	for _, cdWfMapping := range cdPipelineWFMappings {
+		cdPipelineIds = append(cdPipelineIds, cdWfMapping.ComponentId)
+	}
+
+	return handler.pipelineRepository.FindByIdsIn(cdPipelineIds)
 }
 
 // checkCiPatchAccess assumes all the cdPipelines belong to same app

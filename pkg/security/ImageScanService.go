@@ -394,11 +394,13 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 			imageScanResponse.ScanToolId = imageScanResult[0].ScanToolId
 		} else {
 			toolIdFromExecutionHistory, err := impl.getScanToolIdFromExecutionHistory(scanExecutionIds)
-			if err != nil || toolIdFromExecutionHistory == -1 {
+			if err != nil {
 				impl.Logger.Errorw("error in getting scan tool id from exection history", "err", err, "")
 				return nil, err
 			}
-			imageScanResponse.ScanToolId = toolIdFromExecutionHistory
+			if toolIdFromExecutionHistory != -1 {
+				imageScanResponse.ScanToolId = toolIdFromExecutionHistory
+			}
 		}
 	}
 	severityCount := &SeverityCount{
