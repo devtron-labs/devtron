@@ -38,6 +38,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
+	"net/http"
 	"strconv"
 	"sync"
 	"time"
@@ -56,7 +57,11 @@ type K8sCommonService interface {
 	GetCoreClientByClusterIdForExternalArgoApps(req *cluster.EphemeralContainerRequest) (*kubernetes.Clientset, *v1.CoreV1Client, error)
 	GetK8sServerVersion(clusterId int) (*version.Info, error)
 	PortNumberExtraction(resp []BatchResourceResponse, resourceTree map[string]interface{}) map[string]interface{}
+	GetK8sConfigAndClients(ctx context.Context, cluster *cluster.ClusterBean) (*rest.Config, *http.Client, *kubernetes.Clientset, error)
+	GetK8sConfigAndClientsByClusterId(ctx context.Context, clusterId int) (*rest.Config, *http.Client, *kubernetes.Clientset, error)
+	GetPreferredVersionForAPIGroup(ctx context.Context, clusterId int, groupName string) (string, error)
 }
+
 type K8sCommonServiceImpl struct {
 	logger                      *zap.SugaredLogger
 	K8sUtil                     *k8s.K8sServiceImpl
@@ -378,6 +383,7 @@ func (impl *K8sCommonServiceImpl) GetK8sServerVersion(clusterId int) (*version.I
 	}
 	return k8sVersion, err
 }
+
 func (impl *K8sCommonServiceImpl) GetCoreClientByClusterId(clusterId int) (*kubernetes.Clientset, *v1.CoreV1Client, error) {
 	clusterBean, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
@@ -426,7 +432,7 @@ func (impl *K8sCommonServiceImpl) GetCoreClientByClusterIdForExternalArgoApps(re
 	return clientSet, v1Client, nil
 }
 
-func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceResponse, resourceTree map[string]interface{}) map[string]interface{} {
+func (impl *K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceResponse, resourceTree map[string]interface{}) map[string]interface{} {
 	servicePortMapping := make(map[string]interface{})
 	endpointPortMapping := make(map[string]interface{})
 	endpointSlicePortMapping := make(map[string]interface{})
@@ -636,4 +642,52 @@ func (impl K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespon
 		}
 	}
 	return resourceTree
+}
+
+func (impl *K8sCommonServiceImpl) GetK8sConfigAndClients(ctx context.Context, cluster *cluster.ClusterBean) (*rest.Config, *http.Client, *kubernetes.Clientset, error) {
+	clusterConfig, err := cluster.GetClusterConfig()
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", cluster.Id)
+		return nil, nil, nil, err
+	}
+	return impl.K8sUtil.GetK8sConfigAndClients(clusterConfig)
+}
+
+func (impl *K8sCommonServiceImpl) GetK8sConfigAndClientsByClusterId(ctx context.Context, clusterId int) (*rest.Config, *http.Client, *kubernetes.Clientset, error) {
+	clusterDto, err := impl.getClusterBean(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId", clusterId)
+		return nil, nil, nil, err
+	}
+	return impl.GetK8sConfigAndClients(ctx, clusterDto)
+}
+
+func (impl *K8sCommonServiceImpl) GetPreferredVersionForAPIGroup(ctx context.Context, clusterId int, groupName string) (string, error) {
+	_, _, k8sClientSet, err := impl.GetK8sConfigAndClientsByClusterId(ctx, clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster by ID", "clusterId", clusterId, "err", err)
+		return "", err
+	}
+	// get server groups to get preferred version for the group
+	// TODO: check if we can leverage scoop to cache this
+	serverGroups, err := impl.K8sUtil.GetServerGroups(k8sClientSet)
+	if err != nil {
+		impl.logger.Errorw("error in getting server groups", "clusterId", clusterId, "err", err)
+		return "", err
+	}
+	for _, group := range serverGroups.Groups {
+		if group.Name == groupName && len(group.Versions) > 0 {
+			return group.PreferredVersion.Version, nil
+		}
+	}
+	return "", k8s.NotFoundError
+}
+
+func (impl *K8sCommonServiceImpl) getClusterBean(clusterId int) (*cluster.ClusterBean, error) {
+	clusterDto, err := impl.clusterService.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId", clusterId)
+		return nil, err
+	}
+	return clusterDto, err
 }

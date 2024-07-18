@@ -788,7 +788,18 @@ func (impl *ManifestCreationServiceImpl) getK8sHPAResourceManifest(ctx context.C
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.getK8sHPAResourceManifest")
 	defer span.End()
 	resourceManifest := make(map[string]interface{})
-	version := "v2beta2"
+	version, err := impl.k8sCommonService.GetPreferredVersionForAPIGroup(ctx, clusterId, hpaResourceRequest.Group)
+	if err != nil && !k8sUtil.IsNotFoundError(err) {
+		return resourceManifest, util.NewApiError().
+			WithHttpStatusCode(http.StatusPreconditionFailed).
+			WithInternalMessage(err.Error()).
+			WithUserDetailMessage(err.Error())
+	} else if k8sUtil.IsNotFoundError(err) {
+		return resourceManifest, util.NewApiError().
+			WithHttpStatusCode(http.StatusPreconditionFailed).
+			WithInternalMessage("unable to find preferred version for hpa resource").
+			WithUserDetailMessage("unable to find preferred version for hpa resource")
+	}
 	k8sReq := &k8s.ResourceRequestBean{
 		ClusterId: clusterId,
 		K8sRequest: k8sUtil.NewK8sRequestBean().
