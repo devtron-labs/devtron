@@ -113,7 +113,10 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *apiBe
 }
 
 func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *apiBean.GitOpsConfigDto) (apiBean.DetailedErrorGitOpsConfigResponse, error) {
-	if config.Token == "" {
+	isTokenEmpty := config.Token == ""
+	isTlsDetailsEmpty := config.EnableTLSVerification && (len(config.TLSConfig.CaData) == 0 && len(config.TLSConfig.TLSCertData) == 0 && len(config.TLSConfig.TLSKeyData) == 0)
+
+	if isTokenEmpty || isTlsDetailsEmpty {
 		model, err := impl.gitOpsRepository.GetGitOpsConfigById(config.Id)
 		if err != nil {
 			impl.logger.Errorw("No matching entry found for update.", "id", config.Id)
@@ -123,22 +126,15 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *apiBe
 			}
 			return apiBean.DetailedErrorGitOpsConfigResponse{}, err
 		}
-		config.Token = model.Token
-	}
-	if config.EnableTLSVerification && (len(config.TLSConfig.CaData) == 0 && len(config.TLSConfig.TLSCertData) == 0 && len(config.TLSConfig.TLSKeyData) == 0) {
-		model, err := impl.gitOpsRepository.GetGitOpsConfigById(config.Id)
-		if err != nil {
-			impl.logger.Errorw("No matching entry found for update.", "id", config.Id)
-			err = &util.ApiError{
-				InternalMessage: "gitops config update failed, does not exist",
-				UserMessage:     "gitops config update failed, does not exist",
-			}
-			return apiBean.DetailedErrorGitOpsConfigResponse{}, err
+		if isTokenEmpty {
+			config.Token = model.Token
 		}
-		config.TLSConfig = &bean.TLSConfig{
-			CaData:      model.CaCert,
-			TLSCertData: model.TlsCert,
-			TLSKeyData:  model.TlsKey,
+		if isTlsDetailsEmpty {
+			config.TLSConfig = &bean.TLSConfig{
+				CaData:      model.CaCert,
+				TLSCertData: model.TlsCert,
+				TLSKeyData:  model.TlsKey,
+			}
 		}
 	}
 	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
@@ -201,6 +197,7 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 			model.TlsKey = request.TLSConfig.TLSKeyData
 			model.TlsCert = request.TLSConfig.TLSCertData
 		}
+
 		if !request.IsCADataPresent {
 			model.CaCert = ""
 		}
@@ -217,6 +214,14 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 				InternalMessage: "failed to update gitOps config in db",
 				UserMessage:     "failed to update gitOps config in db",
 			}
+		}
+
+	}
+	if model.EnableTLSVerification && request.TLSConfig == nil {
+		request.TLSConfig = &bean.TLSConfig{
+			CaData:      model.CaCert,
+			TLSCertData: model.TlsCert,
+			TLSKeyData:  model.TlsKey,
 		}
 	}
 
@@ -446,15 +451,35 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 		if len(request.TLSConfig.CaData) > 0 {
 			model.CaCert = request.TLSConfig.CaData
 		}
-		if len(model.TlsCert) > 0 && len(model.TlsKey) > 0 {
+		if len(request.TLSConfig.TLSCertData) > 0 && len(request.TLSConfig.TLSKeyData) > 0 {
 			model.TlsKey = request.TLSConfig.TLSKeyData
 			model.TlsCert = request.TLSConfig.TLSCertData
-		} else if (len(model.TlsKey) > 0 && len(model.TlsCert) == 0) || (len(model.TlsKey) == 0 && len(model.TlsCert) > 0) {
+		}
+
+		if !request.IsCADataPresent {
+			model.CaCert = ""
+		}
+		if !request.IsTLSCertDataPresent {
+			model.TlsCert = ""
+		}
+		if !request.IsTLSKeyDataPresent {
+			model.TlsKey = ""
+		}
+
+		if (len(model.TlsKey) > 0 && len(model.TlsCert) == 0) || (len(model.TlsKey) == 0 && len(model.TlsCert) > 0) {
 			return &util.ApiError{
 				HttpStatusCode:  http.StatusPreconditionFailed,
 				InternalMessage: "failed to update gitOps config in db",
 				UserMessage:     "failed to update gitOps config in db",
 			}
+		}
+
+	}
+	if model.EnableTLSVerification && request.TLSConfig == nil {
+		request.TLSConfig = &bean.TLSConfig{
+			CaData:      model.CaCert,
+			TLSCertData: model.TlsCert,
+			TLSKeyData:  model.TlsKey,
 		}
 	}
 
@@ -671,7 +696,11 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) 
 }
 
 func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *apiBean.GitOpsConfigDto) apiBean.DetailedErrorGitOpsConfigResponse {
-	if config.Token == "" {
+
+	isTokenEmpty := config.Token == ""
+	isTlsDetailsEmpty := config.EnableTLSVerification && (len(config.TLSConfig.CaData) == 0 && len(config.TLSConfig.TLSCertData) == 0 && len(config.TLSConfig.TLSKeyData) == 0)
+
+	if isTokenEmpty || isTlsDetailsEmpty {
 		model, err := impl.gitOpsRepository.GetGitOpsConfigById(config.Id)
 		if err != nil {
 			impl.logger.Errorw("No matching entry found for update.", "id", config.Id)
@@ -681,8 +710,18 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *apiBean.GitOps
 			}
 			return apiBean.DetailedErrorGitOpsConfigResponse{}
 		}
-		config.Token = model.Token
+		if isTokenEmpty {
+			config.Token = model.Token
+		}
+		if isTlsDetailsEmpty {
+			config.TLSConfig = &bean.TLSConfig{
+				CaData:      model.CaCert,
+				TLSCertData: model.TlsCert,
+				TLSKeyData:  model.TlsKey,
+			}
+		}
 	}
+
 	return impl.gitOpsValidationService.GitOpsValidateDryRun(config)
 }
 
