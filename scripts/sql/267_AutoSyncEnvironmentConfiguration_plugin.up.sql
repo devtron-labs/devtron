@@ -10,7 +10,9 @@ INSERT INTO "plugin_pipeline_script" ("id", "script","type","deleted","created_o
 VALUES ( nextval('id_seq_plugin_pipeline_script'),
 E'#!/bin/bash
 echo "================== AUTOSYNC ENVIRONMENT CONFIGURATION PLUGIN STEP STARTS FROM HERE ========================="
-DevtronEndpoint=${DevtronEndpoint%/*}
+
+DevtronEndpoint=$(echo "$DevtronEndpoint" | sed \'s:/*$::\')
+    
 echo "Entered DevtronEndpoint is: $DevtronEndpoint"
 
 echo "==================================== DEPLOYMENT TEMPLATE ==================================================="
