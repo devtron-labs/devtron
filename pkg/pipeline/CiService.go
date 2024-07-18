@@ -83,6 +83,7 @@ type CiServiceImpl struct {
 	pluginInputVariableParser    PluginInputVariableParser
 	globalPluginService          plugin.GlobalPluginService
 	infraProvider                infraProviders.InfraProvider
+	secretMaskingFlagUpdater     types.SecretMaskingFlagUpdater
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -98,6 +99,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	pluginInputVariableParser PluginInputVariableParser,
 	globalPluginService plugin.GlobalPluginService,
 	infraProvider infraProviders.InfraProvider,
+	secretMaskingFlagUpdater types.SecretMaskingFlagUpdater,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
 		Logger:                       Logger,
@@ -118,6 +120,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		pluginInputVariableParser:    pluginInputVariableParser,
 		globalPluginService:          globalPluginService,
 		infraProvider:                infraProvider,
+		secretMaskingFlagUpdater:     secretMaskingFlagUpdater,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -247,6 +250,9 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	} else {
 		workflowRequest.Type = pipelineConfigBean.CI_WORKFLOW_PIPELINE_TYPE
 	}
+
+	// update the flag for doing secret masking on logs
+	impl.secretMaskingFlagUpdater.UpdateSecretMaskingFlag(workflowRequest)
 
 	err = impl.executeCiPipeline(workflowRequest)
 	if err != nil {

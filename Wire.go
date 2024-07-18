@@ -481,6 +481,9 @@ func InitializeApp() (*App, error) {
 		pipeline.NewWorkflowServiceImpl,
 		wire.Bind(new(pipeline.WorkflowService), new(*pipeline.WorkflowServiceImpl)),
 
+		types.NewSecretMaskingFlagUpdaterImpl,
+		wire.Bind(new(types.SecretMaskingFlagUpdater), new(*types.SecretMaskingFlagUpdaterImpl)),
+
 		pipeline.NewCiServiceImpl,
 		wire.Bind(new(pipeline.CiService), new(*pipeline.CiServiceImpl)),
 
