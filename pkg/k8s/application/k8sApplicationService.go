@@ -188,6 +188,13 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 		}
 		sinceTime = metav1.Unix(sinceTimeVar, 0)
 	}
+
+	namespace := v.Get("namespace")
+	if namespace == "" {
+		err = fmt.Errorf("missing required field namespace")
+		impl.logger.Errorw("empty namespace", "err", err, "appId", request.AppId)
+		return nil, err
+	}
 	containerName, clusterIdString := v.Get("containerName"), v.Get("clusterId")
 	prevContainerLogs := v.Get("previous")
 	isPrevLogs, err := strconv.ParseBool(prevContainerLogs)
@@ -237,6 +244,8 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 			impl.logger.Errorw("Invalid deploymentType", "err", err, "deploymentType", deploymentType)
 			return nil, err
 		}
+
+		//handle the ns coming for the requested resource
 		request.DeploymentType = deploymentType
 		// Validate App Id
 		if request.AppType == bean3.ArgoAppType {
@@ -245,8 +254,9 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 				impl.logger.Errorw(bean3.AppIdDecodingError, "err", err, "appId", appId)
 				return nil, err
 			}
+
 			request.ClusterId = appIdentifier.ClusterId
-			request.K8sRequest.ResourceIdentifier.Namespace = appIdentifier.Namespace
+			request.K8sRequest.ResourceIdentifier.Namespace = namespace
 		} else if request.AppType == bean3.HelmAppType {
 			// For Helm App resources
 			appIdentifier, err := impl.helmAppService.DecodeAppId(appId)
@@ -256,7 +266,7 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 			}
 			request.AppIdentifier = appIdentifier
 			request.ClusterId = appIdentifier.ClusterId
-			request.K8sRequest.ResourceIdentifier.Namespace = appIdentifier.Namespace
+			request.K8sRequest.ResourceIdentifier.Namespace = namespace
 		} else if request.AppType == bean3.DevtronAppType {
 			// For Devtron App resources
 			devtronAppIdentifier, err := impl.DecodeDevtronAppId(appId)
@@ -266,12 +276,12 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 			}
 			request.DevtronAppIdentifier = devtronAppIdentifier
 			request.ClusterId = devtronAppIdentifier.ClusterId
-			namespace := v.Get("namespace")
-			if namespace == "" {
-				err = fmt.Errorf("missing required field namespace")
-				impl.logger.Errorw("empty namespace", "err", err, "appId", request.AppId)
-				return nil, err
-			}
+			//namespace := v.Get("namespace")
+			//if namespace == "" {
+			//	err = fmt.Errorf("missing required field namespace")
+			//	impl.logger.Errorw("empty namespace", "err", err, "appId", request.AppId)
+			//	return nil, err
+			//}
 			request.K8sRequest.ResourceIdentifier.Namespace = namespace
 		} else if request.AppType == bean3.FluxAppType {
 			// For flux App resources
@@ -282,7 +292,7 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 			}
 			request.ExternalFluxAppIdentifier = appIdentifier
 			request.ClusterId = appIdentifier.ClusterId
-			request.K8sRequest.ResourceIdentifier.Namespace = appIdentifier.Namespace
+			request.K8sRequest.ResourceIdentifier.Namespace = namespace
 		}
 	} else if clusterIdString != "" {
 		// Validate Cluster Id
@@ -292,12 +302,12 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 			return nil, err
 		}
 		request.ClusterId = clusterId
-		namespace := v.Get("namespace")
-		if namespace == "" {
-			err = fmt.Errorf("missing required field namespace")
-			impl.logger.Errorw("empty namespace", "err", err, "appId", request.AppId)
-			return nil, err
-		}
+		//namespace := v.Get("namespace")
+		//if namespace == "" {
+		//	err = fmt.Errorf("missing required field namespace")
+		//	impl.logger.Errorw("empty namespace", "err", err, "appId", request.AppId)
+		//	return nil, err
+		//}
 		request.K8sRequest.ResourceIdentifier.Namespace = namespace
 		request.K8sRequest.ResourceIdentifier.GroupVersionKind = schema.GroupVersionKind{
 			Group:   "",
@@ -317,7 +327,7 @@ func (impl *K8sApplicationServiceImpl) ValidateTerminalRequestQuery(r *http.Requ
 	request.PodName = vars["pod"]
 	request.Shell = vars["shell"]
 	resourceRequestBean := &k8s.ResourceRequestBean{}
-	resourceRequestBean.ExternalArgoApplicationName = v.Get("externalArgoApplicationName")
+	//resourceRequestBean.ExternalArgoApplicationName = v.Get("externalArgoApplicationName")
 	identifier := vars["identifier"]
 	if strings.Contains(identifier, "|") {
 		// Validate App Type
@@ -357,6 +367,16 @@ func (impl *K8sApplicationServiceImpl) ValidateTerminalRequestQuery(r *http.Requ
 			resourceRequestBean.ClusterId = fluxAppIdentifier.ClusterId
 			request.ClusterId = fluxAppIdentifier.ClusterId
 
+		} else if appType == bean3.ArgoAppType {
+			appIdentifier, err := argoApplication.DecodeExternalArgoAppId(request.ApplicationId)
+			if err != nil {
+				impl.logger.Errorw(bean3.InvalidAppId, "err", err, "appId", request.ApplicationId)
+				return nil, nil, err
+			}
+			resourceRequestBean.ExternalArgoApplicationName = appIdentifier.AppName
+			resourceRequestBean.ClusterId = appIdentifier.ClusterId
+			request.ClusterId = appIdentifier.ClusterId
+			request.ExternalArgoApplicationName = appIdentifier.AppName
 		}
 	} else {
 		// Validate Cluster Id

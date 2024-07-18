@@ -50,7 +50,7 @@ type K8sCommonService interface {
 	ListEvents(ctx context.Context, request *ResourceRequestBean) (*k8s.EventsResponse, error)
 	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *cluster.ClusterBean)
 	GetManifestsByBatch(ctx context.Context, request []ResourceRequestBean) ([]BatchResourceResponse, error)
-	FilterK8sResources(ctx context.Context, resourceTreeInf map[string]interface{}, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string) []ResourceRequestBean
+	FilterK8sResources(ctx context.Context, resourceTreeInf map[string]interface{}, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string, externalArgoAppName string) []ResourceRequestBean
 	RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error)
 	GetCoreClientByClusterId(clusterId int) (*kubernetes.Clientset, *v1.CoreV1Client, error)
 	GetCoreClientByClusterIdForExternalArgoApps(req *cluster.EphemeralContainerRequest) (*kubernetes.Clientset, *v1.CoreV1Client, error)
@@ -184,10 +184,10 @@ func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *Resou
 
 }
 
-func (impl *K8sCommonServiceImpl) FilterK8sResources(ctx context.Context, resourceTree map[string]interface{}, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string) []ResourceRequestBean {
+func (impl *K8sCommonServiceImpl) FilterK8sResources(ctx context.Context, resourceTreeInf map[string]interface{}, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string, externalArgoAppName string) []ResourceRequestBean {
 	validRequests := make([]ResourceRequestBean, 0)
 	kindsToBeFilteredMap := util.ConvertStringSliceToMap(kindsToBeFiltered)
-	resourceTreeNodes, ok := resourceTree["nodes"]
+	resourceTreeNodes, ok := resourceTreeInf["nodes"]
 	if !ok {
 		return validRequests
 	}
@@ -223,6 +223,7 @@ func (impl *K8sCommonServiceImpl) FilterK8sResources(ctx context.Context, resour
 						},
 					},
 				},
+				ExternalArgoApplicationName: externalArgoAppName,
 			}
 			validRequests = append(validRequests, req)
 		}
