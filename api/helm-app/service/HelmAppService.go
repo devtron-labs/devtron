@@ -169,7 +169,7 @@ func (impl *HelmAppServiceImpl) ListHelmApplications(ctx context.Context, cluste
 			impl.logger.Errorw("error in fetching helm app list from DB created using cd_pipelines", "clusters", clusterIds, "err", err)
 		}
 
-		// if not hyperion mode, then fetch from installed_apps whose deployment_app_type is helm (as in hyperion mode, these apps should be treated as external-apps)
+		// if not hyperion mode, then fetch from installed_apps whose deploymentAppType is helm (as in hyperion mode, these apps should be treated as external-apps)
 		if !util2.IsBaseStack() {
 			newCtx, span = otel.Tracer("pipelineRepository").Start(newCtx, "GetAppAndEnvDetailsForDeploymentAppTypePipeline")
 			start = time.Now()

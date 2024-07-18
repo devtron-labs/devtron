@@ -245,6 +245,10 @@ func (impl *GitOperationServiceImpl) GitPull(clonedDir string, repoUrl string) e
 }
 
 func (impl *GitOperationServiceImpl) CommitValues(ctx context.Context, chartGitAttr *ChartConfig) (commitHash string, commitTime time.Time, err error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "gitOperationService.CommitValues")
+	defer span.End()
+
+	impl.logger.Debugw("committing values to git", "chartGitAttr", chartGitAttr)
 	bitbucketMetadata, err := impl.gitOpsConfigReadService.GetBitbucketMetadata()
 	if err != nil {
 		impl.logger.Errorw("error in getting bitbucket metadata", "err", err)
@@ -252,7 +256,7 @@ func (impl *GitOperationServiceImpl) CommitValues(ctx context.Context, chartGitA
 	}
 	gitOpsConfig := &apiBean.GitOpsConfigDto{BitBucketWorkspaceId: bitbucketMetadata.BitBucketWorkspaceId}
 	callback := func() error {
-		commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(ctx, chartGitAttr, gitOpsConfig)
+		commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(newCtx, chartGitAttr, gitOpsConfig)
 		return err
 	}
 	err = retryFunc.Retry(callback, impl.isRetryableGitCommitError,
