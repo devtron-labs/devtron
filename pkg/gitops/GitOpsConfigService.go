@@ -114,7 +114,9 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *apiBe
 
 func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *apiBean.GitOpsConfigDto) (apiBean.DetailedErrorGitOpsConfigResponse, error) {
 	isTokenEmpty := config.Token == ""
-	isTlsDetailsEmpty := config.EnableTLSVerification && (len(config.TLSConfig.CaData) == 0 && len(config.TLSConfig.TLSCertData) == 0 && len(config.TLSConfig.TLSKeyData) == 0)
+	isTlsDetailsEmpty := config.EnableTLSVerification &&
+		(config.TLSConfig == nil ||
+			(config.TLSConfig != nil && len(config.TLSConfig.CaData) == 0 && len(config.TLSConfig.TLSCertData) == 0 && len(config.TLSConfig.TLSKeyData) == 0))
 
 	if isTokenEmpty || isTlsDetailsEmpty {
 		model, err := impl.gitOpsRepository.GetGitOpsConfigById(config.Id)
