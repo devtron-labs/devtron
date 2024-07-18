@@ -67,6 +67,8 @@ type AppWorkflowService interface {
 	FilterWorkflows(triggerViewConfig *TriggerViewWorkflowConfig, envIds []int) (*TriggerViewWorkflowConfig, error)
 	FindCdPipelinesByAppId(appId int) (*bean.CdPipelines, error)
 	FindAppWorkflowByCiPipelineId(ciPipelineId int) ([]*appWorkflow.AppWorkflowMapping, error)
+	FindWFMappingByComponent(componentType string, componentId int) (*appWorkflow.AppWorkflowMapping, error)
+	FindWFCDMappingsByWorkflowId(appWorkflowId int) ([]*appWorkflow.AppWorkflowMapping, error)
 }
 
 type AppWorkflowServiceImpl struct {
@@ -889,6 +891,14 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowByCiPipelineId(ciPipelineId in
 	}
 	return appWorkflowMapping, nil
 
+}
+
+func (impl AppWorkflowServiceImpl) FindWFCDMappingsByWorkflowId(appWorkflowId int) ([]*appWorkflow.AppWorkflowMapping, error) {
+	return impl.appWorkflowRepository.FindWFCDMappingsByWorkflowId(appWorkflowId)
+}
+
+func (impl AppWorkflowServiceImpl) FindWFMappingByComponent(componentType string, componentId int) (*appWorkflow.AppWorkflowMapping, error) {
+	return impl.appWorkflowRepository.FindWFMappingByComponent(componentType, componentId)
 }
 
 // LevelWiseSort performs level wise sort for workflow mappings starting from leaves
