@@ -147,7 +147,10 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	if err != nil {
 		return 0, err
 	}
-	if trigger.PipelineType == string(CiPipeline.CI_JOB) && len(ciMaterials) != 0 {
+
+	// checking if user has given run time parameters for externalCiArtifact, if given then sending git material to Ci-Runner
+	externalCiArtifact, exists := trigger.ExtraEnvironmentVariables["externalCiArtifact"]
+	if trigger.PipelineType == string(CiPipeline.CI_JOB) && len(ciMaterials) != 0 && !exists && externalCiArtifact == "" {
 		ciMaterials = []*pipelineConfig.CiPipelineMaterial{ciMaterials[0]}
 		ciMaterials[0].GitMaterial = nil
 		ciMaterials[0].GitMaterialId = 0
@@ -191,6 +194,12 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	}
 	if ciWorkflowConfig.Namespace == "" {
 		ciWorkflowConfig.Namespace = impl.config.GetDefaultNamespace()
+	}
+	if scope.SystemMetadata == nil {
+		scope.SystemMetadata = &resourceQualifiers.SystemMetadata{
+			Namespace: ciWorkflowConfig.Namespace,
+			AppName:   pipeline.App.AppName,
+		}
 	}
 
 	// preCiSteps, postCiSteps, refPluginsData, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, ciEvent)
@@ -245,6 +254,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		workflowRequest.Type = pipelineConfigBean.CI_WORKFLOW_PIPELINE_TYPE
 	}
 
+	workflowRequest.CiPipelineType = trigger.PipelineType
 	err = impl.executeCiPipeline(workflowRequest)
 	if err != nil {
 		impl.Logger.Errorw("workflow error", "err", err)
