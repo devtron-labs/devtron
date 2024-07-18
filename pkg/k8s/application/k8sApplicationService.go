@@ -257,6 +257,7 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 
 			request.ClusterId = appIdentifier.ClusterId
 			request.K8sRequest.ResourceIdentifier.Namespace = namespace
+			request.AppId = appId
 		} else if request.AppType == bean3.HelmAppType {
 			// For Helm App resources
 			appIdentifier, err := impl.helmAppService.DecodeAppId(appId)

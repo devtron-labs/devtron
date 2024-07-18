@@ -291,7 +291,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 		resourceTreeResponse = appDetail.ResourceTreeResponse
 
 	} else if appType == bean2.ArgoAppType {
-		appIdentifier, err := argoApplication.DecodeExternalArgoAppId(appTypeString)
+		appIdentifier, err := argoApplication.DecodeExternalArgoAppId(appIdString)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
@@ -343,13 +343,6 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 		namespace = appIdentifier.Namespace
 		resourceTreeResponse = appDetail.ResourceTreeResponse
 	}
-
-	//if k8s.IsClusterStringContainsFluxField(appIdString) {
-	//
-	//
-	//} else {
-	//
-	//}
 
 	k8sAppDetail = bean.AppDetailContainer{
 		DeploymentDetailContainer: bean.DeploymentDetailContainer{
@@ -715,7 +708,7 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 			return
 		}
 		//RBAC enforcer Ends
-	} else if request.AppType != bean2.FluxAppType {
+	} else if request.AppType == bean2.FluxAppType {
 		valid, err := handler.k8sApplicationService.ValidateFluxResourceRequest(r.Context(), request.ExternalFluxAppIdentifier, request.K8sRequest)
 		if err != nil || !valid {
 			handler.logger.Errorw("error in validating resource request", "err", err)
