@@ -32,6 +32,15 @@ import (
 	"github.com/tidwall/sjson"
 )
 
+const KeyNotFoundError = "empty-val-err"
+
+func IsNotFoundErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	return err.Error() == KeyNotFoundError
+}
+
 func ResolveDeploymentTypeAndUpdate(overrideRequest *bean.ValuesOverrideRequest) {
 	if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
 		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
@@ -57,7 +66,7 @@ func GetDeploymentTemplateType(overrideRequest *bean.ValuesOverrideRequest) char
 
 func ExtractParamValue(inputMap map[string]interface{}, key string, merged []byte) (float64, error) {
 	if _, ok := inputMap[key]; !ok {
-		return 0, errors.New("empty-val-err")
+		return 0, errors.New(KeyNotFoundError)
 	}
 	return util4.ParseFloatNumber(gjson.Get(string(merged), inputMap[key].(string)).Value())
 }
