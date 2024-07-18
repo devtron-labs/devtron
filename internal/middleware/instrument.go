@@ -100,10 +100,6 @@ var currentRequestGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
 	Help: "no of request being served currently",
 }, []string{"path", "method"})
 
-var AcdGetResourceCounter = promauto.NewCounterVec(prometheus.CounterOpts{
-	Name: "acd_get_resource_counter",
-}, []string{"appId", "envId", "acdAppName"})
-
 var CdTriggerCounter = promauto.NewCounterVec(prometheus.CounterOpts{
 	Name: "cd_trigger_counter",
 }, []string{"appName", "envName"})
