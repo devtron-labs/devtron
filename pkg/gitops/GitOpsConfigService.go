@@ -116,7 +116,7 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *apiBe
 	isTokenEmpty := config.Token == ""
 	isTlsDetailsEmpty := config.EnableTLSVerification &&
 		(config.TLSConfig == nil ||
-			(config.TLSConfig != nil && len(config.TLSConfig.CaData) == 0 && len(config.TLSConfig.TLSCertData) == 0 && len(config.TLSConfig.TLSKeyData) == 0))
+			(config.TLSConfig != nil && (len(config.TLSConfig.CaData) == 0 || len(config.TLSConfig.TLSCertData) == 0 || len(config.TLSConfig.TLSKeyData) == 0)))
 
 	if isTokenEmpty || isTlsDetailsEmpty {
 		model, err := impl.gitOpsRepository.GetGitOpsConfigById(config.Id)
@@ -132,10 +132,26 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *apiBe
 			config.Token = model.Token
 		}
 		if isTlsDetailsEmpty {
+			caData := model.CaCert
+			tlsCert := model.TlsCert
+			tlsKey := model.TlsKey
+
+			if config.TLSConfig != nil {
+				if len(config.TLSConfig.CaData) > 0 {
+					caData = config.TLSConfig.CaData
+				}
+				if len(config.TLSConfig.TLSCertData) > 0 {
+					tlsCert = config.TLSConfig.TLSCertData
+				}
+				if len(config.TLSConfig.TLSKeyData) > 0 {
+					tlsKey = config.TLSConfig.TLSKeyData
+				}
+			}
+
 			config.TLSConfig = &bean.TLSConfig{
-				CaData:      model.CaCert,
-				TLSCertData: model.TlsCert,
-				TLSKeyData:  model.TlsKey,
+				CaData:      caData,
+				TLSCertData: tlsCert,
+				TLSKeyData:  tlsKey,
 			}
 		}
 	}
@@ -716,10 +732,25 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *apiBean.GitOps
 			config.Token = model.Token
 		}
 		if isTlsDetailsEmpty {
+			caData := model.CaCert
+			tlsCert := model.TlsCert
+			tlsKey := model.TlsKey
+
+			if config.TLSConfig != nil {
+				if len(config.TLSConfig.CaData) > 0 {
+					caData = config.TLSConfig.CaData
+				}
+				if len(config.TLSConfig.TLSCertData) > 0 {
+					tlsCert = config.TLSConfig.TLSCertData
+				}
+				if len(config.TLSConfig.TLSKeyData) > 0 {
+					tlsKey = config.TLSConfig.TLSKeyData
+				}
+			}
 			config.TLSConfig = &bean.TLSConfig{
-				CaData:      model.CaCert,
-				TLSCertData: model.TlsCert,
-				TLSKeyData:  model.TlsKey,
+				CaData:      caData,
+				TLSCertData: tlsCert,
+				TLSKeyData:  tlsKey,
 			}
 		}
 	}
