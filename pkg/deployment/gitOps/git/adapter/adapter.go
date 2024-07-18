@@ -22,7 +22,7 @@ import (
 )
 
 func ConvertGitOpsConfigToGitConfig(dto *bean2.GitOpsConfigDto) *bean.GitConfig {
-	return &bean.GitConfig{
+	config := &bean.GitConfig{
 		GitlabGroupId:        dto.GitLabGroupId,
 		GitToken:             dto.Token,
 		GitUserName:          dto.Username,
@@ -37,4 +37,10 @@ func ConvertGitOpsConfigToGitConfig(dto *bean2.GitOpsConfigDto) *bean.GitConfig 
 		TLSCert:              dto.TLSConfig.TLSCertData,
 		TLSKey:               dto.TLSConfig.TLSKeyData,
 	}
+	if dto.TLSConfig != nil {
+		config.CaCert = dto.TLSConfig.CaData
+		config.TLSCert = dto.TLSConfig.TLSCertData
+		config.TLSKey = dto.TLSConfig.TLSKeyData
+	}
+	return config
 }
