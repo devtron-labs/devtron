@@ -9,10 +9,9 @@ INSERT INTO plugin_stage_mapping (id,plugin_id,stage_type,created_on,created_by,
 INSERT INTO "plugin_pipeline_script" ("id", "script","type","deleted","created_on", "created_by", "updated_on", "updated_by")
 VALUES ( nextval('id_seq_plugin_pipeline_script'),
 E'#!/bin/bash
-echo "================== AUTOSYNC ENVIRONMENT CONFIGURATION PLUGIN STEP STARTS FROM HERE ========================="
 
+echo "================== AUTOSYNC ENVIRONMENT CONFIGURATION PLUGIN STEP STARTS FROM HERE ========================="
 DevtronEndpoint=$(echo "$DevtronEndpoint" | sed \'s:/*$::\')
-    
 echo "Entered DevtronEndpoint is: $DevtronEndpoint"
 
 echo "==================================== DEPLOYMENT TEMPLATE ==================================================="
@@ -146,69 +145,56 @@ if [ -z "$targetDeploymentTemplateId" ]; then
     exit 1
 fi
 
-# Update the deployment template for the target environment
-updated_json=$(echo "$sourceTempJson" | jq \'.result.environmentConfig\')
-if [ -z "$updated_json" ]; then
-    echo "Error: Could not update deployment template config. Exiting... "
-    exit 1
-fi
-updated_json=$(echo "$updated_json" | jq --argjson new_deployment_template_id $targetDeploymentTemplateId \'.id = $new_deployment_template_id\')
-if [ -z "$updated_json" ]; then
-    echo "Error: Could not update deployment template config. Exiting... "
-    exit 1
-fi
-updated_json=$(echo "$updated_json" | jq --argjson new_id $targetEnvId \'.environmentId = $new_id\')
-if [ -z "$updated_json" ]; then
-    echo "Error: Could not update deployment template config. Exiting... "
-    exit 1
-fi
-updated_json=$(echo "$updated_json" | jq --arg new_name "$TargetEnvironmentName" \'.environmentName = $new_name\')
-if [ -z "$updated_json" ]; then
-    echo "Error: Could not update deployment template config. Exiting... "
-    exit 1
-fi
-updated_json=$(echo "$updated_json" | jq --arg new_ns "$targetNamespace" \'.namespace = $new_ns\')
-if [ -z "$updated_json" ]; then
-    echo "Error: Could not update deployment template config. Exiting... "
-    exit 1
-fi
+IsDeploymentTemplateOverride=$(echo $targetTempJson | jq \'.result.environmentConfig.envOverrideValues\' )
 
-url="$DevtronEndpoint/orchestrator/app/env"
-echo "Syncing source environment to the target environment $SourceEnvironmentName and $TargetEnvironmentName"
-response=$(curl -s "$url" -X PUT -H "cookie: argocd.token=$DevtronApiToken" --data-raw "$updated_json")
-
-code=$(echo $response | jq \'.code\')
-
-if [ -n "$code" ] && [ "$code" -ge 400 ] && [ "$code" -lt 500 ]; then
-    echo "Error: Failed to sync target deployment template with the source deployment template details from API. Exiting..."
+if [[ $IsDeploymentTemplateOverride == "null" ]]; then
+    echo "Cannot make changes in Target Deployment Template. Please Allow Override in target Deployment Template. Exiting..."
     exit 1
+else
+    # Update the deployment template for the target environment
+    updated_json=$(echo "$sourceTempJson" | jq \'.result.environmentConfig\')
+    if [ -z "$updated_json" ]; then
+        echo "Error: Could not update deployment template config. Exiting... "
+        exit 1
+    fi
+    updated_json=$(echo "$updated_json" | jq --argjson new_deployment_template_id $targetDeploymentTemplateId \'.id = $new_deployment_template_id\')
+    if [ -z "$updated_json" ]; then
+        echo "Error: Could not update deployment template config. Exiting... "
+        exit 1
+    fi
+    updated_json=$(echo "$updated_json" | jq --argjson new_id $targetEnvId \'.environmentId = $new_id\')
+    if [ -z "$updated_json" ]; then
+        echo "Error: Could not update deployment template config. Exiting... "
+        exit 1
+    fi
+    updated_json=$(echo "$updated_json" | jq --arg new_name "$TargetEnvironmentName" \'.environmentName = $new_name\')
+    if [ -z "$updated_json" ]; then
+        echo "Error: Could not update deployment template config. Exiting... "
+        exit 1
+    fi
+    updated_json=$(echo "$updated_json" | jq --arg new_ns "$targetNamespace" \'.namespace = $new_ns\')
+    if [ -z "$updated_json" ]; then
+        echo "Error: Could not update deployment template config. Exiting... "
+        exit 1
+    fi
+
+
+    url="$DevtronEndpoint/orchestrator/app/env"
+    echo "Syncing source environment to the target environment $SourceEnvironmentName and $TargetEnvironmentName"
+    response=$(curl -s "$url" -X PUT -H "cookie: argocd.token=$DevtronApiToken" --data-raw "$updated_json")
+
+    code=$(echo $response | jq \'.code\')
+
+    if [ -n "$code" ] && [ "$code" -ge 400 ] && [ "$code" -lt 500 ]; then
+        echo "Error: ResponseCode: $code, Cannot make changes in Target Deployment Template. Please Allow Override in source Deployment Template. Exiting..."
+        exit 1
+    fi
 fi
 
 echo "========================================= CONFIG MAP ======================================================="
 
-# Function to delete a config map
-delete_config_map() {
-    local id=$1
-    local appId=$2
-    local targetEnvId=$3
-    local configName=$4
-
-    # Construct the DELETE request
-    temp=$(curl -s -X DELETE "${DevtronEndpoint}/orchestrator/config/environment/cm/${appId}/${targetEnvId}/${id}?name=${configName}" -H "cookie: argocd.token=${DevtronApiToken}") 
-    if [ $(echo $temp | jq \'.code\') == "403" ]; then
-        echo "Error: User does not authorized for target environments. Exiting..."
-        exit 1
-    elif [ $(echo $temp | jq \'.code\') == "401" ]; then
-        echo "Error: Enter the correct Devtron API token. Exiting..."
-        exit 1
-    elif [ $(echo $temp | jq \'.code\') -ge 400 ] && [ $(echo $temp | jq \'.code\') -lt 500 ]; then
-        echo "Error: Failed to delete the target environment configMaps. Exiting..."
-        exit 1
-    fi
-}
-
 # Fetch JSON response from API
-sourceJsonResponse=$(curl -s "${DevtronEndpoint}/orchestrator/config/environment/cm/${appId}/${sourceEnvId}" -H "cookie: argocd.token=${DevtronApiToken}")
+sourceJsonResponse=$(curl -s "${DevtronEndpoint}/orchestrator/config/environment/config map/${appId}/${sourceEnvId}" -H "cookie: argocd.token=${DevtronApiToken}")
 if [ $(echo $sourceJsonResponse | jq \'.code\') == "403" ]; then
     echo "Error: User does not authorized for the source config environments. Exiting..."
     exit 1
@@ -220,7 +206,7 @@ elif [ $(echo $sourceJsonResponse | jq \'.code\') -ge 400 ] && [ $(echo $sourceJ
     exit 1
 fi
 
-targetJsonResponse=$(curl -s "${DevtronEndpoint}/orchestrator/config/environment/cm/${appId}/${targetEnvId}" -H "cookie: argocd.token=${DevtronApiToken}")
+targetJsonResponse=$(curl -s "${DevtronEndpoint}/orchestrator/config/environment/config map/${appId}/${targetEnvId}" -H "cookie: argocd.token=${DevtronApiToken}")
 if [ $(echo $targetJsonResponse | jq \'.code\') == "403" ]; then
     echo "Error: User does not authorized for the target environments configMaps. Exiting..."
     exit 1
@@ -254,14 +240,14 @@ fi
 # Print all config map names in the target environment
 targetConfigMaps=$(echo "$targetJsonResponse" | jq -c \'.result.configData\')
 echo "$targetConfigMaps" | jq -r \'.[].name\' | while read -r name; do 
-    echo Existing CM in target environment: $name
+    echo Existing config map in target environment: $name
 done
 
 # Loop through each config map and delete it
-echo "$configMapsData" | jq -c \'.[]\' | while read -r cm; do
-    configName=$(echo "$cm" | jq -r \'.name // empty\')
-    IsGlobal=$(echo $cm | jq -r \'.global\' )
-    IsOverride=$(echo $cm | jq -r \'.overridden\')
+echo "$configMapsData" | jq -c \'.[]\' | while read -r config map; do
+    configName=$(echo "$config map" | jq -r \'.name // empty\')
+    IsGlobal=$(echo $config map | jq -r \'.global\' )
+    IsOverride=$(echo $config map | jq -r \'.overridden\')
 
     if [[ $IsGlobal == true  && $IsOverride == true ]] || [ $IsGlobal == false ]; then
 
@@ -272,14 +258,11 @@ echo "$configMapsData" | jq -c \'.[]\' | while read -r cm; do
         elif [[ -z "$targetCmId" || -z "$appId" || -z "$targetEnvId" ]]; then
             echo "Error: Missing required fields in config map data. Exiting..."
             exit 1
-        else
-            # Delete the config map
-            delete_config_map "$targetCmId" "$appId" "$targetEnvId" "$configName"
         fi
 
         # Send the config map data as a JSON object in the array
-        echo "Syncing config map in the target environment: $configName"
-        temp=$(curl -s "${DevtronEndpoint}/orchestrator/config/environment/cm" -H "cookie: argocd.token=${DevtronApiToken}" --data-raw "{"\'"id"\'": $targetCmId, "\'"appId"\'": $appId, "\'"environmentId"\'": $targetEnvId, "\'"configData"\'": [$cm]}")
+        echo "Syncing config map in target environment: $configName"
+        temp=$(curl -s "${DevtronEndpoint}/orchestrator/config/environment/config map" -H "cookie: argocd.token=${DevtronApiToken}" --data-raw "{"\'"id"\'": $targetCmId, "\'"appId"\'": $appId, "\'"environmentId"\'": $targetEnvId, "\'"configData"\'": [$config map]}")
         if [ $(echo $temp | jq \'.code\') == "403" ]; then
             echo "Error: User does not authorized for the creating target environments configMaps. Exiting..."
             exit 1
@@ -295,27 +278,6 @@ done
 
 
 echo "=========================================== SECRETS ========================================================"
-
-# Function to delete a config map
-delete_secrets() {
-    local id=$1
-    local appId=$2
-    local targetEnvId=$3
-    local configName=$4
-
-    # Construct the DELETE request
-    temp=$(curl -s -X DELETE "${DevtronEndpoint}/orchestrator/config/environment/cs/${appId}/${targetEnvId}/${id}?name=${configName}" -H "cookie: argocd.token=${DevtronApiToken}") 
-    if [ $(echo $temp | jq \'.code\') == "403" ]; then
-        echo "Error: User does not authorized for target environments. Exiting..."
-        exit 1
-    elif [ $(echo $temp | jq \'.code\') == "401" ]; then
-        echo "Error: Enter the correct Devtron API token. Exiting..."
-        exit 1
-    elif [ $(echo $temp | jq \'.code\') -ge 400 ] && [ $(echo $temp | jq \'.code\') -lt 500 ]; then
-        echo "Error: Failed to delete the target environment secrets. Exiting..."
-        exit 1
-    fi
-}
 
 # Fetch JSON response from API
 sourceJsonResponse=$(curl -s "${DevtronEndpoint}/orchestrator/config/environment/cs/${appId}/${sourceEnvId}" -H "cookie: argocd.token=${DevtronApiToken}")
@@ -367,7 +329,7 @@ echo "$targetSecrets" | jq -r \'.[].name\' | while read -r name; do
     echo Existing Secret in target environment: $name
 done
 
-# Loop through each config map and delete it
+# Loop through each Secrets and delete it
 echo "$configSecretData" | jq -c \'.[]\' | while read -r css; do
     secretName=$(echo "$css" | jq -r \'.name // empty\')
     IsGlobal=$(echo $css | jq -r \'.global\' )
@@ -377,21 +339,18 @@ echo "$configSecretData" | jq -c \'.[]\' | while read -r css; do
 
         # Check if required fields are present
         if [[ -z "$secretName" ]]; then
-            echo "Empty Config Map for target environment. Exiting..."
+            echo "Empty Secret for target environment. Exiting..."
             exit 1
         elif [[ -z "$targetCsId" || -z "$appId" || -z "$targetEnvId" ]]; then
             echo "Error: Missing required fields in secrets data. Exiting..."
             exit 1
-        else
-            # Delete the config map
-            delete_secrets "$targetCsId" "$appId" "$targetEnvId" "$secretName"
         fi
 
         # Fetching particular secret data.
         tempSecretData=$(curl -s "${DevtronEndpoint}/orchestrator/config/environment/cs/edit/$appId/$sourceEnvId/$sourceCsId?name=$secretName" -H "cookie: argocd.token=${DevtronApiToken}")
         cs=$(echo $tempSecretData | jq \'.result.configData[0]\' )
 
-        # Send the config map data as a JSON object in the array
+        # Send the secrets data as a JSON object in the array
         echo "Syncing secret in the target environment: $secretName"
         temp=$(curl -s "${DevtronEndpoint}/orchestrator/config/environment/cs" -H "cookie: argocd.token=${DevtronApiToken}" --data-raw "{"\'"id"\'": $targetCsId, "\'"appId"\'": $appId, "\'"environmentId"\'": $targetEnvId, "\'"configData"\'": [$cs]}")
         if [ $(echo $temp | jq \'.code\') == "403" ]; then
@@ -424,13 +383,5 @@ INSERT INTO plugin_step_variable (id,plugin_step_id,name,format,description,is_e
 VALUES 
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='AutoSync Environmment Configuration v1.0.0' and ps."index"=1 and ps.deleted=false),'SourceEnvironmentName','STRING','Enter source environment name','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='AutoSync Environmment Configuration v1.0.0' and ps."index"=1 and ps.deleted=false),'TargetEnvironmentName','STRING','Enter target environment name','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
-(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='AutoSync Environmment Configuration v1.0.0' and ps."index"=1 and ps.deleted=false),'DevtronEndpoint','STRING','Enter devtron host url','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
-(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='AutoSync Environmment Configuration v1.0.0' and ps."index"=1 and ps.deleted=false),'DevtronApiToken','STRING','Enter devtron api token','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
-
-
-
-
-
-
-
-
+(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='AutoSync Environmment Configuration v1.0.0' and ps."index"=1 and ps.deleted=false),'DevtronEndpoint','STRING','Enter host url','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
+(nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='AutoSync Environmment Configuration v1.0.0' and ps."index"=1 and ps.deleted=false),'DevtronApiToken','STRING','Enter the devtron api token','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
