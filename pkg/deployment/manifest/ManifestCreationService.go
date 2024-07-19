@@ -793,7 +793,7 @@ func (impl *ManifestCreationServiceImpl) getK8sHPAResourceManifest(ctx context.C
 		return resourceManifest, util.NewApiError().
 			WithHttpStatusCode(http.StatusPreconditionFailed).
 			WithInternalMessage(err.Error()).
-			WithUserDetailMessage(err.Error())
+			WithUserDetailMessage("unable to find preferred version for hpa resource")
 	} else if k8sUtil.IsNotFoundError(err) {
 		return resourceManifest, util.NewApiError().
 			WithHttpStatusCode(http.StatusPreconditionFailed).
