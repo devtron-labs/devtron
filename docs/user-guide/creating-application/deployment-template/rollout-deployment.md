@@ -3,58 +3,24 @@
 
 The `Rollout Deployment` chart deploys an advanced version of deployment that supports Blue/Green and Canary deployments. For functioning, it requires a rollout controller to run inside the cluster.
 
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/dt-type-2.jpg)
+
 You can define application behavior by providing information in the following sections:
 
-* [Chart version](#1.-chart-version)
-* [Basic Configuration](#2.-basic-configuration)
-* [Advanced (YAML)](#3.-advanced-yaml)
-* [Show Application Metrics](#4.-show-application-metrics)
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/deployment-template.gif)
+| Key | Descriptions |
+| :--- | :--- |
+| `Chart version` | Select the Chart Version using which you want to deploy the application.<br> Refer [Chart Version](../../creating-application/deployment-template/deployment.md#1.-chart-version) section for more detail.</br> |
+| `Basic Configuration` | You can select the basic deployment configuration for your application on the **Basic** GUI section instead of configuring the YAML file.<br>Refer [Basic Configuration](../../creating-application/deployment-template/deployment.md#2.-basic-configuration) section for more detail.</br>|
+| `Advanced (YAML)` | If you want to do additional configurations, then click **Advanced (YAML)** for modifications.<br>Refer [Advanced (YAML)](#advanced-yaml) section for more detail.</br> |
+| `Show application metrics` | You can enable `Show application metrics` to see your application's metrics-CPU Service Monitor usage, Memory Usage, Status, Throughput and Latency.<br>Refer [Application Metrics](../../creating-application/app-metrics.md) for more detail.</br> |
 
 {% hint style="warning" %}
 Super-admins can lock keys in rollout deployment template to prevent non-super-admins from modifying those locked keys. Refer [Lock Deployment Configuration](../../global-configurations/lock-deployment-config.md) to know more.
 {% endhint %}
 
-## 1. Chart version
+---
 
-| Key | Descriptions |
-| :--- | :--- |
-| `Chart Version` | Select the Chart Version using which you want to deploy the application. |
-
-Devtron uses helm charts for the deployments. And we are having multiple chart versions based on features it is supporting with every chart version.
-
-One can see multiple chart version options available in the drop-down. you can select any chart version as per your requirements. By default, the latest version of the helm chart is selected in the chart version option.
-
-Every chart version has its own YAML file. Helm charts are used to provide specifications for your application. To make it easy to use, we have created templates for the YAML file and have added some variables inside the YAML. You can provide or change the values of these variables as per your requirement.
-
-If you want to see [Application Metrics](#4.-show-application-metrics) (as an example, Status codes 2xx, 3xx, 5xx; throughput, and latency etc.) for your application, then you need to select the latest chart version.
-
-**Note**: Application Metrics are not supported for the Chart version older than 3.7 version.
-
-## 2. Basic Configuration
-
-Some of the use-cases which are defined on the Deployment Template (YAML file) may not be applicable to configure for your application. In such cases, you can do the basic deployment configuration for your application on the **Basic** GUI section instead of configuring the YAML file.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/basic-config-deployment-template.jpg)
-
-The following fields are provided on the **Basic** GUI section:
-
-| Fields | Description |
-| :---    |     :---       |
-| **Port**  | The internal HTTP port. |
-| **HTTP Request Routes** | Enable the `HTTP Request Routes` to define `Host` and `Path`. By default, it is in `disabled` state.<ul><li> **Host**: Domain name of the server. </li></ul> <ul><li>**Path**: Path of the specific component in the host that the HTTP wants to access.</li></ul> You can define multiple paths as required by clicking **Add path**.|
-| **CPU**  | The CPU resource as per the application. |
-| **RAM**   | The RAM resource as per the application. |
-| **Environment Variables** (**Key/Value**)  | Define `key/value` by clicking **Add variable**. <ul><li> **Key**: Define the key of the environment.</li></ul> <ul><li>**Value**: Define the value of the environment.</li></ul> You can define multiple env variables by clicking **Add variable**.  |
-
-Click **Save Changes**.
-
-If you want to do additional configurations, then click **Advanced (YAML)** for modifications.
-
-**Note**: If you change any values in the `Basic` GUI, then the corresponding values will be changed in `YAML` file also.
-
-## 3. Advanced (YAML)
+## Advanced (YAML)
 
 ### Container Ports
 
