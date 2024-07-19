@@ -6,6 +6,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/client/argocdServer/connection"
+	"github.com/devtron-labs/devtron/util/argo"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"time"
@@ -20,18 +21,27 @@ type Client interface {
 type ServiceClientImpl struct {
 	logger                  *zap.SugaredLogger
 	argoCDConnectionManager connection.ArgoCDConnectionManager
+	argoUserService         argo.ArgoUserService
 }
 
 func NewServiceClientImpl(
 	logger *zap.SugaredLogger,
-	argoCDConnectionManager connection.ArgoCDConnectionManager) *ServiceClientImpl {
+	argoCDConnectionManager connection.ArgoCDConnectionManager,
+	argoUserService argo.ArgoUserService) *ServiceClientImpl {
 	return &ServiceClientImpl{
 		logger:                  logger,
 		argoCDConnectionManager: argoCDConnectionManager,
+		argoUserService:         argoUserService,
 	}
 }
 
 func (c *ServiceClientImpl) getService(ctx context.Context) (certificate.CertificateServiceClient, error) {
+	acdToken, err := c.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		c.logger.Errorw("error in getting acd token", "err", err)
+		return nil, err
+	}
+	ctx = context.WithValue(ctx, "token", acdToken)
 	token, ok := ctx.Value("token").(string)
 	if !ok {
 		return nil, errors.New("Unauthorized")

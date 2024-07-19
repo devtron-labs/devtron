@@ -333,7 +333,7 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 		}
 		_, err = impl.argoCertificateClient.CreateCertificate(ctx, &certificate2.RepositoryCertificateCreateRequest{
 			Certificates: &v1alpha1.RepositoryCertificateList{
-				Items: []v1alpha1.RepositoryCertificate{v1alpha1.RepositoryCertificate{
+				Items: []v1alpha1.RepositoryCertificate{{
 					ServerName: host,
 					CertData:   []byte(model.CaCert),
 				}},
