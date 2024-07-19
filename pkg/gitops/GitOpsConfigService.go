@@ -166,6 +166,11 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *apiBe
 	return detailedErrorGitOpsConfigResponse, nil
 }
 
+// step-1: save data in DB
+// step-3: add ca cert if present to list of trusted certificates on argoCD using certificate.Client service
+// step-3: add repository credentials in secret declared using env variable GITOPS_SECRET_NAME
+// step-4 add repository URL in argocd-cm, argocd-cm will have reference to secret created in step-3 for credentials
+// steps-5 upsert cluster in acd
 func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, request *apiBean.GitOpsConfigDto) (*apiBean.GitOpsConfigDto, error) {
 	impl.logger.Debugw("gitops create request", "req", request)
 	dbConnection := impl.gitOpsRepository.GetConnection()
@@ -253,23 +258,6 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 		return nil, err
 	}
 
-	if len(model.CaCert) > 0 {
-		host, err := util2.GetHost(request.Host)
-		if err != nil {
-			impl.logger.Errorw("invalid gitOps host", "host", host, "err", err)
-			return nil, err
-		}
-		_, err = impl.argoCertificateClient.CreateCertificate(ctx, &certificate2.RepositoryCertificateCreateRequest{
-			Certificates: &v1alpha1.RepositoryCertificateList{
-				Items: []v1alpha1.RepositoryCertificate{v1alpha1.RepositoryCertificate{
-					ServerName: host,
-					CertData:   []byte(model.CaCert),
-				}},
-			},
-			Upsert: true,
-		})
-	}
-
 	clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
 	if err != nil {
 		return nil, err
@@ -325,21 +313,10 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 
 		}
 	}
-	if len(model.CaCert) > 0 {
-		host, err := util2.GetHost(request.Host)
-		if err != nil {
-			impl.logger.Errorw("invalid gitOps host", "host", host, "err", err)
-			return nil, err
-		}
-		_, err = impl.argoCertificateClient.CreateCertificate(ctx, &certificate2.RepositoryCertificateCreateRequest{
-			Certificates: &v1alpha1.RepositoryCertificateList{
-				Items: []v1alpha1.RepositoryCertificate{{
-					ServerName: host,
-					CertData:   []byte(model.CaCert),
-				}},
-			},
-			Upsert: true,
-		})
+	err = impl.addCACertInArgoIfPresent(ctx, model)
+	if err != nil {
+		impl.logger.Errorw("error in adding ca cert to argo", "err", err)
+		return nil, err
 	}
 	err = impl.gitOperationService.UpdateGitHostUrlByProvider(request)
 	if err != nil {
@@ -407,6 +384,30 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 	}
 	request.Id = model.Id
 	return request, nil
+}
+
+func (impl *GitOpsConfigServiceImpl) addCACertInArgoIfPresent(ctx context.Context, model *repository.GitOpsConfig) error {
+	if len(model.CaCert) > 0 {
+		host, err := util2.GetHost(model.Host)
+		if err != nil {
+			impl.logger.Errorw("invalid gitOps host", "host", host, "err", err)
+			return err
+		}
+		_, err = impl.argoCertificateClient.CreateCertificate(ctx, &certificate2.RepositoryCertificateCreateRequest{
+			Certificates: &v1alpha1.RepositoryCertificateList{
+				Items: []v1alpha1.RepositoryCertificate{{
+					ServerName: host,
+					CertData:   []byte(model.CaCert),
+					CertType:   "https",
+				}},
+			},
+			Upsert: true,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsConfigDto) error {
@@ -511,6 +512,12 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 		return err
 	}
 	request.Id = model.Id
+
+	err = impl.addCACertInArgoIfPresent(context.Background(), model)
+	if err != nil {
+		impl.logger.Errorw("error in adding ca cert to argo", "err", err)
+		return err
+	}
 
 	clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
 	if err != nil {
