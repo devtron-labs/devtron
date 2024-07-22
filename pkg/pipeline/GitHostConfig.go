@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
 	"time"
@@ -59,14 +60,24 @@ func (impl GitHostConfigImpl) GetAll() ([]types.GitHostRequest, error) {
 	}
 
 	var gitHosts []types.GitHostRequest
+
 	for _, host := range hosts {
 		err = impl.addDisplayNameIfEmpty(&host)
 		if err != nil {
 			impl.logger.Errorw("error in adding display name to git host, continuing for now", "err", err)
 		}
+		displayName := host.DisplayName
+		if displayName == "" {
+			displayName = host.Name
+			host.DisplayName = host.Name
+			err = impl.gitHostRepo.Update(&host)
+			if err != nil {
+				impl.logger.Errorw("error in updating git host, but continuing the request", "err", err)
+			}
+		}
 		hostRes := types.GitHostRequest{
 			Id:     host.Id,
-			Name:   host.DisplayName,
+			Name:   displayName,
 			Active: host.Active,
 		}
 		gitHosts = append(gitHosts, hostRes)
@@ -185,5 +196,5 @@ func (impl GitHostConfigImpl) Create(request *types.GitHostRequest) (int, error)
 }
 
 func GetUniqueGitHostName(displayName string) string {
-	return displayName + "_" + "ladakmdksdm"
+	return displayName + "_" + util2.GetRandomStringOfGivenLength(6)
 }
