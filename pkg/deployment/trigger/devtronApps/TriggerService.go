@@ -161,6 +161,7 @@ type TriggerServiceImpl struct {
 	transactionUtilImpl           *sql.TransactionUtilImpl
 	deploymentConfigService       common.DeploymentConfigService
 	deploymentServiceTypeConfig   *util3.DeploymentServiceTypeConfig
+	ciMaterialConfigService       pipeline.CiMaterialConfigService
 }
 
 func NewTriggerServiceImpl(logger *zap.SugaredLogger,
@@ -215,6 +216,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 	K8sUtil *util5.K8sServiceImpl,
 	transactionUtilImpl *sql.TransactionUtilImpl,
 	deploymentConfigService common.DeploymentConfigService,
+	ciMaterialConfigService pipeline.CiMaterialConfigService,
 ) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
@@ -270,6 +272,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 		transactionUtilImpl:                 transactionUtilImpl,
 		deploymentConfigService:             deploymentConfigService,
 		deploymentServiceTypeConfig:         envVariables.DeploymentServiceTypeConfig,
+		ciMaterialConfigService:             ciMaterialConfigService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {

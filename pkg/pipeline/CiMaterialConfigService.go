@@ -17,14 +17,20 @@
 package pipeline
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
+	"github.com/devtron-labs/devtron/pkg/plugin"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -41,6 +47,8 @@ type CiMaterialConfigService interface {
 	BulkPatchCiMaterialSource(ciPipelines *bean.CiMaterialBulkPatchRequest, userId int32, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*bean.CiMaterialBulkPatchResponse, error)
 	//GetMaterialsForAppId : Retrieve material for given appId
 	GetMaterialsForAppId(appId int) []*bean.GitMaterial
+
+	GetGitCommitEnvVarDataForCICDStage(gitTriggers map[int]pipelineConfig.GitCommit) (map[string]string, *gitSensorClient.WebhookAndCiData, error)
 }
 
 type CiMaterialConfigServiceImpl struct {
@@ -52,6 +60,7 @@ type CiMaterialConfigServiceImpl struct {
 	gitMaterialHistoryService    history.GitMaterialHistoryService
 	pipelineRepository           pipelineConfig.PipelineRepository
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
+	gitSensorGrpcClient          gitSensorClient.Client
 	transactionManager           sql.TransactionWrapper
 }
 
@@ -63,7 +72,9 @@ func NewCiMaterialConfigServiceImpl(
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	gitMaterialHistoryService history.GitMaterialHistoryService,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, transactionManager sql.TransactionWrapper) *CiMaterialConfigServiceImpl {
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
+	gitSensorGrpcClient gitSensorClient.Client,
+	transactionManager sql.TransactionWrapper) *CiMaterialConfigServiceImpl {
 
 	return &CiMaterialConfigServiceImpl{
 		logger:                       logger,
@@ -74,6 +85,7 @@ func NewCiMaterialConfigServiceImpl(
 		gitMaterialHistoryService:    gitMaterialHistoryService,
 		pipelineRepository:           pipelineRepository,
 		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
+		gitSensorGrpcClient:          gitSensorGrpcClient,
 		transactionManager:           transactionManager,
 	}
 }
@@ -230,4 +242,62 @@ func (impl *CiMaterialConfigServiceImpl) GetMaterialsForAppId(appId int) []*bean
 		gitMaterials = append(gitMaterials, gitMaterial)
 	}
 	return gitMaterials
+}
+
+func (impl *CiMaterialConfigServiceImpl) GetGitCommitEnvVarDataForCICDStage(gitTriggers map[int]pipelineConfig.GitCommit) (map[string]string, *gitSensorClient.WebhookAndCiData, error) {
+	var webhookAndCiData *gitSensorClient.WebhookAndCiData
+	var err error
+	extraEnvVariables := make(map[string]string)
+	if gitTriggers != nil {
+		i := 1
+		var gitCommitEnvVariables []types.GitMetadata
+
+		for ciPipelineMaterialId, gitTrigger := range gitTriggers {
+			extraEnvVariables[fmt.Sprintf("%s_%d", types.GIT_COMMIT_HASH_PREFIX, i)] = gitTrigger.Commit
+			extraEnvVariables[fmt.Sprintf("%s_%d", types.GIT_SOURCE_TYPE_PREFIX, i)] = string(gitTrigger.CiConfigureSourceType)
+			extraEnvVariables[fmt.Sprintf("%s_%d", types.GIT_SOURCE_VALUE_PREFIX, i)] = gitTrigger.CiConfigureSourceValue
+			extraEnvVariables[fmt.Sprintf("%s_%d", types.GIT_REPO_URL_PREFIX, i)] = gitTrigger.GitRepoUrl
+
+			gitCommitEnvVariables = append(gitCommitEnvVariables, types.GitMetadata{
+				GitCommitHash:  gitTrigger.Commit,
+				GitSourceType:  string(gitTrigger.CiConfigureSourceType),
+				GitSourceValue: gitTrigger.CiConfigureSourceValue,
+				GitRepoUrl:     gitTrigger.GitRepoUrl,
+			})
+
+			// CODE-BLOCK starts - store extra environment variables if webhook
+			if gitTrigger.CiConfigureSourceType == pipelineConfig.SOURCE_TYPE_WEBHOOK {
+				webhookDataId := gitTrigger.WebhookData.Id
+				if webhookDataId > 0 {
+					webhookDataRequest := &gitSensorClient.WebhookDataRequest{
+						Id:                   webhookDataId,
+						CiPipelineMaterialId: ciPipelineMaterialId,
+					}
+					webhookAndCiData, err = impl.gitSensorGrpcClient.GetWebhookData(context.Background(), webhookDataRequest)
+					if err != nil {
+						impl.logger.Errorw("err while getting webhook data from git-sensor", "err", err, "webhookDataRequest", webhookDataRequest)
+						return nil, nil, err
+					}
+					if webhookAndCiData != nil {
+						for extEnvVariableKey, extEnvVariableVal := range webhookAndCiData.ExtraEnvironmentVariables {
+							extraEnvVariables[extEnvVariableKey] = extEnvVariableVal
+						}
+					}
+				}
+			}
+			// CODE_BLOCK ends
+
+			i++
+		}
+		gitMetadata, err := json.Marshal(&gitCommitEnvVariables)
+		if err != nil {
+			impl.logger.Errorw("err while marshaling git metdata", "err", err)
+			return nil, nil, err
+		}
+		extraEnvVariables[plugin.GIT_METADATA] = string(gitMetadata)
+
+		extraEnvVariables[types.GIT_SOURCE_COUNT] = strconv.Itoa(len(gitTriggers))
+	}
+
+	return extraEnvVariables, webhookAndCiData, nil
 }
