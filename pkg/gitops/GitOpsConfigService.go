@@ -276,6 +276,10 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 		}
 		ctx = context.WithValue(ctx, "token", acdToken)
 
+		err = impl.gitOperationService.UpdateGitHostUrlByProvider(request)
+		if err != nil {
+			return nil, err
+		}
 		_, err = impl.repocreds.CreateRepoCreds(ctx, &repocreds2.RepoCredsCreateRequest{
 			Creds: &v1alpha1.RepoCreds{
 				URL:               model.Host,
@@ -556,6 +560,11 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 			return err
 		}
 		ctx := context.WithValue(context.Background(), "token", acdToken)
+
+		err = impl.gitOperationService.UpdateGitHostUrlByProvider(request)
+		if err != nil {
+			return err
+		}
 
 		_, err = impl.repocreds.CreateRepoCreds(ctx, &repocreds2.RepoCredsCreateRequest{
 			Creds: &v1alpha1.RepoCreds{
