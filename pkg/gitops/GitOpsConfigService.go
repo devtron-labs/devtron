@@ -282,7 +282,7 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 		}
 		_, err = impl.repocreds.CreateRepoCreds(ctx, &repocreds2.RepoCredsCreateRequest{
 			Creds: &v1alpha1.RepoCreds{
-				URL:               model.Host,
+				URL:               request.Host,
 				Username:          model.Username,
 				Password:          model.Token,
 				TLSClientCertData: model.TlsCert,
@@ -568,7 +568,7 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 
 		_, err = impl.repocreds.CreateRepoCreds(ctx, &repocreds2.RepoCredsCreateRequest{
 			Creds: &v1alpha1.RepoCreds{
-				URL:               model.Host,
+				URL:               request.Host,
 				Username:          model.Username,
 				Password:          model.Token,
 				TLSClientCertData: model.TlsCert,
