@@ -305,8 +305,7 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 		data := make(map[string][]byte)
 		data[gitOpsBean.USERNAME] = []byte(request.Username)
 		data[gitOpsBean.PASSWORD] = []byte(request.Token)
-		data[gitOpsBean.TLSKey] = []byte(model.TlsKey)
-		data[gitOpsBean.TLSCert] = []byte(model.TlsCert)
+
 		if secret == nil {
 			secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, impl.aCDAuthConfig.GitOpsSecretName, "", client, nil, nil)
 			if err != nil {
@@ -585,8 +584,7 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 		data := make(map[string][]byte)
 		data[gitOpsBean.USERNAME] = []byte(request.Username)
 		data[gitOpsBean.PASSWORD] = []byte(request.Token)
-		data[gitOpsBean.TLSKey] = []byte(model.TlsKey)
-		data[gitOpsBean.TLSCert] = []byte(model.TlsCert)
+
 		if secret == nil {
 			secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, impl.aCDAuthConfig.GitOpsSecretName, "", client, nil, nil)
 			if err != nil {
@@ -854,12 +852,8 @@ func (impl *GitOpsConfigServiceImpl) createRepoElement(secretName string, reques
 
 	usernameSecret := &gitOpsBean.KeyDto{Name: secretName, Key: gitOpsBean.USERNAME}
 	passwordSecret := &gitOpsBean.KeyDto{Name: secretName, Key: gitOpsBean.PASSWORD}
-	tlsClientCertSecret := &gitOpsBean.KeyDto{Name: secretName, Key: gitOpsBean.TLSCert}
-	tlsClientKeySecret := &gitOpsBean.KeyDto{Name: secretName, Key: gitOpsBean.TLSKey}
 
 	repoData.PasswordSecret = passwordSecret
 	repoData.UsernameSecret = usernameSecret
-	repoData.TLSClientCertData = tlsClientCertSecret
-	repoData.TLSClientCertKey = tlsClientKeySecret
 	return repoData
 }
