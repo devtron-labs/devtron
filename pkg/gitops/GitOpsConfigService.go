@@ -21,12 +21,13 @@ import (
 	"encoding/json"
 	"fmt"
 	certificate2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
-	repository3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
+	repocreds2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/client/argocdServer/certificate"
+	repocreds "github.com/devtron-labs/devtron/client/argocdServer/repocreds"
 	repository2 "github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
@@ -73,6 +74,7 @@ type GitOpsConfigServiceImpl struct {
 	gitOpsValidationService validation.GitOpsValidationService
 	argoCertificateClient   certificate.Client
 	argoRepoService         repository2.ServiceClient
+	repocreds               repocreds.ServiceClient
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
@@ -85,7 +87,8 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitOpsValidationService validation.GitOpsValidationService,
 	argoCertificateClient certificate.Client,
-	argoRepoService repository2.ServiceClient) *GitOpsConfigServiceImpl {
+	argoRepoService repository2.ServiceClient,
+	repocreds repocreds.ServiceClient) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
 		logger:                  Logger,
 		gitOpsRepository:        gitOpsRepository,
@@ -99,6 +102,7 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
 		gitOpsValidationService: gitOpsValidationService,
 		argoCertificateClient:   argoCertificateClient,
 		argoRepoService:         argoRepoService,
+		repocreds:               repocreds,
 	}
 }
 
@@ -272,16 +276,15 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 		}
 		ctx = context.WithValue(ctx, "token", acdToken)
 
-		_, err = impl.argoRepoService.CreateV2(ctx, &repository3.RepoCreateRequest{
-			Repo: &v1alpha1.Repository{
-				Repo:              model.Host,
+		_, err = impl.repocreds.CreateRepoCreds(ctx, &repocreds2.RepoCredsCreateRequest{
+			Creds: &v1alpha1.RepoCreds{
+				URL:               model.Host,
 				Username:          model.Username,
 				Password:          model.Token,
 				TLSClientCertData: model.TlsCert,
 				TLSClientCertKey:  model.TlsKey,
 			},
-			Upsert:    true,
-			CredsOnly: true,
+			Upsert: true,
 		})
 		if err != nil {
 			impl.logger.Errorw("error in saving repo credential template to argocd", "err", err)
@@ -554,16 +557,15 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 		}
 		ctx := context.WithValue(context.Background(), "token", acdToken)
 
-		_, err = impl.argoRepoService.CreateV2(ctx, &repository3.RepoCreateRequest{
-			Repo: &v1alpha1.Repository{
-				Repo:              model.Host,
+		_, err = impl.repocreds.CreateRepoCreds(ctx, &repocreds2.RepoCredsCreateRequest{
+			Creds: &v1alpha1.RepoCreds{
+				URL:               model.Host,
 				Username:          model.Username,
 				Password:          model.Token,
 				TLSClientCertData: model.TlsCert,
 				TLSClientCertKey:  model.TlsKey,
 			},
-			Upsert:    true,
-			CredsOnly: true,
+			Upsert: true,
 		})
 		if err != nil {
 			impl.logger.Errorw("error in saving repo credential template to argocd", "err", err)
