@@ -154,6 +154,7 @@
  | HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME | 120 |  | 
  | HIDE_IMAGE_TAGGING_HARD_DELETE | false |  | 
  | IGNORE_AUTOCOMPLETE_AUTH_CHECK | false |  | 
+ | IGNORE_CM_CS_IN_CI_JOB | false |  | 
  | IMAGE_RETRY_COUNT | 0 |  | 
  | IMAGE_RETRY_INTERVAL | 5 |  | 
  | IMAGE_SCANNER_ENDPOINT | http://image-scanner-new-demo-devtroncd-service.devtroncd:80 |  | 

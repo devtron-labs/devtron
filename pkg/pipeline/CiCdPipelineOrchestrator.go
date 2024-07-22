@@ -28,6 +28,7 @@ import (
 	attributesBean "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	"github.com/devtron-labs/devtron/pkg/plugin"
 	"golang.org/x/exp/slices"
 	"net/http"
 	"path"
@@ -104,6 +105,7 @@ type CiCdPipelineOrchestrator interface {
 	AddPipelineToTemplate(createRequest *bean.CiConfigRequest, isSwitchCiPipelineRequest bool) (resp *bean.CiConfigRequest, err error)
 	GetSourceCiDownStreamFilters(ctx context.Context, sourceCiPipelineId int) (*CiPipeline.SourceCiDownStreamEnv, error)
 	GetSourceCiDownStreamInfo(ctx context.Context, sourceCIPipeline int, req *CiPipeline.SourceCiDownStreamFilters) (pagination.PaginatedResponse[CiPipeline.SourceCiDownStreamResponse], error)
+	GetGitCommitEnvVarDataForCICDStage(gitTriggers map[int]pipelineConfig.GitCommit) (map[string]string, *gitSensor.WebhookAndCiData, error)
 }
 
 type CiCdPipelineOrchestratorImpl struct {
@@ -2332,4 +2334,62 @@ func (impl CiCdPipelineOrchestratorImpl) GetSourceCiDownStreamInfo(ctx context.C
 	data := adapter.GetSourceCiDownStreamResponse(linkedCIDetails, latestWfrs...)
 	response.PushData(data...)
 	return response, nil
+}
+
+func (impl *CiCdPipelineOrchestratorImpl) GetGitCommitEnvVarDataForCICDStage(gitTriggers map[int]pipelineConfig.GitCommit) (map[string]string, *gitSensor.WebhookAndCiData, error) {
+	var webhookAndCiData *gitSensor.WebhookAndCiData
+	var err error
+	extraEnvVariables := make(map[string]string)
+	if gitTriggers != nil {
+		i := 1
+		var gitCommitEnvVariables []types.GitMetadata
+
+		for ciPipelineMaterialId, gitTrigger := range gitTriggers {
+			extraEnvVariables[fmt.Sprintf("%s_%d", types.GIT_COMMIT_HASH_PREFIX, i)] = gitTrigger.Commit
+			extraEnvVariables[fmt.Sprintf("%s_%d", types.GIT_SOURCE_TYPE_PREFIX, i)] = string(gitTrigger.CiConfigureSourceType)
+			extraEnvVariables[fmt.Sprintf("%s_%d", types.GIT_SOURCE_VALUE_PREFIX, i)] = gitTrigger.CiConfigureSourceValue
+			extraEnvVariables[fmt.Sprintf("%s_%d", types.GIT_REPO_URL_PREFIX, i)] = gitTrigger.GitRepoUrl
+
+			gitCommitEnvVariables = append(gitCommitEnvVariables, types.GitMetadata{
+				GitCommitHash:  gitTrigger.Commit,
+				GitSourceType:  string(gitTrigger.CiConfigureSourceType),
+				GitSourceValue: gitTrigger.CiConfigureSourceValue,
+				GitRepoUrl:     gitTrigger.GitRepoUrl,
+			})
+
+			// CODE-BLOCK starts - store extra environment variables if webhook
+			if gitTrigger.CiConfigureSourceType == pipelineConfig.SOURCE_TYPE_WEBHOOK {
+				webhookDataId := gitTrigger.WebhookData.Id
+				if webhookDataId > 0 {
+					webhookDataRequest := &gitSensor.WebhookDataRequest{
+						Id:                   webhookDataId,
+						CiPipelineMaterialId: ciPipelineMaterialId,
+					}
+					webhookAndCiData, err = impl.GitSensorClient.GetWebhookData(context.Background(), webhookDataRequest)
+					if err != nil {
+						impl.logger.Errorw("err while getting webhook data from git-sensor", "err", err, "webhookDataRequest", webhookDataRequest)
+						return nil, nil, err
+					}
+					if webhookAndCiData != nil {
+						for extEnvVariableKey, extEnvVariableVal := range webhookAndCiData.ExtraEnvironmentVariables {
+							extraEnvVariables[extEnvVariableKey] = extEnvVariableVal
+						}
+					}
+				}
+			}
+			// CODE_BLOCK ends
+
+			i++
+		}
+		gitMetadata, err := json.Marshal(&gitCommitEnvVariables)
+		if err != nil {
+			impl.logger.Errorw("err while marshaling git metdata", "err", err)
+			return nil, nil, err
+		}
+		extraEnvVariables[plugin.GIT_METADATA] = string(gitMetadata)
+
+		extraEnvVariables[types.GIT_SOURCE_COUNT] = strconv.Itoa(len(gitTriggers))
+	}
+
+	return extraEnvVariables, webhookAndCiData, nil
 }
