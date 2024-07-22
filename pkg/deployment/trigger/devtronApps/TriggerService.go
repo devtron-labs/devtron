@@ -131,7 +131,7 @@ type TriggerServiceImpl struct {
 	cdWorkflowService                   pipeline.WorkflowService
 	imageDigestPolicyService            imageDigestPolicy.ImageDigestPolicyService
 	userService                         user.UserService
-	gitSensorGrpcClient                 gitSensorClient.Client
+	gitSensorClient                     gitSensorClient.Client
 	config                              *types.CdConfig
 	helmAppService                      client2.HelmAppService
 	imageScanService                    security2.ImageScanService
@@ -186,7 +186,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 	cdWorkflowService pipeline.WorkflowService,
 	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService,
 	userService user.UserService,
-	gitSensorGrpcClient gitSensorClient.Client,
+	gitSensorClient gitSensorClient.Client,
 	helmAppService client2.HelmAppService,
 	enforcerUtil rbac.EnforcerUtil,
 	userDeploymentRequestService service.UserDeploymentRequestService,
@@ -241,7 +241,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 		cdWorkflowService:                   cdWorkflowService,
 		imageDigestPolicyService:            imageDigestPolicyService,
 		userService:                         userService,
-		gitSensorGrpcClient:                 gitSensorGrpcClient,
+		gitSensorClient:                     gitSensorClient,
 		helmAppService:                      helmAppService,
 		enforcerUtil:                        enforcerUtil,
 		eventFactory:                        eventFactory,

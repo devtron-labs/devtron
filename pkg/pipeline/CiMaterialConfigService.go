@@ -60,7 +60,7 @@ type CiMaterialConfigServiceImpl struct {
 	gitMaterialHistoryService    history.GitMaterialHistoryService
 	pipelineRepository           pipelineConfig.PipelineRepository
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
-	gitSensorGrpcClient          gitSensorClient.Client
+	gitSensorClient              gitSensorClient.Client
 	transactionManager           sql.TransactionWrapper
 }
 
@@ -73,7 +73,7 @@ func NewCiMaterialConfigServiceImpl(
 	gitMaterialHistoryService history.GitMaterialHistoryService,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	gitSensorGrpcClient gitSensorClient.Client,
+	gitSensorClient gitSensorClient.Client,
 	transactionManager sql.TransactionWrapper) *CiMaterialConfigServiceImpl {
 
 	return &CiMaterialConfigServiceImpl{
@@ -85,7 +85,7 @@ func NewCiMaterialConfigServiceImpl(
 		gitMaterialHistoryService:    gitMaterialHistoryService,
 		pipelineRepository:           pipelineRepository,
 		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
-		gitSensorGrpcClient:          gitSensorGrpcClient,
+		gitSensorClient:              gitSensorClient,
 		transactionManager:           transactionManager,
 	}
 }
@@ -273,7 +273,7 @@ func (impl *CiMaterialConfigServiceImpl) GetGitCommitEnvVarDataForCICDStage(gitT
 						Id:                   webhookDataId,
 						CiPipelineMaterialId: ciPipelineMaterialId,
 					}
-					webhookAndCiData, err = impl.gitSensorGrpcClient.GetWebhookData(context.Background(), webhookDataRequest)
+					webhookAndCiData, err = impl.gitSensorClient.GetWebhookData(context.Background(), webhookDataRequest)
 					if err != nil {
 						impl.logger.Errorw("err while getting webhook data from git-sensor", "err", err, "webhookDataRequest", webhookDataRequest)
 						return nil, nil, err
