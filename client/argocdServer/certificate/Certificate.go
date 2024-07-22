@@ -36,12 +36,6 @@ func NewServiceClientImpl(
 }
 
 func (c *ServiceClientImpl) getService(ctx context.Context) (certificate.CertificateServiceClient, error) {
-	acdToken, err := c.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		c.logger.Errorw("error in getting acd token", "err", err)
-		return nil, err
-	}
-	ctx = context.WithValue(ctx, "token", acdToken)
 	token, ok := ctx.Value("token").(string)
 	if !ok {
 		return nil, errors.New("Unauthorized")

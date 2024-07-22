@@ -265,7 +265,14 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 
 	if model.EnableTLSVerification {
 
-		_, err := impl.argoRepoService.Create(context.Background(), &repository3.RepoCreateRequest{
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			impl.logger.Errorw("error in getting acd token", "err", err)
+			return nil, err
+		}
+		ctx = context.WithValue(ctx, "token", acdToken)
+
+		_, err = impl.argoRepoService.Create(ctx, &repository3.RepoCreateRequest{
 			Repo: &v1alpha1.Repository{
 				Repo:              model.Host,
 				Username:          model.Username,
@@ -278,6 +285,12 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 		})
 		if err != nil {
 			impl.logger.Errorw("error in saving repo credential template to argocd", "err", err)
+			return nil, err
+		}
+
+		err = impl.addCACertInArgoIfPresent(ctx, model)
+		if err != nil {
+			impl.logger.Errorw("error in adding ca cert to argo", "err", err)
 			return nil, err
 		}
 
@@ -368,12 +381,6 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 				return nil, fmt.Errorf("resouce version not matched with config map attempted 3 times")
 			}
 		}
-	}
-
-	err = impl.addCACertInArgoIfPresent(ctx, model)
-	if err != nil {
-		impl.logger.Errorw("error in adding ca cert to argo", "err", err)
-		return nil, err
 	}
 
 	// if git-ops config is created/saved successfully (just before transaction commit) and this was first git-ops config, then upsert clusters in acd
@@ -538,14 +545,16 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 	}
 	request.Id = model.Id
 
-	err = impl.addCACertInArgoIfPresent(context.Background(), model)
-	if err != nil {
-		impl.logger.Errorw("error in adding ca cert to argo", "err", err)
-		return err
-	}
-
 	if model.EnableTLSVerification {
-		_, err := impl.argoRepoService.Create(context.Background(), &repository3.RepoCreateRequest{
+
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			impl.logger.Errorw("error in getting acd token", "err", err)
+			return err
+		}
+		ctx := context.WithValue(context.Background(), "token", acdToken)
+
+		_, err = impl.argoRepoService.Create(ctx, &repository3.RepoCreateRequest{
 			Repo: &v1alpha1.Repository{
 				Repo:              model.Host,
 				Username:          model.Username,
@@ -560,6 +569,13 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 			impl.logger.Errorw("error in saving repo credential template to argocd", "err", err)
 			return err
 		}
+
+		err = impl.addCACertInArgoIfPresent(ctx, model)
+		if err != nil {
+			impl.logger.Errorw("error in adding ca cert to argo", "err", err)
+			return err
+		}
+
 	} else {
 		clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
 		if err != nil {
