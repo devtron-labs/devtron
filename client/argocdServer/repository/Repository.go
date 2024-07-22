@@ -36,6 +36,8 @@ type ServiceClient interface {
 	GetAppDetails(ctx context.Context, query *repository2.RepoAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error)
 	// Create creates a repo
 	Create(ctx context.Context, query *repository2.RepoCreateRequest) (*v1alpha1.Repository, error)
+	// Create creates a repo
+	CreateV2(ctx context.Context, query *repository2.RepoCreateRequest) (*v1alpha1.Repository, error)
 	// Update updates a repo
 	Update(ctx context.Context, query *repository2.RepoUpdateRequest) (*v1alpha1.Repository, error)
 	// Delete deletes a repo
@@ -102,6 +104,16 @@ func (r ServiceClientImpl) Create(ctx context.Context, query *repository2.RepoCr
 		return nil, err
 	}
 	return client.CreateRepository(ctx, query)
+}
+
+func (r ServiceClientImpl) CreateV2(ctx context.Context, query *repository2.RepoCreateRequest) (*v1alpha1.Repository, error) {
+	ctx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutSlow)
+	defer cancel()
+	client, err := r.getService(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return client.Create(ctx, query)
 }
 
 func (r ServiceClientImpl) Update(ctx context.Context, query *repository2.RepoUpdateRequest) (*v1alpha1.Repository, error) {

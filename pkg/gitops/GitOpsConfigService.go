@@ -272,7 +272,7 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 		}
 		ctx = context.WithValue(ctx, "token", acdToken)
 
-		_, err = impl.argoRepoService.Create(ctx, &repository3.RepoCreateRequest{
+		_, err = impl.argoRepoService.CreateV2(ctx, &repository3.RepoCreateRequest{
 			Repo: &v1alpha1.Repository{
 				Repo:              model.Host,
 				Username:          model.Username,
@@ -554,7 +554,7 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 		}
 		ctx := context.WithValue(context.Background(), "token", acdToken)
 
-		_, err = impl.argoRepoService.Create(ctx, &repository3.RepoCreateRequest{
+		_, err = impl.argoRepoService.CreateV2(ctx, &repository3.RepoCreateRequest{
 			Repo: &v1alpha1.Repository{
 				Repo:              model.Host,
 				Username:          model.Username,
