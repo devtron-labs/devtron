@@ -584,7 +584,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	var gitTriggerEnvVariables map[string]string
 
 	// get env variables of git trigger data and add it in the extraEnvVariables
-	gitTriggerEnvVariables, webhookAndCiData, err = impl.ciMaterialConfigService.GetGitCommitEnvVarDataForCICDStage(ciWf.GitTriggers)
+	gitTriggerEnvVariables, webhookAndCiData, err = impl.ciCdPipelineOrchestrator.GetGitCommitEnvVarDataForCICDStage(ciWf.GitTriggers)
 	if err != nil {
 		impl.logger.Errorw("error in getting gitTrigger env data for stage", "gitTriggers", ciWf.GitTriggers, "err", err)
 		return nil, err

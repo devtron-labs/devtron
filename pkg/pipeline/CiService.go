@@ -84,7 +84,7 @@ type CiServiceImpl struct {
 	pluginInputVariableParser    PluginInputVariableParser
 	globalPluginService          plugin.GlobalPluginService
 	infraProvider                infraProviders.InfraProvider
-	ciMaterialConfigService      CiMaterialConfigService
+	ciCdPipelineOrchestrator     CiCdPipelineOrchestrator
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -100,7 +100,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	pluginInputVariableParser PluginInputVariableParser,
 	globalPluginService plugin.GlobalPluginService,
 	infraProvider infraProviders.InfraProvider,
-	ciMaterialConfigService CiMaterialConfigService,
+	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
 		Logger:                       Logger,
@@ -121,7 +121,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		pluginInputVariableParser:    pluginInputVariableParser,
 		globalPluginService:          globalPluginService,
 		infraProvider:                infraProvider,
-		ciMaterialConfigService:      ciMaterialConfigService,
+		ciCdPipelineOrchestrator:     ciCdPipelineOrchestrator,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -221,7 +221,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	}
 
 	// get env variables of git trigger data and add it in the extraEnvVariables
-	gitTriggerEnvVariables, _, err := impl.ciMaterialConfigService.GetGitCommitEnvVarDataForCICDStage(savedCiWf.GitTriggers)
+	gitTriggerEnvVariables, _, err := impl.ciCdPipelineOrchestrator.GetGitCommitEnvVarDataForCICDStage(savedCiWf.GitTriggers)
 	if err != nil {
 		impl.Logger.Errorw("error in getting gitTrigger env data for stage", "gitTriggers", savedCiWf.GitTriggers, "err", err)
 		return 0, err
