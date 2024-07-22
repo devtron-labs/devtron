@@ -320,7 +320,17 @@ func (impl *FullModeDeploymentServiceImpl) getGitCommitConfig(installAppVersionR
 			apiErr := &util.ApiError{HttpStatusCode: http.StatusNotFound, Code: strconv.Itoa(http.StatusNotFound), InternalMessage: "Invalid request! No InstalledApp found.", UserMessage: "Invalid request! No InstalledApp found."}
 			return nil, apiErr
 		}
-		installAppVersionRequest.GitOpsRepoURL = InstalledApp.GitOpsRepoUrl
+		deploymentConfig, err := impl.deploymentConfigService.GetConfigForHelmApps(InstalledApp.AppId, InstalledApp.EnvironmentId)
+		if err != nil {
+			impl.Logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", InstalledApp.AppId, "envId", InstalledApp.EnvironmentId, "err", err)
+			return nil, err
+		}
+		if util.IsErrNoRows(err) {
+			apiErr := &util.ApiError{HttpStatusCode: http.StatusNotFound, Code: strconv.Itoa(http.StatusNotFound), InternalMessage: "Invalid request! No InstalledApp found.", UserMessage: "Invalid request! No InstalledApp found."}
+			return nil, apiErr
+		}
+		//installAppVersionRequest.GitOpsRepoURL = InstalledApp.GitOpsRepoUrl
+		installAppVersionRequest.GitOpsRepoURL = deploymentConfig.RepoURL
 	}
 	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(installAppVersionRequest.GitOpsRepoURL)
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
@@ -334,6 +344,8 @@ func (impl *FullModeDeploymentServiceImpl) getGitCommitConfig(installAppVersionR
 		UserEmailId:    userEmailId,
 		UserName:       userName,
 	}
+	bitBucketBaseDir := fmt.Sprintf("%d-%s", appStoreAppVersion.Id, impl.chartTemplateService.GetDir())
+	YamlConfig.SetBitBucketBaseDir(bitBucketBaseDir)
 	return YamlConfig, nil
 }
 

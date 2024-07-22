@@ -39,7 +39,8 @@ func IsBaseStack() bool {
 }
 
 func IsFullStack() bool {
-	return GetDevtronVersion().ServerMode == SERVER_MODE_FULL
+	isFullStack := GetDevtronVersion().ServerMode == SERVER_MODE_FULL
+	return isFullStack
 }
 
 func IsHelmApp(appOfferingMode string) bool {

@@ -147,7 +147,10 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	if err != nil {
 		return 0, err
 	}
-	if trigger.PipelineType == string(CiPipeline.CI_JOB) && len(ciMaterials) != 0 {
+
+	// checking if user has given run time parameters for externalCiArtifact, if given then sending git material to Ci-Runner
+	externalCiArtifact, exists := trigger.ExtraEnvironmentVariables["externalCiArtifact"]
+	if trigger.PipelineType == string(CiPipeline.CI_JOB) && len(ciMaterials) != 0 && !exists && externalCiArtifact == "" {
 		ciMaterials = []*pipelineConfig.CiPipelineMaterial{ciMaterials[0]}
 		ciMaterials[0].GitMaterial = nil
 		ciMaterials[0].GitMaterialId = 0
