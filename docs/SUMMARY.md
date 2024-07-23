@@ -134,6 +134,7 @@
     * [Dependency track - Maven & Gradle](user-guide/plugins/dependency-track-maven-gradle.md)
     * [Dependency track - NodeJS](user-guide/plugins/dependency-track-nodejs.md)
     * [Dependency track - Python](user-guide/plugins/dependency-track-python.md)
+    * [GoLang-migrate](user-guide/plugins/golang-migrate.md)
     * [K6 Load Testing](user-guide/plugins/k6-load-testing.md)
     * [Semgrep](user-guide/plugins/semgrep.md)
     * [SonarQube](user-guide/plugins/sonarqube.md)
