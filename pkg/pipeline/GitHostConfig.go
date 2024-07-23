@@ -144,7 +144,7 @@ func (impl GitHostConfigImpl) Create(request *types.GitHostRequest) (int, error)
 		return 0, err
 	}
 	if exist {
-		impl.logger.Warnw("git host already exists", "display_name", request.Name)
+		impl.logger.Warnw("git host already exists", "name", request.Name)
 		err = &util.ApiError{
 			Code:            constants.GitHostCreateFailedAlreadyExists,
 			InternalMessage: "git host already exists",

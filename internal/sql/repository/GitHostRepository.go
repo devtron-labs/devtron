@@ -41,7 +41,6 @@ type GitHostRepository interface {
 	FindOneByName(name string) (GitHost, error)
 	Exists(name string) (bool, error)
 	Save(gitHost *GitHost) error
-	Update(gitHost *GitHost) error
 }
 
 type GitHostRepositoryImpl struct {
@@ -95,10 +94,5 @@ func (impl GitHostRepositoryImpl) Exists(name string) (bool, error) {
 
 func (impl GitHostRepositoryImpl) Save(gitHost *GitHost) error {
 	err := impl.dbConnection.Insert(gitHost)
-	return err
-}
-
-func (impl GitHostRepositoryImpl) Update(gitHost *GitHost) error {
-	err := impl.dbConnection.Update(gitHost)
 	return err
 }
