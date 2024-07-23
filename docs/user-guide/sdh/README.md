@@ -25,7 +25,7 @@ Devtron's Software Distribution Hub is designed to be used in scenarios where:
 
 ## Advantages
 
-Devtron's Software Distribution Hub goes beyond basic deployment by providing end-to-end release management. Deployments involving manual processes might be prone to human error. However, Software Distribution Hub automates the [rollout](#rollout) process by enforcing [requirements](#requirements) for each release, and not just for one environment but multiple tenant environments.
+Devtron's Software Distribution Hub goes beyond basic deployment by providing end-to-end release management. Deployments involving manual processes might be prone to human error. However, Software Distribution Hub streamlines the [rollout](#rollout) process by enforcing [requirements](#requirements) for each release, and not just for one environment but multiple tenant environments.
 
 ### Normal Deployment vs SDH
 
