@@ -36,7 +36,10 @@ func (impl *DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, en
 	cmcsKeyPropertyAppLevelMap, cmcsKeyPropertyEnvLevelMap := helper.GetCmCsAppAndEnvLevelMap(cMCSNamesAppLevel, cMCSNamesEnvLevel)
 	for key, configProperty := range cmcsKeyPropertyAppLevelMap {
 		if _, ok := cmcsKeyPropertyEnvLevelMap[key]; !ok {
-			configProperty.ConfigStage = bean2.Inheriting
+			if envId > 0 {
+				configProperty.ConfigStage = bean2.Inheriting
+			}
+
 		}
 	}
 	for key, configProperty := range cmcsKeyPropertyEnvLevelMap {

@@ -31,10 +31,7 @@ func GetConfigProperty(id int, name string, configType bean.ResourceType, State 
 func GetCombinedPropertiesMap(cmcsKeyPropertyAppLevelMap, cmcsKeyPropertyEnvLevelMap map[string]*bean2.ConfigProperty) []*bean2.ConfigProperty {
 	combinedPropertiesMap := make(map[string]*bean2.ConfigProperty, len(cmcsKeyPropertyAppLevelMap)+len(cmcsKeyPropertyEnvLevelMap))
 	for key, property := range cmcsKeyPropertyAppLevelMap {
-		if property.IsConfigPropertyGlobal() {
-			// only append inheriting in combined for app level cmcs, all overridden cmcs would be handled in cmcsKeyPropertyEnvLevelMap
-			combinedPropertiesMap[key] = property
-		}
+		combinedPropertiesMap[key] = property
 	}
 	for key, property := range cmcsKeyPropertyEnvLevelMap {
 		combinedPropertiesMap[key] = property
