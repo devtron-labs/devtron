@@ -78,6 +78,18 @@ func (impl GitHostRepositoryImpl) Exists(name string) (bool, error) {
 		Model(gitHost).
 		Where("display_name = ?", name).
 		Exists()
+
+	if err != nil {
+		return false, err
+	}
+	//display_name can be null for old data hence checking for name field
+	if !exists {
+		exists, err = impl.dbConnection.
+			Model(gitHost).
+			Where("name = ?", name).
+			Exists()
+	}
+
 	return exists, err
 }
 

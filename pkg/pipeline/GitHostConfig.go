@@ -60,20 +60,11 @@ func (impl GitHostConfigImpl) GetAll() ([]types.GitHostRequest, error) {
 	}
 
 	var gitHosts []types.GitHostRequest
-
 	for _, host := range hosts {
-		err = impl.addDisplayNameIfEmpty(&host)
-		if err != nil {
-			impl.logger.Errorw("error in adding display name to git host, continuing for now", "err", err)
-		}
+		//display_name can be null for old data hence checking for name field
 		displayName := host.DisplayName
-		if displayName == "" {
+		if len(displayName) == 0 {
 			displayName = host.Name
-			host.DisplayName = host.Name
-			err = impl.gitHostRepo.Update(&host)
-			if err != nil {
-				impl.logger.Errorw("error in updating git host, but continuing the request", "err", err)
-			}
 		}
 		hostRes := types.GitHostRequest{
 			Id:     host.Id,
@@ -111,6 +102,7 @@ func (impl GitHostConfigImpl) GetByName(uniqueName string) (*types.GitHostReques
 }
 
 func (impl GitHostConfigImpl) processAndReturnGitHost(host repository.GitHost) (*types.GitHostRequest, error) {
+	//display_name can be null for old data hence checking for it to update
 	err := impl.addDisplayNameIfEmpty(&host)
 	if err != nil {
 		impl.logger.Errorw("error in adding display name to git host, continuing for now", "err", err)
