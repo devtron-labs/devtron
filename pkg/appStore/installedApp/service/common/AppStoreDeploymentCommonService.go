@@ -82,13 +82,18 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetRequirementsString(appStoreVe
 		impl.logger.Errorw("fetching error", "err", err)
 		return "", err
 	}
+
 	dependency := appStoreBean.Dependency{
 		Name:    appStoreAppVersion.AppStore.Name,
 		Version: appStoreAppVersion.Version,
 	}
 	if appStoreAppVersion.AppStore.ChartRepo != nil {
 		dependency.Repository = appStoreAppVersion.AppStore.ChartRepo.Url
+	} else if appStoreAppVersion.AppStore.DockerArtifactStore != nil {
+		dependency.Repository = appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL
+		dependency.SanitizeRepoNameAndURLForOCIRepo()
 	}
+
 	var dependencies []appStoreBean.Dependency
 	dependencies = append(dependencies, dependency)
 	requirementDependencies := &appStoreBean.Dependencies{
