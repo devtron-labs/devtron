@@ -88,11 +88,6 @@ This action deletes the label permanently and makes it available for reuse in sa
 
 ![Figure 7: Hard Deletion of a Label](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/tag-comment/hard-delete-tag.gif)
 
-{% hint style="info" %}
-### Summary
-
-{% endhint %}
-
 ### Removing Comments
 
 {% hint style="warning" %}
