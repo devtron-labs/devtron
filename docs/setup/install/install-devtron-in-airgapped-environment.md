@@ -197,4 +197,4 @@
 Change your registry name in `values.yaml` at line number 10:
 
 ```bash
-yq e '.global.imageRegistry = "<your-registry-name>"' -i /charts/devtron/values.yaml
+yq e '.global.containerRegistry = "<your-registry-name>"' -i /charts/devtron/values.yaml
