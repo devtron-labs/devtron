@@ -62,7 +62,7 @@ One installation represents one deployment of your software for a specific [tena
 
 ### Release Tracks
 
-A Release Track in Devtron is where you organize software releases, similar to a project or application. Each release within a Release Track is a unique version of your software. For example, think of Kubernetes as a release track, with "v1.28.8" as one of its releases. This helps in managing different versions and updates of a software project in a structured manner, ensuring that all versions are tracked and organized within their respective tracks.
+A Release Track in Devtron is where you organize software releases. Each release within a Release Track is a unique version of your software. For example, think of Kubernetes as a release track, with "v1.28.8" as one of its releases. This helps in managing different versions and updates of a software project in a structured manner, ensuring that all versions are tracked and organized within their respective tracks.
 
 ### Requirements
 
