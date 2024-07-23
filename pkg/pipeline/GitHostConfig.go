@@ -102,11 +102,6 @@ func (impl GitHostConfigImpl) GetByName(uniqueName string) (*types.GitHostReques
 }
 
 func (impl GitHostConfigImpl) processAndReturnGitHost(host repository.GitHost) (*types.GitHostRequest, error) {
-	//display_name can be null for old data hence checking for it to update
-	err := impl.addDisplayNameIfEmpty(&host)
-	if err != nil {
-		impl.logger.Errorw("error in adding display name to git host, continuing for now", "err", err)
-	}
 	// get orchestrator host
 	orchestratorHost, err := impl.attributeService.GetByKey("url")
 	if err != nil {
@@ -134,17 +129,6 @@ func (impl GitHostConfigImpl) processAndReturnGitHost(host repository.GitHost) (
 	}
 
 	return gitHost, err
-}
-
-func (impl GitHostConfigImpl) addDisplayNameIfEmpty(host *repository.GitHost) error {
-	if host.DisplayName == "" {
-		host.DisplayName = host.Name
-		err := impl.gitHostRepo.Update(host)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // Create in DB
