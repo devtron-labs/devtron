@@ -92,7 +92,7 @@
     * [Triggering CI](user-guide/deploying-application/triggering-ci.md)
     * [Triggering CD](user-guide/deploying-application/triggering-cd.md)
     * [Rollback Deployment](user-guide/deploying-application/rollback-deployment.md)
-    * [Applying Labels and Comments](user-guide/deploying-application/image-labels-and-comments.md)
+    * [Applying Labels to Images](user-guide/deploying-application/image-labels-and-comments.md)
   * [App Details](user-guide/creating-application/app-details.md)
     * [Debugging Deployment And Monitoring](user-guide/debugging-deployment-and-monitoring.md)
     * [Using Ephemeral Containers](user-guide/app-details/ephemeral-containers.md)
