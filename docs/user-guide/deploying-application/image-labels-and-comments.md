@@ -34,7 +34,7 @@ You can add labels and comments from the following pages:
 * [From App Details](#from-app-details) (only after deployment)
 
 {% hint style="warning" %}
-You can add multiple labels to an image. Once added, they cannot be used for another image. <br />
+You can add multiple labels to an image. but each label can be used only once 'per image, per application'. You may use it in an image of other application though. <br />
 Refer [Deleting Labels](#deleting-labels--comments) if you commit a mistake while adding labels.
 {% endhint %}
  
@@ -65,7 +65,7 @@ Refer [Deleting Labels](#deleting-labels--comments) if you commit a mistake whil
 Users need to have [Build & deploy permission](../global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and application) to perform soft deletion of labels.
 {% endhint %}
 
-This action marks the label as invalid but doesn't delete the label. Therefore, you can recover it again.
+This action marks the label as invalid but doesn't delete the label. Therefore, you can recover it again but you cannot reuse it for other image (unless it's a different application).
 
 1. Click the edit option.
 2. Use the (-) icon to strike off the label. This icon is available on the left-side of a label.
@@ -80,13 +80,18 @@ This action marks the label as invalid but doesn't delete the label. Therefore, 
 Users need to have super-admin permission to perform hard deletion of labels.
 {% endhint %}
 
-This action deletes the label and makes it available for reuse in same or any other image.
+This action deletes the label permanently and makes it available for reuse in same/other image of the given application.
 
 1. Click the edit option.
 2. Use the (x) icon to permanently remove the label. This icon is available on the right-side of a label.
 3. Click **Save**.
 
 ![Figure 7: Hard Deletion of a Label](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/tag-comment/hard-delete-tag.gif)
+
+{% hint style="info" %}
+### Summary
+
+{% endhint %}
 
 ### Removing Comments
 
