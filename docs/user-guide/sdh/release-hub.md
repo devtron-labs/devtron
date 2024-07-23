@@ -190,7 +190,7 @@ Here we covered the process of performing a production installation on just one 
 
 ### Viewing Rollout Status
 
-You can view the status of installations under `Rollout Status`. Moreover, you can go to **Rollout History** tab to view the deployment history.
+You can view the status of your release at a particular tenant under `Rollout Status`. Moreover, you can go to **Rollout History** tab to view the deployment history.
 
 ![Figure 20: Checking Rollout Status](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/rollout-status-history.gif)
 
