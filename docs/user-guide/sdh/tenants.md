@@ -1,6 +1,10 @@
 # Tenants
 
+## Introduction [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+
 This section allows you to add new [tenants](#tenants) and map environments to these [installations](./README.md#installations) to ensure updates [rollout](#rollout) correctly. 
+
+---
 
 ## Adding Tenant
 
