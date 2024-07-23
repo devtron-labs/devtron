@@ -5,7 +5,11 @@
 Create a [Tenant](./tenants.md) before proceeding with any action in Release Hub.
 {% endhint %}
 
+## Introduction [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+
 This section allows you to define [release tracks](./README.md#release-tracks), create and version software releases, add applications, select container images, and deploy releases to specified tenant [installations](./README.md#installations).
+
+---
 
 ## Creating Release Tracks and Versions
 
