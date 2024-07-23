@@ -79,7 +79,7 @@ This involves the inclusion of applications you wish to rollout in the release v
 
 {% hint style="info" %}
 ### Importance of Release Stages
-By default, your selected applications will be set to release in one go. However, you can also release them in stages. In other words, you can decide which set of applications should be released first, subsequently which ones to release next, and the ones to release last. <br /><br /> For example, if you have a new login feature (backend) and a dashboard update (frontend), you might want to release the login feature first to ensure users can log in before seeing the updated dashboard. 
+By default, your selected applications will be set to release in one go. However, you can also release them in stages. In other words, you can decide which set of applications should be released first, subsequently which ones to release next, and the ones to release last. <br /><br /> For example, if you're adding a new payment system (backend) and an updated checkout page (frontend), you would release the payment system first to ensure payments can be processed correctly.
 {% endhint %}
 
 5. Use the drag-and-drop feature to move applications from one stage to another.
@@ -105,6 +105,11 @@ Users need to have super-admin permission to select images for selected applicat
 
     ![Figure 12: Selecting Image from Specific Workflow](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/workflow-selection.gif)
 
+{% hint style="info" %}
+### Note
+Only the images that were built already will appear. If there are no images present, [trigger the CI pipeline](../deploying-application/triggering-ci.md) of the application first to obtain the image.
+{% endhint %}
+
 2. Click **SELECT** next to the image you wish to deploy from the list.
 
 3. Repeat the above steps for other applications you added in the release.
@@ -122,7 +127,7 @@ In case you don’t have the correct images ready for any of your applications, 
 
     ![Figure 14: Adding Release Instructions](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/release-instructions-v2.gif)
 
-6. Before freezing the requirements, make sure the release order is correct, add applications if needed, and include environments in tenants (if not done already). Once you have finalized them, click **Lock Requirements**. 
+6. Before locking the requirements, make sure the release order is correct, add applications if needed, and include environments in tenants (if not done already). Once you have finalized them, click **Lock Requirements**. 
 
     ![Figure 15: Locking Requirements](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/freeze-requirements.gif)
 
@@ -177,7 +182,7 @@ This involves the deployment of the release to the specified tenant installation
 An application can be deployed on the tenant in the next release stage only if other applications in the previous stage are deployed successfully on the given tenant.
 {% endhint %}
 
-Here we covered the process of performing a production installation on one tenant. Similarly, you can per
+Here we covered the process of performing a production installation on just one tenant. Similarly, you can perform installations on your other tenants (if any).
 
 ---
 

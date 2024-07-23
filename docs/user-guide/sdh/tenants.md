@@ -15,9 +15,9 @@ This involves the creation of new organizations where you wish to deploy s/w upd
 
     ![Figure 1: Adding a Tenant](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/sdh/tenants-tab.jpg)
 
-2. Enter a name in **Tenant display name** field, e.g., `flareup.xyz`
+2. Enter a name in **Tenant display name** field, e.g., `flareup.xyz`. Once set, you can rename it later (if needed).
 
-3. Add a unique identifier to your tenant in **Tenant ID** field, e.g., `flareup123` 
+3. Add a unique identifier to your tenant in **Tenant ID** field, e.g., `flareup123`. Once set, you cannot change it later.
 
 4. (Optional) Add a description of the tenant.
 
@@ -61,7 +61,7 @@ This involves setting up [installation](./README.md#installations) for different
 Users need to have super-admin permission to map environments.
 {% endhint %}
 
-This involves mapping customer's environments to the tenant installation so that your updates are deployed to the correct environments.
+This involves mapping customer's environments to the tenant installation so that your updates are deployed to the correct environments. If you haven't created an environment yet, refer [Clusters & Environments](../global-configurations/cluster-and-environments.md#add-environment).
 
 1. Click **Map Environment**.
 
