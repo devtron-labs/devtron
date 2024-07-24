@@ -594,3 +594,16 @@ You may take the help of JSON validators to identify where the unintended human 
 {% hint style="info" %}
 The annotation `kubectl.kubernetes.io/last-applied-configuration:` is automatically added to each object when you run `kubectl apply`. 
 {% endhint %}
+
+
+#### 29. Helm Charts provided by Bitnami are not visible in Chart Store or getting tls: handshake failure while deploying Bitnami Charts.
+
+`rpc error: code = Unknown desc = Get "https://repo.broadcom.com/bitnami-files/index.yaml": remote error: tls: handshake failure`
+
+- Navigate to Global Configurations > Chart Repositories > Bitnami
+
+- Now in the Bitnami repository uncheck the Allow Insecure Connection and update it as shown below.
+  
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/chart-repo.png)
+
+- Go to Chart Store and initiate the Chart Sync.
