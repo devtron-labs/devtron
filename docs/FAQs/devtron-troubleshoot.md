@@ -601,6 +601,8 @@ The annotation `kubectl.kubernetes.io/last-applied-configuration:` is automatica
 
 Follow the below steps if you are getting the above error:
 
+* Make sure your [Devtron version](https://devtron-public-asset.s3.us-east-2.amazonaws.com/integrations/about-devtron.png) is 0.7.1 ([check how to upgrade](../setup/upgrade/README.md)).
+
 * Navigate to Global Configurations → Chart Repositories → Bitnami
 
 * Now in the Bitnami repository, uncheck the **Allow Insecure Connection** and update it as shown below.
