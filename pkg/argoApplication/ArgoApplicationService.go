@@ -460,7 +460,7 @@ func (impl *ArgoApplicationServiceImpl) HibernateArgoApplication(ctx context.Con
 	_, clusterBean, _, err := impl.GetClusterConfigFromAllClusters(app.ClusterId)
 	//conf, err := impl.helmAppService.GetClusterConf(app.ClusterId)
 	if err != nil {
-		impl.logger.Errorw("HibernateArgoApplication", "error in getting the cluster config", err, "clusterId", app.ClusterId)
+		impl.logger.Errorw("HibernateArgoApplication", "error in getting the cluster config", err, "clusterId", app.ClusterId, "appName", app.AppName)
 		return nil, err
 	}
 	conf := ConvertClusterBeanToGrpcConfig(clusterBean)
@@ -469,7 +469,7 @@ func (impl *ArgoApplicationServiceImpl) HibernateArgoApplication(ctx context.Con
 	req.ClusterConfig = conf
 	res, err := impl.helmAppClient.Hibernate(ctx, req)
 	if err != nil {
-		impl.logger.Errorw("HibernateArgoApplication", "error in hibernating the requested resource", err, "clusterId", app.ClusterId)
+		impl.logger.Errorw("HibernateArgoApplication", "error in hibernating the requested resource", err, "clusterId", app.ClusterId, "appName", app.AppName)
 		return nil, err
 	}
 	response := service.HibernateResponseAdaptor(res.Status)
@@ -480,7 +480,7 @@ func (impl *ArgoApplicationServiceImpl) UnHibernateArgoApplication(ctx context.C
 	_, clusterBean, _, err := impl.GetClusterConfigFromAllClusters(app.ClusterId)
 	//conf, err := impl.helmAppService.GetClusterConf(app.ClusterId)
 	if err != nil {
-		impl.logger.Errorw("HibernateArgoApplication", "error in getting the cluster config", err, "clusterId", app.ClusterId)
+		impl.logger.Errorw("HibernateArgoApplication", "error in getting the cluster config", err, "clusterId", app.ClusterId, "appName", app.AppName)
 		return nil, err
 	}
 	conf := ConvertClusterBeanToGrpcConfig(clusterBean)

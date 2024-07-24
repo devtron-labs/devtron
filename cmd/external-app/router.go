@@ -23,7 +23,6 @@ import (
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
-	"github.com/devtron-labs/devtron/api/argoApplication"
 	"github.com/devtron-labs/devtron/api/auth/sso"
 	"github.com/devtron-labs/devtron/api/auth/user"
 	"github.com/devtron-labs/devtron/api/chartRepo"
@@ -81,7 +80,6 @@ type MuxRouter struct {
 	attributesRouter         router.AttributesRouter
 	appRouter                app.AppRouterEAMode
 	rbacRoleRouter           user.RbacRoleRouter
-	argoApplicationRouter    argoApplication.ArgoApplicationRouter
 }
 
 func NewMuxRouter(
@@ -114,7 +112,6 @@ func NewMuxRouter(
 	attributesRouter router.AttributesRouter,
 	appRouter app.AppRouterEAMode,
 	rbacRoleRouter user.RbacRoleRouter,
-	argoApplicationRouter argoApplication.ArgoApplicationRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
@@ -148,7 +145,6 @@ func NewMuxRouter(
 		attributesRouter:         attributesRouter,
 		appRouter:                appRouter,
 		rbacRoleRouter:           rbacRoleRouter,
-		argoApplicationRouter:    argoApplicationRouter,
 	}
 	return r
 }
@@ -281,7 +277,4 @@ func (r *MuxRouter) Init() {
 
 	attributeRouter := r.Router.PathPrefix("/orchestrator/attributes").Subrouter()
 	r.attributesRouter.InitAttributesRouter(attributeRouter)
-
-	argoApplicationRouter := r.Router.PathPrefix("/orchestrator/argo-application").Subrouter()
-	r.argoApplicationRouter.InitArgoApplicationRouter(argoApplicationRouter)
 }
