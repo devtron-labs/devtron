@@ -366,13 +366,6 @@ func (impl *UserTerminalAccessServiceImpl) DisconnectTerminalSession(ctx context
 	return err
 }
 
-func getErrorDetailedMessage(err error) string {
-	if errStatus, ok := err.(*k8sErrors.StatusError); ok {
-		return errStatus.Status().Message
-	}
-	return ""
-}
-
 func (impl *UserTerminalAccessServiceImpl) StopTerminalSession(ctx context.Context, userTerminalAccessId int) {
 	impl.Logger.Infow("terminal stop request received for user", "userTerminalAccessId", userTerminalAccessId)
 	impl.TerminalAccessDataArrayMutex.Lock()
@@ -529,7 +522,7 @@ func (impl *UserTerminalAccessServiceImpl) SyncPodStatus() {
 			err = impl.DeleteTerminalPod(context.Background(), terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
 			if err != nil {
 				if k8s.IsResourceNotFoundErr(err) {
-					errorDetailedMessage := getErrorDetailedMessage(err)
+					errorDetailedMessage := k8s.GetClientErrorMessage(err)
 					terminalPodStatusString = fmt.Sprintf("%s/%s", string(models.TerminalPodTerminated), errorDetailedMessage)
 				} else {
 					continue
@@ -841,7 +834,7 @@ func (impl *UserTerminalAccessServiceImpl) getPodManifest(ctx context.Context, c
 	response, err := impl.K8sCommonService.GetResource(ctx, request)
 	if err != nil {
 		if k8s.IsResourceNotFoundErr(err) {
-			errorDetailedMessage := getErrorDetailedMessage(err)
+			errorDetailedMessage := k8s.GetClientErrorMessage(err)
 			terminalPodStatusString := fmt.Sprintf("%s/%s", string(models.TerminalPodTerminated), errorDetailedMessage)
 			return nil, errors.New(terminalPodStatusString)
 		} else {

@@ -19,6 +19,7 @@ package retryFunc
 import (
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils/runTime"
 	"go.uber.org/zap"
 	"time"
 )
@@ -26,7 +27,12 @@ import (
 // Retry performs a function with retries, delay, and a max number of attempts.
 func Retry(fn func() error, shouldRetry func(err error) bool, maxRetries int, delay time.Duration, logger *zap.SugaredLogger) error {
 	var err error
+	logger.Debugw("retrying function",
+		"maxRetries", maxRetries, "delay", delay,
+		"callerFunc", runTime.GetCallerFunctionName(),
+		"path", fmt.Sprintf("%s:%d", runTime.GetCallerFileName(), runTime.GetCallerLineNumber()))
 	for i := 0; i < maxRetries; i++ {
+		logger.Debugw("function called with retry", "attempt", i+1, "maxRetries", maxRetries, "delay", delay)
 		err = fn()
 		if err == nil {
 			return nil

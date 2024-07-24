@@ -17,18 +17,30 @@
 package k8s
 
 import (
+	"errors"
 	"fmt"
 	"github.com/Masterminds/semver"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
 )
 
 func IsResourceNotFoundErr(err error) bool {
-	if errStatus, ok := err.(*k8sErrors.StatusError); ok && errStatus.Status().Reason == metav1.StatusReasonNotFound {
-		return true
+	return k8sErrors.IsNotFound(err)
+}
+
+func IsBadRequestErr(err error) bool {
+	return k8sErrors.IsBadRequest(err)
+}
+
+func IsServerTimeoutErr(err error) bool {
+	return k8sErrors.IsServerTimeout(err)
+}
+
+func GetClientErrorMessage(err error) string {
+	if status, ok := err.(k8sErrors.APIStatus); ok || errors.As(err, &status) {
+		return status.Status().Message
 	}
-	return false
+	return err.Error()
 }
 
 // StripPrereleaseFromK8sVersion takes in k8sVersion and stripe pre-release from semver version and return sanitized k8sVersion

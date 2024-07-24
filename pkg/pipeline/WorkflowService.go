@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -126,10 +127,14 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 		impl.Logger.Errorw("error occurred while appending CmCs", "err", err)
 		return bean3.WorkflowTemplate{}, err
 	}
-	workflowConfigMaps, workflowSecrets, err = impl.addExistingCmCsInWorkflow(workflowRequest, workflowConfigMaps, workflowSecrets)
-	if err != nil {
-		impl.Logger.Errorw("error occurred while adding existing CmCs", "err", err)
-		return bean3.WorkflowTemplate{}, err
+
+	shouldAddExistingCmCsInWorkflow := impl.shouldAddExistingCmCsInWorkflow(workflowRequest)
+	if shouldAddExistingCmCsInWorkflow {
+		workflowConfigMaps, workflowSecrets, err = impl.addExistingCmCsInWorkflow(workflowRequest, workflowConfigMaps, workflowSecrets)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while adding existing CmCs", "err", err)
+			return bean3.WorkflowTemplate{}, err
+		}
 	}
 
 	workflowTemplate.ConfigMaps = workflowConfigMaps
@@ -174,6 +179,14 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 	workflowTemplate.ClusterConfig = clusterConfig
 	workflowTemplate.WorkflowType = workflowRequest.GetWorkflowTypeForWorkflowRequest()
 	return workflowTemplate, nil
+}
+
+func (impl *WorkflowServiceImpl) shouldAddExistingCmCsInWorkflow(workflowRequest *types.WorkflowRequest) bool {
+	// CmCs are not added for CI_JOB if IgnoreCmCsInCiJob is true
+	if workflowRequest.CiPipelineType == string(CiPipeline.CI_JOB) && impl.ciCdConfig.IgnoreCmCsInCiJob {
+		return false
+	}
+	return true
 }
 
 func (impl *WorkflowServiceImpl) getClusterConfig(workflowRequest *types.WorkflowRequest) (*rest.Config, error) {

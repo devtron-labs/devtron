@@ -42,6 +42,10 @@ func (r *ClientStatusCode) IsDeadlineExceededCode() bool {
 	return r.Code == codes.DeadlineExceeded
 }
 
+func (r *ClientStatusCode) IsUnavailableCode() bool {
+	return r.Code == codes.Unavailable
+}
+
 func (r *ClientStatusCode) IsCanceledCode() bool {
 	return r.Code == codes.Canceled
 }
