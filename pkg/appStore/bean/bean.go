@@ -259,7 +259,7 @@ func (d *Dependency) SanitizeRepoNameAndURLForOCIRepo() {
 
 	idx := strings.LastIndex(d.Name, "/")
 	if idx != -1 {
-		name := d.Name[idx:]
+		name := d.Name[idx+1:]
 		url := fmt.Sprintf("%s/%s", d.Repository, d.Name[0:idx])
 		d.Repository = url
 		d.Name = name
