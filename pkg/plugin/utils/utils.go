@@ -21,6 +21,7 @@ import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -43,11 +44,15 @@ func GetStageType(stageTypeReq string) (int, error) {
 // CreateUniqueIdentifier helper func to create plugin identifier
 func CreateUniqueIdentifier(pluginName string, pluginId int) string {
 	identifier := strings.ToLower(pluginName)
-	identifier = strings.ReplaceAll(identifier, " ", "-")
+	// Create a regular expression to match any of the special characters
+	re := regexp.MustCompile("[" + regexp.QuoteMeta(bean2.SpecialCharsRegex) + "]+")
+	// Replace all occurrences of the special characters with a dash
+	transformedIdentifier := re.ReplaceAllString(identifier, "-")
+	transformedIdentifier = strings.Trim(transformedIdentifier, "-")
 	if pluginId > 0 {
-		identifier = fmt.Sprintf("%s-%d", identifier, pluginId)
+		transformedIdentifier = fmt.Sprintf("%s-%d", transformedIdentifier, pluginId)
 	}
-	return identifier
+	return transformedIdentifier
 }
 
 func SortParentMetadataDtoSliceByName(pluginParentMetadataDtos []*bean2.PluginParentMetadataDto) {
