@@ -595,9 +595,11 @@ You may take the help of JSON validators to identify where the unintended human 
 The annotation `kubectl.kubernetes.io/last-applied-configuration:` is automatically added to each object when you run `kubectl apply`. 
 {% endhint %}
 
-#### 29. Helm Charts provided by Bitnami are not visible in Chart Store
+#### 29. Helm Charts provided by Bitnami are not visible in Chart Store. Getting 'tls: handshake failure' while deploying Bitnami Charts.
 
-Follow the below steps:
+`rpc error: code = Unknown desc = Get "https://repo.broadcom.com/bitnami-files/index.yaml": remote error: tls: handshake failure`
+
+Follow the below steps if you are getting the above error:
 
 * Navigate to Global Configurations → Chart Repositories → Bitnami
 
