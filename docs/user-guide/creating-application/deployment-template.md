@@ -10,9 +10,20 @@ To configure a deployment chart for your application, do the following steps:
 * Go to **App Configuration** page and configure your application.
 * On the **Base Deployment Template** page, select the drop-down under **Chart type**.
 
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/deployment-chart-v3.jpg)
+
 ---
 
-## Select chart from Default Charts
+## Selecting a Chart Type
+
+{% hint style="warning" %}
+### Who Can Perform This Action?
+Users need to have [Admin role](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above to select a chart.
+{% endhint %}
+
+You can choose either a Devtron Chart or a Custom Chart as your base deployment template.
+
+### From Devtron Charts
 
 You can select a default deployment chart from the following options:
 
@@ -21,24 +32,51 @@ You can select a default deployment chart from the following options:
 3. [Job & CronJob](deployment-template/job-and-cronjob.md)
 4. [StatefulSet](deployment-template/statefulset.md)
 
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/select-devtron-chart.gif)
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/deployment-chart.png)
+### From Custom Charts
 
----
+{% hint style="warning" %}
+This option will be available only if a custom chart exists. If it doesn't, a user with `super admin` permission may upload one in [Global Configurations → Custom Charts](../global-configurations/custom-charts.md).
+{% endhint %}
 
-## Select chart from Custom Charts
+You can select an available custom chart as shown below. You can also view the description of the custom charts in the list.
 
-Custom charts are added by users with `super admin` permission from the [Custom charts](../global-configurations/custom-charts.md) section.
-
-You can select the available custom charts from the drop-down list. You can also view the description of the custom charts in the list.
-
-![Select custom chart](https://devtron-public-asset.s3.us-east-2.amazonaws.com/custom-charts/use-custom-chart.png)
-
-A [custom chart](../global-configurations/custom-charts.md) can be uploaded by a super admin.
+![Selecting Custom Chart](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/select-custom-chart.gif)
 
 ---
 
-##
+## Selecting a Chart Version
+
+{% hint style="warning" %}
+### Who Can Perform This Action?
+Users need to have [Admin role](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above to select a chart version.
+{% endhint %}
+
+Once you select a chart type, choose a chart version using which you wish to deploy the application.
+
+![Selecting Chart Version](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/chart-version.jpg)
+
+Devtron uses helm charts for deployments and it maintains multiple chart versions based on the features it supports.
+
+One can see available chart versions in the drop-down. You can select any chart version as per your requirements. By default, the latest version of the helm chart is selected.
+
+Every chart version has its own YAML file that provides specifications for your application. To make it easy to use, we have created templates for the YAML file and have added some variables inside the YAML. You can provide or change the values of these variables as per your requirement.
+
+---
+
+## Configuring the Chart
+
+{% hint style="warning" %}
+### Who Can Perform This Action?
+Users need to have [Admin role](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above to configure a chart. However, super-admins can lock keys in base deployment template to prevent non-super-admins from modifying them. Refer [Lock Deployment Configuration](../global-configurations/lock-deployment-config.md) to know more.
+{% endhint %}
+
+### Using Basic GUI
+
+If you are not an advanced user, you may use the **Basic (GUI)** section to configure your chosen chart.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/basic-gui.jpg)
 
 By default, the following fields are available for you to modify in the **Basic (GUI)** section:
 
@@ -65,7 +103,7 @@ Click **Save Changes**. If you want to do additional configurations, then click 
 * Users who are not super-admins will land on 'Basic (GUI)' section when they visit **Base Deployment Template** page; whereas super-admins will land on 'Advanced (YAML)' section. This is just a default behavior; therefore, they can still navigate to the other section if needed.
 {% endhint %}
 
-### Customize Basic GUI [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+#### Customize Basic GUI [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
@@ -160,18 +198,35 @@ PUT {{DEVTRON_BASEURL}}/orchestrator/deployment/template/schema
     | 6        | GLOBAL          | Universally applies if no other more specific schemas are defined          |
 
 
+### Using Advanced (YAML)
+
+If you are an advanced user wishing to perform additional configurations, you may switch to **Advanced (YAML)** for modifications.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/advanced-yaml.jpg)
+
+Refer the respective templates to view the YAML details.
+* [Deployment](deployment-template/deployment.md)
+* [Rollout Deployment](deployment-template/rollout-deployment.md)
+* [Job & CronJob](deployment-template/job-and-cronjob.md)
+* [StatefulSet](deployment-template/statefulset.md)
+
 ---
 
 ## Application Metrics
 
-Enable **show application metrics** toggle to view the application metrics on the **App Details** page.
+Depending on the chart type and version you select, application metrics of your application may be viewed. <br />
+This includes: 
+* Status codes 2xx, 3xx, 5xx
+* Throughput
+* Latency
+...and many more
 
-![Show application metrics](https://devtron-public-asset.s3.us-east-2.amazonaws.com/custom-charts/show-application-metrics.png)
+Enable **Show application metrics** toggle to view the application metrics on the **App Details** page.
 
-> **IMPORTANT**: Enabling Application metrics introduces a sidecar container to your main container which may require some additional configuration adjustments. We recommend you to do load test after enabling it in a non-production environment before enabling it in production environment.
+![Show application metrics](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/show-application-metrics-v2.jpg)
+
+> **IMPORTANT**: Enabling application metrics introduces a sidecar container to your main container which may require some additional configuration adjustments. We recommend you to do load test after enabling it in a non-production environment before enabling it in production environment.
 
 Select **Save & Next** to save your configurations.
 
-{% hint style="warning" %}
-Super-admins can lock keys in base deployment template to prevent non-super-admins from modifying those locked keys. Refer [Lock Deployment Configuration](../global-configurations/lock-deployment-config.md) to know more.
-{% endhint %}
+

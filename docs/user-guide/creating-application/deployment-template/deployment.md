@@ -9,48 +9,33 @@ This chart creates a deployment that runs multiple replicas of your application 
 * Use the status of the Deployment as an indicator that a rollout has stuck.
 * Clean up older ReplicaSets that you do not need anymore.
 
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/dt-type-3.jpg)
+
 You can define application behavior by providing information in the following sections:
 
-* [Chart version](#1.-chart-version)
-* [Basic Configuration](#2.-basic-configuration)
-* [Advanced (YAML)](#3.-advanced-yaml)
-* [Show Application Metrics](#4.-show-application-metrics)
+| Key | Descriptions |
+| :--- | :--- |
+| `Chart version` | Select the Chart Version using which you want to deploy the application.<br> Refer [Chart Version](../../creating-application/deployment-template.md#selecting-a-chart-version) section for more detail.</br> |
+| `Basic (GUI)` | You can perform a basic deployment configuration for your application in the **Basic (GUI)** section instead of configuring the YAML file.<br>Refer [Basic Configuration](../../creating-application/deployment-template.md#using-basic-gui) section for more detail.</br>|
+| `Advanced (YAML)` | If you want to do additional configurations, then click **Advanced (YAML)** for modifications.<br>Refer [Advanced (YAML)](#advanced-yaml) section for more detail.</br> |
+| `Show application metrics` | You can enable `Show application metrics` to see your application's metrics-CPU Service Monitor usage, Memory Usage, Status, Throughput and Latency.<br>Refer [Application Metrics](../../creating-application/app-metrics.md) for more detail.</br> |
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/dt-type-3.jpg)
 
 {% hint style="warning" %}
 Super-admins can lock keys in deployment template to prevent non-super-admins from modifying those locked keys. Refer [Lock Deployment Configuration](../../global-configurations/lock-deployment-config.md) to know more.
 {% endhint %}
 
----
-
-## 1. Chart version
-
-| Key | Descriptions |
-| :--- | :--- |
-| `Chart Version` | Select the Chart Version using which you want to deploy the application. |
-
-Devtron uses helm charts for the deployments. And we are having multiple chart versions based on features it is supporting with every chart version.
-
-One can see multiple chart version options available in the drop-down. you can select any chart version as per your requirements. By default, the latest version of the helm chart is selected in the chart version option.
-
-Every chart version has its own YAML file. Helm charts are used to provide specifications for your application. To make it easy to use, we have created templates for the YAML file and have added some variables inside the YAML. You can provide or change the values of these variables as per your requirement.
-
-If you want to see [Application Metrics](#4.-show-application-metrics) (as an example, Status codes 2xx, 3xx, 5xx; throughput, and latency etc.) for your application, then you need to select the latest chart version.
-
-**Note**: Application Metrics are not supported for the Chart version older than 3.7 version.
-
----
-
-## 2. Basic Configuration
+<!-- ## Basic Configuration
 
 Some of the use-cases which are defined on the Deployment Template (YAML file) may not be applicable to configure for your application. In such cases, you can do a basic deployment configuration for your application in the **Basic (GUI)** section instead of configuring the YAML file.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/basic-config-deployment-template-v2.jpg)
 
+[Click here](../../creating-application/deployment-template.md#using-basic-gui) to know more about the Basic (GUI) section. -->
+
 ---
 
-## 3. Advanced (YAML)
+## Advanced (YAML)
 
 ### Container Ports
 

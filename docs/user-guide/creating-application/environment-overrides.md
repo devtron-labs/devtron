@@ -59,7 +59,7 @@ Refer [basic configuration](../creating-application/deployment-template/deployme
 
 {% hint style="info" %}
 ### Want to customize the fields displayed on Basic (GUI)? [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
-Refer [Customize Basic GUI](../creating-application/deployment-template/deployment.md#customize-basic-gui) to know the process of adding, removing, and customizing the Basic (GUI) section of your Deployment Template.
+Refer [Customize Basic GUI](../creating-application/deployment-template.md#customize-basic-gui) to know the process of adding, removing, and customizing the Basic (GUI) section.
 {% endhint %}
 
 #### Advanced (YAML)
