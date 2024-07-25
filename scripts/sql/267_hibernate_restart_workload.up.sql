@@ -332,9 +332,6 @@ fi',
 );
     
 
-
-
-
 INSERT INTO "plugin_step" ("id", "plugin_id","name","description","index","step_type","script_id","deleted", "created_on", "created_by", "updated_on", "updated_by") 
 VALUES (nextval('id_seq_plugin_step'), (SELECT id FROM plugin_metadata WHERE name='Devtron Hibernate/Restart Workload'),'Step 1','Devtron Hibernate/Restart Workload','1','INLINE',(SELECT last_value FROM id_seq_plugin_pipeline_script),'f','now()', 1, 'now()', 1);
 
@@ -346,38 +343,6 @@ VALUES (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadat
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Hibernate/Restart Workload' and ps."index"=1 and ps.deleted=false),'PluginAction','STRING','Options: Hibernate/Unhibernate/Restart','t','f',null,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Hibernate/Restart Workload' and ps."index"=1 and ps.deleted=false),'StatusTimeOutSeconds','STRING','Enter the maximum time (in seconds) a user can wait for the application to deploy.Enter a postive integer value','t','t',0,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1),
 (nextval('id_seq_plugin_step_variable'),(SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Devtron Hibernate/Restart Workload' and ps."index"=1 and ps.deleted=false),'ExitIfInState','BOOL','If set true, the plugin exits if the present state is same as action state. Default is false.','t','t',false,null,'INPUT','NEW',null,1,null,null,'f','now()',1,'now()',1);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
