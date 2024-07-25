@@ -52,6 +52,7 @@ type ImageTagRepository interface {
 	DeleteByEntityKeyAndValue(entityKey int, entityValue string) error
 	DeactivateImagePathReservation(id int) error
 	FetchActiveCustomTagData(entityKey int, entityValue string) (*CustomTag, error)
+	FetchActiveCustomTagDataList(entityValues []int) ([]*CustomTag, error)
 	DeactivateImagePathReservationByImagePaths(tx *pg.Tx, imagePaths []string) error
 	DeactivateImagePathReservationByImagePathReservationIds(tx *pg.Tx, imagePathReservationIds []int) error
 	DisableCustomTag(entityKey int, entityValue string) error
@@ -105,6 +106,18 @@ func (impl *ImageTagRepositoryImpl) FetchActiveCustomTagData(entityType int, ent
 		Where("entity_value = ?", entityValue).
 		Where("active = ?", true).Select()
 	return &customTagData, err
+}
+
+func (impl *ImageTagRepositoryImpl) FetchActiveCustomTagDataList(entityValues []int) ([]*CustomTag, error) {
+	var customTagList []*CustomTag
+	if len(entityValues) == 0 {
+		return customTagList, nil
+	}
+	err := impl.dbConnection.Model(&customTagList).
+		Where("entity_value IN (?)", pg.In(entityValues)).
+		Where("active = ?", true).Select()
+	// TODO Asutosh: test pg.ErrorNoRows
+	return customTagList, err
 }
 
 func (impl *ImageTagRepositoryImpl) IncrementAndFetchByEntityKeyAndValue(tx *pg.Tx, entityKey int, entityValue string) (*CustomTag, error) {
