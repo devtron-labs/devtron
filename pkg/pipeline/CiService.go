@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
+	"maps"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -83,6 +84,7 @@ type CiServiceImpl struct {
 	pluginInputVariableParser    PluginInputVariableParser
 	globalPluginService          plugin.GlobalPluginService
 	infraProvider                infraProviders.InfraProvider
+	ciCdPipelineOrchestrator     CiCdPipelineOrchestrator
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -98,6 +100,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	pluginInputVariableParser PluginInputVariableParser,
 	globalPluginService plugin.GlobalPluginService,
 	infraProvider infraProviders.InfraProvider,
+	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
 ) *CiServiceImpl {
 	cis := &CiServiceImpl{
 		Logger:                       Logger,
@@ -118,6 +121,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		pluginInputVariableParser:    pluginInputVariableParser,
 		globalPluginService:          globalPluginService,
 		infraProvider:                infraProvider,
+		ciCdPipelineOrchestrator:     ciCdPipelineOrchestrator,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -195,6 +199,12 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	if ciWorkflowConfig.Namespace == "" {
 		ciWorkflowConfig.Namespace = impl.config.GetDefaultNamespace()
 	}
+	if scope.SystemMetadata == nil {
+		scope.SystemMetadata = &resourceQualifiers.SystemMetadata{
+			Namespace: ciWorkflowConfig.Namespace,
+			AppName:   pipeline.App.AppName,
+		}
+	}
 
 	// preCiSteps, postCiSteps, refPluginsData, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, ciEvent)
 	prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, pipelineConfigBean.CiStage, scope)
@@ -215,6 +225,14 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		impl.Logger.Errorw("could not save new workflow", "err", err)
 		return 0, err
 	}
+
+	// get env variables of git trigger data and add it in the extraEnvVariables
+	gitTriggerEnvVariables, _, err := impl.ciCdPipelineOrchestrator.GetGitCommitEnvVarDataForCICDStage(savedCiWf.GitTriggers)
+	if err != nil {
+		impl.Logger.Errorw("error in getting gitTrigger env data for stage", "gitTriggers", savedCiWf.GitTriggers, "err", err)
+		return 0, err
+	}
+	maps.Copy(trigger.ExtraEnvironmentVariables, gitTriggerEnvVariables)
 
 	workflowRequest, err := impl.buildWfRequestForCiPipeline(pipeline, trigger, ciMaterials, savedCiWf, ciWorkflowConfig, ciPipelineScripts, preCiSteps, postCiSteps, refPluginsData, isJob)
 	if err != nil {
@@ -248,6 +266,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		workflowRequest.Type = pipelineConfigBean.CI_WORKFLOW_PIPELINE_TYPE
 	}
 
+	workflowRequest.CiPipelineType = trigger.PipelineType
 	err = impl.executeCiPipeline(workflowRequest)
 	if err != nil {
 		impl.Logger.Errorw("workflow error", "err", err)
