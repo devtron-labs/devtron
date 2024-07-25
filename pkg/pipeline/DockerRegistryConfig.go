@@ -342,10 +342,6 @@ func (impl DockerRegistryConfigImpl) CreateArgoRepositorySecret(artifactStore *t
 		}
 
 		secret, err := impl.K8sService.GetSecret(impl.acdAuthConfig.ACDConfigMapNamespace, repoName, client)
-		if err != nil {
-			impl.logger.Errorw("error in creating kubernetes secret", "repoName", repoName, "err", err)
-			return err
-		}
 		statusError, ok := err.(*errors2.StatusError)
 		if err != nil && (ok && statusError != nil && statusError.Status().Code != http.StatusNotFound) {
 			impl.logger.Errorw("error in fetching secret", "err", err)
