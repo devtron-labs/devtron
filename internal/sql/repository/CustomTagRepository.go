@@ -116,7 +116,6 @@ func (impl *ImageTagRepositoryImpl) FetchActiveCustomTagDataList(entityValues []
 	err := impl.dbConnection.Model(&customTagList).
 		Where("entity_value IN (?)", pg.In(entityValues)).
 		Where("active = ?", true).Select()
-	// TODO Asutosh: test pg.ErrorNoRows
 	return customTagList, err
 }
 
