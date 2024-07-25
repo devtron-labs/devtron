@@ -52,7 +52,7 @@ type ImageTagRepository interface {
 	DeleteByEntityKeyAndValue(entityKey int, entityValue string) error
 	DeactivateImagePathReservation(id int) error
 	FetchActiveCustomTagData(entityKey int, entityValue string) (*CustomTag, error)
-	FetchActiveCustomTagDataList(entityValues []int) ([]*CustomTag, error)
+	FetchActiveCustomTagDataList(entityValues []string) ([]*CustomTag, error)
 	DeactivateImagePathReservationByImagePaths(tx *pg.Tx, imagePaths []string) error
 	DeactivateImagePathReservationByImagePathReservationIds(tx *pg.Tx, imagePathReservationIds []int) error
 	DisableCustomTag(entityKey int, entityValue string) error
@@ -108,7 +108,7 @@ func (impl *ImageTagRepositoryImpl) FetchActiveCustomTagData(entityType int, ent
 	return &customTagData, err
 }
 
-func (impl *ImageTagRepositoryImpl) FetchActiveCustomTagDataList(entityValues []int) ([]*CustomTag, error) {
+func (impl *ImageTagRepositoryImpl) FetchActiveCustomTagDataList(entityValues []string) ([]*CustomTag, error) {
 	var customTagList []*CustomTag
 	if len(entityValues) == 0 {
 		return customTagList, nil

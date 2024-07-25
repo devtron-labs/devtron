@@ -32,7 +32,7 @@ type CustomTagService interface {
 	CreateOrUpdateCustomTag(tag *bean.CustomTag) error
 	GetCustomTagByEntityKeyAndValue(entityKey int, entityValue string) (*repository.CustomTag, error)
 	GetActiveCustomTagByEntityKeyAndValue(entityKey int, entityValue string) (*repository.CustomTag, error)
-	GetActiveCustomTagByValues(entityValues []int) (pipelineBean.CustomTagArrayResponse, error)
+	GetActiveCustomTagByValues(entityValues []string) (pipelineBean.CustomTagArrayResponse, error)
 	GenerateImagePath(entityKey int, entityValue string, dockerRegistryURL string, dockerRepo string) (*repository.ImagePathReservation, error)
 	DeleteCustomTagIfExists(tag bean.CustomTag) error
 	DeactivateImagePathReservation(id int) error
@@ -104,7 +104,7 @@ func (impl *CustomTagServiceImpl) GetActiveCustomTagByEntityKeyAndValue(entityKe
 	return impl.customTagRepository.FetchActiveCustomTagData(entityKey, entityValue)
 }
 
-func (impl *CustomTagServiceImpl) GetActiveCustomTagByValues(entityValues []int) (pipelineBean.CustomTagArrayResponse, error) {
+func (impl *CustomTagServiceImpl) GetActiveCustomTagByValues(entityValues []string) (pipelineBean.CustomTagArrayResponse, error) {
 	response := make(map[int]map[string]*repository.CustomTag)
 	customTagDataList, err := impl.customTagRepository.FetchActiveCustomTagDataList(entityValues)
 	if err != nil {

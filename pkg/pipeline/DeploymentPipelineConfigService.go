@@ -1250,8 +1250,11 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 	if gitOpsConfigStatus.IsGitOpsConfigured && !gitOpsConfigStatus.AllowCustomRepository {
 		isAppLevelGitOpsConfigured = true
 	}
-
-	customTagMapResponse, err := impl.customTagService.GetActiveCustomTagByValues(pipelineIds)
+	var strPipelineIds []string
+	for _, pipelineId := range pipelineIds {
+		strPipelineIds = append(strPipelineIds, strconv.Itoa(pipelineId))
+	}
+	customTagMapResponse, err := impl.customTagService.GetActiveCustomTagByValues(strPipelineIds)
 	if err != nil {
 		return nil, err
 	}
