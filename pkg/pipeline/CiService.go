@@ -538,12 +538,20 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	var checkoutPath string
 	var ciBuildConfigBean *CiPipeline.CiBuildConfigBean
 	dockerRegistry := &repository3.DockerArtifactStore{}
+	ciBuildConfigEntity := ciTemplate.CiBuildConfig
+	ciBuildConfigBean, err = adapter.ConvertDbBuildConfigToBean(ciBuildConfigEntity)
+	if ciBuildConfigBean != nil {
+		ciBuildConfigBean.BuildContextGitMaterialId = ciTemplate.BuildContextGitMaterialId
+	}
+	if err != nil {
+		impl.Logger.Errorw("error occurred while converting buildconfig dbEntity to configBean", "ciBuildConfigEntity", ciBuildConfigEntity, "err", err)
+		return nil, errors.New("error while parsing ci build config")
+	}
 	if !pipeline.IsExternal && pipeline.IsDockerConfigOverridden {
 		templateOverrideBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(pipeline.Id)
 		if err != nil {
 			return nil, err
 		}
-		ciBuildConfigBean = templateOverrideBean.CiBuildConfig
 		templateOverride := templateOverrideBean.CiTemplateOverride
 		checkoutPath = templateOverride.GitMaterial.CheckoutPath
 		dockerfilePath = templateOverride.DockerfilePath
@@ -554,15 +562,6 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		dockerfilePath = ciTemplate.DockerfilePath
 		dockerRegistry = ciTemplate.DockerRegistry
 		dockerRepository = ciTemplate.DockerRepository
-		ciBuildConfigEntity := ciTemplate.CiBuildConfig
-		ciBuildConfigBean, err = adapter.ConvertDbBuildConfigToBean(ciBuildConfigEntity)
-		if ciBuildConfigBean != nil {
-			ciBuildConfigBean.BuildContextGitMaterialId = ciTemplate.BuildContextGitMaterialId
-		}
-		if err != nil {
-			impl.Logger.Errorw("error occurred while converting buildconfig dbEntity to configBean", "ciBuildConfigEntity", ciBuildConfigEntity, "err", err)
-			return nil, errors.New("error while parsing ci build config")
-		}
 	}
 	if checkoutPath == "" {
 		checkoutPath = "./"
