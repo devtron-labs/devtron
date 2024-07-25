@@ -484,7 +484,7 @@ func (impl *ResourceGroupServiceImpl) checkAuthForResources(resourceIdsForAuthor
 	results := checkAuthBatch(token, rbacObjectArr, action)
 	for _, resourceId := range resourceIds {
 		resourceObject := objects[resourceId]
-		if !results[resourceObject] {
+		if val, ok := results[resourceObject]; ok && !val {
 			//if user unauthorized
 			unauthorizedResources = append(unauthorizedResources, groupType.getResourceFromRbacObject(resourceObject, envObjectToName))
 		}
