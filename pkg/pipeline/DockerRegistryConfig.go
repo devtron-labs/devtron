@@ -292,18 +292,20 @@ func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(bean *types.DockerArti
 		default:
 			return fmt.Errorf("invalid repository action type for OCI registry configuration")
 		}
-	}
-
-	err = impl.CreateArgoRepositorySecret(bean)
-	if err != nil {
-		impl.logger.Errorw("error in creating repo secret", "err", err)
-		return err
+		if repositoryType == repository.OCI_REGISRTY_REPO_TYPE_CHART &&
+			(storageActionType == repository.STORAGE_ACTION_TYPE_PULL || storageActionType == repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH) {
+			err = impl.CreateArgoRepositorySecret(bean, ociRegistryConfig)
+			if err != nil {
+				impl.logger.Errorw("error in creating repo secret", "err", err)
+				return err
+			}
+		}
 	}
 
 	return nil
 }
 
-func (impl DockerRegistryConfigImpl) CreateArgoRepositorySecret(artifactStore *types.DockerArtifactStoreBean) error {
+func (impl DockerRegistryConfigImpl) CreateArgoRepositorySecret(artifactStore *types.DockerArtifactStoreBean, ociRegistryConfig *repository.OCIRegistryConfig) error {
 	for _, repo := range artifactStore.RepositoryList {
 
 		url := artifactStore.RegistryURL
@@ -323,6 +325,11 @@ func (impl DockerRegistryConfigImpl) CreateArgoRepositorySecret(artifactStore *t
 			repoName = repo
 		}
 
+		repoSplit := strings.Split(repo, "/")
+		chartName := repoSplit[len(repoSplit)-1]
+
+		uniqueSecretName := fmt.Sprintf("%s-%d", chartName, ociRegistryConfig.Id)
+
 		secretData := parseSecretData(artifactStore, repoName, parsedUrl)
 
 		clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
@@ -341,7 +348,7 @@ func (impl DockerRegistryConfigImpl) CreateArgoRepositorySecret(artifactStore *t
 			return err
 		}
 
-		secret, err := impl.K8sService.GetSecret(impl.acdAuthConfig.ACDConfigMapNamespace, repoName, client)
+		secret, err := impl.K8sService.GetSecret(impl.acdAuthConfig.ACDConfigMapNamespace, uniqueSecretName, client)
 		statusError, ok := err.(*errors2.StatusError)
 		if err != nil && (ok && statusError != nil && statusError.Status().Code != http.StatusNotFound) {
 			impl.logger.Errorw("error in fetching secret", "err", err)
@@ -351,7 +358,7 @@ func (impl DockerRegistryConfigImpl) CreateArgoRepositorySecret(artifactStore *t
 		if ok && statusError != nil && statusError.Status().Code == http.StatusNotFound {
 			secretLabel := make(map[string]string)
 			secretLabel["argocd.argoproj.io/secret-type"] = "repository"
-			_, err = impl.K8sService.CreateSecret(impl.acdAuthConfig.ACDConfigMapNamespace, nil, repoName, "", client, secretLabel, secretData)
+			_, err = impl.K8sService.CreateSecret(impl.acdAuthConfig.ACDConfigMapNamespace, nil, uniqueSecretName, "", client, secretLabel, secretData)
 			if err != nil {
 				impl.logger.Errorw("Error in creating secret for chart repo", "Chart Name", repoName, "err", err)
 				return err
