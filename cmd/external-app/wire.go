@@ -244,6 +244,8 @@ func InitializeApp() (*App, error) {
 
 		common.NewDeploymentConfigServiceImpl,
 		wire.Bind(new(common.DeploymentConfigService), new(*common.DeploymentConfigServiceImpl)),
+
+		wire.Bind(new(util4.K8sService), new(*util4.K8sServiceImpl)),
 	)
 	return &App{}, nil
 }
