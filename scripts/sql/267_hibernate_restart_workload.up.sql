@@ -172,6 +172,7 @@ hibernate_app() {
     local status=$(echo $resources | jq -r \'.result.status\')
 
     if [ "$status" = "HIBERNATING" ] || [ "$status" = "hibernating" ] || [ "$status" = "hibernated" ]; then
+        echo "Workload already in hibernate state"
         exit 1
     fi
 
@@ -190,6 +191,7 @@ un_hibernate_app() {
     local status=$(echo $resources | jq -r \'.result.status\')
 
     if [ "$status" != "HIBERNATING" ]; then
+        echo "Workload already in un-hibernate state"
         exit 1
     fi
 
@@ -279,7 +281,7 @@ elif [[ "${PluginAction}" == "hibernate" ]]; then
     result=$(hibernate_app)
     code=$(echo "$result" | jq -r \'.code\')
 
-    if [ "$ExitIfInState" = "true" ] && [ -z "$code" ]; then
+    if [ $ExitIfInState == true ] && [ -z "$code" ]; then
         echo "Workload is hibernating state already. Exiting..."
         exit 1
     elif [ -z "$code" ]; then
@@ -296,7 +298,7 @@ elif [[ "${PluginAction}" == "unhibernate" ]]; then
     result=$(un_hibernate_app)
     code=$(echo "$result" | jq -r \'.code\')
 
-    if [ "$ExitIfInState" = "true" ] && [ -z "$code" ]; then
+    if [ $ExitIfInState == true ] && [ -z "$code" ]; then
         echo "Workload is un-hibernating state already. Exiting..."
         exit 1
     elif [ -z "$code" ]; then
