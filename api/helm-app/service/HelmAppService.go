@@ -597,11 +597,7 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *helm
 
 func (impl *HelmAppServiceImpl) checkIfNsExists(namespace string, clusterBean *cluster.ClusterBean) (bool, error) {
 
-	config, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster config", "error", err, "clusterId", clusterBean.Id)
-		return false, err
-	}
+	config := clusterBean.GetClusterConfig()
 	v12Client, err := impl.K8sUtil.GetCoreV1Client(config)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client", "err", err, "clusterHost", config.Host)
