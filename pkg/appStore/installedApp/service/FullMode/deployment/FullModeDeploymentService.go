@@ -101,6 +101,7 @@ type FullModeDeploymentServiceImpl struct {
 	gitOpsValidationService              validation.GitOpsValidationService
 	environmentRepository                repository5.EnvironmentRepository
 	deploymentConfigService              common.DeploymentConfigService
+	chartTemplateService                 util.ChartTemplateService
 }
 
 func NewFullModeDeploymentServiceImpl(
@@ -125,7 +126,8 @@ func NewFullModeDeploymentServiceImpl(
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitOpsValidationService validation.GitOpsValidationService,
 	environmentRepository repository5.EnvironmentRepository,
-	deploymentConfigService common.DeploymentConfigService) *FullModeDeploymentServiceImpl {
+	deploymentConfigService common.DeploymentConfigService,
+	chartTemplateService util.ChartTemplateService) *FullModeDeploymentServiceImpl {
 	return &FullModeDeploymentServiceImpl{
 		Logger:                               logger,
 		acdClient:                            acdClient,
@@ -149,6 +151,7 @@ func NewFullModeDeploymentServiceImpl(
 		gitOpsValidationService:              gitOpsValidationService,
 		environmentRepository:                environmentRepository,
 		deploymentConfigService:              deploymentConfigService,
+		chartTemplateService:                 chartTemplateService,
 	}
 }
 
