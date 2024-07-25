@@ -663,11 +663,7 @@ func (impl *CiHandlerImpl) getRestConfig(workflow *pipelineConfig.CiWorkflow) (*
 
 	clusterBean := cluster.GetClusterBean(*env.Cluster)
 
-	clusterConfig, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
-		return nil, err
-	}
+	clusterConfig := clusterBean.GetClusterConfig()
 	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in getting rest config by cluster id", "err", err)
@@ -793,11 +789,7 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 		if env != nil && env.Cluster != nil {
 			clusterBean = cluster.GetClusterBean(*env.Cluster)
 		}
-		clusterConfig, err = clusterBean.GetClusterConfig()
-		if err != nil {
-			impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
-			return nil, nil, err
-		}
+		clusterConfig = clusterBean.GetClusterConfig()
 		isExt = true
 	}
 
