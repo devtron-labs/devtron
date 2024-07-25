@@ -43,7 +43,7 @@ Furthermore, CPU and Memory have 2 fields each:
 * **Limit** - Use this field to set the maximum amount of CPU/Memory resources the build process can use, even if there is a lot available in the cluster. 
 
 
-### Creating Custom Profile [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+### Creating Custom Profile [![](https://gist.githubusercontent.com/uxarya-d/6971eac1c6a4c09c73b366c9e7d769a7/raw/0eabd2a000b3ffac015854d9d1eaf5742011bf0e/tag-enterprise-feature.svg)](https://devtron.ai/pricing)
 
 Instead of default profile, you can create custom profiles having different infra configurations. Example: One profile for Python apps, a second profile for large apps, and a third profile for small apps, and many more.
 

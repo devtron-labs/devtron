@@ -40,7 +40,7 @@ Devtron provides a sample configuration out of the box. There are some values th
 
 ---
 
-## Auto-assign Permissions [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+## Auto-assign Permissions [![](https://gist.githubusercontent.com/uxarya-d/6971eac1c6a4c09c73b366c9e7d769a7/raw/0eabd2a000b3ffac015854d9d1eaf5742011bf0e/tag-enterprise-feature.svg)](https://devtron.ai/pricing)
 
 {% hint style="info" %}
 Make sure to add tenantID in the SSO configuration field without fail.

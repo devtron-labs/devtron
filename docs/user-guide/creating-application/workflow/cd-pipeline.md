@@ -142,7 +142,7 @@ Make sure your cluster has [devtron-agent](../../global-configurations/cluster-a
 
 Pipeline name will be auto-generated; however, you are free to modify the name as per your requirement.
 
-#### Manual Approval for Deployment [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+#### Manual Approval for Deployment [![](https://gist.githubusercontent.com/uxarya-d/6971eac1c6a4c09c73b366c9e7d769a7/raw/0eabd2a000b3ffac015854d9d1eaf5742011bf0e/tag-enterprise-feature.svg)](https://devtron.ai/pricing)
 
 If you want only approved images to be eligible for deployment, enable the `Manual approval for deployment` option in the respective deployment pipeline. By doing so, unapproved images would be prevented from being deployed for that deployment pipeline.
 

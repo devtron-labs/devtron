@@ -1,6 +1,6 @@
 # Software Distribution Hub
 
-## Introduction [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+## Introduction [![](https://gist.githubusercontent.com/uxarya-d/6971eac1c6a4c09c73b366c9e7d769a7/raw/0eabd2a000b3ffac015854d9d1eaf5742011bf0e/tag-enterprise-feature.svg)](https://devtron.ai/pricing)
 
 Software Distribution Hub is a platform that simplifies the packaging, versioning, and delivery of your software products. By using it, you can manage your software release across multiple clients ([tenants](#release-versions)).
 

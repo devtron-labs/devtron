@@ -61,7 +61,7 @@ Adding [image labels](./deploying-application/image-labels-and-comments.md) can 
 3. Similar to application, you can also [pass build parameters](./deploying-application/triggering-ci.md#passing-build-parameters) in application groups before triggering the build.
 
 {% hint style="info" %}
-Passing build parameters feature is only available in <img src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg">
+Passing build parameters feature is only available in <img src="https://gist.githubusercontent.com/uxarya-d/6971eac1c6a4c09c73b366c9e7d769a7/raw/0eabd2a000b3ffac015854d9d1eaf5742011bf0e/tag-enterprise-feature.svg">
 {% endhint %}
 
 * Go to the **Parameters** tab.
