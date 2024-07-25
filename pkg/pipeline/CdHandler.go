@@ -158,11 +158,7 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 	if env != nil && env.Cluster != nil {
 		clusterBean = cluster.GetClusterBean(*env.Cluster)
 	}
-	clusterConfig, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
-		return 0, err
-	}
+	clusterConfig := clusterBean.GetClusterConfig()
 	var isExtCluster bool
 	if workflowRunner.WorkflowType == types.PRE {
 		isExtCluster = pipeline.RunPreStageInEnv
@@ -458,11 +454,7 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 	if env != nil && env.Cluster != nil {
 		clusterBean = cluster.GetClusterBean(*env.Cluster)
 	}
-	clusterConfig, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
-		return nil, nil, err
-	}
+	clusterConfig := clusterBean.GetClusterConfig()
 	var isExtCluster bool
 	if cdWorkflow.WorkflowType == types.PRE {
 		isExtCluster = pipeline.RunPreStageInEnv
