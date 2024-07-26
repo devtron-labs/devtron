@@ -211,6 +211,7 @@ message WebhookAndCiData {
 message WebhookEventConfigRequest {
   int64 gitHostId = 1;
   int64 eventId = 2;
+  string gitHostName = 3;
 }
 
 message WebhookEventSelectors {

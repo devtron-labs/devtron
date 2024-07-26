@@ -25,6 +25,7 @@ type GitHost struct {
 	tableName       struct{} `sql:"git_host" pg:",discard_unknown_columns"`
 	Id              int      `sql:"id,pk"`
 	Name            string   `sql:"name,notnull"`
+	DisplayName     string   `sql:"display_name,notnull"`
 	Active          bool     `sql:"active,notnull"`
 	WebhookUrl      string   `sql:"webhook_url"`
 	WebhookSecret   string   `sql:"webhook_secret"`
@@ -74,8 +75,20 @@ func (impl GitHostRepositoryImpl) Exists(name string) (bool, error) {
 	gitHost := &GitHost{}
 	exists, err := impl.dbConnection.
 		Model(gitHost).
-		Where("name = ?", name).
+		Where("display_name = ?", name).
 		Exists()
+
+	if err != nil {
+		return false, err
+	}
+	//display_name can be null for old data hence checking for name field
+	if !exists {
+		exists, err = impl.dbConnection.
+			Model(gitHost).
+			Where("name = ?", name).
+			Exists()
+	}
+
 	return exists, err
 }
 
