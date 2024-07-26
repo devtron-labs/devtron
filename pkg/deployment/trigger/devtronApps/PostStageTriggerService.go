@@ -62,8 +62,14 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 		}
 	}
 
+	envDevploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(pipeline.AppId, pipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+		return err
+	}
+
 	// custom GitOps repo url validation --> Start
-	err = impl.handleCustomGitOpsRepoValidation(runner, pipeline, triggeredBy)
+	err = impl.handleCustomGitOpsRepoValidation(runner, pipeline, envDevploymentConfig, triggeredBy)
 	if err != nil {
 		impl.logger.Errorw("custom GitOps repository validation error, TriggerPreStage", "err", err)
 		return err
@@ -75,7 +81,7 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 		impl.logger.Errorw("error, checkVulnerabilityStatusAndFailWfIfNeeded", "err", err, "runner", runner)
 		return err
 	}
-	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, pipeline, triggeredBy)
+	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, pipeline, envDevploymentConfig, triggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error in building wfRequest", "err", err, "runner", runner, "cdWf", cdWf, "pipeline", pipeline)
 		return err

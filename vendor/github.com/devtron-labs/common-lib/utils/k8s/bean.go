@@ -17,6 +17,7 @@
 package k8s
 
 import (
+	"errors"
 	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
@@ -246,4 +247,10 @@ func (impl *CustomK8sHttpTransportConfig) OverrideConfigWithCustomTransport(conf
 	config.ExecProvider = nil
 
 	return config, nil
+}
+
+var NotFoundError = errors.New("not found")
+
+func IsNotFoundError(err error) bool {
+	return errors.Is(err, NotFoundError)
 }

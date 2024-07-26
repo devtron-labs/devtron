@@ -18,6 +18,7 @@ package restHandler
 
 import (
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -61,23 +62,33 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 
 	// get git host Id and secret from request
 	vars := mux.Vars(r)
-	gitHostId, err := strconv.Atoi(vars["gitHostId"])
+	var gitHostId int
+	var err error
+	var gitHostName string
+	var gitHost *types.GitHostRequest
+	if gitHostId, err = strconv.Atoi(vars["gitHostId"]); err != nil {
+		gitHostName = vars["gitHostId"]
+		// get git host from DB
+		gitHost, err = impl.gitHostConfig.GetByName(gitHostName)
+		if err != nil {
+			impl.logger.Errorw("Error in getting git host from DB by Name", "err", err, "gitHostName", gitHostName)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		gitHostId = gitHost.Id
+
+	} else {
+		// get git host from DB
+		gitHost, err = impl.gitHostConfig.GetById(gitHostId)
+		if err != nil {
+			impl.logger.Errorw("Error in getting git host from DB by Id", "err", err, "gitHostId", gitHostId)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+	}
+
 	secretFromRequest := vars["secret"]
-	if err != nil {
-		impl.logger.Errorw("Error in getting git host Id from request", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	impl.logger.Debugw("webhook event request data", "gitHostId", gitHostId, "secretFromRequest", secretFromRequest)
-
-	// get git host from DB
-	gitHost, err := impl.gitHostConfig.GetById(gitHostId)
-	if err != nil {
-		impl.logger.Errorw("Error in getting git host from DB", "err", err, "gitHostId", gitHostId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
+	impl.logger.Debugw("webhook event request data", "gitHostIdentifier", vars["gitHostId"], "secretFromRequest", secretFromRequest)
 
 	// validate signature
 	requestBodyBytes, err := ioutil.ReadAll(r.Body)
@@ -110,6 +121,7 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 	// make request to handle this webhook
 	webhookEvent := &pipeline.WebhookEventDataRequest{
 		GitHostId:          gitHostId,
+		GitHostName:        gitHostName,
 		EventType:          eventType,
 		RequestPayloadJson: string(requestBodyBytes),
 	}
@@ -123,7 +135,7 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 	}
 
 	// write event
-	err = impl.ciPipelineEventPublishService.PublishGitWebhookEvent(gitHostId, eventType, string(requestBodyBytes))
+	err = impl.ciPipelineEventPublishService.PublishGitWebhookEvent(gitHostId, gitHostName, eventType, string(requestBodyBytes))
 	if err != nil {
 		impl.logger.Errorw("Error while handling webhook in git-sensor", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

@@ -63,7 +63,8 @@ func NewCiMaterialConfigServiceImpl(
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	gitMaterialHistoryService history.GitMaterialHistoryService,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, transactionManager sql.TransactionWrapper) *CiMaterialConfigServiceImpl {
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
+	transactionManager sql.TransactionWrapper) *CiMaterialConfigServiceImpl {
 
 	return &CiMaterialConfigServiceImpl{
 		logger:                       logger,

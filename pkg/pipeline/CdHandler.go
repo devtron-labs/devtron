@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
+	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -88,6 +89,7 @@ type CdHandlerImpl struct {
 	clusterService               cluster.ClusterService
 	blobConfigStorageService     BlobStorageConfigService
 	customTagService             CustomTagService
+	deploymentConfigService      common2.DeploymentConfigService
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
@@ -99,7 +101,9 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
 	resourceGroupService resourceGroup2.ResourceGroupService,
 	imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sServiceImpl,
 	workflowService WorkflowService, clusterService cluster.ClusterService,
-	blobConfigStorageService BlobStorageConfigService, customTagService CustomTagService) *CdHandlerImpl {
+	blobConfigStorageService BlobStorageConfigService, customTagService CustomTagService,
+	deploymentConfigService common2.DeploymentConfigService,
+) *CdHandlerImpl {
 	cdh := &CdHandlerImpl{
 		Logger:                       Logger,
 		userService:                  userService,
@@ -118,6 +122,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
 		clusterService:               clusterService,
 		blobConfigStorageService:     blobConfigStorageService,
 		customTagService:             customTagService,
+		deploymentConfigService:      deploymentConfigService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -153,11 +158,7 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 	if env != nil && env.Cluster != nil {
 		clusterBean = cluster.GetClusterBean(*env.Cluster)
 	}
-	clusterConfig, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
-		return 0, err
-	}
+	clusterConfig := clusterBean.GetClusterConfig()
 	var isExtCluster bool
 	if workflowRunner.WorkflowType == types.PRE {
 		isExtCluster = pipeline.RunPreStageInEnv
@@ -244,7 +245,14 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 			impl.Logger.Error("update wf failed for id " + strconv.Itoa(savedWorkflow.Id))
 			return 0, "", err
 		}
-		util3.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(savedWorkflow), impl.config.ExposeCDMetrics)
+		appId := savedWorkflow.CdWorkflow.Pipeline.AppId
+		envId := savedWorkflow.CdWorkflow.Pipeline.EnvironmentId
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
+			return 0, "", err
+		}
+		util3.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(savedWorkflow, envDeploymentConfig), impl.config.ExposeCDMetrics)
 		if string(v1alpha1.NodeError) == savedWorkflow.Status || string(v1alpha1.NodeFailed) == savedWorkflow.Status {
 			impl.Logger.Warnw("cd stage failed for workflow: ", "wfId", savedWorkflow.Id)
 		}
@@ -446,11 +454,7 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 	if env != nil && env.Cluster != nil {
 		clusterBean = cluster.GetClusterBean(*env.Cluster)
 	}
-	clusterConfig, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.Logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
-		return nil, nil, err
-	}
+	clusterConfig := clusterBean.GetClusterConfig()
 	var isExtCluster bool
 	if cdWorkflow.WorkflowType == types.PRE {
 		isExtCluster = pipeline.RunPreStageInEnv

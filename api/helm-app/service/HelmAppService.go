@@ -169,7 +169,7 @@ func (impl *HelmAppServiceImpl) ListHelmApplications(ctx context.Context, cluste
 			impl.logger.Errorw("error in fetching helm app list from DB created using cd_pipelines", "clusters", clusterIds, "err", err)
 		}
 
-		// if not hyperion mode, then fetch from installed_apps whose deployment_app_type is helm (as in hyperion mode, these apps should be treated as external-apps)
+		// if not hyperion mode, then fetch from installed_apps whose deploymentAppType is helm (as in hyperion mode, these apps should be treated as external-apps)
 		if !util2.IsBaseStack() {
 			newCtx, span = otel.Tracer("pipelineRepository").Start(newCtx, "GetAppAndEnvDetailsForDeploymentAppTypePipeline")
 			start = time.Now()
@@ -597,11 +597,7 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *helm
 
 func (impl *HelmAppServiceImpl) checkIfNsExists(namespace string, clusterBean *cluster.ClusterBean) (bool, error) {
 
-	config, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster config", "error", err, "clusterId", clusterBean.Id)
-		return false, err
-	}
+	config := clusterBean.GetClusterConfig()
 	v12Client, err := impl.K8sUtil.GetCoreV1Client(config)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client", "err", err, "clusterHost", config.Host)
