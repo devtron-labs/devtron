@@ -1894,7 +1894,9 @@ func (impl *GlobalPluginServiceImpl) GetPluginDetailV2(pluginVersionIds, parentP
 	}
 
 	filteredPluginVersionMetadata := helper2.GetPluginVersionsMetadataByVersionAndParentPluginIds(pluginVersionsMetadata, pluginVersionIdsMap, parentPluginIdsMap)
-
+	if len(filteredPluginVersionMetadata) == 0 {
+		return nil, &util.ApiError{HttpStatusCode: http.StatusNotFound, Code: strconv.Itoa(http.StatusNotFound), InternalMessage: bean2.NoPluginFoundForThisSearchQueryErr, UserMessage: bean2.NoPluginFoundForThisSearchQueryErr}
+	}
 	for _, version := range filteredPluginVersionMetadata {
 		_, found := pluginVersionIdsMap[version.Id]
 		wantDetailedData := found || fetchAllVersionDetails || version.IsLatest

@@ -342,7 +342,7 @@ type RegistryCredentials struct {
 
 const (
 	NoPluginOrParentIdProvidedErr      = "no value for pluginVersionIds and parentPluginIds provided in query param"
-	NoPluginFoundForThisSearchQueryErr = "no plugin found for this search filter"
+	NoPluginFoundForThisSearchQueryErr = "unable to find desired plugin for the query filter"
 )
 
 const (
