@@ -247,6 +247,13 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 				UserMessage:     "failed to update gitOps config in db",
 			}
 		}
+		if len(model.CaCert) == 0 && len(model.TlsKey) == 0 && len(model.TlsCert) == 0 {
+			return nil, &util.ApiError{
+				HttpStatusCode:  http.StatusPreconditionFailed,
+				InternalMessage: "failed to update gitOps config in db",
+				UserMessage:     "failed to update gitOps config in db",
+			}
+		}
 
 	}
 	if model.EnableTLSVerification && request.TLSConfig == nil {
@@ -531,7 +538,13 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 				UserMessage:     "failed to update gitOps config in db",
 			}
 		}
-
+		if len(model.CaCert) == 0 && len(model.TlsKey) == 0 && len(model.TlsCert) == 0 {
+			return &util.ApiError{
+				HttpStatusCode:  http.StatusPreconditionFailed,
+				InternalMessage: "failed to update gitOps config in db",
+				UserMessage:     "failed to update gitOps config in db",
+			}
+		}
 	}
 	if model.EnableTLSVerification && request.TLSConfig == nil {
 		request.TLSConfig = &bean.TLSConfig{
