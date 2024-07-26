@@ -47,6 +47,7 @@ type CdPipelineDeleteEvent struct {
 
 type CIPipelineGitWebhookEvent struct {
 	GitHostId          int    `json:"gitHostId"`
+	GitHostName        string `json:"gitHostName"`
 	EventType          string `json:"eventType"`
 	RequestPayloadJson string `json:"requestPayloadJson"`
 }
