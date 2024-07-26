@@ -1498,7 +1498,6 @@ func (impl *K8sServiceImpl) GetApiResources(restConfig *rest.Config, includeOnly
 				}
 				var group string
 				var version string
-				var shortNames []string
 				gv := apiResourceListFromK8s.GroupVersion
 				if len(gv) > 0 {
 					splitGv := strings.Split(gv, "/")
@@ -1521,7 +1520,7 @@ func (impl *K8sServiceImpl) GetApiResources(restConfig *rest.Config, includeOnly
 						Resource: apiResourceFromK8s.Name,
 					},
 					Namespaced: apiResourceFromK8s.Namespaced,
-					ShortNames: shortNames,
+					ShortNames: apiResourceFromK8s.ShortNames,
 				})
 			}
 		}
