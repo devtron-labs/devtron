@@ -10,17 +10,17 @@ No prerequisites are required for integrating **Copacetic** plugin.
 ---
 
 ## Steps
-1. Go to Applications → **Devtron Apps**.
-2. Click on your **application**.
+1. Go to **Applications** → **Devtron Apps**.
+2. Click your application.
 3. Go to **App Configuration** → **Workflow Editor**.
-4. Click on **New Workflow** and navigate to the **Build and Deploy from Source Code**.
+4. Click **New Workflow** and navigate to the **Build and Deploy from Source Code**.
 5. Enter the following fields on the **Create build pipeline** window and navigate to **Post-build stage**.
 
 {% hint style="warning" %}
-if you have already configured workflow, on your **Workflow Editor** click **Build** → **Edit build pipeline** and navigate to the **Post-build stage**.
+If you have already configured workflow, edit the build pipeline, and navigate to **Pre-build stage**.
 {% endhint %}
 
-6. Click on **Task to be executed** under 'TASKS', click the **Add task** button.
+6. Click **Task to be executed** under 'TASKS', and click the **Add task** button.
 7. Click the **Copacetic** plugin.
 8. Enter the following fields with appropriate values.
 
@@ -31,12 +31,12 @@ if you have already configured workflow, on your **Workflow Editor** click **Bui
 ### Task Name
 Enter the name of your task.
 
-`e.g. Patch container image vulnerability`
+e.g., `Patch container image vulnerability`
 
 ### Description
 Add a brief explanation of the task and the reason for choosing the plugin. Include information for someone else to understand the purpose of the task.
 
-`e.g. The Copacetic plugin is configured to patch the vulnerabilities in container image`
+e.g., `The Copacetic plugin is configured to patch the vulnerabilities in container image`
 
 ### Input Variables
 
