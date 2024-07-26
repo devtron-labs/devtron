@@ -5,7 +5,7 @@ The Pull images from container repository plugin helps you poll the specified co
 - Poll the designated container repository to get the specific container image build using external CI like Jenkins and Github actions. Once the image becomes available, you can deploy it to your target Kubernetes environment using Devtron's CD pipeline.
 
 {% hint style="warning" %}
-Currently, this plugin only supports ECR registry, soon support for other container registries will be added.
+Currently, this plugin only supports ECR registry. Support for other container registries will be added soon.
 {% endhint %}
 
 ### Prerequisites
@@ -15,11 +15,11 @@ Before integrating the **Pull images from the container repository** plugin, ens
 
 ## Steps
 1. Go to Applications → **Devtron Apps**.
-2. Click on your **application**.
+2. Click your application.
 3. Go to **App Configuration** → **Workflow Editor**.
-4. Click on **New Workflow** and navigate to the **CREATE JOB PIPELINE**.
-5. Enter the following fields on the **Basic configuration** window.
-6. Click on **Task to be executed** under 'TASKS', click the **Add task** button.
+4. Click **New Workflow** and navigate to the **CREATE JOB PIPELINE**.
+5. Enter the following fields in the **Basic configuration** window.
+6. Click **Task to be executed** under 'TASKS', and click the **Add task** button.
 6. Click the **Pull images from container repository** plugin.
 7. Enter the following fields with appropriate values.
 ---
@@ -29,12 +29,12 @@ Before integrating the **Pull images from the container repository** plugin, ens
 ### Task Name
 Enter the name of your task.
 
-`e.g. Pull container image`
+e.g., `Pull container image`
 
 ### Description
 Add a brief explanation of the task and the reason for choosing the plugin. Include information for someone else to understand the purpose of the task.
 
-`e.g. Pull container image build by external CI`
+e.g., `Pull container image build by external CI`
 
 ### Input Variables
 
