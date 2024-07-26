@@ -13,13 +13,13 @@ No prerequisites are required for integrating **Code Scan** plugin.
 2. Click your application.
 3. Go to **App Configuration** → **Workflow Editor**.
 4. Click **New Workflow** and navigate to the **Build and Deploy from Source Code**.
-5. Enter the following fields on the **Create build pipeline** window and navigate to the **Pre-build stage**.
+5. Fill the required fields in the **Create build pipeline** window and navigate to the **Pre-build stage**.
 
 {% hint style="warning" %}
 If you have already configured workflow, edit the build pipeline, and navigate to **Pre-build stage**.
 {% endhint %}
 
-6. Click **Task to be executed** under 'TASKS', and click the **Add task** button.
+6. Under 'TASKS', click the **+ Add task** button.
 6. Select the **Code Scan** plugin.
 7. Enter the following fields with appropriate values.
 ---
