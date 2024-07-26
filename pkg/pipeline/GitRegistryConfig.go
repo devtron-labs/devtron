@@ -120,6 +120,14 @@ func (impl GitRegistryConfigImpl) Create(request *types.GitRegistry) (*types.Git
 				UserMessage:     "git provider failed to update in db",
 			}
 		}
+		if len(provider.TlsKey) == 0 && len(provider.TlsCert) == 0 && len(provider.CaCert) == 0 {
+			return nil, &util.ApiError{
+				HttpStatusCode:  http.StatusPreconditionFailed,
+				Code:            constants.GitProviderUpdateRequestIsInvalid,
+				InternalMessage: "git provider failed to update in db",
+				UserMessage:     "git provider failed to update in db",
+			}
+		}
 	}
 
 	provider.SshPrivateKey = ModifySshPrivateKey(provider.SshPrivateKey, provider.AuthMode)
