@@ -402,18 +402,19 @@ func (impl GitRegistryConfigImpl) Delete(request *types.GitRegistry) error {
 
 func (impl GitRegistryConfigImpl) UpdateGitSensor(provider *repository.GitProvider) error {
 	sensorGitProvider := &gitSensor.GitProvider{
-		Id:            provider.Id,
-		Name:          provider.Name,
-		Url:           provider.Url,
-		UserName:      provider.UserName,
-		Password:      provider.Password,
-		SshPrivateKey: provider.SshPrivateKey,
-		AccessToken:   provider.AccessToken,
-		Active:        provider.Active,
-		AuthMode:      provider.AuthMode,
-		CaCert:        provider.CaCert,
-		TlsCert:       provider.TlsCert,
-		TlsKey:        provider.TlsKey,
+		Id:                    provider.Id,
+		Name:                  provider.Name,
+		Url:                   provider.Url,
+		UserName:              provider.UserName,
+		Password:              provider.Password,
+		SshPrivateKey:         provider.SshPrivateKey,
+		AccessToken:           provider.AccessToken,
+		Active:                provider.Active,
+		AuthMode:              provider.AuthMode,
+		CaCert:                provider.CaCert,
+		TlsCert:               provider.TlsCert,
+		TlsKey:                provider.TlsKey,
+		EnableTlsVerification: provider.EnableTLSVerification,
 	}
 	return impl.GitSensorGrpcClient.SaveGitProvider(context.Background(), sensorGitProvider)
 }

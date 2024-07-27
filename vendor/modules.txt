@@ -432,7 +432,7 @@ github.com/devtron-labs/common-lib/utils/yaml
 # github.com/devtron-labs/go-bitbucket v0.9.60-beta
 ## explicit; go 1.14
 github.com/devtron-labs/go-bitbucket
-# github.com/devtron-labs/protos v0.0.3-0.20240715112849-ccfb2b7ff1b8
+# github.com/devtron-labs/protos v0.0.3-0.20240726131238-dff2574e623d
 ## explicit; go 1.17
 github.com/devtron-labs/protos/gitSensor
 # github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f
