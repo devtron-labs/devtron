@@ -303,13 +303,20 @@ func (impl GitRegistryConfigImpl) Update(request *types.GitRegistry) (*types.Git
 		UserName:              request.UserName,
 		GitHostId:             request.GitHostId,
 		EnableTLSVerification: request.EnableTLSVerification,
-		TlsKey:                existingProvider.TlsKey,
-		TlsCert:               existingProvider.TlsCert,
-		CaCert:                existingProvider.CaCert,
 		AuditLog:              sql.AuditLog{CreatedBy: existingProvider.CreatedBy, CreatedOn: existingProvider.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
 
+	if request.AuthMode != repository.AUTH_MODE_USERNAME_PASSWORD {
+		request.Password = ""
+		request.TLSConfig = bean.TLSConfig{}
+	}
+
 	if provider.EnableTLSVerification {
+
+		provider.TlsKey = existingProvider.TlsKey
+		provider.TlsCert = existingProvider.TlsCert
+		provider.CaCert = existingProvider.CaCert
+
 		if len(request.TLSConfig.CaData) > 0 {
 			provider.CaCert = request.TLSConfig.CaData
 		}
