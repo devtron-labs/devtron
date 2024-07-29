@@ -560,11 +560,7 @@ func (impl *TerminalSessionHandlerImpl) getClientSetAndRestConfigForTerminalConn
 			return nil, nil, fmt.Errorf("not able to find cluster-config")
 		}
 
-		clusterConfig, err = clusterBean.GetClusterConfig()
-		if err != nil {
-			impl.logger.Errorw("error in config", "err", err, "clusterId", req.ClusterId)
-			return nil, nil, err
-		}
+		clusterConfig = clusterBean.GetClusterConfig()
 		restConfig, err = impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config by cluster", "err", err, "clusterName", clusterConfig.ClusterName)
@@ -667,11 +663,7 @@ func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudi
 			impl.logger.Errorw("error occurred in finding clusterBean by Id", "clusterId", req.ClusterId, "err", err)
 			return err
 		}
-		clusterConfig, err := clusterBean.GetClusterConfig()
-		if err != nil {
-			impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
-			return err
-		}
+		clusterConfig := clusterBean.GetClusterConfig()
 		restConfig, err = impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)

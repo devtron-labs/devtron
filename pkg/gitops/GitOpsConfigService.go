@@ -181,10 +181,7 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 	if err != nil {
 		return nil, err
 	}
-	cfg, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		return nil, err
-	}
+	cfg := clusterBean.GetClusterConfig()
 
 	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
@@ -367,10 +364,7 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 	if err != nil {
 		return err
 	}
-	cfg, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		return err
-	}
+	cfg := clusterBean.GetClusterConfig()
 
 	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
