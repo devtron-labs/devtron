@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"regexp"
@@ -32,6 +32,7 @@ type CustomTagService interface {
 	CreateOrUpdateCustomTag(tag *bean.CustomTag) error
 	GetCustomTagByEntityKeyAndValue(entityKey int, entityValue string) (*repository.CustomTag, error)
 	GetActiveCustomTagByEntityKeyAndValue(entityKey int, entityValue string) (*repository.CustomTag, error)
+	GetActiveCustomTagByValues(entityValues []string) (pipelineBean.CustomTagArrayResponse, error)
 	GenerateImagePath(entityKey int, entityValue string, dockerRegistryURL string, dockerRepo string) (*repository.ImagePathReservation, error)
 	DeleteCustomTagIfExists(tag bean.CustomTag) error
 	DeactivateImagePathReservation(id int) error
@@ -72,7 +73,7 @@ func (impl *CustomTagServiceImpl) CreateOrUpdateCustomTag(tag *bean.CustomTag) e
 	customTagData = repository.CustomTag{
 		EntityKey:            tag.EntityKey,
 		EntityValue:          tag.EntityValue,
-		TagPattern:           strings.ReplaceAll(tag.TagPattern, bean2.IMAGE_TAG_VARIABLE_NAME_X, bean2.IMAGE_TAG_VARIABLE_NAME_x),
+		TagPattern:           strings.ReplaceAll(tag.TagPattern, pipelineBean.IMAGE_TAG_VARIABLE_NAME_X, pipelineBean.IMAGE_TAG_VARIABLE_NAME_x),
 		AutoIncreasingNumber: tag.AutoIncreasingNumber,
 		Metadata:             tag.Metadata,
 		Active:               true,
@@ -103,6 +104,25 @@ func (impl *CustomTagServiceImpl) GetActiveCustomTagByEntityKeyAndValue(entityKe
 	return impl.customTagRepository.FetchActiveCustomTagData(entityKey, entityValue)
 }
 
+func (impl *CustomTagServiceImpl) GetActiveCustomTagByValues(entityValues []string) (pipelineBean.CustomTagArrayResponse, error) {
+	response := make(map[int]map[string]*repository.CustomTag)
+	customTagDataList, err := impl.customTagRepository.FetchActiveCustomTagDataList(entityValues)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while fetching active custom tag data", "entityValues", entityValues, "err", err)
+		return nil, err
+	}
+	for index := range customTagDataList {
+		if customTagDataList[index] == nil {
+			continue
+		}
+		if response[customTagDataList[index].EntityKey] == nil {
+			response[customTagDataList[index].EntityKey] = make(map[string]*repository.CustomTag)
+		}
+		response[customTagDataList[index].EntityKey][customTagDataList[index].EntityValue] = customTagDataList[index]
+	}
+	return response, err
+}
+
 func (impl *CustomTagServiceImpl) GenerateImagePath(entityKey int, entityValue string, dockerRegistryURL string, dockerRepo string) (*repository.ImagePathReservation, error) {
 	connection := impl.customTagRepository.GetConnection()
 	tx, err := connection.Begin()
@@ -118,13 +138,13 @@ func (impl *CustomTagServiceImpl) GenerateImagePath(entityKey int, entityValue s
 	if err != nil {
 		return nil, err
 	}
-	imagePath := fmt.Sprintf(bean2.ImagePathPattern, dockerRegistryURL, dockerRepo, tag)
+	imagePath := fmt.Sprintf(pipelineBean.ImagePathPattern, dockerRegistryURL, dockerRepo, tag)
 	imagePathReservations, err := impl.customTagRepository.FindByImagePath(tx, imagePath)
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
 	if len(imagePathReservations) > 0 {
-		return nil, bean2.ErrImagePathInUse
+		return nil, pipelineBean.ErrImagePathInUse
 	}
 	imagePathReservation := &repository.ImagePathReservation{
 		ImagePath:   imagePath,
@@ -149,7 +169,7 @@ func validateAndConstructTag(customTagData *repository.CustomTag) (string, error
 	if customTagData.AutoIncreasingNumber < 0 {
 		return "", fmt.Errorf("counter {x} can not be negative")
 	}
-	dockerImageTag := strings.ReplaceAll(customTagData.TagPattern, bean2.IMAGE_TAG_VARIABLE_NAME_x, strconv.Itoa(customTagData.AutoIncreasingNumber-1)) //-1 because number is already incremented, current value will be used next time
+	dockerImageTag := strings.ReplaceAll(customTagData.TagPattern, pipelineBean.IMAGE_TAG_VARIABLE_NAME_x, strconv.Itoa(customTagData.AutoIncreasingNumber-1)) //-1 because number is already incremented, current value will be used next time
 	if !isValidDockerImageTag(dockerImageTag) {
 		return dockerImageTag, fmt.Errorf("invalid docker tag")
 	}
@@ -162,8 +182,8 @@ func validateTagPattern(customTagPattern string) error {
 	}
 
 	variableCount := 0
-	variableCount = variableCount + strings.Count(customTagPattern, bean2.IMAGE_TAG_VARIABLE_NAME_x)
-	variableCount = variableCount + strings.Count(customTagPattern, bean2.IMAGE_TAG_VARIABLE_NAME_X)
+	variableCount = variableCount + strings.Count(customTagPattern, pipelineBean.IMAGE_TAG_VARIABLE_NAME_x)
+	variableCount = variableCount + strings.Count(customTagPattern, pipelineBean.IMAGE_TAG_VARIABLE_NAME_X)
 
 	if variableCount == 0 {
 		// there can be case when there is only one {x} or {x}
@@ -173,8 +193,8 @@ func validateTagPattern(customTagPattern string) error {
 	}
 
 	// replacing variable with 1 (dummy value) and checking if resulting string is valid tag
-	tagWithDummyValue := strings.ReplaceAll(customTagPattern, bean2.IMAGE_TAG_VARIABLE_NAME_x, "1")
-	tagWithDummyValue = strings.ReplaceAll(tagWithDummyValue, bean2.IMAGE_TAG_VARIABLE_NAME_X, "1")
+	tagWithDummyValue := strings.ReplaceAll(customTagPattern, pipelineBean.IMAGE_TAG_VARIABLE_NAME_x, "1")
+	tagWithDummyValue = strings.ReplaceAll(tagWithDummyValue, pipelineBean.IMAGE_TAG_VARIABLE_NAME_X, "1")
 
 	if !isValidDockerImageTag(tagWithDummyValue) {
 		return fmt.Errorf("not a valid image tag")
@@ -185,7 +205,7 @@ func validateTagPattern(customTagPattern string) error {
 
 func isValidDockerImageTag(tag string) bool {
 	// Define the regular expression for a valid Docker image tag
-	re := regexp.MustCompile(bean2.REGEX_PATTERN_FOR_IMAGE_TAG)
+	re := regexp.MustCompile(pipelineBean.REGEX_PATTERN_FOR_IMAGE_TAG)
 	return re.MatchString(tag)
 }
 
@@ -224,7 +244,7 @@ func (impl *CustomTagServiceImpl) ReserveImagePath(imagePath string, customTagId
 		return nil, err
 	}
 	if len(imagePathReservations) > 0 {
-		return nil, bean2.ErrImagePathInUse
+		return nil, pipelineBean.ErrImagePathInUse
 	}
 	imagePathReservation := &repository.ImagePathReservation{
 		ImagePath:   imagePath,
