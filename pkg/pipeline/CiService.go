@@ -551,7 +551,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		}
 		ciBuildConfigBean = templateOverrideBean.CiBuildConfig
 		// updating args coming from ciBaseBuildConfigEntity because it is not part of Ci override
-		ciBuildConfigBean.DockerBuildConfig.Args = ciBaseBuildConfigBean.DockerBuildConfig.Args
+		if ciBuildConfigBean != nil && ciBuildConfigBean.DockerBuildConfig != nil {
+			ciBuildConfigBean.DockerBuildConfig.Args = ciBaseBuildConfigBean.DockerBuildConfig.Args
+		}
 		templateOverride := templateOverrideBean.CiTemplateOverride
 		checkoutPath = templateOverride.GitMaterial.CheckoutPath
 		dockerfilePath = templateOverride.DockerfilePath
