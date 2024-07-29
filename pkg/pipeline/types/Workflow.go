@@ -40,6 +40,14 @@ import (
 	"time"
 )
 
+const (
+	GIT_REPO_URL_PREFIX     = "GIT_REPO_URL"
+	GIT_COMMIT_HASH_PREFIX  = "GIT_COMMIT_HASH"
+	GIT_SOURCE_TYPE_PREFIX  = "GIT_SOURCE_TYPE"
+	GIT_SOURCE_VALUE_PREFIX = "GIT_SOURCE_VALUE"
+	GIT_SOURCE_COUNT        = "GIT_SOURCE_COUNT"
+)
+
 type WorkflowRequest struct {
 	WorkflowNamePrefix         string                            `json:"workflowNamePrefix"`
 	PipelineName               string                            `json:"pipelineName"`
@@ -134,6 +142,8 @@ type WorkflowRequest struct {
 	Env                         *repository.Environment
 	AppLabels                   map[string]string
 	Scope                       resourceQualifiers.Scope
+	BuildxCacheModeMin          bool `json:"buildxCacheModeMin"`
+	AsyncBuildxCacheExport      bool `json:"asyncBuildxCacheExport"`
 }
 
 func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
@@ -596,6 +606,7 @@ type GitMetadata struct {
 	GitCommitHash  string `json:"GIT_COMMIT_HASH"`
 	GitSourceType  string `json:"GIT_SOURCE_TYPE"`
 	GitSourceValue string `json:"GIT_SOURCE_VALUE"`
+	GitRepoUrl     string `json:"GIT_REPO_URL"`
 }
 
 type AppLabelMetadata struct {

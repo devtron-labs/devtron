@@ -20,10 +20,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
+	"maps"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -62,6 +64,10 @@ type CiService interface {
 	TriggerCiPipeline(trigger types.Trigger) (int, error)
 	GetCiMaterials(pipelineId int, ciMaterials []*pipelineConfig.CiPipelineMaterial) ([]*pipelineConfig.CiPipelineMaterial, error)
 }
+type BuildxCacheFlags struct {
+	BuildxCacheModeMin     bool `env:"BUILDX_CACHE_MODE_MIN" envDefault:"false"`
+	AsyncBuildxCacheExport bool `env:"ASYNC_BUILDX_CACHE_EXPORT" envDefault:"false"`
+}
 
 type CiServiceImpl struct {
 	Logger                       *zap.SugaredLogger
@@ -83,6 +89,8 @@ type CiServiceImpl struct {
 	pluginInputVariableParser    PluginInputVariableParser
 	globalPluginService          plugin.GlobalPluginService
 	infraProvider                infraProviders.InfraProvider
+	ciCdPipelineOrchestrator     CiCdPipelineOrchestrator
+	buildxCacheFlags             *BuildxCacheFlags
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -98,7 +106,13 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	pluginInputVariableParser PluginInputVariableParser,
 	globalPluginService plugin.GlobalPluginService,
 	infraProvider infraProviders.InfraProvider,
+	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
 ) *CiServiceImpl {
+	buildxCacheFlags := &BuildxCacheFlags{}
+	err := env.Parse(buildxCacheFlags)
+	if err != nil {
+		Logger.Infow("error occurred while parsing BuildxCacheFlags env,so setting BuildxCacheModeMin and AsyncBuildxCacheExport to default value", "err", err)
+	}
 	cis := &CiServiceImpl{
 		Logger:                       Logger,
 		workflowService:              workflowService,
@@ -118,6 +132,8 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		pluginInputVariableParser:    pluginInputVariableParser,
 		globalPluginService:          globalPluginService,
 		infraProvider:                infraProvider,
+		ciCdPipelineOrchestrator:     ciCdPipelineOrchestrator,
+		buildxCacheFlags:             buildxCacheFlags,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -147,7 +163,10 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	if err != nil {
 		return 0, err
 	}
-	if trigger.PipelineType == string(CiPipeline.CI_JOB) && len(ciMaterials) != 0 {
+
+	// checking if user has given run time parameters for externalCiArtifact, if given then sending git material to Ci-Runner
+	externalCiArtifact, exists := trigger.ExtraEnvironmentVariables["externalCiArtifact"]
+	if trigger.PipelineType == string(CiPipeline.CI_JOB) && len(ciMaterials) != 0 && !exists && externalCiArtifact == "" {
 		ciMaterials = []*pipelineConfig.CiPipelineMaterial{ciMaterials[0]}
 		ciMaterials[0].GitMaterial = nil
 		ciMaterials[0].GitMaterialId = 0
@@ -192,6 +211,12 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	if ciWorkflowConfig.Namespace == "" {
 		ciWorkflowConfig.Namespace = impl.config.GetDefaultNamespace()
 	}
+	if scope.SystemMetadata == nil {
+		scope.SystemMetadata = &resourceQualifiers.SystemMetadata{
+			Namespace: ciWorkflowConfig.Namespace,
+			AppName:   pipeline.App.AppName,
+		}
+	}
 
 	// preCiSteps, postCiSteps, refPluginsData, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, ciEvent)
 	prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, pipelineConfigBean.CiStage, scope)
@@ -213,13 +238,22 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		return 0, err
 	}
 
+	// get env variables of git trigger data and add it in the extraEnvVariables
+	gitTriggerEnvVariables, _, err := impl.ciCdPipelineOrchestrator.GetGitCommitEnvVarDataForCICDStage(savedCiWf.GitTriggers)
+	if err != nil {
+		impl.Logger.Errorw("error in getting gitTrigger env data for stage", "gitTriggers", savedCiWf.GitTriggers, "err", err)
+		return 0, err
+	}
+	maps.Copy(trigger.ExtraEnvironmentVariables, gitTriggerEnvVariables)
+
 	workflowRequest, err := impl.buildWfRequestForCiPipeline(pipeline, trigger, ciMaterials, savedCiWf, ciWorkflowConfig, ciPipelineScripts, preCiSteps, postCiSteps, refPluginsData, isJob)
 	if err != nil {
 		impl.Logger.Errorw("make workflow req", "err", err)
 		return 0, err
 	}
 	workflowRequest.Scope = scope
-
+	workflowRequest.BuildxCacheModeMin = impl.buildxCacheFlags.BuildxCacheModeMin
+	workflowRequest.AsyncBuildxCacheExport = impl.buildxCacheFlags.AsyncBuildxCacheExport
 	if impl.config != nil && impl.config.BuildxK8sDriverOptions != "" {
 		err = impl.setBuildxK8sDriverData(workflowRequest)
 		if err != nil {
@@ -245,6 +279,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		workflowRequest.Type = pipelineConfigBean.CI_WORKFLOW_PIPELINE_TYPE
 	}
 
+	workflowRequest.CiPipelineType = trigger.PipelineType
 	err = impl.executeCiPipeline(workflowRequest)
 	if err != nil {
 		impl.Logger.Errorw("workflow error", "err", err)

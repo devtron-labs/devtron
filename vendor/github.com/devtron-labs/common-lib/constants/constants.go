@@ -31,6 +31,9 @@ func (m ServiceName) ToString() string {
 
 const (
 	Orchestrator ServiceName = "ORCHESTRATOR"
+	Kubelink     ServiceName = "KUBELINK"
+	GitSensor    ServiceName = "GITSENSOR"
+	Kubewatch    ServiceName = "KUBEWATCH"
 )
 
 // metrics name constants

@@ -19,6 +19,7 @@ package casbin
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/util"
 	"math/rand"
 	"strconv"
 	"sync"
@@ -40,7 +41,7 @@ func TestEnforcerCache(t *testing.T) {
 
 	t.Run("requesterAndWriter", func(t *testing.T) {
 		for i := 0; i < 100_000; i++ {
-			emailId := GetRandomStringOfGivenLength(rand.Intn(1000)) + "@yopmail.com"
+			emailId := util.GetRandomStringOfGivenLength(rand.Intn(1000)) + "@yopmail.com"
 			getAndSet(lock, emailId, cache123)
 			result, expiration, b := cache123.GetWithExpiration(emailId)
 			fmt.Println("result", result, "expiration", expiration, "found", b)
@@ -52,7 +53,7 @@ func TestEnforcerCache(t *testing.T) {
 
 	t.Run("CacheDump", func(t *testing.T) {
 		for i := 0; i < 100_000; i++ {
-			emailId := GetRandomStringOfGivenLength(rand.Intn(50)) + "@yopmail.com"
+			emailId := util.GetRandomStringOfGivenLength(rand.Intn(50)) + "@yopmail.com"
 			getAndSet(lock, emailId, cache123)
 			cache123.GetWithExpiration(emailId)
 			//result, expiration, b := cache123.GetWithExpiration(emailId)
@@ -73,19 +74,6 @@ func GetCacheDump(cache *cache.Cache) string {
 		return ""
 	}
 	return string(cacheData)
-}
-
-func GetRandomStringOfGivenLength(length int) string {
-	const charset = "abcdefghijklmnopqrstuvwxyz" +
-		"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
-	var seededRand = rand.New(
-		rand.NewSource(time.Now().UnixNano()))
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[seededRand.Intn(len(charset))]
-	}
-	return string(b)
 }
 
 func invalidateCache_123(lock map[string]*CacheData, cache *cache.Cache) {
