@@ -1,4 +1,4 @@
-# Example - Okta SSO
+# Okta
 
 ## Prerequisites
 
