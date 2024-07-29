@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/retryFunc"
 	"github.com/devtron-labs/go-bitbucket"
 	"go.uber.org/zap"
@@ -59,21 +60,30 @@ func NewGitBitbucketClient(username, token, host string, logger *zap.SugaredLogg
 	}
 }
 
-func (impl GitBitbucketClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
+func (impl GitBitbucketClient) DeleteRepository(config *bean2.GitOpsConfigDto) (err error) {
+	start := time.Now()
+	defer func() {
+		globalUtil.TriggerGitOpsMetrics("DeleteRepository", "GitBitbucketClient", start, err)
+	}()
 	repoOptions := &bitbucket.RepositoryOptions{
 		Owner:     config.BitBucketWorkspaceId,
 		RepoSlug:  config.GitRepoName,
 		IsPrivate: "true",
 		Project:   config.BitBucketProjectKey,
 	}
-	_, err := impl.client.Repositories.Repository.Delete(repoOptions)
+	_, err = impl.client.Repositories.Repository.Delete(repoOptions)
 	if err != nil {
-		impl.logger.Errorw("error in deleting repo gitlab", "repoName", repoOptions.RepoSlug, "err", err)
+		impl.logger.Errorw("error in deleting repo gitlab", "repoName", config.GitRepoName, "err", err)
 	}
 	return err
 }
 
 func (impl GitBitbucketClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, err error) {
+	start := time.Now()
+	defer func() {
+		globalUtil.TriggerGitOpsMetrics("GetRepoUrl", "GitBitbucketClient", start, err)
+	}()
+
 	repoOptions := &bitbucket.RepositoryOptions{
 		Owner:    config.BitBucketWorkspaceId,
 		Project:  config.BitBucketProjectKey,
@@ -91,6 +101,12 @@ func (impl GitBitbucketClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUr
 }
 
 func (impl GitBitbucketClient) CreateRepository(ctx context.Context, config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+	var err error
+	start := time.Now()
+	defer func() {
+		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitBitbucketClient", start, err)
+	}()
+
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 
 	workSpaceId := config.BitBucketWorkspaceId
@@ -103,6 +119,7 @@ func (impl GitBitbucketClient) CreateRepository(ctx context.Context, config *bea
 		Description: config.Description,
 		Project:     projectKey,
 	}
+
 	repoUrl, repoExists, err := impl.repoExists(repoOptions)
 	if err != nil {
 		impl.logger.Errorw("error in communication with bitbucket", "repoOptions", repoOptions, "err", err)
@@ -164,6 +181,12 @@ func (impl GitBitbucketClient) CreateRepository(ctx context.Context, config *bea
 }
 
 func (impl GitBitbucketClient) repoExists(repoOptions *bitbucket.RepositoryOptions) (repoUrl string, exists bool, err error) {
+
+	start := time.Now()
+	defer func() {
+		globalUtil.TriggerGitOpsMetrics("repoExists", "GitBitbucketClient", start, err)
+	}()
+
 	repo, err := impl.client.Repositories.Repository.Get(repoOptions)
 	if repo == nil && err.Error() == BITBUCKET_REPO_NOT_FOUND_ERROR {
 		return "", false, nil
@@ -198,6 +221,12 @@ func getDir() string {
 }
 
 func (impl GitBitbucketClient) CreateReadme(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
+	var err error
+	start := time.Now()
+	defer func() {
+		globalUtil.TriggerGitOpsMetrics("CreateReadme", "GitBitbucketClient", start, err)
+	}()
+
 	cfg := &ChartConfig{
 		ChartName:      config.GitRepoName,
 		ChartLocation:  "",
@@ -238,6 +267,12 @@ func (impl GitBitbucketClient) cleanUp(cloneDir string) {
 }
 
 func (impl GitBitbucketClient) CommitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
+
+	start := time.Now()
+	defer func() {
+		globalUtil.TriggerGitOpsMetrics("CommitValues", "GitBitbucketClient", start, err)
+	}()
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		impl.logger.Errorw("error in getting home dir", "err", err)
