@@ -307,8 +307,10 @@ func (impl GitRegistryConfigImpl) Update(request *types.GitRegistry) (*types.Git
 	}
 
 	if request.AuthMode != repository.AUTH_MODE_USERNAME_PASSWORD {
-		request.Password = ""
-		request.TLSConfig = bean.TLSConfig{}
+		provider.Password = ""
+		provider.TlsCert = ""
+		provider.TlsKey = ""
+		provider.CaCert = ""
 	}
 
 	if provider.EnableTLSVerification {
