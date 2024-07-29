@@ -317,7 +317,8 @@ func (impl *GlobalPluginRepositoryImpl) GetMetaDataForAllPlugins() ([]*PluginMet
 	var plugins []*PluginMetadata
 	err := impl.dbConnection.Model(&plugins).
 		Where("deleted = ?", false).
-		Order("created_on DESC").Select()
+		Order("id").
+		Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting all plugins", "err", err)
 		return nil, err

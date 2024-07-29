@@ -1826,6 +1826,7 @@ func (impl *GlobalPluginServiceImpl) MigratePluginDataToParentPluginMetadata(plu
 
 	pluginMetadataToUpdate := make([]*repository.PluginMetadata, 0, len(pluginsMetadata))
 	identifierVsPluginMetadata := make(map[string]*repository.PluginMetadata, len(pluginsMetadata))
+	pluginsIdentifierSlice := make([]string, 0, len(pluginsMetadata))
 	for _, item := range pluginsMetadata {
 		if item.PluginParentMetadataId > 0 {
 			//data already migrated
@@ -1836,28 +1837,30 @@ func (impl *GlobalPluginServiceImpl) MigratePluginDataToParentPluginMetadata(plu
 			identifier = utils.CreateUniqueIdentifier(item.Name, item.Id)
 		}
 		identifierVsPluginMetadata[identifier] = item
+		pluginsIdentifierSlice = append(pluginsIdentifierSlice, identifier)
 	}
 
-	for identifier, pluginMetadata := range identifierVsPluginMetadata {
-		pluginParentMetadata, err := impl.globalPluginRepository.GetPluginParentMetadataByIdentifier(identifier)
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.logger.Errorw("MigratePluginDataToParentPluginMetadata, error in GetPluginParentMetadataByIdentifier", "pluginIdentifier", identifier, "err", err)
-			return err
+	for _, identifier := range pluginsIdentifierSlice {
+		if pluginMetadata, ok := identifierVsPluginMetadata[identifier]; ok {
+			pluginParentMetadata, err := impl.globalPluginRepository.GetPluginParentMetadataByIdentifier(identifier)
+			if err != nil && !util.IsErrNoRows(err) {
+				impl.logger.Errorw("MigratePluginDataToParentPluginMetadata, error in GetPluginParentMetadataByIdentifier", "pluginIdentifier", identifier, "err", err)
+				return err
+			}
+			if pluginParentMetadata != nil && pluginParentMetadata.Id > 0 {
+				continue
+			}
+			parentMetadata := repository.NewPluginParentMetadata()
+			parentMetadata.SetParentPluginMetadata(pluginMetadata).CreateAuditLog(bean.SystemUserId)
+			parentMetadata.Identifier = identifier
+			parentMetadata, err = impl.globalPluginRepository.SavePluginParentMetadata(tx, parentMetadata)
+			if err != nil {
+				impl.logger.Errorw("MigratePluginDataToParentPluginMetadata, error in saving plugin parent metadata", "err", err)
+				return err
+			}
+			pluginMetadata.PluginParentMetadataId = parentMetadata.Id
+			pluginMetadataToUpdate = append(pluginMetadataToUpdate, pluginMetadata)
 		}
-		if pluginParentMetadata != nil && pluginParentMetadata.Id > 0 {
-			continue
-		}
-		parentMetadata := repository.NewPluginParentMetadata()
-		parentMetadata.SetParentPluginMetadata(pluginMetadata).CreateAuditLog(bean.SystemUserId)
-		parentMetadata.Identifier = identifier
-		parentMetadata, err = impl.globalPluginRepository.SavePluginParentMetadata(tx, parentMetadata)
-		if err != nil {
-			impl.logger.Errorw("MigratePluginDataToParentPluginMetadata, error in saving plugin parent metadata", "err", err)
-			return err
-		}
-		pluginMetadata.PluginParentMetadataId = parentMetadata.Id
-		pluginMetadataToUpdate = append(pluginMetadataToUpdate, pluginMetadata)
-
 	}
 
 	if len(pluginMetadataToUpdate) > 0 {
