@@ -63,7 +63,7 @@ func (handler *DeploymentConfigurationRestHandlerImpl) ConfigAutoComplete(w http
 
 	res, err := handler.deploymentConfigurationService.ConfigAutoComplete(appId, envId)
 	if err != nil {
-		handler.logger.Errorw("service err, ConfigAutoComplete ", "err", err)
+		handler.logger.Errorw("service err, ConfigAutoComplete ", "appId", appId, "envId", envId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

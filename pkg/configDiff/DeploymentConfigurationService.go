@@ -1,6 +1,7 @@
 package configDiff
 
 import (
+	"github.com/devtron-labs/devtron/pkg/configDiff/adaptor"
 	bean2 "github.com/devtron-labs/devtron/pkg/configDiff/bean"
 	"github.com/devtron-labs/devtron/pkg/configDiff/helper"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -33,7 +34,7 @@ func (impl *DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, en
 		impl.logger.Errorw("error in fetching CM and CS names at app or env level", "appId", appId, "envId", envId, "err", err)
 		return nil, err
 	}
-	cmcsKeyPropertyAppLevelMap, cmcsKeyPropertyEnvLevelMap := helper.GetCmCsAppAndEnvLevelMap(cMCSNamesAppLevel, cMCSNamesEnvLevel)
+	cmcsKeyPropertyAppLevelMap, cmcsKeyPropertyEnvLevelMap := adaptor.GetCmCsAppAndEnvLevelMap(cMCSNamesAppLevel, cMCSNamesEnvLevel)
 	for key, configProperty := range cmcsKeyPropertyAppLevelMap {
 		if _, ok := cmcsKeyPropertyEnvLevelMap[key]; !ok {
 			if envId > 0 {
@@ -50,7 +51,7 @@ func (impl *DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, en
 		}
 	}
 	combinedProperties := helper.GetCombinedPropertiesMap(cmcsKeyPropertyAppLevelMap, cmcsKeyPropertyEnvLevelMap)
-	combinedProperties = append(combinedProperties, helper.GetConfigProperty(0, "", bean.DeploymentTemplate, bean2.PublishedConfigState))
+	combinedProperties = append(combinedProperties, adaptor.GetConfigProperty(0, "", bean.DeploymentTemplate, bean2.PublishedConfigState))
 
 	configDataResp := bean2.NewConfigDataResponse().WithResourceConfig(combinedProperties)
 	return configDataResp, nil
