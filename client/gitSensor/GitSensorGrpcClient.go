@@ -494,8 +494,9 @@ func (client *GrpcApiClientImpl) GetAllWebhookEventConfigForHost(ctx context.Con
 	}
 
 	res, err := serviceClient.GetAllWebhookEventConfigForHost(ctx, &pb.WebhookEventConfigRequest{
-		GitHostId: int64(req.GitHostId),
-		EventId:   int64(req.EventId),
+		GitHostId:   int64(req.GitHostId),
+		EventId:     int64(req.EventId),
+		GitHostName: req.GitHostName,
 	})
 	if err != nil {
 		return nil, err

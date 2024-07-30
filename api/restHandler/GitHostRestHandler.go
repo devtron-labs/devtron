@@ -189,8 +189,16 @@ func (impl GitHostRestHandlerImpl) GetAllWebhookEventConfig(w http.ResponseWrite
 		return
 	}
 
+	gitHost, err := impl.gitHostConfig.GetById(id)
+	if err != nil {
+		impl.logger.Errorw("service err, GetGitHostById", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
 	webhookEventRequest := &gitSensor.WebhookEventConfigRequest{
-		GitHostId: id,
+		GitHostId:   id,
+		GitHostName: gitHost.Name,
 	}
 
 	res, err := impl.gitSensorClient.GetAllWebhookEventConfigForHost(context.Background(), webhookEventRequest)
@@ -275,7 +283,8 @@ func (impl GitHostRestHandlerImpl) GetWebhookDataMetaConfig(w http.ResponseWrite
 		webhookDataMetaConfigResponse.GitHost = gitHost
 
 		webhookEventRequest := &gitSensor.WebhookEventConfigRequest{
-			GitHostId: gitHostId,
+			GitHostId:   gitHostId,
+			GitHostName: gitHost.Name,
 		}
 		webhookEvents, err := impl.gitSensorClient.GetAllWebhookEventConfigForHost(context.Background(), webhookEventRequest)
 		if err != nil {

@@ -16,6 +16,7 @@ import (
 
 type DeploymentConfigService interface {
 	CreateOrUpdateConfig(tx *pg.Tx, config *bean.DeploymentConfig, userId int32) (*bean.DeploymentConfig, error)
+	IsDeploymentConfigUsed() bool
 	GetConfigForDevtronApps(appId, envId int) (*bean.DeploymentConfig, error)
 	GetAndMigrateConfigIfAbsentForDevtronApps(appId, envId int) (*bean.DeploymentConfig, error)
 	GetConfigForHelmApps(appId, envId int) (*bean.DeploymentConfig, error)
@@ -84,6 +85,10 @@ func (impl *DeploymentConfigServiceImpl) CreateOrUpdateConfig(tx *pg.Tx, config 
 	}
 
 	return ConvertDeploymentConfigDbObjToDTO(newDBObj), nil
+}
+
+func (impl *DeploymentConfigServiceImpl) IsDeploymentConfigUsed() bool {
+	return impl.deploymentServiceTypeConfig.UseDeploymentConfigData
 }
 
 func (impl *DeploymentConfigServiceImpl) GetConfigForDevtronApps(appId, envId int) (*bean.DeploymentConfig, error) {

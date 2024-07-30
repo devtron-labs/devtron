@@ -17,6 +17,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -64,7 +65,7 @@ func NewGitOpsConfigReadServiceImpl(logger *zap.SugaredLogger,
 func (impl *GitOpsConfigReadServiceImpl) IsGitOpsConfigured() (*bean.GitOpsConfigurationStatus, error) {
 	gitOpsConfigurationStatus := &bean.GitOpsConfigurationStatus{}
 	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
 		return gitOpsConfigurationStatus, err
 	}
