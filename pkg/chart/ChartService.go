@@ -544,13 +544,12 @@ func (impl *ChartServiceImpl) getNewVersion(chartRepo, chartName, refChartLocati
 
 func (impl *ChartServiceImpl) IsGitOpsRepoConfiguredForDevtronApps(appId int) (bool, error) {
 	gitOpsConfigStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
-	if util.IsErrNoRows(err) {
-		return false, nil
-	} else if err != nil {
+	if err != nil {
 		impl.logger.Errorw("error in fetching latest chart for app by appId")
 		return false, err
-	}
-	if !gitOpsConfigStatus.AllowCustomRepository {
+	} else if !gitOpsConfigStatus.IsGitOpsConfigured {
+		return false, nil
+	} else if !gitOpsConfigStatus.AllowCustomRepository {
 		return true, nil
 	}
 	latestChartConfiguredInApp, err := impl.FindLatestChartForAppByAppId(appId)

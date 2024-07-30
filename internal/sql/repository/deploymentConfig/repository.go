@@ -168,7 +168,8 @@ func (impl *RepositoryImpl) GetByAppIdAndEnvIdEvenIfInactive(appId, envId int) (
 func (impl *RepositoryImpl) UpdateRepoUrlByAppIdAndEnvId(repoUrl string, appId, envId int) error {
 	_, err := impl.dbConnection.
 		Model((*DeploymentConfig)(nil)).
+		Set("repo_url = ? ", repoUrl).
 		Where("app_id = ? and environment_id = ? ", appId, envId).
-		Update("repo_url = ? ", repoUrl)
+		Update()
 	return err
 }
