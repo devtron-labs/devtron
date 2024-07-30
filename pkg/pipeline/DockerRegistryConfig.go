@@ -23,11 +23,11 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/go-pg/pg"
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/utils/strings/slices"
 	"net/http"
 	url2 "net/url"
@@ -313,7 +313,7 @@ func (impl DockerRegistryConfigImpl) CreateArgoRepositorySecret(artifactStore *t
 			impl.logger.Errorw("error in getting secretData and secretName", "err", err)
 		}
 
-		err = impl.createOrUpdateK8sSecret(uniqueSecretName, secretData)
+		err = impl.createOrUpdateArgoRepoSecret(uniqueSecretName, secretData)
 		if err != nil {
 			impl.logger.Errorw("error in create/update k8s secret", "dockerArtifactStoreId", artifactStore.Id, "err", err)
 			return err
@@ -323,7 +323,7 @@ func (impl DockerRegistryConfigImpl) CreateArgoRepositorySecret(artifactStore *t
 	return nil
 }
 
-func (impl DockerRegistryConfigImpl) createOrUpdateK8sSecret(uniqueSecretName string, secretData map[string]string) error {
+func (impl DockerRegistryConfigImpl) createOrUpdateArgoRepoSecret(uniqueSecretName string, secretData map[string]string) error {
 	clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster bean from db", "err", err)
@@ -340,29 +340,20 @@ func (impl DockerRegistryConfigImpl) createOrUpdateK8sSecret(uniqueSecretName st
 		return err
 	}
 
-	secret, err := impl.K8sService.GetSecret(impl.acdAuthConfig.ACDConfigMapNamespace, uniqueSecretName, client)
-	statusError, ok := err.(*errors2.StatusError)
-	if err != nil && (ok && statusError != nil && statusError.Status().Code != http.StatusNotFound) {
-		impl.logger.Errorw("error in fetching secret", "err", err)
+	secretLabel := make(map[string]string)
+	secretLabel[bean.ARGOCD_REPOSITORY_SECRET_KEY] = bean.ARGOCD_REPOSITORY_SECRET_VALUE
+
+	err = impl.K8sService.CreateOrUpdateSecretByName(
+		client,
+		impl.acdAuthConfig.ACDConfigMapNamespace,
+		uniqueSecretName,
+		secretLabel,
+		secretData)
+	if err != nil {
+		impl.logger.Errorw("error in create/update argocd secret by name", "secretName", uniqueSecretName, "err", err)
 		return err
 	}
 
-	if ok && statusError != nil && statusError.Status().Code == http.StatusNotFound {
-		secretLabel := make(map[string]string)
-		secretLabel["argocd.argoproj.io/secret-type"] = "repository"
-		_, err = impl.K8sService.CreateSecret(impl.acdAuthConfig.ACDConfigMapNamespace, nil, uniqueSecretName, "", client, secretLabel, secretData)
-		if err != nil {
-			impl.logger.Errorw("Error in creating secret for chart repo", "uniqueSecretName", uniqueSecretName, "err", err)
-			return err
-		}
-	} else {
-		secret.StringData = secretData
-		_, err = impl.K8sService.UpdateSecret(impl.acdAuthConfig.ACDConfigMapNamespace, secret, client)
-		if err != nil {
-			impl.logger.Errorw("Error in creating secret for chart repo", "uniqueSecretName", uniqueSecretName, "err", err)
-			return err
-		}
-	}
 	return nil
 }
 
@@ -381,6 +372,7 @@ func getSecretDataAndName(artifactStore *types.DockerArtifactStoreBean, ociRegis
 	uniqueSecretName := fmt.Sprintf("%s-%d", chartName, ociRegistryConfig.Id)
 
 	secretData := parseSecretData(artifactStore, fullRepoPath, host)
+
 	return secretData, uniqueSecretName, nil
 }
 
@@ -404,19 +396,15 @@ func GetHostAndFullRepoPath(url string, repo string) (string, string, error) {
 
 func parseSecretData(artifactStore *types.DockerArtifactStoreBean, repoName string, repoHost string) map[string]string {
 	secretData := make(map[string]string)
-	secretData[repository.REPOSITORY_SECRET_NAME_KEY] = repoName // argocd will use this for passing repository credentials to application
-	secretData[repository.REPOSITORY_SECRET_TYPE_KEY] = repository.REPOSITORY_TYPE_HELM
-	secretData[repository.REPOSITORY_SECRET_URL_KEY] = repoHost
+	secretData[bean.REPOSITORY_SECRET_NAME_KEY] = repoName // argocd will use this for passing repository credentials to application
+	secretData[bean.REPOSITORY_SECRET_TYPE_KEY] = bean.REPOSITORY_TYPE_HELM
+	secretData[bean.REPOSITORY_SECRET_URL_KEY] = repoHost
 	if !artifactStore.IsPublic {
-		secretData[repository.REPOSITORY_SECRET_USERNAME_KEY] = artifactStore.Username
-		secretData[repository.REPOSITORY_SECRET_PASSWORD_KEY] = artifactStore.Password
+		secretData[bean.REPOSITORY_SECRET_USERNAME_KEY] = artifactStore.Username
+		secretData[bean.REPOSITORY_SECRET_PASSWORD_KEY] = artifactStore.Password
 	}
-	secretData[repository.REPOSITORY_SECRET_ENABLE_OCI_KEY] = "true"
+	secretData[bean.REPOSITORY_SECRET_ENABLE_OCI_KEY] = "true"
 	return secretData
-}
-
-func getRepoPath(host string, repo string) {
-
 }
 
 // Create Takes the DockerArtifactStoreBean and creates the record in DB. Returns Error if any

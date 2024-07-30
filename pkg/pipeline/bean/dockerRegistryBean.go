@@ -1,4 +1,4 @@
-package repository
+package bean
 
 const (
 	REPOSITORY_SECRET_NAME_KEY       = "name"
@@ -8,4 +8,6 @@ const (
 	REPOSITORY_SECRET_ENABLE_OCI_KEY = "enableOCI"
 	REPOSITORY_SECRET_TYPE_KEY       = "type"
 	REPOSITORY_TYPE_HELM             = "helm"
+	ARGOCD_REPOSITORY_SECRET_KEY     = "argocd.argoproj.io/secret-type"
+	ARGOCD_REPOSITORY_SECRET_VALUE   = "repository"
 )
