@@ -1974,16 +1974,34 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 		return nil, err
 	}
 	var pipelines []*bean.CDPipelineConfigObject
+	isAppLevelGitOpsConfigured := false
+	gitOpsConfigStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
+	if err != nil {
+		impl.logger.Errorw("error in fetching global GitOps configuration")
+		return nil, err
+	}
+	if gitOpsConfigStatus.IsGitOpsConfigured && !gitOpsConfigStatus.AllowCustomRepository {
+		isAppLevelGitOpsConfigured = true
+	}
+	isDeploymentConfigUsed := impl.deploymentConfigService.IsDeploymentConfigUsed()
 	for _, dbPipeline := range dbPipelines {
-		isAppLevelGitOpsConfigured, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(dbPipeline.AppId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching latest chart details for app by appId")
-			return nil, err
+		if !isAppLevelGitOpsConfigured {
+			// TODO: optimize this to get for the all appIds in one go
+			isAppLevelGitOpsConfigured, err = impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(dbPipeline.AppId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching latest chart details for app by appId")
+				return nil, err
+			}
 		}
-		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(dbPipeline.AppId, dbPipeline.EnvironmentId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", dbPipeline.AppId, "envId", dbPipeline.EnvironmentId, "err", err)
-			return nil, err
+		deploymentAppType := dbPipeline.DeploymentAppType
+		if isDeploymentConfigUsed {
+			// TODO: optimize this to get for the all pipelineIds in one go
+			envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(dbPipeline.AppId, dbPipeline.EnvironmentId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", dbPipeline.AppId, "envId", dbPipeline.EnvironmentId, "err", err)
+				return nil, err
+			}
+			deploymentAppType = envDeploymentConfig.DeploymentAppType
 		}
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                        dbPipeline.Id,
@@ -1994,7 +2012,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 			TriggerType:               dbPipeline.TriggerType,
 			RunPreStageInEnv:          dbPipeline.RunPreStageInEnv,
 			RunPostStageInEnv:         dbPipeline.RunPostStageInEnv,
-			DeploymentAppType:         envDeploymentConfig.DeploymentAppType,
+			DeploymentAppType:         deploymentAppType,
 			AppName:                   dbPipeline.App.AppName,
 			AppId:                     dbPipeline.AppId,
 			TeamId:                    dbPipeline.App.TeamId,
