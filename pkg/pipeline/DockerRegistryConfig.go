@@ -308,79 +308,105 @@ func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(bean *types.DockerArti
 func (impl DockerRegistryConfigImpl) CreateArgoRepositorySecret(artifactStore *types.DockerArtifactStoreBean, ociRegistryConfig *repository.OCIRegistryConfig) error {
 	for _, repo := range artifactStore.RepositoryList {
 
-		url := artifactStore.RegistryURL
-		if !strings.Contains(strings.ToLower(url), "https://") &&
-			!strings.Contains(strings.ToLower(url), "http://") &&
-			!strings.Contains(strings.ToLower(url), "oci://") {
-			url = fmt.Sprintf("//%s", url)
-		}
-		parsedUrl, err := url2.Parse(url)
+		secretData, uniqueSecretName, err := getSecretDataAndName(artifactStore, ociRegistryConfig, repo)
 		if err != nil {
-			return err
-		}
-		var repoName string
-		if len(parsedUrl.Path) > 0 {
-			repoName = path.Join(parsedUrl.Path, repo)
-		} else {
-			repoName = repo
+			impl.logger.Errorw("error in getting secretData and secretName", "err", err)
 		}
 
-		repoSplit := strings.Split(repo, "/")
-		chartName := repoSplit[len(repoSplit)-1]
-
-		uniqueSecretName := fmt.Sprintf("%s-%d", chartName, ociRegistryConfig.Id)
-
-		secretData := parseSecretData(artifactStore, repoName, parsedUrl)
-
-		clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
+		err = impl.createOrUpdateK8sSecret(uniqueSecretName, secretData)
 		if err != nil {
-			impl.logger.Errorw("error in fetching cluster bean from db", "err", err)
+			impl.logger.Errorw("error in create/update k8s secret", "dockerArtifactStoreId", artifactStore.Id, "err", err)
 			return err
-		}
-		cfg, err := clusterBean.GetClusterConfig()
-		if err != nil {
-			impl.logger.Errorw("error in getting cluster config", "err", err)
-			return err
-		}
-		client, err := impl.K8sService.GetCoreV1Client(cfg)
-		if err != nil {
-			impl.logger.Errorw("error in creating kubernetes client", "err", err)
-			return err
-		}
-
-		secret, err := impl.K8sService.GetSecret(impl.acdAuthConfig.ACDConfigMapNamespace, uniqueSecretName, client)
-		statusError, ok := err.(*errors2.StatusError)
-		if err != nil && (ok && statusError != nil && statusError.Status().Code != http.StatusNotFound) {
-			impl.logger.Errorw("error in fetching secret", "err", err)
-			return err
-		}
-
-		if ok && statusError != nil && statusError.Status().Code == http.StatusNotFound {
-			secretLabel := make(map[string]string)
-			secretLabel["argocd.argoproj.io/secret-type"] = "repository"
-			_, err = impl.K8sService.CreateSecret(impl.acdAuthConfig.ACDConfigMapNamespace, nil, uniqueSecretName, "", client, secretLabel, secretData)
-			if err != nil {
-				impl.logger.Errorw("Error in creating secret for chart repo", "Chart Name", repoName, "err", err)
-				return err
-			}
-		} else {
-			secret.StringData = secretData
-			_, err = impl.K8sService.UpdateSecret(impl.acdAuthConfig.ACDConfigMapNamespace, secret, client)
-			if err != nil {
-				impl.logger.Errorw("Error in creating secret for chart repo", "Chart Name", repoName, "err", err)
-				return err
-			}
 		}
 
 	}
 	return nil
 }
 
-func parseSecretData(artifactStore *types.DockerArtifactStoreBean, repoName string, parsedUrl *url2.URL) map[string]string {
+func (impl DockerRegistryConfigImpl) createOrUpdateK8sSecret(uniqueSecretName string, secretData map[string]string) error {
+	clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster bean from db", "err", err)
+		return err
+	}
+	cfg := clusterBean.GetClusterConfig()
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster config", "err", err)
+		return err
+	}
+	client, err := impl.K8sService.GetCoreV1Client(cfg)
+	if err != nil {
+		impl.logger.Errorw("error in creating kubernetes client", "err", err)
+		return err
+	}
+
+	secret, err := impl.K8sService.GetSecret(impl.acdAuthConfig.ACDConfigMapNamespace, uniqueSecretName, client)
+	statusError, ok := err.(*errors2.StatusError)
+	if err != nil && (ok && statusError != nil && statusError.Status().Code != http.StatusNotFound) {
+		impl.logger.Errorw("error in fetching secret", "err", err)
+		return err
+	}
+
+	if ok && statusError != nil && statusError.Status().Code == http.StatusNotFound {
+		secretLabel := make(map[string]string)
+		secretLabel["argocd.argoproj.io/secret-type"] = "repository"
+		_, err = impl.K8sService.CreateSecret(impl.acdAuthConfig.ACDConfigMapNamespace, nil, uniqueSecretName, "", client, secretLabel, secretData)
+		if err != nil {
+			impl.logger.Errorw("Error in creating secret for chart repo", "uniqueSecretName", uniqueSecretName, "err", err)
+			return err
+		}
+	} else {
+		secret.StringData = secretData
+		_, err = impl.K8sService.UpdateSecret(impl.acdAuthConfig.ACDConfigMapNamespace, secret, client)
+		if err != nil {
+			impl.logger.Errorw("Error in creating secret for chart repo", "uniqueSecretName", uniqueSecretName, "err", err)
+			return err
+		}
+	}
+	return nil
+}
+
+func getSecretDataAndName(artifactStore *types.DockerArtifactStoreBean, ociRegistryConfig *repository.OCIRegistryConfig, repo string) (map[string]string, string, error) {
+
+	url := artifactStore.RegistryURL
+
+	fullRepoPath, host, err := GetHostAndFullRepoPath(url, repo)
+	if err != nil {
+		return nil, "", err
+	}
+
+	repoSplit := strings.Split(fullRepoPath, "/")
+	chartName := repoSplit[len(repoSplit)-1]
+
+	uniqueSecretName := fmt.Sprintf("%s-%d", chartName, ociRegistryConfig.Id)
+
+	secretData := parseSecretData(artifactStore, fullRepoPath, host)
+	return secretData, uniqueSecretName, nil
+}
+
+func GetHostAndFullRepoPath(url string, repo string) (string, string, error) {
+	parsedUrl, err := url2.Parse(url)
+	if err != nil || parsedUrl.Scheme == "" {
+		url = fmt.Sprintf("//%s", url)
+		parsedUrl, err = url2.Parse(url)
+		if err != nil {
+			return "", "", err
+		}
+	}
+	var repoName string
+	if len(parsedUrl.Path) > 0 {
+		repoName = path.Join(strings.TrimLeft(parsedUrl.Path, "/"), repo)
+	} else {
+		repoName = repo
+	}
+	return parsedUrl.Host, repoName, nil
+}
+
+func parseSecretData(artifactStore *types.DockerArtifactStoreBean, repoName string, repoHost string) map[string]string {
 	secretData := make(map[string]string)
 	secretData[repository.REPOSITORY_SECRET_NAME_KEY] = repoName // argocd will use this for passing repository credentials to application
 	secretData[repository.REPOSITORY_SECRET_TYPE_KEY] = repository.REPOSITORY_TYPE_HELM
-	secretData[repository.REPOSITORY_SECRET_URL_KEY] = parsedUrl.Host
+	secretData[repository.REPOSITORY_SECRET_URL_KEY] = repoHost
 	if !artifactStore.IsPublic {
 		secretData[repository.REPOSITORY_SECRET_USERNAME_KEY] = artifactStore.Username
 		secretData[repository.REPOSITORY_SECRET_PASSWORD_KEY] = artifactStore.Password

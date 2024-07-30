@@ -24,9 +24,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/util/gitUtil"
-	"net/url"
-	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -238,32 +235,6 @@ type Dependency struct {
 	Name       string `json:"name"`
 	Version    string `json:"version"`
 	Repository string `json:"repository"`
-}
-
-func (d *Dependency) SanitizeRepoNameAndURLForOCIRepo() {
-
-	if !strings.HasPrefix(d.Repository, "oci://") {
-		if !strings.Contains(strings.ToLower(d.Repository), "https") && !strings.Contains(strings.ToLower(d.Repository), "http") {
-			d.Repository = fmt.Sprintf("//%s", d.Repository)
-		}
-		d.Repository = strings.TrimSpace(d.Repository)
-		parsedUrl, err := url.Parse(d.Repository)
-		if err != nil {
-			return
-		}
-		parsedUrlPath := strings.TrimSpace(parsedUrl.Path)
-		parsedHost := strings.TrimSpace(parsedUrl.Host)
-		uri := filepath.Join(parsedHost, parsedUrlPath)
-		d.Repository = fmt.Sprintf("%s://%s", "oci", uri)
-	}
-
-	idx := strings.LastIndex(d.Name, "/")
-	if idx != -1 {
-		name := d.Name[idx+1:]
-		url := fmt.Sprintf("%s/%s", d.Repository, d.Name[0:idx])
-		d.Repository = url
-		d.Name = name
-	}
 }
 
 const REFERENCE_TYPE_DEFAULT string = "DEFAULT"
