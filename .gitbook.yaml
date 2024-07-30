@@ -126,3 +126,4 @@ redirects:
     user-guide/creating-application/workflow/ci-pipeline2: user-guide/creating-application/workflow/ci-pipeline.md
     user-guide/clusters: user-guide/resource-browser.md
     usage/clusters: user-guide/resource-browser.md
+    global-configurations/authorization/sso-login/okta: user-guide/global-configurations/authorization/sso/okta.md
