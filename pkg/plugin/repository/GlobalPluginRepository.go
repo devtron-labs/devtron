@@ -695,7 +695,6 @@ func (impl *GlobalPluginRepositoryImpl) GetPluginParentMetadataByIdentifier(plug
 	err := impl.dbConnection.Model(&pluginParentMetadata).Where("identifier = ?", pluginIdentifier).
 		Where("deleted = ?", false).Select()
 	if err != nil {
-		impl.logger.Errorw("err in getting plugin parent metadata by pluginIdentifier", "pluginIdentifier", pluginIdentifier, "err", err)
 		return nil, err
 	}
 	return &pluginParentMetadata, nil
