@@ -7,7 +7,7 @@ toolchain go1.21.8
 require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/Pallinder/go-randomdata v1.2.0
-	github.com/argoproj/argo-cd/v2 v2.8.17
+	github.com/argoproj/argo-cd/v2 v2.8.19
 	github.com/argoproj/argo-workflows/v3 v3.4.3
 	github.com/argoproj/gitops-engine v0.7.1-0.20231013183858-f15cf615b814
 	github.com/aws/aws-sdk-go v1.44.290
@@ -233,7 +233,7 @@ require (
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/skeema/knownhosts v1.2.1 // indirect
+	github.com/skeema/knownhosts v1.2.2 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/cobra v1.8.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
