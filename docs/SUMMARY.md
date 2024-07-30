@@ -132,6 +132,7 @@
   * [Create Your Plugin](user-guide/plugins/create-plugin.md)
   * [Our Plugins](user-guide/plugins/plugin-list.md)
     * [Codacy](user-guide/plugins/codacy.md)
+    * [Code-Scan](user-guide/plugins/code-scan.md)
     * [Copy Container Image](user-guide/plugins/copy-container-image.md)
     * [Dependency track - Maven & Gradle](user-guide/plugins/dependency-track-maven-gradle.md)
     * [Dependency track - NodeJS](user-guide/plugins/dependency-track-nodejs.md)
