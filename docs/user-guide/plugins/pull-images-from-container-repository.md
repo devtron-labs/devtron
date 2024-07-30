@@ -20,8 +20,8 @@ Before integrating the **Pull images from the container repository** plugin, ens
 4. Click **New Workflow** and navigate to the **CREATE JOB PIPELINE**.
 5. Enter the required fields in the **Basic configuration** window.
 6. Under 'TASKS', click the **+ Add task** button.
-6. Select the **Pull images from container repository** plugin.
-7. Enter the following [user inputs](#user-inputs) with appropriate values.
+7. Select the **Pull images from container repository** plugin.
+8. Enter the following [user inputs](#user-inputs) with appropriate values.
 ---
 
 ## User Inputs
