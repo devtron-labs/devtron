@@ -34,7 +34,7 @@ type AppStoreDeploymentCommonService interface {
 	// GetValuesString will return values string from the given valuesOverrideYaml
 	GetValuesString(chartName, valuesOverrideYaml string) (string, error)
 	// GetRequirementsString will return requirement dependencies for the given appStoreVersionId
-	GetRequirementsString(appStoreVersionId int) (string, error)
+	GetRequirementsString(appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) (string, error)
 	// CreateChartProxyAndGetPath parse chart in local directory and returns path of local dir and values.yaml
 	CreateChartProxyAndGetPath(chartCreateRequest *util.ChartCreateRequest) (*util.ChartCreateResponse, error)
 }
@@ -80,12 +80,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetValuesString(chartName, value
 	return string(valuesByte), nil
 }
 
-func (impl AppStoreDeploymentCommonServiceImpl) GetRequirementsString(appStoreVersionId int) (string, error) {
-	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(appStoreVersionId)
-	if err != nil {
-		impl.logger.Errorw("fetching error", "err", err)
-		return "", err
-	}
+func (impl AppStoreDeploymentCommonServiceImpl) GetRequirementsString(appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) (string, error) {
 
 	dependency := appStoreBean.Dependency{
 		Name:    appStoreAppVersion.AppStore.Name,

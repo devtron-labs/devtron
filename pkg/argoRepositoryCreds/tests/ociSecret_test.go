@@ -1,7 +1,7 @@
 package tests
 
 import (
-	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds"
 	"testing"
 )
 
@@ -82,7 +82,7 @@ func Test_OCIArgoSecretRepoPathAndHostParseLogic(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if host, fullRepoPath, err := pipeline.GetHostAndFullRepoPath(tt.args.repositoryURL, tt.args.repositoryName); err != nil || host != tt.expectedHost || fullRepoPath != tt.expectedFullRepoPath {
+			if host, fullRepoPath, err := argoRepositoryCreds.GetHostAndFullRepoPath(tt.args.repositoryURL, tt.args.repositoryName); err != nil || host != tt.expectedHost || fullRepoPath != tt.expectedFullRepoPath {
 				t.Errorf("SanitizeRepoNameAndURLForOCIRepo() = repositoryURL: %v , repositoryName: %v, want  %v %v", host, fullRepoPath, tt.expectedHost, tt.expectedFullRepoPath)
 			}
 		})

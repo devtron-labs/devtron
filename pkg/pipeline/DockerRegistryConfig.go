@@ -19,19 +19,14 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"github.com/devtron-labs/common-lib/utils/k8s"
 	bean2 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/go-pg/pg"
 	"k8s.io/utils/strings/slices"
 	"net/http"
-	url2 "net/url"
-	"path"
 	"strings"
 	"time"
 
@@ -70,25 +65,19 @@ type DockerRegistryConfigImpl struct {
 	dockerArtifactStoreRepository     repository.DockerArtifactStoreRepository
 	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository
 	ociRegistryConfigRepository       repository.OCIRegistryConfigRepository
-	K8sService                        k8s.K8sService
-	clusterService                    cluster.ClusterService
-	acdAuthConfig                     *util2.ACDAuthConfig
+	RepositorySecret                  argoRepositoryCreds.RepositorySecret
 }
 
 func NewDockerRegistryConfigImpl(logger *zap.SugaredLogger, helmAppService client.HelmAppService, dockerArtifactStoreRepository repository.DockerArtifactStoreRepository,
 	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository, ociRegistryConfigRepository repository.OCIRegistryConfigRepository,
-	K8sService k8s.K8sService,
-	clusterService cluster.ClusterService,
-	ACDAuthConfig *util2.ACDAuthConfig) *DockerRegistryConfigImpl {
+	RepositorySecret argoRepositoryCreds.RepositorySecret) *DockerRegistryConfigImpl {
 	return &DockerRegistryConfigImpl{
 		logger:                            logger,
 		helmAppService:                    helmAppService,
 		dockerArtifactStoreRepository:     dockerArtifactStoreRepository,
 		dockerRegistryIpsConfigRepository: dockerRegistryIpsConfigRepository,
 		ociRegistryConfigRepository:       ociRegistryConfigRepository,
-		K8sService:                        K8sService,
-		clusterService:                    clusterService,
-		acdAuthConfig:                     ACDAuthConfig,
+		RepositorySecret:                  RepositorySecret,
 	}
 }
 
@@ -294,7 +283,8 @@ func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(bean *types.DockerArti
 		}
 		if repositoryType == repository.OCI_REGISRTY_REPO_TYPE_CHART &&
 			(storageActionType == repository.STORAGE_ACTION_TYPE_PULL || storageActionType == repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH) {
-			err = impl.CreateArgoRepositorySecret(bean, ociRegistryConfig)
+
+			err = impl.CreateArgoRepositorySecretForRepositories(bean, ociRegistryConfig)
 			if err != nil {
 				impl.logger.Errorw("error in creating repo secret", "err", err)
 				return err
@@ -305,15 +295,15 @@ func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(bean *types.DockerArti
 	return nil
 }
 
-func (impl DockerRegistryConfigImpl) CreateArgoRepositorySecret(artifactStore *types.DockerArtifactStoreBean, ociRegistryConfig *repository.OCIRegistryConfig) error {
+func (impl DockerRegistryConfigImpl) CreateArgoRepositorySecretForRepositories(artifactStore *types.DockerArtifactStoreBean, ociRegistryConfig *repository.OCIRegistryConfig) error {
 	for _, repo := range artifactStore.RepositoryList {
 
-		secretData, uniqueSecretName, err := getSecretDataAndName(artifactStore, ociRegistryConfig, repo)
-		if err != nil {
-			impl.logger.Errorw("error in getting secretData and secretName", "err", err)
-		}
-
-		err = impl.createOrUpdateArgoRepoSecret(uniqueSecretName, secretData)
+		err := impl.RepositorySecret.CreateArgoRepositorySecret(artifactStore.Username,
+			artifactStore.Password,
+			ociRegistryConfig.Id,
+			artifactStore.RegistryURL,
+			repo,
+			artifactStore.IsPublic)
 		if err != nil {
 			impl.logger.Errorw("error in create/update k8s secret", "dockerArtifactStoreId", artifactStore.Id, "err", err)
 			return err
@@ -321,90 +311,6 @@ func (impl DockerRegistryConfigImpl) CreateArgoRepositorySecret(artifactStore *t
 
 	}
 	return nil
-}
-
-func (impl DockerRegistryConfigImpl) createOrUpdateArgoRepoSecret(uniqueSecretName string, secretData map[string]string) error {
-	clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
-	if err != nil {
-		impl.logger.Errorw("error in fetching cluster bean from db", "err", err)
-		return err
-	}
-	cfg := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster config", "err", err)
-		return err
-	}
-	client, err := impl.K8sService.GetCoreV1Client(cfg)
-	if err != nil {
-		impl.logger.Errorw("error in creating kubernetes client", "err", err)
-		return err
-	}
-
-	secretLabel := make(map[string]string)
-	secretLabel[bean.ARGOCD_REPOSITORY_SECRET_KEY] = bean.ARGOCD_REPOSITORY_SECRET_VALUE
-
-	err = impl.K8sService.CreateOrUpdateSecretByName(
-		client,
-		impl.acdAuthConfig.ACDConfigMapNamespace,
-		uniqueSecretName,
-		secretLabel,
-		secretData)
-	if err != nil {
-		impl.logger.Errorw("error in create/update argocd secret by name", "secretName", uniqueSecretName, "err", err)
-		return err
-	}
-
-	return nil
-}
-
-func getSecretDataAndName(artifactStore *types.DockerArtifactStoreBean, ociRegistryConfig *repository.OCIRegistryConfig, repo string) (map[string]string, string, error) {
-
-	url := artifactStore.RegistryURL
-
-	fullRepoPath, host, err := GetHostAndFullRepoPath(url, repo)
-	if err != nil {
-		return nil, "", err
-	}
-
-	repoSplit := strings.Split(fullRepoPath, "/")
-	chartName := repoSplit[len(repoSplit)-1]
-
-	uniqueSecretName := fmt.Sprintf("%s-%d", chartName, ociRegistryConfig.Id)
-
-	secretData := parseSecretData(artifactStore, fullRepoPath, host)
-
-	return secretData, uniqueSecretName, nil
-}
-
-func GetHostAndFullRepoPath(url string, repo string) (string, string, error) {
-	parsedUrl, err := url2.Parse(url)
-	if err != nil || parsedUrl.Scheme == "" {
-		url = fmt.Sprintf("//%s", url)
-		parsedUrl, err = url2.Parse(url)
-		if err != nil {
-			return "", "", err
-		}
-	}
-	var repoName string
-	if len(parsedUrl.Path) > 0 {
-		repoName = path.Join(strings.TrimLeft(parsedUrl.Path, "/"), repo)
-	} else {
-		repoName = repo
-	}
-	return parsedUrl.Host, repoName, nil
-}
-
-func parseSecretData(artifactStore *types.DockerArtifactStoreBean, repoName string, repoHost string) map[string]string {
-	secretData := make(map[string]string)
-	secretData[bean.REPOSITORY_SECRET_NAME_KEY] = repoName // argocd will use this for passing repository credentials to application
-	secretData[bean.REPOSITORY_SECRET_TYPE_KEY] = bean.REPOSITORY_TYPE_HELM
-	secretData[bean.REPOSITORY_SECRET_URL_KEY] = repoHost
-	if !artifactStore.IsPublic {
-		secretData[bean.REPOSITORY_SECRET_USERNAME_KEY] = artifactStore.Username
-		secretData[bean.REPOSITORY_SECRET_PASSWORD_KEY] = artifactStore.Password
-	}
-	secretData[bean.REPOSITORY_SECRET_ENABLE_OCI_KEY] = "true"
-	return secretData
 }
 
 // Create Takes the DockerArtifactStoreBean and creates the record in DB. Returns Error if any
