@@ -31,9 +31,6 @@ const (
 	CI_CD_TYPE_PLUGIN = "CI_CD"
 )
 
-// TODO:- deprecate these structs once V2 adoption is completed
-// structs to be deprecated starts
-
 type PluginDetailDto struct {
 	Metadata        *PluginMetadataDto   `json:"metadata"`
 	InputVariables  []*PluginVariableDto `json:"inputVariables"`
@@ -56,10 +53,7 @@ type PluginMetadataDto struct {
 	Action      int               `json:"action,omitempty"`
 	PluginStage string            `json:"pluginStage,omitempty"`
 	PluginSteps []*PluginStepsDto `json:"pluginSteps,omitempty"`
-	NewTags     []string          `json:"newTags,omitempty"`
 }
-
-// structs to be deprecated end
 
 type PluginsDto struct {
 	ParentPlugins []*PluginParentMetadataDto `json:"parentPlugins"`

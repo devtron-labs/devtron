@@ -45,6 +45,7 @@ type GlobalPluginRestHandler interface {
 	ListAllPluginsV2(w http.ResponseWriter, r *http.Request)
 	GetPluginDetailByIds(w http.ResponseWriter, r *http.Request)
 	GetAllUniqueTags(w http.ResponseWriter, r *http.Request)
+	MigratePluginData(w http.ResponseWriter, r *http.Request)
 }
 
 func NewGlobalPluginRestHandler(logger *zap.SugaredLogger, globalPluginService plugin.GlobalPluginService,
@@ -403,4 +404,19 @@ func (handler *GlobalPluginRestHandlerImpl) IsUserAuthorized(token string, appId
 		isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	}
 	return isAuthorised, nil
+}
+
+func (handler *GlobalPluginRestHandlerImpl) MigratePluginData(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	err := handler.globalPluginService.MigratePluginData()
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 }

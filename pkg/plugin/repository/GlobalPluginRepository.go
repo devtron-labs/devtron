@@ -701,12 +701,6 @@ func (impl *GlobalPluginRepositoryImpl) GetPluginParentMetadataByIdentifier(plug
 	return &pluginParentMetadata, nil
 }
 
-//
-//func (impl *GlobalPluginRepositoryImpl) SavePluginParentMetadataInBulk(tx *pg.Tx, pluginParentMetadata []*PluginParentMetadata) error {
-//	err := tx.Insert(&pluginParentMetadata)
-//	return err
-//}
-
 func (impl *GlobalPluginRepositoryImpl) SavePluginParentMetadata(tx *pg.Tx, pluginParentMetadata *PluginParentMetadata) (*PluginParentMetadata, error) {
 	err := tx.Insert(pluginParentMetadata)
 	return pluginParentMetadata, err

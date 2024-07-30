@@ -76,6 +76,7 @@ type GlobalPluginService interface {
 	ListAllPluginsV2(filter *bean2.PluginsListFilter) (*bean2.PluginsDto, error)
 	GetPluginDetailV2(pluginVersionIds, parentPluginIds []int, fetchAllVersionDetails bool) (*bean2.PluginsDto, error)
 	GetAllUniqueTags() (*bean2.PluginTagsDto, error)
+	MigratePluginData() error
 }
 
 func NewGlobalPluginService(logger *zap.SugaredLogger, globalPluginRepository repository.GlobalPluginRepository,
@@ -1775,12 +1776,6 @@ func (impl *GlobalPluginServiceImpl) ListAllPluginsV2(filter *bean2.PluginsListF
 		impl.logger.Errorw("ListAllPluginsV2, error in getting plugins", "err", err)
 		return nil, err
 	}
-	//migrate plugin_metadata to plugin_parent_metadata, also pluginVersionsMetadata will have updated entries after migrating
-	err = impl.MigratePluginDataToParentPluginMetadata(pluginVersionsMetadata)
-	if err != nil {
-		impl.logger.Errorw("ListAllPluginsV2, error in migrating plugin data into parent metadata table", "err", err)
-		return nil, err
-	}
 
 	allPluginParentMetadata, err := impl.globalPluginRepository.GetAllFilteredPluginParentMetadata(filter.SearchKey, filter.Tags)
 	if err != nil {
@@ -1809,6 +1804,82 @@ func (impl *GlobalPluginServiceImpl) ListAllPluginsV2(filter *bean2.PluginsListF
 	pluginDetails := bean2.NewPluginsDto().WithParentPlugins(pluginParentMetadataDtos).WithTotalCount(len(allPluginParentMetadata))
 
 	return pluginDetails, nil
+}
+
+// GetPluginDetailV2 returns all details of the of a plugin version according to the pluginVersionIds and parentPluginIds
+// provided by user, and minimal data for all versions of that plugin.
+func (impl *GlobalPluginServiceImpl) GetPluginDetailV2(pluginVersionIds, parentPluginIds []int, fetchAllVersionDetails bool) (*bean2.PluginsDto, error) {
+	pluginParentMetadataDtos := make([]*bean2.PluginParentMetadataDto, 0, len(pluginVersionIds)+len(parentPluginIds))
+	if len(pluginVersionIds) == 0 && len(parentPluginIds) == 0 {
+		return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: strconv.Itoa(http.StatusBadRequest), InternalMessage: bean2.NoPluginOrParentIdProvidedErr, UserMessage: bean2.NoPluginOrParentIdProvidedErr}
+	}
+	pluginVersionIdsMap, parentPluginIdsMap := helper2.GetPluginVersionAndParentPluginIdsMap(pluginVersionIds, parentPluginIds)
+
+	var err error
+	pluginParentMetadataIds := make([]int, 0, len(pluginVersionIds)+len(parentPluginIds))
+	pluginVersionsIdToInclude := make(map[int]bool, len(pluginVersionIds)+len(parentPluginIds))
+	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins()
+	if err != nil {
+		impl.logger.Errorw("GetPluginDetailV2, error in getting all plugins versions metadata", "err", err)
+		return nil, err
+	}
+
+	filteredPluginVersionMetadata := helper2.GetPluginVersionsMetadataByVersionAndParentPluginIds(pluginVersionsMetadata, pluginVersionIdsMap, parentPluginIdsMap)
+	if len(filteredPluginVersionMetadata) == 0 {
+		return nil, &util.ApiError{HttpStatusCode: http.StatusNotFound, Code: strconv.Itoa(http.StatusNotFound), InternalMessage: bean2.NoPluginFoundForThisSearchQueryErr, UserMessage: bean2.NoPluginFoundForThisSearchQueryErr}
+	}
+	for _, version := range filteredPluginVersionMetadata {
+		_, found := pluginVersionIdsMap[version.Id]
+		wantDetailedData := found || fetchAllVersionDetails || version.IsLatest
+		if wantDetailedData {
+			pluginVersionsIdToInclude[version.Id] = true
+		}
+		pluginParentMetadataIds = append(pluginParentMetadataIds, version.PluginParentMetadataId)
+	}
+
+	pluginParentDetails, err := impl.globalPluginRepository.GetPluginParentMetadataByIds(pluginParentMetadataIds)
+	if err != nil {
+		impl.logger.Errorw("GetPluginDetailV2, error in getting all plugin parent metadata by ids", "err", err)
+		return nil, err
+	}
+	parentIdVsPluginParentDtoMap, versionIdVsPluginsVersionDetailMap, err := impl.getPluginEntitiesIdToPluginEntitiesDtoMap(pluginVersionsMetadata, pluginParentDetails)
+	if err != nil {
+		impl.logger.Errorw("GetPluginDetailV2, error in getPluginEntitiesIdToPluginEntitiesDtoMap", "err", err)
+		return nil, err
+	}
+	pluginParentMetadataDtos, err = impl.GetPluginParentMetadataDtos(parentIdVsPluginParentDtoMap, versionIdVsPluginsVersionDetailMap, pluginVersionsIdToInclude, true)
+	if err != nil {
+		impl.logger.Errorw("GetPluginDetailV2, error in getting plugin parent metadata dtos by pluginParentMetadata ids", "pluginParentMetadataIds", pluginParentMetadataIds, "err", err)
+		return nil, err
+	}
+
+	pluginsDto := bean2.NewPluginsDto().WithParentPlugins(pluginParentMetadataDtos)
+	return pluginsDto, nil
+}
+
+func (impl *GlobalPluginServiceImpl) GetAllUniqueTags() (*bean2.PluginTagsDto, error) {
+	tags, err := impl.globalPluginRepository.GetAllPluginTags()
+	if err != nil {
+		impl.logger.Errorw("GetAllUniqueTags, error in getting all plugin tags", "err", err)
+		return nil, err
+	}
+	allUniqueTags := helper2.GetAllUniqueTags(tags)
+
+	return bean2.NewPluginTagsDto().WithTagNames(allUniqueTags), nil
+}
+
+func (impl *GlobalPluginServiceImpl) MigratePluginData() error {
+	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins()
+	if err != nil {
+		impl.logger.Errorw("MigratePluginData, error in getting plugins", "err", err)
+		return err
+	}
+	err = impl.MigratePluginDataToParentPluginMetadata(pluginVersionsMetadata)
+	if err != nil {
+		impl.logger.Errorw("MigratePluginData, error in migrating plugin data into parent metadata table", "err", err)
+		return err
+	}
+	return nil
 }
 
 // MigratePluginDataToParentPluginMetadata migrates pre-existing plugin metadata from plugin_metadata table into plugin_parent_metadata table,
@@ -1876,66 +1947,4 @@ func (impl *GlobalPluginServiceImpl) MigratePluginDataToParentPluginMetadata(plu
 		return err
 	}
 	return nil
-}
-
-// GetPluginDetailV2 returns all details of the of a plugin version according to the pluginVersionIds and parentPluginIds
-// provided by user, and minimal data for all versions of that plugin.
-func (impl *GlobalPluginServiceImpl) GetPluginDetailV2(pluginVersionIds, parentPluginIds []int, fetchAllVersionDetails bool) (*bean2.PluginsDto, error) {
-	pluginParentMetadataDtos := make([]*bean2.PluginParentMetadataDto, 0, len(pluginVersionIds)+len(parentPluginIds))
-	if len(pluginVersionIds) == 0 && len(parentPluginIds) == 0 {
-		return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: strconv.Itoa(http.StatusBadRequest), InternalMessage: bean2.NoPluginOrParentIdProvidedErr, UserMessage: bean2.NoPluginOrParentIdProvidedErr}
-	}
-	pluginVersionIdsMap, parentPluginIdsMap := helper2.GetPluginVersionAndParentPluginIdsMap(pluginVersionIds, parentPluginIds)
-
-	var err error
-	pluginParentMetadataIds := make([]int, 0, len(pluginVersionIds)+len(parentPluginIds))
-	pluginVersionsIdToInclude := make(map[int]bool, len(pluginVersionIds)+len(parentPluginIds))
-	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins()
-	if err != nil {
-		impl.logger.Errorw("GetPluginDetailV2, error in getting all plugins versions metadata", "err", err)
-		return nil, err
-	}
-
-	filteredPluginVersionMetadata := helper2.GetPluginVersionsMetadataByVersionAndParentPluginIds(pluginVersionsMetadata, pluginVersionIdsMap, parentPluginIdsMap)
-	if len(filteredPluginVersionMetadata) == 0 {
-		return nil, &util.ApiError{HttpStatusCode: http.StatusNotFound, Code: strconv.Itoa(http.StatusNotFound), InternalMessage: bean2.NoPluginFoundForThisSearchQueryErr, UserMessage: bean2.NoPluginFoundForThisSearchQueryErr}
-	}
-	for _, version := range filteredPluginVersionMetadata {
-		_, found := pluginVersionIdsMap[version.Id]
-		wantDetailedData := found || fetchAllVersionDetails || version.IsLatest
-		if wantDetailedData {
-			pluginVersionsIdToInclude[version.Id] = true
-		}
-		pluginParentMetadataIds = append(pluginParentMetadataIds, version.PluginParentMetadataId)
-	}
-
-	pluginParentDetails, err := impl.globalPluginRepository.GetPluginParentMetadataByIds(pluginParentMetadataIds)
-	if err != nil {
-		impl.logger.Errorw("GetPluginDetailV2, error in getting all plugin parent metadata by ids", "err", err)
-		return nil, err
-	}
-	parentIdVsPluginParentDtoMap, versionIdVsPluginsVersionDetailMap, err := impl.getPluginEntitiesIdToPluginEntitiesDtoMap(pluginVersionsMetadata, pluginParentDetails)
-	if err != nil {
-		impl.logger.Errorw("GetPluginDetailV2, error in getPluginEntitiesIdToPluginEntitiesDtoMap", "err", err)
-		return nil, err
-	}
-	pluginParentMetadataDtos, err = impl.GetPluginParentMetadataDtos(parentIdVsPluginParentDtoMap, versionIdVsPluginsVersionDetailMap, pluginVersionsIdToInclude, true)
-	if err != nil {
-		impl.logger.Errorw("GetPluginDetailV2, error in getting plugin parent metadata dtos by pluginParentMetadata ids", "pluginParentMetadataIds", pluginParentMetadataIds, "err", err)
-		return nil, err
-	}
-
-	pluginsDto := bean2.NewPluginsDto().WithParentPlugins(pluginParentMetadataDtos)
-	return pluginsDto, nil
-}
-
-func (impl *GlobalPluginServiceImpl) GetAllUniqueTags() (*bean2.PluginTagsDto, error) {
-	tags, err := impl.globalPluginRepository.GetAllPluginTags()
-	if err != nil {
-		impl.logger.Errorw("GetAllUniqueTags, error in getting all plugin tags", "err", err)
-		return nil, err
-	}
-	allUniqueTags := helper2.GetAllUniqueTags(tags)
-
-	return bean2.NewPluginTagsDto().WithTagNames(allUniqueTags), nil
 }
