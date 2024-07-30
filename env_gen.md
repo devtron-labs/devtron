@@ -15,7 +15,6 @@
  | ARGO_GIT_COMMIT_RETRY_DELAY_ON_CONFLICT | 1 |  | 
  | ARGO_REPO_REGISTER_RETRY_COUNT | 3 |  | 
  | ARGO_REPO_REGISTER_RETRY_DELAY | 10 |  | 
- | ASYNC_BUILDX_CACHE_EXPORT | false |  | 
  | AZURE_ACCOUNT_KEY |  |  | 
  | AZURE_ACCOUNT_NAME |  |  | 
  | AZURE_BLOB_CONTAINER_CI_CACHE |  |  | 
@@ -32,7 +31,6 @@
  | BLOB_STORAGE_S3_ENDPOINT |  |  | 
  | BLOB_STORAGE_S3_ENDPOINT_INSECURE | false |  | 
  | BLOB_STORAGE_S3_SECRET_KEY |  |  | 
- | BUILDX_CACHE_MODE_MIN | false |  | 
  | BUILDX_CACHE_PATH | /var/lib/devtron/buildx |  | 
  | BUILDX_K8S_DRIVER_OPTIONS |  |  | 
  | BUILDX_PROVENANCE_MODE |  |  | 
@@ -156,7 +154,6 @@
  | HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME | 120 |  | 
  | HIDE_IMAGE_TAGGING_HARD_DELETE | false |  | 
  | IGNORE_AUTOCOMPLETE_AUTH_CHECK | false |  | 
- | IGNORE_CM_CS_IN_CI_JOB | false |  | 
  | IMAGE_RETRY_COUNT | 0 |  | 
  | IMAGE_RETRY_INTERVAL | 5 |  | 
  | IMAGE_SCANNER_ENDPOINT | http://image-scanner-new-demo-devtroncd-service.devtroncd:80 |  | 
@@ -174,8 +171,6 @@
  | K8s_TCP_KEEPALIVE | 30 |  | 
  | K8s_TCP_TIMEOUT | 30 |  | 
  | K8s_TLS_HANDSHAKE_TIMEOUT | 10 |  | 
- | KUBELINK_GRPC_MAX_RECEIVE_MSG_SIZE | 20 |  | 
- | KUBELINK_GRPC_MAX_SEND_MSG_SIZE | 4 |  | 
  | LENS_TIMEOUT | 0 |  | 
  | LENS_URL | http://lens-milandevtron-service:80 |  | 
  | LIMIT_CI_CPU | 0.5 |  | 
@@ -192,7 +187,6 @@
  | NATS_MSG_BUFFER_SIZE | -1 |  | 
  | NATS_MSG_MAX_AGE | 86400 |  | 
  | NATS_MSG_PROCESSING_BATCH_SIZE | 1 |  | 
- | NATS_MSG_REPLICAS | 0 |  | 
  | NATS_SERVER_HOST | nats://devtron-nats.devtroncd:4222 |  | 
  | NOTIFICATION_MEDIUM | rest |  | 
  | ORCH_HOST | http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats |  | 
@@ -255,7 +249,6 @@
  | USE_BUILDX | false |  | 
  | USE_CASBIN_V2 | false |  | 
  | USE_CUSTOM_HTTP_TRANSPORT | false |  | 
- | USE_DEPLOYMENT_CONFIG_DATA | false |  | 
  | USE_EXTERNAL_NODE | false |  | 
  | USE_GIT_CLI | false |  | 
  | USE_IMAGE_TAG_FROM_GIT_PROVIDER_FOR_TAG_BASED_BUILD | false |  | 
