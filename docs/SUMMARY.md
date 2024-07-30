@@ -138,6 +138,7 @@
     * [Dependency track - NodeJS](user-guide/plugins/dependency-track-nodejs.md)
     * [Dependency track - Python](user-guide/plugins/dependency-track-python.md)
     * [GoLang-migrate](user-guide/plugins/golang-migrate.md)
+    * [Jenkins](user-guide/plugins/jenkins.md)
     * [K6 Load Testing](user-guide/plugins/k6-load-testing.md)
     * [Pull images from container repository](user-guide/plugins/pull-images-from-container-repository.md)
     * [Semgrep](user-guide/plugins/semgrep.md)
