@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package sso
@@ -55,18 +54,57 @@ type Config struct {
 	Config map[string]interface{} `json:"config"`
 }
 
-const ClientID = "clientID"
-const ClientSecret = "clientSecret"
+func (r *Config) IsSsoLdap() bool {
+	return r.Name == LDAP
+}
+
+func (r *Config) secureCredentials() {
+	r.secureCredentialValue(ClientID)
+	r.secureCredentialValue(ClientSecret)
+	if r.IsSsoLdap() {
+		r.secureCredentialValue(LdapBindPW)
+		r.secureCredentialValue(LdapUsernamePrompt)
+	}
+}
+
+func (r *Config) secureCredentialValue(credentialKey string) {
+	if r.Config[credentialKey] != nil {
+		r.Config[credentialKey] = ""
+	}
+}
+
+func (r *Config) updateCredentialsFromBase(configFromDb *Config) {
+	r.updateSecretFromBase(configFromDb, ClientID)
+	r.updateSecretFromBase(configFromDb, ClientSecret)
+	if r.IsSsoLdap() {
+		r.updateSecretFromBase(configFromDb, LdapBindPW)
+		r.updateSecretFromBase(configFromDb, LdapUsernamePrompt)
+	}
+}
+
+func (r *Config) updateSecretFromBase(baseConfigData *Config, key string) {
+	if r.Config[key] == "" && baseConfigData.Config[key] != nil {
+		r.Config[key] = baseConfigData.Config[key]
+	}
+}
+
+const (
+	ClientID           = "clientID"
+	ClientSecret       = "clientSecret"
+	LdapBindPW         = "bindPW"
+	LdapUsernamePrompt = "usernamePrompt"
+	LDAP               = "LDAP"
+)
 
 func NewSSOLoginServiceImpl(
 	logger *zap.SugaredLogger,
 	ssoLoginRepository SSOLoginRepository,
-	K8sUtil *k8s.K8sServiceImpl, devtronSecretConfig *util2.DevtronSecretConfig, userAuthOidcHelper authentication.UserAuthOidcHelper) *SSOLoginServiceImpl {
+	K8sUtil *k8s.K8sServiceImpl, envVariables *util2.EnvironmentVariables, userAuthOidcHelper authentication.UserAuthOidcHelper) *SSOLoginServiceImpl {
 	serviceImpl := &SSOLoginServiceImpl{
 		logger:              logger,
 		ssoLoginRepository:  ssoLoginRepository,
 		K8sUtil:             K8sUtil,
-		devtronSecretConfig: devtronSecretConfig,
+		devtronSecretConfig: envVariables.DevtronSecretConfig,
 		userAuthOidcHelper:  userAuthOidcHelper,
 	}
 	return serviceImpl
@@ -184,8 +222,7 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 		impl.logger.Errorw("error while Unmarshalling model's config", "error", err)
 		return nil, err
 	}
-	updateSecretFromBase(&configData, &modelConfigData, ClientID)
-	updateSecretFromBase(&configData, &modelConfigData, ClientSecret)
+	configData.updateCredentialsFromBase(&modelConfigData)
 	newConfigString, err := json.Marshal(configData)
 	if err != nil {
 		impl.logger.Errorw("error while Marshaling configData", "error", err)
@@ -360,8 +397,7 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 		impl.logger.Errorw("error while Unmarshalling model's config", "error", err)
 		return nil, err
 	}
-	secureCredentialValue(&configData, ClientID)
-	secureCredentialValue(&configData, ClientSecret)
+	configData.secureCredentials()
 	configString, err := json.Marshal(configData)
 	if err != nil {
 		impl.logger.Errorw("error while Marshaling configData", "error", err)
@@ -382,16 +418,4 @@ func (impl SSOLoginServiceImpl) GetByName(name string) (*bean.SSOLoginDto, error
 		Url:    model.Url,
 	}
 	return ssoLoginDto, nil
-}
-
-func updateSecretFromBase(configData *Config, baseConfigData *Config, key string) {
-	if configData.Config[key] == "" && baseConfigData.Config[key] != nil {
-		configData.Config[key] = baseConfigData.Config[key]
-	}
-}
-
-func secureCredentialValue(configData *Config, credentialKey string) {
-	if configData.Config[credentialKey] != nil {
-		configData.Config[credentialKey] = ""
-	}
 }

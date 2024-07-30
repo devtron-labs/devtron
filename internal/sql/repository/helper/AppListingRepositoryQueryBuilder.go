@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package helper
@@ -31,6 +30,8 @@ const (
 	CustomApp     AppType = 0 // cicd app
 	ChartStoreApp AppType = 1 // helm app
 	Job           AppType = 2 // jobs
+	// ExternalChartStoreApp app-type is not stored in db
+	ExternalChartStoreApp AppType = 3 // external helm app
 )
 
 type AppListingRepositoryQueryBuilder struct {
@@ -72,7 +73,7 @@ const (
 
 func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery(appIDs []int, statuses []string, environmentIds []int, sortOrder string) string {
 	query := "select ci_pipeline.name as ci_pipeline_name,ci_pipeline.id as ci_pipeline_id,app.id as job_id,app.display_name " +
-		"as job_name, app.app_name,app.description,cwr.started_on,cwr.status,cem.environment_id,cwr.environment_id as last_triggered_environment_id from app left join ci_pipeline on" +
+		"as job_name, app.app_name,app.description,app.team_id,cwr.started_on,cwr.status,cem.environment_id,cwr.environment_id as last_triggered_environment_id from app left join ci_pipeline on" +
 		" app.id = ci_pipeline.app_id and ci_pipeline.active=true left join (select cw.ci_pipeline_id, cw.status, cw.started_on, cw.environment_id " +
 		" from ci_workflow cw inner join (select ci_pipeline_id, MAX(started_on) max_started_on from ci_workflow group by ci_pipeline_id ) " +
 		"cws on cw.ci_pipeline_id = cws.ci_pipeline_id " +
@@ -128,19 +129,6 @@ func getAppListingCommonQueryString() string {
 		" LEFT JOIN app_status aps on aps.app_id = a.id and p.environment_id = aps.env_id "
 }
 
-func (impl AppListingRepositoryQueryBuilder) BuildAppListingQuery(appListingFilter AppListingFilter) string {
-	whereCondition := impl.buildAppListingWhereCondition(appListingFilter)
-	orderByClause := impl.buildAppListingSortBy(appListingFilter)
-	query := "SELECT env.id AS environment_id, env.environment_name,env.namespace as namespace ,a.id AS app_id, a.app_name, env.default,aps.status as app_status," +
-		" p.id as pipeline_id, env.active, a.team_id, t.name as team_name" +
-		" , cluster.cluster_name as cluster_name" + getAppListingCommonQueryString()
-	if appListingFilter.DeploymentGroupId != 0 {
-		query = query + " INNER JOIN deployment_group_app dga ON a.id = dga.app_id "
-	}
-	query = query + whereCondition + orderByClause
-	return query
-}
-
 func (impl AppListingRepositoryQueryBuilder) GetQueryForAppEnvContainerss(appListingFilter AppListingFilter) string {
 
 	query := "SELECT p.environment_id , a.id AS app_id, a.app_name,p.id as pipeline_id, a.team_id ,aps.status as app_status "
@@ -153,6 +141,7 @@ func (impl AppListingRepositoryQueryBuilder) CommonJoinSubQuery(appListingFilter
 	whereCondition := impl.buildAppListingWhereCondition(appListingFilter)
 
 	query := " LEFT JOIN pipeline p ON a.id=p.app_id  and p.deleted=false " +
+		" LEFT JOIN deployment_config dc ON ( p.app_id=dc.app_id and p.environment_id=dc.environment_id and dc.active=true )" +
 		" LEFT JOIN app_status aps on aps.app_id = a.id and p.environment_id = aps.env_id "
 
 	if appListingFilter.DeploymentGroupId != 0 {
@@ -257,7 +246,7 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appLi
 	appStatuses := util.ProcessAppStatuses(appStatusExcludingNotDeployed)
 	if isNotDeployedFilterApplied {
 		deploymentAppType := "manifest_download"
-		whereCondition += fmt.Sprintf(" and (p.deployment_app_created=%v and p.deployment_app_type != '%s' or a.id NOT IN (SELECT app_id from pipeline) ", false, deploymentAppType)
+		whereCondition += fmt.Sprintf(" and (p.deployment_app_created=%v and (p.deployment_app_type != '%s' || dc.deployment_app_type != '%s' ) or a.id NOT IN (SELECT app_id from pipeline) ", false, deploymentAppType, deploymentAppType)
 		if len(appStatuses) > 0 {
 			whereCondition += fmt.Sprintf(" or aps.status IN ( %s ) ", appStatuses)
 		}

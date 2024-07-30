@@ -24,14 +24,14 @@ import (
 // ValidateService handles communication with the validation related methods of
 // the GitLab API.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/lint.html
+// GitLab API docs: https://docs.gitlab.com/ee/api/lint.html
 type ValidateService struct {
 	client *Client
 }
 
 // LintResult represents the linting results.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/lint.html
+// GitLab API docs: https://docs.gitlab.com/ee/api/lint.html
 type LintResult struct {
 	Status     string   `json:"status"`
 	Errors     []string `json:"errors"`
@@ -50,15 +50,22 @@ type ProjectLintResult struct {
 	MergedYaml string   `json:"merged_yaml"`
 }
 
-// Lint validates .gitlab-ci.yml content.
+// LintOptions represents the available Lint() options.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/lint.html
-func (s *ValidateService) Lint(content string, options ...RequestOptionFunc) (*LintResult, *Response, error) {
-	var opts struct {
-		Content string `url:"content,omitempty" json:"content,omitempty"`
-	}
-	opts.Content = content
+// Gitlab API docs:
+// https://docs.gitlab.com/ee/api/lint.html#validate-the-ci-yaml-configuration
+type LintOptions struct {
+	Content           string `url:"content,omitempty" json:"content,omitempty"`
+	IncludeMergedYAML bool   `url:"include_merged_yaml,omitempty" json:"include_merged_yaml,omitempty"`
+	IncludeJobs       bool   `url:"include_jobs,omitempty" json:"include_jobs,omitempty"`
+}
 
+// Lint validates .gitlab-ci.yml content.
+// Deprecated: This endpoint was removed in GitLab 16.0.
+//
+// Gitlab API docs:
+// https://docs.gitlab.com/ee/api/lint.html#validate-the-ci-yaml-configuration-deprecated
+func (s *ValidateService) Lint(opts *LintOptions, options ...RequestOptionFunc) (*LintResult, *Response, error) {
 	req, err := s.client.NewRequest(http.MethodPost, "ci/lint", &opts, options)
 	if err != nil {
 		return nil, nil, err
@@ -78,8 +85,10 @@ func (s *ValidateService) Lint(content string, options ...RequestOptionFunc) (*L
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/lint.html#validate-a-ci-yaml-configuration-with-a-namespace
 type ProjectNamespaceLintOptions struct {
-	Content *string `url:"content,omitempty" json:"content,omitempty"`
-	DryRun  *bool   `url:"dry_run,omitempty" json:"dry_run,omitempty"`
+	Content     *string `url:"content,omitempty" json:"content,omitempty"`
+	DryRun      *bool   `url:"dry_run,omitempty" json:"dry_run,omitempty"`
+	IncludeJobs *bool   `url:"include_jobs,omitempty" json:"include_jobs,omitempty"`
+	Ref         *string `url:"ref,omitempty" json:"ref,omitempty"`
 }
 
 // ProjectNamespaceLint validates .gitlab-ci.yml content by project.
@@ -112,7 +121,9 @@ func (s *ValidateService) ProjectNamespaceLint(pid interface{}, opt *ProjectName
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/lint.html#validate-a-projects-ci-configuration
 type ProjectLintOptions struct {
-	DryRun *bool `url:"dry_run,omitempty" json:"dry_run,omitempty"`
+	DryRun      *bool   `url:"dry_run,omitempty" json:"dry_run,omitempty"`
+	IncludeJobs *bool   `url:"include_jobs,omitempty" json:"include_jobs,omitempty"`
+	Ref         *string `url:"ref,omitempty" json:"ref,omitempty"`
 }
 
 // ProjectLint validates .gitlab-ci.yml content by project.

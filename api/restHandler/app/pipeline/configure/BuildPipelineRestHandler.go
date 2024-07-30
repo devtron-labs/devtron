@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package configure
 
 import (
@@ -5,10 +21,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
+	"golang.org/x/exp/maps"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	"github.com/devtron-labs/devtron/util/response/pagination"
+	"github.com/gorilla/schema"
 
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -64,6 +86,10 @@ type DevtronAppBuildRestHandler interface {
 	GetCiPipelineByEnvironment(w http.ResponseWriter, r *http.Request)
 	GetCiPipelineByEnvironmentMin(w http.ResponseWriter, r *http.Request)
 	GetExternalCiByEnvironment(w http.ResponseWriter, r *http.Request)
+	// GetSourceCiDownStreamFilters will fetch the environments attached to all the linked CIs for the given ciPipelineId
+	GetSourceCiDownStreamFilters(w http.ResponseWriter, r *http.Request)
+	// GetSourceCiDownStreamInfo will fetch the deployment information of all the linked CIs for the given ciPipelineId
+	GetSourceCiDownStreamInfo(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppBuildMaterialRestHandler interface {
@@ -89,7 +115,7 @@ type ImageTaggingRestHandler interface {
 	GetImageTaggingData(w http.ResponseWriter, r *http.Request)
 }
 
-func (handler PipelineConfigRestHandlerImpl) CreateCiConfig(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) CreateCiConfig(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -139,7 +165,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateCiConfig(w http.ResponseWrite
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) UpdateCiTemplate(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) UpdateCiTemplate(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -181,7 +207,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateCiTemplate(w http.ResponseWri
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) UpdateBranchCiPipelinesWithRegex(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) UpdateBranchCiPipelinesWithRegex(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -238,7 +264,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateBranchCiPipelinesWithRegex(w 
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) parseSourceChangeRequest(w http.ResponseWriter, r *http.Request) (*bean.CiMaterialPatchRequest, int32, error) {
+func (handler *PipelineConfigRestHandlerImpl) parseSourceChangeRequest(w http.ResponseWriter, r *http.Request) (*bean.CiMaterialPatchRequest, int32, error) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -256,7 +282,7 @@ func (handler PipelineConfigRestHandlerImpl) parseSourceChangeRequest(w http.Res
 	return &patchRequest, userId, nil
 }
 
-func (handler PipelineConfigRestHandlerImpl) parseBulkSourceChangeRequest(w http.ResponseWriter, r *http.Request) (*bean.CiMaterialBulkPatchRequest, int32, error) {
+func (handler *PipelineConfigRestHandlerImpl) parseBulkSourceChangeRequest(w http.ResponseWriter, r *http.Request) (*bean.CiMaterialBulkPatchRequest, int32, error) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -279,7 +305,7 @@ func (handler PipelineConfigRestHandlerImpl) parseBulkSourceChangeRequest(w http
 	return &patchRequest, userId, nil
 }
 
-func (handler PipelineConfigRestHandlerImpl) authorizeCiSourceChangeRequest(w http.ResponseWriter, patchRequest *bean.CiMaterialPatchRequest, token string) error {
+func (handler *PipelineConfigRestHandlerImpl) authorizeCiSourceChangeRequest(w http.ResponseWriter, patchRequest *bean.CiMaterialPatchRequest, token string) error {
 	handler.Logger.Debugw("update request ", "req", patchRequest)
 	app, err := handler.pipelineBuilder.GetApp(patchRequest.AppId)
 	if err != nil {
@@ -306,7 +332,7 @@ func (handler PipelineConfigRestHandlerImpl) authorizeCiSourceChangeRequest(w ht
 	return nil
 }
 
-func (handler PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdAndEnvironmentId(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdAndEnvironmentId(w http.ResponseWriter, r *http.Request) {
 	patchRequest, userId, err := handler.parseSourceChangeRequest(w, r)
 	if err != nil {
 		handler.Logger.Errorw("Parse error, PatchCiMaterialSource", "err", err, "PatchCiMaterialSource", patchRequest)
@@ -334,7 +360,7 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdAndEn
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdsAndEnvironmentId(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdsAndEnvironmentId(w http.ResponseWriter, r *http.Request) {
 	bulkPatchRequest, userId, err := handler.parseBulkSourceChangeRequest(w, r)
 	if err != nil {
 		handler.Logger.Errorw("Parse error, PatchCiMaterialSource", "err", err, "PatchCiMaterialSource", bulkPatchRequest)
@@ -351,7 +377,7 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdsAndE
 	common.WriteJsonResp(w, err, bulkPatchResponse, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -392,12 +418,19 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	workflowResourceName := handler.enforcerUtil.GetRbacObjectNameByAppAndWorkflow(app.AppName, appWorkflowName)
-	var ok bool
-	ok = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName)
-	if !ok {
-		ok = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, resourceName) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionCreate, workflowResourceName)
+
+	cdPipelines, err := handler.getCdPipelinesForCIPatchRbac(&patchRequest)
+	if err != nil && err != pg.ErrNoRows {
+		handler.Logger.Errorw("error in finding ccd cdPipelines by ciPipelineId", "ciPipelineId", patchRequest.CiPipeline.Id, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
 	}
-	if !ok {
+
+	haveCiPatchAccess := handler.checkCiPatchAccess(token, resourceName, cdPipelines)
+	if !haveCiPatchAccess {
+		haveCiPatchAccess = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionCreate, resourceName) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionCreate, workflowResourceName)
+	}
+	if !haveCiPatchAccess {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -409,8 +442,8 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		ciConfigRequest := bean.CiConfigRequest{}
 		ciConfigRequest.DockerRegistry = emptyDockerRegistry
 		ciConfigRequest.AppId = patchRequest.AppId
-		ciConfigRequest.CiBuildConfig = &bean1.CiBuildConfigBean{}
-		ciConfigRequest.CiBuildConfig.CiBuildType = bean1.SKIP_BUILD_TYPE
+		ciConfigRequest.CiBuildConfig = &CiPipeline.CiBuildConfigBean{}
+		ciConfigRequest.CiBuildConfig.CiBuildType = CiPipeline.SKIP_BUILD_TYPE
 		ciConfigRequest.UserId = patchRequest.UserId
 		if patchRequest.CiPipeline == nil || patchRequest.CiPipeline.CiMaterial == nil {
 			handler.Logger.Errorw("Invalid patch ci-pipeline request", "request", patchRequest, "err", "invalid CiPipeline data")
@@ -431,7 +464,7 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	}
 	createResp, err := handler.pipelineBuilder.PatchCiPipeline(&patchRequest)
 	if err != nil {
-		if err.Error() == bean1.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
+		if err.Error() == CiPipeline.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
 			handler.Logger.Errorw("service err, pipeline name already exist ", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
@@ -446,7 +479,85 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetCiPipeline(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) getCdPipelinesForCIPatchRbac(patchRequest *bean.CiPatchRequest) (cdPipelines []*pipelineConfig.Pipeline, err error) {
+	// if the request is for create, then there will be no cd pipelines created yet
+	if patchRequest.IsCreateRequest() {
+		return
+	}
+	// request is to either patch the existing pipeline or patch it by switching the source pipeline or delete or update-source
+
+	// for switch , this API handles following switches
+	// any -> any (except switching to external-ci)
+
+	// to find the cd pipelines of the current ci pipelines workflow , we should query from appWorkflow Mappings.
+	// cannot directly query cd-pipeline table as we don't store info about external pipeline in cdPipeline.
+
+	// approach:
+	// find the workflow in which we are patching and use the workflow id to fetch all the workflow mappings using the workflow.
+	// get cd pipeline ids from those workflows and fetch the cd pipelines.
+
+	// get the ciPipeline
+	switchFromPipelineId, switchFromType := patchRequest.SwitchSourceInfo()
+
+	// in app workflow mapping all the build source types are 'CI_PIPELINE' type, except external -> WEBHOOK.
+	componentType := appWorkflow.CIPIPELINE
+	if switchFromType == CiPipeline.EXTERNAL {
+		componentType = appWorkflow.WEBHOOK
+	}
+
+	// the appWorkflowId can be taken from patchRequest.AppWorkflowId but doing this can make 2 sources of truth to find the workflow
+	sourceAppWorkflowMapping, err := handler.appWorkflowService.FindWFMappingByComponent(componentType, switchFromPipelineId)
+	if err != nil {
+		handler.Logger.Errorw("error in finding the appWorkflowMapping using componentId and componentType", "componentType", componentType, "componentId", switchFromPipelineId, "err", err)
+		return nil, err
+	}
+
+	cdPipelineWFMappings, err := handler.appWorkflowService.FindWFCDMappingsByWorkflowId(sourceAppWorkflowMapping.AppWorkflowId)
+	if err != nil {
+		handler.Logger.Errorw("error in finding the appWorkflowMappings of cd pipeline for an appWorkflow", "appWorkflowId", sourceAppWorkflowMapping.AppWorkflowId, "err", err)
+		return cdPipelines, err
+	}
+
+	if len(cdPipelineWFMappings) == 0 {
+		return
+	}
+
+	cdPipelineIds := make([]int, 0, len(cdPipelineWFMappings))
+	for _, cdWfMapping := range cdPipelineWFMappings {
+		cdPipelineIds = append(cdPipelineIds, cdWfMapping.ComponentId)
+	}
+
+	return handler.pipelineRepository.FindByIdsIn(cdPipelineIds)
+}
+
+// checkCiPatchAccess assumes all the cdPipelines belong to same app
+func (handler *PipelineConfigRestHandlerImpl) checkCiPatchAccess(token string, resourceName string, cdPipelines []*pipelineConfig.Pipeline) bool {
+
+	if len(cdPipelines) == 0 {
+		// no cd pipelines are present , so user can edit if he has app admin access
+		return handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName)
+	}
+
+	appId := 0
+	envIds := make([]int, len(cdPipelines))
+	for _, cdPipeline := range cdPipelines {
+		envIds = append(envIds, cdPipeline.EnvironmentId)
+		appId = cdPipeline.AppId
+	}
+
+	rbacObjectsMap, _ := handler.enforcerUtil.GetRbacObjectsByEnvIdsAndAppId(envIds, appId)
+	envRbacResultMap := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionUpdate, maps.Values(rbacObjectsMap))
+
+	for _, hasAccess := range envRbacResultMap {
+		if hasAccess {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (handler *PipelineConfigRestHandlerImpl) GetCiPipeline(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
@@ -478,7 +589,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipeline(w http.ResponseWriter
 	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetExternalCi(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) GetExternalCi(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
@@ -507,7 +618,7 @@ func (handler PipelineConfigRestHandlerImpl) GetExternalCi(w http.ResponseWriter
 	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetExternalCiById(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) GetExternalCiById(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
@@ -542,7 +653,7 @@ func (handler PipelineConfigRestHandlerImpl) GetExternalCiById(w http.ResponseWr
 	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -638,7 +749,7 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 	common.WriteJsonResp(w, err, response, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) FetchMaterials(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) FetchMaterials(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -686,7 +797,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchMaterials(w http.ResponseWrite
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) FetchMaterialsByMaterialId(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) FetchMaterialsByMaterialId(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -739,7 +850,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchMaterialsByMaterialId(w http.R
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) RefreshMaterials(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) RefreshMaterials(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -778,7 +889,7 @@ func (handler PipelineConfigRestHandlerImpl) RefreshMaterials(w http.ResponseWri
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetCiPipelineMin(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) GetCiPipelineMin(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -824,7 +935,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipelineMin(w http.ResponseWri
 	common.WriteJsonResp(w, err, ciPipelines, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) DownloadCiWorkflowArtifacts(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) DownloadCiWorkflowArtifacts(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -878,7 +989,7 @@ func (handler PipelineConfigRestHandlerImpl) DownloadCiWorkflowArtifacts(w http.
 	}
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetHistoricBuildLogs(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) GetHistoricBuildLogs(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -1073,7 +1184,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildLogs(w http.ResponseWriter
 	handler.streamOutput(w, logsReader, lastSeenMsgId)
 }
 
-func (handler PipelineConfigRestHandlerImpl) FetchMaterialInfo(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) FetchMaterialInfo(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -1114,7 +1225,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchMaterialInfo(w http.ResponseWr
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetCIPipelineById(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) GetCIPipelineById(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
@@ -1172,7 +1283,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCIPipelineById(w http.ResponseWr
 	common.WriteJsonResp(w, err, ciPipeline, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetCIPipelineByPipelineId(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) GetCIPipelineByPipelineId(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	var ciPipelineId int
 	var err error
@@ -1235,7 +1346,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCIPipelineByPipelineId(w http.Re
 	common.WriteJsonResp(w, err, ciPipeline, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) CreateMaterial(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) CreateMaterial(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
@@ -1288,7 +1399,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateMaterial(w http.ResponseWrite
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) UpdateMaterial(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) UpdateMaterial(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
@@ -1339,7 +1450,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateMaterial(w http.ResponseWrite
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -1378,7 +1489,7 @@ func (handler PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWrite
 	common.WriteJsonResp(w, err, GIT_MATERIAL_DELETE_SUCCESS_RESP, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) HandleWorkflowWebhook(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) HandleWorkflowWebhook(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var wfUpdateReq v1alpha1.WorkflowStatus
 	err := decoder.Decode(&wfUpdateReq)
@@ -1397,7 +1508,7 @@ func (handler PipelineConfigRestHandlerImpl) HandleWorkflowWebhook(w http.Respon
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) validForMultiMaterial(ciTriggerRequest bean.CiTriggerRequest) bool {
+func (handler *PipelineConfigRestHandlerImpl) validForMultiMaterial(ciTriggerRequest bean.CiTriggerRequest) bool {
 	if len(ciTriggerRequest.CiPipelineMaterial) > 1 {
 		for _, m := range ciTriggerRequest.CiPipelineMaterial {
 			if m.GitCommit.Commit == "" {
@@ -1408,7 +1519,7 @@ func (handler PipelineConfigRestHandlerImpl) validForMultiMaterial(ciTriggerRequ
 	return true
 }
 
-func (handler PipelineConfigRestHandlerImpl) ValidateGitMaterialUrl(gitProviderId int, url string) (bool, error) {
+func (handler *PipelineConfigRestHandlerImpl) ValidateGitMaterialUrl(gitProviderId int, url string) (bool, error) {
 	gitProvider, err := handler.gitProviderRepo.FindOne(strconv.Itoa(gitProviderId))
 	if err != nil {
 		return false, err
@@ -1421,7 +1532,7 @@ func (handler PipelineConfigRestHandlerImpl) ValidateGitMaterialUrl(gitProviderI
 	return hasPrefixResult, nil
 }
 
-func (handler PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -1501,7 +1612,7 @@ func (handler PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWrite
 }
 
 // FetchChanges FIXME check if deprecated
-func (handler PipelineConfigRestHandlerImpl) FetchChanges(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) FetchChanges(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -1559,7 +1670,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchChanges(w http.ResponseWriter,
 	common.WriteJsonResp(w, err, changes.Commits, http.StatusCreated)
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetCommitMetadataForPipelineMaterial(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) GetCommitMetadataForPipelineMaterial(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -1605,7 +1716,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCommitMetadataForPipelineMateria
 	common.WriteJsonResp(w, err, commit, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) FetchWorkflowDetails(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) FetchWorkflowDetails(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -1656,7 +1767,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchWorkflowDetails(w http.Respons
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetArtifactsForCiJob(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) GetArtifactsForCiJob(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -1701,7 +1812,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsForCiJob(w http.Respons
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironment(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
@@ -1759,7 +1870,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironment(w http.R
 	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironmentMin(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironmentMin(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
@@ -1816,7 +1927,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCiPipelineByEnvironmentMin(w htt
 	common.WriteJsonResp(w, err, results, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetExternalCiByEnvironment(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) GetExternalCiByEnvironment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
@@ -1873,7 +1984,7 @@ func (handler PipelineConfigRestHandlerImpl) GetExternalCiByEnvironment(w http.R
 	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
@@ -1966,7 +2077,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Res
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetImageTaggingData(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) GetImageTaggingData(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
@@ -2013,7 +2124,7 @@ func (handler PipelineConfigRestHandlerImpl) GetImageTaggingData(w http.Response
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) extractCipipelineMetaForImageTags(artifactId int) (externalCi bool, ciPipelineId int, appId int, err error) {
+func (handler *PipelineConfigRestHandlerImpl) extractCipipelineMetaForImageTags(artifactId int) (externalCi bool, ciPipelineId int, appId int, err error) {
 	externalCi = false
 	ciPipelineId = 0
 	appId = 0
@@ -2064,7 +2175,7 @@ func (handler PipelineConfigRestHandlerImpl) extractCipipelineMetaForImageTags(a
 	return externalCi, ciPipelineId, appId, nil
 }
 
-func (handler PipelineConfigRestHandlerImpl) checkAppSpecificAccess(token, action string, appId int) (bool, error) {
+func (handler *PipelineConfigRestHandlerImpl) checkAppSpecificAccess(token, action string, appId int) (bool, error) {
 	app, err := handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
 		return false, err
@@ -2078,4 +2189,95 @@ func (handler PipelineConfigRestHandlerImpl) checkAppSpecificAccess(token, actio
 		return false, errors.New(string(bean.CI_PATCH_NOT_AUTHORIZED_MESSAGE))
 	}
 	return true, nil
+}
+
+func (handler *PipelineConfigRestHandlerImpl) GetSourceCiDownStreamFilters(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	ciPipelineId, err := strconv.Atoi(vars["ciPipelineId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	ciPipeline, err := handler.ciPipelineRepository.FindOneWithAppData(ciPipelineId)
+	if util.IsErrNoRows(err) {
+		common.WriteJsonResp(w, fmt.Errorf("invalid CiPipelineId %d", ciPipelineId), nil, http.StatusBadRequest)
+		return
+	} else if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	// RBAC enforcer applying
+	resourceName := handler.enforcerUtil.GetAppRBACName(ciPipeline.App.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	// RBAC enforcer Ends
+	resp, err := handler.ciCdPipelineOrchestrator.GetSourceCiDownStreamFilters(r.Context(), ciPipelineId)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("error getting environment info for given source Ci pipeline id"), "error getting environment info for given source Ci pipeline id", http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
+}
+
+func (handler *PipelineConfigRestHandlerImpl) GetSourceCiDownStreamInfo(w http.ResponseWriter, r *http.Request) {
+	decoder := schema.NewDecoder()
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	ciPipelineId, err := strconv.Atoi(vars["ciPipelineId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	req := &CiPipeline.SourceCiDownStreamFilters{}
+	err = decoder.Decode(req, r.URL.Query())
+	if err != nil {
+		handler.Logger.Errorw("request err, GetSourceCiDownStreamInfo", "err", err, "payload", req)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// Convert searchKey to lowercase
+	req.SearchKey = strings.ToLower(req.SearchKey)
+	req.SortBy = pagination.AppName
+	if req.Size == 0 {
+		req.Size = 20
+	}
+	if len(req.SortOrder) == 0 {
+		req.SortOrder = pagination.Asc
+	}
+	token := r.Header.Get("token")
+	ciPipeline, err := handler.ciPipelineRepository.FindOneWithAppData(ciPipelineId)
+	if util.IsErrNoRows(err) {
+		common.WriteJsonResp(w, fmt.Errorf("invalid CiPipelineId %d", ciPipelineId), nil, http.StatusBadRequest)
+		return
+	} else if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// RBAC enforcer applying
+	resourceName := handler.enforcerUtil.GetAppRBACName(ciPipeline.App.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	// RBAC enforcer Ends
+	linkedCIDetails, err := handler.ciCdPipelineOrchestrator.GetSourceCiDownStreamInfo(r.Context(), ciPipelineId, req)
+	if err != nil {
+		handler.Logger.Errorw("service err, PatchCiPipelines", "err", err, "ciPipelineId", ciPipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, linkedCIDetails, http.StatusOK)
 }

@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package variables
 
 import (
@@ -27,6 +43,14 @@ func NewVariableSnapshotHistoryServiceImpl(repository repository2.VariableSnapsh
 func (impl VariableSnapshotHistoryServiceImpl) SaveVariableHistoriesForTrigger(variableHistories []*repository2.VariableSnapshotHistoryBean, userId int32) error {
 	variableSnapshotHistoryList := make([]*repository2.VariableSnapshotHistory, 0)
 	for _, history := range variableHistories {
+		exists, err := impl.repository.CheckIfVariableSnapshotExists(history.HistoryReference)
+		if err != nil {
+			impl.logger.Errorw("error in checking if variable snapshot exists", "historyReference", history.HistoryReference, "err", err)
+			return err
+		}
+		if exists {
+			continue
+		}
 		variableSnapshotHistoryList = append(variableSnapshotHistoryList, &repository2.VariableSnapshotHistory{
 			VariableSnapshotHistoryBean: *history,
 			AuditLog: sql.AuditLog{

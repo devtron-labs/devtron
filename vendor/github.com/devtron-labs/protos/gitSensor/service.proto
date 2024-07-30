@@ -33,6 +33,7 @@ message GitMaterial {
   string checkoutMsgAny = 8;
   bool deleted = 9;
   repeated string filterPattern = 10;
+  string cloningMode = 11;
 }
 
 message SavePipelineMaterialRequest {
@@ -133,6 +134,15 @@ message ReloadMaterialRequest {
   int64 materialId = 1;
 }
 
+message ReloadMaterialsRequest{
+repeated ReloadMaterial reloadMaterials = 1;
+}
+
+message ReloadMaterial{
+  int64 materialId = 1;
+  string cloningMode = 2;
+}
+
 message GenericResponse {
   string message = 1;
 }
@@ -201,6 +211,7 @@ message WebhookAndCiData {
 message WebhookEventConfigRequest {
   int64 gitHostId = 1;
   int64 eventId = 2;
+  string gitHostName = 3;
 }
 
 message WebhookEventSelectors {
@@ -305,6 +316,9 @@ service GitSensorService {
 
   // Reload all material
   rpc ReloadAllMaterial(Empty) returns (Empty);
+
+  // Reload list of materials
+  rpc ReloadMaterials(ReloadMaterialsRequest) returns (GenericResponse);
 
   // Reload a specific material
   rpc ReloadMaterial(ReloadMaterialRequest) returns (GenericResponse);

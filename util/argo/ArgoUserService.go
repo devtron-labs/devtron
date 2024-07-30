@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package argo
 
 import (
@@ -41,7 +57,7 @@ type ArgoUserService interface {
 	ValidateGitOpsAndGetOrUpdateArgoCdUserDetail() string
 	GetOrUpdateArgoCdUserDetail() string
 
-	BuildACDContext() (acdContext context.Context, err error)
+	GetACDContext(ctx context.Context) (acdContext context.Context, err error)
 	SetAcdTokenInContext(ctx context.Context) (context.Context, error)
 }
 
@@ -57,13 +73,13 @@ type ArgoUserServiceImpl struct {
 }
 
 func NewArgoUserServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService,
-	devtronSecretConfig *util2.DevtronSecretConfig, runTimeConfig *client.RuntimeConfig,
+	envVariables *util2.EnvironmentVariables, runTimeConfig *client.RuntimeConfig,
 	argoCDConnectionManager connection.ArgoCDConnectionManager, versionService argocdServer.VersionService,
 	k8sUtil *k8s.K8sServiceImpl, gitOpsConfigReadService config.GitOpsConfigReadService) (*ArgoUserServiceImpl, error) {
 	argoUserServiceImpl := &ArgoUserServiceImpl{
 		logger:                  Logger,
 		clusterService:          clusterService,
-		devtronSecretConfig:     devtronSecretConfig,
+		devtronSecretConfig:     envVariables.DevtronSecretConfig,
 		runTimeConfig:           runTimeConfig,
 		argoCDConnectionManager: argoCDConnectionManager,
 		versionService:          versionService,
@@ -76,16 +92,15 @@ func NewArgoUserServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.Cl
 	return argoUserServiceImpl, nil
 }
 
-func (impl *ArgoUserServiceImpl) BuildACDContext() (acdContext context.Context, err error) {
+func (impl *ArgoUserServiceImpl) GetACDContext(ctx context.Context) (acdContext context.Context, err error) {
 	//this part only accessible for acd apps hibernation, if acd configured it will fetch latest acdToken, else it will return error
 	acdToken, err := impl.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
 		return nil, err
 	}
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "token", acdToken)
-	return ctx, nil
+	acdCtx := context.WithValue(ctx, "token", acdToken)
+	return acdCtx, nil
 }
 
 func (impl *ArgoUserServiceImpl) SetAcdTokenInContext(ctx context.Context) (context.Context, error) {
@@ -213,11 +228,9 @@ func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, erro
 	username := secretData[DEVTRON_ARGOCD_USERNAME_KEY]
 	password := secretData[DEVTRON_ARGOCD_USER_PASSWORD_KEY]
 	latestTokenNo := 1
-	isTokenAvailable := true
 	var token string
 	for key, value := range secretData {
 		if strings.HasPrefix(key, DEVTRON_ARGOCD_TOKEN_KEY) {
-			isTokenAvailable = true
 			keySplits := strings.Split(key, "_")
 			keyLen := len(keySplits)
 			tokenNo, err := strconv.Atoi(keySplits[keyLen-1])
@@ -232,7 +245,7 @@ func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, erro
 		}
 	}
 
-	if !isTokenAvailable || len(token) == 0 {
+	if len(token) == 0 {
 		newTokenNo := latestTokenNo + 1
 		token, err = impl.createNewArgoCdTokenForDevtron(string(username), string(password), newTokenNo, k8sClient)
 		if err != nil {

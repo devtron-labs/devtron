@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package gitOpsConfig
@@ -23,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation"
@@ -49,6 +49,7 @@ type DevtronAppGitOpConfigServiceImpl struct {
 	gitOpsConfigReadService  config.GitOpsConfigReadService
 	gitOpsValidationService  validation.GitOpsValidationService
 	argoClientWrapperService argocdServer.ArgoClientWrapperService
+	deploymentConfigService  common.DeploymentConfigService
 }
 
 func NewDevtronAppGitOpConfigServiceImpl(logger *zap.SugaredLogger,
@@ -56,7 +57,8 @@ func NewDevtronAppGitOpConfigServiceImpl(logger *zap.SugaredLogger,
 	chartService chartService.ChartService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitOpsValidationService validation.GitOpsValidationService,
-	argoClientWrapperService argocdServer.ArgoClientWrapperService) *DevtronAppGitOpConfigServiceImpl {
+	argoClientWrapperService argocdServer.ArgoClientWrapperService,
+	deploymentConfigService common.DeploymentConfigService) *DevtronAppGitOpConfigServiceImpl {
 	return &DevtronAppGitOpConfigServiceImpl{
 		logger:                   logger,
 		chartRepository:          chartRepository,
@@ -64,6 +66,7 @@ func NewDevtronAppGitOpConfigServiceImpl(logger *zap.SugaredLogger,
 		gitOpsConfigReadService:  gitOpsConfigReadService,
 		gitOpsValidationService:  gitOpsValidationService,
 		argoClientWrapperService: argoClientWrapperService,
+		deploymentConfigService:  deploymentConfigService,
 	}
 }
 
@@ -139,7 +142,7 @@ func (impl *DevtronAppGitOpConfigServiceImpl) SaveAppLevelGitOpsConfiguration(ap
 		return err
 	}
 	isCustomGitOpsRepo := gitOpsConfigurationStatus.AllowCustomRepository && appGitOpsRequest.GitOpsRepoURL != apiGitOpsBean.GIT_REPO_DEFAULT
-	err = impl.chartService.ConfigureGitOpsRepoUrl(appGitOpsRequest.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, isCustomGitOpsRepo, appGitOpsRequest.UserId)
+	_, err = impl.chartService.ConfigureGitOpsRepoUrlForApp(appGitOpsRequest.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, isCustomGitOpsRepo, appGitOpsRequest.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in updating git repo url in charts", "err", err)
 		return err
@@ -193,10 +196,10 @@ func (impl *DevtronAppGitOpConfigServiceImpl) GetAppLevelGitOpsConfiguration(app
 }
 
 func (impl *DevtronAppGitOpConfigServiceImpl) isGitRepoUrlPresent(appId int) bool {
-	fetchedChart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, 0)
 	if err != nil {
-		impl.logger.Errorw("error fetching git repo url from the latest chart")
+		impl.logger.Errorw("error fetching git repo url from deploymentConfig for latest chart")
 		return false
 	}
-	return !apiGitOpsBean.IsGitOpsRepoNotConfigured(fetchedChart.GitRepoUrl)
+	return !apiGitOpsBean.IsGitOpsRepoNotConfigured(deploymentConfig.RepoURL)
 }

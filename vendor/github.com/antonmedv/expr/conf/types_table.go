@@ -1,11 +1,15 @@
 package conf
 
-import "reflect"
+import (
+	"reflect"
+)
 
 type Tag struct {
-	Type      reflect.Type
-	Method    bool
-	Ambiguous bool
+	Type        reflect.Type
+	Ambiguous   bool
+	FieldIndex  []int
+	Method      bool
+	MethodIndex int
 }
 
 type TypesTable map[string]Tag
@@ -39,7 +43,11 @@ func CreateTypesTable(i interface{}) TypesTable {
 		// all embedded structs methods as well, no need to recursion.
 		for i := 0; i < t.NumMethod(); i++ {
 			m := t.Method(i)
-			types[m.Name] = Tag{Type: m.Type, Method: true}
+			types[m.Name] = Tag{
+				Type:        m.Type,
+				Method:      true,
+				MethodIndex: i,
+			}
 		}
 
 	case reflect.Map:
@@ -53,7 +61,11 @@ func CreateTypesTable(i interface{}) TypesTable {
 		// A map may have method too.
 		for i := 0; i < t.NumMethod(); i++ {
 			m := t.Method(i)
-			types[m.Name] = Tag{Type: m.Type, Method: true}
+			types[m.Name] = Tag{
+				Type:        m.Type,
+				Method:      true,
+				MethodIndex: i,
+			}
 		}
 	}
 
@@ -77,12 +89,16 @@ func FieldsFromStruct(t reflect.Type) TypesTable {
 					if _, ok := types[name]; ok {
 						types[name] = Tag{Ambiguous: true}
 					} else {
+						typ.FieldIndex = append(f.Index, typ.FieldIndex...)
 						types[name] = typ
 					}
 				}
 			}
 
-			types[f.Name] = Tag{Type: f.Type}
+			types[FieldName(f)] = Tag{
+				Type:       f.Type,
+				FieldIndex: f.Index,
+			}
 		}
 	}
 
@@ -97,4 +113,11 @@ func dereference(t reflect.Type) reflect.Type {
 		t = dereference(t.Elem())
 	}
 	return t
+}
+
+func FieldName(field reflect.StructField) string {
+	if taggedName := field.Tag.Get("expr"); taggedName != "" {
+		return taggedName
+	}
+	return field.Name
 }

@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package resource
 
 import (
@@ -5,7 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	util4 "github.com/devtron-labs/common-lib/utils/k8s"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -18,6 +34,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application3 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
@@ -35,7 +53,7 @@ import (
 
 type InstalledAppResourceService interface {
 	FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean.AppDetailContainer) bean.AppDetailContainer
-	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetailsContainer *bean.AppDetailsContainer, installedApp repository.InstalledApps, helmReleaseInstallStatus string, status string) error
+	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetailsContainer *bean.AppDetailsContainer, installedApp repository.InstalledApps, deploymentConfig *bean2.DeploymentConfig, helmReleaseInstallStatus string, status string) error
 	FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error)
 }
 
@@ -50,9 +68,10 @@ type InstalledAppResourceServiceImpl struct {
 	helmAppClient                        gRPC.HelmAppClient
 	helmAppService                       client.HelmAppService
 	appStatusService                     appStatus.AppStatusService
-	K8sUtil                              *util4.K8sServiceImpl
 	k8sCommonService                     k8s.K8sCommonService
 	k8sApplicationService                application3.K8sApplicationService
+	K8sUtil                              k8s2.K8sService
+	deploymentConfigurationService       common.DeploymentConfigService
 }
 
 func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
@@ -62,8 +81,9 @@ func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
 	aCDAuthConfig *util3.ACDAuthConfig,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
 	argoUserService argo.ArgoUserService, helmAppClient gRPC.HelmAppClient, helmAppService client.HelmAppService,
-	appStatusService appStatus.AppStatusService, K8sUtil *util4.K8sServiceImpl,
-	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService) *InstalledAppResourceServiceImpl {
+	appStatusService appStatus.AppStatusService,
+	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService, K8sUtil k8s2.K8sService,
+	deploymentConfigurationService common.DeploymentConfigService) *InstalledAppResourceServiceImpl {
 	return &InstalledAppResourceServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -75,19 +95,20 @@ func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
 		helmAppClient:                        helmAppClient,
 		helmAppService:                       helmAppService,
 		appStatusService:                     appStatusService,
-		K8sUtil:                              K8sUtil,
 		k8sCommonService:                     k8sCommonService,
 		k8sApplicationService:                k8sApplicationService,
+		K8sUtil:                              K8sUtil,
+		deploymentConfigurationService:       deploymentConfigurationService,
 	}
 }
 
-func (impl *InstalledAppResourceServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetailsContainer *bean.AppDetailsContainer, installedApp repository.InstalledApps, helmReleaseInstallStatus string, status string) error {
+func (impl *InstalledAppResourceServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetailsContainer *bean.AppDetailsContainer, installedApp repository.InstalledApps, deploymentConfig *bean2.DeploymentConfig, helmReleaseInstallStatus string, status string) error {
 	var err error
 	var resourceTree map[string]interface{}
 	deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
-	if util.IsAcdApp(installedApp.DeploymentAppType) {
+	if util.IsAcdApp(deploymentConfig.DeploymentAppType) {
 		resourceTree, err = impl.fetchResourceTreeForACD(rctx, cn, installedApp.App.Id, installedApp.EnvironmentId, installedApp.Environment.ClusterId, deploymentAppName, installedApp.Environment.Namespace)
-	} else if util.IsHelmApp(installedApp.DeploymentAppType) {
+	} else if util.IsHelmApp(deploymentConfig.DeploymentAppType) {
 		config, err := impl.helmAppService.GetClusterConf(installedApp.Environment.ClusterId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching cluster detail", "err", err)

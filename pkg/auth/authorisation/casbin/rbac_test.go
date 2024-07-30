@@ -1,8 +1,25 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package casbin
 
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/util"
 	"math/rand"
 	"strconv"
 	"sync"
@@ -24,7 +41,7 @@ func TestEnforcerCache(t *testing.T) {
 
 	t.Run("requesterAndWriter", func(t *testing.T) {
 		for i := 0; i < 100_000; i++ {
-			emailId := GetRandomStringOfGivenLength(rand.Intn(1000)) + "@yopmail.com"
+			emailId := util.GetRandomStringOfGivenLength(rand.Intn(1000)) + "@yopmail.com"
 			getAndSet(lock, emailId, cache123)
 			result, expiration, b := cache123.GetWithExpiration(emailId)
 			fmt.Println("result", result, "expiration", expiration, "found", b)
@@ -36,7 +53,7 @@ func TestEnforcerCache(t *testing.T) {
 
 	t.Run("CacheDump", func(t *testing.T) {
 		for i := 0; i < 100_000; i++ {
-			emailId := GetRandomStringOfGivenLength(rand.Intn(50)) + "@yopmail.com"
+			emailId := util.GetRandomStringOfGivenLength(rand.Intn(50)) + "@yopmail.com"
 			getAndSet(lock, emailId, cache123)
 			cache123.GetWithExpiration(emailId)
 			//result, expiration, b := cache123.GetWithExpiration(emailId)
@@ -57,19 +74,6 @@ func GetCacheDump(cache *cache.Cache) string {
 		return ""
 	}
 	return string(cacheData)
-}
-
-func GetRandomStringOfGivenLength(length int) string {
-	const charset = "abcdefghijklmnopqrstuvwxyz" +
-		"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
-	var seededRand = rand.New(
-		rand.NewSource(time.Now().UnixNano()))
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[seededRand.Intn(len(charset))]
-	}
-	return string(b)
 }
 
 func invalidateCache_123(lock map[string]*CacheData, cache *cache.Cache) {

@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package gitSensor
@@ -88,6 +87,7 @@ type GitMaterial struct {
 	Deleted          bool
 	FetchSubmodules  bool
 	FilterPattern    []string
+	CloningMode      string
 }
 type GitProvider struct {
 	Id            int
@@ -109,6 +109,16 @@ type GitCommit struct {
 	Changes     []string
 	WebhookData *WebhookData
 	Excluded    bool
+}
+
+type ReloadMaterialsDto struct {
+	ReloadMaterial []ReloadMaterialDto
+}
+
+type ReloadMaterialDto struct {
+	AppId         int    `json:"appId"`
+	GitmaterialId int64  `json:"gitmaterialId"`
+	CloningMode   string `json:"cloningMode"`
 }
 
 type WebhookAndCiData struct {
@@ -154,8 +164,9 @@ type WebhookDataRequest struct {
 }
 
 type WebhookEventConfigRequest struct {
-	GitHostId int `json:"gitHostId"`
-	EventId   int `json:"eventId"`
+	GitHostId   int    `json:"gitHostId"`
+	GitHostName string `json:"gitHostName"`
+	EventId     int    `json:"eventId"`
 }
 
 type WebhookEventConfig struct {
@@ -399,4 +410,10 @@ func (session RestClientImpl) GetWebhookPayloadFilterDataForPipelineMaterialId(c
 	request := &ClientRequest{ResponseBody: &response, Method: GET, RequestBody: req, Path: "/webhook/ci-pipeline-material/payload-filter-data"}
 	_, _, err = session.doRequest(request)
 	return response, err
+}
+
+func (session RestClientImpl) ReloadMaterials(ctx context.Context, reloadMaterials *ReloadMaterialsDto) error {
+	request := &ClientRequest{Method: GET, RequestBody: reloadMaterials, Path: "/admin/reload/materials"}
+	_, _, err := session.doRequest(request)
+	return err
 }

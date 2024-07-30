@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package clusterTerminalAccess
 
 import (
@@ -7,7 +23,7 @@ import (
 	"fmt"
 	"github.com/caarlos0/env/v6"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
-	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	utils1 "github.com/devtron-labs/devtron/pkg/clusterTerminalAccess/clusterTerminalUtils"
@@ -350,13 +366,6 @@ func (impl *UserTerminalAccessServiceImpl) DisconnectTerminalSession(ctx context
 	return err
 }
 
-func getErrorDetailedMessage(err error) string {
-	if errStatus, ok := err.(*k8sErrors.StatusError); ok {
-		return errStatus.Status().Message
-	}
-	return ""
-}
-
 func (impl *UserTerminalAccessServiceImpl) StopTerminalSession(ctx context.Context, userTerminalAccessId int) {
 	impl.Logger.Infow("terminal stop request received for user", "userTerminalAccessId", userTerminalAccessId)
 	impl.TerminalAccessDataArrayMutex.Lock()
@@ -393,7 +402,7 @@ func (impl *UserTerminalAccessServiceImpl) closeAndCleanTerminalSession(accessSe
 }
 
 func (impl *UserTerminalAccessServiceImpl) closeSession(sessionId string) {
-	impl.terminalSessionHandler.Close(sessionId, 1, "Process exited")
+	impl.terminalSessionHandler.Close(sessionId, 1, terminal.ProcessExitedMsg)
 }
 
 func (impl *UserTerminalAccessServiceImpl) extractMetadataString(request *models.UserTerminalSessionRequest) string {
@@ -513,7 +522,7 @@ func (impl *UserTerminalAccessServiceImpl) SyncPodStatus() {
 			err = impl.DeleteTerminalPod(context.Background(), terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
 			if err != nil {
 				if k8s.IsResourceNotFoundErr(err) {
-					errorDetailedMessage := getErrorDetailedMessage(err)
+					errorDetailedMessage := k8s.GetClientErrorMessage(err)
 					terminalPodStatusString = fmt.Sprintf("%s/%s", string(models.TerminalPodTerminated), errorDetailedMessage)
 				} else {
 					continue
@@ -825,7 +834,7 @@ func (impl *UserTerminalAccessServiceImpl) getPodManifest(ctx context.Context, c
 	response, err := impl.K8sCommonService.GetResource(ctx, request)
 	if err != nil {
 		if k8s.IsResourceNotFoundErr(err) {
-			errorDetailedMessage := getErrorDetailedMessage(err)
+			errorDetailedMessage := k8s.GetClientErrorMessage(err)
 			terminalPodStatusString := fmt.Sprintf("%s/%s", string(models.TerminalPodTerminated), errorDetailedMessage)
 			return nil, errors.New(terminalPodStatusString)
 		} else {
@@ -850,7 +859,7 @@ func (impl *UserTerminalAccessServiceImpl) getPodRequestBean(clusterId int, podN
 	}
 	request := &k8s.ResourceRequestBean{
 		ClusterId: clusterId,
-		AppIdentifier: &client.AppIdentifier{
+		AppIdentifier: &bean.AppIdentifier{
 			ClusterId: clusterId,
 		},
 		K8sRequest: &k8s2.K8sRequestBean{
@@ -871,7 +880,9 @@ func (impl *UserTerminalAccessServiceImpl) getPodRequestBean(clusterId int, podN
 func (impl *UserTerminalAccessServiceImpl) SyncRunningInstances() {
 	terminalAccessData, err := impl.TerminalAccessRepository.GetAllRunningUserTerminalData()
 	if err != nil {
-		impl.Logger.Fatalw("error occurred while fetching all running/starting data", "err", err)
+		// todo - should add retry with backoff time
+		impl.Logger.Errorw("error occurred while fetching all running/starting data", "err", err)
+		return
 	}
 	impl.TerminalAccessDataArrayMutex.Lock()
 	defer impl.TerminalAccessDataArrayMutex.Unlock()

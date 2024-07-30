@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package constants
@@ -88,7 +87,23 @@ const (
 
 	GitHostCreateFailedAlreadyExists string = "9001"
 	GitHostCreateFailedInDb          string = "9002"
+
+	// feasibility errors
+	OperationPerformError string = "10001"
+	VulnerabilityFound    string = "10002"
+)
+
+const (
+	HttpClientSideTimeout = 499
 )
 
 var AppAlreadyExists = &ErrorCode{"4001", "application %s already exists"}
 var AppDoesNotExist = &ErrorCode{"4004", "application %s does not exist"}
+
+const (
+	ErrorDeletingPipelineForDeletedArgoAppMsg = "error in deleting devtron pipeline for deleted argocd app"
+	ArgoAppDeletedErrMsg                      = "argocd app deleted"
+	UnableToFetchResourceTreeErrMsg           = "unable to fetch resource tree"
+	UnableToFetchResourceTreeForAcdErrMsg     = "app detail fetched, failed to get resource tree from acd"
+	CannotGetAppWithRefreshErrMsg             = "cannot get application with refresh"
+)

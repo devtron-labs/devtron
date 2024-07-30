@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package appWorkflow
@@ -20,6 +19,8 @@ package appWorkflow
 import (
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	util2 "github.com/devtron-labs/devtron/util"
 	"time"
 
 	mapset "github.com/deckarep/golang-set"
@@ -59,13 +60,15 @@ type AppWorkflowService interface {
 	FindAppWorkflowMappingByComponent(id int, compType string) ([]*appWorkflow.AppWorkflowMapping, error)
 	CheckCdPipelineByCiPipelineId(id int) bool
 	FindAppWorkflowByName(name string, appId int) (AppWorkflowDto, error)
-
+	IsWorkflowNameFound(workflowName string, appId int) (bool, error)
 	FindAllWorkflowsComponentDetails(appId int) (*AllAppWorkflowComponentDetails, error)
 	FindAppWorkflowsByEnvironmentId(request resourceGroup2.ResourceGroupingRequest, token string) ([]*AppWorkflowDto, error)
 	FindAllWorkflowsForApps(request WorkflowNamesRequest) (*WorkflowNamesResponse, error)
 	FilterWorkflows(triggerViewConfig *TriggerViewWorkflowConfig, envIds []int) (*TriggerViewWorkflowConfig, error)
 	FindCdPipelinesByAppId(appId int) (*bean.CdPipelines, error)
 	FindAppWorkflowByCiPipelineId(ciPipelineId int) ([]*appWorkflow.AppWorkflowMapping, error)
+	FindWFMappingByComponent(componentType string, componentId int) (*appWorkflow.AppWorkflowMapping, error)
+	FindWFCDMappingsByWorkflowId(appWorkflowId int) ([]*appWorkflow.AppWorkflowMapping, error)
 }
 
 type AppWorkflowServiceImpl struct {
@@ -79,6 +82,7 @@ type AppWorkflowServiceImpl struct {
 	enforcerUtil             rbac.EnforcerUtil
 	userAuthService          user.UserAuthService
 	chartService             chart.ChartService
+	deploymentConfigService  common.DeploymentConfigService
 }
 
 type AppWorkflowDto struct {
@@ -159,7 +163,9 @@ type PipelineIdentifier struct {
 func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup2.ResourceGroupService,
-	appRepository appRepository.AppRepository, userAuthService user.UserAuthService, chartService chart.ChartService) *AppWorkflowServiceImpl {
+	appRepository appRepository.AppRepository, userAuthService user.UserAuthService, chartService chart.ChartService,
+	deploymentConfigService common.DeploymentConfigService,
+) *AppWorkflowServiceImpl {
 	return &AppWorkflowServiceImpl{
 		Logger:                   logger,
 		appWorkflowRepository:    appWorkflowRepository,
@@ -171,6 +177,7 @@ func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository 
 		appRepository:            appRepository,
 		userAuthService:          userAuthService,
 		chartService:             chartService,
+		deploymentConfigService:  deploymentConfigService,
 	}
 }
 
@@ -178,7 +185,10 @@ func (impl AppWorkflowServiceImpl) CreateAppWorkflow(req AppWorkflowDto) (AppWor
 	var wf *appWorkflow.AppWorkflow
 	var savedAppWf *appWorkflow.AppWorkflow
 	var err error
-
+	ok, err := impl.IsWorkflowNameFound(req.Name, req.AppId)
+	if err != nil {
+		return req, err
+	}
 	if req.Id != 0 {
 		wf = &appWorkflow.AppWorkflow{
 			Id:     req.Id,
@@ -189,19 +199,20 @@ func (impl AppWorkflowServiceImpl) CreateAppWorkflow(req AppWorkflowDto) (AppWor
 				UpdatedBy: req.UserId,
 			},
 		}
-		savedAppWf, err = impl.appWorkflowRepository.UpdateAppWorkflow(wf)
-	} else {
-		workflow, err := impl.appWorkflowRepository.FindByNameAndAppId(req.Name, req.AppId)
-		if err != nil && err != pg.ErrNoRows {
-			impl.Logger.Errorw("error in finding workflow by app id and name", "name", req.Name, "appId", req.AppId)
-			return req, err
-		}
-		if workflow.Id != 0 {
+		// if workflow name already exists then we will not allow update workflow name with same name
+		if ok {
 			impl.Logger.Errorw("workflow with this name already exist", "err", err)
 			return req, errors.New(bean2.WORKFLOW_EXIST_ERROR)
 		}
+		savedAppWf, err = impl.appWorkflowRepository.UpdateAppWorkflow(wf)
+	} else {
+		workflowName := req.Name
+		// if workflow already exists then we will assign a new name to the workflow
+		if ok {
+			workflowName = util2.GenerateNewWorkflowName(workflowName)
+		}
 		wf := &appWorkflow.AppWorkflow{
-			Name:   req.Name,
+			Name:   workflowName,
 			AppId:  req.AppId,
 			Active: true,
 			AuditLog: sql.AuditLog{
@@ -847,6 +858,13 @@ func (impl AppWorkflowServiceImpl) FindCdPipelinesByAppId(appId int) (*bean.CdPi
 	}
 
 	for _, pipeline := range dbPipelines {
+
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, pipeline.EnvironmentId)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", pipeline.EnvironmentId, "err", err)
+			return nil, err
+		}
+
 		cdPipelineConfigObj := &bean.CDPipelineConfigObject{
 			Id:                        pipeline.Id,
 			EnvironmentId:             pipeline.EnvironmentId,
@@ -854,7 +872,7 @@ func (impl AppWorkflowServiceImpl) FindCdPipelinesByAppId(appId int) (*bean.CdPi
 			CiPipelineId:              pipeline.CiPipelineId,
 			TriggerType:               pipeline.TriggerType,
 			Name:                      pipeline.Name,
-			DeploymentAppType:         pipeline.DeploymentAppType,
+			DeploymentAppType:         envDeploymentConfig.DeploymentAppType,
 			AppName:                   pipeline.DeploymentAppName,
 			AppId:                     pipeline.AppId,
 			IsGitOpsRepoNotConfigured: !isAppLevelGitOpsConfigured,
@@ -873,6 +891,14 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowByCiPipelineId(ciPipelineId in
 	}
 	return appWorkflowMapping, nil
 
+}
+
+func (impl AppWorkflowServiceImpl) FindWFCDMappingsByWorkflowId(appWorkflowId int) ([]*appWorkflow.AppWorkflowMapping, error) {
+	return impl.appWorkflowRepository.FindWFCDMappingsByWorkflowId(appWorkflowId)
+}
+
+func (impl AppWorkflowServiceImpl) FindWFMappingByComponent(componentType string, componentId int) (*appWorkflow.AppWorkflowMapping, error) {
+	return impl.appWorkflowRepository.FindWFMappingByComponent(componentType, componentId)
 }
 
 // LevelWiseSort performs level wise sort for workflow mappings starting from leaves
@@ -910,4 +936,16 @@ func getMappingsFromIds(identifierToNodeMapping map[PipelineIdentifier]*AppWorkf
 		result = append(result, *identifierToNodeMapping[identifier])
 	}
 	return result
+}
+
+func (impl AppWorkflowServiceImpl) IsWorkflowNameFound(workflowName string, appId int) (bool, error) {
+	workflow, err := impl.appWorkflowRepository.FindByNameAndAppId(workflowName, appId)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) && !errors.Is(err, pg.ErrMultiRows) {
+		impl.Logger.Errorw("error in finding workflow by app id and name", "name", workflowName, "appId", appId)
+		return false, err
+	}
+	if workflow.Id != 0 {
+		return true, nil
+	}
+	return false, nil
 }

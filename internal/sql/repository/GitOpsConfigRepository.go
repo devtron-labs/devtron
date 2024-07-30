@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package repository
@@ -28,6 +27,7 @@ type GitOpsConfigRepository interface {
 	UpdateGitOpsConfig(model *GitOpsConfig, tx *pg.Tx) error
 	GetGitOpsConfigById(id int) (*GitOpsConfig, error)
 	GetAllGitOpsConfig() ([]*GitOpsConfig, error)
+	GetAllGitOpsConfigCount() (int, error)
 	GetGitOpsConfigByProvider(provider string) (*GitOpsConfig, error)
 	GetGitOpsConfigActive() (*GitOpsConfig, error)
 	GetConnection() *pg.DB
@@ -90,6 +90,10 @@ func (impl *GitOpsConfigRepositoryImpl) GetAllGitOpsConfig() ([]*GitOpsConfig, e
 	var userModel []*GitOpsConfig
 	err := impl.dbConnection.Model(&userModel).Order("updated_on desc").Select()
 	return userModel, err
+}
+func (impl *GitOpsConfigRepositoryImpl) GetAllGitOpsConfigCount() (int, error) {
+	cnt, err := impl.dbConnection.Model(&GitOpsConfig{}).Count()
+	return cnt, err
 }
 func (impl *GitOpsConfigRepositoryImpl) GetGitOpsConfigByProvider(provider string) (*GitOpsConfig, error) {
 	var model GitOpsConfig

@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package types
 
 import (
@@ -64,6 +80,8 @@ type CiCdConfig struct {
 	NatsServerHost                   string                              `env:"NATS_SERVER_HOST" envDefault:"nats://devtron-nats.devtroncd:4222"`
 	ImageScanMaxRetries              int                                 `env:"IMAGE_SCAN_MAX_RETRIES" envDefault:"3"`
 	ImageScanRetryDelay              int                                 `env:"IMAGE_SCAN_RETRY_DELAY" envDefault:"5"`
+	ShowDockerBuildCmdInLogs         bool                                `env:"SHOW_DOCKER_BUILD_ARGS" envDefault:"true"`
+	IgnoreCmCsInCiJob                bool                                `env:"IGNORE_CM_CS_IN_CI_JOB" envDefault:"false"`
 	// from CdConfig
 	CdLimitCpu                       string                              `env:"CD_LIMIT_CI_CPU" envDefault:"0.5"`
 	CdLimitMem                       string                              `env:"CD_LIMIT_CI_MEM" envDefault:"3G"`
@@ -499,7 +517,7 @@ type Trigger struct {
 	ReferenceCiWorkflowId     int
 }
 
-func (obj Trigger) BuildTriggerObject(refCiWorkflow *pipelineConfig.CiWorkflow,
+func (obj *Trigger) BuildTriggerObject(refCiWorkflow *pipelineConfig.CiWorkflow,
 	ciMaterials []*pipelineConfig.CiPipelineMaterial, triggeredBy int32,
 	invalidateCache bool, extraEnvironmentVariables map[string]string,
 	pipelineType string) {

@@ -1,23 +1,26 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package security
 
 import (
+	"context"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	"go.opentelemetry.io/otel"
 	"time"
 
 	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -39,6 +42,7 @@ type ImageScanService interface {
 	FetchExecutionDetailResult(request *ImageScanRequest) (*ImageScanExecutionDetail, error)
 	FetchMinScanResultByAppIdAndEnvId(request *ImageScanRequest) (*ImageScanExecutionDetail, error)
 	VulnerabilityExposure(request *security.VulnerabilityRequest) (*security.VulnerabilityExposureListingResponse, error)
+	GetArtifactVulnerabilityStatus(ctx context.Context, request *bean2.VulnerabilityCheckRequest) (bool, error)
 }
 
 type ImageScanServiceImpl struct {
@@ -58,6 +62,7 @@ type ImageScanServiceImpl struct {
 	ciPipelineRepository                      pipelineConfig.CiPipelineRepository
 	scanToolMetaDataRepository                security.ScanToolMetadataRepository
 	scanToolExecutionHistoryMappingRepository security.ScanToolExecutionHistoryMappingRepository
+	cvePolicyRepository                       security.CvePolicyRepository
 }
 
 type ImageScanRequest struct {
@@ -130,7 +135,8 @@ func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository se
 	userService user.UserService, teamRepository repository2.TeamRepository,
 	appRepository repository1.AppRepository,
 	envService cluster.EnvironmentService, ciArtifactRepository repository.CiArtifactRepository, policyService PolicyService,
-	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository, scanToolMetaDataRepository security.ScanToolMetadataRepository, scanToolExecutionHistoryMappingRepository security.ScanToolExecutionHistoryMappingRepository) *ImageScanServiceImpl {
+	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository, scanToolMetaDataRepository security.ScanToolMetadataRepository, scanToolExecutionHistoryMappingRepository security.ScanToolExecutionHistoryMappingRepository,
+	cvePolicyRepository security.CvePolicyRepository) *ImageScanServiceImpl {
 	return &ImageScanServiceImpl{Logger: Logger, scanHistoryRepository: scanHistoryRepository, scanResultRepository: scanResultRepository,
 		scanObjectMetaRepository: scanObjectMetaRepository, cveStoreRepository: cveStoreRepository,
 		imageScanDeployInfoRepository:             imageScanDeployInfoRepository,
@@ -144,6 +150,7 @@ func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository se
 		ciPipelineRepository:                      ciPipelineRepository,
 		scanToolMetaDataRepository:                scanToolMetaDataRepository,
 		scanToolExecutionHistoryMappingRepository: scanToolExecutionHistoryMappingRepository,
+		cvePolicyRepository:                       cvePolicyRepository,
 	}
 }
 
@@ -186,8 +193,17 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *ImageScanReq
 	}
 
 	groupByListMap := make(map[int]*security.ImageScanDeployInfo)
+	executionHistoryIds := make([]int, 0, len(deployedList)*2)
 	for _, item := range deployedList {
 		groupByListMap[item.Id] = item
+		executionHistoryIds = append(executionHistoryIds, item.ImageScanExecutionHistoryId...)
+	}
+
+	// fetching all execution history in bulk for updating last check time in case when no vul are found(no results will be saved)
+	mapOfExecutionHistoryIdVsLastExecTime, err := impl.fetchImageExecutionHistoryMapByIds(executionHistoryIds)
+	if err != nil {
+		// made it non-blocking as it is not critical
+		impl.Logger.Errorw("error encountered in FetchScanExecutionListing", "err", err)
 	}
 
 	var finalResponseList []*ImageScanHistoryResponse
@@ -218,6 +234,14 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *ImageScanReq
 					moderateCount = moderateCount + 1
 				} else if item.CveStore.Severity == security.Low {
 					lowCount = lowCount + 1
+				}
+			}
+			// updating in case when no vul are found (no results)
+			if lastChecked.IsZero() && len(imageScanDeployInfo.ImageScanExecutionHistoryId) > 0 && mapOfExecutionHistoryIdVsLastExecTime != nil {
+				// len is always 1 of image execution history array
+				historyId := imageScanDeployInfo.ImageScanExecutionHistoryId[0]
+				if val, ok := mapOfExecutionHistoryIdVsLastExecTime[historyId]; ok {
+					lastChecked = val
 				}
 			}
 		}
@@ -282,6 +306,21 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *ImageScanReq
 	*/
 
 	return finalResponse, err
+}
+
+func (impl ImageScanServiceImpl) fetchImageExecutionHistoryMapByIds(historyIds []int) (map[int]time.Time, error) {
+	mapOfExecutionHistoryIdVsExecutionTime := make(map[int]time.Time)
+	if len(historyIds) > 0 {
+		imageScanExecutionHistories, err := impl.scanHistoryRepository.FindByIds(historyIds)
+		if err != nil {
+			impl.Logger.Errorw("error encountered in fetchImageExecutionHistoryMapByIds", "historyIds", historyIds, "err", err)
+			return nil, err
+		}
+		for _, h := range imageScanExecutionHistories {
+			mapOfExecutionHistoryIdVsExecutionTime[h.Id] = h.ExecutionTime
+		}
+	}
+	return mapOfExecutionHistoryIdVsExecutionTime, nil
 }
 
 func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRequest) (*ImageScanExecutionDetail, error) {
@@ -360,10 +399,18 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 			vulnerability := &Vulnerabilities{
 				CVEName:  item.CveStore.Name,
 				CVersion: item.CveStore.Version,
-				FVersion: item.CveStore.FixedVersion,
+				FVersion: item.FixedVersion,
 				Package:  item.CveStore.Package,
 				Severity: item.CveStore.Severity.String(),
 				//Permission: "BLOCK", TODO
+			}
+			// data already migrated hence get package, version and fixedVersion from image_scan_execution_result
+			if len(item.Package) > 0 {
+				// data already migrated hence get package from image_scan_execution_result
+				vulnerability.Package = item.Package
+			}
+			if len(item.Version) > 0 {
+				vulnerability.CVersion = item.Version
 			}
 			if item.CveStore.Severity == security.Critical {
 				highCount = highCount + 1
@@ -383,11 +430,13 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 			imageScanResponse.ScanToolId = imageScanResult[0].ScanToolId
 		} else {
 			toolIdFromExecutionHistory, err := impl.getScanToolIdFromExecutionHistory(scanExecutionIds)
-			if err != nil || toolIdFromExecutionHistory == -1 {
+			if err != nil {
 				impl.Logger.Errorw("error in getting scan tool id from exection history", "err", err, "")
 				return nil, err
 			}
-			imageScanResponse.ScanToolId = toolIdFromExecutionHistory
+			if toolIdFromExecutionHistory != -1 {
+				imageScanResponse.ScanToolId = toolIdFromExecutionHistory
+			}
 		}
 	}
 	severityCount := &SeverityCount{
@@ -569,7 +618,7 @@ func (impl ImageScanServiceImpl) VulnerabilityExposure(request *security.Vulnera
 		return nil, err
 	}
 
-	envMap := make(map[int]cluster.EnvironmentBean)
+	envMap := make(map[int]bean.EnvironmentBean)
 	environments, err := impl.envService.GetAllActive()
 	if err != nil {
 		impl.Logger.Errorw("error while fetching vulnerability exposure", "err", err)
@@ -603,4 +652,40 @@ func (impl ImageScanServiceImpl) VulnerabilityExposure(request *security.Vulnera
 	}
 	vulnerabilityExposureListingResponse.VulnerabilityExposure = vulnerabilityExposureList
 	return vulnerabilityExposureListingResponse, nil
+}
+
+func (impl ImageScanServiceImpl) GetArtifactVulnerabilityStatus(ctx context.Context, request *bean2.VulnerabilityCheckRequest) (bool, error) {
+	isVulnerable := false
+	if len(request.ImageDigest) > 0 {
+		var cveStores []*security.CveStore
+		_, span := otel.Tracer("orchestrator").Start(ctx, "scanResultRepository.FindByImageDigest")
+		imageScanResult, err := impl.scanResultRepository.FindByImageDigest(request.ImageDigest)
+		span.End()
+		if err != nil && err != pg.ErrNoRows {
+			impl.Logger.Errorw("error fetching image digest", "digest", request.ImageDigest, "err", err)
+			return false, err
+		}
+		for _, item := range imageScanResult {
+			cveStores = append(cveStores, &item.CveStore)
+		}
+		_, span = otel.Tracer("orchestrator").Start(ctx, "cvePolicyRepository.GetBlockedCVEList")
+		if request.CdPipeline.Environment.ClusterId == 0 {
+			envDetails, err := impl.envService.GetDetailsById(request.CdPipeline.EnvironmentId)
+			if err != nil {
+				impl.Logger.Errorw("error fetching cluster details by env, GetArtifactVulnerabilityStatus", "envId", request.CdPipeline.EnvironmentId, "err", err)
+				return false, err
+			}
+			request.CdPipeline.Environment = *envDetails
+		}
+		blockCveList, err := impl.cvePolicyRepository.GetBlockedCVEList(cveStores, request.CdPipeline.Environment.ClusterId, request.CdPipeline.EnvironmentId, request.CdPipeline.AppId, false)
+		span.End()
+		if err != nil {
+			impl.Logger.Errorw("error encountered in GetArtifactVulnerabilityStatus", "clusterId", request.CdPipeline.Environment.ClusterId, "envId", request.CdPipeline.EnvironmentId, "appId", request.CdPipeline.AppId, "err", err)
+			return false, err
+		}
+		if len(blockCveList) > 0 {
+			isVulnerable = true
+		}
+	}
+	return isVulnerable, nil
 }

@@ -140,8 +140,8 @@ spec:
               key: DEVTRON_HELM_RELEASE_NAME
         resources:
           limits:
-            cpu: "50m"
-            memory: 50Mi
+            cpu: "2"
+            memory: 2Gi
           requests:
             cpu: "50m"
             memory: 50Mi

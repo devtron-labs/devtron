@@ -1,12 +1,31 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package git
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
+	"github.com/devtron-labs/devtron/util/retryFunc"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
 	"go.uber.org/zap"
+	http2 "net/http"
 	"path/filepath"
 	"time"
 )
@@ -63,9 +82,8 @@ func (impl GitAzureClient) DeleteRepository(config *bean2.GitOpsConfigDto) error
 	return err
 }
 
-func (impl GitAzureClient) CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+func (impl GitAzureClient) CreateRepository(ctx context.Context, config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
-	ctx := context.Background()
 	url, repoExists, err := impl.repoExists(config.GitRepoName, impl.project)
 	if err != nil {
 		impl.logger.Errorw("error in communication with azure", "err", err)
@@ -87,7 +105,13 @@ func (impl GitAzureClient) CreateRepository(config *bean2.GitOpsConfigDto) (url 
 	if err != nil {
 		impl.logger.Errorw("error in creating repo azure", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
-		return "", true, detailedErrorGitOpsConfigActions
+		url, repoExists, err = impl.repoExists(config.GitRepoName, impl.project)
+		if err != nil {
+			impl.logger.Errorw("error in communication with azure", "err", err)
+		}
+		if err != nil || !repoExists {
+			return "", true, detailedErrorGitOpsConfigActions
+		}
 	}
 	impl.logger.Infow("repo created ", "r", operationReference.WebUrl)
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateRepoStage)
@@ -103,7 +127,7 @@ func (impl GitAzureClient) CreateRepository(config *bean2.GitOpsConfigDto) (url 
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
 
-	_, err = impl.CreateReadme(config)
+	_, err = impl.CreateReadme(ctx, config)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme azure", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
@@ -125,7 +149,7 @@ func (impl GitAzureClient) CreateRepository(config *bean2.GitOpsConfigDto) (url 
 	return *operationReference.WebUrl, true, detailedErrorGitOpsConfigActions
 }
 
-func (impl GitAzureClient) CreateReadme(config *bean2.GitOpsConfigDto) (string, error) {
+func (impl GitAzureClient) CreateReadme(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
 	cfg := &ChartConfig{
 		ChartName:      config.GitRepoName,
 		ChartLocation:  "",
@@ -136,23 +160,22 @@ func (impl GitAzureClient) CreateReadme(config *bean2.GitOpsConfigDto) (string, 
 		UserName:       config.Username,
 		UserEmailId:    config.UserEmailId,
 	}
-	hash, _, err := impl.CommitValues(cfg, config)
+	hash, _, err := impl.CommitValues(ctx, cfg, config)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme azure", "repo", config.GitRepoName, "err", err)
 	}
 	return hash, err
 }
 
-func (impl GitAzureClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
+func (impl GitAzureClient) CommitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
 	branch := "master"
 	branchfull := "refs/heads/master"
 	path := filepath.Join(config.ChartLocation, config.FileName)
-	ctx := context.Background()
 	newFile := true
 	oldObjId := "0000000000000000000000000000000000000000" //default commit hash
 	// check if file exists and current hash
-	// if file does not exists get hash from branch
-	// if branch doesn't exists use default hash
+	// if file does not exist get hash from branch
+	// if branch doesn't exist use default hash
 	clientAzure := *impl.client
 	fc, err := clientAzure.GetItem(ctx, git.GetItemArgs{
 		RepositoryId: &config.ChartRepoName,
@@ -228,8 +251,10 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2
 		RepositoryId: &config.ChartRepoName,
 		Project:      &impl.project,
 	})
-
-	if err != nil {
+	if e := (azuredevops.WrappedError{}); errors.As(err, &e) && e.StatusCode != nil && *e.StatusCode == http2.StatusConflict {
+		impl.logger.Warn("conflict found in commit azure", "err", err, "config", config)
+		return "", time.Time{}, retryFunc.NewRetryableError(err)
+	} else if err != nil {
 		impl.logger.Errorw("error in commit azure", "err", err)
 		return "", time.Time{}, err
 	}

@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package pipeline
@@ -31,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -127,10 +127,14 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 		impl.Logger.Errorw("error occurred while appending CmCs", "err", err)
 		return bean3.WorkflowTemplate{}, err
 	}
-	workflowConfigMaps, workflowSecrets, err = impl.addExistingCmCsInWorkflow(workflowRequest, workflowConfigMaps, workflowSecrets)
-	if err != nil {
-		impl.Logger.Errorw("error occurred while adding existing CmCs", "err", err)
-		return bean3.WorkflowTemplate{}, err
+
+	shouldAddExistingCmCsInWorkflow := impl.shouldAddExistingCmCsInWorkflow(workflowRequest)
+	if shouldAddExistingCmCsInWorkflow {
+		workflowConfigMaps, workflowSecrets, err = impl.addExistingCmCsInWorkflow(workflowRequest, workflowConfigMaps, workflowSecrets)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while adding existing CmCs", "err", err)
+			return bean3.WorkflowTemplate{}, err
+		}
 	}
 
 	workflowTemplate.ConfigMaps = workflowConfigMaps
@@ -177,6 +181,14 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 	return workflowTemplate, nil
 }
 
+func (impl *WorkflowServiceImpl) shouldAddExistingCmCsInWorkflow(workflowRequest *types.WorkflowRequest) bool {
+	// CmCs are not added for CI_JOB if IgnoreCmCsInCiJob is true
+	if workflowRequest.CiPipelineType == string(CiPipeline.CI_JOB) && impl.ciCdConfig.IgnoreCmCsInCiJob {
+		return false
+	}
+	return true
+}
+
 func (impl *WorkflowServiceImpl) getClusterConfig(workflowRequest *types.WorkflowRequest) (*rest.Config, error) {
 	env := workflowRequest.Env
 	if workflowRequest.IsExtRun {
@@ -204,7 +216,7 @@ func (impl *WorkflowServiceImpl) appendGlobalCMCS(workflowRequest *types.Workflo
 	var workflowSecrets []bean.ConfigSecretMap
 	if !workflowRequest.IsExtRun {
 		// inject global variables only if IsExtRun is false
-		globalCmCsConfigs, err := impl.globalCMCSService.FindAllActiveByPipelineType(workflowRequest.GetEventTypeForWorkflowRequest())
+		globalCmCsConfigs, err := impl.globalCMCSService.FindAllActiveByPipelineType(workflowRequest.GetPipelineTypeForGlobalCMCS())
 		if err != nil {
 			impl.Logger.Errorw("error in getting all global cm/cs config", "err", err)
 			return nil, nil, err

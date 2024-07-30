@@ -1,14 +1,36 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package git
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
-	"github.com/ktrysmt/go-bitbucket"
+	"github.com/devtron-labs/devtron/util/retryFunc"
+	"github.com/devtron-labs/go-bitbucket"
 	"go.uber.org/zap"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -68,7 +90,7 @@ func (impl GitBitbucketClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUr
 	}
 }
 
-func (impl GitBitbucketClient) CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+func (impl GitBitbucketClient) CreateRepository(ctx context.Context, config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 
 	workSpaceId := config.BitBucketWorkspaceId
@@ -95,7 +117,13 @@ func (impl GitBitbucketClient) CreateRepository(config *bean2.GitOpsConfigDto) (
 	if err != nil {
 		impl.logger.Errorw("error in creating repo bitbucket", "repoOptions", repoOptions, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
-		return "", true, detailedErrorGitOpsConfigActions
+		repoUrl, repoExists, err = impl.repoExists(repoOptions)
+		if err != nil {
+			impl.logger.Errorw("error in creating repo bitbucket", "repoOptions", repoOptions, "err", err)
+		}
+		if err != nil || !repoExists {
+			return "", true, detailedErrorGitOpsConfigActions
+		}
 	}
 	repoUrl = fmt.Sprintf(BITBUCKET_CLONE_BASE_URL+"%s/%s.git", repoOptions.Owner, repoOptions.RepoSlug)
 	impl.logger.Infow("repo created ", "repoUrl", repoUrl)
@@ -113,7 +141,7 @@ func (impl GitBitbucketClient) CreateRepository(config *bean2.GitOpsConfigDto) (
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
 
-	_, err = impl.CreateReadme(config)
+	_, err = impl.CreateReadme(ctx, config)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme bitbucket", "repoName", repoOptions.RepoSlug, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
@@ -163,7 +191,13 @@ func (impl GitBitbucketClient) ensureProjectAvailabilityOnHttp(repoOptions *bitb
 	return false, nil
 }
 
-func (impl GitBitbucketClient) CreateReadme(config *bean2.GitOpsConfigDto) (string, error) {
+func getDir() string {
+	/* #nosec */
+	r1 := rand.New(rand.NewSource(time.Now().UnixNano())).Int63()
+	return strconv.FormatInt(r1, 10)
+}
+
+func (impl GitBitbucketClient) CreateReadme(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
 	cfg := &ChartConfig{
 		ChartName:      config.GitRepoName,
 		ChartLocation:  "",
@@ -174,7 +208,8 @@ func (impl GitBitbucketClient) CreateReadme(config *bean2.GitOpsConfigDto) (stri
 		UserName:       config.Username,
 		UserEmailId:    config.UserEmailId,
 	}
-	hash, _, err := impl.CommitValues(cfg, config)
+	cfg.SetBitBucketBaseDir(getDir())
+	hash, _, err := impl.CommitValues(ctx, cfg, config)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme bitbucket", "repo", config.GitRepoName, "err", err)
 	}
@@ -195,25 +230,32 @@ func (impl GitBitbucketClient) ensureProjectAvailabilityOnSsh(repoOptions *bitbu
 	return false, nil
 }
 
-func (impl GitBitbucketClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
+func (impl GitBitbucketClient) cleanUp(cloneDir string) {
+	err := os.RemoveAll(cloneDir)
+	if err != nil {
+		impl.logger.Errorw("error cleaning work path for git-ops", "err", err, "cloneDir", cloneDir)
+	}
+}
 
+func (impl GitBitbucketClient) CommitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
+		impl.logger.Errorw("error in getting home dir", "err", err)
 		return "", time.Time{}, err
 	}
-	bitbucketGitOpsDirPath := path.Join(homeDir, BITBUCKET_GITOPS_DIR)
-	if _, err = os.Stat(bitbucketGitOpsDirPath); !os.IsExist(err) {
-		os.Mkdir(bitbucketGitOpsDirPath, 0777)
+	bitbucketGitOpsDirPath := path.Join(homeDir, BITBUCKET_GITOPS_DIR, config.GetBitBucketBaseDir())
+	osErr := os.MkdirAll(bitbucketGitOpsDirPath, os.ModePerm)
+	if osErr != nil {
+		impl.logger.Errorw("error in creating bitbucket commit base dir", "bitbucketGitOpsDirPath", bitbucketGitOpsDirPath, "err", osErr)
 	}
+	defer impl.cleanUp(bitbucketGitOpsDirPath)
 
 	bitbucketCommitFilePath := path.Join(bitbucketGitOpsDirPath, config.FileName)
-
-	if _, err = os.Stat(bitbucketCommitFilePath); os.IsExist(err) {
-		os.Remove(bitbucketCommitFilePath)
-	}
+	impl.logger.Debugw("bitbucket commit FilePath", "bitbucketCommitFilePath", bitbucketCommitFilePath)
 
 	err = ioutil.WriteFile(bitbucketCommitFilePath, []byte(config.FileContent), 0666)
 	if err != nil {
+		impl.logger.Errorw("error in writing bitbucket commit file", "bitbucketCommitFilePath", bitbucketCommitFilePath, "err", err)
 		return "", time.Time{}, err
 	}
 	fileName := filepath.Join(config.ChartLocation, config.FileName)
@@ -229,9 +271,13 @@ func (impl GitBitbucketClient) CommitValues(config *ChartConfig, gitOpsConfig *b
 		Branch:   "master",
 		Author:   authorBitbucket,
 	}
+	repoWriteOptions.WithContext(ctx)
 	err = impl.client.Repositories.Repository.WriteFileBlob(repoWriteOptions)
-	_ = os.Remove(bitbucketCommitFilePath)
 	if err != nil {
+		impl.logger.Errorw("error in committing file to bitbucket", "repoWriteOptions", repoWriteOptions, "err", err)
+		if e := (&bitbucket.UnexpectedResponseStatusError{}); errors.As(err, &e) && strings.Contains(e.Error(), "500 Internal Server Error") {
+			return "", time.Time{}, retryFunc.NewRetryableError(err)
+		}
 		return "", time.Time{}, err
 	}
 	commitOptions := &bitbucket.CommitsOptions{
@@ -241,6 +287,7 @@ func (impl GitBitbucketClient) CommitValues(config *ChartConfig, gitOpsConfig *b
 	}
 	commits, err := impl.client.Repositories.Commits.GetCommits(commitOptions)
 	if err != nil {
+		impl.logger.Errorw("error in getting commits from bitbucket", "commitOptions", commitOptions, "err", err)
 		return "", time.Time{}, err
 	}
 

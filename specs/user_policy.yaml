@@ -9,7 +9,7 @@ paths:
     get:
       summary: Returns all users
       description: all the template users
-      operationId: findAllUsers
+      operationId: GetAllV2
       parameters:
 
         - name: searchKey
@@ -186,9 +186,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                items:
-                  $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/User'
         default:
           description: unexpected error
           content:
@@ -233,10 +231,10 @@ components:
         email_id:
           type: string
           description: Unique valid email-id of user, comma separated emails ids for multiple users
-        groups:
+        userRoleGroups:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/UserRoleGroupItem'
         roleFilters:
           type: array
           items:
@@ -247,7 +245,7 @@ components:
       properties:
         users:
           items:
-            $ref: '#/components/schemas/AllUsers'
+            $ref: '#/components/schemas/AllUsersV2'
           description: role filters objects
         totalCount:
           type: integer
@@ -273,6 +271,25 @@ components:
           items:
             $ref: '#/components/schemas/emptyRoleFilter'
           description: role filters objects
+        lastLogin:
+          type: string
+          format: date-time
+          description: user last login time
+    AllUsersV2:
+      type: object
+      required:
+        - email_id
+      properties:
+        id:
+          type: integer
+          description: Unique id of user
+        email_id:
+          type: string
+          description: Unique valid email-id of user, comma separated emails ids for multiple users
+        userRoleGroups:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserRoleGroupItem'
         lastLogin:
           type: string
           format: date-time
@@ -354,8 +371,24 @@ components:
         showAll:
           type: boolean
           description: Show all listings
-
-
+    UserRoleGroupItem:
+      type: object
+      properties:
+        roleGroup:
+          $ref: '#/components/schemas/RoleGroup'
+    RoleGroup:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+          description: The ID of the role group
+        name:
+          type: string
+          description: The name of the role group
+        description:
+          type: string
+          description: The description of the role group
 
     Error:
       required:

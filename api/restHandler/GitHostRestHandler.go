@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package restHandler
@@ -190,8 +189,16 @@ func (impl GitHostRestHandlerImpl) GetAllWebhookEventConfig(w http.ResponseWrite
 		return
 	}
 
+	gitHost, err := impl.gitHostConfig.GetById(id)
+	if err != nil {
+		impl.logger.Errorw("service err, GetGitHostById", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
 	webhookEventRequest := &gitSensor.WebhookEventConfigRequest{
-		GitHostId: id,
+		GitHostId:   id,
+		GitHostName: gitHost.Name,
 	}
 
 	res, err := impl.gitSensorClient.GetAllWebhookEventConfigForHost(context.Background(), webhookEventRequest)
@@ -276,7 +283,8 @@ func (impl GitHostRestHandlerImpl) GetWebhookDataMetaConfig(w http.ResponseWrite
 		webhookDataMetaConfigResponse.GitHost = gitHost
 
 		webhookEventRequest := &gitSensor.WebhookEventConfigRequest{
-			GitHostId: gitHostId,
+			GitHostId:   gitHostId,
+			GitHostName: gitHost.Name,
 		}
 		webhookEvents, err := impl.gitSensorClient.GetAllWebhookEventConfigForHost(context.Background(), webhookEventRequest)
 		if err != nil {

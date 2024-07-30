@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package deploymentTypeChange
 
 import (
@@ -9,6 +25,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -24,7 +41,10 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
@@ -53,7 +73,7 @@ type InstalledAppDeploymentTypeChangeServiceImpl struct {
 	environmentRepository         repository5.EnvironmentRepository
 	acdClient                     application2.ServiceClient
 	k8sCommonService              k8s.K8sCommonService
-	k8sUtil                       *k8s2.K8sServiceImpl
+	k8sUtil                       k8s2.K8sService
 	fullModeDeploymentService     deployment.FullModeDeploymentService
 	eaModeDeploymentService       EAMode.EAModeDeploymentService
 	argoClientWrapperService      argocdServer.ArgoClientWrapperService
@@ -61,6 +81,7 @@ type InstalledAppDeploymentTypeChangeServiceImpl struct {
 	helmAppService                client.HelmAppService
 	argoUserService               argo.ArgoUserService
 	clusterService                cluster.ClusterService
+	deploymentConfigService       common.DeploymentConfigService
 }
 
 func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
@@ -70,12 +91,13 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	environmentRepository repository5.EnvironmentRepository,
 	acdClient application2.ServiceClient, k8sCommonService k8s.K8sCommonService,
-	k8sUtil *k8s2.K8sServiceImpl, fullModeDeploymentService deployment.FullModeDeploymentService,
+	k8sUtil k8s2.K8sService, fullModeDeploymentService deployment.FullModeDeploymentService,
 	eaModeDeploymentService EAMode.EAModeDeploymentService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	chartGroupService chartGroup.ChartGroupService, helmAppService client.HelmAppService,
 	argoUserService argo.ArgoUserService, clusterService cluster.ClusterService,
-	appRepository appRepository.AppRepository) *InstalledAppDeploymentTypeChangeServiceImpl {
+	appRepository appRepository.AppRepository,
+	deploymentConfigService common.DeploymentConfigService) *InstalledAppDeploymentTypeChangeServiceImpl {
 	return &InstalledAppDeploymentTypeChangeServiceImpl{
 		logger:                        logger,
 		installedAppRepository:        installedAppRepository,
@@ -94,6 +116,7 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 		argoUserService:               argoUserService,
 		clusterService:                clusterService,
 		appRepository:                 appRepository,
+		deploymentConfigService:       deploymentConfigService,
 	}
 }
 
@@ -109,13 +132,13 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) MigrateDeploymentType(c
 		return response, err
 	}
 
-	var deleteDeploymentType bean.DeploymentType
+	var deleteDeploymentType bean2.DeploymentType
 	var deployStatus appStoreBean.AppstoreDeploymentStatus
-	if request.DesiredDeploymentType == bean.ArgoCd {
-		deleteDeploymentType = bean.Helm
+	if request.DesiredDeploymentType == bean2.ArgoCd {
+		deleteDeploymentType = bean2.Helm
 		deployStatus = appStoreBean.DEPLOY_INIT
 	} else {
-		deleteDeploymentType = bean.ArgoCd
+		deleteDeploymentType = bean2.ArgoCd
 		deployStatus = appStoreBean.DEPLOY_SUCCESS
 	}
 	envBean, err := impl.environmentRepository.FindById(request.EnvId)
@@ -140,14 +163,19 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) MigrateDeploymentType(c
 		return response, err
 	}
 	var installedAppIds []int
-	for _, item := range installedApps {
-		installedAppIds = append(installedAppIds, item.Id)
+	for _, installedApp := range installedApps {
+		if util2.IsExternalChartStoreApp(installedApp.App.DisplayName) {
+			//for ext-apps, appName is a unique identifier pertaining to devtron environment hence changing appName to ReleaseName, as going
+			//further interactions with helm/argo-cd will happen via release name only so refrain from doing any db updates using this installed apps
+			installedApp.App.AppName = installedApp.App.DisplayName
+		}
+		installedAppIds = append(installedAppIds, installedApp.Id)
 	}
 
 	if len(installedAppIds) == 0 {
 		return response, &util.ApiError{HttpStatusCode: http.StatusNotFound, UserMessage: fmt.Sprintf("no installed apps found for this desired deployment type %s", request.DesiredDeploymentType)}
 	}
-	if request.DesiredDeploymentType == bean.Helm {
+	if request.DesiredDeploymentType == bean2.Helm {
 		//before deleting the installed app we'll first annotate CRD's manifest created by argo-cd with helm supported
 		//annotations so that helm install doesn't throw crd already exist error while migrating from argo-cd to helm.
 		for _, installedApp := range installedApps {
@@ -190,10 +218,30 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) MigrateDeploymentType(c
 	return response, nil
 }
 
-func (impl *InstalledAppDeploymentTypeChangeServiceImpl) performDbOperationsAfterMigrations(desiredDeploymentType bean.DeploymentType,
+func (impl *InstalledAppDeploymentTypeChangeServiceImpl) performDbOperationsAfterMigrations(desiredDeploymentType bean2.DeploymentType,
 	successInstalledAppIds []int, successAppIds []*int, userId int32, deployStatus int) error {
 
-	err := impl.installedAppRepository.UpdateDeploymentAppTypeInInstalledApp(desiredDeploymentType, successInstalledAppIds, userId, deployStatus)
+	installedApps, err := impl.installedAppRepository.FindInstalledAppByIds(successInstalledAppIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting installed apps by ids", "installedAppIds", successInstalledAppIds, "err", err)
+		return err
+	}
+
+	for _, ia := range installedApps {
+		deploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForHelmApp(ia.AppId, ia.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", ia.AppId, "envId", ia.EnvironmentId, "err", err)
+			return err
+		}
+		deploymentConfig.DeploymentAppType = desiredDeploymentType
+		deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, userId)
+		if err != nil {
+			impl.logger.Errorw("error in updating deployment config", "appId", ia.AppId, "envId", ia.EnvironmentId, "err", err)
+			return err
+		}
+	}
+
+	err = impl.installedAppRepository.UpdateDeploymentAppTypeInInstalledApp(desiredDeploymentType, successInstalledAppIds, userId, deployStatus)
 	if err != nil {
 		impl.logger.Errorw("failed to update deployment app type for successfully deleted installed apps in db",
 			"successfully deleted installedApp ids", successInstalledAppIds,
@@ -202,7 +250,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) performDbOperationsAfte
 
 		return err
 	}
-	if desiredDeploymentType == bean.ArgoCd {
+	if desiredDeploymentType == bean2.ArgoCd {
 		//this is to handle the case when an external helm app linked to devtron is being
 		//migrated to argo_cd then it's app offering mode should be full mode
 		err = impl.appRepository.UpdateAppOfferingModeForAppIds(successAppIds, util3.SERVER_MODE_FULL, userId)
@@ -270,6 +318,12 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) deleteInstalledApps(ctx
 	for _, installedApp := range installedApps {
 		installedApp.Environment.Cluster = cluster
 
+		deploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForHelmApp(installedApp.AppId, installedApp.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", installedApp.AppId, "envId", installedApp.EnvironmentId, "err", err)
+			return nil, err
+		}
+
 		var isValid bool
 		// check if installed app info like app name and environment is empty or not
 		if failedToDeleteApps, isValid = impl.isInstalledAppInfoValid(installedApp, failedToDeleteApps); !isValid {
@@ -278,17 +332,16 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) deleteInstalledApps(ctx
 
 		var healthChkErr error
 		// check health of the app if it is argo-cd deployment type
-		if _, healthChkErr = impl.handleNotDeployedAppsIfArgoDeploymentType(installedApp, failedToDeleteApps); healthChkErr != nil {
+		if _, healthChkErr = impl.handleNotDeployedAppsIfArgoDeploymentType(installedApp, deploymentConfig, failedToDeleteApps); healthChkErr != nil {
 			// cannot delete unhealthy app
 			continue
 		}
 
 		deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
-		var err error
 		// delete request
-		if installedApp.DeploymentAppType == bean.ArgoCd {
+		if deploymentConfig.DeploymentAppType == bean2.ArgoCd {
 			err = impl.fullModeDeploymentService.DeleteACD(deploymentAppName, ctx, false)
-		} else if installedApp.DeploymentAppType == bean.Helm {
+		} else if deploymentConfig.DeploymentAppType == bean2.Helm {
 			// For converting from Helm to ArgoCD, GitOps should be configured
 			if gitOpsConfigErr != nil || !gitOpsConfigStatus.IsGitOpsConfigured {
 				err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "200", UserMessage: errors.New("GitOps not configured or unable to fetch GitOps configuration")}
@@ -314,7 +367,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) deleteInstalledApps(ctx
 		}
 
 		if err != nil {
-			impl.logger.Errorw("error deleting app on "+installedApp.DeploymentAppType,
+			impl.logger.Errorw("error deleting app on "+deploymentConfig.DeploymentAppType,
 				"deployment app name", deploymentAppName,
 				"err", err)
 
@@ -346,9 +399,10 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) isInstalledAppInfoValid
 }
 
 func (impl *InstalledAppDeploymentTypeChangeServiceImpl) handleNotDeployedAppsIfArgoDeploymentType(installedApp *repository2.InstalledApps,
+	deploymentConfig *bean3.DeploymentConfig,
 	failedToDeleteApps []*bean.DeploymentChangeStatus) ([]*bean.DeploymentChangeStatus, error) {
 
-	if installedApp.DeploymentAppType == string(bean.ArgoCd) {
+	if deploymentConfig.DeploymentAppType == bean2.ArgoCd {
 		// check if app status is Healthy
 		status, err := impl.appStatusRepository.Get(installedApp.AppId, installedApp.EnvironmentId)
 
@@ -399,8 +453,13 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) TriggerAfterMigration(c
 	}
 
 	var installedAppIds []int
-	for _, item := range installedApps {
-		installedAppIds = append(installedAppIds, item.Id)
+	for _, installedApp := range installedApps {
+		if util2.IsExternalChartStoreApp(installedApp.App.DisplayName) {
+			//for ext-apps, appName is a unique identifier pertaining to devtron environment hence changing appName to ReleaseName, as going
+			//further interactions with helm/argo-cd will happen via release name only so refrain from doing any db updates using this installed apps
+			installedApp.App.AppName = installedApp.App.DisplayName
+		}
+		installedAppIds = append(installedAppIds, installedApp.Id)
 	}
 
 	if len(installedAppIds) == 0 {
@@ -434,7 +493,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) TriggerAfterMigration(c
 		return response, err
 	}
 
-	impl.chartGroupService.TriggerDeploymentEvent(installedAppVersionDTOList)
+	impl.chartGroupService.TriggerDeploymentEventAndHandleStatusUpdate(installedAppVersionDTOList)
 
 	err = impl.performDbOperationsAfterTrigger(request.DesiredDeploymentType, successInstalledApps)
 	if err != nil {
@@ -450,8 +509,8 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) TriggerAfterMigration(c
 	return response, nil
 }
 
-func (impl *InstalledAppDeploymentTypeChangeServiceImpl) performDbOperationsAfterTrigger(desiredDeploymentType bean.DeploymentType, successInstalledApps []*repository2.InstalledApps) error {
-	if desiredDeploymentType == bean.Helm {
+func (impl *InstalledAppDeploymentTypeChangeServiceImpl) performDbOperationsAfterTrigger(desiredDeploymentType bean2.DeploymentType, successInstalledApps []*repository2.InstalledApps) error {
+	if desiredDeploymentType == bean2.Helm {
 		err := impl.deleteAppStatusEntryAfterTrigger(successInstalledApps)
 		if err != nil && err == pg.ErrNoRows {
 			impl.logger.Infow("app status already deleted or not found after trigger and migration from argo-cd to helm",
@@ -466,7 +525,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) performDbOperationsAfte
 	return nil
 }
 
-func (impl *InstalledAppDeploymentTypeChangeServiceImpl) getDtoListForTriggerDeploymentEvent(desiredDeploymentType bean.DeploymentType, successInstalledApps []*repository2.InstalledApps) ([]*appStoreBean.InstallAppVersionDTO, error) {
+func (impl *InstalledAppDeploymentTypeChangeServiceImpl) getDtoListForTriggerDeploymentEvent(desiredDeploymentType bean2.DeploymentType, successInstalledApps []*repository2.InstalledApps) ([]*appStoreBean.InstallAppVersionDTO, error) {
 	var installedAppVersionDTOList []*appStoreBean.InstallAppVersionDTO
 	for _, installedApp := range successInstalledApps {
 		installedAppVersion, err := impl.installedAppRepository.GetActiveInstalledAppVersionByInstalledAppId(installedApp.Id)
@@ -495,8 +554,8 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) getDtoListForTriggerDep
 	return installedAppVersionDTOList, nil
 }
 
-func (impl *InstalledAppDeploymentTypeChangeServiceImpl) updateDeployedOnDataForTrigger(desiredDeploymentType bean.DeploymentType, installedAppVersion *repository2.InstalledAppVersions, installedAppVersionHistory *repository2.InstalledAppVersionHistory) error {
-	if desiredDeploymentType == bean.Helm {
+func (impl *InstalledAppDeploymentTypeChangeServiceImpl) updateDeployedOnDataForTrigger(desiredDeploymentType bean2.DeploymentType, installedAppVersion *repository2.InstalledAppVersions, installedAppVersionHistory *repository2.InstalledAppVersionHistory) error {
+	if desiredDeploymentType == bean2.Helm {
 		//for helm, on ui we show  last deployed installed app versions table
 		installedAppVersion.UpdatedOn = time.Now()
 		_, err := impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, nil)
@@ -506,7 +565,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) updateDeployedOnDataFor
 				"err", err)
 			return err
 		}
-	} else if desiredDeploymentType == bean.ArgoCd {
+	} else if desiredDeploymentType == bean2.ArgoCd {
 		//for argo-cd deployments, on ui we show last deployed time from installed app version history table
 		installedAppVersionHistory.StartedOn, installedAppVersionHistory.UpdatedOn = time.Now(), time.Now()
 
@@ -566,8 +625,8 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) fetchDeletedInstalledAp
 
 		deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
 		var err error
-		if installedApp.DeploymentAppType == bean.ArgoCd {
-			appIdentifier := &client.AppIdentifier{
+		if installedApp.DeploymentAppType == bean2.ArgoCd {
+			appIdentifier := &helmBean.AppIdentifier{
 				ClusterId:   installedApp.Environment.ClusterId,
 				ReleaseName: deploymentAppName,
 				Namespace:   installedApp.Environment.Namespace,

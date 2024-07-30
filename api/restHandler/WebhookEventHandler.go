@@ -1,24 +1,24 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package restHandler
 
 import (
-	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -36,21 +36,24 @@ type WebhookEventHandler interface {
 }
 
 type WebhookEventHandlerImpl struct {
-	logger                 *zap.SugaredLogger
-	gitHostConfig          pipeline.GitHostConfig
-	eventClient            client.EventClient
-	webhookSecretValidator git.WebhookSecretValidator
-	webhookEventDataConfig pipeline.WebhookEventDataConfig
+	logger                        *zap.SugaredLogger
+	gitHostConfig                 pipeline.GitHostConfig
+	eventClient                   client.EventClient
+	webhookSecretValidator        git.WebhookSecretValidator
+	webhookEventDataConfig        pipeline.WebhookEventDataConfig
+	ciPipelineEventPublishService out.CIPipelineEventPublishService
 }
 
 func NewWebhookEventHandlerImpl(logger *zap.SugaredLogger, gitHostConfig pipeline.GitHostConfig, eventClient client.EventClient,
-	webhookSecretValidator git.WebhookSecretValidator, webhookEventDataConfig pipeline.WebhookEventDataConfig) *WebhookEventHandlerImpl {
+	webhookSecretValidator git.WebhookSecretValidator, webhookEventDataConfig pipeline.WebhookEventDataConfig,
+	ciPipelineEventPublishService out.CIPipelineEventPublishService) *WebhookEventHandlerImpl {
 	return &WebhookEventHandlerImpl{
-		logger:                 logger,
-		gitHostConfig:          gitHostConfig,
-		eventClient:            eventClient,
-		webhookSecretValidator: webhookSecretValidator,
-		webhookEventDataConfig: webhookEventDataConfig,
+		logger:                        logger,
+		gitHostConfig:                 gitHostConfig,
+		eventClient:                   eventClient,
+		webhookSecretValidator:        webhookSecretValidator,
+		webhookEventDataConfig:        webhookEventDataConfig,
+		ciPipelineEventPublishService: ciPipelineEventPublishService,
 	}
 }
 
@@ -59,23 +62,33 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 
 	// get git host Id and secret from request
 	vars := mux.Vars(r)
-	gitHostId, err := strconv.Atoi(vars["gitHostId"])
+	var gitHostId int
+	var err error
+	var gitHostName string
+	var gitHost *types.GitHostRequest
+	if gitHostId, err = strconv.Atoi(vars["gitHostId"]); err != nil {
+		gitHostName = vars["gitHostId"]
+		// get git host from DB
+		gitHost, err = impl.gitHostConfig.GetByName(gitHostName)
+		if err != nil {
+			impl.logger.Errorw("Error in getting git host from DB by Name", "err", err, "gitHostName", gitHostName)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		gitHostId = gitHost.Id
+
+	} else {
+		// get git host from DB
+		gitHost, err = impl.gitHostConfig.GetById(gitHostId)
+		if err != nil {
+			impl.logger.Errorw("Error in getting git host from DB by Id", "err", err, "gitHostId", gitHostId)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+	}
+
 	secretFromRequest := vars["secret"]
-	if err != nil {
-		impl.logger.Errorw("Error in getting git host Id from request", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	impl.logger.Debugw("webhook event request data", "gitHostId", gitHostId, "secretFromRequest", secretFromRequest)
-
-	// get git host from DB
-	gitHost, err := impl.gitHostConfig.GetById(gitHostId)
-	if err != nil {
-		impl.logger.Errorw("Error in getting git host from DB", "err", err, "gitHostId", gitHostId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
+	impl.logger.Debugw("webhook event request data", "gitHostIdentifier", vars["gitHostId"], "secretFromRequest", secretFromRequest)
 
 	// validate signature
 	requestBodyBytes, err := ioutil.ReadAll(r.Body)
@@ -108,6 +121,7 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 	// make request to handle this webhook
 	webhookEvent := &pipeline.WebhookEventDataRequest{
 		GitHostId:          gitHostId,
+		GitHostName:        gitHostName,
 		EventType:          eventType,
 		RequestPayloadJson: string(requestBodyBytes),
 	}
@@ -121,7 +135,7 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 	}
 
 	// write event
-	err = impl.eventClient.WriteNatsEvent(pubsub.WEBHOOK_EVENT_TOPIC, webhookEvent)
+	err = impl.ciPipelineEventPublishService.PublishGitWebhookEvent(gitHostId, gitHostName, eventType, string(requestBodyBytes))
 	if err != nil {
 		impl.logger.Errorw("Error while handling webhook in git-sensor", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

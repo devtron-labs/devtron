@@ -8,6 +8,7 @@ metadata:
   labels:
     app: lens
     release: devtron
+type: Opaque
 {{- if .secrets }}
 data:
 {{- range $k, $v := .secrets }}
@@ -65,6 +66,7 @@ spec:
         app: lens
         release: devtron
     spec:
+      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.components.lens.nodeSelector "tolerations" $.Values.components.lens.tolerations "imagePullSecrets" $.Values.components.lens.imagePullSecrets "global" $.Values.global) | indent 6 }}
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
       {{- if and $.Values.global $.Values.global.podSecurityContext }}
@@ -73,7 +75,7 @@ spec:
       {{- end }}
       containers:
         - name: lens
-          image: {{ .image }}
+          image: {{ include "common.image" (dict "component" $.Values.components.lens "global" $.Values.global) }}
           {{- if  .imagePullPolicy }}
           imagePullPolicy: {{ .imagePullPolicy }}
           {{- end }}

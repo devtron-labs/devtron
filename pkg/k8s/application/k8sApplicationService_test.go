@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package application
 
 import (
@@ -5,7 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
-	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s"
@@ -226,7 +242,7 @@ func (n NewK8sClientServiceImplMock) ListEvents(restConfig *rest.Config, request
 // }
 func generateTestResourceRequest(kind string) k8s.ResourceRequestBean {
 	return k8s.ResourceRequestBean{
-		AppIdentifier: &client.AppIdentifier{},
+		AppIdentifier: &helmBean.AppIdentifier{},
 		K8sRequest: &k8s2.K8sRequestBean{
 			ResourceIdentifier: k8s2.ResourceIdentifier{
 				GroupVersionKind: schema.GroupVersionKind{

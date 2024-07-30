@@ -27,13 +27,14 @@ to add new and/or missing endpoints. Currently, the following services are suppo
 - [x] Custom Attributes
 - [x] Deploy Keys
 - [x] Deployments
-- [ ] Discussions (threaded comments)
+- [x] Discussions (threaded comments)
 - [x] Environments
-- [ ] Epic Issues
-- [ ] Epics
+- [x] Epic Issues
+- [x] Epics
+- [x] Error Tracking
 - [x] Events
 - [x] Feature Flags
-- [ ] Geo Nodes
+- [x] Geo Nodes
 - [x] Generic Packages
 - [x] GitLab CI Config Templates
 - [x] Gitignores Templates
@@ -74,6 +75,7 @@ to add new and/or missing endpoints. Currently, the following services are suppo
 - [x] Project Members
 - [x] Project Milestones
 - [x] Project Snippets
+- [x] Project Vulnerabilities
 - [x] Project-Level Variables
 - [x] Projects (including setting Webhooks)
 - [x] Protected Branches
@@ -90,6 +92,7 @@ to add new and/or missing endpoints. Currently, the following services are suppo
 - [x] System Hooks
 - [x] Tags
 - [x] Todos
+- [x] Topics
 - [x] Users
 - [x] Validate CI Configuration
 - [x] Version
@@ -129,7 +132,7 @@ to list all projects for user "svanharmelen":
 
 ```go
 git := gitlab.NewClient("yourtokengoeshere")
-opt := &ListProjectsOptions{Search: gitlab.String("svanharmelen")}
+opt := &gitlab.ListProjectsOptions{Search: gitlab.String("svanharmelen")}
 projects, _, err := git.Projects.ListProjects(opt)
 ```
 
@@ -193,6 +196,10 @@ For complete usage of go-gitlab, see the full [package docs](https://godoc.org/g
 ## Author
 
 Sander van Harmelen (<sander@vanharmelen.nl>)
+
+## Contributing
+
+Contributions are always welcome. For more information, check out the [contributing guide](https://github.com/xanzy/go-gitlab/blob/master/CONTRIBUTING.md)
 
 ## License
 

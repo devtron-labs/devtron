@@ -1,10 +1,28 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package gRPC
 
 import (
 	"context"
 	"fmt"
 	"github.com/caarlos0/env"
+	grpcUtil "github.com/devtron-labs/common-lib/utils/grpc"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"time"
@@ -28,6 +46,7 @@ type HelmAppClient interface {
 	IsReleaseInstalled(ctx context.Context, in *ReleaseIdentifier) (*BooleanResponse, error)
 	RollbackRelease(ctx context.Context, in *RollbackReleaseRequest) (*BooleanResponse, error)
 	TemplateChart(ctx context.Context, in *InstallReleaseRequest) (*TemplateChartResponse, error)
+	TemplateChartBulk(ctx context.Context, in *BulkInstallReleaseRequest) (*BulkTemplateChartResponse, error)
 	InstallReleaseWithCustomChart(ctx context.Context, in *HelmInstallCustomRequest) (*HelmInstallCustomResponse, error)
 	GetNotes(ctx context.Context, request *InstallReleaseRequest) (*ChartNotesResponse, error)
 	ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *RegistryCredential) (*OCIRegistryResponse, error)
@@ -37,12 +56,16 @@ type HelmAppClientImpl struct {
 	logger                   *zap.SugaredLogger
 	helmClientConfig         *HelmClientConfig
 	applicationServiceClient ApplicationServiceClient
+	grpcConfig               *grpcUtil.Configuration
 }
 
-func NewHelmAppClientImpl(logger *zap.SugaredLogger, helmClientConfig *HelmClientConfig) *HelmAppClientImpl {
+func NewHelmAppClientImpl(logger *zap.SugaredLogger,
+	helmClientConfig *HelmClientConfig,
+	grpcConfig *grpcUtil.Configuration) *HelmAppClientImpl {
 	return &HelmAppClientImpl{
 		logger:           logger,
 		helmClientConfig: helmClientConfig,
+		grpcConfig:       grpcConfig,
 	}
 }
 
@@ -76,7 +99,8 @@ func (impl *HelmAppClientImpl) getConnection() (*grpc.ClientConn, error) {
 		grpc.WithBlock(),
 		grpc.WithInsecure(),
 		grpc.WithDefaultCallOptions(
-			grpc.MaxCallRecvMsgSize(20*1024*1024),
+			grpc.MaxCallRecvMsgSize(impl.grpcConfig.KubelinkMaxSendMsgSize*1024*1024), // GRPC Request size
+			grpc.MaxCallSendMsgSize(impl.grpcConfig.KubelinkMaxRecvMsgSize*1024*1024), // GRPC Response size
 		),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
 	)
@@ -211,11 +235,13 @@ func (impl *HelmAppClientImpl) DeleteApplication(ctx context.Context, in *Releas
 }
 
 func (impl *HelmAppClientImpl) UpdateApplication(ctx context.Context, in *UpgradeReleaseRequest) (*UpgradeReleaseResponse, error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "HelmAppClientImpl.UpdateApplication")
+	defer span.End()
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
 	}
-	manifest, err := applicationClient.UpgradeRelease(ctx, in)
+	manifest, err := applicationClient.UpgradeRelease(newCtx, in)
 	if err != nil {
 		return nil, err
 	}
@@ -288,6 +314,17 @@ func (impl *HelmAppClientImpl) TemplateChart(ctx context.Context, in *InstallRel
 		return nil, err
 	}
 	response, err := applicationClient.TemplateChart(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+func (impl *HelmAppClientImpl) TemplateChartBulk(ctx context.Context, in *BulkInstallReleaseRequest) (*BulkTemplateChartResponse, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	response, err := applicationClient.TemplateChartBulk(ctx, in)
 	if err != nil {
 		return nil, err
 	}

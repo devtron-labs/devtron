@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package deploymentTemplate
 
 import (
@@ -10,7 +26,7 @@ import (
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
+	"helm.sh/helm/v3/pkg/chart"
 	"os"
 	"path"
 	"path/filepath"
@@ -50,7 +66,7 @@ func (impl *DeploymentTemplateServiceImpl) BuildChartAndGetPath(appName string, 
 			return "", err
 		}
 	}
-	chartMetaData := &chart2.Metadata{
+	chartMetaData := &chart.Metadata{
 		Name:    appName,
 		Version: envOverride.Chart.ChartVersion,
 	}

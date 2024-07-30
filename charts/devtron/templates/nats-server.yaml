@@ -29,6 +29,9 @@ data:
     jetstream {
       max_mem: 1Gi
       domain: devtron-jet
+      max_file_store: 5Gi
+      store_dir: "/data"
+
     }
     lame_duck_duration: 120s
 ---
@@ -89,6 +92,7 @@ spec:
         app.kubernetes.io/instance: devtron-nats
     spec:
       # Common volumes for the containers.
+      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.components.nats.nodeSelector "tolerations" $.Values.components.nats.tolerations "imagePullSecrets" $.Values.components.nats.imagePullSecrets "global" $.Values.global) | indent 6 }}
       volumes:
       - name: config-volume
 
@@ -120,7 +124,7 @@ spec:
       terminationGracePeriodSeconds: 120
       containers:
       - name: nats
-        image: {{ .image }}
+        image: {{ include "common.image" (dict "component" $.Values.components.nats "global" $.Values.global) }}
         imagePullPolicy: {{ .imagePullPolicy }}
         resources:
           {}
@@ -165,7 +169,7 @@ spec:
           - name: pid
             mountPath: /var/run/nats
           - name: data
-            mountPath: /tmp/nats/jetstream
+            mountPath: /data
 
         # Liveness/Readiness probes against the monitoring.
         #
@@ -203,7 +207,7 @@ spec:
       #################################
 
       - name: reloader
-        image: {{ .reloader.image }}
+        image: {{ include "common.image" (dict "component" $.Values.components.nats.reloader "global" $.Values.global) }}
         imagePullPolicy: {{ .reloader.imagePullPolicy }}
         resources:
           null
@@ -227,7 +231,7 @@ spec:
       ##############################
 
       - name: metrics
-        image: {{ .metrics.image }}
+        image: {{ include "common.image" (dict "component" $.Values.components.nats.metrics "global" $.Values.global) }}
         imagePullPolicy: {{ .metrics.imagePullPolicy }}
         resources:
           {}
@@ -264,9 +268,10 @@ metadata:
     app.kubernetes.io/instance: devtron-nats
     app.kubernetes.io/managed-by: Helm
 spec:
+  {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.components.nats.nodeSelector "tolerations" $.Values.components.nats.tolerations "imagePullSecrets" $.Values.components.nats.imagePullSecrets "global" $.Values.global) | indent 2 }}
   containers:
     - name: nats-box
-      image: quay.io/devtron/nats-box
+      image: {{ include "common.image" (dict "component" $.Values.components.nats.natsBox "global" $.Values.global) }}
       env:
         - name: NATS_HOST
           value: devtron-nats

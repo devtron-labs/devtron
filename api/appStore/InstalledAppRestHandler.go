@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package appStore
@@ -26,14 +25,16 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deploymentTypeChange"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
+	util3 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"gopkg.in/go-playground/validator.v9"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/cron"
@@ -48,6 +49,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -55,7 +57,6 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	"gopkg.in/go-playground/validator.v9"
 )
 
 type InstalledAppRestHandler interface {
@@ -87,6 +88,7 @@ type InstalledAppRestHandlerImpl struct {
 	clusterService                          cluster.ClusterService
 	acdServiceClient                        application.ServiceClient
 	appStoreDeploymentService               service.AppStoreDeploymentService
+	appStoreDeploymentDBService             service.AppStoreDeploymentDBService
 	helmAppClient                           client.HelmAppClient
 	argoUserService                         argo.ArgoUserService
 	cdApplicationStatusUpdateHandler        cron.CdApplicationStatusUpdateHandler
@@ -97,9 +99,11 @@ type InstalledAppRestHandlerImpl struct {
 
 func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm,
-	installedAppService FullMode.InstalledAppDBExtendedService, installedAppResourceService resource.InstalledAppResourceService,
+	installedAppService FullMode.InstalledAppDBExtendedService,
+	installedAppResourceService resource.InstalledAppResourceService,
 	chartGroupService chartGroup.ChartGroupService, validator *validator.Validate, clusterService cluster.ClusterService,
 	acdServiceClient application.ServiceClient, appStoreDeploymentService service.AppStoreDeploymentService,
+	appStoreDeploymentDBService service.AppStoreDeploymentDBService,
 	helmAppClient client.HelmAppClient, argoUserService argo.ArgoUserService,
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
 	installedAppRepository repository.InstalledAppRepository,
@@ -118,6 +122,7 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 		clusterService:                          clusterService,
 		acdServiceClient:                        acdServiceClient,
 		appStoreDeploymentService:               appStoreDeploymentService,
+		appStoreDeploymentDBService:             appStoreDeploymentDBService,
 		helmAppClient:                           helmAppClient,
 		argoUserService:                         argoUserService,
 		cdApplicationStatusUpdateHandler:        cdApplicationStatusUpdateHandler,
@@ -142,7 +147,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppOverview(w http.ResponseWrit
 	}
 	token := r.Header.Get("token")
 	handler.Logger.Infow("request payload, FindAppOverview", "installedAppId", installedAppId)
-	installedApp, err := handler.installedAppService.CheckAppExistsByInstalledAppId(installedAppId)
+	installedApp, err := handler.installedAppService.GetInstalledAppById(installedAppId)
 	appOverview, err := handler.appCrudOperationService.GetAppMetaInfo(installedApp.AppId, installedAppId, installedApp.EnvironmentId)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchAppOverview", "err", err, "appId", installedApp.AppId, "installedAppId", installedAppId)
@@ -265,7 +270,7 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		return
 	}
 
-	appIdToAppMap := make(map[string]openapi.HelmApp)
+	appIdToAppMap := make(map[string]appStoreBean.HelmAppDetails)
 
 	//the value of this map is array of strings because the GetHelmObjectByAppNameAndEnvId method may return "//" for error cases
 	//so different apps may contain same object, to handle that we are using (map[string] []string)
@@ -321,7 +326,7 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		}
 	}
 
-	authorizedApps := make([]openapi.HelmApp, 0)
+	authorizedApps := make([]appStoreBean.HelmAppDetails, 0)
 	for appId, _ := range authorizedAppIdSet {
 		authorizedApp := appIdToAppMap[appId]
 		authorizedApps = append(authorizedApps, authorizedApp)
@@ -360,6 +365,8 @@ func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
+	charts, authRes := handler.checkForHelmDeployAuth(request, token)
+	request.ChartGroupInstallChartRequest = charts
 	//RBAC block ends here
 
 	visited := make(map[string]bool)
@@ -372,7 +379,7 @@ func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r 
 		} else {
 			visited[item.AppName] = true
 		}
-		isChartRepoActive, err := handler.appStoreDeploymentService.IsChartRepoActive(item.AppStoreVersion)
+		isChartRepoActive, err := handler.appStoreDeploymentDBService.IsChartProviderActive(item.AppStoreVersion)
 		if err != nil {
 			handler.Logger.Errorw("service err, CreateInstalledApp", "err", err, "payload", request)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -388,8 +395,114 @@ func (handler *InstalledAppRestHandlerImpl) DeployBulk(w http.ResponseWriter, r 
 		handler.Logger.Errorw("service err, DeployBulk", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
+	} else {
+		res = authRes
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *InstalledAppRestHandlerImpl) checkForHelmDeployAuth(request chartGroup.ChartGroupInstallRequest, token string) ([]*chartGroup.ChartGroupInstallChartRequest, *chartGroup.ChartGroupInstallAppRes) {
+	//the value of this map is array of integer because the GetHelmObjectByProjectIdAndEnvId method may return "//" for error cases
+	//so different environments may contain same object, to handle that we are using (map[string] []int)
+	rbacObjectToEnvIdMap1 := make(map[string][]int)
+	rbacObjectToEnvIdMap2 := make(map[string][]int)
+
+	rbacObjectArray1 := make([]string, 0)
+	rbacObjectArray2 := make([]string, 0)
+
+	envIdToChartGroupInstallChartRequest := make(map[int][]*chartGroup.ChartGroupInstallChartRequest)
+
+	for _, chartGroupInstall := range request.ChartGroupInstallChartRequest {
+		envIdToChartGroupInstallChartRequest[chartGroupInstall.EnvironmentId] = append(envIdToChartGroupInstallChartRequest[chartGroupInstall.EnvironmentId], chartGroupInstall)
+		rbacObject1, rbacObject2 := handler.enforcerUtil.GetHelmObjectByProjectIdAndEnvId(request.ProjectId, chartGroupInstall.EnvironmentId)
+		_, ok := rbacObjectToEnvIdMap1[rbacObject1]
+		if !ok {
+			rbacObjectToEnvIdMap1[rbacObject1] = make([]int, 0)
+		}
+		rbacObjectToEnvIdMap1[rbacObject1] = append(rbacObjectToEnvIdMap1[rbacObject1], chartGroupInstall.EnvironmentId)
+		rbacObjectArray1 = append(rbacObjectArray1, rbacObject1)
+		_, ok = rbacObjectToEnvIdMap2[rbacObject2]
+		if !ok {
+			rbacObjectToEnvIdMap2[rbacObject2] = make([]int, 0)
+		}
+		rbacObjectToEnvIdMap2[rbacObject2] = append(rbacObjectToEnvIdMap2[rbacObject2], chartGroupInstall.EnvironmentId)
+		rbacObjectArray2 = append(rbacObjectArray2, rbacObject2)
+	}
+	resultObjectMap1 := handler.enforcer.EnforceInBatch(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObjectArray1)
+	resultObjectMap2 := handler.enforcer.EnforceInBatch(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObjectArray2)
+
+	authorizedEnvIdSet := make(map[int]bool)
+
+	//O(n) time loop , at max we will only iterate through all the envs
+	for obj, ok := range resultObjectMap1 {
+		if ok {
+			envIds := rbacObjectToEnvIdMap1[obj]
+			for _, envId := range envIds {
+				authorizedEnvIdSet[envId] = true
+			}
+		}
+	}
+	for obj, ok := range resultObjectMap2 {
+		if ok {
+			envIds := rbacObjectToEnvIdMap2[obj]
+			for _, envId := range envIds {
+				authorizedEnvIdSet[envId] = true
+			}
+		}
+	}
+	authorizedChartGroupInstallRequests := make([]*chartGroup.ChartGroupInstallChartRequest, 0)
+	for envId, _ := range authorizedEnvIdSet {
+		authorizedChartGroupInstall := envIdToChartGroupInstallChartRequest[envId]
+		for _, authChartGroup := range authorizedChartGroupInstall {
+			authorizedChartGroupInstallRequests = append(authorizedChartGroupInstallRequests, authChartGroup)
+		}
+	}
+	unauthorizedChartGroupInstallRequests := make([]*chartGroup.ChartGroupInstallChartRequest, 0)
+
+	for _, req := range request.ChartGroupInstallChartRequest {
+		isAuthorized := false
+		for _, authReq := range authorizedChartGroupInstallRequests {
+			if reflect.DeepEqual(req, authReq) {
+				isAuthorized = true
+				break
+			}
+		}
+		if !isAuthorized {
+			unauthorizedChartGroupInstallRequests = append(unauthorizedChartGroupInstallRequests, req)
+		}
+	}
+
+	// Create slices for ChartGroupInstallMetadata
+	authorizedMetadata := make([]chartGroup.ChartGroupInstallMetadata, 0)
+	unauthorizedMetadata := make([]chartGroup.ChartGroupInstallMetadata, 0)
+
+	for _, req := range authorizedChartGroupInstallRequests {
+		metadata := handler.getChartGroupInstallMetadata(req, string(chartGroup.StatusSuccess), string(chartGroup.ReasonTriggered))
+		authorizedMetadata = append(authorizedMetadata, metadata)
+	}
+
+	for _, req := range unauthorizedChartGroupInstallRequests {
+		metadata := handler.getChartGroupInstallMetadata(req, string(chartGroup.StatusFailed), string(chartGroup.ReasonNotAuthorize))
+		unauthorizedMetadata = append(unauthorizedMetadata, metadata)
+	}
+	unauthorizeCount := len(unauthorizedChartGroupInstallRequests)
+	totalCount := len(request.ChartGroupInstallChartRequest)
+	// Combine all metadata into a single ChartGroupInstallAppRes
+	chartGroupInstallAppRes := &chartGroup.ChartGroupInstallAppRes{
+		ChartGroupInstallMetadata: append(authorizedMetadata, unauthorizedMetadata...),
+		Summary:                   fmt.Sprintf(chartGroup.FAILED_TO_TRIGGER, unauthorizeCount, totalCount),
+	}
+	return authorizedChartGroupInstallRequests, chartGroupInstallAppRes
+}
+
+func (handler *InstalledAppRestHandlerImpl) getChartGroupInstallMetadata(req *chartGroup.ChartGroupInstallChartRequest, triggerStatus string, reason string) chartGroup.ChartGroupInstallMetadata {
+	metadata := chartGroup.ChartGroupInstallMetadata{
+		AppName:       req.AppName,
+		EnvironmentId: req.EnvironmentId,
+		TriggerStatus: triggerStatus,
+		Reason:        reason,
+	}
+	return metadata
 }
 
 func (handler *InstalledAppRestHandlerImpl) CheckAppExists(w http.ResponseWriter, r *http.Request) {
@@ -511,7 +624,7 @@ func (handler *InstalledAppRestHandlerImpl) DeleteArgoInstalledAppWithNonCascade
 			return
 		}
 	}
-	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(installedAppId)
+	installedApp, err := handler.appStoreDeploymentDBService.GetInstalledApp(installedAppId)
 	if err != nil {
 		handler.Logger.Error("request err, NonCascadeDeleteCdPipeline", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -595,10 +708,14 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 	}
 	handler.Logger.Infow("request payload, FetchAppDetailsForInstalledApp, app store", "installedAppId", installedAppId, "envId", envId)
 
-	installedApp, err := handler.installedAppService.CheckAppExistsByInstalledAppId(installedAppId)
+	installedApp, err := handler.installedAppService.GetInstalledAppById(installedAppId)
 	if err == pg.ErrNoRows {
 		common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
 		return
+	}
+	if util3.IsExternalChartStoreApp(installedApp.App.DisplayName) {
+		//this is external app case where app_name is a unique identifier, and we want to fetch resource based on display_name
+		handler.installedAppService.ChangeAppNameToDisplayNameForInstalledApp(installedApp)
 	}
 
 	appDetail, err := handler.installedAppService.FindAppDetailsForAppstoreApplication(installedAppId, envId)
@@ -628,8 +745,8 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 	resourceTreeAndNotesContainer.ResourceTree = map[string]interface{}{}
 
 	if len(installedApp.App.AppName) > 0 && len(installedApp.Environment.Name) > 0 {
-		err = handler.fetchResourceTree(w, r, &resourceTreeAndNotesContainer, *installedApp, "", "")
-		if installedApp.DeploymentAppType == util2.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		err = handler.fetchResourceTree(w, r, &resourceTreeAndNotesContainer, *installedApp, appDetail.DeploymentConfig, "", "")
+		if appDetail.DeploymentAppType == util2.PIPELINE_DEPLOYMENT_TYPE_ACD {
 			apiError, ok := err.(*util2.ApiError)
 			if ok && apiError != nil {
 				if apiError.Code == constants.AppDetailResourceTreeNotFound && installedApp.DeploymentAppDeleteRequest == true {
@@ -716,9 +833,17 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTree(w http.ResponseWri
 		return
 	}
 	handler.Logger.Infow("request payload, FetchAppDetailsForInstalledAppV2, app store", "installedAppId", installedAppId, "envId", envId)
-	installedApp, err := handler.installedAppService.CheckAppExistsByInstalledAppId(installedAppId)
+	installedApp, err := handler.installedAppService.GetInstalledAppById(installedAppId)
 	if err == pg.ErrNoRows {
 		common.WriteJsonResp(w, err, "App not found in database", http.StatusBadRequest)
+		return
+	}
+	if util3.IsExternalChartStoreApp(installedApp.App.DisplayName) {
+		//this is external app case where app_name is a unique identifier, and we want to fetch resource based on display_name
+		handler.installedAppService.ChangeAppNameToDisplayNameForInstalledApp(installedApp)
+	}
+	if installedApp.Environment.IsVirtualEnvironment {
+		common.WriteJsonResp(w, nil, nil, http.StatusOK)
 		return
 	}
 	token := r.Header.Get("token")
@@ -744,14 +869,14 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTree(w http.ResponseWri
 	resourceTreeAndNotesContainer.ResourceTree = map[string]interface{}{}
 
 	if len(installedApp.App.AppName) > 0 && len(installedApp.Environment.Name) > 0 {
-		err = handler.fetchResourceTree(w, r, &resourceTreeAndNotesContainer, *installedApp, appDetail.HelmReleaseInstallStatus, appDetail.Status)
-		if installedApp.DeploymentAppType == util2.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		err = handler.fetchResourceTree(w, r, &resourceTreeAndNotesContainer, *installedApp, appDetail.DeploymentConfig, appDetail.HelmReleaseInstallStatus, appDetail.Status)
+		if appDetail.DeploymentAppType == util2.PIPELINE_DEPLOYMENT_TYPE_ACD {
 			//resource tree has been fetched now prepare to sync application deployment status with this resource tree call
 			handler.syncDeploymentStatusWithResourceTreeCall(appDetail)
 			apiError, ok := err.(*util2.ApiError)
 			if ok && apiError != nil {
 				if apiError.Code == constants.AppDetailResourceTreeNotFound && installedApp.DeploymentAppDeleteRequest == true {
-					// TODO refactoring: should be performed in go routine
+					// TODO refactoring: should be performed through nats
 					err = handler.appStoreDeploymentService.MarkGitOpsInstalledAppsDeletedIfArgoAppIsDeleted(installedAppId, envId)
 					appDeleteErr, appDeleteErrOk := err.(*util2.ApiError)
 					if appDeleteErrOk && appDeleteErr != nil {
@@ -836,10 +961,10 @@ func (handler *InstalledAppRestHandlerImpl) FetchResourceTreeForACDApp(w http.Re
 	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
 }
 
-func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, resourceTreeAndNotesContainer *bean2.AppDetailsContainer, installedApp repository.InstalledApps, helmReleaseInstallStatus string, status string) error {
+func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, resourceTreeAndNotesContainer *bean2.AppDetailsContainer, installedApp repository.InstalledApps, deploymentConfig *bean3.DeploymentConfig, helmReleaseInstallStatus string, status string) error {
 	ctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
-	err := handler.installedAppResourceService.FetchResourceTree(ctx, cn, resourceTreeAndNotesContainer, installedApp, helmReleaseInstallStatus, status)
+	err := handler.installedAppResourceService.FetchResourceTree(ctx, cn, resourceTreeAndNotesContainer, installedApp, deploymentConfig, helmReleaseInstallStatus, status)
 	return err
 }
 

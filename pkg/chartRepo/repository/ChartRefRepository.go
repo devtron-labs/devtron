@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package chartRepoRepository
 
 import (
@@ -34,6 +50,7 @@ type ChartRefRepository interface {
 	Save(chartRepo *ChartRef) error
 	GetDefault() (*ChartRef, error)
 	FindById(id int) (*ChartRef, error)
+	FindByIds(ids []int) ([]*ChartRef, error)
 	GetAll() ([]*ChartRef, error)
 	GetAllChartMetadata() ([]*ChartRefMetaData, error)
 	FindByVersionAndName(name, version string) (*ChartRef, error)
@@ -70,6 +87,16 @@ func (impl ChartRefRepositoryImpl) FindById(id int) (*ChartRef, error) {
 		Where("id = ?", id).
 		Where("active = ?", true).Select()
 	return repo, err
+}
+func (impl ChartRefRepositoryImpl) FindByIds(ids []int) ([]*ChartRef, error) {
+	var chartRefs []*ChartRef
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	err := impl.dbConnection.Model(&chartRefs).
+		Where("id in (?)", pg.In(ids)).
+		Where("active = ?", true).Select()
+	return chartRefs, err
 }
 func (impl ChartRefRepositoryImpl) FindByVersionAndName(name, version string) (*ChartRef, error) {
 	repo := &ChartRef{}

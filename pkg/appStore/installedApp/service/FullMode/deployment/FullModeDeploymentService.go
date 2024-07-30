@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package deployment
 
 import (
@@ -7,8 +23,10 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
@@ -82,6 +100,8 @@ type FullModeDeploymentServiceImpl struct {
 	gitOpsConfigReadService              config.GitOpsConfigReadService
 	gitOpsValidationService              validation.GitOpsValidationService
 	environmentRepository                repository5.EnvironmentRepository
+	deploymentConfigService              common.DeploymentConfigService
+	chartTemplateService                 util.ChartTemplateService
 }
 
 func NewFullModeDeploymentServiceImpl(
@@ -105,7 +125,9 @@ func NewFullModeDeploymentServiceImpl(
 	gitOperationService git.GitOperationService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitOpsValidationService validation.GitOpsValidationService,
-	environmentRepository repository5.EnvironmentRepository) *FullModeDeploymentServiceImpl {
+	environmentRepository repository5.EnvironmentRepository,
+	deploymentConfigService common.DeploymentConfigService,
+	chartTemplateService util.ChartTemplateService) *FullModeDeploymentServiceImpl {
 	return &FullModeDeploymentServiceImpl{
 		Logger:                               logger,
 		acdClient:                            acdClient,
@@ -128,6 +150,8 @@ func NewFullModeDeploymentServiceImpl(
 		gitOpsConfigReadService:              gitOpsConfigReadService,
 		gitOpsValidationService:              gitOpsValidationService,
 		environmentRepository:                environmentRepository,
+		deploymentConfigService:              deploymentConfigService,
+		chartTemplateService:                 chartTemplateService,
 	}
 }
 
@@ -141,7 +165,7 @@ func (impl *FullModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 		return nil, err
 	}
 	//STEP 5: createInArgo
-	err = impl.createInArgo(chartGitAttr, *installAppVersionRequest.Environment, installAppVersionRequest.ACDAppName)
+	err = impl.createInArgo(ctx, chartGitAttr, *installAppVersionRequest.Environment, installAppVersionRequest.ACDAppName)
 	if err != nil {
 		impl.Logger.Errorw("error in create in argo", "err", err)
 		return nil, err
@@ -156,11 +180,11 @@ func (impl *FullModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 		impl.Logger.Errorw("error in getting the argo application with normal refresh", "err", err)
 		return nil, err
 	}
-	if !impl.acdConfig.ArgoCDAutoSyncEnabled {
+	if impl.acdConfig.IsManualSyncEnabled() {
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			InstalledAppVersionHistoryId: installAppVersionRequest.InstalledAppVersionHistoryId,
-			Status:                       pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
-			StatusDetail:                 "argocd sync completed.",
+			Status:                       timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
+			StatusDetail:                 timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_COMPLETED,
 			StatusTime:                   syncTime,
 			AuditLog: sql.AuditLog{
 				CreatedBy: installAppVersionRequest.UserId,
@@ -169,7 +193,7 @@ func (impl *FullModeDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 				UpdatedOn: time.Now(),
 			},
 		}
-		err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, tx, true)
+		err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, tx)
 		if err != nil {
 			impl.Logger.Errorw("error in creating timeline for argocd sync", "err", err, "timeline", timeline)
 		}
@@ -227,6 +251,12 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 		return installedApp, false, err
 	}
 
+	deploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForHelmApp(installedApp.AppId, installedApp.EnvironmentId)
+	if err != nil {
+		impl.Logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", installedApp.AppId, "envId", installedApp.EnvironmentId, "err", err)
+		return installedApp, false, err
+	}
+
 	//validate relations
 	if installedApp.InstalledAppId != installedAppVersion.InstalledAppId {
 		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "bad request, requested version are not belongs to each other", InternalMessage: ""}
@@ -238,7 +268,7 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 	installedApp.ValuesOverrideYaml = versionHistory.ValuesYamlRaw
 	installedApp.AppStoreId = installedAppVersion.AppStoreApplicationVersion.AppStoreId
 	installedApp.AppStoreName = installedAppVersion.AppStoreApplicationVersion.AppStore.Name
-	installedApp.GitOpsRepoURL = installedAppVersion.InstalledApp.GitOpsRepoUrl
+	installedApp.GitOpsRepoURL = deploymentConfig.RepoURL
 	installedApp.ACDAppName = fmt.Sprintf("%s-%s", installedApp.AppName, installedApp.EnvironmentName)
 
 	//create an entry in version history table
@@ -260,10 +290,9 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 
 	//creating deployment started status timeline when mono repo migration is not required
 	deploymentInitiatedTimeline := impl.pipelineStatusTimelineService.
-		GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedApp.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", installedApp.UserId, time.Now())
+		NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", installedApp.UserId)
 
-	isAppStore := true
-	err = impl.pipelineStatusTimelineService.SaveTimeline(deploymentInitiatedTimeline, tx, isAppStore)
+	err = impl.pipelineStatusTimelineService.SaveTimeline(deploymentInitiatedTimeline, tx)
 	if err != nil {
 		impl.Logger.Errorw("error in creating timeline status for deployment initiation for update of installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installedApp.InstalledAppVersionHistoryId)
 	}
@@ -271,11 +300,11 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 	if versionHistory.InstalledAppVersionId != activeInstalledAppVersion.Id {
 		err = impl.updateRequirementYamlInGit(installedApp, &installedAppVersion.AppStoreApplicationVersion)
 		if err != nil {
-			if errors.Is(err, errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED)) {
+			if errors.Is(err, errors.New(timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString())) {
 				impl.Logger.Errorw("error", "err", err)
 				GitCommitFailTimeline := impl.pipelineStatusTimelineService.
-					GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedApp.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, "Git commit failed.", installedApp.UserId, time.Now())
-				_ = impl.pipelineStatusTimelineService.SaveTimeline(GitCommitFailTimeline, tx, isAppStore)
+					NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED, "Git commit failed.", installedApp.UserId)
+				_ = impl.pipelineStatusTimelineService.SaveTimeline(GitCommitFailTimeline, tx)
 			}
 			return installedApp, false, nil
 		}
@@ -290,10 +319,10 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 	installedApp, err = impl.updateValuesYamlInGit(installedApp)
 	if err != nil {
 		impl.Logger.Errorw("error", "err", err)
-		if errors.Is(err, errors.New(pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED)) {
+		if errors.Is(err, errors.New(timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString())) {
 			GitCommitFailTimeline := impl.pipelineStatusTimelineService.
-				GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedApp.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED, "Git commit failed.", installedApp.UserId, time.Now())
-			_ = impl.pipelineStatusTimelineService.SaveTimeline(GitCommitFailTimeline, tx, isAppStore)
+				NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED, "Git commit failed.", installedApp.UserId)
+			_ = impl.pipelineStatusTimelineService.SaveTimeline(GitCommitFailTimeline, tx)
 		}
 		return installedApp, false, nil
 	}
@@ -304,18 +333,18 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 		return installedApp, false, err
 	}
 
-	isManualSync := !impl.acdConfig.ArgoCDAutoSyncEnabled
+	isManualSync := impl.acdConfig.IsManualSyncEnabled()
 
 	GitCommitSuccessTimeline := impl.pipelineStatusTimelineService.
-		GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedApp.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT, "Git commit done successfully.", installedApp.UserId, time.Now())
+		NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_GIT_COMMIT, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_GIT_COMMIT, installedApp.UserId)
 	timelines := []*pipelineConfig.PipelineStatusTimeline{GitCommitSuccessTimeline}
 	if isManualSync {
 		// add ARGOCD_SYNC_INITIATED timeline if manual sync
 		ArgocdSyncInitiatedTimeline := impl.pipelineStatusTimelineService.
-			GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedApp.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, "ArgoCD sync initiated.", installedApp.UserId, time.Now())
+			NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_INITIATED, installedApp.UserId)
 		timelines = append(timelines, ArgocdSyncInitiatedTimeline)
 	}
-	err = impl.pipelineStatusTimelineService.SaveTimelines(timelines, tx)
+	err = impl.pipelineStatusTimelineService.SaveMultipleTimelinesIfNotAlreadyPresent(timelines, tx)
 	if err != nil {
 		impl.Logger.Errorw("error in creating timeline status for deployment initiation for update of installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installedApp.InstalledAppVersionHistoryId)
 	}
@@ -325,11 +354,10 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 		impl.Logger.Errorw("error in getting the argo application with normal refresh", "err", err)
 		return installedApp, true, nil
 	}
-	syncTime := time.Now()
 	if isManualSync {
 		ArgocdSyncCompletedTimeline := impl.pipelineStatusTimelineService.
-			GetTimelineDbObjectByTimelineStatusAndTimelineDescription(0, installedApp.InstalledAppVersionHistoryId, pipelineConfig.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED, "ArgoCD sync completed.", installedApp.UserId, syncTime)
-		err = impl.pipelineStatusTimelineService.SaveTimeline(ArgocdSyncCompletedTimeline, tx, isAppStore)
+			NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_COMPLETED, installedApp.UserId)
+		err = impl.pipelineStatusTimelineService.SaveTimeline(ArgocdSyncCompletedTimeline, tx)
 		if err != nil {
 			impl.Logger.Errorw("error in creating timeline status for deployment initiation for update of installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installedApp.InstalledAppVersionHistoryId)
 		}
@@ -417,6 +445,12 @@ func (impl *FullModeDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.
 	clusterId := int32(installedApp.ClusterId)
 	appStoreApplicationVersionId, err := impl.installedAppRepositoryHistory.GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(int(version))
 	appStoreVersionId := pointer.Int32(int32(appStoreApplicationVersionId))
+
+	// as virtual environment doesn't exist on actual cluster, we will use default cluster for running helm template command
+	if installedApp.IsVirtualEnvironment {
+		clusterId = appStoreBean.DEFAULT_CLUSTER_ID
+		installedApp.Namespace = appStoreBean.DEFAULT_NAMESPACE
+	}
 
 	manifestRequest := openapi2.TemplateChartRequest{
 		EnvironmentId:                &envId,

@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package util
 
 import (
@@ -18,6 +34,7 @@ type AuditLoggerDTO struct {
 	QueryParams     string    `json:"queryParams"`
 	ApiResponseCode int       `json:"apiResponseCode"`
 	RequestPayload  []byte    `json:"requestPayload"`
+	RequestMethod   string    `json:"requestMethod"`
 }
 
 type LoggingMiddlewareImpl struct {
@@ -61,6 +78,7 @@ func (impl LoggingMiddlewareImpl) LoggingMiddleware(next http.Handler) http.Hand
 			UpdatedOn:      time.Now(),
 			QueryParams:    r.URL.Query().Encode(),
 			RequestPayload: bodyBuffer.Bytes(),
+			RequestMethod:  r.Method,
 		}
 		// Call the next handler in the chain.
 		next.ServeHTTP(d, r)
@@ -71,5 +89,5 @@ func (impl LoggingMiddlewareImpl) LoggingMiddleware(next http.Handler) http.Hand
 }
 
 func LogRequest(auditLogDto *AuditLoggerDTO) {
-	log.Printf("AUDIT_LOG: urlPath: %s, queryParams: %s,updatedBy: %s, updatedOn: %s, apiResponseCode: %d,requestPayload: %s", auditLogDto.UrlPath, auditLogDto.QueryParams, auditLogDto.UserEmail, auditLogDto.UpdatedOn, auditLogDto.ApiResponseCode, auditLogDto.RequestPayload)
+	log.Printf("AUDIT_LOG: requestMethod: %s, urlPath: %s, queryParams: %s, updatedBy: %s, updatedOn: %s, apiResponseCode: %d, requestPayload: %s", auditLogDto.RequestMethod, auditLogDto.UrlPath, auditLogDto.QueryParams, auditLogDto.UserEmail, auditLogDto.UpdatedOn, auditLogDto.ApiResponseCode, auditLogDto.RequestPayload)
 }
