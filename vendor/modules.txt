@@ -723,8 +723,8 @@ github.com/googleapis/gax-go/v2/internal
 # github.com/gorilla/mux v1.8.0
 ## explicit; go 1.12
 github.com/gorilla/mux
-# github.com/gorilla/schema v1.1.0
-## explicit
+# github.com/gorilla/schema v1.4.1
+## explicit; go 1.20
 github.com/gorilla/schema
 # github.com/gorilla/securecookie v1.1.1
 ## explicit
