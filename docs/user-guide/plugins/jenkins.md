@@ -13,13 +13,13 @@ Before integrating the Jenkins plugin, ensure that you have properly configured 
 
 ## Steps
 1. Go to Applications → **Devtron Apps**.
-2. Click on your **application**.
+2. Click on your application.
 3. Go to **App Configuration** → **Workflow Editor**.
-4. Click on **New Workflow** and navigate to the **CREATE JOB PIPELINE**.
-5. Enter the following fields on the **Basic configuration** window.
-6. Click on **Task to be executed** under 'TASKS', click the **Add task** button.
-6. Click the **Jenkins plugin**.
-7. Enter the following fields with appropriate values.
+4. Click **New Workflow** and navigate to the **CREATE JOB PIPELINE**.
+5. Enter the required fields in the **Basic configuration** window.
+6. Under 'TASKS', click the **+ Add task** button.
+7. Click the **Jenkins plugin**.
+8. Enter the following [user inputs](#user-inputs) with appropriate values.
 ---
 
 ## User Inputs
