@@ -193,8 +193,17 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *ImageScanReq
 	}
 
 	groupByListMap := make(map[int]*security.ImageScanDeployInfo)
+	executionHistoryIds := make([]int, 0, len(deployedList)*2)
 	for _, item := range deployedList {
 		groupByListMap[item.Id] = item
+		executionHistoryIds = append(executionHistoryIds, item.ImageScanExecutionHistoryId...)
+	}
+
+	// fetching all execution history in bulk for updating last check time in case when no vul are found(no results will be saved)
+	mapOfExecutionHistoryIdVsLastExecTime, err := impl.fetchImageExecutionHistoryMapByIds(executionHistoryIds)
+	if err != nil {
+		// made it non-blocking as it is not critical
+		impl.Logger.Errorw("error encountered in FetchScanExecutionListing", "err", err)
 	}
 
 	var finalResponseList []*ImageScanHistoryResponse
@@ -225,6 +234,14 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *ImageScanReq
 					moderateCount = moderateCount + 1
 				} else if item.CveStore.Severity == security.Low {
 					lowCount = lowCount + 1
+				}
+			}
+			// updating in case when no vul are found (no results)
+			if lastChecked.IsZero() && len(imageScanDeployInfo.ImageScanExecutionHistoryId) > 0 && mapOfExecutionHistoryIdVsLastExecTime != nil {
+				// len is always 1 of image execution history array
+				historyId := imageScanDeployInfo.ImageScanExecutionHistoryId[0]
+				if val, ok := mapOfExecutionHistoryIdVsLastExecTime[historyId]; ok {
+					lastChecked = val
 				}
 			}
 		}
@@ -289,6 +306,21 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *ImageScanReq
 	*/
 
 	return finalResponse, err
+}
+
+func (impl ImageScanServiceImpl) fetchImageExecutionHistoryMapByIds(historyIds []int) (map[int]time.Time, error) {
+	mapOfExecutionHistoryIdVsExecutionTime := make(map[int]time.Time)
+	if len(historyIds) > 0 {
+		imageScanExecutionHistories, err := impl.scanHistoryRepository.FindByIds(historyIds)
+		if err != nil {
+			impl.Logger.Errorw("error encountered in fetchImageExecutionHistoryMapByIds", "historyIds", historyIds, "err", err)
+			return nil, err
+		}
+		for _, h := range imageScanExecutionHistories {
+			mapOfExecutionHistoryIdVsExecutionTime[h.Id] = h.ExecutionTime
+		}
+	}
+	return mapOfExecutionHistoryIdVsExecutionTime, nil
 }
 
 func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRequest) (*ImageScanExecutionDetail, error) {
@@ -367,14 +399,18 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 			vulnerability := &Vulnerabilities{
 				CVEName:  item.CveStore.Name,
 				CVersion: item.CveStore.Version,
-				FVersion: item.CveStore.FixedVersion,
+				FVersion: item.FixedVersion,
 				Package:  item.CveStore.Package,
 				Severity: item.CveStore.Severity.String(),
 				//Permission: "BLOCK", TODO
 			}
+			// data already migrated hence get package, version and fixedVersion from image_scan_execution_result
 			if len(item.Package) > 0 {
 				// data already migrated hence get package from image_scan_execution_result
 				vulnerability.Package = item.Package
+			}
+			if len(item.Version) > 0 {
+				vulnerability.CVersion = item.Version
 			}
 			if item.CveStore.Severity == security.Critical {
 				highCount = highCount + 1
@@ -394,11 +430,13 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *ImageScanRe
 			imageScanResponse.ScanToolId = imageScanResult[0].ScanToolId
 		} else {
 			toolIdFromExecutionHistory, err := impl.getScanToolIdFromExecutionHistory(scanExecutionIds)
-			if err != nil || toolIdFromExecutionHistory == -1 {
+			if err != nil {
 				impl.Logger.Errorw("error in getting scan tool id from exection history", "err", err, "")
 				return nil, err
 			}
-			imageScanResponse.ScanToolId = toolIdFromExecutionHistory
+			if toolIdFromExecutionHistory != -1 {
+				imageScanResponse.ScanToolId = toolIdFromExecutionHistory
+			}
 		}
 	}
 	severityCount := &SeverityCount{

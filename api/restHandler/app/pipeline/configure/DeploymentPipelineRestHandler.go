@@ -990,6 +990,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetRestartWorkloadData(w http.Resp
 	}
 	appIds, err := common.ExtractIntArrayQueryParam(w, r, "appIds")
 	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	// RBAC enforcer applying

@@ -53,7 +53,7 @@ import (
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
-	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -294,12 +294,12 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 	var customTag *bean.CustomTagData
 	var customTagStage repository5.PipelineStageType
 	var customTagEnabled bool
-	customTagPreCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePreCD, strconv.Itoa(pipelineId))
+	customTagPreCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pipelineConfigBean.EntityTypePreCD, strconv.Itoa(pipelineId))
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching custom Tag precd")
 		return nil, err
 	}
-	customTagPostCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePostCD, strconv.Itoa(pipelineId))
+	customTagPostCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pipelineConfigBean.EntityTypePostCD, strconv.Itoa(pipelineId))
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching custom Tag precd")
 		return nil, err
@@ -360,8 +360,8 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 		AppId:                         dbPipeline.AppId,
 		IsDigestEnforcedForPipeline:   digestPolicyConfigurations.DigestConfiguredForPipeline,
 	}
-	var preDeployStage *bean3.PipelineStageDto
-	var postDeployStage *bean3.PipelineStageDto
+	var preDeployStage *pipelineConfigBean.PipelineStageDto
+	var postDeployStage *pipelineConfigBean.PipelineStageDto
 	preDeployStage, postDeployStage, err = impl.pipelineStageService.GetCdPipelineStageDataDeepCopy(dbPipeline.Id)
 	if err != nil {
 		impl.logger.Errorw("error in getting pre/post-CD stage data", "err", err, "cdPipelineId", dbPipeline.Id)
@@ -456,19 +456,22 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 
-		envDeploymentConfig := &bean4.DeploymentConfig{
-			AppId:             app.Id,
-			EnvironmentId:     pipeline.EnvironmentId,
-			ConfigType:        AppDeploymentConfig.ConfigType,
-			DeploymentAppType: pipeline.DeploymentAppType,
-			RepoURL:           AppDeploymentConfig.RepoURL,
-			RepoName:          AppDeploymentConfig.RepoName,
-			Active:            true,
-		}
-		envDeploymentConfig, err := impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, pipelineCreateRequest.UserId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching creating env config", "appId", app.Id, "envId", pipeline.EnvironmentId, "err", err)
-			return nil, err
+		// skip creation of DeploymentConfig if envId is not set
+		if pipeline.EnvironmentId > 0 {
+			envDeploymentConfig := &bean4.DeploymentConfig{
+				AppId:             app.Id,
+				EnvironmentId:     pipeline.EnvironmentId,
+				ConfigType:        AppDeploymentConfig.ConfigType,
+				DeploymentAppType: pipeline.DeploymentAppType,
+				RepoURL:           AppDeploymentConfig.RepoURL,
+				RepoName:          AppDeploymentConfig.RepoName,
+				Active:            true,
+			}
+			envDeploymentConfig, err := impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, pipelineCreateRequest.UserId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching creating env config", "appId", app.Id, "envId", pipeline.EnvironmentId, "err", err)
+				return nil, err
+			}
 		}
 
 		id, err := impl.createCdPipeline(ctx, app, pipeline, pipelineCreateRequest.UserId)
@@ -623,11 +626,11 @@ func (impl *CdPipelineConfigServiceImpl) ParseCustomTagPatchRequest(pipelineRequ
 func getEntityTypeByPipelineStageType(pipelineStageType repository5.PipelineStageType) (customTagEntityType int) {
 	switch pipelineStageType {
 	case repository5.PIPELINE_STAGE_TYPE_PRE_CD:
-		customTagEntityType = bean3.EntityTypePreCD
+		customTagEntityType = pipelineConfigBean.EntityTypePreCD
 	case repository5.PIPELINE_STAGE_TYPE_POST_CD:
-		customTagEntityType = bean3.EntityTypePostCD
+		customTagEntityType = pipelineConfigBean.EntityTypePostCD
 	default:
-		customTagEntityType = bean3.EntityNull
+		customTagEntityType = pipelineConfigBean.EntityNull
 	}
 	return customTagEntityType
 }
@@ -831,7 +834,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 	}
 	if cdPipelinePluginDeleteReq.PreDeployStage != nil {
 		tag := bean2.CustomTag{
-			EntityKey:   bean3.EntityTypePreCD,
+			EntityKey:   pipelineConfigBean.EntityTypePreCD,
 			EntityValue: strconv.Itoa(pipeline.Id),
 		}
 		err = impl.customTagService.DeleteCustomTagIfExists(tag)
@@ -841,7 +844,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 	}
 	if cdPipelinePluginDeleteReq.PostDeployStage != nil {
 		tag := bean2.CustomTag{
-			EntityKey:   bean3.EntityTypePostCD,
+			EntityKey:   pipelineConfigBean.EntityTypePostCD,
 			EntityValue: strconv.Itoa(pipeline.Id),
 		}
 		err = impl.customTagService.DeleteCustomTagIfExists(tag)
@@ -1089,12 +1092,12 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 		var customTag *bean.CustomTagData
 		var customTagStage repository5.PipelineStageType
 		var customTagEnabled bool
-		customTagPreCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePreCD, strconv.Itoa(dbPipeline.Id))
+		customTagPreCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pipelineConfigBean.EntityTypePreCD, strconv.Itoa(dbPipeline.Id))
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in fetching custom Tag precd")
 			return nil, err
 		}
-		customTagPostCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePostCD, strconv.Itoa(dbPipeline.Id))
+		customTagPostCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(pipelineConfigBean.EntityTypePostCD, strconv.Itoa(dbPipeline.Id))
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in fetching custom Tag precd")
 			return nil, err
@@ -1238,20 +1241,29 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 	for _, item := range appWorkflowMappings {
 		pipelineWorkflowMapping[item.ComponentId] = item
 	}
+	isAppLevelGitOpsConfigured := false
+	gitOpsConfigStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
+	if err != nil {
+		impl.logger.Errorw("error in fetching global GitOps configuration")
+		return nil, err
+	}
+	if gitOpsConfigStatus.IsGitOpsConfigured && !gitOpsConfigStatus.AllowCustomRepository {
+		isAppLevelGitOpsConfigured = true
+	}
+	var strPipelineIds []string
+	for _, pipelineId := range pipelineIds {
+		strPipelineIds = append(strPipelineIds, strconv.Itoa(pipelineId))
+	}
+	customTagMapResponse, err := impl.customTagService.GetActiveCustomTagByValues(strPipelineIds)
+	if err != nil {
+		return nil, err
+	}
 
 	for _, dbPipeline := range authorizedPipelines {
 		var customTag *bean.CustomTagData
 		var customTagStage repository5.PipelineStageType
-		customTagPreCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePreCD, strconv.Itoa(dbPipeline.Id))
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in fetching custom Tag precd")
-			return nil, err
-		}
-		customTagPostCD, err := impl.customTagService.GetActiveCustomTagByEntityKeyAndValue(bean3.EntityTypePostCD, strconv.Itoa(dbPipeline.Id))
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in fetching custom Tag precd")
-			return nil, err
-		}
+		customTagPreCD := customTagMapResponse.GetCustomTagForEntityKey(pipelineConfigBean.EntityTypePreCD, strconv.Itoa(dbPipeline.Id))
+		customTagPostCD := customTagMapResponse.GetCustomTagForEntityKey(pipelineConfigBean.EntityTypePostCD, strconv.Itoa(dbPipeline.Id))
 		if customTagPreCD != nil && customTagPreCD.Id > 0 {
 			customTag = &bean.CustomTagData{TagPattern: customTagPreCD.TagPattern,
 				CounterX: customTagPreCD.AutoIncreasingNumber,
@@ -1263,10 +1275,12 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 			}
 			customTagStage = repository5.PIPELINE_STAGE_TYPE_POST_CD
 		}
-		isAppLevelGitOpsConfigured, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(dbPipeline.AppId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching latest chart details for app by appId")
-			return nil, err
+		if !isAppLevelGitOpsConfigured {
+			isAppLevelGitOpsConfigured, err = impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(dbPipeline.AppId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching latest chart details for app by appId")
+				return nil, err
+			}
 		}
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                            dbPipeline.Id,

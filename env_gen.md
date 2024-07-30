@@ -15,6 +15,7 @@
  | ARGO_GIT_COMMIT_RETRY_DELAY_ON_CONFLICT | 1 |  | 
  | ARGO_REPO_REGISTER_RETRY_COUNT | 3 |  | 
  | ARGO_REPO_REGISTER_RETRY_DELAY | 10 |  | 
+ | ASYNC_BUILDX_CACHE_EXPORT | false |  | 
  | AZURE_ACCOUNT_KEY |  |  | 
  | AZURE_ACCOUNT_NAME |  |  | 
  | AZURE_BLOB_CONTAINER_CI_CACHE |  |  | 
@@ -31,6 +32,7 @@
  | BLOB_STORAGE_S3_ENDPOINT |  |  | 
  | BLOB_STORAGE_S3_ENDPOINT_INSECURE | false |  | 
  | BLOB_STORAGE_S3_SECRET_KEY |  |  | 
+ | BUILDX_CACHE_MODE_MIN | false |  | 
  | BUILDX_CACHE_PATH | /var/lib/devtron/buildx |  | 
  | BUILDX_K8S_DRIVER_OPTIONS |  |  | 
  | BUILDX_PROVENANCE_MODE |  |  | 
@@ -154,6 +156,7 @@
  | HELM_PIPELINE_STATUS_CHECK_ELIGIBLE_TIME | 120 |  | 
  | HIDE_IMAGE_TAGGING_HARD_DELETE | false |  | 
  | IGNORE_AUTOCOMPLETE_AUTH_CHECK | false |  | 
+ | IGNORE_CM_CS_IN_CI_JOB | false |  | 
  | IMAGE_RETRY_COUNT | 0 |  | 
  | IMAGE_RETRY_INTERVAL | 5 |  | 
  | IMAGE_SCANNER_ENDPOINT | http://image-scanner-new-demo-devtroncd-service.devtroncd:80 |  | 
