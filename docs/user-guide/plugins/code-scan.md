@@ -20,8 +20,8 @@ If you have already configured workflow, edit the build pipeline, and navigate t
 {% endhint %}
 
 6. Under 'TASKS', click the **+ Add task** button.
-6. Select the **Code Scan** plugin.
-7. Enter the following [user inputs](#user-inputs) with appropriate values.
+7. Select the **Code Scan** plugin.
+8. Enter the following [user inputs](#user-inputs) with appropriate values.
 ---
 
 ## User Inputs
