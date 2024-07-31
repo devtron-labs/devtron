@@ -483,11 +483,10 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 			continue
 		}
 
-		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
 		// delete request
 		var err error
 		if envDeploymentConfig.DeploymentAppType == bean3.ArgoCd {
-			err = impl.deleteArgoCdApp(ctx, pipeline, deploymentAppName, true)
+			err = impl.deleteArgoCdApp(ctx, pipeline, pipeline.DeploymentAppName, true)
 
 		} else {
 
@@ -560,7 +559,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 			}
 			if err != nil {
 				impl.logger.Errorw("error registering app on ACD with error: "+err.Error(),
-					"deploymentAppName", deploymentAppName,
+					"deploymentAppName", pipeline.DeploymentAppName,
 					"envId", pipeline.EnvironmentId,
 					"appId", pipeline.AppId,
 					"err", err)
@@ -576,7 +575,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 
 		if err != nil {
 			impl.logger.Errorw("error deleting app on "+envDeploymentConfig.DeploymentAppType,
-				"deployment app name", deploymentAppName,
+				"deployment app name", pipeline.DeploymentAppName,
 				"err", err)
 
 			// deletion failed, append to the list of failed pipelines
@@ -736,7 +735,6 @@ func (impl *AppDeploymentTypeChangeManagerImpl) fetchDeletedApp(ctx context.Cont
 		if err != nil {
 			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
 		}
-		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
 		if envDeploymentConfig.DeploymentAppType == bean3.ArgoCd {
 			appIdentifier := &helmBean.AppIdentifier{
 				ClusterId:   pipeline.Environment.ClusterId,
@@ -746,12 +744,12 @@ func (impl *AppDeploymentTypeChangeManagerImpl) fetchDeletedApp(ctx context.Cont
 			_, err = impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
 		} else {
 			req := &application.ApplicationQuery{
-				Name: &deploymentAppName,
+				Name: &pipeline.DeploymentAppName,
 			}
 			_, err = impl.application.Get(ctx, req)
 		}
 		if err != nil {
-			impl.logger.Errorw("error in getting application detail", "err", err, "deploymentAppName", deploymentAppName)
+			impl.logger.Errorw("error in getting application detail", "err", err, "deploymentAppName", pipeline.DeploymentAppName)
 		}
 
 		if err != nil && checkAppReleaseNotExist(err) {

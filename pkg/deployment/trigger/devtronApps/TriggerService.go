@@ -956,20 +956,6 @@ func (impl *TriggerServiceImpl) buildManifestPushTemplate(overrideRequest *bean3
 	return manifestPushTemplate, err
 }
 
-// getAcdAppGitOpsRepoName returns the GitOps repository name, configured for the argoCd app
-func (impl *TriggerServiceImpl) getAcdAppGitOpsRepoName(appName string, environmentName string) (string, error) {
-	//this method should only call in case of argo-integration and gitops configured
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		impl.logger.Errorw("error in getting acd token", "err", err)
-		return "", err
-	}
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "token", acdToken)
-	acdAppName := fmt.Sprintf("%s-%s", appName, environmentName)
-	return impl.argoClientWrapperService.GetGitOpsRepoName(ctx, acdAppName)
-}
-
 func (impl *TriggerServiceImpl) getManifestPushService(triggerEvent bean.TriggerEvent) publish.ManifestPushService {
 	var manifestPushService publish.ManifestPushService
 	if triggerEvent.ManifestStorageType == bean2.ManifestStorageGit {

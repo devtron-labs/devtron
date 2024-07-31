@@ -1164,7 +1164,7 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.D
 			// do not add app in the list which are created using cd_pipelines (check combination of clusterId, namespace, releaseName)
 			var toExcludeFromList bool
 			for _, helmCdPipeline := range helmCdPipelines {
-				helmAppReleaseName := util2.BuildDeployedAppName(helmCdPipeline.App.AppName, helmCdPipeline.Environment.Name)
+				helmAppReleaseName := helmCdPipeline.DeploymentAppName
 				if deployedapp.AppName == helmAppReleaseName && int(deployedapp.EnvironmentDetail.ClusterId) == helmCdPipeline.Environment.ClusterId && deployedapp.EnvironmentDetail.Namespace == helmCdPipeline.Environment.Namespace {
 					toExcludeFromList = true
 					break
