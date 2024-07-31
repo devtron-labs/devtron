@@ -488,8 +488,6 @@ func (impl ConfigMapServiceImpl) CMEnvironmentFetch(appId int, envId int) (*bean
 	if configDataRequest.ConfigData == nil {
 		list := []*bean.ConfigData{}
 		configDataRequest.ConfigData = list
-	} else {
-		//configDataRequest.ConfigData = configMapGlobalList.ConfigData
 	}
 
 	return configDataRequest, nil
@@ -634,68 +632,15 @@ func (impl ConfigMapServiceImpl) CSGlobalFetch(appId int) (*bean.ConfigDataReque
 	configDataRequest := &bean.ConfigDataRequest{}
 	configDataRequest.Id = configMapGlobal.Id
 	configDataRequest.AppId = appId
-	//configDataRequest.ConfigData = configMapGlobalList.ConfigData
 
 	for _, item := range configMapGlobalList.ConfigData {
 		item.Global = true
 		configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
 	}
 
-	//removing actual values
-	var configs []*bean.ConfigData
-	for _, item := range configDataRequest.ConfigData {
-		resultMap := make(map[string]string)
-		resultMapFinal := make(map[string]string)
-
-		if item.Data != nil {
-			err = json.Unmarshal(item.Data, &resultMap)
-			if err != nil {
-				impl.logger.Warnw("unmarshal failed: ", "error", err)
-				configs = append(configs, item)
-				continue
-			}
-			for k := range resultMap {
-				resultMapFinal[k] = ""
-			}
-			resultByte, err := json.Marshal(resultMapFinal)
-			if err != nil {
-				impl.logger.Errorw("error while marshaling request ", "err", err)
-				return nil, err
-			}
-			item.Data = resultByte
-		}
-
-		var externalSecret []bean.ExternalSecret
-		if item.ExternalSecret != nil && len(item.ExternalSecret) > 0 {
-			for _, es := range item.ExternalSecret {
-				externalSecret = append(externalSecret, bean.ExternalSecret{Key: es.Key, Name: es.Name, Property: es.Property, IsBinary: es.IsBinary})
-			}
-		}
-		item.ExternalSecret = externalSecret
-
-		var esoData []bean.ESOData
-		if len(item.ESOSecretData.EsoData) > 0 {
-			for _, data := range item.ESOSecretData.EsoData {
-				esoData = append(esoData, bean.ESOData{Key: data.Key, SecretKey: data.SecretKey, Property: data.Property})
-			}
-		}
-
-		esoSecretData := bean.ESOSecretData{
-			SecretStore:     item.ESOSecretData.SecretStore,
-			SecretStoreRef:  item.ESOSecretData.SecretStoreRef,
-			EsoData:         esoData,
-			RefreshInterval: item.ESOSecretData.RefreshInterval,
-		}
-		item.ESOSecretData = esoSecretData
-		configs = append(configs, item)
-	}
-	configDataRequest.ConfigData = configs
-
 	if configDataRequest.ConfigData == nil {
 		list := []*bean.ConfigData{}
 		configDataRequest.ConfigData = list
-	} else {
-		//configDataRequest.ConfigData = configMapGlobalList.ConfigData
 	}
 
 	return configDataRequest, nil
@@ -921,93 +866,6 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*bean
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
 		}
 	}
-
-	//removing actual values
-	var configs []*bean.ConfigData
-	for _, item := range configDataRequest.ConfigData {
-
-		if item.Data != nil {
-			resultMap := make(map[string]string)
-			resultMapFinal := make(map[string]string)
-			err = json.Unmarshal(item.Data, &resultMap)
-			if err != nil {
-				impl.logger.Warnw("unmarshal failed: ", "error", err)
-				//item.Data = []byte("[]")
-				configs = append(configs, item)
-				continue
-				//return nil, err
-			}
-			for k := range resultMap {
-				resultMapFinal[k] = ""
-			}
-			var resultByte []byte
-			if resultMapFinal != nil && len(resultMapFinal) > 0 {
-				resultByte, err = json.Marshal(resultMapFinal)
-				if err != nil {
-					impl.logger.Errorw("error while marshaling request ", "err", err)
-					return nil, err
-				}
-			}
-			item.Data = resultByte
-		}
-
-		var externalSecret []bean.ExternalSecret
-		if item.ExternalSecret != nil && len(item.ExternalSecret) > 0 {
-			for _, es := range item.ExternalSecret {
-				externalSecret = append(externalSecret, bean.ExternalSecret{Key: es.Key, Name: es.Name, Property: es.Property, IsBinary: es.IsBinary})
-			}
-		}
-		item.ExternalSecret = externalSecret
-
-		var esoData []bean.ESOData
-		if len(item.ESOSecretData.EsoData) > 0 {
-			for _, data := range item.ESOSecretData.EsoData {
-				esoData = append(esoData, bean.ESOData{Key: data.Key, SecretKey: data.SecretKey, Property: data.Property})
-			}
-		}
-
-		esoSecretData := bean.ESOSecretData{
-			SecretStore:     item.ESOSecretData.SecretStore,
-			SecretStoreRef:  item.ESOSecretData.SecretStoreRef,
-			EsoData:         esoData,
-			RefreshInterval: item.ESOSecretData.RefreshInterval,
-		}
-		item.ESOSecretData = esoSecretData
-
-		if item.DefaultData != nil {
-			resultMap := make(map[string]string)
-			resultMapFinal := make(map[string]string)
-			err = json.Unmarshal(item.DefaultData, &resultMap)
-			if err != nil {
-				impl.logger.Warnw("unmarshal failed: ", "error", err)
-				//item.Data = []byte("[]")
-				configs = append(configs, item)
-				continue
-				//return nil, err
-			}
-			for k := range resultMap {
-				resultMapFinal[k] = ""
-			}
-			resultByte, err := json.Marshal(resultMapFinal)
-			if err != nil {
-				impl.logger.Errorw("error while marshaling request ", "err", err)
-				return nil, err
-			}
-			item.DefaultData = resultByte
-		}
-
-		if item.DefaultExternalSecret != nil {
-			var externalSecret []bean.ExternalSecret
-			if item.DefaultExternalSecret != nil && len(item.DefaultExternalSecret) > 0 {
-				for _, es := range item.DefaultExternalSecret {
-					externalSecret = append(externalSecret, bean.ExternalSecret{Key: es.Key, Name: es.Name, Property: es.Property, IsBinary: es.IsBinary})
-				}
-			}
-			item.DefaultExternalSecret = externalSecret
-		}
-		configs = append(configs, item)
-	}
-	configDataRequest.ConfigData = configs
 
 	if configDataRequest.ConfigData == nil {
 		list := []*bean.ConfigData{}

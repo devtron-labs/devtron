@@ -934,7 +934,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	deploymentConfigurationRestHandlerImpl := restHandler.NewDeploymentConfigurationRestHandlerImpl(sugaredLogger, userServiceImpl, enforcerUtilImpl, deploymentConfigurationServiceImpl)
+	deploymentConfigurationRestHandlerImpl := restHandler.NewDeploymentConfigurationRestHandlerImpl(sugaredLogger, userServiceImpl, enforcerUtilImpl, deploymentConfigurationServiceImpl, enforcerImpl)
 	deploymentConfigurationRouterImpl := router.NewDeploymentConfigurationRouter(deploymentConfigurationRestHandlerImpl)
 	infraConfigRestHandlerImpl := infraConfig2.NewInfraConfigRestHandlerImpl(sugaredLogger, infraConfigServiceImpl, userServiceImpl, enforcerImpl, enforcerUtilImpl, validate)
 	infraConfigRouterImpl := infraConfig2.NewInfraProfileRouterImpl(infraConfigRestHandlerImpl)

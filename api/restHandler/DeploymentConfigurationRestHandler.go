@@ -24,18 +24,21 @@ type DeploymentConfigurationRestHandlerImpl struct {
 	validator                      *validator.Validate
 	enforcerUtil                   rbac.EnforcerUtil
 	deploymentConfigurationService configDiff.DeploymentConfigurationService
+	enforcer                       casbin.Enforcer
 }
 
 func NewDeploymentConfigurationRestHandlerImpl(logger *zap.SugaredLogger,
 	userAuthService user.UserService,
 	enforcerUtil rbac.EnforcerUtil,
 	deploymentConfigurationService configDiff.DeploymentConfigurationService,
+	enforcer casbin.Enforcer,
 ) *DeploymentConfigurationRestHandlerImpl {
 	return &DeploymentConfigurationRestHandlerImpl{
 		logger:                         logger,
 		userAuthService:                userAuthService,
 		enforcerUtil:                   enforcerUtil,
 		deploymentConfigurationService: deploymentConfigurationService,
+		enforcer:                       enforcer,
 	}
 }
 
@@ -101,9 +104,25 @@ func (handler *DeploymentConfigurationRestHandlerImpl) GetConfigData(w http.Resp
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	appAdminUser := handler.enforceForAppAndEnv(configDataQueryParams.AppName, configDataQueryParams.EnvName, token, casbin.ActionUpdate)
+	if !appAdminUser {
+
+	}
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
+func (handler *DeploymentConfigurationRestHandlerImpl) enforceForAppAndEnv(appName, envName string, token string, action string) bool {
+	object := handler.enforcerUtil.GetAppRBACNameByAppName(appName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, action, object); !ok {
+		return false
+	}
+
+	object = handler.enforcerUtil.GetEnvRBACNameByAppAndEnvName(appName, envName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, action, object); !ok {
+		return false
+	}
+	return true
+}
 func getConfigDataQueryParams(r *http.Request) (*bean.ConfigDataQueryParams, error) {
 	v := r.URL.Query()
 	var decoder = schema.NewDecoder()
