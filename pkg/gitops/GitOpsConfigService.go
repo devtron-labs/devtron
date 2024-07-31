@@ -310,11 +310,11 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 
 	} else {
 
-	clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
-	if err != nil {
-		return nil, err
-	}
-	cfg := clusterBean.GetClusterConfig()
+		clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
+		if err != nil {
+			return nil, err
+		}
+		cfg := clusterBean.GetClusterConfig()
 
 		client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 		if err != nil {
@@ -542,6 +542,10 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 				UserMessage:     "failed to update gitOps config in db",
 			}
 		}
+	} else {
+		model.TlsKey = ""
+		model.TlsCert = ""
+		model.CaCert = ""
 	}
 	if model.EnableTLSVerification && request.TLSConfig == nil {
 		request.TLSConfig = &bean.TLSConfig{
