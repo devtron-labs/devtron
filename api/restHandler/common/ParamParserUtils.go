@@ -44,13 +44,12 @@ func convertToInt(w http.ResponseWriter, paramValue string) (int, error) {
 	return paramIntValue, nil
 }
 
-func convertToIntArray(w http.ResponseWriter, paramValue string) ([]int, error) {
+func convertToIntArray(paramValue string) ([]int, error) {
 	var paramValues []int
 	splittedParamValues := strings.Split(paramValue, ",")
 	for _, splittedParamValue := range splittedParamValues {
 		paramIntValue, err := strconv.Atoi(splittedParamValue)
 		if err != nil {
-			WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return paramValues, err
 		}
 		paramValues = append(paramValues, paramIntValue)
@@ -58,22 +57,69 @@ func convertToIntArray(w http.ResponseWriter, paramValue string) ([]int, error) 
 	return paramValues, nil
 }
 
-func ExtractIntQueryParam(w http.ResponseWriter, r *http.Request, paramName string, defaultVal int) (int, error) {
+func ExtractIntQueryParam(w http.ResponseWriter, r *http.Request, paramName string, defaultValue int) (int, error) {
 	queryParams := r.URL.Query()
 	paramValue := queryParams.Get(paramName)
 	if len(paramValue) == 0 {
-		return defaultVal, nil
+		return defaultValue, nil
 	}
 	paramIntValue, err := convertToInt(w, paramValue)
 	if err != nil {
-		return defaultVal, err
+		return defaultValue, err
 	}
 	return paramIntValue, nil
 }
 
+// ExtractIntArrayQueryParam don't use this func, doesn't handle all cases to capture query params
+// use ExtractIntArrayFromQueryParam over this func to capture int array from query param.
 func ExtractIntArrayQueryParam(w http.ResponseWriter, r *http.Request, paramName string) ([]int, error) {
 	queryParams := r.URL.Query()
 	paramValue := queryParams.Get(paramName)
-	paramIntValues, err := convertToIntArray(w, paramValue)
+	paramIntValues, err := convertToIntArray(paramValue)
 	return paramIntValues, err
+}
+
+func ExtractBoolQueryParam(r *http.Request, paramName string) (bool, error) {
+	queryParams := r.URL.Query()
+	paramValue := queryParams.Get(paramName)
+	var boolValue bool
+	var err error
+	if len(paramValue) > 0 {
+		boolValue, err = strconv.ParseBool(paramValue)
+		if err != nil {
+			return boolValue, err
+		}
+	}
+
+	return boolValue, nil
+}
+
+// ExtractIntArrayFromQueryParam returns list of all ids in []int extracted from query param
+// use this method over ExtractIntArrayQueryParam if there is list of query params
+func ExtractIntArrayFromQueryParam(r *http.Request, paramName string) ([]int, error) {
+	queryParams := r.URL.Query()
+	paramValue := queryParams[paramName]
+	paramIntValues := make([]int, 0)
+	var err error
+	if paramValue != nil && len(paramValue) > 0 {
+		if strings.Contains(paramValue[0], ",") {
+			paramIntValues, err = convertToIntArray(paramValue[0])
+		} else {
+			paramIntValues, err = convertStringArrayToIntArray(paramValue)
+		}
+	}
+
+	return paramIntValues, err
+}
+
+func convertStringArrayToIntArray(strArr []string) ([]int, error) {
+	var paramValues []int
+	for _, item := range strArr {
+		paramIntValue, err := strconv.Atoi(item)
+		if err != nil {
+			return paramValues, err
+		}
+		paramValues = append(paramValues, paramIntValue)
+	}
+	return paramValues, nil
 }

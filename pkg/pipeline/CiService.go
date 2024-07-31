@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
+	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
 	"maps"
 	"path/filepath"
 	"strconv"
@@ -617,7 +618,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 
 	// copyContainerImage plugin specific logic
 	var registryDestinationImageMap map[string][]string
-	var registryCredentialMap map[string]plugin.RegistryCredentials
+	var registryCredentialMap map[string]bean2.RegistryCredentials
 	var pluginArtifactStage string
 	var imageReservationIds []int
 	if !isJob {
@@ -809,9 +810,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	return workflowRequest, nil
 }
 
-func (impl *CiServiceImpl) GetWorkflowRequestVariablesForCopyContainerImagePlugin(preCiSteps []*pipelineConfigBean.StepObject, postCiSteps []*pipelineConfigBean.StepObject, customTag string, customTagId int, buildImagePath string, buildImagedockerRegistryId string) (map[string][]string, map[string]plugin.RegistryCredentials, string, []int, error) {
+func (impl *CiServiceImpl) GetWorkflowRequestVariablesForCopyContainerImagePlugin(preCiSteps []*pipelineConfigBean.StepObject, postCiSteps []*pipelineConfigBean.StepObject, customTag string, customTagId int, buildImagePath string, buildImagedockerRegistryId string) (map[string][]string, map[string]bean2.RegistryCredentials, string, []int, error) {
 	var registryDestinationImageMap map[string][]string
-	var registryCredentialMap map[string]plugin.RegistryCredentials
+	var registryCredentialMap map[string]bean2.RegistryCredentials
 	var pluginArtifactStage string
 	var imagePathReservationIds []int
 	copyContainerImagePluginId, err := impl.globalPluginService.GetRefPluginIdByRefPluginName(COPY_CONTAINER_IMAGE)
