@@ -22,7 +22,6 @@ import (
 	"github.com/devtron-labs/common-lib/git-manager/util"
 	"github.com/devtron-labs/common-lib/utils"
 	"log"
-	"math/rand"
 	"os"
 	"path/filepath"
 )
@@ -213,19 +212,18 @@ func CreateFilesForTlsData(tlsData *TLSData, directoryPath string) (*TlsPathInfo
 		var caCertFilePath string
 		var err error
 		// this is to avoid concurrency issue, random number is appended at the end of file, where this file is read/created/deleted by multiple commands simultaneously.
-		randomNumber := rand.Intn(100000)
 		if tlsData.TLSKey != "" && tlsData.TLSCertificate != "" {
-			tlsKeyFilePath, err = utils.CreateFolderAndFileWithContent(tlsData.TLSKey, fmt.Sprintf("%s_%v", TLS_KEY_FILE_NAME, randomNumber), directoryPath)
+			tlsKeyFilePath, err = utils.CreateFolderAndFileWithContent(tlsData.TLSKey, getTLSKeyFileName(), directoryPath)
 			if err != nil {
 				return nil, err
 			}
-			tlsCertFilePath, err = utils.CreateFolderAndFileWithContent(tlsData.TLSCertificate, fmt.Sprintf("%s_%v", TLS_CERT_FILE_NAME, randomNumber), directoryPath)
+			tlsCertFilePath, err = utils.CreateFolderAndFileWithContent(tlsData.TLSCertificate, getCertFileName(), directoryPath)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if tlsData.CACert != "" {
-			caCertFilePath, err = utils.CreateFolderAndFileWithContent(tlsData.CACert, fmt.Sprintf("%s_%v", CA_CERT_FILE_NAME, randomNumber), directoryPath)
+			caCertFilePath, err = utils.CreateFolderAndFileWithContent(tlsData.CACert, getCertFileName(), directoryPath)
 			if err != nil {
 				return nil, err
 			}

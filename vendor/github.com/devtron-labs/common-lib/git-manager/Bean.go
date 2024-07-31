@@ -17,7 +17,10 @@
 package git_manager
 
 import (
+	"fmt"
 	"log"
+	"math/rand"
+	"strconv"
 	"time"
 )
 
@@ -76,3 +79,19 @@ const (
 	TLS_CERT_FILE_NAME = "tls_cert.pem"
 	CA_CERT_FILE_NAME  = "ca_cert.pem"
 )
+
+func getTLSKeyFileName() string {
+	randomName := fmt.Sprintf("%v.key", GetRandomName())
+	return randomName
+}
+
+func getCertFileName() string {
+	randomName := fmt.Sprintf("%v.crt", GetRandomName())
+	return randomName
+}
+
+func GetRandomName() string {
+	r1 := rand.New(rand.NewSource(time.Now().UnixNano())).Int63()
+	randomName := fmt.Sprintf(strconv.FormatInt(r1, 10))
+	return randomName
+}
