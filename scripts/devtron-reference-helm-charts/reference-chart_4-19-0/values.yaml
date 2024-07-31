@@ -17,11 +17,11 @@ ContainerPort:
     supportStreaming: false
     idleTimeout: 1800s
     protocol: TCP
-#    servicemonitor:
-#      enabled: true
-#      path: /abc
-#      scheme: 'http'
-#      interval: 30s
+    # servicemonitor:
+    #   enabled: true
+    #   path: /abc
+    #   scheme: 'http'
+    #   interval: 30s
 #      scrapeTimeout: 20s
 #      metricRelabelings:
 #        - sourceLabels: [namespace]
@@ -629,4 +629,6 @@ imagePullSecrets: []
 
 
 persistentVolumeClaim: {}
+
   
+
