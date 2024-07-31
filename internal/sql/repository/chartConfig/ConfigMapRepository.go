@@ -76,6 +76,7 @@ func (impl ConfigMapRepositoryImpl) GetConfigNamesForAppAndEnvLevel(appId int, e
 	if envId == -1 {
 		tableName = ConfigMapAppLevel
 	}
+	//below query iterates over the cm, cs stored as json element, and fetches cmName and csName, id for a particular appId or envId if provided
 	query := impl.dbConnection.
 		Model().
 		Table(tableName).
