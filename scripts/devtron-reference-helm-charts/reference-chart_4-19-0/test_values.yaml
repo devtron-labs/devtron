@@ -626,3 +626,10 @@ deployment:
         - pause:
             duration: 15 # 1 min
     recreate: {}
+
+persistentVolumeClaim:
+      name: kamal-pvc
+      resources:
+      requests:
+        storage: 5Gi
+      storageClassName: my-storage-class
