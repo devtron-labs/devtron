@@ -17,13 +17,20 @@ func (r ConfigState) ToString() string {
 	return string(r)
 }
 
+type ConfigStage string
+
+const (
+	Env        ConfigStage = "Env"
+	Inheriting ConfigStage = "Inheriting"
+	Overridden ConfigStage = "Overridden"
+)
+
 type ConfigProperty struct {
 	Id          int               `json:"id"`
 	Name        string            `json:"name"`
 	ConfigState ConfigState       `json:"configState"`
 	Type        bean.ResourceType `json:"type"`
-	Overridden  bool              `json:"overridden"`
-	Global      bool              `json:"global"`
+	ConfigStage ConfigStage       `json:"configStage"`
 }
 
 func NewConfigProperty() *ConfigProperty {
@@ -31,16 +38,7 @@ func NewConfigProperty() *ConfigProperty {
 }
 
 func (r *ConfigProperty) IsConfigPropertyGlobal() bool {
-	return r.Global
-}
-
-func (r *ConfigProperty) SetConfigProperty(Name string, ConfigState ConfigState, Type bean.ResourceType, Overridden bool, Global bool) *ConfigProperty {
-	r.Name = Name
-	r.ConfigState = ConfigState
-	r.Type = Type
-	r.Overridden = Overridden
-	r.Global = Global
-	return r
+	return r.ConfigStage == Inheriting
 }
 
 type ConfigDataResponse struct {
@@ -73,26 +71,12 @@ func (r *ConfigProperty) GetIdentifier() ConfigPropertyIdentifier {
 }
 
 type DeploymentAndCmCsConfig struct {
-	Id           int               `json:"id ,omitempty"`
-	Name         string            `json:"name"`
 	ResourceType bean.ResourceType `json:"resourceType"`
 	Data         json.RawMessage   `json:"data"`
-	ConfigState  ConfigState       `json:"configState"`
 }
 
 func NewDeploymentAndCmCsConfig() *DeploymentAndCmCsConfig {
 	return &DeploymentAndCmCsConfig{}
-}
-
-func (r *DeploymentAndCmCsConfig) WithIdAndName(id int, name string) *DeploymentAndCmCsConfig {
-	r.Id = id
-	r.Name = name
-	return r
-}
-
-func (r *DeploymentAndCmCsConfig) WithConfigState(configState ConfigState) *DeploymentAndCmCsConfig {
-	r.ConfigState = configState
-	return r
 }
 
 func (r *DeploymentAndCmCsConfig) WithResourceType(resourceType bean.ResourceType) *DeploymentAndCmCsConfig {
@@ -106,23 +90,25 @@ func (r *DeploymentAndCmCsConfig) WithConfigData(data json.RawMessage) *Deployme
 }
 
 type DeploymentAndCmCsConfigDto struct {
-	AppId         int                        `json:"appId"`
-	EnvironmentId int                        `json:"environmentId"`
-	ConfigData    []*DeploymentAndCmCsConfig `json:"configData"`
+	DeploymentTemplate *DeploymentAndCmCsConfig `json:"deploymentTemplate"`
+	ConfigMapsData     *DeploymentAndCmCsConfig `json:"configMapData"`
+	SecretsData        *DeploymentAndCmCsConfig `json:"secretsData"`
 }
 
 func NewDeploymentAndCmCsConfigDto() *DeploymentAndCmCsConfigDto {
-	return &DeploymentAndCmCsConfigDto{ConfigData: make([]*DeploymentAndCmCsConfig, 0)}
+	return &DeploymentAndCmCsConfigDto{}
 }
 
-func (r *DeploymentAndCmCsConfigDto) WithConfigData(configData []*DeploymentAndCmCsConfig) *DeploymentAndCmCsConfigDto {
-	r.ConfigData = configData
+func (r *DeploymentAndCmCsConfigDto) WithDeploymentTemplateData(data *DeploymentAndCmCsConfig) *DeploymentAndCmCsConfigDto {
+	r.DeploymentTemplate = data
 	return r
 }
-
-func (r *DeploymentAndCmCsConfigDto) WithAppAndEnvIdId(appId, envId int) *DeploymentAndCmCsConfigDto {
-	r.AppId = appId
-	r.EnvironmentId = envId
+func (r *DeploymentAndCmCsConfigDto) WithConfigMapData(data *DeploymentAndCmCsConfig) *DeploymentAndCmCsConfigDto {
+	r.ConfigMapsData = data
+	return r
+}
+func (r *DeploymentAndCmCsConfigDto) WithSecretData(data *DeploymentAndCmCsConfig) *DeploymentAndCmCsConfigDto {
+	r.SecretsData = data
 	return r
 }
 
@@ -131,8 +117,11 @@ type ConfigDataQueryParams struct {
 	EnvName      string
 	ConfigType   string
 	IdentifierId int
+	PipelineId   int // req for fetching previous deployments data
 	ResourceName string
 	ResourceType string
+	ResourceId   int
+	UserId       int32
 }
 
 func (r *ConfigDataQueryParams) IsResourceTypeSecret() bool {
@@ -152,15 +141,6 @@ func (r *ConfigDataQueryParams) IsValidConfigType() bool {
 
 func (r *ConfigDataQueryParams) IsRequestMadeForOneResource() bool {
 	return len(r.ResourceName) > 0 && len(r.ResourceType) > 0
-}
-
-func (r *ConfigDataQueryParams) WithConfigDataQueryParams(appName, envName, configType, resourceName, resourceType string, identifierId int) {
-	r.AppName = appName
-	r.EnvName = envName
-	r.ConfigType = configType
-	r.ResourceName = resourceName
-	r.IdentifierId = identifierId
-	r.ResourceType = resourceType
 }
 
 const (

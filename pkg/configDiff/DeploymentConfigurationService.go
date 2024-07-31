@@ -60,13 +60,17 @@ func (impl *DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, en
 	cmcsKeyPropertyAppLevelMap, cmcsKeyPropertyEnvLevelMap := helper.GetCmCsAppAndEnvLevelMap(cMCSNamesAppLevel, cMCSNamesEnvLevel)
 	for key, configProperty := range cmcsKeyPropertyAppLevelMap {
 		if _, ok := cmcsKeyPropertyEnvLevelMap[key]; !ok {
-			configProperty.Global = true
+			if envId > 0 {
+				configProperty.ConfigStage = bean2.Inheriting
+			}
+
 		}
 	}
 	for key, configProperty := range cmcsKeyPropertyEnvLevelMap {
 		if _, ok := cmcsKeyPropertyAppLevelMap[key]; ok {
-			configProperty.Global = true
-			configProperty.Overridden = true
+			configProperty.ConfigStage = bean2.Overridden
+		} else {
+			configProperty.ConfigStage = bean2.Env
 		}
 	}
 	combinedProperties := helper.GetCombinedPropertiesMap(cmcsKeyPropertyAppLevelMap, cmcsKeyPropertyEnvLevelMap)
@@ -98,29 +102,118 @@ func (impl *DeploymentConfigurationServiceImpl) GetAllConfigData(ctx context.Con
 	}
 	appId = appModel.Id
 
-	configData := make([]*bean2.DeploymentAndCmCsConfig, 0)
+	configDataDto := &bean2.DeploymentAndCmCsConfigDto{}
 	switch configDataQueryParams.ConfigType {
 	default: // keeping default as PublishedOnly
-		cmcsConfigData, err := impl.getCmCsConfigResponse(configDataQueryParams, envId, appId)
+		configDataDto, err = impl.getPublishedConfigData(ctx, configDataQueryParams, appId, envId)
 		if err != nil {
-			impl.logger.Errorw("GetAllConfigData, error in getting cm cs", "appName", configDataQueryParams.AppName, "envName", configDataQueryParams.EnvName, "err", err)
+			impl.logger.Errorw("GetAllConfigData, error in config data for PublishedOnly", "configDataQueryParams", configDataQueryParams, "err", err)
 			return nil, err
 		}
-		if configDataQueryParams.IsRequestMadeForOneResource() {
-			return bean2.NewDeploymentAndCmCsConfigDto().WithConfigData(configData).WithAppAndEnvIdId(appId, envId), nil
-		}
-		configData = append(configData, cmcsConfigData...)
+	}
+	return configDataDto, nil
+}
 
-		deploymentTemplateJsonData, err := impl.getDeploymentConfig(ctx, appId, envId)
-		if err != nil {
-			impl.logger.Errorw("GetAllConfigData, error in getting deployment config", "appName", configDataQueryParams.AppName, "envName", configDataQueryParams.EnvName, "err", err)
-			return nil, err
-		}
-		deploymentConfig := bean2.NewDeploymentAndCmCsConfig().WithConfigState(bean2.PublishedConfigState).WithConfigData(deploymentTemplateJsonData).WithResourceType(bean.DeploymentTemplate)
-		configData = append(configData, deploymentConfig)
+func (impl *DeploymentConfigurationServiceImpl) getCmCsEditDataForPublishedOnly(configDataQueryParams *bean2.ConfigDataQueryParams, envId, appId int) (*bean2.DeploymentAndCmCsConfigDto, error) {
+	configDataDto := &bean2.DeploymentAndCmCsConfigDto{}
+
+	var resourceType bean.ResourceType
+	var fetchConfigFunc func(string, int, int, int) (*bean.ConfigDataRequest, error)
+
+	if configDataQueryParams.IsResourceTypeSecret() {
+		//handles for single resource when resource type is secret and for a given resource name
+		resourceType = bean.CS
+		fetchConfigFunc = impl.getSecretConfigResponse
+	} else if configDataQueryParams.IsResourceTypeConfigMap() {
+		//handles for single resource when resource type is configMap and for a given resource name
+		resourceType = bean.CM
+		fetchConfigFunc = impl.getConfigMapResponse
+	}
+	cmcsConfigData, err := fetchConfigFunc(configDataQueryParams.ResourceName, configDataQueryParams.ResourceId, envId, appId)
+	if err != nil {
+		impl.logger.Errorw("getCmCsEditDataForPublishedOnly, error in getting config response", "resourceName", configDataQueryParams.ResourceName, "envName", configDataQueryParams.EnvName, "err", err)
+		return nil, err
 	}
 
-	return bean2.NewDeploymentAndCmCsConfigDto().WithConfigData(configData).WithAppAndEnvIdId(appId, envId), nil
+	respJson, err := utils.ConvertToJsonRawMessage(cmcsConfigData)
+	if err != nil {
+		impl.logger.Errorw("getCmCsEditDataForPublishedOnly, error in converting to json raw message", "configDataQueryParams", configDataQueryParams, "err", err)
+		return nil, err
+	}
+
+	cmCsConfig := bean2.NewDeploymentAndCmCsConfig().WithConfigData(respJson).WithResourceType(resourceType)
+	if resourceType == bean.CS {
+		configDataDto.WithSecretData(cmCsConfig)
+	} else if resourceType == bean.CM {
+		configDataDto.WithConfigMapData(cmCsConfig)
+	}
+	return configDataDto, nil
+}
+
+func (impl *DeploymentConfigurationServiceImpl) getCmCsPublishedConfigResponse(envId, appId int) (*bean2.DeploymentAndCmCsConfigDto, error) {
+
+	configDataDto := &bean2.DeploymentAndCmCsConfigDto{}
+	secretData, err := impl.getSecretConfigResponse("", 0, envId, appId)
+	if err != nil {
+		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in getting secret config response by appId and envId", "appId", appId, "envId", envId, "err", err)
+		return nil, err
+	}
+
+	//iterate on secret configData and then and set draft data from draftResourcesMap if same resourceName found do the same for configMap below
+	cmData, err := impl.getConfigMapResponse("", 0, envId, appId)
+	if err != nil {
+		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in getting config map by appId and envId", "appId", appId, "envId", envId, "err", err)
+		return nil, err
+	}
+
+	secretRespJson, err := utils.ConvertToJsonRawMessage(secretData)
+	if err != nil {
+		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in converting secret data to json raw message", "appId", appId, "envId", envId, "err", err)
+		return nil, err
+	}
+
+	cmRespJson, err := utils.ConvertToJsonRawMessage(cmData)
+	if err != nil {
+		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in converting config map data to json raw message", "appId", appId, "envId", envId, "err", err)
+		return nil, err
+	}
+
+	cmConfigData := bean2.NewDeploymentAndCmCsConfig().WithConfigData(cmRespJson).WithResourceType(bean.CM)
+	secretConfigData := bean2.NewDeploymentAndCmCsConfig().WithConfigData(secretRespJson).WithResourceType(bean.CS)
+
+	configDataDto.WithConfigMapData(cmConfigData).WithSecretData(secretConfigData)
+	return configDataDto, nil
+
+}
+
+func (impl *DeploymentConfigurationServiceImpl) getPublishedDeploymentConfig(ctx context.Context, appId, envId int) (json.RawMessage, error) {
+	if envId > 0 {
+		return impl.getDeploymentTemplateForEnvLevel(ctx, appId, envId)
+	}
+	return impl.getBaseDeploymentTemplate(appId)
+}
+
+func (impl *DeploymentConfigurationServiceImpl) getPublishedConfigData(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams,
+	appId, envId int) (*bean2.DeploymentAndCmCsConfigDto, error) {
+
+	if configDataQueryParams.IsRequestMadeForOneResource() {
+		return impl.getCmCsEditDataForPublishedOnly(configDataQueryParams, envId, appId)
+	}
+	//ConfigMapsData and SecretsData are populated here
+	configData, err := impl.getCmCsPublishedConfigResponse(envId, appId)
+	if err != nil {
+		impl.logger.Errorw("getPublishedConfigData, error in getting cm cs for PublishedOnly state", "appName", configDataQueryParams.AppName, "envName", configDataQueryParams.EnvName, "err", err)
+		return nil, err
+	}
+	deploymentTemplateJsonData, err := impl.getPublishedDeploymentConfig(ctx, appId, envId)
+	if err != nil {
+		impl.logger.Errorw("getPublishedConfigData, error in getting publishedOnly deployment config ", "configDataQueryParams", configDataQueryParams, "err", err)
+		return nil, err
+	}
+	deploymentConfig := bean2.NewDeploymentAndCmCsConfig().WithConfigData(deploymentTemplateJsonData).WithResourceType(bean.DeploymentTemplate)
+
+	configData.WithDeploymentTemplateData(deploymentConfig)
+	return configData, nil
 }
 
 func (impl *DeploymentConfigurationServiceImpl) getBaseDeploymentTemplate(appId int) (json.RawMessage, error) {
@@ -160,10 +253,10 @@ func (impl *DeploymentConfigurationServiceImpl) getDeploymentConfig(ctx context.
 	return impl.getBaseDeploymentTemplate(appId)
 }
 
-func (impl *DeploymentConfigurationServiceImpl) getSecretConfigResponse(resourceName string, envId, appId int) (*bean.ConfigDataRequest, error) {
+func (impl *DeploymentConfigurationServiceImpl) getSecretConfigResponse(resourceName string, resourceId, envId, appId int) (*bean.ConfigDataRequest, error) {
 	if len(resourceName) > 0 {
 		if envId > 0 {
-			return impl.configMapService.CSEnvironmentFetchForEdit(resourceName, 0, appId, envId)
+			return impl.configMapService.CSEnvironmentFetchForEdit(resourceName, resourceId, appId, envId)
 		}
 		return impl.configMapService.CSGlobalFetchForEditUsingAppId(resourceName, appId)
 	}
@@ -174,10 +267,10 @@ func (impl *DeploymentConfigurationServiceImpl) getSecretConfigResponse(resource
 	return impl.configMapService.CSGlobalFetch(appId)
 }
 
-func (impl *DeploymentConfigurationServiceImpl) getConfigMapResponse(resourceName string, envId, appId int) (*bean.ConfigDataRequest, error) {
+func (impl *DeploymentConfigurationServiceImpl) getConfigMapResponse(resourceName string, resourceId, envId, appId int) (*bean.ConfigDataRequest, error) {
 	if len(resourceName) > 0 {
 		if envId > 0 {
-			return impl.configMapService.CMEnvironmentFetchForEdit(resourceName, 0, appId, envId)
+			return impl.configMapService.CMEnvironmentFetchForEdit(resourceName, resourceId, appId, envId)
 		}
 		return impl.configMapService.CMGlobalFetchForEditUsingAppId(resourceName, appId)
 	}
@@ -186,42 +279,4 @@ func (impl *DeploymentConfigurationServiceImpl) getConfigMapResponse(resourceNam
 		return impl.configMapService.CMEnvironmentFetch(appId, envId)
 	}
 	return impl.configMapService.CMGlobalFetch(appId)
-}
-
-func (impl *DeploymentConfigurationServiceImpl) getCmCsConfigResponse(configDataQueryParams *bean2.ConfigDataQueryParams, envId, appId int) ([]*bean2.DeploymentAndCmCsConfig, error) {
-
-	configData := make([]*bean2.DeploymentAndCmCsConfig, 0)
-	var cmcsRespJson json.RawMessage
-	var resourceType bean.ResourceType
-	cmcsConfig := bean2.NewDeploymentAndCmCsConfig().WithConfigState(bean2.PublishedConfigState)
-
-	if configDataQueryParams.IsResourceTypeSecret() {
-		secretData, err := impl.getSecretConfigResponse(configDataQueryParams.ResourceName, envId, appId)
-		if err != nil {
-			impl.logger.Errorw("getCmCsConfigResponse, error in getting secret config response for appName and envName", "appName", configDataQueryParams.AppName, "envName", configDataQueryParams.EnvName, "err", err)
-			return nil, err
-		}
-		resourceType = bean.CS
-		cmcsRespJson, err = utils.ConvertToJsonRawMessage(secretData)
-		if err != nil {
-			impl.logger.Errorw("getCmCsConfigResponse, error in getting secret json raw message", "err", err)
-			return nil, err
-		}
-	} else if configDataQueryParams.IsResourceTypeConfigMap() {
-		cmData, err := impl.getConfigMapResponse(configDataQueryParams.ResourceName, envId, appId)
-		if err != nil {
-			impl.logger.Errorw("getCmCsConfigResponse, error in getting config map for appName and envName", "appName", configDataQueryParams.AppName, "envName", configDataQueryParams.EnvName, "err", err)
-			return nil, err
-		}
-		resourceType = bean.CM
-		cmcsRespJson, err = utils.ConvertToJsonRawMessage(cmData)
-		if err != nil {
-			impl.logger.Errorw("getCmCsConfigResponse, error in getting cm json raw message", "cmData", cmData, "err", err)
-			return nil, err
-		}
-	}
-	cmcsConfig.WithConfigData(cmcsRespJson).WithResourceType(resourceType)
-	configData = append(configData, cmcsConfig)
-
-	return configData, nil
 }
