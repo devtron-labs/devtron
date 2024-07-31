@@ -21,7 +21,10 @@ To configure a deployment chart for your application, do the following steps:
 Users need to have [Admin role](../user-guide/global-configurations/authorization/user-access.md#role-based-access-levels) or above to select a chart.
 {% endhint %}
 
-You can choose either a Devtron Chart or a Custom Chart as your base deployment template.
+{% hint style="warning" %}
+### Note
+After you select and save a chart type for a given application, you won't be able to change it later. Make sure to choose the correct chart type before saving. You can select a chart from [Devtron Charts](#from-devtron-charts) or [Custom Charts](#from-custom-charts).
+{% endhint %}
 
 ### From Devtron Charts
 
