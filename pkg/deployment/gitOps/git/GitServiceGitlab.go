@@ -17,8 +17,8 @@
 package git
 
 import (
-	"crypto/tls"
 	"context"
+	"crypto/tls"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
@@ -94,21 +94,22 @@ func NewGitLabClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitOpsHe
 func CreateGitlabClient(host, token string, tlsConfig *tls.Config) (*gitlab.Client, error) {
 	var gitLabClient *gitlab.Client
 	var err error
-	httpClient := util.GetHTTPClientWithTLSConfig(tlsConfig)
+	options := make([]gitlab.ClientOptionFunc, 0)
+
 	if len(host) > 0 {
 		_, err = url.ParseRequestURI(host)
 		if err != nil {
 			return nil, err
 		}
-		gitLabClient, err = gitlab.NewClient(token, gitlab.WithBaseURL(host), gitlab.WithHTTPClient(httpClient))
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		gitLabClient, err = gitlab.NewClient(token)
-		if err != nil {
-			return nil, err
-		}
+		options = append(options, gitlab.WithBaseURL(host))
+	}
+	if tlsConfig != nil {
+		httpClient := util.GetHTTPClientWithTLSConfig(tlsConfig)
+		options = append(options, gitlab.WithHTTPClient(httpClient))
+	}
+	gitLabClient, err = gitlab.NewClient(token, options...)
+	if err != nil {
+		return nil, err
 	}
 	return gitLabClient, err
 }

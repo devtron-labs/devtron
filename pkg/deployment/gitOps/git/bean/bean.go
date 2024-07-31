@@ -33,9 +33,11 @@ type GitConfig struct {
 	AzureProject         string
 	BitbucketWorkspaceId string
 	BitbucketProjectKey  string
-	CaCert               string
-	TLSCert              string
-	TLSKey               string
+
+	EnableTLSVerification bool
+	CaCert                string
+	TLSCert               string
+	TLSKey                string
 }
 
 type PushChartToGitRequestDTO struct {

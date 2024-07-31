@@ -21,7 +21,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
-	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/retryFunc"
 	"github.com/google/go-github/github"
 	"go.uber.org/zap"
@@ -43,7 +42,10 @@ type GitHubClient struct {
 func NewGithubClient(host string, token string, org string, logger *zap.SugaredLogger,
 	gitOpsHelper *GitOpsHelper, tlsConfig *tls.Config) (GitHubClient, error) {
 	ctx := context.Background()
-	httpClient := util.GetHTTPClientWithTLSConfig(tlsConfig)
+
+	httpTransport := &http2.Transport{Proxy: http2.ProxyFromEnvironment, TLSClientConfig: tlsConfig}
+	httpClient := &http2.Client{Transport: httpTransport}
+
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
 	)

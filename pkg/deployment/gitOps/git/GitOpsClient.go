@@ -18,6 +18,7 @@ package git
 
 import (
 	"context"
+	"crypto/tls"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
@@ -51,29 +52,34 @@ func GetGitConfig(gitOpsConfigReadService config.GitOpsConfigReadService) (*bean
 		return nil, err
 	}
 	cfg := &bean.GitConfig{
-		GitlabGroupId:        gitOpsConfig.GitLabGroupId,
-		GitToken:             gitOpsConfig.Token,
-		GitUserName:          gitOpsConfig.Username,
-		GithubOrganization:   gitOpsConfig.GitHubOrgId,
-		GitProvider:          gitOpsConfig.Provider,
-		GitHost:              gitOpsConfig.Host,
-		AzureToken:           gitOpsConfig.Token,
-		AzureProject:         gitOpsConfig.AzureProjectName,
-		BitbucketWorkspaceId: gitOpsConfig.BitBucketWorkspaceId,
-		BitbucketProjectKey:  gitOpsConfig.BitBucketProjectKey,
-		TLSCert:              gitOpsConfig.TLSConfig.TLSCertData,
-		TLSKey:               gitOpsConfig.TLSConfig.TLSKeyData,
-		CaCert:               gitOpsConfig.TLSConfig.CaData,
+		GitlabGroupId:         gitOpsConfig.GitLabGroupId,
+		GitToken:              gitOpsConfig.Token,
+		GitUserName:           gitOpsConfig.Username,
+		GithubOrganization:    gitOpsConfig.GitHubOrgId,
+		GitProvider:           gitOpsConfig.Provider,
+		GitHost:               gitOpsConfig.Host,
+		AzureToken:            gitOpsConfig.Token,
+		AzureProject:          gitOpsConfig.AzureProjectName,
+		BitbucketWorkspaceId:  gitOpsConfig.BitBucketWorkspaceId,
+		BitbucketProjectKey:   gitOpsConfig.BitBucketProjectKey,
+		EnableTLSVerification: gitOpsConfig.EnableTLSVerification,
+		TLSCert:               gitOpsConfig.TLSConfig.TLSCertData,
+		TLSKey:                gitOpsConfig.TLSConfig.TLSKeyData,
+		CaCert:                gitOpsConfig.TLSConfig.CaData,
 	}
 	return cfg, err
 }
 
 func NewGitOpsClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper) (GitOpsClient, error) {
 
-	tlsConfig, err := util.GetTlsConfig(config.TLSKey, config.TLSCert, config.CaCert, GIT_TLS_DIR)
-	if err != nil {
-		logger.Errorw("error in getting tls config", "err", err)
-		return nil, err
+	var tlsConfig *tls.Config
+	var err error
+	if config.EnableTLSVerification {
+		tlsConfig, err = util.GetTlsConfig(config.TLSKey, config.TLSCert, config.CaCert, GIT_TLS_DIR)
+		if err != nil {
+			logger.Errorw("error in getting tls config", "err", err)
+			return nil, err
+		}
 	}
 
 	if config.GitProvider == GITLAB_PROVIDER {

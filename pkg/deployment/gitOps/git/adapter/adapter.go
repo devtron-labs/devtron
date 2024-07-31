@@ -23,16 +23,17 @@ import (
 
 func ConvertGitOpsConfigToGitConfig(dto *bean2.GitOpsConfigDto) *bean.GitConfig {
 	config := &bean.GitConfig{
-		GitlabGroupId:        dto.GitLabGroupId,
-		GitToken:             dto.Token,
-		GitUserName:          dto.Username,
-		GithubOrganization:   dto.GitHubOrgId,
-		GitProvider:          dto.Provider,
-		GitHost:              dto.Host,
-		AzureToken:           dto.Token,
-		AzureProject:         dto.AzureProjectName,
-		BitbucketWorkspaceId: dto.BitBucketWorkspaceId,
-		BitbucketProjectKey:  dto.BitBucketProjectKey,
+		GitlabGroupId:         dto.GitLabGroupId,
+		GitToken:              dto.Token,
+		GitUserName:           dto.Username,
+		GithubOrganization:    dto.GitHubOrgId,
+		GitProvider:           dto.Provider,
+		GitHost:               dto.Host,
+		AzureToken:            dto.Token,
+		AzureProject:          dto.AzureProjectName,
+		BitbucketWorkspaceId:  dto.BitBucketWorkspaceId,
+		BitbucketProjectKey:   dto.BitBucketProjectKey,
+		EnableTLSVerification: dto.EnableTLSVerification,
 	}
 	if dto.TLSConfig != nil {
 		config.CaCert = dto.TLSConfig.CaData
