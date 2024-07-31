@@ -121,3 +121,7 @@ const (
 	CS                 ResourceType = "Secret"
 	DeploymentTemplate ResourceType = "Deployment Template"
 )
+
+func (r ResourceType) ToString() string {
+	return string(r)
+}

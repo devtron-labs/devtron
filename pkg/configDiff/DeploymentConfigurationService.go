@@ -89,19 +89,17 @@ func (impl *DeploymentConfigurationServiceImpl) GetAllConfigData(ctx context.Con
 	var envId int
 	var appId int
 	if configDataQueryParams.IsEnvNameProvided() {
-		envModel, err := impl.environmentRepository.FindByName(configDataQueryParams.EnvName)
+		envId, err = impl.environmentRepository.FindIdByName(configDataQueryParams.EnvName)
 		if err != nil {
 			impl.logger.Errorw("GetAllConfigData, error in getting environment model by envName", "envName", configDataQueryParams.EnvName, "err", err)
 			return nil, err
 		}
-		envId = envModel.Id
 	}
-	appModel, err := impl.appRepository.FindActiveByName(configDataQueryParams.AppName)
+	appId, err = impl.appRepository.FindAppIdByName(configDataQueryParams.AppName)
 	if err != nil {
 		impl.logger.Errorw("GetAllConfigData, error in getting app model by appName", "appName", configDataQueryParams.AppName, "err", err)
 		return nil, err
 	}
-	appId = appModel.Id
 
 	configDataDto := &bean2.DeploymentAndCmCsConfigDto{}
 	switch configDataQueryParams.ConfigType {
@@ -259,7 +257,7 @@ func (impl *DeploymentConfigurationServiceImpl) getSecretConfigResponse(resource
 		if envId > 0 {
 			return impl.configMapService.CSEnvironmentFetchForEdit(resourceName, resourceId, appId, envId)
 		}
-		return impl.configMapService.CSGlobalFetchForEditUsingAppId(resourceName, appId)
+		return impl.configMapService.ConfigGlobalFetchEditUsingAppId(resourceName, appId, bean.CS)
 	}
 
 	if envId > 0 {
@@ -273,7 +271,7 @@ func (impl *DeploymentConfigurationServiceImpl) getConfigMapResponse(resourceNam
 		if envId > 0 {
 			return impl.configMapService.CMEnvironmentFetchForEdit(resourceName, resourceId, appId, envId)
 		}
-		return impl.configMapService.CMGlobalFetchForEditUsingAppId(resourceName, appId)
+		return impl.configMapService.ConfigGlobalFetchEditUsingAppId(resourceName, appId, bean.CM)
 	}
 
 	if envId > 0 {

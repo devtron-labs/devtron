@@ -113,17 +113,20 @@ func (r *DeploymentAndCmCsConfigDto) WithSecretData(data *DeploymentAndCmCsConfi
 }
 
 type ConfigDataQueryParams struct {
-	AppName      string
-	EnvName      string
-	ConfigType   string
-	IdentifierId int
-	PipelineId   int // req for fetching previous deployments data
-	ResourceName string
-	ResourceType string
-	ResourceId   int
-	UserId       int32
+	AppName      string `schema:"appName"`
+	EnvName      string `schema:"envName"`
+	ConfigType   string `schema:"configType"`
+	IdentifierId int    `schema:"identifierId"`
+	PipelineId   int    `schema:"pipelineId"` // req for fetching previous deployments data
+	ResourceName string `schema:"resourceName"`
+	ResourceType string `schema:"resourceType"`
+	ResourceId   int    `schema:"resourceId"`
+	UserId       int32  `schema:"-"`
 }
 
+// FilterCriteria []string `schema:"filterCriteria"`
+// OffSet         int      `schema:"offSet"`
+// Limit          int      `schema:"limit"`
 func (r *ConfigDataQueryParams) IsResourceTypeSecret() bool {
 	return r.ResourceType == v1.Secret
 }

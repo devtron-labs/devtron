@@ -8,10 +8,10 @@ import (
 	"github.com/devtron-labs/devtron/pkg/configDiff"
 	"github.com/devtron-labs/devtron/pkg/configDiff/bean"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/gorilla/schema"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
-	"strconv"
 )
 
 type DeploymentConfigurationRestHandler interface {
@@ -85,17 +85,15 @@ func (handler *DeploymentConfigurationRestHandlerImpl) GetConfigData(w http.Resp
 		return
 	}
 
-	if len(configDataQueryParams.AppName) > 0 {
-		//RBAC START
-		token := r.Header.Get(common.TokenHeaderKey)
-		object := handler.enforcerUtil.GetAppRBACName(configDataQueryParams.AppName)
-		ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
-		if !ok {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-			return
-		}
-		//RBAC END
+	//RBAC START
+	token := r.Header.Get(common.TokenHeaderKey)
+	object := handler.enforcerUtil.GetAppRBACName(configDataQueryParams.AppName)
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
+	if !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
 	}
+	//RBAC END
 
 	res, err := handler.deploymentConfigurationService.GetAllConfigData(r.Context(), configDataQueryParams)
 	if err != nil {
@@ -108,50 +106,13 @@ func (handler *DeploymentConfigurationRestHandlerImpl) GetConfigData(w http.Resp
 
 func getConfigDataQueryParams(r *http.Request) (*bean.ConfigDataQueryParams, error) {
 	v := r.URL.Query()
-
-	var identifierId int
-	var pipelineId int
-	var resourceId int
-	var err error
-
-	appName := v.Get("appName")
-	envName := v.Get("envName")
-	configType := v.Get("configType")
-	identifierIdStr := v.Get("identifierId")
-
-	if len(identifierIdStr) > 0 {
-		identifierId, err = strconv.Atoi(identifierIdStr)
-		if err != nil {
-			return nil, err
-		}
+	var decoder = schema.NewDecoder()
+	decoder.IgnoreUnknownKeys(true)
+	queryParams := bean.ConfigDataQueryParams{}
+	err := decoder.Decode(&queryParams, v)
+	if err != nil {
+		return nil, err
 	}
 
-	pipelineIdStr := v.Get("pipelineId")
-
-	if len(pipelineIdStr) > 0 {
-		pipelineId, err = strconv.Atoi(pipelineIdStr)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	resourceName := v.Get("resourceName")
-	resourceType := v.Get("resourceType")
-	resourceIdStr := v.Get("resourceId")
-	if len(resourceIdStr) > 0 {
-		resourceId, err = strconv.Atoi(resourceIdStr)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return &bean.ConfigDataQueryParams{
-		AppName:      appName,
-		EnvName:      envName,
-		ConfigType:   configType,
-		IdentifierId: identifierId,
-		ResourceName: resourceName,
-		ResourceType: resourceType,
-		PipelineId:   pipelineId,
-		ResourceId:   resourceId,
-	}, nil
+	return &queryParams, nil
 }

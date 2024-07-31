@@ -61,6 +61,7 @@ type EnvironmentRepository interface {
 	FindById(id int) (*Environment, error)
 	Update(mappings *Environment) error
 	FindByName(name string) (*Environment, error)
+	FindIdByName(name string) (int, error)
 	FindByIdentifier(identifier string) (*Environment, error)
 	FindByNameOrIdentifier(name string, identifier string) (*Environment, error)
 	FindByEnvNameOrIdentifierOrNamespace(clusterId int, envName string, identifier string, namespace string) (*Environment, error)
@@ -157,6 +158,18 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByName(name string) (*Enviro
 		Limit(1).
 		Select()
 	return environment, err
+}
+
+func (repositoryImpl EnvironmentRepositoryImpl) FindIdByName(name string) (int, error) {
+	environment := &Environment{}
+	err := repositoryImpl.dbConnection.
+		Model(environment).
+		Column("environment.id").
+		Where("environment_name = ?", name).
+		Where("active = ?", true).
+		Limit(1).
+		Select()
+	return environment.Id, err
 }
 
 func (repositoryImpl EnvironmentRepositoryImpl) FindByIdentifier(identifier string) (*Environment, error) {
