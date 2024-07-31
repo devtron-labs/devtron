@@ -83,7 +83,8 @@ func (impl *GitOpsHelper) Clone(url, targetDir string) (clonedDir string, err er
 		}
 	}
 	if errMsg != "" {
-		return "", fmt.Errorf(errMsg)
+		err = fmt.Errorf(errMsg)
+		return "", err
 	}
 	return clonedDir, nil
 }
@@ -94,7 +95,8 @@ func (impl *GitOpsHelper) Pull(repoRoot string) (err error) {
 		util.TriggerGitOpsMetrics("Pull", "GitService", start, err)
 	}()
 	ctx := git.BuildGitContext(context.Background()).WithCredentials(impl.Auth)
-	return impl.gitCommandManager.Pull(ctx, repoRoot)
+	err = impl.gitCommandManager.Pull(ctx, repoRoot)
+	return err
 }
 
 const PushErrorMessage = "failed to push some refs"
@@ -145,7 +147,8 @@ func (impl *GitOpsHelper) init(ctx git.GitContext, rootDir string, remoteUrl str
 		return err
 	}
 
-	return impl.gitCommandManager.AddRepo(ctx, rootDir, remoteUrl, isBare)
+	err = impl.gitCommandManager.AddRepo(ctx, rootDir, remoteUrl, isBare)
+	return err
 }
 
 func (impl *GitOpsHelper) getBranch(ctx git.GitContext, rootDir string) (string, error) {
