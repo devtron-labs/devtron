@@ -99,7 +99,7 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 			continue
 		}
 		clusterBean := cluster2.GetClusterBean(clusterObj)
-		clusterConfig, err := clusterBean.GetClusterConfig()
+		clusterConfig := clusterBean.GetClusterConfig()
 		restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterObj.Id)
@@ -153,7 +153,7 @@ func (impl *ArgoApplicationServiceImpl) GetAppDetail(resourceName, resourceNames
 		return nil, fmt.Errorf("error in connecting to cluster")
 	}
 	clusterBean := cluster2.GetClusterBean(clusterWithApplicationObject)
-	clusterConfig, err := clusterBean.GetClusterConfig()
+	clusterConfig := clusterBean.GetClusterConfig()
 	restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterWithApplicationObject.Id)
@@ -428,7 +428,7 @@ func (impl *ArgoApplicationServiceImpl) GetClusterConfigFromAllClusters(clusterI
 		return nil, clusterWithApplicationObject, nil, fmt.Errorf("error in connecting to cluster")
 	}
 	clusterBean := cluster2.GetClusterBean(clusterWithApplicationObject)
-	clusterConfig, err := clusterBean.GetClusterConfig()
+	clusterConfig := clusterBean.GetClusterConfig()
 	return clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err
 }
 

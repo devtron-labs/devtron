@@ -257,11 +257,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) createOrUpdateDockerRegistryImage
 		impl.logger.Errorw("error in getting cluster", "clusterId", clusterId, "error", err)
 		return err
 	}
-	cfg, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster config", "clusterId", clusterId, "error", err)
-		return err
-	}
+	cfg := clusterBean.GetClusterConfig()
 	k8sClient, err := impl.k8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client", "clusterId", clusterId, "error", err)
