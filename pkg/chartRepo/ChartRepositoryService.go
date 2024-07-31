@@ -171,12 +171,7 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 		impl.logger.Errorw("error in fetching cluster bean from db", "err", err)
 		return nil, err
 	}
-	cfg, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster config", "err", err)
-		return nil, err
-	}
-
+	cfg := clusterBean.GetClusterConfig()
 	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
 		impl.logger.Errorw("error in creating kubernetes client", "err", err)
@@ -286,10 +281,7 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 	if err != nil {
 		return nil, err
 	}
-	cfg, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		return nil, err
-	}
+	cfg := clusterBean.GetClusterConfig()
 	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
 		return nil, err
@@ -454,10 +446,7 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) e
 	if err != nil {
 		return err
 	}
-	cfg, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		return err
-	}
+	cfg := clusterBean.GetClusterConfig()
 	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
 		return err
@@ -734,13 +723,9 @@ func (impl *ChartRepositoryServiceImpl) TriggerChartSyncManual(chartProviderConf
 		return err
 	}
 
-	defaultClusterConfig, err := defaultClusterBean.GetClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("defaultClusterConfig err, TriggerChartSyncManual", "err", err)
-		return err
-	}
+	defaultClusterConfig := defaultClusterBean.GetClusterConfig()
 
-	manualAppSyncJobByteArr := manualAppSyncJobByteArr(impl.serverEnvConfig.AppSyncImage, impl.serverEnvConfig.AppSyncJobResourcesObj, chartProviderConfig)
+	manualAppSyncJobByteArr := manualAppSyncJobByteArr(impl.serverEnvConfig.AppSyncImage, impl.serverEnvConfig.AppSyncJobResourcesObj, impl.serverEnvConfig.AppSyncServiceAccount, chartProviderConfig)
 	err = impl.K8sUtil.DeleteAndCreateJob(manualAppSyncJobByteArr, impl.aCDAuthConfig.ACDConfigMapNamespace, defaultClusterConfig)
 	if err != nil {
 		impl.logger.Errorw("DeleteAndCreateJob err, TriggerChartSyncManual", "err", err)
@@ -993,10 +978,7 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartSecret(secretName string) err
 	if err != nil {
 		return err
 	}
-	cfg, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		return err
-	}
+	cfg := clusterBean.GetClusterConfig()
 	client, err := impl.K8sUtil.GetCoreV1Client(cfg)
 	if err != nil {
 		return err

@@ -168,8 +168,9 @@ type WebhookDataRequest struct {
 }
 
 type WebhookEventConfigRequest struct {
-	GitHostId int `json:"gitHostId"`
-	EventId   int `json:"eventId"`
+	GitHostId   int    `json:"gitHostId"`
+	GitHostName string `json:"gitHostName"`
+	EventId     int    `json:"eventId"`
 }
 
 type WebhookEventConfig struct {

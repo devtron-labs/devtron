@@ -131,7 +131,7 @@ type TriggerServiceImpl struct {
 	cdWorkflowService                   pipeline.WorkflowService
 	imageDigestPolicyService            imageDigestPolicy.ImageDigestPolicyService
 	userService                         user.UserService
-	gitSensorGrpcClient                 gitSensorClient.Client
+	gitSensorClient                     gitSensorClient.Client
 	config                              *types.CdConfig
 	helmAppService                      client2.HelmAppService
 	imageScanService                    security2.ImageScanService
@@ -161,6 +161,7 @@ type TriggerServiceImpl struct {
 	transactionUtilImpl           *sql.TransactionUtilImpl
 	deploymentConfigService       common.DeploymentConfigService
 	deploymentServiceTypeConfig   *util3.DeploymentServiceTypeConfig
+	ciCdPipelineOrchestrator      pipeline.CiCdPipelineOrchestrator
 }
 
 func NewTriggerServiceImpl(logger *zap.SugaredLogger,
@@ -185,7 +186,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 	cdWorkflowService pipeline.WorkflowService,
 	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService,
 	userService user.UserService,
-	gitSensorGrpcClient gitSensorClient.Client,
+	gitSensorClient gitSensorClient.Client,
 	helmAppService client2.HelmAppService,
 	enforcerUtil rbac.EnforcerUtil,
 	userDeploymentRequestService service.UserDeploymentRequestService,
@@ -215,6 +216,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 	K8sUtil *util5.K8sServiceImpl,
 	transactionUtilImpl *sql.TransactionUtilImpl,
 	deploymentConfigService common.DeploymentConfigService,
+	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator,
 ) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
@@ -239,7 +241,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 		cdWorkflowService:                   cdWorkflowService,
 		imageDigestPolicyService:            imageDigestPolicyService,
 		userService:                         userService,
-		gitSensorGrpcClient:                 gitSensorGrpcClient,
+		gitSensorClient:                     gitSensorClient,
 		helmAppService:                      helmAppService,
 		enforcerUtil:                        enforcerUtil,
 		eventFactory:                        eventFactory,
@@ -270,6 +272,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 		transactionUtilImpl:                 transactionUtilImpl,
 		deploymentConfigService:             deploymentConfigService,
 		deploymentServiceTypeConfig:         envVariables.DeploymentServiceTypeConfig,
+		ciCdPipelineOrchestrator:            ciCdPipelineOrchestrator,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {

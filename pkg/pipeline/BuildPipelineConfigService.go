@@ -1719,7 +1719,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironment(request reso
 				ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
 			}
 
-			//this will count the length of child ci pipelines, of each ci pipeline
+			// this will count the length of child ci pipelines, of each ci pipeline
 			linkedCi := linkedCiPipelinesMap[pipeline.Id]
 			ciPipeline.LinkedCount = len(linkedCi)
 			ciPipelineResp = append(ciPipelineResp, ciPipeline)
@@ -1989,7 +1989,21 @@ func (impl *CiPipelineConfigServiceImpl) GetExternalCiByEnvironment(request reso
 
 func (impl *CiPipelineConfigServiceImpl) DeleteCiPipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error) {
 	ciPipelineId := request.CiPipeline.Id
-	//wf validation
+
+	// check for linked ci's before deleting the ci pipeline
+	count, err := impl.ciPipelineRepository.FindByLinkedCiCount(ciPipelineId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in checking for any linked ci before deleting the ci pipeline", "ciPipelineId", ciPipelineId, "err", err)
+		return nil, err
+	}
+
+	if count > 0 {
+		return nil, util.NewApiError().WithHttpStatusCode(http.StatusPreconditionFailed).
+			WithInternalMessage("cannot delete ci pipeline as it has linked ci").
+			WithUserMessage("cannot delete ci pipeline as it has linked ci")
+	}
+
+	// wf validation
 	workflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByCIPipelineId(ciPipelineId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching workflow mapping for ci validation", "err", err)

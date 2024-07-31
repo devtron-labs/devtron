@@ -27,6 +27,7 @@ type AppSyncConfig struct {
 	DockerImage            string
 	AppSyncJobResourcesObj string
 	ChartProviderConfig    *ChartProviderConfig
+	AppSyncServiceAccount  string
 }
 
 type ChartProviderConfig struct {
@@ -34,13 +35,14 @@ type ChartProviderConfig struct {
 	IsOCIRegistry   bool
 }
 
-func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, chartProviderConfig *ChartProviderConfig) []byte {
+func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, appSyncServiceAccount string, chartProviderConfig *ChartProviderConfig) []byte {
 	cfg, _ := sql.GetConfig()
 	configValues := AppSyncConfig{
 		DbConfig:               sql.Config{Addr: cfg.Addr, Database: cfg.Database, User: cfg.User, Password: cfg.Password},
 		DockerImage:            dockerImage,
 		AppSyncJobResourcesObj: appSyncJobResourcesObj,
 		ChartProviderConfig:    chartProviderConfig,
+		AppSyncServiceAccount:  appSyncServiceAccount,
 	}
 	temp := template.New("manualAppSyncJobByteArr")
 	temp, _ = temp.Parse(`{"apiVersion": "batch/v1",
@@ -52,6 +54,7 @@ func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, 
   "spec": {
     "template": {
       "spec": {
+		"serviceAccount": "{{.AppSyncServiceAccount}}",
         "containers": [
           {
             "name": "chart-sync",
