@@ -104,10 +104,8 @@ func (handler *DeploymentConfigurationRestHandlerImpl) GetConfigData(w http.Resp
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	appAdminUser := handler.enforceForAppAndEnv(configDataQueryParams.AppName, configDataQueryParams.EnvName, token, casbin.ActionUpdate)
-	if !appAdminUser {
+	res.IsAppAdmin = handler.enforceForAppAndEnv(configDataQueryParams.AppName, configDataQueryParams.EnvName, token, casbin.ActionUpdate)
 
-	}
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 

@@ -93,6 +93,7 @@ type DeploymentAndCmCsConfigDto struct {
 	DeploymentTemplate *DeploymentAndCmCsConfig `json:"deploymentTemplate"`
 	ConfigMapsData     *DeploymentAndCmCsConfig `json:"configMapData"`
 	SecretsData        *DeploymentAndCmCsConfig `json:"secretsData"`
+	IsAppAdmin         bool                     `json:"isAppAdmin"`
 }
 
 func NewDeploymentAndCmCsConfigDto() *DeploymentAndCmCsConfigDto {
