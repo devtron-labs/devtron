@@ -1719,7 +1719,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironment(request reso
 				ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
 			}
 
-			//this will count the length of child ci pipelines, of each ci pipeline
+			// this will count the length of child ci pipelines, of each ci pipeline
 			linkedCi := linkedCiPipelinesMap[pipeline.Id]
 			ciPipeline.LinkedCount = len(linkedCi)
 			ciPipelineResp = append(ciPipelineResp, ciPipeline)

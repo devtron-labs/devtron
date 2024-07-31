@@ -56,9 +56,9 @@ import (
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"golang.org/x/exp/slices"
 	"gopkg.in/go-playground/validator.v9"
 	"k8s.io/utils/pointer"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -665,12 +665,14 @@ func (impl *WorkflowEventProcessorImpl) BuildCIArtifactRequestForImageFromCR(ima
 func (impl *WorkflowEventProcessorImpl) SubscribeDevtronAsyncInstallRequest() error {
 	callback := func(msg *model.PubSubMsg) {
 		ctx := context.Background()
-		cdAsyncInstallReq, err := impl.extractAsyncCdDeployRequestFromEventMsg(ctx, msg)
+		newCtx, span := otel.Tracer("orchestrator").Start(ctx, "WorkflowEventProcessorImpl.SubscribeDevtronAsyncInstallRequest")
+		defer span.End()
+		cdAsyncInstallReq, err := impl.extractAsyncCdDeployRequestFromEventMsg(newCtx, msg)
 		if err != nil {
 			impl.logger.Errorw("err on extracting override request, SubscribeDevtronAsyncInstallRequest", "err", err)
 			return
 		}
-		_ = impl.ProcessConcurrentAsyncDeploymentReq(ctx, cdAsyncInstallReq)
+		_ = impl.ProcessConcurrentAsyncDeploymentReq(newCtx, cdAsyncInstallReq)
 		return
 	}
 
@@ -816,7 +818,9 @@ func (impl *WorkflowEventProcessorImpl) getPipelineModelById(pipelineId int) (*p
 
 func (impl *WorkflowEventProcessorImpl) ProcessIncompleteDeploymentReq() {
 	ctx := context.Background()
-	cdAsyncInstallRequests, err := impl.userDeploymentRequestService.GetAllInCompleteRequests(ctx)
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "WorkflowEventProcessorImpl.ProcessIncompleteDeploymentReq")
+	defer span.End()
+	cdAsyncInstallRequests, err := impl.userDeploymentRequestService.GetAllInCompleteRequests(newCtx)
 	if err != nil {
 		impl.logger.Errorw("error in fetching all in complete userDeploymentRequests", "err", err)
 		return
@@ -829,12 +833,12 @@ func (impl *WorkflowEventProcessorImpl) ProcessIncompleteDeploymentReq() {
 	}
 	for index, cdAsyncInstallReq := range cdAsyncInstallRequests {
 		impl.logger.Infow("processing incomplete deployment request", "cdAsyncInstallReq", cdAsyncInstallReq, "request sequence", index+1)
-		err = impl.setAdditionalDataInAsyncInstallReq(ctx, cdAsyncInstallReq)
+		err = impl.setAdditionalDataInAsyncInstallReq(newCtx, cdAsyncInstallReq)
 		if err != nil {
 			impl.logger.Errorw("error in setting additional data to UserDeploymentRequest, skipping", "err", err)
 			continue
 		}
-		err = impl.ProcessConcurrentAsyncDeploymentReq(ctx, cdAsyncInstallReq)
+		err = impl.ProcessConcurrentAsyncDeploymentReq(newCtx, cdAsyncInstallReq)
 		if err != nil {
 			impl.logger.Errorw("error in processing incomplete deployment request", "cdAsyncInstallReq", cdAsyncInstallReq, "err", err)
 		} else {
@@ -872,6 +876,8 @@ func (impl *WorkflowEventProcessorImpl) getDevtronAppReleaseContextWithLock(ctx 
 }
 
 func (impl *WorkflowEventProcessorImpl) ProcessConcurrentAsyncDeploymentReq(ctx context.Context, cdAsyncInstallReq *bean.UserDeploymentRequest) error {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "WorkflowEventProcessorImpl.ProcessConcurrentAsyncDeploymentReq")
+	defer span.End()
 	cdWfrId := cdAsyncInstallReq.ValuesOverrideRequest.WfrId
 	pipelineId := cdAsyncInstallReq.ValuesOverrideRequest.PipelineId
 	cdWfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(cdWfrId)
@@ -879,7 +885,7 @@ func (impl *WorkflowEventProcessorImpl) ProcessConcurrentAsyncDeploymentReq(ctx 
 		impl.logger.Errorw("err on fetching cd workflow runner by id", "err", err, "cdWfrId", cdWfrId)
 		return err
 	}
-	acdCtx, err := impl.argoUserService.GetACDContext(ctx)
+	acdCtx, err := impl.argoUserService.GetACDContext(newCtx)
 	if err != nil {
 		impl.logger.Errorw("error in creating ArgoCd context", "err", err)
 		return err
@@ -920,42 +926,38 @@ func (impl *WorkflowEventProcessorImpl) validateConcurrentOrInvalidRequest(ctx c
 			// request in process for same wfrId, skipping and doing nothing
 			// earlier we used to check if wfrStatus is in starting then only skip, removed that
 			return isValidRequest, nil
-		} else {
-			// request in process but for other wfrId
-			// skip if the cdWfr.Status is already in a terminal state
-			skipCDWfrStatusList := append(pipelineConfig.WfrTerminalStatusList, pipelineConfig.WorkflowInProgress)
-			if slices.Contains(skipCDWfrStatusList, cdWfr.Status) {
-				impl.logger.Warnw("skipped deployment as the workflow runner status is already in terminal state, validateConcurrentOrInvalidRequest", "cdWfrId", cdWfr.Id, "status", cdWfr.Status)
-				return isValidRequest, nil
-			}
-			var isLatestRequest bool
-			if userDeploymentRequestId != 0 {
-				isLatestRequest, err = impl.userDeploymentRequestService.IsLatestForPipelineId(userDeploymentRequestId, pipelineId)
-				if err != nil {
-					impl.logger.Errorw("error, CheckIfWfrLatest", "err", err, "cdWfrId", cdWfr.Id)
-					return isValidRequest, err
-				}
-			} else {
-				isLatestRequest, err = impl.cdWorkflowRunnerService.CheckIfWfrLatest(cdWfr.Id, pipelineId)
-				if err != nil {
-					impl.logger.Errorw("error, CheckIfWfrLatest", "err", err, "cdWfrId", cdWfr.Id)
-					return isValidRequest, err
-				}
-			}
-			if !isLatestRequest {
-				impl.logger.Warnw("skipped deployment as the workflow runner is not the latest one", "cdWfrId", cdWfr.Id)
-				err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, pipelineConfig.ErrorDeploymentSuperseded, userId)
-				if err != nil {
-					impl.logger.Errorw("error while updating current runner status to failed, validateConcurrentOrInvalidRequest", "cdWfr", cdWfr.Id, "err", err)
-					return isValidRequest, err
-				}
-				return isValidRequest, nil
-			}
+		}
+	}
+	// request in process but for other wfrId
+	// skip if the cdWfr.Status is already in a terminal state
+	skipCDWfrStatusList := append(pipelineConfig.WfrTerminalStatusList, pipelineConfig.WorkflowInProgress)
+	if slices.Contains(skipCDWfrStatusList, cdWfr.Status) {
+		impl.logger.Warnw("skipped deployment as the workflow runner status is already in terminal state, validateConcurrentOrInvalidRequest", "cdWfrId", cdWfr.Id, "status", cdWfr.Status)
+		return isValidRequest, nil
+	}
+	var isLatestRequest bool
+	if userDeploymentRequestId != 0 {
+		isLatestRequest, err = impl.userDeploymentRequestService.IsLatestForPipelineId(userDeploymentRequestId, pipelineId)
+		if err != nil {
+			impl.logger.Errorw("error, CheckIfWfrLatest", "err", err, "cdWfrId", cdWfr.Id)
+			return isValidRequest, err
 		}
 	} else {
-		// no request in process for pipeline, continue
+		isLatestRequest, err = impl.cdWorkflowRunnerService.CheckIfWfrLatest(cdWfr.Id, pipelineId)
+		if err != nil {
+			impl.logger.Errorw("error, CheckIfWfrLatest", "err", err, "cdWfrId", cdWfr.Id)
+			return isValidRequest, err
+		}
 	}
-
+	if !isLatestRequest {
+		impl.logger.Warnw("skipped deployment as the workflow runner is not the latest one", "cdWfrId", cdWfr.Id)
+		err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, pipelineConfig.ErrorDeploymentSuperseded, userId)
+		if err != nil {
+			impl.logger.Errorw("error while updating current runner status to failed, validateConcurrentOrInvalidRequest", "cdWfr", cdWfr.Id, "err", err)
+			return isValidRequest, err
+		}
+		return isValidRequest, nil
+	}
 	return true, nil
 }
 

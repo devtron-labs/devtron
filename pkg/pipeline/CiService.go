@@ -20,10 +20,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
+	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
 	"maps"
 	"path/filepath"
 	"strconv"
@@ -63,6 +65,10 @@ type CiService interface {
 	TriggerCiPipeline(trigger types.Trigger) (int, error)
 	GetCiMaterials(pipelineId int, ciMaterials []*pipelineConfig.CiPipelineMaterial) ([]*pipelineConfig.CiPipelineMaterial, error)
 }
+type BuildxCacheFlags struct {
+	BuildxCacheModeMin     bool `env:"BUILDX_CACHE_MODE_MIN" envDefault:"false"`
+	AsyncBuildxCacheExport bool `env:"ASYNC_BUILDX_CACHE_EXPORT" envDefault:"false"`
+}
 
 type CiServiceImpl struct {
 	Logger                       *zap.SugaredLogger
@@ -85,6 +91,7 @@ type CiServiceImpl struct {
 	globalPluginService          plugin.GlobalPluginService
 	infraProvider                infraProviders.InfraProvider
 	ciCdPipelineOrchestrator     CiCdPipelineOrchestrator
+	buildxCacheFlags             *BuildxCacheFlags
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -102,6 +109,11 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	infraProvider infraProviders.InfraProvider,
 	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
 ) *CiServiceImpl {
+	buildxCacheFlags := &BuildxCacheFlags{}
+	err := env.Parse(buildxCacheFlags)
+	if err != nil {
+		Logger.Infow("error occurred while parsing BuildxCacheFlags env,so setting BuildxCacheModeMin and AsyncBuildxCacheExport to default value", "err", err)
+	}
 	cis := &CiServiceImpl{
 		Logger:                       Logger,
 		workflowService:              workflowService,
@@ -122,6 +134,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		globalPluginService:          globalPluginService,
 		infraProvider:                infraProvider,
 		ciCdPipelineOrchestrator:     ciCdPipelineOrchestrator,
+		buildxCacheFlags:             buildxCacheFlags,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -240,7 +253,8 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		return 0, err
 	}
 	workflowRequest.Scope = scope
-
+	workflowRequest.BuildxCacheModeMin = impl.buildxCacheFlags.BuildxCacheModeMin
+	workflowRequest.AsyncBuildxCacheExport = impl.buildxCacheFlags.AsyncBuildxCacheExport
 	if impl.config != nil && impl.config.BuildxK8sDriverOptions != "" {
 		err = impl.setBuildxK8sDriverData(workflowRequest)
 		if err != nil {
@@ -538,12 +552,22 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	var checkoutPath string
 	var ciBuildConfigBean *CiPipeline.CiBuildConfigBean
 	dockerRegistry := &repository3.DockerArtifactStore{}
+	ciBaseBuildConfigEntity := ciTemplate.CiBuildConfig
+	ciBaseBuildConfigBean, err := adapter.ConvertDbBuildConfigToBean(ciBaseBuildConfigEntity)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while converting buildconfig dbEntity to configBean", "ciBuildConfigEntity", ciBaseBuildConfigEntity, "err", err)
+		return nil, errors.New("error while parsing ci build config")
+	}
 	if !pipeline.IsExternal && pipeline.IsDockerConfigOverridden {
 		templateOverrideBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(pipeline.Id)
 		if err != nil {
 			return nil, err
 		}
 		ciBuildConfigBean = templateOverrideBean.CiBuildConfig
+		// updating args coming from ciBaseBuildConfigEntity because it is not part of Ci override
+		if ciBuildConfigBean != nil && ciBuildConfigBean.DockerBuildConfig != nil {
+			ciBuildConfigBean.DockerBuildConfig.Args = ciBaseBuildConfigBean.DockerBuildConfig.Args
+		}
 		templateOverride := templateOverrideBean.CiTemplateOverride
 		checkoutPath = templateOverride.GitMaterial.CheckoutPath
 		dockerfilePath = templateOverride.DockerfilePath
@@ -554,15 +578,11 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		dockerfilePath = ciTemplate.DockerfilePath
 		dockerRegistry = ciTemplate.DockerRegistry
 		dockerRepository = ciTemplate.DockerRepository
-		ciBuildConfigEntity := ciTemplate.CiBuildConfig
-		ciBuildConfigBean, err = adapter.ConvertDbBuildConfigToBean(ciBuildConfigEntity)
+		ciBuildConfigBean = ciBaseBuildConfigBean
 		if ciBuildConfigBean != nil {
 			ciBuildConfigBean.BuildContextGitMaterialId = ciTemplate.BuildContextGitMaterialId
 		}
-		if err != nil {
-			impl.Logger.Errorw("error occurred while converting buildconfig dbEntity to configBean", "ciBuildConfigEntity", ciBuildConfigEntity, "err", err)
-			return nil, errors.New("error while parsing ci build config")
-		}
+
 	}
 	if checkoutPath == "" {
 		checkoutPath = "./"
@@ -598,7 +618,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 
 	// copyContainerImage plugin specific logic
 	var registryDestinationImageMap map[string][]string
-	var registryCredentialMap map[string]plugin.RegistryCredentials
+	var registryCredentialMap map[string]bean2.RegistryCredentials
 	var pluginArtifactStage string
 	var imageReservationIds []int
 	if !isJob {
@@ -790,9 +810,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	return workflowRequest, nil
 }
 
-func (impl *CiServiceImpl) GetWorkflowRequestVariablesForCopyContainerImagePlugin(preCiSteps []*pipelineConfigBean.StepObject, postCiSteps []*pipelineConfigBean.StepObject, customTag string, customTagId int, buildImagePath string, buildImagedockerRegistryId string) (map[string][]string, map[string]plugin.RegistryCredentials, string, []int, error) {
+func (impl *CiServiceImpl) GetWorkflowRequestVariablesForCopyContainerImagePlugin(preCiSteps []*pipelineConfigBean.StepObject, postCiSteps []*pipelineConfigBean.StepObject, customTag string, customTagId int, buildImagePath string, buildImagedockerRegistryId string) (map[string][]string, map[string]bean2.RegistryCredentials, string, []int, error) {
 	var registryDestinationImageMap map[string][]string
-	var registryCredentialMap map[string]plugin.RegistryCredentials
+	var registryCredentialMap map[string]bean2.RegistryCredentials
 	var pluginArtifactStage string
 	var imagePathReservationIds []int
 	copyContainerImagePluginId, err := impl.globalPluginService.GetRefPluginIdByRefPluginName(COPY_CONTAINER_IMAGE)

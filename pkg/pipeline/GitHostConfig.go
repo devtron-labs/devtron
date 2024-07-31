@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
 	"time"
@@ -31,6 +32,7 @@ import (
 type GitHostConfig interface {
 	GetAll() ([]types.GitHostRequest, error)
 	GetById(id int) (*types.GitHostRequest, error)
+	GetByName(uniqueName string) (*types.GitHostRequest, error)
 	Create(request *types.GitHostRequest) (int, error)
 }
 
@@ -56,11 +58,17 @@ func (impl GitHostConfigImpl) GetAll() ([]types.GitHostRequest, error) {
 		impl.logger.Errorw("error in fetching all git hosts", "err", err)
 		return nil, err
 	}
+
 	var gitHosts []types.GitHostRequest
 	for _, host := range hosts {
+		//display_name can be null for old data hence checking for name field
+		displayName := host.DisplayName
+		if len(displayName) == 0 {
+			displayName = host.Name
+		}
 		hostRes := types.GitHostRequest{
 			Id:     host.Id,
-			Name:   host.Name,
+			Name:   displayName,
 			Active: host.Active,
 		}
 		gitHosts = append(gitHosts, hostRes)
@@ -77,6 +85,23 @@ func (impl GitHostConfigImpl) GetById(id int) (*types.GitHostRequest, error) {
 		return nil, err
 	}
 
+	return impl.processAndReturnGitHost(host)
+
+}
+
+// get git host by Name
+func (impl GitHostConfigImpl) GetByName(uniqueName string) (*types.GitHostRequest, error) {
+	impl.logger.Debug("get hosts request for name", uniqueName)
+	host, err := impl.gitHostRepo.FindOneByName(uniqueName)
+	if err != nil {
+		impl.logger.Errorw("error in fetching git host", "err", err)
+		return nil, err
+	}
+
+	return impl.processAndReturnGitHost(host)
+}
+
+func (impl GitHostConfigImpl) processAndReturnGitHost(host repository.GitHost) (*types.GitHostRequest, error) {
 	// get orchestrator host
 	orchestratorHost, err := impl.attributeService.GetByKey("url")
 	if err != nil {
@@ -128,9 +153,10 @@ func (impl GitHostConfigImpl) Create(request *types.GitHostRequest) (int, error)
 		return 0, errors.NewAlreadyExists(err, request.Name)
 	}
 	gitHost := &repository.GitHost{
-		Name:     request.Name,
-		Active:   request.Active,
-		AuditLog: sql.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
+		Name:        GetUniqueGitHostName(request.Name),
+		DisplayName: request.Name,
+		Active:      request.Active,
+		AuditLog:    sql.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
 	err = impl.gitHostRepo.Save(gitHost)
 	if err != nil {
@@ -143,4 +169,8 @@ func (impl GitHostConfigImpl) Create(request *types.GitHostRequest) (int, error)
 		return 0, err
 	}
 	return gitHost.Id, nil
+}
+
+func GetUniqueGitHostName(displayName string) string {
+	return displayName + "_" + util2.GetRandomStringOfGivenLength(6)
 }
