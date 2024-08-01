@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -53,6 +54,7 @@ func NewPipelineStageService(logger *zap.SugaredLogger,
 	globalPluginRepository repository2.GlobalPluginRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	scopedVariableManager variables.ScopedVariableManager,
+	globalPluginService plugin.GlobalPluginService,
 
 ) *PipelineStageServiceImpl {
 	return &PipelineStageServiceImpl{
@@ -61,6 +63,7 @@ func NewPipelineStageService(logger *zap.SugaredLogger,
 		globalPluginRepository:  globalPluginRepository,
 		pipelineRepository:      pipelineRepository,
 		scopedVariableManager:   scopedVariableManager,
+		globalPluginService:     globalPluginService,
 	}
 }
 
@@ -70,6 +73,7 @@ type PipelineStageServiceImpl struct {
 	globalPluginRepository  repository2.GlobalPluginRepository
 	pipelineRepository      pipelineConfig.PipelineRepository
 	scopedVariableManager   variables.ScopedVariableManager
+	globalPluginService     plugin.GlobalPluginService
 }
 
 func (impl *PipelineStageServiceImpl) GetCiPipelineStageDataDeepCopy(ciPipelineId int) (*bean.PipelineStageDto, *bean.PipelineStageDto, error) {
@@ -107,6 +111,13 @@ func (impl *PipelineStageServiceImpl) GetCdStageByCdPipelineIdAndStageType(cdPip
 }
 
 func (impl *PipelineStageServiceImpl) GetCdPipelineStageDataDeepCopy(cdPipelineId int) (*bean.PipelineStageDto, *bean.PipelineStageDto, error) {
+	//migrate plugin_metadata to plugin_parent_metadata, also pluginVersionsMetadata will have updated entries after migrating, this is a one time operation
+	err := impl.globalPluginService.MigratePluginData()
+	if err != nil {
+		impl.logger.Errorw("GetCdPipelineStageDataDeepCopy, error in migrating plugin data into parent metadata table", "err", err)
+		return nil, nil, err
+	}
+
 	//getting all stages by cd pipeline id
 	cdStages, err := impl.pipelineStageRepository.GetAllCdStagesByCdPipelineId(cdPipelineId)
 	if err != nil {
@@ -382,6 +393,12 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataByStepIdDeepC
 
 // GetCiPipelineStageData and related methods starts
 func (impl *PipelineStageServiceImpl) GetCiPipelineStageData(ciPipelineId int) (*bean.PipelineStageDto, *bean.PipelineStageDto, error) {
+	//migrate plugin_metadata to plugin_parent_metadata, also pluginVersionsMetadata will have updated entries after migrating, this is a one time operation
+	err := impl.globalPluginService.MigratePluginData()
+	if err != nil {
+		impl.logger.Errorw("GetCdPipelineStageDataDeepCopy, error in migrating plugin data into parent metadata table", "err", err)
+		return nil, nil, err
+	}
 
 	//getting all stages by ci pipeline id
 	ciStages, err := impl.pipelineStageRepository.GetAllCiStagesByCiPipelineId(ciPipelineId)

@@ -35,7 +35,7 @@ You can add labels and comments from the following pages:
 
 {% hint style="warning" %}
 You can add multiple labels to an image. but each label can be used only once 'per image, per application'. You may use it in an image of other application though. <br />
-Refer [Deleting Labels](#deleting-labels--comments) if you commit a mistake while adding labels.
+Refer [Deleting Labels](#deleting-labels-and-comments) if you commit a mistake while adding labels.
 {% endhint %}
  
 ### From Build & Deploy
