@@ -724,10 +724,39 @@ func (s *DiscussionsService) GetMergeRequestDiscussion(pid interface{}, mergeReq
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/discussions.html#create-new-merge-request-thread
 type CreateMergeRequestDiscussionOptions struct {
-	Body      *string       `url:"body,omitempty" json:"body,omitempty"`
-	CommitID  *string       `url:"commit_id,omitempty" json:"commit_id,omitempty"`
-	CreatedAt *time.Time    `url:"created_at,omitempty" json:"created_at,omitempty"`
-	Position  *NotePosition `url:"position,omitempty" json:"position,omitempty"`
+	Body      *string          `url:"body,omitempty" json:"body,omitempty"`
+	CommitID  *string          `url:"commit_id,omitempty" json:"commit_id,omitempty"`
+	CreatedAt *time.Time       `url:"created_at,omitempty" json:"created_at,omitempty"`
+	Position  *PositionOptions `url:"position,omitempty" json:"position,omitempty"`
+}
+
+// PositionOptions represents the position option of a discussion.
+type PositionOptions struct {
+	BaseSHA      *string           `url:"base_sha,omitempty" json:"base_sha,omitempty"`
+	HeadSHA      *string           `url:"head_sha,omitempty" json:"head_sha,omitempty"`
+	StartSHA     *string           `url:"start_sha,omitempty" json:"start_sha,omitempty"`
+	NewPath      *string           `url:"new_path,omitempty" json:"new_path,omitempty"`
+	OldPath      *string           `url:"old_path,omitempty" json:"old_path,omitempty"`
+	PositionType *string           `url:"position_type,omitempty" json:"position_type"`
+	NewLine      *int              `url:"new_line,omitempty" json:"new_line,omitempty"`
+	OldLine      *int              `url:"old_line,omitempty" json:"old_line,omitempty"`
+	LineRange    *LineRangeOptions `url:"line_range,omitempty" json:"line_range,omitempty"`
+	Width        *int              `url:"width,omitempty" json:"width,omitempty"`
+	Height       *int              `url:"height,omitempty" json:"height,omitempty"`
+	X            *float64          `url:"x,omitempty" json:"x,omitempty"`
+	Y            *float64          `url:"y,omitempty" json:"y,omitempty"`
+}
+
+// LineRangeOptions represents the line range option of a discussion.
+type LineRangeOptions struct {
+	Start *LinePositionOptions `url:"start,omitempty" json:"start,omitempty"`
+	End   *LinePositionOptions `url:"end,omitempty" json:"end,omitempty"`
+}
+
+// LinePositionOptions represents the line position option of a discussion.
+type LinePositionOptions struct {
+	LineCode *string `url:"line_code,omitempty" json:"line_code,omitempty"`
+	Type     *string `url:"type,omitempty" json:"type,omitempty"`
 }
 
 // CreateMergeRequestDiscussion creates a new discussion for a single merge

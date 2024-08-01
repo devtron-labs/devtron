@@ -9,6 +9,7 @@
  | APP | orchestrator |  | 
  | APP_SYNC_IMAGE | quay.io/devtron/chart-sync:1227622d-132-3775 |  | 
  | APP_SYNC_JOB_RESOURCES_OBJ |  |  | 
+ | APP_SYNC_SERVICE_ACCOUNT | chart-sync |  | 
  | ARGO_APP_MANUAL_SYNC_TIME | 3 |  | 
  | ARGO_AUTO_SYNC_ENABLED | true |  | 
  | ARGO_GIT_COMMIT_RETRY_COUNT_ON_CONFLICT | 3 |  | 
