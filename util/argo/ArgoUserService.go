@@ -212,17 +212,18 @@ func (impl *ArgoUserServiceImpl) createNewArgoCdTokenForDevtron(username, passwo
 // note: this function also called for no gitops case, where apps are installed via helm
 func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, error) {
 
-	moduleConfig, err := impl.moduleService.GetModuleConfig(module.ModuleNameArgoCd)
+	moduleInfo, err := impl.moduleService.GetModuleInfo(module.ModuleNameArgoCd)
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error while checking if gitOps is configured", "err", err)
 		return "", err
 	}
-	if moduleConfig == nil {
+	if moduleInfo == nil {
 		return "", errors.New("argocd module not installed")
 	}
-	if !moduleConfig.Enabled {
+	if moduleInfo.Status != connection.ModuleStatusInstalled {
 		return "", nil
 	}
+
 	k8sClient, err := impl.k8sUtil.GetClientForInCluster()
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client for default cluster", "err", err)
