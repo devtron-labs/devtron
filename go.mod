@@ -22,7 +22,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deckarep/golang-set v1.8.0
 	github.com/devtron-labs/authenticator v0.4.35-0.20240731093814-ae0cb999d5d0
-	github.com/devtron-labs/common-lib v0.0.25-0.20240725070144-e3d60fb56a8c
+	github.com/devtron-labs/common-lib v0.0.25-0.20240801145937-bde73d0d361d
 	github.com/devtron-labs/go-bitbucket v0.9.60-beta
 	github.com/devtron-labs/protos v0.0.3-0.20240726064057-dd2990c91e41
 	github.com/evanphx/json-patch v5.7.0+incompatible
@@ -89,7 +89,7 @@ require (
 	k8s.io/client-go v0.29.0
 	k8s.io/helm v2.12.3+incompatible
 	k8s.io/kubectl v0.29.0
-	k8s.io/kubernetes v1.26.11
+	k8s.io/kubernetes v1.27.13
 	k8s.io/metrics v0.26.4
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
 	sigs.k8s.io/yaml v1.3.0
@@ -327,6 +327,7 @@ replace (
 	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.24.2
 	k8s.io/kubectl => k8s.io/kubectl v0.26.4
 	k8s.io/kubelet => k8s.io/kubelet v0.24.2
+	k8s.io/kubernetes v1.27.13 => k8s.io/kubernetes v1.26.11
 	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.24.2
 	k8s.io/metrics => k8s.io/metrics v0.24.2
 	k8s.io/mount-utils => k8s.io/mount-utils v0.24.2

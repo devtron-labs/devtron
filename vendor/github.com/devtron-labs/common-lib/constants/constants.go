@@ -37,20 +37,19 @@ const (
 )
 
 // metrics name constants
-
 const (
-	NATS_PUBLISH_COUNT          = "Nats_Publish_Count"
-	NATS_CONSUMPTION_COUNT      = "Nats_Consumption_Count"
-	NATS_CONSUMING_COUNT        = "Nats_Consuming_Count"
-	NATS_EVENT_CONSUMPTION_TIME = "Nats_Event_Consumption_Time"
-	NATS_EVENT_PUBLISH_TIME     = "Nats_Event_Publish_Time"
-	NATS_EVENT_DELIVERY_COUNT   = "Nats_Event_Delivery_Count"
-	PANIC_RECOVERY_COUNT        = "Panic_Recovery_Count"
+	NATS_PUBLISH_COUNT          = "nats_publish_count"
+	NATS_CONSUMPTION_COUNT      = "nats_consumption_count"
+	NATS_CONSUMING_COUNT        = "nats_consuming_count"
+	NATS_EVENT_CONSUMPTION_TIME = "nats_event_consumption_time"
+	NATS_EVENT_PUBLISH_TIME     = "nats_event_publish_time"
+	NATS_EVENT_DELIVERY_COUNT   = "nats_event_delivery_count"
+	PANIC_RECOVERY_COUNT        = "panic_recovery_count"
 )
 
-// metrcis lables constant
+// metrics labels constant
 const (
-	PANIC_TYPE = "panicType"
+	PANIC_TYPE = "panic_type"
 	HOST       = "host"
 	METHOD     = "method"
 	PATH       = "path"
