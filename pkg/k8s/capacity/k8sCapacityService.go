@@ -88,7 +88,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailList(ctx context.Con
 		} else {
 			clusterCapacityDetail, err = impl.GetClusterCapacityDetail(ctx, cluster, true)
 			if err != nil {
-				impl.logger.Errorw("error in getting cluster capacity details by id", "err", err)
+				impl.logger.Errorw("error in getting cluster capacity details by id", cluster.Id, "err", err)
 				clusterCapacityDetail = &bean.ClusterCapacityDetail{
 					ErrorInConnection: err.Error(),
 				}
@@ -105,6 +105,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(ctx context.Context
 	//getting kubernetes clientSet by rest config
 	restConfig, k8sHttpClient, k8sClientSet, err := impl.k8sCommonService.GetK8sConfigAndClients(ctx, cluster)
 	if err != nil {
+		impl.logger.Errorw("error in creating k8sHttpClient", "err", err)
 		return nil, err
 	}
 	clusterDetail := &bean.ClusterCapacityDetail{}
