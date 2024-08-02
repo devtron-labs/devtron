@@ -158,7 +158,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) ScanListingWithFilter(request *sec
 
 func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) string {
 	query := ""
-	query = query + "select info.scan_object_meta_id, info.object_type, env.environment_name, max(info.id) as id, COUNT(*) OVER() AS total_count"
+	query = query + "select info.scan_object_meta_id,a.app_name as object_name, info.object_type, env.environment_name, max(info.id) as id, COUNT(*) OVER() AS total_count"
 	query = query + " from image_scan_deploy_info info"
 	if len(request.CVEName) > 0 || len(request.Severity) > 0 {
 		query = query + " INNER JOIN image_scan_execution_history his on his.id = any (info.image_scan_execution_history_id)"
@@ -167,7 +167,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request
 	}
 	query = query + " INNER JOIN environment env on env.id=info.env_id"
 	query = query + " INNER JOIN cluster clus on clus.id=env.cluster_id"
-	query = query + " LEFT JOIN app ap on ap.id = info.scan_object_meta_id and info.object_type='app' WHERE ap.active=true"
+	query = query + " LEFT JOIN app a on a.id = info.scan_object_meta_id and info.object_type='app' WHERE a.active=true"
 	query = query + " AND info.scan_object_meta_id > 0 and env.active=true and info.image_scan_execution_history_id[1] != -1"
 	if len(deployInfoIds) > 0 {
 		ids := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(deployInfoIds)), ","), "[]")
@@ -188,7 +188,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request
 		clusterIds := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(request.ClusterIds)), ","), "[]")
 		query = query + " AND clus.id IN (" + clusterIds + ")"
 	}
-	query = query + " GROUP BY info.scan_object_meta_id, info.object_type, env.environment_name"
+	query = query + " GROUP BY info.scan_object_meta_id, a.app_name, info.object_type, env.environment_name"
 	//query = query + " order by id desc"
 	query += getOrderByQueryPart(request.SortBy, request.SortOrder)
 	if size > 0 {
@@ -201,7 +201,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request
 func getOrderByQueryPart(sortBy securityBean.SortBy, sortOrder securityBean.SortOrder) string {
 	var sort, order string
 	if sortBy == "appName" {
-		sort = "object_name"
+		sort = "a.app_name"
 	} else if sortBy == "envName" {
 		sort = "environment_name"
 	} else {
