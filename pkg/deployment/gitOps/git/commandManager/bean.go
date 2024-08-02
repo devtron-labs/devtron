@@ -37,10 +37,11 @@ func (gitCtx GitContext) WithCredentials(auth *BasicAuth) GitContext {
 	return gitCtx
 }
 
-func (gitCtx GitContext) WithTLSData(caData string, tlsKey string, tlsCertificate string) GitContext {
+func (gitCtx GitContext) WithTLSData(caData string, tlsKey string, tlsCertificate string, tlsVerificationEnabled bool) GitContext {
 	gitCtx.CACert = caData
 	gitCtx.TLSKey = tlsKey
 	gitCtx.TLSCertificate = tlsCertificate
+	gitCtx.TLSVerificationEnabled = tlsVerificationEnabled
 	return gitCtx
 }
 
