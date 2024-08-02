@@ -119,17 +119,17 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(ctx context.Context
 		return nil, err
 	}
 	clusterCpuAllocatable, clusterMemoryAllocatable, nodeCount := impl.setBasicClusterDetails(nodeList, clusterDetail)
-	if callForList {
-		//assigning additional data for cluster listing api call
-		clusterDetail.NodeCount = nodeCount
-		//getting serverVersion
-		serverVersion, err := impl.K8sUtil.GetServerVersionFromDiscoveryClient(k8sClientSet)
-		if err != nil {
-			impl.logger.Errorw("error in getting server version", "err", err, "clusterId", cluster.Id)
-			return nil, err
-		}
-		clusterDetail.ServerVersion = serverVersion.GitVersion
-	} else {
+	//assigning additional data for cluster listing api call
+	clusterDetail.NodeCount = nodeCount
+	//getting serverVersion
+	serverVersion, err := impl.K8sUtil.GetServerVersionFromDiscoveryClient(k8sClientSet)
+	if err != nil {
+		impl.logger.Errorw("error in getting server version", "err", err, "clusterId", cluster.Id)
+		return nil, err
+	}
+	clusterDetail.ServerVersion = serverVersion.GitVersion
+	if !callForList {
+		clusterDetail.Name = cluster.ClusterName
 		metricsClientSet, err := impl.K8sUtil.GetMetricsClientSet(restConfig, k8sHttpClient)
 		if err != nil {
 			impl.logger.Errorw("error in getting metrics client set", "err", err)
