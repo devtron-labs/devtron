@@ -96,7 +96,7 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *gitOps.GitOpsCon
 	}()
 	cfg := adapter.ConvertGitOpsConfigToGitConfig(gitOpsConfig)
 	//factory.GitOpsHelper.SetAuth(cfg.GetAuth())
-	gitOpsHelper := NewGitOpsHelperImpl(cfg.GetAuth(), factory.logger, cfg.GetTLSConfig())
+	gitOpsHelper := NewGitOpsHelperImpl(cfg.GetAuth(), factory.logger, cfg.GetTLSConfig(), gitOpsConfig.EnableTLSVerification)
 
 	client, err := NewGitOpsClient(cfg, factory.logger, gitOpsHelper)
 	if err != nil {
@@ -113,7 +113,7 @@ func NewGitFactory(logger *zap.SugaredLogger, gitOpsConfigReadService config.Git
 	if err != nil {
 		return nil, err
 	}
-	gitOpsHelper := NewGitOpsHelperImpl(cfg.GetAuth(), logger, cfg.GetTLSConfig())
+	gitOpsHelper := NewGitOpsHelperImpl(cfg.GetAuth(), logger, cfg.GetTLSConfig(), cfg.EnableTLSVerification)
 	client, err := NewGitOpsClient(cfg, logger, gitOpsHelper)
 	if err != nil {
 		logger.Errorw("error in creating gitOps client", "err", err, "gitProvider", cfg.GitProvider)
