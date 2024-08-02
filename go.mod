@@ -42,7 +42,7 @@ require (
 	github.com/google/uuid v1.3.1
 	github.com/google/wire v0.6.0
 	github.com/gorilla/mux v1.8.0
-	github.com/gorilla/schema v1.1.0
+	github.com/gorilla/schema v1.4.1
 	github.com/gorilla/sessions v1.2.1
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
