@@ -136,7 +136,7 @@ func parseSecretData(username, password, repoName, repoHost string, isPublic boo
 	secretData[bean.REPOSITORY_SECRET_NAME_KEY] = repoName // argocd will use this for passing repository credentials to application
 	secretData[bean.REPOSITORY_SECRET_TYPE_KEY] = bean.REPOSITORY_TYPE_HELM
 	secretData[bean.REPOSITORY_SECRET_URL_KEY] = repoHost
-	if isPublic {
+	if !isPublic {
 		secretData[bean.REPOSITORY_SECRET_USERNAME_KEY] = username
 		secretData[bean.REPOSITORY_SECRET_PASSWORD_KEY] = password
 	}
