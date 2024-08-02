@@ -98,7 +98,7 @@ func getSecretDataAndName(username, password string, ociRegistryId int, registry
 
 	url := registryUrl
 
-	fullRepoPath, host, err := GetHostAndFullRepoPath(url, repo)
+	host, fullRepoPath, err := GetHostAndFullRepoPath(url, repo)
 	if err != nil {
 		return nil, "", err
 	}
