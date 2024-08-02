@@ -45,7 +45,7 @@ This shows the combined CPU and memory consumption of all running pods in the cl
 
 This shows errors in the cluster. If no error is present in the cluster, Resource Browser will not display this section.
 
-### Catalog Framework
+### Catalog Framework [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
@@ -72,11 +72,13 @@ You can also include additional information about your cluster using the Markdow
 Users need to have [access to the cluster](./global-configurations/authorization/user-access.md#kubernetes-resources-permissions) to discover resources.
 {% endhint %}
 
-### Search and Filter
+### Search Resources
 
 You can use the searchbox to browse the resources.
 
 ![Figure 4: Locate Resources using Searchbox](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/discover-resource.gif)
+
+### Filter Resources [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
 
 Moreover, you can use filters that allow you to quickly filter your workload as per labels, field selectors, or [CEL expression](https://kubernetes.io/docs/reference/using-api/cel/) as shown below.
 
@@ -294,7 +296,7 @@ Moreover, you can download the pod logs for ease of sharing and troubleshooting 
 
 {% embed url="https://www.youtube.com/watch?v=PP0ZKAZCT58" caption="Downloading Pod Logs" %}
 
-#### Pod Last Restart Snapshot
+#### Pod Last Restart Snapshot [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
 
 Frequent pod restarts can impact your application as it might lead to unexpected downtimes. In such cases, it is important to determine the root cause and take actions (both preventive and corrective) if needed.
 
@@ -451,7 +453,7 @@ spec:
 
 ---
 
-## Running Kubectl Commands Locally
+## Running Kubectl Commands Locally [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
 
 ### Introduction
 
@@ -522,7 +524,7 @@ If you are not a super-admin and can't generate a token yourself, you can find t
 Once the connection is successful, you may run any [kubectl operations](https://kubernetes.io/docs/reference/kubectl/#operations) from your system.
 {% endhint %}
 
-### Use Case - Port Forwarding
+### Use Case - Port Forwarding [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
 
 Assume your applications are running in a Kubernetes cluster on cloud. Now, if you wish to test or debug them on your local machine, you can perform [port forwarding](https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster/). It creates a tunnel between a port on your machine and a port on a resource within your cluster. Therefore, you can access applications running inside the cluster as though they are running locally on your machine.
 
