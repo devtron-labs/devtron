@@ -19,6 +19,7 @@ package security
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	securityBean "github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -27,12 +28,13 @@ import (
 )
 
 type CveStore struct {
-	tableName    struct{} `sql:"cve_store" pg:",discard_unknown_columns"`
-	Name         string   `sql:"name,pk"`
-	Severity     Severity `sql:"severity,notnull"`
-	Package      string   `sql:"package,notnull"` // deprecated
-	Version      string   `sql:"version,notnull"`
-	FixedVersion string   `sql:"fixed_version,notnull"`
+	tableName struct{} `sql:"cve_store" pg:",discard_unknown_columns"`
+	Name      string   `sql:"name,pk"`
+	//Severity         securityBean.Severity `sql:"severity,notnull"`
+	Package          string                `sql:"package,notnull"` // deprecated
+	Version          string                `sql:"version,notnull"`
+	FixedVersion     string                `sql:"fixed_version,notnull"`
+	StandardSeverity securityBean.Severity `sql:"standard_severity,notnull"`
 	sql.AuditLog
 }
 
