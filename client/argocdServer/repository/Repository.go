@@ -36,7 +36,7 @@ type ServiceClient interface {
 	GetAppDetails(ctx context.Context, query *repository2.RepoAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error)
 	// Create creates a repo
 	Create(ctx context.Context, query *repository2.RepoCreateRequest) (*v1alpha1.Repository, error)
-	// Update updates a repo
+	// Create creates a repo
 	Update(ctx context.Context, query *repository2.RepoUpdateRequest) (*v1alpha1.Repository, error)
 	// Delete deletes a repo
 	Delete(ctx context.Context, query *repository2.RepoQuery) (*repository2.RepoResponse, error)

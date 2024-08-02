@@ -21,13 +21,26 @@ import (
 	"time"
 )
 
+const TLS_FOLDER = "/tmp/tls"
+
 type GitContext struct {
 	context.Context
-	auth *BasicAuth
+	auth                   *BasicAuth
+	CACert                 string
+	TLSKey                 string
+	TLSCertificate         string
+	TLSVerificationEnabled bool
 }
 
 func (gitCtx GitContext) WithCredentials(auth *BasicAuth) GitContext {
 	gitCtx.auth = auth
+	return gitCtx
+}
+
+func (gitCtx GitContext) WithTLSData(caData string, tlsKey string, tlsCertificate string) GitContext {
+	gitCtx.CACert = caData
+	gitCtx.TLSKey = tlsKey
+	gitCtx.TLSCertificate = tlsCertificate
 	return gitCtx
 }
 
