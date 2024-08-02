@@ -404,7 +404,7 @@ github.com/devtron-labs/authenticator/jwt
 github.com/devtron-labs/authenticator/middleware
 github.com/devtron-labs/authenticator/oidc
 github.com/devtron-labs/authenticator/password
-# github.com/devtron-labs/common-lib v0.0.25-0.20240731080454-282e8ce8a2c5
+# github.com/devtron-labs/common-lib v0.0.25-0.20240802103040-a6b975ffa69e
 ## explicit; go 1.21
 github.com/devtron-labs/common-lib/async
 github.com/devtron-labs/common-lib/blob-storage
@@ -432,7 +432,7 @@ github.com/devtron-labs/common-lib/utils/yaml
 # github.com/devtron-labs/go-bitbucket v0.9.60-beta
 ## explicit; go 1.14
 github.com/devtron-labs/go-bitbucket
-# github.com/devtron-labs/protos v0.0.3-0.20240726131238-dff2574e623d
+# github.com/devtron-labs/protos v0.0.3-0.20240802105333-92ee9bb85d80
 ## explicit; go 1.17
 github.com/devtron-labs/protos/gitSensor
 # github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f

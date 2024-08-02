@@ -28,7 +28,7 @@ func CreateFolderAndFileWithContent(content string, fileName string, folderPath 
 }
 
 func DeleteAFileIfExists(path string) error {
-	if _, err := os.Stat(path); os.IsExist(err) {
+	if _, err := os.Open(path); err == nil {
 		err = os.Remove(path)
 		return err
 	}

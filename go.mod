@@ -22,9 +22,9 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deckarep/golang-set v1.8.0
 	github.com/devtron-labs/authenticator v0.4.35-0.20240607135426-c86e868ecee1
-	github.com/devtron-labs/common-lib v0.0.25-0.20240731080454-282e8ce8a2c5
+	github.com/devtron-labs/common-lib v0.0.25-0.20240802103040-a6b975ffa69e
 	github.com/devtron-labs/go-bitbucket v0.9.60-beta
-	github.com/devtron-labs/protos v0.0.3-0.20240726131238-dff2574e623d
+	github.com/devtron-labs/protos v0.0.3-0.20240802105333-92ee9bb85d80
 	github.com/evanphx/json-patch v5.7.0+incompatible
 	github.com/gammazero/workerpool v1.1.3
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
