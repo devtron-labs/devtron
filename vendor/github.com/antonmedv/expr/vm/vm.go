@@ -13,12 +13,12 @@ import (
 	"github.com/antonmedv/expr/vm/runtime"
 )
 
-var MemoryBudget int = 1e6
+var MemoryBudget uint = 1e6
 var errorType = reflect.TypeOf((*error)(nil)).Elem()
 
-type Function = func(params ...interface{}) (interface{}, error)
+type Function = func(params ...any) (any, error)
 
-func Run(program *Program, env interface{}) (interface{}, error) {
+func Run(program *Program, env any) (any, error) {
 	if program == nil {
 		return nil, fmt.Errorf("program is nil")
 	}
@@ -28,21 +28,23 @@ func Run(program *Program, env interface{}) (interface{}, error) {
 }
 
 type VM struct {
-	stack        []interface{}
+	stack        []any
 	ip           int
 	scopes       []*Scope
 	debug        bool
 	step         chan struct{}
 	curr         chan int
-	memory       int
-	memoryBudget int
+	memory       uint
+	memoryBudget uint
 }
 
 type Scope struct {
-	Array reflect.Value
-	It    int
-	Len   int
-	Count int
+	Array   reflect.Value
+	Index   int
+	Len     int
+	Count   int
+	GroupBy map[any][]any
+	Acc     any
 }
 
 func Debug() *VM {
@@ -54,7 +56,7 @@ func Debug() *VM {
 	return vm
 }
 
-func (vm *VM) Run(program *Program, env interface{}) (_ interface{}, err error) {
+func (vm *VM) Run(program *Program, env any) (_ any, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			f := &file.Error{
@@ -69,7 +71,7 @@ func (vm *VM) Run(program *Program, env interface{}) (_ interface{}, err error) 
 	}()
 
 	if vm.stack == nil {
-		vm.stack = make([]interface{}, 0, 2)
+		vm.stack = make([]any, 0, 2)
 	} else {
 		vm.stack = vm.stack[0:0]
 	}
@@ -93,11 +95,23 @@ func (vm *VM) Run(program *Program, env interface{}) (_ interface{}, err error) 
 
 		switch op {
 
+		case OpInvalid:
+			panic("invalid opcode")
+
 		case OpPush:
 			vm.push(program.Constants[arg])
 
+		case OpInt:
+			vm.push(arg)
+
 		case OpPop:
 			vm.pop()
+
+		case OpStore:
+			program.Variables[arg] = vm.pop()
+
+		case OpLoadVar:
+			vm.push(program.Variables[arg])
 
 		case OpLoadConst:
 			vm.push(runtime.Fetch(env, program.Constants[arg]))
@@ -106,7 +120,7 @@ func (vm *VM) Run(program *Program, env interface{}) (_ interface{}, err error) 
 			vm.push(runtime.FetchField(env, program.Constants[arg].(*runtime.Field)))
 
 		case OpLoadFast:
-			vm.push(env.(map[string]interface{})[program.Constants[arg].(string)])
+			vm.push(env.(map[string]any)[program.Constants[arg].(string)])
 
 		case OpLoadMethod:
 			vm.push(runtime.FetchMethod(env, program.Constants[arg].(*runtime.Method)))
@@ -122,6 +136,9 @@ func (vm *VM) Run(program *Program, env interface{}) (_ interface{}, err error) 
 		case OpFetchField:
 			a := vm.pop()
 			vm.push(runtime.FetchField(a, program.Constants[arg].(*runtime.Field)))
+
+		case OpLoadEnv:
+			vm.push(env)
 
 		case OpMethod:
 			a := vm.pop()
@@ -184,7 +201,7 @@ func (vm *VM) Run(program *Program, env interface{}) (_ interface{}, err error) 
 
 		case OpJumpIfEnd:
 			scope := vm.Scope()
-			if scope.It >= scope.Len {
+			if scope.Index >= scope.Len {
 				vm.ip += arg
 			}
 
@@ -252,11 +269,11 @@ func (vm *VM) Run(program *Program, env interface{}) (_ interface{}, err error) 
 			min := runtime.ToInt(a)
 			max := runtime.ToInt(b)
 			size := max - min + 1
-			if vm.memory+size >= vm.memoryBudget {
-				panic("memory budget exceeded")
+			if size <= 0 {
+				size = 0
 			}
+			vm.memGrow(uint(size))
 			vm.push(runtime.MakeRange(min, max))
-			vm.memory += size
 
 		case OpMatches:
 			b := vm.pop()
@@ -351,7 +368,7 @@ func (vm *VM) Run(program *Program, env interface{}) (_ interface{}, err error) 
 		case OpCallN:
 			fn := vm.pop().(Function)
 			size := arg
-			in := make([]interface{}, size)
+			in := make([]any, size)
 			for i := int(size) - 1; i >= 0; i-- {
 				in[i] = vm.pop()
 			}
@@ -362,51 +379,45 @@ func (vm *VM) Run(program *Program, env interface{}) (_ interface{}, err error) 
 			vm.push(out)
 
 		case OpCallFast:
-			fn := vm.pop().(func(...interface{}) interface{})
+			fn := vm.pop().(func(...any) any)
 			size := arg
-			in := make([]interface{}, size)
+			in := make([]any, size)
 			for i := int(size) - 1; i >= 0; i-- {
 				in[i] = vm.pop()
 			}
 			vm.push(fn(in...))
 
 		case OpCallTyped:
-			fn := vm.pop()
-			out := vm.call(fn, arg)
-			vm.push(out)
+			vm.push(vm.call(vm.pop(), arg))
+
+		case OpCallBuiltin1:
+			vm.push(builtin.Builtins[arg].Fast(vm.pop()))
 
 		case OpArray:
 			size := vm.pop().(int)
-			array := make([]interface{}, size)
+			vm.memGrow(uint(size))
+			array := make([]any, size)
 			for i := size - 1; i >= 0; i-- {
 				array[i] = vm.pop()
 			}
 			vm.push(array)
-			vm.memory += size
-			if vm.memory >= vm.memoryBudget {
-				panic("memory budget exceeded")
-			}
 
 		case OpMap:
 			size := vm.pop().(int)
-			m := make(map[string]interface{})
+			vm.memGrow(uint(size))
+			m := make(map[string]any)
 			for i := size - 1; i >= 0; i-- {
 				value := vm.pop()
 				key := vm.pop()
 				m[key.(string)] = value
 			}
 			vm.push(m)
-			vm.memory += size
-			if vm.memory >= vm.memoryBudget {
-				panic("memory budget exceeded")
-			}
 
 		case OpLen:
 			vm.push(runtime.Len(vm.current()))
 
 		case OpCast:
-			t := arg
-			switch t {
+			switch arg {
 			case 0:
 				vm.push(runtime.ToInt(vm.pop()))
 			case 1:
@@ -419,13 +430,23 @@ func (vm *VM) Run(program *Program, env interface{}) (_ interface{}, err error) 
 			a := vm.pop()
 			vm.push(runtime.Deref(a))
 
-		case OpIncrementIt:
+		case OpIncrementIndex:
+			vm.Scope().Index++
+
+		case OpDecrementIndex:
 			scope := vm.Scope()
-			scope.It++
+			scope.Index--
 
 		case OpIncrementCount:
 			scope := vm.Scope()
 			scope.Count++
+
+		case OpGetIndex:
+			vm.push(vm.Scope().Index)
+
+		case OpSetIndex:
+			scope := vm.Scope()
+			scope.Index = vm.pop().(int)
 
 		case OpGetCount:
 			scope := vm.Scope()
@@ -435,9 +456,30 @@ func (vm *VM) Run(program *Program, env interface{}) (_ interface{}, err error) 
 			scope := vm.Scope()
 			vm.push(scope.Len)
 
+		case OpGetGroupBy:
+			vm.push(vm.Scope().GroupBy)
+
+		case OpGetAcc:
+			vm.push(vm.Scope().Acc)
+
+		case OpSetAcc:
+			vm.Scope().Acc = vm.pop()
+
 		case OpPointer:
 			scope := vm.Scope()
-			vm.push(scope.Array.Index(scope.It).Interface())
+			vm.push(scope.Array.Index(scope.Index).Interface())
+
+		case OpThrow:
+			panic(vm.pop().(error))
+
+		case OpGroupBy:
+			scope := vm.Scope()
+			if scope.GroupBy == nil {
+				scope.GroupBy = make(map[any][]any)
+			}
+			it := scope.Array.Index(scope.Index).Interface()
+			key := vm.pop()
+			scope.GroupBy[key] = append(scope.GroupBy[key], it)
 
 		case OpBegin:
 			a := vm.pop()
@@ -449,24 +491,6 @@ func (vm *VM) Run(program *Program, env interface{}) (_ interface{}, err error) 
 
 		case OpEnd:
 			vm.scopes = vm.scopes[:len(vm.scopes)-1]
-
-		case OpBuiltin:
-			switch arg {
-			case builtin.Len:
-				vm.push(runtime.Len(vm.pop()))
-
-			case builtin.Abs:
-				vm.push(runtime.Abs(vm.pop()))
-
-			case builtin.Int:
-				vm.push(runtime.ToInt(vm.pop()))
-
-			case builtin.Float:
-				vm.push(runtime.ToFloat64(vm.pop()))
-
-			default:
-				panic(fmt.Sprintf("unknown builtin %v", arg))
-			}
 
 		default:
 			panic(fmt.Sprintf("unknown bytecode %#x", op))
@@ -489,21 +513,28 @@ func (vm *VM) Run(program *Program, env interface{}) (_ interface{}, err error) 
 	return nil, nil
 }
 
-func (vm *VM) push(value interface{}) {
+func (vm *VM) push(value any) {
 	vm.stack = append(vm.stack, value)
 }
 
-func (vm *VM) current() interface{} {
+func (vm *VM) current() any {
 	return vm.stack[len(vm.stack)-1]
 }
 
-func (vm *VM) pop() interface{} {
+func (vm *VM) pop() any {
 	value := vm.stack[len(vm.stack)-1]
 	vm.stack = vm.stack[:len(vm.stack)-1]
 	return value
 }
 
-func (vm *VM) Stack() []interface{} {
+func (vm *VM) memGrow(size uint) {
+	vm.memory += size
+	if vm.memory >= vm.memoryBudget {
+		panic("memory budget exceeded")
+	}
+}
+
+func (vm *VM) Stack() []any {
 	return vm.stack
 }
 

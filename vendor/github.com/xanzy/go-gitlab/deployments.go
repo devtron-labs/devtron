@@ -201,3 +201,21 @@ func (s *DeploymentsService) UpdateProjectDeployment(pid interface{}, deployment
 
 	return d, resp, nil
 }
+
+// DeleteProjectDeployment delete a project deployment.
+//
+// GitLab API docs: https://docs.gitlab.com/ee/api/deployments.html#delete-a-specific-deployment
+func (s *DeploymentsService) DeleteProjectDeployment(pid interface{}, deployment int, options ...RequestOptionFunc) (*Response, error) {
+	project, err := parseID(pid)
+	if err != nil {
+		return nil, err
+	}
+	u := fmt.Sprintf("projects/%s/deployments/%d", PathEscape(project), deployment)
+
+	req, err := s.client.NewRequest(http.MethodDelete, u, nil, options)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.client.Do(req, nil)
+}

@@ -158,7 +158,7 @@ type Project struct {
 	AutoDevopsDeployStrategy                 string             `json:"auto_devops_deploy_strategy"`
 	AutoDevopsEnabled                        bool               `json:"auto_devops_enabled"`
 	BuildGitStrategy                         string             `json:"build_git_strategy"`
-	EmailsDisabled                           bool               `json:"emails_disabled"`
+	EmailsEnabled                            bool               `json:"emails_enabled"`
 	ExternalAuthorizationClassificationLabel string             `json:"external_authorization_classification_label"`
 	RequirementsEnabled                      bool               `json:"requirements_enabled"`
 	RequirementsAccessLevel                  AccessControlValue `json:"requirements_access_level"`
@@ -166,6 +166,8 @@ type Project struct {
 	SecurityAndComplianceAccessLevel         AccessControlValue `json:"security_and_compliance_access_level"`
 	MergeRequestDefaultTargetSelf            bool               `json:"mr_default_target_self"`
 
+	// Deprecated: Use EmailsEnabled instead
+	EmailsDisabled bool `json:"emails_disabled"`
 	// Deprecated: This parameter has been renamed to PublicJobs in GitLab 9.0.
 	PublicBuilds bool `json:"public_builds"`
 }
@@ -589,7 +591,7 @@ type CreateProjectOptions struct {
 	ContainerRegistryAccessLevel              *AccessControlValue                  `url:"container_registry_access_level,omitempty" json:"container_registry_access_level,omitempty"`
 	DefaultBranch                             *string                              `url:"default_branch,omitempty" json:"default_branch,omitempty"`
 	Description                               *string                              `url:"description,omitempty" json:"description,omitempty"`
-	EmailsDisabled                            *bool                                `url:"emails_disabled,omitempty" json:"emails_disabled,omitempty"`
+	EmailsEnabled                             *bool                                `url:"emails_enabled,omitempty" json:"emails_enabled,omitempty"`
 	EnforceAuthChecksOnUploads                *bool                                `url:"enforce_auth_checks_on_uploads,omitempty" json:"enforce_auth_checks_on_uploads,omitempty"`
 	ExternalAuthorizationClassificationLabel  *string                              `url:"external_authorization_classification_label,omitempty" json:"external_authorization_classification_label,omitempty"`
 	ForkingAccessLevel                        *AccessControlValue                  `url:"forking_access_level,omitempty" json:"forking_access_level,omitempty"`
@@ -646,6 +648,8 @@ type CreateProjectOptions struct {
 	CIForwardDeploymentEnabled *bool `url:"ci_forward_deployment_enabled,omitempty" json:"ci_forward_deployment_enabled,omitempty"`
 	// Deprecated: Use ContainerRegistryAccessLevel instead.
 	ContainerRegistryEnabled *bool `url:"container_registry_enabled,omitempty" json:"container_registry_enabled,omitempty"`
+	// Deprecated: Use EmailsEnabled instead
+	EmailsDisabled *bool `url:"emails_disabled,omitempty" json:"emails_disabled,omitempty"`
 	// Deprecated: Use IssuesAccessLevel instead.
 	IssuesEnabled *bool `url:"issues_enabled,omitempty" json:"issues_enabled,omitempty"`
 	// Deprecated: No longer supported in recent versions.
@@ -812,7 +816,7 @@ type EditProjectOptions struct {
 	ContainerRegistryAccessLevel              *AccessControlValue                  `url:"container_registry_access_level,omitempty" json:"container_registry_access_level,omitempty"`
 	DefaultBranch                             *string                              `url:"default_branch,omitempty" json:"default_branch,omitempty"`
 	Description                               *string                              `url:"description,omitempty" json:"description,omitempty"`
-	EmailsDisabled                            *bool                                `url:"emails_disabled,omitempty" json:"emails_disabled,omitempty"`
+	EmailsEnabled                             *bool                                `url:"emails_enabled,omitempty" json:"emails_enabled,omitempty"`
 	EnforceAuthChecksOnUploads                *bool                                `url:"enforce_auth_checks_on_uploads,omitempty" json:"enforce_auth_checks_on_uploads,omitempty"`
 	ExternalAuthorizationClassificationLabel  *string                              `url:"external_authorization_classification_label,omitempty" json:"external_authorization_classification_label,omitempty"`
 	ForkingAccessLevel                        *AccessControlValue                  `url:"forking_access_level,omitempty" json:"forking_access_level,omitempty"`
@@ -870,6 +874,8 @@ type EditProjectOptions struct {
 
 	// Deprecated: Use ContainerRegistryAccessLevel instead.
 	ContainerRegistryEnabled *bool `url:"container_registry_enabled,omitempty" json:"container_registry_enabled,omitempty"`
+	// Deprecated: Use EmailsEnabled instead
+	EmailsDisabled *bool `url:"emails_disabled,omitempty" json:"emails_disabled,omitempty"`
 	// Deprecated: Use IssuesAccessLevel instead.
 	IssuesEnabled *bool `url:"issues_enabled,omitempty" json:"issues_enabled,omitempty"`
 	// Deprecated: Use BuildsAccessLevel instead.

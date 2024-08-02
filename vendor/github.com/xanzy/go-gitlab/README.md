@@ -74,6 +74,7 @@ to add new and/or missing endpoints. Currently, the following services are suppo
 - [x] Project Import/export
 - [x] Project Members
 - [x] Project Milestones
+- [x] Project Repository Storage Moves
 - [x] Project Snippets
 - [x] Project Vulnerabilities
 - [x] Project-Level Variables

@@ -17,6 +17,7 @@
 package gitlab
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -53,6 +54,7 @@ type MergeRequest struct {
 	SourceProjectID           int              `json:"source_project_id"`
 	TargetProjectID           int              `json:"target_project_id"`
 	Labels                    Labels           `json:"labels"`
+	LabelDetails              []*LabelDetails  `json:"label_details"`
 	Description               string           `json:"description"`
 	Draft                     bool             `json:"draft"`
 	WorkInProgress            bool             `json:"work_in_progress"`
@@ -114,6 +116,40 @@ type MergeRequest struct {
 
 func (m MergeRequest) String() string {
 	return Stringify(m)
+}
+
+func (m *MergeRequest) UnmarshalJSON(data []byte) error {
+	type alias MergeRequest
+
+	raw := make(map[string]interface{})
+	err := json.Unmarshal(data, &raw)
+	if err != nil {
+		return err
+	}
+
+	labelDetails, ok := raw["labels"].([]interface{})
+	if ok && len(labelDetails) > 0 {
+		// We only want to change anything if we got label details.
+		if _, ok := labelDetails[0].(map[string]interface{}); !ok {
+			return json.Unmarshal(data, (*alias)(m))
+		}
+
+		labels := make([]interface{}, len(labelDetails))
+		for i, details := range labelDetails {
+			labels[i] = details.(map[string]interface{})["name"]
+		}
+
+		// Set the correct values
+		raw["labels"] = labels
+		raw["label_details"] = labelDetails
+
+		data, err = json.Marshal(raw)
+		if err != nil {
+			return err
+		}
+	}
+
+	return json.Unmarshal(data, (*alias)(m))
 }
 
 // MergeRequestDiffVersion represents Gitlab merge request version.

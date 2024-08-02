@@ -59,7 +59,7 @@ type TodoTarget struct {
 	Description          string                 `json:"description"`
 	Downvotes            int                    `json:"downvotes"`
 	ID                   int                    `json:"id"`
-	IID                  int                    `json:"iid"`
+	IID                  interface{}            `json:"iid"`
 	Labels               []string               `json:"labels"`
 	Milestone            *Milestone             `json:"milestone"`
 	ProjectID            int                    `json:"project_id"`

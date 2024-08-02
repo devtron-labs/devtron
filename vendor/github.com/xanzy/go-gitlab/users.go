@@ -398,6 +398,36 @@ func (s *UsersService) SetUserStatus(opt *UserStatusOptions, options ...RequestO
 	return status, resp, nil
 }
 
+// UserAssociationsCount represents the user associations count.
+//
+// Gitlab API docs: https://docs.gitlab.com/ee/api/users.html#list-associations-count-for-user
+type UserAssociationsCount struct {
+	GroupsCount        int `json:"groups_count"`
+	ProjectsCount      int `json:"projects_count"`
+	IssuesCount        int `json:"issues_count"`
+	MergeRequestsCount int `json:"merge_requests_count"`
+}
+
+// GetUserAssociationsCount gets a list of a specified user associations.
+//
+// Gitlab API docs: https://docs.gitlab.com/ee/api/users.html#list-associations-count-for-user
+func (s *UsersService) GetUserAssociationsCount(user int, options ...RequestOptionFunc) (*UserAssociationsCount, *Response, error) {
+	u := fmt.Sprintf("users/%d/associations_count", user)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil, options)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	uac := new(UserAssociationsCount)
+	resp, err := s.client.Do(req, uac)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return uac, resp, nil
+}
+
 // SSHKey represents a SSH key.
 //
 // GitLab API docs: https://docs.gitlab.com/ee/api/users.html#list-ssh-keys
@@ -409,11 +439,16 @@ type SSHKey struct {
 	ExpiresAt *time.Time `json:"expires_at"`
 }
 
+// ListSSHKeysOptions represents the available ListSSHKeys options.
+//
+// GitLab API docs: https://docs.gitlab.com/ee/api/users.html#list-ssh-keys
+type ListSSHKeysOptions ListOptions
+
 // ListSSHKeys gets a list of currently authenticated user's SSH keys.
 //
 // GitLab API docs: https://docs.gitlab.com/ee/api/users.html#list-ssh-keys
-func (s *UsersService) ListSSHKeys(options ...RequestOptionFunc) ([]*SSHKey, *Response, error) {
-	req, err := s.client.NewRequest(http.MethodGet, "user/keys", nil, options)
+func (s *UsersService) ListSSHKeys(opt *ListSSHKeysOptions, options ...RequestOptionFunc) ([]*SSHKey, *Response, error) {
+	req, err := s.client.NewRequest(http.MethodGet, "user/keys", opt, options)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1124,14 +1159,15 @@ func (s *UsersService) RejectUser(user int, options ...RequestOptionFunc) error 
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/users.html#get-all-impersonation-tokens-of-a-user
 type ImpersonationToken struct {
-	ID        int        `json:"id"`
-	Name      string     `json:"name"`
-	Active    bool       `json:"active"`
-	Token     string     `json:"token"`
-	Scopes    []string   `json:"scopes"`
-	Revoked   bool       `json:"revoked"`
-	CreatedAt *time.Time `json:"created_at"`
-	ExpiresAt *ISOTime   `json:"expires_at"`
+	ID         int        `json:"id"`
+	Name       string     `json:"name"`
+	Active     bool       `json:"active"`
+	Token      string     `json:"token"`
+	Scopes     []string   `json:"scopes"`
+	Revoked    bool       `json:"revoked"`
+	CreatedAt  *time.Time `json:"created_at"`
+	ExpiresAt  *ISOTime   `json:"expires_at"`
+	LastUsedAt *time.Time `json:"last_used_at"`
 }
 
 // GetAllImpersonationTokensOptions represents the available
@@ -1372,4 +1408,51 @@ func (s *UsersService) DisableTwoFactor(user int, options ...RequestOptionFunc) 
 	default:
 		return fmt.Errorf("Received unexpected result code: %d", resp.StatusCode)
 	}
+}
+
+// UserRunner represents a GitLab runner linked to the current user.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/users.html#create-a-runner
+type UserRunner struct {
+	ID             int        `json:"id"`
+	Token          string     `json:"token"`
+	TokenExpiresAt *time.Time `json:"token_expires_at"`
+}
+
+// CreateUserRunnerOptions represents the available CreateUserRunner() options.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/users.html#create-a-runner
+type CreateUserRunnerOptions struct {
+	RunnerType      *string   `url:"runner_type,omitempty" json:"runner_type,omitempty"`
+	GroupID         *int      `url:"group_id,omitempty" json:"group_id,omitempty"`
+	ProjectID       *int      `url:"project_id,omitempty" json:"project_id,omitempty"`
+	Description     *string   `url:"description,omitempty" json:"description,omitempty"`
+	Paused          *bool     `url:"paused,omitempty" json:"paused,omitempty"`
+	Locked          *bool     `url:"locked,omitempty" json:"locked,omitempty"`
+	RunUntagged     *bool     `url:"run_untagged,omitempty" json:"run_untagged,omitempty"`
+	TagList         *[]string `url:"tag_list,omitempty" json:"tag_list,omitempty"`
+	AccessLevel     *string   `url:"access_level,omitempty" json:"access_level,omitempty"`
+	MaximumTimeout  *int      `url:"maximum_timeout,omitempty" json:"maximum_timeout,omitempty"`
+	MaintenanceNote *string   `url:"maintenance_note,omitempty" json:"maintenance_note,omitempty"`
+}
+
+// CreateUserRunner creates a runner linked to the current user.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/users.html#create-a-runner
+func (s *UsersService) CreateUserRunner(opts *CreateUserRunnerOptions, options ...RequestOptionFunc) (*UserRunner, *Response, error) {
+	req, err := s.client.NewRequest(http.MethodPost, "user/runners", opts, options)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	r := new(UserRunner)
+	resp, err := s.client.Do(req, r)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return r, resp, nil
 }

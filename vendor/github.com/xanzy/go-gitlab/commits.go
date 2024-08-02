@@ -571,10 +571,10 @@ type GPGSignature struct {
 	KeySubkeyID        int    `json:"gpg_key_subkey_id"`
 }
 
-// GetGPGSiganature gets a GPG signature of a commit.
+// GetGPGSignature gets a GPG signature of a commit.
 //
 // GitLab API docs: https://docs.gitlab.com/ee/api/commits.html#get-gpg-signature-of-a-commit
-func (s *CommitsService) GetGPGSiganature(pid interface{}, sha string, options ...RequestOptionFunc) (*GPGSignature, *Response, error) {
+func (s *CommitsService) GetGPGSignature(pid interface{}, sha string, options ...RequestOptionFunc) (*GPGSignature, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
 		return nil, nil, err

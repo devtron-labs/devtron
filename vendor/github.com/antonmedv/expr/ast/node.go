@@ -4,7 +4,6 @@ import (
 	"reflect"
 	"regexp"
 
-	"github.com/antonmedv/expr/builtin"
 	"github.com/antonmedv/expr/file"
 )
 
@@ -14,6 +13,7 @@ type Node interface {
 	SetLocation(file.Location)
 	Type() reflect.Type
 	SetType(reflect.Type)
+	String() string
 }
 
 func Patch(node *Node, newNode Node) {
@@ -50,7 +50,6 @@ type NilNode struct {
 type IdentifierNode struct {
 	base
 	Value       string
-	Deref       bool
 	FieldIndex  []int
 	Method      bool // true if method, false if field
 	MethodIndex int  // index of method, set only if Method is true
@@ -78,7 +77,7 @@ type StringNode struct {
 
 type ConstantNode struct {
 	base
-	Value interface{}
+	Value any
 }
 
 type UnaryNode struct {
@@ -106,10 +105,9 @@ type MemberNode struct {
 	Property   Node
 	Name       string // Name of the filed or method. Used for error reporting.
 	Optional   bool
-	Deref      bool
 	FieldIndex []int
 
-	// TODO: Replace with a single MethodIndex field of &int type.
+	// TODO: Combine Method and MethodIndex into a single MethodIndex field of &int type.
 	Method      bool
 	MethodIndex int
 }
@@ -127,13 +125,15 @@ type CallNode struct {
 	Arguments []Node
 	Typed     int
 	Fast      bool
-	Func      *builtin.Function
+	Func      *Function
 }
 
 type BuiltinNode struct {
 	base
 	Name      string
 	Arguments []Node
+	Throws    bool
+	Map       Node
 }
 
 type ClosureNode struct {
@@ -143,6 +143,7 @@ type ClosureNode struct {
 
 type PointerNode struct {
 	base
+	Name string
 }
 
 type ConditionalNode struct {
@@ -150,6 +151,13 @@ type ConditionalNode struct {
 	Cond Node
 	Exp1 Node
 	Exp2 Node
+}
+
+type VariableDeclaratorNode struct {
+	base
+	Name  string
+	Value Node
+	Expr  Node
 }
 
 type ArrayNode struct {

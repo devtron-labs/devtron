@@ -3,14 +3,18 @@ package vm
 type Opcode byte
 
 const (
-	OpPush Opcode = iota
-	OpPushInt
+	OpInvalid Opcode = iota
+	OpPush
+	OpInt
 	OpPop
+	OpStore
+	OpLoadVar
 	OpLoadConst
 	OpLoadField
 	OpLoadFast
 	OpLoadMethod
 	OpLoadFunc
+	OpLoadEnv
 	OpFetch
 	OpFetchField
 	OpMethod
@@ -55,17 +59,25 @@ const (
 	OpCallN
 	OpCallFast
 	OpCallTyped
-	OpBuiltin
+	OpCallBuiltin1
 	OpArray
 	OpMap
 	OpLen
 	OpCast
 	OpDeref
-	OpIncrementIt
+	OpIncrementIndex
+	OpDecrementIndex
 	OpIncrementCount
+	OpGetIndex
+	OpSetIndex
 	OpGetCount
 	OpGetLen
+	OpGetGroupBy
+	OpGetAcc
 	OpPointer
+	OpThrow
+	OpGroupBy
+	OpSetAcc
 	OpBegin
 	OpEnd // This opcode must be at the end of this list.
 )

@@ -4,7 +4,6 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/antonmedv/expr/ast"
 	"github.com/antonmedv/expr/conf"
 )
 
@@ -14,13 +13,12 @@ var (
 	integerType  = reflect.TypeOf(0)
 	floatType    = reflect.TypeOf(float64(0))
 	stringType   = reflect.TypeOf("")
-	arrayType    = reflect.TypeOf([]interface{}{})
-	mapType      = reflect.TypeOf(map[string]interface{}{})
-	anyType      = reflect.TypeOf(new(interface{})).Elem()
+	arrayType    = reflect.TypeOf([]any{})
+	mapType      = reflect.TypeOf(map[string]any{})
+	anyType      = reflect.TypeOf(new(any)).Elem()
 	timeType     = reflect.TypeOf(time.Time{})
 	durationType = reflect.TypeOf(time.Duration(0))
-	functionType = reflect.TypeOf(new(func(...interface{}) (interface{}, error))).Elem()
-	errorType    = reflect.TypeOf((*error)(nil)).Elem()
+	functionType = reflect.TypeOf(new(func(...any) (any, error))).Elem()
 )
 
 func combined(a, b reflect.Type) reflect.Type {
@@ -98,7 +96,7 @@ func isTime(t reflect.Type) bool {
 			return true
 		}
 	}
-	return isAny(t)
+	return false
 }
 
 func isDuration(t reflect.Type) bool {
@@ -204,59 +202,43 @@ func fetchField(t reflect.Type, name string) (reflect.StructField, bool) {
 	return reflect.StructField{}, false
 }
 
-func deref(t reflect.Type) (reflect.Type, bool) {
+func deref(t reflect.Type) reflect.Type {
 	if t == nil {
-		return nil, false
+		return nil
 	}
 	if t.Kind() == reflect.Interface {
-		return t, true
+		return t
 	}
-	found := false
 	for t != nil && t.Kind() == reflect.Ptr {
 		e := t.Elem()
 		switch e.Kind() {
 		case reflect.Struct, reflect.Map, reflect.Array, reflect.Slice:
-			return t, false
+			return t
 		default:
-			found = true
 			t = e
 		}
 	}
-	return t, found
+	return t
 }
 
-func isIntegerOrArithmeticOperation(node ast.Node) bool {
-	switch n := node.(type) {
-	case *ast.IntegerNode:
+func kind(t reflect.Type) reflect.Kind {
+	if t == nil {
+		return reflect.Invalid
+	}
+	return t.Kind()
+}
+
+func isComparable(l, r reflect.Type) bool {
+	if l == nil || r == nil {
 		return true
-	case *ast.UnaryNode:
-		switch n.Operator {
-		case "+", "-":
-			return true
-		}
-	case *ast.BinaryNode:
-		switch n.Operator {
-		case "+", "/", "-", "*":
-			return true
-		}
+	}
+	switch {
+	case l.Kind() == r.Kind():
+		return true
+	case isNumber(l) && isNumber(r):
+		return true
+	case isAny(l) || isAny(r):
+		return true
 	}
 	return false
-}
-
-func setTypeForIntegers(node ast.Node, t reflect.Type) {
-	switch n := node.(type) {
-	case *ast.IntegerNode:
-		n.SetType(t)
-	case *ast.UnaryNode:
-		switch n.Operator {
-		case "+", "-":
-			setTypeForIntegers(n.Node, t)
-		}
-	case *ast.BinaryNode:
-		switch n.Operator {
-		case "+", "/", "-", "*":
-			setTypeForIntegers(n.Left, t)
-			setTypeForIntegers(n.Right, t)
-		}
-	}
 }

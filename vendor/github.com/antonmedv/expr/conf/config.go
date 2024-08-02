@@ -10,44 +10,49 @@ import (
 )
 
 type Config struct {
-	Env         interface{}
+	Env         any
 	Types       TypesTable
 	MapEnv      bool
 	DefaultType reflect.Type
 	Operators   OperatorsTable
 	Expect      reflect.Kind
+	ExpectAny   bool
 	Optimize    bool
 	Strict      bool
 	ConstFns    map[string]reflect.Value
 	Visitors    []ast.Visitor
-	Functions   map[string]*builtin.Function
+	Functions   map[string]*ast.Function
+	Builtins    map[string]*ast.Function
+	Disabled    map[string]bool // disabled builtins
 }
 
 // CreateNew creates new config with default values.
 func CreateNew() *Config {
 	c := &Config{
+		Optimize:  true,
 		Operators: make(map[string][]string),
 		ConstFns:  make(map[string]reflect.Value),
-		Functions: make(map[string]*builtin.Function),
-		Optimize:  true,
+		Functions: make(map[string]*ast.Function),
+		Builtins:  make(map[string]*ast.Function),
+		Disabled:  make(map[string]bool),
 	}
 	for _, f := range builtin.Builtins {
-		c.Functions[f.Name] = f
+		c.Builtins[f.Name] = f
 	}
 	return c
 }
 
 // New creates new config with environment.
-func New(env interface{}) *Config {
+func New(env any) *Config {
 	c := CreateNew()
 	c.WithEnv(env)
 	return c
 }
 
-func (c *Config) WithEnv(env interface{}) {
+func (c *Config) WithEnv(env any) {
 	var mapEnv bool
 	var mapValueType reflect.Type
-	if _, ok := env.(map[string]interface{}); ok {
+	if _, ok := env.(map[string]any); ok {
 		mapEnv = true
 	} else {
 		if reflect.ValueOf(env).Kind() == reflect.Map {
@@ -90,6 +95,22 @@ func (c *Config) Check() {
 			}
 			if fnType.Type.NumIn() != requiredNumIn || fnType.Type.NumOut() != 1 {
 				panic(fmt.Errorf("function %s for %s operator does not have a correct signature", fn, operator))
+			}
+		}
+	}
+	for fnName, t := range c.Types {
+		if kind(t.Type) == reflect.Func {
+			for _, b := range c.Builtins {
+				if b.Name == fnName {
+					panic(fmt.Errorf(`cannot override builtin %s(): use expr.DisableBuiltin("%s") to override`, b.Name, b.Name))
+				}
+			}
+		}
+	}
+	for _, f := range c.Functions {
+		for _, b := range c.Builtins {
+			if b.Name == f.Name {
+				panic(fmt.Errorf(`cannot override builtin %s(); use expr.DisableBuiltin("%s") to override`, f.Name, f.Name))
 			}
 		}
 	}

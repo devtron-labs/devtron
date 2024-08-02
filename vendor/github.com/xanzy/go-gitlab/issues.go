@@ -445,6 +445,7 @@ type CreateIssueOptions struct {
 	Labels                             *Labels    `url:"labels,comma,omitempty" json:"labels,omitempty"`
 	CreatedAt                          *time.Time `url:"created_at,omitempty" json:"created_at,omitempty"`
 	DueDate                            *ISOTime   `url:"due_date,omitempty" json:"due_date,omitempty"`
+	EpicID                             *int       `url:"epic_id,omitempty" json:"epic_id,omitempty"`
 	MergeRequestToResolveDiscussionsOf *int       `url:"merge_request_to_resolve_discussions_of,omitempty" json:"merge_request_to_resolve_discussions_of,omitempty"`
 	DiscussionToResolve                *string    `url:"discussion_to_resolve,omitempty" json:"discussion_to_resolve,omitempty"`
 	Weight                             *int       `url:"weight,omitempty" json:"weight,omitempty"`
@@ -490,6 +491,7 @@ type UpdateIssueOptions struct {
 	StateEvent       *string    `url:"state_event,omitempty" json:"state_event,omitempty"`
 	UpdatedAt        *time.Time `url:"updated_at,omitempty" json:"updated_at,omitempty"`
 	DueDate          *ISOTime   `url:"due_date,omitempty" json:"due_date,omitempty"`
+	EpicID           *int       `url:"epic_id,omitempty" json:"epic_id,omitempty"`
 	Weight           *int       `url:"weight,omitempty" json:"weight,omitempty"`
 	DiscussionLocked *bool      `url:"discussion_locked,omitempty" json:"discussion_locked,omitempty"`
 	IssueType        *string    `url:"issue_type,omitempty" json:"issue_type,omitempty"`

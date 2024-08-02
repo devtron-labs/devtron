@@ -344,6 +344,11 @@ func Equal(a, b interface{}) bool {
 		case time.Time:
 			return x.Equal(y)
 		}
+	case time.Duration:
+		switch y := b.(type) {
+		case time.Duration:
+			return x == y
+		}
 	}
 	if IsNil(a) && IsNil(b) {
 		return true
@@ -687,6 +692,11 @@ func Less(a, b interface{}) bool {
 		case time.Time:
 			return x.Before(y)
 		}
+	case time.Duration:
+		switch y := b.(type) {
+		case time.Duration:
+			return x < y
+		}
 	}
 	panic(fmt.Sprintf("invalid operation: %T < %T", a, b))
 }
@@ -1026,6 +1036,11 @@ func More(a, b interface{}) bool {
 		switch y := b.(type) {
 		case time.Time:
 			return x.After(y)
+		}
+	case time.Duration:
+		switch y := b.(type) {
+		case time.Duration:
+			return x > y
 		}
 	}
 	panic(fmt.Sprintf("invalid operation: %T > %T", a, b))
@@ -1367,6 +1382,11 @@ func LessOrEqual(a, b interface{}) bool {
 		case time.Time:
 			return x.Before(y) || x.Equal(y)
 		}
+	case time.Duration:
+		switch y := b.(type) {
+		case time.Duration:
+			return x <= y
+		}
 	}
 	panic(fmt.Sprintf("invalid operation: %T <= %T", a, b))
 }
@@ -1706,6 +1726,11 @@ func MoreOrEqual(a, b interface{}) bool {
 		switch y := b.(type) {
 		case time.Time:
 			return x.After(y) || x.Equal(y)
+		}
+	case time.Duration:
+		switch y := b.(type) {
+		case time.Duration:
+			return x >= y
 		}
 	}
 	panic(fmt.Sprintf("invalid operation: %T >= %T", a, b))
@@ -2051,6 +2076,8 @@ func Add(a, b interface{}) interface{} {
 		switch y := b.(type) {
 		case time.Time:
 			return y.Add(x)
+		case time.Duration:
+			return x + y
 		}
 	}
 	panic(fmt.Sprintf("invalid operation: %T + %T", a, b))
@@ -2386,6 +2413,13 @@ func Subtract(a, b interface{}) interface{} {
 		switch y := b.(type) {
 		case time.Time:
 			return x.Sub(y)
+		case time.Duration:
+			return x.Add(-y)
+		}
+	case time.Duration:
+		switch y := b.(type) {
+		case time.Duration:
+			return x - y
 		}
 	}
 	panic(fmt.Sprintf("invalid operation: %T - %T", a, b))
@@ -2419,6 +2453,8 @@ func Multiply(a, b interface{}) interface{} {
 			return float64(x) * float64(y)
 		case float64:
 			return float64(x) * float64(y)
+		case time.Duration:
+			return time.Duration(x) * time.Duration(y)
 		}
 	case uint8:
 		switch y := b.(type) {
@@ -2446,6 +2482,8 @@ func Multiply(a, b interface{}) interface{} {
 			return float64(x) * float64(y)
 		case float64:
 			return float64(x) * float64(y)
+		case time.Duration:
+			return time.Duration(x) * time.Duration(y)
 		}
 	case uint16:
 		switch y := b.(type) {
@@ -2473,6 +2511,8 @@ func Multiply(a, b interface{}) interface{} {
 			return float64(x) * float64(y)
 		case float64:
 			return float64(x) * float64(y)
+		case time.Duration:
+			return time.Duration(x) * time.Duration(y)
 		}
 	case uint32:
 		switch y := b.(type) {
@@ -2500,6 +2540,8 @@ func Multiply(a, b interface{}) interface{} {
 			return float64(x) * float64(y)
 		case float64:
 			return float64(x) * float64(y)
+		case time.Duration:
+			return time.Duration(x) * time.Duration(y)
 		}
 	case uint64:
 		switch y := b.(type) {
@@ -2527,6 +2569,8 @@ func Multiply(a, b interface{}) interface{} {
 			return float64(x) * float64(y)
 		case float64:
 			return float64(x) * float64(y)
+		case time.Duration:
+			return time.Duration(x) * time.Duration(y)
 		}
 	case int:
 		switch y := b.(type) {
@@ -2554,6 +2598,8 @@ func Multiply(a, b interface{}) interface{} {
 			return float64(x) * float64(y)
 		case float64:
 			return float64(x) * float64(y)
+		case time.Duration:
+			return time.Duration(x) * time.Duration(y)
 		}
 	case int8:
 		switch y := b.(type) {
@@ -2581,6 +2627,8 @@ func Multiply(a, b interface{}) interface{} {
 			return float64(x) * float64(y)
 		case float64:
 			return float64(x) * float64(y)
+		case time.Duration:
+			return time.Duration(x) * time.Duration(y)
 		}
 	case int16:
 		switch y := b.(type) {
@@ -2608,6 +2656,8 @@ func Multiply(a, b interface{}) interface{} {
 			return float64(x) * float64(y)
 		case float64:
 			return float64(x) * float64(y)
+		case time.Duration:
+			return time.Duration(x) * time.Duration(y)
 		}
 	case int32:
 		switch y := b.(type) {
@@ -2635,6 +2685,8 @@ func Multiply(a, b interface{}) interface{} {
 			return float64(x) * float64(y)
 		case float64:
 			return float64(x) * float64(y)
+		case time.Duration:
+			return time.Duration(x) * time.Duration(y)
 		}
 	case int64:
 		switch y := b.(type) {
@@ -2662,6 +2714,8 @@ func Multiply(a, b interface{}) interface{} {
 			return float64(x) * float64(y)
 		case float64:
 			return float64(x) * float64(y)
+		case time.Duration:
+			return time.Duration(x) * time.Duration(y)
 		}
 	case float32:
 		switch y := b.(type) {
@@ -2688,6 +2742,8 @@ func Multiply(a, b interface{}) interface{} {
 		case float32:
 			return float64(x) * float64(y)
 		case float64:
+			return float64(x) * float64(y)
+		case time.Duration:
 			return float64(x) * float64(y)
 		}
 	case float64:
@@ -2716,6 +2772,37 @@ func Multiply(a, b interface{}) interface{} {
 			return float64(x) * float64(y)
 		case float64:
 			return float64(x) * float64(y)
+		case time.Duration:
+			return float64(x) * float64(y)
+		}
+	case time.Duration:
+		switch y := b.(type) {
+		case uint:
+			return time.Duration(x) * time.Duration(y)
+		case uint8:
+			return time.Duration(x) * time.Duration(y)
+		case uint16:
+			return time.Duration(x) * time.Duration(y)
+		case uint32:
+			return time.Duration(x) * time.Duration(y)
+		case uint64:
+			return time.Duration(x) * time.Duration(y)
+		case int:
+			return time.Duration(x) * time.Duration(y)
+		case int8:
+			return time.Duration(x) * time.Duration(y)
+		case int16:
+			return time.Duration(x) * time.Duration(y)
+		case int32:
+			return time.Duration(x) * time.Duration(y)
+		case int64:
+			return time.Duration(x) * time.Duration(y)
+		case float32:
+			return float64(x) * float64(y)
+		case float64:
+			return float64(x) * float64(y)
+		case time.Duration:
+			return time.Duration(x) * time.Duration(y)
 		}
 	}
 	panic(fmt.Sprintf("invalid operation: %T * %T", a, b))

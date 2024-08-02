@@ -2,73 +2,35 @@ package parser
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	. "github.com/antonmedv/expr/ast"
+	"github.com/antonmedv/expr/builtin"
+	"github.com/antonmedv/expr/conf"
 	"github.com/antonmedv/expr/file"
 	. "github.com/antonmedv/expr/parser/lexer"
+	"github.com/antonmedv/expr/parser/operator"
+	"github.com/antonmedv/expr/parser/utils"
 )
 
-type associativity int
-
-const (
-	left associativity = iota + 1
-	right
-)
-
-type operator struct {
-	precedence    int
-	associativity associativity
-}
-
-type builtin struct {
+var predicates = map[string]struct {
 	arity int
-}
-
-var unaryOperators = map[string]operator{
-	"not": {50, left},
-	"!":   {50, left},
-	"-":   {90, left},
-	"+":   {90, left},
-}
-
-var binaryOperators = map[string]operator{
-	"or":         {10, left},
-	"||":         {10, left},
-	"and":        {15, left},
-	"&&":         {15, left},
-	"==":         {20, left},
-	"!=":         {20, left},
-	"<":          {20, left},
-	">":          {20, left},
-	">=":         {20, left},
-	"<=":         {20, left},
-	"in":         {20, left},
-	"matches":    {20, left},
-	"contains":   {20, left},
-	"startsWith": {20, left},
-	"endsWith":   {20, left},
-	"..":         {25, left},
-	"+":          {30, left},
-	"-":          {30, left},
-	"*":          {60, left},
-	"/":          {60, left},
-	"%":          {60, left},
-	"**":         {100, right},
-	"^":          {100, right},
-	"??":         {500, left},
-}
-
-var builtins = map[string]builtin{
-	"all":    {2},
-	"none":   {2},
-	"any":    {2},
-	"one":    {2},
-	"filter": {2},
-	"map":    {2},
-	"count":  {2},
+}{
+	"all":           {2},
+	"none":          {2},
+	"any":           {2},
+	"one":           {2},
+	"filter":        {2},
+	"map":           {2},
+	"count":         {2},
+	"find":          {2},
+	"findIndex":     {2},
+	"findLast":      {2},
+	"findLastIndex": {2},
+	"groupBy":       {2},
+	"reduce":        {3},
 }
 
 type parser struct {
@@ -77,6 +39,7 @@ type parser struct {
 	pos     int
 	err     *file.Error
 	depth   int // closure call depth
+	config  *conf.Config
 }
 
 type Tree struct {
@@ -85,6 +48,12 @@ type Tree struct {
 }
 
 func Parse(input string) (*Tree, error) {
+	return ParseWithConfig(input, &conf.Config{
+		Disabled: map[string]bool{},
+	})
+}
+
+func ParseWithConfig(input string, config *conf.Config) (*Tree, error) {
 	source := file.NewSource(input)
 
 	tokens, err := Lex(source)
@@ -95,6 +64,7 @@ func Parse(input string) (*Tree, error) {
 	p := &parser{
 		tokens:  tokens,
 		current: tokens[0],
+		config:  config,
 	}
 
 	node := p.parseExpression(0)
@@ -113,11 +83,11 @@ func Parse(input string) (*Tree, error) {
 	}, nil
 }
 
-func (p *parser) error(format string, args ...interface{}) {
+func (p *parser) error(format string, args ...any) {
 	p.errorAt(p.current, format, args...)
 }
 
-func (p *parser) errorAt(token Token, format string, args ...interface{}) {
+func (p *parser) errorAt(token Token, format string, args ...any) {
 	if p.err == nil { // show first error
 		p.err = &file.Error{
 			Location: token.Location,
@@ -146,14 +116,21 @@ func (p *parser) expect(kind Kind, values ...string) {
 // parse functions
 
 func (p *parser) parseExpression(precedence int) Node {
+	if precedence == 0 {
+		if p.current.Is(Operator, "let") {
+			return p.parseVariableDeclaration()
+		}
+	}
+
 	nodeLeft := p.parsePrimary()
 
-	lastOperator := ""
+	prevOperator := ""
 	opToken := p.current
 	for opToken.Is(Operator) && p.err == nil {
 		negate := false
 		var notToken Token
 
+		// Handle "not *" operator, like "not in" or "not contains".
 		if opToken.Is(Operator, "not") {
 			p.next()
 			notToken = p.current
@@ -161,20 +138,25 @@ func (p *parser) parseExpression(precedence int) Node {
 			opToken = p.current
 		}
 
-		if op, ok := binaryOperators[opToken.Value]; ok {
-			if op.precedence >= precedence {
+		if op, ok := operator.Binary[opToken.Value]; ok {
+			if op.Precedence >= precedence {
 				p.next()
 
-				if lastOperator == "??" && opToken.Value != "??" && !opToken.Is(Bracket, "(") {
+				if opToken.Value == "|" {
+					nodeLeft = p.parsePipe(nodeLeft)
+					goto next
+				}
+
+				if prevOperator == "??" && opToken.Value != "??" && !opToken.Is(Bracket, "(") {
 					p.errorAt(opToken, "Operator (%v) and coalesce expressions (??) cannot be mixed. Wrap either by parentheses.", opToken.Value)
 					break
 				}
 
 				var nodeRight Node
-				if op.associativity == left {
-					nodeRight = p.parseExpression(op.precedence + 1)
+				if op.Associativity == operator.Left {
+					nodeRight = p.parseExpression(op.Precedence + 1)
 				} else {
-					nodeRight = p.parseExpression(op.precedence)
+					nodeRight = p.parseExpression(op.Precedence)
 				}
 
 				nodeLeft = &BinaryNode{
@@ -192,63 +174,41 @@ func (p *parser) parseExpression(precedence int) Node {
 					nodeLeft.SetLocation(notToken.Location)
 				}
 
-				lastOperator = opToken.Value
-				opToken = p.current
-				continue
+				goto next
 			}
 		}
 		break
+
+	next:
+		prevOperator = opToken.Value
+		opToken = p.current
 	}
 
 	if precedence == 0 {
-		nodeLeft = p.parseConditionalExpression(nodeLeft)
+		nodeLeft = p.parseConditional(nodeLeft)
 	}
 
 	return nodeLeft
 }
 
-func (p *parser) parsePrimary() Node {
-	token := p.current
-
-	if token.Is(Operator) {
-		if op, ok := unaryOperators[token.Value]; ok {
-			p.next()
-			expr := p.parseExpression(op.precedence)
-			node := &UnaryNode{
-				Operator: token.Value,
-				Node:     expr,
-			}
-			node.SetLocation(token.Location)
-			return p.parsePostfixExpression(node)
-		}
+func (p *parser) parseVariableDeclaration() Node {
+	p.expect(Operator, "let")
+	variableName := p.current
+	p.expect(Identifier)
+	p.expect(Operator, "=")
+	value := p.parseExpression(0)
+	p.expect(Operator, ";")
+	node := p.parseExpression(0)
+	let := &VariableDeclaratorNode{
+		Name:  variableName.Value,
+		Value: value,
+		Expr:  node,
 	}
-
-	if token.Is(Bracket, "(") {
-		p.next()
-		expr := p.parseExpression(0)
-		p.expect(Bracket, ")") // "an opened parenthesis is not properly closed"
-		return p.parsePostfixExpression(expr)
-	}
-
-	if p.depth > 0 {
-		if token.Is(Operator, "#") || token.Is(Operator, ".") {
-			if token.Is(Operator, "#") {
-				p.next()
-			}
-			node := &PointerNode{}
-			node.SetLocation(token.Location)
-			return p.parsePostfixExpression(node)
-		}
-	} else {
-		if token.Is(Operator, "#") || token.Is(Operator, ".") {
-			p.error("cannot use pointer accessor outside closure")
-		}
-	}
-
-	return p.parsePrimaryExpression()
+	let.SetLocation(variableName.Location)
+	return let
 }
 
-func (p *parser) parseConditionalExpression(node Node) Node {
+func (p *parser) parseConditional(node Node) Node {
 	var expr1, expr2 Node
 	for p.current.Is(Operator, "?") && p.err == nil {
 		p.next()
@@ -272,7 +232,53 @@ func (p *parser) parseConditionalExpression(node Node) Node {
 	return node
 }
 
-func (p *parser) parsePrimaryExpression() Node {
+func (p *parser) parsePrimary() Node {
+	token := p.current
+
+	if token.Is(Operator) {
+		if op, ok := operator.Unary[token.Value]; ok {
+			p.next()
+			expr := p.parseExpression(op.Precedence)
+			node := &UnaryNode{
+				Operator: token.Value,
+				Node:     expr,
+			}
+			node.SetLocation(token.Location)
+			return p.parsePostfixExpression(node)
+		}
+	}
+
+	if token.Is(Bracket, "(") {
+		p.next()
+		expr := p.parseExpression(0)
+		p.expect(Bracket, ")") // "an opened parenthesis is not properly closed"
+		return p.parsePostfixExpression(expr)
+	}
+
+	if p.depth > 0 {
+		if token.Is(Operator, "#") || token.Is(Operator, ".") {
+			name := ""
+			if token.Is(Operator, "#") {
+				p.next()
+				if p.current.Is(Identifier) {
+					name = p.current.Value
+					p.next()
+				}
+			}
+			node := &PointerNode{Name: name}
+			node.SetLocation(token.Location)
+			return p.parsePostfixExpression(node)
+		}
+	} else {
+		if token.Is(Operator, "#") || token.Is(Operator, ".") {
+			p.error("cannot use pointer accessor outside closure")
+		}
+	}
+
+	return p.parseSecondary()
+}
+
+func (p *parser) parseSecondary() Node {
 	var node Node
 	token := p.current
 
@@ -294,7 +300,7 @@ func (p *parser) parsePrimaryExpression() Node {
 			node.SetLocation(token.Location)
 			return node
 		default:
-			node = p.parseIdentifierExpression(token)
+			node = p.parseCall(token)
 		}
 
 	case Number:
@@ -304,6 +310,10 @@ func (p *parser) parsePrimaryExpression() Node {
 			number, err := strconv.ParseInt(value, 0, 64)
 			if err != nil {
 				p.error("invalid hex literal: %v", err)
+			}
+			if number > math.MaxInt {
+				p.error("integer literal is too large")
+				return nil
 			}
 			node := &IntegerNode{Value: int(number)}
 			node.SetLocation(token.Location)
@@ -320,6 +330,10 @@ func (p *parser) parsePrimaryExpression() Node {
 			number, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
 				p.error("invalid integer literal: %v", err)
+			}
+			if number > math.MaxInt {
+				p.error("integer literal is too large")
+				return nil
 			}
 			node := &IntegerNode{Value: int(number)}
 			node.SetLocation(token.Location)
@@ -345,14 +359,16 @@ func (p *parser) parsePrimaryExpression() Node {
 	return p.parsePostfixExpression(node)
 }
 
-func (p *parser) parseIdentifierExpression(token Token) Node {
+func (p *parser) parseCall(token Token) Node {
 	var node Node
 	if p.current.Is(Bracket, "(") {
 		var arguments []Node
 
-		if b, ok := builtins[token.Value]; ok {
+		if b, ok := predicates[token.Value]; ok {
 			p.expect(Bracket, "(")
-			// TODO: Add builtins signatures.
+
+			// TODO: Refactor parser to use builtin.Builtins instead of predicates map.
+
 			if b.arity == 1 {
 				arguments = make([]Node, 1)
 				arguments[0] = p.parseExpression(0)
@@ -362,11 +378,29 @@ func (p *parser) parseIdentifierExpression(token Token) Node {
 				p.expect(Operator, ",")
 				arguments[1] = p.parseClosure()
 			}
+
+			if token.Value == "reduce" {
+				arguments = make([]Node, 2)
+				arguments[0] = p.parseExpression(0)
+				p.expect(Operator, ",")
+				arguments[1] = p.parseClosure()
+				if p.current.Is(Operator, ",") {
+					p.next()
+					arguments = append(arguments, p.parseExpression(0))
+				}
+			}
+
 			p.expect(Bracket, ")")
 
 			node = &BuiltinNode{
 				Name:      token.Value,
 				Arguments: arguments,
+			}
+			node.SetLocation(token.Location)
+		} else if _, ok := builtin.Index[token.Value]; ok && !p.config.Disabled[token.Value] {
+			node = &BuiltinNode{
+				Name:      token.Value,
+				Arguments: p.parseArguments(),
 			}
 			node.SetLocation(token.Location)
 		} else {
@@ -487,7 +521,7 @@ func (p *parser) parsePostfixExpression(node Node) Node {
 
 			if propertyToken.Kind != Identifier &&
 				// Operators like "not" and "matches" are valid methods or property names.
-				(propertyToken.Kind != Operator || !isValidIdentifier(propertyToken.Value)) {
+				(propertyToken.Kind != Operator || !utils.IsValidIdentifier(propertyToken.Value)) {
 				p.error("expected name")
 			}
 
@@ -578,20 +612,58 @@ func (p *parser) parsePostfixExpression(node Node) Node {
 	return node
 }
 
-func isValidIdentifier(str string) bool {
-	if len(str) == 0 {
-		return false
-	}
-	h, w := utf8.DecodeRuneInString(str)
-	if !IsAlphabetic(h) {
-		return false
-	}
-	for _, r := range str[w:] {
-		if !IsAlphaNumeric(r) {
-			return false
+func (p *parser) parsePipe(node Node) Node {
+	identifier := p.current
+	p.expect(Identifier)
+
+	arguments := []Node{node}
+
+	if b, ok := predicates[identifier.Value]; ok {
+		p.expect(Bracket, "(")
+
+		// TODO: Refactor parser to use builtin.Builtins instead of predicates map.
+
+		if b.arity == 2 {
+			arguments = append(arguments, p.parseClosure())
 		}
+
+		if identifier.Value == "reduce" {
+			arguments = append(arguments, p.parseClosure())
+			if p.current.Is(Operator, ",") {
+				p.next()
+				arguments = append(arguments, p.parseExpression(0))
+			}
+		}
+
+		p.expect(Bracket, ")")
+
+		node = &BuiltinNode{
+			Name:      identifier.Value,
+			Arguments: arguments,
+		}
+		node.SetLocation(identifier.Location)
+	} else if _, ok := builtin.Index[identifier.Value]; ok {
+		arguments = append(arguments, p.parseArguments()...)
+
+		node = &BuiltinNode{
+			Name:      identifier.Value,
+			Arguments: arguments,
+		}
+		node.SetLocation(identifier.Location)
+	} else {
+		callee := &IdentifierNode{Value: identifier.Value}
+		callee.SetLocation(identifier.Location)
+
+		arguments = append(arguments, p.parseArguments()...)
+
+		node = &CallNode{
+			Callee:    callee,
+			Arguments: arguments,
+		}
+		node.SetLocation(identifier.Location)
 	}
-	return true
+
+	return node
 }
 
 func (p *parser) parseArguments() []Node {

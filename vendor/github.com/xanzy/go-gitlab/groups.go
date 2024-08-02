@@ -50,6 +50,7 @@ type Group struct {
 	AvatarURL               string                     `json:"avatar_url"`
 	WebURL                  string                     `json:"web_url"`
 	RequestAccessEnabled    bool                       `json:"request_access_enabled"`
+	RepositoryStorage       string                     `json:"repository_storage"`
 	FullName                string                     `json:"full_name"`
 	FullPath                string                     `json:"full_path"`
 	FileTemplateProjectID   int                        `json:"file_template_project_id"`
@@ -75,16 +76,17 @@ type Group struct {
 		GroupAccessLevel int      `json:"group_access_level"`
 		ExpiresAt        *ISOTime `json:"expires_at"`
 	} `json:"shared_with_groups"`
-	LDAPCN                         string           `json:"ldap_cn"`
-	LDAPAccess                     AccessLevelValue `json:"ldap_access"`
-	LDAPGroupLinks                 []*LDAPGroupLink `json:"ldap_group_links"`
-	SAMLGroupLinks                 []*SAMLGroupLink `json:"saml_group_links"`
-	SharedRunnersMinutesLimit      int              `json:"shared_runners_minutes_limit"`
-	ExtraSharedRunnersMinutesLimit int              `json:"extra_shared_runners_minutes_limit"`
-	PreventForkingOutsideGroup     bool             `json:"prevent_forking_outside_group"`
-	MarkedForDeletionOn            *ISOTime         `json:"marked_for_deletion_on"`
-	CreatedAt                      *time.Time       `json:"created_at"`
-	IPRestrictionRanges            string           `json:"ip_restriction_ranges"`
+	LDAPCN                         string             `json:"ldap_cn"`
+	LDAPAccess                     AccessLevelValue   `json:"ldap_access"`
+	LDAPGroupLinks                 []*LDAPGroupLink   `json:"ldap_group_links"`
+	SAMLGroupLinks                 []*SAMLGroupLink   `json:"saml_group_links"`
+	SharedRunnersMinutesLimit      int                `json:"shared_runners_minutes_limit"`
+	ExtraSharedRunnersMinutesLimit int                `json:"extra_shared_runners_minutes_limit"`
+	PreventForkingOutsideGroup     bool               `json:"prevent_forking_outside_group"`
+	MarkedForDeletionOn            *ISOTime           `json:"marked_for_deletion_on"`
+	CreatedAt                      *time.Time         `json:"created_at"`
+	IPRestrictionRanges            string             `json:"ip_restriction_ranges"`
+	WikiAccessLevel                AccessControlValue `json:"wiki_access_level"`
 }
 
 // GroupAvatar represents a GitLab group avatar.
@@ -127,16 +129,17 @@ type SAMLGroupLink struct {
 // GitLab API docs: https://docs.gitlab.com/ee/api/groups.html#list-groups
 type ListGroupsOptions struct {
 	ListOptions
-	AllAvailable         *bool             `url:"all_available,omitempty" json:"all_available,omitempty"`
-	MinAccessLevel       *AccessLevelValue `url:"min_access_level,omitempty" json:"min_access_level,omitempty"`
-	OrderBy              *string           `url:"order_by,omitempty" json:"order_by,omitempty"`
-	Owned                *bool             `url:"owned,omitempty" json:"owned,omitempty"`
-	Search               *string           `url:"search,omitempty" json:"search,omitempty"`
 	SkipGroups           *[]int            `url:"skip_groups,omitempty" del:"," json:"skip_groups,omitempty"`
+	AllAvailable         *bool             `url:"all_available,omitempty" json:"all_available,omitempty"`
+	Search               *string           `url:"search,omitempty" json:"search,omitempty"`
+	OrderBy              *string           `url:"order_by,omitempty" json:"order_by,omitempty"`
 	Sort                 *string           `url:"sort,omitempty" json:"sort,omitempty"`
 	Statistics           *bool             `url:"statistics,omitempty" json:"statistics,omitempty"`
-	TopLevelOnly         *bool             `url:"top_level_only,omitempty" json:"top_level_only,omitempty"`
 	WithCustomAttributes *bool             `url:"with_custom_attributes,omitempty" json:"with_custom_attributes,omitempty"`
+	Owned                *bool             `url:"owned,omitempty" json:"owned,omitempty"`
+	MinAccessLevel       *AccessLevelValue `url:"min_access_level,omitempty" json:"min_access_level,omitempty"`
+	TopLevelOnly         *bool             `url:"top_level_only,omitempty" json:"top_level_only,omitempty"`
+	RepositoryStorage    *string           `url:"repository_storage,omitempty" json:"repository_storage,omitempty"`
 }
 
 // ListGroups gets a list of groups (as user: my groups, as admin: all groups).
@@ -353,6 +356,7 @@ type CreateGroupOptions struct {
 	SharedRunnersMinutesLimit      *int                        `url:"shared_runners_minutes_limit,omitempty" json:"shared_runners_minutes_limit,omitempty"`
 	ExtraSharedRunnersMinutesLimit *int                        `url:"extra_shared_runners_minutes_limit,omitempty" json:"extra_shared_runners_minutes_limit,omitempty"`
 	IPRestrictionRanges            *string                     `url:"ip_restriction_ranges,omitempty" json:"ip_restriction_ranges,omitempty"`
+	WikiAccessLevel                *AccessControlValue         `url:"wiki_access_level,omitempty" json:"wiki_access_level,omitempty"`
 }
 
 // CreateGroup creates a new project group. Available only for users who can
@@ -481,6 +485,7 @@ type UpdateGroupOptions struct {
 	SharedRunnersSetting                 *SharedRunnersSettingValue  `url:"shared_runners_setting,omitempty" json:"shared_runners_setting,omitempty"`
 	PreventSharingGroupsOutsideHierarchy *bool                       `url:"prevent_sharing_groups_outside_hierarchy,omitempty" json:"prevent_sharing_groups_outside_hierarchy,omitempty"`
 	IPRestrictionRanges                  *string                     `url:"ip_restriction_ranges,omitempty" json:"ip_restriction_ranges,omitempty"`
+	WikiAccessLevel                      *AccessControlValue         `url:"wiki_access_level,omitempty" json:"wiki_access_level,omitempty"`
 }
 
 // UpdateGroup updates an existing group; only available to group owners and
