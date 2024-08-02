@@ -88,7 +88,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailList(ctx context.Con
 		} else {
 			clusterCapacityDetail, err = impl.GetClusterCapacityDetail(ctx, cluster, true)
 			if err != nil {
-				impl.logger.Errorw("error in getting cluster capacity details by id", cluster.Id, "err", err)
+				impl.logger.Errorw("error in getting cluster capacity details by id", "clusterID", cluster.Id, "err", err)
 				clusterCapacityDetail = &bean.ClusterCapacityDetail{
 					ErrorInConnection: err.Error(),
 				}
@@ -124,7 +124,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(ctx context.Context
 	//getting serverVersion
 	serverVersion, err := impl.K8sUtil.GetServerVersionFromDiscoveryClient(k8sClientSet)
 	if err != nil {
-		impl.logger.Errorw("error in getting server version", "err", err, "clusterId", cluster.Id)
+		impl.logger.Errorw("error in getting server version", "clusterId", cluster.Id, "err", err)
 		return nil, err
 	}
 	clusterDetail.ServerVersion = serverVersion.GitVersion
