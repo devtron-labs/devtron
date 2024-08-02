@@ -379,9 +379,6 @@ github.com/colinmarc/hdfs
 github.com/colinmarc/hdfs/protocol/hadoop_common
 github.com/colinmarc/hdfs/protocol/hadoop_hdfs
 github.com/colinmarc/hdfs/rpc
-# github.com/coreos/go-oidc v2.2.1+incompatible
-## explicit
-github.com/coreos/go-oidc
 # github.com/coreos/go-oidc/v3 v3.11.0
 ## explicit; go 1.21
 github.com/coreos/go-oidc/v3/oidc
@@ -956,10 +953,6 @@ github.com/pmezard/go-difflib/difflib
 # github.com/posthog/posthog-go v0.0.0-20210610161230-cd4408afb35a
 ## explicit; go 1.15
 github.com/posthog/posthog-go
-# github.com/pquerna/cachecontrol v0.1.0
-## explicit; go 1.16
-github.com/pquerna/cachecontrol
-github.com/pquerna/cachecontrol/cacheobject
 # github.com/prometheus/client_golang v1.16.0
 ## explicit; go 1.17
 github.com/prometheus/client_golang/api
@@ -1553,11 +1546,6 @@ gopkg.in/jcmturner/gokrb5.v5/types
 # gopkg.in/jcmturner/rpc.v0 v0.0.2
 ## explicit
 gopkg.in/jcmturner/rpc.v0/ndr
-# gopkg.in/square/go-jose.v2 v2.6.0
-## explicit
-gopkg.in/square/go-jose.v2
-gopkg.in/square/go-jose.v2/cipher
-gopkg.in/square/go-jose.v2/json
 # gopkg.in/warnings.v0 v0.1.2
 ## explicit
 gopkg.in/warnings.v0
