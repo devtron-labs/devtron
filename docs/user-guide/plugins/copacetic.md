@@ -6,6 +6,7 @@ The Copacetic plugin of Devtron helps you patch your container image vulnerabili
 
 ### Prerequisites
 Before integrating the **Copacetic** plugin, make sure you have enabled **Scan for vulnerabilities** at the **Build stage** or integrated the **Code-Scan** plugin in the **Pre-build stage**.
+
 ---
 
 ## Steps
