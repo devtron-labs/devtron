@@ -69,6 +69,8 @@ const (
 	GitOpsWithoutDeployment DeploymentType = "git_ops_without_deployment"
 )
 
+var HelmDeploymentAppTypeArr = []DeploymentType{Helm}
+
 type TriggerRequirementRequestDto struct {
 	TriggerRequest TriggerRequest
 }

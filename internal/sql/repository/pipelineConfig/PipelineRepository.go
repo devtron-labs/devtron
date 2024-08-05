@@ -83,7 +83,7 @@ type PipelineRepository interface {
 	FindByIdEvenIfInactive(id int) (pipeline *Pipeline, err error)
 	GetPostStageConfigById(id int) (pipeline *Pipeline, err error)
 	FindAppAndEnvDetailsByPipelineId(id int) (pipeline *Pipeline, err error)
-	FindActiveByEnvIdAndDeploymentType(environmentId int, deploymentAppType string, exclusionList []int, includeApps []int) ([]*Pipeline, error)
+	FindActiveByEnvIdAndDeploymentType(environmentId int, deploymentAppTypes []string, exclusionList []int, includeApps []int) ([]*Pipeline, error)
 	FindByIdsIn(ids []int) ([]*Pipeline, error)
 	FindByCiPipelineIdsIn(ciPipelineIds []int) ([]*Pipeline, error)
 	FindAutomaticByCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error)
@@ -360,7 +360,7 @@ func (impl PipelineRepositoryImpl) FindAppAndEnvDetailsByPipelineId(id int) (pip
 // FindActiveByEnvIdAndDeploymentType takes in environment id and current deployment app type
 // and fetches and returns a list of pipelines matching the same excluding given app ids.
 func (impl PipelineRepositoryImpl) FindActiveByEnvIdAndDeploymentType(environmentId int,
-	deploymentAppType string, exclusionList []int, includeApps []int) ([]*Pipeline, error) {
+	deploymentAppTypes []string, exclusionList []int, includeApps []int) ([]*Pipeline, error) {
 
 	// NOTE: PG query throws error with slice of integer
 	exclusionListString := util2.ConvertIntArrayToStringArray(exclusionList)
@@ -375,7 +375,7 @@ func (impl PipelineRepositoryImpl) FindActiveByEnvIdAndDeploymentType(environmen
 		Join("inner join app a on pipeline.app_id = a.id").
 		Join("LEFT JOIN deployment_config dc on dc.active=true and dc.app_id = pipeline.app_id and dc.environment_id=pipeline.environment_id").
 		Where("pipeline.environment_id = ?", environmentId).
-		Where("(pipeline.deployment_app_type=? or dc.deployment_app_type=?)", deploymentAppType, deploymentAppType).
+		Where("(pipeline.deployment_app_type in (?) or dc.deployment_app_type in (?))", pg.In(deploymentAppTypes), pg.In(deploymentAppTypes)).
 		Where("pipeline.deleted = ?", false)
 
 	if len(exclusionListString) > 0 {

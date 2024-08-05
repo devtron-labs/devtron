@@ -242,21 +242,21 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 		TriggeredPipelines:    make([]*bean.CdPipelineTrigger, 0),
 	}
 
-	var deleteDeploymentType bean3.DeploymentType
+	deleteDeploymentTypes := make([]bean3.DeploymentType, 0)
 
 	if request.DesiredDeploymentType == bean3.ArgoCd {
-		deleteDeploymentType = bean3.Helm
+		deleteDeploymentTypes = bean3.HelmDeploymentAppTypeArr
 	} else {
-		deleteDeploymentType = bean3.ArgoCd
+		deleteDeploymentTypes = []bean3.DeploymentType{bean3.ArgoCd}
 	}
 
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvIdAndDeploymentType(request.EnvId,
-		string(deleteDeploymentType), request.ExcludeApps, request.IncludeApps)
+		deleteDeploymentTypes, request.ExcludeApps, request.IncludeApps)
 
 	if err != nil {
 		impl.logger.Errorw("Error fetching cd pipelines",
 			"environmentId", request.EnvId,
-			"currentDeploymentAppType", string(deleteDeploymentType),
+			"currentDeploymentAppTypes", deleteDeploymentTypes,
 			"err", err)
 		return response, err
 	}
@@ -334,7 +334,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) TriggerDeploymentAfterTypeChange
 	var err error
 
 	cdPipelines, err := impl.pipelineRepository.FindActiveByEnvIdAndDeploymentType(request.EnvId,
-		string(request.DesiredDeploymentType), request.ExcludeApps, request.IncludeApps)
+		[]string{request.DesiredDeploymentType}, request.ExcludeApps, request.IncludeApps)
 
 	if err != nil {
 		impl.logger.Errorw("Error fetching cd pipelines",
@@ -604,7 +604,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentAppsForEnvironme
 
 	// fetch active pipelines from database for the given environment id and current deployment app type
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvIdAndDeploymentType(environmentId,
-		string(currentDeploymentAppType), exclusionList, includeApps)
+		[]string{currentDeploymentAppType}, exclusionList, includeApps)
 
 	deploymentConfigs := make([]*bean4.DeploymentConfig, 0)
 	for _, p := range pipelines {
