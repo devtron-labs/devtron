@@ -1,11 +1,11 @@
 # Copacetic
 
 ## Introduction
-The Copacetic plugin of Devtron helps you patch your container image vulnerabilities traced by the security scan Devtron performed on your container image. By integrating the **Copacetic** plugin into your workflow, and enabling the **Scan for vulnerabilities** at your **Build stage** you can:
-- Trace the vulnerabilities of your container images and the **Copacetic** plugin will automatically patch the container image vulnerabilities for you.
+The Copacetic plugin of Devtron helps you patch your container image vulnerabilities traced by the security scan Devtron performed on your container image. By integrating the **Copacetic** plugin into your workflow and enabling the **Scan for vulnerabilities** at your **Build stage**, you can:
+- Trace the vulnerabilities of your container images, and the **Copacetic** plugin will automatically patch the container image vulnerabilities for you.
 
 ### Prerequisites
-Before integrating the **Copacetic** plugin, make sure you have enabled **Scan for vulnerabilities** at the **Build stage** or integrated the **Code-Scan** plugin in the **Pre-build stage**.
+Before integrating the **Copacetic** plugin, install the `Vulnerability Scanning (Trivy/Clair)` integration from Devtron Stack Manager. Once the integration is installed, make sure you have enabled **Scan for vulnerabilities** at the **Build stage** or integrated the **Code-Scan** plugin in the **Pre-build stage**.
 
 ---
 
