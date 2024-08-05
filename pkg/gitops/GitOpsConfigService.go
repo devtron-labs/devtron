@@ -276,13 +276,6 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 
 	if model.EnableTLSVerification {
 
-		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			impl.logger.Errorw("error in getting acd token", "err", err)
-			return nil, err
-		}
-		ctx = context.WithValue(ctx, "token", acdToken)
-
 		err = impl.gitOperationService.UpdateGitHostUrlByProvider(request)
 		if err != nil {
 			return nil, err
