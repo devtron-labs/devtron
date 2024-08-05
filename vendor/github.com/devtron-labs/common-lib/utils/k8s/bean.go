@@ -119,6 +119,7 @@ type K8sApiResource struct {
 	Gvk        schema.GroupVersionKind     `json:"gvk"`
 	Gvr        schema.GroupVersionResource `json:"gvr"`
 	Namespaced bool                        `json:"namespaced"`
+	ShortNames []string                    `json:"shortNames"`
 }
 
 type ApplyResourcesRequest struct {

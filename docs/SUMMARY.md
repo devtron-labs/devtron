@@ -141,6 +141,7 @@
     * [GoLang-migrate](user-guide/plugins/golang-migrate.md)
     * [Jenkins](user-guide/plugins/jenkins.md)
     * [K6 Load Testing](user-guide/plugins/k6-load-testing.md)
+    * [Pull images from container repository](user-guide/plugins/pull-images-from-container-repository.md)
     * [Semgrep](user-guide/plugins/semgrep.md)
     * [SonarQube](user-guide/plugins/sonarqube.md)
     * [SonarQube v1.1.0](user-guide/plugins/sonarqube-v1.1.0.md)

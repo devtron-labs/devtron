@@ -1520,6 +1520,7 @@ func (impl *K8sServiceImpl) GetApiResources(restConfig *rest.Config, includeOnly
 						Resource: apiResourceFromK8s.Name,
 					},
 					Namespaced: apiResourceFromK8s.Namespaced,
+					ShortNames: apiResourceFromK8s.ShortNames,
 				})
 			}
 		}
