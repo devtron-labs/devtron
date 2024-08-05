@@ -14,17 +14,6 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: '3.x' 
-          
-      - if: github.event.label.name == 'pager-duty'
-        name: discord webhook
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.GH_ISSUES_DISCORD_WEBHOOK }}
-          DISCORD_WEBHOOK_FORUM: ${{ secrets.PAGERDUTY_DISCORD_WEBHOOK }}
-          ENABLE_FORUM: true
-        uses: devtron-labs/action-discord@master
-        with:
-          args: " ${{ github.event.issue.title }} ${{ github.event.issue.html_url }}"
-          
       - name: Check if pager-duty template is used
         if: ${{ contains(github.event.issue.labels.*.name, 'pager-duty') && contains(github.event.issue.labels.*.name, 'bug') }}
         run: |
