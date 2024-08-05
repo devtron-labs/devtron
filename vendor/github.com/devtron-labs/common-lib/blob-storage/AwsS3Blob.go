@@ -116,7 +116,7 @@ func downLoadFromS3(file *os.File, request *BlobStorageRequest, sess *session.Se
 	numBytes, err := downloader.Download(file, input)
 	if err != nil {
 		log.Println("Couldn't download cache file")
-		return false, 0, nil
+		return false, 0, err
 	}
 	log.Println("downloaded ", file.Name(), numBytes, " bytes ")
 

@@ -18,6 +18,7 @@ package argo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	"github.com/devtron-labs/authenticator/client"
@@ -27,7 +28,9 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	"github.com/devtron-labs/devtron/pkg/module"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 	apiv1 "k8s.io/api/core/v1"
@@ -70,12 +73,14 @@ type ArgoUserServiceImpl struct {
 	versionService          argocdServer.VersionService
 	k8sUtil                 *k8s.K8sServiceImpl
 	gitOpsConfigReadService config.GitOpsConfigReadService
+	moduleService           module.ModuleService
 }
 
 func NewArgoUserServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService,
 	envVariables *util2.EnvironmentVariables, runTimeConfig *client.RuntimeConfig,
 	argoCDConnectionManager connection.ArgoCDConnectionManager, versionService argocdServer.VersionService,
-	k8sUtil *k8s.K8sServiceImpl, gitOpsConfigReadService config.GitOpsConfigReadService) (*ArgoUserServiceImpl, error) {
+	k8sUtil *k8s.K8sServiceImpl, gitOpsConfigReadService config.GitOpsConfigReadService,
+	moduleService module.ModuleService) (*ArgoUserServiceImpl, error) {
 	argoUserServiceImpl := &ArgoUserServiceImpl{
 		logger:                  Logger,
 		clusterService:          clusterService,
@@ -85,6 +90,7 @@ func NewArgoUserServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.Cl
 		versionService:          versionService,
 		k8sUtil:                 k8sUtil,
 		gitOpsConfigReadService: gitOpsConfigReadService,
+		moduleService:           moduleService,
 	}
 	if !runTimeConfig.LocalDevMode {
 		go argoUserServiceImpl.ValidateGitOpsAndGetOrUpdateArgoCdUserDetail()
@@ -205,15 +211,19 @@ func (impl *ArgoUserServiceImpl) createNewArgoCdTokenForDevtron(username, passwo
 
 // note: this function also called for no gitops case, where apps are installed via helm
 func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, error) {
-	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
-	if err != nil {
+
+	moduleInfo, err := impl.moduleService.GetModuleInfo(module.ModuleNameArgoCd)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error while checking if gitOps is configured", "err", err)
 		return "", err
 	}
-	if !gitOpsConfigurationStatus.IsGitOpsConfigured {
-		//here acd token only required in context for argo cd calls
+	if moduleInfo == nil {
+		return "", errors.New("argocd module not installed")
+	}
+	if moduleInfo.Status != connection.ModuleStatusInstalled {
 		return "", nil
 	}
+
 	k8sClient, err := impl.k8sUtil.GetClientForInCluster()
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client for default cluster", "err", err)
