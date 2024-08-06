@@ -199,7 +199,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request
 }
 
 func getOrderByQueryPart(sortBy securityBean.SortBy, sortOrder securityBean.SortOrder) string {
-	var sort, order string
+	var sort string
 	if sortBy == "appName" {
 		sort = "a.app_name"
 	} else if sortBy == "envName" {
@@ -213,7 +213,7 @@ func getOrderByQueryPart(sortBy securityBean.SortBy, sortOrder securityBean.Sort
 	if sortOrder != securityBean.Desc {
 		sortOrder = ""
 	}
-	return fmt.Sprintf(" ORDER BY %s %s ", sort, order)
+	return fmt.Sprintf(" ORDER BY %s %s ", sort, sortOrder)
 }
 
 func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithObject(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) string {
