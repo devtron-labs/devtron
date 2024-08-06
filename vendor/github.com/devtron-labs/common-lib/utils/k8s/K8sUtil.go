@@ -319,7 +319,11 @@ func (impl *K8sServiceImpl) deleteNs(namespace string, client *v12.CoreV1Client)
 }
 
 func (impl *K8sServiceImpl) GetConfigMap(namespace string, name string, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
-	cm, err := client.ConfigMaps(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	return impl.GetConfigMapWithCtx(context.Background(), namespace, name, client)
+}
+
+func (impl *K8sServiceImpl) GetConfigMapWithCtx(ctx context.Context, namespace string, name string, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
+	cm, err := client.ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in getting config map", "err", err)
 		return nil, err
@@ -416,7 +420,11 @@ type JsonPatchType struct {
 }
 
 func (impl *K8sServiceImpl) GetSecret(namespace string, name string, client *v12.CoreV1Client) (*v1.Secret, error) {
-	secret, err := client.Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	return impl.GetSecretWithCtx(context.Background(), namespace, name, client)
+}
+
+func (impl *K8sServiceImpl) GetSecretWithCtx(ctx context.Context, namespace string, name string, client *v12.CoreV1Client) (*v1.Secret, error) {
+	secret, err := client.Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in getting secrets", "err", err, "namespace", namespace)
 		return nil, err
