@@ -10,6 +10,14 @@ An immutable blob of data generated as an output after the execution of a job, b
 
 * Once a job is complete, you can view the job artifacts by going to Jobs → Run history (tab) → (choose a pipeline and date of triggering the build) → Artifacts (tab).
 
+### ArgoCD Apps
+
+ArgoCD Apps are the micro-services deployed using a [GitOps](#gitops) deployment tool named [Argo CD](https://argo-cd.readthedocs.io/en/stable/). 
+
+Devtron supports 'Helm' as well as 'GitOps' approach of deployment. Therefore, a user will be asked to choose any one of the deployment approach at the time of creating a deployment pipeline. If the user chooses GitOps, Devtron will use Argo CD to deploy that application. Once deployed, it will be visible in Applications → ArgoCD Apps (tab). 
+
+If other ArgoCD applications are present in your cluster, they will also appear in the `ArgoCD Apps` listing. 
+
 ### Base Deployment Template
 
 A deployment template is a manifest of the application defining its runtime behavior. You can select one of the default deployment charts or custom deployment charts created by super-admin.
