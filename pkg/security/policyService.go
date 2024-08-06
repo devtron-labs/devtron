@@ -457,6 +457,8 @@ func (impl *PolicyServiceImpl) SavePolicy(request bean.CreateVulnerabilityPolicy
 			severity = securityBean.Medium
 		} else if request.Severity == securityBean.LOW {
 			severity = securityBean.Low
+		} else if request.Severity == securityBean.UNKNOWN {
+			severity = securityBean.Unknown
 		} else {
 			return nil, fmt.Errorf("unsupported Severity %s", request.Severity)
 		}
