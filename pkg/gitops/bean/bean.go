@@ -17,12 +17,21 @@
 package bean
 
 type RepositoryCredentialsDto struct {
-	Url            string  `json:"url,omitempty"`
-	UsernameSecret *KeyDto `json:"usernameSecret,omitempty"`
-	PasswordSecret *KeyDto `json:"passwordSecret,omitempty"`
+	Url               string  `json:"url,omitempty"`
+	UsernameSecret    *KeyDto `json:"usernameSecret,omitempty"`
+	PasswordSecret    *KeyDto `json:"passwordSecret,omitempty"`
+	TLSClientCertData *KeyDto `json:"tlsClientCertData,omitempty"`
+	TLSClientCertKey  *KeyDto `json:"tlsClientCertKey,omitempty"`
 }
 
 type KeyDto struct {
 	Name string `json:"name,omitempty"`
 	Key  string `json:"key,omitempty"`
 }
+
+type GitOpsSecretKey = string
+
+const USERNAME GitOpsSecretKey = "username"
+const PASSWORD GitOpsSecretKey = "password"
+const TLSKey GitOpsSecretKey = "tlsKey"
+const TLSCert GitOpsSecretKey = "tlsCert"

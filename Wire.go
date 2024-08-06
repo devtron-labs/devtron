@@ -76,8 +76,10 @@ import (
 	"github.com/devtron-labs/devtron/cel"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
+	"github.com/devtron-labs/devtron/client/argocdServer/certificate"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/client/argocdServer/connection"
+	repocreds "github.com/devtron-labs/devtron/client/argocdServer/repocreds"
 	repository2 "github.com/devtron-labs/devtron/client/argocdServer/repository"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/cron"
@@ -974,6 +976,9 @@ func InitializeApp() (*App, error) {
 		imageDigestPolicy.NewImageDigestPolicyServiceImpl,
 		wire.Bind(new(imageDigestPolicy.ImageDigestPolicyService), new(*imageDigestPolicy.ImageDigestPolicyServiceImpl)),
 
+		certificate.NewServiceClientImpl,
+		wire.Bind(new(certificate.Client), new(*certificate.ServiceClientImpl)),
+
 		appStoreRestHandler.AppStoreWireSet,
 
 		cel.NewCELServiceImpl,
@@ -984,6 +989,9 @@ func InitializeApp() (*App, error) {
 
 		common.NewDeploymentConfigServiceImpl,
 		wire.Bind(new(common.DeploymentConfigService), new(*common.DeploymentConfigServiceImpl)),
+
+		repocreds.NewServiceClientImpl,
+		wire.Bind(new(repocreds.ServiceClient), new(*repocreds.ServiceClientImpl)),
 	)
 	return &App{}, nil
 }

@@ -18,6 +18,7 @@ package git
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/util/retryFunc"
@@ -39,10 +40,12 @@ type GitHubClient struct {
 }
 
 func NewGithubClient(host string, token string, org string, logger *zap.SugaredLogger,
-	gitOpsHelper *GitOpsHelper) (GitHubClient, error) {
+	gitOpsHelper *GitOpsHelper, tlsConfig *tls.Config) (GitHubClient, error) {
 	ctx := context.Background()
-	httpTransport := &http2.Transport{Proxy: http2.ProxyFromEnvironment}
+
+	httpTransport := &http2.Transport{Proxy: http2.ProxyFromEnvironment, TLSClientConfig: tlsConfig}
 	httpClient := &http2.Client{Transport: httpTransport}
+
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
 	)

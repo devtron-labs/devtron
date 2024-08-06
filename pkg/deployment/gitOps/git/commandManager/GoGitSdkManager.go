@@ -48,9 +48,14 @@ func (impl GoGitSDKManagerImpl) Pull(ctx GitContext, repoRoot string) (err error
 		return err
 	}
 	//-----------pull
-	err = workTree.PullContext(ctx, &git.PullOptions{
+	pullOptions := &git.PullOptions{
 		Auth: ctx.auth.ToBasicAuth(),
-	})
+	}
+	if len(ctx.CACert) > 0 {
+		pullOptions.CABundle = []byte(ctx.CACert)
+	}
+
+	err = workTree.PullContext(ctx, pullOptions)
 	if err != nil && err.Error() == "already up-to-date" {
 		err = nil
 		return nil
@@ -99,9 +104,15 @@ func (impl GoGitSDKManagerImpl) CommitAndPush(ctx GitContext, repoRoot, commitMs
 	}
 	impl.logger.Debugw("git hash", "repo", repoRoot, "hash", commit.String())
 	//-----------push
-	err = repo.PushContext(ctx, &git.PushOptions{
+
+	pushOptions := &git.PushOptions{
 		Auth: ctx.auth.ToBasicAuth(),
-	})
+	}
+	if len(ctx.CACert) > 0 {
+		pushOptions.CABundle = []byte(ctx.CACert)
+	}
+
+	err = repo.PushContext(ctx, pushOptions)
 	return commit.String(), err
 }
 func (auth *BasicAuth) ToBasicAuth() *http.BasicAuth {
