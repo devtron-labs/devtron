@@ -31,7 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
-	bean2 "github.com/devtron-labs/devtron/pkg/bean"
+	appBean "github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
@@ -55,6 +55,7 @@ import (
 	"github.com/tidwall/sjson"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+	k8sApiV1 "k8s.io/api/core/v1"
 	"net/http"
 	"strings"
 	"time"
@@ -268,7 +269,8 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 		mergedValues, err = impl.updatedExternalCmCsHashForTrigger(newCtx, overrideRequest.ClusterId,
 			envOverride.Namespace, mergedValues, configMapJson.ExternalCmList, configMapJson.ExternalCsList)
 		if err != nil {
-			impl.logger.Errorw("error in autoscaling check before trigger", "pipelineId", overrideRequest.PipelineId, "err", err)
+			impl.logger.Errorw("error in updating external cm cs hash for trigger",
+				"clusterId", overrideRequest.ClusterId, "namespace", envOverride.Namespace, "err", err)
 			return valuesOverrideResponse, err
 		}
 		mergedValues, err = impl.autoscalingCheckBeforeTrigger(newCtx, appName, envOverride.Namespace, mergedValues, overrideRequest)
@@ -910,90 +912,60 @@ func (impl *ManifestCreationServiceImpl) getArgoCdHPAResourceManifest(ctx contex
 	return resourceManifest, nil
 }
 
+// updateHashToMergedValues
+//   - Generates hash from the given configOrSecretData (map[string]*v1.ConfigMap | map[string]*v1.Secret)
+//   - And updates the hash in bean.JsonPath (JSON path) for the merged values
+//   - Returns the updated merged values
+func updateHashToMergedValues[T map[string]*k8sApiV1.ConfigMap | map[string]*k8sApiV1.Secret](merged []byte, path appBean.JsonPath, configOrSecretData T) ([]byte, error) {
+	mergedByteData, err := json.Marshal(configOrSecretData)
+	if err != nil {
+		return merged, err
+	}
+	hash := fmt.Sprintf("%x", sha256.Sum256(mergedByteData))
+	mergedString, err := sjson.Set(string(merged), path.String(), hash)
+	if err != nil {
+		return merged, err
+	}
+	return []byte(mergedString), nil
+}
+
+// updatedExternalCmCsHashForTrigger
+//   - Fetches all the external configmaps and secrets from the given externalCmList and externalCsList
+//   - Generates hash from the fetched configmaps and secrets and updates the hash in the merged values
+//   - Returns - the updated merged values
 func (impl *ManifestCreationServiceImpl) updatedExternalCmCsHashForTrigger(ctx context.Context, clusterId int, namespace string, merged []byte, externalCmList, externalCsList []string) ([]byte, error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.updatedExternalCmCsHashForTrigger")
 	defer span.End()
-	mergedConfigData := make(map[string]interface{})
-	mergedSecretData := make(map[string]interface{})
-	request := k8s.NewCmCsRequestBean(clusterId, namespace)
 	if len(externalCmList) > 0 {
-		configMaps, err := impl.k8sCommonService.GetAllConfigMaps(newCtx, request)
+		request := k8s.NewCmCsRequestBean(clusterId, namespace).
+			SetExternalCmList(externalCmList...)
+		configMaps, err := impl.k8sCommonService.GetDataFromConfigMaps(newCtx, request)
 		if err != nil {
-			impl.logger.Errorw("error in fetching all configmaps", "err", err)
-			return merged, err
+			impl.logger.Errorw("error in fetching all configmaps", "request", request, "err", err)
+			return merged, k8s.ParseK8sClientErrorToApiError(err)
 		}
-		externalCmMap := make(map[string]bool)
-		for _, externalCmName := range externalCmList {
-			externalCmMap[externalCmName] = false
-		}
-		for _, cm := range configMaps.Items {
-			if _, ok := externalCmMap[cm.Name]; ok {
-				mergedConfigData[cm.Name] = cm.Data
-				externalCmMap[cm.Name] = true
-			}
-		}
-		for externalCmName, found := range externalCmMap {
-			if !found {
-				impl.logger.Warnw("config-map not found in namespace", "namespace", namespace, "secretName", externalCmName)
-				return merged, util.NewApiError().
-					WithHttpStatusCode(http.StatusPreconditionFailed).
-					WithUserDetailMessage(fmt.Sprintf("config-map '%s' not found in namespace '%s'", externalCmName, namespace)).
-					WithInternalMessage("config-map not found in namespace")
-			}
-		}
-		if mergedConfigData != nil {
-			mergedByteData, err := json.Marshal(mergedConfigData)
+		if configMaps != nil {
+			merged, err = updateHashToMergedValues(merged, appBean.ConfigHashPathKey, configMaps)
 			if err != nil {
-				impl.logger.Errorw("error in marshalling merged data", "err", err)
+				impl.logger.Errorw("error in updating hash for configmaps", "err", err)
 				return merged, err
 			}
-			configHash := fmt.Sprintf("%x", sha256.Sum256(mergedByteData))
-			mergedString, err := sjson.Set(string(merged), bean2.ConfigHashPathKey, configHash)
-			if err != nil {
-				impl.logger.Errorw("error in setting config hash", "err", err)
-				return merged, err
-			}
-			merged = []byte(mergedString)
 		}
 	}
 	if len(externalCsList) > 0 {
-		secrets, err := impl.k8sCommonService.GetAllSecrets(newCtx, request)
+		request := k8s.NewCmCsRequestBean(clusterId, namespace).
+			SetExternalCsList(externalCsList...)
+		secrets, err := impl.k8sCommonService.GetDataFromSecrets(newCtx, request)
 		if err != nil {
-			impl.logger.Errorw("error in fetching all configmaps", "err", err)
-			return merged, err
+			impl.logger.Errorw("error in fetching all configmaps", "request", request, "err", err)
+			return merged, k8s.ParseK8sClientErrorToApiError(err)
 		}
-		externalCsMap := make(map[string]bool)
-		for _, externalCsName := range externalCsList {
-			externalCsMap[externalCsName] = false
-		}
-		for _, cs := range secrets.Items {
-			if _, ok := externalCsMap[cs.Name]; ok {
-				mergedSecretData[cs.Name] = cs.Data
-				externalCsMap[cs.Name] = true
-			}
-		}
-		for externalCsName, found := range externalCsMap {
-			if !found {
-				impl.logger.Warnw("secret not found in namespace", "namespace", namespace, "secretName", externalCsName)
-				return merged, util.NewApiError().
-					WithHttpStatusCode(http.StatusPreconditionFailed).
-					WithUserDetailMessage(fmt.Sprintf("secret '%s' not found in namespace '%s'", externalCsName, namespace)).
-					WithInternalMessage("secret not found in namespace")
-			}
-		}
-		if mergedSecretData != nil {
-			mergedByteData, err := json.Marshal(mergedSecretData)
+		if secrets != nil {
+			merged, err = updateHashToMergedValues(merged, appBean.SecretHashPathKey, secrets)
 			if err != nil {
-				impl.logger.Errorw("error in marshalling merged data", "err", err)
+				impl.logger.Errorw("error in updating hash for secrets", "err", err)
 				return merged, err
 			}
-			secretHash := fmt.Sprintf("%x", sha256.Sum256(mergedByteData))
-			mergedString, err := sjson.Set(string(merged), bean2.SecretHashPathKey, secretHash)
-			if err != nil {
-				impl.logger.Errorw("error in setting secret hash", "err", err, secretHash, "secretHash")
-				return merged, err
-			}
-			merged = []byte(mergedString)
 		}
 	}
 	return merged, nil
@@ -1050,26 +1022,26 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 	}
 
 	//check for custom chart support
-	if autoscalingEnabledPath, ok := templateMap[bean2.CustomAutoScalingEnabledPathKey]; ok {
+	if autoscalingEnabledPath, ok := templateMap[appBean.CustomAutoScalingEnabledPathKey]; ok {
 		if deploymentType == models.DEPLOYMENTTYPE_STOP {
-			merged, err = helper.SetScalingValues(templateMap, bean2.CustomAutoScalingEnabledPathKey, merged, false)
+			merged, err = helper.SetScalingValues(templateMap, appBean.CustomAutoScalingEnabledPathKey, merged, false)
 			if err != nil {
 				impl.logger.Errorw("error occurred while setting autoscaling enabled key", "templateMap", templateMap, "err", err)
 				return merged, err
 			}
-			merged, err = helper.SetScalingValues(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged, 0)
+			merged, err = helper.SetScalingValues(templateMap, appBean.CustomAutoscalingReplicaCountPathKey, merged, 0)
 			if err != nil {
 				impl.logger.Errorw("error occurred while setting autoscaling replica count key", "templateMap", templateMap, "err", err)
 				return merged, err
 			}
 
-			merged, err = helper.SetScalingValues(templateMap, bean2.CustomAutoscalingMinPathKey, merged, 0)
+			merged, err = helper.SetScalingValues(templateMap, appBean.CustomAutoscalingMinPathKey, merged, 0)
 			if err != nil {
 				impl.logger.Errorw("error occurred while setting autoscaling min key", "templateMap", templateMap, "err", err)
 				return merged, err
 			}
 
-			merged, err = helper.SetScalingValues(templateMap, bean2.CustomAutoscalingMaxPathKey, merged, 0)
+			merged, err = helper.SetScalingValues(templateMap, appBean.CustomAutoscalingMaxPathKey, merged, 0)
 			if err != nil {
 				impl.logger.Errorw("error occurred while setting autoscaling max key", "templateMap", templateMap, "err", err)
 				return merged, err
@@ -1086,7 +1058,7 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 				if err != nil {
 					return merged, err
 				}
-				merged, err = helper.SetScalingValues(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged, replicaCount)
+				merged, err = helper.SetScalingValues(templateMap, appBean.CustomAutoscalingReplicaCountPathKey, merged, replicaCount)
 				if err != nil {
 					impl.logger.Errorw("error occurred while setting autoscaling key", "templateMap", templateMap, "err", err)
 					return merged, err
@@ -1099,34 +1071,34 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 }
 
 func (impl *ManifestCreationServiceImpl) getReplicaCountFromCustomChart(templateMap map[string]interface{}, merged []byte) (float64, error) {
-	autoscalingMinVal, err := helper.ExtractParamValue(templateMap, bean2.CustomAutoscalingMinPathKey, merged)
+	autoscalingMinVal, err := helper.ExtractParamValue(templateMap, appBean.CustomAutoscalingMinPathKey, merged)
 	if helper.IsNotFoundErr(err) {
 		return 0, util.NewApiError().
 			WithHttpStatusCode(http.StatusPreconditionFailed).
 			WithInternalMessage(helper.KeyNotFoundError).
-			WithUserDetailMessage(fmt.Sprintf("empty value for key [%s]", bean2.CustomAutoscalingMinPathKey))
+			WithUserDetailMessage(fmt.Sprintf("empty value for key [%s]", appBean.CustomAutoscalingMinPathKey))
 	} else if err != nil {
-		impl.logger.Errorw("error occurred while parsing float number", "key", bean2.CustomAutoscalingMinPathKey, "err", err)
+		impl.logger.Errorw("error occurred while parsing float number", "key", appBean.CustomAutoscalingMinPathKey, "err", err)
 		return 0, err
 	}
-	autoscalingMaxVal, err := helper.ExtractParamValue(templateMap, bean2.CustomAutoscalingMaxPathKey, merged)
+	autoscalingMaxVal, err := helper.ExtractParamValue(templateMap, appBean.CustomAutoscalingMaxPathKey, merged)
 	if helper.IsNotFoundErr(err) {
 		return 0, util.NewApiError().
 			WithHttpStatusCode(http.StatusPreconditionFailed).
 			WithInternalMessage(helper.KeyNotFoundError).
-			WithUserDetailMessage(fmt.Sprintf("empty value for key [%s]", bean2.CustomAutoscalingMaxPathKey))
+			WithUserDetailMessage(fmt.Sprintf("empty value for key [%s]", appBean.CustomAutoscalingMaxPathKey))
 	} else if err != nil {
-		impl.logger.Errorw("error occurred while parsing float number", "key", bean2.CustomAutoscalingMaxPathKey, "err", err)
+		impl.logger.Errorw("error occurred while parsing float number", "key", appBean.CustomAutoscalingMaxPathKey, "err", err)
 		return 0, err
 	}
-	autoscalingReplicaCountVal, err := helper.ExtractParamValue(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged)
+	autoscalingReplicaCountVal, err := helper.ExtractParamValue(templateMap, appBean.CustomAutoscalingReplicaCountPathKey, merged)
 	if helper.IsNotFoundErr(err) {
 		return 0, util.NewApiError().
 			WithHttpStatusCode(http.StatusPreconditionFailed).
 			WithInternalMessage(helper.KeyNotFoundError).
-			WithUserDetailMessage(fmt.Sprintf("empty value for key [%s]", bean2.CustomAutoscalingReplicaCountPathKey))
+			WithUserDetailMessage(fmt.Sprintf("empty value for key [%s]", appBean.CustomAutoscalingReplicaCountPathKey))
 	} else if err != nil {
-		impl.logger.Errorw("error occurred while parsing float number", "key", bean2.CustomAutoscalingReplicaCountPathKey, "err", err)
+		impl.logger.Errorw("error occurred while parsing float number", "key", appBean.CustomAutoscalingReplicaCountPathKey, "err", err)
 		return 0, err
 	}
 	return helper.FetchRequiredReplicaCount(autoscalingReplicaCountVal, autoscalingMaxVal, autoscalingMinVal), nil

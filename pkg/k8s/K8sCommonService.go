@@ -24,7 +24,7 @@ import (
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/bean"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
-	util2 "github.com/devtron-labs/devtron/internal/util"
+	internalUtil "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
@@ -33,7 +33,6 @@ import (
 	"go.uber.org/zap"
 	apiV1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
@@ -48,8 +47,8 @@ import (
 
 type K8sCommonService interface {
 	GetResource(ctx context.Context, request *ResourceRequestBean) (resp *ResourceGetResponse, err error)
-	GetAllConfigMaps(ctx context.Context, request *CmCsRequestBean) (*apiV1.ConfigMapList, error)
-	GetAllSecrets(ctx context.Context, request *CmCsRequestBean) (*apiV1.SecretList, error)
+	GetDataFromConfigMaps(ctx context.Context, request *CmCsRequestBean) (map[string]*apiV1.ConfigMap, error)
+	GetDataFromSecrets(ctx context.Context, request *CmCsRequestBean) (map[string]*apiV1.Secret, error)
 	UpdateResource(ctx context.Context, request *ResourceRequestBean) (resp *k8s.ManifestResponse, err error)
 	DeleteResource(ctx context.Context, request *ResourceRequestBean) (resp *k8s.ManifestResponse, err error)
 	ListEvents(ctx context.Context, request *ResourceRequestBean) (*k8s.EventsResponse, error)
@@ -126,32 +125,52 @@ func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *Reso
 	return response, nil
 }
 
-func (impl *K8sCommonServiceImpl) GetAllConfigMaps(ctx context.Context, request *CmCsRequestBean) (*apiV1.ConfigMapList, error) {
-	_, v1Client, err := impl.GetCoreClientByClusterId(request.ClusterId)
+func (impl *K8sCommonServiceImpl) GetDataFromConfigMaps(ctx context.Context, request *CmCsRequestBean) (map[string]*apiV1.ConfigMap, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "K8sCommonServiceImpl.GetDataFromConfigMaps")
+	defer span.End()
+	response := make(map[string]*apiV1.ConfigMap, len(request.GetExternalCmList()))
+	if len(request.GetExternalCmList()) == 0 {
+		return response, nil
+	}
+	_, v1Client, err := impl.GetCoreClientByClusterId(request.GetClusterId())
 	if err != nil {
-		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", request.ClusterId, "err", err)
+		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", request.clusterId, "err", err)
 		return nil, err
 	}
-	resp, err := impl.K8sUtil.GetAllConfigMaps(ctx, request.Namespace, v1Client, metaV1.ListOptions{})
-	if err != nil {
-		impl.logger.Errorw("error in getting all configMaps", "namespace", request.Namespace, "err", err)
-		return nil, err
+	// using for loop instead of getting all configMaps at once since request.GetExternalCmList() will be small
+	for _, cmName := range request.GetExternalCmList() {
+		configMap, err := impl.K8sUtil.GetConfigMap(request.GetNamespace(), cmName, v1Client)
+		if err != nil {
+			impl.logger.Errorw("error in getting configMap", "namespace", request.GetNamespace(), "cmName", cmName, "err", err)
+			return nil, err
+		}
+		response[cmName] = configMap
 	}
-	return resp, nil
+	return response, nil
 }
 
-func (impl *K8sCommonServiceImpl) GetAllSecrets(ctx context.Context, request *CmCsRequestBean) (*apiV1.SecretList, error) {
-	_, v1Client, err := impl.GetCoreClientByClusterId(request.ClusterId)
+func (impl *K8sCommonServiceImpl) GetDataFromSecrets(ctx context.Context, request *CmCsRequestBean) (map[string]*apiV1.Secret, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "K8sCommonServiceImpl.GetDataFromConfigMaps")
+	defer span.End()
+	response := make(map[string]*apiV1.Secret, len(request.GetExternalCmList()))
+	if len(request.GetExternalCsList()) == 0 {
+		return response, nil
+	}
+	_, v1Client, err := impl.GetCoreClientByClusterId(request.GetClusterId())
 	if err != nil {
-		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", request.ClusterId, "err", err)
+		impl.logger.Errorw("error in getting coreV1 client by clusterId", "clusterId", request.clusterId, "err", err)
 		return nil, err
 	}
-	resp, err := impl.K8sUtil.GetAllSecrets(ctx, request.Namespace, v1Client, metaV1.ListOptions{})
-	if err != nil {
-		impl.logger.Errorw("error in getting all configMaps", "namespace", request.Namespace, "err", err)
-		return nil, err
+	// using for loop instead of getting all secrets at once since request.GetExternalCsList() will be small
+	for _, csName := range request.GetExternalCsList() {
+		secret, err := impl.K8sUtil.GetSecret(request.GetNamespace(), csName, v1Client)
+		if err != nil {
+			impl.logger.Errorw("error in getting configMap", "namespace", request.namespace, "csName", csName, "err", err)
+			return nil, err
+		}
+		response[csName] = secret
 	}
-	return resp, nil
+	return response, nil
 }
 
 func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *ResourceRequestBean) (*k8s.ManifestResponse, error) {
@@ -168,7 +187,7 @@ func (impl *K8sCommonServiceImpl) UpdateResource(ctx context.Context, request *R
 		impl.logger.Errorw("error in updating resource", "err", err, "clusterId", clusterId)
 		statusError, ok := err.(*errors.StatusError)
 		if ok {
-			err = &util2.ApiError{Code: "400", HttpStatusCode: int(statusError.ErrStatus.Code), UserMessage: statusError.Error()}
+			err = &internalUtil.ApiError{Code: "400", HttpStatusCode: int(statusError.ErrStatus.Code), UserMessage: statusError.Error()}
 		}
 		return nil, err
 	}

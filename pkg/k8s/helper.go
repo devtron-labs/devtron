@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Masterminds/semver"
+	"github.com/devtron-labs/devtron/internal/util"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"strings"
 )
@@ -43,6 +44,24 @@ func GetClientErrorMessage(err error) string {
 	return err.Error()
 }
 
+func ParseK8sClientErrorToApiError(err error) *util.ApiError {
+	if apiErr := (&util.ApiError{}); errors.As(err, &apiErr) {
+		// do not change the error if it is already an ApiError
+		return apiErr
+	}
+	// if error is of type k8sErrors.APIStatus, then extract the message from it
+	if status, ok := err.(k8sErrors.APIStatus); ok || errors.As(err, &status) {
+		return util.NewApiError().
+			WithHttpStatusCode(int(status.Status().Code)).
+			WithUserDetailMessage(status.Status().Message).
+			WithInternalMessage(status.Status().Message)
+	}
+	// generic error
+	return util.NewApiError().
+		WithUserDetailMessage(err.Error()).
+		WithInternalMessage(err.Error())
+}
+
 // StripPrereleaseFromK8sVersion takes in k8sVersion and stripe pre-release from semver version and return sanitized k8sVersion
 // or error if invalid version provided, e.g. if k8sVersion = "1.25.16-eks-b9c9ed7", then it returns "1.25.16".
 func StripPrereleaseFromK8sVersion(k8sVersion string) string {
@@ -59,8 +78,6 @@ func StripPrereleaseFromK8sVersion(k8sVersion string) string {
 }
 
 func NewCmCsRequestBean(clusterId int, namespace string) *CmCsRequestBean {
-	return &CmCsRequestBean{
-		ClusterId: clusterId,
-		Namespace: namespace,
-	}
+	req := &CmCsRequestBean{}
+	return req.SetClusterId(clusterId).SetNamespace(namespace)
 }
