@@ -397,16 +397,7 @@ Spec:
 
 affinity:
   enabled: false
-  values:
-    podAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-      - labelSelector:
-          matchExpressions:
-          - key: security
-            operator: In
-            values:
-            - S1
-        topologyKey: topology.kubernetes.io/zone     
+  values: {}
 
 ambassadorMapping:
   enabled: false
