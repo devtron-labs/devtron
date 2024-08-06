@@ -20,11 +20,19 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
+	helper2 "github.com/devtron-labs/devtron/pkg/plugin/helper"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
+	"github.com/devtron-labs/devtron/pkg/plugin/utils"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -58,20 +66,26 @@ const (
 
 type GlobalPluginService interface {
 	GetAllGlobalVariables(appType helper.AppType) ([]*GlobalVariable, error)
-	ListAllPlugins(stageTypeReq string) ([]*PluginListComponentDto, error)
-	GetPluginDetailById(pluginId int) (*PluginDetailDto, error)
+	ListAllPlugins(stageTypeReq string) ([]*bean2.PluginListComponentDto, error)
+	GetPluginDetailById(pluginId int) (*bean2.PluginDetailDto, error)
 	GetRefPluginIdByRefPluginName(pluginName string) (refPluginId int, err error)
-	PatchPlugin(pluginDto *PluginMetadataDto, userId int32) (*PluginMetadataDto, error)
-	GetDetailedPluginInfoByPluginId(pluginId int) (*PluginMetadataDto, error)
-	GetAllDetailedPluginInfo() ([]*PluginMetadataDto, error)
+	PatchPlugin(pluginDto *bean2.PluginMetadataDto, userId int32) (*bean2.PluginMetadataDto, error)
+	GetDetailedPluginInfoByPluginId(pluginId int) (*bean2.PluginMetadataDto, error)
+	GetAllDetailedPluginInfo() ([]*bean2.PluginMetadataDto, error)
+
+	ListAllPluginsV2(filter *bean2.PluginsListFilter) (*bean2.PluginsDto, error)
+	GetPluginDetailV2(pluginVersionIds, parentPluginIds []int, fetchAllVersionDetails bool) (*bean2.PluginsDto, error)
+	GetAllUniqueTags() (*bean2.PluginTagsDto, error)
+	MigratePluginData() error
 }
 
 func NewGlobalPluginService(logger *zap.SugaredLogger, globalPluginRepository repository.GlobalPluginRepository,
-	pipelineStageRepository repository2.PipelineStageRepository) *GlobalPluginServiceImpl {
+	pipelineStageRepository repository2.PipelineStageRepository, userService user.UserService) *GlobalPluginServiceImpl {
 	return &GlobalPluginServiceImpl{
 		logger:                  logger,
 		globalPluginRepository:  globalPluginRepository,
 		pipelineStageRepository: pipelineStageRepository,
+		userService:             userService,
 	}
 }
 
@@ -79,6 +93,7 @@ type GlobalPluginServiceImpl struct {
 	logger                  *zap.SugaredLogger
 	globalPluginRepository  repository.GlobalPluginRepository
 	pipelineStageRepository repository2.PipelineStageRepository
+	userService             user.UserService
 }
 
 func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables(appType helper.AppType) ([]*GlobalVariable, error) {
@@ -202,9 +217,9 @@ func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables(appType helper.AppTyp
 	return globalVariables, nil
 }
 
-func (impl *GlobalPluginServiceImpl) ListAllPlugins(stageTypeReq string) ([]*PluginListComponentDto, error) {
+func (impl *GlobalPluginServiceImpl) ListAllPlugins(stageTypeReq string) ([]*bean2.PluginListComponentDto, error) {
 	impl.logger.Infow("request received, ListAllPlugins")
-	var pluginDetails []*PluginListComponentDto
+	var pluginDetails []*bean2.PluginListComponentDto
 	pluginsMetadata := make([]*repository.PluginMetadata, 0)
 	var err error
 
@@ -216,7 +231,7 @@ func (impl *GlobalPluginServiceImpl) ListAllPlugins(stageTypeReq string) ([]*Plu
 			return nil, err
 		}
 	} else {
-		stageType, err := getStageType(stageTypeReq)
+		stageType, err := utils.GetStageType(stageTypeReq)
 		if err != nil {
 			return nil, err
 		}
@@ -237,7 +252,7 @@ func (impl *GlobalPluginServiceImpl) ListAllPlugins(stageTypeReq string) ([]*Plu
 		return nil, err
 	}
 	for _, pluginMetadata := range pluginsMetadata {
-		pluginMetadataDto := &PluginMetadataDto{
+		pluginMetadataDto := &bean2.PluginMetadataDto{
 			Id:          pluginMetadata.Id,
 			Name:        pluginMetadata.Name,
 			Type:        string(pluginMetadata.Type),
@@ -248,7 +263,7 @@ func (impl *GlobalPluginServiceImpl) ListAllPlugins(stageTypeReq string) ([]*Plu
 		if ok {
 			pluginMetadataDto.Tags = tags
 		}
-		pluginDetail := &PluginListComponentDto{
+		pluginDetail := &bean2.PluginListComponentDto{
 			PluginMetadataDto: pluginMetadataDto,
 			InputVariables:    pluginIdInputVariablesMap[pluginMetadata.Id],
 			OutputVariables:   pluginIdOutputVariablesMap[pluginMetadata.Id],
@@ -258,7 +273,7 @@ func (impl *GlobalPluginServiceImpl) ListAllPlugins(stageTypeReq string) ([]*Plu
 	return pluginDetails, nil
 }
 
-func (impl *GlobalPluginServiceImpl) GetPluginDetailById(pluginId int) (*PluginDetailDto, error) {
+func (impl *GlobalPluginServiceImpl) GetPluginDetailById(pluginId int) (*bean2.PluginDetailDto, error) {
 	impl.logger.Infow("request received, GetPluginDetail", "pluginId", pluginId)
 
 	//getting metadata
@@ -267,14 +282,14 @@ func (impl *GlobalPluginServiceImpl) GetPluginDetailById(pluginId int) (*PluginD
 		impl.logger.Errorw("error in getting plugins", "err", err, "pluginId", pluginId)
 		return nil, err
 	}
-	metadataDto := &PluginMetadataDto{
+	metadataDto := &bean2.PluginMetadataDto{
 		Id:          pluginMetadata.Id,
 		Name:        pluginMetadata.Name,
 		Type:        string(pluginMetadata.Type),
 		Description: pluginMetadata.Description,
 		Icon:        pluginMetadata.Icon,
 	}
-	pluginDetail := &PluginDetailDto{
+	pluginDetail := &bean2.PluginDetailDto{
 		Metadata: metadataDto,
 	}
 	pluginDetail.InputVariables, pluginDetail.OutputVariables, err = impl.getIOVariablesOfAPlugin(pluginMetadata.Id)
@@ -312,13 +327,13 @@ func (impl *GlobalPluginServiceImpl) getPluginIdTagsMap() (map[int][]string, err
 	return pluginIdTagsMap, nil
 }
 
-func (impl *GlobalPluginServiceImpl) getPluginIdVariablesMap() (map[int][]*PluginVariableDto, map[int][]*PluginVariableDto, error) {
+func (impl *GlobalPluginServiceImpl) getPluginIdVariablesMap() (map[int][]*bean2.PluginVariableDto, map[int][]*bean2.PluginVariableDto, error) {
 	variables, err := impl.globalPluginRepository.GetExposedVariablesForAllPlugins()
 	if err != nil {
 		impl.logger.Errorw("error in getting exposed vars for all plugins", "err", err)
 		return nil, nil, err
 	}
-	pluginIdInputVarsMap, pluginIdOutputVarsMap := make(map[int][]*PluginVariableDto), make(map[int][]*PluginVariableDto)
+	pluginIdInputVarsMap, pluginIdOutputVarsMap := make(map[int][]*bean2.PluginVariableDto), make(map[int][]*bean2.PluginVariableDto)
 	for _, variable := range variables {
 		variableDto := getVariableDto(variable)
 		if variable.VariableType == repository.PLUGIN_VARIABLE_TYPE_INPUT {
@@ -330,7 +345,7 @@ func (impl *GlobalPluginServiceImpl) getPluginIdVariablesMap() (map[int][]*Plugi
 	return pluginIdInputVarsMap, pluginIdOutputVarsMap, nil
 }
 
-func (impl *GlobalPluginServiceImpl) getIOVariablesOfAPlugin(pluginId int) (inputVariablesDto, outputVariablesDto []*PluginVariableDto, err error) {
+func (impl *GlobalPluginServiceImpl) getIOVariablesOfAPlugin(pluginId int) (inputVariablesDto, outputVariablesDto []*bean2.PluginVariableDto, err error) {
 	//getting exposed variables
 	pluginVariables, err := impl.globalPluginRepository.GetExposedVariablesByPluginId(pluginId)
 	if err != nil {
@@ -348,8 +363,8 @@ func (impl *GlobalPluginServiceImpl) getIOVariablesOfAPlugin(pluginId int) (inpu
 	return inputVariablesDto, outputVariablesDto, nil
 }
 
-func getVariableDto(pluginVariable *repository.PluginStepVariable) *PluginVariableDto {
-	return &PluginVariableDto{
+func getVariableDto(pluginVariable *repository.PluginStepVariable) *bean2.PluginVariableDto {
+	return &bean2.PluginVariableDto{
 		Id:                    pluginVariable.Id,
 		Name:                  pluginVariable.Name,
 		Format:                pluginVariable.Format,
@@ -377,24 +392,24 @@ func (impl *GlobalPluginServiceImpl) GetRefPluginIdByRefPluginName(pluginName st
 	return pluginMetadata[0].Id, nil
 }
 
-func (impl *GlobalPluginServiceImpl) PatchPlugin(pluginDto *PluginMetadataDto, userId int32) (*PluginMetadataDto, error) {
+func (impl *GlobalPluginServiceImpl) PatchPlugin(pluginDto *bean2.PluginMetadataDto, userId int32) (*bean2.PluginMetadataDto, error) {
 
 	switch pluginDto.Action {
-	case CREATEPLUGIN:
+	case bean2.CREATEPLUGIN:
 		pluginData, err := impl.createPlugin(pluginDto, userId)
 		if err != nil {
 			impl.logger.Errorw("error in creating plugin", "err", err, "pluginDto", pluginDto)
 			return nil, err
 		}
 		return pluginData, nil
-	case UPDATEPLUGIN:
+	case bean2.UPDATEPLUGIN:
 		pluginData, err := impl.updatePlugin(pluginDto, userId)
 		if err != nil {
 			impl.logger.Errorw("error in updating plugin", "err", err, "pluginDto", pluginDto)
 			return nil, err
 		}
 		return pluginData, nil
-	case DELETEPLUGIN:
+	case bean2.DELETEPLUGIN:
 		pluginData, err := impl.deletePlugin(pluginDto, userId)
 		if err != nil {
 			impl.logger.Errorw("error in deleting plugin", "err", err, "pluginDto", pluginDto)
@@ -409,7 +424,7 @@ func (impl *GlobalPluginServiceImpl) PatchPlugin(pluginDto *PluginMetadataDto, u
 	return nil, nil
 }
 
-func (impl *GlobalPluginServiceImpl) validatePluginRequest(pluginReq *PluginMetadataDto) error {
+func (impl *GlobalPluginServiceImpl) validatePluginRequest(pluginReq *bean2.PluginMetadataDto) error {
 	if len(pluginReq.Type) == 0 {
 		return errors.New("invalid plugin type, should be of the type PRESET or SHARED")
 	}
@@ -427,7 +442,7 @@ func (impl *GlobalPluginServiceImpl) validatePluginRequest(pluginReq *PluginMeta
 	return nil
 }
 
-func (impl *GlobalPluginServiceImpl) createPlugin(pluginReq *PluginMetadataDto, userId int32) (*PluginMetadataDto, error) {
+func (impl *GlobalPluginServiceImpl) createPlugin(pluginReq *bean2.PluginMetadataDto, userId int32) (*bean2.PluginMetadataDto, error) {
 	err := impl.validatePluginRequest(pluginReq)
 	if err != nil {
 		return nil, err
@@ -444,7 +459,7 @@ func (impl *GlobalPluginServiceImpl) createPlugin(pluginReq *PluginMetadataDto, 
 	//create entry in plugin_metadata
 	pluginMetadata := &repository.PluginMetadata{}
 	if pluginReq != nil {
-		pluginMetadata = pluginReq.getPluginMetadataSqlObj(userId)
+		pluginMetadata = pluginReq.GetPluginMetadataSqlObj(userId)
 	}
 	pluginMetadata, err = impl.globalPluginRepository.SavePluginMetadata(pluginMetadata, tx)
 	if err != nil {
@@ -453,9 +468,9 @@ func (impl *GlobalPluginServiceImpl) createPlugin(pluginReq *PluginMetadataDto, 
 	}
 	pluginReq.Id = pluginMetadata.Id
 	pluginStage := repository.CI_CD
-	if pluginReq.PluginStage == CI_TYPE_PLUGIN {
+	if pluginReq.PluginStage == bean2.CI_TYPE_PLUGIN {
 		pluginStage = repository.CI
-	} else if pluginReq.PluginStage == CD_TYPE_PLUGIN {
+	} else if pluginReq.PluginStage == bean2.CD_TYPE_PLUGIN {
 		pluginStage = repository.CD
 	}
 	pluginStageMapping := &repository.PluginStageMapping{
@@ -489,7 +504,7 @@ func (impl *GlobalPluginServiceImpl) createPlugin(pluginReq *PluginMetadataDto, 
 	return pluginReq, nil
 }
 
-func (impl *GlobalPluginServiceImpl) CreateNewPluginTagsAndRelationsIfRequired(pluginReq *PluginMetadataDto, isUpdateReq bool, userId int32, tx *pg.Tx) error {
+func (impl *GlobalPluginServiceImpl) CreateNewPluginTagsAndRelationsIfRequired(pluginReq *bean2.PluginMetadataDto, isUpdateReq bool, userId int32, tx *pg.Tx) error {
 	allPluginTags, err := impl.globalPluginRepository.GetAllPluginTags()
 	if err != nil {
 		impl.logger.Errorw("error in getting all plugin tags", "err", err)
@@ -561,7 +576,7 @@ func (impl *GlobalPluginServiceImpl) CreateNewPluginTagsAndRelationsIfRequired(p
 	return nil
 }
 
-func (impl *GlobalPluginServiceImpl) CreateScriptPathArgPortMappingForPluginInlineStep(scriptPathArgPortMappings []*ScriptPathArgPortMapping, pluginPipelineScriptId int, userId int32, tx *pg.Tx) error {
+func (impl *GlobalPluginServiceImpl) CreateScriptPathArgPortMappingForPluginInlineStep(scriptPathArgPortMappings []*bean2.ScriptPathArgPortMapping, pluginPipelineScriptId int, userId int32, tx *pg.Tx) error {
 	//fetch previous ScriptPathArgPortMapping by pluginPipelineScriptId and mark previous as deleted before creating new mappings
 	dbScriptPathArgPortMappings, err := impl.pipelineStageRepository.GetScriptMappingDetailByScriptId(pluginPipelineScriptId)
 	if err != nil {
@@ -629,7 +644,7 @@ func (impl *GlobalPluginServiceImpl) CreateScriptPathArgPortMappingForPluginInli
 	return nil
 }
 
-func (impl *GlobalPluginServiceImpl) UpdatePluginPipelineScript(dbPluginPipelineScript *repository.PluginPipelineScript, pluginPipelineScriptReq *PluginPipelineScript, userId int32, tx *pg.Tx) error {
+func (impl *GlobalPluginServiceImpl) UpdatePluginPipelineScript(dbPluginPipelineScript *repository.PluginPipelineScript, pluginPipelineScriptReq *bean2.PluginPipelineScript, userId int32, tx *pg.Tx) error {
 	dbPluginPipelineScript.Script = pluginPipelineScriptReq.Script
 	dbPluginPipelineScript.StoreScriptAt = pluginPipelineScriptReq.StoreScriptAt
 	dbPluginPipelineScript.Type = pluginPipelineScriptReq.Type
@@ -653,7 +668,7 @@ func (impl *GlobalPluginServiceImpl) UpdatePluginPipelineScript(dbPluginPipeline
 	return nil
 }
 
-func (impl *GlobalPluginServiceImpl) saveDeepPluginStepData(pluginMetadataId int, pluginStepsReq []*PluginStepsDto, userId int32, tx *pg.Tx) error {
+func (impl *GlobalPluginServiceImpl) saveDeepPluginStepData(pluginMetadataId int, pluginStepsReq []*bean2.PluginStepsDto, userId int32, tx *pg.Tx) error {
 	for _, pluginStep := range pluginStepsReq {
 		pluginStepData := &repository.PluginStep{
 			PluginId:            pluginMetadataId,
@@ -749,7 +764,7 @@ func (impl *GlobalPluginServiceImpl) saveDeepPluginStepData(pluginMetadataId int
 	return nil
 }
 
-func (impl *GlobalPluginServiceImpl) updatePlugin(pluginUpdateReq *PluginMetadataDto, userId int32) (*PluginMetadataDto, error) {
+func (impl *GlobalPluginServiceImpl) updatePlugin(pluginUpdateReq *bean2.PluginMetadataDto, userId int32) (*bean2.PluginMetadataDto, error) {
 	if len(pluginUpdateReq.Type) == 0 {
 		return nil, errors.New("invalid plugin type, should be of the type PRESET or SHARED")
 	}
@@ -785,9 +800,9 @@ func (impl *GlobalPluginServiceImpl) updatePlugin(pluginUpdateReq *PluginMetadat
 		return nil, err
 	}
 	pluginStage := repository.CI_CD
-	if pluginUpdateReq.PluginStage == CI_TYPE_PLUGIN {
+	if pluginUpdateReq.PluginStage == bean2.CI_TYPE_PLUGIN {
 		pluginStage = repository.CI
-	} else if pluginUpdateReq.PluginStage == CD_TYPE_PLUGIN {
+	} else if pluginUpdateReq.PluginStage == bean2.CD_TYPE_PLUGIN {
 		pluginStage = repository.CD
 	}
 	pluginStageMapping.StageType = pluginStage
@@ -863,10 +878,10 @@ func (impl *GlobalPluginServiceImpl) updatePlugin(pluginUpdateReq *PluginMetadat
 	return pluginUpdateReq, nil
 }
 
-func (impl *GlobalPluginServiceImpl) updateDeepPluginStepData(pluginStepsToUpdate []*PluginStepsDto, pluginStepVariables []*repository.PluginStepVariable,
+func (impl *GlobalPluginServiceImpl) updateDeepPluginStepData(pluginStepsToUpdate []*bean2.PluginStepsDto, pluginStepVariables []*repository.PluginStepVariable,
 	pluginStepConditions []*repository.PluginStepCondition, pluginSteps []*repository.PluginStep, userId int32, tx *pg.Tx) error {
 
-	pluginStepIdsToStepDtoMapping := make(map[int]*PluginStepsDto)
+	pluginStepIdsToStepDtoMapping := make(map[int]*bean2.PluginStepsDto)
 	for _, pluginStepUpdateReq := range pluginStepsToUpdate {
 		pluginStepIdsToStepDtoMapping[pluginStepUpdateReq.Id] = pluginStepUpdateReq
 	}
@@ -936,10 +951,10 @@ func (impl *GlobalPluginServiceImpl) updateDeepPluginStepData(pluginStepsToUpdat
 	return nil
 }
 
-func (impl *GlobalPluginServiceImpl) updateDeepPluginStepVariableData(pluginStepId int, pluginStepVariablesToUpdate []*PluginVariableDto,
+func (impl *GlobalPluginServiceImpl) updateDeepPluginStepVariableData(pluginStepId int, pluginStepVariablesToUpdate []*bean2.PluginVariableDto,
 	pluginStepVariables []*repository.PluginStepVariable, pluginStepConditions []*repository.PluginStepCondition, userId int32, tx *pg.Tx) error {
 
-	stepVariableIdsToStepVariableMapping := make(map[int]*PluginVariableDto)
+	stepVariableIdsToStepVariableMapping := make(map[int]*bean2.PluginVariableDto)
 	for _, stepVariable := range pluginStepVariablesToUpdate {
 		stepVariableIdsToStepVariableMapping[stepVariable.Id] = stepVariable
 	}
@@ -1066,7 +1081,7 @@ func (impl *GlobalPluginServiceImpl) updateDeepStepVariableConditionsData(stepVa
 	return nil
 }
 
-func filterPluginStepVariableConditions(stepVariableId int, pluginStepConditionsInDb []*repository.PluginStepCondition, pluginStepConditionReq []*PluginStepCondition, userId int32) ([]*repository.PluginStepCondition, []*repository.PluginStepCondition, []*repository.PluginStepCondition) {
+func filterPluginStepVariableConditions(stepVariableId int, pluginStepConditionsInDb []*repository.PluginStepCondition, pluginStepConditionReq []*bean2.PluginStepCondition, userId int32) ([]*repository.PluginStepCondition, []*repository.PluginStepCondition, []*repository.PluginStepCondition) {
 	newStepVariableConditionsToCreate := make([]*repository.PluginStepCondition, 0)
 	stepVariableConditionsToRemove := make([]*repository.PluginStepCondition, 0)
 	stepVariableConditionsToUpdate := make([]*repository.PluginStepCondition, 0)
@@ -1119,7 +1134,7 @@ func filterPluginStepVariableConditions(stepVariableId int, pluginStepConditions
 
 	return newStepVariableConditionsToCreate, stepVariableConditionsToRemove, stepVariableConditionsToUpdate
 }
-func getStepVariableConditionDbObject(stepVariableConditionReq *PluginStepCondition) *repository.PluginStepCondition {
+func getStepVariableConditionDbObject(stepVariableConditionReq *bean2.PluginStepCondition) *repository.PluginStepCondition {
 	stepVariableCondition := &repository.PluginStepCondition{
 		Id:                  stepVariableConditionReq.Id,
 		PluginStepId:        stepVariableConditionReq.PluginStepId,
@@ -1132,11 +1147,11 @@ func getStepVariableConditionDbObject(stepVariableConditionReq *PluginStepCondit
 	return stepVariableCondition
 }
 func filterPluginStepVariable(pluginStepId int, existingPluginStepVariables []*repository.PluginStepVariable,
-	pluginStepVariableUpdateReq []*PluginVariableDto, userId int32) ([]*PluginVariableDto, []*PluginVariableDto, []*PluginVariableDto) {
+	pluginStepVariableUpdateReq []*bean2.PluginVariableDto, userId int32) ([]*bean2.PluginVariableDto, []*bean2.PluginVariableDto, []*bean2.PluginVariableDto) {
 
-	newPluginStepVariablesToCreate := make([]*PluginVariableDto, 0)
-	pluginStepVariablesToRemove := make([]*PluginVariableDto, 0)
-	pluginStepVariablesToUpdate := make([]*PluginVariableDto, 0)
+	newPluginStepVariablesToCreate := make([]*bean2.PluginVariableDto, 0)
+	pluginStepVariablesToRemove := make([]*bean2.PluginVariableDto, 0)
+	pluginStepVariablesToUpdate := make([]*bean2.PluginVariableDto, 0)
 
 	stepIdToDbStepVariablesMapping := make(map[int][]*repository.PluginStepVariable)
 	for _, pluginStepVariableInDb := range existingPluginStepVariables {
@@ -1158,14 +1173,14 @@ func filterPluginStepVariable(pluginStepId int, existingPluginStepVariables []*r
 		}
 	} else if len(pluginStepVariableUpdateReq) < len(stepIdToDbStepVariablesMapping[pluginStepId]) {
 		//it means there are deleted variables in update request for a particular step, filter out plugin variables to delete
-		pluginStepVariableIdToStepVariableMapping := make(map[int]*PluginVariableDto)
+		pluginStepVariableIdToStepVariableMapping := make(map[int]*bean2.PluginVariableDto)
 		for _, stepVariableUpdateReq := range pluginStepVariableUpdateReq {
 			pluginStepVariableIdToStepVariableMapping[stepVariableUpdateReq.Id] = stepVariableUpdateReq
 		}
 
 		for _, existingStepVariable := range stepIdToDbStepVariablesMapping[pluginStepId] {
 			if _, ok := pluginStepVariableIdToStepVariableMapping[existingStepVariable.Id]; !ok {
-				pluginStepVariablesToRemove = append(pluginStepVariablesToRemove, &PluginVariableDto{Id: existingStepVariable.Id})
+				pluginStepVariablesToRemove = append(pluginStepVariablesToRemove, &bean2.PluginVariableDto{Id: existingStepVariable.Id})
 			} else {
 				pluginStepVariablesToUpdate = append(pluginStepVariablesToUpdate, pluginStepVariableIdToStepVariableMapping[existingStepVariable.Id])
 			}
@@ -1177,7 +1192,7 @@ func filterPluginStepVariable(pluginStepId int, existingPluginStepVariables []*r
 	return newPluginStepVariablesToCreate, pluginStepVariablesToRemove, pluginStepVariablesToUpdate
 }
 
-func (impl *GlobalPluginServiceImpl) saveDeepPluginStepVariableData(pluginStepId int, pluginStepVariablesToCreate []*PluginVariableDto, userId int32, tx *pg.Tx) error {
+func (impl *GlobalPluginServiceImpl) saveDeepPluginStepVariableData(pluginStepId int, pluginStepVariablesToCreate []*bean2.PluginVariableDto, userId int32, tx *pg.Tx) error {
 	for _, pluginStepVariable := range pluginStepVariablesToCreate {
 		pluginStepVariableData := &repository.PluginStepVariable{
 			PluginStepId:              pluginStepId,
@@ -1222,7 +1237,7 @@ func (impl *GlobalPluginServiceImpl) saveDeepPluginStepVariableData(pluginStepId
 	return nil
 }
 
-func (impl *GlobalPluginServiceImpl) deleteDeepPluginStepVariableData(pluginStepVariablesToDelete []*PluginVariableDto,
+func (impl *GlobalPluginServiceImpl) deleteDeepPluginStepVariableData(pluginStepVariablesToDelete []*bean2.PluginVariableDto,
 	pluginStepVariables []*repository.PluginStepVariable, pluginStepConditions []*repository.PluginStepCondition, userId int32, tx *pg.Tx) error {
 
 	stepVariablesToDeleteIdsMapping := make(map[int]bool)
@@ -1258,7 +1273,7 @@ func (impl *GlobalPluginServiceImpl) deleteDeepPluginStepVariableData(pluginStep
 	return nil
 }
 
-func (impl *GlobalPluginServiceImpl) deleteDeepPluginStepData(pluginStepsToRemove []*PluginStepsDto, pluginStepVariables []*repository.PluginStepVariable,
+func (impl *GlobalPluginServiceImpl) deleteDeepPluginStepData(pluginStepsToRemove []*bean2.PluginStepsDto, pluginStepVariables []*repository.PluginStepVariable,
 	pluginStepConditions []*repository.PluginStepCondition, pluginSteps []*repository.PluginStep, userId int32, tx *pg.Tx) error {
 	pluginStepsToRemoveIdsMapping := make(map[int]bool)
 	for _, pluginStepRemoveReq := range pluginStepsToRemove {
@@ -1338,10 +1353,10 @@ func (impl *GlobalPluginServiceImpl) deleteDeepPluginStepData(pluginStepsToRemov
 	return nil
 }
 
-func filterPluginStepData(existingPluginStepsInDb []*repository.PluginStep, pluginStepUpdateReq []*PluginStepsDto) ([]*PluginStepsDto, []*PluginStepsDto, []*PluginStepsDto) {
-	newPluginStepsToCreate := make([]*PluginStepsDto, 0)
-	pluginStepsToRemove := make([]*PluginStepsDto, 0)
-	pluginStepsToUpdate := make([]*PluginStepsDto, 0)
+func filterPluginStepData(existingPluginStepsInDb []*repository.PluginStep, pluginStepUpdateReq []*bean2.PluginStepsDto) ([]*bean2.PluginStepsDto, []*bean2.PluginStepsDto, []*bean2.PluginStepsDto) {
+	newPluginStepsToCreate := make([]*bean2.PluginStepsDto, 0)
+	pluginStepsToRemove := make([]*bean2.PluginStepsDto, 0)
+	pluginStepsToUpdate := make([]*bean2.PluginStepsDto, 0)
 
 	if len(pluginStepUpdateReq) > len(existingPluginStepsInDb) {
 		//new plugin step found
@@ -1357,13 +1372,13 @@ func filterPluginStepData(existingPluginStepsInDb []*repository.PluginStep, plug
 			}
 		}
 	} else if len(pluginStepUpdateReq) < len(existingPluginStepsInDb) {
-		pluginIdMapping := make(map[int]*PluginStepsDto)
+		pluginIdMapping := make(map[int]*bean2.PluginStepsDto)
 		for _, pluginStepReq := range pluginStepUpdateReq {
 			pluginIdMapping[pluginStepReq.Id] = pluginStepReq
 		}
 		for _, existingPluginStep := range existingPluginStepsInDb {
 			if _, ok := pluginIdMapping[existingPluginStep.Id]; !ok {
-				pluginStepsToRemove = append(pluginStepsToRemove, &PluginStepsDto{Id: existingPluginStep.Id})
+				pluginStepsToRemove = append(pluginStepsToRemove, &bean2.PluginStepsDto{Id: existingPluginStep.Id})
 			} else {
 				pluginStepsToUpdate = append(pluginStepsToUpdate, pluginIdMapping[existingPluginStep.Id])
 			}
@@ -1375,13 +1390,13 @@ func filterPluginStepData(existingPluginStepsInDb []*repository.PluginStep, plug
 	return newPluginStepsToCreate, pluginStepsToRemove, pluginStepsToUpdate
 }
 
-func (impl *GlobalPluginServiceImpl) GetAllDetailedPluginInfo() ([]*PluginMetadataDto, error) {
+func (impl *GlobalPluginServiceImpl) GetAllDetailedPluginInfo() ([]*bean2.PluginMetadataDto, error) {
 	allPlugins, err := impl.globalPluginRepository.GetAllPluginMetaData()
 	if err != nil {
 		impl.logger.Errorw("GetAllDetailedPluginInfo, error in getting all pluginsMetadata", "err", err)
 		return nil, err
 	}
-	allPluginMetadata := make([]*PluginMetadataDto, 0, len(allPlugins))
+	allPluginMetadata := make([]*bean2.PluginMetadataDto, 0, len(allPlugins))
 	for _, plugin := range allPlugins {
 		pluginDetailedInfo, err := impl.GetDetailedPluginInfoByPluginId(plugin.Id)
 		if err != nil {
@@ -1393,7 +1408,7 @@ func (impl *GlobalPluginServiceImpl) GetAllDetailedPluginInfo() ([]*PluginMetada
 	return allPluginMetadata, nil
 }
 
-func (impl *GlobalPluginServiceImpl) GetDetailedPluginInfoByPluginId(pluginId int) (*PluginMetadataDto, error) {
+func (impl *GlobalPluginServiceImpl) GetDetailedPluginInfoByPluginId(pluginId int) (*bean2.PluginMetadataDto, error) {
 
 	pluginMetaData, err := impl.globalPluginRepository.GetMetaDataByPluginId(pluginId)
 	if err != nil && err != pg.ErrNoRows {
@@ -1423,18 +1438,18 @@ func (impl *GlobalPluginServiceImpl) GetDetailedPluginInfoByPluginId(pluginId in
 		impl.logger.Errorw("GetDetailedPluginInfoByPluginId, error in getting pluginStepConditions", "pluginId", pluginId, "err", err)
 		return nil, err
 	}
-	pluginStage := CI_CD_TYPE_PLUGIN
+	pluginStage := bean2.CI_CD_TYPE_PLUGIN
 	if pluginStageMapping.StageType == repository.CI {
-		pluginStage = CI_TYPE_PLUGIN
+		pluginStage = bean2.CI_TYPE_PLUGIN
 	} else if pluginStageMapping.StageType == repository.CD {
-		pluginStage = CD_TYPE_PLUGIN
+		pluginStage = bean2.CD_TYPE_PLUGIN
 	}
 	pluginIdTagsMap, err := impl.getPluginIdTagsMap()
 	if err != nil {
 		impl.logger.Errorw("GetDetailedPluginInfoByPluginId, error in getting pluginIdTagsMap", "pluginId", pluginId, "err", err)
 		return nil, err
 	}
-	pluginMetadataResponse := &PluginMetadataDto{
+	pluginMetadataResponse := &bean2.PluginMetadataDto{
 		Id:          pluginMetaData.Id,
 		Name:        pluginMetaData.Name,
 		Description: pluginMetaData.Description,
@@ -1444,15 +1459,15 @@ func (impl *GlobalPluginServiceImpl) GetDetailedPluginInfoByPluginId(pluginId in
 		PluginStage: pluginStage,
 	}
 
-	pluginStepsResp := make([]*PluginStepsDto, 0)
-	scriptPathArgPortMapping := make([]*ScriptPathArgPortMapping, 0)
+	pluginStepsResp := make([]*bean2.PluginStepsDto, 0)
+	scriptPathArgPortMapping := make([]*bean2.ScriptPathArgPortMapping, 0)
 	for _, pluginStep := range pluginSteps {
 		pluginScript, err := impl.globalPluginRepository.GetScriptDetailById(pluginStep.ScriptId)
 		if err != nil {
 			impl.logger.Errorw("GetDetailedPluginInfoByPluginId, error in getting pluginScript", "pluginScriptId", pluginStep.ScriptId, "pluginId", pluginId, "err", err)
 			return nil, err
 		}
-		pluginScriptDto := &PluginPipelineScript{
+		pluginScriptDto := &bean2.PluginPipelineScript{
 			Id:                       pluginScript.Id,
 			Script:                   pluginScript.Script,
 			StoreScriptAt:            pluginScript.StoreScriptAt,
@@ -1474,7 +1489,7 @@ func (impl *GlobalPluginServiceImpl) GetDetailedPluginInfoByPluginId(pluginId in
 			return nil, err
 		}
 		for _, scriptMapping := range scriptPathArgPortMappings {
-			mapping := &ScriptPathArgPortMapping{
+			mapping := &bean2.ScriptPathArgPortMapping{
 				Id:                  scriptMapping.Id,
 				TypeOfMapping:       scriptMapping.TypeOfMapping,
 				FilePathOnDisk:      scriptMapping.FilePathOnDisk,
@@ -1489,7 +1504,7 @@ func (impl *GlobalPluginServiceImpl) GetDetailedPluginInfoByPluginId(pluginId in
 		}
 		pluginScriptDto.PathArgPortMapping = scriptPathArgPortMapping
 
-		pluginStepDto := &PluginStepsDto{
+		pluginStepDto := &bean2.PluginStepsDto{
 			Id:                   pluginStep.Id,
 			Name:                 pluginStep.Name,
 			Description:          pluginStep.Description,
@@ -1500,13 +1515,13 @@ func (impl *GlobalPluginServiceImpl) GetDetailedPluginInfoByPluginId(pluginId in
 			DependentOnStep:      pluginStep.DependentOnStep,
 			PluginPipelineScript: pluginScriptDto,
 		}
-		pluginStepVariableResp := make([]*PluginVariableDto, 0, len(pluginStepVariables))
+		pluginStepVariableResp := make([]*bean2.PluginVariableDto, 0, len(pluginStepVariables))
 		for _, pluginStepVariable := range pluginStepVariables {
 			if pluginStepVariable.PluginStepId == pluginStep.Id {
-				pluginStepConditionDto := make([]*PluginStepCondition, 0, len(pluginStepConditions))
+				pluginStepConditionDto := make([]*bean2.PluginStepCondition, 0, len(pluginStepConditions))
 				for _, pluginStepCondition := range pluginStepConditions {
 					if pluginStepCondition.ConditionVariableId == pluginStepVariable.Id {
-						pluginStepConditionDto = append(pluginStepConditionDto, &PluginStepCondition{
+						pluginStepConditionDto = append(pluginStepConditionDto, &bean2.PluginStepCondition{
 							Id:                  pluginStepCondition.Id,
 							PluginStepId:        pluginStepCondition.PluginStepId,
 							ConditionVariableId: pluginStepCondition.ConditionVariableId,
@@ -1517,7 +1532,7 @@ func (impl *GlobalPluginServiceImpl) GetDetailedPluginInfoByPluginId(pluginId in
 						})
 					}
 				}
-				pluginStepVariableResp = append(pluginStepVariableResp, &PluginVariableDto{
+				pluginStepVariableResp = append(pluginStepVariableResp, &bean2.PluginVariableDto{
 					Id:                        pluginStepVariable.Id,
 					Name:                      pluginStepVariable.Name,
 					Format:                    pluginStepVariable.Format,
@@ -1544,7 +1559,7 @@ func (impl *GlobalPluginServiceImpl) GetDetailedPluginInfoByPluginId(pluginId in
 	return pluginMetadataResponse, nil
 }
 
-func (impl *GlobalPluginServiceImpl) deletePlugin(pluginDeleteReq *PluginMetadataDto, userId int32) (*PluginMetadataDto, error) {
+func (impl *GlobalPluginServiceImpl) deletePlugin(pluginDeleteReq *bean2.PluginMetadataDto, userId int32) (*bean2.PluginMetadataDto, error) {
 	dbConnection := impl.globalPluginRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -1652,4 +1667,284 @@ func (impl *GlobalPluginServiceImpl) deletePlugin(pluginDeleteReq *PluginMetadat
 		return nil, err
 	}
 	return pluginDeleteReq, nil
+}
+
+func (impl *GlobalPluginServiceImpl) getUserIdToEmailMap(pluginVersionsMetadata []*repository.PluginMetadata) (map[int32]string, error) {
+	userIds := make([]int32, 0, len(pluginVersionsMetadata))
+	for _, versionMetadata := range pluginVersionsMetadata {
+		userIds = append(userIds, versionMetadata.UpdatedBy)
+	}
+
+	userIdVsEmailMap := make(map[int32]string, len(userIds))
+	allUsers, err := impl.userService.GetByIds(userIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting all user info", "err", err)
+		return nil, err
+	}
+	for _, user := range allUsers {
+		if _, ok := userIdVsEmailMap[user.Id]; !ok {
+			userIdVsEmailMap[user.Id] = user.EmailId
+		}
+	}
+	return userIdVsEmailMap, nil
+}
+
+// getPluginEntitiesIdToPluginEntitiesDtoMap returns two maps one is plugin parent ids vs plugin parent dto map and
+// another map is plugin version ids vs plugin version details map, also returns error if any else nil.
+func (impl *GlobalPluginServiceImpl) getPluginEntitiesIdToPluginEntitiesDtoMap(pluginVersionsMetadata []*repository.PluginMetadata, pluginsParentMetadata []*repository.PluginParentMetadata) (map[int]*bean2.PluginParentMetadataDto,
+	map[int]map[int]*bean2.PluginsVersionDetail, error) {
+
+	pluginParentIdVsPluginParentDtoMap, pluginParentIdMap := helper2.GetParentPluginDtoMappings(pluginsParentMetadata)
+
+	filteredPluginVersionMetadata := make([]*repository.PluginMetadata, 0, len(pluginVersionsMetadata))
+	for _, pluginVersion := range pluginVersionsMetadata {
+		if _, ok := pluginParentIdMap[pluginVersion.PluginParentMetadataId]; ok {
+			filteredPluginVersionMetadata = append(filteredPluginVersionMetadata, pluginVersion)
+		}
+	}
+
+	userIdVsEmailMap, err := impl.getUserIdToEmailMap(filteredPluginVersionMetadata)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	pluginVersionsVsPluginsVersionDetailMap := helper2.GetPluginVersionAndDetailsMapping(filteredPluginVersionMetadata, userIdVsEmailMap)
+
+	helper2.AppendMinimalVersionDetailsInParentMetadataDtos(pluginParentIdVsPluginParentDtoMap, pluginVersionsVsPluginsVersionDetailMap)
+
+	return pluginParentIdVsPluginParentDtoMap, pluginVersionsVsPluginsVersionDetailMap, nil
+}
+
+// GetPluginParentMetadataDtos populates PluginParentMetadataDto with all metadata(if a version is not latest then ignores populating heavy
+// objects such as input and output variables in the dto) and returns the same with error if any.
+func (impl *GlobalPluginServiceImpl) GetPluginParentMetadataDtos(parentIdVsPluginParentDtoMap map[int]*bean2.PluginParentMetadataDto,
+	versionIdVsPluginsVersionDetailMap map[int]map[int]*bean2.PluginsVersionDetail, pluginVersionsIdToInclude map[int]bool, fetchAllVersionDetails bool) ([]*bean2.PluginParentMetadataDto, error) {
+	//fetch input and output variables mappings
+	pluginIdInputVariablesMap, pluginIdOutputVariablesMap, err := impl.getPluginIdVariablesMap()
+	if err != nil {
+		impl.logger.Errorw("error, getPluginIdVariablesMap", "err", err)
+		return nil, err
+	}
+	pluginIdTagsMap, err := impl.getPluginIdTagsMap()
+	if err != nil {
+		impl.logger.Errorw("error, getPluginIdTagsMap", "err", err)
+		return nil, err
+	}
+
+	pluginParentMetadataDtos := make([]*bean2.PluginParentMetadataDto, 0, len(parentIdVsPluginParentDtoMap))
+
+	for parentPluginId, versionMap := range versionIdVsPluginsVersionDetailMap {
+		detailedPluginVersionsMetadataDtos := make([]*bean2.PluginsVersionDetail, 0, len(versionMap)) //contains detailed plugin version data
+
+		for pluginVersionId, versionDetail := range versionMap {
+			pluginVersionDetail := *versionDetail
+			if pluginVersionsIdToInclude != nil {
+				if _, ok := pluginVersionsIdToInclude[pluginVersionId]; !ok {
+					continue
+				}
+			}
+			if fetchAllVersionDetails || pluginVersionDetail.IsLatest {
+				inputVariables, ok := pluginIdInputVariablesMap[pluginVersionId]
+				if ok {
+					pluginVersionDetail.WithInputVariables(inputVariables)
+				}
+				outputVariables, ok := pluginIdOutputVariablesMap[pluginVersionId]
+				if ok {
+					pluginVersionDetail.WithOutputVariables(outputVariables)
+				}
+				tags, ok := pluginIdTagsMap[pluginVersionId]
+				if ok {
+					pluginVersionDetail.WithTags(tags)
+				}
+				detailedPluginVersionsMetadataDtos = append(detailedPluginVersionsMetadataDtos, &pluginVersionDetail)
+			}
+		}
+		parentIdVsPluginParentDtoMap[parentPluginId].Versions.WithDetailedPluginVersionData(detailedPluginVersionsMetadataDtos)
+	}
+
+	for _, pluginParentDto := range parentIdVsPluginParentDtoMap {
+		pluginParentMetadataDtos = append(pluginParentMetadataDtos, pluginParentDto)
+	}
+
+	return pluginParentMetadataDtos, nil
+}
+
+func (impl *GlobalPluginServiceImpl) ListAllPluginsV2(filter *bean2.PluginsListFilter) (*bean2.PluginsDto, error) {
+	impl.logger.Infow("request received, ListAllPluginsV2", "filter", filter)
+	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins()
+	if err != nil {
+		impl.logger.Errorw("ListAllPluginsV2, error in getting plugins", "err", err)
+		return nil, err
+	}
+
+	allPluginParentMetadata, err := impl.globalPluginRepository.GetAllFilteredPluginParentMetadata(filter.SearchKey, filter.Tags)
+	if err != nil {
+		impl.logger.Errorw("ListAllPluginsV2, error in getting all plugin parent metadata", "err", err)
+		return nil, err
+	}
+	if allPluginParentMetadata == nil {
+		return bean2.NewPluginsDto(), nil
+	}
+
+	paginatedPluginParentMetadata := helper2.PaginatePluginParentMetadata(allPluginParentMetadata, filter.Limit, filter.Offset)
+
+	parentIdVsPluginParentDtoMap, versionIdVsPluginsVersionDetailMap, err := impl.getPluginEntitiesIdToPluginEntitiesDtoMap(pluginVersionsMetadata, paginatedPluginParentMetadata)
+	if err != nil {
+		impl.logger.Errorw("ListAllPluginsV2, error in getPluginEntitiesIdToPluginEntitiesDtoMap", "err", err)
+		return nil, err
+	}
+
+	pluginParentMetadataDtos, err := impl.GetPluginParentMetadataDtos(parentIdVsPluginParentDtoMap, versionIdVsPluginsVersionDetailMap, nil, filter.FetchAllVersionDetails)
+	if err != nil {
+		impl.logger.Errorw("ListAllPluginsV2, error in getting plugin parent metadata dtos for plugin list", "err", err)
+		return nil, err
+	}
+
+	utils.SortParentMetadataDtoSliceByName(pluginParentMetadataDtos)
+	pluginDetails := bean2.NewPluginsDto().WithParentPlugins(pluginParentMetadataDtos).WithTotalCount(len(allPluginParentMetadata))
+
+	return pluginDetails, nil
+}
+
+// GetPluginDetailV2 returns all details of the of a plugin version according to the pluginVersionIds and parentPluginIds
+// provided by user, and minimal data for all versions of that plugin.
+func (impl *GlobalPluginServiceImpl) GetPluginDetailV2(pluginVersionIds, parentPluginIds []int, fetchAllVersionDetails bool) (*bean2.PluginsDto, error) {
+	pluginParentMetadataDtos := make([]*bean2.PluginParentMetadataDto, 0, len(pluginVersionIds)+len(parentPluginIds))
+	if len(pluginVersionIds) == 0 && len(parentPluginIds) == 0 {
+		return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: strconv.Itoa(http.StatusBadRequest), InternalMessage: bean2.NoPluginOrParentIdProvidedErr, UserMessage: bean2.NoPluginOrParentIdProvidedErr}
+	}
+	pluginVersionIdsMap, parentPluginIdsMap := helper2.GetPluginVersionAndParentPluginIdsMap(pluginVersionIds, parentPluginIds)
+
+	var err error
+	pluginParentMetadataIds := make([]int, 0, len(pluginVersionIds)+len(parentPluginIds))
+	pluginVersionsIdToInclude := make(map[int]bool, len(pluginVersionIds)+len(parentPluginIds))
+	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins()
+	if err != nil {
+		impl.logger.Errorw("GetPluginDetailV2, error in getting all plugins versions metadata", "err", err)
+		return nil, err
+	}
+
+	filteredPluginVersionMetadata := helper2.GetPluginVersionsMetadataByVersionAndParentPluginIds(pluginVersionsMetadata, pluginVersionIdsMap, parentPluginIdsMap)
+	if len(filteredPluginVersionMetadata) == 0 {
+		return nil, &util.ApiError{HttpStatusCode: http.StatusNotFound, Code: strconv.Itoa(http.StatusNotFound), InternalMessage: bean2.NoPluginFoundForThisSearchQueryErr, UserMessage: bean2.NoPluginFoundForThisSearchQueryErr}
+	}
+	for _, version := range filteredPluginVersionMetadata {
+		_, found := pluginVersionIdsMap[version.Id]
+		wantDetailedData := found || fetchAllVersionDetails || version.IsLatest
+		if wantDetailedData {
+			pluginVersionsIdToInclude[version.Id] = true
+		}
+		pluginParentMetadataIds = append(pluginParentMetadataIds, version.PluginParentMetadataId)
+	}
+
+	pluginParentDetails, err := impl.globalPluginRepository.GetPluginParentMetadataByIds(pluginParentMetadataIds)
+	if err != nil {
+		impl.logger.Errorw("GetPluginDetailV2, error in getting all plugin parent metadata by ids", "err", err)
+		return nil, err
+	}
+	parentIdVsPluginParentDtoMap, versionIdVsPluginsVersionDetailMap, err := impl.getPluginEntitiesIdToPluginEntitiesDtoMap(pluginVersionsMetadata, pluginParentDetails)
+	if err != nil {
+		impl.logger.Errorw("GetPluginDetailV2, error in getPluginEntitiesIdToPluginEntitiesDtoMap", "err", err)
+		return nil, err
+	}
+	pluginParentMetadataDtos, err = impl.GetPluginParentMetadataDtos(parentIdVsPluginParentDtoMap, versionIdVsPluginsVersionDetailMap, pluginVersionsIdToInclude, true)
+	if err != nil {
+		impl.logger.Errorw("GetPluginDetailV2, error in getting plugin parent metadata dtos by pluginParentMetadata ids", "pluginParentMetadataIds", pluginParentMetadataIds, "err", err)
+		return nil, err
+	}
+
+	pluginsDto := bean2.NewPluginsDto().WithParentPlugins(pluginParentMetadataDtos)
+	return pluginsDto, nil
+}
+
+func (impl *GlobalPluginServiceImpl) GetAllUniqueTags() (*bean2.PluginTagsDto, error) {
+	tags, err := impl.globalPluginRepository.GetAllPluginTags()
+	if err != nil {
+		impl.logger.Errorw("GetAllUniqueTags, error in getting all plugin tags", "err", err)
+		return nil, err
+	}
+	allUniqueTags := helper2.GetAllUniqueTags(tags)
+
+	return bean2.NewPluginTagsDto().WithTagNames(allUniqueTags), nil
+}
+
+func (impl *GlobalPluginServiceImpl) MigratePluginData() error {
+	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins()
+	if err != nil {
+		impl.logger.Errorw("MigratePluginData, error in getting plugins", "err", err)
+		return err
+	}
+	err = impl.MigratePluginDataToParentPluginMetadata(pluginVersionsMetadata)
+	if err != nil {
+		impl.logger.Errorw("MigratePluginData, error in migrating plugin data into parent metadata table", "err", err)
+		return err
+	}
+	return nil
+}
+
+// MigratePluginDataToParentPluginMetadata migrates pre-existing plugin metadata from plugin_metadata table into plugin_parent_metadata table,
+// and also populate plugin_parent_metadata_id in plugin_metadata.
+// this operation will happen only once when the get all plugin list v2 api is being called, returns error if any
+func (impl *GlobalPluginServiceImpl) MigratePluginDataToParentPluginMetadata(pluginsMetadata []*repository.PluginMetadata) error {
+	dbConnection := impl.globalPluginRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("MigratePluginDataToParentPluginMetadata, error in beginning transaction", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	pluginMetadataToUpdate := make([]*repository.PluginMetadata, 0, len(pluginsMetadata))
+	identifierVsPluginMetadata := make(map[string]*repository.PluginMetadata, len(pluginsMetadata))
+	pluginsIdentifierSlice := make([]string, 0, len(pluginsMetadata))
+	for _, item := range pluginsMetadata {
+		if item.PluginParentMetadataId > 0 {
+			//data already migrated
+			continue
+		}
+		identifier := utils.CreateUniqueIdentifier(item.Name, 0)
+		if _, ok := identifierVsPluginMetadata[identifier]; ok {
+			identifier = utils.CreateUniqueIdentifier(item.Name, item.Id)
+		}
+		identifierVsPluginMetadata[identifier] = item
+		pluginsIdentifierSlice = append(pluginsIdentifierSlice, identifier)
+	}
+
+	for _, identifier := range pluginsIdentifierSlice {
+		if pluginMetadata, ok := identifierVsPluginMetadata[identifier]; ok {
+			pluginParentMetadata, err := impl.globalPluginRepository.GetPluginParentMetadataByIdentifier(identifier)
+			if err != nil && !util.IsErrNoRows(err) {
+				impl.logger.Errorw("MigratePluginDataToParentPluginMetadata, error in GetPluginParentMetadataByIdentifier", "pluginIdentifier", identifier, "err", err)
+				return err
+			}
+			if pluginParentMetadata != nil && pluginParentMetadata.Id > 0 {
+				continue
+			}
+			parentMetadata := repository.NewPluginParentMetadata()
+			parentMetadata.SetParentPluginMetadata(pluginMetadata).CreateAuditLog(bean.SystemUserId)
+			parentMetadata.Identifier = identifier
+			parentMetadata, err = impl.globalPluginRepository.SavePluginParentMetadata(tx, parentMetadata)
+			if err != nil {
+				impl.logger.Errorw("MigratePluginDataToParentPluginMetadata, error in saving plugin parent metadata", "err", err)
+				return err
+			}
+			pluginMetadata.PluginParentMetadataId = parentMetadata.Id
+			pluginMetadataToUpdate = append(pluginMetadataToUpdate, pluginMetadata)
+		}
+	}
+
+	if len(pluginMetadataToUpdate) > 0 {
+		err = impl.globalPluginRepository.UpdatePluginMetadataInBulk(pluginMetadataToUpdate, tx)
+		if err != nil {
+			impl.logger.Errorw("MigratePluginDataToParentPluginMetadata, error in updating plugin metadata in bulk", "err", err)
+			return err
+		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("MigratePluginDataToParentPluginMetadata, error in committing db transaction", "err", err)
+		return err
+	}
+	return nil
 }

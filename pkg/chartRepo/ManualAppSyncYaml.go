@@ -23,10 +23,11 @@ import (
 )
 
 type AppSyncConfig struct {
-	DbConfig                         sql.Config
-	DockerImage                      string
-	AppSyncJobResourcesObj           string
-	ChartProviderConfig              *ChartProviderConfig
+	DbConfig               sql.Config
+	DockerImage            string
+	AppSyncJobResourcesObj string
+	ChartProviderConfig    *ChartProviderConfig
+	AppSyncServiceAccount  string
 	ParallelismLimitForTagProcessing int
 }
 
@@ -35,13 +36,14 @@ type ChartProviderConfig struct {
 	IsOCIRegistry   bool
 }
 
-func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, chartProviderConfig *ChartProviderConfig, ParallelismLimitForTagProcessing int) []byte {
+func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, appSyncServiceAccount string, chartProviderConfig *ChartProviderConfig, ParallelismLimitForTagProcessing int) []byte {
 	cfg, _ := sql.GetConfig()
 	configValues := AppSyncConfig{
-		DbConfig:                         sql.Config{Addr: cfg.Addr, Database: cfg.Database, User: cfg.User, Password: cfg.Password},
-		DockerImage:                      dockerImage,
-		AppSyncJobResourcesObj:           appSyncJobResourcesObj,
-		ChartProviderConfig:              chartProviderConfig,
+		DbConfig:               sql.Config{Addr: cfg.Addr, Database: cfg.Database, User: cfg.User, Password: cfg.Password},
+		DockerImage:            dockerImage,
+		AppSyncJobResourcesObj: appSyncJobResourcesObj,
+		ChartProviderConfig:    chartProviderConfig,
+		AppSyncServiceAccount:  appSyncServiceAccount,
 		ParallelismLimitForTagProcessing: ParallelismLimitForTagProcessing,
 	}
 	temp := template.New("manualAppSyncJobByteArr")
@@ -54,6 +56,7 @@ func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, 
   "spec": {
     "template": {
       "spec": {
+		"serviceAccount": "{{.AppSyncServiceAccount}}",
         "containers": [
           {
             "name": "chart-sync",

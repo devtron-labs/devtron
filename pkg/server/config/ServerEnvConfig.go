@@ -36,6 +36,7 @@ type ServerEnvConfig struct {
 	DevtronModulesIdentifierInHelmValues string `env:"DEVTRON_MODULES_IDENTIFIER_IN_HELM_VALUES" envDefault:"installer.modules"`
 	DevtronBomUrl                        string `env:"DEVTRON_BOM_URL" envDefault:"https://raw.githubusercontent.com/devtron-labs/devtron/%s/charts/devtron/devtron-bom.yaml"`
 	AppSyncImage                         string `env:"APP_SYNC_IMAGE" envDefault:"quay.io/devtron/chart-sync:1227622d-132-3775"`
+	AppSyncServiceAccount                string `env:"APP_SYNC_SERVICE_ACCOUNT" envDefault:"chart-sync"`
 	AppSyncJobResourcesObj               string `env:"APP_SYNC_JOB_RESOURCES_OBJ"`
 	ModuleMetaDataApiUrl                 string `env:"MODULE_METADATA_API_URL" envDefault:"https://api.devtron.ai/module?name=%s"`
 	ParallelismLimitForTagProcessing     int    `env:"PARALLELISM_LIMIT_FOR_TAG_PROCESSING"`

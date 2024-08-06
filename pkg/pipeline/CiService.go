@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
+	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
 	"maps"
 	"path/filepath"
 	"strconv"
@@ -447,11 +448,15 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			Type:            string(ciMaterial.Type),
 			CommitTime:      commitHashForPipelineId.Date.Format(bean.LayoutRFC3339),
 			GitOptions: pipelineConfigBean.GitOptions{
-				UserName:      ciMaterial.GitMaterial.GitProvider.UserName,
-				Password:      ciMaterial.GitMaterial.GitProvider.Password,
-				SshPrivateKey: ciMaterial.GitMaterial.GitProvider.SshPrivateKey,
-				AccessToken:   ciMaterial.GitMaterial.GitProvider.AccessToken,
-				AuthMode:      ciMaterial.GitMaterial.GitProvider.AuthMode,
+				UserName:              ciMaterial.GitMaterial.GitProvider.UserName,
+				Password:              ciMaterial.GitMaterial.GitProvider.Password,
+				SshPrivateKey:         ciMaterial.GitMaterial.GitProvider.SshPrivateKey,
+				AccessToken:           ciMaterial.GitMaterial.GitProvider.AccessToken,
+				AuthMode:              ciMaterial.GitMaterial.GitProvider.AuthMode,
+				EnableTLSVerification: ciMaterial.GitMaterial.GitProvider.EnableTLSVerification,
+				TlsKey:                ciMaterial.GitMaterial.GitProvider.TlsKey,
+				TlsCert:               ciMaterial.GitMaterial.GitProvider.TlsCert,
+				CaCert:                ciMaterial.GitMaterial.GitProvider.CaCert,
 			},
 		}
 
@@ -551,12 +556,22 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	var checkoutPath string
 	var ciBuildConfigBean *CiPipeline.CiBuildConfigBean
 	dockerRegistry := &repository3.DockerArtifactStore{}
+	ciBaseBuildConfigEntity := ciTemplate.CiBuildConfig
+	ciBaseBuildConfigBean, err := adapter.ConvertDbBuildConfigToBean(ciBaseBuildConfigEntity)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while converting buildconfig dbEntity to configBean", "ciBuildConfigEntity", ciBaseBuildConfigEntity, "err", err)
+		return nil, errors.New("error while parsing ci build config")
+	}
 	if !pipeline.IsExternal && pipeline.IsDockerConfigOverridden {
 		templateOverrideBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(pipeline.Id)
 		if err != nil {
 			return nil, err
 		}
 		ciBuildConfigBean = templateOverrideBean.CiBuildConfig
+		// updating args coming from ciBaseBuildConfigEntity because it is not part of Ci override
+		if ciBuildConfigBean != nil && ciBuildConfigBean.DockerBuildConfig != nil {
+			ciBuildConfigBean.DockerBuildConfig.Args = ciBaseBuildConfigBean.DockerBuildConfig.Args
+		}
 		templateOverride := templateOverrideBean.CiTemplateOverride
 		checkoutPath = templateOverride.GitMaterial.CheckoutPath
 		dockerfilePath = templateOverride.DockerfilePath
@@ -567,15 +582,11 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		dockerfilePath = ciTemplate.DockerfilePath
 		dockerRegistry = ciTemplate.DockerRegistry
 		dockerRepository = ciTemplate.DockerRepository
-		ciBuildConfigEntity := ciTemplate.CiBuildConfig
-		ciBuildConfigBean, err = adapter.ConvertDbBuildConfigToBean(ciBuildConfigEntity)
+		ciBuildConfigBean = ciBaseBuildConfigBean
 		if ciBuildConfigBean != nil {
 			ciBuildConfigBean.BuildContextGitMaterialId = ciTemplate.BuildContextGitMaterialId
 		}
-		if err != nil {
-			impl.Logger.Errorw("error occurred while converting buildconfig dbEntity to configBean", "ciBuildConfigEntity", ciBuildConfigEntity, "err", err)
-			return nil, errors.New("error while parsing ci build config")
-		}
+
 	}
 	if checkoutPath == "" {
 		checkoutPath = "./"
@@ -611,7 +622,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 
 	// copyContainerImage plugin specific logic
 	var registryDestinationImageMap map[string][]string
-	var registryCredentialMap map[string]plugin.RegistryCredentials
+	var registryCredentialMap map[string]bean2.RegistryCredentials
 	var pluginArtifactStage string
 	var imageReservationIds []int
 	if !isJob {
@@ -803,9 +814,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	return workflowRequest, nil
 }
 
-func (impl *CiServiceImpl) GetWorkflowRequestVariablesForCopyContainerImagePlugin(preCiSteps []*pipelineConfigBean.StepObject, postCiSteps []*pipelineConfigBean.StepObject, customTag string, customTagId int, buildImagePath string, buildImagedockerRegistryId string) (map[string][]string, map[string]plugin.RegistryCredentials, string, []int, error) {
+func (impl *CiServiceImpl) GetWorkflowRequestVariablesForCopyContainerImagePlugin(preCiSteps []*pipelineConfigBean.StepObject, postCiSteps []*pipelineConfigBean.StepObject, customTag string, customTagId int, buildImagePath string, buildImagedockerRegistryId string) (map[string][]string, map[string]bean2.RegistryCredentials, string, []int, error) {
 	var registryDestinationImageMap map[string][]string
-	var registryCredentialMap map[string]plugin.RegistryCredentials
+	var registryCredentialMap map[string]bean2.RegistryCredentials
 	var pluginArtifactStage string
 	var imagePathReservationIds []int
 	copyContainerImagePluginId, err := impl.globalPluginService.GetRefPluginIdByRefPluginName(COPY_CONTAINER_IMAGE)

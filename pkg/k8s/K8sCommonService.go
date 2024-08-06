@@ -148,7 +148,7 @@ func (impl *K8sCommonServiceImpl) DeleteResource(ctx context.Context, request *R
 	clusterId := request.ClusterId
 	restConfig, err, _ := impl.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
+		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
 		return nil, err
 	}
 	resourceIdentifier := request.K8sRequest.ResourceIdentifier
