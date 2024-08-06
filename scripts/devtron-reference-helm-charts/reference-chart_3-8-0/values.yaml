@@ -268,14 +268,3 @@ rawYaml: []
 envoyproxy:
  image: envoyproxy/envoy:v1.14.1
  configMapName: ""
-
-# Devtron managed values for internal implementations - do not change
-devtronInternal:
- # @param devtronInternal.containerSpecs are the devtron managed specs for the container
- containerSpecs:
-  ## @param devtronInternal.containerSpecs.ExternalConfigHash is the sha256 checksum of the externally mounted k8s config values.
-  ## This is used to determine if the config values have changed
-  ExternalConfigHash: ""
-  ## @param devtronInternal.containerSpecs.ExternalSecretHash are sha256 checksum of the externally mounted k8s secret values.
-  ## This is used to determine if the secret values have changed
-  ExternalSecretHash: ""
