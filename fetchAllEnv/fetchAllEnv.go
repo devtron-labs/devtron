@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package main
@@ -36,9 +24,10 @@ type EnvField struct {
 }
 
 const (
-	envFieldTypeTag        = "env"
-	envDefaultFieldTypeTag = "envDefault"
-	MARKDOWN_FILENAME      = "env_gen.md"
+	envFieldTypeTag            = "env"
+	envDefaultFieldTypeTag     = "envDefault"
+	envDescriptionFieldTypeTag = "envDescription"
+	MARKDOWN_FILENAME          = "env_gen.md"
 )
 
 const MarkdownTemplate = `
@@ -97,14 +86,15 @@ func convertTagToStructTag(tag string) reflect.StructTag {
 	return reflect.StructTag(strings.Split(tag, "`")[1])
 }
 
-func getEnvKeyAndValue(tag reflect.StructTag) (string, string) {
+func getEnvKeyAndValue(tag reflect.StructTag) (string, string, string) {
 	envKey := tag.Get(envFieldTypeTag)
 	envValue := tag.Get(envDefaultFieldTypeTag)
+	envDescription := tag.Get(envDescriptionFieldTypeTag)
 	// check if there exist any value provided in env for this field
 	if value, ok := os.LookupEnv(envKey); ok {
 		envValue = value
 	}
-	return envKey, envValue
+	return envKey, envValue, envDescription
 }
 
 func processGoFile(filePath string, allFields *[]EnvField, uniqueKeys *map[string]bool) error {
@@ -122,13 +112,14 @@ func processGoFile(filePath string, allFields *[]EnvField, uniqueKeys *map[strin
 				for _, field := range structType.Fields.List {
 					if field.Tag != nil {
 						strippedTags := convertTagToStructTag(field.Tag.Value)
-						envKey, envValue := getEnvKeyAndValue(strippedTags)
+						envKey, envValue, envDescription := getEnvKeyAndValue(strippedTags)
 						if len(envKey) == 0 || (*uniqueKeys)[envKey] {
 							continue
 						}
 						*allFields = append(*allFields, EnvField{
-							Env:      envKey,
-							EnvValue: envValue,
+							Env:            envKey,
+							EnvValue:       envValue,
+							EnvDescription: envDescription,
 						})
 						(*uniqueKeys)[envKey] = true
 					}
