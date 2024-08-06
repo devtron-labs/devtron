@@ -126,7 +126,7 @@ func (impl *K8sCommonServiceImpl) GetResource(ctx context.Context, request *Reso
 }
 
 func (impl *K8sCommonServiceImpl) GetDataFromConfigMaps(ctx context.Context, request *CmCsRequestBean) (map[string]*apiV1.ConfigMap, error) {
-	_, span := otel.Tracer("orchestrator").Start(ctx, "K8sCommonServiceImpl.GetDataFromConfigMaps")
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "K8sCommonServiceImpl.GetDataFromConfigMaps")
 	defer span.End()
 	response := make(map[string]*apiV1.ConfigMap, len(request.GetExternalCmList()))
 	if len(request.GetExternalCmList()) == 0 {
@@ -139,7 +139,7 @@ func (impl *K8sCommonServiceImpl) GetDataFromConfigMaps(ctx context.Context, req
 	}
 	// using for loop instead of getting all configMaps at once since request.GetExternalCmList() will be small
 	for _, cmName := range request.GetExternalCmList() {
-		configMap, err := impl.K8sUtil.GetConfigMap(request.GetNamespace(), cmName, v1Client)
+		configMap, err := impl.K8sUtil.GetConfigMapWithCtx(newCtx, request.GetNamespace(), cmName, v1Client)
 		if err != nil {
 			impl.logger.Errorw("error in getting configMap", "namespace", request.GetNamespace(), "cmName", cmName, "err", err)
 			return nil, err
@@ -150,7 +150,7 @@ func (impl *K8sCommonServiceImpl) GetDataFromConfigMaps(ctx context.Context, req
 }
 
 func (impl *K8sCommonServiceImpl) GetDataFromSecrets(ctx context.Context, request *CmCsRequestBean) (map[string]*apiV1.Secret, error) {
-	_, span := otel.Tracer("orchestrator").Start(ctx, "K8sCommonServiceImpl.GetDataFromConfigMaps")
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "K8sCommonServiceImpl.GetDataFromConfigMaps")
 	defer span.End()
 	response := make(map[string]*apiV1.Secret, len(request.GetExternalCmList()))
 	if len(request.GetExternalCsList()) == 0 {
@@ -163,7 +163,7 @@ func (impl *K8sCommonServiceImpl) GetDataFromSecrets(ctx context.Context, reques
 	}
 	// using for loop instead of getting all secrets at once since request.GetExternalCsList() will be small
 	for _, csName := range request.GetExternalCsList() {
-		secret, err := impl.K8sUtil.GetSecret(request.GetNamespace(), csName, v1Client)
+		secret, err := impl.K8sUtil.GetSecretWithCtx(newCtx, request.GetNamespace(), csName, v1Client)
 		if err != nil {
 			impl.logger.Errorw("error in getting configMap", "namespace", request.namespace, "csName", csName, "err", err)
 			return nil, err
