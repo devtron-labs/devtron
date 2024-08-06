@@ -33,6 +33,11 @@ type ResourceRequestBean struct {
 	ExternalArgoApplicationName string                     `json:"externalArgoApplicationName,omitempty"`
 }
 
+type CmCsRequestBean struct {
+	ClusterId int
+	Namespace string
+}
+
 type LogsDownloadBean struct {
 	FileName string `json:"fileName"`
 	LogsData string `json:"data"`

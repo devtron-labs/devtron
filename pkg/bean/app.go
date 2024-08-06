@@ -948,3 +948,6 @@ const CustomAutoScalingEnabledPathKey = "CUSTOM_AUTOSCALING_ENABLED_PATH"
 const CustomAutoscalingReplicaCountPathKey = "CUSTOM_AUTOSCALING_REPLICA_COUNT_PATH"
 const CustomAutoscalingMinPathKey = "CUSTOM_AUTOSCALING_MIN_PATH"
 const CustomAutoscalingMaxPathKey = "CUSTOM_AUTOSCALING_MAX_PATH"
+
+const ConfigHashPathKey = "devtronInternal.containerSpecs.ConfigHash"
+const SecretHashPathKey = "devtronInternal.containerSpecs.SecretHash"

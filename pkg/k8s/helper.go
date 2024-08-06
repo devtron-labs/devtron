@@ -57,3 +57,10 @@ func StripPrereleaseFromK8sVersion(k8sVersion string) string {
 	}
 	return k8sVersion
 }
+
+func NewCmCsRequestBean(clusterId int, namespace string) *CmCsRequestBean {
+	return &CmCsRequestBean{
+		ClusterId: clusterId,
+		Namespace: namespace,
+	}
+}

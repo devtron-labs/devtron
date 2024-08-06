@@ -108,11 +108,13 @@ type K8sService interface {
 	CreateSecretData(namespace string, secret *v1.Secret, v1Client *v12.CoreV1Client) (*v1.Secret, error)
 	CreateSecret(namespace string, data map[string][]byte, secretName string, secretType v1.SecretType, client *v12.CoreV1Client, labels map[string]string, stringData map[string]string) (*v1.Secret, error)
 	GetSecret(namespace string, name string, client *v12.CoreV1Client) (*v1.Secret, error)
+	GetAllSecrets(ctx context.Context, namespace string, client *v12.CoreV1Client, opts metav1.ListOptions) (*v1.SecretList, error)
 	PatchConfigMapJsonType(namespace string, clusterConfig *ClusterConfig, name string, data interface{}, path string) (*v1.ConfigMap, error)
 	PatchConfigMap(namespace string, clusterConfig *ClusterConfig, name string, data map[string]interface{}) (*v1.ConfigMap, error)
 	UpdateConfigMap(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error)
 	CreateConfigMap(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error)
 	GetConfigMap(namespace string, name string, client *v12.CoreV1Client) (*v1.ConfigMap, error)
+	GetAllConfigMaps(ctx context.Context, namespace string, client *v12.CoreV1Client, opts metav1.ListOptions) (*v1.ConfigMapList, error)
 	CheckIfNsExists(namespace string, client *v12.CoreV1Client) (exists bool, err error)
 	CreateNsIfNotExists(namespace string, clusterConfig *ClusterConfig) (err error)
 	GetK8sDiscoveryClientInCluster() (*discovery.DiscoveryClient, error)
@@ -326,6 +328,15 @@ func (impl *K8sServiceImpl) GetConfigMap(namespace string, name string, client *
 	}
 }
 
+func (impl *K8sServiceImpl) GetAllConfigMaps(ctx context.Context, namespace string, client *v12.CoreV1Client, opts metav1.ListOptions) (*v1.ConfigMapList, error) {
+	configMaps, err := client.ConfigMaps(namespace).List(ctx, opts)
+	if err != nil {
+		impl.logger.Errorw("error in getting configMaps list", "namespace", namespace, "opts", opts, "err", err)
+		return nil, err
+	}
+	return configMaps, nil
+}
+
 func (impl *K8sServiceImpl) CreateConfigMap(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
 	cm, err := client.ConfigMaps(namespace).Create(context.Background(), cm, metav1.CreateOptions{})
 	if err != nil {
@@ -355,6 +366,7 @@ func (impl *K8sServiceImpl) PatchConfigMap(namespace string, clusterConfig *Clus
 	b, err := json.Marshal(data)
 	if err != nil {
 		impl.logger.Errorw("error in marshalling data", "err", err)
+		// TODO: why panic
 		panic(err)
 	}
 	cm, err := k8sClient.ConfigMaps(namespace).Patch(context.Background(), name, types.PatchType(types.MergePatchType), b, metav1.PatchOptions{})
@@ -383,6 +395,7 @@ func (impl *K8sServiceImpl) PatchConfigMapJsonType(namespace string, clusterConf
 	b, err := json.Marshal(patches)
 	if err != nil {
 		impl.logger.Errorw("error in getting marshalling pacthes", "err", err, "namespace", namespace)
+		// TODO: why panic
 		panic(err)
 	}
 
@@ -410,6 +423,15 @@ func (impl *K8sServiceImpl) GetSecret(namespace string, name string, client *v12
 	} else {
 		return secret, nil
 	}
+}
+
+func (impl *K8sServiceImpl) GetAllSecrets(ctx context.Context, namespace string, client *v12.CoreV1Client, opts metav1.ListOptions) (*v1.SecretList, error) {
+	secrets, err := client.Secrets(namespace).List(ctx, opts)
+	if err != nil {
+		impl.logger.Errorw("error in getting secrets list", "namespace", namespace, "opts", opts, "err", err)
+		return nil, err
+	}
+	return secrets, nil
 }
 
 func (impl *K8sServiceImpl) CreateSecret(namespace string, data map[string][]byte, secretName string, secretType v1.SecretType, client *v12.CoreV1Client, labels map[string]string, stringData map[string]string) (*v1.Secret, error) {

@@ -18,6 +18,7 @@ package manifest
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	application3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
@@ -51,6 +52,7 @@ import (
 	"github.com/go-pg/pg"
 	errors2 "github.com/juju/errors"
 	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"net/http"
@@ -190,9 +192,10 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 	}
 
 	var (
-		pipelineOverride                *chartConfig.PipelineOverride
-		configMapJson, appLabelJsonByte []byte
-		envOverride                     *chartConfig.EnvConfigOverride
+		pipelineOverride *chartConfig.PipelineOverride
+		appLabelJsonByte []byte
+		configMapJson    *bean3.MergedCmAndCsJsonV2Response
+		envOverride      *chartConfig.EnvConfigOverride
 	)
 	if isPipelineOverrideCreated {
 		pipelineOverride, err = impl.pipelineOverrideRepository.FindById(overrideRequest.PipelineOverrideId)
@@ -248,7 +251,7 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 	if !isPipelineOverrideCreated {
 		chartVersion := envOverride.Chart.ChartVersion
 		scope := helper.GetScopeForVariables(overrideRequest, envOverride)
-		request := helper.CreateConfigMapAndSecretJsonRequest(overrideRequest, envOverride, chartVersion, scope)
+		request := helper.NewMergedCmAndCsJsonV2Request(overrideRequest, envOverride, chartVersion, scope)
 
 		configMapJson, err = impl.getConfigMapAndSecretJsonV2(newCtx, request, envOverride)
 		if err != nil {
@@ -260,14 +263,19 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 			impl.logger.Errorw("error in fetching app labels for gitOps commit", "err", err)
 			appLabelJsonByte = nil
 		}
-		mergedValues, err := impl.mergeOverrideValues(envOverride, releaseOverrideJson, configMapJson, appLabelJsonByte, strategy)
+		mergedValues, err := impl.mergeOverrideValues(envOverride, releaseOverrideJson, configMapJson.MergedJson, appLabelJsonByte, strategy)
 		appName := fmt.Sprintf("%s-%s", overrideRequest.AppName, envOverride.Environment.Name)
+		mergedValues, err = impl.updatedExternalCmCsHashForTrigger(newCtx, overrideRequest.ClusterId,
+			envOverride.Namespace, mergedValues, configMapJson.ExternalCmList, configMapJson.ExternalCsList)
+		if err != nil {
+			impl.logger.Errorw("error in autoscaling check before trigger", "pipelineId", overrideRequest.PipelineId, "err", err)
+			return valuesOverrideResponse, err
+		}
 		mergedValues, err = impl.autoscalingCheckBeforeTrigger(newCtx, appName, envOverride.Namespace, mergedValues, overrideRequest)
 		if err != nil {
 			impl.logger.Errorw("error in autoscaling check before trigger", "pipelineId", overrideRequest.PipelineId, "err", err)
 			return valuesOverrideResponse, err
 		}
-
 		// handle image pull secret if access given
 		mergedValues, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(newCtx, envOverride.Environment, artifact, pipeline.CiPipelineId, mergedValues)
 		if err != nil {
@@ -560,7 +568,7 @@ func (impl *ManifestCreationServiceImpl) mergeOverrideValues(envOverride *chartC
 	return merged, nil
 }
 
-func (impl *ManifestCreationServiceImpl) getConfigMapAndSecretJsonV2(ctx context.Context, request bean3.ConfigMapAndSecretJsonV2, envOverride *chartConfig.EnvConfigOverride) ([]byte, error) {
+func (impl *ManifestCreationServiceImpl) getConfigMapAndSecretJsonV2(ctx context.Context, request bean3.GetMergedCmAndCsJsonV2Request, envOverride *chartConfig.EnvConfigOverride) (*bean3.MergedCmAndCsJsonV2Response, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.getConfigMapAndSecretJsonV2")
 	defer span.End()
 	var configMapJson, secretDataJson, configMapJsonApp, secretDataJsonApp, configMapJsonEnv, secretDataJsonEnv string
@@ -570,11 +578,11 @@ func (impl *ManifestCreationServiceImpl) getConfigMapAndSecretJsonV2(ctx context
 	configMapE := &chartConfig.ConfigMapEnvModel{}
 	configMapHistory, secretHistory := &repository3.ConfigmapAndSecretHistory{}, &repository3.ConfigmapAndSecretHistory{}
 
-	merged := []byte("{}")
+	cmAndCsJsonV2Response := helper.NewMergedCmAndCsJsonV2Response()
 	if request.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
 		configMapA, err = impl.configMapRepository.GetByAppIdAppLevel(request.AppId)
 		if err != nil && pg.ErrNoRows != err {
-			return []byte("{}"), err
+			return cmAndCsJsonV2Response, err
 		}
 		if configMapA != nil && configMapA.Id > 0 {
 			configMapJsonApp = configMapA.ConfigMapData
@@ -583,7 +591,7 @@ func (impl *ManifestCreationServiceImpl) getConfigMapAndSecretJsonV2(ctx context
 
 		configMapE, err = impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(request.AppId, request.EnvId)
 		if err != nil && pg.ErrNoRows != err {
-			return []byte("{}"), err
+			return cmAndCsJsonV2Response, err
 		}
 		if configMapE != nil && configMapE.Id > 0 {
 			configMapJsonEnv = configMapE.ConfigMapData
@@ -592,76 +600,96 @@ func (impl *ManifestCreationServiceImpl) getConfigMapAndSecretJsonV2(ctx context
 
 	} else if request.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
 
-		//fetching history and setting envLevelConfig and not appLevelConfig because history already contains merged appLevel and envLevel configs
+		// fetching history and setting envLevelConfig and not appLevelConfig because history already contains merged appLevel and envLevel configs
 		configMapHistory, err = impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(request.PipeLineId, request.WfrIdForDeploymentWithSpecificTrigger, repository3.CONFIGMAP_TYPE)
 		if err != nil {
 			impl.logger.Errorw("error in getting config map history config by pipelineId and wfrId ", "err", err, "pipelineId", request.PipeLineId, "wfrId", request.WfrIdForDeploymentWithSpecificTrigger)
-			return []byte("{}"), err
+			return cmAndCsJsonV2Response, err
 		}
 		configMapJsonEnv = configMapHistory.Data
 
 		secretHistory, err = impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(request.PipeLineId, request.WfrIdForDeploymentWithSpecificTrigger, repository3.SECRET_TYPE)
 		if err != nil {
 			impl.logger.Errorw("error in getting config map history config by pipelineId and wfrId ", "err", err, "pipelineId", request.PipeLineId, "wfrId", request.WfrIdForDeploymentWithSpecificTrigger)
-			return []byte("{}"), err
+			return cmAndCsJsonV2Response, err
 		}
 		secretDataJsonEnv = secretHistory.Data
 	}
 	configMapJson, err = impl.mergeUtil.ConfigMapMerge(configMapJsonApp, configMapJsonEnv)
 	if err != nil {
-		return []byte("{}"), err
+		return cmAndCsJsonV2Response, err
 	}
 	chartMajorVersion, chartMinorVersion, err := util4.ExtractChartVersion(request.ChartVersion)
 	if err != nil {
 		impl.logger.Errorw("chart version parsing", "err", err)
-		return []byte("{}"), err
+		return cmAndCsJsonV2Response, err
 	}
 	secretDataJson, err = impl.mergeUtil.ConfigSecretMerge(secretDataJsonApp, secretDataJsonEnv, chartMajorVersion, chartMinorVersion, false)
 	if err != nil {
-		return []byte("{}"), err
+		return cmAndCsJsonV2Response, err
 	}
-	configResponseR := bean.ConfigMapRootJson{}
+	cmRootJson := bean.ConfigMapRootJson{}
 	configResponse := bean.ConfigMapJson{}
 	if configMapJson != "" {
 		err = json.Unmarshal([]byte(configMapJson), &configResponse)
 		if err != nil {
-			return []byte("{}"), err
+			return cmAndCsJsonV2Response, err
 		}
 	}
-	configResponseR.ConfigMapJson = configResponse
-	secretResponseR := bean.ConfigSecretRootJson{}
+	cmRootJson.ConfigMapJson = configResponse
+	csRootJson := bean.ConfigSecretRootJson{}
 	secretResponse := bean.ConfigSecretJson{}
 	if configMapJson != "" {
 		err = json.Unmarshal([]byte(secretDataJson), &secretResponse)
 		if err != nil {
-			return []byte("{}"), err
+			return cmAndCsJsonV2Response, err
 		}
 	}
-	secretResponseR.ConfigSecretJson = secretResponse
+	csRootJson.ConfigSecretJson = secretResponse
 
-	configMapByte, err := json.Marshal(configResponseR)
+	configMapByte, err := json.Marshal(cmRootJson)
 	if err != nil {
-		return []byte("{}"), err
+		return cmAndCsJsonV2Response, err
 	}
-	secretDataByte, err := json.Marshal(secretResponseR)
+	secretDataByte, err := json.Marshal(csRootJson)
 	if err != nil {
-		return []byte("{}"), err
+		return cmAndCsJsonV2Response, err
 
 	}
 	resolvedCM, resolvedCS, snapshotCM, snapshotCS, err := impl.scopedVariableManager.ResolveCMCSTrigger(request.DeploymentWithConfig, request.Scope, configMapA.Id, configMapE.Id, configMapByte, secretDataByte, configMapHistory.Id, secretHistory.Id)
 	if err != nil {
-		return []byte("{}"), err
+		return cmAndCsJsonV2Response, err
 	}
 	envOverride.VariableSnapshotForCM = snapshotCM
 	envOverride.VariableSnapshotForCS = snapshotCS
 
-	merged, err = impl.mergeUtil.JsonPatch([]byte(resolvedCM), []byte(resolvedCS))
-
+	cmAndCsJsonV2Response.MergedJson, err = impl.mergeUtil.JsonPatch([]byte(resolvedCM), []byte(resolvedCS))
 	if err != nil {
-		return []byte("{}"), err
+		return cmAndCsJsonV2Response, err
 	}
+	cmAndCsJsonV2Response.ExternalCmList, cmAndCsJsonV2Response.ExternalCsList = getExternalCmCsFromRootJson(cmRootJson, csRootJson)
+	return cmAndCsJsonV2Response, nil
+}
 
-	return merged, nil
+// getExternalCmCsFromRootJson returns the list of external configmaps and secrets from the root json
+func getExternalCmCsFromRootJson(cmRootJson bean.ConfigMapRootJson, csRootJson bean.ConfigSecretRootJson) (externalCsList []string, externalCmList []string) {
+	externalCmList = make([]string, 0)
+	externalCsList = make([]string, 0)
+	if cmRootJson.ConfigMapJson.Enabled {
+		for _, cm := range cmRootJson.ConfigMapJson.Maps {
+			if cm.External {
+				externalCmList = append(externalCmList, cm.Name)
+			}
+		}
+	}
+	if csRootJson.ConfigSecretJson.Enabled {
+		for _, cs := range csRootJson.ConfigSecretJson.Secrets {
+			if cs.External {
+				externalCsList = append(externalCsList, cs.Name)
+			}
+		}
+	}
+	return externalCmList, externalCsList
 }
 
 func (impl *ManifestCreationServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfigOverride, overrideRequest *bean.ValuesOverrideRequest,
@@ -880,6 +908,95 @@ func (impl *ManifestCreationServiceImpl) getArgoCdHPAResourceManifest(ctx contex
 		impl.logger.Debugw("invalid resource manifest received from ArgoCd", "response", recv)
 	}
 	return resourceManifest, nil
+}
+
+func (impl *ManifestCreationServiceImpl) updatedExternalCmCsHashForTrigger(ctx context.Context, clusterId int, namespace string, merged []byte, externalCmList, externalCsList []string) ([]byte, error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.updatedExternalCmCsHashForTrigger")
+	defer span.End()
+	mergedConfigData := make(map[string]interface{})
+	mergedSecretData := make(map[string]interface{})
+	request := k8s.NewCmCsRequestBean(clusterId, namespace)
+	if len(externalCmList) > 0 {
+		configMaps, err := impl.k8sCommonService.GetAllConfigMaps(newCtx, request)
+		if err != nil {
+			impl.logger.Errorw("error in fetching all configmaps", "err", err)
+			return merged, err
+		}
+		externalCmMap := make(map[string]bool)
+		for _, externalCmName := range externalCmList {
+			externalCmMap[externalCmName] = false
+		}
+		for _, cm := range configMaps.Items {
+			if _, ok := externalCmMap[cm.Name]; ok {
+				mergedConfigData[cm.Name] = cm.Data
+				externalCmMap[cm.Name] = true
+			}
+		}
+		for externalCmName, found := range externalCmMap {
+			if !found {
+				impl.logger.Warnw("config-map not found in namespace", "namespace", namespace, "secretName", externalCmName)
+				return merged, util.NewApiError().
+					WithHttpStatusCode(http.StatusPreconditionFailed).
+					WithUserDetailMessage(fmt.Sprintf("config-map '%s' not found in namespace '%s'", externalCmName, namespace)).
+					WithInternalMessage("config-map not found in namespace")
+			}
+		}
+		if mergedConfigData != nil {
+			mergedByteData, err := json.Marshal(mergedConfigData)
+			if err != nil {
+				impl.logger.Errorw("error in marshalling merged data", "err", err)
+				return merged, err
+			}
+			configHash := fmt.Sprintf("%x", sha256.Sum256(mergedByteData))
+			mergedString, err := sjson.Set(string(merged), bean2.ConfigHashPathKey, configHash)
+			if err != nil {
+				impl.logger.Errorw("error in setting config hash", "err", err)
+				return merged, err
+			}
+			merged = []byte(mergedString)
+		}
+	}
+	if len(externalCsList) > 0 {
+		secrets, err := impl.k8sCommonService.GetAllSecrets(newCtx, request)
+		if err != nil {
+			impl.logger.Errorw("error in fetching all configmaps", "err", err)
+			return merged, err
+		}
+		externalCsMap := make(map[string]bool)
+		for _, externalCsName := range externalCsList {
+			externalCsMap[externalCsName] = false
+		}
+		for _, cs := range secrets.Items {
+			if _, ok := externalCsMap[cs.Name]; ok {
+				mergedSecretData[cs.Name] = cs.Data
+				externalCsMap[cs.Name] = true
+			}
+		}
+		for externalCsName, found := range externalCsMap {
+			if !found {
+				impl.logger.Warnw("secret not found in namespace", "namespace", namespace, "secretName", externalCsName)
+				return merged, util.NewApiError().
+					WithHttpStatusCode(http.StatusPreconditionFailed).
+					WithUserDetailMessage(fmt.Sprintf("secret '%s' not found in namespace '%s'", externalCsName, namespace)).
+					WithInternalMessage("secret not found in namespace")
+			}
+		}
+		if mergedSecretData != nil {
+			mergedByteData, err := json.Marshal(mergedSecretData)
+			if err != nil {
+				impl.logger.Errorw("error in marshalling merged data", "err", err)
+				return merged, err
+			}
+			secretHash := fmt.Sprintf("%x", sha256.Sum256(mergedByteData))
+			mergedString, err := sjson.Set(string(merged), bean2.SecretHashPathKey, secretHash)
+			if err != nil {
+				impl.logger.Errorw("error in setting secret hash", "err", err, secretHash, "secretHash")
+				return merged, err
+			}
+			merged = []byte(mergedString)
+		}
+	}
+	return merged, nil
 }
 
 func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte, overrideRequest *bean.ValuesOverrideRequest) ([]byte, error) {
