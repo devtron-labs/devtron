@@ -71,6 +71,9 @@ spec:
         appId: {{ $.Values.app | quote }}
         envId: {{ $.Values.env | quote }}
         release: {{ $.Release.Name }}
+{{- if .Values.customPodLabels  }}
+{{ toYaml .Values.customPodLabels | indent 8 }}  
+{{- end }}                
 {{- if .Values.appLabels }}
 {{ toYaml .Values.appLabels | indent 8 }}
 {{- end }}
