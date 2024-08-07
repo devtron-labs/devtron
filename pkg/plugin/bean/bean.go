@@ -344,7 +344,7 @@ const (
 	NoPluginFoundForThisSearchQueryErr       = "unable to find desired plugin for the query filter"
 	PluginStepsNotProvidedError              = "plugin steps not provided"
 	PluginWithSameNameExistError             = "plugin with the same name exists, please choose another name"
-	PluginWithSameIdentifierExistsError      = "plugin with the same identifier exists, please choose another name"
+	PluginWithSameIdentifierExistsError      = "plugin with the same identifier exists, please choose another identifier name"
 	PluginVersionNotSemanticallyCorrectError = "please provide a plugin version that adheres to Semantic Versioning 2.0.0 to ensure compatibility and proper versioning"
 	PluginIconNotCorrectOrReachableError     = "cannot validate icon, make sure that provided url link is reachable"
 	InvalidPluginTypeError                   = "invalid plugin type, should be of the type SHARED"

@@ -336,7 +336,6 @@ type GlobalPluginRepository interface {
 	GetPluginParentMetadataByIds(ids []int) ([]*PluginParentMetadata, error)
 	GetAllPluginMinData() ([]*PluginParentMetadata, error)
 	GetPluginParentMinDataById(id int) (*PluginParentMetadata, error)
-	GetPluginParentMinDataByIdentifier(identifier string) (*PluginParentMetadata, error)
 	MarkPreviousPluginVersionLatestFalse(pluginParentId int) error
 
 	SavePluginMetadata(pluginMetadata *PluginMetadata, tx *pg.Tx) (*PluginMetadata, error)
@@ -785,16 +784,6 @@ func (impl *GlobalPluginRepositoryImpl) GetPluginParentMetadataByIdentifier(plug
 func (impl *GlobalPluginRepositoryImpl) GetPluginParentMinDataById(id int) (*PluginParentMetadata, error) {
 	var pluginParentMetadata PluginParentMetadata
 	err := impl.dbConnection.Model(&pluginParentMetadata).Where("id = ?", id).
-		Where("deleted = ?", false).Select()
-	if err != nil {
-		return nil, err
-	}
-	return &pluginParentMetadata, nil
-}
-
-func (impl *GlobalPluginRepositoryImpl) GetPluginParentMinDataByIdentifier(identifier string) (*PluginParentMetadata, error) {
-	var pluginParentMetadata PluginParentMetadata
-	err := impl.dbConnection.Model(&pluginParentMetadata).Where("identifier = ?", identifier).
 		Where("deleted = ?", false).Select()
 	if err != nil {
 		return nil, err
