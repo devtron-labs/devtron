@@ -199,6 +199,12 @@ type RuntimeConfig struct {
 	LocalDevMode LocalDevMode `env:"RUNTIME_CONFIG_LOCAL_DEV" envDefault:"false"`
 }
 
+func GetRuntimeConfig() (*RuntimeConfig, error) {
+	cfg := &RuntimeConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
+}
+
 func NewCustomK8sHttpTransportConfig() *CustomK8sHttpTransportConfig {
 	customK8sHttpTransportConfig := &CustomK8sHttpTransportConfig{}
 	err := env.Parse(customK8sHttpTransportConfig)

@@ -91,6 +91,7 @@ func InitializeApp() (*App, error) {
 		user.UserWireSet,
 		sso.SsoConfigWireSet,
 		AuthWireSet,
+		util4.GetRuntimeConfig,
 		util4.NewK8sUtil,
 		externalLink.ExternalLinkWireSet,
 		team.TeamsWireSet,

@@ -245,7 +245,7 @@ func InitializeApp() (*App, error) {
 	attributesServiceImpl := attributes.NewAttributesServiceImpl(sugaredLogger, attributesRepositoryImpl)
 	grafanaClientImpl := grafana.NewGrafanaClientImpl(sugaredLogger, httpClient, grafanaClientConfig, attributesServiceImpl)
 	installedAppRepositoryImpl := repository3.NewInstalledAppRepositoryImpl(sugaredLogger, db)
-	runtimeConfig, err := client.GetRuntimeConfig()
+	runtimeConfig, err := k8s.GetRuntimeConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -265,14 +265,18 @@ func InitializeApp() (*App, error) {
 	}
 	serviceClientImpl := cluster.NewServiceClientImpl(sugaredLogger, argoCDConnectionManagerImpl)
 	v := informer.NewGlobalMapClusterNamespace()
-	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, v, runtimeConfig, k8sServiceImpl)
+	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, v, k8sServiceImpl)
 	defaultAuthPolicyRepositoryImpl := repository4.NewDefaultAuthPolicyRepositoryImpl(db, sugaredLogger)
 	defaultAuthRoleRepositoryImpl := repository4.NewDefaultAuthRoleRepositoryImpl(db, sugaredLogger)
 	userAuthRepositoryImpl := repository4.NewUserAuthRepositoryImpl(db, sugaredLogger, defaultAuthPolicyRepositoryImpl, defaultAuthRoleRepositoryImpl)
 	userRepositoryImpl := repository4.NewUserRepositoryImpl(db, sugaredLogger)
 	roleGroupRepositoryImpl := repository4.NewRoleGroupRepositoryImpl(db, sugaredLogger)
 	gitOpsConfigRepositoryImpl := repository2.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
-	k8sClient, err := client.NewK8sClient(runtimeConfig)
+	clientRuntimeConfig, err := client.GetRuntimeConfig()
+	if err != nil {
+		return nil, err
+	}
+	k8sClient, err := client.NewK8sClient(clientRuntimeConfig)
 	if err != nil {
 		return nil, err
 	}
