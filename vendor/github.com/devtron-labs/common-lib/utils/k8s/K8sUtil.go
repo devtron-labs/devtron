@@ -48,7 +48,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/version"
 
-	"github.com/devtron-labs/authenticator/client"
 	"go.uber.org/zap"
 	v14 "k8s.io/api/apps/v1"
 	batchV1 "k8s.io/api/batch/v1"
@@ -67,7 +66,7 @@ import (
 
 type K8sServiceImpl struct {
 	logger           *zap.SugaredLogger
-	runTimeConfig    *client.RuntimeConfig
+	runTimeConfig    *RuntimeConfig
 	httpClientConfig *CustomK8sHttpTransportConfig
 	kubeconfig       *string
 }
@@ -140,7 +139,7 @@ type K8sService interface {
 	//CreateK8sClientSetWithCustomHttpTransport(restConfig *rest.Config) (*kubernetes.Clientset, error)
 }
 
-func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) *K8sServiceImpl {
+func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *RuntimeConfig) *K8sServiceImpl {
 	usr, err := user.Current()
 	if err != nil {
 		return nil

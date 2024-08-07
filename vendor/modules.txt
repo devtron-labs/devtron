@@ -132,7 +132,9 @@ github.com/apparentlymart/go-textseg/v13/textseg
 github.com/argoproj/argo-cd/v2/common
 github.com/argoproj/argo-cd/v2/pkg/apiclient/account
 github.com/argoproj/argo-cd/v2/pkg/apiclient/application
+github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate
 github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster
+github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds
 github.com/argoproj/argo-cd/v2/pkg/apiclient/repository
 github.com/argoproj/argo-cd/v2/pkg/apiclient/session
 github.com/argoproj/argo-cd/v2/pkg/apiclient/version
@@ -399,7 +401,7 @@ github.com/devtron-labs/authenticator/jwt
 github.com/devtron-labs/authenticator/middleware
 github.com/devtron-labs/authenticator/oidc
 github.com/devtron-labs/authenticator/password
-# github.com/devtron-labs/common-lib v0.0.25-0.20240801145937-bde73d0d361d
+# github.com/devtron-labs/common-lib v0.0.25-0.20240807055245-319e62fd250f
 ## explicit; go 1.21
 github.com/devtron-labs/common-lib/async
 github.com/devtron-labs/common-lib/blob-storage
@@ -407,6 +409,8 @@ github.com/devtron-labs/common-lib/cloud-provider-identifier
 github.com/devtron-labs/common-lib/cloud-provider-identifier/bean
 github.com/devtron-labs/common-lib/cloud-provider-identifier/providers
 github.com/devtron-labs/common-lib/constants
+github.com/devtron-labs/common-lib/git-manager
+github.com/devtron-labs/common-lib/git-manager/util
 github.com/devtron-labs/common-lib/middlewares
 github.com/devtron-labs/common-lib/pubsub-lib
 github.com/devtron-labs/common-lib/pubsub-lib/metrics
@@ -425,7 +429,7 @@ github.com/devtron-labs/common-lib/utils/yaml
 # github.com/devtron-labs/go-bitbucket v0.9.60-beta
 ## explicit; go 1.14
 github.com/devtron-labs/go-bitbucket
-# github.com/devtron-labs/protos v0.0.3-0.20240726064057-dd2990c91e41
+# github.com/devtron-labs/protos v0.0.3-0.20240802105333-92ee9bb85d80
 ## explicit; go 1.17
 github.com/devtron-labs/protos/gitSensor
 # github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f
