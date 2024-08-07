@@ -87,12 +87,12 @@ func (r *PluginParentMetadata) CreateAuditLog(userId int32) *PluginParentMetadat
 	return r
 }
 
-func (r *PluginParentMetadata) WithBasicMetadata(name, identifier, description, icon, pluginType string) *PluginParentMetadata {
+func (r *PluginParentMetadata) WithBasicMetadata(name, identifier, description, icon string, pluginType PluginType) *PluginParentMetadata {
 	r.Name = name
 	r.Identifier = identifier
 	r.Description = description
 	r.Icon = icon
-	r.Type = PluginType(pluginType)
+	r.Type = pluginType
 	r.Deleted = false
 	return r
 }

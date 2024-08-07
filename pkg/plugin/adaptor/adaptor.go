@@ -8,7 +8,7 @@ import (
 
 func GetPluginParentMetadataDbObject(pluginDto *bean2.PluginParentMetadataDto, userId int32) *repository.PluginParentMetadata {
 	return repository.NewPluginParentMetadata().CreateAuditLog(userId).
-		WithBasicMetadata(pluginDto.Name, pluginDto.PluginIdentifier, pluginDto.Description, pluginDto.Icon, pluginDto.Type)
+		WithBasicMetadata(pluginDto.Name, pluginDto.PluginIdentifier, pluginDto.Description, pluginDto.Icon, repository.PLUGIN_TYPE_SHARED)
 }
 
 func GetPluginVersionMetadataDbObject(pluginDto *bean2.PluginParentMetadataDto, userId int32) *repository.PluginMetadata {
