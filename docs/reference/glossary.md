@@ -16,7 +16,7 @@ ArgoCD Apps are the micro-services deployed using a [GitOps](#gitops) deployment
 
 Devtron supports 'Helm' as well as 'GitOps' approach of deployment. Therefore, a user will be asked to choose any one of the deployment approach at the time of creating a deployment pipeline. If the user chooses GitOps, Devtron will use Argo CD to deploy that application. Once deployed, it will be visible in Applications → ArgoCD Apps (tab). 
 
-If other ArgoCD applications are present in your cluster, they will also appear in the `ArgoCD Apps` listing. 
+If other ArgoCD applications are present in your cluster, they will also appear in the [ArgoCD Apps listing](../user-guide/applications.md#view-external-argocd-app-listing). 
 
 ### Base Deployment Template
 
