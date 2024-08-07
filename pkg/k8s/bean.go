@@ -51,7 +51,7 @@ func (req *CmCsRequestBean) SetNamespace(namespace string) *CmCsRequestBean {
 }
 
 func (req *CmCsRequestBean) SetExternalCmList(externalCmList ...string) *CmCsRequestBean {
-	if len(req.externalCmList) == 0 {
+	if len(externalCmList) == 0 {
 		return req
 	}
 	req.externalCmList = append(req.externalCmList, externalCmList...)
@@ -59,7 +59,7 @@ func (req *CmCsRequestBean) SetExternalCmList(externalCmList ...string) *CmCsReq
 }
 
 func (req *CmCsRequestBean) SetExternalCsList(externalCsList ...string) *CmCsRequestBean {
-	if len(req.externalCsList) == 0 {
+	if len(externalCsList) == 0 {
 		return req
 	}
 	req.externalCsList = append(req.externalCsList, externalCsList...)
