@@ -42,6 +42,8 @@ service ApplicationService {
   rpc UpgradeReleaseWithCustomChart(UpgradeReleaseRequest) returns(UpgradeReleaseResponse){}
   rpc ValidateOCIRegistry(RegistryCredential) returns(OCIRegistryResponse) {}
   rpc GetResourceTreeForExternalResources(ExternalResourceTreeRequest) returns(ResourceTreeResponse){}
+  rpc  GetReleaseDetails(ReleaseIdentifier)returns(DeployedAppDetail){}
+
 }
 
 message ExternalResourceTreeRequest{
