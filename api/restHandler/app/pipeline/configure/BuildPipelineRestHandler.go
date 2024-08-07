@@ -1588,7 +1588,7 @@ func (handler *PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWrit
 		if handler.appWorkflowService.CheckCdPipelineByCiPipelineId(pipelineId) {
 			for _, envId := range environmentIds {
 				envObject := handler.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(pipelineId, envId)
-				if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
+				if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, envObject); !ok {
 					common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 					return
 				}

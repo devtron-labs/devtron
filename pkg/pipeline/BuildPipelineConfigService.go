@@ -279,6 +279,16 @@ func (impl *CiPipelineConfigServiceImpl) patchCiPipelineUpdateSource(baseCiConfi
 		impl.logger.Errorw("error in fetching pipeline", "id", modifiedCiPipeline.Id, "err", err)
 		return nil, err
 	}
+	// updating PipelineType from db if not present in request
+	if modifiedCiPipeline.PipelineType == "" {
+		if CiPipeline.PipelineType(pipeline.PipelineType) != "" {
+			modifiedCiPipeline.PipelineType = CiPipeline.PipelineType(pipeline.PipelineType)
+		} else {
+			// updating default pipelineType if not present in request
+			modifiedCiPipeline.PipelineType = CiPipeline.DefaultPipelineType
+
+		}
+	}
 	if !modifiedCiPipeline.PipelineType.IsValidPipelineType() {
 		impl.logger.Debugw(" Invalid PipelineType", "PipelineType", modifiedCiPipeline.PipelineType)
 		errorMessage := fmt.Sprintf(CiPipeline.PIPELINE_TYPE_IS_NOT_VALID, modifiedCiPipeline.Name)

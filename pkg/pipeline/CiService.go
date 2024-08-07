@@ -167,6 +167,13 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 
 	// checking if user has given run time parameters for externalCiArtifact, if given then sending git material to Ci-Runner
 	externalCiArtifact, exists := trigger.ExtraEnvironmentVariables["externalCiArtifact"]
+	// validate externalCiArtifact as docker image
+	if exists {
+		if !strings.Contains(externalCiArtifact, ":") {
+			impl.Logger.Errorw("validation error", "externalCiArtifact", externalCiArtifact)
+			return 0, fmt.Errorf("invalid image name given in externalCiArtifact")
+		}
+	}
 	if trigger.PipelineType == string(CiPipeline.CI_JOB) && len(ciMaterials) != 0 && !exists && externalCiArtifact == "" {
 		ciMaterials = []*pipelineConfig.CiPipelineMaterial{ciMaterials[0]}
 		ciMaterials[0].GitMaterial = nil
@@ -565,7 +572,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		}
 		ciBuildConfigBean = templateOverrideBean.CiBuildConfig
 		// updating args coming from ciBaseBuildConfigEntity because it is not part of Ci override
-		if ciBuildConfigBean != nil && ciBuildConfigBean.DockerBuildConfig != nil {
+		if ciBuildConfigBean != nil && ciBuildConfigBean.DockerBuildConfig != nil && ciBaseBuildConfigBean != nil && ciBaseBuildConfigBean.DockerBuildConfig != nil {
 			ciBuildConfigBean.DockerBuildConfig.Args = ciBaseBuildConfigBean.DockerBuildConfig.Args
 		}
 		templateOverride := templateOverrideBean.CiTemplateOverride
