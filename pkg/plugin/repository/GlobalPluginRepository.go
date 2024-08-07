@@ -803,24 +803,20 @@ func (impl *GlobalPluginRepositoryImpl) UpdatePluginMetadataInBulk(pluginsMetada
 
 func (impl *GlobalPluginRepositoryImpl) GetAllFilteredPluginParentMetadata(searchKey string, tags []string) ([]*PluginParentMetadata, error) {
 	var plugins []*PluginParentMetadata
-	subQuery := "select ppm.id, ppm.identifier,ppm.name,ppm.description,ppm.type,ppm.icon,ppm.deleted,ppm.created_by, ppm.created_on,ppm.updated_by,ppm.updated_on from plugin_parent_metadata ppm" +
+	query := "select ppm.id, ppm.identifier,ppm.name,ppm.description,ppm.type,ppm.icon,ppm.deleted,ppm.created_by, ppm.created_on,ppm.updated_by,ppm.updated_on from plugin_parent_metadata ppm" +
 		" inner join plugin_metadata pm on pm.plugin_parent_metadata_id=ppm.id"
-	whereCondition := fmt.Sprintf(" where ppm.deleted=false")
-	orderCondition := fmt.Sprintf(" ORDER BY ppm.id asc")
+	whereCondition := fmt.Sprintf(" where ppm.deleted=false AND pm.deleted=false AND pm.is_latest=true")
 	if len(tags) > 0 {
-		subQuery = "select DISTINCT ON(ppm.id) ppm.id, ppm.identifier,ppm.name,ppm.description,ppm.type,ppm.icon,ppm.deleted,ppm.created_by, ppm.created_on,ppm.updated_by,ppm.updated_on from plugin_parent_metadata ppm" +
-			" inner join plugin_metadata pm on pm.plugin_parent_metadata_id=ppm.id" +
-			" left join plugin_tag_relation ptr on ptr.plugin_id=pm.id" +
-			" left join plugin_tag pt on ptr.tag_id=pt.id"
-		whereCondition += fmt.Sprintf("  AND pm.deleted=false AND pt.deleted=false AND pt.name in (%s)", helper.GetCommaSepratedStringWithComma(tags))
+		tagFilterSubQuery := fmt.Sprintf("select ptr.plugin_id from plugin_tag_relation ptr inner join plugin_tag pt on ptr.tag_id =pt.id where pt.deleted =false and  pt.name in (%s) group by ptr.plugin_id having count(ptr.plugin_id )=%d", helper.GetCommaSepratedStringWithComma(tags), len(tags))
+		whereCondition += fmt.Sprintf(" AND pm.id in (%s)", tagFilterSubQuery)
 	}
 	if len(searchKey) > 0 {
 		searchKeyLike := "%" + searchKey + "%"
-		whereCondition += fmt.Sprintf(" AND (pm.description ilike '%s' or pm.name ilike '%s')", searchKeyLike, searchKeyLike)
+		whereCondition += fmt.Sprintf(" AND (ppm.description ilike '%s' or ppm.name ilike '%s')", searchKeyLike, searchKeyLike)
 	}
-	whereCondition += fmt.Sprintf(" AND pm.is_latest=true")
-	subQuery += whereCondition + orderCondition
-	query := fmt.Sprintf(" select * from (%s) x ORDER BY name asc;", subQuery)
+	orderCondition := " ORDER BY ppm.name asc;"
+
+	query += whereCondition + orderCondition
 	_, err := impl.dbConnection.Query(&plugins, query)
 	if err != nil {
 		return nil, err
