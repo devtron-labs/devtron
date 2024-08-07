@@ -2024,13 +2024,23 @@ func (impl *GlobalPluginServiceImpl) createNewPlugin(tx *pg.Tx, pluginDto *bean2
 }
 
 func (impl *GlobalPluginServiceImpl) createNewPluginVersionOfExistingPlugin(tx *pg.Tx, pluginDto *bean2.PluginParentMetadataDto, userId int32) (int, error) {
-	pluginParentMinData, err := impl.globalPluginRepository.GetPluginParentMinDataById(pluginDto.Id)
-	if err != nil {
-		impl.logger.Errorw("createNewPluginVersionOfExistingPlugin, error in getting plugin parent metadata", "pluginDto", pluginDto, "err", err)
-		return 0, err
+	var pluginParentMinData *repository.PluginParentMetadata
+	var err error
+	if pluginDto.Id > 0 {
+		pluginParentMinData, err = impl.globalPluginRepository.GetPluginParentMinDataById(pluginDto.Id)
+		if err != nil {
+			impl.logger.Errorw("createNewPluginVersionOfExistingPlugin, error in getting plugin parent metadata", "pluginDto", pluginDto, "err", err)
+			return 0, err
+		}
+	} else {
+		pluginParentMinData, err = impl.globalPluginRepository.GetPluginParentMinDataByIdentifier(pluginDto.PluginIdentifier)
+		if err != nil {
+			impl.logger.Errorw("createNewPluginVersionOfExistingPlugin, error in getting plugin parent metadata", "pluginDto", pluginDto, "err", err)
+			return 0, err
+		}
 	}
 	// before saving new plugin version marking previous version's isLatest as false.
-	err = impl.globalPluginRepository.MarkPreviousPluginVersionLatestFalse(pluginDto.Id)
+	err = impl.globalPluginRepository.MarkPreviousPluginVersionLatestFalse(pluginParentMinData.Id)
 	if err != nil {
 		impl.logger.Errorw("createNewPluginVersionOfExistingPlugin, error in MarkPreviousPluginVersionLatestFalse", "pluginParentId", pluginDto.Id, "err", err)
 		return 0, err
