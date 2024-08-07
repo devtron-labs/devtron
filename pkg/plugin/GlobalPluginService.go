@@ -662,33 +662,10 @@ func (impl *GlobalPluginServiceImpl) UpdatePluginPipelineScript(dbPluginPipeline
 
 func (impl *GlobalPluginServiceImpl) saveDeepPluginStepData(pluginMetadataId int, pluginStepsReq []*bean2.PluginStepsDto, userId int32, tx *pg.Tx) error {
 	for _, pluginStep := range pluginStepsReq {
-		pluginStepData := &repository.PluginStep{
-			PluginId:            pluginMetadataId,
-			Name:                pluginStep.Name,
-			Description:         pluginStep.Description,
-			Index:               pluginStep.Index,
-			StepType:            pluginStep.StepType,
-			RefPluginId:         pluginStep.RefPluginId,
-			OutputDirectoryPath: pluginStep.OutputDirectoryPath,
-			DependentOnStep:     pluginStep.DependentOnStep,
-			AuditLog:            sql.NewDefaultAuditLog(userId),
-		}
+		pluginStepData := adaptor.GetPluginStepDbObject(pluginStep, pluginMetadataId, userId)
 		//get the script saved for this plugin step
 		if pluginStep.PluginPipelineScript != nil {
-			pluginPipelineScript := &repository.PluginPipelineScript{
-				Script:                   pluginStep.PluginPipelineScript.Script,
-				StoreScriptAt:            pluginStep.PluginPipelineScript.StoreScriptAt,
-				Type:                     pluginStep.PluginPipelineScript.Type,
-				DockerfileExists:         pluginStep.PluginPipelineScript.DockerfileExists,
-				MountPath:                pluginStep.PluginPipelineScript.MountPath,
-				MountCodeToContainer:     pluginStep.PluginPipelineScript.MountCodeToContainer,
-				MountCodeToContainerPath: pluginStep.PluginPipelineScript.MountCodeToContainerPath,
-				MountDirectoryFromHost:   pluginStep.PluginPipelineScript.MountDirectoryFromHost,
-				ContainerImagePath:       pluginStep.PluginPipelineScript.ContainerImagePath,
-				ImagePullSecretType:      pluginStep.PluginPipelineScript.ImagePullSecretType,
-				ImagePullSecret:          pluginStep.PluginPipelineScript.ImagePullSecret,
-				AuditLog:                 sql.NewDefaultAuditLog(userId),
-			}
+			pluginPipelineScript := adaptor.GetPluginPipelineScriptDbObject(pluginStep.PluginPipelineScript, userId)
 			pluginPipelineScript, err := impl.globalPluginRepository.SavePluginPipelineScript(pluginPipelineScript, tx)
 			if err != nil {
 				impl.logger.Errorw("error in saving plugin pipeline script", "pluginPipelineScript", pluginPipelineScript, "err", err)
@@ -711,23 +688,7 @@ func (impl *GlobalPluginServiceImpl) saveDeepPluginStepData(pluginMetadataId int
 		pluginStep.Id = pluginStepData.Id
 		//create entry in plugin_step_variable
 		for _, pluginStepVariable := range pluginStep.PluginStepVariable {
-			pluginStepVariableData := &repository.PluginStepVariable{
-				PluginStepId:              pluginStepData.Id,
-				Name:                      pluginStepVariable.Name,
-				Format:                    pluginStepVariable.Format,
-				Description:               pluginStepVariable.Description,
-				IsExposed:                 pluginStepVariable.IsExposed,
-				AllowEmptyValue:           pluginStepVariable.AllowEmptyValue,
-				DefaultValue:              pluginStepVariable.DefaultValue,
-				Value:                     pluginStepVariable.Value,
-				VariableType:              pluginStepVariable.VariableType,
-				ValueType:                 pluginStepVariable.ValueType,
-				PreviousStepIndex:         pluginStepVariable.PreviousStepIndex,
-				VariableStepIndex:         pluginStepVariable.VariableStepIndex,
-				VariableStepIndexInPlugin: pluginStepVariable.VariableStepIndexInPlugin,
-				ReferenceVariableName:     pluginStepVariable.ReferenceVariableName,
-				AuditLog:                  sql.NewDefaultAuditLog(userId),
-			}
+			pluginStepVariableData := adaptor.GetPluginStepVariableDbObject(pluginStepData.Id, pluginStepVariable, userId)
 			pluginStepVariableData, err = impl.globalPluginRepository.SavePluginStepVariables(pluginStepVariableData, tx)
 			if err != nil {
 				impl.logger.Errorw("error in saving plugin step variable", "pluginStepVariableData", pluginStepVariableData, "err", err)
@@ -736,14 +697,7 @@ func (impl *GlobalPluginServiceImpl) saveDeepPluginStepData(pluginMetadataId int
 			pluginStepVariable.Id = pluginStepVariableData.Id
 			//create entry in plugin_step_condition
 			for _, pluginStepCondition := range pluginStepVariable.PluginStepCondition {
-				pluginStepConditionData := &repository.PluginStepCondition{
-					PluginStepId:        pluginStepData.Id,
-					ConditionVariableId: pluginStepVariableData.Id,
-					ConditionType:       pluginStepCondition.ConditionType,
-					ConditionalOperator: pluginStepCondition.ConditionalOperator,
-					ConditionalValue:    pluginStepCondition.ConditionalValue,
-					AuditLog:            sql.NewDefaultAuditLog(userId),
-				}
+				pluginStepConditionData := adaptor.GetPluginStepConditionDbObject(pluginStepData.Id, pluginStepVariableData.Id, pluginStepCondition, userId)
 				pluginStepConditionData, err = impl.globalPluginRepository.SavePluginStepConditions(pluginStepConditionData, tx)
 				if err != nil {
 					impl.logger.Errorw("error in saving plugin step condition", "pluginStepConditionData", pluginStepConditionData, "err", err)
@@ -2070,8 +2024,49 @@ func (impl *GlobalPluginServiceImpl) createNewPlugin(tx *pg.Tx, pluginDto *bean2
 }
 
 func (impl *GlobalPluginServiceImpl) createNewPluginVersionOfExistingPlugin(tx *pg.Tx, pluginDto *bean2.PluginParentMetadataDto, userId int32) (int, error) {
+	pluginParentMinData, err := impl.globalPluginRepository.GetPluginParentMinDataById(pluginDto.Id)
+	if err != nil {
+		impl.logger.Errorw("createNewPluginVersionOfExistingPlugin, error in getting plugin parent metadata", "pluginDto", pluginDto, "err", err)
+		return 0, err
+	}
+	// before saving new plugin version marking previous version's isLatest as false.
+	err = impl.globalPluginRepository.MarkPreviousPluginVersionLatestFalse(pluginDto.Id)
+	if err != nil {
+		impl.logger.Errorw("createNewPluginVersionOfExistingPlugin, error in MarkPreviousPluginVersionLatestFalse", "pluginParentId", pluginDto.Id, "err", err)
+		return 0, err
+	}
+	pluginVersionDto := adaptor.GetPluginVersionMetadataDbObject(pluginDto, userId).
+		WithPluginParentMetadataId(pluginParentMinData.Id).
+		WithIsLatestFlag(true)
 
-	return 0, nil
+	pluginVersionMetadata, err := impl.globalPluginRepository.SavePluginMetadata(pluginVersionDto, tx)
+	if err != nil {
+		impl.logger.Errorw("createNewPluginVersionOfExistingPlugin, error in saving plugin version metadata", "pluginDto", pluginDto, "err", err)
+		return 0, err
+	}
+	pluginDto.Versions.DetailedPluginVersionData[0].Id = pluginVersionMetadata.Id
+
+	pluginStepsToCreate := pluginDto.Versions.DetailedPluginVersionData[0].PluginSteps
+	if len(pluginStepsToCreate) > 0 {
+		err = impl.saveDeepPluginStepData(pluginVersionMetadata.Id, pluginStepsToCreate, userId, tx)
+		if err != nil {
+			impl.logger.Errorw("createNewPluginVersionOfExistingPlugin, error in saving plugin step data", "err", err)
+			return 0, err
+		}
+	} else {
+		return 0, util.NewApiError().WithCode(strconv.Itoa(http.StatusBadRequest)).WithHttpStatusCode(http.StatusBadRequest).
+			WithInternalMessage(bean2.PluginStepsNotProvidedError).WithUserMessage(errors.New(bean2.PluginStepsNotProvidedError))
+	}
+	newTagsPresentInReq := pluginDto.Versions.DetailedPluginVersionData[0].NewTagsPresent
+	if newTagsPresentInReq {
+		err = impl.CreateNewPluginTagsAndRelationsIfRequiredV2(pluginDto.Versions.DetailedPluginVersionData[0], userId, tx)
+		if err != nil {
+			impl.logger.Errorw("createNewPluginVersionOfExistingPlugin, error in CreateNewPluginTagsAndRelationsIfRequired", "tags", pluginDto.Versions.DetailedPluginVersionData[0].Tags, "err", err)
+			return 0, err
+		}
+	}
+
+	return pluginVersionMetadata.Id, nil
 }
 
 func (impl *GlobalPluginServiceImpl) createPluginV2(pluginDto *bean2.PluginParentMetadataDto, userId int32) (int, error) {

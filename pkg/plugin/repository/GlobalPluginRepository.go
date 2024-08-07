@@ -335,6 +335,8 @@ type GlobalPluginRepository interface {
 	GetAllFilteredPluginParentMetadata(searchKey string, tags []string) ([]*PluginParentMetadata, error)
 	GetPluginParentMetadataByIds(ids []int) ([]*PluginParentMetadata, error)
 	GetAllPluginMinData() ([]*PluginParentMetadata, error)
+	GetPluginParentMinDataById(id int) (*PluginParentMetadata, error)
+	MarkPreviousPluginVersionLatestFalse(pluginParentId int) error
 
 	SavePluginMetadata(pluginMetadata *PluginMetadata, tx *pg.Tx) (*PluginMetadata, error)
 	SavePluginStageMapping(pluginStageMapping *PluginStageMapping, tx *pg.Tx) (*PluginStageMapping, error)
@@ -779,6 +781,16 @@ func (impl *GlobalPluginRepositoryImpl) GetPluginParentMetadataByIdentifier(plug
 	return &pluginParentMetadata, nil
 }
 
+func (impl *GlobalPluginRepositoryImpl) GetPluginParentMinDataById(id int) (*PluginParentMetadata, error) {
+	var pluginParentMetadata PluginParentMetadata
+	err := impl.dbConnection.Model(&pluginParentMetadata).Where("id = ?", id).
+		Where("deleted = ?", false).Select()
+	if err != nil {
+		return nil, err
+	}
+	return &pluginParentMetadata, nil
+}
+
 func (impl *GlobalPluginRepositoryImpl) SavePluginParentMetadata(tx *pg.Tx, pluginParentMetadata *PluginParentMetadata) (*PluginParentMetadata, error) {
 	err := tx.Insert(pluginParentMetadata)
 	return pluginParentMetadata, err
@@ -840,4 +852,17 @@ func (impl *GlobalPluginRepositoryImpl) GetAllPluginMinData() ([]*PluginParentMe
 		return nil, err
 	}
 	return plugins, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) MarkPreviousPluginVersionLatestFalse(pluginParentId int) error {
+	var model PluginMetadata
+	_, err := impl.dbConnection.Model(&model).
+		Set("is_latest = ?", false).
+		Where("id = (select id from plugin_metadata where plugin_parent_metadata_id = ? and is_latest =true order by created_on desc limit 1)", pluginParentId).
+		Update()
+	if err != nil {
+		impl.logger.Errorw("error in updating last version isLatest as false for a plugin parent id", "pluginParentId", pluginParentId, "err", err)
+		return err
+	}
+	return nil
 }
