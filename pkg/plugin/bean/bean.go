@@ -1,17 +1,5 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package bean
@@ -44,15 +32,42 @@ type PluginListComponentDto struct { //created new struct for backward compatibi
 }
 
 type PluginMetadataDto struct {
-	Id          int               `json:"id"`
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Type        string            `json:"type,omitempty" validate:"oneof=SHARED PRESET"` // SHARED, PRESET etc
-	Icon        string            `json:"icon,omitempty"`
-	Tags        []string          `json:"tags"`
-	Action      int               `json:"action,omitempty"`
-	PluginStage string            `json:"pluginStage,omitempty"`
-	PluginSteps []*PluginStepsDto `json:"pluginSteps,omitempty"`
+	Id             int               `json:"id"`
+	Name           string            `json:"name" validate:"required,min=3,max=100,global-entity-name"`
+	Description    string            `json:"description" validate:"max=300"`
+	Type           string            `json:"type,omitempty" validate:"oneof=SHARED PRESET"` // SHARED, PRESET etc
+	Icon           string            `json:"icon,omitempty"`
+	Tags           []string          `json:"tags"`
+	Action         int               `json:"action,omitempty"`
+	PluginStage    string            `json:"pluginStage,omitempty"`
+	PluginSteps    []*PluginStepsDto `json:"pluginSteps,omitempty"`
+	NewTagsPresent bool              `json:"newTagsPresent,omitempty"`
+	//PluginIdentifier string            `json:"pluginIdentifier" validate:"required,min=3,max=100,global-entity-name"`
+}
+
+type PluginMinDto struct {
+	ParentPluginId int    `json:"parentPluginId"`
+	PluginName     string `json:"pluginName"`
+	Icon           string `json:"icon"`
+}
+
+func NewPluginMinDto() *PluginMinDto {
+	return &PluginMinDto{}
+}
+
+func (r *PluginMinDto) WithParentPluginId(id int) *PluginMinDto {
+	r.ParentPluginId = id
+	return r
+}
+
+func (r *PluginMinDto) WithPluginName(name string) *PluginMinDto {
+	r.PluginName = name
+	return r
+}
+
+func (r *PluginMinDto) WithIcon(icon string) *PluginMinDto {
+	r.Icon = icon
+	return r
 }
 
 type PluginsDto struct {
@@ -76,9 +91,9 @@ func (r *PluginsDto) WithTotalCount(count int) *PluginsDto {
 
 type PluginParentMetadataDto struct {
 	Id               int             `json:"id"`
-	Name             string          `json:"name"`
-	PluginIdentifier string          `json:"pluginIdentifier"`
-	Description      string          `json:"description"`
+	Name             string          `json:"name" validate:"required,min=3,max=100,global-entity-name"`
+	PluginIdentifier string          `json:"pluginIdentifier" validate:"required,min=3,max=100,global-entity-name"`
+	Description      string          `json:"description" validate:"max=300"`
 	Type             string          `json:"type,omitempty" validate:"oneof=SHARED PRESET"`
 	Icon             string          `json:"icon,omitempty"`
 	Versions         *PluginVersions `json:"pluginVersions"`
@@ -124,17 +139,6 @@ type PluginVersions struct {
 	MinimalPluginVersionData  []*PluginsVersionDetail `json:"minimalPluginVersionData"`  // contains only few metadata
 }
 
-type PluginMinDto struct {
-	PluginName     string                  `json:"pluginName"`
-	PluginVersions []*PluginVersionsMinDto `json:"pluginVersions"`
-	Icon           string                  `json:"icon"`
-}
-
-type PluginVersionsMinDto struct {
-	Id      int    `json:"id"`
-	Version string `json:"version"`
-}
-
 func NewPluginVersions() *PluginVersions {
 	return &PluginVersions{}
 }
@@ -154,7 +158,7 @@ type PluginsVersionDetail struct {
 	InputVariables  []*PluginVariableDto `json:"inputVariables"`
 	OutputVariables []*PluginVariableDto `json:"outputVariables"`
 	DocLink         string               `json:"docLink"`
-	Version         string               `json:"pluginVersion"`
+	Version         string               `json:"pluginVersion" validate:"max=50,min=3"`
 	IsLatest        bool                 `json:"isLatest"`
 	UpdatedBy       string               `json:"updatedBy"`
 	CreatedOn       time.Time            `json:"-"`
@@ -171,6 +175,7 @@ func (r *PluginsVersionDetail) SetMinimalPluginsVersionDetail(pluginVersionMetad
 	r.Description = pluginVersionMetadata.Description
 	r.Version = pluginVersionMetadata.PluginVersion
 	r.IsLatest = pluginVersionMetadata.IsLatest
+	r.DocLink = pluginVersionMetadata.DocLink
 	return r
 }
 
@@ -335,10 +340,18 @@ type RegistryCredentials struct {
 }
 
 const (
-	NoPluginOrParentIdProvidedErr      = "no value for pluginVersionIds and parentPluginIds provided in query param"
-	NoPluginFoundForThisSearchQueryErr = "unable to find desired plugin for the query filter"
+	NoPluginOrParentIdProvidedErr            = "no value for pluginVersionIds and parentPluginIds provided in query param"
+	NoPluginFoundForThisSearchQueryErr       = "unable to find desired plugin for the query filter"
+	PluginStepsNotProvidedError              = "plugin steps not provided"
+	PluginWithSameNameExistError             = "plugin with the same name exists, please choose another name"
+	PluginWithSameIdentifierExistsError      = "plugin with the same identifier exists, please choose another name"
+	PluginVersionNotSemanticallyCorrectError = "please provide a plugin version that adheres to Semantic Versioning 2.0.0 to ensure compatibility and proper versioning"
+	PluginIconNotCorrectOrReachableError     = "cannot validate icon, make sure that provided url link is reachable"
+	InvalidPluginTypeError                   = "invalid plugin type, should be of the type SHARED"
+	NoStepDataToProceedError                 = "no step data provided to save, please provide a plugin step to proceed further"
 )
 
 const (
-	SpecialCharsRegex = ` !"#$%&'()*+,./:;<=>?@[\]^_{|}~` + "`"
+	SpecialCharsRegex        = ` !"#$%&'()*+,./:;<=>?@[\]^_{|}~` + "`"
+	PluginIconMaxSizeInBytes = 2 * 1024 * 1024
 )

@@ -35,6 +35,7 @@ import (
 
 type GlobalPluginRestHandler interface {
 	PatchPlugin(w http.ResponseWriter, r *http.Request)
+	CreatePlugin(w http.ResponseWriter, r *http.Request)
 
 	GetAllGlobalVariables(w http.ResponseWriter, r *http.Request)
 	ListAllPlugins(w http.ResponseWriter, r *http.Request)
@@ -46,6 +47,7 @@ type GlobalPluginRestHandler interface {
 	GetPluginDetailByIds(w http.ResponseWriter, r *http.Request)
 	GetAllUniqueTags(w http.ResponseWriter, r *http.Request)
 	MigratePluginData(w http.ResponseWriter, r *http.Request)
+	GetAllPluginMinData(w http.ResponseWriter, r *http.Request)
 }
 
 func NewGlobalPluginRestHandler(logger *zap.SugaredLogger, globalPluginService plugin.GlobalPluginService,
@@ -419,4 +421,61 @@ func (handler *GlobalPluginRestHandlerImpl) MigratePluginData(w http.ResponseWri
 		return
 	}
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
+}
+
+func (handler *GlobalPluginRestHandlerImpl) CreatePlugin(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var pluginDataDto *bean.PluginParentMetadataDto
+	err = decoder.Decode(&pluginDataDto)
+	if err != nil {
+		handler.logger.Errorw("request err, CreatePlugin", "error", err, "payload", pluginDataDto)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.logger.Infow("request payload received for patching plugins", pluginDataDto, "userId", userId)
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+
+	//RBAC enforcer Ends
+	pluginVersionId, err := handler.globalPluginService.CreatePluginOrVersions(pluginDataDto, userId)
+	if err != nil {
+		handler.logger.Errorw("service error, error in creating plugin", "pluginCreateRequestDto", pluginDataDto, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, pluginVersionId, http.StatusOK)
+}
+
+func (handler *GlobalPluginRestHandlerImpl) GetAllPluginMinData(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	appId, err := common.ExtractIntQueryParam(w, r, "appId", 0)
+	if err != nil {
+		return
+	}
+	ok, err := handler.IsUserAuthorized(token, appId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	pluginDetail, err := handler.globalPluginService.GetAllPluginMinData()
+	if err != nil {
+		handler.logger.Errorw("error in getting all unique tags", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, pluginDetail, http.StatusOK)
 }
