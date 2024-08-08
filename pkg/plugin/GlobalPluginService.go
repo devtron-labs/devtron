@@ -1955,13 +1955,15 @@ func (impl *GlobalPluginServiceImpl) validateV2PluginRequest(pluginReq *bean2.Pl
 		}
 	}
 	//validate icon url and size
-	err = utils.FetchIconAndCheckSize(pluginReq.Icon, bean2.PluginIconMaxSizeInBytes)
-	if err != nil {
-		return &util.ApiError{
-			HttpStatusCode:  http.StatusBadRequest,
-			Code:            strconv.Itoa(http.StatusBadRequest),
-			InternalMessage: fmt.Sprintf("%s err:= %s", bean2.PluginIconNotCorrectOrReachableError, err.Error()),
-			UserMessage:     errors.New(fmt.Sprintf("%s err:= %s", bean2.PluginIconNotCorrectOrReachableError, err.Error())),
+	if len(pluginReq.Icon) > 0 {
+		err = utils.FetchIconAndCheckSize(pluginReq.Icon, bean2.PluginIconMaxSizeInBytes)
+		if err != nil {
+			return &util.ApiError{
+				HttpStatusCode:  http.StatusBadRequest,
+				Code:            strconv.Itoa(http.StatusBadRequest),
+				InternalMessage: fmt.Sprintf("%s err:= %s", bean2.PluginIconNotCorrectOrReachableError, err.Error()),
+				UserMessage:     fmt.Sprintf("%s err:= %s", bean2.PluginIconNotCorrectOrReachableError, err.Error()),
+			}
 		}
 	}
 	return nil
