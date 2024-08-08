@@ -134,6 +134,9 @@ func (impl *AppStoreDeploymentDBServiceImpl) AppStoreDeployOperationDB(installRe
 	// setting additional env data required in appStoreBean.InstallAppVersionDTO
 	adapter.UpdateAdditionalEnvDetails(installRequest, environment)
 
+	// setting the appName unique identifier and display name for the hyperion mode
+	adapter.UpdateAppDetailsForHyperion(installRequest, getAppInstallationMode(installRequest.AppOfferingMode))
+
 	impl.appStoreValidator.Validate(installRequest, environment)
 
 	// Stage 1:  Create App in tx (Only if AppId is not set already)
@@ -148,6 +151,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) AppStoreDeployOperationDB(installRe
 			appCreateRequest.AppType = helper.ExternalChartStoreApp
 			appCreateRequest.DisplayName = installRequest.DisplayName
 		}
+
 		appCreateRequest, err = impl.createAppForAppStore(appCreateRequest, tx, getAppInstallationMode(installRequest.AppOfferingMode))
 		if err != nil {
 			impl.logger.Errorw("error while creating app", "error", err)
