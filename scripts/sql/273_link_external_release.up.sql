@@ -3,3 +3,4 @@ CREATE UNIQUE INDEX "unique_deployment_app_name"
 
 ALTER TABLE deployment_config
     ADD COLUMN release_mode VARCHAR(256) DEFAULT 'create';
+

@@ -5,6 +5,7 @@ import (
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -99,6 +100,16 @@ func (impl *DeploymentConfigServiceImpl) GetConfigForDevtronApps(appId, envId in
 			impl.logger.Errorw("error in parsing config from charts and pipeline repository", "appId", appId, "envId", envId, "err", err)
 			return nil, err
 		}
+		appAndEnvLevelConfig, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(appId, envId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting deployment config db object by appId and envId", "appId", appId, "envId", envId, "err", err)
+			return nil, err
+		}
+		if err == pg.ErrNoRows {
+			configFromOldData.ReleaseMode = util2.PIPELINE_RELEASE_MODE_CREATE
+		} else {
+			configFromOldData.ReleaseMode = appAndEnvLevelConfig.ReleaseMode
+		}
 		return configFromOldData, nil
 	}
 
@@ -188,6 +199,7 @@ func (impl *DeploymentConfigServiceImpl) GetAndMigrateConfigIfAbsentForDevtronAp
 			impl.logger.Errorw("error in parsing config from charts and pipeline repository", "appId", appId, "envId", envId, "err", err)
 			return nil, err
 		}
+		configFromOldData.ReleaseMode = envLevelConfig.ReleaseMode
 		return configFromOldData, nil
 	}
 
@@ -254,6 +266,7 @@ func (impl *DeploymentConfigServiceImpl) parseEnvLevelConfigForDevtronApps(appLe
 		EnvironmentId: envId,
 		ConfigType:    appLevelConfig.ConfigType,
 		RepoUrl:       appLevelConfig.RepoUrl,
+		ReleaseMode:   util2.PIPELINE_RELEASE_MODE_CREATE, //for migration it is always equal to create as migration is happening for old cd pipelines
 		Active:        true,
 	}
 

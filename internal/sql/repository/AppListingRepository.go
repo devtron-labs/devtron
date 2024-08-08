@@ -378,14 +378,15 @@ func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx contex
 		return deploymentDetail, err
 	}
 	deploymentDetail.EnvironmentId = envId
-	if len(deploymentDetail.DeploymentAppType) == 0 {
-		dc, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(appId, envId)
-		if err != nil {
-			impl.Logger.Errorw("error in getting deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
-			return deploymentDetail, err
-		}
-		deploymentDetail.DeploymentAppType = dc.DeploymentAppType
+
+	deploymentDetail.EnvironmentId = envId
+	dc, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(appId, envId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
+		return deploymentDetail, err
 	}
+	deploymentDetail.DeploymentAppType = dc.DeploymentAppType
+	deploymentDetail.ReleaseMode = dc.ReleaseMode
 
 	return deploymentDetail, nil
 }
@@ -454,6 +455,9 @@ func (impl AppListingRepositoryImpl) FetchAppDetail(ctx context.Context, appId i
 	deploymentDetail, err := impl.deploymentDetailsByAppIdAndEnvId(newCtx, appId, envId)
 	if err != nil {
 		impl.Logger.Warn("unable to fetch deployment detail for app")
+	}
+	if deploymentDetail.PcoId > 0 {
+		deploymentDetail.IsPipelineTriggered = true
 	}
 	appWfMapping, _ := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(deploymentDetail.CdPipelineId)
 	if appWfMapping.ParentType == appWorkflow2.CDPIPELINE {
