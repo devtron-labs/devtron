@@ -2068,6 +2068,7 @@ func (impl *GlobalPluginServiceImpl) createNewPluginVersionOfExistingPlugin(tx *
 		impl.logger.Errorw("createNewPluginVersionOfExistingPlugin, error in MarkPreviousPluginVersionLatestFalse", "pluginParentId", pluginDto.Id, "err", err)
 		return 0, err
 	}
+	pluginDto.Name = pluginParentMinData.Name
 	pluginVersionDto := adaptor.GetPluginVersionMetadataDbObject(pluginDto, userId).
 		WithPluginParentMetadataId(pluginParentMinData.Id).
 		WithIsLatestFlag(true)
