@@ -1750,24 +1750,62 @@ func (impl *GlobalPluginServiceImpl) ListAllPluginsV2(filter *bean2.PluginsListF
 
 	return pluginDetails, nil
 }
+func (impl *GlobalPluginServiceImpl) validateDetailRequest(pluginVersions []*repository.PluginMetadata, pluginVersionIds, parentPluginIds []int) error {
+	pluginVersionsIdMap, pluginParentIdMap := make(map[int]bool, len(pluginVersionIds)), make(map[int]bool, len(parentPluginIds))
+	allPlugins, err := impl.globalPluginRepository.GetAllPluginMinData()
+	if err != nil {
+		impl.logger.Errorw("validateDetailRequest, error in getting all plugins parent metadata", "err", err)
+		return err
+	}
+	for _, pluginVersion := range pluginVersions {
+		pluginVersionsIdMap[pluginVersion.Id] = true
+	}
+	for _, plugin := range allPlugins {
+		pluginParentIdMap[plugin.Id] = true
+	}
+	nonExistingPluginVersionIds, nonExistingPluginParentIds := make([]int, 0, len(pluginVersionIds)), make([]int, 0, len(parentPluginIds))
+	for _, versionId := range pluginVersionIds {
+		if _, ok := pluginVersionsIdMap[versionId]; !ok {
+			nonExistingPluginVersionIds = append(nonExistingPluginVersionIds, versionId)
+		}
+	}
+	for _, pluginId := range parentPluginIds {
+		if _, ok := pluginParentIdMap[pluginId]; !ok {
+			nonExistingPluginParentIds = append(nonExistingPluginParentIds, pluginId)
+		}
+	}
+	if len(nonExistingPluginVersionIds) > 0 {
+		errorMsg := fmt.Sprintf("there are some plugin version ids in request that do not exist %v", nonExistingPluginVersionIds)
+		return util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithCode(strconv.Itoa(http.StatusBadRequest)).WithUserMessage(errorMsg).WithInternalMessage(errorMsg)
+	}
+	if len(nonExistingPluginParentIds) > 0 {
+		errorMsg := fmt.Sprintf("there are some plugin parent ids in request that do not exist %v", nonExistingPluginParentIds)
+		return util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithCode(strconv.Itoa(http.StatusBadRequest)).WithUserMessage(errorMsg).WithInternalMessage(errorMsg)
+	}
+	return nil
+}
 
 // GetPluginDetailV2 returns all details of the of a plugin version according to the pluginVersionIds and parentPluginIds
 // provided by user, and minimal data for all versions of that plugin.
 func (impl *GlobalPluginServiceImpl) GetPluginDetailV2(pluginVersionIds, parentPluginIds []int, fetchAllVersionDetails bool) (*bean2.PluginsDto, error) {
+	var err error
+	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins()
+	if err != nil {
+		impl.logger.Errorw("GetPluginDetailV2, error in getting all plugins versions metadata", "err", err)
+		return nil, err
+	}
+	err = impl.validateDetailRequest(pluginVersionsMetadata, pluginVersionIds, parentPluginIds)
+	if err != nil {
+		return nil, err
+	}
 	pluginParentMetadataDtos := make([]*bean2.PluginParentMetadataDto, 0, len(pluginVersionIds)+len(parentPluginIds))
 	if len(pluginVersionIds) == 0 && len(parentPluginIds) == 0 {
 		return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: strconv.Itoa(http.StatusBadRequest), InternalMessage: bean2.NoPluginOrParentIdProvidedErr, UserMessage: bean2.NoPluginOrParentIdProvidedErr}
 	}
 	pluginVersionIdsMap, parentPluginIdsMap := helper2.GetPluginVersionAndParentPluginIdsMap(pluginVersionIds, parentPluginIds)
 
-	var err error
 	pluginParentMetadataIds := make([]int, 0, len(pluginVersionIds)+len(parentPluginIds))
 	pluginVersionsIdToInclude := make(map[int]bool, len(pluginVersionIds)+len(parentPluginIds))
-	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins()
-	if err != nil {
-		impl.logger.Errorw("GetPluginDetailV2, error in getting all plugins versions metadata", "err", err)
-		return nil, err
-	}
 
 	filteredPluginVersionMetadata := helper2.GetPluginVersionsMetadataByVersionAndParentPluginIds(pluginVersionsMetadata, pluginVersionIdsMap, parentPluginIdsMap)
 	if len(filteredPluginVersionMetadata) == 0 {

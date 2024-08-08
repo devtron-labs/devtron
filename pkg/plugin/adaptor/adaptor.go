@@ -19,7 +19,7 @@ func GetPluginVersionMetadataDbObject(pluginDto *bean2.PluginParentMetadataDto, 
 func GetPluginStepDbObject(pluginStepDto *bean2.PluginStepsDto, pluginVersionMetadataId int, userId int32) *repository.PluginStep {
 	return &repository.PluginStep{
 		PluginId:            pluginVersionMetadataId,
-		Name:                "Step-1",
+		Name:                pluginStepDto.Name,
 		Description:         pluginStepDto.Description,
 		Index:               1,
 		StepType:            pluginStepDto.StepType,
