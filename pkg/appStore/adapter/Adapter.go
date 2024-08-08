@@ -29,8 +29,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	clutserBean "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
-	util2 "github.com/devtron-labs/devtron/util"
-	"strconv"
 	"time"
 )
 
@@ -46,7 +44,7 @@ func NewInstallAppModel(request *appStoreBean.InstallAppVersionDTO, status appSt
 		installAppModel.UpdateStatus(status)
 	}
 	installAppModel.CreateAuditLog(request.UserId)
-	//installAppModel.UpdateGitOpsRepository(request.GitOpsRepoURL, request.IsCustomRepository)
+	installAppModel.UpdateGitOpsRepository(request.GitOpsRepoURL, request.IsCustomRepository)
 	installAppModel.MarkActive()
 	return installAppModel
 }
@@ -230,19 +228,6 @@ func UpdateAdditionalEnvDetails(request *appStoreBean.InstallAppVersionDTO, envB
 	request.Namespace = envBean.Namespace
 	request.IsVirtualEnvironment = envBean.IsVirtualEnvironment
 	request.UpdateACDAppName()
-}
-
-// Updating the app.App data and display name  for hyperion mode
-func UpdateAppDetailsForHyperion(request *appStoreBean.InstallAppVersionDTO, appOfferingMode string) {
-	if request == nil || appOfferingMode != util2.SERVER_MODE_HYPERION {
-		return
-	}
-	var idString string
-	idString = strconv.Itoa(request.ClusterId)
-	displayName := request.AppName
-	appNameIdentifier := request.AppName + "_" + request.Namespace + "_" + idString
-	request.AppName = appNameIdentifier
-	request.DisplayName = displayName
 }
 
 // UpdateAppDetails update app.App data into the same InstallAppVersionDTO
