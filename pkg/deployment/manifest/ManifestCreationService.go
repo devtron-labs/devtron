@@ -48,7 +48,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
-	util4 "github.com/devtron-labs/devtron/util"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	errors2 "github.com/juju/errors"
 	"github.com/tidwall/gjson"
@@ -621,7 +621,7 @@ func (impl *ManifestCreationServiceImpl) getConfigMapAndSecretJsonV2(ctx context
 	if err != nil {
 		return cmAndCsJsonV2Response, err
 	}
-	chartMajorVersion, chartMinorVersion, err := util4.ExtractChartVersion(request.ChartVersion)
+	chartMajorVersion, chartMinorVersion, err := globalUtil.ExtractChartVersion(request.ChartVersion)
 	if err != nil {
 		impl.logger.Errorw("chart version parsing", "err", err)
 		return cmAndCsJsonV2Response, err
@@ -686,7 +686,9 @@ func getExternalCmCsFromRootJson(cmRootJson bean.ConfigMapRootJson, csRootJson b
 	}
 	if csRootJson.ConfigSecretJson.Enabled {
 		for _, cs := range csRootJson.ConfigSecretJson.Secrets {
-			if cs.External {
+			// Only handling for KubernetesSecret type
+			// KubernetesExternalSecret types are excluded for Config/Secret Hashing
+			if cs.External && cs.ExternalType == globalUtil.KubernetesSecret {
 				externalCsList = append(externalCsList, cs.Name)
 			}
 		}
@@ -814,7 +816,7 @@ func (impl *ManifestCreationServiceImpl) checkAndFixDuplicateReleaseNo(override 
 	return nil
 }
 
-func (impl *ManifestCreationServiceImpl) getK8sHPAResourceManifest(ctx context.Context, clusterId int, namespace string, hpaResourceRequest *util4.HpaResourceRequest) (map[string]interface{}, error) {
+func (impl *ManifestCreationServiceImpl) getK8sHPAResourceManifest(ctx context.Context, clusterId int, namespace string, hpaResourceRequest *globalUtil.HpaResourceRequest) (map[string]interface{}, error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.getK8sHPAResourceManifest")
 	defer span.End()
 	resourceManifest := make(map[string]interface{})
@@ -867,7 +869,7 @@ func (impl *ManifestCreationServiceImpl) getK8sHPAResourceManifest(ctx context.C
 	return k8sResource.ManifestResponse.Manifest.Object, err
 }
 
-func (impl *ManifestCreationServiceImpl) getArgoCdHPAResourceManifest(ctx context.Context, appName, namespace string, hpaResourceRequest *util4.HpaResourceRequest) (map[string]interface{}, error) {
+func (impl *ManifestCreationServiceImpl) getArgoCdHPAResourceManifest(ctx context.Context, appName, namespace string, hpaResourceRequest *globalUtil.HpaResourceRequest) (map[string]interface{}, error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.getArgoCdHPAResourceManifest")
 	defer span.End()
 	resourceManifest := make(map[string]interface{})
@@ -1003,7 +1005,7 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 		if len(resourceManifest) > 0 {
 			statusMap := resourceManifest["status"].(map[string]interface{})
 			currentReplicaVal := statusMap["currentReplicas"]
-			currentReplicaCount, err := util4.ParseFloatNumber(currentReplicaVal)
+			currentReplicaCount, err := globalUtil.ParseFloatNumber(currentReplicaVal)
 			if err != nil {
 				impl.logger.Errorw("error occurred while parsing replica count", "currentReplicas", currentReplicaVal, "err", err)
 				return merged, err
