@@ -465,6 +465,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				DeploymentAppType: pipeline.DeploymentAppType,
 				RepoURL:           AppDeploymentConfig.RepoURL,
 				RepoName:          AppDeploymentConfig.RepoName,
+				ReleaseMode:       pipeline.ReleaseMode,
 				Active:            true,
 			}
 			envDeploymentConfig, err := impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, pipelineCreateRequest.UserId)
