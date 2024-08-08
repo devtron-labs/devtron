@@ -102,14 +102,6 @@ func (impl ImageScanServiceImpl) FetchAllDeployInfo(request *bean3.ImageScanRequ
 }
 
 func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *bean3.ImageScanRequest, deployInfoIds []int) (*bean3.ImageScanHistoryListingResponse, error) {
-	//size := request.Size
-	//request.Size = 0
-	//groupByListCount, err := impl.imageScanDeployInfoRepository.ScanListingWithFilter(&request.ImageScanFilter, request.Size, request.Offset, deployInfoIds)
-	//if err != nil {
-	//	impl.Logger.Errorw("error while fetching scan execution result", "err", err)
-	//	return nil, err
-	//}
-	//request.Size = size
 	groupByList, err := impl.imageScanDeployInfoRepository.ScanListingWithFilter(&request.ImageScanFilter, request.Size, request.Offset, deployInfoIds)
 	if err != nil {
 		impl.Logger.Errorw("error while fetching scan execution result", "err", err)
@@ -338,7 +330,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *bean3.Image
 				CVersion: item.CveStore.Version,
 				FVersion: item.FixedVersion,
 				Package:  item.CveStore.Package,
-				Severity: item.CveStore.StandardSeverity.String(),
+				Severity: item.CveStore.GetSeverity().String(),
 				//Permission: "BLOCK", TODO
 			}
 			// data already migrated hence get package, version and fixedVersion from image_scan_execution_result

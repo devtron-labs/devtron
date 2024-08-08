@@ -258,7 +258,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 		for _, cve := range blockedCves {
 			vr := &VerifyImageResponse{
 				Name:         cve.Name,
-				Severity:     cve.StandardSeverity.String(),
+				Severity:     cve.GetSeverity().String(),
 				Package:      cve.Package,
 				Version:      cve.Version,
 				FixedVersion: cve.FixedVersion,
