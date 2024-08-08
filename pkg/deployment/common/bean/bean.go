@@ -22,6 +22,7 @@ type UniqueDeploymentConfigIdentifier string
 type DeploymentConfigSelector struct {
 	AppId         int
 	EnvironmentId int
+	CDPipelineId  int
 }
 
 func (u UniqueDeploymentConfigIdentifier) String() string {
