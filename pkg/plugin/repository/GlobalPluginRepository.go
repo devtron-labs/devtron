@@ -314,6 +314,7 @@ type GlobalPluginRepository interface {
 	GetMetaDataByPluginId(pluginId int) (*PluginMetadata, error)
 	GetMetaDataByPluginIds(pluginIds []int) ([]*PluginMetadata, error)
 	GetAllPluginTags() ([]*PluginTag, error)
+	GetPluginTagByNames(tagNames []string) ([]*PluginTag, error)
 	GetAllPluginTagRelations() ([]*PluginTagRelation, error)
 	GetTagsByPluginId(pluginId int) ([]string, error)
 	GetScriptDetailById(id int) (*PluginPipelineScript, error)
@@ -415,6 +416,19 @@ func (impl *GlobalPluginRepositoryImpl) GetAllPluginTags() ([]*PluginTag, error)
 		Where("deleted = ?", false).Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting all tags", "err", err)
+		return nil, err
+	}
+	return tags, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetPluginTagByNames(tagNames []string) ([]*PluginTag, error) {
+	var tags []*PluginTag
+	err := impl.dbConnection.Model(&tags).
+		Where("deleted = ?", false).
+		Where("name in (?)", pg.In(tagNames)).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting all tags by names", "tagNames", tagNames, "err", err)
 		return nil, err
 	}
 	return tags, nil

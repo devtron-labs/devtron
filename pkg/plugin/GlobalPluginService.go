@@ -2007,16 +2007,51 @@ func (impl *GlobalPluginServiceImpl) createNewPlugin(tx *pg.Tx, pluginDto *bean2
 		return 0, util.NewApiError().WithCode(strconv.Itoa(http.StatusBadRequest)).WithHttpStatusCode(http.StatusBadRequest).
 			WithInternalMessage(bean2.PluginStepsNotProvidedError).WithUserMessage(errors.New(bean2.PluginStepsNotProvidedError))
 	}
-	newTagsPresentInReq := pluginDto.Versions.DetailedPluginVersionData[0].NewTagsPresent
-	if newTagsPresentInReq {
-		err = impl.CreateNewPluginTagsAndRelationsIfRequiredV2(pluginDto.Versions.DetailedPluginVersionData[0], userId, tx)
+
+	err = impl.createPluginTagAndRelations(pluginDto.Versions.DetailedPluginVersionData[0], userId, tx)
+	if err != nil {
+		impl.logger.Errorw("createNewPlugin, error in createPluginTagAndRelations", "tags", pluginDto.Versions.DetailedPluginVersionData[0].Tags, "err", err)
+		return 0, err
+	}
+	return pluginVersionMetadata.Id, nil
+}
+
+func (impl *GlobalPluginServiceImpl) createPluginTagAndRelations(pluginReq *bean2.PluginsVersionDetail, userId int32, tx *pg.Tx) error {
+	if pluginReq.NewTagsPresent {
+		err := impl.CreateNewPluginTagsAndRelationsIfRequiredV2(pluginReq, userId, tx)
 		if err != nil {
-			impl.logger.Errorw("createNewPlugin, error in CreateNewPluginTagsAndRelationsIfRequired", "tags", pluginDto.Versions.DetailedPluginVersionData[0].Tags, "err", err)
-			return 0, err
+			impl.logger.Errorw("createPluginTagAndRelations, error in CreateNewPluginTagsAndRelationsIfRequired", "tags", pluginReq.Tags, "err", err)
+			return err
+		}
+	} else {
+		err := impl.CreatePluginTagRelations(pluginReq, userId, tx)
+		if err != nil {
+			impl.logger.Errorw("createPluginTagAndRelations, error in CreatePluginTagRelations", "tags", pluginReq.Tags, "err", err)
+			return err
 		}
 	}
+	return nil
+}
 
-	return pluginVersionMetadata.Id, nil
+func (impl *GlobalPluginServiceImpl) CreatePluginTagRelations(pluginReq *bean2.PluginsVersionDetail, userId int32, tx *pg.Tx) error {
+	tags, err := impl.globalPluginRepository.GetPluginTagByNames(pluginReq.Tags)
+	if err != nil {
+		impl.logger.Errorw("CreatePluginTagRelations, error in GetPluginTagByNames", "tags", pluginReq.Tags, "err", err)
+		return err
+	}
+	newPluginTagRelationsToCreate := make([]*repository.PluginTagRelation, 0, len(pluginReq.Tags))
+	for _, tag := range tags {
+		newPluginTagRelationsToCreate = append(newPluginTagRelationsToCreate, repository.NewPluginTagRelation().CreateAuditLog(userId).WithTagAndPluginId(tag.Id, pluginReq.Id))
+	}
+
+	if len(newPluginTagRelationsToCreate) > 0 {
+		err = impl.globalPluginRepository.SavePluginTagRelationInBulk(newPluginTagRelationsToCreate, tx)
+		if err != nil {
+			impl.logger.Errorw("CreatePluginTagRelations, error in saving plugin tag relation in bulk", "newPluginTagRelationsToCreate", newPluginTagRelationsToCreate, "err", err)
+			return err
+		}
+	}
+	return nil
 }
 
 func (impl *GlobalPluginServiceImpl) createNewPluginVersionOfExistingPlugin(tx *pg.Tx, pluginDto *bean2.PluginParentMetadataDto, userId int32) (int, error) {
