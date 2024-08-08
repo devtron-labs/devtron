@@ -362,7 +362,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 	}
 	var preDeployStage *pipelineConfigBean.PipelineStageDto
 	var postDeployStage *pipelineConfigBean.PipelineStageDto
-	preDeployStage, postDeployStage, err = impl.pipelineStageService.GetCdPipelineStageDataDeepCopy(dbPipeline.Id)
+	preDeployStage, postDeployStage, err = impl.pipelineStageService.GetCdPipelineStageDataDeepCopy(dbPipeline)
 	if err != nil {
 		impl.logger.Errorw("error in getting pre/post-CD stage data", "err", err, "cdPipelineId", dbPipeline.Id)
 		return nil, err
@@ -1276,7 +1276,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 			customTagStage = repository5.PIPELINE_STAGE_TYPE_POST_CD
 		}
 		if !isAppLevelGitOpsConfigured {
-			isAppLevelGitOpsConfigured, err = impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(dbPipeline.AppId)
+			isAppLevelGitOpsConfigured, err = impl.chartService.IsGitOpsRepoConfiguredForDevtronApp(dbPipeline.AppId)
 			if err != nil {
 				impl.logger.Errorw("error in fetching latest chart details for app by appId")
 				return nil, err
