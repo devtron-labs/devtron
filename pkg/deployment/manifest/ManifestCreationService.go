@@ -266,12 +266,14 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 		}
 		mergedValues, err := impl.mergeOverrideValues(envOverride, releaseOverrideJson, configMapJson.MergedJson, appLabelJsonByte, strategy)
 		appName := fmt.Sprintf("%s-%s", overrideRequest.AppName, envOverride.Environment.Name)
-		mergedValues, err = impl.updatedExternalCmCsHashForTrigger(newCtx, overrideRequest.ClusterId,
+		var k8sErr error
+		mergedValues, k8sErr = impl.updatedExternalCmCsHashForTrigger(newCtx, overrideRequest.ClusterId,
 			envOverride.Namespace, mergedValues, configMapJson.ExternalCmList, configMapJson.ExternalCsList)
-		if err != nil {
+		if k8sErr != nil {
 			impl.logger.Errorw("error in updating external cm cs hash for trigger",
-				"clusterId", overrideRequest.ClusterId, "namespace", envOverride.Namespace, "err", err)
-			return valuesOverrideResponse, err
+				"clusterId", overrideRequest.ClusterId, "namespace", envOverride.Namespace, "err", k8sErr)
+			// error is not returned as it's not blocking for deployment process
+			// blocking deployments based on this use case can vary for user to user
 		}
 		mergedValues, err = impl.autoscalingCheckBeforeTrigger(newCtx, appName, envOverride.Namespace, mergedValues, overrideRequest)
 		if err != nil {
