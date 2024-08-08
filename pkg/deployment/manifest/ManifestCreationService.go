@@ -917,10 +917,10 @@ func (impl *ManifestCreationServiceImpl) getArgoCdHPAResourceManifest(ctx contex
 }
 
 // updateHashToMergedValues
-//   - Generates hash from the given configOrSecretData (map[string]*v1.ConfigMap | map[string]*v1.Secret)
+//   - Generates hash from the given configOrSecretData
 //   - And updates the hash in bean.JsonPath (JSON path) for the merged values
 //   - Returns the updated merged values
-func updateHashToMergedValues[T map[string]*k8sApiV1.ConfigMap | map[string]*k8sApiV1.Secret](merged []byte, path appBean.JsonPath, configOrSecretData T) ([]byte, error) {
+func updateHashToMergedValues(merged []byte, path appBean.JsonPath, configOrSecretData map[string]interface{}) ([]byte, error) {
 	mergedByteData, err := json.Marshal(configOrSecretData)
 	if err != nil {
 		return merged, err
@@ -931,6 +931,36 @@ func updateHashToMergedValues[T map[string]*k8sApiV1.ConfigMap | map[string]*k8s
 		return merged, err
 	}
 	return []byte(mergedString), nil
+}
+
+// getConfigMapsData returns the data of the given configmaps
+func getConfigMapsData(configMaps map[string]*k8sApiV1.ConfigMap) map[string]interface{} {
+	configMapData := make(map[string]interface{})
+	for configMapName, configMap := range configMaps {
+		configMapData[configMapName] = struct {
+			Data       map[string]string `json:"data,omitempty"`
+			BinaryData map[string][]byte `json:"binaryData,omitempty"`
+		}{
+			Data:       configMap.Data,
+			BinaryData: configMap.BinaryData,
+		}
+	}
+	return configMapData
+}
+
+// getSecretsData returns the data of the given secrets
+func getSecretsData(secrets map[string]*k8sApiV1.Secret) map[string]interface{} {
+	secretData := make(map[string]interface{})
+	for secretName, secret := range secrets {
+		secretData[secretName] = struct {
+			Data       map[string][]byte `json:"data,omitempty"`
+			StringData map[string]string `json:"stringData,omitempty"`
+		}{
+			Data:       secret.Data,
+			StringData: secret.StringData,
+		}
+	}
+	return secretData
 }
 
 // updatedExternalCmCsHashForTrigger
@@ -949,7 +979,7 @@ func (impl *ManifestCreationServiceImpl) updatedExternalCmCsHashForTrigger(ctx c
 			return merged, k8s.ParseK8sClientErrorToApiError(err)
 		}
 		if configMaps != nil {
-			merged, err = updateHashToMergedValues(merged, appBean.ConfigHashPathKey, configMaps)
+			merged, err = updateHashToMergedValues(merged, appBean.ConfigHashPathKey, getConfigMapsData(configMaps))
 			if err != nil {
 				impl.logger.Errorw("error in updating hash for configmaps", "err", err)
 				return merged, err
@@ -965,7 +995,7 @@ func (impl *ManifestCreationServiceImpl) updatedExternalCmCsHashForTrigger(ctx c
 			return merged, k8s.ParseK8sClientErrorToApiError(err)
 		}
 		if secrets != nil {
-			merged, err = updateHashToMergedValues(merged, appBean.SecretHashPathKey, secrets)
+			merged, err = updateHashToMergedValues(merged, appBean.SecretHashPathKey, getSecretsData(secrets))
 			if err != nil {
 				impl.logger.Errorw("error in updating hash for secrets", "err", err)
 				return merged, err

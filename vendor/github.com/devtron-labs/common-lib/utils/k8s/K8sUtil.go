@@ -109,14 +109,12 @@ type K8sService interface {
 	CreateSecret(namespace string, data map[string][]byte, secretName string, secretType v1.SecretType, client *v12.CoreV1Client, labels map[string]string, stringData map[string]string) (*v1.Secret, error)
 	GetSecret(namespace string, name string, client *v12.CoreV1Client) (*v1.Secret, error)
 	GetSecretWithCtx(ctx context.Context, namespace string, name string, client *v12.CoreV1Client) (*v1.Secret, error)
-	GetAllSecrets(ctx context.Context, namespace string, client *v12.CoreV1Client, opts metav1.ListOptions) (*v1.SecretList, error)
 	PatchConfigMapJsonType(namespace string, clusterConfig *ClusterConfig, name string, data interface{}, path string) (*v1.ConfigMap, error)
 	PatchConfigMap(namespace string, clusterConfig *ClusterConfig, name string, data map[string]interface{}) (*v1.ConfigMap, error)
 	UpdateConfigMap(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error)
 	CreateConfigMap(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error)
 	GetConfigMap(namespace string, name string, client *v12.CoreV1Client) (*v1.ConfigMap, error)
 	GetConfigMapWithCtx(ctx context.Context, namespace string, name string, client *v12.CoreV1Client) (*v1.ConfigMap, error)
-	GetAllConfigMaps(ctx context.Context, namespace string, client *v12.CoreV1Client, opts metav1.ListOptions) (*v1.ConfigMapList, error)
 	CheckIfNsExists(namespace string, client *v12.CoreV1Client) (exists bool, err error)
 	CreateNsIfNotExists(namespace string, clusterConfig *ClusterConfig) (err error)
 	GetK8sDiscoveryClientInCluster() (*discovery.DiscoveryClient, error)
@@ -334,15 +332,6 @@ func (impl *K8sServiceImpl) GetConfigMapWithCtx(ctx context.Context, namespace s
 	}
 }
 
-func (impl *K8sServiceImpl) GetAllConfigMaps(ctx context.Context, namespace string, client *v12.CoreV1Client, opts metav1.ListOptions) (*v1.ConfigMapList, error) {
-	configMaps, err := client.ConfigMaps(namespace).List(ctx, opts)
-	if err != nil {
-		impl.logger.Errorw("error in getting configMaps list", "namespace", namespace, "opts", opts, "err", err)
-		return nil, err
-	}
-	return configMaps, nil
-}
-
 func (impl *K8sServiceImpl) CreateConfigMap(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
 	cm, err := client.ConfigMaps(namespace).Create(context.Background(), cm, metav1.CreateOptions{})
 	if err != nil {
@@ -433,15 +422,6 @@ func (impl *K8sServiceImpl) GetSecretWithCtx(ctx context.Context, namespace stri
 	} else {
 		return secret, nil
 	}
-}
-
-func (impl *K8sServiceImpl) GetAllSecrets(ctx context.Context, namespace string, client *v12.CoreV1Client, opts metav1.ListOptions) (*v1.SecretList, error) {
-	secrets, err := client.Secrets(namespace).List(ctx, opts)
-	if err != nil {
-		impl.logger.Errorw("error in getting secrets list", "namespace", namespace, "opts", opts, "err", err)
-		return nil, err
-	}
-	return secrets, nil
 }
 
 func (impl *K8sServiceImpl) CreateSecret(namespace string, data map[string][]byte, secretName string, secretType v1.SecretType, client *v12.CoreV1Client, labels map[string]string, stringData map[string]string) (*v1.Secret, error) {
