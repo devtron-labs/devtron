@@ -178,7 +178,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request
 	}
 	if len(request.Severity) > 0 {
 		severities := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(request.Severity)), ","), "[]")
-		query = query + " AND cs.standard_severity IN (" + severities + ")"
+		query = query + fmt.Sprintf(" AND (cs.standard_severity IN (%s) OR (cs.standard_severity IN (%s) AND cs.standard_severity IS NULL))", severities, severities)
 	}
 	if len(request.EnvironmentIds) > 0 {
 		envIds := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(request.EnvironmentIds)), ","), "[]")
@@ -240,7 +240,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithObject(request *s
 
 	if len(request.Severity) > 0 {
 		severities := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(request.Severity)), ","), "[]")
-		query = query + " AND cs.standard_severity IN (" + severities + ")"
+		query = query + fmt.Sprintf(" AND (cs.standard_severity IN (%s) OR (cs.standard_severity IN (%s) AND cs.standard_severity IS NULL))", severities, severities)
 	}
 	if len(request.EnvironmentIds) > 0 {
 		envIds := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(request.EnvironmentIds)), ","), "[]")

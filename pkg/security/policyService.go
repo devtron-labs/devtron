@@ -467,7 +467,7 @@ func (impl *PolicyServiceImpl) SavePolicy(request bean.CreateVulnerabilityPolicy
 		if err != nil {
 			return nil, err
 		}
-		severity = cveStore.StandardSeverity
+		severity = cveStore.GetSeverity()
 	}
 	policy := &security.CvePolicy{
 		Global:        isGlobal,
@@ -714,9 +714,9 @@ func (impl *PolicyServiceImpl) HasBlockedCVE(cves []*security.CveStore, cvePolic
 				return true
 			}
 		} else {
-			if severityPolicy[cve.StandardSeverity] != nil && severityPolicy[cve.StandardSeverity].Action == securityBean.Allow {
+			if severityPolicy[cve.GetSeverity()] != nil && severityPolicy[cve.GetSeverity()].Action == securityBean.Allow {
 				continue
-			} else if severityPolicy[cve.StandardSeverity] != nil && (severityPolicy[cve.StandardSeverity].Action == securityBean.Block || (severityPolicy[cve.StandardSeverity].Action == securityBean.Blockiffixed && cve.FixedVersion != "")) {
+			} else if severityPolicy[cve.GetSeverity()] != nil && (severityPolicy[cve.GetSeverity()].Action == securityBean.Block || (severityPolicy[cve.GetSeverity()].Action == securityBean.Blockiffixed && cve.FixedVersion != "")) {
 				return true
 			}
 		}

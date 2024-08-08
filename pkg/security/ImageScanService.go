@@ -169,7 +169,7 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *bean3.ImageS
 
 			for _, item := range scanResultList {
 				lastChecked = item.ImageScanExecutionHistory.ExecutionTime
-				criticalCount, highCount, moderateCount, lowCount, unkownCount = impl.updateCount(item.CveStore.StandardSeverity, criticalCount, highCount, moderateCount, lowCount, unkownCount)
+				criticalCount, highCount, moderateCount, lowCount, unkownCount = impl.updateCount(item.CveStore.GetSeverity(), criticalCount, highCount, moderateCount, lowCount, unkownCount)
 			}
 			// updating in case when no vul are found (no results)
 			if lastChecked.IsZero() && len(imageScanDeployInfo.ImageScanExecutionHistoryId) > 0 && mapOfExecutionHistoryIdVsLastExecTime != nil {
@@ -349,7 +349,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *bean3.Image
 			if len(item.Version) > 0 {
 				vulnerability.CVersion = item.Version
 			}
-			criticalCount, highCount, moderateCount, lowCount, unkownCount = impl.updateCount(item.CveStore.StandardSeverity, criticalCount, highCount, moderateCount, lowCount, unkownCount)
+			criticalCount, highCount, moderateCount, lowCount, unkownCount = impl.updateCount(item.CveStore.GetSeverity(), criticalCount, highCount, moderateCount, lowCount, unkownCount)
 			vulnerabilities = append(vulnerabilities, vulnerability)
 			cveStores = append(cveStores, &item.CveStore)
 			if _, ok := imageDigests[item.ImageScanExecutionHistory.ImageHash]; !ok {
@@ -472,7 +472,7 @@ func (impl *ImageScanServiceImpl) FetchMinScanResultByAppIdAndEnvId(request *bea
 		}
 		for _, item := range imageScanResult {
 			executionTime = item.ImageScanExecutionHistory.ExecutionTime
-			criticalCount, highCount, moderateCount, lowCount, unkownCount = impl.updateCount(item.CveStore.StandardSeverity, criticalCount, highCount, moderateCount, lowCount, unkownCount)
+			criticalCount, highCount, moderateCount, lowCount, unkownCount = impl.updateCount(item.CveStore.GetSeverity(), criticalCount, highCount, moderateCount, lowCount, unkownCount)
 		}
 		if len(imageScanResult) > 0 {
 			scantoolId = imageScanResult[0].ScanToolId

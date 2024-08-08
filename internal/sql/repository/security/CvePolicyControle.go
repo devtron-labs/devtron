@@ -198,9 +198,9 @@ func EnforceCvePolicy(cves []*CveStore, cvePolicy map[string]*CvePolicy, severit
 				blockedCVE = append(blockedCVE, cve)
 			}
 		} else {
-			if severityPolicy[cve.StandardSeverity] != nil && severityPolicy[cve.StandardSeverity].Action == securityBean.Allow {
+			if severityPolicy[cve.GetSeverity()] != nil && severityPolicy[cve.GetSeverity()].Action == securityBean.Allow {
 				continue
-			} else if severityPolicy[cve.StandardSeverity] != nil && (severityPolicy[cve.StandardSeverity].Action == securityBean.Block || (severityPolicy[cve.StandardSeverity].Action == securityBean.Blockiffixed && cve.FixedVersion != "")) {
+			} else if severityPolicy[cve.GetSeverity()] != nil && (severityPolicy[cve.GetSeverity()].Action == securityBean.Block || (severityPolicy[cve.GetSeverity()].Action == securityBean.Blockiffixed && cve.FixedVersion != "")) {
 				blockedCVE = append(blockedCVE, cve)
 			}
 		}
