@@ -331,6 +331,7 @@ type GlobalPluginRepository interface {
 	GetConditionsByPluginId(pluginId int) ([]*PluginStepCondition, error)
 	GetPluginStageMappingByPluginId(pluginId int) (*PluginStageMapping, error)
 	GetConnection() (dbConnection *pg.DB)
+	GetPluginVersionsByParentId(parentPluginId int) ([]*PluginMetadata, error)
 
 	GetPluginParentMetadataByIdentifier(pluginIdentifier string) (*PluginParentMetadata, error)
 	GetAllFilteredPluginParentMetadata(searchKey string, tags []string) ([]*PluginParentMetadata, error)
@@ -604,6 +605,20 @@ func (impl *GlobalPluginRepositoryImpl) GetPluginByName(pluginName string) ([]*P
 	}
 	return plugin, nil
 
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetPluginVersionsByParentId(parentPluginId int) ([]*PluginMetadata, error) {
+	var plugin []*PluginMetadata
+	err := impl.dbConnection.Model(&plugin).
+		Where("plugin_parent_metadata_id = ?", parentPluginId).
+		Where("deleted = ?", false).
+		Where("is_deprecated = ?", false).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting pluginVersionMetadata by parentPluginId", "parentPluginId", parentPluginId, "err", err)
+		return nil, err
+	}
+	return plugin, nil
 }
 
 func (impl *GlobalPluginRepositoryImpl) GetAllPluginMetaData() ([]*PluginMetadata, error) {

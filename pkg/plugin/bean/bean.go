@@ -352,7 +352,7 @@ const (
 	PluginWithSameIdentifierExistsError      = "plugin with the same identifier exists, please choose another identifier name"
 	PluginVersionNotSemanticallyCorrectError = "please provide a plugin version that adheres to Semantic Versioning 2.0.0 to ensure compatibility and proper versioning"
 	PluginIconNotCorrectOrReachableError     = "cannot validate icon, make sure that provided url link is reachable"
-	InvalidPluginTypeError                   = "invalid plugin type, should be of the type SHARED"
+	PluginVersionAlreadyExistError           = "this plugin version already exists, please provide another plugin version"
 	NoStepDataToProceedError                 = "no step data provided to save, please provide a plugin step to proceed further"
 )
 

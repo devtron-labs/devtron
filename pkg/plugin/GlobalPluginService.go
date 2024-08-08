@@ -1909,54 +1909,89 @@ func (impl *GlobalPluginServiceImpl) GetAllPluginMinData() ([]*bean2.PluginMinDt
 	return pluginMinList, nil
 }
 
+func (impl *GlobalPluginServiceImpl) checkValidationOnPluginNameAndIdentifier(pluginReq *bean2.PluginParentMetadataDto) error {
+	plugins, err := impl.globalPluginRepository.GetAllPluginMinData()
+	if err != nil {
+		impl.logger.Errorw("error in getting all plugins", "err", err)
+		return err
+	}
+	for _, plugin := range plugins {
+		if plugin.Identifier == pluginReq.PluginIdentifier {
+			return &util.ApiError{
+				HttpStatusCode:  http.StatusConflict,
+				Code:            strconv.Itoa(http.StatusConflict),
+				InternalMessage: bean2.PluginWithSameIdentifierExistsError,
+				UserMessage:     bean2.PluginWithSameIdentifierExistsError,
+			}
+		}
+		if plugin.Name == pluginReq.Name {
+			return &util.ApiError{
+				HttpStatusCode:  http.StatusConflict,
+				Code:            strconv.Itoa(http.StatusConflict),
+				InternalMessage: bean2.PluginWithSameNameExistError,
+				UserMessage:     bean2.PluginWithSameNameExistError,
+			}
+		}
+	}
+	return nil
+}
+
+func (impl *GlobalPluginServiceImpl) checkValidationOnVersion(pluginReq *bean2.PluginParentMetadataDto) error {
+	pluginVersions, err := impl.globalPluginRepository.GetPluginVersionsByParentId(pluginReq.Id)
+	if err != nil {
+		impl.logger.Errorw("checkValidationOnVersion, error in getting all plugins versions by parentPluginId", "parentPluginId", pluginReq.Id, "err", err)
+		return err
+	}
+	for _, pluginVersion := range pluginVersions {
+		if pluginVersion.PluginVersion == pluginReq.Versions.DetailedPluginVersionData[0].Version {
+			return &util.ApiError{
+				HttpStatusCode:  http.StatusBadRequest,
+				Code:            strconv.Itoa(http.StatusBadRequest),
+				InternalMessage: bean2.PluginVersionAlreadyExistError,
+				UserMessage:     bean2.PluginVersionAlreadyExistError,
+			}
+		}
+	}
+	return nil
+}
+
 func (impl *GlobalPluginServiceImpl) validateV2PluginRequest(pluginReq *bean2.PluginParentMetadataDto) error {
 	if len(pluginReq.Versions.DetailedPluginVersionData) == 0 || pluginReq.Versions.DetailedPluginVersionData[0] == nil {
 		return &util.ApiError{
 			HttpStatusCode:  http.StatusBadRequest,
 			Code:            strconv.Itoa(http.StatusBadRequest),
 			InternalMessage: bean2.NoStepDataToProceedError,
-			UserMessage:     errors.New(bean2.NoStepDataToProceedError),
+			UserMessage:     bean2.NoStepDataToProceedError,
 		}
-	}
-	plugins, err := impl.globalPluginRepository.GetAllPluginMinData()
-	if err != nil {
-		impl.logger.Errorw("error in getting all plugins", "err", err)
-		return err
 	}
 	if pluginReq.Id == 0 {
 		//create plugin req.
-		for _, plugin := range plugins {
-			if plugin.Identifier == pluginReq.PluginIdentifier {
-				return &util.ApiError{
-					HttpStatusCode:  http.StatusConflict,
-					Code:            strconv.Itoa(http.StatusConflict),
-					InternalMessage: bean2.PluginWithSameIdentifierExistsError,
-					UserMessage:     errors.New(bean2.PluginWithSameIdentifierExistsError),
-				}
-			}
-			if plugin.Name == pluginReq.Name {
-				return &util.ApiError{
-					HttpStatusCode:  http.StatusConflict,
-					Code:            strconv.Itoa(http.StatusConflict),
-					InternalMessage: bean2.PluginWithSameNameExistError,
-					UserMessage:     errors.New(bean2.PluginWithSameNameExistError),
-				}
-			}
+		err := impl.checkValidationOnPluginNameAndIdentifier(pluginReq)
+		if err != nil {
+			impl.logger.Errorw("error in checkValidationOnPluginNameAndIdentifier", "err", err)
+			return err
+		}
+	} else {
+		err := impl.checkValidationOnVersion(pluginReq)
+		if err != nil {
+			impl.logger.Errorw("error in checkValidationOnPluginNameAndIdentifier", "err", err)
+			return err
 		}
 	}
-	// semantic versioning validation on plugin's version
+
 	version := fmt.Sprintf("v%s", pluginReq.Versions.DetailedPluginVersionData[0].Version)
+	// semantic versioning validation on plugin's version
 	if !semver.IsValid(version) {
 		return &util.ApiError{
 			HttpStatusCode:  http.StatusBadRequest,
 			Code:            strconv.Itoa(http.StatusBadRequest),
 			InternalMessage: bean2.PluginVersionNotSemanticallyCorrectError,
-			UserMessage:     errors.New(bean2.PluginVersionNotSemanticallyCorrectError),
+			UserMessage:     bean2.PluginVersionNotSemanticallyCorrectError,
 		}
 	}
 	//validate icon url and size
 	if len(pluginReq.Icon) > 0 {
-		err = utils.FetchIconAndCheckSize(pluginReq.Icon, bean2.PluginIconMaxSizeInBytes)
+		err := utils.FetchIconAndCheckSize(pluginReq.Icon, bean2.PluginIconMaxSizeInBytes)
 		if err != nil {
 			return &util.ApiError{
 				HttpStatusCode:  http.StatusBadRequest,
@@ -2025,7 +2060,7 @@ func (impl *GlobalPluginServiceImpl) createPluginTagAndRelations(pluginReq *bean
 			impl.logger.Errorw("createPluginTagAndRelations, error in CreateNewPluginTagsAndRelationsIfRequired", "tags", pluginReq.Tags, "err", err)
 			return err
 		}
-	} else {
+	} else if len(pluginReq.Tags) > 0 {
 		err := impl.CreatePluginTagRelations(pluginReq, userId, tx)
 		if err != nil {
 			impl.logger.Errorw("createPluginTagAndRelations, error in CreatePluginTagRelations", "tags", pluginReq.Tags, "err", err)
