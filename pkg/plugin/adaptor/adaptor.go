@@ -16,12 +16,12 @@ func GetPluginVersionMetadataDbObject(pluginDto *bean2.PluginParentMetadataDto, 
 	return repository.NewPluginVersionMetadata().CreateAuditLog(userId).WithBasicMetadata(pluginDto.Name, versionDto.Description, versionDto.Version, versionDto.DocLink)
 }
 
-func GetPluginStepDbObject(pluginStepDto *bean2.PluginStepsDto, pluginVersionMetadata int, userId int32) *repository.PluginStep {
+func GetPluginStepDbObject(pluginStepDto *bean2.PluginStepsDto, pluginVersionMetadataId int, userId int32) *repository.PluginStep {
 	return &repository.PluginStep{
-		PluginId:            pluginVersionMetadata,
-		Name:                pluginStepDto.Name,
+		PluginId:            pluginVersionMetadataId,
+		Name:                "Step-1",
 		Description:         pluginStepDto.Description,
-		Index:               pluginStepDto.Index,
+		Index:               1,
 		StepType:            pluginStepDto.StepType,
 		RefPluginId:         pluginStepDto.RefPluginId,
 		OutputDirectoryPath: pluginStepDto.OutputDirectoryPath,
