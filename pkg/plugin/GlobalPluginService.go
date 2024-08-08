@@ -2090,13 +2090,11 @@ func (impl *GlobalPluginServiceImpl) createNewPluginVersionOfExistingPlugin(tx *
 		return 0, util.NewApiError().WithCode(strconv.Itoa(http.StatusBadRequest)).WithHttpStatusCode(http.StatusBadRequest).
 			WithInternalMessage(bean2.PluginStepsNotProvidedError).WithUserMessage(errors.New(bean2.PluginStepsNotProvidedError))
 	}
-	newTagsPresentInReq := pluginDto.Versions.DetailedPluginVersionData[0].NewTagsPresent
-	if newTagsPresentInReq {
-		err = impl.CreateNewPluginTagsAndRelationsIfRequiredV2(pluginDto.Versions.DetailedPluginVersionData[0], userId, tx)
-		if err != nil {
-			impl.logger.Errorw("createNewPluginVersionOfExistingPlugin, error in CreateNewPluginTagsAndRelationsIfRequired", "tags", pluginDto.Versions.DetailedPluginVersionData[0].Tags, "err", err)
-			return 0, err
-		}
+
+	err = impl.createPluginTagAndRelations(pluginDto.Versions.DetailedPluginVersionData[0], userId, tx)
+	if err != nil {
+		impl.logger.Errorw("createNewPlugin, error in createPluginTagAndRelations", "tags", pluginDto.Versions.DetailedPluginVersionData[0].Tags, "err", err)
+		return 0, err
 	}
 
 	return pluginVersionMetadata.Id, nil
