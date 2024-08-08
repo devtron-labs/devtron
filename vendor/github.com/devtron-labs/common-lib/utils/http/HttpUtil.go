@@ -16,7 +16,13 @@
 
 package http
 
-import "net/http"
+import (
+	"crypto/tls"
+	"crypto/x509"
+	"github.com/pkg/errors"
+	"net/http"
+	"os"
+)
 
 func NewHttpClient() *http.Client {
 	return http.DefaultClient
@@ -29,4 +35,48 @@ type HeaderAdder struct {
 func (h *HeaderAdder) RoundTrip(req *http.Request) (*http.Response, error) {
 	req.Header.Set("Accept", "application/json;as=Table;g=meta.k8s.io;v=v1")
 	return h.Rt.RoundTrip(req)
+}
+
+func NewClientTLS(certFile, keyFile, caFile string, insecureSkipTLSverify bool) (*tls.Config, error) {
+	config := tls.Config{
+		InsecureSkipVerify: insecureSkipTLSverify,
+	}
+
+	if certFile != "" && keyFile != "" {
+		cert, err := CertFromFilePair(certFile, keyFile)
+		if err != nil {
+			return nil, err
+		}
+		config.Certificates = []tls.Certificate{*cert}
+	}
+
+	if caFile != "" {
+		cp, err := CertPoolFromFile(caFile)
+		if err != nil {
+			return nil, err
+		}
+		config.RootCAs = cp
+	}
+
+	return &config, nil
+}
+
+func CertFromFilePair(certFile, keyFile string) (*tls.Certificate, error) {
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return nil, errors.Wrapf(err, "can't load key pair from cert %s and key %s", certFile, keyFile)
+	}
+	return &cert, err
+}
+
+func CertPoolFromFile(filename string) (*x509.CertPool, error) {
+	b, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, errors.Errorf("can't read CA file: %v", filename)
+	}
+	cp := x509.NewCertPool()
+	if !cp.AppendCertsFromPEM(b) {
+		return nil, errors.Errorf("failed to append certificates from file: %s", filename)
+	}
+	return cp, nil
 }
