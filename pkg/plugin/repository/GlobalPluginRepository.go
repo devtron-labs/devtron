@@ -826,7 +826,7 @@ func (impl *GlobalPluginRepositoryImpl) GetAllFilteredPluginParentMetadata(searc
 	}
 	if len(searchKey) > 0 {
 		searchKeyLike := "%" + searchKey + "%"
-		whereCondition += fmt.Sprintf(" AND (ppm.description ilike '%s' or ppm.name ilike '%s')", searchKeyLike, searchKeyLike)
+		whereCondition += fmt.Sprintf(" AND (pm.description ilike '%s' or pm.name ilike '%s')", searchKeyLike, searchKeyLike)
 	}
 	orderCondition := " ORDER BY ppm.name asc;"
 
