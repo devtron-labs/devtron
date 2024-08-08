@@ -19,6 +19,7 @@ package commandManager
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/common-lib/git-manager"
 	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"os"
@@ -46,7 +47,13 @@ func (impl *GitManagerBaseImpl) Fetch(ctx GitContext, rootDir string) (response,
 	impl.logger.Debugw("git fetch ", "location", rootDir)
 	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "fetch", "origin", "--tags", "--force")
 	defer cancel()
-	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth)
+	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), git_manager.TLS_FILES_DIR)
+	if err != nil {
+		//making it non-blocking
+		impl.logger.Errorw("error encountered in createFilesForTlsData", "err", err)
+	}
+	defer git_manager.DeleteTlsFiles(tlsPathInfo)
+	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth, tlsPathInfo)
 	impl.logger.Debugw("fetch output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return output, errMsg, err
 }
@@ -59,7 +66,13 @@ func (impl *GitManagerBaseImpl) ListBranch(ctx GitContext, rootDir string) (resp
 	impl.logger.Debugw("git branch ", "location", rootDir)
 	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "branch", "-r")
 	defer cancel()
-	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth)
+	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), git_manager.TLS_FILES_DIR)
+	if err != nil {
+		//making it non-blocking
+		impl.logger.Errorw("error encountered in createFilesForTlsData", "err", err)
+	}
+	defer git_manager.DeleteTlsFiles(tlsPathInfo)
+	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth, tlsPathInfo)
 	impl.logger.Debugw("branch output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return output, errMsg, err
 }
@@ -72,17 +85,33 @@ func (impl *GitManagerBaseImpl) PullCli(ctx GitContext, rootDir string, branch s
 	impl.logger.Debugw("git pull ", "location", rootDir)
 	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "pull", "origin", branch, "--force")
 	defer cancel()
-	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth)
+	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), git_manager.TLS_FILES_DIR)
+	if err != nil {
+		//making it non-blocking
+		impl.logger.Errorw("error encountered in createFilesForTlsData", "err", err)
+	}
+	defer git_manager.DeleteTlsFiles(tlsPathInfo)
+	output, errMsg, err := impl.runCommandWithCred(cmd, ctx.auth, tlsPathInfo)
 	impl.logger.Debugw("pull output", "root", rootDir, "opt", output, "errMsg", errMsg, "error", err)
 	return output, errMsg, err
 }
 
-func (impl *GitManagerBaseImpl) runCommandWithCred(cmd *exec.Cmd, auth *BasicAuth) (response, errMsg string, err error) {
+func (impl *GitManagerBaseImpl) runCommandWithCred(cmd *exec.Cmd, auth *BasicAuth, tlsPathInfo *git_manager.TlsPathInfo) (response, errMsg string, err error) {
 	cmd.Env = append(os.Environ(),
 		fmt.Sprintf("GIT_ASKPASS=%s", GIT_ASK_PASS),
 		fmt.Sprintf("GIT_USERNAME=%s", auth.Username),
 		fmt.Sprintf("GIT_PASSWORD=%s", auth.Password),
 	)
+	if tlsPathInfo != nil {
+		if tlsPathInfo.TlsKeyPath != "" && tlsPathInfo.TlsCertPath != "" {
+			cmd.Env = append(cmd.Env,
+				fmt.Sprintf("GIT_SSL_KEY=%s", tlsPathInfo.TlsKeyPath),
+				fmt.Sprintf("GIT_SSL_CERT=%s", tlsPathInfo.TlsCertPath))
+		}
+		if tlsPathInfo.CaCertPath != "" {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_SSL_CAINFO=%s", tlsPathInfo.CaCertPath))
+		}
+	}
 	return impl.runCommand(cmd)
 }
 
