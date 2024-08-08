@@ -41,7 +41,7 @@ type PluginMetadataDto struct {
 	Action         int               `json:"action,omitempty"`
 	PluginStage    string            `json:"pluginStage,omitempty"`
 	PluginSteps    []*PluginStepsDto `json:"pluginSteps,omitempty"`
-	NewTagsPresent bool              `json:"newTagsPresent,omitempty"`
+	NewTagsPresent bool              `json:"areNewTagsPresent,omitempty"`
 	//PluginIdentifier string            `json:"pluginIdentifier" validate:"required,min=3,max=100,global-entity-name"`
 }
 
