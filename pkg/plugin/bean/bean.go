@@ -32,23 +32,23 @@ type PluginListComponentDto struct { //created new struct for backward compatibi
 }
 
 type PluginMetadataDto struct {
-	Id             int               `json:"id"`
-	Name           string            `json:"name" validate:"required,min=3,max=100,global-entity-name"`
-	Description    string            `json:"description" validate:"max=300"`
-	Type           string            `json:"type,omitempty" validate:"oneof=SHARED PRESET"` // SHARED, PRESET etc
-	Icon           string            `json:"icon,omitempty"`
-	Tags           []string          `json:"tags"`
-	Action         int               `json:"action,omitempty"`
-	PluginStage    string            `json:"pluginStage,omitempty"`
-	PluginSteps    []*PluginStepsDto `json:"pluginSteps,omitempty"`
-	NewTagsPresent bool              `json:"areNewTagsPresent,omitempty"`
-	//PluginIdentifier string            `json:"pluginIdentifier" validate:"required,min=3,max=100,global-entity-name"`
+	Id                int               `json:"id"`
+	Name              string            `json:"name" validate:"required,min=3,max=100,global-entity-name"`
+	Description       string            `json:"description" validate:"max=300"`
+	Type              string            `json:"type,omitempty" validate:"oneof=SHARED PRESET"` // SHARED, PRESET etc
+	Icon              string            `json:"icon,omitempty"`
+	Tags              []string          `json:"tags"`
+	Action            int               `json:"action,omitempty"`
+	PluginStage       string            `json:"pluginStage,omitempty"`
+	PluginSteps       []*PluginStepsDto `json:"pluginSteps,omitempty"`
+	AreNewTagsPresent bool              `json:"areNewTagsPresent,omitempty"`
 }
 
 type PluginMinDto struct {
-	ParentPluginId int    `json:"parentPluginId"`
-	PluginName     string `json:"pluginName"`
-	Icon           string `json:"icon"`
+	ParentPluginId  int    `json:"id,omitempty"`
+	PluginName      string `json:"name,omitempty"`
+	Icon            string `json:"icon,omitempty"`
+	PluginVersionId int    `json:"pluginVersionId,omitempty"`
 }
 
 func NewPluginMinDto() *PluginMinDto {
@@ -67,6 +67,11 @@ func (r *PluginMinDto) WithPluginName(name string) *PluginMinDto {
 
 func (r *PluginMinDto) WithIcon(icon string) *PluginMinDto {
 	r.Icon = icon
+	return r
+}
+
+func (r *PluginMinDto) WithPluginVersionId(versionId int) *PluginMinDto {
+	r.PluginVersionId = versionId
 	return r
 }
 

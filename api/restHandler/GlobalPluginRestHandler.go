@@ -452,7 +452,8 @@ func (handler *GlobalPluginRestHandlerImpl) CreatePlugin(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, nil, pluginVersionId, http.StatusOK)
+
+	common.WriteJsonResp(w, nil, bean.NewPluginMinDto().WithPluginVersionId(pluginVersionId), http.StatusOK)
 }
 
 func (handler *GlobalPluginRestHandlerImpl) GetAllPluginMinData(w http.ResponseWriter, r *http.Request) {

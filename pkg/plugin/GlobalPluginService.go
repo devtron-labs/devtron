@@ -2019,7 +2019,7 @@ func (impl *GlobalPluginServiceImpl) createNewPlugin(tx *pg.Tx, pluginDto *bean2
 }
 
 func (impl *GlobalPluginServiceImpl) createPluginTagAndRelations(pluginReq *bean2.PluginsVersionDetail, userId int32, tx *pg.Tx) error {
-	if pluginReq.NewTagsPresent {
+	if pluginReq.AreNewTagsPresent {
 		err := impl.CreateNewPluginTagsAndRelationsIfRequiredV2(pluginReq, userId, tx)
 		if err != nil {
 			impl.logger.Errorw("createPluginTagAndRelations, error in CreateNewPluginTagsAndRelationsIfRequired", "tags", pluginReq.Tags, "err", err)
