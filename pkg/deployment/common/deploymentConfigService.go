@@ -102,15 +102,19 @@ func (impl *DeploymentConfigServiceImpl) GetConfigForDevtronApps(appId, envId in
 			impl.logger.Errorw("error in parsing config from charts and pipeline repository", "appId", appId, "envId", envId, "err", err)
 			return nil, err
 		}
-		appAndEnvLevelConfig, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(appId, envId)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in getting deployment config db object by appId and envId", "appId", appId, "envId", envId, "err", err)
-			return nil, err
-		}
-		if err == pg.ErrNoRows {
-			configFromOldData.ReleaseMode = util2.PIPELINE_RELEASE_MODE_CREATE
-		} else {
-			configFromOldData.ReleaseMode = appAndEnvLevelConfig.ReleaseMode
+		if envId > 0 {
+			// add columns added after migration (of deployment app type and repo url) here
+			appAndEnvLevelConfig, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(appId, envId)
+			if err != nil && err != pg.ErrNoRows {
+				impl.logger.Errorw("error in getting deployment config db object by appId and envId", "appId", appId, "envId", envId, "err", err)
+				return nil, err
+			}
+			if err == pg.ErrNoRows {
+				// deployment config is not done
+				configFromOldData.ReleaseMode = util2.PIPELINE_RELEASE_MODE_CREATE
+			} else {
+				configFromOldData.ReleaseMode = appAndEnvLevelConfig.ReleaseMode
+			}
 		}
 		return configFromOldData, nil
 	}
@@ -201,7 +205,9 @@ func (impl *DeploymentConfigServiceImpl) GetAndMigrateConfigIfAbsentForDevtronAp
 			impl.logger.Errorw("error in parsing config from charts and pipeline repository", "appId", appId, "envId", envId, "err", err)
 			return nil, err
 		}
-		configFromOldData.ReleaseMode = envLevelConfig.ReleaseMode
+		if envId > 0 {
+			configFromOldData.ReleaseMode = envLevelConfig.ReleaseMode
+		}
 		return configFromOldData, nil
 	}
 
