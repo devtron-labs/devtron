@@ -444,8 +444,8 @@ func (handler *GlobalPluginRestHandlerImpl) CreatePlugin(w http.ResponseWriter, 
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var pluginDataDto *bean.PluginParentMetadataDto
-	err = decoder.Decode(pluginDataDto)
+	var pluginDataDto bean.PluginParentMetadataDto
+	err = decoder.Decode(&pluginDataDto)
 	if err != nil {
 		handler.logger.Errorw("request err, CreatePlugin", "error", err, "payload", pluginDataDto)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -453,7 +453,7 @@ func (handler *GlobalPluginRestHandlerImpl) CreatePlugin(w http.ResponseWriter, 
 	}
 	handler.logger.Infow("request payload received for creating plugins", pluginDataDto, "userId", userId)
 
-	pluginVersionId, err := handler.globalPluginService.CreatePluginOrVersions(pluginDataDto, userId)
+	pluginVersionId, err := handler.globalPluginService.CreatePluginOrVersions(&pluginDataDto, userId)
 	if err != nil {
 		handler.logger.Errorw("service error, error in creating plugin", "pluginCreateRequestDto", pluginDataDto, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
