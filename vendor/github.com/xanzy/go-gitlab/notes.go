@@ -50,15 +50,18 @@ type Note struct {
 		WebURL    string `json:"web_url"`
 	} `json:"author"`
 	System       bool          `json:"system"`
-	ExpiresAt    *time.Time    `json:"expires_at"`
-	UpdatedAt    *time.Time    `json:"updated_at"`
 	CreatedAt    *time.Time    `json:"created_at"`
-	NoteableID   int           `json:"noteable_id"`
-	NoteableType string        `json:"noteable_type"`
+	UpdatedAt    *time.Time    `json:"updated_at"`
+	ExpiresAt    *time.Time    `json:"expires_at"`
 	CommitID     string        `json:"commit_id"`
 	Position     *NotePosition `json:"position"`
+	NoteableID   int           `json:"noteable_id"`
+	NoteableType string        `json:"noteable_type"`
+	ProjectID    int           `json:"project_id"`
+	NoteableIID  int           `json:"noteable_iid"`
 	Resolvable   bool          `json:"resolvable"`
 	Resolved     bool          `json:"resolved"`
+	ResolvedAt   *time.Time    `json:"resolved_at"`
 	ResolvedBy   struct {
 		ID        int    `json:"id"`
 		Username  string `json:"username"`
@@ -68,8 +71,8 @@ type Note struct {
 		AvatarURL string `json:"avatar_url"`
 		WebURL    string `json:"web_url"`
 	} `json:"resolved_by"`
-	ResolvedAt  *time.Time `json:"resolved_at"`
-	NoteableIID int        `json:"noteable_iid"`
+	Confidential bool `json:"confidential"`
+	Internal     bool `json:"internal"`
 }
 
 // NotePosition represents the position attributes of a note.
