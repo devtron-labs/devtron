@@ -28,6 +28,7 @@ type AppSyncConfig struct {
 	AppSyncJobResourcesObj string
 	ChartProviderConfig    *ChartProviderConfig
 	AppSyncServiceAccount  string
+	ParallelismLimitForTagProcessing int
 }
 
 type ChartProviderConfig struct {
@@ -35,7 +36,7 @@ type ChartProviderConfig struct {
 	IsOCIRegistry   bool
 }
 
-func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, appSyncServiceAccount string, chartProviderConfig *ChartProviderConfig) []byte {
+func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, appSyncServiceAccount string, chartProviderConfig *ChartProviderConfig, ParallelismLimitForTagProcessing int) []byte {
 	cfg, _ := sql.GetConfig()
 	configValues := AppSyncConfig{
 		DbConfig:               sql.Config{Addr: cfg.Addr, Database: cfg.Database, User: cfg.User, Password: cfg.Password},
@@ -43,6 +44,7 @@ func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, 
 		AppSyncJobResourcesObj: appSyncJobResourcesObj,
 		ChartProviderConfig:    chartProviderConfig,
 		AppSyncServiceAccount:  appSyncServiceAccount,
+		ParallelismLimitForTagProcessing: ParallelismLimitForTagProcessing,
 	}
 	temp := template.New("manualAppSyncJobByteArr")
 	temp, _ = temp.Parse(`{"apiVersion": "batch/v1",
@@ -86,7 +88,11 @@ func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, 
 			  {
                 "name": "IS_OCI_REGISTRY",
                 "value": "{{.ChartProviderConfig.IsOCIRegistry}}"
-			  }
+			  },
+              {
+				"name": "PARALLELISM_LIMIT_FOR_TAG_PROCESSING",
+     			"value": "{{.ParallelismLimitForTagProcessing}}"
+              }
             ]
           }
         ],
