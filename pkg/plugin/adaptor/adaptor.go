@@ -22,7 +22,7 @@ func GetPluginStepDbObject(pluginStepDto *bean2.PluginStepsDto, pluginVersionMet
 		Name:                pluginStepDto.Name,
 		Description:         pluginStepDto.Description,
 		Index:               1,
-		StepType:            pluginStepDto.StepType,
+		StepType:            repository.PLUGIN_STEP_TYPE_INLINE,
 		RefPluginId:         pluginStepDto.RefPluginId,
 		OutputDirectoryPath: pluginStepDto.OutputDirectoryPath,
 		DependentOnStep:     pluginStepDto.DependentOnStep,
