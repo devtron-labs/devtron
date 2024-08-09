@@ -176,6 +176,7 @@ func InitializeApp() (*App, error) {
 		externalLink.ExternalLinkWireSet,
 		team.TeamsWireSet,
 		AuthWireSet,
+		util4.GetRuntimeConfig,
 		util4.NewK8sUtil,
 		wire.Bind(new(util4.K8sService), new(*util4.K8sServiceImpl)),
 		user.UserWireSet,

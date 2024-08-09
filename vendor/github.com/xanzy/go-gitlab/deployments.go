@@ -88,7 +88,8 @@ type ListProjectDeploymentsOptions struct {
 
 // ListProjectDeployments gets a list of deployments in a project.
 //
-// GitLab API docs: https://docs.gitlab.com/ee/api/deployments.html#list-project-deployments
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/deployments.html#list-project-deployments
 func (s *DeploymentsService) ListProjectDeployments(pid interface{}, opts *ListProjectDeploymentsOptions, options ...RequestOptionFunc) ([]*Deployment, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
@@ -112,7 +113,8 @@ func (s *DeploymentsService) ListProjectDeployments(pid interface{}, opts *ListP
 
 // GetProjectDeployment get a deployment for a project.
 //
-// GitLab API docs: https://docs.gitlab.com/ee/api/deployments.html#get-a-specific-deployment
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/deployments.html#get-a-specific-deployment
 func (s *DeploymentsService) GetProjectDeployment(pid interface{}, deployment int, options ...RequestOptionFunc) (*Deployment, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
@@ -137,7 +139,8 @@ func (s *DeploymentsService) GetProjectDeployment(pid interface{}, deployment in
 // CreateProjectDeploymentOptions represents the available
 // CreateProjectDeployment() options.
 //
-// GitLab API docs: https://docs.gitlab.com/ee/api/deployments.html#create-a-deployment
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/deployments.html#create-a-deployment
 type CreateProjectDeploymentOptions struct {
 	Environment *string                `url:"environment,omitempty" json:"environment,omitempty"`
 	Ref         *string                `url:"ref,omitempty" json:"ref,omitempty"`
@@ -148,7 +151,8 @@ type CreateProjectDeploymentOptions struct {
 
 // CreateProjectDeployment creates a project deployment.
 //
-// GitLab API docs: https://docs.gitlab.com/ee/api/deployments.html#create-a-deployment
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/deployments.html#create-a-deployment
 func (s *DeploymentsService) CreateProjectDeployment(pid interface{}, opt *CreateProjectDeploymentOptions, options ...RequestOptionFunc) (*Deployment, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
@@ -173,14 +177,16 @@ func (s *DeploymentsService) CreateProjectDeployment(pid interface{}, opt *Creat
 // UpdateProjectDeploymentOptions represents the available
 // UpdateProjectDeployment() options.
 //
-// GitLab API docs: https://docs.gitlab.com/ee/api/deployments.html#update-a-deployment
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/deployments.html#update-a-deployment
 type UpdateProjectDeploymentOptions struct {
 	Status *DeploymentStatusValue `url:"status,omitempty" json:"status,omitempty"`
 }
 
 // UpdateProjectDeployment updates a project deployment.
 //
-// GitLab API docs: https://docs.gitlab.com/ee/api/deployments.html#update-a-deployment
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/deployments.html#update-a-deployment
 func (s *DeploymentsService) UpdateProjectDeployment(pid interface{}, deployment int, opt *UpdateProjectDeploymentOptions, options ...RequestOptionFunc) (*Deployment, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
@@ -200,4 +206,55 @@ func (s *DeploymentsService) UpdateProjectDeployment(pid interface{}, deployment
 	}
 
 	return d, resp, nil
+}
+
+// ApproveOrRejectProjectDeploymentOptions represents the available
+// ApproveOrRejectProjectDeployment() options.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/deployments.html#approve-or-reject-a-blocked-deployment
+type ApproveOrRejectProjectDeploymentOptions struct {
+	Status        *DeploymentApprovalStatus `url:"status,omitempty" json:"status,omitempty"`
+	Comment       *string                   `url:"comment,omitempty" json:"comment,omitempty"`
+	RepresentedAs *string                   `url:"represented_as,omitempty" json:"represented_as,omitempty"`
+}
+
+// ApproveOrRejectProjectDeployment approve or reject a blocked deployment.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/deployments.html#approve-or-reject-a-blocked-deployment
+func (s *DeploymentsService) ApproveOrRejectProjectDeployment(pid interface{}, deployment int,
+	opt *ApproveOrRejectProjectDeploymentOptions, options ...RequestOptionFunc,
+) (*Response, error) {
+	project, err := parseID(pid)
+	if err != nil {
+		return nil, err
+	}
+	u := fmt.Sprintf("projects/%s/deployments/%d/approval", PathEscape(project), deployment)
+
+	req, err := s.client.NewRequest(http.MethodPost, u, opt, options)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.client.Do(req, nil)
+}
+
+// DeleteProjectDeployment delete a project deployment.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/deployments.html#delete-a-specific-deployment
+func (s *DeploymentsService) DeleteProjectDeployment(pid interface{}, deployment int, options ...RequestOptionFunc) (*Response, error) {
+	project, err := parseID(pid)
+	if err != nil {
+		return nil, err
+	}
+	u := fmt.Sprintf("projects/%s/deployments/%d", PathEscape(project), deployment)
+
+	req, err := s.client.NewRequest(http.MethodDelete, u, nil, options)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.client.Do(req, nil)
 }
