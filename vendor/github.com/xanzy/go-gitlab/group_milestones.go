@@ -188,6 +188,24 @@ func (s *GroupMilestonesService) UpdateGroupMilestone(gid interface{}, milestone
 	return m, resp, nil
 }
 
+// DeleteGroupMilestone deletes a specified group milestone.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/group_milestones.html#delete-group-milestone
+func (s *GroupMilestonesService) DeleteGroupMilestone(pid interface{}, milestone int, options ...RequestOptionFunc) (*Response, error) {
+	project, err := parseID(pid)
+	if err != nil {
+		return nil, err
+	}
+	u := fmt.Sprintf("groups/%s/milestones/%d", PathEscape(project), milestone)
+
+	req, err := s.client.NewRequest(http.MethodDelete, u, nil, options)
+	if err != nil {
+		return nil, err
+	}
+	return s.client.Do(req, nil)
+}
+
 // GetGroupMilestoneIssuesOptions represents the available GetGroupMilestoneIssues() options.
 //
 // GitLab API docs:
