@@ -66,6 +66,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/values/repository"
 	service4 "github.com/devtron-labs/devtron/pkg/appStore/values/service"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
+	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/authentication"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -173,7 +174,11 @@ func InitializeApp() (*App, error) {
 	userAuditServiceImpl := user.NewUserAuditServiceImpl(sugaredLogger, userAuditRepositoryImpl)
 	userServiceImpl := user.NewUserServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, userCommonServiceImpl, userAuditServiceImpl)
 	ssoLoginRepositoryImpl := sso.NewSSOLoginRepositoryImpl(db, sugaredLogger)
-	k8sServiceImpl := k8s.NewK8sUtil(sugaredLogger, runtimeConfig)
+	k8sRuntimeConfig, err := k8s.GetRuntimeConfig()
+	if err != nil {
+		return nil, err
+	}
+	k8sServiceImpl := k8s.NewK8sUtil(sugaredLogger, k8sRuntimeConfig)
 	environmentVariables, err := util2.GetEnvironmentVariables()
 	if err != nil {
 		return nil, err
@@ -193,7 +198,7 @@ func InitializeApp() (*App, error) {
 	teamServiceImpl := team.NewTeamServiceImpl(sugaredLogger, teamRepositoryImpl, userAuthServiceImpl)
 	clusterRepositoryImpl := repository2.NewClusterRepositoryImpl(db, sugaredLogger)
 	v := informer.NewGlobalMapClusterNamespace()
-	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, v, runtimeConfig, k8sServiceImpl)
+	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, v, k8sServiceImpl)
 	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryImpl, sugaredLogger, k8sServiceImpl, k8sInformerFactoryImpl, userAuthRepositoryImpl, userRepositoryImpl, roleGroupRepositoryImpl)
 	appStatusRepositoryImpl := appStatus.NewAppStatusRepositoryImpl(db, sugaredLogger)
 	environmentRepositoryImpl := repository2.NewEnvironmentRepositoryImpl(db, sugaredLogger, appStatusRepositoryImpl)
@@ -234,7 +239,8 @@ func InitializeApp() (*App, error) {
 	dockerArtifactStoreRepositoryImpl := repository5.NewDockerArtifactStoreRepositoryImpl(db)
 	dockerRegistryIpsConfigRepositoryImpl := repository5.NewDockerRegistryIpsConfigRepositoryImpl(db)
 	ociRegistryConfigRepositoryImpl := repository5.NewOCIRegistryConfigRepositoryImpl(db)
-	dockerRegistryConfigImpl := pipeline.NewDockerRegistryConfigImpl(sugaredLogger, helmAppServiceImpl, dockerArtifactStoreRepositoryImpl, dockerRegistryIpsConfigRepositoryImpl, ociRegistryConfigRepositoryImpl)
+	repositorySecretImpl := argoRepositoryCreds.NewRepositorySecret(sugaredLogger, k8sServiceImpl, clusterServiceImpl, acdAuthConfig)
+	dockerRegistryConfigImpl := pipeline.NewDockerRegistryConfigImpl(sugaredLogger, helmAppServiceImpl, dockerArtifactStoreRepositoryImpl, dockerRegistryIpsConfigRepositoryImpl, ociRegistryConfigRepositoryImpl, repositorySecretImpl)
 	deleteServiceImpl := delete2.NewDeleteServiceImpl(sugaredLogger, teamServiceImpl, clusterServiceImpl, environmentServiceImpl, chartRepositoryServiceImpl, installedAppRepositoryImpl, dockerRegistryConfigImpl, dockerArtifactStoreRepositoryImpl)
 	teamRestHandlerImpl := team2.NewTeamRestHandlerImpl(sugaredLogger, teamServiceImpl, userServiceImpl, enforcerImpl, validate, userAuthServiceImpl, deleteServiceImpl)
 	teamRouterImpl := team2.NewTeamRouterImpl(teamRestHandlerImpl)

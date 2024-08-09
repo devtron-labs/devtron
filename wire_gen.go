@@ -118,6 +118,7 @@ import (
 	service3 "github.com/devtron-labs/devtron/pkg/appStore/values/service"
 	appWorkflow2 "github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
+	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds"
 	"github.com/devtron-labs/devtron/pkg/asyncProvider"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/authentication"
@@ -245,7 +246,7 @@ func InitializeApp() (*App, error) {
 	attributesServiceImpl := attributes.NewAttributesServiceImpl(sugaredLogger, attributesRepositoryImpl)
 	grafanaClientImpl := grafana.NewGrafanaClientImpl(sugaredLogger, httpClient, grafanaClientConfig, attributesServiceImpl)
 	installedAppRepositoryImpl := repository3.NewInstalledAppRepositoryImpl(sugaredLogger, db)
-	runtimeConfig, err := client.GetRuntimeConfig()
+	runtimeConfig, err := k8s.GetRuntimeConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -265,14 +266,18 @@ func InitializeApp() (*App, error) {
 	}
 	serviceClientImpl := cluster.NewServiceClientImpl(sugaredLogger, argoCDConnectionManagerImpl)
 	v := informer.NewGlobalMapClusterNamespace()
-	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, v, runtimeConfig, k8sServiceImpl)
+	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, v, k8sServiceImpl)
 	defaultAuthPolicyRepositoryImpl := repository4.NewDefaultAuthPolicyRepositoryImpl(db, sugaredLogger)
 	defaultAuthRoleRepositoryImpl := repository4.NewDefaultAuthRoleRepositoryImpl(db, sugaredLogger)
 	userAuthRepositoryImpl := repository4.NewUserAuthRepositoryImpl(db, sugaredLogger, defaultAuthPolicyRepositoryImpl, defaultAuthRoleRepositoryImpl)
 	userRepositoryImpl := repository4.NewUserRepositoryImpl(db, sugaredLogger)
 	roleGroupRepositoryImpl := repository4.NewRoleGroupRepositoryImpl(db, sugaredLogger)
 	gitOpsConfigRepositoryImpl := repository2.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
-	k8sClient, err := client.NewK8sClient(runtimeConfig)
+	clientRuntimeConfig, err := client.GetRuntimeConfig()
+	if err != nil {
+		return nil, err
+	}
+	k8sClient, err := client.NewK8sClient(clientRuntimeConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -356,7 +361,8 @@ func InitializeApp() (*App, error) {
 	dockerArtifactStoreRepositoryImpl := repository5.NewDockerArtifactStoreRepositoryImpl(db)
 	dockerRegistryIpsConfigRepositoryImpl := repository5.NewDockerRegistryIpsConfigRepositoryImpl(db)
 	ociRegistryConfigRepositoryImpl := repository5.NewOCIRegistryConfigRepositoryImpl(db)
-	dockerRegistryConfigImpl := pipeline.NewDockerRegistryConfigImpl(sugaredLogger, helmAppServiceImpl, dockerArtifactStoreRepositoryImpl, dockerRegistryIpsConfigRepositoryImpl, ociRegistryConfigRepositoryImpl)
+	repositorySecretImpl := argoRepositoryCreds.NewRepositorySecret(sugaredLogger, k8sServiceImpl, clusterServiceImplExtended, acdAuthConfig)
+	dockerRegistryConfigImpl := pipeline.NewDockerRegistryConfigImpl(sugaredLogger, helmAppServiceImpl, dockerArtifactStoreRepositoryImpl, dockerRegistryIpsConfigRepositoryImpl, ociRegistryConfigRepositoryImpl, repositorySecretImpl)
 	deleteServiceExtendedImpl := delete2.NewDeleteServiceExtendedImpl(sugaredLogger, teamServiceImpl, clusterServiceImplExtended, environmentServiceImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, chartRepositoryServiceImpl, installedAppRepositoryImpl, dockerRegistryConfigImpl, dockerArtifactStoreRepositoryImpl)
 	versionServiceImpl := argocdServer.NewVersionServiceImpl(sugaredLogger, argoCDConnectionManagerImpl)
 	moduleActionAuditLogRepositoryImpl := module.NewModuleActionAuditLogRepositoryImpl(db)
@@ -584,7 +590,7 @@ func InitializeApp() (*App, error) {
 	ciTemplateHistoryRepositoryImpl := repository12.NewCiTemplateHistoryRepositoryImpl(db, sugaredLogger)
 	ciTemplateHistoryServiceImpl := history.NewCiTemplateHistoryServiceImpl(ciTemplateHistoryRepositoryImpl, sugaredLogger)
 	buildPipelineSwitchServiceImpl := pipeline.NewBuildPipelineSwitchServiceImpl(sugaredLogger, ciPipelineRepositoryImpl, ciCdPipelineOrchestratorImpl, pipelineRepositoryImpl, ciWorkflowRepositoryImpl, appWorkflowRepositoryImpl, ciPipelineHistoryServiceImpl, ciTemplateOverrideRepositoryImpl, ciPipelineMaterialRepositoryImpl)
-	ciPipelineConfigServiceImpl := pipeline.NewCiPipelineConfigServiceImpl(sugaredLogger, ciCdPipelineOrchestratorImpl, dockerArtifactStoreRepositoryImpl, materialRepositoryImpl, appRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, ecrConfig, appWorkflowRepositoryImpl, ciCdConfig, attributesServiceImpl, pipelineStageServiceImpl, ciPipelineMaterialRepositoryImpl, ciTemplateServiceImpl, ciTemplateOverrideRepositoryImpl, ciTemplateHistoryServiceImpl, enforcerUtilImpl, ciWorkflowRepositoryImpl, resourceGroupServiceImpl, customTagServiceImpl, cdWorkflowRepositoryImpl, buildPipelineSwitchServiceImpl)
+	ciPipelineConfigServiceImpl := pipeline.NewCiPipelineConfigServiceImpl(sugaredLogger, ciCdPipelineOrchestratorImpl, dockerArtifactStoreRepositoryImpl, materialRepositoryImpl, appRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, ecrConfig, appWorkflowRepositoryImpl, ciCdConfig, attributesServiceImpl, pipelineStageServiceImpl, ciPipelineMaterialRepositoryImpl, ciTemplateServiceImpl, ciTemplateOverrideRepositoryImpl, ciTemplateHistoryServiceImpl, enforcerUtilImpl, ciWorkflowRepositoryImpl, resourceGroupServiceImpl, customTagServiceImpl, cdWorkflowRepositoryImpl, buildPipelineSwitchServiceImpl, pipelineStageRepositoryImpl, globalPluginRepositoryImpl)
 	ciMaterialConfigServiceImpl := pipeline.NewCiMaterialConfigServiceImpl(sugaredLogger, materialRepositoryImpl, ciTemplateServiceImpl, ciCdPipelineOrchestratorImpl, ciPipelineRepositoryImpl, gitMaterialHistoryServiceImpl, pipelineRepositoryImpl, ciPipelineMaterialRepositoryImpl, transactionUtilImpl)
 	deploymentGroupRepositoryImpl := repository2.NewDeploymentGroupRepositoryImpl(sugaredLogger, db)
 	pipelineStrategyHistoryRepositoryImpl := repository12.NewPipelineStrategyHistoryRepositoryImpl(sugaredLogger, db)
@@ -714,7 +720,7 @@ func InitializeApp() (*App, error) {
 	clusterInstalledAppsRepositoryImpl := repository3.NewClusterInstalledAppsRepositoryImpl(db, sugaredLogger)
 	appStoreValuesServiceImpl := service3.NewAppStoreValuesServiceImpl(sugaredLogger, appStoreApplicationVersionRepositoryImpl, installedAppRepositoryImpl, appStoreVersionValuesRepositoryImpl, userServiceImpl)
 	appStoreDeploymentCommonServiceImpl := appStoreDeploymentCommon.NewAppStoreDeploymentCommonServiceImpl(sugaredLogger, appStoreApplicationVersionRepositoryImpl, chartTemplateServiceImpl)
-	fullModeDeploymentServiceImpl := deployment.NewFullModeDeploymentServiceImpl(sugaredLogger, applicationServiceClientImpl, argoK8sClientImpl, acdAuthConfig, chartGroupDeploymentRepositoryImpl, installedAppRepositoryImpl, installedAppVersionHistoryRepositoryImpl, argoUserServiceImpl, appStoreDeploymentCommonServiceImpl, helmAppServiceImpl, appStatusServiceImpl, pipelineStatusTimelineServiceImpl, userServiceImpl, pipelineStatusTimelineRepositoryImpl, appStoreApplicationVersionRepositoryImpl, argoClientWrapperServiceImpl, acdConfig, gitOperationServiceImpl, gitOpsConfigReadServiceImpl, gitOpsValidationServiceImpl, environmentRepositoryImpl, deploymentConfigServiceImpl, chartTemplateServiceImpl)
+	fullModeDeploymentServiceImpl := deployment.NewFullModeDeploymentServiceImpl(sugaredLogger, applicationServiceClientImpl, argoK8sClientImpl, acdAuthConfig, chartGroupDeploymentRepositoryImpl, installedAppRepositoryImpl, installedAppVersionHistoryRepositoryImpl, argoUserServiceImpl, appStoreDeploymentCommonServiceImpl, helmAppServiceImpl, appStatusServiceImpl, pipelineStatusTimelineServiceImpl, userServiceImpl, pipelineStatusTimelineRepositoryImpl, appStoreApplicationVersionRepositoryImpl, argoClientWrapperServiceImpl, acdConfig, gitOperationServiceImpl, gitOpsConfigReadServiceImpl, gitOpsValidationServiceImpl, environmentRepositoryImpl, deploymentConfigServiceImpl, chartTemplateServiceImpl, repositorySecretImpl)
 	appStoreValidatorImpl := service4.NewAppAppStoreValidatorImpl(sugaredLogger)
 	appStoreDeploymentDBServiceImpl := service4.NewAppStoreDeploymentDBServiceImpl(sugaredLogger, installedAppRepositoryImpl, appStoreApplicationVersionRepositoryImpl, appRepositoryImpl, environmentServiceImpl, clusterServiceImplExtended, installedAppVersionHistoryRepositoryImpl, environmentVariables, gitOpsConfigReadServiceImpl, deploymentTypeOverrideServiceImpl, fullModeDeploymentServiceImpl, appStoreValidatorImpl, installedAppDBServiceImpl, deploymentConfigServiceImpl)
 	eaModeDeploymentServiceImpl := EAMode.NewEAModeDeploymentServiceImpl(sugaredLogger, helmAppServiceImpl, appStoreApplicationVersionRepositoryImpl, helmAppClientImpl, installedAppRepositoryImpl, ociRegistryConfigRepositoryImpl)

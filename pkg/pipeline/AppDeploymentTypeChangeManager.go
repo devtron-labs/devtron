@@ -418,14 +418,6 @@ func (impl *AppDeploymentTypeChangeManagerImpl) TriggerDeploymentAfterTypeChange
 			"err", err)
 	}
 
-	deploymentConfigSelector := make([]*bean4.DeploymentConfigSelector, len(pipelineIds))
-	for _, pipeline := range pipelines {
-		deploymentConfigSelector = append(deploymentConfigSelector, &bean4.DeploymentConfigSelector{
-			AppId:         pipeline.AppId,
-			EnvironmentId: pipeline.EnvironmentId,
-		})
-	}
-
 	for _, p := range pipelines {
 		envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(p.AppId, p.EnvironmentId)
 		if err != nil {

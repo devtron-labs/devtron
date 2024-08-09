@@ -19,7 +19,6 @@ package generateManifest
 import (
 	"context"
 	"errors"
-	client2 "github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app/gRPC"
@@ -540,10 +539,10 @@ func InitEventSimpleFactoryImpl(t *testing.T) (*DeploymentTemplateServiceImpl, *
 	if K8sUtilObj != nil {
 		k8sUtil = K8sUtilObj
 	} else {
-		config := &client2.RuntimeConfig{LocalDevMode: true}
+		config := &k8s.RuntimeConfig{LocalDevMode: true}
 		k8sUtil = k8s.NewK8sUtil(logger, config)
 		K8sUtilObj = k8sUtil
 	}
-	impl := NewDeploymentTemplateServiceImpl(logger, chartService, appListingService, appListingRepository, deploymentTemplateRepository, helmAppService, chartRepository, chartTemplateServiceImpl, helmAppClient, k8sUtil)
+	impl, _ := NewDeploymentTemplateServiceImpl(logger, chartService, appListingService, appListingRepository, deploymentTemplateRepository, helmAppService, chartRepository, chartTemplateServiceImpl, helmAppClient, k8sUtil, nil, nil, nil, nil, nil, nil, nil, nil)
 	return impl, chartService, appListingService, deploymentTemplateRepository, chartRepository, chartTemplateServiceImpl, helmAppService, helmAppClient
 }
