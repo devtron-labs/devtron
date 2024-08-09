@@ -79,6 +79,7 @@ type K8sService interface {
 	GetNmList(ctx context.Context, metricsClientSet *metrics.Clientset) (*v1beta1.NodeMetricsList, error)
 	GetPodsListForNamespace(ctx context.Context, k8sClientSet *kubernetes.Clientset, namespace string) (*v1.PodList, error)
 	GetServerVersionFromDiscoveryClient(k8sClientSet *kubernetes.Clientset) (*version.Info, error)
+	GetServerGroups(k8sClientSet *kubernetes.Clientset) (*metav1.APIGroupList, error)
 	GetNodeByName(ctx context.Context, k8sClientSet *kubernetes.Clientset, name string) (*v1.Node, error)
 	GetNodesList(ctx context.Context, k8sClientSet *kubernetes.Clientset) (*v1.NodeList, error)
 	GetCoreV1ClientByRestConfig(restConfig *rest.Config) (*v12.CoreV1Client, error)
@@ -136,6 +137,7 @@ type K8sService interface {
 	GetResourceIf(restConfig *rest.Config, groupVersionKind schema.GroupVersionKind) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error)
 	FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset) error
 	CreateK8sClientSet(restConfig *rest.Config) (*kubernetes.Clientset, error)
+	CreateOrUpdateSecretByName(client *v12.CoreV1Client, namespace, uniqueSecretName string, secretLabel map[string]string, secretData map[string]string) error
 	//CreateK8sClientSetWithCustomHttpTransport(restConfig *rest.Config) (*kubernetes.Clientset, error)
 }
 
@@ -154,7 +156,7 @@ func NewK8sUtil(logger *zap.SugaredLogger, runTimeConfig *client.RuntimeConfig) 
 	return &K8sServiceImpl{logger: logger, runTimeConfig: runTimeConfig, kubeconfig: kubeconfig, httpClientConfig: httpClientConfig}
 }
 
-func (impl K8sServiceImpl) GetRestConfigByCluster(clusterConfig *ClusterConfig) (*restclient.Config, error) {
+func (impl *K8sServiceImpl) GetRestConfigByCluster(clusterConfig *ClusterConfig) (*restclient.Config, error) {
 	bearerToken := clusterConfig.BearerToken
 	var restConfig *rest.Config
 	var err error
@@ -175,7 +177,7 @@ func (impl K8sServiceImpl) GetRestConfigByCluster(clusterConfig *ClusterConfig) 
 	return restConfig, err
 }
 
-func (impl K8sServiceImpl) GetCoreV1Client(clusterConfig *ClusterConfig) (*v12.CoreV1Client, error) {
+func (impl *K8sServiceImpl) GetCoreV1Client(clusterConfig *ClusterConfig) (*v12.CoreV1Client, error) {
 	cfg, err := impl.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
@@ -184,7 +186,7 @@ func (impl K8sServiceImpl) GetCoreV1Client(clusterConfig *ClusterConfig) (*v12.C
 	return impl.GetCoreV1ClientByRestConfig(cfg)
 }
 
-func (impl K8sServiceImpl) GetClientForInCluster() (*v12.CoreV1Client, error) {
+func (impl *K8sServiceImpl) GetClientForInCluster() (*v12.CoreV1Client, error) {
 	// creates the in-cluster config
 	config, err := impl.GetK8sInClusterRestConfig()
 	if err != nil {
@@ -212,7 +214,7 @@ func (impl K8sServiceImpl) GetClientForInCluster() (*v12.CoreV1Client, error) {
 	return clientset, err
 }
 
-func (impl K8sServiceImpl) GetK8sDiscoveryClient(clusterConfig *ClusterConfig) (*discovery.DiscoveryClient, error) {
+func (impl *K8sServiceImpl) GetK8sDiscoveryClient(clusterConfig *ClusterConfig) (*discovery.DiscoveryClient, error) {
 	cfg, err := impl.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
@@ -238,7 +240,7 @@ func (impl K8sServiceImpl) GetK8sDiscoveryClient(clusterConfig *ClusterConfig) (
 	return discoveryClient, err
 }
 
-func (impl K8sServiceImpl) GetK8sDiscoveryClientInCluster() (*discovery.DiscoveryClient, error) {
+func (impl *K8sServiceImpl) GetK8sDiscoveryClientInCluster() (*discovery.DiscoveryClient, error) {
 	config, err := impl.GetK8sInClusterRestConfig()
 	if err != nil {
 		impl.logger.Errorw("error in getting config", "err", err)
@@ -264,7 +266,7 @@ func (impl K8sServiceImpl) GetK8sDiscoveryClientInCluster() (*discovery.Discover
 	return discoveryClient, err
 }
 
-func (impl K8sServiceImpl) CreateNsIfNotExists(namespace string, clusterConfig *ClusterConfig) (err error) {
+func (impl *K8sServiceImpl) CreateNsIfNotExists(namespace string, clusterConfig *ClusterConfig) (err error) {
 	v12Client, err := impl.GetCoreV1Client(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
@@ -284,7 +286,7 @@ func (impl K8sServiceImpl) CreateNsIfNotExists(namespace string, clusterConfig *
 	return err
 }
 
-func (impl K8sServiceImpl) CheckIfNsExists(namespace string, client *v12.CoreV1Client) (exists bool, err error) {
+func (impl *K8sServiceImpl) CheckIfNsExists(namespace string, client *v12.CoreV1Client) (exists bool, err error) {
 	ns, err := client.Namespaces().Get(context.Background(), namespace, metav1.GetOptions{})
 	//ns, err := impl.k8sClient.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
 	impl.logger.Debugw("ns fetch", "name", namespace, "res", ns)
@@ -299,7 +301,7 @@ func (impl K8sServiceImpl) CheckIfNsExists(namespace string, client *v12.CoreV1C
 
 }
 
-func (impl K8sServiceImpl) createNs(namespace string, client *v12.CoreV1Client) (ns *v1.Namespace, err error) {
+func (impl *K8sServiceImpl) createNs(namespace string, client *v12.CoreV1Client) (ns *v1.Namespace, err error) {
 	nsSpec := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
 	ns, err = client.Namespaces().Create(context.Background(), nsSpec, metav1.CreateOptions{})
 	if err != nil {
@@ -310,12 +312,12 @@ func (impl K8sServiceImpl) createNs(namespace string, client *v12.CoreV1Client) 
 	}
 }
 
-func (impl K8sServiceImpl) deleteNs(namespace string, client *v12.CoreV1Client) error {
+func (impl *K8sServiceImpl) deleteNs(namespace string, client *v12.CoreV1Client) error {
 	err := client.Namespaces().Delete(context.Background(), namespace, metav1.DeleteOptions{})
 	return err
 }
 
-func (impl K8sServiceImpl) GetConfigMap(namespace string, name string, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
+func (impl *K8sServiceImpl) GetConfigMap(namespace string, name string, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
 	cm, err := client.ConfigMaps(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in getting config map", "err", err)
@@ -325,7 +327,7 @@ func (impl K8sServiceImpl) GetConfigMap(namespace string, name string, client *v
 	}
 }
 
-func (impl K8sServiceImpl) CreateConfigMap(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
+func (impl *K8sServiceImpl) CreateConfigMap(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
 	cm, err := client.ConfigMaps(namespace).Create(context.Background(), cm, metav1.CreateOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in creating config map", "err", err)
@@ -335,7 +337,7 @@ func (impl K8sServiceImpl) CreateConfigMap(namespace string, cm *v1.ConfigMap, c
 	}
 }
 
-func (impl K8sServiceImpl) UpdateConfigMap(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
+func (impl *K8sServiceImpl) UpdateConfigMap(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error) {
 	cm, err := client.ConfigMaps(namespace).Update(context.Background(), cm, metav1.UpdateOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in updating config map", "err", err)
@@ -345,7 +347,7 @@ func (impl K8sServiceImpl) UpdateConfigMap(namespace string, cm *v1.ConfigMap, c
 	}
 }
 
-func (impl K8sServiceImpl) PatchConfigMap(namespace string, clusterConfig *ClusterConfig, name string, data map[string]interface{}) (*v1.ConfigMap, error) {
+func (impl *K8sServiceImpl) PatchConfigMap(namespace string, clusterConfig *ClusterConfig, name string, data map[string]interface{}) (*v1.ConfigMap, error) {
 	k8sClient, err := impl.GetCoreV1Client(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client", "err", err)
@@ -366,7 +368,7 @@ func (impl K8sServiceImpl) PatchConfigMap(namespace string, clusterConfig *Clust
 	return cm, nil
 }
 
-func (impl K8sServiceImpl) PatchConfigMapJsonType(namespace string, clusterConfig *ClusterConfig, name string, data interface{}, path string) (*v1.ConfigMap, error) {
+func (impl *K8sServiceImpl) PatchConfigMapJsonType(namespace string, clusterConfig *ClusterConfig, name string, data interface{}, path string) (*v1.ConfigMap, error) {
 	v12Client, err := impl.GetCoreV1Client(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting v12 client ", "err", err, "namespace", namespace, "name", name)
@@ -401,7 +403,7 @@ type JsonPatchType struct {
 	Value interface{} `json:"value"`
 }
 
-func (impl K8sServiceImpl) GetSecret(namespace string, name string, client *v12.CoreV1Client) (*v1.Secret, error) {
+func (impl *K8sServiceImpl) GetSecret(namespace string, name string, client *v12.CoreV1Client) (*v1.Secret, error) {
 	secret, err := client.Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in getting secrets", "err", err, "namespace", namespace)
@@ -411,7 +413,7 @@ func (impl K8sServiceImpl) GetSecret(namespace string, name string, client *v12.
 	}
 }
 
-func (impl K8sServiceImpl) CreateSecret(namespace string, data map[string][]byte, secretName string, secretType v1.SecretType, client *v12.CoreV1Client, labels map[string]string, stringData map[string]string) (*v1.Secret, error) {
+func (impl *K8sServiceImpl) CreateSecret(namespace string, data map[string][]byte, secretName string, secretType v1.SecretType, client *v12.CoreV1Client, labels map[string]string, stringData map[string]string) (*v1.Secret, error) {
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secretName,
@@ -432,12 +434,12 @@ func (impl K8sServiceImpl) CreateSecret(namespace string, data map[string][]byte
 	return impl.CreateSecretData(namespace, secret, client)
 }
 
-func (impl K8sServiceImpl) CreateSecretData(namespace string, secret *v1.Secret, v1Client *v12.CoreV1Client) (*v1.Secret, error) {
+func (impl *K8sServiceImpl) CreateSecretData(namespace string, secret *v1.Secret, v1Client *v12.CoreV1Client) (*v1.Secret, error) {
 	secret, err := v1Client.Secrets(namespace).Create(context.Background(), secret, metav1.CreateOptions{})
 	return secret, err
 }
 
-func (impl K8sServiceImpl) UpdateSecret(namespace string, secret *v1.Secret, client *v12.CoreV1Client) (*v1.Secret, error) {
+func (impl *K8sServiceImpl) UpdateSecret(namespace string, secret *v1.Secret, client *v12.CoreV1Client) (*v1.Secret, error) {
 	secret, err := client.Secrets(namespace).Update(context.Background(), secret, metav1.UpdateOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in updating secrets", "err", err, "namespace", namespace)
@@ -447,7 +449,7 @@ func (impl K8sServiceImpl) UpdateSecret(namespace string, secret *v1.Secret, cli
 	}
 }
 
-func (impl K8sServiceImpl) DeleteSecret(namespace string, name string, client *v12.CoreV1Client) error {
+func (impl *K8sServiceImpl) DeleteSecret(namespace string, name string, client *v12.CoreV1Client) error {
 	err := client.Secrets(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in deleting secrets", "err", err, "namespace", namespace)
@@ -456,7 +458,7 @@ func (impl K8sServiceImpl) DeleteSecret(namespace string, name string, client *v
 	return nil
 }
 
-func (impl K8sServiceImpl) DeleteJob(namespace string, name string, clusterConfig *ClusterConfig) error {
+func (impl *K8sServiceImpl) DeleteJob(namespace string, name string, clusterConfig *ClusterConfig) error {
 	_, _, clientSet, err := impl.GetK8sConfigAndClients(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("clientSet err, DeleteJob", "err", err)
@@ -481,7 +483,7 @@ func (impl K8sServiceImpl) DeleteJob(namespace string, name string, clusterConfi
 	return nil
 }
 
-func (impl K8sServiceImpl) GetK8sInClusterConfigAndClients() (*rest.Config, *http.Client, *kubernetes.Clientset, error) {
+func (impl *K8sServiceImpl) GetK8sInClusterConfigAndClients() (*rest.Config, *http.Client, *kubernetes.Clientset, error) {
 	restConfig, err := impl.GetK8sInClusterRestConfig()
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config for in cluster", "err", err)
@@ -496,7 +498,7 @@ func (impl K8sServiceImpl) GetK8sInClusterConfigAndClients() (*rest.Config, *htt
 	return restConfig, k8sHttpClient, k8sClientSet, nil
 }
 
-func (impl K8sServiceImpl) GetK8sInClusterConfigAndDynamicClients() (*rest.Config, *http.Client, dynamic.Interface, error) {
+func (impl *K8sServiceImpl) GetK8sInClusterConfigAndDynamicClients() (*rest.Config, *http.Client, dynamic.Interface, error) {
 	restConfig, err := impl.GetK8sInClusterRestConfig()
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config for in cluster", "err", err)
@@ -522,7 +524,7 @@ func (impl K8sServiceImpl) GetK8sInClusterConfigAndDynamicClients() (*rest.Confi
 	return restConfig, k8sHttpClient, dynamicClientSet, nil
 }
 
-func (impl K8sServiceImpl) GetK8sDynamicClient(restConfig *rest.Config, k8sHttpClient *http.Client) (dynamic.Interface, error) {
+func (impl *K8sServiceImpl) GetK8sDynamicClient(restConfig *rest.Config, k8sHttpClient *http.Client) (dynamic.Interface, error) {
 	dynamicClientSet, err := dynamic.NewForConfigAndClient(restConfig, k8sHttpClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting client set by rest config for in cluster", "err", err)
@@ -531,7 +533,7 @@ func (impl K8sServiceImpl) GetK8sDynamicClient(restConfig *rest.Config, k8sHttpC
 	return dynamicClientSet, nil
 }
 
-func (impl K8sServiceImpl) GetK8sConfigAndClients(clusterConfig *ClusterConfig) (*rest.Config, *http.Client, *kubernetes.Clientset, error) {
+func (impl *K8sServiceImpl) GetK8sConfigAndClients(clusterConfig *ClusterConfig) (*rest.Config, *http.Client, *kubernetes.Clientset, error) {
 	restConfig, err := impl.GetRestConfigByCluster(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster", "err", err, "clusterName", clusterConfig.ClusterName)
@@ -546,7 +548,7 @@ func (impl K8sServiceImpl) GetK8sConfigAndClients(clusterConfig *ClusterConfig) 
 	return restConfig, k8sHttpClient, k8sClientSet, nil
 }
 
-func (impl K8sServiceImpl) GetK8sConfigAndClientsByRestConfig(restConfig *rest.Config) (*http.Client, *kubernetes.Clientset, error) {
+func (impl *K8sServiceImpl) GetK8sConfigAndClientsByRestConfig(restConfig *rest.Config) (*http.Client, *kubernetes.Clientset, error) {
 	var err error
 	restConfig, err = impl.httpClientConfig.OverrideConfigWithCustomTransport(restConfig)
 	if err != nil {
@@ -567,7 +569,7 @@ func (impl K8sServiceImpl) GetK8sConfigAndClientsByRestConfig(restConfig *rest.C
 	return k8sHttpClient, k8sClientSet, nil
 }
 
-func (impl K8sServiceImpl) DiscoveryClientGetLiveZCall(cluster *ClusterConfig) ([]byte, error) {
+func (impl *K8sServiceImpl) DiscoveryClientGetLiveZCall(cluster *ClusterConfig) ([]byte, error) {
 	_, _, k8sClientSet, err := impl.GetK8sConfigAndClients(cluster)
 	if err != nil {
 		impl.logger.Errorw("errir in getting clients and configs", "err", err, "clusterName", cluster.ClusterName)
@@ -582,7 +584,7 @@ func (impl K8sServiceImpl) DiscoveryClientGetLiveZCall(cluster *ClusterConfig) (
 	return response, err
 
 }
-func (impl K8sServiceImpl) GetLiveZCall(path string, k8sClientSet *kubernetes.Clientset) ([]byte, error) {
+func (impl *K8sServiceImpl) GetLiveZCall(path string, k8sClientSet *kubernetes.Clientset) ([]byte, error) {
 	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
 	if err != nil {
 		impl.logger.Errorw("error in getting response from discovery client", "err", err)
@@ -591,7 +593,7 @@ func (impl K8sServiceImpl) GetLiveZCall(path string, k8sClientSet *kubernetes.Cl
 	return response, err
 }
 
-func (impl K8sServiceImpl) CreateJob(namespace string, name string, clusterConfig *ClusterConfig, job *batchV1.Job) error {
+func (impl *K8sServiceImpl) CreateJob(namespace string, name string, clusterConfig *ClusterConfig, job *batchV1.Job) error {
 	_, _, clientSet, err := impl.GetK8sConfigAndClients(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("clientSet err, CreateJob", "err", err)
@@ -619,7 +621,7 @@ func (impl K8sServiceImpl) CreateJob(namespace string, name string, clusterConfi
 
 // DeletePod delete pods with label job-name
 
-func (impl K8sServiceImpl) DeletePodByLabel(namespace string, labels string, clusterConfig *ClusterConfig) error {
+func (impl *K8sServiceImpl) DeletePodByLabel(namespace string, labels string, clusterConfig *ClusterConfig) error {
 	_, _, clientSet, err := impl.GetK8sConfigAndClients(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("clientSet err, DeletePod", "err", err)
@@ -649,7 +651,7 @@ func (impl K8sServiceImpl) DeletePodByLabel(namespace string, labels string, clu
 }
 
 // DeleteAndCreateJob Deletes and recreates if job exists else creates the job
-func (impl K8sServiceImpl) DeleteAndCreateJob(content []byte, namespace string, clusterConfig *ClusterConfig) error {
+func (impl *K8sServiceImpl) DeleteAndCreateJob(content []byte, namespace string, clusterConfig *ClusterConfig) error {
 	// Job object from content
 	var job batchV1.Job
 	err := yaml.Unmarshal(content, &job)
@@ -681,7 +683,7 @@ func (impl K8sServiceImpl) DeleteAndCreateJob(content []byte, namespace string, 
 	return nil
 }
 
-func (impl K8sServiceImpl) ListNamespaces(client *v12.CoreV1Client) (*v1.NamespaceList, error) {
+func (impl *K8sServiceImpl) ListNamespaces(client *v12.CoreV1Client) (*v1.NamespaceList, error) {
 	nsList, err := client.Namespaces().List(context.Background(), metav1.ListOptions{})
 	if errors.IsNotFound(err) {
 		return nsList, nil
@@ -692,7 +694,7 @@ func (impl K8sServiceImpl) ListNamespaces(client *v12.CoreV1Client) (*v1.Namespa
 	}
 }
 
-func (impl K8sServiceImpl) GetClientByToken(serverUrl string, token map[string]string) (*v12.CoreV1Client, error) {
+func (impl *K8sServiceImpl) GetClientByToken(serverUrl string, token map[string]string) (*v12.CoreV1Client, error) {
 	bearerToken := token[BearerToken]
 	clusterCfg := &ClusterConfig{Host: serverUrl, BearerToken: bearerToken}
 	v12Client, err := impl.GetCoreV1Client(clusterCfg)
@@ -703,7 +705,7 @@ func (impl K8sServiceImpl) GetClientByToken(serverUrl string, token map[string]s
 	return v12Client, nil
 }
 
-func (impl K8sServiceImpl) GetResourceInfoByLabelSelector(ctx context.Context, namespace string, labelSelector string) (*v1.Pod, error) {
+func (impl *K8sServiceImpl) GetResourceInfoByLabelSelector(ctx context.Context, namespace string, labelSelector string) (*v1.Pod, error) {
 	inClusterClient, err := impl.GetClientForInCluster()
 	if err != nil {
 		impl.logger.Errorw("cluster config error", "err", err)
@@ -725,7 +727,7 @@ func (impl K8sServiceImpl) GetResourceInfoByLabelSelector(ctx context.Context, n
 	}
 }
 
-func (impl K8sServiceImpl) GetK8sInClusterRestConfig() (*rest.Config, error) {
+func (impl *K8sServiceImpl) GetK8sInClusterRestConfig() (*rest.Config, error) {
 	impl.logger.Debug("getting k8s rest config")
 	if impl.runTimeConfig.LocalDevMode {
 		restConfig, err := clientcmd.BuildConfigFromFlags("", *impl.kubeconfig)
@@ -744,7 +746,7 @@ func (impl K8sServiceImpl) GetK8sInClusterRestConfig() (*rest.Config, error) {
 	}
 }
 
-func (impl K8sServiceImpl) GetPodByName(namespace string, name string, client *v12.CoreV1Client) (*v1.Pod, error) {
+func (impl *K8sServiceImpl) GetPodByName(namespace string, name string, client *v12.CoreV1Client) (*v1.Pod, error) {
 	pod, err := client.Pods(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in fetch pod name", "err", err)
@@ -754,7 +756,7 @@ func (impl K8sServiceImpl) GetPodByName(namespace string, name string, client *v
 	}
 }
 
-func (impl K8sServiceImpl) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, gvk schema.GroupVersionKind, includeMetadata bool, validateResourceAccess func(namespace string, group string, kind string, resourceName string) bool) (*ClusterResourceListMap, error) {
+func (impl *K8sServiceImpl) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, gvk schema.GroupVersionKind, includeMetadata bool, validateResourceAccess func(namespace string, group string, kind string, resourceName string) bool) (*ClusterResourceListMap, error) {
 	clusterResourceListMap := &ClusterResourceListMap{}
 	// build headers
 	var headers []string
@@ -851,7 +853,7 @@ func (impl K8sServiceImpl) BuildK8sObjectListTableData(manifest *unstructured.Un
 	return clusterResourceListMap, nil
 }
 
-func (impl K8sServiceImpl) ValidateResource(resourceObj map[string]interface{}, gvk schema.GroupVersionKind, validateCallback func(namespace string, group string, kind string, resourceName string) bool) bool {
+func (impl *K8sServiceImpl) ValidateResource(resourceObj map[string]interface{}, gvk schema.GroupVersionKind, validateCallback func(namespace string, group string, kind string, resourceName string) bool) bool {
 	resKind := gvk.Kind
 	groupName := gvk.Group
 	metadata := resourceObj[commonBean.K8sClusterResourceMetadataKey]
@@ -882,7 +884,7 @@ func (impl K8sServiceImpl) ValidateResource(resourceObj map[string]interface{}, 
 	return validateCallback(namespace, groupName, resKind, resourceName)
 }
 
-func (impl K8sServiceImpl) ValidateForResource(namespace string, resourceRef interface{}, validateCallback func(namespace string, group string, kind string, resourceName string) bool) bool {
+func (impl *K8sServiceImpl) ValidateForResource(namespace string, resourceRef interface{}, validateCallback func(namespace string, group string, kind string, resourceName string) bool) bool {
 	resourceReference := resourceRef.(map[string]interface{})
 	resKind := resourceReference[commonBean.K8sClusterResourceKindKey].(string)
 	apiVersion := resourceReference[commonBean.K8sClusterResourceApiVersionKey].(string)
@@ -935,7 +937,7 @@ func (impl K8sServiceImpl) ValidateForResource(namespace string, resourceRef int
 	return false
 }
 
-func (impl K8sServiceImpl) getEventKindHeader() ([]string, map[int]string) {
+func (impl *K8sServiceImpl) getEventKindHeader() ([]string, map[int]string) {
 	headers := []string{"type", "message", "namespace", "involved object", "source", "count", "age", "last seen"}
 	columnIndexes := make(map[int]string)
 	columnIndexes[0] = "last seen"
@@ -958,7 +960,7 @@ func OverrideK8sHttpClientWithTracer(restConfig *rest.Config) (*http.Client, err
 	httpClientFor.Transport = otelhttp.NewTransport(httpClientFor.Transport)
 	return httpClientFor, nil
 }
-func (impl K8sServiceImpl) GetKubeVersion() (*version.Info, error) {
+func (impl *K8sServiceImpl) GetKubeVersion() (*version.Info, error) {
 	discoveryClient, err := impl.GetK8sDiscoveryClientInCluster()
 	if err != nil {
 		impl.logger.Errorw("eexception caught in getting discoveryClient", "err", err)
@@ -972,7 +974,7 @@ func (impl K8sServiceImpl) GetKubeVersion() (*version.Info, error) {
 	return k8sServerVersion, err
 }
 
-func (impl K8sServiceImpl) GetCoreV1ClientInCluster() (*v12.CoreV1Client, error) {
+func (impl *K8sServiceImpl) GetCoreV1ClientInCluster() (*v12.CoreV1Client, error) {
 	restConfig := &rest.Config{}
 	restConfig, err := impl.GetK8sInClusterRestConfig()
 	if err != nil {
@@ -982,7 +984,7 @@ func (impl K8sServiceImpl) GetCoreV1ClientInCluster() (*v12.CoreV1Client, error)
 	return impl.GetCoreV1ClientByRestConfig(restConfig)
 }
 
-func (impl K8sServiceImpl) GetCoreV1ClientByRestConfig(restConfig *rest.Config) (*v12.CoreV1Client, error) {
+func (impl *K8sServiceImpl) GetCoreV1ClientByRestConfig(restConfig *rest.Config) (*v12.CoreV1Client, error) {
 
 	var err error
 	restConfig, err = impl.httpClientConfig.OverrideConfigWithCustomTransport(restConfig)
@@ -1004,7 +1006,7 @@ func (impl K8sServiceImpl) GetCoreV1ClientByRestConfig(restConfig *rest.Config) 
 	return k8sClient, err
 }
 
-func (impl K8sServiceImpl) GetNodesList(ctx context.Context, k8sClientSet *kubernetes.Clientset) (*v1.NodeList, error) {
+func (impl *K8sServiceImpl) GetNodesList(ctx context.Context, k8sClientSet *kubernetes.Clientset) (*v1.NodeList, error) {
 	nodeList, err := k8sClientSet.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in getting node list", "err", err)
@@ -1012,7 +1014,7 @@ func (impl K8sServiceImpl) GetNodesList(ctx context.Context, k8sClientSet *kuber
 	}
 	return nodeList, err
 }
-func (impl K8sServiceImpl) GetNodeByName(ctx context.Context, k8sClientSet *kubernetes.Clientset, name string) (*v1.Node, error) {
+func (impl *K8sServiceImpl) GetNodeByName(ctx context.Context, k8sClientSet *kubernetes.Clientset, name string) (*v1.Node, error) {
 	node, err := k8sClientSet.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in getting node by name", "err", err)
@@ -1021,7 +1023,7 @@ func (impl K8sServiceImpl) GetNodeByName(ctx context.Context, k8sClientSet *kube
 	return node, err
 }
 
-func (impl K8sServiceImpl) GetServerVersionFromDiscoveryClient(k8sClientSet *kubernetes.Clientset) (*version.Info, error) {
+func (impl *K8sServiceImpl) GetServerVersionFromDiscoveryClient(k8sClientSet *kubernetes.Clientset) (*version.Info, error) {
 	serverVersion, err := k8sClientSet.DiscoveryClient.ServerVersion()
 	if err != nil {
 		impl.logger.Errorw("error in getting  server version from discovery client", "err", err)
@@ -1029,7 +1031,20 @@ func (impl K8sServiceImpl) GetServerVersionFromDiscoveryClient(k8sClientSet *kub
 	}
 	return serverVersion, err
 }
-func (impl K8sServiceImpl) GetPodsListForNamespace(ctx context.Context, k8sClientSet *kubernetes.Clientset, namespace string) (*v1.PodList, error) {
+
+func (impl *K8sServiceImpl) GetServerGroups(k8sClientSet *kubernetes.Clientset) (*metav1.APIGroupList, error) {
+	serverGroups, err := k8sClientSet.DiscoveryClient.ServerGroups()
+	if err != nil {
+		impl.logger.Errorw("error in retrieving server groups", "err", err)
+		return nil, err
+	} else if serverGroups == nil {
+		impl.logger.Errorw("server groups are empty", "err", err)
+		return nil, NotFoundError
+	}
+	return serverGroups, nil
+}
+
+func (impl *K8sServiceImpl) GetPodsListForNamespace(ctx context.Context, k8sClientSet *kubernetes.Clientset, namespace string) (*v1.PodList, error) {
 	podList, err := k8sClientSet.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in getting pos list for namespace", "err", err)
@@ -1037,7 +1052,7 @@ func (impl K8sServiceImpl) GetPodsListForNamespace(ctx context.Context, k8sClien
 	}
 	return podList, err
 }
-func (impl K8sServiceImpl) GetNmList(ctx context.Context, metricsClientSet *metrics.Clientset) (*v1beta1.NodeMetricsList, error) {
+func (impl *K8sServiceImpl) GetNmList(ctx context.Context, metricsClientSet *metrics.Clientset) (*v1beta1.NodeMetricsList, error) {
 	nmList, err := metricsClientSet.MetricsV1beta1().NodeMetricses().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in getting node metrics", "err", err)
@@ -1045,7 +1060,7 @@ func (impl K8sServiceImpl) GetNmList(ctx context.Context, metricsClientSet *metr
 	}
 	return nmList, err
 }
-func (impl K8sServiceImpl) GetNmByName(ctx context.Context, metricsClientSet *metrics.Clientset, name string) (*v1beta1.NodeMetrics, error) {
+func (impl *K8sServiceImpl) GetNmByName(ctx context.Context, metricsClientSet *metrics.Clientset, name string) (*v1beta1.NodeMetrics, error) {
 	nodeMetrics, err := metricsClientSet.MetricsV1beta1().NodeMetricses().Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in getting node metrics by name", "err", err)
@@ -1053,7 +1068,7 @@ func (impl K8sServiceImpl) GetNmByName(ctx context.Context, metricsClientSet *me
 	}
 	return nodeMetrics, err
 }
-func (impl K8sServiceImpl) GetMetricsClientSet(restConfig *rest.Config, k8sHttpClient *http.Client) (*metrics.Clientset, error) {
+func (impl *K8sServiceImpl) GetMetricsClientSet(restConfig *rest.Config, k8sHttpClient *http.Client) (*metrics.Clientset, error) {
 	metricsClientSet, err := metrics.NewForConfigAndClient(restConfig, k8sHttpClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting metrics client set", "err", err)
@@ -1061,7 +1076,7 @@ func (impl K8sServiceImpl) GetMetricsClientSet(restConfig *rest.Config, k8sHttpC
 	}
 	return metricsClientSet, err
 }
-func (impl K8sServiceImpl) GetLogsForAPod(kubeClient *kubernetes.Clientset, namespace string, podName string, container string, follow bool) *restclient.Request {
+func (impl *K8sServiceImpl) GetLogsForAPod(kubeClient *kubernetes.Clientset, namespace string, podName string, container string, follow bool) *restclient.Request {
 	podLogOpts := &v1.PodLogOptions{
 		Container: container,
 		Follow:    follow,
@@ -1128,7 +1143,7 @@ func UpdateNodeUnschedulableProperty(desiredUnschedulable bool, node *v1.Node, k
 	return node, err
 }
 
-func (impl K8sServiceImpl) CreateK8sClientSet(restConfig *rest.Config) (*kubernetes.Clientset, error) {
+func (impl *K8sServiceImpl) CreateK8sClientSet(restConfig *rest.Config) (*kubernetes.Clientset, error) {
 	var err error
 	restConfig, err = impl.httpClientConfig.OverrideConfigWithCustomTransport(restConfig)
 	if err != nil {
@@ -1148,7 +1163,7 @@ func (impl K8sServiceImpl) CreateK8sClientSet(restConfig *rest.Config) (*kuberne
 	return k8sClientSet, err
 }
 
-func (impl K8sServiceImpl) FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset) error {
+func (impl *K8sServiceImpl) FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset) error {
 	//using livez path as healthz path is deprecated
 	path := LiveZ
 	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
@@ -1194,7 +1209,7 @@ func CheckIfValidLabel(labelKey string, labelValue string) error {
 	return nil
 }
 
-func (impl K8sServiceImpl) GetResourceIf(restConfig *rest.Config, groupVersionKind schema.GroupVersionKind) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error) {
+func (impl *K8sServiceImpl) GetResourceIf(restConfig *rest.Config, groupVersionKind schema.GroupVersionKind) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error) {
 	restConfig, err = impl.httpClientConfig.OverrideConfigWithCustomTransport(restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in overriding reset config", "err", err)
@@ -1224,7 +1239,7 @@ func (impl K8sServiceImpl) GetResourceIf(restConfig *rest.Config, groupVersionKi
 	return dynamicIf.Resource(resource), apiResource.Namespaced, nil
 }
 
-func (impl K8sServiceImpl) ListEvents(restConfig *rest.Config, namespace string, groupVersionKind schema.GroupVersionKind, ctx context.Context, name string) (*v1.EventList, error) {
+func (impl *K8sServiceImpl) ListEvents(restConfig *rest.Config, namespace string, groupVersionKind schema.GroupVersionKind, ctx context.Context, name string) (*v1.EventList, error) {
 	var err error
 	restConfig, err = impl.httpClientConfig.OverrideConfigWithCustomTransport(restConfig)
 	if err != nil {
@@ -1269,7 +1284,7 @@ func (impl K8sServiceImpl) ListEvents(restConfig *rest.Config, namespace string,
 
 }
 
-func (impl K8sServiceImpl) GetPodLogs(ctx context.Context, restConfig *rest.Config, name string, namespace string, sinceTime *metav1.Time, tailLines int, sinceSeconds int, follow bool, containerName string, isPrevContainerLogsEnabled bool) (io.ReadCloser, error) {
+func (impl *K8sServiceImpl) GetPodLogs(ctx context.Context, restConfig *rest.Config, name string, namespace string, sinceTime *metav1.Time, tailLines int, sinceSeconds int, follow bool, containerName string, isPrevContainerLogsEnabled bool) (io.ReadCloser, error) {
 	var err error
 	restConfig, err = impl.httpClientConfig.OverrideConfigWithCustomTransport(restConfig)
 	if err != nil {
@@ -1314,7 +1329,7 @@ func (impl K8sServiceImpl) GetPodLogs(ctx context.Context, restConfig *rest.Conf
 	}
 	return stream, nil
 }
-func (impl K8sServiceImpl) GetResourceIfWithAcceptHeader(restConfig *rest.Config, groupVersionKind schema.GroupVersionKind, asTable bool) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error) {
+func (impl *K8sServiceImpl) GetResourceIfWithAcceptHeader(restConfig *rest.Config, groupVersionKind schema.GroupVersionKind, asTable bool) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error) {
 
 	restConfig, err = impl.httpClientConfig.OverrideConfigWithCustomTransport(restConfig)
 	if err != nil {
@@ -1374,7 +1389,7 @@ func ServerResourceForGroupVersionKind(discoveryClient discovery.DiscoveryInterf
 	}
 	return nil, errors.NewNotFound(schema.GroupResource{Group: gvk.Group, Resource: gvk.Kind}, "")
 }
-func (impl K8sServiceImpl) GetResourceList(ctx context.Context, restConfig *rest.Config, gvk schema.GroupVersionKind, namespace string, asTable bool, listOptions *metav1.ListOptions) (*ResourceListResponse, bool, error) {
+func (impl *K8sServiceImpl) GetResourceList(ctx context.Context, restConfig *rest.Config, gvk schema.GroupVersionKind, namespace string, asTable bool, listOptions *metav1.ListOptions) (*ResourceListResponse, bool, error) {
 	var err error
 	restConfig, err = impl.httpClientConfig.OverrideConfigWithCustomTransport(restConfig)
 	if err != nil {
@@ -1408,7 +1423,7 @@ func (impl K8sServiceImpl) GetResourceList(ctx context.Context, restConfig *rest
 	return &ResourceListResponse{*resp}, namespaced, nil
 
 }
-func (impl K8sServiceImpl) PatchResourceRequest(ctx context.Context, restConfig *rest.Config, pt types.PatchType, manifest string, name string, namespace string, gvk schema.GroupVersionKind) (*ManifestResponse, error) {
+func (impl *K8sServiceImpl) PatchResourceRequest(ctx context.Context, restConfig *rest.Config, pt types.PatchType, manifest string, name string, namespace string, gvk schema.GroupVersionKind) (*ManifestResponse, error) {
 
 	var err error
 	restConfig, err = impl.httpClientConfig.OverrideConfigWithCustomTransport(restConfig)
@@ -1437,7 +1452,7 @@ func (impl K8sServiceImpl) PatchResourceRequest(ctx context.Context, restConfig 
 }
 
 // if verb is supplied empty, that means - return all
-func (impl K8sServiceImpl) GetApiResources(restConfig *rest.Config, includeOnlyVerb string) ([]*K8sApiResource, error) {
+func (impl *K8sServiceImpl) GetApiResources(restConfig *rest.Config, includeOnlyVerb string) ([]*K8sApiResource, error) {
 	var err error
 	restConfig, err = impl.httpClientConfig.OverrideConfigWithCustomTransport(restConfig)
 	if err != nil {
@@ -1506,6 +1521,7 @@ func (impl K8sServiceImpl) GetApiResources(restConfig *rest.Config, includeOnlyV
 						Resource: apiResourceFromK8s.Name,
 					},
 					Namespaced: apiResourceFromK8s.Namespaced,
+					ShortNames: apiResourceFromK8s.ShortNames,
 				})
 			}
 		}
@@ -1653,7 +1669,7 @@ func (impl *K8sServiceImpl) DecodeGroupKindversion(data string) (*schema.GroupVe
 	return groupVersionKind, err
 }
 
-func (impl K8sServiceImpl) GetK8sServerVersion(clientSet *kubernetes.Clientset) (*version.Info, error) {
+func (impl *K8sServiceImpl) GetK8sServerVersion(clientSet *kubernetes.Clientset) (*version.Info, error) {
 	k8sServerVersion, err := clientSet.DiscoveryClient.ServerVersion()
 	if err != nil {
 		impl.logger.Errorw("error occurred in getting k8sServerVersion", "err", err)
@@ -1662,7 +1678,7 @@ func (impl K8sServiceImpl) GetK8sServerVersion(clientSet *kubernetes.Clientset) 
 	return k8sServerVersion, nil
 }
 
-func (impl K8sServiceImpl) ExtractK8sServerMajorAndMinorVersion(k8sServerVersion *version.Info) (int, int, error) {
+func (impl *K8sServiceImpl) ExtractK8sServerMajorAndMinorVersion(k8sServerVersion *version.Info) (int, int, error) {
 	majorVersion, err := strconv.Atoi(k8sServerVersion.Major)
 	if err != nil {
 		impl.logger.Errorw("error occurred in converting k8sServerVersion.Major version value to integer", "err", err, "k8sServerVersion.Major", k8sServerVersion.Major)
@@ -1676,7 +1692,7 @@ func (impl K8sServiceImpl) ExtractK8sServerMajorAndMinorVersion(k8sServerVersion
 	return majorVersion, minorVersion, nil
 }
 
-func (impl K8sServiceImpl) GetPodListByLabel(namespace, label string, clientSet *kubernetes.Clientset) ([]v1.Pod, error) {
+func (impl *K8sServiceImpl) GetPodListByLabel(namespace, label string, clientSet *kubernetes.Clientset) ([]v1.Pod, error) {
 	pods := clientSet.CoreV1().Pods(namespace)
 	podList, err := pods.List(context.Background(), metav1.ListOptions{LabelSelector: label})
 	if err != nil {
@@ -1796,4 +1812,30 @@ func isStatefulSetChild(un *unstructured.Unstructured) (func(ResourceKey) bool, 
 		}
 		return false
 	}, nil
+}
+
+func (impl *K8sServiceImpl) CreateOrUpdateSecretByName(client *v12.CoreV1Client, namespace, uniqueSecretName string, secretLabel map[string]string, secretData map[string]string) error {
+
+	secret, err := impl.GetSecret(namespace, uniqueSecretName, client)
+	statusError, ok := err.(*errors.StatusError)
+	if err != nil && (ok && statusError != nil && statusError.Status().Code != http.StatusNotFound) {
+		impl.logger.Errorw("error in fetching secret", "err", err)
+		return err
+	}
+
+	if ok && statusError != nil && statusError.Status().Code == http.StatusNotFound {
+		_, err = impl.CreateSecret(namespace, nil, uniqueSecretName, "", client, secretLabel, secretData)
+		if err != nil {
+			impl.logger.Errorw("Error in creating secret for chart repo", "uniqueSecretName", uniqueSecretName, "err", err)
+			return err
+		}
+	} else {
+		secret.StringData = secretData
+		_, err = impl.UpdateSecret(namespace, secret, client)
+		if err != nil {
+			impl.logger.Errorw("Error in creating secret for chart repo", "uniqueSecretName", uniqueSecretName, "err", err)
+			return err
+		}
+	}
+	return nil
 }

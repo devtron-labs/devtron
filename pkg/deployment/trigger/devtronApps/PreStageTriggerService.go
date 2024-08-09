@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	bean4 "github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	bean5 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	adapter2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
@@ -46,16 +47,13 @@ import (
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
+	"maps"
 	"strconv"
 	"strings"
 	"time"
 )
 
 const (
-	GIT_COMMIT_HASH_PREFIX       = "GIT_COMMIT_HASH"
-	GIT_SOURCE_TYPE_PREFIX       = "GIT_SOURCE_TYPE"
-	GIT_SOURCE_VALUE_PREFIX      = "GIT_SOURCE_VALUE"
-	GIT_SOURCE_COUNT             = "GIT_SOURCE_COUNT"
 	APP_LABEL_KEY_PREFIX         = "APP_LABEL_KEY"
 	APP_LABEL_VALUE_PREFIX       = "APP_LABEL_VALUE"
 	APP_LABEL_COUNT              = "APP_LABEL_COUNT"
@@ -84,8 +82,14 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 		return err
 	}
 
+	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(pipeline.AppId, pipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+		return err
+	}
+
 	// custom GitOps repo url validation --> Start
-	err = impl.handleCustomGitOpsRepoValidation(runner, pipeline, triggeredBy)
+	err = impl.handleCustomGitOpsRepoValidation(runner, pipeline, envDeploymentConfig, triggeredBy)
 	if err != nil {
 		impl.logger.Errorw("custom GitOps repository validation error, TriggerPreStage", "err", err)
 		return err
@@ -99,7 +103,7 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 		return err
 	}
 	_, span := otel.Tracer("orchestrator").Start(ctx, "buildWFRequest")
-	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, pipeline, triggeredBy)
+	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, pipeline, envDeploymentConfig, triggeredBy)
 	span.End()
 	if err != nil {
 		return err
@@ -321,7 +325,7 @@ func (impl *TriggerServiceImpl) SetCopyContainerImagePluginDataInWorkflowRequest
 	return imagePathReservationIds, nil
 }
 
-func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) (*types.WorkflowRequest, error) {
+func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflowRunner, cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, envDeploymentConfig *bean5.DeploymentConfig, triggeredBy int32) (*types.WorkflowRequest, error) {
 	if cdPipeline.App.Id == 0 {
 		appModel, err := impl.appRepository.FindById(cdPipeline.AppId)
 		if err != nil {
@@ -575,55 +579,17 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 		impl.logger.Errorw("error in getting ciWf by artifactId", "err", err, "artifactId", artifact.Id)
 		return nil, err
 	}
+
 	var webhookAndCiData *gitSensorClient.WebhookAndCiData
-	if ciWf != nil && ciWf.GitTriggers != nil {
-		i := 1
-		var gitCommitEnvVariables []types.GitMetadata
+	var gitTriggerEnvVariables map[string]string
 
-		for ciPipelineMaterialId, gitTrigger := range ciWf.GitTriggers {
-			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_COMMIT_HASH_PREFIX, i)] = gitTrigger.Commit
-			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_SOURCE_TYPE_PREFIX, i)] = string(gitTrigger.CiConfigureSourceType)
-			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_SOURCE_VALUE_PREFIX, i)] = gitTrigger.CiConfigureSourceValue
-
-			gitCommitEnvVariables = append(gitCommitEnvVariables, types.GitMetadata{
-				GitCommitHash:  gitTrigger.Commit,
-				GitSourceType:  string(gitTrigger.CiConfigureSourceType),
-				GitSourceValue: gitTrigger.CiConfigureSourceValue,
-			})
-
-			// CODE-BLOCK starts - store extra environment variables if webhook
-			if gitTrigger.CiConfigureSourceType == pipelineConfig.SOURCE_TYPE_WEBHOOK {
-				webhookDataId := gitTrigger.WebhookData.Id
-				if webhookDataId > 0 {
-					webhookDataRequest := &gitSensorClient.WebhookDataRequest{
-						Id:                   webhookDataId,
-						CiPipelineMaterialId: ciPipelineMaterialId,
-					}
-					webhookAndCiData, err = impl.gitSensorGrpcClient.GetWebhookData(context.Background(), webhookDataRequest)
-					if err != nil {
-						impl.logger.Errorw("err while getting webhook data from git-sensor", "err", err, "webhookDataRequest", webhookDataRequest)
-						return nil, err
-					}
-					if webhookAndCiData != nil {
-						for extEnvVariableKey, extEnvVariableVal := range webhookAndCiData.ExtraEnvironmentVariables {
-							extraEnvVariables[extEnvVariableKey] = extEnvVariableVal
-						}
-					}
-				}
-			}
-			// CODE_BLOCK ends
-
-			i++
-		}
-		gitMetadata, err := json.Marshal(&gitCommitEnvVariables)
-		if err != nil {
-			impl.logger.Errorw("err while marshaling git metdata", "err", err)
-			return nil, err
-		}
-		extraEnvVariables[plugin.GIT_METADATA] = string(gitMetadata)
-
-		extraEnvVariables[GIT_SOURCE_COUNT] = strconv.Itoa(len(ciWf.GitTriggers))
+	// get env variables of git trigger data and add it in the extraEnvVariables
+	gitTriggerEnvVariables, webhookAndCiData, err = impl.ciCdPipelineOrchestrator.GetGitCommitEnvVarDataForCICDStage(ciWf.GitTriggers)
+	if err != nil {
+		impl.logger.Errorw("error in getting gitTrigger env data for stage", "gitTriggers", ciWf.GitTriggers, "err", err)
+		return nil, err
 	}
+	maps.Copy(extraEnvVariables, gitTriggerEnvVariables)
 
 	childCdIds, err := impl.appWorkflowRepository.FindChildCDIdsByParentCDPipelineId(cdPipeline.Id)
 	if err != nil && err != pg.ErrNoRows {
@@ -979,10 +945,10 @@ func (impl *TriggerServiceImpl) sendPreStageNotification(ctx context.Context, cd
 }
 
 func isExtraVariableDynamic(variableName string, webhookAndCiData *gitSensorClient.WebhookAndCiData) bool {
-	if strings.Contains(variableName, GIT_COMMIT_HASH_PREFIX) || strings.Contains(variableName, GIT_SOURCE_TYPE_PREFIX) || strings.Contains(variableName, GIT_SOURCE_VALUE_PREFIX) ||
+	if strings.Contains(variableName, types.GIT_COMMIT_HASH_PREFIX) || strings.Contains(variableName, types.GIT_SOURCE_TYPE_PREFIX) || strings.Contains(variableName, types.GIT_SOURCE_VALUE_PREFIX) ||
 		strings.Contains(variableName, APP_LABEL_VALUE_PREFIX) || strings.Contains(variableName, APP_LABEL_KEY_PREFIX) ||
 		strings.Contains(variableName, CHILD_CD_ENV_NAME_PREFIX) || strings.Contains(variableName, CHILD_CD_CLUSTER_NAME_PREFIX) ||
-		strings.Contains(variableName, CHILD_CD_COUNT) || strings.Contains(variableName, APP_LABEL_COUNT) || strings.Contains(variableName, GIT_SOURCE_COUNT) ||
+		strings.Contains(variableName, CHILD_CD_COUNT) || strings.Contains(variableName, APP_LABEL_COUNT) || strings.Contains(variableName, types.GIT_SOURCE_COUNT) ||
 		webhookAndCiData != nil {
 
 		return true

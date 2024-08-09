@@ -25,7 +25,9 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
+	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
@@ -99,6 +101,9 @@ type FullModeDeploymentServiceImpl struct {
 	gitOpsConfigReadService              config.GitOpsConfigReadService
 	gitOpsValidationService              validation.GitOpsValidationService
 	environmentRepository                repository5.EnvironmentRepository
+	deploymentConfigService              common.DeploymentConfigService
+	chartTemplateService                 util.ChartTemplateService
+	RepositorySecretService              argoRepositoryCreds.RepositorySecret
 }
 
 func NewFullModeDeploymentServiceImpl(
@@ -122,7 +127,10 @@ func NewFullModeDeploymentServiceImpl(
 	gitOperationService git.GitOperationService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitOpsValidationService validation.GitOpsValidationService,
-	environmentRepository repository5.EnvironmentRepository) *FullModeDeploymentServiceImpl {
+	environmentRepository repository5.EnvironmentRepository,
+	deploymentConfigService common.DeploymentConfigService,
+	chartTemplateService util.ChartTemplateService,
+	RepositorySecretService argoRepositoryCreds.RepositorySecret) *FullModeDeploymentServiceImpl {
 	return &FullModeDeploymentServiceImpl{
 		Logger:                               logger,
 		acdClient:                            acdClient,
@@ -145,6 +153,9 @@ func NewFullModeDeploymentServiceImpl(
 		gitOpsConfigReadService:              gitOpsConfigReadService,
 		gitOpsValidationService:              gitOpsValidationService,
 		environmentRepository:                environmentRepository,
+		deploymentConfigService:              deploymentConfigService,
+		chartTemplateService:                 chartTemplateService,
+		RepositorySecretService:              RepositorySecretService,
 	}
 }
 
@@ -244,6 +255,12 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 		return installedApp, false, err
 	}
 
+	deploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForHelmApp(installedApp.AppId, installedApp.EnvironmentId)
+	if err != nil {
+		impl.Logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", installedApp.AppId, "envId", installedApp.EnvironmentId, "err", err)
+		return installedApp, false, err
+	}
+
 	//validate relations
 	if installedApp.InstalledAppId != installedAppVersion.InstalledAppId {
 		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "bad request, requested version are not belongs to each other", InternalMessage: ""}
@@ -255,7 +272,7 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 	installedApp.ValuesOverrideYaml = versionHistory.ValuesYamlRaw
 	installedApp.AppStoreId = installedAppVersion.AppStoreApplicationVersion.AppStoreId
 	installedApp.AppStoreName = installedAppVersion.AppStoreApplicationVersion.AppStore.Name
-	installedApp.GitOpsRepoURL = installedAppVersion.InstalledApp.GitOpsRepoUrl
+	installedApp.GitOpsRepoURL = deploymentConfig.RepoURL
 	installedApp.ACDAppName = fmt.Sprintf("%s-%s", installedApp.AppName, installedApp.EnvironmentName)
 
 	//create an entry in version history table

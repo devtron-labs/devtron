@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/api/bean"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/internal/util"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
@@ -245,6 +246,10 @@ func (impl *GitOperationServiceImpl) GitPull(clonedDir string, repoUrl string) e
 }
 
 func (impl *GitOperationServiceImpl) CommitValues(ctx context.Context, chartGitAttr *ChartConfig) (commitHash string, commitTime time.Time, err error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "gitOperationService.CommitValues")
+	defer span.End()
+
+	impl.logger.Debugw("committing values to git", "chartGitAttr", chartGitAttr)
 	bitbucketMetadata, err := impl.gitOpsConfigReadService.GetBitbucketMetadata()
 	if err != nil {
 		impl.logger.Errorw("error in getting bitbucket metadata", "err", err)
@@ -252,7 +257,7 @@ func (impl *GitOperationServiceImpl) CommitValues(ctx context.Context, chartGitA
 	}
 	gitOpsConfig := &apiBean.GitOpsConfigDto{BitBucketWorkspaceId: bitbucketMetadata.BitBucketWorkspaceId}
 	callback := func() error {
-		commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(ctx, chartGitAttr, gitOpsConfig)
+		commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(newCtx, chartGitAttr, gitOpsConfig)
 		return err
 	}
 	err = retryFunc.Retry(callback, impl.isRetryableGitCommitError,
@@ -410,6 +415,22 @@ func (impl *GitOperationServiceImpl) UpdateGitHostUrlByProvider(request *apiBean
 		request.Host = orgUrl
 
 	case GITLAB_PROVIDER:
+
+		if request.EnableTLSVerification &&
+			(request.TLSConfig == nil ||
+				(request.TLSConfig != nil && (len(request.TLSConfig.TLSCertData) == 0 && len(request.TLSConfig.TLSKeyData) == 0 && len(request.TLSConfig.CaData) == 0))) {
+			model, err := impl.gitOpsConfigReadService.GetGitOpsById(request.Id)
+			if err != nil {
+				impl.logger.Errorw("gitops provider not found", "id", model.Id, "err", err)
+				return err
+			}
+			request.TLSConfig = &bean2.TLSConfig{
+				CaData:      model.TLSConfig.CaData,
+				TLSCertData: model.TLSConfig.TLSCertData,
+				TLSKeyData:  model.TLSConfig.TLSKeyData,
+			}
+		}
+
 		groupName, err := impl.gitFactory.GetGitLabGroupPath(request)
 		if err != nil {
 			return err

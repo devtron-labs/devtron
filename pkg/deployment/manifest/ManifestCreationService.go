@@ -21,10 +21,9 @@ import (
 	"encoding/json"
 	"fmt"
 	application3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	util5 "github.com/devtron-labs/common-lib/utils/k8s"
+	k8sUtil "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
-	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -34,6 +33,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
@@ -53,9 +53,7 @@ import (
 	"github.com/tidwall/gjson"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -93,6 +91,7 @@ type ManifestCreationServiceImpl struct {
 	strategyHistoryRepository           repository3.PipelineStrategyHistoryRepository
 	pipelineConfigRepository            chartConfig.PipelineConfigRepository
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository
+	deploymentConfigService             common.DeploymentConfigService
 }
 
 func NewManifestCreationServiceImpl(logger *zap.SugaredLogger,
@@ -116,7 +115,8 @@ func NewManifestCreationServiceImpl(logger *zap.SugaredLogger,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository,
 	strategyHistoryRepository repository3.PipelineStrategyHistoryRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
-	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository) *ManifestCreationServiceImpl {
+	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository,
+	deploymentConfigService common.DeploymentConfigService) *ManifestCreationServiceImpl {
 	return &ManifestCreationServiceImpl{
 		logger:                              logger,
 		dockerRegistryIpsConfigService:      dockerRegistryIpsConfigService,
@@ -140,6 +140,7 @@ func NewManifestCreationServiceImpl(logger *zap.SugaredLogger,
 		strategyHistoryRepository:           strategyHistoryRepository,
 		pipelineConfigRepository:            pipelineConfigRepository,
 		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
+		deploymentConfigService:             deploymentConfigService,
 	}
 }
 
@@ -261,7 +262,11 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 		}
 		mergedValues, err := impl.mergeOverrideValues(envOverride, releaseOverrideJson, configMapJson, appLabelJsonByte, strategy)
 		appName := fmt.Sprintf("%s-%s", overrideRequest.AppName, envOverride.Environment.Name)
-		mergedValues = impl.autoscalingCheckBeforeTrigger(newCtx, appName, envOverride.Namespace, mergedValues, overrideRequest)
+		mergedValues, err = impl.autoscalingCheckBeforeTrigger(newCtx, appName, envOverride.Namespace, mergedValues, overrideRequest)
+		if err != nil {
+			impl.logger.Errorw("error in autoscaling check before trigger", "pipelineId", overrideRequest.PipelineId, "err", err)
+			return valuesOverrideResponse, err
+		}
 
 		// handle image pull secret if access given
 		mergedValues, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(newCtx, envOverride.Environment, artifact, pipeline.CiPipelineId, mergedValues)
@@ -779,8 +784,107 @@ func (impl *ManifestCreationServiceImpl) checkAndFixDuplicateReleaseNo(override 
 	return nil
 }
 
-func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte, overrideRequest *bean.ValuesOverrideRequest) []byte {
-	var appId = overrideRequest.AppId
+func (impl *ManifestCreationServiceImpl) getK8sHPAResourceManifest(ctx context.Context, clusterId int, namespace string, hpaResourceRequest *util4.HpaResourceRequest) (map[string]interface{}, error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.getK8sHPAResourceManifest")
+	defer span.End()
+	resourceManifest := make(map[string]interface{})
+	version, err := impl.k8sCommonService.GetPreferredVersionForAPIGroup(ctx, clusterId, hpaResourceRequest.Group)
+	if err != nil && !k8sUtil.IsNotFoundError(err) {
+		return resourceManifest, util.NewApiError().
+			WithHttpStatusCode(http.StatusPreconditionFailed).
+			WithInternalMessage(err.Error()).
+			WithUserDetailMessage("unable to find preferred version for hpa resource")
+	} else if k8sUtil.IsNotFoundError(err) {
+		return resourceManifest, util.NewApiError().
+			WithHttpStatusCode(http.StatusPreconditionFailed).
+			WithInternalMessage("unable to find preferred version for hpa resource").
+			WithUserDetailMessage("unable to find preferred version for hpa resource")
+	}
+	k8sReq := &k8s.ResourceRequestBean{
+		ClusterId: clusterId,
+		K8sRequest: k8sUtil.NewK8sRequestBean().
+			WithResourceIdentifier(
+				k8sUtil.NewResourceIdentifier().
+					WithName(hpaResourceRequest.ResourceName).
+					WithNameSpace(namespace).
+					WithGroup(hpaResourceRequest.Group).
+					WithKind(hpaResourceRequest.Kind).
+					WithVersion(version),
+			),
+	}
+	k8sResource, err := impl.k8sCommonService.GetResource(newCtx, k8sReq)
+	if err != nil {
+		if k8s.IsResourceNotFoundErr(err) {
+			// this is a valid case for hibernated applications, so returning nil
+			// for hibernated applications, we don't have any hpa resource manifest
+			return resourceManifest, nil
+		} else if k8s.IsBadRequestErr(err) {
+			impl.logger.Errorw("bad request error occurred while fetching hpa resource for app", "resourceName", hpaResourceRequest.ResourceName, "err", err)
+			return resourceManifest, util.NewApiError().
+				WithHttpStatusCode(http.StatusPreconditionFailed).
+				WithInternalMessage(err.Error()).
+				WithUserDetailMessage(err.Error())
+		} else if k8s.IsServerTimeoutErr(err) {
+			impl.logger.Errorw("targeted hpa resource could not be served", "resourceName", hpaResourceRequest.ResourceName, "err", err)
+			return resourceManifest, util.NewApiError().
+				WithHttpStatusCode(http.StatusRequestTimeout).
+				WithInternalMessage(err.Error()).
+				WithUserDetailMessage("taking longer than expected, please try again later")
+		}
+		impl.logger.Errorw("error occurred while fetching resource for app", "resourceName", hpaResourceRequest.ResourceName, "err", err)
+		return resourceManifest, err
+	}
+	return k8sResource.ManifestResponse.Manifest.Object, err
+}
+
+func (impl *ManifestCreationServiceImpl) getArgoCdHPAResourceManifest(ctx context.Context, appName, namespace string, hpaResourceRequest *util4.HpaResourceRequest) (map[string]interface{}, error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.getArgoCdHPAResourceManifest")
+	defer span.End()
+	resourceManifest := make(map[string]interface{})
+	query := &application3.ApplicationResourceRequest{
+		Name:         &appName,
+		Version:      &hpaResourceRequest.Version,
+		Group:        &hpaResourceRequest.Group,
+		Kind:         &hpaResourceRequest.Kind,
+		ResourceName: &hpaResourceRequest.ResourceName,
+		Namespace:    &namespace,
+	}
+
+	recv, argoErr := impl.acdClient.GetResource(newCtx, query)
+	if argoErr != nil {
+		grpcCode, errMsg := util.GetClientDetailedError(argoErr)
+		if grpcCode.IsInvalidArgumentCode() {
+			// this is a valid case for hibernated applications, so returning nil
+			// for hibernated applications, we don't have any hpa resource manifest
+			return resourceManifest, nil
+		} else if grpcCode.IsUnavailableCode() {
+			impl.logger.Errorw("ArgoCd server unavailable", "resourceName", hpaResourceRequest.ResourceName, "err", errMsg)
+			return resourceManifest, fmt.Errorf("ArgoCd server error: %s", errMsg)
+		} else if grpcCode.IsDeadlineExceededCode() {
+			impl.logger.Errorw("ArgoCd resource request timeout", "resourceName", hpaResourceRequest.ResourceName, "err", errMsg)
+			return resourceManifest, util.NewApiError().
+				WithHttpStatusCode(http.StatusRequestTimeout).
+				WithInternalMessage(errMsg).
+				WithUserDetailMessage("ArgoCd server is not responding, please try again later")
+		}
+		impl.logger.Errorw("ArgoCd Get Resource API Failed", "resourceName", hpaResourceRequest.ResourceName, "err", errMsg)
+		return resourceManifest, fmt.Errorf("ArgoCd client error: %s", errMsg)
+	}
+	if recv != nil && len(*recv.Manifest) > 0 {
+		err := json.Unmarshal([]byte(*recv.Manifest), &resourceManifest)
+		if err != nil {
+			impl.logger.Errorw("failed to unmarshal hpa resource manifest", "manifest", recv.Manifest, "err", err)
+			return resourceManifest, err
+		}
+	} else {
+		impl.logger.Debugw("invalid resource manifest received from ArgoCd", "response", recv)
+	}
+	return resourceManifest, nil
+}
+
+func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte, overrideRequest *bean.ValuesOverrideRequest) ([]byte, error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.autoscalingCheckBeforeTrigger")
+	defer span.End()
 	pipelineId := overrideRequest.PipelineId
 	var appDeploymentType = overrideRequest.DeploymentAppType
 	var clusterId = overrideRequest.ClusterId
@@ -788,46 +892,24 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 	templateMap := make(map[string]interface{})
 	err := json.Unmarshal(merged, &templateMap)
 	if err != nil {
-		return merged
+		impl.logger.Errorw("unmarshal failed for hpa check", "pipelineId", pipelineId, "err", err)
+		return merged, err
 	}
 
 	hpaResourceRequest := helper.GetAutoScalingReplicaCount(templateMap, appName)
-	impl.logger.Debugw("autoscalingCheckBeforeTrigger", "hpaResourceRequest", hpaResourceRequest)
+	impl.logger.Debugw("autoscalingCheckBeforeTrigger", "pipelineId", pipelineId, "hpaResourceRequest", hpaResourceRequest)
 	if hpaResourceRequest.IsEnable {
-		resourceManifest := make(map[string]interface{})
+		var resourceManifest map[string]interface{}
 		if util.IsAcdApp(appDeploymentType) {
-			query := &application3.ApplicationResourceRequest{
-				Name:         &appName,
-				Version:      &hpaResourceRequest.Version,
-				Group:        &hpaResourceRequest.Group,
-				Kind:         &hpaResourceRequest.Kind,
-				ResourceName: &hpaResourceRequest.ResourceName,
-				Namespace:    &namespace,
-			}
-			recv, err := impl.acdClient.GetResource(ctx, query)
-			impl.logger.Debugw("resource manifest get replica count", "response", recv)
+			resourceManifest, err = impl.getArgoCdHPAResourceManifest(newCtx, appName, namespace, hpaResourceRequest)
 			if err != nil {
-				impl.logger.Errorw("ACD Get Resource API Failed", "err", err)
-				middleware.AcdGetResourceCounter.WithLabelValues(strconv.Itoa(appId), namespace, appName).Inc()
-				return merged
-			}
-			if recv != nil && len(*recv.Manifest) > 0 {
-				err := json.Unmarshal([]byte(*recv.Manifest), &resourceManifest)
-				if err != nil {
-					impl.logger.Errorw("unmarshal failed for hpa check", "err", err)
-					return merged
-				}
+				return merged, err
 			}
 		} else {
-			version := "v2beta2"
-			k8sResource, err := impl.k8sCommonService.GetResource(ctx, &k8s.ResourceRequestBean{ClusterId: clusterId,
-				K8sRequest: &util5.K8sRequestBean{ResourceIdentifier: util5.ResourceIdentifier{Name: hpaResourceRequest.ResourceName,
-					Namespace: namespace, GroupVersionKind: schema.GroupVersionKind{Group: hpaResourceRequest.Group, Kind: hpaResourceRequest.Kind, Version: version}}}})
+			resourceManifest, err = impl.getK8sHPAResourceManifest(newCtx, clusterId, namespace, hpaResourceRequest)
 			if err != nil {
-				impl.logger.Errorw("error occurred while fetching resource for app", "resourceName", hpaResourceRequest.ResourceName, "err", err)
-				return merged
+				return merged, err
 			}
-			resourceManifest = k8sResource.ManifestResponse.Manifest.Object
 		}
 		if len(resourceManifest) > 0 {
 			statusMap := resourceManifest["status"].(map[string]interface{})
@@ -835,15 +917,15 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 			currentReplicaCount, err := util4.ParseFloatNumber(currentReplicaVal)
 			if err != nil {
 				impl.logger.Errorw("error occurred while parsing replica count", "currentReplicas", currentReplicaVal, "err", err)
-				return merged
+				return merged, err
 			}
 
 			reqReplicaCount := helper.FetchRequiredReplicaCount(currentReplicaCount, hpaResourceRequest.ReqMaxReplicas, hpaResourceRequest.ReqMinReplicas)
 			templateMap["replicaCount"] = reqReplicaCount
 			merged, err = json.Marshal(&templateMap)
 			if err != nil {
-				impl.logger.Errorw("marshaling failed for hpa check", "err", err)
-				return merged
+				impl.logger.Errorw("marshaling failed for hpa check", "reqReplicaCount", reqReplicaCount, "err", err)
+				return merged, err
 			}
 		}
 	} else {
@@ -856,24 +938,24 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 			merged, err = helper.SetScalingValues(templateMap, bean2.CustomAutoScalingEnabledPathKey, merged, false)
 			if err != nil {
 				impl.logger.Errorw("error occurred while setting autoscaling enabled key", "templateMap", templateMap, "err", err)
-				return merged
+				return merged, err
 			}
 			merged, err = helper.SetScalingValues(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged, 0)
 			if err != nil {
 				impl.logger.Errorw("error occurred while setting autoscaling replica count key", "templateMap", templateMap, "err", err)
-				return merged
+				return merged, err
 			}
 
 			merged, err = helper.SetScalingValues(templateMap, bean2.CustomAutoscalingMinPathKey, merged, 0)
 			if err != nil {
 				impl.logger.Errorw("error occurred while setting autoscaling min key", "templateMap", templateMap, "err", err)
-				return merged
+				return merged, err
 			}
 
 			merged, err = helper.SetScalingValues(templateMap, bean2.CustomAutoscalingMaxPathKey, merged, 0)
 			if err != nil {
 				impl.logger.Errorw("error occurred while setting autoscaling max key", "templateMap", templateMap, "err", err)
-				return merged
+				return merged, err
 			}
 		} else {
 			autoscalingEnabled := false
@@ -885,33 +967,48 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 				// extract replica count, min, max and check for required value
 				replicaCount, err := impl.getReplicaCountFromCustomChart(templateMap, merged)
 				if err != nil {
-					return merged
+					return merged, err
 				}
 				merged, err = helper.SetScalingValues(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged, replicaCount)
 				if err != nil {
 					impl.logger.Errorw("error occurred while setting autoscaling key", "templateMap", templateMap, "err", err)
-					return merged
+					return merged, err
 				}
 			}
 		}
 	}
 
-	return merged
+	return merged, nil
 }
 
 func (impl *ManifestCreationServiceImpl) getReplicaCountFromCustomChart(templateMap map[string]interface{}, merged []byte) (float64, error) {
 	autoscalingMinVal, err := helper.ExtractParamValue(templateMap, bean2.CustomAutoscalingMinPathKey, merged)
-	if err != nil {
+	if helper.IsNotFoundErr(err) {
+		return 0, util.NewApiError().
+			WithHttpStatusCode(http.StatusPreconditionFailed).
+			WithInternalMessage(helper.KeyNotFoundError).
+			WithUserDetailMessage(fmt.Sprintf("empty value for key [%s]", bean2.CustomAutoscalingMinPathKey))
+	} else if err != nil {
 		impl.logger.Errorw("error occurred while parsing float number", "key", bean2.CustomAutoscalingMinPathKey, "err", err)
 		return 0, err
 	}
 	autoscalingMaxVal, err := helper.ExtractParamValue(templateMap, bean2.CustomAutoscalingMaxPathKey, merged)
-	if err != nil {
+	if helper.IsNotFoundErr(err) {
+		return 0, util.NewApiError().
+			WithHttpStatusCode(http.StatusPreconditionFailed).
+			WithInternalMessage(helper.KeyNotFoundError).
+			WithUserDetailMessage(fmt.Sprintf("empty value for key [%s]", bean2.CustomAutoscalingMaxPathKey))
+	} else if err != nil {
 		impl.logger.Errorw("error occurred while parsing float number", "key", bean2.CustomAutoscalingMaxPathKey, "err", err)
 		return 0, err
 	}
 	autoscalingReplicaCountVal, err := helper.ExtractParamValue(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged)
-	if err != nil {
+	if helper.IsNotFoundErr(err) {
+		return 0, util.NewApiError().
+			WithHttpStatusCode(http.StatusPreconditionFailed).
+			WithInternalMessage(helper.KeyNotFoundError).
+			WithUserDetailMessage(fmt.Sprintf("empty value for key [%s]", bean2.CustomAutoscalingReplicaCountPathKey))
+	} else if err != nil {
 		impl.logger.Errorw("error occurred while parsing float number", "key", bean2.CustomAutoscalingReplicaCountPathKey, "err", err)
 		return 0, err
 	}

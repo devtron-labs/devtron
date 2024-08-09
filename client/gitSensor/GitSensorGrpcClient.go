@@ -114,15 +114,19 @@ func (client *GrpcApiClientImpl) SaveGitProvider(ctx context.Context, provider *
 	}
 	// map req
 	req := &pb.GitProvider{
-		Id:            int64(provider.Id),
-		Name:          provider.Name,
-		Url:           provider.Url,
-		UserName:      provider.UserName,
-		Password:      provider.Password,
-		AccessToken:   provider.AccessToken,
-		SshPrivateKey: provider.SshPrivateKey,
-		AuthMode:      string(provider.AuthMode),
-		Active:        provider.Active,
+		Id:                    int64(provider.Id),
+		Name:                  provider.Name,
+		Url:                   provider.Url,
+		UserName:              provider.UserName,
+		Password:              provider.Password,
+		SshPrivateKey:         provider.SshPrivateKey,
+		AccessToken:           provider.AccessToken,
+		AuthMode:              string(provider.AuthMode),
+		Active:                provider.Active,
+		TlsCert:               provider.TlsCert,
+		TlsKey:                provider.TlsKey,
+		CaCert:                provider.CaCert,
+		EnableTLSVerification: provider.EnableTlsVerification,
 	}
 
 	// fetch
@@ -494,8 +498,9 @@ func (client *GrpcApiClientImpl) GetAllWebhookEventConfigForHost(ctx context.Con
 	}
 
 	res, err := serviceClient.GetAllWebhookEventConfigForHost(ctx, &pb.WebhookEventConfigRequest{
-		GitHostId: int64(req.GitHostId),
-		EventId:   int64(req.EventId),
+		GitHostId:   int64(req.GitHostId),
+		EventId:     int64(req.EventId),
+		GitHostName: req.GitHostName,
 	})
 	if err != nil {
 		return nil, err
