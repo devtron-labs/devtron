@@ -33,7 +33,9 @@ import (
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
+	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
+	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -133,6 +135,8 @@ type CiPipelineConfigServiceImpl struct {
 	customTagService              CustomTagService
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
 	buildPipelineSwitchService    BuildPipelineSwitchService
+	pipelineStageRepository       repository.PipelineStageRepository
+	globalPluginRepository        repository2.GlobalPluginRepository
 }
 
 func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
@@ -157,8 +161,8 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 	customTagService CustomTagService,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	buildPipelineSwitchService BuildPipelineSwitchService,
-) *CiPipelineConfigServiceImpl {
-
+	pipelineStageRepository repository.PipelineStageRepository,
+	globalPluginRepository repository2.GlobalPluginRepository) *CiPipelineConfigServiceImpl {
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
 	if err != nil {
@@ -188,6 +192,8 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 		customTagService:              customTagService,
 		cdWorkflowRepository:          cdWorkflowRepository,
 		buildPipelineSwitchService:    buildPipelineSwitchService,
+		pipelineStageRepository:       pipelineStageRepository,
+		globalPluginRepository:        globalPluginRepository,
 	}
 }
 
