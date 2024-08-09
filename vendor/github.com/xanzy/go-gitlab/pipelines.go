@@ -34,9 +34,9 @@ type PipelinesService struct {
 //
 // GitLab API docs: https://docs.gitlab.com/ee/api/pipelines.html
 type PipelineVariable struct {
-	Key          string `json:"key"`
-	Value        string `json:"value"`
-	VariableType string `json:"variable_type"`
+	Key          string            `json:"key"`
+	Value        string            `json:"value"`
+	VariableType VariableTypeValue `json:"variable_type"`
 }
 
 // Pipeline represents a GitLab pipeline.
@@ -49,6 +49,7 @@ type Pipeline struct {
 	Status         string          `json:"status"`
 	Source         string          `json:"source"`
 	Ref            string          `json:"ref"`
+	Name           string          `json:"name"`
 	SHA            string          `json:"sha"`
 	BeforeSHA      string          `json:"before_sha"`
 	Tag            bool            `json:"tag"`
@@ -115,7 +116,7 @@ type PipelineTestCases struct {
 	Classname      string          `json:"classname"`
 	File           string          `json:"file"`
 	ExecutionTime  float64         `json:"execution_time"`
-	SystemOutput   string          `json:"system_output"`
+	SystemOutput   interface{}     `json:"system_output"`
 	StackTrace     string          `json:"stack_trace"`
 	AttachmentURL  string          `json:"attachment_url"`
 	RecentFailures *RecentFailures `json:"recent_failures"`
@@ -135,6 +136,7 @@ func (p PipelineTestReport) String() string {
 // on other assets, like Commit.
 type PipelineInfo struct {
 	ID        int        `json:"id"`
+	IID       int        `json:"iid"`
 	ProjectID int        `json:"project_id"`
 	Status    string     `json:"status"`
 	Source    string     `json:"source"`
@@ -307,9 +309,9 @@ type CreatePipelineOptions struct {
 //
 // GitLab API docs: https://docs.gitlab.com/ee/api/pipelines.html#create-a-new-pipeline
 type PipelineVariableOptions struct {
-	Key          *string `url:"key,omitempty" json:"key,omitempty"`
-	Value        *string `url:"value,omitempty" json:"value,omitempty"`
-	VariableType *string `url:"variable_type,omitempty" json:"variable_type,omitempty"`
+	Key          *string            `url:"key,omitempty" json:"key,omitempty"`
+	Value        *string            `url:"value,omitempty" json:"value,omitempty"`
+	VariableType *VariableTypeValue `url:"variable_type,omitempty" json:"variable_type,omitempty"`
 }
 
 // CreatePipeline creates a new project pipeline.

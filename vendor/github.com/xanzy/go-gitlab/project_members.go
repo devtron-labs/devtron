@@ -149,9 +149,10 @@ func (s *ProjectMembersService) GetInheritedProjectMember(pid interface{}, user 
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/members.html#add-a-member-to-a-group-or-project
 type AddProjectMemberOptions struct {
-	UserID      interface{}       `url:"user_id,omitempty" json:"user_id,omitempty"`
-	AccessLevel *AccessLevelValue `url:"access_level,omitempty" json:"access_level,omitempty"`
-	ExpiresAt   *string           `url:"expires_at,omitempty" json:"expires_at"`
+	UserID       interface{}       `url:"user_id,omitempty" json:"user_id,omitempty"`
+	AccessLevel  *AccessLevelValue `url:"access_level,omitempty" json:"access_level,omitempty"`
+	ExpiresAt    *string           `url:"expires_at,omitempty" json:"expires_at"`
+	MemberRoleID *int              `url:"member_role_id,omitempty" json:"member_role_id,omitempty"`
 }
 
 // AddProjectMember adds a user to a project team. This is an idempotent
@@ -187,8 +188,9 @@ func (s *ProjectMembersService) AddProjectMember(pid interface{}, opt *AddProjec
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/members.html#edit-a-member-of-a-group-or-project
 type EditProjectMemberOptions struct {
-	AccessLevel *AccessLevelValue `url:"access_level,omitempty" json:"access_level,omitempty"`
-	ExpiresAt   *string           `url:"expires_at,omitempty" json:"expires_at,omitempty"`
+	AccessLevel  *AccessLevelValue `url:"access_level,omitempty" json:"access_level,omitempty"`
+	ExpiresAt    *string           `url:"expires_at,omitempty" json:"expires_at,omitempty"`
+	MemberRoleID *int              `url:"member_role_id,omitempty" json:"member_role_id,omitempty"`
 }
 
 // EditProjectMember updates a project team member to a specified access level..
