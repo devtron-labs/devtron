@@ -100,9 +100,11 @@ type PipelineRepository interface {
 	FindAllPipelineCreatedCountInLast24Hour() (pipelineCount int, err error)
 	FindAllDeletedPipelineCountInLast24Hour() (pipelineCount int, err error)
 	FindActiveByEnvId(envId int) (pipelines []*Pipeline, err error)
+	FindActivePipelineAppIdsByEnvId(envId int) ([]int, error)
 	FindActivePipelineByEnvId(envId int) (pipelines []*Pipeline, err error)
 	FindActiveByEnvIds(envId []int) (pipelines []*Pipeline, err error)
 	FindActiveByInFilter(envId int, appIdIncludes []int) (pipelines []*Pipeline, err error)
+	FindActivePipelineAppIdsByInFilter(envId int, appIdIncludes []int) ([]int, error)
 	FindActiveByNotFilter(envId int, appIdExcludes []int) (pipelines []*Pipeline, err error)
 	FindAllPipelinesByChartsOverrideAndAppIdAndChartId(chartOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error)
 	FindActiveByAppIdAndPipelineId(appId int, pipelineId int) ([]*Pipeline, error)
@@ -128,6 +130,7 @@ type PipelineRepository interface {
 	FindWithEnvironmentByCiIds(ctx context.Context, cIPipelineIds []int) ([]*Pipeline, error)
 	FindDeploymentAppTypeByAppIdAndEnvId(appId, envId int) (string, error)
 	FindByAppIdToEnvIdsMapping(appIdToEnvIds map[int][]int) ([]*Pipeline, error)
+	FindDeploymentAppTypeByIds(ids []int) (pipelines []*Pipeline, err error)
 }
 
 type CiArtifactDTO struct {
@@ -483,6 +486,15 @@ func (impl PipelineRepositoryImpl) FindActiveByEnvId(envId int) (pipelines []*Pi
 	return pipelines, err
 }
 
+func (impl PipelineRepositoryImpl) FindActivePipelineAppIdsByEnvId(envId int) ([]int, error) {
+	var appIds []int
+	err := impl.dbConnection.Model((*Pipeline)(nil)).Column("app_id").
+		Where("environment_id = ?", envId).
+		Where("deleted = ?", false).
+		Select(&appIds)
+	return appIds, err
+}
+
 func (impl PipelineRepositoryImpl) FindActivePipelineByEnvId(envId int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).Column("pipeline.*", "App", "Environment").
 		Where("environment_id = ?", envId).
@@ -507,6 +519,15 @@ func (impl PipelineRepositoryImpl) FindActiveByInFilter(envId int, appIdIncludes
 		Where("deleted = ?", false).
 		Select()
 	return pipelines, err
+}
+
+func (impl PipelineRepositoryImpl) FindActivePipelineAppIdsByInFilter(envId int, appIdIncludes []int) ([]int, error) {
+	var appIds []int
+	err := impl.dbConnection.Model((*Pipeline)(nil)).Column("app_id").
+		Where("environment_id = ?", envId).
+		Where("app_id in (?)", pg.In(appIdIncludes)).
+		Where("deleted = ?", false).Select(&appIds)
+	return appIds, err
 }
 
 func (impl PipelineRepositoryImpl) FindActiveByNotFilter(envId int, appIdExcludes []int) (pipelines []*Pipeline, err error) {
@@ -810,5 +831,11 @@ func (impl PipelineRepositoryImpl) FindByAppIdToEnvIdsMapping(appIdToEnvIds map[
 			return query, nil
 		}).
 		Select()
+	return pipelines, err
+}
+
+func (impl PipelineRepositoryImpl) FindDeploymentAppTypeByIds(ids []int) (pipelines []*Pipeline, err error) {
+	err = impl.dbConnection.Model(&pipelines).Column("id", "app_id", "env_id", "deployment_app_type").
+		Where("id in (?)", pg.In(ids)).Where("deleted = ?", false).Select()
 	return pipelines, err
 }
