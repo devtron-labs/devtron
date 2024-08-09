@@ -424,14 +424,14 @@ func (handler *GlobalPluginRestHandlerImpl) MigratePluginData(w http.ResponseWri
 }
 
 func (handler *GlobalPluginRestHandlerImpl) CreatePlugin(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	decoder := json.NewDecoder(r.Body)
 	var pluginDataDto *bean.PluginParentMetadataDto
-	err = decoder.Decode(&pluginDataDto)
+	err = decoder.Decode(pluginDataDto)
 	if err != nil {
 		handler.logger.Errorw("request err, CreatePlugin", "error", err, "payload", pluginDataDto)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)

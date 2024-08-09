@@ -1,5 +1,17 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package plugin
@@ -22,7 +34,6 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/mod/semver"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -1763,24 +1774,17 @@ func (impl *GlobalPluginServiceImpl) validateDetailRequest(pluginVersions []*rep
 	for _, plugin := range allPlugins {
 		pluginParentIdMap[plugin.Id] = true
 	}
-	nonExistingPluginVersionIds, nonExistingPluginParentIds := make([]int, 0, len(pluginVersionIds)), make([]int, 0, len(parentPluginIds))
 	for _, versionId := range pluginVersionIds {
 		if _, ok := pluginVersionsIdMap[versionId]; !ok {
-			nonExistingPluginVersionIds = append(nonExistingPluginVersionIds, versionId)
+			errorMsg := fmt.Sprintf("there are some plugin version ids in request that do not exist:- %d", versionId)
+			return util.GetApiError(http.StatusBadRequest, errorMsg, errorMsg)
 		}
 	}
 	for _, pluginId := range parentPluginIds {
 		if _, ok := pluginParentIdMap[pluginId]; !ok {
-			nonExistingPluginParentIds = append(nonExistingPluginParentIds, pluginId)
+			errorMsg := fmt.Sprintf("there are some plugin parent ids in request that do not exist %d", pluginId)
+			return util.GetApiError(http.StatusBadRequest, errorMsg, errorMsg)
 		}
-	}
-	if len(nonExistingPluginVersionIds) > 0 {
-		errorMsg := fmt.Sprintf("there are some plugin version ids in request that do not exist %v", nonExistingPluginVersionIds)
-		return util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithCode(strconv.Itoa(http.StatusBadRequest)).WithUserMessage(errorMsg).WithInternalMessage(errorMsg)
-	}
-	if len(nonExistingPluginParentIds) > 0 {
-		errorMsg := fmt.Sprintf("there are some plugin parent ids in request that do not exist %v", nonExistingPluginParentIds)
-		return util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithCode(strconv.Itoa(http.StatusBadRequest)).WithUserMessage(errorMsg).WithInternalMessage(errorMsg)
 	}
 	return nil
 }
@@ -1800,7 +1804,7 @@ func (impl *GlobalPluginServiceImpl) GetPluginDetailV2(pluginVersionIds, parentP
 	}
 	pluginParentMetadataDtos := make([]*bean2.PluginParentMetadataDto, 0, len(pluginVersionIds)+len(parentPluginIds))
 	if len(pluginVersionIds) == 0 && len(parentPluginIds) == 0 {
-		return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: strconv.Itoa(http.StatusBadRequest), InternalMessage: bean2.NoPluginOrParentIdProvidedErr, UserMessage: bean2.NoPluginOrParentIdProvidedErr}
+		return nil, util.GetApiError(http.StatusBadRequest, bean2.NoPluginOrParentIdProvidedErr, bean2.NoPluginOrParentIdProvidedErr)
 	}
 	pluginVersionIdsMap, parentPluginIdsMap := helper2.GetPluginVersionAndParentPluginIdsMap(pluginVersionIds, parentPluginIds)
 
@@ -1809,7 +1813,7 @@ func (impl *GlobalPluginServiceImpl) GetPluginDetailV2(pluginVersionIds, parentP
 
 	filteredPluginVersionMetadata := helper2.GetPluginVersionsMetadataByVersionAndParentPluginIds(pluginVersionsMetadata, pluginVersionIdsMap, parentPluginIdsMap)
 	if len(filteredPluginVersionMetadata) == 0 {
-		return nil, &util.ApiError{HttpStatusCode: http.StatusNotFound, Code: strconv.Itoa(http.StatusNotFound), InternalMessage: bean2.NoPluginFoundForThisSearchQueryErr, UserMessage: bean2.NoPluginFoundForThisSearchQueryErr}
+		return nil, util.GetApiError(http.StatusNotFound, bean2.NoPluginFoundForThisSearchQueryErr, bean2.NoPluginFoundForThisSearchQueryErr)
 	}
 	for _, version := range filteredPluginVersionMetadata {
 		_, found := pluginVersionIdsMap[version.Id]
@@ -1939,6 +1943,7 @@ func (impl *GlobalPluginServiceImpl) GetAllPluginMinData() ([]*bean2.PluginMinDt
 	}
 	pluginMinList := make([]*bean2.PluginMinDto, 0, len(pluginsParentMinData))
 	for _, item := range pluginsParentMinData {
+		//since creating new version of preset plugin is disabled for end user, hence ignoring PRESET plugin in min list
 		if item.Type == repository.PLUGIN_TYPE_PRESET {
 			continue
 		}
@@ -1955,20 +1960,10 @@ func (impl *GlobalPluginServiceImpl) checkValidationOnPluginNameAndIdentifier(pl
 	}
 	for _, plugin := range plugins {
 		if plugin.Identifier == pluginReq.PluginIdentifier {
-			return &util.ApiError{
-				HttpStatusCode:  http.StatusConflict,
-				Code:            strconv.Itoa(http.StatusConflict),
-				InternalMessage: bean2.PluginWithSameIdentifierExistsError,
-				UserMessage:     bean2.PluginWithSameIdentifierExistsError,
-			}
+			return util.GetApiError(http.StatusConflict, bean2.PluginWithSameIdentifierExistsError, bean2.PluginWithSameIdentifierExistsError)
 		}
 		if plugin.Name == pluginReq.Name {
-			return &util.ApiError{
-				HttpStatusCode:  http.StatusConflict,
-				Code:            strconv.Itoa(http.StatusConflict),
-				InternalMessage: bean2.PluginWithSameNameExistError,
-				UserMessage:     bean2.PluginWithSameNameExistError,
-			}
+			return util.GetApiError(http.StatusConflict, bean2.PluginWithSameNameExistError, bean2.PluginWithSameNameExistError)
 		}
 	}
 	return nil
@@ -1981,26 +1976,20 @@ func (impl *GlobalPluginServiceImpl) checkValidationOnVersion(pluginReq *bean2.P
 		return err
 	}
 	for _, pluginVersion := range pluginVersions {
-		if pluginVersion.PluginVersion == pluginReq.Versions.DetailedPluginVersionData[0].Version {
-			return &util.ApiError{
-				HttpStatusCode:  http.StatusBadRequest,
-				Code:            strconv.Itoa(http.StatusBadRequest),
-				InternalMessage: bean2.PluginVersionAlreadyExistError,
-				UserMessage:     bean2.PluginVersionAlreadyExistError,
+		if pluginReq.Versions != nil && len(pluginReq.Versions.DetailedPluginVersionData) > 0 && pluginReq.Versions.DetailedPluginVersionData[0] != nil {
+			// if plugin version from req is already created then return error
+			if pluginVersion.PluginVersion == pluginReq.Versions.DetailedPluginVersionData[0].Version {
+				return util.GetApiError(http.StatusBadRequest, bean2.PluginVersionAlreadyExistError, bean2.PluginVersionAlreadyExistError)
 			}
 		}
+
 	}
 	return nil
 }
 
 func (impl *GlobalPluginServiceImpl) validateV2PluginRequest(pluginReq *bean2.PluginParentMetadataDto) error {
-	if len(pluginReq.Versions.DetailedPluginVersionData) == 0 || pluginReq.Versions.DetailedPluginVersionData[0] == nil {
-		return &util.ApiError{
-			HttpStatusCode:  http.StatusBadRequest,
-			Code:            strconv.Itoa(http.StatusBadRequest),
-			InternalMessage: bean2.NoStepDataToProceedError,
-			UserMessage:     bean2.NoStepDataToProceedError,
-		}
+	if pluginReq.Versions == nil || len(pluginReq.Versions.DetailedPluginVersionData) == 0 || pluginReq.Versions.DetailedPluginVersionData[0] == nil {
+		return util.GetApiError(http.StatusBadRequest, bean2.NoStepDataToProceedError, bean2.NoStepDataToProceedError)
 	}
 	if pluginReq.Id == 0 {
 		//create plugin req.
@@ -2016,27 +2005,20 @@ func (impl *GlobalPluginServiceImpl) validateV2PluginRequest(pluginReq *bean2.Pl
 			return err
 		}
 	}
-
-	version := fmt.Sprintf("v%s", pluginReq.Versions.DetailedPluginVersionData[0].Version)
+	version := pluginReq.Versions.DetailedPluginVersionData[0].Version
+	if !strings.Contains(version, "v") {
+		version = fmt.Sprintf("v%s", version)
+	}
 	// semantic versioning validation on plugin's version
 	if !semver.IsValid(version) {
-		return &util.ApiError{
-			HttpStatusCode:  http.StatusBadRequest,
-			Code:            strconv.Itoa(http.StatusBadRequest),
-			InternalMessage: bean2.PluginVersionNotSemanticallyCorrectError,
-			UserMessage:     bean2.PluginVersionNotSemanticallyCorrectError,
-		}
+		return util.GetApiError(http.StatusBadRequest, bean2.PluginVersionNotSemanticallyCorrectError, bean2.PluginVersionNotSemanticallyCorrectError)
 	}
 	//validate icon url and size
 	if len(pluginReq.Icon) > 0 {
 		err := utils.FetchIconAndCheckSize(pluginReq.Icon, bean2.PluginIconMaxSizeInBytes)
 		if err != nil {
-			return &util.ApiError{
-				HttpStatusCode:  http.StatusBadRequest,
-				Code:            strconv.Itoa(http.StatusBadRequest),
-				InternalMessage: fmt.Sprintf("%s err:= %s", bean2.PluginIconNotCorrectOrReachableError, err.Error()),
-				UserMessage:     fmt.Sprintf("%s err:= %s", bean2.PluginIconNotCorrectOrReachableError, err.Error()),
-			}
+			errMsg := fmt.Sprintf("%s err:= %s", bean2.PluginIconNotCorrectOrReachableError, err.Error())
+			return util.GetApiError(http.StatusBadRequest, errMsg, errMsg)
 		}
 	}
 	return nil
@@ -2079,10 +2061,8 @@ func (impl *GlobalPluginServiceImpl) createNewPlugin(tx *pg.Tx, pluginDto *bean2
 			return 0, err
 		}
 	} else {
-		return 0, util.NewApiError().WithCode(strconv.Itoa(http.StatusBadRequest)).WithHttpStatusCode(http.StatusBadRequest).
-			WithInternalMessage(bean2.PluginStepsNotProvidedError).WithUserMessage(errors.New(bean2.PluginStepsNotProvidedError))
+		return 0, util.GetApiError(http.StatusBadRequest, bean2.PluginStepsNotProvidedError, bean2.PluginStepsNotProvidedError)
 	}
-
 	err = impl.createPluginTagAndRelations(pluginDto.Versions.DetailedPluginVersionData[0], userId, tx)
 	if err != nil {
 		impl.logger.Errorw("createNewPlugin, error in createPluginTagAndRelations", "tags", pluginDto.Versions.DetailedPluginVersionData[0].Tags, "err", err)
@@ -2163,8 +2143,7 @@ func (impl *GlobalPluginServiceImpl) createNewPluginVersionOfExistingPlugin(tx *
 			return 0, err
 		}
 	} else {
-		return 0, util.NewApiError().WithCode(strconv.Itoa(http.StatusBadRequest)).WithHttpStatusCode(http.StatusBadRequest).
-			WithInternalMessage(bean2.PluginStepsNotProvidedError).WithUserMessage(errors.New(bean2.PluginStepsNotProvidedError))
+		return 0, util.GetApiError(http.StatusBadRequest, bean2.PluginStepsNotProvidedError, bean2.PluginStepsNotProvidedError)
 	}
 
 	err = impl.createPluginTagAndRelations(pluginDto.Versions.DetailedPluginVersionData[0], userId, tx)
@@ -2179,6 +2158,7 @@ func (impl *GlobalPluginServiceImpl) createNewPluginVersionOfExistingPlugin(tx *
 func (impl *GlobalPluginServiceImpl) CreatePluginOrVersions(pluginDto *bean2.PluginParentMetadataDto, userId int32) (int, error) {
 	err := impl.validateV2PluginRequest(pluginDto)
 	if err != nil {
+		impl.logger.Errorw("error in validating create plugin request", "pluginReqDto", pluginDto, "err", err)
 		return 0, err
 	}
 
