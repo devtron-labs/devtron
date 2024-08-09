@@ -37,6 +37,7 @@ import (
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
 	"github.com/devtron-labs/devtron/api/externalLink"
+	"github.com/devtron-labs/devtron/api/fluxApplication"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/k8s"
 	"github.com/devtron-labs/devtron/api/module"
@@ -114,6 +115,7 @@ func InitializeApp() (*App, error) {
 		gitOps.GitOpsEAWireSet,
 		providerConfig.DeploymentProviderConfigWireSet,
 		argoApplication.ArgoApplicationWireSet,
+		fluxApplication.FluxApplicationWireSet,
 		NewApp,
 		NewMuxRouter,
 		util.NewHttpClient,
