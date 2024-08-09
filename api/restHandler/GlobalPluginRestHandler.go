@@ -429,6 +429,20 @@ func (handler *GlobalPluginRestHandlerImpl) CreatePlugin(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	token := r.Header.Get("token")
+	appId, err := common.ExtractIntQueryParam(w, r, "appId", 0)
+	if err != nil {
+		return
+	}
+	ok, err := handler.IsUserAuthorized(token, appId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	if !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
 	decoder := json.NewDecoder(r.Body)
 	var pluginDataDto *bean.PluginParentMetadataDto
 	err = decoder.Decode(pluginDataDto)
@@ -437,15 +451,8 @@ func (handler *GlobalPluginRestHandlerImpl) CreatePlugin(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.logger.Infow("request payload received for patching plugins", pluginDataDto, "userId", userId)
-	// RBAC enforcer applying
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized user"), nil, http.StatusForbidden)
-		return
-	}
+	handler.logger.Infow("request payload received for creating plugins", pluginDataDto, "userId", userId)
 
-	//RBAC enforcer Ends
 	pluginVersionId, err := handler.globalPluginService.CreatePluginOrVersions(pluginDataDto, userId)
 	if err != nil {
 		handler.logger.Errorw("service error, error in creating plugin", "pluginCreateRequestDto", pluginDataDto, "err", err)
