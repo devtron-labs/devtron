@@ -2024,53 +2024,6 @@ func (impl *GlobalPluginServiceImpl) validateV2PluginRequest(pluginReq *bean2.Pl
 	return nil
 }
 
-func (impl *GlobalPluginServiceImpl) createNewPlugin(tx *pg.Tx, pluginDto *bean2.PluginParentMetadataDto, userId int32) (int, error) {
-	pluginParentMetadata, err := impl.globalPluginRepository.SavePluginParentMetadata(tx, adaptor.GetPluginParentMetadataDbObject(pluginDto, userId))
-	if err != nil {
-		impl.logger.Errorw("createNewPlugin, error in saving plugin parent metadata", "pluginDto", pluginDto, "err", err)
-		return 0, err
-	}
-	pluginDto.Id = pluginParentMetadata.Id
-	pluginVersionDto := adaptor.GetPluginVersionMetadataDbObject(pluginDto, userId).
-		WithPluginParentMetadataId(pluginParentMetadata.Id).
-		WithIsLatestFlag(true)
-
-	pluginVersionMetadata, err := impl.globalPluginRepository.SavePluginMetadata(pluginVersionDto, tx)
-	if err != nil {
-		impl.logger.Errorw("createNewPlugin, error in saving plugin version metadata", "pluginDto", pluginDto, "err", err)
-		return 0, err
-	}
-	pluginDto.Versions.DetailedPluginVersionData[0].Id = pluginVersionMetadata.Id
-
-	pluginStageMapping := &repository.PluginStageMapping{
-		PluginId:  pluginParentMetadata.Id,
-		StageType: repository.CI_CD,
-		AuditLog:  sql.NewDefaultAuditLog(userId),
-	}
-	_, err = impl.globalPluginRepository.SavePluginStageMapping(pluginStageMapping, tx)
-	if err != nil {
-		impl.logger.Errorw("createNewPlugin, error in saving plugin stage mapping", "pluginDto", pluginDto, "err", err)
-		return 0, err
-	}
-
-	pluginStepsToCreate := pluginDto.Versions.DetailedPluginVersionData[0].PluginSteps
-	if len(pluginStepsToCreate) > 0 {
-		err = impl.saveDeepPluginStepData(pluginVersionMetadata.Id, pluginStepsToCreate, userId, tx)
-		if err != nil {
-			impl.logger.Errorw("createNewPlugin, error in saving plugin step data", "err", err)
-			return 0, err
-		}
-	} else {
-		return 0, util.GetApiError(http.StatusBadRequest, bean2.PluginStepsNotProvidedError, bean2.PluginStepsNotProvidedError)
-	}
-	err = impl.createPluginTagAndRelations(pluginDto.Versions.DetailedPluginVersionData[0], userId, tx)
-	if err != nil {
-		impl.logger.Errorw("createNewPlugin, error in createPluginTagAndRelations", "tags", pluginDto.Versions.DetailedPluginVersionData[0].Tags, "err", err)
-		return 0, err
-	}
-	return pluginVersionMetadata.Id, nil
-}
-
 func (impl *GlobalPluginServiceImpl) createPluginTagAndRelations(pluginReq *bean2.PluginsVersionDetail, userId int32, tx *pg.Tx) error {
 	if pluginReq.AreNewTagsPresent {
 		err := impl.CreateNewPluginTagsAndRelationsIfRequiredV2(pluginReq, userId, tx)
@@ -2109,6 +2062,62 @@ func (impl *GlobalPluginServiceImpl) CreatePluginTagRelations(pluginReq *bean2.P
 	return nil
 }
 
+func (impl *GlobalPluginServiceImpl) createPluginStepDataAndTagRelations(pluginVersionId int, pluginVersionDetail *bean2.PluginsVersionDetail, userId int32, tx *pg.Tx) error {
+	if len(pluginVersionDetail.PluginSteps) > 0 {
+		err := impl.saveDeepPluginStepData(pluginVersionId, pluginVersionDetail.PluginSteps, userId, tx)
+		if err != nil {
+			impl.logger.Errorw("createNewPluginVersionOfExistingPlugin, error in saving plugin step data", "err", err)
+			return err
+		}
+	} else {
+		return util.GetApiError(http.StatusBadRequest, bean2.PluginStepsNotProvidedError, bean2.PluginStepsNotProvidedError)
+	}
+
+	err := impl.createPluginTagAndRelations(pluginVersionDetail, userId, tx)
+	if err != nil {
+		impl.logger.Errorw("createNewPlugin, error in createPluginTagAndRelations", "tags", pluginVersionDetail.Tags, "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *GlobalPluginServiceImpl) createNewPlugin(tx *pg.Tx, pluginDto *bean2.PluginParentMetadataDto, userId int32) (int, error) {
+	pluginParentMetadata, err := impl.globalPluginRepository.SavePluginParentMetadata(tx, adaptor.GetPluginParentMetadataDbObject(pluginDto, userId))
+	if err != nil {
+		impl.logger.Errorw("createNewPlugin, error in saving plugin parent metadata", "pluginDto", pluginDto, "err", err)
+		return 0, err
+	}
+	pluginDto.Id = pluginParentMetadata.Id
+	pluginVersionDto := adaptor.GetPluginVersionMetadataDbObject(pluginDto, userId).
+		WithPluginParentMetadataId(pluginParentMetadata.Id).
+		WithIsLatestFlag(true)
+
+	pluginVersionMetadata, err := impl.globalPluginRepository.SavePluginMetadata(pluginVersionDto, tx)
+	if err != nil {
+		impl.logger.Errorw("createNewPlugin, error in saving plugin version metadata", "pluginDto", pluginDto, "err", err)
+		return 0, err
+	}
+	pluginDto.Versions.DetailedPluginVersionData[0].Id = pluginVersionMetadata.Id
+
+	pluginStageMapping := &repository.PluginStageMapping{
+		PluginId:  pluginParentMetadata.Id,
+		StageType: repository.CI_CD,
+		AuditLog:  sql.NewDefaultAuditLog(userId),
+	}
+	_, err = impl.globalPluginRepository.SavePluginStageMapping(pluginStageMapping, tx)
+	if err != nil {
+		impl.logger.Errorw("createNewPlugin, error in saving plugin stage mapping", "pluginDto", pluginDto, "err", err)
+		return 0, err
+	}
+
+	err = impl.createPluginStepDataAndTagRelations(pluginVersionMetadata.Id, pluginDto.Versions.DetailedPluginVersionData[0], userId, tx)
+	if err != nil {
+		impl.logger.Errorw("createNewPlugin, error in createPluginStepDataAndTagRelations", "pluginDto", pluginDto, "err", err)
+		return 0, err
+	}
+	return pluginVersionMetadata.Id, nil
+}
+
 func (impl *GlobalPluginServiceImpl) createNewPluginVersionOfExistingPlugin(tx *pg.Tx, pluginDto *bean2.PluginParentMetadataDto, userId int32) (int, error) {
 	var pluginParentMinData *repository.PluginParentMetadata
 	var err error
@@ -2135,30 +2144,18 @@ func (impl *GlobalPluginServiceImpl) createNewPluginVersionOfExistingPlugin(tx *
 	}
 	pluginDto.Versions.DetailedPluginVersionData[0].Id = pluginVersionMetadata.Id
 
-	pluginStepsToCreate := pluginDto.Versions.DetailedPluginVersionData[0].PluginSteps
-	if len(pluginStepsToCreate) > 0 {
-		err = impl.saveDeepPluginStepData(pluginVersionMetadata.Id, pluginStepsToCreate, userId, tx)
-		if err != nil {
-			impl.logger.Errorw("createNewPluginVersionOfExistingPlugin, error in saving plugin step data", "err", err)
-			return 0, err
-		}
-	} else {
-		return 0, util.GetApiError(http.StatusBadRequest, bean2.PluginStepsNotProvidedError, bean2.PluginStepsNotProvidedError)
-	}
-
-	err = impl.createPluginTagAndRelations(pluginDto.Versions.DetailedPluginVersionData[0], userId, tx)
+	err = impl.createPluginStepDataAndTagRelations(pluginVersionMetadata.Id, pluginDto.Versions.DetailedPluginVersionData[0], userId, tx)
 	if err != nil {
-		impl.logger.Errorw("createNewPlugin, error in createPluginTagAndRelations", "tags", pluginDto.Versions.DetailedPluginVersionData[0].Tags, "err", err)
+		impl.logger.Errorw("createNewPluginVersionOfExistingPlugin, error in createPluginStepDataAndTagRelations", "pluginDto", pluginDto, "err", err)
 		return 0, err
 	}
-
 	return pluginVersionMetadata.Id, nil
 }
 
 func (impl *GlobalPluginServiceImpl) CreatePluginOrVersions(pluginDto *bean2.PluginParentMetadataDto, userId int32) (int, error) {
 	err := impl.validateV2PluginRequest(pluginDto)
 	if err != nil {
-		impl.logger.Errorw("error in validating create plugin request", "pluginReqDto", pluginDto, "err", err)
+		impl.logger.Errorw("CreatePluginOrVersions, error in validating create plugin request", "pluginReqDto", pluginDto, "err", err)
 		return 0, err
 	}
 
@@ -2174,20 +2171,20 @@ func (impl *GlobalPluginServiceImpl) CreatePluginOrVersions(pluginDto *bean2.Plu
 		// create new version of existing plugin req.
 		versionMetadataId, err = impl.createNewPluginVersionOfExistingPlugin(tx, pluginDto, userId)
 		if err != nil {
-			impl.logger.Errorw("createPluginV2, error in creating new version of an existing plugin", "existingPluginName", pluginDto.Name, "err", err)
+			impl.logger.Errorw("CreatePluginOrVersions, error in creating new version of an existing plugin", "existingPluginName", pluginDto.Name, "err", err)
 			return 0, err
 		}
 	} else {
 		// create new plugin req.
 		versionMetadataId, err = impl.createNewPlugin(tx, pluginDto, userId)
 		if err != nil {
-			impl.logger.Errorw("createPluginV2, error in creating new plugin", "pluginDto", pluginDto, "err", err)
+			impl.logger.Errorw("CreatePluginOrVersions, error in creating new plugin", "pluginDto", pluginDto, "err", err)
 			return 0, err
 		}
 	}
 	err = tx.Commit()
 	if err != nil {
-		impl.logger.Errorw("createPluginV2, error in committing db transaction", "err", err)
+		impl.logger.Errorw("CreatePluginOrVersions, error in committing db transaction", "err", err)
 		return 0, err
 	}
 	return versionMetadataId, nil
