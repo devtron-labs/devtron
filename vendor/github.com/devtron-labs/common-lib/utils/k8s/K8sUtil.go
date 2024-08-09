@@ -136,6 +136,7 @@ type K8sService interface {
 	GetResourceIf(restConfig *rest.Config, groupVersionKind schema.GroupVersionKind) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error)
 	FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset) error
 	CreateK8sClientSet(restConfig *rest.Config) (*kubernetes.Clientset, error)
+	CreateOrUpdateSecretByName(client *v12.CoreV1Client, namespace, uniqueSecretName string, secretLabel map[string]string, secretData map[string]string) error
 	//CreateK8sClientSetWithCustomHttpTransport(restConfig *rest.Config) (*kubernetes.Clientset, error)
 }
 
@@ -1810,4 +1811,30 @@ func isStatefulSetChild(un *unstructured.Unstructured) (func(ResourceKey) bool, 
 		}
 		return false
 	}, nil
+}
+
+func (impl *K8sServiceImpl) CreateOrUpdateSecretByName(client *v12.CoreV1Client, namespace, uniqueSecretName string, secretLabel map[string]string, secretData map[string]string) error {
+
+	secret, err := impl.GetSecret(namespace, uniqueSecretName, client)
+	statusError, ok := err.(*errors.StatusError)
+	if err != nil && (ok && statusError != nil && statusError.Status().Code != http.StatusNotFound) {
+		impl.logger.Errorw("error in fetching secret", "err", err)
+		return err
+	}
+
+	if ok && statusError != nil && statusError.Status().Code == http.StatusNotFound {
+		_, err = impl.CreateSecret(namespace, nil, uniqueSecretName, "", client, secretLabel, secretData)
+		if err != nil {
+			impl.logger.Errorw("Error in creating secret for chart repo", "uniqueSecretName", uniqueSecretName, "err", err)
+			return err
+		}
+	} else {
+		secret.StringData = secretData
+		_, err = impl.UpdateSecret(namespace, secret, client)
+		if err != nil {
+			impl.logger.Errorw("Error in creating secret for chart repo", "uniqueSecretName", uniqueSecretName, "err", err)
+			return err
+		}
+	}
+	return nil
 }
