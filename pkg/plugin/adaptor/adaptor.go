@@ -53,7 +53,7 @@ func GetPluginStepVariableDbObject(pluginStepId int, pluginVariableDto *bean2.Pl
 		Name:                      pluginVariableDto.Name,
 		Format:                    pluginVariableDto.Format,
 		Description:               pluginVariableDto.Description,
-		IsExposed:                 pluginVariableDto.IsExposed,
+		IsExposed:                 true, //currently hard coding this, later after plugin creation gets more mature will let user decide
 		AllowEmptyValue:           pluginVariableDto.AllowEmptyValue,
 		DefaultValue:              pluginVariableDto.DefaultValue,
 		Value:                     pluginVariableDto.Value,
