@@ -458,7 +458,6 @@ func (impl *ArgoApplicationServiceImpl) GetRestConfigForExternalArgo(ctx context
 
 func (impl *ArgoApplicationServiceImpl) HibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
 	_, clusterBean, _, err := impl.GetClusterConfigFromAllClusters(app.ClusterId)
-	//conf, err := impl.helmAppService.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("HibernateArgoApplication", "error in getting the cluster config", err, "clusterId", app.ClusterId, "appName", app.AppName)
 		return nil, err
@@ -478,7 +477,6 @@ func (impl *ArgoApplicationServiceImpl) HibernateArgoApplication(ctx context.Con
 
 func (impl *ArgoApplicationServiceImpl) UnHibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
 	_, clusterBean, _, err := impl.GetClusterConfigFromAllClusters(app.ClusterId)
-	//conf, err := impl.helmAppService.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("HibernateArgoApplication", "error in getting the cluster config", err, "clusterId", app.ClusterId, "appName", app.AppName)
 		return nil, err
