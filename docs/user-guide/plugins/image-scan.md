@@ -1,7 +1,7 @@
 # Image-Scan
 
 ## Introduction
-The **Image Scan** plugin by Devtron enables you to scan and detect vulnerabilities in container images using Trivy. The Image Scan plugin is recommended to be integrated into the Job Pipeline, especially when you are using external image sources like Jenkins. Based on Image Scan results, you can enforce security policies to either proceed with or abort the deployment process, giving you more control over your deployment process.
+The **Image Scan** plugin by Devtron enables you to scan and detect vulnerabilities in container images using Trivy/Clair. The Image Scan plugin is recommended to be integrated into the Job Pipeline, especially when you are using external image sources like Jenkins. Based on Image Scan results, you can enforce security policies to either proceed with or abort the deployment process, giving you more control over your deployment process.
 
 ### Prerequisites
 Before integrating the Image Scan plugin, ensure that you have installed the `Vulnerability Scanning (Trivy/Clair)` integration from Devtron Stack Manager.
