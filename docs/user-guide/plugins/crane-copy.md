@@ -30,7 +30,7 @@ If you have already configured workflow, edit the build pipeline, and navigate t
 ### Task Name
 Enter the name of your task
 
-e.g., `Copy container image`
+e.g., `Copy and store container images`
 
 ### Description
 Add a brief explanation of the task and the reason for choosing the plugin. Include information for someone else to understand the purpose of the task.
