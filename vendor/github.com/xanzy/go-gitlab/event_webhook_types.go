@@ -102,21 +102,22 @@ type CommitCommentEvent struct {
 	} `json:"project"`
 	Repository       *Repository `json:"repository"`
 	ObjectAttributes struct {
-		ID           int    `json:"id"`
-		Note         string `json:"note"`
-		NoteableType string `json:"noteable_type"`
-		AuthorID     int    `json:"author_id"`
-		CreatedAt    string `json:"created_at"`
-		UpdatedAt    string `json:"updated_at"`
-		ProjectID    int    `json:"project_id"`
-		Attachment   string `json:"attachment"`
-		LineCode     string `json:"line_code"`
-		CommitID     string `json:"commit_id"`
-		NoteableID   int    `json:"noteable_id"`
-		System       bool   `json:"system"`
-		StDiff       *Diff  `json:"st_diff"`
-		Description  string `json:"description"`
-		URL          string `json:"url"`
+		ID           int                `json:"id"`
+		Note         string             `json:"note"`
+		NoteableType string             `json:"noteable_type"`
+		AuthorID     int                `json:"author_id"`
+		CreatedAt    string             `json:"created_at"`
+		UpdatedAt    string             `json:"updated_at"`
+		ProjectID    int                `json:"project_id"`
+		Attachment   string             `json:"attachment"`
+		LineCode     string             `json:"line_code"`
+		CommitID     string             `json:"commit_id"`
+		NoteableID   int                `json:"noteable_id"`
+		System       bool               `json:"system"`
+		StDiff       *Diff              `json:"st_diff"`
+		Description  string             `json:"description"`
+		Action       CommentEventAction `json:"action"`
+		URL          string             `json:"url"`
 	} `json:"object_attributes"`
 	Commit *struct {
 		ID        string     `json:"id"`
@@ -131,7 +132,7 @@ type CommitCommentEvent struct {
 	} `json:"commit"`
 }
 
-// DeploymentEvent represents a deployment event
+// DeploymentEvent represents a deployment event.
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ee/user/project/integrations/webhook_events.html#deployment-events
@@ -171,7 +172,7 @@ type DeploymentEvent struct {
 	CommitTitle string     `json:"commit_title"`
 }
 
-// FeatureFlagEvent represents a feature flag event
+// FeatureFlagEvent represents a feature flag event.
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ee/user/project/integrations/webhook_events.html#feature-flag-events
@@ -205,6 +206,28 @@ type FeatureFlagEvent struct {
 	} `json:"object_attributes"`
 }
 
+// GroupResourceAccessTokenEvent represents a resource access token event for a
+// group.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/user/project/integrations/webhook_events.html#project-and-group-access-token-events
+type GroupResourceAccessTokenEvent struct {
+	EventName  string `json:"event_name"`
+	ObjectKind string `json:"object_kind"`
+	Group      struct {
+		GroupID   int    `json:"group_id"`
+		GroupName string `json:"group_name"`
+		GroupPath string `json:"group_path"`
+	} `json:"group"`
+	ObjectAttributes struct {
+		ID        int      `json:"id"`
+		UserID    int      `json:"user_id"`
+		Name      string   `json:"name"`
+		CreatedAt string   `json:"created_at"`
+		ExpiresAt *ISOTime `json:"expires_at"`
+	} `json:"object_attributes"`
+}
+
 // IssueCommentEvent represents a comment on an issue event.
 //
 // GitLab API docs:
@@ -232,22 +255,23 @@ type IssueCommentEvent struct {
 	} `json:"project"`
 	Repository       *Repository `json:"repository"`
 	ObjectAttributes struct {
-		ID           int     `json:"id"`
-		Note         string  `json:"note"`
-		NoteableType string  `json:"noteable_type"`
-		AuthorID     int     `json:"author_id"`
-		CreatedAt    string  `json:"created_at"`
-		UpdatedAt    string  `json:"updated_at"`
-		ProjectID    int     `json:"project_id"`
-		Attachment   string  `json:"attachment"`
-		LineCode     string  `json:"line_code"`
-		CommitID     string  `json:"commit_id"`
-		DiscussionID string  `json:"discussion_id"`
-		NoteableID   int     `json:"noteable_id"`
-		System       bool    `json:"system"`
-		StDiff       []*Diff `json:"st_diff"`
-		Description  string  `json:"description"`
-		URL          string  `json:"url"`
+		ID           int                `json:"id"`
+		Note         string             `json:"note"`
+		NoteableType string             `json:"noteable_type"`
+		AuthorID     int                `json:"author_id"`
+		CreatedAt    string             `json:"created_at"`
+		UpdatedAt    string             `json:"updated_at"`
+		ProjectID    int                `json:"project_id"`
+		Attachment   string             `json:"attachment"`
+		LineCode     string             `json:"line_code"`
+		CommitID     string             `json:"commit_id"`
+		DiscussionID string             `json:"discussion_id"`
+		NoteableID   int                `json:"noteable_id"`
+		System       bool               `json:"system"`
+		StDiff       []*Diff            `json:"st_diff"`
+		Description  string             `json:"description"`
+		Action       CommentEventAction `json:"action"`
+		URL          string             `json:"url"`
 	} `json:"object_attributes"`
 	Issue struct {
 		ID                  int           `json:"id"`
@@ -491,30 +515,31 @@ type MergeCommentEvent struct {
 		Visibility        VisibilityValue `json:"visibility"`
 	} `json:"project"`
 	ObjectAttributes struct {
-		Attachment       string        `json:"attachment"`
-		AuthorID         int           `json:"author_id"`
-		ChangePosition   *NotePosition `json:"change_position"`
-		CommitID         string        `json:"commit_id"`
-		CreatedAt        string        `json:"created_at"`
-		DiscussionID     string        `json:"discussion_id"`
-		ID               int           `json:"id"`
-		LineCode         string        `json:"line_code"`
-		Note             string        `json:"note"`
-		NoteableID       int           `json:"noteable_id"`
-		NoteableType     string        `json:"noteable_type"`
-		OriginalPosition *NotePosition `json:"original_position"`
-		Position         *NotePosition `json:"position"`
-		ProjectID        int           `json:"project_id"`
-		ResolvedAt       string        `json:"resolved_at"`
-		ResolvedByID     int           `json:"resolved_by_id"`
-		ResolvedByPush   bool          `json:"resolved_by_push"`
-		StDiff           *Diff         `json:"st_diff"`
-		System           bool          `json:"system"`
-		Type             string        `json:"type"`
-		UpdatedAt        string        `json:"updated_at"`
-		UpdatedByID      string        `json:"updated_by_id"`
-		Description      string        `json:"description"`
-		URL              string        `json:"url"`
+		Attachment       string             `json:"attachment"`
+		AuthorID         int                `json:"author_id"`
+		ChangePosition   *NotePosition      `json:"change_position"`
+		CommitID         string             `json:"commit_id"`
+		CreatedAt        string             `json:"created_at"`
+		DiscussionID     string             `json:"discussion_id"`
+		ID               int                `json:"id"`
+		LineCode         string             `json:"line_code"`
+		Note             string             `json:"note"`
+		NoteableID       int                `json:"noteable_id"`
+		NoteableType     string             `json:"noteable_type"`
+		OriginalPosition *NotePosition      `json:"original_position"`
+		Position         *NotePosition      `json:"position"`
+		ProjectID        int                `json:"project_id"`
+		ResolvedAt       string             `json:"resolved_at"`
+		ResolvedByID     int                `json:"resolved_by_id"`
+		ResolvedByPush   bool               `json:"resolved_by_push"`
+		StDiff           *Diff              `json:"st_diff"`
+		System           bool               `json:"system"`
+		Type             string             `json:"type"`
+		UpdatedAt        string             `json:"updated_at"`
+		UpdatedByID      int                `json:"updated_by_id"`
+		Description      string             `json:"description"`
+		Action           CommentEventAction `json:"action"`
+		URL              string             `json:"url"`
 	} `json:"object_attributes"`
 	Repository   *Repository `json:"repository"`
 	MergeRequest struct {
@@ -652,6 +677,7 @@ type MergeEvent struct {
 		} `json:"last_commit"`
 		BlockingDiscussionsResolved bool          `json:"blocking_discussions_resolved"`
 		WorkInProgress              bool          `json:"work_in_progress"`
+		Draft                       bool          `json:"draft"`
 		TotalTimeSpent              int           `json:"total_time_spent"`
 		TimeChange                  int           `json:"time_change"`
 		HumanTotalTimeSpent         string        `json:"human_total_time_spent"`
@@ -679,6 +705,10 @@ type MergeEvent struct {
 			Previous string `json:"previous"`
 			Current  string `json:"current"`
 		} `json:"description"`
+		Draft struct {
+			Previous bool `json:"previous"`
+			Current  bool `json:"current"`
+		} `json:"draft"`
 		Labels struct {
 			Previous []*EventLabel `json:"previous"`
 			Current  []*EventLabel `json:"current"`
@@ -732,7 +762,8 @@ type MergeEvent struct {
 	Reviewers []*EventUser `json:"reviewers"`
 }
 
-// EventUser represents a user record in an event and is used as an even initiator or a merge assignee.
+// EventUser represents a user record in an event and is used as an even
+// initiator or a merge assignee.
 type EventUser struct {
 	ID        int    `json:"id"`
 	Name      string `json:"name"`
@@ -748,7 +779,8 @@ type MergeParams struct {
 
 // UnmarshalJSON decodes the merge parameters
 //
-// This allows support of ForceRemoveSourceBranch for both type bool (>11.9) and string (<11.9)
+// This allows support of ForceRemoveSourceBranch for both type
+// bool (>11.9) and string (<11.9)
 func (p *MergeParams) UnmarshalJSON(b []byte) error {
 	type Alias MergeParams
 	raw := struct {
@@ -789,6 +821,7 @@ type PipelineEvent struct {
 	ObjectAttributes struct {
 		ID             int      `json:"id"`
 		IID            int      `json:"iid"`
+		Name           string   `json:"name"`
 		Ref            string   `json:"ref"`
 		Tag            bool     `json:"tag"`
 		SHA            string   `json:"sha"`
@@ -801,6 +834,7 @@ type PipelineEvent struct {
 		FinishedAt     string   `json:"finished_at"`
 		Duration       int      `json:"duration"`
 		QueuedDuration int      `json:"queued_duration"`
+		URL            string   `json:"url"`
 		Variables      []struct {
 			Key   string `json:"key"`
 			Value string `json:"value"`
@@ -890,6 +924,41 @@ type PipelineEvent struct {
 			DeploymentTier string `json:"deployment_tier"`
 		} `json:"environment"`
 	} `json:"builds"`
+}
+
+// ProjectResourceAccessTokenEvent represents a resource access token event for
+// a project.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/user/project/integrations/webhook_events.html#project-and-group-access-token-events
+type ProjectResourceAccessTokenEvent struct {
+	EventName  string `json:"event_name"`
+	ObjectKind string `json:"object_kind"`
+	Project    struct {
+		ID                int    `json:"id"`
+		Name              string `json:"name"`
+		Description       string `json:"description"`
+		WebURL            string `json:"web_url"`
+		AvatarURL         string `json:"avatar_url"`
+		GitSSHURL         string `json:"git_ssh_url"`
+		GitHTTPURL        string `json:"git_http_url"`
+		Namespace         string `json:"namespace"`
+		VisibilityLevel   int    `json:"visibility_level"`
+		PathWithNamespace string `json:"path_with_namespace"`
+		DefaultBranch     string `json:"default_branch"`
+		CIConfigPath      string `json:"ci_config_path"`
+		Homepage          string `json:"homepage"`
+		URL               string `json:"url"`
+		SSHURL            string `json:"ssh_url"`
+		HTTPURL           string `json:"http_url"`
+	} `json:"project"`
+	ObjectAttributes struct {
+		ID        int      `json:"id"`
+		UserID    int      `json:"user_id"`
+		Name      string   `json:"name"`
+		CreatedAt string   `json:"created_at"`
+		ExpiresAt *ISOTime `json:"expires_at"`
+	} `json:"object_attributes"`
 }
 
 // PushEvent represents a push event.
@@ -1030,21 +1099,22 @@ type SnippetCommentEvent struct {
 	} `json:"project"`
 	Repository       *Repository `json:"repository"`
 	ObjectAttributes struct {
-		ID           int    `json:"id"`
-		Note         string `json:"note"`
-		NoteableType string `json:"noteable_type"`
-		AuthorID     int    `json:"author_id"`
-		CreatedAt    string `json:"created_at"`
-		UpdatedAt    string `json:"updated_at"`
-		ProjectID    int    `json:"project_id"`
-		Attachment   string `json:"attachment"`
-		LineCode     string `json:"line_code"`
-		CommitID     string `json:"commit_id"`
-		NoteableID   int    `json:"noteable_id"`
-		System       bool   `json:"system"`
-		StDiff       *Diff  `json:"st_diff"`
-		Description  string `json:"description"`
-		URL          string `json:"url"`
+		ID           int                `json:"id"`
+		Note         string             `json:"note"`
+		NoteableType string             `json:"noteable_type"`
+		AuthorID     int                `json:"author_id"`
+		CreatedAt    string             `json:"created_at"`
+		UpdatedAt    string             `json:"updated_at"`
+		ProjectID    int                `json:"project_id"`
+		Attachment   string             `json:"attachment"`
+		LineCode     string             `json:"line_code"`
+		CommitID     string             `json:"commit_id"`
+		NoteableID   int                `json:"noteable_id"`
+		System       bool               `json:"system"`
+		StDiff       *Diff              `json:"st_diff"`
+		Description  string             `json:"description"`
+		Action       CommentEventAction `json:"action"`
+		URL          string             `json:"url"`
 	} `json:"object_attributes"`
 	Snippet *struct {
 		ID                 int    `json:"id"`

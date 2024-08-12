@@ -21,6 +21,7 @@ import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -64,16 +65,19 @@ type DockerRegistryConfigImpl struct {
 	dockerArtifactStoreRepository     repository.DockerArtifactStoreRepository
 	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository
 	ociRegistryConfigRepository       repository.OCIRegistryConfigRepository
+	RepositorySecret                  argoRepositoryCreds.RepositorySecret
 }
 
 func NewDockerRegistryConfigImpl(logger *zap.SugaredLogger, helmAppService client.HelmAppService, dockerArtifactStoreRepository repository.DockerArtifactStoreRepository,
-	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository, ociRegistryConfigRepository repository.OCIRegistryConfigRepository) *DockerRegistryConfigImpl {
+	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository, ociRegistryConfigRepository repository.OCIRegistryConfigRepository,
+	RepositorySecret argoRepositoryCreds.RepositorySecret) *DockerRegistryConfigImpl {
 	return &DockerRegistryConfigImpl{
 		logger:                            logger,
 		helmAppService:                    helmAppService,
 		dockerArtifactStoreRepository:     dockerArtifactStoreRepository,
 		dockerRegistryIpsConfigRepository: dockerRegistryIpsConfigRepository,
 		ociRegistryConfigRepository:       ociRegistryConfigRepository,
+		RepositorySecret:                  RepositorySecret,
 	}
 }
 
@@ -277,6 +281,34 @@ func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(bean *types.DockerArti
 		default:
 			return fmt.Errorf("invalid repository action type for OCI registry configuration")
 		}
+		if repositoryType == repository.OCI_REGISRTY_REPO_TYPE_CHART &&
+			(storageActionType == repository.STORAGE_ACTION_TYPE_PULL || storageActionType == repository.STORAGE_ACTION_TYPE_PULL_AND_PUSH) {
+
+			err = impl.CreateArgoRepositorySecretForRepositories(bean, ociRegistryConfig)
+			if err != nil {
+				impl.logger.Errorw("error in creating repo secret", "err", err)
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (impl DockerRegistryConfigImpl) CreateArgoRepositorySecretForRepositories(artifactStore *types.DockerArtifactStoreBean, ociRegistryConfig *repository.OCIRegistryConfig) error {
+	for _, repo := range artifactStore.RepositoryList {
+
+		err := impl.RepositorySecret.CreateArgoRepositorySecret(artifactStore.Username,
+			artifactStore.Password,
+			ociRegistryConfig.Id,
+			artifactStore.RegistryURL,
+			repo,
+			artifactStore.IsPublic)
+		if err != nil {
+			impl.logger.Errorw("error in create/update k8s secret", "dockerArtifactStoreId", artifactStore.Id, "err", err)
+			return err
+		}
+
 	}
 	return nil
 }

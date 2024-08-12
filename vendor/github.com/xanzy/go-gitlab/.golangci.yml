@@ -10,7 +10,8 @@ run:
 
 # Output configuration options
 output:
-  format: line-number
+  formats:
+    - format: line-number
 
 # All available settings of specific linters
 linters-settings:
