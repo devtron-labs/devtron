@@ -623,11 +623,6 @@ func (impl *AppStoreDeploymentDBServiceImpl) createAppForAppStore(createRequest 
 func (impl *AppStoreDeploymentDBServiceImpl) validateAndGetOverrideDeploymentAppType(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, isGitOpsConfigured bool) (overrideDeploymentType string, err error) {
 	// initialise OverrideDeploymentType to the given DeploymentType
 	overrideDeploymentType = installAppVersionRequest.DeploymentAppType
-	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
-	if err != nil {
-		impl.logger.Errorw("error in fetching app store application version", "err", err)
-		return overrideDeploymentType, err
-	}
 
 	// virtual environments only supports Manifest Download
 	if installAppVersionRequest.Environment.IsVirtualEnvironment && util.IsManifestPush(installAppVersionRequest.DeploymentAppType) {
@@ -641,8 +636,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) validateAndGetOverrideDeploymentApp
 	}
 
 	// OCI chart currently supports HELM installation only
-	isOCIRepo := appStoreAppVersion.AppStore.DockerArtifactStore != nil
-	if isOCIRepo || getAppInstallationMode(installAppVersionRequest.AppOfferingMode) == globalUtil.SERVER_MODE_HYPERION {
+	if getAppInstallationMode(installAppVersionRequest.AppOfferingMode) == globalUtil.SERVER_MODE_HYPERION {
 		overrideDeploymentType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 	} else {
 		overrideDeploymentType, err = impl.deploymentTypeOverrideService.ValidateAndOverrideDeploymentAppType(overrideDeploymentType, isGitOpsConfigured, installAppVersionRequest.EnvironmentId)

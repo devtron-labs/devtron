@@ -39,6 +39,7 @@ type ServerEnvConfig struct {
 	AppSyncServiceAccount                string `env:"APP_SYNC_SERVICE_ACCOUNT" envDefault:"chart-sync"`
 	AppSyncJobResourcesObj               string `env:"APP_SYNC_JOB_RESOURCES_OBJ"`
 	ModuleMetaDataApiUrl                 string `env:"MODULE_METADATA_API_URL" envDefault:"https://api.devtron.ai/module?name=%s"`
+	ParallelismLimitForTagProcessing     int    `env:"PARALLELISM_LIMIT_FOR_TAG_PROCESSING"`
 }
 
 func ParseServerEnvConfig() (*ServerEnvConfig, error) {

@@ -146,6 +146,40 @@ func (s *ProjectAccessTokensService) CreateProjectAccessToken(pid interface{}, o
 	return pat, resp, nil
 }
 
+// RotateProjectAccessTokenOptions represents the available RotateProjectAccessToken()
+// options.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/project_access_tokens.html#rotate-a-project-access-token
+type RotateProjectAccessTokenOptions struct {
+	ExpiresAt *ISOTime `url:"expires_at,omitempty" json:"expires_at,omitempty"`
+}
+
+// RotateProjectAccessToken revokes a project access token and returns a new
+// project access token that expires in one week per default.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/project_access_tokens.html#rotate-a-project-access-token
+func (s *ProjectAccessTokensService) RotateProjectAccessToken(pid interface{}, id int, opt *RotateProjectAccessTokenOptions, options ...RequestOptionFunc) (*ProjectAccessToken, *Response, error) {
+	projects, err := parseID(pid)
+	if err != nil {
+		return nil, nil, err
+	}
+	u := fmt.Sprintf("projects/%s/access_tokens/%d/rotate", PathEscape(projects), id)
+	req, err := s.client.NewRequest(http.MethodPost, u, opt, options)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	pat := new(ProjectAccessToken)
+	resp, err := s.client.Do(req, pat)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return pat, resp, nil
+}
+
 // RevokeProjectAccessToken revokes a project access token.
 //
 // GitLab API docs:

@@ -21,7 +21,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/devtron/api/bean"
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,7 +38,6 @@ type K8sInformerFactoryImpl struct {
 	globalMapClusterNamespace map[string]map[string]bool // {"cluster1":{"ns1":true","ns2":true"}}
 	mutex                     sync.Mutex
 	informerStopper           map[string]chan struct{}
-	runtimeConfig             *client.RuntimeConfig
 	k8sUtil                   *k8s.K8sServiceImpl
 }
 
@@ -49,11 +47,10 @@ type K8sInformerFactory interface {
 	CleanNamespaceInformer(clusterName string)
 }
 
-func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, globalMapClusterNamespace map[string]map[string]bool, runtimeConfig *client.RuntimeConfig, k8sUtil *k8s.K8sServiceImpl) *K8sInformerFactoryImpl {
+func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, globalMapClusterNamespace map[string]map[string]bool, k8sUtil *k8s.K8sServiceImpl) *K8sInformerFactoryImpl {
 	informerFactory := &K8sInformerFactoryImpl{
 		logger:                    logger,
 		globalMapClusterNamespace: globalMapClusterNamespace,
-		runtimeConfig:             runtimeConfig,
 		k8sUtil:                   k8sUtil,
 	}
 	informerFactory.informerStopper = make(map[string]chan struct{})

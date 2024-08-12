@@ -17,13 +17,10 @@
 package gitlab
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"reflect"
-	"strings"
 	"time"
 )
 
@@ -167,32 +164,6 @@ func (i *Issue) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, (*alias)(i))
 }
 
-// Labels is a custom type with specific marshaling characteristics.
-type Labels []string
-
-// MarshalJSON implements the json.Marshaler interface.
-func (l *Labels) MarshalJSON() ([]byte, error) {
-	if *l == nil {
-		return []byte(`null`), nil
-	}
-	return json.Marshal(strings.Join(*l, ","))
-}
-
-// UnmarshalJSON implements the json.Unmarshaler interface.
-func (l *Labels) UnmarshalJSON(data []byte) error {
-	type alias Labels
-	if !bytes.HasPrefix(data, []byte("[")) {
-		data = []byte(fmt.Sprintf("[%s]", string(data)))
-	}
-	return json.Unmarshal(data, (*alias)(l))
-}
-
-// EncodeValues implements the query.EncodeValues interface
-func (l *Labels) EncodeValues(key string, v *url.Values) error {
-	v.Set(key, strings.Join(*l, ","))
-	return nil
-}
-
 // LabelDetails represents detailed label information.
 type LabelDetails struct {
 	ID              int    `json:"id"`
@@ -209,8 +180,8 @@ type LabelDetails struct {
 type ListIssuesOptions struct {
 	ListOptions
 	State               *string          `url:"state,omitempty" json:"state,omitempty"`
-	Labels              *Labels          `url:"labels,comma,omitempty" json:"labels,omitempty"`
-	NotLabels           *Labels          `url:"not[labels],comma,omitempty" json:"not[labels],omitempty"`
+	Labels              *LabelOptions    `url:"labels,comma,omitempty" json:"labels,omitempty"`
+	NotLabels           *LabelOptions    `url:"not[labels],comma,omitempty" json:"not[labels],omitempty"`
 	WithLabelDetails    *bool            `url:"with_labels_details,omitempty" json:"with_labels_details,omitempty"`
 	Milestone           *string          `url:"milestone,omitempty" json:"milestone,omitempty"`
 	NotMilestone        *string          `url:"not[milestone],omitempty" json:"not[milestone],omitempty"`
@@ -266,18 +237,18 @@ func (s *IssuesService) ListIssues(opt *ListIssuesOptions, options ...RequestOpt
 // GitLab API docs: https://docs.gitlab.com/ee/api/issues.html#list-group-issues
 type ListGroupIssuesOptions struct {
 	ListOptions
-	State             *string `url:"state,omitempty" json:"state,omitempty"`
-	Labels            *Labels `url:"labels,comma,omitempty" json:"labels,omitempty"`
-	NotLabels         *Labels `url:"not[labels],comma,omitempty" json:"not[labels],omitempty"`
-	WithLabelDetails  *bool   `url:"with_labels_details,omitempty" json:"with_labels_details,omitempty"`
-	IIDs              *[]int  `url:"iids[],omitempty" json:"iids,omitempty"`
-	Milestone         *string `url:"milestone,omitempty" json:"milestone,omitempty"`
-	NotMilestone      *string `url:"not[milestone],omitempty" json:"not[milestone],omitempty"`
-	Scope             *string `url:"scope,omitempty" json:"scope,omitempty"`
-	AuthorID          *int    `url:"author_id,omitempty" json:"author_id,omitempty"`
-	NotAuthorID       *[]int  `url:"not[author_id],omitempty" json:"not[author_id],omitempty"`
-	AuthorUsername    *string `url:"author_username,omitempty" json:"author_username,omitempty"`
-	NotAuthorUsername *string `url:"not[author_username],omitempty" json:"not[author_username],omitempty"`
+	State             *string       `url:"state,omitempty" json:"state,omitempty"`
+	Labels            *LabelOptions `url:"labels,comma,omitempty" json:"labels,omitempty"`
+	NotLabels         *LabelOptions `url:"not[labels],comma,omitempty" json:"not[labels],omitempty"`
+	WithLabelDetails  *bool         `url:"with_labels_details,omitempty" json:"with_labels_details,omitempty"`
+	IIDs              *[]int        `url:"iids[],omitempty" json:"iids,omitempty"`
+	Milestone         *string       `url:"milestone,omitempty" json:"milestone,omitempty"`
+	NotMilestone      *string       `url:"not[milestone],omitempty" json:"not[milestone],omitempty"`
+	Scope             *string       `url:"scope,omitempty" json:"scope,omitempty"`
+	AuthorID          *int          `url:"author_id,omitempty" json:"author_id,omitempty"`
+	NotAuthorID       *[]int        `url:"not[author_id],omitempty" json:"not[author_id],omitempty"`
+	AuthorUsername    *string       `url:"author_username,omitempty" json:"author_username,omitempty"`
+	NotAuthorUsername *string       `url:"not[author_username],omitempty" json:"not[author_username],omitempty"`
 
 	AssigneeID          *AssigneeIDValue `url:"assignee_id,omitempty" json:"assignee_id,omitempty"`
 	NotAssigneeID       *[]int           `url:"not[assignee_id],omitempty" json:"not[assignee_id],omitempty"`
@@ -332,8 +303,8 @@ type ListProjectIssuesOptions struct {
 	ListOptions
 	IIDs                *[]int           `url:"iids[],omitempty" json:"iids,omitempty"`
 	State               *string          `url:"state,omitempty" json:"state,omitempty"`
-	Labels              *Labels          `url:"labels,comma,omitempty" json:"labels,omitempty"`
-	NotLabels           *Labels          `url:"not[labels],comma,omitempty" json:"not[labels],omitempty"`
+	Labels              *LabelOptions    `url:"labels,comma,omitempty" json:"labels,omitempty"`
+	NotLabels           *LabelOptions    `url:"not[labels],comma,omitempty" json:"not[labels],omitempty"`
 	WithLabelDetails    *bool            `url:"with_labels_details,omitempty" json:"with_labels_details,omitempty"`
 	Milestone           *string          `url:"milestone,omitempty" json:"milestone,omitempty"`
 	NotMilestone        *string          `url:"not[milestone],omitempty" json:"not[milestone],omitempty"`
@@ -436,19 +407,20 @@ func (s *IssuesService) GetIssue(pid interface{}, issue int, options ...RequestO
 //
 // GitLab API docs: https://docs.gitlab.com/ee/api/issues.html#new-issue
 type CreateIssueOptions struct {
-	IID                                *int       `url:"iid,omitempty" json:"iid,omitempty"`
-	Title                              *string    `url:"title,omitempty" json:"title,omitempty"`
-	Description                        *string    `url:"description,omitempty" json:"description,omitempty"`
-	Confidential                       *bool      `url:"confidential,omitempty" json:"confidential,omitempty"`
-	AssigneeIDs                        *[]int     `url:"assignee_ids,omitempty" json:"assignee_ids,omitempty"`
-	MilestoneID                        *int       `url:"milestone_id,omitempty" json:"milestone_id,omitempty"`
-	Labels                             *Labels    `url:"labels,comma,omitempty" json:"labels,omitempty"`
-	CreatedAt                          *time.Time `url:"created_at,omitempty" json:"created_at,omitempty"`
-	DueDate                            *ISOTime   `url:"due_date,omitempty" json:"due_date,omitempty"`
-	MergeRequestToResolveDiscussionsOf *int       `url:"merge_request_to_resolve_discussions_of,omitempty" json:"merge_request_to_resolve_discussions_of,omitempty"`
-	DiscussionToResolve                *string    `url:"discussion_to_resolve,omitempty" json:"discussion_to_resolve,omitempty"`
-	Weight                             *int       `url:"weight,omitempty" json:"weight,omitempty"`
-	IssueType                          *string    `url:"issue_type,omitempty" json:"issue_type,omitempty"`
+	IID                                *int          `url:"iid,omitempty" json:"iid,omitempty"`
+	Title                              *string       `url:"title,omitempty" json:"title,omitempty"`
+	Description                        *string       `url:"description,omitempty" json:"description,omitempty"`
+	Confidential                       *bool         `url:"confidential,omitempty" json:"confidential,omitempty"`
+	AssigneeIDs                        *[]int        `url:"assignee_ids,omitempty" json:"assignee_ids,omitempty"`
+	MilestoneID                        *int          `url:"milestone_id,omitempty" json:"milestone_id,omitempty"`
+	Labels                             *LabelOptions `url:"labels,comma,omitempty" json:"labels,omitempty"`
+	CreatedAt                          *time.Time    `url:"created_at,omitempty" json:"created_at,omitempty"`
+	DueDate                            *ISOTime      `url:"due_date,omitempty" json:"due_date,omitempty"`
+	EpicID                             *int          `url:"epic_id,omitempty" json:"epic_id,omitempty"`
+	MergeRequestToResolveDiscussionsOf *int          `url:"merge_request_to_resolve_discussions_of,omitempty" json:"merge_request_to_resolve_discussions_of,omitempty"`
+	DiscussionToResolve                *string       `url:"discussion_to_resolve,omitempty" json:"discussion_to_resolve,omitempty"`
+	Weight                             *int          `url:"weight,omitempty" json:"weight,omitempty"`
+	IssueType                          *string       `url:"issue_type,omitempty" json:"issue_type,omitempty"`
 }
 
 // CreateIssue creates a new project issue.
@@ -479,20 +451,21 @@ func (s *IssuesService) CreateIssue(pid interface{}, opt *CreateIssueOptions, op
 //
 // GitLab API docs: https://docs.gitlab.com/ee/api/issues.html#edit-issue
 type UpdateIssueOptions struct {
-	Title            *string    `url:"title,omitempty" json:"title,omitempty"`
-	Description      *string    `url:"description,omitempty" json:"description,omitempty"`
-	Confidential     *bool      `url:"confidential,omitempty" json:"confidential,omitempty"`
-	AssigneeIDs      *[]int     `url:"assignee_ids,omitempty" json:"assignee_ids,omitempty"`
-	MilestoneID      *int       `url:"milestone_id,omitempty" json:"milestone_id,omitempty"`
-	Labels           *Labels    `url:"labels,comma,omitempty" json:"labels,omitempty"`
-	AddLabels        *Labels    `url:"add_labels,comma,omitempty" json:"add_labels,omitempty"`
-	RemoveLabels     *Labels    `url:"remove_labels,comma,omitempty" json:"remove_labels,omitempty"`
-	StateEvent       *string    `url:"state_event,omitempty" json:"state_event,omitempty"`
-	UpdatedAt        *time.Time `url:"updated_at,omitempty" json:"updated_at,omitempty"`
-	DueDate          *ISOTime   `url:"due_date,omitempty" json:"due_date,omitempty"`
-	Weight           *int       `url:"weight,omitempty" json:"weight,omitempty"`
-	DiscussionLocked *bool      `url:"discussion_locked,omitempty" json:"discussion_locked,omitempty"`
-	IssueType        *string    `url:"issue_type,omitempty" json:"issue_type,omitempty"`
+	Title            *string       `url:"title,omitempty" json:"title,omitempty"`
+	Description      *string       `url:"description,omitempty" json:"description,omitempty"`
+	Confidential     *bool         `url:"confidential,omitempty" json:"confidential,omitempty"`
+	AssigneeIDs      *[]int        `url:"assignee_ids,omitempty" json:"assignee_ids,omitempty"`
+	MilestoneID      *int          `url:"milestone_id,omitempty" json:"milestone_id,omitempty"`
+	Labels           *LabelOptions `url:"labels,comma,omitempty" json:"labels,omitempty"`
+	AddLabels        *LabelOptions `url:"add_labels,comma,omitempty" json:"add_labels,omitempty"`
+	RemoveLabels     *LabelOptions `url:"remove_labels,comma,omitempty" json:"remove_labels,omitempty"`
+	StateEvent       *string       `url:"state_event,omitempty" json:"state_event,omitempty"`
+	UpdatedAt        *time.Time    `url:"updated_at,omitempty" json:"updated_at,omitempty"`
+	DueDate          *ISOTime      `url:"due_date,omitempty" json:"due_date,omitempty"`
+	EpicID           *int          `url:"epic_id,omitempty" json:"epic_id,omitempty"`
+	Weight           *int          `url:"weight,omitempty" json:"weight,omitempty"`
+	DiscussionLocked *bool         `url:"discussion_locked,omitempty" json:"discussion_locked,omitempty"`
+	IssueType        *string       `url:"issue_type,omitempty" json:"issue_type,omitempty"`
 }
 
 // UpdateIssue updates an existing project issue. This function is also used
@@ -536,6 +509,38 @@ func (s *IssuesService) DeleteIssue(pid interface{}, issue int, options ...Reque
 	}
 
 	return s.client.Do(req, nil)
+}
+
+// ReorderIssueOptions represents the available ReorderIssue() options.
+//
+// GitLab API docs: https://docs.gitlab.com/ee/api/issues.html#reorder-an-issue
+type ReorderIssueOptions struct {
+	MoveAfterID  *int `url:"move_after_id,omitempty" json:"move_after_id,omitempty"`
+	MoveBeforeID *int `url:"move_before_id,omitempty" json:"move_before_id,omitempty"`
+}
+
+// ReorderIssue reorders an issue.
+//
+// GitLab API docs: https://docs.gitlab.com/ee/api/issues.html#reorder-an-issue
+func (s *IssuesService) ReorderIssue(pid interface{}, issue int, opt *ReorderIssueOptions, options ...RequestOptionFunc) (*Issue, *Response, error) {
+	project, err := parseID(pid)
+	if err != nil {
+		return nil, nil, err
+	}
+	u := fmt.Sprintf("projects/%s/issues/%d/reorder", PathEscape(project), issue)
+
+	req, err := s.client.NewRequest(http.MethodPut, u, opt, options)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	i := new(Issue)
+	resp, err := s.client.Do(req, i)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return i, resp, nil
 }
 
 // MoveIssueOptions represents the available MoveIssue() options.

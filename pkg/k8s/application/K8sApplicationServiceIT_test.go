@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/caarlos0/env/v6"
-	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -312,7 +311,7 @@ func getRestConfigAndK8sRequestObj(k8sCommonService s.K8sCommonService) (*rest.C
 func initK8sApplicationService(t *testing.T) *K8sApplicationServiceImpl {
 	sugaredLogger, _ := util.InitLogger()
 	config, _ := sql.GetConfig()
-	runtimeConfig, err := client.GetRuntimeConfig()
+	runtimeConfig, err := k8s.GetRuntimeConfig()
 	k8sUtil := k8s.NewK8sUtil(sugaredLogger, runtimeConfig)
 	assert.Nil(t, err)
 	db, _ := sql.NewDbConnection(config, sugaredLogger)
