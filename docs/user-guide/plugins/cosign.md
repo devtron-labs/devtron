@@ -1,10 +1,10 @@
 # Cosign
 
 ## Introduction
-The **Cosign** plugin by Devtron enables secure signing of your container images. By integrating the Cosign plugin, you can enhance your supply chain security by ensuring authenticity, and integrity of your container image.
+The **Cosign** plugin by Devtron enables secure signing of your container images, enhancing supply chain security. It authenticates your identity as the creator and ensures image integrity, allowing users to verify the source and detect any tampering. This provides greater assurance to developers incorporating your artifacts into their workflows.
 
 ### Prerequisites
-Before integrating the Cosign plugin, ensure that you have configured the Cosign account and have a set of private and public keys to sign the container images.
+Before integrating the Cosign plugin, ensure that you have configured the Cosign and have a set of private and public keys to sign the container images.
 
 ---
 
@@ -40,12 +40,12 @@ e.g., `The Cosign plugin is integrated for  ensuring the authenticity of contain
 
 | Variable                 | Format       | Description | Sample Value |
 | ------------------------ | ------------ | ----------- | ------------ |
-|   PrivateKeyFilePath     |    STRING    | Path of private key file in Git repo           |    cosign/cosign.key                            |
+|   PrivateKeyFilePath     |    STRING    | Path of private key file in Git repo           |    cosign/cosign.key                                      |
 |   PostCommand            |    STRING    | Command to run after image is signed by Cosign |    cosign verify $DOCKER_IMAGE                            |
-|   ExtraArguments         |    STRING    | Arguments for Cosign command                   |    --certificate-identity=name@example.com                            | 
+|   ExtraArguments         |    STRING    | Arguments for Cosign command                   |    --certificate-identity=name@example.com                                      | 
 |   CosignPassword         |    STRING    | Password for Cosign private key                |   S3cur3P@ssw0rd123!                   |
-|   VariableAsPrivateKey   |    STRING    | base64 encoded private-key                     |   LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS   |
-|   PreCommand             |    STRING    | Command to get the requried conditions to execute Cosign command | curl -sLJO https://raw.githubusercontent.com/devtron-labs/sampleRepo/branchName/private             |
+|   VariableAsPrivateKey   |    STRING    | base64 encoded private-key                     |   @{{COSIGN_PRIVATE_KEY}}   |
+|   PreCommand             |    STRING    | Command to get the required conditions to execute Cosign command | curl -sLJO https://raw.githubusercontent.com/devtron-labs/sampleRepo/branchName/private             |
 
 ### Trigger/Skip Condition
 Here you can set conditions to execute or skip the task. You can select `Set trigger conditions` for the execution of a task or `Set skip conditions` to skip the task.
