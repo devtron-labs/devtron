@@ -331,6 +331,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *bean3.Image
 				FVersion: item.FixedVersion,
 				Package:  item.CveStore.Package,
 				Severity: item.CveStore.GetSeverity().String(),
+				Target:   item.Target,
 				//Permission: "BLOCK", TODO
 			}
 			// data already migrated hence get package, version and fixedVersion from image_scan_execution_result
