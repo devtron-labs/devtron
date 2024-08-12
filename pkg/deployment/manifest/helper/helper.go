@@ -152,8 +152,8 @@ func GetAutoScalingReplicaCount(templateMap map[string]interface{}, appName stri
 
 }
 
-func CreateConfigMapAndSecretJsonRequest(overrideRequest *bean.ValuesOverrideRequest, envOverride *chartConfig.EnvConfigOverride, chartVersion string, scope resourceQualifiers.Scope) bean3.ConfigMapAndSecretJsonV2 {
-	request := bean3.ConfigMapAndSecretJsonV2{
+func NewMergedCmAndCsJsonV2Request(overrideRequest *bean.ValuesOverrideRequest, envOverride *chartConfig.EnvConfigOverride, chartVersion string, scope resourceQualifiers.Scope) bean3.GetMergedCmAndCsJsonV2Request {
+	request := bean3.GetMergedCmAndCsJsonV2Request{
 		AppId:                                 overrideRequest.AppId,
 		EnvId:                                 envOverride.TargetEnvironment,
 		PipeLineId:                            overrideRequest.PipelineId,
@@ -163,6 +163,14 @@ func CreateConfigMapAndSecretJsonRequest(overrideRequest *bean.ValuesOverrideReq
 		Scope:                                 scope,
 	}
 	return request
+}
+
+func NewMergedCmAndCsJsonV2Response() *bean3.MergedCmAndCsJsonV2Response {
+	return &bean3.MergedCmAndCsJsonV2Response{
+		MergedJson:     []byte("{}"),
+		ExternalCsList: make([]string, 0),
+		ExternalCmList: make([]string, 0),
+	}
 }
 
 func GetScopeForVariables(overrideRequest *bean.ValuesOverrideRequest, envOverride *chartConfig.EnvConfigOverride) resourceQualifiers.Scope {

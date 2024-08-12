@@ -43,6 +43,55 @@ func (r *ResourceRequestBean) IsValidDeploymentType() bool {
 	return r.DeploymentType == bean.HelmInstalledType || r.DeploymentType == bean.ArgoInstalledType || r.DeploymentType == bean.FluxInstalledType
 }
 
+type CmCsRequestBean struct {
+	clusterId      int
+	namespace      string
+	externalCmList []string
+	externalCsList []string
+}
+
+func (req *CmCsRequestBean) SetClusterId(clusterId int) *CmCsRequestBean {
+	req.clusterId = clusterId
+	return req
+}
+
+func (req *CmCsRequestBean) SetNamespace(namespace string) *CmCsRequestBean {
+	req.namespace = namespace
+	return req
+}
+
+func (req *CmCsRequestBean) SetExternalCmList(externalCmList ...string) *CmCsRequestBean {
+	if len(externalCmList) == 0 {
+		return req
+	}
+	req.externalCmList = append(req.externalCmList, externalCmList...)
+	return req
+}
+
+func (req *CmCsRequestBean) SetExternalCsList(externalCsList ...string) *CmCsRequestBean {
+	if len(externalCsList) == 0 {
+		return req
+	}
+	req.externalCsList = append(req.externalCsList, externalCsList...)
+	return req
+}
+
+func (req *CmCsRequestBean) GetClusterId() int {
+	return req.clusterId
+}
+
+func (req *CmCsRequestBean) GetNamespace() string {
+	return req.namespace
+}
+
+func (req *CmCsRequestBean) GetExternalCmList() []string {
+	return req.externalCmList
+}
+
+func (req *CmCsRequestBean) GetExternalCsList() []string {
+	return req.externalCsList
+}
+
 type LogsDownloadBean struct {
 	FileName string `json:"fileName"`
 	LogsData string `json:"data"`

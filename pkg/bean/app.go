@@ -948,3 +948,12 @@ const CustomAutoScalingEnabledPathKey = "CUSTOM_AUTOSCALING_ENABLED_PATH"
 const CustomAutoscalingReplicaCountPathKey = "CUSTOM_AUTOSCALING_REPLICA_COUNT_PATH"
 const CustomAutoscalingMinPathKey = "CUSTOM_AUTOSCALING_MIN_PATH"
 const CustomAutoscalingMaxPathKey = "CUSTOM_AUTOSCALING_MAX_PATH"
+
+type JsonPath string
+
+func (j JsonPath) String() string {
+	return string(j)
+}
+
+const ConfigHashPathKey JsonPath = "devtronInternal.containerSpecs.ConfigHash"
+const SecretHashPathKey JsonPath = "devtronInternal.containerSpecs.SecretHash"
