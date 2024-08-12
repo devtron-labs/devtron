@@ -1,0 +1,24 @@
+UPDATE scan_tool_metadata SET result_descriptor_template = '[
+      {
+        "pathToResultArray": "Results",
+        "pathToVulnerabilitiesArray": "Vulnerabilities",
+        "vulnerabilityData":{
+       		"name": "VulnerabilityID",
+        	"package": "PkgName",
+        	"packageVersion": "InstalledVersion",
+        	"fixedInVersion": "FixedVersion",
+        	"severity": "Severity"
+        },
+        "resultData":{
+  			"target":"Target",
+        	"class":"Class",
+        	"type":"Type"
+       }
+      }
+]',updated_on = 'now()'
+
+WHERE name = 'TRIVY'
+    AND version = 'V1'
+    AND scan_target = 'IMAGE'
+    AND active = true
+    AND deleted = false;
