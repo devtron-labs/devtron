@@ -18,7 +18,10 @@ package service
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
+	"net/http"
 	"strconv"
 	"strings"
 )
@@ -40,4 +43,45 @@ func DecodeExternalAppAppId(appId string) (*bean.AppIdentifier, error) {
 		Namespace:   component[1],
 		ReleaseName: component[2],
 	}, nil
+}
+
+func HibernateReqAdaptor(hibernateRequest *openapi.HibernateRequest) *gRPC.HibernateRequest {
+	req := &gRPC.HibernateRequest{}
+	for _, reqObject := range hibernateRequest.GetResources() {
+		obj := &gRPC.ObjectIdentifier{
+			Group:     *reqObject.Group,
+			Kind:      *reqObject.Kind,
+			Version:   *reqObject.Version,
+			Name:      *reqObject.Name,
+			Namespace: *reqObject.Namespace,
+		}
+		req.ObjectIdentifier = append(req.ObjectIdentifier, obj)
+	}
+	return req
+}
+
+func HibernateResponseAdaptor(in []*gRPC.HibernateStatus) []*openapi.HibernateStatus {
+	var resStatus []*openapi.HibernateStatus
+	for _, status := range in {
+		resObj := &openapi.HibernateStatus{
+			Success:      &status.Success,
+			ErrorMessage: &status.ErrorMsg,
+			TargetObject: &openapi.HibernateTargetObject{
+				Group:     &status.TargetObject.Group,
+				Kind:      &status.TargetObject.Kind,
+				Version:   &status.TargetObject.Version,
+				Name:      &status.TargetObject.Name,
+				Namespace: &status.TargetObject.Namespace,
+			},
+		}
+		resStatus = append(resStatus, resObj)
+	}
+	return resStatus
+}
+
+func GetStatusCode(err error) int {
+	if err.Error() == "unauthorized" {
+		return http.StatusForbidden
+	}
+	return http.StatusInternalServerError
 }

@@ -20,10 +20,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"testing"
 	"time"
 
-	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -145,7 +145,7 @@ func initTerminalAccessService(t *testing.T) *UserTerminalAccessServiceImpl {
 	sugaredLogger, _ := util.InitLogger()
 	config, _ := sql.GetConfig()
 	db, _ := sql.NewDbConnection(config, sugaredLogger)
-	runtimeConfig, err := client.GetRuntimeConfig()
+	runtimeConfig, err := k8s2.GetRuntimeConfig()
 	assert.Nil(t, err)
 	v := informer.NewGlobalMapClusterNamespace()
 	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, v, runtimeConfig, nil)

@@ -199,6 +199,7 @@
  | ORCH_HOST | http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats |  | 
  | ORCH_TOKEN |  |  | 
  | OTEL_COLLECTOR_URL |  |  | 
+ | PARALLELISM_LIMIT_FOR_TAG_PROCESSING |  |  | 
  | PG_ADDR | 127.0.0.1 |  | 
  | PG_DATABASE | orchestrator |  | 
  | PG_EXPORT_PROM_METRICS | false |  | 

@@ -37,6 +37,8 @@ import (
 	"time"
 )
 
+// TODO: Use K8s utilities from common-lib
+
 type LocalDevMode bool
 
 type K8sClient struct {
