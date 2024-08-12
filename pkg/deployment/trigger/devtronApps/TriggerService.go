@@ -788,10 +788,10 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(overrideRequest, triggeredAt, newCtx)
 
 	if envDeploymentConfig == nil || (envDeploymentConfig != nil && envDeploymentConfig.Id == 0) {
-		envDeploymentConfig, err = impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(overrideRequest.AppId, overrideRequest.EnvId)
-		if err != nil {
-			impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "err", err)
-			return releaseNo, err
+		envDeploymentConfig, err1 := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(overrideRequest.AppId, overrideRequest.EnvId)
+		if err1 != nil {
+			impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "err", err1)
+			return releaseNo, err1
 		}
 		valuesOverrideResponse.DeploymentConfig = envDeploymentConfig
 	}
