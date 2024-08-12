@@ -56,6 +56,7 @@ type GroupMember struct {
 	AccessLevel       AccessLevelValue         `json:"access_level"`
 	Email             string                   `json:"email,omitempty"`
 	GroupSAMLIdentity *GroupMemberSAMLIdentity `json:"group_saml_identity"`
+	MemberRole        *MemberRole              `json:"member_role"`
 }
 
 // ListGroupMembersOptions represents the available ListGroupMembers() and
@@ -126,9 +127,10 @@ func (s *GroupsService) ListAllGroupMembers(gid interface{}, opt *ListGroupMembe
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/members.html#add-a-member-to-a-group-or-project
 type AddGroupMemberOptions struct {
-	UserID      *int              `url:"user_id,omitempty" json:"user_id,omitempty"`
-	AccessLevel *AccessLevelValue `url:"access_level,omitempty" json:"access_level,omitempty"`
-	ExpiresAt   *string           `url:"expires_at,omitempty" json:"expires_at"`
+	UserID       *int              `url:"user_id,omitempty" json:"user_id,omitempty"`
+	AccessLevel  *AccessLevelValue `url:"access_level,omitempty" json:"access_level,omitempty"`
+	ExpiresAt    *string           `url:"expires_at,omitempty" json:"expires_at"`
+	MemberRoleID *int              `url:"member_role_id,omitempty" json:"member_role_id,omitempty"`
 }
 
 // GetGroupMember gets a member of a group.
@@ -154,6 +156,32 @@ func (s *GroupMembersService) GetGroupMember(gid interface{}, user int, options 
 	}
 
 	return gm, resp, nil
+}
+
+// GetInheritedGroupMember get a member of a group or project, including
+// inherited and invited members
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/members.html#get-a-member-of-a-group-or-project-including-inherited-and-invited-members
+func (s *GroupMembersService) GetInheritedGroupMember(gid interface{}, user int, options ...RequestOptionFunc) (*GroupMember, *Response, error) {
+	group, err := parseID(gid)
+	if err != nil {
+		return nil, nil, err
+	}
+	u := fmt.Sprintf("groups/%s/members/all/%d", PathEscape(group), user)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil, options)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	gm := new(GroupMember)
+	resp, err := s.client.Do(req, gm)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return gm, resp, err
 }
 
 // BillableGroupMember represents a GitLab billable group member.
@@ -305,8 +333,9 @@ func (s *GroupMembersService) DeleteShareWithGroup(gid interface{}, groupID int,
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/members.html#edit-a-member-of-a-group-or-project
 type EditGroupMemberOptions struct {
-	AccessLevel *AccessLevelValue `url:"access_level,omitempty" json:"access_level,omitempty"`
-	ExpiresAt   *string           `url:"expires_at,omitempty" json:"expires_at,omitempty"`
+	AccessLevel  *AccessLevelValue `url:"access_level,omitempty" json:"access_level,omitempty"`
+	ExpiresAt    *string           `url:"expires_at,omitempty" json:"expires_at,omitempty"`
+	MemberRoleID *int              `url:"member_role_id,omitempty" json:"member_role_id,omitempty"`
 }
 
 // EditGroupMember updates a member of a group.
