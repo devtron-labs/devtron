@@ -60,7 +60,7 @@ func GetPluginStepVariableDbObject(pluginStepId int, pluginVariableDto *bean2.Pl
 		VariableType:              pluginVariableDto.VariableType,
 		ValueType:                 pluginVariableDto.ValueType,
 		PreviousStepIndex:         pluginVariableDto.PreviousStepIndex,
-		VariableStepIndex:         pluginVariableDto.VariableStepIndex,
+		VariableStepIndex:         1, //currently hard coding this, later after plugin creation gets more mature will let user decide
 		VariableStepIndexInPlugin: pluginVariableDto.VariableStepIndexInPlugin,
 		ReferenceVariableName:     pluginVariableDto.ReferenceVariableName,
 		AuditLog:                  sql.NewDefaultAuditLog(userId),
