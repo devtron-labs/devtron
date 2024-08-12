@@ -22,3 +22,8 @@ WHERE name = 'TRIVY'
     AND scan_target = 'IMAGE'
     AND active = true
     AND deleted = false;
+
+ALTER TABLE image_scan_execution_result
+    ADD COLUMN class TEXT,
+    ADD COLUMN type TEXT,
+    ADD COLUMN target TEXT;
