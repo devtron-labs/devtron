@@ -851,7 +851,7 @@ func (impl AppWorkflowServiceImpl) FindCdPipelinesByAppId(appId int) (*bean.CdPi
 		AppId: appId,
 	}
 
-	isAppLevelGitOpsConfigured, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(appId)
+	isAppLevelGitOpsConfigured, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApp(appId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching latest chart details for app by appId")
 		return nil, err

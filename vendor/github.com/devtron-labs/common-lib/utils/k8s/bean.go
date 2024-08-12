@@ -119,6 +119,7 @@ type K8sApiResource struct {
 	Gvk        schema.GroupVersionKind     `json:"gvk"`
 	Gvr        schema.GroupVersionResource `json:"gvr"`
 	Namespaced bool                        `json:"namespaced"`
+	ShortNames []string                    `json:"shortNames"`
 }
 
 type ApplyResourcesRequest struct {
@@ -190,6 +191,18 @@ type CustomK8sHttpTransportConfig struct {
 	TLSHandshakeTimeout int  `env:"K8s_TLS_HANDSHAKE_TIMEOUT" envDefault:"10"`
 	MaxIdleConnsPerHost int  `env:"K8s_CLIENT_MAX_IDLE_CONNS_PER_HOST" envDefault:"25"`
 	IdleConnTimeout     int  `env:"K8s_TCP_IDLE_CONN_TIMEOUT" envDefault:"300"`
+}
+
+type LocalDevMode bool
+
+type RuntimeConfig struct {
+	LocalDevMode LocalDevMode `env:"RUNTIME_CONFIG_LOCAL_DEV" envDefault:"false"`
+}
+
+func GetRuntimeConfig() (*RuntimeConfig, error) {
+	cfg := &RuntimeConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
 }
 
 func NewCustomK8sHttpTransportConfig() *CustomK8sHttpTransportConfig {

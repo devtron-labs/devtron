@@ -18,10 +18,11 @@ package git
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
-	globalUtil "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/retryFunc"
 	"github.com/devtron-labs/go-bitbucket"
 	"go.uber.org/zap"
@@ -50,8 +51,10 @@ type GitBitbucketClient struct {
 	gitOpsHelper *GitOpsHelper
 }
 
-func NewGitBitbucketClient(username, token, host string, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper) GitBitbucketClient {
+func NewGitBitbucketClient(username, token, host string, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper, tlsConfig *tls.Config) GitBitbucketClient {
 	coreClient := bitbucket.NewBasicAuth(username, token)
+	httpClient := util.GetHTTPClientWithTLSConfig(tlsConfig)
+	coreClient.HttpClient = httpClient
 	logger.Infow("bitbucket client created", "clientDetails", coreClient)
 	return GitBitbucketClient{
 		client:       coreClient,
@@ -63,7 +66,7 @@ func NewGitBitbucketClient(username, token, host string, logger *zap.SugaredLogg
 func (impl GitBitbucketClient) DeleteRepository(config *bean2.GitOpsConfigDto) (err error) {
 	start := time.Now()
 	defer func() {
-		globalUtil.TriggerGitOpsMetrics("DeleteRepository", "GitBitbucketClient", start, err)
+		util.TriggerGitOpsMetrics("DeleteRepository", "GitBitbucketClient", start, err)
 	}()
 	repoOptions := &bitbucket.RepositoryOptions{
 		Owner:     config.BitBucketWorkspaceId,
@@ -81,7 +84,7 @@ func (impl GitBitbucketClient) DeleteRepository(config *bean2.GitOpsConfigDto) (
 func (impl GitBitbucketClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, err error) {
 	start := time.Now()
 	defer func() {
-		globalUtil.TriggerGitOpsMetrics("GetRepoUrl", "GitBitbucketClient", start, err)
+		util.TriggerGitOpsMetrics("GetRepoUrl", "GitBitbucketClient", start, err)
 	}()
 
 	repoOptions := &bitbucket.RepositoryOptions{
@@ -104,7 +107,7 @@ func (impl GitBitbucketClient) CreateRepository(ctx context.Context, config *bea
 	var err error
 	start := time.Now()
 	defer func() {
-		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitBitbucketClient", start, err)
+		util.TriggerGitOpsMetrics("CreateRepository", "GitBitbucketClient", start, err)
 	}()
 
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
@@ -184,7 +187,7 @@ func (impl GitBitbucketClient) repoExists(repoOptions *bitbucket.RepositoryOptio
 
 	start := time.Now()
 	defer func() {
-		globalUtil.TriggerGitOpsMetrics("repoExists", "GitBitbucketClient", start, err)
+		util.TriggerGitOpsMetrics("repoExists", "GitBitbucketClient", start, err)
 	}()
 
 	repo, err := impl.client.Repositories.Repository.Get(repoOptions)
@@ -224,7 +227,7 @@ func (impl GitBitbucketClient) CreateReadme(ctx context.Context, config *bean2.G
 	var err error
 	start := time.Now()
 	defer func() {
-		globalUtil.TriggerGitOpsMetrics("CreateReadme", "GitBitbucketClient", start, err)
+		util.TriggerGitOpsMetrics("CreateReadme", "GitBitbucketClient", start, err)
 	}()
 
 	cfg := &ChartConfig{
@@ -270,7 +273,7 @@ func (impl GitBitbucketClient) CommitValues(ctx context.Context, config *ChartCo
 
 	start := time.Now()
 	defer func() {
-		globalUtil.TriggerGitOpsMetrics("CommitValues", "GitBitbucketClient", start, err)
+		util.TriggerGitOpsMetrics("CommitValues", "GitBitbucketClient", start, err)
 	}()
 
 	homeDir, err := os.UserHomeDir()

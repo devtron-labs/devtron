@@ -18,10 +18,11 @@ package git
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git/bean"
-	globalUtil "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/retryFunc"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
@@ -39,8 +40,8 @@ type GitLabClient struct {
 	gitOpsHelper *GitOpsHelper
 }
 
-func NewGitLabClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper) (GitOpsClient, error) {
-	gitLabClient, err := CreateGitlabClient(config.GitHost, config.GitToken)
+func NewGitLabClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitOpsHelper *GitOpsHelper, tlsConfig *tls.Config) (GitOpsClient, error) {
+	gitLabClient, err := CreateGitlabClient(config.GitHost, config.GitToken, tlsConfig)
 	if err != nil {
 		logger.Errorw("error in creating gitlab client", "err", err)
 		return nil, err
@@ -90,23 +91,25 @@ func NewGitLabClient(config *bean.GitConfig, logger *zap.SugaredLogger, gitOpsHe
 	}, nil
 }
 
-func CreateGitlabClient(host, token string) (*gitlab.Client, error) {
+func CreateGitlabClient(host, token string, tlsConfig *tls.Config) (*gitlab.Client, error) {
 	var gitLabClient *gitlab.Client
 	var err error
+	options := make([]gitlab.ClientOptionFunc, 0)
+
 	if len(host) > 0 {
 		_, err = url.ParseRequestURI(host)
 		if err != nil {
 			return nil, err
 		}
-		gitLabClient, err = gitlab.NewClient(token, gitlab.WithBaseURL(host))
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		gitLabClient, err = gitlab.NewClient(token)
-		if err != nil {
-			return nil, err
-		}
+		options = append(options, gitlab.WithBaseURL(host))
+	}
+	if tlsConfig != nil {
+		httpClient := util.GetHTTPClientWithTLSConfig(tlsConfig)
+		options = append(options, gitlab.WithHTTPClient(httpClient))
+	}
+	gitLabClient, err = gitlab.NewClient(token, options...)
+	if err != nil {
+		return nil, err
 	}
 	return gitLabClient, err
 }
@@ -114,7 +117,7 @@ func CreateGitlabClient(host, token string) (*gitlab.Client, error) {
 func (impl GitLabClient) DeleteRepository(config *bean2.GitOpsConfigDto) (err error) {
 	start := time.Now()
 	defer func() {
-		globalUtil.TriggerGitOpsMetrics("DeleteRepository", "GitLabClient", start, err)
+		util.TriggerGitOpsMetrics("DeleteRepository", "GitLabClient", start, err)
 	}()
 
 	err = impl.DeleteProject(config.GitRepoName)
@@ -129,7 +132,7 @@ func (impl GitLabClient) CreateRepository(ctx context.Context, config *bean2.Git
 	var err error
 	start := time.Now()
 	defer func() {
-		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitLabClient", start, err)
+		util.TriggerGitOpsMetrics("CreateRepository", "GitLabClient", start, err)
 	}()
 
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
@@ -193,7 +196,7 @@ func (impl GitLabClient) CreateRepository(ctx context.Context, config *bean2.Git
 func (impl GitLabClient) DeleteProject(projectName string) (err error) {
 	start := time.Now()
 	defer func() {
-		globalUtil.TriggerGitOpsMetrics("DeleteProject", "GitLabClient", start, err)
+		util.TriggerGitOpsMetrics("DeleteProject", "GitLabClient", start, err)
 	}()
 
 	impl.logger.Infow("deleting project ", "gitlab project name", projectName)
@@ -203,7 +206,7 @@ func (impl GitLabClient) DeleteProject(projectName string) (err error) {
 func (impl GitLabClient) createProject(name, description string) (url string, err error) {
 	start := time.Now()
 	defer func() {
-		globalUtil.TriggerGitOpsMetrics("createProject", "GitLabClient", start, err)
+		util.TriggerGitOpsMetrics("createProject", "GitLabClient", start, err)
 	}()
 
 	var namespace = impl.config.GitlabGroupId
@@ -235,7 +238,7 @@ func (impl GitLabClient) ensureProjectAvailability(projectName string) (bool, er
 	var err error
 	start := time.Now()
 	defer func() {
-		globalUtil.TriggerGitOpsMetrics("ensureProjectAvailability", "GitLabClient", start, err)
+		util.TriggerGitOpsMetrics("ensureProjectAvailability", "GitLabClient", start, err)
 	}()
 
 	pid := fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, projectName)
@@ -260,7 +263,7 @@ func (impl GitLabClient) ensureProjectAvailabilityOnSsh(projectName string, repo
 	var err error
 	start := time.Now()
 	defer func() {
-		globalUtil.TriggerGitOpsMetrics("ensureProjectAvailabilityOnSsh", "GitLabClient", start, err)
+		util.TriggerGitOpsMetrics("ensureProjectAvailabilityOnSsh", "GitLabClient", start, err)
 	}()
 
 	count := 0
@@ -283,7 +286,7 @@ func (impl GitLabClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl stri
 
 	start := time.Now()
 	defer func() {
-		globalUtil.TriggerGitOpsMetrics("GetRepoUrl", "GitLabClient", start, err)
+		util.TriggerGitOpsMetrics("GetRepoUrl", "GitLabClient", start, err)
 	}()
 
 	pid := fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, config.GitRepoName)
@@ -305,7 +308,7 @@ func (impl GitLabClient) CreateReadme(ctx context.Context, config *bean2.GitOpsC
 	var err error
 	start := time.Now()
 	defer func() {
-		globalUtil.TriggerGitOpsMetrics("CreateReadme", "GitLabClient", start, err)
+		util.TriggerGitOpsMetrics("CreateReadme", "GitLabClient", start, err)
 	}()
 
 	fileAction := gitlab.FileCreate
@@ -340,7 +343,7 @@ func (impl GitLabClient) CommitValues(ctx context.Context, config *ChartConfig, 
 
 	start := time.Now()
 	defer func() {
-		globalUtil.TriggerGitOpsMetrics("CommitValues", "GitLabClient", start, err)
+		util.TriggerGitOpsMetrics("CommitValues", "GitLabClient", start, err)
 	}()
 
 	branch := "master"

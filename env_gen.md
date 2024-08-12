@@ -9,13 +9,14 @@
  | APP | orchestrator |  | 
  | APP_SYNC_IMAGE | quay.io/devtron/chart-sync:1227622d-132-3775 |  | 
  | APP_SYNC_JOB_RESOURCES_OBJ |  |  | 
+ | APP_SYNC_SERVICE_ACCOUNT | chart-sync |  | 
  | ARGO_APP_MANUAL_SYNC_TIME | 3 |  | 
  | ARGO_AUTO_SYNC_ENABLED | true |  | 
- | ASYNC_BUILDX_CACHE_EXPORT | false |  | 
  | ARGO_GIT_COMMIT_RETRY_COUNT_ON_CONFLICT | 3 |  | 
  | ARGO_GIT_COMMIT_RETRY_DELAY_ON_CONFLICT | 1 |  | 
  | ARGO_REPO_REGISTER_RETRY_COUNT | 3 |  | 
  | ARGO_REPO_REGISTER_RETRY_DELAY | 10 |  | 
+ | ASYNC_BUILDX_CACHE_EXPORT | false |  | 
  | AZURE_ACCOUNT_KEY |  |  | 
  | AZURE_ACCOUNT_NAME |  |  | 
  | AZURE_BLOB_CONTAINER_CI_CACHE |  |  | 
@@ -198,6 +199,7 @@
  | ORCH_HOST | http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats |  | 
  | ORCH_TOKEN |  |  | 
  | OTEL_COLLECTOR_URL |  |  | 
+ | PARALLELISM_LIMIT_FOR_TAG_PROCESSING |  |  | 
  | PG_ADDR | 127.0.0.1 |  | 
  | PG_DATABASE | orchestrator |  | 
  | PG_EXPORT_PROM_METRICS | false |  | 

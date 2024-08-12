@@ -199,9 +199,10 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 }
 
 const (
-	devtron          = "DEVTRON"
-	SSH_URL_PREFIX   = "git@"
-	HTTPS_URL_PREFIX = "https://"
+	devtron             = "DEVTRON"
+	SSH_URL_PREFIX      = "git@"
+	HTTPS_URL_PREFIX    = "https://"
+	argoWFLogIdentifier = "argo=true"
 )
 
 func (handler *PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r *http.Request) {
@@ -515,7 +516,10 @@ func (handler *PipelineConfigRestHandlerImpl) streamOutput(w http.ResponseWriter
 		if msgCounter <= lastSeenMsgId {
 			continue
 		}
-		if strings.Contains(string(data), devtron) {
+
+		// only skip the logs of argo-wf if found at starting
+		isAWFLog := msgCounter == 1 && strings.Contains(string(data), argoWFLogIdentifier)
+		if strings.Contains(string(data), devtron) || isAWFLog {
 			continue
 		}
 

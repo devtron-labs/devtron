@@ -104,6 +104,7 @@ func (s *timeStatsService) resetTimeEstimate(pid interface{}, entity string, iss
 // GitLab docs: https://docs.gitlab.com/ee/workflow/time_tracking.html
 type AddSpentTimeOptions struct {
 	Duration *string `url:"duration,omitempty" json:"duration,omitempty"`
+	Summary  *string `url:"summary,omitempty" json:"summary,omitempty"`
 }
 
 // addSpentTime adds spent time for a single project issue.

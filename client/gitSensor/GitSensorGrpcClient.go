@@ -114,15 +114,19 @@ func (client *GrpcApiClientImpl) SaveGitProvider(ctx context.Context, provider *
 	}
 	// map req
 	req := &pb.GitProvider{
-		Id:            int64(provider.Id),
-		Name:          provider.Name,
-		Url:           provider.Url,
-		UserName:      provider.UserName,
-		Password:      provider.Password,
-		AccessToken:   provider.AccessToken,
-		SshPrivateKey: provider.SshPrivateKey,
-		AuthMode:      string(provider.AuthMode),
-		Active:        provider.Active,
+		Id:                    int64(provider.Id),
+		Name:                  provider.Name,
+		Url:                   provider.Url,
+		UserName:              provider.UserName,
+		Password:              provider.Password,
+		SshPrivateKey:         provider.SshPrivateKey,
+		AccessToken:           provider.AccessToken,
+		AuthMode:              string(provider.AuthMode),
+		Active:                provider.Active,
+		TlsCert:               provider.TlsCert,
+		TlsKey:                provider.TlsKey,
+		CaCert:                provider.CaCert,
+		EnableTLSVerification: provider.EnableTlsVerification,
 	}
 
 	// fetch
