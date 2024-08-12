@@ -80,3 +80,9 @@ type ArgoClusterConfigObj struct {
 		CaData   string `json:"caData,omitempty"`
 	} `json:"tlsClientConfig"`
 }
+
+type ArgoAppIdentifier struct {
+	ClusterId int    `json:"clusterId"`
+	Namespace string `json:"namespace"`
+	AppName   string `json:"appName"`
+}
