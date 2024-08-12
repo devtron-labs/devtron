@@ -89,7 +89,7 @@ data:
   ENFORCER_CACHE: "true"
   ENFORCER_CACHE_EXPIRATION_IN_SEC: "345600"
   ENFORCER_MAX_BATCH_SIZE: "1"
-  APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:5a1d0301-150-23845"
+  APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:c1fa91aa-150-24704"
   DEVTRON_SECRET_NAME: "devtron-secret"
   GIT_SENSOR_PROTOCOL: GRPC
   GIT_SENSOR_URL: git-sensor-service.devtroncd:90
