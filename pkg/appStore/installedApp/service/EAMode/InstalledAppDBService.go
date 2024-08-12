@@ -459,7 +459,12 @@ func (impl *InstalledAppDBServiceImpl) UpdateDuplicatedEntriesInAppAndInstalledA
 		return err
 	}
 	// Rollback tx on error.
-	defer tx.Rollback()
+	defer func(tx *pg.Tx) {
+		err := tx.Rollback()
+		if err != nil {
+			impl.Logger.Errorw("Rollback error", "err", err)
+		}
+	}(tx)
 
 	//updated the app table with active column as false for the duplicated app
 	duplicatedApp.Active = false
@@ -479,7 +484,10 @@ func (impl *InstalledAppDBServiceImpl) UpdateDuplicatedEntriesInAppAndInstalledA
 		return err
 	}
 
-	tx.Commit()
-
+	err = tx.Commit()
+	if err != nil {
+		impl.Logger.Errorw("error saving appModel", "err", err)
+		return err
+	}
 	return nil
 }

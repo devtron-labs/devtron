@@ -458,23 +458,18 @@ func convertUrlToHttpsIfSshType(url string) string {
 	return httpsURL
 }
 
-// updateDuplicatedEntriesInApp returns err after the marking the duplicated apps entry false on the basis of its creation time...
-func (impl AppCrudOperationServiceImpl) updateDuplicatedEntriesInApp(earlyApp *appRepository.App, duplicatedApp *appRepository.App, installedApp repository2.InstalledApps) error {
-	return impl.installedAppDbService.UpdateDuplicatedEntriesInAppAndInstalledApps(earlyApp, duplicatedApp, &installedApp)
-}
-
 // handleDuplicateAppEntries identifies and resolves duplicate app entries based on creation time.
 // It marks the most recent duplicate entry as inactive and updates the corresponding installed app.
 func (impl AppCrudOperationServiceImpl) handleDuplicateAppEntries(appNameUniqueIdentifier string) (*appRepository.App, error) {
 	// Fetch app IDs by name
 	appIds, err := impl.getAppIdsByName(appNameUniqueIdentifier)
 	if err != nil {
-		impl.logger.Errorw("error in fetching app Ids by appName", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
+		impl.logger.Errorw("error in fetching app Ids by appIdentifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
 		return nil, err
 	}
 
 	// Fetch apps by IDs from App table for duplicated entries
-	apps, err := impl.getAppsByIds(appIds)
+	apps, err := impl.appRepository.FindByIds(appIds)
 	if err != nil || errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in fetching app List by appIds", "appIds", appIds, "err", err)
 		return nil, err
@@ -490,7 +485,7 @@ func (impl AppCrudOperationServiceImpl) handleDuplicateAppEntries(appNameUniqueI
 		return nil, err
 	}
 	// Update duplicated app entries
-	err = impl.updateDuplicatedEntriesInApp(earliestApp, duplicatedApp, installedApp)
+	err = impl.installedAppDbService.UpdateDuplicatedEntriesInAppAndInstalledApps(earliestApp, duplicatedApp, &installedApp)
 	if err != nil {
 		impl.logger.Errorw("error in updating duplicated entries", "earliestApp", earliestApp, "duplicatedApp", duplicatedApp, "err", err)
 		return nil, err
@@ -499,11 +494,6 @@ func (impl AppCrudOperationServiceImpl) handleDuplicateAppEntries(appNameUniqueI
 	impl.logger.Debug("Successfully resolved duplicate app entries", "earliestApp", earliestApp, "duplicatedApp", duplicatedApp)
 	return earliestApp, nil
 
-}
-
-// getAppsByIds fetches apps by their IDs.
-func (impl AppCrudOperationServiceImpl) getAppsByIds(ids []*int) ([]*appRepository.App, error) {
-	return impl.appRepository.FindByIds(ids)
 }
 
 // getAppIdsByName fetches app IDs by the app name unique identifier [for duplicated active app]
@@ -544,7 +534,7 @@ func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIden
 
 		app, err = impl.handleDuplicateAppEntries(appNameUniqueIdentifier)
 		if err != nil {
-			impl.logger.Errorw("error in handling Duplicate entries in the app", "handleDuplicateAppEntries", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
+			impl.logger.Errorw("error in handling Duplicate entries in the app", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
 			return app, err
 		}
 	}
@@ -644,7 +634,7 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 	// Safeguard against nil app cases
 	if app == nil {
 		impl.logger.Errorw("no rows found for the requested app", "appId", appId, "error", err)
-		return nil, pg.ErrNoRows
+		return nil, fmt.Errorf("no rows found for the requested app, %q", pg.ErrNoRows)
 	}
 
 	user, err := impl.userRepository.GetByIdIncludeDeleted(app.CreatedBy)
