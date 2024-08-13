@@ -887,7 +887,7 @@ func (impl *ManifestCreationServiceImpl) getArgoCdHPAResourceManifest(ctx contex
 	recv, argoErr := impl.acdClient.GetResource(newCtx, query)
 	if argoErr != nil {
 		grpcCode, errMsg := util.GetClientDetailedError(argoErr)
-		if grpcCode.IsInvalidArgumentCode() {
+		if grpcCode.IsInvalidArgumentCode() || grpcCode.IsNotFoundCode() {
 			// this is a valid case for hibernated applications, so returning nil
 			// for hibernated applications, we don't have any hpa resource manifest
 			return resourceManifest, nil
@@ -1037,6 +1037,11 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 		if len(resourceManifest) > 0 {
 			statusMap := resourceManifest["status"].(map[string]interface{})
 			currentReplicaVal := statusMap["currentReplicas"]
+			// currentReplicas key might not be available in manifest while k8s is calculating replica count
+			// it's a valid case so, we are not throwing error
+			if currentReplicaVal == nil {
+				return merged, err
+			}
 			currentReplicaCount, err := globalUtil.ParseFloatNumber(currentReplicaVal)
 			if err != nil {
 				impl.logger.Errorw("error occurred while parsing replica count", "currentReplicas", currentReplicaVal, "err", err)

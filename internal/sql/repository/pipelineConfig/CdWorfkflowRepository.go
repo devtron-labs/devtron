@@ -73,7 +73,7 @@ type CdWorkflowRepository interface {
 	FetchAllCdStagesLatestEntity(pipelineIds []int) ([]*CdWorkflowStatus, error)
 	FetchAllCdStagesLatestEntityStatus(wfrIds []int) ([]*CdWorkflowRunner, error)
 	ExistsByStatus(status string) (bool, error)
-
+	FetchEnvAllCdStagesLatestEntityStatus(wfrIds []int, envID int) ([]*CdWorkflowRunner, error)
 	FetchArtifactsByCdPipelineId(pipelineId int, runnerType apiBean.WorkflowType, offset, limit int, searchString string) ([]CdWorkflowRunner, error)
 	GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error)
 	FindLatestRunnerByPipelineIdsAndRunnerType(ctx context.Context, pipelineIds []int, runnerType apiBean.WorkflowType) ([]CdWorkflowRunner, error)
@@ -685,8 +685,23 @@ func (impl *CdWorkflowRepositoryImpl) FetchAllCdStagesLatestEntity(pipelineIds [
 
 func (impl *CdWorkflowRepositoryImpl) FetchAllCdStagesLatestEntityStatus(wfrIds []int) ([]*CdWorkflowRunner, error) {
 	var wfrList []*CdWorkflowRunner
-	err := impl.dbConnection.Model(&wfrList).Column("cd_workflow_runner.*").
-		Where("cd_workflow_runner.id in (?)", pg.In(wfrIds)).Select()
+	err := impl.dbConnection.Model(&wfrList).
+		Column("cd_workflow_runner.id", "cd_workflow_runner.status").
+		Where("cd_workflow_runner.id in (?)", pg.In(wfrIds)).
+		Select()
+	return wfrList, err
+}
+
+func (impl *CdWorkflowRepositoryImpl) FetchEnvAllCdStagesLatestEntityStatus(wfrIds []int, envID int) ([]*CdWorkflowRunner, error) {
+	var wfrList []*CdWorkflowRunner
+	query := `
+		select wfr.id, wfr.status 
+		from cd_workflow_runner wfr
+		inner join cd_workflow wf on wf.id = wfr.cd_workflow_id
+		inner join pipeline p on p.id = wf.pipeline_id
+		where p.environment_id = ? and wfr.id in (?)
+	`
+	_, err := impl.dbConnection.Query(&wfrList, query, envID, pg.In(wfrIds))
 	return wfrList, err
 }
 

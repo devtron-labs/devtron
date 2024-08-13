@@ -234,7 +234,7 @@ func (impl *CustomK8sHttpTransportConfig) OverrideConfigWithCustomTransport(conf
 	}
 
 	transport := utilnet.SetTransportDefaults(&http.Transport{
-		Proxy:               http.ProxyFromEnvironment,
+		Proxy:               config.Proxy,
 		TLSHandshakeTimeout: time.Duration(impl.TLSHandshakeTimeout) * time.Second,
 		TLSClientConfig:     tlsConfig,
 		MaxIdleConns:        impl.MaxIdleConnsPerHost,
