@@ -14,3 +14,8 @@ WHERE name = 'TRIVY'
     AND scan_target = 'IMAGE'
     AND active = true
     AND deleted = false;
+
+ALTER TABLE image_scan_execution_result
+    DROP COLUMN class,
+    DROP COLUMN type,
+    DROP COLUMN target;
