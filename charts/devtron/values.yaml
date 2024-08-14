@@ -12,6 +12,15 @@ global:
   nodeSelector: {}
   tolerations: []
   imagePullSecrets: []
+
+imagePullSecret:
+  create: false
+  name: ""  # If left empty, it will default to "devtron-image-pull-enterprise"
+  credentials:
+    registry: ""
+    username: ""
+    password: ""
+
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"

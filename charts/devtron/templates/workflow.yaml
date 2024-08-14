@@ -959,6 +959,28 @@ imagePullSecrets:
 {{ toYaml .Values.global.imagePullSecrets | indent 2 }}
 {{- end }}
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: chart-sync
+  namespace: devtroncd
+  labels:
+    release: devtron
+imagePullSecrets:
+{{ toYaml .Values.components.migrator.imagePullSecrets | indent 2 }}
+{{- else if $.Values.global.imagePullSecrets }}
+imagePullSecrets:
+{{ toYaml .Values.global.imagePullSecrets | indent 2 }}
+{{- end }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: devtron-sa
+  namespace: devtroncd
+  labels:
+    release: devtron
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -1270,7 +1292,7 @@ spec:
       labels:
         app: workflow-controller
     spec:
-      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.workflowController.nodeSelector "tolerations" $.Values.workflowController.tolerations "imagePullSecrets" $.Values.workflowController.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.workflowController.nodeSelector "tolerations" $.Values.workflowController.tolerations "imagePullSecrets" $.Values.workflowController.imagePullSecrets "global" $.Values.global) | indent 6 }}
       containers:
       - args:
         - --configmap
