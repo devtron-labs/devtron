@@ -31,8 +31,8 @@ type ImageScanExecutionResult struct {
 	Version                     string   `sql:"version"`
 	FixedVersion                string   `sql:"fixed_version"`
 	Target                      string   `sql:"target"`
-	Type                        string   `json:"type"`
-	Class                       string   `json:"class"`
+	Type                        string   `sql:"type"`
+	Class                       string   `sql:"class"`
 	CveStore                    CveStore
 	ImageScanExecutionHistory   ImageScanExecutionHistory
 }
