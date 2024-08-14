@@ -47,7 +47,7 @@ func (impl *GitManagerBaseImpl) Fetch(ctx GitContext, rootDir string) (response,
 	impl.logger.Debugw("git fetch ", "location", rootDir)
 	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "fetch", "origin", "--tags", "--force")
 	defer cancel()
-	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), git_manager.TLS_FILES_DIR)
+	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), TLS_FOLDER)
 	if err != nil {
 		//making it non-blocking
 		impl.logger.Errorw("error encountered in createFilesForTlsData", "err", err)
@@ -66,7 +66,7 @@ func (impl *GitManagerBaseImpl) ListBranch(ctx GitContext, rootDir string) (resp
 	impl.logger.Debugw("git branch ", "location", rootDir)
 	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "branch", "-r")
 	defer cancel()
-	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), git_manager.TLS_FILES_DIR)
+	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), TLS_FOLDER)
 	if err != nil {
 		//making it non-blocking
 		impl.logger.Errorw("error encountered in createFilesForTlsData", "err", err)
@@ -85,7 +85,7 @@ func (impl *GitManagerBaseImpl) PullCli(ctx GitContext, rootDir string, branch s
 	impl.logger.Debugw("git pull ", "location", rootDir)
 	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "pull", "origin", branch, "--force")
 	defer cancel()
-	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), git_manager.TLS_FILES_DIR)
+	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), TLS_FOLDER)
 	if err != nil {
 		//making it non-blocking
 		impl.logger.Errorw("error encountered in createFilesForTlsData", "err", err)
