@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
 	"github.com/devtron-labs/devtron/api/externalLink"
+	"github.com/devtron-labs/devtron/api/fluxApplication"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/k8s/application"
 	"github.com/devtron-labs/devtron/api/k8s/capacity"
@@ -82,6 +83,7 @@ type MuxRouter struct {
 	appRouter                app.AppRouterEAMode
 	rbacRoleRouter           user.RbacRoleRouter
 	argoApplicationRouter    argoApplication.ArgoApplicationRouter
+	fluxApplicationRouter    fluxApplication.FluxApplicationRouter
 }
 
 func NewMuxRouter(
@@ -113,7 +115,7 @@ func NewMuxRouter(
 	userTerminalAccessRouter terminal.UserTerminalAccessRouter,
 	attributesRouter router.AttributesRouter,
 	appRouter app.AppRouterEAMode,
-	rbacRoleRouter user.RbacRoleRouter, argoApplicationRouter argoApplication.ArgoApplicationRouter,
+	rbacRoleRouter user.RbacRoleRouter, argoApplicationRouter argoApplication.ArgoApplicationRouter, fluxApplicationRouter fluxApplication.FluxApplicationRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
@@ -148,6 +150,7 @@ func NewMuxRouter(
 		appRouter:                appRouter,
 		rbacRoleRouter:           rbacRoleRouter,
 		argoApplicationRouter:    argoApplicationRouter,
+		fluxApplicationRouter:    fluxApplicationRouter,
 	}
 	return r
 }
@@ -283,4 +286,6 @@ func (r *MuxRouter) Init() {
 
 	argoApplicationRouter := r.Router.PathPrefix("/orchestrator/argo-application").Subrouter()
 	r.argoApplicationRouter.InitArgoApplicationRouter(argoApplicationRouter)
+	fluxApplicationRouter := r.Router.PathPrefix("/orchestrator/flux-application").Subrouter()
+	r.fluxApplicationRouter.InitFluxApplicationRouter(fluxApplicationRouter)
 }
