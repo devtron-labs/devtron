@@ -89,7 +89,7 @@ func (impl *GitCliManagerImpl) gitInit(ctx GitContext, rootDir string) error {
 	impl.logger.Debugw("git inti", "rootDir", rootDir)
 	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "init")
 	defer cancel()
-	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), git_manager.TLS_FILES_DIR)
+	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), TLS_FOLDER)
 	if err != nil {
 		//making it non-blocking
 		impl.logger.Errorw("error encountered in createFilesForTlsData", "err", err)
@@ -113,7 +113,7 @@ func (impl *GitCliManagerImpl) commit(ctx GitContext, rootDir string, commitMsg 
 	author := fmt.Sprintf("%s <%s>", user, email)
 	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "commit", "--allow-empty", "-m", commitMsg, "--author", author)
 	defer cancel()
-	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), git_manager.TLS_FILES_DIR)
+	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), TLS_FOLDER)
 	if err != nil {
 		//making it non-blocking
 		impl.logger.Errorw("error encountered in createFilesForTlsData", "err", err)
@@ -128,7 +128,7 @@ func (impl *GitCliManagerImpl) lastCommitHash(ctx GitContext, rootDir string) (r
 	impl.logger.Debugw("git log", "location", rootDir)
 	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "log", "--format=format:%H", "-n", "1")
 	defer cancel()
-	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), git_manager.TLS_FILES_DIR)
+	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), TLS_FOLDER)
 	if err != nil {
 		//making it non-blocking
 		impl.logger.Errorw("error encountered in createFilesForTlsData", "err", err)
@@ -143,7 +143,7 @@ func (impl *GitCliManagerImpl) add(ctx GitContext, rootDir string) (response, er
 	impl.logger.Debugw("git add", "location", rootDir)
 	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "add", "-A")
 	defer cancel()
-	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), git_manager.TLS_FILES_DIR)
+	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), TLS_FOLDER)
 	if err != nil {
 		//making it non-blocking
 		impl.logger.Errorw("error encountered in createFilesForTlsData", "err", err)
@@ -158,7 +158,7 @@ func (impl *GitCliManagerImpl) push(ctx GitContext, rootDir string) (response, e
 	impl.logger.Debugw("git push", "location", rootDir)
 	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "push", "origin", "master")
 	defer cancel()
-	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), git_manager.TLS_FILES_DIR)
+	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), TLS_FOLDER)
 	if err != nil {
 		//making it non-blocking
 		impl.logger.Errorw("error encountered in createFilesForTlsData", "err", err)
@@ -173,7 +173,7 @@ func (impl *GitCliManagerImpl) gitCreateRemote(ctx GitContext, rootDir string, u
 	impl.logger.Debugw("git remote", "rootDir", rootDir, "url", url)
 	cmd, cancel := impl.createCmdWithContext(ctx, "git", "-C", rootDir, "remote", "add", "origin", url)
 	defer cancel()
-	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), git_manager.TLS_FILES_DIR)
+	tlsPathInfo, err := git_manager.CreateFilesForTlsData(git_manager.BuildTlsData(ctx.TLSKey, ctx.TLSCertificate, ctx.CACert, ctx.TLSVerificationEnabled), TLS_FOLDER)
 	if err != nil {
 		//making it non-blocking
 		impl.logger.Errorw("error encountered in createFilesForTlsData", "err", err)
