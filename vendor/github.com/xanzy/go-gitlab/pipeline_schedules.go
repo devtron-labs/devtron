@@ -56,6 +56,7 @@ type LastPipeline struct {
 	SHA    string `json:"sha"`
 	Ref    string `json:"ref"`
 	Status string `json:"status"`
+	WebURL string `json:"web_url"`
 }
 
 // ListPipelineSchedulesOptions represents the available ListPipelineTriggers() options.
@@ -293,9 +294,9 @@ func (s *PipelineSchedulesService) RunPipelineSchedule(pid interface{}, schedule
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/pipeline_schedules.html#create-a-new-pipeline-schedule
 type CreatePipelineScheduleVariableOptions struct {
-	Key          *string `url:"key" json:"key"`
-	Value        *string `url:"value" json:"value"`
-	VariableType *string `url:"variable_type,omitempty" json:"variable_type,omitempty"`
+	Key          *string            `url:"key" json:"key"`
+	Value        *string            `url:"value" json:"value"`
+	VariableType *VariableTypeValue `url:"variable_type,omitempty" json:"variable_type,omitempty"`
 }
 
 // CreatePipelineScheduleVariable creates a pipeline schedule variable.
@@ -329,8 +330,8 @@ func (s *PipelineSchedulesService) CreatePipelineScheduleVariable(pid interface{
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/pipeline_schedules.html#edit-a-pipeline-schedule-variable
 type EditPipelineScheduleVariableOptions struct {
-	Value        *string `url:"value" json:"value"`
-	VariableType *string `url:"variable_type,omitempty" json:"variable_type,omitempty"`
+	Value        *string            `url:"value" json:"value"`
+	VariableType *VariableTypeValue `url:"variable_type,omitempty" json:"variable_type,omitempty"`
 }
 
 // EditPipelineScheduleVariable creates a pipeline schedule variable.
