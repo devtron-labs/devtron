@@ -34,7 +34,9 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"net/http"
 	"regexp"
+	"strconv"
 	"time"
 )
 
@@ -1553,10 +1555,17 @@ func (impl ConfigMapServiceImpl) validateConfigDataForSecretsOnly(configData *be
 
 	// check encoding in base64 for secret data
 	if len(configData.Data) > 0 {
-		err := util2.ValidateEncodedDataByDecoding(configData.Data)
+		dataMap := make(map[string]string)
+		err := json.Unmarshal(configData.Data, &dataMap)
 		if err != nil {
-			impl.logger.Errorw("error while validating encoded secret data by decoding, maybe not a proper encoded data ", "error", err)
+			impl.logger.Errorw("error while unmarshalling secret data ", "error", err)
 			return false, err
+		}
+		err = util2.ValidateEncodedDataByDecoding(dataMap)
+		if err != nil {
+			impl.logger.Errorw("error in decoding secret data", "error", err)
+			return false, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithCode(strconv.Itoa(http.StatusUnprocessableEntity)).
+				WithUserMessage("error in decoding data, make sure the secret data is encoded properly")
 		}
 	}
 	return true, nil
