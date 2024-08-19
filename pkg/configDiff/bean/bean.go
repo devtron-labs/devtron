@@ -1,9 +1,9 @@
 package bean
 
+import "C"
 import (
 	"encoding/json"
 	"fmt"
-	v1 "github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 )
 
@@ -129,11 +129,11 @@ type ConfigDataQueryParams struct {
 // OffSet         int      `schema:"offSet"`
 // Limit          int      `schema:"limit"`
 func (r *ConfigDataQueryParams) IsResourceTypeSecret() bool {
-	return r.ResourceType == v1.Secret
+	return r.ResourceType == bean.CS.ToString()
 }
 
 func (r *ConfigDataQueryParams) IsResourceTypeConfigMap() bool {
-	return r.ResourceType == v1.ConfigMap
+	return r.ResourceType == bean.CM.ToString()
 }
 
 func (r *ConfigDataQueryParams) IsEnvNameProvided() bool {
