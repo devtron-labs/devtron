@@ -808,7 +808,7 @@ func (impl *ManifestCreationServiceImpl) checkAndFixDuplicateReleaseNo(override 
 				return err
 			}
 			override.PipelineReleaseCounter = currentReleaseNo + 1
-			err = impl.pipelineOverrideRepository.Save(override)
+			err = impl.pipelineOverrideRepository.Update(override)
 			if err != nil {
 				return err
 			}
