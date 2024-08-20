@@ -275,10 +275,12 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 			// error is not returned as it's not blocking for deployment process
 			// blocking deployments based on this use case can vary for user to user
 		}
-		mergedValues, err = impl.autoscalingCheckBeforeTrigger(newCtx, appName, envOverride.Namespace, mergedValues, overrideRequest)
-		if err != nil {
-			impl.logger.Errorw("error in autoscaling check before trigger", "pipelineId", overrideRequest.PipelineId, "err", err)
-			return valuesOverrideResponse, err
+		if !envOverride.Environment.IsVirtualEnvironment {
+			mergedValues, err = impl.autoscalingCheckBeforeTrigger(newCtx, appName, envOverride.Namespace, mergedValues, overrideRequest)
+			if err != nil {
+				impl.logger.Errorw("error in autoscaling check before trigger", "pipelineId", overrideRequest.PipelineId, "err", err)
+				return valuesOverrideResponse, err
+			}
 		}
 		// handle image pull secret if access given
 		mergedValues, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(newCtx, envOverride.Environment, artifact, pipeline.CiPipelineId, mergedValues)
