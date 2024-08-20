@@ -155,6 +155,7 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsC
 		BitBucketWorkspaceId:  model.BitBucketWorkspaceId,
 		BitBucketProjectKey:   model.BitBucketProjectKey,
 		AllowCustomRepository: model.AllowCustomRepository,
+		EnableTLSVerification: true,
 		TLSConfig: &bean3.TLSConfig{
 			CaData:      model.CaCert,
 			TLSCertData: model.TlsCert,
