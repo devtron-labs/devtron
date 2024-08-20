@@ -506,6 +506,7 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *bean.Config
 		return nil, fmt.Errorf("invalid request multiple config found for add or update")
 	}
 	configData := configMapRequest.ConfigData[0]
+	// validating config/secret data at service layer since this func is consumed in multiple flows, hence preventing code duplication
 	valid, err := impl.validateConfigData(configData)
 	if err != nil && !valid {
 		impl.logger.Errorw("error in validating", "error", err)
@@ -712,6 +713,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *bean.C
 	}
 
 	configData := configMapRequest.ConfigData[0]
+	// validating config/secret data at service layer since this func is consumed in multiple flows, hence preventing code duplication
 	valid, err := impl.validateConfigData(configData)
 	if err != nil && !valid {
 		impl.logger.Errorw("error in validating", "error", err)
