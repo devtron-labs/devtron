@@ -140,6 +140,8 @@
     * [Dependency track - Python](user-guide/plugins/dependency-track-python.md)
     * [GoLang-migrate](user-guide/plugins/golang-migrate.md)
     * [Jenkins](user-guide/plugins/jenkins.md)
+    * [Jira Issue Validator](user-guide/plugins/jira-validator.md)
+    * [Jira Issue Updater](user-guide/plugins/jira-updater.md)
     * [K6 Load Testing](user-guide/plugins/k6-load-testing.md)
     * [Pull images from container repository](user-guide/plugins/pull-images-from-container-repository.md)
     * [Semgrep](user-guide/plugins/semgrep.md)
