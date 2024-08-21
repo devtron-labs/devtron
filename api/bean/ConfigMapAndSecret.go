@@ -32,6 +32,7 @@ type ConfigMapJson struct {
 type ConfigSecretRootJson struct {
 	ConfigSecretJson ConfigSecretJson `json:"ConfigSecrets"`
 }
+
 type ConfigSecretJson struct {
 	Enabled bool               `json:"enabled"`
 	Secrets []*ConfigSecretMap `json:"secrets"`
