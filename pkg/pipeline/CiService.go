@@ -748,7 +748,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		workflowRequest.AppName = pipeline.App.DisplayName
 	}
 	if trigger.PipelineType == string(CiPipeline.CI_JOB) {
-		workflowRequest.SkipCiBuildCachePushPull = impl.config.SkipCiBuildCachePushPull
+		workflowRequest.SkipCiJobBuildCachePushPull = impl.config.SkipCiJobBuildCachePushPull
 	}
 	if dockerRegistry != nil {
 

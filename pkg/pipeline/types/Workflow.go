@@ -144,7 +144,7 @@ type WorkflowRequest struct {
 	Scope                       resourceQualifiers.Scope
 	BuildxCacheModeMin          bool `json:"buildxCacheModeMin"`
 	AsyncBuildxCacheExport      bool `json:"asyncBuildxCacheExport"`
-	SkipCiBuildCachePushPull    bool `json:"skipCiBuildCachePushPull"`
+	SkipCiJobBuildCachePushPull bool `json:"skipCiJobBuildCachePushPull"`
 }
 
 func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
