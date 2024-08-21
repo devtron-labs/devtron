@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS "public"."rbac_role_audit"
 (
     "id"                     integer     NOT NULL DEFAULT nextval('id_seq_rbac_role_audit'::regclass),
     "entity"                 varchar(250) NOT NULL,
-    "access_type"            varchar(250) NOT NULL,
+    "access_type"            varchar(250) ,
     "role"                   varchar(250) NOT NULL,
     "policy_data"            jsonb,
     "role_data"              jsonb,
