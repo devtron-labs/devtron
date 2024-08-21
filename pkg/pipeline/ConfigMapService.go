@@ -34,7 +34,9 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"net/http"
 	"regexp"
+	"strconv"
 	"time"
 )
 
@@ -504,9 +506,16 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *bean.Config
 		return nil, fmt.Errorf("invalid request multiple config found for add or update")
 	}
 	configData := configMapRequest.ConfigData[0]
+	// validating config/secret data at service layer since this func is consumed in multiple flows, hence preventing code duplication
 	valid, err := impl.validateConfigData(configData)
 	if err != nil && !valid {
 		impl.logger.Errorw("error in validating", "error", err)
+		return configMapRequest, err
+	}
+
+	valid, err = impl.validateConfigDataForSecretsOnly(configData)
+	if err != nil && !valid {
+		impl.logger.Errorw("error in validating secrets only data", "error", err)
 		return configMapRequest, err
 	}
 
@@ -704,9 +713,15 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *bean.C
 	}
 
 	configData := configMapRequest.ConfigData[0]
+	// validating config/secret data at service layer since this func is consumed in multiple flows, hence preventing code duplication
 	valid, err := impl.validateConfigData(configData)
 	if err != nil && !valid {
 		impl.logger.Errorw("error in validating", "error", err)
+		return configMapRequest, err
+	}
+	valid, err = impl.validateConfigDataForSecretsOnly(configData)
+	if err != nil && !valid {
+		impl.logger.Errorw("error in validating secrets only data", "error", err)
 		return configMapRequest, err
 	}
 
@@ -795,13 +810,6 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *bean.C
 		}
 		configMapRequest.Id = configMap.Id
 	}
-	//VARIABLE_MAPPING_UPDATE
-	//sl := bean.SecretsList{}
-	//data, err := sl.GetTransformedDataForSecretList(model.SecretData, util2.DecodeSecret)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//err = impl.extractAndMapVariables(data, model.Id, repository5.EntityTypeSecretEnvLevel, configMapRequest.UserId)
 	err = impl.scopedVariableManager.CreateVariableMappingsForSecretEnv(model)
 	if err != nil {
 		return nil, err
@@ -1540,6 +1548,26 @@ func (impl ConfigMapServiceImpl) validateConfigData(configData *bean.ConfigData)
 	for key := range dataMap {
 		if !re.MatchString(key) {
 			return false, fmt.Errorf("invalid key : %s", key)
+		}
+	}
+	return true, nil
+}
+
+func (impl ConfigMapServiceImpl) validateConfigDataForSecretsOnly(configData *bean.ConfigData) (bool, error) {
+
+	// check encoding in base64 for secret data
+	if len(configData.Data) > 0 {
+		dataMap := make(map[string]string)
+		err := json.Unmarshal(configData.Data, &dataMap)
+		if err != nil {
+			impl.logger.Errorw("error while unmarshalling secret data ", "error", err)
+			return false, err
+		}
+		err = util2.ValidateEncodedDataByDecoding(dataMap)
+		if err != nil {
+			impl.logger.Errorw("error in decoding secret data", "error", err)
+			return false, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithCode(strconv.Itoa(http.StatusUnprocessableEntity)).
+				WithUserMessage("error in decoding data, make sure the secret data is encoded properly")
 		}
 	}
 	return true, nil
