@@ -259,6 +259,7 @@ func (impl GitHubClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl stri
 	ctx := context.Background()
 	repo, _, err := impl.client.Repositories.Get(ctx, impl.org, config.GitRepoName)
 	if err != nil {
+		impl.logger.Errorw("error in getting repo url by repo name", "org", impl.org, "gitRepoName", config.GitRepoName, "err", err)
 		return "", err
 	}
 	return *repo.CloneURL, nil
