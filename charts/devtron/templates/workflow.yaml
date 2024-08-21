@@ -966,6 +966,7 @@ metadata:
   namespace: devtroncd
   labels:
     release: devtron
+{{- if $.Values.components.migrator.imagePullSecrets }}
 imagePullSecrets:
 {{ toYaml .Values.components.migrator.imagePullSecrets | indent 2 }}
 {{- else if $.Values.global.imagePullSecrets }}
