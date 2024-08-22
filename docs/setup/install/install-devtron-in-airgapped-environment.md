@@ -230,9 +230,8 @@ Before starting, ensure you have created an image pull secret for your registry 
     ```
 
 
-Use the below command to install Devtron with only the CI/CD module
 ### Installing Devtron without any Integrations
-To install Devtron without any Integrations:
+Use the below command to install Devtron without any Integrations:
 
 1. Without `imagePullSecrets`:
     ```bash
@@ -245,7 +244,7 @@ To install Devtron without any Integrations:
     ```
 
 ### Installing Devtron with CI/CD Module Only
-To install Devtron with only the CI/CD module:
+Use the below command to install Devtron with only the CI/CD module
 
 1. Without `imagePullSecrets`:
     ```bash
