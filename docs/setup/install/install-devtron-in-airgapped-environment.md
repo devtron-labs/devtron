@@ -229,9 +229,23 @@ Before starting, ensure you have created an image pull secret for your registry 
     cd charts/devtron
     ```
 
-### Install Devtron with CI/CD Module Only
 
 Use the below command to install Devtron with only the CI/CD module
+### Installing Devtron without any Integrations
+To install Devtron without any Integrations:
+
+1. Without `imagePullSecrets`:
+    ```bash
+    helm install devtron . -n devtroncd --set global.containerRegistry="$TARGET_REGISTRY"
+    ```
+
+2. With `imagePullSecrets`:
+    ```bash
+    helm install devtron . -n devtroncd --set global.containerRegistry="$TARGET_REGISTRY" --set global.imagePullSecrets[0].name=regcred
+    ```
+
+### Installing Devtron with CI/CD Module Only
+To install Devtron with only the CI/CD module:
 
 1. Without `imagePullSecrets`:
     ```bash
