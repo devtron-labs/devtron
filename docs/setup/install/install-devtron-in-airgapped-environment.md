@@ -24,7 +24,7 @@
     export SOURCE_REGISTRY="quay.io/devtron"
 
     # Set the target registry URL, username, and token/password
-    export TARGET_REGISTRY_URL=""
+    export TARGET_REGISTRY=""
     export TARGET_REGISTRY_USERNAME=""
     export TARGET_REGISTRY_TOKEN=""
 
@@ -36,7 +36,7 @@
 2. Log in to the target Docker registry:
 
     ```bash
-    docker login -u $TARGET_REGISTRY_USERNAME -p $TARGET_REGISTRY_TOKEN $TARGET_REGISTRY_URL
+    docker login -u $TARGET_REGISTRY_USERNAME -p $TARGET_REGISTRY_TOKEN $TARGET_REGISTRY
     ```
 
 3. Clone the images:
@@ -46,17 +46,17 @@
       # Check if the source image belongs to the quay.io/devtron registry
       if [[ "$source_image" == quay.io/devtron/* ]]; then
         # Replace the source registry with the target registry in the image name
-        target_image="${source_image/quay.io\/devtron/$TARGET_REGISTRY_URL}"
+        target_image="${source_image/quay.io\/devtron/$TARGET_REGISTRY}"
 
       # Check if the source image belongs to the quay.io/argoproj registry
       elif [[ "$source_image" == quay.io/argoproj/* ]]; then
         # Replace the source registry with the target registry in the image name
-        target_image="${source_image/quay.io\/argoproj/$TARGET_REGISTRY_URL}"
+        target_image="${source_image/quay.io\/argoproj/$TARGET_REGISTRY}"
 
       # Check if the source image belongs to the public.ecr.aws/docker/library registry
       elif [[ "$source_image" == public.ecr.aws/docker/library/* ]]; then
         # Replace the source registry with the target registry in the image name
-        target_image="${source_image/public.ecr.aws\/docker\/library/$TARGET_REGISTRY_URL}"
+        target_image="${source_image/public.ecr.aws\/docker\/library/$TARGET_REGISTRY}"
       fi
 
       # Pull the image from the source registry
@@ -86,7 +86,7 @@
     export SOURCE_REGISTRY="quay.io/devtron"
 
     # Set the target registry URL, username, and token/password
-    export TARGET_REGISTRY_URL=""
+    export TARGET_REGISTRY=""
     export TARGET_REGISTRY_USERNAME=""
     export TARGET_REGISTRY_TOKEN=""
 
@@ -98,7 +98,7 @@
 2. Log in to the target Docker registry:
 
     ```bash
-    docker login -u $TARGET_REGISTRY_USERNAME -p $TARGET_REGISTRY_TOKEN $TARGET_REGISTRY_URL
+    docker login -u $TARGET_REGISTRY_USERNAME -p $TARGET_REGISTRY_TOKEN $TARGET_REGISTRY
     ```
 
 3. Clone the images:
@@ -108,17 +108,17 @@
       # Check if the source image belongs to the quay.io/devtron registry
       if [[ "$source_image" == quay.io/devtron/* ]]; then
         # Replace the source registry with the target registry in the image name
-        target_image="${source_image/quay.io\/devtron/$TARGET_REGISTRY_URL}"
+        target_image="${source_image/quay.io\/devtron/$TARGET_REGISTRY}"
 
       # Check if the source image belongs to the quay.io/argoproj registry
       elif [[ "$source_image" == quay.io/argoproj/* ]]; then
         # Replace the source registry with the target registry in the image name
-        target_image="${source_image/quay.io\/argoproj/$TARGET_REGISTRY_URL}"
+        target_image="${source_image/quay.io\/argoproj/$TARGET_REGISTRY}"
 
       # Check if the source image belongs to the public.ecr.aws/docker/library registry
       elif [[ "$source_image" == public.ecr.aws/docker/library/* ]]; then
         # Replace the source registry with the target registry in the image name
-        target_image="${source_image/public.ecr.aws\/docker\/library/$TARGET_REGISTRY_URL}"
+        target_image="${source_image/public.ecr.aws\/docker\/library/$TARGET_REGISTRY}"
       fi
 
       # Pull the image from the source registry
