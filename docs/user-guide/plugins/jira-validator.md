@@ -1,7 +1,7 @@
 # Jira Issue Validator
 
 ## Introduction
-The Jira Issue Validator plugin extends the filtering capabilities of the Devtron CI and lets users perform validation based on JIRA Ticket ID status. This plugin ensures that only builds associated with valid JIRA tickets are executed, improving the accuracy of the CI process.
+The Jira Issue Validator plugin extends the filtering capabilities of the Devtron CI and lets users perform validation based on Jira Ticket ID status. This plugin ensures that only builds associated with valid Jira tickets are executed, improving the accuracy of the CI process.
 
 ### Prerequisites
 
@@ -18,8 +18,8 @@ The Jira Issue Validator plugin extends the filtering capabilities of the Devtro
 1. On the **Edit build pipeline** page, go to the **Pre-Build Stage** (or Post-Build Stage).
 2. Click **+ Add task**.
 3. Select **Jira Issue Validator** from the list of plugins.
-    * Enter a task name. It is a mandatory field.
-    * Optionally, enter a description 
+    * Enter a task name (mandatory).
+    * Optionally, enter a description.
     * Provide values for the input variables.
 
     | Variable       | Format | Description                                               |
@@ -29,28 +29,26 @@ The Jira Issue Validator plugin extends the filtering capabilities of the Devtro
     | JiraBaseUrl    | String | The base URL of your Jira instance (e.g., https://yourdomain.atlassian.net) |
 
     * `Trigger/Skip Condition` allows you to set conditions under which this task will execute or be skipped.
-    * `Pass/Failure Condition` lets you define conditions to determine if the build passes or fails based on the Jira validation.
+    * `Pass/Failure Condition` allows you to define conditions that determine whether the build passes or fails based on Jira validation.
 
 4. Go to the **Build Stage**.
 
 5. Select **Pull Request** in the **Source Type** dropdown.
 
 6. Use filters to fetch only the PRs matching your regex. Here are few examples:
-    * **title** can be a regex pattern to extract the Jira ID from the PR title. Only those PRs fulfilling the regex will be shown for image build process. 
-    * **state** can be `^open$`, where only PRs in open state will be shown for image build process.
+    * **Title** can be a regex pattern (e.g., `^(?P<jira_Id>([a-zA-Z0-9-].*))`) to extract the Jira ID from the PR title. Only those PRs fulfilling the regex will be shown for image build process. 
+    * **State** can be `^open$`, where only PRs in open state will be shown for image build process.
 
-7. **Trigger/Skip Condition**: Here you can set conditions to execute or skip the task. You can select `Set trigger conditions` for the execution of a task or `Set skip conditions` to skip the task.
-
-8. Click **Update Pipeline**.
+7. Click **Update Pipeline**.
 
 --- 
 
-## Result
+## Results
 
 **Case 1**: If Jira issue exists and the same is found in the PR title
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/plugins/jira/jira-issue-validator.jpg)
+![Figure 1: Jira Issue Match](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/plugins/jira/jira-issue-validator.jpg)
 
 **Case 2**: If Jira issue is not found
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/plugins/jira/issue-validation-failed.jpg)
+![Figure 2: Error in Finding Jira Issue](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/plugins/jira/issue-validation-failed.jpg)

@@ -1,7 +1,7 @@
 # Jira Issue Updater
 
 ## Introduction
-The Jira Issue Updater plugin extends the capabilities of Devtron CI by allowing updates to JIRA issues directly from the pipeline. It can add build pipeline status and docker image ID as a comment on JIRA tickets, keeping the issue tracking synchronized with your CI processes.
+The Jira Issue Updater plugin extends the capabilities of Devtron CI by allowing updates to Jira issues directly from the pipeline. It can add build pipeline status and docker image ID as a comment on Jira tickets, keeping the issue tracking synchronized with your CI processes.
 
 ### Prerequisites
 
@@ -18,7 +18,7 @@ The Jira Issue Updater plugin extends the capabilities of Devtron CI by allowing
 1. On the **Edit build pipeline** page, go to the **Post-Build Stage**.
 2. Click **+ Add task**.
 3. Select **Jira Issue Updater** from the list of plugins.
-    * Enter a task name. It is a mandatory field.
+    * Enter a task name (mandatory).
     * Optionally, enter a description.
     * Provide values for the input variables.
 
@@ -31,28 +31,25 @@ The Jira Issue Updater plugin extends the capabilities of Devtron CI by allowing
     | UpdateWithBuildStatus    | Bool   | Set to `true` to include the build status in the update     |
 
     * `Trigger/Skip Condition` allows you to set conditions under which this task will execute or be skipped.
-    * `Pass/Failure Condition` lets you define conditions to determine if the build passes or fails based on the Jira update.
+    * `Pass/Failure Condition` allows you define conditions to determine if the build passes or fails based on the Jira update.
 
 4. Go to the **Build Stage**.
 
 5. Select **Pull Request** in the **Source Type** dropdown.
 
 6. Use filters to fetch only the PRs matching your regex. Here are few examples:
-    * **title** can be a regex pattern to extract the Jira ID from the PR title. Only those PRs fulfilling the regex will be shown for image build process. 
-    * **state** can be `^open$`, where only PRs in open state will be shown for image build process.
+    * **Title** can be a regex pattern (e.g., `^(?P<jira_Id>([a-zA-Z0-9-].*))`) to extract the Jira ID from the PR title. Only those PRs fulfilling the regex will be shown for image build process. 
+    * **State** can be `^open$`, where only PRs in open state will be shown for image build process.
 
-7. **Trigger/Skip Condition**: Here you can set conditions to execute or skip the task. You can select `Set trigger conditions` for the execution of a task or `Set skip conditions` to skip the task.
-
-8. Click **Update Pipeline**.
+7. Click **Update Pipeline**.
 
 --- 
 
-## Result
+## Results
 
-![Build Log](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/plugins/jira/jira-updater-log.jpg)
+![Figure 1: Build Log](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/plugins/jira/jira-updater-log.jpg)
 
-
-![Comments on Jira Issue](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/plugins/jira/jira-updater.jpg)
+![Figure 2: Comments added by the Plugin on the Jira Issue](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/plugins/jira/jira-updater.jpg)
 
 
 
