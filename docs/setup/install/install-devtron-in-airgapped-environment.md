@@ -13,6 +13,8 @@
 
 4. Set the value of `TARGET_REGISTRY`, `TARGET_REGISTRY_USERNAME`, and `TARGET_REGISTRY_TOKEN`. This registry should be accessible from the VM where you are running the cloning script and the K8s cluster where you’re installing Devtron.
 
+### Note: If you are using Docker, the TARGET_REGISTRY should be in the format docker.io/<USERNAME>
+
 ## Docker Instructions
 
 ### For Linux/amd64
