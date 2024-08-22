@@ -56,6 +56,9 @@ func (impl GoGitSDKManagerImpl) Pull(ctx GitContext, repoRoot string) (err error
 	}
 
 	err = workTree.PullContext(ctx, pullOptions)
+	if err != nil {
+		impl.logger.Errorw("error in git pull from go-git", "err", err)
+	}
 	if err != nil && err.Error() == "already up-to-date" {
 		err = nil
 		return nil
