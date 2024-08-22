@@ -6,7 +6,6 @@ CREATE TABLE IF NOT EXISTS "public"."system_network_controller_config"
     "ip"                             VARCHAR(50),
     "username"                       VARCHAR(100),
     "password"                       VARCHAR(100),
-    gi
     "active"                          bool,
     "action_link_json"              jsonb,
     "created_on"                     timestamptz,
