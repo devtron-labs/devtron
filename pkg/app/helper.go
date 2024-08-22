@@ -16,10 +16,7 @@
 
 package app
 
-import (
-	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"strings"
-)
+import "strings"
 
 // LabelMatchingRegex is the official k8s label matching regex, pls refer https://github.com/kubernetes/apimachinery/blob/bfd2aff97e594f6aad77acbe2cbbe190acc93cbc/pkg/util/validation/validation.go#L167
 const LabelMatchingRegex = "^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$"
@@ -45,22 +42,4 @@ func sanitizeLabels(extraAppLabels map[string]string) map[string]string {
 		}
 	}
 	return extraAppLabels
-}
-
-// identifyDuplicateApps identifies the earliest created app and the most recent duplicate app.
-func identifyDuplicateApps(apps []*appRepository.App) (earliestApp *appRepository.App, duplicatedApp *appRepository.App) {
-	if len(apps) == 0 {
-		return nil, nil
-	}
-	earliestApp = apps[0]
-	duplicatedApp = apps[0]
-	for _, app := range apps[1:] {
-		if app.AuditLog.CreatedOn.Before(earliestApp.AuditLog.CreatedOn) {
-			earliestApp = app
-		}
-		if app.AuditLog.CreatedOn.After(duplicatedApp.AuditLog.CreatedOn) {
-			duplicatedApp = app
-		}
-	}
-	return earliestApp, duplicatedApp
 }
