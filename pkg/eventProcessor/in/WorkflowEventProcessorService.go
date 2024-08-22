@@ -526,7 +526,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 					if len(detail.ImageTags) == 0 {
 						continue
 					}
-					request, err := impl.BuildCIArtifactRequestForImageFromCR(detail, ciCompleteEvent.GetPluginImageDetails().Region, ciCompleteEvent, digestWorkflowMap[*detail.ImageDigest].Id)
+					request, err := impl.buildCIArtifactRequestForImageFromCR(detail, ciCompleteEvent.GetPluginImageDetails().Region, ciCompleteEvent, digestWorkflowMap[*detail.ImageDigest].Id)
 					if err != nil {
 						impl.logger.Error("Error while creating request for pipelineID", "pipelineId", ciCompleteEvent.PipelineId, "err", err)
 						return
@@ -659,7 +659,7 @@ func (impl *WorkflowEventProcessorImpl) BuildCiArtifactRequest(event bean.CiComp
 	return request, nil
 }
 
-func (impl *WorkflowEventProcessorImpl) BuildCIArtifactRequestForImageFromCR(imageDetails types.ImageDetail, region string, event bean.CiCompleteEvent, workflowId int) (*wrokflowDagBean.CiArtifactWebhookRequest, error) {
+func (impl *WorkflowEventProcessorImpl) buildCIArtifactRequestForImageFromCR(imageDetails types.ImageDetail, region string, event bean.CiCompleteEvent, workflowId int) (*wrokflowDagBean.CiArtifactWebhookRequest, error) {
 	if event.TriggeredBy == 0 {
 		event.TriggeredBy = 1 // system triggered event
 	}
