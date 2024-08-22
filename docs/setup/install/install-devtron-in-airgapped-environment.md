@@ -2,7 +2,7 @@
 
 ## Introduction
 
-In certain scenarios, you may need to deploy Devtron to a Kubernetes cluster that isn’t connected to the internet. Such air-gapped environments are used for a variety of reasons, particularly in industries with strict regulatory requirements like healthcare, banking, and finance. This is because air-gapped environments aren't exposed to the public internet; therefore, they create a controlled and secure space for handling sensitive data and operations.
+In certain scenarios, you may need to deploy Devtron to a Kubernetes cluster that isn’t connected to the internet. Such air-gapped environments are used for various reasons, particularly in industries with strict regulatory requirements like healthcare, banking, and finance. This is because air-gapped environments aren't exposed to the public internet; therefore, they create a controlled and secure space for handling sensitive data and operations.
 
 ### Prerequisites
 
@@ -14,7 +14,7 @@ In certain scenarios, you may need to deploy Devtron to a Kubernetes cluster tha
     cd devtron
     ```
 
-3. Set the value of `TARGET_REGISTRY`, `TARGET_REGISTRY_USERNAME`, and `TARGET_REGISTRY_TOKEN`. This registry should be accessible from the VM where you are running the cloning script and the K8s cluster where you’re installing Devtron.
+3. Set the values of `TARGET_REGISTRY`, `TARGET_REGISTRY_USERNAME`, and `TARGET_REGISTRY_TOKEN`. This registry should be accessible from the VM where you are running the cloning script and the K8s cluster where you’re installing Devtron.
 
 {% hint style="warning" %}
 ### Note 
@@ -81,7 +81,7 @@ If you are using Docker, the TARGET_REGISTRY should be in the format `docker.io/
       # Output the updated image name
       echo "Updated image: $target_image"
 
-      # Append the new image name to the target images file
+      # Append the new image name to the target image file
       echo "$target_image" >> "$TARGET_IMAGES_LIST"
 
     done < "$SOURCE_IMAGES_LIST"
@@ -143,7 +143,7 @@ If you are using Docker, the TARGET_REGISTRY should be in the format `docker.io/
       # Output the updated image name
       echo "Updated image: $target_image"
 
-      # Append the new image name to the target images file
+      # Append the new image name to the target image file
       echo "$target_image" >> "$TARGET_IMAGES_LIST"
 
     done < "$SOURCE_IMAGES_LIST"
