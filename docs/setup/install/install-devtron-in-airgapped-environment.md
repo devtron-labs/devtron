@@ -1,6 +1,10 @@
 # Devtron Full Mode Installation in an Airgapped Environment
 
-## Pre-requisites
+## Introduction
+
+In certain scenarios, you may need to deploy Devtron to a Kubernetes cluster that isn’t connected to the internet. Such air-gapped environments are used for a variety of reasons, particularly in industries with strict regulatory requirements like healthcare, banking, and finance. This is because air-gapped environments aren't exposed to the public internet; therefore, they create a controlled and secure space for handling sensitive data and operations.
+
+### Prerequisites
 
 1. Install `podman` or `docker` and `yq` on the VM from where you're executing the installation commands.
 2. Clone the Devtron Helm chart:
@@ -10,16 +14,20 @@
     cd devtron
     ```
 
+3. Set the value of `TARGET_REGISTRY`, `TARGET_REGISTRY_USERNAME`, and `TARGET_REGISTRY_TOKEN`. This registry should be accessible from the VM where you are running the cloning script and the K8s cluster where you’re installing Devtron.
 
-4. Set the value of `TARGET_REGISTRY`, `TARGET_REGISTRY_USERNAME`, and `TARGET_REGISTRY_TOKEN`. This registry should be accessible from the VM where you are running the cloning script and the K8s cluster where you’re installing Devtron.
+{% hint style="info" %}
+### Note 
+If you are using Docker, the TARGET_REGISTRY should be in the format docker.io/<USERNAME>
+{% endhint %}
 
-### Note: If you are using Docker, the TARGET_REGISTRY should be in the format docker.io/<USERNAME>
+---
 
 ## Docker Instructions
 
 ### For Linux/amd64
 
-1. Set the environment variables:
+1. Set the environment variables
 
     ```bash
     # Set the source registry URL
@@ -35,13 +43,13 @@
     TARGET_IMAGES_LIST="${TARGET_IMAGES_LIST:=devtron-images.txt.target}"
     ```
 
-2. Log in to the target Docker registry:
+2. Log in to the target Docker registry
 
     ```bash
     docker login -u $TARGET_REGISTRY_USERNAME -p $TARGET_REGISTRY_TOKEN $TARGET_REGISTRY
     ```
 
-3. Clone the images:
+3. Clone the images
 
     ```bash
     while IFS= read -r source_image; do
@@ -81,7 +89,7 @@
 
 ### For Linux/arm64
 
-1. Set the environment variables:
+1. Set the environment variables
 
     ```bash
     # Set the source registry URL
@@ -97,13 +105,13 @@
     TARGET_IMAGES_LIST="${TARGET_IMAGES_LIST:=devtron-images.txt.target}"
     ```
 
-2. Log in to the target Docker registry:
+2. Log in to the target Docker registry
 
     ```bash
     docker login -u $TARGET_REGISTRY_USERNAME -p $TARGET_REGISTRY_TOKEN $TARGET_REGISTRY
     ```
 
-3. Clone the images:
+3. Clone the images
 
     ```bash
     while IFS= read -r source_image; do
@@ -141,11 +149,13 @@
     done < "$SOURCE_IMAGES_LIST"
     ```
 
+---
+
 ## Podman Instructions
 
 ### For Multi-arch
 
-1. Set the environment variables:
+1. Set the environment variables
 
     ```bash
     export SOURCE_REGISTRY="quay.io/devtron"
@@ -155,13 +165,13 @@
     export TARGET_REGISTRY_TOKEN=#Enter target registry token/password
     ```
 
-2. Log in to the target Podman registry:
+2. Log in to the target Podman registry
 
     ```bash
     podman login -u $TARGET_REGISTRY_USERNAME -p $TARGET_REGISTRY_TOKEN $TARGET_REGISTRY
     ```
 
-3. Clone the images:
+3. Clone the images
 
     ```bash
     SOURCE_REGISTRY="quay.io/devtron"
@@ -194,18 +204,18 @@
     done 3<"$SOURCE_IMAGES_FILE_NAME" 4<"$TARGET_IMAGES_FILE_NAME"
     ```
 
-# Devtron Installation with Image Pull Secret
+---
 
-## Prerequisites
-Before starting, ensure that you have created an image pull secret for your registry if authentication is required.
+## Devtron Installation 
 
-### Steps to Create an Image Pull Secret
-1. Create the namespace (if not already created):
+Before starting, ensure you have created an image pull secret for your registry if authentication is required.
+
+1. Create the namespace (if not already created)
     ```bash
     kubectl create ns devtroncd
     ```
 
-2. Create the Docker registry secret:
+2. Create the Docker registry secret
     ```bash
     kubectl create secret docker-registry regcred \
       --namespace devtroncd \
@@ -214,15 +224,14 @@ Before starting, ensure that you have created an image pull secret for your regi
       --docker-password=$TARGET_REGISTRY_TOKEN
     ```
 
-## Devtron Installation
+3. Navigate to the Devtron Helm chart directory
+    ```bash
+    cd charts/devtron
+    ```
 
-Navigate to the Devtron Helm chart directory:
+### Install Devtron with CI/CD Module Only
 
-```bash
-cd charts/devtron
-```
-### Installing Devtron with CI/CD Module Only
-To install Devtron with only the CI/CD module:
+Use the below command to install Devtron with only the CI/CD module
 
 1. Without `imagePullSecrets`:
     ```bash
@@ -234,9 +243,9 @@ To install Devtron with only the CI/CD module:
     helm install devtron . -n devtroncd --set installer.modules={cicd} --set global.containerRegistry="$TARGET_REGISTRY" --set global.imagePullSecrets[0].name=regcred
     ```
 
-### Installing Devtron with Argo CD
+### Install Devtron with Argo CD
 
-To install Devtron with the CI/CD module and Argo CD:
+Use the below command to install Devtron with the CI/CD module and Argo CD
 
 1. Without `imagePullSecrets`:
     ```bash
@@ -248,5 +257,7 @@ To install Devtron with the CI/CD module and Argo CD:
     helm install devtron . --create-namespace -n devtroncd --set installer.modules={cicd} --set argo-cd.enabled=true --set global.containerRegistry="$TARGET_REGISTRY" --set argo-cd.global.image.repository="${TARGET_REGISTRY}/argocd" --set argo-cd.redis.image.repository="${TARGET_REGISTRY}/redis" --set global.imagePullSecrets[0].name=regcred
     ```
 
+---
+
 ## Next Steps
-After installation, refer to the [Devtron installation documentation](https://docs.devtron.ai/install/install-devtron-with-cicd-with-gitops#devtron-dashboard) for further steps, including obtaining the dashboard URL and the admin password.
+After installation, refer [Devtron installation documentation](https://docs.devtron.ai/install/install-devtron-with-cicd-with-gitops#devtron-dashboard) for further steps, including obtaining the dashboard URL and the admin password.
