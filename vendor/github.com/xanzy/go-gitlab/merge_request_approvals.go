@@ -180,6 +180,26 @@ func (s *MergeRequestApprovalsService) UnapproveMergeRequest(pid interface{}, mr
 	return s.client.Do(req, nil)
 }
 
+// ResetApprovalsOfMergeRequest clear all approvals of merge request on GitLab.
+// Available only for bot users based on project or group tokens.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/merge_request_approvals.html#reset-approvals-of-a-merge-request
+func (s *MergeRequestApprovalsService) ResetApprovalsOfMergeRequest(pid interface{}, mr int, options ...RequestOptionFunc) (*Response, error) {
+	project, err := parseID(pid)
+	if err != nil {
+		return nil, err
+	}
+	u := fmt.Sprintf("projects/%s/merge_requests/%d/reset_approvals", PathEscape(project), mr)
+
+	req, err := s.client.NewRequest(http.MethodPut, u, nil, options)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.client.Do(req, nil)
+}
+
 // ChangeMergeRequestApprovalConfigurationOptions represents the available
 // ChangeMergeRequestApprovalConfiguration() options.
 //

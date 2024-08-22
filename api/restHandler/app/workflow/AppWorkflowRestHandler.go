@@ -280,9 +280,9 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 	} else {
 		workflows[bean3.Workflows] = []appWorkflow.AppWorkflowDto{}
 	}
-	isAppLevelGitOpsConfigured, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(appId)
+	isAppLevelGitOpsConfigured, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApp(appId)
 	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("service err, IsGitOpsRepoConfiguredForDevtronApps", "appId", appId, "envIds", envIds, "err", err)
+		impl.Logger.Errorw("service err, IsGitOpsRepoConfiguredForDevtronApp", "appId", appId, "envIds", envIds, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

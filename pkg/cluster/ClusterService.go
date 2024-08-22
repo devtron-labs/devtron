@@ -113,7 +113,7 @@ func GetClusterBean(model repository.Cluster) ClusterBean {
 	return bean
 }
 
-func (bean ClusterBean) GetClusterConfig() (*k8s.ClusterConfig, error) {
+func (bean ClusterBean) GetClusterConfig() *k8s.ClusterConfig {
 	host := bean.ServerUrl
 	configMap := bean.Config
 	bearerToken := configMap[k8s.BearerToken]
@@ -124,7 +124,7 @@ func (bean ClusterBean) GetClusterConfig() (*k8s.ClusterConfig, error) {
 		clusterCfg.CertData = configMap[k8s.CertData]
 		clusterCfg.CAData = configMap[k8s.CertificateAuthorityData]
 	}
-	return clusterCfg, nil
+	return clusterCfg
 }
 
 type UserInfo struct {
@@ -266,10 +266,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 
 	model := impl.ConvertClusterBeanToCluster(bean, userId)
 
-	cfg, err := bean.GetClusterConfig()
-	if err != nil {
-		return nil, err
-	}
+	cfg := bean.GetClusterConfig()
 	client, err := impl.K8sUtil.GetK8sDiscoveryClient(cfg)
 	if err != nil {
 		return nil, err
@@ -510,10 +507,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	model.UpdatedOn = time.Now()
 
 	if model.K8sVersion == "" {
-		cfg, err := bean.GetClusterConfig()
-		if err != nil {
-			return nil, err
-		}
+		cfg := bean.GetClusterConfig()
 		client, err := impl.K8sUtil.GetK8sDiscoveryClient(cfg)
 		if err != nil {
 			return nil, err
@@ -675,11 +669,7 @@ func (impl ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) err
 }
 
 func (impl ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error {
-	clusterConfig, err := cluster.GetClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster config ", "err", "err", "clusterId", cluster.Id)
-		return err
-	}
+	clusterConfig := cluster.GetClusterConfig()
 	response, err := impl.K8sUtil.DiscoveryClientGetLiveZCall(clusterConfig)
 	if err != nil {
 		if _, ok := err.(*url.Error); ok {
@@ -835,11 +825,7 @@ func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, 
 		wg.Add(1)
 		go func(idx int, cluster *ClusterBean) {
 			defer wg.Done()
-			clusterConfig, err := cluster.GetClusterConfig()
-			if err != nil {
-				impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", cluster.Id)
-				return
-			}
+			clusterConfig := cluster.GetClusterConfig()
 			_, _, k8sClientSet, err := impl.K8sUtil.GetK8sConfigAndClients(clusterConfig)
 			if err != nil {
 				mutex.Lock()
@@ -1118,11 +1104,7 @@ func (impl ClusterServiceImpl) GetClusterConfigByClusterId(clusterId int) (*k8s.
 		return nil, err
 	}
 	rq := *clusterBean
-	clusterConfig, err := rq.GetClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
-		return nil, err
-	}
+	clusterConfig := rq.GetClusterConfig()
 	return clusterConfig, nil
 }
 

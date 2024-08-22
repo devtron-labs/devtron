@@ -308,6 +308,7 @@ func startProcess(ctx context.Context, k8sClient kubernetes.Interface, cfg *rest
 	exec, err := getExecutor(k8sClient, cfg, podName, namespace, containerName, cmd, true, true)
 
 	if err != nil {
+		log.Println("error in getting terminal executor ", "err: ", err)
 		return err
 	}
 
@@ -323,6 +324,7 @@ func startProcess(ctx context.Context, k8sClient kubernetes.Interface, cfg *rest
 	terminalSessions.SetTerminalSessionStartTime(sessionRequest.SessionId)
 	err = execWithStreamOptions(ctx, exec, streamOptions)
 	if err != nil {
+		log.Println("error in terminal exec with stream opts: ", "err: ", err)
 		return err
 	}
 	return nil
@@ -506,7 +508,7 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 		namespace:         req.Namespace,
 		clusterId:         strconv.Itoa(req.ClusterId),
 	})
-	config, client, err := impl.getClientConfig(req)
+	config, client, err := impl.getClientSetAndRestConfigForTerminalConn(req)
 
 	go func() {
 		err := impl.saveEphemeralContainerTerminalAccessAudit(req)
@@ -523,7 +525,7 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 	return http.StatusOK, &TerminalMessage{SessionID: sessionID}, nil
 }
 
-func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequest) (*rest.Config, *kubernetes.Clientset, error) {
+func (impl *TerminalSessionHandlerImpl) getClientSetAndRestConfigForTerminalConn(req *TerminalSessionRequest) (*rest.Config, *kubernetes.Clientset, error) {
 	var clusterBean *cluster.ClusterBean
 	var clusterConfig *k8s.ClusterConfig
 	var restConfig *rest.Config
@@ -534,6 +536,13 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)
 			return nil, nil, err
 		}
+
+		_, clientSet, err := impl.k8sUtil.GetK8sConfigAndClientsByRestConfig(restConfig)
+		if err != nil {
+			impl.logger.Errorw("error in clientSet", "err", err)
+			return nil, nil, err
+		}
+		return restConfig, clientSet, nil
 	} else {
 		if req.ClusterId != 0 {
 			clusterBean, err = impl.clusterService.FindById(req.ClusterId)
@@ -551,24 +560,28 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 			return nil, nil, fmt.Errorf("not able to find cluster-config")
 		}
 
-		clusterConfig, err = clusterBean.GetClusterConfig()
-		if err != nil {
-			impl.logger.Errorw("error in config", "err", err, "clusterId", req.ClusterId)
-			return nil, nil, err
-		}
+		clusterConfig = clusterBean.GetClusterConfig()
 		restConfig, err = impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config by cluster", "err", err, "clusterName", clusterConfig.ClusterName)
 			return nil, nil, err
 		}
+
+		_, clientSet, err := impl.k8sUtil.GetK8sConfigAndClientsByRestConfig(restConfig)
+		if err != nil {
+			impl.logger.Errorw("error in clientSet", "err", err)
+			return nil, nil, err
+		}
+
+		// we have to get the clientSet before setting the custom transport to nil
+		// we need re populate the tls config in the restConfig.
+		// rest config with custom transport will break spdy client
+		clusterConfig.PopulateTlsConfigurationsInto(restConfig)
+		restConfig.Transport = nil
+		return restConfig, clientSet, nil
 	}
-	_, clientSet, err := impl.k8sUtil.GetK8sConfigAndClientsByRestConfig(restConfig)
-	if err != nil {
-		impl.logger.Errorw("error in clientSet", "err", err)
-		return nil, nil, err
-	}
-	return restConfig, clientSet, nil
 }
+
 func (impl *TerminalSessionHandlerImpl) AutoSelectShell(req *TerminalSessionRequest) (string, error) {
 	var err1 error
 	for _, testShell := range validShells {
@@ -614,7 +627,7 @@ func getErrorMsg(err string) error {
 }
 
 func (impl *TerminalSessionHandlerImpl) RunCmdInRemotePod(req *TerminalSessionRequest, cmds []string) (*bytes.Buffer, *bytes.Buffer, error) {
-	config, client, err := impl.getClientConfig(req)
+	config, client, err := impl.getClientSetAndRestConfigForTerminalConn(req)
 	if err != nil {
 		impl.logger.Errorw("error in fetching config", "err", err)
 		return nil, nil, err
@@ -650,11 +663,7 @@ func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudi
 			impl.logger.Errorw("error occurred in finding clusterBean by Id", "clusterId", req.ClusterId, "err", err)
 			return err
 		}
-		clusterConfig, err := clusterBean.GetClusterConfig()
-		if err != nil {
-			impl.logger.Errorw("error in getting cluster config", "err", err, "clusterId", clusterBean.Id)
-			return err
-		}
+		clusterConfig := clusterBean.GetClusterConfig()
 		restConfig, err = impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)

@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/caarlos0/env"
+	grpcUtil "github.com/devtron-labs/common-lib/utils/grpc"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -29,6 +30,7 @@ import (
 
 type HelmAppClient interface {
 	ListApplication(ctx context.Context, req *AppListRequest) (ApplicationService_ListApplicationsClient, error)
+	ListFluxApplication(ctx context.Context, req *AppListRequest) (ApplicationService_ListFluxApplicationsClient, error)
 	GetAppDetail(ctx context.Context, in *AppDetailRequest) (*AppDetail, error)
 	GetResourceTreeForExternalResources(ctx context.Context, in *ExternalResourceTreeRequest) (*ResourceTreeResponse, error)
 	GetAppStatus(ctx context.Context, in *AppDetailRequest) (*AppStatus, error)
@@ -49,18 +51,23 @@ type HelmAppClient interface {
 	InstallReleaseWithCustomChart(ctx context.Context, in *HelmInstallCustomRequest) (*HelmInstallCustomResponse, error)
 	GetNotes(ctx context.Context, request *InstallReleaseRequest) (*ChartNotesResponse, error)
 	ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *RegistryCredential) (*OCIRegistryResponse, error)
+	GetExternalFluxAppDetail(ctx context.Context, in *FluxAppDetailRequest) (*FluxAppDetail, error)
 }
 
 type HelmAppClientImpl struct {
 	logger                   *zap.SugaredLogger
 	helmClientConfig         *HelmClientConfig
 	applicationServiceClient ApplicationServiceClient
+	grpcConfig               *grpcUtil.Configuration
 }
 
-func NewHelmAppClientImpl(logger *zap.SugaredLogger, helmClientConfig *HelmClientConfig) *HelmAppClientImpl {
+func NewHelmAppClientImpl(logger *zap.SugaredLogger,
+	helmClientConfig *HelmClientConfig,
+	grpcConfig *grpcUtil.Configuration) *HelmAppClientImpl {
 	return &HelmAppClientImpl{
 		logger:           logger,
 		helmClientConfig: helmClientConfig,
+		grpcConfig:       grpcConfig,
 	}
 }
 
@@ -94,7 +101,8 @@ func (impl *HelmAppClientImpl) getConnection() (*grpc.ClientConn, error) {
 		grpc.WithBlock(),
 		grpc.WithInsecure(),
 		grpc.WithDefaultCallOptions(
-			grpc.MaxCallRecvMsgSize(20*1024*1024),
+			grpc.MaxCallRecvMsgSize(impl.grpcConfig.KubelinkMaxSendMsgSize*1024*1024), // GRPC Request size
+			grpc.MaxCallSendMsgSize(impl.grpcConfig.KubelinkMaxRecvMsgSize*1024*1024), // GRPC Response size
 		),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
 	)
@@ -361,4 +369,26 @@ func (impl *HelmAppClientImpl) ValidateOCIRegistry(ctx context.Context, in *Regi
 		return nil, err
 	}
 	return response, nil
+}
+func (impl *HelmAppClientImpl) ListFluxApplication(ctx context.Context, req *AppListRequest) (ApplicationService_ListFluxApplicationsClient, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	stream, err := applicationClient.ListFluxApplications(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return stream, nil
+}
+func (impl *HelmAppClientImpl) GetExternalFluxAppDetail(ctx context.Context, in *FluxAppDetailRequest) (*FluxAppDetail, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	detail, err := applicationClient.GetFluxAppDetail(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return detail, nil
 }

@@ -94,6 +94,7 @@ type ImageScanHistoryRepository interface {
 	FindOne(id int) (*ImageScanExecutionHistory, error)
 	FindByImageAndDigest(imageDigest string, image string) (*ImageScanExecutionHistory, error)
 	FindByImageDigests(digest []string) ([]*ImageScanExecutionHistory, error)
+	FindByIds(ids []int) ([]*ImageScanExecutionHistory, error)
 	Update(model *ImageScanExecutionHistory) error
 	FindByImage(image string) (*ImageScanExecutionHistory, error)
 }
@@ -141,6 +142,13 @@ func (impl ImageScanHistoryRepositoryImpl) FindByImageDigests(digest []string) (
 	var models []*ImageScanExecutionHistory
 	err := impl.dbConnection.Model(&models).
 		Where("image_hash in (?)", pg.In(digest)).Order("execution_time desc").Select()
+	return models, err
+}
+
+func (impl ImageScanHistoryRepositoryImpl) FindByIds(ids []int) ([]*ImageScanExecutionHistory, error) {
+	var models = make([]*ImageScanExecutionHistory, 0)
+	err := impl.dbConnection.Model(&models).
+		Where("id IN (?)", pg.In(ids)).Select()
 	return models, err
 }
 

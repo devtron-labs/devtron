@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts"
+	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
 	triggerAdapter "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
@@ -45,6 +46,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/workflow/dag/bean"
 	error2 "github.com/devtron-labs/devtron/util/error"
 	util2 "github.com/devtron-labs/devtron/util/event"
+	"strings"
 	"sync"
 	"time"
 
@@ -113,6 +115,7 @@ type WorkflowDagExecutorImpl struct {
 
 	manifestCreationService manifest.ManifestCreationService
 	commonArtifactService   artifacts.CommonArtifactService
+	deploymentConfigService common2.DeploymentConfigService
 }
 
 func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -134,7 +137,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	cdTriggerService devtronApps.TriggerService,
 	userDeploymentRequestService service.UserDeploymentRequestService,
 	manifestCreationService manifest.ManifestCreationService,
-	commonArtifactService artifacts.CommonArtifactService) *WorkflowDagExecutorImpl {
+	commonArtifactService artifacts.CommonArtifactService,
+	deploymentConfigService common2.DeploymentConfigService) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -156,6 +160,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		userDeploymentRequestService:  userDeploymentRequestService,
 		manifestCreationService:       manifestCreationService,
 		commonArtifactService:         commonArtifactService,
+		deploymentConfigService:       deploymentConfigService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -292,7 +297,7 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 	if releaseErr == nil || errors.Is(context.Cause(newCtx), error2.ServerShutDown) {
 		// skipping
 		return
-	} else if errors.Is(releaseErr, context.DeadlineExceeded) {
+	} else if errors.Is(releaseErr, context.DeadlineExceeded) || strings.Contains(releaseErr.Error(), context.DeadlineExceeded.Error()) {
 		appIdentifier := triggerAdapter.NewAppIdentifierFromOverrideRequest(overrideRequest)
 		if util.IsHelmApp(overrideRequest.DeploymentAppType) {
 			// if context deadline is exceeded fetch release status and UpdateWorkflowRunnerStatusForDeployment
@@ -323,7 +328,13 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 				}
 			}
 			if util4.IsTerminalRunnerStatus(cdWfr.Status) {
-				util4.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(cdWfr), impl.config.ExposeCDMetrics)
+				appId := cdWfr.CdWorkflow.Pipeline.AppId
+				envId := cdWfr.CdWorkflow.Pipeline.EnvironmentId
+				envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
+				if err != nil {
+					impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
+				}
+				util4.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(cdWfr, envDeploymentConfig), impl.config.ExposeCDMetrics)
 			}
 			impl.logger.Infow("updated workflow runner status for helm app", "wfr", cdWfr)
 		} else {
@@ -333,7 +344,7 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 			}
 		}
 		return
-	} else if errors.Is(releaseErr, context.Canceled) {
+	} else if errors.Is(releaseErr, context.Canceled) || strings.Contains(releaseErr.Error(), context.Canceled.Error()) {
 		if err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, pipelineConfig.ErrorDeploymentSuperseded, overrideRequest.UserId); err != nil {
 			impl.logger.Errorw("error while updating current runner status to failed, handleAsyncTriggerReleaseError", "cdWfr", cdWfr.Id, "err", err)
 		}
@@ -363,7 +374,12 @@ func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(cdAsyncIn
 			return err
 		}
 	}
-	releaseId, releaseErr := impl.cdTriggerService.TriggerRelease(overrideRequest, newCtx, cdAsyncInstallReq.TriggeredAt, cdAsyncInstallReq.TriggeredBy)
+	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(overrideRequest.AppId, overrideRequest.EnvId)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "err", err)
+		return err
+	}
+	releaseId, releaseErr := impl.cdTriggerService.TriggerRelease(overrideRequest, envDeploymentConfig, newCtx, cdAsyncInstallReq.TriggeredAt, cdAsyncInstallReq.TriggeredBy)
 	if releaseErr != nil {
 		impl.handleAsyncTriggerReleaseError(newCtx, releaseErr, cdWfr, overrideRequest)
 		return releaseErr

@@ -30,6 +30,7 @@ type EnvironmentVariables struct {
 type DeploymentServiceTypeConfig struct {
 	ExternallyManagedDeploymentType bool `env:"IS_INTERNAL_USE" envDefault:"false"`
 	HelmInstallASyncMode            bool `env:"RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS" envDefault:"false"`
+	UseDeploymentConfigData         bool `env:"USE_DEPLOYMENT_CONFIG_DATA" envDefault:"false"`
 }
 
 type GlobalEnvVariables struct {

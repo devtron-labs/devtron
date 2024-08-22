@@ -17,6 +17,7 @@
 package gitlab
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 )
@@ -189,6 +190,7 @@ type Settings struct {
 	HousekeepingFullRepackPeriod                          int               `json:"housekeeping_full_repack_period"`
 	HousekeepingGcPeriod                                  int               `json:"housekeeping_gc_period"`
 	HousekeepingIncrementalRepackPeriod                   int               `json:"housekeeping_incremental_repack_period"`
+	HousekeepingOptimizeRepositoryPeriod                  int               `json:"housekeeping_optimize_repository_period"`
 	ImportSources                                         []string          `json:"import_sources"`
 	InactiveProjectsDeleteAfterMonths                     int               `json:"inactive_projects_delete_after_months"`
 	InactiveProjectsMinSizeMB                             int               `json:"inactive_projects_min_size_mb"`
@@ -216,6 +218,7 @@ type Settings struct {
 	MaxPagesSize                                          int               `json:"max_pages_size"`
 	MaxPersonalAccessTokenLifetime                        int               `json:"max_personal_access_token_lifetime"`
 	MaxSSHKeyLifetime                                     int               `json:"max_ssh_key_lifetime"`
+	MaxTerraformStateSizeBytes                            int               `json:"max_terraform_state_size_bytes"`
 	MaxYAMLDepth                                          int               `json:"max_yaml_depth"`
 	MaxYAMLSizeBytes                                      int               `json:"max_yaml_size_bytes"`
 	MetricsMethodCallThreshold                            int               `json:"metrics_method_call_threshold"`
@@ -237,7 +240,7 @@ type Settings struct {
 	PasswordSymbolRequired                                bool              `json:"password_symbol_required"`
 	PasswordUppercaseRequired                             bool              `json:"password_uppercase_required"`
 	PasswordLowercaseRequired                             bool              `json:"password_lowercase_required"`
-	PerformanceBarAllowedGroupID                          string            `json:"performance_bar_allowed_group_id"`
+	PerformanceBarAllowedGroupID                          int               `json:"performance_bar_allowed_group_id"`
 	PerformanceBarAllowedGroupPath                        string            `json:"performance_bar_allowed_group_path"`
 	PerformanceBarEnabled                                 bool              `json:"performance_bar_enabled"`
 	PersonalAccessTokenPrefix                             string            `json:"personal_access_token_prefix"`
@@ -389,6 +392,31 @@ type Settings struct {
 	ThrottleUnauthenticatedRequestsPerPeriod int `json:"throttle_unauthenticated_requests_per_period"`
 	// Deprecated: Replaced by SearchRateLimit in GitLab 14.9 (removed in 15.0).
 	UserEmailLookupLimit int `json:"user_email_lookup_limit"`
+}
+
+// Settings requires a custom unmarshaller in order to properly unmarshal
+// `container_registry_import_created_before` which is either a time.Time or
+// an empty string if no value is set.
+func (s *Settings) UnmarshalJSON(data []byte) error {
+	type Alias Settings
+
+	raw := make(map[string]interface{})
+	err := json.Unmarshal(data, &raw)
+	if err != nil {
+		return err
+	}
+
+	// If empty string, remove the value to leave it nil in the response.
+	if v, ok := raw["container_registry_import_created_before"]; ok && v == "" {
+		delete(raw, "container_registry_import_created_before")
+
+		data, err = json.Marshal(raw)
+		if err != nil {
+			return err
+		}
+	}
+
+	return json.Unmarshal(data, (*Alias)(s))
 }
 
 func (s Settings) String() string {
@@ -567,6 +595,7 @@ type UpdateSettingsOptions struct {
 	HousekeepingFullRepackPeriod                          *int               `url:"housekeeping_full_repack_period,omitempty" json:"housekeeping_full_repack_period,omitempty"`
 	HousekeepingGcPeriod                                  *int               `url:"housekeeping_gc_period,omitempty" json:"housekeeping_gc_period,omitempty"`
 	HousekeepingIncrementalRepackPeriod                   *int               `url:"housekeeping_incremental_repack_period,omitempty" json:"housekeeping_incremental_repack_period,omitempty"`
+	HousekeepingOptimizeRepositoryPeriod                  *int               `url:"housekeeping_optimize_repository_period,omitempty" json:"housekeeping_optimize_repository_period,omitempty"`
 	ImportSources                                         *[]string          `url:"import_sources,omitempty" json:"import_sources,omitempty"`
 	InactiveProjectsDeleteAfterMonths                     *int               `url:"inactive_projects_delete_after_months,omitempty" json:"inactive_projects_delete_after_months,omitempty"`
 	InactiveProjectsMinSizeMB                             *int               `url:"inactive_projects_min_size_mb,omitempty" json:"inactive_projects_min_size_mb,omitempty"`
@@ -594,6 +623,7 @@ type UpdateSettingsOptions struct {
 	MaxPagesSize                                          *int               `url:"max_pages_size,omitempty" json:"max_pages_size,omitempty"`
 	MaxPersonalAccessTokenLifetime                        *int               `url:"max_personal_access_token_lifetime,omitempty" json:"max_personal_access_token_lifetime,omitempty"`
 	MaxSSHKeyLifetime                                     *int               `url:"max_ssh_key_lifetime,omitempty" json:"max_ssh_key_lifetime,omitempty"`
+	MaxTerraformStateSizeBytes                            *int               `url:"max_terraform_state_size_bytes,omitempty" json:"max_terraform_state_size_bytes,omitempty"`
 	MaxYAMLDepth                                          *int               `url:"max_yaml_depth,omitempty" json:"max_yaml_depth,omitempty"`
 	MaxYAMLSizeBytes                                      *int               `url:"max_yaml_size_bytes,omitempty" json:"max_yaml_size_bytes,omitempty"`
 	MetricsMethodCallThreshold                            *int               `url:"metrics_method_call_threshold,omitempty" json:"metrics_method_call_threshold,omitempty"`
@@ -615,7 +645,7 @@ type UpdateSettingsOptions struct {
 	PasswordSymbolRequired                                *bool              `url:"password_symbol_required,omitempty" json:"password_symbol_required,omitempty"`
 	PasswordUppercaseRequired                             *bool              `url:"password_uppercase_required,omitempty" json:"password_uppercase_required,omitempty"`
 	PasswordLowercaseRequired                             *bool              `url:"password_lowercase_required,omitempty" json:"password_lowercase_required,omitempty"`
-	PerformanceBarAllowedGroupID                          *string            `url:"performance_bar_allowed_group_id,omitempty" json:"performance_bar_allowed_group_id,omitempty"`
+	PerformanceBarAllowedGroupID                          *int               `url:"performance_bar_allowed_group_id,omitempty" json:"performance_bar_allowed_group_id,omitempty"`
 	PerformanceBarAllowedGroupPath                        *string            `url:"performance_bar_allowed_group_path,omitempty" json:"performance_bar_allowed_group_path,omitempty"`
 	PerformanceBarEnabled                                 *bool              `url:"performance_bar_enabled,omitempty" json:"performance_bar_enabled,omitempty"`
 	PersonalAccessTokenPrefix                             *string            `url:"personal_access_token_prefix,omitempty" json:"personal_access_token_prefix,omitempty"`

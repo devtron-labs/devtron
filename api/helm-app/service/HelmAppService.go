@@ -169,7 +169,7 @@ func (impl *HelmAppServiceImpl) ListHelmApplications(ctx context.Context, cluste
 			impl.logger.Errorw("error in fetching helm app list from DB created using cd_pipelines", "clusters", clusterIds, "err", err)
 		}
 
-		// if not hyperion mode, then fetch from installed_apps whose deployment_app_type is helm (as in hyperion mode, these apps should be treated as external-apps)
+		// if not hyperion mode, then fetch from installed_apps whose deploymentAppType is helm (as in hyperion mode, these apps should be treated as external-apps)
 		if !util2.IsBaseStack() {
 			newCtx, span = otel.Tracer("pipelineRepository").Start(newCtx, "GetAppAndEnvDetailsForDeploymentAppTypePipeline")
 			start = time.Now()
@@ -192,15 +192,18 @@ func (impl *HelmAppServiceImpl) ListHelmApplications(ctx context.Context, cluste
 func (impl *HelmAppServiceImpl) HibernateApplication(ctx context.Context, app *helmBean.AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
 	conf, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
+
+		impl.logger.Errorw("HibernateApplication", "error in getting cluster config", "err", err, "clusterId", app.ClusterId)
 		return nil, err
 	}
-	req := impl.hibernateReqAdaptor(hibernateRequest)
+	req := HibernateReqAdaptor(hibernateRequest)
 	req.ClusterConfig = conf
 	res, err := impl.helmAppClient.Hibernate(ctx, req)
 	if err != nil {
+		impl.logger.Errorw("HibernateApplication", "error in hibernating the resources", "err", err, "clusterId", app.ClusterId, "appReleaseName", app.ReleaseName)
 		return nil, err
 	}
-	response := impl.hibernateResponseAdaptor(res.Status)
+	response := HibernateResponseAdaptor(res.Status)
 	return response, nil
 }
 
@@ -208,15 +211,18 @@ func (impl *HelmAppServiceImpl) UnHibernateApplication(ctx context.Context, app 
 
 	conf, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
+		impl.logger.Errorw("UnHibernateApplication", "error in getting cluster config", "err", err, "clusterId", app.ClusterId)
 		return nil, err
 	}
-	req := impl.hibernateReqAdaptor(hibernateRequest)
+	req := HibernateReqAdaptor(hibernateRequest)
 	req.ClusterConfig = conf
 	res, err := impl.helmAppClient.UnHibernate(ctx, req)
 	if err != nil {
+		impl.logger.Errorw("UnHibernateApplication", "error in UnHibernating the resources", "err", err, "clusterId", app.ClusterId, "appReleaseName", app.ReleaseName)
+
 		return nil, err
 	}
-	response := impl.hibernateResponseAdaptor(res.Status)
+	response := HibernateResponseAdaptor(res.Status)
 	return response, nil
 }
 
@@ -597,11 +603,7 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *helm
 
 func (impl *HelmAppServiceImpl) checkIfNsExists(namespace string, clusterBean *cluster.ClusterBean) (bool, error) {
 
-	config, err := clusterBean.GetClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster config", "error", err, "clusterId", clusterBean.Id)
-		return false, err
-	}
+	config := clusterBean.GetClusterConfig()
 	v12Client, err := impl.K8sUtil.GetCoreV1Client(config)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client", "err", err, "clusterHost", config.Host)
@@ -1111,40 +1113,6 @@ func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds
 	}
 
 	return applicatonStream, err
-}
-
-func (impl *HelmAppServiceImpl) hibernateReqAdaptor(hibernateRequest *openapi.HibernateRequest) *gRPC.HibernateRequest {
-	req := &gRPC.HibernateRequest{}
-	for _, reqObject := range hibernateRequest.GetResources() {
-		obj := &gRPC.ObjectIdentifier{
-			Group:     *reqObject.Group,
-			Kind:      *reqObject.Kind,
-			Version:   *reqObject.Version,
-			Name:      *reqObject.Name,
-			Namespace: *reqObject.Namespace,
-		}
-		req.ObjectIdentifier = append(req.ObjectIdentifier, obj)
-	}
-	return req
-}
-
-func (impl *HelmAppServiceImpl) hibernateResponseAdaptor(in []*gRPC.HibernateStatus) []*openapi.HibernateStatus {
-	var resStatus []*openapi.HibernateStatus
-	for _, status := range in {
-		resObj := &openapi.HibernateStatus{
-			Success:      &status.Success,
-			ErrorMessage: &status.ErrorMsg,
-			TargetObject: &openapi.HibernateTargetObject{
-				Group:     &status.TargetObject.Group,
-				Kind:      &status.TargetObject.Kind,
-				Version:   &status.TargetObject.Version,
-				Name:      &status.TargetObject.Name,
-				Namespace: &status.TargetObject.Namespace,
-			},
-		}
-		resStatus = append(resStatus, resObj)
-	}
-	return resStatus
 }
 
 func isSameAppName(deployedAppName string, appDto app.App) bool {

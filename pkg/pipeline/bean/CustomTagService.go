@@ -16,7 +16,10 @@
 
 package bean
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
+)
 
 const (
 	EntityNull = iota
@@ -41,3 +44,15 @@ const (
 	IMAGE_TAG_VARIABLE_NAME_X = "{X}"
 	IMAGE_TAG_VARIABLE_NAME_x = "{x}"
 )
+
+type CustomTagArrayResponse map[int]map[string]*repository.CustomTag
+
+func (resp CustomTagArrayResponse) GetCustomTagForEntityKey(entityKey int, entityValue string) *repository.CustomTag {
+	if resp == nil {
+		return nil
+	} else if resp[entityKey] == nil {
+		return nil
+	} else {
+		return resp[entityKey][entityValue]
+	}
+}

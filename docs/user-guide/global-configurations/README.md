@@ -24,6 +24,8 @@ Before you start creating an application, we recommend to provide basic informat
 
 [Notifications](manage-notification.md)
 
+[Deployment Window](deployment-window.md)
+
 [External Links](external-links.md)
 
 [Catalog Framework](catalog-framework.md)
@@ -34,11 +36,11 @@ Before you start creating an application, we recommend to provide basic informat
 
 [Tags Policy](tags-policy.md)
 
+[Filter Condition](filter-condition.md)
+
 [Lock Deployment Configuration](lock-deployment-config.md)
 
 [Image Promotion Policy](image-promotion-policy.md)
-
-[Filter Condition](filter-condition.md)
 
 [Build Infra](build-infra.md)
 

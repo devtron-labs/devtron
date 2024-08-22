@@ -17,18 +17,50 @@
 package k8s
 
 import (
+	"errors"
 	"fmt"
 	"github.com/Masterminds/semver"
+	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/fluxApplication"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
 )
 
 func IsResourceNotFoundErr(err error) bool {
-	if errStatus, ok := err.(*k8sErrors.StatusError); ok && errStatus.Status().Reason == metav1.StatusReasonNotFound {
-		return true
+	return k8sErrors.IsNotFound(err)
+}
+
+func IsBadRequestErr(err error) bool {
+	return k8sErrors.IsBadRequest(err)
+}
+
+func IsServerTimeoutErr(err error) bool {
+	return k8sErrors.IsServerTimeout(err)
+}
+
+func GetClientErrorMessage(err error) string {
+	if status, ok := err.(k8sErrors.APIStatus); ok || errors.As(err, &status) {
+		return status.Status().Message
 	}
-	return false
+	return err.Error()
+}
+
+func ParseK8sClientErrorToApiError(err error) *util.ApiError {
+	if apiErr := (&util.ApiError{}); errors.As(err, &apiErr) {
+		// do not change the error if it is already an ApiError
+		return apiErr
+	}
+	// if error is of type k8sErrors.APIStatus, then extract the message from it
+	if status, ok := err.(k8sErrors.APIStatus); ok || errors.As(err, &status) {
+		return util.NewApiError().
+			WithHttpStatusCode(int(status.Status().Code)).
+			WithUserDetailMessage(status.Status().Message).
+			WithInternalMessage(status.Status().Message)
+	}
+	// generic error
+	return util.NewApiError().
+		WithUserDetailMessage(err.Error()).
+		WithInternalMessage(err.Error())
 }
 
 // StripPrereleaseFromK8sVersion takes in k8sVersion and stripe pre-release from semver version and return sanitized k8sVersion
@@ -44,4 +76,17 @@ func StripPrereleaseFromK8sVersion(k8sVersion string) string {
 		k8sVersion = strings.Replace(k8sVersion, stringToReplace, "", 1)
 	}
 	return k8sVersion
+}
+
+func NewCmCsRequestBean(clusterId int, namespace string) *CmCsRequestBean {
+	req := &CmCsRequestBean{}
+	return req.SetClusterId(clusterId).SetNamespace(namespace)
+}
+
+func IsClusterStringContainsFluxField(str string) bool {
+	_, err := fluxApplication.DecodeFluxExternalAppId(str)
+	if err != nil {
+		return false
+	}
+	return true
 }

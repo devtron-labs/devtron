@@ -48,6 +48,7 @@ type NatsClientConfig struct {
 	NatsMsgBufferSize    int `env:"NATS_MSG_BUFFER_SIZE" envDefault:"-1"`
 	NatsMsgMaxAge        int `env:"NATS_MSG_MAX_AGE" envDefault:"86400"`
 	NatsMsgAckWaitInSecs int `env:"NATS_MSG_ACK_WAIT_IN_SECS" envDefault:"120"`
+	NatsMsgReplicas      int `env:"NATS_MSG_REPLICAS" envDefault:"0"`
 }
 
 func (ncc NatsClientConfig) GetNatsMsgBufferSize() int {
@@ -63,19 +64,23 @@ func (ncc NatsClientConfig) GetDefaultNatsConsumerConfig() NatsConsumerConfig {
 		NatsMsgProcessingBatchSize: ncc.NatsMsgProcessingBatchSize,
 		NatsMsgBufferSize:          ncc.GetNatsMsgBufferSize(),
 		AckWaitInSecs:              ncc.NatsMsgAckWaitInSecs,
+		//Replicas:                   ncc.Replicas,
 	}
 }
 
 func (ncc NatsClientConfig) GetDefaultNatsStreamConfig() NatsStreamConfig {
 	return NatsStreamConfig{
 		StreamConfig: StreamConfig{
-			MaxAge: time.Duration(ncc.NatsMsgMaxAge) * time.Second,
+			MaxAge:   time.Duration(ncc.NatsMsgMaxAge) * time.Second,
+			Replicas: ncc.NatsMsgReplicas,
 		},
 	}
 }
 
 type StreamConfig struct {
 	MaxAge time.Duration `json:"max_age"`
+	//it will show the instances created for the consumers on a particular subject(topic)
+	Replicas int `json:"num_replicas"`
 }
 
 type NatsStreamConfig struct {
@@ -108,8 +113,8 @@ func (consumerConf NatsConsumerConfig) GetNatsMsgBufferSize() int {
 // }
 
 func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
-	connWg := new(sync.WaitGroup)
-	connWg.Add(1)
+	//connWg := new(sync.WaitGroup)
+	//connWg.Add(1)
 	cfg := &NatsClientConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -131,7 +136,7 @@ func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 		}),
 		nats.ClosedHandler(func(nc *nats.Conn) {
 			logger.Errorw("Nats Client Connection closed!", "Reason", nc.LastError())
-			connWg.Done()
+			//connWg.Done()
 		}))
 	if err != nil {
 		logger.Error("err", err)
@@ -149,7 +154,7 @@ func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 		logger:     logger,
 		JetStrCtxt: js,
 		Conn:       nc,
-		ConnWg:     connWg,
+		//ConnWg:     connWg,
 	}
 	return natsClient, nil
 }

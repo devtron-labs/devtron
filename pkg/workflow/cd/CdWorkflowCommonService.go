@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app/status"
+	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	globalUtil "github.com/devtron-labs/devtron/util"
 	"go.opentelemetry.io/otel"
@@ -55,13 +56,15 @@ type CdWorkflowCommonServiceImpl struct {
 	config                           *types.CdConfig
 	pipelineRepository               pipelineConfig.PipelineRepository
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository
+	deploymentConfigService          common2.DeploymentConfigService
 }
 
 func NewCdWorkflowCommonServiceImpl(logger *zap.SugaredLogger,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository) (*CdWorkflowCommonServiceImpl, error) {
+	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
+	deploymentConfigService common2.DeploymentConfigService) (*CdWorkflowCommonServiceImpl, error) {
 	config, err := types.GetCdConfig()
 	if err != nil {
 		return nil, err
@@ -73,6 +76,7 @@ func NewCdWorkflowCommonServiceImpl(logger *zap.SugaredLogger,
 		config:                           config,
 		pipelineRepository:               pipelineRepository,
 		pipelineStatusTimelineRepository: pipelineStatusTimelineRepository,
+		deploymentConfigService:          deploymentConfigService,
 	}, nil
 }
 
@@ -185,7 +189,14 @@ func (impl *CdWorkflowCommonServiceImpl) MarkCurrentDeploymentFailed(runner *pip
 				return err
 			}
 		}
-		globalUtil.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(runner), impl.config.ExposeCDMetrics)
+		appId := runner.CdWorkflow.Pipeline.AppId
+		envId := runner.CdWorkflow.Pipeline.EnvironmentId
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
+			return err
+		}
+		globalUtil.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(runner, envDeploymentConfig), impl.config.ExposeCDMetrics)
 	}
 	return nil
 }
@@ -242,7 +253,15 @@ func (impl *CdWorkflowCommonServiceImpl) UpdatePreviousQueuedRunnerStatus(cdWfrI
 				Pipeline: pipeline,
 			}
 		}
-		globalUtil.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(queuedRunner), impl.config.ExposeCDMetrics)
+
+		appId := queuedRunner.CdWorkflow.Pipeline.AppId
+		envId := queuedRunner.CdWorkflow.Pipeline.EnvironmentId
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
+			return err
+		}
+		globalUtil.TriggerCDMetrics(cdWorkflow.GetTriggerMetricsFromRunnerObj(queuedRunner, envDeploymentConfig), impl.config.ExposeCDMetrics)
 		queuedRunnerIds = append(queuedRunnerIds, queuedRunner.Id)
 	}
 	err = impl.cdWorkflowRepository.UpdateRunnerStatusToFailedForIds(pipelineConfig.ErrorDeploymentSuperseded.Error(), triggeredBy, queuedRunnerIds...)
