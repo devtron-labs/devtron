@@ -16,9 +16,9 @@ In certain scenarios, you may need to deploy Devtron to a Kubernetes cluster tha
 
 3. Set the value of `TARGET_REGISTRY`, `TARGET_REGISTRY_USERNAME`, and `TARGET_REGISTRY_TOKEN`. This registry should be accessible from the VM where you are running the cloning script and the K8s cluster where you’re installing Devtron.
 
-{% hint style="info" %}
+{% hint style="warning" %}
 ### Note 
-If you are using Docker, the TARGET_REGISTRY should be in the format docker.io/<USERNAME>
+If you are using Docker, the TARGET_REGISTRY should be in the format `docker.io/<USERNAME>`
 {% endhint %}
 
 ---
