@@ -50,13 +50,9 @@ type ExternalCiWebhookDto struct {
 	AppName                       string                  `json:"appName"`
 	IsArtifactUploaded            bool                    `json:"isArtifactUploaded"`
 	FailureReason                 string                  `json:"failureReason"`
-	ImageDetailsFromCR            *ImageDetailsFromCR     `json:"imageDetailsFromCR"`
+	ImageDetailsFromCR            json.RawMessage         `json:"imageDetailsFromCR"`
 	PluginRegistryArtifactDetails map[string][]string     `json:"PluginRegistryArtifactDetails"`
 	PluginArtifactStage           string                  `json:"pluginArtifactStage"`
-}
-type ImageDetailsFromCR struct {
-	ImageDetails []types.ImageDetail `json:"imageDetails"`
-	Region       string              `json:"region"`
 }
 
 type CiArtifactWebhookRequest struct {

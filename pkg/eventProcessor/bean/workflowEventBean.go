@@ -18,6 +18,7 @@ package bean
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -81,9 +82,30 @@ type CiCompleteEvent struct {
 	AppName                       string                   `json:"appName"`
 	IsArtifactUploaded            bool                     `json:"isArtifactUploaded"`
 	FailureReason                 string                   `json:"failureReason"`
-	ImageDetailsFromCR            *ImageDetailsFromCR      `json:"imageDetailsFromCR"`
+	ImageDetailsFromCR            json.RawMessage          `json:"imageDetailsFromCR"`
 	PluginRegistryArtifactDetails map[string][]string      `json:"PluginRegistryArtifactDetails"`
 	PluginArtifactStage           string                   `json:"pluginArtifactStage"`
+	pluginImageDetails            *ImageDetailsFromCR
+}
+
+func (c *CiCompleteEvent) GetPluginImageDetails() *ImageDetailsFromCR {
+	if c == nil {
+		return nil
+	}
+	return c.pluginImageDetails
+}
+
+func (c *CiCompleteEvent) SetImageDetailsFromCR() error {
+	if c.ImageDetailsFromCR == nil {
+		return nil
+	}
+	var imageDetailsFromCR ImageDetailsFromCR
+	err := json.Unmarshal(c.ImageDetailsFromCR, &imageDetailsFromCR)
+	if err != nil {
+		return err
+	}
+	c.pluginImageDetails = &imageDetailsFromCR
+	return nil
 }
 
 type DevtronAppReleaseContextType struct {

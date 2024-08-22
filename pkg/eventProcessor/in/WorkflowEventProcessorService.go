@@ -474,12 +474,25 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 	return nil
 }
 
+func (impl *WorkflowEventProcessorImpl) extractCiCompleteEventFrom(msg *model.PubSubMsg) (bean.CiCompleteEvent, error) {
+	ciCompleteEvent := bean.CiCompleteEvent{}
+	err := json.Unmarshal([]byte(msg.Data), &ciCompleteEvent)
+	if err != nil {
+		impl.logger.Error("error while unmarshalling json data", "error", err)
+		return ciCompleteEvent, err
+	}
+	err = ciCompleteEvent.SetImageDetailsFromCR()
+	if err != nil {
+		impl.logger.Error("error in unmarshalling imageDetailsFromCr results", "error", err)
+		return ciCompleteEvent, err
+	}
+	return ciCompleteEvent, nil
+}
+
 func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 	callback := func(msg *model.PubSubMsg) {
-		ciCompleteEvent := bean.CiCompleteEvent{}
-		err := json.Unmarshal([]byte(msg.Data), &ciCompleteEvent)
+		ciCompleteEvent, err := impl.extractCiCompleteEventFrom(msg)
 		if err != nil {
-			impl.logger.Error("error while unmarshalling json data", "error", err)
 			return
 		}
 		impl.logger.Debugw("ci complete event for ci", "ciPipelineId", ciCompleteEvent.PipelineId)
@@ -501,34 +514,37 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 					ciCompleteEvent.PipelineId, "request: ", req, "error: ", err)
 				return
 			}
-		} else if ciCompleteEvent.ImageDetailsFromCR != nil {
-			if len(ciCompleteEvent.ImageDetailsFromCR.ImageDetails) > 0 {
-				imageDetails := globalUtil.GetReverseSortedImageDetails(ciCompleteEvent.ImageDetailsFromCR.ImageDetails)
+		} else if ciCompleteEvent.GetPluginImageDetails() != nil {
+			if len(ciCompleteEvent.GetPluginImageDetails().ImageDetails) > 0 {
+				imageDetails := globalUtil.GetReverseSortedImageDetails(ciCompleteEvent.GetPluginImageDetails().ImageDetails)
 				digestWorkflowMap, err := impl.webhookService.HandleMultipleImagesFromEvent(imageDetails, *ciCompleteEvent.WorkflowId)
 				if err != nil {
 					impl.logger.Errorw("error in getting digest workflow map", "err", err, "workflowId", ciCompleteEvent.WorkflowId)
 					return
 				}
 				for _, detail := range imageDetails {
-					if detail.ImageTags == nil {
+					if len(detail.ImageTags) == 0 {
 						continue
 					}
-					request, err := impl.BuildCIArtifactRequestForImageFromCR(detail, ciCompleteEvent.ImageDetailsFromCR.Region, ciCompleteEvent, digestWorkflowMap[*detail.ImageDigest].Id)
+					request, err := impl.BuildCIArtifactRequestForImageFromCR(detail, ciCompleteEvent.GetPluginImageDetails().Region, ciCompleteEvent, digestWorkflowMap[*detail.ImageDigest].Id)
 					if err != nil {
 						impl.logger.Error("Error while creating request for pipelineID", "pipelineId", ciCompleteEvent.PipelineId, "err", err)
 						return
 					}
-					resp, err := impl.ValidateAndHandleCiSuccessEvent(triggerContext, ciCompleteEvent.PipelineId, request, detail.ImagePushedAt)
+					imagePushedAt := time.Time{}
+					if detail.ImagePushedAt != nil {
+						imagePushedAt = *detail.ImagePushedAt
+					}
+					resp, err := impl.ValidateAndHandleCiSuccessEvent(triggerContext, ciCompleteEvent.PipelineId, request, imagePushedAt)
 					if err != nil {
 						return
 					}
 					impl.logger.Debug("response of handle ci success event for multiple images from plugin", "resp", resp)
 				}
 			}
-
 		} else {
 			globalUtil.TriggerCIMetrics(ciCompleteEvent.Metrics, impl.globalEnvVariables.ExposeCiMetrics, ciCompleteEvent.PipelineName, ciCompleteEvent.AppName)
-			resp, err := impl.ValidateAndHandleCiSuccessEvent(triggerContext, ciCompleteEvent.PipelineId, req, &time.Time{})
+			resp, err := impl.ValidateAndHandleCiSuccessEvent(triggerContext, ciCompleteEvent.PipelineId, req, time.Time{})
 			if err != nil {
 				return
 			}
@@ -555,7 +571,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 	return nil
 }
 
-func (impl *WorkflowEventProcessorImpl) ValidateAndHandleCiSuccessEvent(triggerContext triggerBean.TriggerContext, ciPipelineId int, request *wrokflowDagBean.CiArtifactWebhookRequest, imagePushedAt *time.Time) (int, error) {
+func (impl *WorkflowEventProcessorImpl) ValidateAndHandleCiSuccessEvent(triggerContext triggerBean.TriggerContext, ciPipelineId int, request *wrokflowDagBean.CiArtifactWebhookRequest, imagePushedAt time.Time) (int, error) {
 	validationErr := impl.validator.Struct(request)
 	if validationErr != nil {
 		impl.logger.Errorw("validation err, HandleCiSuccessEvent", "err", validationErr, "payload", request)
