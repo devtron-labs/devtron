@@ -195,7 +195,7 @@
 # Devtron Installation with Image Pull Secret
 
 ## Prerequisites
-Before starting, ensure that you have created an image pull secret for your registry if need authentication.
+Before starting, ensure that you have created an image pull secret for your registry if authentication is required.
 
 ### Steps to Create an Image Pull Secret
 1. Create the namespace (if not already created):
