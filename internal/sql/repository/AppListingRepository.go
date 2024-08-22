@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/middleware"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
+	"github.com/devtron-labs/devtron/internal/util"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.opentelemetry.io/otel"
 	"strings"
@@ -381,12 +382,16 @@ func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx contex
 
 	deploymentDetail.EnvironmentId = envId
 	dc, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(appId, envId)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in getting deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
 		return deploymentDetail, err
 	}
-	deploymentDetail.DeploymentAppType = dc.DeploymentAppType
-	deploymentDetail.ReleaseMode = dc.ReleaseMode
+	if err == pg.ErrNoRows {
+		deploymentDetail.ReleaseMode = util.PIPELINE_RELEASE_MODE_CREATE
+	} else {
+		deploymentDetail.DeploymentAppType = dc.DeploymentAppType
+		deploymentDetail.ReleaseMode = dc.ReleaseMode
+	}
 
 	return deploymentDetail, nil
 }
