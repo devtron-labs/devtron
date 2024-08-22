@@ -192,9 +192,54 @@
     done 3<"$SOURCE_IMAGES_FILE_NAME" 4<"$TARGET_IMAGES_FILE_NAME"
     ```
 
-## Final Step
+# Devtron Installation with Image Pull Secret
 
-Change your registry name in `values.yaml` at line number 10:
+## Prerequisites
+Before starting, ensure that you have created an image pull secret for your registry if need authentication.
 
-```bash
-yq e '.global.containerRegistry = "<your-registry-name>"' -i /charts/devtron/values.yaml
+### Steps to Create an Image Pull Secret
+1. Create the namespace (if not already created):
+    ```bash
+    kubectl create ns devtroncd
+    ```
+
+2. Create the Docker registry secret:
+    ```bash
+    kubectl create secret docker-registry regcred \
+      --namespace devtroncd \
+      --docker-server=$TARGET_REGISTRY \
+      --docker-username=$TARGET_REGISTRY_USERNAME \
+      --docker-password=$TARGET_REGISTRY_TOKEN
+    ```
+
+## Devtron Installation
+
+### Installing Devtron with CI/CD Module Only
+To install Devtron with only the CI/CD module:
+
+1. Without `imagePullSecrets`:
+    ```bash
+    helm install devtron . -n devtroncd --set installer.modules={cicd} --set global.containerRegistry="$TARGET_REGISTRY"
+    ```
+
+2. With `imagePullSecrets`:
+    ```bash
+    helm install devtron . -n devtroncd --set installer.modules={cicd} --set global.containerRegistry="$TARGET_REGISTRY" --set global.imagePullSecrets[0].name=regcred
+    ```
+
+### Installing Devtron with Argo CD
+
+To install Devtron with the CI/CD module and Argo CD:
+
+1. Without `imagePullSecrets`:
+    ```bash
+    helm install devtron . --create-namespace -n devtroncd --set installer.modules={cicd} --set argo-cd.enabled=true --set global.containerRegistry="$TARGET_REGISTRY" --set argo-cd.global.image.repository="${TARGET_REGISTRY}/argocd" --set argo-cd.redis.image.repository="${TARGET_REGISTRY}/redis"
+    ```
+
+2. With `imagePullSecrets`:
+    ```bash
+    helm install devtron . --create-namespace -n devtroncd --set installer.modules={cicd} --set argo-cd.enabled=true --set global.containerRegistry="$TARGET_REGISTRY" --set argo-cd.global.image.repository="${TARGET_REGISTRY}/argocd" --set argo-cd.redis.image.repository="${TARGET_REGISTRY}/redis" --set global.imagePullSecrets[0].name=regcred
+    ```
+
+## Next Steps
+After installation, refer to the [Devtron installation documentation](https://docs.devtron.ai/install/install-devtron-with-cicd-with-gitops#devtron-dashboard) for further steps, including obtaining the dashboard URL and the admin password.
