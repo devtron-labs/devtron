@@ -217,7 +217,7 @@ Before starting, ensure that you have created an image pull secret for your regi
 Navigate to the Devtron Helm chart directory:
 
 ```bash
-cd /charts/devtron
+cd charts/devtron
 ```
 ### Installing Devtron with CI/CD Module Only
 To install Devtron with only the CI/CD module:
