@@ -1080,7 +1080,7 @@ func (impl BulkUpdateServiceImpl) buildHibernateUnHibernateRequestForHelmPipelin
 		return nil, nil, err
 	}
 	var group, kind, version, name string
-	name = fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
+	name = pipeline.DeploymentAppName
 	if chartInfo.Name == bean3.RolloutChartType && chartInfo.UserUploaded == false {
 		// rollout type chart
 		group = "argoproj.io"
