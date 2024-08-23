@@ -85,8 +85,3 @@ func (pType PipelineType) IsValidPipelineType() bool {
 		return false
 	}
 }
-
-const (
-	ExtraEnvVarExternalCiArtifactKey = "externalCiArtifact"
-	ExtraEnvVarImageDigestKey        = "imageDigest"
-)
