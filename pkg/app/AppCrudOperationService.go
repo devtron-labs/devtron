@@ -19,7 +19,6 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/caarlos0/env"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
@@ -458,67 +457,13 @@ func convertUrlToHttpsIfSshType(url string) string {
 	return httpsURL
 }
 
-// handleDuplicateAppEntries identifies and resolves duplicate app entries based on creation time.
-// It marks the most recent duplicate entry as inactive and updates the corresponding installed app.
-func (impl AppCrudOperationServiceImpl) handleDuplicateAppEntries(appNameUniqueIdentifier string) (*appRepository.App, error) {
-	// Fetch app IDs by name
-	appIds, err := impl.getAppIdsByName(appNameUniqueIdentifier)
-	if err != nil {
-		impl.logger.Errorw("error in fetching app Ids by appIdentifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
-		return nil, err
-	}
-
-	// Fetch apps by IDs from App table for duplicated entries
-	apps, err := impl.appRepository.FindByIds(appIds)
-	if err != nil || errors.Is(err, pg.ErrNoRows) {
-		impl.logger.Errorw("error in fetching app List by appIds", "appIds", appIds, "err", err)
-		return nil, err
-	}
-
-	// Identify the earliest and duplicated app entries
-	earliestApp, duplicatedApp := identifyDuplicateApps(apps)
-
-	// Fetch the installed app associated with the duplicated app
-	installedApp, err := impl.installedAppRepository.GetInstalledAppsByAppId(duplicatedApp.Id)
-	if err != nil {
-		impl.logger.Errorw("error in fetching installed app by appId", "appId", duplicatedApp.Id, "err", err)
-		return nil, err
-	}
-	// Update duplicated app entries
-	err = impl.installedAppDbService.UpdateDuplicatedEntriesInAppAndInstalledApps(earliestApp, duplicatedApp, &installedApp)
-	if err != nil {
-		impl.logger.Errorw("error in updating duplicated entries", "earliestApp", earliestApp, "duplicatedApp", duplicatedApp, "err", err)
-		return nil, err
-	}
-
-	impl.logger.Debug("Successfully resolved duplicate app entries", "earliestApp", earliestApp, "duplicatedApp", duplicatedApp)
-	return earliestApp, nil
-
-}
-
-// getAppIdsByName fetches app IDs by the app name unique identifier [for duplicated active app]
-func (impl AppCrudOperationServiceImpl) getAppIdsByName(appNameUniqueIdentifier string) ([]*int, error) {
-	slice := []string{appNameUniqueIdentifier}
-	appIds, err := impl.appRepository.FindIdsByNames(slice)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert each element to a pointer and store in a slice of pointers
-	ids := make([]*int, len(appIds))
-	for i := range appIds {
-		ids[i] = &appIds[i]
-	}
-	return ids, nil
-}
-
 // getAppAndProjectForAppIdentifier, returns app db model for an app unique identifier or from display_name if both exists else it throws pg.ErrNoRows
 func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIdentifier *helmBean.AppIdentifier) (*appRepository.App, error) {
 	app := &appRepository.App{}
 	var err error
 	appNameUniqueIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
 	app, err = impl.appRepository.FindAppAndProjectByAppName(appNameUniqueIdentifier)
-	if err != nil && !errors.Is(err, pg.ErrNoRows) && !errors.Is(err, pg.ErrMultiRows) {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching app meta data by unique app identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
 		return app, err
 	}
@@ -527,14 +472,6 @@ func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIden
 		app, err = impl.appRepository.FindAppAndProjectByAppName(appIdentifier.ReleaseName)
 		if err != nil {
 			impl.logger.Errorw("error in fetching app meta data by display name", "displayName", appIdentifier.ReleaseName, "err", err)
-			return app, err
-		}
-	}
-	if errors.Is(err, pg.ErrMultiRows) {
-
-		app, err = impl.handleDuplicateAppEntries(appNameUniqueIdentifier)
-		if err != nil {
-			impl.logger.Errorw("error in handling Duplicate entries in the app", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
 			return app, err
 		}
 	}
@@ -595,17 +532,17 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 			return nil, err
 		}
 		// if app.DisplayName is empty then that app_name is not yet migrated to app name unique identifier
-		if app != nil && app.Id > 0 && len(app.DisplayName) == 0 {
+		if app.Id > 0 && len(app.DisplayName) == 0 {
 			err = impl.updateAppNameToUniqueAppIdentifierInApp(app, appIdDecoded)
 			if err != nil {
 				impl.logger.Errorw("GetHelmAppMetaInfo, error in migrating displayName and appName to unique identifier for external apps", "appIdentifier", appIdDecoded, "err", err)
 				//not returning from here as we need to show helm app metadata even if migration of app_name fails, then migration can happen on project update
 			}
 		}
-		if app != nil && app.Id == 0 {
+		if app.Id == 0 {
 			app.AppName = appIdDecoded.ReleaseName
 		}
-		if app != nil && util2.IsExternalChartStoreApp(app.DisplayName) {
+		if util2.IsExternalChartStoreApp(app.DisplayName) {
 			displayName = app.DisplayName
 		}
 
@@ -631,14 +568,9 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 			displayName = InstalledApp.App.DisplayName
 		}
 	}
-	// Safeguard against nil app cases
-	if app == nil {
-		impl.logger.Errorw("no rows found for the requested app", "appId", appId, "error", err)
-		return nil, fmt.Errorf("no rows found for the requested app, %q", pg.ErrNoRows)
-	}
 
 	user, err := impl.userRepository.GetByIdIncludeDeleted(app.CreatedBy)
-	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching user for app meta info", "error", err)
 		return nil, err
 	}
