@@ -197,7 +197,7 @@ In this example, we will edit the Deployment chart type provided by Devtron.
 
     ![Edit GUI Schema Button](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-charts/edit-chart-schema.jpg)
 
-2. A GUI schema is available for you to edit in case of Devtron charts. In case of custom charts, you may have to define a GUI schema yourself. To create a GUI schema of your choice, you may use [RJSF JSON Schema Tool](https://rjsf-team.github.io/react-jsonschema-form/). 
+2. A GUI schema is available for you to edit in case of Devtron charts. In case of custom charts, you may have to define a GUI schema yourself. To know how to create such GUI schema, refer [RJSF JSON Schema Tool](https://rjsf-team.github.io/react-jsonschema-form/). 
 
     ![Editable Schema](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-charts/gui-schema.jpg)
 
