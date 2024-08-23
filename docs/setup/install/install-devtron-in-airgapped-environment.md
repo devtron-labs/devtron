@@ -1,4 +1,4 @@
-# Devtron Full Mode Installation in an Airgapped Environment
+# Devtron Installation in an Airgapped Environment
 
 ## Introduction
 
@@ -6,7 +6,7 @@ In certain scenarios, you may need to deploy Devtron to a Kubernetes cluster tha
 
 ### Prerequisites
 
-1. Install `podman` or `docker` and `yq` on the VM from where you're executing the installation commands.
+1. Install `podman` or `docker` on the VM from where you're executing the installation commands.
 2. Clone the Devtron Helm chart:
 
     ```bash
@@ -25,7 +25,20 @@ If you are using Docker, the TARGET_REGISTRY should be in the format `docker.io/
 
 ## Docker Instructions
 
-### For Linux/amd64
+### Platform Selection
+
+#### For Linux/amd64
+
+    ```bash
+    export PLATFORM="linux/amd64"
+    ```
+#### For Linux/arm64
+
+    ```bash
+    export PLATFORM="linux/arm64"
+    ```
+
+
 
 1. Set the environment variables
 
@@ -70,7 +83,7 @@ If you are using Docker, the TARGET_REGISTRY should be in the format `docker.io/
       fi
 
       # Pull the image from the source registry
-      docker pull --platform linux/amd64 $source_image
+      docker pull --platform $PLATFORM $source_image
 
       # Tag the image with the new target registry name
       docker tag $source_image $target_image
@@ -86,69 +99,6 @@ If you are using Docker, the TARGET_REGISTRY should be in the format `docker.io/
 
     done < "$SOURCE_IMAGES_LIST"
     ```
-
-### For Linux/arm64
-
-1. Set the environment variables
-
-    ```bash
-    # Set the source registry URL
-    export SOURCE_REGISTRY="quay.io/devtron"
-
-    # Set the target registry URL, username, and token/password
-    export TARGET_REGISTRY=""
-    export TARGET_REGISTRY_USERNAME=""
-    export TARGET_REGISTRY_TOKEN=""
-
-    # Set the source and target image file names with default values if not already set
-    SOURCE_IMAGES_LIST="${SOURCE_IMAGES_LIST:=devtron-images.txt.source}"
-    TARGET_IMAGES_LIST="${TARGET_IMAGES_LIST:=devtron-images.txt.target}"
-    ```
-
-2. Log in to the target Docker registry
-
-    ```bash
-    docker login -u $TARGET_REGISTRY_USERNAME -p $TARGET_REGISTRY_TOKEN $TARGET_REGISTRY
-    ```
-
-3. Clone the images
-
-    ```bash
-    while IFS= read -r source_image; do
-      # Check if the source image belongs to the quay.io/devtron registry
-      if [[ "$source_image" == quay.io/devtron/* ]]; then
-        # Replace the source registry with the target registry in the image name
-        target_image="${source_image/quay.io\/devtron/$TARGET_REGISTRY}"
-
-      # Check if the source image belongs to the quay.io/argoproj registry
-      elif [[ "$source_image" == quay.io/argoproj/* ]]; then
-        # Replace the source registry with the target registry in the image name
-        target_image="${source_image/quay.io\/argoproj/$TARGET_REGISTRY}"
-
-      # Check if the source image belongs to the public.ecr.aws/docker/library registry
-      elif [[ "$source_image" == public.ecr.aws/docker/library/* ]]; then
-        # Replace the source registry with the target registry in the image name
-        target_image="${source_image/public.ecr.aws\/docker\/library/$TARGET_REGISTRY}"
-      fi
-
-      # Pull the image from the source registry
-      docker pull --platform linux/arm64 $source_image
-
-      # Tag the image with the new target registry name
-      docker tag $source_image $target_image
-
-      # Push the image to the target registry
-      docker push $target_image
-
-      # Output the updated image name
-      echo "Updated image: $target_image"
-
-      # Append the new image name to the target image file
-      echo "$target_image" >> "$TARGET_IMAGES_LIST"
-
-    done < "$SOURCE_IMAGES_LIST"
-    ```
-
 ---
 
 ## Podman Instructions
@@ -217,8 +167,26 @@ Before starting, ensure you have created an image pull secret for your registry 
 
 2. Create the Docker registry secret
     ```bash
-    kubectl create secret docker-registry regcred \
+    kubectl create secret docker-registry devtron-imagepull \
       --namespace devtroncd \
+      --docker-server=$TARGET_REGISTRY \
+      --docker-username=$TARGET_REGISTRY_USERNAME \
+      --docker-password=$TARGET_REGISTRY_TOKEN
+    ```
+    If you are installing Devtron with the CI/CD module or using Argo CD, create the secret in the following namespaces else, you can skip this step-:  
+    ```bash
+    kubectl create secret docker-registry devtron-imagepull \
+      --namespace devtron-cd \
+      --docker-server=$TARGET_REGISTRY \
+      --docker-username=$TARGET_REGISTRY_USERNAME \
+      --docker-password=$TARGET_REGISTRY_TOKEN
+    kubectl create secret docker-registry devtron-imagepull \
+      --namespace devtron-ci \
+      --docker-server=$TARGET_REGISTRY \
+      --docker-username=$TARGET_REGISTRY_USERNAME \
+      --docker-password=$TARGET_REGISTRY_TOKEN
+    kubectl create secret docker-registry devtron-imagepull \
+      --namespace argo \
       --docker-server=$TARGET_REGISTRY \
       --docker-username=$TARGET_REGISTRY_USERNAME \
       --docker-password=$TARGET_REGISTRY_TOKEN
@@ -241,11 +209,10 @@ Use the below command to install Devtron without any Integrations
 
 2. With `imagePullSecrets`:
     ```bash
-    helm install devtron . -n devtroncd --set global.containerRegistry="$TARGET_REGISTRY" --set global.imagePullSecrets[0].name=regcred
+    helm install devtron . -n devtroncd --set global.containerRegistry="$TARGET_REGISTRY" --set global.imagePullSecrets[0].name=devtron-imagepull
     ```
 
-### Install Devtron with CI/CD Module Only
-
+### Installing Devtron with CI/CD Module Only
 Use the below command to install Devtron with only the CI/CD module
 
 1. Without `imagePullSecrets`:
@@ -255,10 +222,10 @@ Use the below command to install Devtron with only the CI/CD module
 
 2. With `imagePullSecrets`:
     ```bash
-    helm install devtron . -n devtroncd --set installer.modules={cicd} --set global.containerRegistry="$TARGET_REGISTRY" --set global.imagePullSecrets[0].name=regcred
+    helm install devtron . -n devtroncd --set installer.modules={cicd} --set global.containerRegistry="$TARGET_REGISTRY" --set global.imagePullSecrets[0].name=devtron-imagepull
     ```
 
-### Install Devtron with Argo CD
+### Install Devtron with CICD Mode including Argocd
 
 Use the below command to install Devtron with the CI/CD module and Argo CD
 
@@ -269,7 +236,7 @@ Use the below command to install Devtron with the CI/CD module and Argo CD
 
 2. With `imagePullSecrets`:
     ```bash
-    helm install devtron . --create-namespace -n devtroncd --set installer.modules={cicd} --set argo-cd.enabled=true --set global.containerRegistry="$TARGET_REGISTRY" --set argo-cd.global.image.repository="${TARGET_REGISTRY}/argocd" --set argo-cd.redis.image.repository="${TARGET_REGISTRY}/redis" --set global.imagePullSecrets[0].name=regcred
+    helm install devtron . --create-namespace -n devtroncd --set installer.modules={cicd} --set argo-cd.enabled=true --set global.containerRegistry="$TARGET_REGISTRY" --set argo-cd.global.image.repository="${TARGET_REGISTRY}/argocd" --set argo-cd.redis.image.repository="${TARGET_REGISTRY}/redis" --set global.imagePullSecrets[0].name=devtron-imagepull
     ```
 
 ---
