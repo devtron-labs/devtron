@@ -66,7 +66,7 @@ CronJob is used to create Jobs on a repeating schedule. It is commonly used for 
 
 ### Custom Charts
 
-Devtron offers a variety of ready-made Helm charts for common tasks and functions. If you have a specific need that isn't met by these preconfigured charts, super-admins have the permission to upload their own custom charts. Once uploaded, these custom charts become accessible for use by all users on the Devtron platform. [Read More...](../user-guide/global-configurations/custom-charts.md)
+Devtron offers a variety of ready-made Helm charts for common tasks and functions. If you have a specific need that isn't met by these preconfigured charts, super-admins have the permission to upload their own custom charts. Once uploaded, these custom charts become accessible for use by all users on the Devtron platform. [Read More...](../user-guide/global-configurations/deployment-charts.md)
 
 ### DaemonSet
 
