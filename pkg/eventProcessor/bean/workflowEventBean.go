@@ -19,7 +19,7 @@ package bean
 import (
 	"context"
 	"encoding/json"
-	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
+	"github.com/devtron-labs/common-lib/utils/registry"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -63,11 +63,6 @@ func (r *UserDeploymentRequest) WithPipelineOverrideId(id int) *UserDeploymentRe
 	return r
 }
 
-type ImageDetailsFromCR struct {
-	ImageDetails []types.ImageDetail `json:"imageDetails"`
-	Region       string              `json:"region"`
-}
-
 type CiCompleteEvent struct {
 	CiProjectDetails              []bean3.CiProjectDetails `json:"ciProjectDetails"`
 	DockerImage                   string                   `json:"dockerImage" validate:"required,image-validator"`
@@ -85,10 +80,10 @@ type CiCompleteEvent struct {
 	ImageDetailsFromCR            json.RawMessage          `json:"imageDetailsFromCR"`
 	PluginRegistryArtifactDetails map[string][]string      `json:"PluginRegistryArtifactDetails"`
 	PluginArtifactStage           string                   `json:"pluginArtifactStage"`
-	pluginImageDetails            *ImageDetailsFromCR
+	pluginImageDetails            *registry.ImageDetailsFromCR
 }
 
-func (c *CiCompleteEvent) GetPluginImageDetails() *ImageDetailsFromCR {
+func (c *CiCompleteEvent) GetPluginImageDetails() *registry.ImageDetailsFromCR {
 	if c == nil {
 		return nil
 	}
@@ -99,7 +94,7 @@ func (c *CiCompleteEvent) SetImageDetailsFromCR() error {
 	if c.ImageDetailsFromCR == nil {
 		return nil
 	}
-	var imageDetailsFromCR ImageDetailsFromCR
+	var imageDetailsFromCR registry.ImageDetailsFromCR
 	err := json.Unmarshal(c.ImageDetailsFromCR, &imageDetailsFromCR)
 	if err != nil {
 		return err
