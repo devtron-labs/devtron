@@ -101,7 +101,7 @@ The above command will create a `my-custom-chart-0.1.0.tgz` file.
 
 ---
 
-## Uploading a Custom Chart
+## Uploading a Deployment Chart
 
 > A custom chart can only be uploaded by a super admin.
 
@@ -146,7 +146,7 @@ The following are the validation results:
 
 ---
 
-## Viewing Custom Charts
+## Viewing Deployment Charts
 
 > All users can view the custom charts.
 
@@ -159,7 +159,7 @@ To view the list of available custom charts, go to  **Global Configurations → 
 
 ---
 
-## Using Custom Chart in Application
+## Using Deployment Chart in Application
 
 The custom charts can be used from the [Deployment Template](../creating-application/deployment-template.md) section.
 

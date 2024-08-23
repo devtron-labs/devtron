@@ -23,7 +23,7 @@ Users need to have [Admin role](../user-guide/global-configurations/authorizatio
 
 {% hint style="warning" %}
 ### Note
-After you select and save a chart type for a given application, you won't be able to change it later. Make sure to choose the correct chart type before saving. You can select a chart from [Devtron Charts](#from-devtron-charts) or [Custom Charts](#from-custom-charts).
+After you select and save a chart type for a given application, you won't be able to change it later. Make sure to choose the correct chart type before saving. You can select a chart from [Devtron Charts](#from-devtron-charts) or other [Deployment Charts](#from-deployment-charts).
 {% endhint %}
 
 ### From Devtron Charts
@@ -37,7 +37,7 @@ You can select a default deployment chart from the following options:
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/select-devtron-chart.gif)
 
-### From Custom Charts
+### From Deployment Charts
 
 {% hint style="warning" %}
 This option will be available only if a custom chart exists. If it doesn't, a user with `super admin` permission may upload one in [Global Configurations → Deployment Charts](../global-configurations/deployment-charts.md).
