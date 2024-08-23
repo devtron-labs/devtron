@@ -171,6 +171,7 @@ func (r *PluginsVersionDetail) SetMinimalPluginsVersionDetail(pluginVersionMetad
 	r.Description = pluginVersionMetadata.Description
 	r.Version = pluginVersionMetadata.PluginVersion
 	r.IsLatest = pluginVersionMetadata.IsLatest
+	r.DocLink = pluginVersionMetadata.DocLink
 	return r
 }
 
