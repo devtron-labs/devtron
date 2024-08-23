@@ -77,6 +77,9 @@ func (impl *GitCliManagerImpl) Pull(ctx GitContext, repoRoot string) (err error)
 		return err
 	}
 	response, errMsg, err := impl.PullCli(ctx, repoRoot, "origin/master")
+	if err != nil {
+		impl.logger.Errorw("error in git pull from cli", "errMsg", errMsg, "err", err)
+	}
 
 	if strings.Contains(response, "already up-to-date") || strings.Contains(errMsg, "already up-to-date") {
 		err = nil
