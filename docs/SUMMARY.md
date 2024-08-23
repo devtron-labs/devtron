@@ -25,7 +25,7 @@
   * [Git Accounts](user-guide/global-configurations/git-accounts.md)
   * [Container/OCI Registry](user-guide/global-configurations/container-registries.md)
   * [Chart Repositories](user-guide/global-configurations/chart-repo.md)
-  * [Custom Charts](user-guide/global-configurations/custom-charts.md)
+  * [Deployment Charts](user-guide/global-configurations/deployment-charts.md)
   * [Authorization](user-guide/global-configurations/authorization/README.md)
     * [SSO Login Services](user-guide/global-configurations/sso-login.md)
       * [Google](user-guide/global-configurations/authorization/sso/google.md)
