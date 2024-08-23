@@ -133,7 +133,6 @@ func (impl *AppStoreDeploymentDBServiceImpl) AppStoreDeployOperationDB(installRe
 	}
 	// setting additional env data required in appStoreBean.InstallAppVersionDTO
 	adapter.UpdateAdditionalEnvDetails(installRequest, environment)
-
 	impl.appStoreValidator.Validate(installRequest, environment)
 
 	// Stage 1:  Create App in tx (Only if AppId is not set already)

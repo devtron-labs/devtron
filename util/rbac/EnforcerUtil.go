@@ -76,6 +76,8 @@ type EnforcerUtil interface {
 	CheckAppRbacForAppOrJob(token, resourceName, action string) bool
 	CheckAppRbacForAppOrJobInBulk(token, action string, rbacObjects []string, appType helper.AppType) map[string]bool
 	GetRbacObjectsByEnvIdsAndAppIdBatch(appIdToEnvIds map[int][]int) map[int]map[int]string
+	GetEnvRBACNameByAppAndEnvName(appName, envName string) string
+	GetAppRBACNameByAppName(appName string) string
 }
 
 type EnforcerUtilImpl struct {
@@ -763,4 +765,20 @@ func (impl EnforcerUtilImpl) GetRbacObjectsByEnvIdsAndAppIdBatch(appIdToEnvIds m
 		}
 	}
 	return objects
+}
+
+func (impl EnforcerUtilImpl) GetAppRBACNameByAppName(appName string) string {
+	application, err := impl.appRepo.FindAppAndProjectByAppName(appName)
+	if err != nil {
+		return fmt.Sprintf("%s/%s", "", "")
+	}
+	return fmt.Sprintf("%s/%s", application.Team.Name, application.AppName)
+}
+
+func (impl EnforcerUtilImpl) GetEnvRBACNameByAppAndEnvName(appName, envName string) string {
+	env, err := impl.environmentRepository.FindByName(envName)
+	if err != nil {
+		return fmt.Sprintf("%s/%s", "", appName)
+	}
+	return fmt.Sprintf("%s/%s", env.EnvironmentIdentifier, appName)
 }

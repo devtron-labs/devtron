@@ -58,6 +58,7 @@ type PipelineConfigOverrideMetadata struct {
 
 type PipelineOverrideRepository interface {
 	Save(*PipelineOverride) error
+	Update(pipelineOverride *PipelineOverride) error
 	UpdateStatusByRequestIdentifier(requestId string, newStatus models.ChartStatus) (int, error)
 	GetLatestConfigByRequestIdentifier(requestIdentifier string) (pipelineOverride *PipelineOverride, err error)
 	GetLatestConfigByEnvironmentConfigOverrideId(envConfigOverrideId int) (pipelineOverride *PipelineOverride, err error)
@@ -83,6 +84,10 @@ type PipelineOverrideRepositoryImpl struct {
 
 func (impl PipelineOverrideRepositoryImpl) Save(pipelineOverride *PipelineOverride) error {
 	return impl.dbConnection.Insert(pipelineOverride)
+}
+
+func (impl PipelineOverrideRepositoryImpl) Update(pipelineOverride *PipelineOverride) error {
+	return impl.dbConnection.Update(pipelineOverride)
 }
 
 func (impl PipelineOverrideRepositoryImpl) UpdatePipelineMergedValues(ctx context.Context, tx *pg.Tx, id int, pipelineMergedValues string, userId int32) error {

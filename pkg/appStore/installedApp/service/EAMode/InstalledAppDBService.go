@@ -58,6 +58,7 @@ type InstalledAppDBService interface {
 	GetReleaseInfo(appIdentifier *helmBean.AppIdentifier) (*appStoreBean.InstallAppVersionDTO, error)
 	IsExternalAppLinkedToChartStore(appId int) (bool, []*appStoreRepo.InstalledApps, error)
 	CreateNewAppEntryForAllInstalledApps(installedApps []*appStoreRepo.InstalledApps) error
+	UpdateDuplicatedEntriesInAppAndInstalledApps(earlyApp *app.App, duplicatedApp *app.App, installedApp *appStoreRepo.InstalledApps) error
 }
 
 type InstalledAppDBServiceImpl struct {
@@ -399,6 +400,17 @@ func (impl *InstalledAppDBServiceImpl) CreateNewAppEntryForAllInstalledApps(inst
 	// Rollback tx on error.
 	defer tx.Rollback()
 	for _, installedApp := range installedApps {
+
+		//check if there is any app from its appName is exits and active ...if yes then we will not insert any  extra entry in the db
+		appMetadataByAppName, err := impl.AppRepository.FindActiveByName(installedApp.App.AppName)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.Logger.Errorw("error in fetching app by unique app identifier", "appNameUniqueIdentifier", installedApp.GetUniqueAppNameIdentifier(), "err", err)
+			return err
+		}
+		if appMetadataByAppName != nil && appMetadataByAppName.Id > 0 {
+			//app already exists for this unique identifier hence not creating new app entry for this as it will get modified after this function
+			continue
+		}
 		//check if for this unique identifier name an app already exists, if yes then continue
 		appMetadata, err := impl.AppRepository.FindActiveByName(installedApp.GetUniqueAppNameIdentifier())
 		if err != nil && !util.IsErrNoRows(err) {
@@ -435,5 +447,47 @@ func (impl *InstalledAppDBServiceImpl) CreateNewAppEntryForAllInstalledApps(inst
 	}
 
 	tx.Commit()
+	return nil
+}
+
+// UpdateDuplicatedEntriesInAppAndInstalledApps performs the updation in app table and installedApps table for the cases when multiple active app found [typically two due to migration], here we are updating the db with its previous value in the installedApps table and early created app id
+func (impl *InstalledAppDBServiceImpl) UpdateDuplicatedEntriesInAppAndInstalledApps(earlyApp *app.App, duplicatedApp *app.App, installedApp *appStoreRepo.InstalledApps) error {
+	// db operations
+	dbConnection := impl.InstalledAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return err
+	}
+	// Rollback tx on error.
+	defer func(tx *pg.Tx) {
+		err := tx.Rollback()
+		if err != nil {
+			impl.Logger.Errorw("Rollback error", "err", err)
+		}
+	}(tx)
+
+	//updated the app table with active column as false for the duplicated app
+	duplicatedApp.Active = false
+	duplicatedApp.CreateAuditLog(bean3.SystemUserId)
+	err = impl.AppRepository.UpdateWithTxn(duplicatedApp, tx)
+	if err != nil {
+		impl.Logger.Errorw("error saving appModel", "err", err)
+		return err
+	}
+
+	// updating the installedApps table with its appId  column with the previous app
+	installedApp.AppId = earlyApp.Id
+	installedApp.UpdateAuditLog(bean3.SystemUserId)
+	_, err = impl.InstalledAppRepository.UpdateInstalledApp(installedApp, tx)
+	if err != nil {
+		impl.Logger.Errorw("error saving updating installed app with new appId", "installedAppId", installedApp.Id, "err", err)
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		impl.Logger.Errorw("error saving appModel", "err", err)
+		return err
+	}
 	return nil
 }
