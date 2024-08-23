@@ -44,6 +44,7 @@ service ApplicationService {
   rpc ValidateOCIRegistry(RegistryCredential) returns(OCIRegistryResponse) {}
   rpc GetResourceTreeForExternalResources(ExternalResourceTreeRequest) returns(ResourceTreeResponse){}
   rpc GetFluxAppDetail(FluxAppDetailRequest)returns(FluxAppDetail){}
+  rpc  GetReleaseDetails(ReleaseIdentifier)returns(DeployedAppDetail){}
 
 }
 
