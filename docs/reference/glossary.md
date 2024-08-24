@@ -14,9 +14,7 @@ An immutable blob of data generated as an output after the execution of a job, b
 
 ArgoCD Apps are the micro-services deployed using a [GitOps](#gitops) deployment tool named [Argo CD](https://argo-cd.readthedocs.io/en/stable/). 
 
-Devtron supports 'Helm' as well as 'GitOps' approach of deployment. Therefore, a user will be asked to choose any one of the deployment approach at the time of creating a deployment pipeline. If the user chooses GitOps, Devtron will use Argo CD to deploy that application. Once deployed, it will be visible in Applications → ArgoCD Apps (tab). 
-
-If other ArgoCD applications are present in your cluster, they will also appear in the [ArgoCD Apps listing](../user-guide/applications.md#view-external-argocd-app-listing). 
+If external ArgoCD applications are present in your cluster, they will appear in the [ArgoCD Apps listing](../user-guide/applications.md#view-external-argocd-app-listing). 
 
 ### Base Deployment Template
 

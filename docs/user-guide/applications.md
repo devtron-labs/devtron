@@ -55,15 +55,11 @@ With Devtron, you get an entire Argo CD app listing in one place. This listing i
 
 Devtron also bridges the gap for ArgoCD users by providing additional features as follows:
 
-* **Adding Build Pipeline**: Before GitOps deployment, you can add a CI pipeline as a part of the [workflow](../user-guide/creating-application/workflow/README.md) if you use Devtron.
-
-* **Supports pre-CD and post-CD tasks**: You can perform [pre-deployment](../reference/glossary.md#pre-deployment) and [post-deployment](../reference/glossary.md#post-deployment) actions on Devtron.
-
 * **Resource Scanning**: You can scan for vulnerabilities using Devtron's [resource scanning](../user-guide/security-features.md#from-app-details) feature.
 
-* **Singe-pane view**: All Argo CD apps will show details such as app status, environment, cluster, and namespace in one place. 
+* **Single-pane View**: All Argo CD apps will show details such as their app status, environment, cluster, and namespace together in one dashboard. 
 
-* **Multiple Options**: Clicking an app will give you access to logs, terminal, events, manifest, available resource kinds, pod restart log, and many more.
+* **Feature-rich Options**: Clicking an Argo CD app will give you access to its logs, terminal, events, manifest, available resource kinds, pod restart log, and many more.
 
 {% hint style="info" %}
 ### Additional References
