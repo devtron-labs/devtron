@@ -1,1 +1,1 @@
-UPDATE plugin_pipeline_script SET container_image_path ='quay.io/devtron/poll-container-image:97a996a5-545-16654' WHERE container_image_path ='quay.io/devtron/test:5d76c047-2864-31925';
+UPDATE plugin_pipeline_script SET container_image_path ='quay.io/devtron/poll-container-image:97a996a5-545-16654' WHERE container_image_path ='quay.io/devtron/test:bc62315c-2864-32569';
