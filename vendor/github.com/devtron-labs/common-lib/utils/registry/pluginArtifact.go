@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"fmt"
 	"sort"
 	"time"
 )
@@ -59,6 +60,13 @@ func (g *GenericImageDetail) SetLastUpdatedOn(imagePushedAt *time.Time) *Generic
 	}
 	g.LastUpdatedOn = *imagePushedAt
 	return g
+}
+
+func (g *GenericImageDetail) GetGenericImageDetailIdentifier() string {
+	if g == nil {
+		return ""
+	}
+	return fmt.Sprintf("%s-%s", g.Image, g.ImageDigest)
 }
 
 func NewGenericImageDetailFromPlugin() *GenericImageDetail {

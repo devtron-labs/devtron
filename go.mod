@@ -11,7 +11,6 @@ require (
 	github.com/argoproj/argo-workflows/v3 v3.5.10
 	github.com/argoproj/gitops-engine v0.7.1-0.20231013183858-f15cf615b814
 	github.com/aws/aws-sdk-go v1.44.290
-	github.com/aws/aws-sdk-go-v2/service/ecr v1.20.0
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/caarlos0/env/v6 v6.7.2
 	github.com/casbin/casbin v1.9.1
@@ -22,7 +21,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/deckarep/golang-set v1.8.0
 	github.com/devtron-labs/authenticator v0.4.35-0.20240809073103-6e11da8083f8
-	github.com/devtron-labs/common-lib v0.16.1-0.20240823093253-28bcf3a4b2d7
+	github.com/devtron-labs/common-lib v0.16.1-0.20240825180251-92432b07f63b
 	github.com/devtron-labs/go-bitbucket v0.9.60-beta
 	github.com/devtron-labs/protos v0.0.3-0.20240802105333-92ee9bb85d80
 	github.com/evanphx/json-patch v5.7.0+incompatible
@@ -121,7 +120,6 @@ require (
 	github.com/apparentlymart/go-textseg v1.0.0 // indirect
 	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
 	github.com/argoproj/pkg v0.13.7-0.20230627120311-a4dd357b057e // indirect
-	github.com/aws/smithy-go v1.14.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.6.0 // indirect

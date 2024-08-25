@@ -526,7 +526,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 					if detail == nil || len(detail.Image) == 0 {
 						continue
 					}
-					request, err := impl.buildCIArtifactRequestForImageFromCR(detail, ciCompleteEvent, digestWorkflowMap[detail.ImageDigest].Id)
+					request, err := impl.buildCIArtifactRequestForImageFromCR(detail, ciCompleteEvent, digestWorkflowMap[detail.GetGenericImageDetailIdentifier()].Id)
 					if err != nil {
 						impl.logger.Error("Error while creating request for pipelineID", "pipelineId", ciCompleteEvent.PipelineId, "err", err)
 						return

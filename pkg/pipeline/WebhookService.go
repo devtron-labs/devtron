@@ -142,7 +142,7 @@ func (impl *WebhookServiceImpl) HandleMultipleImagesFromEvent(imageDetails []*re
 	// creating n-1 workflows for rest images, oldest will be mapped to original workflow id.
 	digestWorkflowMap := make(map[string]*pipelineConfig.CiWorkflow)
 	// mapping oldest to original ciworkflowId
-	digestWorkflowMap[imageDetails[0].ImageDigest] = ciWorkflow
+	digestWorkflowMap[imageDetails[0].GetGenericImageDetailIdentifier()] = ciWorkflow
 	for i := 1; i < len(imageDetails); i++ {
 		workflow := &pipelineConfig.CiWorkflow{
 			Name:               ciWorkflow.Name + fmt.Sprintf("-child-%d", i),
@@ -166,7 +166,7 @@ func (impl *WebhookServiceImpl) HandleMultipleImagesFromEvent(imageDetails []*re
 			impl.logger.Errorw("error in saving workflow for child workflow", "err", err, "parentCiWorkflowId", ciWorkflowId)
 			return nil, err
 		}
-		digestWorkflowMap[imageDetails[i].ImageDigest] = workflow
+		digestWorkflowMap[imageDetails[i].GetGenericImageDetailIdentifier()] = workflow
 
 	}
 	return digestWorkflowMap, nil
