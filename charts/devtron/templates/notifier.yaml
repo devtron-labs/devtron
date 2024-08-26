@@ -72,7 +72,7 @@ spec:
         app: notifier
         release: devtron
     spec:
-      serviceAccountName: devtron-sa
+      serviceAccountName: devtron-default-sa
       {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.notifier.nodeSelector "tolerations" $.Values.notifier.tolerations "imagePullSecrets" $.Values.notifier.imagePullSecrets "global" $.Values.global) | indent 6 }}
       terminationGracePeriodSeconds: 30
       restartPolicy: Always

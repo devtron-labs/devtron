@@ -14,8 +14,9 @@ global:
   imagePullSecrets: []
 
 imagePullSecret:
-  create: false
-  name: ""  # If left empty, it will default to "devtron-image-pull-enterprise"
+  create: false   # if true creates imagePullSecret in devtroncd namespace
+  namespaceScope: ""  # Available options are "devtroncd" or "all" (creates secrets in devtroncd, devtron-ci devtron-cd and argo namespaces)
+  name: ""  # if empty defaults to "devtron-image-pull"
   credentials:
     registry: ""
     username: ""
@@ -24,7 +25,7 @@ imagePullSecret:
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
-  release: "v0.7.1"
+  release: "v0.7.2"
   registry: ""
   image: inception
   tag: 473deaa4-185-21582
@@ -260,13 +261,7 @@ argo-cd:
           - all
       readOnlyRootFilesystem: true
       runAsNonRoot: true
-    env:
-      - name: ARGOCD_RECONCILIATION_TIMEOUT
-        valueFrom:
-          configMapKeyRef:
-            key: timeout.reconciliation
-            name: argocd-cm
-            optional: true
+    env: []
     affinity:
       podAntiAffinity:
         preferredDuringSchedulingIgnoredDuringExecution:
@@ -356,12 +351,6 @@ argo-cd:
       - --parallelismlimit
       - "50"
     env:
-      - name: ARGOCD_RECONCILIATION_TIMEOUT
-        valueFrom:
-          configMapKeyRef:
-            key: timeout.reconciliation
-            name: argocd-cm
-            optional: true
       - name: ARGOCD_EXEC_TIMEOUT
         value: 180s
     containerSecurityContext:
@@ -445,3 +434,35 @@ monitoring:
       resources: {}
     persistence:
       storage: "2Gi"
+
+# Change these values for Devtron-Enterprise 
+devtronEnterprise:
+  enabled: true
+  casbin:
+    registry: ""
+    image: "casbin:8a0c2298-79f9a6ab-462-24808"
+    imagePullPolicy: IfNotPresent
+    configs:
+      PG_ADDR: postgresql-postgresql.devtroncd
+      PG_DATABASE: casbin
+      PG_PORT: "5432"
+      PG_USER: postgres       
+    dbconfig:
+      secretName: postgresql-postgresql
+      keyName: postgresql-password
+    resources:
+      limits:
+        cpu: 0.5m
+        memory: 500Mi
+      requests:
+        cpu: 0.5m
+        memory: 301Mi
+  scoop:
+    enabled: true
+    registry: ""
+    image: "scoop:296d351d-629-24001"
+    imagePullPolicy: IfNotPresent
+    resources: {}
+    configs:
+      CLUSTER_ID: "1"
+      ORCHESTRATOR_URL: http://devtron-service.devtroncd.svc.cluster.local/orchestrator

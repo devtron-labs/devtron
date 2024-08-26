@@ -78,7 +78,7 @@ spec:
 {{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
       {{- end }}
       {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.dashboard.nodeSelector "tolerations" $.Values.components.dashboard.tolerations "imagePullSecrets" $.Values.components.dashboard.imagePullSecrets "global" $.Values.global) | indent 6 }}
-      serviceAccountName: devtron-sa
+      serviceAccountName: devtron-default-sa
       containers:
         - name: dashboard
           image: {{ include "common.image" (dict "component" $.Values.components.dashboard "global" $.Values.global) }}

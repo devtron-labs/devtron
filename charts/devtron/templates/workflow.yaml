@@ -977,7 +977,7 @@ imagePullSecrets:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: devtron-sa
+  name: devtron-default-sa
   namespace: devtroncd
   labels:
     release: devtron

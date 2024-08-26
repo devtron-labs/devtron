@@ -12,9 +12,17 @@ global:
   nodeSelector: {}
   tolerations: []
   imagePullSecrets: []
+imagePullSecret:
+  create: false   # if true creates imagePullSecret in devtroncd namespace
+  namespaceScope: ""  # Available options are "devtroncd" or "all" (creates secrets in devtroncd, devtron-ci devtron-cd and argo namespaces)
+  name: ""  # if empty defaults to "devtron-image-pull"
+  credentials:
+    registry: ""
+    username: ""
+    password: ""
 extraManifests: []
 installer:
-  release: "v0.7.1"
+  release: "v0.7.2"
   registry: ""
   image: "inception"
   tag: "473deaa4-185-21582"
@@ -200,3 +208,34 @@ monitoring:
       image: "k8s-sidecar:1.1.0"
       curlImage: "curl:7.73.0"
       imagePullPolicy: IfNotPresent
+
+devtronEnterprise:
+  enabled: true
+  casbin:
+    registry: ""
+    image: "casbin:8a0c2298-79f9a6ab-462-24808"
+    imagePullPolicy: IfNotPresent
+    configs:
+      PG_ADDR: postgresql-postgresql.devtroncd
+      PG_DATABASE: casbin
+      PG_PORT: "5432"
+      PG_USER: postgres       
+    dbconfig:
+      secretName: postgresql-postgresql
+      keyName: postgresql-password
+    resources:
+      limits:
+        cpu: 0.5m
+        memory: 500Mi
+      requests:
+        cpu: 0.5m
+        memory: 301Mi
+  scoop:
+    enabled: true
+    registry: ""
+    image: "scoop:296d351d-629-24001"
+    imagePullPolicy: IfNotPresent
+    resources: {}
+    configs:
+      CLUSTER_ID: "1"
+      ORCHESTRATOR_URL: http://devtron-service.devtroncd.svc.cluster.local/orchestrator
