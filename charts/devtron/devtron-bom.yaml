@@ -202,7 +202,7 @@ monitoring:
       imagePullPolicy: IfNotPresent
 
 devtronEnterprise:
-  enabled: true
+  enabled: false
   casbin:
     registry: ""
     image: "casbin:8a0c2298-79f9a6ab-462-24808"
@@ -223,7 +223,7 @@ devtronEnterprise:
         cpu: 0.5m
         memory: 301Mi
   scoop:
-    enabled: true
+    enabled: false
     registry: ""
     image: "scoop:296d351d-629-24001"
     imagePullPolicy: IfNotPresent
