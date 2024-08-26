@@ -71,7 +71,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: lens
-          image: "quay.io/devtron/lens:56211042-333-23839"
+          image: "quay.io/devtron/lens:d925f072-333-24951"
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
