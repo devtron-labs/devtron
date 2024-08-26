@@ -140,6 +140,7 @@ func (s *RepositoriesService) RawBlobContent(pid interface{}, sha string, option
 // https://docs.gitlab.com/ee/api/repositories.html#get-file-archive
 type ArchiveOptions struct {
 	Format *string `url:"-" json:"-"`
+	Path   *string `url:"path,omitempty" json:"path,omitempty"`
 	SHA    *string `url:"sha,omitempty" json:"sha,omitempty"`
 }
 
@@ -222,6 +223,7 @@ type CompareOptions struct {
 	From     *string `url:"from,omitempty" json:"from,omitempty"`
 	To       *string `url:"to,omitempty" json:"to,omitempty"`
 	Straight *bool   `url:"straight,omitempty" json:"straight,omitempty"`
+	Unidiff  *bool   `url:"unidiff,omitempty" json:"unidiff,omitempty"`
 }
 
 // Compare compares branches, tags or commits.

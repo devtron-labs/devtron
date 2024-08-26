@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/util"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/go-pg/pg"
@@ -83,7 +84,13 @@ func (impl *InstalledAppResourceServiceImpl) findNotesForArgoApplication(install
 	}
 	var notes string
 
-	if util.IsAcdApp(installedAppVerison.InstalledApp.DeploymentAppType) {
+	deploymentConfig, err := impl.deploymentConfigurationService.GetConfigForHelmApps(installedAppVerison.InstalledApp.AppId, installedAppVerison.InstalledApp.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", installedAppVerison.InstalledApp.AppId, "envId", installedAppVerison.InstalledApp.EnvironmentId, "err", err)
+		return "", err
+	}
+
+	if util.IsAcdApp(deploymentConfig.DeploymentAppType) {
 		appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installedAppVerison.AppStoreApplicationVersion.Id)
 		if err != nil {
 			impl.logger.Errorw("error fetching app store app version in installed app service", "err", err)
@@ -95,22 +102,61 @@ func (impl *InstalledAppResourceServiceImpl) findNotesForArgoApplication(install
 			return notes, err
 		}
 
-		installReleaseRequest := &gRPC.InstallReleaseRequest{
-			ChartName:    appStoreAppVersion.Name,
-			ChartVersion: appStoreAppVersion.Version,
-			ValuesYaml:   installedAppVerison.ValuesYaml,
-			K8SVersion:   k8sServerVersion.String(),
-			ChartRepository: &gRPC.ChartRepository{
+		//TODO: common function for below logic for install/update/notes
+		var IsOCIRepo bool
+		var registryCredential *gRPC.RegistryCredential
+		var chartRepository *gRPC.ChartRepository
+		dockerRegistryId := appStoreAppVersion.AppStore.DockerArtifactStoreId
+		if dockerRegistryId != "" {
+			ociRegistryConfigs, err := impl.OCIRegistryConfigRepository.FindByDockerRegistryId(dockerRegistryId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching oci registry config", "err", err)
+				return notes, err
+			}
+			var ociRegistryConfig *repository2.OCIRegistryConfig
+			for _, config := range ociRegistryConfigs {
+				if config.RepositoryAction == repository2.STORAGE_ACTION_TYPE_PULL || config.RepositoryAction == repository2.STORAGE_ACTION_TYPE_PULL_AND_PUSH {
+					ociRegistryConfig = config
+					break
+				}
+			}
+			IsOCIRepo = true
+			registryCredential = &gRPC.RegistryCredential{
+				RegistryUrl:         appStoreAppVersion.AppStore.DockerArtifactStore.RegistryURL,
+				Username:            appStoreAppVersion.AppStore.DockerArtifactStore.Username,
+				Password:            appStoreAppVersion.AppStore.DockerArtifactStore.Password,
+				AwsRegion:           appStoreAppVersion.AppStore.DockerArtifactStore.AWSRegion,
+				AccessKey:           appStoreAppVersion.AppStore.DockerArtifactStore.AWSAccessKeyId,
+				SecretKey:           appStoreAppVersion.AppStore.DockerArtifactStore.AWSSecretAccessKey,
+				RegistryType:        string(appStoreAppVersion.AppStore.DockerArtifactStore.RegistryType),
+				RepoName:            appStoreAppVersion.AppStore.Name,
+				IsPublic:            ociRegistryConfig.IsPublic,
+				Connection:          appStoreAppVersion.AppStore.DockerArtifactStore.Connection,
+				RegistryName:        appStoreAppVersion.AppStore.DockerArtifactStoreId,
+				RegistryCertificate: appStoreAppVersion.AppStore.DockerArtifactStore.Cert,
+			}
+		} else {
+			chartRepository = &gRPC.ChartRepository{
 				Name:                    appStoreAppVersion.AppStore.ChartRepo.Name,
 				Url:                     appStoreAppVersion.AppStore.ChartRepo.Url,
 				Username:                appStoreAppVersion.AppStore.ChartRepo.UserName,
 				Password:                appStoreAppVersion.AppStore.ChartRepo.Password,
 				AllowInsecureConnection: appStoreAppVersion.AppStore.ChartRepo.AllowInsecureConnection,
-			},
+			}
+		}
+
+		installReleaseRequest := &gRPC.InstallReleaseRequest{
+			ChartName:       appStoreAppVersion.Name,
+			ChartVersion:    appStoreAppVersion.Version,
+			ValuesYaml:      installedAppVerison.ValuesYaml,
+			K8SVersion:      k8sServerVersion.String(),
+			ChartRepository: chartRepository,
 			ReleaseIdentifier: &gRPC.ReleaseIdentifier{
 				ReleaseNamespace: installedAppVerison.InstalledApp.Environment.Namespace,
 				ReleaseName:      installedAppVerison.InstalledApp.App.AppName,
 			},
+			IsOCIRepo:          IsOCIRepo,
+			RegistryCredential: registryCredential,
 		}
 
 		clusterId := installedAppVerison.InstalledApp.Environment.ClusterId

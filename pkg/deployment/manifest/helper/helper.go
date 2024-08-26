@@ -32,6 +32,15 @@ import (
 	"github.com/tidwall/sjson"
 )
 
+const KeyNotFoundError = "empty-val-err"
+
+func IsNotFoundErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	return err.Error() == KeyNotFoundError
+}
+
 func ResolveDeploymentTypeAndUpdate(overrideRequest *bean.ValuesOverrideRequest) {
 	if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
 		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
@@ -57,17 +66,20 @@ func GetDeploymentTemplateType(overrideRequest *bean.ValuesOverrideRequest) char
 
 func ExtractParamValue(inputMap map[string]interface{}, key string, merged []byte) (float64, error) {
 	if _, ok := inputMap[key]; !ok {
-		return 0, errors.New("empty-val-err")
+		return 0, errors.New(KeyNotFoundError)
 	}
 	return util4.ParseFloatNumber(gjson.Get(string(merged), inputMap[key].(string)).Value())
 }
 
 func SetScalingValues(templateMap map[string]interface{}, customScalingKey string, merged []byte, value interface{}) ([]byte, error) {
-	autoscalingJsonPath := templateMap[customScalingKey]
+	autoscalingJsonPath, ok := templateMap[customScalingKey]
+	if !ok {
+		return merged, errors.New(fmt.Sprintf("no json path found for [%s]", customScalingKey))
+	}
 	autoscalingJsonPathKey := autoscalingJsonPath.(string)
 	mergedRes, err := sjson.Set(string(merged), autoscalingJsonPathKey, value)
 	if err != nil {
-		return []byte{}, err
+		return merged, err
 	}
 	return []byte(mergedRes), nil
 }
@@ -140,8 +152,8 @@ func GetAutoScalingReplicaCount(templateMap map[string]interface{}, appName stri
 
 }
 
-func CreateConfigMapAndSecretJsonRequest(overrideRequest *bean.ValuesOverrideRequest, envOverride *chartConfig.EnvConfigOverride, chartVersion string, scope resourceQualifiers.Scope) bean3.ConfigMapAndSecretJsonV2 {
-	request := bean3.ConfigMapAndSecretJsonV2{
+func NewMergedCmAndCsJsonV2Request(overrideRequest *bean.ValuesOverrideRequest, envOverride *chartConfig.EnvConfigOverride, chartVersion string, scope resourceQualifiers.Scope) bean3.GetMergedCmAndCsJsonV2Request {
+	request := bean3.GetMergedCmAndCsJsonV2Request{
 		AppId:                                 overrideRequest.AppId,
 		EnvId:                                 envOverride.TargetEnvironment,
 		PipeLineId:                            overrideRequest.PipelineId,
@@ -151,6 +163,14 @@ func CreateConfigMapAndSecretJsonRequest(overrideRequest *bean.ValuesOverrideReq
 		Scope:                                 scope,
 	}
 	return request
+}
+
+func NewMergedCmAndCsJsonV2Response() *bean3.MergedCmAndCsJsonV2Response {
+	return &bean3.MergedCmAndCsJsonV2Response{
+		MergedJson:     []byte("{}"),
+		ExternalCsList: make([]string, 0),
+		ExternalCmList: make([]string, 0),
+	}
 }
 
 func GetScopeForVariables(overrideRequest *bean.ValuesOverrideRequest, envOverride *chartConfig.EnvConfigOverride) resourceQualifiers.Scope {

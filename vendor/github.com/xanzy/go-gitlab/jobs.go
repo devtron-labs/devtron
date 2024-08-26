@@ -516,9 +516,9 @@ type PlayJobOptions struct {
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/jobs.html#run-a-job
 type JobVariableOptions struct {
-	Key          *string `url:"key,omitempty" json:"key,omitempty"`
-	Value        *string `url:"value,omitempty" json:"value,omitempty"`
-	VariableType *string `url:"variable_type,omitempty" json:"variable_type,omitempty"`
+	Key          *string            `url:"key,omitempty" json:"key,omitempty"`
+	Value        *string            `url:"value,omitempty" json:"value,omitempty"`
+	VariableType *VariableTypeValue `url:"variable_type,omitempty" json:"variable_type,omitempty"`
 }
 
 // PlayJob triggers a manual action to start a job.
@@ -556,6 +556,25 @@ func (s *JobsService) DeleteArtifacts(pid interface{}, jobID int, options ...Req
 		return nil, err
 	}
 	u := fmt.Sprintf("projects/%s/jobs/%d/artifacts", PathEscape(project), jobID)
+
+	req, err := s.client.NewRequest(http.MethodDelete, u, nil, options)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.client.Do(req, nil)
+}
+
+// DeleteProjectArtifacts delete artifacts eligible for deletion in a project
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/job_artifacts.html#delete-project-artifacts
+func (s *JobsService) DeleteProjectArtifacts(pid interface{}, options ...RequestOptionFunc) (*Response, error) {
+	project, err := parseID(pid)
+	if err != nil {
+		return nil, err
+	}
+	u := fmt.Sprintf("projects/%s/artifacts", PathEscape(project))
 
 	req, err := s.client.NewRequest(http.MethodDelete, u, nil, options)
 	if err != nil {

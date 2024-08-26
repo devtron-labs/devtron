@@ -41,6 +41,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	bean2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	bean5 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -84,6 +86,7 @@ type AppStoreDeploymentServiceImpl struct {
 	gitOpsConfigReadService              config.GitOpsConfigReadService
 	deletePostProcessor                  DeletePostProcessor
 	appStoreValidator                    AppStoreValidator
+	deploymentConfigService              common.DeploymentConfigService
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
@@ -101,7 +104,8 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
 	envVariables *util2.EnvironmentVariables,
 	aCDConfig *argocdServer.ACDConfig,
 	gitOpsConfigReadService config.GitOpsConfigReadService, deletePostProcessor DeletePostProcessor,
-	appStoreValidator AppStoreValidator) *AppStoreDeploymentServiceImpl {
+	appStoreValidator AppStoreValidator,
+	deploymentConfigService common.DeploymentConfigService) *AppStoreDeploymentServiceImpl {
 	return &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -120,6 +124,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
 		gitOpsConfigReadService:              gitOpsConfigReadService,
 		deletePostProcessor:                  deletePostProcessor,
 		appStoreValidator:                    appStoreValidator,
+		deploymentConfigService:              deploymentConfigService,
 	}
 }
 
@@ -159,9 +164,19 @@ func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 
 	var gitOpsResponse *bean2.AppStoreGitOpsResponse
 	if installedAppDeploymentAction.PerformGitOps {
-		manifest, err := impl.fullModeDeploymentService.GenerateManifest(installAppVersionRequest)
+		appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
+		if err != nil {
+			impl.logger.Errorw("fetching error", "err", err)
+			return nil, err
+		}
+		manifest, err := impl.fullModeDeploymentService.GenerateManifest(installAppVersionRequest, appStoreAppVersion)
 		if err != nil {
 			impl.logger.Errorw("error in performing manifest and git operations", "err", err)
+			return nil, err
+		}
+		err = impl.fullModeDeploymentService.CreateArgoRepoSecretIfNeeded(appStoreAppVersion)
+		if err != nil {
+			impl.logger.Errorw("error in creating argo app repository secret", "appStoreApplicationVersionId", appStoreAppVersion.Id, "err", err)
 			return nil, err
 		}
 		gitOpsResponse, err = impl.fullModeDeploymentService.GitOpsOperations(manifest, installAppVersionRequest)
@@ -245,8 +260,13 @@ func (impl *AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Contex
 		return nil, err
 	}
 
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForHelmApps(model.AppId, model.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", model.AppId, "envId", model.EnvironmentId, "err", err)
+		return nil, err
+	}
 	if installAppVersionRequest.AcdPartialDelete == true {
-		if !util2.IsBaseStack() && !util2.IsHelmApp(app.AppOfferingMode) && !util.IsHelmApp(model.DeploymentAppType) {
+		if !util2.IsBaseStack() && !util2.IsHelmApp(app.AppOfferingMode) && !util.IsHelmApp(deploymentConfig.DeploymentAppType) {
 			if !installAppVersionRequest.InstalledAppDeleteResponse.ClusterReachable {
 				impl.logger.Errorw("cluster connection error", "err", environment.ErrorInConnecting)
 				if !installAppVersionRequest.NonCascadeDelete {
@@ -322,7 +342,7 @@ func (impl *AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Contex
 			}
 		}
 
-		if util2.IsBaseStack() || util2.IsHelmApp(app.AppOfferingMode) || util.IsHelmApp(model.DeploymentAppType) {
+		if util2.IsBaseStack() || util2.IsHelmApp(app.AppOfferingMode) || util.IsHelmApp(deploymentConfig.DeploymentAppType) {
 			// there might be a case if helm release gets uninstalled from helm cli.
 			//in this case on deleting the app from API, it should not give error as it should get deleted from db, otherwise due to delete error, db does not get clean
 			// so in helm, we need to check first if the release exists or not, if exists then only delete
@@ -448,18 +468,23 @@ func (impl *AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Conte
 			impl.logger.Errorw("error while fetching installed app", "error", err)
 			return false, err
 		}
-		installedApp.GitOpsRepoURL = installedAppModel.GitOpsRepoUrl
+		deploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForHelmApp(installedApp.AppId, installedApp.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", installedApp.AppId, "envId", installedApp.EnvironmentId, "err", err)
+			return false, err
+		}
+		installedApp.GitOpsRepoURL = deploymentConfig.RepoURL
 		// migrate installedApp.GitOpsRepoName to installedApp.GitOpsRepoUrl
-		if util.IsAcdApp(installedAppModel.DeploymentAppType) &&
-			len(installedAppModel.GitOpsRepoName) != 0 &&
-			len(installedAppModel.GitOpsRepoUrl) == 0 {
+		if util.IsAcdApp(deploymentConfig.DeploymentAppType) &&
+			len(deploymentConfig.RepoName) != 0 &&
+			len(deploymentConfig.RepoURL) == 0 {
 			//as the installedApp.GitOpsRepoName is not an empty string; migrate installedApp.GitOpsRepoName to installedApp.GitOpsRepoUrl
-			migrationErr := impl.handleGitOpsRepoUrlMigration(tx, installedAppModel, userId)
+			migrationErr := impl.handleGitOpsRepoUrlMigration(tx, installedAppModel, deploymentConfig, userId)
 			if migrationErr != nil {
 				impl.logger.Errorw("error in GitOps repository url migration", "err", migrationErr)
 				return false, err
 			}
-			installedApp.GitOpsRepoURL = installedAppModel.GitOpsRepoUrl
+			installedApp.GitOpsRepoURL = deploymentConfig.RepoURL
 		}
 		// migration ends
 	}
@@ -598,21 +623,28 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		installedApp.Environment.ClusterId: installedApp.Environment.Namespace,
 	}
 
+	deploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForHelmApp(installedApp.AppId, installedApp.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in getting deploymentConfig by appId and envId", "appId", installedApp.AppId, "envId", installedApp.EnvironmentId, "err", err)
+		return nil, err
+	}
+
 	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap)
 	if err != nil {
 		return nil, err
 	}
-	upgradeAppRequest.UpdateDeploymentAppType(installedApp.DeploymentAppType)
+	upgradeAppRequest.UpdateDeploymentAppType(deploymentConfig.DeploymentAppType)
 
-	installedAppDeploymentAction := adapter.NewInstalledAppDeploymentAction(installedApp.DeploymentAppType)
+	installedAppDeploymentAction := adapter.NewInstalledAppDeploymentAction(deploymentConfig.DeploymentAppType)
 	// migrate installedApp.GitOpsRepoName to installedApp.GitOpsRepoUrl
-	if util.IsAcdApp(installedApp.DeploymentAppType) &&
-		len(installedApp.GitOpsRepoUrl) == 0 {
+	if util.IsAcdApp(deploymentConfig.DeploymentAppType) &&
+		len(deploymentConfig.RepoURL) == 0 {
 		gitRepoUrl, err := impl.fullModeDeploymentService.GetAcdAppGitOpsRepoURL(installedApp.App.AppName, installedApp.Environment.Name)
 		if err != nil {
 			impl.logger.Errorw("error in GitOps repository url migration", "err", err)
 			return nil, err
 		}
+		deploymentConfig.RepoURL = gitRepoUrl
 		installedApp.GitOpsRepoUrl = gitRepoUrl
 		installedApp.GitOpsRepoName = impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(gitRepoUrl)
 	}
@@ -672,7 +704,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	// populate appStoreBean.InstallAppVersionDTO from the DB models
 	upgradeAppRequest.Id = installedAppVersion.Id
 	upgradeAppRequest.InstalledAppVersionId = installedAppVersion.Id
-	adapter.UpdateInstallAppDetails(upgradeAppRequest, installedApp)
+	adapter.UpdateInstallAppDetails(upgradeAppRequest, installedApp, deploymentConfig)
 	adapter.UpdateAppDetails(upgradeAppRequest, &installedApp.App)
 	environment, err := impl.environmentService.GetExtendedEnvBeanById(installedApp.EnvironmentId)
 	if err != nil {
@@ -707,14 +739,19 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		// manifest contains ChartRepoName where the valuesConfig and requirementConfig files will get committed
 		// and that gitOpsRepoUrl is extracted from db inside GenerateManifest func and not from the current
 		// orchestrator cm prefix and appName.
-		manifest, err := impl.fullModeDeploymentService.GenerateManifest(upgradeAppRequest)
+		manifest, err := impl.fullModeDeploymentService.GenerateManifest(upgradeAppRequest, appStoreAppVersion)
 		if err != nil {
 			impl.logger.Errorw("error in generating manifest for helm apps", "err", err)
 			_ = impl.appStoreDeploymentDBService.UpdateInstalledAppVersionHistoryStatus(upgradeAppRequest.InstalledAppVersionHistoryId, pipelineConfig.WorkflowFailed)
 			return nil, err
 		}
+		err = impl.fullModeDeploymentService.CreateArgoRepoSecretIfNeeded(appStoreAppVersion)
+		if err != nil {
+			impl.logger.Errorw("error in creating argo app repository secret", "appStoreApplicationVersionId", appStoreAppVersion.Id, "err", err)
+			return nil, err
+		}
 		// required if gitOps repo name is changed, gitOps repo name will change if env variable which we use as suffix changes
-		monoRepoMigrationRequired = impl.checkIfMonoRepoMigrationRequired(installedApp)
+		monoRepoMigrationRequired = impl.checkIfMonoRepoMigrationRequired(installedApp, deploymentConfig)
 		argocdAppName := installedApp.App.AppName + "-" + installedApp.Environment.Name
 		upgradeAppRequest.ACDAppName = argocdAppName
 
@@ -760,12 +797,20 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	if monoRepoMigrationRequired {
 		//if monorepo case is true then repoUrl is changed then also update repo url in database
 		installedApp.UpdateGitOpsRepository(gitOpsResponse.ChartGitAttribute.RepoUrl, installedApp.IsCustomRepository)
+		deploymentConfig.RepoURL = gitOpsResponse.ChartGitAttribute.RepoUrl
 	}
 	installedApp, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating installed app", "err", err)
 		return nil, err
 	}
+
+	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(tx, deploymentConfig, upgradeAppRequest.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in updating deployment config for helm apps", "appId", deploymentConfig.AppId, "envId", deploymentConfig.EnvironmentId, "err", err)
+		return nil, err
+	}
+
 	//STEP 8: finish with return response
 	err = tx.Commit()
 	if err != nil {
@@ -832,7 +877,14 @@ func (impl *AppStoreDeploymentServiceImpl) MarkGitOpsInstalledAppsDeletedIfArgoA
 		apiError.InternalMessage = "error in fetching partially deleted argoCd apps from installed app repo"
 		return apiError
 	}
-	if !util.IsAcdApp(installedApp.DeploymentAppType) || !installedApp.DeploymentAppDeleteRequest {
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForHelmApps(installedAppId, envId)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", installedAppId, "envId", envId, "err", err)
+		apiError.HttpStatusCode = http.StatusInternalServerError
+		apiError.InternalMessage = "error in fetching partially deleted argoCd apps from installed app repo"
+		return apiError
+	}
+	if (!util.IsAcdApp(installedApp.DeploymentAppType) && !util.IsAcdApp(deploymentConfig.DeploymentAppType)) || !installedApp.DeploymentAppDeleteRequest {
 		return nil
 	}
 	// Operates for ArgoCd apps only
@@ -955,13 +1007,13 @@ func (impl *AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(insta
 }
 
 // checkIfMonoRepoMigrationRequired checks if gitOps repo name is changed
-func (impl *AppStoreDeploymentServiceImpl) checkIfMonoRepoMigrationRequired(installedApp *repository.InstalledApps) bool {
+func (impl *AppStoreDeploymentServiceImpl) checkIfMonoRepoMigrationRequired(installedApp *repository.InstalledApps, deploymentConfig *bean5.DeploymentConfig) bool {
 	monoRepoMigrationRequired := false
-	if !util.IsAcdApp(installedApp.DeploymentAppType) || gitOps.IsGitOpsRepoNotConfigured(installedApp.GitOpsRepoUrl) || installedApp.IsCustomRepository {
+	if !util.IsAcdApp(deploymentConfig.DeploymentAppType) || gitOps.IsGitOpsRepoNotConfigured(deploymentConfig.RepoURL) || deploymentConfig.ConfigType == bean5.CUSTOM.String() {
 		return false
 	}
 	var err error
-	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(installedApp.GitOpsRepoUrl)
+	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(deploymentConfig.RepoURL)
 	if len(gitOpsRepoName) == 0 {
 		gitOpsRepoName, err = impl.fullModeDeploymentService.GetAcdAppGitOpsRepoName(installedApp.App.AppName, installedApp.Environment.Name)
 		if err != nil || gitOpsRepoName == "" {
@@ -979,7 +1031,7 @@ func (impl *AppStoreDeploymentServiceImpl) checkIfMonoRepoMigrationRequired(inst
 }
 
 // handleGitOpsRepoUrlMigration will migrate git_ops_repo_name to git_ops_repo_url
-func (impl *AppStoreDeploymentServiceImpl) handleGitOpsRepoUrlMigration(tx *pg.Tx, installedApp *repository.InstalledApps, userId int32) error {
+func (impl *AppStoreDeploymentServiceImpl) handleGitOpsRepoUrlMigration(tx *pg.Tx, installedApp *repository.InstalledApps, deploymentConfig *bean5.DeploymentConfig, userId int32) error {
 	var (
 		localTx *pg.Tx
 		err     error
@@ -1003,15 +1055,27 @@ func (impl *AppStoreDeploymentServiceImpl) handleGitOpsRepoUrlMigration(tx *pg.T
 	installedApp.GitOpsRepoUrl = gitRepoUrl
 	installedApp.UpdatedOn = time.Now()
 	installedApp.UpdatedBy = userId
+
+	var dbTx *pg.Tx
 	if localTx != nil {
-		_, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, localTx)
+		dbTx = localTx
 	} else {
-		_, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, tx)
+		dbTx = tx
 	}
+
+	_, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, dbTx)
 	if err != nil {
 		impl.logger.Errorw("error in updating installed app model", "err", err)
 		return err
 	}
+
+	deploymentConfig.RepoURL = gitRepoUrl
+	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(dbTx, deploymentConfig, userId)
+	if err != nil {
+		impl.logger.Errorw("error in updating deployment config", "err", err)
+		return err
+	}
+
 	if localTx != nil {
 		err = localTx.Commit()
 		if err != nil {

@@ -53,6 +53,11 @@ The **Build & Deploy** tab of your application group enables you to trigger the 
 
     ![Figure 5: Selecting Commit](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/application-groups/select-commit-1.jpg)
 
+{% hint style="info" %}
+### Tip
+Adding [image labels](./deploying-application/image-labels-and-comments.md) can help you quickly locate the container image from the list of images shown in Application Groups.
+{% endhint %}
+
 3. Similar to application, you can also [pass build parameters](./deploying-application/triggering-ci.md#passing-build-parameters) in application groups before triggering the build.
 
 {% hint style="info" %}

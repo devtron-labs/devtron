@@ -18,22 +18,23 @@ package manifest
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	application3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	util5 "github.com/devtron-labs/common-lib/utils/k8s"
+	k8sUtil "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
-	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
-	bean2 "github.com/devtron-labs/devtron/pkg/bean"
+	appBean "github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
@@ -47,15 +48,15 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
-	util4 "github.com/devtron-labs/devtron/util"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	errors2 "github.com/juju/errors"
 	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	k8sApiV1 "k8s.io/api/core/v1"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -93,6 +94,7 @@ type ManifestCreationServiceImpl struct {
 	strategyHistoryRepository           repository3.PipelineStrategyHistoryRepository
 	pipelineConfigRepository            chartConfig.PipelineConfigRepository
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository
+	deploymentConfigService             common.DeploymentConfigService
 }
 
 func NewManifestCreationServiceImpl(logger *zap.SugaredLogger,
@@ -116,7 +118,8 @@ func NewManifestCreationServiceImpl(logger *zap.SugaredLogger,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository,
 	strategyHistoryRepository repository3.PipelineStrategyHistoryRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
-	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository) *ManifestCreationServiceImpl {
+	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository,
+	deploymentConfigService common.DeploymentConfigService) *ManifestCreationServiceImpl {
 	return &ManifestCreationServiceImpl{
 		logger:                              logger,
 		dockerRegistryIpsConfigService:      dockerRegistryIpsConfigService,
@@ -140,6 +143,7 @@ func NewManifestCreationServiceImpl(logger *zap.SugaredLogger,
 		strategyHistoryRepository:           strategyHistoryRepository,
 		pipelineConfigRepository:            pipelineConfigRepository,
 		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
+		deploymentConfigService:             deploymentConfigService,
 	}
 }
 
@@ -189,9 +193,10 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 	}
 
 	var (
-		pipelineOverride                *chartConfig.PipelineOverride
-		configMapJson, appLabelJsonByte []byte
-		envOverride                     *chartConfig.EnvConfigOverride
+		pipelineOverride *chartConfig.PipelineOverride
+		appLabelJsonByte []byte
+		configMapJson    *bean3.MergedCmAndCsJsonV2Response
+		envOverride      *chartConfig.EnvConfigOverride
 	)
 	if isPipelineOverrideCreated {
 		pipelineOverride, err = impl.pipelineOverrideRepository.FindById(overrideRequest.PipelineOverrideId)
@@ -247,7 +252,7 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 	if !isPipelineOverrideCreated {
 		chartVersion := envOverride.Chart.ChartVersion
 		scope := helper.GetScopeForVariables(overrideRequest, envOverride)
-		request := helper.CreateConfigMapAndSecretJsonRequest(overrideRequest, envOverride, chartVersion, scope)
+		request := helper.NewMergedCmAndCsJsonV2Request(overrideRequest, envOverride, chartVersion, scope)
 
 		configMapJson, err = impl.getConfigMapAndSecretJsonV2(newCtx, request, envOverride)
 		if err != nil {
@@ -259,10 +264,24 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 			impl.logger.Errorw("error in fetching app labels for gitOps commit", "err", err)
 			appLabelJsonByte = nil
 		}
-		mergedValues, err := impl.mergeOverrideValues(envOverride, releaseOverrideJson, configMapJson, appLabelJsonByte, strategy)
+		mergedValues, err := impl.mergeOverrideValues(envOverride, releaseOverrideJson, configMapJson.MergedJson, appLabelJsonByte, strategy)
 		appName := fmt.Sprintf("%s-%s", overrideRequest.AppName, envOverride.Environment.Name)
-		mergedValues = impl.autoscalingCheckBeforeTrigger(newCtx, appName, envOverride.Namespace, mergedValues, overrideRequest)
-
+		var k8sErr error
+		mergedValues, k8sErr = impl.updatedExternalCmCsHashForTrigger(newCtx, overrideRequest.ClusterId,
+			envOverride.Namespace, mergedValues, configMapJson.ExternalCmList, configMapJson.ExternalCsList)
+		if k8sErr != nil {
+			impl.logger.Errorw("error in updating external cm cs hash for trigger",
+				"clusterId", overrideRequest.ClusterId, "namespace", envOverride.Namespace, "err", k8sErr)
+			// error is not returned as it's not blocking for deployment process
+			// blocking deployments based on this use case can vary for user to user
+		}
+		if !envOverride.Environment.IsVirtualEnvironment {
+			mergedValues, err = impl.autoscalingCheckBeforeTrigger(newCtx, appName, envOverride.Namespace, mergedValues, overrideRequest)
+			if err != nil {
+				impl.logger.Errorw("error in autoscaling check before trigger", "pipelineId", overrideRequest.PipelineId, "err", err)
+				return valuesOverrideResponse, err
+			}
+		}
 		// handle image pull secret if access given
 		mergedValues, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(newCtx, envOverride.Environment, artifact, pipeline.CiPipelineId, mergedValues)
 		if err != nil {
@@ -555,7 +574,7 @@ func (impl *ManifestCreationServiceImpl) mergeOverrideValues(envOverride *chartC
 	return merged, nil
 }
 
-func (impl *ManifestCreationServiceImpl) getConfigMapAndSecretJsonV2(ctx context.Context, request bean3.ConfigMapAndSecretJsonV2, envOverride *chartConfig.EnvConfigOverride) ([]byte, error) {
+func (impl *ManifestCreationServiceImpl) getConfigMapAndSecretJsonV2(ctx context.Context, request bean3.GetMergedCmAndCsJsonV2Request, envOverride *chartConfig.EnvConfigOverride) (*bean3.MergedCmAndCsJsonV2Response, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.getConfigMapAndSecretJsonV2")
 	defer span.End()
 	var configMapJson, secretDataJson, configMapJsonApp, secretDataJsonApp, configMapJsonEnv, secretDataJsonEnv string
@@ -565,11 +584,11 @@ func (impl *ManifestCreationServiceImpl) getConfigMapAndSecretJsonV2(ctx context
 	configMapE := &chartConfig.ConfigMapEnvModel{}
 	configMapHistory, secretHistory := &repository3.ConfigmapAndSecretHistory{}, &repository3.ConfigmapAndSecretHistory{}
 
-	merged := []byte("{}")
+	cmAndCsJsonV2Response := helper.NewMergedCmAndCsJsonV2Response()
 	if request.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
 		configMapA, err = impl.configMapRepository.GetByAppIdAppLevel(request.AppId)
 		if err != nil && pg.ErrNoRows != err {
-			return []byte("{}"), err
+			return cmAndCsJsonV2Response, err
 		}
 		if configMapA != nil && configMapA.Id > 0 {
 			configMapJsonApp = configMapA.ConfigMapData
@@ -578,7 +597,7 @@ func (impl *ManifestCreationServiceImpl) getConfigMapAndSecretJsonV2(ctx context
 
 		configMapE, err = impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(request.AppId, request.EnvId)
 		if err != nil && pg.ErrNoRows != err {
-			return []byte("{}"), err
+			return cmAndCsJsonV2Response, err
 		}
 		if configMapE != nil && configMapE.Id > 0 {
 			configMapJsonEnv = configMapE.ConfigMapData
@@ -587,76 +606,98 @@ func (impl *ManifestCreationServiceImpl) getConfigMapAndSecretJsonV2(ctx context
 
 	} else if request.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
 
-		//fetching history and setting envLevelConfig and not appLevelConfig because history already contains merged appLevel and envLevel configs
+		// fetching history and setting envLevelConfig and not appLevelConfig because history already contains merged appLevel and envLevel configs
 		configMapHistory, err = impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(request.PipeLineId, request.WfrIdForDeploymentWithSpecificTrigger, repository3.CONFIGMAP_TYPE)
 		if err != nil {
 			impl.logger.Errorw("error in getting config map history config by pipelineId and wfrId ", "err", err, "pipelineId", request.PipeLineId, "wfrId", request.WfrIdForDeploymentWithSpecificTrigger)
-			return []byte("{}"), err
+			return cmAndCsJsonV2Response, err
 		}
 		configMapJsonEnv = configMapHistory.Data
 
 		secretHistory, err = impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(request.PipeLineId, request.WfrIdForDeploymentWithSpecificTrigger, repository3.SECRET_TYPE)
 		if err != nil {
 			impl.logger.Errorw("error in getting config map history config by pipelineId and wfrId ", "err", err, "pipelineId", request.PipeLineId, "wfrId", request.WfrIdForDeploymentWithSpecificTrigger)
-			return []byte("{}"), err
+			return cmAndCsJsonV2Response, err
 		}
 		secretDataJsonEnv = secretHistory.Data
 	}
 	configMapJson, err = impl.mergeUtil.ConfigMapMerge(configMapJsonApp, configMapJsonEnv)
 	if err != nil {
-		return []byte("{}"), err
+		return cmAndCsJsonV2Response, err
 	}
-	chartMajorVersion, chartMinorVersion, err := util4.ExtractChartVersion(request.ChartVersion)
+	chartMajorVersion, chartMinorVersion, err := globalUtil.ExtractChartVersion(request.ChartVersion)
 	if err != nil {
 		impl.logger.Errorw("chart version parsing", "err", err)
-		return []byte("{}"), err
+		return cmAndCsJsonV2Response, err
 	}
 	secretDataJson, err = impl.mergeUtil.ConfigSecretMerge(secretDataJsonApp, secretDataJsonEnv, chartMajorVersion, chartMinorVersion, false)
 	if err != nil {
-		return []byte("{}"), err
+		return cmAndCsJsonV2Response, err
 	}
-	configResponseR := bean.ConfigMapRootJson{}
+	cmRootJson := bean.ConfigMapRootJson{}
 	configResponse := bean.ConfigMapJson{}
 	if configMapJson != "" {
 		err = json.Unmarshal([]byte(configMapJson), &configResponse)
 		if err != nil {
-			return []byte("{}"), err
+			return cmAndCsJsonV2Response, err
 		}
 	}
-	configResponseR.ConfigMapJson = configResponse
-	secretResponseR := bean.ConfigSecretRootJson{}
+	cmRootJson.ConfigMapJson = configResponse
+	csRootJson := bean.ConfigSecretRootJson{}
 	secretResponse := bean.ConfigSecretJson{}
 	if configMapJson != "" {
 		err = json.Unmarshal([]byte(secretDataJson), &secretResponse)
 		if err != nil {
-			return []byte("{}"), err
+			return cmAndCsJsonV2Response, err
 		}
 	}
-	secretResponseR.ConfigSecretJson = secretResponse
+	csRootJson.ConfigSecretJson = secretResponse
 
-	configMapByte, err := json.Marshal(configResponseR)
+	configMapByte, err := json.Marshal(cmRootJson)
 	if err != nil {
-		return []byte("{}"), err
+		return cmAndCsJsonV2Response, err
 	}
-	secretDataByte, err := json.Marshal(secretResponseR)
+	secretDataByte, err := json.Marshal(csRootJson)
 	if err != nil {
-		return []byte("{}"), err
+		return cmAndCsJsonV2Response, err
 
 	}
 	resolvedCM, resolvedCS, snapshotCM, snapshotCS, err := impl.scopedVariableManager.ResolveCMCSTrigger(request.DeploymentWithConfig, request.Scope, configMapA.Id, configMapE.Id, configMapByte, secretDataByte, configMapHistory.Id, secretHistory.Id)
 	if err != nil {
-		return []byte("{}"), err
+		return cmAndCsJsonV2Response, err
 	}
 	envOverride.VariableSnapshotForCM = snapshotCM
 	envOverride.VariableSnapshotForCS = snapshotCS
 
-	merged, err = impl.mergeUtil.JsonPatch([]byte(resolvedCM), []byte(resolvedCS))
-
+	cmAndCsJsonV2Response.MergedJson, err = impl.mergeUtil.JsonPatch([]byte(resolvedCM), []byte(resolvedCS))
 	if err != nil {
-		return []byte("{}"), err
+		return cmAndCsJsonV2Response, err
 	}
+	cmAndCsJsonV2Response.ExternalCmList, cmAndCsJsonV2Response.ExternalCsList = getExternalCmCsFromRootJson(cmRootJson, csRootJson)
+	return cmAndCsJsonV2Response, nil
+}
 
-	return merged, nil
+// getExternalCmCsFromRootJson returns the list of external configmaps and secrets from the root json
+func getExternalCmCsFromRootJson(cmRootJson bean.ConfigMapRootJson, csRootJson bean.ConfigSecretRootJson) (externalCsList []string, externalCmList []string) {
+	externalCmList = make([]string, 0)
+	externalCsList = make([]string, 0)
+	if cmRootJson.ConfigMapJson.Enabled {
+		for _, cm := range cmRootJson.ConfigMapJson.Maps {
+			if cm.External {
+				externalCmList = append(externalCmList, cm.Name)
+			}
+		}
+	}
+	if csRootJson.ConfigSecretJson.Enabled {
+		for _, cs := range csRootJson.ConfigSecretJson.Secrets {
+			// Only handling for KubernetesSecret type
+			// KubernetesExternalSecret types are excluded for Config/Secret Hashing
+			if cs.External && cs.ExternalType == globalUtil.KubernetesSecret {
+				externalCsList = append(externalCsList, cs.Name)
+			}
+		}
+	}
+	return externalCmList, externalCsList
 }
 
 func (impl *ManifestCreationServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfigOverride, overrideRequest *bean.ValuesOverrideRequest,
@@ -767,7 +808,7 @@ func (impl *ManifestCreationServiceImpl) checkAndFixDuplicateReleaseNo(override 
 				return err
 			}
 			override.PipelineReleaseCounter = currentReleaseNo + 1
-			err = impl.pipelineOverrideRepository.Save(override)
+			err = impl.pipelineOverrideRepository.Update(override)
 			if err != nil {
 				return err
 			}
@@ -779,8 +820,196 @@ func (impl *ManifestCreationServiceImpl) checkAndFixDuplicateReleaseNo(override 
 	return nil
 }
 
-func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte, overrideRequest *bean.ValuesOverrideRequest) []byte {
-	var appId = overrideRequest.AppId
+func (impl *ManifestCreationServiceImpl) getK8sHPAResourceManifest(ctx context.Context, clusterId int, namespace string, hpaResourceRequest *globalUtil.HpaResourceRequest) (map[string]interface{}, error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.getK8sHPAResourceManifest")
+	defer span.End()
+	resourceManifest := make(map[string]interface{})
+	version, err := impl.k8sCommonService.GetPreferredVersionForAPIGroup(ctx, clusterId, hpaResourceRequest.Group)
+	if err != nil && !k8sUtil.IsNotFoundError(err) {
+		return resourceManifest, util.NewApiError().
+			WithHttpStatusCode(http.StatusPreconditionFailed).
+			WithInternalMessage(err.Error()).
+			WithUserDetailMessage("unable to find preferred version for hpa resource")
+	} else if k8sUtil.IsNotFoundError(err) {
+		return resourceManifest, util.NewApiError().
+			WithHttpStatusCode(http.StatusPreconditionFailed).
+			WithInternalMessage("unable to find preferred version for hpa resource").
+			WithUserDetailMessage("unable to find preferred version for hpa resource")
+	}
+	k8sReq := &k8s.ResourceRequestBean{
+		ClusterId: clusterId,
+		K8sRequest: k8sUtil.NewK8sRequestBean().
+			WithResourceIdentifier(
+				k8sUtil.NewResourceIdentifier().
+					WithName(hpaResourceRequest.ResourceName).
+					WithNameSpace(namespace).
+					WithGroup(hpaResourceRequest.Group).
+					WithKind(hpaResourceRequest.Kind).
+					WithVersion(version),
+			),
+	}
+	k8sResource, err := impl.k8sCommonService.GetResource(newCtx, k8sReq)
+	if err != nil {
+		if k8s.IsResourceNotFoundErr(err) {
+			// this is a valid case for hibernated applications, so returning nil
+			// for hibernated applications, we don't have any hpa resource manifest
+			return resourceManifest, nil
+		} else if k8s.IsBadRequestErr(err) {
+			impl.logger.Errorw("bad request error occurred while fetching hpa resource for app", "resourceName", hpaResourceRequest.ResourceName, "err", err)
+			return resourceManifest, util.NewApiError().
+				WithHttpStatusCode(http.StatusPreconditionFailed).
+				WithInternalMessage(err.Error()).
+				WithUserDetailMessage(err.Error())
+		} else if k8s.IsServerTimeoutErr(err) {
+			impl.logger.Errorw("targeted hpa resource could not be served", "resourceName", hpaResourceRequest.ResourceName, "err", err)
+			return resourceManifest, util.NewApiError().
+				WithHttpStatusCode(http.StatusRequestTimeout).
+				WithInternalMessage(err.Error()).
+				WithUserDetailMessage("taking longer than expected, please try again later")
+		}
+		impl.logger.Errorw("error occurred while fetching resource for app", "resourceName", hpaResourceRequest.ResourceName, "err", err)
+		return resourceManifest, err
+	}
+	return k8sResource.ManifestResponse.Manifest.Object, err
+}
+
+func (impl *ManifestCreationServiceImpl) getArgoCdHPAResourceManifest(ctx context.Context, appName, namespace string, hpaResourceRequest *globalUtil.HpaResourceRequest) (map[string]interface{}, error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.getArgoCdHPAResourceManifest")
+	defer span.End()
+	resourceManifest := make(map[string]interface{})
+	query := &application3.ApplicationResourceRequest{
+		Name:         &appName,
+		Version:      &hpaResourceRequest.Version,
+		Group:        &hpaResourceRequest.Group,
+		Kind:         &hpaResourceRequest.Kind,
+		ResourceName: &hpaResourceRequest.ResourceName,
+		Namespace:    &namespace,
+	}
+
+	recv, argoErr := impl.acdClient.GetResource(newCtx, query)
+	if argoErr != nil {
+		grpcCode, errMsg := util.GetClientDetailedError(argoErr)
+		if grpcCode.IsInvalidArgumentCode() || grpcCode.IsNotFoundCode() {
+			// this is a valid case for hibernated applications, so returning nil
+			// for hibernated applications, we don't have any hpa resource manifest
+			return resourceManifest, nil
+		} else if grpcCode.IsUnavailableCode() {
+			impl.logger.Errorw("ArgoCd server unavailable", "resourceName", hpaResourceRequest.ResourceName, "err", errMsg)
+			return resourceManifest, fmt.Errorf("ArgoCd server error: %s", errMsg)
+		} else if grpcCode.IsDeadlineExceededCode() {
+			impl.logger.Errorw("ArgoCd resource request timeout", "resourceName", hpaResourceRequest.ResourceName, "err", errMsg)
+			return resourceManifest, util.NewApiError().
+				WithHttpStatusCode(http.StatusRequestTimeout).
+				WithInternalMessage(errMsg).
+				WithUserDetailMessage("ArgoCd server is not responding, please try again later")
+		}
+		impl.logger.Errorw("ArgoCd Get Resource API Failed", "resourceName", hpaResourceRequest.ResourceName, "err", errMsg)
+		return resourceManifest, fmt.Errorf("ArgoCd client error: %s", errMsg)
+	}
+	if recv != nil && len(*recv.Manifest) > 0 {
+		err := json.Unmarshal([]byte(*recv.Manifest), &resourceManifest)
+		if err != nil {
+			impl.logger.Errorw("failed to unmarshal hpa resource manifest", "manifest", recv.Manifest, "err", err)
+			return resourceManifest, err
+		}
+	} else {
+		impl.logger.Debugw("invalid resource manifest received from ArgoCd", "response", recv)
+	}
+	return resourceManifest, nil
+}
+
+// updateHashToMergedValues
+//   - Generates hash from the given configOrSecretData
+//   - And updates the hash in bean.JsonPath (JSON path) for the merged values
+//   - Returns the updated merged values
+func updateHashToMergedValues(merged []byte, path appBean.JsonPath, configOrSecretData map[string]interface{}) ([]byte, error) {
+	mergedByteData, err := json.Marshal(configOrSecretData)
+	if err != nil {
+		return merged, err
+	}
+	hash := fmt.Sprintf("%x", sha256.Sum256(mergedByteData))
+	mergedString, err := sjson.Set(string(merged), path.String(), hash)
+	if err != nil {
+		return merged, err
+	}
+	return []byte(mergedString), nil
+}
+
+// getConfigMapsData returns the data of the given configmaps
+func getConfigMapsData(configMaps map[string]*k8sApiV1.ConfigMap) map[string]interface{} {
+	configMapData := make(map[string]interface{})
+	for configMapName, configMap := range configMaps {
+		configMapData[configMapName] = struct {
+			Data       map[string]string `json:"data,omitempty"`
+			BinaryData map[string][]byte `json:"binaryData,omitempty"`
+		}{
+			Data:       configMap.Data,
+			BinaryData: configMap.BinaryData,
+		}
+	}
+	return configMapData
+}
+
+// getSecretsData returns the data of the given secrets
+func getSecretsData(secrets map[string]*k8sApiV1.Secret) map[string]interface{} {
+	secretData := make(map[string]interface{})
+	for secretName, secret := range secrets {
+		secretData[secretName] = struct {
+			Data       map[string][]byte `json:"data,omitempty"`
+			StringData map[string]string `json:"stringData,omitempty"`
+		}{
+			Data:       secret.Data,
+			StringData: secret.StringData,
+		}
+	}
+	return secretData
+}
+
+// updatedExternalCmCsHashForTrigger
+//   - Fetches all the external configmaps and secrets from the given externalCmList and externalCsList
+//   - Generates hash from the fetched configmaps and secrets and updates the hash in the merged values
+//   - Returns - the updated merged values
+func (impl *ManifestCreationServiceImpl) updatedExternalCmCsHashForTrigger(ctx context.Context, clusterId int, namespace string, merged []byte, externalCmList, externalCsList []string) ([]byte, error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.updatedExternalCmCsHashForTrigger")
+	defer span.End()
+	if len(externalCmList) > 0 {
+		request := k8s.NewCmCsRequestBean(clusterId, namespace).
+			SetExternalCmList(externalCmList...)
+		configMaps, err := impl.k8sCommonService.GetDataFromConfigMaps(newCtx, request)
+		if err != nil {
+			impl.logger.Errorw("error in fetching all configmaps", "request", request, "err", err)
+			return merged, k8s.ParseK8sClientErrorToApiError(err)
+		}
+		if configMaps != nil {
+			merged, err = updateHashToMergedValues(merged, appBean.ConfigHashPathKey, getConfigMapsData(configMaps))
+			if err != nil {
+				impl.logger.Errorw("error in updating hash for configmaps", "err", err)
+				return merged, err
+			}
+		}
+	}
+	if len(externalCsList) > 0 {
+		request := k8s.NewCmCsRequestBean(clusterId, namespace).
+			SetExternalCsList(externalCsList...)
+		secrets, err := impl.k8sCommonService.GetDataFromSecrets(newCtx, request)
+		if err != nil {
+			impl.logger.Errorw("error in fetching all configmaps", "request", request, "err", err)
+			return merged, k8s.ParseK8sClientErrorToApiError(err)
+		}
+		if secrets != nil {
+			merged, err = updateHashToMergedValues(merged, appBean.SecretHashPathKey, getSecretsData(secrets))
+			if err != nil {
+				impl.logger.Errorw("error in updating hash for secrets", "err", err)
+				return merged, err
+			}
+		}
+	}
+	return merged, nil
+}
+
+func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx context.Context, appName string, namespace string, merged []byte, overrideRequest *bean.ValuesOverrideRequest) ([]byte, error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.autoscalingCheckBeforeTrigger")
+	defer span.End()
 	pipelineId := overrideRequest.PipelineId
 	var appDeploymentType = overrideRequest.DeploymentAppType
 	var clusterId = overrideRequest.ClusterId
@@ -788,62 +1017,45 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 	templateMap := make(map[string]interface{})
 	err := json.Unmarshal(merged, &templateMap)
 	if err != nil {
-		return merged
+		impl.logger.Errorw("unmarshal failed for hpa check", "pipelineId", pipelineId, "err", err)
+		return merged, err
 	}
 
 	hpaResourceRequest := helper.GetAutoScalingReplicaCount(templateMap, appName)
-	impl.logger.Debugw("autoscalingCheckBeforeTrigger", "hpaResourceRequest", hpaResourceRequest)
+	impl.logger.Debugw("autoscalingCheckBeforeTrigger", "pipelineId", pipelineId, "hpaResourceRequest", hpaResourceRequest)
 	if hpaResourceRequest.IsEnable {
-		resourceManifest := make(map[string]interface{})
+		var resourceManifest map[string]interface{}
 		if util.IsAcdApp(appDeploymentType) {
-			query := &application3.ApplicationResourceRequest{
-				Name:         &appName,
-				Version:      &hpaResourceRequest.Version,
-				Group:        &hpaResourceRequest.Group,
-				Kind:         &hpaResourceRequest.Kind,
-				ResourceName: &hpaResourceRequest.ResourceName,
-				Namespace:    &namespace,
-			}
-			recv, err := impl.acdClient.GetResource(ctx, query)
-			impl.logger.Debugw("resource manifest get replica count", "response", recv)
+			resourceManifest, err = impl.getArgoCdHPAResourceManifest(newCtx, appName, namespace, hpaResourceRequest)
 			if err != nil {
-				impl.logger.Errorw("ACD Get Resource API Failed", "err", err)
-				middleware.AcdGetResourceCounter.WithLabelValues(strconv.Itoa(appId), namespace, appName).Inc()
-				return merged
-			}
-			if recv != nil && len(*recv.Manifest) > 0 {
-				err := json.Unmarshal([]byte(*recv.Manifest), &resourceManifest)
-				if err != nil {
-					impl.logger.Errorw("unmarshal failed for hpa check", "err", err)
-					return merged
-				}
+				return merged, err
 			}
 		} else {
-			version := "v2beta2"
-			k8sResource, err := impl.k8sCommonService.GetResource(ctx, &k8s.ResourceRequestBean{ClusterId: clusterId,
-				K8sRequest: &util5.K8sRequestBean{ResourceIdentifier: util5.ResourceIdentifier{Name: hpaResourceRequest.ResourceName,
-					Namespace: namespace, GroupVersionKind: schema.GroupVersionKind{Group: hpaResourceRequest.Group, Kind: hpaResourceRequest.Kind, Version: version}}}})
+			resourceManifest, err = impl.getK8sHPAResourceManifest(newCtx, clusterId, namespace, hpaResourceRequest)
 			if err != nil {
-				impl.logger.Errorw("error occurred while fetching resource for app", "resourceName", hpaResourceRequest.ResourceName, "err", err)
-				return merged
+				return merged, err
 			}
-			resourceManifest = k8sResource.ManifestResponse.Manifest.Object
 		}
 		if len(resourceManifest) > 0 {
 			statusMap := resourceManifest["status"].(map[string]interface{})
 			currentReplicaVal := statusMap["currentReplicas"]
-			currentReplicaCount, err := util4.ParseFloatNumber(currentReplicaVal)
+			// currentReplicas key might not be available in manifest while k8s is calculating replica count
+			// it's a valid case so, we are not throwing error
+			if currentReplicaVal == nil {
+				return merged, err
+			}
+			currentReplicaCount, err := globalUtil.ParseFloatNumber(currentReplicaVal)
 			if err != nil {
 				impl.logger.Errorw("error occurred while parsing replica count", "currentReplicas", currentReplicaVal, "err", err)
-				return merged
+				return merged, err
 			}
 
 			reqReplicaCount := helper.FetchRequiredReplicaCount(currentReplicaCount, hpaResourceRequest.ReqMaxReplicas, hpaResourceRequest.ReqMinReplicas)
 			templateMap["replicaCount"] = reqReplicaCount
 			merged, err = json.Marshal(&templateMap)
 			if err != nil {
-				impl.logger.Errorw("marshaling failed for hpa check", "err", err)
-				return merged
+				impl.logger.Errorw("marshaling failed for hpa check", "reqReplicaCount", reqReplicaCount, "err", err)
+				return merged, err
 			}
 		}
 	} else {
@@ -851,17 +1063,29 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 	}
 
 	//check for custom chart support
-	if autoscalingEnabledPath, ok := templateMap[bean2.CustomAutoScalingEnabledPathKey]; ok {
+	if autoscalingEnabledPath, ok := templateMap[appBean.CustomAutoScalingEnabledPathKey]; ok {
 		if deploymentType == models.DEPLOYMENTTYPE_STOP {
-			merged, err = helper.SetScalingValues(templateMap, bean2.CustomAutoScalingEnabledPathKey, merged, false)
+			merged, err = helper.SetScalingValues(templateMap, appBean.CustomAutoScalingEnabledPathKey, merged, false)
 			if err != nil {
-				impl.logger.Errorw("error occurred while setting autoscaling key", "templateMap", templateMap, "err", err)
-				return merged
+				impl.logger.Errorw("error occurred while setting autoscaling enabled key", "templateMap", templateMap, "err", err)
+				return merged, err
 			}
-			merged, err = helper.SetScalingValues(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged, 0)
+			merged, err = helper.SetScalingValues(templateMap, appBean.CustomAutoscalingReplicaCountPathKey, merged, 0)
 			if err != nil {
-				impl.logger.Errorw("error occurred while setting autoscaling key", "templateMap", templateMap, "err", err)
-				return merged
+				impl.logger.Errorw("error occurred while setting autoscaling replica count key", "templateMap", templateMap, "err", err)
+				return merged, err
+			}
+
+			merged, err = helper.SetScalingValues(templateMap, appBean.CustomAutoscalingMinPathKey, merged, 0)
+			if err != nil {
+				impl.logger.Errorw("error occurred while setting autoscaling min key", "templateMap", templateMap, "err", err)
+				return merged, err
+			}
+
+			merged, err = helper.SetScalingValues(templateMap, appBean.CustomAutoscalingMaxPathKey, merged, 0)
+			if err != nil {
+				impl.logger.Errorw("error occurred while setting autoscaling max key", "templateMap", templateMap, "err", err)
+				return merged, err
 			}
 		} else {
 			autoscalingEnabled := false
@@ -873,34 +1097,49 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 				// extract replica count, min, max and check for required value
 				replicaCount, err := impl.getReplicaCountFromCustomChart(templateMap, merged)
 				if err != nil {
-					return merged
+					return merged, err
 				}
-				merged, err = helper.SetScalingValues(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged, replicaCount)
+				merged, err = helper.SetScalingValues(templateMap, appBean.CustomAutoscalingReplicaCountPathKey, merged, replicaCount)
 				if err != nil {
 					impl.logger.Errorw("error occurred while setting autoscaling key", "templateMap", templateMap, "err", err)
-					return merged
+					return merged, err
 				}
 			}
 		}
 	}
 
-	return merged
+	return merged, nil
 }
 
 func (impl *ManifestCreationServiceImpl) getReplicaCountFromCustomChart(templateMap map[string]interface{}, merged []byte) (float64, error) {
-	autoscalingMinVal, err := helper.ExtractParamValue(templateMap, bean2.CustomAutoscalingMinPathKey, merged)
-	if err != nil {
-		impl.logger.Errorw("error occurred while parsing float number", "key", bean2.CustomAutoscalingMinPathKey, "err", err)
+	autoscalingMinVal, err := helper.ExtractParamValue(templateMap, appBean.CustomAutoscalingMinPathKey, merged)
+	if helper.IsNotFoundErr(err) {
+		return 0, util.NewApiError().
+			WithHttpStatusCode(http.StatusPreconditionFailed).
+			WithInternalMessage(helper.KeyNotFoundError).
+			WithUserDetailMessage(fmt.Sprintf("empty value for key [%s]", appBean.CustomAutoscalingMinPathKey))
+	} else if err != nil {
+		impl.logger.Errorw("error occurred while parsing float number", "key", appBean.CustomAutoscalingMinPathKey, "err", err)
 		return 0, err
 	}
-	autoscalingMaxVal, err := helper.ExtractParamValue(templateMap, bean2.CustomAutoscalingMaxPathKey, merged)
-	if err != nil {
-		impl.logger.Errorw("error occurred while parsing float number", "key", bean2.CustomAutoscalingMaxPathKey, "err", err)
+	autoscalingMaxVal, err := helper.ExtractParamValue(templateMap, appBean.CustomAutoscalingMaxPathKey, merged)
+	if helper.IsNotFoundErr(err) {
+		return 0, util.NewApiError().
+			WithHttpStatusCode(http.StatusPreconditionFailed).
+			WithInternalMessage(helper.KeyNotFoundError).
+			WithUserDetailMessage(fmt.Sprintf("empty value for key [%s]", appBean.CustomAutoscalingMaxPathKey))
+	} else if err != nil {
+		impl.logger.Errorw("error occurred while parsing float number", "key", appBean.CustomAutoscalingMaxPathKey, "err", err)
 		return 0, err
 	}
-	autoscalingReplicaCountVal, err := helper.ExtractParamValue(templateMap, bean2.CustomAutoscalingReplicaCountPathKey, merged)
-	if err != nil {
-		impl.logger.Errorw("error occurred while parsing float number", "key", bean2.CustomAutoscalingReplicaCountPathKey, "err", err)
+	autoscalingReplicaCountVal, err := helper.ExtractParamValue(templateMap, appBean.CustomAutoscalingReplicaCountPathKey, merged)
+	if helper.IsNotFoundErr(err) {
+		return 0, util.NewApiError().
+			WithHttpStatusCode(http.StatusPreconditionFailed).
+			WithInternalMessage(helper.KeyNotFoundError).
+			WithUserDetailMessage(fmt.Sprintf("empty value for key [%s]", appBean.CustomAutoscalingReplicaCountPathKey))
+	} else if err != nil {
+		impl.logger.Errorw("error occurred while parsing float number", "key", appBean.CustomAutoscalingReplicaCountPathKey, "err", err)
 		return 0, err
 	}
 	return helper.FetchRequiredReplicaCount(autoscalingReplicaCountVal, autoscalingMaxVal, autoscalingMinVal), nil

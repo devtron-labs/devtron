@@ -18,14 +18,11 @@ package chartConfig
 
 import (
 	"context"
-	"github.com/devtron-labs/devtron/api/bean"
-	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	deploymentStatus "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"github.com/juju/errors"
@@ -61,6 +58,7 @@ type PipelineConfigOverrideMetadata struct {
 
 type PipelineOverrideRepository interface {
 	Save(*PipelineOverride) error
+	Update(pipelineOverride *PipelineOverride) error
 	UpdateStatusByRequestIdentifier(requestId string, newStatus models.ChartStatus) (int, error)
 	GetLatestConfigByRequestIdentifier(requestIdentifier string) (pipelineOverride *PipelineOverride, err error)
 	GetLatestConfigByEnvironmentConfigOverrideId(envConfigOverrideId int) (pipelineOverride *PipelineOverride, err error)
@@ -76,7 +74,6 @@ type PipelineOverrideRepository interface {
 	GetByDeployedImage(appId, environmentId int, images []string) (pipelineOverride *PipelineOverride, err error)
 	GetLatestReleaseByPipelineIds(pipelineIds []int) (pipelineOverrides []*PipelineOverride, err error)
 	GetLatestReleaseDeploymentType(pipelineIds []int) ([]*PipelineOverride, error)
-	FetchHelmTypePipelineOverridesForStatusUpdate() (pipelines []*PipelineOverride, err error)
 	FindLatestByAppIdAndEnvId(appId, environmentId int, deploymentAppType string) (pipelineOverrides *PipelineOverride, err error)
 	FindLatestByCdWorkflowId(cdWorkflowId int) (pipelineOverride *PipelineOverride, err error)
 }
@@ -87,6 +84,10 @@ type PipelineOverrideRepositoryImpl struct {
 
 func (impl PipelineOverrideRepositoryImpl) Save(pipelineOverride *PipelineOverride) error {
 	return impl.dbConnection.Insert(pipelineOverride)
+}
+
+func (impl PipelineOverrideRepositoryImpl) Update(pipelineOverride *PipelineOverride) error {
+	return impl.dbConnection.Update(pipelineOverride)
 }
 
 func (impl PipelineOverrideRepositoryImpl) UpdatePipelineMergedValues(ctx context.Context, tx *pg.Tx, id int, pipelineMergedValues string, userId int32) error {
@@ -296,28 +297,15 @@ func (impl PipelineOverrideRepositoryImpl) FindById(id int) (*PipelineOverride, 
 	return &pipelineOverride, err
 }
 
-func (impl PipelineOverrideRepositoryImpl) FetchHelmTypePipelineOverridesForStatusUpdate() (pipelines []*PipelineOverride, err error) {
-	err = impl.dbConnection.Model(&pipelines).
-		Column("pipeline_override.*", "Pipeline", "Pipeline.App", "Pipeline.Environment").
-		Join("inner join pipeline p on p.id = pipeline_override.pipeline_id").
-		Join("inner join cd_workflow cdwf on cdwf.pipeline_id = p.id").
-		Join("inner join cd_workflow_runner cdwfr on cdwfr.cd_workflow_id = cdwf.id").
-		Where("p.deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_HELM).
-		Where("cdwfr.status not in (?)", pg.In([]string{argoApplication.Degraded, argoApplication.HIBERNATING, argoApplication.Healthy, deploymentStatus.WorkflowFailed, deploymentStatus.WorkflowAborted})).
-		Where("cdwfr.workflow_type = ?", bean.CD_WORKFLOW_TYPE_DEPLOY).
-		Where("p.deleted = ?", false).
-		Select()
-	return pipelines, err
-}
-
 func (impl PipelineOverrideRepositoryImpl) FindLatestByAppIdAndEnvId(appId, environmentId int, deploymentAppType string) (pipelineOverrides *PipelineOverride, err error) {
 	var override PipelineOverride
 	err = impl.dbConnection.Model(&override).
 		Column("pipeline_override.*", "Pipeline").
 		Join("inner join pipeline p on p.id = pipeline_override.pipeline_id").
+		Join("LEFT JOIN deployment_config dc on dc.app_id = p.app_id and dc.environment_id=p.environment_id and dc.active=true").
 		Where("pipeline.app_id =? ", appId).
 		Where("pipeline.environment_id =?", environmentId).
-		Where("p.deployment_app_type = ?", deploymentAppType).
+		Where("(p.deployment_app_type=? or dc.deployment_app_type=?)", deploymentAppType, deploymentAppType).
 		Where("p.deleted = ?", false).
 		Order("id DESC").Limit(1).
 		Select()

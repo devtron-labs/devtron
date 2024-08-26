@@ -35,6 +35,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	clusterService "github.com/devtron-labs/devtron/pkg/cluster"
 	clutserBean "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	gitOpsBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
 	validationBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
@@ -89,6 +91,7 @@ type AppStoreDeploymentDBServiceImpl struct {
 	fullModeDeploymentService            deployment.FullModeDeploymentService
 	appStoreValidator                    AppStoreValidator
 	installedAppDbService                EAMode.InstalledAppDBService
+	deploymentConfigService              common.DeploymentConfigService
 }
 
 func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
@@ -102,7 +105,8 @@ func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	deploymentTypeOverrideService providerConfig.DeploymentTypeOverrideService,
 	fullModeDeploymentService deployment.FullModeDeploymentService, appStoreValidator AppStoreValidator,
-	installedAppDbService EAMode.InstalledAppDBService) *AppStoreDeploymentDBServiceImpl {
+	installedAppDbService EAMode.InstalledAppDBService,
+	deploymentConfigService common.DeploymentConfigService) *AppStoreDeploymentDBServiceImpl {
 	return &AppStoreDeploymentDBServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -117,6 +121,7 @@ func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
 		fullModeDeploymentService:            fullModeDeploymentService,
 		appStoreValidator:                    appStoreValidator,
 		installedAppDbService:                installedAppDbService,
+		deploymentConfigService:              deploymentConfigService,
 	}
 }
 
@@ -203,8 +208,16 @@ func (impl *AppStoreDeploymentDBServiceImpl) AppStoreDeployOperationDB(installRe
 		impl.logger.Errorw("error while creating install app", "error", err)
 		return nil, err
 	}
+
 	installRequest.InstalledAppId = installedApp.Id
 	// Stage 3: ends
+
+	deploymentConfig := installRequest.GetDeploymentConfig()
+	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(tx, deploymentConfig, installRequest.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in creating deployment config for installed app", "appId", installedApp.AppId, "envId", installedApp.EnvironmentId, "err", err)
+		return nil, err
+	}
 
 	// Stage 4: save installed_app_versions model
 	installedAppVersions := adapter.NewInstallAppVersionsModel(installRequest)
@@ -291,7 +304,12 @@ func (impl *AppStoreDeploymentDBServiceImpl) GetInstalledApp(id int) (*appStoreB
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
 	}
-	chartTemplate := adapter.GenerateInstallAppVersionMinDTO(app)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForHelmApps(app.AppId, app.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", app.AppId, "envId", app.EnvironmentId, "err", err)
+		return nil, err
+	}
+	chartTemplate := adapter.GenerateInstallAppVersionMinDTO(app, deploymentConfig)
 	return chartTemplate, nil
 }
 
@@ -301,8 +319,20 @@ func (impl *AppStoreDeploymentDBServiceImpl) GetAllInstalledAppsByAppStoreId(app
 		impl.logger.Error(err)
 		return nil, err
 	}
+
+	deploymentConfigMap := make(map[bean2.UniqueDeploymentConfigIdentifier]*bean2.DeploymentConfig)
+	for _, ia := range installedApps {
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForHelmApps(ia.AppId, ia.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching deployment config by appId and envId", "appId", ia.AppId, "envId", ia.EnvironmentId, "err", err)
+			return nil, err
+		}
+		deploymentConfigMap[bean2.GetConfigUniqueIdentifier(envDeploymentConfig.AppId, envDeploymentConfig.EnvironmentId)] = envDeploymentConfig
+	}
+
 	var installedAppsEnvResponse []appStoreBean.InstalledAppsResponse
 	for _, a := range installedApps {
+		deploymentConfig := deploymentConfigMap[bean2.GetConfigUniqueIdentifier(a.AppId, a.EnvironmentId)]
 		installedAppRes := appStoreBean.InstalledAppsResponse{
 			EnvironmentName:              a.EnvironmentName,
 			AppName:                      a.AppName,
@@ -314,9 +344,8 @@ func (impl *AppStoreDeploymentDBServiceImpl) GetAllInstalledAppsByAppStoreId(app
 			InstalledAppsId:              a.InstalledAppId,
 			EnvironmentId:                a.EnvironmentId,
 			AppOfferingMode:              a.AppOfferingMode,
-			DeploymentAppType:            a.DeploymentAppType,
+			DeploymentAppType:            deploymentConfig.DeploymentAppType,
 		}
-
 		// if hyperion mode app, then fill clusterId and namespace
 		if globalUtil.IsHelmApp(a.AppOfferingMode) {
 			environment, err := impl.environmentService.FindById(a.EnvironmentId)
@@ -594,11 +623,6 @@ func (impl *AppStoreDeploymentDBServiceImpl) createAppForAppStore(createRequest 
 func (impl *AppStoreDeploymentDBServiceImpl) validateAndGetOverrideDeploymentAppType(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, isGitOpsConfigured bool) (overrideDeploymentType string, err error) {
 	// initialise OverrideDeploymentType to the given DeploymentType
 	overrideDeploymentType = installAppVersionRequest.DeploymentAppType
-	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
-	if err != nil {
-		impl.logger.Errorw("error in fetching app store application version", "err", err)
-		return overrideDeploymentType, err
-	}
 
 	// virtual environments only supports Manifest Download
 	if installAppVersionRequest.Environment.IsVirtualEnvironment && util.IsManifestPush(installAppVersionRequest.DeploymentAppType) {
@@ -612,8 +636,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) validateAndGetOverrideDeploymentApp
 	}
 
 	// OCI chart currently supports HELM installation only
-	isOCIRepo := appStoreAppVersion.AppStore.DockerArtifactStore != nil
-	if isOCIRepo || getAppInstallationMode(installAppVersionRequest.AppOfferingMode) == globalUtil.SERVER_MODE_HYPERION {
+	if getAppInstallationMode(installAppVersionRequest.AppOfferingMode) == globalUtil.SERVER_MODE_HYPERION {
 		overrideDeploymentType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 	} else {
 		overrideDeploymentType, err = impl.deploymentTypeOverrideService.ValidateAndOverrideDeploymentAppType(overrideDeploymentType, isGitOpsConfigured, installAppVersionRequest.EnvironmentId)

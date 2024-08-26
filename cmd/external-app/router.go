@@ -23,12 +23,14 @@ import (
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
+	"github.com/devtron-labs/devtron/api/argoApplication"
 	"github.com/devtron-labs/devtron/api/auth/sso"
 	"github.com/devtron-labs/devtron/api/auth/user"
 	"github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
 	"github.com/devtron-labs/devtron/api/externalLink"
+	"github.com/devtron-labs/devtron/api/fluxApplication"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/k8s/application"
 	"github.com/devtron-labs/devtron/api/k8s/capacity"
@@ -80,6 +82,8 @@ type MuxRouter struct {
 	attributesRouter         router.AttributesRouter
 	appRouter                app.AppRouterEAMode
 	rbacRoleRouter           user.RbacRoleRouter
+	argoApplicationRouter    argoApplication.ArgoApplicationRouter
+	fluxApplicationRouter    fluxApplication.FluxApplicationRouter
 }
 
 func NewMuxRouter(
@@ -111,7 +115,7 @@ func NewMuxRouter(
 	userTerminalAccessRouter terminal.UserTerminalAccessRouter,
 	attributesRouter router.AttributesRouter,
 	appRouter app.AppRouterEAMode,
-	rbacRoleRouter user.RbacRoleRouter,
+	rbacRoleRouter user.RbacRoleRouter, argoApplicationRouter argoApplication.ArgoApplicationRouter, fluxApplicationRouter fluxApplication.FluxApplicationRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
@@ -145,6 +149,8 @@ func NewMuxRouter(
 		attributesRouter:         attributesRouter,
 		appRouter:                appRouter,
 		rbacRoleRouter:           rbacRoleRouter,
+		argoApplicationRouter:    argoApplicationRouter,
+		fluxApplicationRouter:    fluxApplicationRouter,
 	}
 	return r
 }
@@ -277,4 +283,9 @@ func (r *MuxRouter) Init() {
 
 	attributeRouter := r.Router.PathPrefix("/orchestrator/attributes").Subrouter()
 	r.attributesRouter.InitAttributesRouter(attributeRouter)
+
+	argoApplicationRouter := r.Router.PathPrefix("/orchestrator/argo-application").Subrouter()
+	r.argoApplicationRouter.InitArgoApplicationRouter(argoApplicationRouter)
+	fluxApplicationRouter := r.Router.PathPrefix("/orchestrator/flux-application").Subrouter()
+	r.fluxApplicationRouter.InitFluxApplicationRouter(fluxApplicationRouter)
 }

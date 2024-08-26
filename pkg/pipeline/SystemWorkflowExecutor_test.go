@@ -18,7 +18,6 @@ package pipeline
 
 import (
 	"fmt"
-	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
@@ -44,7 +43,7 @@ func TestSystemWorkflowExecute(t *testing.T) {
 	assert.Nil(t, loggerErr)
 	cdConfig, err := types.GetCiCdConfig()
 	assert.Nil(t, err)
-	runtimeConfig, err := client.GetRuntimeConfig()
+	runtimeConfig, err := k8s.GetRuntimeConfig()
 	assert.Nil(t, err)
 	k8sUtil := k8s.NewK8sUtil(logger, runtimeConfig)
 	workflowExecutorImpl := executors.NewSystemWorkflowExecutorImpl(logger, k8sUtil)

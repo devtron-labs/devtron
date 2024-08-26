@@ -17,6 +17,7 @@
 package k8s
 
 import (
+	"errors"
 	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
@@ -118,6 +119,7 @@ type K8sApiResource struct {
 	Gvk        schema.GroupVersionKind     `json:"gvk"`
 	Gvr        schema.GroupVersionResource `json:"gvr"`
 	Namespaced bool                        `json:"namespaced"`
+	ShortNames []string                    `json:"shortNames"`
 }
 
 type ApplyResourcesRequest struct {
@@ -191,6 +193,18 @@ type CustomK8sHttpTransportConfig struct {
 	IdleConnTimeout     int  `env:"K8s_TCP_IDLE_CONN_TIMEOUT" envDefault:"300"`
 }
 
+type LocalDevMode bool
+
+type RuntimeConfig struct {
+	LocalDevMode LocalDevMode `env:"RUNTIME_CONFIG_LOCAL_DEV" envDefault:"false"`
+}
+
+func GetRuntimeConfig() (*RuntimeConfig, error) {
+	cfg := &RuntimeConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
+}
+
 func NewCustomK8sHttpTransportConfig() *CustomK8sHttpTransportConfig {
 	customK8sHttpTransportConfig := &CustomK8sHttpTransportConfig{}
 	err := env.Parse(customK8sHttpTransportConfig)
@@ -220,7 +234,7 @@ func (impl *CustomK8sHttpTransportConfig) OverrideConfigWithCustomTransport(conf
 	}
 
 	transport := utilnet.SetTransportDefaults(&http.Transport{
-		Proxy:               http.ProxyFromEnvironment,
+		Proxy:               config.Proxy,
 		TLSHandshakeTimeout: time.Duration(impl.TLSHandshakeTimeout) * time.Second,
 		TLSClientConfig:     tlsConfig,
 		MaxIdleConns:        impl.MaxIdleConnsPerHost,
@@ -246,4 +260,10 @@ func (impl *CustomK8sHttpTransportConfig) OverrideConfigWithCustomTransport(conf
 	config.ExecProvider = nil
 
 	return config, nil
+}
+
+var NotFoundError = errors.New("not found")
+
+func IsNotFoundError(err error) bool {
+	return errors.Is(err, NotFoundError)
 }
