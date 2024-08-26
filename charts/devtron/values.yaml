@@ -25,7 +25,14 @@ installer:
   openshift: false # Set this to true if you are installing on openshift
   production_overrides: "" # Set true if you want to use this Devtron stack in Production (This will require more resources)
 # Change the below values for full mode only
-
+imagePullSecret:
+  create: true   # if true creates imagePullSecret in devtroncd namespace
+  namespaceScope: ""  # Available options are "devtroncd" or "all" (creates secrets in devtroncd, devtron-ci devtron-cd and argo namespaces)
+  name: ""  # if empty defaults to "devtron-image-pull"
+  credentials:
+    registry: "hello"
+    username: "hii"
+    password: "devtron"
 #Use secrets in plaintext, they'll be encoded to base64 automatically.
 secrets: {}
 #  REQUIRED IF BLOB_STORAGE_PROVIDER=AZURE Token with read write access to AZURE_BLOB_CONTAINER_CI_LOG and AZURE_BLOB_CONTAINER_CI_CACHE
