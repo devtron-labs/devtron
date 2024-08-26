@@ -1,5 +1,6 @@
 {{- if and .Values.devtronEnterprise.enabled .Values.devtronEnterprise.scoop.enabled }}
 {{- with .Values.devtronEnterprise.scoop }}
+{{- $passKey := randAlphaNum 12 | lower }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -46,9 +47,9 @@ spec:
           {{- end }}
           env:
             - name: X-PASS-KEY
-              value: {{ randAlphaNum 5 | lower }}
+              value: {{ $passKey }}
             - name: PASS_KEY
-              value: {{ randAlphaNum 5 | lower }}
+              value: {{ $passKey }}
             - name: RETENTION
               value: "10080"
             - name: TOKEN
