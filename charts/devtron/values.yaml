@@ -12,10 +12,11 @@ global:
   nodeSelector: {}
   tolerations: []
   imagePullSecrets: []
+
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
-  release: "v0.7.1"
+  release: "v0.7.2"
   registry: ""
   image: inception
   tag: 473deaa4-185-21582
@@ -24,7 +25,6 @@ installer:
   openshift: false # Set this to true if you are installing on openshift
   production_overrides: "" # Set true if you want to use this Devtron stack in Production (This will require more resources)
 # Change the below values for full mode only
-
 #Use secrets in plaintext, they'll be encoded to base64 automatically.
 secrets: {}
 #  REQUIRED IF BLOB_STORAGE_PROVIDER=AZURE Token with read write access to AZURE_BLOB_CONTAINER_CI_LOG and AZURE_BLOB_CONTAINER_CI_CACHE
@@ -251,13 +251,7 @@ argo-cd:
           - all
       readOnlyRootFilesystem: true
       runAsNonRoot: true
-    env:
-      - name: ARGOCD_RECONCILIATION_TIMEOUT
-        valueFrom:
-          configMapKeyRef:
-            key: timeout.reconciliation
-            name: argocd-cm
-            optional: true
+    env: []
     affinity:
       podAntiAffinity:
         preferredDuringSchedulingIgnoredDuringExecution:
@@ -347,12 +341,6 @@ argo-cd:
       - --parallelismlimit
       - "50"
     env:
-      - name: ARGOCD_RECONCILIATION_TIMEOUT
-        valueFrom:
-          configMapKeyRef:
-            key: timeout.reconciliation
-            name: argocd-cm
-            optional: true
       - name: ARGOCD_EXEC_TIMEOUT
         value: 180s
     containerSecurityContext:
@@ -436,3 +424,35 @@ monitoring:
       resources: {}
     persistence:
       storage: "2Gi"
+
+# Change these values for Devtron-Enterprise 
+devtronEnterprise:
+  enabled: false
+  casbin:
+    registry: ""
+    image: "casbin:8a0c2298-79f9a6ab-462-24808"
+    imagePullPolicy: IfNotPresent
+    configs:
+      PG_ADDR: postgresql-postgresql.devtroncd
+      PG_DATABASE: casbin
+      PG_PORT: "5432"
+      PG_USER: postgres       
+    dbconfig:
+      secretName: postgresql-postgresql
+      keyName: postgresql-password
+    resources:
+      limits:
+        cpu: 0.5m
+        memory: 500Mi
+      requests:
+        cpu: 0.5m
+        memory: 301Mi
+  scoop:
+    enabled: false
+    registry: ""
+    image: "scoop:296d351d-629-24001"
+    imagePullPolicy: IfNotPresent
+    resources: {}
+    configs:
+      CLUSTER_ID: "1"
+      ORCHESTRATOR_URL: http://devtron-service.devtroncd.svc.cluster.local/orchestrator
