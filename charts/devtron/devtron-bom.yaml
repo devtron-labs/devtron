@@ -38,7 +38,7 @@ components:
     imagePullPolicy: IfNotPresent
   devtron:
     registry: ""
-    image: "hyperion:6c7d30e7-280-24766"
+    image: "hyperion:0c56885b-280-24941"
     cicdImage: "devtron:291c4c75-434-23853"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
