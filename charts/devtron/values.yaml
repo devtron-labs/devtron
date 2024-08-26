@@ -13,15 +13,6 @@ global:
   tolerations: []
   imagePullSecrets: []
 
-imagePullSecret:
-  create: false   # if true creates imagePullSecret in devtroncd namespace
-  namespaceScope: ""  # Available options are "devtroncd" or "all" (creates secrets in devtroncd, devtron-ci devtron-cd and argo namespaces)
-  name: ""  # if empty defaults to "devtron-image-pull"
-  credentials:
-    registry: ""
-    username: ""
-    password: ""
-
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
