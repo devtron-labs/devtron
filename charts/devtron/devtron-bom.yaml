@@ -14,7 +14,7 @@ global:
   imagePullSecrets: []
 extraManifests: []
 installer:
-  release: "v0.7.2"
+  release: "v0.7.1"
   registry: ""
   image: "inception"
   tag: "473deaa4-185-21582"
@@ -34,7 +34,7 @@ components:
         SERVICE_WORKER_TIMEOUT: "1"
         API_BATCH_SIZE: "30"
     registry: ""
-    image: "dashboard:5f95d187-690-23841"
+    image: "dashboard:53c41ab6-690-24943"
     imagePullPolicy: IfNotPresent
   devtron:
     registry: ""
@@ -200,7 +200,6 @@ monitoring:
       image: "k8s-sidecar:1.1.0"
       curlImage: "curl:7.73.0"
       imagePullPolicy: IfNotPresent
-
 devtronEnterprise:
   enabled: false
   casbin:
@@ -211,7 +210,7 @@ devtronEnterprise:
       PG_ADDR: postgresql-postgresql.devtroncd
       PG_DATABASE: casbin
       PG_PORT: "5432"
-      PG_USER: postgres       
+      PG_USER: postgres
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password

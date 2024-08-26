@@ -12,7 +12,6 @@ global:
   nodeSelector: {}
   tolerations: []
   imagePullSecrets: []
-
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
@@ -65,7 +64,7 @@ components:
         SERVICE_WORKER_TIMEOUT: "1"
         API_BATCH_SIZE: "30"
     registry: ""
-    image: "dashboard:5f95d187-690-23841"
+    image: "dashboard:53c41ab6-690-24943"
     imagePullPolicy: IfNotPresent
   devtron:
     registry: ""
@@ -424,7 +423,6 @@ monitoring:
       resources: {}
     persistence:
       storage: "2Gi"
-
 # Change these values for Devtron-Enterprise 
 devtronEnterprise:
   enabled: false
@@ -436,7 +434,7 @@ devtronEnterprise:
       PG_ADDR: postgresql-postgresql.devtroncd
       PG_DATABASE: casbin
       PG_PORT: "5432"
-      PG_USER: postgres       
+      PG_USER: postgres
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
