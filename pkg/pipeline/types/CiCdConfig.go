@@ -82,6 +82,7 @@ type CiCdConfig struct {
 	ImageScanRetryDelay              int                                 `env:"IMAGE_SCAN_RETRY_DELAY" envDefault:"5"`
 	ShowDockerBuildCmdInLogs         bool                                `env:"SHOW_DOCKER_BUILD_ARGS" envDefault:"true"`
 	IgnoreCmCsInCiJob                bool                                `env:"IGNORE_CM_CS_IN_CI_JOB" envDefault:"false"`
+	SkipCiJobBuildCachePushPull      bool                                `env:"SKIP_CI_JOB_BUILD_CACHE_PUSH_PULL" envDefault:"false"`
 	// from CdConfig
 	CdLimitCpu                       string                              `env:"CD_LIMIT_CI_CPU" envDefault:"0.5"`
 	CdLimitMem                       string                              `env:"CD_LIMIT_CI_MEM" envDefault:"3G"`

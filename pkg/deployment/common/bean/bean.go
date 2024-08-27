@@ -14,6 +14,7 @@ type DeploymentConfig struct {
 	DeploymentAppType string
 	RepoURL           string
 	RepoName          string
+	ReleaseMode       string
 	Active            bool
 }
 

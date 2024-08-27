@@ -25,6 +25,9 @@ type Vulnerabilities struct {
 	CVersion   string `json:"currentVersion"`
 	FVersion   string `json:"fixedVersion"`
 	Permission string `json:"permission"`
+	Target     string `json:"target"`
+	Class      string `json:"class"`
+	Type       string `json:"type"`
 }
 
 func (vul *Vulnerabilities) IsCritical() bool {

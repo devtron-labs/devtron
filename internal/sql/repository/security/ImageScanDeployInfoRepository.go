@@ -177,7 +177,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request
 		query = query + " AND res.cve_store_name ILIKE '%" + request.CVEName + "%'"
 	}
 	if len(request.Severity) > 0 {
-		severities := strings.Trim(strings.Join(strings.Fields(fmt.Sprintf("%d", request.Severity)), ","), "[]")
+		severities := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(request.Severity)), ","), "[]")
 		query = query + fmt.Sprintf(" AND (cs.standard_severity IN (%s) OR (cs.severity IN (%s) AND cs.standard_severity IS NULL))", severities, severities)
 	}
 	if len(request.EnvironmentIds) > 0 {
@@ -239,7 +239,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithObject(request *s
 	}
 
 	if len(request.Severity) > 0 {
-		severities := strings.Trim(strings.Join(strings.Fields(fmt.Sprintf("%d", request.Severity)), ","), "[]")
+		severities := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(request.Severity)), ","), "[]")
 		query = query + fmt.Sprintf(" AND (cs.standard_severity IN (%s) OR (cs.severity IN (%s) AND cs.standard_severity IS NULL))", severities, severities)
 	}
 	if len(request.EnvironmentIds) > 0 {
