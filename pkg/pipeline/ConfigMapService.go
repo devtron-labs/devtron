@@ -128,6 +128,14 @@ func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository
 		scopedVariableManager:       scopedVariableManager,
 	}
 }
+func (impl ConfigMapServiceImpl) validateConfigRequest(appId int) (int, error) {
+	config, err := impl.configMapRepository.GetByAppIdAppLevel(appId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error while fetching from db", "error", err)
+		return 0, err
+	}
+	return config.Id, nil
+}
 
 func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error) {
 	if len(configMapRequest.ConfigData) != 1 {
@@ -140,6 +148,13 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.Config
 		return configMapRequest, err
 	}
 	var model *chartConfig.ConfigMapAppModel
+	requestId, err := impl.validateConfigRequest(configMapRequest.AppId)
+	if err != nil {
+		return configMapRequest, err
+	}
+	if requestId > 0 {
+		configMapRequest.Id = requestId
+	}
 	if configMapRequest.Id > 0 {
 		model, err = impl.configMapRepository.GetByIdAppLevel(configMapRequest.Id)
 		if err != nil {
@@ -524,6 +539,13 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *bean.Config
 	if err != nil && !valid {
 		impl.logger.Errorw("error in validating", "error", err)
 		return configMapRequest, err
+	}
+	requestId, err := impl.validateConfigRequest(configMapRequest.AppId)
+	if err != nil {
+		return configMapRequest, err
+	}
+	if requestId > 0 {
+		configMapRequest.Id = requestId
 	}
 	var model *chartConfig.ConfigMapAppModel
 	if configMapRequest.Id > 0 {
