@@ -68,7 +68,7 @@ type GlobalPluginService interface {
 	GetAllGlobalVariables(appType helper.AppType) ([]*GlobalVariable, error)
 	ListAllPlugins(stageTypeReq string) ([]*bean2.PluginListComponentDto, error)
 	GetPluginDetailById(pluginId int) (*bean2.PluginDetailDto, error)
-	GetRefPluginIdByRefPluginName(pluginName string) (refPluginId int, err error)
+	GetRefPluginIdByRefPluginName(pluginName string) (pluginVersionDetail []bean2.PluginsVersionDetail, err error)
 	PatchPlugin(pluginDto *bean2.PluginMetadataDto, userId int32) (*bean2.PluginMetadataDto, error)
 	GetDetailedPluginInfoByPluginId(pluginId int) (*bean2.PluginMetadataDto, error)
 	GetAllDetailedPluginInfo() ([]*bean2.PluginMetadataDto, error)
@@ -380,16 +380,23 @@ func getVariableDto(pluginVariable *repository.PluginStepVariable) *bean2.Plugin
 	}
 }
 
-func (impl *GlobalPluginServiceImpl) GetRefPluginIdByRefPluginName(pluginName string) (refPluginId int, err error) {
+func (impl *GlobalPluginServiceImpl) GetRefPluginIdByRefPluginName(pluginName string) (pluginVersionDetail []bean2.PluginsVersionDetail, err error) {
 	pluginMetadata, err := impl.globalPluginRepository.GetPluginByName(pluginName)
 	if err != nil {
 		impl.logger.Errorw("error in fetching plugin metadata by name", "err", err)
-		return 0, err
+		return nil, err
 	}
 	if pluginMetadata == nil {
-		return 0, nil
+		return nil, nil
 	}
-	return pluginMetadata[0].Id, nil
+	pluginVersionDetail = make([]bean2.PluginsVersionDetail, 0)
+	for _, p := range pluginMetadata {
+		pluginVersionDetail = append(pluginVersionDetail, bean2.PluginsVersionDetail{
+			PluginMetadataDto: &bean2.PluginMetadataDto{Id: p.Id},
+			Version:           p.PluginVersion,
+		})
+	}
+	return pluginVersionDetail, nil
 }
 
 func (impl *GlobalPluginServiceImpl) PatchPlugin(pluginDto *bean2.PluginMetadataDto, userId int32) (*bean2.PluginMetadataDto, error) {

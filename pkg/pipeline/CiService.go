@@ -92,6 +92,7 @@ type CiServiceImpl struct {
 	infraProvider                infraProviders.InfraProvider
 	ciCdPipelineOrchestrator     CiCdPipelineOrchestrator
 	buildxCacheFlags             *BuildxCacheFlags
+	ciArtifactRepository         repository5.CiArtifactRepository
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -108,6 +109,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	globalPluginService plugin.GlobalPluginService,
 	infraProvider infraProviders.InfraProvider,
 	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
+	ciArtifactRepository repository5.CiArtifactRepository,
 ) *CiServiceImpl {
 	buildxCacheFlags := &BuildxCacheFlags{}
 	err := env.Parse(buildxCacheFlags)
@@ -135,6 +137,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		infraProvider:                infraProvider,
 		ciCdPipelineOrchestrator:     ciCdPipelineOrchestrator,
 		buildxCacheFlags:             buildxCacheFlags,
+		ciArtifactRepository:         ciArtifactRepository,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -628,12 +631,11 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 
 	// copyContainerImage plugin specific logic
-	var registryDestinationImageMap map[string][]string
 	var registryCredentialMap map[string]bean2.RegistryCredentials
 	var pluginArtifactStage string
 	var imageReservationIds []int
 	if !isJob {
-		registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imageReservationIds, err = impl.GetWorkflowRequestVariablesForCopyContainerImagePlugin(preCiSteps, postCiSteps, dockerImageTag, customTag.Id,
+		registryCredentialMap, pluginArtifactStage, imageReservationIds, err = impl.GetWorkflowRequestVariablesForCopyContainerImagePlugin(preCiSteps, postCiSteps, dockerImageTag, customTag.Id,
 			fmt.Sprintf(pipelineConfigBean.ImagePathPattern,
 				dockerRegistry.RegistryURL,
 				dockerRepository,
@@ -697,46 +699,45 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 
 	workflowRequest := &types.WorkflowRequest{
-		WorkflowNamePrefix:          strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
-		PipelineName:                pipeline.Name,
-		PipelineId:                  pipeline.Id,
-		CiCacheFileName:             pipeline.Name + "-" + strconv.Itoa(pipeline.Id) + ".tar.gz",
-		CiProjectDetails:            ciProjectDetails,
-		Namespace:                   ciWorkflowConfig.Namespace,
-		BlobStorageConfigured:       savedWf.BlobStorageEnabled,
-		CiImage:                     ciWorkflowConfig.CiImage,
-		ActiveDeadlineSeconds:       ciWorkflowConfig.CiTimeout,
-		WorkflowId:                  savedWf.Id,
-		TriggeredBy:                 savedWf.TriggeredBy,
-		CacheLimit:                  impl.config.CacheLimit,
-		ScanEnabled:                 pipeline.ScanEnabled,
-		CloudProvider:               impl.config.CloudProvider,
-		DefaultAddressPoolBaseCidr:  impl.config.GetDefaultAddressPoolBaseCidr(),
-		DefaultAddressPoolSize:      impl.config.GetDefaultAddressPoolSize(),
-		PreCiSteps:                  preCiSteps,
-		PostCiSteps:                 postCiSteps,
-		RefPlugins:                  refPluginsData,
-		AppName:                     pipeline.App.AppName,
-		TriggerByAuthor:             userEmailId,
-		CiBuildConfig:               ciBuildConfigBean,
-		CiBuildDockerMtuValue:       impl.config.CiRunnerDockerMTUValue,
-		IgnoreDockerCachePush:       impl.config.IgnoreDockerCacheForCI,
-		IgnoreDockerCachePull:       impl.config.IgnoreDockerCacheForCI,
-		CacheInvalidate:             trigger.InvalidateCache,
-		ExtraEnvironmentVariables:   trigger.ExtraEnvironmentVariables,
-		EnableBuildContext:          impl.config.EnableBuildContext,
-		OrchestratorHost:            impl.config.OrchestratorHost,
-		OrchestratorToken:           impl.config.OrchestratorToken,
-		ImageRetryCount:             impl.config.ImageRetryCount,
-		ImageRetryInterval:          impl.config.ImageRetryInterval,
-		WorkflowExecutor:            impl.config.GetWorkflowExecutorType(),
-		Type:                        pipelineConfigBean.CI_WORKFLOW_PIPELINE_TYPE,
-		CiArtifactLastFetch:         trigger.CiArtifactLastFetch,
-		RegistryDestinationImageMap: registryDestinationImageMap,
-		RegistryCredentialMap:       registryCredentialMap,
-		PluginArtifactStage:         pluginArtifactStage,
-		ImageScanMaxRetries:         impl.config.ImageScanMaxRetries,
-		ImageScanRetryDelay:         impl.config.ImageScanRetryDelay,
+		WorkflowNamePrefix:         strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
+		PipelineName:               pipeline.Name,
+		PipelineId:                 pipeline.Id,
+		CiCacheFileName:            pipeline.Name + "-" + strconv.Itoa(pipeline.Id) + ".tar.gz",
+		CiProjectDetails:           ciProjectDetails,
+		Namespace:                  ciWorkflowConfig.Namespace,
+		BlobStorageConfigured:      savedWf.BlobStorageEnabled,
+		CiImage:                    ciWorkflowConfig.CiImage,
+		ActiveDeadlineSeconds:      ciWorkflowConfig.CiTimeout,
+		WorkflowId:                 savedWf.Id,
+		TriggeredBy:                savedWf.TriggeredBy,
+		CacheLimit:                 impl.config.CacheLimit,
+		ScanEnabled:                pipeline.ScanEnabled,
+		CloudProvider:              impl.config.CloudProvider,
+		DefaultAddressPoolBaseCidr: impl.config.GetDefaultAddressPoolBaseCidr(),
+		DefaultAddressPoolSize:     impl.config.GetDefaultAddressPoolSize(),
+		PreCiSteps:                 preCiSteps,
+		PostCiSteps:                postCiSteps,
+		RefPlugins:                 refPluginsData,
+		AppName:                    pipeline.App.AppName,
+		TriggerByAuthor:            userEmailId,
+		CiBuildConfig:              ciBuildConfigBean,
+		CiBuildDockerMtuValue:      impl.config.CiRunnerDockerMTUValue,
+		IgnoreDockerCachePush:      impl.config.IgnoreDockerCacheForCI,
+		IgnoreDockerCachePull:      impl.config.IgnoreDockerCacheForCI,
+		CacheInvalidate:            trigger.InvalidateCache,
+		ExtraEnvironmentVariables:  trigger.ExtraEnvironmentVariables,
+		EnableBuildContext:         impl.config.EnableBuildContext,
+		OrchestratorHost:           impl.config.OrchestratorHost,
+		OrchestratorToken:          impl.config.OrchestratorToken,
+		ImageRetryCount:            impl.config.ImageRetryCount,
+		ImageRetryInterval:         impl.config.ImageRetryInterval,
+		WorkflowExecutor:           impl.config.GetWorkflowExecutorType(),
+		Type:                       pipelineConfigBean.CI_WORKFLOW_PIPELINE_TYPE,
+		CiArtifactLastFetch:        trigger.CiArtifactLastFetch,
+		RegistryCredentialMap:      registryCredentialMap,
+		PluginArtifactStage:        pluginArtifactStage,
+		ImageScanMaxRetries:        impl.config.ImageScanMaxRetries,
+		ImageScanRetryDelay:        impl.config.ImageScanRetryDelay,
 	}
 	if pipeline.App.AppType == helper.Job {
 		workflowRequest.AppName = pipeline.App.DisplayName
@@ -761,9 +762,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	if ciWorkflowConfig.LogsBucket == "" {
 		ciWorkflowConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket()
 	}
-	if len(registryDestinationImageMap) > 0 {
-		workflowRequest.PushImageBeforePostCI = true
-	}
+
 	switch workflowRequest.CloudProvider {
 	case types.BLOB_STORAGE_S3:
 		// No AccessKey is used for uploading artifacts, instead IAM based auth is used
@@ -821,59 +820,92 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	return workflowRequest, nil
 }
 
-func (impl *CiServiceImpl) GetWorkflowRequestVariablesForCopyContainerImagePlugin(preCiSteps []*pipelineConfigBean.StepObject, postCiSteps []*pipelineConfigBean.StepObject, customTag string, customTagId int, buildImagePath string, buildImagedockerRegistryId string) (map[string][]string, map[string]bean2.RegistryCredentials, string, []int, error) {
-	var registryDestinationImageMap map[string][]string
-	var registryCredentialMap map[string]bean2.RegistryCredentials
-	var pluginArtifactStage string
-	var imagePathReservationIds []int
-	copyContainerImagePluginId, err := impl.globalPluginService.GetRefPluginIdByRefPluginName(COPY_CONTAINER_IMAGE)
+func (impl *CiServiceImpl) GetWorkflowRequestVariablesForCopyContainerImagePlugin(preCiSteps []*pipelineConfigBean.StepObject, postCiSteps []*pipelineConfigBean.StepObject, customTag string, customTagId int, buildImagePath string, buildImagedockerRegistryId string) (map[string]bean2.RegistryCredentials, string, []int, error) {
+
+	copyContainerImagePluginDetail, err := impl.globalPluginService.GetRefPluginIdByRefPluginName(COPY_CONTAINER_IMAGE)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in getting copyContainerImage plugin id", "err", err)
-		return registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imagePathReservationIds, err
+		return nil, "", nil, err
 	}
+
+	pluginIdToVersionMap := make(map[int]string)
+	for _, p := range copyContainerImagePluginDetail {
+		pluginIdToVersionMap[p.Id] = p.Version
+	}
+
 	for _, step := range preCiSteps {
-		if copyContainerImagePluginId != 0 && step.RefPluginId == copyContainerImagePluginId {
+		if _, ok := pluginIdToVersionMap[step.RefPluginId]; ok {
 			// for copyContainerImage plugin parse destination images and save its data in image path reservation table
-			return nil, nil, pluginArtifactStage, nil, errors.New("copyContainerImage plugin not allowed in pre-ci step, please remove it and try again")
+			return nil, "", nil, errors.New("copyContainerImage plugin not allowed in pre-ci step, please remove it and try again")
 		}
 	}
+
+	isPluginConfigured := false
+	var inputVars []*pipelineConfigBean.VariableObject
+	var pluginVersion string
 	for _, step := range postCiSteps {
-		if copyContainerImagePluginId != 0 && step.RefPluginId == copyContainerImagePluginId {
-			// for copyContainerImage plugin parse destination images and save its data in image path reservation table
-			registryDestinationImageMap, registryCredentialMap, err = impl.pluginInputVariableParser.HandleCopyContainerImagePluginInputVariables(step.InputVars, customTag, buildImagePath, buildImagedockerRegistryId)
-			if err != nil {
-				impl.Logger.Errorw("error in parsing copyContainerImage input variable", "err", err)
-				return registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imagePathReservationIds, err
-			}
-			pluginArtifactStage = repository5.POST_CI
+		if version, ok := pluginIdToVersionMap[step.RefPluginId]; ok {
+			inputVars = step.InputVars
+			isPluginConfigured = true
+			pluginVersion = version
+			break
 		}
 	}
+
+	if !isPluginConfigured {
+		return nil, "", nil, err
+	}
+
+	registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.HandleCopyContainerImagePluginInputVariables(inputVars, customTag, buildImagePath, buildImagedockerRegistryId)
+	if err != nil {
+		impl.Logger.Errorw("error in parsing copyContainerImage input variable", "err", err)
+		return registryCredentialMap, "", nil, err
+	}
+	if pluginVersion == COPY_CONTAINER_IMAGE_VERSION_V2 {
+		// this variable is only needed for version V1
+		registryDestinationImageMap = nil
+	}
+
+	var destinationImages []string
+
 	for _, images := range registryDestinationImageMap {
 		for _, image := range images {
-			if image == buildImagePath {
-				return registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imagePathReservationIds,
-					pipelineConfigBean.ErrImagePathInUse
-			}
+			destinationImages = append(destinationImages, image)
 		}
 	}
-	imagePathReservationIds, err = impl.ReserveImagesGeneratedAtPlugin(customTagId, registryDestinationImageMap)
-	if err != nil {
-		return nil, nil, pluginArtifactStage, imagePathReservationIds, err
+
+	pluginArtifactStage := repository5.POST_CI
+	for _, image := range destinationImages {
+		if image == buildImagePath {
+			return registryCredentialMap, pluginArtifactStage, nil,
+				pipelineConfigBean.ErrImagePathInUse
+		}
 	}
-	return registryDestinationImageMap, registryCredentialMap, pluginArtifactStage, imagePathReservationIds, nil
+	savedCIArtifacts, err := impl.ciArtifactRepository.FindCiArtifactByImagePaths(destinationImages)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching artifacts by image path", "err", err)
+		return nil, pluginArtifactStage, nil, err
+	}
+	if len(savedCIArtifacts) > 0 {
+		// if already present in ci artifact, return "image path already in use error"
+		return nil, pluginArtifactStage, nil, pipelineConfigBean.ErrImagePathInUse
+	}
+	imagePathReservationIds, err := impl.ReserveImagesGeneratedAtPlugin(customTagId, destinationImages)
+	if err != nil {
+		return nil, pluginArtifactStage, imagePathReservationIds, err
+	}
+	return registryCredentialMap, pluginArtifactStage, imagePathReservationIds, nil
 }
 
-func (impl *CiServiceImpl) ReserveImagesGeneratedAtPlugin(customTagId int, registryImageMap map[string][]string) ([]int, error) {
+func (impl *CiServiceImpl) ReserveImagesGeneratedAtPlugin(customTagId int, destinationImages []string) ([]int, error) {
 	var imagePathReservationIds []int
-	for _, images := range registryImageMap {
-		for _, image := range images {
-			imagePathReservationData, err := impl.customTagService.ReserveImagePath(image, customTagId)
-			if err != nil {
-				impl.Logger.Errorw("Error in marking custom tag reserved", "err", err)
-				return imagePathReservationIds, err
-			}
-			imagePathReservationIds = append(imagePathReservationIds, imagePathReservationData.Id)
+	for _, image := range destinationImages {
+		imagePathReservationData, err := impl.customTagService.ReserveImagePath(image, customTagId)
+		if err != nil {
+			impl.Logger.Errorw("Error in marking custom tag reserved", "err", err)
+			return imagePathReservationIds, err
 		}
+		imagePathReservationIds = append(imagePathReservationIds, imagePathReservationData.Id)
 	}
 	return imagePathReservationIds, nil
 }

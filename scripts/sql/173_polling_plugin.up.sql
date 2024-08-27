@@ -14,7 +14,7 @@ INSERT INTO "plugin_pipeline_script" ("id","type","mount_directory_from_host","c
 VALUES (nextval('id_seq_plugin_pipeline_script'),'CONTAINER_IMAGE','t','quay.io/devtron/poll-container-image:f9e56069-545-16577','f','now()',1,'now()',1);
 
 INSERT INTO "script_path_arg_port_mapping" ("id", "type_of_mapping", "file_path_on_disk","file_path_on_container","script_id","deleted","created_on","created_by", "updated_on", "updated_by")
-VALUES (nextval('id_seq_script_path_arg_port_mapping'),'FILE_PATH','/polling-plugin' ,'/output',(SELECT last_value FROM id_seq_plugin_pipeline_script),'f','now()', 1, 'now()', 1);
+VALUES (nextval('id_seq_script_path_arg_port_mapping'),'FILE_PATH','/pluginArtifacts' ,'/output',(SELECT last_value FROM id_seq_plugin_pipeline_script),'f','now()', 1, 'now()', 1);
 
 INSERT INTO "plugin_step" ("id", "plugin_id","name","description","index","step_type","script_id","deleted", "created_on", "created_by", "updated_on", "updated_by")
 VALUES (nextval('id_seq_plugin_step'), (SELECT id FROM plugin_metadata WHERE name='Pull images from container repository'),'Step 1','Step 1 - Polling from Container Registry','1','INLINE',(SELECT last_value FROM id_seq_plugin_pipeline_script),'f','now()', 1, 'now()', 1);

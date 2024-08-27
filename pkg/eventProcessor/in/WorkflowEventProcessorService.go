@@ -186,7 +186,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDStageCompleteEvent() error {
 			}
 		} else if wfr.WorkflowType == apiBean.CD_WORKFLOW_TYPE_POST {
 			impl.logger.Debugw("received post stage success event for workflow runner ", "wfId", strconv.Itoa(wfr.Id))
-			err = impl.workflowDagExecutor.HandlePostStageSuccessEvent(triggerContext, wfr.CdWorkflowId, cdStageCompleteEvent.CdPipelineId, cdStageCompleteEvent.TriggeredBy, cdStageCompleteEvent.PluginRegistryArtifactDetails)
+			err = impl.workflowDagExecutor.HandlePostStageSuccessEvent(triggerContext, wfr, wfr.CdWorkflowId, cdStageCompleteEvent.CdPipelineId, cdStageCompleteEvent.TriggeredBy, cdStageCompleteEvent.PluginRegistryArtifactDetails)
 			if err != nil {
 				impl.logger.Errorw("deployment success event error", "err", err)
 				return
