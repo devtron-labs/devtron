@@ -44,6 +44,7 @@ type ProtectedTag struct {
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/protected_tags.html
 type TagAccessDescription struct {
+	ID                     int              `json:"id"`
 	UserID                 int              `json:"user_id"`
 	GroupID                int              `json:"group_id"`
 	AccessLevel            AccessLevelValue `json:"access_level"`

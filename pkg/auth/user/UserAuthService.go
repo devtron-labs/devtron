@@ -36,7 +36,7 @@ import (
 	"github.com/go-pg/pg"
 
 	"github.com/caarlos0/env"
-	"github.com/coreos/go-oidc"
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/devtron-labs/devtron/api/bean"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/internal/constants"

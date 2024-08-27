@@ -121,6 +121,8 @@ func (s *ValidateService) ProjectNamespaceLint(pid interface{}, opt *ProjectName
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/lint.html#validate-a-projects-ci-configuration
 type ProjectLintOptions struct {
+	ContentRef  *string `url:"content_ref,omitempty" json:"content_ref,omitempty"`
+	DryRunRef   *string `url:"dry_run_ref,omitempty" json:"dry_run_ref,omitempty"`
 	DryRun      *bool   `url:"dry_run,omitempty" json:"dry_run,omitempty"`
 	IncludeJobs *bool   `url:"include_jobs,omitempty" json:"include_jobs,omitempty"`
 	Ref         *string `url:"ref,omitempty" json:"ref,omitempty"`

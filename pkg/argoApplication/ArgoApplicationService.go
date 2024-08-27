@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
 
 	"github.com/devtron-labs/common-lib/utils/k8s"
@@ -43,6 +44,8 @@ type ArgoApplicationService interface {
 		clusterWithApplicationObject clusterRepository.Cluster, clusterServerUrlIdMap map[string]int) (*rest.Config, error)
 	GetClusterConfigFromAllClusters(clusterId int) (*k8s.ClusterConfig, clusterRepository.Cluster, map[string]int, error)
 	GetRestConfigForExternalArgo(ctx context.Context, clusterId int, externalArgoApplicationName string) (*rest.Config, error)
+	HibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
+	UnHibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 }
 
 type ArgoApplicationServiceImpl struct {
@@ -50,13 +53,14 @@ type ArgoApplicationServiceImpl struct {
 	clusterRepository clusterRepository.ClusterRepository
 	k8sUtil           *k8s.K8sServiceImpl
 	argoUserService   argo.ArgoUserService
+	helmAppClient     gRPC.HelmAppClient
 	helmAppService    service.HelmAppService
 }
 
 func NewArgoApplicationServiceImpl(logger *zap.SugaredLogger,
 	clusterRepository clusterRepository.ClusterRepository,
 	k8sUtil *k8s.K8sServiceImpl,
-	argoUserService argo.ArgoUserService,
+	argoUserService argo.ArgoUserService, helmAppClient gRPC.HelmAppClient,
 	helmAppService service.HelmAppService) *ArgoApplicationServiceImpl {
 	return &ArgoApplicationServiceImpl{
 		logger:            logger,
@@ -64,6 +68,7 @@ func NewArgoApplicationServiceImpl(logger *zap.SugaredLogger,
 		k8sUtil:           k8sUtil,
 		argoUserService:   argoUserService,
 		helmAppService:    helmAppService,
+		helmAppClient:     helmAppClient,
 	}
 
 }
@@ -449,4 +454,42 @@ func (impl *ArgoApplicationServiceImpl) GetRestConfigForExternalArgo(ctx context
 		return nil, err
 	}
 	return restConfig, nil
+}
+
+func (impl *ArgoApplicationServiceImpl) HibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
+	_, clusterBean, _, err := impl.GetClusterConfigFromAllClusters(app.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("HibernateArgoApplication", "error in getting the cluster config", err, "clusterId", app.ClusterId, "appName", app.AppName)
+		return nil, err
+	}
+	conf := ConvertClusterBeanToGrpcConfig(clusterBean)
+
+	req := service.HibernateReqAdaptor(hibernateRequest)
+	req.ClusterConfig = conf
+	res, err := impl.helmAppClient.Hibernate(ctx, req)
+	if err != nil {
+		impl.logger.Errorw("HibernateArgoApplication", "error in hibernating the requested resource", err, "clusterId", app.ClusterId, "appName", app.AppName)
+		return nil, err
+	}
+	response := service.HibernateResponseAdaptor(res.Status)
+	return response, nil
+}
+
+func (impl *ArgoApplicationServiceImpl) UnHibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
+	_, clusterBean, _, err := impl.GetClusterConfigFromAllClusters(app.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("HibernateArgoApplication", "error in getting the cluster config", err, "clusterId", app.ClusterId, "appName", app.AppName)
+		return nil, err
+	}
+	conf := ConvertClusterBeanToGrpcConfig(clusterBean)
+
+	req := service.HibernateReqAdaptor(hibernateRequest)
+	req.ClusterConfig = conf
+	res, err := impl.helmAppClient.UnHibernate(ctx, req)
+	if err != nil {
+		impl.logger.Errorw("UnHibernateArgoApplication", "error in unHibernating the requested resources", err, "clusterId", app.ClusterId, "appName", app.AppName)
+		return nil, err
+	}
+	response := service.HibernateResponseAdaptor(res.Status)
+	return response, nil
 }
