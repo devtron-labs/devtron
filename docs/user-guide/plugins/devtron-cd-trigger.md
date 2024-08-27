@@ -1,7 +1,7 @@
 # Devtron-CD-Trigger
 
 ## Introduction
-The **Devtron CD Trigger** plugin allows you to trigger the PRE, DEPLOY, or POST CD stages of Devtron Apps from within your current application workflow. This plugin offers flexibility in managing application application dependencies and deployment sequences. For example, by incorporating this plugin at the pre-deployment stage of your application workflow, you can deploy applications that contain dependencies required by your current application, ensuring a smooth and coordinated deployment process.
+The **Devtron CD Trigger** plugin allows you to trigger the PRE-CD, CD, or POST-CD stages of other Devtron Apps from within your current application workflow. This plugin offers flexibility in managing application, application dependencies, and deployment sequences. For example, by incorporating this plugin at the pre-deployment stage of your application workflow, you can deploy another application that contains dependencies required by your current application, ensuring a coordinated deployment process.
 
 ### Prerequisites
 Before integrating the Devtron CD Trigger plugin, you need to properly configure the target Devtron App to ensure smooth execution.
@@ -41,13 +41,13 @@ e.g., `The Devtron CD Trigger plugin is integrated for triggering the CD stage o
 
 | Variable                 | Format       | Description | Sample Value |
 | ------------------------ | ------------ | ----------- | ------------ |
-|   DevtronApiToken        | STRING       | Enter Devtron API token. |  abc123xyz456token789            |
-|   DevtronEndpoint        | STRING       | Enter the URL of Devtron.     | https://devtron.example.com            |
-|   DevtronApp             | STRING       | Enter the Devtron Application name/Id | plugin-demo |
-|   DevtronEnv             | STRING       | Enter the Environment name/Id. Required if JobPipeline is not given |  preview         |
+|   DevtronApiToken        | STRING       | Enter target Devtron API token. |  abc123xyz456token789            |
+|   DevtronEndpoint        | STRING       | Enter the target URL of Devtron.     | https://devtron.example.com            |
+|   DevtronApp             | STRING       | Enter the target Devtron Application name/ID | plugin-demo |
+|   DevtronEnv             | STRING       | Enter the target Environment name/ID. Required if JobPipeline is not given |  preview         |
 |   StatusTimeoutSeconds           | STRING       | Enter the maximum time(in seconds) a user can wait for the application to deploy. Enter a positive integer value   | 120  |
 |   GitCommitHash          | STRING       | Enter the git hash from which user wants to deploy its application. By default it takes latest Artifact ID to deploy the application |    cf19e4fd348589kjhsdjn092nfse01d2234235sdsg        |
-|   TargetTriggerStage   | STRING       | Enter the Trigger Stage PRE/DEPLOY/POST, Default Deploy |   PRE   |
+|   TargetTriggerStage   | STRING       | Enter the Trigger Stage PRE/DEPLOY/POST. Default value is `Deploy`. |   PRE   |
 
 ### Trigger/Skip Condition
 Here you can set conditions to execute or skip the task. You can select `Set trigger conditions` for the execution of a task or `Set skip conditions` to skip the task.
