@@ -1,12 +1,13 @@
 INSERT INTO "plugin_parent_metadata" ("id", "name","identifier", "description","type","icon","deleted", "created_on", "created_by", "updated_on", "updated_by")
-VALUES (nextval('id_seq_plugin_parent_metadata'), 'Copy container image','copy-image-plugin','Copy container images from the source repository to a desired repository','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/ic-plugin-copy-container-image.png','f', 'now()', 1, 'now()', 1) ON CONFLICT (identifier) DO NOTHING;;
+VALUES (nextval('id_seq_plugin_parent_metadata'), 'Copy container image','copy-container-image','Copy container images from the source repository to a desired repository','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/ic-plugin-copy-container-image.png','f', 'now()', 1, 'now()', 1)
+ON CONFLICT (identifier) DO NOTHING;
 
 
 UPDATE plugin_metadata SET is_latest = false WHERE id = (SELECT id FROM plugin_metadata WHERE name= 'Copy container image' and is_latest= true);
 
 
 INSERT INTO "plugin_metadata" ("id", "name", "description","deleted", "created_on", "created_by", "updated_on", "updated_by","plugin_parent_metadata_id","plugin_version","is_deprecated","is_latest")
-VALUES (nextval('id_seq_plugin_metadata'), 'Copy container image','Copy container images from the source repository to a desired repository','f', 'now()', 1, 'now()', 1, (SELECT id FROM plugin_parent_metadata WHERE identifier='Copy container image'),'2.0.0', false, true);
+VALUES (nextval('id_seq_plugin_metadata'), 'Copy container image','Copy container images from the source repository to a desired repository','f', 'now()', 1, 'now()', 1, (SELECT id FROM plugin_parent_metadata WHERE identifier='copy-container-image'),'2.0.0', false, true);
 
 
 INSERT INTO "plugin_tag_relation" ("id", "tag_id", "plugin_id", "created_on", "created_by", "updated_on", "updated_by")
@@ -50,4 +51,4 @@ INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "d
 VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Copy container image' and p.plugin_version='2.0.0'  and ps."index"=1 and ps.deleted=false), 'DOCKER_IMAGE_TAG','STRING','',false,true,'INPUT','GLOBAL',1 ,'DOCKER_TAG','f','now()', 1, 'now()', 1);
 
 INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value","variable_type", "value_type", "variable_step_index",reference_variable_name, "deleted", "created_on", "created_by", "updated_on", "updated_by")
-VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Copy container image' and p.plugin_version='2.0.0'  and ps."index"=1 and ps.deleted=false), 'DOCKER_IMAGE_TAG_OVERRIDE','STRING','',false,true,'INPUT','FROM_PREVIOUS_STEP',1 ,'DOCKER_IMAGE_TAG_OVERRIDE','f','now()', 1, 'now()', 1);
+VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.name='Copy container image' and p.plugin_version='2.0.0'  and ps."index"=1 and ps.deleted=false), 'DOCKER_IMAGE_TAG_OVERRIDE','STRING','',true,true,'INPUT','FROM_PREVIOUS_STEP',1 ,'DOCKER_IMAGE_TAG_OVERRIDE','f','now()', 1, 'now()', 1);
