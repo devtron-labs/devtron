@@ -45,7 +45,7 @@ e.g., `The Devtron CD Trigger plugin is integrated for triggering the CD stage o
 |   DevtronEndpoint        | STRING       | Enter the target URL of Devtron.     | https://devtron.example.com            |
 |   DevtronApp             | STRING       | Enter the target Devtron Application name/ID | plugin-demo |
 |   DevtronEnv             | STRING       | Enter the target Environment name/ID. Required if JobPipeline is not given |  preview         |
-|   StatusTimeoutSeconds           | STRING       | Enter the maximum time(in seconds) a user can wait for the application to deploy. Enter a positive integer value   | 120  |
+|   StatusTimeoutSeconds           | STRING       | Enter the maximum time (in seconds) a user can wait for the application to deploy. Enter a positive integer value   | 120  |
 |   GitCommitHash          | STRING       | Enter the git hash from which user wants to deploy its application. By default it takes latest Artifact ID to deploy the application |    cf19e4fd348589kjhsdjn092nfse01d2234235sdsg        |
 |   TargetTriggerStage   | STRING       | Enter the Trigger Stage PRE/DEPLOY/POST. Default value is `Deploy`. |   PRE   |
 
