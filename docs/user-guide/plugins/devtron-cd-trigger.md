@@ -1,4 +1,4 @@
-# Devtron CD Trigger
+# Devtron-CD-Trigger
 
 ## Introduction
 The **Devtron CD Trigger** plugin allows you to trigger the PRE, DEPLOY, or POST CD stages of Devtron Apps from within your current application workflow. This plugin offers flexibility in managing application application dependencies and deployment sequences. For example, by incorporating this plugin at the pre-deployment stage of your application workflow, you can deploy applications that contain dependencies required by your current application, ensuring a smooth and coordinated deployment process.
