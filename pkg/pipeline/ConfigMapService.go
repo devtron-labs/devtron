@@ -128,11 +128,14 @@ func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository
 		scopedVariableManager:       scopedVariableManager,
 	}
 }
-func (impl ConfigMapServiceImpl) validateConfigRequest(appId int) (int, error) {
+
+func (impl ConfigMapServiceImpl) checkIfConfigDataAlreadyExist(appId int) (int, error) {
 	config, err := impl.configMapRepository.GetByAppIdAppLevel(appId)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error while fetching from db", "error", err)
+		impl.logger.Errorw("error while checking if config data exist from db by appId", "appId", appId, "error", err)
 		return 0, err
+	} else if util.IsErrNoRows(err) {
+		return 0, nil
 	}
 	return config.Id, nil
 }
@@ -148,8 +151,9 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.Config
 		return configMapRequest, err
 	}
 	var model *chartConfig.ConfigMapAppModel
-	requestId, err := impl.validateConfigRequest(configMapRequest.AppId)
+	requestId, err := impl.checkIfConfigDataAlreadyExist(configMapRequest.AppId)
 	if err != nil {
+		impl.logger.Errorw("error in checking if config map data already exists or not for appId", "appId", configMapRequest.AppId, "error", err)
 		return configMapRequest, err
 	}
 	if requestId > 0 {
@@ -540,8 +544,9 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *bean.Config
 		impl.logger.Errorw("error in validating", "error", err)
 		return configMapRequest, err
 	}
-	requestId, err := impl.validateConfigRequest(configMapRequest.AppId)
+	requestId, err := impl.checkIfConfigDataAlreadyExist(configMapRequest.AppId)
 	if err != nil {
+		impl.logger.Errorw("error in checking if config secret data already exists or not for appId", "appId", configMapRequest.AppId, "error", err)
 		return configMapRequest, err
 	}
 	if requestId > 0 {
