@@ -6,7 +6,7 @@
  | ACD_NAMESPACE | devtroncd |  | 
  | ACD_PASSWORD |  |  | 
  | ACD_USERNAME | admin |  | 
- | APP | orchestrator |  | 
+ | APP | orchestrator | Application name | 
  | APP_SYNC_IMAGE | quay.io/devtron/chart-sync:1227622d-132-3775 |  | 
  | APP_SYNC_JOB_RESOURCES_OBJ |  |  | 
  | APP_SYNC_SERVICE_ACCOUNT | chart-sync |  | 
