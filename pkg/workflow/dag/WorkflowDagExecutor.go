@@ -537,7 +537,8 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext t
 
 		err = impl.deactivateUnusedPaths(wfRunner.ImagePathReservationIds, cdStageCompleteEvent.PluginRegistryArtifactDetails)
 		if err != nil {
-			impl.logger.Errorw("error in deactivation images", "err", err)
+			impl.logger.Errorw("error in deactiving unusedImagePaths", "err", err)
+			return err
 		}
 
 		pipeline, err := impl.pipelineRepository.FindById(cdStageCompleteEvent.CdPipelineId)
@@ -662,6 +663,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(triggerContext 
 			err = impl.deactivateUnusedPaths(wfr.ImagePathReservationIds, pluginRegistryImageDetails)
 			if err != nil {
 				impl.logger.Errorw("error in deactivation images", "err", err)
+				return err
 			}
 		}
 		PostCDArtifacts, err := impl.commonArtifactService.SavePluginArtifacts(ciArtifact, pluginRegistryImageDetails, cdPipelineId, repository.POST_CD, triggeredBy)
@@ -723,6 +725,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 		err = impl.deactivateUnusedPaths(savedWorkflow.ImagePathReservationIds, request.PluginRegistryArtifactDetails)
 		if err != nil {
 			impl.logger.Errorw("error in deactivation images", "err", err)
+			return 0, err
 		}
 
 	}
@@ -915,7 +918,7 @@ func (impl *WorkflowDagExecutorImpl) deactivateUnusedPaths(reserveImagePathIds [
 
 	err = impl.customTagService.DeactivateImagePathReservationByImagePath(unusedPaths)
 	if err != nil {
-		impl.logger.Errorw("error in deactivation unused paths", "imagePathReservationIds", reserveImagePathIds, "err", err)
+		impl.logger.Errorw("error in deactivating unused image paths", "imagePathReservationIds", reserveImagePathIds, "err", err)
 		return err
 	}
 
