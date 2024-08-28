@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/middleware"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
+	"github.com/devtron-labs/devtron/internal/util"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.opentelemetry.io/otel"
 	"strings"
@@ -365,10 +366,10 @@ func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx contex
 		" p.ci_pipeline_id," +
 		" p.trigger_type" +
 		" FROM pipeline p" +
-		" INNER JOIN pipeline_config_override pco on pco.pipeline_id=p.id" +
+		" LEFT JOIN pipeline_config_override pco on pco.pipeline_id=p.id" +
 		" INNER JOIN environment env ON env.id=p.environment_id" +
 		" INNER JOIN cluster cl on cl.id=env.cluster_id" +
-		" INNER JOIN ci_artifact cia on cia.id = pco.ci_artifact_id" +
+		" LEFT JOIN ci_artifact cia on cia.id = pco.ci_artifact_id" +
 		" INNER JOIN app a ON a.id=p.app_id" +
 		" WHERE a.app_type = 0 AND a.id=? AND env.id=? AND p.deleted = FALSE AND env.active = TRUE" +
 		" ORDER BY pco.created_on DESC LIMIT 1;"
@@ -378,13 +379,18 @@ func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx contex
 		return deploymentDetail, err
 	}
 	deploymentDetail.EnvironmentId = envId
-	if len(deploymentDetail.DeploymentAppType) == 0 {
-		dc, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(appId, envId)
-		if err != nil {
-			impl.Logger.Errorw("error in getting deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
-			return deploymentDetail, err
-		}
+
+	deploymentDetail.EnvironmentId = envId
+	dc, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(appId, envId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error in getting deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
+		return deploymentDetail, err
+	}
+	if err == pg.ErrNoRows {
+		deploymentDetail.ReleaseMode = util.PIPELINE_RELEASE_MODE_CREATE
+	} else {
 		deploymentDetail.DeploymentAppType = dc.DeploymentAppType
+		deploymentDetail.ReleaseMode = dc.ReleaseMode
 	}
 
 	return deploymentDetail, nil
@@ -454,6 +460,9 @@ func (impl AppListingRepositoryImpl) FetchAppDetail(ctx context.Context, appId i
 	deploymentDetail, err := impl.deploymentDetailsByAppIdAndEnvId(newCtx, appId, envId)
 	if err != nil {
 		impl.Logger.Warn("unable to fetch deployment detail for app")
+	}
+	if deploymentDetail.PcoId > 0 {
+		deploymentDetail.IsPipelineTriggered = true
 	}
 	appWfMapping, _ := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(deploymentDetail.CdPipelineId)
 	if appWfMapping.ParentType == appWorkflow2.CDPIPELINE {
