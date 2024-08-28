@@ -6,201 +6,201 @@ INSERT INTO devtron_resource_schema(devtron_resource_id, version, schema, sample
                                     updated_by)
 VALUES ((select id from devtron_resource where kind = 'release-channel'), 'alpha1',
         '{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Release Channel Schema",
-  "type": "object",
-  "properties":
-  {
-    "kind":
+    "type": "object",
+    "title": "Release Channel Schema",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "required":
+    [
+        "version",
+        "kind",
+        "overview"
+    ],
+    "properties":
     {
-      "const": "release-channel"
-    },
-    "version":
-    {
-      "type": "string",
-      "enum":
-      [
-        "alpha1"
-      ]
-    },
-    "overview":
-    {
-      "type": "object",
-      "properties":
-      {
-        "id":
+        "kind":
         {
-          "type": "number"
+            "const": "release-channel"
         },
-        "idType":
+        "version":
         {
-          "type": "string",
-          "enum":
-          [
-            "resourceObjectId",
-            "oldObjectId"
-          ]
-        },
-        "name":
-        {
-          "type": "string"
-        },
-        "icon":
-        {
-          "type": "string",
-          "format": "uri"
-        },
-        "description":
-        {
-          "type": "string"
-        },
-        "releaseChannelId":
-        {
-          "type": "string"
-        },
-        "createdOn":
-        {
-          "type": "string"
-        },
-        "createdBy":
-        {
-          "type": "object",
-          "refType": "#/references/users"
-        },
-        "default":
-        {
-         "type": "boolean"
-        },
-        "tags":
-        {
-          "additionalProperties":
-          {
+            "enum":
+            [
+                "alpha1"
+            ],
             "type": "string"
-          }
         },
-        "metadata":
+        "overview":
         {
-          "type": "object",
-          "properties":
-          {}
+            "type": "object",
+            "properties":
+            {
+                "id":
+                {
+                    "type": "number"
+                },
+                "icon":
+                {
+                    "type": "string",
+                    "format": "uri"
+                },
+                "name":
+                {
+                    "type": "string"
+                },
+                "tags":
+                {
+                    "additionalProperties":
+                    {
+                        "type": "string"
+                    }
+                },
+                "idType":
+                {
+                    "enum":
+                    [
+                        "resourceObjectId",
+                        "oldObjectId"
+                    ],
+                    "type": "string"
+                },
+                "default":
+                {
+                    "type": "boolean"
+                },
+                "metadata":
+                {
+                    "type": "object",
+                    "properties":
+                    {}
+                },
+                "createdBy":
+                {
+                    "type": "object",
+                    "refType": "#/references/users"
+                },
+                "createdOn":
+                {
+                    "type": "string"
+                },
+                "description":
+                {
+                    "type": "string"
+                },
+                "releaseChannelId":
+                {
+                    "type": "string"
+                }
+            },
+            "required":
+            [
+                "id",
+                "idType",
+                "releaseChannelId"
+            ]
         },
-        "required":
-        [
-          "id",
-          "idType",
-          "releaseChannelId"
-        ]
-      }
-    },
-    "dependencies":
-    {
-      "type": "array"
+        "dependencies":
+        {
+            "type": "array"
+        }
     }
-  },
-  "required":
-  [
-    "version",
-    "kind",
-    "overview"
-  ]
 }','{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Release Channel Schema",
-  "type": "object",
-  "properties":
-  {
-    "kind":
+    "type": "object",
+    "title": "Release Channel Schema",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "required":
+    [
+        "version",
+        "kind",
+        "overview"
+    ],
+    "properties":
     {
-      "const": "release-channel"
-    },
-    "version":
-    {
-      "type": "string",
-      "enum":
-      [
-        "alpha1"
-      ]
-    },
-    "overview":
-    {
-      "type": "object",
-      "properties":
-      {
-        "id":
+        "kind":
         {
-          "type": "number"
+            "const": "release-channel"
         },
-        "idType":
+        "version":
         {
-          "type": "string",
-          "enum":
-          [
-            "resourceObjectId",
-            "oldObjectId"
-          ]
-        },
-        "name":
-        {
-          "type": "string"
-        },
-        "icon":
-        {
-          "type": "string",
-          "format": "uri"
-        },
-        "description":
-        {
-          "type": "string"
-        },
-        "releaseChannelId":
-        {
-          "type": "string"
-        },
-        "createdOn":
-        {
-          "type": "string"
-        },
-        "createdBy":
-        {
-          "type": "object",
-          "refType": "#/references/users"
-        },
-        "default":
-        {
-         "type": "boolean"
-        },
-        "tags":
-        {
-          "additionalProperties":
-          {
+            "enum":
+            [
+                "alpha1"
+            ],
             "type": "string"
-          }
         },
-        "metadata":
+        "overview":
         {
-          "type": "object",
-          "properties":
-          {}
+            "type": "object",
+            "properties":
+            {
+                "id":
+                {
+                    "type": "number"
+                },
+                "icon":
+                {
+                    "type": "string",
+                    "format": "uri"
+                },
+                "name":
+                {
+                    "type": "string"
+                },
+                "tags":
+                {
+                    "additionalProperties":
+                    {
+                        "type": "string"
+                    }
+                },
+                "idType":
+                {
+                    "enum":
+                    [
+                        "resourceObjectId",
+                        "oldObjectId"
+                    ],
+                    "type": "string"
+                },
+                "default":
+                {
+                    "type": "boolean"
+                },
+                "metadata":
+                {
+                    "type": "object",
+                    "properties":
+                    {}
+                },
+                "createdBy":
+                {
+                    "type": "object",
+                    "refType": "#/references/users"
+                },
+                "createdOn":
+                {
+                    "type": "string"
+                },
+                "description":
+                {
+                    "type": "string"
+                },
+                "releaseChannelId":
+                {
+                    "type": "string"
+                }
+            },
+            "required":
+            [
+                "id",
+                "idType",
+                "releaseChannelId"
+            ]
         },
-        "required":
-        [
-          "id",
-          "idType",
-          "releaseChannelId"
-        ]
-      }
-    },
-    "dependencies":
-    {
-      "type": "array"
+        "dependencies":
+        {
+            "type": "array"
+        }
     }
-  },
-  "required":
-  [
-    "version",
-    "kind",
-    "overview"
-  ]
 }',true, now(), 1, now(), 1);
 
 
