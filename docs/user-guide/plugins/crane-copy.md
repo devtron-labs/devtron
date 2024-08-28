@@ -42,7 +42,7 @@ e.g., `The CraneCopy plugin is integrated to copy the container images from one 
 | Variable                 | Format       | Description | Sample Value |
 | ------------------------ | ------------ | ----------- | ------------ |
 |   RegistryUsername       |    STRING    | Username of target registry for authentication      |    admin                |
-|   RegistryPassword       |    STRING    | Password for the target regidtry for authentication |    Tr5$mK9p             |
+|   RegistryPassword       |    STRING    | Password for the target registry for authentication |    Tr5$mK9p             |
 |   TargetRegistry         |    STRING    | The target registry to push to image                |    docker.io/dockertest | 
 
 
