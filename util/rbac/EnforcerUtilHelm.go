@@ -18,6 +18,7 @@ package rbac
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -78,8 +79,7 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByTeamIdAndClusterId(teamId int, c
 
 func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterIdNamespaceAndAppName(clusterId int, namespace string, appName string) (string, string) {
 
-	installedApp, installedAppErr := impl.InstalledAppRepository.GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId, namespace, appName)
-
+	installedApp, installedAppErr := impl.getInstalledApp(clusterId, namespace, appName)
 	if installedAppErr != nil && installedAppErr != pg.ErrNoRows {
 		impl.logger.Errorw("error on fetching data for rbac object from installed app repository", "err", installedAppErr)
 		return "", ""
@@ -93,8 +93,7 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterIdNamespaceAndAppName(clu
 
 	if installedApp == nil || installedAppErr == pg.ErrNoRows {
 		// for cli apps which are not yet linked
-
-		app, err := impl.appRepository.FindAppAndProjectByAppName(appName)
+		app, err := impl.getAppObject(clusterId, namespace, appName)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in fetching app details", "err", err)
 			return "", ""
@@ -102,10 +101,10 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterIdNamespaceAndAppName(clu
 
 		if app.TeamId == 0 {
 			// case if project is not assigned to cli app
-			return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, appName), ""
+			return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, appName), fmt.Sprintf("%s/%s/%s", team.UNASSIGNED_PROJECT, namespace, appName)
 		} else {
 			// case if project is assigned
-			return fmt.Sprintf("%s/%s__%s/%s", app.Team.Name, cluster.ClusterName, namespace, appName), ""
+			return fmt.Sprintf("%s/%s__%s/%s", app.Team.Name, cluster.ClusterName, namespace, appName), fmt.Sprintf("%s/%s/%s", app.Team.Name, namespace, appName)
 		}
 
 	}
@@ -118,7 +117,7 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterIdNamespaceAndAppName(clu
 	} else {
 		if installedApp.EnvironmentId == 0 {
 			// for apps in EA mode, initally env can be 0.
-			return fmt.Sprintf("%s/%s__%s/%s", installedApp.App.Team.Name, cluster.ClusterName, namespace, appName), ""
+			return fmt.Sprintf("%s/%s__%s/%s", installedApp.App.Team.Name, cluster.ClusterName, namespace, appName), fmt.Sprintf("%s/%s/%s", installedApp.App.Team.Name, namespace, appName)
 		}
 		// for apps which are assigned to a project and have env ID
 		rbacOne := fmt.Sprintf("%s/%s/%s", installedApp.App.Team.Name, installedApp.Environment.EnvironmentIdentifier, appName)
@@ -129,6 +128,37 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterIdNamespaceAndAppName(clu
 		return rbacOne, rbacTwo
 	}
 
+}
+
+func (impl EnforcerUtilHelmImpl) getAppObject(clusterId int, namespace string, appName string) (*app.App, error) {
+	appIdentifier := &bean.AppIdentifier{
+		ClusterId:   clusterId,
+		Namespace:   namespace,
+		ReleaseName: appName,
+	}
+	appNameIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
+	appObj, err := impl.appRepository.FindAppAndProjectByAppName(appNameIdentifier)
+	if appObj == nil || err == pg.ErrNoRows {
+		impl.logger.Warnw("appObj not found, going to find app using display name ", "appIdentifier", appNameIdentifier, "appName", appName)
+		appObj, err = impl.appRepository.FindAppAndProjectByAppName(appName)
+	}
+	return appObj, err
+}
+
+func (impl EnforcerUtilHelmImpl) getInstalledApp(clusterId int, namespace string, appName string) (*repository2.InstalledApps, error) {
+	//TODO optimize it in single query
+	appIdentifier := &bean.AppIdentifier{
+		ClusterId:   clusterId,
+		Namespace:   namespace,
+		ReleaseName: appName,
+	}
+	appNameIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
+	installedApp, installedAppErr := impl.InstalledAppRepository.GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId, namespace, appNameIdentifier)
+	if installedApp == nil || installedAppErr == pg.ErrNoRows {
+		impl.logger.Warnw("installed app not found, going to find app using display name ", "appIdentifier", appNameIdentifier, "appName", appName)
+		installedApp, installedAppErr = impl.InstalledAppRepository.GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId, namespace, appName)
+	}
+	return installedApp, installedAppErr
 }
 
 func (impl EnforcerUtilHelmImpl) GetAppRBACNameByInstalledAppId(installedAppVersionId int) (string, string) {
