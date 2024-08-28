@@ -1,10 +1,10 @@
 # Cosign
 
 ## Introduction
-The [**Cosign**](https://github.com/sigstore/cosign) plugin by Devtron enables secure signing of your container images, enhancing supply chain security. It authenticates your identity as the creator and ensures image integrity, allowing users to verify the source and detect any tampering. This provides greater assurance to developers incorporating your artifacts into their workflows.
+The **Cosign** plugin by Devtron enables secure signing of your container images, enhancing supply chain security. It authenticates your identity as the creator and ensures image integrity, allowing users to verify the source and detect any tampering. This provides greater assurance to developers incorporating your artifacts into their workflows.
 
 ### Prerequisites
-Before integrating the Cosign plugin, ensure that you have configured the Cosign and have a set of private and public keys to sign the container images.
+Before integrating the Cosign plugin, ensure that you have configured the [Cosign](https://github.com/sigstore/cosign) and have a set of private and public keys to sign the container images.
 
 ---
 
