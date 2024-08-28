@@ -107,7 +107,7 @@ func GetTlsConfig(TLSKey, TLSCert, CACert, folderPath string) (*tls.Config, erro
 			return nil, err
 		}
 	}
-	if len(caCertFileName) > 0 {
+	if len(CACert) > 0 {
 		caCertFileName = getCertFileName()
 		caCertFilePath, err = CreateFileWithData(folderPath, caCertFileName, CACert)
 		if err != nil {
@@ -115,9 +115,10 @@ func GetTlsConfig(TLSKey, TLSCert, CACert, folderPath string) (*tls.Config, erro
 			return nil, err
 		}
 	}
-	tlsConfig, err := tlsutil.NewClientTLS(caCertFilePath, tlsKeyFilePath, tlsCertFilePath)
+	tlsConfig, err := tlsutil.NewClientTLS(tlsCertFilePath, tlsKeyFilePath, caCertFilePath)
 	if err != nil {
 		fmt.Printf("error in creating tls config %s ", err)
+		return nil, err
 	}
 	return tlsConfig, nil
 }
