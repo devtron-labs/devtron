@@ -107,7 +107,7 @@ github.com/apparentlymart/go-textseg/textseg
 # github.com/apparentlymart/go-textseg/v13 v13.0.0
 ## explicit; go 1.16
 github.com/apparentlymart/go-textseg/v13/textseg
-# github.com/argoproj/argo-cd/v2 v2.8.19
+# github.com/argoproj/argo-cd/v2 v2.9.21
 ## explicit; go 1.19
 github.com/argoproj/argo-cd/v2/common
 github.com/argoproj/argo-cd/v2/pkg/apiclient/account
@@ -160,10 +160,11 @@ github.com/argoproj/argo-workflows/v3/util/slice
 github.com/argoproj/argo-workflows/v3/util/wait
 github.com/argoproj/argo-workflows/v3/workflow/common
 github.com/argoproj/argo-workflows/v3/workflow/util
-# github.com/argoproj/gitops-engine v0.7.1-0.20231013183858-f15cf615b814
-## explicit; go 1.19
+# github.com/argoproj/gitops-engine v0.7.1-0.20240715141028-c68bce0f979c
+## explicit; go 1.17
 github.com/argoproj/gitops-engine/internal/kubernetes_vendor/pkg/api/v1/endpoints
 github.com/argoproj/gitops-engine/internal/kubernetes_vendor/pkg/util/hash
+github.com/argoproj/gitops-engine/pkg/cache
 github.com/argoproj/gitops-engine/pkg/diff
 github.com/argoproj/gitops-engine/pkg/diff/internal/fieldmanager
 github.com/argoproj/gitops-engine/pkg/health
@@ -182,10 +183,11 @@ github.com/argoproj/pkg/grpc/http
 github.com/argoproj/pkg/rand
 github.com/argoproj/pkg/sync
 github.com/argoproj/pkg/time
-# github.com/aws/aws-sdk-go v1.44.290
+# github.com/aws/aws-sdk-go v1.44.317
 ## explicit; go 1.11
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
+github.com/aws/aws-sdk-go/aws/auth/bearer
 github.com/aws/aws-sdk-go/aws/awserr
 github.com/aws/aws-sdk-go/aws/awsutil
 github.com/aws/aws-sdk-go/aws/client
@@ -235,6 +237,7 @@ github.com/aws/aws-sdk-go/service/s3/s3iface
 github.com/aws/aws-sdk-go/service/s3/s3manager
 github.com/aws/aws-sdk-go/service/sso
 github.com/aws/aws-sdk-go/service/sso/ssoiface
+github.com/aws/aws-sdk-go/service/ssooidc
 github.com/aws/aws-sdk-go/service/sts
 github.com/aws/aws-sdk-go/service/sts/stsiface
 # github.com/aws/aws-sdk-go-v2/service/ecr v1.20.0
@@ -256,7 +259,7 @@ github.com/bmatcuk/doublestar/v4
 # github.com/bombsimon/logrusr/v2 v2.0.1
 ## explicit; go 1.13
 github.com/bombsimon/logrusr/v2
-# github.com/bradleyfalzon/ghinstallation/v2 v2.5.0
+# github.com/bradleyfalzon/ghinstallation/v2 v2.6.0
 ## explicit; go 1.13
 github.com/bradleyfalzon/ghinstallation/v2
 # github.com/caarlos0/env v3.5.0+incompatible
@@ -618,7 +621,7 @@ github.com/google/go-cmp/cmp/internal/value
 # github.com/google/go-github v17.0.0+incompatible
 ## explicit
 github.com/google/go-github/github
-# github.com/google/go-github/v53 v53.0.0
+# github.com/google/go-github/v53 v53.2.0
 ## explicit; go 1.17
 github.com/google/go-github/v53/github
 # github.com/google/go-querystring v1.1.0
@@ -964,7 +967,7 @@ github.com/syndtr/goleveldb/leveldb/opt
 github.com/syndtr/goleveldb/leveldb/storage
 github.com/syndtr/goleveldb/leveldb/table
 github.com/syndtr/goleveldb/leveldb/util
-# github.com/tidwall/gjson v1.14.3
+# github.com/tidwall/gjson v1.14.4
 ## explicit; go 1.12
 github.com/tidwall/gjson
 # github.com/tidwall/match v1.1.1
@@ -2046,7 +2049,7 @@ k8s.io/utils/trace
 # mellium.im/sasl v0.3.1
 ## explicit; go 1.18
 mellium.im/sasl
-# oras.land/oras-go/v2 v2.2.0
+# oras.land/oras-go/v2 v2.3.0
 ## explicit; go 1.19
 oras.land/oras-go/v2/content
 oras.land/oras-go/v2/errdef
