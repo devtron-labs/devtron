@@ -50,6 +50,8 @@ type AppRepository interface {
 	UpdateWithTxn(app *App, tx *pg.Tx) error
 	SetDescription(id int, description string, userId int32) error
 	FindActiveByName(appName string) (pipelineGroup *App, err error)
+	FindAppIdByName(appName string) (int, error)
+
 	FindJobByDisplayName(appName string) (pipelineGroup *App, err error)
 	FindActiveListByName(appName string) ([]*App, error)
 	FindById(id int) (pipelineGroup *App, err error)
@@ -137,6 +139,19 @@ func (repo AppRepositoryImpl) FindActiveByName(appName string) (*App, error) {
 	// there is only single active app will be present in db with a same name.
 	return pipelineGroup, err
 }
+func (repo AppRepositoryImpl) FindAppIdByName(appName string) (int, error) {
+	app := &App{}
+	err := repo.dbConnection.
+		Model(app).
+		Column("app.id").
+		Where("app_name = ?", appName).
+		Where("active = ?", true).
+		Order("id DESC").Limit(1).
+		Select()
+	// there is only single active app will be present in db with a same name.
+	return app.Id, err
+}
+
 func (repo AppRepositoryImpl) FindJobByDisplayName(appName string) (*App, error) {
 	pipelineGroup := &App{}
 	err := repo.dbConnection.

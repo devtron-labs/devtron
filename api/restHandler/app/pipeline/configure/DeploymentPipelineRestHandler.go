@@ -207,6 +207,11 @@ func (handler *PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWr
 	handler.Logger.Infow("request payload, CreateCdPipeline", "payload", cdPipeline)
 	userUploaded, err := handler.chartService.CheckIfChartRefUserUploadedByAppId(cdPipeline.AppId)
 	if !userUploaded {
+		for i, p := range cdPipeline.Pipelines {
+			if len(p.ReleaseMode) == 0 {
+				cdPipeline.Pipelines[i].ReleaseMode = util.PIPELINE_RELEASE_MODE_CREATE
+			}
+		}
 		err = handler.validator.Struct(cdPipeline)
 		if err != nil {
 			handler.Logger.Errorw("validation err, CreateCdPipeline", "err", err, "payload", cdPipeline)

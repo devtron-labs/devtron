@@ -53,6 +53,12 @@ type ProjectFeatureFlagStrategyParameter struct {
 	GroupID    string `json:"groupId,omitempty"`
 	UserIDs    string `json:"userIds,omitempty"`
 	Percentage string `json:"percentage,omitempty"`
+
+	// Following fields aren't documented in Gitlab API docs,
+	// but are present in Gitlab API since 13.5.
+	// Docs: https://docs.getunleash.io/reference/activation-strategies#gradual-rollout
+	Rollout    string `json:"rollout,omitempty"`
+	Stickiness string `json:"stickiness,omitempty"`
 }
 
 func (i ProjectFeatureFlag) String() string {

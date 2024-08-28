@@ -621,6 +621,7 @@ type CDPipelineConfigObject struct {
 	ChildPipelineId               int                                    `json:"childPipelineId"`
 	IsDigestEnforcedForPipeline   bool                                   `json:"isDigestEnforcedForPipeline"`
 	IsDigestEnforcedForEnv        bool                                   `json:"isDigestEnforcedForEnv"`
+	ReleaseMode                   string                                 `json:"releaseMode" validate:"oneof=create"`
 }
 
 type CDPipelineAddType string
@@ -948,3 +949,12 @@ const CustomAutoScalingEnabledPathKey = "CUSTOM_AUTOSCALING_ENABLED_PATH"
 const CustomAutoscalingReplicaCountPathKey = "CUSTOM_AUTOSCALING_REPLICA_COUNT_PATH"
 const CustomAutoscalingMinPathKey = "CUSTOM_AUTOSCALING_MIN_PATH"
 const CustomAutoscalingMaxPathKey = "CUSTOM_AUTOSCALING_MAX_PATH"
+
+type JsonPath string
+
+func (j JsonPath) String() string {
+	return string(j)
+}
+
+const ConfigHashPathKey JsonPath = "devtronInternal.containerSpecs.ConfigHash"
+const SecretHashPathKey JsonPath = "devtronInternal.containerSpecs.SecretHash"

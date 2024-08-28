@@ -33,7 +33,7 @@ const (
 	ProjectNameDevtronLabel = "api.devtron.ai/project"
 )
 
-type ConfigMapAndSecretJsonV2 struct {
+type GetMergedCmAndCsJsonV2Request struct {
 	AppId                                 int
 	EnvId                                 int
 	PipeLineId                            int
@@ -41,4 +41,10 @@ type ConfigMapAndSecretJsonV2 struct {
 	DeploymentWithConfig                  bean.DeploymentConfigurationType
 	WfrIdForDeploymentWithSpecificTrigger int
 	Scope                                 resourceQualifiers.Scope
+}
+
+type MergedCmAndCsJsonV2Response struct {
+	MergedJson     []byte
+	ExternalCmList []string
+	ExternalCsList []string
 }

@@ -984,7 +984,7 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(re
 
 	statusMap := make(map[int]string)
 	if len(wfrIds) > 0 {
-		cdWorkflowRunners, err := impl.cdWorkflowRepository.FetchAllCdStagesLatestEntityStatus(wfrIds)
+		cdWorkflowRunners, err := impl.cdWorkflowRepository.FetchEnvAllCdStagesLatestEntityStatus(wfrIds, request.ParentResourceId)
 		if err != nil && !util.IsErrNoRows(err) {
 			return cdWorkflowStatus, err
 		}
@@ -1130,7 +1130,7 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(request resou
 	}
 	if len(wfrIds) > 0 {
 		_, span = otel.Tracer("orchestrator").Start(request.Ctx, "pipelineBuilder.FetchAllCdStagesLatestEntityStatus")
-		wfrList, err := impl.cdWorkflowRepository.FetchAllCdStagesLatestEntityStatus(wfrIds)
+		wfrList, err := impl.cdWorkflowRepository.FetchEnvAllCdStagesLatestEntityStatus(wfrIds, request.ParentResourceId)
 		span.End()
 		if err != nil && !util.IsErrNoRows(err) {
 			return deploymentStatuses, err
