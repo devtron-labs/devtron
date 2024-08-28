@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.opentelemetry.io/otel"
 	"golang.org/x/exp/maps"
@@ -67,7 +68,7 @@ func (impl DeploymentTemplateServiceImpl) constructRotatePodResponse(templateCha
 	return podResp, nil
 }
 
-func (impl DeploymentTemplateServiceImpl) constructInstallReleaseBulkReq(apps []*app.App, environment *repository.Environment) ([]*gRPC.InstallReleaseRequest, error) {
+func (impl DeploymentTemplateServiceImpl) constructInstallReleaseBulkReq(apps []*app.App, environment *repository.Environment, pipelineMap map[string]*pipelineConfig.Pipeline) ([]*gRPC.InstallReleaseRequest, error) {
 	appIdToInstallReleaseRequest := make(map[int]*gRPC.InstallReleaseRequest)
 	installReleaseRequests := make([]*gRPC.InstallReleaseRequest, 0)
 	var applicationIds []int
@@ -104,9 +105,10 @@ func (impl DeploymentTemplateServiceImpl) constructInstallReleaseBulkReq(apps []
 		impl.Logger.Errorw("error in fetching cluster detail", "clusterId", 1, "err", err)
 		return nil, err
 	}
+
 	for _, app := range apps {
 		if _, ok := appIdToInstallReleaseRequest[app.Id]; ok {
-			appIdToInstallReleaseRequest[app.Id].ReleaseIdentifier = impl.getReleaseIdentifier(config, app, environment)
+			appIdToInstallReleaseRequest[app.Id].ReleaseIdentifier = impl.getReleaseIdentifier(config, app, environment, pipelineMap)
 			appIdToInstallReleaseRequest[app.Id].K8SVersion = k8sServerVersion.String()
 		}
 	}
@@ -140,10 +142,11 @@ func (impl DeploymentTemplateServiceImpl) setChartContent(ctx context.Context, i
 	return err
 }
 
-func (impl DeploymentTemplateServiceImpl) getReleaseIdentifier(config *gRPC.ClusterConfig, app *app.App, env *repository.Environment) *gRPC.ReleaseIdentifier {
+func (impl DeploymentTemplateServiceImpl) getReleaseIdentifier(config *gRPC.ClusterConfig, app *app.App, env *repository.Environment, pipelineMap map[string]*pipelineConfig.Pipeline) *gRPC.ReleaseIdentifier {
+	pipeline := pipelineMap[fmt.Sprintf("%d-%d", app.Id, env.Id)]
 	return &gRPC.ReleaseIdentifier{
 		ClusterConfig:    config,
-		ReleaseName:      fmt.Sprintf("%s-%s", app.AppName, env.Name),
+		ReleaseName:      pipeline.DeploymentAppName,
 		ReleaseNamespace: env.Namespace,
 	}
 }
