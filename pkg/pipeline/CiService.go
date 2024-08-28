@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
@@ -163,7 +164,7 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 	externalCiArtifact, exists := trigger.ExtraEnvironmentVariables[CiPipeline.ExtraEnvVarExternalCiArtifactKey]
 	// validate externalCiArtifact as docker image
 	if exists {
-		if !strings.Contains(externalCiArtifact, ":") {
+		if !strings.Contains(externalCiArtifact, ":") && !utils.IsValidDockerTagName(externalCiArtifact) {
 			impl.Logger.Errorw("validation error", "externalCiArtifact", externalCiArtifact)
 			return fmt.Errorf("invalid image name given in externalCiArtifact")
 		}

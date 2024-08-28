@@ -19,6 +19,7 @@ package utils
 import (
 	"fmt"
 	"math/rand"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -46,4 +47,14 @@ func GetUrlWithScheme(url string) (urlWithScheme string) {
 		urlWithScheme = fmt.Sprintf("https://%s", url)
 	}
 	return urlWithScheme
+}
+
+func IsValidDockerTagName(tagName string) bool {
+	regString := "^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$"
+	regexpCompile := regexp.MustCompile(regString)
+	if regexpCompile.MatchString(tagName) {
+		return true
+	} else {
+		return false
+	}
 }
