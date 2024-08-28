@@ -2,6 +2,7 @@ INSERT INTO "plugin_parent_metadata" ("id", "name","identifier", "description","
 VALUES (nextval('id_seq_plugin_parent_metadata'), 'Copy container image','copy-container-image','Copy container images from the source repository to a desired repository','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/ic-plugin-copy-container-image.png','f', 'now()', 1, 'now()', 1)
 ON CONFLICT (identifier) DO NOTHING;
 
+update plugin_metadata set plugin_parent_metadata_id = (select id from plugin_parent_metadata where identifier='copy-container-image') where name='Copy container image';
 
 UPDATE plugin_metadata SET is_latest = false WHERE id = (SELECT id FROM plugin_metadata WHERE name= 'Copy container image' and is_latest= true);
 
