@@ -36,7 +36,7 @@ components:
         FEATURE_EXTERNAL_FLUX_CD_ENABLE: "true"
         FEATURE_IMAGE_PROMOTION_ENABLE: "false"
         FEATURE_STEP_WISE_LOGS_ENABLE: "true"
-        FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE: "true"
+        FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE: "false"
         ENABLE_RESOURCE_SCAN: "true"
     registry: ""
     image: "dashboard:53c41ab6-690-24943"
