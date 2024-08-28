@@ -39,6 +39,7 @@ import (
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
+	bean3 "github.com/devtron-labs/devtron/pkg/plugin/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
@@ -250,22 +251,6 @@ func (impl *TriggerServiceImpl) setCopyContainerImagePluginDataAndReserveImages(
 		pluginIdToVersionMap[p.Id] = p.Version
 	}
 
-	isPluginConfigured := false
-	var inputVars []*pipelineConfigBean.VariableObject
-	var pluginVersion string
-	for _, step := range cdStageWorkflowRequest.PrePostDeploySteps {
-		if version, ok := pluginIdToVersionMap[step.RefPluginId]; ok {
-			inputVars = step.InputVars
-			isPluginConfigured = true
-			pluginVersion = version
-			break
-		}
-	}
-
-	if !isPluginConfigured {
-		return nil, nil
-	}
-
 	dockerImageTag, customTagId, err := impl.getDockerTagAndCustomTagIdForPlugin(pipelineStage, pipelineId, artifact)
 	if err != nil {
 		impl.logger.Errorw("error in getting docker tag", "err", err)
@@ -281,18 +266,31 @@ func (impl *TriggerServiceImpl) setCopyContainerImagePluginDataAndReserveImages(
 		sourceDockerRegistryId = cdStageWorkflowRequest.DockerRegistryId
 	}
 
-	registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.HandleCopyContainerImagePluginInputVariables(inputVars, dockerImageTag, cdStageWorkflowRequest.CiArtifactDTO.Image, sourceDockerRegistryId)
-	if err != nil {
-		impl.logger.Errorw("error in parsing copyContainerImage input variable", "err", err)
-		return nil, err
+	registryCredentialMap := make(map[string]bean3.RegistryCredentials)
+	var allDestinationImages []string //saving all images to be reserved in this array
+
+	for _, step := range cdStageWorkflowRequest.PrePostDeploySteps {
+		if version, ok := pluginIdToVersionMap[step.RefPluginId]; ok {
+			registryDestinationImageMap, credentialMap, err := impl.pluginInputVariableParser.HandleCopyContainerImagePluginInputVariables(step.InputVars, dockerImageTag, cdStageWorkflowRequest.CiArtifactDTO.Image, sourceDockerRegistryId)
+			if err != nil {
+				impl.logger.Errorw("error in parsing copyContainerImage input variable", "err", err)
+				return nil, err
+			}
+			if version == pipeline.COPY_CONTAINER_IMAGE_VERSION_V1 {
+				// this is needed in ci runner only for v1
+				cdStageWorkflowRequest.RegistryDestinationImageMap = registryDestinationImageMap
+			}
+			for _, images := range registryDestinationImageMap {
+				allDestinationImages = append(allDestinationImages, images...)
+			}
+			for k, v := range credentialMap {
+				registryCredentialMap[k] = v
+			}
+		}
 	}
 
 	// set data in cdStageWorkflowRequest needed for copy container image plugin
 
-	if pluginVersion == pipeline.COPY_CONTAINER_IMAGE_VERSION_V1 {
-		// this is needed in ci runner only for v1
-		cdStageWorkflowRequest.RegistryDestinationImageMap = registryDestinationImageMap
-	}
 	cdStageWorkflowRequest.RegistryCredentialMap = registryCredentialMap
 	cdStageWorkflowRequest.DockerImageTag = dockerImageTag
 	if pipelineStage == types.PRE {
@@ -303,13 +301,7 @@ func (impl *TriggerServiceImpl) setCopyContainerImagePluginDataAndReserveImages(
 
 	// fetch already saved artifacts to check if they are already present
 
-	var destinationImages []string
-	for _, images := range registryDestinationImageMap {
-		for _, image := range images {
-			destinationImages = append(destinationImages, image)
-		}
-	}
-	savedCIArtifacts, err := impl.ciArtifactRepository.FindCiArtifactByImagePaths(destinationImages)
+	savedCIArtifacts, err := impl.ciArtifactRepository.FindCiArtifactByImagePaths(allDestinationImages)
 	if err != nil {
 		impl.logger.Errorw("error in fetching artifacts by image path", "err", err)
 		return nil, err
@@ -319,7 +311,7 @@ func (impl *TriggerServiceImpl) setCopyContainerImagePluginDataAndReserveImages(
 		return nil, pipelineConfigBean.ErrImagePathInUse
 	}
 	// reserve all images where data will be
-	imagePathReservationIds, err := impl.ReserveImagesGeneratedAtPlugin(customTagId, destinationImages)
+	imagePathReservationIds, err := impl.ReserveImagesGeneratedAtPlugin(customTagId, allDestinationImages)
 	if err != nil {
 		impl.logger.Errorw("error in reserving image", "err", err)
 		return imagePathReservationIds, err

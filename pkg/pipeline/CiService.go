@@ -852,48 +852,38 @@ func (impl *CiServiceImpl) GetWorkflowRequestVariablesForCopyContainerImagePlugi
 		}
 	}
 
-	isPluginConfigured := false
-	var inputVars []*pipelineConfigBean.VariableObject
-	var pluginVersion string
+	registryCredentialMap := make(map[string]bean2.RegistryCredentials)
+	registryDestinationImageMap := make(map[string][]string)
+	var allDestinationImages []string //saving all images to be reserved in this array
+
 	for _, step := range postCiSteps {
 		if version, ok := pluginIdToVersionMap[step.RefPluginId]; ok {
-			inputVars = step.InputVars
-			isPluginConfigured = true
-			pluginVersion = version
-			break
-		}
-	}
-
-	if !isPluginConfigured {
-		return nil, nil, "", nil, err
-	}
-
-	registryDestinationImageMap, registryCredentialMap, err := impl.pluginInputVariableParser.HandleCopyContainerImagePluginInputVariables(inputVars, customTag, buildImagePath, buildImagedockerRegistryId)
-	if err != nil {
-		impl.Logger.Errorw("error in parsing copyContainerImage input variable", "err", err)
-		return nil, registryCredentialMap, "", nil, err
-	}
-	if pluginVersion == COPY_CONTAINER_IMAGE_VERSION_V2 {
-		// this variable is only needed for version V1
-		registryDestinationImageMap = nil
-	}
-
-	var destinationImages []string
-
-	for _, images := range registryDestinationImageMap {
-		for _, image := range images {
-			destinationImages = append(destinationImages, image)
+			destinationImageMap, credentialMap, err := impl.pluginInputVariableParser.HandleCopyContainerImagePluginInputVariables(step.InputVars, customTag, buildImagePath, buildImagedockerRegistryId)
+			if err != nil {
+				impl.Logger.Errorw("error in parsing copyContainerImage input variable", "err", err)
+				return nil, nil, "", nil, err
+			}
+			if version == COPY_CONTAINER_IMAGE_VERSION_V1 {
+				// this is needed in ci runner only for v1
+				registryDestinationImageMap = destinationImageMap
+			}
+			for _, images := range destinationImageMap {
+				allDestinationImages = append(allDestinationImages, images...)
+			}
+			for k, v := range credentialMap {
+				registryCredentialMap[k] = v
+			}
 		}
 	}
 
 	pluginArtifactStage := repository5.POST_CI
-	for _, image := range destinationImages {
+	for _, image := range allDestinationImages {
 		if image == buildImagePath {
 			return nil, registryCredentialMap, pluginArtifactStage, nil,
 				pipelineConfigBean.ErrImagePathInUse
 		}
 	}
-	savedCIArtifacts, err := impl.ciArtifactRepository.FindCiArtifactByImagePaths(destinationImages)
+	savedCIArtifacts, err := impl.ciArtifactRepository.FindCiArtifactByImagePaths(allDestinationImages)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching artifacts by image path", "err", err)
 		return nil, nil, pluginArtifactStage, nil, err
@@ -902,7 +892,7 @@ func (impl *CiServiceImpl) GetWorkflowRequestVariablesForCopyContainerImagePlugi
 		// if already present in ci artifact, return "image path already in use error"
 		return nil, nil, pluginArtifactStage, nil, pipelineConfigBean.ErrImagePathInUse
 	}
-	imagePathReservationIds, err := impl.ReserveImagesGeneratedAtPlugin(customTagId, destinationImages)
+	imagePathReservationIds, err := impl.ReserveImagesGeneratedAtPlugin(customTagId, allDestinationImages)
 	if err != nil {
 		return nil, nil, pluginArtifactStage, imagePathReservationIds, err
 	}
