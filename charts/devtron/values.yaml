@@ -443,13 +443,7 @@ devtronEnterprise:
     dbconfig:
       secretName: postgresql-postgresql
       keyName: postgresql-password
-    resources:
-      limits:
-        cpu: 0.5m
-        memory: 500Mi
-      requests:
-        cpu: 0.5m
-        memory: 301Mi
+    resources: {}
   scoop:
     enabled: false
     registry: ""
