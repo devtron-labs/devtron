@@ -23,7 +23,7 @@ spec:
         app: casbin
         release: devtron
     spec:
-      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.devtronEnterprise.scoop.nodeSelector "tolerations" $.Values.devtronEnterprise.casbin.tolerations "imagePullSecrets" $.Values.devtronEnterprise.casbin.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.devtronEnterprise.casbin.nodeSelector "tolerations" $.Values.devtronEnterprise.casbin.tolerations "imagePullSecrets" $.Values.devtronEnterprise.casbin.imagePullSecrets "global" $.Values.global) | indent 6 }}
       containers:
           name: casbin
           image: {{ include "common.image" (dict "component" $.Values.devtronEnterprise.casbin "global" $.Values.global) }}
