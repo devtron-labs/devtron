@@ -37,6 +37,7 @@ type CdStageCompleteEvent struct {
 	PipelineName                  string                       `json:"pipelineName"`
 	CiArtifactDTO                 pipelineConfig.CiArtifactDTO `json:"ciArtifactDTO"`
 	PluginRegistryArtifactDetails map[string][]string          `json:"PluginRegistryArtifactDetails"`
+	PluginArtifacts               *PluginArtifacts             `json:"pluginArtifacts"`
 }
 
 type UserDeploymentRequest struct {
@@ -84,6 +85,7 @@ type CiCompleteEvent struct {
 	ImageDetailsFromCR            *ImageDetailsFromCR      `json:"imageDetailsFromCR"`
 	PluginRegistryArtifactDetails map[string][]string      `json:"PluginRegistryArtifactDetails"`
 	PluginArtifactStage           string                   `json:"pluginArtifactStage"`
+	PluginArtifacts               *PluginArtifacts         `json:"pluginArtifacts"`
 }
 
 type DevtronAppReleaseContextType struct {

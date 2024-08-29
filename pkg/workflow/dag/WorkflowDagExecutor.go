@@ -535,7 +535,13 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext t
 	}
 	if wfRunner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
 
-		err = impl.deactivateUnusedPaths(wfRunner.ImagePathReservationIds, cdStageCompleteEvent.PluginRegistryArtifactDetails)
+		pluginArtifacts := make(map[string][]string)
+		if cdStageCompleteEvent.PluginArtifacts != nil {
+			pluginArtifacts = cdStageCompleteEvent.PluginArtifacts.GetRegistryToUniqueContainerArtifactDataMapping()
+			util4.MergeMaps(pluginArtifacts, cdStageCompleteEvent.PluginRegistryArtifactDetails)
+		}
+
+		err = impl.deactivateUnusedPaths(wfRunner.ImagePathReservationIds, pluginArtifacts)
 		if err != nil {
 			impl.logger.Errorw("error in deactiving unusedImagePaths", "err", err)
 			return err
@@ -556,7 +562,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext t
 				impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", ciArtifact.Id)
 			}
 		}
-		PreCDArtifacts, err := impl.commonArtifactService.SavePluginArtifacts(ciArtifact, cdStageCompleteEvent.PluginRegistryArtifactDetails, pipeline.Id, repository.PRE_CD, cdStageCompleteEvent.TriggeredBy)
+		PreCDArtifacts, err := impl.commonArtifactService.SavePluginArtifacts(ciArtifact, pluginArtifacts, pipeline.Id, repository.PRE_CD, cdStageCompleteEvent.TriggeredBy)
 		if err != nil {
 			impl.logger.Errorw("error in saving plugin artifacts", "err", err)
 			return err
