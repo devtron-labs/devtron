@@ -38,6 +38,10 @@ spec:
       {{- if .servicemonitor.scrapeTimeout }}
       scrapeTimeout: {{ .servicemonitor.scrapeTimeout}}
       {{- end }}
+      {{- if .servicemonitor.basicAuth }}
+      basicAuth:
+      {{- toYaml .servicemonitor.basicAuth | indent 8 }}
+      {{- end }}
       {{- if .servicemonitor.metricRelabelings}}
       metricRelabelings:
 {{toYaml .servicemonitor.metricRelabelings | indent 8 }}
