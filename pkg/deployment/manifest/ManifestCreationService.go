@@ -265,7 +265,7 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 			appLabelJsonByte = nil
 		}
 		mergedValues, err := impl.mergeOverrideValues(envOverride, releaseOverrideJson, configMapJson.MergedJson, appLabelJsonByte, strategy)
-		appName := fmt.Sprintf("%s-%s", overrideRequest.AppName, envOverride.Environment.Name)
+		appName := pipeline.DeploymentAppName
 		var k8sErr error
 		mergedValues, k8sErr = impl.updatedExternalCmCsHashForTrigger(newCtx, overrideRequest.ClusterId,
 			envOverride.Namespace, mergedValues, configMapJson.ExternalCmList, configMapJson.ExternalCsList)
