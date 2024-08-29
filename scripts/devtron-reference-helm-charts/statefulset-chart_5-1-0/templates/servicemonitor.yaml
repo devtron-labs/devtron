@@ -38,6 +38,10 @@ spec:
       {{- if .servicemonitor.scrapeTimeout }}
       scrapeTimeout: {{ .servicemonitor.scrapeTimeout}}
       {{- end }}
+      {{- if .servicemonitor.basicAuth }}
+      basicAuth:
+      {{- toYaml .servicemonitor.basicAuth | nindent 8 }}
+      {{- end }}
       {{- if .servicemonitor.metricRelabelings}}
       metricRelabelings:
 {{toYaml .servicemonitor.metricRelabelings | indent 8 }}
@@ -46,7 +50,16 @@ spec:
         {{- end }}
       {{- end }}
     {{- end }}
+  {{- if .Values.servicemonitor.namespaceSelector }}
+  namespaceSelector:
+    matchNames:
+      {{- toYaml .Values.servicemonitor.namespaceSelector | nindent 6 }}
+  {{- end }}
   selector:
     matchLabels:
+      {{- if .Values.servicemonitor.matchLabels }}
+      {{- toYaml .Values.servicemonitor.matchLabels | nindent 6 }}
+      {{- else }}
       app: {{ template ".Chart.Name .name" $ }}
+      {{- end }}
 {{- end }}
