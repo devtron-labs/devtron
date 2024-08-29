@@ -197,3 +197,22 @@ func (s *ExternalStatusChecksService) UpdateExternalStatusCheck(pid interface{},
 
 	return s.client.Do(req, nil)
 }
+
+// UpdateExternalStatusCheck updates an external status check.
+//
+// Gitlab API docs:
+// https://docs.gitlab.com/ee/api/status_checks.html#retry-failed-status-check-for-a-merge-request
+func (s *ExternalStatusChecksService) RetryFailedStatusCheckForAMergeRequest(pid interface{}, mergeRequest int, externalStatusCheck int, options ...RequestOptionFunc) (*Response, error) {
+	project, err := parseID(pid)
+	if err != nil {
+		return nil, err
+	}
+	u := fmt.Sprintf("projects/%s/merge_requests/%d/status_checks/%d/retry", PathEscape(project), mergeRequest, externalStatusCheck)
+
+	req, err := s.client.NewRequest(http.MethodPost, u, nil, options)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.client.Do(req, nil)
+}

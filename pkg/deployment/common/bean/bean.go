@@ -14,6 +14,7 @@ type DeploymentConfig struct {
 	DeploymentAppType string
 	RepoURL           string
 	RepoName          string
+	ReleaseMode       string
 	Active            bool
 }
 
@@ -22,6 +23,7 @@ type UniqueDeploymentConfigIdentifier string
 type DeploymentConfigSelector struct {
 	AppId         int
 	EnvironmentId int
+	CDPipelineId  int
 }
 
 func (u UniqueDeploymentConfigIdentifier) String() string {

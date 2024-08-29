@@ -89,6 +89,7 @@ func (impl *GitOpsHelper) Clone(url, targetDir string) (clonedDir string, err er
 		}
 	}
 	if errMsg != "" {
+		impl.logger.Errorw("error in git fetch command", "errMsg", errMsg, "err", err)
 		return "", fmt.Errorf(errMsg)
 	}
 	return clonedDir, nil
