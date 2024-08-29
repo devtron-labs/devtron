@@ -63,6 +63,7 @@ func (impl *DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, en
 		if _, ok := cmcsKeyPropertyEnvLevelMap[key]; !ok {
 			if envId > 0 {
 				configProperty.ConfigStage = bean2.Inheriting
+				configProperty.Id = 0
 			}
 
 		}
