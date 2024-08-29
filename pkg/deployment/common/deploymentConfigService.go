@@ -1,10 +1,12 @@
 package common
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -24,6 +26,7 @@ type DeploymentConfigService interface {
 	GetAndMigrateConfigIfAbsentForHelmApp(appId, envId int) (*bean.DeploymentConfig, error)
 	GetAppLevelConfigForDevtronApp(appId int) (*bean.DeploymentConfig, error)
 	UpdateRepoUrlForAppAndEnvId(repoURL string, appId, envId int) error
+	GetDeploymentAppTypeForCDInBulk(pipelines []*pipelineConfig.Pipeline) (map[int]string, error)
 }
 
 type DeploymentConfigServiceImpl struct {
@@ -98,6 +101,20 @@ func (impl *DeploymentConfigServiceImpl) GetConfigForDevtronApps(appId, envId in
 		if err != nil {
 			impl.logger.Errorw("error in parsing config from charts and pipeline repository", "appId", appId, "envId", envId, "err", err)
 			return nil, err
+		}
+		if envId > 0 {
+			// add columns added after migration (of deployment app type and repo url) here
+			appAndEnvLevelConfig, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(appId, envId)
+			if err != nil && err != pg.ErrNoRows {
+				impl.logger.Errorw("error in getting deployment config db object by appId and envId", "appId", appId, "envId", envId, "err", err)
+				return nil, err
+			}
+			if err == pg.ErrNoRows {
+				// deployment config is not done
+				configFromOldData.ReleaseMode = util2.PIPELINE_RELEASE_MODE_CREATE
+			} else {
+				configFromOldData.ReleaseMode = appAndEnvLevelConfig.ReleaseMode
+			}
 		}
 		return configFromOldData, nil
 	}
@@ -188,6 +205,9 @@ func (impl *DeploymentConfigServiceImpl) GetAndMigrateConfigIfAbsentForDevtronAp
 			impl.logger.Errorw("error in parsing config from charts and pipeline repository", "appId", appId, "envId", envId, "err", err)
 			return nil, err
 		}
+		if envId > 0 {
+			configFromOldData.ReleaseMode = envLevelConfig.ReleaseMode
+		}
 		return configFromOldData, nil
 	}
 
@@ -254,6 +274,7 @@ func (impl *DeploymentConfigServiceImpl) parseEnvLevelConfigForDevtronApps(appLe
 		EnvironmentId: envId,
 		ConfigType:    appLevelConfig.ConfigType,
 		RepoUrl:       appLevelConfig.RepoUrl,
+		ReleaseMode:   util2.PIPELINE_RELEASE_MODE_CREATE, //for migration it is always equal to create as migration is happening for old cd pipelines
 		Active:        true,
 	}
 
@@ -429,4 +450,31 @@ func (impl *DeploymentConfigServiceImpl) UpdateRepoUrlForAppAndEnvId(repoURL str
 		return err
 	}
 	return nil
+}
+
+func (impl *DeploymentConfigServiceImpl) GetDeploymentAppTypeForCDInBulk(pipelines []*pipelineConfig.Pipeline) (map[int]string, error) {
+	resp := make(map[int]string, len(pipelines)) //map of pipelineId and deploymentAppType
+	if impl.deploymentServiceTypeConfig.UseDeploymentConfigData {
+		appIdEnvIdMapping := make(map[int][]int, len(pipelines))
+		appIdEnvIdKeyPipelineIdMap := make(map[string]int, len(pipelines))
+		for _, pipeline := range pipelines {
+			appIdEnvIdMapping[pipeline.AppId] = append(appIdEnvIdMapping[pipeline.AppId], pipeline.EnvironmentId)
+			appIdEnvIdKeyPipelineIdMap[fmt.Sprintf("%d-%d", pipeline.AppId, pipeline.EnvironmentId)] = pipeline.Id
+		}
+		configs, err := impl.deploymentConfigRepository.GetAppAndEnvLevelConfigsInBulk(appIdEnvIdMapping)
+		if err != nil {
+			impl.logger.Errorw("error, GetAppAndEnvLevelConfigsInBulk", "appIdEnvIdMapping", appIdEnvIdMapping, "err", err)
+			return nil, err
+		}
+		for _, config := range configs {
+			pipelineId := appIdEnvIdKeyPipelineIdMap[fmt.Sprintf("%d-%d", config.AppId, config.EnvironmentId)]
+			resp[pipelineId] = config.DeploymentAppType
+		}
+	}
+	for _, pipeline := range pipelines {
+		if _, ok := resp[pipeline.Id]; !ok { //not found in map, either flag is disabled or config not migrated yet. Getting from old data
+			resp[pipeline.Id] = pipeline.DeploymentAppType
+		}
+	}
+	return resp, nil
 }

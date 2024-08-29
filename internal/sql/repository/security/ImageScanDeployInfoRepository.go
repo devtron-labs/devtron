@@ -18,6 +18,7 @@ package security
 
 import (
 	"fmt"
+	securityBean "github.com/devtron-labs/devtron/pkg/security/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"strconv"
 	"strings"
@@ -49,25 +50,6 @@ const (
 	ScanObjectType_POD   string = "pod"
 )
 
-type SortBy string
-type SortOrder string
-
-const (
-	Asc  SortOrder = "ASC"
-	Desc SortOrder = "DESC"
-)
-
-type ImageScanFilter struct {
-	Offset         int    `json:"offset"`
-	Size           int    `json:"size"`
-	CVEName        string `json:"cveName"`
-	AppName        string `json:"appName"`
-	ObjectName     string `json:"objectName"`
-	EnvironmentIds []int  `json:"envIds"`
-	ClusterIds     []int  `json:"clusterIds"`
-	Severity       []int  `json:"severity"`
-}
-
 type ImageScanListingResponse struct {
 	Id               int       `json:"id"`
 	ScanObjectMetaId int       `json:"scanObjectMetaId"`
@@ -76,6 +58,7 @@ type ImageScanListingResponse struct {
 	SecurityScan     string    `json:"securityScan"`
 	EnvironmentName  string    `json:"environmentName"`
 	LastChecked      time.Time `json:"lastChecked"`
+	TotalCount       int       `json:"totalCount"`
 }
 
 type ImageScanDeployInfoRepository interface {
@@ -87,7 +70,7 @@ type ImageScanDeployInfoRepository interface {
 	FetchListingGroupByObject(size int, offset int) ([]*ImageScanDeployInfo, error)
 	FetchByAppIdAndEnvId(appId int, envId int, objectType []string) (*ImageScanDeployInfo, error)
 	FindByTypeMetaAndTypeId(scanObjectMetaId int, objectType string) (*ImageScanDeployInfo, error)
-	ScanListingWithFilter(request *ImageScanFilter, size int, offset int, deployInfoIds []int) ([]*ImageScanListingResponse, error)
+	ScanListingWithFilter(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) ([]*ImageScanListingResponse, error)
 }
 
 type ImageScanDeployInfoRepositoryImpl struct {
@@ -162,7 +145,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) FindByTypeMetaAndTypeId(scanObject
 	return &model, err
 }
 
-func (impl ImageScanDeployInfoRepositoryImpl) ScanListingWithFilter(request *ImageScanFilter, size int, offset int, deployInfoIds []int) ([]*ImageScanListingResponse, error) {
+func (impl ImageScanDeployInfoRepositoryImpl) ScanListingWithFilter(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) ([]*ImageScanListingResponse, error) {
 	var models []*ImageScanListingResponse
 	query := impl.scanListingQueryBuilder(request, size, offset, deployInfoIds)
 	_, err := impl.dbConnection.Query(&models, query, size, offset)
@@ -173,9 +156,9 @@ func (impl ImageScanDeployInfoRepositoryImpl) ScanListingWithFilter(request *Ima
 	return models, err
 }
 
-func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request *ImageScanFilter, size int, offset int, deployInfoIds []int) string {
+func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) string {
 	query := ""
-	query = query + "select info.scan_object_meta_id, info.object_type, env.environment_name, max(info.id) as id"
+	query = query + "select info.scan_object_meta_id,a.app_name as object_name, info.object_type, env.environment_name, max(info.id) as id, COUNT(*) OVER() AS total_count"
 	query = query + " from image_scan_deploy_info info"
 	if len(request.CVEName) > 0 || len(request.Severity) > 0 {
 		query = query + " INNER JOIN image_scan_execution_history his on his.id = any (info.image_scan_execution_history_id)"
@@ -184,18 +167,18 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request
 	}
 	query = query + " INNER JOIN environment env on env.id=info.env_id"
 	query = query + " INNER JOIN cluster clus on clus.id=env.cluster_id"
-	query = query + " LEFT JOIN app ap on ap.id = info.scan_object_meta_id and info.object_type='app' WHERE ap.active=true"
-	query = query + " AND info.scan_object_meta_id > 0 and env.active=true and info.image_scan_execution_history_id[1] != -1 "
+	query = query + " LEFT JOIN app a on a.id = info.scan_object_meta_id and info.object_type='app' WHERE a.active=true"
+	query = query + " AND info.scan_object_meta_id > 0 and env.active=true and info.image_scan_execution_history_id[1] != -1"
 	if len(deployInfoIds) > 0 {
 		ids := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(deployInfoIds)), ","), "[]")
 		query = query + " AND info.id IN (" + ids + ")"
 	}
 	if len(request.CVEName) > 0 {
-		query = query + " AND res.cve_store_name like '" + request.CVEName + "'"
+		query = query + " AND res.cve_store_name ILIKE '%" + request.CVEName + "%'"
 	}
 	if len(request.Severity) > 0 {
 		severities := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(request.Severity)), ","), "[]")
-		query = query + " AND cs.severity IN (" + severities + ")"
+		query = query + fmt.Sprintf(" AND (cs.standard_severity IN (%s) OR (cs.severity IN (%s) AND cs.standard_severity IS NULL))", severities, severities)
 	}
 	if len(request.EnvironmentIds) > 0 {
 		envIds := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(request.EnvironmentIds)), ","), "[]")
@@ -205,46 +188,59 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request
 		clusterIds := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(request.ClusterIds)), ","), "[]")
 		query = query + " AND clus.id IN (" + clusterIds + ")"
 	}
-	query = query + " group by info.scan_object_meta_id, info.object_type, env.environment_name"
-	query = query + " order by id desc"
+	query = query + " GROUP BY info.scan_object_meta_id, a.app_name, info.object_type, env.environment_name"
+	//query = query + " order by id desc"
+	query += getOrderByQueryPart(request.SortBy, request.SortOrder)
 	if size > 0 {
-		query = query + " limit " + strconv.Itoa(size) + " offset " + strconv.Itoa(offset) + ""
+		query = query + " LIMIT " + strconv.Itoa(size) + " OFFSET " + strconv.Itoa(offset) + ""
 	}
 	query = query + " ;"
 	return query
 }
 
-func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithObject(request *ImageScanFilter, size int, offset int, deployInfoIds []int) string {
-	query := ""
-	if len(request.AppName) > 0 {
-		query = query + " select info.scan_object_meta_id, a.app_name as object_name, info.object_type, env.environment_name, max(info.id) as id"
-		query = query + " from image_scan_deploy_info info"
-		query = query + " INNER JOIN app a on a.id=info.scan_object_meta_id"
-	} else if len(request.ObjectName) > 0 {
-		query = query + " select info.scan_object_meta_id, om.name as object_name,info.object_type, env.environment_name, max(info.id) as id"
-		query = query + " from image_scan_deploy_info info"
-		query = query + " INNER JOIN image_scan_object_meta om on om.id=info.scan_object_meta_id"
+func getOrderByQueryPart(sortBy securityBean.SortBy, sortOrder securityBean.SortOrder) string {
+	var sort string
+	if sortBy == "appName" {
+		sort = "a.app_name"
+	} else if sortBy == "envName" {
+		sort = "environment_name"
+	} else {
+		// id is to sort by time.
+		// id with desc fetches latest scans
+		sort = "id"
 	}
+
+	if sortOrder != securityBean.Desc {
+		sortOrder = ""
+	}
+	return fmt.Sprintf(" ORDER BY %s %s ", sort, sortOrder)
+}
+
+func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithObject(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) string {
+
+	query := " select info.scan_object_meta_id, a.app_name as object_name, info.object_type, env.environment_name, max(info.id) as id, COUNT(*) OVER() AS total_count"
+	query = query + " from image_scan_deploy_info info"
+	query = query + " INNER JOIN app a on a.id=info.scan_object_meta_id"
+
 	if len(request.Severity) > 0 {
 		query = query + " INNER JOIN image_scan_execution_history his on his.id = any (info.image_scan_execution_history_id)"
 		query = query + " INNER JOIN image_scan_execution_result res on res.image_scan_execution_history_id=his.id"
 		query = query + " INNER JOIN cve_store cs on cs.name= res.cve_store_name"
 	}
+
 	query = query + " INNER JOIN environment env on env.id=info.env_id"
 	query = query + " INNER JOIN cluster c on c.id=env.cluster_id"
 	query = query + " WHERE info.scan_object_meta_id > 0 and env.active=true and info.image_scan_execution_history_id[1] != -1"
+	query = query + " AND a.app_name like '%" + request.AppName + "%'"
+
 	if len(deployInfoIds) > 0 {
 		ids := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(deployInfoIds)), ","), "[]")
 		query = query + " AND info.id IN (" + ids + ")"
 	}
-	if len(request.AppName) > 0 {
-		query = query + " AND a.app_name like '%" + request.AppName + "%'"
-	} else if len(request.ObjectName) > 0 {
-		query = query + " AND om.name like '%" + request.ObjectName + "%'"
-	}
+
 	if len(request.Severity) > 0 {
 		severities := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(request.Severity)), ","), "[]")
-		query = query + " AND cs.severity IN (" + severities + ")"
+		query = query + fmt.Sprintf(" AND (cs.standard_severity IN (%s) OR (cs.severity IN (%s) AND cs.standard_severity IS NULL))", severities, severities)
 	}
 	if len(request.EnvironmentIds) > 0 {
 		envIds := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(request.EnvironmentIds)), ","), "[]")
@@ -255,26 +251,23 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithObject(request *I
 		query = query + " AND c.id IN (" + clusterIds + ")"
 	}
 
-	if len(request.AppName) > 0 {
-		query = query + " group by info.scan_object_meta_id, a.app_name, info.object_type, env.environment_name"
-	} else if len(request.ObjectName) > 0 {
-		query = query + " group by info.scan_object_meta_id, om.name, info.object_type, env.environment_name"
-	}
-	query = query + " order by id desc"
+	query = query + " GROUP BY info.scan_object_meta_id, a.app_name, info.object_type, env.environment_name"
+
+	query += getOrderByQueryPart(request.SortBy, request.SortOrder)
 	if size > 0 {
-		query = query + " limit " + strconv.Itoa(size) + " offset " + strconv.Itoa(offset) + ""
+		query = query + " LIMIT " + strconv.Itoa(size) + " OFFSET " + strconv.Itoa(offset) + ""
 	}
 	query = query + " ;"
 	return query
 }
 
-func (impl ImageScanDeployInfoRepositoryImpl) scanListingQueryBuilder(request *ImageScanFilter, size int, offset int, deployInfoIds []int) string {
+func (impl ImageScanDeployInfoRepositoryImpl) scanListingQueryBuilder(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) string {
 	query := ""
 	if request.AppName == "" && request.CVEName == "" && request.ObjectName == "" {
 		query = impl.scanListQueryWithoutObject(request, size, offset, deployInfoIds)
 	} else if len(request.CVEName) > 0 {
 		query = impl.scanListQueryWithoutObject(request, size, offset, deployInfoIds)
-	} else if len(request.AppName) > 0 || len(request.ObjectName) > 0 {
+	} else if len(request.AppName) > 0 {
 		query = impl.scanListQueryWithObject(request, size, offset, deployInfoIds)
 	}
 

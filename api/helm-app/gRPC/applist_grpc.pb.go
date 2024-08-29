@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion7
 
 const (
 	ApplicationService_ListApplications_FullMethodName                    = "/ApplicationService/ListApplications"
+	ApplicationService_ListFluxApplications_FullMethodName                = "/ApplicationService/ListFluxApplications"
 	ApplicationService_GetAppDetail_FullMethodName                        = "/ApplicationService/GetAppDetail"
 	ApplicationService_GetAppStatus_FullMethodName                        = "/ApplicationService/GetAppStatus"
 	ApplicationService_Hibernate_FullMethodName                           = "/ApplicationService/Hibernate"
@@ -41,6 +42,8 @@ const (
 	ApplicationService_UpgradeReleaseWithCustomChart_FullMethodName       = "/ApplicationService/UpgradeReleaseWithCustomChart"
 	ApplicationService_ValidateOCIRegistry_FullMethodName                 = "/ApplicationService/ValidateOCIRegistry"
 	ApplicationService_GetResourceTreeForExternalResources_FullMethodName = "/ApplicationService/GetResourceTreeForExternalResources"
+	ApplicationService_GetFluxAppDetail_FullMethodName                    = "/ApplicationService/GetFluxAppDetail"
+	ApplicationService_GetReleaseDetails_FullMethodName                   = "/ApplicationService/GetReleaseDetails"
 )
 
 // ApplicationServiceClient is the client API for ApplicationService service.
@@ -48,6 +51,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ApplicationServiceClient interface {
 	ListApplications(ctx context.Context, in *AppListRequest, opts ...grpc.CallOption) (ApplicationService_ListApplicationsClient, error)
+	ListFluxApplications(ctx context.Context, in *AppListRequest, opts ...grpc.CallOption) (ApplicationService_ListFluxApplicationsClient, error)
 	GetAppDetail(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*AppDetail, error)
 	GetAppStatus(ctx context.Context, in *AppDetailRequest, opts ...grpc.CallOption) (*AppStatus, error)
 	Hibernate(ctx context.Context, in *HibernateRequest, opts ...grpc.CallOption) (*HibernateResponse, error)
@@ -69,6 +73,8 @@ type ApplicationServiceClient interface {
 	UpgradeReleaseWithCustomChart(ctx context.Context, in *UpgradeReleaseRequest, opts ...grpc.CallOption) (*UpgradeReleaseResponse, error)
 	ValidateOCIRegistry(ctx context.Context, in *RegistryCredential, opts ...grpc.CallOption) (*OCIRegistryResponse, error)
 	GetResourceTreeForExternalResources(ctx context.Context, in *ExternalResourceTreeRequest, opts ...grpc.CallOption) (*ResourceTreeResponse, error)
+	GetFluxAppDetail(ctx context.Context, in *FluxAppDetailRequest, opts ...grpc.CallOption) (*FluxAppDetail, error)
+	GetReleaseDetails(ctx context.Context, in *ReleaseIdentifier, opts ...grpc.CallOption) (*DeployedAppDetail, error)
 }
 
 type applicationServiceClient struct {
@@ -105,6 +111,38 @@ type applicationServiceListApplicationsClient struct {
 
 func (x *applicationServiceListApplicationsClient) Recv() (*DeployedAppList, error) {
 	m := new(DeployedAppList)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *applicationServiceClient) ListFluxApplications(ctx context.Context, in *AppListRequest, opts ...grpc.CallOption) (ApplicationService_ListFluxApplicationsClient, error) {
+	stream, err := c.cc.NewStream(ctx, &ApplicationService_ServiceDesc.Streams[1], ApplicationService_ListFluxApplications_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &applicationServiceListFluxApplicationsClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type ApplicationService_ListFluxApplicationsClient interface {
+	Recv() (*FluxApplicationList, error)
+	grpc.ClientStream
+}
+
+type applicationServiceListFluxApplicationsClient struct {
+	grpc.ClientStream
+}
+
+func (x *applicationServiceListFluxApplicationsClient) Recv() (*FluxApplicationList, error) {
+	m := new(FluxApplicationList)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -300,11 +338,30 @@ func (c *applicationServiceClient) GetResourceTreeForExternalResources(ctx conte
 	return out, nil
 }
 
+func (c *applicationServiceClient) GetFluxAppDetail(ctx context.Context, in *FluxAppDetailRequest, opts ...grpc.CallOption) (*FluxAppDetail, error) {
+	out := new(FluxAppDetail)
+	err := c.cc.Invoke(ctx, ApplicationService_GetFluxAppDetail_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *applicationServiceClient) GetReleaseDetails(ctx context.Context, in *ReleaseIdentifier, opts ...grpc.CallOption) (*DeployedAppDetail, error) {
+	out := new(DeployedAppDetail)
+	err := c.cc.Invoke(ctx, ApplicationService_GetReleaseDetails_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ApplicationServiceServer is the server API for ApplicationService service.
 // All implementations must embed UnimplementedApplicationServiceServer
 // for forward compatibility
 type ApplicationServiceServer interface {
 	ListApplications(*AppListRequest, ApplicationService_ListApplicationsServer) error
+	ListFluxApplications(*AppListRequest, ApplicationService_ListFluxApplicationsServer) error
 	GetAppDetail(context.Context, *AppDetailRequest) (*AppDetail, error)
 	GetAppStatus(context.Context, *AppDetailRequest) (*AppStatus, error)
 	Hibernate(context.Context, *HibernateRequest) (*HibernateResponse, error)
@@ -326,6 +383,8 @@ type ApplicationServiceServer interface {
 	UpgradeReleaseWithCustomChart(context.Context, *UpgradeReleaseRequest) (*UpgradeReleaseResponse, error)
 	ValidateOCIRegistry(context.Context, *RegistryCredential) (*OCIRegistryResponse, error)
 	GetResourceTreeForExternalResources(context.Context, *ExternalResourceTreeRequest) (*ResourceTreeResponse, error)
+	GetFluxAppDetail(context.Context, *FluxAppDetailRequest) (*FluxAppDetail, error)
+	GetReleaseDetails(context.Context, *ReleaseIdentifier) (*DeployedAppDetail, error)
 	mustEmbedUnimplementedApplicationServiceServer()
 }
 
@@ -335,6 +394,9 @@ type UnimplementedApplicationServiceServer struct {
 
 func (UnimplementedApplicationServiceServer) ListApplications(*AppListRequest, ApplicationService_ListApplicationsServer) error {
 	return status.Errorf(codes.Unimplemented, "method ListApplications not implemented")
+}
+func (UnimplementedApplicationServiceServer) ListFluxApplications(*AppListRequest, ApplicationService_ListFluxApplicationsServer) error {
+	return status.Errorf(codes.Unimplemented, "method ListFluxApplications not implemented")
 }
 func (UnimplementedApplicationServiceServer) GetAppDetail(context.Context, *AppDetailRequest) (*AppDetail, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAppDetail not implemented")
@@ -399,6 +461,12 @@ func (UnimplementedApplicationServiceServer) ValidateOCIRegistry(context.Context
 func (UnimplementedApplicationServiceServer) GetResourceTreeForExternalResources(context.Context, *ExternalResourceTreeRequest) (*ResourceTreeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetResourceTreeForExternalResources not implemented")
 }
+func (UnimplementedApplicationServiceServer) GetFluxAppDetail(context.Context, *FluxAppDetailRequest) (*FluxAppDetail, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetFluxAppDetail not implemented")
+}
+func (UnimplementedApplicationServiceServer) GetReleaseDetails(context.Context, *ReleaseIdentifier) (*DeployedAppDetail, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetReleaseDetails not implemented")
+}
 func (UnimplementedApplicationServiceServer) mustEmbedUnimplementedApplicationServiceServer() {}
 
 // UnsafeApplicationServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -430,6 +498,27 @@ type applicationServiceListApplicationsServer struct {
 }
 
 func (x *applicationServiceListApplicationsServer) Send(m *DeployedAppList) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _ApplicationService_ListFluxApplications_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(AppListRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ApplicationServiceServer).ListFluxApplications(m, &applicationServiceListFluxApplicationsServer{stream})
+}
+
+type ApplicationService_ListFluxApplicationsServer interface {
+	Send(*FluxApplicationList) error
+	grpc.ServerStream
+}
+
+type applicationServiceListFluxApplicationsServer struct {
+	grpc.ServerStream
+}
+
+func (x *applicationServiceListFluxApplicationsServer) Send(m *FluxApplicationList) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -811,6 +900,42 @@ func _ApplicationService_GetResourceTreeForExternalResources_Handler(srv interfa
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ApplicationService_GetFluxAppDetail_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FluxAppDetailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationServiceServer).GetFluxAppDetail(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ApplicationService_GetFluxAppDetail_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationServiceServer).GetFluxAppDetail(ctx, req.(*FluxAppDetailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ApplicationService_GetReleaseDetails_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReleaseIdentifier)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationServiceServer).GetReleaseDetails(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ApplicationService_GetReleaseDetails_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationServiceServer).GetReleaseDetails(ctx, req.(*ReleaseIdentifier))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ApplicationService_ServiceDesc is the grpc.ServiceDesc for ApplicationService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -902,11 +1027,24 @@ var ApplicationService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "GetResourceTreeForExternalResources",
 			Handler:    _ApplicationService_GetResourceTreeForExternalResources_Handler,
 		},
+		{
+			MethodName: "GetFluxAppDetail",
+			Handler:    _ApplicationService_GetFluxAppDetail_Handler,
+		},
+		{
+			MethodName: "GetReleaseDetails",
+			Handler:    _ApplicationService_GetReleaseDetails_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "ListApplications",
 			Handler:       _ApplicationService_ListApplications_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "ListFluxApplications",
+			Handler:       _ApplicationService_ListFluxApplications_Handler,
 			ServerStreams: true,
 		},
 	},

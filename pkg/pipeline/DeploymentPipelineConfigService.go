@@ -362,7 +362,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 	}
 	var preDeployStage *pipelineConfigBean.PipelineStageDto
 	var postDeployStage *pipelineConfigBean.PipelineStageDto
-	preDeployStage, postDeployStage, err = impl.pipelineStageService.GetCdPipelineStageDataDeepCopy(dbPipeline.Id)
+	preDeployStage, postDeployStage, err = impl.pipelineStageService.GetCdPipelineStageDataDeepCopy(dbPipeline)
 	if err != nil {
 		impl.logger.Errorw("error in getting pre/post-CD stage data", "err", err, "cdPipelineId", dbPipeline.Id)
 		return nil, err
@@ -465,6 +465,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				DeploymentAppType: pipeline.DeploymentAppType,
 				RepoURL:           AppDeploymentConfig.RepoURL,
 				RepoName:          AppDeploymentConfig.RepoName,
+				ReleaseMode:       pipeline.ReleaseMode,
 				Active:            true,
 			}
 			envDeploymentConfig, err := impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, pipelineCreateRequest.UserId)
@@ -870,7 +871,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 	}
 	//delete app from argo cd, if created
 	if pipeline.DeploymentAppCreated == true {
-		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
+		deploymentAppName := pipeline.DeploymentAppName
 		if util.IsAcdApp(envDeploymentConfig.DeploymentAppType) {
 			if !forceDelete && !deleteResponse.ClusterReachable {
 				impl.logger.Errorw("cluster connection error", "err", clusterBean.ErrorInConnecting)
@@ -927,7 +928,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 }
 
 func (impl *CdPipelineConfigServiceImpl) DeleteHelmTypePipelineDeploymentApp(ctx context.Context, forceDelete bool, pipeline *pipelineConfig.Pipeline) error {
-	deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
+	deploymentAppName := pipeline.DeploymentAppName
 	appIdentifier := &helmBean.AppIdentifier{
 		ClusterId:   pipeline.Environment.ClusterId,
 		ReleaseName: deploymentAppName,
@@ -964,8 +965,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteACDAppCdPipelineWithNonCascade(pi
 	}
 	//delete app from argo cd with non-cascade, if created
 	if pipeline.DeploymentAppCreated && util.IsAcdApp(envDeploymentConfig.DeploymentAppType) {
-		appDetails, err := impl.appRepo.FindById(pipeline.AppId)
-		deploymentAppName := fmt.Sprintf("%s-%s", appDetails.AppName, pipeline.Environment.Name)
+		deploymentAppName := pipeline.DeploymentAppName
 		impl.logger.Debugw("acd app is already deleted for this pipeline", "pipeline", pipeline)
 		cascadeDelete := false
 		req := &application2.ApplicationDeleteRequest{
@@ -1276,7 +1276,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 			customTagStage = repository5.PIPELINE_STAGE_TYPE_POST_CD
 		}
 		if !isAppLevelGitOpsConfigured {
-			isAppLevelGitOpsConfigured, err = impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(dbPipeline.AppId)
+			isAppLevelGitOpsConfigured, err = impl.chartService.IsGitOpsRepoConfiguredForDevtronApp(dbPipeline.AppId)
 			if err != nil {
 				impl.logger.Errorw("error in fetching latest chart details for app by appId")
 				return nil, err
@@ -2061,7 +2061,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipelinePartial(pipeline *pipel
 			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
 			return deleteResponse, err
 		}
-		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
+		deploymentAppName := pipeline.DeploymentAppName
 		if util.IsAcdApp(envDeploymentConfig.DeploymentAppType) {
 			if !forceDelete && !deleteResponse.ClusterReachable {
 				impl.logger.Errorw("cluster connection error", "err", clusterBean.ErrorInConnecting)

@@ -53,3 +53,13 @@ func GetDecodedAndEncodedData(data json.RawMessage, transformer SecretTransformM
 	}
 	return marshal, nil
 }
+
+func ValidateEncodedDataByDecoding(dataMap map[string]string) error {
+	for _, value := range dataMap {
+		_, err := base64.StdEncoding.DecodeString(value)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

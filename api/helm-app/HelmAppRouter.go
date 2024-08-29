@@ -42,8 +42,8 @@ func (impl *HelmAppRouterImpl) InitAppListRouter(helmRouter *mux.Router) {
 	helmRouter.Path("/app/save-telemetry").Queries("appId", "{appId}").
 		HandlerFunc(impl.helmAppRestHandler.SaveHelmAppDetailsViewedTelemetryData).Methods("GET")
 
-	helmRouter.Path("/hibernate").HandlerFunc(impl.helmAppRestHandler.Hibernate).Methods("POST")
-	helmRouter.Path("/unhibernate").HandlerFunc(impl.helmAppRestHandler.UnHibernate).Methods("POST")
+	helmRouter.Path("/hibernate").Queries("appType", "{appType}").HandlerFunc(impl.helmAppRestHandler.Hibernate).Methods("POST")
+	helmRouter.Path("/unhibernate").Queries("appType", "{appType}").HandlerFunc(impl.helmAppRestHandler.UnHibernate).Methods("POST")
 
 	// GetReleaseInfo used only for external apps
 	helmRouter.Path("/release-info").Queries("appId", "{appId}").
