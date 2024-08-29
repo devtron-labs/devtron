@@ -39,52 +39,73 @@ type GroupsService struct {
 //
 // GitLab API docs: https://docs.gitlab.com/ee/api/groups.html
 type Group struct {
-	ID                      int                        `json:"id"`
-	Name                    string                     `json:"name"`
-	Path                    string                     `json:"path"`
-	Description             string                     `json:"description"`
-	MembershipLock          bool                       `json:"membership_lock"`
-	Visibility              VisibilityValue            `json:"visibility"`
-	LFSEnabled              bool                       `json:"lfs_enabled"`
-	DefaultBranchProtection int                        `json:"default_branch_protection"`
-	AvatarURL               string                     `json:"avatar_url"`
-	WebURL                  string                     `json:"web_url"`
-	RequestAccessEnabled    bool                       `json:"request_access_enabled"`
-	FullName                string                     `json:"full_name"`
-	FullPath                string                     `json:"full_path"`
-	FileTemplateProjectID   int                        `json:"file_template_project_id"`
-	ParentID                int                        `json:"parent_id"`
-	Projects                []*Project                 `json:"projects"`
-	Statistics              *Statistics                `json:"statistics"`
-	CustomAttributes        []*CustomAttribute         `json:"custom_attributes"`
-	ShareWithGroupLock      bool                       `json:"share_with_group_lock"`
-	RequireTwoFactorAuth    bool                       `json:"require_two_factor_authentication"`
-	TwoFactorGracePeriod    int                        `json:"two_factor_grace_period"`
-	ProjectCreationLevel    ProjectCreationLevelValue  `json:"project_creation_level"`
-	AutoDevopsEnabled       bool                       `json:"auto_devops_enabled"`
-	SubGroupCreationLevel   SubGroupCreationLevelValue `json:"subgroup_creation_level"`
-	EmailsDisabled          bool                       `json:"emails_disabled"`
-	MentionsDisabled        bool                       `json:"mentions_disabled"`
-	RunnersToken            string                     `json:"runners_token"`
-	SharedProjects          []*Project                 `json:"shared_projects"`
-	SharedRunnersEnabled    bool                       `json:"shared_runners_enabled"`
-	SharedWithGroups        []struct {
+	ID                              int             `json:"id"`
+	Name                            string          `json:"name"`
+	Path                            string          `json:"path"`
+	Description                     string          `json:"description"`
+	MembershipLock                  bool            `json:"membership_lock"`
+	Visibility                      VisibilityValue `json:"visibility"`
+	LFSEnabled                      bool            `json:"lfs_enabled"`
+	DefaultBranchProtectionDefaults struct {
+		AllowedToPush           []*GroupAccessLevel `json:"allowed_to_push"`
+		AllowForcePush          bool                `json:"allow_force_push"`
+		AllowedToMerge          []*GroupAccessLevel `json:"allowed_to_merge"`
+		DeveloperCanInitialPush bool                `json:"developer_can_initial_push"`
+	} `json:"default_branch_protection_defaults"`
+	AvatarURL             string                     `json:"avatar_url"`
+	WebURL                string                     `json:"web_url"`
+	RequestAccessEnabled  bool                       `json:"request_access_enabled"`
+	RepositoryStorage     string                     `json:"repository_storage"`
+	FullName              string                     `json:"full_name"`
+	FullPath              string                     `json:"full_path"`
+	FileTemplateProjectID int                        `json:"file_template_project_id"`
+	ParentID              int                        `json:"parent_id"`
+	Projects              []*Project                 `json:"projects"`
+	Statistics            *Statistics                `json:"statistics"`
+	CustomAttributes      []*CustomAttribute         `json:"custom_attributes"`
+	ShareWithGroupLock    bool                       `json:"share_with_group_lock"`
+	RequireTwoFactorAuth  bool                       `json:"require_two_factor_authentication"`
+	TwoFactorGracePeriod  int                        `json:"two_factor_grace_period"`
+	ProjectCreationLevel  ProjectCreationLevelValue  `json:"project_creation_level"`
+	AutoDevopsEnabled     bool                       `json:"auto_devops_enabled"`
+	SubGroupCreationLevel SubGroupCreationLevelValue `json:"subgroup_creation_level"`
+	EmailsEnabled         bool                       `json:"emails_enabled"`
+	MentionsDisabled      bool                       `json:"mentions_disabled"`
+	RunnersToken          string                     `json:"runners_token"`
+	SharedProjects        []*Project                 `json:"shared_projects"`
+	SharedRunnersSetting  SharedRunnersSettingValue  `json:"shared_runners_setting"`
+	SharedWithGroups      []struct {
 		GroupID          int      `json:"group_id"`
 		GroupName        string   `json:"group_name"`
 		GroupFullPath    string   `json:"group_full_path"`
 		GroupAccessLevel int      `json:"group_access_level"`
 		ExpiresAt        *ISOTime `json:"expires_at"`
 	} `json:"shared_with_groups"`
-	LDAPCN                         string           `json:"ldap_cn"`
-	LDAPAccess                     AccessLevelValue `json:"ldap_access"`
-	LDAPGroupLinks                 []*LDAPGroupLink `json:"ldap_group_links"`
-	SAMLGroupLinks                 []*SAMLGroupLink `json:"saml_group_links"`
-	SharedRunnersMinutesLimit      int              `json:"shared_runners_minutes_limit"`
-	ExtraSharedRunnersMinutesLimit int              `json:"extra_shared_runners_minutes_limit"`
-	PreventForkingOutsideGroup     bool             `json:"prevent_forking_outside_group"`
-	MarkedForDeletionOn            *ISOTime         `json:"marked_for_deletion_on"`
-	CreatedAt                      *time.Time       `json:"created_at"`
-	IPRestrictionRanges            string           `json:"ip_restriction_ranges"`
+	LDAPCN                         string             `json:"ldap_cn"`
+	LDAPAccess                     AccessLevelValue   `json:"ldap_access"`
+	LDAPGroupLinks                 []*LDAPGroupLink   `json:"ldap_group_links"`
+	SAMLGroupLinks                 []*SAMLGroupLink   `json:"saml_group_links"`
+	SharedRunnersMinutesLimit      int                `json:"shared_runners_minutes_limit"`
+	ExtraSharedRunnersMinutesLimit int                `json:"extra_shared_runners_minutes_limit"`
+	PreventForkingOutsideGroup     bool               `json:"prevent_forking_outside_group"`
+	MarkedForDeletionOn            *ISOTime           `json:"marked_for_deletion_on"`
+	CreatedAt                      *time.Time         `json:"created_at"`
+	IPRestrictionRanges            string             `json:"ip_restriction_ranges"`
+	WikiAccessLevel                AccessControlValue `json:"wiki_access_level"`
+
+	// Deprecated: Use EmailsEnabled instead
+	EmailsDisabled bool `json:"emails_disabled"`
+
+	// Deprecated: Use DefaultBranchProtectionDefaults instead
+	DefaultBranchProtection int `json:"default_branch_protection"`
+}
+
+// GroupAccessLevel represents default branch protection defaults access levels.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/groups.html#options-for-default_branch_protection_defaults
+type GroupAccessLevel struct {
+	AccessLevel *AccessLevelValue `url:"access_level,omitempty" json:"access_level,omitempty"`
 }
 
 // GroupAvatar represents a GitLab group avatar.
@@ -118,8 +139,9 @@ type LDAPGroupLink struct {
 //
 // GitLab API docs: https://docs.gitlab.com/ee/api/groups.html#saml-group-links
 type SAMLGroupLink struct {
-	Name        string           `json:"name"`
-	AccessLevel AccessLevelValue `json:"access_level"`
+	Name         string           `json:"name"`
+	AccessLevel  AccessLevelValue `json:"access_level"`
+	MemberRoleID int              `json:"member_role_id,omitempty"`
 }
 
 // ListGroupsOptions represents the available ListGroups() options.
@@ -127,16 +149,17 @@ type SAMLGroupLink struct {
 // GitLab API docs: https://docs.gitlab.com/ee/api/groups.html#list-groups
 type ListGroupsOptions struct {
 	ListOptions
-	AllAvailable         *bool             `url:"all_available,omitempty" json:"all_available,omitempty"`
-	MinAccessLevel       *AccessLevelValue `url:"min_access_level,omitempty" json:"min_access_level,omitempty"`
-	OrderBy              *string           `url:"order_by,omitempty" json:"order_by,omitempty"`
-	Owned                *bool             `url:"owned,omitempty" json:"owned,omitempty"`
-	Search               *string           `url:"search,omitempty" json:"search,omitempty"`
 	SkipGroups           *[]int            `url:"skip_groups,omitempty" del:"," json:"skip_groups,omitempty"`
+	AllAvailable         *bool             `url:"all_available,omitempty" json:"all_available,omitempty"`
+	Search               *string           `url:"search,omitempty" json:"search,omitempty"`
+	OrderBy              *string           `url:"order_by,omitempty" json:"order_by,omitempty"`
 	Sort                 *string           `url:"sort,omitempty" json:"sort,omitempty"`
 	Statistics           *bool             `url:"statistics,omitempty" json:"statistics,omitempty"`
-	TopLevelOnly         *bool             `url:"top_level_only,omitempty" json:"top_level_only,omitempty"`
 	WithCustomAttributes *bool             `url:"with_custom_attributes,omitempty" json:"with_custom_attributes,omitempty"`
+	Owned                *bool             `url:"owned,omitempty" json:"owned,omitempty"`
+	MinAccessLevel       *AccessLevelValue `url:"min_access_level,omitempty" json:"min_access_level,omitempty"`
+	TopLevelOnly         *bool             `url:"top_level_only,omitempty" json:"top_level_only,omitempty"`
+	RepositoryStorage    *string           `url:"repository_storage,omitempty" json:"repository_storage,omitempty"`
 }
 
 // ListGroups gets a list of groups (as user: my groups, as admin: all groups).
@@ -332,27 +355,46 @@ func (s *GroupsService) DownloadAvatar(gid interface{}, options ...RequestOption
 //
 // GitLab API docs: https://docs.gitlab.com/ee/api/groups.html#new-group
 type CreateGroupOptions struct {
-	Name                           *string                     `url:"name,omitempty" json:"name,omitempty"`
-	Path                           *string                     `url:"path,omitempty" json:"path,omitempty"`
-	Avatar                         *GroupAvatar                `url:"-" json:"-"`
-	Description                    *string                     `url:"description,omitempty" json:"description,omitempty"`
-	MembershipLock                 *bool                       `url:"membership_lock,omitempty" json:"membership_lock,omitempty"`
-	Visibility                     *VisibilityValue            `url:"visibility,omitempty" json:"visibility,omitempty"`
-	ShareWithGroupLock             *bool                       `url:"share_with_group_lock,omitempty" json:"share_with_group_lock,omitempty"`
-	RequireTwoFactorAuth           *bool                       `url:"require_two_factor_authentication,omitempty" json:"require_two_factor_authentication,omitempty"`
-	TwoFactorGracePeriod           *int                        `url:"two_factor_grace_period,omitempty" json:"two_factor_grace_period,omitempty"`
-	ProjectCreationLevel           *ProjectCreationLevelValue  `url:"project_creation_level,omitempty" json:"project_creation_level,omitempty"`
-	AutoDevopsEnabled              *bool                       `url:"auto_devops_enabled,omitempty" json:"auto_devops_enabled,omitempty"`
-	SubGroupCreationLevel          *SubGroupCreationLevelValue `url:"subgroup_creation_level,omitempty" json:"subgroup_creation_level,omitempty"`
-	EmailsDisabled                 *bool                       `url:"emails_disabled,omitempty" json:"emails_disabled,omitempty"`
-	MentionsDisabled               *bool                       `url:"mentions_disabled,omitempty" json:"mentions_disabled,omitempty"`
-	LFSEnabled                     *bool                       `url:"lfs_enabled,omitempty" json:"lfs_enabled,omitempty"`
-	DefaultBranchProtection        *int                        `url:"default_branch_protection,omitempty" json:"default_branch_protection"`
-	RequestAccessEnabled           *bool                       `url:"request_access_enabled,omitempty" json:"request_access_enabled,omitempty"`
-	ParentID                       *int                        `url:"parent_id,omitempty" json:"parent_id,omitempty"`
-	SharedRunnersMinutesLimit      *int                        `url:"shared_runners_minutes_limit,omitempty" json:"shared_runners_minutes_limit,omitempty"`
-	ExtraSharedRunnersMinutesLimit *int                        `url:"extra_shared_runners_minutes_limit,omitempty" json:"extra_shared_runners_minutes_limit,omitempty"`
-	IPRestrictionRanges            *string                     `url:"ip_restriction_ranges,omitempty" json:"ip_restriction_ranges,omitempty"`
+	Name                            *string                                 `url:"name,omitempty" json:"name,omitempty"`
+	Path                            *string                                 `url:"path,omitempty" json:"path,omitempty"`
+	Avatar                          *GroupAvatar                            `url:"-" json:"-"`
+	Description                     *string                                 `url:"description,omitempty" json:"description,omitempty"`
+	MembershipLock                  *bool                                   `url:"membership_lock,omitempty" json:"membership_lock,omitempty"`
+	Visibility                      *VisibilityValue                        `url:"visibility,omitempty" json:"visibility,omitempty"`
+	ShareWithGroupLock              *bool                                   `url:"share_with_group_lock,omitempty" json:"share_with_group_lock,omitempty"`
+	RequireTwoFactorAuth            *bool                                   `url:"require_two_factor_authentication,omitempty" json:"require_two_factor_authentication,omitempty"`
+	TwoFactorGracePeriod            *int                                    `url:"two_factor_grace_period,omitempty" json:"two_factor_grace_period,omitempty"`
+	ProjectCreationLevel            *ProjectCreationLevelValue              `url:"project_creation_level,omitempty" json:"project_creation_level,omitempty"`
+	AutoDevopsEnabled               *bool                                   `url:"auto_devops_enabled,omitempty" json:"auto_devops_enabled,omitempty"`
+	SubGroupCreationLevel           *SubGroupCreationLevelValue             `url:"subgroup_creation_level,omitempty" json:"subgroup_creation_level,omitempty"`
+	EmailsEnabled                   *bool                                   `url:"emails_enabled,omitempty" json:"emails_enabled,omitempty"`
+	MentionsDisabled                *bool                                   `url:"mentions_disabled,omitempty" json:"mentions_disabled,omitempty"`
+	LFSEnabled                      *bool                                   `url:"lfs_enabled,omitempty" json:"lfs_enabled,omitempty"`
+	DefaultBranchProtectionDefaults *DefaultBranchProtectionDefaultsOptions `url:"default_branch_protection_defaults,omitempty" json:"default_branch_protection_defaults,omitempty"`
+	RequestAccessEnabled            *bool                                   `url:"request_access_enabled,omitempty" json:"request_access_enabled,omitempty"`
+	ParentID                        *int                                    `url:"parent_id,omitempty" json:"parent_id,omitempty"`
+	SharedRunnersMinutesLimit       *int                                    `url:"shared_runners_minutes_limit,omitempty" json:"shared_runners_minutes_limit,omitempty"`
+	ExtraSharedRunnersMinutesLimit  *int                                    `url:"extra_shared_runners_minutes_limit,omitempty" json:"extra_shared_runners_minutes_limit,omitempty"`
+	IPRestrictionRanges             *string                                 `url:"ip_restriction_ranges,omitempty" json:"ip_restriction_ranges,omitempty"`
+	WikiAccessLevel                 *AccessControlValue                     `url:"wiki_access_level,omitempty" json:"wiki_access_level,omitempty"`
+
+	// Deprecated: Use EmailsEnabled instead
+	EmailsDisabled *bool `url:"emails_disabled,omitempty" json:"emails_disabled,omitempty"`
+
+	// Deprecated: User DefaultBranchProtectionDefaults instead
+	DefaultBranchProtection *int `url:"default_branch_protection,omitempty" json:"default_branch_protection,omitempty"`
+}
+
+// DefaultBranchProtectionDefaultsOptions represents the available options for
+// using default_branch_protection_defaults in CreateGroup() or UpdateGroup()
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/groups.html#options-for-default_branch_protection_defaults
+type DefaultBranchProtectionDefaultsOptions struct {
+	AllowedToPush           *[]*GroupAccessLevel `url:"allowed_to_push,omitempty" json:"allowed_to_push,omitempty"`
+	AllowForcePush          *bool                `url:"allow_force_push,omitempty" json:"allow_force_push,omitempty"`
+	AllowedToMerge          *[]*GroupAccessLevel `url:"allowed_to_merge.omitempty" json:"allowed_to_merge.omitempty"`
+	DeveloperCanInitialPush *bool                `url:"developer_can_initial_push,omitempty" json:"developer_can_initial_push,omitempty"`
 }
 
 // CreateGroup creates a new project group. Available only for users who can
@@ -457,30 +499,37 @@ func (s *GroupsService) TransferSubGroup(gid interface{}, opt *TransferSubGroupO
 //
 // GitLab API docs: https://docs.gitlab.com/ee/api/groups.html#update-group
 type UpdateGroupOptions struct {
-	Name                                 *string                     `url:"name,omitempty" json:"name,omitempty"`
-	Path                                 *string                     `url:"path,omitempty" json:"path,omitempty"`
-	Avatar                               *GroupAvatar                `url:"-" json:"avatar,omitempty"`
-	Description                          *string                     `url:"description,omitempty" json:"description,omitempty"`
-	MembershipLock                       *bool                       `url:"membership_lock,omitempty" json:"membership_lock,omitempty"`
-	Visibility                           *VisibilityValue            `url:"visibility,omitempty" json:"visibility,omitempty"`
-	ShareWithGroupLock                   *bool                       `url:"share_with_group_lock,omitempty" json:"share_with_group_lock,omitempty"`
-	RequireTwoFactorAuth                 *bool                       `url:"require_two_factor_authentication,omitempty" json:"require_two_factor_authentication,omitempty"`
-	TwoFactorGracePeriod                 *int                        `url:"two_factor_grace_period,omitempty" json:"two_factor_grace_period,omitempty"`
-	ProjectCreationLevel                 *ProjectCreationLevelValue  `url:"project_creation_level,omitempty" json:"project_creation_level,omitempty"`
-	AutoDevopsEnabled                    *bool                       `url:"auto_devops_enabled,omitempty" json:"auto_devops_enabled,omitempty"`
-	SubGroupCreationLevel                *SubGroupCreationLevelValue `url:"subgroup_creation_level,omitempty" json:"subgroup_creation_level,omitempty"`
-	EmailsDisabled                       *bool                       `url:"emails_disabled,omitempty" json:"emails_disabled,omitempty"`
-	MentionsDisabled                     *bool                       `url:"mentions_disabled,omitempty" json:"mentions_disabled,omitempty"`
-	LFSEnabled                           *bool                       `url:"lfs_enabled,omitempty" json:"lfs_enabled,omitempty"`
-	RequestAccessEnabled                 *bool                       `url:"request_access_enabled,omitempty" json:"request_access_enabled,omitempty"`
-	DefaultBranchProtection              *int                        `url:"default_branch_protection,omitempty" json:"default_branch_protection,omitempty"`
-	FileTemplateProjectID                *int                        `url:"file_template_project_id,omitempty" json:"file_template_project_id,omitempty"`
-	SharedRunnersMinutesLimit            *int                        `url:"shared_runners_minutes_limit,omitempty" json:"shared_runners_minutes_limit,omitempty"`
-	ExtraSharedRunnersMinutesLimit       *int                        `url:"extra_shared_runners_minutes_limit,omitempty" json:"extra_shared_runners_minutes_limit,omitempty"`
-	PreventForkingOutsideGroup           *bool                       `url:"prevent_forking_outside_group,omitempty" json:"prevent_forking_outside_group,omitempty"`
-	SharedRunnersSetting                 *SharedRunnersSettingValue  `url:"shared_runners_setting,omitempty" json:"shared_runners_setting,omitempty"`
-	PreventSharingGroupsOutsideHierarchy *bool                       `url:"prevent_sharing_groups_outside_hierarchy,omitempty" json:"prevent_sharing_groups_outside_hierarchy,omitempty"`
-	IPRestrictionRanges                  *string                     `url:"ip_restriction_ranges,omitempty" json:"ip_restriction_ranges,omitempty"`
+	Name                                 *string                                 `url:"name,omitempty" json:"name,omitempty"`
+	Path                                 *string                                 `url:"path,omitempty" json:"path,omitempty"`
+	Avatar                               *GroupAvatar                            `url:"-" json:"avatar,omitempty"`
+	Description                          *string                                 `url:"description,omitempty" json:"description,omitempty"`
+	MembershipLock                       *bool                                   `url:"membership_lock,omitempty" json:"membership_lock,omitempty"`
+	Visibility                           *VisibilityValue                        `url:"visibility,omitempty" json:"visibility,omitempty"`
+	ShareWithGroupLock                   *bool                                   `url:"share_with_group_lock,omitempty" json:"share_with_group_lock,omitempty"`
+	RequireTwoFactorAuth                 *bool                                   `url:"require_two_factor_authentication,omitempty" json:"require_two_factor_authentication,omitempty"`
+	TwoFactorGracePeriod                 *int                                    `url:"two_factor_grace_period,omitempty" json:"two_factor_grace_period,omitempty"`
+	ProjectCreationLevel                 *ProjectCreationLevelValue              `url:"project_creation_level,omitempty" json:"project_creation_level,omitempty"`
+	AutoDevopsEnabled                    *bool                                   `url:"auto_devops_enabled,omitempty" json:"auto_devops_enabled,omitempty"`
+	SubGroupCreationLevel                *SubGroupCreationLevelValue             `url:"subgroup_creation_level,omitempty" json:"subgroup_creation_level,omitempty"`
+	EmailsEnabled                        *bool                                   `url:"emails_enabled,omitempty" json:"emails_enabled,omitempty"`
+	MentionsDisabled                     *bool                                   `url:"mentions_disabled,omitempty" json:"mentions_disabled,omitempty"`
+	LFSEnabled                           *bool                                   `url:"lfs_enabled,omitempty" json:"lfs_enabled,omitempty"`
+	RequestAccessEnabled                 *bool                                   `url:"request_access_enabled,omitempty" json:"request_access_enabled,omitempty"`
+	DefaultBranchProtectionDefaults      *DefaultBranchProtectionDefaultsOptions `url:"default_branch_protection_defaults,omitempty" json:"default_branch_protection_defaults,omitempty"`
+	FileTemplateProjectID                *int                                    `url:"file_template_project_id,omitempty" json:"file_template_project_id,omitempty"`
+	SharedRunnersMinutesLimit            *int                                    `url:"shared_runners_minutes_limit,omitempty" json:"shared_runners_minutes_limit,omitempty"`
+	ExtraSharedRunnersMinutesLimit       *int                                    `url:"extra_shared_runners_minutes_limit,omitempty" json:"extra_shared_runners_minutes_limit,omitempty"`
+	PreventForkingOutsideGroup           *bool                                   `url:"prevent_forking_outside_group,omitempty" json:"prevent_forking_outside_group,omitempty"`
+	SharedRunnersSetting                 *SharedRunnersSettingValue              `url:"shared_runners_setting,omitempty" json:"shared_runners_setting,omitempty"`
+	PreventSharingGroupsOutsideHierarchy *bool                                   `url:"prevent_sharing_groups_outside_hierarchy,omitempty" json:"prevent_sharing_groups_outside_hierarchy,omitempty"`
+	IPRestrictionRanges                  *string                                 `url:"ip_restriction_ranges,omitempty" json:"ip_restriction_ranges,omitempty"`
+	WikiAccessLevel                      *AccessControlValue                     `url:"wiki_access_level,omitempty" json:"wiki_access_level,omitempty"`
+
+	// Deprecated: Use EmailsEnabled instead
+	EmailsDisabled *bool `url:"emails_disabled,omitempty" json:"emails_disabled,omitempty"`
+
+	// Deprecated: Use DefaultBranchProtectionDefaults instead
+	DefaultBranchProtection *int `url:"default_branch_protection,omitempty" json:"default_branch_protection,omitempty"`
 }
 
 // UpdateGroup updates an existing group; only available to group owners and
@@ -555,17 +604,25 @@ func (s *GroupsService) UploadAvatar(gid interface{}, avatar io.Reader, filename
 	return g, resp, nil
 }
 
+// DeleteGroupOptions represents the available DeleteGroup() options.
+//
+// GitLab API docs: https://docs.gitlab.com/ee/api/groups.html#update-group
+type DeleteGroupOptions struct {
+	PermanentlyRemove *bool   `url:"permanently_remove,omitempty" json:"permanently_remove,omitempty"`
+	FullPath          *string `url:"full_path,omitempty" json:"full_path,omitempty"`
+}
+
 // DeleteGroup removes group with all projects inside.
 //
 // GitLab API docs: https://docs.gitlab.com/ee/api/groups.html#remove-group
-func (s *GroupsService) DeleteGroup(gid interface{}, options ...RequestOptionFunc) (*Response, error) {
+func (s *GroupsService) DeleteGroup(gid interface{}, opt *DeleteGroupOptions, options ...RequestOptionFunc) (*Response, error) {
 	group, err := parseID(gid)
 	if err != nil {
 		return nil, err
 	}
 	u := fmt.Sprintf("groups/%s", PathEscape(group))
 
-	req, err := s.client.NewRequest(http.MethodDelete, u, nil, options)
+	req, err := s.client.NewRequest(http.MethodDelete, u, opt, options)
 	if err != nil {
 		return nil, err
 	}
@@ -858,6 +915,7 @@ func (s *GroupsService) GetGroupSAMLLink(gid interface{}, samlGroupName string, 
 type AddGroupSAMLLinkOptions struct {
 	SAMLGroupName *string           `url:"saml_group_name,omitempty" json:"saml_group_name,omitempty"`
 	AccessLevel   *AccessLevelValue `url:"access_level,omitempty" json:"access_level,omitempty"`
+	MemberRoleID  *int              `url:"member_role_id,omitempty" json:"member_role_id,omitempty"`
 }
 
 // AddGroupSAMLLink creates a new group SAML link. Available only for users who
@@ -977,6 +1035,7 @@ type GroupPushRules struct {
 	FileNameRegex              string     `json:"file_name_regex"`
 	MaxFileSize                int        `json:"max_file_size"`
 	CommitCommitterCheck       bool       `json:"commit_committer_check"`
+	CommitCommitterNameCheck   bool       `json:"commit_committer_name_check"`
 	RejectUnsignedCommits      bool       `json:"reject_unsigned_commits"`
 }
 
@@ -1014,6 +1073,7 @@ type AddGroupPushRuleOptions struct {
 	AuthorEmailRegex           *string `url:"author_email_regex,omitempty" json:"author_email_regex,omitempty"`
 	BranchNameRegex            *string `url:"branch_name_regex,omitempty" json:"branch_name_regex,omitempty"`
 	CommitCommitterCheck       *bool   `url:"commit_committer_check,omitempty" json:"commit_committer_check,omitempty"`
+	CommitCommitterNameCheck   *bool   `url:"commit_committer_name_check,omitempty" json:"commit_committer_name_check,omitempty"`
 	CommitMessageNegativeRegex *string `url:"commit_message_negative_regex,omitempty" json:"commit_message_negative_regex,omitempty"`
 	CommitMessageRegex         *string `url:"commit_message_regex,omitempty" json:"commit_message_regex,omitempty"`
 	DenyDeleteTag              *bool   `url:"deny_delete_tag,omitempty" json:"deny_delete_tag,omitempty"`
@@ -1058,6 +1118,7 @@ type EditGroupPushRuleOptions struct {
 	AuthorEmailRegex           *string `url:"author_email_regex,omitempty" json:"author_email_regex,omitempty"`
 	BranchNameRegex            *string `url:"branch_name_regex,omitempty" json:"branch_name_regex,omitempty"`
 	CommitCommitterCheck       *bool   `url:"commit_committer_check,omitempty" json:"commit_committer_check,omitempty"`
+	CommitCommitterNameCheck   *bool   `url:"commit_committer_name_check,omitempty" json:"commit_committer_name_check,omitempty"`
 	CommitMessageNegativeRegex *string `url:"commit_message_negative_regex,omitempty" json:"commit_message_negative_regex,omitempty"`
 	CommitMessageRegex         *string `url:"commit_message_regex,omitempty" json:"commit_message_regex,omitempty"`
 	DenyDeleteTag              *bool   `url:"deny_delete_tag,omitempty" json:"deny_delete_tag,omitempty"`

@@ -192,15 +192,18 @@ func (impl *HelmAppServiceImpl) ListHelmApplications(ctx context.Context, cluste
 func (impl *HelmAppServiceImpl) HibernateApplication(ctx context.Context, app *helmBean.AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
 	conf, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
+
+		impl.logger.Errorw("HibernateApplication", "error in getting cluster config", "err", err, "clusterId", app.ClusterId)
 		return nil, err
 	}
-	req := impl.hibernateReqAdaptor(hibernateRequest)
+	req := HibernateReqAdaptor(hibernateRequest)
 	req.ClusterConfig = conf
 	res, err := impl.helmAppClient.Hibernate(ctx, req)
 	if err != nil {
+		impl.logger.Errorw("HibernateApplication", "error in hibernating the resources", "err", err, "clusterId", app.ClusterId, "appReleaseName", app.ReleaseName)
 		return nil, err
 	}
-	response := impl.hibernateResponseAdaptor(res.Status)
+	response := HibernateResponseAdaptor(res.Status)
 	return response, nil
 }
 
@@ -208,15 +211,18 @@ func (impl *HelmAppServiceImpl) UnHibernateApplication(ctx context.Context, app 
 
 	conf, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
+		impl.logger.Errorw("UnHibernateApplication", "error in getting cluster config", "err", err, "clusterId", app.ClusterId)
 		return nil, err
 	}
-	req := impl.hibernateReqAdaptor(hibernateRequest)
+	req := HibernateReqAdaptor(hibernateRequest)
 	req.ClusterConfig = conf
 	res, err := impl.helmAppClient.UnHibernate(ctx, req)
 	if err != nil {
+		impl.logger.Errorw("UnHibernateApplication", "error in UnHibernating the resources", "err", err, "clusterId", app.ClusterId, "appReleaseName", app.ReleaseName)
+
 		return nil, err
 	}
-	response := impl.hibernateResponseAdaptor(res.Status)
+	response := HibernateResponseAdaptor(res.Status)
 	return response, nil
 }
 
@@ -1109,40 +1115,6 @@ func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds
 	return applicatonStream, err
 }
 
-func (impl *HelmAppServiceImpl) hibernateReqAdaptor(hibernateRequest *openapi.HibernateRequest) *gRPC.HibernateRequest {
-	req := &gRPC.HibernateRequest{}
-	for _, reqObject := range hibernateRequest.GetResources() {
-		obj := &gRPC.ObjectIdentifier{
-			Group:     *reqObject.Group,
-			Kind:      *reqObject.Kind,
-			Version:   *reqObject.Version,
-			Name:      *reqObject.Name,
-			Namespace: *reqObject.Namespace,
-		}
-		req.ObjectIdentifier = append(req.ObjectIdentifier, obj)
-	}
-	return req
-}
-
-func (impl *HelmAppServiceImpl) hibernateResponseAdaptor(in []*gRPC.HibernateStatus) []*openapi.HibernateStatus {
-	var resStatus []*openapi.HibernateStatus
-	for _, status := range in {
-		resObj := &openapi.HibernateStatus{
-			Success:      &status.Success,
-			ErrorMessage: &status.ErrorMsg,
-			TargetObject: &openapi.HibernateTargetObject{
-				Group:     &status.TargetObject.Group,
-				Kind:      &status.TargetObject.Kind,
-				Version:   &status.TargetObject.Version,
-				Name:      &status.TargetObject.Name,
-				Namespace: &status.TargetObject.Namespace,
-			},
-		}
-		resStatus = append(resStatus, resObj)
-	}
-	return resStatus
-}
-
 func isSameAppName(deployedAppName string, appDto app.App) bool {
 	if len(appDto.DisplayName) > 0 {
 		return deployedAppName == appDto.DisplayName
@@ -1164,7 +1136,7 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.D
 			// do not add app in the list which are created using cd_pipelines (check combination of clusterId, namespace, releaseName)
 			var toExcludeFromList bool
 			for _, helmCdPipeline := range helmCdPipelines {
-				helmAppReleaseName := util2.BuildDeployedAppName(helmCdPipeline.App.AppName, helmCdPipeline.Environment.Name)
+				helmAppReleaseName := helmCdPipeline.DeploymentAppName
 				if deployedapp.AppName == helmAppReleaseName && int(deployedapp.EnvironmentDetail.ClusterId) == helmCdPipeline.Environment.ClusterId && deployedapp.EnvironmentDetail.Namespace == helmCdPipeline.Environment.Namespace {
 					toExcludeFromList = true
 					break

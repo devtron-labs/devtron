@@ -46,6 +46,10 @@ const (
 	CHART_WORKING_DIR_PATH                     = "/tmp/charts/"
 )
 
+const (
+	PIPELINE_RELEASE_MODE_CREATE = "create"
+)
+
 type ChartCreateRequest struct {
 	ChartMetaData       *chart.Metadata
 	ChartPath           string

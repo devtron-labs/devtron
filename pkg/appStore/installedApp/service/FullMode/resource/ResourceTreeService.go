@@ -29,6 +29,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
+	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/bean"
@@ -72,6 +73,7 @@ type InstalledAppResourceServiceImpl struct {
 	k8sApplicationService                application3.K8sApplicationService
 	K8sUtil                              k8s2.K8sService
 	deploymentConfigurationService       common.DeploymentConfigService
+	OCIRegistryConfigRepository          repository2.OCIRegistryConfigRepository
 }
 
 func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
@@ -83,7 +85,8 @@ func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
 	argoUserService argo.ArgoUserService, helmAppClient gRPC.HelmAppClient, helmAppService client.HelmAppService,
 	appStatusService appStatus.AppStatusService,
 	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService, K8sUtil k8s2.K8sService,
-	deploymentConfigurationService common.DeploymentConfigService) *InstalledAppResourceServiceImpl {
+	deploymentConfigurationService common.DeploymentConfigService,
+	OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository) *InstalledAppResourceServiceImpl {
 	return &InstalledAppResourceServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -99,6 +102,7 @@ func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
 		k8sApplicationService:                k8sApplicationService,
 		K8sUtil:                              K8sUtil,
 		deploymentConfigurationService:       deploymentConfigurationService,
+		OCIRegistryConfigRepository:          OCIRegistryConfigRepository,
 	}
 }
 
@@ -280,7 +284,7 @@ func (impl *InstalledAppResourceServiceImpl) fetchResourceTreeForACD(rctx contex
 		},
 	}
 	clusterIdString := strconv.Itoa(clusterId)
-	validRequest := impl.k8sCommonService.FilterK8sResources(rctx, resourceTree, k8sAppDetail, clusterIdString, []string{commonBean.ServiceKind, commonBean.EndpointsKind, commonBean.IngressKind})
+	validRequest := impl.k8sCommonService.FilterK8sResources(rctx, resourceTree, k8sAppDetail, clusterIdString, []string{commonBean.ServiceKind, commonBean.EndpointsKind, commonBean.IngressKind}, "")
 	response, err := impl.k8sCommonService.GetManifestsByBatch(rctx, validRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting manifest by batch", "err", err, "clusterId", clusterIdString)

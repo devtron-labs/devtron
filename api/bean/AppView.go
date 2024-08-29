@@ -144,6 +144,7 @@ type AppEnvironmentContainer struct {
 type DeploymentDetailContainer struct {
 	InstalledAppId                int                    `json:"installedAppId,omitempty"`
 	AppId                         int                    `json:"appId,omitempty"`
+	PcoId                         int                    `json:"pcoId"`
 	CdPipelineId                  int                    `json:"cdPipelineId,omitempty"`
 	TriggerType                   string                 `json:"triggerType,omitempty"`
 	ParentEnvironmentName         string                 `json:"parentEnvironmentName"`
@@ -183,6 +184,8 @@ type DeploymentDetailContainer struct {
 	HelmPackageName               string                 `json:"helmPackageName"`
 	HelmReleaseInstallStatus      string                 `json:"-"`
 	DeploymentConfig              *bean.DeploymentConfig `json:"-"`
+	IsPipelineTriggered           bool                   `json:"isPipelineTriggered"`
+	ReleaseMode                   string                 `json:"releaseMode"`
 }
 
 type AppDetailContainer struct {

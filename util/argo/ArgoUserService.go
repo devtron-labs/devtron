@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
-	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/connection"
@@ -66,7 +65,6 @@ type ArgoUserServiceImpl struct {
 	logger                  *zap.SugaredLogger
 	clusterService          cluster.ClusterService
 	devtronSecretConfig     *util2.DevtronSecretConfig
-	runTimeConfig           *client.RuntimeConfig
 	argoCDConnectionManager connection.ArgoCDConnectionManager
 	versionService          argocdServer.VersionService
 	k8sUtil                 *k8s.K8sServiceImpl
@@ -75,7 +73,7 @@ type ArgoUserServiceImpl struct {
 }
 
 func NewArgoUserServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService,
-	envVariables *util2.EnvironmentVariables, runTimeConfig *client.RuntimeConfig,
+	envVariables *util2.EnvironmentVariables, runTimeConfig *k8s.RuntimeConfig,
 	argoCDConnectionManager connection.ArgoCDConnectionManager, versionService argocdServer.VersionService,
 	k8sUtil *k8s.K8sServiceImpl, gitOpsConfigReadService config.GitOpsConfigReadService,
 	moduleService module.ModuleService) (*ArgoUserServiceImpl, error) {
@@ -83,7 +81,6 @@ func NewArgoUserServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.Cl
 		logger:                  Logger,
 		clusterService:          clusterService,
 		devtronSecretConfig:     envVariables.DevtronSecretConfig,
-		runTimeConfig:           runTimeConfig,
 		argoCDConnectionManager: argoCDConnectionManager,
 		versionService:          versionService,
 		k8sUtil:                 k8sUtil,

@@ -43,6 +43,7 @@ type GroupVariable struct {
 	Masked           bool              `json:"masked"`
 	Raw              bool              `json:"raw"`
 	EnvironmentScope string            `json:"environment_scope"`
+	Description      string            `json:"description"`
 }
 
 func (v GroupVariable) String() string {
@@ -114,11 +115,12 @@ func (s *GroupVariablesService) GetVariable(gid interface{}, key string, options
 type CreateGroupVariableOptions struct {
 	Key              *string            `url:"key,omitempty" json:"key,omitempty"`
 	Value            *string            `url:"value,omitempty" json:"value,omitempty"`
-	VariableType     *VariableTypeValue `url:"variable_type,omitempty" json:"variable_type,omitempty"`
-	Protected        *bool              `url:"protected,omitempty" json:"protected,omitempty"`
-	Masked           *bool              `url:"masked,omitempty" json:"masked,omitempty"`
-	Raw              *bool              `url:"raw,omitempty" json:"raw,omitempty"`
+	Description      *string            `url:"description,omitempty" json:"description,omitempty"`
 	EnvironmentScope *string            `url:"environment_scope,omitempty" json:"environment_scope,omitempty"`
+	Masked           *bool              `url:"masked,omitempty" json:"masked,omitempty"`
+	Protected        *bool              `url:"protected,omitempty" json:"protected,omitempty"`
+	Raw              *bool              `url:"raw,omitempty" json:"raw,omitempty"`
+	VariableType     *VariableTypeValue `url:"variable_type,omitempty" json:"variable_type,omitempty"`
 }
 
 // CreateVariable creates a new group variable.
@@ -153,11 +155,12 @@ func (s *GroupVariablesService) CreateVariable(gid interface{}, opt *CreateGroup
 // https://docs.gitlab.com/ee/api/group_level_variables.html#update-variable
 type UpdateGroupVariableOptions struct {
 	Value            *string            `url:"value,omitempty" json:"value,omitempty"`
-	VariableType     *VariableTypeValue `url:"variable_type,omitempty" json:"variable_type,omitempty"`
-	Protected        *bool              `url:"protected,omitempty" json:"protected,omitempty"`
-	Masked           *bool              `url:"masked,omitempty" json:"masked,omitempty"`
-	Raw              *bool              `url:"raw,omitempty" json:"raw,omitempty"`
+	Description      *string            `url:"description,omitempty" json:"description,omitempty"`
 	EnvironmentScope *string            `url:"environment_scope,omitempty" json:"environment_scope,omitempty"`
+	Masked           *bool              `url:"masked,omitempty" json:"masked,omitempty"`
+	Protected        *bool              `url:"protected,omitempty" json:"protected,omitempty"`
+	Raw              *bool              `url:"raw,omitempty" json:"raw,omitempty"`
+	VariableType     *VariableTypeValue `url:"variable_type,omitempty" json:"variable_type,omitempty"`
 }
 
 // UpdateVariable updates the position of an existing

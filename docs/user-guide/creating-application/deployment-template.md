@@ -23,7 +23,7 @@ Users need to have [Admin role](../user-guide/global-configurations/authorizatio
 
 {% hint style="warning" %}
 ### Note
-After you select and save a chart type for a given application, you won't be able to change it later. Make sure to choose the correct chart type before saving. You can select a chart from [Devtron Charts](#from-devtron-charts) or [Custom Charts](#from-custom-charts).
+After you select and save a chart type for a given application, you won't be able to change it later. Make sure to choose the correct chart type before saving. You can select a chart from [Devtron Charts](#from-devtron-charts) or other [Deployment Charts](#from-deployment-charts).
 {% endhint %}
 
 ### From Devtron Charts
@@ -37,10 +37,10 @@ You can select a default deployment chart from the following options:
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/select-devtron-chart.gif)
 
-### From Custom Charts
+### From Deployment Charts
 
 {% hint style="warning" %}
-This option will be available only if a custom chart exists. If it doesn't, a user with `super admin` permission may upload one in [Global Configurations → Custom Charts](../global-configurations/custom-charts.md).
+This option will be available only if a custom chart exists. If it doesn't, a user with `super admin` permission may upload one in [Global Configurations → Deployment Charts](../global-configurations/deployment-charts.md).
 {% endhint %}
 
 You can select an available custom chart as shown below. You can also view the description of the custom charts in the list.
@@ -110,12 +110,10 @@ Click **Save Changes**. If you want to do additional configurations, then click 
 
 {% hint style="warning" %}
 ### Who Can Perform This Action?
-Superadmin can define and apply custom deployment schema using API
+Superadmin can define and apply custom deployment schema.
 {% endhint %}
 
 By default, the `Basic (GUI)` section comes with multiple predefined fields as seen earlier [in the table](#2-basic-configuration). However, if you wish to display a different set of fields to your team, you can modify the whole section as per your requirement.
-
-{% embed url="https://www.youtube.com/watch?v=09VP1I-WvUs" caption="JSON-driven Deployment Schema" %}
 
 This is useful in scenarios where:
 * Your team members find it difficult to understand and edit the [Advanced (YAML)](#3-advanced-yaml) section.
@@ -123,7 +121,15 @@ This is useful in scenarios where:
 * You don't require some fields in Basic (GUI) section.
 * You need the autonomy to keep the Basic (GUI) unique for applications/clusters/environments/charts, or display the same Basic (GUI) everywhere.
 
-This is possible by passing a custom JSON (deployment schema) of your choice through the following API. You may need to run the API with the `POST` method if you are doing it for the first time.
+{% hint style="info" %}
+There are two ways you can customize the Basic GUI, use any one of the following:
+1. From [Deployment Charts](../global-configurations/deployment-charts.md#editing-gui-schema-of-deployment-charts) section
+2. Using APIs (explained below)
+{% endhint %}
+
+{% embed url="https://www.youtube.com/watch?v=09VP1I-WvUs" caption="JSON-driven Deployment Schema" %}
+
+You can pass a custom JSON (deployment schema) of your choice through the following API. You may need to run the API with the `POST` method if you are doing it for the first time.
 
 ```
 PUT {{DEVTRON_BASEURL}}/orchestrator/deployment/template/schema
