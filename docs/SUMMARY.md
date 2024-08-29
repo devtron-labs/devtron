@@ -136,6 +136,7 @@
     * [Code-Scan](user-guide/plugins/code-scan.md)
     * [Copacetic](user-guide/plugins/copacetic.md)
     * [Copy Container Image](user-guide/plugins/copy-container-image.md)
+    * [Cosign](user-guide/plugins/cosign.md)
     * [Dependency track - Maven & Gradle](user-guide/plugins/dependency-track-maven-gradle.md)
     * [Dependency track - NodeJS](user-guide/plugins/dependency-track-nodejs.md)
     * [Dependency track - Python](user-guide/plugins/dependency-track-python.md)
