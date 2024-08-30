@@ -256,7 +256,22 @@ func getApplicationListDtos(manifestObj map[string]interface{}, resp2 *k8s.Clust
 	keysToBeFetchedFromColumnDefinitions := map[string]int{k8sCommonBean.K8sResourceColumnDefinitionName: 0,
 		k8sCommonBean.K8sResourceColumnDefinitionHealthStatus: 0, k8sCommonBean.K8sResourceColumnDefinitionSyncStatus: 0}
 	keysToBeFetchedFromRawObject := []string{k8sCommonBean.K8sClusterResourceNamespaceKey}
-
+	if resp2 != nil {
+		for _, rowData := range resp2.Data {
+			if rowData == nil {
+				continue
+			}
+			appListDto := &bean.ArgoApplicationListDto{
+				ClusterId:    clusterId,
+				ClusterName:  clusterName,
+				Name:         rowData[k8sCommonBean.K8sResourceColumnDefinitionName].(string),
+				SyncStatus:   rowData[k8sCommonBean.K8sResourceColumnDefinitionSyncStatus].(string),
+				HealthStatus: rowData[k8sCommonBean.K8sResourceColumnDefinitionHealthStatus].(string),
+				Namespace:    rowData[k8sCommonBean.K8sClusterResourceNamespaceKey].(string),
+			}
+			appLists = append(appLists, appListDto)
+		}
+	}
 	columnsDataRaw := manifestObj[k8sCommonBean.K8sClusterResourceColumnDefinitionKey]
 	if columnsDataRaw != nil {
 		columnsData := columnsDataRaw.([]interface{})
