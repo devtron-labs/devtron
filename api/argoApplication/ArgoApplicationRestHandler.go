@@ -106,7 +106,7 @@ func (handler *ArgoApplicationRestHandlerImpl) GetApplicationDetail(w http.Respo
 	}
 	resp, err := handler.readService.GetAppDetail(resourceName, namespace, clusterId)
 	if err != nil {
-		handler.logger.Errorw("error in listing all argo applications", "err", err, "resourceName", resourceName, "clusterId", clusterId)
+		handler.logger.Errorw("error in getting argo application app detail", "err", err, "resourceName", resourceName, "clusterId", clusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
