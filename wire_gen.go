@@ -953,7 +953,7 @@ func InitializeApp() (*App, error) {
 	deploymentConfigurationRouterImpl := router.NewDeploymentConfigurationRouter(deploymentConfigurationRestHandlerImpl)
 	infraConfigRestHandlerImpl := infraConfig2.NewInfraConfigRestHandlerImpl(sugaredLogger, infraConfigServiceImpl, userServiceImpl, enforcerImpl, enforcerUtilImpl, validate)
 	infraConfigRouterImpl := infraConfig2.NewInfraProfileRouterImpl(infraConfigRestHandlerImpl)
-	argoApplicationRestHandlerImpl := argoApplication2.NewArgoApplicationRestHandlerImpl(argoApplicationServiceImpl, sugaredLogger, enforcerImpl)
+	argoApplicationRestHandlerImpl := argoApplication2.NewArgoApplicationRestHandlerImpl(argoApplicationServiceImpl, argoApplicationReadServiceImpl, sugaredLogger, enforcerImpl)
 	argoApplicationRouterImpl := argoApplication2.NewArgoApplicationRouterImpl(argoApplicationRestHandlerImpl)
 	deploymentHistoryServiceImpl := cdPipeline.NewDeploymentHistoryServiceImpl(sugaredLogger, cdHandlerImpl, imageTaggingServiceImpl, pipelineRepositoryImpl, deployedConfigurationHistoryServiceImpl)
 	apiReqDecoderServiceImpl := devtronResource.NewAPIReqDecoderServiceImpl(sugaredLogger, pipelineRepositoryImpl)
