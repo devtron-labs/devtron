@@ -41,7 +41,7 @@ e.g., `The Devtron Job Trigger plugin is integrated for triggering the Devtron J
 
 | Variable                 | Format       | Description | Sample Value |
 | ------------------------ | ------------ | ----------- | ------------ |
-|   DevtronApiToken        | STRING       | Enter Devtron API token with required permissions. | abc123xyz456token789            |
+|   DevtronApiToken        | STRING       | Enter Devtron API token with required permissions. | abc123def456token789            |
 |   DevtronEndpoint        | STRING       | Enter the URL of Devtron dashboard.     | https://devtron.example.com            |
 |   DevtronJob             | STRING       | Enter the name or ID of Devtron Job to be triggered  | plugin-test-job |
 |   DevtronEnv             | STRING       | Enter the name or ID of the Environment where the job is to be triggered. If JobPipeline is given, ignore this field and do not assign any value |      prod     |
