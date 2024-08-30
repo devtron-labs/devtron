@@ -109,8 +109,7 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 			impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterObj.Id)
 			return nil, err
 		}
-		resp, _, err := impl.k8sUtil.GetResourceList(context.Background(), restConfig, bean.GvkForArgoApplication, bean.AllNamespaces, true, nil)
-		resp2, err := impl.k8sApplicationService.GetResourceList(context.Background(), restConfig, bean.GvkForArgoApplication, bean.AllNamespaces, true, nil)
+		resp, err := impl.k8sApplicationService.GetResourceList(context.Background(), restConfig, bean.GvkForArgoApplication, bean.AllNamespaces, true, nil)
 		if err != nil {
 			if errStatus, ok := err.(*errors.StatusError); ok {
 				if errStatus.Status().Code == 404 {
@@ -122,7 +121,7 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 			impl.logger.Errorw("error in getting resource list", "err", err)
 			return nil, err
 		}
-		appLists := getApplicationListDtos(resp.Resources.Object, resp2, clusterObj.ClusterName, clusterObj.Id)
+		appLists := getApplicationListDtos(resp, clusterObj.ClusterName, clusterObj.Id)
 		appListFinal = append(appListFinal, appLists...)
 	}
 	return appListFinal, nil
@@ -250,7 +249,7 @@ func (impl *ArgoApplicationServiceImpl) getResourceTreeForExternalCluster(cluste
 	return resourceTreeResp, nil
 }
 
-func getApplicationListDtos(manifestObj map[string]interface{}, resp2 *k8s.ClusterResourceListMap, clusterName string, clusterId int) []*bean.ArgoApplicationListDto {
+func getApplicationListDtos(resp2 *k8s.ClusterResourceListMap, clusterName string, clusterId int) []*bean.ArgoApplicationListDto {
 	appLists := make([]*bean.ArgoApplicationListDto, 0)
 	// map of keys and index in row cells, initially set as 0 will be updated by object
 	keysToBeFetchedFromColumnDefinitions := map[string]int{k8sCommonBean.K8sResourceColumnDefinitionName: 0,
