@@ -1,4 +1,4 @@
-# Docker-Slim
+# DockerSlim
 
 ## Introduction
 The **DockerSlim** plugin by Devtron helps you to optimize your container deployments by reducing Docker image size. Now with these lighter Docker images, you can perform faster deployments and enhance overall system efficiency. 
@@ -48,7 +48,7 @@ At `IncludePathFile` input variable list down the file path of essential files f
 
 | Variable                 | Format       | Description | Sample Value |
 | ------------------------ | ------------ | ----------- | ------------ |
-|   HTTPProbe              | BOOL         | In Dockerfile the port is expose or not| false                         |
+|   HTTPProbe              | BOOL         | Indicates whether the port is exposed in Dockerfile or not | false                         |
 |   IncludePathFile        | STRING       | File path of required files            | /etc/nginx/include.conf       |
 
 ### Trigger/Skip Condition
