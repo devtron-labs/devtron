@@ -42,7 +42,6 @@ import (
 type ArgoApplicationService interface {
 	ListApplications(clusterIds []int) ([]*bean.ArgoApplicationListDto, error)
 	GetAppDetail(resourceName, resourceNamespace string, clusterId int) (*bean.ArgoApplicationDetailDto, error)
-	GetClusterConfigFromAllClusters(clusterId int) (*k8s.ClusterConfig, clusterRepository.Cluster, map[string]int, error)
 	HibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	UnHibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 }
@@ -333,28 +332,6 @@ func getHealthSyncStatusDestinationServerAndManagedResourcesForArgoK8sRawObject(
 		}
 	}
 	return healthStatus, syncStatus, destinationServer, argoManagedResources
-}
-
-func (impl *ArgoApplicationServiceImpl) GetClusterConfigFromAllClusters(clusterId int) (*k8s.ClusterConfig, clusterRepository.Cluster, map[string]int, error) {
-	clusters, err := impl.clusterRepository.FindAllActive()
-	var clusterWithApplicationObject clusterRepository.Cluster
-	if err != nil {
-		impl.logger.Errorw("error in getting all active clusters", "err", err)
-		return nil, clusterWithApplicationObject, nil, err
-	}
-	clusterServerUrlIdMap := make(map[string]int, len(clusters))
-	for _, cluster := range clusters {
-		if cluster.Id == clusterId {
-			clusterWithApplicationObject = cluster
-		}
-		clusterServerUrlIdMap[cluster.ServerUrl] = cluster.Id
-	}
-	if len(clusterWithApplicationObject.ErrorInConnecting) != 0 {
-		return nil, clusterWithApplicationObject, nil, fmt.Errorf("error in connecting to cluster")
-	}
-	clusterBean := cluster2.GetClusterBean(clusterWithApplicationObject)
-	clusterConfig := clusterBean.GetClusterConfig()
-	return clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err
 }
 
 func (impl *ArgoApplicationServiceImpl) HibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
