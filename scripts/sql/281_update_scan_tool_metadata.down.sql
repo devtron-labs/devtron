@@ -11,9 +11,7 @@ SET image_scan_descriptor_template = '[
                                      ]', updated_on = 'now()'
 WHERE name = 'TRIVY'
     AND version = 'V1'
-    AND scan_target = 'IMAGE'
-    AND active = true
-    AND deleted = false;
+    AND scan_target = 'IMAGE';
 
 ALTER TABLE image_scan_execution_result
     DROP COLUMN class,
