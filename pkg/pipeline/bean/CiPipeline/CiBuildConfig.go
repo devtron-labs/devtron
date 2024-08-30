@@ -89,4 +89,5 @@ func (pType PipelineType) IsValidPipelineType() bool {
 const (
 	ExtraEnvVarExternalCiArtifactKey = "externalCiArtifact"
 	ExtraEnvVarImageDigestKey        = "imageDigest"
+	ExtraEnvVarUseAppDockerConfig    = "useAppDockerConfig"
 )

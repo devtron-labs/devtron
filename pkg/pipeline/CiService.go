@@ -158,21 +158,31 @@ func (impl *CiServiceImpl) GetCiMaterials(pipelineId int, ciMaterials []*pipelin
 	}
 }
 
-func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger, ciMaterials []*pipelineConfig.CiPipelineMaterial) error {
+func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger, ciMaterials []*pipelineConfig.CiPipelineMaterial) (bool, error) {
+	var useAppDockerConfigForPrivateRegistries bool
+	var err error
 	// checking if user has given run time parameters for externalCiArtifact, if given then sending git material to Ci-Runner
 	externalCiArtifact, exists := trigger.ExtraEnvironmentVariables[CiPipeline.ExtraEnvVarExternalCiArtifactKey]
 	// validate externalCiArtifact as docker image
 	if exists {
 		if !strings.Contains(externalCiArtifact, ":") {
 			impl.Logger.Errorw("validation error", "externalCiArtifact", externalCiArtifact)
-			return fmt.Errorf("invalid image name given in externalCiArtifact")
+			return useAppDockerConfigForPrivateRegistries, fmt.Errorf("invalid image name given in externalCiArtifact")
+		}
+		useAppBuildConfig, ok := trigger.ExtraEnvironmentVariables[CiPipeline.ExtraEnvVarUseAppDockerConfig]
+		if ok && len(useAppBuildConfig) > 0 {
+			useAppDockerConfigForPrivateRegistries, err = strconv.ParseBool(useAppBuildConfig)
+			if err != nil {
+				impl.Logger.Errorw("error in parsing useAppBuildConfig string data to bool", "err", err)
+				return useAppDockerConfigForPrivateRegistries, fmt.Errorf("error in parsing useAppBuildConfig string data to bool, err:- %v", err)
+			}
 		}
 	}
 	if trigger.PipelineType == string(CiPipeline.CI_JOB) && len(ciMaterials) != 0 && !exists && externalCiArtifact == "" {
 		ciMaterials[0].GitMaterial = nil
 		ciMaterials[0].GitMaterialId = 0
 	}
-	return nil
+	return useAppDockerConfigForPrivateRegistries, nil
 }
 
 func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error) {
@@ -181,7 +191,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	if err != nil {
 		return 0, err
 	}
-	err = impl.handleRuntimeParamsValidations(trigger, ciMaterials)
+	useAppDockerConfigForPrivateRegistries, err := impl.handleRuntimeParamsValidations(trigger, ciMaterials)
 	if err != nil {
 		return 0, err
 	}
@@ -265,6 +275,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		impl.Logger.Errorw("make workflow req", "err", err)
 		return 0, err
 	}
+	workflowRequest.UseAppDockerConfigForPrivateRegistries = useAppDockerConfigForPrivateRegistries
 	workflowRequest.Scope = scope
 	workflowRequest.BuildxCacheModeMin = impl.buildxCacheFlags.BuildxCacheModeMin
 	workflowRequest.AsyncBuildxCacheExport = impl.buildxCacheFlags.AsyncBuildxCacheExport

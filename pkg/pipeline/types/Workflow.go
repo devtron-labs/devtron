@@ -113,38 +113,39 @@ type WorkflowRequest struct {
 	ImageRetryCount            int                               `json:"imageRetryCount"`
 	ImageRetryInterval         int                               `json:"imageRetryInterval"`
 	// Data from CD Workflow service
-	WorkflowRunnerId            int                                  `json:"workflowRunnerId"`
-	CdPipelineId                int                                  `json:"cdPipelineId"`
-	StageYaml                   string                               `json:"stageYaml"`
-	ArtifactLocation            string                               `json:"artifactLocation"`
-	CiArtifactDTO               CiArtifactDTO                        `json:"ciArtifactDTO"`
-	CdImage                     string                               `json:"cdImage"`
-	StageType                   string                               `json:"stageType"`
-	CdCacheLocation             string                               `json:"cdCacheLocation"`
-	CdCacheRegion               string                               `json:"cdCacheRegion"`
-	WorkflowPrefixForLog        string                               `json:"workflowPrefixForLog"`
-	DeploymentTriggeredBy       string                               `json:"deploymentTriggeredBy,omitempty"`
-	DeploymentTriggerTime       time.Time                            `json:"deploymentTriggerTime,omitempty"`
-	DeploymentReleaseCounter    int                                  `json:"deploymentReleaseCounter,omitempty"`
-	WorkflowExecutor            pipelineConfig.WorkflowExecutorType  `json:"workflowExecutor"`
-	PrePostDeploySteps          []*bean.StepObject                   `json:"prePostDeploySteps"`
-	CiArtifactLastFetch         time.Time                            `json:"ciArtifactLastFetch"`
-	CiPipelineType              string                               `json:"ciPipelineType"`
-	UseExternalClusterBlob      bool                                 `json:"useExternalClusterBlob"`
-	RegistryDestinationImageMap map[string][]string                  `json:"registryDestinationImageMap"`
-	RegistryCredentialMap       map[string]bean4.RegistryCredentials `json:"registryCredentialMap"`
-	PluginArtifactStage         string                               `json:"pluginArtifactStage"`
-	PushImageBeforePostCI       bool                                 `json:"pushImageBeforePostCI"`
-	ImageScanMaxRetries         int                                  `json:"imageScanMaxRetries,omitempty"`
-	ImageScanRetryDelay         int                                  `json:"imageScanRetryDelay,omitempty"`
-	Type                        bean.WorkflowPipelineType
-	Pipeline                    *pipelineConfig.Pipeline
-	Env                         *repository.Environment
-	AppLabels                   map[string]string
-	Scope                       resourceQualifiers.Scope
-	BuildxCacheModeMin          bool `json:"buildxCacheModeMin"`
-	AsyncBuildxCacheExport      bool `json:"asyncBuildxCacheExport"`
-	UseDockerApiToGetDigest     bool `json:"useDockerApiToGetDigest"`
+	WorkflowRunnerId                       int                                  `json:"workflowRunnerId"`
+	CdPipelineId                           int                                  `json:"cdPipelineId"`
+	StageYaml                              string                               `json:"stageYaml"`
+	ArtifactLocation                       string                               `json:"artifactLocation"`
+	CiArtifactDTO                          CiArtifactDTO                        `json:"ciArtifactDTO"`
+	CdImage                                string                               `json:"cdImage"`
+	StageType                              string                               `json:"stageType"`
+	CdCacheLocation                        string                               `json:"cdCacheLocation"`
+	CdCacheRegion                          string                               `json:"cdCacheRegion"`
+	WorkflowPrefixForLog                   string                               `json:"workflowPrefixForLog"`
+	DeploymentTriggeredBy                  string                               `json:"deploymentTriggeredBy,omitempty"`
+	DeploymentTriggerTime                  time.Time                            `json:"deploymentTriggerTime,omitempty"`
+	DeploymentReleaseCounter               int                                  `json:"deploymentReleaseCounter,omitempty"`
+	WorkflowExecutor                       pipelineConfig.WorkflowExecutorType  `json:"workflowExecutor"`
+	PrePostDeploySteps                     []*bean.StepObject                   `json:"prePostDeploySteps"`
+	CiArtifactLastFetch                    time.Time                            `json:"ciArtifactLastFetch"`
+	CiPipelineType                         string                               `json:"ciPipelineType"`
+	UseExternalClusterBlob                 bool                                 `json:"useExternalClusterBlob"`
+	RegistryDestinationImageMap            map[string][]string                  `json:"registryDestinationImageMap"`
+	RegistryCredentialMap                  map[string]bean4.RegistryCredentials `json:"registryCredentialMap"`
+	PluginArtifactStage                    string                               `json:"pluginArtifactStage"`
+	PushImageBeforePostCI                  bool                                 `json:"pushImageBeforePostCI"`
+	ImageScanMaxRetries                    int                                  `json:"imageScanMaxRetries,omitempty"`
+	ImageScanRetryDelay                    int                                  `json:"imageScanRetryDelay,omitempty"`
+	Type                                   bean.WorkflowPipelineType
+	Pipeline                               *pipelineConfig.Pipeline
+	Env                                    *repository.Environment
+	AppLabels                              map[string]string
+	Scope                                  resourceQualifiers.Scope
+	BuildxCacheModeMin                     bool `json:"buildxCacheModeMin"`
+	AsyncBuildxCacheExport                 bool `json:"asyncBuildxCacheExport"`
+	UseDockerApiToGetDigest                bool `json:"useDockerApiToGetDigest"`
+	UseAppDockerConfigForPrivateRegistries bool `json:"useAppDockerConfigForPrivateRegistries"`
 }
 
 func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
