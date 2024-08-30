@@ -20,16 +20,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils/k8s"
+	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
-	"github.com/devtron-labs/devtron/pkg/k8s/application"
-
-	"github.com/devtron-labs/common-lib/utils/k8s"
-	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/helper"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/util/argo"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -466,7 +466,7 @@ func (impl *ArgoApplicationServiceImpl) HibernateArgoApplication(ctx context.Con
 		impl.logger.Errorw("HibernateArgoApplication", "error in getting the cluster config", err, "clusterId", app.ClusterId, "appName", app.AppName)
 		return nil, err
 	}
-	conf := ConvertClusterBeanToGrpcConfig(clusterBean)
+	conf := helper.ConvertClusterBeanToGrpcConfig(clusterBean)
 
 	req := service.HibernateReqAdaptor(hibernateRequest)
 	req.ClusterConfig = conf
@@ -485,7 +485,7 @@ func (impl *ArgoApplicationServiceImpl) UnHibernateArgoApplication(ctx context.C
 		impl.logger.Errorw("HibernateArgoApplication", "error in getting the cluster config", err, "clusterId", app.ClusterId, "appName", app.AppName)
 		return nil, err
 	}
-	conf := ConvertClusterBeanToGrpcConfig(clusterBean)
+	conf := helper.ConvertClusterBeanToGrpcConfig(clusterBean)
 
 	req := service.HibernateReqAdaptor(hibernateRequest)
 	req.ClusterConfig = conf
