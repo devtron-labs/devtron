@@ -44,8 +44,8 @@ e.g., `The Devtron Job Trigger plugin is integrated for triggering the Devtron J
 |   DevtronApiToken        | STRING       | Enter Devtron API token with required permissions. | abc123xyz456token789            |
 |   DevtronEndpoint        | STRING       | Enter the URL of Devtron dashboard.     | https://devtron.example.com            |
 |   DevtronJob             | STRING       | Enter the name or ID of Devtron Job to be triggered  | plugin-test-job |
-|   DevtronEnv             | STRING       | Enter the name or ID of the Environment where the job is to be triggered. Required if JobPipeline is not given |      prod     |
-|   JobPipeline            | STRING       | Enter the name or ID of the Job pipeline to be triggered. Required if DevtronEnv is not given  | hello-world  |
+|   DevtronEnv             | STRING       | Enter the name or ID of the Environment where the job is to be triggered. If JobPipeline is given, ignore this field and do not assign any value |      prod     |
+|   JobPipeline            | STRING       | Enter the name or ID of the Job pipeline to be triggered. If DevtronEnv is given, ignore this field and do not assign any value  | hello-world  |
 |   GitCommitHash          | STRING       | Enter the commit hash from which the job is to be triggered. If not given then, will pick the latest  |    cf19e4fd348589kjhsdjn092nfse01d2234235sdsg        |
 |   StatusTimeoutSeconds   | NUMBER       | Enter the maximum time to wait for the job status |   120   |
 
