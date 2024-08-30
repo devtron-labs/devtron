@@ -414,11 +414,11 @@ func (impl *EAModeDeploymentServiceImpl) GitOpsOperations(manifestResponse *bean
 	return nil, errors.New("this is not implemented")
 }
 
-func (impl *EAModeDeploymentServiceImpl) GenerateManifestAndPerformGitOperations(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*bean.AppStoreGitOpsResponse, error) {
+func (impl *EAModeDeploymentServiceImpl) GenerateManifestAndPerformGitOperations(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) (*bean.AppStoreGitOpsResponse, error) {
 	return nil, errors.New("this is not implemented")
 }
 
-func (impl *EAModeDeploymentServiceImpl) GenerateManifest(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (manifestResponse *bean.AppStoreManifestResponse, err error) {
+func (impl *EAModeDeploymentServiceImpl) GenerateManifest(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) (manifestResponse *bean.AppStoreManifestResponse, err error) {
 	return nil, errors.New("this is not implemented")
 }
 
@@ -444,4 +444,8 @@ func (impl *EAModeDeploymentServiceImpl) DeleteACD(acdAppName string, ctx contex
 
 func (impl *EAModeDeploymentServiceImpl) GetAcdAppGitOpsRepoURL(appName string, environmentName string) (string, error) {
 	return "", errors.New("this is not implemented")
+}
+
+func (impl *EAModeDeploymentServiceImpl) CreateArgoRepoSecretIfNeeded(appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error {
+	return errors.New("this is not implemented")
 }

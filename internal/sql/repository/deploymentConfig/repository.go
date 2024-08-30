@@ -29,6 +29,7 @@ type DeploymentConfig struct {
 	ConfigType        string   `sql:"config_type"`
 	RepoUrl           string   `sql:"repo_url"`
 	RepoName          string   `sql:"repo_name"`
+	ReleaseMode       string   `json:"release_mode"`
 	Active            bool     `sql:"active,notnull"`
 	sql.AuditLog
 }
@@ -134,17 +135,15 @@ func (impl *RepositoryImpl) GetAppLevelConfigByAppIds(appIds []int) ([]*Deployme
 func (impl *RepositoryImpl) GetAppAndEnvLevelConfigsInBulk(appIdToEnvIdsMap map[int][]int) ([]*DeploymentConfig, error) {
 	var result []*DeploymentConfig
 	err := impl.dbConnection.Model(&result).
-		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+		WhereOrGroup(func(query *orm.Query) (*orm.Query, error) {
 			for appId, envIds := range appIdToEnvIdsMap {
 				if len(envIds) == 0 {
 					continue
 				}
-				query = query.WhereOr(" app_id = ? and environment_id in (?) and active=true ", appId, pg.In(envIds))
+				query = query.Where("app_id = ?", appId).Where("environment_id in (?)", pg.In((envIds))).Where("active = ?", true)
 			}
 			return query, nil
-		}).
-		Where("active = ?", true).
-		Select()
+		}).Select()
 	return result, err
 }
 

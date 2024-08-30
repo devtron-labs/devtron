@@ -44,9 +44,9 @@ type InstalledAppGitOpsService interface {
 	// If appStoreBean.InstallAppVersionDTO has GitOpsRepoURL -> EMPTY string; then it will auto create repository and update into appStoreBean.InstallAppVersionDTO
 	GitOpsOperations(manifestResponse *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*bean.AppStoreGitOpsResponse, error)
 	// GenerateManifest returns bean.AppStoreManifestResponse required in GitOps
-	GenerateManifest(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (manifestResponse *bean.AppStoreManifestResponse, err error)
+	GenerateManifest(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) (manifestResponse *bean.AppStoreManifestResponse, err error)
 	// GenerateManifestAndPerformGitOperations is a wrapper function for both GenerateManifest and GitOpsOperations
-	GenerateManifestAndPerformGitOperations(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*bean.AppStoreGitOpsResponse, error)
+	GenerateManifestAndPerformGitOperations(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) (*bean.AppStoreGitOpsResponse, error)
 	// UpdateAppGitOpsOperations internally uses
 	// GitOpsOperations (If Repo is deleted OR Repo migration is required) OR
 	// git.GitOperationService.CommitValues (If repo exists and Repo migration is not needed)
@@ -54,6 +54,7 @@ type InstalledAppGitOpsService interface {
 	UpdateAppGitOpsOperations(manifest *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, monoRepoMigrationRequired bool, commitRequirements bool) (*bean.AppStoreGitOpsResponse, error)
 	ValidateCustomGitRepoURL(request validationBean.ValidateCustomGitRepoURLRequest) (string, bool, error)
 	GetGitRepoUrl(gitOpsRepoName string) (string, error)
+	CreateArgoRepoSecretIfNeeded(appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
 }
 
 // GitOpsOperations handles all git operations for Helm App; and ensures that the return param bean.AppStoreGitOpsResponse is not nil
@@ -69,7 +70,7 @@ func (impl *FullModeDeploymentServiceImpl) GitOpsOperations(manifestResponse *be
 	return appStoreGitOpsResponse, nil
 }
 
-func (impl *FullModeDeploymentServiceImpl) GenerateManifest(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (manifestResponse *bean.AppStoreManifestResponse, err error) {
+func (impl *FullModeDeploymentServiceImpl) GenerateManifest(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) (manifestResponse *bean.AppStoreManifestResponse, err error) {
 
 	manifestResponse = &bean.AppStoreManifestResponse{}
 
@@ -80,7 +81,7 @@ func (impl *FullModeDeploymentServiceImpl) GenerateManifest(installAppVersionReq
 	}
 	// valuesConfig and dependencyConfig's ChartConfig object contains ChartRepoName which is extracted from gitOpsRepoUrl
 	// that resides in the db and not from the current orchestrator cm prefix and appName.
-	valuesConfig, dependencyConfig, err := impl.getValuesAndRequirementForGitConfig(installAppVersionRequest)
+	valuesConfig, dependencyConfig, err := impl.getValuesAndRequirementForGitConfig(installAppVersionRequest, appStoreApplicationVersion)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching values and requirements.yaml config while generating manifest", "err", err)
 		return manifestResponse, err
@@ -93,9 +94,9 @@ func (impl *FullModeDeploymentServiceImpl) GenerateManifest(installAppVersionReq
 	return manifestResponse, nil
 }
 
-func (impl *FullModeDeploymentServiceImpl) GenerateManifestAndPerformGitOperations(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*bean.AppStoreGitOpsResponse, error) {
+func (impl *FullModeDeploymentServiceImpl) GenerateManifestAndPerformGitOperations(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) (*bean.AppStoreGitOpsResponse, error) {
 	appStoreGitOpsResponse := &bean.AppStoreGitOpsResponse{}
-	manifest, err := impl.GenerateManifest(installAppVersionRequest)
+	manifest, err := impl.GenerateManifest(installAppVersionRequest, appStoreApplicationVersion)
 	if err != nil {
 		impl.Logger.Errorw("error in performing manifest and git operations", "err", err)
 		return nil, err
@@ -261,7 +262,7 @@ func (impl *FullModeDeploymentServiceImpl) updateValuesYamlInGit(installAppVersi
 }
 
 func (impl *FullModeDeploymentServiceImpl) updateRequirementYamlInGit(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error {
-	requirementsString, err := impl.appStoreDeploymentCommonService.GetRequirementsString(appStoreAppVersion.Id)
+	requirementsString, err := impl.appStoreDeploymentCommonService.GetRequirementsString(appStoreAppVersion)
 	if err != nil {
 		impl.Logger.Errorw("error in getting requirements string", "err", err)
 		return err
@@ -350,18 +351,23 @@ func (impl *FullModeDeploymentServiceImpl) getGitCommitConfig(installAppVersionR
 }
 
 // getValuesAndRequirementForGitConfig will return chart values(*util.ChartConfig) and requirements(*util.ChartConfig) for git commit
-func (impl *FullModeDeploymentServiceImpl) getValuesAndRequirementForGitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*git.ChartConfig, *git.ChartConfig, error) {
-	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
-	if err != nil {
-		impl.Logger.Errorw("fetching error", "err", err)
-		return nil, nil, err
+func (impl *FullModeDeploymentServiceImpl) getValuesAndRequirementForGitConfig(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) (*git.ChartConfig, *git.ChartConfig, error) {
+
+	var err error
+	if appStoreAppVersion == nil {
+		appStoreAppVersion, err = impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
+		if err != nil {
+			impl.Logger.Errorw("fetching error", "err", err)
+			return nil, nil, err
+		}
+
 	}
 	values, err := impl.appStoreDeploymentCommonService.GetValuesString(appStoreAppVersion.AppStore.Name, installAppVersionRequest.ValuesOverrideYaml)
 	if err != nil {
 		impl.Logger.Errorw("error in getting values fot installedAppVersionRequest", "err", err)
 		return nil, nil, err
 	}
-	dependency, err := impl.appStoreDeploymentCommonService.GetRequirementsString(installAppVersionRequest.AppStoreVersion)
+	dependency, err := impl.appStoreDeploymentCommonService.GetRequirementsString(appStoreAppVersion)
 	if err != nil {
 		impl.Logger.Errorw("error in getting dependency array fot installedAppVersionRequest", "err", err)
 		return nil, nil, err
@@ -385,4 +391,31 @@ func (impl *FullModeDeploymentServiceImpl) ValidateCustomGitRepoURL(request vali
 
 func (impl *FullModeDeploymentServiceImpl) GetGitRepoUrl(gitOpsRepoName string) (string, error) {
 	return impl.gitOperationService.GetRepoUrlByRepoName(gitOpsRepoName)
+}
+
+func (impl *FullModeDeploymentServiceImpl) CreateArgoRepoSecretIfNeeded(appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error {
+
+	var err error
+
+	if len(appStoreApplicationVersion.AppStore.DockerArtifactStoreId) == 0 {
+		//only create repository secret for oci registry chart
+		return nil
+	}
+
+	appStore := appStoreApplicationVersion.AppStore
+	dockerArtifactStore := appStoreApplicationVersion.AppStore.DockerArtifactStore
+
+	err = impl.RepositorySecretService.CreateArgoRepositorySecret(
+		dockerArtifactStore.Username,
+		dockerArtifactStore.Password,
+		dockerArtifactStore.OCIRegistryConfig[0].Id,
+		dockerArtifactStore.RegistryURL,
+		appStore.Name,
+		dockerArtifactStore.OCIRegistryConfig[0].IsPublic,
+	)
+	if err != nil {
+		impl.Logger.Errorw("error in creating repository secret", "dockerArtifactStoreId", dockerArtifactStore.Id, "err", err)
+		return err
+	}
+	return nil
 }

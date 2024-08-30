@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/retryFunc"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
@@ -39,6 +40,12 @@ type GitAzureClient struct {
 }
 
 func (impl GitAzureClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, err error) {
+
+	start := time.Now()
+	defer func() {
+		globalUtil.TriggerGitOpsMetrics("GetRepoUrl", "GitAzureClient", start, err)
+	}()
+
 	url, exists, err := impl.repoExists(config.GitRepoName, impl.project)
 	if err != nil {
 		return "", err
@@ -67,7 +74,12 @@ func NewGitAzureClient(token string, host string, project string, logger *zap.Su
 	}, err
 }
 
-func (impl GitAzureClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
+func (impl GitAzureClient) DeleteRepository(config *bean2.GitOpsConfigDto) (err error) {
+	start := time.Now()
+	defer func() {
+		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitAzureClient", start, err)
+	}()
+
 	clientAzure := *impl.client
 	gitRepository, err := clientAzure.GetRepository(context.Background(), git.GetRepositoryArgs{
 		RepositoryId: &config.GitRepoName,
@@ -85,6 +97,12 @@ func (impl GitAzureClient) DeleteRepository(config *bean2.GitOpsConfigDto) error
 }
 
 func (impl GitAzureClient) CreateRepository(ctx context.Context, config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+	var err error
+	start := time.Now()
+	defer func() {
+		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitAzureClient", start, err)
+	}()
+
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	url, repoExists, err := impl.repoExists(config.GitRepoName, impl.project)
 	if err != nil {
@@ -152,6 +170,13 @@ func (impl GitAzureClient) CreateRepository(ctx context.Context, config *bean2.G
 }
 
 func (impl GitAzureClient) CreateReadme(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
+
+	var err error
+	start := time.Now()
+	defer func() {
+		globalUtil.TriggerGitOpsMetrics("CreateReadme", "GitAzureClient", start, err)
+	}()
+
 	cfg := &ChartConfig{
 		ChartName:      config.GitRepoName,
 		ChartLocation:  "",
@@ -272,6 +297,12 @@ func (impl GitAzureClient) CommitValues(ctx context.Context, config *ChartConfig
 }
 
 func (impl GitAzureClient) repoExists(repoName, projectName string) (repoUrl string, exists bool, err error) {
+
+	start := time.Now()
+	defer func() {
+		globalUtil.TriggerGitOpsMetrics("repoExists", "GitAzureClient", start, err)
+	}()
+
 	ctx := context.Background()
 	// Get first page of the list of team projects for your organization
 	clientAzure := *impl.client
@@ -295,6 +326,12 @@ func (impl GitAzureClient) repoExists(repoName, projectName string) (repoUrl str
 }
 
 func (impl GitAzureClient) ensureProjectAvailabilityOnHttp(repoName string) (bool, error) {
+	var err error
+	start := time.Now()
+	defer func() {
+		globalUtil.TriggerGitOpsMetrics("ensureProjectAvailabilityOnHttp", "GitAzureClient", start, err)
+	}()
+
 	for count := 0; count < 5; count++ {
 		_, exists, err := impl.repoExists(repoName, impl.project)
 		if err == nil && exists {
