@@ -146,19 +146,19 @@ func (impl EnforcerUtilHelmImpl) getAppObject(clusterId int, namespace string, a
 }
 
 func (impl EnforcerUtilHelmImpl) getInstalledApp(clusterId int, namespace string, appName string) (*repository2.InstalledApps, error) {
-	//TODO optimize it in single query
 	appIdentifier := &bean.AppIdentifier{
 		ClusterId:   clusterId,
 		Namespace:   namespace,
 		ReleaseName: appName,
 	}
 	appNameIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
-	installedApp, installedAppErr := impl.InstalledAppRepository.GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId, namespace, appNameIdentifier)
-	if installedApp == nil || installedAppErr == pg.ErrNoRows {
-		impl.logger.Warnw("installed app not found, going to find app using display name ", "appIdentifier", appNameIdentifier, "appName", appName)
-		installedApp, installedAppErr = impl.InstalledAppRepository.GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId, namespace, appName)
-	}
-	return installedApp, installedAppErr
+	//installedApp, installedAppErr := impl.InstalledAppRepository.GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId, namespace, appNameIdentifier)
+	//if installedApp == nil || installedAppErr == pg.ErrNoRows {
+	//	impl.logger.Warnw("installed app not found, going to find app using display name ", "appIdentifier", appNameIdentifier, "appName", appName)
+	//	installedApp, installedAppErr = impl.InstalledAppRepository.GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId, namespace, appName)
+	//}
+	return impl.InstalledAppRepository.GetInstalledApplicationByClusterIdAndNamespaceAndAppIdentifier(clusterId, namespace, appNameIdentifier, appName)
+	//return installedApp, installedAppErr
 }
 
 func (impl EnforcerUtilHelmImpl) GetAppRBACNameByInstalledAppId(installedAppVersionId int) (string, string) {
