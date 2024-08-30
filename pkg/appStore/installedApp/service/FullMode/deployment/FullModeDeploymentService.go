@@ -25,6 +25,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
+	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
@@ -102,6 +103,7 @@ type FullModeDeploymentServiceImpl struct {
 	environmentRepository                repository5.EnvironmentRepository
 	deploymentConfigService              common.DeploymentConfigService
 	chartTemplateService                 util.ChartTemplateService
+	RepositorySecretService              argoRepositoryCreds.RepositorySecret
 }
 
 func NewFullModeDeploymentServiceImpl(
@@ -127,7 +129,8 @@ func NewFullModeDeploymentServiceImpl(
 	gitOpsValidationService validation.GitOpsValidationService,
 	environmentRepository repository5.EnvironmentRepository,
 	deploymentConfigService common.DeploymentConfigService,
-	chartTemplateService util.ChartTemplateService) *FullModeDeploymentServiceImpl {
+	chartTemplateService util.ChartTemplateService,
+	RepositorySecretService argoRepositoryCreds.RepositorySecret) *FullModeDeploymentServiceImpl {
 	return &FullModeDeploymentServiceImpl{
 		Logger:                               logger,
 		acdClient:                            acdClient,
@@ -152,6 +155,7 @@ func NewFullModeDeploymentServiceImpl(
 		environmentRepository:                environmentRepository,
 		deploymentConfigService:              deploymentConfigService,
 		chartTemplateService:                 chartTemplateService,
+		RepositorySecretService:              RepositorySecretService,
 	}
 }
 

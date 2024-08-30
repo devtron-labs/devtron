@@ -33,7 +33,9 @@ import (
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
+	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
+	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -133,6 +135,8 @@ type CiPipelineConfigServiceImpl struct {
 	customTagService              CustomTagService
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
 	buildPipelineSwitchService    BuildPipelineSwitchService
+	pipelineStageRepository       repository.PipelineStageRepository
+	globalPluginRepository        repository2.GlobalPluginRepository
 }
 
 func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
@@ -157,8 +161,8 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 	customTagService CustomTagService,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	buildPipelineSwitchService BuildPipelineSwitchService,
-) *CiPipelineConfigServiceImpl {
-
+	pipelineStageRepository repository.PipelineStageRepository,
+	globalPluginRepository repository2.GlobalPluginRepository) *CiPipelineConfigServiceImpl {
 	securityConfig := &SecurityConfig{}
 	err := env.Parse(securityConfig)
 	if err != nil {
@@ -188,6 +192,8 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 		customTagService:              customTagService,
 		cdWorkflowRepository:          cdWorkflowRepository,
 		buildPipelineSwitchService:    buildPipelineSwitchService,
+		pipelineStageRepository:       pipelineStageRepository,
+		globalPluginRepository:        globalPluginRepository,
 	}
 }
 
@@ -278,6 +284,16 @@ func (impl *CiPipelineConfigServiceImpl) patchCiPipelineUpdateSource(baseCiConfi
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipeline", "id", modifiedCiPipeline.Id, "err", err)
 		return nil, err
+	}
+	// updating PipelineType from db if not present in request
+	if modifiedCiPipeline.PipelineType == "" {
+		if CiPipeline.PipelineType(pipeline.PipelineType) != "" {
+			modifiedCiPipeline.PipelineType = CiPipeline.PipelineType(pipeline.PipelineType)
+		} else {
+			// updating default pipelineType if not present in request
+			modifiedCiPipeline.PipelineType = CiPipeline.DefaultPipelineType
+
+		}
 	}
 	if !modifiedCiPipeline.PipelineType.IsValidPipelineType() {
 		impl.logger.Debugw(" Invalid PipelineType", "PipelineType", modifiedCiPipeline.PipelineType)

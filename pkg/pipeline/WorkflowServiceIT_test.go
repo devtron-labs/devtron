@@ -18,7 +18,6 @@ package pipeline
 
 import (
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
-	"github.com/devtron-labs/authenticator/client"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -68,7 +67,7 @@ func getWorkflowServiceImpl(t *testing.T) *WorkflowServiceImpl {
 	newCommonServiceImpl := commonService.NewCommonServiceImpl(logger, newChartRepository, nil, newEnvConfigOverrideRepository, nil, nil, nil, nil, nil, nil, nil)
 	mergeUtil := util.MergeUtil{Logger: logger}
 	appService := app.NewAppService(nil, nil, &mergeUtil, logger, nil, nil, nil, nil, nil, newConfigMapRepositoryImpl, nil, nil, newCommonServiceImpl, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	runTimeConfig, _ := client.GetRuntimeConfig()
+	runTimeConfig, _ := k8s.GetRuntimeConfig()
 	k8sUtil := k8s.NewK8sUtil(logger, runTimeConfig)
 	clusterRepositoryImpl := repository3.NewClusterRepositoryImpl(dbConnection, logger)
 	v := informer.NewGlobalMapClusterNamespace()

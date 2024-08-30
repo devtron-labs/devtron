@@ -67,7 +67,8 @@ type ChartService interface {
 
 	ConfigureGitOpsRepoUrlForApp(appId int, repoUrl, chartLocation string, isCustomRepo bool, userId int32) (*bean2.DeploymentConfig, error)
 
-	IsGitOpsRepoConfiguredForDevtronApps(appId int) (bool, error)
+	IsGitOpsRepoConfiguredForDevtronApp(appId int) (bool, error)
+	IsGitOpsRepoConfiguredForDevtronApps(appIds []int) (map[int]bool, error)
 	IsGitOpsRepoAlreadyRegistered(gitOpsRepoUrl string) (bool, error)
 }
 
@@ -542,7 +543,7 @@ func (impl *ChartServiceImpl) getNewVersion(chartRepo, chartName, refChartLocati
 	return placeholders[0] + "." + placeholders[1] + "." + strconv.FormatInt(count, 10), nil
 }
 
-func (impl *ChartServiceImpl) IsGitOpsRepoConfiguredForDevtronApps(appId int) (bool, error) {
+func (impl *ChartServiceImpl) IsGitOpsRepoConfiguredForDevtronApp(appId int) (bool, error) {
 	gitOpsConfigStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil {
 		impl.logger.Errorw("error in fetching latest chart for app by appId")
@@ -558,6 +559,30 @@ func (impl *ChartServiceImpl) IsGitOpsRepoConfiguredForDevtronApps(appId int) (b
 		return false, err
 	}
 	return !apiGitOpsBean.IsGitOpsRepoNotConfigured(latestChartConfiguredInApp.GitRepoUrl), nil
+}
+
+func (impl *ChartServiceImpl) IsGitOpsRepoConfiguredForDevtronApps(appIds []int) (map[int]bool, error) {
+	gitOpsConfigStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
+	if err != nil {
+		impl.logger.Errorw("error in fetching latest chart for app by appId")
+		return nil, err
+	}
+	appIdRepoConfiguredMap := make(map[int]bool, len(appIds))
+	for _, appId := range appIds {
+		if !gitOpsConfigStatus.IsGitOpsConfigured {
+			appIdRepoConfiguredMap[appId] = false
+		} else if !gitOpsConfigStatus.AllowCustomRepository {
+			appIdRepoConfiguredMap[appId] = true
+		} else {
+			latestChartConfiguredInApp, err := impl.FindLatestChartForAppByAppId(appId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching latest chart for app by appId")
+				return nil, err
+			}
+			appIdRepoConfiguredMap[appId] = !apiGitOpsBean.IsGitOpsRepoNotConfigured(latestChartConfiguredInApp.GitRepoUrl)
+		}
+	}
+	return appIdRepoConfiguredMap, nil
 }
 
 func (impl *ChartServiceImpl) FindLatestChartForAppByAppId(appId int) (chartTemplate *TemplateRequest, err error) {

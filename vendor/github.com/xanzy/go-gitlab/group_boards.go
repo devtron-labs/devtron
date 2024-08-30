@@ -35,11 +35,12 @@ type GroupIssueBoardsService struct {
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/group_boards.html
 type GroupIssueBoard struct {
-	ID        int          `json:"id"`
-	Name      string       `json:"name"`
-	Group     *Group       `json:"group"`
-	Milestone *Milestone   `json:"milestone"`
-	Lists     []*BoardList `json:"lists"`
+	ID        int           `json:"id"`
+	Name      string        `json:"name"`
+	Group     *Group        `json:"group"`
+	Milestone *Milestone    `json:"milestone"`
+	Labels    []*GroupLabel `json:"labels"`
+	Lists     []*BoardList  `json:"lists"`
 }
 
 func (b GroupIssueBoard) String() string {
@@ -142,11 +143,11 @@ func (s *GroupIssueBoardsService) GetGroupIssueBoard(gid interface{}, board int,
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/group_boards.html#update-a-group-issue-board
 type UpdateGroupIssueBoardOptions struct {
-	Name        *string `url:"name,omitempty" json:"name,omitempty"`
-	AssigneeID  *int    `url:"assignee_id,omitempty" json:"assignee_id,omitempty"`
-	MilestoneID *int    `url:"milestone_id,omitempty" json:"milestone_id,omitempty"`
-	Labels      *Labels `url:"labels,omitempty" json:"labels,omitempty"`
-	Weight      *int    `url:"weight,omitempty" json:"weight,omitempty"`
+	Name        *string       `url:"name,omitempty" json:"name,omitempty"`
+	AssigneeID  *int          `url:"assignee_id,omitempty" json:"assignee_id,omitempty"`
+	MilestoneID *int          `url:"milestone_id,omitempty" json:"milestone_id,omitempty"`
+	Labels      *LabelOptions `url:"labels,omitempty" json:"labels,omitempty"`
+	Weight      *int          `url:"weight,omitempty" json:"weight,omitempty"`
 }
 
 // UpdateIssueBoard updates a single issue board of a group.
