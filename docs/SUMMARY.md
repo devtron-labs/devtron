@@ -142,6 +142,7 @@
     * [Dependency track - NodeJS](user-guide/plugins/dependency-track-nodejs.md)
     * [Dependency track - Python](user-guide/plugins/dependency-track-python.md)
     * [Devtron CD Trigger](user-guide/plugins/devtron-cd-trigger.md)
+    * [DockerSlim](user-guide/plugins/docker-slim.md)
     * [GoLang-migrate](user-guide/plugins/golang-migrate.md)
     * [Jenkins](user-guide/plugins/jenkins.md)
     * [K6 Load Testing](user-guide/plugins/k6-load-testing.md)
