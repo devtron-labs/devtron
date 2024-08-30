@@ -22,6 +22,7 @@ import (
 
 type ArgoApplicationReadService interface {
 	GetRestConfigForExternalArgo(ctx context.Context, clusterId int, externalArgoApplicationName string) (*rest.Config, error)
+	GetClusterConfigFromAllClusters(clusterId int) (*k8s.ClusterConfig, clusterRepository.Cluster, map[string]int, error)
 	ValidateArgoResourceRequest(ctx context.Context, appIdentifier *bean.ArgoAppIdentifier, request *k8s.K8sRequestBean) (bool, error)
 	GetAppDetail(resourceName, resourceNamespace string, clusterId int) (*bean.ArgoApplicationDetailDto, error)
 }
