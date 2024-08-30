@@ -37,14 +37,11 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/rest"
 )
 
 type ArgoApplicationService interface {
 	ListApplications(clusterIds []int) ([]*bean.ArgoApplicationListDto, error)
 	GetAppDetail(resourceName, resourceNamespace string, clusterId int) (*bean.ArgoApplicationDetailDto, error)
-	GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp *k8s.ManifestResponse, restConfig *rest.Config,
-		clusterWithApplicationObject clusterRepository.Cluster, clusterServerUrlIdMap map[string]int) (*rest.Config, error)
 	GetClusterConfigFromAllClusters(clusterId int) (*k8s.ClusterConfig, clusterRepository.Cluster, map[string]int, error)
 	HibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	UnHibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
@@ -336,60 +333,6 @@ func getHealthSyncStatusDestinationServerAndManagedResourcesForArgoK8sRawObject(
 		}
 	}
 	return healthStatus, syncStatus, destinationServer, argoManagedResources
-}
-
-func (impl *ArgoApplicationServiceImpl) GetServerConfigIfClusterIsNotAddedOnDevtron(resourceResp *k8s.ManifestResponse, restConfig *rest.Config,
-	clusterWithApplicationObject clusterRepository.Cluster, clusterServerUrlIdMap map[string]int) (*rest.Config, error) {
-	var destinationServer string
-	if resourceResp != nil && resourceResp.Manifest.Object != nil {
-		_, _, destinationServer, _ =
-			getHealthSyncStatusDestinationServerAndManagedResourcesForArgoK8sRawObject(resourceResp.Manifest.Object)
-	}
-	appDeployedOnClusterId := 0
-	if destinationServer == k8s.DefaultClusterUrl {
-		appDeployedOnClusterId = clusterWithApplicationObject.Id
-	} else if clusterIdFromMap, ok := clusterServerUrlIdMap[destinationServer]; ok {
-		appDeployedOnClusterId = clusterIdFromMap
-	}
-	var configOfClusterWhereAppIsDeployed *bean.ArgoClusterConfigObj
-	if appDeployedOnClusterId < 1 {
-		// cluster is not added on devtron, need to get server config from secret which argo-cd saved
-		coreV1Client, err := impl.k8sUtil.GetCoreV1ClientByRestConfig(restConfig)
-		secrets, err := coreV1Client.Secrets(bean.AllNamespaces).List(context.Background(), v1.ListOptions{
-			LabelSelector: labels.SelectorFromSet(labels.Set{"argocd.argoproj.io/secret-type": "cluster"}).String(),
-		})
-		if err != nil {
-			impl.logger.Errorw("error in getting resource list, secrets", "err", err)
-			return nil, err
-		}
-		for _, secret := range secrets.Items {
-			if secret.Data != nil {
-				if val, ok := secret.Data[bean.Server]; ok {
-					if string(val) == destinationServer {
-						if config, ok := secret.Data[bean.Config]; ok {
-							err = json.Unmarshal(config, &configOfClusterWhereAppIsDeployed)
-							if err != nil {
-								impl.logger.Errorw("error in unmarshaling", "err", err)
-								return nil, err
-							}
-							break
-						}
-					}
-				}
-			}
-		}
-		if configOfClusterWhereAppIsDeployed != nil {
-			restConfig.Host = destinationServer
-			restConfig.TLSClientConfig = rest.TLSClientConfig{
-				Insecure: configOfClusterWhereAppIsDeployed.TlsClientConfig.Insecure,
-				KeyFile:  configOfClusterWhereAppIsDeployed.TlsClientConfig.KeyData,
-				CAFile:   configOfClusterWhereAppIsDeployed.TlsClientConfig.CaData,
-				CertFile: configOfClusterWhereAppIsDeployed.TlsClientConfig.CertData,
-			}
-			restConfig.BearerToken = configOfClusterWhereAppIsDeployed.BearerToken
-		}
-	}
-	return restConfig, nil
 }
 
 func (impl *ArgoApplicationServiceImpl) GetClusterConfigFromAllClusters(clusterId int) (*k8s.ClusterConfig, clusterRepository.Cluster, map[string]int, error) {
