@@ -305,10 +305,10 @@ func (impl *ArgoApplicationReadServiceImpl) ValidateArgoResourceRequest(ctx cont
 	appDetail := &gRPC.AppDetail{
 		ResourceTreeResponse: app.ResourceTree,
 	}
-	return impl.validateContainerNameIfReqd(valid, request, appDetail), nil
+	return validateContainerNameIfReqd(valid, request, appDetail), nil
 }
 
-func (impl *ArgoApplicationReadServiceImpl) validateContainerNameIfReqd(valid bool, request *k8s.K8sRequestBean, app *gRPC.AppDetail) bool {
+func validateContainerNameIfReqd(valid bool, request *k8s.K8sRequestBean, app *gRPC.AppDetail) bool {
 	if !valid {
 		requestContainerName := request.PodLogsRequest.ContainerName
 		podName := request.ResourceIdentifier.Name
