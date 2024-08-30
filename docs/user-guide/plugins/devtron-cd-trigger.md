@@ -41,7 +41,7 @@ e.g., `The Devtron CD Trigger plugin is integrated for triggering the CD stage o
 
 | Variable                 | Format       | Description | Sample Value |
 | ------------------------ | ------------ | ----------- | ------------ |
-|   DevtronApiToken        | STRING       | Enter target Devtron API token. |  abc123xyz456token789            |
+|   DevtronApiToken        | STRING       | Enter target Devtron API token. |  abc123DEFxyz456token789            |
 |   DevtronEndpoint        | STRING       | Enter the target URL of Devtron.     | https://devtron.example.com            |
 |   DevtronApp             | STRING       | Enter the target Devtron Application name/ID | plugin-demo |
 |   DevtronEnv             | STRING       | Enter the target Environment name/ID. Required if JobPipeline is not given |  preview         |
