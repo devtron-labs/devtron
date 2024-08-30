@@ -20,6 +20,7 @@ import (
 	"errors"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/read"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"go.uber.org/zap"
 	"net/http"
@@ -34,14 +35,16 @@ type ArgoApplicationRestHandler interface {
 
 type ArgoApplicationRestHandlerImpl struct {
 	argoApplicationService argoApplication.ArgoApplicationService
+	readService            read.ArgoApplicationReadService
 	logger                 *zap.SugaredLogger
 	enforcer               casbin.Enforcer
 }
 
 func NewArgoApplicationRestHandlerImpl(argoApplicationService argoApplication.ArgoApplicationService,
-	logger *zap.SugaredLogger, enforcer casbin.Enforcer) *ArgoApplicationRestHandlerImpl {
+	readService read.ArgoApplicationReadService, logger *zap.SugaredLogger, enforcer casbin.Enforcer) *ArgoApplicationRestHandlerImpl {
 	return &ArgoApplicationRestHandlerImpl{
 		argoApplicationService: argoApplicationService,
+		readService:            readService,
 		logger:                 logger,
 		enforcer:               enforcer,
 	}
@@ -101,7 +104,7 @@ func (handler *ArgoApplicationRestHandlerImpl) GetApplicationDetail(w http.Respo
 			return
 		}
 	}
-	resp, err := handler.argoApplicationService.GetAppDetail(resourceName, namespace, clusterId)
+	resp, err := handler.readService.GetAppDetail(resourceName, namespace, clusterId)
 	if err != nil {
 		handler.logger.Errorw("error in listing all argo applications", "err", err, "resourceName", resourceName, "clusterId", clusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
