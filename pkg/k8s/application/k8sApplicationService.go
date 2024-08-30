@@ -757,15 +757,6 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		impl.logger.Errorw("error on parsing for k8s resource", "err", err)
 		return resourceList, err
 	}
-	// Not used in FE side
-
-	//k8sServerVersion, err := impl.k8sCommonService.GetK8sServerVersion(clusterId)
-	//if err != nil {
-	//	impl.logger.Errorw("error in getting k8s server version", "clusterId", clusterId, "err", err)
-	//	// return nil, err
-	//} else {
-	//	resourceList.ServerVersion = k8sServerVersion.String()
-	//}
 	return resourceList, nil
 }
 
