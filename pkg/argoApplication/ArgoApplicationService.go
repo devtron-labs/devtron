@@ -130,37 +130,6 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 	return appListFinal, nil
 }
 
-func (impl *ArgoApplicationServiceImpl) getResourceTreeForExternalCluster(clusterId int, destinationServer string,
-	configOfClusterWhereAppIsDeployed bean.ArgoClusterConfigObj, argoManagedResources []*bean.ArgoManagedResource) (*gRPC.ResourceTreeResponse, error) {
-	var resources []*gRPC.ExternalResourceDetail
-	for _, argoManagedResource := range argoManagedResources {
-		resources = append(resources, &gRPC.ExternalResourceDetail{
-			Group:     argoManagedResource.Group,
-			Kind:      argoManagedResource.Kind,
-			Version:   argoManagedResource.Version,
-			Name:      argoManagedResource.Name,
-			Namespace: argoManagedResource.Namespace,
-		})
-	}
-	var clusterConfigOfClusterWhereAppIsDeployed *gRPC.ClusterConfig
-	if len(configOfClusterWhereAppIsDeployed.BearerToken) > 0 {
-		clusterConfigOfClusterWhereAppIsDeployed = &gRPC.ClusterConfig{
-			ApiServerUrl:          destinationServer,
-			Token:                 configOfClusterWhereAppIsDeployed.BearerToken,
-			InsecureSkipTLSVerify: configOfClusterWhereAppIsDeployed.TlsClientConfig.Insecure,
-			KeyData:               configOfClusterWhereAppIsDeployed.TlsClientConfig.KeyData,
-			CaData:                configOfClusterWhereAppIsDeployed.TlsClientConfig.CaData,
-			CertData:              configOfClusterWhereAppIsDeployed.TlsClientConfig.CertData,
-		}
-	}
-	resourceTreeResp, err := impl.helmAppService.GetResourceTreeForExternalResources(context.Background(), clusterId, clusterConfigOfClusterWhereAppIsDeployed, resources)
-	if err != nil {
-		impl.logger.Errorw("error in getting resource tree for external resources", "err", err)
-		return nil, err
-	}
-	return resourceTreeResp, nil
-}
-
 func getApplicationListDtos(resp *k8s.ClusterResourceListMap, clusterName string, clusterId int) []*bean.ArgoApplicationListDto {
 	appLists := make([]*bean.ArgoApplicationListDto, 0)
 	if resp != nil {
