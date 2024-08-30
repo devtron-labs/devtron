@@ -18,8 +18,6 @@ package argoApplication
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
@@ -35,13 +33,10 @@ import (
 	"github.com/devtron-labs/devtron/util/argo"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 )
 
 type ArgoApplicationService interface {
 	ListApplications(clusterIds []int) ([]*bean.ArgoApplicationListDto, error)
-	GetAppDetail(resourceName, resourceNamespace string, clusterId int) (*bean.ArgoApplicationDetailDto, error)
 	HibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	UnHibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 }
@@ -133,97 +128,6 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 		appListFinal = append(appListFinal, appLists...)
 	}
 	return appListFinal, nil
-}
-
-func (impl *ArgoApplicationServiceImpl) GetAppDetail(resourceName, resourceNamespace string, clusterId int) (*bean.ArgoApplicationDetailDto, error) {
-	appDetail := &bean.ArgoApplicationDetailDto{
-		ArgoApplicationListDto: &bean.ArgoApplicationListDto{
-			Name:      resourceName,
-			Namespace: resourceNamespace,
-			ClusterId: clusterId,
-		},
-	}
-	clusters, err := impl.clusterRepository.FindAllActive()
-	if err != nil {
-		impl.logger.Errorw("error in getting all active clusters", "err", err)
-		return nil, err
-	}
-	var clusterWithApplicationObject clusterRepository.Cluster
-	clusterServerUrlIdMap := make(map[string]int, len(clusters))
-	for _, cluster := range clusters {
-		if cluster.Id == clusterId {
-			clusterWithApplicationObject = cluster
-		}
-		clusterServerUrlIdMap[cluster.ServerUrl] = cluster.Id
-	}
-	if clusterWithApplicationObject.Id > 0 {
-		appDetail.ClusterName = clusterWithApplicationObject.ClusterName
-	}
-	if clusterWithApplicationObject.IsVirtualCluster {
-		return appDetail, nil
-	} else if len(clusterWithApplicationObject.ErrorInConnecting) != 0 {
-		return nil, fmt.Errorf("error in connecting to cluster")
-	}
-	clusterBean := cluster2.GetClusterBean(clusterWithApplicationObject)
-	clusterConfig := clusterBean.GetClusterConfig()
-	restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
-	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterWithApplicationObject.Id)
-		return nil, err
-	}
-	resp, err := impl.k8sUtil.GetResource(context.Background(), resourceNamespace, resourceName, bean.GvkForArgoApplication, restConfig)
-	if err != nil {
-		impl.logger.Errorw("error in getting resource list", "err", err)
-		return nil, err
-	}
-	var destinationServer string
-	var argoManagedResources []*bean.ArgoManagedResource
-	if resp != nil && resp.Manifest.Object != nil {
-		appDetail.Manifest = resp.Manifest.Object
-		appDetail.HealthStatus, appDetail.SyncStatus, destinationServer, argoManagedResources =
-			getHealthSyncStatusDestinationServerAndManagedResourcesForArgoK8sRawObject(resp.Manifest.Object)
-	}
-	appDeployedOnClusterId := 0
-	if destinationServer == k8s.DefaultClusterUrl {
-		appDeployedOnClusterId = clusterWithApplicationObject.Id
-	} else if clusterIdFromMap, ok := clusterServerUrlIdMap[destinationServer]; ok {
-		appDeployedOnClusterId = clusterIdFromMap
-	}
-	var configOfClusterWhereAppIsDeployed bean.ArgoClusterConfigObj
-	if appDeployedOnClusterId < 1 {
-		// cluster is not added on devtron, need to get server config from secret which argo-cd saved
-		coreV1Client, err := impl.k8sUtil.GetCoreV1ClientByRestConfig(restConfig)
-		secrets, err := coreV1Client.Secrets(bean.AllNamespaces).List(context.Background(), v1.ListOptions{
-			LabelSelector: labels.SelectorFromSet(labels.Set{"argocd.argoproj.io/secret-type": "cluster"}).String(),
-		})
-		if err != nil {
-			impl.logger.Errorw("error in getting resource list, secrets", "err", err)
-			return nil, err
-		}
-		for _, secret := range secrets.Items {
-			if secret.Data != nil {
-				if val, ok := secret.Data["server"]; ok {
-					if string(val) == destinationServer {
-						if config, ok := secret.Data["config"]; ok {
-							err = json.Unmarshal(config, &configOfClusterWhereAppIsDeployed)
-							if err != nil {
-								impl.logger.Errorw("error in unmarshaling", "err", err)
-								return nil, err
-							}
-							break
-						}
-					}
-				}
-			}
-		}
-	}
-	resourceTreeResp, err := impl.getResourceTreeForExternalCluster(appDeployedOnClusterId, destinationServer, configOfClusterWhereAppIsDeployed, argoManagedResources)
-	if err != nil {
-		impl.logger.Errorw("error in getting resource tree response", "err", err)
-		return nil, err
-	}
-	appDetail.ResourceTree = resourceTreeResp
-	return appDetail, nil
 }
 
 func (impl *ArgoApplicationServiceImpl) getResourceTreeForExternalCluster(clusterId int, destinationServer string,
