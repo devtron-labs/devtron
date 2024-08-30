@@ -80,6 +80,8 @@ type K8sApplicationService interface {
 	GetAllApiResourceGVKWithoutAuthorization(ctx context.Context, clusterId int) (*k8s2.GetAllApiResourcesResponse, error)
 	GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32) (*k8s2.GetAllApiResourcesResponse, error)
 	GetResourceList(ctx context.Context, token string, request *k8s.ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool) (*k8s2.ClusterResourceListMap, error)
+	GetResourceListWithRestConfig(ctx context.Context, token string, request *k8s.ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool,
+		restConfig *rest.Config, clusterName string) (*k8s2.ClusterResourceListMap, error)
 	ApplyResources(ctx context.Context, token string, request *k8s2.ApplyResourcesRequest, resourceRbacHandler func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool) ([]*k8s2.ApplyResourcesResponse, error)
 	CreatePodEphemeralContainers(req *cluster.EphemeralContainerRequest) error
 	TerminatePodEphemeralContainer(req cluster.EphemeralContainerRequest) (bool, error)
@@ -731,6 +733,13 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.ClusterId)
 		return resourceList, err
 	}
+	return impl.GetResourceListWithRestConfig(ctx, token, request, validateResourceAccess, restConfig, clusterBean.ClusterName)
+}
+
+func (impl *K8sApplicationServiceImpl) GetResourceListWithRestConfig(ctx context.Context, token string, request *k8s.ResourceRequestBean,
+	validateResourceAccess func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool,
+	restConfig *rest.Config, clusterName string) (*k8s2.ClusterResourceListMap, error) {
+	resourceList := &k8s2.ClusterResourceListMap{}
 	k8sRequest := request.K8sRequest
 	// store the copy of requested resource identifier
 	resourceIdentifierCloned := k8sRequest.ResourceIdentifier
@@ -750,7 +759,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 			resourceIdentifier.GroupVersionKind = schema.GroupVersionKind{Group: group, Kind: kind}
 		}
 		k8sRequest.ResourceIdentifier = resourceIdentifier
-		return validateResourceAccess(token, clusterBean.ClusterName, *request, casbin.ActionGet)
+		return validateResourceAccess(token, clusterName, *request, casbin.ActionGet)
 	}
 	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resp.Resources, namespaced, request.K8sRequest.ResourceIdentifier.GroupVersionKind, false, checkForResourceCallback)
 	if err != nil {
