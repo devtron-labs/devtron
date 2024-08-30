@@ -14,6 +14,7 @@ func ConvertDeploymentConfigDTOToDbObj(config *bean.DeploymentConfig) *deploymen
 		ConfigType:        config.ConfigType,
 		RepoUrl:           config.RepoURL,
 		Active:            config.Active,
+		ReleaseMode:       config.ReleaseMode,
 	}
 }
 
@@ -26,5 +27,6 @@ func ConvertDeploymentConfigDbObjToDTO(dbObj *deploymentConfig.DeploymentConfig)
 		ConfigType:        dbObj.ConfigType,
 		RepoURL:           dbObj.RepoUrl,
 		Active:            dbObj.Active,
+		ReleaseMode:       dbObj.ReleaseMode,
 	}
 }
