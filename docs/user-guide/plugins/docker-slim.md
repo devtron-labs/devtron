@@ -49,7 +49,7 @@ At `IncludePathFile` input variable list down the file path of essential files f
 | Variable                 | Format       | Description | Sample Value |
 | ------------------------ | ------------ | ----------- | ------------ |
 |   HTTPProbe              | BOOL         | Indicates whether the port is exposed in Dockerfile or not | false                         |
-|   IncludePathFile        | STRING       | File path of required files            | /usr/bin/python3       |
+|   IncludePathFile        | STRING       | File path of required files            | /etc/nginx/include.conf       |
 
 ### Trigger/Skip Condition
 Here you can set conditions to execute or skip the task. You can select `Set trigger conditions` for the execution of a task or `Set skip conditions` to skip the task.
