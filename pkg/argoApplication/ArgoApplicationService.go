@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/pkg/k8s/application"
 
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
@@ -49,26 +50,29 @@ type ArgoApplicationService interface {
 }
 
 type ArgoApplicationServiceImpl struct {
-	logger            *zap.SugaredLogger
-	clusterRepository clusterRepository.ClusterRepository
-	k8sUtil           *k8s.K8sServiceImpl
-	argoUserService   argo.ArgoUserService
-	helmAppClient     gRPC.HelmAppClient
-	helmAppService    service.HelmAppService
+	logger                *zap.SugaredLogger
+	clusterRepository     clusterRepository.ClusterRepository
+	k8sUtil               *k8s.K8sServiceImpl
+	argoUserService       argo.ArgoUserService
+	helmAppClient         gRPC.HelmAppClient
+	helmAppService        service.HelmAppService
+	k8sApplicationService application.K8sApplicationService
 }
 
 func NewArgoApplicationServiceImpl(logger *zap.SugaredLogger,
 	clusterRepository clusterRepository.ClusterRepository,
 	k8sUtil *k8s.K8sServiceImpl,
 	argoUserService argo.ArgoUserService, helmAppClient gRPC.HelmAppClient,
-	helmAppService service.HelmAppService) *ArgoApplicationServiceImpl {
+	helmAppService service.HelmAppService,
+	k8sApplicationService application.K8sApplicationService) *ArgoApplicationServiceImpl {
 	return &ArgoApplicationServiceImpl{
-		logger:            logger,
-		clusterRepository: clusterRepository,
-		k8sUtil:           k8sUtil,
-		argoUserService:   argoUserService,
-		helmAppService:    helmAppService,
-		helmAppClient:     helmAppClient,
+		logger:                logger,
+		clusterRepository:     clusterRepository,
+		k8sUtil:               k8sUtil,
+		argoUserService:       argoUserService,
+		helmAppService:        helmAppService,
+		helmAppClient:         helmAppClient,
+		k8sApplicationService: k8sApplicationService,
 	}
 
 }
