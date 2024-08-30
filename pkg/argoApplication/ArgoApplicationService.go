@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/argoApplication/helper"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/util/argo"
 	"go.uber.org/zap"
@@ -95,6 +96,14 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 		}
 	}
 
+	listReq := &k8s2.ResourceRequestBean{
+		K8sRequest: &k8s.K8sRequestBean{
+			ResourceIdentifier: k8s.ResourceIdentifier{
+				Namespace:        bean.AllNamespaces,
+				GroupVersionKind: bean.GvkForArgoApplication,
+			},
+		},
+	}
 	// TODO: make goroutine and channel for optimization
 	appListFinal := make([]*bean.ArgoApplicationListDto, 0)
 	for _, cluster := range clusters {
@@ -109,7 +118,7 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 			impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterObj.Id)
 			return nil, err
 		}
-		resp, err := impl.k8sApplicationService.GetResourceList(context.Background(), restConfig, bean.GvkForArgoApplication, bean.AllNamespaces, true, nil)
+		resp, err := impl.k8sApplicationService.GetResourceListWithRestConfig(context.Background(), "", listReq, nil, restConfig, clusterObj.ClusterName)
 		if err != nil {
 			if errStatus, ok := err.(*errors.StatusError); ok {
 				if errStatus.Status().Code == 404 {
