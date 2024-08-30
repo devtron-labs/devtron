@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/helper"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/read"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
@@ -58,6 +59,7 @@ type ArgoApplicationServiceImpl struct {
 	helmAppClient         gRPC.HelmAppClient
 	helmAppService        service.HelmAppService
 	k8sApplicationService application.K8sApplicationService
+	readService           read.ArgoApplicationReadService
 }
 
 func NewArgoApplicationServiceImpl(logger *zap.SugaredLogger,
@@ -65,7 +67,8 @@ func NewArgoApplicationServiceImpl(logger *zap.SugaredLogger,
 	k8sUtil *k8s.K8sServiceImpl,
 	argoUserService argo.ArgoUserService, helmAppClient gRPC.HelmAppClient,
 	helmAppService service.HelmAppService,
-	k8sApplicationService application.K8sApplicationService) *ArgoApplicationServiceImpl {
+	k8sApplicationService application.K8sApplicationService,
+	readService read.ArgoApplicationReadService) *ArgoApplicationServiceImpl {
 	return &ArgoApplicationServiceImpl{
 		logger:                logger,
 		clusterRepository:     clusterRepository,
@@ -74,6 +77,7 @@ func NewArgoApplicationServiceImpl(logger *zap.SugaredLogger,
 		helmAppService:        helmAppService,
 		helmAppClient:         helmAppClient,
 		k8sApplicationService: k8sApplicationService,
+		readService:           readService,
 	}
 
 }
