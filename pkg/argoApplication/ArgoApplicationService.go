@@ -249,11 +249,11 @@ func (impl *ArgoApplicationServiceImpl) getResourceTreeForExternalCluster(cluste
 	return resourceTreeResp, nil
 }
 
-func getApplicationListDtos(resp2 *k8s.ClusterResourceListMap, clusterName string, clusterId int) []*bean.ArgoApplicationListDto {
+func getApplicationListDtos(resp *k8s.ClusterResourceListMap, clusterName string, clusterId int) []*bean.ArgoApplicationListDto {
 	appLists := make([]*bean.ArgoApplicationListDto, 0)
-	if resp2 != nil {
-		appLists = make([]*bean.ArgoApplicationListDto, 0, len(resp2.Data))
-		for _, rowData := range resp2.Data {
+	if resp != nil {
+		appLists = make([]*bean.ArgoApplicationListDto, len(resp.Data))
+		for i, rowData := range resp.Data {
 			if rowData == nil {
 				continue
 			}
@@ -265,7 +265,7 @@ func getApplicationListDtos(resp2 *k8s.ClusterResourceListMap, clusterName strin
 				HealthStatus: rowData[k8sCommonBean.K8sResourceColumnDefinitionHealthStatus].(string),
 				Namespace:    rowData[k8sCommonBean.K8sClusterResourceNamespaceKey].(string),
 			}
-			appLists = append(appLists, appListDto)
+			appLists[i] = appListDto
 		}
 	}
 	return appLists
