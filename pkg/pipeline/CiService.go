@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
@@ -79,6 +78,7 @@ type CiServiceImpl struct {
 	eventClient                  client.EventClient
 	eventFactory                 client.EventFactory
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
+	ciArtifactRepository         repository5.CiArtifactRepository
 	pipelineStageService         PipelineStageService
 	userService                  user.UserService
 	ciTemplateService            CiTemplateService
@@ -100,6 +100,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, eventClient client.EventClient,
 	eventFactory client.EventFactory,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	ciArtifactRepository repository5.CiArtifactRepository,
 	pipelineStageService PipelineStageService,
 	userService user.UserService,
 	ciTemplateService CiTemplateService, appCrudOperationService app.AppCrudOperationService, envRepository repository1.EnvironmentRepository, appRepository appRepository.AppRepository,
@@ -123,6 +124,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		eventClient:                  eventClient,
 		eventFactory:                 eventFactory,
 		ciPipelineRepository:         ciPipelineRepository,
+		ciArtifactRepository:         ciArtifactRepository,
 		pipelineStageService:         pipelineStageService,
 		userService:                  userService,
 		ciTemplateService:            ciTemplateService,
@@ -160,6 +162,11 @@ func (impl *CiServiceImpl) GetCiMaterials(pipelineId int, ciMaterials []*pipelin
 }
 
 func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger, ciMaterials []*pipelineConfig.CiPipelineMaterial) error {
+	// externalCi artifact is meant only for CI_JOB
+	if trigger.PipelineType != string(CiPipeline.CI_JOB) {
+		return nil
+	}
+
 	// checking if user has given run time parameters for externalCiArtifact, if given then sending git material to Ci-Runner
 	externalCiArtifact, exists := trigger.ExtraEnvironmentVariables[CiPipeline.ExtraEnvVarExternalCiArtifactKey]
 	// validate externalCiArtifact as docker image
@@ -167,6 +174,16 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 		if !strings.Contains(externalCiArtifact, ":") && !utils.IsValidDockerTagName(externalCiArtifact) {
 			impl.Logger.Errorw("validation error", "externalCiArtifact", externalCiArtifact)
 			return fmt.Errorf("invalid image name given in externalCiArtifact")
+		}
+		externalCiArtifact = strings.TrimSpace(externalCiArtifact)
+		exist, error := impl.ciArtifactRepository.IfArtifactExistByImage(externalCiArtifact, trigger.PipelineId)
+		if error != nil {
+			impl.Logger.Errorw("error in fetching ci artifact", "err", error)
+			return error
+		}
+		if exist {
+			impl.Logger.Errorw("ci artifact already exists", "artifact", externalCiArtifact)
+			return fmt.Errorf("ci artifact already exists")
 		}
 	}
 	if trigger.PipelineType == string(CiPipeline.CI_JOB) && len(ciMaterials) != 0 && !exists && externalCiArtifact == "" {

@@ -105,6 +105,7 @@ type CiArtifactRepository interface {
 	Get(id int) (artifact *CiArtifact, err error)
 	GetArtifactParentCiAndWorkflowDetailsByIds(ids []int) ([]*CiArtifact, error)
 	GetByWfId(wfId int) (artifact *CiArtifact, err error)
+	IfArtifactExistByImage(imageName string, pipelineId int) (exist bool, err error)
 	GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, parentType bean.WorkflowType) ([]*CiArtifact, error)
 	GetArtifactsByCDPipelineV3(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, int, error)
 	GetLatestArtifactTimeByCiPipelineIds(ciPipelineIds []int) ([]*CiArtifact, error)
@@ -314,6 +315,17 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limi
 		artifactsAll = append(artifactsAll, a)
 	}
 	return artifactsAll, err
+}
+
+func (impl CiArtifactRepositoryImpl) IfArtifactExistByImage(imageName string, pipelineId int) (exist bool, err error) {
+	count, err := impl.dbConnection.Model(&CiArtifact{}).
+		Where("image = ?", imageName).
+		Where("pipeline_id = ?", pipelineId).
+		Count()
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpts *bean.ArtifactsListFilterOptions) ([]*CiArtifact, int, error) {
