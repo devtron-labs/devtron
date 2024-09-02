@@ -18,13 +18,19 @@ package utils
 
 import (
 	"fmt"
+	"github.com/devtron-labs/common-lib/git-manager/util"
+	"github.com/devtron-labs/common-lib/utils/bean"
+	"log"
 	"math/rand"
+	"path"
 	"regexp"
 	"strings"
 	"time"
 )
 
 var chars = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
+
+const DOCKER_REGISTRY_TYPE_DOCKERHUB = "docker-hub"
 
 // Generates random string
 func Generate(size int) string {
@@ -57,4 +63,22 @@ func IsValidDockerTagName(tagName string) bool {
 	} else {
 		return false
 	}
+}
+
+func BuildDockerImagePath(dockerInfo bean.DockerRegistryInfo) (string, error) {
+	dest := ""
+	if DOCKER_REGISTRY_TYPE_DOCKERHUB == dockerInfo.DockerRegistryType {
+		dest = dockerInfo.DockerRepository + ":" + dockerInfo.DockerImageTag
+	} else {
+		registryUrl := dockerInfo.DockerRegistryURL
+		u, err := util.ParseUrl(registryUrl)
+		if err != nil {
+			log.Println("not a valid docker repository url")
+			return "", err
+		}
+		u.Path = path.Join(u.Path, "/", dockerInfo.DockerRepository)
+		dockerRegistryURL := u.Host + u.Path
+		dest = dockerRegistryURL + ":" + dockerInfo.DockerImageTag
+	}
+	return dest, nil
 }

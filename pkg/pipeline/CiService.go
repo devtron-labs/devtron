@@ -22,11 +22,13 @@ import (
 	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils"
+	bean3 "github.com/devtron-labs/common-lib/utils/bean"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
+	"log"
 	"maps"
 	"path/filepath"
 	"strconv"
@@ -162,7 +164,7 @@ func (impl *CiServiceImpl) GetCiMaterials(pipelineId int, ciMaterials []*pipelin
 	}
 }
 
-func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger, ciMaterials []*pipelineConfig.CiPipelineMaterial) error {
+func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger, ciMaterials []*pipelineConfig.CiPipelineMaterial, workflowRequest *types.WorkflowRequest) error {
 	// externalCi artifact is meant only for CI_JOB
 	if trigger.PipelineType != string(CiPipeline.CI_JOB) {
 		return nil
@@ -172,11 +174,29 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 	externalCiArtifact, exists := trigger.ExtraEnvironmentVariables[CiPipeline.ExtraEnvVarExternalCiArtifactKey]
 	// validate externalCiArtifact as docker image
 	if exists {
-		if !strings.Contains(externalCiArtifact, ":") && !utils.IsValidDockerTagName(externalCiArtifact) {
-			impl.Logger.Errorw("validation error", "externalCiArtifact", externalCiArtifact)
-			return fmt.Errorf("invalid image name given in externalCiArtifact")
-		}
 		externalCiArtifact = strings.TrimSpace(externalCiArtifact)
+		if !strings.Contains(externalCiArtifact, ":") {
+			if utils.IsValidDockerTagName(externalCiArtifact) {
+				fullImageUrl, err := utils.BuildDockerImagePath(bean3.DockerRegistryInfo{
+					DockerImageTag:     externalCiArtifact,
+					DockerRegistryId:   workflowRequest.DockerRegistryId,
+					DockerRegistryType: workflowRequest.DockerRegistryType,
+					DockerRegistryURL:  workflowRequest.DockerRegistryURL,
+					DockerRepository:   workflowRequest.DockerRepository,
+				})
+				if err != nil {
+					log.Println("Error in building docker image", "err", err)
+					return err
+				}
+				externalCiArtifact = fullImageUrl
+			} else {
+				impl.Logger.Errorw("validation error", "externalCiArtifact", externalCiArtifact)
+				return fmt.Errorf("invalid image name or url given in externalCiArtifact")
+			}
+
+		}
+
+		trigger.ExtraEnvironmentVariables[CiPipeline.ExtraEnvVarExternalCiArtifactKey] = externalCiArtifact
 		exist, error := impl.ciArtifactRepository.IfArtifactExistByImage(externalCiArtifact, trigger.PipelineId)
 		if error != nil {
 			impl.Logger.Errorw("error in fetching ci artifact", "err", error)
@@ -197,10 +217,6 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error) {
 	impl.Logger.Debug("ci pipeline manual trigger")
 	ciMaterials, err := impl.GetCiMaterials(trigger.PipelineId, trigger.CiMaterials)
-	if err != nil {
-		return 0, err
-	}
-	err = impl.handleRuntimeParamsValidations(trigger, ciMaterials)
 	if err != nil {
 		return 0, err
 	}
@@ -284,6 +300,11 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		impl.Logger.Errorw("make workflow req", "err", err)
 		return 0, err
 	}
+	err = impl.handleRuntimeParamsValidations(trigger, ciMaterials, workflowRequest)
+	if err != nil {
+		return 0, err
+	}
+
 	workflowRequest.Scope = scope
 	workflowRequest.BuildxCacheModeMin = impl.buildxCacheFlags.BuildxCacheModeMin
 	workflowRequest.AsyncBuildxCacheExport = impl.buildxCacheFlags.AsyncBuildxCacheExport
