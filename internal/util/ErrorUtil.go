@@ -26,7 +26,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"net/http"
-	"strconv"
 )
 
 type ApiError struct {
@@ -37,14 +36,6 @@ type ApiError struct {
 	UserDetailMessage string      `json:"userDetailMessage,omitempty"`
 }
 
-func GetApiError(code int, userMessage, internalMessage string) *ApiError {
-	return &ApiError{
-		HttpStatusCode:  code,
-		Code:            strconv.Itoa(code),
-		InternalMessage: internalMessage,
-		UserMessage:     userMessage,
-	}
-}
 func NewApiError() *ApiError {
 	return &ApiError{}
 }
