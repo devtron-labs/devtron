@@ -28,7 +28,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
-	"log"
 	"maps"
 	"path/filepath"
 	"strconv"
@@ -185,7 +184,7 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 					DockerRepository:   workflowRequest.DockerRepository,
 				})
 				if err != nil {
-					log.Println("Error in building docker image", "err", err)
+					impl.Logger.Errorw("Error in building docker image", "err", err)
 					return err
 				}
 				externalCiArtifact = fullImageUrl
