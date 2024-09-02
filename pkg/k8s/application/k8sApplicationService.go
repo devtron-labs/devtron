@@ -364,7 +364,7 @@ func (impl *K8sApplicationServiceImpl) ValidateTerminalRequestQuery(r *http.Requ
 			resourceRequestBean.ExternalArgoApplicationName = appIdentifier.AppName
 			resourceRequestBean.ClusterId = appIdentifier.ClusterId
 			request.ClusterId = appIdentifier.ClusterId
-			//request.ExternalArgoApplicationName = appIdentifier.AppName
+			request.ExternalArgoApplicationName = appIdentifier.AppName
 		}
 	} else {
 		// Validate Cluster Id
