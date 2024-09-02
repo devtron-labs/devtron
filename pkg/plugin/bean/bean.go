@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package bean
 
 import (
@@ -44,15 +43,47 @@ type PluginListComponentDto struct { //created new struct for backward compatibi
 }
 
 type PluginMetadataDto struct {
-	Id          int               `json:"id"`
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Type        string            `json:"type,omitempty" validate:"oneof=SHARED PRESET"` // SHARED, PRESET etc
-	Icon        string            `json:"icon,omitempty"`
-	Tags        []string          `json:"tags"`
-	Action      int               `json:"action,omitempty"`
-	PluginStage string            `json:"pluginStage,omitempty"`
-	PluginSteps []*PluginStepsDto `json:"pluginSteps,omitempty"`
+	Id                int               `json:"id"`
+	Name              string            `json:"name" validate:"required,min=3,max=100,global-entity-name"`
+	Description       string            `json:"description" validate:"max=300"`
+	Type              string            `json:"type,omitempty" validate:"oneof=SHARED PRESET"` // SHARED, PRESET etc
+	Icon              string            `json:"icon,omitempty"`
+	Tags              []string          `json:"tags"`
+	Action            int               `json:"action,omitempty"`
+	PluginStage       string            `json:"pluginStage,omitempty"`
+	PluginSteps       []*PluginStepsDto `json:"pluginSteps,omitempty"`
+	AreNewTagsPresent bool              `json:"areNewTagsPresent,omitempty"`
+}
+
+type PluginMinDto struct {
+	ParentPluginId  int    `json:"id,omitempty"`
+	PluginName      string `json:"name,omitempty"`
+	Icon            string `json:"icon,omitempty"`
+	PluginVersionId int    `json:"pluginVersionId,omitempty"`
+}
+
+func NewPluginMinDto() *PluginMinDto {
+	return &PluginMinDto{}
+}
+
+func (r *PluginMinDto) WithParentPluginId(id int) *PluginMinDto {
+	r.ParentPluginId = id
+	return r
+}
+
+func (r *PluginMinDto) WithPluginName(name string) *PluginMinDto {
+	r.PluginName = name
+	return r
+}
+
+func (r *PluginMinDto) WithIcon(icon string) *PluginMinDto {
+	r.Icon = icon
+	return r
+}
+
+func (r *PluginMinDto) WithPluginVersionId(versionId int) *PluginMinDto {
+	r.PluginVersionId = versionId
+	return r
 }
 
 type PluginsDto struct {
@@ -76,9 +107,9 @@ func (r *PluginsDto) WithTotalCount(count int) *PluginsDto {
 
 type PluginParentMetadataDto struct {
 	Id               int             `json:"id"`
-	Name             string          `json:"name"`
-	PluginIdentifier string          `json:"pluginIdentifier"`
-	Description      string          `json:"description"`
+	Name             string          `json:"name" validate:"required,min=3,max=100,global-entity-name"`
+	PluginIdentifier string          `json:"pluginIdentifier" validate:"required,min=3,max=100,global-entity-name"`
+	Description      string          `json:"description" validate:"max=300"`
 	Type             string          `json:"type,omitempty" validate:"oneof=SHARED PRESET"`
 	Icon             string          `json:"icon,omitempty"`
 	Versions         *PluginVersions `json:"pluginVersions"`
@@ -124,17 +155,6 @@ type PluginVersions struct {
 	MinimalPluginVersionData  []*PluginsVersionDetail `json:"minimalPluginVersionData"`  // contains only few metadata
 }
 
-type PluginMinDto struct {
-	PluginName     string                  `json:"pluginName"`
-	PluginVersions []*PluginVersionsMinDto `json:"pluginVersions"`
-	Icon           string                  `json:"icon"`
-}
-
-type PluginVersionsMinDto struct {
-	Id      int    `json:"id"`
-	Version string `json:"version"`
-}
-
 func NewPluginVersions() *PluginVersions {
 	return &PluginVersions{}
 }
@@ -154,7 +174,7 @@ type PluginsVersionDetail struct {
 	InputVariables  []*PluginVariableDto `json:"inputVariables"`
 	OutputVariables []*PluginVariableDto `json:"outputVariables"`
 	DocLink         string               `json:"docLink"`
-	Version         string               `json:"pluginVersion"`
+	Version         string               `json:"pluginVersion" validate:"max=50,min=3"`
 	IsLatest        bool                 `json:"isLatest"`
 	UpdatedBy       string               `json:"updatedBy"`
 	CreatedOn       time.Time            `json:"-"`
@@ -336,10 +356,18 @@ type RegistryCredentials struct {
 }
 
 const (
-	NoPluginOrParentIdProvidedErr      = "no value for pluginVersionIds and parentPluginIds provided in query param"
-	NoPluginFoundForThisSearchQueryErr = "unable to find desired plugin for the query filter"
+	NoPluginOrParentIdProvidedErr            = "no value for pluginVersionIds and parentPluginIds provided in query param"
+	NoPluginFoundForThisSearchQueryErr       = "unable to find desired plugin for the query filter"
+	PluginStepsNotProvidedError              = "plugin steps not provided"
+	PluginWithSameNameExistError             = "plugin with the same name exists, please choose another name"
+	PluginWithSameIdentifierExistsError      = "plugin with the same identifier exists, please choose another identifier name"
+	PluginVersionNotSemanticallyCorrectError = "please provide a plugin version that adheres to Semantic Versioning 2.0.0 to ensure compatibility and proper versioning"
+	PluginIconNotCorrectOrReachableError     = "cannot validate icon, make sure that provided url link is reachable"
+	PluginVersionAlreadyExistError           = "this plugin version already exists, please provide another plugin version"
+	NoStepDataToProceedError                 = "no step data provided to save, please provide a plugin step to proceed further"
 )
 
 const (
-	SpecialCharsRegex = ` !"#$%&'()*+,./:;<=>?@[\]^_{|}~` + "`"
+	SpecialCharsRegex        = ` !"#$%&'()*+,./:;<=>?@[\]^_{|}~` + "`"
+	PluginIconMaxSizeInBytes = 2 * 1024 * 1024
 )
