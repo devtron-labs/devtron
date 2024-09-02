@@ -94,12 +94,12 @@ func (c *CiCompleteEvent) SetImageDetailsFromCR() error {
 	if c.ImageDetailsFromCR == nil {
 		return nil
 	}
-	var imageDetailsFromCR registry.ImageDetailsFromCR
+	var imageDetailsFromCR *registry.ImageDetailsFromCR
 	err := json.Unmarshal(c.ImageDetailsFromCR, &imageDetailsFromCR)
 	if err != nil {
 		return err
 	}
-	c.pluginImageDetails = &imageDetailsFromCR
+	c.pluginImageDetails = imageDetailsFromCR
 	return nil
 }
 
