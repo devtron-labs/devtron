@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"golang.org/x/exp/maps"
 	"io"
 	"net/http"
@@ -496,19 +495,13 @@ func (handler *PipelineConfigRestHandlerImpl) getCdPipelinesForCIPatchRbac(patch
 	// find the workflow in which we are patching and use the workflow id to fetch all the workflow mappings using the workflow.
 	// get cd pipeline ids from those workflows and fetch the cd pipelines.
 
-	// get the ciPipeline
-	switchFromPipelineId, switchFromType := patchRequest.SwitchSourceInfo()
-
-	// in app workflow mapping all the build source types are 'CI_PIPELINE' type, except external -> WEBHOOK.
-	componentType := appWorkflow.CIPIPELINE
-	if switchFromType == CiPipeline.EXTERNAL {
-		componentType = appWorkflow.WEBHOOK
-	}
+	// get the ciPipeline patch source info
+	componentId, componentType := patchRequest.PatchSourceInfo()
 
 	// the appWorkflowId can be taken from patchRequest.AppWorkflowId but doing this can make 2 sources of truth to find the workflow
-	sourceAppWorkflowMapping, err := handler.appWorkflowService.FindWFMappingByComponent(componentType, switchFromPipelineId)
+	sourceAppWorkflowMapping, err := handler.appWorkflowService.FindWFMappingByComponent(componentType, componentId)
 	if err != nil {
-		handler.Logger.Errorw("error in finding the appWorkflowMapping using componentId and componentType", "componentType", componentType, "componentId", switchFromPipelineId, "err", err)
+		handler.Logger.Errorw("error in finding the appWorkflowMapping using componentId and componentType", "componentType", componentType, "componentId", componentId, "err", err)
 		return nil, err
 	}
 
