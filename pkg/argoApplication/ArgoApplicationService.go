@@ -139,12 +139,28 @@ func getApplicationListDtos(resp *k8s.ClusterResourceListMap, clusterName string
 				continue
 			}
 			appListDto := &bean.ArgoApplicationListDto{
-				ClusterId:    clusterId,
-				ClusterName:  clusterName,
-				Name:         rowData[k8sCommonBean.K8sResourceColumnDefinitionName].(string),
-				SyncStatus:   rowData[k8sCommonBean.K8sResourceColumnDefinitionSyncStatus].(string),
-				HealthStatus: rowData[k8sCommonBean.K8sResourceColumnDefinitionHealthStatus].(string),
-				Namespace:    rowData[k8sCommonBean.K8sClusterResourceNamespaceKey].(string),
+				ClusterId:   clusterId,
+				ClusterName: clusterName,
+			}
+			if rowData[k8sCommonBean.K8sClusterResourceNameKey] != nil {
+				if nameStr, ok := rowData[k8sCommonBean.K8sClusterResourceNameKey].(string); ok {
+					appListDto.Name = nameStr
+				}
+			}
+			if rowData[k8sCommonBean.K8sResourceColumnDefinitionSyncStatus] != nil {
+				if syncStatusStr, ok := rowData[k8sCommonBean.K8sResourceColumnDefinitionSyncStatus].(string); ok {
+					appListDto.SyncStatus = syncStatusStr
+				}
+			}
+			if rowData[k8sCommonBean.K8sResourceColumnDefinitionHealthStatus] != nil {
+				if healthStatusStr, ok := rowData[k8sCommonBean.K8sResourceColumnDefinitionHealthStatus].(string); ok {
+					appListDto.HealthStatus = healthStatusStr
+				}
+			}
+			if rowData[k8sCommonBean.K8sClusterResourceNamespaceKey] != nil {
+				if namespaceStr, ok := rowData[k8sCommonBean.K8sClusterResourceNamespaceKey].(string); ok {
+					appListDto.Namespace = namespaceStr
+				}
 			}
 			appLists[i] = appListDto
 		}
