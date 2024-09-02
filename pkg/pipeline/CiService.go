@@ -301,6 +301,12 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	}
 	err = impl.handleRuntimeParamsValidations(trigger, ciMaterials, workflowRequest)
 	if err != nil {
+		savedCiWf.Status = pipelineConfig.WorkflowAborted
+		savedCiWf.Message = err.Error()
+		err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedCiWf)
+		if err1 != nil {
+			impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
+		}
 		return 0, err
 	}
 
