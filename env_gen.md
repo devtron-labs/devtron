@@ -6,7 +6,7 @@
  | ACD_NAMESPACE | devtroncd |  | 
  | ACD_PASSWORD |  |  | 
  | ACD_USERNAME | admin |  | 
- | APP | orchestrator |  | 
+ | APP | orchestrator | Application name | 
  | APP_SYNC_IMAGE | quay.io/devtron/chart-sync:1227622d-132-3775 |  | 
  | APP_SYNC_JOB_RESOURCES_OBJ |  |  | 
  | APP_SYNC_SERVICE_ACCOUNT | chart-sync |  | 
@@ -199,6 +199,7 @@
  | ORCH_HOST | http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats |  | 
  | ORCH_TOKEN |  |  | 
  | OTEL_COLLECTOR_URL |  |  | 
+ | PARALLELISM_LIMIT_FOR_TAG_PROCESSING |  |  | 
  | PG_ADDR | 127.0.0.1 |  | 
  | PG_DATABASE | orchestrator |  | 
  | PG_EXPORT_PROM_METRICS | false |  | 
@@ -230,6 +231,7 @@
  | SCOPED_VARIABLE_HANDLE_PRIMITIVES | false |  | 
  | SCOPED_VARIABLE_NAME_REGEX | ^[a-zA-Z][a-zA-Z0-9_-]{0,62}[a-zA-Z0-9]$ |  | 
  | SHOW_DOCKER_BUILD_ARGS | true |  | 
+ | SKIP_CI_JOB_BUILD_CACHE_PUSH_PULL | false |  | 
  | SKIP_CREATING_ECR_REPO | false |  | 
  | SOCKET_DISCONNECT_DELAY_SECONDS | 5 |  | 
  | SOCKET_HEARTBEAT_SECONDS | 25 |  | 
@@ -257,6 +259,7 @@
  | USE_CASBIN_V2 | false |  | 
  | USE_CUSTOM_HTTP_TRANSPORT | false |  | 
  | USE_DEPLOYMENT_CONFIG_DATA | false |  | 
+ | USE_DOCKER_API_TO_GET_DIGEST | false |  | 
  | USE_EXTERNAL_NODE | false |  | 
  | USE_GIT_CLI | false |  | 
  | USE_IMAGE_TAG_FROM_GIT_PROVIDER_FOR_TAG_BASED_BUILD | false |  | 

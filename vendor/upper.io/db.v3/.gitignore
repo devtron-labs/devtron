@@ -1,4 +1,0 @@
-*.sw?
-*.db
-*.tmp
-generated_*.go

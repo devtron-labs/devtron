@@ -475,11 +475,15 @@ func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineC
 		if !cdWorkflow.BlobStorageEnabled {
 			return nil, nil, errors.New("logs-not-stored-in-repository")
 		} else if string(v1alpha1.NodeSucceeded) == cdWorkflow.Status || string(v1alpha1.NodeError) == cdWorkflow.Status || string(v1alpha1.NodeFailed) == cdWorkflow.Status || cdWorkflow.Status == executors.WorkflowCancel {
-			impl.Logger.Debugw("pod is not live ", "err", err)
+			impl.Logger.Debugw("pod is not live", "podName", cdWorkflow.PodName, "err", err)
 			return impl.getLogsFromRepository(pipelineId, cdWorkflow, clusterConfig, runStageInEnv)
 		}
-		impl.Logger.Errorw("err on fetch workflow logs", "err", err)
-		return nil, nil, err
+		if err != nil {
+			impl.Logger.Errorw("err on fetch workflow logs", "err", err)
+			return nil, nil, err
+		} else if logStream == nil {
+			return nil, cleanUp, fmt.Errorf("no logs found for pod %s", cdWorkflow.PodName)
+		}
 	}
 	logReader := bufio.NewReader(logStream)
 	return logReader, cleanUp, err
@@ -984,7 +988,7 @@ func (impl *CdHandlerImpl) FetchAppWorkflowStatusForTriggerViewForEnvironment(re
 
 	statusMap := make(map[int]string)
 	if len(wfrIds) > 0 {
-		cdWorkflowRunners, err := impl.cdWorkflowRepository.FetchAllCdStagesLatestEntityStatus(wfrIds)
+		cdWorkflowRunners, err := impl.cdWorkflowRepository.FetchEnvAllCdStagesLatestEntityStatus(wfrIds, request.ParentResourceId)
 		if err != nil && !util.IsErrNoRows(err) {
 			return cdWorkflowStatus, err
 		}
@@ -1130,7 +1134,7 @@ func (impl *CdHandlerImpl) FetchAppDeploymentStatusForEnvironments(request resou
 	}
 	if len(wfrIds) > 0 {
 		_, span = otel.Tracer("orchestrator").Start(request.Ctx, "pipelineBuilder.FetchAllCdStagesLatestEntityStatus")
-		wfrList, err := impl.cdWorkflowRepository.FetchAllCdStagesLatestEntityStatus(wfrIds)
+		wfrList, err := impl.cdWorkflowRepository.FetchEnvAllCdStagesLatestEntityStatus(wfrIds, request.ParentResourceId)
 		span.End()
 		if err != nil && !util.IsErrNoRows(err) {
 			return deploymentStatuses, err

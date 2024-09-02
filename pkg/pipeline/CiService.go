@@ -158,19 +158,32 @@ func (impl *CiServiceImpl) GetCiMaterials(pipelineId int, ciMaterials []*pipelin
 	}
 }
 
+func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger, ciMaterials []*pipelineConfig.CiPipelineMaterial) error {
+	// checking if user has given run time parameters for externalCiArtifact, if given then sending git material to Ci-Runner
+	externalCiArtifact, exists := trigger.ExtraEnvironmentVariables[CiPipeline.ExtraEnvVarExternalCiArtifactKey]
+	// validate externalCiArtifact as docker image
+	if exists {
+		if !strings.Contains(externalCiArtifact, ":") {
+			impl.Logger.Errorw("validation error", "externalCiArtifact", externalCiArtifact)
+			return fmt.Errorf("invalid image name given in externalCiArtifact")
+		}
+	}
+	if trigger.PipelineType == string(CiPipeline.CI_JOB) && len(ciMaterials) != 0 && !exists && externalCiArtifact == "" {
+		ciMaterials[0].GitMaterial = nil
+		ciMaterials[0].GitMaterialId = 0
+	}
+	return nil
+}
+
 func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error) {
 	impl.Logger.Debug("ci pipeline manual trigger")
 	ciMaterials, err := impl.GetCiMaterials(trigger.PipelineId, trigger.CiMaterials)
 	if err != nil {
 		return 0, err
 	}
-
-	// checking if user has given run time parameters for externalCiArtifact, if given then sending git material to Ci-Runner
-	externalCiArtifact, exists := trigger.ExtraEnvironmentVariables["externalCiArtifact"]
-	if trigger.PipelineType == string(CiPipeline.CI_JOB) && len(ciMaterials) != 0 && !exists && externalCiArtifact == "" {
-		ciMaterials = []*pipelineConfig.CiPipelineMaterial{ciMaterials[0]}
-		ciMaterials[0].GitMaterial = nil
-		ciMaterials[0].GitMaterialId = 0
+	err = impl.handleRuntimeParamsValidations(trigger, ciMaterials)
+	if err != nil {
+		return 0, err
 	}
 	ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(trigger.PipelineId)
 	if err != nil && !util.IsErrNoRows(err) {
@@ -569,7 +582,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		}
 		ciBuildConfigBean = templateOverrideBean.CiBuildConfig
 		// updating args coming from ciBaseBuildConfigEntity because it is not part of Ci override
-		if ciBuildConfigBean != nil && ciBuildConfigBean.DockerBuildConfig != nil {
+		if ciBuildConfigBean != nil && ciBuildConfigBean.DockerBuildConfig != nil && ciBaseBuildConfigBean != nil && ciBaseBuildConfigBean.DockerBuildConfig != nil {
 			ciBuildConfigBean.DockerBuildConfig.Args = ciBaseBuildConfigBean.DockerBuildConfig.Args
 		}
 		templateOverride := templateOverrideBean.CiTemplateOverride
@@ -730,9 +743,14 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		PluginArtifactStage:         pluginArtifactStage,
 		ImageScanMaxRetries:         impl.config.ImageScanMaxRetries,
 		ImageScanRetryDelay:         impl.config.ImageScanRetryDelay,
+		UseDockerApiToGetDigest:     impl.config.UseDockerApiToGetDigest,
 	}
 	if pipeline.App.AppType == helper.Job {
 		workflowRequest.AppName = pipeline.App.DisplayName
+	}
+	if trigger.PipelineType == string(CiPipeline.CI_JOB) {
+		workflowRequest.IgnoreDockerCachePush = impl.config.SkipCiJobBuildCachePushPull
+		workflowRequest.IgnoreDockerCachePull = impl.config.SkipCiJobBuildCachePushPull
 	}
 	if dockerRegistry != nil {
 
