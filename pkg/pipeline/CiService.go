@@ -743,6 +743,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		PluginArtifactStage:         pluginArtifactStage,
 		ImageScanMaxRetries:         impl.config.ImageScanMaxRetries,
 		ImageScanRetryDelay:         impl.config.ImageScanRetryDelay,
+		UseDockerApiToGetDigest:     impl.config.UseDockerApiToGetDigest,
 	}
 	if pipeline.App.AppType == helper.Job {
 		workflowRequest.AppName = pipeline.App.DisplayName

@@ -129,6 +129,17 @@ func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository
 	}
 }
 
+func (impl ConfigMapServiceImpl) checkIfConfigDataAlreadyExist(appId int) (int, error) {
+	config, err := impl.configMapRepository.GetByAppIdAppLevel(appId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error while checking if config data exist from db by appId", "appId", appId, "error", err)
+		return 0, err
+	} else if util.IsErrNoRows(err) {
+		return 0, nil
+	}
+	return config.Id, nil
+}
+
 func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error) {
 	if len(configMapRequest.ConfigData) != 1 {
 		return nil, fmt.Errorf("invalid request multiple config found for add or update")
@@ -140,6 +151,14 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.Config
 		return configMapRequest, err
 	}
 	var model *chartConfig.ConfigMapAppModel
+	requestId, err := impl.checkIfConfigDataAlreadyExist(configMapRequest.AppId)
+	if err != nil {
+		impl.logger.Errorw("error in checking if config map data already exists or not for appId", "appId", configMapRequest.AppId, "error", err)
+		return configMapRequest, err
+	}
+	if requestId > 0 {
+		configMapRequest.Id = requestId
+	}
 	if configMapRequest.Id > 0 {
 		model, err = impl.configMapRepository.GetByIdAppLevel(configMapRequest.Id)
 		if err != nil {
@@ -524,6 +543,14 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *bean.Config
 	if err != nil && !valid {
 		impl.logger.Errorw("error in validating", "error", err)
 		return configMapRequest, err
+	}
+	requestId, err := impl.checkIfConfigDataAlreadyExist(configMapRequest.AppId)
+	if err != nil {
+		impl.logger.Errorw("error in checking if config secret data already exists or not for appId", "appId", configMapRequest.AppId, "error", err)
+		return configMapRequest, err
+	}
+	if requestId > 0 {
+		configMapRequest.Id = requestId
 	}
 	var model *chartConfig.ConfigMapAppModel
 	if configMapRequest.Id > 0 {
