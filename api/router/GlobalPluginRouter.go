@@ -41,8 +41,7 @@ type GlobalPluginRouterImpl struct {
 func (impl *GlobalPluginRouterImpl) initGlobalPluginRouter(globalPluginRouter *mux.Router) {
 	globalPluginRouter.Path("/migrate").
 		HandlerFunc(impl.globalPluginRestHandler.MigratePluginData).Methods("PUT")
-	globalPluginRouter.Path("/create").
-		HandlerFunc(impl.globalPluginRestHandler.CreatePlugin).Methods("POST")
+
 	// versioning impact handling to be done for below apis,
 	globalPluginRouter.Path("").
 		HandlerFunc(impl.globalPluginRestHandler.PatchPlugin).Methods("POST")
@@ -69,7 +68,5 @@ func (impl *GlobalPluginRouterImpl) initGlobalPluginRouter(globalPluginRouter *m
 
 	globalPluginRouter.Path("/list/tags").
 		HandlerFunc(impl.globalPluginRestHandler.GetAllUniqueTags).Methods("GET")
-	globalPluginRouter.Path("/list/v2/min").
-		HandlerFunc(impl.globalPluginRestHandler.GetAllPluginMinData).Methods("GET")
 
 }
