@@ -6,7 +6,7 @@
  | ACD_NAMESPACE | devtroncd |  | 
  | ACD_PASSWORD |  |  | 
  | ACD_USERNAME | admin |  | 
- | APP | orchestrator |  | 
+ | APP | orchestrator | Application name | 
  | APP_SYNC_IMAGE | quay.io/devtron/chart-sync:1227622d-132-3775 |  | 
  | APP_SYNC_JOB_RESOURCES_OBJ |  |  | 
  | APP_SYNC_SERVICE_ACCOUNT | chart-sync |  | 
@@ -259,6 +259,7 @@
  | USE_CASBIN_V2 | false |  | 
  | USE_CUSTOM_HTTP_TRANSPORT | false |  | 
  | USE_DEPLOYMENT_CONFIG_DATA | false |  | 
+ | USE_DOCKER_API_TO_GET_DIGEST | false |  | 
  | USE_EXTERNAL_NODE | false |  | 
  | USE_GIT_CLI | false |  | 
  | USE_IMAGE_TAG_FROM_GIT_PROVIDER_FOR_TAG_BASED_BUILD | false |  | 
