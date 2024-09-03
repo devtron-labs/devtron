@@ -53,7 +53,4 @@ var K8sApplicationWireSet = wire.NewSet(
 	informer.NewGlobalMapClusterNamespace,
 	informer.NewK8sInformerFactoryImpl,
 	wire.Bind(new(informer.K8sInformerFactory), new(*informer.K8sInformerFactoryImpl)),
-
-	cluster.NewClusterCronServiceImpl,
-	wire.Bind(new(cluster.ClusterCronService), new(*cluster.ClusterCronServiceImpl)),
 )

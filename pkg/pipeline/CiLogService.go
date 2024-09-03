@@ -68,9 +68,12 @@ func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest types.BuildL
 	}
 	req := impl.k8sUtil.GetLogsForAPod(kubeClient, ciLogRequest.Namespace, ciLogRequest.PodName, CiPipeline.Main, true)
 	podLogs, err := req.Stream(context.Background())
-	if podLogs == nil || err != nil {
-		impl.logger.Errorw("error in opening stream", "name", ciLogRequest.PodName)
+	if err != nil {
+		impl.logger.Errorw("error in opening stream", "name", ciLogRequest.PodName, "err", err)
 		return nil, nil, err
+	} else if podLogs == nil {
+		impl.logger.Warnw("no stream reader found", "name", ciLogRequest.PodName)
+		return nil, func() error { return nil }, err
 	}
 	cleanUpFunc := func() error {
 		impl.logger.Info("closing running pod log stream")

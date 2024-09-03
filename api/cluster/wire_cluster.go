@@ -29,6 +29,7 @@ import (
 var ClusterWireSet = wire.NewSet(
 	repository.NewClusterRepositoryImpl,
 	wire.Bind(new(repository.ClusterRepository), new(*repository.ClusterRepositoryImpl)),
+	cluster.NewClusterServiceImpl,
 	cluster.NewClusterServiceImplExtended,
 	wire.Bind(new(cluster.ClusterService), new(*cluster.ClusterServiceImplExtended)),
 

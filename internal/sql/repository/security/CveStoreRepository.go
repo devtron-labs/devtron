@@ -19,6 +19,7 @@ package security
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	securityBean "github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -27,13 +28,39 @@ import (
 )
 
 type CveStore struct {
-	tableName    struct{} `sql:"cve_store" pg:",discard_unknown_columns"`
-	Name         string   `sql:"name,pk"`
-	Severity     Severity `sql:"severity,notnull"`
-	Package      string   `sql:"package,notnull"` // deprecated
-	Version      string   `sql:"version,notnull"`
-	FixedVersion string   `sql:"fixed_version,notnull"`
+	tableName struct{} `sql:"cve_store" pg:",discard_unknown_columns"`
+	Name      string   `sql:"name,pk"`
+
+	// Deprecated: Severity, use StandardSeverity for all read purposes
+	Severity securityBean.Severity `sql:"severity,notnull"`
+	// Deprecated: Package
+	Package string `sql:"package,notnull"` // deprecated, storing package data in image_scan_execution_result table
+	// Deprecated: Version
+	Version string `sql:"version,notnull"`
+	// Deprecated: FixedVersion
+	FixedVersion string `sql:"fixed_version,notnull"`
+
+	// StandardSeverity is the actual severity. use GetSeverity method to get severity of the vulnerability
+	// earlier severity is maintained in Severity column by merging HIGH and CRITICAL severities.
+	// later we introduced new column StandardSeverity to store raw severity, but didn't migrate the existing Severity data to StandardSeverity.
+	// currently, we deprecated Severity.
+	StandardSeverity *securityBean.Severity `sql:"standard_severity"`
 	sql.AuditLog
+}
+
+// GetSeverity returns the actual severity of the vulnerability.
+func (cve *CveStore) GetSeverity() securityBean.Severity {
+	if cve.StandardSeverity == nil {
+		// we need this as there was a time when StandardSeverity didn't exist.
+		// and migration of Severity data to StandardSeverity is not done.
+		return cve.Severity
+	}
+	return *cve.StandardSeverity
+}
+
+func (cve *CveStore) SetStandardSeverity(severity securityBean.Severity) {
+	cve.Severity = severity
+	cve.StandardSeverity = &severity
 }
 
 type VulnerabilityRequest struct {

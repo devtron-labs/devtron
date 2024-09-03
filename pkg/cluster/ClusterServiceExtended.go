@@ -27,9 +27,6 @@ import (
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/common-lib/utils/k8s"
-	repository5 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
-	"github.com/devtron-labs/devtron/pkg/k8s/informer"
-
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -37,7 +34,6 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"go.uber.org/zap"
 )
 
 // extends ClusterServiceImpl and enhances method of ClusterService with full mode specific errors
@@ -50,30 +46,19 @@ type ClusterServiceImplExtended struct {
 	*ClusterServiceImpl
 }
 
-func NewClusterServiceImplExtended(repository repository.ClusterRepository, environmentRepository repository.EnvironmentRepository,
-	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository repository2.InstalledAppRepository,
-	K8sUtil *k8s.K8sServiceImpl,
-	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory,
-	userAuthRepository repository5.UserAuthRepository,
-	userRepository repository5.UserRepository, roleGroupRepository repository5.RoleGroupRepository,
-	gitOpsConfigReadService config.GitOpsConfigReadService) *ClusterServiceImplExtended {
+func NewClusterServiceImplExtended(environmentRepository repository.EnvironmentRepository,
+	grafanaClient grafana.GrafanaClient, installedAppRepository repository2.InstalledAppRepository,
+	clusterServiceCD cluster2.ServiceClient,
+	gitOpsConfigReadService config.GitOpsConfigReadService,
+	clusterServiceImpl *ClusterServiceImpl) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
 		environmentRepository:   environmentRepository,
 		grafanaClient:           grafanaClient,
 		installedAppRepository:  installedAppRepository,
 		clusterServiceCD:        clusterServiceCD,
 		gitOpsConfigReadService: gitOpsConfigReadService,
-		ClusterServiceImpl: &ClusterServiceImpl{
-			clusterRepository:   repository,
-			logger:              logger,
-			K8sUtil:             K8sUtil,
-			K8sInformerFactory:  K8sInformerFactory,
-			userAuthRepository:  userAuthRepository,
-			userRepository:      userRepository,
-			roleGroupRepository: roleGroupRepository,
-		},
+		ClusterServiceImpl:      clusterServiceImpl,
 	}
-	go clusterServiceExt.buildInformer()
 	return clusterServiceExt
 }
 
