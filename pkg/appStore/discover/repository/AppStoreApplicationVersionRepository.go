@@ -24,7 +24,6 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
-	"strconv"
 	"time"
 )
 
@@ -141,37 +140,44 @@ func updateFindWithFilterQuery(filter *appStoreBean.AppStoreFilter, updateAction
 
 func (impl *AppStoreApplicationVersionRepositoryImpl) FindWithFilter(filter *appStoreBean.AppStoreFilter) ([]appStoreBean.AppStoreWithVersion, error) {
 	var appStoreWithVersion []appStoreBean.AppStoreWithVersion
-	query := "SELECT asv.version, asv.icon, asv.deprecated, asv.id as app_store_application_version_id," +
-		" asv.description, aps.*,"
+	var queryParams []interface{}
+	query := `SELECT asv.version, asv.icon, asv.deprecated, asv.id as app_store_application_version_id, 
+			  asv.description, aps.*, `
 
 	query = query + updateFindWithFilterQuery(filter, QUERY_COLUMN_UPDATE)
 
 	query = query + " FROM app_store_application_version asv" +
-		" INNER JOIN app_store aps ON (asv.app_store_id = aps.id and aps.active = true)"
-
+		" INNER JOIN app_store aps ON (asv.app_store_id = aps.id and aps.active = ?)"
+	queryParams = append(queryParams, "true")
 	query = query + updateFindWithFilterQuery(filter, QUERY_JOIN_UPDTAE)
 
 	if !filter.IncludeDeprecated {
-		query = query + " AND asv.deprecated = FALSE"
+		query = query + " AND asv.deprecated = ?"
+		queryParams = append(queryParams, "FALSE")
 	}
 	if len(filter.AppStoreName) > 0 {
-		query = query + " AND aps.name LIKE '%" + filter.AppStoreName + "%'"
+		query = query + " AND aps.name LIKE ?"
+		queryParams = append(queryParams, util.GetLIKEClauseQueryParam(filter.AppStoreName))
 	}
 	query = query + " ORDER BY aps.name ASC"
 	if filter.Size > 0 {
-		query = query + " OFFSET " + strconv.Itoa(filter.Offset) + " LIMIT " + strconv.Itoa(filter.Size) + ""
+		query = query + " OFFSET ? LIMIT ? "
+		queryParams = append(queryParams, filter.Offset, filter.Size)
 	}
 	query = query + ";"
 
 	var err error
 	if len(filter.ChartRepoId) > 0 && len(filter.RegistryId) > 0 {
-		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, pg.In(filter.ChartRepoId), pg.In(filter.RegistryId))
+		queryParams = append(queryParams, pg.In(filter.ChartRepoId), pg.In(filter.RegistryId))
+		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, queryParams)
 	} else if len(filter.RegistryId) > 0 {
-		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, pg.In(filter.RegistryId))
+		queryParams = append(queryParams, pg.In(filter.RegistryId))
+		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, queryParams)
 	} else if len(filter.ChartRepoId) > 0 {
-		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, pg.In(filter.ChartRepoId))
+		queryParams = append(queryParams, pg.In(filter.ChartRepoId))
+		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, queryParams)
 	} else {
-		_, err = impl.dbConnection.Query(&appStoreWithVersion, query)
+		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, queryParams)
 	}
 	if err != nil {
 		return nil, err
