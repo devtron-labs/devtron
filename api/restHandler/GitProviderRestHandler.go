@@ -175,7 +175,7 @@ func (impl GitProviderRestHandlerImpl) UpdateGitRepoConfig(w http.ResponseWriter
 	var bean types.GitRegistry
 	err = decoder.Decode(&bean)
 	if err != nil {
-		impl.logger.Errorw("request err, UpdateGitRepoConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("request err, UpdateGitRepoConfig", "err", err, "gitRegistryId", bean.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
