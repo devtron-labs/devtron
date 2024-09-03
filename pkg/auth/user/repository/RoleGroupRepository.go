@@ -145,7 +145,7 @@ func (impl RoleGroupRepositoryImpl) GetAllRoleGroup() ([]*RoleGroup, error) {
 
 func (impl RoleGroupRepositoryImpl) GetAllExecutingQuery(query string, queryParams []interface{}) ([]*RoleGroup, error) {
 	var model []*RoleGroup
-	_, err := impl.dbConnection.Query(&model, query)
+	_, err := impl.dbConnection.Query(&model, query, queryParams)
 	if err != nil {
 		impl.Logger.Error("error in GetAllExecutingQuery", "err", err)
 		return nil, err
