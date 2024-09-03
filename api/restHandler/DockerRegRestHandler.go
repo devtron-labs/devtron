@@ -513,7 +513,7 @@ func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseW
 	requestErr := ValidateDockerArtifactStoreRequestBean(bean)
 	if requestErr != nil {
 		err = fmt.Errorf("invalid payload, missing or incorrect values for required fields")
-		impl.logger.Errorw("validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("validation err, SaveDockerRegistryConfig", "err", err, "dockerRegistryId", bean.Id)
 		common.WriteJsonResp(w, requestErr, nil, http.StatusBadRequest)
 		return
 	}
