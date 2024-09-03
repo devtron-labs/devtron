@@ -1004,8 +1004,8 @@ func (impl UserServiceImpl) GetAllWithFilters(request *bean.ListingRequest) (*be
 	// setting count check to true for only count
 	request.CountCheck = true
 	// Build query from query builder
-	query := helper.GetQueryForUserListingWithFilters(request)
-	totalCount, err := impl.userRepository.GetCountExecutingQuery(query)
+	query, queryParams := helper.GetQueryForUserListingWithFilters(request)
+	totalCount, err := impl.userRepository.GetCountExecutingQuery(query, queryParams)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
 		return nil, err
@@ -1014,8 +1014,8 @@ func (impl UserServiceImpl) GetAllWithFilters(request *bean.ListingRequest) (*be
 	// setting count check to false for getting data
 	request.CountCheck = false
 
-	query = helper.GetQueryForUserListingWithFilters(request)
-	models, err := impl.userRepository.GetAllExecutingQuery(query)
+	query, queryParams = helper.GetQueryForUserListingWithFilters(request)
+	models, err := impl.userRepository.GetAllExecutingQuery(query, queryParams)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
 		return nil, err
@@ -1064,8 +1064,8 @@ func (impl UserServiceImpl) getUserResponse(model []repository.UserModel, totalC
 }
 
 func (impl *UserServiceImpl) getAllDetailedUsers(req *bean.ListingRequest) ([]bean.UserInfo, error) {
-	query := helper.GetQueryForUserListingWithFilters(req)
-	models, err := impl.userRepository.GetAllExecutingQuery(query)
+	query, queryParams := helper.GetQueryForUserListingWithFilters(req)
+	models, err := impl.userRepository.GetAllExecutingQuery(query, queryParams)
 	if err != nil {
 		impl.logger.Errorw("error in GetAllDetailedUsers", "err", err)
 		return nil, err
@@ -1460,8 +1460,8 @@ func (impl *UserServiceImpl) BulkDeleteUsers(request *bean.BulkDeleteRequest) (b
 // getUserIdsHonoringFilters get the filtered user ids according to the request filters and returns userIds and error(not nil) if any exception is caught.
 func (impl *UserServiceImpl) getUserIdsHonoringFilters(request *bean.ListingRequest) ([]int32, error) {
 	//query to get particular models respecting filters
-	query := helper.GetQueryForUserListingWithFilters(request)
-	models, err := impl.userRepository.GetAllExecutingQuery(query)
+	query, queryParams := helper.GetQueryForUserListingWithFilters(request)
+	models, err := impl.userRepository.GetAllExecutingQuery(query, queryParams)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db in GetAllWithFilters", "error", err)
 		return nil, err

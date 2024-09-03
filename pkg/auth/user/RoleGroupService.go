@@ -670,7 +670,7 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *bean.Listin
 	// setting count check to true for getting only count
 	request.CountCheck = true
 	query := helper.GetQueryForGroupListingWithFilters(request)
-	totalCount, err := impl.userRepository.GetCountExecutingQuery(query)
+	totalCount, err := impl.userRepository.GetCountExecutingQuery(query, nil)
 	if err != nil {
 		impl.logger.Errorw("error in FetchRoleGroupsWithFilters", "err", err, "query", query)
 		return nil, err

@@ -39,7 +39,7 @@ type UserRepository interface {
 	GetEmailByIds(ids []int32) ([]string, error)
 	GetByIdIncludeDeleted(id int32) (*UserModel, error)
 	GetAllExcludingApiTokenUser() ([]UserModel, error)
-	GetAllExecutingQuery(query string) ([]UserModel, error)
+	GetAllExecutingQuery(query string, queryParams []string) ([]UserModel, error)
 	//GetAllUserRoleMappingsForRoleId(roleId int) ([]UserRoleModel, error)
 	FetchActiveUserByEmail(email string) (bean.UserInfo, error)
 	FetchUserDetailByEmail(email string) (bean.UserInfo, error)
@@ -48,7 +48,7 @@ type UserRepository interface {
 	FetchUserMatchesByEmailIdExcludingApiTokenUser(email string) ([]UserModel, error)
 	FetchActiveOrDeletedUserByEmail(email string) (*UserModel, error)
 	UpdateRoleIdForUserRolesMappings(roleId int, newRoleId int) (*UserRoleModel, error)
-	GetCountExecutingQuery(query string) (int, error)
+	GetCountExecutingQuery(query string, queryParams []string) (int, error)
 	CheckIfTokenExistsByTokenNameAndVersion(tokenName string, tokenVersion int) (bool, error)
 }
 
@@ -165,9 +165,9 @@ func (impl UserRepositoryImpl) GetAllExcludingApiTokenUser() ([]UserModel, error
 	return userModel, err
 }
 
-func (impl UserRepositoryImpl) GetAllExecutingQuery(query string) ([]UserModel, error) {
+func (impl UserRepositoryImpl) GetAllExecutingQuery(query string, queryParams []string) ([]UserModel, error) {
 	var userModel []UserModel
-	_, err := impl.dbConnection.Query(&userModel, query)
+	_, err := impl.dbConnection.Query(&userModel, query, queryParams)
 	if err != nil {
 		impl.Logger.Error("error in GetAllExecutingQuery", "err", err, "query", query)
 		return nil, err
@@ -256,9 +256,9 @@ func (impl UserRepositoryImpl) UpdateRoleIdForUserRolesMappings(roleId int, newR
 
 }
 
-func (impl UserRepositoryImpl) GetCountExecutingQuery(query string) (int, error) {
+func (impl UserRepositoryImpl) GetCountExecutingQuery(query string, queryParams []string) (int, error) {
 	var totalCount int
-	_, err := impl.dbConnection.Query(&totalCount, query)
+	_, err := impl.dbConnection.Query(&totalCount, query, queryParams)
 	if err != nil {
 		impl.Logger.Error("Exception caught: GetCountExecutingQuery", err)
 		return totalCount, err

@@ -72,6 +72,14 @@ type RbacPolicyEntityGroupDto struct {
 type SortBy string
 type SortOrder string
 
+func (s SortBy) String() string {
+	return string(s)
+}
+
+func (s SortOrder) String() string {
+	return string(s)
+}
+
 const (
 	Asc  SortOrder = "ASC"
 	Desc SortOrder = "DESC"
@@ -99,5 +107,5 @@ const (
 
 const (
 	API_TOKEN_USER_EMAIL_PREFIX = "API-TOKEN:"
-	ApiTokenTableName = "api_token"
+	ApiTokenTableName           = "api_token"
 )
