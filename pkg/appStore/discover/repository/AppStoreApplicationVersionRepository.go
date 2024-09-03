@@ -146,20 +146,20 @@ func (impl *AppStoreApplicationVersionRepositoryImpl) FindWithFilter(filter *app
 
 	query = query + updateFindWithFilterQuery(filter, QUERY_COLUMN_UPDATE)
 
-	query = query + " FROM app_store_application_version asv" +
-		" INNER JOIN app_store aps ON (asv.app_store_id = aps.id and aps.active = ?)"
+	query = query + " FROM app_store_application_version asv " +
+		" INNER JOIN app_store aps ON (asv.app_store_id = aps.id and aps.active = ?) "
 	queryParams = append(queryParams, "true")
 	query = query + updateFindWithFilterQuery(filter, QUERY_JOIN_UPDTAE)
 
 	if !filter.IncludeDeprecated {
-		query = query + " AND asv.deprecated = ?"
+		query = query + " AND asv.deprecated = ? "
 		queryParams = append(queryParams, "FALSE")
 	}
 	if len(filter.AppStoreName) > 0 {
-		query = query + " AND aps.name LIKE ?"
+		query = query + " AND aps.name LIKE ? "
 		queryParams = append(queryParams, util.GetLIKEClauseQueryParam(filter.AppStoreName))
 	}
-	query = query + " ORDER BY aps.name ASC"
+	query = query + " ORDER BY aps.name ASC "
 	if filter.Size > 0 {
 		query = query + " OFFSET ? LIMIT ? "
 		queryParams = append(queryParams, filter.Offset, filter.Size)
