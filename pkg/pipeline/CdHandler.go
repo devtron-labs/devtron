@@ -544,7 +544,7 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 		rq.SetBuildLogRequest(cmConfig, secretConfig)
 	}
 
-	impl.Logger.Debugw("s3 log req ", "pipelineId", pipelineId, "runner", cdWorkflow)
+	impl.Logger.Debugw("s3 log req ", "pipelineId", pipelineId, "runnerId", cdWorkflow.Id)
 	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(impl.config.BaseLogLocationPath, cdLogRequest)
 	if err != nil {
 		impl.Logger.Errorw("err", err)
