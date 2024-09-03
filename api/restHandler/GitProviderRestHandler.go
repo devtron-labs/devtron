@@ -197,7 +197,7 @@ func (impl GitProviderRestHandlerImpl) UpdateGitRepoConfig(w http.ResponseWriter
 
 	res, err := impl.gitRegistryConfig.Update(&bean)
 	if err != nil {
-		impl.logger.Errorw("service err, UpdateGitRepoConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("service err, UpdateGitRepoConfig", "err", err, "gitRegistryId", bean.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
