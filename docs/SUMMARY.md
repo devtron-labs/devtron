@@ -151,6 +151,7 @@
     * [Semgrep](user-guide/plugins/semgrep.md)
     * [SonarQube](user-guide/plugins/sonarqube.md)
     * [SonarQube v1.1.0](user-guide/plugins/sonarqube-v1.1.0.md)
+    * [Vulnerability Scanning](user-guide/plugins/vulnerability-scanning.md)
 
 
 ## Resources
