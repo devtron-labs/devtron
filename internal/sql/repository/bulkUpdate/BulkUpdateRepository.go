@@ -17,7 +17,6 @@
 package bulkUpdate
 
 import (
-	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -25,7 +24,6 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
-	"strings"
 )
 
 type BulkUpdateReadme struct {
@@ -50,7 +48,6 @@ type BulkUpdateRepository interface {
 	BulkUpdateChartsEnvYamlOverrideById(id int, patch string) error
 
 	//For ConfigMap & Secret :
-	BuildSecretNameQuery(secretNames []string) string
 	FindCMBulkAppModelForGlobal(appNameIncludes []string, appNameExcludes []string, configMapNames []string) ([]*chartConfig.ConfigMapAppModel, error)
 	FindSecretBulkAppModelForGlobal(appNameIncludes []string, appNameExcludes []string, secretNames []string) ([]*chartConfig.ConfigMapAppModel, error)
 	FindCMBulkAppModelForEnv(appNameIncludes []string, appNameExcludes []string, envId int, configMapNames []string) ([]*chartConfig.ConfigMapEnvModel, error)
@@ -85,14 +82,14 @@ func appendBuildCMNameQuery(q *orm.Query, configMapNames []string) *orm.Query {
 	return q.Where("config_map_data LIKE ANY (array[?])", pg.In(configMapNames))
 }
 
-func (repositoryImpl BulkUpdateRepositoryImpl) BuildSecretNameQuery(secretNames []string) string {
-	secretNameQuery := "secret_data LIKE ANY (array["
-	secretNameQuery += "'%" + strings.Join(secretNames, "%', '%") + "%'"
-	secretNameQuery += "])"
-	secretNameQuery = fmt.Sprintf("( %s ) ", secretNameQuery)
-
-	return secretNameQuery
+func appendBuildSecretNameQuery(q *orm.Query, secretNames []string) *orm.Query {
+	//replacing secretName with "%secretName%"
+	for i := range secretNames {
+		secretNames[i] = util.GetLIKEClauseQueryParam(secretNames[i])
+	}
+	return q.Where("secret_data LIKE ANY (array[?])", pg.In(secretNames))
 }
+
 func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkUpdateReadme(resource string) (*BulkUpdateReadme, error) {
 	bulkUpdateReadme := &BulkUpdateReadme{}
 	err := repositoryImpl.dbConnection.
@@ -136,12 +133,11 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindCMBulkAppModelForGlobal(appNa
 }
 func (repositoryImpl BulkUpdateRepositoryImpl) FindSecretBulkAppModelForGlobal(appNameIncludes []string, appNameExcludes []string, secretNames []string) ([]*chartConfig.ConfigMapAppModel, error) {
 	CmAndSecretAppModel := []*chartConfig.ConfigMapAppModel{}
-	secretNameQuery := repositoryImpl.BuildSecretNameQuery(secretNames)
 	q := repositoryImpl.dbConnection.
 		Model(&CmAndSecretAppModel).Join("INNER JOIN app ON app.id = config_map_app_model.app_id").
-		Where(secretNameQuery).
 		Where("app.active = ?", true)
 	q = appendBuildAppNameQuery(q, appNameIncludes, appNameExcludes)
+	q = appendBuildSecretNameQuery(q, secretNames)
 	err := q.Select()
 	return CmAndSecretAppModel, err
 }
@@ -158,13 +154,12 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindCMBulkAppModelForEnv(appNameI
 }
 func (repositoryImpl BulkUpdateRepositoryImpl) FindSecretBulkAppModelForEnv(appNameIncludes []string, appNameExcludes []string, envId int, secretNames []string) ([]*chartConfig.ConfigMapEnvModel, error) {
 	CmAndSecretEnvModel := []*chartConfig.ConfigMapEnvModel{}
-	secretNameQuery := repositoryImpl.BuildSecretNameQuery(secretNames)
 	q := repositoryImpl.dbConnection.
 		Model(&CmAndSecretEnvModel).Join("INNER JOIN app ON app.id = config_map_env_model.app_id").
-		Where(secretNameQuery).
 		Where("app.active = ?", true).
 		Where("config_map_env_model.environment_id = ? ", envId)
 	q = appendBuildAppNameQuery(q, appNameIncludes, appNameExcludes)
+	q = appendBuildSecretNameQuery(q, secretNames)
 	err := q.Select()
 	return CmAndSecretEnvModel, err
 }
