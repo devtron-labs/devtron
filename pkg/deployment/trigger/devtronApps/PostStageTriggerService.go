@@ -102,7 +102,7 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 
 	_, err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
 	if err != nil {
-		impl.logger.Errorw("error in submitting workflow", "err", err, "cdStageWorkflowRequest", cdStageWorkflowRequest, "pipeline", pipeline, "env", env)
+		impl.logger.Errorw("error in submitting workflow", "err", err, "workflowId", cdStageWorkflowRequest.WorkflowId, "pipeline", pipeline, "env", env)
 		return err
 	}
 
