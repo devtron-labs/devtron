@@ -14,7 +14,7 @@ An immutable blob of data generated as an output after the execution of a job, b
 
 ArgoCD Apps are the micro-services deployed using a [GitOps](#gitops) deployment tool named [Argo CD](https://argo-cd.readthedocs.io/en/stable/). 
 
-If external ArgoCD applications are present in your cluster, they will appear in the [ArgoCD Apps listing](../user-guide/applications.md#view-external-argocd-app-listing). 
+If ArgoCD applications are present in your cluster, they will appear in the [ArgoCD Apps listing](../user-guide/applications.md#view-external-argocd-app-listing). 
 
 ### Base Deployment Template
 
