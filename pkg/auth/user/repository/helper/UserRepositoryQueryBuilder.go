@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	"github.com/devtron-labs/devtron/util"
 	"strconv"
 )
 
@@ -28,20 +29,20 @@ func GetQueryForUserListingWithFilters(req *bean.ListingRequest) (string, []stri
 	orderCondition := ""
 	var queryParams []string
 	if len(req.SearchKey) > 0 {
-		emailIdLike := "%?% AND email_id ilike '?'"
-		queryParams = append(queryParams, req.SearchKey, emailIdLike)
+		whereCondition += " AND email_id ilike ? "
+		queryParams = append(queryParams, util.GetLIKEClauseQueryParam(req.SearchKey))
 	}
 
 	if len(req.SortBy) > 0 && !req.CountCheck {
-		orderCondition += "order by ?"
+		orderCondition += " order by ? "
 		queryParams = append(queryParams, req.SortBy.String())
 		// Handling it for last login as it is time and show order differs on UI.
 		if req.SortBy == bean2.LastLogin && req.SortOrder == bean2.Asc {
-			orderCondition += " ?"
+			orderCondition += " ? "
 			queryParams = append(queryParams, bean2.Desc.String())
 		}
 		if req.SortBy == bean2.Email && req.SortOrder == bean2.Desc {
-			orderCondition += " ?"
+			orderCondition += " ? "
 			queryParams = append(queryParams, req.SortOrder.String())
 		}
 	}
