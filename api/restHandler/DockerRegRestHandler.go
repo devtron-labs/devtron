@@ -313,7 +313,7 @@ func (impl DockerRegRestHandlerImpl) ValidateDockerRegistryConfig(w http.Respons
 	}
 	bean.User = userId
 
-	impl.logger.Infow("request payload, ValidateDockerRegistryConfig", "payload", bean)
+	impl.logger.Infow("request payload, ValidateDockerRegistryConfig", "dockerRegistryId", bean.Id)
 	err = impl.validator.Struct(bean)
 	if err != nil {
 		impl.logger.Errorw("validation err, ValidateDockerRegistryConfig", "err", err, "dockerRegistryId", bean.Id)
