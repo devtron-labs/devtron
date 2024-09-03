@@ -16,7 +16,7 @@ redirects:
     setup/upgrade/devtron-upgrade-0.2.x-0.3.x: getting-started/upgrade/devtron-upgrade-0.2.x-0.3.x
     setup/global-configurations: user-guide/global-configurations/README.md
     setup/global-configurations/gitops: user-guide/global-configurations/gitops.md
-    setup/global-configurations/custom-charts: user-guide/global-configurations/custom-charts.md
+    setup/global-configurations/custom-charts: user-guide/global-configurations/deployment-charts.md
     setup/global-configurations/user-access: user-guide/global-configurations/authorization/user-access.md 
     setup/global-configurations/external-links: user-guide/global-configurations/external-links.md
     setup/global-configurations/projects: user-guide/global-configurations/projects.md
@@ -109,7 +109,7 @@ redirects:
     getting-started/global-configurations/filter-condition: user-guide/global-configurations/filter-condition.md
     getting-started/global-configurations/build-infra: user-guide/global-configurations/build-infra.md
     getting-started/global-configurations/gitops: user-guide/global-configurations/gitops.md
-    getting-started/global-configurations/custom-charts: user-guide/global-configurations/custom-charts.md
+    getting-started/global-configurations/custom-charts: user-guide/global-configurations/deployment-charts.md
     getting-started/global-configurations/external-links: user-guide/global-configurations/external-links.md
     getting-started/global-configurations/projects: user-guide/global-configurations/projects.md
     getting-started/global-configurations/manage-notification: user-guide/global-configurations/manage-notification.md
@@ -128,3 +128,4 @@ redirects:
     usage/clusters: user-guide/resource-browser.md
     global-configurations/authorization/sso-login/okta: user-guide/global-configurations/authorization/sso/okta.md
     usage/applications/creating-application/ci-pipeline/ci-build-pre-post-plugins: user-guide/creating-application/workflow/ci-build-pre-post-plugins.md
+    global-configurations/custom-charts: user-guide/global-configurations/deployment-charts.md

@@ -278,6 +278,14 @@ func TriggerGitOpsMetrics(operation string, method string, startTime time.Time, 
 	middleware.GitOpsDuration.WithLabelValues(operation, method, status).Observe(time.Since(startTime).Seconds())
 }
 
+type EvalIsNonPublishableErr func(err error) bool
+
+func AllPublishableError() EvalIsNonPublishableErr {
+	return func(err error) bool {
+		return false
+	}
+}
+
 func InterfaceToString(resp interface{}) string {
 	var dat string
 	b, err := json.Marshal(resp)
