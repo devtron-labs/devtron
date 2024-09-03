@@ -478,18 +478,15 @@ func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIden
 	return app, nil
 }
 
-// updateAppNameToUniqueAppIdentifierInApp, migrates values of app_name col. in app table to unique identifier and also updates display_name with releaseName
-// returns is requested external app is migrated or other app (linked to chart store) with same name is migrated(which is tracked via namespace).
-func (impl AppCrudOperationServiceImpl) updateAppNameToUniqueAppIdentifierInApp(app *appRepository.App, appIdentifier *helmBean.AppIdentifier) error {
-	appNameUniqueIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
+// fixMultipleInstalledAppForSingleApp fixes multiple entries of installed app for single app
+func (impl AppCrudOperationServiceImpl) fixMultipleInstalledAppForSingleApp(app *appRepository.App) error {
 	isLinked, installedApps, err := impl.installedAppDbService.IsExternalAppLinkedToChartStore(app.Id)
 	if err != nil {
 		impl.logger.Errorw("error in checking IsExternalAppLinkedToChartStore", "appId", app.Id, "err", err)
 		return err
 	}
-	//if isLinked is true then installed_app found for this app then this app name is already linked to an installed app then
-	//create new appEntry for all those installedApps and link installedApp.AppId to the newly created app.
-	if isLinked {
+	//if isLinked is true and more than one installed app is found for that app, we will create new app for each installed app
+	if isLinked && len(installedApps) > 1 {
 		// if installed_apps are already present for that display_name then migrate the app_name to unique identifier with installedApp's ns and clusterId.
 		// creating new entry for app all installedApps with uniqueAppNameIdentifier and display name
 		err := impl.installedAppDbService.CreateNewAppEntryForAllInstalledApps(installedApps)
@@ -497,16 +494,6 @@ func (impl AppCrudOperationServiceImpl) updateAppNameToUniqueAppIdentifierInApp(
 			impl.logger.Errorw("error in CreateNewAppEntryForAllInstalledApps", "appName", app.AppName, "err", err)
 			//not returning from here as we have to migrate the app for requested ext-app and return the response for meta info
 		}
-	}
-	// migrating the requested ext-app
-	app.AppName = appNameUniqueIdentifier
-	app.DisplayName = appIdentifier.ReleaseName
-	app.UpdatedBy = bean2.SystemUserId
-	app.UpdatedOn = time.Now()
-	err = impl.appRepository.Update(app)
-	if err != nil {
-		impl.logger.Errorw("error in migrating displayName and appName to unique identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
-		return err
 	}
 	return nil
 }
@@ -533,10 +520,15 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 		}
 		// if app.DisplayName is empty then that app_name is not yet migrated to app name unique identifier
 		if app.Id > 0 && len(app.DisplayName) == 0 {
-			err = impl.updateAppNameToUniqueAppIdentifierInApp(app, appIdDecoded)
+			appNameUniqueIdentifier := appIdDecoded.GetUniqueAppNameIdentifier()
+			app.AppName = appNameUniqueIdentifier
+			app.DisplayName = appIdDecoded.ReleaseName
+			app.UpdatedBy = bean2.SystemUserId
+			app.UpdatedOn = time.Now()
+			err = impl.appRepository.Update(app)
 			if err != nil {
-				impl.logger.Errorw("GetHelmAppMetaInfo, error in migrating displayName and appName to unique identifier for external apps", "appIdentifier", appIdDecoded, "err", err)
-				//not returning from here as we need to show helm app metadata even if migration of app_name fails, then migration can happen on project update
+				impl.logger.Errorw("error in migrating displayName and appName to unique identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
+				return nil, err
 			}
 		}
 		if app.Id == 0 {
@@ -567,6 +559,12 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 			// in case of external apps, we will send display name as appName will be a unique identifier
 			displayName = InstalledApp.App.DisplayName
 		}
+	}
+
+	err = impl.fixMultipleInstalledAppForSingleApp(app)
+	if err != nil {
+		impl.logger.Errorw("GetHelmAppMetaInfo, error in fixing multiple installed apps linked to same app", "appId", appId, "err", err)
+		return nil, err
 	}
 
 	user, err := impl.userRepository.GetByIdIncludeDeleted(app.CreatedBy)

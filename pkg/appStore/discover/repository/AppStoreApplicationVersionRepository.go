@@ -253,7 +253,7 @@ func (impl *AppStoreApplicationVersionRepositoryImpl) SearchAppStoreChartByName(
 	var chartRepos []*appStoreBean.ChartRepoSearch
 	//for chart repos, created (derived through index.yaml) column of app_store_application_version is used for finding latest version and for oci repo id is used (because created is null)
 	queryTemp := "select asv.id as app_store_application_version_id, asv.version, asv.deprecated, aps.id as chart_id," +
-		" aps.name as chart_name, chr.id as chart_repo_id, chr.name as chart_repo_name" +
+		" aps.name as chart_name, chr.id as chart_repo_id, chr.name as chart_repo_name, das.id as docker_artifact_store_id" +
 		" from app_store_application_version asv" +
 		" inner join app_store aps on asv.app_store_id = aps.id" +
 		" left join chart_repo chr on aps.chart_repo_id = chr.id" +

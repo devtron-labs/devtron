@@ -365,6 +365,7 @@ type ChartRepoSearch struct {
 	ChartId                      int    `json:"chartId"`
 	ChartName                    string `json:"chartName"`
 	ChartRepoId                  int    `json:"chartRepoId"`
+	DockerArtifactStoreId        string `json:"DockerArtifactStoreId"`
 	ChartRepoName                string `json:"chartRepoName"`
 	Version                      string `json:"version"`
 	Deprecated                   bool   `json:"deprecated"`
