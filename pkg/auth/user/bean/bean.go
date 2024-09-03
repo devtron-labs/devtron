@@ -18,6 +18,10 @@ package bean
 
 type RoleType string
 
+func (r RoleType) String() string {
+	return string(r)
+}
+
 const (
 	SYSTEM_USER_ID                              = 1
 	PROJECT_TYPE                                = "team"
