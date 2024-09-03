@@ -350,7 +350,7 @@ func (impl DockerRegRestHandlerImpl) ValidateDockerRegistryConfig(w http.Respons
 	}
 	// valid registry credentials from kubelink
 	if isValid := impl.dockerRegistryConfig.ValidateRegistryCredentials(&bean); !isValid {
-		impl.logger.Errorw("registry credentials validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("registry credentials validation err, SaveDockerRegistryConfig", "err", err, "dockerRegistryId", bean.Id)
 		err = &util.ApiError{
 			HttpStatusCode:  http.StatusBadRequest,
 			InternalMessage: "Invalid authentication credentials. Please verify.",
