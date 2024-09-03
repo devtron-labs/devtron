@@ -862,7 +862,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdatePreviousDeploymentStatusForAppS
 	}
 	err1 := impl.fullModeDeploymentService.UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest, triggeredAt, err)
 	if err1 != nil {
-		impl.logger.Errorw("error in updating previous deployment status for appStore", "err", err1, "installAppVersionRequest", installAppVersionRequest)
+		impl.logger.Errorw("error in updating previous deployment status for appStore", "err", err1, "installAppVersionRequestId", installAppVersionRequest.Id)
 		return err1
 	}
 	return nil
