@@ -183,7 +183,7 @@ func (impl GitProviderRestHandlerImpl) UpdateGitRepoConfig(w http.ResponseWriter
 	impl.logger.Infow("request payload, UpdateGitRepoConfig", "payload", bean)
 	err = impl.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("validation err, UpdateGitRepoConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("validation err, UpdateGitRepoConfig", "err", err, "gitRegistryId", bean.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
