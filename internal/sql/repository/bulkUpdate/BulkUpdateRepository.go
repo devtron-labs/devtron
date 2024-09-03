@@ -70,11 +70,20 @@ type BulkUpdateRepositoryImpl struct {
 }
 
 func appendBuildAppNameQuery(q *orm.Query, appNameIncludes []string, appNameExcludes []string) *orm.Query {
-	return q.Where("app.app_name LIKE ANY (array[?])", pg.In(appNameIncludes)).
-		Where("app.app_name NOT LIKE ALL (array[?])", pg.In(appNameExcludes))
+	if len(appNameIncludes) != 0 {
+		q = q.Where("app.app_name LIKE ANY (array[?])", pg.In(appNameIncludes))
+	}
+	if len(appNameExcludes) != 0 {
+		q = q.Where("app.app_name NOT LIKE ALL (array[?])", pg.In(appNameExcludes))
+	}
+	return q
+
 }
 
 func appendBuildCMNameQuery(q *orm.Query, configMapNames []string) *orm.Query {
+	if len(configMapNames) == 0 {
+		return q
+	}
 	//replacing configMapName with "%configMapName%"
 	for i := range configMapNames {
 		configMapNames[i] = util.GetLIKEClauseQueryParam(configMapNames[i])
@@ -83,6 +92,9 @@ func appendBuildCMNameQuery(q *orm.Query, configMapNames []string) *orm.Query {
 }
 
 func appendBuildSecretNameQuery(q *orm.Query, secretNames []string) *orm.Query {
+	if len(secretNames) == 0 {
+		return q
+	}
 	//replacing secretName with "%secretName%"
 	for i := range secretNames {
 		secretNames[i] = util.GetLIKEClauseQueryParam(secretNames[i])
