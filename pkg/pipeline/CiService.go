@@ -210,7 +210,7 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 				return fmt.Errorf("ci artifact already exists with same image name")
 			}
 		} else {
-			artifactExists, err = impl.ciArtifactRepository.IfArtifactExistByImageDigest(CiPipeline.ExtraEnvVarImageDigestKey, externalCiArtifact, trigger.PipelineId)
+			artifactExists, err = impl.ciArtifactRepository.IfArtifactExistByImageDigest(trigger.ExtraEnvironmentVariables[CiPipeline.ExtraEnvVarImageDigestKey], externalCiArtifact, trigger.PipelineId)
 			if err != nil {
 				impl.Logger.Errorw("error in fetching ci artifact", "err", err)
 				return err
