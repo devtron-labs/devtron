@@ -447,8 +447,9 @@ func (repo AppRepositoryImpl) FetchAppIdsWithFilter(jobListingFilter helper.AppL
 		query += " and display_name like ? "
 		queryParams = append(queryParams, util.GetLIKEClauseQueryParam(jobListingFilter.AppNameSearch))
 	}
+	query += " order by display_name "
 	if jobListingFilter.SortOrder == "DESC" {
-		query += " order by display_name ? "
+		query += " ? "
 		queryParams = append(queryParams, jobListingFilter.SortOrder)
 	}
 	_, err := repo.dbConnection.Query(&jobIds, query, queryParams)
