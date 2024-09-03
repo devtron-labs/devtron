@@ -505,7 +505,7 @@ func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseW
 	var bean types.DockerArtifactStoreBean
 	err = decoder.Decode(&bean)
 	if err != nil {
-		impl.logger.Errorw("request err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("request err, UpdateDockerRegistryConfig", "err", err, "dockerRegistryId", bean.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
