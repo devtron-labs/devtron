@@ -180,7 +180,7 @@ func (impl GitProviderRestHandlerImpl) UpdateGitRepoConfig(w http.ResponseWriter
 		return
 	}
 	bean.UserId = userId
-	impl.logger.Infow("request payload, UpdateGitRepoConfig", "payload", bean)
+	impl.logger.Infow("request payload, UpdateGitRepoConfig", "gitRegistryId", bean.Id)
 	err = impl.validator.Struct(bean)
 	if err != nil {
 		impl.logger.Errorw("validation err, UpdateGitRepoConfig", "err", err, "gitRegistryId", bean.Id)
