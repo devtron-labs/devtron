@@ -471,8 +471,8 @@ func (repo AppRepositoryImpl) FetchAppIdsByDisplayNamesForJobs(names []string) (
 	var jobIdName []App
 	query := "select id, display_name from app where active = ? and app_type = ? and display_name in (?);"
 	_, err := repo.dbConnection.Query(&jobIdName, query, true, helper.Job, pg.In(names))
-	appResp := make(map[int]string)
-	jobIds := make([]int, 0)
+	appResp := make(map[int]string, len(jobIdName))
+	jobIds := make([]int, 0, len(jobIdName))
 	for _, id := range jobIdName {
 		appResp[id.Id] = id.DisplayName
 		jobIds = append(jobIds, id.Id)
