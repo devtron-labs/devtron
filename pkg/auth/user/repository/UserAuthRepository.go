@@ -945,40 +945,48 @@ func (impl UserAuthRepositoryImpl) GetRolesForWorkflow(workflow, entityName stri
 
 func (impl UserAuthRepositoryImpl) GetRoleForClusterEntity(cluster, namespace, group, kind, resource, action string) (RoleModel, error) {
 	var model RoleModel
+	var queryParams []string
 	query := "SELECT * FROM roles  WHERE entity = ? "
+	queryParams = append(queryParams, bean.CLUSTER_ENTITIY)
 	var err error
 
 	if len(cluster) > 0 {
-		query += " and cluster='" + cluster + "' "
+		query += " and cluster = ? "
+		queryParams = append(queryParams, cluster)
 	} else {
 		query += " and cluster IS NULL "
 	}
 	if len(namespace) > 0 {
-		query += " and namespace='" + namespace + "' "
+		query += " and namespace = ? "
+		queryParams = append(queryParams, namespace)
 	} else {
 		query += " and namespace IS NULL "
 	}
 	if len(group) > 0 {
-		query += " and \"group\"='" + group + "' "
+		query += " and \"group\"= ? "
+		queryParams = append(queryParams, group)
 	} else {
 		query += " and \"group\" IS NULL "
 	}
 	if len(kind) > 0 {
-		query += " and kind='" + kind + "' "
+		query += " and kind = ? "
+		queryParams = append(queryParams, kind)
 	} else {
 		query += " and kind IS NULL "
 	}
 	if len(resource) > 0 {
-		query += " and resource='" + resource + "' "
+		query += " and resource = ? "
+		queryParams = append(queryParams, resource)
 	} else {
 		query += " and resource IS NULL "
 	}
 	if len(action) > 0 {
-		query += " and action='" + action + "' ;"
+		query += " and action = ? ;"
+		queryParams = append(queryParams, action)
 	} else {
 		query += " and action IS NULL ;"
 	}
-	_, err = impl.dbConnection.Query(&model, query, bean.CLUSTER_ENTITIY)
+	_, err = impl.dbConnection.Query(&model, query, queryParams)
 	if err != nil {
 		impl.Logger.Errorw("error in getting roles for clusterEntity", "err", err,
 			bean2.CLUSTER, cluster, "namespace", namespace, "kind", kind, "group", group, "resource", resource)
@@ -990,24 +998,29 @@ func (impl UserAuthRepositoryImpl) GetRoleForClusterEntity(cluster, namespace, g
 func (impl UserAuthRepositoryImpl) GetRoleForJobsEntity(entity, team, app, env, act string, workflow string) (RoleModel, error) {
 	var model RoleModel
 	var err error
+	var queryParams []string
 	if len(team) > 0 && len(act) > 0 {
 		query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.action=? AND role.entity=? "
+		queryParams = append(queryParams, team, act, entity)
 		if len(env) == 0 {
 			query = query + " AND role.environment is NULL"
 		} else {
-			query += "AND role.environment='" + env + "'"
+			query += "AND role.environment = ? "
+			queryParams = append(queryParams, env)
 		}
 		if len(app) == 0 {
 			query = query + " AND role.entity_name is NULL"
 		} else {
-			query += " AND role.entity_name='" + app + "'"
+			query += " AND role.entity_name = ? "
+			queryParams = append(queryParams, app)
 		}
 		if len(workflow) == 0 {
 			query = query + " AND role.workflow is NULL;"
 		} else {
-			query += " AND role.workflow='" + workflow + "';"
+			query += " AND role.workflow = ? ;"
+			queryParams = append(queryParams, workflow)
 		}
-		_, err = impl.dbConnection.Query(&model, query, team, act, entity)
+		_, err = impl.dbConnection.Query(&model, query, queryParams)
 	} else {
 		return model, nil
 	}
@@ -1021,21 +1034,27 @@ func (impl UserAuthRepositoryImpl) GetRoleForChartGroupEntity(entity, app, act, 
 	var model RoleModel
 	var err error
 	if len(app) > 0 && act == "update" {
+		var queryParams []string
 		query := "SELECT role.* FROM roles role WHERE role.entity = ? AND role.entity_name=? AND role.action=?"
+		queryParams = append(queryParams, entity, app, act)
 		if len(accessType) == 0 {
 			query = query + " and role.access_type is NULL"
 		} else {
-			query += " and role.access_type='" + accessType + "'"
+			query += " and role.access_type = ? "
+			queryParams = append(queryParams, accessType)
 		}
-		_, err = impl.dbConnection.Query(&model, query, entity, app, act)
+		_, err = impl.dbConnection.Query(&model, query, queryParams)
 	} else if app == "" {
+		var queryParams []string
 		query := "SELECT role.* FROM roles role WHERE role.entity = ? AND role.action=?"
+		queryParams = append(queryParams, entity, act)
 		if len(accessType) == 0 {
 			query = query + " and role.access_type is NULL"
 		} else {
-			query += " and role.access_type='" + accessType + "'"
+			query += " and role.access_type = ? "
+			queryParams = append(queryParams, accessType)
 		}
-		_, err = impl.dbConnection.Query(&model, query, entity, act)
+		_, err = impl.dbConnection.Query(&model, query, queryParams)
 	}
 	if err != nil {
 		impl.Logger.Errorw("error in getting role for chart group entity", "err", err, "entity", entity, "app", app, "act", act, "accessType", accessType)
@@ -1047,52 +1066,67 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 	var model RoleModel
 	var err error
 	if len(team) > 0 && len(app) > 0 && len(env) > 0 && len(act) > 0 {
+		var queryParams []string
 		query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.entity_name=? AND role.environment=? AND role.action=?"
+		queryParams = append(queryParams, team, app, env, act)
 		if oldValues {
 			query = query + " and role.access_type is NULL"
 		} else {
-			query += " and role.access_type='" + accessType + "'"
+			query += " and role.access_type = ? "
+			queryParams = append(queryParams, accessType)
 		}
 
-		_, err = impl.dbConnection.Query(&model, query, team, app, env, act)
+		_, err = impl.dbConnection.Query(&model, query, queryParams)
 	} else if len(team) > 0 && app == "" && len(env) > 0 && len(act) > 0 {
-
+		var queryParams []string
 		query := "SELECT role.* FROM roles role WHERE role.team=? AND coalesce(role.entity_name,'')=? AND role.environment=? AND role.action=?"
+		queryParams = append(queryParams, team, EMPTY_PLACEHOLDER_FOR_QUERY, env, act)
 		if oldValues {
 			query = query + " and role.access_type is NULL"
 		} else {
-			query += " and role.access_type='" + accessType + "'"
+			query += " and role.access_type = ? "
+			queryParams = append(queryParams, accessType)
 		}
-		_, err = impl.dbConnection.Query(&model, query, team, EMPTY_PLACEHOLDER_FOR_QUERY, env, act)
+		_, err = impl.dbConnection.Query(&model, query, queryParams)
 	} else if len(team) > 0 && len(app) > 0 && env == "" && len(act) > 0 {
+		var queryParams []string
 		//this is applicable for all environment of a team
 		query := "SELECT role.* FROM roles role WHERE role.team = ? AND role.entity_name=? AND coalesce(role.environment,'')=? AND role.action=?"
+		queryParams = append(queryParams, team, app, EMPTY_PLACEHOLDER_FOR_QUERY, act)
 		if oldValues {
 			query = query + " and role.access_type is NULL"
 		} else {
-			query += " and role.access_type='" + accessType + "'"
+			query += " and role.access_type = ? "
+			queryParams = append(queryParams, accessType)
 		}
 
-		_, err = impl.dbConnection.Query(&model, query, team, app, EMPTY_PLACEHOLDER_FOR_QUERY, act)
+		_, err = impl.dbConnection.Query(&model, query, queryParams)
 	} else if len(team) > 0 && app == "" && env == "" && len(act) > 0 {
+		var queryParams []string
 		//this is applicable for all environment of a team
 		query := "SELECT role.* FROM roles role WHERE role.team = ? AND coalesce(role.entity_name,'')=? AND coalesce(role.environment,'')=? AND role.action=?"
+		queryParams = append(queryParams, team, EMPTY_PLACEHOLDER_FOR_QUERY, EMPTY_PLACEHOLDER_FOR_QUERY, act)
 		if oldValues {
 			query = query + " and role.access_type is NULL"
 		} else {
-			query += " and role.access_type='" + accessType + "'"
+			query += " and role.access_type = ? "
+			queryParams = append(queryParams, accessType)
 		}
 
-		_, err = impl.dbConnection.Query(&model, query, team, EMPTY_PLACEHOLDER_FOR_QUERY, EMPTY_PLACEHOLDER_FOR_QUERY, act)
+		_, err = impl.dbConnection.Query(&model, query, queryParams)
 	} else if team == "" && app == "" && env == "" && len(act) > 0 {
+		var queryParams []string
 		//this is applicable for super admin, all env, all team, all app
 		query := "SELECT role.* FROM roles role WHERE coalesce(role.team,'') = ? AND coalesce(role.entity_name,'')=? AND coalesce(role.environment,'')=? AND role.action=?"
+		queryParams = append(queryParams, EMPTY_PLACEHOLDER_FOR_QUERY, EMPTY_PLACEHOLDER_FOR_QUERY, EMPTY_PLACEHOLDER_FOR_QUERY, act)
 		if len(accessType) == 0 {
 			query = query + " and role.access_type is NULL"
 		} else {
-			query += " and role.access_type='" + accessType + "'"
+			query += " and role.access_type = ? "
+			queryParams = append(queryParams, accessType)
+
 		}
-		_, err = impl.dbConnection.Query(&model, query, EMPTY_PLACEHOLDER_FOR_QUERY, EMPTY_PLACEHOLDER_FOR_QUERY, EMPTY_PLACEHOLDER_FOR_QUERY, act)
+		_, err = impl.dbConnection.Query(&model, query, queryParams)
 	} else if team == "" && app == "" && env == "" && act == "" {
 		return model, nil
 	} else {
