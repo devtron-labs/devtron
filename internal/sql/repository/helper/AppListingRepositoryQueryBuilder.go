@@ -254,7 +254,7 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appLi
 	appStatuses := util.ProcessAppStatuses(appStatusExcludingNotDeployed)
 	if isNotDeployedFilterApplied {
 		deploymentAppType := "manifest_download"
-		whereCondition += " and (p.deployment_app_created=? and (p.deployment_app_type != '?' || dc.deployment_app_type != '?' ) or a.id NOT IN (SELECT app_id from pipeline) "
+		whereCondition += " and (p.deployment_app_created=? and (p.deployment_app_type != ? || dc.deployment_app_type != ? ) or a.id NOT IN (SELECT app_id from pipeline) "
 		queryParams = append(queryParams, false, deploymentAppType, deploymentAppType)
 		if len(appStatuses) > 0 {
 			whereCondition += " or aps.status IN (?) "
