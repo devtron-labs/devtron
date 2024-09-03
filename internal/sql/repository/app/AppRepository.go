@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -431,24 +432,25 @@ func (repo AppRepositoryImpl) FetchAppIdsWithFilter(jobListingFilter helper.AppL
 		Id int `json:"id"`
 	}
 	var jobIds []AppId
-	whereCondition := " where active = true and app_type = 2 "
+	var queryParams []interface{}
+	query := "select id from app where active = true and app_type = 2  "
 	if len(jobListingFilter.Teams) > 0 {
-		whereCondition += " and team_id in (" + helper.GetCommaSepratedString(jobListingFilter.Teams) + ")"
+		query += " and team_id in (?) "
+		queryParams = append(queryParams, pg.In(jobListingFilter.Teams))
 	}
 	if len(jobListingFilter.AppIds) > 0 {
-		whereCondition += " and id in (" + helper.GetCommaSepratedString(jobListingFilter.AppIds) + ")"
+		query += " and id in (?) "
+		queryParams = append(queryParams, pg.In(jobListingFilter.AppIds))
 	}
-
 	if len(jobListingFilter.AppNameSearch) > 0 {
-		whereCondition += " and display_name like '%" + jobListingFilter.AppNameSearch + "%' "
+		query += " and display_name like ? "
+		queryParams = append(queryParams, util.GetLIKEClauseQueryParam(jobListingFilter.AppNameSearch))
 	}
-	orderByCondition := " order by display_name "
 	if jobListingFilter.SortOrder == "DESC" {
-		orderByCondition += string(jobListingFilter.SortOrder)
+		query += " order by display_name ? "
+		queryParams = append(queryParams, jobListingFilter.SortOrder)
 	}
-	query := "select id " + "from app " + whereCondition + orderByCondition
-
-	_, err := repo.dbConnection.Query(&jobIds, query)
+	_, err := repo.dbConnection.Query(&jobIds, query, queryParams)
 	appCounts := make([]int, 0)
 	for _, id := range jobIds {
 		appCounts = append(appCounts, id.Id)
