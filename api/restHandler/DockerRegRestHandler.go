@@ -521,7 +521,7 @@ func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseW
 	impl.logger.Infow("request payload, UpdateDockerRegistryConfig", "err", err, "dockerRegistryId", bean.Id)
 	err = impl.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("validation err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("validation err, UpdateDockerRegistryConfig", "err", err, "dockerRegistryId", bean.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
