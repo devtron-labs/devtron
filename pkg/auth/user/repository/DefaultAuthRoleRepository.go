@@ -78,7 +78,7 @@ func (impl DefaultAuthRoleRepositoryImpl) GetRoleByRoleTypeAndEntityType(roleTyp
 		queryParams = append(queryParams, accessType)
 	}
 
-	_, err = impl.dbConnection.Query(&model, query, roleType)
+	_, err = impl.dbConnection.Query(&model, query, queryParams)
 	if err != nil {
 		impl.logger.Error("error in getting role by roleType", "err", err, "roleType", roleType)
 		return "", err
