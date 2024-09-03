@@ -20,6 +20,7 @@ import (
 	"fmt"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
@@ -265,7 +266,7 @@ func (impl *AppStoreApplicationVersionRepositoryImpl) SearchAppStoreChartByName(
 						(aps.chart_repo_id is NOT NULL and  asv.created = (SELECT MAX(created) FROM app_store_application_version WHERE app_store_id = asv.app_store_id)) 
 					) 
 					and aps.active=? order by aps.name asc;`
-	_, err := impl.dbConnection.Query(&chartRepos, queryTemp, fmt.Sprintf("%%%s%%", chartName), true)
+	_, err := impl.dbConnection.Query(&chartRepos, queryTemp, util.GetLIKEClauseQueryParam(chartName), true)
 	if err != nil {
 		return nil, err
 	}

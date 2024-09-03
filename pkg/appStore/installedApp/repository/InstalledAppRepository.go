@@ -408,11 +408,11 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.
 	}
 	if len(filter.AppStoreName) > 0 {
 		query = query + " AND aps.name LIKE ? "
-		queryParams = append(queryParams, fmt.Sprintf("%%%s%%", filter.AppStoreName))
+		queryParams = append(queryParams, util.GetLIKEClauseQueryParam(filter.AppStoreName))
 	}
 	if len(filter.AppName) > 0 {
 		query = query + " AND a.app_name LIKE ? "
-		queryParams = append(queryParams, fmt.Sprintf("%%%s%%", filter.AppName))
+		queryParams = append(queryParams, util.GetLIKEClauseQueryParam(filter.AppName))
 	}
 	if len(filter.ChartRepoId) > 0 {
 		query = query + " AND ch.id IN (?) "
