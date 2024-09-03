@@ -116,10 +116,10 @@ func (impl AppListingRepositoryImpl) FetchJobs(appIds []int, statuses []string, 
 	if len(appIds) == 0 {
 		return jobContainers, nil
 	}
-	jobsQuery := impl.appListingRepositoryQueryBuilder.BuildJobListingQuery(appIds, statuses, environmentIds, sortOrder)
+	jobsQuery, jobsQueryParams := impl.appListingRepositoryQueryBuilder.BuildJobListingQuery(appIds, statuses, environmentIds, sortOrder)
 
 	impl.Logger.Debugw("basic app detail query: ", jobsQuery)
-	_, appsErr := impl.dbConnection.Query(&jobContainers, jobsQuery)
+	_, appsErr := impl.dbConnection.Query(&jobContainers, jobsQuery, jobsQueryParams)
 	if appsErr != nil {
 		impl.Logger.Error(appsErr)
 		return jobContainers, appsErr
