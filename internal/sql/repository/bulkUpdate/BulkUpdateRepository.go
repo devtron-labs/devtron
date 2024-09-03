@@ -36,7 +36,6 @@ type BulkUpdateReadme struct {
 }
 
 type BulkUpdateRepository interface {
-	BuildAppNameQuery(appNameIncludes []string, appNameExcludes []string) string
 	FindBulkUpdateReadme(operation string) (*BulkUpdateReadme, error)
 
 	//For Deployment Template :
