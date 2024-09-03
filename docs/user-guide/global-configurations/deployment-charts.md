@@ -1,5 +1,7 @@
 # Deployment Charts
 
+## Introduction
+
 Devtron includes predefined helm charts that cover the majority of use cases.
 For any use case not addressed by the default helm charts, you can upload your own helm chart and use it as a custom chart in Devtron.
 
@@ -12,11 +14,9 @@ For any use case not addressed by the default helm charts, you can upload your o
 
 ## Prerequisites
 
-1. A valid helm chart, which contains `Chart.yaml` file with name and version fields.
-2. Image descriptor template file `.image_descriptor_template.json`.
-3. Custom chart packaged in the `*.tgz` format.
+A valid helm chart containing a `Chart.yaml` file with name and version fields
 
-### 1. How to create a helm chart
+### Create a Helm Chart
 
 You can use the following command to create the Helm chart:
 
@@ -36,7 +36,7 @@ Please see the following example:
 
 ![Chart.yaml file](https://devtron-public-asset.s3.us-east-2.amazonaws.com/custom-charts/chart-yaml-file.png)
 
-### 2. Create the image descriptor template file `.image_descriptor_template.json`
+### 2. Create an Image Descriptor Template File
 
 It's a GO template file that should produce a valid `JSON` file upon rendering. This file is passed as the last argument in
 `helm install -f myvalues.yaml -f override.yaml` command.
