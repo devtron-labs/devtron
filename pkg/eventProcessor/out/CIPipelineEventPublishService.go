@@ -49,12 +49,12 @@ func (impl *CIPipelineEventPublishServiceImpl) PublishGitWebhookEvent(gitHostId 
 	}
 	body, err := json.Marshal(event)
 	if err != nil {
-		impl.logger.Errorw("error in marshaling git webhook event", "err", err, "gitHostId", gitHostId, "eventType", eventType)
+		impl.logger.Errorw("error in marshaling git webhook event", "err", err, "gitHostId", gitHostId)
 		return err
 	}
 	err = impl.pubSubClient.Publish(pubsub.WEBHOOK_EVENT_TOPIC, string(body))
 	if err != nil {
-		impl.logger.Errorw("error in publishing git webhook event", "err", err, "gitHostId", gitHostId, "eventType", eventType)
+		impl.logger.Errorw("error in publishing git webhook event", "err", err, "gitHostId", gitHostId)
 		return err
 	}
 	return nil
