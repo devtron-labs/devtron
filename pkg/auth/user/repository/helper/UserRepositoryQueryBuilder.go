@@ -21,13 +21,12 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/util"
-	"strconv"
 )
 
-func GetQueryForUserListingWithFilters(req *bean.ListingRequest) (string, []string) {
+func GetQueryForUserListingWithFilters(req *bean.ListingRequest) (string, []interface{}) {
 	whereCondition := fmt.Sprintf("where active = %t AND (user_type is NULL or user_type != '%s') ", true, bean.USER_TYPE_API_TOKEN)
 	orderCondition := ""
-	var queryParams []string
+	var queryParams []interface{}
 	if len(req.SearchKey) > 0 {
 		whereCondition += " AND email_id ilike ? "
 		queryParams = append(queryParams, util.GetLIKEClauseQueryParam(req.SearchKey))
@@ -39,17 +38,17 @@ func GetQueryForUserListingWithFilters(req *bean.ListingRequest) (string, []stri
 		// Handling it for last login as it is time and show order differs on UI.
 		if req.SortBy == bean2.LastLogin && req.SortOrder == bean2.Asc {
 			orderCondition += " ? "
-			queryParams = append(queryParams, bean2.Desc.String())
+			queryParams = append(queryParams, bean2.Desc)
 		}
 		if req.SortBy == bean2.Email && req.SortOrder == bean2.Desc {
 			orderCondition += " ? "
-			queryParams = append(queryParams, req.SortOrder.String())
+			queryParams = append(queryParams, req.SortOrder)
 		}
 	}
 
 	if req.Size > 0 && !req.CountCheck && !req.ShowAll {
 		orderCondition += " limit ? offset ? "
-		queryParams = append(queryParams, strconv.Itoa(req.Size), strconv.Itoa(req.Offset))
+		queryParams = append(queryParams, req.Size, req.Offset)
 	}
 	var query string
 	if req.CountCheck {
@@ -69,23 +68,27 @@ func GetQueryForAllUserWithAudit() string {
 	return query
 }
 
-func GetQueryForGroupListingWithFilters(req *bean.ListingRequest) string {
-	whereCondition := fmt.Sprintf("where active = %t ", true)
-	orderCondition := ""
+func GetQueryForGroupListingWithFilters(req *bean.ListingRequest) (string, []interface{}) {
+	var queryParams []interface{}
+	whereCondition := " where active = ? "
+	queryParams = append(queryParams, true)
 	if len(req.SearchKey) > 0 {
-		nameIdLike := "%" + req.SearchKey + "%"
-		whereCondition += fmt.Sprintf("AND name ilike '%s' ", nameIdLike)
+		whereCondition += " AND name ilike ? "
+		queryParams = append(queryParams, util.GetLIKEClauseQueryParam(req.SearchKey))
 	}
 
+	orderCondition := ""
 	if len(req.SortBy) > 0 && !req.CountCheck {
-		orderCondition += fmt.Sprintf("order by %s ", req.SortBy)
+		orderCondition += " order by ? "
+		queryParams = append(queryParams, req.SortBy)
 		if req.SortOrder == bean2.Desc {
-			orderCondition += string(req.SortOrder)
+			orderCondition += " ? "
+			queryParams = append(queryParams, req.SortOrder)
 		}
 	}
-
 	if req.Size > 0 && !req.CountCheck && !req.ShowAll {
-		orderCondition += " limit " + strconv.Itoa(req.Size) + " offset " + strconv.Itoa(req.Offset) + ""
+		orderCondition += " limit ? offset ? "
+		queryParams = append(queryParams, req.Size, req.Offset)
 	}
 	var query string
 	if req.CountCheck {
@@ -93,7 +96,7 @@ func GetQueryForGroupListingWithFilters(req *bean.ListingRequest) string {
 	} else {
 		query = fmt.Sprintf("SELECT * from role_group %s %s;", whereCondition, orderCondition)
 	}
-	return query
+	return query, queryParams
 
 }
 
