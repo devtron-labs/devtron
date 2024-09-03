@@ -196,15 +196,31 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 		}
 
 		trigger.ExtraEnvironmentVariables[CiPipeline.ExtraEnvVarExternalCiArtifactKey] = externalCiArtifact
-		exist, error := impl.ciArtifactRepository.IfArtifactExistByImage(externalCiArtifact, trigger.PipelineId)
-		if error != nil {
-			impl.Logger.Errorw("error in fetching ci artifact", "err", error)
-			return error
+
+		var artifactExists bool
+		var err error
+		if trigger.ExtraEnvironmentVariables[CiPipeline.ExtraEnvVarImageDigestKey] == "" {
+			artifactExists, err = impl.ciArtifactRepository.IfArtifactExistByImage(externalCiArtifact, trigger.PipelineId)
+			if err != nil {
+				impl.Logger.Errorw("error in fetching ci artifact", "err", err)
+				return err
+			}
+			if artifactExists {
+				impl.Logger.Errorw("ci artifact already exists with same image name", "artifact", externalCiArtifact)
+				return fmt.Errorf("ci artifact already exists with same image name")
+			}
+		} else {
+			artifactExists, err = impl.ciArtifactRepository.IfArtifactExistByImageDigest(CiPipeline.ExtraEnvVarImageDigestKey, externalCiArtifact, trigger.PipelineId)
+			if err != nil {
+				impl.Logger.Errorw("error in fetching ci artifact", "err", err)
+				return err
+			}
+			if artifactExists {
+				impl.Logger.Errorw("ci artifact already exists  with same digest", "artifact", externalCiArtifact)
+				return fmt.Errorf("ci artifact already exists  with same digest")
+			}
 		}
-		if exist {
-			impl.Logger.Errorw("ci artifact already exists", "artifact", externalCiArtifact)
-			return fmt.Errorf("ci artifact already exists")
-		}
+
 	}
 	if trigger.PipelineType == string(CiPipeline.CI_JOB) && len(ciMaterials) != 0 && !exists && externalCiArtifact == "" {
 		ciMaterials[0].GitMaterial = nil
