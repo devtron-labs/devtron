@@ -54,7 +54,7 @@ func (impl *CIPipelineEventPublishServiceImpl) PublishGitWebhookEvent(gitHostId 
 	}
 	err = impl.pubSubClient.Publish(pubsub.WEBHOOK_EVENT_TOPIC, string(body))
 	if err != nil {
-		impl.logger.Errorw("error in publishing git webhook event", "err", err, "eventBody", body)
+		impl.logger.Errorw("error in publishing git webhook event", "err", err, "gitHostId", gitHostId, "eventType", eventType)
 		return err
 	}
 	return nil
