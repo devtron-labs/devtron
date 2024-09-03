@@ -220,10 +220,10 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironmentV2(appListingFilter h
 
 	if string(appListingFilter.SortBy) == helper.LastDeployedSortBy {
 
-		query := impl.appListingRepositoryQueryBuilder.GetAppIdsQueryWithPaginationForLastDeployedSearch(appListingFilter)
+		query, queryParams := impl.appListingRepositoryQueryBuilder.GetAppIdsQueryWithPaginationForLastDeployedSearch(appListingFilter)
 		impl.Logger.Debug("GetAppIdsQueryWithPaginationForLastDeployedSearch query ", query)
 		start := time.Now()
-		_, err := impl.dbConnection.Query(&lastDeployedTimeDTO, query)
+		_, err := impl.dbConnection.Query(&lastDeployedTimeDTO, query, queryParams)
 		middleware.AppListingDuration.WithLabelValues("getAppIdsQueryWithPaginationForLastDeployedSearch", "devtron").Observe(time.Since(start).Seconds())
 		if err != nil || len(lastDeployedTimeDTO) == 0 {
 			if err != nil {
@@ -238,9 +238,9 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironmentV2(appListingFilter h
 			appIdsFound[i] = obj.AppId
 		}
 		appListingFilter.AppIds = appIdsFound
-		appContainerQuery := impl.appListingRepositoryQueryBuilder.GetQueryForAppEnvContainerss(appListingFilter)
-		impl.Logger.Debug("GetQueryForAppEnvContainerss query ", query)
-		_, err = impl.dbConnection.Query(&appEnvContainer, appContainerQuery)
+		appContainerQuery, appContainerQueryParams := impl.appListingRepositoryQueryBuilder.GetQueryForAppEnvContainers(appListingFilter)
+		impl.Logger.Debug("GetQueryForAppEnvContainers query ", query)
+		_, err = impl.dbConnection.Query(&appEnvContainer, appContainerQuery, appContainerQueryParams)
 		if err != nil {
 			impl.Logger.Errorw("error in getting appEnvContainers with appList filter from db", "err", err, "filter", appListingFilter, "query", appContainerQuery)
 			return appEnvArr, appsSize, err
@@ -250,10 +250,10 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironmentV2(appListingFilter h
 
 		// to get all the appIds in appEnvs allowed for user and filtered by the appListing filter and sorted by name
 		appIdCountDtos := make([]*bean.AppEnvironmentContainer, 0)
-		appIdCountQuery := impl.appListingRepositoryQueryBuilder.GetAppIdsQueryWithPaginationForAppNameSearch(appListingFilter)
+		appIdCountQuery, appIdCountQueryParams := impl.appListingRepositoryQueryBuilder.GetAppIdsQueryWithPaginationForAppNameSearch(appListingFilter)
 		impl.Logger.Debug("GetAppIdsQueryWithPaginationForAppNameSearch query ", appIdCountQuery)
 		start := time.Now()
-		_, appsErr := impl.dbConnection.Query(&appIdCountDtos, appIdCountQuery)
+		_, appsErr := impl.dbConnection.Query(&appIdCountDtos, appIdCountQuery, appIdCountQueryParams)
 		middleware.AppListingDuration.WithLabelValues("getAppIdsQueryWithPaginationForAppNameSearch", "devtron").Observe(time.Since(start).Seconds())
 		if appsErr != nil || len(appIdCountDtos) == 0 {
 			if appsErr != nil {
@@ -271,10 +271,10 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironmentV2(appListingFilter h
 		appListingFilter.AppIds = uniqueAppIds
 		// set appids required for this page in the filter and get the appEnv containers of these apps
 		appListingFilter.AppIds = uniqueAppIds
-		appsEnvquery := impl.appListingRepositoryQueryBuilder.GetQueryForAppEnvContainerss(appListingFilter)
-		impl.Logger.Debug("GetQueryForAppEnvContainerss query: ", appsEnvquery)
+		appsEnvquery, appsEnvQueryParams := impl.appListingRepositoryQueryBuilder.GetQueryForAppEnvContainers(appListingFilter)
+		impl.Logger.Debug("GetQueryForAppEnvContainers query: ", appsEnvquery)
 		start = time.Now()
-		_, appsErr = impl.dbConnection.Query(&appEnvContainer, appsEnvquery)
+		_, appsErr = impl.dbConnection.Query(&appEnvContainer, appsEnvquery, appsEnvQueryParams)
 		middleware.AppListingDuration.WithLabelValues("buildAppListingQuery", "devtron").Observe(time.Since(start).Seconds())
 		if appsErr != nil {
 			impl.Logger.Errorw("error in getting appEnvContainers with appList filter from db", "err", appsErr, "filter", appListingFilter, "query", appsEnvquery)
