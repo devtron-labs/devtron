@@ -266,9 +266,10 @@ func (repo AppRepositoryImpl) FindAllActiveAppsWithTeamWithTeamId(teamID int, ap
 
 func (repo AppRepositoryImpl) FindAllActiveAppsWithTeamByAppNameMatch(appNameMatch string, appType helper.AppType) ([]*App, error) {
 	var apps []*App
-	appNameLikeQuery := "app.app_name like '%" + appNameMatch + "%'"
 	err := repo.dbConnection.Model(&apps).Column("Team").
-		Where("app.active = ?", true).Where("app.app_type = ?", appType).Where(appNameLikeQuery).
+		Where("app.active = ?", true).
+		Where("app.app_type = ?", appType).
+		Where("app.app_name like ?", util.GetLIKEClauseQueryParam(appNameMatch)).
 		Select()
 	return apps, err
 }
