@@ -157,6 +157,7 @@ type PluginsVersionDetail struct {
 	Version         string               `json:"pluginVersion"`
 	IsLatest        bool                 `json:"isLatest"`
 	UpdatedBy       string               `json:"updatedBy"`
+	IsDeprecated    bool                 `json:"isDeprecated"`
 	CreatedOn       time.Time            `json:"-"`
 }
 
@@ -172,6 +173,7 @@ func (r *PluginsVersionDetail) SetMinimalPluginsVersionDetail(pluginVersionMetad
 	r.Version = pluginVersionMetadata.PluginVersion
 	r.IsLatest = pluginVersionMetadata.IsLatest
 	r.DocLink = pluginVersionMetadata.DocLink
+	r.IsDeprecated = pluginVersionMetadata.IsDeprecated
 	return r
 }
 
