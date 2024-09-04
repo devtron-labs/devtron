@@ -70,8 +70,6 @@ helm upgrade devtron devtron/devtron-operator -n devtroncd \
   --set components.devtron.ingress.tls[0].hosts[0]=devtron.example.com
 ```
 
-Let me know if you need any more adjustments!
-
 After Devtron is installed, Devtron is accessible through service `devtron-service`.
 If you want to access Devtron through ingress, edit `devtron-service` and change the loadbalancer to ClusterIP. You can do this using `kubectl patch` command:
 
