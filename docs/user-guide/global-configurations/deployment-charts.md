@@ -1,4 +1,4 @@
-# Custom Charts
+# Deployment Charts
 
 Devtron includes predefined helm charts that cover the majority of use cases.
 For any use case not addressed by the default helm charts, you can upload your own helm chart and use it as a custom chart in Devtron.
@@ -8,7 +8,7 @@ For any use case not addressed by the default helm charts, you can upload your o
 
 > A super admin can upload multiple versions of a custom helm chart.
 
-![Custom charts](https://devtron-public-asset.s3.us-east-2.amazonaws.com/custom-charts/custom-charts-lists.png)
+![Figure 1: Deployment Charts](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-charts/gc-deployment-charts.jpg)
 
 ## Prerequisites
 
@@ -99,7 +99,9 @@ helm package my-custom-chart
 
 The above command will create a `my-custom-chart-0.1.0.tgz` file.
 
-## Uploading a custom chart
+---
+
+## Uploading a Deployment Chart
 
 > A custom chart can only be uploaded by a super admin.
 
@@ -142,21 +144,73 @@ The following are the validation results:
 
 ![Already exists](https://devtron-public-asset.s3.us-east-2.amazonaws.com/custom-charts/List+-+Empty-1.png)
 
-## View the custom charts
+---
+
+## Viewing Deployment Charts
 
 > All users can view the custom charts.
 
-To view a list of available custom charts, go to  **Global Configurations > Custom charts** page.
+To view the list of available custom charts, go to  **Global Configurations → Deployment Charts** page.
 
 * The charts can be searched with their name, version, or description.
 * New [custom charts can be uploaded](#uploading-a-custom-chart) by selecting **Upload chart**.
 
-![Custom charts](https://devtron-public-asset.s3.us-east-2.amazonaws.com/custom-charts/custom-charts-lists.png)
+![Custom charts](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-charts/upload-custom-chart.jpg)
 
-## Use the custom chart in an application
+---
+
+## Using Deployment Chart in Application
 
 The custom charts can be used from the [Deployment Template](../creating-application/deployment-template.md) section.
 
 > **Info**:
 >
 > The deployment strategy for a custom chart is fetched from the custom chart template and cannot be configured in the [CD pipeline](../creating-application/workflow/cd-pipeline.md#deployment-strategies).
+
+---
+
+## Editing GUI Schema of Deployment Charts [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
+
+{% hint style="warning" %}
+### Who Can Perform This Action?
+Only superadmins can edit the GUI schema of deployment charts.
+{% endhint %}
+
+{% hint style="info" %}
+### Reference
+This section is an extension of [Customize Basic GUI](../creating-application/deployment-template.md#customize-basic-gui) feature within **App Configuration** → **Base Deployment Template**. Refer the document to know more about the significance of having a customizable GUI schema for your deployment templates.
+{% endhint %}
+
+You can edit the GUI schema of both the deployment charts:
+1. Charts provided by Devtron (*Deployment*, *Job & CronJob*, *Rollout Deployment*, and *StatefulSet*)
+2. Custom charts uploaded by you
+
+### Tutorial
+
+{% embed url="https://www.youtube.com/watch?v=93tGIsM1qC8" caption="JSON-driven Deployment Schema" %}
+
+### Steps
+
+In this example, we will edit the Deployment chart type provided by Devtron.
+
+1. Click the edit button next to the chart as shown below.
+
+    ![Edit GUI Schema Button](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-charts/edit-chart-schema.jpg)
+
+2. A GUI schema is available for you to edit in case of Devtron charts. In case of custom charts, you may have to define a GUI schema yourself. To know how to create such GUI schema, refer [RJSF JSON Schema Tool](https://rjsf-team.github.io/react-jsonschema-form/). 
+
+    ![Editable Schema](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-charts/gui-schema.jpg)
+
+3. You may start editing the schema by excluding existing fields/objects or including more of them. Click the **Refer YAML** button to view all the supported fields.
+
+    ![Refer YAML Button](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-charts/refer-yaml.gif)
+
+4. While editing the schema, you may use the **Preview GUI** option for a real-time preview of your changes.
+
+    ![Preview GUI Button](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-charts/preview-gui.gif)
+
+5. Click **Save Changes**.
+
+    ![Save Changes](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-charts/save-changes.jpg)
+
+Next, if you go to **App Configuration** → **Base Deployment Template**, you will be able to see the deployment template fields (in Basic GUI) as per your customized schema.

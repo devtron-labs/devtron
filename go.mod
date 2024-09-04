@@ -21,7 +21,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/deckarep/golang-set v1.8.0
 	github.com/devtron-labs/authenticator v0.4.35-0.20240809073103-6e11da8083f8
-	github.com/devtron-labs/common-lib v0.16.1-0.20240825180251-92432b07f63b
+	github.com/devtron-labs/common-lib v0.16.1-0.20240904063411-de9a254aa77a
 	github.com/devtron-labs/go-bitbucket v0.9.60-beta
 	github.com/devtron-labs/protos v0.0.3-0.20240802105333-92ee9bb85d80
 	github.com/evanphx/json-patch v5.7.0+incompatible
@@ -75,6 +75,7 @@ require (
 	go.uber.org/zap v1.21.0
 	golang.org/x/crypto v0.25.0
 	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225
+	golang.org/x/mod v0.17.0
 	golang.org/x/oauth2 v0.21.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20230822172742-b8732ec3820d
 	google.golang.org/grpc v1.59.0
@@ -242,7 +243,6 @@ require (
 	go.starlark.net v0.0.0-20230525235612-a134d8f9ddca // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/mod v0.17.0 // indirect
 	golang.org/x/net v0.27.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.22.0 // indirect

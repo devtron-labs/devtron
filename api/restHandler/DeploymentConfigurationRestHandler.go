@@ -115,9 +115,11 @@ func (handler *DeploymentConfigurationRestHandlerImpl) enforceForAppAndEnv(appNa
 		return false
 	}
 
-	object = handler.enforcerUtil.GetEnvRBACNameByAppAndEnvName(appName, envName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, action, object); !ok {
-		return false
+	if len(envName) > 0 {
+		object = handler.enforcerUtil.GetEnvRBACNameByAppAndEnvName(appName, envName)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, action, object); !ok {
+			return false
+		}
 	}
 	return true
 }

@@ -144,6 +144,7 @@ type WorkflowRequest struct {
 	Scope                       resourceQualifiers.Scope
 	BuildxCacheModeMin          bool `json:"buildxCacheModeMin"`
 	AsyncBuildxCacheExport      bool `json:"asyncBuildxCacheExport"`
+	UseDockerApiToGetDigest     bool `json:"useDockerApiToGetDigest"`
 }
 
 func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
