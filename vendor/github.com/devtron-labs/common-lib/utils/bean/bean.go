@@ -16,6 +16,40 @@
 
 package bean
 
-const (
-	YamlSeparator string = "---\n"
+import (
+	"encoding/base64"
+	"encoding/json"
+	"github.com/docker/cli/cli/config/types"
 )
+
+const (
+	YamlSeparator       string = "---\n"
+	RegistryTypeGcr            = "gcr"
+	RegistryTypeEcr            = "ecr"
+	GcrRegistryUsername        = "oauth2accesstoken"
+	GcrRegistryScope           = "https://www.googleapis.com/auth/cloud-platform"
+)
+
+type DockerAuthConfig struct {
+	RegistryType          string // can be ecr, gcr, docker-hub, harbor etc.
+	Username              string
+	Password              string
+	AccessKeyEcr          string // used for pulling from private ecr registry
+	SecretAccessKeyEcr    string // used for pulling from private ecr registry
+	EcrRegion             string // used for pulling from private ecr registry
+	CredentialFileJsonGcr string // used for pulling from private gcr registry
+	IsRegistryPrivate     bool
+}
+
+func (r *DockerAuthConfig) GetEncodedRegistryAuth() (string, error) {
+	// Create and encode the auth config
+	authConfig := types.AuthConfig{
+		Username: r.Username,
+		Password: r.Password,
+	}
+	encodedJSON, err := json.Marshal(authConfig)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(encodedJSON), nil
+}
