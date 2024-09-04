@@ -117,14 +117,18 @@ func (impl *ArgoApplicationReadServiceImpl) GetServerConfigIfClusterIsNotAddedOn
 			}
 		}
 		if configOfClusterWhereAppIsDeployed != nil {
-			restConfig.Host = destinationServer
-			restConfig.TLSClientConfig = rest.TLSClientConfig{
-				Insecure: configOfClusterWhereAppIsDeployed.TlsClientConfig.Insecure,
-				KeyFile:  configOfClusterWhereAppIsDeployed.TlsClientConfig.KeyData,
-				CAFile:   configOfClusterWhereAppIsDeployed.TlsClientConfig.CaData,
-				CertFile: configOfClusterWhereAppIsDeployed.TlsClientConfig.CertData,
+			restConfig, err = impl.k8sUtil.GetRestConfigByCluster(&k8s.ClusterConfig{
+				Host:                  destinationServer,
+				BearerToken:           configOfClusterWhereAppIsDeployed.BearerToken,
+				InsecureSkipTLSVerify: configOfClusterWhereAppIsDeployed.TlsClientConfig.Insecure,
+				KeyData:               configOfClusterWhereAppIsDeployed.TlsClientConfig.KeyData,
+				CAData:                configOfClusterWhereAppIsDeployed.TlsClientConfig.CaData,
+				CertData:              configOfClusterWhereAppIsDeployed.TlsClientConfig.CertData,
+			})
+			if err != nil {
+				impl.logger.Errorw("error in GetRestConfigByCluster, GetServerConfigIfClusterIsNotAddedOnDevtron", "err", err, "serverUrl", destinationServer)
+				return nil, err
 			}
-			restConfig.BearerToken = configOfClusterWhereAppIsDeployed.BearerToken
 		}
 	}
 	return restConfig, nil
