@@ -338,5 +338,10 @@ Please follow the steps mentioned below to create sequential pipelines:
 
 ![Figure 18: Adding Multiple CD Pipelines](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-cd-pipeline/sequential-workflow.jpg)
 
+{% hint style="info" %}
+### Tip
+If you have multiple applications that already have an existing pipeline (for a given environment) in their workflow, you may clone the same pipeline and its configurations for new environments instead of recreating them in each application. Refer [Clone Pipeline Config](../../application-groups.md#clone-pipeline-configuration) to know more.
+{% endhint %}
+
 
 
