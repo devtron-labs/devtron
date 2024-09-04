@@ -449,8 +449,7 @@ func (repo AppRepositoryImpl) FetchAppIdsWithFilter(jobListingFilter helper.AppL
 	}
 	query += " order by display_name "
 	if jobListingFilter.SortOrder == "DESC" {
-		query += " ? "
-		queryParams = append(queryParams, jobListingFilter.SortOrder)
+		query += " DESC "
 	}
 	_, err := repo.dbConnection.Query(&jobIds, query, queryParams)
 	appCounts := make([]int, 0)

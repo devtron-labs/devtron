@@ -34,15 +34,12 @@ func GetQueryForUserListingWithFilters(req *bean.ListingRequest) (string, []inte
 
 	if len(req.SortBy) > 0 && !req.CountCheck {
 		orderCondition += " order by ? "
-		queryParams = append(queryParams, req.SortBy.String())
 		// Handling it for last login as it is time and show order differs on UI.
 		if req.SortBy == bean2.LastLogin && req.SortOrder == bean2.Asc {
-			orderCondition += " ? "
-			queryParams = append(queryParams, bean2.Desc)
+			orderCondition += fmt.Sprintf(" %s %s ", bean2.LastLogin, bean2.Desc)
 		}
 		if req.SortBy == bean2.Email && req.SortOrder == bean2.Desc {
-			orderCondition += " ? "
-			queryParams = append(queryParams, req.SortOrder)
+			orderCondition += fmt.Sprintf(" %s %s ", bean2.Email, bean2.Desc)
 		}
 	}
 
@@ -79,11 +76,9 @@ func GetQueryForGroupListingWithFilters(req *bean.ListingRequest) (string, []int
 
 	orderCondition := ""
 	if len(req.SortBy) > 0 && !req.CountCheck {
-		orderCondition += " order by ? "
-		queryParams = append(queryParams, req.SortBy)
+		orderCondition += fmt.Sprintf(" order by %s ", req.SortBy)
 		if req.SortOrder == bean2.Desc {
-			orderCondition += " ? "
-			queryParams = append(queryParams, req.SortOrder)
+			orderCondition += fmt.Sprintf(" %s ", bean2.Desc)
 		}
 	}
 	if req.Size > 0 && !req.CountCheck && !req.ShowAll {

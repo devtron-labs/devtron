@@ -17,6 +17,7 @@
 package security
 
 import (
+	"fmt"
 	securityBean "github.com/devtron-labs/devtron/pkg/security/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
@@ -211,12 +212,10 @@ func getOrderByQueryPart(sortBy securityBean.SortBy, sortOrder securityBean.Sort
 		// id with desc fetches latest scans
 		sort = "id"
 	}
-
-	if sortOrder != securityBean.Desc {
-		sortOrder = ""
+	query := fmt.Sprintf(" ORDER BY %s ", sort)
+	if sortOrder == securityBean.Desc {
+		query += " DESC "
 	}
-	query := " ORDER BY ? ? "
-	queryParams = append(queryParams, sort, sortOrder)
 	return query, queryParams
 }
 
