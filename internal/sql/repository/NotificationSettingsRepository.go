@@ -17,10 +17,12 @@
 package repository
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"strconv"
+	"strings"
 )
 
 type NotificationSettingsRepository interface {
@@ -94,6 +96,7 @@ type SettingOptionDTO struct {
 	PipelineType    string `json:"pipelineType"`
 	AppName         string `json:"appName"`
 	EnvironmentName string `json:"environmentName,omitempty"`
+	ClusterName     string `json:"clusterName"`
 }
 
 func (impl *NotificationSettingsRepositoryImpl) FindNSViewCount() (int, error) {
@@ -221,10 +224,20 @@ func (impl *NotificationSettingsRepositoryImpl) DeleteNotificationSettingsViewBy
 
 func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingDeploymentOptions(settingRequest *SearchRequest) ([]*SettingOptionDTO, error) {
 	var settingOption []*SettingOptionDTO
-	query := "SELECT p.id as pipeline_id,p.pipeline_name, env.environment_name, a.app_name FROM pipeline p" +
+	query := "SELECT p.id as pipeline_id,p.pipeline_name, env.environment_name, a.app_name,c.name AS cluster_name " +
+		" FROM pipeline p" +
 		" INNER JOIN app a on a.id=p.app_id" +
-		" INNER JOIN environment env on env.id = p.environment_id"
+		" INNER JOIN environment env on env.id = p.environment_id " +
+		" INNER JOIN cluster c on c.id = env.cluster_id"
 	query = query + " WHERE p.deleted = false"
+
+	clusterIds := make([]*int, 0)
+	for _, cId := range settingRequest.ClusterId {
+		if *cId == resourceQualifiers.AllExistingAndFutureClustersInt {
+			continue
+		}
+		clusterIds = append(clusterIds, cId)
+	}
 
 	if len(settingRequest.TeamId) > 0 {
 		query = query + " AND a.team_id in (?)"
@@ -234,6 +247,8 @@ func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingDeploymen
 		query = query + " AND p.app_id in (?)"
 	} else if len(settingRequest.PipelineName) > 0 {
 		query = query + " AND p.pipeline_name like (?)"
+	} else if len(clusterIds) > 0 {
+		query = query + fmt.Sprintf(" AND e.cluster_id IN (%s)", strings.Trim(fmt.Sprint(clusterIds), "[]"))
 	}
 	query = query + " GROUP BY 1,2,3,4;"
 
@@ -311,6 +326,7 @@ type SearchRequest struct {
 	TeamId       []*int `json:"teamId" validate:"number"`
 	EnvId        []*int `json:"envId" validate:"number"`
 	AppId        []*int `json:"appId" validate:"number"`
+	ClusterId    []*int `json:"clusterId" validate:"number"`
 	PipelineName string `json:"pipelineName"`
 	UserId       int32  `json:"-"`
 }

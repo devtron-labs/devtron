@@ -154,6 +154,7 @@ type PipelineResponse struct {
 	EnvironmentName string   `json:"environmentName,omitempty"`
 	AppName         string   `json:"appName,omitempty"`
 	Branches        []string `json:"branches,omitempty"`
+	ClusterName          string   `json:"clusterName"`
 }
 
 type ProvidersConfig struct {
@@ -774,7 +775,7 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 		item.PipelineType = string(util.CD)
 		result := &SearchFilterResponse{
 			PipelineType:     item.PipelineType,
-			PipelineResponse: &PipelineResponse{Id: &item.PipelineId, Name: item.PipelineName, EnvironmentName: item.EnvironmentName, AppName: item.AppName},
+			PipelineResponse: &PipelineResponse{Id: &item.PipelineId, Name: item.PipelineName, EnvironmentName: item.EnvironmentName, AppName: item.AppName, ClusterName: item.ClusterName},
 		}
 		searchFilterResponse = append(searchFilterResponse, result)
 	}
