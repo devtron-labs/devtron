@@ -1,5 +1,75 @@
 # Ingress Setup
 
+## Enable Ingress During Installation
+
+To configure Ingress for a Helm chart during installation or upgrade, you can use the `--set` flag to specify the desired Ingress settings. Below is a guide on how to add Ingress, including optional labels, annotations, and TLS settings.
+
+### Basic Ingress Configuration
+
+To enable Ingress and set basic parameters, use the following command:
+
+```bash
+helm install devtron devtron/devtron-operator -n devtroncd \
+  --set components.devtron.ingress.enabled=true \
+  --set components.devtron.ingress.className=nginx \
+  --set components.devtron.ingress.host=devtron.example.com
+```
+
+### Adding Labels
+
+To add labels to the Ingress resource, use the following command:
+
+```bash
+helm install devtron devtron/devtron-operator -n devtroncd \
+  --set components.devtron.ingress.enabled=true \
+  --set components.devtron.ingress.className=nginx \
+  --set components.devtron.ingress.host=devtron.example.com \
+  --set components.devtron.ingress.labels.env=production
+```
+
+### Adding Annotations
+
+To add annotations to the Ingress resource, use the following command:
+
+```bash
+helm install devtron devtron/devtron-operator -n devtroncd \
+  --set components.devtron.ingress.enabled=true \
+  --set components.devtron.ingress.className=nginx \
+  --set components.devtron.ingress.host=devtron.example.com \
+  --set components.devtron.ingress.annotations."kubernetes\.io/ingress\.class"=nginx \
+  --set components.devtron.ingress.annotations."nginx\.ingress\.kubernetes\.io\/app-root"="/dashboard"
+```
+
+### Configuring TLS
+
+To configure TLS settings, including `secretName` and `hosts`, use the following command:
+
+```bash
+helm install devtron devtron/devtron-operator -n devtroncd \
+  --set components.devtron.ingress.enabled=true \
+  --set components.devtron.ingress.className=nginx \
+  --set components.devtron.ingress.host=devtron.example.com \
+  --set components.devtron.ingress.tls[0].secretName=devtron-tls \
+  --set components.devtron.ingress.tls[0].hosts[0]=devtron.example.com
+```
+
+### Comprehensive Configuration
+
+To include all the above settings in a single command, use:
+
+```bash
+helm upgrade devtron devtron/devtron-operator -n devtroncd \
+  --set components.devtron.ingress.enabled=true \
+  --set components.devtron.ingress.className=nginx \
+  --set components.devtron.ingress.host=devtron.example.com \
+  --set components.devtron.ingress.annotations."kubernetes\.io/ingress\.class"=nginx \
+  --set components.devtron.ingress.annotations."nginx\.ingress\.kubernetes\.io\/app-root"="/dashboard" \
+  --set components.devtron.ingress.labels.env=production \
+  --set components.devtron.ingress.pathType=ImplementationSpecific \
+  --set components.devtron.ingress.tls[0].secretName=devtron-tls \
+  --set components.devtron.ingress.tls[0].hosts[0]=devtron.example.com
+```
+
 After Devtron is installed, Devtron is accessible through service `devtron-service`.
 If you want to access Devtron through ingress, edit `devtron-service` and change the loadbalancer to ClusterIP. You can do this using `kubectl patch` command:
 
