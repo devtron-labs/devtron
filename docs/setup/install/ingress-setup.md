@@ -14,7 +14,7 @@ If you have successfully configured Ingress, refer [Post Ingress Setup](#enable-
 
 ## Enabling Ingress during Devtron Installation
 
-If you are installing Devtron, you can enable Ingress either via [set flag](#using-set-flag) or by using [ingress-values.yaml](#using-ingress-valuesyaml) to specify the desired Ingress settings.
+If you are installing Devtron, you can enable Ingress either via [set flag](#using-set-flag) or by using [ingress-values.yaml](#using-ingress-values.yaml) to specify the desired Ingress settings.
 
 ### Using set flag
 
