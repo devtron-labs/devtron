@@ -560,6 +560,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	handler.logger.Infow("get pod logs request", "request", request)
 	handler.requestValidationAndRBAC(w, r, token, request)
 	lastEventId := r.Header.Get(bean2.LastEventID)
 	isReconnect := false
