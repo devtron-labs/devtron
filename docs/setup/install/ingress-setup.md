@@ -21,6 +21,9 @@ To add labels to the Ingress resource, use the following command:
 
 ```bash
 helm install devtron devtron/devtron-operator -n devtroncd \
+  --set components.devtron.ingress.enabled=true \
+  --set components.devtron.ingress.className=nginx \
+  --set components.devtron.ingress.host=devtron.example.com \
   --set components.devtron.ingress.labels.env=production
 ```
 
@@ -30,6 +33,9 @@ To add annotations to the Ingress resource, use the following command:
 
 ```bash
 helm install devtron devtron/devtron-operator -n devtroncd \
+  --set components.devtron.ingress.enabled=true \
+  --set components.devtron.ingress.className=nginx \
+  --set components.devtron.ingress.host=devtron.example.com \
   --set components.devtron.ingress.annotations."kubernetes\.io/ingress\.class"=nginx \
   --set components.devtron.ingress.annotations."nginx\.ingress\.kubernetes\.io\/app-root"="/dashboard"
 ```
@@ -40,6 +46,9 @@ To configure TLS settings, including `secretName` and `hosts`, use the following
 
 ```bash
 helm install devtron devtron/devtron-operator -n devtroncd \
+  --set components.devtron.ingress.enabled=true \
+  --set components.devtron.ingress.className=nginx \
+  --set components.devtron.ingress.host=devtron.example.com \
   --set components.devtron.ingress.tls[0].secretName=devtron-tls \
   --set components.devtron.ingress.tls[0].hosts[0]=devtron.example.com
 ```
