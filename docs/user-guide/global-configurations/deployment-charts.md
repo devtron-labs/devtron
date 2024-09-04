@@ -5,18 +5,15 @@
 Devtron includes predefined helm charts that cover the majority of use cases.
 For any use case not addressed by the default helm charts, you can upload your own helm chart and use it as a custom chart in Devtron.
 
-* Who can upload a custom chart - Super admins
-* Who can use the custom chart - All users
-
 > A super admin can upload multiple versions of a custom helm chart.
 
 ![Figure 1: Deployment Charts](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/deployment-charts/gc-deployment-charts.jpg)
 
+---
+
 ## Prerequisites
 
-A valid helm chart containing a `Chart.yaml` file with name and version fields
-
-### Create a Helm Chart
+### 1. Create a Helm Chart
 
 You can use the following command to create the Helm chart:
 
@@ -24,28 +21,28 @@ You can use the following command to create the Helm chart:
 helm create my-custom-chart
 ```
 
->Note: `Chart.yaml` is the metadata file that gets created when you create a [helm chart](https://helm.sh/docs/helm/helm_create/).
+> **Note**: `Chart.yaml` is the metadata file that gets created when you create a [helm chart](https://helm.sh/docs/helm/helm_create/). The following table consists the fields that are relevant to you in `Charts.yaml`.
 
 | Field | Description |
 | --- | --- |
 | `Name` | Name of the helm chart (Required). |
 | `Version` | This is the chart version. Update this value for each new version of the chart (Required). |
-| `Description` | Description of the chart (Optional). |
+| `Description` | Give a description of your chart (Optional). |
 
-Please see the following example:
-
-![Chart.yaml file](https://devtron-public-asset.s3.us-east-2.amazonaws.com/custom-charts/chart-yaml-file.png)
+{% hint style="warning" %}
+### Example of Charts.yaml
+[Click here](https://devtron-public-asset.s3.us-east-2.amazonaws.com/custom-charts/chart-yaml-file.png) to view a sample `Charts.yaml` file.
+{% endhint %}
 
 ### 2. Create an Image Descriptor Template File
 
-It's a GO template file that should produce a valid `JSON` file upon rendering. This file is passed as the last argument in
-`helm install -f myvalues.yaml -f override.yaml` command.
+In the root directory of your chart (the folder in which the main `Charts.yaml` exists), create a file named `.image_descriptor_template.json`. You may use the following command:
 
-Place the `.image_descriptor_template.json` file in the root directory of your chart.
+```bash
+touch .image_descriptor_template.json
+```
 
-You can use the following variables in the helm template (all the placeholders are optional):
-
-> The values from the CD deployment pipeline are injected at the placeholder specified in the `.image_descriptor_template.json` template file.
+Paste the following content in `.image_descriptor_template.json` file:
 
 ```bash
 {
@@ -64,7 +61,14 @@ You can use the following variables in the helm template (all the placeholders a
 }
 ```
 
-| Field | Description |
+The above code is a GO template file that produces a valid JSON file upon rendering. The values from the CD deployment pipeline are injected at the placeholders specified in `.image_descriptor_template.json`.
+
+{% hint style="warning" %}
+### Got a JSON Error?
+If your code editor highlights a syntax error (property or EOF error) in the above json, ignore it.
+{% endhint %}
+
+<!-- | Field | Description |
 | --- | --- |
 | **image_tag** | The build image tag |
 | **image** | Repository name |
@@ -73,39 +77,82 @@ You can use the following variables in the helm template (all the placeholders a
 | **deploymentType** | Deployment strategy used in the pipeline |
 | **app** | Application's ID within the Devtron ecosystem |
 | **env** | Environment used to deploy the chart |
-| **appMetrics** | For the App metrics UI feature to be effective, include the `appMetrics` placeholder. |
+| **appMetrics** | For the App metrics UI feature to be effective, include the `appMetrics` placeholder. | -->
 
-> **For example**:
-> 
-> To create a template file to allow Devtron to only render the repository name and the tag from the CI/CD pipeline that you created, edit the `.image_descriptor_template.json` file as:
-> ```bash
-> {
->     "image": {
->	        "repository": "{{.Name}}",
->	        "tag": "{{.Tag}}"
->     }
-> }
-> ```
+All the placeholders are optional; therefore, if you wish to create a template file that allows Devtron to only render the repository name and the tag from the CI/CD pipeline you created, edit the `.image_descriptor_template.json` file as follows:
 
-### 3. Package the custom chart in the `*.tgz` format
-
-> Before you begin, ensure that your helm chart includes both `Chart.yaml` (with `name` and `version` fields) and `.image_descriptor_template.json` files.
-
-The helm chart to be uploaded must be packaged as a versioned archive file in the format `<helm-chart-name>-vx.x.x.tgz`.
-
-```
-helm package my-custom-chart
+```bash
+{
+    "image": {
+        "repository": "{{.Name}}",
+        "tag": "{{.Tag}}"
+    }
+}
 ```
 
-The above command will create a `my-custom-chart-0.1.0.tgz` file.
+### 3. Add app-values.yaml
+
+In the root directory of your chart, Devtron expects an `app-values.yaml` file and validates whether the content of `values.yaml` file is present in `app-values.yaml` file or not. If you are unfamiliar with this, you may use the following command:
+
+```bash
+cp values.yaml app-values.yaml
+```
+
+### 4. Add release-values.yaml
+
+In the root directory of your chart create a file named `release-values.yaml`. You may use the following command:
+
+```bash
+touch release-values.yaml
+```
+Paste the following content in `release-values.yaml` file:
+
+```yml
+server:
+ deployment:
+   image_tag: IMAGE_TAG
+   image: IMAGE_REPO
+   enabled: false
+dbMigrationConfig:
+  enabled: false
+
+pauseForSecondsBeforeSwitchActive: 0
+waitForSecondsBeforeScalingDown: 0
+autoPromotionSeconds: 30
+
+#used for deployment algo selection
+orchestrator.deploymant.algo: 1 
+```
+
+### 5. Package the chart in `.tgz` format
+
+Before you package the chart, ensure your helm chart includes the following files:
+* `Chart.yaml` (with `name` and `version` fields) 
+* `.image_descriptor_template.json`.
+* `app-values.yaml`
+* `release-values.yaml`
+
+The helm chart to be uploaded must be packaged as a versioned archive file in the format: `<helm-chart-name>-x.x.x.tgz`
+The `x.x.x` will be the automatically fetched from the `version` field mentioned in `Chart.yaml` file.
+
+Run the following command to package the chart:
+
+```bash
+helm package my-custom-chart # Replace my-custom-chart with your chartname
+```
+
+The above command will generate a `my-custom-chart-0.1.0.tgz` file.
 
 ---
 
 ## Uploading a Deployment Chart
 
-> A custom chart can only be uploaded by a super admin.
+{% hint style="warning" %}
+### Who Can Perform This Action?
+Only super admin users can upload a deployment chart.
+{% endhint %}
 
-* On the Devtron dashboard, select **Global Configurations > Custom charts**.
+* Go to **Global Configurations > Custom charts**.
 * Select **Import Chart**.
 * **Select tar.gz file...** and upload the packaged custom chart in the `*.tgz` format.
 
@@ -148,7 +195,10 @@ The following are the validation results:
 
 ## Viewing Deployment Charts
 
-> All users can view the custom charts.
+{% hint style="warning" %}
+### Who Can Perform This Action?
+All users can view and use custom charts.
+{% endhint %}
 
 To view the list of available custom charts, go to  **Global Configurations → Deployment Charts** page.
 
