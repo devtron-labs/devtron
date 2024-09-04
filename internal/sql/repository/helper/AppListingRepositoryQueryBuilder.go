@@ -219,7 +219,7 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingSortBy(appListingFil
 func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appListingFilter AppListingFilter) (string, []interface{}) {
 	var queryParams []interface{}
 	whereCondition := " WHERE a.active = ? and a.app_type = ? "
-	queryParams = append(queryParams, true, 0)
+	queryParams = append(queryParams, true, CustomApp)
 	if len(appListingFilter.Environments) > 0 {
 		whereCondition += " and p.environment_id IN (?) "
 		queryParams = append(queryParams, pg.In(appListingFilter.Environments))
