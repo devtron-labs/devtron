@@ -1,6 +1,6 @@
 # Ingress Setup
 
-## Adding Ingress in a Helm Chart During Installation
+## Enable Ingress During Installation
 
 To configure Ingress for a Helm chart during installation or upgrade, you can use the `--set` flag to specify the desired Ingress settings. Below is a guide on how to add Ingress, including optional labels, annotations, and TLS settings.
 
