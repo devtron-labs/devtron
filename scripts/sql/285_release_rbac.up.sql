@@ -38,6 +38,4 @@ VALUES ('release-track', 'ReleaseTrack', 'ReleaseTrack', ARRAY ['release'], fals
 
 
 ALTER TABLE roles ADD COLUMN IF NOT EXISTS "release" text;
-ALTER TABLE roles ADD COLUMN IF NOT EXISTS "release-track" text;
-ALTER TABLE rbac_role_data ALTER COLUMN access_type DROP NOT NULL;
-ALTER TABLE rbac_policy_data ALTER COLUMN access_type DROP NOT NULL;
+ALTER TABLE roles ADD COLUMN IF NOT EXISTS "release_track" text;
