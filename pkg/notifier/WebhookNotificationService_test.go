@@ -23,7 +23,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	mocks2 "github.com/devtron-labs/devtron/internal/sql/repository/mocks"
 	util2 "github.com/devtron-labs/devtron/internal/util"
-	mocks3 "github.com/devtron-labs/devtron/pkg/auth/user/repository/mocks"
 	"github.com/devtron-labs/devtron/pkg/team/mocks"
 	"github.com/stretchr/testify/mock"
 
@@ -86,7 +85,7 @@ func TestWebhookNotificationServiceImpl_SaveOrEditNotificationConfig(t *testing.
 	assert.Nil(t, err)
 	mockedTeamService := mocks.NewTeamService(t)
 	mockedWebhookNotfRep := mocks2.NewWebhookNotificationRepository(t)
-	mockedUserRepo := mocks3.NewUserRepository(t)
+	//mockedUserRepo := mocks3.NewUserRepository(t)
 	mockedNotfSetRepo := mocks2.NewNotificationSettingsRepository(t)
 
 	type args struct {
@@ -140,7 +139,7 @@ func TestWebhookNotificationServiceImpl_SaveOrEditNotificationConfig(t *testing.
 				logger:                         sugaredLogger,
 				webhookRepository:              mockedWebhookNotfRep,
 				teamService:                    mockedTeamService,
-				userRepository:                 mockedUserRepo,
+				userRepository:                 nil,
 				notificationSettingsRepository: mockedNotfSetRepo,
 			}
 

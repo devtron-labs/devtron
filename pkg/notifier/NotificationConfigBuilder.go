@@ -27,7 +27,7 @@ import (
 type NotificationConfigBuilder interface {
 	BuildNotificationSettingsConfig(notificationSettingsRequest *NotificationConfigRequest, existingNotificationSettingsConfig *repository.NotificationSettingsView, userId int32) (*repository.NotificationSettingsView, error)
 	BuildNewNotificationSettings(notificationSettingsRequest *NotificationConfigRequest, notificationSettingsView *repository.NotificationSettingsView) ([]repository.NotificationSettings, error)
-	BuildNotificationSettingWithPipeline(teamId *int, envId *int, appId *int, pipelineId *int, pipelineType util.PipelineType, eventTypeId int, viewId int, providers []*Provider) (repository.NotificationSettings, error)
+	BuildNotificationSettingWithPipeline(teamId *int, envId *int, appId *int, pipelineId *int, clusterId *int, pipelineType util.PipelineType, eventTypeId int, viewId int, providers []*Provider) (repository.NotificationSettings, error)
 }
 
 type NotificationConfigBuilderImpl struct {
@@ -45,9 +45,19 @@ type NSConfig struct {
 	AppId        []*int            `json:"appId"`
 	EnvId        []*int            `json:"envId"`
 	PipelineId   *int              `json:"pipelineId"`
+	ClusterId    []*int            `json:"clusterId"`
 	PipelineType util.PipelineType `json:"pipelineType" validate:"required"`
 	EventTypeIds []int             `json:"eventTypeIds" validate:"required"`
 	Providers    []*Provider       `json:"providers" validate:"required"`
+}
+
+type LocalRequest struct {
+	Id         int  `json:"id"`
+	TeamId     *int `json:"teamId"`
+	AppId      *int `json:"appId"`
+	EnvId      *int `json:"envId"`
+	PipelineId *int `json:"pipelineId"`
+	ClusterId  *int `json:"clusterId"`
 }
 
 func (impl NotificationConfigBuilderImpl) BuildNotificationSettingsConfig(notificationSettingsRequest *NotificationConfigRequest, existingNotificationSettingsConfig *repository.NotificationSettingsView, userId int32) (*repository.NotificationSettingsView, error) {
@@ -55,6 +65,7 @@ func (impl NotificationConfigBuilderImpl) BuildNotificationSettingsConfig(notifi
 	nsConfig.TeamId = notificationSettingsRequest.TeamId
 	nsConfig.AppId = notificationSettingsRequest.AppId
 	nsConfig.EnvId = notificationSettingsRequest.EnvId
+	nsConfig.ClusterId = notificationSettingsRequest.ClusterId
 	nsConfig.PipelineId = notificationSettingsRequest.PipelineId
 	nsConfig.PipelineType = notificationSettingsRequest.PipelineType
 	nsConfig.EventTypeIds = notificationSettingsRequest.EventTypeIds
@@ -85,15 +96,8 @@ func (impl NotificationConfigBuilderImpl) BuildNotificationSettingsConfig(notifi
 	return notificationSettingsView, nil
 }
 
-func (impl NotificationConfigBuilderImpl) BuildNewNotificationSettings(notificationSettingsRequest *NotificationConfigRequest, notificationSettingsView *repository.NotificationSettingsView) ([]repository.NotificationSettings, error) {
-	var notificationSettings []repository.NotificationSettings
-	type LocalRequest struct {
-		Id         int  `json:"id"`
-		TeamId     *int `json:"teamId"`
-		AppId      *int `json:"appId"`
-		EnvId      *int `json:"envId"`
-		PipelineId *int `json:"pipelineId"`
-	}
+func generateSettingCombinationsV1(notificationSettingsRequest *NotificationConfigRequest) []*LocalRequest {
+
 	var tempRequest []*LocalRequest
 	if len(notificationSettingsRequest.TeamId) == 0 && len(notificationSettingsRequest.EnvId) == 0 && len(notificationSettingsRequest.AppId) > 0 {
 		for _, item := range notificationSettingsRequest.AppId {
@@ -137,9 +141,16 @@ func (impl NotificationConfigBuilderImpl) BuildNewNotificationSettings(notificat
 		tempRequest = append(tempRequest, &LocalRequest{PipelineId: notificationSettingsRequest.PipelineId})
 	}
 
+	return tempRequest
+}
+
+func (impl NotificationConfigBuilderImpl) BuildNewNotificationSettings(notificationSettingsRequest *NotificationConfigRequest, notificationSettingsView *repository.NotificationSettingsView) ([]repository.NotificationSettings, error) {
+	// tempRequest := generateSettingCombinationsV1(notificationSettingsRequest)
+	tempRequest := notificationSettingsRequest.GenerateSettingCombinations()
+	var notificationSettings []repository.NotificationSettings
 	for _, item := range tempRequest {
 		for _, e := range notificationSettingsRequest.EventTypeIds {
-			notificationSetting, err := impl.BuildNotificationSettingWithPipeline(item.TeamId, item.EnvId, item.AppId, item.PipelineId, notificationSettingsRequest.PipelineType, e, notificationSettingsView.Id, notificationSettingsRequest.Providers)
+			notificationSetting, err := impl.BuildNotificationSettingWithPipeline(item.TeamId, item.EnvId, item.AppId, item.PipelineId, item.ClusterId, notificationSettingsRequest.PipelineType, e, notificationSettingsView.Id, notificationSettingsRequest.Providers)
 			if err != nil {
 				impl.logger.Error(err)
 				return nil, err
@@ -167,8 +178,8 @@ func (impl NotificationConfigBuilderImpl) buildNotificationSetting(notificationS
 	return notificationSetting, nil
 }
 
-func (impl NotificationConfigBuilderImpl) BuildNotificationSettingWithPipeline(teamId *int, envId *int, appId *int, pipelineId *int, pipelineType util.PipelineType, eventTypeId int, viewId int, providers []*Provider) (repository.NotificationSettings, error) {
-	
+func (impl NotificationConfigBuilderImpl) BuildNotificationSettingWithPipeline(teamId *int, envId *int, appId *int, pipelineId *int, clusterId *int, pipelineType util.PipelineType, eventTypeId int, viewId int, providers []*Provider) (repository.NotificationSettings, error) {
+
 	providersJson, err := json.Marshal(providers)
 	if err != nil {
 		impl.logger.Error(err)
@@ -183,6 +194,7 @@ func (impl NotificationConfigBuilderImpl) BuildNotificationSettingWithPipeline(t
 		EventTypeId:  eventTypeId,
 		Config:       string(providersJson),
 		ViewId:       viewId,
+		ClusterId:    clusterId,
 	}
 	return notificationSetting, nil
 }

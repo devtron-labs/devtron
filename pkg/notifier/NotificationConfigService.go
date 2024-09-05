@@ -18,6 +18,8 @@ package notifier
 
 import (
 	"encoding/json"
+	clusterService "github.com/devtron-labs/devtron/pkg/cluster"
+	util3 "github.com/devtron-labs/devtron/util"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -56,10 +58,14 @@ type NotificationConfigServiceImpl struct {
 	smtpRepository                 repository.SMTPNotificationRepository
 	teamRepository                 repository2.TeamRepository
 	environmentRepository          repository3.EnvironmentRepository
+	clusterService                 clusterService.ClusterServiceImpl
 	appRepository                  app.AppRepository
 	userRepository                 repository4.UserRepository
 	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
 }
+
+const allNonProdEnvsName = "All non-prod environments"
+const allProdEnvsName = "All prod environments"
 
 type NotificationSettingRequest struct {
 	Id     int  `json:"id"`
@@ -97,16 +103,6 @@ type NotificationUpdateRequest struct {
 	UpdateType                util.UpdateType              `json:"updateType,omitempty"`
 	NotificationConfigRequest []*NotificationConfigRequest `json:"notificationConfigRequest" validate:"required"`
 }
-type NotificationConfigRequest struct {
-	Id           int               `json:"id"`
-	TeamId       []*int            `json:"teamId"`
-	AppId        []*int            `json:"appId"`
-	EnvId        []*int            `json:"envId"`
-	PipelineId   *int              `json:"pipelineId"`
-	PipelineType util.PipelineType `json:"pipelineType" validate:"required"`
-	EventTypeIds []int             `json:"eventTypeIds" validate:"required"`
-	Providers    []*Provider       `json:"providers"`
-}
 
 type NSViewResponse struct {
 	Total                        int                             `json:"total"`
@@ -126,11 +122,12 @@ type NotificationSettingsResponse struct {
 }
 
 type SearchFilterResponse struct {
-	TeamResponse     []*TeamResponse   `json:"team"`
-	AppResponse      []*AppResponse    `json:"app"`
-	EnvResponse      []*EnvResponse    `json:"environment"`
-	PipelineResponse *PipelineResponse `json:"pipeline"`
-	PipelineType     string            `json:"pipelineType"`
+	TeamResponse     []*TeamResponse    `json:"team"`
+	AppResponse      []*AppResponse     `json:"app"`
+	EnvResponse      []*EnvResponse     `json:"environment"`
+	ClusterResponse  []*ClusterResponse `json:"cluster"`
+	PipelineResponse *PipelineResponse  `json:"pipeline"`
+	PipelineType     string             `json:"pipelineType"`
 }
 
 type TeamResponse struct {
@@ -148,13 +145,18 @@ type EnvResponse struct {
 	Name string `json:"name"`
 }
 
+type ClusterResponse struct {
+	Id   *int   `json:"id"`
+	Name string `json:"name"`
+}
+
 type PipelineResponse struct {
 	Id              *int     `json:"id"`
 	Name            string   `json:"name"`
 	EnvironmentName string   `json:"environmentName,omitempty"`
 	AppName         string   `json:"appName,omitempty"`
 	Branches        []string `json:"branches,omitempty"`
-	ClusterName          string   `json:"clusterName"`
+	ClusterName     string   `json:"clusterName"`
 }
 
 type ProvidersConfig struct {
@@ -168,7 +170,7 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 	pipelineRepository pipelineConfig.PipelineRepository, slackRepository repository.SlackNotificationRepository, webhookRepository repository.WebhookNotificationRepository,
 	sesRepository repository.SESNotificationRepository, smtpRepository repository.SMTPNotificationRepository,
 	teamRepository repository2.TeamRepository,
-	environmentRepository repository3.EnvironmentRepository, appRepository app.AppRepository,
+	environmentRepository repository3.EnvironmentRepository, appRepository app.AppRepository, clusterService clusterService.ClusterServiceImpl,
 	userRepository repository4.UserRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *NotificationConfigServiceImpl {
 	return &NotificationConfigServiceImpl{
 		logger:                         logger,
@@ -185,6 +187,7 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 		appRepository:                  appRepository,
 		userRepository:                 userRepository,
 		ciPipelineMaterialRepository:   ciPipelineMaterialRepository,
+		clusterService:                 clusterService,
 	}
 }
 
@@ -709,7 +712,7 @@ func (impl *NotificationConfigServiceImpl) updateNotificationSetting(notificatio
 		} else {
 			for _, item := range nsOptions {
 				for _, e := range notificationSettingsRequest.EventTypeIds {
-					notificationSetting, err := impl.notificationConfigBuilder.BuildNotificationSettingWithPipeline(item.TeamId, item.EnvId, item.AppId, item.PipelineId, util.PipelineType(item.PipelineType), e, notificationSettingsRequest.Id, nsConfig.Providers)
+					notificationSetting, err := impl.notificationConfigBuilder.BuildNotificationSettingWithPipeline(item.TeamId, item.EnvId, item.AppId, item.PipelineId, item.ClusterId, util.PipelineType(item.PipelineType), e, notificationSettingsRequest.Id, nsConfig.Providers)
 					if err != nil {
 						impl.logger.Error(err)
 						return 0, err
@@ -809,6 +812,7 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 	var teamResponse []*TeamResponse
 	var appResponse []*AppResponse
 	var envResponse []*EnvResponse
+	var clusterResponse []*ClusterResponse
 	if settingRequest.TeamId != nil && len(settingRequest.TeamId) > 0 {
 		teams, err := impl.teamRepository.FindByIds(settingRequest.TeamId)
 		if err != nil {
@@ -820,13 +824,25 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 		}
 	}
 	if settingRequest.EnvId != nil && len(settingRequest.EnvId) > 0 {
-		environments, err := impl.environmentRepository.FindByIds(settingRequest.EnvId)
-		if err != nil {
-			impl.logger.Errorw("error on fetching environments", "err", err)
-			return searchFilterResponse, err
+		envIds := make([]*int, 0)
+		for _, envId := range settingRequest.EnvId {
+			if *envId == repository.AllExistingAndFutureProdEnvsInt {
+				envResponse = append(envResponse, &EnvResponse{Id: envId, Name: allProdEnvsName})
+			} else if *envId == repository.AllExistingAndFutureNonProdEnvsInt {
+				envResponse = append(envResponse, &EnvResponse{Id: envId, Name: allNonProdEnvsName})
+			} else {
+				envIds = append(envIds, envId)
+			}
 		}
-		for _, item := range environments {
-			envResponse = append(envResponse, &EnvResponse{Id: &item.Id, Name: item.Name})
+		if len(envIds) > 0 {
+			environments, err := impl.environmentRepository.FindByIds(settingRequest.EnvId)
+			if err != nil {
+				impl.logger.Errorw("error on fetching environments", "err", err)
+				return searchFilterResponse, err
+			}
+			for _, item := range environments {
+				envResponse = append(envResponse, &EnvResponse{Id: &item.Id, Name: item.Name})
+			}
 		}
 	}
 	if settingRequest.AppId != nil && len(settingRequest.AppId) > 0 {
@@ -839,6 +855,21 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 			appResponse = append(appResponse, &AppResponse{Id: &item.Id, Name: item.AppName})
 		}
 	}
+
+	if len(settingRequest.ClusterId) > 0 {
+		clusterIds := util3.Transform(settingRequest.ClusterId, func(id *int) int {
+			return *id
+		})
+		clusterName, err := impl.clusterService.FindByIds(clusterIds)
+		if err != nil {
+			impl.logger.Errorw("error on fetching cluster", "err", err)
+			return searchFilterResponse, err
+		}
+		for _, item := range clusterName {
+			clusterResponse = append(clusterResponse, &ClusterResponse{Id: &item.Id, Name: item.ClusterName})
+		}
+	}
+
 	ciMatching := &SearchFilterResponse{
 		PipelineType: string(util.CI),
 		TeamResponse: teamResponse,
@@ -847,10 +878,11 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 	searchFilterResponse = append(searchFilterResponse, ciMatching)
 
 	cdMatching := &SearchFilterResponse{
-		PipelineType: string(util.CD),
-		TeamResponse: teamResponse,
-		AppResponse:  appResponse,
-		EnvResponse:  envResponse,
+		PipelineType:    string(util.CD),
+		TeamResponse:    teamResponse,
+		AppResponse:     appResponse,
+		EnvResponse:     envResponse,
+		ClusterResponse: clusterResponse,
 	}
 	searchFilterResponse = append(searchFilterResponse, cdMatching)
 
