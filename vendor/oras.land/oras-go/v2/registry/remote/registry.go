@@ -73,13 +73,28 @@ func (r *Registry) client() Client {
 	return r.Client
 }
 
+// do sends an HTTP request and returns an HTTP response using the HTTP client
+// returned by r.client().
+func (r *Registry) do(req *http.Request) (*http.Response, error) {
+	if r.HandleWarning == nil {
+		return r.client().Do(req)
+	}
+
+	resp, err := r.client().Do(req)
+	if err != nil {
+		return nil, err
+	}
+	handleWarningHeaders(resp.Header.Values(headerWarning), r.HandleWarning)
+	return resp, nil
+}
+
 // Ping checks whether or not the registry implement Docker Registry API V2 or
 // OCI Distribution Specification.
 // Ping can be used to check authentication when an auth client is configured.
 //
 // References:
 //   - https://docs.docker.com/registry/spec/api/#base
-//   - https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc1/spec.md#api
+//   - https://github.com/opencontainers/distribution-spec/blob/v1.1.0-rc3/spec.md#api
 func (r *Registry) Ping(ctx context.Context) error {
 	url := buildRegistryBaseURL(r.PlainHTTP, r.Reference)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -87,7 +102,7 @@ func (r *Registry) Ping(ctx context.Context) error {
 		return err
 	}
 
-	resp, err := r.client().Do(req)
+	resp, err := r.do(req)
 	if err != nil {
 		return err
 	}
@@ -142,7 +157,7 @@ func (r *Registry) repositories(ctx context.Context, last string, fn func(repos 
 		}
 		req.URL.RawQuery = q.Encode()
 	}
-	resp, err := r.client().Do(req)
+	resp, err := r.do(req)
 	if err != nil {
 		return "", err
 	}
