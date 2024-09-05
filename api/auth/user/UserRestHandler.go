@@ -22,6 +22,7 @@ import (
 	"fmt"
 	util2 "github.com/devtron-labs/devtron/api/auth/user/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user/helper"
+	"github.com/go-pg/pg"
 	"github.com/gorilla/schema"
 	"net/http"
 	"strconv"
@@ -34,7 +35,6 @@ import (
 	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/util/response"
-	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -133,61 +133,58 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
 		isActionUserSuperAdmin = true
 	}
-	if userInfo.RoleFilters != nil && len(userInfo.RoleFilters) > 0 {
-		for _, filter := range userInfo.RoleFilters {
-			if filter.AccessType == bean.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
-				response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+	isAuthorised := isActionUserSuperAdmin
+	if !isAuthorised {
+		if userInfo.RoleFilters != nil && len(userInfo.RoleFilters) > 0 { //auth check inside roleFilters
+			for _, filter := range userInfo.RoleFilters {
+				switch {
+				case filter.AccessType == bean.APP_ACCESS_TYPE_HELM:
+					isAuthorised = isActionUserSuperAdmin
+				case len(filter.Team) > 0:
+					isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, filter.Team)
+				case filter.Entity == bean.CLUSTER_ENTITIY:
+					isAuthorised = handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth)
+				default:
+					isAuthorised = false
+				}
+				if !isAuthorised {
+					break
+				}
+			}
+		} else if len(userInfo.UserRoleGroup) > 0 { // auth check inside groups
+			groupRoles, err := handler.roleGroupService.FetchRolesForUserRoleGroups(userInfo.UserRoleGroup)
+			if err != nil && err != pg.ErrNoRows {
+				handler.logger.Errorw("service err, UpdateUser", "err", err, "payload", userInfo)
+				common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 				return
 			}
-			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, filter.Team); !ok {
-					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
-					return
-				}
-			}
-			if filter.Entity == bean.CLUSTER_ENTITIY {
-				if ok := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !ok {
-					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
-					return
-				}
-			}
-		}
-	} else {
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, "*"); !ok {
-			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
-			return
-		}
-	}
-
-	// auth check inside groups
-	if len(userInfo.UserRoleGroup) > 0 {
-		groupRoles, err := handler.roleGroupService.FetchRolesForUserRoleGroups(userInfo.UserRoleGroup)
-		if err != nil && err != pg.ErrNoRows {
-			handler.logger.Errorw("service err, UpdateUser", "err", err, "payload", userInfo)
-			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
-			return
-		}
-
-		if len(groupRoles) > 0 {
-			for _, groupRole := range groupRoles {
-				if groupRole.AccessType == bean.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
-					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
-					return
-				}
-				if len(groupRole.Team) > 0 {
-					if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, groupRole.Team); !ok {
-						response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
-						return
+			if len(groupRoles) > 0 {
+				for _, groupRole := range groupRoles {
+					switch {
+					case groupRole.AccessType == bean.APP_ACCESS_TYPE_HELM:
+						isAuthorised = isActionUserSuperAdmin
+					case len(groupRole.Team) > 0:
+						isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, groupRole.Team)
+					default:
+						isAuthorised = false
+					}
+					if !isAuthorised {
+						break
 					}
 				}
+			} else {
+				isAuthorised = false
 			}
 		} else {
-			if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, "*"); !ok {
-				response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
-				return
-			}
+			isAuthorised = false
 		}
 	}
+
+	if !isAuthorised {
+		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		return
+	}
+
 	//RBAC enforcer Ends
 
 	res, restrictedGroups, err := handler.userService.CreateUser(&userInfo, token, handler.CheckManagerAuth)
