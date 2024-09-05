@@ -182,6 +182,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request
 		query = query + " AND res.cve_store_name ILIKE '%" + request.CVEName + "%'"
 	}
 	if len(request.Severity) > 0 {
+		// use pg.In to inject values here wherever calling this func in case severity exists, to avoid sql injections
 		query = query + " AND (cs.standard_severity IN (?) OR (cs.severity IN (?) AND cs.standard_severity IS NULL))"
 	}
 	if len(request.EnvironmentIds) > 0 {
