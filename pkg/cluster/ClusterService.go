@@ -181,7 +181,7 @@ type ClusterService interface {
 	FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool) ([]string, error)
 	FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]ClusterBean, error)
 	FetchRolesFromGroup(userId int32) ([]*repository3.RoleModel, error)
-	HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool)
+	HandleErrorInClusterConnections(clusters []*ClusterBean, respMap *sync.Map, clusterExistInDb bool)
 	ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool)
 	ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster
 	ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster
@@ -259,11 +259,14 @@ func (impl *ClusterServiceImpl) ConvertClusterBeanToCluster(clusterBean *Cluster
 
 // getAndUpdateClusterConnectionStatus is a cron function to update the connection status of all clusters
 func (impl *ClusterServiceImpl) getAndUpdateClusterConnectionStatus() {
-	impl.logger.Debug("starting cluster connection status fetch thread")
-	defer impl.logger.Debug("stopped cluster connection status fetch thread")
+	impl.logger.Info("starting cluster connection status fetch thread")
+	startTime := time.Now()
+	defer func() {
+		impl.logger.Debugw("cluster connection status fetch thread completed", "timeTaken", time.Since(startTime))
+	}()
 
 	//getting all clusters
-	clusters, err := impl.FindAllExceptVirtual()
+	clusters, err := impl.FindAll()
 	if err != nil {
 		impl.logger.Errorw("error in getting all clusters", "err", err)
 		return
@@ -845,21 +848,26 @@ func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32) ([]*repository
 	return roles, nil
 }
 
+func (impl *ClusterServiceImpl) updateConnectionStatusForVirtualCluster(respMap *sync.Map, clusterId int, clusterName string) {
+	connErr := fmt.Errorf("Get virtual cluster '%s' error: connection not setup for isolated clusters", clusterName)
+	respMap.Store(clusterId, connErr)
+}
+
 func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool) {
 	var wg sync.WaitGroup
-	respMap := make(map[int]error)
-	mutex := &sync.Mutex{}
-
+	respMap := &sync.Map{}
 	for idx, cluster := range clusters {
+		if cluster.IsVirtualCluster {
+			impl.updateConnectionStatusForVirtualCluster(respMap, cluster.Id, cluster.ClusterName)
+			continue
+		}
 		wg.Add(1)
 		go func(idx int, cluster *ClusterBean) {
 			defer wg.Done()
 			clusterConfig := cluster.GetClusterConfig()
 			_, _, k8sClientSet, err := impl.K8sUtil.GetK8sConfigAndClients(clusterConfig)
 			if err != nil {
-				mutex.Lock()
-				respMap[cluster.Id] = err
-				mutex.Unlock()
+				respMap.Store(cluster.Id, err)
 				return
 			}
 
@@ -867,7 +875,7 @@ func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, 
 			if !clusterExistInDb {
 				id = idx
 			}
-			impl.GetAndUpdateConnectionStatusForOneCluster(k8sClientSet, id, respMap, mutex)
+			impl.GetAndUpdateConnectionStatusForOneCluster(k8sClientSet, id, respMap)
 		}(idx, cluster)
 	}
 
@@ -875,8 +883,19 @@ func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, 
 	impl.HandleErrorInClusterConnections(clusters, respMap, clusterExistInDb)
 }
 
-func (impl *ClusterServiceImpl) HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool) {
-	for id, err := range respMap {
+func (impl *ClusterServiceImpl) HandleErrorInClusterConnections(clusters []*ClusterBean, respMap *sync.Map, clusterExistInDb bool) {
+	respMap.Range(func(key, value any) bool {
+		defer func() {
+			// defer to handle panic on type assertion
+			if r := recover(); r != nil {
+				impl.logger.Errorw("error in handling error in cluster connections", "key", key, "value", value, "err", r)
+			}
+		}()
+		id := key.(int)
+		var err error
+		if connectionError, ok := value.(error); ok {
+			err = connectionError
+		}
 		errorInConnecting := ""
 		if err != nil {
 			errorInConnecting = err.Error()
@@ -896,7 +915,8 @@ func (impl *ClusterServiceImpl) HandleErrorInClusterConnections(clusters []*Clus
 			//id is index of the cluster in clusters array
 			clusters[id].ErrorInConnecting = errorInConnecting
 		}
-	}
+		return true
+	})
 }
 
 func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[string]*ValidateClusterBean, error) {
@@ -1066,7 +1086,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 
 }
 
-func (impl *ClusterServiceImpl) GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientset, clusterId int, respMap map[int]error, mutex *sync.Mutex) {
+func (impl *ClusterServiceImpl) GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientset, clusterId int, respMap *sync.Map) {
 	response, err := impl.K8sUtil.GetLiveZCall(k8s.LiveZ, k8sClientSet)
 	log.Println("received response for cluster livez status", "response", string(response), "err", err, "clusterId", clusterId)
 
@@ -1092,9 +1112,8 @@ func (impl *ClusterServiceImpl) GetAndUpdateConnectionStatusForOneCluster(k8sCli
 	} else if err == nil && string(response) != "ok" {
 		err = fmt.Errorf("Validation failed with response : %s", string(response))
 	}
-	mutex.Lock()
-	respMap[clusterId] = err
-	mutex.Unlock()
+
+	respMap.Store(clusterId, err)
 }
 
 func (impl *ClusterServiceImpl) ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster {

@@ -139,6 +139,7 @@ type InstalledAppRepository interface {
 	GetInstalledAppVersionByClusterIds(clusterIds []int) ([]*InstalledAppVersions, error) //unused
 	GetInstalledAppVersionByClusterIdsV2(clusterIds []int) ([]*InstalledAppVersions, error)
 	GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId int, namespace string, appName string) (*InstalledApps, error)
+	GetInstalledApplicationByClusterIdAndNamespaceAndAppIdentifier(clusterId int, namespace string, appIdentifier string, appName string) (*InstalledApps, error)
 	GetAppAndEnvDetailsForDeploymentAppTypeInstalledApps(deploymentAppType string, clusterIds []int) ([]*InstalledApps, error)
 	GetDeploymentSuccessfulStatusCountForTelemetry() (int, error)
 	GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) (InstalledApps, error)
@@ -670,6 +671,38 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByClusterIdsV2(clus
 		installedAppVersion.AppStoreApplicationVersion.AppStore = appStore
 	}
 	return installedAppVersions, err
+}
+
+func (impl InstalledAppRepositoryImpl) GetInstalledApplicationByClusterIdAndNamespaceAndAppIdentifier(clusterId int, namespace string, appIdentifier string, appName string) (*InstalledApps, error) {
+	var installedApps []*InstalledApps
+	err := impl.dbConnection.Model(&installedApps).
+		Column("installed_apps.*", "App", "Environment", "App.Team").
+		Where("environment.cluster_id = ?", clusterId).
+		Where("environment.namespace = ?", namespace).
+		Where("app.app_name = ? OR app.display_name = ?", appName, appName).
+		Where("installed_apps.active = ?", true).
+		Where("app.active = ?", true).
+		Where("environment.active = ?", true).
+		Select()
+	// extract app which has matching display name and app name
+	for _, installedApp := range installedApps {
+		appObj := installedApp.App
+		if appObj.DisplayName == appName && appObj.AppName == appIdentifier {
+			return installedApp, nil
+		}
+	}
+	// if not found any matching app in above case, then return app with only app name
+	for _, installedApp := range installedApps {
+		appObj := installedApp.App
+		if appObj.DisplayName == "" && appObj.AppName == appName {
+			return installedApp, nil
+		}
+	}
+	if err == nil {
+		err = pg.ErrNoRows
+	}
+
+	return &InstalledApps{}, err
 }
 
 func (impl InstalledAppRepositoryImpl) GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId int, namespace string, appName string) (*InstalledApps, error) {
