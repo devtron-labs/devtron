@@ -744,7 +744,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) fetchDeletedApp(ctx context.Cont
 			impl.logger.Errorw("error in getting application detail", "err", err, "deploymentAppName", pipeline.DeploymentAppName)
 		}
 
-		if err != nil && checkAppReleaseNotExist(err) {
+		if err != nil && CheckAppReleaseNotExist(err) {
 			successfulPipelines = impl.appendToDeploymentChangeStatusList(
 				successfulPipelines,
 				pipeline,
