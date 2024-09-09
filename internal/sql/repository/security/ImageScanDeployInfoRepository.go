@@ -147,8 +147,13 @@ func (impl ImageScanDeployInfoRepositoryImpl) FindByTypeMetaAndTypeId(scanObject
 
 func (impl ImageScanDeployInfoRepositoryImpl) ScanListingWithFilter(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) ([]*ImageScanListingResponse, error) {
 	var models []*ImageScanListingResponse
+	var err error
 	query := impl.scanListingQueryBuilder(request, size, offset, deployInfoIds)
-	_, err := impl.dbConnection.Query(&models, query, size, offset)
+	if len(request.Severity) > 0 {
+		_, err = impl.dbConnection.Query(&models, query, pg.In(request.Severity), pg.In(request.Severity))
+	} else {
+		_, err = impl.dbConnection.Query(&models, query)
+	}
 	if err != nil {
 		impl.logger.Error("err", err)
 		return []*ImageScanListingResponse{}, err
@@ -177,8 +182,8 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request
 		query = query + " AND res.cve_store_name ILIKE '%" + request.CVEName + "%'"
 	}
 	if len(request.Severity) > 0 {
-		severities := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(request.Severity)), ","), "[]")
-		query = query + fmt.Sprintf(" AND (cs.standard_severity IN (%s) OR (cs.severity IN (%s) AND cs.standard_severity IS NULL))", severities, severities)
+		// use pg.In to inject values here wherever calling this func in case severity exists, to avoid sql injections
+		query = query + " AND (cs.standard_severity IN (?) OR (cs.severity IN (?) AND cs.standard_severity IS NULL))"
 	}
 	if len(request.EnvironmentIds) > 0 {
 		envIds := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(request.EnvironmentIds)), ","), "[]")
@@ -239,8 +244,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithObject(request *s
 	}
 
 	if len(request.Severity) > 0 {
-		severities := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(request.Severity)), ","), "[]")
-		query = query + fmt.Sprintf(" AND (cs.standard_severity IN (%s) OR (cs.severity IN (%s) AND cs.standard_severity IS NULL))", severities, severities)
+		query = query + " AND (cs.standard_severity IN (?) OR (cs.severity IN (?) AND cs.standard_severity IS NULL))"
 	}
 	if len(request.EnvironmentIds) > 0 {
 		envIds := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(request.EnvironmentIds)), ","), "[]")

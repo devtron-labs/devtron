@@ -7,10 +7,10 @@ toolchain go1.21.8
 require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/Pallinder/go-randomdata v1.2.0
-	github.com/argoproj/argo-cd/v2 v2.8.19
+	github.com/argoproj/argo-cd/v2 v2.9.21
 	github.com/argoproj/argo-workflows/v3 v3.5.10
-	github.com/argoproj/gitops-engine v0.7.1-0.20231013183858-f15cf615b814
-	github.com/aws/aws-sdk-go v1.44.290
+	github.com/argoproj/gitops-engine v0.7.1-0.20240715141028-c68bce0f979c
+	github.com/aws/aws-sdk-go v1.44.317
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/caarlos0/env/v6 v6.7.2
 	github.com/casbin/casbin v1.9.1
