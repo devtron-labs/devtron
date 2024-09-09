@@ -26,7 +26,7 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/middleware"
-	"github.com/devtron-labs/devtron/pkg/argoApplication"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/read"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	errors1 "github.com/juju/errors"
@@ -447,24 +447,24 @@ type TerminalSessionHandler interface {
 }
 
 type TerminalSessionHandlerImpl struct {
-	environmentService        cluster.EnvironmentService
-	clusterService            cluster.ClusterService
-	logger                    *zap.SugaredLogger
-	k8sUtil                   *k8s.K8sServiceImpl
-	ephemeralContainerService cluster.EphemeralContainerService
-	argoApplicationService    argoApplication.ArgoApplicationService
+	environmentService         cluster.EnvironmentService
+	clusterService             cluster.ClusterService
+	logger                     *zap.SugaredLogger
+	k8sUtil                    *k8s.K8sServiceImpl
+	ephemeralContainerService  cluster.EphemeralContainerService
+	argoApplicationReadService read.ArgoApplicationReadService
 }
 
 func NewTerminalSessionHandlerImpl(environmentService cluster.EnvironmentService, clusterService cluster.ClusterService,
 	logger *zap.SugaredLogger, k8sUtil *k8s.K8sServiceImpl, ephemeralContainerService cluster.EphemeralContainerService,
-	argoApplicationService argoApplication.ArgoApplicationService) *TerminalSessionHandlerImpl {
+	argoApplicationReadService read.ArgoApplicationReadService) *TerminalSessionHandlerImpl {
 	return &TerminalSessionHandlerImpl{
-		environmentService:        environmentService,
-		clusterService:            clusterService,
-		logger:                    logger,
-		k8sUtil:                   k8sUtil,
-		ephemeralContainerService: ephemeralContainerService,
-		argoApplicationService:    argoApplicationService,
+		environmentService:         environmentService,
+		clusterService:             clusterService,
+		logger:                     logger,
+		k8sUtil:                    k8sUtil,
+		ephemeralContainerService:  ephemeralContainerService,
+		argoApplicationReadService: argoApplicationReadService,
 	}
 }
 
@@ -531,7 +531,7 @@ func (impl *TerminalSessionHandlerImpl) getClientSetAndRestConfigForTerminalConn
 	var restConfig *rest.Config
 	var err error
 	if len(req.ExternalArgoApplicationName) > 0 {
-		restConfig, err = impl.argoApplicationService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoApplicationName)
+		restConfig, err = impl.argoApplicationReadService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoApplicationName)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)
 			return nil, nil, err
@@ -652,7 +652,7 @@ func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudi
 	var restConfig *rest.Config
 	var err error
 	if len(req.ExternalArgoApplicationName) > 0 {
-		restConfig, err = impl.argoApplicationService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoApplicationName)
+		restConfig, err = impl.argoApplicationReadService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoApplicationName)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)
 			return err

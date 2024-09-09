@@ -1,4 +1,4 @@
-package argoApplication
+package helper
 
 import (
 	"fmt"

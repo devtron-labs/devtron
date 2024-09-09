@@ -1,16 +1,144 @@
 # Ingress Setup
 
-After Devtron is installed, Devtron is accessible through service `devtron-service`.
-If you want to access Devtron through ingress, edit `devtron-service` and change the loadbalancer to ClusterIP. You can do this using `kubectl patch` command:
+## Introduction
+
+If you wish to use [Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) as a means to access the Devtron services available in your cluster, you can configure it either during the installation or after the installation of Devtron.  
+
+Refer the section relevant to you:
+* [During Devtron Installation](#enabling-ingress-during-devtron-installation)
+* [After Devtron Installation](#configuring-ingress-after-devtron-installation)
+
+If you have successfully configured Ingress, refer [Post Ingress Setup](#enable-https-for-devtron).
+
+---
+
+## Enabling Ingress during Devtron Installation
+
+If you are installing Devtron, you can enable Ingress either via [set flag](#using-set-flag) or by using [ingress-values.yaml](#using-ingress-values.yaml) to specify the desired Ingress settings.
+
+### Using set flag
+
+You can use the `--set` flag to specify the desired Ingress settings.
+
+Here, we have added 5 configurations you can perform depending on your requirements:
+* [Only Basic Configuration](#only-basic-configuration)
+* [Configuration Including Labels](#configuration-including-labels)
+* [Configuration Including Annotations](#configuration-including-annotations)
+* [Configuration Including TLS Settings](#configuration-including-tls-settings)
+* [Comprehensive Configuration](#comprehensive-configuration)
+
+#### Only Basic Configuration
+
+To enable Ingress and set basic parameters, use the following command:
+
+```bash
+helm install devtron devtron/devtron-operator -n devtroncd \
+  --set components.devtron.ingress.enabled=true \
+  --set components.devtron.ingress.className=nginx \
+  --set components.devtron.ingress.host=devtron.example.com
+```
+
+#### Configuration Including Labels
+
+To add labels to the Ingress resource, use the following command:
+
+```bash
+helm install devtron devtron/devtron-operator -n devtroncd \
+  --set components.devtron.ingress.enabled=true \
+  --set components.devtron.ingress.className=nginx \
+  --set components.devtron.ingress.host=devtron.example.com \
+  --set components.devtron.ingress.labels.env=production
+```
+
+#### Configuration Including Annotations
+
+To add annotations to the Ingress resource, use the following command:
+
+```bash
+helm install devtron devtron/devtron-operator -n devtroncd \
+  --set components.devtron.ingress.enabled=true \
+  --set components.devtron.ingress.className=nginx \
+  --set components.devtron.ingress.host=devtron.example.com \
+  --set components.devtron.ingress.annotations."kubernetes\.io/ingress\.class"=nginx \
+  --set components.devtron.ingress.annotations."nginx\.ingress\.kubernetes\.io\/app-root"="/dashboard"
+```
+
+#### Configuration Including TLS Settings
+
+To configure TLS settings, including `secretName` and `hosts`, use the following command:
+
+```bash
+helm install devtron devtron/devtron-operator -n devtroncd \
+  --set components.devtron.ingress.enabled=true \
+  --set components.devtron.ingress.className=nginx \
+  --set components.devtron.ingress.host=devtron.example.com \
+  --set components.devtron.ingress.tls[0].secretName=devtron-tls \
+  --set components.devtron.ingress.tls[0].hosts[0]=devtron.example.com
+```
+
+#### Comprehensive Configuration
+
+To include all the above settings in a single command, use:
+
+```bash
+helm install devtron devtron/devtron-operator -n devtroncd \
+  --set components.devtron.ingress.enabled=true \
+  --set components.devtron.ingress.className=nginx \
+  --set components.devtron.ingress.host=devtron.example.com \
+  --set components.devtron.ingress.annotations."kubernetes\.io/ingress\.class"=nginx \
+  --set components.devtron.ingress.annotations."nginx\.ingress\.kubernetes\.io\/app-root"="/dashboard" \
+  --set components.devtron.ingress.labels.env=production \
+  --set components.devtron.ingress.pathType=ImplementationSpecific \
+  --set components.devtron.ingress.tls[0].secretName=devtron-tls \
+  --set components.devtron.ingress.tls[0].hosts[0]=devtron.example.com
+```
+
+
+### Using ingress-values.yaml
+
+As an alternative to the [set flag](#using-set-flag) method, you can enable Ingress using `ingress-values.yaml` instead. 
+
+Create an `ingress-values.yaml` file. You may refer the below format for an advanced ingress configuration which includes labels, annotations, secrets, and many more.
+
+```yml
+components:
+  devtron:
+    ingress:
+      enabled: true
+      className: nginx
+      labels: {}
+        # env: production
+      annotations: {}
+        # nginx.ingress.kubernetes.io/app-root: /dashboard
+      pathType: ImplementationSpecific
+      host: devtron.example.com
+      tls: []
+    #    - secretName: devtron-info-tls
+    #      hosts:
+    #        - devtron.example.com
+```
+
+Once you have the `ingress-values.yaml` file ready, run the following command:
+
+```bash
+helm install devtron devtron/devtron-operator -n devtroncd  --reuse-values  -f ingress-values.yaml
+```
+
+---
+
+## Configuring Ingress after Devtron Installation
+
+After Devtron is installed, Devtron is accessible through `devtron-service`. If you wish to access Devtron through ingress, you'll need to modify this service to use a ClusterIP instead of a LoadBalancer.
+
+You can do this using the `kubectl patch` command:
 
 ```bash
 kubectl patch -n devtroncd svc devtron-service -p '{"spec": {"ports": [{"port": 80,"targetPort": "devtron","protocol": "TCP","name": "devtron"}],"type": "ClusterIP","selector": {"app": "devtron"}}}'
 ```
  
-After this, create ingress by applying the ingress yaml file.
-You can use [this yaml file](https://github.com/devtron-labs/devtron/blob/main/manifests/yamls/devtron-ingress.yaml) to create ingress to access Devtron:
+Next, create ingress to access Devtron by applying the `devtron-ingress.yaml` file. The file is also available on this [link](https://github.com/devtron-labs/devtron/blob/main/manifests/yamls/devtron-ingress.yaml). You can access Devtron from any host after applying this yaml. 
 
-```yaml
+```yml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -49,9 +177,9 @@ spec:
         pathType: ImplementationSpecific  
 ```        
 
-You can access Devtron from any host after applying this yaml. For k8s versions <1.19, [apply this yaml](https://github.com/devtron-labs/devtron/blob/main/manifests/yamls/devtron-ingress-legacy.yaml):
+For k8s versions < 1.19, [apply this yaml](https://github.com/devtron-labs/devtron/blob/main/manifests/yamls/devtron-ingress-legacy.yaml):
 
-```yaml
+```yml
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
@@ -79,7 +207,7 @@ spec:
 
 Optionally, you also can access Devtron through a specific host by running the following YAML file:
 
-```yaml
+```yml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -119,9 +247,11 @@ spec:
             pathType: ImplementationSpecific
 ```
 
+---
+
 ## Enable HTTPS For Devtron
 
-Once ingress setup for devtron is done and you want to run Devtron over `https`, you need to add different annotations for different ingress controllers and load balancers.
+Once Ingress setup for Devtron is done and you want to run Devtron over `https`, you need to add different annotations for different ingress controllers and load balancers.
 
 ### 1. Nginx Ingress Controller
 
@@ -176,6 +306,3 @@ In case of AWS application load balancer, the following annotations need to be a
 For an Ingress resource to be observed by AGIC (Application Gateway Ingress Controller) must be annotated with kubernetes.io/ingress.class: azure/application-gateway. Only then AGIC will work with the Ingress resource in question.
 
 > Note: Make sure NOT to use port 80 with HTTPS and port 443 with HTTP on the Pods.
-
-
-
