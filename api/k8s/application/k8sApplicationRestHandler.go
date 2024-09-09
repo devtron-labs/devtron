@@ -33,7 +33,8 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	util2 "github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/argoApplication"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/helper"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/read"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -81,39 +82,39 @@ type K8sApplicationRestHandler interface {
 }
 
 type K8sApplicationRestHandlerImpl struct {
-	logger                 *zap.SugaredLogger
-	k8sApplicationService  application2.K8sApplicationService
-	pump                   connector.Pump
-	terminalSessionHandler terminal.TerminalSessionHandler
-	enforcer               casbin.Enforcer
-	validator              *validator.Validate
-	enforcerUtil           rbac.EnforcerUtil
-	enforcerUtilHelm       rbac.EnforcerUtilHelm
-	helmAppService         client.HelmAppService
-	userService            user.UserService
-	k8sCommonService       k8s.K8sCommonService
-	terminalEnvVariables   *util.TerminalEnvVariables
-	fluxAppService         fluxApplication.FluxApplicationService
-	argoApplication        argoApplication.ArgoApplicationService
+	logger                     *zap.SugaredLogger
+	k8sApplicationService      application2.K8sApplicationService
+	pump                       connector.Pump
+	terminalSessionHandler     terminal.TerminalSessionHandler
+	enforcer                   casbin.Enforcer
+	validator                  *validator.Validate
+	enforcerUtil               rbac.EnforcerUtil
+	enforcerUtilHelm           rbac.EnforcerUtilHelm
+	helmAppService             client.HelmAppService
+	userService                user.UserService
+	k8sCommonService           k8s.K8sCommonService
+	terminalEnvVariables       *util.TerminalEnvVariables
+	fluxAppService             fluxApplication.FluxApplicationService
+	argoApplicationReadService read.ArgoApplicationReadService
 }
 
-func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate, envVariables *util.EnvironmentVariables, fluxAppService fluxApplication.FluxApplicationService, argoApplication argoApplication.ArgoApplicationService,
+func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger, k8sApplicationService application2.K8sApplicationService, pump connector.Pump, terminalSessionHandler terminal.TerminalSessionHandler, enforcer casbin.Enforcer, enforcerUtilHelm rbac.EnforcerUtilHelm, enforcerUtil rbac.EnforcerUtil, helmAppService client.HelmAppService, userService user.UserService, k8sCommonService k8s.K8sCommonService, validator *validator.Validate, envVariables *util.EnvironmentVariables, fluxAppService fluxApplication.FluxApplicationService, argoApplicationReadService read.ArgoApplicationReadService,
 ) *K8sApplicationRestHandlerImpl {
 	return &K8sApplicationRestHandlerImpl{
-		logger:                 logger,
-		k8sApplicationService:  k8sApplicationService,
-		pump:                   pump,
-		terminalSessionHandler: terminalSessionHandler,
-		enforcer:               enforcer,
-		validator:              validator,
-		enforcerUtilHelm:       enforcerUtilHelm,
-		enforcerUtil:           enforcerUtil,
-		helmAppService:         helmAppService,
-		userService:            userService,
-		k8sCommonService:       k8sCommonService,
-		terminalEnvVariables:   envVariables.TerminalEnvVariables,
-		fluxAppService:         fluxAppService,
-		argoApplication:        argoApplication,
+		logger:                     logger,
+		k8sApplicationService:      k8sApplicationService,
+		pump:                       pump,
+		terminalSessionHandler:     terminalSessionHandler,
+		enforcer:                   enforcer,
+		validator:                  validator,
+		enforcerUtilHelm:           enforcerUtilHelm,
+		enforcerUtil:               enforcerUtil,
+		helmAppService:             helmAppService,
+		userService:                userService,
+		k8sCommonService:           k8sCommonService,
+		terminalEnvVariables:       envVariables.TerminalEnvVariables,
+		fluxAppService:             fluxAppService,
+		argoApplicationReadService: argoApplicationReadService,
 	}
 }
 
@@ -289,7 +290,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 		resourceTreeResponse = appDetail.ResourceTreeResponse
 
 	} else if appType == bean2.ArgoAppType {
-		appIdentifier, err := argoApplication.DecodeExternalArgoAppId(appIdString)
+		appIdentifier, err := helper.DecodeExternalArgoAppId(appIdString)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
@@ -301,7 +302,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 		}
 		//RBAC enforcer Ends
 
-		appDetail, err := handler.argoApplication.GetAppDetail(appIdentifier.AppName, appIdentifier.Namespace, appIdentifier.ClusterId)
+		appDetail, err := handler.argoApplicationReadService.GetAppDetail(appIdentifier.AppName, appIdentifier.Namespace, appIdentifier.ClusterId)
 		if err != nil {
 			apiError := clientErrors.ConvertToApiError(err)
 			if apiError != nil {
@@ -559,6 +560,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	handler.logger.Infow("get pod logs request", "request", request)
 	handler.requestValidationAndRBAC(w, r, token, request)
 	lastEventId := r.Header.Get(bean2.LastEventID)
 	isReconnect := false
@@ -720,12 +722,12 @@ func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.Re
 		}
 		//RBAC enforcer ends here
 	} else if request.AppType == bean2.ArgoAppType && request.ExternalArgoApplicationName != "" {
-		appIdentifier, err := argoApplication.DecodeExternalArgoAppId(request.AppId)
+		appIdentifier, err := helper.DecodeExternalArgoAppId(request.AppId)
 		if err != nil {
 			handler.logger.Errorw(bean2.AppIdDecodingError, "err", err, "appIdentifier", request.AppIdentifier)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		}
-		valid, err := handler.k8sApplicationService.ValidateArgoResourceRequest(r.Context(), appIdentifier, request.K8sRequest)
+		valid, err := handler.argoApplicationReadService.ValidateArgoResourceRequest(r.Context(), appIdentifier, request.K8sRequest)
 		if err != nil || !valid {
 			handler.logger.Errorw("error in validating resource request", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -1144,14 +1146,14 @@ func (handler *K8sApplicationRestHandlerImpl) verifyRbacForAppRequests(token str
 	envObject := ""
 	switch request.AppType {
 	case bean2.ArgoAppType:
-		argoAppIdentifier, err := argoApplication.DecodeExternalArgoAppId(request.AppId)
+		argoAppIdentifier, err := helper.DecodeExternalArgoAppId(request.AppId)
 		if err != nil {
 			handler.logger.Errorw("error in decoding appId", "err", err, "appId", request.AppId)
 			return false, err
 		}
 		request.ClusterId = argoAppIdentifier.ClusterId
 		request.ExternalArgoApplicationName = argoAppIdentifier.AppName
-		valid, err := handler.k8sApplicationService.ValidateArgoResourceRequest(r.Context(), argoAppIdentifier, request.K8sRequest)
+		valid, err := handler.argoApplicationReadService.ValidateArgoResourceRequest(r.Context(), argoAppIdentifier, request.K8sRequest)
 		if err != nil || !valid {
 			handler.logger.Errorw("error in validating resource request", "err", err)
 			return false, err
