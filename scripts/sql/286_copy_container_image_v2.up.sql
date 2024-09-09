@@ -16,7 +16,7 @@ SET plugin_parent_metadata_id = (
     FROM plugin_parent_metadata
     WHERE identifier='copy-container-image'
       AND deleted = false
-)
+),plugin_version='1.0.0'
 WHERE name='Copy container image'
   AND (
         plugin_parent_metadata_id IS NULL

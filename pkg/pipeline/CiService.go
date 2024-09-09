@@ -95,7 +95,6 @@ type CiServiceImpl struct {
 	infraProvider                infraProviders.InfraProvider
 	ciCdPipelineOrchestrator     CiCdPipelineOrchestrator
 	buildxCacheFlags             *BuildxCacheFlags
-	ciArtifactRepository         repository5.CiArtifactRepository
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -113,7 +112,6 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	globalPluginService plugin.GlobalPluginService,
 	infraProvider infraProviders.InfraProvider,
 	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
-	ciArtifactRepository repository5.CiArtifactRepository,
 ) *CiServiceImpl {
 	buildxCacheFlags := &BuildxCacheFlags{}
 	err := env.Parse(buildxCacheFlags)
@@ -142,7 +140,6 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		infraProvider:                infraProvider,
 		ciCdPipelineOrchestrator:     ciCdPipelineOrchestrator,
 		buildxCacheFlags:             buildxCacheFlags,
-		ciArtifactRepository:         ciArtifactRepository,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
