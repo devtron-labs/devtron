@@ -284,7 +284,7 @@ type PipelineStrategy struct {
 	Default            bool                                   `json:"default"`
 }
 
-func checkAppReleaseNotExist(err error) bool {
+func CheckAppReleaseNotExist(err error) bool {
 	// RELEASE_NOT_EXIST check for helm App and NOT_FOUND check for argo app
 	return strings.Contains(err.Error(), bean.NOT_FOUND) || strings.Contains(err.Error(), bean.RELEASE_NOT_EXIST)
 }
