@@ -107,7 +107,7 @@ github.com/apparentlymart/go-textseg/textseg
 # github.com/apparentlymart/go-textseg/v13 v13.0.0
 ## explicit; go 1.16
 github.com/apparentlymart/go-textseg/v13/textseg
-# github.com/argoproj/argo-cd/v2 v2.8.19
+# github.com/argoproj/argo-cd/v2 v2.9.21
 ## explicit; go 1.19
 github.com/argoproj/argo-cd/v2/common
 github.com/argoproj/argo-cd/v2/pkg/apiclient/account
@@ -160,10 +160,11 @@ github.com/argoproj/argo-workflows/v3/util/slice
 github.com/argoproj/argo-workflows/v3/util/wait
 github.com/argoproj/argo-workflows/v3/workflow/common
 github.com/argoproj/argo-workflows/v3/workflow/util
-# github.com/argoproj/gitops-engine v0.7.1-0.20231013183858-f15cf615b814
-## explicit; go 1.19
+# github.com/argoproj/gitops-engine v0.7.1-0.20240715141028-c68bce0f979c
+## explicit; go 1.17
 github.com/argoproj/gitops-engine/internal/kubernetes_vendor/pkg/api/v1/endpoints
 github.com/argoproj/gitops-engine/internal/kubernetes_vendor/pkg/util/hash
+github.com/argoproj/gitops-engine/pkg/cache
 github.com/argoproj/gitops-engine/pkg/diff
 github.com/argoproj/gitops-engine/pkg/diff/internal/fieldmanager
 github.com/argoproj/gitops-engine/pkg/health
@@ -182,10 +183,11 @@ github.com/argoproj/pkg/grpc/http
 github.com/argoproj/pkg/rand
 github.com/argoproj/pkg/sync
 github.com/argoproj/pkg/time
-# github.com/aws/aws-sdk-go v1.44.290
+# github.com/aws/aws-sdk-go v1.44.317
 ## explicit; go 1.11
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
+github.com/aws/aws-sdk-go/aws/auth/bearer
 github.com/aws/aws-sdk-go/aws/awserr
 github.com/aws/aws-sdk-go/aws/awsutil
 github.com/aws/aws-sdk-go/aws/client
@@ -235,6 +237,7 @@ github.com/aws/aws-sdk-go/service/s3/s3iface
 github.com/aws/aws-sdk-go/service/s3/s3manager
 github.com/aws/aws-sdk-go/service/sso
 github.com/aws/aws-sdk-go/service/sso/ssoiface
+github.com/aws/aws-sdk-go/service/ssooidc
 github.com/aws/aws-sdk-go/service/sts
 github.com/aws/aws-sdk-go/service/sts/stsiface
 # github.com/beorn7/perks v1.0.1
@@ -341,7 +344,7 @@ github.com/devtron-labs/authenticator/jwt
 github.com/devtron-labs/authenticator/middleware
 github.com/devtron-labs/authenticator/oidc
 github.com/devtron-labs/authenticator/password
-# github.com/devtron-labs/common-lib v0.16.1-0.20240904131140-b4128b676f6c
+# github.com/devtron-labs/common-lib v0.16.1-0.20240909135009-9ab705e1a141
 ## explicit; go 1.21
 github.com/devtron-labs/common-lib/async
 github.com/devtron-labs/common-lib/blob-storage
@@ -376,6 +379,9 @@ github.com/devtron-labs/protos/gitSensor
 # github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f
 ## explicit
 github.com/dgryski/go-rendezvous
+# github.com/docker/cli v24.0.6+incompatible
+## explicit
+github.com/docker/cli/cli/config/types
 # github.com/docker/distribution v2.8.2+incompatible
 ## explicit
 github.com/docker/distribution/digestset

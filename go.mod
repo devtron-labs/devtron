@@ -7,10 +7,10 @@ toolchain go1.21.8
 require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/Pallinder/go-randomdata v1.2.0
-	github.com/argoproj/argo-cd/v2 v2.8.19
+	github.com/argoproj/argo-cd/v2 v2.9.21
 	github.com/argoproj/argo-workflows/v3 v3.5.10
-	github.com/argoproj/gitops-engine v0.7.1-0.20231013183858-f15cf615b814
-	github.com/aws/aws-sdk-go v1.44.290
+	github.com/argoproj/gitops-engine v0.7.1-0.20240715141028-c68bce0f979c
+	github.com/aws/aws-sdk-go v1.44.317
 	github.com/caarlos0/env v3.5.0+incompatible
 	github.com/caarlos0/env/v6 v6.7.2
 	github.com/casbin/casbin v1.9.1
@@ -21,7 +21,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/deckarep/golang-set v1.8.0
 	github.com/devtron-labs/authenticator v0.4.35-0.20240809073103-6e11da8083f8
-	github.com/devtron-labs/common-lib v0.16.1-0.20240904131140-b4128b676f6c
+	github.com/devtron-labs/common-lib v0.16.1-0.20240909135009-9ab705e1a141
 	github.com/devtron-labs/go-bitbucket v0.9.60-beta
 	github.com/devtron-labs/protos v0.0.3-0.20240802105333-92ee9bb85d80
 	github.com/evanphx/json-patch v5.7.0+incompatible
@@ -133,6 +133,7 @@ require (
 	github.com/cloudflare/circl v1.3.7 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
+	github.com/docker/cli v24.0.6+incompatible // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
