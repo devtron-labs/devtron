@@ -19,3 +19,11 @@ package bean
 const (
 	YamlSeparator string = "---\n"
 )
+
+type DockerRegistryInfo struct {
+	DockerImageTag     string `json:"dockerImageTag"`
+	DockerRegistryId   string `json:"dockerRegistryId"`
+	DockerRegistryType string `json:"dockerRegistryType"`
+	DockerRegistryURL  string `json:"dockerRegistryURL"`
+	DockerRepository   string `json:"dockerRepository"`
+}

@@ -25,7 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	internalUtil "github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/argoApplication"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/read"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/util"
@@ -71,7 +71,7 @@ type K8sCommonServiceImpl struct {
 	K8sUtil                     *k8s.K8sServiceImpl
 	clusterService              cluster.ClusterService
 	K8sApplicationServiceConfig *K8sApplicationServiceConfig
-	argoApplicationService      argoApplication.ArgoApplicationService
+	argoApplicationReadService  read.ArgoApplicationReadService
 }
 type K8sApplicationServiceConfig struct {
 	BatchSize        int `env:"BATCH_SIZE" envDefault:"5"`
@@ -80,7 +80,7 @@ type K8sApplicationServiceConfig struct {
 
 func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sServiceImpl,
 	clusterService cluster.ClusterService,
-	argoApplicationService argoApplication.ArgoApplicationService) *K8sCommonServiceImpl {
+	argoApplicationReadService read.ArgoApplicationReadService) *K8sCommonServiceImpl {
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -91,7 +91,7 @@ func NewK8sCommonServiceImpl(Logger *zap.SugaredLogger, k8sUtils *k8s.K8sService
 		K8sUtil:                     k8sUtils,
 		clusterService:              clusterService,
 		K8sApplicationServiceConfig: cfg,
-		argoApplicationService:      argoApplicationService,
+		argoApplicationReadService:  argoApplicationReadService,
 	}
 }
 
@@ -190,7 +190,7 @@ func (impl *K8sCommonServiceImpl) GetRestConfigOfCluster(ctx context.Context, re
 	//getting rest config by clusterId
 	clusterId := request.ClusterId
 	if len(request.ExternalArgoApplicationName) > 0 {
-		restConfig, err := impl.argoApplicationService.GetRestConfigForExternalArgo(ctx, clusterId, request.ExternalArgoApplicationName)
+		restConfig, err := impl.argoApplicationReadService.GetRestConfigForExternalArgo(ctx, clusterId, request.ExternalArgoApplicationName)
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", clusterId, "externalArgoApplicationName", request.ExternalArgoApplicationName)
 			return nil, err
@@ -457,7 +457,7 @@ func (impl *K8sCommonServiceImpl) GetCoreClientByClusterId(clusterId int) (*kube
 }
 
 func (impl *K8sCommonServiceImpl) GetCoreClientByClusterIdForExternalArgoApps(req *cluster.EphemeralContainerRequest) (*kubernetes.Clientset, *clientV1.CoreV1Client, error) {
-	restConfig, err := impl.argoApplicationService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoApplicationName)
+	restConfig, err := impl.argoApplicationReadService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoApplicationName)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)
 	}

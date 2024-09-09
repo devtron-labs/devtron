@@ -72,7 +72,7 @@ import (
 )
 
 type WorkflowDagExecutor interface {
-	HandleCiSuccessEvent(triggerContext triggerBean.TriggerContext, ciPipelineId int, request *bean2.CiArtifactWebhookRequest, imagePushedAt *time.Time) (id int, err error)
+	HandleCiSuccessEvent(triggerContext triggerBean.TriggerContext, ciPipelineId int, request *bean2.CiArtifactWebhookRequest, imagePushedAt time.Time) (id int, err error)
 	HandlePreStageSuccessEvent(triggerContext triggerBean.TriggerContext, cdStageCompleteEvent eventProcessorBean.CdStageCompleteEvent) error
 	HandleDeploymentSuccessEvent(triggerContext triggerBean.TriggerContext, pipelineOverride *chartConfig.PipelineOverride) error
 	HandlePostStageSuccessEvent(triggerContext triggerBean.TriggerContext, wfr *bean4.CdWorkflowRunnerDto, cdWorkflowId int, cdPipelineId int, triggeredBy int32, pluginRegistryImageDetails map[string][]string) error
@@ -708,7 +708,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(triggerContext 
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext triggerBean.TriggerContext, ciPipelineId int, request *bean2.CiArtifactWebhookRequest, imagePushedAt *time.Time) (id int, err error) {
+func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext triggerBean.TriggerContext, ciPipelineId int, request *bean2.CiArtifactWebhookRequest, imagePushedAt time.Time) (id int, err error) {
 	impl.logger.Infow("webhook for artifact save", "req", request)
 	if request.WorkflowId != nil {
 		savedWorkflow, err := impl.ciWorkflowRepository.FindById(*request.WorkflowId)
@@ -758,7 +758,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 	createdOn := time.Now()
 	updatedOn := time.Now()
 	if !imagePushedAt.IsZero() {
-		createdOn = *imagePushedAt
+		createdOn = imagePushedAt
 	}
 	buildArtifact := &repository.CiArtifact{
 		Image:              request.Image,

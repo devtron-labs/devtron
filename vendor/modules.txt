@@ -237,13 +237,6 @@ github.com/aws/aws-sdk-go/service/sso
 github.com/aws/aws-sdk-go/service/sso/ssoiface
 github.com/aws/aws-sdk-go/service/sts
 github.com/aws/aws-sdk-go/service/sts/stsiface
-# github.com/aws/aws-sdk-go-v2/service/ecr v1.20.0
-## explicit; go 1.15
-github.com/aws/aws-sdk-go-v2/service/ecr/types
-# github.com/aws/smithy-go v1.14.2
-## explicit; go 1.15
-github.com/aws/smithy-go
-github.com/aws/smithy-go/document
 # github.com/beorn7/perks v1.0.1
 ## explicit; go 1.11
 github.com/beorn7/perks/quantile
@@ -256,7 +249,7 @@ github.com/bmatcuk/doublestar/v4
 # github.com/bombsimon/logrusr/v2 v2.0.1
 ## explicit; go 1.13
 github.com/bombsimon/logrusr/v2
-# github.com/bradleyfalzon/ghinstallation/v2 v2.5.0
+# github.com/bradleyfalzon/ghinstallation/v2 v2.6.0
 ## explicit; go 1.13
 github.com/bradleyfalzon/ghinstallation/v2
 # github.com/caarlos0/env v3.5.0+incompatible
@@ -348,7 +341,7 @@ github.com/devtron-labs/authenticator/jwt
 github.com/devtron-labs/authenticator/middleware
 github.com/devtron-labs/authenticator/oidc
 github.com/devtron-labs/authenticator/password
-# github.com/devtron-labs/common-lib v0.0.25-0.20240812113340-f14be466613d
+# github.com/devtron-labs/common-lib v0.16.1-0.20240904131140-b4128b676f6c
 ## explicit; go 1.21
 github.com/devtron-labs/common-lib/async
 github.com/devtron-labs/common-lib/blob-storage
@@ -370,6 +363,7 @@ github.com/devtron-labs/common-lib/utils/k8s
 github.com/devtron-labs/common-lib/utils/k8s/commonBean
 github.com/devtron-labs/common-lib/utils/k8s/health
 github.com/devtron-labs/common-lib/utils/k8sObjectsUtil
+github.com/devtron-labs/common-lib/utils/registry
 github.com/devtron-labs/common-lib/utils/remoteConnection/bean
 github.com/devtron-labs/common-lib/utils/runTime
 github.com/devtron-labs/common-lib/utils/yaml
@@ -618,7 +612,7 @@ github.com/google/go-cmp/cmp/internal/value
 # github.com/google/go-github v17.0.0+incompatible
 ## explicit
 github.com/google/go-github/github
-# github.com/google/go-github/v53 v53.0.0
+# github.com/google/go-github/v53 v53.2.0
 ## explicit; go 1.17
 github.com/google/go-github/v53/github
 # github.com/google/go-querystring v1.1.0
@@ -964,7 +958,7 @@ github.com/syndtr/goleveldb/leveldb/opt
 github.com/syndtr/goleveldb/leveldb/storage
 github.com/syndtr/goleveldb/leveldb/table
 github.com/syndtr/goleveldb/leveldb/util
-# github.com/tidwall/gjson v1.14.3
+# github.com/tidwall/gjson v1.14.4
 ## explicit; go 1.12
 github.com/tidwall/gjson
 # github.com/tidwall/match v1.1.1
@@ -2046,7 +2040,7 @@ k8s.io/utils/trace
 # mellium.im/sasl v0.3.1
 ## explicit; go 1.18
 mellium.im/sasl
-# oras.land/oras-go/v2 v2.2.0
+# oras.land/oras-go/v2 v2.3.0
 ## explicit; go 1.19
 oras.land/oras-go/v2/content
 oras.land/oras-go/v2/errdef

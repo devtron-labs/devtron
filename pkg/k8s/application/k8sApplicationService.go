@@ -25,7 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
-	bean4 "github.com/devtron-labs/devtron/pkg/argoApplication/bean"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/fluxApplication"
@@ -45,7 +45,6 @@ import (
 	yamlUtil "github.com/devtron-labs/common-lib/utils/yaml"
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/helm-app/openapiClient"
-	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s"
@@ -81,6 +80,8 @@ type K8sApplicationService interface {
 	GetAllApiResourceGVKWithoutAuthorization(ctx context.Context, clusterId int) (*k8s2.GetAllApiResourcesResponse, error)
 	GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32) (*k8s2.GetAllApiResourcesResponse, error)
 	GetResourceList(ctx context.Context, token string, request *k8s.ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool) (*k8s2.ClusterResourceListMap, error)
+	GetResourceListWithRestConfig(ctx context.Context, token string, request *k8s.ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool,
+		restConfig *rest.Config, clusterName string) (*k8s2.ClusterResourceListMap, error)
 	ApplyResources(ctx context.Context, token string, request *k8s2.ApplyResourcesRequest, resourceRbacHandler func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool) ([]*k8s2.ApplyResourcesResponse, error)
 	CreatePodEphemeralContainers(req *cluster.EphemeralContainerRequest) error
 	TerminatePodEphemeralContainer(req cluster.EphemeralContainerRequest) (bool, error)
@@ -90,7 +91,6 @@ type K8sApplicationService interface {
 	DeleteResourceWithAudit(ctx context.Context, request *k8s.ResourceRequestBean, userId int32) (*k8s2.ManifestResponse, error)
 	GetUrlsByBatchForIngress(ctx context.Context, resp []k8s.BatchResourceResponse) []interface{}
 	ValidateFluxResourceRequest(ctx context.Context, appIdentifier *bean2.FluxAppIdentifier, request *k8s2.K8sRequestBean) (bool, error)
-	ValidateArgoResourceRequest(ctx context.Context, appIdentifier *bean4.ArgoAppIdentifier, request *k8s2.K8sRequestBean) (bool, error)
 }
 
 type K8sApplicationServiceImpl struct {
@@ -106,15 +106,15 @@ type K8sApplicationServiceImpl struct {
 	ephemeralContainerService    cluster.EphemeralContainerService
 	ephemeralContainerRepository repository.EphemeralContainersRepository
 	ephemeralContainerConfig     *EphemeralContainerConfig
-	argoApplicationService       argoApplication.ArgoApplicationService
-	fluxApplicationService       fluxApplication.FluxApplicationService
+	//argoApplicationService       argoApplication.ArgoApplicationService
+	fluxApplicationService fluxApplication.FluxApplicationService
 }
 
 func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService, pump connector.Pump, helmAppService client.HelmAppService, K8sUtil *k8s2.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig, K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
 	k8sCommonService k8s.K8sCommonService, terminalSession terminal.TerminalSessionHandler,
 	ephemeralContainerService cluster.EphemeralContainerService,
 	ephemeralContainerRepository repository.EphemeralContainersRepository,
-	argoApplicationService argoApplication.ArgoApplicationService, fluxApplicationService fluxApplication.FluxApplicationService) (*K8sApplicationServiceImpl, error) {
+	fluxApplicationService fluxApplication.FluxApplicationService) (*K8sApplicationServiceImpl, error) {
 	ephemeralContainerConfig := &EphemeralContainerConfig{}
 	err := env.Parse(ephemeralContainerConfig)
 	if err != nil {
@@ -134,8 +134,8 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger, clusterService clus
 		ephemeralContainerService:    ephemeralContainerService,
 		ephemeralContainerRepository: ephemeralContainerRepository,
 		ephemeralContainerConfig:     ephemeralContainerConfig,
-		argoApplicationService:       argoApplicationService,
-		fluxApplicationService:       fluxApplicationService,
+		//argoApplicationService:       argoApplicationService,
+		fluxApplicationService: fluxApplicationService,
 	}, nil
 }
 
@@ -249,7 +249,7 @@ func (impl *K8sApplicationServiceImpl) ValidatePodLogsRequestQuery(r *http.Reque
 		request.DeploymentType = deploymentType
 		// Validate App Id
 		if request.AppType == bean3.ArgoAppType {
-			appIdentifier, err := argoApplication.DecodeExternalArgoAppId(appId)
+			appIdentifier, err := helper.DecodeExternalArgoAppId(appId)
 			if err != nil {
 				impl.logger.Errorw(bean3.AppIdDecodingError, "err", err, "appId", appId)
 				return nil, err
@@ -356,7 +356,7 @@ func (impl *K8sApplicationServiceImpl) ValidateTerminalRequestQuery(r *http.Requ
 			request.ClusterId = fluxAppIdentifier.ClusterId
 
 		} else if appType == bean3.ArgoAppType {
-			appIdentifier, err := argoApplication.DecodeExternalArgoAppId(request.ApplicationId)
+			appIdentifier, err := helper.DecodeExternalArgoAppId(request.ApplicationId)
 			if err != nil {
 				impl.logger.Errorw(bean3.InvalidAppId, "err", err, "appId", request.ApplicationId)
 				return nil, nil, err
@@ -364,7 +364,7 @@ func (impl *K8sApplicationServiceImpl) ValidateTerminalRequestQuery(r *http.Requ
 			resourceRequestBean.ExternalArgoApplicationName = appIdentifier.AppName
 			resourceRequestBean.ClusterId = appIdentifier.ClusterId
 			request.ClusterId = appIdentifier.ClusterId
-			//request.ExternalArgoApplicationName = appIdentifier.AppName
+			request.ExternalArgoApplicationName = appIdentifier.AppName
 		}
 	} else {
 		// Validate Cluster Id
@@ -521,39 +521,6 @@ func (impl *K8sApplicationServiceImpl) validateResourceRequest(ctx context.Conte
 		}
 	}
 	return impl.validateContainerNameIfReqd(valid, request, app), nil
-}
-func (impl *K8sApplicationServiceImpl) ValidateArgoResourceRequest(ctx context.Context, appIdentifier *bean4.ArgoAppIdentifier, request *k8s2.K8sRequestBean) (bool, error) {
-	app, err := impl.argoApplicationService.GetAppDetail(appIdentifier.AppName, appIdentifier.Namespace, appIdentifier.ClusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting app detail", "err", err, "appDetails", appIdentifier)
-		apiError := clientErrors.ConvertToApiError(err)
-		if apiError != nil {
-			err = apiError
-		}
-		return false, err
-	}
-
-	valid := false
-
-	for _, node := range app.ResourceTree.Nodes {
-		nodeDetails := k8s2.ResourceIdentifier{
-			Name:      node.Name,
-			Namespace: node.Namespace,
-			GroupVersionKind: schema.GroupVersionKind{
-				Group:   node.Group,
-				Version: node.Version,
-				Kind:    node.Kind,
-			},
-		}
-		if nodeDetails == request.ResourceIdentifier {
-			valid = true
-			break
-		}
-	}
-	appDetail := &gRPC.AppDetail{
-		ResourceTreeResponse: app.ResourceTree,
-	}
-	return impl.validateContainerNameIfReqd(valid, request, appDetail), nil
 }
 
 func (impl *K8sApplicationServiceImpl) ValidateFluxResourceRequest(ctx context.Context, appIdentifier *bean2.FluxAppIdentifier, request *k8s2.K8sRequestBean) (bool, error) {
@@ -766,6 +733,13 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.ClusterId)
 		return resourceList, err
 	}
+	return impl.GetResourceListWithRestConfig(ctx, token, request, validateResourceAccess, restConfig, clusterBean.ClusterName)
+}
+
+func (impl *K8sApplicationServiceImpl) GetResourceListWithRestConfig(ctx context.Context, token string, request *k8s.ResourceRequestBean,
+	validateResourceAccess func(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool,
+	restConfig *rest.Config, clusterName string) (*k8s2.ClusterResourceListMap, error) {
+	resourceList := &k8s2.ClusterResourceListMap{}
 	k8sRequest := request.K8sRequest
 	// store the copy of requested resource identifier
 	resourceIdentifierCloned := k8sRequest.ResourceIdentifier
@@ -785,22 +759,13 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 			resourceIdentifier.GroupVersionKind = schema.GroupVersionKind{Group: group, Kind: kind}
 		}
 		k8sRequest.ResourceIdentifier = resourceIdentifier
-		return validateResourceAccess(token, clusterBean.ClusterName, *request, casbin.ActionGet)
+		return validateResourceAccess(token, clusterName, *request, casbin.ActionGet)
 	}
 	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resp.Resources, namespaced, request.K8sRequest.ResourceIdentifier.GroupVersionKind, false, checkForResourceCallback)
 	if err != nil {
 		impl.logger.Errorw("error on parsing for k8s resource", "err", err)
 		return resourceList, err
 	}
-	// Not used in FE side
-
-	//k8sServerVersion, err := impl.k8sCommonService.GetK8sServerVersion(clusterId)
-	//if err != nil {
-	//	impl.logger.Errorw("error in getting k8s server version", "clusterId", clusterId, "err", err)
-	//	// return nil, err
-	//} else {
-	//	resourceList.ServerVersion = k8sServerVersion.String()
-	//}
 	return resourceList, nil
 }
 

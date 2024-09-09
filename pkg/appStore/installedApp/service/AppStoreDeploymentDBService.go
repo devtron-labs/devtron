@@ -148,6 +148,10 @@ func (impl *AppStoreDeploymentDBServiceImpl) AppStoreDeployOperationDB(installRe
 			appCreateRequest.AppType = helper.ExternalChartStoreApp
 			appCreateRequest.DisplayName = installRequest.DisplayName
 		}
+		if globalUtil.IsBaseStack() || globalUtil.IsHelmApp(installRequest.AppOfferingMode) {
+			appCreateRequest.DisplayName = installRequest.AppName
+			appCreateRequest.AppName = installRequest.GetAppIdentifierString()
+		}
 		appCreateRequest, err = impl.createAppForAppStore(appCreateRequest, tx, getAppInstallationMode(installRequest.AppOfferingMode))
 		if err != nil {
 			impl.logger.Errorw("error while creating app", "error", err)
@@ -603,6 +607,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) createAppForAppStore(createRequest 
 		TeamId:          createRequest.TeamId,
 		AppType:         helper.ChartStoreApp,
 		AppOfferingMode: appInstallationMode,
+		DisplayName: createRequest.DisplayName,
 	}
 	if createRequest.AppType == helper.ExternalChartStoreApp {
 		//when linking ext helm app to chart store, there can be a case that two (or more) external apps can have same name, in diff namespaces or diff
