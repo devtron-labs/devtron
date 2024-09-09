@@ -21,6 +21,7 @@ import (
 	"fmt"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
+	bean3 "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/util/gitUtil"
@@ -118,6 +119,19 @@ type InstallAppVersionDTO struct {
 	InstallAppVersionChartDTO    *InstallAppVersionChartDTO     `json:"-"`
 	AppStoreApplicationVersionId int
 	DisplayName                  string `json:"-"` // used only for external apps
+}
+
+func (chart *InstallAppVersionDTO) GetAppIdentifierString() string {
+	displayName := chart.DisplayName
+	if len(displayName) == 0 {
+		displayName = chart.AppName
+	}
+	appIdentifier := &bean3.AppIdentifier{
+		ClusterId:   chart.ClusterId,
+		Namespace:   chart.Namespace,
+		ReleaseName: displayName,
+	}
+	return appIdentifier.GetUniqueAppNameIdentifier()
 }
 
 // UpdateDeploymentAppType updates deploymentAppType to InstallAppVersionDTO
