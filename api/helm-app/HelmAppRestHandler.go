@@ -28,6 +28,7 @@ import (
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/fluxApplication"
 	bean2 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"net/http"
 	"strconv"
 	"strings"
@@ -144,6 +145,11 @@ func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWrite
 	//RBAC enforcer Ends
 	appdetail, err := handler.helmAppService.GetApplicationDetail(context.Background(), appIdentifier)
 	if err != nil {
+
+		if pipeline.CheckAppReleaseNotExist(err) {
+			common.WriteJsonResp(w, err, nil, http.StatusNotFound)
+			return
+		}
 		apiError := clientErrors.ConvertToApiError(err)
 		if apiError != nil {
 			err = apiError
