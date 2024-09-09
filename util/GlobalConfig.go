@@ -25,6 +25,7 @@ type EnvironmentVariables struct {
 	DevtronSecretConfig         *DevtronSecretConfig
 	DeploymentServiceTypeConfig *DeploymentServiceTypeConfig
 	TerminalEnvVariables        *TerminalEnvVariables
+	GlobalClusterConfig         *GlobalClusterConfig
 }
 
 type DeploymentServiceTypeConfig struct {
@@ -43,6 +44,10 @@ type GlobalEnvVariables struct {
 	ExecuteWireNilChecker                bool   `env:"EXECUTE_WIRE_NIL_CHECKER" envDefault:"false"`
 }
 
+type GlobalClusterConfig struct {
+	ClusterStatusCronTime int `env:"CLUSTER_STATUS_CRON_TIME" envDefault:"15"`
+}
+
 type DevtronSecretConfig struct {
 	DevtronSecretName         string `env:"DEVTRON_SECRET_NAME" envDefault:"devtron-secret"`
 	DevtronDexSecretNamespace string `env:"DEVTRON_DEX_SECRET_NAMESPACE" envDefault:"devtroncd"`
@@ -58,6 +63,7 @@ func GetEnvironmentVariables() (*EnvironmentVariables, error) {
 		DevtronSecretConfig:         &DevtronSecretConfig{},
 		DeploymentServiceTypeConfig: &DeploymentServiceTypeConfig{},
 		TerminalEnvVariables:        &TerminalEnvVariables{},
+		GlobalClusterConfig:         &GlobalClusterConfig{},
 	}
 	err := env.Parse(cfg)
 	if err != nil {

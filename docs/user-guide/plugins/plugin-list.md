@@ -11,6 +11,8 @@ We have multiple plugins available in Devtron. At the moment, here are the plugi
 * [Dependency track - Python](./dependency-track-python.md)
 * [GoLang-migrate](./golang-migrate.md)
 * [Jenkins](./jenkins.md)
+* [Jira Issue Validator](./jira-validator.md)
+* [Jira Issue Updater](./jira-updater.md)
 * [K6 Load Testing](./k6-load-testing.md)
 * [Pull images from container repository](./pull-images-from-container-repository.md)
 * [Semgrep](./semgrep.md)
