@@ -21,6 +21,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/common-lib/utils"
+	bean3 "github.com/devtron-labs/common-lib/utils/bean"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
@@ -78,6 +80,7 @@ type CiServiceImpl struct {
 	eventClient                  client.EventClient
 	eventFactory                 client.EventFactory
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
+	ciArtifactRepository         repository5.CiArtifactRepository
 	pipelineStageService         PipelineStageService
 	userService                  user.UserService
 	ciTemplateService            CiTemplateService
@@ -99,6 +102,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, eventClient client.EventClient,
 	eventFactory client.EventFactory,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	ciArtifactRepository repository5.CiArtifactRepository,
 	pipelineStageService PipelineStageService,
 	userService user.UserService,
 	ciTemplateService CiTemplateService, appCrudOperationService app.AppCrudOperationService, envRepository repository1.EnvironmentRepository, appRepository appRepository.AppRepository,
@@ -122,6 +126,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		eventClient:                  eventClient,
 		eventFactory:                 eventFactory,
 		ciPipelineRepository:         ciPipelineRepository,
+		ciArtifactRepository:         ciArtifactRepository,
 		pipelineStageService:         pipelineStageService,
 		userService:                  userService,
 		ciTemplateService:            ciTemplateService,
@@ -158,15 +163,64 @@ func (impl *CiServiceImpl) GetCiMaterials(pipelineId int, ciMaterials []*pipelin
 	}
 }
 
-func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger, ciMaterials []*pipelineConfig.CiPipelineMaterial) error {
+func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger, ciMaterials []*pipelineConfig.CiPipelineMaterial, workflowRequest *types.WorkflowRequest) error {
+	// externalCi artifact is meant only for CI_JOB
+	if trigger.PipelineType != string(CiPipeline.CI_JOB) {
+		return nil
+	}
+
 	// checking if user has given run time parameters for externalCiArtifact, if given then sending git material to Ci-Runner
 	externalCiArtifact, exists := trigger.ExtraEnvironmentVariables[CiPipeline.ExtraEnvVarExternalCiArtifactKey]
 	// validate externalCiArtifact as docker image
 	if exists {
+		externalCiArtifact = strings.TrimSpace(externalCiArtifact)
 		if !strings.Contains(externalCiArtifact, ":") {
-			impl.Logger.Errorw("validation error", "externalCiArtifact", externalCiArtifact)
-			return fmt.Errorf("invalid image name given in externalCiArtifact")
+			if utils.IsValidDockerTagName(externalCiArtifact) {
+				fullImageUrl, err := utils.BuildDockerImagePath(bean3.DockerRegistryInfo{
+					DockerImageTag:     externalCiArtifact,
+					DockerRegistryId:   workflowRequest.DockerRegistryId,
+					DockerRegistryType: workflowRequest.DockerRegistryType,
+					DockerRegistryURL:  workflowRequest.DockerRegistryURL,
+					DockerRepository:   workflowRequest.DockerRepository,
+				})
+				if err != nil {
+					impl.Logger.Errorw("Error in building docker image", "err", err)
+					return err
+				}
+				externalCiArtifact = fullImageUrl
+			} else {
+				impl.Logger.Errorw("validation error", "externalCiArtifact", externalCiArtifact)
+				return fmt.Errorf("invalid image name or url given in externalCiArtifact")
+			}
+
 		}
+
+		trigger.ExtraEnvironmentVariables[CiPipeline.ExtraEnvVarExternalCiArtifactKey] = externalCiArtifact
+
+		var artifactExists bool
+		var err error
+		if trigger.ExtraEnvironmentVariables[CiPipeline.ExtraEnvVarImageDigestKey] == "" {
+			artifactExists, err = impl.ciArtifactRepository.IfArtifactExistByImage(externalCiArtifact, trigger.PipelineId)
+			if err != nil {
+				impl.Logger.Errorw("error in fetching ci artifact", "err", err)
+				return err
+			}
+			if artifactExists {
+				impl.Logger.Errorw("ci artifact already exists with same image name", "artifact", externalCiArtifact)
+				return fmt.Errorf("ci artifact already exists with same image name")
+			}
+		} else {
+			artifactExists, err = impl.ciArtifactRepository.IfArtifactExistByImageDigest(trigger.ExtraEnvironmentVariables[CiPipeline.ExtraEnvVarImageDigestKey], externalCiArtifact, trigger.PipelineId)
+			if err != nil {
+				impl.Logger.Errorw("error in fetching ci artifact", "err", err)
+				return err
+			}
+			if artifactExists {
+				impl.Logger.Errorw("ci artifact already exists  with same digest", "artifact", externalCiArtifact)
+				return fmt.Errorf("ci artifact already exists  with same digest")
+			}
+		}
+
 	}
 	if trigger.PipelineType == string(CiPipeline.CI_JOB) && len(ciMaterials) != 0 && !exists && externalCiArtifact == "" {
 		ciMaterials[0].GitMaterial = nil
@@ -178,10 +232,6 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error) {
 	impl.Logger.Debug("ci pipeline manual trigger")
 	ciMaterials, err := impl.GetCiMaterials(trigger.PipelineId, trigger.CiMaterials)
-	if err != nil {
-		return 0, err
-	}
-	err = impl.handleRuntimeParamsValidations(trigger, ciMaterials)
 	if err != nil {
 		return 0, err
 	}
@@ -265,6 +315,17 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		impl.Logger.Errorw("make workflow req", "err", err)
 		return 0, err
 	}
+	err = impl.handleRuntimeParamsValidations(trigger, ciMaterials, workflowRequest)
+	if err != nil {
+		savedCiWf.Status = pipelineConfig.WorkflowAborted
+		savedCiWf.Message = err.Error()
+		err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedCiWf)
+		if err1 != nil {
+			impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
+		}
+		return 0, err
+	}
+
 	workflowRequest.Scope = scope
 	workflowRequest.BuildxCacheModeMin = impl.buildxCacheFlags.BuildxCacheModeMin
 	workflowRequest.AsyncBuildxCacheExport = impl.buildxCacheFlags.AsyncBuildxCacheExport

@@ -24,11 +24,8 @@ spec:
     {{- range .Values.ContainerPort }}
       {{- if  .servicemonitor }}
         {{- if .servicemonitor.enabled}}
-    {{- if .servicemonitor.targetPort }}
-    - targetPort: {{ .servicemonitor.targetPort }}
-    {{- else if .servicePort }}
+          {{- if .servicePort }}
     - port: {{ .name }}
-    {{- end }}
       {{- if .servicemonitor.path }}
       path: {{ .servicemonitor.path}}
       {{- end }}
@@ -44,52 +41,6 @@ spec:
       {{- if .servicemonitor.basicAuth }}
       basicAuth:
       {{- toYaml .servicemonitor.basicAuth | nindent 8 }}
-      {{- end }}
-      {{- if .servicemonitor.insecureTLS }}
-      tlsConfig:
-        insecureSkipVerify: true
-      {{- else if .servicemonitor.tlsConfig }}
-      tlsConfig:
-      {{- toYaml .servicemonitor.tlsConfig | nindent 8 }}
-      {{- end }}
-      {{- if .servicemonitor.metricRelabelings}}
-      metricRelabelings:
-{{toYaml .servicemonitor.metricRelabelings | indent 8 }}
-      {{- end }}
-        {{- end }}
-      {{- end }}
-    {{- end }}
-    {{- range .Values.containers }}
-      {{- range .ports }}
-        {{- if  .servicemonitor }}
-          {{- if .servicemonitor.enabled}}
-    {{- if .servicemonitor.targetPort }}
-    - targetPort: {{ .servicemonitor.targetPort }}
-    {{- else if .servicePort }}
-    - port: {{ .name }}
-    {{- end }}
-      {{- if .servicemonitor.path }}
-      path: {{ .servicemonitor.path}}
-      {{- end }}
-      {{- if .servicemonitor.scheme }}
-      scheme: {{ .servicemonitor.scheme}}
-      {{- end }}
-      {{- if .servicemonitor.interval }}
-      interval: {{ .servicemonitor.interval}}
-      {{- end }}
-      {{- if .servicemonitor.scrapeTimeout }}
-      scrapeTimeout: {{ .servicemonitor.scrapeTimeout}}
-      {{- end }}
-      {{- if .servicemonitor.basicAuth }}
-      basicAuth:
-      {{- toYaml .servicemonitor.basicAuth | nindent 8 }}
-      {{- end }}
-      {{- if .servicemonitor.insecureTLS }}
-      tlsConfig:
-        insecureSkipVerify: true
-      {{- else if .servicemonitor.tlsConfig }}
-      tlsConfig:
-      {{- toYaml .servicemonitor.tlsConfig | nindent 8 }}
       {{- end }}
       {{- if .servicemonitor.metricRelabelings}}
       metricRelabelings:
