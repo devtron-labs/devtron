@@ -240,13 +240,6 @@ github.com/aws/aws-sdk-go/service/sso/ssoiface
 github.com/aws/aws-sdk-go/service/ssooidc
 github.com/aws/aws-sdk-go/service/sts
 github.com/aws/aws-sdk-go/service/sts/stsiface
-# github.com/aws/aws-sdk-go-v2/service/ecr v1.20.0
-## explicit; go 1.15
-github.com/aws/aws-sdk-go-v2/service/ecr/types
-# github.com/aws/smithy-go v1.14.2
-## explicit; go 1.15
-github.com/aws/smithy-go
-github.com/aws/smithy-go/document
 # github.com/beorn7/perks v1.0.1
 ## explicit; go 1.11
 github.com/beorn7/perks/quantile
@@ -351,7 +344,7 @@ github.com/devtron-labs/authenticator/jwt
 github.com/devtron-labs/authenticator/middleware
 github.com/devtron-labs/authenticator/oidc
 github.com/devtron-labs/authenticator/password
-# github.com/devtron-labs/common-lib v0.16.1-0.20240904133334-7918e7c25b63
+# github.com/devtron-labs/common-lib v0.16.1-0.20240904131140-b4128b676f6c
 ## explicit; go 1.21
 github.com/devtron-labs/common-lib/async
 github.com/devtron-labs/common-lib/blob-storage
@@ -373,6 +366,7 @@ github.com/devtron-labs/common-lib/utils/k8s
 github.com/devtron-labs/common-lib/utils/k8s/commonBean
 github.com/devtron-labs/common-lib/utils/k8s/health
 github.com/devtron-labs/common-lib/utils/k8sObjectsUtil
+github.com/devtron-labs/common-lib/utils/registry
 github.com/devtron-labs/common-lib/utils/remoteConnection/bean
 github.com/devtron-labs/common-lib/utils/runTime
 github.com/devtron-labs/common-lib/utils/yaml
@@ -385,9 +379,6 @@ github.com/devtron-labs/protos/gitSensor
 # github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f
 ## explicit
 github.com/dgryski/go-rendezvous
-# github.com/docker/cli v24.0.6+incompatible
-## explicit
-github.com/docker/cli/cli/config/types
 # github.com/docker/distribution v2.8.2+incompatible
 ## explicit
 github.com/docker/distribution/digestset
