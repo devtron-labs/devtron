@@ -16,10 +16,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
+	noop2 "github.com/devtron-labs/devtron/pkg/auth/user/noop"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user/noop"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -40,8 +40,8 @@ func InitializeApp() (*App, error) {
 		terminal.TerminalWireSetK8sClient,
 		client.GetRuntimeConfig,
 
-		noop.NewNoopUserService,
-		wire.Bind(new(user.UserService), new(*noop.NoopUserService)),
+		noop2.NewNoopUserService,
+		wire.Bind(new(user.UserService), new(*noop2.NoopUserService)),
 
 		NewApp,
 		NewMuxRouter,
