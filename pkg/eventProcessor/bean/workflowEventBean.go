@@ -38,6 +38,7 @@ type CdStageCompleteEvent struct {
 	PipelineName                  string                       `json:"pipelineName"`
 	CiArtifactDTO                 pipelineConfig.CiArtifactDTO `json:"ciArtifactDTO"`
 	PluginRegistryArtifactDetails map[string][]string          `json:"PluginRegistryArtifactDetails"`
+	PluginArtifacts               *PluginArtifacts             `json:"pluginArtifacts"`
 }
 
 type UserDeploymentRequest struct {
@@ -81,6 +82,7 @@ type CiCompleteEvent struct {
 	PluginRegistryArtifactDetails map[string][]string      `json:"PluginRegistryArtifactDetails"`
 	PluginArtifactStage           string                   `json:"pluginArtifactStage"`
 	pluginImageDetails            *registry.ImageDetailsFromCR
+	PluginArtifacts               *PluginArtifacts         `json:"pluginArtifacts"`
 }
 
 func (c *CiCompleteEvent) GetPluginImageDetails() *registry.ImageDetailsFromCR {
