@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
+	"k8s.io/utils/pointer"
 	"strconv"
 )
 
@@ -227,16 +228,18 @@ func (impl *NotificationSettingsRepositoryImpl) DeleteNotificationSettingsViewBy
 
 func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingDeploymentOptions(settingRequest *SearchRequest) ([]*SettingOptionDTO, error) {
 	var settingOption []*SettingOptionDTO
-	query := "SELECT p.id as pipeline_id,p.pipeline_name, env.environment_name, a.app_name,c.name AS cluster_name " +
+	query := "SELECT p.id as pipeline_id,p.pipeline_name, env.environment_name, a.app_name,c.cluster_name AS cluster_name " +
 		" FROM pipeline p" +
 		" INNER JOIN app a on a.id=p.app_id" +
 		" INNER JOIN environment env on env.id = p.environment_id " +
 		" INNER JOIN cluster c on c.id = env.cluster_id"
 	query = query + " WHERE p.deleted = false"
 
+	var envProdIdentifier *bool
 	envIds := make([]*int, 0)
 	for _, envId := range settingRequest.EnvId {
 		if *envId == AllExistingAndFutureProdEnvsInt || *envId == AllExistingAndFutureNonProdEnvsInt {
+			envProdIdentifier = pointer.Bool(*envId == AllExistingAndFutureProdEnvsInt)
 			continue
 		}
 		envIds = append(envIds, envId)
@@ -246,9 +249,21 @@ func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingDeploymen
 	if len(settingRequest.TeamId) > 0 {
 		query = query + " AND a.team_id in (?)"
 		queryParams = append(queryParams, pg.In(settingRequest.TeamId))
-	} else if len(envIds) > 0 {
-		query = query + " AND p.environment_id in (?)"
-		queryParams = append(queryParams, pg.In(envIds))
+	} else if len(envIds) > 0 || envProdIdentifier != nil {
+		envQuery := ""
+		if len(envIds) > 0 {
+			envQuery = " p.environment_id in (?) "
+			queryParams = append(queryParams, pg.In(envIds))
+		}
+		if envProdIdentifier != nil {
+			if len(envQuery) > 0 {
+				envQuery += " OR "
+			}
+			envQuery += " env.default = ? "
+			queryParams = append(queryParams, *envProdIdentifier)
+
+		}
+		query = query + fmt.Sprintf(" AND (%s)", envQuery)
 	} else if len(settingRequest.AppId) > 0 {
 		query = query + " AND p.app_id in (?)"
 		queryParams = append(queryParams, pg.In(settingRequest.AppId))
@@ -256,10 +271,10 @@ func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingDeploymen
 		query = query + " AND p.pipeline_name like (?)"
 		queryParams = append(queryParams, settingRequest.PipelineName)
 	} else if len(settingRequest.ClusterId) > 0 {
-		query = query + fmt.Sprintf(" AND e.cluster_id IN (?)")
+		query = query + fmt.Sprintf(" AND env.cluster_id IN (?)")
 		queryParams = append(queryParams, pg.In(settingRequest.ClusterId))
 	}
-	query = query + " GROUP BY 1,2,3,4;"
+	query = query + " GROUP BY 1,2,3,4,5;"
 	_, err := impl.dbConnection.Query(&settingOption, query, queryParams...)
 	if err != nil {
 		return nil, err
