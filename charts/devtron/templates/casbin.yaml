@@ -23,14 +23,14 @@ spec:
         app: casbin
         release: devtron
     spec:
+      serviceAccountName: devtron-default-sa
       {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.devtronEnterprise.casbin.nodeSelector "tolerations" $.Values.devtronEnterprise.casbin.tolerations "imagePullSecrets" $.Values.devtronEnterprise.casbin.imagePullSecrets "global" $.Values.global) | indent 6 }}
       containers:
-          name: casbin
+        - name: casbin
           image: {{ include "common.image" (dict "component" $.Values.devtronEnterprise.casbin "global" $.Values.global) }}
           {{- if  .imagePullPolicy }}
           imagePullPolicy: {{ .imagePullPolicy }}
           {{- end }}
-          serviceAccountName: devtron-default-sa
           env:
             - name: DEVTRON_APP_NAME
               value: casbin
@@ -96,7 +96,7 @@ data:
 {{ toYaml .configs | indent 2 }}
 {{- end }}
 ---
-# Casbin Service 
+# Casbin Service
 apiVersion: v1
 kind: Service
 metadata:
