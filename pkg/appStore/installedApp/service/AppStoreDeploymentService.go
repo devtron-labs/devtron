@@ -877,7 +877,7 @@ func (impl *AppStoreDeploymentServiceImpl) MarkGitOpsInstalledAppsDeletedIfArgoA
 		apiError.InternalMessage = "error in fetching partially deleted argoCd apps from installed app repo"
 		return apiError
 	}
-	deploymentConfig, err := impl.deploymentConfigService.GetConfigForHelmApps(installedAppId, envId)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForHelmApps(installedApp.App.Id, envId)
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", installedAppId, "envId", envId, "err", err)
 		apiError.HttpStatusCode = http.StatusInternalServerError
