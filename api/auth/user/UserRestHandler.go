@@ -187,6 +187,8 @@ func (handler UserRestHandlerImpl) checkRBACForUserCreate(token string, userInfo
 					isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, filter.Team)
 				case filter.Entity == bean.CLUSTER_ENTITIY:
 					isAuthorised = handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth)
+				case filter.Entity == bean.CHART_GROUP_ENTITY:
+					isAuthorised = true
 				default:
 					isAuthorised = false
 				}
@@ -207,6 +209,8 @@ func (handler UserRestHandlerImpl) checkRBACForUserCreate(token string, userInfo
 						isAuthorised = isActionUserSuperAdmin
 					case len(groupRole.Team) > 0:
 						isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, groupRole.Team)
+					case groupRole.Entity == bean.CHART_GROUP_ENTITY:
+						isAuthorised = true
 					default:
 						isAuthorised = false
 					}
