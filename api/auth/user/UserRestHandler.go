@@ -129,57 +129,11 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	isActionUserSuperAdmin := false
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
-		isActionUserSuperAdmin = true
+	isAuthorised, err := handler.checkRBACForUserCreate(token, userInfo)
+	if err != nil {
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		return
 	}
-	isAuthorised := isActionUserSuperAdmin
-	if !isAuthorised {
-		if userInfo.RoleFilters != nil && len(userInfo.RoleFilters) > 0 { //auth check inside roleFilters
-			for _, filter := range userInfo.RoleFilters {
-				switch {
-				case filter.AccessType == bean.APP_ACCESS_TYPE_HELM:
-					isAuthorised = isActionUserSuperAdmin
-				case len(filter.Team) > 0:
-					isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, filter.Team)
-				case filter.Entity == bean.CLUSTER_ENTITIY:
-					isAuthorised = handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth)
-				default:
-					isAuthorised = false
-				}
-				if !isAuthorised {
-					break
-				}
-			}
-		} else if len(userInfo.UserRoleGroup) > 0 { // auth check inside groups
-			groupRoles, err := handler.roleGroupService.FetchRolesForUserRoleGroups(userInfo.UserRoleGroup)
-			if err != nil && err != pg.ErrNoRows {
-				handler.logger.Errorw("service err, UpdateUser", "err", err, "payload", userInfo)
-				common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
-				return
-			}
-			if len(groupRoles) > 0 {
-				for _, groupRole := range groupRoles {
-					switch {
-					case groupRole.AccessType == bean.APP_ACCESS_TYPE_HELM:
-						isAuthorised = isActionUserSuperAdmin
-					case len(groupRole.Team) > 0:
-						isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, groupRole.Team)
-					default:
-						isAuthorised = false
-					}
-					if !isAuthorised {
-						break
-					}
-				}
-			} else {
-				isAuthorised = false
-			}
-		} else {
-			isAuthorised = false
-		}
-	}
-
 	if !isAuthorised {
 		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 		return
@@ -215,6 +169,59 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 			common.WriteJsonResp(w, message, nil, http.StatusBadRequest)
 		}
 	}
+}
+
+func (handler UserRestHandlerImpl) checkRBACForUserCreate(token string, userInfo bean.UserInfo) (isAuthorised bool, err error) {
+	isActionUserSuperAdmin := false
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
+		isActionUserSuperAdmin = true
+	}
+	isAuthorised = isActionUserSuperAdmin
+	if !isAuthorised {
+		if userInfo.RoleFilters != nil && len(userInfo.RoleFilters) > 0 { //auth check inside roleFilters
+			for _, filter := range userInfo.RoleFilters {
+				switch {
+				case filter.AccessType == bean.APP_ACCESS_TYPE_HELM:
+					isAuthorised = isActionUserSuperAdmin
+				case len(filter.Team) > 0:
+					isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, filter.Team)
+				case filter.Entity == bean.CLUSTER_ENTITIY:
+					isAuthorised = handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth)
+				default:
+					isAuthorised = false
+				}
+				if !isAuthorised {
+					break
+				}
+			}
+		} else if len(userInfo.UserRoleGroup) > 0 { // auth check inside groups
+			groupRoles, err := handler.roleGroupService.FetchRolesForUserRoleGroups(userInfo.UserRoleGroup)
+			if err != nil && err != pg.ErrNoRows {
+				handler.logger.Errorw("service err, UpdateUser", "err", err, "payload", userInfo)
+				return false, err
+			}
+			if len(groupRoles) > 0 {
+				for _, groupRole := range groupRoles {
+					switch {
+					case groupRole.AccessType == bean.APP_ACCESS_TYPE_HELM:
+						isAuthorised = isActionUserSuperAdmin
+					case len(groupRole.Team) > 0:
+						isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, groupRole.Team)
+					default:
+						isAuthorised = false
+					}
+					if !isAuthorised {
+						break
+					}
+				}
+			} else {
+				isAuthorised = false
+			}
+		} else {
+			isAuthorised = false
+		}
+	}
+	return isAuthorised, nil
 }
 
 func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Request) {
