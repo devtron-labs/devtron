@@ -474,10 +474,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 		}
 		if roleModel.Id > 0 {
 			roleGroupMappingModel := &repository.RoleGroupRoleMapping{RoleGroupId: roleGroup.Id, RoleId: roleModel.Id}
-			roleGroupMappingModel.CreatedBy = request.UserId
-			roleGroupMappingModel.UpdatedBy = request.UserId
-			roleGroupMappingModel.CreatedOn = time.Now()
-			roleGroupMappingModel.UpdatedOn = time.Now()
+			roleGroupMappingModel.CreateAuditLog(request.UserId)
 			roleGroupMappingModel, err = impl.roleGroupRepository.CreateRoleGroupRoleMapping(roleGroupMappingModel, tx)
 			if err != nil {
 				impl.logger.Errorw("error in creating role group role mapping", "err", err, "RoleGroupId", roleGroup.Id)
