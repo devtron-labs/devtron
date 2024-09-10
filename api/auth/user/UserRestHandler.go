@@ -181,7 +181,7 @@ func (handler UserRestHandlerImpl) checkRBACForUserCreate(token string, userInfo
 		if userInfo.RoleFilters != nil && len(userInfo.RoleFilters) > 0 { //auth check inside roleFilters
 			for _, filter := range userInfo.RoleFilters {
 				switch {
-				case filter.AccessType == bean.APP_ACCESS_TYPE_HELM:
+				case filter.AccessType == bean.APP_ACCESS_TYPE_HELM || filter.Entity == bean2.EntityJobs:
 					isAuthorised = isActionUserSuperAdmin
 				case len(filter.Team) > 0:
 					isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, filter.Team)
@@ -203,7 +203,7 @@ func (handler UserRestHandlerImpl) checkRBACForUserCreate(token string, userInfo
 			if len(groupRoles) > 0 {
 				for _, groupRole := range groupRoles {
 					switch {
-					case groupRole.AccessType == bean.APP_ACCESS_TYPE_HELM:
+					case groupRole.AccessType == bean.APP_ACCESS_TYPE_HELM || groupRole.Entity == bean2.EntityJobs:
 						isAuthorised = isActionUserSuperAdmin
 					case len(groupRole.Team) > 0:
 						isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, groupRole.Team)
