@@ -44,7 +44,7 @@ components:
   devtron:
     registry: ""
     image: "hyperion:30207441-280-25252"
-    cicdImage: "devtron:30207441-434-25233"
+    cicdImage: "devtron:e332df2c-434-25305"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
   ciRunner:
