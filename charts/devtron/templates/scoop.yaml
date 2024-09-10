@@ -47,9 +47,9 @@ spec:
           {{- end }}
           env:
             - name: X-PASS-KEY
-              value: {{ $passKey }}
+              value: qhihdidhwid
             - name: PASS_KEY
-              value: {{ $passKey }}
+              value: qhihdidhwid
             - name: RETENTION
               value: "10080"
             - name: TOKEN
@@ -64,7 +64,7 @@ spec:
             - containerPort: 8080
               name: app
               protocol: TCP
-          {{- if .resources }}        
+          {{- if .resources }}
           resources:
           {{- toYaml .resources | nindent 12 }}
           {{- end }}
@@ -97,8 +97,9 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   labels:
-    app: scoop-cm
+    app: scoop
     release: devtron
+  name: scoop-cm
   namespace: devtroncd
 {{- if .configs }}
 data:

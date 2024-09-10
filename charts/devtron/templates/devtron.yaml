@@ -19,6 +19,9 @@ data:
   DEX_HOST: http://argocd-dex-server.devtroncd
   DEX_PORT: "5556"
   APP_SYNC_IMAGE: {{ include "common.image" (dict "component" $.Values.components.chartSync "global" $.Values.global ) }}
+  {{- if and $.Values.devtronEnterprise.enabled $.Values.devtronEnterprise.scoop.enabled }}
+  SCOOP_CLUSTER_CONFIG: '{"1":{"serviceName":"scoop-service","passKey":"qhihdidhwid","namespace":"devtroncd","port":"80"}}'
+  {{- end }}
 {{- if $.Values.installer.modules }}
 {{- if has "cicd" $.Values.installer.modules }}
   CD_HOST: "argocd-server.devtroncd"
