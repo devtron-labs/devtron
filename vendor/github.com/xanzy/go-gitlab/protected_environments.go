@@ -35,8 +35,10 @@ type ProtectedEnvironmentsService struct {
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/protected_environments.html
 type ProtectedEnvironment struct {
-	Name               string                          `json:"name"`
-	DeployAccessLevels []*EnvironmentAccessDescription `json:"deploy_access_levels"`
+	Name                  string                          `json:"name"`
+	DeployAccessLevels    []*EnvironmentAccessDescription `json:"deploy_access_levels"`
+	RequiredApprovalCount int                             `json:"required_approval_count"`
+	ApprovalRules         []*EnvironmentApprovalRule      `json:"approval_rules"`
 }
 
 // EnvironmentAccessDescription represents the access decription for a protected
@@ -45,10 +47,27 @@ type ProtectedEnvironment struct {
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/protected_environments.html
 type EnvironmentAccessDescription struct {
+	ID                     int              `json:"id"`
 	AccessLevel            AccessLevelValue `json:"access_level"`
 	AccessLevelDescription string           `json:"access_level_description"`
 	UserID                 int              `json:"user_id"`
 	GroupID                int              `json:"group_id"`
+	GroupInheritanceType   int              `json:"group_inheritance_type"`
+}
+
+// EnvironmentApprovalRule represents the approval rules for a protected
+// environment.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/protected_environments.html#protect-a-single-environment
+type EnvironmentApprovalRule struct {
+	ID                     int              `json:"id"`
+	UserID                 int              `json:"user_id"`
+	GroupID                int              `json:"group_id"`
+	AccessLevel            AccessLevelValue `json:"access_level"`
+	AccessLevelDescription string           `json:"access_level_description"`
+	RequiredApprovalCount  int              `json:"required_approvals"`
+	GroupInheritanceType   int              `json:"group_inheritance_type"`
 }
 
 // ListProtectedEnvironmentsOptions represents the available
@@ -58,7 +77,8 @@ type EnvironmentAccessDescription struct {
 // https://docs.gitlab.com/ee/api/protected_environments.html#list-protected-environments
 type ListProtectedEnvironmentsOptions ListOptions
 
-// ListProtectedEnvironments returns a list of protected environments from a project.
+// ListProtectedEnvironments returns a list of protected environments from a
+// project.
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/protected_environments.html#list-protected-environments
@@ -80,13 +100,14 @@ func (s *ProtectedEnvironmentsService) ListProtectedEnvironments(pid interface{}
 		return nil, resp, err
 	}
 
-	return pes, resp, err
+	return pes, resp, nil
 }
 
-// GetProtectedEnvironment returns a single protected environment or wildcard protected environment.
+// GetProtectedEnvironment returns a single protected environment or wildcard
+// protected environment.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ee/api/protected_environments.html#get-a-single-protected-environment-or-wildcard-protected-environment
+// https://docs.gitlab.com/ee/api/protected_environments.html#get-a-single-protected-environment
 func (s *ProtectedEnvironmentsService) GetProtectedEnvironment(pid interface{}, environment string, options ...RequestOptionFunc) (*ProtectedEnvironment, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
@@ -105,35 +126,52 @@ func (s *ProtectedEnvironmentsService) GetProtectedEnvironment(pid interface{}, 
 		return nil, resp, err
 	}
 
-	return pe, resp, err
+	return pe, resp, nil
 }
 
 // ProtectRepositoryEnvironmentsOptions represents the available
 // ProtectRepositoryEnvironments() options.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ee/api/protected_environments.html#protect-repository-environments
+// https://docs.gitlab.com/ee/api/protected_environments.html#protect-a-single-environment
 type ProtectRepositoryEnvironmentsOptions struct {
-	Name               *string                      `url:"name,omitempty" json:"name,omitempty"`
-	DeployAccessLevels *[]*EnvironmentAccessOptions `url:"deploy_access_levels,omitempty" json:"deploy_access_levels,omitempty"`
+	Name                  *string                            `url:"name,omitempty" json:"name,omitempty"`
+	DeployAccessLevels    *[]*EnvironmentAccessOptions       `url:"deploy_access_levels,omitempty" json:"deploy_access_levels,omitempty"`
+	RequiredApprovalCount *int                               `url:"required_approval_count,omitempty" json:"required_approval_count,omitempty"`
+	ApprovalRules         *[]*EnvironmentApprovalRuleOptions `url:"approval_rules,omitempty" json:"approval_rules,omitempty"`
 }
 
 // EnvironmentAccessOptions represents the options for an access decription for
 // a protected environment.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ee/api/protected_environments.html#protect-repository-environments
+// https://docs.gitlab.com/ee/api/protected_environments.html#protect-a-single-environment
 type EnvironmentAccessOptions struct {
-	AccessLevel *AccessLevelValue `url:"access_level,omitempty" json:"access_level,omitempty"`
-	UserID      *int              `url:"user_id,omitempty" json:"user_id,omitempty"`
-	GroupID     *int              `url:"group_id,omitempty" json:"group_id,omitempty"`
+	AccessLevel          *AccessLevelValue `url:"access_level,omitempty" json:"access_level,omitempty"`
+	UserID               *int              `url:"user_id,omitempty" json:"user_id,omitempty"`
+	GroupID              *int              `url:"group_id,omitempty" json:"group_id,omitempty"`
+	GroupInheritanceType *int              `url:"group_inheritance_type,omitempty" json:"group_inheritance_type,omitempty"`
 }
 
-// ProtectRepositoryEnvironments protects a single repository environment or several project
-// repository environments using a wildcard protected environment.
+// EnvironmentApprovalRuleOptions represents the approval rules for a protected
+// environment.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ee/api/protected_environments.html#protect-repository-environments
+// https://docs.gitlab.com/ee/api/protected_environments.html#protect-a-single-environment
+type EnvironmentApprovalRuleOptions struct {
+	UserID                 *int              `url:"user_id,omitempty" json:"user_id,omitempty"`
+	GroupID                *int              `url:"group_id,omitempty" json:"group_id,omitempty"`
+	AccessLevel            *AccessLevelValue `url:"access_level,omitempty" json:"access_level,omitempty"`
+	AccessLevelDescription *string           `url:"access_level_description,omitempty" json:"access_level_description,omitempty"`
+	RequiredApprovalCount  *int              `url:"required_approvals,omitempty" json:"required_approvals,omitempty"`
+	GroupInheritanceType   *int              `url:"group_inheritance_type,omitempty" json:"group_inheritance_type,omitempty"`
+}
+
+// ProtectRepositoryEnvironments protects a single repository environment or
+// several project repository environments using wildcard protected environment.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/protected_environments.html#protect-a-single-environment
 func (s *ProtectedEnvironmentsService) ProtectRepositoryEnvironments(pid interface{}, opt *ProtectRepositoryEnvironmentsOptions, options ...RequestOptionFunc) (*ProtectedEnvironment, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
@@ -152,14 +190,82 @@ func (s *ProtectedEnvironmentsService) ProtectRepositoryEnvironments(pid interfa
 		return nil, resp, err
 	}
 
-	return pe, resp, err
+	return pe, resp, nil
+}
+
+// UpdateProtectedEnvironmentsOptions represents the available
+// UpdateProtectedEnvironments() options.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/protected_environments.html#update-a-protected-environment
+type UpdateProtectedEnvironmentsOptions struct {
+	Name                  *string                                  `url:"name,omitempty" json:"name,omitempty"`
+	DeployAccessLevels    *[]*UpdateEnvironmentAccessOptions       `url:"deploy_access_levels,omitempty" json:"deploy_access_levels,omitempty"`
+	RequiredApprovalCount *int                                     `url:"required_approval_count,omitempty" json:"required_approval_count,omitempty"`
+	ApprovalRules         *[]*UpdateEnvironmentApprovalRuleOptions `url:"approval_rules,omitempty" json:"approval_rules,omitempty"`
+}
+
+// UpdateEnvironmentAccessOptions represents the options for updates to an
+// access decription for a protected environment.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/protected_environments.html#update-a-protected-environment
+type UpdateEnvironmentAccessOptions struct {
+	AccessLevel          *AccessLevelValue `url:"access_level,omitempty" json:"access_level,omitempty"`
+	ID                   *int              `url:"id,omitempty" json:"id,omitempty"`
+	UserID               *int              `url:"user_id,omitempty" json:"user_id,omitempty"`
+	GroupID              *int              `url:"group_id,omitempty" json:"group_id,omitempty"`
+	GroupInheritanceType *int              `url:"group_inheritance_type,omitempty" json:"group_inheritance_type,omitempty"`
+	Destroy              *bool             `url:"_destroy,omitempty" json:"_destroy,omitempty"`
+}
+
+// UpdateEnvironmentApprovalRuleOptions represents the updates to the approval
+// rules for a protected environment.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/protected_environments.html#update-a-protected-environment
+type UpdateEnvironmentApprovalRuleOptions struct {
+	ID                     *int              `url:"id,omitempty" json:"id,omitempty"`
+	UserID                 *int              `url:"user_id,omitempty" json:"user_id,omitempty"`
+	GroupID                *int              `url:"group_id,omitempty" json:"group_id,omitempty"`
+	AccessLevel            *AccessLevelValue `url:"access_level,omitempty" json:"access_level,omitempty"`
+	AccessLevelDescription *string           `url:"access_level_description,omitempty" json:"access_level_description,omitempty"`
+	RequiredApprovalCount  *int              `url:"required_approvals,omitempty" json:"required_approvals,omitempty"`
+	GroupInheritanceType   *int              `url:"group_inheritance_type,omitempty" json:"group_inheritance_type,omitempty"`
+	Destroy                *bool             `url:"_destroy,omitempty" json:"_destroy,omitempty"`
+}
+
+// UpdateProtectedEnvironments updates a single repository environment or
+// several project repository environments using wildcard protected environment.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/protected_environments.html#update-a-protected-environment
+func (s *ProtectedEnvironmentsService) UpdateProtectedEnvironments(pid interface{}, environment string, opt *UpdateProtectedEnvironmentsOptions, options ...RequestOptionFunc) (*ProtectedEnvironment, *Response, error) {
+	project, err := parseID(pid)
+	if err != nil {
+		return nil, nil, err
+	}
+	u := fmt.Sprintf("projects/%s/protected_environments/%s", PathEscape(project), PathEscape(environment))
+
+	req, err := s.client.NewRequest(http.MethodPut, u, opt, options)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	pe := new(ProtectedEnvironment)
+	resp, err := s.client.Do(req, pe)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return pe, resp, nil
 }
 
 // UnprotectEnvironment unprotects the given protected environment or wildcard
 // protected environment.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ee/api/protected_environments.html#unprotect-repository-environments
+// https://docs.gitlab.com/ee/api/protected_environments.html#unprotect-a-single-environment
 func (s *ProtectedEnvironmentsService) UnprotectEnvironment(pid interface{}, environment string, options ...RequestOptionFunc) (*Response, error) {
 	project, err := parseID(pid)
 	if err != nil {

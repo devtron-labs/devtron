@@ -35,6 +35,10 @@ func (_m *CiTemplateRepository) FindByAppId(appId int) (*pipelineConfig.CiTempla
 	return r0, r1
 }
 
+func (_m *CiTemplateRepository) FindByAppIds(appId []int) ([]*pipelineConfig.CiTemplate, error) {
+	return nil, nil
+}
+
 // FindByDockerRegistryId provides a mock function with given fields: dockerRegistryId
 func (_m *CiTemplateRepository) FindByDockerRegistryId(dockerRegistryId string) ([]*pipelineConfig.CiTemplate, error) {
 	ret := _m.Called(dockerRegistryId)

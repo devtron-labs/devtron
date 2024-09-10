@@ -1,10 +1,28 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package repository
 
 import (
+	"context"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"time"
 )
@@ -14,7 +32,8 @@ type PipelineStrategyHistoryRepository interface {
 	CreateHistoryWithTxn(model *PipelineStrategyHistory, tx *pg.Tx) (*PipelineStrategyHistory, error)
 	GetHistoryForDeployedStrategyById(id, pipelineId int) (*PipelineStrategyHistory, error)
 	GetDeploymentDetailsForDeployedStrategyHistory(pipelineId int) ([]*PipelineStrategyHistory, error)
-	GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int) (*PipelineStrategyHistory, error)
+	GetHistoryByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int) (*PipelineStrategyHistory, error)
+	CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (bool, error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*PipelineStrategyHistory, error)
 }
 
@@ -85,7 +104,9 @@ func (impl PipelineStrategyHistoryRepositoryImpl) GetDeploymentDetailsForDeploye
 	return histories, nil
 }
 
-func (impl PipelineStrategyHistoryRepositoryImpl) GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int) (*PipelineStrategyHistory, error) {
+func (impl PipelineStrategyHistoryRepositoryImpl) GetHistoryByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int) (*PipelineStrategyHistory, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "PipelineStrategyHistoryRepositoryImpl.GetHistoryByPipelineIdAndWfrId")
+	defer span.End()
 	var history PipelineStrategyHistory
 	err := impl.dbConnection.Model(&history).Join("INNER JOIN cd_workflow_runner cwr ON cwr.started_on = pipeline_strategy_history.deployed_on").
 		Where("pipeline_strategy_history.pipeline_id = ?", pipelineId).
@@ -113,4 +134,14 @@ func (impl PipelineStrategyHistoryRepositoryImpl) GetDeployedHistoryList(pipelin
 		return histories, err
 	}
 	return histories, nil
+}
+
+func (impl PipelineStrategyHistoryRepositoryImpl) CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (bool, error) {
+	var history PipelineStrategyHistory
+	exists, err := impl.dbConnection.Model(&history).
+		Where("pipeline_strategy_history.deployed_on = ?", deployedOn).
+		Where("pipeline_strategy_history.pipeline_id = ?", pipelineId).
+		Where("pipeline_strategy_history.deployed = ?", true).
+		Exists()
+	return exists, err
 }

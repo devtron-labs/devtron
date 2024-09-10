@@ -1,0 +1,185 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Modularisation v1 APIs
+paths:
+  /orchestrator/app/ci-pipeline/{ciPipelineId}/linked-ci/downstream/env:
+    get:
+      description: Get down stream environment names for filter list
+      parameters:
+        - name: ciPipelineId
+          description: source ci-pipeline id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Successfully fetched the down stream environments for the source CI pipeline.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkedCIPipelinesFiltersResponse"
+        "500":
+          description: will get this response if any failure occurs at server side.
+        "403":
+          description: will get this if user doesn't have view access to the app that contains the requested source ci pipeline.
+
+  /orchestrator/app/ci-pipeline/{ciPipelineId}/linked-ci/downstream/cd:
+    get:
+      description: Get the down stream deployment details for the source CI pipeline.
+      parameters:
+        - name: ciPipelineId
+          description: source ci-pipeline id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: order
+          description: app name sort order
+          in: query
+          required: false
+          schema:
+            type: string
+            default: "ASC"
+            enum:
+              - "ASC"
+              - "DESC"
+        - name: offset
+          description: page offset value
+          in: query
+          required: false
+          schema:
+            type: number
+            default: 0
+        - name: size
+          description: page size value
+          in: query
+          required: false
+          schema:
+            type: number
+            default: 20
+        - name: envName
+          description: environment name filter
+          in: query
+          required: false
+          schema:
+            type: string
+            default: All environments
+        - name: searchKey
+          description: application name filter
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successfully fetched the down stream deployment details for the source CI pipeline.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkedCIPipelinesViewResponse"
+        "500":
+          description: will get this response if any failure occurs at server side.
+        "403":
+          description: will get this if user doesn't have view access to the app that contains the requested source ci pipeline.
+
+# Components
+components:
+  schemas:
+    LinkedCIPipelinesFiltersResponse:
+      type: object
+      properties:
+        code:
+          type: number
+          description: status code
+          example: 200
+        status:
+          type: string
+          description: API status
+          example: "OK"
+        result:
+          $ref: "#/components/schemas/LinkedCIPipelinesFilters"
+
+    LinkedCIPipelinesFilters:
+      type: object
+      properties:
+        envNames:
+          type: array
+          description: Down stream environment names
+          example:
+          - "staging"
+          - "production"
+          - "qa"
+          nullable: false
+          uniqueItems: true
+          items:
+            type: string
+
+    LinkedCIPipelinesViewResponse:
+      type: object
+      properties:
+        code:
+          type: number
+          description: status code
+          example: 200
+        status:
+          type: string
+          description: API status
+          example: "OK"
+        result:
+          $ref: "#/components/schemas/LinkedCIPipelinesInfo"
+
+    LinkedCIPipelinesInfo:
+      type: object
+      properties:
+        totalCount:
+          type: number
+          description: Total results count
+          example: 1122
+        offset:
+          type: number
+          description: Current page number
+          example: 2
+        size:
+          type: number
+          description: Current page size
+          example: 20
+        data:
+          type: array
+          nullable: false
+          description: Down stream deployments data
+          items:
+            $ref: "#/components/schemas/LinkedCIPipelineData"
+
+    LinkedCIPipelineData:
+      type: object
+      required:
+        - appName
+        - appId
+      properties:
+        appName:
+          type: string
+          description: application name
+          example: "devtron-app"
+        appId:
+          type: number
+          description: application id
+          example: 1
+        environmentName:
+          type: string
+          description: deploys to environment name
+          example: "staging"
+        environmentId:
+          type: number
+          description: deploys to environment id
+          example: 1
+        triggerMode:
+          type: string
+          description: pipeline trigger type
+          example: "AUTOMATIC"
+        deploymentStatus:
+          type: string
+          default: "Not Deployed"
+          description: last deployment status of the pipeline
+          example: "Succeeded"

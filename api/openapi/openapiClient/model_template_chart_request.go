@@ -28,6 +28,8 @@ type TemplateChartRequest struct {
 	AppStoreApplicationVersionId *int32 `json:"appStoreApplicationVersionId,omitempty"`
 	// Values yaml
 	ValuesYaml *string `json:"valuesYaml,omitempty"`
+	// Chart Data in case of base deployment template
+	ChartData []byte `json:"chartData,omitempty"`
 }
 
 // NewTemplateChartRequest instantiates a new TemplateChartRequest object
@@ -297,5 +299,3 @@ func (v *NullableTemplateChartRequest) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

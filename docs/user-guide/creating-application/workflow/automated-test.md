@@ -4,7 +4,7 @@ Users can run the test case using the Devtron dashboard or by including the test
 
 The test cases given in the script will run before the test cases given in the devtron.ci.yaml
 
-![](../../../.gitbook/assets/yaml%20%283%29.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/yaml.jpg)
 
 | Field | Description |
 | :--- | :--- |

@@ -39,9 +39,9 @@ autoPromotionSeconds: 30
 
 Spec:
  Affinity:
-  Key:
+  Key: ""
 #  Key: kops.k8s.io/instancegroup 
-  Values:
+  Values: ""
 
 
 image:
@@ -280,9 +280,9 @@ server:
    image_tag: 1-95af053
    image: ""
 
-EnvVariablesFromFieldPath:
-- name: POD_NAME
-  fieldPath: metadata.name
+EnvVariablesFromFieldPath: []
+# - name: POD_NAME
+#   fieldPath: metadata.name
 
 EnvVariables:
   - name: FLASK_ENV

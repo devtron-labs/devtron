@@ -2,7 +2,7 @@ package noop
 
 import (
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/pkg/user/repository"
+	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"go.uber.org/zap"
 	"net/http"
 )

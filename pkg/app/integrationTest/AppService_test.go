@@ -1,12 +1,35 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package integrationTest
 
 import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"log"
+	"os"
+	"strconv"
+	"testing"
+	"time"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
-	client "github.com/devtron-labs/devtron/api/helm-app"
 	client1 "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -15,6 +38,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	app2 "github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/app/status"
+	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -22,12 +47,6 @@ import (
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
-	"log"
-	"os"
-	"strconv"
-	"testing"
-	"time"
 )
 
 func TestAppServiceImpl_UpdateDeploymentStatusAndCheckIsSucceeded(t *testing.T) {
@@ -85,7 +104,7 @@ func TestAppServiceImpl_UpdateDeploymentStatusAndCheckIsSucceeded(t *testing.T) 
 			wantErr:     wantErr,
 		}
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := appService.UpdateDeploymentStatusAndCheckIsSucceeded(tt.args.app, tt.args.statusTime)
+			got, _, err := appService.UpdateDeploymentStatusAndCheckIsSucceeded(tt.args.app, tt.args.statusTime, false)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UpdateDeploymentStatusAndCheckIsSucceeded() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -128,13 +147,13 @@ func InitAppService() *app2.AppServiceImpl {
 	moduleActionAuditLogRepository := module.NewModuleActionAuditLogRepositoryImpl(dbConnection)
 	clusterRepository := repository1.NewClusterRepositoryImpl(dbConnection, logger)
 	clusterService := cluster.NewClusterServiceImplExtended(clusterRepository, nil, nil, logger, nil, nil, nil, nil, nil, nil, nil, nil)
-	helmClientConfig, err := client.GetConfig()
+	helmClientConfig, err := gRPC.GetConfig()
 	if err != nil {
 		log.Fatal("error in getting server helm client config, AppService_test", "err", err)
 	}
-	helmAppClient := client.NewHelmAppClientImpl(logger, helmClientConfig)
-	helmAppService := client.NewHelmAppServiceImpl(logger, clusterService, helmAppClient, nil, nil, nil, serverEnvConfig, nil, nil, nil, nil, nil, nil)
-	moduleService := module.NewModuleServiceImpl(logger, serverEnvConfig, moduleRepositoryImpl, moduleActionAuditLogRepository, helmAppService, nil, nil, nil, nil, nil, nil)
+	helmAppClient := gRPC.NewHelmAppClientImpl(logger, helmClientConfig)
+	helmAppService := client.NewHelmAppServiceImpl(logger, clusterService, helmAppClient, nil, nil, nil, serverEnvConfig, nil, nil, nil, nil, nil, nil, nil, nil)
+	moduleService := module.NewModuleServiceImpl(logger, serverEnvConfig, moduleRepositoryImpl, moduleActionAuditLogRepository, helmAppService, nil, nil, nil, nil, nil, nil, nil)
 	eventClient := client1.NewEventRESTClientImpl(logger, httpClient, eventClientConfig, pubSubClient, ciPipelineRepositoryImpl,
 		pipelineRepository, attributesRepositoryImpl, moduleService)
 	cdWorkflowRepository := pipelineConfig.NewCdWorkflowRepositoryImpl(dbConnection, logger)
@@ -144,23 +163,23 @@ func InitAppService() *app2.AppServiceImpl {
 	eventFactory := client1.NewEventSimpleFactoryImpl(logger, cdWorkflowRepository, pipelineOverrideRepository, ciWorkflowRepository,
 		ciPipelineMaterialRepository, ciPipelineRepositoryImpl, pipelineRepository, userRepository, nil)
 	appListingRepositoryQueryBuilder := helper.NewAppListingRepositoryQueryBuilder(logger)
-	appListingRepository := repository.NewAppListingRepositoryImpl(logger, dbConnection, appListingRepositoryQueryBuilder)
+	appListingRepository := repository.NewAppListingRepositoryImpl(logger, dbConnection, appListingRepositoryQueryBuilder, nil)
 	appRepository := app.NewAppRepositoryImpl(dbConnection, logger)
 	chartRepository := chartRepoRepository.NewChartRepository(dbConnection)
 	pipelineStatusTimelineResourcesRepository := pipelineConfig.NewPipelineStatusTimelineResourcesRepositoryImpl(dbConnection, logger)
-	pipelineStatusTimelineResourcesService := app2.NewPipelineStatusTimelineResourcesServiceImpl(dbConnection, logger, pipelineStatusTimelineResourcesRepository)
+	pipelineStatusTimelineResourcesService := status.NewPipelineStatusTimelineResourcesServiceImpl(dbConnection, logger, pipelineStatusTimelineResourcesRepository)
 	pipelineStatusTimelineRepository := pipelineConfig.NewPipelineStatusTimelineRepositoryImpl(dbConnection, logger)
 	pipelineStatusSyncDetailRepository := pipelineConfig.NewPipelineStatusSyncDetailRepositoryImpl(dbConnection, logger)
-	pipelineStatusSyncDetailService := app2.NewPipelineStatusSyncDetailServiceImpl(logger, pipelineStatusSyncDetailRepository)
-	pipelineStatusTimelineService := app2.NewPipelineStatusTimelineServiceImpl(logger, pipelineStatusTimelineRepository, cdWorkflowRepository, nil, pipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService)
-	refChartDir := chartRepoRepository.RefChartDir("scripts/devtron-reference-helm-charts")
+	pipelineStatusSyncDetailService := status.NewPipelineStatusSyncDetailServiceImpl(logger, pipelineStatusSyncDetailRepository)
+	pipelineStatusTimelineService := status.NewPipelineStatusTimelineServiceImpl(logger, pipelineStatusTimelineRepository, cdWorkflowRepository, nil, pipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService, nil, nil)
 	appService := app2.NewAppService(nil, pipelineOverrideRepository, nil, logger, nil,
 		pipelineRepository, nil, eventClient, eventFactory, nil, nil, nil, nil, nil, nil,
 		appListingRepository, appRepository, nil, nil, nil, nil, nil,
 		chartRepository, nil, cdWorkflowRepository, nil, nil, nil, nil,
-		nil, nil, nil, nil, nil, refChartDir, nil,
+		nil, nil, nil, nil, nil, nil,
 		nil, nil, nil, pipelineStatusTimelineRepository, nil, nil, nil,
 		nil, nil, pipelineStatusTimelineResourcesService, pipelineStatusSyncDetailService, pipelineStatusTimelineService,
-		nil, nil, nil, nil)
+		nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	return appService
 }

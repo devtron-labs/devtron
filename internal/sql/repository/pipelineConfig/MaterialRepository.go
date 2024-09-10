@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package pipelineConfig
@@ -33,7 +32,7 @@ const (
 	SOURCE_TYPE_WEBHOOK      SourceType = "WEBHOOK"
 )
 
-//TODO: add support for submodule
+// TODO: add support for submodule
 type GitMaterial struct {
 	tableName       struct{} `sql:"git_material" pg:",discard_unknown_columns"`
 	Id              int      `sql:"id,pk"`
@@ -44,6 +43,7 @@ type GitMaterial struct {
 	Name            string   `sql:"name, omitempty"`
 	CheckoutPath    string   `sql:"checkout_path, omitempty"`
 	FetchSubmodules bool     `sql:"fetch_submodules,notnull"`
+	FilterPattern   []string `sql:"filter_pattern"`
 	sql.AuditLog
 	App         *app.App
 	GitProvider *repository.GitProvider
@@ -51,16 +51,18 @@ type GitMaterial struct {
 
 type MaterialRepository interface {
 	MaterialExists(url string) (bool, error)
-	SaveMaterial(material *GitMaterial) error
-	UpdateMaterial(material *GitMaterial) error
+	SaveMaterial(tx *pg.Tx, material *GitMaterial) error
+	UpdateMaterial(tx *pg.Tx, material *GitMaterial) error
 	Update(materials []*GitMaterial) error
 	FindByAppId(appId int) ([]*GitMaterial, error)
 	FindById(Id int) (*GitMaterial, error)
+	FindByAppIdAndGitMaterialId(appId, id int) (*GitMaterial, error)
 	UpdateMaterialScmId(material *GitMaterial) error
 	FindByAppIdAndCheckoutPath(appId int, checkoutPath string) (*GitMaterial, error)
 	FindByGitProviderId(gitProviderId int) (materials []*GitMaterial, err error)
-	MarkMaterialDeleted(material *GitMaterial) error
+	MarkMaterialDeleted(tx *pg.Tx, material *GitMaterial) error
 	FindNumberOfAppsWithGitRepo(appIds []int) (int, error)
+	FindByAppIds(appIds []int) ([]*GitMaterial, error)
 }
 type MaterialRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -90,6 +92,17 @@ func (repo MaterialRepositoryImpl) FindById(Id int) (*GitMaterial, error) {
 	return material, err
 }
 
+func (repo MaterialRepositoryImpl) FindByAppIdAndGitMaterialId(appId, id int) (*GitMaterial, error) {
+	material := &GitMaterial{}
+	err := repo.dbConnection.Model(material).
+		Column("git_material.*", "GitProvider").
+		Where("app_id = ? ", appId).
+		Where("git_material.id =? ", id).
+		Where("git_material.active =? ", true).
+		Select()
+	return material, err
+}
+
 func (repo MaterialRepositoryImpl) MaterialExists(url string) (bool, error) {
 	material := &GitMaterial{}
 	exists, err := repo.dbConnection.
@@ -99,12 +112,12 @@ func (repo MaterialRepositoryImpl) MaterialExists(url string) (bool, error) {
 	return exists, err
 }
 
-func (repo MaterialRepositoryImpl) SaveMaterial(material *GitMaterial) error {
-	return repo.dbConnection.Insert(material)
+func (repo MaterialRepositoryImpl) SaveMaterial(tx *pg.Tx, material *GitMaterial) error {
+	return tx.Insert(material)
 }
 
-func (repo MaterialRepositoryImpl) UpdateMaterial(material *GitMaterial) error {
-	return repo.dbConnection.Update(material)
+func (repo MaterialRepositoryImpl) UpdateMaterial(tx *pg.Tx, material *GitMaterial) error {
+	return tx.Update(material)
 }
 
 func (repo MaterialRepositoryImpl) UpdateMaterialScmId(material *GitMaterial) error {
@@ -150,9 +163,9 @@ func (repo MaterialRepositoryImpl) FindByGitProviderId(gitProviderId int) (mater
 	return materials, err
 }
 
-func (repo MaterialRepositoryImpl) MarkMaterialDeleted(material *GitMaterial) error {
+func (repo MaterialRepositoryImpl) MarkMaterialDeleted(tx *pg.Tx, material *GitMaterial) error {
 	material.Active = false
-	return repo.dbConnection.Update(material)
+	return tx.Update(material)
 }
 
 func (repo MaterialRepositoryImpl) FindNumberOfAppsWithGitRepo(appIds []int) (int, error) {
@@ -168,4 +181,14 @@ func (repo MaterialRepositoryImpl) FindNumberOfAppsWithGitRepo(appIds []int) (in
 		return 0, err
 	}
 	return count, nil
+}
+
+func (repo MaterialRepositoryImpl) FindByAppIds(appId []int) ([]*GitMaterial, error) {
+	var materials []*GitMaterial
+	err := repo.dbConnection.Model(&materials).
+		Column("git_material.*", "GitProvider").
+		Where("app_id in (?) ", pg.In(appId)).
+		Where("git_material.active =? ", true).
+		Select()
+	return materials, err
 }

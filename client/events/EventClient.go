@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package client
@@ -22,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/module"
 	"net/http"
 	"time"
@@ -32,15 +32,17 @@ import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/pkg/attributes"
 	util "github.com/devtron-labs/devtron/util/event"
 	"go.uber.org/zap"
 )
 
 type EventClientConfig struct {
-	DestinationURL string `env:"EVENT_URL" envDefault:"http://localhost:3000/notify"`
-	TestSuitURL    string `env:"TEST_SUIT_URL" envDefault:"http://localhost:3000"`
+	DestinationURL     string             `env:"EVENT_URL" envDefault:"http://localhost:3000/notify"`
+	NotificationMedium NotificationMedium `env:"NOTIFICATION_MEDIUM" envDefault:"rest"`
 }
+type NotificationMedium string
+
+const PUB_SUB NotificationMedium = "nats"
 
 func GetEventClientConfig() (*EventClientConfig, error) {
 	cfg := &EventClientConfig{}
@@ -54,7 +56,6 @@ func GetEventClientConfig() (*EventClientConfig, error) {
 type EventClient interface {
 	WriteNotificationEvent(event Event) (bool, error)
 	WriteNatsEvent(channel string, payload interface{}) error
-	SendTestSuite(reqBody []byte) (bool, error)
 }
 
 type Event struct {
@@ -89,6 +90,7 @@ type Payload struct {
 	DownloadLink          string               `json:"downloadLink"`
 	BuildHistoryLink      string               `json:"buildHistoryLink"`
 	MaterialTriggerInfo   *MaterialTriggerInfo `json:"material"`
+	FailureReason         string               `json:"failureReason"`
 }
 
 type CiPipelineMaterialResponse struct {
@@ -207,7 +209,7 @@ func (impl *EventRESTClientImpl) WriteNotificationEvent(event Event) (bool, erro
 		isPostStageExist = true
 	}
 
-	attribute, err := impl.attributesRepository.FindByKey(attributes.HostUrlKey)
+	attribute, err := impl.attributesRepository.FindByKey(bean2.HostUrlKey)
 	if err != nil {
 		impl.logger.Errorw("there is host url configured", "ci pipeline", ciPipeline)
 		return false, err
@@ -240,6 +242,16 @@ func (impl *EventRESTClientImpl) WriteNotificationEvent(event Event) (bool, erro
 	}
 	return true, err
 }
+func (impl *EventRESTClientImpl) sendEventsOnNats(body []byte) error {
+
+	err := impl.pubsubClient.Publish(pubsub.NOTIFICATION_EVENT_TOPIC, string(body))
+	if err != nil {
+		impl.logger.Errorw("err while publishing msg for testing topic", "msg", body, "err", err)
+		return err
+	}
+	return nil
+
+}
 
 // do not call this method if notification module is not installed
 func (impl *EventRESTClientImpl) sendEvent(event Event) (bool, error) {
@@ -248,6 +260,14 @@ func (impl *EventRESTClientImpl) sendEvent(event Event) (bool, error) {
 	if err != nil {
 		impl.logger.Errorw("error while marshaling event request ", "err", err)
 		return false, err
+	}
+	if impl.config.NotificationMedium == PUB_SUB {
+		err = impl.sendEventsOnNats(body)
+		if err != nil {
+			impl.logger.Errorw("error while publishing event  ", "err", err)
+			return false, err
+		}
+		return true, nil
 	}
 	var reqBody = []byte(body)
 	req, err := http.NewRequest(http.MethodPost, impl.config.DestinationURL, bytes.NewBuffer(reqBody))
@@ -261,6 +281,7 @@ func (impl *EventRESTClientImpl) sendEvent(event Event) (bool, error) {
 		impl.logger.Errorw("error while UpdateJiraTransition request ", "err", err)
 		return false, err
 	}
+	defer resp.Body.Close()
 	impl.logger.Debugw("event completed", "event resp", resp)
 	return true, err
 }
@@ -272,21 +293,4 @@ func (impl *EventRESTClientImpl) WriteNatsEvent(topic string, payload interface{
 	}
 	err = impl.pubsubClient.Publish(topic, string(body))
 	return err
-}
-
-func (impl *EventRESTClientImpl) SendTestSuite(reqBody []byte) (bool, error) {
-	impl.logger.Debugw("request", "body", string(reqBody))
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/triggers", impl.config.TestSuitURL), bytes.NewBuffer(reqBody))
-	if err != nil {
-		impl.logger.Errorw("error while writing test suites", "err", err)
-		return false, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := impl.client.Do(req)
-	if err != nil {
-		impl.logger.Errorw("error while UpdateJiraTransition request ", "err", err)
-		return false, err
-	}
-	impl.logger.Debugw("response from test suit create api", "status code", resp.StatusCode)
-	return true, err
 }

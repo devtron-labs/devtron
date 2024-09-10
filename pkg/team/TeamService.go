@@ -1,30 +1,32 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package team
 
 import (
+	"errors"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/repository"
 	"go.uber.org/zap"
-	"time"
 )
 
 type TeamService interface {
@@ -62,6 +64,11 @@ func NewTeamServiceImpl(logger *zap.SugaredLogger, teamRepository TeamRepository
 
 func (impl TeamServiceImpl) Create(request *TeamRequest) (*TeamRequest, error) {
 	impl.logger.Debugw("team create request", "req", request)
+	if len(request.Name) < 3 || strings.Contains(request.Name, " ") {
+		impl.logger.Errorw("name should not contain white spaces and should have min 3 chars ")
+		err := errors.New("name should not contain white spaces and should have min 3 chars")
+		return nil, err
+	}
 	t := &Team{
 		Name:     request.Name,
 		Id:       request.Id,
@@ -178,7 +185,7 @@ func (impl TeamServiceImpl) Delete(deleteRequest *TeamRequest) error {
 		return err
 	}
 	//deleting auth roles entries for this project
-	err = impl.userAuthService.DeleteRoles(repository.PROJECT_TYPE, deleteRequest.Name, tx, "")
+	err = impl.userAuthService.DeleteRoles(bean.PROJECT_TYPE, deleteRequest.Name, tx, "", "")
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
 		return err

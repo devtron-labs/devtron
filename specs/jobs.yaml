@@ -1,0 +1,194 @@
+openapi: "3.0.0"
+info:
+  title: Jobs
+  version: "1.0"
+paths:
+  /orchestrator/job:
+    post:
+      description: Create and clones a job
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/CreateJob"
+      responses:
+        "200 OK":
+          description: Used to give response once a job is created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResponse"
+  /orchestrator/job/list:
+    post:
+      description: Get the list of all the jobs by applying filter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              items:
+                $ref: "#/components/schemas/JobList"
+      response:
+        description: Used to give response of list of jobs
+        content:
+          application/json:
+            schema:
+              items:
+                $ref: "#/components/schemas/JobListResponse"
+  /orchestrator/job/ci-pipeline/list/{jobId}:
+    get:
+      description: fetch details of job ci-pipelines for the overview page
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: integer
+#components
+components:
+  schemas:
+    CreateJob:
+      type: object
+      properties:
+         appName:
+           type: string
+           description: Used to give the name of the job
+           example: "my-job-1"
+         isJob:
+           type: boolean
+           description: States whether its a job or an app
+           example: true
+         teamId:
+           type: integer
+           description: Used to give team id
+           example: 1
+         templateId:
+           type: integer
+           description: Used to give the id of the job it wants to clone
+           example: 18
+         labels:
+           type: []label
+             label:
+               key:
+                 type: string
+                 example: "hello"
+               value:
+                 type: string
+                 example: "world"
+               propogate:
+                  type: bool
+                  example: false
+         description:
+           type: string
+           description: Used to give the description of the job once it is made.
+           example: "This is my first Job"
+    ActionResponse:
+      name: result
+      type: object
+      properties:
+        id:
+          type:  integer
+          description: Used to give the id of job once its created
+          example: 25
+        appName:
+          type: string
+          description: Used to give the name of job once its created
+          example: "my-job-1"
+        material:
+          type: []gitMaterial
+            gitMaterial:
+              name:
+                type: string
+              url:
+                type: string
+              id:
+                type: integer
+              gitProviderId:
+                type: integer
+              checkoutPath:
+                type: string
+              fetchSubmodules:
+                type: bool
+              isUsedInCiConfig:
+                type: bool
+          teamId:
+            type: integer
+            description: Used to give the team id
+            example: 1
+          templateId:
+            type: integer
+            description: Used to give the templateId
+            example: 0
+          description:
+            type: string
+            description: Used to give the description of the job once it is made.
+            example: "This is my first Job"
+          isJob:
+            type: boolean
+            description: used to tell whether it is a job or an app
+            example: true
+    JobList:
+      type: object
+      properties:
+        teams:
+          type: [] integer
+          description: used to give the project id
+          example: [1,2]
+        appStatuses:
+          type: [] string
+          description: used to give the filter of app ci-build status
+          example: ["Succeeded", "Starting"]
+        sortBy:
+          type: string
+          description: used to give the sort by constraint
+          example: "appNameSort"
+        sortOrder:
+          type: string
+          description: used to give the sort order
+          example: "ASC"
+        offset:
+          type: integer
+          description: used to give the number from which we want our job (if the offset is 20 means we want list of jobs from 20)
+          example: 0
+        size:
+          type: integer
+          description: used to give the number of jobs we want
+          example: 20
+
+    JobListResponse:
+      type: object
+      properties:
+        jobContainers:
+          type: [] jobContainer
+            jobContainer:
+              properties:
+                jobId:
+                  type: integer
+                jobName:
+                  type: string
+                description:
+                  type: string
+                ciPipelines:
+                  type: []jobCiPipeline
+                    jobCiPipeline:
+                      properties:
+                        ciPipelineId:
+                         type: integer
+                        status:
+                          type: string
+                        lastRunAt:
+                          type: time.Time
+                        lastSuccessAt:
+                          type: time.Time
+        jobCount:
+          type: integer
+
+
+
+
+
+
+
+

@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package chartRepoRepository
@@ -21,24 +20,26 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"strconv"
 )
 
 type ChartRepoFields struct {
-	Id          int                 `sql:"id,pk"`
-	Name        string              `sql:"name"`
-	Url         string              `sql:"url"`
-	Active      bool                `sql:"active,notnull"`
-	Default     bool                `sql:"is_default,notnull"`
-	UserName    string              `sql:"user_name"`
-	Password    string              `sql:"password"`
-	SshKey      string              `sql:"ssh_key"`
-	AccessToken string              `sql:"access_token"`
-	AuthMode    repository.AuthMode `sql:"auth_mode,notnull"`
-	External    bool                `sql:"external,notnull"`
-	Deleted     bool                `sql:"deleted,notnull"`
+	Id                      int                 `sql:"id,pk"`
+	Name                    string              `sql:"name"`
+	Url                     string              `sql:"url"`
+	Active                  bool                `sql:"active,notnull"`
+	Default                 bool                `sql:"is_default,notnull"`
+	UserName                string              `sql:"user_name"`
+	Password                string              `sql:"password"`
+	SshKey                  string              `sql:"ssh_key"`
+	AccessToken             string              `sql:"access_token"`
+	AuthMode                repository.AuthMode `sql:"auth_mode,notnull"`
+	External                bool                `sql:"external,notnull"`
+	Deleted                 bool                `sql:"deleted,notnull"`
+	AllowInsecureConnection bool                `sql:"allow_insecure_connection"`
 }
 type ChartRepo struct {
-	tableName struct{} `sql:"chart_repo"`
+	tableName struct{} `sql:"chart_repo" pg:",discard_unknown_columns"`
 	ChartRepoFields
 	sql.AuditLog
 }
@@ -55,6 +56,7 @@ type ChartRepoRepository interface {
 	FindById(id int) (*ChartRepo, error)
 	FindAll() ([]*ChartRepo, error)
 	FindAllWithDeploymentCount() ([]*ChartRepoWithDeploymentCount, error)
+	FindDeploymentCountByChartRepoId(chartId int) (int, error)
 	GetConnection() *pg.DB
 	MarkChartRepoDeleted(chartRepo *ChartRepo, tx *pg.Tx) error
 	FindByName(name string) (*ChartRepo, error)
@@ -120,6 +122,18 @@ func (impl ChartRepoRepositoryImpl) FindAllWithDeploymentCount() ([]*ChartRepoWi
 		" where chart_repo.deleted = false Group by chart_repo.id;"
 	_, err := impl.dbConnection.Query(&repo, query)
 	return repo, err
+}
+
+func (impl ChartRepoRepositoryImpl) FindDeploymentCountByChartRepoId(chartId int) (int, error) {
+	var activeDeploymentCount int
+	query := "select count(aps.chart_repo_id) as deployment_count " +
+		" from installed_app_versions iav" +
+		" inner join installed_apps ia on iav.installed_app_id = ia.id" +
+		" inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id" +
+		" inner join app_store aps on asav.app_store_id = aps.id" +
+		" where ia.active=? and iav.active=? and aps.chart_repo_id=?;"
+	_, err := impl.dbConnection.Query(&activeDeploymentCount, query, true, true, strconv.Itoa(chartId))
+	return activeDeploymentCount, err
 }
 
 func (impl ChartRepoRepositoryImpl) MarkChartRepoDeleted(chartRepo *ChartRepo, tx *pg.Tx) error {

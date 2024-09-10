@@ -1,23 +1,23 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package pipeline
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -25,24 +25,44 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
-	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
-	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
-	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
-	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user"
-	repository3 "github.com/devtron-labs/devtron/pkg/user/repository"
-	util2 "github.com/devtron-labs/devtron/util"
+	attributesBean "github.com/devtron-labs/devtron/pkg/attributes/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	"github.com/devtron-labs/devtron/pkg/plugin"
+	"golang.org/x/exp/slices"
+	"net/http"
 	"path"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	"github.com/devtron-labs/devtron/util/response/pagination"
+	"go.opentelemetry.io/otel"
+
+	util3 "github.com/devtron-labs/common-lib/utils/k8s"
+	apiBean "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
+	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	"github.com/devtron-labs/devtron/pkg/chart"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/genericNotes"
+	repository3 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
+	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
+	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	util2 "github.com/devtron-labs/devtron/util"
+
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -63,10 +83,16 @@ type CiCdPipelineOrchestrator interface {
 	UpdateMaterial(updateMaterialRequest *bean.UpdateMaterialDTO) (*bean.UpdateMaterialDTO, error)
 	CreateCiConf(createRequest *bean.CiConfigRequest, templateId int) (*bean.CiConfigRequest, error)
 	CreateCDPipelines(pipelineRequest *bean.CDPipelineConfigObject, appId int, userId int32, tx *pg.Tx, appName string) (pipelineId int, err error)
-	UpdateCDPipeline(pipelineRequest *bean.CDPipelineConfigObject, userId int32, tx *pg.Tx) (err error)
+	UpdateCDPipeline(pipelineRequest *bean.CDPipelineConfigObject, userId int32, tx *pg.Tx) (pipeline *pipelineConfig.Pipeline, err error)
 	DeleteCiPipeline(pipeline *pipelineConfig.CiPipeline, request *bean.CiPatchRequest, tx *pg.Tx) error
-	DeleteCdPipeline(pipelineId int, tx *pg.Tx) error
+	DeleteCiPipelineAndCiEnvMappings(tx *pg.Tx, ciPipeline *pipelineConfig.CiPipeline, userId int32) error
+	SaveHistoryOfBaseTemplate(userId int32, pipeline *pipelineConfig.CiPipeline, materials []*pipelineConfig.CiPipelineMaterial) error
+	DeleteCdPipeline(pipelineId int, userId int32, tx *pg.Tx) error
 	PatchMaterialValue(createRequest *bean.CiPipeline, userId int32, oldPipeline *pipelineConfig.CiPipeline) (*bean.CiPipeline, error)
+	PatchCiMaterialSource(ciPipeline *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error)
+	PatchCiMaterialSourceValue(patchRequest *bean.CiMaterialValuePatchRequest, userId int32, value string, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*pipelineConfig.CiPipelineMaterial, error)
+	CreateCiTemplateBean(ciPipelineId int, dockerRegistryId string, dockerRepository string, gitMaterialId int, ciBuildConfig *CiPipeline.CiBuildConfigBean, userId int32) pipelineConfigBean.CiTemplateBean
+	UpdateCiPipelineMaterials(materialsUpdate []*pipelineConfig.CiPipelineMaterial) error
 	PipelineExists(name string) (bool, error)
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
 	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
@@ -75,7 +101,11 @@ type CiCdPipelineOrchestrator interface {
 	AddPipelineMaterialInGitSensor(pipelineMaterials []*pipelineConfig.CiPipelineMaterial) error
 	CheckStringMatchRegex(regex string, value string) bool
 	CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey string) error
-	GetCdPipelinesForEnv(envId int) (cdPipelines *bean.CdPipelines, err error)
+	GetCdPipelinesForEnv(envId int, requestedAppIds []int) (cdPipelines *bean.CdPipelines, err error)
+	AddPipelineToTemplate(createRequest *bean.CiConfigRequest, isSwitchCiPipelineRequest bool) (resp *bean.CiConfigRequest, err error)
+	GetSourceCiDownStreamFilters(ctx context.Context, sourceCiPipelineId int) (*CiPipeline.SourceCiDownStreamEnv, error)
+	GetSourceCiDownStreamInfo(ctx context.Context, sourceCIPipeline int, req *CiPipeline.SourceCiDownStreamFilters) (pagination.PaginatedResponse[CiPipeline.SourceCiDownStreamResponse], error)
+	GetGitCommitEnvVarDataForCICDStage(gitTriggers map[int]pipelineConfig.GitCommit) (map[string]string, *gitSensor.WebhookAndCiData, error)
 }
 
 type CiCdPipelineOrchestratorImpl struct {
@@ -85,23 +115,28 @@ type CiCdPipelineOrchestratorImpl struct {
 	pipelineRepository            pipelineConfig.PipelineRepository
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
-	GitSensorClient               gitSensor.GitSensorClient
-	ciConfig                      *CiConfig
+	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
+	GitSensorClient               gitSensor.Client
+	ciConfig                      *types.CiCdConfig
 	appWorkflowRepository         appWorkflow.AppWorkflowRepository
 	envRepository                 repository2.EnvironmentRepository
 	attributesService             attributes.AttributesService
-	appListingRepository          repository.AppListingRepository
 	appLabelsService              app.AppCrudOperationService
 	userAuthService               user.UserAuthService
 	prePostCdScriptHistoryService history3.PrePostCdScriptHistoryService
-	prePostCiScriptHistoryService history3.PrePostCiScriptHistoryService
 	pipelineStageService          PipelineStageService
-	//ciTemplateOverrideRepository  pipelineConfig.CiTemplateOverrideRepository
 	ciTemplateService             CiTemplateService
-	ciTemplateOverrideRepository  pipelineConfig.CiTemplateOverrideRepository
 	gitMaterialHistoryService     history3.GitMaterialHistoryService
 	ciPipelineHistoryService      history3.CiPipelineHistoryService
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository
+	CiArtifactRepository          repository.CiArtifactRepository
+	configMapService              ConfigMapService
+	genericNoteService            genericNotes.GenericNoteService
+	customTagService              CustomTagService
+	chartService                  chart.ChartService
+	transactionManager            sql.TransactionWrapper
+	gitOpsConfigReadService       config.GitOpsConfigReadService
+	deploymentConfigService       common.DeploymentConfigService
 }
 
 func NewCiCdPipelineOrchestrator(
@@ -111,21 +146,26 @@ func NewCiCdPipelineOrchestrator(
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	GitSensorClient gitSensor.GitSensorClient, ciConfig *CiConfig,
+	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
+	GitSensorClient gitSensor.Client, ciConfig *types.CiCdConfig,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	envRepository repository2.EnvironmentRepository,
 	attributesService attributes.AttributesService,
-	appListingRepository repository.AppListingRepository,
 	appLabelsService app.AppCrudOperationService,
 	userAuthService user.UserAuthService,
 	prePostCdScriptHistoryService history3.PrePostCdScriptHistoryService,
-	prePostCiScriptHistoryService history3.PrePostCiScriptHistoryService,
 	pipelineStageService PipelineStageService,
-	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
 	gitMaterialHistoryService history3.GitMaterialHistoryService,
 	ciPipelineHistoryService history3.CiPipelineHistoryService,
 	ciTemplateService CiTemplateService,
-	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository) *CiCdPipelineOrchestratorImpl {
+	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
+	CiArtifactRepository repository.CiArtifactRepository,
+	configMapService ConfigMapService,
+	customTagService CustomTagService,
+	genericNoteService genericNotes.GenericNoteService,
+	chartService chart.ChartService, transactionManager sql.TransactionWrapper,
+	gitOpsConfigReadService config.GitOpsConfigReadService,
+	deploymentConfigService common.DeploymentConfigService) *CiCdPipelineOrchestratorImpl {
 	return &CiCdPipelineOrchestratorImpl{
 		appRepository:                 pipelineGroupRepository,
 		logger:                        logger,
@@ -133,35 +173,190 @@ func NewCiCdPipelineOrchestrator(
 		pipelineRepository:            pipelineRepository,
 		ciPipelineRepository:          ciPipelineRepository,
 		ciPipelineMaterialRepository:  ciPipelineMaterialRepository,
+		cdWorkflowRepository:          cdWorkflowRepository,
 		GitSensorClient:               GitSensorClient,
 		ciConfig:                      ciConfig,
 		appWorkflowRepository:         appWorkflowRepository,
 		envRepository:                 envRepository,
 		attributesService:             attributesService,
-		appListingRepository:          appListingRepository,
 		appLabelsService:              appLabelsService,
 		userAuthService:               userAuthService,
 		prePostCdScriptHistoryService: prePostCdScriptHistoryService,
-		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
 		pipelineStageService:          pipelineStageService,
-		ciTemplateOverrideRepository:  ciTemplateOverrideRepository,
 		gitMaterialHistoryService:     gitMaterialHistoryService,
 		ciPipelineHistoryService:      ciPipelineHistoryService,
 		ciTemplateService:             ciTemplateService,
 		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
+		CiArtifactRepository:          CiArtifactRepository,
+		configMapService:              configMapService,
+		genericNoteService:            genericNoteService,
+		customTagService:              customTagService,
+		chartService:                  chartService,
+		transactionManager:            transactionManager,
+		gitOpsConfigReadService:       gitOpsConfigReadService,
+		deploymentConfigService:       deploymentConfigService,
 	}
 }
 
 const BEFORE_DOCKER_BUILD string = "BEFORE_DOCKER_BUILD"
 const AFTER_DOCKER_BUILD string = "AFTER_DOCKER_BUILD"
 
+func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSource(patchRequest *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error) {
+	pipeline, err := impl.findUniquePipelineForAppIdAndEnvironmentId(patchRequest.AppId, patchRequest.EnvironmentId)
+	if err != nil {
+		return nil, err
+	}
+	ciPipelineMaterial, err := impl.findUniqueCiPipelineMaterial(pipeline.CiPipelineId)
+	if err != nil {
+		return nil, err
+	}
+	ciPipelineMaterial.Type = patchRequest.Source.Type
+	ciPipelineMaterial.Value = patchRequest.Source.Value
+	ciPipelineMaterial.Regex = patchRequest.Source.Regex
+	ciPipelineMaterial.AuditLog.UpdatedBy = userId
+	ciPipelineMaterial.AuditLog.UpdatedOn = time.Now()
+	if err = impl.saveUpdatedMaterial([]*pipelineConfig.CiPipelineMaterial{ciPipelineMaterial}); err != nil {
+		return nil, err
+	}
+	return patchRequest, nil
+}
+
+func (impl CiCdPipelineOrchestratorImpl) PatchCiMaterialSourceValue(patchRequest *bean.CiMaterialValuePatchRequest, userId int32, value string, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*pipelineConfig.CiPipelineMaterial, error) {
+	pipeline, err := impl.findUniquePipelineForAppIdAndEnvironmentId(patchRequest.AppId, patchRequest.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("Error in getting UniquePipelineForAppIdAndEnvironmentId", "appId", patchRequest.AppId, "envId", patchRequest.EnvironmentId, "err", err)
+		return nil, err
+	}
+	appWorkflowMapping, err := impl.appWorkflowRepository.GetParentDetailsByPipelineId(pipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("failed to get parent component details",
+			"componentId", pipeline.Id,
+			"err", err)
+		return nil, err
+	}
+	if appWorkflowMapping.ParentType == appWorkflow.WEBHOOK {
+		return nil, errors.New(string(bean.CI_PATCH_SKIP_MESSAGE) + "“Webhook”")
+	}
+	ciPipelineMaterial, err := impl.findUniqueCiPipelineMaterial(pipeline.CiPipelineId)
+	if err != nil {
+		impl.logger.Errorw("Error in getting UniqueCiPipelineMaterial", "CiPipelineId", pipeline.CiPipelineId, "err", err)
+		if strings.Contains(err.Error(), "ciPipelineMaterial not found") {
+			return nil, errors.New(string(bean.CI_BRANCH_TYPE_ERROR))
+		}
+		return nil, err
+	}
+
+	err = impl.validateCiPipelineMaterial(ciPipelineMaterial, value, token, checkAppSpecificAccess, patchRequest.AppId)
+	if err != nil {
+		impl.logger.Errorw("Validation failed on CiPipelineMaterial", "err", err)
+		return nil, err
+	}
+
+	ciPipelineMaterial.Value = value
+	ciPipelineMaterial.AuditLog.UpdatedBy = userId
+	ciPipelineMaterial.AuditLog.UpdatedOn = time.Now()
+	return ciPipelineMaterial, nil
+}
+
+func (impl CiCdPipelineOrchestratorImpl) UpdateCiPipelineMaterials(materialsUpdate []*pipelineConfig.CiPipelineMaterial) error {
+	if err := impl.saveUpdatedMaterial(materialsUpdate); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (impl CiCdPipelineOrchestratorImpl) validateCiPipelineMaterial(ciPipelineMaterial *pipelineConfig.CiPipelineMaterial, value string, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error), appId int) error {
+	// Change branch source is supported for SOURCE_TYPE_BRANCH_FIXED and SOURCE_TYPE_BRANCH_REGEX
+	if ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_FIXED && ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
+		return errors.New(string(bean.CI_BRANCH_TYPE_ERROR))
+	}
+
+	if ciPipelineMaterial.CiPipeline.ParentCiPipeline != 0 {
+		return errors.New(string(bean.CI_PATCH_SKIP_MESSAGE) + impl.getSkipMessage(ciPipelineMaterial.CiPipeline))
+	}
+	if ciPipelineMaterial.Regex != "" {
+		// Checking Trigger Access for Regex branch
+		if ok, err := checkAppSpecificAccess(token, casbin.ActionTrigger, appId); !ok {
+			return err
+		}
+	} else {
+		// Checking Admin Access for Fixed branch
+		if ok, err := checkAppSpecificAccess(token, casbin.ActionUpdate, appId); !ok {
+			return err
+		}
+	}
+
+	// In case of regex we are check if the branch match the regex
+	if ciPipelineMaterial.Regex != "" {
+		ok, err := regexp.MatchString(ciPipelineMaterial.Regex, value)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return errors.New(string(bean.CI_PATCH_REGEX_ERROR) + "“" + ciPipelineMaterial.Regex + "”")
+		}
+	}
+	return nil
+}
+
+func (impl CiCdPipelineOrchestratorImpl) getSkipMessage(ciPipeline *pipelineConfig.CiPipeline) string {
+	switch ciPipeline.PipelineType {
+	case string(CiPipeline.LINKED_CD):
+		return "“Sync with Environment”"
+	default:
+		return "“Linked Build Pipeline”"
+	}
+}
+
+func (impl CiCdPipelineOrchestratorImpl) findUniquePipelineForAppIdAndEnvironmentId(appId, environmentId int) (*pipelineConfig.Pipeline, error) {
+	pipeline, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, environmentId)
+	if err != nil {
+		return nil, err
+	}
+	if len(pipeline) != 1 {
+		return nil, fmt.Errorf("unique pipeline was not found, for the given appId and environmentId")
+	}
+	return pipeline[0], nil
+}
+
+func (impl CiCdPipelineOrchestratorImpl) findUniqueCiPipelineMaterial(ciPipelineId int) (*pipelineConfig.CiPipelineMaterial, error) {
+	ciPipelineMaterials, err := impl.ciPipelineMaterialRepository.FindByCiPipelineIdsIn([]int{ciPipelineId})
+	if err != nil {
+		return nil, err
+	}
+	if ciPipelineMaterials == nil {
+		return nil, fmt.Errorf("ciPipelineMaterial not found")
+	}
+	if len(ciPipelineMaterials) != 1 {
+		return nil, fmt.Errorf(string(bean.CI_PATCH_MULTI_GIT_ERROR))
+	}
+	return ciPipelineMaterials[0], nil
+}
+
+func (impl CiCdPipelineOrchestratorImpl) saveUpdatedMaterial(materialsUpdate []*pipelineConfig.CiPipelineMaterial) error {
+	dbConnection := impl.pipelineRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err = impl.ciPipelineMaterialRepository.Update(tx, materialsUpdate...); err != nil {
+		return err
+	}
+	if err = impl.AddPipelineMaterialInGitSensor(materialsUpdate); err != nil {
+		return err
+	}
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	return nil
+}
 func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.CiPipeline, userId int32, oldPipeline *pipelineConfig.CiPipeline) (*bean.CiPipeline, error) {
 	argByte, err := json.Marshal(createRequest.DockerArgs)
 	if err != nil {
 		impl.logger.Error(err)
 		return nil, err
 	}
-
 	dbConnection := impl.pipelineRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -169,7 +364,6 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-
 	ciPipelineObject := &pipelineConfig.CiPipeline{
 		Version:                  createRequest.Version,
 		Id:                       createRequest.Id,
@@ -184,9 +378,38 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		AuditLog:                 sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 	}
 
+	if createRequest.EnableCustomTag && len(createRequest.CustomTagObject.TagPattern) == 0 {
+		return nil, errors.New("please input custom tag data if tag is enabled")
+	}
+
+	//If customTagObject has been passed, create or update the resource
+	//Otherwise deleteIfExists
+	if createRequest.CustomTagObject != nil && len(createRequest.CustomTagObject.TagPattern) > 0 {
+		customTag := apiBean.CustomTag{
+			EntityKey:            pipelineConfigBean.EntityTypeCiPipelineId,
+			EntityValue:          strconv.Itoa(ciPipelineObject.Id),
+			TagPattern:           createRequest.CustomTagObject.TagPattern,
+			AutoIncreasingNumber: createRequest.CustomTagObject.CounterX,
+			Enabled:              createRequest.EnableCustomTag,
+		}
+		err = impl.customTagService.CreateOrUpdateCustomTag(&customTag)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		customTag := apiBean.CustomTag{
+			EntityKey:   pipelineConfigBean.EntityTypeCiPipelineId,
+			EntityValue: strconv.Itoa(ciPipelineObject.Id),
+			Enabled:     false,
+		}
+		err := impl.customTagService.DeleteCustomTagIfExists(customTag)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	createOnTimeMap := make(map[int]time.Time)
 	createByMap := make(map[int]int32)
-
 	for _, oldMaterial := range oldPipeline.CiPipelineMaterials {
 		createOnTimeMap[oldMaterial.GitMaterialId] = oldMaterial.CreatedOn
 		createByMap[oldMaterial.GitMaterialId] = oldMaterial.CreatedBy
@@ -196,6 +419,37 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 	if err != nil {
 		return nil, err
 	}
+	var CiEnvMappingObject *pipelineConfig.CiEnvMapping
+	if ciPipelineObject.Id != 0 {
+		CiEnvMappingObject, err = impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(ciPipelineObject.Id)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting CiEnvMappingObject ", "err", err, "ciPipelineId", createRequest.Id)
+			return nil, err
+		}
+	}
+	if err == nil && CiEnvMappingObject != nil {
+		if CiEnvMappingObject.EnvironmentId != createRequest.EnvironmentId {
+			CiEnvMappingObject.EnvironmentId = createRequest.EnvironmentId
+			CiEnvMappingObject.AuditLog = sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()}
+			err = impl.ciPipelineRepository.UpdateCiEnvMapping(CiEnvMappingObject, tx)
+			if err != nil {
+				impl.logger.Errorw("error in getting CiEnvMappingObject ", "err", err, "ciPipelineId", createRequest.Id)
+				return nil, err
+			}
+			if createRequest.EnvironmentId != 0 {
+				createJobEnvOverrideRequest := &pipelineConfigBean.CreateJobEnvOverridePayload{
+					AppId:  createRequest.AppId,
+					EnvId:  createRequest.EnvironmentId,
+					UserId: userId,
+				}
+				_, err = impl.configMapService.ConfigSecretEnvironmentCreate(createJobEnvOverrideRequest)
+				if err != nil && !strings.Contains(err.Error(), "already exists") {
+					impl.logger.Errorw("error in saving env override", "createJobEnvOverrideRequest", createJobEnvOverrideRequest, "err", err)
+					return nil, err
+				}
+			}
+		}
+	}
 	// marking old scripts inactive
 	err = impl.ciPipelineRepository.MarkCiPipelineScriptsInactiveByCiPipelineId(createRequest.Id, tx)
 	if err != nil {
@@ -204,7 +458,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 	}
 	if createRequest.PreBuildStage != nil {
 		//updating pre stage
-		err = impl.pipelineStageService.UpdateCiStage(createRequest.PreBuildStage, repository5.PIPELINE_STAGE_TYPE_PRE_CI, createRequest.Id, userId)
+		err = impl.pipelineStageService.UpdatePipelineStage(createRequest.PreBuildStage, repository5.PIPELINE_STAGE_TYPE_PRE_CI, createRequest.Id, userId)
 		if err != nil {
 			impl.logger.Errorw("error in updating pre stage", "err", err, "preBuildStage", createRequest.PreBuildStage, "ciPipelineId", createRequest.Id)
 			return nil, err
@@ -212,13 +466,19 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 	}
 	if createRequest.PostBuildStage != nil {
 		//updating post stage
-		err = impl.pipelineStageService.UpdateCiStage(createRequest.PostBuildStage, repository5.PIPELINE_STAGE_TYPE_POST_CI, createRequest.Id, userId)
+		err = impl.pipelineStageService.UpdatePipelineStage(createRequest.PostBuildStage, repository5.PIPELINE_STAGE_TYPE_POST_CI, createRequest.Id, userId)
 		if err != nil {
 			impl.logger.Errorw("error in updating post stage", "err", err, "postBuildStage", createRequest.PostBuildStage, "ciPipelineId", createRequest.Id)
 			return nil, err
 		}
 	}
-
+	for _, material := range createRequest.CiMaterial {
+		if material.IsRegex == true && material.Source.Value != "" {
+			material.IsRegex = false
+		} else if material.IsRegex == false && material.Source.Regex != "" {
+			material.IsRegex = true
+		}
+	}
 	var materials []*pipelineConfig.CiPipelineMaterial
 	var materialsAdd []*pipelineConfig.CiPipelineMaterial
 	var materialsUpdate []*pipelineConfig.CiPipelineMaterial
@@ -242,30 +502,13 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			pipelineMaterial.CreatedOn = time.Now()
 			materialsAdd = append(materialsAdd, pipelineMaterial)
 		} else {
-			materialsUpdate = append(materialsUpdate, pipelineMaterial)
+			pipelineMaterial.CiPipelineId = createRequest.Id
+			pipelineMaterial.CreatedBy = userId
 			pipelineMaterial.CreatedOn = createOnTimeMap[material.GitMaterialId]
-			pipelineMaterial.CreatedBy = createByMap[material.GitMaterialId]
+			pipelineMaterial.UpdatedOn = time.Now()
+			pipelineMaterial.UpdatedBy = userId
+			materialsUpdate = append(materialsUpdate, pipelineMaterial)
 		}
-	}
-	regexMaterial, err := impl.ciPipelineMaterialRepository.GetRegexByPipelineId(createRequest.Id)
-	if err != nil {
-		impl.logger.Errorw("err", "err", err)
-	}
-	var errorList string
-	if len(regexMaterial) != 0 {
-		for _, material := range regexMaterial {
-			val, exists := materialGitMap[material.GitMaterialId]
-			if exists && !impl.CheckStringMatchRegex(material.Regex, val) {
-				if errorList == "" {
-					errorList = "string is mismatching with regex " + strconv.Itoa(material.GitMaterialId)
-				} else {
-					errorList = errorList + "; " + "string is mismatching with regex " + strconv.Itoa(material.GitMaterialId)
-				}
-			}
-		}
-	}
-	if errorList != "" {
-		return nil, errors.New(errorList)
 	}
 	if len(materialsAdd) > 0 {
 		err = impl.ciPipelineMaterialRepository.Save(tx, materialsAdd...)
@@ -273,10 +516,13 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			return nil, err
 		}
 	}
-	err = impl.ciPipelineMaterialRepository.Update(tx, materialsUpdate...)
-	if err != nil {
-		return nil, err
+	if len(materialsUpdate) > 0 {
+		err = impl.ciPipelineMaterialRepository.Update(tx, materialsUpdate...)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	materials = append(materials, materialsAdd...)
 	materials = append(materials, materialsUpdate...)
 
@@ -299,15 +545,16 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 	for _, ci := range childrenCiPipelines {
 		childrenCiPipelineIds = append(childrenCiPipelineIds, ci.Id)
 		ciPipelineObject := &pipelineConfig.CiPipeline{
-			Version:          createRequest.Version,
-			Id:               ci.Id,
-			DockerArgs:       string(argByte),
-			Active:           createRequest.Active,
-			IsManual:         createRequest.IsManual,
-			IsExternal:       true,
-			Deleted:          createRequest.Deleted,
-			ParentCiPipeline: createRequest.Id,
-			AuditLog:         sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+			Version:                  createRequest.Version,
+			Id:                       ci.Id,
+			DockerArgs:               string(argByte),
+			Active:                   createRequest.Active,
+			IsManual:                 createRequest.IsManual,
+			IsExternal:               true,
+			Deleted:                  createRequest.Deleted,
+			ParentCiPipeline:         createRequest.Id,
+			IsDockerConfigOverridden: createRequest.IsDockerConfigOverridden,
+			AuditLog:                 sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 		}
 		err = impl.ciPipelineRepository.Update(ciPipelineObject, tx)
 		if err != nil {
@@ -328,8 +575,9 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			DockerRegistryId: createRequest.DockerConfigOverride.DockerRegistry,
 			DockerRepository: createRequest.DockerConfigOverride.DockerRepository,
 			//DockerfilePath:   createRequest.DockerConfigOverride.DockerBuildConfig.DockerfilePath,
-			GitMaterialId: ciBuildConfigBean.GitMaterialId,
-			Active:        true,
+			GitMaterialId:             ciBuildConfigBean.GitMaterialId,
+			BuildContextGitMaterialId: ciBuildConfigBean.BuildContextGitMaterialId,
+			Active:                    true,
 			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				CreatedBy: userId,
@@ -349,7 +597,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			templateOverrideReq.Id = savedTemplateOverride.Id
 			templateOverrideReq.CreatedOn = savedTemplateOverride.CreatedOn
 			templateOverrideReq.CreatedBy = savedTemplateOverride.CreatedBy
-			ciTemplateBean := &bean2.CiTemplateBean{
+			ciTemplateBean := &pipelineConfigBean.CiTemplateBean{
 				CiTemplateOverride: templateOverrideReq,
 				CiBuildConfig:      ciBuildConfigBean,
 				UserId:             userId,
@@ -366,7 +614,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			}
 
 		} else {
-			ciTemplateBean := &bean2.CiTemplateBean{
+			ciTemplateBean := &pipelineConfigBean.CiTemplateBean{
 				CiTemplateOverride: templateOverrideReq,
 				CiBuildConfig:      ciBuildConfigBean,
 				UserId:             userId,
@@ -384,7 +632,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 
 		}
 	} else {
-		ciTemplateBean := &bean2.CiTemplateBean{
+		ciTemplateBean := &pipelineConfigBean.CiTemplateBean{
 			CiTemplateOverride: &pipelineConfig.CiTemplateOverride{},
 			CiBuildConfig:      nil,
 			UserId:             userId,
@@ -395,38 +643,11 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		}
 	}
 
-	if len(childrenCiPipelineIds) > 0 {
-
-		ciPipelineMaterials, err := impl.ciPipelineMaterialRepository.FindByCiPipelineIdsIn(childrenCiPipelineIds)
-		if err != nil {
-			impl.logger.Errorw("error in fetching  ciPipelineMaterials", "err", err)
-			return nil, err
-		}
-		parentMaterialsMap := make(map[int]*bean.CiMaterial)
-		for _, material := range createRequest.CiMaterial {
-			parentMaterialsMap[material.GitMaterialId] = material
-		}
-		var linkedMaterials []*pipelineConfig.CiPipelineMaterial
-		for _, ciPipelineMaterial := range ciPipelineMaterials {
-			if parentMaterial, ok := parentMaterialsMap[ciPipelineMaterial.GitMaterialId]; ok {
-				pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
-					Id:       ciPipelineMaterial.Id,
-					Value:    parentMaterial.Source.Value,
-					Active:   createRequest.Active,
-					AuditLog: sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
-				}
-				linkedMaterials = append(linkedMaterials, pipelineMaterial)
-			} else {
-				impl.logger.Errorw("material not fount in patent", "gitMaterialId", ciPipelineMaterial.GitMaterialId)
-				return nil, fmt.Errorf("error while updating linked pipeline")
-			}
-		}
-		err = impl.ciPipelineMaterialRepository.Update(tx, linkedMaterials...)
-		if err != nil {
-			return nil, err
-		}
+	err = impl.syncChildrenCiPipelineMaterialsWithParent(tx, childrenCiPipelineIds, createRequest.CiMaterial, userId)
+	if err != nil {
+		impl.logger.Errorw("error in syncing ci pipleine materials for linked child pipelines", "childrenCiPipelineIds", childrenCiPipelineIds, "err", err)
+		return nil, err
 	}
-
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
@@ -435,20 +656,125 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 	return createRequest, nil
 }
 
+func (impl CiCdPipelineOrchestratorImpl) syncChildrenCiPipelineMaterialsWithParent(tx *pg.Tx, childrenCiPipelineIds []int, parentCiMaterials []*bean.CiMaterial, userId int32) error {
+	if len(childrenCiPipelineIds) == 0 {
+		return nil
+	}
+
+	childrenCiPipelineMaterials, err := impl.ciPipelineMaterialRepository.FindByCiPipelineIdsIn(childrenCiPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching  ciPipelineMaterials", "err", err)
+		return err
+	}
+
+	childrenMaterialsMap := make(map[int][]*pipelineConfig.CiPipelineMaterial)
+	for _, material := range childrenCiPipelineMaterials {
+		if _, ok := childrenMaterialsMap[material.CiPipelineId]; !ok {
+			childrenMaterialsMap[material.CiPipelineId] = make([]*pipelineConfig.CiPipelineMaterial, 0)
+		}
+		childrenMaterialsMap[material.CiPipelineId] = append(childrenMaterialsMap[material.CiPipelineId], material)
+	}
+
+	// context: linked-ci
+	// we never come here for child
+
+	var creatablePipelineMaterials, updatablePipelineMaterials []*pipelineConfig.CiPipelineMaterial
+	for childPipelineId, childPipelineMaterials := range childrenMaterialsMap {
+		creatableMaterials, updateMaterials := computeCreatableAndUpdatableMaterials(parentCiMaterials, childPipelineMaterials, childPipelineId, userId)
+		creatablePipelineMaterials = append(creatablePipelineMaterials, creatableMaterials...)
+		updatablePipelineMaterials = append(updatablePipelineMaterials, updateMaterials...)
+	}
+
+	if len(updatablePipelineMaterials) > 0 {
+		err = impl.ciPipelineMaterialRepository.Update(tx, updatablePipelineMaterials...)
+		if err != nil {
+			impl.logger.Errorw("error in updating ci pipeline materials for linked child pipelines", "err", err, "updatablePipelineMaterials", updatablePipelineMaterials)
+			return err
+		}
+	}
+
+	if len(creatablePipelineMaterials) > 0 {
+		err = impl.ciPipelineMaterialRepository.Save(tx, creatablePipelineMaterials...)
+		if err != nil {
+			impl.logger.Errorw("error in updating ci pipeline materials for linked child pipelines", "err", err, "updatablePipelineMaterials", updatablePipelineMaterials)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func computeCreatableAndUpdatableMaterials(parentCiMaterials []*bean.CiMaterial, childMaterials []*pipelineConfig.CiPipelineMaterial, childPipelineId int, userId int32) ([]*pipelineConfig.CiPipelineMaterial, []*pipelineConfig.CiPipelineMaterial) {
+	// for parent, three cases are possible
+
+	// case-1: new git-material is added
+	//	-> we cannot find this in child, but can be found at parent
+	//     this should be added at child
+
+	// case-2: existing material is updated
+	//  -> we can find this in child and parent
+	//     this should be updated at child
+
+	// case-3: material was deleted
+	//	-> we can find at child but cannot find at parent
+	//     this should be deleted at child
+
+	parentMaterialsMap := make(map[int]*bean.CiMaterial)
+	for _, material := range parentCiMaterials {
+		parentMaterialsMap[material.GitMaterialId] = material
+	}
+
+	childrenMaterialsMap := make(map[int]*pipelineConfig.CiPipelineMaterial)
+	for _, material := range childMaterials {
+		childrenMaterialsMap[material.GitMaterialId] = material
+	}
+
+	// compute updatable and deletable materials
+	var updatableMaterials []*pipelineConfig.CiPipelineMaterial
+	for _, ciPipelineMaterial := range childMaterials {
+		// this material is found at parent , which means we can update this ciPipelineMaterial
+		if parentMaterial, ok := parentMaterialsMap[ciPipelineMaterial.GitMaterialId]; ok {
+			ciPipelineMaterial.Value = parentMaterial.Source.Value
+			ciPipelineMaterial.Regex = parentMaterial.Source.Regex
+			ciPipelineMaterial.Type = parentMaterial.Source.Type
+			ciPipelineMaterial.GitMaterialId = parentMaterial.GitMaterialId
+		} else {
+			// this material is found at parent , which means we can delete this ciPipelineMaterial
+			ciPipelineMaterial.Active = false
+		}
+		ciPipelineMaterial.UpdatedOn = time.Now()
+		ciPipelineMaterial.UpdatedBy = userId
+		updatableMaterials = append(updatableMaterials, ciPipelineMaterial)
+	}
+
+	// compute creatable materials
+	var creatableMaterials []*pipelineConfig.CiPipelineMaterial
+	for _, ciPipelineMaterial := range parentCiMaterials {
+		// this material is not found at child , which means we should create this ciPipelineMaterial for child
+		if _, ok := childrenMaterialsMap[ciPipelineMaterial.GitMaterialId]; !ok {
+			creatableMaterial := &pipelineConfig.CiPipelineMaterial{
+				Value:         ciPipelineMaterial.Source.Value,
+				Active:        true,
+				Regex:         ciPipelineMaterial.Source.Regex,
+				AuditLog:      sql.NewDefaultAuditLog(userId),
+				Type:          ciPipelineMaterial.Source.Type,
+				GitMaterialId: ciPipelineMaterial.GitMaterialId,
+				CiPipelineId:  childPipelineId,
+			}
+			creatableMaterials = append(creatableMaterials, creatableMaterial)
+		}
+	}
+
+	return creatableMaterials, updatableMaterials
+
+}
+
 func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConfig.CiPipeline, request *bean.CiPatchRequest, tx *pg.Tx) error {
 
 	userId := request.UserId
-
-	p := &pipelineConfig.CiPipeline{
-		Id:                       pipeline.Id,
-		Deleted:                  true,
-		ScanEnabled:              pipeline.ScanEnabled,
-		IsManual:                 pipeline.IsManual,
-		IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
-		AuditLog:                 sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
-	}
-	err := impl.ciPipelineRepository.Update(p, tx)
+	err := impl.DeleteCiPipelineAndCiEnvMappings(tx, pipeline, userId)
 	if err != nil {
+		impl.logger.Errorw("error in deleting ciPipeline and ci-env mappings", "err", err, "pipelineId", pipeline.Id)
 		return err
 	}
 	var materials []*pipelineConfig.CiPipelineMaterial
@@ -457,13 +783,8 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConf
 		if err != nil {
 			return err
 		}
-		pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
-			Id:       material.Id,
-			Active:   false,
-			Type:     materialDbObject.Type,
-			AuditLog: sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
-		}
-		materials = append(materials, pipelineMaterial)
+		materialDbObject.Active = false
+		materials = append(materials, materialDbObject)
 	}
 
 	if request.CiPipeline.ExternalCiConfig.Id != 0 {
@@ -473,56 +794,103 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConf
 			return err
 		}
 	}
-
-	err = impl.ciPipelineMaterialRepository.Update(tx, materials...)
-
-	if !request.CiPipeline.IsDockerConfigOverridden {
-
-		CiTemplateBean := bean2.CiTemplateBean{
-			CiTemplate:         nil,
-			CiTemplateOverride: &pipelineConfig.CiTemplateOverride{},
-			CiBuildConfig:      request.CiPipeline.DockerConfigOverride.CiBuildConfig,
-			UserId:             userId,
-		}
-
-		err := impl.ciPipelineHistoryService.SaveHistory(p, materials, &CiTemplateBean, repository4.TRIGGER_DELETE)
-
+	if len(materials) > 0 {
+		err = impl.ciPipelineMaterialRepository.Update(tx, materials...)
 		if err != nil {
-			impl.logger.Errorw("error in saving delete history for ci pipeline material and ci template overridden")
+			impl.logger.Errorw("error in updating ci pipeline materials, DeleteCiPipeline", "err", err, "pipelineId", pipeline.Id)
+			return err
 		}
+	}
 
+	if !request.CiPipeline.IsDockerConfigOverridden || request.CiPipeline.IsExternal { //if pipeline is external or if config is not overridden then ignore override and ciBuildConfig values
+		err = impl.SaveHistoryOfBaseTemplate(userId, pipeline, materials)
+		if err != nil {
+			return err
+		}
 	} else {
-		CiTemplateBean := bean2.CiTemplateBean{
-			CiTemplate: nil,
-			CiTemplateOverride: &pipelineConfig.CiTemplateOverride{
-				CiPipelineId:     request.CiPipeline.Id,
-				DockerRegistryId: request.CiPipeline.DockerConfigOverride.DockerRegistry,
-				DockerRepository: request.CiPipeline.DockerConfigOverride.DockerRepository,
-				//DockerfilePath:   ciPipeline.DockerConfigOverride.DockerBuildConfig.DockerfilePath,
-				GitMaterialId: request.CiPipeline.DockerConfigOverride.CiBuildConfig.GitMaterialId,
-				Active:        false,
-				AuditLog: sql.AuditLog{
-					CreatedBy: userId,
-					CreatedOn: time.Now(),
-					UpdatedBy: userId,
-					UpdatedOn: time.Now(),
-				},
-			},
-			CiBuildConfig: request.CiPipeline.DockerConfigOverride.CiBuildConfig,
-			UserId:        userId,
-		}
-
-		err := impl.ciPipelineHistoryService.SaveHistory(p, materials, &CiTemplateBean, repository4.TRIGGER_DELETE)
-
+		CiTemplateBean := impl.CreateCiTemplateBean(request.CiPipeline.Id, request.CiPipeline.DockerConfigOverride.DockerRegistry, request.CiPipeline.DockerConfigOverride.DockerRepository, request.CiPipeline.DockerConfigOverride.CiBuildConfig.GitMaterialId, request.CiPipeline.DockerConfigOverride.CiBuildConfig, userId)
+		err = impl.ciPipelineHistoryService.SaveHistory(pipeline, materials, &CiTemplateBean, repository4.TRIGGER_DELETE)
 		if err != nil {
-			impl.logger.Errorw("error in saving delete history for ci pipeline material and ci template overridden")
+			impl.logger.Errorw("error in saving delete history for ci pipeline material and ci template overridden", "err", err)
 		}
-
 	}
 
 	return err
 }
 
+func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipelineAndCiEnvMappings(tx *pg.Tx, ciPipeline *pipelineConfig.CiPipeline, userId int32) error {
+	err := impl.deleteCiEnvMapping(tx, ciPipeline, userId)
+	if err != nil {
+		impl.logger.Errorw("error in deleting ci-env mappings", "ciPipelineId", ciPipeline.Id, "err", err)
+		return err
+	}
+	ciPipeline.Deleted = true
+	ciPipeline.Active = false
+	ciPipeline.UpdatedOn = time.Now()
+	ciPipeline.UpdatedBy = userId
+	err = impl.ciPipelineRepository.Update(ciPipeline, tx)
+	if err != nil {
+		impl.logger.Errorw("error in updating ci pipeline, DeleteCiPipeline", "pipelineId", ciPipeline.Id, "err", err)
+		return err
+	}
+	return err
+}
+
+func (impl CiCdPipelineOrchestratorImpl) CreateCiTemplateBean(ciPipelineId int, dockerRegistryId string, dockerRepository string, gitMaterialId int, ciBuildConfig *CiPipeline.CiBuildConfigBean, userId int32) pipelineConfigBean.CiTemplateBean {
+	CiTemplateBean := pipelineConfigBean.CiTemplateBean{
+		CiTemplate: nil,
+		CiTemplateOverride: &pipelineConfig.CiTemplateOverride{
+			CiPipelineId:     ciPipelineId,
+			DockerRegistryId: dockerRegistryId,
+			DockerRepository: dockerRepository,
+			//DockerfilePath:   ciPipelineRequest.DockerConfigOverride.DockerBuildConfig.DockerfilePath,
+			GitMaterialId: gitMaterialId,
+			Active:        false,
+			AuditLog: sql.AuditLog{
+				CreatedBy: userId,
+				CreatedOn: time.Now(),
+				UpdatedBy: userId,
+				UpdatedOn: time.Now(),
+			},
+		},
+		CiBuildConfig: ciBuildConfig,
+		UserId:        userId,
+	}
+	return CiTemplateBean
+}
+
+func (impl CiCdPipelineOrchestratorImpl) SaveHistoryOfBaseTemplate(userId int32, pipeline *pipelineConfig.CiPipeline, materials []*pipelineConfig.CiPipelineMaterial) error {
+	CiTemplateBean := pipelineConfigBean.CiTemplateBean{
+		CiTemplate:         nil,
+		CiTemplateOverride: &pipelineConfig.CiTemplateOverride{},
+		CiBuildConfig:      &CiPipeline.CiBuildConfigBean{},
+		UserId:             userId,
+	}
+	err := impl.ciPipelineHistoryService.SaveHistory(pipeline, materials, &CiTemplateBean, repository4.TRIGGER_DELETE)
+	if err != nil {
+		impl.logger.Errorw("error in saving delete history for ci pipeline material and ci template overridden", "err", err)
+	}
+	return err
+}
+
+func (impl CiCdPipelineOrchestratorImpl) deleteCiEnvMapping(tx *pg.Tx, ciPipeline *pipelineConfig.CiPipeline, userId int32) error {
+	CiEnvMappingObject, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(ciPipeline.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting CiEnvMappingObject ", "err", err, "ciPipelineId", ciPipeline.Id)
+		return err
+	}
+
+	if err == nil && CiEnvMappingObject != nil {
+		CiEnvMappingObject.AuditLog = sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()}
+		CiEnvMappingObject.Deleted = true
+		err = impl.ciPipelineRepository.UpdateCiEnvMapping(CiEnvMappingObject, tx)
+		if err != nil {
+			impl.logger.Errorw("error in getting CiEnvMappingObject ", "err", err, "ciPipelineId", CiEnvMappingObject.CiPipelineId)
+			return err
+		}
+	}
+	return nil
+}
 func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfigRequest, templateId int) (*bean.CiConfigRequest, error) {
 	//save pipeline in db start
 	for _, ciPipeline := range createRequest.CiPipelines {
@@ -539,7 +907,6 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		}
 		// Rollback tx on error.
 		defer tx.Rollback()
-
 		ciPipelineObject := &pipelineConfig.CiPipeline{
 			AppId:                    createRequest.AppId,
 			IsManual:                 ciPipeline.IsManual,
@@ -553,6 +920,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			Deleted:                  false,
 			ScanEnabled:              createRequest.ScanEnabled,
 			IsDockerConfigOverridden: ciPipeline.IsDockerConfigOverridden,
+			PipelineType:             string(ciPipeline.PipelineType),
 			AuditLog:                 sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 		}
 		err = impl.ciPipelineRepository.Save(ciPipelineObject, tx)
@@ -561,6 +929,57 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			impl.logger.Errorw("error in saving pipeline", "ciPipelineObject", ciPipelineObject, "err", err)
 			return nil, err
 		}
+
+		//If customTagObejct has been passed, save it
+		if !ciPipeline.EnableCustomTag {
+			err := impl.customTagService.DisableCustomTagIfExist(apiBean.CustomTag{
+				EntityKey:   pipelineConfigBean.EntityTypeCiPipelineId,
+				EntityValue: strconv.Itoa(ciPipeline.Id),
+			})
+			if err != nil {
+				return nil, err
+			}
+		} else if ciPipeline.CustomTagObject != nil && len(ciPipeline.CustomTagObject.TagPattern) != 0 {
+			customTag := &apiBean.CustomTag{
+				EntityKey:            pipelineConfigBean.EntityTypeCiPipelineId,
+				EntityValue:          strconv.Itoa(ciPipeline.Id),
+				TagPattern:           ciPipeline.CustomTagObject.TagPattern,
+				AutoIncreasingNumber: ciPipeline.CustomTagObject.CounterX,
+				Enabled:              ciPipeline.EnableCustomTag,
+			}
+			err := impl.customTagService.CreateOrUpdateCustomTag(customTag)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if createRequest.IsJob {
+			CiEnvMapping := &pipelineConfig.CiEnvMapping{
+				CiPipelineId:  ciPipeline.Id,
+				EnvironmentId: ciPipeline.EnvironmentId,
+				AuditLog:      sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+			}
+			err = impl.ciPipelineRepository.SaveCiEnvMapping(CiEnvMapping, tx)
+			if err != nil {
+				impl.logger.Errorw("error in saving pipeline", "CiEnvMapping", CiEnvMapping, "err", err)
+				return nil, err
+			}
+
+			if ciPipeline.EnvironmentId != 0 && !createRequest.IsCloneJob {
+				createJobEnvOverrideRequest := &pipelineConfigBean.CreateJobEnvOverridePayload{
+					AppId:  createRequest.AppId,
+					EnvId:  ciPipeline.EnvironmentId,
+					UserId: createRequest.UserId,
+				}
+				_, err = impl.configMapService.ConfigSecretEnvironmentCreate(createJobEnvOverrideRequest)
+				if err != nil && !strings.Contains(err.Error(), "already exists") {
+					impl.logger.Errorw("error in saving env override", "createJobEnvOverrideRequest", createJobEnvOverrideRequest, "err", err)
+					return nil, err
+				}
+
+			}
+		}
+
 		var pipelineMaterials []*pipelineConfig.CiPipelineMaterial
 		for _, r := range ciPipeline.CiMaterial {
 			material := &pipelineConfig.CiPipelineMaterial{
@@ -582,7 +1001,9 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			}
 			pipelineMaterials = append(pipelineMaterials, material)
 		}
-		err = impl.ciPipelineMaterialRepository.Save(tx, pipelineMaterials...)
+		if len(pipelineMaterials) != 0 {
+			err = impl.ciPipelineMaterialRepository.Save(tx, pipelineMaterials...)
+		}
 		if err != nil {
 			impl.logger.Errorf("error in saving pipelineMaterials in db", "materials", pipelineMaterials, "err", err)
 			return nil, err
@@ -600,7 +1021,9 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 
 		} else {
 			//save pipeline in db end
-			err = impl.AddPipelineMaterialInGitSensor(pipelineMaterials)
+			if len(pipelineMaterials) != 0 {
+				err = impl.AddPipelineMaterialInGitSensor(pipelineMaterials)
+			}
 			if err != nil {
 				impl.logger.Errorf("error in saving pipelineMaterials in git sensor", "materials", pipelineMaterials, "err", err)
 				return nil, err
@@ -612,6 +1035,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		if err != nil && pg.ErrNoRows != err {
 			return createRequest, err
 		}
+
 		if appWorkflowModel.Id > 0 {
 			appWorkflowMap := &appWorkflow.AppWorkflowMapping{
 				AppWorkflowId: appWorkflowModel.Id,
@@ -626,21 +1050,33 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			if err != nil {
 				return createRequest, err
 			}
+			createRequest.AppWorkflowMapping = appWorkflowMap
 		}
 		err = tx.Commit()
 		if err != nil {
 			return nil, err
 		}
+		// to copy artifacts in certain cases
+		if createRequest.Artifact != nil {
+			createRequest.Artifact.PipelineId = ciPipeline.Id
+			_, err := impl.CiArtifactRepository.SaveAll([]*repository.CiArtifact{createRequest.Artifact})
+			if err != nil {
+				impl.logger.Errorw("error in saving artifacts for CI pipeline", "artifact", createRequest, "err", err)
+				return nil, err
+			}
+		}
 
-		if !ciPipeline.IsExternal && ciPipeline.IsDockerConfigOverridden {
+		ciTemplateBean := &pipelineConfigBean.CiTemplateBean{}
+		if ciPipeline.IsDockerConfigOverridden {
 			//creating template override
 			templateOverride := &pipelineConfig.CiTemplateOverride{
 				CiPipelineId:     ciPipeline.Id,
 				DockerRegistryId: ciPipeline.DockerConfigOverride.DockerRegistry,
 				DockerRepository: ciPipeline.DockerConfigOverride.DockerRepository,
-				//DockerfilePath:   ciPipeline.DockerConfigOverride.DockerBuildConfig.DockerfilePath,
-				GitMaterialId: ciPipeline.DockerConfigOverride.CiBuildConfig.GitMaterialId,
-				Active:        true,
+				//DockerfilePath:   ciPipelineRequest.DockerConfigOverride.DockerBuildConfig.DockerfilePath,
+				GitMaterialId:             ciPipeline.DockerConfigOverride.CiBuildConfig.GitMaterialId,
+				BuildContextGitMaterialId: ciPipeline.DockerConfigOverride.CiBuildConfig.BuildContextGitMaterialId,
+				Active:                    true,
 				AuditLog: sql.AuditLog{
 					CreatedBy: createRequest.UserId,
 					CreatedOn: time.Now(),
@@ -648,43 +1084,32 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 					UpdatedOn: time.Now(),
 				},
 			}
-			ciTemplateBean := &bean2.CiTemplateBean{
+			ciTemplateBean = &pipelineConfigBean.CiTemplateBean{
 				CiTemplateOverride: templateOverride,
 				CiBuildConfig:      ciPipeline.DockerConfigOverride.CiBuildConfig,
 				UserId:             createRequest.UserId,
 			}
-			err = impl.createDockerRepoIfNeeded(ciPipeline.DockerConfigOverride.DockerRegistry, ciPipeline.DockerConfigOverride.DockerRepository)
-			if err != nil {
-				impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
-				return nil, err
+			if !ciPipeline.IsExternal { //pipeline is not [linked, webhook] and overridden, then create template override
+				err = impl.createDockerRepoIfNeeded(ciPipeline.DockerConfigOverride.DockerRegistry, ciPipeline.DockerConfigOverride.DockerRepository)
+				if err != nil {
+					impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
+					return nil, err
+				}
+				err := impl.ciTemplateService.Save(ciTemplateBean)
+				if err != nil {
+					return nil, err
+				}
 			}
-			err := impl.ciTemplateService.Save(ciTemplateBean)
-			if err != nil {
-				return nil, err
-			}
-			err = impl.ciPipelineHistoryService.SaveHistory(ciPipelineObject, pipelineMaterials, ciTemplateBean, repository4.TRIGGER_ADD)
-			if err != nil {
-				impl.logger.Errorw("error in saving history for ci pipeline", "err", err)
-			}
-		} else {
-			ciTemplateBean := &bean2.CiTemplateBean{
-				CiTemplateOverride: &pipelineConfig.CiTemplateOverride{},
-				CiBuildConfig:      nil,
-				UserId:             createRequest.UserId,
-			}
-
-			err = impl.ciPipelineHistoryService.SaveHistory(ciPipelineObject, pipelineMaterials, ciTemplateBean, repository4.TRIGGER_ADD)
-
-			if err != nil {
-				impl.logger.Errorw("error in saving history for ci pipeline")
-			}
-
+		}
+		err = impl.ciPipelineHistoryService.SaveHistory(ciPipelineObject, pipelineMaterials, ciTemplateBean, repository4.TRIGGER_ADD)
+		if err != nil {
+			impl.logger.Errorw("error in saving history for ci pipeline", "err", err, "ciPipelineId", ciPipelineObject.Id)
 		}
 
 		//creating ci stages after tx commit due to FK constraints
 		if ciPipeline.PreBuildStage != nil && len(ciPipeline.PreBuildStage.Steps) > 0 {
 			//creating pre stage
-			err = impl.pipelineStageService.CreateCiStage(ciPipeline.PreBuildStage, repository5.PIPELINE_STAGE_TYPE_PRE_CI, ciPipeline.Id, createRequest.UserId)
+			err = impl.pipelineStageService.CreatePipelineStage(ciPipeline.PreBuildStage, repository5.PIPELINE_STAGE_TYPE_PRE_CI, ciPipeline.Id, createRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("error in creating pre stage", "err", err, "preBuildStage", ciPipeline.PreBuildStage, "ciPipelineId", ciPipeline.Id)
 				return nil, err
@@ -692,7 +1117,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 		}
 		if ciPipeline.PostBuildStage != nil && len(ciPipeline.PostBuildStage.Steps) > 0 {
 			//creating post stage
-			err = impl.pipelineStageService.CreateCiStage(ciPipeline.PostBuildStage, repository5.PIPELINE_STAGE_TYPE_POST_CI, ciPipeline.Id, createRequest.UserId)
+			err = impl.pipelineStageService.CreatePipelineStage(ciPipeline.PostBuildStage, repository5.PIPELINE_STAGE_TYPE_POST_CI, ciPipeline.Id, createRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("error in creating post stage", "err", err, "postBuildStage", ciPipeline.PostBuildStage, "ciPipelineId", ciPipeline.Id)
 				return nil, err
@@ -747,13 +1172,13 @@ func (impl CiCdPipelineOrchestratorImpl) generateApiKey(ciPipelineId int, ciPipe
 
 func (impl CiCdPipelineOrchestratorImpl) generateExternalCiPayload(ciPipeline *bean.CiPipeline, externalCiPipeline *pipelineConfig.ExternalCiPipeline, keyPrefix string, apiKey string) *bean.CiPipeline {
 	if impl.ciConfig.ExternalCiWebhookUrl == "" {
-		hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+		hostUrl, err := impl.attributesService.GetByKey(attributesBean.HostUrlKey)
 		if err != nil {
 			impl.logger.Errorw("there is no external ci webhook url configured", "ci pipeline", ciPipeline)
 			return nil
 		}
 		if hostUrl != nil {
-			impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
+			impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, types.ExternalCiWebhookPath)
 		}
 	}
 	accessKey := keyPrefix + "." + apiKey
@@ -780,8 +1205,7 @@ func (impl CiCdPipelineOrchestratorImpl) AddPipelineMaterialInGitSensor(pipeline
 		}
 	}
 
-	_, err := impl.GitSensorClient.SavePipelineMaterial(materials)
-	return err
+	return impl.GitSensorClient.SavePipelineMaterial(context.Background(), materials)
 }
 
 func (impl CiCdPipelineOrchestratorImpl) CheckStringMatchRegex(regex string, value string) bool {
@@ -800,7 +1224,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 		}
 		labelKey := label.Key
 		labelValue := label.Value
-		err := util2.CheckIfValidLabel(labelKey, labelValue)
+		err := util3.CheckIfValidLabel(labelKey, labelValue)
 		if err != nil {
 			return nil, err
 		}
@@ -813,24 +1237,34 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	app, err := impl.createAppGroup(createRequest.AppName, createRequest.UserId, createRequest.TeamId, tx)
+	app, err := impl.createAppGroup(createRequest.AppName, createRequest.Description, createRequest.UserId, createRequest.TeamId, createRequest.AppType, tx)
 	if err != nil {
+		return nil, err
+	}
+	err = impl.storeGenericNote(tx, createRequest, app.Id)
+	if err != nil {
+		impl.logger.Errorw("error in saving generic note", "err", err, "genericNoteObj", createRequest.GenericNote, "userId", createRequest.UserId)
 		return nil, err
 	}
 	// create labels and tags with app
 	if app.Active && len(createRequest.AppLabels) > 0 {
+		appLabelMap := make(map[string]bool)
 		for _, label := range createRequest.AppLabels {
-			request := &bean.AppLabelDto{
-				AppId:     app.Id,
-				Key:       label.Key,
-				Value:     label.Value,
-				Propagate: label.Propagate,
-				UserId:    createRequest.UserId,
-			}
-			_, err := impl.appLabelsService.Create(request, tx)
-			if err != nil {
-				impl.logger.Errorw("error on creating labels for app id ", "err", err, "appId", app.Id)
-				return nil, err
+			uniqueLabelExists := fmt.Sprintf("%s:%s:%t", label.Key, label.Value, label.Propagate)
+			if _, ok := appLabelMap[uniqueLabelExists]; !ok {
+				appLabelMap[uniqueLabelExists] = true
+				request := &bean.AppLabelDto{
+					AppId:     app.Id,
+					Key:       label.Key,
+					Value:     label.Value,
+					Propagate: label.Propagate,
+					UserId:    createRequest.UserId,
+				}
+				_, err := impl.appLabelsService.Create(request, tx)
+				if err != nil {
+					impl.logger.Errorw("error on creating labels for app id ", "err", err, "appId", app.Id)
+					return nil, err
+				}
 			}
 		}
 	}
@@ -840,7 +1274,27 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 		return nil, err
 	}
 	createRequest.Id = app.Id
+	if createRequest.AppType == helper.Job {
+		createRequest.AppName = app.DisplayName
+	}
 	return createRequest, nil
+}
+
+func (impl CiCdPipelineOrchestratorImpl) storeGenericNote(tx *pg.Tx, createRequest *bean.CreateAppDTO, appId int) error {
+	if createRequest.GenericNote != nil && createRequest.GenericNote.Description != "" {
+		genericNoteObj := repository3.GenericNote{
+			Description:    createRequest.GenericNote.Description,
+			IdentifierType: repository3.AppType,
+			Identifier:     appId,
+		}
+		note, err := impl.genericNoteService.Save(tx, &genericNoteObj, createRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in saving description", "err", err, "genericNoteObj", genericNoteObj, "userId", createRequest.UserId)
+			return err
+		}
+		createRequest.GenericNote = note
+	}
+	return nil
 }
 
 func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) error {
@@ -867,7 +1321,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 
 	impl.logger.Debug("deleting materials in git_sensor")
 	for _, m := range materials {
-		err = impl.updateRepositoryToGitSensor(m)
+		err = impl.updateRepositoryToGitSensor(m, "")
 		if err != nil {
 			impl.logger.Errorw("error in updating to git-sensor", "err", err)
 			return err
@@ -896,7 +1350,7 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 		return err
 	}
 	//deleting auth roles entries for this project
-	err = impl.userAuthService.DeleteRoles(repository3.APP_TYPE, app.AppName, tx, "")
+	err = impl.userAuthService.DeleteRoles(bean3.APP_TYPE, app.AppName, tx, "", "")
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
 		return err
@@ -909,6 +1363,11 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) erro
 }
 
 func (impl CiCdPipelineOrchestratorImpl) CreateMaterials(createMaterialRequest *bean.CreateMaterialDTO) (*bean.CreateMaterialDTO, error) {
+	tx, err := impl.transactionManager.StartTx()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
 	existingMaterials, err := impl.materialRepository.FindByAppId(createMaterialRequest.AppId)
 	if err != nil {
 		impl.logger.Errorw("err", "err", err)
@@ -932,16 +1391,22 @@ func (impl CiCdPipelineOrchestratorImpl) CreateMaterials(createMaterialRequest *
 	}
 	var materials []*bean.GitMaterial
 	for _, inputMaterial := range createMaterialRequest.Material {
-		m, err := impl.createMaterial(inputMaterial, createMaterialRequest.AppId, createMaterialRequest.UserId)
+		inputMaterial.UpdateSanitisedGitRepoUrl()
+		m, err := impl.createMaterial(tx, inputMaterial, createMaterialRequest.AppId, createMaterialRequest.UserId)
 		inputMaterial.Id = m.Id
 		if err != nil {
 			return nil, err
 		}
 		materials = append(materials, inputMaterial)
 	}
-	err = impl.addRepositoryToGitSensor(materials)
+	err = impl.addRepositoryToGitSensor(materials, "")
 	if err != nil {
 		impl.logger.Errorw("error in updating to sensor", "err", err)
+		return nil, err
+	}
+	err = impl.transactionManager.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing tx Create material", "err", err, "materials", materials)
 		return nil, err
 	}
 	impl.logger.Debugw("all materials are ", "materials", materials)
@@ -949,21 +1414,31 @@ func (impl CiCdPipelineOrchestratorImpl) CreateMaterials(createMaterialRequest *
 }
 
 func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.UpdateMaterialDTO) (*bean.UpdateMaterialDTO, error) {
-	updatedMaterial, err := impl.updateMaterial(updateMaterialDTO)
+	tx, err := impl.transactionManager.StartTx()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	updatedMaterial, err := impl.updateMaterial(tx, updateMaterialDTO)
 	if err != nil {
 		impl.logger.Errorw("err", "err", err)
 		return nil, err
 	}
 
-	err = impl.updateRepositoryToGitSensor(updatedMaterial)
+	err = impl.updateRepositoryToGitSensor(updatedMaterial, "")
 	if err != nil {
 		impl.logger.Errorw("error in updating to git-sensor", "err", err)
+		return nil, err
+	}
+	err = impl.transactionManager.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing tx Update material", "err", err)
 		return nil, err
 	}
 	return updateMaterialDTO, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *pipelineConfig.GitMaterial) error {
+func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *pipelineConfig.GitMaterial, cloningMode string) error {
 	sensorMaterial := &gitSensor.GitMaterial{
 		Name:             material.Name,
 		Url:              material.Url,
@@ -972,12 +1447,13 @@ func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *p
 		CheckoutLocation: material.CheckoutPath,
 		Deleted:          !material.Active,
 		FetchSubmodules:  material.FetchSubmodules,
+		FilterPattern:    material.FilterPattern,
+		CloningMode:      cloningMode,
 	}
-	_, err := impl.GitSensorClient.UpdateRepo(sensorMaterial)
-	return err
+	return impl.GitSensorClient.UpdateRepo(context.Background(), sensorMaterial)
 }
 
-func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*bean.GitMaterial) error {
+func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*bean.GitMaterial, cloningMode string) error {
 	var sensorMaterials []*gitSensor.GitMaterial
 	for _, material := range materials {
 		sensorMaterial := &gitSensor.GitMaterial{
@@ -987,33 +1463,59 @@ func (impl CiCdPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*b
 			GitProviderId:   material.GitProviderId,
 			Deleted:         false,
 			FetchSubmodules: material.FetchSubmodules,
+			FilterPattern:   material.FilterPattern,
+			CloningMode:     cloningMode,
 		}
 		sensorMaterials = append(sensorMaterials, sensorMaterial)
 	}
-	_, err := impl.GitSensorClient.AddRepo(sensorMaterials)
-	return err
+	return impl.GitSensorClient.AddRepo(context.Background(), sensorMaterials)
 }
 
 // FIXME: not thread safe
-func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name string, userId int32, teamId int, tx *pg.Tx) (*app2.App, error) {
+func (impl CiCdPipelineOrchestratorImpl) createAppGroup(name, description string, userId int32, teamId int, appType helper.AppType, tx *pg.Tx) (*app2.App, error) {
 	app, err := impl.appRepository.FindActiveByName(name)
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
-	if app != nil && app.Id > 0 {
-		impl.logger.Warnw("app already exists", "name", name)
-		err = &util.ApiError{
-			Code:            constants.AppAlreadyExists.Code,
-			InternalMessage: "app already exists",
-			UserMessage:     constants.AppAlreadyExists.UserMessage(name),
+	if appType != helper.Job {
+		if app != nil && app.Id > 0 {
+			impl.logger.Warnw("app already exists", "name", name)
+			err = &util.ApiError{
+				Code:            constants.AppAlreadyExists.Code,
+				InternalMessage: "app already exists",
+				UserMessage:     constants.AppAlreadyExists.UserMessage(name),
+			}
+			return nil, err
 		}
-		return nil, err
+	} else {
+		job, err := impl.appRepository.FindJobByDisplayName(name)
+		if err != nil && err != pg.ErrNoRows {
+			return nil, err
+		}
+		if job != nil && job.Id > 0 {
+			impl.logger.Warnw("job already exists", "name", name)
+			err = &util.ApiError{
+				Code:            constants.AppAlreadyExists.Code,
+				InternalMessage: "job already exists",
+				UserMessage:     constants.AppAlreadyExists.UserMessage(name),
+			}
+			return nil, err
+		}
+	}
+
+	displayName := name
+	appName := name
+	if appType == helper.Job {
+		appName = name + "-" + util2.Generate(8) + "J" + CiPipeline.UniquePlaceHolderForAppName
 	}
 	pg := &app2.App{
-		Active:   true,
-		AppName:  name,
-		TeamId:   teamId,
-		AuditLog: sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+		Active:      true,
+		AppName:     appName,
+		DisplayName: displayName,
+		Description: description,
+		TeamId:      teamId,
+		AppType:     appType,
+		AuditLog:    sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
 	err = impl.appRepository.SaveWithTxn(pg, tx)
 	if err != nil {
@@ -1068,7 +1570,7 @@ func (impl CiCdPipelineOrchestratorImpl) validateCheckoutPathsForMultiGit(allPat
 	return nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) updateMaterial(updateMaterialDTO *bean.UpdateMaterialDTO) (*pipelineConfig.GitMaterial, error) {
+func (impl CiCdPipelineOrchestratorImpl) updateMaterial(tx *pg.Tx, updateMaterialDTO *bean.UpdateMaterialDTO) (*pipelineConfig.GitMaterial, error) {
 	existingMaterials, err := impl.materialRepository.FindByAppId(updateMaterialDTO.AppId)
 	if err != nil {
 		impl.logger.Errorw("err", "err", err)
@@ -1097,6 +1599,7 @@ func (impl CiCdPipelineOrchestratorImpl) updateMaterial(updateMaterialDTO *bean.
 		impl.logger.Errorw("validation err", "err", err)
 		return nil, validationErr
 	}
+	updateMaterialDTO.Material.UpdateSanitisedGitRepoUrl()
 	currentMaterial.Url = updateMaterialDTO.Material.Url
 	basePath := path.Base(updateMaterialDTO.Material.Url)
 	basePath = strings.TrimSuffix(basePath, ".git")
@@ -1105,21 +1608,22 @@ func (impl CiCdPipelineOrchestratorImpl) updateMaterial(updateMaterialDTO *bean.
 	currentMaterial.GitProviderId = updateMaterialDTO.Material.GitProviderId
 	currentMaterial.CheckoutPath = updateMaterialDTO.Material.CheckoutPath
 	currentMaterial.FetchSubmodules = updateMaterialDTO.Material.FetchSubmodules
+	currentMaterial.FilterPattern = updateMaterialDTO.Material.FilterPattern
 	currentMaterial.AuditLog = sql.AuditLog{UpdatedBy: updateMaterialDTO.UserId, CreatedBy: currentMaterial.CreatedBy, UpdatedOn: time.Now(), CreatedOn: currentMaterial.CreatedOn}
 
-	err = impl.materialRepository.UpdateMaterial(currentMaterial)
+	err = impl.materialRepository.UpdateMaterial(tx, currentMaterial)
 
 	if err != nil {
 		impl.logger.Errorw("error in updating material", "material", currentMaterial, "err", err)
 		return nil, err
 	}
 
-	err = impl.gitMaterialHistoryService.CreateMaterialHistory(currentMaterial)
+	err = impl.gitMaterialHistoryService.CreateMaterialHistory(tx, currentMaterial)
 
 	return currentMaterial, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) createMaterial(inputMaterial *bean.GitMaterial, appId int, userId int32) (*pipelineConfig.GitMaterial, error) {
+func (impl CiCdPipelineOrchestratorImpl) createMaterial(tx *pg.Tx, inputMaterial *bean.GitMaterial, appId int, userId int32) (*pipelineConfig.GitMaterial, error) {
 	basePath := path.Base(inputMaterial.Url)
 	basePath = strings.TrimSuffix(basePath, ".git")
 	material := &pipelineConfig.GitMaterial{
@@ -1130,17 +1634,15 @@ func (impl CiCdPipelineOrchestratorImpl) createMaterial(inputMaterial *bean.GitM
 		Active:          true,
 		CheckoutPath:    inputMaterial.CheckoutPath,
 		FetchSubmodules: inputMaterial.FetchSubmodules,
+		FilterPattern:   inputMaterial.FilterPattern,
 		AuditLog:        sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
-	err := impl.materialRepository.SaveMaterial(material)
-
+	err := impl.materialRepository.SaveMaterial(tx, material)
 	if err != nil {
 		impl.logger.Errorw("error in saving material", "material", material, "err", err)
 		return nil, err
 	}
-
-	err = impl.gitMaterialHistoryService.CreateMaterialHistory(material)
-
+	err = impl.gitMaterialHistoryService.CreateMaterialHistory(tx, material)
 	return material, err
 }
 
@@ -1152,11 +1654,19 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean
 		preTriggerType = pipelineRequest.PreStage.TriggerType
 	}
 
+	if pipelineRequest.PreDeployStage != nil {
+		preTriggerType = pipelineRequest.PreDeployStage.TriggerType
+	}
+
 	postStageConfig := ""
 	postTriggerType := pipelineConfig.TriggerType("")
 	if len(pipelineRequest.PostStage.Config) > 0 {
 		postStageConfig = pipelineRequest.PostStage.Config
 		postTriggerType = pipelineRequest.PostStage.TriggerType
+	}
+
+	if pipelineRequest.PostDeployStage != nil {
+		postTriggerType = pipelineRequest.PostDeployStage.TriggerType
 	}
 
 	preStageConfigMapSecretNames, err := json.Marshal(&pipelineRequest.PreStageConfigMapSecretNames)
@@ -1170,6 +1680,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean
 		impl.logger.Error(err)
 		return 0, err
 	}
+
 	env, err := impl.envRepository.FindById(pipelineRequest.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in getting environment by id", "err", err)
@@ -1217,20 +1728,23 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean
 	return pipeline.Id, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.CDPipelineConfigObject, userId int32, tx *pg.Tx) (err error) {
-	pipeline, err := impl.pipelineRepository.FindById(pipelineRequest.Id)
+func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.CDPipelineConfigObject, userId int32, tx *pg.Tx) (pipeline *pipelineConfig.Pipeline, err error) {
+	pipeline, err = impl.pipelineRepository.FindById(pipelineRequest.Id)
 	if err == pg.ErrNoRows {
-		return fmt.Errorf("no cd pipeline found")
+		return pipeline, fmt.Errorf("no cd pipeline found")
 	} else if err != nil {
-		return err
+		return pipeline, err
 	} else if pipeline.Id == 0 {
-		return fmt.Errorf("no cd pipeline found")
+		return pipeline, fmt.Errorf("no cd pipeline found")
 	}
 	preStageConfig := ""
 	preTriggerType := pipelineConfig.TriggerType("")
 	if len(pipelineRequest.PreStage.Config) > 0 {
 		preStageConfig = pipelineRequest.PreStage.Config
 		preTriggerType = pipelineRequest.PreStage.TriggerType
+	}
+	if pipelineRequest.PreDeployStage != nil {
+		preTriggerType = pipelineRequest.PreDeployStage.TriggerType
 	}
 
 	postStageConfig := ""
@@ -1239,24 +1753,27 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 		postStageConfig = pipelineRequest.PostStage.Config
 		postTriggerType = pipelineRequest.PostStage.TriggerType
 	}
+	if pipelineRequest.PostDeployStage != nil {
+		postTriggerType = pipelineRequest.PostDeployStage.TriggerType
+	}
 
 	preStageConfigMapSecretNames, err := json.Marshal(&pipelineRequest.PreStageConfigMapSecretNames)
 	if err != nil {
 		impl.logger.Error(err)
-		return err
+		return pipeline, err
 	}
 
 	postStageConfigMapSecretNames, err := json.Marshal(&pipelineRequest.PostStageConfigMapSecretNames)
 	if err != nil {
 		impl.logger.Error(err)
-		return err
+		return pipeline, err
 	}
 
 	pipeline.TriggerType = pipelineRequest.TriggerType
-	pipeline.PreStageConfig = preStageConfig
-	pipeline.PostStageConfig = postStageConfig
 	pipeline.PreTriggerType = preTriggerType
 	pipeline.PostTriggerType = postTriggerType
+	pipeline.PreStageConfig = preStageConfig
+	pipeline.PostStageConfig = postStageConfig
 	pipeline.PreStageConfigMapSecretNames = string(preStageConfigMapSecretNames)
 	pipeline.PostStageConfigMapSecretNames = string(postStageConfigMapSecretNames)
 	pipeline.RunPreStageInEnv = pipelineRequest.RunPreStageInEnv
@@ -1266,27 +1783,62 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.
 	err = impl.pipelineRepository.Update(pipeline, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating cd pipeline", "err", err, "pipeline", pipeline)
-		return err
+		return pipeline, err
 	}
 	if pipeline.PreStageConfig != "" {
 		err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, tx, repository4.PRE_CD_TYPE, false, 0, time.Time{})
 		if err != nil {
 			impl.logger.Errorw("error in creating pre cd script entry", "err", err, "pipeline", pipeline)
-			return err
+			return pipeline, err
 		}
 	}
 	if pipeline.PostStageConfig != "" {
 		err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, tx, repository4.POST_CD_TYPE, false, 0, time.Time{})
 		if err != nil {
 			impl.logger.Errorw("error in creating post cd script entry", "err", err, "pipeline", pipeline)
-			return err
+			return pipeline, err
 		}
 	}
-	return err
+
+	if pipelineRequest.PreDeployStage != nil {
+		//updating pre stage
+		err = impl.pipelineStageService.UpdatePipelineStage(pipelineRequest.PreDeployStage, repository5.PIPELINE_STAGE_TYPE_PRE_CD, pipelineRequest.Id, userId)
+		if err != nil {
+			impl.logger.Errorw("error in updating pre stage", "err", err, "preDeployStage", pipelineRequest.PreDeployStage, "cdPipelineId", pipelineRequest.Id)
+			return pipeline, err
+		}
+	}
+	if pipelineRequest.PostDeployStage != nil {
+		//updating post stage
+		err = impl.pipelineStageService.UpdatePipelineStage(pipelineRequest.PostDeployStage, repository5.PIPELINE_STAGE_TYPE_POST_CD, pipelineRequest.Id, userId)
+		if err != nil {
+			impl.logger.Errorw("error in updating post stage", "err", err, "postDeployStage", pipelineRequest.PostDeployStage, "cdPipelineId", pipelineRequest.Id)
+			return pipeline, err
+		}
+	}
+	return pipeline, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) DeleteCdPipeline(pipelineId int, tx *pg.Tx) error {
-	return impl.pipelineRepository.Delete(pipelineId, tx)
+func (impl CiCdPipelineOrchestratorImpl) DeleteCdPipeline(pipelineId int, userId int32, tx *pg.Tx) error {
+	return impl.pipelineRepository.Delete(pipelineId, userId, tx)
+}
+func (impl CiCdPipelineOrchestratorImpl) getPipelineIdAndPrePostStageMapping(dbPipelines []*pipelineConfig.Pipeline) (map[int][]*pipelineConfigBean.PipelineStageDto, error) {
+	var err error
+	pipelineIdAndPrePostStageMapping := make(map[int][]*pipelineConfigBean.PipelineStageDto, len(dbPipelines))
+	dbPipelineIds := make([]int, 0, len(dbPipelines))
+	pipelineMap := make(map[int]*pipelineConfig.Pipeline, len(dbPipelines))
+	for _, pipeline := range dbPipelines {
+		pipelineMap[pipeline.Id] = pipeline
+		dbPipelineIds = append(dbPipelineIds, pipeline.Id)
+	}
+	if len(dbPipelineIds) > 0 {
+		pipelineIdAndPrePostStageMapping, err = impl.pipelineStageService.GetCdPipelineStageDataDeepCopyForPipelineIds(dbPipelineIds, pipelineMap)
+		if err != nil {
+			impl.logger.Errorw("error in fetching pipelinePrePostStageMapping", "err", err, "cdPipelineIds", dbPipelineIds)
+			return nil, err
+		}
+	}
+	return pipelineIdAndPrePostStageMapping, nil
 }
 
 func (impl CiCdPipelineOrchestratorImpl) PipelineExists(name string) (bool, error) {
@@ -1298,9 +1850,30 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 	if err != nil {
 		impl.logger.Errorw("error in fetching cdPipeline", "appId", appId, "err", err)
 	}
+	pipelineIdAndPrePostStageMapping, err := impl.getPipelineIdAndPrePostStageMapping(dbPipelines)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipelineIdAndPrePostStageMapping", "err", err)
+		return nil, err
+	}
+
+	isAppLevelGitOpsConfigured := false
+	if len(dbPipelines) != 0 {
+		isAppLevelGitOpsConfigured, err = impl.chartService.IsGitOpsRepoConfiguredForDevtronApp(appId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching latest chart for app by appId")
+			return nil, err
+		}
+	}
 
 	var pipelines []*bean.CDPipelineConfigObject
 	for _, dbPipeline := range dbPipelines {
+
+		envDeploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(dbPipeline.AppId, dbPipeline.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", appId, "envId", dbPipeline.EnvironmentId, "err", err)
+			return nil, err
+		}
+
 		preStage := bean.CdStage{}
 		if len(dbPipeline.PreStageConfig) > 0 {
 			preStage.Name = "Pre-Deployment"
@@ -1336,6 +1909,8 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			Id:                            dbPipeline.Id,
 			Name:                          dbPipeline.Name,
 			EnvironmentId:                 dbPipeline.EnvironmentId,
+			EnvironmentName:               dbPipeline.Environment.Name,
+			Description:                   dbPipeline.Environment.Description,
 			CiPipelineId:                  dbPipeline.CiPipelineId,
 			TriggerType:                   dbPipeline.TriggerType,
 			PreStage:                      preStage,
@@ -1344,8 +1919,15 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
 			PreStageConfigMapSecretNames:  preStageConfigmapSecrets,
 			PostStageConfigMapSecretNames: postStageConfigmapSecrets,
-			DeploymentAppType:             dbPipeline.DeploymentAppType,
+			DeploymentAppType:             envDeploymentConfig.DeploymentAppType,
+			DeploymentAppCreated:          dbPipeline.DeploymentAppCreated,
 			DeploymentAppDeleteRequest:    dbPipeline.DeploymentAppDeleteRequest,
+			IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
+			IsGitOpsRepoNotConfigured:     !isAppLevelGitOpsConfigured,
+		}
+		if pipelineStages, ok := pipelineIdAndPrePostStageMapping[dbPipeline.Id]; ok {
+			pipeline.PreDeployStage = pipelineStages[0]
+			pipeline.PostDeployStage = pipelineStages[1]
 		}
 		pipelines = append(pipelines, pipeline)
 	}
@@ -1361,75 +1943,102 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 	return cdPipelines, err
 }
 
-func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int) (cdPipelines *bean.CdPipelines, err error) {
-	dbPipelines, err := impl.pipelineRepository.FindActiveByEnvId(envId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in fetching cdPipeline", "envId", envId, "err", err)
+func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, requestedAppIds []int) (cdPipelines *bean.CdPipelines, err error) {
+	var dbPipelines []*pipelineConfig.Pipeline
+	appIds := make([]int, 0, len(requestedAppIds)*envId)
+	if len(requestedAppIds) > 0 {
+		appIds, err = impl.pipelineRepository.FindActivePipelineAppIdsByInFilter(envId, requestedAppIds)
+	} else {
+		appIds, err = impl.pipelineRepository.FindActivePipelineAppIdsByEnvId(envId)
+	}
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching pipeline's appIds", "envId", envId, "requestedAppIds", requestedAppIds, "err", err)
 		return nil, err
 	}
-	var appIds []int
-	for _, pipeline := range dbPipelines {
-		appIds = append(appIds, pipeline.AppId)
-	}
+
 	if len(appIds) == 0 {
-		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no cd pipeline found"}
+		err = &util.ApiError{Code: "404", HttpStatusCode: http.StatusNotFound, UserMessage: "no cd pipeline found"}
 		return cdPipelines, err
 	}
+
+	// fetch other environments also which are linked with this app
 	dbPipelines, err = impl.pipelineRepository.FindActiveByAppIds(appIds)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error fetching pipelines for env id", "err", err)
 		return nil, err
 	}
-
-	var pipelines []*bean.CDPipelineConfigObject
+	pipelineIdAndPrePostStageMapping, err := impl.getPipelineIdAndPrePostStageMapping(dbPipelines)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipelineIdAndPrePostStageMapping", "err", err)
+		return nil, err
+	}
+	appIdAppLevelGitOpsConfiguredMap, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApps(appIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching latest chart details for app by appId")
+		return nil, err
+	}
+	pipelines := make([]*bean.CDPipelineConfigObject, 0, len(dbPipelines))
+	pipelineIdDeploymentTypeMap, err := impl.deploymentConfigService.GetDeploymentAppTypeForCDInBulk(dbPipelines)
+	if err != nil {
+		impl.logger.Errorw("error, GetDeploymentAppTypeForCDInBulk", "pipelines", dbPipelines, "err", err)
+		return nil, err
+	}
 	for _, dbPipeline := range dbPipelines {
-		preStage := bean.CdStage{}
+		pipeline := &bean.CDPipelineConfigObject{
+			Id:                        dbPipeline.Id,
+			Name:                      dbPipeline.Name,
+			EnvironmentId:             dbPipeline.EnvironmentId,
+			EnvironmentName:           dbPipeline.Environment.Name,
+			CiPipelineId:              dbPipeline.CiPipelineId,
+			TriggerType:               dbPipeline.TriggerType,
+			RunPreStageInEnv:          dbPipeline.RunPreStageInEnv,
+			RunPostStageInEnv:         dbPipeline.RunPostStageInEnv,
+			DeploymentAppType:         pipelineIdDeploymentTypeMap[dbPipeline.Id],
+			AppName:                   dbPipeline.App.AppName,
+			AppId:                     dbPipeline.AppId,
+			TeamId:                    dbPipeline.App.TeamId,
+			EnvironmentIdentifier:     dbPipeline.Environment.EnvironmentIdentifier,
+			IsVirtualEnvironment:      dbPipeline.Environment.IsVirtualEnvironment,
+			IsGitOpsRepoNotConfigured: !appIdAppLevelGitOpsConfiguredMap[dbPipeline.AppId],
+		}
 		if len(dbPipeline.PreStageConfig) > 0 {
+			preStage := bean.CdStage{}
 			preStage.Name = "Pre-Deployment"
 			preStage.Config = dbPipeline.PreStageConfig
 			preStage.TriggerType = dbPipeline.PreTriggerType
+			pipeline.PreStage = preStage
 		}
-		postStage := bean.CdStage{}
 		if len(dbPipeline.PostStageConfig) > 0 {
+			postStage := bean.CdStage{}
 			postStage.Name = "Post-Deployment"
 			postStage.Config = dbPipeline.PostStageConfig
 			postStage.TriggerType = dbPipeline.PostTriggerType
+			pipeline.PostStage = postStage
+		}
+		if pipelineStages, ok := pipelineIdAndPrePostStageMapping[dbPipeline.Id]; ok {
+			pipeline.PreDeployStage = pipelineStages[0]
+			pipeline.PostDeployStage = pipelineStages[1]
 		}
 
-		preStageConfigmapSecrets := bean.PreStageConfigMapSecretNames{}
-		postStageConfigmapSecrets := bean.PostStageConfigMapSecretNames{}
-
 		if dbPipeline.PreStageConfigMapSecretNames != "" {
+			preStageConfigmapSecrets := bean.PreStageConfigMapSecretNames{}
 			err = json.Unmarshal([]byte(dbPipeline.PreStageConfigMapSecretNames), &preStageConfigmapSecrets)
 			if err != nil {
 				impl.logger.Errorw("unmarshal error", "err", err)
 				return nil, err
 			}
+			pipeline.PreStageConfigMapSecretNames = preStageConfigmapSecrets
 		}
 		if dbPipeline.PostStageConfigMapSecretNames != "" {
+			postStageConfigmapSecrets := bean.PostStageConfigMapSecretNames{}
 			err = json.Unmarshal([]byte(dbPipeline.PostStageConfigMapSecretNames), &postStageConfigmapSecrets)
 			if err != nil {
 				impl.logger.Errorw("unmarshal error", "err", err)
 				return nil, err
 			}
+			pipeline.PostStageConfigMapSecretNames = postStageConfigmapSecrets
 		}
 
-		pipeline := &bean.CDPipelineConfigObject{
-			Id:                            dbPipeline.Id,
-			Name:                          dbPipeline.Name,
-			EnvironmentId:                 dbPipeline.EnvironmentId,
-			CiPipelineId:                  dbPipeline.CiPipelineId,
-			TriggerType:                   dbPipeline.TriggerType,
-			PreStage:                      preStage,
-			PostStage:                     postStage,
-			RunPreStageInEnv:              dbPipeline.RunPreStageInEnv,
-			RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
-			PreStageConfigMapSecretNames:  preStageConfigmapSecrets,
-			PostStageConfigMapSecretNames: postStageConfigmapSecrets,
-			DeploymentAppType:             dbPipeline.DeploymentAppType,
-			AppName:                       dbPipeline.App.AppName,
-			AppId:                         dbPipeline.AppId,
-		}
 		pipelines = append(pipelines, pipeline)
 	}
 	cdPipelines = &bean.CdPipelines{
@@ -1447,6 +2056,11 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 	dbPipelines, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cdPipeline", "appId", appId, "err", err)
+	}
+	pipelineIdAndPrePostStageMapping, err := impl.getPipelineIdAndPrePostStageMapping(dbPipelines)
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipelineIdAndPrePostStageMapping", "err", err)
+		return nil, err
 	}
 	var pipelines []*bean.CDPipelineConfigObject
 	for _, dbPipeline := range dbPipelines {
@@ -1485,6 +2099,11 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 			impl.logger.Error(err)
 			return nil, err
 		}
+		isAppLevelGitOpsConfigured, err := impl.chartService.IsGitOpsRepoConfiguredForDevtronApp(appId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching latest chart details for app by appId")
+			return nil, err
+		}
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                            dbPipeline.Id,
 			Name:                          dbPipeline.Name,
@@ -1498,6 +2117,11 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForAppAndEnv(appId int, e
 			RunPreStageInEnv:              dbPipeline.RunPreStageInEnv,
 			RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
 			CdArgoSetup:                   env.Cluster.CdArgoSetup,
+			IsGitOpsRepoNotConfigured:     !isAppLevelGitOpsConfigured,
+		}
+		if pipelineStages, ok := pipelineIdAndPrePostStageMapping[dbPipeline.Id]; ok {
+			pipeline.PreDeployStage = pipelineStages[0]
+			pipeline.PostDeployStage = pipelineStages[1]
 		}
 		pipelines = append(pipelines, pipeline)
 	}
@@ -1548,6 +2172,10 @@ func (impl CiCdPipelineOrchestratorImpl) createDockerRepoIfNeeded(dockerRegistry
 }
 func (impl CiCdPipelineOrchestratorImpl) CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey string) error {
 	impl.logger.Debugw("attempting ecr repo creation ", "repo", dockerRepository)
+	if impl.ciConfig.SkipCreatingEcrRepo {
+		impl.logger.Warnw("not creating ecr repo, set SKIP_CREATING_ECR_REPO flag false to enable")
+		return nil
+	}
 	err := util.CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey)
 	if err != nil {
 		if errors1.IsAlreadyExists(err) {
@@ -1559,4 +2187,208 @@ func (impl CiCdPipelineOrchestratorImpl) CreateEcrRepo(dockerRepository, AWSRegi
 		}
 	}
 	return nil
+}
+
+func (impl CiCdPipelineOrchestratorImpl) AddPipelineToTemplate(createRequest *bean.CiConfigRequest, isSwitchCiPipelineRequest bool) (resp *bean.CiConfigRequest, err error) {
+	for _, ciPipeline := range createRequest.CiPipelines {
+		if !ciPipeline.PipelineType.IsValidPipelineType() {
+			impl.logger.Debugw(" Invalid PipelineType", "ciPipeline.PipelineType", ciPipeline.PipelineType)
+			errorMessage := fmt.Sprintf(CiPipeline.PIPELINE_TYPE_IS_NOT_VALID, ciPipeline.PipelineType)
+			return nil, util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithInternalMessage(errorMessage).WithUserMessage(errorMessage)
+		}
+	}
+	if createRequest.AppWorkflowId == 0 {
+		// create workflow
+		wf := &appWorkflow.AppWorkflow{
+			Name:   fmt.Sprintf("wf-%d-%s", createRequest.AppId, util2.Generate(4)),
+			AppId:  createRequest.AppId,
+			Active: true,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				UpdatedOn: time.Now(),
+				CreatedBy: createRequest.UserId,
+				UpdatedBy: createRequest.UserId,
+			},
+		}
+		savedAppWf, err := impl.appWorkflowRepository.SaveAppWorkflow(wf)
+		if err != nil {
+			impl.logger.Errorw("err", err)
+			return nil, err
+		}
+		// workflow creation ends
+		createRequest.AppWorkflowId = savedAppWf.Id
+	}
+	//single ci in same wf validation
+	workflowMapping, err := impl.appWorkflowRepository.FindWFCIMappingByWorkflowId(createRequest.AppWorkflowId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching workflow mapping for ci validation", "err", err)
+		return nil, err
+	}
+
+	if !isSwitchCiPipelineRequest && len(workflowMapping) > 0 {
+		return nil, &util.ApiError{
+			InternalMessage:   "pipeline already exists",
+			UserDetailMessage: fmt.Sprintf("pipeline already exists in workflow"),
+			UserMessage:       fmt.Sprintf("pipeline already exists in workflow")}
+	}
+
+	createRequest, err = impl.CreateCiConf(createRequest, createRequest.Id)
+	if err != nil {
+		return nil, err
+	}
+	return createRequest, err
+}
+
+func (impl CiCdPipelineOrchestratorImpl) GetSourceCiDownStreamFilters(ctx context.Context, sourceCiPipelineId int) (*CiPipeline.SourceCiDownStreamEnv, error) {
+	ctx, span := otel.Tracer("orchestrator").Start(ctx, "GetSourceCiDownStreamFilters")
+	defer span.End()
+	linkedCiPipelines, err := impl.ciPipelineRepository.GetLinkedCiPipelines(ctx, sourceCiPipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in getting linked Ci pipelines for given source Ci pipeline Id ", "sourceCiPipelineId", sourceCiPipelineId, "err", err)
+		return &CiPipeline.SourceCiDownStreamEnv{
+			EnvNames: []string{},
+		}, err
+	}
+	envNames, err := impl.getAttachedEnvNamesByCiIds(ctx, linkedCiPipelines)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment names for linked Ci pipelines", "linkedCiPipelines", linkedCiPipelines, "err", err)
+		return &CiPipeline.SourceCiDownStreamEnv{
+			EnvNames: []string{},
+		}, err
+	}
+	res := &CiPipeline.SourceCiDownStreamEnv{
+		EnvNames: envNames,
+	}
+	return res, nil
+}
+
+func (impl CiCdPipelineOrchestratorImpl) getAttachedEnvNamesByCiIds(ctx context.Context, linkedCiPipelines []*pipelineConfig.CiPipeline) ([]string, error) {
+	ctx, span := otel.Tracer("orchestrator").Start(ctx, "getAttachedEnvNamesByCiIds")
+	defer span.End()
+	var ciPipelineIds []int
+	for _, ciPipeline := range linkedCiPipelines {
+		ciPipelineIds = append(ciPipelineIds, ciPipeline.Id)
+	}
+	pipelines, err := impl.pipelineRepository.FindWithEnvironmentByCiIds(ctx, ciPipelineIds)
+	if util.IsErrNoRows(err) {
+		impl.logger.Info("no pipelines available for these ciPipelineIds", "ciPipelineIds", ciPipelineIds)
+		return []string{}, nil
+	} else if err != nil {
+		impl.logger.Errorw("error in getting pipelines for these ciPipelineIds ", "ciPipelineIds", ciPipelineIds, "err", err)
+		return nil, err
+	}
+	if pipelines == nil {
+		impl.logger.Info("no pipelines available for these ciPipelineIds", "ciPipelineIds", ciPipelineIds)
+		return []string{}, nil
+	}
+	var envNames []string
+	for _, pipeline := range pipelines {
+		if !slices.Contains(envNames, pipeline.Environment.Name) {
+			envNames = append(envNames, pipeline.Environment.Name)
+		}
+	}
+	return envNames, nil
+}
+
+func (impl CiCdPipelineOrchestratorImpl) GetSourceCiDownStreamInfo(ctx context.Context, sourceCIPipeline int, req *CiPipeline.SourceCiDownStreamFilters) (pagination.PaginatedResponse[CiPipeline.SourceCiDownStreamResponse], error) {
+	ctx, span := otel.Tracer("orchestrator").Start(ctx, "GetSourceCiDownStreamInfo")
+	defer span.End()
+	response := pagination.NewPaginatedResponse[CiPipeline.SourceCiDownStreamResponse]()
+	queryReq := &pagination.RepositoryRequest{
+		Order:  req.SortOrder,
+		SortBy: req.SortBy,
+		Limit:  req.Size,
+		Offset: req.Offset,
+	}
+	linkedCIDetails, totalCount, err := impl.ciPipelineRepository.GetDownStreamInfo(ctx, sourceCIPipeline, req.SearchKey, req.EnvName, queryReq)
+	if util.IsErrNoRows(err) {
+		impl.logger.Info("no linked ci pipelines available", "SourceCIPipeline", sourceCIPipeline)
+		return response, nil
+	} else if err != nil {
+		impl.logger.Errorw("error in getting linked ci pipelines", "SourceCIPipeline", sourceCIPipeline, "err", err)
+		return response, err
+	}
+	response.UpdateTotalCount(totalCount)
+	response.UpdateOffset(req.Offset)
+	response.UpdateSize(req.Size)
+
+	var pipelineIds []int
+	for _, item := range linkedCIDetails {
+		if item.PipelineId != 0 {
+			pipelineIds = append(pipelineIds, item.PipelineId)
+		}
+	}
+
+	latestWfrs, err := impl.cdWorkflowRepository.FindLatestRunnerByPipelineIdsAndRunnerType(ctx, pipelineIds, apiBean.CD_WORKFLOW_TYPE_DEPLOY)
+	if util.IsErrNoRows(err) {
+		impl.logger.Info("no deployments have been triggered yet", "pipelineIds", pipelineIds)
+		// update the response with the pipelineConfig.LinkedCIDetails
+		data := adapter.GetSourceCiDownStreamResponse(linkedCIDetails)
+		response.PushData(data...)
+		return response, nil
+	} else if err != nil {
+		impl.logger.Errorw("error in getting last deployment status", "pipelineIds", pipelineIds, "err", err)
+		return response, err
+	}
+	data := adapter.GetSourceCiDownStreamResponse(linkedCIDetails, latestWfrs...)
+	response.PushData(data...)
+	return response, nil
+}
+
+func (impl *CiCdPipelineOrchestratorImpl) GetGitCommitEnvVarDataForCICDStage(gitTriggers map[int]pipelineConfig.GitCommit) (map[string]string, *gitSensor.WebhookAndCiData, error) {
+	var webhookAndCiData *gitSensor.WebhookAndCiData
+	var err error
+	extraEnvVariables := make(map[string]string)
+	if gitTriggers != nil {
+		i := 1
+		var gitCommitEnvVariables []types.GitMetadata
+
+		for ciPipelineMaterialId, gitTrigger := range gitTriggers {
+			extraEnvVariables[fmt.Sprintf("%s_%d", types.GIT_COMMIT_HASH_PREFIX, i)] = gitTrigger.Commit
+			extraEnvVariables[fmt.Sprintf("%s_%d", types.GIT_SOURCE_TYPE_PREFIX, i)] = string(gitTrigger.CiConfigureSourceType)
+			extraEnvVariables[fmt.Sprintf("%s_%d", types.GIT_SOURCE_VALUE_PREFIX, i)] = gitTrigger.CiConfigureSourceValue
+			extraEnvVariables[fmt.Sprintf("%s_%d", types.GIT_REPO_URL_PREFIX, i)] = gitTrigger.GitRepoUrl
+
+			gitCommitEnvVariables = append(gitCommitEnvVariables, types.GitMetadata{
+				GitCommitHash:  gitTrigger.Commit,
+				GitSourceType:  string(gitTrigger.CiConfigureSourceType),
+				GitSourceValue: gitTrigger.CiConfigureSourceValue,
+				GitRepoUrl:     gitTrigger.GitRepoUrl,
+			})
+
+			// CODE-BLOCK starts - store extra environment variables if webhook
+			if gitTrigger.CiConfigureSourceType == pipelineConfig.SOURCE_TYPE_WEBHOOK {
+				webhookDataId := gitTrigger.WebhookData.Id
+				if webhookDataId > 0 {
+					webhookDataRequest := &gitSensor.WebhookDataRequest{
+						Id:                   webhookDataId,
+						CiPipelineMaterialId: ciPipelineMaterialId,
+					}
+					webhookAndCiData, err = impl.GitSensorClient.GetWebhookData(context.Background(), webhookDataRequest)
+					if err != nil {
+						impl.logger.Errorw("err while getting webhook data from git-sensor", "err", err, "webhookDataRequest", webhookDataRequest)
+						return nil, nil, err
+					}
+					if webhookAndCiData != nil {
+						for extEnvVariableKey, extEnvVariableVal := range webhookAndCiData.ExtraEnvironmentVariables {
+							extraEnvVariables[extEnvVariableKey] = extEnvVariableVal
+						}
+					}
+				}
+			}
+			// CODE_BLOCK ends
+
+			i++
+		}
+		gitMetadata, err := json.Marshal(&gitCommitEnvVariables)
+		if err != nil {
+			impl.logger.Errorw("err while marshaling git metdata", "err", err)
+			return nil, nil, err
+		}
+		extraEnvVariables[plugin.GIT_METADATA] = string(gitMetadata)
+
+		extraEnvVariables[types.GIT_SOURCE_COUNT] = strconv.Itoa(len(gitTriggers))
+	}
+
+	return extraEnvVariables, webhookAndCiData, nil
 }

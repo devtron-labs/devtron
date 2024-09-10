@@ -80,15 +80,18 @@ spec:
       labels:
         app: inception
     spec:
+      {{- if and $.Values.global $.Values.global.podSecurityContext }}
+      securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- end }}
       containers:
-        -
-        {{- if $.Values.installer.tag }}
-          image: {{ $.Values.installer.image }}:{{ $.Values.installer.tag }}
-        {{- else }}
-          image: {{ $.Values.installer.image }}
-        {{- end }}
+        - image: {{ include "common.image" (dict "component" $.Values.installer  "global" $.Values.global  ) }}
           imagePullPolicy: IfNotPresent
           name: inception
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
           ports:
             -
               containerPort: 8080

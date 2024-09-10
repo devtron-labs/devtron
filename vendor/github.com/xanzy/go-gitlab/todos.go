@@ -25,14 +25,14 @@ import (
 // TodosService handles communication with the todos related methods of
 // the Gitlab API.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/todos.html
+// GitLab API docs: https://docs.gitlab.com/ee/api/todos.html
 type TodosService struct {
 	client *Client
 }
 
 // Todo represents a GitLab todo.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/todos.html
+// GitLab API docs: https://docs.gitlab.com/ee/api/todos.html
 type Todo struct {
 	ID         int            `json:"id"`
 	Project    *BasicProject  `json:"project"`
@@ -58,7 +58,7 @@ type TodoTarget struct {
 	CreatedAt            *time.Time             `json:"created_at"`
 	Description          string                 `json:"description"`
 	Downvotes            int                    `json:"downvotes"`
-	ID                   int                    `json:"id"`
+	ID                   interface{}            `json:"id"`
 	IID                  int                    `json:"iid"`
 	Labels               []string               `json:"labels"`
 	Milestone            *Milestone             `json:"milestone"`
@@ -82,6 +82,7 @@ type TodoTarget struct {
 	Weight       int         `json:"weight"`
 
 	// Only available for type MergeRequest
+	MergedAt                  *time.Time   `json:"merged_at"`
 	ApprovalsBeforeMerge      int          `json:"approvals_before_merge"`
 	ForceRemoveSourceBranch   bool         `json:"force_remove_source_branch"`
 	MergeCommitSHA            string       `json:"merge_commit_sha"`
@@ -105,7 +106,7 @@ type TodoTarget struct {
 
 // ListTodosOptions represents the available ListTodos() options.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/todos.html#get-a-list-of-todos
+// GitLab API docs: https://docs.gitlab.com/ee/api/todos.html#get-a-list-of-to-do-items
 type ListTodosOptions struct {
 	ListOptions
 	Action    *TodoAction `url:"action,omitempty" json:"action,omitempty"`
@@ -119,7 +120,7 @@ type ListTodosOptions struct {
 // When no filter is applied, it returns all pending todos for the current user.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/todos.html#get-a-list-of-todos
+// https://docs.gitlab.com/ee/api/todos.html#get-a-list-of-to-do-items
 func (s *TodosService) ListTodos(opt *ListTodosOptions, options ...RequestOptionFunc) ([]*Todo, *Response, error) {
 	req, err := s.client.NewRequest(http.MethodGet, "todos", opt, options)
 	if err != nil {
@@ -132,12 +133,12 @@ func (s *TodosService) ListTodos(opt *ListTodosOptions, options ...RequestOption
 		return nil, resp, err
 	}
 
-	return t, resp, err
+	return t, resp, nil
 }
 
 // MarkTodoAsDone marks a single pending todo given by its ID for the current user as done.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/todos.html#mark-a-todo-as-done
+// GitLab API docs: https://docs.gitlab.com/ee/api/todos.html#mark-a-to-do-item-as-done
 func (s *TodosService) MarkTodoAsDone(id int, options ...RequestOptionFunc) (*Response, error) {
 	u := fmt.Sprintf("todos/%d/mark_as_done", id)
 
@@ -151,7 +152,7 @@ func (s *TodosService) MarkTodoAsDone(id int, options ...RequestOptionFunc) (*Re
 
 // MarkAllTodosAsDone marks all pending todos for the current user as done.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/todos.html#mark-all-todos-as-done
+// GitLab API docs: https://docs.gitlab.com/ee/api/todos.html#mark-all-to-do-items-as-done
 func (s *TodosService) MarkAllTodosAsDone(options ...RequestOptionFunc) (*Response, error) {
 	req, err := s.client.NewRequest(http.MethodPost, "todos/mark_as_done", nil, options)
 	if err != nil {

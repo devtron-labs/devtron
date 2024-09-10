@@ -1,24 +1,25 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package security
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	securityBean "github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -27,13 +28,39 @@ import (
 )
 
 type CveStore struct {
-	tableName    struct{} `sql:"cve_store" pg:",discard_unknown_columns"`
-	Name         string   `sql:"name,pk"`
-	Severity     Severity `sql:"severity,notnull"`
-	Package      string   `sql:"package,notnull"`
-	Version      string   `sql:"version,notnull"`
-	FixedVersion string   `sql:"fixed_version,notnull"`
+	tableName struct{} `sql:"cve_store" pg:",discard_unknown_columns"`
+	Name      string   `sql:"name,pk"`
+
+	// Deprecated: Severity, use StandardSeverity for all read purposes
+	Severity securityBean.Severity `sql:"severity,notnull"`
+	// Deprecated: Package
+	Package string `sql:"package,notnull"` // deprecated, storing package data in image_scan_execution_result table
+	// Deprecated: Version
+	Version string `sql:"version,notnull"`
+	// Deprecated: FixedVersion
+	FixedVersion string `sql:"fixed_version,notnull"`
+
+	// StandardSeverity is the actual severity. use GetSeverity method to get severity of the vulnerability
+	// earlier severity is maintained in Severity column by merging HIGH and CRITICAL severities.
+	// later we introduced new column StandardSeverity to store raw severity, but didn't migrate the existing Severity data to StandardSeverity.
+	// currently, we deprecated Severity.
+	StandardSeverity *securityBean.Severity `sql:"standard_severity"`
 	sql.AuditLog
+}
+
+// GetSeverity returns the actual severity of the vulnerability.
+func (cve *CveStore) GetSeverity() securityBean.Severity {
+	if cve.StandardSeverity == nil {
+		// we need this as there was a time when StandardSeverity didn't exist.
+		// and migration of Severity data to StandardSeverity is not done.
+		return cve.Severity
+	}
+	return *cve.StandardSeverity
+}
+
+func (cve *CveStore) SetStandardSeverity(severity securityBean.Severity) {
+	cve.Severity = severity
+	cve.StandardSeverity = &severity
 }
 
 type VulnerabilityRequest struct {
@@ -51,10 +78,10 @@ type VulnerabilityExposure struct {
 	AppId   int    `json:"appId"`
 	EnvId   int    `json:"envId"`
 	//ClusterId     int    `json:"clusterId"`
-	AppStore      bool `json:"appStore"`
-	Blocked       bool `json:"blocked"`
-	PipelineEnvId int  `json:"-"`
-	ChartEnvId    int  `json:"-"`
+	AppType       helper.AppType `json:"appType"`
+	Blocked       bool           `json:"blocked"`
+	PipelineEnvId int            `json:"-"`
+	ChartEnvId    int            `json:"-"`
 }
 
 type VulnerabilityExposureListingResponse struct {
@@ -117,7 +144,7 @@ func (impl CveStoreRepositoryImpl) Update(team *CveStore) error {
 func (impl CveStoreRepositoryImpl) VulnerabilityExposure(request *VulnerabilityRequest) ([]*VulnerabilityExposure, error) {
 	var items []*VulnerabilityExposure
 
-	query := "SELECT a.id as app_id, a.app_name, a.app_store, p.environment_id as pipeline_env_id, ia.environment_id  as chart_env_id " +
+	query := "SELECT a.id as app_id, a.app_name, a.app_type, p.environment_id as pipeline_env_id, ia.environment_id  as chart_env_id " +
 		" FROM app a" +
 		" LEFT JOIN pipeline p ON p.app_id=a.id" +
 		" LEFT JOIN installed_apps ia ON ia.app_id=a.id" +

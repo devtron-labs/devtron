@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package repository
@@ -23,8 +22,8 @@ import (
 	repository2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"go.uber.org/zap"
 )
 
@@ -37,7 +36,7 @@ type ServiceClient interface {
 	GetAppDetails(ctx context.Context, query *repository2.RepoAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error)
 	// Create creates a repo
 	Create(ctx context.Context, query *repository2.RepoCreateRequest) (*v1alpha1.Repository, error)
-	// Update updates a repo
+	// Create creates a repo
 	Update(ctx context.Context, query *repository2.RepoUpdateRequest) (*v1alpha1.Repository, error)
 	// Delete deletes a repo
 	Delete(ctx context.Context, query *repository2.RepoQuery) (*repository2.RepoResponse, error)
@@ -45,10 +44,10 @@ type ServiceClient interface {
 
 type ServiceClientImpl struct {
 	logger                  *zap.SugaredLogger
-	argoCDConnectionManager argocdServer.ArgoCDConnectionManager
+	argoCDConnectionManager connection.ArgoCDConnectionManager
 }
 
-func NewServiceClientImpl(logger *zap.SugaredLogger, argoCDConnectionManager argocdServer.ArgoCDConnectionManager) *ServiceClientImpl {
+func NewServiceClientImpl(logger *zap.SugaredLogger, argoCDConnectionManager connection.ArgoCDConnectionManager) *ServiceClientImpl {
 	return &ServiceClientImpl{
 		logger:                  logger,
 		argoCDConnectionManager: argoCDConnectionManager,
@@ -66,7 +65,7 @@ func (r ServiceClientImpl) getService(ctx context.Context) (repository2.Reposito
 }
 
 func (r ServiceClientImpl) List(ctx context.Context, query *repository2.RepoQuery) (*v1alpha1.RepositoryList, error) {
-	ctx, cancel := context.WithTimeout(ctx, application.TimeoutFast)
+	ctx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutFast)
 	defer cancel()
 	client, err := r.getService(ctx)
 	if err != nil {
@@ -76,7 +75,7 @@ func (r ServiceClientImpl) List(ctx context.Context, query *repository2.RepoQuer
 }
 
 func (r ServiceClientImpl) ListApps(ctx context.Context, query *repository2.RepoAppsQuery) (*repository2.RepoAppsResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, application.TimeoutFast)
+	ctx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutFast)
 	defer cancel()
 	client, err := r.getService(ctx)
 	if err != nil {
@@ -86,7 +85,7 @@ func (r ServiceClientImpl) ListApps(ctx context.Context, query *repository2.Repo
 }
 
 func (r ServiceClientImpl) GetAppDetails(ctx context.Context, query *repository2.RepoAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, application.TimeoutFast)
+	ctx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutFast)
 	defer cancel()
 	client, err := r.getService(ctx)
 	if err != nil {
@@ -96,7 +95,7 @@ func (r ServiceClientImpl) GetAppDetails(ctx context.Context, query *repository2
 }
 
 func (r ServiceClientImpl) Create(ctx context.Context, query *repository2.RepoCreateRequest) (*v1alpha1.Repository, error) {
-	ctx, cancel := context.WithTimeout(ctx, application.TimeoutSlow)
+	ctx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutSlow)
 	defer cancel()
 	client, err := r.getService(ctx)
 	if err != nil {
@@ -106,7 +105,7 @@ func (r ServiceClientImpl) Create(ctx context.Context, query *repository2.RepoCr
 }
 
 func (r ServiceClientImpl) Update(ctx context.Context, query *repository2.RepoUpdateRequest) (*v1alpha1.Repository, error) {
-	ctx, cancel := context.WithTimeout(ctx, application.TimeoutSlow)
+	ctx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutSlow)
 	defer cancel()
 	client, err := r.getService(ctx)
 	if err != nil {
@@ -116,7 +115,7 @@ func (r ServiceClientImpl) Update(ctx context.Context, query *repository2.RepoUp
 }
 
 func (r ServiceClientImpl) Delete(ctx context.Context, query *repository2.RepoQuery) (*repository2.RepoResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, application.TimeoutSlow)
+	ctx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutSlow)
 	defer cancel()
 	client, err := r.getService(ctx)
 	if err != nil {

@@ -17,9 +17,10 @@ import (
 )
 
 type messageMarshaler struct {
-	fields  map[string]interface{}
-	exclude bool
-	isSSE   bool
+	fields         map[string]interface{}
+	exclude        bool
+	isSSE          bool
+	fieldProcessor FieldProcessor
 }
 
 func (m *messageMarshaler) Unmarshal(data []byte, v interface{}) error {
@@ -42,12 +43,32 @@ func (m *messageMarshaler) ContentType() string {
 	}
 }
 
+// FieldProcessor is a function that handles included/excluded fields
+type FieldProcessor func(val interface{}, fields map[string]interface{}, exclude bool) (interface{}, error)
+
 func (m *messageMarshaler) Marshal(v interface{}) ([]byte, error) {
-	dataBytes, err := json.Marshal(v)
-	if err != nil {
-		return nil, err
-	}
-	if len(m.fields) > 0 {
+	var dataBytes []byte
+	var err error
+
+	if len(m.fields) == 0 {
+		dataBytes, err = json.Marshal(v)
+		if err != nil {
+			return nil, err
+		}
+	} else if m.fieldProcessor != nil {
+		res, err := m.fieldProcessor(v, m.fields, m.exclude)
+		if err != nil {
+			return nil, err
+		}
+		dataBytes, err = json.Marshal(res)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		dataBytes, err = json.Marshal(v)
+		if err != nil {
+			return nil, err
+		}
 		if _, ok := v.([]interface{}); ok {
 			data := make([]interface{}, 0)
 			err = json.Unmarshal(dataBytes, &data)
@@ -111,7 +132,7 @@ func (m *messageMarshaler) processItem(path []string, item interface{}) {
 	}
 }
 
-func newMarshaler(req *http.Request, isSSE bool) runtime.Marshaler {
+func newMarshaler(req *http.Request, isSSE bool) *messageMarshaler {
 	fieldsQuery := req.URL.Query().Get("fields")
 	fields := make(map[string]interface{})
 	exclude := false
@@ -243,6 +264,21 @@ func NewStreamForwarder(messageKey func(proto.Message) (string, error)) StreamFo
 			}
 		}
 		runtime.ForwardResponseStream(ctx, mux, m, w, req, recv, opts...)
+	}
+}
+func UnaryForwarderWithFieldProcessor(fieldProcessor FieldProcessor) func(
+	ctx context.Context,
+	mux *runtime.ServeMux,
+	marshaler runtime.Marshaler,
+	w http.ResponseWriter,
+	req *http.Request,
+	resp proto.Message,
+	opts ...func(context.Context, http.ResponseWriter, proto.Message) error,
+) {
+	return func(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w http.ResponseWriter, req *http.Request, resp proto.Message, opts ...func(context.Context, http.ResponseWriter, proto.Message) error) {
+		m := newMarshaler(req, false)
+		m.fieldProcessor = fieldProcessor
+		runtime.ForwardResponseMessage(ctx, mux, m, w, req, resp, opts...)
 	}
 }
 

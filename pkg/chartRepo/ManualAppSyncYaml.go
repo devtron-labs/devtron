@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package chartRepo
 
 import (
@@ -10,14 +26,25 @@ type AppSyncConfig struct {
 	DbConfig               sql.Config
 	DockerImage            string
 	AppSyncJobResourcesObj string
+	ChartProviderConfig    *ChartProviderConfig
+	AppSyncServiceAccount  string
+	ParallelismLimitForTagProcessing int
 }
 
-func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string) []byte {
+type ChartProviderConfig struct {
+	ChartProviderId string
+	IsOCIRegistry   bool
+}
+
+func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, appSyncServiceAccount string, chartProviderConfig *ChartProviderConfig, ParallelismLimitForTagProcessing int) []byte {
 	cfg, _ := sql.GetConfig()
 	configValues := AppSyncConfig{
 		DbConfig:               sql.Config{Addr: cfg.Addr, Database: cfg.Database, User: cfg.User, Password: cfg.Password},
 		DockerImage:            dockerImage,
 		AppSyncJobResourcesObj: appSyncJobResourcesObj,
+		ChartProviderConfig:    chartProviderConfig,
+		AppSyncServiceAccount:  appSyncServiceAccount,
+		ParallelismLimitForTagProcessing: ParallelismLimitForTagProcessing,
 	}
 	temp := template.New("manualAppSyncJobByteArr")
 	temp, _ = temp.Parse(`{"apiVersion": "batch/v1",
@@ -29,6 +56,7 @@ func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string) 
   "spec": {
     "template": {
       "spec": {
+		"serviceAccount": "{{.AppSyncServiceAccount}}",
         "containers": [
           {
             "name": "chart-sync",
@@ -52,6 +80,18 @@ func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string) 
               {
                 "name": "PG_PASSWORD",
                 "value": "{{.DbConfig.Password}}"
+              },
+			  {
+                "name": "CHART_PROVIDER_ID",
+                "value": "{{.ChartProviderConfig.ChartProviderId}}"
+			  },
+			  {
+                "name": "IS_OCI_REGISTRY",
+                "value": "{{.ChartProviderConfig.IsOCIRegistry}}"
+			  },
+              {
+				"name": "PARALLELISM_LIMIT_FOR_TAG_PROCESSING",
+     			"value": "{{.ParallelismLimitForTagProcessing}}"
               }
             ]
           }

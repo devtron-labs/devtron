@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package pipelineConfig
 
 import (
@@ -8,15 +24,16 @@ import (
 )
 
 type CiTemplateOverride struct {
-	tableName        struct{} `sql:"ci_template_override" pg:",discard_unknown_columns"`
-	Id               int      `sql:"id"`
-	CiPipelineId     int      `sql:"ci_pipeline_id"`
-	DockerRegistryId string   `sql:"docker_registry_id"`
-	DockerRepository string   `sql:"docker_repository"`
-	DockerfilePath   string   `sql:"dockerfile_path"`
-	GitMaterialId    int      `sql:"git_material_id"`
-	Active           bool     `sql:"active,notnull"`
-	CiBuildConfigId  int      `sql:"ci_build_config_id"`
+	tableName                 struct{} `sql:"ci_template_override" pg:",discard_unknown_columns"`
+	Id                        int      `sql:"id"`
+	CiPipelineId              int      `sql:"ci_pipeline_id"`
+	DockerRegistryId          string   `sql:"docker_registry_id"`
+	DockerRepository          string   `sql:"docker_repository"`
+	DockerfilePath            string   `sql:"dockerfile_path"`
+	GitMaterialId             int      `sql:"git_material_id"`
+	BuildContextGitMaterialId int      `sql:"build_context_git_material_id"`
+	Active                    bool     `sql:"active,notnull"`
+	CiBuildConfigId           int      `sql:"ci_build_config_id"`
 	sql.AuditLog
 	GitMaterial    *GitMaterial
 	DockerRegistry *repository.DockerArtifactStore
@@ -27,6 +44,7 @@ type CiTemplateOverrideRepository interface {
 	Save(templateOverrideConfig *CiTemplateOverride) (*CiTemplateOverride, error)
 	Update(templateOverrideConfig *CiTemplateOverride) (*CiTemplateOverride, error)
 	FindByAppId(appId int) ([]*CiTemplateOverride, error)
+	FindByCiPipelineIds(ciPipelineIds []int) ([]*CiTemplateOverride, error)
 	FindByCiPipelineId(ciPipelineId int) (*CiTemplateOverride, error)
 }
 
@@ -74,6 +92,20 @@ func (repo *CiTemplateOverrideRepositoryImpl) FindByAppId(appId int) ([]*CiTempl
 		Select()
 	if err != nil {
 		repo.logger.Errorw("error in getting ciTemplateOverride by appId", "err", err, "appId", appId)
+		return nil, err
+	}
+	return ciTemplateOverrides, nil
+}
+
+func (repo *CiTemplateOverrideRepositoryImpl) FindByCiPipelineIds(ciPipelineIds []int) ([]*CiTemplateOverride, error) {
+	var ciTemplateOverrides []*CiTemplateOverride
+	err := repo.dbConnection.Model(&ciTemplateOverrides).
+		Column("ci_template_override.*", "CiBuildConfig").
+		Where("ci_template_override.ci_pipeline_id in (?)", pg.In(ciPipelineIds)).
+		Where("ci_template_override.active = ?", true).
+		Select()
+	if err != nil {
+		repo.logger.Errorw("error in getting ciTemplateOverride by appId", "err", err, "ciPipelineIds", ciPipelineIds)
 		return nil, err
 	}
 	return ciTemplateOverrides, nil

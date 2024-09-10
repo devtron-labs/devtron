@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package team
@@ -39,6 +38,7 @@ type TeamRepository interface {
 	MarkTeamDeleted(team *Team, tx *pg.Tx) error
 	GetConnection() *pg.DB
 	FindByIds(ids []*int) ([]*Team, error)
+	FindAllActiveTeamNames() ([]string, error)
 }
 type TeamRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -47,6 +47,7 @@ type TeamRepositoryImpl struct {
 func NewTeamRepositoryImpl(dbConnection *pg.DB) *TeamRepositoryImpl {
 	return &TeamRepositoryImpl{dbConnection: dbConnection}
 }
+
 const UNASSIGNED_PROJECT = "unassigned"
 
 func (impl TeamRepositoryImpl) Save(team *Team) error {
@@ -58,6 +59,13 @@ func (impl TeamRepositoryImpl) FindAllActive() ([]Team, error) {
 	var teams []Team
 	err := impl.dbConnection.Model(&teams).Where("active = ?", true).Select()
 	return teams, err
+}
+
+func (impl TeamRepositoryImpl) FindAllActiveTeamNames() ([]string, error) {
+	var teamNames []string
+	err := impl.dbConnection.Model((*Team)(nil)).
+		Where("active = ?", true).Select(&teamNames)
+	return teamNames, err
 }
 
 func (impl TeamRepositoryImpl) FindOne(id int) (Team, error) {
@@ -96,7 +104,6 @@ func (repo TeamRepositoryImpl) FindByIds(ids []*int) ([]*Team, error) {
 func (repo TeamRepositoryImpl) GetConnection() *pg.DB {
 	return repo.dbConnection
 }
-
 
 type TeamRbacObjects struct {
 	AppName  string `json:"appName"`

@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package util
@@ -189,6 +188,6 @@ func ComputeHash(template *v1.PodTemplateSpec, collisionCount *int32) string {
 	return SafeEncodeString(fmt.Sprint(podTemplateSpecHasher.Sum32()))
 }
 
-func BuildDeployedAppName(appName string, environmentName string) string{
+func BuildDeployedAppName(appName string, environmentName string) string {
 	return fmt.Sprintf("%s-%s", appName, environmentName)
 }

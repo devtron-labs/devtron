@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package git
@@ -21,14 +20,14 @@ import (
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/hex"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
 )
 
 type WebhookSecretValidator interface {
-	ValidateSecret(r *http.Request, secretInUrl string, requestBodyBytes []byte, gitHost *pipeline.GitHostRequest) bool
+	ValidateSecret(r *http.Request, secretInUrl string, requestBodyBytes []byte, gitHost *types.GitHostRequest) bool
 }
 
 type WebhookSecretValidatorImpl struct {
@@ -51,7 +50,7 @@ const (
 // URL_APPEND : Secret will come in URL (last path param of URL)
 // PLAIN_TEXT : Plain text value in request header
 // SHA1 : SHA1 encrypted text in request header
-func (impl *WebhookSecretValidatorImpl) ValidateSecret(r *http.Request, secretInUrl string, requestBodyBytes []byte, gitHost *pipeline.GitHostRequest) bool {
+func (impl *WebhookSecretValidatorImpl) ValidateSecret(r *http.Request, secretInUrl string, requestBodyBytes []byte, gitHost *types.GitHostRequest) bool {
 
 	secretValidator := gitHost.SecretValidator
 	impl.logger.Debug("Validating signature for secret validator : ", secretValidator)

@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package restHandler
@@ -20,17 +19,19 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
+	securityBean "github.com/devtron-labs/devtron/pkg/security/bean"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/security"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
-	"net/http"
-	"strconv"
 )
 
 type ImageScanRestHandler interface {
@@ -70,7 +71,7 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 	}
 
 	decoder := json.NewDecoder(r.Body)
-	var request *security.ImageScanRequest
+	var request *securityBean.ImageScanRequest
 	err = decoder.Decode(&request)
 	if err != nil {
 		impl.logger.Errorw("request err, ScanExecutionList", "err", err, "payload", request)
@@ -82,8 +83,8 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 	if err != nil {
 		impl.logger.Errorw("service err, ScanExecutionList", "err", err, "payload", request)
 		if util.IsErrNoRows(err) {
-			responseList := make([]*security.ImageScanHistoryResponse, 0)
-			common.WriteJsonResp(w, nil, &security.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
+			responseList := make([]*securityBean.ImageScanHistoryResponse, 0)
+			common.WriteJsonResp(w, nil, &securityBean.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
 		} else {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		}
@@ -126,8 +127,8 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 	if err != nil {
 		impl.logger.Errorw("service err, ScanExecutionList", "err", err, "payload", request)
 		if util.IsErrNoRows(err) {
-			responseList := make([]*security.ImageScanHistoryResponse, 0)
-			common.WriteJsonResp(w, nil, &security.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
+			responseList := make([]*securityBean.ImageScanHistoryResponse, 0)
+			common.WriteJsonResp(w, nil, &securityBean.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
 		} else {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		}
@@ -177,7 +178,7 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 		}
 	}
 	image := v.Get("image")
-	request := &security.ImageScanRequest{
+	request := &securityBean.ImageScanRequest{
 		ImageScanDeployInfoId: imageScanDeployInfoId,
 		Image:                 image,
 		ArtifactId:            artifactId,
@@ -189,66 +190,65 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 	if err != nil {
 		impl.logger.Errorw("service err, FetchExecutionDetail", "err", err, "payload", request)
 		if util.IsErrNoRows(err) {
-			common.WriteJsonResp(w, nil, &security.ImageScanExecutionDetail{}, http.StatusOK)
+			common.WriteJsonResp(w, nil, &securityBean.ImageScanExecutionDetail{}, http.StatusOK)
 		} else {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		}
 		return
 	}
-	//RBAC
+
 	token := r.Header.Get("token")
-	if executionDetail.AppId > 0 && executionDetail.EnvId > 0 {
-		object := impl.enforcerUtil.GetAppRBACNameByAppId(appId)
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+	if executionDetail != nil {
+		//RBAC
+		if executionDetail.AppId > 0 && executionDetail.EnvId > 0 {
+			object := impl.enforcerUtil.GetAppRBACNameByAppId(appId)
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+				return
+			}
+			object = impl.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); !ok {
+				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+				return
+			}
+		} else if executionDetail.AppId > 0 {
+			object := impl.enforcerUtil.GetAppRBACNameByAppId(appId)
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+				return
+			}
+		} else {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-			return
 		}
-		object = impl.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); !ok {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-			return
-		}
-	} else if executionDetail.AppId > 0 {
-		object := impl.enforcerUtil.GetAppRBACNameByAppId(appId)
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-			return
-		}
+		//RBAC
 	} else {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, err, &securityBean.ImageScanExecutionDetail{}, http.StatusOK)
 	}
-	//RBAC
 
 	common.WriteJsonResp(w, err, executionDetail, http.StatusOK)
 }
 
 func (impl ImageScanRestHandlerImpl) FetchMinScanResultByAppIdAndEnvId(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
 	v := r.URL.Query()
 	var appId, envId int
+	request := &securityBean.ImageScanRequest{}
 	appIds := v.Get("appId")
 	if len(appIds) > 0 {
-		appId, err = strconv.Atoi(appIds)
+		appId, err := strconv.Atoi(appIds)
 		if err != nil {
 			impl.logger.Errorw("request err, FetchMinScanResultByAppIdAndEnvId", "err", err, "appIds", appIds)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		}
+		request.AppId = appId
 	}
 	envIds := v.Get("envId")
 	if len(envIds) > 0 {
-		envId, err = strconv.Atoi(envIds)
+		envId, err := strconv.Atoi(envIds)
 		if err != nil {
 			impl.logger.Errorw("request err, FetchMinScanResultByAppIdAndEnvId", "err", err, "envIds", envIds)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		}
-	}
-	request := &security.ImageScanRequest{
-		AppId: appId,
-		EnvId: envId,
+		request.EnvId = envId
 	}
 
 	//RBAC
@@ -300,8 +300,8 @@ func (impl ImageScanRestHandlerImpl) VulnerabilityExposure(w http.ResponseWriter
 	if err != nil {
 		impl.logger.Errorw("service err, VulnerabilityExposure", "err", err, "payload", request)
 		if util.IsErrNoRows(err) {
-			responseList := make([]*security.ImageScanHistoryResponse, 0)
-			common.WriteJsonResp(w, nil, &security.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
+			responseList := make([]*securityBean.ImageScanHistoryResponse, 0)
+			common.WriteJsonResp(w, nil, &securityBean.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
 		} else {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		}

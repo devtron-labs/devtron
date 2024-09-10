@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package router
@@ -44,6 +43,12 @@ func (router ConfigMapRouterImpl) initConfigMapRouter(configRouter *mux.Router) 
 		HandlerFunc(router.restHandler.CMGlobalFetch).Methods("GET")
 	configRouter.Path("/environment/cm/{appId}/{envId}").
 		HandlerFunc(router.restHandler.CMEnvironmentFetch).Methods("GET")
+	configRouter.Path("/global/cm/edit/{appId}/{id}").
+		Queries("name", "{name}").
+		HandlerFunc(router.restHandler.CMGlobalFetchForEdit).Methods("GET")
+	configRouter.Path("/environment/cm/edit/{appId}/{envId}/{id}").
+		Queries("name", "{name}").
+		HandlerFunc(router.restHandler.CMEnvironmentFetchForEdit).Methods("GET")
 
 	configRouter.Path("/global/cs").
 		HandlerFunc(router.restHandler.CSGlobalAddUpdate).Methods("POST")
@@ -76,5 +81,11 @@ func (router ConfigMapRouterImpl) initConfigMapRouter(configRouter *mux.Router) 
 		HandlerFunc(router.restHandler.CSEnvironmentFetchForEdit).Methods("GET")
 
 	configRouter.Path("/bulk/patch").HandlerFunc(router.restHandler.ConfigSecretBulkPatch).Methods("POST")
+	configRouter.Path("/environment").
+		HandlerFunc(router.restHandler.AddEnvironmentToJob).Methods("POST")
+	configRouter.Path("/environment").
+		HandlerFunc(router.restHandler.RemoveEnvironmentFromJob).Methods("DELETE")
+	configRouter.Path("/environment/{appId}").
+		HandlerFunc(router.restHandler.GetEnvironmentsForJob).Methods("GET")
 
 }

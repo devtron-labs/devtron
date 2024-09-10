@@ -1,16 +1,31 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package clusterTerminalAccess
 
 import (
 	"context"
 	"errors"
-	"github.com/devtron-labs/devtron/client/k8s/application"
-	mocks4 "github.com/devtron-labs/devtron/client/k8s/application/mocks"
+	util2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/mocks"
 	"github.com/devtron-labs/devtron/internal/util"
+	mocks3 "github.com/devtron-labs/devtron/pkg/k8s/application/mocks"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	mocks2 "github.com/devtron-labs/devtron/pkg/terminal/mocks"
-	mocks3 "github.com/devtron-labs/devtron/util/k8s/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -45,7 +60,7 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 		assert.Equal(tt, terminalSessionResponse1.UserId, request.UserId)
 		podTemplate := &models.TerminalAccessTemplates{TemplateData: podJson}
 		podStatus := "Running"
-		k8sApplicationService.On("GetResource", mock.AnythingOfType("*k8s.ResourceRequestBean")).Return(&application.ManifestResponse{Manifest: unstructured.Unstructured{Object: map[string]interface{}{"status": map[string]interface{}{"phase": podStatus}}}}, nil)
+		k8sApplicationService.On("GetResource", mock.AnythingOfType("*k8s.ResourceRequestBean")).Return(&util2.ManifestResponse{Manifest: unstructured.Unstructured{Object: map[string]interface{}{"status": map[string]interface{}{"phase": podStatus}}}}, nil)
 		terminalAccessRepository.On("FetchTerminalAccessTemplate", models.TerminalAccessPodTemplateName).Return(podTemplate, nil)
 		terminalAccessRepository.On("GetUserTerminalAccessData", terminalAccessId1).Return(savedTerminalAccessData, nil)
 		terminalAccessRepository.On("UpdateUserTerminalStatus", mock.AnythingOfType("int"), mock.AnythingOfType("string")).
@@ -64,7 +79,7 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 				terminalMsg := &terminal.TerminalMessage{SessionID: randomSessionId}
 				return terminalMsg
 			}, nil)
-		terminalSessionStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(context.Background(), terminalAccessId1)
+		terminalSessionStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(context.Background(), terminalAccessId1, "default", "", "sh")
 		assert.Nil(tt, err)
 		assert.Equal(tt, podStatus, string(terminalSessionStatus.Status))
 		assert.Equal(tt, randomSessionId, terminalSessionStatus.UserTerminalSessionId)
@@ -90,7 +105,7 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 		terminalAccessRepository.On("FetchTerminalAccessTemplate", models.TerminalAccessPodTemplateName).Return(podTemplate, nil)
 		failedMsg := &k8sErrors.StatusError{ErrStatus: metav1.Status{Reason: metav1.StatusReasonForbidden}}
 		k8sApplicationService.On("GetResource", mock.AnythingOfType("*k8s.ResourceRequestBean")).Return(nil, failedMsg)
-		terminalSessionStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(context.Background(), terminalAccessId)
+		terminalSessionStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(context.Background(), terminalAccessId, "default", "", "sh")
 		assert.Nil(tt, terminalSessionStatus)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, failedMsg, err)
@@ -133,9 +148,34 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 		terminalAccessRepository.On("GetUserTerminalAccessData", terminalAccessId).Return(terminalAccessData, nil)
 		podTemplate := &models.TerminalAccessTemplates{TemplateData: "wrong-pod-json"}
 		terminalAccessRepository.On("FetchTerminalAccessTemplate", models.TerminalAccessPodTemplateName).Return(podTemplate, nil)
-		terminalSessionStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(context.Background(), terminalAccessId)
+		terminalSessionStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(context.Background(), terminalAccessId, "default", "", "sh")
 		assert.Nil(tt, terminalSessionStatus)
 		assert.NotNil(tt, err)
+	})
+
+	t.Run("Pod Manifest : invalid manifest structure Test", func(tt *testing.T) {
+		_, _, _, terminalAccessServiceImpl := loadUserTerminalAccessService(tt)
+		editedManifest := "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"name\":1},:{\"serviceAccountName\":\"hello\"}}"
+		request := &models.UserTerminalSessionRequest{
+			UserId:    int32(2),
+			ClusterId: 1,
+			BaseImage: "ubuntu",
+			ShellName: "sh",
+			NodeName:  "demo-new",
+			Manifest:  editedManifest,
+		}
+		res, err := terminalAccessServiceImpl.EditTerminalPodManifest(context.Background(), request, false)
+		assert.NotNil(t, err)
+		assert.NotNil(t, res)
+		assert.Equal(t, len(res.ErrorComments), 0, res.ErrorComments)
+
+		editedManifest = "{\"apiVersion\":\"v1\",\"kind\":\"Random\",\"metadata\":{\"name\":1},\"spec\":{\"serviceAccountName\":\"hello\"}}"
+		request.Manifest = editedManifest
+		res, err = terminalAccessServiceImpl.EditTerminalPodManifest(context.Background(), request, false)
+		assert.NotNil(t, err)
+		assert.Equal(t, err.Error(), "manifest should be of kind \"Pod\"")
+		assert.NotNil(t, res)
+		assert.Equal(t, len(res.ErrorComments), 0, res.ErrorComments)
 	})
 }
 
@@ -148,9 +188,8 @@ func loadUserTerminalAccessService(t *testing.T) (*mocks.TerminalAccessRepositor
 	terminalAccessRepository := mocks.NewTerminalAccessRepository(t)
 	terminalSessionHandler := mocks2.NewTerminalSessionHandler(t)
 	k8sApplicationService := mocks3.NewK8sApplicationService(t)
-	k8sClientService := mocks4.NewK8sClientService(t)
 	terminalAccessRepository.On("GetAllRunningUserTerminalData").Return(nil, nil)
-	terminalAccessServiceImpl, err := NewUserTerminalAccessServiceImpl(logger, terminalAccessRepository, userTerminalSessionConfig, k8sApplicationService, k8sClientService, terminalSessionHandler)
+	terminalAccessServiceImpl, err := NewUserTerminalAccessServiceImpl(logger, terminalAccessRepository, userTerminalSessionConfig, nil, terminalSessionHandler, nil, nil)
 	assert.Nil(t, err)
 	return terminalAccessRepository, terminalSessionHandler, k8sApplicationService, terminalAccessServiceImpl
 }

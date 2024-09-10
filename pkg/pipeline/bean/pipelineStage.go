@@ -1,6 +1,23 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package bean
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 )
@@ -9,8 +26,9 @@ type PipelineStageDto struct {
 	Id          int                          `json:"id"`
 	Name        string                       `json:"name,omitempty"`
 	Description string                       `json:"description,omitempty"`
-	Type        repository.PipelineStageType `json:"type,omitempty" validate:"omitempty,oneof=PRE_CI POST_CI"`
+	Type        repository.PipelineStageType `json:"type,omitempty" validate:"omitempty,oneof=PRE_CI POST_CI PRE_CD POST_CD"`
 	Steps       []*PipelineStageStepDto      `json:"steps"`
+	TriggerType pipelineConfig.TriggerType   `json:"triggerType,omitempty"`
 }
 
 type PipelineStageStepDto struct {
@@ -90,3 +108,13 @@ type PortMap struct {
 	PortOnLocal     int `json:"portOnLocal" validate:"number,gt=0"`
 	PortOnContainer int `json:"portOnContainer" validate:"number,gt=0"`
 }
+
+const (
+	VULNERABILITY_SCANNING_PLUGIN string = "Vulnerability Scanning"
+
+	NotTriggered       string = "Not Triggered"
+	NotDeployed               = "Not Deployed"
+	WorkflowTypeDeploy        = "DEPLOY"
+	WorkflowTypePre           = "PRE"
+	WorkflowTypePost          = "POST"
+)

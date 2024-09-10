@@ -1,4 +1,4 @@
-FROM golang:1.18  AS build-env
+FROM golang:1.21  AS build-env
 
 RUN echo $GOPATH
 RUN apt update
@@ -8,7 +8,7 @@ WORKDIR /go/src/github.com/devtron-labs/devtron
 ADD . /go/src/github.com/devtron-labs/devtron/
 RUN GOOS=linux make build-all
 
-FROM ubuntu as  devtron-ea
+FROM ubuntu:22.04@sha256:1b8d8ff4777f36f19bfe73ee4df61e3a0b789caeff29caa019539ec7c9a57f95 as  devtron-ea
 
 RUN apt update
 RUN apt install ca-certificates curl -y
@@ -19,7 +19,9 @@ COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/cmd/external-app/
 
 COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/vendor/github.com/argoproj/argo-cd/assets/ /go/src/github.com/devtron-labs/devtron/vendor/github.com/argoproj/argo-cd/assets
 COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/devtron-reference-helm-charts scripts/devtron-reference-helm-charts
-COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/argo-assets/APPLICATION_TEMPLATE.JSON scripts/argo-assets/APPLICATION_TEMPLATE.JSON
+COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/sql scripts/sql
+COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/casbin scripts/casbin
+COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/scripts/argo-assets/APPLICATION_TEMPLATE.tmpl scripts/argo-assets/APPLICATION_TEMPLATE.tmpl
 
 RUN useradd -ms /bin/bash devtron
 RUN chown -R devtron:devtron ./devtron-ea

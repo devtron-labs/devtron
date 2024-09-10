@@ -1,50 +1,45 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package attributes
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"net/http"
 	"strconv"
 	"time"
 )
 
 type AttributesService interface {
-	AddAttributes(request *AttributesDto) (*AttributesDto, error)
-	UpdateAttributes(request *AttributesDto) (*AttributesDto, error)
-	GetById(id int) (*AttributesDto, error)
-	GetActiveList() ([]*AttributesDto, error)
-	GetByKey(key string) (*AttributesDto, error)
+	AddAttributes(request *bean.AttributesDto) (*bean.AttributesDto, error)
+	UpdateAttributes(request *bean.AttributesDto) (*bean.AttributesDto, error)
+	GetById(id int) (*bean.AttributesDto, error)
+	GetActiveList() ([]*bean.AttributesDto, error)
+	GetByKey(key string) (*bean.AttributesDto, error)
 	UpdateKeyValueByOne(key string) error
-}
-
-const (
-	HostUrlKey     string = "url"
-	API_SECRET_KEY string = "apiTokenSecret"
-)
-
-type AttributesDto struct {
-	Id     int    `json:"id"`
-	Key    string `json:"key,omitempty"`
-	Value  string `json:"value,omitempty"`
-	Active bool   `json:"active"`
-	UserId int32  `json:"-"`
+	AddDeploymentEnforcementConfig(request *bean.AttributesDto) (*bean.AttributesDto, error)
+	// GetDeploymentEnforcementConfig : Retrieves the deployment config values from the attributes table
+	GetDeploymentEnforcementConfig(environmentId int) (map[string]bool, error)
 }
 
 type AttributesServiceImpl struct {
@@ -61,7 +56,7 @@ func NewAttributesServiceImpl(logger *zap.SugaredLogger,
 	return serviceImpl
 }
 
-func (impl AttributesServiceImpl) AddAttributes(request *AttributesDto) (*AttributesDto, error) {
+func (impl AttributesServiceImpl) AddAttributes(request *bean.AttributesDto) (*bean.AttributesDto, error) {
 	dbConnection := impl.attributesRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -106,7 +101,7 @@ func (impl AttributesServiceImpl) AddAttributes(request *AttributesDto) (*Attrib
 	return request, nil
 }
 
-func (impl AttributesServiceImpl) UpdateAttributes(request *AttributesDto) (*AttributesDto, error) {
+func (impl AttributesServiceImpl) UpdateAttributes(request *bean.AttributesDto) (*bean.AttributesDto, error) {
 	dbConnection := impl.attributesRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -141,7 +136,7 @@ func (impl AttributesServiceImpl) UpdateAttributes(request *AttributesDto) (*Att
 	return request, nil
 }
 
-func (impl AttributesServiceImpl) GetById(id int) (*AttributesDto, error) {
+func (impl AttributesServiceImpl) GetById(id int) (*bean.AttributesDto, error) {
 	model, err := impl.attributesRepository.FindById(id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching attributes", "error", err)
@@ -150,7 +145,7 @@ func (impl AttributesServiceImpl) GetById(id int) (*AttributesDto, error) {
 	if err == pg.ErrNoRows {
 		return nil, nil
 	}
-	ssoLoginDto := &AttributesDto{
+	ssoLoginDto := &bean.AttributesDto{
 		Id:     model.Id,
 		Active: model.Active,
 		Key:    model.Key,
@@ -159,8 +154,8 @@ func (impl AttributesServiceImpl) GetById(id int) (*AttributesDto, error) {
 	return ssoLoginDto, nil
 }
 
-func (impl AttributesServiceImpl) GetActiveList() ([]*AttributesDto, error) {
-	results := make([]*AttributesDto, 0)
+func (impl AttributesServiceImpl) GetActiveList() ([]*bean.AttributesDto, error) {
+	results := make([]*bean.AttributesDto, 0)
 	models, err := impl.attributesRepository.FindActiveList()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching attributes", "error", err)
@@ -170,7 +165,7 @@ func (impl AttributesServiceImpl) GetActiveList() ([]*AttributesDto, error) {
 		return results, nil
 	}
 	for _, model := range models {
-		dto := &AttributesDto{
+		dto := &bean.AttributesDto{
 			Id:     model.Id,
 			Active: model.Active,
 			Key:    model.Key,
@@ -181,7 +176,7 @@ func (impl AttributesServiceImpl) GetActiveList() ([]*AttributesDto, error) {
 	return results, nil
 }
 
-func (impl AttributesServiceImpl) GetByKey(key string) (*AttributesDto, error) {
+func (impl AttributesServiceImpl) GetByKey(key string) (*bean.AttributesDto, error) {
 	model, err := impl.attributesRepository.FindByKey(key)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching attributes", "error", err, "key", key)
@@ -190,7 +185,7 @@ func (impl AttributesServiceImpl) GetByKey(key string) (*AttributesDto, error) {
 	if err == pg.ErrNoRows {
 		return nil, nil
 	}
-	dto := &AttributesDto{
+	dto := &bean.AttributesDto{
 		Id:     model.Id,
 		Active: model.Active,
 		Key:    model.Key,
@@ -232,4 +227,108 @@ func (impl AttributesServiceImpl) UpdateKeyValueByOne(key string) error {
 
 	return err
 
+}
+
+func (impl AttributesServiceImpl) AddDeploymentEnforcementConfig(request *bean.AttributesDto) (*bean.AttributesDto, error) {
+	newConfig := make(map[string]map[string]bool)
+	attributesErr := json.Unmarshal([]byte(request.Value), &newConfig)
+	if attributesErr != nil {
+		impl.logger.Errorw("error in unmarshalling", "value", request.Value, "err", attributesErr)
+		return request, attributesErr
+	}
+	for environmentId, envConfig := range newConfig {
+		AllowedDeploymentAppTypes := 0
+		for _, allowed := range envConfig {
+			if allowed {
+				AllowedDeploymentAppTypes++
+			}
+		}
+		if AllowedDeploymentAppTypes == 0 && len(envConfig) > 0 {
+			return request, errors.New(fmt.Sprintf("Received invalid config for environment with id %s, "+
+				"at least one deployment app type should be allowed", environmentId))
+		}
+	}
+	dbConnection := impl.attributesRepository.GetConnection()
+	tx, terr := dbConnection.Begin()
+	if terr != nil {
+		impl.logger.Errorw("error in initiating db transaction")
+		return request, terr
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	model, err := impl.attributesRepository.FindByKey(bean.ENFORCE_DEPLOYMENT_TYPE_CONFIG)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching deploymentEnforcementConfig from db", "error", err, "key", request.Key)
+		return request, err
+	}
+	if err == pg.ErrNoRows {
+		model := &repository.Attributes{
+			Key:   bean.ENFORCE_DEPLOYMENT_TYPE_CONFIG,
+			Value: request.Value,
+		}
+		model.Active = true
+		model.UpdatedOn = time.Now()
+		model.UpdatedBy = request.UserId
+		_, err = impl.attributesRepository.Save(model, tx)
+		if err != nil {
+			impl.logger.Errorw("error in saving attributes", "model", model, "err", err)
+			return request, err
+		}
+	} else {
+
+		oldConfig := make(map[string]map[string]bool)
+		oldConfigString := model.Value
+		//initialConfigString = `{ "1": {"argo_cd": true}}`
+		err = json.Unmarshal([]byte(oldConfigString), &oldConfig)
+		if err != nil {
+			impl.logger.Errorw("error in unmarshalling", "oldConfigString", oldConfigString, "err", attributesErr)
+			return request, err
+		}
+		mergedConfig := oldConfig
+		for k, v := range newConfig {
+			mergedConfig[k] = v
+		}
+		value, err := json.Marshal(mergedConfig)
+		if err != nil {
+			return request, err
+		}
+		model.Value = string(value)
+		model.UpdatedOn = time.Now()
+		model.UpdatedBy = request.UserId
+		model.Active = true
+		err = impl.attributesRepository.Update(model, tx)
+		if err != nil {
+			impl.logger.Errorw("error in updating attributes", "model", model, "err", err)
+			return request, err
+		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error while commit db transaction to db", "error", err)
+		return request, err
+	}
+	return request, nil
+}
+
+func (impl AttributesServiceImpl) GetDeploymentEnforcementConfig(environmentId int) (map[string]bool, error) {
+	var deploymentConfig map[string]map[string]bool
+	var deploymentConfigEnv map[string]bool
+	deploymentConfigValues, err := impl.attributesRepository.FindByKey(bean.ENFORCE_DEPLOYMENT_TYPE_CONFIG)
+	if util.IsErrNoRows(err) {
+		return deploymentConfigEnv, nil
+	}
+	//if empty config received(doesn't exist in table) which can't be parsed
+	if deploymentConfigValues.Value != "" {
+		if err := json.Unmarshal([]byte(deploymentConfigValues.Value), &deploymentConfig); err != nil {
+			apiError := &util.ApiError{
+				HttpStatusCode:  http.StatusInternalServerError,
+				InternalMessage: err.Error(),
+				UserMessage:     "Failed to fetch deployment config values from the attributes table",
+			}
+			return deploymentConfigEnv, apiError
+		}
+		deploymentConfigEnv, _ = deploymentConfig[fmt.Sprintf("%d", environmentId)]
+	}
+	return deploymentConfigEnv, nil
 }

@@ -1,0 +1,1 @@
+UPDATE global_strategy_metadata_chart_ref_mapping SET active=true WHERE chart_ref_id in(SELECT id FROM chart_ref WHERE location LIKE '%deployment-chart_%') AND global_strategy_metadata_id=(SELECT id FROM global_strategy_metadata WHERE name='RECREATE');

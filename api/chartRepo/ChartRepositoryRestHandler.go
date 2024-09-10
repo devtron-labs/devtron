@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package chartRepo
@@ -20,20 +19,20 @@ package chartRepo
 import (
 	"encoding/json"
 	"errors"
-	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/attributes"
-	"github.com/devtron-labs/devtron/pkg/chartRepo"
-	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	delete2 "github.com/devtron-labs/devtron/pkg/delete"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/gorilla/mux"
-	"go.uber.org/zap"
-	"gopkg.in/go-playground/validator.v9"
 	"mime/multipart"
 	"net/http"
 	"strconv"
+
+	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/chartRepo"
+	delete2 "github.com/devtron-labs/devtron/pkg/delete"
+	"github.com/gorilla/mux"
+	"go.uber.org/zap"
+	"gopkg.in/go-playground/validator.v9"
 )
 
 const CHART_REPO_DELETE_SUCCESS_RESP = "Chart repo deleted successfully."
@@ -48,6 +47,7 @@ type ChartBinary struct {
 type ChartRepositoryRestHandler interface {
 	GetChartRepoById(w http.ResponseWriter, r *http.Request)
 	GetChartRepoList(w http.ResponseWriter, r *http.Request)
+	GetChartRepoListMin(w http.ResponseWriter, r *http.Request)
 	CreateChartRepo(w http.ResponseWriter, r *http.Request)
 	UpdateChartRepo(w http.ResponseWriter, r *http.Request)
 	ValidateChartRepo(w http.ResponseWriter, r *http.Request)
@@ -62,14 +62,12 @@ type ChartRepositoryRestHandlerImpl struct {
 	enforcer               casbin.Enforcer
 	validator              *validator.Validate
 	deleteService          delete2.DeleteService
-	chartRefRepository     chartRepoRepository.ChartRefRepository
-	refChartDir            chartRepoRepository.RefChartDir
 	attributesService      attributes.AttributesService
 }
 
 func NewChartRepositoryRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, chartRepositoryService chartRepo.ChartRepositoryService,
 	enforcer casbin.Enforcer, validator *validator.Validate, deleteService delete2.DeleteService,
-	chartRefRepository chartRepoRepository.ChartRefRepository, refChartDir chartRepoRepository.RefChartDir, attributesService attributes.AttributesService) *ChartRepositoryRestHandlerImpl {
+	attributesService attributes.AttributesService) *ChartRepositoryRestHandlerImpl {
 	return &ChartRepositoryRestHandlerImpl{
 		Logger:                 Logger,
 		chartRepositoryService: chartRepositoryService,
@@ -77,8 +75,6 @@ func NewChartRepositoryRestHandlerImpl(Logger *zap.SugaredLogger, userAuthServic
 		enforcer:               enforcer,
 		validator:              validator,
 		deleteService:          deleteService,
-		chartRefRepository:     chartRefRepository,
-		refChartDir:            refChartDir,
 		attributesService:      attributesService,
 	}
 }
@@ -115,13 +111,35 @@ func (handler *ChartRepositoryRestHandlerImpl) GetChartRepoList(w http.ResponseW
 	handler.Logger.Infow("request payload, GetChartRepoList, app store")
 	res, err := handler.chartRepositoryService.GetChartRepoList()
 
-	err = handler.attributesService.UpdateKeyValueByOne(CHART_STORE_VISITED_COUNTER)
-
 	if err != nil {
 		handler.Logger.Errorw("service err, GetChartRepoList, app store", "err", err, "userId", userId)
+		handler.Logger.Debug(res)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
+	err = handler.attributesService.UpdateKeyValueByOne(CHART_STORE_VISITED_COUNTER)
+	// ignoring error here since it shouldn't break the main call. logging it instead
+	handler.Logger.Errorw("service err, GetChartRepoList, app store, update visited counter", "err", err, "userId", userId)
+
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *ChartRepositoryRestHandlerImpl) GetChartRepoListMin(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
+		return
+	}
+	handler.Logger.Infow("request payload, GetChartRepoListMin, app store")
+	res, err := handler.chartRepositoryService.GetChartRepoListMin()
+
+	if err != nil {
+		handler.Logger.Errorw("service err, GetChartRepoListMin, app store", "err", err, "userId", userId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
@@ -258,7 +276,11 @@ func (handler *ChartRepositoryRestHandlerImpl) TriggerChartSyncManual(w http.Res
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	err2 := handler.chartRepositoryService.TriggerChartSyncManual()
+	chartProviderConfig := &chartRepo.ChartProviderConfig{
+		ChartProviderId: "*",
+		IsOCIRegistry:   true,
+	}
+	err2 := handler.chartRepositoryService.TriggerChartSyncManual(chartProviderConfig)
 	if err2 != nil {
 		common.WriteJsonResp(w, err2, nil, http.StatusInternalServerError)
 	} else {

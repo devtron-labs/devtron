@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	app "github.com/devtron-labs/devtron/pkg/app"
+	app "github.com/devtron-labs/devtron/pkg/app/status"
 	mock "github.com/stretchr/testify/mock"
 
 	pg "github.com/go-pg/pg"

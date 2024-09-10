@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package repository
@@ -32,18 +31,22 @@ const (
 )
 
 type GitProvider struct {
-	tableName     struct{} `sql:"git_provider" pg:",discard_unknown_columns"`
-	Id            int      `sql:"id,pk"`
-	Name          string   `sql:"name,notnull"`
-	Url           string   `sql:"url,notnull"`
-	UserName      string   `sql:"user_name"`
-	Password      string   `sql:"password"`
-	SshPrivateKey string   `sql:"ssh_private_key"`
-	AccessToken   string   `sql:"access_token"`
-	AuthMode      AuthMode `sql:"auth_mode,notnull"`
-	Active        bool     `sql:"active,notnull"`
-	Deleted       bool     `sql:"deleted,notnull"`
-	GitHostId     int      `sql:"git_host_id"` //id stored in db git_host( foreign key)
+	tableName             struct{} `sql:"git_provider" pg:",discard_unknown_columns"`
+	Id                    int      `sql:"id,pk"`
+	Name                  string   `sql:"name,notnull"`
+	Url                   string   `sql:"url,notnull"`
+	UserName              string   `sql:"user_name"`
+	Password              string   `sql:"password"`
+	SshPrivateKey         string   `sql:"ssh_private_key"`
+	AccessToken           string   `sql:"access_token"`
+	AuthMode              AuthMode `sql:"auth_mode,notnull"`
+	Active                bool     `sql:"active,notnull"`
+	Deleted               bool     `sql:"deleted,notnull"`
+	GitHostId             int      `sql:"git_host_id"` //id stored in db git_host( foreign key)
+	TlsCert               string   `sql:"tls_cert"`
+	TlsKey                string   `sql:"tls_key"`
+	CaCert                string   `sql:"ca_cert"`
+	EnableTLSVerification bool     `sql:"enable_tls_verification"`
 	sql.AuditLog
 }
 
@@ -52,6 +55,7 @@ type GitProviderRepository interface {
 	ProviderExists(url string) (bool, error)
 	FindAllActiveForAutocomplete() ([]GitProvider, error)
 	FindAll() ([]GitProvider, error)
+	FindAllGitProviderCount() (int, error)
 	FindOne(providerId string) (GitProvider, error)
 	FindByUrl(providerUrl string) (GitProvider, error)
 	Update(gitProvider *GitProvider) error
@@ -94,6 +98,11 @@ func (impl GitProviderRepositoryImpl) FindAll() ([]GitProvider, error) {
 	err := impl.dbConnection.Model(&providers).
 		Where("deleted = ?", false).Select()
 	return providers, err
+}
+func (impl GitProviderRepositoryImpl) FindAllGitProviderCount() (int, error) {
+	gitProviderCount, err := impl.dbConnection.Model(&GitProvider{}).
+		Where("deleted = ?", false).Count()
+	return gitProviderCount, err
 }
 
 func (impl GitProviderRepositoryImpl) FindOne(providerId string) (GitProvider, error) {

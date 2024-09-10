@@ -1,15 +1,32 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package bulkAction
 
 import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
-	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
-	"github.com/devtron-labs/devtron/client/argocdServer/repository"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
+	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
@@ -18,13 +35,19 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	appWorkflow2 "github.com/devtron-labs/devtron/pkg/appWorkflow"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
+	bean5 "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	pipeline1 "github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/util/rbac"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/go-pg/pg"
@@ -33,6 +56,7 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"sort"
+	"strings"
 )
 
 type BulkUpdateService interface {
@@ -44,9 +68,9 @@ type BulkUpdateService interface {
 	BulkUpdateSecret(bulkUpdatePayload *BulkUpdatePayload) *CmAndSecretBulkUpdateResponse
 	BulkUpdate(bulkUpdateRequest *BulkUpdatePayload) (bulkUpdateResponse *BulkUpdateResponse)
 
-	BulkHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error)
-	BulkUnHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error)
-	BulkDeploy(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error)
+	BulkHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationHibernateUnhibernateForEnvironmentResponse, error)
+	BulkUnHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationHibernateUnhibernateForEnvironmentResponse, error)
+	BulkDeploy(request *BulkApplicationForEnvironmentPayload, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (*BulkApplicationForEnvironmentResponse, error)
 	BulkBuildTrigger(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error)
 
 	GetBulkActionImpactedPipelinesAndWfs(dto *CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, []int, []int, error)
@@ -55,96 +79,71 @@ type BulkUpdateService interface {
 
 type BulkUpdateServiceImpl struct {
 	bulkUpdateRepository             bulkUpdate.BulkUpdateRepository
-	chartRepository                  chartRepoRepository.ChartRepository
 	logger                           *zap.SugaredLogger
-	repoRepository                   chartRepoRepository.ChartRepoRepository
-	chartTemplateService             util.ChartTemplateService
-	mergeUtil                        util.MergeUtil
-	repositoryService                repository.ServiceClient
-	defaultChart                     chart.DefaultChart
-	chartRefRepository               chartRepoRepository.ChartRefRepository
-	envOverrideRepository            chartConfig.EnvConfigOverrideRepository
-	pipelineConfigRepository         chartConfig.PipelineConfigRepository
-	configMapRepository              chartConfig.ConfigMapRepository
 	environmentRepository            repository2.EnvironmentRepository
 	pipelineRepository               pipelineConfig.PipelineRepository
-	appLevelMetricsRepository        repository3.AppLevelMetricsRepository
-	envLevelAppMetricsRepository     repository3.EnvLevelAppMetricsRepository
-	client                           *http.Client
 	appRepository                    app.AppRepository
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	configMapHistoryService          history.ConfigMapHistoryService
-	workflowDagExecutor              pipeline.WorkflowDagExecutor
-	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
 	pipelineBuilder                  pipeline.PipelineBuilder
-	helmAppService                   client.HelmAppService
 	enforcerUtil                     rbac.EnforcerUtil
-	enforcerUtilHelm                 rbac.EnforcerUtilHelm
 	ciHandler                        pipeline.CiHandler
 	ciPipelineRepository             pipelineConfig.CiPipelineRepository
 	appWorkflowRepository            appWorkflow.AppWorkflowRepository
 	appWorkflowService               appWorkflow2.AppWorkflowService
+	scopedVariableManager            variables.ScopedVariableManager
+	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
+	chartRefService                  chartRef.ChartRefService
+	deployedAppService               deployedApp.DeployedAppService
+	cdPipelineEventPublishService    out.CDPipelineEventPublishService
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
-	chartRepository chartRepoRepository.ChartRepository,
 	logger *zap.SugaredLogger,
-	chartTemplateService util.ChartTemplateService,
-	repoRepository chartRepoRepository.ChartRepoRepository,
-	defaultChart chart.DefaultChart,
-	mergeUtil util.MergeUtil,
-	repositoryService repository.ServiceClient,
-	chartRefRepository chartRepoRepository.ChartRefRepository,
-	envOverrideRepository chartConfig.EnvConfigOverrideRepository,
-	pipelineConfigRepository chartConfig.PipelineConfigRepository,
-	configMapRepository chartConfig.ConfigMapRepository,
 	environmentRepository repository2.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	appLevelMetricsRepository repository3.AppLevelMetricsRepository,
-	envLevelAppMetricsRepository repository3.EnvLevelAppMetricsRepository,
-	client *http.Client,
 	appRepository app.AppRepository,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
-	configMapHistoryService history.ConfigMapHistoryService, workflowDagExecutor pipeline.WorkflowDagExecutor,
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, pipelineBuilder pipeline.PipelineBuilder,
-	helmAppService client.HelmAppService, enforcerUtil rbac.EnforcerUtil,
-	enforcerUtilHelm rbac.EnforcerUtilHelm, ciHandler pipeline.CiHandler,
+	configMapHistoryService history.ConfigMapHistoryService,
+	pipelineBuilder pipeline.PipelineBuilder,
+	enforcerUtil rbac.EnforcerUtil,
+	ciHandler pipeline.CiHandler,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	appWorkflowService appWorkflow2.AppWorkflowService) *BulkUpdateServiceImpl {
+	appWorkflowService appWorkflow2.AppWorkflowService,
+	scopedVariableManager variables.ScopedVariableManager,
+	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
+	chartRefService chartRef.ChartRefService,
+	deployedAppService deployedApp.DeployedAppService,
+	cdPipelineEventPublishService out.CDPipelineEventPublishService) *BulkUpdateServiceImpl {
 	return &BulkUpdateServiceImpl{
 		bulkUpdateRepository:             bulkUpdateRepository,
-		chartRepository:                  chartRepository,
 		logger:                           logger,
-		chartTemplateService:             chartTemplateService,
-		repoRepository:                   repoRepository,
-		mergeUtil:                        mergeUtil,
-		defaultChart:                     defaultChart,
-		repositoryService:                repositoryService,
-		chartRefRepository:               chartRefRepository,
-		envOverrideRepository:            envOverrideRepository,
-		pipelineConfigRepository:         pipelineConfigRepository,
-		configMapRepository:              configMapRepository,
 		environmentRepository:            environmentRepository,
 		pipelineRepository:               pipelineRepository,
-		appLevelMetricsRepository:        appLevelMetricsRepository,
-		envLevelAppMetricsRepository:     envLevelAppMetricsRepository,
-		client:                           client,
 		appRepository:                    appRepository,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		configMapHistoryService:          configMapHistoryService,
-		workflowDagExecutor:              workflowDagExecutor,
-		cdWorkflowRepository:             cdWorkflowRepository,
 		pipelineBuilder:                  pipelineBuilder,
-		helmAppService:                   helmAppService,
 		enforcerUtil:                     enforcerUtil,
-		enforcerUtilHelm:                 enforcerUtilHelm,
 		ciHandler:                        ciHandler,
 		ciPipelineRepository:             ciPipelineRepository,
 		appWorkflowRepository:            appWorkflowRepository,
 		appWorkflowService:               appWorkflowService,
+		scopedVariableManager:            scopedVariableManager,
+		deployedAppMetricsService:        deployedAppMetricsService,
+		chartRefService:                  chartRefService,
+		deployedAppService:               deployedAppService,
+		cdPipelineEventPublishService:    cdPipelineEventPublishService,
 	}
+
 }
+
+const (
+	AuthorizationError = "authError"
+	Error              = "error"
+	Skipped            = "skipped"
+)
 
 func (impl BulkUpdateServiceImpl) FindBulkUpdateReadme(operation string) (*BulkUpdateSeeExampleResponse, error) {
 	bulkUpdateReadme, err := impl.bulkUpdateRepository.FindBulkUpdateReadme(operation)
@@ -429,18 +428,22 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 							deploymentTemplateBulkUpdateResponse.Successful = append(deploymentTemplateBulkUpdateResponse.Successful, bulkUpdateSuccessResponse)
 
 							//creating history entry for deployment template
-							appLevelAppMetricsEnabled := false
-							appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(chart.AppId)
-							if err != nil && err != pg.ErrNoRows {
-								impl.logger.Errorw("error in getting app level metrics app level", "error", err)
-							} else if err == nil {
-								appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
+							appLevelAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagByAppId(chart.AppId)
+							if err != nil {
+								impl.logger.Errorw("error in getting app level metrics app level", "error", err, "appId", chart.AppId)
+								return nil
 							}
 							chart.GlobalOverride = modified
 							chart.Values = modified
 							err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(chart, nil, appLevelAppMetricsEnabled)
 							if err != nil {
 								impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", chart)
+							}
+							//VARIABLE_MAPPING_UPDATE
+							//NOTE: this flow is doesn't have the user info, therefore updated by is being set to the last updated by
+							err = impl.scopedVariableManager.ExtractAndMapVariables(chart.GlobalOverride, chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, chart.UpdatedBy, nil)
+							if err != nil {
+								return nil
 							}
 						}
 					}
@@ -491,24 +494,20 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 							deploymentTemplateBulkUpdateResponse.Successful = append(deploymentTemplateBulkUpdateResponse.Successful, bulkUpdateSuccessResponse)
 
 							//creating history entry for deployment template
-							envLevelAppMetricsEnabled := false
-							envLevelAppMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(chartEnv.Chart.AppId, chartEnv.TargetEnvironment)
-							if err != nil && err != pg.ErrNoRows {
-								impl.logger.Errorw("error in getting env level app metrics", "err", err, "appId", chartEnv.Chart.AppId, "envId", chartEnv.TargetEnvironment)
-							} else if err == pg.ErrNoRows {
-								appLevelAppMetrics, err := impl.appLevelMetricsRepository.FindByAppId(chartEnv.Chart.AppId)
-								if err != nil && err != pg.ErrNoRows {
-									impl.logger.Errorw("error in getting app level app metrics", "err", err, "appId", chartEnv.Chart.AppId)
-								} else if err == nil {
-									envLevelAppMetricsEnabled = appLevelAppMetrics.AppMetrics
-								}
-							} else {
-								envLevelAppMetricsEnabled = *envLevelAppMetrics.AppMetrics
+							isAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagForAPipelineByAppIdAndEnvId(chartEnv.Chart.AppId, chartEnv.TargetEnvironment)
+							if err != nil {
+								impl.logger.Errorw("error, GetMetricsFlagForAPipelineByAppIdAndEnvId", "err", err, "appId", chartEnv.Chart.AppId, "envId", chartEnv.TargetEnvironment)
+								return nil
 							}
 							chartEnv.EnvOverrideValues = modified
-							err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(chartEnv, nil, envLevelAppMetricsEnabled, 0)
+							err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(chartEnv, nil, isAppMetricsEnabled, 0)
 							if err != nil {
 								impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", chartEnv)
+							}
+							//VARIABLE_MAPPING_UPDATE
+							err = impl.scopedVariableManager.ExtractAndMapVariables(chartEnv.EnvOverrideValues, chartEnv.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, chartEnv.UpdatedBy, nil)
+							if err != nil {
+								return nil
 							}
 						}
 					}
@@ -965,7 +964,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdate(bulkUpdatePayload *BulkUpdatePayloa
 	return bulkUpdateResponse
 }
 
-func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error) {
+func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationHibernateUnhibernateForEnvironmentResponse, error) {
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
 	if len(request.AppIdIncludes) > 0 {
@@ -979,14 +978,23 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 		impl.logger.Errorw("error in fetching pipelines", "envId", request.EnvId, "err", err)
 		return nil, err
 	}
-	response := make(map[string]map[string]bool)
+	response := make(map[string]map[string]any)
+	var cdPipelineIds []int
+
+	for _, pipeline := range pipelines {
+		cdPipelineIds = append(cdPipelineIds, pipeline.Id)
+	}
+	deploymentTypeMap, err := impl.pipelineRepository.FindDeploymentTypeByPipelineIds(cdPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching deploymentTypes", "pipelineIds", cdPipelineIds, "err", err)
+		return nil, err
+	}
 	for _, pipeline := range pipelines {
 		appKey := fmt.Sprintf("%d_%s", pipeline.AppId, pipeline.App.AppName)
 		pipelineKey := fmt.Sprintf("%d_%s", pipeline.Id, pipeline.Name)
-		success := true
 		if _, ok := response[appKey]; !ok {
-			pResponse := make(map[string]bool)
-			pResponse[pipelineKey] = false
+			pResponse := make(map[string]any)
+			pResponse[pipelineKey] = true //by default assuming that the operation is successful, if not so then we'll mark it as false
 			response[appKey] = pResponse
 		}
 		appObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
@@ -996,51 +1004,84 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 			//skip hibernate for the app if user does not have access on that
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
+			pipelineResponse[AuthorizationError] = true
+			response[appKey] = pipelineResponse
+			continue
+		}
+		deploymentHistory := deploymentTypeMap[pipeline.Id]
+		if deploymentHistory.DeploymentType == models.DEPLOYMENTTYPE_STOP {
+			impl.logger.Infow("application already hibernated", "app_id", pipeline.AppId)
+			pipelineResponse := response[appKey]
+			pipelineResponse[pipelineKey] = false
+			if deploymentHistory.Status == argoApplication.HIBERNATING {
+				pipelineResponse[Skipped] = "Application is already hibernated"
+			} else {
+				pipelineResponse[Skipped] = "Hibernation already in progress"
+			}
 			response[appKey] = pipelineResponse
 			continue
 		}
 		var hibernateReqError error
 		//if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-		stopRequest := &pipeline1.StopAppRequest{
+		stopRequest := &bean5.StopAppRequest{
 			AppId:         pipeline.AppId,
 			EnvironmentId: pipeline.EnvironmentId,
 			UserId:        request.UserId,
-			RequestType:   pipeline1.STOP,
+			RequestType:   bean5.STOP,
 		}
-		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
+		_, hibernateReqError = impl.deployedAppService.StopStartApp(ctx, stopRequest)
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
+			pipelineResponse[Error] = hibernateReqError.Error()
 			response[appKey] = pipelineResponse
 			continue
 		}
-		pipelineResponse := response[appKey]
-		pipelineResponse[pipelineKey] = success
-		response[appKey] = pipelineResponse
 	}
-	bulkOperationResponse := &BulkApplicationForEnvironmentResponse{}
+	var responseArray []map[string]interface{}
+	for appKey, pipelineResponse := range response {
+		appMap := make(map[string]interface{})
+		appKeySplit := strings.Split(appKey, "_")
+		appId := appKeySplit[0]
+		appName := strings.Join(appKeySplit[1:], "_")
+		appMap["id"] = appId
+		appMap["appName"] = appName
+		for key, value := range pipelineResponse {
+			if key == AuthorizationError {
+				appMap[AuthorizationError] = value
+			} else if key == Error {
+				appMap[Error] = value
+			} else if key == Skipped {
+				appMap[Skipped] = value
+			} else {
+				appMap["success"] = value
+			}
+		}
+		responseArray = append(responseArray, appMap)
+	}
+	bulkOperationResponse := &BulkApplicationHibernateUnhibernateForEnvironmentResponse{}
 	bulkOperationResponse.BulkApplicationForEnvironmentPayload = *request
-	bulkOperationResponse.Response = response
+	bulkOperationResponse.Response = responseArray
 	return bulkOperationResponse, nil
 }
 
-func (impl BulkUpdateServiceImpl) buildHibernateUnHibernateRequestForHelmPipelines(pipeline *pipelineConfig.Pipeline) (*client.AppIdentifier, *openapi.HibernateRequest, error) {
-	appIdentifier := &client.AppIdentifier{
+func (impl BulkUpdateServiceImpl) buildHibernateUnHibernateRequestForHelmPipelines(pipeline *pipelineConfig.Pipeline) (*helmBean.AppIdentifier, *openapi.HibernateRequest, error) {
+	appIdentifier := &helmBean.AppIdentifier{
 		ClusterId:   pipeline.Environment.ClusterId,
 		Namespace:   pipeline.Environment.Namespace,
 		ReleaseName: pipeline.DeploymentAppName,
 	}
 
 	hibernateRequest := &openapi.HibernateRequest{}
-	chartInfo, err := impl.chartRefRepository.FetchInfoOfChartConfiguredInApp(pipeline.AppId)
+	chartInfo, err := impl.chartRefService.FetchInfoOfChartConfiguredInApp(pipeline.AppId)
 	if err != nil {
 		impl.logger.Errorw("error in getting chart info for chart configured in app", "err", err, "appId", pipeline.AppId)
 		return nil, nil, err
 	}
 	var group, kind, version, name string
-	name = fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
-	if chartInfo.Name == "" && chartInfo.UserUploaded == false {
+	name = pipeline.DeploymentAppName
+	if chartInfo.Name == bean3.RolloutChartType && chartInfo.UserUploaded == false {
 		// rollout type chart
 		group = "argoproj.io"
 		kind = "Rollout"
@@ -1056,7 +1097,7 @@ func (impl BulkUpdateServiceImpl) buildHibernateUnHibernateRequestForHelmPipelin
 				},
 			},
 		}
-	} else if chartInfo.Name == "Deployment" {
+	} else if chartInfo.Name == bean3.DeploymentChartType {
 		//deployment type chart
 		group = "apps"
 		kind = "Deployment"
@@ -1079,7 +1120,7 @@ func (impl BulkUpdateServiceImpl) buildHibernateUnHibernateRequestForHelmPipelin
 	}
 	return appIdentifier, hibernateRequest, nil
 }
-func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error) {
+func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationHibernateUnhibernateForEnvironmentResponse, error) {
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
 	if len(request.AppIdIncludes) > 0 {
@@ -1093,14 +1134,22 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 		impl.logger.Errorw("error in fetching pipelines", "envId", request.EnvId, "err", err)
 		return nil, err
 	}
-	response := make(map[string]map[string]bool)
+	var cdPipelineIds []int
+	for _, pipeline := range pipelines {
+		cdPipelineIds = append(cdPipelineIds, pipeline.Id)
+	}
+	deploymentTypeMap, err := impl.pipelineRepository.FindDeploymentTypeByPipelineIds(cdPipelineIds)
+	if err != nil {
+		impl.logger.Errorw("error in fetching deploymentTypes", "pipelineIds", cdPipelineIds, "err", err)
+		return nil, err
+	}
+	response := make(map[string]map[string]any)
 	for _, pipeline := range pipelines {
 		appKey := fmt.Sprintf("%d_%s", pipeline.AppId, pipeline.App.AppName)
 		pipelineKey := fmt.Sprintf("%d_%s", pipeline.Id, pipeline.Name)
-		success := true
 		if _, ok := response[appKey]; !ok {
-			pResponse := make(map[string]bool)
-			pResponse[pipelineKey] = false
+			pResponse := make(map[string]any)
+			pResponse[pipelineKey] = true //by default assuming that the operation is successful, if not so then we'll mark it as false
 			response[appKey] = pResponse
 		}
 		appObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
@@ -1110,37 +1159,111 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 			//skip hibernate for the app if user does not have access on that
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
+			pipelineResponse[AuthorizationError] = true
+			response[appKey] = pipelineResponse
+			continue
+		}
+		deploymentHistory := deploymentTypeMap[pipeline.Id]
+		if deploymentHistory.DeploymentType == models.DEPLOYMENTTYPE_START ||
+			deploymentHistory.DeploymentType == models.DEPLOYMENTTYPE_DEPLOY {
+			impl.logger.Infow("application already UnHibernated", "app_id", pipeline.AppId)
+			pipelineResponse := response[appKey]
+			pipelineResponse[pipelineKey] = false
+			if deploymentHistory.Status == argoApplication.Healthy {
+				pipelineResponse[Skipped] = "Application is already un-hibernated"
+			} else {
+				pipelineResponse[Skipped] = "Un-hibernation already in progress"
+			}
 			response[appKey] = pipelineResponse
 			continue
 		}
 		var hibernateReqError error
 		//if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-		stopRequest := &pipeline1.StopAppRequest{
+		stopRequest := &bean5.StopAppRequest{
 			AppId:         pipeline.AppId,
 			EnvironmentId: pipeline.EnvironmentId,
 			UserId:        request.UserId,
-			RequestType:   pipeline1.START,
+			RequestType:   bean5.START,
 		}
-		_, hibernateReqError = impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
+		_, hibernateReqError = impl.deployedAppService.StopStartApp(ctx, stopRequest)
 		if hibernateReqError != nil {
 			impl.logger.Errorw("error in un-hibernating application", "err", hibernateReqError, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
+			pipelineResponse[Error] = hibernateReqError.Error()
 			response[appKey] = pipelineResponse
-			//return nil, err
+			continue
 		}
 		pipelineResponse := response[appKey]
-		pipelineResponse[pipelineKey] = success
+		pipelineResponse[pipelineKey] = true
 		response[appKey] = pipelineResponse
 	}
-	bulkOperationResponse := &BulkApplicationForEnvironmentResponse{}
+	var responseArray []map[string]interface{}
+	for appKey, pipelineResponse := range response {
+		appMap := make(map[string]interface{})
+		appKeySplit := strings.Split(appKey, "_")
+		appId := appKeySplit[0]
+		appName := strings.Join(appKeySplit[1:], "_")
+		appMap["id"] = appId
+		appMap["appName"] = appName
+		for key, value := range pipelineResponse {
+			if key == AuthorizationError {
+				appMap[AuthorizationError] = value
+			} else if key == Error {
+				appMap[Error] = value
+			} else if key == Skipped {
+				appMap[Skipped] = value
+			} else {
+				appMap["success"] = value
+			}
+		}
+		responseArray = append(responseArray, appMap)
+	}
+	bulkOperationResponse := &BulkApplicationHibernateUnhibernateForEnvironmentResponse{}
 	bulkOperationResponse.BulkApplicationForEnvironmentPayload = *request
-	bulkOperationResponse.Response = response
+	bulkOperationResponse.Response = responseArray
 	return bulkOperationResponse, nil
 }
-func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error) {
+
+func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironmentPayload, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool)) (*BulkApplicationForEnvironmentResponse, error) {
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
+
+	if len(request.AppNamesIncludes) > 0 {
+		r, err := impl.appRepository.FindIdsByNames(request.AppNamesIncludes)
+		if err != nil {
+			impl.logger.Errorw("error in fetching Ids", "err", err)
+			return nil, err
+		}
+		for _, id := range r {
+			request.AppIdIncludes = append(request.AppIdIncludes, id)
+		}
+	}
+	if len(request.AppNamesExcludes) > 0 {
+		r, err := impl.appRepository.FindIdsByNames(request.AppNamesExcludes)
+		if err != nil {
+			impl.logger.Errorw("error in fetching Ids", "err", err)
+			return nil, err
+		}
+		for _, id := range r {
+			request.AppIdExcludes = append(request.AppIdExcludes, id)
+		}
+	}
+	if len(request.EnvName) > 0 {
+		r, err := impl.environmentRepository.FindByName(request.EnvName)
+		if err != nil {
+			impl.logger.Errorw("error in fetching env details", "err", err)
+			return nil, err
+		}
+		if request.EnvId != 0 && request.EnvId != r.Id {
+			return nil, errors.New("environment id and environment name is different select only one environment")
+		} else if request.EnvId == 0 {
+			request.EnvId = r.Id
+		}
+	}
+	if len(request.EnvName) == 0 && request.EnvId == 0 {
+		return nil, errors.New("please mention environment id or environment name")
+	}
 	if len(request.AppIdIncludes) > 0 {
 		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIdIncludes)
 	} else if len(request.AppIdExcludes) > 0 {
@@ -1152,6 +1275,26 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 		impl.logger.Errorw("error in fetching pipelines", "envId", request.EnvId, "err", err)
 		return nil, err
 	}
+
+	pipelineIds := make([]int, 0)
+	for _, pipeline := range pipelines {
+		pipelineIds = append(pipelineIds, pipeline.Id)
+	}
+	if len(pipelineIds) == 0 {
+		return nil, fmt.Errorf("no pipeline found for this environment")
+	}
+	//authorization block starts here
+	var appObjectArr []string
+	var envObjectArr []string
+	objects := impl.enforcerUtil.GetAppAndEnvObjectByPipelineIds(pipelineIds)
+	pipelineIds = []int{}
+	for _, object := range objects {
+		appObjectArr = append(appObjectArr, object[0])
+		envObjectArr = append(envObjectArr, object[1])
+	}
+	appResults, envResults := checkAuthBatch(token, appObjectArr, envObjectArr)
+	//authorization block ends here
+
 	response := make(map[string]map[string]bool)
 	for _, pipeline := range pipelines {
 		appKey := fmt.Sprintf("%d_%s", pipeline.AppId, pipeline.App.AppName)
@@ -1162,18 +1305,17 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			pResponse[pipelineKey] = false
 			response[appKey] = pResponse
 		}
-		appObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
-		envObject := impl.enforcerUtil.GetEnvRBACNameByAppId(pipeline.AppId, pipeline.EnvironmentId)
-		isValidAuth := checkAuthForBulkActions(token, appObject, envObject)
-		if !isValidAuth {
-			//skip hibernate for the app if user does not have access on that
+		appObject := objects[pipeline.Id][0]
+		envObject := objects[pipeline.Id][1]
+		if !(appResults[appObject] && envResults[envObject]) {
+			//if user unauthorized, skip items
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
 			response[appKey] = pipelineResponse
 			continue
 		}
 
-		artifactResponse, err := impl.pipelineBuilder.GetArtifactsByCDPipeline(pipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
+		artifactResponse, err := impl.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean.CD_WORKFLOW_TYPE_DEPLOY)
 		if err != nil {
 			impl.logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", pipeline.Id)
 			//return nil, err
@@ -1191,20 +1333,13 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			continue
 		}
 		artifact := artifacts[0]
-		overrideRequest := &bean.ValuesOverrideRequest{
-			PipelineId:     pipeline.Id,
-			AppId:          pipeline.AppId,
-			CiArtifactId:   artifact.Id,
-			UserId:         request.UserId,
-			CdWorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
-		}
-		_, err = impl.workflowDagExecutor.ManualCdTrigger(overrideRequest, ctx)
+		err = impl.cdPipelineEventPublishService.PublishBulkTriggerTopicEvent(pipeline.Id, pipeline.AppId, artifact.Id, request.UserId)
 		if err != nil {
-			impl.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)
+			impl.logger.Errorw("error, PublishBulkTriggerTopicEvent", "err", err, "pipeline", pipeline)
 			pipelineResponse := response[appKey]
 			pipelineResponse[pipelineKey] = false
 			response[appKey] = pipelineResponse
-			//return nil, err
+			continue
 		}
 		pipelineResponse := response[appKey]
 		pipelineResponse[pipelineKey] = success
@@ -1249,7 +1384,9 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 				}
 				ciPipelineId = ciPipeline.ParentCiPipeline
 			}
-			materialResponse, err := impl.ciHandler.FetchMaterialsByPipelineId(ciPipelineId)
+
+			//if include/exclude configured showAll will include excluded materials also in list, if not configured it will ignore this flag
+			materialResponse, err := impl.ciHandler.FetchMaterialsByPipelineId(ciPipelineId, false)
 			if err != nil {
 				impl.logger.Errorw("error in fetching ci pipeline materials", "CiPipelineId", ciPipelineId, "err", err)
 				return nil, err
@@ -1265,13 +1402,13 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 			var ciMaterials []bean2.CiPipelineMaterial
 			ciMaterials = append(ciMaterials, bean2.CiPipelineMaterial{
 				Id:        materialId,
-				GitCommit: bean2.GitCommit{Commit: commitHash},
+				GitCommit: pipelineConfig.GitCommit{Commit: commitHash},
 			})
 			ciTriggerRequest := bean2.CiTriggerRequest{
 				PipelineId:         ciPipelineId,
 				CiPipelineMaterial: ciMaterials,
 				TriggeredBy:        request.UserId,
-				InvalidateCache:    false,
+				InvalidateCache:    request.InvalidateCache,
 			}
 			latestCommitsMap[ciPipelineId] = ciTriggerRequest
 			ciCompletedStatus[ciPipelineId] = false
@@ -1405,7 +1542,13 @@ func (impl BulkUpdateServiceImpl) PerformBulkActionOnCdPipelines(dto *CdBulkActi
 	ctx context.Context, dryRun bool, impactedAppWfIds []int, impactedCiPipelineIds []int) (*PipelineAndWfBulkActionResponseDto, error) {
 	switch dto.Action {
 	case CD_BULK_DELETE:
-		bulkDeleteResp, err := impl.PerformBulkDeleteActionOnCdPipelines(impactedPipelines, ctx, dryRun, dto.ForceDelete, dto.DeleteWfAndCiPipeline, impactedAppWfIds, impactedCiPipelineIds, dto.UserId)
+		deleteAction := bean2.CASCADE_DELETE
+		if dto.ForceDelete {
+			deleteAction = bean2.FORCE_DELETE
+		} else if dto.NonCascadeDelete {
+			deleteAction = bean2.NON_CASCADE_DELETE
+		}
+		bulkDeleteResp, err := impl.PerformBulkDeleteActionOnCdPipelines(impactedPipelines, ctx, dryRun, deleteAction, dto.DeleteWfAndCiPipeline, impactedAppWfIds, impactedCiPipelineIds, dto.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in cd pipelines bulk deletion")
 		}
@@ -1415,8 +1558,7 @@ func (impl BulkUpdateServiceImpl) PerformBulkActionOnCdPipelines(dto *CdBulkActi
 	}
 }
 
-func (impl BulkUpdateServiceImpl) PerformBulkDeleteActionOnCdPipelines(impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context,
-	dryRun, forceDelete, deleteWfAndCiPipeline bool, impactedAppWfIds, impactedCiPipelineIds []int, userId int32) (*PipelineAndWfBulkActionResponseDto, error) {
+func (impl BulkUpdateServiceImpl) PerformBulkDeleteActionOnCdPipelines(impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, deleteAction int, deleteWfAndCiPipeline bool, impactedAppWfIds, impactedCiPipelineIds []int, userId int32) (*PipelineAndWfBulkActionResponseDto, error) {
 	var cdPipelineRespDtos []*CdBulkActionResponseDto
 	var wfRespDtos []*WfBulkActionResponseDto
 	var ciPipelineRespDtos []*CiBulkActionResponseDto
@@ -1437,13 +1579,17 @@ func (impl BulkUpdateServiceImpl) PerformBulkDeleteActionOnCdPipelines(impactedP
 			EnvironmentName: pipeline.Environment.Name,
 		}
 		if !dryRun {
-			err := impl.pipelineBuilder.DeleteCdPipeline(pipeline, ctx, forceDelete, true, userId)
+			// Delete Cd pipeline
+			deleteResponse, err := impl.pipelineBuilder.DeleteCdPipeline(pipeline, ctx, deleteAction, true, userId)
 			if err != nil {
 				impl.logger.Errorw("error in deleting cd pipeline", "err", err, "pipelineId", pipeline.Id)
 				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, %v", err)
+			} else if !(deleteResponse.DeleteInitiated || deleteResponse.ClusterReachable) {
+				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, %s, piplineId, %v", "cluster connection error", pipeline.Id)
 			} else {
 				respDto.DeletionResult = "Pipeline deleted successfully."
 			}
+
 		}
 		cdPipelineRespDtos = append(cdPipelineRespDtos, respDto)
 	}

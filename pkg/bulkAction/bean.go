@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package bulkAction
 
 type NameIncludesExcludes struct {
@@ -82,15 +98,24 @@ type CmAndSecretBulkUpdateResponse struct {
 }
 
 type BulkApplicationForEnvironmentPayload struct {
-	AppIdIncludes []int `json:"appIdIncludes,omitempty"`
-	AppIdExcludes []int `json:"appIdExcludes,omitempty"`
-	EnvId         int   `json:"envId"`
-	UserId        int32 `json:"-"`
+	AppIdIncludes    []int    `json:"appIdIncludes,omitempty"`
+	AppIdExcludes    []int    `json:"appIdExcludes,omitempty"`
+	EnvId            int      `json:"envId,omitempty"`
+	EnvName          string   `json:"envName,omitempty"`
+	AppNamesIncludes []string `json:"appNamesIncludes,omitempty"`
+	AppNamesExcludes []string `json:"appNamesExcludes,omitempty"`
+	UserId           int32    `json:"-"`
+	InvalidateCache  bool     `json:"invalidateCache"`
 }
 
 type BulkApplicationForEnvironmentResponse struct {
 	BulkApplicationForEnvironmentPayload
 	Response map[string]map[string]bool `json:"response"`
+}
+
+type BulkApplicationHibernateUnhibernateForEnvironmentResponse struct {
+	BulkApplicationForEnvironmentPayload
+	Response []map[string]any `json:"response"`
 }
 
 type CdBulkAction int
@@ -109,6 +134,7 @@ type CdBulkActionRequestDto struct {
 	ProjectNames          []string     `json:"projectNames"`
 	DeleteWfAndCiPipeline bool         `json:"deleteWfAndCiPipeline"`
 	ForceDelete           bool         `json:"forceDelete"`
+	NonCascadeDelete      bool         `json:"nonCascadeDelete"`
 	UserId                int32        `json:"-"`
 }
 

@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package repository
 
 import (
@@ -9,9 +25,12 @@ import (
 type GlobalCMCSRepository interface {
 	Save(model *GlobalCMCS) (*GlobalCMCS, error)
 	Update(model *GlobalCMCS) (*GlobalCMCS, error)
-	FindAllActive() ([]GlobalCMCS, error)
+	FindAllActive() ([]*GlobalCMCS, error)
+	FindById(id int) (*GlobalCMCS, error)
 	FindByConfigTypeAndName(configType, name string) (*GlobalCMCS, error)
 	FindByMountPath(mountPath string) (*GlobalCMCS, error)
+	FindAllActiveByPipelineType(pipelineType string) ([]*GlobalCMCS, error)
+	Delete(model *GlobalCMCS) error
 }
 
 const (
@@ -19,6 +38,12 @@ const (
 	CS_TYPE_CONFIG     = "SECRET"
 	ENVIRONMENT_CONFIG = "environment"
 	VOLUME_CONFIG      = "volume"
+)
+
+const (
+	PIPELINE_TYPE_CI    = "CI"
+	PIPELINE_TYPE_CD    = "CD"
+	PIPELINE_TYPE_CI_CD = "CI/CD"
 )
 
 type GlobalCMCSRepositoryImpl struct {
@@ -37,9 +62,10 @@ type GlobalCMCS struct {
 	Name       string   `sql:"name"`
 	Type       string   `sql:"type"` // [environment, volume]
 	//json string of map of key:value, example: '{ "a" : "b", "c" : "d"}'
-	Data      string `sql:"data"`
-	MountPath string `sql:"mount_path"`
-	Deleted   bool   `sql:"deleted,notnull"`
+	Data               string `sql:"data"`
+	MountPath          string `sql:"mount_path"`
+	Deleted            bool   `sql:"deleted,notnull"`
+	SecretIngestionFor string `sql:"secret_ingestion_for,notnull"` // [CI, CD, CI/CD]
 	sql.AuditLog
 }
 
@@ -61,8 +87,8 @@ func (impl *GlobalCMCSRepositoryImpl) Update(model *GlobalCMCS) (*GlobalCMCS, er
 	return model, nil
 }
 
-func (impl *GlobalCMCSRepositoryImpl) FindAllActive() ([]GlobalCMCS, error) {
-	var models []GlobalCMCS
+func (impl *GlobalCMCSRepositoryImpl) FindAllActive() ([]*GlobalCMCS, error) {
+	var models []*GlobalCMCS
 	err := impl.dbConnection.Model(&models).
 		Where("deleted = ?", false).Select()
 	if err != nil {
@@ -95,4 +121,36 @@ func (impl *GlobalCMCSRepositoryImpl) FindByMountPath(mountPath string) (*Global
 		return nil, err
 	}
 	return model, nil
+}
+
+func (impl *GlobalCMCSRepositoryImpl) FindAllActiveByPipelineType(pipelineType string) ([]*GlobalCMCS, error) {
+	var models []*GlobalCMCS
+	err := impl.dbConnection.Model(&models).
+		Where("deleted = ?", false).
+		Where("secret_ingestion_for = ? OR secret_ingestion_for = ?", pipelineType, PIPELINE_TYPE_CI_CD).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("err on getting global cm/cs config to be used by default in ci/cd pipeline", "err", err)
+		return nil, err
+	}
+	return models, nil
+}
+
+func (impl *GlobalCMCSRepositoryImpl) FindById(id int) (*GlobalCMCS, error) {
+	model := &GlobalCMCS{}
+	err := impl.dbConnection.Model(model).Where("id = ? ", id).Select()
+	if err != nil {
+		impl.logger.Errorw("err on getting global cm/cs config to be used by default in ci/cd pipeline", "err", err)
+		return nil, err
+	}
+	return model, err
+}
+
+func (impl *GlobalCMCSRepositoryImpl) Delete(model *GlobalCMCS) error {
+	err := impl.dbConnection.Delete(model)
+	if err != nil {
+		impl.logger.Errorw("error in deleting global cm cs ", "err", err)
+		return err
+	}
+	return nil
 }

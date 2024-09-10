@@ -1,18 +1,35 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package terminal
 
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/clusterTerminalAccess"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strconv"
 )
 
 type UserTerminalAccessRestHandler interface {
@@ -26,6 +43,7 @@ type UserTerminalAccessRestHandler interface {
 	FetchTerminalPodEvents(w http.ResponseWriter, r *http.Request)
 	FetchTerminalPodManifest(w http.ResponseWriter, r *http.Request)
 	ValidateShell(w http.ResponseWriter, r *http.Request)
+	EditPodManifest(w http.ResponseWriter, r *http.Request)
 }
 
 type validShellResponse struct {
@@ -62,6 +80,7 @@ func (handler UserTerminalAccessRestHandlerImpl) ValidateShell(w http.ResponseWr
 	podName := vars["podName"]
 	namespace := vars["namespace"]
 	shellName := vars["shellName"]
+	containerName := vars["containerName"]
 	clusterId, err := strconv.Atoi(vars["clusterId"])
 	if err != nil {
 		handler.Logger.Errorw("error in parsing clusterId from request", "clusterId", clusterId, "err", err)
@@ -73,7 +92,7 @@ func (handler UserTerminalAccessRestHandlerImpl) ValidateShell(w http.ResponseWr
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	res, shell, err := handler.UserTerminalAccessService.ValidateShell(podName, namespace, shellName, clusterId)
+	res, shell, err := handler.UserTerminalAccessService.ValidateShell(podName, namespace, shellName, containerName, clusterId)
 	reason := ""
 	if err != nil {
 		reason = err.Error()
@@ -198,6 +217,7 @@ func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalStatus(w http.Resp
 	terminalAccessId, err := strconv.Atoi(vars["terminalAccessId"])
 	namespace := vars["namespace"]
 	shellName := vars["shellName"]
+	containerName := vars["containerName"]
 	if err != nil {
 		handler.Logger.Errorw("request err, FetchTerminalStatus", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -209,7 +229,7 @@ func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalStatus(w http.Resp
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	sessionResponse, err := handler.UserTerminalAccessService.FetchTerminalStatus(r.Context(), terminalAccessId, namespace, shellName)
+	sessionResponse, err := handler.UserTerminalAccessService.FetchTerminalStatus(r.Context(), terminalAccessId, namespace, containerName, shellName)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchTerminalStatus", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -362,4 +382,35 @@ func (handler UserTerminalAccessRestHandlerImpl) DisconnectAllTerminalSessionAnd
 		return
 	}
 	common.WriteJsonResp(w, nil, sessionResponse, http.StatusOK)
+}
+
+func (handler UserTerminalAccessRestHandlerImpl) EditPodManifest(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.UserService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	var request models.UserTerminalSessionRequest
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.Logger.Errorw("request err, StartTerminalSession", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("token")
+	if ok := handler.Enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	manifest, err := handler.UserTerminalAccessService.EditTerminalPodManifest(r.Context(), &request, false)
+	if err != nil {
+		handler.Logger.Errorw("service err, FetchTerminalPodManifest", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, manifest, http.StatusOK)
 }

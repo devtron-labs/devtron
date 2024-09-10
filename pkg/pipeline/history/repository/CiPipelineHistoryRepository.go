@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package repository
 
 import (
@@ -66,6 +82,14 @@ type CiPipelineHistory struct {
 	Manual                    bool     `sql:"manual,notnull"`
 }
 
+type CiEnvMappingHistory struct {
+	tableName     struct{} `sql:"ci_env_mapping_history" pg:",discard_unknown_columns"`
+	Id            int      `sql:"id,pk"`
+	CiPipelineId  int      `sql:"ci_pipeline_id"`
+	EnvironmentId int      `sql:"environment_id"`
+	sql.AuditLog
+}
+
 const (
 	TRIGGER_ADD    = "add"
 	TRIGGER_UPDATE = "update"
@@ -74,6 +98,7 @@ const (
 
 type CiPipelineHistoryRepository interface {
 	Save(ciPipelineHistory *CiPipelineHistory) error
+	SaveCiEnvMappingHistory(CiEnvMappingHistory *CiEnvMappingHistory) error
 }
 
 type CiPipelineHistoryRepositoryImpl struct {
@@ -95,6 +120,16 @@ func (impl *CiPipelineHistoryRepositoryImpl) Save(CiPipelineHistory *CiPipelineH
 
 	if err != nil {
 		impl.logger.Errorw("error in saving history for ci pipeline")
+		return err
+	}
+
+	return nil
+}
+func (impl *CiPipelineHistoryRepositoryImpl) SaveCiEnvMappingHistory(CiEnvMappingHistory *CiEnvMappingHistory) error {
+	err := impl.dbConnection.Insert(CiEnvMappingHistory)
+
+	if err != nil {
+		impl.logger.Errorw("error in saving history for Ci-Env Mapping", "err", err)
 		return err
 	}
 

@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package restHandler
@@ -20,14 +19,16 @@ package restHandler
 import (
 	"encoding/json"
 	"errors"
-	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/attributes"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/gorilla/mux"
-	"go.uber.org/zap"
+	"github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"net/http"
 	"strconv"
+
+	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/gorilla/mux"
+	"go.uber.org/zap"
 )
 
 type AttributesRestHandler interface {
@@ -36,6 +37,7 @@ type AttributesRestHandler interface {
 	GetAttributesById(w http.ResponseWriter, r *http.Request)
 	GetAttributesActiveList(w http.ResponseWriter, r *http.Request)
 	GetAttributesByKey(w http.ResponseWriter, r *http.Request)
+	AddDeploymentEnforcementConfig(w http.ResponseWriter, r *http.Request)
 }
 
 type AttributesRestHandlerImpl struct {
@@ -62,7 +64,7 @@ func (handler AttributesRestHandlerImpl) AddAttributes(w http.ResponseWriter, r 
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var dto attributes.AttributesDto
+	var dto bean.AttributesDto
 	err = decoder.Decode(&dto)
 	if err != nil {
 		handler.logger.Errorw("request err, AddAttributes", "err", err, "payload", dto)
@@ -94,7 +96,7 @@ func (handler AttributesRestHandlerImpl) UpdateAttributes(w http.ResponseWriter,
 	}
 
 	decoder := json.NewDecoder(r.Body)
-	var dto attributes.AttributesDto
+	var dto bean.AttributesDto
 	err = decoder.Decode(&dto)
 	if err != nil {
 		handler.logger.Errorw("request err, UpdateAttributes", "err", err, "payload", dto)
@@ -190,4 +192,35 @@ func (handler AttributesRestHandlerImpl) GetAttributesByKey(w http.ResponseWrite
 		return
 	}
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
+}
+
+func (handler AttributesRestHandlerImpl) AddDeploymentEnforcementConfig(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var dto bean.AttributesDto
+	err = decoder.Decode(&dto)
+	if err != nil {
+		handler.logger.Errorw("request err, AddAttributes", "err", err, "payload", dto)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	handler.logger.Infow("request payload, AddAttributes", "payload", dto)
+	resp, err := handler.attributesService.AddDeploymentEnforcementConfig(&dto)
+	if err != nil {
+		handler.logger.Errorw("service err, AddAttributes", "err", err, "payload", dto)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }

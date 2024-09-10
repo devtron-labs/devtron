@@ -1,73 +1,62 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package pipeline
 
 import (
+	"context"
+	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
 )
 
 type GitRegistryConfig interface {
-	Create(request *GitRegistry) (*GitRegistry, error)
-	GetAll() ([]GitRegistry, error)
-	FetchAllGitProviders() ([]GitRegistry, error)
-	FetchOneGitProvider(id string) (*GitRegistry, error)
-	Update(request *GitRegistry) (*GitRegistry, error)
-	Delete(request *GitRegistry) error
+	Create(request *types.GitRegistry) (*types.GitRegistry, error)
+	GetAll() ([]types.GitRegistry, error)
+	FetchAllGitProviders() ([]types.GitRegistry, error)
+	FetchOneGitProvider(id string) (*types.GitRegistry, error)
+	Update(request *types.GitRegistry) (*types.GitRegistry, error)
+	Delete(request *types.GitRegistry) error
 }
 type GitRegistryConfigImpl struct {
-	logger          *zap.SugaredLogger
-	gitProviderRepo repository.GitProviderRepository
-	GitSensorClient gitSensor.GitSensorClient
-}
-
-type GitRegistry struct {
-	Id            int                 `json:"id,omitempty" validate:"number"`
-	Name          string              `json:"name,omitempty" validate:"required"`
-	Url           string              `json:"url,omitempty"`
-	UserName      string              `json:"userName,omitempty"`
-	Password      string              `json:"password,omitempty"`
-	SshPrivateKey string              `json:"sshPrivateKey,omitempty"`
-	AccessToken   string              `json:"accessToken,omitempty"`
-	AuthMode      repository.AuthMode `json:"authMode,omitempty" validate:"required"`
-	Active        bool                `json:"active"`
-	UserId        int32               `json:"-"`
-	GitHostId     int                 `json:"gitHostId"`
+	logger              *zap.SugaredLogger
+	gitProviderRepo     repository.GitProviderRepository
+	GitSensorGrpcClient gitSensor.Client
 }
 
 func NewGitRegistryConfigImpl(logger *zap.SugaredLogger, gitProviderRepo repository.GitProviderRepository,
-	GitSensorClient gitSensor.GitSensorClient) *GitRegistryConfigImpl {
+	GitSensorClient gitSensor.Client) *GitRegistryConfigImpl {
 	return &GitRegistryConfigImpl{
-		logger:          logger,
-		gitProviderRepo: gitProviderRepo,
-		GitSensorClient: GitSensorClient,
+		logger:              logger,
+		gitProviderRepo:     gitProviderRepo,
+		GitSensorGrpcClient: GitSensorClient,
 	}
 }
 
-func (impl GitRegistryConfigImpl) Create(request *GitRegistry) (*GitRegistry, error) {
+func (impl GitRegistryConfigImpl) Create(request *types.GitRegistry) (*types.GitRegistry, error) {
 	impl.logger.Debugw("get repo create request", "req", request)
 	exist, err := impl.gitProviderRepo.ProviderExists(request.Url)
 	if err != nil {
@@ -89,18 +78,58 @@ func (impl GitRegistryConfigImpl) Create(request *GitRegistry) (*GitRegistry, er
 		return nil, errors.NewAlreadyExists(err, request.Url)
 	}
 	provider := &repository.GitProvider{
-		Name:          request.Name,
-		Url:           request.Url,
-		Id:            request.Id,
-		AuthMode:      request.AuthMode,
-		Password:      request.Password,
-		Active:        request.Active,
-		AccessToken:   request.AccessToken,
-		SshPrivateKey: request.SshPrivateKey,
-		UserName:      request.UserName,
-		AuditLog:      sql.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
-		GitHostId:     request.GitHostId,
+		Id:                    request.Id,
+		Name:                  request.Name,
+		Url:                   request.Url,
+		UserName:              request.UserName,
+		Password:              request.Password,
+		SshPrivateKey:         request.SshPrivateKey,
+		AccessToken:           request.AccessToken,
+		AuthMode:              request.AuthMode,
+		Active:                request.Active,
+		Deleted:               false,
+		GitHostId:             request.GitHostId,
+		EnableTLSVerification: request.EnableTLSVerification,
+		AuditLog:              sql.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
+
+	if request.EnableTLSVerification {
+		if len(request.TLSConfig.CaData) > 0 {
+			provider.CaCert = request.TLSConfig.CaData
+		}
+		if len(request.TLSConfig.TLSKeyData) > 0 && len(request.TLSConfig.TLSCertData) > 0 {
+			provider.TlsKey = request.TLSConfig.TLSKeyData
+			provider.TlsCert = request.TLSConfig.TLSCertData
+		}
+
+		if !request.IsCADataPresent {
+			provider.CaCert = ""
+		}
+		if !request.IsTLSCertDataPresent {
+			provider.TlsCert = ""
+		}
+		if !request.IsTLSKeyDataPresent {
+			provider.TlsKey = ""
+		}
+
+		if (len(provider.TlsKey) > 0 && len(provider.TlsCert) == 0) || (len(provider.TlsKey) == 0 && len(provider.TlsCert) > 0) {
+			return nil, &util.ApiError{
+				HttpStatusCode:  http.StatusPreconditionFailed,
+				Code:            constants.GitProviderUpdateRequestIsInvalid,
+				InternalMessage: "git provider failed to update in db",
+				UserMessage:     "git provider failed to update in db",
+			}
+		}
+		if len(provider.TlsKey) == 0 && len(provider.TlsCert) == 0 && len(provider.CaCert) == 0 {
+			return nil, &util.ApiError{
+				HttpStatusCode:  http.StatusPreconditionFailed,
+				Code:            constants.GitProviderUpdateRequestIsInvalid,
+				InternalMessage: "git provider failed to update in db",
+				UserMessage:     "git provider failed to update in db",
+			}
+		}
+	}
+
 	provider.SshPrivateKey = ModifySshPrivateKey(provider.SshPrivateKey, provider.AuthMode)
 	err = impl.gitProviderRepo.Save(provider)
 	if err != nil {
@@ -127,55 +156,73 @@ func (impl GitRegistryConfigImpl) Create(request *GitRegistry) (*GitRegistry, er
 }
 
 // get all active git providers
-func (impl GitRegistryConfigImpl) GetAll() ([]GitRegistry, error) {
+func (impl GitRegistryConfigImpl) GetAll() ([]types.GitRegistry, error) {
 	impl.logger.Debug("get all provider request")
 	providers, err := impl.gitProviderRepo.FindAllActiveForAutocomplete()
 	if err != nil {
 		impl.logger.Errorw("error in fetch all git providers", "err", err)
 		return nil, err
 	}
-	var gitProviders []GitRegistry
+	var gitProviders []types.GitRegistry
 	for _, provider := range providers {
-		providerRes := GitRegistry{
-			Id:        provider.Id,
-			Name:      provider.Name,
-			Url:       provider.Url,
-			GitHostId: provider.GitHostId,
-			AuthMode:  provider.AuthMode,
+		providerRes := types.GitRegistry{
+			Id:                    provider.Id,
+			Name:                  provider.Name,
+			Url:                   provider.Url,
+			GitHostId:             provider.GitHostId,
+			AuthMode:              provider.AuthMode,
+			EnableTLSVerification: provider.EnableTLSVerification,
+			TLSConfig: bean.TLSConfig{
+				CaData:      "",
+				TLSCertData: "",
+				TLSKeyData:  "",
+			},
+			IsCADataPresent:      len(provider.CaCert) > 0,
+			IsTLSKeyDataPresent:  len(provider.TlsKey) > 0,
+			IsTLSCertDataPresent: len(provider.TlsCert) > 0,
 		}
 		gitProviders = append(gitProviders, providerRes)
 	}
 	return gitProviders, err
 }
 
-func (impl GitRegistryConfigImpl) FetchAllGitProviders() ([]GitRegistry, error) {
+func (impl GitRegistryConfigImpl) FetchAllGitProviders() ([]types.GitRegistry, error) {
 	impl.logger.Debug("fetch all git providers from db")
 	providers, err := impl.gitProviderRepo.FindAll()
 	if err != nil {
 		impl.logger.Errorw("error in fetch all git providers", "err", err)
 		return nil, err
 	}
-	var gitProviders []GitRegistry
+	var gitProviders []types.GitRegistry
 	for _, provider := range providers {
-		providerRes := GitRegistry{
-			Id:            provider.Id,
-			Name:          provider.Name,
-			Url:           provider.Url,
-			UserName:      provider.UserName,
-			Password:      "",
-			AuthMode:      provider.AuthMode,
-			AccessToken:   "",
-			SshPrivateKey: "",
-			Active:        provider.Active,
-			UserId:        provider.CreatedBy,
-			GitHostId:     provider.GitHostId,
+		providerRes := types.GitRegistry{
+			Id:                    provider.Id,
+			Name:                  provider.Name,
+			Url:                   provider.Url,
+			UserName:              provider.UserName,
+			Password:              "",
+			AuthMode:              provider.AuthMode,
+			AccessToken:           "",
+			SshPrivateKey:         "",
+			Active:                provider.Active,
+			UserId:                provider.CreatedBy,
+			GitHostId:             provider.GitHostId,
+			EnableTLSVerification: provider.EnableTLSVerification,
+			TLSConfig: bean.TLSConfig{
+				CaData:      "",
+				TLSCertData: "",
+				TLSKeyData:  "",
+			},
+			IsCADataPresent:      len(provider.CaCert) > 0,
+			IsTLSKeyDataPresent:  len(provider.TlsKey) > 0,
+			IsTLSCertDataPresent: len(provider.TlsCert) > 0,
 		}
 		gitProviders = append(gitProviders, providerRes)
 	}
 	return gitProviders, err
 }
 
-func (impl GitRegistryConfigImpl) FetchOneGitProvider(providerId string) (*GitRegistry, error) {
+func (impl GitRegistryConfigImpl) FetchOneGitProvider(providerId string) (*types.GitRegistry, error) {
 	impl.logger.Debug("fetch git provider by ID from db")
 	provider, err := impl.gitProviderRepo.FindOne(providerId)
 	if err != nil {
@@ -183,35 +230,44 @@ func (impl GitRegistryConfigImpl) FetchOneGitProvider(providerId string) (*GitRe
 		return nil, err
 	}
 
-	providerRes := &GitRegistry{
-		Id:            provider.Id,
-		Name:          provider.Name,
-		Url:           provider.Url,
-		UserName:      provider.UserName,
-		Password:      provider.Password,
-		AuthMode:      provider.AuthMode,
-		AccessToken:   provider.AccessToken,
-		SshPrivateKey: provider.SshPrivateKey,
-		Active:        provider.Active,
-		UserId:        provider.CreatedBy,
-		GitHostId:     provider.GitHostId,
+	providerRes := &types.GitRegistry{
+		Id:                    provider.Id,
+		Name:                  provider.Name,
+		Url:                   provider.Url,
+		UserName:              provider.UserName,
+		Password:              provider.Password,
+		AuthMode:              provider.AuthMode,
+		AccessToken:           provider.AccessToken,
+		SshPrivateKey:         provider.SshPrivateKey,
+		Active:                provider.Active,
+		UserId:                provider.CreatedBy,
+		GitHostId:             provider.GitHostId,
+		EnableTLSVerification: provider.EnableTLSVerification,
+		TLSConfig: bean.TLSConfig{
+			CaData:      "",
+			TLSCertData: "",
+			TLSKeyData:  "",
+		},
+		IsCADataPresent:      len(provider.CaCert) > 0,
+		IsTLSKeyDataPresent:  len(provider.TlsKey) > 0,
+		IsTLSCertDataPresent: len(provider.TlsCert) > 0,
 	}
 
 	return providerRes, err
 }
 
-func (impl GitRegistryConfigImpl) Update(request *GitRegistry) (*GitRegistry, error) {
+func (impl GitRegistryConfigImpl) Update(request *types.GitRegistry) (*types.GitRegistry, error) {
 	impl.logger.Debugw("get repo create request", "req", request)
 
 	/*
-		exist, err := impl.gitProviderRepo.ProviderExists(request.Url)
+		exist, err := impl.gitProviderRepo.ProviderExists(request.RedirectionUrl)
 		if err != nil {
-			impl.logger.Errorw("error in fetch ", "url", request.Url, "err", err)
+			impl.logger.Errorw("error in fetch ", "url", request.RedirectionUrl, "err", err)
 			return nil, err
 		}
 		if exist {
-			impl.logger.Infow("repo already exists", "url", request.Url)
-			return nil, errors.NewAlreadyExists(err, request.Url)
+			impl.logger.Infow("repo already exists", "url", request.RedirectionUrl)
+			return nil, errors.NewAlreadyExists(err, request.RedirectionUrl)
 		}
 	*/
 
@@ -236,18 +292,69 @@ func (impl GitRegistryConfigImpl) Update(request *GitRegistry) (*GitRegistry, er
 		request.AccessToken = existingProvider.AccessToken
 	}
 	provider := &repository.GitProvider{
-		Name:          request.Name,
-		Url:           request.Url,
-		Id:            request.Id,
-		AuthMode:      request.AuthMode,
-		Password:      request.Password,
-		Active:        request.Active,
-		AccessToken:   request.AccessToken,
-		SshPrivateKey: request.SshPrivateKey,
-		UserName:      request.UserName,
-		GitHostId:     request.GitHostId,
-		AuditLog:      sql.AuditLog{CreatedBy: existingProvider.CreatedBy, CreatedOn: existingProvider.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: request.UserId},
+		Name:                  request.Name,
+		Url:                   request.Url,
+		Id:                    request.Id,
+		AuthMode:              request.AuthMode,
+		Password:              request.Password,
+		Active:                request.Active,
+		AccessToken:           request.AccessToken,
+		SshPrivateKey:         request.SshPrivateKey,
+		UserName:              request.UserName,
+		GitHostId:             request.GitHostId,
+		EnableTLSVerification: request.EnableTLSVerification,
+		AuditLog:              sql.AuditLog{CreatedBy: existingProvider.CreatedBy, CreatedOn: existingProvider.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
+
+	if request.AuthMode != repository.AUTH_MODE_USERNAME_PASSWORD {
+		provider.Password = ""
+		provider.TlsCert = ""
+		provider.TlsKey = ""
+		provider.CaCert = ""
+	}
+
+	if provider.EnableTLSVerification {
+
+		provider.TlsKey = existingProvider.TlsKey
+		provider.TlsCert = existingProvider.TlsCert
+		provider.CaCert = existingProvider.CaCert
+
+		if len(request.TLSConfig.CaData) > 0 {
+			provider.CaCert = request.TLSConfig.CaData
+		}
+		if len(request.TLSConfig.TLSKeyData) > 0 && len(request.TLSConfig.TLSCertData) > 0 {
+			provider.TlsKey = request.TLSConfig.TLSKeyData
+			provider.TlsCert = request.TLSConfig.TLSCertData
+		}
+
+		if !request.IsCADataPresent {
+			provider.CaCert = ""
+		}
+		if !request.IsTLSCertDataPresent {
+			provider.TlsCert = ""
+		}
+		if !request.IsTLSKeyDataPresent {
+			provider.TlsKey = ""
+		}
+
+		if (len(provider.TlsKey) > 0 && len(provider.TlsCert) == 0) || (len(provider.TlsKey) == 0 && len(provider.TlsCert) > 0) {
+			return nil, &util.ApiError{
+				HttpStatusCode:  http.StatusPreconditionFailed,
+				Code:            constants.GitProviderUpdateRequestIsInvalid,
+				InternalMessage: "git provider failed to update in db",
+				UserMessage:     "git provider failed to update in db",
+			}
+		}
+		if len(provider.TlsKey) == 0 && len(provider.TlsCert) == 0 && len(provider.CaCert) == 0 {
+			return nil, &util.ApiError{
+				HttpStatusCode:  http.StatusPreconditionFailed,
+				Code:            constants.GitProviderUpdateRequestIsInvalid,
+				InternalMessage: "git provider failed to update in db",
+				UserMessage:     "git provider failed to update in db",
+			}
+		}
+	}
+
 	provider.SshPrivateKey = ModifySshPrivateKey(provider.SshPrivateKey, provider.AuthMode)
 	err := impl.gitProviderRepo.Update(provider)
 	if err != nil {
@@ -273,7 +380,7 @@ func (impl GitRegistryConfigImpl) Update(request *GitRegistry) (*GitRegistry, er
 	return request, nil
 }
 
-func (impl GitRegistryConfigImpl) Delete(request *GitRegistry) error {
+func (impl GitRegistryConfigImpl) Delete(request *types.GitRegistry) error {
 	providerId := strconv.Itoa(request.Id)
 	gitProviderConfig, err := impl.gitProviderRepo.FindOne(providerId)
 	if err != nil {
@@ -304,18 +411,21 @@ func (impl GitRegistryConfigImpl) Delete(request *GitRegistry) error {
 
 func (impl GitRegistryConfigImpl) UpdateGitSensor(provider *repository.GitProvider) error {
 	sensorGitProvider := &gitSensor.GitProvider{
-		Id:            provider.Id,
-		Url:           provider.Url,
-		Name:          provider.Name,
-		UserName:      provider.UserName,
-		AccessToken:   provider.AccessToken,
-		Password:      provider.Password,
-		Active:        provider.Active,
-		SshPrivateKey: provider.SshPrivateKey,
-		AuthMode:      provider.AuthMode,
+		Id:                    provider.Id,
+		Name:                  provider.Name,
+		Url:                   provider.Url,
+		UserName:              provider.UserName,
+		Password:              provider.Password,
+		SshPrivateKey:         provider.SshPrivateKey,
+		AccessToken:           provider.AccessToken,
+		Active:                provider.Active,
+		AuthMode:              provider.AuthMode,
+		CaCert:                provider.CaCert,
+		TlsCert:               provider.TlsCert,
+		TlsKey:                provider.TlsKey,
+		EnableTlsVerification: provider.EnableTLSVerification,
 	}
-	_, err := impl.GitSensorClient.SaveGitProvider(sensorGitProvider)
-	return err
+	return impl.GitSensorGrpcClient.SaveGitProvider(context.Background(), sensorGitProvider)
 }
 
 // Modifying Ssh Private Key because Ssh key authentication requires a new-line at the end of string & there are chances that user skips sending \n

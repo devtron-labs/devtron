@@ -1,8 +1,9 @@
 name: "📚 Documentation"
 description: "Report an issue related to documentation"
-assignees: ["SNe789","prakarsh_dt"]
+assignees: ["ashokdevtron","prakarsh-dt"]
 title: "Doc: "
 labels: [documentation]
+projects: ["Devtron Features Prioritization"]
 body:
   - type: markdown
     attributes:

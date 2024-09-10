@@ -73,9 +73,9 @@ There are five Data types that you can use to save your secret.
 
 *Note: The conversion of secrets from various data types to Kubernetes Secrets is done within Devtron and irrespective of the data type, after conversion, the Pods access `secrets` normally.*
 
-## Mount Existing Kuberentes Secrets
+## Mount Existing Kubernetes Secrets
 
-Use this option to mount an existing Kuberentes Secret in your application pods. A Secret will not be created by system so please ensure that the secret already exist within the namespace else the deployment will fail.
+Use this option to mount an existing Kubernetes Secret in your application pods. A Secret will not be created by system so please ensure that the secret already exist within the namespace else the deployment will fail.
 
 ### Kubernetes External Secret (Deprecated)
 

@@ -15,13 +15,15 @@ Run the following command to install the latest version of Devtron with CI/CD al
 ```bash
 helm repo add devtron https://helm.devtron.ai
 
+helm repo update devtron
+
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
 --set installer.modules={cicd} \
 --set argo-cd.enabled=true
 ```
 
-**Note**: If you want to configure Blob Storage during the installation, refer [configure blob storage duing installation](#configure-blob-storage-duing-installation).
+**Note**: If you want to configure Blob Storage during the installation, refer [configure blob storage duing installation](#configure-blob-storage-during-installation).
 
 
 ## Install Multi-Architecture Nodes (ARM and AMD)
@@ -33,7 +35,7 @@ To install Devtron on clusters with the multi-architecture nodes (ARM and AMD), 
 * If you want to install Devtron for `production deployments`, please refer to our recommended overrides for [Devtron Installation](override-default-devtron-installation-configs.md).
 
 
-## Configure Blob Storage duing Installation
+## Configure Blob Storage during Installation
 
 Configuring Blob Storage in your Devtron environment allows you to store build logs and cache.
 In case, if you do not configure the Blob Storage, then:
@@ -52,6 +54,8 @@ Run the following command to install Devtron along with MinIO for storing logs a
 
 ```bash
 helm repo add devtron https://helm.devtron.ai 
+
+helm repo update devtron
 
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
@@ -76,6 +80,8 @@ Run the following command to install Devtron along with AWS S3 buckets for stori
 ```bash
 helm repo add devtron https://helm.devtron.ai
 
+helm repo update devtron
+
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
 --set installer.modules={cicd} \
@@ -91,6 +97,8 @@ helm install devtron devtron/devtron-operator \
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
+
+helm repo update devtron
 
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
@@ -109,6 +117,8 @@ helm install devtron devtron/devtron-operator \
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
+
+helm repo update devtron
 
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
@@ -135,6 +145,8 @@ Run the following command to install Devtron along with Azure Blob Storage for s
 ```bash
 helm repo add devtron https://helm.devtron.ai
 
+helm repo update devtron
+
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
 --set installer.modules={cicd} \
@@ -157,6 +169,8 @@ Run the following command to install Devtron along with Google Cloud Storage for
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
+
+helm repo update devtron
 
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
@@ -228,6 +242,12 @@ Please wait until the installation is completed.
 
 ## Devtron Admin credentials
 
+When you install Devtron for the first time, it creates a default admin user and password (with unrestricted access to Devtron). You can use that credentials to log in as an administrator. 
+
+After the initial login, we recommend you set up any SSO service like Google, GitHub, etc., and then add other users (including yourself). Subsequently, all the users can use the same SSO (let's say, GitHub) to log in to Devtron's dashboard.
+
+The section below will help you understand the process of getting the administrator credentials.
+
 ### For Devtron version v0.6.0 and higher
 
 **Username**: `admin` <br>
@@ -252,9 +272,9 @@ kubectl -n devtroncd get secret devtron-secret \
 </details>
 
 
-* If you want to uninstall Devtron or clean Devtron helm installer, refer our [uninstall Devtron](https://docs.devtron.ai/install/uninstall-devtron).
+* If you want to uninstall Devtron or clean Devtron helm installer, refer our [uninstall Devtron](../install/uninstall-devtron.md).
 
-* Related to installation, please also refer [FAQ](https://docs.devtron.ai/install/faq-on-installation) section also.
+* Related to installation, please also refer [FAQ](../install/faq-on-installation.md) section also.
 
 
 **Note**: If you have questions, please let us know on our discord channel. [![Join Discord](https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg)](https://discord.gg/jsRG5qx2gp)

@@ -1,4 +1,4 @@
-## Troubleshooting Guide
+# Troubleshooting Guide
 
 We always try to make your experience of using Devtron as smooth as possible but still if you face any issues, follow the troubleshooting guide given below or join our [discord channel](https://discord.gg/jsRG5qx2gp) if you couldn't find the solution for the issue you are facing.
 
@@ -20,7 +20,7 @@ kubectl get pods -n devtroncd
 kubectl delete jobs <job1-name> <job2-name> -n devtroncd
 ```
 
-- Now download `migrator.yaml` file from our github repository using the command:
+- Now download `migrator.yaml` file from our GitHub repository using the command:
 ```bash
 wget https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls/migrator.yaml
 ```
@@ -282,7 +282,7 @@ The other way is to get the password in the encoded form using the cmd
 Error: UPGRADE FAILED: cannot patch "postgresql-postgresql" with kind StatefulSet: StatefulSet.apps "postgresql-postgresql" is invalid: spec: Forbidden: updates to statefulset spec for fields other than 'replicas', 'template', 'updateStrategy' and 'minReadySeconds' are forbidden
 ```
 `Solution:`
-Verify if annotations & lables are set to all k8s resources in `devtroncd` namespace and add `--set components.postgres.persistence.volumeSize=20Gi` parameter in Devtron upgrade command.
+Verify if annotations & labels are set to all k8s resources in `devtroncd` namespace and add `--set components.postgres.persistence.volumeSize=20Gi` parameter in Devtron upgrade command.
 ```bash
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 -f https://raw.githubusercontent.com/devtron-labs/devtron/main/charts/devtron/devtron-bom.yaml \
@@ -306,6 +306,7 @@ helm repo update
 
 helm upgrade devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
+--reuse-values \
 --set installer.modules={cicd} \
 --set minio.enabled=true
 ```
@@ -323,6 +324,7 @@ This configuration will use AWS S3 bucket for storing build logs and cache. Refe
 helm repo update
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set installer.modules={cicd} \
+--reuse-values \
 --set configs.BLOB_STORAGE_PROVIDER=S3 \
 --set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
 --set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
@@ -337,6 +339,7 @@ helm repo update
 
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set installer.modules={cicd} \
+--reuse-values \
 --set configs.BLOB_STORAGE_PROVIDER=S3 \
 --set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
 --set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
@@ -353,6 +356,7 @@ helm repo update
 
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set installer.modules={cicd} \
+--reuse-values \
 --set configs.BLOB_STORAGE_PROVIDER=S3 \
 --set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
 --set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
@@ -373,6 +377,7 @@ Refer to the `Azure specific` parameters on the [Storage for Logs and Cache](../
 helm repo update
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set installer.modules={cicd} \
+--reuse-values \
 --set secrets.AZURE_ACCOUNT_KEY=xxxxxxxxxx \
 --set configs.BLOB_STORAGE_PROVIDER=AZURE \
 --set configs.AZURE_ACCOUNT_NAME=test-account \
@@ -391,6 +396,7 @@ helm repo update
 
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set installer.modules={cicd} \
+--reuse-values \
 --set configs.BLOB_STORAGE_PROVIDER: GCP \
 --set secrets.BLOB_STORAGE_GCP_CREDENTIALS_JSON: {\"type\": \"service_account\",\"project_id\": \"<your-project-id>\",\"private_key_id\": \"<your-private-key-id>\",\"private_key\": \"<your-private-key>\",\"client_email\": \"<your-client-email>\",\"client_id\": \"<your-client-id>\",\"auth_uri\": \"https://accounts.google.com/o/oauth2/auth\",\"token_uri\": \"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\": \"https://www.googleapis.com/oauth2/v1/certs\",\"client_x509_cert_url\": \"<your-client-cert-url>\"} \
 --set configs.DEFAULT_CACHE_BUCKET: cache-bucket
@@ -432,3 +438,178 @@ To provide the auto-inject credentials to the specific clusters for pulling the 
 3. Redeploy the application after allowing the access.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/auto-inject-to-clusters.jpg)
+
+
+
+#### 24. Devtron Terminal Connection Timeout Issue on GKE Cluster
+
+**Problem:**
+
+When connecting to the pod or cluster terminal from the Devtron dashboard on an ingress with gce class in a GKE cluster, the connection gets disconnected after every 30 seconds. This issue is caused by the default timeoutSec value of 30 seconds in the `backendConfig`.
+
+**Solution:**
+
+To resolve this issue, you can increase the timeoutSec value in the backendConfig and apply the configuration to the Devtron service. Here are the steps to do this:
+
+1. Create a `BackendConfig` yaml file with the increased `timeoutSec` value. For example:
+
+```yaml
+apiVersion: cloud.google.com/v1beta1
+kind: BackendConfig
+metadata:
+  name: devtron-backendconfig
+spec:
+  timeoutSec: 1800
+```
+you can adjust the `timeoutSec` value in the `backendConfig` as per your specific requirement. This value determines the maximum amount of time the load balancer should wait for a response from the backend before timing out. You can set the timeoutSec value to a higher or lower value based on your use case and the response time of your backend.
+
+ 2. Apply the BackendConfig to the GKE cluster using the following command:
+
+ ```bash
+ kubectl apply -f <path-to-backendconfig.yaml> -n devtroncd
+ ```
+
+3. Add the `cloud.google.com/backend-config: '{"default": "devtron-backendconfig"}'` annotation to the Devtron service with the BackendConfig name. For example:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: devtron-service
+  namespace: devtroncd
+  annotations:
+    cloud.google.com/backend-config: '{"default": "devtron-backendconfig"}'
+...
+```
+
+4. Save the changes to the Devtron service configuration.
+
+With these configuration changes, the Devtron dashboard connection should no longer timeout after 30 seconds, allowing for a more stable and consistent connection.
+
+
+#### 25. Refreshing ArgoCD Certificates When Expired
+
+1. **Edit ArgoCD Secret**
+
+Use kubectl edit to edit the ArgoCD secret in the appropriate namespace (devtroncd in this case). Find the data section and delete the lines for tls.crt and tls.key:
+
+```bash
+kubectl edit secret argocd-secret -n devtroncd
+```
+
+2. **Delete Lines for `tls.crt` and `tls.key`**
+
+Once you've opened the ArgoCD secret for editing, find the data section and delete the lines for `tls.crt` and `tls.key`. Save your changes and exit the editor.
+
+3. **Delete ArgoCD Server Pod**
+
+Use `kubectl delete pod` to delete the ArgoCD server pod. This will cause a new pod to be created with the updated certificate.
+
+```bash
+kubectl delete pod -n devtroncd <argocd-server-pod-name>
+```
+Replace `<argocd-server-pod-name>` with the name of the ArgoCD server pod.
+
+4. **Delete Devtron Pod**
+
+Wait for two minutes and then delete the Devtron pod using `kubectl delete pod`. This will force the Devtron pod to use the new certificate.
+
+
+```bash
+kubectl delete pod -n devtroncd -l app=devtron
+```
+
+This command deletes the Devtron pod in the `devtroncd` namespace with the label `app=devtron`.
+
+Following these steps should allow you to refresh the ArgoCD certificates when they have expired.
+
+
+#### 26. Not able to see commits, throwing exit status 128
+
+1. **Save the Git Repository Again**
+Wait for few minutes and check the build pipeline if commits are visible or not
+
+2. **Check git sensor pod logs**
+
+```yaml
+kubectl logs -n devtroncd -l app=git-sensor
+```
+If you still get the same issue, try to bounce the pod and save the git repository again
+```yaml
+kubectl delete po -n devtroncd -l app=git-sensor
+```
+
+3. **Try to clone the git repository with the token you have added for Git Account**
+
+In case the cloning fails, you can generate the token, update the Git account in Global Configurations, and try to save the git repository again.
+
+
+#### 27. Git-sensor PVC- disk full 
+
+**Need to increase the PVC size if you are getting following error:**
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/git-sensor-pvc.png)
+
+**Need to check the `Storageclass` by which PVC was provisioned.**
+
+Run the following command:
+```yaml
+kubectl get storageclass
+```
+Check for the field `allowVolumeExpansion`, if it is set to `true`, run the following command and increase the size of the PVC.
+```yaml
+kubectl edit pvc git-volume-git-sensor-0 -n devtroncd
+```
+However, if the field is `allowVolumeExpansion: false`, set it to `true` and run the above command.
+
+Edit the following field:
+```yaml
+spec:
+    capacity:
+        storage: 10Gi # increase as per convenience
+```
+
+**Increase the PVC size as per your requirement. This will resolve the issue. If not, then try to bounce the pod using the following command.**
+
+```yaml
+kubectl delete po -n devtroncd git-sensor-0
+```
+
+#### 28. Getting 'Invalid JSON Document' while deploying via ArgoCD
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/invalid-json.jpg)
+
+As shown above, Rollout object’s sync status is showing `Failed` and throwing an `Invalid JSON Document` error.
+
+This might happen due to manual changes in the Rollout object in the annotation `kubectl.kubernetes.io/last-applied-configuration:` <br /> The value of the above annotation is a JSON. ArgoCD tries to validate that JSON and throws an error if it is invalid.
+
+Below is a sample annotation for your reference.
+
+```
+kubectl.kubernetes.io/last-applied-configuration: | {"apiVersion":"v1","data":{"foo":"bar"},"kind":"ConfigMap","metadata":{"annotations":{},"creationTimestamp":"2019-08-12T18:38:34Z","labels":{"argocd.argoproj.io/instance":"deploy-test-cd-argo"},"name":"test-cm-1154","namespace":"argo"}}
+```
+
+You may take the help of JSON validators to identify where the unintended human error has occured in the JSON. Rectifying the same should resolve this issue.
+
+{% hint style="info" %}
+The annotation `kubectl.kubernetes.io/last-applied-configuration:` is automatically added to each object when you run `kubectl apply`. 
+{% endhint %}
+
+#### 29. Helm Charts provided by Bitnami are not visible in Chart Store. Getting 'tls: handshake failure' while deploying Bitnami Charts.
+
+`rpc error: code = Unknown desc = Get "https://repo.broadcom.com/bitnami-files/index.yaml": remote error: tls: handshake failure`
+
+Follow the below steps if you are getting the above error:
+
+* Make sure your [Devtron version](https://devtron-public-asset.s3.us-east-2.amazonaws.com/integrations/about-devtron.png) is 0.7.1 ([check how to upgrade](../setup/upgrade/README.md)).
+
+* Navigate to Global Configurations → Chart Repositories → Bitnami
+
+* Now in the Bitnami repository, uncheck the **Allow Insecure Connection** and update it as shown below.
+
+  ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/bitnami-chart-issue.jpg)
+
+* Go to Chart Store and initiate the Chart Sync.
+
+  ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/chart-sync.jpg)
+

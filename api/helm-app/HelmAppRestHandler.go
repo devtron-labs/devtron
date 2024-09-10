@@ -1,27 +1,51 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package client
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
-	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
-	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
-	"github.com/devtron-labs/devtron/api/restHandler/common"
-	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
-	"github.com/devtron-labs/devtron/pkg/attributes"
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/devtron-labs/devtron/util/k8sObjectsUtil"
-	"github.com/devtron-labs/devtron/util/rbac"
-	"github.com/gorilla/mux"
-	"go.uber.org/zap"
+	"github.com/devtron-labs/devtron/api/helm-app/bean"
+	service2 "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
+	"github.com/devtron-labs/devtron/pkg/argoApplication"
+	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
+	"github.com/devtron-labs/devtron/pkg/fluxApplication"
+	bean2 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
+	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
+	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
+	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/gorilla/mux"
+	"go.uber.org/zap"
 )
 
 type HelmAppRestHandler interface {
@@ -41,31 +65,39 @@ const HELM_APP_ACCESS_COUNTER = "HelmAppAccessCounter"
 const HELM_APP_UPDATE_COUNTER = "HelmAppUpdateCounter"
 
 type HelmAppRestHandlerImpl struct {
-	logger                          *zap.SugaredLogger
-	helmAppService                  HelmAppService
-	enforcer                        casbin.Enforcer
-	clusterService                  cluster.ClusterService
-	enforcerUtil                    rbac.EnforcerUtilHelm
-	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService
-	userAuthService                 user.UserService
-	attributesService               attributes.AttributesService
-	serverEnvConfig                 *serverEnvConfig.ServerEnvConfig
+	logger                    *zap.SugaredLogger
+	helmAppService            service2.HelmAppService
+	enforcer                  casbin.Enforcer
+	clusterService            cluster.ClusterService
+	enforcerUtil              rbac.EnforcerUtilHelm
+	appStoreDeploymentService service.AppStoreDeploymentService
+	installedAppService       EAMode.InstalledAppDBService
+	userAuthService           user.UserService
+	attributesService         attributes.AttributesService
+	serverEnvConfig           *serverEnvConfig.ServerEnvConfig
+	fluxApplication           fluxApplication.FluxApplicationService
+	argoApplication           argoApplication.ArgoApplicationService
 }
 
 func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
-	helmAppService HelmAppService, enforcer casbin.Enforcer,
-	clusterService cluster.ClusterService, enforcerUtil rbac.EnforcerUtilHelm, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	userAuthService user.UserService, attributesService attributes.AttributesService, serverEnvConfig *serverEnvConfig.ServerEnvConfig) *HelmAppRestHandlerImpl {
+	helmAppService service2.HelmAppService, enforcer casbin.Enforcer,
+	clusterService cluster.ClusterService, enforcerUtil rbac.EnforcerUtilHelm,
+	appStoreDeploymentService service.AppStoreDeploymentService, installedAppService EAMode.InstalledAppDBService,
+	userAuthService user.UserService, attributesService attributes.AttributesService, serverEnvConfig *serverEnvConfig.ServerEnvConfig, fluxApplication fluxApplication.FluxApplicationService, argoApplication argoApplication.ArgoApplicationService,
+) *HelmAppRestHandlerImpl {
 	return &HelmAppRestHandlerImpl{
-		logger:                          logger,
-		helmAppService:                  helmAppService,
-		enforcer:                        enforcer,
-		clusterService:                  clusterService,
-		enforcerUtil:                    enforcerUtil,
-		appStoreDeploymentCommonService: appStoreDeploymentCommonService,
-		userAuthService:                 userAuthService,
-		attributesService:               attributesService,
-		serverEnvConfig:                 serverEnvConfig,
+		logger:                    logger,
+		helmAppService:            helmAppService,
+		enforcer:                  enforcer,
+		clusterService:            clusterService,
+		enforcerUtil:              enforcerUtil,
+		appStoreDeploymentService: appStoreDeploymentService,
+		installedAppService:       installedAppService,
+		userAuthService:           userAuthService,
+		attributesService:         attributesService,
+		serverEnvConfig:           serverEnvConfig,
+		fluxApplication:           fluxApplication,
+		argoApplication:           argoApplication,
 	}
 }
 
@@ -112,85 +144,201 @@ func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWrite
 	//RBAC enforcer Ends
 	appdetail, err := handler.helmAppService.GetApplicationDetail(context.Background(), appIdentifier)
 	if err != nil {
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
-	installedApp, err := handler.appStoreDeploymentCommonService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	installedApp, err := handler.installedAppService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
-	res := &AppDetailAndInstalledAppInfo{
+	res := &bean.AppDetailAndInstalledAppInfo{
 		AppDetail:        appdetail,
-		InstalledAppInfo: convertToInstalledAppInfo(installedApp),
+		InstalledAppInfo: bean.ConvertToInstalledAppInfo(installedApp),
 	}
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
 func (handler *HelmAppRestHandlerImpl) Hibernate(w http.ResponseWriter, r *http.Request) {
-	hibernateRequest := &openapi.HibernateRequest{}
-	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(hibernateRequest)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	appIdentifier, err := handler.helmAppService.DecodeAppId(*hibernateRequest.AppId)
+	hibernateRequest, err := decodeHibernateRequest(r)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
-	// RBAC enforcer applying
-	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObjectByClusterIdNamespaceAndAppName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
-	token := r.Header.Get("token")
-	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
-	if !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
+	vars := mux.Vars(r)
+	var appType int
+	appTypeString := vars["appType"] //to check the type of app
+	if appTypeString == "" {
+		appType = 1
+	} else {
+		appType, err = strconv.Atoi(appTypeString)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		}
 	}
-	//RBAC enforcer Ends
-	res, err := handler.helmAppService.HibernateApplication(r.Context(), appIdentifier, hibernateRequest)
+
+	token := r.Header.Get("token")
+	var res []*openapi.HibernateStatus
+
+	if appType == bean2.ArgoAppType {
+		res, err = handler.handleArgoApplicationHibernate(r, token, hibernateRequest)
+	} else if appType == bean2.HelmAppType {
+		res, err = handler.handleHelmApplicationHibernate(r, token, hibernateRequest)
+	} else if appType == bean2.FluxAppType {
+		res, err = handler.handleFluxApplicationHibernate(r, token, hibernateRequest)
+	}
+
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, service2.GetStatusCode(err))
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler *HelmAppRestHandlerImpl) UnHibernate(w http.ResponseWriter, r *http.Request) {
+func decodeHibernateRequest(r *http.Request) (*openapi.HibernateRequest, error) {
 	hibernateRequest := &openapi.HibernateRequest{}
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(hibernateRequest)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+		return nil, err
 	}
+	return hibernateRequest, nil
+}
+
+func (handler *HelmAppRestHandlerImpl) handleFluxApplicationHibernate(r *http.Request, token string, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
+	appIdentifier, err := fluxApplication.DecodeFluxExternalAppId(*hibernateRequest.AppId)
+	if err != nil {
+		return nil, err
+	}
+
+	if !handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*") {
+		return nil, errors.New("unauthorized")
+	}
+
+	return handler.fluxApplication.HibernateFluxApplication(r.Context(), appIdentifier, hibernateRequest)
+}
+func (handler *HelmAppRestHandlerImpl) handleArgoApplicationHibernate(r *http.Request, token string, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
+	appIdentifier, err := argoApplication.DecodeExternalArgoAppId(*hibernateRequest.AppId)
+	if err != nil {
+		return nil, err
+	}
+
+	if !handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*") {
+		return nil, errors.New("unauthorized")
+	}
+
+	return handler.argoApplication.HibernateArgoApplication(r.Context(), appIdentifier, hibernateRequest)
+}
+
+func (handler *HelmAppRestHandlerImpl) handleHelmApplicationHibernate(r *http.Request, token string, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
 	appIdentifier, err := handler.helmAppService.DecodeAppId(*hibernateRequest.AppId)
 	if err != nil {
+		return nil, err
+	}
+	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObjectByClusterIdNamespaceAndAppName(
+		appIdentifier.ClusterId,
+		appIdentifier.Namespace,
+		appIdentifier.ReleaseName,
+	)
+
+	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) ||
+		handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
+	if !ok {
+		return nil, errors.New("unauthorized")
+	}
+
+	return handler.helmAppService.HibernateApplication(r.Context(), appIdentifier, hibernateRequest)
+}
+func (handler *HelmAppRestHandlerImpl) UnHibernate(w http.ResponseWriter, r *http.Request) {
+	hibernateRequest, err := decodeHibernateRequest(r)
+	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	// RBAC enforcer applying
-	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObjectByClusterIdNamespaceAndAppName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+
+	vars := mux.Vars(r)
+	var appType int
+	appTypeString := vars["appType"] //to check the type of app currently handled the case for identifying of external app types
+	if appTypeString == "" {
+		appType = 1
+	} else {
+		appType, err = strconv.Atoi(appTypeString)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		}
+	}
 	token := r.Header.Get("token")
+	var res []*openapi.HibernateStatus
 
-	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
-
-	if !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
+	if appType == bean2.ArgoAppType {
+		res, err = handler.handleArgoApplicationUnHibernate(r, token, hibernateRequest)
+	} else if appType == bean2.HelmAppType {
+		res, err = handler.handleHelmApplicationUnHibernate(r, token, hibernateRequest)
+	} else if appType == bean2.FluxAppType {
+		res, err = handler.handleFluxApplicationUnHibernate(r, token, hibernateRequest)
 	}
-	//RBAC enforcer Ends
-	res, err := handler.helmAppService.UnHibernateApplication(r.Context(), appIdentifier, hibernateRequest)
+	//if k8s.IsClusterStringContainsFluxField(*hibernateRequest.AppId) {
+	//	res, err = handler.handleFluxApplicationUnHibernate(r, token, hibernateRequest)
+	//} else {
+	//	res, err = handler.handleHelmApplicationUnHibernate(r, token, hibernateRequest)
+	//}
+
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, service2.GetStatusCode(err))
 		return
 	}
+
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *HelmAppRestHandlerImpl) handleFluxApplicationUnHibernate(r *http.Request, token string, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
+	appIdentifier, err := fluxApplication.DecodeFluxExternalAppId(*hibernateRequest.AppId)
+	if err != nil {
+		return nil, err
+	}
+	if !handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*") {
+		return nil, errors.New("unauthorized")
+	}
+	return handler.fluxApplication.UnHibernateFluxApplication(r.Context(), appIdentifier, hibernateRequest)
+}
+func (handler *HelmAppRestHandlerImpl) handleArgoApplicationUnHibernate(r *http.Request, token string, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
+	appIdentifier, err := argoApplication.DecodeExternalArgoAppId(*hibernateRequest.AppId)
+	if err != nil {
+		return nil, err
+	}
+	if !handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*") {
+		return nil, errors.New("unauthorized")
+	}
+	return handler.argoApplication.UnHibernateArgoApplication(r.Context(), appIdentifier, hibernateRequest)
+}
+
+func (handler *HelmAppRestHandlerImpl) handleHelmApplicationUnHibernate(r *http.Request, token string, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
+	appIdentifier, err := handler.helmAppService.DecodeAppId(*hibernateRequest.AppId)
+	if err != nil {
+		return nil, err
+	}
+
+	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObjectByClusterIdNamespaceAndAppName(
+		appIdentifier.ClusterId,
+		appIdentifier.Namespace,
+		appIdentifier.ReleaseName,
+	)
+
+	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) ||
+		handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
+	if !ok {
+		return nil, errors.New("unauthorized")
+	}
+
+	return handler.helmAppService.UnHibernateApplication(r.Context(), appIdentifier, hibernateRequest)
 }
 
 func (handler *HelmAppRestHandlerImpl) GetReleaseInfo(w http.ResponseWriter, r *http.Request) {
@@ -214,18 +362,22 @@ func (handler *HelmAppRestHandlerImpl) GetReleaseInfo(w http.ResponseWriter, r *
 	//RBAC enforcer Ends
 	releaseInfo, err := handler.helmAppService.GetValuesYaml(r.Context(), appIdentifier)
 	if err != nil {
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
-	installedApp, err := handler.appStoreDeploymentCommonService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	installedAppVersionDto, err := handler.installedAppService.GetReleaseInfo(appIdentifier)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	res := &ReleaseAndInstalledAppInfo{
+
+	res := &bean.ReleaseAndInstalledAppInfo{
 		ReleaseInfo:      releaseInfo,
-		InstalledAppInfo: convertToInstalledAppInfo(installedApp),
+		InstalledAppInfo: bean.ConvertToInstalledAppInfo(installedAppVersionDto),
 	}
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
@@ -257,6 +409,10 @@ func (handler *HelmAppRestHandlerImpl) GetDesiredManifest(w http.ResponseWriter,
 	//RBAC enforcer Ends
 	res, err := handler.helmAppService.GetDesiredManifest(r.Context(), appIdentifier, desiredManifestRequest.Resource)
 	if err != nil {
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -277,6 +433,11 @@ func (handler *HelmAppRestHandlerImpl) GetDesiredManifest(w http.ResponseWriter,
 }
 
 func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	vars := mux.Vars(r)
 	appId := vars["appId"]
 	appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
@@ -299,13 +460,20 @@ func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, 
 	// validate if the devtron-operator helm release, block that for deletion
 	if appIdentifier.ReleaseName == handler.serverEnvConfig.DevtronHelmReleaseName &&
 		appIdentifier.Namespace == handler.serverEnvConfig.DevtronHelmReleaseNamespace &&
-		appIdentifier.ClusterId == DEFAULT_CLUSTER_ID {
+		appIdentifier.ClusterId == bean.DEFAULT_CLUSTER_ID {
 		common.WriteJsonResp(w, errors.New("cannot delete this default helm app"), nil, http.StatusForbidden)
 		return
 	}
 
-	res, err := handler.helmAppService.DeleteApplication(r.Context(), appIdentifier)
+	res, err := handler.helmAppService.DeleteDBLinkedHelmApplication(r.Context(), appIdentifier, userId)
+	if util.IsErrNoRows(err) {
+		res, err = handler.helmAppService.DeleteApplication(r.Context(), appIdentifier)
+	}
 	if err != nil {
+		apiError := clientErrors.ConvertToApiError(err)
+		if apiError != nil {
+			err = apiError
+		}
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -313,7 +481,7 @@ func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, 
 }
 
 func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, r *http.Request) {
-	request := &openapi.UpdateReleaseRequest{}
+	request := &bean.UpdateApplicationRequestDto{}
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(request)
 	if err != nil {
@@ -336,7 +504,7 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 		return
 	}
 	//RBAC enforcer Ends
-
+	request.SourceAppType = bean.SOURCE_EXTERNAL_HELM_APP
 	// update application externally
 	res, err := handler.helmAppService.UpdateApplication(r.Context(), appIdentifier, request)
 	if err != nil {
@@ -376,7 +544,7 @@ func (handler *HelmAppRestHandlerImpl) TemplateChart(w http.ResponseWriter, r *h
 }
 
 func (handler *HelmAppRestHandlerImpl) checkHelmAuth(token string, object string) bool {
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, strings.ToLower(object)); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object); !ok {
 		return false
 	}
 	return true
@@ -411,57 +579,4 @@ func (handler *HelmAppRestHandlerImpl) SaveHelmAppDetailsViewedTelemetryData(w h
 
 	common.WriteJsonResp(w, err, nil, http.StatusOK)
 
-}
-
-func convertToInstalledAppInfo(installedApp *appStoreBean.InstallAppVersionDTO) *InstalledAppInfo {
-	if installedApp == nil {
-		return nil
-	}
-
-	chartInfo := installedApp.InstallAppVersionChartDTO
-
-	return &InstalledAppInfo{
-		AppId:                 installedApp.AppId,
-		EnvironmentName:       installedApp.EnvironmentName,
-		AppOfferingMode:       installedApp.AppOfferingMode,
-		InstalledAppId:        installedApp.InstalledAppId,
-		InstalledAppVersionId: installedApp.InstalledAppVersionId,
-		AppStoreChartId:       chartInfo.AppStoreChartId,
-		ClusterId:             installedApp.ClusterId,
-		EnvironmentId:         installedApp.EnvironmentId,
-		AppStoreChartRepoName: chartInfo.InstallAppVersionChartRepoDTO.RepoName,
-		AppStoreChartName:     chartInfo.ChartName,
-		TeamId:                installedApp.TeamId,
-		TeamName:              installedApp.TeamName,
-	}
-}
-
-type AppDetailAndInstalledAppInfo struct {
-	InstalledAppInfo *InstalledAppInfo `json:"installedAppInfo"`
-	AppDetail        *AppDetail        `json:"appDetail"`
-}
-
-type ReleaseAndInstalledAppInfo struct {
-	InstalledAppInfo *InstalledAppInfo `json:"installedAppInfo"`
-	ReleaseInfo      *ReleaseInfo      `json:"releaseInfo"`
-}
-
-type DeploymentHistoryAndInstalledAppInfo struct {
-	InstalledAppInfo  *InstalledAppInfo          `json:"installedAppInfo"`
-	DeploymentHistory []*HelmAppDeploymentDetail `json:"deploymentHistory"`
-}
-
-type InstalledAppInfo struct {
-	AppId                 int    `json:"appId"`
-	InstalledAppId        int    `json:"installedAppId"`
-	InstalledAppVersionId int    `json:"installedAppVersionId"`
-	AppStoreChartId       int    `json:"appStoreChartId"`
-	EnvironmentName       string `json:"environmentName"`
-	AppOfferingMode       string `json:"appOfferingMode"`
-	ClusterId             int    `json:"clusterId"`
-	EnvironmentId         int    `json:"environmentId"`
-	AppStoreChartRepoName string `json:"appStoreChartRepoName"`
-	AppStoreChartName     string `json:"appStoreChartName"`
-	TeamId                int    `json:"teamId"`
-	TeamName              string `json:"teamName"`
 }

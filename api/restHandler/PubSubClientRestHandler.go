@@ -1,30 +1,29 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package restHandler
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"net/http"
 	"strings"
 
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"go.uber.org/zap"
 )
 
@@ -35,7 +34,7 @@ type PubSubClientRestHandler interface {
 type PubSubClientRestHandlerImpl struct {
 	pubsubClient *pubsub.PubSubClientServiceImpl
 	logger       *zap.SugaredLogger
-	cdConfig     *pipeline.CdConfig
+	cdConfig     *types.CiCdConfig
 }
 
 type PublishRequest struct {
@@ -43,7 +42,7 @@ type PublishRequest struct {
 	Payload json.RawMessage `json:"payload"`
 }
 
-func NewPubSubClientRestHandlerImpl(pubsubClient *pubsub.PubSubClientServiceImpl, logger *zap.SugaredLogger, cdConfig *pipeline.CdConfig) *PubSubClientRestHandlerImpl {
+func NewPubSubClientRestHandlerImpl(pubsubClient *pubsub.PubSubClientServiceImpl, logger *zap.SugaredLogger, cdConfig *types.CiCdConfig) *PubSubClientRestHandlerImpl {
 	return &PubSubClientRestHandlerImpl{
 		pubsubClient: pubsubClient,
 		logger:       logger,
@@ -64,7 +63,7 @@ func (impl *PubSubClientRestHandlerImpl) PublishEventsToNats(w http.ResponseWrit
 	reqToken := r.Header.Get("Authorization")
 	splitToken := strings.Split(reqToken, "Bearer")
 	if len(splitToken) != 2 {
-		impl.logger.Debugw("request err, HandleExternalCiWebhook", "payload", publishRequest, "token", reqToken)
+		impl.logger.Debugw("request err, HandleExternalCiWebhook", "payload", publishRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}

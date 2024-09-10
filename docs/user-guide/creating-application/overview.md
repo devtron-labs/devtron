@@ -3,7 +3,7 @@
 The `Overview` section contains the brief information of the application, any added tags, configured external links and deployment details of the particular application. 
 In this section, you can also [change project of your application](#change-project-of-your-application) and [manage tags](#manage-tags) if you added them while creating application.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/overview-latest.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/overview/overview-latest-1.jpg)
 
 
 The following details are provided on the **Overview** page:
@@ -13,7 +13,7 @@ The following details are provided on the **Overview** page:
 | **App Name**  | Displays the name of the application. |
 | **Created on** | Displays the day, date and time the application was created. |
 | **Created by**  | Displays the email address of a user who created the application. |
-| **Project**   | Displays the currect project of the application. You can change the project by selecting a different project from the drop-down list. |
+| **Project**   | Displays the current project of the application. You can change the project by selecting a different project from the drop-down list. |
 
 
 ## Change Project of your Application
@@ -23,14 +23,18 @@ You can change the project of your application by clicking **Project** on the `O
 1. Click `Project`. 
 2. On the `Change project` dialog box, select the different project you want to change from the drop-down list.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/overview/change-project-app.jpg)
+  ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/overview/change-project-app-1.jpg)
 
+3. Click **Save**. The application will be moved to the selected project.
 
-Click **Save**. The application will be moved to the selected project.
+{% hint style="info" %}
+### If you change the project:
 
-**Note**: If you change the project:
-* The current users will lose the access to the application.
-* The users who already have an access to the selected project, will get an access to the application automatically.
+The current users will lose the access to the application.
+
+The users who already have an access to the selected project, will get an access to the application automatically.
+{% endhint %}
+
 
 ## Manage Tags
 
@@ -38,13 +42,19 @@ Click **Save**. The application will be moved to the selected project.
 
 `Manage tags` is the central place where you can create, edit, and delete tags. You can also propagate tags as labels to Kubernetes resources for the application.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/manage-tags-latest.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/overview/manage-tags-latest-1.jpg)
 
-* Click `Edit tags`.
+* Click `Edit`.
 * On the `Manage tags` page, click `+ Add tag` to add a new tag.
 * Click `X` to delete a tag.
-* Click the symbol <img src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/donot-propagate.jpg" height="10"> on the left side of your tag to propagate a tag.<br>`Note`: Dark grey colour in symbol specifies that the tags are propagated.
+* Click the symbol <img src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/donot-propagate.jpg" height="10"> on the left side of your tag to propagate a tag.<br>
+
+{% hint style="info" %}
+Dark grey colour in symbol specifies that the tags are propagated.
+{% endhint %}
+
 * To remove the tags from propagation, click the symbol <img src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/propagate-dark.jpg" height="10"> again.
+
 * Click `Save`.
 
 The changes in the tags will be reflected in the `Tags` on the `Overview` section.
@@ -87,18 +97,21 @@ For more detail, refer [Kubernetes PVC](https://kubernetes.io/docs/tasks/configu
 
 In order to configure PVC:
 * Go to the `Overview` section of your application.
-* On the right-corner, click `Edit Tags`.
+* On the right-corner, click `Edit`.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/overview/pvc-edit-tags.jpg)
+  ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/overview/pvc-edit-tags-1.jpg)
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/overview/manage-tags-pvc.jpg)
+* For app level PVC mounting, enter the following:<ul><li>key:`devtron.ai/ci-pvc-all`</li><li>value: metadata name (e.g., `cache-pvc)` which you define on the [PVC template](#create-pvc-file).</li></ul>`Note`: This PVC mounting will impact all the build pipelines of the application.
 
-* For app level PVC mounting, enter the following:<ul><li>key:`devtron.ai/ci-pvc-all`</li><li>value: metadata name (e.g., `cache-pvc)` which you define on the [PVC template](#create-pvc-file).</li></ul>`Note`: This PVC mounting will impact all the build pipilines of the application.
+  ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/overview/manage-tags-pvc-1.jpg)
+
 * For pipeline level, enter the following:<ul><li>key:`devtron.ai/ci-pvc-{pipelinename}`</li><li>value: metadata name which you define on the [PVC template](#create-pvc-file).</li></ul>`Note`: This PVC mounting will impact only the particular build pipeline.
 
-To know the `pipelinename` detail, go to the `App Configutation`, click `Workflow Editor` the pipeline name will be on the `Build` pipeline as shown below.
+To know the `pipelinename` detail, go to the `App Configuration`, click `Workflow Editor` the pipeline name will be on the `Build` pipeline as shown below.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/overview/pipeline-name-pvc.jpg)
+  ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/overview/pipeline-name-pvc-1.jpg)
+
+  ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/overview/pipeline-level-tag.jpg)
 
 * Click `Save`.
 

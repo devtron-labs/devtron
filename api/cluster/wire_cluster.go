@@ -1,8 +1,26 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package cluster
 
 import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/genericNotes"
+	repository2 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	"github.com/google/wire"
 )
 
@@ -11,8 +29,26 @@ import (
 var ClusterWireSet = wire.NewSet(
 	repository.NewClusterRepositoryImpl,
 	wire.Bind(new(repository.ClusterRepository), new(*repository.ClusterRepositoryImpl)),
+	cluster.NewClusterServiceImpl,
 	cluster.NewClusterServiceImplExtended,
 	wire.Bind(new(cluster.ClusterService), new(*cluster.ClusterServiceImplExtended)),
+
+	cluster.NewClusterRbacServiceImpl,
+	wire.Bind(new(cluster.ClusterRbacService), new(*cluster.ClusterRbacServiceImpl)),
+
+	repository.NewClusterDescriptionRepositoryImpl,
+	wire.Bind(new(repository.ClusterDescriptionRepository), new(*repository.ClusterDescriptionRepositoryImpl)),
+	repository2.NewGenericNoteHistoryRepositoryImpl,
+	wire.Bind(new(repository2.GenericNoteHistoryRepository), new(*repository2.GenericNoteHistoryRepositoryImpl)),
+	repository2.NewGenericNoteRepositoryImpl,
+	wire.Bind(new(repository2.GenericNoteRepository), new(*repository2.GenericNoteRepositoryImpl)),
+	genericNotes.NewGenericNoteHistoryServiceImpl,
+	wire.Bind(new(genericNotes.GenericNoteHistoryService), new(*genericNotes.GenericNoteHistoryServiceImpl)),
+	genericNotes.NewGenericNoteServiceImpl,
+	wire.Bind(new(genericNotes.GenericNoteService), new(*genericNotes.GenericNoteServiceImpl)),
+	cluster.NewClusterDescriptionServiceImpl,
+	wire.Bind(new(cluster.ClusterDescriptionService), new(*cluster.ClusterDescriptionServiceImpl)),
+
 	NewClusterRestHandlerImpl,
 	wire.Bind(new(ClusterRestHandler), new(*ClusterRestHandlerImpl)),
 	NewClusterRouterImpl,
@@ -32,8 +68,24 @@ var ClusterWireSet = wire.NewSet(
 var ClusterWireSetEa = wire.NewSet(
 	repository.NewClusterRepositoryImpl,
 	wire.Bind(new(repository.ClusterRepository), new(*repository.ClusterRepositoryImpl)),
+	cluster.NewClusterRbacServiceImpl,
+	wire.Bind(new(cluster.ClusterRbacService), new(*cluster.ClusterRbacServiceImpl)),
 	cluster.NewClusterServiceImpl,
 	wire.Bind(new(cluster.ClusterService), new(*cluster.ClusterServiceImpl)),
+
+	repository.NewClusterDescriptionRepositoryImpl,
+	wire.Bind(new(repository.ClusterDescriptionRepository), new(*repository.ClusterDescriptionRepositoryImpl)),
+	repository2.NewGenericNoteHistoryRepositoryImpl,
+	wire.Bind(new(repository2.GenericNoteHistoryRepository), new(*repository2.GenericNoteHistoryRepositoryImpl)),
+	repository2.NewGenericNoteRepositoryImpl,
+	wire.Bind(new(repository2.GenericNoteRepository), new(*repository2.GenericNoteRepositoryImpl)),
+	genericNotes.NewGenericNoteHistoryServiceImpl,
+	wire.Bind(new(genericNotes.GenericNoteHistoryService), new(*genericNotes.GenericNoteHistoryServiceImpl)),
+	genericNotes.NewGenericNoteServiceImpl,
+	wire.Bind(new(genericNotes.GenericNoteService), new(*genericNotes.GenericNoteServiceImpl)),
+	cluster.NewClusterDescriptionServiceImpl,
+	wire.Bind(new(cluster.ClusterDescriptionService), new(*cluster.ClusterDescriptionServiceImpl)),
+
 	NewClusterRestHandlerImpl,
 	wire.Bind(new(ClusterRestHandler), new(*ClusterRestHandlerImpl)),
 	NewClusterRouterImpl,

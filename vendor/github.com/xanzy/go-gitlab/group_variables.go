@@ -41,7 +41,9 @@ type GroupVariable struct {
 	VariableType     VariableTypeValue `json:"variable_type"`
 	Protected        bool              `json:"protected"`
 	Masked           bool              `json:"masked"`
+	Raw              bool              `json:"raw"`
 	EnvironmentScope string            `json:"environment_scope"`
+	Description      string            `json:"description"`
 }
 
 func (v GroupVariable) String() string {
@@ -77,7 +79,7 @@ func (s *GroupVariablesService) ListVariables(gid interface{}, opt *ListGroupVar
 		return nil, resp, err
 	}
 
-	return vs, resp, err
+	return vs, resp, nil
 }
 
 // GetVariable gets a variable.
@@ -102,7 +104,7 @@ func (s *GroupVariablesService) GetVariable(gid interface{}, key string, options
 		return nil, resp, err
 	}
 
-	return v, resp, err
+	return v, resp, nil
 }
 
 // CreateGroupVariableOptions represents the available CreateVariable()
@@ -113,10 +115,12 @@ func (s *GroupVariablesService) GetVariable(gid interface{}, key string, options
 type CreateGroupVariableOptions struct {
 	Key              *string            `url:"key,omitempty" json:"key,omitempty"`
 	Value            *string            `url:"value,omitempty" json:"value,omitempty"`
-	VariableType     *VariableTypeValue `url:"variable_type,omitempty" json:"variable_type,omitempty"`
-	Protected        *bool              `url:"protected,omitempty" json:"protected,omitempty"`
-	Masked           *bool              `url:"masked,omitempty" json:"masked,omitempty"`
+	Description      *string            `url:"description,omitempty" json:"description,omitempty"`
 	EnvironmentScope *string            `url:"environment_scope,omitempty" json:"environment_scope,omitempty"`
+	Masked           *bool              `url:"masked,omitempty" json:"masked,omitempty"`
+	Protected        *bool              `url:"protected,omitempty" json:"protected,omitempty"`
+	Raw              *bool              `url:"raw,omitempty" json:"raw,omitempty"`
+	VariableType     *VariableTypeValue `url:"variable_type,omitempty" json:"variable_type,omitempty"`
 }
 
 // CreateVariable creates a new group variable.
@@ -141,7 +145,7 @@ func (s *GroupVariablesService) CreateVariable(gid interface{}, opt *CreateGroup
 		return nil, resp, err
 	}
 
-	return v, resp, err
+	return v, resp, nil
 }
 
 // UpdateGroupVariableOptions represents the available UpdateVariable()
@@ -151,10 +155,12 @@ func (s *GroupVariablesService) CreateVariable(gid interface{}, opt *CreateGroup
 // https://docs.gitlab.com/ee/api/group_level_variables.html#update-variable
 type UpdateGroupVariableOptions struct {
 	Value            *string            `url:"value,omitempty" json:"value,omitempty"`
-	VariableType     *VariableTypeValue `url:"variable_type,omitempty" json:"variable_type,omitempty"`
-	Protected        *bool              `url:"protected,omitempty" json:"protected,omitempty"`
-	Masked           *bool              `url:"masked,omitempty" json:"masked,omitempty"`
+	Description      *string            `url:"description,omitempty" json:"description,omitempty"`
 	EnvironmentScope *string            `url:"environment_scope,omitempty" json:"environment_scope,omitempty"`
+	Masked           *bool              `url:"masked,omitempty" json:"masked,omitempty"`
+	Protected        *bool              `url:"protected,omitempty" json:"protected,omitempty"`
+	Raw              *bool              `url:"raw,omitempty" json:"raw,omitempty"`
+	VariableType     *VariableTypeValue `url:"variable_type,omitempty" json:"variable_type,omitempty"`
 }
 
 // UpdateVariable updates the position of an existing
@@ -180,7 +186,7 @@ func (s *GroupVariablesService) UpdateVariable(gid interface{}, key string, opt 
 		return nil, resp, err
 	}
 
-	return v, resp, err
+	return v, resp, nil
 }
 
 // RemoveVariable removes a group's variable.

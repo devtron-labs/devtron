@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package webhookHelm
@@ -20,11 +19,16 @@ package webhookHelm
 import (
 	"context"
 	"fmt"
-	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/helm-app/bean"
+	bean2 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	bean3 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
@@ -103,7 +107,7 @@ func (impl WebhookHelmServiceImpl) CreateOrUpdateHelmApplication(ctx context.Con
 	}
 
 	// STEP-4 - build app identifier
-	appIdentifier := &client.AppIdentifier{
+	appIdentifier := &helmBean.AppIdentifier{
 		ClusterId:   clusterId,
 		Namespace:   request.Namespace,
 		ReleaseName: request.ReleaseName,
@@ -119,15 +123,15 @@ func (impl WebhookHelmServiceImpl) CreateOrUpdateHelmApplication(ctx context.Con
 	// STEP-6 install/update release
 	chart := request.Chart
 	chartRepo := request.Chart.Repo
-	installReleaseRequest := &client.InstallReleaseRequest{
-		ReleaseIdentifier: &client.ReleaseIdentifier{
+	installReleaseRequest := &bean2.InstallReleaseRequest{
+		ReleaseIdentifier: &bean2.ReleaseIdentifier{
 			ReleaseName:      appIdentifier.ReleaseName,
 			ReleaseNamespace: appIdentifier.Namespace,
 		},
 		ChartName:    chart.ChartName,
 		ChartVersion: chart.ChartVersion,
 		ValuesYaml:   request.ValuesOverrideYaml,
-		ChartRepository: &client.ChartRepository{
+		ChartRepository: &bean2.ChartRepository{
 			Name:     chartRepo.Name,
 			Url:      chartRepo.Identifier.Url,
 			Username: chartRepo.Identifier.Username,
@@ -135,7 +139,11 @@ func (impl WebhookHelmServiceImpl) CreateOrUpdateHelmApplication(ctx context.Con
 		},
 	}
 	if isInstalled {
-		res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, clusterId, installReleaseRequest)
+		updateReleaseRequest := &bean.UpdateApplicationWithChartInfoRequestDto{
+			InstallReleaseRequest: installReleaseRequest,
+			SourceAppType:         bean.SOURCE_HELM_APP,
+		}
+		res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, clusterId, updateReleaseRequest)
 		if err != nil {
 			impl.logger.Errorw("Error in updating helm release", "appIdentifier", appIdentifier, "err", err)
 			return nil, common.InternalServerError, err.Error(), http.StatusInternalServerError
@@ -147,6 +155,10 @@ func (impl WebhookHelmServiceImpl) CreateOrUpdateHelmApplication(ctx context.Con
 		res, err := impl.helmAppService.InstallRelease(ctx, clusterId, installReleaseRequest)
 		if err != nil {
 			impl.logger.Errorw("Error in installing helm release", "appIdentifier", appIdentifier, "err", err)
+			apiError := clientErrors.ConvertToApiError(err)
+			if apiError != nil {
+				err = apiError
+			}
 			return nil, common.InternalServerError, err.Error(), http.StatusInternalServerError
 		}
 		if !res.GetSuccess() {
@@ -155,7 +167,7 @@ func (impl WebhookHelmServiceImpl) CreateOrUpdateHelmApplication(ctx context.Con
 	}
 
 	// STEP-7 build app detail url (if error, then return success as operations has been completed already, just result is sent to be nil)
-	hostUrlAttribute, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+	hostUrlAttribute, err := impl.attributesService.GetByKey(bean3.HostUrlKey)
 	if err != nil || hostUrlAttribute == nil {
 		impl.logger.Errorw("error while getting host url attribute from DB", "error", err)
 		return nil, "", "", http.StatusOK

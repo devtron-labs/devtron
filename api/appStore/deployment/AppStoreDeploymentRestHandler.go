@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package appStoreDeployment
@@ -22,25 +21,28 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	client "github.com/devtron-labs/devtron/api/helm-app"
+	service2 "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
 	"github.com/devtron-labs/devtron/pkg/attributes"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 const HELM_APP_UPDATE_COUNTER = "HelmAppUpdateCounter"
@@ -56,36 +58,40 @@ type AppStoreDeploymentRestHandler interface {
 }
 
 type AppStoreDeploymentRestHandlerImpl struct {
-	Logger                     *zap.SugaredLogger
-	userAuthService            user.UserService
-	enforcer                   casbin.Enforcer
-	enforcerUtil               rbac.EnforcerUtil
-	enforcerUtilHelm           rbac.EnforcerUtilHelm
-	appStoreDeploymentService  service.AppStoreDeploymentService
-	appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService
-	validator                  *validator.Validate
-	helmAppService             client.HelmAppService
-	helmAppRestHandler         client.HelmAppRestHandler
-	argoUserService            argo.ArgoUserService
-	attributesService          attributes.AttributesService
+	Logger                      *zap.SugaredLogger
+	userAuthService             user.UserService
+	enforcer                    casbin.Enforcer
+	enforcerUtil                rbac.EnforcerUtil
+	enforcerUtilHelm            rbac.EnforcerUtilHelm
+	appStoreDeploymentService   service.AppStoreDeploymentService
+	appStoreDeploymentDBService service.AppStoreDeploymentDBService
+	validator                   *validator.Validate
+	helmAppService              service2.HelmAppService
+	argoUserService             argo.ArgoUserService
+	attributesService           attributes.AttributesService
+	installAppService           EAMode.InstalledAppDBService
 }
 
 func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
-	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm, appStoreDeploymentService service.AppStoreDeploymentService,
-	validator *validator.Validate, helmAppService client.HelmAppService, appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	argoUserService argo.ArgoUserService, attributesService attributes.AttributesService) *AppStoreDeploymentRestHandlerImpl {
+	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm,
+	appStoreDeploymentService service.AppStoreDeploymentService,
+	appStoreDeploymentDBService service.AppStoreDeploymentDBService,
+	validator *validator.Validate, helmAppService service2.HelmAppService,
+	argoUserService argo.ArgoUserService, attributesService attributes.AttributesService,
+	installAppService EAMode.InstalledAppDBService) *AppStoreDeploymentRestHandlerImpl {
 	return &AppStoreDeploymentRestHandlerImpl{
-		Logger:                     Logger,
-		userAuthService:            userAuthService,
-		enforcer:                   enforcer,
-		enforcerUtil:               enforcerUtil,
-		enforcerUtilHelm:           enforcerUtilHelm,
-		appStoreDeploymentService:  appStoreDeploymentService,
-		validator:                  validator,
-		helmAppService:             helmAppService,
-		appStoreDeploymentServiceC: appStoreDeploymentServiceC,
-		argoUserService:            argoUserService,
-		attributesService:          attributesService,
+		Logger:                      Logger,
+		userAuthService:             userAuthService,
+		enforcer:                    enforcer,
+		enforcerUtil:                enforcerUtil,
+		enforcerUtilHelm:            enforcerUtilHelm,
+		appStoreDeploymentService:   appStoreDeploymentService,
+		appStoreDeploymentDBService: appStoreDeploymentDBService,
+		validator:                   validator,
+		helmAppService:              helmAppService,
+		argoUserService:             argoUserService,
+		attributesService:           attributesService,
+		installAppService:           installAppService,
 	}
 }
 
@@ -137,7 +143,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) InstallApp(w http.ResponseWrite
 	}
 	//rbac block ends here
 
-	isChartRepoActive, err := handler.appStoreDeploymentService.IsChartRepoActive(request.AppStoreVersion)
+	isChartRepoActive, err := handler.appStoreDeploymentDBService.IsChartProviderActive(request.AppStoreVersion)
 	if err != nil {
 		handler.Logger.Errorw("service err, CreateInstalledApp", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -201,7 +207,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppsByAppStoreId(w 
 	}
 	token := r.Header.Get("token")
 	handler.Logger.Infow("request payload, GetInstalledAppsByAppStoreId", "appStoreId", appStoreId)
-	res, err := handler.appStoreDeploymentService.GetAllInstalledAppsByAppStoreId(w, r, token, appStoreId)
+	res, err := handler.appStoreDeploymentDBService.GetAllInstalledAppsByAppStoreId(appStoreId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetInstalledAppsByAppStoreId", "err", err, "appStoreId", appStoreId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -255,8 +261,21 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 	v := r.URL.Query()
 	forceDelete := false
 	force := v.Get("force")
+	cascadeDelete := true
+	cascade := v.Get("cascade")
+	if len(force) > 0 && len(cascade) > 0 {
+		handler.Logger.Errorw("request err, PatchCdPipeline", "err", fmt.Errorf("cannot perform both cascade and force delete"), "installAppId", installAppId)
+		common.WriteJsonResp(w, fmt.Errorf("invalid query params! cannot perform both force and cascade together"), nil, http.StatusBadRequest)
+		return
+	}
 	if len(force) > 0 {
 		forceDelete, err = strconv.ParseBool(force)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	} else if len(cascade) > 0 {
+		cascadeDelete, err = strconv.ParseBool(cascade)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
@@ -274,9 +293,14 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 
 	handler.Logger.Infow("request payload, DeleteInstalledApp", "installAppId", installAppId)
 	token := r.Header.Get("token")
-	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(installAppId)
+	installedApp, err := handler.appStoreDeploymentDBService.GetInstalledApp(installAppId)
 	if err != nil {
 		handler.Logger.Error(err)
+		if err == pg.ErrNoRows {
+			err = &util.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: "App not found in database", InternalMessage: err.Error()}
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -310,6 +334,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 	request.EnvironmentId = installedApp.EnvironmentId
 	request.UserId = userId
 	request.ForceDelete = forceDelete
+	request.NonCascadeDelete = !cascadeDelete
 	request.AppOfferingMode = installedApp.AppOfferingMode
 	request.ClusterId = installedApp.ClusterId
 	request.Namespace = installedApp.Namespace
@@ -411,7 +436,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 	}
 	token := r.Header.Get("token")
 	handler.Logger.Debugw("request payload, UpdateInstalledApp", "payload", request)
-	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(request.InstalledAppId)
+	installedApp, err := handler.appStoreDeploymentDBService.GetInstalledApp(request.InstalledAppId)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateInstalledApp", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -463,6 +488,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 		}
 		ctx = context.WithValue(r.Context(), "token", acdToken)
 	}
+	triggeredAt := time.Now()
 	res, err := handler.appStoreDeploymentService.UpdateInstalledApp(ctx, &request)
 	if err != nil {
 		if strings.Contains(err.Error(), "application spec is invalid") {
@@ -471,6 +497,11 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 		handler.Logger.Errorw("service err, UpdateInstalledApp", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
+	}
+	err1 := handler.appStoreDeploymentService.UpdatePreviousDeploymentStatusForAppStore(res, triggeredAt, err)
+	if err1 != nil {
+		handler.Logger.Errorw("error while update previous installed app version history", "err", err, "installAppVersionRequest", res)
+		//if installed app is updated and error is in updating previous deployment status, then don't block user, just show error.
 	}
 
 	err = handler.attributesService.UpdateKeyValueByOne(HELM_APP_UPDATE_COUNTER)
@@ -493,7 +524,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppVersion(w http.R
 	}
 	token := r.Header.Get("token")
 	handler.Logger.Infow("request payload, GetInstalledAppVersion", "installedAppVersionId", installedAppId)
-	dto, err := handler.appStoreDeploymentService.GetInstalledAppVersion(installedAppId, userId)
+	dto, err := handler.installAppService.GetInstalledAppVersion(installedAppId, userId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetInstalledAppVersion", "err", err, "installedAppVersionId", installedAppId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -558,18 +589,29 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateProjectHelmApp(w http.Res
 			return
 		}
 	} else {
-		installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(request.InstalledAppId)
+		installedApp, err := handler.appStoreDeploymentDBService.GetInstalledApp(request.InstalledAppId)
 		if err != nil {
 			handler.Logger.Errorw("service err, InstalledAppId", "err", err, "InstalledAppId", request.InstalledAppId)
 			common.WriteJsonResp(w, fmt.Errorf("Unable to fetch installed app details"), nil, http.StatusBadRequest)
 		}
-		rbacObjectForCurrentProject, rbacObjectForCurrentProject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
-		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject2)
-		rbacObjectForRequestedProject := handler.enforcerUtilHelm.GetHelmObjectByTeamIdAndClusterId(request.TeamId, installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
-		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForRequestedProject)
-		if !ok {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-			return
+		if installedApp.IsVirtualEnvironment {
+			rbacObjectForCurrentProject, _ := handler.enforcerUtilHelm.GetAppRBACNameByInstalledAppId(request.InstalledAppId)
+			ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject)
+			rbacObjectForRequestedProject := handler.enforcerUtilHelm.GetAppRBACNameByInstalledAppIdAndTeamId(request.InstalledAppId, request.TeamId)
+			ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForRequestedProject)
+			if !ok {
+				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+				return
+			}
+		} else {
+			rbacObjectForCurrentProject, rbacObjectForCurrentProject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
+			ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject2)
+			rbacObjectForRequestedProject := handler.enforcerUtilHelm.GetHelmObjectByTeamIdAndClusterId(request.TeamId, installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
+			ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForRequestedProject)
+			if !ok {
+				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+				return
+			}
 		}
 	}
 	err = handler.appStoreDeploymentService.UpdateProjectHelmApp(&request)

@@ -1,0 +1,50 @@
+name: ent-repo-sync
+
+# Controls when the workflow will run
+on:
+  push:
+    branches:
+      - main
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+    - env:
+        GH_TOKEN: ${{ secrets.GH_SYSTEMSDT_TOKEN }}
+        GIT_CONFIG_NAME: ${{ vars.GH_SYSTEMSDT_USERNAME }}
+        GIT_CONFIG_EMAIL: ${{ secrets.GH_SYSTEMSDT_EMAIL }}
+      run: |
+         export GIT_USERNAME="${GIT_CONFIG_NAME}"
+         export GIT_PASSWORD="${GH_TOKEN}"
+         export ENTERPRISE_REPO="https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/devtron-labs/devtron-enterprise.git"
+         git clone https://github.com/devtron-labs/devtron
+         git clone $ENTERPRISE_REPO
+         cd devtron && export GIT_COMMIT_ID=`git log --format="%H" -n 1`
+         export GIT_COMMIT=${GIT_COMMIT_ID:0:8}
+         echo $GIT_COMMIT
+         git config --global user.email $GIT_CONFIG_EMAIL
+         git config --global user.name $GIT_USERNAME
+         git status && git checkout main && git pull
+         cd ../devtron-enterprise && git status && git checkout main && git pull
+         git remote add oss-devtron ../devtron && git remote -v && git remote update && git merge oss-devtron/main
+         export WIRE_GEN_FILE_NAME="wire_gen.go"
+         export CONFLICT_FILES=`git diff --name-only --diff-filter=U --relative`
+         if [[ $WIRE_GEN_FILE_NAME = $CONFLICT_FILES ]]
+         then
+            rm $WIRE_GEN_FILE_NAME
+            docker container run -w /devtron -v ./:/devtron golang  /bin/sh -c "go install github.com/google/wire/cmd/wire@latest && wire"
+            git add $WIRE_GEN_FILE_NAME
+         elif [[ $CONFLICT_FILES != "" ]]
+         then
+            echo "more conflict files"
+            exit 1
+         fi
+         git commit -m "OSS main synced" && git status
+         git checkout -b oss-enterprise-sync-$GIT_COMMIT && git push -u origin oss-enterprise-sync-$GIT_COMMIT
+         PR_RESPONSE=$(gh pr create --title "SYNC: OSS sync for $GIT_COMMIT" --fill --base main --head oss-enterprise-sync-$GIT_COMMIT --repo $ENTERPRISE_REPO)
+         echo "FINAL PR RESPONSE: $PR_RESPONSE"

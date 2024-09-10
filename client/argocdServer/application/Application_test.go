@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package application
@@ -21,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"testing"
 
 	"go.uber.org/zap"
@@ -60,7 +60,7 @@ func TestServiceClientImpl_getRolloutStatus(t *testing.T) {
 				resp:                data1.respTree,
 			},
 			wantNewReplicaSet: "app-deployment-9-7c797c6d54",
-			wantStatus:        Healthy,
+			wantStatus:        argoApplication.Healthy,
 		},
 		{
 			name: "test2",
@@ -74,7 +74,7 @@ func TestServiceClientImpl_getRolloutStatus(t *testing.T) {
 				resp:                data2.respTree,
 			},
 			wantNewReplicaSet: "app-deployment-9-7c797c6d54",
-			wantStatus:        Degraded,
+			wantStatus:        argoApplication.Degraded,
 		},
 		{
 			name: "test3",
@@ -88,7 +88,7 @@ func TestServiceClientImpl_getRolloutStatus(t *testing.T) {
 				resp:                data3.respTree,
 			},
 			wantNewReplicaSet: "app-deployment-9-7c797c6d54",
-			wantStatus:        Suspended,
+			wantStatus:        argoApplication.Suspended,
 		},
 		{
 			name: "test4",
@@ -102,7 +102,7 @@ func TestServiceClientImpl_getRolloutStatus(t *testing.T) {
 				resp:                data4.respTree,
 			},
 			wantNewReplicaSet: "app-deployment-9-7c797c6d54",
-			wantStatus:        Degraded,
+			wantStatus:        argoApplication.Degraded,
 		},
 	}
 	for _, tt := range tests {

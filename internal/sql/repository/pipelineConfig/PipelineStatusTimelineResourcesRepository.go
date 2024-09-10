@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package pipelineConfig
 
 import (
@@ -18,6 +34,8 @@ type PipelineStatusTimelineResourcesRepository interface {
 	UpdateTimelineResources(timelineResources []*PipelineStatusTimelineResources) error
 	UpdateTimelineResourcesWithTxn(timelineResources []*PipelineStatusTimelineResources, tx *pg.Tx) error
 	GetByCdWfrIdAndTimelineStage(cdWfrId int) ([]*PipelineStatusTimelineResources, error)
+	GetByInstalledAppVersionHistoryIdAndTimelineStage(installedAppVersionHistoryId int) ([]*PipelineStatusTimelineResources, error)
+	GetByCdWfrIds(cdWfrIds []int) ([]*PipelineStatusTimelineResources, error)
 }
 
 type PipelineStatusTimelineResourcesRepositoryImpl struct {
@@ -37,7 +55,7 @@ type PipelineStatusTimelineResources struct {
 	tableName                    struct{}              `sql:"pipeline_status_timeline_resources" pg:",discard_unknown_columns"`
 	Id                           int                   `sql:"id,pk"`
 	InstalledAppVersionHistoryId int                   `sql:"installed_app_version_history_id,type:integer"`
-	CdWorkflowRunnerId           int                   `sql:"cd_workflow_runner_id"`
+	CdWorkflowRunnerId           int                   `sql:"cd_workflow_runner_id,type:integer"`
 	ResourceName                 string                `sql:"resource_name"`
 	ResourceKind                 string                `sql:"resource_kind"`
 	ResourceGroup                string                `sql:"resource_group"`
@@ -69,7 +87,7 @@ func (impl *PipelineStatusTimelineResourcesRepositoryImpl) SaveTimelineResources
 func (impl *PipelineStatusTimelineResourcesRepositoryImpl) UpdateTimelineResources(timelineResources []*PipelineStatusTimelineResources) error {
 	_, err := impl.dbConnection.Model(&timelineResources).Update()
 	if err != nil {
-		impl.logger.Errorw("error in updating timeline resources of cd pipeline status", "err", err, "timelineResources", timelineResources)
+		impl.logger.Errorw("error in updating timeline resources of pipeline status", "err", err, "timelineResources", timelineResources)
 		return err
 	}
 	return nil
@@ -91,6 +109,30 @@ func (impl *PipelineStatusTimelineResourcesRepositoryImpl) GetByCdWfrIdAndTimeli
 		Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting timeline resources by cdWfrId and timeline stage", "err", err, "cdWfrId", cdWfrId, "timelineStage", timelineResources)
+		return nil, err
+	}
+	return timelineResources, nil
+}
+
+func (impl *PipelineStatusTimelineResourcesRepositoryImpl) GetByInstalledAppVersionHistoryIdAndTimelineStage(installedAppVersionHistoryId int) ([]*PipelineStatusTimelineResources, error) {
+	var timelineResources []*PipelineStatusTimelineResources
+	err := impl.dbConnection.Model(&timelineResources).
+		Where("installed_app_version_history_id = ?", installedAppVersionHistoryId).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting timeline resources by installedAppVersionHistoryId and timeline stage", "err", err, "cdWfrId", installedAppVersionHistoryId, "timelineStage", timelineResources)
+		return nil, err
+	}
+	return timelineResources, nil
+}
+
+func (impl *PipelineStatusTimelineResourcesRepositoryImpl) GetByCdWfrIds(cdWfrIds []int) ([]*PipelineStatusTimelineResources, error) {
+	var timelineResources []*PipelineStatusTimelineResources
+	err := impl.dbConnection.Model(&timelineResources).
+		Where("cd_workflow_runner_id in (?)", pg.In(cdWfrIds)).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting timeline resources by cdWfrId and timeline stage", "err", err, "cdWfrIds", cdWfrIds, "timelineStage", timelineResources)
 		return nil, err
 	}
 	return timelineResources, nil

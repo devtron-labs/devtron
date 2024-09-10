@@ -1,59 +1,83 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package pipeline
 
 import (
+	"context"
 	"encoding/json"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
+	errors2 "github.com/juju/errors"
 	"go.uber.org/zap"
 )
 
-type DeploymentConfigService interface {
-	GetLatestDeploymentConfigurationByPipelineId(pipelineId int, userHasAdminAccess bool) (*history.AllDeploymentConfigurationDetail, error)
+type PipelineDeploymentConfigService interface {
+	GetLatestDeploymentConfigurationByPipelineId(ctx context.Context, pipelineId int, userHasAdminAccess bool) (*history.AllDeploymentConfigurationDetail, error)
 }
 
-type DeploymentConfigServiceImpl struct {
-	logger                       *zap.SugaredLogger
-	envConfigOverrideRepository  chartConfig.EnvConfigOverrideRepository
-	chartRepository              chartRepoRepository.ChartRepository
-	pipelineRepository           pipelineConfig.PipelineRepository
-	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository
-	appLevelMetricsRepository    repository.AppLevelMetricsRepository
-	pipelineConfigRepository     chartConfig.PipelineConfigRepository
-	configMapRepository          chartConfig.ConfigMapRepository
-	configMapHistoryService      history.ConfigMapHistoryService
-	chartRefRepository           chartRepoRepository.ChartRefRepository
+type PipelineDeploymentConfigServiceImpl struct {
+	logger                      *zap.SugaredLogger
+	envConfigOverrideRepository chartConfig.EnvConfigOverrideRepository
+	chartRepository             chartRepoRepository.ChartRepository
+	pipelineRepository          pipelineConfig.PipelineRepository
+	pipelineConfigRepository    chartConfig.PipelineConfigRepository
+	configMapRepository         chartConfig.ConfigMapRepository
+	configMapHistoryService     history.ConfigMapHistoryService
+	scopedVariableManager       variables.ScopedVariableCMCSManager
+	deployedAppMetricsService   deployedAppMetrics.DeployedAppMetricsService
+	chartRefService             chartRef.ChartRefService
 }
 
-func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
+func NewPipelineDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 	envConfigOverrideRepository chartConfig.EnvConfigOverrideRepository,
 	chartRepository chartRepoRepository.ChartRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository,
-	appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
 	configMapHistoryService history.ConfigMapHistoryService,
-	chartRefRepository chartRepoRepository.ChartRefRepository) *DeploymentConfigServiceImpl {
-	return &DeploymentConfigServiceImpl{
-		logger:                       logger,
-		envConfigOverrideRepository:  envConfigOverrideRepository,
-		chartRepository:              chartRepository,
-		pipelineRepository:           pipelineRepository,
-		envLevelAppMetricsRepository: envLevelAppMetricsRepository,
-		appLevelMetricsRepository:    appLevelMetricsRepository,
-		pipelineConfigRepository:     pipelineConfigRepository,
-		configMapRepository:          configMapRepository,
-		configMapHistoryService:      configMapHistoryService,
-		chartRefRepository:           chartRefRepository,
+	scopedVariableManager variables.ScopedVariableCMCSManager,
+	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
+	chartRefService chartRef.ChartRefService) *PipelineDeploymentConfigServiceImpl {
+	return &PipelineDeploymentConfigServiceImpl{
+		logger:                      logger,
+		envConfigOverrideRepository: envConfigOverrideRepository,
+		chartRepository:             chartRepository,
+		pipelineRepository:          pipelineRepository,
+		pipelineConfigRepository:    pipelineConfigRepository,
+		configMapRepository:         configMapRepository,
+		configMapHistoryService:     configMapHistoryService,
+		scopedVariableManager:       scopedVariableManager,
+		deployedAppMetricsService:   deployedAppMetricsService,
+		chartRefService:             chartRefService,
 	}
 }
 
-func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentConfigurationByPipelineId(pipelineId int, userHasAdminAccess bool) (*history.AllDeploymentConfigurationDetail, error) {
+func (impl *PipelineDeploymentConfigServiceImpl) GetLatestDeploymentConfigurationByPipelineId(ctx context.Context, pipelineId int, userHasAdminAccess bool) (*history.AllDeploymentConfigurationDetail, error) {
 	configResp := &history.AllDeploymentConfigurationDetail{}
 	pipeline, err := impl.pipelineRepository.FindById(pipelineId)
 	if err != nil {
@@ -61,7 +85,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentConfigurationByPipel
 		return nil, err
 	}
 
-	deploymentTemplateConfig, err := impl.GetLatestDeploymentTemplateConfig(pipeline)
+	deploymentTemplateConfig, err := impl.GetLatestDeploymentTemplateConfig(ctx, pipeline)
 	if err != nil {
 		impl.logger.Errorw("error in getting latest deploymentTemplate", "err", err)
 		return nil, err
@@ -69,13 +93,13 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentConfigurationByPipel
 	configResp.DeploymentTemplateConfig = deploymentTemplateConfig
 
 	pipelineStrategyConfig, err := impl.GetLatestPipelineStrategyConfig(pipeline)
-	if err != nil {
+	if err != nil && errors2.IsNotFound(err) == false {
 		impl.logger.Errorw("error in getting latest pipelineStrategyConfig", "err", err)
 		return nil, err
 	}
 	configResp.StrategyConfig = pipelineStrategyConfig
 
-	configMapConfig, secretConfig, err := impl.GetLatestCMCSConfig(pipeline, userHasAdminAccess)
+	configMapConfig, secretConfig, err := impl.GetLatestCMCSConfig(ctx, pipeline, userHasAdminAccess)
 	if err != nil {
 		impl.logger.Errorw("error in getting latest CM/CS config", "err", err)
 		return nil, err
@@ -85,20 +109,11 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentConfigurationByPipel
 	return configResp, nil
 }
 
-func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipeline *pipelineConfig.Pipeline) (*history.HistoryDetailDto, error) {
-	isAppMetricsEnabled := false
-	envLevelAppMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting env level app metrics", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
-	} else if err == pg.ErrNoRows {
-		appLevelAppMetrics, err := impl.appLevelMetricsRepository.FindByAppId(pipeline.AppId)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in getting app level app metrics", "err", err, "appId", pipeline.AppId)
-		} else if err == nil {
-			isAppMetricsEnabled = appLevelAppMetrics.AppMetrics
-		}
-	} else {
-		isAppMetricsEnabled = *envLevelAppMetrics.AppMetrics
+func (impl *PipelineDeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(ctx context.Context, pipeline *pipelineConfig.Pipeline) (*history.HistoryDetailDto, error) {
+	isAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagForAPipelineByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error, GetMetricsFlagForAPipelineByAppIdAndEnvId", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
+		return nil, err
 	}
 	envOverride, err := impl.envConfigOverrideRepository.ActiveEnvConfigOverride(pipeline.AppId, pipeline.EnvironmentId)
 	if err != nil {
@@ -109,18 +124,38 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 	deploymentTemplateConfig := &history.HistoryDetailDto{}
 	if envOverride != nil && envOverride.Id > 0 && envOverride.IsOverride {
 		if envOverride.Chart != nil {
-			chartRef, err := impl.chartRefRepository.FindById(envOverride.Chart.ChartRefId)
+			chartRefDto, err := impl.chartRefService.FindById(envOverride.Chart.ChartRefId)
 			if err != nil {
 				impl.logger.Errorw("error in getting chartRef by id", "err", err, "chartRefId", envOverride.Chart.ChartRefId)
 				return nil, err
 			}
+			scope := resourceQualifiers.Scope{
+				AppId:     pipeline.AppId,
+				EnvId:     pipeline.EnvironmentId,
+				ClusterId: pipeline.Environment.ClusterId,
+			}
+			entity := repository6.Entity{
+				EntityType: repository6.EntityTypeDeploymentTemplateEnvLevel,
+				EntityId:   envOverride.Id,
+			}
+			isSuperAdmin, err := util.GetIsSuperAdminFromContext(ctx)
+			if err != nil {
+				return nil, err
+			}
+			resolvedTemplate, scopedVariablesMap, err := impl.scopedVariableManager.GetMappedVariablesAndResolveTemplate(envOverride.EnvOverrideValues, scope, entity, isSuperAdmin)
+			if err != nil {
+				impl.logger.Errorw("could not resolve template", "err", err, "envOverrideId", envOverride.Id, "scope", scope, "pipelineId", pipeline.Id)
+			}
+
 			deploymentTemplateConfig = &history.HistoryDetailDto{
 				TemplateName:        envOverride.Chart.ChartName,
-				TemplateVersion:     chartRef.Version,
+				TemplateVersion:     chartRefDto.Version,
 				IsAppMetricsEnabled: &isAppMetricsEnabled,
 				CodeEditorValue: &history.HistoryDetailConfig{
-					DisplayName: "values.yaml",
-					Value:       envOverride.EnvOverrideValues,
+					DisplayName:      "values.yaml",
+					Value:            envOverride.EnvOverrideValues,
+					VariableSnapshot: scopedVariablesMap,
+					ResolvedValue:    resolvedTemplate,
 				},
 			}
 		}
@@ -130,25 +165,45 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 			impl.logger.Errorw("error in getting chart by appId", "err", err, "appId", pipeline.AppId)
 			return nil, err
 		}
-		chartRef, err := impl.chartRefRepository.FindById(chart.ChartRefId)
+		chartRefDto, err := impl.chartRefService.FindById(chart.ChartRefId)
 		if err != nil {
 			impl.logger.Errorw("error in getting chartRef by id", "err", err, "chartRefId", envOverride.Chart.ChartRefId)
 			return nil, err
 		}
+		//Scope contains env and cluster ID because a pipeline will always have those even if inheriting base template
+		scope := resourceQualifiers.Scope{
+			AppId:     pipeline.AppId,
+			EnvId:     pipeline.EnvironmentId,
+			ClusterId: pipeline.Environment.ClusterId,
+		}
+		entity := repository6.Entity{
+			EntityType: repository6.EntityTypeDeploymentTemplateAppLevel,
+			EntityId:   chart.Id,
+		}
+		isSuperAdmin, err := util.GetIsSuperAdminFromContext(ctx)
+		if err != nil {
+			return nil, err
+		}
+		resolvedTemplate, scopedVariablesMap, err := impl.scopedVariableManager.GetMappedVariablesAndResolveTemplate(chart.GlobalOverride, scope, entity, isSuperAdmin)
+		if err != nil {
+			impl.logger.Errorw("could not resolve template", "err", err, "chartId", chart.Id, "scope", scope, "pipelineId", pipeline.Id)
+		}
 		deploymentTemplateConfig = &history.HistoryDetailDto{
 			TemplateName:        chart.ChartName,
-			TemplateVersion:     chartRef.Version,
+			TemplateVersion:     chartRefDto.Version,
 			IsAppMetricsEnabled: &isAppMetricsEnabled,
 			CodeEditorValue: &history.HistoryDetailConfig{
-				DisplayName: "values.yaml",
-				Value:       chart.GlobalOverride,
+				DisplayName:      "values.yaml",
+				Value:            chart.GlobalOverride,
+				VariableSnapshot: scopedVariablesMap,
+				ResolvedValue:    resolvedTemplate,
 			},
 		}
 	}
 	return deploymentTemplateConfig, nil
 }
 
-func (impl *DeploymentConfigServiceImpl) GetLatestPipelineStrategyConfig(pipeline *pipelineConfig.Pipeline) (*history.HistoryDetailDto, error) {
+func (impl *PipelineDeploymentConfigServiceImpl) GetLatestPipelineStrategyConfig(pipeline *pipelineConfig.Pipeline) (*history.HistoryDetailDto, error) {
 
 	pipelineStrategy, err := impl.pipelineConfigRepository.GetDefaultStrategyByPipelineId(pipeline.Id)
 	if err != nil {
@@ -166,7 +221,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestPipelineStrategyConfig(pipelin
 	return pipelineStrategyConfig, nil
 }
 
-func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineConfig.Pipeline, userHasAdminAccess bool) ([]*history.ComponentLevelHistoryDetailDto, []*history.ComponentLevelHistoryDetailDto, error) {
+func (impl *PipelineDeploymentConfigServiceImpl) GetLatestCMCSConfig(ctx context.Context, pipeline *pipelineConfig.Pipeline, userHasAdminAccess bool) ([]*history.ComponentLevelHistoryDetailDto, []*history.ComponentLevelHistoryDetailDto, error) {
 
 	configAppLevel, err := impl.configMapRepository.GetByAppIdAppLevel(pipeline.AppId)
 	if err != nil && pg.ErrNoRows != err {
@@ -195,9 +250,20 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 		impl.logger.Errorw("error in merging app level and env level CM configs", "err", err)
 		return nil, nil, err
 	}
+
 	mergedSecret, err := impl.GetMergedCMCSConfigMap(secretAppLevel, secretEnvLevel, repository2.SECRET_TYPE)
 	if err != nil {
 		impl.logger.Errorw("error in merging app level and env level CM configs", "err", err)
+		return nil, nil, err
+	}
+
+	scope := resourceQualifiers.Scope{
+		AppId:     pipeline.AppId,
+		EnvId:     pipeline.EnvironmentId,
+		ClusterId: pipeline.Environment.ClusterId,
+	}
+	resolvedConfigList, resolvedSecretList, variableMapCM, variableMapCS, err := impl.scopedVariableManager.ResolveCMCS(ctx, scope, configAppLevel.Id, configEnvLevel.Id, mergedConfigMap, mergedSecret)
+	if err != nil {
 		return nil, nil, err
 	}
 
@@ -208,6 +274,8 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 			impl.logger.Errorw("error in converting cmConfig to componentLevelData", "err", err)
 			return nil, nil, err
 		}
+		convertedData.HistoryConfig.CodeEditorValue.VariableSnapshot = variableMapCM[data.Name]
+		convertedData.HistoryConfig.CodeEditorValue.ResolvedValue = string(resolvedConfigList[data.Name].Data)
 		cmConfigsDto = append(cmConfigsDto, convertedData)
 	}
 
@@ -218,17 +286,19 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 			impl.logger.Errorw("error in converting secretConfig to componentLevelData", "err", err)
 			return nil, nil, err
 		}
+		convertedData.HistoryConfig.CodeEditorValue.VariableSnapshot = variableMapCS[data.Name]
+		convertedData.HistoryConfig.CodeEditorValue.ResolvedValue = string(resolvedSecretList[data.Name].Data)
 		secretConfigsDto = append(secretConfigsDto, convertedData)
 	}
 	return cmConfigsDto, secretConfigsDto, nil
 }
 
-func (impl *DeploymentConfigServiceImpl) GetMergedCMCSConfigMap(appLevelConfig, envLevelConfig string, configType repository2.ConfigType) (map[string]*history.ConfigData, error) {
-	envLevelMap := make(map[string]*history.ConfigData, 0)
-	finalMap := make(map[string]*history.ConfigData, 0)
+func (impl *PipelineDeploymentConfigServiceImpl) GetMergedCMCSConfigMap(appLevelConfig, envLevelConfig string, configType repository2.ConfigType) (map[string]*bean.ConfigData, error) {
+	envLevelMap := make(map[string]*bean.ConfigData, 0)
+	finalMap := make(map[string]*bean.ConfigData, 0)
 	if configType == repository2.CONFIGMAP_TYPE {
-		appLevelConfigMap := &history.ConfigList{}
-		envLevelConfigMap := &history.ConfigList{}
+		appLevelConfigMap := &bean.ConfigList{}
+		envLevelConfigMap := &bean.ConfigList{}
 		if len(appLevelConfig) > 0 {
 			err := json.Unmarshal([]byte(appLevelConfig), appLevelConfigMap)
 			if err != nil {
@@ -253,8 +323,8 @@ func (impl *DeploymentConfigServiceImpl) GetMergedCMCSConfigMap(appLevelConfig, 
 			}
 		}
 	} else if configType == repository2.SECRET_TYPE {
-		appLevelSecret := &history.SecretList{}
-		envLevelSecret := &history.SecretList{}
+		appLevelSecret := &bean.SecretList{}
+		envLevelSecret := &bean.SecretList{}
 		if len(appLevelConfig) > 0 {
 			err := json.Unmarshal([]byte(appLevelConfig), appLevelSecret)
 			if err != nil {

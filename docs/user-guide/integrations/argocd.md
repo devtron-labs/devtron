@@ -1,6 +1,6 @@
 # GitOps (Argo CD)
  
-**Prerequisite**: Please make sure to install **Build and Deploy (CI/CD)** integration. To install it, click [here](https://docs.devtron.ai/usage/integrations/build-and-deploy-ci-cd).
+**Prerequisite**: Please make sure to install **Build and Deploy (CI/CD)** integration. To install it, click [here](../integrations/build-and-deploy-ci-cd.md).
 
 Devtron integrates deeply with ArgoCD to implement GitOps for continuous delivery. Argo CD follows the GitOps pattern for using Git repositories as the source of truth for defining the desired application state on the target Kubernetes cluster. For more information, check [Argo CD documentation](https://argo-cd.readthedocs.io/en/stable/).
  

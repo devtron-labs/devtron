@@ -1,11 +1,29 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package history
 
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
 )
@@ -17,13 +35,15 @@ type CiPipelineHistoryService interface {
 type CiPipelineHistoryServiceImpl struct {
 	CiPipelineHistoryRepository repository.CiPipelineHistoryRepository
 	logger                      *zap.SugaredLogger
+	ciPipelineRepository        pipelineConfig.CiPipelineRepository
 }
 
 func NewCiPipelineHistoryServiceImpl(CiPipelineHistoryRepository repository.CiPipelineHistoryRepository,
-	logger *zap.SugaredLogger) *CiPipelineHistoryServiceImpl {
+	logger *zap.SugaredLogger, ciPipelineRepository pipelineConfig.CiPipelineRepository) *CiPipelineHistoryServiceImpl {
 	return &CiPipelineHistoryServiceImpl{
 		CiPipelineHistoryRepository: CiPipelineHistoryRepository,
 		logger:                      logger,
+		ciPipelineRepository:        ciPipelineRepository,
 	}
 }
 
@@ -39,21 +59,20 @@ func (impl *CiPipelineHistoryServiceImpl) SaveHistory(pipeline *pipelineConfig.C
 	if IsDockerConfigOverriden {
 		ciTemplateId := 0
 		ciTemplateOverrideId := 0
-
-		CiBuildConfigDbEntity, _ := bean.ConvertBuildConfigBeanToDbEntity(ciTemplateId, ciTemplateOverrideId, CiTemplateBean.CiBuildConfig, CiTemplateBean.UserId)
-
 		CiTemplateOverride = repository.CiPipelineTemplateOverrideHistoryDTO{
 			DockerRegistryId:      CiTemplateBean.CiTemplateOverride.DockerRegistryId,
 			DockerRepository:      CiTemplateBean.CiTemplateOverride.DockerRepository,
 			DockerfilePath:        CiTemplateBean.CiTemplateOverride.DockerfilePath,
 			Active:                CiTemplateBean.CiTemplateOverride.Active,
-			CiBuildConfigId:       CiBuildConfigDbEntity.Id,
-			BuildMetaDataType:     CiBuildConfigDbEntity.Type,
-			BuildMetadata:         CiBuildConfigDbEntity.BuildMetadata,
 			AuditLog:              CiTemplateBean.CiTemplateOverride.AuditLog,
 			IsCiTemplateOverriden: true,
 		}
-
+		if CiTemplateBean.CiBuildConfig != nil {
+			CiBuildConfigDbEntity, _ := adapter.ConvertBuildConfigBeanToDbEntity(ciTemplateId, ciTemplateOverrideId, CiTemplateBean.CiBuildConfig, CiTemplateBean.UserId)
+			CiTemplateOverride.CiBuildConfigId = CiBuildConfigDbEntity.Id
+			CiTemplateOverride.BuildMetaDataType = CiBuildConfigDbEntity.Type
+			CiTemplateOverride.BuildMetadata = CiBuildConfigDbEntity.BuildMetadata
+		}
 	} else {
 
 		CiTemplateOverride = repository.CiPipelineTemplateOverrideHistoryDTO{
@@ -86,10 +105,32 @@ func (impl *CiPipelineHistoryServiceImpl) SaveHistory(pipeline *pipelineConfig.C
 	}
 
 	err := impl.CiPipelineHistoryRepository.Save(&CiPipelineHistory)
-
 	if err != nil {
 		impl.logger.Errorw("error in saving history of ci pipeline")
 		return err
+	}
+	ciEnvMapping, err := impl.ciPipelineRepository.FindCiEnvMappingByCiPipelineId(pipeline.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching ciEnvMapping", "ciPipelineId ", pipeline.Id, "err", err)
+		return err
+	}
+
+	if ciEnvMapping.Id > 0 {
+		CiEnvMappingHistory := &repository.CiEnvMappingHistory{
+			EnvironmentId: ciEnvMapping.EnvironmentId,
+			CiPipelineId:  ciEnvMapping.CiPipelineId,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				CreatedBy: ciEnvMapping.CreatedBy,
+				UpdatedOn: time.Now(),
+				UpdatedBy: ciEnvMapping.UpdatedBy,
+			},
+		}
+		err := impl.CiPipelineHistoryRepository.SaveCiEnvMappingHistory(CiEnvMappingHistory)
+		if err != nil {
+			impl.logger.Errorw("error in saving history of ci Env Mapping", "err", err)
+			return err
+		}
 	}
 
 	return nil

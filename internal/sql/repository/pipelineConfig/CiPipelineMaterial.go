@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package pipelineConfig
@@ -47,12 +46,16 @@ type CiPipelineMaterial struct {
 type CiPipelineMaterialRepository interface {
 	Save(tx *pg.Tx, pipeline ...*CiPipelineMaterial) error
 	Update(tx *pg.Tx, material ...*CiPipelineMaterial) error
+	UpdateNotNull(tx *pg.Tx, material ...*CiPipelineMaterial) error
 	FindByCiPipelineIdsIn(ids []int) ([]*CiPipelineMaterial, error)
 	GetById(id int) (*CiPipelineMaterial, error)
+	GetByIdsIncludeDeleted(ids []int) ([]*CiPipelineMaterial, error)
 	GetByPipelineId(id int) ([]*CiPipelineMaterial, error)
 	GetRegexByPipelineId(id int) ([]*CiPipelineMaterial, error)
 	CheckRegexExistsForMaterial(id int) bool
 	GetByPipelineIdForRegexAndFixed(id int) ([]*CiPipelineMaterial, error)
+	GetCheckoutPath(gitMaterialId int) (string, error)
+	GetByPipelineIdAndGitMaterialId(id int, gitMaterialId int) ([]*CiPipelineMaterial, error)
 }
 
 type CiPipelineMaterialRepositoryImpl struct {
@@ -77,6 +80,18 @@ func (impl CiPipelineMaterialRepositoryImpl) GetById(id int) (*CiPipelineMateria
 	return ciPipelineMaterial, err
 }
 
+func (impl CiPipelineMaterialRepositoryImpl) GetByIdsIncludeDeleted(ids []int) ([]*CiPipelineMaterial, error) {
+	var ciPipelineMaterials []*CiPipelineMaterial
+	if len(ids) == 0 {
+		return ciPipelineMaterials, nil
+	}
+	err := impl.dbConnection.Model(&ciPipelineMaterials).
+		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "CiPipeline.CiTemplate.CiBuildConfig", "GitMaterial", "GitMaterial.GitProvider").
+		Where("ci_pipeline_material.id in (?)", pg.In(ids)).
+		Select()
+	return ciPipelineMaterials, err
+}
+
 func (impl CiPipelineMaterialRepositoryImpl) GetByPipelineId(id int) ([]*CiPipelineMaterial, error) {
 	var ciPipelineMaterials []*CiPipelineMaterial
 	err := impl.dbConnection.Model(&ciPipelineMaterials).
@@ -87,6 +102,19 @@ func (impl CiPipelineMaterialRepositoryImpl) GetByPipelineId(id int) ([]*CiPipel
 		Select()
 	return ciPipelineMaterials, err
 }
+
+func (impl CiPipelineMaterialRepositoryImpl) GetByPipelineIdAndGitMaterialId(id int, gitMaterialId int) ([]*CiPipelineMaterial, error) {
+	var ciPipelineMaterials []*CiPipelineMaterial
+	err := impl.dbConnection.Model(&ciPipelineMaterials).
+		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "CiPipeline.CiTemplate.CiBuildConfig", "GitMaterial", "GitMaterial.GitProvider").
+		Where("ci_pipeline_material.ci_pipeline_id = ?", id).
+		Where("ci_pipeline_material.active = ?", true).
+		Where("ci_pipeline_material.type != ?", SOURCE_TYPE_BRANCH_REGEX).
+		Where("ci_pipeline_material.git_material_id =?", gitMaterialId).
+		Select()
+	return ciPipelineMaterials, err
+}
+
 func (impl CiPipelineMaterialRepositoryImpl) GetByPipelineIdForRegexAndFixed(id int) ([]*CiPipelineMaterial, error) {
 	var ciPipelineMaterials []*CiPipelineMaterial
 	err := impl.dbConnection.Model(&ciPipelineMaterials).
@@ -100,7 +128,7 @@ func (impl CiPipelineMaterialRepositoryImpl) GetByPipelineIdForRegexAndFixed(id 
 func (impl CiPipelineMaterialRepositoryImpl) FindByCiPipelineIdsIn(ids []int) ([]*CiPipelineMaterial, error) {
 	var ciPipelineMaterials []*CiPipelineMaterial
 	err := impl.dbConnection.Model(&ciPipelineMaterials).
-		//Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.DockerRegistry", "GitMaterial", "GitMaterial.GitProvider").
+		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.DockerRegistry", "GitMaterial", "GitMaterial.GitProvider").
 		Where("ci_pipeline_material.active = ?", true).
 		Where("ci_pipeline_material.ci_pipeline_id in (?)", pg.In(ids)).
 		Select()
@@ -113,6 +141,13 @@ func (impl CiPipelineMaterialRepositoryImpl) Save(tx *pg.Tx, material ...*CiPipe
 }
 
 func (impl CiPipelineMaterialRepositoryImpl) Update(tx *pg.Tx, materials ...*CiPipelineMaterial) error {
+	_, err := tx.Model(&materials).Update()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func (impl CiPipelineMaterialRepositoryImpl) UpdateNotNull(tx *pg.Tx, materials ...*CiPipelineMaterial) error {
 	/*err := tx.RunInTransaction(func(tx *pg.Tx) error {
 		for _, material := range materials {
 			r, err := tx.Model(material).WherePK().UpdateNotNull()
@@ -124,16 +159,15 @@ func (impl CiPipelineMaterialRepositoryImpl) Update(tx *pg.Tx, materials ...*CiP
 		return nil
 	})*/
 	for _, material := range materials {
-		r, err := tx.Model(material).WherePK().UpdateNotNull()
+		_, err := tx.Model(material).WherePK().UpdateNotNull()
 		if err != nil {
+			impl.logger.Errorw("error in deleting ci pipeline material", "err", err)
 			return err
 		}
-		impl.logger.Infof("total rows saved %d", r.RowsAffected())
 	}
 
 	return nil
 }
-
 func (impl CiPipelineMaterialRepositoryImpl) GetRegexByPipelineId(id int) ([]*CiPipelineMaterial, error) {
 	var ciPipelineMaterials []*CiPipelineMaterial
 	err := impl.dbConnection.Model(&ciPipelineMaterials).
@@ -156,4 +190,13 @@ func (impl CiPipelineMaterialRepositoryImpl) CheckRegexExistsForMaterial(id int)
 		return false
 	}
 	return exists
+}
+
+func (impl CiPipelineMaterialRepositoryImpl) GetCheckoutPath(gitMaterialId int) (string, error) {
+	var checkoutPath string
+	err := impl.dbConnection.Model((*GitMaterial)(nil)).
+		Column("git_material.checkout_path").
+		Where("id=?", gitMaterialId).
+		Select(&checkoutPath)
+	return checkoutPath, err
 }

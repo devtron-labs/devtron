@@ -1,32 +1,33 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package service
 
 import (
 	"fmt"
+	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	appStoreValuesRepository "github.com/devtron-labs/devtron/pkg/appStore/values/repository"
-	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"go.uber.org/zap"
-	"time"
 )
 
 type AppStoreValuesService interface {
@@ -96,6 +97,10 @@ func (impl AppStoreValuesServiceImpl) UpdateAppStoreVersionValues(request *appSt
 	model.Description = request.Description
 	model.UpdatedBy = request.UserId
 	model.UpdatedOn = time.Now()
+	model.AppStoreApplicationVersionId = request.AppStoreVersionId
+	model.AppStoreApplicationVersion.Version = request.ChartVersion
+	model.AppStoreApplicationVersion.Id = request.AppStoreVersionId
+
 	app, err := impl.appStoreVersionValuesRepository.UpdateAppStoreVersionValues(model)
 	if err != nil {
 		impl.logger.Errorw("error while updating", "error", err)
@@ -235,6 +240,9 @@ func (impl AppStoreValuesServiceImpl) FindValuesByAppStoreId(appStoreId int, ins
 			ChartVersion:      installedAppVersion.AppStoreApplicationVersion.Version,
 			EnvironmentName:   installedAppVersion.InstalledApp.Environment.Name,
 		}
+		if util2.IsExternalChartStoreApp(installedAppVersion.InstalledApp.App.DisplayName) {
+			appStoreVersion.Name = installedAppVersion.InstalledApp.App.DisplayName
+		}
 		installedVal.Values = append(installedVal.Values, appStoreVersion)
 	}
 
@@ -254,6 +262,9 @@ func (impl AppStoreValuesServiceImpl) FindValuesByAppStoreId(appStoreId int, ins
 			Name:              installedAppVersion.InstalledApp.App.AppName,
 			ChartVersion:      installedAppVersion.AppStoreApplicationVersion.Version,
 			EnvironmentName:   installedAppVersion.InstalledApp.Environment.Name,
+		}
+		if util2.IsExternalChartStoreApp(installedAppVersion.InstalledApp.App.DisplayName) {
+			appStoreVersion.Name = installedAppVersion.InstalledApp.App.DisplayName
 		}
 		existingVal.Values = append(existingVal.Values, appStoreVersion)
 	}
@@ -288,7 +299,7 @@ func (impl AppStoreValuesServiceImpl) FindValuesByAppStoreIdAndReferenceType(app
 	return appStoreVersionValuesDTO, err
 }
 
-//converts db object to bean
+// converts db object to bean
 func (impl AppStoreValuesServiceImpl) adapter(values *appStoreValuesRepository.AppStoreVersionValues) (*appStoreBean.AppStoreVersionValuesDTO, error) {
 
 	version := ""
@@ -307,24 +318,25 @@ func (impl AppStoreValuesServiceImpl) adapter(values *appStoreValuesRepository.A
 	}, nil
 }
 
-/*func (impl AppStoreValuesServiceImpl) adaptorForValuesCategoryWise(values *appStore.AppStoreVersionValues) (val *AppStoreVersionValuesCategoryWiseDTO) {
-	version := ""
-	if values.AppStoreApplicationVersion != nil {
-		version = values.AppStoreApplicationVersion.Version
-	}
+/*
+	func (impl AppStoreValuesServiceImpl) adaptorForValuesCategoryWise(values *appStore.AppStoreVersionValues) (val *AppStoreVersionValuesCategoryWiseDTO) {
+		version := ""
+		if values.AppStoreApplicationVersion != nil {
+			version = values.AppStoreApplicationVersion.Version
+		}
 
-	valDto:= &AppStoreVersionValuesDTO{
-		Name:              values.Name,
-		Id:                values.Id,
-		Values:            values.ValuesYaml,
-		ChartVersion:      version,
-		AppStoreVersionId: values.AppStoreApplicationVersionId,
+		valDto:= &AppStoreVersionValuesDTO{
+			Name:              values.Name,
+			Id:                values.Id,
+			Values:            values.ValuesYaml,
+			ChartVersion:      version,
+			AppStoreVersionId: values.AppStoreApplicationVersionId,
+		}
+		val = &AppStoreVersionValuesCategoryWiseDTO{
+			Values:valDto
+		}
+		return val
 	}
-	val = &AppStoreVersionValuesCategoryWiseDTO{
-		Values:valDto
-	}
-	return val
-}
 */
 type ChartMetaDataRequest struct {
 	Kind  string `json:"kind"`
@@ -367,10 +379,15 @@ func (impl AppStoreValuesServiceImpl) GetSelectedChartMetaData(req *ChartMetaDat
 	for _, appversion := range appVersions {
 		chartMeta := &ChartMetaDataResponse{
 			ChartName:                    appversion.AppStore.Name,
-			ChartRepoName:                appversion.AppStore.ChartRepo.Name,
 			AppStoreApplicationVersionId: appversion.Id,
 			Icon:                         appversion.Icon,
 			Kind:                         appStoreBean.REFERENCE_TYPE_DEFAULT,
+		}
+		if appversion.AppStore.DockerArtifactStore != nil {
+			chartMeta.ChartRepoName = appversion.AppStore.DockerArtifactStore.Id
+		}
+		if appversion.AppStore.ChartRepo != nil {
+			chartMeta.ChartRepoName = appversion.AppStore.ChartRepo.Name
 		}
 		res = append(res, chartMeta)
 	}

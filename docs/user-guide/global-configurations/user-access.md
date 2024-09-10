@@ -13,11 +13,15 @@ Access can be added to the User either directly or via Groups.
 
 Devtron supports 5 levels of access:
 
-1. **View**: User with `view` only access has the least privilege. This user can only view combination of environments, applications and helm charts on which access has been granted to the user. This user cannot view sensitive data like secrets used in applications or charts.
-2. **Build and Deploy**: In addition to `view` privilege mentioned in above, user with `build and deploy` permission can build and deploy the image of permitted applications and helm charts to permitted environments.
-3. **Admin**: User with `admin` access can create, edit, delete and view permitted applications in permitted projects.
-4. **Manager**: User with `manager` access can do everything that an `admin` type user can do, in addition they can also give and revoke access of users for the applications and environments of which they are `manager`.
-5. **Super Admin**: User with `super admin` privilege has unrestricted access to all Devtron resources. Super admin can create, modify, delete and view any Devtron resource without any restriction; its like Superman without the weakness of Kryptonite. Super Admin can also add and delete user access across any Devtron resource, add delete git repository credentials, container registry credentials, cluster and environment.
+1. **View**: Users with `view` access have the least privileges. Such users can only view combination of environments, applications and helm charts on which access has been granted to the user. They cannot view sensitive data like secrets used in applications or charts.
+2. **Build and Deploy**: In addition to `view` privilege mentioned above, users with `build and deploy` permission can build and deploy the image of permitted applications and helm charts to permitted environments.
+3. **Admin**: Users with `admin` privileges can create, edit, delete, and view permitted applications in permitted projects.
+4. **Manager**: Users with `manager` privileges can do everything that an `admin` user can do. Additionally, they can also give and revoke access of users for the applications and environments of which they are the manager.
+5. **Super Admin**: Users with `super admin` privileges have unrestricted access to all the Devtron resources. Super Admins can create, modify, delete and view any Devtron resource without any restriction; it's like Superman without the weakness of Kryptonite. Moreover, they can add and delete user access across any Devtron resource, add delete git repository credentials, container registry credentials, cluster, and environment.
+6. **Image approver**: Users with `Image approver` privileges have the authority to approve requests for image deployment.
+7. **Configuration approver**: Users with `Configuration approver` privileges have the authority to approve changes to protected configurations of Deployment Template, ConfigMaps, and Secrets. However, the user who proposed the changes cannot self-approve, even if they have configuration approver or super-admin privileges.
+8. **Artifact promoter**: Users with this privilege have the authority to approve promotion of [artifacts](../../reference/glossary.md#artifacts) directly to the target CD pipeline.
+
 
 ## User Roles And Permissions
 
@@ -56,19 +60,19 @@ Devtron supports 5 levels of access:
 
 To control the access of User and Group-
 
-Go to the left main panel -&gt; `Select Global Configurations` -&gt; Select `User Access`
+Go to the left main panel → Global Configurations` → `User Access`
 
 ## Users
 
 ### 1. Add new user
 
-Click on `Add User`, to add one or multiple users.
+Click **Add User**, to add one or multiple users.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/gc-user-access-add-user.jpg)
 
 ### 2. Create User Permissions
 
-When you click on Add User, you will see 6 options to set permission for users which are as follow:
+When you click `Add User`, you will see 6 options to set permission for users which are as follow:
 
 - Email addresses
 - Assign super admin permissions
@@ -93,11 +97,11 @@ In the `Email address` box, you have to provide the mail ID of the user to whom 
 
 ### Assign super admin permissions
 
-If you check the option `Assign super admin permissions`, the user will get full access to your system and the rest of the options will disappear. Please check [above](#access-levels) to see permission levels. Only users with super admin permissions can assign super admin permissions to a user.
+If you check the option `Assign super admin permissions`, the user will get full access to your system and the rest of the options will disappear. Please check [above](#role-based-access-levels) to see permission levels. Only users with super admin permissions can assign super admin permissions to a user.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/add-user-2.jpg)
 
-Click on `Save` and your user will be saved with super admin permissions.
+Click **Save** and your user will be saved with super admin permissions.
 
 We suggest that super admin privileges should be given to only select few.
 
@@ -115,7 +119,7 @@ Access to devtron applications can be given to user by attaching permission dire
 
 - **Project**
 
-Select a project from the drop-down to which you want to give permission to the users. You can select only one project at a time if you want to select more than one project then click `Add row`.
+Select a project from the drop-down to which you want to give permission to the users. You can select only one project at a time if you want to select more than one project then click **Add row**.
 
 - **Environment**
 
@@ -133,13 +137,13 @@ Similarly, you can select `Applications` from the drop-down corresponding to you
 
   Inside the `Role`, you actually choose which type of permissions you want to give to the users.
 
-There are four different view access levels/Role available for both User and Group as described [above](#access-levels):
+There are four different view access levels/Role available for both User and Group as described [above](#role-based-access-levels):
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/user-access-permission_1.JPG)
 
 You can add multiple rows, for Devtron app permission.
 
-Once you have finished assigning the appropriate permissions for the listed users, Click on `Save`.
+Once you have finished assigning the appropriate permissions for the listed users, click **Save**.
 
 ### Helm Apps Permissions
 
@@ -147,7 +151,7 @@ Access to devtron applications can be given to user by attaching permission dire
 
 - **Project**
 
-Select a project from the drop-down to which you want to give permission to the users. You can select only one project at a time if you want to select more than one project then click `Add row`.
+Select a project from the drop-down to which you want to give permission to the users. You can select only one project at a time if you want to select more than one project then click **Add row**.
 
 - **Environment or cluster/namespace**
 
@@ -165,7 +169,7 @@ Similarly, you can select `Applications` from the drop-down corresponding to you
 
   Inside the `Role`, you actually choose which type of permissions you want to give to the users.
 
-There are four different view access levels/Role available for both User and Group as described [above](#access-levels):
+There are four different view access levels/Role available for both User and Group as described [above](#role-based-access-levels):
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/user-access-permission_helm+app_2.JPG)
 
@@ -201,7 +205,7 @@ Click on `Save`, once you have configured all the required permissions for the u
 
 ### 3. Edit User Permissions
 
-You can edit the user permissions, by clicking on the `downward arrow`.
+You can edit the user permissions, by clicking the `downward arrow`.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/edit+user+permission_dropdown_1.JPG)
 
@@ -209,9 +213,9 @@ Then you can edit the user permissions here.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/edit+user+permission_devtron+app_2.JPG)
 
-After you have done editing the user permissions, click on `Save`.
+After you have done editing the user permissions, click **Save**.
 
-If you want to delete the user/users with particular permissions, click on `Delete`.
+If you want to delete the user/users with particular permissions, click **Delete**.
 
 ## Groups
 
@@ -221,7 +225,7 @@ You can select the group which you are creating in the `Group permissions` secti
 
 ### 1. Add new Group
 
-Go to  `Groups` and click on `Add Group`, to create a new group.
+Go to `Groups` and click **Add Group**, to create a new group.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/Add+group+permission_dashboard_1.JPG)
 
@@ -239,11 +243,11 @@ Then, control the access permissions of groups in the Devtron Apps, Helm Apps or
 
 You can add multiple rows, for the Devtron Apps and Helm Apps Permissions section.
 
-Once you have finished assigning the appropriate permissions for the listed users, Click on `Save`.
+Once you have finished assigning the appropriate permissions for the listed users, Click **Save**.
 
 ### 3. Edit Group Permissions
 
-You can edit the group permissions, by clicking on the `downward arrow.`
+You can edit the group permissions, by clicking the `downward arrow.`
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/group+permission_dropdown_4.JPG)
 
@@ -251,9 +255,9 @@ Then you can edit the user permissions here.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/edit+group+permission_devtron+app_5.JPG)
 
-Once you are done editing the group permissions. Click on `Save`.
+Once you are done editing the group permissions. Click **Save**.
 
-If you want to delete the groups with particular permissions. Click on `Delete`.
+If you want to delete the groups with particular permissions. Click **Delete**.
 
 ### 4. Manage Chart Group Permissions
 

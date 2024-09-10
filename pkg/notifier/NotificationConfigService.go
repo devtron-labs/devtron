@@ -1,29 +1,29 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package notifier
 
 import (
 	"encoding/json"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository4 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
-	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
-	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -51,6 +51,7 @@ type NotificationConfigServiceImpl struct {
 	ciPipelineRepository           pipelineConfig.CiPipelineRepository
 	pipelineRepository             pipelineConfig.PipelineRepository
 	slackRepository                repository.SlackNotificationRepository
+	webhookRepository              repository.WebhookNotificationRepository
 	sesRepository                  repository.SESNotificationRepository
 	smtpRepository                 repository.SMTPNotificationRepository
 	teamRepository                 repository2.TeamRepository
@@ -163,7 +164,7 @@ type ProvidersConfig struct {
 }
 
 func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSettingsRepository repository.NotificationSettingsRepository, notificationConfigBuilder NotificationConfigBuilder, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	pipelineRepository pipelineConfig.PipelineRepository, slackRepository repository.SlackNotificationRepository,
+	pipelineRepository pipelineConfig.PipelineRepository, slackRepository repository.SlackNotificationRepository, webhookRepository repository.WebhookNotificationRepository,
 	sesRepository repository.SESNotificationRepository, smtpRepository repository.SMTPNotificationRepository,
 	teamRepository repository2.TeamRepository,
 	environmentRepository repository3.EnvironmentRepository, appRepository app.AppRepository,
@@ -176,6 +177,7 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 		ciPipelineRepository:           ciPipelineRepository,
 		sesRepository:                  sesRepository,
 		slackRepository:                slackRepository,
+		webhookRepository:              webhookRepository,
 		smtpRepository:                 smtpRepository,
 		teamRepository:                 teamRepository,
 		environmentRepository:          environmentRepository,
@@ -365,6 +367,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 
 		if config.Providers != nil && len(config.Providers) > 0 {
 			var slackIds []*int
+			var webhookIds []*int
 			var sesUserIds []int32
 			var smtpUserIds []int32
 			var providerConfigs []*ProvidersConfig
@@ -377,6 +380,8 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 						sesUserIds = append(sesUserIds, int32(item.ConfigId))
 					} else if item.Destination == util.SMTP {
 						smtpUserIds = append(smtpUserIds, int32(item.ConfigId))
+					} else if item.Destination == util.Webhook {
+						webhookIds = append(webhookIds, &item.ConfigId)
 					}
 				} else {
 					providerConfigs = append(providerConfigs, &ProvidersConfig{Dest: string(item.Destination), Recipient: item.Recipient})
@@ -390,6 +395,16 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 				}
 				for _, item := range slackConfigs {
 					providerConfigs = append(providerConfigs, &ProvidersConfig{Id: item.Id, ConfigName: item.ConfigName, Dest: string(util.Slack)})
+				}
+			}
+			if len(webhookIds) > 0 {
+				webhookConfigs, err := impl.webhookRepository.FindByIds(webhookIds)
+				if err != nil && err != pg.ErrNoRows {
+					impl.logger.Errorw("error in fetching webhook config", "err", err)
+					return notificationSettingsResponses, deletedItemCount, err
+				}
+				for _, item := range webhookConfigs {
+					providerConfigs = append(providerConfigs, &ProvidersConfig{Id: item.Id, ConfigName: item.ConfigName, Dest: string(util.Webhook)})
 				}
 			}
 

@@ -5,14 +5,15 @@ import (
 	_ "embed"
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/cluster"
+	"github.com/devtron-labs/devtron/api/k8s/application"
+	"github.com/devtron-labs/devtron/api/k8s/capacity"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/terminal"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/telemetry"
-	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/attributes/bean"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
@@ -26,8 +27,8 @@ type MuxRouter struct {
 	logger                   *zap.SugaredLogger
 	clusterRouter            cluster.ClusterRouter
 	dashboardRouter          dashboard.DashboardRouter
-	k8sApplicationRouter     k8s.K8sApplicationRouter
-	k8sCapacityRouter        k8s.K8sCapacityRouter
+	k8sApplicationRouter application.K8sApplicationRouter
+	k8sCapacityRouter    capacity.K8sCapacityRouter
 	userTerminalAccessRouter terminal.UserTerminalAccessRouter
 }
 
@@ -35,8 +36,8 @@ func NewMuxRouter(
 	logger *zap.SugaredLogger,
 	clusterRouter cluster.ClusterRouter,
 	dashboardRouter dashboard.DashboardRouter,
-	k8sApplicationRouter k8s.K8sApplicationRouter,
-	k8sCapacityRouter k8s.K8sCapacityRouter,
+	k8sApplicationRouter application.K8sApplicationRouter,
+	k8sCapacityRouter capacity.K8sCapacityRouter,
 	userTerminalAccessRouter terminal.UserTerminalAccessRouter,
 	kubeConfigFileSyncerImpl *cluster2.KubeConfigFileSyncerImpl,
 	telemetry telemetry.TelemetryEventClient,
@@ -108,7 +109,7 @@ func (r *MuxRouter) Init() {
 			vars := mux.Vars(request)
 			key := vars["key"]
 			if key == "DEFAULT_TERMINAL_IMAGE_LIST" {
-				defaultAttrDto := &attributes.AttributesDto{
+				defaultAttrDto := &bean.AttributesDto{
 					Active: true,
 					Key:    "DEFAULT_TERMINAL_IMAGE_LIST",
 					Value:  string(fileContent),

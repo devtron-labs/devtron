@@ -16,14 +16,14 @@ redirects:
     setup/upgrade/devtron-upgrade-0.2.x-0.3.x: getting-started/upgrade/devtron-upgrade-0.2.x-0.3.x
     setup/global-configurations: user-guide/global-configurations/README.md
     setup/global-configurations/gitops: user-guide/global-configurations/gitops.md
-    setup/global-configurations/custom-charts: user-guide/global-configurations/custom-charts.md
+    setup/global-configurations/custom-charts: user-guide/global-configurations/deployment-charts.md
     setup/global-configurations/user-access: user-guide/global-configurations/authorization/user-access.md 
     setup/global-configurations/external-links: user-guide/global-configurations/external-links.md
     setup/global-configurations/projects: user-guide/global-configurations/projects.md
     setup/global-configurations/manage-notification: user-guide/global-configurations/manage-notification.md
     setup/global-configurations/sso-login: user-guide/global-configurations/sso-login.md
     setup/global-configurations/git-accounts: user-guide/global-configurations/git-accounts.md
-    setup/global-configurations/docker-registries: user-guide/global-configurations/docker-registries.md
+    setup/global-configurations/docker-registries: user-guide/global-configurations/container-registries.md
     setup/global-configurations/chart-repo: user-guide/global-configurations/chart-repo.md
     setup/global-configurations/cluster-and-environments: user-guide/global-configurations/cluster-and-environments.md
     setup/global-configurations/authorization: user-guide/global-configurations/authorization/README.md
@@ -31,6 +31,23 @@ redirects:
     setup/global-configurations/authorization/permission-groups: user-guide/global-configurations/authorization/permission-groups.md
     setup/global-configurations/authorization/api-tokens: user-guide/global-configurations/authorization/api-tokens.md
     setup/global-configurations/nodejs_app: user-guide/Deploy-sample-app/nodejs_app.md
+    setup/global-configurations/host-url: user-guide/global-configurations/host-url.md
+    setup/global-configurations/authorization/sso/google: user-guide/global-configurations/authorization/sso/google.md
+    setup/global-configurations/authorization/sso/github: user-guide/global-configurations/authorization/sso/github.md
+    setup/global-configurations/authorization/sso/gitlab: user-guide/global-configurations/authorization/sso/gitlab.md
+    setup/global-configurations/authorization/sso/microsoft: user-guide/global-configurations/authorization/sso/microsoft.md
+    setup/global-configurations/authorization/sso/ldap: user-guide/global-configurations/authorization/sso/ldap.md
+    setup/global-configurations/authorization/sso/oidc: user-guide/global-configurations/authorization/sso/oidc.md
+    setup/global-configurations/authorization/sso/openshift: user-guide/global-configurations/authorization/sso/openshift.md
+    setup/global-configurations/okta: user-guide/global-configurations/okta.md
+    setup/global-configurations/catalog-framework: user-guide/global-configurations/catalog-framework.md
+    setup/global-configurations/scoped-variables: user-guide/global-configurations/scoped-variables.md
+    setup/global-configurations/pull-image-digest: user-guide/global-configurations/pull-image-digest.md
+    setup/global-configurations/tags-policy: user-guide/global-configurations/tags-policy.md
+    setup/global-configurations/lock-deployment-config: user-guide/global-configurations/lock-deployment-config.md
+    setup/global-configurations/image-promotion-policy: user-guide/global-configurations/image-promotion-policy.md
+    setup/global-configurations/filter-condition: user-guide/global-configurations/filter-condition.md
+    setup/global-configurations/build-infra: user-guide/global-configurations/build-infra.md
     user-guide/creating-application: user-guide/applications.md
     user-guide/creating-application/git-material: usage/applications/creating-application/git-material
     user-guide/creating-application/docker-build-configuration: usage/applications/creating-application/docker-build-configuration
@@ -69,3 +86,46 @@ redirects:
     user-guide/use-cases/connect-expressjs-with-mongodb-database: resources/use-cases/connect-expressjs-with-mongodb-database
     user-guide/use-cases/connect-django-with-mysql-database: resources/use-cases/connect-django-with-mysql-database
     user-guide/telemetry: resources/telemetry
+    getting-started/install/installation-configuration: setup/install/installation-configuration.md
+    getting-started/global-configurations: user-guide/global-configurations/README.md
+    getting-started/global-configurations/container-registries: user-guide/global-configurations/container-registries.md
+    getting-started/global-configurations/sso-login: user-guide/global-configurations/sso-login.md
+    getting-started/global-configurations/docker-registries: user-guide/global-configurations/container-registries.md
+    getting-started/global-configurations/host-url: user-guide/global-configurations/host-url.md
+    getting-started/global-configurations/authorization/sso/google: user-guide/global-configurations/authorization/sso/google.md
+    getting-started/global-configurations/authorization/sso/github: user-guide/global-configurations/authorization/sso/github.md
+    getting-started/global-configurations/authorization/sso/gitlab: user-guide/global-configurations/authorization/sso/gitlab.md
+    getting-started/global-configurations/authorization/sso/microsoft: user-guide/global-configurations/authorization/sso/microsoft.md
+    getting-started/global-configurations/authorization/sso/ldap: user-guide/global-configurations/authorization/sso/ldap.md
+    getting-started/global-configurations/authorization/sso/oidc: user-guide/global-configurations/authorization/sso/oidc.md
+    getting-started/global-configurations/authorization/sso/openshift: user-guide/global-configurations/authorization/sso/openshift.md
+    getting-started/global-configurations/okta: user-guide/global-configurations/okta.md
+    getting-started/global-configurations/catalog-framework: user-guide/global-configurations/catalog-framework.md
+    getting-started/global-configurations/scoped-variables: user-guide/global-configurations/scoped-variables.md
+    getting-started/global-configurations/pull-image-digest: user-guide/global-configurations/pull-image-digest.md
+    getting-started/global-configurations/tags-policy: user-guide/global-configurations/tags-policy.md
+    getting-started/global-configurations/lock-deployment-config: user-guide/global-configurations/lock-deployment-config.md
+    getting-started/global-configurations/image-promotion-policy: user-guide/global-configurations/image-promotion-policy.md
+    getting-started/global-configurations/filter-condition: user-guide/global-configurations/filter-condition.md
+    getting-started/global-configurations/build-infra: user-guide/global-configurations/build-infra.md
+    getting-started/global-configurations/gitops: user-guide/global-configurations/gitops.md
+    getting-started/global-configurations/custom-charts: user-guide/global-configurations/deployment-charts.md
+    getting-started/global-configurations/external-links: user-guide/global-configurations/external-links.md
+    getting-started/global-configurations/projects: user-guide/global-configurations/projects.md
+    getting-started/global-configurations/manage-notification: user-guide/global-configurations/manage-notification.md
+    getting-started/global-configurations/git-accounts: user-guide/global-configurations/git-accounts.md
+    getting-started/global-configurations/chart-repo: user-guide/global-configurations/chart-repo.md
+    getting-started/global-configurations/cluster-and-environments: user-guide/global-configurations/cluster-and-environments.md
+    getting-started/global-configurations/authorization: user-guide/global-configurations/authorization/README.md
+    getting-started/global-configurations/authorization/user-access: user-guide/global-configurations/authorization/user-access.md
+    getting-started/global-configurations/authorization/permission-groups: user-guide/global-configurations/authorization/permission-groups.md
+    getting-started/global-configurations/authorization/api-tokens: user-guide/global-configurations/authorization/api-tokens.md
+    global-configurations/sso-login: user-guide/global-configurations/sso-login.md
+    user-guide/use-cases/untitled-3: user-guide/use-cases/connect-django-with-mysql-database.md
+    global-configurations/api-token: user-guide/global-configurations/authorization/api-tokens.md
+    user-guide/creating-application/workflow/ci-pipeline2: user-guide/creating-application/workflow/ci-pipeline.md
+    user-guide/clusters: user-guide/resource-browser.md
+    usage/clusters: user-guide/resource-browser.md
+    global-configurations/authorization/sso-login/okta: user-guide/global-configurations/authorization/sso/okta.md
+    usage/applications/creating-application/ci-pipeline/ci-build-pre-post-plugins: user-guide/creating-application/workflow/ci-build-pre-post-plugins.md
+    global-configurations/custom-charts: user-guide/global-configurations/deployment-charts.md

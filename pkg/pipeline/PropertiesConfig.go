@@ -1,129 +1,90 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package pipeline
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/variables"
+	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"time"
 
-	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/sql"
 
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/models"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/util"
-	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
 )
 
-type EnvironmentProperties struct {
-	Id                int                         `json:"id"`
-	EnvOverrideValues json.RawMessage             `json:"envOverrideValues"`
-	Status            models.ChartStatus          `json:"status" validate:"number,required"` //default new, when its ready for deployment CHARTSTATUS_SUCCESS
-	ManualReviewed    bool                        `json:"manualReviewed" validate:"required"`
-	Active            bool                        `json:"active" validate:"required"`
-	Namespace         string                      `json:"namespace" validate:"name-space-component,required"`
-	EnvironmentId     int                         `json:"environmentId"`
-	EnvironmentName   string                      `json:"environmentName"`
-	Latest            bool                        `json:"latest"`
-	UserId            int32                       `json:"-"`
-	AppMetrics        *bool                       `json:"isAppMetricsEnabled"`
-	ChartRefId        int                         `json:"chartRefId,omitempty"  validate:"number"`
-	IsOverride        bool                        `sql:"isOverride"`
-	IsBasicViewLocked bool                        `json:"isBasicViewLocked"`
-	CurrentViewEditor models.ChartsViewEditorType `json:"currentViewEditor"` //default "UNDEFINED" in db
-}
-
-type EnvironmentPropertiesResponse struct {
-	EnvironmentConfig EnvironmentProperties `json:"environmentConfig"`
-	GlobalConfig      json.RawMessage       `json:"globalConfig"`
-	AppMetrics        *bool                 `json:"appMetrics"`
-	IsOverride        bool                  `sql:"is_override"`
-	GlobalChartRefId  int                   `json:"globalChartRefId,omitempty"  validate:"number"`
-	ChartRefId        int                   `json:"chartRefId,omitempty"  validate:"number"`
-	Namespace         string                `json:"namespace" validate:"name-space-component"`
-	Schema            json.RawMessage       `json:"schema"`
-	Readme            string                `json:"readme"`
-}
-
 type PropertiesConfigService interface {
-	CreateEnvironmentProperties(appId int, propertiesRequest *EnvironmentProperties) (*EnvironmentProperties, error)
-	UpdateEnvironmentProperties(appId int, propertiesRequest *EnvironmentProperties, userId int32) (*EnvironmentProperties, error)
+	CreateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error)
+	UpdateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties, userId int32) (*bean.EnvironmentProperties, error)
 	//create environment entry for each new environment
-	CreateIfRequired(chart *chartRepoRepository.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride, isAppMetricsEnabled bool, namespace string, IsBasicViewLocked bool, CurrentViewEditor models.ChartsViewEditorType, tx *pg.Tx) (*chartConfig.EnvConfigOverride, error)
-	GetEnvironmentProperties(appId, environmentId int, chartRefId int) (environmentPropertiesResponse *EnvironmentPropertiesResponse, err error)
-	GetEnvironmentPropertiesById(environmentId int) ([]EnvironmentProperties, error)
+	CreateIfRequired(chart *chartRepoRepository.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride, isAppMetricsEnabled bool, namespace string, IsBasicViewLocked bool, CurrentViewEditor models.ChartsViewEditorType, tx *pg.Tx) (*chartConfig.EnvConfigOverride, bool, error)
+	GetEnvironmentProperties(appId, environmentId int, chartRefId int) (environmentPropertiesResponse *bean.EnvironmentPropertiesResponse, err error)
+	GetEnvironmentPropertiesById(environmentId int) ([]bean.EnvironmentProperties, error)
 
 	GetAppIdByChartEnvId(chartEnvId int) (*chartConfig.EnvConfigOverride, error)
-	GetLatestEnvironmentProperties(appId, environmentId int) (*EnvironmentProperties, error)
+	GetLatestEnvironmentProperties(appId, environmentId int) (*bean.EnvironmentProperties, error)
 	ResetEnvironmentProperties(id int) (bool, error)
-	CreateEnvironmentPropertiesWithNamespace(appId int, propertiesRequest *EnvironmentProperties) (*EnvironmentProperties, error)
+	CreateEnvironmentPropertiesWithNamespace(appId int, propertiesRequest *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error)
 
-	EnvMetricsEnableDisable(appMetricRequest *chartService.AppMetricEnableDisableRequest) (*chartService.AppMetricEnableDisableRequest, error)
+	FetchEnvProperties(appId, envId, chartRefId int) (*chartConfig.EnvConfigOverride, error)
 }
 type PropertiesConfigServiceImpl struct {
 	logger                           *zap.SugaredLogger
 	envConfigRepo                    chartConfig.EnvConfigOverrideRepository
 	chartRepo                        chartRepoRepository.ChartRepository
-	mergeUtil                        util.MergeUtil
 	environmentRepository            repository2.EnvironmentRepository
-	ciCdPipelineOrchestrator         CiCdPipelineOrchestrator
-	application                      application.ServiceClient
-	envLevelAppMetricsRepository     repository.EnvLevelAppMetricsRepository
-	appLevelMetricsRepository        repository.AppLevelMetricsRepository
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
+	scopedVariableManager            variables.ScopedVariableManager
+	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
 }
 
 func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 	envConfigRepo chartConfig.EnvConfigOverrideRepository,
 	chartRepo chartRepoRepository.ChartRepository,
-	mergeUtil util.MergeUtil,
 	environmentRepository repository2.EnvironmentRepository,
-	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
-	application application.ServiceClient,
-	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository,
-	appLevelMetricsRepository repository.AppLevelMetricsRepository,
-	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService) *PropertiesConfigServiceImpl {
+	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
+	scopedVariableManager variables.ScopedVariableManager,
+	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService) *PropertiesConfigServiceImpl {
 	return &PropertiesConfigServiceImpl{
 		logger:                           logger,
 		envConfigRepo:                    envConfigRepo,
 		chartRepo:                        chartRepo,
-		mergeUtil:                        mergeUtil,
 		environmentRepository:            environmentRepository,
-		ciCdPipelineOrchestrator:         ciCdPipelineOrchestrator,
-		application:                      application,
-		envLevelAppMetricsRepository:     envLevelAppMetricsRepository,
-		appLevelMetricsRepository:        appLevelMetricsRepository,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
+		scopedVariableManager:            scopedVariableManager,
+		deployedAppMetricsService:        deployedAppMetricsService,
 	}
 
 }
 
-func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environmentId int, chartRefId int) (environmentPropertiesResponse *EnvironmentPropertiesResponse, err error) {
-	environmentPropertiesResponse = &EnvironmentPropertiesResponse{}
+func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environmentId int, chartRefId int) (environmentPropertiesResponse *bean.EnvironmentPropertiesResponse, err error) {
+	environmentPropertiesResponse = &bean.EnvironmentPropertiesResponse{}
 	env, err := impl.environmentRepository.FindById(environmentId)
 	if err != nil {
 		return nil, err
@@ -137,7 +98,7 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environm
 	if err != nil {
 		return nil, err
 	}
-	environmentProperties := &EnvironmentProperties{}
+	environmentProperties := &bean.EnvironmentProperties{}
 	if envOverride.Id > 0 {
 		r := json.RawMessage{}
 		if envOverride.IsOverride {
@@ -152,13 +113,14 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environm
 				return nil, err
 			}
 		}
-		environmentProperties = &EnvironmentProperties{
+		environmentProperties = &bean.EnvironmentProperties{
 			//Id:                envOverride.Id,
 			Status:            envOverride.Status,
 			EnvOverrideValues: r,
 			ManualReviewed:    envOverride.ManualReviewed,
 			Active:            envOverride.Active,
 			Namespace:         env.Namespace,
+			Description:       env.Description,
 			EnvironmentId:     environmentId,
 			EnvironmentName:   env.Name,
 			Latest:            envOverride.Latest,
@@ -209,31 +171,20 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environm
 			environmentPropertiesResponse.EnvironmentConfig.CurrentViewEditor = chart.CurrentViewEditor
 		}
 	}
-
-	envLevelMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(appId, environmentId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Error(err)
+	isAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagForAPipelineByAppIdAndEnvId(appId, environmentId)
+	if err != nil {
+		impl.logger.Errorw("error, GetMetricsFlagForAPipelineByAppIdAndEnvId", "err", err, "appId", appId, "envId", environmentId)
 		return nil, err
 	}
-	if util.IsErrNoRows(err) {
-		appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(appId)
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.logger.Errorw("error in app metrics app level flag", "error", err)
-			return nil, err
-		}
-		if util.IsErrNoRows(err) {
-			flag := false
-			environmentPropertiesResponse.AppMetrics = &flag
-		} else {
-			environmentPropertiesResponse.AppMetrics = &appLevelMetrics.AppMetrics
-		}
-	} else {
-		environmentPropertiesResponse.AppMetrics = envLevelMetrics.AppMetrics
-	}
+	environmentPropertiesResponse.AppMetrics = &isAppMetricsEnabled
 	return environmentPropertiesResponse, nil
 }
 
-func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, environmentProperties *EnvironmentProperties) (*EnvironmentProperties, error) {
+func (impl PropertiesConfigServiceImpl) FetchEnvProperties(appId, envId, chartRefId int) (*chartConfig.EnvConfigOverride, error) {
+	return impl.envConfigRepo.GetByAppIdEnvIdAndChartRefId(appId, envId, chartRefId)
+}
+
+func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, environmentProperties *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error) {
 	chart, err := impl.chartRepo.FindChartByAppIdAndRefId(appId, environmentProperties.ChartRefId)
 	if err != nil && pg.ErrNoRows != err {
 		return nil, err
@@ -247,11 +198,11 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 	if environmentProperties.AppMetrics != nil {
 		appMetrics = *environmentProperties.AppMetrics
 	}
-	envOverride, err := impl.CreateIfRequired(chart, environmentProperties.EnvironmentId, environmentProperties.UserId, environmentProperties.ManualReviewed, models.CHARTSTATUS_SUCCESS, true, appMetrics, environmentProperties.Namespace, environmentProperties.IsBasicViewLocked, environmentProperties.CurrentViewEditor, nil)
+	envOverride, appMetrics, err := impl.CreateIfRequired(chart, environmentProperties.EnvironmentId, environmentProperties.UserId, environmentProperties.ManualReviewed, models.CHARTSTATUS_SUCCESS, true, appMetrics, environmentProperties.Namespace, environmentProperties.IsBasicViewLocked, environmentProperties.CurrentViewEditor, nil)
 	if err != nil {
 		return nil, err
 	}
-
+	environmentProperties.AppMetrics = &appMetrics
 	r := json.RawMessage{}
 	err = r.UnmarshalJSON([]byte(envOverride.EnvOverrideValues))
 	if err != nil {
@@ -261,7 +212,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 	if err != nil {
 		return nil, err
 	}
-	environmentProperties = &EnvironmentProperties{
+	environmentProperties = &bean.EnvironmentProperties{
 		Id:                envOverride.Id,
 		Status:            envOverride.Status,
 		EnvOverrideValues: r,
@@ -274,28 +225,17 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 		ChartRefId:        environmentProperties.ChartRefId,
 		IsOverride:        envOverride.IsOverride,
 	}
-
-	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chart.ChartVersion)
 	if err != nil {
 		impl.logger.Errorw("chart version parsing", "err", err, "chartVersion", chart.ChartVersion)
 		return nil, err
 	}
 
-	if !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
-		appMetricsRequest := chartService.AppMetricEnableDisableRequest{UserId: environmentProperties.UserId, AppId: appId, EnvironmentId: environmentProperties.EnvironmentId, IsAppMetricsEnabled: false}
-		_, err = impl.EnvMetricsEnableDisable(&appMetricsRequest)
-		if err != nil {
-			impl.logger.Errorw("err while disable app metrics for lower versions", "err", err, "appId", appId, "chartMajorVersion", chartMajorVersion, "chartMinorVersion", chartMinorVersion)
-			return nil, err
-		}
-	}
-
 	return environmentProperties, nil
 }
 
-func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, propertiesRequest *EnvironmentProperties, userId int32) (*EnvironmentProperties, error) {
+func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties, userId int32) (*bean.EnvironmentProperties, error) {
 	//check if exists
-	oldEnvOverride, err := impl.envConfigRepo.Get(propertiesRequest.Id)
+	oldEnvOverride, err := impl.envConfigRepo.GetByIdIncludingInactive(propertiesRequest.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -352,7 +292,6 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		return nil, fmt.Errorf("namespace name update not supported")
 	}
 
-	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(oldEnvOverride.Chart.ChartVersion)
 	if err != nil {
 		impl.logger.Errorw("chart version parsing", "err", err)
 		return nil, err
@@ -362,20 +301,17 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 	if propertiesRequest.AppMetrics != nil {
 		isAppMetricsEnabled = *propertiesRequest.AppMetrics
 	}
-	if !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
-		appMetricsRequest := chartService.AppMetricEnableDisableRequest{UserId: propertiesRequest.UserId, AppId: appId, EnvironmentId: oldEnvOverride.TargetEnvironment, IsAppMetricsEnabled: false}
-		_, err = impl.EnvMetricsEnableDisable(&appMetricsRequest)
-		if err != nil {
-			impl.logger.Errorw("err while disable app metrics for lower versions", err)
-			return nil, err
-		}
-	} else {
-		appMetricsRequest := chartService.AppMetricEnableDisableRequest{UserId: propertiesRequest.UserId, AppId: appId, EnvironmentId: oldEnvOverride.TargetEnvironment, IsAppMetricsEnabled: isAppMetricsEnabled}
-		_, err = impl.EnvMetricsEnableDisable(&appMetricsRequest)
-		if err != nil {
-			impl.logger.Errorw("err while updating app metrics", "err", err)
-			return nil, err
-		}
+	envLevelMetricsUpdateReq := &bean2.DeployedAppMetricsRequest{
+		EnableMetrics: isAppMetricsEnabled,
+		AppId:         appId,
+		EnvId:         oldEnvOverride.TargetEnvironment,
+		ChartRefId:    oldEnvOverride.Chart.ChartRefId,
+		UserId:        propertiesRequest.UserId,
+	}
+	err = impl.deployedAppMetricsService.CreateOrUpdateAppOrEnvLevelMetrics(context.Background(), envLevelMetricsUpdateReq)
+	if err != nil {
+		impl.logger.Errorw("error, CheckAndUpdateAppOrEnvLevelMetrics", "err", err, "req", envLevelMetricsUpdateReq)
+		return nil, err
 	}
 
 	//creating history
@@ -384,42 +320,52 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", override)
 		return nil, err
 	}
+	//VARIABLE_MAPPING_UPDATE
+	err = impl.scopedVariableManager.ExtractAndMapVariables(override.EnvOverrideValues, override.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, override.CreatedBy, nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return propertiesRequest, err
 }
 
-func (impl PropertiesConfigServiceImpl) buildAppMetricsJson() ([]byte, error) {
-	appMetricsEnabled := chartService.AppMetricsEnabled{
-		AppMetrics: true,
-	}
-	appMetricsJson, err := json.Marshal(appMetricsEnabled)
-	if err != nil {
-		impl.logger.Error(err)
-		return nil, err
-	}
-	return appMetricsJson, nil
-}
-
-func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoRepository.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride, isAppMetricsEnabled bool, namespace string, IsBasicViewLocked bool, CurrentViewEditor models.ChartsViewEditorType, tx *pg.Tx) (*chartConfig.EnvConfigOverride, error) {
+func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoRepository.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride, isAppMetricsEnabled bool, namespace string, IsBasicViewLocked bool, CurrentViewEditor models.ChartsViewEditorType, tx *pg.Tx) (*chartConfig.EnvConfigOverride, bool, error) {
 	env, err := impl.environmentRepository.FindById(environmentId)
 	if err != nil {
-		return nil, err
+		return nil, isAppMetricsEnabled, err
 	}
 
 	if env != nil && len(env.Namespace) > 0 {
 		namespace = env.Namespace
 	}
 
+	if isOverride { //case of override, to do app metrics operation
+		envLevelMetricsUpdateReq := &bean2.DeployedAppMetricsRequest{
+			EnableMetrics: isAppMetricsEnabled,
+			AppId:         chart.AppId,
+			EnvId:         environmentId,
+			ChartRefId:    chart.ChartRefId,
+			UserId:        userId,
+		}
+		err = impl.deployedAppMetricsService.CreateOrUpdateAppOrEnvLevelMetrics(context.Background(), envLevelMetricsUpdateReq)
+		if err != nil {
+			impl.logger.Errorw("error, CheckAndUpdateAppOrEnvLevelMetrics", "err", err, "req", envLevelMetricsUpdateReq)
+			return nil, isAppMetricsEnabled, err
+		}
+		//updating metrics flag because it might be possible that the chartRef used was not supported and that could have override the metrics flag got in request
+		isAppMetricsEnabled = envLevelMetricsUpdateReq.EnableMetrics
+	}
+
 	envOverride, err := impl.envConfigRepo.GetByChartAndEnvironment(chart.Id, environmentId)
 	if err != nil && !errors.IsNotFound(err) {
-		return nil, err
+		return nil, isAppMetricsEnabled, err
 	}
 	if errors.IsNotFound(err) {
 		if isOverride {
 			// before creating new entry, remove previous one from latest tag
 			envOverrideExisting, err := impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(chart.AppId, environmentId)
 			if err != nil && !errors.IsNotFound(err) {
-				return nil, err
+				return nil, isAppMetricsEnabled, err
 			}
 			if envOverrideExisting != nil {
 				envOverrideExisting.Latest = false
@@ -435,7 +381,7 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoReposit
 					envOverrideExisting, err = impl.envConfigRepo.Update(envOverrideExisting)
 				}
 				if err != nil {
-					return nil, err
+					return nil, isAppMetricsEnabled, err
 				}
 			}
 		}
@@ -468,20 +414,28 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoReposit
 		}
 		if err != nil {
 			impl.logger.Errorw("error in creating envconfig", "data", envOverride, "error", err)
-			return nil, err
+			return nil, isAppMetricsEnabled, err
 		}
 		err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride, tx, isAppMetricsEnabled, 0)
 		if err != nil {
 			impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
-			return nil, err
+			return nil, isAppMetricsEnabled, err
+		}
+
+		//VARIABLE_MAPPING_UPDATE
+		if envOverride.EnvOverrideValues != "{}" {
+			err = impl.scopedVariableManager.ExtractAndMapVariables(envOverride.EnvOverrideValues, envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, envOverride.CreatedBy, tx)
+			if err != nil {
+				return nil, isAppMetricsEnabled, err
+			}
 		}
 	}
-	return envOverride, nil
+	return envOverride, isAppMetricsEnabled, nil
 }
 
-func (impl PropertiesConfigServiceImpl) GetEnvironmentPropertiesById(envId int) ([]EnvironmentProperties, error) {
+func (impl PropertiesConfigServiceImpl) GetEnvironmentPropertiesById(envId int) ([]bean.EnvironmentProperties, error) {
 
-	var envProperties []EnvironmentProperties
+	var envProperties []bean.EnvironmentProperties
 	envOverrides, err := impl.envConfigRepo.GetByEnvironment(envId)
 	if err != nil {
 		impl.logger.Error("error fetching override config", "err", err)
@@ -489,7 +443,7 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentPropertiesById(envId int) 
 	}
 
 	for _, envOverride := range envOverrides {
-		envProperties = append(envProperties, EnvironmentProperties{
+		envProperties = append(envProperties, bean.EnvironmentProperties{
 			Id:             envOverride.Id,
 			Status:         envOverride.Status,
 			ManualReviewed: envOverride.ManualReviewed,
@@ -503,7 +457,7 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentPropertiesById(envId int) 
 
 func (impl PropertiesConfigServiceImpl) GetAppIdByChartEnvId(chartEnvId int) (*chartConfig.EnvConfigOverride, error) {
 
-	envOverride, err := impl.envConfigRepo.Get(chartEnvId)
+	envOverride, err := impl.envConfigRepo.GetByIdIncludingInactive(chartEnvId)
 	if err != nil {
 		impl.logger.Error("error fetching override config", "err", err)
 		return nil, err
@@ -512,12 +466,11 @@ func (impl PropertiesConfigServiceImpl) GetAppIdByChartEnvId(chartEnvId int) (*c
 	return envOverride, nil
 }
 
-func (impl PropertiesConfigServiceImpl) GetLatestEnvironmentProperties(appId, environmentId int) (environmentProperties *EnvironmentProperties, err error) {
+func (impl PropertiesConfigServiceImpl) GetLatestEnvironmentProperties(appId, environmentId int) (environmentProperties *bean.EnvironmentProperties, err error) {
 	env, err := impl.environmentRepository.FindById(environmentId)
 	if err != nil {
 		return nil, err
 	}
-
 	// step 1
 	envOverride, err := impl.envConfigRepo.ActiveEnvConfigOverride(appId, environmentId)
 	if err != nil {
@@ -533,16 +486,21 @@ func (impl PropertiesConfigServiceImpl) GetLatestEnvironmentProperties(appId, en
 			return nil, err
 		}
 
-		environmentProperties = &EnvironmentProperties{
+		environmentProperties = &bean.EnvironmentProperties{
 			Id:                envOverride.Id,
-			Status:            envOverride.Status,
 			EnvOverrideValues: r,
+			Status:            envOverride.Status,
 			ManualReviewed:    envOverride.ManualReviewed,
 			Active:            envOverride.Active,
 			Namespace:         env.Namespace,
 			EnvironmentId:     environmentId,
 			EnvironmentName:   env.Name,
 			Latest:            envOverride.Latest,
+			IsOverride:        envOverride.IsOverride,
+			IsBasicViewLocked: envOverride.IsBasicViewLocked,
+			CurrentViewEditor: envOverride.CurrentViewEditor,
+			ChartRefId:        envOverride.Chart.ChartRefId,
+			ClusterId:         env.ClusterId,
 		}
 	}
 
@@ -550,7 +508,7 @@ func (impl PropertiesConfigServiceImpl) GetLatestEnvironmentProperties(appId, en
 }
 
 func (impl PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int) (bool, error) {
-	envOverride, err := impl.envConfigRepo.Get(id)
+	envOverride, err := impl.envConfigRepo.GetByIdIncludingInactive(id)
 	if err != nil {
 		return false, err
 	}
@@ -562,23 +520,20 @@ func (impl PropertiesConfigServiceImpl) ResetEnvironmentProperties(id int) (bool
 	if err != nil {
 		impl.logger.Warnw("error in update envOverride", "envOverrideId", id)
 	}
-	envLevelAppMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(envOverride.Chart.AppId, envOverride.TargetEnvironment)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Errorw("error while fetching env level app metric", "err", err)
+	err = impl.deployedAppMetricsService.DeleteEnvLevelMetricsIfPresent(envOverride.Chart.AppId, envOverride.TargetEnvironment)
+	if err != nil {
+		impl.logger.Errorw("error, DeleteEnvLevelMetricsIfPresent", "err", err, "appId", envOverride.Chart.AppId, "envId", envOverride.TargetEnvironment)
 		return false, err
 	}
-	if envLevelAppMetrics.Id > 0 {
-		err = impl.envLevelAppMetricsRepository.Delete(envLevelAppMetrics)
-		if err != nil {
-			impl.logger.Errorw("error while deletion of app metric at env level", "err", err)
-			return false, err
-		}
+	//VARIABLES
+	err = impl.scopedVariableManager.RemoveMappedVariables(envOverride.Id, repository5.EntityTypeDeploymentTemplateEnvLevel, envOverride.UpdatedBy, nil)
+	if err != nil {
+		return false, err
 	}
-
 	return true, nil
 }
 
-func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespace(appId int, environmentProperties *EnvironmentProperties) (*EnvironmentProperties, error) {
+func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespace(appId int, environmentProperties *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error) {
 	chart, err := impl.chartRepo.FindChartByAppIdAndRefId(appId, environmentProperties.ChartRefId)
 	if err != nil && pg.ErrNoRows != err {
 		return nil, err
@@ -598,12 +553,13 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespace
 		if environmentProperties.AppMetrics != nil {
 			appMetrics = *environmentProperties.AppMetrics
 		}
-		envOverride, err = impl.CreateIfRequired(chart, environmentProperties.EnvironmentId, environmentProperties.UserId, environmentProperties.ManualReviewed, models.CHARTSTATUS_SUCCESS, false, appMetrics, environmentProperties.Namespace, environmentProperties.IsBasicViewLocked, environmentProperties.CurrentViewEditor, nil)
+		envOverride, appMetrics, err = impl.CreateIfRequired(chart, environmentProperties.EnvironmentId, environmentProperties.UserId, environmentProperties.ManualReviewed, models.CHARTSTATUS_SUCCESS, false, appMetrics, environmentProperties.Namespace, environmentProperties.IsBasicViewLocked, environmentProperties.CurrentViewEditor, nil)
 		if err != nil {
 			return nil, err
 		}
+		environmentProperties.AppMetrics = &appMetrics
 	} else {
-		envOverride, err = impl.envConfigRepo.Get(environmentProperties.Id)
+		envOverride, err = impl.envConfigRepo.GetByIdIncludingInactive(environmentProperties.Id)
 		if err != nil {
 			impl.logger.Errorw("error in fetching envOverride", "err", err)
 		}
@@ -625,7 +581,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespace
 	if err != nil {
 		return nil, err
 	}
-	environmentProperties = &EnvironmentProperties{
+	environmentProperties = &bean.EnvironmentProperties{
 		Id:                envOverride.Id,
 		Status:            envOverride.Status,
 		EnvOverrideValues: r,
@@ -637,86 +593,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespace
 		Latest:            envOverride.Latest,
 		ChartRefId:        environmentProperties.ChartRefId,
 		IsOverride:        envOverride.IsOverride,
+		ClusterId:         env.ClusterId,
 	}
 	return environmentProperties, nil
-}
-
-//below method is deprecated
-
-func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest *chartService.AppMetricEnableDisableRequest) (*chartService.AppMetricEnableDisableRequest, error) {
-	// validate app metrics compatibility
-	var currentChart *chartConfig.EnvConfigOverride
-	var err error
-	currentChart, err = impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appMetricRequest.AppId, appMetricRequest.EnvironmentId)
-	if err != nil && !errors.IsNotFound(err) {
-		impl.logger.Error(err)
-		return nil, err
-	}
-	if errors.IsNotFound(err) {
-		impl.logger.Errorw("no chart configured for this app", "appId", appMetricRequest.AppId)
-		err = &util.ApiError{
-			InternalMessage: "no chart configured for this app",
-			UserMessage:     "no chart configured for this app",
-		}
-		return nil, err
-	}
-	if appMetricRequest.IsAppMetricsEnabled == true {
-		chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(currentChart.Chart.ChartVersion)
-		if err != nil {
-			impl.logger.Errorw("chart version parsing", "err", err)
-			return nil, err
-		}
-		if !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
-			err = &util.ApiError{
-				InternalMessage: "chart version in not compatible for app metrics",
-				UserMessage:     "chart version in not compatible for app metrics",
-			}
-			return nil, err
-		}
-	}
-	// update and create env level app metrics
-	envLevelAppMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(appMetricRequest.AppId, appMetricRequest.EnvironmentId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Error("err", err)
-		return nil, err
-	}
-	if envLevelAppMetrics == nil || envLevelAppMetrics.Id == 0 {
-		infraMetrics := true
-		envLevelAppMetrics = &repository.EnvLevelAppMetrics{
-			AppId:        appMetricRequest.AppId,
-			EnvId:        appMetricRequest.EnvironmentId,
-			AppMetrics:   &appMetricRequest.IsAppMetricsEnabled,
-			InfraMetrics: &infraMetrics,
-			AuditLog: sql.AuditLog{
-				CreatedOn: time.Now(),
-				UpdatedOn: time.Now(),
-				CreatedBy: appMetricRequest.UserId,
-				UpdatedBy: appMetricRequest.UserId,
-			},
-		}
-		err = impl.envLevelAppMetricsRepository.Save(envLevelAppMetrics)
-		if err != nil {
-			impl.logger.Error("err", err)
-			return nil, err
-		}
-	} else {
-		envLevelAppMetrics.AppMetrics = &appMetricRequest.IsAppMetricsEnabled
-		envLevelAppMetrics.UpdatedOn = time.Now()
-		envLevelAppMetrics.UpdatedBy = appMetricRequest.UserId
-		err = impl.envLevelAppMetricsRepository.Update(envLevelAppMetrics)
-		if err != nil {
-			impl.logger.Error("err", err)
-			return nil, err
-		}
-	}
-	//updating audit log details of chart as history service uses it
-	currentChart.UpdatedOn = time.Now()
-	currentChart.UpdatedBy = appMetricRequest.UserId
-	//creating history entry
-	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(currentChart, nil, appMetricRequest.IsAppMetricsEnabled, 0)
-	if err != nil {
-		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", currentChart)
-		return nil, err
-	}
-	return appMetricRequest, err
 }
