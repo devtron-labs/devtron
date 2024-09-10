@@ -135,7 +135,7 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	}
 	if userInfo.RoleFilters != nil && len(userInfo.RoleFilters) > 0 {
 		for _, filter := range userInfo.RoleFilters {
-			if filter.AccessType == bean.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
+			if filter.AccessType == bean2.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
 				response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 				return
 			}
@@ -145,7 +145,7 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 					return
 				}
 			}
-			if filter.Entity == bean.CLUSTER_ENTITIY {
+			if filter.Entity == bean2.CLUSTER_ENTITIY {
 				if ok := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !ok {
 					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 					return
@@ -170,7 +170,7 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 
 		if len(groupRoles) > 0 {
 			for _, groupRole := range groupRoles {
-				if groupRole.AccessType == bean.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
+				if groupRole.AccessType == bean2.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
 					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 					return
 				}
@@ -315,7 +315,7 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 					authPass = false
 				}
 			}
-			if filter.Entity == bean.CLUSTER_ENTITIY {
+			if filter.Entity == bean2.CLUSTER_ENTITIY {
 				if ok := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !ok {
 					authPass = false
 				}
@@ -381,7 +381,7 @@ func (handler UserRestHandlerImpl) GetAllV2(w http.ResponseWriter, r *http.Reque
 						break
 					}
 				}
-				if filter.Entity == bean.CLUSTER_ENTITIY {
+				if filter.Entity == bean2.CLUSTER_ENTITIY {
 					if ok := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); ok {
 						isAuthorised = true
 						break
@@ -451,7 +451,7 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 						break
 					}
 				}
-				if filter.Entity == bean.CLUSTER_ENTITIY {
+				if filter.Entity == bean2.CLUSTER_ENTITIY {
 					if ok := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); ok {
 						isAuthorised = true
 						break
@@ -528,7 +528,7 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 	}
 	if user.RoleFilters != nil && len(user.RoleFilters) > 0 {
 		for _, filter := range user.RoleFilters {
-			if filter.AccessType == bean.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
+			if filter.AccessType == bean2.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
 				common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 				return
 			}
@@ -538,7 +538,7 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 					return
 				}
 			}
-			if filter.Entity == bean.CLUSTER_ENTITIY {
+			if filter.Entity == bean2.CLUSTER_ENTITIY {
 				if ok := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !ok {
 					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
@@ -649,7 +649,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *
 					authPass = false
 				}
 			}
-			if filter.Entity == bean.CLUSTER_ENTITIY {
+			if filter.Entity == bean2.CLUSTER_ENTITIY {
 				if isValidAuth := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !isValidAuth {
 					authPass = false
 				}
@@ -705,7 +705,7 @@ func (handler UserRestHandlerImpl) CreateRoleGroup(w http.ResponseWriter, r *htt
 
 	if request.RoleFilters != nil && len(request.RoleFilters) > 0 {
 		for _, filter := range request.RoleFilters {
-			if filter.AccessType == bean.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
+			if filter.AccessType == bean2.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
 				common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 				return
 			}
@@ -715,7 +715,7 @@ func (handler UserRestHandlerImpl) CreateRoleGroup(w http.ResponseWriter, r *htt
 					return
 				}
 			}
-			if filter.Entity == bean.CLUSTER_ENTITIY && !isActionUserSuperAdmin {
+			if filter.Entity == bean2.CLUSTER_ENTITIY && !isActionUserSuperAdmin {
 				if isValidAuth := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !isValidAuth {
 					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
@@ -838,7 +838,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroupsV2(w http.ResponseWriter, r *h
 						break
 					}
 				}
-				if filter.Entity == bean.CLUSTER_ENTITIY {
+				if filter.Entity == bean2.CLUSTER_ENTITIY {
 					if isValidAuth := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); isValidAuth {
 						isAuthorised = true
 						break
@@ -909,7 +909,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 						break
 					}
 				}
-				if filter.Entity == bean.CLUSTER_ENTITIY {
+				if filter.Entity == bean2.CLUSTER_ENTITIY {
 					if isValidAuth := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); isValidAuth {
 						isAuthorised = true
 						break
@@ -1004,7 +1004,7 @@ func (handler UserRestHandlerImpl) DeleteRoleGroup(w http.ResponseWriter, r *htt
 	}
 	if userGroup.RoleFilters != nil && len(userGroup.RoleFilters) > 0 {
 		for _, filter := range userGroup.RoleFilters {
-			if filter.AccessType == bean.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
+			if filter.AccessType == bean2.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
 				common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 				return
 			}
@@ -1014,7 +1014,7 @@ func (handler UserRestHandlerImpl) DeleteRoleGroup(w http.ResponseWriter, r *htt
 					return
 				}
 			}
-			if filter.Entity == bean.CLUSTER_ENTITIY {
+			if filter.Entity == bean2.CLUSTER_ENTITIY {
 				if isValidAuth := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !isValidAuth {
 					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
