@@ -225,9 +225,10 @@ func (impl *InstalledAppResourceServiceImpl) fetchResourceTreeForACD(rctx contex
 	var resourceTree map[string]interface{}
 	if appId == 0 {
 		impl.logger.Infow("0")
-	} else if appId == 0 {
+	} else if appId == 1 {
 		impl.logger.Infow("1")
 	}
+	appId = appId
 
 	impl.all_reverse()
 	impl.all_reversed()
