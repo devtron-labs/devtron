@@ -221,6 +221,12 @@ func (impl *InstalledAppResourceServiceImpl) fetchResourceTreeForACD(rctx contex
 	} else if appId == 1 {
 		impl.logger.Infow("1")
 	}
+
+	if appId == 0 {
+		impl.logger.Infow("0")
+	} else if appId == 1 {
+		impl.logger.Infow("1")
+	}
 	query := &application.ResourcesQuery{
 		ApplicationName: &deploymentAppName,
 	}
