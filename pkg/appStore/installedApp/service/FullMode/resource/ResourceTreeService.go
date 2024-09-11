@@ -214,6 +214,10 @@ func (impl *InstalledAppResourceServiceImpl) FetchResourceTreeWithHibernateForAC
 	return *appDetail
 }
 
+func all_reverse() {
+	
+}
+
 func (impl *InstalledAppResourceServiceImpl) fetchResourceTreeForACD(rctx context.Context, cn http.CloseNotifier, appId int, envId, clusterId int, deploymentAppName, namespace string) (map[string]interface{}, error) {
 	var resourceTree map[string]interface{}
 	if appId == 0 {
