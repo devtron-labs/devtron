@@ -3,9 +3,11 @@ package configDiff
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
+	bean3 "github.com/devtron-labs/devtron/pkg/bean"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/configDiff/adaptor"
@@ -15,6 +17,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
@@ -26,12 +30,15 @@ type DeploymentConfigurationService interface {
 }
 
 type DeploymentConfigurationServiceImpl struct {
-	logger                    *zap.SugaredLogger
-	configMapService          pipeline.ConfigMapService
-	appRepository             appRepository.AppRepository
-	environmentRepository     repository.EnvironmentRepository
-	chartService              chartService.ChartService
-	deploymentTemplateService generateManifest.DeploymentTemplateService
+	logger                              *zap.SugaredLogger
+	configMapService                    pipeline.ConfigMapService
+	appRepository                       appRepository.AppRepository
+	environmentRepository               repository.EnvironmentRepository
+	chartService                        chartService.ChartService
+	deploymentTemplateService           generateManifest.DeploymentTemplateService
+	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository
+	pipelineStrategyHistoryRepository   repository3.PipelineStrategyHistoryRepository
+	configMapHistoryRepository          repository3.ConfigMapHistoryRepository
 }
 
 func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
@@ -40,14 +47,20 @@ func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
 	environmentRepository repository.EnvironmentRepository,
 	chartService chartService.ChartService,
 	deploymentTemplateService generateManifest.DeploymentTemplateService,
+	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository,
+	pipelineStrategyHistoryRepository repository3.PipelineStrategyHistoryRepository,
+	configMapHistoryRepository repository3.ConfigMapHistoryRepository,
 ) (*DeploymentConfigurationServiceImpl, error) {
 	deploymentConfigurationService := &DeploymentConfigurationServiceImpl{
-		logger:                    logger,
-		configMapService:          configMapService,
-		appRepository:             appRepository,
-		environmentRepository:     environmentRepository,
-		chartService:              chartService,
-		deploymentTemplateService: deploymentTemplateService,
+		logger:                              logger,
+		configMapService:                    configMapService,
+		appRepository:                       appRepository,
+		environmentRepository:               environmentRepository,
+		chartService:                        chartService,
+		deploymentTemplateService:           deploymentTemplateService,
+		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
+		pipelineStrategyHistoryRepository:   pipelineStrategyHistoryRepository,
+		configMapHistoryRepository:          configMapHistoryRepository,
 	}
 
 	return deploymentConfigurationService, nil
@@ -102,7 +115,153 @@ func (impl *DeploymentConfigurationServiceImpl) GetAllConfigData(ctx context.Con
 		return nil, err
 	}
 
+	switch configDataQueryParams.ConfigArea {
+	case bean2.CdRollback.ToString():
+		return impl.getConfigDataForCdRollback(ctx, configDataQueryParams, appId, envId)
+	case bean2.DeploymentHistory.ToString():
+		return impl.getConfigDataForDeploymentHistory(ctx, configDataQueryParams, appId, envId)
+	}
+	// this would be the default case
+	return impl.getConfigDataForAppConfiguration(ctx, configDataQueryParams, appId, envId)
+}
+
+func (impl *DeploymentConfigurationServiceImpl) getConfigDataForCdRollback(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams,
+	appId, envId int) (*bean2.DeploymentAndCmCsConfigDto, error) {
+	// we would be expecting wfrId in case of getting data for cdRollback
+
+}
+
+func (impl *DeploymentConfigurationServiceImpl) getDeploymentHistoryConfig(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams) (*json.RawMessage, error) {
+	deploymentJson := &json.RawMessage{}
+	deploymentHistory, err := impl.deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId(configDataQueryParams.PipelineId, configDataQueryParams.WfrId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting deployment template history for pipelineId and wfrId", "pipelineId", configDataQueryParams.PipelineId, "wfrId", configDataQueryParams.WfrId, "err", err)
+		return nil, err
+	} else if err == pg.ErrNoRows {
+		//history not created yet
+		return deploymentJson, nil
+	}
+	err = deploymentJson.UnmarshalJSON([]byte(deploymentHistory.Template))
+	if err != nil {
+		impl.logger.Errorw("getDeploymentTemplateForEnvLevel, error in unmarshalling string  deploymentTemplateResponse data into json Raw message", "data", deploymentHistory.Template, "err", err)
+		return nil, err
+	}
+	return deploymentJson, nil
+}
+
+func (impl *DeploymentConfigurationServiceImpl) getPipelineStrategyConfigHistory(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams) (*json.RawMessage, error) {
+	pipelineStrategyJson := &json.RawMessage{}
+	pipelineStrategyHistory, err := impl.pipelineStrategyHistoryRepository.GetHistoryByPipelineIdAndWfrId(ctx, configDataQueryParams.PipelineId, configDataQueryParams.WfrId)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in checking if history exists for pipelineId and wfrId", "pipelineId", configDataQueryParams.PipelineId, "wfrId", configDataQueryParams.WfrId, "err", err)
+		return nil, err
+	} else if errors.Is(err, pg.ErrNoRows) {
+		return pipelineStrategyJson, nil
+	}
+
+	err = pipelineStrategyJson.UnmarshalJSON([]byte(pipelineStrategyHistory.Config))
+	if err != nil {
+		impl.logger.Errorw("getDeploymentTemplateForEnvLevel, error in unmarshalling string  pipelineStrategyHistory data into json Raw message", "pipelineStrategyHistoryConfig", pipelineStrategyHistory.Config, "err", err)
+		return nil, err
+	}
+	return pipelineStrategyJson, nil
+}
+
+func (impl *DeploymentConfigurationServiceImpl) getConfigDataForDeploymentHistory(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams,
+	appId, envId int) (*bean2.DeploymentAndCmCsConfigDto, error) {
+	// we would be expecting wfrId in case of getting data for Deployment history
 	configDataDto := &bean2.DeploymentAndCmCsConfigDto{}
+	var err error
+	//fetching history for deployment config starts
+	deploymentConfigJson, err := impl.getDeploymentHistoryConfig(ctx, configDataQueryParams)
+	if err != nil {
+		impl.logger.Errorw("getConfigDataForDeploymentHistory, error in getDeploymentHistoryConfig", "configDataQueryParams", configDataQueryParams, "err", err)
+		return nil, err
+	}
+	if deploymentConfigJson != nil {
+		deploymentConfig := bean2.NewDeploymentAndCmCsConfig().WithConfigData(*deploymentConfigJson).WithResourceType(bean.DeploymentTemplate)
+		configDataDto.WithDeploymentTemplateData(deploymentConfig)
+	}
+	// fetching for deployment config ends
+
+	// fetching for pipeline strategy config starts
+	pipelineConfigJson, err := impl.getPipelineStrategyConfigHistory(ctx, configDataQueryParams)
+	if err != nil {
+		impl.logger.Errorw("getConfigDataForDeploymentHistory, error in getPipelineStrategyConfigHistory", "configDataQueryParams", configDataQueryParams, "err", err)
+		return nil, err
+	}
+	if pipelineConfigJson != nil {
+		pipelineConfig := bean2.NewDeploymentAndCmCsConfig().WithConfigData(*pipelineConfigJson).WithResourceType(bean.PipelineStrategy)
+		configDataDto.WithPipelineConfigData(pipelineConfig)
+	}
+	// fetching for pipeline strategy config ends
+
+	// fetching for cm config starts
+	cmConfigJson, err := impl.getCmCsConfigHistory(ctx, configDataQueryParams, repository3.CONFIGMAP_TYPE)
+	if err != nil {
+		impl.logger.Errorw("getConfigDataForDeploymentHistory, error in getCmConfigHistory", "configDataQueryParams", configDataQueryParams, "err", err)
+		return nil, err
+	}
+	if cmConfigJson != nil {
+		cmConfigData := bean2.NewDeploymentAndCmCsConfig().WithConfigData(*cmConfigJson).WithResourceType(bean.CM)
+		configDataDto.WithConfigMapData(cmConfigData)
+	}
+	// fetching for cm config ends
+
+	// fetching for cs config starts
+	secretConfigJson, err := impl.getCmCsConfigHistory(ctx, configDataQueryParams, repository3.SECRET_TYPE)
+	if err != nil {
+		impl.logger.Errorw("getConfigDataForDeploymentHistory, error in getSecretConfigHistory", "configDataQueryParams", configDataQueryParams, "err", err)
+		return nil, err
+	}
+	if secretConfigJson != nil {
+		secretConfigData := bean2.NewDeploymentAndCmCsConfig().WithConfigData(*secretConfigJson).WithResourceType(bean.CS)
+		configDataDto.WithSecretData(secretConfigData)
+	}
+	// fetching for cs config ends
+
+	return configDataDto, nil
+}
+
+func (impl *DeploymentConfigurationServiceImpl) getCmCsConfigHistory(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams, configType repository3.ConfigType) (*json.RawMessage, error) {
+	cmJson := &json.RawMessage{}
+	history, err := impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(configDataQueryParams.PipelineId, configDataQueryParams.WfrId, configType)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in checking if cm cs history exists for pipelineId and wfrId", "pipelineId", configDataQueryParams.PipelineId, "wfrId", configDataQueryParams.WfrId, "err", err)
+		return nil, err
+	} else if err == pg.ErrNoRows {
+		return cmJson, nil
+	}
+	//var configData []*bean3.ConfigData
+	if configType == repository3.CONFIGMAP_TYPE {
+		configList := bean3.ConfigList{}
+		if len(history.Data) > 0 {
+			err = json.Unmarshal([]byte(history.Data), &configList)
+			if err != nil {
+				impl.logger.Debugw("error while Unmarshal", "err", err)
+				return nil, err
+			}
+		}
+		//configData = configList.ConfigData
+	} else if configType == repository3.SECRET_TYPE {
+		secretList := bean3.SecretList{}
+		if len(history.Data) > 0 {
+			err = json.Unmarshal([]byte(history.Data), &secretList)
+			if err != nil {
+				impl.logger.Debugw("error while Unmarshal", "err", err)
+				return nil, err
+			}
+		}
+		//configData = secretList.ConfigData
+	}
+
+	return nil, nil
+}
+
+func (impl *DeploymentConfigurationServiceImpl) getConfigDataForAppConfiguration(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams,
+	appId, envId int) (*bean2.DeploymentAndCmCsConfigDto, error) {
+	configDataDto := &bean2.DeploymentAndCmCsConfigDto{}
+	var err error
 	switch configDataQueryParams.ConfigType {
 	default: // keeping default as PublishedOnly
 		configDataDto, err = impl.getPublishedConfigData(ctx, configDataQueryParams, appId, envId)

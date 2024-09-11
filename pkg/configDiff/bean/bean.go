@@ -25,6 +25,18 @@ const (
 	Overridden ConfigStage = "Overridden"
 )
 
+type ConfigArea string
+
+const (
+	AppConfiguration  ConfigArea = "AppConfiguration"
+	DeploymentHistory ConfigArea = "DeploymentHistory"
+	CdRollback        ConfigArea = "CdRollback"
+)
+
+func (r ConfigArea) ToString() string {
+	return string(r)
+}
+
 type ConfigProperty struct {
 	Id          int               `json:"id"`
 	Name        string            `json:"name"`
@@ -71,8 +83,10 @@ func (r *ConfigProperty) GetIdentifier() ConfigPropertyIdentifier {
 }
 
 type DeploymentAndCmCsConfig struct {
-	ResourceType bean.ResourceType `json:"resourceType"`
-	Data         json.RawMessage   `json:"data"`
+	ResourceType     bean.ResourceType `json:"resourceType"`
+	Data             json.RawMessage   `json:"data"`
+	VariableSnapshot string            `json:"variableSnapshot"`
+	ResolvedValue    string            `json:"resolvedValue"`
 }
 
 func NewDeploymentAndCmCsConfig() *DeploymentAndCmCsConfig {
@@ -93,6 +107,7 @@ type DeploymentAndCmCsConfigDto struct {
 	DeploymentTemplate *DeploymentAndCmCsConfig `json:"deploymentTemplate"`
 	ConfigMapsData     *DeploymentAndCmCsConfig `json:"configMapData"`
 	SecretsData        *DeploymentAndCmCsConfig `json:"secretsData"`
+	PipelineConfigData *DeploymentAndCmCsConfig `json:"pipelineConfigData,omitempty"`
 	IsAppAdmin         bool                     `json:"isAppAdmin"`
 }
 
@@ -112,17 +127,23 @@ func (r *DeploymentAndCmCsConfigDto) WithSecretData(data *DeploymentAndCmCsConfi
 	r.SecretsData = data
 	return r
 }
+func (r *DeploymentAndCmCsConfigDto) WithPipelineConfigData(data *DeploymentAndCmCsConfig) *DeploymentAndCmCsConfigDto {
+	r.PipelineConfigData = data
+	return r
+}
 
 type ConfigDataQueryParams struct {
 	AppName      string `schema:"appName"`
 	EnvName      string `schema:"envName"`
 	ConfigType   string `schema:"configType"`
 	IdentifierId int    `schema:"identifierId"`
-	PipelineId   int    `schema:"pipelineId"` // req for fetching previous deployments data
-	ResourceName string `schema:"resourceName"`
-	ResourceType string `schema:"resourceType"`
-	ResourceId   int    `schema:"resourceId"`
+	PipelineId   int    `schema:"pipelineId"`   // req for fetching previous deployments data
+	ResourceName string `schema:"resourceName"` // used in case of cm and cs
+	ResourceType string `schema:"resourceType"` // used in case of cm and cs
+	ResourceId   int    `schema:"resourceId"`   // used in case of cm and cs
 	UserId       int32  `schema:"-"`
+	WfrId        int    `schema:"wfrId"`
+	ConfigArea   string `schema:"configArea"`
 }
 
 // FilterCriteria []string `schema:"filterCriteria"`

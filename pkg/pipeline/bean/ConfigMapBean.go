@@ -120,6 +120,7 @@ const (
 	CM                 ResourceType = "ConfigMap"
 	CS                 ResourceType = "Secret"
 	DeploymentTemplate ResourceType = "Deployment Template"
+	PipelineStrategy   ResourceType = "Pipeline Strategy"
 )
 
 func (r ResourceType) ToString() string {
