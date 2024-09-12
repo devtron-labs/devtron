@@ -4,6 +4,7 @@ import "C"
 import (
 	"encoding/json"
 	"fmt"
+	bean3 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 )
 
@@ -181,3 +182,17 @@ func (r *ConfigDataQueryParams) IsRequestMadeForOneResource() bool {
 const (
 	InvalidConfigTypeErr = "invalid config type provided, please send a valid config type"
 )
+
+type CmCsMetadataDto struct {
+	CmMap            map[string]*bean3.ConfigData
+	SecretMap        map[string]*bean3.ConfigData
+	ConfigAppLevelId int
+	ConfigEnvLevelId int
+}
+
+type ResolvedCmCsMetadataDto struct {
+	ResolvedConfigMapData string
+	ResolvedSecretData    string
+	VariableMapCM         map[string]map[string]string
+	VariableMapCS         map[string]map[string]string
+}
