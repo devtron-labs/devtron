@@ -255,7 +255,12 @@ func (workflowRequest *WorkflowRequest) GetPipelineTypeForGlobalCMCS() string {
 }
 
 func (workflowRequest *WorkflowRequest) getContainerEnvVariables(config *CiCdConfig, workflowJson []byte) (containerEnvVariables []v1.EnvVar) {
-	containerEnvVariables = []v1.EnvVar{{Name: bean.IMAGE_SCANNER_ENDPOINT, Value: config.ImageScannerEndpoint}, {Name: "NATS_SERVER_HOST", Value: config.NatsServerHost}}
+	containerEnvVariables = []v1.EnvVar{
+		{Name: bean.IMAGE_SCANNER_ENDPOINT, Value: config.ImageScannerEndpoint},
+		{Name: "NATS_SERVER_HOST", Value: config.NatsServerHost},
+		{Name: "DEVTRON_SELF_POD_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.name"}}},
+		{Name: "DEVTRON_SELF_POD_UID", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.uid"}}},
+	}
 	eventEnv := v1.EnvVar{Name: "CI_CD_EVENT", Value: string(workflowJson)}
 	inAppLoggingEnv := v1.EnvVar{Name: "IN_APP_LOGGING", Value: strconv.FormatBool(workflowRequest.InAppLoggingEnabled)}
 	showDockerBuildArgsEnv := v1.EnvVar{Name: "SHOW_DOCKER_BUILD_ARGS", Value: strconv.FormatBool(config.ShowDockerBuildCmdInLogs)}
