@@ -1,0 +1,244 @@
+openapi: "3.0.3"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/application/deployment-history:
+    get:
+      description: get deployment histories list of helm app
+      parameters:
+        - in: query
+          name: appId
+          example: "12|helm-app|cluster1-ns1"
+          description: "pipe separated string of clusterinstance id, namespace and helm release name. Format: `<ClusterId>|<NameSpace>|<RelaseName>`. Only supplied for external helm apps"
+          required: false
+          allowEmptyValue: false
+          schema:
+            type: string
+        - in: query
+          name: installedAppId
+          example: "100"
+          description: Devtron charts installed instance id. Supplied for Devtron managed Helm Apps.
+          required: false
+          allowEmptyValue: false
+          schema:
+            type: number
+      responses:
+        '200':
+          description: deployment history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeploymentHistoryAndInstalledAppInfo"
+        '400':
+          description: Bad Request. Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 400
+                status: "Bad Request"
+                errors:
+                  - code: 400
+                internalMessage: "invalid installed app id"
+                userMessage: "invalid installed app id"
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 500
+                status: "Internal Server Error"
+                errors:
+                  - code: 500
+                internalMessage: "internal server error"
+                userMessage: "internal server error"
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 403
+                status: "Forbidden"
+                errors:
+                  - code: 403
+                internalMessage: "unauthorized"
+                userMessage: "unauthorized"
+components:
+  schemas:
+    ChartMetadata:
+      type: object
+      properties:
+        chartName:
+          type: string
+          description: name of the chart
+          example: envoy
+        chartVersion:
+          type: string
+          description: version of the helm chart
+          example: v1.2.3
+        home:
+          type: string
+          description: chart home
+          example: nginx.com
+        sources:
+          type: array
+          description: source of the helm chart
+          example:
+            - "nginx.com"
+            - "github.com"
+          items:
+            type: string
+        description:
+          type: string
+          description: description of the helm chart
+          example: description of the helm chart
+        notes:
+          type: string
+          description: Contains the rendered templates/NOTES.txt
+          example: notes of the chart
+    HelmAppDeploymentDetail:
+      type: object
+      properties:
+        chartMetadata:
+          $ref: "#/components/schemas/ChartMetadata"
+        dockerImages:
+          type: array
+          description: docker images presrnt insise the chart
+          example:
+            - "docker.io/test-registry/test-repo:v12.0.9-beta"
+            - "docker.io/test-registry/test-repo:v12.0.10-beta"
+            - "docker.io/test-registry/test-repo:v12.0.11-beta"
+          items:
+            type: string
+        version:
+          type: integer
+          description: deployment version of the helm chart
+          example: 12
+        deployedAt:
+          type: string
+          format: date-time
+          example: "2021-12-15T05:44:05Z"
+        deployedBy:
+          type: string
+          example: "user@gmail.com"
+        status:
+          type: string
+          example: "Failed"
+        mesasge:
+          type: string
+          example: "namespace 'api-south-1-prod-ns' doesn't exists"
+    DeploymentHistoryAndInstalledAppInfo:
+      type: object
+      properties:
+        deploymentHistory:
+          type: array
+          description: deployment history
+          items:
+            $ref: "#/components/schemas/HelmAppDeploymentDetail"
+        installedAppInfo:
+          $ref: "#/components/schemas/InstalledAppInfo"
+    InstalledAppInfo:
+      type: object
+      description: For externally installed helm charts this object can be null
+      properties:
+        appId:
+          type: integer
+          example: 100
+          description: Application instance Id
+        installedAppId:
+          type: integer
+          example: 100
+          description: Installed app instance Id
+        installedAppVersionId:
+          type: number
+          example: 1809
+          description: App store installed app version Id
+        appStoreChartId:
+          type: number
+          example: 1023
+          description: App store chart Id
+        environmentName:
+          type: string
+          example: api-south-1-prod
+          description: Environment Name
+        appOfferingMode:
+          type: string
+          example: EA_ONLY
+          enum:
+            - "EA_ONLY"
+            - "FULL"
+          description: Application created in server type
+        clusterId:
+          type: number
+          example: 3
+          description: Cluster instance Id
+        environmentId:
+          type: number
+          example: 10
+          description: Environment instance Id
+        appStoreChartRepoName:
+          type: string
+          example: cluster-utils
+          description: App store Chart Repository name
+        appStoreChartName:
+          type: string
+          example: node-termination-handler
+          description: App store Chart name
+        teamId:
+          type: number
+          example: 2
+          description: Project instance Id
+        teamName:
+          type: string
+          example: client-2
+          description: Project instance Id
+        deploymentType:
+          type: string
+          example: helm
+          enum:
+            - "helm"
+            - "argo_cd"
+            - "manifest_download"
+          description: Installed app Deployment type
+        helmPackageName:
+          type: string
+          example: "prod-cluster-util-api-south-1-prod-2021-12-15T05:44:05Z (GMT)"
+          description: Virtual helm package name. Only populated in case of isolated deployments. i.e deploymentType is `manifest_download`.
+    ErrorResponse:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        status:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          description: errors
+          items:
+            $ref: '#/components/schemas/Error'
+    Error:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error internal code
+        internalMessage:
+          type: string
+          description: Error internal message
+        userMessage:
+          type: string
+          description: Error user message
