@@ -18,6 +18,7 @@ package notifier
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/notifier/beans"
 	"github.com/devtron-labs/devtron/util/event"
@@ -113,6 +114,9 @@ func (impl NotificationConfigBuilderImpl) buildNotificationSetting(notificationS
 
 func (impl NotificationConfigBuilderImpl) BuildNotificationSettingWithPipeline(teamId *int, envId *int, appId *int, pipelineId *int, clusterId *int, pipelineType util.PipelineType, eventTypeId int, viewId int, providers []*beans.Provider) (repository.NotificationSettings, error) {
 
+	if teamId == nil && appId == nil && envId == nil && pipelineId == nil && clusterId == nil {
+		return repository.NotificationSettings{}, errors.New("no filter criteria is selected")
+	}
 	providersJson, err := json.Marshal(providers)
 	if err != nil {
 		impl.logger.Error(err)
