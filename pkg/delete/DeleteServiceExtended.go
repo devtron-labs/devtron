@@ -82,11 +82,17 @@ func (impl DeleteServiceExtendedImpl) DeleteCluster(deleteRequest *cluster.Clust
 		impl.logger.Errorw("err in deleting cluster, found env in this cluster", "clusterName", deleteRequest.ClusterName, "err", err)
 		return &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: " Please delete all related environments before deleting this cluster"}
 	}
-	err = impl.clusterService.DeleteFromDb(deleteRequest, userId)
+	clusterName, err := impl.clusterService.DeleteFromDb(deleteRequest, userId)
 	if err != nil {
 		impl.logger.Errorw("error im deleting cluster", "err", err, "deleteRequest", deleteRequest)
 		return err
 	}
+	err = impl.DeleteClusterSecret(deleteRequest, err)
+	if err != nil {
+		impl.logger.Errorw("error in deleting cluster secret", "clusterId", deleteRequest.Id, "error", err)
+		return err
+	}
+	impl.k8sInformerFactory.DeleteClusterFromCache(clusterName)
 	return nil
 }
 

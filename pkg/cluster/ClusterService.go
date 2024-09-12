@@ -167,7 +167,7 @@ type ClusterService interface {
 	FindAllExceptVirtual() ([]*ClusterBean, error)
 	FindAllWithoutConfig() ([]*ClusterBean, error)
 	FindAllActive() ([]ClusterBean, error)
-	DeleteFromDb(bean *ClusterBean, userId int32) error
+	DeleteFromDb(bean *ClusterBean, userId int32) (string, error)
 
 	FindById(id int) (*ClusterBean, error)
 	FindByIdWithoutConfig(id int) (*ClusterBean, error)
@@ -675,11 +675,11 @@ func (impl *ClusterServiceImpl) buildInformer() {
 	impl.K8sInformerFactory.BuildInformer(clusterInfo)
 }
 
-func (impl *ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) error {
+func (impl *ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) (string, error) {
 	existingCluster, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete.", "id", bean.Id)
-		return err
+		return "", err
 	}
 	deleteReq := existingCluster
 	deleteReq.UpdatedOn = time.Now()
@@ -687,17 +687,17 @@ func (impl *ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) er
 	err = impl.clusterRepository.MarkClusterDeleted(deleteReq)
 	if err != nil {
 		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err", err)
-		return err
+		return "", err
 	}
 	k8sClient, err := impl.K8sUtil.GetCoreV1ClientInCluster()
 	if err != nil {
 		impl.logger.Errorw("error in getting in cluster k8s client", "err", err, "clusterName", bean.ClusterName)
-		return nil
+		return "", nil
 	}
 	secretName := fmt.Sprintf("%s-%v", SECRET_NAME, bean.Id)
 	err = impl.K8sUtil.DeleteSecret(DEFAULT_NAMESPACE, secretName, k8sClient)
 	impl.logger.Errorw("error in deleting secret", "error", err)
-	return nil
+	return existingCluster.ClusterName, nil
 }
 
 func (impl *ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error {
