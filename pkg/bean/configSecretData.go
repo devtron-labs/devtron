@@ -29,6 +29,8 @@ type SecretList struct {
 	ConfigData []*ConfigData `json:"secrets"`
 }
 
+// there is an adapter written in pkg/bean folder to convert below ConfigData struct to pipeline/bean's ConfigData
+
 type ConfigData struct {
 	Name                  string           `json:"name"`
 	Type                  string           `json:"type"`
@@ -46,6 +48,7 @@ type ConfigData struct {
 	RoleARN               string           `json:"roleARN"`
 	SubPath               bool             `json:"subPath"`
 	FilePermission        string           `json:"filePermission"`
+	Overridden            bool             `json:"overridden"`
 }
 
 type ExternalSecret struct {

@@ -97,8 +97,9 @@ func (handler *DeploymentConfigurationRestHandlerImpl) GetConfigData(w http.Resp
 		return
 	}
 	//RBAC END
+	userHasAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object)
 
-	res, err := handler.deploymentConfigurationService.GetAllConfigData(r.Context(), configDataQueryParams)
+	res, err := handler.deploymentConfigurationService.GetAllConfigData(r.Context(), configDataQueryParams, userHasAdminAccess)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAllConfigData ", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

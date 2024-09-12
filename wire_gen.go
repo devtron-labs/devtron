@@ -949,7 +949,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	deploymentConfigurationServiceImpl, err := configDiff.NewDeploymentConfigurationServiceImpl(sugaredLogger, configMapServiceImpl, appRepositoryImpl, environmentRepositoryImpl, chartServiceImpl, generateManifestDeploymentTemplateServiceImpl, deploymentTemplateHistoryRepositoryImpl, pipelineStrategyHistoryRepositoryImpl, configMapHistoryRepositoryImpl)
+	deploymentConfigurationServiceImpl, err := configDiff.NewDeploymentConfigurationServiceImpl(sugaredLogger, configMapServiceImpl, appRepositoryImpl, environmentRepositoryImpl, chartServiceImpl, generateManifestDeploymentTemplateServiceImpl, deploymentTemplateHistoryRepositoryImpl, pipelineStrategyHistoryRepositoryImpl, configMapHistoryRepositoryImpl, scopedVariableCMCSManagerImpl)
 	if err != nil {
 		return nil, err
 	}

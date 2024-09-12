@@ -41,6 +41,8 @@ type ESOData struct {
 	Property  string `json:"property,omitempty"`
 }
 
+// there is an adapter written in pkg/bean folder to convert below ConfigData struct to pkg/bean's ConfigData
+
 type ConfigData struct {
 	Name                  string           `json:"name"`
 	Type                  string           `json:"type"`

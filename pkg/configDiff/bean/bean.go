@@ -83,10 +83,10 @@ func (r *ConfigProperty) GetIdentifier() ConfigPropertyIdentifier {
 }
 
 type DeploymentAndCmCsConfig struct {
-	ResourceType     bean.ResourceType `json:"resourceType"`
-	Data             json.RawMessage   `json:"data"`
-	VariableSnapshot string            `json:"variableSnapshot"`
-	ResolvedValue    string            `json:"resolvedValue"`
+	ResourceType     bean.ResourceType            `json:"resourceType"`
+	Data             json.RawMessage              `json:"data"`
+	VariableSnapshot map[string]map[string]string `json:"variableSnapshot"` // for deployment->{Deployment Template: resolvedValuesMap}, for cm->{cmComponentName: resolvedValuesMap}
+	ResolvedValue    string                       `json:"resolvedValue"`
 }
 
 func NewDeploymentAndCmCsConfig() *DeploymentAndCmCsConfig {
@@ -100,6 +100,16 @@ func (r *DeploymentAndCmCsConfig) WithResourceType(resourceType bean.ResourceTyp
 
 func (r *DeploymentAndCmCsConfig) WithConfigData(data json.RawMessage) *DeploymentAndCmCsConfig {
 	r.Data = data
+	return r
+}
+
+func (r *DeploymentAndCmCsConfig) WithVariableSnapshot(snapshot map[string]map[string]string) *DeploymentAndCmCsConfig {
+	r.VariableSnapshot = snapshot
+	return r
+}
+
+func (r *DeploymentAndCmCsConfig) WithResolvedValue(resolvedValue string) *DeploymentAndCmCsConfig {
+	r.ResolvedValue = resolvedValue
 	return r
 }
 
