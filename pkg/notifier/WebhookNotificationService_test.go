@@ -18,6 +18,7 @@ package notifier
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/notifier/beans"
 	"testing"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -31,7 +32,7 @@ import (
 
 func Test_buildWebhookNewConfigs(t *testing.T) {
 	type args struct {
-		webhookReq []WebhookConfigDto
+		webhookReq []beans.WebhookConfigDto
 		userId     int32
 	}
 	tests := []struct {
@@ -42,7 +43,7 @@ func Test_buildWebhookNewConfigs(t *testing.T) {
 		{
 			name: "test1",
 			args: args{
-				webhookReq: []WebhookConfigDto{
+				webhookReq: []beans.WebhookConfigDto{
 					{
 						WebhookUrl: "dfcd nmc dc",
 						ConfigName: "aditya",
@@ -89,7 +90,7 @@ func TestWebhookNotificationServiceImpl_SaveOrEditNotificationConfig(t *testing.
 	mockedNotfSetRepo := mocks2.NewNotificationSettingsRepository(t)
 
 	type args struct {
-		channelReq []WebhookConfigDto
+		channelReq []beans.WebhookConfigDto
 		userId     int32
 	}
 
@@ -102,7 +103,7 @@ func TestWebhookNotificationServiceImpl_SaveOrEditNotificationConfig(t *testing.
 		{
 			name: "SaveOrUpdate_ExistingConfig",
 			args: args{
-				channelReq: []WebhookConfigDto{
+				channelReq: []beans.WebhookConfigDto{
 					{
 						WebhookUrl: "djfndgfbd,gds",
 						ConfigName: "aditya",
@@ -118,7 +119,7 @@ func TestWebhookNotificationServiceImpl_SaveOrEditNotificationConfig(t *testing.
 		{
 			name: "SaveOrUpdate_NewConfig",
 			args: args{
-				channelReq: []WebhookConfigDto{
+				channelReq: []beans.WebhookConfigDto{
 					{
 						WebhookUrl: "d,fm sdfd",
 						ConfigName: "aditya",

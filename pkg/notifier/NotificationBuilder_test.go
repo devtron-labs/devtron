@@ -3,6 +3,7 @@ package notifier
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/notifier/beans"
 	"k8s.io/utils/pointer"
 	"maps"
 	"testing"
@@ -10,8 +11,8 @@ import (
 
 var logger, _ = util.NewSugardLogger()
 
-func generateCombinations(testData NotificationConfigRequest) []*NotificationConfigRequest {
-	var result []*NotificationConfigRequest
+func generateCombinations(testData beans.NotificationConfigRequest) []*beans.NotificationConfigRequest {
+	var result []*beans.NotificationConfigRequest
 
 	// List of all fields with empty and non-empty combinations
 	combinations := []struct {
@@ -41,7 +42,7 @@ func generateCombinations(testData NotificationConfigRequest) []*NotificationCon
 
 	// Generate Test structs for all combinations
 	for _, combo := range combinations {
-		result = append(result, &NotificationConfigRequest{
+		result = append(result, &beans.NotificationConfigRequest{
 			TeamId:     combo.teamIds,
 			AppId:      combo.appIds,
 			EnvId:      combo.envIds,
@@ -53,7 +54,7 @@ func generateCombinations(testData NotificationConfigRequest) []*NotificationCon
 	return result
 }
 
-func StringifyLocalRequest(lr *LocalRequest) string {
+func StringifyLocalRequest(lr *beans.LocalRequest) string {
 	params := make([]interface{}, 0)
 	if lr.TeamId != nil {
 		params = append(params, *lr.TeamId)
@@ -75,7 +76,7 @@ func StringifyLocalRequest(lr *LocalRequest) string {
 	return fmt.Sprintf("TeamId: %v, AppId: %v, EnvId: %v,ClusterId: %v, PipelineId: %v", params...)
 }
 
-func Equal(settingsV1, settingsV2 []*LocalRequest) bool {
+func Equal(settingsV1, settingsV2 []*beans.LocalRequest) bool {
 	settingsV1Set := make(map[string]bool)
 	settingsV2Set := make(map[string]bool)
 
@@ -92,7 +93,7 @@ func Equal(settingsV1, settingsV2 []*LocalRequest) bool {
 
 // TestGenerateSettings tests the generation of settings with old and new data
 func TestGenerateSettings(t *testing.T) {
-	testData := NotificationConfigRequest{
+	testData := beans.NotificationConfigRequest{
 		TeamId:     []*int{pointer.Int(1), pointer.Int(2)},
 		ClusterId:  []*int{pointer.Int(-1), pointer.Int(21)},
 		EnvId:      []*int{pointer.Int(-1), pointer.Int(-2), pointer.Int(56)},
@@ -105,7 +106,7 @@ func TestGenerateSettings(t *testing.T) {
 	// Test each combination
 	for i, combo := range combinations {
 		t.Run(fmt.Sprintf("combination-%v", i), func(tt *testing.T) {
-			settingsV1 := generateSettingCombinationsV1(combo)
+			settingsV1 := combo.GenerateSettingCombinationsV1()
 			settingsV2 := combo.GenerateSettingCombinations()
 
 			if len(settingsV2) == 0 {

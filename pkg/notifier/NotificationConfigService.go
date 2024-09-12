@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	clusterService "github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/notifier/beans"
 	util3 "github.com/devtron-labs/devtron/util"
 	"time"
 
@@ -37,14 +38,14 @@ import (
 )
 
 type NotificationConfigService interface {
-	CreateOrUpdateNotificationSettings(notificationSettingsRequest *NotificationRequest, userId int32) (int, error)
+	CreateOrUpdateNotificationSettings(notificationSettingsRequest *beans.NotificationRequest, userId int32) (int, error)
 	FindAll(offset int, size int) ([]*repository.NotificationSettingsViewWithAppEnv, int, error)
-	BuildNotificationSettingsResponse(notificationSettings []*repository.NotificationSettingsViewWithAppEnv) ([]*NotificationSettingsResponse, int, error)
-	DeleteNotificationSettings(request NSDeleteRequest) error
-	FindNotificationSettingOptions(request *repository.SearchRequest) ([]*SearchFilterResponse, error)
+	BuildNotificationSettingsResponse(notificationSettings []*repository.NotificationSettingsViewWithAppEnv) ([]*beans.NotificationSettingsResponse, int, error)
+	DeleteNotificationSettings(request beans.NSDeleteRequest) error
+	FindNotificationSettingOptions(request *repository.SearchRequest) ([]*beans.SearchFilterResponse, error)
 
-	UpdateNotificationSettings(notificationSettingsRequest *NotificationUpdateRequest, userId int32) (int, error)
-	FetchNSViewByIds(ids []*int) ([]*NSConfig, error)
+	UpdateNotificationSettings(notificationSettingsRequest *beans.NotificationUpdateRequest, userId int32) (int, error)
+	FetchNSViewByIds(ids []*int) ([]*beans.NSConfig, error)
 }
 
 type NotificationConfigServiceImpl struct {
@@ -67,107 +68,6 @@ type NotificationConfigServiceImpl struct {
 
 const allNonProdEnvsName = "All non-prod environments"
 const allProdEnvsName = "All prod environments"
-
-type NotificationSettingRequest struct {
-	Id     int  `json:"id"`
-	TeamId int  `json:"teamId"`
-	AppId  *int `json:"appId"`
-	EnvId  *int `json:"envId"`
-	//Pipelines    []int             `json:"pipelineIds"`
-	PipelineType util.PipelineType `json:"pipelineType" validate:"required"`
-	EventTypeIds []int             `json:"eventTypeIds" validate:"required"`
-	Providers    []Provider        `json:"providers" validate:"required"`
-}
-
-type Provider struct {
-	Destination util.Channel `json:"dest"`
-	Rule        string       `json:"rule"`
-	ConfigId    int          `json:"configId"`
-	Recipient   string       `json:"recipient"`
-}
-
-type Providers struct {
-	Providers []Provider `json:"providers"`
-}
-
-type NSDeleteRequest struct {
-	Id []*int `json:"id"`
-}
-
-type NotificationRequest struct {
-	UpdateType                util.UpdateType              `json:"updateType,omitempty"`
-	SesConfigId               int                          `json:"sesConfigId,omitempty"`
-	Providers                 []*Provider                  `json:"providers"`
-	NotificationConfigRequest []*NotificationConfigRequest `json:"notificationConfigRequest" validate:"required"`
-}
-
-type NotificationUpdateRequest struct {
-	UpdateType                util.UpdateType              `json:"updateType,omitempty"`
-	NotificationConfigRequest []*NotificationConfigRequest `json:"notificationConfigRequest" validate:"required"`
-}
-
-type NSViewResponse struct {
-	Total                        int                             `json:"total"`
-	NotificationSettingsResponse []*NotificationSettingsResponse `json:"settings"`
-}
-
-type NotificationSettingsResponse struct {
-	Id               int                `json:"id"`
-	ConfigName       string             `json:"configName"`
-	TeamResponse     []*TeamResponse    `json:"team"`
-	AppResponse      []*AppResponse     `json:"app"`
-	EnvResponse      []*EnvResponse     `json:"environment"`
-	ClusterResponse  []*ClusterResponse `json:"cluster"`
-	PipelineResponse *PipelineResponse  `json:"pipeline"`
-	PipelineType     string             `json:"pipelineType"`
-	ProvidersConfig  []*ProvidersConfig `json:"providerConfigs"`
-	EventTypes       []int              `json:"eventTypes"`
-}
-
-type SearchFilterResponse struct {
-	TeamResponse     []*TeamResponse    `json:"team"`
-	AppResponse      []*AppResponse     `json:"app"`
-	EnvResponse      []*EnvResponse     `json:"environment"`
-	ClusterResponse  []*ClusterResponse `json:"cluster"`
-	PipelineResponse *PipelineResponse  `json:"pipeline"`
-	PipelineType     string             `json:"pipelineType"`
-}
-
-type TeamResponse struct {
-	Id   *int   `json:"id"`
-	Name string `json:"name"`
-}
-
-type AppResponse struct {
-	Id   *int   `json:"id"`
-	Name string `json:"name"`
-}
-
-type EnvResponse struct {
-	Id   *int   `json:"id"`
-	Name string `json:"name"`
-}
-
-type ClusterResponse struct {
-	Id   *int   `json:"id"`
-	Name string `json:"name"`
-}
-
-type PipelineResponse struct {
-	Id              *int     `json:"id"`
-	Name            string   `json:"name"`
-	EnvironmentName string   `json:"environmentName,omitempty"`
-	AppName         string   `json:"appName,omitempty"`
-	Branches        []string `json:"branches,omitempty"`
-	ClusterName     string   `json:"clusterName"`
-}
-
-type ProvidersConfig struct {
-	Id         int    `json:"id"`
-	Dest       string `json:"dest"`
-	ConfigName string `json:"name"`
-	Recipient  string `json:"recipient"`
-}
 
 func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSettingsRepository repository.NotificationSettingsRepository, notificationConfigBuilder NotificationConfigBuilder, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, slackRepository repository.SlackNotificationRepository, webhookRepository repository.WebhookNotificationRepository,
@@ -217,7 +117,7 @@ func (impl *NotificationConfigServiceImpl) FindAll(offset int, size int) ([]*rep
 	return notificationSettingsViews, count, nil
 }
 
-func (impl *NotificationConfigServiceImpl) DeleteNotificationSettings(request NSDeleteRequest) error {
+func (impl *NotificationConfigServiceImpl) DeleteNotificationSettings(request beans.NSDeleteRequest) error {
 	dbConnection := impl.pipelineRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -254,10 +154,10 @@ type config struct {
 	Pipelines    []int             `json:"pipelineIds"`
 	PipelineType util.PipelineType `json:"pipelineType" validate:"required"`
 	EventTypeIds []int             `json:"eventTypeIds" validate:"required"`
-	Providers    []Provider        `json:"providers" validate:"required"`
+	Providers    []beans.Provider  `json:"providers" validate:"required"`
 }
 
-func (impl *NotificationConfigServiceImpl) CreateOrUpdateNotificationSettings(notificationSettingsRequest *NotificationRequest, userId int32) (int, error) {
+func (impl *NotificationConfigServiceImpl) CreateOrUpdateNotificationSettings(notificationSettingsRequest *beans.NotificationRequest, userId int32) (int, error) {
 	var configId int
 	var err error
 	dbConnection := impl.pipelineRepository.GetConnection()
@@ -291,7 +191,7 @@ func (impl *NotificationConfigServiceImpl) CreateOrUpdateNotificationSettings(no
 	return configId, nil
 }
 
-func (impl *NotificationConfigServiceImpl) UpdateNotificationSettings(notificationSettingsRequest *NotificationUpdateRequest, userId int32) (int, error) {
+func (impl *NotificationConfigServiceImpl) UpdateNotificationSettings(notificationSettingsRequest *beans.NotificationUpdateRequest, userId int32) (int, error) {
 	var configId int
 	var err error
 	dbConnection := impl.pipelineRepository.GetConnection()
@@ -316,16 +216,16 @@ func (impl *NotificationConfigServiceImpl) UpdateNotificationSettings(notificati
 	return configId, nil
 }
 
-func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(notificationSettingViews []*repository.NotificationSettingsViewWithAppEnv) ([]*NotificationSettingsResponse, int, error) {
-	var notificationSettingsResponses []*NotificationSettingsResponse
+func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(notificationSettingViews []*repository.NotificationSettingsViewWithAppEnv) ([]*beans.NotificationSettingsResponse, int, error) {
+	var notificationSettingsResponses []*beans.NotificationSettingsResponse
 	deletedItemCount := 0
 	for _, ns := range notificationSettingViews {
-		notificationSettingsResponse := &NotificationSettingsResponse{
+		notificationSettingsResponse := &beans.NotificationSettingsResponse{
 			Id:         ns.Id,
 			ConfigName: ns.ConfigName,
 		}
 
-		var config NSConfig
+		var config beans.NSConfig
 		configJson := []byte(ns.Config)
 		err := json.Unmarshal(configJson, &config)
 		if err != nil {
@@ -339,21 +239,21 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 				impl.logger.Errorw("error in fetching team", "err", err)
 				return notificationSettingsResponses, deletedItemCount, err
 			}
-			var teamResponse []*TeamResponse
+			var teamResponse []*beans.TeamResponse
 			for _, item := range teams {
-				teamResponse = append(teamResponse, &TeamResponse{Id: &item.Id, Name: item.Name})
+				teamResponse = append(teamResponse, &beans.TeamResponse{Id: &item.Id, Name: item.Name})
 			}
 			notificationSettingsResponse.TeamResponse = teamResponse
 		}
 
 		if config.EnvId != nil && len(config.EnvId) > 0 {
-			var envResponse []*EnvResponse
+			var envResponse []*beans.EnvResponse
 			envIds := make([]*int, 0)
 			for _, envId := range config.EnvId {
 				if *envId == repository.AllExistingAndFutureProdEnvsInt {
-					envResponse = append(envResponse, &EnvResponse{Id: envId, Name: allProdEnvsName})
+					envResponse = append(envResponse, &beans.EnvResponse{Id: envId, Name: allProdEnvsName})
 				} else if *envId == repository.AllExistingAndFutureNonProdEnvsInt {
-					envResponse = append(envResponse, &EnvResponse{Id: envId, Name: allNonProdEnvsName})
+					envResponse = append(envResponse, &beans.EnvResponse{Id: envId, Name: allNonProdEnvsName})
 				} else {
 					envIds = append(envIds, envId)
 				}
@@ -365,7 +265,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 					return notificationSettingsResponses, deletedItemCount, err
 				}
 				for _, item := range environments {
-					envResponse = append(envResponse, &EnvResponse{Id: &item.Id, Name: item.Name})
+					envResponse = append(envResponse, &beans.EnvResponse{Id: &item.Id, Name: item.Name})
 				}
 			}
 
@@ -378,14 +278,14 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 				impl.logger.Errorw("error in fetching app", "err", err)
 				return notificationSettingsResponses, deletedItemCount, err
 			}
-			var appResponse []*AppResponse
+			var appResponse []*beans.AppResponse
 			for _, item := range applications {
-				appResponse = append(appResponse, &AppResponse{Id: &item.Id, Name: item.AppName})
+				appResponse = append(appResponse, &beans.AppResponse{Id: &item.Id, Name: item.AppName})
 			}
 			notificationSettingsResponse.AppResponse = appResponse
 		}
 
-		var clusterResponse []*ClusterResponse
+		var clusterResponse []*beans.ClusterResponse
 		if len(config.ClusterId) > 0 {
 			clusterIds := util3.Transform(config.ClusterId, func(id *int) int {
 				return *id
@@ -396,7 +296,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 				return notificationSettingsResponses, deletedItemCount, err
 			}
 			for _, item := range clusterName {
-				clusterResponse = append(clusterResponse, &ClusterResponse{Id: &item.Id, Name: item.ClusterName})
+				clusterResponse = append(clusterResponse, &beans.ClusterResponse{Id: &item.Id, Name: item.ClusterName})
 			}
 			notificationSettingsResponse.ClusterResponse = clusterResponse
 		}
@@ -406,7 +306,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 			var webhookIds []*int
 			var sesUserIds []int32
 			var smtpUserIds []int32
-			var providerConfigs []*ProvidersConfig
+			var providerConfigs []*beans.ProvidersConfig
 			for _, item := range config.Providers {
 				// if item.ConfigId > 0 that means, user is of user repository, else user email is custom
 				if item.ConfigId > 0 {
@@ -420,7 +320,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 						webhookIds = append(webhookIds, &item.ConfigId)
 					}
 				} else {
-					providerConfigs = append(providerConfigs, &ProvidersConfig{Dest: string(item.Destination), Recipient: item.Recipient})
+					providerConfigs = append(providerConfigs, &beans.ProvidersConfig{Dest: string(item.Destination), Recipient: item.Recipient})
 				}
 			}
 			if len(slackIds) > 0 {
@@ -430,7 +330,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 					return notificationSettingsResponses, deletedItemCount, err
 				}
 				for _, item := range slackConfigs {
-					providerConfigs = append(providerConfigs, &ProvidersConfig{Id: item.Id, ConfigName: item.ConfigName, Dest: string(util.Slack)})
+					providerConfigs = append(providerConfigs, &beans.ProvidersConfig{Id: item.Id, ConfigName: item.ConfigName, Dest: string(util.Slack)})
 				}
 			}
 			if len(webhookIds) > 0 {
@@ -440,7 +340,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 					return notificationSettingsResponses, deletedItemCount, err
 				}
 				for _, item := range webhookConfigs {
-					providerConfigs = append(providerConfigs, &ProvidersConfig{Id: item.Id, ConfigName: item.ConfigName, Dest: string(util.Webhook)})
+					providerConfigs = append(providerConfigs, &beans.ProvidersConfig{Id: item.Id, ConfigName: item.ConfigName, Dest: string(util.Webhook)})
 				}
 			}
 
@@ -451,7 +351,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 					return notificationSettingsResponses, deletedItemCount, err
 				}
 				for _, item := range sesConfigs {
-					providerConfigs = append(providerConfigs, &ProvidersConfig{Id: int(item.Id), ConfigName: item.EmailId, Dest: string(util.SES)})
+					providerConfigs = append(providerConfigs, &beans.ProvidersConfig{Id: int(item.Id), ConfigName: item.EmailId, Dest: string(util.SES)})
 				}
 			}
 			if len(smtpUserIds) > 0 {
@@ -461,14 +361,14 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 					return notificationSettingsResponses, deletedItemCount, err
 				}
 				for _, item := range smtpConfigs {
-					providerConfigs = append(providerConfigs, &ProvidersConfig{Id: int(item.Id), ConfigName: item.EmailId, Dest: string(util.SMTP)})
+					providerConfigs = append(providerConfigs, &beans.ProvidersConfig{Id: int(item.Id), ConfigName: item.EmailId, Dest: string(util.SMTP)})
 				}
 			}
 			notificationSettingsResponse.ProvidersConfig = providerConfigs
 		}
 
 		if config.PipelineId != nil && *config.PipelineId > 0 {
-			pipelineResponse := &PipelineResponse{}
+			pipelineResponse := &beans.PipelineResponse{}
 			pipelineResponse.Id = config.PipelineId
 			if config.PipelineType == util.CD {
 				pipeline, err := impl.pipelineRepository.FindById(*config.PipelineId)
@@ -516,8 +416,8 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 	return notificationSettingsResponses, deletedItemCount, nil
 }
 
-func (impl *NotificationConfigServiceImpl) buildProvidersConfig(config config) ([]ProvidersConfig, error) {
-	var providerConfigs []ProvidersConfig
+func (impl *NotificationConfigServiceImpl) buildProvidersConfig(config config) ([]beans.ProvidersConfig, error) {
+	var providerConfigs []beans.ProvidersConfig
 	if len(config.Providers) > 0 {
 		sesConfigNamesMap := map[int]string{}
 		slackConfigNameMap := map[int]string{}
@@ -559,7 +459,7 @@ func (impl *NotificationConfigServiceImpl) buildProvidersConfig(config config) (
 			slackConfigs, err := impl.slackRepository.FindByIdsIn(slackIds)
 			if err != nil {
 				impl.logger.Errorw("error in fetch slack configs", "err", err)
-				return []ProvidersConfig{}, err
+				return []beans.ProvidersConfig{}, err
 			}
 			for _, s := range slackConfigs {
 				slackConfigNameMap[s.Id] = s.ConfigName
@@ -569,7 +469,7 @@ func (impl *NotificationConfigServiceImpl) buildProvidersConfig(config config) (
 			sesConfigs, err := impl.sesRepository.FindByIdsIn(sesIds)
 			if err != nil {
 				impl.logger.Errorw("error on fetch ses configs", "err", err)
-				return []ProvidersConfig{}, err
+				return []beans.ProvidersConfig{}, err
 			}
 			for _, s := range sesConfigs {
 				sesConfigNamesMap[s.Id] = s.ConfigName
@@ -579,7 +479,7 @@ func (impl *NotificationConfigServiceImpl) buildProvidersConfig(config config) (
 			smtpConfigs, err := impl.smtpRepository.FindByIdsIn(sesIds)
 			if err != nil {
 				impl.logger.Errorw("error on fetch smtp configs", "err", err)
-				return []ProvidersConfig{}, err
+				return []beans.ProvidersConfig{}, err
 			}
 			for _, s := range smtpConfigs {
 				smtpConfigNamesMap[s.Id] = s.ConfigName
@@ -594,7 +494,7 @@ func (impl *NotificationConfigServiceImpl) buildProvidersConfig(config config) (
 			} else if c.Destination == util.SMTP {
 				configName = smtpConfigNamesMap[c.ConfigId]
 			}
-			providerConfig := ProvidersConfig{
+			providerConfig := beans.ProvidersConfig{
 				Id:         c.ConfigId,
 				Dest:       string(c.Destination),
 				ConfigName: configName,
@@ -605,7 +505,7 @@ func (impl *NotificationConfigServiceImpl) buildProvidersConfig(config config) (
 	return providerConfigs, nil
 }
 
-func (impl *NotificationConfigServiceImpl) buildPipelineResponses(config config, ciPipelines []*pipelineConfig.CiPipeline, cdPipelines []*pipelineConfig.Pipeline) (util.PipelineType, []PipelineResponse, error) {
+func (impl *NotificationConfigServiceImpl) buildPipelineResponses(config config, ciPipelines []*pipelineConfig.CiPipeline, cdPipelines []*pipelineConfig.Pipeline) (util.PipelineType, []beans.PipelineResponse, error) {
 	var pipelineType util.PipelineType
 	var err error
 
@@ -625,13 +525,13 @@ func (impl *NotificationConfigServiceImpl) buildPipelineResponses(config config,
 		}
 		if err != nil {
 			impl.logger.Errorw("error while response build", "err", err)
-			return "", []PipelineResponse{}, err
+			return "", []beans.PipelineResponse{}, err
 		}
 	}
-	var pipelineResponses []PipelineResponse
+	var pipelineResponses []beans.PipelineResponse
 	if util.CI == pipelineType {
 		for _, ci := range ciPipelines {
-			pipelineResponse := PipelineResponse{
+			pipelineResponse := beans.PipelineResponse{
 				Id:   &ci.Id,
 				Name: ci.Name,
 			}
@@ -639,7 +539,7 @@ func (impl *NotificationConfigServiceImpl) buildPipelineResponses(config config,
 		}
 	} else if util.CD == pipelineType {
 		for _, cd := range cdPipelines {
-			pipelineResponse := PipelineResponse{
+			pipelineResponse := beans.PipelineResponse{
 				Id:   &cd.Id,
 				Name: cd.Name,
 			}
@@ -649,7 +549,7 @@ func (impl *NotificationConfigServiceImpl) buildPipelineResponses(config config,
 	return pipelineType, pipelineResponses, nil
 }
 
-func (impl *NotificationConfigServiceImpl) saveNotificationSetting(notificationSettingsRequest *NotificationConfigRequest, userId int32, tx *pg.Tx) (int, error) {
+func (impl *NotificationConfigServiceImpl) saveNotificationSetting(notificationSettingsRequest *beans.NotificationConfigRequest, userId int32, tx *pg.Tx) (int, error) {
 	var existingNotificationSettingsConfig *repository.NotificationSettingsView
 	var err error
 	if notificationSettingsRequest.Id != 0 {
@@ -692,7 +592,7 @@ func (impl *NotificationConfigServiceImpl) saveNotificationSetting(notificationS
 	return notificationSettingsConfig.Id, nil
 }
 
-func (impl *NotificationConfigServiceImpl) updateNotificationSetting(notificationSettingsRequest *NotificationConfigRequest, updateType util.UpdateType, userId int32, tx *pg.Tx) (int, error) {
+func (impl *NotificationConfigServiceImpl) updateNotificationSetting(notificationSettingsRequest *beans.NotificationConfigRequest, updateType util.UpdateType, userId int32, tx *pg.Tx) (int, error) {
 	var err error
 	existingNotificationSettingsConfig, err := impl.notificationSettingsRepository.FindNotificationSettingsViewById(notificationSettingsRequest.Id)
 	if err != nil {
@@ -700,7 +600,7 @@ func (impl *NotificationConfigServiceImpl) updateNotificationSetting(notificatio
 		return 0, err
 	}
 
-	nsConfig := &NSConfig{}
+	nsConfig := &beans.NSConfig{}
 	err = json.Unmarshal([]byte(existingNotificationSettingsConfig.Config), nsConfig)
 	if updateType == util.UpdateEvents {
 		nsConfig.EventTypeIds = notificationSettingsRequest.EventTypeIds
@@ -798,8 +698,8 @@ func (impl *NotificationConfigServiceImpl) updateNotificationSetting(notificatio
 	return existingNotificationSettingsConfig.Id, nil
 }
 
-func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settingRequest *repository.SearchRequest) ([]*SearchFilterResponse, error) {
-	var searchFilterResponse []*SearchFilterResponse
+func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settingRequest *repository.SearchRequest) ([]*beans.SearchFilterResponse, error) {
+	var searchFilterResponse []*beans.SearchFilterResponse
 
 	prodEnvIdentifierFound := false
 	nonProdEnvIdentifierFound := false
@@ -826,9 +726,9 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 	}
 	for _, item := range settingOptionResponseDeployment {
 		item.PipelineType = string(util.CD)
-		result := &SearchFilterResponse{
+		result := &beans.SearchFilterResponse{
 			PipelineType:     item.PipelineType,
-			PipelineResponse: &PipelineResponse{Id: &item.PipelineId, Name: item.PipelineName, EnvironmentName: item.EnvironmentName, AppName: item.AppName, ClusterName: item.ClusterName},
+			PipelineResponse: &beans.PipelineResponse{Id: &item.PipelineId, Name: item.PipelineName, EnvironmentName: item.EnvironmentName, AppName: item.AppName, ClusterName: item.ClusterName},
 		}
 		searchFilterResponse = append(searchFilterResponse, result)
 	}
@@ -852,17 +752,17 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 				branches = append(branches, pipelineMaterial.Value)
 			}
 		}
-		result := &SearchFilterResponse{
+		result := &beans.SearchFilterResponse{
 			PipelineType:     item.PipelineType,
-			PipelineResponse: &PipelineResponse{Id: &item.PipelineId, Name: item.PipelineName, AppName: item.AppName, Branches: branches},
+			PipelineResponse: &beans.PipelineResponse{Id: &item.PipelineId, Name: item.PipelineName, AppName: item.AppName, Branches: branches},
 		}
 		searchFilterResponse = append(searchFilterResponse, result)
 	}
 
-	var teamResponse []*TeamResponse
-	var appResponse []*AppResponse
-	var envResponse []*EnvResponse
-	var clusterResponse []*ClusterResponse
+	var teamResponse []*beans.TeamResponse
+	var appResponse []*beans.AppResponse
+	var envResponse []*beans.EnvResponse
+	var clusterResponse []*beans.ClusterResponse
 	if settingRequest.TeamId != nil && len(settingRequest.TeamId) > 0 {
 		teams, err := impl.teamRepository.FindByIds(settingRequest.TeamId)
 		if err != nil {
@@ -870,16 +770,16 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 			return searchFilterResponse, err
 		}
 		for _, item := range teams {
-			teamResponse = append(teamResponse, &TeamResponse{Id: &item.Id, Name: item.Name})
+			teamResponse = append(teamResponse, &beans.TeamResponse{Id: &item.Id, Name: item.Name})
 		}
 	}
 	if settingRequest.EnvId != nil && len(settingRequest.EnvId) > 0 {
 		envIds := make([]*int, 0)
 		for _, envId := range settingRequest.EnvId {
 			if *envId == repository.AllExistingAndFutureProdEnvsInt {
-				envResponse = append(envResponse, &EnvResponse{Id: envId, Name: allProdEnvsName})
+				envResponse = append(envResponse, &beans.EnvResponse{Id: envId, Name: allProdEnvsName})
 			} else if *envId == repository.AllExistingAndFutureNonProdEnvsInt {
-				envResponse = append(envResponse, &EnvResponse{Id: envId, Name: allNonProdEnvsName})
+				envResponse = append(envResponse, &beans.EnvResponse{Id: envId, Name: allNonProdEnvsName})
 			} else {
 				envIds = append(envIds, envId)
 			}
@@ -891,7 +791,7 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 				return searchFilterResponse, err
 			}
 			for _, item := range environments {
-				envResponse = append(envResponse, &EnvResponse{Id: &item.Id, Name: item.Name})
+				envResponse = append(envResponse, &beans.EnvResponse{Id: &item.Id, Name: item.Name})
 			}
 		}
 	}
@@ -902,7 +802,7 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 			return searchFilterResponse, err
 		}
 		for _, item := range applications {
-			appResponse = append(appResponse, &AppResponse{Id: &item.Id, Name: item.AppName})
+			appResponse = append(appResponse, &beans.AppResponse{Id: &item.Id, Name: item.AppName})
 		}
 	}
 
@@ -916,12 +816,12 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 			return searchFilterResponse, err
 		}
 		for _, item := range clusterName {
-			clusterResponse = append(clusterResponse, &ClusterResponse{Id: &item.Id, Name: item.ClusterName})
+			clusterResponse = append(clusterResponse, &beans.ClusterResponse{Id: &item.Id, Name: item.ClusterName})
 		}
 	}
 
 	if teamResponse != nil || appResponse != nil {
-		ciMatching := &SearchFilterResponse{
+		ciMatching := &beans.SearchFilterResponse{
 			PipelineType: string(util.CI),
 			TeamResponse: teamResponse,
 			AppResponse:  appResponse,
@@ -930,7 +830,7 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 	}
 
 	if teamResponse != nil || appResponse != nil || envResponse != nil || clusterResponse != nil {
-		cdMatching := &SearchFilterResponse{
+		cdMatching := &beans.SearchFilterResponse{
 			PipelineType:    string(util.CD),
 			TeamResponse:    teamResponse,
 			AppResponse:     appResponse,
@@ -941,21 +841,21 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 	}
 
 	if searchFilterResponse == nil {
-		searchFilterResponse = make([]*SearchFilterResponse, 0)
+		searchFilterResponse = make([]*beans.SearchFilterResponse, 0)
 	}
 
 	return searchFilterResponse, nil
 }
 
-func (impl *NotificationConfigServiceImpl) FetchNSViewByIds(ids []*int) ([]*NSConfig, error) {
-	var configs []*NSConfig
+func (impl *NotificationConfigServiceImpl) FetchNSViewByIds(ids []*int) ([]*beans.NSConfig, error) {
+	var configs []*beans.NSConfig
 	notificationSettingViewList, err := impl.notificationSettingsRepository.FindNotificationSettingsViewByIds(ids)
 	if err != nil {
 		impl.logger.Errorw("failed to fetch existing notification settings view", "err", err)
 		return configs, err
 	}
 	for _, item := range notificationSettingViewList {
-		nsConfig := &NSConfig{}
+		nsConfig := &beans.NSConfig{}
 		err = json.Unmarshal([]byte(item.Config), nsConfig)
 		if err != nil {
 			return configs, err

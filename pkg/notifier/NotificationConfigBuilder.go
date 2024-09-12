@@ -19,15 +19,16 @@ package notifier
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/notifier/beans"
 	"github.com/devtron-labs/devtron/util/event"
 	"go.uber.org/zap"
 	"time"
 )
 
 type NotificationConfigBuilder interface {
-	BuildNotificationSettingsConfig(notificationSettingsRequest *NotificationConfigRequest, existingNotificationSettingsConfig *repository.NotificationSettingsView, userId int32) (*repository.NotificationSettingsView, error)
-	BuildNewNotificationSettings(notificationSettingsRequest *NotificationConfigRequest, notificationSettingsView *repository.NotificationSettingsView) ([]repository.NotificationSettings, error)
-	BuildNotificationSettingWithPipeline(teamId *int, envId *int, appId *int, pipelineId *int, clusterId *int, pipelineType util.PipelineType, eventTypeId int, viewId int, providers []*Provider) (repository.NotificationSettings, error)
+	BuildNotificationSettingsConfig(notificationSettingsRequest *beans.NotificationConfigRequest, existingNotificationSettingsConfig *repository.NotificationSettingsView, userId int32) (*repository.NotificationSettingsView, error)
+	BuildNewNotificationSettings(notificationSettingsRequest *beans.NotificationConfigRequest, notificationSettingsView *repository.NotificationSettingsView) ([]repository.NotificationSettings, error)
+	BuildNotificationSettingWithPipeline(teamId *int, envId *int, appId *int, pipelineId *int, clusterId *int, pipelineType util.PipelineType, eventTypeId int, viewId int, providers []*beans.Provider) (repository.NotificationSettings, error)
 }
 
 type NotificationConfigBuilderImpl struct {
@@ -40,28 +41,8 @@ func NewNotificationConfigBuilderImpl(logger *zap.SugaredLogger) *NotificationCo
 	}
 }
 
-type NSConfig struct {
-	TeamId       []*int            `json:"teamId"`
-	AppId        []*int            `json:"appId"`
-	EnvId        []*int            `json:"envId"`
-	PipelineId   *int              `json:"pipelineId"`
-	ClusterId    []*int            `json:"clusterId"`
-	PipelineType util.PipelineType `json:"pipelineType" validate:"required"`
-	EventTypeIds []int             `json:"eventTypeIds" validate:"required"`
-	Providers    []*Provider       `json:"providers" validate:"required"`
-}
-
-type LocalRequest struct {
-	Id         int  `json:"id"`
-	TeamId     *int `json:"teamId"`
-	AppId      *int `json:"appId"`
-	EnvId      *int `json:"envId"`
-	PipelineId *int `json:"pipelineId"`
-	ClusterId  *int `json:"clusterId"`
-}
-
-func (impl NotificationConfigBuilderImpl) BuildNotificationSettingsConfig(notificationSettingsRequest *NotificationConfigRequest, existingNotificationSettingsConfig *repository.NotificationSettingsView, userId int32) (*repository.NotificationSettingsView, error) {
-	nsConfig := &NSConfig{}
+func (impl NotificationConfigBuilderImpl) BuildNotificationSettingsConfig(notificationSettingsRequest *beans.NotificationConfigRequest, existingNotificationSettingsConfig *repository.NotificationSettingsView, userId int32) (*repository.NotificationSettingsView, error) {
+	nsConfig := &beans.NSConfig{}
 	nsConfig.TeamId = notificationSettingsRequest.TeamId
 	nsConfig.AppId = notificationSettingsRequest.AppId
 	nsConfig.EnvId = notificationSettingsRequest.EnvId
@@ -96,55 +77,7 @@ func (impl NotificationConfigBuilderImpl) BuildNotificationSettingsConfig(notifi
 	return notificationSettingsView, nil
 }
 
-func generateSettingCombinationsV1(notificationSettingsRequest *NotificationConfigRequest) []*LocalRequest {
-
-	var tempRequest []*LocalRequest
-	if len(notificationSettingsRequest.TeamId) == 0 && len(notificationSettingsRequest.EnvId) == 0 && len(notificationSettingsRequest.AppId) > 0 {
-		for _, item := range notificationSettingsRequest.AppId {
-			tempRequest = append(tempRequest, &LocalRequest{AppId: item})
-		}
-	} else if len(notificationSettingsRequest.TeamId) == 0 && len(notificationSettingsRequest.EnvId) > 0 && len(notificationSettingsRequest.AppId) == 0 {
-		for _, item := range notificationSettingsRequest.EnvId {
-			tempRequest = append(tempRequest, &LocalRequest{EnvId: item})
-		}
-	} else if len(notificationSettingsRequest.TeamId) > 0 && len(notificationSettingsRequest.EnvId) == 0 && len(notificationSettingsRequest.AppId) == 0 {
-		for _, item := range notificationSettingsRequest.TeamId {
-			tempRequest = append(tempRequest, &LocalRequest{TeamId: item})
-		}
-	} else if len(notificationSettingsRequest.TeamId) == 0 && len(notificationSettingsRequest.EnvId) > 0 && len(notificationSettingsRequest.AppId) > 0 {
-		for _, itemE := range notificationSettingsRequest.EnvId {
-			for _, itemA := range notificationSettingsRequest.AppId {
-				tempRequest = append(tempRequest, &LocalRequest{EnvId: itemE, AppId: itemA})
-			}
-		}
-	} else if len(notificationSettingsRequest.TeamId) > 0 && len(notificationSettingsRequest.EnvId) > 0 && len(notificationSettingsRequest.AppId) == 0 {
-		for _, itemT := range notificationSettingsRequest.TeamId {
-			for _, itemE := range notificationSettingsRequest.EnvId {
-				tempRequest = append(tempRequest, &LocalRequest{TeamId: itemT, EnvId: itemE})
-			}
-		}
-	} else if len(notificationSettingsRequest.TeamId) > 0 && len(notificationSettingsRequest.EnvId) == 0 && len(notificationSettingsRequest.AppId) > 0 {
-		for _, itemT := range notificationSettingsRequest.TeamId {
-			for _, itemA := range notificationSettingsRequest.AppId {
-				tempRequest = append(tempRequest, &LocalRequest{TeamId: itemT, AppId: itemA})
-			}
-		}
-	} else if len(notificationSettingsRequest.TeamId) > 0 && len(notificationSettingsRequest.EnvId) > 0 && len(notificationSettingsRequest.AppId) > 0 {
-		for _, itemT := range notificationSettingsRequest.TeamId {
-			for _, itemE := range notificationSettingsRequest.EnvId {
-				for _, itemA := range notificationSettingsRequest.AppId {
-					tempRequest = append(tempRequest, &LocalRequest{TeamId: itemT, EnvId: itemE, AppId: itemA})
-				}
-			}
-		}
-	} else {
-		tempRequest = append(tempRequest, &LocalRequest{PipelineId: notificationSettingsRequest.PipelineId})
-	}
-
-	return tempRequest
-}
-
-func (impl NotificationConfigBuilderImpl) BuildNewNotificationSettings(notificationSettingsRequest *NotificationConfigRequest, notificationSettingsView *repository.NotificationSettingsView) ([]repository.NotificationSettings, error) {
+func (impl NotificationConfigBuilderImpl) BuildNewNotificationSettings(notificationSettingsRequest *beans.NotificationConfigRequest, notificationSettingsView *repository.NotificationSettingsView) ([]repository.NotificationSettings, error) {
 	// tempRequest := generateSettingCombinationsV1(notificationSettingsRequest)
 	tempRequest := notificationSettingsRequest.GenerateSettingCombinations()
 	var notificationSettings []repository.NotificationSettings
@@ -161,7 +94,7 @@ func (impl NotificationConfigBuilderImpl) BuildNewNotificationSettings(notificat
 	return notificationSettings, nil
 }
 
-func (impl NotificationConfigBuilderImpl) buildNotificationSetting(notificationSettingsRequest *NotificationSettingRequest, notificationSettingsView *repository.NotificationSettingsView, eventTypeId int) (repository.NotificationSettings, error) {
+func (impl NotificationConfigBuilderImpl) buildNotificationSetting(notificationSettingsRequest *beans.NotificationSettingRequest, notificationSettingsView *repository.NotificationSettingsView, eventTypeId int) (repository.NotificationSettings, error) {
 	providersJson, err := json.Marshal(notificationSettingsRequest.Providers)
 	if err != nil {
 		impl.logger.Error(err)
@@ -178,7 +111,7 @@ func (impl NotificationConfigBuilderImpl) buildNotificationSetting(notificationS
 	return notificationSetting, nil
 }
 
-func (impl NotificationConfigBuilderImpl) BuildNotificationSettingWithPipeline(teamId *int, envId *int, appId *int, pipelineId *int, clusterId *int, pipelineType util.PipelineType, eventTypeId int, viewId int, providers []*Provider) (repository.NotificationSettings, error) {
+func (impl NotificationConfigBuilderImpl) BuildNotificationSettingWithPipeline(teamId *int, envId *int, appId *int, pipelineId *int, clusterId *int, pipelineType util.PipelineType, eventTypeId int, viewId int, providers []*beans.Provider) (repository.NotificationSettings, error) {
 
 	providersJson, err := json.Marshal(providers)
 	if err != nil {

@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/notifier"
+	"github.com/devtron-labs/devtron/pkg/notifier/beans"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	util "github.com/devtron-labs/devtron/util/event"
@@ -120,7 +121,7 @@ func (impl NotificationRestHandlerImpl) SaveNotificationSettings(w http.Response
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var notificationSetting notifier.NotificationRequest
+	var notificationSetting beans.NotificationRequest
 	err = json.NewDecoder(r.Body).Decode(&notificationSetting)
 	if err != nil {
 		impl.logger.Errorw("request err, SaveNotificationSettings", "err", err, "payload", notificationSetting)
@@ -159,7 +160,7 @@ func (impl NotificationRestHandlerImpl) UpdateNotificationSettings(w http.Respon
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var notificationSetting notifier.NotificationUpdateRequest
+	var notificationSetting beans.NotificationUpdateRequest
 	err = json.NewDecoder(r.Body).Decode(&notificationSetting)
 	if err != nil {
 		impl.logger.Errorw("request err, UpdateNotificationSettings", "err", err, "payload", notificationSetting)
@@ -193,7 +194,7 @@ func (impl NotificationRestHandlerImpl) UpdateNotificationSettings(w http.Respon
 }
 
 func (impl NotificationRestHandlerImpl) DeleteNotificationSettings(w http.ResponseWriter, r *http.Request) {
-	var request notifier.NSDeleteRequest
+	var request beans.NSDeleteRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
 		impl.logger.Errorw("request err, DeleteNotificationSettings", "err", err, "payload", request)
@@ -249,9 +250,9 @@ func (impl NotificationRestHandlerImpl) GetAllNotificationSettings(w http.Respon
 	}
 	totalCount = totalCount - deletedItemCount
 	if results == nil {
-		results = make([]*notifier.NotificationSettingsResponse, 0)
+		results = make([]*beans.NotificationSettingsResponse, 0)
 	}
-	nsvResponse := notifier.NSViewResponse{
+	nsvResponse := beans.NSViewResponse{
 		Total:                        totalCount,
 		NotificationSettingsResponse: results,
 	}
@@ -277,7 +278,7 @@ func (impl NotificationRestHandlerImpl) SaveNotificationChannelConfig(w http.Res
 	impl.logger.Infow("request payload, SaveNotificationChannelConfig", "err", err, "payload", channelReq)
 	token := r.Header.Get("token")
 	if util.Slack == channelReq.Channel {
-		var slackReq *notifier.SlackChannelConfig
+		var slackReq *beans.SlackChannelConfig
 		err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&slackReq)
 		if err != nil {
 			impl.logger.Errorw("request err, SaveNotificationChannelConfig", "err", err, "slackReq", slackReq)
@@ -319,7 +320,7 @@ func (impl NotificationRestHandlerImpl) SaveNotificationChannelConfig(w http.Res
 		w.Header().Set("Content-Type", "application/json")
 		common.WriteJsonResp(w, nil, res, http.StatusOK)
 	} else if util.SES == channelReq.Channel {
-		var sesReq *notifier.SESChannelConfig
+		var sesReq *beans.SESChannelConfig
 		err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&sesReq)
 		if err != nil {
 			impl.logger.Errorw("request err, SaveNotificationChannelConfig", "err", err, "sesReq", sesReq)
@@ -351,7 +352,7 @@ func (impl NotificationRestHandlerImpl) SaveNotificationChannelConfig(w http.Res
 		w.Header().Set("Content-Type", "application/json")
 		common.WriteJsonResp(w, nil, res, http.StatusOK)
 	} else if util.SMTP == channelReq.Channel {
-		var smtpReq *notifier.SMTPChannelConfig
+		var smtpReq *beans.SMTPChannelConfig
 		err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&smtpReq)
 		if err != nil {
 			impl.logger.Errorw("request err, SaveNotificationChannelConfig", "err", err, "smtpReq", smtpReq)
@@ -383,7 +384,7 @@ func (impl NotificationRestHandlerImpl) SaveNotificationChannelConfig(w http.Res
 		w.Header().Set("Content-Type", "application/json")
 		common.WriteJsonResp(w, nil, res, http.StatusOK)
 	} else if util.Webhook == channelReq.Channel {
-		var webhookReq *notifier.WebhookChannelConfig
+		var webhookReq *beans.WebhookChannelConfig
 		err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&webhookReq)
 		if err != nil {
 			impl.logger.Errorw("request err, SaveNotificationChannelConfig", "err", err, "webhookReq", webhookReq)
@@ -418,10 +419,10 @@ func (impl NotificationRestHandlerImpl) SaveNotificationChannelConfig(w http.Res
 }
 
 type ChannelResponseDTO struct {
-	SlackConfigs   []*notifier.SlackConfigDto   `json:"slackConfigs"`
-	WebhookConfigs []*notifier.WebhookConfigDto `json:"webhookConfigs"`
-	SESConfigs     []*notifier.SESConfigDto     `json:"sesConfigs"`
-	SMTPConfigs    []*notifier.SMTPConfigDto    `json:"smtpConfigs"`
+	SlackConfigs   []*beans.SlackConfigDto   `json:"slackConfigs"`
+	WebhookConfigs []*beans.WebhookConfigDto `json:"webhookConfigs"`
+	SESConfigs     []*beans.SESConfigDto     `json:"sesConfigs"`
+	SMTPConfigs    []*beans.SMTPConfigDto    `json:"smtpConfigs"`
 }
 
 func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.ResponseWriter, r *http.Request) {
@@ -466,7 +467,7 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.Respons
 	}
 	//RBAC
 	if slackConfigs == nil {
-		slackConfigs = make([]*notifier.SlackConfigDto, 0)
+		slackConfigs = make([]*beans.SlackConfigDto, 0)
 	}
 	if pass {
 		channelsResponse.SlackConfigs = slackConfigs
@@ -478,7 +479,7 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.Respons
 		return
 	}
 	if webhookConfigs == nil {
-		webhookConfigs = make([]*notifier.WebhookConfigDto, 0)
+		webhookConfigs = make([]*beans.WebhookConfigDto, 0)
 	}
 	if pass {
 		channelsResponse.WebhookConfigs = webhookConfigs
@@ -490,7 +491,7 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.Respons
 		return
 	}
 	if sesConfigs == nil {
-		sesConfigs = make([]*notifier.SESConfigDto, 0)
+		sesConfigs = make([]*beans.SESConfigDto, 0)
 	}
 	if pass {
 		channelsResponse.SESConfigs = sesConfigs
@@ -503,7 +504,7 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.Respons
 		return
 	}
 	if smtpConfigs == nil {
-		smtpConfigs = make([]*notifier.SMTPConfigDto, 0)
+		smtpConfigs = make([]*beans.SMTPConfigDto, 0)
 	}
 	if pass {
 		channelsResponse.SMTPConfigs = smtpConfigs
@@ -649,7 +650,7 @@ func (impl NotificationRestHandlerImpl) RecipientListingSuggestion(w http.Respon
 	vars := mux.Vars(r)
 	value := vars["value"]
 	//var teams []int
-	var channelsResponse []*notifier.NotificationRecipientListingResponse
+	var channelsResponse []*beans.NotificationRecipientListingResponse
 	channelsResponse, err = impl.slackService.RecipientListingSuggestion(value)
 	if err != nil {
 		impl.logger.Errorw("service err, RecipientListingSuggestion", "err", err, "value", value)
@@ -658,7 +659,7 @@ func (impl NotificationRestHandlerImpl) RecipientListingSuggestion(w http.Respon
 	}
 
 	if channelsResponse == nil {
-		channelsResponse = make([]*notifier.NotificationRecipientListingResponse, 0)
+		channelsResponse = make([]*beans.NotificationRecipientListingResponse, 0)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -681,7 +682,7 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfigAutocomplete(w 
 	//RBAC enforcer Ends
 	vars := mux.Vars(r)
 	cType := vars["type"]
-	var channelsResponse []*notifier.NotificationChannelAutoResponse
+	var channelsResponse []*beans.NotificationChannelAutoResponse
 	if cType == string(util.Slack) {
 		channelsResponseAll, err := impl.slackService.FetchAllSlackNotificationConfigAutocomplete()
 		if err != nil && err != pg.ErrNoRows {
@@ -735,7 +736,7 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfigAutocomplete(w 
 		}
 	}
 	if channelsResponse == nil {
-		channelsResponse = make([]*notifier.NotificationChannelAutoResponse, 0)
+		channelsResponse = make([]*beans.NotificationChannelAutoResponse, 0)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -772,7 +773,7 @@ func (impl NotificationRestHandlerImpl) GetOptionsForNotificationSettings(w http
 	}
 
 	if notificationSettingsOptions == nil {
-		notificationSettingsOptions = make([]*notifier.SearchFilterResponse, 0)
+		notificationSettingsOptions = make([]*beans.SearchFilterResponse, 0)
 	}
 	common.WriteJsonResp(w, err, notificationSettingsOptions, http.StatusOK)
 }
@@ -794,7 +795,7 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.R
 	}
 	impl.logger.Infow("request payload, DeleteNotificationChannelConfig", "err", err, "payload", channelReq)
 	if util.Slack == channelReq.Channel {
-		var deleteReq *notifier.SlackConfigDto
+		var deleteReq *beans.SlackConfigDto
 		err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&deleteReq)
 		if err != nil {
 			impl.logger.Errorw("request err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
@@ -825,7 +826,7 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.R
 		}
 		common.WriteJsonResp(w, nil, SLACK_CONFIG_DELETE_SUCCESS_RESP, http.StatusOK)
 	} else if util.Webhook == channelReq.Channel {
-		var deleteReq *notifier.WebhookConfigDto
+		var deleteReq *beans.WebhookConfigDto
 		err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&deleteReq)
 		if err != nil {
 			impl.logger.Errorw("request err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
@@ -856,7 +857,7 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.R
 		}
 		common.WriteJsonResp(w, nil, WEBHOOK_CONFIG_DELETE_SUCCESS_RESP, http.StatusOK)
 	} else if util.SES == channelReq.Channel {
-		var deleteReq *notifier.SESConfigDto
+		var deleteReq *beans.SESConfigDto
 		err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&deleteReq)
 		if err != nil {
 			impl.logger.Errorw("request err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
@@ -887,7 +888,7 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.R
 		}
 		common.WriteJsonResp(w, nil, SES_CONFIG_DELETE_SUCCESS_RESP, http.StatusOK)
 	} else if util.SMTP == channelReq.Channel {
-		var deleteReq *notifier.SMTPConfigDto
+		var deleteReq *beans.SMTPConfigDto
 		err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&deleteReq)
 		if err != nil {
 			impl.logger.Errorw("request err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
