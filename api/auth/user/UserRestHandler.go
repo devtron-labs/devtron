@@ -152,6 +152,8 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 		}
 		return
 	}
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+	return
 }
 
 func (handler UserRestHandlerImpl) checkRBACForUserCreate(token string, requestSuperAdmin bool, roleFilters []bean.RoleFilter,
