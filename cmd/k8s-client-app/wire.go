@@ -4,10 +4,11 @@
 package main
 
 import (
-	"github.com/devtron-labs/authenticator/client"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/api/argoApplication"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
+	"github.com/devtron-labs/devtron/api/fluxApplication"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/api/k8s"
 	"github.com/devtron-labs/devtron/api/terminal"
@@ -21,7 +22,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
+	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
+	"github.com/devtron-labs/devtron/util/cron"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/google/wire"
 )
@@ -32,13 +35,15 @@ func InitializeApp() (*App, error) {
 		telemetry.NewPosthogClient,
 		casbin.NewNoopEnforcer,
 		wire.Bind(new(casbin.Enforcer), new(*casbin.NoopEnforcer)),
+		cron.NewCronLoggerImpl,
+		util3.GetEnvironmentVariables,
 		cluster.ClusterWireSetK8sClient,
 		dashboard.DashboardWireSet,
 		service.NewNoopServiceImpl,
 		wire.Bind(new(service.HelmAppService), new(*service.HelmAppServiceImpl)),
-		k8s.K8sApplicationWireSet,
+		k8s.K8sApplicationWireSetForK8sApp,
 		terminal.TerminalWireSetK8sClient,
-		client.GetRuntimeConfig,
+		k8s2.GetRuntimeConfig,
 
 		noop2.NewNoopUserService,
 		wire.Bind(new(user.UserService), new(*noop2.NoopUserService)),
@@ -70,6 +75,9 @@ func InitializeApp() (*App, error) {
 
 		kubernetesResourceAuditLogs.NewNoopServiceImpl,
 		wire.Bind(new(kubernetesResourceAuditLogs.K8sResourceHistoryService), new(*kubernetesResourceAuditLogs.K8sResourceHistoryServiceImpl)),
+
+		argoApplication.ArgoApplicationWireSetForK8sApp,
+		fluxApplication.FluxApplicationWireSetForK8sApp,
 	)
 	return &App{}, nil
 }

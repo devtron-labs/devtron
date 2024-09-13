@@ -31,3 +31,8 @@ var ArgoApplicationWireSet = wire.NewSet(
 	NewArgoApplicationRouterImpl,
 	wire.Bind(new(ArgoApplicationRouter), new(*ArgoApplicationRouterImpl)),
 )
+
+var ArgoApplicationWireSetForK8sApp = wire.NewSet(
+	argoApplication.NewNoopImpl,
+	wire.Bind(new(argoApplication.ArgoApplicationService), new(*argoApplication.ArgoApplicationServiceImpl)),
+)

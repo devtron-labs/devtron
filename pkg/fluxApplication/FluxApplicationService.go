@@ -44,6 +44,11 @@ func NewFluxApplicationServiceImpl(logger *zap.SugaredLogger,
 	}
 
 }
+
+func NewNoopImpl() *FluxApplicationServiceImpl {
+	return nil
+}
+
 func (impl *FluxApplicationServiceImpl) HibernateFluxApplication(ctx context.Context, app *bean.FluxAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
 	conf, err := impl.helmAppService.GetClusterConf(app.ClusterId)
 	if err != nil {

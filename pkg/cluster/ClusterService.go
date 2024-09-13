@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	cronUtil "github.com/devtron-labs/devtron/util/cron"
 	"github.com/robfig/cron/v3"
 	"log"
@@ -30,7 +31,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/common-lib/utils/k8s"
-	casbin2 "github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	repository3 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	errors1 "github.com/juju/errors"
@@ -195,17 +195,11 @@ type ClusterServiceImpl struct {
 	logger              *zap.SugaredLogger
 	K8sUtil             *k8s.K8sServiceImpl
 	K8sInformerFactory  informer.K8sInformerFactory
-	userAuthRepository  repository3.UserAuthRepository
-	userRepository      repository3.UserRepository
-	roleGroupRepository repository3.RoleGroupRepository
 	userService        user.UserService
 }
 
 func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.SugaredLogger,
-	K8sUtil *k8s.K8sServiceImpl, K8sInformerFactory informer.K8sInformerFactory,
-	userAuthRepository repository3.UserAuthRepository, userRepository repository3.UserRepository,
-	roleGroupRepository repository3.RoleGroupRepository,
-	envVariables *globalUtil.EnvironmentVariables,
+	K8sUtil *k8s.K8sServiceImpl, K8sInformerFactory informer.K8sInformerFactory, envVariables *globalUtil.EnvironmentVariables,
 	cronLogger *cronUtil.CronLoggerImpl, userService user.UserService) (*ClusterServiceImpl, error) {
 	clusterService := &ClusterServiceImpl{
 		clusterRepository:  repository,
@@ -820,31 +814,7 @@ func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32, isAction
 }
 
 func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32) ([]*repository3.RoleModel, error) {
-	user, err := impl.userRepository.GetByIdIncludeDeleted(userId)
-	if err != nil {
-		impl.logger.Errorw("error while fetching user from db", "error", err)
-		return nil, err
-	}
-	groups, err := casbin2.GetRolesForUser(user.EmailId)
-	if err != nil {
-		impl.logger.Errorw("No Roles Found for user", "id", user.Id)
-		return nil, err
-	}
-	roleEntity := "cluster"
-	roles, err := impl.userAuthRepository.GetRolesByUserIdAndEntityType(userId, roleEntity)
-	if err != nil {
-		impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
-		return nil, err
-	}
-	rolesFromGroup, err := impl.roleGroupRepository.GetRolesByGroupNamesAndEntity(groups, roleEntity)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting roles by group names", "err", err)
-		return nil, err
-	}
-	if len(rolesFromGroup) > 0 {
-		roles = append(roles, rolesFromGroup...)
-	}
-	return roles, nil
+	return impl.userService.FetchRolesFromGroup(userId)
 }
 
 func (impl *ClusterServiceImpl) updateConnectionStatusForVirtualCluster(respMap *sync.Map, clusterId int, clusterName string) {

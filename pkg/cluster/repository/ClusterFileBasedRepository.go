@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
 	"path"
+	"time"
 
 	//"database/sql"
 	//"encoding/json"
@@ -29,6 +30,7 @@ type ClusterEntity struct {
 	Config            string
 	K8sVersion        string
 	ErrorInConnecting string
+	Description string
 	sql.AuditLog
 }
 
@@ -41,6 +43,7 @@ func NewClusterRepositoryFileBased(logger *zap.SugaredLogger) *ClusterFileBasedR
 	}
 	migrator := db.Migrator()
 	clusterEntity := &ClusterEntity{}
+	//TODO KB: Need to handle table upgrade migration
 	hasTable := migrator.HasTable(clusterEntity)
 	if !hasTable {
 		err = migrator.CreateTable(clusterEntity)
@@ -60,6 +63,104 @@ func createOrCheckClusterDbPath(logger *zap.SugaredLogger) (error, string) {
 	}
 	clusterDbPath := path.Join(devtronDirPath, "./client.db")
 	return nil, clusterDbPath
+}
+
+func (impl *ClusterFileBasedRepository) FindAllActiveExceptVirtual() ([]Cluster, error) {
+	var clusterEntities []ClusterEntity
+	result := impl.dbConnection.
+		Where("active=?", true).
+		Where("is_virtual_cluster=? OR is_virtual_cluster IS NULL", false).
+		Find(&clusterEntities)
+	err := result.Error
+	if err != nil {
+		impl.logger.Errorw("error occurred while finding all cluster data", "err", err)
+		return nil, err
+	}
+	clusters := impl.ConvertEntitiesToModel(clusterEntities)
+	return clusters, nil
+}
+
+func (impl *ClusterFileBasedRepository) SetDescription(id int, description string, userId int32) error {
+	cluster, err := impl.FindById(id)
+	if err != nil {
+		return err
+	}
+	err, clusterEntity := impl.convertToEntity(cluster)
+	if err != nil {
+		impl.logger.Errorw("error occurred while converting model to entity", "model", cluster, "error", err)
+		return errors.New("failed to update cluster")
+	}
+	clusterEntity.Description = description
+	clusterEntity.UpdatedBy = userId
+	clusterEntity.UpdatedOn = time.Now()
+	result := impl.dbConnection.Model(&ClusterEntity{}).Updates(clusterEntity)
+	err = result.Error
+	if err != nil {
+		impl.logger.Errorw("error occurred while updating cluster description", "clusterId", id, "err", err)
+		return errors.New("failed to update cluster description")
+	}
+	return err
+}
+
+func (impl *ClusterFileBasedRepository) FindActiveClusters() ([]Cluster, error) {
+	var clusterEntities []ClusterEntity
+	result := impl.dbConnection.
+		Where("active=?", true).
+		Select("id, cluster_name, active").
+		Find(&clusterEntities)
+	err := result.Error
+	if err != nil {
+		impl.logger.Errorw("error occurred while finding all active cluster data", "err", err)
+		return nil, err
+	}
+	clusters := impl.ConvertEntitiesToModel(clusterEntities)
+	return clusters, nil
+}
+
+func (impl *ClusterFileBasedRepository) ConvertEntitiesToModel(clusterEntities []ClusterEntity) []Cluster {
+	var clusters []Cluster
+	for _, clusterEntity := range clusterEntities {
+		clusterBean, err := impl.convertToModel(&clusterEntity)
+		if err != nil {
+			impl.logger.Errorw("error occurred while converting entity to model bean", "err", err)
+			continue
+		}
+		clusters = append(clusters, *clusterBean)
+	}
+	return clusters
+}
+
+func (impl *ClusterFileBasedRepository) SaveAll(models []*Cluster) error {
+	var clusterEntities []*ClusterEntity
+	for _, cluster := range models {
+		_, clusterEntity := impl.convertToEntity(cluster)
+		clusterEntities = append(clusterEntities, clusterEntity)
+	}
+	result := impl.dbConnection.Create(&clusterEntities)
+	return result.Error
+}
+
+func (impl *ClusterFileBasedRepository) FindByNames(clusterNames []string) ([]*Cluster, error) {
+	var clusterEntities []ClusterEntity
+	result := impl.dbConnection.
+		Where("active=?", true).
+		Where("cluster_name in ?", clusterNames).
+		Find(&clusterEntities)
+	err := result.Error
+	if err != nil {
+		impl.logger.Errorw("error occurred while finding all cluster data", "err", err)
+		return nil, err
+	}
+	var clusters []*Cluster
+	for _, clusterEntity := range clusterEntities {
+		clusterBean, err := impl.convertToModel(&clusterEntity)
+		if err != nil {
+			impl.logger.Errorw("error occurred while converting entity to model bean", "err", err)
+			continue
+		}
+		clusters = append(clusters, clusterBean)
+	}
+	return clusters, nil
 }
 
 func (impl *ClusterFileBasedRepository) Save(model *Cluster) error {
@@ -164,15 +265,7 @@ func (impl *ClusterFileBasedRepository) FindAllActive() ([]Cluster, error) {
 		impl.logger.Errorw("error occurred while finding all cluster data", "err", err)
 		return nil, err
 	}
-	var clusters []Cluster
-	for _, clusterEntity := range clusterEntities {
-		clusterBean, err := impl.convertToModel(&clusterEntity)
-		if err != nil {
-			impl.logger.Errorw("error occurred while converting entity to model bean", "err", err)
-			continue
-		}
-		clusters = append(clusters, *clusterBean)
-	}
+	clusters := impl.ConvertEntitiesToModel(clusterEntities)
 	return clusters, nil
 }
 
@@ -210,15 +303,7 @@ func (impl *ClusterFileBasedRepository) FindByIds(id []int) ([]Cluster, error) {
 		impl.logger.Errorw("error occurred while finding all cluster data", "err", err)
 		return nil, err
 	}
-	var clusters []Cluster
-	for _, clusterEntity := range clusterEntities {
-		clusterBean, err := impl.convertToModel(&clusterEntity)
-		if err != nil {
-			impl.logger.Errorw("error occurred while converting entity to model bean", "err", err)
-			continue
-		}
-		clusters = append(clusters, *clusterBean)
-	}
+	clusters := impl.ConvertEntitiesToModel(clusterEntities)
 	return clusters, nil
 	//var cluster []Cluster
 	//result := impl.dbConnection.
