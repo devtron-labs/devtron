@@ -349,6 +349,7 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataByStepIdDeepC
 	for _, variable := range variables {
 		variableNameIdMap[variable.Id] = variable.Name
 		variableDto := &bean.StepVariableDto{
+			Id:                        variable.Id,
 			Name:                      variable.Name,
 			Format:                    variable.Format,
 			Description:               variable.Description,
