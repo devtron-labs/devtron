@@ -836,6 +836,9 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByDataSourceAndComponentId(data
 
 func (impl CiArtifactRepositoryImpl) FindCiArtifactByImagePaths(images []string) ([]CiArtifact, error) {
 	var ciArtifacts []CiArtifact
+	if len(images) == 0 {
+		return nil, nil
+	}
 	err := impl.dbConnection.
 		Model(&ciArtifacts).
 		Where(" image in (?) ", pg.In(images)).
