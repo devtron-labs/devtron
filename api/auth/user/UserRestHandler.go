@@ -209,6 +209,8 @@ func (handler UserRestHandlerImpl) checkRBACForUserCreate(token string, requestS
 			if len(groupRoles) > 0 {
 				for _, groupRole := range groupRoles {
 					switch {
+					case groupRole.Action == bean.ACTION_SUPERADMIN:
+						isAuthorised = isActionUserSuperAdmin
 					case groupRole.AccessType == bean.APP_ACCESS_TYPE_HELM || groupRole.Entity == bean2.EntityJobs:
 						isAuthorised = isActionUserSuperAdmin
 					case len(groupRole.Team) > 0:
