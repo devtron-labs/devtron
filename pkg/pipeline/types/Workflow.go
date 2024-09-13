@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/argoproj/argo-workflows/v3/workflow/common"
 	"github.com/devtron-labs/common-lib/blob-storage"
+	"github.com/devtron-labs/common-lib/utils"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
@@ -258,8 +259,8 @@ func (workflowRequest *WorkflowRequest) getContainerEnvVariables(config *CiCdCon
 	containerEnvVariables = []v1.EnvVar{
 		{Name: bean.IMAGE_SCANNER_ENDPOINT, Value: config.ImageScannerEndpoint},
 		{Name: "NATS_SERVER_HOST", Value: config.NatsServerHost},
-		{Name: "DEVTRON_SELF_POD_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.name"}}},
-		{Name: "DEVTRON_SELF_POD_UID", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.uid"}}},
+		{Name: utils.DEVTRON_SELF_POD_NAME, ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.name"}}},
+		{Name: utils.DEVTRON_SELF_POD_UID, ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.uid"}}},
 	}
 	eventEnv := v1.EnvVar{Name: "CI_CD_EVENT", Value: string(workflowJson)}
 	inAppLoggingEnv := v1.EnvVar{Name: "IN_APP_LOGGING", Value: strconv.FormatBool(workflowRequest.InAppLoggingEnabled)}
