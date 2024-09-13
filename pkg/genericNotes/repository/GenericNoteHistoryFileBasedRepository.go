@@ -2,37 +2,42 @@ package repository
 
 import (
 	"github.com/go-pg/pg"
+	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 type GenericNoteHistoryFileBasedRepositoryImpl struct {
+	logger       *zap.SugaredLogger
+	dbConnection *gorm.DB
 }
 
-func NewGenericNoteHistoryFileBasedRepositoryImpl() *GenericNoteHistoryFileBasedRepositoryImpl {
+func NewGenericNoteHistoryFileBasedRepositoryImpl(logger *zap.SugaredLogger) *GenericNoteHistoryFileBasedRepositoryImpl {
 	return &GenericNoteHistoryFileBasedRepositoryImpl{}
 }
 
 func (impl GenericNoteHistoryFileBasedRepositoryImpl) StartTx() (*pg.Tx, error) {
-	//TODO implement me
-	panic("implement me")
+	return nil, nil
 }
 
 func (impl GenericNoteHistoryFileBasedRepositoryImpl) RollbackTx(tx *pg.Tx) error {
-	//TODO implement me
-	panic("implement me")
+	return nil
 }
 
 func (impl GenericNoteHistoryFileBasedRepositoryImpl) CommitTx(tx *pg.Tx) error {
-	//TODO implement me
-	panic("implement me")
+	return nil
 }
 
 func (impl GenericNoteHistoryFileBasedRepositoryImpl) SaveHistory(tx *pg.Tx, model *GenericNoteHistory) error {
-	//TODO implement me
-	panic("implement me")
+	result := impl.dbConnection.Create(model)
+	return result.Error
 }
 
 func (impl GenericNoteHistoryFileBasedRepositoryImpl) FindHistoryByNoteId(id []int) ([]GenericNoteHistory, error) {
-	//TODO implement me
-	panic("implement me")
+	var clusterNoteHistories []GenericNoteHistory
+	result := impl.dbConnection.
+		Where("note_id =?", id).
+		Find(&clusterNoteHistories)
+	err := result.Error
+	return clusterNoteHistories, err
 }
 
