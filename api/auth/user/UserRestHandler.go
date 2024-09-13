@@ -141,7 +141,7 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 
 	//RBAC enforcer Ends
 
-	res, restrictedGroups, err := handler.userService.CreateUser(&userInfo, token, handler.CheckManagerAuth)
+	res, err := handler.userService.CreateUser(&userInfo, token, handler.CheckManagerAuth)
 	if err != nil {
 		handler.logger.Errorw("service err, CreateUser", "err", err, "payload", userInfo)
 		if _, ok := err.(*util.ApiError); ok {
@@ -151,23 +151,6 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		}
 		return
-	}
-
-	if len(restrictedGroups) == 0 {
-		common.WriteJsonResp(w, err, res, http.StatusOK)
-	} else {
-		errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin := helper.CreateErrorMessageForUserRoleGroups(restrictedGroups)
-
-		if len(restrictedGroups) != len(userInfo.UserRoleGroup) {
-			// warning
-			message := fmt.Errorf("User permissions added partially. %s%s", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
-			common.WriteJsonResp(w, message, nil, http.StatusExpectationFailed)
-
-		} else {
-			//error
-			message := fmt.Errorf("Permission could not be added. %s%s", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
-			common.WriteJsonResp(w, message, nil, http.StatusBadRequest)
-		}
 	}
 }
 
