@@ -285,7 +285,7 @@ func (impl *UserServiceImpl) CreateUser(userInfo *bean.UserInfo, token string, m
 		dbUser, err := impl.userRepository.FetchActiveOrDeletedUserByEmail(emailId)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error while fetching user from db", "error", err)
-			return nil, nil, err
+			return nil, err
 		}
 
 		//if found, update it with new roles
@@ -293,7 +293,7 @@ func (impl *UserServiceImpl) CreateUser(userInfo *bean.UserInfo, token string, m
 			userInfo, err = impl.updateUserIfExists(userInfo, dbUser, emailId, token, managerAuth)
 			if err != nil {
 				impl.logger.Errorw("error while create user if exists in db", "error", err)
-				return nil, nil, err
+				return nil, err
 			}
 		}
 
@@ -302,7 +302,7 @@ func (impl *UserServiceImpl) CreateUser(userInfo *bean.UserInfo, token string, m
 			userInfo, err = impl.createUserIfNotExists(userInfo, emailId, token, managerAuth)
 			if err != nil {
 				impl.logger.Errorw("error while create user if not exists in db", "error", err)
-				return nil, nil, err
+				return nil, err
 			}
 		}
 
