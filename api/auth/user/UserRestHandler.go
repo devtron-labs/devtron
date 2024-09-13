@@ -129,7 +129,7 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	isAuthorised, err := handler.checkRBACForUserCreate(token, userInfo)
+	isAuthorised, err := handler.checkRBACForUserCreate(token, userInfo.SuperAdmin, userInfo.RoleFilters, userInfo.UserRoleGroup)
 	if err != nil {
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		return
@@ -171,15 +171,19 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	}
 }
 
-func (handler UserRestHandlerImpl) checkRBACForUserCreate(token string, userInfo bean.UserInfo) (isAuthorised bool, err error) {
+func (handler UserRestHandlerImpl) checkRBACForUserCreate(token string, requestSuperAdmin bool, roleFilters []bean.RoleFilter,
+	roleGroups []bean.UserRoleGroup) (isAuthorised bool, err error) {
 	isActionUserSuperAdmin := false
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
 		isActionUserSuperAdmin = true
 	}
+	if requestSuperAdmin && !isActionUserSuperAdmin {
+		return false, nil
+	}
 	isAuthorised = isActionUserSuperAdmin
 	if !isAuthorised {
-		if userInfo.RoleFilters != nil && len(userInfo.RoleFilters) > 0 { //auth check inside roleFilters
-			for _, filter := range userInfo.RoleFilters {
+		if roleFilters != nil && len(roleFilters) > 0 { //auth check inside roleFilters
+			for _, filter := range roleFilters {
 				switch {
 				case filter.AccessType == bean.APP_ACCESS_TYPE_HELM || filter.Entity == bean2.EntityJobs:
 					isAuthorised = isActionUserSuperAdmin
@@ -196,10 +200,10 @@ func (handler UserRestHandlerImpl) checkRBACForUserCreate(token string, userInfo
 					break
 				}
 			}
-		} else if len(userInfo.UserRoleGroup) > 0 { // auth check inside groups
-			groupRoles, err := handler.roleGroupService.FetchRolesForUserRoleGroups(userInfo.UserRoleGroup)
+		} else if len(roleGroups) > 0 { // auth check inside groups
+			groupRoles, err := handler.roleGroupService.FetchRolesForUserRoleGroups(roleGroups)
 			if err != nil && err != pg.ErrNoRows {
-				handler.logger.Errorw("service err, UpdateUser", "err", err, "payload", userInfo)
+				handler.logger.Errorw("service err, UpdateUser", "err", err, "payload", roleGroups)
 				return false, err
 			}
 			if len(groupRoles) > 0 {
@@ -738,6 +742,16 @@ func (handler UserRestHandlerImpl) CreateRoleGroup(w http.ResponseWriter, r *htt
 			return
 		}
 	}
+	isAuthorised, err := handler.checkRBACForUserCreate(token, request.SuperAdmin, request.RoleFilters, nil)
+	if err != nil {
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		return
+	}
+	if !isAuthorised {
+		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+		return
+	}
+
 	//RBAC enforcer Ends
 	err = handler.validator.Struct(request)
 	if err != nil {
