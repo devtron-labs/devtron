@@ -381,8 +381,6 @@ func (impl *UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emai
 	//loading policy for safety
 	casbin2.LoadPolicy()
 
-	var restrictedGroups []bean.RestrictedGroup
-
 	//Starts Role and Mapping
 	capacity, mapping := impl.userCommonService.GetCapacityForRoleFilter(userInfo.RoleFilters)
 	//var policies []casbin2.Policy
