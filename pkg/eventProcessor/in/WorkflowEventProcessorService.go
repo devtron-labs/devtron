@@ -185,8 +185,15 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDStageCompleteEvent() error {
 				return
 			}
 		} else if wfr.WorkflowType == apiBean.CD_WORKFLOW_TYPE_POST {
+
+			pluginArtifacts := make(map[string][]string)
+			if cdStageCompleteEvent.PluginArtifacts != nil {
+				pluginArtifacts = cdStageCompleteEvent.PluginArtifacts.GetRegistryToUniqueContainerArtifactDataMapping()
+				globalUtil.MergeMaps(pluginArtifacts, cdStageCompleteEvent.PluginRegistryArtifactDetails)
+			}
+
 			impl.logger.Debugw("received post stage success event for workflow runner ", "wfId", strconv.Itoa(wfr.Id))
-			err = impl.workflowDagExecutor.HandlePostStageSuccessEvent(triggerContext, wfr.CdWorkflowId, cdStageCompleteEvent.CdPipelineId, cdStageCompleteEvent.TriggeredBy, cdStageCompleteEvent.PluginRegistryArtifactDetails)
+			err = impl.workflowDagExecutor.HandlePostStageSuccessEvent(triggerContext, wfr, wfr.CdWorkflowId, cdStageCompleteEvent.CdPipelineId, cdStageCompleteEvent.TriggeredBy, pluginArtifacts)
 			if err != nil {
 				impl.logger.Errorw("deployment success event error", "err", err)
 				return
@@ -636,6 +643,12 @@ func (impl *WorkflowEventProcessorImpl) BuildCiArtifactRequest(event bean.CiComp
 		event.TriggeredBy = 1 // system triggered event
 	}
 
+	pluginArtifacts := make(map[string][]string)
+	if event.PluginArtifacts != nil {
+		pluginArtifacts = event.PluginArtifacts.GetRegistryToUniqueContainerArtifactDataMapping()
+		globalUtil.MergeMaps(pluginArtifacts, event.PluginRegistryArtifactDetails)
+	}
+
 	request := &wrokflowDagBean.CiArtifactWebhookRequest{
 		Image:                         event.DockerImage,
 		ImageDigest:                   event.Digest,
@@ -645,7 +658,7 @@ func (impl *WorkflowEventProcessorImpl) BuildCiArtifactRequest(event bean.CiComp
 		UserId:                        event.TriggeredBy,
 		WorkflowId:                    event.WorkflowId,
 		IsArtifactUploaded:            event.IsArtifactUploaded,
-		PluginRegistryArtifactDetails: event.PluginRegistryArtifactDetails,
+		PluginRegistryArtifactDetails: pluginArtifacts,
 		PluginArtifactStage:           event.PluginArtifactStage,
 	}
 	// if DataSource is empty, repository.WEBHOOK is considered as default
