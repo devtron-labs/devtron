@@ -17,6 +17,7 @@
 package gitlab
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -35,58 +36,50 @@ type MergeRequestsService struct {
 //
 // GitLab API docs: https://docs.gitlab.com/ee/api/merge_requests.html
 type MergeRequest struct {
-	ID                        int              `json:"id"`
-	IID                       int              `json:"iid"`
-	TargetBranch              string           `json:"target_branch"`
-	SourceBranch              string           `json:"source_branch"`
-	ProjectID                 int              `json:"project_id"`
-	Title                     string           `json:"title"`
-	State                     string           `json:"state"`
-	CreatedAt                 *time.Time       `json:"created_at"`
-	UpdatedAt                 *time.Time       `json:"updated_at"`
-	Upvotes                   int              `json:"upvotes"`
-	Downvotes                 int              `json:"downvotes"`
-	Author                    *BasicUser       `json:"author"`
-	Assignee                  *BasicUser       `json:"assignee"`
-	Assignees                 []*BasicUser     `json:"assignees"`
-	Reviewers                 []*BasicUser     `json:"reviewers"`
-	SourceProjectID           int              `json:"source_project_id"`
-	TargetProjectID           int              `json:"target_project_id"`
-	Labels                    Labels           `json:"labels"`
-	Description               string           `json:"description"`
-	Draft                     bool             `json:"draft"`
-	WorkInProgress            bool             `json:"work_in_progress"`
-	Milestone                 *Milestone       `json:"milestone"`
-	MergeWhenPipelineSucceeds bool             `json:"merge_when_pipeline_succeeds"`
-	DetailedMergeStatus       string           `json:"detailed_merge_status"`
-	MergeError                string           `json:"merge_error"`
-	MergedBy                  *BasicUser       `json:"merged_by"`
-	MergedAt                  *time.Time       `json:"merged_at"`
-	ClosedBy                  *BasicUser       `json:"closed_by"`
-	ClosedAt                  *time.Time       `json:"closed_at"`
-	Subscribed                bool             `json:"subscribed"`
-	SHA                       string           `json:"sha"`
-	MergeCommitSHA            string           `json:"merge_commit_sha"`
-	SquashCommitSHA           string           `json:"squash_commit_sha"`
-	UserNotesCount            int              `json:"user_notes_count"`
-	ChangesCount              string           `json:"changes_count"`
-	ShouldRemoveSourceBranch  bool             `json:"should_remove_source_branch"`
-	ForceRemoveSourceBranch   bool             `json:"force_remove_source_branch"`
-	AllowCollaboration        bool             `json:"allow_collaboration"`
-	WebURL                    string           `json:"web_url"`
-	References                *IssueReferences `json:"references"`
-	DiscussionLocked          bool             `json:"discussion_locked"`
-	Changes                   []struct {
-		OldPath     string `json:"old_path"`
-		NewPath     string `json:"new_path"`
-		AMode       string `json:"a_mode"`
-		BMode       string `json:"b_mode"`
-		Diff        string `json:"diff"`
-		NewFile     bool   `json:"new_file"`
-		RenamedFile bool   `json:"renamed_file"`
-		DeletedFile bool   `json:"deleted_file"`
-	} `json:"changes"`
-	User struct {
+	ID                        int                 `json:"id"`
+	IID                       int                 `json:"iid"`
+	TargetBranch              string              `json:"target_branch"`
+	SourceBranch              string              `json:"source_branch"`
+	ProjectID                 int                 `json:"project_id"`
+	Title                     string              `json:"title"`
+	State                     string              `json:"state"`
+	CreatedAt                 *time.Time          `json:"created_at"`
+	UpdatedAt                 *time.Time          `json:"updated_at"`
+	Upvotes                   int                 `json:"upvotes"`
+	Downvotes                 int                 `json:"downvotes"`
+	Author                    *BasicUser          `json:"author"`
+	Assignee                  *BasicUser          `json:"assignee"`
+	Assignees                 []*BasicUser        `json:"assignees"`
+	Reviewers                 []*BasicUser        `json:"reviewers"`
+	SourceProjectID           int                 `json:"source_project_id"`
+	TargetProjectID           int                 `json:"target_project_id"`
+	Labels                    Labels              `json:"labels"`
+	LabelDetails              []*LabelDetails     `json:"label_details"`
+	Description               string              `json:"description"`
+	Draft                     bool                `json:"draft"`
+	WorkInProgress            bool                `json:"work_in_progress"`
+	Milestone                 *Milestone          `json:"milestone"`
+	MergeWhenPipelineSucceeds bool                `json:"merge_when_pipeline_succeeds"`
+	DetailedMergeStatus       string              `json:"detailed_merge_status"`
+	MergeError                string              `json:"merge_error"`
+	MergedBy                  *BasicUser          `json:"merged_by"`
+	MergedAt                  *time.Time          `json:"merged_at"`
+	ClosedBy                  *BasicUser          `json:"closed_by"`
+	ClosedAt                  *time.Time          `json:"closed_at"`
+	Subscribed                bool                `json:"subscribed"`
+	SHA                       string              `json:"sha"`
+	MergeCommitSHA            string              `json:"merge_commit_sha"`
+	SquashCommitSHA           string              `json:"squash_commit_sha"`
+	UserNotesCount            int                 `json:"user_notes_count"`
+	ChangesCount              string              `json:"changes_count"`
+	ShouldRemoveSourceBranch  bool                `json:"should_remove_source_branch"`
+	ForceRemoveSourceBranch   bool                `json:"force_remove_source_branch"`
+	AllowCollaboration        bool                `json:"allow_collaboration"`
+	WebURL                    string              `json:"web_url"`
+	References                *IssueReferences    `json:"references"`
+	DiscussionLocked          bool                `json:"discussion_locked"`
+	Changes                   []*MergeRequestDiff `json:"changes"`
+	User                      struct {
 		CanMerge bool `json:"can_merge"`
 	} `json:"user"`
 	TimeStats    *TimeStats    `json:"time_stats"`
@@ -114,6 +107,55 @@ type MergeRequest struct {
 
 func (m MergeRequest) String() string {
 	return Stringify(m)
+}
+
+func (m *MergeRequest) UnmarshalJSON(data []byte) error {
+	type alias MergeRequest
+
+	raw := make(map[string]interface{})
+	err := json.Unmarshal(data, &raw)
+	if err != nil {
+		return err
+	}
+
+	labelDetails, ok := raw["labels"].([]interface{})
+	if ok && len(labelDetails) > 0 {
+		// We only want to change anything if we got label details.
+		if _, ok := labelDetails[0].(map[string]interface{}); !ok {
+			return json.Unmarshal(data, (*alias)(m))
+		}
+
+		labels := make([]interface{}, len(labelDetails))
+		for i, details := range labelDetails {
+			labels[i] = details.(map[string]interface{})["name"]
+		}
+
+		// Set the correct values
+		raw["labels"] = labels
+		raw["label_details"] = labelDetails
+
+		data, err = json.Marshal(raw)
+		if err != nil {
+			return err
+		}
+	}
+
+	return json.Unmarshal(data, (*alias)(m))
+}
+
+// MergeRequestDiff represents Gitlab merge request diff.
+//
+// Gitlab API docs:
+// https://docs.gitlab.com/ee/api/merge_requests.html#list-merge-request-diffs
+type MergeRequestDiff struct {
+	OldPath     string `json:"old_path"`
+	NewPath     string `json:"new_path"`
+	AMode       string `json:"a_mode"`
+	BMode       string `json:"b_mode"`
+	Diff        string `json:"diff"`
+	NewFile     bool   `json:"new_file"`
+	RenamedFile bool   `json:"renamed_file"`
+	DeletedFile bool   `json:"deleted_file"`
 }
 
 // MergeRequestDiffVersion represents Gitlab merge request version.
@@ -144,13 +186,14 @@ func (m MergeRequestDiffVersion) String() string {
 // https://docs.gitlab.com/ee/api/merge_requests.html#list-merge-requests
 type ListMergeRequestsOptions struct {
 	ListOptions
+	Approved               *string           `url:"approved,omitempty" json:"approved,omitempty"`
 	State                  *string           `url:"state,omitempty" json:"state,omitempty"`
 	OrderBy                *string           `url:"order_by,omitempty" json:"order_by,omitempty"`
 	Sort                   *string           `url:"sort,omitempty" json:"sort,omitempty"`
 	Milestone              *string           `url:"milestone,omitempty" json:"milestone,omitempty"`
 	View                   *string           `url:"view,omitempty" json:"view,omitempty"`
-	Labels                 *Labels           `url:"labels,comma,omitempty" json:"labels,omitempty"`
-	NotLabels              *Labels           `url:"not[labels],comma,omitempty" json:"not[labels],omitempty"`
+	Labels                 *LabelOptions     `url:"labels,comma,omitempty" json:"labels,omitempty"`
+	NotLabels              *LabelOptions     `url:"not[labels],comma,omitempty" json:"not[labels],omitempty"`
 	WithLabelsDetails      *bool             `url:"with_labels_details,omitempty" json:"with_labels_details,omitempty"`
 	WithMergeStatusRecheck *bool             `url:"with_merge_status_recheck,omitempty" json:"with_merge_status_recheck,omitempty"`
 	CreatedAfter           *time.Time        `url:"created_after,omitempty" json:"created_after,omitempty"`
@@ -160,6 +203,7 @@ type ListMergeRequestsOptions struct {
 	Scope                  *string           `url:"scope,omitempty" json:"scope,omitempty"`
 	AuthorID               *int              `url:"author_id,omitempty" json:"author_id,omitempty"`
 	AuthorUsername         *string           `url:"author_username,omitempty" json:"author_username,omitempty"`
+	NotAuthorUsername      *string           `url:"not[author_username],omitempty" json:"not[author_username],omitempty"`
 	AssigneeID             *AssigneeIDValue  `url:"assignee_id,omitempty" json:"assignee_id,omitempty"`
 	ApproverIDs            *ApproverIDsValue `url:"approver_ids,omitempty" json:"approver_ids,omitempty"`
 	ApprovedByIDs          *ApproverIDsValue `url:"approved_by_ids,omitempty" json:"approved_by_ids,omitempty"`
@@ -209,8 +253,8 @@ type ListProjectMergeRequestsOptions struct {
 	Sort                   *string           `url:"sort,omitempty" json:"sort,omitempty"`
 	Milestone              *string           `url:"milestone,omitempty" json:"milestone,omitempty"`
 	View                   *string           `url:"view,omitempty" json:"view,omitempty"`
-	Labels                 *Labels           `url:"labels,comma,omitempty" json:"labels,omitempty"`
-	NotLabels              *Labels           `url:"not[labels],comma,omitempty" json:"not[labels],omitempty"`
+	Labels                 *LabelOptions     `url:"labels,comma,omitempty" json:"labels,omitempty"`
+	NotLabels              *LabelOptions     `url:"not[labels],comma,omitempty" json:"not[labels],omitempty"`
 	WithLabelsDetails      *bool             `url:"with_labels_details,omitempty" json:"with_labels_details,omitempty"`
 	WithMergeStatusRecheck *bool             `url:"with_merge_status_recheck,omitempty" json:"with_merge_status_recheck,omitempty"`
 	CreatedAfter           *time.Time        `url:"created_after,omitempty" json:"created_after,omitempty"`
@@ -220,6 +264,7 @@ type ListProjectMergeRequestsOptions struct {
 	Scope                  *string           `url:"scope,omitempty" json:"scope,omitempty"`
 	AuthorID               *int              `url:"author_id,omitempty" json:"author_id,omitempty"`
 	AuthorUsername         *string           `url:"author_username,omitempty" json:"author_username,omitempty"`
+	NotAuthorUsername      *string           `url:"not[author_username],omitempty" json:"not[author_username],omitempty"`
 	AssigneeID             *AssigneeIDValue  `url:"assignee_id,omitempty" json:"assignee_id,omitempty"`
 	ApproverIDs            *ApproverIDsValue `url:"approver_ids,omitempty" json:"approver_ids,omitempty"`
 	ApprovedByIDs          *ApproverIDsValue `url:"approved_by_ids,omitempty" json:"approved_by_ids,omitempty"`
@@ -270,8 +315,8 @@ type ListGroupMergeRequestsOptions struct {
 	Sort                   *string           `url:"sort,omitempty" json:"sort,omitempty"`
 	Milestone              *string           `url:"milestone,omitempty" json:"milestone,omitempty"`
 	View                   *string           `url:"view,omitempty" json:"view,omitempty"`
-	Labels                 *Labels           `url:"labels,comma,omitempty" json:"labels,omitempty"`
-	NotLabels              *Labels           `url:"not[labels],comma,omitempty" json:"not[labels],omitempty"`
+	Labels                 *LabelOptions     `url:"labels,comma,omitempty" json:"labels,omitempty"`
+	NotLabels              *LabelOptions     `url:"not[labels],comma,omitempty" json:"not[labels],omitempty"`
 	WithLabelsDetails      *bool             `url:"with_labels_details,omitempty" json:"with_labels_details,omitempty"`
 	WithMergeStatusRecheck *bool             `url:"with_merge_status_recheck,omitempty" json:"with_merge_status_recheck,omitempty"`
 	CreatedAfter           *time.Time        `url:"created_after,omitempty" json:"created_after,omitempty"`
@@ -281,6 +326,7 @@ type ListGroupMergeRequestsOptions struct {
 	Scope                  *string           `url:"scope,omitempty" json:"scope,omitempty"`
 	AuthorID               *int              `url:"author_id,omitempty" json:"author_id,omitempty"`
 	AuthorUsername         *string           `url:"author_username,omitempty" json:"author_username,omitempty"`
+	NotAuthorUsername      *string           `url:"not[author_username],omitempty" json:"not[author_username],omitempty"`
 	AssigneeID             *AssigneeIDValue  `url:"assignee_id,omitempty" json:"assignee_id,omitempty"`
 	ApproverIDs            *ApproverIDsValue `url:"approver_ids,omitempty" json:"approver_ids,omitempty"`
 	ApprovedByIDs          *ApproverIDsValue `url:"approved_by_ids,omitempty" json:"approved_by_ids,omitempty"`
@@ -420,10 +466,14 @@ func (s *MergeRequestsService) GetMergeRequestCommits(pid interface{}, mergeRequ
 // https://docs.gitlab.com/ee/api/merge_requests.html#get-single-merge-request-changes
 type GetMergeRequestChangesOptions struct {
 	AccessRawDiffs *bool `url:"access_raw_diffs,omitempty" json:"access_raw_diffs,omitempty"`
+	Unidiff        *bool `url:"unidiff,omitempty" json:"unidiff,omitempty"`
 }
 
 // GetMergeRequestChanges shows information about the merge request including
 // its files and changes.
+//
+// Deprecated: This endpoint has been replaced by
+// MergeRequestsService.ListMergeRequestDiffs()
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/merge_requests.html#get-single-merge-request-changes
@@ -448,6 +498,41 @@ func (s *MergeRequestsService) GetMergeRequestChanges(pid interface{}, mergeRequ
 	return m, resp, nil
 }
 
+// ListMergeRequestDiffsOptions represents the available ListMergeRequestDiffs()
+// options.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/merge_requests.html#list-merge-request-diffs
+type ListMergeRequestDiffsOptions struct {
+	ListOptions
+	Unidiff *bool `url:"unidiff,omitempty" json:"unidiff,omitempty"`
+}
+
+// ListMergeRequestDiffs List diffs of the files changed in a merge request
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/merge_requests.html#list-merge-request-diffs
+func (s *MergeRequestsService) ListMergeRequestDiffs(pid interface{}, mergeRequest int, opt *ListMergeRequestDiffsOptions, options ...RequestOptionFunc) ([]*MergeRequestDiff, *Response, error) {
+	project, err := parseID(pid)
+	if err != nil {
+		return nil, nil, err
+	}
+	u := fmt.Sprintf("projects/%s/merge_requests/%d/diffs", PathEscape(project), mergeRequest)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, opt, options)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var m []*MergeRequestDiff
+	resp, err := s.client.Do(req, &m)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return m, resp, nil
+}
+
 // GetMergeRequestParticipants gets a list of merge request participants.
 //
 // GitLab API docs:
@@ -464,13 +549,48 @@ func (s *MergeRequestsService) GetMergeRequestParticipants(pid interface{}, merg
 		return nil, nil, err
 	}
 
-	var ps []*BasicUser
-	resp, err := s.client.Do(req, &ps)
+	var bu []*BasicUser
+	resp, err := s.client.Do(req, &bu)
 	if err != nil {
 		return nil, resp, err
 	}
 
-	return ps, resp, nil
+	return bu, resp, nil
+}
+
+// MergeRequestReviewer represents a GitLab merge request reviewer.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/merge_requests.html#get-single-merge-request-reviewers
+type MergeRequestReviewer struct {
+	User      *BasicUser `json:"user"`
+	State     string     `json:"state"`
+	CreatedAt *time.Time `json:"created_at"`
+}
+
+// GetMergeRequestReviewers gets a list of merge request reviewers.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/merge_requests.html#get-single-merge-request-reviewers
+func (s *MergeRequestsService) GetMergeRequestReviewers(pid interface{}, mergeRequest int, options ...RequestOptionFunc) ([]*MergeRequestReviewer, *Response, error) {
+	project, err := parseID(pid)
+	if err != nil {
+		return nil, nil, err
+	}
+	u := fmt.Sprintf("projects/%s/merge_requests/%d/reviewers", PathEscape(project), mergeRequest)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil, options)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var mrr []*MergeRequestReviewer
+	resp, err := s.client.Do(req, &mrr)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return mrr, resp, nil
 }
 
 // ListMergeRequestPipelines gets all pipelines for the provided merge request.
@@ -562,19 +682,20 @@ func (s *MergeRequestsService) GetIssuesClosedOnMerge(pid interface{}, mergeRequ
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/merge_requests.html#create-mr
 type CreateMergeRequestOptions struct {
-	Title              *string `url:"title,omitempty" json:"title,omitempty"`
-	Description        *string `url:"description,omitempty" json:"description,omitempty"`
-	SourceBranch       *string `url:"source_branch,omitempty" json:"source_branch,omitempty"`
-	TargetBranch       *string `url:"target_branch,omitempty" json:"target_branch,omitempty"`
-	Labels             *Labels `url:"labels,comma,omitempty" json:"labels,omitempty"`
-	AssigneeID         *int    `url:"assignee_id,omitempty" json:"assignee_id,omitempty"`
-	AssigneeIDs        *[]int  `url:"assignee_ids,omitempty" json:"assignee_ids,omitempty"`
-	ReviewerIDs        *[]int  `url:"reviewer_ids,omitempty" json:"reviewer_ids,omitempty"`
-	TargetProjectID    *int    `url:"target_project_id,omitempty" json:"target_project_id,omitempty"`
-	MilestoneID        *int    `url:"milestone_id,omitempty" json:"milestone_id,omitempty"`
-	RemoveSourceBranch *bool   `url:"remove_source_branch,omitempty" json:"remove_source_branch,omitempty"`
-	Squash             *bool   `url:"squash,omitempty" json:"squash,omitempty"`
-	AllowCollaboration *bool   `url:"allow_collaboration,omitempty" json:"allow_collaboration,omitempty"`
+	Title                *string       `url:"title,omitempty" json:"title,omitempty"`
+	Description          *string       `url:"description,omitempty" json:"description,omitempty"`
+	SourceBranch         *string       `url:"source_branch,omitempty" json:"source_branch,omitempty"`
+	TargetBranch         *string       `url:"target_branch,omitempty" json:"target_branch,omitempty"`
+	Labels               *LabelOptions `url:"labels,comma,omitempty" json:"labels,omitempty"`
+	AssigneeID           *int          `url:"assignee_id,omitempty" json:"assignee_id,omitempty"`
+	AssigneeIDs          *[]int        `url:"assignee_ids,omitempty" json:"assignee_ids,omitempty"`
+	ReviewerIDs          *[]int        `url:"reviewer_ids,omitempty" json:"reviewer_ids,omitempty"`
+	TargetProjectID      *int          `url:"target_project_id,omitempty" json:"target_project_id,omitempty"`
+	MilestoneID          *int          `url:"milestone_id,omitempty" json:"milestone_id,omitempty"`
+	RemoveSourceBranch   *bool         `url:"remove_source_branch,omitempty" json:"remove_source_branch,omitempty"`
+	Squash               *bool         `url:"squash,omitempty" json:"squash,omitempty"`
+	AllowCollaboration   *bool         `url:"allow_collaboration,omitempty" json:"allow_collaboration,omitempty"`
+	ApprovalsBeforeMerge *int          `url:"approvals_before_merge,omitempty" json:"approvals_before_merge,omitempty"`
 }
 
 // CreateMergeRequest creates a new merge request.
@@ -608,21 +729,21 @@ func (s *MergeRequestsService) CreateMergeRequest(pid interface{}, opt *CreateMe
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/merge_requests.html#update-mr
 type UpdateMergeRequestOptions struct {
-	Title              *string `url:"title,omitempty" json:"title,omitempty"`
-	Description        *string `url:"description,omitempty" json:"description,omitempty"`
-	TargetBranch       *string `url:"target_branch,omitempty" json:"target_branch,omitempty"`
-	AssigneeID         *int    `url:"assignee_id,omitempty" json:"assignee_id,omitempty"`
-	AssigneeIDs        *[]int  `url:"assignee_ids,omitempty" json:"assignee_ids,omitempty"`
-	ReviewerIDs        *[]int  `url:"reviewer_ids,omitempty" json:"reviewer_ids,omitempty"`
-	Labels             *Labels `url:"labels,comma,omitempty" json:"labels,omitempty"`
-	AddLabels          *Labels `url:"add_labels,comma,omitempty" json:"add_labels,omitempty"`
-	RemoveLabels       *Labels `url:"remove_labels,comma,omitempty" json:"remove_labels,omitempty"`
-	MilestoneID        *int    `url:"milestone_id,omitempty" json:"milestone_id,omitempty"`
-	StateEvent         *string `url:"state_event,omitempty" json:"state_event,omitempty"`
-	RemoveSourceBranch *bool   `url:"remove_source_branch,omitempty" json:"remove_source_branch,omitempty"`
-	Squash             *bool   `url:"squash,omitempty" json:"squash,omitempty"`
-	DiscussionLocked   *bool   `url:"discussion_locked,omitempty" json:"discussion_locked,omitempty"`
-	AllowCollaboration *bool   `url:"allow_collaboration,omitempty" json:"allow_collaboration,omitempty"`
+	Title              *string       `url:"title,omitempty" json:"title,omitempty"`
+	Description        *string       `url:"description,omitempty" json:"description,omitempty"`
+	TargetBranch       *string       `url:"target_branch,omitempty" json:"target_branch,omitempty"`
+	AssigneeID         *int          `url:"assignee_id,omitempty" json:"assignee_id,omitempty"`
+	AssigneeIDs        *[]int        `url:"assignee_ids,omitempty" json:"assignee_ids,omitempty"`
+	ReviewerIDs        *[]int        `url:"reviewer_ids,omitempty" json:"reviewer_ids,omitempty"`
+	Labels             *LabelOptions `url:"labels,comma,omitempty" json:"labels,omitempty"`
+	AddLabels          *LabelOptions `url:"add_labels,comma,omitempty" json:"add_labels,omitempty"`
+	RemoveLabels       *LabelOptions `url:"remove_labels,comma,omitempty" json:"remove_labels,omitempty"`
+	MilestoneID        *int          `url:"milestone_id,omitempty" json:"milestone_id,omitempty"`
+	StateEvent         *string       `url:"state_event,omitempty" json:"state_event,omitempty"`
+	RemoveSourceBranch *bool         `url:"remove_source_branch,omitempty" json:"remove_source_branch,omitempty"`
+	Squash             *bool         `url:"squash,omitempty" json:"squash,omitempty"`
+	DiscussionLocked   *bool         `url:"discussion_locked,omitempty" json:"discussion_locked,omitempty"`
+	AllowCollaboration *bool         `url:"allow_collaboration,omitempty" json:"allow_collaboration,omitempty"`
 }
 
 // UpdateMergeRequest updates an existing project milestone.
@@ -740,20 +861,29 @@ func (s *MergeRequestsService) CancelMergeWhenPipelineSucceeds(pid interface{}, 
 	return m, resp, nil
 }
 
+// RebaseMergeRequestOptions represents the available RebaseMergeRequest()
+// options.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/merge_requests.html#rebase-a-merge-request
+type RebaseMergeRequestOptions struct {
+	SkipCI *bool `url:"skip_ci,omitempty" json:"skip_ci,omitempty"`
+}
+
 // RebaseMergeRequest automatically rebases the source_branch of the merge
 // request against its target_branch. If you don’t have permissions to push
 // to the merge request’s source branch, you’ll get a 403 Forbidden response.
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/merge_requests.html#rebase-a-merge-request
-func (s *MergeRequestsService) RebaseMergeRequest(pid interface{}, mergeRequest int, options ...RequestOptionFunc) (*Response, error) {
+func (s *MergeRequestsService) RebaseMergeRequest(pid interface{}, mergeRequest int, opt *RebaseMergeRequestOptions, options ...RequestOptionFunc) (*Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
 		return nil, err
 	}
 	u := fmt.Sprintf("projects/%s/merge_requests/%d/rebase", PathEscape(project), mergeRequest)
 
-	req, err := s.client.NewRequest(http.MethodPut, u, nil, options)
+	req, err := s.client.NewRequest(http.MethodPut, u, opt, options)
 	if err != nil {
 		return nil, err
 	}
@@ -793,18 +923,27 @@ func (s *MergeRequestsService) GetMergeRequestDiffVersions(pid interface{}, merg
 	return v, resp, nil
 }
 
+// GetSingleMergeRequestDiffVersionOptions represents the available
+// GetSingleMergeRequestDiffVersion() options.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/merge_requests.html#get-a-single-merge-request-diff-version
+type GetSingleMergeRequestDiffVersionOptions struct {
+	Unidiff *bool `url:"unidiff,omitempty" json:"unidiff,omitempty"`
+}
+
 // GetSingleMergeRequestDiffVersion get a single MR diff version
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/merge_requests.html#get-a-single-merge-request-diff-version
-func (s *MergeRequestsService) GetSingleMergeRequestDiffVersion(pid interface{}, mergeRequest, version int, options ...RequestOptionFunc) (*MergeRequestDiffVersion, *Response, error) {
+func (s *MergeRequestsService) GetSingleMergeRequestDiffVersion(pid interface{}, mergeRequest, version int, opt *GetSingleMergeRequestDiffVersionOptions, options ...RequestOptionFunc) (*MergeRequestDiffVersion, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
 		return nil, nil, err
 	}
 	u := fmt.Sprintf("projects/%s/merge_requests/%d/versions/%d", PathEscape(project), mergeRequest, version)
 
-	req, err := s.client.NewRequest(http.MethodGet, u, nil, options)
+	req, err := s.client.NewRequest(http.MethodGet, u, opt, options)
 	if err != nil {
 		return nil, nil, err
 	}

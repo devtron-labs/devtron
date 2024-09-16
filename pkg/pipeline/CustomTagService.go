@@ -41,6 +41,7 @@ type CustomTagService interface {
 	DeactivateImagePathReservationByImagePath(imagePaths []string) error
 	DeactivateImagePathReservationByImageIds(imagePathReservationIds []int) error
 	DisableCustomTagIfExist(tag bean.CustomTag) error
+	GetImagePathsByIds(ids []int) ([]*repository.ImagePathReservation, error)
 }
 
 type CustomTagServiceImpl struct {
@@ -302,4 +303,8 @@ func (impl *CustomTagServiceImpl) DeactivateImagePathReservationByImageIds(image
 
 func (impl *CustomTagServiceImpl) DisableCustomTagIfExist(tag bean.CustomTag) error {
 	return impl.customTagRepository.DisableCustomTag(tag.EntityKey, tag.EntityValue)
+}
+
+func (impl *CustomTagServiceImpl) GetImagePathsByIds(ids []int) ([]*repository.ImagePathReservation, error) {
+	return impl.customTagRepository.GetImagePathsByIds(ids)
 }

@@ -148,6 +148,10 @@ func (impl *AppStoreDeploymentDBServiceImpl) AppStoreDeployOperationDB(installRe
 			appCreateRequest.AppType = helper.ExternalChartStoreApp
 			appCreateRequest.DisplayName = installRequest.DisplayName
 		}
+		if globalUtil.IsBaseStack() || globalUtil.IsHelmApp(installRequest.AppOfferingMode) {
+			appCreateRequest.DisplayName = installRequest.AppName
+			appCreateRequest.AppName = installRequest.GetAppIdentifierString()
+		}
 		appCreateRequest, err = impl.createAppForAppStore(appCreateRequest, tx, getAppInstallationMode(installRequest.AppOfferingMode))
 		if err != nil {
 			impl.logger.Errorw("error while creating app", "error", err)
@@ -603,6 +607,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) createAppForAppStore(createRequest 
 		TeamId:          createRequest.TeamId,
 		AppType:         helper.ChartStoreApp,
 		AppOfferingMode: appInstallationMode,
+		DisplayName: createRequest.DisplayName,
 	}
 	if createRequest.AppType == helper.ExternalChartStoreApp {
 		//when linking ext helm app to chart store, there can be a case that two (or more) external apps can have same name, in diff namespaces or diff
@@ -623,11 +628,6 @@ func (impl *AppStoreDeploymentDBServiceImpl) createAppForAppStore(createRequest 
 func (impl *AppStoreDeploymentDBServiceImpl) validateAndGetOverrideDeploymentAppType(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, isGitOpsConfigured bool) (overrideDeploymentType string, err error) {
 	// initialise OverrideDeploymentType to the given DeploymentType
 	overrideDeploymentType = installAppVersionRequest.DeploymentAppType
-	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
-	if err != nil {
-		impl.logger.Errorw("error in fetching app store application version", "err", err)
-		return overrideDeploymentType, err
-	}
 
 	// virtual environments only supports Manifest Download
 	if installAppVersionRequest.Environment.IsVirtualEnvironment && util.IsManifestPush(installAppVersionRequest.DeploymentAppType) {
@@ -641,8 +641,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) validateAndGetOverrideDeploymentApp
 	}
 
 	// OCI chart currently supports HELM installation only
-	isOCIRepo := appStoreAppVersion.AppStore.DockerArtifactStore != nil
-	if isOCIRepo || getAppInstallationMode(installAppVersionRequest.AppOfferingMode) == globalUtil.SERVER_MODE_HYPERION {
+	if getAppInstallationMode(installAppVersionRequest.AppOfferingMode) == globalUtil.SERVER_MODE_HYPERION {
 		overrideDeploymentType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 	} else {
 		overrideDeploymentType, err = impl.deploymentTypeOverrideService.ValidateAndOverrideDeploymentAppType(overrideDeploymentType, isGitOpsConfigured, installAppVersionRequest.EnvironmentId)

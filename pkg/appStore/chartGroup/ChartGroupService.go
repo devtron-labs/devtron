@@ -963,7 +963,17 @@ func (impl *ChartGroupServiceImpl) performDeployStageOnAcd(installedAppVersion *
 		installedAppVersion.Status == appStoreBean.GIT_ERROR {
 		//step 2 git operation pull push
 		//TODO: save git Timeline here
-		appStoreGitOpsResponse, err := impl.fullModeDeploymentService.GenerateManifestAndPerformGitOperations(installedAppVersion)
+		appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installedAppVersion.AppStoreVersion)
+		if err != nil {
+			impl.logger.Errorw("fetching error", "err", err)
+			return nil, err
+		}
+		err = impl.fullModeDeploymentService.CreateArgoRepoSecretIfNeeded(appStoreAppVersion)
+		if err != nil {
+			impl.logger.Errorw("error in creating argo app repository secret", "appStoreApplicationVersionId", appStoreAppVersion.Id, "err", err)
+			return nil, err
+		}
+		appStoreGitOpsResponse, err := impl.fullModeDeploymentService.GenerateManifestAndPerformGitOperations(installedAppVersion, appStoreAppVersion)
 		if err != nil {
 			impl.logger.Errorw(" error", "err", err)
 			_, err = impl.appStoreDeploymentDBService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.GIT_ERROR)

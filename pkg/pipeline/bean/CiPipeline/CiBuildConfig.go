@@ -32,6 +32,9 @@ const PIPELINE_TYPE_IS_NOT_VALID = "PipelineType is not valid  for pipeline %s"
 
 type PipelineType string
 
+// default PipelineType
+const DefaultPipelineType = CI_BUILD
+
 const (
 	CI_BUILD  PipelineType = "CI_BUILD"
 	LINKED    PipelineType = "LINKED"
@@ -82,3 +85,8 @@ func (pType PipelineType) IsValidPipelineType() bool {
 		return false
 	}
 }
+
+const (
+	ExtraEnvVarExternalCiArtifactKey = "externalCiArtifact"
+	ExtraEnvVarImageDigestKey        = "imageDigest"
+)

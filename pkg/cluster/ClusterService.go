@@ -20,6 +20,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	cronUtil "github.com/devtron-labs/devtron/util/cron"
+	"github.com/robfig/cron/v3"
 	"log"
 	"net/http"
 	"net/url"
@@ -43,7 +45,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	util2 "github.com/devtron-labs/devtron/util"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -179,7 +181,7 @@ type ClusterService interface {
 	FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool) ([]string, error)
 	FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]ClusterBean, error)
 	FetchRolesFromGroup(userId int32) ([]*repository3.RoleModel, error)
-	HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool)
+	HandleErrorInClusterConnections(clusters []*ClusterBean, respMap *sync.Map, clusterExistInDb bool)
 	ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool)
 	ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster
 	ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster
@@ -201,7 +203,9 @@ type ClusterServiceImpl struct {
 func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.SugaredLogger,
 	K8sUtil *k8s.K8sServiceImpl, K8sInformerFactory informer.K8sInformerFactory,
 	userAuthRepository repository3.UserAuthRepository, userRepository repository3.UserRepository,
-	roleGroupRepository repository3.RoleGroupRepository) *ClusterServiceImpl {
+	roleGroupRepository repository3.RoleGroupRepository,
+	envVariables *globalUtil.EnvironmentVariables,
+	cronLogger *cronUtil.CronLoggerImpl) (*ClusterServiceImpl, error) {
 	clusterService := &ClusterServiceImpl{
 		clusterRepository:   repository,
 		logger:              logger,
@@ -211,8 +215,19 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 		userRepository:      userRepository,
 		roleGroupRepository: roleGroupRepository,
 	}
+	// initialise cron
+	newCron := cron.New(cron.WithChain(cron.Recover(cronLogger)))
+	newCron.Start()
+	cfg := envVariables.GlobalClusterConfig
+	// add function into cron
+	_, err := newCron.AddFunc(fmt.Sprintf("@every %dm", cfg.ClusterStatusCronTime), clusterService.getAndUpdateClusterConnectionStatus)
+	if err != nil {
+		fmt.Println("error in adding cron function into cluster cron service")
+		return clusterService, err
+	}
+	logger.Infow("cluster cron service started successfully!", "cronTime", cfg.ClusterStatusCronTime)
 	go clusterService.buildInformer()
-	return clusterService
+	return clusterService, nil
 }
 
 func (impl *ClusterServiceImpl) ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster {
@@ -240,6 +255,23 @@ func (impl *ClusterServiceImpl) ConvertClusterBeanToCluster(clusterBean *Cluster
 	model.UpdatedOn = time.Now()
 
 	return model
+}
+
+// getAndUpdateClusterConnectionStatus is a cron function to update the connection status of all clusters
+func (impl *ClusterServiceImpl) getAndUpdateClusterConnectionStatus() {
+	impl.logger.Info("starting cluster connection status fetch thread")
+	startTime := time.Now()
+	defer func() {
+		impl.logger.Debugw("cluster connection status fetch thread completed", "timeTaken", time.Since(startTime))
+	}()
+
+	//getting all clusters
+	clusters, err := impl.FindAll()
+	if err != nil {
+		impl.logger.Errorw("error in getting all clusters", "err", err)
+		return
+	}
+	impl.ConnectClustersInBatch(clusters, true)
 }
 
 func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
@@ -289,7 +321,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 
 	//on successful creation of new cluster, update informer cache for namespace group by cluster
 	//here sync for ea mode only
-	if util2.IsBaseStack() {
+	if globalUtil.IsBaseStack() {
 		impl.SyncNsInformer(bean)
 	}
 	impl.logger.Info("saving secret for cluster informer")
@@ -530,7 +562,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	bean.Id = model.Id
 
 	//here sync for ea mode only
-	if bean.HasConfigOrUrlChanged && util2.IsBaseStack() {
+	if bean.HasConfigOrUrlChanged && globalUtil.IsBaseStack() {
 		impl.SyncNsInformer(bean)
 	}
 	impl.logger.Infow("saving secret for cluster informer")
@@ -643,7 +675,7 @@ func (impl *ClusterServiceImpl) buildInformer() {
 	impl.K8sInformerFactory.BuildInformer(clusterInfo)
 }
 
-func (impl ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) error {
+func (impl *ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) error {
 	existingCluster, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete.", "id", bean.Id)
@@ -668,7 +700,7 @@ func (impl ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) err
 	return nil
 }
 
-func (impl ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error {
+func (impl *ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error {
 	clusterConfig := cluster.GetClusterConfig()
 	response, err := impl.K8sUtil.DiscoveryClientGetLiveZCall(clusterConfig)
 	if err != nil {
@@ -816,21 +848,26 @@ func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32) ([]*repository
 	return roles, nil
 }
 
+func (impl *ClusterServiceImpl) updateConnectionStatusForVirtualCluster(respMap *sync.Map, clusterId int, clusterName string) {
+	connErr := fmt.Errorf("Get virtual cluster '%s' error: connection not setup for isolated clusters", clusterName)
+	respMap.Store(clusterId, connErr)
+}
+
 func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool) {
 	var wg sync.WaitGroup
-	respMap := make(map[int]error)
-	mutex := &sync.Mutex{}
-
+	respMap := &sync.Map{}
 	for idx, cluster := range clusters {
+		if cluster.IsVirtualCluster {
+			impl.updateConnectionStatusForVirtualCluster(respMap, cluster.Id, cluster.ClusterName)
+			continue
+		}
 		wg.Add(1)
 		go func(idx int, cluster *ClusterBean) {
 			defer wg.Done()
 			clusterConfig := cluster.GetClusterConfig()
 			_, _, k8sClientSet, err := impl.K8sUtil.GetK8sConfigAndClients(clusterConfig)
 			if err != nil {
-				mutex.Lock()
-				respMap[cluster.Id] = err
-				mutex.Unlock()
+				respMap.Store(cluster.Id, err)
 				return
 			}
 
@@ -838,7 +875,7 @@ func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, 
 			if !clusterExistInDb {
 				id = idx
 			}
-			impl.GetAndUpdateConnectionStatusForOneCluster(k8sClientSet, id, respMap, mutex)
+			impl.GetAndUpdateConnectionStatusForOneCluster(k8sClientSet, id, respMap)
 		}(idx, cluster)
 	}
 
@@ -846,8 +883,19 @@ func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, 
 	impl.HandleErrorInClusterConnections(clusters, respMap, clusterExistInDb)
 }
 
-func (impl *ClusterServiceImpl) HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool) {
-	for id, err := range respMap {
+func (impl *ClusterServiceImpl) HandleErrorInClusterConnections(clusters []*ClusterBean, respMap *sync.Map, clusterExistInDb bool) {
+	respMap.Range(func(key, value any) bool {
+		defer func() {
+			// defer to handle panic on type assertion
+			if r := recover(); r != nil {
+				impl.logger.Errorw("error in handling error in cluster connections", "key", key, "value", value, "err", r)
+			}
+		}()
+		id := key.(int)
+		var err error
+		if connectionError, ok := value.(error); ok {
+			err = connectionError
+		}
 		errorInConnecting := ""
 		if err != nil {
 			errorInConnecting = err.Error()
@@ -867,7 +915,8 @@ func (impl *ClusterServiceImpl) HandleErrorInClusterConnections(clusters []*Clus
 			//id is index of the cluster in clusters array
 			clusters[id].ErrorInConnecting = errorInConnecting
 		}
-	}
+		return true
+	})
 }
 
 func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[string]*ValidateClusterBean, error) {
@@ -1037,7 +1086,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 
 }
 
-func (impl *ClusterServiceImpl) GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientset, clusterId int, respMap map[int]error, mutex *sync.Mutex) {
+func (impl *ClusterServiceImpl) GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientset, clusterId int, respMap *sync.Map) {
 	response, err := impl.K8sUtil.GetLiveZCall(k8s.LiveZ, k8sClientSet)
 	log.Println("received response for cluster livez status", "response", string(response), "err", err, "clusterId", clusterId)
 
@@ -1063,12 +1112,11 @@ func (impl *ClusterServiceImpl) GetAndUpdateConnectionStatusForOneCluster(k8sCli
 	} else if err == nil && string(response) != "ok" {
 		err = fmt.Errorf("Validation failed with response : %s", string(response))
 	}
-	mutex.Lock()
-	respMap[clusterId] = err
-	mutex.Unlock()
+
+	respMap.Store(clusterId, err)
 }
 
-func (impl ClusterServiceImpl) ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster {
+func (impl *ClusterServiceImpl) ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster {
 	configMap := bean.Config
 	serverUrl := bean.ServerUrl
 	bearerToken := ""
@@ -1097,7 +1145,7 @@ func (impl ClusterServiceImpl) ConvertClusterBeanObjectToCluster(bean *ClusterBe
 	return cl
 }
 
-func (impl ClusterServiceImpl) GetClusterConfigByClusterId(clusterId int) (*k8s.ClusterConfig, error) {
+func (impl *ClusterServiceImpl) GetClusterConfigByClusterId(clusterId int) (*k8s.ClusterConfig, error) {
 	clusterBean, err := impl.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting clusterBean by cluster id", "err", err, "clusterId", clusterId)
@@ -1108,7 +1156,7 @@ func (impl ClusterServiceImpl) GetClusterConfigByClusterId(clusterId int) (*k8s.
 	return clusterConfig, nil
 }
 
-func (impl ClusterServiceImpl) IsClusterReachable(clusterId int) (bool, error) {
+func (impl *ClusterServiceImpl) IsClusterReachable(clusterId int) (bool, error) {
 	cluster, err := impl.clusterRepository.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in finding cluster from clusterId", "envId", clusterId)

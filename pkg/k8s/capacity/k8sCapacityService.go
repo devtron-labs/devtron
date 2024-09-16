@@ -88,7 +88,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailList(ctx context.Con
 		} else {
 			clusterCapacityDetail, err = impl.GetClusterCapacityDetail(ctx, cluster, true)
 			if err != nil {
-				impl.logger.Errorw("error in getting cluster capacity details by id", "err", err)
+				impl.logger.Errorw("error in getting cluster capacity details by id", "clusterID", cluster.Id, "err", err)
 				clusterCapacityDetail = &bean.ClusterCapacityDetail{
 					ErrorInConnection: err.Error(),
 				}
@@ -105,6 +105,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(ctx context.Context
 	//getting kubernetes clientSet by rest config
 	restConfig, k8sHttpClient, k8sClientSet, err := impl.k8sCommonService.GetK8sConfigAndClients(ctx, cluster)
 	if err != nil {
+		impl.logger.Errorw("error in creating k8sHttpClient", "err", err)
 		return nil, err
 	}
 	clusterDetail := &bean.ClusterCapacityDetail{}
@@ -112,23 +113,23 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(ctx context.Context
 	if err != nil {
 		if client.IsClusterUnReachableError(err) {
 			impl.logger.Errorw("k8s cluster unreachable", "err", err)
-			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: err.Error()}
+			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: err.Error(), InternalMessage: err.Error()}
 		}
 		impl.logger.Errorw("error in getting node list", "err", err, "clusterId", cluster.Id)
 		return nil, err
 	}
 	clusterCpuAllocatable, clusterMemoryAllocatable, nodeCount := impl.setBasicClusterDetails(nodeList, clusterDetail)
-	if callForList {
-		//assigning additional data for cluster listing api call
-		clusterDetail.NodeCount = nodeCount
-		//getting serverVersion
-		serverVersion, err := impl.K8sUtil.GetServerVersionFromDiscoveryClient(k8sClientSet)
-		if err != nil {
-			impl.logger.Errorw("error in getting server version", "err", err, "clusterId", cluster.Id)
-			return nil, err
-		}
-		clusterDetail.ServerVersion = serverVersion.GitVersion
-	} else {
+	//assigning additional data for cluster listing api call
+	clusterDetail.NodeCount = nodeCount
+	//getting serverVersion
+	serverVersion, err := impl.K8sUtil.GetServerVersionFromDiscoveryClient(k8sClientSet)
+	if err != nil {
+		impl.logger.Errorw("error in getting server version", "clusterId", cluster.Id, "err", err)
+		return nil, err
+	}
+	clusterDetail.ServerVersion = serverVersion.GitVersion
+	if !callForList {
+		clusterDetail.Name = cluster.ClusterName
 		metricsClientSet, err := impl.K8sUtil.GetMetricsClientSet(restConfig, k8sHttpClient)
 		if err != nil {
 			impl.logger.Errorw("error in getting metrics client set", "err", err)
