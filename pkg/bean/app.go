@@ -656,10 +656,7 @@ func (cdpipelineConfig *CDPipelineConfigObject) IsSwitchCiPipelineRequest() bool
 func (cdpipelineConfig *CDPipelineConfigObject) PatchSourceInfo() (int, string) {
 	//as the source will be always CI_PIPELINE in case of external-ci change request
 	componentType := appWorkflow.CIPIPELINE
-	var componentId int
-	if cdpipelineConfig.IsSwitchCiPipelineRequest() {
-		componentId = cdpipelineConfig.ParentPipelineId
-	}
+	componentId := cdpipelineConfig.SwitchFromCiPipelineId
 	return componentId, componentType
 }
 
