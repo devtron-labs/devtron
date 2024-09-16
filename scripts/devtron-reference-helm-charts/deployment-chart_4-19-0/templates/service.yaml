@@ -36,7 +36,7 @@ spec:
       {{- else }}
       targetPort: {{ .name }}
       {{- end }}
-      protocol: TCP
+      protocol: {{ .protocol }}
       {{- if (and (eq $.Values.service.type "NodePort") .nodePort ) }}
       nodePort: {{ .nodePort }}
       {{- end }}
