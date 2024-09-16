@@ -218,6 +218,10 @@ spec:
 {{- if $.Values.containerExtraSpecs }}	
 {{ toYaml .Values.containerExtraSpecs | indent 10 }}	
 {{- end }}
+{{- if $.Values.resizePolicy }}
+          resizePolicy:
+{{ toYaml .Values.resizePolicy | indent 12 }}          
+{{- end }}          
           ports:
           {{- range $.Values.ContainerPort }}
             - name: {{ .name}}
@@ -237,9 +241,9 @@ spec:
 {{- end }}
           env:
             - name: CONFIG_HASH
-              value: {{ include (print $.Chart.Name "/templates/configmap.yaml") . | sha256sum }}
+              value: {{ include (print $.Chart.Name "/templates/configmap.yaml") . | sha256sum }}{{ if and (.Values.devtronInternal) (.Values.devtronInternal.containerSpecs.ConfigHash) }}{{ .Values.devtronInternal.containerSpecs.ConfigHash }}{{ end }}
             - name: SECRET_HASH
-              value: {{ include (print $.Chart.Name "/templates/secret.yaml") . | sha256sum }}
+              value: {{ include (print $.Chart.Name "/templates/secret.yaml") . | sha256sum }}{{ if and (.Values.devtronInternal) (.Values.devtronInternal.containerSpecs.SecretHash) }}{{ .Values.devtronInternal.containerSpecs.SecretHash }}{{ end }}
             - name: DEVTRON_APP_NAME
               value: {{ template ".Chart.Name .name" $ }}
             - name: POD_NAME
@@ -520,6 +524,10 @@ spec:
           command:
 {{ toYaml .command | indent 12 -}}
 {{- end}}
+{{- if .resizePolicy }}
+          resizePolicy:
+{{ toYaml .resziePolicy | indent 12}}
+{{- end }}
 {{- if .resources}}
           resources:
 {{ toYaml .resources | indent 12 -}}
