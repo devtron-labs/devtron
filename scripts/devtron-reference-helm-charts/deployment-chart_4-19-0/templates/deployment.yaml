@@ -493,11 +493,11 @@ spec:
           volumeMounts:
             - name: {{ $.Values.envoyproxy.configMapName | default "envoy-config-volume" }}
               mountPath: /etc/envoy-config/
-{{-if $.Values.envoyproxy.readinessProbe}}
+{{- if $.Values.envoyproxy.readinessProbe}}
           readinessProbe:
 {{ toYaml $.Values.envoyproxy.readinessProbe | indent 12}} 
 {{- end }}  
-{{-if $.Values.envoyproxy.livenessProbe}}
+{{- if $.Values.envoyproxy.livenessProbe}}
           readinessProbe:
 {{ toYaml $.Values.envoyproxy.livenessProbe | indent 12}} 
 {{- end }}                     

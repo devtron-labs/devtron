@@ -95,6 +95,13 @@ autoscaling:
   annotations: {}
   labels: {}
   behavior: {}
+  type: ContainerResource
+  ContainerResource:
+    name: cpu
+    container: application
+    target:
+      type: Utilization
+      averageUtilization: 60  
 #    scaleDown:
 #      stabilizationWindowSeconds: 300
 #      policies:
