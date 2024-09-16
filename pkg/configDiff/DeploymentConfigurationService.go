@@ -6,7 +6,6 @@ import (
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
-	"github.com/devtron-labs/devtron/internal/util"
 	bean3 "github.com/devtron-labs/devtron/pkg/bean"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -26,8 +25,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"net/http"
-	"strconv"
 )
 
 type DeploymentConfigurationService interface {
@@ -111,9 +108,6 @@ func (impl *DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, en
 }
 
 func (impl *DeploymentConfigurationServiceImpl) GetAllConfigData(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams, userHasAdminAccess bool) (*bean2.DeploymentAndCmCsConfigDto, error) {
-	if !configDataQueryParams.IsValidConfigType() {
-		return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: strconv.Itoa(http.StatusBadRequest), InternalMessage: bean2.InvalidConfigTypeErr, UserMessage: bean2.InvalidConfigTypeErr}
-	}
 	var err error
 	var envId int
 	var appId int
@@ -533,11 +527,32 @@ func (impl *DeploymentConfigurationServiceImpl) getStringifiedCmCs(resolvedCmMap
 	}
 	return resolvedConfigDataString, resolvedSecretDataString, nil
 }
-func (impl *DeploymentConfigurationServiceImpl) getPublishedDeploymentConfig(ctx context.Context, appId, envId int) (json.RawMessage, error) {
+func (impl *DeploymentConfigurationServiceImpl) getPublishedDeploymentConfig(ctx context.Context, appId, envId int) (*bean2.DeploymentAndCmCsConfig, error) {
 	if envId > 0 {
-		return impl.getDeploymentTemplateForEnvLevel(ctx, appId, envId)
+		deplTemplateResp, err := impl.getDeploymentTemplateForEnvLevel(ctx, appId, envId)
+		if err != nil {
+			impl.logger.Errorw("error in getting deployment template env level", "err", err)
+			return nil, err
+		}
+		deploymentJson := json.RawMessage{}
+		err = deploymentJson.UnmarshalJSON([]byte(deplTemplateResp.Data))
+		if err != nil {
+			impl.logger.Errorw("getDeploymentTemplateForEnvLevel, error in unmarshalling string  deploymentTemplateResponse data into json Raw message", "appId", appId, "envId", envId, "err", err)
+			return nil, err
+		}
+
+		variableSnapShotMap := make(map[string]map[string]string, len(deplTemplateResp.VariableSnapshot))
+		variableSnapShotMap[bean.DeploymentTemplate.ToString()] = deplTemplateResp.VariableSnapshot
+
+		return bean2.NewDeploymentAndCmCsConfig().WithConfigData(deploymentJson).WithResourceType(bean.DeploymentTemplate).
+			WithResolvedValue(deplTemplateResp.ResolvedData).WithVariableSnapshot(variableSnapShotMap), nil
 	}
-	return impl.getBaseDeploymentTemplate(appId)
+	deplJson, err := impl.getBaseDeploymentTemplate(appId)
+	if err != nil {
+		impl.logger.Errorw("getDeploymentTemplateForEnvLevel, getting base depl. template", "appid", appId, "err", err)
+		return nil, err
+	}
+	return bean2.NewDeploymentAndCmCsConfig().WithConfigData(deplJson).WithResourceType(bean.DeploymentTemplate), nil
 }
 
 func (impl *DeploymentConfigurationServiceImpl) getPublishedConfigData(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams,
@@ -552,14 +567,13 @@ func (impl *DeploymentConfigurationServiceImpl) getPublishedConfigData(ctx conte
 		impl.logger.Errorw("getPublishedConfigData, error in getting cm cs for PublishedOnly state", "appName", configDataQueryParams.AppName, "envName", configDataQueryParams.EnvName, "err", err)
 		return nil, err
 	}
-	deploymentTemplateJsonData, err := impl.getPublishedDeploymentConfig(ctx, appId, envId)
+	deploymentTemplateData, err := impl.getPublishedDeploymentConfig(ctx, appId, envId)
 	if err != nil {
 		impl.logger.Errorw("getPublishedConfigData, error in getting publishedOnly deployment config ", "configDataQueryParams", configDataQueryParams, "err", err)
 		return nil, err
 	}
-	deploymentConfig := bean2.NewDeploymentAndCmCsConfig().WithConfigData(deploymentTemplateJsonData).WithResourceType(bean.DeploymentTemplate)
 
-	configData.WithDeploymentTemplateData(deploymentConfig)
+	configData.WithDeploymentTemplateData(deploymentTemplateData)
 	return configData, nil
 }
 
@@ -569,35 +583,25 @@ func (impl *DeploymentConfigurationServiceImpl) getBaseDeploymentTemplate(appId 
 		impl.logger.Errorw("error in getting base deployment template for appId", "appId", appId, "err", err)
 		return nil, err
 	}
+
 	return deploymentTemplateData.DefaultAppOverride, nil
 }
 
-func (impl *DeploymentConfigurationServiceImpl) getDeploymentTemplateForEnvLevel(ctx context.Context, appId, envId int) (json.RawMessage, error) {
+func (impl *DeploymentConfigurationServiceImpl) getDeploymentTemplateForEnvLevel(ctx context.Context, appId, envId int) (generateManifest.DeploymentTemplateResponse, error) {
 	deploymentTemplateRequest := generateManifest.DeploymentTemplateRequest{
 		AppId:           appId,
 		EnvId:           envId,
 		RequestDataMode: generateManifest.Values,
 		Type:            repository2.PublishedOnEnvironments,
 	}
-	deploymentTemplateResponse, err := impl.deploymentTemplateService.GetDeploymentTemplate(ctx, deploymentTemplateRequest)
+	var deploymentTemplateResponse generateManifest.DeploymentTemplateResponse
+	var err error
+	deploymentTemplateResponse, err = impl.deploymentTemplateService.GetDeploymentTemplate(ctx, deploymentTemplateRequest)
 	if err != nil {
 		impl.logger.Errorw("getDeploymentTemplateForEnvLevel, error in getting deployment template for ", "deploymentTemplateRequest", deploymentTemplateRequest, "err", err)
-		return nil, err
+		return deploymentTemplateResponse, err
 	}
-	deploymentJson := json.RawMessage{}
-	err = deploymentJson.UnmarshalJSON([]byte(deploymentTemplateResponse.Data))
-	if err != nil {
-		impl.logger.Errorw("getDeploymentTemplateForEnvLevel, error in unmarshalling string  deploymentTemplateResponse data into json Raw message", "data", deploymentTemplateResponse.Data, "err", err)
-		return nil, err
-	}
-	return deploymentJson, nil
-}
-
-func (impl *DeploymentConfigurationServiceImpl) getDeploymentConfig(ctx context.Context, appId, envId int) (json.RawMessage, error) {
-	if envId > 0 {
-		return impl.getDeploymentTemplateForEnvLevel(ctx, appId, envId)
-	}
-	return impl.getBaseDeploymentTemplate(appId)
+	return deploymentTemplateResponse, nil
 }
 
 func (impl *DeploymentConfigurationServiceImpl) getSecretConfigResponse(resourceName string, resourceId, envId, appId int) (*bean.ConfigDataRequest, error) {

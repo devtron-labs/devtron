@@ -62,6 +62,7 @@ type DeploymentTemplateService interface {
 	GetDeploymentTemplate(ctx context.Context, request DeploymentTemplateRequest) (DeploymentTemplateResponse, error)
 	GenerateManifest(ctx context.Context, request *DeploymentTemplateRequest, valuesYaml string) (*openapi2.TemplateChartResponse, error)
 	GetRestartWorkloadData(ctx context.Context, appIds []int, envId int) (*RestartPodResponse, error)
+	GetDeploymentTemplateWithResolvedData(ctx context.Context, request DeploymentTemplateRequest) (DeploymentTemplateResponse, error)
 }
 type DeploymentTemplateServiceImpl struct {
 	Logger                           *zap.SugaredLogger
@@ -227,6 +228,35 @@ func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Cont
 		}
 	}
 
+	if request.RequestDataMode == Values {
+		result.Data = values
+		result.ResolvedData = resolvedValue
+		result.VariableSnapshot = variableSnapshot
+		return result, nil
+	}
+
+	request = impl.setRequestMetadata(&request)
+	manifest, err := impl.GenerateManifest(ctx, &request, resolvedValue)
+	if err != nil {
+		return result, err
+	}
+	result.Data = *manifest.Manifest
+	return result, nil
+}
+
+func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplateWithResolvedData(ctx context.Context, request DeploymentTemplateRequest) (DeploymentTemplateResponse, error) {
+	var result DeploymentTemplateResponse
+	var values, resolvedValue string
+	var err error
+	var variableSnapshot map[string]string
+
+	if request.Values != "" {
+		values = request.Values
+		resolvedValue, variableSnapshot, err = impl.resolveTemplateVariables(ctx, request.Values, request)
+		if err != nil {
+			return result, err
+		}
+	}
 	if request.RequestDataMode == Values {
 		result.Data = values
 		result.ResolvedData = resolvedValue
