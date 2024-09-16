@@ -25,6 +25,11 @@ spec:
   minReplicas: {{ $.Values.autoscaling.MinReplicas  }}
   maxReplicas: {{ $.Values.autoscaling.MaxReplicas }}
   metrics:
+  {{- if eq $.Values.autoscaling.type "ContainerResource" }}
+  - type: ContainerResource
+    containerResource:
+{{ toYaml .Values.autoscaling.ContainerResource | indent 6 }}
+  {{- end }}  
   {{- if $.Values.autoscaling.TargetMemoryUtilizationPercentage }}
   - type: Resource
     resource:
