@@ -60,13 +60,13 @@ func getRefProxyChartPath() string {
 type UpdateVersionHistoryOperation func(installedAppVersionHistory *repository.InstalledAppVersionHistory) error
 
 // FailedStatusUpdateOption returns an UpdateVersionHistoryOperation that updates the status of the installed app version history to failed
-func FailedStatusUpdateOption(err error, userId int32) UpdateVersionHistoryOperation {
+func FailedStatusUpdateOption(userId int32, deploymentErr error) UpdateVersionHistoryOperation {
 	return func(installedAppVersionHistory *repository.InstalledAppVersionHistory) error {
-		if err == nil {
-			// for failed status err should not be nil
+		if deploymentErr == nil {
+			// for failed status deploymentErr should not be nil
 			return nil
 		}
-		installedAppVersionHistory.MarkDeploymentFailed(err)
+		installedAppVersionHistory.MarkDeploymentFailed(deploymentErr)
 		installedAppVersionHistory.SetFinishedOn()
 		installedAppVersionHistory.UpdateAuditLog(userId)
 		return nil

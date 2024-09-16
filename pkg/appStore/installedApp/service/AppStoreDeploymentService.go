@@ -750,7 +750,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 			impl.logger.Errorw("error in generating manifest for helm apps", "installedAppVersionHistoryId", upgradeAppRequest.InstalledAppVersionHistoryId, "err", err)
 			_ = impl.appStoreDeploymentDBService.UpdateInstalledAppVersionHistoryStatus(
 				upgradeAppRequest.InstalledAppVersionHistoryId,
-				installedAppAdapter.FailedStatusUpdateOption(err, upgradeAppRequest.UserId),
+				installedAppAdapter.FailedStatusUpdateOption(upgradeAppRequest.UserId, err),
 			)
 			return nil, err
 		}
