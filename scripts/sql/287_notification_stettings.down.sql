@@ -1,1 +1,1 @@
-ALTER TABLE notification_settings DROP COLUMN cluster_id INT;
+ALTER TABLE notification_settings DROP COLUMN IF EXISTS cluster_id INT;
