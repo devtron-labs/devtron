@@ -1236,7 +1236,7 @@ func (impl *UserServiceImpl) GetEmailById(userId int32) (string, error) {
 		return emailId, err
 	}
 	if userModel != nil {
-		if userModel.Active {
+		if !userModel.Active {
 			emailId = fmt.Sprintf("%s (inactive)", userModel.EmailId)
 		} else {
 			emailId = userModel.EmailId
