@@ -1,7 +1,9 @@
 package repository
 
 import (
+	"github.com/glebarez/sqlite"
 	"github.com/go-pg/pg"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -12,7 +14,20 @@ type GenericNoteHistoryFileBasedRepositoryImpl struct {
 }
 
 func NewGenericNoteHistoryFileBasedRepositoryImpl(logger *zap.SugaredLogger) *GenericNoteHistoryFileBasedRepositoryImpl {
-	return &GenericNoteHistoryFileBasedRepositoryImpl{}
+	err, dbPath := createOrCheckClusterDbPath(logger)
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	//db, err := sql.Open("sqlite3", "./cluster.db")
+	if err != nil {
+		logger.Fatal("error occurred while opening db connection", "error", err)
+	}
+	migrator := db.Migrator()
+	genericNoteHistory := &GenericNoteHistory{}
+	err = migrator.AutoMigrate(genericNoteHistory)
+	if err != nil {
+		logger.Fatal("error occurred while auto-migrating genericNoteHistory", "error", err)
+	}
+	logger.Debugw("generic note history repository file based initialized")
+	return &GenericNoteHistoryFileBasedRepositoryImpl{logger, db}
 }
 
 func (impl GenericNoteHistoryFileBasedRepositoryImpl) StartTx() (*pg.Tx, error) {
@@ -38,6 +53,9 @@ func (impl GenericNoteHistoryFileBasedRepositoryImpl) FindHistoryByNoteId(id []i
 		Where("note_id =?", id).
 		Find(&clusterNoteHistories)
 	err := result.Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		err = pg.ErrNoRows
+	}
 	return clusterNoteHistories, err
 }
 

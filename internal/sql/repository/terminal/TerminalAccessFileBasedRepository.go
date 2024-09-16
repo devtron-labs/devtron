@@ -3,8 +3,8 @@ package terminal
 import (
 	"errors"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/util"
 	"github.com/glebarez/sqlite"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -45,7 +45,7 @@ func NewTerminalAccessFileBasedRepository(logger *zap.SugaredLogger) *TerminalAc
 }
 
 func createOrCheckClusterDbPath(logger *zap.SugaredLogger) (error, string) {
-	err, devtronDirPath := util.CheckOrCreateDevtronDir()
+	err, devtronDirPath := util2.CheckOrCreateDevtronDir()
 	if err != nil {
 		logger.Errorw("error occurred while creating devtron dir ", "err", err)
 		return err, ""

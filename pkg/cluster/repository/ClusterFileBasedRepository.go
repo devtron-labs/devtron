@@ -3,8 +3,8 @@ package repository
 import (
 	"encoding/json"
 	"errors"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/util"
 	"path"
 	"time"
 
@@ -31,6 +31,15 @@ type ClusterEntity struct {
 	K8sVersion        string
 	ErrorInConnecting string
 	Description string
+	PrometheusEndpoint     string
+	CdArgoSetup            bool
+	PUserName              string
+	PPassword              string
+	PTlsClientCert         string
+	PTlsClientKey          string
+	AgentInstallationStage int
+	IsVirtualCluster       bool
+	InsecureSkipTlsVerify  bool
 	sql.AuditLog
 }
 
@@ -43,20 +52,16 @@ func NewClusterRepositoryFileBased(logger *zap.SugaredLogger) *ClusterFileBasedR
 	}
 	migrator := db.Migrator()
 	clusterEntity := &ClusterEntity{}
-	//TODO KB: Need to handle table upgrade migration
-	hasTable := migrator.HasTable(clusterEntity)
-	if !hasTable {
-		err = migrator.CreateTable(clusterEntity)
-		if err != nil {
-			logger.Fatal("error occurred while creating cluster table", "error", err)
-		}
+	err = migrator.AutoMigrate(clusterEntity)
+	if err != nil {
+		logger.Fatal("error occurred while migrating cluster table", "error", err)
 	}
 	logger.Debugw("cluster repository file based initialized")
 	return &ClusterFileBasedRepository{logger, db}
 }
 
 func createOrCheckClusterDbPath(logger *zap.SugaredLogger) (error, string) {
-	err, devtronDirPath := util.CheckOrCreateDevtronDir()
+	err, devtronDirPath := util2.CheckOrCreateDevtronDir()
 	if err != nil {
 		logger.Errorw("error occurred while creating devtron dir ", "err", err)
 		return err, ""
@@ -72,6 +77,9 @@ func (impl *ClusterFileBasedRepository) FindAllActiveExceptVirtual() ([]Cluster,
 		Where("is_virtual_cluster=? OR is_virtual_cluster IS NULL", false).
 		Find(&clusterEntities)
 	err := result.Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		err = pg.ErrNoRows
+	}
 	if err != nil {
 		impl.logger.Errorw("error occurred while finding all cluster data", "err", err)
 		return nil, err
@@ -93,7 +101,7 @@ func (impl *ClusterFileBasedRepository) SetDescription(id int, description strin
 	clusterEntity.Description = description
 	clusterEntity.UpdatedBy = userId
 	clusterEntity.UpdatedOn = time.Now()
-	result := impl.dbConnection.Model(&ClusterEntity{}).Updates(clusterEntity)
+	result := impl.dbConnection.Model(clusterEntity).Updates(clusterEntity)
 	err = result.Error
 	if err != nil {
 		impl.logger.Errorw("error occurred while updating cluster description", "clusterId", id, "err", err)
@@ -277,6 +285,9 @@ func (impl *ClusterFileBasedRepository) FindById(id int) (*Cluster, error) {
 		Find(clusterEntity).
 		Limit(1)
 	err := result.Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		err = pg.ErrNoRows
+	}
 	if err != nil {
 		impl.logger.Errorw("error occurred while finding cluster data ", "id", id, "err", err)
 		return nil, err
@@ -295,22 +306,19 @@ func (impl *ClusterFileBasedRepository) FindByIds(id []int) ([]Cluster, error) {
 
 	var clusterEntities []ClusterEntity
 	result := impl.dbConnection.
-		Where("id in(?)", pg.In(id)).
+		Where("id in ?", id).
 		Where("active = ?", true).
 		Find(&clusterEntities)
 	err := result.Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		err = pg.ErrNoRows
+	}
 	if err != nil {
 		impl.logger.Errorw("error occurred while finding all cluster data", "err", err)
 		return nil, err
 	}
 	clusters := impl.ConvertEntitiesToModel(clusterEntities)
 	return clusters, nil
-	//var cluster []Cluster
-	//result := impl.dbConnection.
-	//	Find(&cluster).
-	//	Where("id in(?)", pg.In(id)).
-	//	Where("active =?", true)
-	//return cluster, result.Error
 }
 
 func (impl *ClusterFileBasedRepository) Update(model *Cluster) error {

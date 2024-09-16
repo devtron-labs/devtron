@@ -23,6 +23,7 @@ import (
 	"fmt"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	cron3 "github.com/devtron-labs/devtron/util/cron"
 	"net/http"
@@ -90,8 +91,8 @@ type TelemetryEventClient interface {
 	SendSummaryEvent(eventType string) error
 }
 
-func NewK8sAppTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService, PosthogClient *PosthogClient) (*TelemetryEventClientImpl, error) {
-	return NewTelemetryEventClientImpl(logger, client, clusterService, nil, nil, nil, nil, nil, PosthogClient, nil, nil, nil, nil, nil)
+func NewK8sAppTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService, PosthogClient *PosthogClient, cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, cronLogger *cron3.CronLoggerImpl) (*TelemetryEventClientImpl, error) {
+	return NewTelemetryEventClientImpl(logger, client, clusterService, nil, nil, nil, nil, nil, PosthogClient, nil, nil, nil, nil, nil, cloudProviderIdentifierService, cronLogger)
 }
 
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
@@ -846,7 +847,7 @@ func (impl *TelemetryEventClientImpl) buildIntegrationsList() ([]string, []strin
 
 func (impl *TelemetryEventClientImpl) GetOrSetDesktopAppUcid() string {
 	ucid := ""
-	err, devtronDirPath := util.CheckOrCreateDevtronDir()
+	err, devtronDirPath := util2.CheckOrCreateDevtronDir()
 	if err != nil {
 		impl.logger.Warnw("error occurred while creating dir", "err", err)
 	}

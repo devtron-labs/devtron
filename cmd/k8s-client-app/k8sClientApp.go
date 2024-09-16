@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/middleware"
-	"github.com/devtron-labs/devtron/util"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"io/fs"
@@ -102,7 +102,7 @@ func (app *App) Stop() {
 }
 
 func (app *App) writePortToFile(port int) {
-	err, devtronDirPath := util.CheckOrCreateDevtronDir()
+	err, devtronDirPath := util2.CheckOrCreateDevtronDir()
 	if err != nil {
 		app.Logger.Fatal("error occurred while creating dir", "err", err)
 	}

@@ -83,6 +83,7 @@ require (
 	google.golang.org/protobuf v1.33.0
 	gopkg.in/go-playground/validator.v9 v9.30.0
 	gopkg.in/igm/sockjs-go.v3 v3.0.0
+	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.4.0
 	gorm.io/gorm v1.24.2
 	helm.sh/helm/v3 v3.14.3

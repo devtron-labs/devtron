@@ -4,6 +4,7 @@
 package main
 
 import (
+	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/argoApplication"
 	"github.com/devtron-labs/devtron/api/cluster"
@@ -66,6 +67,9 @@ func InitializeApp() (*App, error) {
 
 		connector.NewPumpImpl,
 		wire.Bind(new(connector.Pump), new(*connector.PumpImpl)),
+
+		cloudProviderIdentifier.NewProviderIdentifierServiceImpl,
+		wire.Bind(new(cloudProviderIdentifier.ProviderIdentifierService), new(*cloudProviderIdentifier.ProviderIdentifierServiceImpl)),
 
 		telemetry.NewK8sAppTelemetryEventClientImpl,
 		wire.Bind(new(telemetry.TelemetryEventClient), new(*telemetry.TelemetryEventClientImpl)),

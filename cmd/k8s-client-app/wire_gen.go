@@ -7,6 +7,7 @@
 package main
 
 import (
+	"github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	cluster2 "github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
@@ -75,11 +76,11 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	genericNoteFileBasedRepositoryImpl := repository2.NewGenericNoteFileBasedRepository()
-	genericNoteHistoryFileBasedRepositoryImpl := repository2.NewGenericNoteHistoryFileBasedRepositoryImpl()
+	genericNoteFileBasedRepositoryImpl := repository2.NewGenericNoteFileBasedRepository(sugaredLogger)
+	genericNoteHistoryFileBasedRepositoryImpl := repository2.NewGenericNoteHistoryFileBasedRepositoryImpl(sugaredLogger)
 	genericNoteHistoryServiceImpl := genericNotes.NewGenericNoteHistoryServiceImpl(genericNoteHistoryFileBasedRepositoryImpl, sugaredLogger)
 	genericNoteServiceImpl := genericNotes.NewGenericNoteServiceImpl(genericNoteFileBasedRepositoryImpl, genericNoteHistoryServiceImpl, noopUserService, sugaredLogger)
-	clusterDescriptionFileBasedRepositoryImpl := repository.NewClusterDescriptionFileBasedRepository()
+	clusterDescriptionFileBasedRepositoryImpl := repository.NewClusterDescriptionFileBasedRepository(sugaredLogger)
 	clusterDescriptionServiceImpl := cluster.NewClusterDescriptionServiceImpl(clusterDescriptionFileBasedRepositoryImpl, noopUserService, sugaredLogger)
 	validate, err := util.IntValidator()
 	if err != nil {
@@ -147,7 +148,8 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	telemetryEventClientImpl, err := telemetry.NewK8sAppTelemetryEventClientImpl(sugaredLogger, client, clusterServiceImpl, posthogClient)
+	providerIdentifierServiceImpl := providerIdentifier.NewProviderIdentifierServiceImpl(sugaredLogger)
+	telemetryEventClientImpl, err := telemetry.NewK8sAppTelemetryEventClientImpl(sugaredLogger, client, clusterServiceImpl, posthogClient, providerIdentifierServiceImpl, cronLoggerImpl)
 	if err != nil {
 		return nil, err
 	}

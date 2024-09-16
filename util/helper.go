@@ -26,11 +26,9 @@ import (
 	"github.com/juju/errors"
 	"io"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -270,21 +268,6 @@ func TriggerCIMetrics(Metrics CIMetrics, exposeCIMetrics bool, PipelineName stri
 		}
 		middleware.BuildDuration.WithLabelValues(PipelineName, AppName).Observe(Metrics.BuildDuration)
 	}
-}
-
-func CheckOrCreateDevtronDir() (err error, devtronDirPath string) {
-	userHomeDir, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatalln("error occurred while finding home dir", "err", err)
-		return err, ""
-	}
-	devtronDirPath = path.Join(userHomeDir, "./.devtron")
-	err = os.MkdirAll(devtronDirPath, os.ModePerm)
-	if err != nil {
-		log.Fatalln("error occurred while creating folder", "path", devtronDirPath, "err", err)
-		return err, ""
-	}
-	return err, devtronDirPath
 }
 
 func TriggerGitOpsMetrics(operation string, method string, startTime time.Time, err error) {
