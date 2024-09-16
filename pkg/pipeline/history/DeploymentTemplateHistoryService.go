@@ -267,7 +267,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeploymentDetailsForDeployed
 	var historiesDto []*DeploymentTemplateHistoryDto
 	for _, history := range histories {
 		if wfrIndex, ok := deploymentTimeStatusMap[history.DeployedOn]; ok {
-			userEmailId, err := impl.userService.GetEmailById(history.DeployedBy)
+			userEmailId, err := impl.userService.GetActiveEmailById(history.DeployedBy)
 			if err != nil {
 				impl.logger.Errorw("unable to find user email by id", "err", err, "id", history.DeployedBy)
 				return nil, err
