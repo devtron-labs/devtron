@@ -243,7 +243,7 @@ func (handler *PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWr
 		if deploymentPipeline.IsSwitchCiPipelineRequest() {
 			cdPipelines, err := handler.getCdPipelinesForCdPatchRbac(deploymentPipeline)
 			if err != nil && !errors.Is(err, pg.ErrNoRows) {
-				handler.Logger.Errorw("error in finding cd cdPipelines by ciPipelineId", "err", err)
+				handler.Logger.Errorw("error in finding cdPipelines by deploymentPipeline", "deploymentPipeline", deploymentPipeline, "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return
 			}
@@ -2576,10 +2576,6 @@ func (handler *PipelineConfigRestHandlerImpl) GetGitOpsConfiguration(w http.Resp
 
 // this is being used for getting all cdPipelines in the case of changing the source from any [except] -> external-ci
 func (handler *PipelineConfigRestHandlerImpl) getCdPipelinesForCdPatchRbac(deploymentPipeline *bean.CDPipelineConfigObject) (cdPipelines []*pipelineConfig.Pipeline, err error) {
-	// if the request is for create, then there will be no cd pipelines created yet
-	if deploymentPipeline.SwitchFromCiPipelineId < 0 {
-		return
-	}
 	componentId, componentType := deploymentPipeline.PatchSourceInfo()
 	// the appWorkflowId can be taken from patchRequest.AppWorkflowId but doing this can make 2 sources of truth to find the workflow
 	sourceAppWorkflowMapping, err := handler.appWorkflowService.FindWFMappingByComponent(componentType, componentId)

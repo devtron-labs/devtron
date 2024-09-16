@@ -655,9 +655,7 @@ func (cdpipelineConfig *CDPipelineConfigObject) IsSwitchCiPipelineRequest() bool
 
 func (cdpipelineConfig *CDPipelineConfigObject) PatchSourceInfo() (int, string) {
 	//as the source will be always CI_PIPELINE in case of external-ci change request
-	componentType := appWorkflow.CIPIPELINE
-	componentId := cdpipelineConfig.SwitchFromCiPipelineId
-	return componentId, componentType
+	return cdpipelineConfig.SwitchFromCiPipelineId, appWorkflow.CIPIPELINE
 }
 
 type PreStageConfigMapSecretNames struct {
