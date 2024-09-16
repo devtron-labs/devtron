@@ -417,23 +417,24 @@ func (impl *FullModeDeploymentServiceImpl) GetDeploymentHistory(ctx context.Cont
 	return result, err
 }
 
-func (impl *FullModeDeploymentServiceImpl) migrateDeploymentHistoryMessage(ctx context.Context, updateHistory *repository.InstalledAppVersionHistory) (message string) {
+func (impl *FullModeDeploymentServiceImpl) migrateDeploymentHistoryMessage(ctx context.Context, updateHistory *repository.InstalledAppVersionHistory) (helmInstallStatusMsg string) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "FullModeDeploymentServiceImp.migrateDeploymentHistoryMessage")
 	defer span.End()
-	message = updateHistory.Message
+	helmInstallStatusMsg = updateHistory.Message
 	helmInstallStatus := &appStoreBean.HelmReleaseStatusConfig{}
 	jsonErr := json.Unmarshal([]byte(updateHistory.HelmReleaseStatusConfig), helmInstallStatus)
 	if jsonErr != nil {
 		impl.Logger.Errorw("error while unmarshal helm release status config", "helmReleaseStatusConfig", updateHistory.HelmReleaseStatusConfig, "error", jsonErr)
-		return message
+		return helmInstallStatusMsg
 	} else if helmInstallStatus.ErrorInInstallation {
-		dbErr := impl.installedAppRepositoryHistory.UpdateDeploymentHistoryMessage(updateHistory.Id, helmInstallStatus.Message)
+		helmInstallStatusMsg = fmt.Sprintf("Deployment failed: %v", helmInstallStatus.Message)
+		dbErr := impl.installedAppRepositoryHistory.UpdateDeploymentHistoryMessage(updateHistory.Id, helmInstallStatusMsg)
 		if dbErr != nil {
-			impl.Logger.Errorw("error while updating deployment history message", "error", dbErr)
+			impl.Logger.Errorw("error while updating deployment history helmInstallStatusMsg", "error", dbErr)
 		}
-		return helmInstallStatus.Message
+		return helmInstallStatusMsg
 	}
-	return message
+	return helmInstallStatusMsg
 }
 
 // GetDeploymentHistoryInfo TODO refactoring: use InstalledAppVersionHistoryId from appStoreBean.InstallAppVersionDTO instead of version int32
