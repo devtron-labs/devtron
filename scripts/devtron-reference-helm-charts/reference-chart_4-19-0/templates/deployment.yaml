@@ -210,6 +210,10 @@ spec:
 {{- if $.Values.containerExtraSpecs }}	
 {{ toYaml .Values.containerExtraSpecs | indent 10 }}	
 {{- end }}
+{{- if $.Values.resizePolicy }}
+          resizePolicy:
+{{ toYaml .Values.resizePolicy | indent 12 }}          
+{{- end }}          
           ports:
           {{- range $.Values.ContainerPort }}
             - name: {{ .name}}
@@ -471,11 +475,11 @@ spec:
           volumeMounts:
             - name: {{ $.Values.envoyproxy.configMapName | default "envoy-config-volume" }}
               mountPath: /etc/envoy-config/envoy-config-volume
-{{-if $.Values.envoyproxy.readinessProbe}}
+{{- if $.Values.envoyproxy.readinessProbe}}
           readinessProbe:
 {{ toYaml $.Values.envoyproxy.readinessProbe | indent 12}} 
 {{- end }}  
-{{-if $.Values.envoyproxy.livenessProbe}}
+{{- if $.Values.envoyproxy.livenessProbe}}
           readinessProbe:
 {{ toYaml $.Values.envoyproxy.livenessProbe | indent 12}} 
 {{- end }}               
@@ -494,6 +498,10 @@ spec:
           command:
 {{ toYaml .command | indent 12 -}}
 {{- end}}
+{{- if .resizePolicy }}
+          resizePolicy:
+{{ toYaml .resziePolicy | indent 12}}
+{{- end }}
 {{- if .resources}}
           resources:
 {{ toYaml .resources | indent 12 -}}

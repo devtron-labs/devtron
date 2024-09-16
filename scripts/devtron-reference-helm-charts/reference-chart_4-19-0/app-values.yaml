@@ -42,6 +42,7 @@ ContainerPort:
     supportStreaming: false
     idleTimeout: 1800s
     protocol: TCP
+    resizePolicy: []
 #    servicemonitor:
 #      enabled: true
 #      path: /abc
@@ -253,6 +254,13 @@ autoscaling:
   annotations: {}
   labels: {}
   behavior: {}
+  type: "ContainerResource"
+  containerResource: 
+    name: cpu
+    container: application
+    target:
+      type: Utilization
+      averageUtilization: 60
 #    scaleDown:
 #      stabilizationWindowSeconds: 300
 #      policies:
