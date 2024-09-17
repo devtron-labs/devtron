@@ -145,8 +145,10 @@ func (impl *DeploymentConfigurationServiceImpl) getResolvedConfigDataForValues(c
 	var err error
 	deploymentTemplateRequest := generateManifest.DeploymentTemplateRequest{
 		AppId:           appId,
-		EnvId:           envId,
 		RequestDataMode: generateManifest.Values,
+	}
+	if envId > 0 {
+		deploymentTemplateRequest.EnvId = envId
 	}
 	resolvedTemplate, _, err := impl.deploymentTemplateService.ResolveTemplateVariables(ctx, values, deploymentTemplateRequest)
 	if err != nil {
