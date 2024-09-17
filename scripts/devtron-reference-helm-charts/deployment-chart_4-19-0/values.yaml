@@ -44,7 +44,6 @@ Spec:
 #  Key: kops.k8s.io/instancegroup 
   Values: ""
 
-affinity: {}
 
 image:
   pullPolicy: IfNotPresent
@@ -95,13 +94,6 @@ autoscaling:
   annotations: {}
   labels: {}
   behavior: {}
-  type: ContainerResource
-  ContainerResource:
-    name: cpu
-    container: application
-    target:
-      type: Utilization
-      averageUtilization: 60  
 #    scaleDown:
 #      stabilizationWindowSeconds: 300
 #      policies:
@@ -341,14 +333,13 @@ EnvVariablesFromConfigMapKeys: []
   #   keyName: CONFIG_MAP_KEY
 
 LivenessProbe:
-  Path: ""
+  Path: /
   port: 8080
   initialDelaySeconds: 20
   periodSeconds: 10
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
-  scheme: ""
   httpHeaders: []
 #    - name: Custom-Header
 #      value: abc
@@ -356,14 +347,13 @@ LivenessProbe:
 
 
 ReadinessProbe:
-  Path: ""
+  Path: /
   port: 8080
   initialDelaySeconds: 20
   periodSeconds: 10
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
-  scheme: "" 
   httpHeaders: []
 #    - name: Custom-Header
 #      value: abc

@@ -394,10 +394,6 @@ Spec:
     #  Key: kops.k8s.io/instancegroup
     Values: ""
 
-affinity:
-  enabled: false
-  values: {}
-
 ambassadorMapping:
   enabled: false
   labels: {}
