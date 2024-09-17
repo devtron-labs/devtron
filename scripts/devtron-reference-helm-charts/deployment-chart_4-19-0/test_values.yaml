@@ -750,17 +750,3 @@ hostAliases: []
 #  - ip: "127.0.0.1"
 #    hostnames:
 #    - "foo.local"
-
-
-affinity:
-  enabled: false
-  values:
-    podAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-      - labelSelector:
-          matchExpressions:
-          - key: security
-            operator: In
-            values:
-            - S1
-        topologyKey: topology.kubernetes.io/zone    
