@@ -18,15 +18,13 @@ package repository
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"k8s.io/utils/pointer"
 	"strconv"
 )
-
-const AllExistingAndFutureNonProdEnvsInt = -1
-const AllExistingAndFutureProdEnvsInt = -2
 
 type NotificationSettingsRepository interface {
 	FindNSViewCount() (int, error)
@@ -238,8 +236,8 @@ func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingDeploymen
 	var envProdIdentifier *bool
 	envIds := make([]*int, 0)
 	for _, envId := range settingRequest.EnvId {
-		if *envId == AllExistingAndFutureProdEnvsInt || *envId == AllExistingAndFutureNonProdEnvsInt {
-			envProdIdentifier = pointer.Bool(*envId == AllExistingAndFutureProdEnvsInt)
+		if *envId == resourceQualifiers.AllExistingAndFutureProdEnvsInt || *envId == resourceQualifiers.AllExistingAndFutureNonProdEnvsInt {
+			envProdIdentifier = pointer.Bool(*envId == resourceQualifiers.AllExistingAndFutureProdEnvsInt)
 			continue
 		}
 		envIds = append(envIds, envId)
@@ -286,7 +284,7 @@ func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingBuildOpti
 	var settingOption []*SettingOptionDTO
 	envIds := make([]*int, 0)
 	for _, envId := range settingRequest.EnvId {
-		if *envId == AllExistingAndFutureProdEnvsInt || *envId == AllExistingAndFutureNonProdEnvsInt {
+		if *envId == resourceQualifiers.AllExistingAndFutureProdEnvsInt || *envId == resourceQualifiers.AllExistingAndFutureNonProdEnvsInt {
 			continue
 		}
 		envIds = append(envIds, envId)

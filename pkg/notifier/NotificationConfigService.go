@@ -21,6 +21,7 @@ import (
 	"errors"
 	clusterService "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/notifier/beans"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	util3 "github.com/devtron-labs/devtron/util"
 	"time"
 
@@ -250,9 +251,9 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 			var envResponse []*beans.EnvResponse
 			envIds := make([]*int, 0)
 			for _, envId := range config.EnvId {
-				if *envId == repository.AllExistingAndFutureProdEnvsInt {
+				if *envId == resourceQualifiers.AllExistingAndFutureProdEnvsInt {
 					envResponse = append(envResponse, &beans.EnvResponse{Id: envId, Name: allProdEnvsName})
-				} else if *envId == repository.AllExistingAndFutureNonProdEnvsInt {
+				} else if *envId == resourceQualifiers.AllExistingAndFutureNonProdEnvsInt {
 					envResponse = append(envResponse, &beans.EnvResponse{Id: envId, Name: allNonProdEnvsName})
 				} else {
 					envIds = append(envIds, envId)
@@ -261,7 +262,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 			if len(envIds) > 0 {
 				environments, err := impl.environmentRepository.FindByIds(config.EnvId)
 				if err != nil && err != pg.ErrNoRows {
-					impl.logger.Errorw("error in fetching env", "err", err)
+					impl.logger.Errorw("error in fetching env", "envIds", config.EnvId, "err", err)
 					return notificationSettingsResponses, deletedItemCount, err
 				}
 				for _, item := range environments {
@@ -275,7 +276,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 		if config.AppId != nil && len(config.AppId) > 0 {
 			applications, err := impl.appRepository.FindByIds(config.AppId)
 			if err != nil && err != pg.ErrNoRows {
-				impl.logger.Errorw("error in fetching app", "err", err)
+				impl.logger.Errorw("error in fetching app", "appIds", config.AppId, "err", err)
 				return notificationSettingsResponses, deletedItemCount, err
 			}
 			var appResponse []*beans.AppResponse
@@ -292,7 +293,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 			})
 			clusterName, err := impl.clusterService.FindByIds(clusterIds)
 			if err != nil {
-				impl.logger.Errorw("error on fetching cluster", "err", err)
+				impl.logger.Errorw("error on fetching cluster", "clusterIds", clusterIds, "err", err)
 				return notificationSettingsResponses, deletedItemCount, err
 			}
 			for _, item := range clusterName {
@@ -326,7 +327,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 			if len(slackIds) > 0 {
 				slackConfigs, err := impl.slackRepository.FindByIds(slackIds)
 				if err != nil && err != pg.ErrNoRows {
-					impl.logger.Errorw("error in fetching slack config", "err", err)
+					impl.logger.Errorw("error in fetching slack config", "slackIds", slackIds, "err", err)
 					return notificationSettingsResponses, deletedItemCount, err
 				}
 				for _, item := range slackConfigs {
@@ -336,7 +337,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 			if len(webhookIds) > 0 {
 				webhookConfigs, err := impl.webhookRepository.FindByIds(webhookIds)
 				if err != nil && err != pg.ErrNoRows {
-					impl.logger.Errorw("error in fetching webhook config", "err", err)
+					impl.logger.Errorw("error in fetching webhook config", "webhookIds", webhookIds, "err", err)
 					return notificationSettingsResponses, deletedItemCount, err
 				}
 				for _, item := range webhookConfigs {
@@ -347,7 +348,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 			if len(sesUserIds) > 0 {
 				sesConfigs, err := impl.userRepository.GetByIds(sesUserIds)
 				if err != nil && err != pg.ErrNoRows {
-					impl.logger.Errorw("error in fetching user", "error", err)
+					impl.logger.Errorw("error in fetching user", "sesUserIds", sesUserIds, "error", err)
 					return notificationSettingsResponses, deletedItemCount, err
 				}
 				for _, item := range sesConfigs {
@@ -357,7 +358,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 			if len(smtpUserIds) > 0 {
 				smtpConfigs, err := impl.userRepository.GetByIds(smtpUserIds)
 				if err != nil && err != pg.ErrNoRows {
-					impl.logger.Errorw("error in fetching user", "error", err)
+					impl.logger.Errorw("error in fetching user", "smtpUserIds", smtpUserIds, "error", err)
 					return notificationSettingsResponses, deletedItemCount, err
 				}
 				for _, item := range smtpConfigs {
@@ -704,13 +705,13 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 	prodEnvIdentifierFound := false
 	nonProdEnvIdentifierFound := false
 	for _, envId := range settingRequest.EnvId {
-		if *envId == repository.AllExistingAndFutureProdEnvsInt {
+		if *envId == resourceQualifiers.AllExistingAndFutureProdEnvsInt {
 			prodEnvIdentifierFound = true
 		}
 	}
 
 	for _, envId := range settingRequest.EnvId {
-		if *envId == repository.AllExistingAndFutureNonProdEnvsInt {
+		if *envId == resourceQualifiers.AllExistingAndFutureNonProdEnvsInt {
 			nonProdEnvIdentifierFound = true
 		}
 	}
@@ -776,9 +777,9 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 	if settingRequest.EnvId != nil && len(settingRequest.EnvId) > 0 {
 		envIds := make([]*int, 0)
 		for _, envId := range settingRequest.EnvId {
-			if *envId == repository.AllExistingAndFutureProdEnvsInt {
+			if *envId == resourceQualifiers.AllExistingAndFutureProdEnvsInt {
 				envResponse = append(envResponse, &beans.EnvResponse{Id: envId, Name: allProdEnvsName})
-			} else if *envId == repository.AllExistingAndFutureNonProdEnvsInt {
+			} else if *envId == resourceQualifiers.AllExistingAndFutureNonProdEnvsInt {
 				envResponse = append(envResponse, &beans.EnvResponse{Id: envId, Name: allNonProdEnvsName})
 			} else {
 				envIds = append(envIds, envId)
