@@ -8,7 +8,7 @@ Using filter conditions, you can control the progression of events. Here are a f
 * Images containing the label "test" should not be eligible for deployment in production environment
 * Only images having tag versions greater than v0.7.4 should be eligible for deployment
 * Images hosted on Docker Hub should be eligible but not the rest
-* Only images derived from master branch should be eligible for production deployment
+* Only images derived from master branch should be eligible for production deployment (see [example](#scenario-2))
 
 ---
 
@@ -35,7 +35,7 @@ You must have application(s) with CI-CD workflow(s) configured
     * **Filter Condition**: You can specify either a pass condition, fail condition, or both the conditions:
         * **Pass Condition**: Events that satisfy the pass condition are eligible to trigger your CD pipeline.
         * **Fail Condition**: Events that satisfy the fail condition are not eligible to trigger your CD pipeline.
-    * **Use CEL Expression**: You can use `Common Expression Language` (CEL) to define the conditions (regex supported too, see [example](#scenario-2)). Currently, you can create conditions with the help of following variables:
+    * **Use CEL Expression**: You can use `Common Expression Language` (CEL) to define the conditions. Currently, you can create conditions with the help of following variables:
         * **containerImage**: Package that contains all the necessary files and instructions to run an application in a container, e.g., gcr.io/k8s-minikube/kicbase:v0.0.39. It returns a string value in the following format: `<registry>/<repository>:<tag>`
         * **containerRepository**: Storage location for container images, e.g., kicbase
         * **containerImageTag**: Versioning of image to indicate its release, e.g., v0.0.39
@@ -107,22 +107,22 @@ Clicking the filter icon at the top-left shows the filter condition(s) applied t
 
 #### Scenario 2
 
-Consider another scenario where you wish to make images eligible for deployment only if the application's git branch starts with the word `hotfix` and also if its repo URL matches your specified regex.
+Consider another scenario where you wish to make images eligible for deployment only if the application's git branch starts with the word `hotfix` and also if its repo URL matches your specified condition.
 
 **CEL Expression**:
 
 `gitCommitDetails.filter(gitCommitDetail, gitCommitDetail.startsWith('https://github.com/devtron-labs')).map(repo, gitCommitDetails[repo].branch).exists_one(branch, branch.startsWith('hotfix-'))`
 
-where, `https://github.com/devtron-labs*` is the regex for repo URL <br />
-and `hotfix-*` is the regex for the branch name
+where, `https://github.com/devtron-labs` is a portion of the repo URL <br />
+and `hotfix-` is for finding the branch name (say *hotfix-sept-2024*)
 
-If you have a fixed branch (say hotfix-123), you may skip the regex and write it as follows:
+Alternatively, if you have a fixed branch (say *hotfix-123*), you may write the following expression:
 
 `'hotfix-123' in gitCommitDetails.filter(gitCommitDetail, gitCommitDetail.startsWith('https://github.com/devtron-labs')).map(repo, gitCommitDetails[repo].branch)`
 
 **Walkthrough Video**:
 
-{% embed url="https://www.youtube.com/watch?v=8DQrWIMImQQ" caption="Filter Condition with Regex" %}
+{% embed url="https://www.youtube.com/watch?v=R8IbZhXhH-k" caption="Filter Condition Example" %}
 
 
 ### Fail Condition
