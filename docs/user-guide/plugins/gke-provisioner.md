@@ -2,25 +2,24 @@
 
 ## Introduction
 This plugin streamlines the creation and configuration of a Google Kubernetes Engine (GKE) cluster on your Google Cloud Platform (GCP). It automates the provisioning process while implementing essential security measures, including a preconfigured firewall that allows access to SSH, HTTP (port 80), 8080, and Kubernetes NodePorts. By automating the GKE provisioning process through this plugin, you can save time, ensure consistency in cluster setup, maintain security standards, and provide a Kubernetes-ready environment for deploying your containerized applications. 
-
-{% hint style="warning" %}
-The GKE Provisioner plugin, while primarily recommended for Job Pipelines, but can also be effectively integrated into the PRE and POST stages of CI/CD pipelines.
-{% endhint %}
-
 ### Prerequisites
 Before integrating the **GKE Provisioner** plugin make sure that you have an GCP account with valid permissions to provision GKE.
 
 ---
 
 ## Steps
-1. Go to Applications → **Devtron Apps**.
-2. Click on your application.
-3. Go to **App Configuration** → **Workflow Editor**.
-4. Click **New Workflow** and navigate to the **CREATE JOB PIPELINE**.
-5. Enter the required fields in the **Basic configuration** window.
-6. Under 'TASKS', click the **+ Add task** button.
-7. Click the **GKE Provisioner**.
-8. Enter the following [user inputs](#user-inputs) with appropriate values.
+1. Navigate to the **Jobs** section, click **Create**, and choose **Job**.
+2. In the 'Create job' window, enter **Job Name** and choose a target project.
+3. Click **Create Job**.
+4. In the 'Configurations' tab, fill the required fields under the 'Source code' section and click **Save**.
+5. In Workflow Editor, click **+ Job Pipeline**.
+6. Give a name to the workflow and click **Create Workflow**.
+7. Click **Add job pipeline to this workflow**.
+8. Fill the required fields in ‘Basic configuration’ tab.
+9. Go to the ‘Tasks to be executed’ tab.
+10. Under ‘Tasks’, click the **+ Add task** button.
+11. Select the **GKE Provisioner** plugin.
+12. Enter the following [user inputs](#user-inputs) with appropriate values.
 ---
 
 ## User Inputs
