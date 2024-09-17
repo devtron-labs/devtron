@@ -160,7 +160,12 @@ func (impl *DeploymentConfigurationServiceImpl) getResolvedConfigDataForValues(c
 		impl.logger.Errorw("marshalling resolved deployment template ", "appId", appId, "resolvedTemplate", resolvedTemplate, "err", err)
 		return nil, err
 	}
-	return configDataDto.WithDeploymentTemplateData(bean2.NewDeploymentAndCmCsConfig().WithResolvedValue(string(resolvedJson))), nil
+	resolvedConfigDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedJson)
+	if err != nil {
+		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in ConvertToJsonRawMessage for resolvedJson", "resolvedJson", resolvedJson, "err", err)
+		return nil, err
+	}
+	return configDataDto.WithDeploymentTemplateData(bean2.NewDeploymentAndCmCsConfig().WithResolvedValue(resolvedConfigDataStringJson)), nil
 }
 
 func (impl *DeploymentConfigurationServiceImpl) getConfigDataForCdRollback(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams, userHasAdminAccess bool) (*bean2.DeploymentAndCmCsConfigDto, error) {
@@ -192,11 +197,16 @@ func (impl *DeploymentConfigurationServiceImpl) getDeploymentHistoryConfig(ctx c
 	if err != nil {
 		impl.logger.Errorw("error while resolving template from history", "deploymentHistoryId", deploymentHistory.Id, "pipelineId", configDataQueryParams.PipelineId, "err", err)
 	}
+	resolvedConfigDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedTemplate)
+	if err != nil {
+		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in ConvertToJsonRawMessage for resolvedTemplate", "resolvedTemplate", resolvedTemplate, "err", err)
+		return nil, err
+	}
 	deploymentConfig := bean2.NewDeploymentAndCmCsConfig().
 		WithConfigData(deploymentJson).
 		WithResourceType(bean.DeploymentTemplate).
 		WithVariableSnapshot(map[string]map[string]string{bean.DeploymentTemplate.ToString(): variableSnapshotMap}).
-		WithResolvedValue(resolvedTemplate)
+		WithResolvedValue(resolvedConfigDataStringJson)
 	return deploymentConfig, nil
 }
 
@@ -318,12 +328,16 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsConfigHistory(ctx context
 		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in converting config data to json raw message", "pipelineId", configDataQueryParams.PipelineId, "wfrId", configDataQueryParams.WfrId, "err", err)
 		return nil, err
 	}
-
+	resolvedConfigDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedConfigDataString)
+	if err != nil {
+		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in ConvertToJsonRawMessage for resolvedConfigDataString", "pipelineId", configDataQueryParams.PipelineId, "wfrId", configDataQueryParams.WfrId, "err", err)
+		return nil, err
+	}
 	cmConfigData := bean2.NewDeploymentAndCmCsConfig().
 		WithConfigData(configDataJson).
 		WithResourceType(resourceType).
 		WithVariableSnapshot(variableSnapshotMap).
-		WithResolvedValue(resolvedConfigDataString)
+		WithResolvedValue(resolvedConfigDataStringJson)
 	return cmConfigData, nil
 }
 
@@ -437,12 +451,22 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsPublishedConfigResponse(c
 		impl.logger.Errorw("error in resolving cm and cs for published only config only response", "appId", appId, "envId", envId, "err", err)
 		return nil, err
 	}
+	resolvedConfigMapDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedCmCsMetadataDto.ResolvedConfigMapData)
+	if err != nil {
+		impl.logger.Errorw("error in ConvertToJsonRawMessage for resolvedConfigMapDataStringJson", "resolvedCmData", resolvedCmCsMetadataDto.ResolvedConfigMapData, "err", err)
+		return nil, err
+	}
+	resolvedSecretDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedCmCsMetadataDto.ResolvedSecretData)
+	if err != nil {
+		impl.logger.Errorw(" error in ConvertToJsonRawMessage for resolvedConfigDataString", "err", err)
+		return nil, err
+	}
 
 	cmConfigData := bean2.NewDeploymentAndCmCsConfig().WithConfigData(cmRespJson).WithResourceType(bean.CM).
-		WithResolvedValue(resolvedCmCsMetadataDto.ResolvedConfigMapData).WithVariableSnapshot(resolvedCmCsMetadataDto.VariableMapCM)
+		WithResolvedValue(resolvedConfigMapDataStringJson).WithVariableSnapshot(resolvedCmCsMetadataDto.VariableMapCM)
 
 	secretConfigData := bean2.NewDeploymentAndCmCsConfig().WithConfigData(secretRespJson).WithResourceType(bean.CS).
-		WithResolvedValue(resolvedCmCsMetadataDto.ResolvedSecretData).WithVariableSnapshot(resolvedCmCsMetadataDto.VariableMapCS)
+		WithResolvedValue(resolvedSecretDataStringJson).WithVariableSnapshot(resolvedCmCsMetadataDto.VariableMapCS)
 
 	configDataDto.WithConfigMapData(cmConfigData).WithSecretData(secretConfigData)
 	return configDataDto, nil
@@ -570,8 +594,13 @@ func (impl *DeploymentConfigurationServiceImpl) getPublishedDeploymentConfig(ctx
 		variableSnapShotMap := make(map[string]map[string]string, len(deplTemplateResp.VariableSnapshot))
 		variableSnapShotMap[bean.DeploymentTemplate.ToString()] = deplTemplateResp.VariableSnapshot
 
+		resolvedConfigDataStringJson, err := utils.ConvertToJsonRawMessage(deplTemplateResp.ResolvedData)
+		if err != nil {
+			impl.logger.Errorw("getCmCsPublishedConfigResponse, error in ConvertToJsonRawMessage for resolvedConfigDataString", "resolvedData", deplTemplateResp.ResolvedData, "err", err)
+			return nil, err
+		}
 		return bean2.NewDeploymentAndCmCsConfig().WithConfigData(deploymentJson).WithResourceType(bean.DeploymentTemplate).
-			WithResolvedValue(deplTemplateResp.ResolvedData).WithVariableSnapshot(variableSnapShotMap), nil
+			WithResolvedValue(resolvedConfigDataStringJson).WithVariableSnapshot(variableSnapShotMap), nil
 	}
 	deplJson, err := impl.getBaseDeploymentTemplate(appId)
 	if err != nil {

@@ -88,7 +88,7 @@ type DeploymentAndCmCsConfig struct {
 	ResourceType     bean.ResourceType            `json:"resourceType"`
 	Data             json.RawMessage              `json:"data"`
 	VariableSnapshot map[string]map[string]string `json:"variableSnapshot"` // for deployment->{Deployment Template: resolvedValuesMap}, for cm->{cmComponentName: resolvedValuesMap}
-	ResolvedValue    string                       `json:"resolvedValue"`
+	ResolvedValue    json.RawMessage              `json:"resolvedValue"`
 }
 
 func NewDeploymentAndCmCsConfig() *DeploymentAndCmCsConfig {
@@ -110,7 +110,7 @@ func (r *DeploymentAndCmCsConfig) WithVariableSnapshot(snapshot map[string]map[s
 	return r
 }
 
-func (r *DeploymentAndCmCsConfig) WithResolvedValue(resolvedValue string) *DeploymentAndCmCsConfig {
+func (r *DeploymentAndCmCsConfig) WithResolvedValue(resolvedValue json.RawMessage) *DeploymentAndCmCsConfig {
 	r.ResolvedValue = resolvedValue
 	return r
 }
