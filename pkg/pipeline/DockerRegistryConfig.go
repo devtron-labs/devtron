@@ -46,7 +46,7 @@ type DockerRegistryConfig interface {
 	Delete(storeId string) (string, error)
 	DeleteReg(bean *types.DockerArtifactStoreBean) error
 	CheckInActiveDockerAccount(storeId string) (bool, error)
-	ValidateRegistryCredentials(bean *types.DockerArtifactStoreBean) bool
+	ValidateRegistryCredentials(bean *types.DockerArtifactStoreBean) error
 	ConfigureOCIRegistry(bean *types.DockerArtifactStoreBean, isUpdate bool, userId int32, tx *pg.Tx) error
 	CreateOrUpdateOCIRegistryConfig(ociRegistryConfig *repository.OCIRegistryConfig, userId int32, tx *pg.Tx) error
 	FilterOCIRegistryConfigForSpecificRepoType(ociRegistryConfigList []*repository.OCIRegistryConfig, repositoryType string) *repository.OCIRegistryConfig
@@ -578,13 +578,8 @@ func (impl DockerRegistryConfigImpl) Update(bean *types.DockerArtifactStoreBean)
 	bean.PluginId = existingStore.PluginId
 
 	store := NewDockerArtifactStore(bean, true, existingStore.CreatedOn, time.Now(), existingStore.CreatedBy, bean.User)
-	if isValid := impl.ValidateRegistryCredentials(bean); !isValid {
-		impl.logger.Errorw("registry credentials validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
-		err = &util.ApiError{
-			HttpStatusCode:  http.StatusBadRequest,
-			InternalMessage: "Invalid authentication credentials. Please verify.",
-			UserMessage:     "Invalid authentication credentials. Please verify.",
-		}
+	if err = impl.ValidateRegistryCredentials(bean); err != nil {
+		impl.logger.Errorw("registry credentials validation err, SaveDockerRegistryConfig", "err", err)
 		return nil, err
 	}
 	err = impl.dockerArtifactStoreRepository.Update(store, tx)
@@ -888,12 +883,14 @@ func (impl DockerRegistryConfigImpl) CheckInActiveDockerAccount(storeId string) 
 	return exist, nil
 }
 
-func (impl DockerRegistryConfigImpl) ValidateRegistryCredentials(bean *types.DockerArtifactStoreBean) bool {
+const ociRegistryInvalidCredsMsg = "Invalid authentication credentials. Please verify."
+
+func (impl DockerRegistryConfigImpl) ValidateRegistryCredentials(bean *types.DockerArtifactStoreBean) error {
 	if bean.IsPublic ||
 		bean.RegistryType == repository.REGISTRYTYPE_GCR ||
 		bean.RegistryType == repository.REGISTRYTYPE_ARTIFACT_REGISTRY ||
 		bean.RegistryType == repository.REGISTRYTYPE_OTHER {
-		return true
+		return nil
 	}
 	request := &bean2.RegistryCredential{
 		RegistryUrl:  bean.RegistryURL,
@@ -906,5 +903,21 @@ func (impl DockerRegistryConfigImpl) ValidateRegistryCredentials(bean *types.Doc
 		IsPublic:     bean.IsPublic,
 		Connection:   bean.Connection,
 	}
-	return impl.helmAppService.ValidateOCIRegistry(context.Background(), request)
+
+	isLoggedIn, err := impl.helmAppService.ValidateOCIRegistry(context.Background(), request)
+	if err != nil {
+		impl.logger.Errorw("error in fetching chart", "err", err)
+		return util.NewApiError().
+			WithUserMessage("error in validating oci registry").
+			WithInternalMessage(err.Error()).
+			WithHttpStatusCode(http.StatusInternalServerError)
+	}
+	if !isLoggedIn {
+		return util.NewApiError().
+			WithUserMessage(ociRegistryInvalidCredsMsg).
+			WithInternalMessage(ociRegistryInvalidCredsMsg).
+			WithHttpStatusCode(http.StatusBadRequest)
+	}
+
+	return nil
 }
