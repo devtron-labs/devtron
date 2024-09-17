@@ -143,9 +143,10 @@ type WorkflowRequest struct {
 	Env                         *repository.Environment
 	AppLabels                   map[string]string
 	Scope                       resourceQualifiers.Scope
-	BuildxCacheModeMin          bool `json:"buildxCacheModeMin"`
-	AsyncBuildxCacheExport      bool `json:"asyncBuildxCacheExport"`
-	UseDockerApiToGetDigest     bool `json:"useDockerApiToGetDigest"`
+	BuildxCacheModeMin          bool   `json:"buildxCacheModeMin"`
+	AsyncBuildxCacheExport      bool   `json:"asyncBuildxCacheExport"`
+	UseDockerApiToGetDigest     bool   `json:"useDockerApiToGetDigest"`
+	BaseUrl                     string `json:"baseUrl"`
 }
 
 func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
