@@ -41,7 +41,6 @@ ContainerPort:
     useHTTP2: false
     supportStreaming: false
     idleTimeout: 1800s
-    protocol: TCP
 #    servicemonitor:
 #      enabled: true
 #      path: /abc
