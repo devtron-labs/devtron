@@ -8,6 +8,7 @@ Using filter conditions, you can control the progression of events. Here are a f
 * Images containing the label "test" should not be eligible for deployment in production environment
 * Only images having tag versions greater than v0.7.4 should be eligible for deployment
 * Images hosted on Docker Hub should be eligible but not the rest
+* Only images derived from master branch should be eligible for production deployment
 
 ---
 
@@ -34,7 +35,7 @@ You must have application(s) with CI-CD workflow(s) configured
     * **Filter Condition**: You can specify either a pass condition, fail condition, or both the conditions:
         * **Pass Condition**: Events that satisfy the pass condition are eligible to trigger your CD pipeline.
         * **Fail Condition**: Events that satisfy the fail condition are not eligible to trigger your CD pipeline.
-    * **Use CEL Expression**: You can use `Common Expression Language` (CEL) to define the conditions. Currently, you can create conditions with the help of following variables:
+    * **Use CEL Expression**: You can use `Common Expression Language` (CEL) to define the conditions (regex supported too, see [example](#scenario-2)). Currently, you can create conditions with the help of following variables:
         * **containerImage**: Package that contains all the necessary files and instructions to run an application in a container, e.g., gcr.io/k8s-minikube/kicbase:v0.0.39. It returns a string value in the following format: `<registry>/<repository>:<tag>`
         * **containerRepository**: Storage location for container images, e.g., kicbase
         * **containerImageTag**: Versioning of image to indicate its release, e.g., v0.0.39
@@ -55,17 +56,17 @@ You must have application(s) with CI-CD workflow(s) configured
 
     ![Figure 5: Selecting Environment(s) from Cluster(s)](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/filters/environment-selection.jpg)
 
-    {% hint style="info" %}
-    Since an application can have more than one environment, the filter conditions apply only to the environment you chose in the **Apply to** section. If you create a filter condition without choosing an application or environment, it will not apply to any of your pipelines.
-    {% endhint %}
+{% hint style="info" %}
+Since an application can have more than one environment, the filter conditions apply only to the environment you chose in the **Apply to** section. If you create a filter condition without choosing an application or environment, it will not apply to any of your pipelines.
+{% endhint %}
 
 6. Click **Save**. You have successfully created a filter.
 
     ![Figure 6: Success Toast](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/filters/filter-created.jpg)
 
-    {% hint style="warning" %}
-    If you create filters using CEL expressions that result in a conflict (i.e., passing and failing of the same image), fail will have higher precedence
-    {% endhint %}
+{% hint style="warning" %}
+If you create filters using CEL expressions that result in a conflict (i.e., passing and failing of the same image), fail will have higher precedence
+{% endhint %}
 
 ---
 
@@ -77,6 +78,8 @@ Here's a sample pipeline we will be using for our explanation of [pass condition
 
 
 ### Pass Condition
+
+#### Scenario 1
 
 Consider a scenario where you wish to make an image eligible for deployment only if its tag version is greater than `v0.0.7`
 
@@ -101,6 +104,21 @@ Clicking the filter icon at the top-left shows the filter condition(s) applied t
 ![Figure 12a: Filter Icon](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/filters/filter-icon-pass-1.jpg)
 
 ![Figure 12b: Conditions Applied](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/filters/conditions-applied-1.jpg)
+
+#### Scenario 2
+
+Consider another scenario where you wish to make images eligible for deployment only if the application's git branch starts with the word `hotfix` and also if its repo URL matches your specified regex.
+
+**CEL Expression**:
+
+`gitCommitDetails.filter(gitCommitDetail, gitCommitDetail.startsWith('https://github.com/devtron-labs')).map(repo, gitCommitDetails[repo].branch).exists_one(branch, branch.startsWith('hotfix-'))`
+
+where, `https://github.com/devtron-labs*` is the regex for repo URL <br />
+and `hotfix-*` is the regex for the branch name
+
+**Walkthrough Video**:
+
+{% embed url="https://www.youtube.com/watch?v=8DQrWIMImQQ" caption="Filter Condition with Regex" %}
 
 
 ### Fail Condition
