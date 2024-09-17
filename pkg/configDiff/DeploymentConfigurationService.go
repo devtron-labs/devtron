@@ -152,10 +152,15 @@ func (impl *DeploymentConfigurationServiceImpl) getResolvedConfigDataForValues(c
 	}
 	resolvedTemplate, _, err := impl.deploymentTemplateService.ResolveTemplateVariables(ctx, values, deploymentTemplateRequest)
 	if err != nil {
-		impl.logger.Errorw("error in getting resolved data for cm draft data ", "appid", appId, "err", err)
+		impl.logger.Errorw("error in getting resolved data for cm draft data ", "appId", appId, "err", err)
 		return nil, err
 	}
-	return configDataDto.WithDeploymentTemplateData(bean2.NewDeploymentAndCmCsConfig().WithResolvedValue(resolvedTemplate)), nil
+	resolvedJson, err := json.Marshal(resolvedTemplate)
+	if err != nil {
+		impl.logger.Errorw("marshalling resolved deployment template ", "appId", appId, "resolvedTemplate", resolvedTemplate, "err", err)
+		return nil, err
+	}
+	return configDataDto.WithDeploymentTemplateData(bean2.NewDeploymentAndCmCsConfig().WithResolvedValue(string(resolvedJson))), nil
 }
 
 func (impl *DeploymentConfigurationServiceImpl) getConfigDataForCdRollback(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams, userHasAdminAccess bool) (*bean2.DeploymentAndCmCsConfigDto, error) {
