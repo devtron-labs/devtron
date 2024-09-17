@@ -788,7 +788,7 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 		if len(envIds) > 0 {
 			environments, err := impl.environmentRepository.FindByIds(settingRequest.EnvId)
 			if err != nil {
-				impl.logger.Errorw("error on fetching environments", "err", err)
+				impl.logger.Errorw("error on fetching environments", "envIds", settingRequest.EnvId, "err", err)
 				return searchFilterResponse, err
 			}
 			for _, item := range environments {
@@ -799,7 +799,7 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 	if settingRequest.AppId != nil && len(settingRequest.AppId) > 0 {
 		applications, err := impl.appRepository.FindByIds(settingRequest.AppId)
 		if err != nil {
-			impl.logger.Errorw("error on fetching apps", "err", err)
+			impl.logger.Errorw("error on fetching apps", "appIds", settingRequest.AppId, "err", err)
 			return searchFilterResponse, err
 		}
 		for _, item := range applications {
@@ -813,7 +813,7 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 		})
 		clusterName, err := impl.clusterService.FindByIds(clusterIds)
 		if err != nil {
-			impl.logger.Errorw("error on fetching cluster", "err", err)
+			impl.logger.Errorw("error on fetching cluster", "clusterIds", clusterIds, "err", err)
 			return searchFilterResponse, err
 		}
 		for _, item := range clusterName {
