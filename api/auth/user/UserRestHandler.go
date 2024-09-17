@@ -19,9 +19,9 @@ package user
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	util2 "github.com/devtron-labs/devtron/api/auth/user/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user/helper"
+	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/schema"
 	"net/http"
@@ -140,8 +140,9 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	}
 
 	//RBAC enforcer Ends
-
-	res, err := handler.userService.CreateUser(&userInfo, token, handler.CheckManagerAuth)
+	//In create req, we also check if any email exists already. If yes, then in that case we go on and merge existing roles and groups with the ones in request
+	//but rbac is only checked on create request roles and groups as existing roles and groups are assumed to be checked when created/updated before
+	res, err := handler.userService.CreateUser(&userInfo)
 	if err != nil {
 		handler.logger.Errorw("service err, CreateUser", "err", err, "payload", userInfo)
 		if _, ok := err.(*util.ApiError); ok {
@@ -191,31 +192,29 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	res, rolesChanged, groupsModified, restrictedGroups, err := handler.userService.UpdateUser(&userInfo, token, handler.CheckManagerAuth)
-
+	res, err := handler.userService.UpdateUser(&userInfo, token, handler.checkRBACForUserUpdate)
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateUser", "err", err, "payload", userInfo)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		return
 	}
-
-	if len(restrictedGroups) == 0 {
-		common.WriteJsonResp(w, err, res, http.StatusOK)
-	} else {
-		errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin := helper.CreateErrorMessageForUserRoleGroups(restrictedGroups)
-
-		if rolesChanged || groupsModified {
-			// warning
-			message := fmt.Errorf("User permissions updated partially. %s%s", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
-			common.WriteJsonResp(w, message, nil, http.StatusExpectationFailed)
-
-		} else {
-			//error
-			message := fmt.Errorf("Permission could not be added/removed. %s%s", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
-			common.WriteJsonResp(w, message, nil, http.StatusBadRequest)
-		}
-	}
-
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+	//if len(restrictedGroups) == 0 {
+	//	common.WriteJsonResp(w, err, res, http.StatusOK)
+	//} else {
+	//	errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin := helper.CreateErrorMessageForUserRoleGroups(restrictedGroups)
+	//
+	//	if rolesChanged || groupsModified {
+	//		// warning
+	//		message := fmt.Errorf("User permissions updated partially. %s%s", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
+	//		common.WriteJsonResp(w, message, nil, http.StatusExpectationFailed)
+	//
+	//	} else {
+	//		//error
+	//		message := fmt.Errorf("Permission could not be added/removed. %s%s", errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin)
+	//		common.WriteJsonResp(w, message, nil, http.StatusBadRequest)
+	//	}
+	//}
 }
 
 func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Request) {
@@ -1132,10 +1131,7 @@ func (handler UserRestHandlerImpl) CheckManagerAuth(resource, token string, obje
 
 func (handler UserRestHandlerImpl) checkRBACForUserCreate(token string, requestSuperAdmin bool, roleFilters []bean.RoleFilter,
 	roleGroups []bean.UserRoleGroup) (isAuthorised bool, err error) {
-	isActionUserSuperAdmin := false
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
-		isActionUserSuperAdmin = true
-	}
+	isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	if requestSuperAdmin && !isActionUserSuperAdmin {
 		return false, nil
 	}
@@ -1159,7 +1155,8 @@ func (handler UserRestHandlerImpl) checkRBACForUserCreate(token string, requestS
 					break
 				}
 			}
-		} else if len(roleGroups) > 0 { // auth check inside groups
+		}
+		if len(roleGroups) > 0 { // auth check inside groups
 			groupRoles, err := handler.roleGroupService.FetchRolesForUserRoleGroups(roleGroups)
 			if err != nil && err != pg.ErrNoRows {
 				handler.logger.Errorw("service err, UpdateUser", "err", err, "payload", roleGroups)
@@ -1188,8 +1185,91 @@ func (handler UserRestHandlerImpl) checkRBACForUserCreate(token string, requestS
 			} else {
 				isAuthorised = false
 			}
-		} else {
-			isAuthorised = false
+		}
+	}
+	return isAuthorised, nil
+}
+
+func (handler UserRestHandlerImpl) checkRBACForUserUpdate(token string, userInfo *bean.UserInfo, isUserAlreadySuperAdmin bool, eliminatedRoleFilters,
+	eliminatedGroupRoles []*repository.RoleModel) (isAuthorised bool, err error) {
+	isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+	requestSuperAdmin := userInfo.SuperAdmin
+	if (requestSuperAdmin || isUserAlreadySuperAdmin) && !isActionUserSuperAdmin {
+		//if user is going to be provided with super-admin access or already a super-admin then the action user should be a super-admin
+		return false, nil
+	}
+	roleFilters := userInfo.RoleFilters
+	roleGroups := userInfo.UserRoleGroup
+	isAuthorised = isActionUserSuperAdmin
+	eliminatedRolesToBeChecked := append(eliminatedRoleFilters, eliminatedGroupRoles...)
+	if !isAuthorised {
+		if roleFilters != nil && len(roleFilters) > 0 { //auth check inside roleFilters
+			for _, filter := range roleFilters {
+				switch {
+				case filter.AccessType == bean.APP_ACCESS_TYPE_HELM || filter.Entity == bean2.EntityJobs:
+					isAuthorised = isActionUserSuperAdmin
+				case len(filter.Team) > 0:
+					isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, filter.Team)
+				case filter.Entity == bean.CLUSTER_ENTITIY:
+					isAuthorised = handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth)
+				case filter.Entity == bean.CHART_GROUP_ENTITY:
+					isAuthorised = true
+				default:
+					isAuthorised = false
+				}
+				if !isAuthorised {
+					break
+				}
+			}
+		}
+		if eliminatedRolesToBeChecked != nil && len(eliminatedRolesToBeChecked) > 0 {
+			for _, filter := range eliminatedRolesToBeChecked {
+				switch {
+				case filter.AccessType == bean.APP_ACCESS_TYPE_HELM || filter.Entity == bean2.EntityJobs:
+					isAuthorised = isActionUserSuperAdmin
+				case len(filter.Team) > 0:
+					isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, filter.Team)
+				case filter.Entity == bean.CLUSTER_ENTITIY:
+					isAuthorised = handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth)
+				case filter.Entity == bean.CHART_GROUP_ENTITY:
+					isAuthorised = true
+				default:
+					isAuthorised = false
+				}
+				if !isAuthorised {
+					break
+				}
+			}
+		}
+		if len(roleGroups) > 0 { // auth check inside groups
+			groupRoles, err := handler.roleGroupService.FetchRolesForUserRoleGroups(roleGroups)
+			if err != nil && err != pg.ErrNoRows {
+				handler.logger.Errorw("service err, UpdateUser", "err", err, "payload", roleGroups)
+				return false, err
+			}
+			if len(groupRoles) > 0 {
+				for _, groupRole := range groupRoles {
+					switch {
+					case groupRole.Action == bean.ACTION_SUPERADMIN:
+						isAuthorised = isActionUserSuperAdmin
+					case groupRole.AccessType == bean.APP_ACCESS_TYPE_HELM || groupRole.Entity == bean2.EntityJobs:
+						isAuthorised = isActionUserSuperAdmin
+					case len(groupRole.Team) > 0:
+						isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, groupRole.Team)
+					case groupRole.Entity == bean.CLUSTER_ENTITIY:
+						isAuthorised = handler.userCommonService.CheckRbacForClusterEntity(groupRole.Cluster, groupRole.Namespace, groupRole.Group, groupRole.Kind, groupRole.Resource, token, handler.CheckManagerAuth)
+					case groupRole.Entity == bean.CHART_GROUP_ENTITY:
+						isAuthorised = true
+					default:
+						isAuthorised = false
+					}
+					if !isAuthorised {
+						break
+					}
+				}
+			} else {
+				isAuthorised = false
+			}
 		}
 	}
 	return isAuthorised, nil
