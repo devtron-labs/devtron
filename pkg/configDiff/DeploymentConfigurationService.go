@@ -155,14 +155,9 @@ func (impl *DeploymentConfigurationServiceImpl) getResolvedConfigDataForValues(c
 		impl.logger.Errorw("error in getting resolved data for cm draft data ", "appId", appId, "err", err)
 		return nil, err
 	}
-	resolvedJson, err := json.Marshal(resolvedTemplate)
+	resolvedConfigDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedTemplate)
 	if err != nil {
-		impl.logger.Errorw("marshalling resolved deployment template ", "appId", appId, "resolvedTemplate", resolvedTemplate, "err", err)
-		return nil, err
-	}
-	resolvedConfigDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedJson)
-	if err != nil {
-		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in ConvertToJsonRawMessage for resolvedJson", "resolvedJson", resolvedJson, "err", err)
+		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in ConvertToJsonRawMessage for resolvedJson", "resolvedJson", resolvedTemplate, "err", err)
 		return nil, err
 	}
 	return configDataDto.WithDeploymentTemplateData(bean2.NewDeploymentAndCmCsConfig().WithResolvedValue(resolvedConfigDataStringJson)), nil
