@@ -116,6 +116,10 @@ Consider another scenario where you wish to make images eligible for deployment 
 where, `https://github.com/devtron-labs*` is the regex for repo URL <br />
 and `hotfix-*` is the regex for the branch name
 
+If you have a fixed branch (say hotfix-123), you may skip the regex and write it as follows:
+
+`'hotfix-123' in gitCommitDetails.filter(gitCommitDetail, gitCommitDetail.startsWith('https://github.com/devtron-labs')).map(repo, gitCommitDetails[repo].branch)`
+
 **Walkthrough Video**:
 
 {% embed url="https://www.youtube.com/watch?v=8DQrWIMImQQ" caption="Filter Condition with Regex" %}
