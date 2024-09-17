@@ -1148,7 +1148,7 @@ func (handler UserRestHandlerImpl) checkRBACForUserCreate(token string, requestS
 					isAuthorised = handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth)
 				case filter.Entity == bean.CHART_GROUP_ENTITY && len(roleFilters) == 1: //if only chartGroup entity is present in request then access will be judged through super-admin access
 					isAuthorised = isActionUserSuperAdmin
-				case filter.Entity == bean.CHART_GROUP_ENTITY && len(roleFilters) > 1: //if only chartGroup entity is present in request then access wil
+				case filter.Entity == bean.CHART_GROUP_ENTITY && len(roleFilters) > 1: //if entities apart from chartGroup entity are present, not checking chartGroup access
 					isAuthorised = true
 				default:
 					isAuthorised = false
@@ -1177,7 +1177,7 @@ func (handler UserRestHandlerImpl) checkRBACForUserCreate(token string, requestS
 						isAuthorised = handler.userCommonService.CheckRbacForClusterEntity(groupRole.Cluster, groupRole.Namespace, groupRole.Group, groupRole.Kind, groupRole.Resource, token, handler.CheckManagerAuth)
 					case groupRole.Entity == bean.CHART_GROUP_ENTITY && len(groupRoles) == 1: //if only chartGroup entity is present in request then access will be judged through super-admin access
 						isAuthorised = isActionUserSuperAdmin
-					case groupRole.Entity == bean.CHART_GROUP_ENTITY && len(groupRoles) > 1: //if only chartGroup entity is present in request then access wil
+					case groupRole.Entity == bean.CHART_GROUP_ENTITY && len(groupRoles) > 1: //if entities apart from chartGroup entity are present, not checking chartGroup access
 						isAuthorised = true
 					default:
 						isAuthorised = false
