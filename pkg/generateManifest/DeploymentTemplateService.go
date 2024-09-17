@@ -63,6 +63,7 @@ type DeploymentTemplateService interface {
 	GenerateManifest(ctx context.Context, request *DeploymentTemplateRequest, valuesYaml string) (*openapi2.TemplateChartResponse, error)
 	GetRestartWorkloadData(ctx context.Context, appIds []int, envId int) (*RestartPodResponse, error)
 	GetDeploymentTemplateWithResolvedData(ctx context.Context, request DeploymentTemplateRequest) (DeploymentTemplateResponse, error)
+	ResolveTemplateVariables(ctx context.Context, values string, request DeploymentTemplateRequest) (string, map[string]string, error)
 }
 type DeploymentTemplateServiceImpl struct {
 	Logger                           *zap.SugaredLogger
@@ -586,4 +587,22 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 		return nil, err
 	}
 	return podResp, nil
+}
+
+func (impl DeploymentTemplateServiceImpl) ResolveTemplateVariables(ctx context.Context, values string, request DeploymentTemplateRequest) (string, map[string]string, error) {
+
+	isSuperAdmin, err := util2.GetIsSuperAdminFromContext(ctx)
+	if err != nil {
+		return values, nil, err
+	}
+	scope, err := impl.extractScopeData(request)
+	if err != nil {
+		return values, nil, err
+	}
+	maskUnknownVariableForHelmGenerate := request.RequestDataMode == Manifest
+	resolvedTemplate, variableSnapshot, err := impl.scopedVariableManager.ExtractVariablesAndResolveTemplate(scope, values, parsers.JsonVariableTemplate, isSuperAdmin, maskUnknownVariableForHelmGenerate)
+	if err != nil {
+		return values, variableSnapshot, err
+	}
+	return resolvedTemplate, variableSnapshot, nil
 }
