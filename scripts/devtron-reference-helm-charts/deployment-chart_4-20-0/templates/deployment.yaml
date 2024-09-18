@@ -131,6 +131,17 @@ spec:
       - maxSkew: {{ .maxSkew }}
         topologyKey: {{ .topologyKey }}
         whenUnsatisfiable: {{ .whenUnsatisfiable }}
+        {{- if semverCompare "<=1.30-0" .Capabilities.KubeVersion.GitVersion }}
+        {{- if .minDomains }}
+        minDomains: .minDomains
+        {{- end }}
+        {{- end }}        
+        {{- if .nodeAffinityPolicy }}
+        nodeAffinityPolicy: {{ .nodeAffinityPolicy }}
+        {{- end }}
+        {{- if .nodeTaintsPolicy }}
+        nodeTaintsPolicy: {{ .nodeTaintsPolicy }}
+        {{- end }}                 
         labelSelector:
           matchLabels:
           {{- if and .autoLabelSelector .customLabelSelector }}
@@ -453,11 +464,19 @@ spec:
               mountPath: {{ $cmMountPath }}
 	      
           {{- else }}
-          {{- range $k, $v := .data }}
+          {{if (or (eq .externalType "ESO_GoogleSecretsManager") (eq .externalType "ESO_AWSSecretsManager") (eq .externalType "ESO_HashiCorpVault") (eq .externalType "ESO_AzureSecretsManager"))}}
+          {{- range .esoSecretData.esoData }} # for eso secrets the mount path will be .esoSecretData.esoData[i].secretKey
+            - name: {{ $cmName | replace "." "-"}}-vol
+              mountPath: {{ $cmMountPath}}/{{ .secretKey }}
+              subPath: {{ .secretKey }}  
+          {{- end }}
+          {{- else }}             
+          {{- range $k, $v := .data }} # for others secrets the mount path will be .data[i].secretKey
             - name: {{ $cmName | replace "." "-"}}-vol
               mountPath: {{ $cmMountPath}}/{{ $k}}
               subPath: {{ $k}}
           {{- end }}
+          {{- end }}          
           {{- end }}
           {{- end }}
           {{- end }}

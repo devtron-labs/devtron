@@ -563,15 +563,22 @@ ConfigMaps:
 
 
 ConfigSecrets:
- enabled: false
- secrets: []
-#  - name: config-secret-1
-#    type: environment
-#    external: false
-#    data:
-#     key1: key1value-1
-#     key2: key2value-1
-#     key3: key3value-1
+ enabled: true
+ secrets: 
+ - name: config-secret-1
+   type: volume
+   filePermission: "420"
+   externalType: ESO_GoogleSecretsManager
+   mountPath: /etc/config/2
+   esoSecretData:
+    esoData:
+    - key": kushagra-test
+      property: test1
+      secretKey: SECRET_KUSHAGRA
+  #  data:
+  #   key1: key1value-1
+  #   key2: key2value-1
+  #   key3: key3value-1
 #  - name: config-secret-2
 #    type: volume
 #    external: false
@@ -650,7 +657,8 @@ topologySpreadConstraints: []
   #   topologyKey: zone
   #   whenUnsatisfiable: DoNotSchedule
   #   autoLabelSelector: true
-  #   customLabelSelector: {}
+  #   minDomain: 1
+  #   nodeTaintsPolicy: Honor
 
 envoyproxy:
  image: docker.io/envoyproxy/envoy:v1.16.0
