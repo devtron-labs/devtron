@@ -91,16 +91,19 @@ func (handler *DeploymentConfigurationRestHandlerImpl) GetConfigData(w http.Resp
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	valuesPayload := &bean.ValuesDto{}
-	configDataQueryParams.UserId = userId
-	decoder := json.NewDecoder(r.Body)
-	err = decoder.Decode(valuesPayload)
-	if err != nil {
-		handler.logger.Errorw("error in decoding the request payload", "err", err, "requestBody", r.Body)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+	if r.ContentLength > 0 {
+		valuesPayload := &bean.ValuesDto{}
+		decoder := json.NewDecoder(r.Body)
+		err = decoder.Decode(valuesPayload)
+		if err != nil {
+			handler.logger.Errorw("error in decoding the request payload", "err", err, "requestBody", r.Body)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		configDataQueryParams.Values = valuesPayload.Values
 	}
-	configDataQueryParams.Values = valuesPayload.Values
+
+	configDataQueryParams.UserId = userId
 	//RBAC START
 	token := r.Header.Get(common.TokenHeaderKey)
 	object := handler.enforcerUtil.GetAppRBACName(configDataQueryParams.AppName)
