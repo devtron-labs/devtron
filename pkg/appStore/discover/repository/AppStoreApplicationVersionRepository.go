@@ -86,8 +86,9 @@ func (impl AppStoreApplicationVersionRepositoryImpl) GetChartInfoById(id int) (*
 	return &appStoreWithVersion, err
 }
 
-func updateFindWithFilterQuery(filter *appStoreBean.AppStoreFilter, updateAction FilterQueryUpdateAction) string {
+func updateFindWithFilterQuery(filter *appStoreBean.AppStoreFilter, updateAction FilterQueryUpdateAction) (string, []interface{}) {
 	query := ""
+	var queryParams []interface{}
 	if updateAction == QUERY_COLUMN_UPDATE {
 		if len(filter.ChartRepoId) > 0 && len(filter.RegistryId) > 0 {
 			query = " ch.name as chart_name, das.id as docker_artifact_store_id"
@@ -119,15 +120,18 @@ func updateFindWithFilterQuery(filter *appStoreBean.AppStoreFilter, updateAction
 				" LEFT JOIN oci_registry_config oci ON oci.docker_artifact_store_id = das.id" +
 				fmt.Sprintf(" WHERE ( (%s) AND (ch.active IS TRUE OR (das.active IS TRUE AND oci.deleted IS FALSE AND oci.is_chart_pull_active IS TRUE)))", combinedWhereClause) +
 				" AND (ch.id IN (?) OR das.id IN (?))"
+			queryParams = append(queryParams, pg.In(filter.ChartRepoId), pg.In(filter.RegistryId))
 		} else if len(filter.RegistryId) > 0 {
 			query = " LEFT JOIN docker_artifact_store das ON aps.docker_artifact_store_id = das.id" +
 				" LEFT JOIN oci_registry_config oci ON oci.docker_artifact_store_id = das.id" +
 				fmt.Sprintf(" WHERE asv.id IN (%s) AND (das.active IS TRUE AND oci.deleted IS FALSE AND oci.is_chart_pull_active IS TRUE)", latestAppStoreVersionQueryForOCIRepo) +
 				" AND das.id IN (?)"
+			queryParams = append(queryParams, pg.In(filter.RegistryId))
 		} else if len(filter.ChartRepoId) > 0 {
 			query = " LEFT JOIN chart_repo ch ON (aps.chart_repo_id = ch.id and ch.deleted IS FALSE)" +
 				fmt.Sprintf(" WHERE asv.created IN (%s) AND ch.active IS TRUE", latestAppStoreVersionQueryForChartRepo) +
 				" AND ch.id IN (?)"
+			queryParams = append(queryParams, pg.In(filter.ChartRepoId))
 		} else {
 			query = " LEFT JOIN chart_repo ch ON (aps.chart_repo_id = ch.id and ch.deleted IS FALSE)" +
 				" LEFT JOIN docker_artifact_store das ON aps.docker_artifact_store_id = das.id" +
@@ -135,7 +139,7 @@ func updateFindWithFilterQuery(filter *appStoreBean.AppStoreFilter, updateAction
 				fmt.Sprintf(" WHERE (%s AND (ch.active IS TRUE OR (das.active IS TRUE AND oci.deleted IS FALSE AND oci.is_chart_pull_active IS TRUE)))", combinedWhereClause)
 		}
 	}
-	return query
+	return query, queryParams
 }
 
 func (impl *AppStoreApplicationVersionRepositoryImpl) FindWithFilter(filter *appStoreBean.AppStoreFilter) ([]appStoreBean.AppStoreWithVersion, error) {
@@ -144,12 +148,17 @@ func (impl *AppStoreApplicationVersionRepositoryImpl) FindWithFilter(filter *app
 	query := `SELECT asv.version, asv.icon, asv.deprecated, asv.id as app_store_application_version_id, 
 			  asv.description, aps.*, `
 
-	query = query + updateFindWithFilterQuery(filter, QUERY_COLUMN_UPDATE)
+	queryColumnUpdate, queryParamsColumnUpdate := updateFindWithFilterQuery(filter, QUERY_COLUMN_UPDATE)
+	query += queryColumnUpdate
+	queryParams = append(queryParams, queryParamsColumnUpdate...)
 
 	query = query + " FROM app_store_application_version asv " +
 		" INNER JOIN app_store aps ON (asv.app_store_id = aps.id and aps.active = ?) "
 	queryParams = append(queryParams, "true")
-	query = query + updateFindWithFilterQuery(filter, QUERY_JOIN_UPDTAE)
+
+	queryJoinUpdate, queryParamsJoinUpdate := updateFindWithFilterQuery(filter, QUERY_JOIN_UPDTAE)
+	query += queryJoinUpdate
+	queryParams = append(queryParams, queryParamsJoinUpdate...)
 
 	if !filter.IncludeDeprecated {
 		query = query + " AND asv.deprecated = ? "
@@ -168,13 +177,10 @@ func (impl *AppStoreApplicationVersionRepositoryImpl) FindWithFilter(filter *app
 
 	var err error
 	if len(filter.ChartRepoId) > 0 && len(filter.RegistryId) > 0 {
-		queryParams = append(queryParams, pg.In(filter.ChartRepoId), pg.In(filter.RegistryId))
 		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, queryParams...)
 	} else if len(filter.RegistryId) > 0 {
-		queryParams = append(queryParams, pg.In(filter.RegistryId))
 		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, queryParams...)
 	} else if len(filter.ChartRepoId) > 0 {
-		queryParams = append(queryParams, pg.In(filter.ChartRepoId))
 		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, queryParams...)
 	} else {
 		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, queryParams...)
