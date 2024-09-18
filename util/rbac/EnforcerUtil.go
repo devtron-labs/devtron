@@ -56,7 +56,6 @@ type EnforcerUtil interface {
 	GetHelmObjectByProjectIdAndEnvId(teamId int, envId int) (string, string)
 	GetEnvRBACNameByCdPipelineIdAndEnvId(cdPipelineId int) string
 	GetAppRBACNameByTeamIdAndAppId(teamId int, appId int) string
-	GetRBACNameForClusterEntity(clusterName string, resourceIdentifier k8s.ResourceIdentifier) (resourceName, objectName string)
 	GetAppObjectByCiPipelineIds(ciPipelineIds []int) map[int]string
 	GetAppAndEnvObjectByPipelineIds(cdPipelineIds []int) map[int][]string
 	GetRbacObjectsForAllAppsWithMatchingAppName(appNameMatch string, appType helper.AppType) map[int]string
@@ -494,7 +493,7 @@ func (impl EnforcerUtilImpl) GetAppRBACNameByTeamIdAndAppId(teamId int, appId in
 	return fmt.Sprintf("%s/%s", team.Name, application.AppName)
 }
 
-func (impl EnforcerUtilImpl) GetRBACNameForClusterEntity(clusterName string, resourceIdentifier k8s.ResourceIdentifier) (resourceName, objectName string) {
+func GetRBACNameForClusterEntity(clusterName string, resourceIdentifier k8s.ResourceIdentifier) (resourceName, objectName string) {
 	namespace := resourceIdentifier.Namespace
 	objectName = resourceIdentifier.Name
 	groupVersionKind := resourceIdentifier.GroupVersionKind
