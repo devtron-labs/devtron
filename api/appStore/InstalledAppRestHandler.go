@@ -148,6 +148,14 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppOverview(w http.ResponseWrit
 	token := r.Header.Get("token")
 	handler.Logger.Infow("request payload, FindAppOverview", "installedAppId", installedAppId)
 	installedApp, err := handler.installedAppService.GetInstalledAppById(installedAppId)
+	if err != nil && err != pg.ErrNoRows {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if err == pg.ErrNoRows || installedApp == nil {
+		common.WriteJsonResp(w, errors.New("helm app doses not exist"), nil, http.StatusNotFound)
+		return
+	}
 	appOverview, err := handler.appCrudOperationService.GetAppMetaInfo(installedApp.AppId, installedAppId, installedApp.EnvironmentId)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchAppOverview", "err", err, "appId", installedApp.AppId, "installedAppId", installedAppId)
