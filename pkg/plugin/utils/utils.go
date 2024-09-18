@@ -21,9 +21,11 @@ import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
+	"net/http"
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 )
 
 func GetStageType(stageTypeReq string) (int, error) {
@@ -71,4 +73,27 @@ func SortPluginsVersionDetailSliceByCreatedOn(pluginsVersionDetail []*bean2.Plug
 		}
 		return false
 	})
+}
+
+func FetchIconAndCheckSize(url string, maxSize int64) error {
+	client := http.Client{
+		Timeout: 5 * time.Second,
+	}
+	iconResp, err := client.Get(url)
+	if err != nil {
+		return fmt.Errorf("error in fetching icon : %s", err.Error())
+	}
+	if iconResp != nil {
+		if iconResp.StatusCode >= 200 && iconResp.StatusCode < 300 {
+			if iconResp.ContentLength > maxSize {
+				return fmt.Errorf("icon size too large")
+			}
+			iconResp.Body.Close()
+		} else {
+			return fmt.Errorf("error in fetching icon : %s", iconResp.Status)
+		}
+	} else {
+		return fmt.Errorf("error in fetching icon : empty response")
+	}
+	return nil
 }

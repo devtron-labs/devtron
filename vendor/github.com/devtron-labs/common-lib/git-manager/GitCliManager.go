@@ -19,6 +19,7 @@ package git_manager
 import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/git-manager/util"
+	"github.com/sirupsen/logrus"
 	"log"
 	"os"
 	"os/exec"
@@ -286,14 +287,16 @@ func (impl *GitCliManagerImpl) Clone(gitContext GitContext, prj CiProjectDetails
 	}
 	_, msgMsg, cErr = impl.shallowClone(gitContext, checkoutPath, prj.GitRepository, checkoutBranch)
 	if cErr != nil {
-		log.Fatal("could not clone repo ", " err: ", cErr, "msgMsg: ", msgMsg)
+		logrus.Error("could not clone repo ", "msgMsg: ", msgMsg, " err: ", cErr)
+		return "", msgMsg, cErr
 	}
 	projectName := util.GetProjectName(prj.GitRepository)
 	projRootDir := filepath.Join(checkoutPath, projectName)
 
 	_, msgMsg, cErr = impl.moveFilesFromSourceToDestination(projRootDir, checkoutPath)
 	if cErr != nil {
-		log.Fatal("could not move files between files ", "err: ", cErr, "msgMsg: ", msgMsg)
+		logrus.Error("could not move files between files ", "msgMsg: ", msgMsg, "err: ", cErr)
+		return "", msgMsg, cErr
 	}
 	return response, msgMsg, cErr
 }
