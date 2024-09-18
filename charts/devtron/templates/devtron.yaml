@@ -1,4 +1,5 @@
 {{- with .Values.components.devtron }}
+{{- $argocdEnabled :=  index $.Values "argo-cd" }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -173,6 +174,26 @@ data:
 {{- if .customOverrides }}
 {{ toYaml .customOverrides | indent 2}}
 {{- end }}
+  {{- $modules := list }}
+  {{- if has "cicd" $.Values.installer.modules }}
+    {{- $modules = append $modules "cicd" }}
+    {{- if $.Values.notifier.enabled }}
+      {{- $modules = append $modules "notifier" }}
+    {{- end }}
+    {{- if and $.Values.security.enabled $.Values.security.trivy.enabled }}
+      {{- $modules = append $modules "security.trivy" }}
+    {{- end }}
+    {{- if and $.Values.security.enabled $.Values.security.clair.enabled }}
+      {{- $modules = append $modules "security.clair" }}
+    {{- end }}
+    {{- if $.Values.monitoring.grafana.enabled }}
+      {{- $modules = append $modules "monitoring.grafana" }}
+    {{- end }}
+    {{- if ($argocdEnabled.enabled) }}
+      {{- $modules = append $modules "argo-cd" }}
+    {{- end }}
+  {{- end }}
+  INSTALLED_MODULES: {{ if $modules }}{{ printf "'%s'" (join "," $modules) }}{{ else }}""{{ end }}
   DEFAULT_CI_IMAGE: {{ include "common.image" (dict "component" $.Values.components.ciRunner "global" $.Values.global ) }}
 ---
 apiVersion: v1
