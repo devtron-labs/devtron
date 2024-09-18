@@ -133,7 +133,7 @@ spec:
         whenUnsatisfiable: {{ .whenUnsatisfiable }}
         {{- if semverCompare "<=1.30-0" $.Capabilities.KubeVersion.GitVersion }}
         {{- if .minDomains }}
-        minDomains: .minDomains
+        minDomains: {{ .minDomains }}
         {{- end }}
         {{- end }}        
         {{- if .nodeAffinityPolicy }}

@@ -521,3 +521,6 @@ hostAliases: []
 #     hostnames:
 #     - "foo.remote"
 #     - "bar.remote"
+
+verticalPodScaling:
+  enabled: false

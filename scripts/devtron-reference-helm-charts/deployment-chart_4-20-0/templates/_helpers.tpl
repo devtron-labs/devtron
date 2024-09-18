@@ -132,6 +132,14 @@ Create chart name and version as used by the chart label.
    {{- $SMenabled -}}
 {{- end -}}
 
+{{- define "VerticalPodAutoScalingEnabled" -}}
+   {{- $SMenabled := false -}}
+        {{- if and .Values.verticalPodScaling.enabled }}
+            {{- $SMenabled = true -}}
+        {{- end }}
+   {{- $SMenabled -}}
+{{- end -}}
+
 {{/* Create the name of the service account to use */}}
 {{- define "serviceAccountName" -}}
 {{- if .Values.serviceAccount.create -}}
