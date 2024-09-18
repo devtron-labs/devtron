@@ -387,7 +387,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionAny(id int) (*Insta
 func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.AppStoreFilter) ([]InstalledAppsWithChartDetails, error) {
 	var installedAppsWithChartDetails []InstalledAppsWithChartDetails
 	var query string
-	var queryParams []string
+	var queryParams []interface{}
 	query = "select iav.updated_on, iav.id as installed_app_version_id, ch.name as chart_repo_name, das.id as docker_artifact_store_id,"
 	query = query + " env.environment_name, env.id as environment_id, env.is_virtual_environment, a.app_name, a.display_name, a.app_offering_mode, asav.icon, asav.name as app_store_application_name,"
 	query = query + " env.namespace, cluster.cluster_name, a.team_id, cluster.id as cluster_id, "
