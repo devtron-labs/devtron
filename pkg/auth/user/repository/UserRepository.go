@@ -167,7 +167,7 @@ func (impl UserRepositoryImpl) GetAllExcludingApiTokenUser() ([]UserModel, error
 
 func (impl UserRepositoryImpl) GetAllExecutingQuery(query string, queryParams []interface{}) ([]UserModel, error) {
 	var userModel []UserModel
-	_, err := impl.dbConnection.Query(&userModel, query, queryParams)
+	_, err := impl.dbConnection.Query(&userModel, query, queryParams...)
 	if err != nil {
 		impl.Logger.Error("error in GetAllExecutingQuery", "err", err, "query", query)
 		return nil, err
@@ -258,7 +258,7 @@ func (impl UserRepositoryImpl) UpdateRoleIdForUserRolesMappings(roleId int, newR
 
 func (impl UserRepositoryImpl) GetCountExecutingQuery(query string, queryParams []interface{}) (int, error) {
 	var totalCount int
-	_, err := impl.dbConnection.Query(&totalCount, query, queryParams)
+	_, err := impl.dbConnection.Query(&totalCount, query, queryParams...)
 	if err != nil {
 		impl.Logger.Error("Exception caught: GetCountExecutingQuery", err)
 		return totalCount, err

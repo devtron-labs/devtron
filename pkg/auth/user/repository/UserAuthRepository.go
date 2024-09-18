@@ -986,7 +986,7 @@ func (impl UserAuthRepositoryImpl) GetRoleForClusterEntity(cluster, namespace, g
 	} else {
 		query += " and action IS NULL ;"
 	}
-	_, err = impl.dbConnection.Query(&model, query, queryParams)
+	_, err = impl.dbConnection.Query(&model, query, queryParams...)
 	if err != nil {
 		impl.Logger.Errorw("error in getting roles for clusterEntity", "err", err,
 			bean2.CLUSTER_ENTITIY, cluster, "namespace", namespace, "kind", kind, "group", group, "resource", resource)
@@ -1020,7 +1020,7 @@ func (impl UserAuthRepositoryImpl) GetRoleForJobsEntity(entity, team, app, env, 
 			query += " AND role.workflow = ? ;"
 			queryParams = append(queryParams, workflow)
 		}
-		_, err = impl.dbConnection.Query(&model, query, queryParams)
+		_, err = impl.dbConnection.Query(&model, query, queryParams...)
 	} else {
 		return model, nil
 	}
@@ -1043,7 +1043,7 @@ func (impl UserAuthRepositoryImpl) GetRoleForChartGroupEntity(entity, app, act, 
 			query += " and role.access_type = ? "
 			queryParams = append(queryParams, accessType)
 		}
-		_, err = impl.dbConnection.Query(&model, query, queryParams)
+		_, err = impl.dbConnection.Query(&model, query, queryParams...)
 	} else if app == "" {
 		var queryParams []interface{}
 		query := "SELECT role.* FROM roles role WHERE role.entity = ? AND role.action=?"
@@ -1054,7 +1054,7 @@ func (impl UserAuthRepositoryImpl) GetRoleForChartGroupEntity(entity, app, act, 
 			query += " and role.access_type = ? "
 			queryParams = append(queryParams, accessType)
 		}
-		_, err = impl.dbConnection.Query(&model, query, queryParams)
+		_, err = impl.dbConnection.Query(&model, query, queryParams...)
 	}
 	if err != nil {
 		impl.Logger.Errorw("error in getting role for chart group entity", "err", err, "entity", entity, "app", app, "act", act, "accessType", accessType)
@@ -1076,7 +1076,7 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 			queryParams = append(queryParams, accessType)
 		}
 
-		_, err = impl.dbConnection.Query(&model, query, queryParams)
+		_, err = impl.dbConnection.Query(&model, query, queryParams...)
 	} else if len(team) > 0 && app == "" && len(env) > 0 && len(act) > 0 {
 		var queryParams []interface{}
 		query := "SELECT role.* FROM roles role WHERE role.team=? AND coalesce(role.entity_name,'')=? AND role.environment=? AND role.action=?"
@@ -1087,7 +1087,7 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 			query += " and role.access_type = ? "
 			queryParams = append(queryParams, accessType)
 		}
-		_, err = impl.dbConnection.Query(&model, query, queryParams)
+		_, err = impl.dbConnection.Query(&model, query, queryParams...)
 	} else if len(team) > 0 && len(app) > 0 && env == "" && len(act) > 0 {
 		var queryParams []interface{}
 		//this is applicable for all environment of a team
@@ -1100,7 +1100,7 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 			queryParams = append(queryParams, accessType)
 		}
 
-		_, err = impl.dbConnection.Query(&model, query, queryParams)
+		_, err = impl.dbConnection.Query(&model, query, queryParams...)
 	} else if len(team) > 0 && app == "" && env == "" && len(act) > 0 {
 		var queryParams []interface{}
 		//this is applicable for all environment of a team
@@ -1113,7 +1113,7 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 			queryParams = append(queryParams, accessType)
 		}
 
-		_, err = impl.dbConnection.Query(&model, query, queryParams)
+		_, err = impl.dbConnection.Query(&model, query, queryParams...)
 	} else if team == "" && app == "" && env == "" && len(act) > 0 {
 		var queryParams []interface{}
 		//this is applicable for super admin, all env, all team, all app
@@ -1126,7 +1126,7 @@ func (impl UserAuthRepositoryImpl) GetRoleForOtherEntity(team, app, env, act, ac
 			queryParams = append(queryParams, accessType)
 
 		}
-		_, err = impl.dbConnection.Query(&model, query, queryParams)
+		_, err = impl.dbConnection.Query(&model, query, queryParams...)
 	} else if team == "" && app == "" && env == "" && act == "" {
 		return model, nil
 	} else {

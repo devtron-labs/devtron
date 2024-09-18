@@ -167,7 +167,7 @@ func (impl CveStoreRepositoryImpl) VulnerabilityExposure(request *VulnerabilityR
 	}
 	query = query + " ;"
 	impl.logger.Debugw("query", "query:", query)
-	_, err := impl.dbConnection.Query(&items, query, queryParams)
+	_, err := impl.dbConnection.Query(&items, query, queryParams...)
 	if err != nil {
 		impl.logger.Error("err", err)
 		return []*VulnerabilityExposure{}, err

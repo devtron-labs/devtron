@@ -112,7 +112,7 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByLinkIdent
 				 or (elim.type = -1) );`
 		queryParams = append(queryParams, TypeMappings[linkIdentifier.Type], linkIdentifier.Identifier, clusterId)
 	}
-	_, err := impl.dbConnection.Query(&links, query, queryParams)
+	_, err := impl.dbConnection.Query(&links, query, queryParams...)
 	return links, err
 }
 

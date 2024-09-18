@@ -169,15 +169,15 @@ func (impl *AppStoreApplicationVersionRepositoryImpl) FindWithFilter(filter *app
 	var err error
 	if len(filter.ChartRepoId) > 0 && len(filter.RegistryId) > 0 {
 		queryParams = append(queryParams, pg.In(filter.ChartRepoId), pg.In(filter.RegistryId))
-		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, queryParams)
+		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, queryParams...)
 	} else if len(filter.RegistryId) > 0 {
 		queryParams = append(queryParams, pg.In(filter.RegistryId))
-		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, queryParams)
+		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, queryParams...)
 	} else if len(filter.ChartRepoId) > 0 {
 		queryParams = append(queryParams, pg.In(filter.ChartRepoId))
-		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, queryParams)
+		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, queryParams...)
 	} else {
-		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, queryParams)
+		_, err = impl.dbConnection.Query(&appStoreWithVersion, query, queryParams...)
 	}
 	if err != nil {
 		return nil, err

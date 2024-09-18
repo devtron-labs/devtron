@@ -147,7 +147,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) FindByTypeMetaAndTypeId(scanObject
 func (impl ImageScanDeployInfoRepositoryImpl) ScanListingWithFilter(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) ([]*ImageScanListingResponse, error) {
 	var models []*ImageScanListingResponse
 	query, queryParams := impl.scanListingQueryBuilder(request, size, offset, deployInfoIds)
-	_, err := impl.dbConnection.Query(&models, query, queryParams)
+	_, err := impl.dbConnection.Query(&models, query, queryParams...)
 	if err != nil {
 		impl.logger.Error("err", err)
 		return []*ImageScanListingResponse{}, err
@@ -192,7 +192,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request
 	query = query + " GROUP BY info.scan_object_meta_id, a.app_name, info.object_type, env.environment_name"
 	queryTemp, queryParamsTemp := getOrderByQueryPart(request.SortBy, request.SortOrder)
 	query += queryTemp
-	queryParams = append(queryParams, queryParamsTemp)
+	queryParams = append(queryParams, queryParamsTemp...)
 	if size > 0 {
 		query = query + " LIMIT ? OFFSET ? "
 		queryParams = append(queryParams, size, offset)
@@ -261,7 +261,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithObject(request *s
 
 	queryTemp, queryParamsTemp := getOrderByQueryPart(request.SortBy, request.SortOrder)
 	query += queryTemp
-	queryParams = append(queryParams, queryParamsTemp)
+	queryParams = append(queryParams, queryParamsTemp...)
 	if size > 0 {
 		query += " LIMIT ? OFFSET ? "
 		queryParams = append(queryParams, size, offset)

@@ -150,7 +150,7 @@ func (impl AppListingRepositoryQueryBuilder) CommonJoinSubQuery(appListingFilter
 	}
 	whereCondition, whereConditionParams := impl.buildAppListingWhereCondition(appListingFilter)
 	query = query + whereCondition
-	queryParams = append(queryParams, whereConditionParams)
+	queryParams = append(queryParams, whereConditionParams...)
 	return query, queryParams
 }
 
@@ -206,6 +206,8 @@ func (impl AppListingRepositoryQueryBuilder) GetAppIdsQueryWithPaginationForAppN
 		query += orderByClause
 	}
 	query += " LIMIT ? OFFSET ? "
+	//adding queryParams two times because join query is used in countQuery and mainQuery two times
+	queryParams = append(queryParams, queryParams...)
 	queryParams = append(queryParams, appListingFilter.Size, appListingFilter.Offset)
 	return query, queryParams
 }

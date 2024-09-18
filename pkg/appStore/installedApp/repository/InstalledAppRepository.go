@@ -439,7 +439,7 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.
 	}
 	query = query + ";"
 	var err error
-	_, err = impl.dbConnection.Query(&installedAppsWithChartDetails, query, queryParams)
+	_, err = impl.dbConnection.Query(&installedAppsWithChartDetails, query, queryParams...)
 	if err != nil {
 		return nil, err
 	}
