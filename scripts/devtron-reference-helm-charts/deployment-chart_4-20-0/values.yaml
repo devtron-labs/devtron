@@ -87,21 +87,18 @@ ambassadorMapping:
   #     min_tls_version: v1.2
 
 autoscaling:
-  enabled: false
+  enabled: true
   MinReplicas: 1
   MaxReplicas: 2
-  # TargetCPUUtilizationPercentage: 90
-  # TargetMemoryUtilizationPercentage: 80
+  TargetCPUUtilizationPercentage: 70
+  TargetMemoryUtilizationPercentage: 80
   annotations: {}
   labels: {}
   behavior: {}
-  type: ContainerResource
-  ContainerResource:
-    name: cpu
-    container: application
-    target:
-      type: Utilization
-      averageUtilization: 60  
+  containerResource:
+    enabled: false
+    TargetCPUUtilizationPercentage: 90
+    TargetMemoryUtilizationPercentage: 80
 #    scaleDown:
 #      stabilizationWindowSeconds: 300
 #      policies:
@@ -725,3 +722,5 @@ imagePullSecrets: []
   # - test2
 persistentVolumeClaim: {}
 
+verticalPodScaling:
+  enabled: false

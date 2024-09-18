@@ -423,6 +423,10 @@ autoscaling:
   annotations: {}
   labels: {}
   behavior: {}
+  containerResource:
+    enable: false
+    TargetCPUUtilizationPercentage: 90
+    TargetMemoryUtilizationPercentage: 80  
 #    scaleDown:
 #      stabilizationWindowSeconds: 300
 #      policies:

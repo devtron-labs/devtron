@@ -25,11 +25,28 @@ spec:
   minReplicas: {{ $.Values.autoscaling.MinReplicas  }}
   maxReplicas: {{ $.Values.autoscaling.MaxReplicas }}
   metrics:
-  {{- if eq $.Values.autoscaling.type "ContainerResource" }}
-  - type: ContainerResource
+  {{- if  $.Values.autoscaling.containerResource.enabled  }}
+  {{- with $.Values.autoscaling.containerResource }}
+  {{- if .TargetCPUUtilizationPercentage }}
+  - type: ContainerResource  
     containerResource:
-{{ toYaml .Values.autoscaling.ContainerResource | indent 6 }}
-  {{- end }}    
+      name: cpu
+      container: {{ $.Chart.Name }}
+      target:
+        type: Utilization
+        averageUtilization: {{ .TargetCPUUtilizationPercentage }}
+  {{- end}}  
+  {{- if .TargetMemoryUtilizationPercentage  }}
+  - type: ContainerResource  
+    containerResource:
+      name: memory
+      container: {{ $.Chart.Name }}
+      target:
+        type: Utilization
+        averageUtilization: {{ .TargetCPUUtilizationPercentage }}
+  {{- end}}
+  {{- end }}            
+  {{- end }}  
   {{- if $.Values.autoscaling.TargetMemoryUtilizationPercentage }}
   - type: Resource
     resource:
