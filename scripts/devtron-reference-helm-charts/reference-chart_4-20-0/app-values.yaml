@@ -255,7 +255,7 @@ autoscaling:
   labels: {}
   behavior: {}
   containerResource:
-    enable: false
+    enabled: false
     TargetCPUUtilizationPercentage: 90
     TargetMemoryUtilizationPercentage: 80  
 #    scaleDown:
@@ -437,3 +437,7 @@ hostAliases: []
 #     - "foo.remote"
 #     - "bar.remote"
 peristentVolumeClaim: {}
+
+
+verticalPodScaling:
+  enabled: true

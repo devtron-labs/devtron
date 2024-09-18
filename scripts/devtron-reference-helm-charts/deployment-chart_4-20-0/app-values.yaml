@@ -424,7 +424,7 @@ autoscaling:
   labels: {}
   behavior: {}
   containerResource:
-    enable: false
+    enabled: false
     TargetCPUUtilizationPercentage: 90
     TargetMemoryUtilizationPercentage: 80  
 #    scaleDown:
