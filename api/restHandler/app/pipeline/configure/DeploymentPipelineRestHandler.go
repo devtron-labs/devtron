@@ -2035,13 +2035,13 @@ func (handler *PipelineConfigRestHandlerImpl) GetCdPipelineById(w http.ResponseW
 		return
 	}
 
-	ciConf, err := handler.pipelineBuilder.GetCdPipelineById(pipelineId)
+	cdPipeline, err := handler.pipelineBuilder.GetCdPipelineById(pipelineId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCdPipelineById", "err", err, "appId", appId, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	cdResp, err := pipeline.CreatePreAndPostStageResponse(ciConf, version)
+	cdResp, err := pipeline.CreatePreAndPostStageResponse(cdPipeline, version)
 	if err != nil {
 		handler.Logger.Errorw("service err, CheckForVersionAndCreatePreAndPostStagePayload", "err", err, "appId", appId, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
