@@ -43,7 +43,7 @@ Users need super-admin permission to view/enable/disable the ArgoCD listing.
 
 ### Preface
 
-In Argo CD, a user manages one dashboard for each Argo CD app. Therefore, with multiple apps, the process becomes cumbersome for the user to manage several dashboards.
+In Argo CD, a user manages one dashboard for one ArgoCD instance. Therefore, with multiple ArgoCD instances, the process becomes cumbersome for the user to manage several dashboards.
 
 With Devtron, you get an entire Argo CD app listing in one place. This listing includes:
 * Apps deployed using [GitOps](../reference/glossary.md#gitops) on Devtron
@@ -55,7 +55,7 @@ With Devtron, you get an entire Argo CD app listing in one place. This listing i
 
 Devtron also bridges the gap for ArgoCD users by providing additional features as follows:
 
-* **Resource Scanning**: You can scan for vulnerabilities using Devtron's [resource scanning](../user-guide/security-features.md#from-app-details) feature.
+* **Resource Scanning**: You can scan for vulnerabilities using Devtron's [resource scanning](../user-guide/security-features.md#from-app-details) feature. [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
 
 * **Single-pane View**: All Argo CD apps will show details such as their app status, environment, cluster, and namespace together in one dashboard. 
 
@@ -112,7 +112,7 @@ Users need super-admin permission to view/enable/disable the FluxCD listing.
 
 ### Preface
 
-Devtron also supports the listing of [Flux CD](https://fluxcd.io/) apps in one dashboard, thus providing the same [advantages](#advantages) as [ArgoCD app listing](#view-argocd-app-listing).
+Flux CD doesn't have any official dashboard; however, Devtron supports the listing of your [Flux CD](https://fluxcd.io/) apps in one dashboard. Here, the [advantages](#advantages) are same as those of [ArgoCD app listing](#view-argocd-app-listing).
 
 ![Figure 4: FluxCD App List and Details](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/fluxcd/fluxcd-listing.jpg)
 
