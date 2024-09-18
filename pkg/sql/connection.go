@@ -48,11 +48,6 @@ func GetConfig() (*Config, error) {
 	return cfg, err
 }
 
-func NewNoopConnection(logger *zap.SugaredLogger) (*pg.DB, error) {
-	logger.Debugw("noop connection")
-	return nil, nil
-}
-
 func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 	options := pg.Options{
 		Addr:            cfg.Addr + ":" + cfg.Port,

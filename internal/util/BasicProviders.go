@@ -19,12 +19,11 @@ package util
 import (
 	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/util/dir"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
-	"log"
 	"net/http"
-	"os"
 	"path"
 )
 
@@ -96,7 +95,7 @@ func InitFileBasedLogger() (*zap.SugaredLogger, error) {
 func getLogWriter(cfg *LogConfig) zapcore.WriteSyncer {
 	// lumberjack.Logger is already safe for concurrent use, so we don't need to
 	// lock it.
-	err, devtronDirPath := CheckOrCreateDevtronDir()
+	err, devtronDirPath := dir.CheckOrCreateDevtronDir()
 	if err != nil {
 		devtronDirPath = "/tmp/"
 	}
@@ -121,19 +120,4 @@ func NewFileBaseSugaredLogger() (*zap.SugaredLogger, error) {
 
 func NewHttpClient() *http.Client {
 	return http.DefaultClient
-}
-
-func CheckOrCreateDevtronDir() (err error, devtronDirPath string) {
-	userHomeDir, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatalln("error occurred while finding home dir", "err", err)
-		return err, ""
-	}
-	devtronDirPath = path.Join(userHomeDir, "./.devtron")
-	err = os.MkdirAll(devtronDirPath, os.ModePerm)
-	if err != nil {
-		log.Fatalln("error occurred while creating folder", "path", devtronDirPath, "err", err)
-		return err, ""
-	}
-	return err, devtronDirPath
 }

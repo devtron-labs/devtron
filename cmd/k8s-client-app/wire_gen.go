@@ -54,11 +54,8 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	db, err := sql.NewNoopConnection(sugaredLogger)
-	if err != nil {
-		return nil, err
-	}
-	clusterFileBasedRepository := repository.NewClusterRepositoryFileBased(sugaredLogger)
+	sqliteConnection := sql.NewSqliteConnection(sugaredLogger)
+	clusterFileBasedRepository := repository.NewClusterRepositoryFileBased(sqliteConnection, sugaredLogger)
 	runtimeConfig, err := k8s.GetRuntimeConfig()
 	if err != nil {
 		return nil, err
@@ -76,11 +73,11 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	genericNoteFileBasedRepositoryImpl := repository2.NewGenericNoteFileBasedRepository(sugaredLogger)
-	genericNoteHistoryFileBasedRepositoryImpl := repository2.NewGenericNoteHistoryFileBasedRepositoryImpl(sugaredLogger)
+	genericNoteFileBasedRepositoryImpl := repository2.NewGenericNoteFileBasedRepository(sqliteConnection, sugaredLogger)
+	genericNoteHistoryFileBasedRepositoryImpl := repository2.NewGenericNoteHistoryFileBasedRepositoryImpl(sqliteConnection, sugaredLogger)
 	genericNoteHistoryServiceImpl := genericNotes.NewGenericNoteHistoryServiceImpl(genericNoteHistoryFileBasedRepositoryImpl, sugaredLogger)
 	genericNoteServiceImpl := genericNotes.NewGenericNoteServiceImpl(genericNoteFileBasedRepositoryImpl, genericNoteHistoryServiceImpl, noopUserService, sugaredLogger)
-	clusterDescriptionFileBasedRepositoryImpl := repository.NewClusterDescriptionFileBasedRepository(sugaredLogger)
+	clusterDescriptionFileBasedRepositoryImpl := repository.NewClusterDescriptionFileBasedRepository(sqliteConnection, sugaredLogger)
 	clusterDescriptionServiceImpl := cluster.NewClusterDescriptionServiceImpl(clusterDescriptionFileBasedRepositoryImpl, noopUserService, sugaredLogger)
 	validate, err := util.IntValidator()
 	if err != nil {
@@ -113,7 +110,7 @@ func InitializeApp() (*App, error) {
 	k8sResourceHistoryServiceImpl := kubernetesResourceAuditLogs.NewNoopServiceImpl(sugaredLogger)
 	argoApplicationServiceImpl := argoApplication.NewNoopImpl()
 	k8sCommonServiceImpl := k8s2.NewK8sCommonServiceImpl(sugaredLogger, k8sServiceImpl, clusterServiceImpl, argoApplicationServiceImpl)
-	ephemeralContainerFileBasedRepositoryImpl := repository.NewEphemeralContainerFileBasedRepository(sugaredLogger)
+	ephemeralContainerFileBasedRepositoryImpl := repository.NewEphemeralContainerFileBasedRepository(sqliteConnection, sugaredLogger)
 	ephemeralContainerServiceImpl := cluster.NewEphemeralContainerServiceImpl(ephemeralContainerFileBasedRepositoryImpl, sugaredLogger)
 	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(environmentServiceImpl, clusterServiceImpl, sugaredLogger, k8sServiceImpl, ephemeralContainerServiceImpl, argoApplicationServiceImpl)
 	fluxApplicationServiceImpl := fluxApplication.NewNoopImpl()
@@ -128,7 +125,7 @@ func InitializeApp() (*App, error) {
 	k8sCapacityServiceImpl := capacity.NewK8sCapacityServiceImpl(sugaredLogger, k8sApplicationServiceImpl, k8sServiceImpl, k8sCommonServiceImpl)
 	k8sCapacityRestHandlerImpl := capacity2.NewK8sCapacityRestHandlerImpl(sugaredLogger, k8sCapacityServiceImpl, noopUserService, noopEnforcer, clusterServiceImpl, environmentServiceImpl, clusterRbacNoopServiceImpl)
 	k8sCapacityRouterImpl := capacity2.NewK8sCapacityRouterImpl(k8sCapacityRestHandlerImpl)
-	terminalAccessFileBasedRepository := terminal2.NewTerminalAccessFileBasedRepository(sugaredLogger)
+	terminalAccessFileBasedRepository := terminal2.NewTerminalAccessFileBasedRepository(sqliteConnection, sugaredLogger)
 	userTerminalSessionConfig, err := clusterTerminalAccess.GetTerminalAccessConfig()
 	if err != nil {
 		return nil, err
@@ -154,6 +151,6 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	muxRouter := NewMuxRouter(sugaredLogger, clusterRouterImpl, dashboardRouterImpl, k8sApplicationRouterImpl, k8sCapacityRouterImpl, userTerminalAccessRouterImpl, kubeConfigFileSyncerImpl, telemetryEventClientImpl)
-	app := NewApp(db, muxRouter, sugaredLogger)
+	app := NewApp(muxRouter, sugaredLogger)
 	return app, nil
 }

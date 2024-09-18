@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"github.com/glebarez/sqlite"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -33,32 +33,12 @@ type EphemeralContainerFileBasedRepositoryImpl struct {
 	dbConnection *gorm.DB
 }
 
-func NewEphemeralContainerFileBasedRepository(logger *zap.SugaredLogger) *EphemeralContainerFileBasedRepositoryImpl {
-	err, dbPath := createOrCheckClusterDbPath(logger)
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
-	//db, err := sql.Open("sqlite3", "./cluster.db")
-	if err != nil {
-		logger.Fatal("error occurred while opening db connection", "error", err)
-	}
-	migrator := db.Migrator()
+func NewEphemeralContainerFileBasedRepository(connection *sql.SqliteConnection, logger *zap.SugaredLogger) *EphemeralContainerFileBasedRepositoryImpl {
 	ephemeralContainerEntity := &EphemeralContainerEntity{}
-	hasTable := migrator.HasTable(ephemeralContainerEntity)
-	if !hasTable {
-		err = migrator.CreateTable(ephemeralContainerEntity)
-		if err != nil {
-			logger.Fatal("error occurred while creating ephemeral container table", "error", err)
-		}
-	}
 	ephemeralContainerActionEntity := &EphemeralContainerActionEntity{}
-	hasTable = migrator.HasTable(ephemeralContainerActionEntity)
-	if !hasTable {
-		err = migrator.CreateTable(ephemeralContainerActionEntity)
-		if err != nil {
-			logger.Fatal("error occurred while creating ephemeral container action table", "error", err)
-		}
-	}
+	connection.Migrator.MigrateEntities(ephemeralContainerEntity, ephemeralContainerActionEntity)
 	logger.Debugw("ephemeralContainer repository file based initialized")
-	return &EphemeralContainerFileBasedRepositoryImpl{logger, db}
+	return &EphemeralContainerFileBasedRepositoryImpl{logger, connection.DbConnection}
 }
 
 func (impl EphemeralContainerFileBasedRepositoryImpl) StartTx() (*pg.Tx, error) {

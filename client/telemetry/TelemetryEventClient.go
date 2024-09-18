@@ -23,9 +23,9 @@ import (
 	"fmt"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
-	util2 "github.com/devtron-labs/devtron/internal/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	cron3 "github.com/devtron-labs/devtron/util/cron"
+	"github.com/devtron-labs/devtron/util/dir"
 	"net/http"
 	"os"
 	"path"
@@ -847,7 +847,7 @@ func (impl *TelemetryEventClientImpl) buildIntegrationsList() ([]string, []strin
 
 func (impl *TelemetryEventClientImpl) GetOrSetDesktopAppUcid() string {
 	ucid := ""
-	err, devtronDirPath := util2.CheckOrCreateDevtronDir()
+	err, devtronDirPath := dir.CheckOrCreateDevtronDir()
 	if err != nil {
 		impl.logger.Warnw("error occurred while creating dir", "err", err)
 	}

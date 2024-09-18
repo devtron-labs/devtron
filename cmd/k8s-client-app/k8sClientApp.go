@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/middleware"
-	util2 "github.com/devtron-labs/devtron/internal/util"
-	"github.com/go-pg/pg"
+	"github.com/devtron-labs/devtron/util/dir"
 	"go.uber.org/zap"
 	"io/fs"
 	"net"
@@ -23,17 +22,14 @@ var staticFiles embed.FS
 const DefaultPort = 8080
 
 type App struct {
-	db        *pg.DB
 	MuxRouter *MuxRouter
 	Logger    *zap.SugaredLogger
 	server    *http.Server
 }
 
-func NewApp(db *pg.DB,
-	MuxRouter *MuxRouter,
+func NewApp(MuxRouter *MuxRouter,
 	Logger *zap.SugaredLogger) *App {
 	return &App{
-		db:        db,
 		MuxRouter: MuxRouter,
 		Logger:    Logger,
 	}
@@ -102,7 +98,7 @@ func (app *App) Stop() {
 }
 
 func (app *App) writePortToFile(port int) {
-	err, devtronDirPath := util2.CheckOrCreateDevtronDir()
+	err, devtronDirPath := dir.CheckOrCreateDevtronDir()
 	if err != nil {
 		app.Logger.Fatal("error occurred while creating dir", "err", err)
 	}

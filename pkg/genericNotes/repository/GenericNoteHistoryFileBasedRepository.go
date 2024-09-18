@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"github.com/glebarez/sqlite"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -13,21 +13,11 @@ type GenericNoteHistoryFileBasedRepositoryImpl struct {
 	dbConnection *gorm.DB
 }
 
-func NewGenericNoteHistoryFileBasedRepositoryImpl(logger *zap.SugaredLogger) *GenericNoteHistoryFileBasedRepositoryImpl {
-	err, dbPath := createOrCheckClusterDbPath(logger)
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
-	//db, err := sql.Open("sqlite3", "./cluster.db")
-	if err != nil {
-		logger.Fatal("error occurred while opening db connection", "error", err)
-	}
-	migrator := db.Migrator()
+func NewGenericNoteHistoryFileBasedRepositoryImpl(connection *sql.SqliteConnection, logger *zap.SugaredLogger) *GenericNoteHistoryFileBasedRepositoryImpl {
 	genericNoteHistory := &GenericNoteHistory{}
-	err = migrator.AutoMigrate(genericNoteHistory)
-	if err != nil {
-		logger.Fatal("error occurred while auto-migrating genericNoteHistory", "error", err)
-	}
+	connection.Migrator.MigrateEntities(genericNoteHistory)
 	logger.Debugw("generic note history repository file based initialized")
-	return &GenericNoteHistoryFileBasedRepositoryImpl{logger, db}
+	return &GenericNoteHistoryFileBasedRepositoryImpl{logger, connection.DbConnection}
 }
 
 func (impl GenericNoteHistoryFileBasedRepositoryImpl) StartTx() (*pg.Tx, error) {

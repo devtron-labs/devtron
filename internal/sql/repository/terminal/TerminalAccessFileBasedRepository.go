@@ -3,12 +3,9 @@ package terminal
 import (
 	"errors"
 	"github.com/devtron-labs/devtron/internal/sql/models"
-	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/glebarez/sqlite"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"path"
 	"time"
 )
 
@@ -17,42 +14,12 @@ type TerminalAccessFileBasedRepository struct {
 	dbConnection *gorm.DB
 }
 
-func NewTerminalAccessFileBasedRepository(logger *zap.SugaredLogger) *TerminalAccessFileBasedRepository {
-	err, clientDbPath := createOrCheckClusterDbPath(logger)
-	db, err := gorm.Open(sqlite.Open(clientDbPath), &gorm.Config{})
-	if err != nil {
-		logger.Fatal("error occurred while opening db connection", "error", err)
-	}
-	migrator := db.Migrator()
+func NewTerminalAccessFileBasedRepository(connection *sql.SqliteConnection, logger *zap.SugaredLogger) *TerminalAccessFileBasedRepository {
 	terminalAccessData := &models.UserTerminalAccessData{}
-	hasTable := migrator.HasTable(terminalAccessData)
-	if !hasTable {
-		err = migrator.CreateTable(terminalAccessData)
-		if err != nil {
-			logger.Fatal("error occurred while creating terminal access data table", "error", err)
-		}
-	}
 	terminalAccessTemplates := &models.TerminalAccessTemplates{}
-	hasTable = migrator.HasTable(terminalAccessTemplates)
-	if !hasTable {
-		err = migrator.CreateTable(terminalAccessTemplates)
-		if err != nil {
-			logger.Fatal("error occurred while creating terminal access templates table", "error", err)
-		}
-	}
-	//logger.Debugw("cluster terminal access file based repository initialized")
-	return &TerminalAccessFileBasedRepository{logger: logger, dbConnection: db}
-}
-
-func createOrCheckClusterDbPath(logger *zap.SugaredLogger) (error, string) {
-	err, devtronDirPath := util2.CheckOrCreateDevtronDir()
-	if err != nil {
-		logger.Errorw("error occurred while creating devtron dir ", "err", err)
-		return err, ""
-	}
-
-	clusterTerminalDbPath := path.Join(devtronDirPath, "./client.db")
-	return nil, clusterTerminalDbPath
+	connection.Migrator.MigrateEntities(terminalAccessData, terminalAccessTemplates)
+	logger.Debugw("cluster terminal access file based repository initialized")
+	return &TerminalAccessFileBasedRepository{logger: logger, dbConnection: connection.DbConnection}
 }
 
 func (impl TerminalAccessFileBasedRepository) FetchTerminalAccessTemplate(templateName string) (*models.TerminalAccessTemplates, error) {

@@ -2,7 +2,7 @@ package repository
 
 import (
 	"fmt"
-	"github.com/glebarez/sqlite"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -14,24 +14,12 @@ type ClusterDescriptionFileBasedRepositoryImpl struct {
 	dbConnection *gorm.DB
 }
 
-func NewClusterDescriptionFileBasedRepository(logger *zap.SugaredLogger) *ClusterDescriptionFileBasedRepositoryImpl {
-	err, dbPath := createOrCheckClusterDbPath(logger)
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
-	//db, err := sql.Open("sqlite3", "./cluster.db")
-	if err != nil {
-		logger.Fatal("error occurred while opening db connection", "error", err)
-	}
-	migrator := db.Migrator()
+func NewClusterDescriptionFileBasedRepository(connection *sql.SqliteConnection, logger *zap.SugaredLogger) *ClusterDescriptionFileBasedRepositoryImpl {
+
 	clusterDescription := &ClusterDescription{}
-	hasTable := migrator.HasTable(clusterDescription)
-	if !hasTable {
-		err = migrator.CreateTable(clusterDescription)
-		if err != nil {
-			logger.Fatal("error occurred while creating cluster description table", "error", err)
-		}
-	}
+	connection.Migrator.MigrateEntities(clusterDescription)
 	logger.Debugw("cluster description repository file based initialized")
-	return &ClusterDescriptionFileBasedRepositoryImpl{logger, db}
+	return &ClusterDescriptionFileBasedRepositoryImpl{logger, connection.DbConnection}
 }
 
 func (impl ClusterDescriptionFileBasedRepositoryImpl) FindByClusterIdWithClusterDetails(clusterId int) (*ClusterDescription, error) {
@@ -43,7 +31,6 @@ func (impl ClusterDescriptionFileBasedRepositoryImpl) FindByClusterIdWithCluster
 		" WHERE cl.id=%d AND cl.active=true " +
 		" LIMIT 1 OFFSET 0;"
 	query = fmt.Sprintf(query, 0, clusterId) //0 is for cluster type description
-	//_, err := impl.dbConnection.Query(clusterDescription, query)
 	result := impl.dbConnection.Raw(query).Find(clusterDescription)
 	err := result.Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {

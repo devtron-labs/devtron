@@ -3,14 +3,9 @@ package repository
 import (
 	"encoding/json"
 	"errors"
-	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"path"
 	"time"
 
-	//"database/sql"
-	//"encoding/json"
-	"github.com/glebarez/sqlite"
 	"github.com/go-pg/pg"
 	//_ "github.com/mattn/go-sqlite3"
 	"go.uber.org/zap"
@@ -43,31 +38,11 @@ type ClusterEntity struct {
 	sql.AuditLog
 }
 
-func NewClusterRepositoryFileBased(logger *zap.SugaredLogger) *ClusterFileBasedRepository {
-	err, clusterDbPath := createOrCheckClusterDbPath(logger)
-	db, err := gorm.Open(sqlite.Open(clusterDbPath), &gorm.Config{})
-	//db, err := sql.Open("sqlite3", "./cluster.db")
-	if err != nil {
-		logger.Fatal("error occurred while opening db connection", "error", err)
-	}
-	migrator := db.Migrator()
+func NewClusterRepositoryFileBased(connection *sql.SqliteConnection, logger *zap.SugaredLogger) *ClusterFileBasedRepository {
 	clusterEntity := &ClusterEntity{}
-	err = migrator.AutoMigrate(clusterEntity)
-	if err != nil {
-		logger.Fatal("error occurred while migrating cluster table", "error", err)
-	}
+	connection.Migrator.MigrateEntities(clusterEntity)
 	logger.Debugw("cluster repository file based initialized")
-	return &ClusterFileBasedRepository{logger, db}
-}
-
-func createOrCheckClusterDbPath(logger *zap.SugaredLogger) (error, string) {
-	err, devtronDirPath := util2.CheckOrCreateDevtronDir()
-	if err != nil {
-		logger.Errorw("error occurred while creating devtron dir ", "err", err)
-		return err, ""
-	}
-	clusterDbPath := path.Join(devtronDirPath, "./client.db")
-	return nil, clusterDbPath
+	return &ClusterFileBasedRepository{logger, connection.DbConnection}
 }
 
 func (impl *ClusterFileBasedRepository) FindAllActiveExceptVirtual() ([]Cluster, error) {
