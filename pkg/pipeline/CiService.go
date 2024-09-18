@@ -803,6 +803,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ExtraEnvironmentVariables:   trigger.ExtraEnvironmentVariables,
 		EnableBuildContext:          impl.config.EnableBuildContext,
 		OrchestratorHost:            impl.config.OrchestratorHost,
+		HostUrl:                     host.Value,
 		OrchestratorToken:           impl.config.OrchestratorToken,
 		ImageRetryCount:             impl.config.ImageRetryCount,
 		ImageRetryInterval:          impl.config.ImageRetryInterval,
