@@ -23,6 +23,8 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils"
 	bean3 "github.com/devtron-labs/common-lib/utils/bean"
+	"github.com/devtron-labs/devtron/pkg/attributes"
+	bean4 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
@@ -95,6 +97,7 @@ type CiServiceImpl struct {
 	infraProvider                infraProviders.InfraProvider
 	ciCdPipelineOrchestrator     CiCdPipelineOrchestrator
 	buildxCacheFlags             *BuildxCacheFlags
+	attributeService             attributes.AttributesService
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -111,7 +114,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	pluginInputVariableParser PluginInputVariableParser,
 	globalPluginService plugin.GlobalPluginService,
 	infraProvider infraProviders.InfraProvider,
-	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
+	ciCdPipelineOrchestrator CiCdPipelineOrchestrator, attributeService attributes.AttributesService,
 ) *CiServiceImpl {
 	buildxCacheFlags := &BuildxCacheFlags{}
 	err := env.Parse(buildxCacheFlags)
@@ -140,6 +143,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		infraProvider:                infraProvider,
 		ciCdPipelineOrchestrator:     ciCdPipelineOrchestrator,
 		buildxCacheFlags:             buildxCacheFlags,
+		attributeService:             attributeService,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -594,7 +598,11 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		impl.Logger.Errorw("error in getting infra configuration using scope ", "ciPipelineId", pipeline.Id, "scope", infraConfigScope, "err", err)
 		return nil, err
 	}
-
+	host, err := impl.attributeService.GetByKey(bean4.HostUrlKey)
+	if err != nil {
+		impl.Logger.Errorw("error in getting host url", "err", err, "hostUrl", host.Value)
+		return nil, err
+	}
 	if ciWorkflowConfig.CiCacheBucket == "" {
 		ciWorkflowConfig.CiCacheBucket = impl.config.DefaultCacheBucket
 	}
