@@ -95,13 +95,6 @@ github.com/asaskevich/govalidator v0.0.0-20190424111038-f61b66f89f4a/go.mod h1:l
 github.com/aws/aws-sdk-go v1.44.290/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
 github.com/aws/aws-sdk-go v1.44.317 h1:+8XWrLmGMwPPXSRSLPzhgcGnzJ2mYkgkrcB9C/GnSOU=
 github.com/aws/aws-sdk-go v1.44.317/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
-github.com/aws/aws-sdk-go-v2 v1.21.0/go.mod h1:/RfNgGmRxI+iFOB1OeJUyxiU+9s88k3pfHvDagGEp0M=
-github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.41/go.mod h1:CrObHAuPneJBlfEJ5T3szXOUkLEThaGfvnhTf33buas=
-github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.35/go.mod h1:SJC1nEVVva1g3pHAIdCp7QsRIkMmLAgoDquQ9Rr8kYw=
-github.com/aws/aws-sdk-go-v2/service/ecr v1.20.0 h1:Qw8H7V55d2P1d/a9+cLgAcdez4GtP6l30KQAeYqx9vY=
-github.com/aws/aws-sdk-go-v2/service/ecr v1.20.0/go.mod h1:pGwmNL8hN0jpBfKfTbmu+Rl0bJkDhaGl+9PQLrZ4KLo=
-github.com/aws/smithy-go v1.14.2 h1:MJU9hqBGbvWZdApzpvoF2WAIJDbtjK2NDJSiJP7HblQ=
-github.com/aws/smithy-go v1.14.2/go.mod h1:Tg+OJXh4MB2R/uN61Ko2f6hTZwB/ZYGOtib8J3gBHzA=
 github.com/benbjohnson/clock v1.1.0 h1:Q92kusRqC1XV2MjkWETPvjJVqKetz1OzxZB7mHJLju8=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
@@ -188,8 +181,8 @@ github.com/devtron-labs/argo-workflows/v3 v3.5.10 h1:6rxQOesOzDz6SgQCMDQNHaehsKF
 github.com/devtron-labs/argo-workflows/v3 v3.5.10/go.mod h1:/vqxcovDPT4zqr4DjR5v7CF8ggpY1l3TSa2CIG3jmjA=
 github.com/devtron-labs/authenticator v0.4.35-0.20240809073103-6e11da8083f8 h1:2+Q7Jdhpo/uMiaQiZZzAh+ZX7wEJIFuMFG6DEiMuo64=
 github.com/devtron-labs/authenticator v0.4.35-0.20240809073103-6e11da8083f8/go.mod h1:702R6WIf5y9UzKGoCGxQ+x3l5Ws+l0fXg2xlCpSGFZI=
-github.com/devtron-labs/common-lib v0.16.1-0.20240904133334-7918e7c25b63 h1:C5SMozwP2rVIKItqEZs3PtWkBhNnEeHIm9xtnDkK5VA=
-github.com/devtron-labs/common-lib v0.16.1-0.20240904133334-7918e7c25b63/go.mod h1:rAY9Xd6iz+OqNQ3nO3reVHapAVr1N6Osf4Irdc0A08Q=
+github.com/devtron-labs/common-lib v0.16.1-0.20240911071031-2625327bc7b4 h1:OWhV5B2SQRWZges8cltVsyUrdA/8EByBjjRxX95qN7o=
+github.com/devtron-labs/common-lib v0.16.1-0.20240911071031-2625327bc7b4/go.mod h1:rAY9Xd6iz+OqNQ3nO3reVHapAVr1N6Osf4Irdc0A08Q=
 github.com/devtron-labs/go-bitbucket v0.9.60-beta h1:VEx1jvDgdtDPS6A1uUFoaEi0l1/oLhbr+90xOwr6sDU=
 github.com/devtron-labs/go-bitbucket v0.9.60-beta/go.mod h1:GnuiCesvh8xyHeMCb+twm8lBR/kQzJYSKL28ZfObp1Y=
 github.com/devtron-labs/protos v0.0.3-0.20240802105333-92ee9bb85d80 h1:xwbTeijNTf4/j1v+tSfwVqwLVnReas/NqEKeQHvSTys=

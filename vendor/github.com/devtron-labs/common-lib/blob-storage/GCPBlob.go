@@ -19,6 +19,7 @@ package blob_storage
 import (
 	"cloud.google.com/go/storage"
 	"context"
+	"errors"
 	"fmt"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
@@ -91,8 +92,10 @@ func (impl *GCPBlob) getLatestVersion(storageClient *storage.Client, request *Bl
 	var latestTimestampInMillis int64 = 0
 	for {
 		objectAttrs, err := objects.Next()
-		if err == iterator.Done {
+		if errors.Is(err, iterator.Done) {
 			break
+		} else if err != nil {
+			return 0, err
 		}
 		objectName := objectAttrs.Name
 		if objectName != fileName {

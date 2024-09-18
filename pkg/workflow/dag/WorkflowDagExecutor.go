@@ -43,6 +43,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
+	bean4 "github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/workflow/dag/bean"
 	error2 "github.com/devtron-labs/devtron/util/error"
 	util2 "github.com/devtron-labs/devtron/util/event"
@@ -71,10 +72,10 @@ import (
 )
 
 type WorkflowDagExecutor interface {
-	HandleCiSuccessEvent(triggerContext triggerBean.TriggerContext, ciPipelineId int, request *bean2.CiArtifactWebhookRequest, imagePushedAt *time.Time) (id int, err error)
+	HandleCiSuccessEvent(triggerContext triggerBean.TriggerContext, ciPipelineId int, request *bean2.CiArtifactWebhookRequest, imagePushedAt time.Time) (id int, err error)
 	HandlePreStageSuccessEvent(triggerContext triggerBean.TriggerContext, cdStageCompleteEvent eventProcessorBean.CdStageCompleteEvent) error
 	HandleDeploymentSuccessEvent(triggerContext triggerBean.TriggerContext, pipelineOverride *chartConfig.PipelineOverride) error
-	HandlePostStageSuccessEvent(triggerContext triggerBean.TriggerContext, cdWorkflowId int, cdPipelineId int, triggeredBy int32, pluginRegistryImageDetails map[string][]string) error
+	HandlePostStageSuccessEvent(triggerContext triggerBean.TriggerContext, wfr *bean4.CdWorkflowRunnerDto, cdWorkflowId int, cdPipelineId int, triggeredBy int32, pluginRegistryImageDetails map[string][]string) error
 	HandleCdStageReTrigger(runner *pipelineConfig.CdWorkflowRunner) error
 	HandleCiStepFailedEvent(ciPipelineId int, request *bean2.CiArtifactWebhookRequest) (err error)
 	HandleExternalCiWebhook(externalCiId int, request *bean2.CiArtifactWebhookRequest,
@@ -533,6 +534,19 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext t
 		return err
 	}
 	if wfRunner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
+
+		pluginArtifacts := make(map[string][]string)
+		if cdStageCompleteEvent.PluginArtifacts != nil {
+			pluginArtifacts = cdStageCompleteEvent.PluginArtifacts.GetRegistryToUniqueContainerArtifactDataMapping()
+			util4.MergeMaps(pluginArtifacts, cdStageCompleteEvent.PluginRegistryArtifactDetails)
+		}
+
+		err = impl.deactivateUnusedPaths(wfRunner.ImagePathReservationIds, pluginArtifacts)
+		if err != nil {
+			impl.logger.Errorw("error in deactiving unusedImagePaths", "err", err)
+			return err
+		}
+
 		pipeline, err := impl.pipelineRepository.FindById(cdStageCompleteEvent.CdPipelineId)
 		if err != nil {
 			return err
@@ -548,7 +562,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext t
 				impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", ciArtifact.Id)
 			}
 		}
-		PreCDArtifacts, err := impl.commonArtifactService.SavePluginArtifacts(ciArtifact, cdStageCompleteEvent.PluginRegistryArtifactDetails, pipeline.Id, repository.PRE_CD, cdStageCompleteEvent.TriggeredBy)
+		PreCDArtifacts, err := impl.commonArtifactService.SavePluginArtifacts(ciArtifact, pluginArtifacts, pipeline.Id, repository.PRE_CD, cdStageCompleteEvent.TriggeredBy)
 		if err != nil {
 			impl.logger.Errorw("error in saving plugin artifacts", "err", err)
 			return err
@@ -629,7 +643,7 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(triggerContext
 	} else {
 		// to trigger next pre/cd, if any
 		// finding children cd by pipeline id
-		err = impl.HandlePostStageSuccessEvent(triggerContext, cdWorkflow.Id, pipelineOverride.PipelineId, 1, nil)
+		err = impl.HandlePostStageSuccessEvent(triggerContext, nil, cdWorkflow.Id, pipelineOverride.PipelineId, 1, nil)
 		if err != nil {
 			impl.logger.Errorw("error in triggering children cd after successful deployment event", "parentCdPipelineId", pipelineOverride.PipelineId)
 			return err
@@ -638,7 +652,7 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(triggerContext
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(triggerContext triggerBean.TriggerContext, cdWorkflowId int, cdPipelineId int, triggeredBy int32, pluginRegistryImageDetails map[string][]string) error {
+func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(triggerContext triggerBean.TriggerContext, wfr *bean4.CdWorkflowRunnerDto, cdWorkflowId int, cdPipelineId int, triggeredBy int32, pluginRegistryImageDetails map[string][]string) error {
 	// finding children cd by pipeline id
 	cdPipelinesMapping, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(cdPipelineId)
 	if err != nil {
@@ -651,6 +665,13 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(triggerContext 
 		return err
 	}
 	if len(pluginRegistryImageDetails) > 0 {
+		if wfr != nil {
+			err = impl.deactivateUnusedPaths(wfr.ImagePathReservationIds, pluginRegistryImageDetails)
+			if err != nil {
+				impl.logger.Errorw("error in deactivation images", "err", err)
+				return err
+			}
+		}
 		PostCDArtifacts, err := impl.commonArtifactService.SavePluginArtifacts(ciArtifact, pluginRegistryImageDetails, cdPipelineId, repository.POST_CD, triggeredBy)
 		if err != nil {
 			impl.logger.Errorw("error in saving plugin artifacts", "err", err)
@@ -687,7 +708,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(triggerContext 
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext triggerBean.TriggerContext, ciPipelineId int, request *bean2.CiArtifactWebhookRequest, imagePushedAt *time.Time) (id int, err error) {
+func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext triggerBean.TriggerContext, ciPipelineId int, request *bean2.CiArtifactWebhookRequest, imagePushedAt time.Time) (id int, err error) {
 	impl.logger.Infow("webhook for artifact save", "req", request)
 	if request.WorkflowId != nil {
 		savedWorkflow, err := impl.ciWorkflowRepository.FindById(*request.WorkflowId)
@@ -706,6 +727,13 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 			impl.logger.Errorw("update wf failed for id ", "err", err)
 			return 0, err
 		}
+
+		err = impl.deactivateUnusedPaths(savedWorkflow.ImagePathReservationIds, request.PluginRegistryArtifactDetails)
+		if err != nil {
+			impl.logger.Errorw("error in deactivation images", "err", err)
+			return 0, err
+		}
+
 	}
 
 	pipeline, err := impl.ciPipelineRepository.FindByCiAndAppDetailsById(ciPipelineId)
@@ -730,7 +758,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 	createdOn := time.Now()
 	updatedOn := time.Now()
 	if !imagePushedAt.IsZero() {
-		createdOn = *imagePushedAt
+		createdOn = imagePushedAt
 	}
 	buildArtifact := &repository.CiArtifact{
 		Image:              request.Image,
@@ -870,6 +898,37 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 	}
 	impl.logger.Debugw("Completed: auto trigger for children Stage/CD pipelines", "Time taken", time.Since(start).Seconds())
 	return buildArtifact.Id, err
+}
+
+func (impl *WorkflowDagExecutorImpl) deactivateUnusedPaths(reserveImagePathIds []int, pluginRegistryArtifactDetails map[string][]string) error {
+	// for copy container image plugin if images reserved are not equal to actual copird
+	reservedImagePaths, err := impl.customTagService.GetImagePathsByIds(reserveImagePathIds)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting imagePaths by ids", "ImagePathReservationIds", reserveImagePathIds, "err", err)
+		return err
+	}
+
+	copiedImagesMapping := make(map[string]bool)
+	for _, savedImages := range pluginRegistryArtifactDetails {
+		for _, image := range savedImages {
+			copiedImagesMapping[image] = true
+		}
+	}
+
+	unusedPaths := make([]string, 0, len(reservedImagePaths))
+	for _, reservedImage := range reservedImagePaths {
+		if _, ok := copiedImagesMapping[reservedImage.ImagePath]; !ok {
+			unusedPaths = append(unusedPaths, reservedImage.ImagePath)
+		}
+	}
+
+	err = impl.customTagService.DeactivateImagePathReservationByImagePath(unusedPaths)
+	if err != nil {
+		impl.logger.Errorw("error in deactivating unused image paths", "imagePathReservationIds", reserveImagePathIds, "err", err)
+		return err
+	}
+
+	return nil
 }
 
 func (impl *WorkflowDagExecutorImpl) WriteCiSuccessEvent(request *bean2.CiArtifactWebhookRequest, pipeline *pipelineConfig.CiPipeline, artifact *repository.CiArtifact) {

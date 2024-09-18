@@ -53,3 +53,11 @@ func (r *DockerAuthConfig) GetEncodedRegistryAuth() (string, error) {
 	}
 	return base64.StdEncoding.EncodeToString(encodedJSON), nil
 }
+
+type DockerRegistryInfo struct {
+	DockerImageTag     string `json:"dockerImageTag"`
+	DockerRegistryId   string `json:"dockerRegistryId"`
+	DockerRegistryType string `json:"dockerRegistryType"`
+	DockerRegistryURL  string `json:"dockerRegistryURL"`
+	DockerRepository   string `json:"dockerRepository"`
+}
