@@ -14,7 +14,7 @@ The **Applications** page helps you create and manage your microservices, and it
 
 ### Application Listing
 
-You can view the app name, its status, environment, namespace, and many more upfront. The apps are segregated into: [Devtron Apps](../reference/glossary.md#devtron-apps), [Helm Apps](../reference/glossary.md#helm-apps), and [ArgoCD Apps](../reference/glossary.md#argocd-apps)
+You can view the app name, its status, environment, namespace, and many more upfront. The apps are segregated into: [Devtron Apps](../reference/glossary.md#devtron-apps), [Helm Apps](../reference/glossary.md#helm-apps), [ArgoCD Apps](../reference/glossary.md#argocd-apps), and [FluxCD Apps](../reference/glossary.md#fluxcd-apps).
 
 ![Figure 1: App Types](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/argocd/app-types.jpg)
 
@@ -49,7 +49,7 @@ With Devtron, you get an entire Argo CD app listing in one place. This listing i
 * Apps deployed using [GitOps](../reference/glossary.md#gitops) on Devtron
 * Other Argo CD apps present in your cluster
 
-![Figure 2: ArgoCD App List](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/argocd/argo-cd-listing.jpg)
+![Figure 2: ArgoCD App List](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/argocd/app-details-argo.gif)
 
 ### Advantages
 
@@ -68,6 +68,10 @@ Devtron also bridges the gap for ArgoCD users by providing additional features a
 
 ### Prerequisite
 The cluster in which Argo CD apps exist should be added in **Global Configurations** → **Clusters and Environments**
+
+### Feature Flag
+
+> **`ENABLE_EXTERNAL_ARGO_CD: "true"`**
 
 ### Enabling ArgoCD App Listing
 
@@ -108,12 +112,16 @@ Users need super-admin permission to view/enable/disable the FluxCD listing.
 
 ### Preface
 
-Devtron also supports the listing of [Flux CD](https://fluxcd.io/) apps in one dashboard, thus providing the same [advantages](#advantages) of [ArgoCD app listing](#view-argocd-app-listing).
+Devtron also supports the listing of [Flux CD](https://fluxcd.io/) apps in one dashboard, thus providing the same [advantages](#advantages) as [ArgoCD app listing](#view-argocd-app-listing).
 
-![Figure 4: FluxCD App List](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/fluxcd/fluxcd-listing.jpg)
+![Figure 4: FluxCD App List and Details](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/fluxcd/fluxcd-listing.jpg)
 
 ### Prerequisite
 The cluster in which Flux CD apps exist should be added in **Global Configurations** → **Clusters and Environments**
+
+### Feature Flag
+
+> **`FEATURE_EXTERNAL_FLUX_CD_ENABLE: "true"`**
 
 ### Enabling FluxCD App Listing
 
@@ -122,7 +130,7 @@ The cluster in which Flux CD apps exist should be added in **Global Configuratio
 You may refer the steps mentioned in the [Enabling ArgoCD App Listing](#enabling-argocd-app-listing) section since the procedure is similar. 
 {% endhint %}
 
-The feature flag to enable FluxCD app listing is **FEATURE_EXTERNAL_FLUX_CD_ENABLE** and it should be set to **"true"** as shown below.
+Using Devtron's Resource Browser, add the [feature flag](#feature-flag-1) in the Dashboard ConfigMap as shown below.
 
 ![Figure 5: Editing Dashboard ConfigMap](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/fluxcd/flux-feature-flag.jpg)
 
@@ -131,3 +139,7 @@ After successfully executing all the steps, a new tab named **FluxCD Apps** will
 ![Figure 6: Selecting Cluster](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/fluxcd/cluster-selection.jpg)
 
 (Optional) Once you choose cluster(s), you may use the **Template Type** dropdown to further filter your Flux CD app listing based on its type, i.e., [Kustomization](https://fluxcd.io/flux/components/kustomize/kustomizations/) or [Helmrelease](https://fluxcd.io/flux/components/helm/helmreleases/).
+
+Click any Flux CD app to view its details as shown below.
+
+![Figure 7: Flux App Details](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/fluxcd/app-details-flux.gif)
