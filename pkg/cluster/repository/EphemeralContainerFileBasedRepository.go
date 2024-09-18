@@ -34,8 +34,8 @@ type EphemeralContainerFileBasedRepositoryImpl struct {
 }
 
 func NewEphemeralContainerFileBasedRepository(connection *sql.SqliteConnection, logger *zap.SugaredLogger) *EphemeralContainerFileBasedRepositoryImpl {
-	ephemeralContainerEntity := &EphemeralContainerEntity{}
-	ephemeralContainerActionEntity := &EphemeralContainerActionEntity{}
+	ephemeralContainerEntity := &EphemeralContainerBean{}
+	ephemeralContainerActionEntity := &EphemeralContainerAction{}
 	connection.Migrator.MigrateEntities(ephemeralContainerEntity, ephemeralContainerActionEntity)
 	logger.Debugw("ephemeralContainer repository file based initialized")
 	return &EphemeralContainerFileBasedRepositoryImpl{logger, connection.DbConnection}
@@ -54,13 +54,11 @@ func (impl EphemeralContainerFileBasedRepositoryImpl) CommitTx(tx *pg.Tx) error 
 }
 
 func (impl EphemeralContainerFileBasedRepositoryImpl) SaveEphemeralContainerData(tx *pg.Tx, model *EphemeralContainerBean) error {
-	//containerEntity := impl.convertToEntity(model)
 	result := impl.dbConnection.Create(model)
 	return result.Error
 }
 
 func (impl EphemeralContainerFileBasedRepositoryImpl) SaveEphemeralContainerActionAudit(tx *pg.Tx, model *EphemeralContainerAction) error {
-	//auditEntity := impl.convertToAuditEntity(model)
 	result := impl.dbConnection.Create(model)
 	return result.Error
 }
@@ -74,24 +72,14 @@ func (impl EphemeralContainerFileBasedRepositoryImpl) FindContainerByName(cluste
 		Where("name = ?", name).
 		Find(ephemeralContainerEntity)
 	err := result.Error
-	if err != nil {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		err = pg.ErrNoRows
+	} else if err != nil {
 		impl.logger.Errorw("error occurred while finding ephemeral container data ", "cluster_id", clusterID, "err", err)
 		return nil, errors.New("failed to fetch ephemeral container")
 	}
-	//model := impl.convertToModel(ephemeralContainerEntity)
-	return ephemeralContainerEntity, nil
-}
-
-func (impl EphemeralContainerFileBasedRepositoryImpl) convertToEntity(ephemeralContainerBean *EphemeralContainerBean) *EphemeralContainerEntity {
-	entity := &EphemeralContainerEntity{
-		Id:                  ephemeralContainerBean.Id,
-		Name:                ephemeralContainerBean.Name,
-		ClusterId:           ephemeralContainerBean.ClusterId,
-		Namespace:           ephemeralContainerBean.Namespace,
-		PodName:             ephemeralContainerBean.PodName,
-		TargetContainer:     ephemeralContainerBean.TargetContainer,
-		Config:              ephemeralContainerBean.Config,
-		IsExternallyCreated: ephemeralContainerBean.IsExternallyCreated,
+	if errors.Is(err, pg.ErrNoRows) || ephemeralContainerEntity.Id == 0 {
+		ephemeralContainerEntity = nil
 	}
-	return entity
+	return ephemeralContainerEntity, nil
 }
