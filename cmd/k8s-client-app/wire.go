@@ -32,6 +32,7 @@ import (
 
 func InitializeApp() (*App, error) {
 	wire.Build(
+		sql.NewNoopTransactionUtilImpl,
 		sql.NewSqliteConnection,
 		telemetry.NewPosthogClient,
 		casbin.NewNoopEnforcer,

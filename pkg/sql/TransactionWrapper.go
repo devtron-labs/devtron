@@ -42,3 +42,23 @@ func (impl *TransactionUtilImpl) CommitTx(tx *pg.Tx) error {
 func (impl *TransactionUtilImpl) StartTx() (*pg.Tx, error) {
 	return impl.dbConnection.Begin()
 }
+
+type NoopTransactionUtilImpl struct {
+}
+
+func NewNoopTransactionUtilImpl() *NoopTransactionUtilImpl {
+	return &NoopTransactionUtilImpl{}
+}
+
+func (impl *NoopTransactionUtilImpl) StartTx() (*pg.Tx, error) {
+	return nil, nil
+}
+
+func (impl *NoopTransactionUtilImpl) RollbackTx(tx *pg.Tx) error {
+	return nil
+}
+
+func (impl *NoopTransactionUtilImpl) CommitTx(tx *pg.Tx) error {
+	return nil
+}
+

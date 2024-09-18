@@ -73,7 +73,8 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	genericNoteFileBasedRepositoryImpl := repository2.NewGenericNoteFileBasedRepository(sqliteConnection, sugaredLogger)
+	noopTransactionUtilImpl := sql.NewNoopTransactionUtilImpl()
+	genericNoteFileBasedRepositoryImpl := repository2.NewGenericNoteFileBasedRepository(sqliteConnection, sugaredLogger, noopTransactionUtilImpl)
 	genericNoteHistoryFileBasedRepositoryImpl := repository2.NewGenericNoteHistoryFileBasedRepositoryImpl(sqliteConnection, sugaredLogger)
 	genericNoteHistoryServiceImpl := genericNotes.NewGenericNoteHistoryServiceImpl(genericNoteHistoryFileBasedRepositoryImpl, sugaredLogger)
 	genericNoteServiceImpl := genericNotes.NewGenericNoteServiceImpl(genericNoteFileBasedRepositoryImpl, genericNoteHistoryServiceImpl, noopUserService, sugaredLogger)
