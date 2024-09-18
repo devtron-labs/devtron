@@ -70,9 +70,9 @@ Temporarily marking a node as unschedulable, preventing new pods from being assi
 
 CronJob is used to create Jobs on a repeating schedule. It is commonly used for running periodic tasks with no manual intervention. In Devtron, you can view a list of cronjobs by going to Resource Browser → (choose a cluster) → Workloads → CronJob. [Read More...](../user-guide/creating-application/deployment-template/job-and-cronjob.md#2.-cronjob)
 
-### Custom Charts
+### Deployment Charts
 
-Devtron offers a variety of ready-made Helm charts for common tasks and functions. If you have a specific need that isn't met by these preconfigured charts, super-admins have the permission to upload their own custom charts. Once uploaded, these custom charts become accessible for use by all users on the Devtron platform. [Read More...](../user-guide/global-configurations/custom-charts.md)
+Devtron offers a variety of ready-made Helm charts for common tasks and functions. If you have a specific need that isn't met by these preconfigured charts, super-admins have the permission to upload their own charts. Once uploaded, these charts become accessible for use by all users on the Devtron platform. [Read More...](../user-guide/global-configurations/deployment-charts.md)
 
 ### DaemonSet
 

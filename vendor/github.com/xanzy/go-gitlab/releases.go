@@ -133,6 +133,31 @@ func (s *ReleasesService) GetRelease(pid interface{}, tagName string, options ..
 	return r, resp, nil
 }
 
+// GetLatestRelease returns the latest release for the project.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/releases/#get-the-latest-release
+func (s *ReleasesService) GetLatestRelease(pid interface{}, options ...RequestOptionFunc) (*Release, *Response, error) {
+	project, err := parseID(pid)
+	if err != nil {
+		return nil, nil, err
+	}
+	u := fmt.Sprintf("projects/%s/releases/permalink/latest", PathEscape(project))
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil, options)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	r := new(Release)
+	resp, err := s.client.Do(req, r)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return r, resp, err
+}
+
 // CreateReleaseOptions represents CreateRelease() options.
 //
 // GitLab API docs:
@@ -162,10 +187,11 @@ type ReleaseAssetsOptions struct {
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/releases/index.html#create-a-release
 type ReleaseAssetLinkOptions struct {
-	Name     *string        `url:"name,omitempty" json:"name,omitempty"`
-	URL      *string        `url:"url,omitempty" json:"url,omitempty"`
-	FilePath *string        `url:"filepath,omitempty" json:"filepath,omitempty"`
-	LinkType *LinkTypeValue `url:"link_type,omitempty" json:"link_type,omitempty"`
+	Name            *string        `url:"name,omitempty" json:"name,omitempty"`
+	URL             *string        `url:"url,omitempty" json:"url,omitempty"`
+	FilePath        *string        `url:"filepath,omitempty" json:"filepath,omitempty"`
+	DirectAssetPath *string        `url:"direct_asset_path,omitempty" json:"direct_asset_path,omitempty"`
+	LinkType        *LinkTypeValue `url:"link_type,omitempty" json:"link_type,omitempty"`
 }
 
 // CreateRelease creates a release.

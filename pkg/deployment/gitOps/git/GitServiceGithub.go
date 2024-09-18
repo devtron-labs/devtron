@@ -19,8 +19,11 @@ package git
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils/runTime"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/retryFunc"
 	"github.com/google/go-github/github"
 	"go.uber.org/zap"
@@ -76,7 +79,13 @@ func NewGithubClient(host string, token string, org string, logger *zap.SugaredL
 }
 
 func (impl GitHubClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
-	_, err := impl.client.Repositories.Delete(context.Background(), config.GitHubOrgId, config.GitRepoName)
+	var err error
+	start := time.Now()
+	defer func() {
+		globalUtil.TriggerGitOpsMetrics("DeleteRepository", "GitHubClient", start, err)
+	}()
+
+	_, err = impl.client.Repositories.Delete(context.Background(), config.GitHubOrgId, config.GitRepoName)
 	if err != nil {
 		impl.logger.Errorw("repo deletion failed for github", "repo", config.GitRepoName, "err", err)
 		return err
@@ -84,18 +93,32 @@ func (impl GitHubClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
 	return nil
 }
 
+func IsRepoNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	var responseErr *github.ErrorResponse
+	ok := errors.As(err, &responseErr)
+	return ok && responseErr.Response.StatusCode == 404
+}
+
 func (impl GitHubClient) CreateRepository(ctx context.Context, config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+	var err error
+	start := time.Now()
+	defer func() {
+		globalUtil.TriggerGitOpsMetrics("CreateRepository", "GitHubClient", start, err)
+	}()
+
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	repoExists := true
-	url, err := impl.GetRepoUrl(config)
+	url, err = impl.getRepoUrl(ctx, config, IsRepoNotFound)
 	if err != nil {
-		responseErr, ok := err.(*github.ErrorResponse)
-		if !ok || responseErr.Response.StatusCode != 404 {
+		if IsRepoNotFound(err) {
+			repoExists = false
+		} else {
 			impl.logger.Errorw("error in creating github repo", "err", err)
 			detailedErrorGitOpsConfigActions.StageErrorMap[GetRepoUrlStage] = err
 			return "", false, detailedErrorGitOpsConfigActions
-		} else {
-			repoExists = false
 		}
 	}
 	if repoExists {
@@ -158,6 +181,12 @@ func (impl GitHubClient) CreateRepository(ctx context.Context, config *bean2.Git
 }
 
 func (impl GitHubClient) CreateReadme(ctx context.Context, config *bean2.GitOpsConfigDto) (string, error) {
+	var err error
+	start := time.Now()
+	defer func() {
+		globalUtil.TriggerGitOpsMetrics("CreateReadme", "GitHubClient", start, err)
+	}()
+
 	cfg := &ChartConfig{
 		ChartName:      config.GitRepoName,
 		ChartLocation:  "",
@@ -176,6 +205,12 @@ func (impl GitHubClient) CreateReadme(ctx context.Context, config *bean2.GitOpsC
 }
 
 func (impl GitHubClient) CommitValues(ctx context.Context, config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
+
+	start := time.Now()
+	defer func() {
+		globalUtil.TriggerGitOpsMetrics("CommitValues", "GitHubClient", start, err)
+	}()
+
 	branch := "master"
 	path := filepath.Join(config.ChartLocation, config.FileName)
 	newFile := false
@@ -227,14 +262,35 @@ func (impl GitHubClient) CommitValues(ctx context.Context, config *ChartConfig, 
 
 func (impl GitHubClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, err error) {
 	ctx := context.Background()
+	return impl.getRepoUrl(ctx, config, globalUtil.AllPublishableError())
+}
+
+func (impl GitHubClient) getRepoUrl(ctx context.Context, config *bean2.GitOpsConfigDto,
+	isNonPublishableError globalUtil.EvalIsNonPublishableErr) (repoUrl string, err error) {
+	start := time.Now()
+	defer func() {
+		if isNonPublishableError(err) {
+			impl.logger.Debugw("found non publishable error. skipping metrics publish!", "caller method", runTime.GetCallerFunctionName(), "err", err)
+			return
+		}
+		globalUtil.TriggerGitOpsMetrics("GetRepoUrl", "GitHubClient", start, err)
+	}()
+
 	repo, _, err := impl.client.Repositories.Get(ctx, impl.org, config.GitRepoName)
 	if err != nil {
+		impl.logger.Errorw("error in getting repo url by repo name", "org", impl.org, "gitRepoName", config.GitRepoName, "err", err)
 		return "", err
 	}
 	return *repo.CloneURL, nil
 }
 
 func (impl GitHubClient) ensureProjectAvailabilityOnHttp(config *bean2.GitOpsConfigDto) (bool, error) {
+	var err error
+	start := time.Now()
+	defer func() {
+		globalUtil.TriggerGitOpsMetrics("ensureProjectAvailabilityOnHttp", "GitHubClient", start, err)
+	}()
+
 	count := 0
 	for count < 3 {
 		count = count + 1
@@ -255,6 +311,12 @@ func (impl GitHubClient) ensureProjectAvailabilityOnHttp(config *bean2.GitOpsCon
 }
 
 func (impl GitHubClient) ensureProjectAvailabilityOnSsh(projectName string, repoUrl string) (bool, error) {
+	var err error
+	start := time.Now()
+	defer func() {
+		globalUtil.TriggerGitOpsMetrics("ensureProjectAvailabilityOnSsh", "GitHubClient", start, err)
+	}()
+
 	count := 0
 	for count < 3 {
 		count = count + 1

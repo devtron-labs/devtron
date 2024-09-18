@@ -36,6 +36,7 @@ type MilestonesService struct {
 type Milestone struct {
 	ID          int        `json:"id"`
 	IID         int        `json:"iid"`
+	GroupID     int        `json:"group_id"`
 	ProjectID   int        `json:"project_id"`
 	Title       string     `json:"title"`
 	Description string     `json:"description"`

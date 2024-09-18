@@ -56,6 +56,7 @@ type ImageTagRepository interface {
 	DeactivateImagePathReservationByImagePaths(tx *pg.Tx, imagePaths []string) error
 	DeactivateImagePathReservationByImagePathReservationIds(tx *pg.Tx, imagePathReservationIds []int) error
 	DisableCustomTag(entityKey int, entityValue string) error
+	GetImagePathsByIds(ids []int) ([]*ImagePathReservation, error)
 }
 
 type ImageTagRepositoryImpl struct {
@@ -139,6 +140,9 @@ func (impl *ImageTagRepositoryImpl) InsertImagePath(tx *pg.Tx, reservation *Imag
 }
 
 func (impl *ImageTagRepositoryImpl) DeactivateImagePathReservationByImagePaths(tx *pg.Tx, imagePaths []string) error {
+	if len(imagePaths) == 0 {
+		return nil
+	}
 	query := `UPDATE image_path_reservation set active=false where image_path in (?)`
 	_, err := tx.Exec(query, pg.In(imagePaths))
 	if err != nil && err != pg.ErrNoRows {
@@ -160,4 +164,14 @@ func (impl *ImageTagRepositoryImpl) DisableCustomTag(entityKey int, entityValue 
 	query := `update custom_tag set enabled = false where entity_key = ? and entity_value = ?`
 	_, err := impl.dbConnection.Exec(query, entityKey, entityValue)
 	return err
+}
+func (impl *ImageTagRepositoryImpl) GetImagePathsByIds(ids []int) ([]*ImagePathReservation, error) {
+	var imagePaths []*ImagePathReservation
+	if len(ids) == 0 {
+		return imagePaths, nil
+	}
+	err := impl.dbConnection.Model(&imagePaths).
+		Where("id in (?) ", pg.In(ids)).
+		Where("active = ?", true).Select()
+	return imagePaths, err
 }

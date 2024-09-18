@@ -21,6 +21,7 @@ message AppListRequest {
 
 service ApplicationService {
   rpc ListApplications(AppListRequest) returns (stream DeployedAppList){}
+  rpc ListFluxApplications(AppListRequest) returns (stream FluxApplicationList){}
   rpc GetAppDetail(AppDetailRequest) returns (AppDetail){}
   rpc GetAppStatus(AppDetailRequest) returns (AppStatus){}
   rpc Hibernate(HibernateRequest) returns (HibernateResponse){}
@@ -42,6 +43,9 @@ service ApplicationService {
   rpc UpgradeReleaseWithCustomChart(UpgradeReleaseRequest) returns(UpgradeReleaseResponse){}
   rpc ValidateOCIRegistry(RegistryCredential) returns(OCIRegistryResponse) {}
   rpc GetResourceTreeForExternalResources(ExternalResourceTreeRequest) returns(ResourceTreeResponse){}
+  rpc GetFluxAppDetail(FluxAppDetailRequest)returns(FluxAppDetail){}
+  rpc  GetReleaseDetails(ReleaseIdentifier)returns(DeployedAppDetail){}
+
 }
 
 message ExternalResourceTreeRequest{
@@ -56,8 +60,39 @@ message ExternalResourceDetail {
   string name = 4;
   string namespace = 5;
 }
+message FluxApplicationList {
+  int32 clusterId = 1;
+  repeated FluxApplication FluxApplication =2;
+  string errorMsg = 3;
+  bool errored = 4;
+}
+message FluxApplication{
+  string name=1;
+  string healthStatus=2;
+  string syncStatus=3;
+  EnvironmentDetails environmentDetail = 4;
+  string fluxAppDeploymentType=5;
+}
+//---------------flux external app detail-------
+message FluxAppDetailRequest{
+  ClusterConfig clusterConfig = 1;
+  string namespace = 2;
+  string name = 3;
+  bool IsKustomizeApp =4;
+}
 
+message FluxAppDetail{
+  FluxApplication fluxApplication=1;
+  FluxAppStatusDetail FluxAppStatusDetail = 2;
+  ResourceTreeResponse resourceTreeResponse =3;
+}
 
+message FluxAppStatusDetail{
+  string Status = 1;
+  string Reason = 2;
+  string Message = 3;
+}
+//---------------flux external app detail ends here-------
 message DeployedAppList {
   repeated DeployedAppDetail DeployedAppDetail = 1;
   int32 clusterId = 2;

@@ -769,7 +769,7 @@ func (c *AutoScaling) CompleteLifecycleActionRequest(input *CompleteLifecycleAct
 // If you finish before the timeout period ends, send a callback by using the
 // CompleteLifecycleAction API call.
 //
-// For more information, see Amazon EC2 Auto Scaling lifecycle hooks (https://docs.aws.amazon.com/autoscaling/ec2/userguide/lifecycle-hooks.html)
+// For more information, see Complete a lifecycle action (https://docs.aws.amazon.com/autoscaling/ec2/userguide/completing-lifecycle-hooks.html)
 // in the Amazon EC2 Auto Scaling User Guide.
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
@@ -4167,6 +4167,12 @@ func (c *AutoScaling) DescribeWarmPoolRequest(input *DescribeWarmPoolInput) (req
 		Name:       opDescribeWarmPool,
 		HTTPMethod: "POST",
 		HTTPPath:   "/",
+		Paginator: &request.Paginator{
+			InputTokens:     []string{"NextToken"},
+			OutputTokens:    []string{"NextToken"},
+			LimitToken:      "MaxRecords",
+			TruncationToken: "",
+		},
 	}
 
 	if input == nil {
@@ -4227,6 +4233,57 @@ func (c *AutoScaling) DescribeWarmPoolWithContext(ctx aws.Context, input *Descri
 	req.SetContext(ctx)
 	req.ApplyOptions(opts...)
 	return out, req.Send()
+}
+
+// DescribeWarmPoolPages iterates over the pages of a DescribeWarmPool operation,
+// calling the "fn" function with the response data for each page. To stop
+// iterating, return false from the fn function.
+//
+// See DescribeWarmPool method for more information on how to use this operation.
+//
+// Note: This operation can generate multiple requests to a service.
+//
+//	// Example iterating over at most 3 pages of a DescribeWarmPool operation.
+//	pageNum := 0
+//	err := client.DescribeWarmPoolPages(params,
+//	    func(page *autoscaling.DescribeWarmPoolOutput, lastPage bool) bool {
+//	        pageNum++
+//	        fmt.Println(page)
+//	        return pageNum <= 3
+//	    })
+func (c *AutoScaling) DescribeWarmPoolPages(input *DescribeWarmPoolInput, fn func(*DescribeWarmPoolOutput, bool) bool) error {
+	return c.DescribeWarmPoolPagesWithContext(aws.BackgroundContext(), input, fn)
+}
+
+// DescribeWarmPoolPagesWithContext same as DescribeWarmPoolPages except
+// it takes a Context and allows setting request options on the pages.
+//
+// The context must be non-nil and will be used for request cancellation. If
+// the context is nil a panic will occur. In the future the SDK may create
+// sub-contexts for http.Requests. See https://golang.org/pkg/context/
+// for more information on using Contexts.
+func (c *AutoScaling) DescribeWarmPoolPagesWithContext(ctx aws.Context, input *DescribeWarmPoolInput, fn func(*DescribeWarmPoolOutput, bool) bool, opts ...request.Option) error {
+	p := request.Pagination{
+		NewRequest: func() (*request.Request, error) {
+			var inCpy *DescribeWarmPoolInput
+			if input != nil {
+				tmp := *input
+				inCpy = &tmp
+			}
+			req, _ := c.DescribeWarmPoolRequest(inCpy)
+			req.SetContext(ctx)
+			req.ApplyOptions(opts...)
+			return req, nil
+		},
+	}
+
+	for p.Next() {
+		if !fn(p.Page().(*DescribeWarmPoolOutput), !p.HasNextPage()) {
+			break
+		}
+	}
+
+	return p.Err()
 }
 
 const opDetachInstances = "DetachInstances"
@@ -4560,7 +4617,7 @@ func (c *AutoScaling) DetachTrafficSourcesRequest(input *DetachTrafficSourcesInp
 //
 // Detaches one or more traffic sources from the specified Auto Scaling group.
 //
-// When you detach a taffic, it enters the Removing state while deregistering
+// When you detach a traffic source, it enters the Removing state while deregistering
 // the instances in the group. When all instances are deregistered, then you
 // can no longer describe the traffic source using the DescribeTrafficSources
 // API call. The instances continue to run.
@@ -6978,6 +7035,39 @@ func (s *Alarm) SetAlarmARN(v string) *Alarm {
 // SetAlarmName sets the AlarmName field's value.
 func (s *Alarm) SetAlarmName(v string) *Alarm {
 	s.AlarmName = &v
+	return s
+}
+
+// Specifies the CloudWatch alarm specification to use in an instance refresh.
+type AlarmSpecification struct {
+	_ struct{} `type:"structure"`
+
+	// The names of one or more CloudWatch alarms to monitor for the instance refresh.
+	// You can specify up to 10 alarms.
+	Alarms []*string `type:"list"`
+}
+
+// String returns the string representation.
+//
+// API parameter values that are decorated as "sensitive" in the API will not
+// be included in the string output. The member name will be present, but the
+// value will be replaced with "sensitive".
+func (s AlarmSpecification) String() string {
+	return awsutil.Prettify(s)
+}
+
+// GoString returns the string representation.
+//
+// API parameter values that are decorated as "sensitive" in the API will not
+// be included in the string output. The member name will be present, but the
+// value will be replaced with "sensitive".
+func (s AlarmSpecification) GoString() string {
+	return s.String()
+}
+
+// SetAlarms sets the Alarms field's value.
+func (s *AlarmSpecification) SetAlarms(v []*string) *AlarmSpecification {
+	s.Alarms = v
 	return s
 }
 
@@ -18014,7 +18104,7 @@ type PutScalingPolicyInput struct {
 
 	// The amount by which to scale, based on the specified adjustment type. A positive
 	// value adds to the current capacity while a negative number removes from the
-	// current capacity. For exact capacity, you must specify a positive value.
+	// current capacity. For exact capacity, you must specify a non-negative value.
 	//
 	// Required if the policy type is SimpleScaling. (Not used with any other policy
 	// type.)
@@ -18687,8 +18777,13 @@ func (s RecordLifecycleActionHeartbeatOutput) GoString() string {
 type RefreshPreferences struct {
 	_ struct{} `type:"structure"`
 
+	// (Optional) The CloudWatch alarm specification. CloudWatch alarms can be used
+	// to identify any issues and fail the operation if an alarm threshold is met.
+	AlarmSpecification *AlarmSpecification `type:"structure"`
+
 	// (Optional) Indicates whether to roll back the Auto Scaling group to its previous
-	// configuration if the instance refresh fails. The default is false.
+	// configuration if the instance refresh fails or a CloudWatch alarm threshold
+	// is met. The default is false.
 	//
 	// A rollback is not supported in the following situations:
 	//
@@ -18700,6 +18795,9 @@ type RefreshPreferences struct {
 	//
 	//    * The Auto Scaling group uses the launch template's $Latest or $Default
 	//    version.
+	//
+	// For more information, see Undo changes with a rollback (https://docs.aws.amazon.com/autoscaling/ec2/userguide/instance-refresh-rollback.html)
+	// in the Amazon EC2 Auto Scaling User Guide.
 	AutoRollback *bool `type:"boolean"`
 
 	// (Optional) The amount of time, in seconds, to wait after a checkpoint before
@@ -18810,6 +18908,12 @@ func (s RefreshPreferences) String() string {
 // value will be replaced with "sensitive".
 func (s RefreshPreferences) GoString() string {
 	return s.String()
+}
+
+// SetAlarmSpecification sets the AlarmSpecification field's value.
+func (s *RefreshPreferences) SetAlarmSpecification(v *AlarmSpecification) *RefreshPreferences {
+	s.AlarmSpecification = v
+	return s
 }
 
 // SetAutoRollback sets the AutoRollback field's value.
@@ -18957,7 +19061,9 @@ type RollbackInstanceRefreshInput struct {
 	_ struct{} `type:"structure"`
 
 	// The name of the Auto Scaling group.
-	AutoScalingGroupName *string `min:"1" type:"string"`
+	//
+	// AutoScalingGroupName is a required field
+	AutoScalingGroupName *string `min:"1" type:"string" required:"true"`
 }
 
 // String returns the string representation.
@@ -18981,6 +19087,9 @@ func (s RollbackInstanceRefreshInput) GoString() string {
 // Validate inspects the fields of the type to determine if they are valid.
 func (s *RollbackInstanceRefreshInput) Validate() error {
 	invalidParams := request.ErrInvalidParams{Context: "RollbackInstanceRefreshInput"}
+	if s.AutoScalingGroupName == nil {
+		invalidParams.Add(request.NewErrParamRequired("AutoScalingGroupName"))
+	}
 	if s.AutoScalingGroupName != nil && len(*s.AutoScalingGroupName) < 1 {
 		invalidParams.Add(request.NewErrParamMinLen("AutoScalingGroupName", 1))
 	}
@@ -19899,6 +20008,8 @@ type StartInstanceRefreshInput struct {
 	//
 	//    * Checkpoints
 	//
+	//    * CloudWatch alarms
+	//
 	//    * Skip matching
 	Preferences *RefreshPreferences `type:"structure"`
 
@@ -20052,12 +20163,7 @@ type StepAdjustment struct {
 
 	// The amount by which to scale, based on the specified adjustment type. A positive
 	// value adds to the current capacity while a negative number removes from the
-	// current capacity.
-	//
-	// The amount by which to scale. The adjustment is based on the value that you
-	// specified in the AdjustmentType property (either an absolute number or a
-	// percentage). A positive value adds to the current capacity and a negative
-	// number subtracts from the current capacity.
+	// current capacity. For exact capacity, you must specify a non-negative value.
 	//
 	// ScalingAdjustment is a required field
 	ScalingAdjustment *int64 `type:"integer" required:"true"`

@@ -51,6 +51,10 @@ const (
 	// AnnotationKeyProgress is N/M progress for the node
 	AnnotationKeyProgress = workflow.WorkflowFullName + "/progress"
 
+	// AnnotationKeyReportOutputsCompleted is an annotation on a workflow pod indicating outputs have completed.
+	// Only used as a backup in case LabelKeyReportOutputsCompleted can't be added to WorkflowTaskResult.
+	AnnotationKeyReportOutputsCompleted = workflow.WorkflowFullName + "/report-outputs-completed"
+
 	// AnnotationKeyArtifactGCStrategy is listed as an annotation on the Artifact GC Pod to identify
 	// the strategy whose artifacts are being deleted
 	AnnotationKeyArtifactGCStrategy = workflow.WorkflowFullName + "/artifact-gc-strategy"
@@ -69,7 +73,8 @@ const (
 	// LabelKeyWorkflowArchivingStatus indicates if a workflow needs archiving or not:
 	// * `` - does not need archiving ... yet
 	// * `Pending` - pending archiving
-	// * `Archived` - has been archived
+	// * `Archived` - has been archived and has live manifest
+	// * `Persisted` - has been archived and retrieved from db
 	// See also `LabelKeyCompleted`.
 	LabelKeyWorkflowArchivingStatus = workflow.WorkflowFullName + "/workflow-archiving-status"
 	// LabelKeyWorkflow is the pod metadata label to indicate the associated workflow name
@@ -93,6 +98,8 @@ const (
 	LabelKeyOnExit = workflow.WorkflowFullName + "/on-exit"
 	// LabelKeyArtifactGCPodHash is a label applied to WorkflowTaskSets used by the Artifact Garbage Collection Pod
 	LabelKeyArtifactGCPodHash = workflow.WorkflowFullName + "/artifact-gc-pod"
+	// LabelKeyReportOutputsCompleted is a label applied to WorkflowTaskResults indicating whether all the outputs have been reported.
+	LabelKeyReportOutputsCompleted = workflow.WorkflowFullName + "/report-outputs-completed"
 
 	// ExecutorArtifactBaseDir is the base directory in the init container in which artifacts will be copied to.
 	// Each artifact will be named according to its input name (e.g: /argo/inputs/artifacts/CODE)
@@ -167,6 +174,8 @@ const (
 	GlobalVarWorkflowName = "workflow.name"
 	// GlobalVarWorkflowNamespace is a global workflow variable referencing the workflow's metadata.namespace field
 	GlobalVarWorkflowNamespace = "workflow.namespace"
+	// GlobalVarWorkflowMainEntrypoint is a global workflow variable referencing the workflow's top level entrypoint name
+	GlobalVarWorkflowMainEntrypoint = "workflow.mainEntrypoint"
 	// GlobalVarWorkflowServiceAccountName is a global workflow variable referencing the workflow's spec.serviceAccountName field
 	GlobalVarWorkflowServiceAccountName = "workflow.serviceAccountName"
 	// GlobalVarWorkflowUID is a global workflow variable referencing the workflow's metadata.uid field
@@ -224,6 +233,8 @@ const (
 	LocalVarRetriesLastStatus = "lastRetry.status"
 	// LocalVarRetriesLastDuration is a variable that references information about the last retry's duration, in seconds
 	LocalVarRetriesLastDuration = "lastRetry.duration"
+	// LocalVarRetriesLastMessage is a variable that references information about the last retry's failure message
+	LocalVarRetriesLastMessage = "lastRetry.message"
 
 	KubeConfigDefaultMountPath    = "/kube/config"
 	KubeConfigDefaultVolumeName   = "kubeconfig"
@@ -239,9 +250,6 @@ const (
 
 	// ArgoProgressPath defines the path to a file used for self reporting progress
 	ArgoProgressPath = VarRunArgoPath + "/progress"
-
-	// ErrDeadlineExceeded is the pod status reason when exceed deadline
-	ErrDeadlineExceeded = "DeadlineExceeded"
 
 	ConfigMapName = "workflow-controller-configmap"
 )
