@@ -23,6 +23,9 @@ data:
   {{- if and $.Values.devtronEnterprise.enabled $.Values.devtronEnterprise.scoop.enabled }}
   SCOOP_CLUSTER_CONFIG: '{"1":{"serviceName":"scoop-service","passKey":"qhihdidhwid","namespace":"devtroncd","port":"80"}}'
   {{- end }}
+  {{- if $.Values.devtronEnterprise.enabled }}
+  CASBIN_CLIENT_URL: casbin-service.devtroncd:9000
+  {{- end }}
 {{- if $.Values.installer.modules }}
 {{- if has "cicd" $.Values.installer.modules }}
   CD_HOST: "argocd-server.devtroncd"
