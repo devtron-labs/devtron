@@ -2,6 +2,7 @@ package restHandler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -10,7 +11,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/configDiff/bean"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
-	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -91,9 +91,16 @@ func (handler *DeploymentConfigurationRestHandlerImpl) GetConfigData(w http.Resp
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	vars := mux.Vars(r)
-	values := vars["values"]
-	configDataQueryParams.Values = values
+	valuesPayload := &bean.ValuesDto{}
+	configDataQueryParams.UserId = userId
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(valuesPayload)
+	if err != nil {
+		handler.logger.Errorw("error in decoding the request payload", "err", err, "requestBody", r.Body)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	configDataQueryParams.Values = valuesPayload.Values
 	//RBAC START
 	token := r.Header.Get(common.TokenHeaderKey)
 	object := handler.enforcerUtil.GetAppRBACName(configDataQueryParams.AppName)

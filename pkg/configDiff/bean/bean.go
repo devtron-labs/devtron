@@ -198,3 +198,7 @@ type ResolvedCmCsMetadataDto struct {
 	VariableMapCM         map[string]map[string]string
 	VariableMapCS         map[string]map[string]string
 }
+
+type ValuesDto struct {
+	Values string `json:"values"`
+}
