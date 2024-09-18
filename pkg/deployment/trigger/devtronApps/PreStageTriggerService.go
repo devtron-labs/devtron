@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	bean6 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
@@ -563,6 +564,13 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	if digestPolicyConfigurations.UseDigestForTrigger() {
 		image = ReplaceImageTagWithDigest(image, artifact.ImageDigest)
 	}
+
+	host, err := impl.attributeService.GetByKey(bean6.HostUrlKey)
+	if err != nil {
+		impl.logger.Errorw("error in getting hostUrl", "err", err)
+		return nil, err
+	}
+
 	cdStageWorkflowRequest := &types.WorkflowRequest{
 		EnvironmentId:         cdPipeline.EnvironmentId,
 		AppId:                 cdPipeline.AppId,
@@ -587,6 +595,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 			WorkflowId:   artifact.WorkflowId,
 		},
 		OrchestratorHost:  impl.config.OrchestratorHost,
+		HostUrl:           host.Value,
 		OrchestratorToken: impl.config.OrchestratorToken,
 		CloudProvider:     impl.config.CloudProvider,
 		WorkflowExecutor:  workflowExecutor,

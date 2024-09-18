@@ -735,9 +735,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		impl.Logger.Errorw("error occurred while getting checkout path from git material", "gitMaterialId", ciBuildConfigBean.BuildContextGitMaterialId, "error", err)
 		return nil, err
 	}
-	hostUrl, err := impl.attributeService.GetByKey(bean4.HostUrlKey)
+	host, err := impl.attributeService.GetByKey(bean4.HostUrlKey)
 	if err != nil {
-		impl.Logger.Errorw("error in getting host url", "err", err, "hostUrl", hostUrl)
+		impl.Logger.Errorw("error in getting host url", "err", err, "hostUrl", host.Value)
 		return nil, err
 	}
 
@@ -803,6 +803,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ExtraEnvironmentVariables:   trigger.ExtraEnvironmentVariables,
 		EnableBuildContext:          impl.config.EnableBuildContext,
 		OrchestratorHost:            impl.config.OrchestratorHost,
+		HostUrl:                     host.Value,
 		OrchestratorToken:           impl.config.OrchestratorToken,
 		ImageRetryCount:             impl.config.ImageRetryCount,
 		ImageRetryInterval:          impl.config.ImageRetryInterval,

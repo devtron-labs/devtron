@@ -146,7 +146,7 @@ type WorkflowRequest struct {
 	BuildxCacheModeMin          bool   `json:"buildxCacheModeMin"`
 	AsyncBuildxCacheExport      bool   `json:"asyncBuildxCacheExport"`
 	UseDockerApiToGetDigest     bool   `json:"useDockerApiToGetDigest"`
-	BaseUrl                     string `json:"baseUrl"`
+	HostUrl                     string `json:"hostUrl"`
 }
 
 func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
