@@ -10,6 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/configDiff/bean"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -90,7 +91,9 @@ func (handler *DeploymentConfigurationRestHandlerImpl) GetConfigData(w http.Resp
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	vars := mux.Vars(r)
+	values := vars["values"]
+	configDataQueryParams.Values = values
 	//RBAC START
 	token := r.Header.Get(common.TokenHeaderKey)
 	object := handler.enforcerUtil.GetAppRBACName(configDataQueryParams.AppName)
