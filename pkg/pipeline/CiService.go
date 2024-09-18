@@ -223,6 +223,7 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 				impl.Logger.Errorw("ci artifact already exists  with same digest", "artifact", externalCiArtifact)
 				return fmt.Errorf("ci artifact already exists  with same digest")
 			}
+
 		}
 
 	}
@@ -239,6 +240,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	if err != nil {
 		return 0, err
 	}
+
 	ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(trigger.PipelineId)
 	if err != nil && !util.IsErrNoRows(err) {
 		return 0, err
