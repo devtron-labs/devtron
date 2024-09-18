@@ -474,7 +474,7 @@ func (impl *UserServiceImpl) CreateOrUpdateUserRolesForAllTypes(roleFilter bean.
 	var policiesToBeAdded = make([]casbin2.Policy, 0, capacity)
 	var err error
 	rolesChanged := false
-	if entity == bean2.CLUSTER {
+	if entity == bean2.CLUSTER_ENTITIY {
 		policiesToBeAdded, rolesChanged, err = impl.createOrUpdateUserRolesForClusterEntity(roleFilter, userId, model, existingRoles, token, managerAuth, tx, entity, capacity)
 		if err != nil {
 			return nil, false, err
@@ -1698,7 +1698,7 @@ func (impl *UserServiceImpl) checkGroupAuth(groupName string, token string, mana
 			hasAccessToGroup = false
 			hasSuperAdminPermission = true
 		}
-		if role.AccessType == bean.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
+		if role.AccessType == bean2.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
 			hasAccessToGroup = false
 		}
 		if len(role.Team) > 0 {
@@ -1708,7 +1708,7 @@ func (impl *UserServiceImpl) checkGroupAuth(groupName string, token string, mana
 				hasAccessToGroup = false
 			}
 		}
-		if role.Entity == bean.CLUSTER_ENTITIY && !isActionUserSuperAdmin {
+		if role.Entity == bean2.CLUSTER_ENTITIY && !isActionUserSuperAdmin {
 			isValidAuth := impl.userCommonService.CheckRbacForClusterEntity(role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource, token, managerAuth)
 			if !isValidAuth {
 				hasAccessToGroup = false
@@ -1782,7 +1782,7 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForOtherEntity(roleFilter be
 	environments := strings.Split(roleFilter.Environment, ",")
 	for _, environment := range environments {
 		for _, entityName := range entityNames {
-			if managerAuth != nil && entity != bean.CHART_GROUP_ENTITY {
+			if managerAuth != nil && entity != bean2.CHART_GROUP_ENTITY {
 				// check auth only for apps permission, skip for chart group
 				rbacObject := fmt.Sprintf("%s", roleFilter.Team)
 				isValidAuth := managerAuth(casbin2.ResourceUser, token, rbacObject)

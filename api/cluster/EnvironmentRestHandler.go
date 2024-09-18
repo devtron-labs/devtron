@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
@@ -513,9 +514,8 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentConnection(w http.ResponseW
 		responseObj.ClusterReachable = false
 	}
 	//updating the cluster connection error to db
-	mapObj := map[int]error{
-		clusterBean.Id: err,
-	}
+	mapObj := &sync.Map{}
+	mapObj.Store(clusterBean.Id, err)
 	impl.environmentClusterMappingsService.HandleErrorInClusterConnections([]*request.ClusterBean{clusterBean}, mapObj, true)
 	common.WriteJsonResp(w, nil, responseObj, http.StatusOK)
 }

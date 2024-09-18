@@ -135,7 +135,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 		if request.SuperAdmin == false {
 			for index, roleFilter := range request.RoleFilters {
 				entity := roleFilter.Entity
-				if entity == bean.CLUSTER_ENTITIY {
+				if entity == bean2.CLUSTER_ENTITIY {
 					policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, model, nil, "", nil, tx, mapping[index])
 					policies = append(policies, policiesToBeAdded...)
 					if err != nil {
@@ -279,7 +279,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForOtherEntity(roleFilte
 			}
 			if roleModel.Id == 0 {
 				request.Status = fmt.Sprintf("%s+%s,%s,%s,%s", bean2.RoleNotFoundStatusPrefix, roleFilter.Team, environment, entityName, actionType)
-				if roleFilter.Entity == bean2.ENTITY_APPS || roleFilter.Entity == bean.CHART_GROUP_ENTITY {
+				if roleFilter.Entity == bean2.ENTITY_APPS || roleFilter.Entity == bean2.CHART_GROUP_ENTITY {
 					flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, "", request.UserId)
 					if err != nil || flag == false {
 						return nil, err
@@ -426,7 +426,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 
 		//Adding New Policies
 		for index, roleFilter := range request.RoleFilters {
-			if roleFilter.Entity == bean.CLUSTER_ENTITIY {
+			if roleFilter.Entity == bean2.CLUSTER_ENTITIY {
 				policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, roleGroup, existingRoles, token, managerAuth, tx, mapping[index])
 				policies = append(policies, policiesToBeAdded...)
 				if err != nil {
@@ -474,10 +474,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 		}
 		if roleModel.Id > 0 {
 			roleGroupMappingModel := &repository.RoleGroupRoleMapping{RoleGroupId: roleGroup.Id, RoleId: roleModel.Id}
-			roleGroupMappingModel.CreatedBy = request.UserId
-			roleGroupMappingModel.UpdatedBy = request.UserId
-			roleGroupMappingModel.CreatedOn = time.Now()
-			roleGroupMappingModel.UpdatedOn = time.Now()
+			roleGroupMappingModel.CreateAuditLog(request.UserId)
 			roleGroupMappingModel, err = impl.roleGroupRepository.CreateRoleGroupRoleMapping(roleGroupMappingModel, tx)
 			if err != nil {
 				impl.logger.Errorw("error in creating role group role mapping", "err", err, "RoleGroupId", roleGroup.Id)

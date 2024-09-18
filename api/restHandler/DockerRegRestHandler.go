@@ -24,7 +24,6 @@ import (
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	repository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
-	"github.com/devtron-labs/devtron/internal/util"
 	chartProviderService "github.com/devtron-labs/devtron/pkg/appStore/chartProvider"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -233,13 +232,8 @@ func (impl DockerRegRestHandlerImpl) SaveDockerRegistryConfig(w http.ResponseWri
 	//RBAC enforcer Ends
 
 	// valid registry credentials from kubelink
-	if isValid := impl.dockerRegistryConfig.ValidateRegistryCredentials(&bean); !isValid {
-		impl.logger.Errorw("registry credentials validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
-		err = &util.ApiError{
-			HttpStatusCode:  http.StatusBadRequest,
-			InternalMessage: "Invalid authentication credentials. Please verify.",
-			UserMessage:     "Invalid authentication credentials. Please verify.",
-		}
+	if err = impl.dockerRegistryConfig.ValidateRegistryCredentials(&bean); err != nil {
+		impl.logger.Errorw("registry credentials validation err, SaveDockerRegistryConfig", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -349,13 +343,8 @@ func (impl DockerRegRestHandlerImpl) ValidateDockerRegistryConfig(w http.Respons
 		bean.Cert = existingStore.Cert
 	}
 	// valid registry credentials from kubelink
-	if isValid := impl.dockerRegistryConfig.ValidateRegistryCredentials(&bean); !isValid {
-		impl.logger.Errorw("registry credentials validation err, SaveDockerRegistryConfig", "err", err, "dockerRegistryId", bean.Id)
-		err = &util.ApiError{
-			HttpStatusCode:  http.StatusBadRequest,
-			InternalMessage: "Invalid authentication credentials. Please verify.",
-			UserMessage:     "Invalid authentication credentials. Please verify.",
-		}
+	if err = impl.dockerRegistryConfig.ValidateRegistryCredentials(&bean); err != nil {
+		impl.logger.Errorw("registry credentials validation err, SaveDockerRegistryConfig", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}

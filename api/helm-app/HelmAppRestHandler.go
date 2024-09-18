@@ -25,9 +25,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/helper"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/fluxApplication"
 	bean2 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"net/http"
 	"strconv"
 	"strings"
@@ -144,6 +146,11 @@ func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWrite
 	//RBAC enforcer Ends
 	appdetail, err := handler.helmAppService.GetApplicationDetail(context.Background(), appIdentifier)
 	if err != nil {
+
+		if pipeline.CheckAppReleaseNotExist(err) {
+			common.WriteJsonResp(w, err, nil, http.StatusNotFound)
+			return
+		}
 		apiError := clientErrors.ConvertToApiError(err)
 		if apiError != nil {
 			err = apiError
@@ -226,7 +233,7 @@ func (handler *HelmAppRestHandlerImpl) handleFluxApplicationHibernate(r *http.Re
 	return handler.fluxApplication.HibernateFluxApplication(r.Context(), appIdentifier, hibernateRequest)
 }
 func (handler *HelmAppRestHandlerImpl) handleArgoApplicationHibernate(r *http.Request, token string, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
-	appIdentifier, err := argoApplication.DecodeExternalArgoAppId(*hibernateRequest.AppId)
+	appIdentifier, err := helper.DecodeExternalArgoAppId(*hibernateRequest.AppId)
 	if err != nil {
 		return nil, err
 	}
@@ -310,7 +317,7 @@ func (handler *HelmAppRestHandlerImpl) handleFluxApplicationUnHibernate(r *http.
 	return handler.fluxApplication.UnHibernateFluxApplication(r.Context(), appIdentifier, hibernateRequest)
 }
 func (handler *HelmAppRestHandlerImpl) handleArgoApplicationUnHibernate(r *http.Request, token string, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
-	appIdentifier, err := argoApplication.DecodeExternalArgoAppId(*hibernateRequest.AppId)
+	appIdentifier, err := helper.DecodeExternalArgoAppId(*hibernateRequest.AppId)
 	if err != nil {
 		return nil, err
 	}

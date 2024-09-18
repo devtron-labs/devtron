@@ -177,6 +177,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request
 		queryParams = append(queryParams, util.GetLIKEClauseQueryParam(request.CVEName))
 	}
 	if len(request.Severity) > 0 {
+		// use pg.In to inject values here wherever calling this func in case severity exists, to avoid sql injections
 		query = query + " AND (cs.standard_severity IN (?) OR (cs.severity IN (?) AND cs.standard_severity IS NULL))"
 		queryParams = append(queryParams, pg.In(request.Severity), pg.In(request.Severity))
 	}
@@ -212,6 +213,7 @@ func getOrderByQueryPart(sortBy securityBean.SortBy, sortOrder securityBean.Sort
 		// id with desc fetches latest scans
 		sort = "id"
 	}
+
 	query := fmt.Sprintf(" ORDER BY %s ", sort)
 	if sortOrder == securityBean.Desc {
 		query += " DESC "
@@ -221,9 +223,10 @@ func getOrderByQueryPart(sortBy securityBean.SortBy, sortOrder securityBean.Sort
 
 func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithObject(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) (string, []interface{}) {
 	var queryParams []interface{}
+
 	query := ` select info.scan_object_meta_id, a.app_name as object_name, info.object_type, env.environment_name, max(info.id) as id, COUNT(*) OVER() AS total_count 
                from image_scan_deploy_info info
-	 		   INNER JOIN app a on a.id=info.scan_object_meta_id`
+	 		   INNER JOIN app a on a.id=info.scan_object_meta_id `
 
 	if len(request.Severity) > 0 {
 		query = query + ` INNER JOIN image_scan_execution_history his on his.id = any (info.image_scan_execution_history_id) 
