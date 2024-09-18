@@ -111,10 +111,14 @@ const (
 type PolicyType int
 
 const (
-	POLICY_DIRECT       PolicyType = 1
-	POLICY_GROUP        PolicyType = 1
-	SUPERADMIN                     = "role:super-admin___"
-	USER_TYPE_API_TOKEN            = "apiToken"
+	POLICY_DIRECT        PolicyType = 1
+	POLICY_GROUP         PolicyType = 1
+	SUPERADMIN                      = "role:super-admin___"
+	APP_ACCESS_TYPE_HELM            = "helm-app"
+	USER_TYPE_API_TOKEN             = "apiToken"
+	CHART_GROUP_ENTITY              = "chart-group"
+	CLUSTER_ENTITIY                 = "cluster"
+	ACTION_SUPERADMIN               = "super-admin"
 )
 
 type UserListingResponse struct {
