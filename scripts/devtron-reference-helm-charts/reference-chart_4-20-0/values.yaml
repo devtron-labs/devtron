@@ -56,21 +56,18 @@ image:
 restartPolicy: Always
 
 autoscaling:
-  enabled: true
+  enabled: false
   MinReplicas: 1
   MaxReplicas: 2
-  # TargetCPUUtilizationPercentage: 90
-  # TargetMemoryUtilizationPercentage: 80
+  TargetCPUUtilizationPercentage: 70
+  TargetMemoryUtilizationPercentage: 80
   annotations: {}
   labels: {}
   behavior: {}
-  type: ContainerResource
-  ContainerResource:
-    name: cpu
-    container: application
-    target:
-      type: Utilization
-      averageUtilization: 60
+  containerResource:
+    enable: false
+    TargetCPUUtilizationPercentage: 90
+    TargetMemoryUtilizationPercentage: 80  
 #    scaleDown:
 #      stabilizationWindowSeconds: 300
 #      policies:
