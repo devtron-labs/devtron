@@ -35,15 +35,19 @@ func GetQueryForUserListingWithFilters(req *bean.ListingRequest) (string, []inte
 	if len(req.SortBy) > 0 && !req.CountCheck {
 		orderCondition += " order by "
 		// Handling it for last login as it is time and show order differs on UI.
-		if req.SortBy == bean2.LastLogin && req.SortOrder == bean2.Asc {
-			orderCondition += fmt.Sprintf(" %s %s ", bean2.LastLogin, bean2.Desc)
-		} else {
-			orderCondition += fmt.Sprintf(" %s ", bean2.LastLogin)
+		if req.SortBy == bean2.LastLogin {
+			if req.SortOrder == bean2.Asc {
+				orderCondition += fmt.Sprintf(" %s %s ", bean2.LastLogin, bean2.Desc)
+			} else {
+				orderCondition += fmt.Sprintf(" %s ", bean2.LastLogin)
+			}
 		}
-		if req.SortBy == bean2.Email && req.SortOrder == bean2.Desc {
-			orderCondition += fmt.Sprintf(" %s %s ", bean2.Email, bean2.Desc)
-		} else {
-			orderCondition += fmt.Sprintf(" %s ", bean2.Email)
+		if req.SortBy == bean2.Email {
+			if req.SortOrder == bean2.Desc {
+				orderCondition += fmt.Sprintf(" %s %s ", bean2.Email, bean2.Desc)
+			} else {
+				orderCondition += fmt.Sprintf(" %s ", bean2.Email)
+			}
 		}
 	}
 
