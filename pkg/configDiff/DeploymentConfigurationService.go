@@ -155,12 +155,8 @@ func (impl *DeploymentConfigurationServiceImpl) getResolvedConfigDataForValues(c
 		impl.logger.Errorw("error in getting resolved data for cm draft data ", "appId", appId, "err", err)
 		return nil, err
 	}
-	resolvedConfigDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedTemplate)
-	if err != nil {
-		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in ConvertToJsonRawMessage for resolvedJson", "resolvedJson", resolvedTemplate, "err", err)
-		return nil, err
-	}
-	return configDataDto.WithDeploymentTemplateData(bean2.NewDeploymentAndCmCsConfig().WithResolvedValue(resolvedConfigDataStringJson)), nil
+
+	return configDataDto.WithDeploymentTemplateData(bean2.NewDeploymentAndCmCsConfig().WithResolvedValue(json.RawMessage(resolvedTemplate))), nil
 }
 
 func (impl *DeploymentConfigurationServiceImpl) getConfigDataForCdRollback(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams, userHasAdminAccess bool) (*bean2.DeploymentAndCmCsConfigDto, error) {
@@ -192,16 +188,12 @@ func (impl *DeploymentConfigurationServiceImpl) getDeploymentHistoryConfig(ctx c
 	if err != nil {
 		impl.logger.Errorw("error while resolving template from history", "deploymentHistoryId", deploymentHistory.Id, "pipelineId", configDataQueryParams.PipelineId, "err", err)
 	}
-	resolvedConfigDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedTemplate)
-	if err != nil {
-		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in ConvertToJsonRawMessage for resolvedTemplate", "resolvedTemplate", resolvedTemplate, "err", err)
-		return nil, err
-	}
+
 	deploymentConfig := bean2.NewDeploymentAndCmCsConfig().
 		WithConfigData(deploymentJson).
 		WithResourceType(bean.DeploymentTemplate).
 		WithVariableSnapshot(map[string]map[string]string{bean.DeploymentTemplate.ToString(): variableSnapshotMap}).
-		WithResolvedValue(resolvedConfigDataStringJson)
+		WithResolvedValue(json.RawMessage(resolvedTemplate))
 	return deploymentConfig, nil
 }
 
@@ -589,20 +581,27 @@ func (impl *DeploymentConfigurationServiceImpl) getPublishedDeploymentConfig(ctx
 		variableSnapShotMap := make(map[string]map[string]string, len(deplTemplateResp.VariableSnapshot))
 		variableSnapShotMap[bean.DeploymentTemplate.ToString()] = deplTemplateResp.VariableSnapshot
 
-		resolvedConfigDataStringJson, err := utils.ConvertToJsonRawMessage(deplTemplateResp.ResolvedData)
-		if err != nil {
-			impl.logger.Errorw("getCmCsPublishedConfigResponse, error in ConvertToJsonRawMessage for resolvedConfigDataString", "resolvedData", deplTemplateResp.ResolvedData, "err", err)
-			return nil, err
-		}
 		return bean2.NewDeploymentAndCmCsConfig().WithConfigData(deploymentJson).WithResourceType(bean.DeploymentTemplate).
-			WithResolvedValue(resolvedConfigDataStringJson).WithVariableSnapshot(variableSnapShotMap), nil
+			WithResolvedValue(json.RawMessage(deplTemplateResp.ResolvedData)).WithVariableSnapshot(variableSnapShotMap), nil
 	}
 	deplJson, err := impl.getBaseDeploymentTemplate(appId)
 	if err != nil {
-		impl.logger.Errorw("getDeploymentTemplateForEnvLevel, getting base depl. template", "appid", appId, "err", err)
+		impl.logger.Errorw("getting base depl. template", "appid", appId, "err", err)
 		return nil, err
 	}
-	return bean2.NewDeploymentAndCmCsConfig().WithConfigData(deplJson).WithResourceType(bean.DeploymentTemplate), nil
+	deploymentTemplateRequest := generateManifest.DeploymentTemplateRequest{
+		AppId:           appId,
+		RequestDataMode: generateManifest.Values,
+	}
+	resolvedTemplate, variableSnapshot, err := impl.deploymentTemplateService.ResolveTemplateVariables(ctx, string(deplJson), deploymentTemplateRequest)
+	if err != nil {
+		impl.logger.Errorw("error in getting resolved data for base deployment template", "appid", appId, "err", err)
+		return nil, err
+	}
+
+	variableSnapShotMap := map[string]map[string]string{bean.DeploymentTemplate.ToString(): variableSnapshot}
+	return bean2.NewDeploymentAndCmCsConfig().WithConfigData(deplJson).WithResourceType(bean.DeploymentTemplate).
+		WithResolvedValue(json.RawMessage(resolvedTemplate)).WithVariableSnapshot(variableSnapShotMap), nil
 }
 
 func (impl *DeploymentConfigurationServiceImpl) getPublishedConfigData(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams,
