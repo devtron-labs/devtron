@@ -1159,7 +1159,12 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.D
 			}
 			// end
 			lastDeployed := deployedapp.LastDeployed.AsTime()
-			appDetails, appFetchErr := impl.appRepository.FindActiveByName(deployedapp.AppName)
+			appDetails, appFetchErr := impl.getAppForAppIdentifier(
+				&helmBean.AppIdentifier{
+					ClusterId:   int(deployedapp.EnvironmentDetail.ClusterId),
+					Namespace:   deployedapp.EnvironmentDetail.Namespace,
+					ReleaseName: deployedapp.AppName,
+				})
 			projectId := int32(0)
 			if appFetchErr == nil {
 				projectId = int32(appDetails.TeamId)
