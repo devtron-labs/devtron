@@ -48,11 +48,11 @@ e.g., `The EKS Create Cluster plugin is integrated for provisioning of EKS clust
 |   UseIAMNodeRole         | BOOL         | Flag to use IAM Node Role for EKS cluster creation.    |    false          |
 |   AWSAccessKeyId         | STRING       | Valid AWS access key ID for authentication.            |   VtbXliYXNlNjR2YWx1           |
 |   AWSSecretAccessKey     | STRING       | AWS secret access key for authentication.              |   Njknsdcwjnchwjn34nk          |
-|   ClusterName            | STRING       | Name for the EKS cluster.                              |   plugin-test-2           |
+|   ClusterName            | STRING       | Name for the EKS cluster.                              |   prod-us           |
 |   Version                | STRING       | Kubernetes version to use for the EKS cluster.         |    1.30          |
 |   Region                 | STRING       | AWS region where the EKS cluster will be provisioned.  |    ap-south-1          |
 |   Zones                  | STRING       | Availability zone for the EKS cluster.                 |    ap-south-1a,ap-south-1b          | 
-|   NodeGroupName          | STRING       | Name for the EKS cluster's NodeGroup.                  |   plugin-test-1           |
+|   NodeGroupName          | STRING       | Name for the EKS cluster's NodeGroup.                  |   prod-us-01           |
 |   NodeType               | STRING       | EC2 instance type for EKS worker nodes.                |   t3.medium           |
 |   DesiredNodes           | STRING       | Desired number of nodes in the EKS cluster.            |     1         |
 
