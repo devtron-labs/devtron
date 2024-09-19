@@ -29,6 +29,7 @@ type SecretList struct {
 	ConfigData []*ConfigData `json:"secrets"`
 }
 
+// TODO refactoring: duplicate struct of ConfigData in ConfigMapBean.go
 type ConfigData struct {
 	Name                  string           `json:"name"`
 	Type                  string           `json:"type"`
@@ -45,6 +46,7 @@ type ConfigData struct {
 	DefaultESOSecretData  ESOSecretData    `json:"defaultESOSecretData,omitempty"`
 	RoleARN               string           `json:"roleARN"`
 	SubPath               bool             `json:"subPath"`
+	ESOSubPath            []string         `json:"esoSubPath"`
 	FilePermission        string           `json:"filePermission"`
 }
 
@@ -56,10 +58,12 @@ type ExternalSecret struct {
 }
 
 type ESOSecretData struct {
-	SecretStore     json.RawMessage `json:"secretStore,omitempty"`
-	SecretStoreRef  json.RawMessage `json:"secretStoreRef,omitempty"`
-	EsoData         []ESOData       `json:"esoData"`
-	RefreshInterval string          `json:"refreshInterval,omitempty"`
+	SecretStore     json.RawMessage   `json:"secretStore,omitempty"`
+	SecretStoreRef  json.RawMessage   `json:"secretStoreRef,omitempty"`
+	EsoData         []ESOData         `json:"esoData"`
+	RefreshInterval string            `json:"refreshInterval,omitempty"`
+	DataFrom        []json.RawMessage `json:"dataFrom,omitempty"`
+	Template        json.RawMessage   `json:"template,omitempty"`
 }
 
 type ESOData struct {

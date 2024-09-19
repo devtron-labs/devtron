@@ -72,6 +72,7 @@ type HistoryDetailDto struct {
 	ExternalSecretType string               `json:"externalType,omitempty"`
 	RoleARN            string               `json:"roleARN,omitempty"`
 	SubPath            *bool                `json:"subPath,omitempty"`
+	ESOSubPath         []string             `json:"esoSubPath,omitempty"`
 	FilePermission     string               `json:"filePermission,omitempty"`
 	CodeEditorValue    *HistoryDetailConfig `json:"codeEditorValue"`
 	SecretViewAccess   bool                 `json:"secretViewAccess"` // this is being used to check whether a user can see obscured secret values or not.

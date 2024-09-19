@@ -521,6 +521,7 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx contex
 		}
 		historyDto.ExternalSecretType = config.ExternalSecretType
 		historyDto.RoleARN = config.RoleARN
+		historyDto.ESOSubPath = config.ESOSubPath
 		if config.External {
 			externalSecretData, err := json.Marshal(config.ExternalSecret)
 			if err != nil {
@@ -623,6 +624,7 @@ func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(con
 		}
 		historyDto.ExternalSecretType = config.ExternalSecretType
 		historyDto.RoleARN = config.RoleARN
+		historyDto.ESOSubPath = config.ESOSubPath
 		if config.External {
 			var externalSecretData []byte
 			if strings.HasPrefix(config.ExternalSecretType, "ESO") {

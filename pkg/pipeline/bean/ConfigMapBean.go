@@ -29,10 +29,12 @@ type ConfigDataRequest struct {
 }
 
 type ESOSecretData struct {
-	SecretStore     json.RawMessage `json:"secretStore,omitempty"`
-	SecretStoreRef  json.RawMessage `json:"secretStoreRef,omitempty"`
-	EsoData         []ESOData       `json:"esoData,omitempty"`
-	RefreshInterval string          `json:"refreshInterval,omitempty"`
+	SecretStore     json.RawMessage   `json:"secretStore,omitempty"`
+	SecretStoreRef  json.RawMessage   `json:"secretStoreRef,omitempty"`
+	EsoData         []ESOData         `json:"esoData,omitempty"`
+	RefreshInterval string            `json:"refreshInterval,omitempty"`
+	DataFrom        []json.RawMessage `json:"dataFrom,omitempty"`
+	Template        json.RawMessage   `json:"template,omitempty"`
 }
 
 type ESOData struct {
@@ -57,6 +59,7 @@ type ConfigData struct {
 	DefaultExternalSecret []ExternalSecret `json:"defaultSecretData,omitempty"`
 	RoleARN               string           `json:"roleARN"`
 	SubPath               bool             `json:"subPath"`
+	ESOSubPath            []string         `json:"esoSubPath"`
 	FilePermission        string           `json:"filePermission"`
 	Overridden            bool             `json:"overridden"`
 }

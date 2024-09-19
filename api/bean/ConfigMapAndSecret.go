@@ -54,6 +54,7 @@ type ConfigSecretMap struct {
 	RoleARN        string          `json:"roleARN"`
 	SecretData     json.RawMessage `json:"secretData,omitempty"`
 	SubPath        bool            `json:"subPath"`
+	ESOSubPath     []string        `json:"esoSubPath"`
 	FilePermission string          `json:"filePermission"`
 }
 

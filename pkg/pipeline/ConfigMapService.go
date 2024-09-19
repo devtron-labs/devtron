@@ -487,8 +487,6 @@ func (impl ConfigMapServiceImpl) CMEnvironmentFetch(appId int, envId int) (*bean
 			item.DefaultMountPath = item.MountPath
 			item.Data = nil
 			item.MountPath = ""
-			item.SubPath = item.SubPath
-			item.FilePermission = item.FilePermission
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
 		}
 	}
@@ -580,6 +578,7 @@ func (impl ConfigMapServiceImpl) CSGlobalAddUpdate(configMapRequest *bean.Config
 				item.ExternalSecret = configData.ExternalSecret
 				item.RoleARN = configData.RoleARN
 				item.SubPath = configData.SubPath
+				item.ESOSubPath = configData.ESOSubPath
 				item.FilePermission = configData.FilePermission
 			}
 			configs = append(configs, item)
@@ -736,6 +735,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *bean.C
 				item.ExternalSecret = configData.ExternalSecret
 				item.RoleARN = configData.RoleARN
 				item.SubPath = configData.SubPath
+				item.ESOSubPath = configData.ESOSubPath
 				item.FilePermission = configData.FilePermission
 				found = true
 			}
@@ -875,14 +875,14 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*bean
 			item.DefaultESOSecretData = item.ESOSecretData
 			item.ESOSecretData.EsoData = nil
 			item.ESOSecretData.SecretStore = nil
+			item.ESOSecretData.DataFrom = nil
+			item.ESOSecretData.Template = nil
 			item.ESOSecretData.SecretStoreRef = nil
 			item.ESOSecretData.RefreshInterval = ""
 			item.DefaultMountPath = item.MountPath
 			item.Data = nil
 			item.ExternalSecret = nil
 			item.MountPath = ""
-			item.SubPath = item.SubPath
-			item.FilePermission = item.FilePermission
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
 		}
 	}
