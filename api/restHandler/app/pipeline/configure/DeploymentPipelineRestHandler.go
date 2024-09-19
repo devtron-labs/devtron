@@ -207,6 +207,11 @@ func (handler *PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWr
 	handler.Logger.Infow("request payload, CreateCdPipeline", "payload", cdPipeline)
 	userUploaded, err := handler.chartService.CheckIfChartRefUserUploadedByAppId(cdPipeline.AppId)
 	if !userUploaded {
+		for i, p := range cdPipeline.Pipelines {
+			if len(p.ReleaseMode) == 0 {
+				cdPipeline.Pipelines[i].ReleaseMode = util.PIPELINE_RELEASE_MODE_CREATE
+			}
+		}
 		err = handler.validator.Struct(cdPipeline)
 		if err != nil {
 			handler.Logger.Errorw("validation err, CreateCdPipeline", "err", err, "payload", cdPipeline)
@@ -2018,13 +2023,13 @@ func (handler *PipelineConfigRestHandlerImpl) GetCdPipelineById(w http.ResponseW
 		return
 	}
 
-	ciConf, err := handler.pipelineBuilder.GetCdPipelineById(pipelineId)
+	cdPipeline, err := handler.pipelineBuilder.GetCdPipelineById(pipelineId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCdPipelineById", "err", err, "appId", appId, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	cdResp, err := pipeline.CreatePreAndPostStageResponse(ciConf, version)
+	cdResp, err := pipeline.CreatePreAndPostStageResponse(cdPipeline, version)
 	if err != nil {
 		handler.Logger.Errorw("service err, CheckForVersionAndCreatePreAndPostStagePayload", "err", err, "appId", appId, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

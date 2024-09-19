@@ -315,6 +315,24 @@ func (ciPatchRequest CiPatchRequest) SwitchSourceInfo() (int, CiPipeline2.Pipeli
 	return switchFromPipelineId, switchFromType
 }
 
+// PatchSourceInfo returns the CI component ID and component Type, which is being patched
+func (ciPatchRequest CiPatchRequest) PatchSourceInfo() (int, string) {
+	// in app workflow mapping all the build source types are 'CI_PIPELINE' type, except external -> WEBHOOK.
+	componentType := appWorkflow.CIPIPELINE
+	var componentId int
+	// initialize componentId with ciPipeline id
+	if ciPatchRequest.CiPipeline != nil {
+		componentId = ciPatchRequest.CiPipeline.Id
+	}
+	if ciPatchRequest.SwitchFromExternalCiPipelineId != 0 {
+		componentType = appWorkflow.WEBHOOK
+		componentId = ciPatchRequest.SwitchFromExternalCiPipelineId
+	} else if ciPatchRequest.SwitchFromCiPipelineId != 0 {
+		componentId = ciPatchRequest.SwitchFromCiPipelineId
+	}
+	return componentId, componentType
+}
+
 func (ciPatchRequest CiPatchRequest) IsSwitchCiPipelineRequest() bool {
 	return (ciPatchRequest.SwitchFromCiPipelineId != 0 || ciPatchRequest.SwitchFromExternalCiPipelineId != 0)
 }
@@ -621,6 +639,7 @@ type CDPipelineConfigObject struct {
 	ChildPipelineId               int                                    `json:"childPipelineId"`
 	IsDigestEnforcedForPipeline   bool                                   `json:"isDigestEnforcedForPipeline"`
 	IsDigestEnforcedForEnv        bool                                   `json:"isDigestEnforcedForEnv"`
+	ReleaseMode                   string                                 `json:"releaseMode" validate:"oneof=create"`
 }
 
 type CDPipelineAddType string
@@ -948,3 +967,12 @@ const CustomAutoScalingEnabledPathKey = "CUSTOM_AUTOSCALING_ENABLED_PATH"
 const CustomAutoscalingReplicaCountPathKey = "CUSTOM_AUTOSCALING_REPLICA_COUNT_PATH"
 const CustomAutoscalingMinPathKey = "CUSTOM_AUTOSCALING_MIN_PATH"
 const CustomAutoscalingMaxPathKey = "CUSTOM_AUTOSCALING_MAX_PATH"
+
+type JsonPath string
+
+func (j JsonPath) String() string {
+	return string(j)
+}
+
+const ConfigHashPathKey JsonPath = "devtronInternal.containerSpecs.ConfigHash"
+const SecretHashPathKey JsonPath = "devtronInternal.containerSpecs.SecretHash"

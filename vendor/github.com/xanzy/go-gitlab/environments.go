@@ -204,18 +204,26 @@ func (s *EnvironmentsService) DeleteEnvironment(pid interface{}, environment int
 	return s.client.Do(req, nil)
 }
 
-// StopEnvironment stop an environment from a project team.
+// StopEnvironmentOptions represents the available StopEnvironment() options.
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/environments.html#stop-an-environment
-func (s *EnvironmentsService) StopEnvironment(pid interface{}, environmentID int, options ...RequestOptionFunc) (*Environment, *Response, error) {
+type StopEnvironmentOptions struct {
+	Force *bool `url:"force,omitempty" json:"force,omitempty"`
+}
+
+// StopEnvironment stops an environment within a specific project.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/environments.html#stop-an-environment
+func (s *EnvironmentsService) StopEnvironment(pid interface{}, environmentID int, opt *StopEnvironmentOptions, options ...RequestOptionFunc) (*Environment, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
 		return nil, nil, err
 	}
 	u := fmt.Sprintf("projects/%s/environments/%d/stop", PathEscape(project), environmentID)
 
-	req, err := s.client.NewRequest(http.MethodPost, u, nil, options)
+	req, err := s.client.NewRequest(http.MethodPost, u, opt, options)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -164,9 +164,19 @@ func (impl *AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *
 
 	var gitOpsResponse *bean2.AppStoreGitOpsResponse
 	if installedAppDeploymentAction.PerformGitOps {
-		manifest, err := impl.fullModeDeploymentService.GenerateManifest(installAppVersionRequest)
+		appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
+		if err != nil {
+			impl.logger.Errorw("fetching error", "err", err)
+			return nil, err
+		}
+		manifest, err := impl.fullModeDeploymentService.GenerateManifest(installAppVersionRequest, appStoreAppVersion)
 		if err != nil {
 			impl.logger.Errorw("error in performing manifest and git operations", "err", err)
+			return nil, err
+		}
+		err = impl.fullModeDeploymentService.CreateArgoRepoSecretIfNeeded(appStoreAppVersion)
+		if err != nil {
+			impl.logger.Errorw("error in creating argo app repository secret", "appStoreApplicationVersionId", appStoreAppVersion.Id, "err", err)
 			return nil, err
 		}
 		gitOpsResponse, err = impl.fullModeDeploymentService.GitOpsOperations(manifest, installAppVersionRequest)
@@ -729,10 +739,15 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		// manifest contains ChartRepoName where the valuesConfig and requirementConfig files will get committed
 		// and that gitOpsRepoUrl is extracted from db inside GenerateManifest func and not from the current
 		// orchestrator cm prefix and appName.
-		manifest, err := impl.fullModeDeploymentService.GenerateManifest(upgradeAppRequest)
+		manifest, err := impl.fullModeDeploymentService.GenerateManifest(upgradeAppRequest, appStoreAppVersion)
 		if err != nil {
 			impl.logger.Errorw("error in generating manifest for helm apps", "err", err)
 			_ = impl.appStoreDeploymentDBService.UpdateInstalledAppVersionHistoryStatus(upgradeAppRequest.InstalledAppVersionHistoryId, pipelineConfig.WorkflowFailed)
+			return nil, err
+		}
+		err = impl.fullModeDeploymentService.CreateArgoRepoSecretIfNeeded(appStoreAppVersion)
+		if err != nil {
+			impl.logger.Errorw("error in creating argo app repository secret", "appStoreApplicationVersionId", appStoreAppVersion.Id, "err", err)
 			return nil, err
 		}
 		// required if gitOps repo name is changed, gitOps repo name will change if env variable which we use as suffix changes
@@ -862,7 +877,7 @@ func (impl *AppStoreDeploymentServiceImpl) MarkGitOpsInstalledAppsDeletedIfArgoA
 		apiError.InternalMessage = "error in fetching partially deleted argoCd apps from installed app repo"
 		return apiError
 	}
-	deploymentConfig, err := impl.deploymentConfigService.GetConfigForHelmApps(installedAppId, envId)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForHelmApps(installedApp.App.Id, envId)
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", installedAppId, "envId", envId, "err", err)
 		apiError.HttpStatusCode = http.StatusInternalServerError
