@@ -151,8 +151,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppOverview(w http.ResponseWrit
 	if err != nil && err != pg.ErrNoRows {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
-	}
-	if err == pg.ErrNoRows || installedApp == nil {
+	} else if err == pg.ErrNoRows || installedApp == nil {
 		common.WriteJsonResp(w, errors.New("helm app doses not exist"), nil, http.StatusNotFound)
 		return
 	}
