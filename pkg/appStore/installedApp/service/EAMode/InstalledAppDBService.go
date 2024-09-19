@@ -58,6 +58,11 @@ type InstalledAppDBService interface {
 	GetReleaseInfo(appIdentifier *helmBean.AppIdentifier) (*appStoreBean.InstallAppVersionDTO, error)
 	IsExternalAppLinkedToChartStore(appId int) (bool, []*appStoreRepo.InstalledApps, error)
 	CreateNewAppEntryForAllInstalledApps(installedApps []*appStoreRepo.InstalledApps) error
+
+	// MarkInstalledAppVersionsInactiveByInstalledAppId will mark the repository.InstalledAppVersions inactive for the given InstalledAppId
+	MarkInstalledAppVersionsInactiveByInstalledAppId(installedAppId int, UserId int32, tx *pg.Tx) error
+	// MarkInstalledAppVersionModelInActive will mark the given repository.InstalledAppVersions inactive
+	MarkInstalledAppVersionModelInActive(installedAppVersionModel *appStoreRepo.InstalledAppVersions, UserId int32, tx *pg.Tx) error
 }
 
 type InstalledAppDBServiceImpl struct {
@@ -448,5 +453,26 @@ func (impl *InstalledAppDBServiceImpl) CreateNewAppEntryForAllInstalledApps(inst
 	}
 
 	tx.Commit()
+	return nil
+}
+
+func (impl *InstalledAppDBServiceImpl) MarkInstalledAppVersionsInactiveByInstalledAppId(installedAppId int, userId int32, tx *pg.Tx) error {
+	rowsUpdated, err := impl.InstalledAppRepository.DeleteInstalledAppVersions(tx, installedAppId, userId)
+	if err != nil {
+		impl.Logger.Errorw("error while update installed chart", "installedAppId", installedAppId, "error", err)
+		return err
+	}
+	impl.Logger.Debugw("successfully deleted installed app versions", "rowsUpdated", rowsUpdated, "installedAppId", installedAppId)
+	return nil
+}
+
+func (impl *InstalledAppDBServiceImpl) MarkInstalledAppVersionModelInActive(installedAppVersionModel *appStoreRepo.InstalledAppVersions, UserId int32, tx *pg.Tx) error {
+	installedAppVersionModel.MarkInActive()
+	installedAppVersionModel.UpdateAuditLog(UserId)
+	_, err := impl.InstalledAppRepository.UpdateInstalledAppVersion(installedAppVersionModel, tx)
+	if err != nil {
+		impl.Logger.Errorw("error while fetching from db", "error", err)
+		return err
+	}
 	return nil
 }

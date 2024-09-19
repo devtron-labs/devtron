@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/git-manager/util"
 	"github.com/devtron-labs/common-lib/utils"
+	"github.com/sirupsen/logrus"
 	"log"
 	"os"
 	"path/filepath"
@@ -129,13 +130,15 @@ func (impl *GitManager) CloneAndCheckout(ciProjectDetails []CiProjectDetails, wo
 			cErr = util.CreateSshPrivateKeyOnDisk(index, prj.GitOptions.SshPrivateKey)
 			cErr = util.CreateSshPrivateKeyOnDisk(index, prj.GitOptions.SshPrivateKey)
 			if cErr != nil {
-				log.Fatal("could not create ssh private key on disk ", " err ", cErr)
+				logrus.Error("could not create ssh private key on disk ", " err ", cErr)
+				return cErr
 			}
 		}
 
 		_, msgMsg, cErr := impl.GitCliManager.Clone(gitContext, prj)
 		if cErr != nil {
-			log.Fatal("could not clone repo ", " err ", cErr, "msgMsg", msgMsg)
+			logrus.Error("could not clone repo ", "msgMsg", msgMsg, " err ", cErr)
+			return cErr
 		}
 
 		// checkout code
@@ -153,7 +156,8 @@ func (impl *GitManager) CloneAndCheckout(ciProjectDetails []CiProjectDetails, wo
 			log.Println("checkout commit in branch fix : ", checkoutSource)
 			msgMsg, cErr = impl.GitCliManager.GitCheckout(gitContext, prj.CheckoutPath, checkoutSource, authMode, prj.FetchSubmodules, prj.GitRepository)
 			if cErr != nil {
-				log.Fatal("could not checkout hash ", " err ", cErr, "msgMsg", msgMsg)
+				logrus.Error("could not checkout hash ", "errMsg", msgMsg, "err ", cErr)
+				return cErr
 			}
 
 		} else if prj.SourceType == SOURCE_TYPE_WEBHOOK {
@@ -163,7 +167,8 @@ func (impl *GitManager) CloneAndCheckout(ciProjectDetails []CiProjectDetails, wo
 
 			targetCheckout := webhookDataData[WEBHOOK_SELECTOR_TARGET_CHECKOUT_NAME]
 			if len(targetCheckout) == 0 {
-				log.Fatal("could not get target checkout from request data")
+				logrus.Error("could not get 'target checkout' from request data", "webhookData", webhookDataData)
+				return fmt.Errorf("could not get 'target checkout' from request data")
 			}
 
 			log.Println("checkout commit in webhook : ", targetCheckout)
@@ -171,7 +176,7 @@ func (impl *GitManager) CloneAndCheckout(ciProjectDetails []CiProjectDetails, wo
 			// checkout target hash
 			msgMsg, cErr = impl.GitCliManager.GitCheckout(gitContext, prj.CheckoutPath, targetCheckout, authMode, prj.FetchSubmodules, prj.GitRepository)
 			if cErr != nil {
-				log.Fatal("could not checkout  ", "targetCheckout ", targetCheckout, " err ", cErr, " msgMsg", msgMsg)
+				logrus.Error("could not checkout  ", "targetCheckout ", targetCheckout, " errMsg", msgMsg, " err ", cErr)
 				return cErr
 			}
 
@@ -181,7 +186,8 @@ func (impl *GitManager) CloneAndCheckout(ciProjectDetails []CiProjectDetails, wo
 
 				// throw error if source checkout is empty
 				if len(sourceCheckout) == 0 {
-					log.Fatal("sourceCheckout is empty")
+					logrus.Error("'source checkout' is empty", "webhookData", webhookDataData)
+					return fmt.Errorf("'source checkout' is empty")
 				}
 
 				log.Println("merge commit in webhook : ", sourceCheckout)
@@ -189,14 +195,11 @@ func (impl *GitManager) CloneAndCheckout(ciProjectDetails []CiProjectDetails, wo
 				// merge source
 				_, msgMsg, cErr = impl.GitCliManager.Merge(filepath.Join(gitContext.WorkingDir, prj.CheckoutPath), sourceCheckout)
 				if cErr != nil {
-					log.Fatal("could not merge ", "sourceCheckout ", sourceCheckout, " err ", cErr, " msgMsg", msgMsg)
+					logrus.Error("could not merge ", "sourceCheckout ", sourceCheckout, " errMsg", msgMsg, " err ", cErr)
 					return cErr
 				}
-
 			}
-
 		}
-
 	}
 	return nil
 }

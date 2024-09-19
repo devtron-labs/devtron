@@ -315,6 +315,24 @@ func (ciPatchRequest CiPatchRequest) SwitchSourceInfo() (int, CiPipeline2.Pipeli
 	return switchFromPipelineId, switchFromType
 }
 
+// PatchSourceInfo returns the CI component ID and component Type, which is being patched
+func (ciPatchRequest CiPatchRequest) PatchSourceInfo() (int, string) {
+	// in app workflow mapping all the build source types are 'CI_PIPELINE' type, except external -> WEBHOOK.
+	componentType := appWorkflow.CIPIPELINE
+	var componentId int
+	// initialize componentId with ciPipeline id
+	if ciPatchRequest.CiPipeline != nil {
+		componentId = ciPatchRequest.CiPipeline.Id
+	}
+	if ciPatchRequest.SwitchFromExternalCiPipelineId != 0 {
+		componentType = appWorkflow.WEBHOOK
+		componentId = ciPatchRequest.SwitchFromExternalCiPipelineId
+	} else if ciPatchRequest.SwitchFromCiPipelineId != 0 {
+		componentId = ciPatchRequest.SwitchFromCiPipelineId
+	}
+	return componentId, componentType
+}
+
 func (ciPatchRequest CiPatchRequest) IsSwitchCiPipelineRequest() bool {
 	return (ciPatchRequest.SwitchFromCiPipelineId != 0 || ciPatchRequest.SwitchFromExternalCiPipelineId != 0)
 }
@@ -633,6 +651,11 @@ const (
 
 func (cdpipelineConfig *CDPipelineConfigObject) IsSwitchCiPipelineRequest() bool {
 	return cdpipelineConfig.SwitchFromCiPipelineId > 0 && cdpipelineConfig.AppWorkflowId > 0
+}
+
+func (cdpipelineConfig *CDPipelineConfigObject) PatchSourceInfo() (int, string) {
+	//as the source will be always CI_PIPELINE in case of external-ci change request
+	return cdpipelineConfig.SwitchFromCiPipelineId, appWorkflow.CIPIPELINE
 }
 
 type PreStageConfigMapSecretNames struct {

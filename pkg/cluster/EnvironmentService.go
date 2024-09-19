@@ -24,6 +24,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	util2 "github.com/devtron-labs/common-lib/utils/k8s"
@@ -63,7 +64,7 @@ type EnvironmentService interface {
 	GetByClusterId(id int) ([]*bean2.EnvironmentBean, error)
 	GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(email string, object []string) map[string]bool) ([]*bean2.ClusterEnvDto, error)
 	GetCombinedEnvironmentListForDropDownByClusterIds(token string, clusterIds []int, auth func(token string, object string) bool) ([]*bean2.ClusterEnvDto, error)
-	HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool)
+	HandleErrorInClusterConnections(clusters []*ClusterBean, respMap *sync.Map, clusterExistInDb bool)
 	GetDetailsById(envId int) (*repository.Environment, error)
 }
 
@@ -734,7 +735,7 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *bean2.EnvironmentBean, user
 	return nil
 }
 
-func (impl EnvironmentServiceImpl) HandleErrorInClusterConnections(clusters []*ClusterBean, respMap map[int]error, clusterExistInDb bool) {
+func (impl EnvironmentServiceImpl) HandleErrorInClusterConnections(clusters []*ClusterBean, respMap *sync.Map, clusterExistInDb bool) {
 	impl.clusterService.HandleErrorInClusterConnections(clusters, respMap, clusterExistInDb)
 }
 

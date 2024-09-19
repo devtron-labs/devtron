@@ -18,7 +18,7 @@ Before you start creating an application, we recommend to provide basic informat
 
 [Chart Repositories](chart-repo.md)
 
-[Custom Charts](custom-charts.md)
+[Deployment Charts](deployment-charts.md)
 
 [Authorization](authorization/README.md)
 

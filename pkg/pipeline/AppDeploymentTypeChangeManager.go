@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
 	app2 "github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -500,7 +501,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 				if chartServiceErr == nil {
 					if gitOps.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
 						if gitOpsConfigurationStatus.AllowCustomRepository || chart.IsCustomGitRepository {
-							gitOpsRepoNotFound = fmt.Errorf(pipelineConfig.GITOPS_REPO_NOT_CONFIGURED)
+							gitOpsRepoNotFound = fmt.Errorf(cdWorkflow.GITOPS_REPO_NOT_CONFIGURED)
 						} else {
 							_, chartGitAttr, createGitRepoErr = impl.appService.CreateGitOpsRepo(&app.App{Id: pipeline.AppId, AppName: pipeline.App.AppName}, userId)
 							if createGitRepoErr == nil {
@@ -744,7 +745,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) fetchDeletedApp(ctx context.Cont
 			impl.logger.Errorw("error in getting application detail", "err", err, "deploymentAppName", pipeline.DeploymentAppName)
 		}
 
-		if err != nil && checkAppReleaseNotExist(err) {
+		if err != nil && CheckAppReleaseNotExist(err) {
 			successfulPipelines = impl.appendToDeploymentChangeStatusList(
 				successfulPipelines,
 				pipeline,

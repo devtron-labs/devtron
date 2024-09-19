@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -616,7 +617,7 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, er
 	}
 
 	workflow.Status = executors.WorkflowCancel
-	if workflow.ExecutorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
+	if workflow.ExecutorType == cdWorkflow.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
 		workflow.PodStatus = "Failed"
 		workflow.Message = TERMINATE_MESSAGE
 	}
@@ -678,7 +679,7 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		impl.Logger.Errorw("err", "err", err)
 		return types.WorkflowResponse{}, err
 	}
-	triggeredByUserEmailId, err := impl.userService.GetEmailById(workflow.TriggeredBy)
+	triggeredByUserEmailId, err := impl.userService.GetActiveEmailById(workflow.TriggeredBy)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("err", "err", err)
 		return types.WorkflowResponse{}, err
@@ -798,11 +799,15 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 		if !ciWorkflow.BlobStorageEnabled {
 			return nil, nil, &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: "logs-not-stored-in-repository"}
 		} else if string(v1alpha1.NodeSucceeded) == ciWorkflow.Status || string(v1alpha1.NodeError) == ciWorkflow.Status || string(v1alpha1.NodeFailed) == ciWorkflow.Status || ciWorkflow.Status == executors.WorkflowCancel {
-			impl.Logger.Errorw("err", "err", err)
+			impl.Logger.Debugw("pod is not live", "podName", ciWorkflow.PodName, "err", err)
 			return impl.getLogsFromRepository(pipelineId, ciWorkflow, clusterConfig, isExt)
 		}
-		impl.Logger.Errorw("err", "err", err)
-		return nil, nil, &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: err.Error()}
+		if err != nil {
+			impl.Logger.Errorw("err on fetch workflow logs", "err", err)
+			return nil, nil, &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: err.Error()}
+		} else if logStream == nil {
+			return nil, cleanUp, fmt.Errorf("no logs found for pod %s", ciWorkflow.PodName)
+		}
 	}
 	logReader := bufio.NewReader(logStream)
 	return logReader, cleanUp, err
@@ -1158,7 +1163,7 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		if len(message) > 250 {
 			savedWorkflow.Message = message[:250]
 		}
-		if savedWorkflow.ExecutorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM && savedWorkflow.Status == executors.WorkflowCancel {
+		if savedWorkflow.ExecutorType == cdWorkflow.WORKFLOW_EXECUTOR_TYPE_SYSTEM && savedWorkflow.Status == executors.WorkflowCancel {
 			savedWorkflow.PodStatus = "Failed"
 			savedWorkflow.Message = TERMINATE_MESSAGE
 		}
@@ -1500,7 +1505,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 			}
 		}
 
-		triggeredByUserEmailId, err = impl.userService.GetEmailById(workflow.TriggeredBy)
+		triggeredByUserEmailId, err = impl.userService.GetActiveEmailById(workflow.TriggeredBy)
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.Logger.Errorw("err", "err", err)
 			return &types.GitTriggerInfoResponse{}, err
@@ -1639,7 +1644,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 						// skip this and process for next ci workflow
 					}
 				}
-				if ciWorkflow.ExecutorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
+				if ciWorkflow.ExecutorType == cdWorkflow.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
 					if wf.Status == string(v1alpha1.WorkflowFailed) {
 						isPodDeleted = true
 					}

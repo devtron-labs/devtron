@@ -86,7 +86,7 @@ type HelmAppService interface {
 	UpdateApplicationWithChartInfoWithExtraValues(ctx context.Context, appIdentifier *helmBean.AppIdentifier, chartRepository *gRPC.ChartRepository, extraValues map[string]interface{}, extraValuesYamlUrl string, useLatestChartVersion bool) (*openapi.UpdateReleaseResponse, error)
 	TemplateChart(ctx context.Context, templateChartRequest *openapi2.TemplateChartRequest) (*openapi2.TemplateChartResponse, error)
 	GetNotes(ctx context.Context, request *gRPC.InstallReleaseRequest) (string, error)
-	ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *gRPC.RegistryCredential) bool
+	ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *gRPC.RegistryCredential) (bool, error)
 	GetRevisionHistoryMaxValue(appType bean.SourceAppType) int32
 	GetResourceTreeForExternalResources(ctx context.Context, clusterId int, clusterConfig *gRPC.ClusterConfig, resources []*gRPC.ExternalResourceDetail) (*gRPC.ResourceTreeResponse, error)
 	CheckIfNsExistsForClusterIds(clusterIdToNsMap map[int]string) error
@@ -1022,13 +1022,13 @@ func (impl *HelmAppServiceImpl) GetNotes(ctx context.Context, request *gRPC.Inst
 	return notesTxt, err
 }
 
-func (impl *HelmAppServiceImpl) ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *gRPC.RegistryCredential) bool {
+func (impl *HelmAppServiceImpl) ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *gRPC.RegistryCredential) (bool, error) {
 	response, err := impl.helmAppClient.ValidateOCIRegistry(ctx, OCIRegistryRequest)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart", "err", err)
-		return false
+		return false, err
 	}
-	return response.IsLoggedIn
+	return response.IsLoggedIn, nil
 }
 
 func (impl *HelmAppServiceImpl) DecodeAppId(appId string) (*helmBean.AppIdentifier, error) {

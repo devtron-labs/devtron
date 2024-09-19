@@ -33,7 +33,7 @@ type Config struct {
 	Password               string `env:"PG_PASSWORD" envDefault:"" secretData:"-"`
 	Database               string `env:"PG_DATABASE" envDefault:"orchestrator"`
 	CasbinDatabase         string `env:"CASBIN_DATABASE" envDefault:"casbin"`
-	ApplicationName        string `env:"APP" envDefault:"orchestrator"`
+	ApplicationName string `env:"APP" envDefault:"orchestrator" envDescription:"Application name"`
 	LogQuery               bool   `env:"PG_LOG_QUERY" envDefault:"true"`
 	LogAllQuery            bool   `env:"PG_LOG_ALL_QUERY" envDefault:"false"`
 	ExportPromMetrics      bool   `env:"PG_EXPORT_PROM_METRICS" envDefault:"false"`

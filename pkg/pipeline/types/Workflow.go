@@ -21,10 +21,12 @@ import (
 	"fmt"
 	"github.com/argoproj/argo-workflows/v3/workflow/common"
 	"github.com/devtron-labs/common-lib/blob-storage"
+	"github.com/devtron-labs/common-lib/utils"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
@@ -126,7 +128,7 @@ type WorkflowRequest struct {
 	DeploymentTriggeredBy       string                               `json:"deploymentTriggeredBy,omitempty"`
 	DeploymentTriggerTime       time.Time                            `json:"deploymentTriggerTime,omitempty"`
 	DeploymentReleaseCounter    int                                  `json:"deploymentReleaseCounter,omitempty"`
-	WorkflowExecutor            pipelineConfig.WorkflowExecutorType  `json:"workflowExecutor"`
+	WorkflowExecutor            cdWorkflow.WorkflowExecutorType      `json:"workflowExecutor"`
 	PrePostDeploySteps          []*bean.StepObject                   `json:"prePostDeploySteps"`
 	CiArtifactLastFetch         time.Time                            `json:"ciArtifactLastFetch"`
 	CiPipelineType              string                               `json:"ciPipelineType"`
@@ -144,6 +146,7 @@ type WorkflowRequest struct {
 	Scope                       resourceQualifiers.Scope
 	BuildxCacheModeMin          bool `json:"buildxCacheModeMin"`
 	AsyncBuildxCacheExport      bool `json:"asyncBuildxCacheExport"`
+	UseDockerApiToGetDigest     bool `json:"useDockerApiToGetDigest"`
 }
 
 func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
@@ -254,7 +257,12 @@ func (workflowRequest *WorkflowRequest) GetPipelineTypeForGlobalCMCS() string {
 }
 
 func (workflowRequest *WorkflowRequest) getContainerEnvVariables(config *CiCdConfig, workflowJson []byte) (containerEnvVariables []v1.EnvVar) {
-	containerEnvVariables = []v1.EnvVar{{Name: bean.IMAGE_SCANNER_ENDPOINT, Value: config.ImageScannerEndpoint}, {Name: "NATS_SERVER_HOST", Value: config.NatsServerHost}}
+	containerEnvVariables = []v1.EnvVar{
+		{Name: bean.IMAGE_SCANNER_ENDPOINT, Value: config.ImageScannerEndpoint},
+		{Name: "NATS_SERVER_HOST", Value: config.NatsServerHost},
+		{Name: utils.DEVTRON_SELF_POD_NAME, ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.name"}}},
+		{Name: utils.DEVTRON_SELF_POD_UID, ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.uid"}}},
+	}
 	eventEnv := v1.EnvVar{Name: "CI_CD_EVENT", Value: string(workflowJson)}
 	inAppLoggingEnv := v1.EnvVar{Name: "IN_APP_LOGGING", Value: strconv.FormatBool(workflowRequest.InAppLoggingEnabled)}
 	showDockerBuildArgsEnv := v1.EnvVar{Name: "SHOW_DOCKER_BUILD_ARGS", Value: strconv.FormatBool(config.ShowDockerBuildCmdInLogs)}
@@ -306,7 +314,7 @@ func (workflowRequest *WorkflowRequest) getBlobStorageLogsPrefix() string {
 
 func (workflowRequest *WorkflowRequest) updateBlobStorageLogsKey(config *CiCdConfig) {
 	workflowRequest.BlobStorageLogsKey = fmt.Sprintf("%s/%s", workflowRequest.getDefaultBuildLogsKeyPrefix(config), workflowRequest.getBlobStorageLogsPrefix())
-	workflowRequest.InAppLoggingEnabled = config.InAppLoggingEnabled || (workflowRequest.WorkflowExecutor == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM)
+	workflowRequest.InAppLoggingEnabled = config.InAppLoggingEnabled || (workflowRequest.WorkflowExecutor == cdWorkflow.WORKFLOW_EXECUTOR_TYPE_SYSTEM)
 }
 
 func (workflowRequest *WorkflowRequest) getWorkflowJson() ([]byte, error) {
