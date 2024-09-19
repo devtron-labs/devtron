@@ -51,6 +51,10 @@ const (
 	// PRE_CI is not a valid DataSource for an artifact
 )
 
+const (
+	DEFAULT_TAG_VALUE = "latest"
+)
+
 type CiArtifactWithExtraData struct {
 	CiArtifact
 	PayloadSchema      string
@@ -82,6 +86,24 @@ type CiArtifact struct {
 	Latest                bool      `sql:"-"`
 	RunningOnParent       bool      `sql:"-"`
 	sql.AuditLog
+}
+
+func (artifact *CiArtifact) ExtractImageRepoAndTag() (repo string, tag string) {
+
+	if len(artifact.Image) == 0 {
+		return "", ""
+	}
+
+	parts := strings.Split(artifact.Image, ":")
+
+	repo = parts[0]
+	if len(parts) > 1 {
+		tag = parts[1]
+	} else {
+		tag = DEFAULT_TAG_VALUE
+	}
+
+	return repo, tag
 }
 
 func (artifact *CiArtifact) IsMigrationRequired() bool {

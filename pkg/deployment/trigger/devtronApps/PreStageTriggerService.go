@@ -335,8 +335,7 @@ func (impl *TriggerServiceImpl) getDockerTagAndCustomTagIdForPlugin(pipelineStag
 	customTagId := -1 // if customTag is not configured id=-1 will be saved in image_path_reservation table for image reservation
 	if !customTag.Enabled {
 		// case when custom tag is not configured - source image tag will be taken as docker image tag
-		pluginTriggerImageSplit := strings.Split(artifact.Image, ":")
-		DockerImageTag = pluginTriggerImageSplit[len(pluginTriggerImageSplit)-1]
+		_, DockerImageTag = artifact.ExtractImageRepoAndTag()
 	} else {
 		// for copyContainerImage plugin parse destination images and save its data in image path reservation table
 		customTagDbObject, customDockerImageTag, err := impl.customTagService.GetCustomTag(pipelineStageEntityType, strconv.Itoa(pipelineId))

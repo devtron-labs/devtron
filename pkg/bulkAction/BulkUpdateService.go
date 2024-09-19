@@ -1315,7 +1315,12 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			continue
 		}
 
-		artifactResponse, err := impl.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean.CD_WORKFLOW_TYPE_DEPLOY)
+		artifactsListingFilterOptions := &bean.ArtifactsListFilterOptions{
+			Limit:        10,
+			Offset:       0,
+			SearchString: "",
+		}
+		artifactResponse, err := impl.pipelineBuilder.RetrieveArtifactsByCDPipelineV2(pipeline, bean.CD_WORKFLOW_TYPE_DEPLOY, artifactsListingFilterOptions)
 		if err != nil {
 			impl.logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", pipeline.Id)
 			//return nil, err
