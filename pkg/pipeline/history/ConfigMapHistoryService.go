@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"strings"
 	"time"
 
@@ -523,12 +524,25 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx contex
 		historyDto.RoleARN = config.RoleARN
 		historyDto.ESOSubPath = config.ESOSubPath
 		if config.External {
-			externalSecretData, err := json.Marshal(config.ExternalSecret)
-			if err != nil {
-				impl.logger.Errorw("error in marshaling external secret data", "err", err)
-			}
-			if len(externalSecretData) > 0 {
-				historyDto.CodeEditorValue.Value = string(externalSecretData)
+			if config.ExternalSecretType == globalUtil.KubernetesSecret {
+				externalSecretData, err := json.Marshal(config.ExternalSecret)
+				if err != nil {
+					impl.logger.Errorw("error in marshaling external secret data", "err", err)
+				}
+				if len(externalSecretData) > 0 {
+					historyDto.CodeEditorValue.DisplayName = "External Secret Data"
+					historyDto.CodeEditorValue.Value = string(externalSecretData)
+				}
+			} else if strings.HasPrefix(config.ExternalSecretType, "ESO") {
+				externalSecretDataBytes, jErr := json.Marshal(config.ESOSecretData)
+				if jErr != nil {
+					impl.logger.Errorw("error in marshaling eso secret data", "esoSecretData", config.ESOSecretData, "err", jErr)
+					return nil, jErr
+				}
+				if len(externalSecretDataBytes) > 0 {
+					historyDto.CodeEditorValue.DisplayName = "ESO Secret Data"
+					historyDto.CodeEditorValue.Value = string(externalSecretDataBytes)
+				}
 			}
 		}
 	}
