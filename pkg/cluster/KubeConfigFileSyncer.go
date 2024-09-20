@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"k8s.io/client-go/tools/clientcmd"
@@ -137,7 +139,7 @@ func (impl *KubeConfigFileSyncerImpl) saveOrUpdateCluster(clusterExists bool, cl
 	if clusterExists {
 		impl.updateCluster(clusterBean, newClusterBean)
 	} else {
-		_, err := impl.clusterService.Save(context.Background(), newClusterBean, 1)
+		_, err := impl.clusterService.Save(context.Background(), newClusterBean, bean.AdminUserId)
 		if err != nil {
 			impl.logger.Errorw("error occurred while saving cluster data", "err", err)
 		}
@@ -148,7 +150,7 @@ func (impl *KubeConfigFileSyncerImpl) saveOrUpdateCluster(clusterExists bool, cl
 func (impl *KubeConfigFileSyncerImpl) updateCluster(existingClusterBean *ClusterBean, newClusterBean *ClusterBean) {
 	overriddenClusterBean := impl.compareClusterBeans(existingClusterBean, newClusterBean)
 	if overriddenClusterBean != nil {
-		_, err := impl.clusterService.Update(context.Background(), overriddenClusterBean, 1)
+		_, err := impl.clusterService.Update(context.Background(), overriddenClusterBean, bean.AdminUserId)
 		if err != nil {
 			impl.logger.Errorw("error occurred while updating cluster data", "err", err)
 		}
@@ -163,11 +165,19 @@ func (impl *KubeConfigFileSyncerImpl) getClusterBean(name string, cluster *api.C
 		return nil
 	}
 	token := authInfo.Token
+	clusterConfig := map[string]string{k8s.BearerToken: token}
+	insecureSkipTLSVerify := cluster.InsecureSkipTLSVerify
+	if !insecureSkipTLSVerify {
+		clusterConfig[k8s.TlsKey] = string(authInfo.ClientKeyData)
+		clusterConfig[k8s.CertData] = string(authInfo.ClientCertificateData)
+		clusterConfig[k8s.CertificateAuthorityData] = string(cluster.CertificateAuthorityData)
+	}
 	clusterBean := &ClusterBean{
-		ClusterName: name,
-		Active:      true,
-		ServerUrl:   cluster.Server,
-		Config:      map[string]string{"bearer_token": token},
+		ClusterName:           name,
+		Active:                true,
+		ServerUrl:             cluster.Server,
+		InsecureSkipTLSVerify: insecureSkipTLSVerify,
+		Config:                clusterConfig,
 	}
 	return clusterBean
 }
@@ -179,8 +189,8 @@ func (impl *KubeConfigFileSyncerImpl) compareClusterBeans(existingBean *ClusterB
 	}
 	config := existingBean.Config
 	newClusterConfig := newClusterBean.Config
-	existingToken := config["bearer_token"]
-	newToken := newClusterConfig["bearer_token"]
+	existingToken := config[k8s.BearerToken]
+	newToken := newClusterConfig[k8s.BearerToken]
 	if existingBean.ServerUrl != newClusterBean.ServerUrl || existingToken != newToken {
 		newClusterBean.Id = existingBean.Id
 		newClusterBean.ServerUrl = existingBean.ServerUrl

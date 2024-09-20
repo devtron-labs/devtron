@@ -177,6 +177,14 @@ func (impl *ClusterFileBasedRepository) convertToEntity(model *Cluster) (error, 
 		Active:            &model.Active,
 		K8sVersion:        model.K8sVersion,
 		ErrorInConnecting: model.ErrorInConnecting,
+		PrometheusEndpoint:     model.PrometheusEndpoint,
+		AgentInstallationStage: model.AgentInstallationStage,
+		InsecureSkipTlsVerify:  model.InsecureSkipTlsVerify,
+		IsVirtualCluster:       model.IsVirtualCluster,
+		PUserName:              model.PUserName,
+		PPassword:              model.PPassword,
+		PTlsClientCert:         model.PTlsClientCert,
+		PTlsClientKey:          model.PTlsClientKey,
 		AuditLog:          sql.AuditLog{UpdatedOn: model.UpdatedOn, CreatedOn: model.CreatedOn, UpdatedBy: model.UpdatedBy, CreatedBy: model.CreatedBy},
 	}
 	return err, clusterEntity
@@ -204,6 +212,14 @@ func (impl *ClusterFileBasedRepository) convertToModel(entity *ClusterEntity) (*
 		ErrorInConnecting: entity.ErrorInConnecting,
 		AuditLog:          entity.AuditLog,
 		Active:            isActive,
+		PrometheusEndpoint:     entity.PrometheusEndpoint,
+		AgentInstallationStage: entity.AgentInstallationStage,
+		InsecureSkipTlsVerify:  entity.InsecureSkipTlsVerify,
+		IsVirtualCluster:       entity.IsVirtualCluster,
+		PUserName:              entity.PUserName,
+		PPassword:              entity.PPassword,
+		PTlsClientCert:         entity.PTlsClientCert,
+		PTlsClientKey:          entity.PTlsClientKey,
 	}
 	return clusterBean, nil
 }
