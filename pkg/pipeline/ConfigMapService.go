@@ -875,7 +875,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*bean
 			item.DefaultESOSecretData = item.ESOSecretData
 			item.ESOSecretData.EsoData = nil
 			item.ESOSecretData.SecretStore = nil
-			item.ESOSecretData.DataFrom = nil
+			item.ESOSecretData.ESODataFrom = nil
 			item.ESOSecretData.Template = nil
 			item.ESOSecretData.SecretStoreRef = nil
 			item.ESOSecretData.RefreshInterval = ""

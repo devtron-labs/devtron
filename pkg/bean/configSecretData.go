@@ -62,7 +62,7 @@ type ESOSecretData struct {
 	SecretStoreRef  json.RawMessage   `json:"secretStoreRef,omitempty"`
 	EsoData         []ESOData         `json:"esoData"`
 	RefreshInterval string            `json:"refreshInterval,omitempty"`
-	DataFrom        []json.RawMessage `json:"dataFrom,omitempty"`
+	ESODataFrom     []json.RawMessage `json:"esoDataFrom,omitempty"`
 	Template        json.RawMessage   `json:"template,omitempty"`
 }
 
