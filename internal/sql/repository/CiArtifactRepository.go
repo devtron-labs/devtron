@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util"
 	"golang.org/x/exp/slices"
 	"strings"
 	"time"
@@ -49,10 +50,6 @@ const (
 	// deprecated; Handled for backward compatibility
 	EXT ArtifactsSourceType = "ext"
 	// PRE_CI is not a valid DataSource for an artifact
-)
-
-const (
-	DEFAULT_TAG_VALUE = "latest"
 )
 
 type CiArtifactWithExtraData struct {
@@ -89,21 +86,7 @@ type CiArtifact struct {
 }
 
 func (artifact *CiArtifact) ExtractImageRepoAndTag() (repo string, tag string) {
-
-	if len(artifact.Image) == 0 {
-		return "", ""
-	}
-
-	parts := strings.Split(artifact.Image, ":")
-
-	repo = parts[0]
-	if len(parts) > 1 {
-		tag = parts[1]
-	} else {
-		tag = DEFAULT_TAG_VALUE
-	}
-
-	return repo, tag
+	return util.ExtractImageRepoAndTag(artifact.Image)
 }
 
 func (artifact *CiArtifact) IsMigrationRequired() bool {
