@@ -641,13 +641,16 @@ func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(con
 		historyDto.ESOSubPath = config.ESOSubPath
 		if config.External {
 			var externalSecretData []byte
+			displayName := historyDto.CodeEditorValue.DisplayName
 			if strings.HasPrefix(config.ExternalSecretType, "ESO") {
+				displayName = "ESO Secret Data"
 				externalSecretData, err = json.Marshal(config.ESOSecretData)
 				if err != nil {
 					impl.logger.Errorw("error in marshaling external secret data", "err", err)
 					return nil, err
 				}
 			} else {
+				displayName = "External Secret Data"
 				externalSecretData, err = json.Marshal(config.ExternalSecret)
 				if err != nil {
 					impl.logger.Errorw("error in marshaling external secret data", "err", err)
@@ -655,6 +658,7 @@ func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(con
 				}
 			}
 			if len(externalSecretData) > 0 {
+				historyDto.CodeEditorValue.DisplayName = displayName
 				historyDto.CodeEditorValue.Value = string(externalSecretData)
 			}
 		}
