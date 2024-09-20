@@ -7,6 +7,9 @@ const (
 )
 
 func ExtractImageRepoAndTag(imagePath string) (repo string, tag string) {
+	if len(imagePath) == 0 {
+		return "", ""
+	}
 	var containerRepository, containerImageTag string
 	lastColonIndex := strings.LastIndex(imagePath, ":")
 	if lastColonIndex == -1 {
