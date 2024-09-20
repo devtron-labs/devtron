@@ -214,7 +214,7 @@ components:
         DB_NAME: "lens"
   chartSync:
     registry: ""
-    image: chart-sync:13ffae06-150-25485
+    image: chart-sync:13ffae06-150-25515
 # values for argocd integration
 argo-cd:
   enabled: false
