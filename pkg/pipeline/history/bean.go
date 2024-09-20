@@ -85,6 +85,12 @@ type HistoryDetailConfig struct {
 	ResolvedValue    string            `json:"resolvedValue"`
 }
 
+const (
+	DataDisplayName           = "Data"
+	ESOSecretDataDisplayName  = "ESO Secret Data"
+	ExternalSecretDisplayName = "External Secret Data"
+)
+
 //history components(deployment template, configMaps, secrets, pipeline strategy) components below
 
 type ConfigMapAndSecretHistoryDto struct {

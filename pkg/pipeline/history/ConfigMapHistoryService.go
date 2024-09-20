@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	globalUtil "github.com/devtron-labs/devtron/util"
-	"strings"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -491,7 +490,7 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx contex
 		SubPath:        &config.SubPath,
 		FilePermission: config.FilePermission,
 		CodeEditorValue: &HistoryDetailConfig{
-			DisplayName:      "Data",
+			DisplayName:      DataDisplayName,
 			Value:            string(config.Data),
 			VariableSnapshot: variableSnapshotMap,
 			ResolvedValue:    resolvedTemplate,
@@ -530,17 +529,17 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx contex
 					impl.logger.Errorw("error in marshaling external secret data", "err", err)
 				}
 				if len(externalSecretData) > 0 {
-					historyDto.CodeEditorValue.DisplayName = "External Secret Data"
+					historyDto.CodeEditorValue.DisplayName = ExternalSecretDisplayName
 					historyDto.CodeEditorValue.Value = string(externalSecretData)
 				}
-			} else if strings.HasPrefix(config.ExternalSecretType, "ESO") {
+			} else if config.IsESOExternalSecretType() {
 				externalSecretDataBytes, jErr := json.Marshal(config.ESOSecretData)
 				if jErr != nil {
 					impl.logger.Errorw("error in marshaling eso secret data", "esoSecretData", config.ESOSecretData, "err", jErr)
 					return nil, jErr
 				}
 				if len(externalSecretDataBytes) > 0 {
-					historyDto.CodeEditorValue.DisplayName = "ESO Secret Data"
+					historyDto.CodeEditorValue.DisplayName = ESOSecretDataDisplayName
 					historyDto.CodeEditorValue.Value = string(externalSecretDataBytes)
 				}
 			}
@@ -608,7 +607,7 @@ func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(con
 		SubPath:        &config.SubPath,
 		FilePermission: config.FilePermission,
 		CodeEditorValue: &HistoryDetailConfig{
-			DisplayName: "Data",
+			DisplayName: DataDisplayName,
 			Value:       string(config.Data),
 		},
 	}
@@ -642,15 +641,15 @@ func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(con
 		if config.External {
 			var externalSecretData []byte
 			displayName := historyDto.CodeEditorValue.DisplayName
-			if strings.HasPrefix(config.ExternalSecretType, "ESO") {
-				displayName = "ESO Secret Data"
+			if config.IsESOExternalSecretType() {
+				displayName = ESOSecretDataDisplayName
 				externalSecretData, err = json.Marshal(config.ESOSecretData)
 				if err != nil {
 					impl.logger.Errorw("error in marshaling external secret data", "err", err)
 					return nil, err
 				}
 			} else {
-				displayName = "External Secret Data"
+				displayName = ExternalSecretDisplayName
 				externalSecretData, err = json.Marshal(config.ExternalSecret)
 				if err != nil {
 					impl.logger.Errorw("error in marshaling external secret data", "err", err)

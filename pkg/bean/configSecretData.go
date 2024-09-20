@@ -19,6 +19,7 @@ package bean
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/util"
+	"strings"
 )
 
 type ConfigList struct {
@@ -50,6 +51,10 @@ type ConfigData struct {
 	FilePermission        string           `json:"filePermission"`
 }
 
+func (c *ConfigData) IsESOExternalSecretType() bool {
+	return strings.HasPrefix(c.ExternalSecretType, "ESO")
+}
+
 type ExternalSecret struct {
 	Key      string `json:"key"`
 	Name     string `json:"name"`
@@ -72,7 +77,7 @@ type ESOData struct {
 	Property  string `json:"property,omitempty"`
 }
 
-func (ConfigData) GetTransformedDataForSecretData(data string, mode util.SecretTransformMode) (string, error) {
+func GetTransformedDataForSecretData(data string, mode util.SecretTransformMode) (string, error) {
 	secretDataMap := make(map[string]*ConfigData)
 	err := json.Unmarshal([]byte(data), &secretDataMap)
 	if err != nil {

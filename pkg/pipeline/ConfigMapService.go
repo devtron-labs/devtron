@@ -873,7 +873,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*bean
 				item.DefaultExternalSecret = item.ExternalSecret
 			}
 			item.DefaultESOSecretData = item.ESOSecretData
-			item.ESOSecretData.EsoData = nil
+			item.ESOSecretData.ESOData = nil
 			item.ESOSecretData.SecretStore = nil
 			item.ESOSecretData.ESODataFrom = nil
 			item.ESOSecretData.Template = nil
@@ -1455,7 +1455,20 @@ func (impl ConfigMapServiceImpl) validateConfigDataForSecretsOnly(configData *be
 		if err != nil {
 			impl.logger.Errorw("error in decoding secret data", "error", err)
 			return false, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithCode(strconv.Itoa(http.StatusUnprocessableEntity)).
-				WithUserMessage("error in decoding data, make sure the secret data is encoded properly")
+				WithUserMessage("error in decoding data, make sure the secret data is encoded properly").
+				WithInternalMessage("error in decoding data, make sure the secret data is encoded properly")
+		}
+	}
+	if configData.IsESOExternalSecretType() {
+		if !configData.External {
+			return false, util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithCode(strconv.Itoa(http.StatusBadRequest)).
+				WithUserMessage(fmt.Sprintf("external flag should be true for '%s' secret type", configData.ExternalSecretType)).
+				WithInternalMessage(fmt.Sprintf("external flag should be true for '%s' secret type", configData.ExternalSecretType))
+		}
+		if configData.ESOSecretData.ESODataFrom == nil && configData.ESOSecretData.ESOData == nil {
+			return false, util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithCode(strconv.Itoa(http.StatusBadRequest)).
+				WithUserMessage("both esoSecretData.esoDataFrom and esoSecretData.esoData can't be empty").
+				WithInternalMessage("both esoSecretData.esoDataFrom and esoSecretData.esoData can't be empty")
 		}
 	}
 	return true, nil
