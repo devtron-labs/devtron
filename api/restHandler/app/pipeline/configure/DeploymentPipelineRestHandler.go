@@ -1325,18 +1325,16 @@ func (handler *PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Re
 		return
 	}
 	//rbac block ends here
-	var ciArtifactResponse *bean.CiArtifactResponse
-	if handler.pipelineRestHandlerEnvConfig.UseArtifactListApiV2 {
-		artifactsListFilterOptions := &bean2.ArtifactsListFilterOptions{
-			Limit:        limit,
-			Offset:       offset,
-			SearchString: searchString,
-		}
-		ciArtifactResponse, err = handler.pipelineBuilder.RetrieveArtifactsByCDPipelineV2(pipeline, bean2.WorkflowType(stage), artifactsListFilterOptions)
-	} else {
-		//RetrieveArtifactsByCDPipeline is deprecated and method is removed from code
-		//ciArtifactResponse, err = handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage))
+	artifactsListFilterOptions := &bean2.ArtifactsListFilterOptions{
+		Limit:        limit,
+		Offset:       offset,
+		SearchString: searchString,
 	}
+
+	//RetrieveArtifactsByCDPipeline is deprecated and method is removed from code
+	//ciArtifactResponse, err = handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage))
+
+	ciArtifactResponse, err := handler.pipelineBuilder.RetrieveArtifactsByCDPipelineV2(pipeline, bean2.WorkflowType(stage), artifactsListFilterOptions)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

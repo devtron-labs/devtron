@@ -710,18 +710,6 @@ func (impl *ManifestCreationServiceImpl) getReleaseOverride(envOverride *chartCo
 	imageName := ""
 	tag := ""
 	if artifact != nil {
-		//artifactImage := artifact.Image
-		//imageTag := strings.Split(artifactImage, ":")
-		//
-		//imageTagLen := len(imageTag)
-		//
-		//for i := 0; i < imageTagLen-1; i++ {
-		//	if i != imageTagLen-2 {
-		//		imageName = imageName + imageTag[i] + ":"
-		//	} else {
-		//		imageName = imageName + imageTag[i]
-		//	}
-		//}
 
 		imageName = artifact.Image
 		_, tag = globalUtil.ExtractImageRepoAndTag(imageName)
