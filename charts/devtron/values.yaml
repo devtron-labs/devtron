@@ -377,7 +377,7 @@ security:
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
-  image: "notifier:10dee8cd-372-25484"
+  image: "notifier:06392394-372-25535"
   configs:
     CD_ENVIRONMENT: PROD
     DB: orchestrator
