@@ -363,7 +363,6 @@ func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx contex
 		" env.cluster_id," +
 		" env.is_virtual_environment," +
 		" cl.cluster_name," +
-		" cia.image," +
 		" p.id as cd_pipeline_id," +
 		" p.ci_pipeline_id," +
 		" p.trigger_type" +
@@ -382,7 +381,6 @@ func (impl AppListingRepositoryImpl) deploymentDetailsByAppIdAndEnvId(ctx contex
 	}
 	deploymentDetail.EnvironmentId = envId
 
-	deploymentDetail.EnvironmentId = envId
 	dc, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(appId, envId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in getting deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
