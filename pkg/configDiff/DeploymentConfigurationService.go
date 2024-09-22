@@ -13,6 +13,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/configDiff/bean"
 	"github.com/devtron-labs/devtron/pkg/configDiff/helper"
 	"github.com/devtron-labs/devtron/pkg/configDiff/utils"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
@@ -45,6 +46,7 @@ type DeploymentConfigurationServiceImpl struct {
 	scopedVariableManager               variables.ScopedVariableCMCSManager
 	configMapRepository                 chartConfig.ConfigMapRepository
 	deploymentConfigService             pipeline.PipelineDeploymentConfigService
+	chartRefService                     chartRef.ChartRefService
 }
 
 func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
@@ -59,6 +61,7 @@ func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
 	scopedVariableManager variables.ScopedVariableCMCSManager,
 	configMapRepository chartConfig.ConfigMapRepository,
 	deploymentConfigService pipeline.PipelineDeploymentConfigService,
+	chartRefService chartRef.ChartRefService,
 ) (*DeploymentConfigurationServiceImpl, error) {
 	deploymentConfigurationService := &DeploymentConfigurationServiceImpl{
 		logger:                              logger,
@@ -73,6 +76,7 @@ func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
 		scopedVariableManager:               scopedVariableManager,
 		configMapRepository:                 configMapRepository,
 		deploymentConfigService:             deploymentConfigService,
+		chartRefService:                     chartRefService,
 	}
 
 	return deploymentConfigurationService, nil
@@ -193,7 +197,8 @@ func (impl *DeploymentConfigurationServiceImpl) getDeploymentHistoryConfig(ctx c
 		WithConfigData(deploymentJson).
 		WithResourceType(bean.DeploymentTemplate).
 		WithVariableSnapshot(map[string]map[string]string{bean.DeploymentTemplate.ToString(): variableSnapshotMap}).
-		WithResolvedValue(json.RawMessage(resolvedTemplate))
+		WithResolvedValue(json.RawMessage(resolvedTemplate)).
+		WithDeploymentConfigMetadata(deploymentHistory.TemplateVersion, deploymentHistory.IsAppMetricsEnabled)
 	return deploymentConfig, nil
 }
 
@@ -209,7 +214,10 @@ func (impl *DeploymentConfigurationServiceImpl) getPipelineStrategyConfigHistory
 		impl.logger.Errorw("getDeploymentTemplateForEnvLevel, error in unmarshalling string  pipelineStrategyHistory data into json Raw message", "pipelineStrategyHistoryConfig", pipelineStrategyHistory.Config, "err", err)
 		return nil, err
 	}
-	pipelineConfig := bean2.NewDeploymentAndCmCsConfig().WithConfigData(pipelineStrategyJson).WithResourceType(bean.PipelineStrategy)
+	pipelineConfig := bean2.NewDeploymentAndCmCsConfig().
+		WithConfigData(pipelineStrategyJson).
+		WithResourceType(bean.PipelineStrategy).
+		WithPipelineStrategyMetadata(pipelineStrategyHistory.PipelineTriggerType, string(pipelineStrategyHistory.Strategy))
 	return pipelineConfig, nil
 }
 
@@ -582,9 +590,10 @@ func (impl *DeploymentConfigurationServiceImpl) getPublishedDeploymentConfig(ctx
 		variableSnapShotMap[bean.DeploymentTemplate.ToString()] = deplTemplateResp.VariableSnapshot
 
 		return bean2.NewDeploymentAndCmCsConfig().WithConfigData(deploymentJson).WithResourceType(bean.DeploymentTemplate).
-			WithResolvedValue(json.RawMessage(deplTemplateResp.ResolvedData)).WithVariableSnapshot(variableSnapShotMap), nil
+			WithResolvedValue(json.RawMessage(deplTemplateResp.ResolvedData)).WithVariableSnapshot(variableSnapShotMap).
+			WithDeploymentConfigMetadata(deplTemplateResp.TemplateVersion, deplTemplateResp.IsAppMetricsEnabled), nil
 	}
-	deplJson, err := impl.getBaseDeploymentTemplate(appId)
+	deplMetadata, err := impl.getBaseDeploymentTemplate(appId)
 	if err != nil {
 		impl.logger.Errorw("getting base depl. template", "appid", appId, "err", err)
 		return nil, err
@@ -593,15 +602,16 @@ func (impl *DeploymentConfigurationServiceImpl) getPublishedDeploymentConfig(ctx
 		AppId:           appId,
 		RequestDataMode: generateManifest.Values,
 	}
-	resolvedTemplate, variableSnapshot, err := impl.deploymentTemplateService.ResolveTemplateVariables(ctx, string(deplJson), deploymentTemplateRequest)
+	resolvedTemplate, variableSnapshot, err := impl.deploymentTemplateService.ResolveTemplateVariables(ctx, string(deplMetadata.DeploymentTemplateJson), deploymentTemplateRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting resolved data for base deployment template", "appid", appId, "err", err)
 		return nil, err
 	}
 
 	variableSnapShotMap := map[string]map[string]string{bean.DeploymentTemplate.ToString(): variableSnapshot}
-	return bean2.NewDeploymentAndCmCsConfig().WithConfigData(deplJson).WithResourceType(bean.DeploymentTemplate).
-		WithResolvedValue(json.RawMessage(resolvedTemplate)).WithVariableSnapshot(variableSnapShotMap), nil
+	return bean2.NewDeploymentAndCmCsConfig().WithConfigData(deplMetadata.DeploymentTemplateJson).WithResourceType(bean.DeploymentTemplate).
+		WithResolvedValue(json.RawMessage(resolvedTemplate)).WithVariableSnapshot(variableSnapShotMap).
+		WithDeploymentConfigMetadata(deplMetadata.TemplateVersion, deplMetadata.IsAppMetricsEnabled), nil
 }
 
 func (impl *DeploymentConfigurationServiceImpl) getPublishedConfigData(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams,
@@ -626,14 +636,22 @@ func (impl *DeploymentConfigurationServiceImpl) getPublishedConfigData(ctx conte
 	return configData, nil
 }
 
-func (impl *DeploymentConfigurationServiceImpl) getBaseDeploymentTemplate(appId int) (json.RawMessage, error) {
+func (impl *DeploymentConfigurationServiceImpl) getBaseDeploymentTemplate(appId int) (*bean2.DeploymentTemplateMetadata, error) {
 	deploymentTemplateData, err := impl.chartService.FindLatestChartForAppByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in getting base deployment template for appId", "appId", appId, "err", err)
 		return nil, err
 	}
-
-	return deploymentTemplateData.DefaultAppOverride, nil
+	_, _, version, _, err := impl.chartRefService.GetRefChart(deploymentTemplateData.ChartRefId)
+	if err != nil {
+		impl.logger.Errorw("error in getting chart ref by chartRefId ", "chartRefId", deploymentTemplateData.ChartRefId, "err", err)
+		return nil, err
+	}
+	return &bean2.DeploymentTemplateMetadata{
+		DeploymentTemplateJson: deploymentTemplateData.DefaultAppOverride,
+		IsAppMetricsEnabled:    deploymentTemplateData.IsAppMetricsEnabled,
+		TemplateVersion:        version,
+	}, nil
 }
 
 func (impl *DeploymentConfigurationServiceImpl) getDeploymentTemplateForEnvLevel(ctx context.Context, appId, envId int) (generateManifest.DeploymentTemplateResponse, error) {

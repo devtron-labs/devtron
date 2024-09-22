@@ -4,6 +4,7 @@ import "C"
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean3 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 )
@@ -89,6 +90,12 @@ type DeploymentAndCmCsConfig struct {
 	Data             json.RawMessage              `json:"data"`
 	VariableSnapshot map[string]map[string]string `json:"variableSnapshot"` // for deployment->{Deployment Template: resolvedValuesMap}, for cm->{cmComponentName: resolvedValuesMap}
 	ResolvedValue    json.RawMessage              `json:"resolvedValue"`
+	// for deployment template
+	TemplateVersion     string `json:"templateVersion,omitempty"`
+	IsAppMetricsEnabled bool   `json:"isAppMetricsEnabled,omitempty"`
+	//for pipeline strategy
+	PipelineTriggerType pipelineConfig.TriggerType `json:"pipelineTriggerType,omitempty"`
+	Strategy            string                     `json:"strategy,omitempty"`
 }
 
 func NewDeploymentAndCmCsConfig() *DeploymentAndCmCsConfig {
@@ -112,6 +119,18 @@ func (r *DeploymentAndCmCsConfig) WithVariableSnapshot(snapshot map[string]map[s
 
 func (r *DeploymentAndCmCsConfig) WithResolvedValue(resolvedValue json.RawMessage) *DeploymentAndCmCsConfig {
 	r.ResolvedValue = resolvedValue
+	return r
+}
+
+func (r *DeploymentAndCmCsConfig) WithDeploymentConfigMetadata(templateVersion string, isAppMetricsEnabled bool) *DeploymentAndCmCsConfig {
+	r.TemplateVersion = templateVersion
+	r.IsAppMetricsEnabled = isAppMetricsEnabled
+	return r
+}
+
+func (r *DeploymentAndCmCsConfig) WithPipelineStrategyMetadata(pipelineTriggerType pipelineConfig.TriggerType, strategy string) *DeploymentAndCmCsConfig {
+	r.PipelineTriggerType = pipelineTriggerType
+	r.Strategy = strategy
 	return r
 }
 
@@ -201,4 +220,10 @@ type ResolvedCmCsMetadataDto struct {
 
 type ValuesDto struct {
 	Values string `json:"values"`
+}
+
+type DeploymentTemplateMetadata struct {
+	DeploymentTemplateJson json.RawMessage
+	TemplateVersion        string
+	IsAppMetricsEnabled    bool
 }
