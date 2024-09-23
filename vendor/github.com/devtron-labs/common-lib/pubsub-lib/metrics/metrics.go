@@ -53,6 +53,10 @@ var PanicRecoveryCount = promauto.NewCounterVec(prometheus.CounterOpts{
 	Name: constants.PANIC_RECOVERY_COUNT,
 }, []string{constants.PANIC_TYPE, constants.HOST, constants.METHOD, constants.PATH})
 
+var ReverseProxyPanicRecoveryCount = promauto.NewCounterVec(prometheus.CounterOpts{
+	Name: constants.REVERSE_PROXY_PANIC_RECOVERY_COUNT,
+}, []string{constants.PANIC_TYPE, constants.HOST, constants.METHOD, constants.PATH})
+
 func IncPublishCount(topic, status string) {
 	NatsPublishingCount.WithLabelValues(topic, status).Inc()
 }
@@ -64,6 +68,11 @@ func IncConsumptionCount(topic string) {
 func IncConsumingCount(topic string) {
 	NatsConsumingCount.WithLabelValues(topic).Inc()
 }
+
 func IncPanicRecoveryCount(panicType, host, method, path string) {
 	PanicRecoveryCount.WithLabelValues(panicType, host, method, path).Inc()
+}
+
+func IncReverseProxyPanicRecoveryCount(panicType, host, method, path string) {
+	ReverseProxyPanicRecoveryCount.WithLabelValues(panicType, host, method, path).Inc()
 }

@@ -42,7 +42,7 @@ import (
 	appList2 "github.com/devtron-labs/devtron/api/router/app/appList"
 	server2 "github.com/devtron-labs/devtron/api/server"
 	team2 "github.com/devtron-labs/devtron/api/team"
-	terminal3 "github.com/devtron-labs/devtron/api/terminal"
+	terminal2 "github.com/devtron-labs/devtron/api/terminal"
 	webhookHelm2 "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/dashboard"
@@ -54,7 +54,6 @@ import (
 	repository5 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
-	terminal2 "github.com/devtron-labs/devtron/internal/sql/repository/terminal"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/apiToken"
 	app2 "github.com/devtron-labs/devtron/pkg/app"
@@ -204,7 +203,7 @@ func InitializeApp() (*App, error) {
 	syncMap := informer.NewGlobalMapClusterNamespace()
 	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, syncMap, k8sServiceImpl)
 	cronLoggerImpl := cron.NewCronLoggerImpl(sugaredLogger)
-	clusterServiceImpl, err := cluster.NewClusterServiceImpl(clusterRepositoryImpl, sugaredLogger, k8sServiceImpl, k8sInformerFactoryImpl, environmentVariables, cronLoggerImpl, userServiceImpl)
+	clusterServiceImpl, err := cluster.NewClusterServiceImpl(clusterRepositoryImpl, sugaredLogger, k8sServiceImpl, k8sInformerFactoryImpl, userAuthRepositoryImpl, userRepositoryImpl, roleGroupRepositoryImpl, environmentVariables, cronLoggerImpl)
 	if err != nil {
 		return nil, err
 	}
@@ -261,9 +260,9 @@ func InitializeApp() (*App, error) {
 	genericNoteRepositoryImpl := repository6.NewGenericNoteRepositoryImpl(db, transactionUtilImpl)
 	genericNoteHistoryRepositoryImpl := repository6.NewGenericNoteHistoryRepositoryImpl(db, transactionUtilImpl)
 	genericNoteHistoryServiceImpl := genericNotes.NewGenericNoteHistoryServiceImpl(genericNoteHistoryRepositoryImpl, sugaredLogger)
-	genericNoteServiceImpl := genericNotes.NewGenericNoteServiceImpl(genericNoteRepositoryImpl, genericNoteHistoryServiceImpl, userServiceImpl, sugaredLogger)
+	genericNoteServiceImpl := genericNotes.NewGenericNoteServiceImpl(genericNoteRepositoryImpl, genericNoteHistoryServiceImpl, userRepositoryImpl, sugaredLogger)
 	clusterDescriptionRepositoryImpl := repository2.NewClusterDescriptionRepositoryImpl(db, sugaredLogger)
-	clusterDescriptionServiceImpl := cluster.NewClusterDescriptionServiceImpl(clusterDescriptionRepositoryImpl, userServiceImpl, sugaredLogger)
+	clusterDescriptionServiceImpl := cluster.NewClusterDescriptionServiceImpl(clusterDescriptionRepositoryImpl, userRepositoryImpl, sugaredLogger)
 	helmUserServiceImpl, err := argo.NewHelmUserServiceImpl(sugaredLogger)
 	if err != nil {
 		return nil, err
@@ -403,7 +402,7 @@ func InitializeApp() (*App, error) {
 	userAttributesRouterImpl := router.NewUserAttributesRouterImpl(userAttributesRestHandlerImpl)
 	telemetryRestHandlerImpl := restHandler.NewTelemetryRestHandlerImpl(sugaredLogger, telemetryEventClientImpl, enforcerImpl, userServiceImpl)
 	telemetryRouterImpl := router.NewTelemetryRouterImpl(sugaredLogger, telemetryRestHandlerImpl)
-	terminalAccessRepositoryImpl := terminal2.NewTerminalAccessRepositoryImpl(db, sugaredLogger)
+	terminalAccessRepositoryImpl := repository3.NewTerminalAccessRepositoryImpl(db, sugaredLogger)
 	userTerminalSessionConfig, err := clusterTerminalAccess.GetTerminalAccessConfig()
 	if err != nil {
 		return nil, err
@@ -412,8 +411,8 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	userTerminalAccessRestHandlerImpl := terminal3.NewUserTerminalAccessRestHandlerImpl(sugaredLogger, userTerminalAccessServiceImpl, enforcerImpl, userServiceImpl, validate)
-	userTerminalAccessRouterImpl := terminal3.NewUserTerminalAccessRouterImpl(userTerminalAccessRestHandlerImpl)
+	userTerminalAccessRestHandlerImpl := terminal2.NewUserTerminalAccessRestHandlerImpl(sugaredLogger, userTerminalAccessServiceImpl, enforcerImpl, userServiceImpl, validate)
+	userTerminalAccessRouterImpl := terminal2.NewUserTerminalAccessRouterImpl(userTerminalAccessRestHandlerImpl)
 	attributesRestHandlerImpl := restHandler.NewAttributesRestHandlerImpl(sugaredLogger, enforcerImpl, userServiceImpl, attributesServiceImpl)
 	attributesRouterImpl := router.NewAttributesRouterImpl(attributesRestHandlerImpl)
 	appLabelRepositoryImpl := pipelineConfig.NewAppLabelRepositoryImpl(db)

@@ -199,8 +199,9 @@ type ClusterServiceImpl struct {
 }
 
 func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.SugaredLogger,
-	K8sUtil *k8s.K8sServiceImpl, K8sInformerFactory informer.K8sInformerFactory, envVariables *globalUtil.EnvironmentVariables,
-	cronLogger *cronUtil.CronLoggerImpl, userService user.UserService) (*ClusterServiceImpl, error) {
+	K8sUtil *k8s.K8sServiceImpl, K8sInformerFactory informer.K8sInformerFactory,
+	envVariables *globalUtil.EnvironmentVariables,
+	cronLogger *cronUtil.CronLoggerImpl,userService user.UserService) (*ClusterServiceImpl, error) {
 	clusterService := &ClusterServiceImpl{
 		clusterRepository:  repository,
 		logger:             logger,

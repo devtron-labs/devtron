@@ -23,6 +23,7 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils"
 	bean3 "github.com/devtron-labs/common-lib/utils/bean"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
@@ -319,7 +320,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	}
 	err = impl.handleRuntimeParamsValidations(trigger, ciMaterials, workflowRequest)
 	if err != nil {
-		savedCiWf.Status = pipelineConfig.WorkflowAborted
+		savedCiWf.Status = cdWorkflow.WorkflowAborted
 		savedCiWf.Message = err.Error()
 		err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedCiWf)
 		if err1 != nil {
@@ -448,7 +449,7 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 
 	ciWorkflow := &pipelineConfig.CiWorkflow{
 		Name:                  pipeline.Name + "-" + strconv.Itoa(pipeline.Id),
-		Status:                pipelineConfig.WorkflowStarting, // starting CIStage
+		Status:                cdWorkflow.WorkflowStarting, // starting CIStage
 		Message:               "",
 		StartedOn:             time.Now(),
 		CiPipelineId:          pipeline.Id,
@@ -622,7 +623,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	if pipeline.CiTemplate.DockerBuildOptions == "" {
 		pipeline.CiTemplate.DockerBuildOptions = "{}"
 	}
-	userEmailId, err := impl.userService.GetEmailById(trigger.TriggeredBy)
+	userEmailId, err := impl.userService.GetActiveEmailById(trigger.TriggeredBy)
 	if err != nil {
 		impl.Logger.Errorw("unable to find user email by id", "err", err, "id", trigger.TriggeredBy)
 		return nil, err
@@ -676,7 +677,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		imagePathReservation, err := impl.customTagService.GenerateImagePath(pipelineConfigBean.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id), dockerRegistry.RegistryURL, dockerRepository)
 		if err != nil {
 			if errors.Is(err, pipelineConfigBean.ErrImagePathInUse) {
-				savedWf.Status = pipelineConfig.WorkflowFailed
+				savedWf.Status = cdWorkflow.WorkflowFailed
 				savedWf.Message = pipelineConfigBean.ImageTagUnavailableMessage
 				err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
 				if err1 != nil {
@@ -710,7 +711,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			dockerRegistry.Id)
 		if err != nil {
 			impl.Logger.Errorw("error in getting env variables for copyContainerImage plugin")
-			savedWf.Status = pipelineConfig.WorkflowFailed
+			savedWf.Status = cdWorkflow.WorkflowFailed
 			savedWf.Message = err.Error()
 			err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
 			if err1 != nil {

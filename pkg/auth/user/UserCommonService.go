@@ -40,9 +40,6 @@ type UserCommonService interface {
 	RemoveRolesAndReturnEliminatedPoliciesForGroups(request *bean.RoleGroup, existingRoles map[int]*repository.RoleGroupRoleMapping, eliminatedRoles map[int]*repository.RoleGroupRoleMapping, tx *pg.Tx) ([]casbin.Policy, []*repository.RoleModel, error)
 	CheckRbacForClusterEntity(cluster, namespace, group, kind, resource, token string, managerAuth func(resource, token, object string) bool) bool
 	GetCapacityForRoleFilter(roleFilters []bean.RoleFilter) (int, map[int]int)
-	BuildRoleFilterKeyForCluster(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string)
-	BuildRoleFilterKeyForJobs(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string)
-	BuildRoleFilterKeyForOtherEntity(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string)
 	BuildRoleFilterForAllTypes(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string)
 	GetUniqueKeyForAllEntity(role repository.RoleModel) string
 	SetDefaultValuesIfNotPresent(request *bean.ListingRequest, isRoleGroup bool)
@@ -201,7 +198,7 @@ func getResolvedValueFromPValDetailObject(pValDetailObj repository.PValDetailObj
 func getPValUpdateMap(team, entityName, env, entity, cluster, namespace, group, kind, resource, workflow string) map[repository.PValUpdateKey]string {
 	pValUpdateMap := make(map[repository.PValUpdateKey]string)
 	pValUpdateMap[repository.EntityPValUpdateKey] = entity
-	if entity == bean.CLUSTER_ENTITIY {
+	if entity == bean2.CLUSTER_ENTITIY {
 		pValUpdateMap[repository.ClusterPValUpdateKey] = cluster
 		pValUpdateMap[repository.NamespacePValUpdateKey] = namespace
 		pValUpdateMap[repository.GroupPValUpdateKey] = group
@@ -242,7 +239,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 	var eliminatedPolicies []casbin.Policy
 	// DELETE Removed Items
 	for _, roleFilter := range userInfo.RoleFilters {
-		if roleFilter.Entity == bean.CLUSTER_ENTITIY {
+		if roleFilter.Entity == bean2.CLUSTER_ENTITIY {
 			namespaces := strings.Split(roleFilter.Namespace, ",")
 			groups := strings.Split(roleFilter.Group, ",")
 			kinds := strings.Split(roleFilter.Kind, ",")
@@ -318,7 +315,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 					if _, ok := existingRoleIds[roleModel.Id]; ok {
 						delete(eliminatedRoleIds, roleModel.Id)
 					}
-					isChartGroupEntity := roleFilter.Entity == bean.CHART_GROUP_ENTITY
+					isChartGroupEntity := roleFilter.Entity == bean2.CHART_GROUP_ENTITY
 					if _, ok := existingRoleIds[oldRoleModel.Id]; ok && !isChartGroupEntity {
 						//delete old role mapping from existing but not from eliminated roles (so that it gets deleted)
 						delete(existingRoleIds, oldRoleModel.Id)
@@ -354,7 +351,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 	//var policies []casbin.Policy
 	for _, roleFilter := range request.RoleFilters {
 		entity := roleFilter.Entity
-		if entity == bean.CLUSTER_ENTITIY {
+		if entity == bean2.CLUSTER_ENTITIY {
 			namespaces := strings.Split(roleFilter.Namespace, ",")
 			groups := strings.Split(roleFilter.Group, ",")
 			kinds := strings.Split(roleFilter.Kind, ",")
@@ -440,7 +437,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 					if _, ok := existingRoles[roleModel.Id]; ok {
 						delete(eliminatedRoles, roleModel.Id)
 					}
-					isChartGroupEntity := roleFilter.Entity == bean.CHART_GROUP_ENTITY
+					isChartGroupEntity := roleFilter.Entity == bean2.CHART_GROUP_ENTITY
 					if _, ok := existingRoles[oldRoleModel.Id]; ok && !isChartGroupEntity {
 						//delete old role mapping from existing but not from eliminated roles (so that it gets deleted)
 						delete(existingRoles, oldRoleModel.Id)
@@ -549,22 +546,22 @@ func (impl UserCommonServiceImpl) GetCapacityForRoleFilter(roleFilters []bean.Ro
 
 func (impl UserCommonServiceImpl) BuildRoleFilterForAllTypes(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string) {
 	switch role.Entity {
-	case bean.CLUSTER_ENTITIY:
+	case bean2.CLUSTER_ENTITIY:
 		{
-			impl.BuildRoleFilterKeyForCluster(roleFilterMap, role, key)
+			BuildRoleFilterKeyForCluster(roleFilterMap, role, key)
 		}
 	case bean2.EntityJobs:
 		{
-			impl.BuildRoleFilterKeyForJobs(roleFilterMap, role, key)
+			BuildRoleFilterKeyForJobs(roleFilterMap, role, key)
 		}
 	default:
 		{
-			impl.BuildRoleFilterKeyForOtherEntity(roleFilterMap, role, key)
+			BuildRoleFilterKeyForOtherEntity(roleFilterMap, role, key)
 		}
 	}
 }
 
-func (impl UserCommonServiceImpl) BuildRoleFilterKeyForCluster(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string) {
+func BuildRoleFilterKeyForCluster(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string) {
 	namespaceArr := strings.Split(roleFilterMap[key].Namespace, ",")
 	if containsArr(namespaceArr, AllNamespace) {
 		roleFilterMap[key].Namespace = AllNamespace
@@ -591,7 +588,7 @@ func (impl UserCommonServiceImpl) BuildRoleFilterKeyForCluster(roleFilterMap map
 	}
 }
 
-func (impl UserCommonServiceImpl) BuildRoleFilterKeyForJobs(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string) {
+func BuildRoleFilterKeyForJobs(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string) {
 	envArr := strings.Split(roleFilterMap[key].Environment, ",")
 	if containsArr(envArr, AllEnvironment) {
 		roleFilterMap[key].Environment = AllEnvironment
@@ -612,7 +609,7 @@ func (impl UserCommonServiceImpl) BuildRoleFilterKeyForJobs(roleFilterMap map[st
 	}
 }
 
-func (impl UserCommonServiceImpl) BuildRoleFilterKeyForOtherEntity(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string) {
+func BuildRoleFilterKeyForOtherEntity(roleFilterMap map[string]*bean.RoleFilter, role repository.RoleModel, key string) {
 	envArr := strings.Split(roleFilterMap[key].Environment, ",")
 	if containsArr(envArr, AllEnvironment) {
 		roleFilterMap[key].Environment = AllEnvironment
@@ -633,7 +630,7 @@ func (impl UserCommonServiceImpl) GetUniqueKeyForAllEntity(role repository.RoleM
 	} else if role.Entity == bean2.EntityJobs {
 		key = fmt.Sprintf("%s_%s_%s_%s", role.Team, role.Action, role.AccessType, role.Entity)
 	} else if len(role.Entity) > 0 {
-		if role.Entity == bean.CLUSTER_ENTITIY {
+		if role.Entity == bean2.CLUSTER_ENTITIY {
 			key = fmt.Sprintf("%s_%s_%s_%s_%s", role.Entity, role.Action, role.Cluster,
 				role.Group, role.Kind)
 		} else {

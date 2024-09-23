@@ -149,7 +149,7 @@ func (impl EnvironmentServiceImpl) Create(mappings *bean2.EnvironmentBean, userI
 	}
 	if len(model.Namespace) > 0 {
 		cfg := clusterBean.GetClusterConfig()
-		if err := impl.K8sUtil.CreateNsIfNotExists(model.Namespace, cfg); err != nil {
+		if _, _, err := impl.K8sUtil.CreateNsIfNotExists(model.Namespace, cfg); err != nil {
 			impl.logger.Errorw("error in creating ns", "ns", model.Namespace, "err", err)
 		}
 
@@ -287,7 +287,7 @@ func (impl EnvironmentServiceImpl) Update(mappings *bean2.EnvironmentBean, userI
 	//namespace create if not exist
 	if len(model.Namespace) > 0 {
 		cfg := clusterBean.GetClusterConfig()
-		if err := impl.K8sUtil.CreateNsIfNotExists(model.Namespace, cfg); err != nil {
+		if _, _, err := impl.K8sUtil.CreateNsIfNotExists(model.Namespace, cfg); err != nil {
 			impl.logger.Errorw("error in creating ns", "ns", model.Namespace, "err", err)
 		}
 	}

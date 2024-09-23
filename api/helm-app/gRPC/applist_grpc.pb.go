@@ -356,6 +356,15 @@ func (c *applicationServiceClient) GetReleaseDetails(ctx context.Context, in *Re
 	return out, nil
 }
 
+func (c *applicationServiceClient) GetReleaseDetails(ctx context.Context, in *ReleaseIdentifier, opts ...grpc.CallOption) (*DeployedAppDetail, error) {
+	out := new(DeployedAppDetail)
+	err := c.cc.Invoke(ctx, "/ApplicationService/GetReleaseDetails", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ApplicationServiceServer is the server API for ApplicationService service.
 // All implementations must embed UnimplementedApplicationServiceServer
 // for forward compatibility
@@ -928,7 +937,7 @@ func _ApplicationService_GetReleaseDetails_Handler(srv interface{}, ctx context.
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ApplicationService_GetReleaseDetails_FullMethodName,
+		FullMethod: "/ApplicationService/GetReleaseDetails",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ApplicationServiceServer).GetReleaseDetails(ctx, req.(*ReleaseIdentifier))

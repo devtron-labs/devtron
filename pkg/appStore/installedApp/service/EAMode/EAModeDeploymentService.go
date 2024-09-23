@@ -237,12 +237,14 @@ func (impl *EAModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, in
 }
 
 func (impl *EAModeDeploymentServiceImpl) GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*gRPC.HelmAppDeploymentHistory, error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "EAModeDeploymentServiceImpl.GetDeploymentHistory")
+	defer span.End()
 	helmAppIdentifier := &helmBean.AppIdentifier{
 		ClusterId:   installedApp.ClusterId,
 		Namespace:   installedApp.Namespace,
 		ReleaseName: installedApp.AppName,
 	}
-	history, err := impl.helmAppService.GetDeploymentHistory(ctx, helmAppIdentifier)
+	history, err := impl.helmAppService.GetDeploymentHistory(newCtx, helmAppIdentifier)
 	if err != nil {
 		apiError := clientErrors.ConvertToApiError(err)
 		if apiError != nil {
