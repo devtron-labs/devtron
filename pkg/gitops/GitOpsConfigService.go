@@ -352,38 +352,37 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 					}
 				}
 			}
-			err = impl.gitOperationService.UpdateGitHostUrlByProvider(request)
+		}
+		err = impl.gitOperationService.UpdateGitHostUrlByProvider(request)
+		if err != nil {
+			return nil, err
+		}
+		operationComplete := false
+		retryCount := 0
+		for !operationComplete && retryCount < 3 {
+			retryCount = retryCount + 1
+
+			cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
 			if err != nil {
 				return nil, err
 			}
-			operationComplete := false
-			retryCount := 0
-			for !operationComplete && retryCount < 3 {
-				retryCount = retryCount + 1
-
-				cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
-				if err != nil {
-					return nil, err
-				}
-				currentHost := request.Host
-				updatedData := impl.updateData(cm.Data, request, impl.aCDAuthConfig.GitOpsSecretName, currentHost)
-				data := cm.Data
-				if data == nil {
-					data = make(map[string]string, 0)
-				}
-				data["repository.credentials"] = updatedData["repository.credentials"]
-				cm.Data = data
-				_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
-				if err != nil {
-					continue
-				}
-				if err == nil {
-					operationComplete = true
-				}
+			currentHost := request.Host
+			updatedData := impl.updateData(cm.Data, request, impl.aCDAuthConfig.GitOpsSecretName, currentHost)
+			data := cm.Data
+			if data == nil {
+				data = make(map[string]string, 0)
 			}
-			if !operationComplete {
-				return nil, fmt.Errorf("resouce version not matched with config map attempted 3 times")
+			data["repository.credentials"] = updatedData["repository.credentials"]
+			cm.Data = data
+			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+			if err != nil {
+				continue
+			} else {
+				operationComplete = true
 			}
+		}
+		if !operationComplete {
+			return nil, fmt.Errorf("resouce version not matched with config map attempted 3 times")
 		}
 	}
 
