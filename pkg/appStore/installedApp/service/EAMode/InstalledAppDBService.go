@@ -401,6 +401,17 @@ func (impl *InstalledAppDBServiceImpl) CreateNewAppEntryForAllInstalledApps(inst
 	if err != nil {
 		return err
 	}
+	currApp, err := impl.AppRepository.FindById(installedApps[0].AppId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching app by id", "appId", currApp.Id, "err", err)
+		return err
+	}
+	currApp.Active = false
+	err = impl.AppRepository.UpdateWithTxn(currApp, tx)
+	if err != nil {
+		impl.Logger.Errorw("error in marking current app inactive while creating new apps", "currentAppId", currApp.Id, "err", err)
+		return err
+	}
 	// Rollback tx on error.
 	defer tx.Rollback()
 	for _, installedApp := range installedApps {
