@@ -19,16 +19,8 @@ func NewNoopUserService(logger *zap.SugaredLogger) *NoopUserService {
 	}
 }
 
-func (impl NoopUserService) CreateUser(userInfo *bean.UserInfo, token string, managerAuth func(resource string, token string, object string) bool) ([]*bean.UserInfo, []bean.RestrictedGroup, error) {
-	return nil, nil, nil
-}
-
 func (impl NoopUserService) SelfRegisterUserIfNotExists(userInfo *bean.UserInfo) ([]*bean.UserInfo, error) {
 	return nil, nil
-}
-
-func (impl NoopUserService) UpdateUser(userInfo *bean.UserInfo, token string, managerAuth func(resource string, token string, object string) bool) (*bean.UserInfo, bool, bool, []bean.RestrictedGroup, error) {
-	return nil, false, false, nil, nil
 }
 
 func (impl NoopUserService) GetById(id int32) (*bean.UserInfo, error) {
@@ -126,3 +118,12 @@ func (impl NoopUserService) FetchRolesFromGroup(userId int32) ([]*repository.Rol
 	impl.logger.Warnw("method not impl for FetchRolesFromGroup")
 	return make([]*repository.RoleModel, 0), nil
 }
+
+func (impl NoopUserService) CreateUser(userInfo *bean.UserInfo) ([]*bean.UserInfo, error) {
+	return nil, nil
+}
+
+func (impl NoopUserService) UpdateUser(userInfo *bean.UserInfo, token string, checkRBACForUserUpdate func(token string, userInfo *bean.UserInfo, isUserAlreadySuperAdmin bool, eliminatedRoleFilters []*repository.RoleModel, eliminatedGroupRoles []*repository.RoleModel) (isAuthorised bool, err error)) (*bean.UserInfo, error) {
+	return nil, nil
+}
+

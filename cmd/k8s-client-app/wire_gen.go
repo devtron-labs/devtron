@@ -19,7 +19,7 @@ import (
 	"github.com/devtron-labs/devtron/client/telemetry"
 	terminal2 "github.com/devtron-labs/devtron/internal/sql/repository/terminal"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/argoApplication"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/read"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user/noop"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -109,19 +109,19 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	k8sResourceHistoryServiceImpl := kubernetesResourceAuditLogs.NewNoopServiceImpl(sugaredLogger)
-	argoApplicationServiceImpl := argoApplication.NewNoopImpl()
-	k8sCommonServiceImpl := k8s2.NewK8sCommonServiceImpl(sugaredLogger, k8sServiceImpl, clusterServiceImpl, argoApplicationServiceImpl)
+	argoApplicationReadServiceImpl := read.NewNoopImpl()
+	k8sCommonServiceImpl := k8s2.NewK8sCommonServiceImpl(sugaredLogger, k8sServiceImpl, clusterServiceImpl, argoApplicationReadServiceImpl)
 	ephemeralContainerFileBasedRepositoryImpl := repository.NewEphemeralContainerFileBasedRepository(sqliteConnection, sugaredLogger, noopTransactionUtilImpl)
 	ephemeralContainerServiceImpl := cluster.NewEphemeralContainerServiceImpl(ephemeralContainerFileBasedRepositoryImpl, sugaredLogger)
-	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(environmentServiceImpl, clusterServiceImpl, sugaredLogger, k8sServiceImpl, ephemeralContainerServiceImpl, argoApplicationServiceImpl)
+	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(environmentServiceImpl, clusterServiceImpl, sugaredLogger, k8sServiceImpl, ephemeralContainerServiceImpl, argoApplicationReadServiceImpl)
 	fluxApplicationServiceImpl := fluxApplication.NewNoopImpl()
-	k8sApplicationServiceImpl, err := application.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, pumpImpl, helmAppServiceImpl, k8sServiceImpl, acdAuthConfig, k8sResourceHistoryServiceImpl, k8sCommonServiceImpl, terminalSessionHandlerImpl, ephemeralContainerServiceImpl, ephemeralContainerFileBasedRepositoryImpl, argoApplicationServiceImpl, fluxApplicationServiceImpl)
+	k8sApplicationServiceImpl, err := application.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, pumpImpl, helmAppServiceImpl, k8sServiceImpl, acdAuthConfig, k8sResourceHistoryServiceImpl, k8sCommonServiceImpl, terminalSessionHandlerImpl, ephemeralContainerServiceImpl, ephemeralContainerFileBasedRepositoryImpl, fluxApplicationServiceImpl)
 	if err != nil {
 		return nil, err
 	}
 	enforcerUtilHelmImpl := rbac.NewNoopEnforcerUtilHelm(sugaredLogger)
 	enforcerUtilImpl := rbac.NewNoopEnforcerUtil(sugaredLogger)
-	k8sApplicationRestHandlerImpl := application2.NewK8sApplicationRestHandlerImpl(sugaredLogger, k8sApplicationServiceImpl, pumpImpl, terminalSessionHandlerImpl, noopEnforcer, enforcerUtilHelmImpl, enforcerUtilImpl, helmAppServiceImpl, noopUserService, k8sCommonServiceImpl, validate, environmentVariables, fluxApplicationServiceImpl, argoApplicationServiceImpl)
+	k8sApplicationRestHandlerImpl := application2.NewK8sApplicationRestHandlerImpl(sugaredLogger, k8sApplicationServiceImpl, pumpImpl, terminalSessionHandlerImpl, noopEnforcer, enforcerUtilHelmImpl, enforcerUtilImpl, helmAppServiceImpl, noopUserService, k8sCommonServiceImpl, validate, environmentVariables, fluxApplicationServiceImpl, argoApplicationReadServiceImpl)
 	k8sApplicationRouterImpl := application2.NewK8sApplicationRouterImpl(k8sApplicationRestHandlerImpl)
 	k8sCapacityServiceImpl := capacity.NewK8sCapacityServiceImpl(sugaredLogger, k8sApplicationServiceImpl, k8sServiceImpl, k8sCommonServiceImpl)
 	k8sCapacityRestHandlerImpl := capacity2.NewK8sCapacityRestHandlerImpl(sugaredLogger, k8sCapacityServiceImpl, noopUserService, noopEnforcer, clusterServiceImpl, environmentServiceImpl, clusterRbacNoopServiceImpl)
