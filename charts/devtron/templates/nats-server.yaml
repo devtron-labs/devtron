@@ -268,7 +268,6 @@ metadata:
     app.kubernetes.io/managed-by: Helm
 spec:
   {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.nats.nodeSelector "tolerations" $.Values.components.nats.tolerations "imagePullSecrets" $.Values.components.nats.imagePullSecrets "global" $.Values.global) | indent 2 }}
-  serviceAccountName: devtron-default-sa
   containers:
     - name: nats-box
       image: {{ include "common.image" (dict "component" $.Values.components.nats.natsBox "global" $.Values.global) }}
