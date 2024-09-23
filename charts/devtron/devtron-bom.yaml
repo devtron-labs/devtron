@@ -10,7 +10,7 @@ global:
   containerRegistry: "quay.io/devtron"
 extraManifests: []
 installer:
-  release: "v0.7.1"
+  release: "v0.7.2"
   registry: ""
   image: "inception"
   tag: "473deaa4-185-21582"
@@ -39,7 +39,7 @@ components:
   devtron:
     registry: ""
     image: "hyperion:3f68456b-280-25566"
-    cicdImage: "devtron:b5a2f8ba-434-25563"
+    cicdImage: "devtron:3f68456b-434-25567"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
   ciRunner:
@@ -204,7 +204,7 @@ devtronEnterprise:
   enabled: false
   casbin:
     registry: ""
-    image: "casbin:8a0c2298-79f9a6ab-462-24808"
+    image: "casbin:efc28fb2-6de0e914-462-25420"
     imagePullPolicy: IfNotPresent
     configs:
       PG_ADDR: postgresql-postgresql.devtroncd
