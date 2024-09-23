@@ -32,6 +32,8 @@ users:
 - system:serviceaccount:devtroncd:argocd-server
 - system:serviceaccount:devtron-ci:ci-runner
 - system:serviceaccount:devtron-cd:cd-runner
+- system:serviceaccount:devtroncd:chart-sync
+- system:serviceaccount:devtroncd:devtron-default-sa
 volumes:
 - '*'
 {{- end }}
