@@ -23,6 +23,9 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils"
 	bean3 "github.com/devtron-labs/common-lib/utils/bean"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
+	"github.com/devtron-labs/devtron/pkg/attributes"
+	bean4 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
@@ -95,6 +98,7 @@ type CiServiceImpl struct {
 	infraProvider                infraProviders.InfraProvider
 	ciCdPipelineOrchestrator     CiCdPipelineOrchestrator
 	buildxCacheFlags             *BuildxCacheFlags
+	attributeService             attributes.AttributesService
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -111,7 +115,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	pluginInputVariableParser PluginInputVariableParser,
 	globalPluginService plugin.GlobalPluginService,
 	infraProvider infraProviders.InfraProvider,
-	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
+	ciCdPipelineOrchestrator CiCdPipelineOrchestrator, attributeService attributes.AttributesService,
 ) *CiServiceImpl {
 	buildxCacheFlags := &BuildxCacheFlags{}
 	err := env.Parse(buildxCacheFlags)
@@ -140,6 +144,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		infraProvider:                infraProvider,
 		ciCdPipelineOrchestrator:     ciCdPipelineOrchestrator,
 		buildxCacheFlags:             buildxCacheFlags,
+		attributeService:             attributeService,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -219,6 +224,7 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 				impl.Logger.Errorw("ci artifact already exists  with same digest", "artifact", externalCiArtifact)
 				return fmt.Errorf("ci artifact already exists  with same digest")
 			}
+
 		}
 
 	}
@@ -235,6 +241,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	if err != nil {
 		return 0, err
 	}
+
 	ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(trigger.PipelineId)
 	if err != nil && !util.IsErrNoRows(err) {
 		return 0, err
@@ -317,7 +324,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	}
 	err = impl.handleRuntimeParamsValidations(trigger, ciMaterials, workflowRequest)
 	if err != nil {
-		savedCiWf.Status = pipelineConfig.WorkflowAborted
+		savedCiWf.Status = cdWorkflow.WorkflowAborted
 		savedCiWf.Message = err.Error()
 		err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedCiWf)
 		if err1 != nil {
@@ -446,7 +453,7 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 
 	ciWorkflow := &pipelineConfig.CiWorkflow{
 		Name:                  pipeline.Name + "-" + strconv.Itoa(pipeline.Id),
-		Status:                pipelineConfig.WorkflowStarting, // starting CIStage
+		Status:                cdWorkflow.WorkflowStarting, // starting CIStage
 		Message:               "",
 		StartedOn:             time.Now(),
 		CiPipelineId:          pipeline.Id,
@@ -592,7 +599,11 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		impl.Logger.Errorw("error in getting infra configuration using scope ", "ciPipelineId", pipeline.Id, "scope", infraConfigScope, "err", err)
 		return nil, err
 	}
-
+	host, err := impl.attributeService.GetByKey(bean4.HostUrlKey)
+	if err != nil {
+		impl.Logger.Errorw("error in getting host url", "err", err, "hostUrl", host.Value)
+		return nil, err
+	}
 	if ciWorkflowConfig.CiCacheBucket == "" {
 		ciWorkflowConfig.CiCacheBucket = impl.config.DefaultCacheBucket
 	}
@@ -620,7 +631,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	if pipeline.CiTemplate.DockerBuildOptions == "" {
 		pipeline.CiTemplate.DockerBuildOptions = "{}"
 	}
-	userEmailId, err := impl.userService.GetEmailById(trigger.TriggeredBy)
+	userEmailId, err := impl.userService.GetActiveEmailById(trigger.TriggeredBy)
 	if err != nil {
 		impl.Logger.Errorw("unable to find user email by id", "err", err, "id", trigger.TriggeredBy)
 		return nil, err
@@ -674,7 +685,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		imagePathReservation, err := impl.customTagService.GenerateImagePath(pipelineConfigBean.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id), dockerRegistry.RegistryURL, dockerRepository)
 		if err != nil {
 			if errors.Is(err, pipelineConfigBean.ErrImagePathInUse) {
-				savedWf.Status = pipelineConfig.WorkflowFailed
+				savedWf.Status = cdWorkflow.WorkflowFailed
 				savedWf.Message = pipelineConfigBean.ImageTagUnavailableMessage
 				err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
 				if err1 != nil {
@@ -708,7 +719,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			dockerRegistry.Id)
 		if err != nil {
 			impl.Logger.Errorw("error in getting env variables for copyContainerImage plugin")
-			savedWf.Status = pipelineConfig.WorkflowFailed
+			savedWf.Status = cdWorkflow.WorkflowFailed
 			savedWf.Message = err.Error()
 			err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
 			if err1 != nil {
@@ -793,6 +804,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ExtraEnvironmentVariables:   trigger.ExtraEnvironmentVariables,
 		EnableBuildContext:          impl.config.EnableBuildContext,
 		OrchestratorHost:            impl.config.OrchestratorHost,
+		HostUrl:                     host.Value,
 		OrchestratorToken:           impl.config.OrchestratorToken,
 		ImageRetryCount:             impl.config.ImageRetryCount,
 		ImageRetryInterval:          impl.config.ImageRetryInterval,
