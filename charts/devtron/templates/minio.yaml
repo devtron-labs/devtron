@@ -259,7 +259,7 @@ spec:
         app: minio
         release: {{ $.Release.Name }}
     spec:
-      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.minio.nodeSelector "tolerations" $.Values.minio.tolerations "imagePullSecrets" $.Values.minio.imagePullSecrets "global" $.Values.global "imagePullSecret" $.Values.imagePullSecret ) | indent 6 }}
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.minio.nodeSelector "tolerations" $.Values.minio.tolerations "imagePullSecrets" $.Values.minio.imagePullSecrets "global" $.Values.global ) | indent 6 }}
       serviceAccountName: "devtron-minio"
       securityContext:
         runAsUser: 1000
