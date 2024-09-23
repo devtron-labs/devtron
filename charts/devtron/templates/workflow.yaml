@@ -45,9 +45,6 @@ metadata:
   namespace: devtroncd
   labels:
     release: devtron
-  annotations:
-    "helm.sh/resource-policy": keep
-    "helm.sh/hook": pre-install,pre-upgrade
 {{- if $.Values.components.chartSync.imagePullSecrets }}
 imagePullSecrets:
 {{ toYaml .Values.components.chartSync.imagePullSecrets | indent 2 }}
@@ -63,9 +60,6 @@ metadata:
   namespace: devtroncd
   labels:
     release: devtron
-  annotations:
-    "helm.sh/resource-policy": keep
-    "helm.sh/hook": pre-install,pre-upgrade
 {{- if $.Values.installer.modules }}
 {{- if has "cicd" $.Values.installer.modules }}
 ---
