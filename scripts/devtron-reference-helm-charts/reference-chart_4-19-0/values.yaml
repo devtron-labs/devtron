@@ -16,12 +16,11 @@ ContainerPort:
     useHTTP2: false
     supportStreaming: false
     idleTimeout: 1800s
-    protocol: TCP
-    # servicemonitor:
-    #   enabled: true
-    #   path: /abc
-    #   scheme: 'http'
-    #   interval: 30s
+#    servicemonitor:
+#      enabled: true
+#      path: /abc
+#      scheme: 'http'
+#      interval: 30s
 #      scrapeTimeout: 20s
 #      metricRelabelings:
 #        - sourceLabels: [namespace]
@@ -39,15 +38,10 @@ waitForSecondsBeforeScalingDown: 30
 autoPromotionSeconds: 30
 
 Spec:
- Affinity: #required/preferred
-  Key: 
+ Affinity:
+  Key:
 #  Key: kops.k8s.io/instancegroup 
-  Values: 
-
-
-affinity:
-  enabled: false
-  values: {}  
+  Values:
 
 
 image:
@@ -59,15 +53,11 @@ autoscaling:
   enabled: false
   MinReplicas: 1
   MaxReplicas: 2
-  TargetCPUUtilizationPercentage: 70
-  TargetMemoryUtilizationPercentage: 80
+  # TargetCPUUtilizationPercentage: 90
+  # TargetMemoryUtilizationPercentage: 80
   annotations: {}
   labels: {}
   behavior: {}
-  containerResource:
-    enable: false
-    TargetCPUUtilizationPercentage: 90
-    TargetMemoryUtilizationPercentage: 80  
 #    scaleDown:
 #      stabilizationWindowSeconds: 300
 #      policies:
@@ -132,10 +122,6 @@ service:
   annotations: {}
     # test1: test2
     # test3: test4
-  sessionAffinity:
-    enabled: false
-  sessionAffinityConfig: {}
-   
 
 server:
  deployment:
@@ -161,27 +147,25 @@ EnvVariablesFromConfigMapKeys: []
   #   keyName: CONFIG_MAP_KEY
 
 LivenessProbe:
-  Path: ""
+  Path: /
   port: 8080
   initialDelaySeconds: 20
   periodSeconds: 10
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
-  scheme: ""
   httpHeaders: []
 #    - name: Custom-Header
 #      value: abc
 
 ReadinessProbe:
-  Path: ""
+  Path: /
   port: 8080
   initialDelaySeconds: 20
   periodSeconds: 10
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
-  scheme: ""
   httpHeaders: []
 #    - name: Custom-Header
 #      value: abc
@@ -449,6 +433,9 @@ ConfigSecrets:
 initContainers: []
   ## Additional init containers to run before the Scheduler pods.
   ## for example, be used to run a sidecar that chown Logs storage .
+  # - name: volume-mount-hack
+  #   image: busybox
+  #   command: ["sh", "-c", "chown -R 1000:1000 logs"]
   #   volumeMounts:
   #    - mountPath: /usr/local/airflow/logs
   #      name: logs-data
@@ -459,17 +446,12 @@ initContainers: []
 containers: []
   ## Additional init containers to run before the Scheduler pods.
   ## for example, be used to run a sidecar that chown Logs storage .
-#  - name: volume-mount-hack
-#    image: busybox
-#    command: ["sh", "-c", "chown -R 1000:1000 logs"]
-#    volumeMounts:
-#      - mountPath: /usr/local/airflow/logs
-#        name: logs-data
-#    resizePolicy:
-#     - resourceName: cpu
-#       restartPolicy: NotRequired
-#     - resourceName: memory
-#       restartPolicy: RestartContainer       
+  #- name: volume-mount-hack
+  #  image: busybox
+  #  command: ["sh", "-c", "chown -R 1000:1000 logs"]
+  #  volumeMounts:
+  #    - mountPath: /usr/local/airflow/logs
+  #      name: logs-data
 
 
 rawYaml: []
@@ -520,13 +502,16 @@ winterSoldier:
   # timeRanges: []
   action: sleep
   targetReplicas: []
-  fieldSelector: [] 
+  fieldSelector: []
   type: Rollout
   # - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
 
 topologySpreadConstraints: []
-
-schedulerName: ""
+  # - maxSkew: 1
+  #   topologyKey: zone
+  #   whenUnsatisfiable: DoNotSchedule
+  #   autoLabelSelector: true
+  #   customLabelSelector: {}
 
 envoyproxy:
  image: docker.io/envoyproxy/envoy:v1.16.0
@@ -626,16 +611,3 @@ tolerations: []
 imagePullSecrets: []
   # - test1
   # - test2
-
-
-persistentVolumeClaim: {}
-
-  
-resizePolicy:
-    - resourceName: cpu
-      restartPolicy: NotRequired
-    - resourceName: memory
-      restartPolicy: RestartContainer
-
-verticalPodScaling:
-  enabled: false

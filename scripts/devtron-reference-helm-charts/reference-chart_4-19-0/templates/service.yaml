@@ -39,7 +39,7 @@ spec:
       {{- if (and (eq $.Values.service.type "NodePort") .nodePort )}}
       nodePort: {{ .nodePort }}
       {{- end }}
-      protocol: {{ .protocol }}
+      protocol: TCP
       name: {{ .name }}
     {{- end }}
       {{- if $.Values.appMetrics }}
@@ -48,16 +48,6 @@ spec:
       {{- end }}
   selector:
     app: {{ template ".Chart.Name .name" . }}
-{{- if .Values.service.sessionAffinity.enabled }}    
-  sessionAffinity: ClientIP
-{{- end }}   
-{{- if .Values.service.sessionAffinityConfig }}    
-  sessionAffinityConfig:
-{{ toYaml .Values.service.sessionAffinityConfig | indent 4 }}  
-{{- end }}  
-
-     
-
 {{- if eq .Values.deploymentType "BLUE-GREEN" }}
 ---
 apiVersion: v1
