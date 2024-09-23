@@ -1,9 +1,5 @@
 ## v0.7.2
 
-
-
-## v0.7.2
-
 ## Bugs
 - fix: error in enable change ci  (#5358)
 - fix: ci patch rbac fixes (#5461)
