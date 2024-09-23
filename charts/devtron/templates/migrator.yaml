@@ -385,7 +385,6 @@ spec:
   template:
     spec:
       {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.migrator.nodeSelector "tolerations" $.Values.components.migrator.tolerations "imagePullSecrets" $.Values.components.migrator.imagePullSecrets "global" $.Values.global) | indent 6 }}
-      serviceAccountName: devtron-default-sa
       securityContext:
         fsGroup: 1000
         runAsGroup: 1000
