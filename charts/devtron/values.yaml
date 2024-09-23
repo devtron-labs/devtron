@@ -60,7 +60,7 @@ components:
         ENABLE_CI_JOB: "true"
         GLOBAL_API_TIMEOUT: "60000"
         TRIGGER_API_TIMEOUT: "60000"
-        ENABLE_EXTERNAL_ARGO_CD: "false"
+        ENABLE_EXTERNAL_ARGO_CD: "true"
         SERVICE_WORKER_TIMEOUT: "1"
         API_BATCH_SIZE: "30"
         FEATURE_EXTERNAL_FLUX_CD_ENABLE: "true"
