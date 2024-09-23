@@ -252,6 +252,7 @@ message  HelmAppDeploymentDetail {
   google.protobuf.Timestamp deployedAt = 4;
   string deployedBy = 5;
   string status = 6;
+  string message = 7;
 }
 
 message HelmAppDeploymentHistory {

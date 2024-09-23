@@ -39,6 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	repository4 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -355,7 +356,7 @@ func (impl *TriggerServiceImpl) validateDeploymentTriggerRequest(ctx context.Con
 
 	if isVulnerable == true {
 		// if image vulnerable, update timeline status and return
-		if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(pipelineConfig.FOUND_VULNERABILITY), triggeredBy); err != nil {
+		if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(cdWorkflow.FOUND_VULNERABILITY), triggeredBy); err != nil {
 			impl.logger.Errorw("error while updating current runner status to failed, TriggerDeployment", "wfrId", runner.Id, "err", err)
 		}
 		return fmt.Errorf("found vulnerability for image digest %s", imageDigest)
@@ -442,8 +443,8 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		runner := &pipelineConfig.CdWorkflowRunner{
 			Name:         cdPipeline.Name,
 			WorkflowType: bean3.CD_WORKFLOW_TYPE_DEPLOY,
-			ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-			Status:       pipelineConfig.WorkflowInitiated, //deployment Initiated for manual trigger
+			ExecutorType: cdWorkflow.WORKFLOW_EXECUTOR_TYPE_AWF,
+			Status:       cdWorkflow.WorkflowInitiated, //deployment Initiated for manual trigger
 			TriggeredBy:  overrideRequest.UserId,
 			StartedOn:    triggeredAt,
 			Namespace:    impl.config.GetDefaultNamespace(),
@@ -585,8 +586,8 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	runner := &pipelineConfig.CdWorkflowRunner{
 		Name:         pipeline.Name,
 		WorkflowType: bean3.CD_WORKFLOW_TYPE_DEPLOY,
-		ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM,
-		Status:       pipelineConfig.WorkflowInitiated, // deployment Initiated for auto trigger
+		ExecutorType: cdWorkflow.WORKFLOW_EXECUTOR_TYPE_SYSTEM,
+		Status:       cdWorkflow.WorkflowInitiated, // deployment Initiated for auto trigger
 		TriggeredBy:  1,
 		StartedOn:    triggeredAt,
 		Namespace:    impl.config.GetDefaultNamespace(),
@@ -826,7 +827,7 @@ func (impl *TriggerServiceImpl) performGitOps(ctx context.Context,
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.performGitOps")
 	defer span.End()
 	// update workflow runner status, used in app workflow view
-	err := impl.cdWorkflowCommonService.UpdateNonTerminalStatusInRunner(newCtx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowInProgress)
+	err := impl.cdWorkflowCommonService.UpdateNonTerminalStatusInRunner(newCtx, overrideRequest.WfrId, overrideRequest.UserId, cdWorkflow.WorkflowInProgress)
 	if err != nil {
 		impl.logger.Errorw("error in updating the workflow runner status", "err", err)
 		return err
@@ -1069,7 +1070,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 			if err != nil {
 				impl.logger.Errorw("error in updating helm application for cd pipelineModel", "err", err)
 				if util.IsErrorContextCancelled(err) {
-					return false, pipelineConfig.ErrorDeploymentSuperseded
+					return false, cdWorkflow.ErrorDeploymentSuperseded
 				} else if util.IsErrorContextDeadlineExceeded(err) {
 					return false, context.DeadlineExceeded
 				}
@@ -1104,7 +1105,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 					impl.logger.Errorw("failed to update deployment app created flag in pipelineModel table", "err", err)
 				}
 				if util.IsErrorContextCancelled(err) {
-					return false, pipelineConfig.ErrorDeploymentSuperseded
+					return false, cdWorkflow.ErrorDeploymentSuperseded
 				} else if util.IsErrorContextDeadlineExceeded(err) {
 					return false, context.DeadlineExceeded
 				}
@@ -1124,7 +1125,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 		}
 
 		//update workflow runner status, used in app workflow view
-		err := impl.cdWorkflowCommonService.UpdateNonTerminalStatusInRunner(newCtx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowInProgress)
+		err := impl.cdWorkflowCommonService.UpdateNonTerminalStatusInRunner(newCtx, overrideRequest.WfrId, overrideRequest.UserId, cdWorkflow.WorkflowInProgress)
 		if err != nil {
 			impl.logger.Errorw("error in updating the workflow runner status, createHelmAppForCdPipeline", "err", err)
 			return false, err
@@ -1467,13 +1468,13 @@ func (impl *TriggerServiceImpl) handleCustomGitOpsRepoValidation(runner *pipelin
 		//	return err
 		//}
 		if gitOps.IsGitOpsRepoNotConfigured(envDeploymentConfig.RepoURL) {
-			if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(pipelineConfig.GITOPS_REPO_NOT_CONFIGURED), triggeredBy); err != nil {
+			if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(cdWorkflow.GITOPS_REPO_NOT_CONFIGURED), triggeredBy); err != nil {
 				impl.logger.Errorw("error while updating current runner status to failed, TriggerDeployment", "wfrId", runner.Id, "err", err)
 			}
 			apiErr := &util.ApiError{
 				HttpStatusCode:  http.StatusConflict,
-				UserMessage:     pipelineConfig.GITOPS_REPO_NOT_CONFIGURED,
-				InternalMessage: pipelineConfig.GITOPS_REPO_NOT_CONFIGURED,
+				UserMessage:     cdWorkflow.GITOPS_REPO_NOT_CONFIGURED,
+				InternalMessage: cdWorkflow.GITOPS_REPO_NOT_CONFIGURED,
 			}
 			return apiErr
 		}

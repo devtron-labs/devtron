@@ -58,6 +58,11 @@ type InstalledAppDBService interface {
 	GetReleaseInfo(appIdentifier *helmBean.AppIdentifier) (*appStoreBean.InstallAppVersionDTO, error)
 	IsExternalAppLinkedToChartStore(appId int) (bool, []*appStoreRepo.InstalledApps, error)
 	CreateNewAppEntryForAllInstalledApps(installedApps []*appStoreRepo.InstalledApps) error
+
+	// MarkInstalledAppVersionsInactiveByInstalledAppId will mark the repository.InstalledAppVersions inactive for the given InstalledAppId
+	MarkInstalledAppVersionsInactiveByInstalledAppId(installedAppId int, UserId int32, tx *pg.Tx) error
+	// MarkInstalledAppVersionModelInActive will mark the given repository.InstalledAppVersions inactive
+	MarkInstalledAppVersionModelInActive(installedAppVersionModel *appStoreRepo.InstalledAppVersions, UserId int32, tx *pg.Tx) error
 }
 
 type InstalledAppDBServiceImpl struct {
@@ -396,6 +401,17 @@ func (impl *InstalledAppDBServiceImpl) CreateNewAppEntryForAllInstalledApps(inst
 	if err != nil {
 		return err
 	}
+	currApp, err := impl.AppRepository.FindById(installedApps[0].AppId)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching app by id", "appId", currApp.Id, "err", err)
+		return err
+	}
+	currApp.Active = false
+	err = impl.AppRepository.UpdateWithTxn(currApp, tx)
+	if err != nil {
+		impl.Logger.Errorw("error in marking current app inactive while creating new apps", "currentAppId", currApp.Id, "err", err)
+		return err
+	}
 	// Rollback tx on error.
 	defer tx.Rollback()
 	for _, installedApp := range installedApps {
@@ -435,5 +451,26 @@ func (impl *InstalledAppDBServiceImpl) CreateNewAppEntryForAllInstalledApps(inst
 	}
 
 	tx.Commit()
+	return nil
+}
+
+func (impl *InstalledAppDBServiceImpl) MarkInstalledAppVersionsInactiveByInstalledAppId(installedAppId int, userId int32, tx *pg.Tx) error {
+	rowsUpdated, err := impl.InstalledAppRepository.DeleteInstalledAppVersions(tx, installedAppId, userId)
+	if err != nil {
+		impl.Logger.Errorw("error while update installed chart", "installedAppId", installedAppId, "error", err)
+		return err
+	}
+	impl.Logger.Debugw("successfully deleted installed app versions", "rowsUpdated", rowsUpdated, "installedAppId", installedAppId)
+	return nil
+}
+
+func (impl *InstalledAppDBServiceImpl) MarkInstalledAppVersionModelInActive(installedAppVersionModel *appStoreRepo.InstalledAppVersions, UserId int32, tx *pg.Tx) error {
+	installedAppVersionModel.MarkInActive()
+	installedAppVersionModel.UpdateAuditLog(UserId)
+	_, err := impl.InstalledAppRepository.UpdateInstalledAppVersion(installedAppVersionModel, tx)
+	if err != nil {
+		impl.Logger.Errorw("error while fetching from db", "error", err)
+		return err
+	}
 	return nil
 }
