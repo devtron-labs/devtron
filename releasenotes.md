@@ -58,7 +58,6 @@
 - feat: support for handling hibernation and un-hibernation for keda enabled (#5431)
 - feat: Async ArgoCd App refresh operation (#5448)
 - feat: deployment config migration (#5368)
-- feat: External Ci with Job giving run time param externalCiArtifact (#5514)
 - feat: Skipping falg based CMCS for Ci Job  (#5536)
 - feat: expose git commit data as env vars for ci stage (#5534)
 - feat: Defining applications as part of release track (#5489)
