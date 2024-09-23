@@ -9,7 +9,6 @@ metadata:
   namespace: devtroncd
   labels:
     app: scoop
-    release: devtron
 spec:
   minReadySeconds: 60
   progressDeadlineSeconds: 600
@@ -18,7 +17,6 @@ spec:
   selector:
     matchLabels:
       app: scoop
-      release: devtron
   strategy:
     rollingUpdate:
       maxSurge: 25%
@@ -28,7 +26,6 @@ spec:
     metadata:
       labels:
         app: scoop
-        release: devtron
     spec:
       {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.devtronEnterprise.scoop.nodeSelector "tolerations" $.Values.devtronEnterprise.scoop.tolerations "imagePullSecrets" $.Values.devtronEnterprise.scoop.imagePullSecrets "global" $.Values.global) | indent 6 }}
       terminationGracePeriodSeconds: 30
@@ -77,7 +74,6 @@ kind: Service
 metadata:
   labels:
     app: scoop
-    release: devtron
   name: scoop-service
   namespace: devtroncd
 spec:
@@ -98,7 +94,6 @@ kind: ConfigMap
 metadata:
   labels:
     app: scoop
-    release: devtron
   name: scoop-cm
   namespace: devtroncd
 {{- if .configs }}
@@ -167,7 +162,7 @@ metadata:
   name: sa-scoop
   namespace: devtroncd
   labels:
-    release: devtron
+    app: scoop
   annotations:
     "helm.sh/resource-policy": keep
 {{- end }}
