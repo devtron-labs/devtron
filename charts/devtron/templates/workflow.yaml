@@ -48,9 +48,9 @@ metadata:
   annotations:
     "helm.sh/resource-policy": keep
     "helm.sh/hook": pre-install,pre-upgrade
-{{- if $.Values.components.migrator.imagePullSecrets }}
+{{- if $.Values.components.chartSync.imagePullSecrets }}
 imagePullSecrets:
-{{ toYaml .Values.components.migrator.imagePullSecrets | indent 2 }}
+{{ toYaml .Values.components.chartSync.imagePullSecrets | indent 2 }}
 {{- else if $.Values.global.imagePullSecrets }}
 imagePullSecrets:
 {{ toYaml .Values.global.imagePullSecrets | indent 2 }}
