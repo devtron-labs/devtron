@@ -25,6 +25,7 @@ import (
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
 	bean6 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/bean"
@@ -114,7 +115,7 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 	// handling copyContainerImage plugin specific logic
 	imagePathReservationIds, err := impl.setCopyContainerImagePluginDataAndReserveImages(cdStageWorkflowRequest, pipeline.Id, types.PRE, artifact)
 	if err != nil {
-		runner.Status = pipelineConfig.WorkflowFailed
+		runner.Status = cdWorkflow.WorkflowFailed
 		runner.Message = err.Error()
 		_ = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 		return err
@@ -167,7 +168,7 @@ func (impl *TriggerServiceImpl) createStartingWfAndRunner(request bean.TriggerRe
 		Name:                  pipeline.Name,
 		WorkflowType:          request.WorkflowType,
 		ExecutorType:          impl.config.GetWorkflowExecutorType(),
-		Status:                pipelineConfig.WorkflowStarting, // starting PreStage
+		Status:                cdWorkflow.WorkflowStarting, // starting PreStage
 		TriggeredBy:           triggeredBy,
 		StartedOn:             triggeredAt,
 		Namespace:             request.RunStageInEnvNamespace,
@@ -223,8 +224,8 @@ func (impl *TriggerServiceImpl) checkVulnerabilityStatusAndFailWfIfNeeded(ctx co
 	}
 	if isVulnerable {
 		// if image vulnerable, update timeline status and return
-		runner.Status = pipelineConfig.WorkflowFailed
-		runner.Message = pipelineConfig.FOUND_VULNERABILITY
+		runner.Status = cdWorkflow.WorkflowFailed
+		runner.Message = cdWorkflow.FOUND_VULNERABILITY
 		runner.FinishedOn = time.Now()
 		runner.UpdatedOn = time.Now()
 		runner.UpdatedBy = triggeredBy
@@ -921,7 +922,7 @@ func (impl *TriggerServiceImpl) getDeployStageDetails(pipelineId int) (pipelineC
 		impl.logger.Errorw("error in getting latest status of deploy type wfr by pipelineId", "err", err, "pipelineId", pipelineId)
 		return deployStageWfr, "", 0, err
 	}
-	deployStageTriggeredByUserEmail, err := impl.userService.GetEmailById(deployStageWfr.TriggeredBy)
+	deployStageTriggeredByUserEmail, err := impl.userService.GetActiveEmailById(deployStageWfr.TriggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error in getting user email by id", "err", err, "userId", deployStageWfr.TriggeredBy)
 		return deployStageWfr, "", 0, err

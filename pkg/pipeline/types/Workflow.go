@@ -26,6 +26,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
@@ -127,7 +128,7 @@ type WorkflowRequest struct {
 	DeploymentTriggeredBy       string                               `json:"deploymentTriggeredBy,omitempty"`
 	DeploymentTriggerTime       time.Time                            `json:"deploymentTriggerTime,omitempty"`
 	DeploymentReleaseCounter    int                                  `json:"deploymentReleaseCounter,omitempty"`
-	WorkflowExecutor            pipelineConfig.WorkflowExecutorType  `json:"workflowExecutor"`
+	WorkflowExecutor            cdWorkflow.WorkflowExecutorType      `json:"workflowExecutor"`
 	PrePostDeploySteps          []*bean.StepObject                   `json:"prePostDeploySteps"`
 	CiArtifactLastFetch         time.Time                            `json:"ciArtifactLastFetch"`
 	CiPipelineType              string                               `json:"ciPipelineType"`
@@ -314,7 +315,7 @@ func (workflowRequest *WorkflowRequest) getBlobStorageLogsPrefix() string {
 
 func (workflowRequest *WorkflowRequest) updateBlobStorageLogsKey(config *CiCdConfig) {
 	workflowRequest.BlobStorageLogsKey = fmt.Sprintf("%s/%s", workflowRequest.getDefaultBuildLogsKeyPrefix(config), workflowRequest.getBlobStorageLogsPrefix())
-	workflowRequest.InAppLoggingEnabled = config.InAppLoggingEnabled || (workflowRequest.WorkflowExecutor == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM)
+	workflowRequest.InAppLoggingEnabled = config.InAppLoggingEnabled || (workflowRequest.WorkflowExecutor == cdWorkflow.WORKFLOW_EXECUTOR_TYPE_SYSTEM)
 }
 
 func (workflowRequest *WorkflowRequest) getWorkflowJson() ([]byte, error) {

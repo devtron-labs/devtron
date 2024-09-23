@@ -24,7 +24,7 @@ import (
 	"github.com/argoproj/argo-workflows/v3/workflow/util"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
@@ -46,11 +46,11 @@ import (
 type WorkflowService interface {
 	SubmitWorkflow(workflowRequest *types.WorkflowRequest) (*unstructured.UnstructuredList, error)
 	// DeleteWorkflow(wfName string, namespace string) error
-	GetWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*unstructured.UnstructuredList, error)
-	GetWorkflowStatus(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*types.WorkflowStatus, error)
+	GetWorkflow(executorType cdWorkflow.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*unstructured.UnstructuredList, error)
+	GetWorkflowStatus(executorType cdWorkflow.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*types.WorkflowStatus, error)
 	// ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
 	// UpdateWorkflow(wf *v1alpha1.Workflow) (*v1alpha1.Workflow, error)
-	TerminateWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config, isExt bool, environment *repository.Environment) error
+	TerminateWorkflow(executorType cdWorkflow.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config, isExt bool, environment *repository.Environment) error
 }
 
 type WorkflowServiceImpl struct {
@@ -317,16 +317,16 @@ func (impl *WorkflowServiceImpl) getAppLabelNodeSelector(workflowRequest *types.
 	return nil
 }
 
-func (impl *WorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig.WorkflowExecutorType) executors.WorkflowExecutor {
-	if executorType == "" || executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF {
+func (impl *WorkflowServiceImpl) getWorkflowExecutor(executorType cdWorkflow.WorkflowExecutorType) executors.WorkflowExecutor {
+	if executorType == "" || executorType == cdWorkflow.WORKFLOW_EXECUTOR_TYPE_AWF {
 		return impl.argoWorkflowExecutor
-	} else if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
+	} else if executorType == cdWorkflow.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
 		return impl.systemWorkflowExecutor
 	}
 	impl.Logger.Warnw("workflow executor not found", "type", executorType)
 	return nil
 }
-func (impl *WorkflowServiceImpl) GetWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*unstructured.UnstructuredList, error) {
+func (impl *WorkflowServiceImpl) GetWorkflow(executorType cdWorkflow.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*unstructured.UnstructuredList, error) {
 	impl.Logger.Debug("getting wf", name)
 	workflowExecutor := impl.getWorkflowExecutor(executorType)
 	if workflowExecutor == nil {
@@ -338,7 +338,7 @@ func (impl *WorkflowServiceImpl) GetWorkflow(executorType pipelineConfig.Workflo
 	return workflowExecutor.GetWorkflow(name, namespace, restConfig)
 }
 
-func (impl *WorkflowServiceImpl) GetWorkflowStatus(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*types.WorkflowStatus, error) {
+func (impl *WorkflowServiceImpl) GetWorkflowStatus(executorType cdWorkflow.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*types.WorkflowStatus, error) {
 	impl.Logger.Debug("getting wf", name)
 	workflowExecutor := impl.getWorkflowExecutor(executorType)
 	if workflowExecutor == nil {
@@ -351,7 +351,7 @@ func (impl *WorkflowServiceImpl) GetWorkflowStatus(executorType pipelineConfig.W
 	return wfStatus, err
 }
 
-func (impl *WorkflowServiceImpl) TerminateWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config, isExt bool, environment *repository.Environment) error {
+func (impl *WorkflowServiceImpl) TerminateWorkflow(executorType cdWorkflow.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config, isExt bool, environment *repository.Environment) error {
 	impl.Logger.Debugw("terminating wf", "name", name)
 	var err error
 	if executorType != "" {
