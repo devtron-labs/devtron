@@ -19,6 +19,10 @@ func NewNoopUserService(logger *zap.SugaredLogger) *NoopUserService {
 	}
 }
 
+func (impl NoopUserService) GetActiveEmailById(userId int32) (string, error) {
+	return impl.GetEmailById(userId)
+}
+
 func (impl NoopUserService) SelfRegisterUserIfNotExists(userInfo *bean.UserInfo) ([]*bean.UserInfo, error) {
 	return nil, nil
 }
@@ -53,7 +57,7 @@ func (impl NoopUserService) GetEmailAndVersionFromToken(token string) (string, s
 }
 
 func (impl NoopUserService) GetEmailById(userId int32) (string, error) {
-	return bean2.SystemUser, nil
+	return bean2.AdminUser, nil
 }
 
 func (impl NoopUserService) GetLoggedInUser(r *http.Request) (int32, error) {
