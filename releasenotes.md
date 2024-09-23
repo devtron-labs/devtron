@@ -1,305 +1,128 @@
 ## v0.7.2
 
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
-
-
-## v0.7.2-rc.0
-
 ## Bugs
+- fix: switch ci fixes (#5358)
+- fix: ci patch rbac fixes (#5461)
+- fix: bitbucket commit race condition for concurrent requests (#5505)
+- fix: handle nil check image scanning (#5497)
+- fix: hotfix v0.14.0 fixes (#5500)
+- fix: autoscale error handling (#5481)
+- fix: ci material update fixes for linked ci pipelines (#5523)
+- fix: Unable to get HPA manifest for no-gitops deployment (#5522)
+- fix: Deployment stuck in starting for no-gitops based pipelines (#5526)
+- fix: panic handling for deleted app in app group and env group filters (#5541)
+- fix: security time fix when scanning is passed (#5549)
+- fix: query optimisations (#5558)
+- fix: version and fixed_version in image scan result table (#5552)
+- fix: add if not exists in migration script for avoiding any errors while rerunning scripts (#5579)
+- fix: resource-browser-shortnames (#5573)
+- fix: tls enabled flag not getting passed (#5609)
+- fix: reverting acd token fetch logic (#5614)
+- fix: query optimisations for app group cd listing and ci pipeline blockage state (#5641)
+- fix: dependabot security updates (#5608)
+- fix: default PipelineType given (#5668)
+- fix: validation in CiJob for external Artifact (#5669)
+- fix: nil check for ciBaseBuildConfigBean (#5670)
+- fix: updated common lib (#5675)
+- fix: for concurrent read and write and in buildInformerAndNamespaceList (#5671)
+- fix: Sql query optimisation for application group app status listing (#5672)
+- fix: handling for HPA (autoscaling) (#5666)
+- fix: refrain from checkin autoscalingCheckBeforeTrigger for virt clus (#5696)
+- fix: Decode secret fix on add update oss (#5695)
+- fix: saving pco concurrency case handled (#5688)
+- fix: script for pipelineStageStepVariable, making input value and default_value text from varchar255 (#5701)
+- fix: ea fixes for helm app (#5708)
+- fix: SkipCiBuildCachePushPull code incorporated with minor refac in handle runtime params validation (#5712)
+- fix: migration syn with ent (#5718)
+- fix: ci patch rbac for branch update (#5759)
+- fix: Bitnami chart repo tls issue (#5740)
+- fix: check rbac on env if envName is present (#5765)
+- fix: scan tool active check removed (#5771)
+- fix: panic handlings and argocd app delete stuck in partial stage (#5770)
+- fix: unimplemented cluster cron service (#5781)
+- fix: sql injection fixes (#5783)
+- fix: Sql injection fix (#5801)
+- fix: upgraded to /argo-cd/v2 v2.9.21 (#5758)
+- fix: Ea rbac fixes (#5813)
+- fix: scan list in global security page sql injection fix (#5808)
+- fix: app details page (#5823)
+- fix: plugin ip variables value getting changed (#5844)
+- fix: ignore kubelink errors in server startup (#5852) (#5854)
+- fix: fixed user rbac flows (#5804)
+- fix: pg multiple rows in EA mode (cherry pick ref - #5865) (#5869)
+- fix: app overview panic for helm app (#5863)
+- fix: oss-issues-on app detail page (#5873)
+- fix: copy container image (#5876)
+- fix: create GitOps configuration issue (#5883)
 ## Enhancements
 - feat: support for handling hibernation and un-hibernation for keda enabled (#5431)
+- feat: Async ArgoCd App refresh operation (#5448)
+- feat: deployment config migration (#5368)
+- feat: External Ci with Job giving run time param externalCiArtifact (#5514)
+- feat: Skipping falg based CMCS for Ci Job  (#5536)
+- feat: expose git commit data as env vars for ci stage (#5534)
+- feat: Feature release v5 (#5489)
+- feat: gitlab webhook support (#5420)
+- feat: feature flag BuildxCacheModeMin and AsyncBuildxCacheExport (#5307)
+- feat: bug fix for picking wrong values in docker arguments (#5565)
+- feat: ext argo router in ea mode (#5585)
+- feat: plugin versioning feature (#5352)
+- feat: service account in chart sync (#5584)
+- feat: panic in sync pod cron and terminal not opening fix (#5603)
+- feat: tls support for git and gitops (#5305)
+- feat: system network controller sql script (#5637)
+- feat: skip argowf logs from ci logs (#5646)
+- feat: gitops support for oci repositories (#5577)
+- feat: ext argo app rbac and missing common features and flux app listing and details with rbac (#5528)
+- feat: expose git ops metrics (#5582)
+- feat: Generate config and secret hash for application mounting external k8s secrets (#5626)
+- feat: Env description handling (#5744)
+- feat: Added basic auth support for servicemonitor (#5761)
+- feat: Docker pull env driven (#5767)
+- feat: plugin creation support (#5630)
+- feat: Added multiple features support in servicemonitor (#5789)
 ## Documentation
+- doc: Added FAQ no. 28 + GoLang-migrate Link + Code Block Fix (#5502)
+- docs: Drafted Software Distribution Hub (#5459)
+- doc: Created Image Label + Comments Doc (#5314)
+- doc: FAQ added for Bitnami Charts (#5545)
+- doc: Added Keycloak SSO Doc (#5571)
+- doc: Code scan plugin docs (#5562)
+- docs: jenkins-plugin (#5542)
+- doc: Copacetic plugin docs (#5564)
+- doc: Pull images from container repository (#5563)
+- doc: Collated Doc Fixes for July (#5591)
+- doc: Drafted Schema Driven DT (#5533)
+- doc: fixes in Copacetic plugin doc (#5622)
+- doc: Edit Deployment Chart Schema (#5735)
+- doc: Redirection of old entry in gitbook.yaml (#5738)
+- docs: added Documentation for Air-Gapped Installation (#5360)
+- doc: Update prerequisites of code-scan (#5625)
+- doc: Cosign plugin doc (#5665)
+- doc: CraneCopy plugin doc (#5658)
+- doc: Devtron CD Trigger Plugin doc (#5747)
+- doc: DockerSlim plugin doc (#5660)
+- doc: Devtron Job Trigger Plugin doc (#5742)
+- doc: Vulnerability Scanning Plugin doc (#5722)
+- docs: Jira plugins doc (Validator + Updater) (#5709)
+- docs: added commands enable ingress during helm installation (#5794)
+- doc: Revamped + Restructured Ingress Setup Doc (#5798)
+- docs: modifying route in ingress doc (#5799)
+- docs: modified the anchorlink in ingress.md (#5800)
+- doc: ArgoCD + FluxCD App Listing (#5636)
+- doc: Added Special CEL Expr in Filter Condition doc (#5850)
 ## Others
-
-
+- misc: removal of azure-devops-issue-sync.yml (#5592)
+- misc: added action for discrod webhook (#5615)
+- misc: Revert "misc: added action for discrod webhook" (#5619)
+- chore: Plugin script fix oss (#5661)
+- misc: Release candidate v0.16.0 (#5687)
+- chore: migration number changes (#5692)
+- chore: ea fixes for helm app (#5713)
+- misc: Main sync rc - branch update (#5753)
+- chore: Revert "feat: plugin creation support" (#5778)
+- chore: cron status update refactoring (#5790)
+- misc: sync with common-lib changes with release candidate 18 (#5830)
+- chore: Custom tag for copy container image plugin (#5760) (#5841)
+- chore: migration number fix (#5840)
+- misc: Update CODEOWNERS (#5885)
