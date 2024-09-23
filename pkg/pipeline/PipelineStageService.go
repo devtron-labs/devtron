@@ -349,6 +349,7 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataByStepIdDeepC
 	for _, variable := range variables {
 		variableNameIdMap[variable.Id] = variable.Name
 		variableDto := &bean.StepVariableDto{
+			Id:                        variable.Id,
 			Name:                      variable.Name,
 			Format:                    variable.Format,
 			Description:               variable.Description,
@@ -2078,7 +2079,7 @@ func (impl *PipelineStageServiceImpl) BuildPluginVariableAndConditionDataForWfRe
 			variableData.VariableType = bean.VARIABLE_TYPE_VALUE
 		} else if variable.ValueType == repository2.PLUGIN_VARIABLE_VALUE_TYPE_GLOBAL {
 			variableData.VariableType = bean.VARIABLE_TYPE_REF_GLOBAL
-		} else if variable.ValueType == repository2.PLUGIN_VARIABLE_VALUE_TYPE_PREVIOUS {
+		} else if variable.ValueType == repository2.PLUGIN_VARIABLE_VALUE_TYPE_PREVIOUS && !variable.IsExposed {
 			variableData.VariableType = bean.VARIABLE_TYPE_REF_PLUGIN
 		}
 		if variable.VariableType == repository2.PLUGIN_VARIABLE_TYPE_INPUT {
