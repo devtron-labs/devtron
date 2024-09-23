@@ -9,27 +9,16 @@ import (
 )
 
 type GenericNoteHistoryFileBasedRepositoryImpl struct {
+	*sql.NoopTransactionUtilImpl
 	logger       *zap.SugaredLogger
 	dbConnection *gorm.DB
 }
 
-func NewGenericNoteHistoryFileBasedRepositoryImpl(connection *sql.SqliteConnection, logger *zap.SugaredLogger) *GenericNoteHistoryFileBasedRepositoryImpl {
+func NewGenericNoteHistoryFileBasedRepositoryImpl(connection *sql.SqliteConnection, logger *zap.SugaredLogger, transactionWrapper *sql.NoopTransactionUtilImpl) *GenericNoteHistoryFileBasedRepositoryImpl {
 	genericNoteHistory := &GenericNoteHistory{}
 	connection.Migrator.MigrateEntities(genericNoteHistory)
 	logger.Debugw("generic note history repository file based initialized")
-	return &GenericNoteHistoryFileBasedRepositoryImpl{logger, connection.DbConnection}
-}
-
-func (impl GenericNoteHistoryFileBasedRepositoryImpl) StartTx() (*pg.Tx, error) {
-	return nil, nil
-}
-
-func (impl GenericNoteHistoryFileBasedRepositoryImpl) RollbackTx(tx *pg.Tx) error {
-	return nil
-}
-
-func (impl GenericNoteHistoryFileBasedRepositoryImpl) CommitTx(tx *pg.Tx) error {
-	return nil
+	return &GenericNoteHistoryFileBasedRepositoryImpl{transactionWrapper, logger, connection.DbConnection}
 }
 
 func (impl GenericNoteHistoryFileBasedRepositoryImpl) SaveHistory(tx *pg.Tx, model *GenericNoteHistory) error {

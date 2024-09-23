@@ -29,28 +29,17 @@ type EphemeralContainerActionEntity struct {
 }
 
 type EphemeralContainerFileBasedRepositoryImpl struct {
+	*sql.NoopTransactionUtilImpl
 	logger       *zap.SugaredLogger
 	dbConnection *gorm.DB
 }
 
-func NewEphemeralContainerFileBasedRepository(connection *sql.SqliteConnection, logger *zap.SugaredLogger) *EphemeralContainerFileBasedRepositoryImpl {
+func NewEphemeralContainerFileBasedRepository(connection *sql.SqliteConnection, logger *zap.SugaredLogger, transactionWrapper *sql.NoopTransactionUtilImpl) *EphemeralContainerFileBasedRepositoryImpl {
 	ephemeralContainerEntity := &EphemeralContainerBean{}
 	ephemeralContainerActionEntity := &EphemeralContainerAction{}
 	connection.Migrator.MigrateEntities(ephemeralContainerEntity, ephemeralContainerActionEntity)
 	logger.Debugw("ephemeralContainer repository file based initialized")
-	return &EphemeralContainerFileBasedRepositoryImpl{logger, connection.DbConnection}
-}
-
-func (impl EphemeralContainerFileBasedRepositoryImpl) StartTx() (*pg.Tx, error) {
-	return nil, nil
-}
-
-func (impl EphemeralContainerFileBasedRepositoryImpl) RollbackTx(tx *pg.Tx) error {
-	return nil
-}
-
-func (impl EphemeralContainerFileBasedRepositoryImpl) CommitTx(tx *pg.Tx) error {
-	return nil
+	return &EphemeralContainerFileBasedRepositoryImpl{transactionWrapper, logger, connection.DbConnection}
 }
 
 func (impl EphemeralContainerFileBasedRepositoryImpl) SaveEphemeralContainerData(tx *pg.Tx, model *EphemeralContainerBean) error {

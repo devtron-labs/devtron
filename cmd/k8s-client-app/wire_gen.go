@@ -75,7 +75,7 @@ func InitializeApp() (*App, error) {
 	}
 	noopTransactionUtilImpl := sql.NewNoopTransactionUtilImpl()
 	genericNoteFileBasedRepositoryImpl := repository2.NewGenericNoteFileBasedRepository(sqliteConnection, sugaredLogger, noopTransactionUtilImpl)
-	genericNoteHistoryFileBasedRepositoryImpl := repository2.NewGenericNoteHistoryFileBasedRepositoryImpl(sqliteConnection, sugaredLogger)
+	genericNoteHistoryFileBasedRepositoryImpl := repository2.NewGenericNoteHistoryFileBasedRepositoryImpl(sqliteConnection, sugaredLogger, noopTransactionUtilImpl)
 	genericNoteHistoryServiceImpl := genericNotes.NewGenericNoteHistoryServiceImpl(genericNoteHistoryFileBasedRepositoryImpl, sugaredLogger)
 	genericNoteServiceImpl := genericNotes.NewGenericNoteServiceImpl(genericNoteFileBasedRepositoryImpl, genericNoteHistoryServiceImpl, noopUserService, sugaredLogger)
 	clusterDescriptionFileBasedRepositoryImpl := repository.NewClusterDescriptionFileBasedRepository(sqliteConnection, sugaredLogger)
@@ -111,7 +111,7 @@ func InitializeApp() (*App, error) {
 	k8sResourceHistoryServiceImpl := kubernetesResourceAuditLogs.NewNoopServiceImpl(sugaredLogger)
 	argoApplicationServiceImpl := argoApplication.NewNoopImpl()
 	k8sCommonServiceImpl := k8s2.NewK8sCommonServiceImpl(sugaredLogger, k8sServiceImpl, clusterServiceImpl, argoApplicationServiceImpl)
-	ephemeralContainerFileBasedRepositoryImpl := repository.NewEphemeralContainerFileBasedRepository(sqliteConnection, sugaredLogger)
+	ephemeralContainerFileBasedRepositoryImpl := repository.NewEphemeralContainerFileBasedRepository(sqliteConnection, sugaredLogger, noopTransactionUtilImpl)
 	ephemeralContainerServiceImpl := cluster.NewEphemeralContainerServiceImpl(ephemeralContainerFileBasedRepositoryImpl, sugaredLogger)
 	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(environmentServiceImpl, clusterServiceImpl, sugaredLogger, k8sServiceImpl, ephemeralContainerServiceImpl, argoApplicationServiceImpl)
 	fluxApplicationServiceImpl := fluxApplication.NewNoopImpl()

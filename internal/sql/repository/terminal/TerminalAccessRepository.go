@@ -70,9 +70,6 @@ func (impl TerminalAccessRepositoryImpl) FetchAllTemplates() ([]*models.Terminal
 	}
 
 	var templates []*models.TerminalAccessTemplates
-	if impl.dbConnection == nil {
-		return templates, nil
-	}
 	err := impl.dbConnection.
 		Model(&templates).
 		Select()
@@ -119,9 +116,6 @@ func (impl TerminalAccessRepositoryImpl) UpdateUserTerminalStatus(id int, status
 
 func (impl TerminalAccessRepositoryImpl) GetAllRunningUserTerminalData() ([]*models.UserTerminalAccessData, error) {
 	var accessDataArray []*models.UserTerminalAccessData
-	if impl.dbConnection == nil {
-		return accessDataArray, nil
-	}
 	err := impl.dbConnection.Model(&accessDataArray).
 		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
 			query = query.WhereOr("status = ?", string(models.TerminalPodRunning)).WhereOr("status = ?", string(models.TerminalPodStarting))

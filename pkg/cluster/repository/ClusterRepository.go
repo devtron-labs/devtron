@@ -123,9 +123,6 @@ func (impl ClusterRepositoryImpl) FindActiveClusters() ([]Cluster, error) {
 
 func (impl ClusterRepositoryImpl) FindAllActive() ([]Cluster, error) {
 	var clusters []Cluster
-	if impl.dbConnection == nil {
-		return clusters, nil
-	}
 	err := impl.dbConnection.
 		Model(&clusters).
 		Where("active=?", true).
