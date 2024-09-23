@@ -381,6 +381,7 @@ kind: Job
 metadata:
   name: postgresql-miscellaneous
 spec:
+  ttlSecondsAfterFinished: 100
   template:
     spec:
       {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.migrator.nodeSelector "tolerations" $.Values.components.migrator.tolerations "imagePullSecrets" $.Values.components.migrator.imagePullSecrets "global" $.Values.global) | indent 6 }}
