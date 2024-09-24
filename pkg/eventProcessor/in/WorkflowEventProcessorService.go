@@ -190,8 +190,8 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDStageCompleteEvent() error {
 			pluginArtifacts := make(map[string][]string)
 			if cdStageCompleteEvent.PluginArtifacts != nil {
 				pluginArtifacts = cdStageCompleteEvent.PluginArtifacts.GetRegistryToUniqueContainerArtifactDataMapping()
-				globalUtil.MergeMaps(pluginArtifacts, cdStageCompleteEvent.PluginRegistryArtifactDetails)
 			}
+			globalUtil.MergeMaps(pluginArtifacts, cdStageCompleteEvent.PluginRegistryArtifactDetails)
 
 			impl.logger.Debugw("received post stage success event for workflow runner ", "wfId", strconv.Itoa(wfr.Id))
 			err = impl.workflowDagExecutor.HandlePostStageSuccessEvent(triggerContext, wfr, wfr.CdWorkflowId, cdStageCompleteEvent.CdPipelineId, cdStageCompleteEvent.TriggeredBy, pluginArtifacts)
@@ -647,8 +647,8 @@ func (impl *WorkflowEventProcessorImpl) BuildCiArtifactRequest(event bean.CiComp
 	pluginArtifacts := make(map[string][]string)
 	if event.PluginArtifacts != nil {
 		pluginArtifacts = event.PluginArtifacts.GetRegistryToUniqueContainerArtifactDataMapping()
-		globalUtil.MergeMaps(pluginArtifacts, event.PluginRegistryArtifactDetails)
 	}
+	globalUtil.MergeMaps(pluginArtifacts, event.PluginRegistryArtifactDetails)
 
 	request := &wrokflowDagBean.CiArtifactWebhookRequest{
 		Image:                         event.DockerImage,

@@ -47,6 +47,7 @@ import (
 	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	statusBean "github.com/devtron-labs/devtron/pkg/app/status/bean"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -163,6 +164,7 @@ type TriggerServiceImpl struct {
 	deploymentConfigService       common.DeploymentConfigService
 	deploymentServiceTypeConfig   *util3.DeploymentServiceTypeConfig
 	ciCdPipelineOrchestrator      pipeline.CiCdPipelineOrchestrator
+	attributeService              attributes.AttributesService
 }
 
 func NewTriggerServiceImpl(logger *zap.SugaredLogger,
@@ -217,7 +219,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 	K8sUtil *util5.K8sServiceImpl,
 	transactionUtilImpl *sql.TransactionUtilImpl,
 	deploymentConfigService common.DeploymentConfigService,
-	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator,
+	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator, attributeService attributes.AttributesService,
 ) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
@@ -274,6 +276,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 		deploymentConfigService:             deploymentConfigService,
 		deploymentServiceTypeConfig:         envVariables.DeploymentServiceTypeConfig,
 		ciCdPipelineOrchestrator:            ciCdPipelineOrchestrator,
+		attributeService:                    attributeService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {

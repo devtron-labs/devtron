@@ -8,6 +8,7 @@ Using filter conditions, you can control the progression of events. Here are a f
 * Images containing the label "test" should not be eligible for deployment in production environment
 * Only images having tag versions greater than v0.7.4 should be eligible for deployment
 * Images hosted on Docker Hub should be eligible but not the rest
+* Only images derived from master branch should be eligible for production deployment (see [example](#scenario-2))
 
 ---
 
@@ -55,17 +56,17 @@ You must have application(s) with CI-CD workflow(s) configured
 
     ![Figure 5: Selecting Environment(s) from Cluster(s)](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/filters/environment-selection.jpg)
 
-    {% hint style="info" %}
-    Since an application can have more than one environment, the filter conditions apply only to the environment you chose in the **Apply to** section. If you create a filter condition without choosing an application or environment, it will not apply to any of your pipelines.
-    {% endhint %}
+{% hint style="info" %}
+Since an application can have more than one environment, the filter conditions apply only to the environment you chose in the **Apply to** section. If you create a filter condition without choosing an application or environment, it will not apply to any of your pipelines.
+{% endhint %}
 
 6. Click **Save**. You have successfully created a filter.
 
     ![Figure 6: Success Toast](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/filters/filter-created.jpg)
 
-    {% hint style="warning" %}
-    If you create filters using CEL expressions that result in a conflict (i.e., passing and failing of the same image), fail will have higher precedence
-    {% endhint %}
+{% hint style="warning" %}
+If you create filters using CEL expressions that result in a conflict (i.e., passing and failing of the same image), fail will have higher precedence
+{% endhint %}
 
 ---
 
@@ -77,6 +78,8 @@ Here's a sample pipeline we will be using for our explanation of [pass condition
 
 
 ### Pass Condition
+
+#### Scenario 1
 
 Consider a scenario where you wish to make an image eligible for deployment only if its tag version is greater than `v0.0.7`
 
@@ -101,6 +104,25 @@ Clicking the filter icon at the top-left shows the filter condition(s) applied t
 ![Figure 12a: Filter Icon](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/filters/filter-icon-pass-1.jpg)
 
 ![Figure 12b: Conditions Applied](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/filters/conditions-applied-1.jpg)
+
+#### Scenario 2
+
+Consider another scenario where you wish to make images eligible for deployment only if the application's git branch starts with the word `hotfix` and also if its repo URL matches your specified condition.
+
+**CEL Expression**:
+
+`gitCommitDetails.filter(gitCommitDetail, gitCommitDetail.startsWith('https://github.com/devtron-labs')).map(repo, gitCommitDetails[repo].branch).exists_one(branch, branch.startsWith('hotfix-'))`
+
+where, `https://github.com/devtron-labs` is a portion of the repo URL <br />
+and `hotfix-` is for finding the branch name (say *hotfix-sept-2024*)
+
+Alternatively, if you have a fixed branch (say *hotfix-123*), you may write the following expression:
+
+`'hotfix-123' in gitCommitDetails.filter(gitCommitDetail, gitCommitDetail.startsWith('https://github.com/devtron-labs')).map(repo, gitCommitDetails[repo].branch)`
+
+**Walkthrough Video**:
+
+{% embed url="https://www.youtube.com/watch?v=R8IbZhXhH-k" caption="Filter Condition Example" %}
 
 
 ### Fail Condition

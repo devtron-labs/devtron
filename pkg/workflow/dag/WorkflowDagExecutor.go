@@ -539,8 +539,8 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext t
 		pluginArtifacts := make(map[string][]string)
 		if cdStageCompleteEvent.PluginArtifacts != nil {
 			pluginArtifacts = cdStageCompleteEvent.PluginArtifacts.GetRegistryToUniqueContainerArtifactDataMapping()
-			util4.MergeMaps(pluginArtifacts, cdStageCompleteEvent.PluginRegistryArtifactDetails)
 		}
+		util4.MergeMaps(pluginArtifacts, cdStageCompleteEvent.PluginRegistryArtifactDetails)
 
 		err = impl.deactivateUnusedPaths(wfRunner.ImagePathReservationIds, pluginArtifacts)
 		if err != nil {
