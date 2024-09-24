@@ -1469,6 +1469,10 @@ func (impl ConfigMapServiceImpl) validateConfigDataForSecretsOnly(configData *be
 			return false, util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithCode(strconv.Itoa(http.StatusBadRequest)).
 				WithUserMessage("both esoSecretData.esoDataFrom and esoSecretData.esoData can't be empty").
 				WithInternalMessage("both esoSecretData.esoDataFrom and esoSecretData.esoData can't be empty")
+		} else if configData.ESOSecretData.SecretStore == nil && configData.ESOSecretData.SecretStoreRef == nil {
+			return false, util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithCode(strconv.Itoa(http.StatusBadRequest)).
+				WithUserMessage("both esoSecretData.secretStore and esoSecretData.secretStoreRef can't be empty").
+				WithInternalMessage("both esoSecretData.secretStore and esoSecretData.secretStoreRef can't be empty")
 		}
 	}
 	return true, nil
