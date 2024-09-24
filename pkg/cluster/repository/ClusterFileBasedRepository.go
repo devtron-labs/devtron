@@ -34,7 +34,7 @@ type ClusterEntity struct {
 	PTlsClientKey          string
 	AgentInstallationStage int
 	IsVirtualCluster       bool
-	InsecureSkipTlsVerify  bool
+	InsecureSkipTlsVerify *bool
 	sql.AuditLog
 }
 
@@ -179,7 +179,7 @@ func (impl *ClusterFileBasedRepository) convertToEntity(model *Cluster) (error, 
 		ErrorInConnecting: model.ErrorInConnecting,
 		PrometheusEndpoint:     model.PrometheusEndpoint,
 		AgentInstallationStage: model.AgentInstallationStage,
-		InsecureSkipTlsVerify:  model.InsecureSkipTlsVerify,
+		InsecureSkipTlsVerify: &model.InsecureSkipTlsVerify,
 		IsVirtualCluster:       model.IsVirtualCluster,
 		PUserName:              model.PUserName,
 		PPassword:              model.PPassword,
@@ -203,6 +203,10 @@ func (impl *ClusterFileBasedRepository) convertToModel(entity *ClusterEntity) (*
 	if entity.Active != nil {
 		isActive = *entity.Active
 	}
+	insecureSkipTlsVerify := true
+	if entity.InsecureSkipTlsVerify != nil && *entity.InsecureSkipTlsVerify == false {
+		insecureSkipTlsVerify = false
+	}
 	clusterBean := &Cluster{
 		Id:                entity.ID,
 		ClusterName:       entity.ClusterName,
@@ -214,7 +218,7 @@ func (impl *ClusterFileBasedRepository) convertToModel(entity *ClusterEntity) (*
 		Active:            isActive,
 		PrometheusEndpoint:     entity.PrometheusEndpoint,
 		AgentInstallationStage: entity.AgentInstallationStage,
-		InsecureSkipTlsVerify:  entity.InsecureSkipTlsVerify,
+		InsecureSkipTlsVerify: insecureSkipTlsVerify,
 		IsVirtualCluster:       entity.IsVirtualCluster,
 		PUserName:              entity.PUserName,
 		PPassword:              entity.PPassword,
