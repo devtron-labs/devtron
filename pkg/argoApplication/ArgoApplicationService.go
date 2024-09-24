@@ -72,6 +72,10 @@ func NewArgoApplicationServiceImpl(logger *zap.SugaredLogger,
 
 }
 
+func NewNoopImpl() *ArgoApplicationServiceImpl {
+	return nil
+}
+
 func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*bean.ArgoApplicationListDto, error) {
 	var clusters []clusterRepository.Cluster
 	var err error

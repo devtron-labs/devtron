@@ -101,7 +101,7 @@ func (impl *ClusterRbacServiceImpl) CheckAuthorization(clusterName string, clust
 }
 func (impl *ClusterRbacServiceImpl) FetchAllowedClusterMap(userId int32) (map[string]bool, error) {
 	allowedClustersMap := make(map[string]bool)
-	roles, err := impl.clusterService.FetchRolesFromGroup(userId)
+	roles, err := impl.userService.FetchRolesFromGroup(userId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user roles from db", "error", err)
 		return nil, err

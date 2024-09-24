@@ -15,3 +15,8 @@ var FluxApplicationWireSet = wire.NewSet(
 	NewFluxApplicationRouterImpl,
 	wire.Bind(new(FluxApplicationRouter), new(*FluxApplicationRouterImpl)),
 )
+
+var FluxApplicationWireSetForK8sApp = wire.NewSet(
+	fluxApplication.NewNoopImpl,
+	wire.Bind(new(fluxApplication.FluxApplicationService), new(*fluxApplication.FluxApplicationServiceImpl)),
+)

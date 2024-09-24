@@ -52,6 +52,10 @@ func NewArgoApplicationReadServiceImpl(logger *zap.SugaredLogger,
 
 }
 
+func NewNoopImpl() *ArgoApplicationReadServiceImpl {
+	return nil
+}
+
 func (impl *ArgoApplicationReadServiceImpl) GetRestConfigForExternalArgo(ctx context.Context, clusterId int, externalArgoApplicationName string) (*rest.Config, error) {
 	clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err := impl.GetClusterConfigFromAllClusters(clusterId)
 	if err != nil {

@@ -54,8 +54,8 @@ docker-build-push: docker-build-image
 
 #############################################################################
 
-build-all: build
-	make --directory ./cmd/external-app build
+build-all: build build-ea
+	make --directory ./cmd/k8s-client-app build
 
 build-ea:
 	make --directory ./cmd/external-app build
