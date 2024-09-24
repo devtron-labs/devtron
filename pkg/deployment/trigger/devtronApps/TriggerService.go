@@ -638,8 +638,12 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 
 func (impl *TriggerServiceImpl) TriggerCD(ctx context.Context, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, envDeploymentConfig *bean9.DeploymentConfig, triggeredAt time.Time) error {
 	impl.logger.Debugw("automatic pipeline trigger attempt async", "artifactId", artifact.Id)
-
-	return impl.triggerReleaseAsync(ctx, artifact, cdWorkflowId, wfrId, pipeline, envDeploymentConfig, triggeredAt)
+	err := impl.triggerReleaseAsync(ctx, artifact, cdWorkflowId, wfrId, pipeline, envDeploymentConfig, triggeredAt)
+	if err != nil {
+		impl.logger.Errorw("error in cd trigger", "err", err)
+		return err
+	}
+	return err
 }
 
 func (impl *TriggerServiceImpl) triggerReleaseAsync(ctx context.Context, artifact *repository3.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, envDeploymentConfig *bean9.DeploymentConfig, triggeredAt time.Time) error {
