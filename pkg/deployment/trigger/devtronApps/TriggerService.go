@@ -74,7 +74,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
-	util3 "github.com/devtron-labs/devtron/util"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -99,7 +99,7 @@ type TriggerService interface {
 
 	TriggerStageForBulk(triggerRequest bean.TriggerRequest) error
 
-	ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest) (int, error)
+	ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest) (int, string, error)
 	TriggerAutomaticDeployment(request bean.TriggerRequest) error
 
 	TriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, envDeploymentConfig *bean9.DeploymentConfig, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, err error)
@@ -117,7 +117,7 @@ type TriggerServiceImpl struct {
 	chartTemplateService                util.ChartTemplateService
 	eventFactory                        client.EventFactory
 	eventClient                         client.EventClient
-	globalEnvVariables                  *util3.GlobalEnvVariables
+	globalEnvVariables                  *globalUtil.GlobalEnvVariables
 	workflowEventPublishService         out.WorkflowEventPublishService
 	manifestCreationService             manifest.ManifestCreationService
 	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService
@@ -160,7 +160,7 @@ type TriggerServiceImpl struct {
 	K8sUtil                       *util5.K8sServiceImpl
 	transactionUtilImpl           *sql.TransactionUtilImpl
 	deploymentConfigService       common.DeploymentConfigService
-	deploymentServiceTypeConfig   *util3.DeploymentServiceTypeConfig
+	deploymentServiceTypeConfig   *globalUtil.DeploymentServiceTypeConfig
 	ciCdPipelineOrchestrator      pipeline.CiCdPipelineOrchestrator
 }
 
@@ -193,7 +193,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 	helmAppClient gRPC.HelmAppClient,
 	eventFactory client.EventFactory,
 	eventClient client.EventClient,
-	envVariables *util3.EnvironmentVariables,
+	envVariables *globalUtil.EnvironmentVariables,
 	appRepository appRepository.AppRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	imageScanHistoryRepository security.ImageScanHistoryRepository,
@@ -364,22 +364,38 @@ func (impl *TriggerServiceImpl) validateDeploymentTriggerRequest(ctx context.Con
 }
 
 // TODO: write a wrapper to handle auto and manual trigger
-func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest) (int, error) {
+func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest) (int, string, error) {
+
+	//triggerContext.TriggerType = bean.Manual
 	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 	releaseId := 0
 	ctx := triggerContext.Context
-	var err error
 	cdPipeline, err := impl.getCdPipelineForManualCdTrigger(ctx, overrideRequest.PipelineId)
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
 	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(cdPipeline.AppId, cdPipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", cdPipeline.AppId, "envId", cdPipeline.EnvironmentId, "err", err)
-		return 0, err
+		return 0, "", err
 	}
 	adapter.SetPipelineFieldsInOverrideRequest(overrideRequest, cdPipeline, envDeploymentConfig)
+	ciArtifactId := overrideRequest.CiArtifactId
+
+	_, span := otel.Tracer("orchestrator").Start(ctx, "ciArtifactRepository.Get")
+	artifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
+	span.End()
+	if err != nil {
+		impl.logger.Errorw("error in getting CiArtifact", "CiArtifactId", overrideRequest.CiArtifactId, "err", err)
+		return 0, "", err
+	}
+
+	var imageTag string
+	if len(artifact.Image) > 0 {
+		imageTag = strings.Split(artifact.Image, ":")[1]
+	}
+	helmPackageName := fmt.Sprintf("%s-%s-%s", cdPipeline.App.AppName, cdPipeline.Environment.Name, imageTag)
 
 	switch overrideRequest.CdWorkflowType {
 	case bean3.CD_WORKFLOW_TYPE_PRE:
@@ -388,15 +404,9 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in getting CiArtifact", "CiArtifactId", overrideRequest.CiArtifactId, "err", err)
-			return 0, err
+			return 0, "", err
 		}
-		// Migration of deprecated DataSource Type
-		if artifact.IsMigrationRequired() {
-			migrationErr := impl.ciArtifactRepository.MigrateToWebHookDataSourceType(artifact.Id)
-			if migrationErr != nil {
-				impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", artifact.Id)
-			}
-		}
+
 		_, span = otel.Tracer("orchestrator").Start(ctx, "TriggerPreStage")
 		triggerRequest := bean.TriggerRequest{
 			CdWf:                  nil,
@@ -411,7 +421,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in TriggerPreStage, ManualCdTrigger", "err", err)
-			return 0, err
+			return 0, "", err
 		}
 	case bean3.CD_WORKFLOW_TYPE_DEPLOY:
 		if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
@@ -421,7 +431,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		cdWf, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(ctx, overrideRequest.CdWorkflowId, bean3.CD_WORKFLOW_TYPE_PRE)
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.logger.Errorw("error in getting cdWorkflow, ManualCdTrigger", "CdWorkflowId", overrideRequest.CdWorkflowId, "err", err)
-			return 0, err
+			return 0, "", err
 		}
 
 		cdWorkflowId := cdWf.CdWorkflowId
@@ -434,7 +444,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			err := impl.cdWorkflowRepository.SaveWorkFlow(ctx, cdWf)
 			if err != nil {
 				impl.logger.Errorw("error in creating cdWorkflow, ManualCdTrigger", "PipelineId", overrideRequest.PipelineId, "err", err)
-				return 0, err
+				return 0, "", err
 			}
 			cdWorkflowId = cdWf.Id
 		}
@@ -455,14 +465,14 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		overrideRequest.WfrId = savedWfr.Id
 		if err != nil {
 			impl.logger.Errorw("err in creating cdWorkflowRunner, ManualCdTrigger", "cdWorkflowId", cdWorkflowId, "err", err)
-			return 0, err
+			return 0, "", err
 		}
 		runner.CdWorkflow = &pipelineConfig.CdWorkflow{
 			Pipeline: cdPipeline,
 		}
 		overrideRequest.CdWorkflowId = cdWorkflowId
 		// creating cd pipeline status timeline for deployment initialisation
-		timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(savedWfr.Id, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_INITIATED, timelineStatus.TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED, overrideRequest.UserId)
+		timeline := impl.pipelineStatusTimelineService.NewDevtronAppPipelineStatusTimelineDbObject(runner.Id, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_INITIATED, timelineStatus.TIMELINE_DESCRIPTION_DEPLOYMENT_INITIATED, overrideRequest.UserId)
 		_, span := otel.Tracer("orchestrator").Start(ctx, "cdPipelineStatusTimelineRepo.SaveTimelineForACDHelmApps")
 		_, err = impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
 
@@ -475,7 +485,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in getting ciArtifact, ManualCdTrigger", "CiArtifactId", overrideRequest.CiArtifactId, "err", err)
-			return 0, err
+			return 0, "", err
 		}
 		// Migration of deprecated DataSource Type
 		if artifact.IsMigrationRequired() {
@@ -488,7 +498,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			validationErr := impl.validateDeploymentTriggerRequest(ctx, runner, cdPipeline, artifact.ImageDigest, envDeploymentConfig, overrideRequest.UserId)
 			if validationErr != nil {
 				impl.logger.Errorw("validation error deployment request", "cdWfr", runner.Id, "err", validationErr)
-				return 0, validationErr
+				return 0, "", validationErr
 			}
 		}
 		// Deploy the release
@@ -500,14 +510,14 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			if err != nil {
 				impl.logger.Errorw("error while updating current runner status to failed", "cdWfr", runner.Id, "err", err)
 			}
-			return 0, releaseErr
+			return 0, "", releaseErr
 		}
 
 	case bean3.CD_WORKFLOW_TYPE_POST:
 		cdWfRunner, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(ctx, overrideRequest.CdWorkflowId, bean3.CD_WORKFLOW_TYPE_DEPLOY)
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.logger.Errorw("err in getting cdWorkflowRunner, ManualCdTrigger", "cdWorkflowId", overrideRequest.CdWorkflowId, "err", err)
-			return 0, err
+			return 0, "", err
 		}
 
 		var cdWf *pipelineConfig.CdWorkflow
@@ -520,7 +530,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			err := impl.cdWorkflowRepository.SaveWorkFlow(ctx, cdWf)
 			if err != nil {
 				impl.logger.Errorw("error in creating cdWorkflow, ManualCdTrigger", "CdWorkflowId", overrideRequest.CdWorkflowId, "err", err)
-				return 0, err
+				return 0, "", err
 			}
 		} else {
 			_, span := otel.Tracer("orchestrator").Start(ctx, "cdWorkflowRepository.FindById")
@@ -528,7 +538,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			span.End()
 			if err != nil && !util.IsErrNoRows(err) {
 				impl.logger.Errorw("error in getting cdWorkflow, ManualCdTrigger", "CdWorkflowId", overrideRequest.CdWorkflowId, "err", err)
-				return 0, err
+				return 0, "", err
 			}
 		}
 		_, span := otel.Tracer("orchestrator").Start(ctx, "TriggerPostStage")
@@ -543,14 +553,13 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in TriggerPostStage, ManualCdTrigger", "CdWorkflowId", cdWf.Id, "err", err)
-			return 0, err
+			return 0, "", err
 		}
 	default:
 		impl.logger.Errorw("invalid CdWorkflowType, ManualCdTrigger", "CdWorkflowType", overrideRequest.CdWorkflowType, "err", err)
-		return 0, fmt.Errorf("invalid CdWorkflowType %s for the trigger request", string(overrideRequest.CdWorkflowType))
+		return 0, "", fmt.Errorf("invalid CdWorkflowType %s for the trigger request", string(overrideRequest.CdWorkflowType))
 	}
-
-	return releaseId, err
+	return releaseId, helmPackageName, err
 }
 
 func isNotHibernateRequest(deploymentType models.DeploymentType) bool {
