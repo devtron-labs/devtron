@@ -70,7 +70,7 @@ func (impl *ClusterFileBasedRepository) SetDescription(id int, description strin
 	}
 	err, clusterEntity := impl.convertToEntity(cluster)
 	if err != nil {
-		impl.logger.Errorw("error occurred while converting model to entity", "model", cluster, "error", err)
+		impl.logger.Errorw("error occurred while converting model to entity", "error", err)
 		return errors.New("failed to update cluster")
 	}
 	clusterEntity.Description = description
@@ -166,7 +166,7 @@ func (impl *ClusterFileBasedRepository) Save(model *Cluster) error {
 func (impl *ClusterFileBasedRepository) convertToEntity(model *Cluster) (error, *ClusterEntity) {
 	configJson, err := json.Marshal(model.Config)
 	if err != nil {
-		impl.logger.Errorw("error occurred while converting to entity", "model", model, "err", err)
+		impl.logger.Errorw("error occurred while converting to entity", "err", err)
 		return errors.New("failed to process cluster data"), nil
 	}
 	clusterEntity := &ClusterEntity{
@@ -315,13 +315,13 @@ func (impl *ClusterFileBasedRepository) FindByIds(id []int) ([]Cluster, error) {
 func (impl *ClusterFileBasedRepository) Update(model *Cluster) error {
 	err, entity := impl.convertToEntity(model)
 	if err != nil {
-		impl.logger.Errorw("error occurred while converting model to entity", "model", model, "error", err)
+		impl.logger.Errorw("error occurred while converting model to entity", "error", err)
 		return errors.New("failed to update cluster")
 	}
 	result := impl.dbConnection.Model(entity).Updates(entity)
 	err = result.Error
 	if err != nil {
-		impl.logger.Errorw("error occurred while updating cluster", "model", model, "error", err)
+		impl.logger.Errorw("error occurred while updating cluster", "error", err)
 		return errors.New("failed to update cluster")
 	}
 	return nil
@@ -331,13 +331,13 @@ func (impl *ClusterFileBasedRepository) Update(model *Cluster) error {
 func (impl *ClusterFileBasedRepository) Delete(model *Cluster) error {
 	err, entity := impl.convertToEntity(model)
 	if err != nil {
-		impl.logger.Errorw("error occurred while converting model to entity", "model", model, "error", err)
+		impl.logger.Errorw("error occurred while converting model to entity", "error", err)
 		return errors.New("failed to delete cluster")
 	}
 	result := impl.dbConnection.Delete(entity)
 	err = result.Error
 	if err != nil {
-		impl.logger.Errorw("error occurred while deleting cluster", "model", model, "err", err)
+		impl.logger.Errorw("error occurred while deleting cluster", "err", err)
 		return errors.New("failed to delete cluster")
 	}
 	return nil
