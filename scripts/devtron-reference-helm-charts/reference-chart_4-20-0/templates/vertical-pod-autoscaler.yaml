@@ -22,6 +22,6 @@ spec:
 {{- end }}
   targetRef:
     apiVersion: apps/v1
-    kind: Deployment
+    kind: Rollout
     name: {{ include ".Chart.Name .fullname" $ }}
 {{- end }}    

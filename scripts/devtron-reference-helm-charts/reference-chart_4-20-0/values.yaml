@@ -630,12 +630,6 @@ imagePullSecrets: []
 
 persistentVolumeClaim: {}
 
-  
-resizePolicy:
-    - resourceName: cpu
-      restartPolicy: NotRequired
-    - resourceName: memory
-      restartPolicy: RestartContainer
 
 verticalPodScaling:
   enabled: false
