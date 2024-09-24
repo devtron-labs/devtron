@@ -59,7 +59,7 @@ spec:
       labels:
         app.kubernetes.io/name: argocd-dex-server
     spec:
-      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.components.argocdDexServer.nodeSelector "tolerations" $.Values.components.argocdDexServer.tolerations "imagePullSecrets" $.Values.components.argocdDexServer.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.argocdDexServer.nodeSelector "tolerations" $.Values.components.argocdDexServer.tolerations "imagePullSecrets" $.Values.components.argocdDexServer.imagePullSecrets "global" $.Values.global) | indent 6 }}
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

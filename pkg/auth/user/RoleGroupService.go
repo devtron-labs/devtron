@@ -137,7 +137,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 		if request.SuperAdmin == false {
 			for index, roleFilter := range request.RoleFilters {
 				entity := roleFilter.Entity
-				if entity == bean.CLUSTER_ENTITIY {
+				if entity == bean2.CLUSTER_ENTITIY {
 					policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, model, nil, tx, mapping[index])
 					policies = append(policies, policiesToBeAdded...)
 					if err != nil {
@@ -425,7 +425,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 
 		//Adding New Policies
 		for index, roleFilter := range request.RoleFilters {
-			if roleFilter.Entity == bean.CLUSTER_ENTITIY {
+			if roleFilter.Entity == bean2.CLUSTER_ENTITIY {
 				policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, roleGroup, existingRoles, tx, mapping[index])
 				policies = append(policies, policiesToBeAdded...)
 				if err != nil {

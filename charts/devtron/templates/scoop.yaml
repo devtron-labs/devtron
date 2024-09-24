@@ -1,0 +1,169 @@
+{{- if and .Values.devtronEnterprise.enabled .Values.devtronEnterprise.scoop.enabled }}
+{{- with .Values.devtronEnterprise.scoop }}
+{{- $passKey := randAlphaNum 12 | lower }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scoop-devtron
+  namespace: devtroncd
+  labels:
+    app: scoop
+spec:
+  minReadySeconds: 60
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: scoop
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: scoop
+    spec:
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.devtronEnterprise.scoop.nodeSelector "tolerations" $.Values.devtronEnterprise.scoop.tolerations "imagePullSecrets" $.Values.devtronEnterprise.scoop.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      serviceAccountName: sa-scoop
+      containers:
+        - name: scoop
+          image: {{ include "common.image" (dict "component" $.Values.devtronEnterprise.scoop "global" $.Values.global) }}
+          {{- if  .imagePullPolicy }}
+          imagePullPolicy: {{ .imagePullPolicy }}
+          {{- end }}
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          env:
+            - name: X-PASS-KEY
+              value: qhihdidhwid
+            - name: PASS_KEY
+              value: qhihdidhwid
+            - name: RETENTION
+              value: "10080"
+            - name: TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: devtron-secret
+                  key: ORCH_TOKEN
+          envFrom:
+            - configMapRef:
+                name: scoop-cm
+          ports:
+            - containerPort: 8080
+              name: app
+              protocol: TCP
+          {{- if .resources }}
+          resources:
+          {{- toYaml .resources | nindent 12 }}
+          {{- end }}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+---
+# Scoop-service
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: scoop
+  name: scoop-service
+  namespace: devtroncd
+spec:
+  ports:
+    - name: app
+      port: 80
+      protocol: TCP
+      targetPort: app
+  selector:
+    app: scoop
+  sessionAffinity: None
+  type: ClusterIP
+
+---
+# Scoop ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: scoop
+  name: scoop-cm
+  namespace: devtroncd
+{{- if .configs }}
+data:
+{{ toYaml .configs | indent 2 }}
+{{- end }}
+
+---
+# Scoop ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    rbac.authorization.kubernetes.io/autoupdate: "true"
+  labels:
+    app.kubernetes.io/instance: devtron
+  name: read-only-cluster-role-scoop
+rules:
+  - apiGroups:
+      - "*"
+    resources:
+      - "*"
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - extensions
+    resources:
+      - "*"
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - "*"
+    verbs:
+      - get
+      - list
+      - watch
+
+---
+# Scoop ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: read-only-user-crb-scoop
+  annotations:
+    "helm.sh/resource-policy": keep
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: read-only-cluster-role-scoop
+subjects:
+  - kind: ServiceAccount
+    name: sa-scoop
+    namespace: devtroncd
+
+---
+# Scoop ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sa-scoop
+  namespace: devtroncd
+  labels:
+    app: scoop
+  annotations:
+    "helm.sh/resource-policy": keep
+{{- end }}
+{{- end }}
