@@ -487,13 +487,6 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			impl.logger.Errorw("error in getting ciArtifact, ManualCdTrigger", "CiArtifactId", overrideRequest.CiArtifactId, "err", err)
 			return 0, "", err
 		}
-		// Migration of deprecated DataSource Type
-		if artifact.IsMigrationRequired() {
-			migrationErr := impl.ciArtifactRepository.MigrateToWebHookDataSourceType(artifact.Id)
-			if migrationErr != nil {
-				impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", artifact.Id)
-			}
-		}
 		if isNotHibernateRequest(overrideRequest.DeploymentType) {
 			validationErr := impl.validateDeploymentTriggerRequest(ctx, runner, cdPipeline, artifact.ImageDigest, envDeploymentConfig, overrideRequest.UserId)
 			if validationErr != nil {
@@ -1363,6 +1356,7 @@ func (impl *TriggerServiceImpl) markImageScanDeployed(ctx context.Context, appId
 	imageDigest string, isScanEnabled bool, image string) error {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.markImageScanDeployed")
 	defer span.End()
+	// TODO KB: send NATS event for self consumption
 	impl.logger.Debugw("mark image scan deployed for devtron app, from cd auto or manual trigger", "imageDigest", imageDigest)
 	executionHistory, err := impl.imageScanHistoryRepository.FindByImageAndDigest(imageDigest, image)
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
