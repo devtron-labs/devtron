@@ -83,6 +83,6 @@ func ConvertCdWorkflowRunnerDtoToDbObj(dto *bean.CdWorkflowRunnerDto) *pipelineC
 		RefCdWorkflowRunnerId:   dto.RefCdWorkflowRunnerId,
 		ImagePathReservationIds: dto.ImagePathReservationIds,
 		ReferenceId:             dto.ReferenceId,
-		IsArtifactUploaded:      dto.IsArtifactUploaded,
+		IsArtifactUploaded:      &dto.IsArtifactUploaded,
 	}
 }
