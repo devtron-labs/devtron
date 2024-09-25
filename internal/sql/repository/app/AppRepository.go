@@ -390,7 +390,7 @@ func (repo AppRepositoryImpl) fixMultipleHelmAppsWithSameName(appName string) er
 	// deleting all apps other than app with max id
 	_, err = repo.dbConnection.Model((*App)(nil)).
 		Set("active = ?", false).Set("updated_by = ?", SYSTEM_USER_ID).Set("updated_on = ?", time.Now()).
-		Where("id not in (?) ", maxAppIdQuery).Update()
+		Where("id not in (?) and app_name = ? ", maxAppIdQuery, appName).Update()
 
 	return nil
 }
