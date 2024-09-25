@@ -147,7 +147,7 @@ func (repo AppRepositoryImpl) FindActiveByName(appName string) (*App, error) {
 func (repo AppRepositoryImpl) FindAllActiveByName(appName string) ([]*App, error) {
 	var apps []*App
 	err := repo.dbConnection.
-		Model(&apps).
+		Model(apps).
 		Where("app_name = ?", appName).
 		Where("active = ?", true).
 		Select()
