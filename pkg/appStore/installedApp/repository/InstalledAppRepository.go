@@ -450,7 +450,7 @@ func (impl *InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean
 		queryParams = append(queryParams, sqlIntSeq(filter.ClusterIds))
 	}
 	if len(filter.AppStatuses) > 0 {
-		appStatuses := util.ProcessAppStatuses(filter.AppStatuses)
+		appStatuses := pg.In(filter.AppStatuses)
 		query = query + " and app_status.status IN (?) "
 		queryParams = append(queryParams, appStatuses)
 	}

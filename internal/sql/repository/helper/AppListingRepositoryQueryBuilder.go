@@ -86,7 +86,7 @@ func (impl AppListingRepositoryQueryBuilder) BuildJobListingQuery(appIDs []int, 
 	}
 	if len(statuses) > 0 {
 		query += " and cwr.status IN (?) "
-		queryParams = append(queryParams, util.ProcessAppStatuses(statuses))
+		queryParams = append(queryParams, pg.In(statuses))
 	}
 	if len(environmentIds) > 0 {
 		query += " and cwr.environment_id IN (?) "
@@ -257,19 +257,18 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appLi
 			}
 		}
 	}
-	appStatuses := util.ProcessAppStatuses(appStatusExcludingNotDeployed)
 	if isNotDeployedFilterApplied {
 		deploymentAppType := "manifest_download"
 		whereCondition += " and (p.deployment_app_created=? and (p.deployment_app_type != ? || dc.deployment_app_type != ? ) or a.id NOT IN (SELECT app_id from pipeline) "
 		queryParams = append(queryParams, false, deploymentAppType, deploymentAppType)
-		if len(appStatuses) > 0 {
+		if len(appStatusExcludingNotDeployed) > 0 {
 			whereCondition += " or aps.status IN (?) "
-			queryParams = append(queryParams, appStatuses)
+			queryParams = append(queryParams, pg.In(appStatusExcludingNotDeployed))
 		}
 		whereCondition += " ) "
-	} else if len(appStatuses) > 0 {
+	} else if len(appStatusExcludingNotDeployed) > 0 {
 		whereCondition += " and aps.status IN (?) "
-		queryParams = append(queryParams, appStatuses)
+		queryParams = append(queryParams, pg.In(appStatusExcludingNotDeployed))
 	}
 	if len(appListingFilter.AppIds) > 0 {
 		whereCondition += " and a.id IN (?) "
