@@ -373,11 +373,14 @@ func (repo AppRepositoryImpl) FindAppAndProjectByAppName(appName string) (*App, 
 
 func (repo AppRepositoryImpl) fixMultipleHelmAppsWithSameName(appName string) error {
 	// updating installed apps setting app_id = max app_id
-	installAppUpdateQuery := `update installed_apps set 
-                          app_id=(select max(id) as id from app where app_name = ?) 
-                    	where app_id in (select id from app where app_name= ? )`
+	repo.logger.Infow(" duplicates found - marking app inactive", "appName", appName)
+	appTypeArr := pg.In([]int{int(helper.ChartStoreApp), int(helper.ExternalChartStoreApp)})
 
-	_, err := repo.dbConnection.Exec(installAppUpdateQuery, appName, appName)
+	installAppUpdateQuery := `update installed_apps set 
+                          app_id=(select max(id) as id from app where app_name = ? and app_type in (?) ) 
+                    	where app_id in (select id from app where app_name= ? and app_type in (?) )`
+
+	_, err := repo.dbConnection.Exec(installAppUpdateQuery, appName, appTypeArr, appName, appTypeArr)
 	if err != nil {
 		repo.logger.Errorw("error in updating maxAppId in installedApps", "appName", appName, "err", err)
 		return err
@@ -390,7 +393,8 @@ func (repo AppRepositoryImpl) fixMultipleHelmAppsWithSameName(appName string) er
 	// deleting all apps other than app with max id
 	_, err = repo.dbConnection.Model((*App)(nil)).
 		Set("active = ?", false).Set("updated_by = ?", SYSTEM_USER_ID).Set("updated_on = ?", time.Now()).
-		Where("id not in (?) ", maxAppIdQuery).Update()
+		Where("id not in (?) and app_name = ? and app_type in (?) ",
+			maxAppIdQuery, appName, appTypeArr).Update()
 
 	return nil
 }
