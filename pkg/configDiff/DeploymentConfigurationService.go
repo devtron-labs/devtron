@@ -6,6 +6,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean3 "github.com/devtron-labs/devtron/pkg/bean"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -47,6 +48,7 @@ type DeploymentConfigurationServiceImpl struct {
 	configMapRepository                 chartConfig.ConfigMapRepository
 	deploymentConfigService             pipeline.PipelineDeploymentConfigService
 	chartRefService                     chartRef.ChartRefService
+	pipelineRepository                  pipelineConfig.PipelineRepository
 }
 
 func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
@@ -62,6 +64,7 @@ func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
 	configMapRepository chartConfig.ConfigMapRepository,
 	deploymentConfigService pipeline.PipelineDeploymentConfigService,
 	chartRefService chartRef.ChartRefService,
+	pipelineRepository pipelineConfig.PipelineRepository,
 ) (*DeploymentConfigurationServiceImpl, error) {
 	deploymentConfigurationService := &DeploymentConfigurationServiceImpl{
 		logger:                              logger,
@@ -77,6 +80,7 @@ func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
 		configMapRepository:                 configMapRepository,
 		deploymentConfigService:             deploymentConfigService,
 		chartRefService:                     chartRefService,
+		pipelineRepository:                  pipelineRepository,
 	}
 
 	return deploymentConfigurationService, nil
@@ -631,9 +635,42 @@ func (impl *DeploymentConfigurationServiceImpl) getPublishedConfigData(ctx conte
 		impl.logger.Errorw("getPublishedConfigData, error in getting publishedOnly deployment config ", "configDataQueryParams", configDataQueryParams, "err", err)
 		return nil, err
 	}
-
 	configData.WithDeploymentTemplateData(deploymentTemplateData)
+
+	pipelineConfigData, err := impl.getPublishedPipelineStrategyConfig(ctx, appId, envId)
+	if err != nil {
+		impl.logger.Errorw("getPublishedConfigData, error in getting publishedOnly pipeline strategy ", "configDataQueryParams", configDataQueryParams, "err", err)
+		return nil, err
+	}
+	configData.WithPipelineConfigData(pipelineConfigData)
 	return configData, nil
+}
+
+func (impl *DeploymentConfigurationServiceImpl) getPublishedPipelineStrategyConfig(ctx context.Context, appId int, envId int) (*bean2.DeploymentAndCmCsConfig, error) {
+	pipelineStrategyJson := json.RawMessage{}
+	pipelineConfig := bean2.NewDeploymentAndCmCsConfig()
+	if envId == 0 {
+		return pipelineConfig, nil
+	}
+	pipeline, err := impl.pipelineRepository.FindActiveByAppIdAndEnvId(appId, envId)
+	if err != nil {
+		impl.logger.Errorw("error in FindActiveByAppIdAndEnvId", "appId", appId, "envId", envId, "err", err)
+		return nil, err
+	}
+	pipelineStrategy, err := impl.deploymentConfigService.GetLatestPipelineStrategyConfig(pipeline)
+	if err != nil {
+		impl.logger.Errorw("error in GetLatestPipelineStrategyConfig", "pipelineId", pipeline.Id, "err", err)
+		return nil, err
+	}
+	err = pipelineStrategyJson.UnmarshalJSON([]byte(pipelineStrategy.CodeEditorValue.Value))
+	if err != nil {
+		impl.logger.Errorw("getDeploymentTemplateForEnvLevel, error in unmarshalling string  pipelineStrategyHistory data into json Raw message", "err", err)
+		return nil, err
+	}
+	pipelineConfig.WithConfigData(pipelineStrategyJson).
+		WithResourceType(bean.PipelineStrategy).
+		WithPipelineStrategyMetadata(pipelineStrategy.PipelineTriggerType, string(pipelineStrategy.Strategy))
+	return pipelineConfig, nil
 }
 
 func (impl *DeploymentConfigurationServiceImpl) getBaseDeploymentTemplate(appId int) (*bean2.DeploymentTemplateMetadata, error) {
