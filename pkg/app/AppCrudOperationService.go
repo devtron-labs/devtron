@@ -463,9 +463,34 @@ func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIden
 	var err error
 	appNameUniqueIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
 	app, err = impl.appRepository.FindAppAndProjectByAppName(appNameUniqueIdentifier)
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil && err != pg.ErrNoRows && err != pg.ErrMultiRows {
 		impl.logger.Errorw("error in fetching app meta data by unique app identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
 		return app, err
+	}
+	if err == pg.ErrMultiRows {
+		installedApp, err := impl.installedAppRepository.GetInstalledAppByAppName(appNameUniqueIdentifier)
+		if err != nil {
+			impl.logger.Errorw("error in fetching installed app by unique identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
+			return app, err
+		}
+		validAppId := installedApp.AppId
+		allActiveApps, err := impl.appRepository.FindAllActiveByName(appNameUniqueIdentifier)
+		if err != nil {
+			impl.logger.Errorw("error in fetching all active apps by name", "appName", appNameUniqueIdentifier, "err", err)
+			return app, err
+		}
+		var validApp *appRepository.App
+		for _, activeApp := range allActiveApps {
+			if activeApp.Id != validAppId {
+				activeApp.Active = false
+				err := impl.appRepository.Update(activeApp)
+				if err != nil {
+					impl.logger.Errorw("error in marking app inactive", "err", err)
+					return nil, err
+				}
+			}
+		}
+		return validApp, nil
 	}
 	if util.IsErrNoRows(err) {
 		//find app by display name if not found by unique identifier
