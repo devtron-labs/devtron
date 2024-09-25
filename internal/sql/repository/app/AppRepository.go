@@ -373,7 +373,7 @@ func (repo AppRepositoryImpl) FindAppAndProjectByAppName(appName string) (*App, 
 
 func (repo AppRepositoryImpl) fixMultipleHelmAppsWithSameName(appName string) error {
 	// updating installed apps setting app_id = max app_id
-
+	repo.logger.Infow(" duplicates found - marking app inactive - %s", appName)
 	appTypeArr := pg.In([]int{int(helper.ChartStoreApp), int(helper.ExternalChartStoreApp)})
 
 	installAppUpdateQuery := `update installed_apps set 
