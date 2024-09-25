@@ -488,6 +488,8 @@ func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIden
 					impl.logger.Errorw("error in marking app inactive", "err", err)
 					return nil, err
 				}
+			} else {
+				validApp = activeApp
 			}
 		}
 		return validApp, nil

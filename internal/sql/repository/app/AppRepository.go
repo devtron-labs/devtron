@@ -141,18 +141,16 @@ func (repo AppRepositoryImpl) FindActiveByName(appName string) (*App, error) {
 		Where("active = ?", true).
 		Order("id DESC").Limit(1).
 		Select()
-	// there is only single active app will be present in db with a same name.
 	return pipelineGroup, err
 }
 
 func (repo AppRepositoryImpl) FindAllActiveByName(appName string) ([]*App, error) {
 	var apps []*App
 	err := repo.dbConnection.
-		Model(apps).
+		Model(&apps).
 		Where("app_name = ?", appName).
 		Where("active = ?", true).
 		Select()
-	// there is only single active app will be present in db with a same name.
 	return apps, err
 }
 
