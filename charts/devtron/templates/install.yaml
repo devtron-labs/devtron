@@ -80,6 +80,7 @@ spec:
       labels:
         app: inception
     spec:
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.installer.nodeSelector "tolerations" $.Values.installer.tolerations "imagePullSecrets" $.Values.installer.imagePullSecrets "global" $.Values.global) | indent 6 }}      
       {{- if and $.Values.global $.Values.global.podSecurityContext }}
       securityContext:
 {{- toYaml $.Values.global.podSecurityContext | nindent 8 }}

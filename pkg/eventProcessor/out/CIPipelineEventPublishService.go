@@ -24,7 +24,7 @@ import (
 )
 
 type CIPipelineEventPublishService interface {
-	PublishGitWebhookEvent(gitHostId int, gitHostName string, eventType, requestJSON string) error
+	PublishGitWebhookEvent(event *bean.CIPipelineGitWebhookEvent) error
 }
 
 type CIPipelineEventPublishServiceImpl struct {
@@ -40,21 +40,15 @@ func NewCIPipelineEventPublishServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *CIPipelineEventPublishServiceImpl) PublishGitWebhookEvent(gitHostId int, gitHostName string, eventType, requestJSON string) error {
-	event := &bean.CIPipelineGitWebhookEvent{
-		GitHostId:          gitHostId,
-		GitHostName:        gitHostName,
-		EventType:          eventType,
-		RequestPayloadJson: requestJSON,
-	}
+func (impl *CIPipelineEventPublishServiceImpl) PublishGitWebhookEvent(event *bean.CIPipelineGitWebhookEvent) error {
 	body, err := json.Marshal(event)
 	if err != nil {
-		impl.logger.Errorw("error in marshaling git webhook event", "err", err, "gitHostId", gitHostId)
+		impl.logger.Errorw("error in marshaling git webhook event", "err", err, "gitHostId", event.GitHostId)
 		return err
 	}
 	err = impl.pubSubClient.Publish(pubsub.WEBHOOK_EVENT_TOPIC, string(body))
 	if err != nil {
-		impl.logger.Errorw("error in publishing git webhook event", "err", err, "gitHostId", gitHostId)
+		impl.logger.Errorw("error in publishing git webhook event", "err", err, "gitHostId", event.GitHostId)
 		return err
 	}
 	return nil

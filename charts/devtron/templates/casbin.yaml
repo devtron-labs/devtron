@@ -1,0 +1,125 @@
+{{- if and .Values.devtronEnterprise.enabled }}
+{{- with .Values.devtronEnterprise.casbin }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: casbin
+    release: casbin
+  name: casbin
+  namespace: devtroncd
+spec:
+  minReadySeconds: 60
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: casbin
+      release: casbin
+  template:
+    metadata:
+      labels:
+        app: casbin
+        release: casbin
+    spec:
+      serviceAccountName: devtron-default-sa
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.devtronEnterprise.casbin.nodeSelector "tolerations" $.Values.devtronEnterprise.casbin.tolerations "imagePullSecrets" $.Values.devtronEnterprise.casbin.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      containers:
+        - name: casbin
+          image: {{ include "common.image" (dict "component" $.Values.devtronEnterprise.casbin "global" $.Values.global) }}
+          {{- if  .imagePullPolicy }}
+          imagePullPolicy: {{ .imagePullPolicy }}
+          {{- end }}
+          env:
+            - name: DEVTRON_APP_NAME
+              value: casbin
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            {{- if .dbconfig }}
+            - name: PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .dbconfig.secretName }}
+                  key: {{ .dbconfig.keyName }}
+            {{- end }}
+          envFrom:
+            - configMapRef:
+                name: casbin-cm
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+            - containerPort: 9000
+              name: app
+              protocol: TCP
+          {{- if .resources }}
+          resources:
+{{ toYaml .resources | indent 12 }}
+          {{- end }}
+          volumeMounts: []
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      volumes: []
+---
+# Casbin ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: casbin-cm
+  namespace: devtroncd
+  labels:
+    app: casbin
+    release: casbin
+{{- if .configs }}
+data:
+{{ toYaml .configs | indent 2 }}
+{{- end }}
+---
+# Casbin Service
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: casbin
+    release: casbin
+  annotations:
+    "helm.sh/resource-policy": keep
+  name: casbin-service
+  namespace: devtroncd
+spec:
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+    - name: app
+      port: 9000
+      protocol: TCP
+      targetPort: app
+  selector:
+    app: casbin
+    release: casbin
+  type: ClusterIP
+{{- end}}
+{{- end}}

@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"io"
 
-	"sigs.k8s.io/kustomize/kyaml/internal/forked/github.com/go-yaml/yaml"
+	yaml "sigs.k8s.io/yaml/goyaml.v3"
 )
 
 const (
@@ -20,7 +20,7 @@ const (
 	BareSeqNodeWrappingKey = "bareSeqNodeWrappingKey"
 )
 
-// SeqIndentType holds the indentation style for sequence nodes
+// SequenceIndentStyle holds the indentation style for sequence nodes
 type SequenceIndentStyle string
 
 // EncoderOptions are options that can be used to configure the encoder,
@@ -86,6 +86,16 @@ var DocumentNode yaml.Kind = yaml.DocumentNode
 var MappingNode yaml.Kind = yaml.MappingNode
 var ScalarNode yaml.Kind = yaml.ScalarNode
 var SequenceNode yaml.Kind = yaml.SequenceNode
+
+func nodeKindString(k yaml.Kind) string {
+	return map[yaml.Kind]string{
+		yaml.SequenceNode: "SequenceNode",
+		yaml.MappingNode:  "MappingNode",
+		yaml.ScalarNode:   "ScalarNode",
+		yaml.DocumentNode: "DocumentNode",
+		yaml.AliasNode:    "AliasNode",
+	}[k]
+}
 
 var DoubleQuotedStyle yaml.Style = yaml.DoubleQuotedStyle
 var FlowStyle yaml.Style = yaml.FlowStyle

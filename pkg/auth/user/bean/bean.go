@@ -125,3 +125,5 @@ const (
 	API_TOKEN_USER_EMAIL_PREFIX = "API-TOKEN:"
 	ApiTokenTableName           = "api_token"
 )
+
+const AnonymousUserEmail string = "anonymous"

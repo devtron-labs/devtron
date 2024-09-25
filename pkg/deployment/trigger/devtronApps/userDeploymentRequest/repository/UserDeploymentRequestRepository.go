@@ -21,7 +21,7 @@ import (
 	"context"
 	apiBean "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/models"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -146,7 +146,7 @@ func (impl *UserDeploymentRequestRepositoryImpl) GetAllInCompleteRequests(ctx co
 		Join("LEFT JOIN pipeline_status_timeline pst").
 		JoinOn("cdwfr.id = pst.cd_workflow_runner_id").
 		Where("cdwfr.workflow_type = ?", apiBean.CD_WORKFLOW_TYPE_DEPLOY).
-		Where("cdwfr.status NOT IN (?)", pg.In(append(pipelineConfig.WfrTerminalStatusList, pipelineConfig.WorkflowInQueue))).
+		Where("cdwfr.status NOT IN (?)", pg.In(append(cdWorkflow.WfrTerminalStatusList, cdWorkflow.WorkflowInQueue))).
 		Where("pst.status = ?", timelineStatus.TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED).
 		Where("NOT EXISTS (?)", subQuery).
 		Group("pipeline_id")

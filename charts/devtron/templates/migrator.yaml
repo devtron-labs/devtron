@@ -14,7 +14,8 @@ metadata:
 spec:
   template:
     spec:
-      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.components.migrator.nodeSelector "tolerations" $.Values.components.migrator.tolerations "imagePullSecrets" $.Values.components.migrator.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.migrator.nodeSelector "tolerations" $.Values.components.migrator.tolerations "imagePullSecrets" $.Values.components.migrator.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      serviceAccountName: devtron-default-sa
       {{- if and $.Values.global $.Values.global.podSecurityContext }}
       securityContext:
 {{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
@@ -122,7 +123,7 @@ metadata:
 spec:
   template:
     spec:
-      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.components.migrator.nodeSelector "tolerations" $.Values.components.migrator.tolerations "imagePullSecrets" $.Values.components.migrator.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.migrator.nodeSelector "tolerations" $.Values.components.migrator.tolerations "imagePullSecrets" $.Values.components.migrator.imagePullSecrets "global" $.Values.global) | indent 6 }}
       serviceAccountName: devtron
       {{- if and $.Values.global $.Values.global.podSecurityContext }}
       securityContext:
@@ -221,7 +222,8 @@ metadata:
 spec:
   template:
     spec:
-      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.components.migrator.nodeSelector "tolerations" $.Values.components.migrator.tolerations "imagePullSecrets" $.Values.components.migrator.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.migrator.nodeSelector "tolerations" $.Values.components.migrator.tolerations "imagePullSecrets" $.Values.components.migrator.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      serviceAccountName: devtron-default-sa
       {{- if and $.Values.global $.Values.global.podSecurityContext }}
       securityContext:
 {{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
@@ -300,7 +302,8 @@ metadata:
 spec:
   template:
     spec:
-      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.components.migrator.nodeSelector "tolerations" $.Values.components.migrator.tolerations "imagePullSecrets" $.Values.components.migrator.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.migrator.nodeSelector "tolerations" $.Values.components.migrator.tolerations "imagePullSecrets" $.Values.components.migrator.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      serviceAccountName: devtron-default-sa
       {{- if and $.Values.global $.Values.global.podSecurityContext }}
       securityContext:
 {{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
@@ -378,9 +381,10 @@ kind: Job
 metadata:
   name: postgresql-miscellaneous
 spec:
+  ttlSecondsAfterFinished: 100
   template:
     spec:
-      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.components.migrator.nodeSelector "tolerations" $.Values.components.migrator.tolerations "imagePullSecrets" $.Values.components.migrator.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.migrator.nodeSelector "tolerations" $.Values.components.migrator.tolerations "imagePullSecrets" $.Values.components.migrator.imagePullSecrets "global" $.Values.global) | indent 6 }}
       securityContext:
         fsGroup: 1000
         runAsGroup: 1000
