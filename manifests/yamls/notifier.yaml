@@ -66,7 +66,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: notifier
-          image: quay.io/devtron/notifier:9639b1ab-372-23850"
+          image: quay.io/devtron/notifier:06392394-372-25535"
           imagePullPolicy: IfNotPresent
           ports:
             - name: app
