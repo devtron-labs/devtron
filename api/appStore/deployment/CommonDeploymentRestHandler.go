@@ -171,7 +171,7 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistory(w http.Resp
 	}
 	//rbac block ends here
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 	res, err := handler.appStoreDeploymentService.GetDeploymentHistory(ctx, installedAppDto)
 	if err != nil {

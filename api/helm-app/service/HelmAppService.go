@@ -609,7 +609,7 @@ func (impl *HelmAppServiceImpl) checkIfNsExists(namespace string, clusterBean *c
 		impl.logger.Errorw("error in getting k8s client", "err", err, "clusterHost", config.Host)
 		return false, err
 	}
-	exists, err := impl.K8sUtil.CheckIfNsExists(namespace, v12Client)
+	_, exists, err := impl.K8sUtil.GetNsIfExists(namespace, v12Client)
 	if err != nil {
 		if IsClusterUnReachableError(err) {
 			impl.logger.Errorw("k8s cluster unreachable", "err", err)
@@ -1159,7 +1159,12 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.D
 			}
 			// end
 			lastDeployed := deployedapp.LastDeployed.AsTime()
-			appDetails, appFetchErr := impl.appRepository.FindActiveByName(deployedapp.AppName)
+			appDetails, appFetchErr := impl.getAppForAppIdentifier(
+				&helmBean.AppIdentifier{
+					ClusterId:   int(deployedapp.EnvironmentDetail.ClusterId),
+					Namespace:   deployedapp.EnvironmentDetail.Namespace,
+					ReleaseName: deployedapp.AppName,
+				})
 			projectId := int32(0)
 			if appFetchErr == nil {
 				projectId = int32(appDetails.TeamId)
