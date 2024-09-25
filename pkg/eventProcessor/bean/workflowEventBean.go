@@ -39,6 +39,7 @@ type CdStageCompleteEvent struct {
 	CiArtifactDTO                 pipelineConfig.CiArtifactDTO `json:"ciArtifactDTO"`
 	PluginRegistryArtifactDetails map[string][]string          `json:"PluginRegistryArtifactDetails"`
 	PluginArtifacts               *PluginArtifacts             `json:"pluginArtifacts"`
+	IsArtifactUploaded            bool                         `json:"isArtifactUploaded"`
 }
 
 type UserDeploymentRequest struct {
@@ -77,12 +78,12 @@ type CiCompleteEvent struct {
 	Metrics                       util.CIMetrics           `json:"metrics"`
 	AppName                       string                   `json:"appName"`
 	IsArtifactUploaded            bool                     `json:"isArtifactUploaded"`
-	FailureReason                 string                   `json:"failureReason"`
+	FailureReason                 string                   `json:"failureReason"` // FailureReason is used for notifying the failure reason to the user. Should be short and user-friendly
 	ImageDetailsFromCR            json.RawMessage          `json:"imageDetailsFromCR"`
 	PluginRegistryArtifactDetails map[string][]string      `json:"PluginRegistryArtifactDetails"`
 	PluginArtifactStage           string                   `json:"pluginArtifactStage"`
 	pluginImageDetails            *registry.ImageDetailsFromCR
-	PluginArtifacts               *PluginArtifacts         `json:"pluginArtifacts"`
+	PluginArtifacts               *PluginArtifacts `json:"pluginArtifacts"`
 }
 
 func (c *CiCompleteEvent) GetPluginImageDetails() *registry.ImageDetailsFromCR {

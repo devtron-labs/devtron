@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	"github.com/devtron-labs/common-lib/async"
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
@@ -118,6 +119,7 @@ type WorkflowDagExecutorImpl struct {
 	manifestCreationService manifest.ManifestCreationService
 	commonArtifactService   artifacts.CommonArtifactService
 	deploymentConfigService common2.DeploymentConfigService
+	asyncRunnable           *async.Runnable
 }
 
 func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -140,7 +142,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	userDeploymentRequestService service.UserDeploymentRequestService,
 	manifestCreationService manifest.ManifestCreationService,
 	commonArtifactService artifacts.CommonArtifactService,
-	deploymentConfigService common2.DeploymentConfigService) *WorkflowDagExecutorImpl {
+	deploymentConfigService common2.DeploymentConfigService,
+	asyncRunnable *async.Runnable) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -163,6 +166,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		manifestCreationService:       manifestCreationService,
 		commonArtifactService:         commonArtifactService,
 		deploymentConfigService:       deploymentConfigService,
+		asyncRunnable:                 asyncRunnable,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -722,6 +726,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 			return 0, err
 		}
 		savedWorkflow.Status = string(v1alpha1.NodeSucceeded)
+		savedWorkflow.IsArtifactUploaded = &request.IsArtifactUploaded
 		impl.logger.Debugw("updating workflow ", "savedWorkflow", savedWorkflow)
 		err = impl.ciWorkflowRepository.UpdateWorkFlow(savedWorkflow)
 		if err != nil {
@@ -734,7 +739,6 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 			impl.logger.Errorw("error in deactivation images", "err", err)
 			return 0, err
 		}
-
 	}
 
 	pipeline, err := impl.ciPipelineRepository.FindByCiAndAppDetailsById(ciPipelineId)
@@ -762,16 +766,15 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 		createdOn = imagePushedAt
 	}
 	buildArtifact := &repository.CiArtifact{
-		Image:              request.Image,
-		ImageDigest:        request.ImageDigest,
-		MaterialInfo:       string(materialJson),
-		DataSource:         request.DataSource,
-		PipelineId:         pipeline.Id,
-		WorkflowId:         request.WorkflowId,
-		ScanEnabled:        pipeline.ScanEnabled,
-		Scanned:            false,
-		IsArtifactUploaded: request.IsArtifactUploaded,
-		AuditLog:           sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: createdOn, UpdatedOn: updatedOn},
+		Image:        request.Image,
+		ImageDigest:  request.ImageDigest,
+		MaterialInfo: string(materialJson),
+		DataSource:   request.DataSource,
+		PipelineId:   pipeline.Id,
+		WorkflowId:   request.WorkflowId,
+		ScanEnabled:  pipeline.ScanEnabled,
+		Scanned:      false,
+		AuditLog:     sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: createdOn, UpdatedOn: updatedOn},
 	}
 	plugin, err := impl.globalPluginRepository.GetPluginByName(bean3.VULNERABILITY_SCANNING_PLUGIN)
 	if err != nil || len(plugin) == 0 {
@@ -832,16 +835,15 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 	var ciArtifactArr []*repository.CiArtifact
 	for _, ci := range childrenCi {
 		ciArtifact := &repository.CiArtifact{
-			Image:              request.Image,
-			ImageDigest:        request.ImageDigest,
-			MaterialInfo:       string(materialJson),
-			DataSource:         request.DataSource,
-			PipelineId:         ci.Id,
-			ParentCiArtifact:   buildArtifact.Id,
-			ScanEnabled:        ci.ScanEnabled,
-			Scanned:            false,
-			IsArtifactUploaded: request.IsArtifactUploaded,
-			AuditLog:           sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
+			Image:            request.Image,
+			ImageDigest:      request.ImageDigest,
+			MaterialInfo:     string(materialJson),
+			DataSource:       request.DataSource,
+			PipelineId:       ci.Id,
+			ParentCiArtifact: buildArtifact.Id,
+			ScanEnabled:      ci.ScanEnabled,
+			Scanned:          false,
+			AuditLog:         sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
 		}
 		if ci.ScanEnabled {
 			ciArtifact.Scanned = true
@@ -947,29 +949,39 @@ func (impl *WorkflowDagExecutorImpl) WriteCiSuccessEvent(request *bean2.CiArtifa
 }
 
 func (impl *WorkflowDagExecutorImpl) HandleCiStepFailedEvent(ciPipelineId int, request *bean2.CiArtifactWebhookRequest) (err error) {
-
+	if request == nil || request.WorkflowId == nil {
+		impl.logger.Errorw("invalid request received", "request", request)
+		return fmt.Errorf("invalid request received! workflowId is required")
+	}
 	savedWorkflow, err := impl.ciWorkflowRepository.FindById(*request.WorkflowId)
 	if err != nil {
 		impl.logger.Errorw("cannot get saved wf", "wf ID: ", *request.WorkflowId, "err", err)
 		return err
 	}
-
-	pipeline, err := impl.ciPipelineRepository.FindByCiAndAppDetailsById(ciPipelineId)
+	if request.IsArtifactUploaded {
+		dbErr := impl.ciWorkflowRepository.UpdateArtifactUploaded(savedWorkflow.Id, request.IsArtifactUploaded)
+		if dbErr != nil {
+			impl.logger.Errorw("update workflow status", "ciWorkflowId", savedWorkflow.Id, "err", dbErr)
+		}
+	}
+	pipelineModel, err := impl.ciPipelineRepository.FindByCiAndAppDetailsById(ciPipelineId)
 	if err != nil {
 		impl.logger.Errorw("unable to find pipeline", "ID", ciPipelineId, "err", err)
 		return err
 	}
-
-	go func() {
+	customTagServiceRunnableFunc := func() {
 		if len(savedWorkflow.ImagePathReservationIds) > 0 {
 			err = impl.customTagService.DeactivateImagePathReservationByImageIds(savedWorkflow.ImagePathReservationIds)
 			if err != nil {
-				impl.logger.Errorw("unable to deactivate impage_path_reservation ", err)
+				impl.logger.Errorw("unable to deactivate ImagePathReservation", "imagePathReservationIds", savedWorkflow.ImagePathReservationIds, "err", err)
 			}
 		}
-	}()
-
-	go impl.WriteCiStepFailedEvent(pipeline, request, savedWorkflow)
+	}
+	impl.asyncRunnable.Execute(customTagServiceRunnableFunc)
+	notificationServiceRunnableFunc := func() {
+		impl.WriteCiStepFailedEvent(pipelineModel, request, savedWorkflow)
+	}
+	impl.asyncRunnable.Execute(notificationServiceRunnableFunc)
 	return nil
 }
 
@@ -1022,7 +1034,6 @@ func (impl *WorkflowDagExecutorImpl) HandleExternalCiWebhook(externalCiId int, r
 		ExternalCiPipelineId: externalCiId,
 		ScanEnabled:          false,
 		Scanned:              false,
-		IsArtifactUploaded:   request.IsArtifactUploaded,
 		AuditLog:             sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
 	}
 	if err = impl.ciArtifactRepository.Save(artifact); err != nil {

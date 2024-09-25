@@ -50,4 +50,5 @@ type CdWorkflowRunnerDto struct {
 	RefCdWorkflowRunnerId   int                             `json:"refCdWorkflowRunnerId"`
 	ImagePathReservationIds []int                           `json:"imagePathReservationIds"`
 	ReferenceId             *string                         `json:"referenceId"`
+	IsArtifactUploaded      bool                            `json:"isArtifactUploaded"`
 }

@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
+	util3 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -528,6 +529,10 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 
 	var ciWorkLowResponses []types.WorkflowResponse
 	for _, w := range workFlows {
+		isArtifactUploaded := w.IsArtifactUploaded
+		if w.IsArtifactUploadedV2 != nil {
+			isArtifactUploaded = *w.IsArtifactUploadedV2
+		}
 		wfResponse := types.WorkflowResponse{
 			Id:                  w.Id,
 			Name:                w.Name,
@@ -546,12 +551,13 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 			TriggeredByEmail:    w.EmailId,
 			ArtifactId:          w.CiArtifactId,
 			BlobStorageEnabled:  w.BlobStorageEnabled,
-			IsArtifactUploaded:  w.IsArtifactUploaded,
+			IsArtifactUploaded:  isArtifactUploaded,
 			EnvironmentId:       w.EnvironmentId,
 			EnvironmentName:     w.EnvironmentName,
 			ReferenceWorkflowId: w.RefCiWorkflowId,
 			PodName:             w.PodName,
 		}
+
 		if w.Message == bean3.ImageTagUnavailableMessage {
 			customTag, err := impl.customTagService.GetCustomTagByEntityKeyAndValue(bean3.EntityTypeCiPipelineId, strconv.Itoa(w.CiPipelineId))
 			if err != nil && err != pg.ErrNoRows {
@@ -724,6 +730,10 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		}
 		environmentName = env.Name
 	}
+	isArtifactUploaded := ciArtifact.IsArtifactUploaded
+	if workflow.IsArtifactUploaded != nil {
+		isArtifactUploaded = *workflow.IsArtifactUploaded
+	}
 	workflowResponse := types.WorkflowResponse{
 		Id:                 workflow.Id,
 		Name:               workflow.Name,
@@ -742,7 +752,7 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		TriggeredByEmail:   triggeredByUserEmailId,
 		Artifact:           ciArtifact.Image,
 		ArtifactId:         ciArtifact.Id,
-		IsArtifactUploaded: ciArtifact.IsArtifactUploaded,
+		IsArtifactUploaded: isArtifactUploaded,
 		EnvironmentId:      workflow.EnvironmentId,
 		EnvironmentName:    environmentName,
 		PipelineType:       workflow.CiPipeline.PipelineType,
@@ -929,8 +939,14 @@ func (impl *CiHandlerImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId i
 		CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
 	}
 
-	key := fmt.Sprintf("%s/"+impl.config.GetArtifactLocationFormat(), impl.config.GetDefaultArtifactKeyPrefix(), ciWorkflow.Id, ciWorkflow.Id)
-
+	ciArtifactLocationFormat := ciConfig.CiArtifactLocationFormat
+	if len(ciArtifactLocationFormat) == 0 {
+		ciArtifactLocationFormat = impl.config.GetArtifactLocationFormat()
+	}
+	key := fmt.Sprintf(ciArtifactLocationFormat, ciWorkflow.Id, ciWorkflow.Id)
+	if len(ciWorkflow.CiArtifactLocation) != 0 && util3.IsValidUrlSubPath(ciWorkflow.CiArtifactLocation) {
+		key = ciWorkflow.CiArtifactLocation
+	}
 	baseLogLocationPathConfig := impl.config.BaseLogLocationPath
 	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
 	destinationKey := filepath.Clean(filepath.Join(baseLogLocationPathConfig, item))
@@ -1148,10 +1164,10 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 	}
 
 	ciArtifactLocationFormat := ciWorkflowConfig.CiArtifactLocationFormat
-	if ciArtifactLocationFormat == "" {
+	if len(ciArtifactLocationFormat) == 0 {
 		ciArtifactLocationFormat = impl.config.GetArtifactLocationFormat()
 	}
-	ciArtifactLocation := fmt.Sprintf(ciArtifactLocationFormat, ciWorkflowConfig.LogsBucket, savedWorkflow.Id, savedWorkflow.Id)
+	ciArtifactLocation := fmt.Sprintf(ciArtifactLocationFormat, savedWorkflow.Id, savedWorkflow.Id)
 
 	if impl.stateChanged(status, podStatus, message, workflowStatus.FinishedAt.Time, savedWorkflow) {
 		if savedWorkflow.Status != executors.WorkflowCancel {

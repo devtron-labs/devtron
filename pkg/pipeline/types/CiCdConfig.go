@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"os/user"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -363,7 +364,7 @@ func (impl *CiCdConfig) GetDefaultBuildLogsKeyPrefix() string {
 		return ""
 	}
 }
-func (impl *CiCdConfig) GetDefaultArtifactKeyPrefix() string {
+func (impl *CiCdConfig) getDefaultArtifactKeyPrefix() string {
 	switch impl.Type {
 	case CiConfigType:
 		return impl.CiDefaultArtifactKeyPrefix
@@ -388,9 +389,17 @@ func (impl *CiCdConfig) GetWorkflowServiceAccount() string {
 func (impl *CiCdConfig) GetArtifactLocationFormat() string {
 	switch impl.Type {
 	case CiConfigType:
-		return impl.CiArtifactLocationFormat
+		ciArtifactLocationFormat := impl.CiArtifactLocationFormat
+		if len(impl.getDefaultArtifactKeyPrefix()) != 0 {
+			ciArtifactLocationFormat = path.Join(impl.getDefaultArtifactKeyPrefix(), ciArtifactLocationFormat)
+		}
+		return ciArtifactLocationFormat
 	case CdConfigType:
-		return impl.CdArtifactLocationFormat
+		cdArtifactLocationFormat := impl.CdArtifactLocationFormat
+		if len(impl.getDefaultArtifactKeyPrefix()) != 0 {
+			cdArtifactLocationFormat = path.Join(impl.getDefaultArtifactKeyPrefix(), cdArtifactLocationFormat)
+		}
+		return cdArtifactLocationFormat
 	default:
 		return ""
 	}

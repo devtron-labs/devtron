@@ -43,6 +43,7 @@ type CdWorkflowRepository interface {
 	FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType apiBean.WorkflowType, limit int, runnerStatuses []string) ([]CdWorkflowRunner, error)
 	SaveWorkFlowRunner(wfr *CdWorkflowRunner) (*CdWorkflowRunner, error)
 	UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error
+	UpdateIsArtifactUploaded(wfrId int, isArtifactUploaded bool) error
 	GetPreviousQueuedRunners(cdWfrId, pipelineId int) ([]*CdWorkflowRunner, error)
 	UpdateRunnerStatusToFailedForIds(errMsg string, triggeredBy int32, cdWfrIds ...int) error
 	UpdateWorkFlowRunnersWithTxn(wfrs []*CdWorkflowRunner, tx *pg.Tx) error
@@ -134,6 +135,8 @@ type CdWorkflowRunner struct {
 	FinishedOn              time.Time                       `sql:"finished_on"`
 	Namespace               string                          `sql:"namespace"`
 	LogLocation             string                          `sql:"log_file_path"`
+	CdArtifactLocation      string                          `sql:"cd_artifact_location"`
+	IsArtifactUploaded      *bool                           `sql:"is_artifact_uploaded"`
 	TriggeredBy             int32                           `sql:"triggered_by"`
 	CdWorkflowId            int                             `sql:"cd_workflow_id"`
 	PodName                 string                          `sql:"pod_name"`
@@ -191,6 +194,7 @@ type CdWorkflowWithArtifact struct {
 	MaterialInfo          string                       `json:"material_info,omitempty"`
 	DataSource            string                       `json:"data_source,omitempty"`
 	CiArtifactId          int                          `json:"ci_artifact_id,omitempty"`
+	IsArtifactUploaded    bool                         `json:"isArtifactUploaded"`
 	WorkflowType          string                       `json:"workflow_type,omitempty"`
 	ExecutorType          string                       `json:"executor_type,omitempty"`
 	BlobStorageEnabled    bool                         `json:"blobStorageEnabled"`
@@ -499,6 +503,14 @@ func (impl *CdWorkflowRepositoryImpl) SaveWorkFlowRunner(wfr *CdWorkflowRunner) 
 func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error {
 	wfr.Message = util.GetTruncatedMessage(wfr.Message, 1000)
 	err := impl.dbConnection.Update(wfr)
+	return err
+}
+
+func (impl *CdWorkflowRepositoryImpl) UpdateIsArtifactUploaded(wfrId int, isArtifactUploaded bool) error {
+	_, err := impl.dbConnection.Model((*CdWorkflowRunner)(nil)).
+		Set("is_artifact_uploaded = ?", isArtifactUploaded).
+		Where("id = ?", wfrId).
+		Update()
 	return err
 }
 

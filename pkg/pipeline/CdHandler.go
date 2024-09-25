@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
+	util2 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -216,29 +217,32 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		return 0, "", err
 	}
 
-	ciWorkflowConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(savedWorkflow.CdWorkflow.PipelineId)
+	cdWorkflowConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(savedWorkflow.CdWorkflow.PipelineId)
 	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("unable to fetch ciWorkflowConfig", "err", err)
+		impl.Logger.Errorw("unable to fetch cdWorkflowConfig", "err", err)
 		return 0, "", err
 	}
 
-	ciArtifactLocationFormat := ciWorkflowConfig.CdArtifactLocationFormat
-	if ciArtifactLocationFormat == "" {
-		ciArtifactLocationFormat = impl.config.GetArtifactLocationFormat()
+	cdArtifactLocationFormat := cdWorkflowConfig.CdArtifactLocationFormat
+	if len(cdArtifactLocationFormat) == 0 {
+		cdArtifactLocationFormat = impl.config.GetArtifactLocationFormat()
 	}
-
+	if cdWorkflowConfig.LogsBucket == "" {
+		cdWorkflowConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket()
+	}
+	cdArtifactLocation := fmt.Sprintf(cdArtifactLocationFormat, savedWorkflow.Id, savedWorkflow.Id)
 	if impl.stateChanged(status, podStatus, message, workflowStatus.FinishedAt.Time, savedWorkflow) {
 		if savedWorkflow.Status != executors.WorkflowCancel {
 			savedWorkflow.Status = status
 		}
+		savedWorkflow.CdArtifactLocation = cdArtifactLocation
 		savedWorkflow.PodStatus = podStatus
 		savedWorkflow.Message = message
 		savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
 		savedWorkflow.Name = workflowName
 		// removed log location from here since we are saving it at trigger
 		savedWorkflow.PodName = podName
-		savedWorkflow.UpdatedOn = time.Now()
-		savedWorkflow.UpdatedBy = 1
+		savedWorkflow.UpdateAuditLog(1)
 		impl.Logger.Debugw("updating workflow ", "workflow", savedWorkflow)
 		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(savedWorkflow)
 		if err != nil {
@@ -687,7 +691,14 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 		BucketName:             cdConfig.LogsBucket,
 		CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
 	}
-	key := fmt.Sprintf("%s/"+impl.config.GetArtifactLocationFormat(), impl.config.GetDefaultArtifactKeyPrefix(), wfr.CdWorkflow.Id, wfr.Id)
+	cdArtifactLocationFormat := cdConfig.CdArtifactLocationFormat
+	if len(cdArtifactLocationFormat) == 0 {
+		cdArtifactLocationFormat = impl.config.GetArtifactLocationFormat()
+	}
+	key := fmt.Sprintf(cdArtifactLocationFormat, wfr.CdWorkflow.Id, wfr.Id)
+	if len(wfr.CdArtifactLocation) != 0 && util2.IsValidUrlSubPath(wfr.CdArtifactLocation) {
+		key = wfr.CdArtifactLocation
+	}
 	baseLogLocationPathConfig := impl.config.BaseLogLocationPath
 	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
 	destinationKey := filepath.Clean(filepath.Join(baseLogLocationPathConfig, item))
@@ -747,6 +758,9 @@ func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pip
 		workflow.Image = wfr.CdWorkflow.CiArtifact.Image
 		workflow.PipelineId = wfr.CdWorkflow.PipelineId
 		workflow.CiArtifactId = wfr.CdWorkflow.CiArtifactId
+		if wfr.CdWorkflow.CiArtifact != nil {
+			workflow.IsArtifactUploaded = *wfr.IsArtifactUploaded
+		}
 		workflow.BlobStorageEnabled = wfr.BlobStorageEnabled
 		workflow.RefCdWorkflowRunnerId = wfr.RefCdWorkflowRunnerId
 	}

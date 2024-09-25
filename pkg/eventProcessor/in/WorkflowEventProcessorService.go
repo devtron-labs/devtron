@@ -165,12 +165,18 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDStageCompleteEvent() error {
 			impl.logger.Errorw("could not get wf runner", "err", err)
 			return
 		}
-
+		wfr.IsArtifactUploaded = cdStageCompleteEvent.IsArtifactUploaded
 		if wfr.Status != string(v1alpha1.NodeSucceeded) {
 			impl.logger.Debugw("event received from ci runner, updating workflow runner status as succeeded", "savedWorkflowRunnerId", wfr.Id, "oldStatus", wfr.Status, "podStatus", wfr.PodStatus)
-			err = impl.cdWorkflowRunnerService.UpdateWfrStatus(wfr, string(v1alpha1.NodeSucceeded), 1)
+			err = impl.cdWorkflowRunnerService.UpdateWfr(wfr, 1)
 			if err != nil {
 				impl.logger.Errorw("update cd-wf-runner failed for id ", "cdWfrId", wfr.Id, "err", err)
+				return
+			}
+		} else if cdStageCompleteEvent.IsArtifactUploaded {
+			err = impl.cdWorkflowRunnerService.UpdateIsArtifactUploaded(wfr.Id, cdStageCompleteEvent.IsArtifactUploaded)
+			if err != nil {
+				impl.logger.Errorw("error in updating isArtifactUploaded", "cdWfrId", wfr.Id, "err", err)
 				return
 			}
 		}
@@ -514,7 +520,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 			ReferenceId: pointer.String(msg.MsgId),
 		}
 
-		if ciCompleteEvent.FailureReason != "" {
+		if len(ciCompleteEvent.FailureReason) != 0 {
 			req.FailureReason = ciCompleteEvent.FailureReason
 			err := impl.workflowDagExecutor.HandleCiStepFailedEvent(ciCompleteEvent.PipelineId, req)
 			if err != nil {

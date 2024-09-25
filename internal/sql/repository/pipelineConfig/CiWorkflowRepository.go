@@ -32,6 +32,7 @@ type CiWorkflowRepository interface {
 	SaveWorkFlow(wf *CiWorkflow) error
 	FindLastTriggeredWorkflow(pipelineId int) (*CiWorkflow, error)
 	UpdateWorkFlow(wf *CiWorkflow) error
+	UpdateArtifactUploaded(id int, isUploaded bool) error
 	FindByStatusesIn(activeStatuses []string) ([]*CiWorkflow, error)
 	FindByPipelineId(pipelineId int, offset int, size int) ([]WorkflowWithArtifact, error)
 	FindById(id int) (*CiWorkflow, error)
@@ -72,6 +73,7 @@ type CiWorkflow struct {
 	GitTriggers             map[int]GitCommit               `sql:"git_triggers"`
 	TriggeredBy             int32                           `sql:"triggered_by"`
 	CiArtifactLocation      string                          `sql:"ci_artifact_location"`
+	IsArtifactUploaded      *bool                           `sql:"is_artifact_uploaded"`
 	PodName                 string                          `sql:"pod_name"`
 	CiBuildType             string                          `sql:"ci_build_type"`
 	EnvironmentId           int                             `sql:"environment_id"`
@@ -111,7 +113,8 @@ type WorkflowWithArtifact struct {
 	CiArtifactId            int                             `json:"ci_artifact_d"`
 	BlobStorageEnabled      bool                            `json:"blobStorageEnabled"`
 	CiBuildType             string                          `json:"ci_build_type"`
-	IsArtifactUploaded      bool                            `json:"is_artifact_uploaded"`
+	IsArtifactUploadedV2    *bool                           `json:"is_artifact_uploaded"`     // IsArtifactUploadedV2 is the new column from ci_workflow table, IsArtifactUploaded is Deprecated and will be removed in future
+	IsArtifactUploaded      bool                            `json:"old_is_artifact_uploaded"` // Deprecated; Use IsArtifactUploadedV2 instead. IsArtifactUploaded is the column from ci_artifact table
 	EnvironmentId           int                             `json:"environmentId"`
 	EnvironmentName         string                          `json:"environmentName"`
 	RefCiWorkflowId         int                             `json:"referenceCiWorkflowId"`
@@ -191,7 +194,7 @@ func (impl *CiWorkflowRepositoryImpl) FindByStatusesIn(activeStatuses []string) 
 // FindByPipelineId gets only those workflowWithArtifact whose parent_ci_workflow_id is null, this is done to accommodate multiple ci_artifacts through a single workflow(parent), making child workflows for other ci_artifacts (this has been done due to design understanding and db constraint) single workflow single ci-artifact
 func (impl *CiWorkflowRepositoryImpl) FindByPipelineId(pipelineId int, offset int, limit int) ([]WorkflowWithArtifact, error) {
 	var wfs []WorkflowWithArtifact
-	queryTemp := "select cia.id as ci_artifact_id, env.environment_name, cia.image, cia.is_artifact_uploaded, wf.*, u.email_id from ci_workflow wf left join users u on u.id = wf.triggered_by left join ci_artifact cia on wf.id = cia.ci_workflow_id left join environment env on env.id = wf.environment_id where wf.ci_pipeline_id = ? and parent_ci_workflow_id is null order by wf.started_on desc offset ? limit ?;"
+	queryTemp := "select cia.id as ci_artifact_id, env.environment_name, cia.image, cia.is_artifact_uploaded as old_is_artifact_uploaded, wf.*, u.email_id from ci_workflow wf left join users u on u.id = wf.triggered_by left join ci_artifact cia on wf.id = cia.ci_workflow_id left join environment env on env.id = wf.environment_id where wf.ci_pipeline_id = ? and parent_ci_workflow_id is null order by wf.started_on desc offset ? limit ?;"
 	_, err := impl.dbConnection.Query(&wfs, queryTemp, pipelineId, offset, limit)
 	if err != nil {
 		return nil, err
@@ -266,6 +269,14 @@ func (impl *CiWorkflowRepositoryImpl) SaveWorkFlow(wf *CiWorkflow) error {
 
 func (impl *CiWorkflowRepositoryImpl) UpdateWorkFlow(wf *CiWorkflow) error {
 	err := impl.dbConnection.Update(wf)
+	return err
+}
+
+func (impl *CiWorkflowRepositoryImpl) UpdateArtifactUploaded(id int, isUploaded bool) error {
+	_, err := impl.dbConnection.Model(&CiWorkflow{}).
+		Set("is_artifact_uploaded = ?", isUploaded).
+		Where("id = ?", id).
+		Update()
 	return err
 }
 

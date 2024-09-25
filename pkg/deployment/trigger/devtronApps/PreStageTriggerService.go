@@ -51,6 +51,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"maps"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -936,23 +937,23 @@ func (impl *TriggerServiceImpl) getDeployStageDetails(pipelineId int) (pipelineC
 
 func (impl *TriggerServiceImpl) buildArtifactLocationForS3(cdWorkflowConfig *pipelineConfig.CdWorkflowConfig, cdWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner) (string, string, string) {
 	cdArtifactLocationFormat := cdWorkflowConfig.CdArtifactLocationFormat
-	if cdArtifactLocationFormat == "" {
+	if len(cdArtifactLocationFormat) == 0 {
 		cdArtifactLocationFormat = impl.config.GetArtifactLocationFormat()
 	}
 	if cdWorkflowConfig.LogsBucket == "" {
 		cdWorkflowConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket()
 	}
-	ArtifactLocation := fmt.Sprintf("s3://%s/"+impl.config.GetDefaultArtifactKeyPrefix()+"/"+cdArtifactLocationFormat, cdWorkflowConfig.LogsBucket, cdWf.Id, runner.Id)
-	artifactFileName := fmt.Sprintf(impl.config.GetDefaultArtifactKeyPrefix()+"/"+cdArtifactLocationFormat, cdWf.Id, runner.Id)
+	ArtifactLocation := fmt.Sprintf("s3://"+path.Join(cdWorkflowConfig.LogsBucket, cdArtifactLocationFormat), cdWf.Id, runner.Id)
+	artifactFileName := fmt.Sprintf(cdArtifactLocationFormat, cdWf.Id, runner.Id)
 	return ArtifactLocation, cdWorkflowConfig.LogsBucket, artifactFileName
 }
 
 func (impl *TriggerServiceImpl) buildDefaultArtifactLocation(cdWorkflowConfig *pipelineConfig.CdWorkflowConfig, savedWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner) string {
 	cdArtifactLocationFormat := cdWorkflowConfig.CdArtifactLocationFormat
-	if cdArtifactLocationFormat == "" {
+	if len(cdArtifactLocationFormat) == 0 {
 		cdArtifactLocationFormat = impl.config.GetArtifactLocationFormat()
 	}
-	ArtifactLocation := fmt.Sprintf("%s/"+cdArtifactLocationFormat, impl.config.GetDefaultArtifactKeyPrefix(), savedWf.Id, runner.Id)
+	ArtifactLocation := fmt.Sprintf(cdArtifactLocationFormat, savedWf.Id, runner.Id)
 	return ArtifactLocation
 }
 

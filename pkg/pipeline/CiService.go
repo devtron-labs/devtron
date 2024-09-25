@@ -32,6 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
 	"maps"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -492,8 +493,8 @@ func (impl *CiServiceImpl) buildS3ArtifactLocation(ciWorkflowConfig *pipelineCon
 	if ciArtifactLocationFormat == "" {
 		ciArtifactLocationFormat = impl.config.GetArtifactLocationFormat()
 	}
-	ArtifactLocation := fmt.Sprintf("s3://%s/%s/"+ciArtifactLocationFormat, ciWorkflowConfig.LogsBucket, impl.config.GetDefaultArtifactKeyPrefix(), savedWf.Id, savedWf.Id)
-	artifactFileName := fmt.Sprintf(impl.config.GetDefaultArtifactKeyPrefix()+"/"+ciArtifactLocationFormat, savedWf.Id, savedWf.Id)
+	ArtifactLocation := fmt.Sprintf("s3://"+path.Join(ciWorkflowConfig.LogsBucket, ciArtifactLocationFormat), savedWf.Id, savedWf.Id)
+	artifactFileName := fmt.Sprintf(ciArtifactLocationFormat, savedWf.Id, savedWf.Id)
 	return ArtifactLocation, ciWorkflowConfig.LogsBucket, artifactFileName
 }
 
@@ -502,7 +503,7 @@ func (impl *CiServiceImpl) buildDefaultArtifactLocation(ciWorkflowConfig *pipeli
 	if ciArtifactLocationFormat == "" {
 		ciArtifactLocationFormat = impl.config.GetArtifactLocationFormat()
 	}
-	ArtifactLocation := fmt.Sprintf("%s/"+ciArtifactLocationFormat, impl.config.GetDefaultArtifactKeyPrefix(), savedWf.Id, savedWf.Id)
+	ArtifactLocation := fmt.Sprintf(ciArtifactLocationFormat, savedWf.Id, savedWf.Id)
 	return ArtifactLocation
 }
 
