@@ -43,7 +43,7 @@ spec:
       container: {{ $.Chart.Name }}
       target:
         type: Utilization
-        averageUtilization: {{ .TargetCPUUtilizationPercentage }}
+        averageUtilization: {{ .TargetMemoryUtilizationPercentage }}
   {{- end}}
   {{- end }}            
   {{- end }}  
