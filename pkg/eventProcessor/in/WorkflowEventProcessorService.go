@@ -168,6 +168,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDStageCompleteEvent() error {
 		wfr.IsArtifactUploaded = cdStageCompleteEvent.IsArtifactUploaded
 		if wfr.Status != string(v1alpha1.NodeSucceeded) {
 			impl.logger.Debugw("event received from ci runner, updating workflow runner status as succeeded", "savedWorkflowRunnerId", wfr.Id, "oldStatus", wfr.Status, "podStatus", wfr.PodStatus)
+			wfr.Status = string(v1alpha1.NodeSucceeded)
 			err = impl.cdWorkflowRunnerService.UpdateWfr(wfr, 1)
 			if err != nil {
 				impl.logger.Errorw("update cd-wf-runner failed for id ", "cdWfrId", wfr.Id, "err", err)
