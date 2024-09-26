@@ -482,6 +482,14 @@ func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIden
 	if util.IsErrNoRows(err) {
 		//find app by display name if not found by unique identifier
 		app, err = impl.appRepository.FindAppAndProjectByAppName(appIdentifier.ReleaseName)
+		if err == pg.ErrMultiRows {
+			validApp, err := impl.dbMigration.FixMultipleAppsForInstalledApp(appNameUniqueIdentifier)
+			if err != nil {
+				impl.logger.Errorw("error in fixing multiple installed app entries", "appName", appNameUniqueIdentifier, "err", err)
+				return app, err
+			}
+			return validApp, err
+		}
 		if err != nil {
 			impl.logger.Errorw("error in fetching app meta data by display name", "displayName", appIdentifier.ReleaseName, "err", err)
 			return app, err

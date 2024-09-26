@@ -3,7 +3,6 @@ package dbMigration
 import (
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
-	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
@@ -31,12 +30,9 @@ func NewDbMigrationServiceImpl(
 
 func (impl DbMigrationServiceImpl) FixMultipleAppsForInstalledApp(appNameUniqueIdentifier string) (*appRepository.App, error) {
 	installedApp, err := impl.installedAppRepository.GetInstalledAppByAppName(appNameUniqueIdentifier)
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil {
 		impl.logger.Errorw("error in fetching installed app by unique identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
 		return nil, err
-	}
-	if err == pg.ErrNoRows {
-		return nil, nil
 	}
 	validAppId := installedApp.AppId
 	allActiveApps, err := impl.appRepository.FindAllActiveByName(appNameUniqueIdentifier)
