@@ -167,7 +167,7 @@ spec:
         app: kubewatch
         release: devtron
     spec:
-      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.components.kubewatch.nodeSelector "tolerations" $.Values.components.kubewatch.tolerations "imagePullSecrets" $.Values.components.kubewatch.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.kubewatch.nodeSelector "tolerations" $.Values.components.kubewatch.tolerations "imagePullSecrets" $.Values.components.kubewatch.imagePullSecrets "global" $.Values.global) | indent 6 }}
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
       serviceAccountName: kubewatch

@@ -73,7 +73,7 @@ func (handler *UserAttributesRestHandlerImpl) AddUserAttributes(w http.ResponseW
 	//	common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 	//	return
 	//}
-	emailId, err := handler.userService.GetEmailById(userId)
+	emailId, err := handler.userService.GetActiveEmailById(userId)
 	if err != nil {
 		handler.logger.Errorw("request err, UpdateUserAttributes", "err", err, "payload", dto)
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
@@ -119,7 +119,7 @@ func (handler *UserAttributesRestHandlerImpl) UpdateUserAttributes(w http.Respon
 	//	return
 	//}
 
-	emailId, err := handler.userService.GetEmailById(userId)
+	emailId, err := handler.userService.GetActiveEmailById(userId)
 	if err != nil {
 		handler.logger.Errorw("request err, UpdateUserAttributes", "err", err, "payload", dto)
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
@@ -165,7 +165,7 @@ func (handler *UserAttributesRestHandlerImpl) GetUserAttribute(w http.ResponseWr
 
 	dto := attributes.UserAttributesDto{}
 
-	emailId, err := handler.userService.GetEmailById(userId)
+	emailId, err := handler.userService.GetActiveEmailById(userId)
 	if err != nil {
 		handler.logger.Errorw("request err, UpdateUserAttributes", "err", err, "payload", dto)
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
