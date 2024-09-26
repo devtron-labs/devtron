@@ -4,6 +4,7 @@ import (
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"go.uber.org/zap"
+	"time"
 )
 
 type DbMigration interface {
@@ -45,6 +46,8 @@ func (impl DbMigrationServiceImpl) FixMultipleAppsForInstalledApp(appNameUniqueI
 		if activeApp.Id != validAppId {
 			impl.logger.Info("duplicate entries found for app, marking app inactive ", "appName", appNameUniqueIdentifier)
 			activeApp.Active = false
+			activeApp.UpdatedOn = time.Now()
+			activeApp.UpdatedBy = 1
 			err := impl.appRepository.Update(activeApp)
 			if err != nil {
 				impl.logger.Errorw("error in marking app inactive", "name", activeApp.AppName, "err", err)
