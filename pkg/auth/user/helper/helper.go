@@ -93,3 +93,19 @@ func CreateErrorMessageForUserRoleGroups(restrictedGroups []bean2.RestrictedGrou
 	}
 	return errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin
 }
+
+func GetMapOfUniqueRoleFilterKey(roleFilters []bean2.RoleFilter) map[string]bool {
+	uniqueRoleFilterKeyMap := make(map[string]bool, len(roleFilters))
+	for _, roleFilter := range roleFilters {
+		uniqueRoleFilterKeyMap[roleFilter.GetUniqueKey()] = true
+	}
+	return uniqueRoleFilterKeyMap
+}
+
+func GetMapOfUniqueUserRoleGroup(userRoleGroups []bean2.UserRoleGroup) map[string]bool {
+	uniqueUserRoleGroupKeyMap := make(map[string]bool, len(userRoleGroups))
+	for _, userRoleGroup := range userRoleGroups {
+		uniqueUserRoleGroupKeyMap[userRoleGroup.GetUniqueKey()] = true
+	}
+	return uniqueUserRoleGroupKeyMap
+}

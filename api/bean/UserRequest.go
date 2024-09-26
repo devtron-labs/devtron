@@ -18,6 +18,7 @@ package bean
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"time"
 )
@@ -70,6 +71,10 @@ type RoleFilter struct {
 	Kind      string `json:"kind"`
 	Resource  string `json:"resource"`
 	Workflow  string `json:"workflow"`
+}
+
+func (roleFilter RoleFilter) GetUniqueKey() string {
+	return fmt.Sprintf("%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s", roleFilter.Entity, roleFilter.Team, roleFilter.EntityName, roleFilter.Environment, roleFilter.Action, roleFilter.AccessType, roleFilter.Cluster, roleFilter.Namespace, roleFilter.Group, roleFilter.Kind, roleFilter.Resource, roleFilter.Workflow)
 }
 
 type Role struct {
@@ -154,4 +159,8 @@ type BulkDeleteRequest struct {
 
 type UserRoleGroup struct {
 	RoleGroup *RoleGroup `json:"roleGroup"`
+}
+
+func (group UserRoleGroup) GetUniqueKey() string {
+	return fmt.Sprintf("%d-%s", group.RoleGroup.Id, group.RoleGroup.Name)
 }
