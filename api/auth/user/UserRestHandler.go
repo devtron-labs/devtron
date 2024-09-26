@@ -242,23 +242,19 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 	// NOTE: if no role assigned, user will be visible to all manager.
 	// RBAC enforcer applying
 	filteredRoleFilter := make([]bean.RoleFilter, 0)
+	isManagerOfAnyApp := false
 	if res.RoleFilters != nil && len(res.RoleFilters) > 0 {
 		for _, filter := range res.RoleFilters {
-			authPass := true
 			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, filter.Team); !ok {
-					authPass = false
+				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, filter.Team); ok {
+					isManagerOfAnyApp = true
+					break
 				}
-			}
-			if filter.Entity == bean2.CLUSTER_ENTITIY {
-				if ok := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !ok {
-					authPass = false
-				}
-			}
-			if authPass {
-				filteredRoleFilter = append(filteredRoleFilter, filter)
 			}
 		}
+	}
+	if res.SuperAdmin || isManagerOfAnyApp {
+		filteredRoleFilter = res.RoleFilters
 	}
 	for index, roleFilter := range filteredRoleFilter {
 		if roleFilter.Entity == "" {
