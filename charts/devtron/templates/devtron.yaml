@@ -1,4 +1,5 @@
 {{- with .Values.components.devtron }}
+{{- $argocdEnabled :=  index $.Values "argo-cd" }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -19,6 +20,12 @@ data:
   DEX_HOST: http://argocd-dex-server.devtroncd
   DEX_PORT: "5556"
   APP_SYNC_IMAGE: {{ include "common.image" (dict "component" $.Values.components.chartSync "global" $.Values.global ) }}
+  {{- if and $.Values.devtronEnterprise.enabled $.Values.devtronEnterprise.scoop.enabled }}
+  SCOOP_CLUSTER_CONFIG: '{"1":{"serviceName":"scoop-service","passKey":"qhihdidhwid","namespace":"devtroncd","port":"80"}}'
+  {{- end }}
+  {{- if $.Values.devtronEnterprise.enabled }}
+  CASBIN_CLIENT_URL: casbin-service.devtroncd:9000
+  {{- end }}
 {{- if $.Values.installer.modules }}
 {{- if has "cicd" $.Values.installer.modules }}
   CD_HOST: "argocd-server.devtroncd"
@@ -86,7 +93,16 @@ data:
   ENFORCER_MAX_BATCH_SIZE: "1"
   DEVTRON_SECRET_NAME: "devtron-secret"
   ENABLE_ASYNC_ARGO_CD_INSTALL_DEVTRON_CHART: "false"
-  USE_ARTIFACT_LISTING_API_V2: "true"
+  USE_ARTIFACT_LISTING_API_V2: "false"
+  ASYNC_BUILDX_CACHE_EXPORT: "true"
+  BUILDX_CACHE_MODE_MIN: "false"
+  DEVTRON_CHART_ARGO_CD_INSTALL_REQUEST_TIMEOUT: "1"
+  IN_APP_LOGGING_ENABLED: "true"
+  PARALLELISM_LIMIT_FOR_TAG_PROCESSING: "2"
+  SCAN_V2_ENABLED: "false"
+  TIMEOUT_IN_SECONDS: "60"
+  SHOW_DOCKER_BUILD_ARGS: "true"
+  FORCE_SECURITY_SCANNING: "false"
   RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS: "true"
   ENABLE_ASYNC_INSTALL_DEVTRON_CHART: "true"
   DEVTRON_CHART_INSTALL_REQUEST_TIMEOUT: "6"
@@ -160,6 +176,26 @@ data:
 {{- if .customOverrides }}
 {{ toYaml .customOverrides | indent 2}}
 {{- end }}
+  {{- $modules := list }}
+  {{- if has "cicd" $.Values.installer.modules }}
+    {{- $modules = append $modules "cicd" }}
+    {{- if $.Values.notifier.enabled }}
+      {{- $modules = append $modules "notifier" }}
+    {{- end }}
+    {{- if and $.Values.security.enabled $.Values.security.trivy.enabled }}
+      {{- $modules = append $modules "security.trivy" }}
+    {{- end }}
+    {{- if and $.Values.security.enabled $.Values.security.clair.enabled }}
+      {{- $modules = append $modules "security.clair" }}
+    {{- end }}
+    {{- if $.Values.monitoring.grafana.enabled }}
+      {{- $modules = append $modules "monitoring.grafana" }}
+    {{- end }}
+    {{- if ($argocdEnabled.enabled) }}
+      {{- $modules = append $modules "argo-cd" }}
+    {{- end }}
+  {{- end }}
+  INSTALLED_MODULES: {{ if $modules }}{{ printf "'%s'" (join "," $modules) }}{{ else }}""{{ end }}
   DEFAULT_CI_IMAGE: {{ include "common.image" (dict "component" $.Values.components.ciRunner "global" $.Values.global ) }}
 ---
 apiVersion: v1
@@ -201,7 +237,7 @@ spec:
         app: devtron
         release: devtron
     spec:
-      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.components.devtron.nodeSelector "tolerations" $.Values.components.devtron.tolerations "imagePullSecrets" $.Values.components.devtron.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.devtron.nodeSelector "tolerations" $.Values.components.devtron.tolerations "imagePullSecrets" $.Values.components.devtron.imagePullSecrets "global" $.Values.global) | indent 6 }}
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
       serviceAccountName: devtron
