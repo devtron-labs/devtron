@@ -89,12 +89,12 @@ func (impl DeleteServiceFullModeImpl) DeleteDockerRegistryConfig(deleteRequest *
 	}
 
 	//finding if docker reg chart is used in any deployment, if yes then will not delete
-	store, err := impl.dockerRegistryRepository.FindOneWithDeploymentCount(deleteRequest.Id)
+	deploymentCount, err := impl.dockerRegistryRepository.FindDeploymentCount(deleteRequest.Id)
 	if err != nil {
 		impl.logger.Errorw("error in fetching registry chart deployment", "dockerRegistry", deleteRequest.Id, "err", err)
 		return err
 	}
-	if store.DeploymentCount > 0 {
+	if deploymentCount > 0 {
 		impl.logger.Errorw("err in deleting docker registry, found chart deployments using registry", "dockerRegistry", deleteRequest.Id, "err", err)
 		return fmt.Errorf(" Please update all related docker config before deleting this registry")
 	}
