@@ -19,6 +19,7 @@ package delete
 import (
 	"fmt"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -28,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	http2 "net/http"
 )
 
 type DeleteService interface {
@@ -125,7 +127,11 @@ func (impl DeleteServiceImpl) DeleteDockerRegistryConfig(deleteRequest *types.Do
 	}
 	if deploymentCount > 0 {
 		impl.logger.Errorw("err in deleting docker registry, found chart deployments using registry", "dockerRegistry", deleteRequest.Id, "err", err)
-		return fmt.Errorf(" Please update all related docker config before deleting this registry")
+		return &util.ApiError{
+			HttpStatusCode:  http2.StatusUnprocessableEntity,
+			InternalMessage: " Please update all related docker config before deleting this registry",
+			UserMessage:     "err in deleting docker registry, found chart deployments using registry",
+		}
 	}
 	err = impl.dockerRegistryConfig.DeleteReg(deleteRequest)
 	if err != nil {

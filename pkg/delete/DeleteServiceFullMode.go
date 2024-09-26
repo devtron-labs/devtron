@@ -20,10 +20,12 @@ import (
 	"fmt"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	http2 "net/http"
 )
 
 type DeleteServiceFullMode interface {
@@ -96,7 +98,11 @@ func (impl DeleteServiceFullModeImpl) DeleteDockerRegistryConfig(deleteRequest *
 	}
 	if deploymentCount > 0 {
 		impl.logger.Errorw("err in deleting docker registry, found chart deployments using registry", "dockerRegistry", deleteRequest.Id, "err", err)
-		return fmt.Errorf(" Please update all related docker config before deleting this registry")
+		return &util.ApiError{
+			HttpStatusCode:  http2.StatusUnprocessableEntity,
+			InternalMessage: " Please update all related docker config before deleting this registry",
+			UserMessage:     "err in deleting docker registry, found chart deployments using registry",
+		}
 	}
 	err = impl.dockerRegistryConfig.DeleteReg(deleteRequest)
 	if err != nil {
