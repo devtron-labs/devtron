@@ -253,6 +253,7 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 			}
 		}
 	}
+	// sending all permission in case of super admin or manager of any app
 	if res.SuperAdmin || isManagerOfAnyApp {
 		filteredRoleFilter = res.RoleFilters
 	}
