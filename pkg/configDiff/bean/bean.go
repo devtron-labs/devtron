@@ -227,3 +227,7 @@ type DeploymentTemplateMetadata struct {
 	TemplateVersion        string
 	IsAppMetricsEnabled    bool
 }
+
+const (
+	NoDeploymentDoneForSelectedImage = "there were no deployments done for the selected image"
+)
