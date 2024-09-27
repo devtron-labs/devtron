@@ -978,10 +978,14 @@ func (impl *WorkflowDagExecutorImpl) HandleCiStepFailedEvent(ciPipelineId int, r
 		}
 	}
 	impl.asyncRunnable.Execute(customTagServiceRunnableFunc)
-	notificationServiceRunnableFunc := func() {
-		impl.WriteCiStepFailedEvent(pipelineModel, request, savedWorkflow)
+	if request.FailureReason != CiPipeline.CiFailed.String() {
+		notificationServiceRunnableFunc := func() {
+			impl.WriteCiStepFailedEvent(pipelineModel, request, savedWorkflow)
+		}
+		impl.asyncRunnable.Execute(notificationServiceRunnableFunc)
+	} else {
+		// this case has been handled CiHandlerImpl.UpdateWorkflow function.
 	}
-	impl.asyncRunnable.Execute(notificationServiceRunnableFunc)
 	return nil
 }
 
