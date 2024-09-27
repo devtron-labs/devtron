@@ -556,6 +556,7 @@ func (impl *AppCloneServiceImpl) configDataClone(cfData []*bean3.ConfigData) []*
 			ExternalSecretType: refdata.ExternalSecretType,
 			FilePermission:     refdata.FilePermission,
 			SubPath:            refdata.SubPath,
+			ESOSubPath:         refdata.ESOSubPath,
 		}
 		copiedData = append(copiedData, data)
 	}
