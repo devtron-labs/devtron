@@ -109,7 +109,7 @@ func (impl UserCommonServiceImpl) CreateDefaultPoliciesForAllTypesV2(team, entit
 		return false, err, nil
 	}
 	_, err = impl.userAuthRepository.CreateRole(renderedRole)
-	if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
+	if err != nil && strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
 		return false, err, nil
 	}
 	return true, nil, renderedPolicyDetails
