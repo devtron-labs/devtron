@@ -18,6 +18,7 @@ package rbac
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
 	"golang.org/x/exp/maps"
 	"strings"
 
@@ -89,12 +90,14 @@ type EnforcerUtilImpl struct {
 	ciPipelineRepository  pipelineConfig.CiPipelineRepository
 	clusterRepository     repository.ClusterRepository
 	enforcer              casbin.Enforcer
+	dbMigration           dbMigration.DbMigration
 }
 
 func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepository,
 	appRepo app.AppRepository, environmentRepository repository.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	clusterRepository repository.ClusterRepository, enforcer casbin.Enforcer) *EnforcerUtilImpl {
+	clusterRepository repository.ClusterRepository, enforcer casbin.Enforcer,
+	dbMigration dbMigration.DbMigration) *EnforcerUtilImpl {
 	return &EnforcerUtilImpl{
 		logger:                logger,
 		teamRepository:        teamRepository,
@@ -104,6 +107,7 @@ func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepo
 		ciPipelineRepository:  ciPipelineRepository,
 		clusterRepository:     clusterRepository,
 		enforcer:              enforcer,
+		dbMigration:           dbMigration,
 	}
 }
 
@@ -401,6 +405,13 @@ func (impl EnforcerUtilImpl) GetHelmObject(appId int, envId int) (string, string
 
 func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envId int) (string, string) {
 	application, err := impl.appRepo.FindAppAndProjectByAppName(appName)
+	if err == pg.ErrMultiRows {
+		application, err = impl.dbMigration.FixMultipleAppsForInstalledApp(appName)
+		if err != nil {
+			impl.logger.Errorw("error on fetching data for rbac object", "appName", appName, "err", err)
+			return fmt.Sprintf("%s/%s/%s", "", "", ""), ""
+		}
+	}
 	if err != nil {
 		impl.logger.Errorw("error on fetching data for rbac object", "err", err)
 		return fmt.Sprintf("%s/%s/%s", "", "", ""), ""

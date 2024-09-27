@@ -122,6 +122,7 @@ type InstallAppVersionDTO struct {
 	InstallAppVersionChartDTO    *InstallAppVersionChartDTO     `json:"-"`
 	AppStoreApplicationVersionId int
 	DisplayName                  string `json:"-"` // used only for external apps
+	IsChartLinkRequest           bool
 }
 
 func (chart *InstallAppVersionDTO) GetAppIdentifierString() string {
