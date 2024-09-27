@@ -1186,7 +1186,7 @@ func (handler UserRestHandlerImpl) checkRBACForUserUpdate(token string, userInfo
 	if !isAuthorised {
 		if roleFilters != nil && len(roleFilters) > 0 { //auth check inside roleFilters
 			for _, filter := range roleFilters {
-				if _, ok := mapOfExistingRoleFilter[filter.GetUniqueKey()]; ok {
+				if _, ok := mapOfExistingRoleFilter[helper.GetUniqueKeyForRoleFilter(filter)]; ok {
 					isAuthorised = true
 					continue
 				}
@@ -1229,7 +1229,7 @@ func (handler UserRestHandlerImpl) checkRBACForUserUpdate(token string, userInfo
 		if len(roleGroups) > 0 { // auth check inside groups
 			filteredRoleGroupsForRbac := make([]bean.UserRoleGroup, 0, len(roleGroups))
 			for _, group := range roleGroups {
-				if _, ok := mapOfExistingUserGroup[group.GetUniqueKey()]; !ok {
+				if _, ok := mapOfExistingUserGroup[helper.GetUniqueKeyForUserGroup(group)]; !ok {
 					filteredRoleGroupsForRbac = append(filteredRoleGroupsForRbac, group)
 				}
 			}
@@ -1282,7 +1282,7 @@ func (handler UserRestHandlerImpl) checkRBACForRoleGroupUpdate(token string, gro
 	if !isAuthorised {
 		if groupInfo.RoleFilters != nil && len(groupInfo.RoleFilters) > 0 { //auth check inside roleFilters
 			for _, filter := range groupInfo.RoleFilters {
-				if _, ok := mapOfExitingRoleFiltersKey[filter.GetUniqueKey()]; ok {
+				if _, ok := mapOfExitingRoleFiltersKey[helper.GetUniqueKeyForRoleFilter(filter)]; ok {
 					isAuthorised = true
 					continue
 				}

@@ -808,8 +808,8 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, c
 			impl.logger.Errorw("error while fetching user from db", "error", err)
 			return nil, err
 		}
-		uniqueRolefilterKeyMap := userHelper.GetMapOfUniqueRoleFilterKey(existingUserInfo.RoleFilters)
-		existingRoleGroupKeyMap := userHelper.GetMapOfUniqueUserRoleGroup(existingUserInfo.UserRoleGroup)
+		uniqueRolefilterKeyMap := userHelper.GetMapOfUniqueKeys(existingUserInfo.RoleFilters, userHelper.GetUniqueKeyForRoleFilter)
+		existingRoleGroupKeyMap := userHelper.GetMapOfUniqueKeys(existingUserInfo.UserRoleGroup, userHelper.GetUniqueKeyForUserGroup)
 		isAuthorised, err := checkRBACForUserUpdate(token, userInfo, isUserSuperAdmin, eliminatedRoles, eliminatedGroupRoles, uniqueRolefilterKeyMap, existingRoleGroupKeyMap)
 		if err != nil {
 			impl.logger.Errorw("error in checking RBAC for user update", "err", err, "userInfo", userInfo)

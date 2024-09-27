@@ -94,18 +94,19 @@ func CreateErrorMessageForUserRoleGroups(restrictedGroups []bean2.RestrictedGrou
 	return errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin
 }
 
-func GetMapOfUniqueRoleFilterKey(roleFilters []bean2.RoleFilter) map[string]bool {
-	uniqueRoleFilterKeyMap := make(map[string]bool, len(roleFilters))
-	for _, roleFilter := range roleFilters {
-		uniqueRoleFilterKeyMap[roleFilter.GetUniqueKey()] = true
+// GetMapOfUniqueKeys takes a slice of any type and a function to extract a unique key, returning a map of unique keys.
+func GetMapOfUniqueKeys[T any](items []T, getKeyFunc func(T) string) map[string]bool {
+	uniqueKeyMap := make(map[string]bool, len(items))
+	for _, item := range items {
+		uniqueKeyMap[getKeyFunc(item)] = true
 	}
-	return uniqueRoleFilterKeyMap
+	return uniqueKeyMap
 }
 
-func GetMapOfUniqueUserRoleGroup(userRoleGroups []bean2.UserRoleGroup) map[string]bool {
-	uniqueUserRoleGroupKeyMap := make(map[string]bool, len(userRoleGroups))
-	for _, userRoleGroup := range userRoleGroups {
-		uniqueUserRoleGroupKeyMap[userRoleGroup.GetUniqueKey()] = true
-	}
-	return uniqueUserRoleGroupKeyMap
+func GetUniqueKeyForRoleFilter(roleFilter bean2.RoleFilter) string {
+	return fmt.Sprintf("%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s", roleFilter.Entity, roleFilter.Team, roleFilter.EntityName, roleFilter.Environment, roleFilter.Action, roleFilter.AccessType, roleFilter.Cluster, roleFilter.Namespace, roleFilter.Group, roleFilter.Kind, roleFilter.Resource, roleFilter.Workflow)
+}
+
+func GetUniqueKeyForUserGroup(group bean2.UserRoleGroup) string {
+	return fmt.Sprintf("%d-%s", group.RoleGroup.Id, group.RoleGroup.Name)
 }

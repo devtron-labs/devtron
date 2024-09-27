@@ -482,7 +482,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 			impl.logger.Errorw("error encountered in Update role group", "err", err, "roleGroupId", roleGroup.Id)
 			return nil, err
 		}
-		mapOfExitingRoleFiltersKey := helper2.GetMapOfUniqueRoleFilterKey(existingRoleGroupData.RoleFilters)
+		mapOfExitingRoleFiltersKey := helper2.GetMapOfUniqueKeys(existingRoleGroupData.RoleFilters, helper2.GetUniqueKeyForRoleFilter)
 		isAuthorised, err := checkRBACForGroupUpdate(token, request, eliminatedRoleModels, mapOfExitingRoleFiltersKey)
 		if err != nil {
 			impl.logger.Errorw("error in checking RBAC for role group update", "err", err, "request", request)
