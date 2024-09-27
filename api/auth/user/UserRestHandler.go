@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	util3 "github.com/devtron-labs/devtron/pkg/auth/user/util"
+	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/schema"
 	"net/http"
@@ -78,11 +79,13 @@ type UserRestHandlerImpl struct {
 	enforcer          casbin.Enforcer
 	roleGroupService  user2.RoleGroupService
 	userCommonService user2.UserCommonService
+	teamService       team.TeamService
 }
 
 func NewUserRestHandlerImpl(userService user2.UserService, validator *validator.Validate,
 	logger *zap.SugaredLogger, enforcer casbin.Enforcer, roleGroupService user2.RoleGroupService,
-	userCommonService user2.UserCommonService) *UserRestHandlerImpl {
+	userCommonService user2.UserCommonService,
+	teamService team.TeamService) *UserRestHandlerImpl {
 	userAuthHandler := &UserRestHandlerImpl{
 		userService:       userService,
 		validator:         validator,
@@ -90,6 +93,7 @@ func NewUserRestHandlerImpl(userService user2.UserService, validator *validator.
 		enforcer:          enforcer,
 		roleGroupService:  roleGroupService,
 		userCommonService: userCommonService,
+		teamService:       teamService,
 	}
 	return userAuthHandler
 }
@@ -245,13 +249,11 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 	filteredRoleFilter := make([]bean.RoleFilter, 0)
 	isManagerOfAnyApp := false
 	if res.RoleFilters != nil && len(res.RoleFilters) > 0 {
-		for _, filter := range res.RoleFilters {
-			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, filter.Team); ok {
-					isManagerOfAnyApp = true
-					break
-				}
-			}
+		isManagerOfAnyApp, err = handler.CheckManagerOfAnyAppAccess(token)
+		if err != nil {
+			handler.logger.Errorw("rbac Check error, GetById", "err", err, "id", id)
+			common.WriteJsonResp(w, err, "Failed to get by id", http.StatusInternalServerError)
+			return
 		}
 	}
 	// sending all permission in case of super admin or manager of any app
@@ -270,6 +272,22 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 	//RBAC enforcer Ends
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler UserRestHandlerImpl) CheckManagerOfAnyAppAccess(token string) (bool, error) {
+	var isManagerOfAnyApp bool
+	teams, err := handler.teamService.FetchAllActive()
+	if err != nil {
+		handler.logger.Errorw("error encountered in CheckManagerOfAnyAppAccess", "err", err)
+		return false, err
+	}
+	for _, project := range teams {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, project.Name); ok {
+			isManagerOfAnyApp = true
+			break
+		}
+	}
+	return isManagerOfAnyApp, nil
 }
 
 func (handler UserRestHandlerImpl) GetAllV2(w http.ResponseWriter, r *http.Request) {
@@ -577,13 +595,11 @@ func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *
 	filteredRoleFilter := make([]bean.RoleFilter, 0)
 	isManagerOfAnyApp := false
 	if res.RoleFilters != nil && len(res.RoleFilters) > 0 {
-		for _, filter := range res.RoleFilters {
-			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, filter.Team); ok {
-					isManagerOfAnyApp = true
-					break
-				}
-			}
+		isManagerOfAnyApp, err = handler.CheckManagerOfAnyAppAccess(token)
+		if err != nil {
+			handler.logger.Errorw("rbac Check error, GetById", "err", err, "id", id)
+			common.WriteJsonResp(w, err, "Failed to get by id", http.StatusInternalServerError)
+			return
 		}
 	}
 	if isManagerOfAnyApp || res.SuperAdmin {
