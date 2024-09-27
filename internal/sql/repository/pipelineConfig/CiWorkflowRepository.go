@@ -91,34 +91,34 @@ func (ciWorkflow *CiWorkflow) IsExternalRunInJobType() bool {
 }
 
 type WorkflowWithArtifact struct {
-	Id                      int                             `psql:"id"`
-	Name                    string                          `psql:"name"`
-	PodName                 string                          `psql:"pod_name"`
-	Status                  string                          `psql:"status"`
-	PodStatus               string                          `psql:"pod_status"`
-	Message                 string                          `psql:"message"`
-	StartedOn               time.Time                       `psql:"started_on"`
-	FinishedOn              time.Time                       `psql:"finished_on"`
-	CiPipelineId            int                             `psql:"ci_pipeline_id"`
-	Namespace               string                          `psql:"namespace"`
-	LogFilePath             string                          `psql:"log_file_path"`
-	GitTriggers             map[int]GitCommit               `psql:"git_triggers"`
-	TriggeredBy             int32                           `psql:"triggered_by"`
-	EmailId                 string                          `psql:"email_id"`
-	Image                   string                          `psql:"image"`
-	CiArtifactLocation      string                          `psql:"ci_artifact_location"`
-	CiArtifactId            int                             `psql:"ci_artifact_id"`
-	BlobStorageEnabled      bool                            `psql:"blob_storage_enabled"`
-	CiBuildType             string                          `psql:"ci_build_type"`
-	IsArtifactUploadedV2    *bool                           `psql:"is_artifact_uploaded"`     // IsArtifactUploadedV2 is the new column from ci_workflow table, IsArtifactUploaded is Deprecated and will be removed in future
-	IsArtifactUploaded      bool                            `psql:"old_is_artifact_uploaded"` // Deprecated; Use IsArtifactUploadedV2 instead. IsArtifactUploaded is the column from ci_artifact table
-	EnvironmentId           int                             `psql:"environment_id"`
-	EnvironmentName         string                          `psql:"environment_name"`
-	RefCiWorkflowId         int                             `psql:"ref_ci_workflow_id"`
-	ParentCiWorkflowId      int                             `psql:"parent_ci_workflow_id"`
-	ExecutorType            cdWorkflow.WorkflowExecutorType `psql:"executor_type"` //awf, system
-	ImagePathReservationId  int                             `psql:"image_path_reservation_id"`
-	ImagePathReservationIds []int                           `psql:"image_path_reservation_ids" pg:",array"`
+	Id                      int                             `sql:"id"`
+	Name                    string                          `sql:"name"`
+	PodName                 string                          `sql:"pod_name"`
+	Status                  string                          `sql:"status"`
+	PodStatus               string                          `sql:"pod_status"`
+	Message                 string                          `sql:"message"`
+	StartedOn               time.Time                       `sql:"started_on"`
+	FinishedOn              time.Time                       `sql:"finished_on"`
+	CiPipelineId            int                             `sql:"ci_pipeline_id"`
+	Namespace               string                          `sql:"namespace"`
+	LogFilePath             string                          `sql:"log_file_path"`
+	GitTriggers             map[int]GitCommit               `sql:"git_triggers"`
+	TriggeredBy             int32                           `sql:"triggered_by"`
+	EmailId                 string                          `sql:"email_id"`
+	Image                   string                          `sql:"image"`
+	CiArtifactLocation      string                          `sql:"ci_artifact_location"`
+	CiArtifactId            int                             `sql:"ci_artifact_id"`
+	BlobStorageEnabled      bool                            `sql:"blob_storage_enabled"`
+	CiBuildType             string                          `sql:"ci_build_type"`
+	IsArtifactUploadedV2    *bool                           `sql:"is_artifact_uploaded"`     // IsArtifactUploadedV2 is the new column from ci_workflow table, IsArtifactUploaded is Deprecated and will be removed in future
+	IsArtifactUploaded      bool                            `sql:"old_is_artifact_uploaded"` // Deprecated; Use IsArtifactUploadedV2 instead. IsArtifactUploaded is the column from ci_artifact table
+	EnvironmentId           int                             `sql:"environment_id"`
+	EnvironmentName         string                          `sql:"environment_name"`
+	RefCiWorkflowId         int                             `sql:"ref_ci_workflow_id"`
+	ParentCiWorkflowId      int                             `sql:"parent_ci_workflow_id"`
+	ExecutorType            cdWorkflow.WorkflowExecutorType `sql:"executor_type"` //awf, system
+	ImagePathReservationId  int                             `sql:"image_path_reservation_id"`
+	ImagePathReservationIds []int                           `sql:"image_path_reservation_ids" pg:",array"`
 }
 
 type GitCommit struct {
@@ -170,8 +170,26 @@ func (impl *CiWorkflowRepositoryImpl) FindByStatusesIn(activeStatuses []string) 
 // FindByPipelineId gets only those workflowWithArtifact whose parent_ci_workflow_id is null, this is done to accommodate multiple ci_artifacts through a single workflow(parent), making child workflows for other ci_artifacts (this has been done due to design understanding and db constraint) single workflow single ci-artifact
 func (impl *CiWorkflowRepositoryImpl) FindByPipelineId(pipelineId int, offset int, limit int) ([]WorkflowWithArtifact, error) {
 	var wfs []WorkflowWithArtifact
-	queryTemp := "select cia.id as ci_artifact_id, env.environment_name, cia.image, cia.is_artifact_uploaded as old_is_artifact_uploaded, wf.*, u.email_id from ci_workflow wf left join users u on u.id = wf.triggered_by left join ci_artifact cia on wf.id = cia.ci_workflow_id left join environment env on env.id = wf.environment_id where wf.ci_pipeline_id = ? and parent_ci_workflow_id is null order by wf.started_on desc offset ? limit ?;"
-	_, err := impl.dbConnection.Query(&wfs, queryTemp, pipelineId, offset, limit)
+	err := impl.dbConnection.Model().
+		TableExpr("ci_workflow AS wf").
+		ColumnExpr("cia.id AS ci_artifact_id").
+		ColumnExpr("env.environment_name").
+		ColumnExpr("cia.image").
+		ColumnExpr("cia.is_artifact_uploaded AS old_is_artifact_uploaded").
+		ColumnExpr("wf.*").
+		ColumnExpr("u.email_id").
+		Join("LEFT JOIN users u").
+		JoinOn("u.id = wf.triggered_by").
+		Join("LEFT JOIN ci_artifact cia").
+		JoinOn("wf.id = cia.ci_workflow_id").
+		Join("LEFT JOIN environment env").
+		JoinOn("env.id = wf.environment_id").
+		Where("wf.ci_pipeline_id = ?", pipelineId).
+		Where("parent_ci_workflow_id is NULL").
+		Order("wf.started_on DESC").
+		Offset(offset).
+		Limit(limit).
+		Select(&wfs)
 	if err != nil {
 		return nil, err
 	}
