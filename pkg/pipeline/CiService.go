@@ -254,38 +254,30 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		break
 	}
 
-	ciWorkflowConfig, err := impl.ciWorkflowRepository.FindConfigByPipelineId(trigger.PipelineId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("could not fetch ci config", "pipeline", trigger.PipelineId)
-		return 0, err
-	}
-
 	scope := resourceQualifiers.Scope{
 		AppId: pipeline.App.Id,
 	}
-	env, isJob, err := impl.getEnvironmentForJob(pipeline, trigger)
+	ciWorkflowConfigNamespace := impl.config.GetDefaultNamespace()
+	envModal, isJob, err := impl.getEnvironmentForJob(pipeline, trigger)
 	if err != nil {
 		return 0, err
 	}
-	if isJob && env != nil {
-		ciWorkflowConfig.Namespace = env.Namespace
+	if isJob && envModal != nil {
+		ciWorkflowConfigNamespace = envModal.Namespace
 
 		// This will be populated for jobs running in selected environment
-		scope.EnvId = env.Id
-		scope.ClusterId = env.ClusterId
+		scope.EnvId = envModal.Id
+		scope.ClusterId = envModal.ClusterId
 
 		scope.SystemMetadata = &resourceQualifiers.SystemMetadata{
-			EnvironmentName: env.Name,
-			ClusterName:     env.Cluster.ClusterName,
-			Namespace:       env.Namespace,
+			EnvironmentName: envModal.Name,
+			ClusterName:     envModal.Cluster.ClusterName,
+			Namespace:       envModal.Namespace,
 		}
-	}
-	if ciWorkflowConfig.Namespace == "" {
-		ciWorkflowConfig.Namespace = impl.config.GetDefaultNamespace()
 	}
 	if scope.SystemMetadata == nil {
 		scope.SystemMetadata = &resourceQualifiers.SystemMetadata{
-			Namespace: ciWorkflowConfig.Namespace,
+			Namespace: ciWorkflowConfigNamespace,
 			AppName:   pipeline.App.AppName,
 		}
 	}
@@ -304,7 +296,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	if len(preCiSteps) == 0 && isJob {
 		return 0, &util.ApiError{HttpStatusCode: http.StatusNotFound, UserMessage: "No tasks are configured in this job pipeline"}
 	}
-	savedCiWf, err := impl.saveNewWorkflow(pipeline, ciWorkflowConfig, trigger.CommitHashes, trigger.TriggeredBy, trigger.EnvironmentId, isJob, trigger.ReferenceCiWorkflowId)
+	savedCiWf, err := impl.saveNewWorkflow(pipeline, ciWorkflowConfigNamespace, trigger.CommitHashes, trigger.TriggeredBy, trigger.EnvironmentId, isJob, trigger.ReferenceCiWorkflowId)
 	if err != nil {
 		impl.Logger.Errorw("could not save new workflow", "err", err)
 		return 0, err
@@ -318,7 +310,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	}
 	maps.Copy(trigger.ExtraEnvironmentVariables, gitTriggerEnvVariables)
 
-	workflowRequest, err := impl.buildWfRequestForCiPipeline(pipeline, trigger, ciMaterials, savedCiWf, ciWorkflowConfig, ciPipelineScripts, preCiSteps, postCiSteps, refPluginsData, isJob)
+	workflowRequest, err := impl.buildWfRequestForCiPipeline(pipeline, trigger, ciMaterials, savedCiWf, ciWorkflowConfigNamespace, ciPipelineScripts, preCiSteps, postCiSteps, refPluginsData, isJob)
 	if err != nil {
 		impl.Logger.Errorw("make workflow req", "err", err)
 		return 0, err
@@ -355,7 +347,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	}
 	workflowRequest.AppId = pipeline.AppId
 	workflowRequest.AppLabels = appLabels
-	workflowRequest.Env = env
+	workflowRequest.Env = envModal
 	if isJob {
 		workflowRequest.Type = pipelineConfigBean.JOB_WORKFLOW_PIPELINE_TYPE
 	} else {
@@ -434,7 +426,7 @@ func (impl *CiServiceImpl) WriteCITriggerEvent(trigger types.Trigger, pipeline *
 
 	event.UserId = int(trigger.TriggeredBy)
 	event.CiWorkflowRunnerId = workflowRequest.WorkflowId
-	event = impl.eventFactory.BuildExtraCIData(event, material, workflowRequest.CiImage)
+	event = impl.eventFactory.BuildExtraCIData(event, material)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
 		impl.Logger.Errorw("error in writing event", "err", evtErr)
@@ -449,7 +441,7 @@ func (impl *CiServiceImpl) BuildPayload(trigger types.Trigger, pipeline *pipelin
 	return payload
 }
 
-func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, wfConfig *pipelineConfig.CiWorkflowConfig,
+func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, ciWorkflowConfigNamespace string,
 	commitHashes map[int]pipelineConfig.GitCommit, userId int32, EnvironmentId int, isJob bool, refCiWorkflowId int) (wf *pipelineConfig.CiWorkflow, error error) {
 
 	ciWorkflow := &pipelineConfig.CiWorkflow{
@@ -467,7 +459,7 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 		ExecutorType:          impl.config.GetWorkflowExecutorType(),
 	}
 	if isJob {
-		ciWorkflow.Namespace = wfConfig.Namespace
+		ciWorkflow.Namespace = ciWorkflowConfigNamespace
 		ciWorkflow.EnvironmentId = EnvironmentId
 	}
 	err := impl.ciWorkflowRepository.SaveWorkFlow(ciWorkflow)
@@ -488,26 +480,20 @@ func (impl *CiServiceImpl) executeCiPipeline(workflowRequest *types.WorkflowRequ
 	return nil
 }
 
-func (impl *CiServiceImpl) buildS3ArtifactLocation(ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, savedWf *pipelineConfig.CiWorkflow) (string, string, string) {
-	ciArtifactLocationFormat := ciWorkflowConfig.CiArtifactLocationFormat
-	if ciArtifactLocationFormat == "" {
-		ciArtifactLocationFormat = impl.config.GetArtifactLocationFormat()
-	}
-	ArtifactLocation := fmt.Sprintf("s3://"+path.Join(ciWorkflowConfig.LogsBucket, ciArtifactLocationFormat), savedWf.Id, savedWf.Id)
+func (impl *CiServiceImpl) buildS3ArtifactLocation(ciWorkflowConfigLogsBucket string, savedWf *pipelineConfig.CiWorkflow) (string, string, string) {
+	ciArtifactLocationFormat := impl.config.GetArtifactLocationFormat()
+	ArtifactLocation := fmt.Sprintf("s3://"+path.Join(ciWorkflowConfigLogsBucket, ciArtifactLocationFormat), savedWf.Id, savedWf.Id)
 	artifactFileName := fmt.Sprintf(ciArtifactLocationFormat, savedWf.Id, savedWf.Id)
-	return ArtifactLocation, ciWorkflowConfig.LogsBucket, artifactFileName
+	return ArtifactLocation, ciWorkflowConfigLogsBucket, artifactFileName
 }
 
-func (impl *CiServiceImpl) buildDefaultArtifactLocation(ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, savedWf *pipelineConfig.CiWorkflow) string {
-	ciArtifactLocationFormat := ciWorkflowConfig.CiArtifactLocationFormat
-	if ciArtifactLocationFormat == "" {
-		ciArtifactLocationFormat = impl.config.GetArtifactLocationFormat()
-	}
+func (impl *CiServiceImpl) buildDefaultArtifactLocation(savedWf *pipelineConfig.CiWorkflow) string {
+	ciArtifactLocationFormat := impl.config.GetArtifactLocationFormat()
 	ArtifactLocation := fmt.Sprintf(ciArtifactLocationFormat, savedWf.Id, savedWf.Id)
 	return ArtifactLocation
 }
 
-func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.CiPipeline, trigger types.Trigger, ciMaterials []*pipelineConfig.CiPipelineMaterial, savedWf *pipelineConfig.CiWorkflow, ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, ciPipelineScripts []*pipelineConfig.CiPipelineScript, preCiSteps []*pipelineConfigBean.StepObject, postCiSteps []*pipelineConfigBean.StepObject, refPluginsData []*pipelineConfigBean.RefPluginObject, isJob bool) (*types.WorkflowRequest, error) {
+func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.CiPipeline, trigger types.Trigger, ciMaterials []*pipelineConfig.CiPipelineMaterial, savedWf *pipelineConfig.CiWorkflow, ciWorkflowConfigNamespace string, ciPipelineScripts []*pipelineConfig.CiPipelineScript, preCiSteps []*pipelineConfigBean.StepObject, postCiSteps []*pipelineConfigBean.StepObject, refPluginsData []*pipelineConfigBean.RefPluginObject, isJob bool) (*types.WorkflowRequest, error) {
 	var ciProjectDetails []pipelineConfigBean.CiProjectDetails
 	commitHashes := trigger.CommitHashes
 	for _, ciMaterial := range ciMaterials {
@@ -605,22 +591,14 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		impl.Logger.Errorw("error in getting host url", "err", err, "hostUrl", host.Value)
 		return nil, err
 	}
-	if ciWorkflowConfig.CiCacheBucket == "" {
-		ciWorkflowConfig.CiCacheBucket = impl.config.DefaultCacheBucket
-	}
+	ciWorkflowConfigCiCacheBucket := impl.config.DefaultCacheBucket
 
-	if ciWorkflowConfig.CiCacheRegion == "" {
-		ciWorkflowConfig.CiCacheRegion = impl.config.DefaultCacheBucketRegion
-	}
+	ciWorkflowConfigCiCacheRegion := impl.config.DefaultCacheBucketRegion
 
-	if ciWorkflowConfig.CiImage == "" {
-		ciWorkflowConfig.CiImage = impl.config.GetDefaultImage()
-	}
+	ciWorkflowConfigCiImage := impl.config.GetDefaultImage()
 
-	if ciWorkflowConfig.CiTimeout == 0 {
-		// get it from infraConfig
-		ciWorkflowConfig.CiTimeout = infraConfiguration.GetCiDefaultTimeout()
-	}
+	// get it from infraConfig
+	ciWorkflowConfigCiTimeout := infraConfiguration.GetCiDefaultTimeout()
 
 	ciTemplate := pipeline.CiTemplate
 	ciLevelArgs := pipeline.DockerArgs
@@ -781,10 +759,10 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		PipelineId:                  pipeline.Id,
 		CiCacheFileName:             pipeline.Name + "-" + strconv.Itoa(pipeline.Id) + ".tar.gz",
 		CiProjectDetails:            ciProjectDetails,
-		Namespace:                   ciWorkflowConfig.Namespace,
+		Namespace:                   ciWorkflowConfigNamespace,
 		BlobStorageConfigured:       savedWf.BlobStorageEnabled,
-		CiImage:                     ciWorkflowConfig.CiImage,
-		ActiveDeadlineSeconds:       ciWorkflowConfig.CiTimeout,
+		CiImage:                     ciWorkflowConfigCiImage,
+		ActiveDeadlineSeconds:       ciWorkflowConfigCiTimeout,
 		WorkflowId:                  savedWf.Id,
 		TriggeredBy:                 savedWf.TriggeredBy,
 		CacheLimit:                  impl.config.CacheLimit,
@@ -843,23 +821,21 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		workflowRequest.DockerCert = dockerRegistry.Cert
 
 	}
-	if ciWorkflowConfig.LogsBucket == "" {
-		ciWorkflowConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket()
-	}
+	ciWorkflowConfigLogsBucket := impl.config.GetDefaultBuildLogsBucket()
 
 	switch workflowRequest.CloudProvider {
 	case types.BLOB_STORAGE_S3:
 		// No AccessKey is used for uploading artifacts, instead IAM based auth is used
-		workflowRequest.CiCacheRegion = ciWorkflowConfig.CiCacheRegion
-		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
-		workflowRequest.CiArtifactLocation, workflowRequest.CiArtifactBucket, workflowRequest.CiArtifactFileName = impl.buildS3ArtifactLocation(ciWorkflowConfig, savedWf)
+		workflowRequest.CiCacheRegion = ciWorkflowConfigCiCacheRegion
+		workflowRequest.CiCacheLocation = ciWorkflowConfigCiCacheBucket
+		workflowRequest.CiArtifactLocation, workflowRequest.CiArtifactBucket, workflowRequest.CiArtifactFileName = impl.buildS3ArtifactLocation(ciWorkflowConfigLogsBucket, savedWf)
 		workflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
 			AccessKey:                  impl.config.BlobStorageS3AccessKey,
 			Passkey:                    impl.config.BlobStorageS3SecretKey,
 			EndpointUrl:                impl.config.BlobStorageS3Endpoint,
 			IsInSecure:                 impl.config.BlobStorageS3EndpointInsecure,
-			CiCacheBucketName:          ciWorkflowConfig.CiCacheBucket,
-			CiCacheRegion:              ciWorkflowConfig.CiCacheRegion,
+			CiCacheBucketName:          ciWorkflowConfigCiCacheBucket,
+			CiCacheRegion:              ciWorkflowConfigCiCacheRegion,
 			CiCacheBucketVersioning:    impl.config.BlobStorageS3BucketVersioned,
 			CiArtifactBucketName:       workflowRequest.CiArtifactBucket,
 			CiArtifactRegion:           impl.config.GetDefaultCdLogsBucketRegion(),
@@ -871,11 +847,11 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	case types.BLOB_STORAGE_GCP:
 		workflowRequest.GcpBlobConfig = &blob_storage.GcpBlobConfig{
 			CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
-			CacheBucketName:        ciWorkflowConfig.CiCacheBucket,
-			LogBucketName:          ciWorkflowConfig.LogsBucket,
-			ArtifactBucketName:     ciWorkflowConfig.LogsBucket,
+			CacheBucketName:        ciWorkflowConfigCiCacheBucket,
+			LogBucketName:          ciWorkflowConfigLogsBucket,
+			ArtifactBucketName:     ciWorkflowConfigLogsBucket,
 		}
-		workflowRequest.CiArtifactLocation = impl.buildDefaultArtifactLocation(ciWorkflowConfig, savedWf)
+		workflowRequest.CiArtifactLocation = impl.buildDefaultArtifactLocation(savedWf)
 		workflowRequest.CiArtifactFileName = workflowRequest.CiArtifactLocation
 	case types.BLOB_STORAGE_AZURE:
 		workflowRequest.AzureBlobConfig = &blob_storage.AzureBlobConfig{
@@ -894,7 +870,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			CiLogBucketVersioning: impl.config.BlobStorageS3BucketVersioned,
 			AccessKey:             impl.config.AzureAccountName,
 		}
-		workflowRequest.CiArtifactLocation = impl.buildDefaultArtifactLocation(ciWorkflowConfig, savedWf)
+		workflowRequest.CiArtifactLocation = impl.buildDefaultArtifactLocation(savedWf)
 		workflowRequest.CiArtifactFileName = workflowRequest.CiArtifactLocation
 	default:
 		if impl.config.BlobStorageEnabled {

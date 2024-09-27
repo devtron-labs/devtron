@@ -49,7 +49,6 @@ type CdWorkflowRepository interface {
 	UpdateWorkFlowRunners(wfr []*CdWorkflowRunner) error
 	FindWorkflowRunnerByCdWorkflowId(wfIds []int) ([]*CdWorkflowRunner, error)
 	FindPreviousCdWfRunnerByStatus(pipelineId int, currentWFRunnerId int, status []string) ([]*CdWorkflowRunner, error)
-	FindConfigByPipelineId(pipelineId int) (*CdWorkflowConfig, error)
 	FindWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error)
 	FindBasicWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error)
 	FindRetriedWorkflowCountByReferenceId(wfrId int) (int, error)
@@ -93,27 +92,6 @@ type CdWorkflow struct {
 	CiArtifact       *repository.CiArtifact
 	CdWorkflowRunner []CdWorkflowRunner
 	sql.AuditLog
-}
-
-type CdWorkflowConfig struct {
-	tableName                struct{} `sql:"cd_workflow_config" pg:",discard_unknown_columns"`
-	Id                       int      `sql:"id,pk"`
-	CdTimeout                int64    `sql:"cd_timeout"`
-	MinCpu                   string   `sql:"min_cpu"`
-	MaxCpu                   string   `sql:"max_cpu"`
-	MinMem                   string   `sql:"min_mem"`
-	MaxMem                   string   `sql:"max_mem"`
-	MinStorage               string   `sql:"min_storage"`
-	MaxStorage               string   `sql:"max_storage"`
-	MinEphStorage            string   `sql:"min_eph_storage"`
-	MaxEphStorage            string   `sql:"max_eph_storage"`
-	CdCacheBucket            string   `sql:"cd_cache_bucket"`
-	CdCacheRegion            string   `sql:"cd_cache_region"`
-	CdImage                  string   `sql:"cd_image"`
-	Namespace                string   `sql:"wf_namespace"`
-	CdPipelineId             int      `sql:"cd_pipeline_id"`
-	LogsBucket               string   `sql:"logs_bucket"`
-	CdArtifactLocationFormat string   `sql:"cd_artifact_location_format"`
 }
 
 type CdWorkflowRunnerWithExtraFields struct {
@@ -249,12 +227,6 @@ func (impl *CdWorkflowRepositoryImpl) FindById(wfId int) (*CdWorkflow, error) {
 	err := impl.dbConnection.Model(ddWorkflow).
 		Column("cd_workflow.*, CdWorkflowRunner").Where("id = ?", wfId).Select()
 	return ddWorkflow, err
-}
-
-func (impl *CdWorkflowRepositoryImpl) FindConfigByPipelineId(pipelineId int) (*CdWorkflowConfig, error) {
-	cdWorkflowConfig := &CdWorkflowConfig{}
-	err := impl.dbConnection.Model(cdWorkflowConfig).Where("cd_pipeline_id = ?", pipelineId).Select()
-	return cdWorkflowConfig, err
 }
 
 func (impl *CdWorkflowRepositoryImpl) FindLatestCdWorkflowByPipelineId(pipelineIds []int) (*CdWorkflow, error) {

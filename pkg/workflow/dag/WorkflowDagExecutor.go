@@ -941,7 +941,7 @@ func (impl *WorkflowDagExecutorImpl) WriteCiSuccessEvent(request *bean2.CiArtifa
 		event.CiWorkflowRunnerId = *artifact.WorkflowId
 	}
 	event.UserId = int(request.UserId)
-	event = impl.eventFactory.BuildExtraCIData(event, nil, artifact.Image)
+	event = impl.eventFactory.BuildExtraCIData(event, nil)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
 		impl.logger.Errorw("error in writing event", "err", evtErr)
@@ -991,7 +991,7 @@ func (impl *WorkflowDagExecutorImpl) WriteCiStepFailedEvent(pipeline *pipelineCo
 	material.GitTriggers = ciWorkflow.GitTriggers
 	event.CiWorkflowRunnerId = ciWorkflow.Id
 	event.UserId = int(ciWorkflow.TriggeredBy)
-	event = impl.eventFactory.BuildExtraCIData(event, material, request.Image)
+	event = impl.eventFactory.BuildExtraCIData(event, material)
 	event.CiArtifactId = 0
 	event.Payload.FailureReason = request.FailureReason
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)

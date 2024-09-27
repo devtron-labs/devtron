@@ -1903,7 +1903,7 @@ func (handler *PipelineConfigRestHandlerImpl) DownloadArtifacts(w http.ResponseW
 	}
 	//RBAC CHECK
 
-	file, err := handler.cdHandler.DownloadCdWorkflowArtifacts(pipelineId, buildId)
+	file, err := handler.cdHandler.DownloadCdWorkflowArtifacts(buildId)
 	defer file.Close()
 
 	if err != nil {

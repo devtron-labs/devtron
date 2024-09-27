@@ -26,9 +26,6 @@ import (
 )
 
 type CiWorkflowRepository interface {
-	SaveWorkFlowConfig(config *CiWorkflowConfig) error
-	FindConfigByPipelineId(pipelineId int) (*CiWorkflowConfig, error)
-
 	SaveWorkFlow(wf *CiWorkflow) error
 	FindLastTriggeredWorkflow(pipelineId int) (*CiWorkflow, error)
 	UpdateWorkFlow(wf *CiWorkflow) error
@@ -94,34 +91,34 @@ func (ciWorkflow *CiWorkflow) IsExternalRunInJobType() bool {
 }
 
 type WorkflowWithArtifact struct {
-	Id                      int                             `json:"id"`
-	Name                    string                          `json:"name"`
-	PodName                 string                          `json:"podName"`
-	Status                  string                          `json:"status"`
-	PodStatus               string                          `json:"pod_status"`
-	Message                 string                          `json:"message"`
-	StartedOn               time.Time                       `json:"started_on"`
-	FinishedOn              time.Time                       `json:"finished_on"`
-	CiPipelineId            int                             `json:"ci_pipeline_id"`
-	Namespace               string                          `json:"namespace"`
-	LogFilePath             string                          `json:"log_file_path"`
-	GitTriggers             map[int]GitCommit               `json:"git_triggers"`
-	TriggeredBy             int32                           `json:"triggered_by"`
-	EmailId                 string                          `json:"email_id"`
-	Image                   string                          `json:"image"`
-	CiArtifactLocation      string                          `json:"ci_artifact_location"`
-	CiArtifactId            int                             `json:"ci_artifact_d"`
-	BlobStorageEnabled      bool                            `json:"blobStorageEnabled"`
-	CiBuildType             string                          `json:"ci_build_type"`
-	IsArtifactUploadedV2    *bool                           `json:"is_artifact_uploaded"`     // IsArtifactUploadedV2 is the new column from ci_workflow table, IsArtifactUploaded is Deprecated and will be removed in future
-	IsArtifactUploaded      bool                            `json:"old_is_artifact_uploaded"` // Deprecated; Use IsArtifactUploadedV2 instead. IsArtifactUploaded is the column from ci_artifact table
-	EnvironmentId           int                             `json:"environmentId"`
-	EnvironmentName         string                          `json:"environmentName"`
-	RefCiWorkflowId         int                             `json:"referenceCiWorkflowId"`
-	ParentCiWorkflowId      int                             `json:"parent_ci_workflow_id"`
-	ExecutorType            cdWorkflow.WorkflowExecutorType `json:"executor_type"` //awf, system
-	ImagePathReservationId  int                             `json:"image_path_reservation_id"`
-	ImagePathReservationIds []int                           `json:"image_path_reservation_ids" pg:",array"`
+	Id                      int                             `psql:"id"`
+	Name                    string                          `psql:"name"`
+	PodName                 string                          `psql:"pod_name"`
+	Status                  string                          `psql:"status"`
+	PodStatus               string                          `psql:"pod_status"`
+	Message                 string                          `psql:"message"`
+	StartedOn               time.Time                       `psql:"started_on"`
+	FinishedOn              time.Time                       `psql:"finished_on"`
+	CiPipelineId            int                             `psql:"ci_pipeline_id"`
+	Namespace               string                          `psql:"namespace"`
+	LogFilePath             string                          `psql:"log_file_path"`
+	GitTriggers             map[int]GitCommit               `psql:"git_triggers"`
+	TriggeredBy             int32                           `psql:"triggered_by"`
+	EmailId                 string                          `psql:"email_id"`
+	Image                   string                          `psql:"image"`
+	CiArtifactLocation      string                          `psql:"ci_artifact_location"`
+	CiArtifactId            int                             `psql:"ci_artifact_id"`
+	BlobStorageEnabled      bool                            `psql:"blob_storage_enabled"`
+	CiBuildType             string                          `psql:"ci_build_type"`
+	IsArtifactUploadedV2    *bool                           `psql:"is_artifact_uploaded"`     // IsArtifactUploadedV2 is the new column from ci_workflow table, IsArtifactUploaded is Deprecated and will be removed in future
+	IsArtifactUploaded      bool                            `psql:"old_is_artifact_uploaded"` // Deprecated; Use IsArtifactUploadedV2 instead. IsArtifactUploaded is the column from ci_artifact table
+	EnvironmentId           int                             `psql:"environment_id"`
+	EnvironmentName         string                          `psql:"environment_name"`
+	RefCiWorkflowId         int                             `psql:"ref_ci_workflow_id"`
+	ParentCiWorkflowId      int                             `psql:"parent_ci_workflow_id"`
+	ExecutorType            cdWorkflow.WorkflowExecutorType `psql:"executor_type"` //awf, system
+	ImagePathReservationId  int                             `psql:"image_path_reservation_id"`
+	ImagePathReservationIds []int                           `psql:"image_path_reservation_ids" pg:",array"`
 }
 
 type GitCommit struct {
@@ -141,27 +138,6 @@ type WebhookData struct {
 	Id              int               `json:"id"`
 	EventActionType string            `json:"eventActionType"`
 	Data            map[string]string `json:"data"`
-}
-
-type CiWorkflowConfig struct {
-	tableName                struct{} `sql:"ci_workflow_config" pg:",discard_unknown_columns"`
-	Id                       int      `sql:"id,pk"`
-	CiTimeout                int64    `sql:"ci_timeout"`
-	MinCpu                   string   `sql:"min_cpu"`
-	MaxCpu                   string   `sql:"max_cpu"`
-	MinMem                   string   `sql:"min_mem"`
-	MaxMem                   string   `sql:"max_mem"`
-	MinStorage               string   `sql:"min_storage"`
-	MaxStorage               string   `sql:"max_storage"`
-	MinEphStorage            string   `sql:"min_eph_storage"`
-	MaxEphStorage            string   `sql:"max_eph_storage"`
-	CiCacheBucket            string   `sql:"ci_cache_bucket"`
-	CiCacheRegion            string   `sql:"ci_cache_region"`
-	CiImage                  string   `sql:"ci_image"`
-	Namespace                string   `sql:"wf_namespace"`
-	CiPipelineId             int      `sql:"ci_pipeline_id"`
-	LogsBucket               string   `sql:"logs_bucket"`
-	CiArtifactLocationFormat string   `sql:"ci_artifact_location_format"`
 }
 
 func NewCiWorkflowRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *CiWorkflowRepositoryImpl {
@@ -250,16 +226,6 @@ func (impl *CiWorkflowRepositoryImpl) FindCiWorkflowGitTriggersByIds(ids []int) 
 		Select()
 
 	return workflows, err
-}
-func (impl *CiWorkflowRepositoryImpl) SaveWorkFlowConfig(config *CiWorkflowConfig) error {
-	err := impl.dbConnection.Insert(config)
-	return err
-}
-
-func (impl *CiWorkflowRepositoryImpl) FindConfigByPipelineId(pipelineId int) (*CiWorkflowConfig, error) {
-	ciWorkflowConfig := &CiWorkflowConfig{}
-	err := impl.dbConnection.Model(ciWorkflowConfig).Where("ci_pipeline_id = ?", pipelineId).Select()
-	return ciWorkflowConfig, err
 }
 
 func (impl *CiWorkflowRepositoryImpl) SaveWorkFlow(wf *CiWorkflow) error {
