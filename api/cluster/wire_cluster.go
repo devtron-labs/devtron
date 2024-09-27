@@ -99,3 +99,35 @@ var ClusterWireSetEa = wire.NewSet(
 	NewEnvironmentRouterImpl,
 	wire.Bind(new(EnvironmentRouter), new(*EnvironmentRouterImpl)),
 )
+
+var ClusterWireSetK8sClient = wire.NewSet(
+	cluster.NewNoopServiceImpl,
+	wire.Bind(new(cluster.EnvironmentService), new(*cluster.EnvironmentServiceImpl)),
+	repository.NewClusterRepositoryFileBased,
+	wire.Bind(new(repository.ClusterRepository), new(*repository.ClusterFileBasedRepository)),
+	cluster.NewClusterRbacNoopServiceImpl,
+	wire.Bind(new(cluster.ClusterRbacService), new(*cluster.ClusterRbacNoopServiceImpl)),
+	repository.NewClusterDescriptionFileBasedRepository,
+	wire.Bind(new(repository.ClusterDescriptionRepository), new(*repository.ClusterDescriptionFileBasedRepositoryImpl)),
+	cluster.NewClusterDescriptionServiceImpl,
+	wire.Bind(new(cluster.ClusterDescriptionService), new(*cluster.ClusterDescriptionServiceImpl)),
+
+	repository2.NewGenericNoteHistoryFileBasedRepositoryImpl,
+	wire.Bind(new(repository2.GenericNoteHistoryRepository), new(*repository2.GenericNoteHistoryFileBasedRepositoryImpl)),
+	repository2.NewGenericNoteFileBasedRepository,
+	wire.Bind(new(repository2.GenericNoteRepository), new(*repository2.GenericNoteFileBasedRepositoryImpl)),
+	genericNotes.NewGenericNoteHistoryServiceImpl,
+	wire.Bind(new(genericNotes.GenericNoteHistoryService), new(*genericNotes.GenericNoteHistoryServiceImpl)),
+	genericNotes.NewGenericNoteServiceImpl,
+	wire.Bind(new(genericNotes.GenericNoteService), new(*genericNotes.GenericNoteServiceImpl)),
+
+
+	cluster.NewClusterServiceImpl,
+	wire.Bind(new(cluster.ClusterService), new(*cluster.ClusterServiceImpl)),
+	NewClusterRestHandlerImpl,
+	wire.Bind(new(ClusterRestHandler), new(*ClusterRestHandlerImpl)),
+	NewClusterRouterImpl,
+	wire.Bind(new(ClusterRouter), new(*ClusterRouterImpl)),
+	cluster.NewKubeConfigFileSyncerImpl,
+	wire.Bind(new(cluster.KubeConfigFileSyncer), new(*cluster.KubeConfigFileSyncerImpl)),
+)

@@ -57,6 +57,11 @@ func NewEnforcerUtilHelmImpl(logger *zap.SugaredLogger,
 	}
 }
 
+func NewNoopEnforcerUtilHelm(logger *zap.SugaredLogger) *EnforcerUtilHelmImpl {
+	logger.Debugw("noop enforcer helm util init")
+	return nil
+}
+
 func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterId(clusterId int, namespace string, appName string) string {
 	cluster, err := impl.clusterRepository.FindById(clusterId)
 	if err != nil {

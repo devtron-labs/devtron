@@ -18,10 +18,10 @@ package genericNotes
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"time"
 
 	"github.com/devtron-labs/devtron/api/bean"
-	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -36,15 +36,15 @@ type GenericNoteService interface {
 type GenericNoteServiceImpl struct {
 	genericNoteRepository     repository.GenericNoteRepository
 	genericNoteHistoryService GenericNoteHistoryService
-	userRepository            repository2.UserRepository
+	userService user.UserService
 	logger                    *zap.SugaredLogger
 }
 
-func NewGenericNoteServiceImpl(genericNoteRepository repository.GenericNoteRepository, clusterNoteHistoryService GenericNoteHistoryService, userRepository repository2.UserRepository, logger *zap.SugaredLogger) *GenericNoteServiceImpl {
+func NewGenericNoteServiceImpl(genericNoteRepository repository.GenericNoteRepository, clusterNoteHistoryService GenericNoteHistoryService, userService user.UserService, logger *zap.SugaredLogger) *GenericNoteServiceImpl {
 	genericNoteService := &GenericNoteServiceImpl{
 		genericNoteRepository:     genericNoteRepository,
 		genericNoteHistoryService: clusterNoteHistoryService,
-		userRepository:            userRepository,
+		userService: userService,
 		logger:                    logger,
 	}
 	return genericNoteService
@@ -82,7 +82,7 @@ func (impl *GenericNoteServiceImpl) Save(tx *pg.Tx, req *repository.GenericNote,
 		impl.logger.Errorw("error in saving generic note history", "err", err, "clusterAudit", clusterAudit)
 		return nil, err
 	}
-	user, err := impl.userRepository.GetById(req.UpdatedBy)
+	user, err := impl.userService.GetById(req.UpdatedBy)
 	if err != nil {
 		impl.logger.Errorw("error in finding user by id", "userId", req.UpdatedBy, "err", err)
 		return nil, err
@@ -150,7 +150,7 @@ func (impl *GenericNoteServiceImpl) Update(req *repository.GenericNote, userId i
 		impl.logger.Errorw("error in saving generic note history", "auditObject", clusterAudit)
 		return nil, err
 	}
-	user, err := impl.userRepository.GetById(model.UpdatedBy)
+	user, err := impl.userService.GetById(model.UpdatedBy)
 	if err != nil {
 		impl.logger.Errorw("error in finding user by id", "userId", model.UpdatedBy, "err", err)
 		return nil, err
@@ -212,7 +212,7 @@ func (impl *GenericNoteServiceImpl) GetGenericNotesForAppIds(appIds []int) (map[
 		userIds = append(userIds, desc.UpdatedBy)
 	}
 
-	users, err := impl.userRepository.GetByIds(userIds)
+	users, err := impl.userService.GetByIds(userIds)
 	if err != nil {
 		impl.logger.Errorw("error in finding users by userIds", "userIds", userIds, "err", err)
 		return appIdsToNoteMap, err

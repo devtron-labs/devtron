@@ -17,10 +17,10 @@
 package cluster
 
 import (
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"time"
 
 	apiBean "github.com/devtron-labs/devtron/api/bean"
-	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -42,15 +42,16 @@ type ClusterDescriptionService interface {
 
 type ClusterDescriptionServiceImpl struct {
 	clusterDescriptionRepository repository.ClusterDescriptionRepository
-	userRepository               repository2.UserRepository
+	//userRepository               repository2.UserRepository
+	userService user.UserService
 	logger                       *zap.SugaredLogger
 }
 
-func NewClusterDescriptionServiceImpl(repository repository.ClusterDescriptionRepository, userRepository repository2.UserRepository, logger *zap.SugaredLogger) *ClusterDescriptionServiceImpl {
+func NewClusterDescriptionServiceImpl(repository repository.ClusterDescriptionRepository, userService user.UserService, logger *zap.SugaredLogger) *ClusterDescriptionServiceImpl {
 	clusterDescriptionService := &ClusterDescriptionServiceImpl{
 		clusterDescriptionRepository: repository,
-		userRepository:               userRepository,
-		logger:                       logger,
+		userService: userService,
+		logger: logger,
 	}
 	return clusterDescriptionService
 }
@@ -60,12 +61,12 @@ func (impl *ClusterDescriptionServiceImpl) FindByClusterIdWithClusterDetails(clu
 	if err != nil {
 		return nil, err
 	}
-	clusterCreatedByUser, err := impl.userRepository.GetById(model.ClusterCreatedBy)
+	clusterCreatedByUser, err := impl.userService.GetById(model.ClusterCreatedBy)
 	if err != nil {
 		impl.logger.Errorw("error in fetching user", "error", err)
 		return nil, err
 	}
-	noteUpdatedByUser, err := impl.userRepository.GetById(model.UpdatedBy)
+	noteUpdatedByUser, err := impl.userService.GetById(model.UpdatedBy)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching user", "error", err)
 		return nil, err

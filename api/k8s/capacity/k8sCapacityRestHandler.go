@@ -140,7 +140,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterListWithDetail(w http.Respo
 			authenticatedClusters = append(authenticatedClusters, cluster)
 		}
 	}
-	if len(authenticatedClusters) == 0 {
+	if len(authenticatedClusters) == 0 && len(clusters) != 0 {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -149,6 +149,9 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterListWithDetail(w http.Respo
 		handler.logger.Errorw("error in getting cluster capacity detail list", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
+	}
+	if len(clusterDetailList) == 0 {
+		clusterDetailList = make([]*bean.ClusterCapacityDetail, 0)
 	}
 	common.WriteJsonResp(w, nil, clusterDetailList, http.StatusOK)
 }

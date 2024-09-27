@@ -4,3 +4,5 @@
 .env
 /cmd/external-app/devtron-ea
 devtron
+/cmd/k8s-client-app/ui/
+/cmd/k8s-client-app/devtron-k8s-client-*

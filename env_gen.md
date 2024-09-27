@@ -177,12 +177,16 @@
  | K8s_TLS_HANDSHAKE_TIMEOUT | 10 |  | 
  | KUBELINK_GRPC_MAX_RECEIVE_MSG_SIZE | 20 |  | 
  | KUBELINK_GRPC_MAX_SEND_MSG_SIZE | 4 |  | 
+ | KUBE_CONFIG_SYNC_TIME_IN_SECS | 600 |  | 
  | LENS_TIMEOUT | 0 |  | 
  | LENS_URL | http://lens-milandevtron-service:80 |  | 
  | LIMIT_CI_CPU | 0.5 |  | 
  | LIMIT_CI_MEM | 3G |  | 
  | LOGGER_DEV_MODE | false |  | 
  | LOG_LEVEL | 0 |  | 
+ | LOG_MAX_AGE | 7 |  | 
+ | LOG_MAX_BACKEUPS | 2 |  | 
+ | LOG_MAX_SIZE | 100 |  | 
  | MAX_CD_WORKFLOW_RUNNER_RETRIES | 0 |  | 
  | MAX_CI_WORKFLOW_RETRIES | 0 |  | 
  | MAX_SESSION_PER_USER | 5 |  | 

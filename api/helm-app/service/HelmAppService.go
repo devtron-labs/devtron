@@ -110,6 +110,10 @@ type HelmAppServiceImpl struct {
 	helmReleaseConfig                    *HelmReleaseConfig
 }
 
+func NewNoopServiceImpl() *HelmAppServiceImpl {
+	return nil
+}
+
 func NewHelmAppServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.ClusterService,
 	helmAppClient gRPC.HelmAppClient, pump connector.Pump, enforcerUtil rbac.EnforcerUtilHelm,
 	serverDataStore *serverDataStore.ServerDataStore, serverEnvConfig *serverEnvConfig.ServerEnvConfig,

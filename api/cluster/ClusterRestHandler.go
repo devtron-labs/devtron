@@ -316,6 +316,9 @@ func (impl ClusterRestHandlerImpl) FindAll(w http.ResponseWriter, r *http.Reques
 		}
 	}
 	//RBAC enforcer Ends
+	if len(result) == 0 {
+		result = make([]*cluster.ClusterBean, 0)
+	}
 
 	common.WriteJsonResp(w, err, result, http.StatusOK)
 }

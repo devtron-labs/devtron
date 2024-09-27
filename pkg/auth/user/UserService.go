@@ -85,6 +85,7 @@ type UserService interface {
 	GetRoleFiltersByUserRoleGroups(userRoleGroups []bean.UserRoleGroup) ([]bean.RoleFilter, error)
 	SaveLoginAudit(emailId, clientIp string, id int32)
 	CheckIfTokenIsValid(email string, version string) error
+	FetchRolesFromGroup(userId int32) ([]*repository.RoleModel, error)
 }
 
 type UserServiceImpl struct {
@@ -1587,7 +1588,7 @@ func (impl *UserServiceImpl) CheckUserRoles(id int32) ([]string, error) {
 	return groups, nil
 }
 
-func (impl *UserServiceImpl) getUniquesRolesByGroupCasbinNames(groupCasbinNames []string) ([]string, error) {
+func (impl UserServiceImpl) getUniquesRolesByGroupCasbinNames(groupCasbinNames []string) ([]string, error) {
 	rolesModels, err := impl.roleGroupRepository.GetRolesByGroupCasbinNames(groupCasbinNames)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting roles by group names", "err", err)
@@ -1882,4 +1883,32 @@ func (impl *UserServiceImpl) createOrUpdateUserRolesForJobsEntity(roleFilter bea
 		}
 	}
 	return policiesToBeAdded, rolesChanged, nil
+}
+
+func (impl *UserServiceImpl) FetchRolesFromGroup(userId int32) ([]*repository.RoleModel, error) {
+	user, err := impl.userRepository.GetByIdIncludeDeleted(userId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
+	groups, err := casbin2.GetRolesForUser(user.EmailId)
+	if err != nil {
+		impl.logger.Errorw("No Roles Found for user", "id", user.Id)
+		return nil, err
+	}
+	roleEntity := "cluster"
+	roles, err := impl.userAuthRepository.GetRolesByUserIdAndEntityType(userId, roleEntity)
+	if err != nil {
+		impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
+		return nil, err
+	}
+	rolesFromGroup, err := impl.roleGroupRepository.GetRolesByGroupNamesAndEntity(groups, roleEntity)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting roles by group names", "err", err)
+		return nil, err
+	}
+	if len(rolesFromGroup) > 0 {
+		roles = append(roles, rolesFromGroup...)
+	}
+	return roles, nil
 }
