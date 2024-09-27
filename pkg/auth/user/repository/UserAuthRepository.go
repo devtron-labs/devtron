@@ -110,6 +110,39 @@ type RoleModel struct {
 	sql.AuditLog
 }
 
+// For RoleModel
+func (model RoleModel) GetAccessType() string {
+	return model.AccessType
+}
+
+func (model RoleModel) GetEntity() string {
+	return model.Entity
+}
+
+func (model RoleModel) GetTeam() string {
+	return model.Team
+}
+
+func (model RoleModel) GetCluster() string {
+	return model.Cluster
+}
+
+func (model RoleModel) GetNamespace() string {
+	return model.Namespace
+}
+
+func (model RoleModel) GetGroup() string {
+	return model.Group
+}
+
+func (model RoleModel) GetKind() string {
+	return model.Kind
+}
+
+func (model RoleModel) GetResource() string {
+	return model.Resource
+}
+
 type RolePolicyDetails struct {
 	Team       string
 	Env        string

@@ -16,7 +16,11 @@
 
 package util
 
-import "strings"
+import (
+	"fmt"
+	"github.com/devtron-labs/devtron/api/bean"
+	"strings"
+)
 
 const (
 	ApiTokenPrefix = "API-TOKEN:"
@@ -38,4 +42,10 @@ func CheckIfAdminOrApiToken(email string) bool {
 
 func CheckIfApiToken(email string) bool {
 	return strings.HasPrefix(email, ApiTokenPrefix)
+}
+
+func GetUniqueKeyForRoleFilter(role bean.RoleFilter) string {
+	key := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s", role.Entity, role.Team, role.Environment,
+		role.EntityName, role.Action, role.AccessType, role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource, role.Workflow)
+	return key
 }
