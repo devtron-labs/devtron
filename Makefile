@@ -27,6 +27,9 @@ build: clean wire
 			-X 'github.com/devtron-labs/devtron/util.BuildTime=${BUILD_TIME}' \
 			-X 'github.com/devtron-labs/devtron/util.ServerMode=${SERVER_MODE_FULL}'"
 
+mod:
+	go mod vendor
+
 wire:
 	wire
 
@@ -54,7 +57,7 @@ docker-build-push: docker-build-image
 
 #############################################################################
 
-build-all: build
+build-all: mod build
 	make --directory ./cmd/external-app build
 
 build-ea:

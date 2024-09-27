@@ -714,17 +714,30 @@ func (handler *PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseW
 		return
 	}
 	cdPipelineRbacObjects := make([]string, len(cdPipelines))
+	rbacObjectToCdPipeline := make(map[string]*pipelineConfig.Pipeline)
 	for i, cdPipeline := range cdPipelines {
 		envObject := handler.enforcerUtil.GetAppRBACByAppIdAndPipelineId(cdPipeline.AppId, cdPipeline.Id)
 		cdPipelineRbacObjects[i] = envObject
+		rbacObjectToCdPipeline[envObject] = cdPipeline
 	}
+
+	hasAnyEnvTriggerAccess := false
 	envRbacResultMap := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionTrigger, cdPipelineRbacObjects)
-	for _, rbacResultOk := range envRbacResultMap {
-		if !rbacResultOk {
+	for rbacObject, rbacResultOk := range envRbacResultMap {
+		cdPipeline := rbacObjectToCdPipeline[rbacObject]
+		if cdPipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC && !rbacResultOk {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
+		if rbacResultOk {
+			hasAnyEnvTriggerAccess = true
+		}
 	}
+	if !hasAnyEnvTriggerAccess {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
 	//RBAC ENDS
 	response := make(map[string]string)
 	resp, err := handler.ciHandler.HandleCIManual(ciTriggerRequest)

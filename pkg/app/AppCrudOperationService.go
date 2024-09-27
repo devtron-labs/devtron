@@ -24,6 +24,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
@@ -88,6 +89,7 @@ type AppCrudOperationServiceImpl struct {
 	gitMaterialRepository      pipelineConfig.MaterialRepository
 	installedAppDbService      EAMode.InstalledAppDBService
 	crudOperationServiceConfig *CrudOperationServiceConfig
+	dbMigration                dbMigration.DbMigration
 }
 
 func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository,
@@ -96,7 +98,8 @@ func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRe
 	genericNoteService genericNotes.GenericNoteService,
 	gitMaterialRepository pipelineConfig.MaterialRepository,
 	installedAppDbService EAMode.InstalledAppDBService,
-	crudOperationServiceConfig *CrudOperationServiceConfig) *AppCrudOperationServiceImpl {
+	crudOperationServiceConfig *CrudOperationServiceConfig,
+	dbMigration dbMigration.DbMigration) *AppCrudOperationServiceImpl {
 	impl := &AppCrudOperationServiceImpl{
 		appLabelRepository:     appLabelRepository,
 		logger:                 logger,
@@ -106,6 +109,7 @@ func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRe
 		genericNoteService:     genericNoteService,
 		gitMaterialRepository:  gitMaterialRepository,
 		installedAppDbService:  installedAppDbService,
+		dbMigration:            dbMigration,
 	}
 	crudOperationServiceConfig, err := GetCrudOperationServiceConfig()
 	if err != nil {
@@ -463,13 +467,29 @@ func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIden
 	var err error
 	appNameUniqueIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
 	app, err = impl.appRepository.FindAppAndProjectByAppName(appNameUniqueIdentifier)
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil && err != pg.ErrNoRows && err != pg.ErrMultiRows {
 		impl.logger.Errorw("error in fetching app meta data by unique app identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
 		return app, err
+	}
+	if err == pg.ErrMultiRows {
+		validApp, err := impl.dbMigration.FixMultipleAppsForInstalledApp(appNameUniqueIdentifier)
+		if err != nil {
+			impl.logger.Errorw("error in fixing multiple installed app entries", "appName", appNameUniqueIdentifier, "err", err)
+			return app, err
+		}
+		return validApp, err
 	}
 	if util.IsErrNoRows(err) {
 		//find app by display name if not found by unique identifier
 		app, err = impl.appRepository.FindAppAndProjectByAppName(appIdentifier.ReleaseName)
+		if err == pg.ErrMultiRows {
+			validApp, err := impl.dbMigration.FixMultipleAppsForInstalledApp(appIdentifier.ReleaseName)
+			if err != nil {
+				impl.logger.Errorw("error in fixing multiple installed app entries", "appName", appIdentifier.ReleaseName, "err", err)
+				return app, err
+			}
+			return validApp, err
+		}
 		if err != nil {
 			impl.logger.Errorw("error in fetching app meta data by display name", "displayName", appIdentifier.ReleaseName, "err", err)
 			return app, err
