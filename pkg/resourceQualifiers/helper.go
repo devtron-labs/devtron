@@ -70,8 +70,22 @@ func getIdentifierNamesForAppEnv(envName string, appName string) *SelectionIdent
 
 func DeduplicateQualifierMappings(mappings []*QualifierMapping) []*QualifierMapping {
 	uniqueMappings := make(map[string]*QualifierMapping)
+	filteredMappings := filterOutParentChildMappings(mappings)
 
+	// removing parentChildMappings from mappings
+	filteredMappingsMap := make(map[int]struct{})
+	for _, mapping := range filteredMappings {
+		filteredMappingsMap[mapping.Id] = struct{}{}
+	}
+
+	remainingMappings := make([]*QualifierMapping, 0)
 	for _, mapping := range mappings {
+		if _, found := filteredMappingsMap[mapping.Id]; !found {
+			remainingMappings = append(remainingMappings, mapping)
+		}
+	}
+
+	for _, mapping := range filteredMappings {
 		key := generateKey(mapping)
 		if existing, found := uniqueMappings[key]; found {
 			if mapping.UpdatedOn.After(existing.UpdatedOn) {
@@ -86,10 +100,34 @@ func DeduplicateQualifierMappings(mappings []*QualifierMapping) []*QualifierMapp
 	for _, mapping := range uniqueMappings {
 		result = append(result, mapping)
 	}
-
+	result = append(result, remainingMappings...)
 	return result
 }
 
 func generateKey(mapping *QualifierMapping) string {
 	return fmt.Sprintf("%d-%d-%d-%d-%d-%s", mapping.ResourceId, mapping.ResourceType, mapping.QualifierId, mapping.IdentifierKey, mapping.IdentifierValueInt, mapping.IdentifierValueString)
+}
+
+// filterOutParentChildMappings removes parent-child related mappings from the list
+func filterOutParentChildMappings(mappings []*QualifierMapping) []*QualifierMapping {
+	parentChildRelatedMappings := make(map[int]bool)
+
+	for _, mapping := range mappings {
+		// Add parent and child mappings to the map as these are involved in parent-child relationship
+		if mapping.ParentIdentifier != 0 {
+			parentChildRelatedMappings[mapping.ParentIdentifier] = true
+			parentChildRelatedMappings[mapping.Id] = true
+		}
+	}
+
+	filteredMappings := make([]*QualifierMapping, 0)
+	for _, mapping := range mappings {
+		// skip mappings which are involved in parent-child relationship
+		if parentChildRelatedMappings[mapping.Id] {
+			continue
+		}
+		filteredMappings = append(filteredMappings, mapping)
+	}
+
+	return filteredMappings
 }
