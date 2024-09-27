@@ -16,6 +16,10 @@ func GetDefaultTerminalAccessPodTemplate() string {
 	return readContent("static/TerminalAccessPodTemplate")
 }
 
+func GetDefaultTerminalAccessNodeDebugTemplate() string {
+	return readContent("static/TerminalAccessNodeDebugTemplate")
+}
+
 func GetDefaultTerminalAccessRoleBindingTemplate() string {
 	return readContent("static/TerminalAccessRoleBinding")
 }

@@ -43,6 +43,16 @@ func (impl TerminalAccessFileBasedRepository) FetchAllTemplates() ([]*models.Ter
 	if len(accessTemplates) == 0 {
 		impl.createDefaultAccessTemplates()
 		accessTemplates, err = impl.fetchAllTemplates()
+	} else {
+		nodeDebugTemplateExists := false
+		for _, template := range accessTemplates {
+			if template.TemplateName == "terminal-node-debug-pod" {
+				nodeDebugTemplateExists = true
+			}
+		}
+		if !nodeDebugTemplateExists {
+			impl.createNodeDebugTemplate()
+		}
 	}
 	return accessTemplates, err
 }
@@ -148,9 +158,33 @@ func (impl TerminalAccessFileBasedRepository) createDefaultAccessTemplates() {
 			UpdatedOn: time.Now(),
 		},
 	})
+	defaultTemplates = append(defaultTemplates, impl.getNodeDebugTemplate())
 	result := impl.dbConnection.Create(&defaultTemplates)
 	err := result.Error
 	if err != nil {
 		impl.logger.Errorw("error occurred while creating default access templates", "err", err)
+	}
+}
+
+func (impl TerminalAccessFileBasedRepository) createNodeDebugTemplate() {
+	var defaultTemplates []*models.TerminalAccessTemplates
+	defaultTemplates = append(defaultTemplates, impl.getNodeDebugTemplate())
+	result := impl.dbConnection.Create(&defaultTemplates)
+	err := result.Error
+	if err != nil {
+		impl.logger.Errorw("error occurred while creating default access templates", "err", err)
+	}
+}
+
+func (impl TerminalAccessFileBasedRepository) getNodeDebugTemplate() *models.TerminalAccessTemplates {
+	return &models.TerminalAccessTemplates{
+		TemplateName: "terminal-node-debug-pod",
+		TemplateData: GetDefaultTerminalAccessNodeDebugTemplate(),
+		AuditLog: sql.AuditLog{
+			CreatedBy: 1,
+			UpdatedBy: 1,
+			CreatedOn: time.Now(),
+			UpdatedOn: time.Now(),
+		},
 	}
 }
