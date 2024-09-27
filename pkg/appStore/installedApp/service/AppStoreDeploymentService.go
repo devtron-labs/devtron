@@ -405,6 +405,7 @@ func (impl *AppStoreDeploymentServiceImpl) LinkHelmApplicationToChartStore(ctx c
 		ReferenceValueKind: request.GetReferenceValueKind(),
 		DeploymentAppType:  util.PIPELINE_DEPLOYMENT_TYPE_HELM,
 		DisplayName:        appIdentifier.ReleaseName,
+		IsChartLinkRequest: true,
 	}
 
 	// STEP-2 InstallApp with only DB operations
