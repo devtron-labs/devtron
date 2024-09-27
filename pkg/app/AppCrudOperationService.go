@@ -483,9 +483,9 @@ func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIden
 		//find app by display name if not found by unique identifier
 		app, err = impl.appRepository.FindAppAndProjectByAppName(appIdentifier.ReleaseName)
 		if err == pg.ErrMultiRows {
-			validApp, err := impl.dbMigration.FixMultipleAppsForInstalledApp(appNameUniqueIdentifier)
+			validApp, err := impl.dbMigration.FixMultipleAppsForInstalledApp(appIdentifier.ReleaseName)
 			if err != nil {
-				impl.logger.Errorw("error in fixing multiple installed app entries", "appName", appNameUniqueIdentifier, "err", err)
+				impl.logger.Errorw("error in fixing multiple installed app entries", "appName", appIdentifier.ReleaseName, "err", err)
 				return app, err
 			}
 			return validApp, err
