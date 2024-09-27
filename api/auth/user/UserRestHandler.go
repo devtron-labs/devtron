@@ -22,6 +22,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/api/auth/user/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	util3 "github.com/devtron-labs/devtron/pkg/auth/user/util"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/schema"
 	"net/http"
@@ -1176,7 +1177,7 @@ func (handler UserRestHandlerImpl) checkRBACForUserUpdate(token string, userInfo
 	if !isAuthorised {
 		if roleFilters != nil && len(roleFilters) > 0 { //auth check inside roleFilters
 			for _, filter := range roleFilters {
-				if _, ok := mapOfExistingRoleFilter[helper.GetUniqueKeyForRoleFilter(filter)]; ok {
+				if _, ok := mapOfExistingRoleFilter[util3.GetUniqueKeyForRoleFilter(filter)]; ok {
 					isAuthorised = true
 					continue
 				}
@@ -1222,6 +1223,7 @@ func (handler UserRestHandlerImpl) checkRBACForUserUpdate(token string, userInfo
 					isAuthorised = false
 				}
 			} else {
+				// if all exiting role groups , setting to true (as no change)
 				isAuthorised = true
 			}
 		}
@@ -1258,7 +1260,7 @@ func (handler UserRestHandlerImpl) checkRBACForRoleGroupUpdate(token string, gro
 	if !isAuthorised {
 		if groupInfo.RoleFilters != nil && len(groupInfo.RoleFilters) > 0 { //auth check inside roleFilters
 			for _, filter := range groupInfo.RoleFilters {
-				if _, ok := mapOfExitingRoleFiltersKey[helper.GetUniqueKeyForRoleFilter(filter)]; ok {
+				if _, ok := mapOfExitingRoleFiltersKey[util3.GetUniqueKeyForRoleFilter(filter)]; ok {
 					isAuthorised = true
 					continue
 				}

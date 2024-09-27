@@ -103,10 +103,6 @@ func GetMapOfUniqueKeys[T any](items []T, getKeyFunc func(T) string) map[string]
 	return uniqueKeyMap
 }
 
-func GetUniqueKeyForRoleFilter(roleFilter bean2.RoleFilter) string {
-	return fmt.Sprintf("%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s", roleFilter.Entity, roleFilter.Team, roleFilter.EntityName, roleFilter.Environment, roleFilter.Action, roleFilter.AccessType, roleFilter.Cluster, roleFilter.Namespace, roleFilter.Group, roleFilter.Kind, roleFilter.Resource, roleFilter.Workflow)
-}
-
 func GetUniqueKeyForUserGroup(group bean2.UserRoleGroup) string {
 	return fmt.Sprintf("%d-%s", group.RoleGroup.Id, group.RoleGroup.Name)
 }

@@ -572,13 +572,11 @@ func (impl *UserServiceImpl) mergeRoleFilter(oldR []bean.RoleFilter, newR []bean
 			Resource:    role.Resource,
 			Workflow:    role.Workflow,
 		})
-		key := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s", role.Entity, role.Team, role.Environment,
-			role.EntityName, role.Action, role.AccessType, role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource, role.Workflow)
+		key := util3.GetUniqueKeyForRoleFilter(role)
 		keysMap[key] = true
 	}
 	for _, role := range newR {
-		key := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s", role.Entity, role.Team, role.Environment,
-			role.EntityName, role.Action, role.AccessType, role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource, role.Workflow)
+		key := util3.GetUniqueKeyForRoleFilter(role)
 		if _, ok := keysMap[key]; !ok {
 			roleFilters = append(roleFilters, bean.RoleFilter{
 				Entity:      role.Entity,
@@ -808,7 +806,7 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, c
 			impl.logger.Errorw("error while fetching user from db", "error", err)
 			return nil, err
 		}
-		uniqueRolefilterKeyMap := userHelper.GetMapOfUniqueKeys(existingUserInfo.RoleFilters, userHelper.GetUniqueKeyForRoleFilter)
+		uniqueRolefilterKeyMap := userHelper.GetMapOfUniqueKeys(existingUserInfo.RoleFilters, util3.GetUniqueKeyForRoleFilter)
 		existingRoleGroupKeyMap := userHelper.GetMapOfUniqueKeys(existingUserInfo.UserRoleGroup, userHelper.GetUniqueKeyForUserGroup)
 		isAuthorised, err := checkRBACForUserUpdate(token, userInfo, isUserSuperAdmin, eliminatedRoles, eliminatedGroupRoles, uniqueRolefilterKeyMap, existingRoleGroupKeyMap)
 		if err != nil {
