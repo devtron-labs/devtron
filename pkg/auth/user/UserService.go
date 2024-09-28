@@ -54,7 +54,7 @@ type UserService interface {
 	CreateUser(userInfo *bean.UserInfo) ([]*bean.UserInfo, error)
 	SelfRegisterUserIfNotExists(userInfo *bean.UserInfo) ([]*bean.UserInfo, error)
 	UpdateUser(userInfo *bean.UserInfo, token string, checkRBACForUserUpdate func(token string, userInfo *bean.UserInfo, isUserAlreadySuperAdmin bool,
-		eliminatedRoleFilters, eliminatedGroupRoles []*repository.RoleModel, mapOfExistingRoleFilter, mapOfExistingUserGroup map[string]bool) (isAuthorised bool, err error)) (*bean.UserInfo, error)
+		eliminatedRoleFilters, eliminatedGroupRoles []*repository.RoleModel) (isAuthorised bool, err error)) (*bean.UserInfo, error)
 	GetById(id int32) (*bean.UserInfo, error)
 	GetAll() ([]bean.UserInfo, error)
 	GetAllWithFilters(request *bean.ListingRequest) (*bean.UserListingResponse, error)
@@ -572,11 +572,13 @@ func (impl *UserServiceImpl) mergeRoleFilter(oldR []bean.RoleFilter, newR []bean
 			Resource:    role.Resource,
 			Workflow:    role.Workflow,
 		})
-		key := util3.GetUniqueKeyForRoleFilter(role)
+		key := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s", role.Entity, role.Team, role.Environment,
+			role.EntityName, role.Action, role.AccessType, role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource, role.Workflow)
 		keysMap[key] = true
 	}
 	for _, role := range newR {
-		key := util3.GetUniqueKeyForRoleFilter(role)
+		key := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s", role.Entity, role.Team, role.Environment,
+			role.EntityName, role.Action, role.AccessType, role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource, role.Workflow)
 		if _, ok := keysMap[key]; !ok {
 			roleFilters = append(roleFilters, bean.RoleFilter{
 				Entity:      role.Entity,
@@ -633,7 +635,7 @@ func (impl *UserServiceImpl) mergeUserRoleGroup(oldUserRoleGroups []bean.UserRol
 }
 
 func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, checkRBACForUserUpdate func(token string, userInfo *bean.UserInfo,
-	isUserAlreadySuperAdmin bool, eliminatedRoleFilters, eliminatedGroupRoles []*repository.RoleModel, mapOfExistingRoleFilter, mapOfExistingUserGroup map[string]bool) (isAuthorised bool, err error)) (*bean.UserInfo, error) {
+	isUserAlreadySuperAdmin bool, eliminatedRoleFilters, eliminatedGroupRoles []*repository.RoleModel) (isAuthorised bool, err error)) (*bean.UserInfo, error) {
 	//checking if request for same user is being processed
 	isLocked := impl.getUserReqLockStateById(userInfo.Id)
 	if isLocked {
@@ -800,15 +802,7 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, c
 	}
 
 	if checkRBACForUserUpdate != nil {
-		// get  existing permissions for user and ignore rbac for unchanged permissions whether direct permissions or group permissions
-		existingUserInfo, err := impl.GetById(model.Id)
-		if err != nil {
-			impl.logger.Errorw("error while fetching user from db", "error", err)
-			return nil, err
-		}
-		uniqueRolefilterKeyMap := userHelper.GetMapOfUniqueKeys(existingUserInfo.RoleFilters, util3.GetUniqueKeyForRoleFilter)
-		existingRoleGroupKeyMap := userHelper.GetMapOfUniqueKeys(existingUserInfo.UserRoleGroup, userHelper.GetUniqueKeyForUserGroup)
-		isAuthorised, err := checkRBACForUserUpdate(token, userInfo, isUserSuperAdmin, eliminatedRoles, eliminatedGroupRoles, uniqueRolefilterKeyMap, existingRoleGroupKeyMap)
+		isAuthorised, err := checkRBACForUserUpdate(token, userInfo, isUserSuperAdmin, eliminatedRoles, eliminatedGroupRoles)
 		if err != nil {
 			impl.logger.Errorw("error in checking RBAC for user update", "err", err, "userInfo", userInfo)
 			return nil, err

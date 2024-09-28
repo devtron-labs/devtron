@@ -93,16 +93,3 @@ func CreateErrorMessageForUserRoleGroups(restrictedGroups []bean2.RestrictedGrou
 	}
 	return errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin
 }
-
-// GetMapOfUniqueKeys takes a slice of any type and a function to extract a unique key, returning a map of unique keys.
-func GetMapOfUniqueKeys[T any](items []T, getKeyFunc func(T) string) map[string]bool {
-	uniqueKeyMap := make(map[string]bool, len(items))
-	for _, item := range items {
-		uniqueKeyMap[getKeyFunc(item)] = true
-	}
-	return uniqueKeyMap
-}
-
-func GetUniqueKeyForUserGroup(group bean2.UserRoleGroup) string {
-	return fmt.Sprintf("%d-%s", group.RoleGroup.Id, group.RoleGroup.Name)
-}
