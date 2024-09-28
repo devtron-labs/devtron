@@ -19,7 +19,6 @@ package user
 import (
 	"errors"
 	"fmt"
-	helper2 "github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	"net/http"
 	"strings"
@@ -40,7 +39,7 @@ import (
 type RoleGroupService interface {
 	CreateRoleGroup(request *bean.RoleGroup) (*bean.RoleGroup, error)
 	UpdateRoleGroup(request *bean.RoleGroup, token string, checkRBACForGroupUpdate func(token string, groupInfo *bean.RoleGroup,
-		eliminatedRoleFilters []*repository.RoleModel, mapOfExistingRoleFilterKey map[string]bool) (isAuthorised bool, err error)) (*bean.RoleGroup, error)
+		eliminatedRoleFilters []*repository.RoleModel) (isAuthorised bool, err error)) (*bean.RoleGroup, error)
 	FetchDetailedRoleGroups(req *bean.ListingRequest) ([]*bean.RoleGroup, error)
 	FetchRoleGroupsById(id int32) (*bean.RoleGroup, error)
 	FetchRoleGroups() ([]*bean.RoleGroup, error)
@@ -370,7 +369,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForJobsEntity(roleFilter
 }
 
 func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token string, checkRBACForGroupUpdate func(token string, groupInfo *bean.RoleGroup,
-	eliminatedRoleFilters []*repository.RoleModel, mapOfExistingRoleFilterKey map[string]bool) (isAuthorised bool, err error)) (*bean.RoleGroup, error) {
+	eliminatedRoleFilters []*repository.RoleModel) (isAuthorised bool, err error)) (*bean.RoleGroup, error) {
 	dbConnection := impl.roleGroupRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -477,13 +476,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 	}
 
 	if checkRBACForGroupUpdate != nil {
-		existingRoleGroupData, err := impl.FetchRoleGroupsById(roleGroup.Id)
-		if err != nil {
-			impl.logger.Errorw("error encountered in Update role group", "err", err, "roleGroupId", roleGroup.Id)
-			return nil, err
-		}
-		mapOfExitingRoleFiltersKey := helper2.GetMapOfUniqueKeys(existingRoleGroupData.RoleFilters, util2.GetUniqueKeyForRoleFilter)
-		isAuthorised, err := checkRBACForGroupUpdate(token, request, eliminatedRoleModels, mapOfExitingRoleFiltersKey)
+		isAuthorised, err := checkRBACForGroupUpdate(token, request, eliminatedRoleModels)
 		if err != nil {
 			impl.logger.Errorw("error in checking RBAC for role group update", "err", err, "request", request)
 			return nil, err
