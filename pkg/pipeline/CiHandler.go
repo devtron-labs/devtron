@@ -21,8 +21,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils/workFlow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	util3 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"io/ioutil"
 	"net/http"
@@ -1158,7 +1158,7 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		if string(v1alpha1.NodeError) == savedWorkflow.Status || string(v1alpha1.NodeFailed) == savedWorkflow.Status {
 			impl.Logger.Warnw("ci failed for workflow: ", "wfId", savedWorkflow.Id)
 
-			if extractErrorCode(savedWorkflow.Message) != CiPipeline.CiStageFailErrorCode {
+			if extractErrorCode(savedWorkflow.Message) != workFlow.CiStageFailErrorCode {
 				go impl.WriteCIFailEvent(savedWorkflow)
 			} else {
 				impl.Logger.Infof("Step failed notification received for wfID %d with message %s", savedWorkflow.Id, savedWorkflow.Message)

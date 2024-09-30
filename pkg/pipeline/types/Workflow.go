@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/argo-workflows/v3/workflow/common"
 	"github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/common-lib/utils"
+	"github.com/devtron-labs/common-lib/utils/workFlow"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
@@ -492,7 +493,8 @@ func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdCon
 		SecurityContext: &v1.SecurityContext{
 			Privileged: &privileged,
 		},
-		Resources: workflowRequest.GetLimitReqCpuMem(config, infraConfigurations),
+		TerminationMessagePath: workFlow.GetTerminalLogFilePath(),
+		Resources:              workflowRequest.GetLimitReqCpuMem(config, infraConfigurations),
 	}
 	if workflowRequest.Type == bean.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean.JOB_WORKFLOW_PIPELINE_TYPE {
 		workflowMainContainer.Ports = []v1.ContainerPort{{

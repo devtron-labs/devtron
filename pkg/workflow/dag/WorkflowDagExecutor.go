@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/common-lib/async"
+	"github.com/devtron-labs/common-lib/utils/workFlow"
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
@@ -978,7 +979,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiStepFailedEvent(ciPipelineId int, r
 		}
 	}
 	impl.asyncRunnable.Execute(customTagServiceRunnableFunc)
-	if request.FailureReason != CiPipeline.CiFailed.String() {
+	if request.FailureReason != workFlow.CiFailed.String() {
 		notificationServiceRunnableFunc := func() {
 			impl.WriteCiStepFailedEvent(pipelineModel, request, savedWorkflow)
 		}
