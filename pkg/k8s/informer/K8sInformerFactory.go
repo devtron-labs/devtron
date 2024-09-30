@@ -43,6 +43,7 @@ type K8sInformerFactory interface {
 	GetLatestNamespaceListGroupByCLuster() map[string]map[string]bool
 	BuildInformer(clusterInfo []*bean.ClusterInfo)
 	CleanNamespaceInformer(clusterName string)
+	DeleteClusterFromCache(clusterName string)
 }
 
 func NewK8sInformerFactoryImpl(logger *zap.SugaredLogger, globalMapClusterNamespace sync.Map, k8sUtil *k8s.K8sServiceImpl) *K8sInformerFactoryImpl {
@@ -125,5 +126,11 @@ func (impl *K8sInformerFactoryImpl) CleanNamespaceInformer(clusterName string) {
 		close(stopper)
 		delete(impl.informerStopper, clusterName)
 	}
+	return
+}
+
+func (impl *K8sInformerFactoryImpl) DeleteClusterFromCache(clusterName string) {
+	impl.CleanNamespaceInformer(clusterName)
+	impl.globalMapClusterNamespace.Delete(clusterName)
 	return
 }
