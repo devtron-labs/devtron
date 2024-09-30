@@ -28,7 +28,7 @@ import (
 	"log"
 )
 
-//FIXME: this code is temp
+// FIXME: this code is temp
 func CreateEcrRepo(repoName string, reg string, accessKey string, secretKey string) error {
 	region := reg
 	//fmt.Printf("repoName %s, reg %s, accessKey %s, secretKey %s\n", repoName, reg, accessKey, secretKey)

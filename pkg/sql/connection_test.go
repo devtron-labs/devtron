@@ -1,3 +1,6 @@
+//go:build unit
+// +build unit
+
 /*
  * Copyright (c) 2024. Devtron Inc.
  *
@@ -13,9 +16,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-//go:build unit
-// +build unit
 
 package sql
 

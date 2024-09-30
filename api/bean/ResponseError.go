@@ -16,7 +16,7 @@
 
 package bean
 
-//global response body used across api
+// global response body used across api
 type Response struct {
 	Code   int         `json:"code,omitempty"`
 	Status string      `json:"status,omitempty"`

@@ -20,11 +20,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	"net/http"
 	"time"
 
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -53,15 +59,19 @@ type PropertiesConfigService interface {
 	CreateEnvironmentPropertiesWithNamespace(appId int, propertiesRequest *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error)
 
 	FetchEnvProperties(appId, envId, chartRefId int) (*chartConfig.EnvConfigOverride, error)
+	ProcessEnvConfigProperties(ctx context.Context, request chart.ChartRefChangeRequest, envMetrics bool, userId int32) (bean.ProcessEnvConfigPropertiesBean, error)
 }
 type PropertiesConfigServiceImpl struct {
-	logger                           *zap.SugaredLogger
-	envConfigRepo                    chartConfig.EnvConfigOverrideRepository
-	chartRepo                        chartRepoRepository.ChartRepository
-	environmentRepository            repository2.EnvironmentRepository
-	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
-	scopedVariableManager            variables.ScopedVariableManager
-	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
+	logger                              *zap.SugaredLogger
+	envConfigRepo                       chartConfig.EnvConfigOverrideRepository
+	chartRepo                           chartRepoRepository.ChartRepository
+	environmentRepository               repository2.EnvironmentRepository
+	deploymentTemplateHistoryService    history.DeploymentTemplateHistoryService
+	scopedVariableManager               variables.ScopedVariableManager
+	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
+	chartService                        chart.ChartService
+	chartRefService                     chartRef.ChartRefService
+	deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService
 }
 
 func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
@@ -70,15 +80,19 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 	environmentRepository repository2.EnvironmentRepository,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	scopedVariableManager variables.ScopedVariableManager,
-	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService) *PropertiesConfigServiceImpl {
+	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService, chartService chart.ChartService,
+	chartRefService chartRef.ChartRefService, deploymentTemplateValidationService deploymentTemplate.DeploymentTemplateValidationService) *PropertiesConfigServiceImpl {
 	return &PropertiesConfigServiceImpl{
-		logger:                           logger,
-		envConfigRepo:                    envConfigRepo,
-		chartRepo:                        chartRepo,
-		environmentRepository:            environmentRepository,
-		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
-		scopedVariableManager:            scopedVariableManager,
-		deployedAppMetricsService:        deployedAppMetricsService,
+		logger:                              logger,
+		envConfigRepo:                       envConfigRepo,
+		chartRepo:                           chartRepo,
+		environmentRepository:               environmentRepository,
+		deploymentTemplateHistoryService:    deploymentTemplateHistoryService,
+		scopedVariableManager:               scopedVariableManager,
+		deployedAppMetricsService:           deployedAppMetricsService,
+		chartService:                        chartService,
+		chartRefService:                     chartRefService,
+		deploymentTemplateValidationService: deploymentTemplateValidationService,
 	}
 
 }
@@ -247,10 +261,7 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 	if err != nil {
 		return nil, err
 	}
-	//FIXME add check for restricted NS also like (kube-system, devtron, monitoring, etc)
-	if env.Namespace != "" && env.Namespace != propertiesRequest.Namespace {
-		return nil, fmt.Errorf("enviremnt is restricted to namespace: %s only, cant deploy to: %s", env.Namespace, propertiesRequest.Namespace)
-	}
+	propertiesRequest.Namespace = env.Namespace
 
 	if !oldEnvOverride.Latest {
 		envOverrideExisting, err := impl.envConfigRepo.FindLatestChartForAppByAppIdAndEnvId(appId, oldEnvOverride.TargetEnvironment)
@@ -596,4 +607,169 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespace
 		ClusterId:         env.ClusterId,
 	}
 	return environmentProperties, nil
+}
+
+// ProcessEnvConfigProperties processes the environment configuration properties based on the provided parameters.
+// Steps performed:
+// 1. Fetch the latest environment properties for the given `appId` and `envId`.
+// 2. If environment properties are not found:
+//   - Set `isEnvironmentOverridden` to false.
+//   - If `allowEnvOverride` flag is not set in the request:
+//   - Log a warning indicating that environment properties are not found and advise to set the `allowEnvOverride` flag to true.
+//   - Return nil, error, and flags indicating the absence of environment properties and updateOverride.
+//   - Otherwise, create an empty environment properties object.
+//
+// 3. If environment properties are found:
+//   - Check if the environment is overridden.
+//   - Handle error if `isOverride` is not true.
+//   - Check compatibility between old and new chart versions.
+//   - Patch environment overrides based on old and new chart types.
+//   - If the new chart type is rollout:
+//   - Check if Flagger canary is enabled; if so, log an error and return.
+//   - Fetch environment metrics for the given `appId` and `envId`.
+//   - Handle error if fetching environment metrics fails.
+//   - Set environment metrics in the environment properties.
+//   - Define scope for validation including `appId`, `envId`, and `clusterId`.
+//   - Validate deployment template with the provided environment override values, chart reference ID, and scope.
+//   - Handle error if validation fails.
+//
+// 4. Set `userId`, `chartRefId`, and `environmentId` in the environment properties.
+// 5. If environment is not overridden:
+//   - Set `isOverride` to true.
+//   - Fetch previous environment properties with the default chart reference ID.
+//   - If no error occurs and previous environment properties are found:
+//   - Set environment override values and activate the environment.
+//   - Set ID of the previous environment properties.
+//   - Otherwise, set `updateOverride` flag to false.
+//   - Fetch app override for the default template with the target chart reference ID.
+//   - Handle error if fetching app override fails.
+//   - Set environment override values to the app override.
+//
+// 6. Return the processed environment properties, nil error, and flags indicating environment status and update behavior.
+func (impl PropertiesConfigServiceImpl) ProcessEnvConfigProperties(ctx context.Context, request chart.ChartRefChangeRequest, envMetrics bool, userId int32) (bean.ProcessEnvConfigPropertiesBean, error) {
+	// Default values
+	isEnvironmentOverridden := true
+	updateOverride := true
+
+	// Retrieve latest environment properties
+	envConfigProperties, err := impl.GetLatestEnvironmentProperties(request.AppId, request.EnvId)
+	if err != nil {
+		impl.logger.Errorw("error in finding env properties ChangeChartRef", "err", err, "payload", request)
+		return bean.ProcessEnvConfigPropertiesBean{
+			StatusCode: http.StatusNotFound,
+		}, err
+	}
+
+	// Handle case when environment properties are not found
+	if envConfigProperties == nil {
+		isEnvironmentOverridden = false
+		if !request.AllowEnvOverride {
+			impl.logger.Errorw("env properties not found, ChangeChartRef, to override environment add flag allowEnvOverride = true", "err", err, "payload", request)
+			return bean.ProcessEnvConfigPropertiesBean{
+				StatusCode: http.StatusNotFound,
+			}, errors.New("env properties not found. To override set allowEnvOverride to true")
+		}
+		// Create empty environment properties if environment override is allowed
+		envConfigProperties = &bean.EnvironmentProperties{}
+	} else {
+		// Check if environment is overridden
+		if !envConfigProperties.IsOverride {
+			impl.logger.Errorw("isOverride is not true, ChangeChartRef", "err", err, "payload", request)
+			return bean.ProcessEnvConfigPropertiesBean{
+				StatusCode: http.StatusUnprocessableEntity,
+			}, errors.New("specific environment is not overridden")
+		}
+
+		// Check compatibility of chart references
+		compatible, oldChartType, newChartType := impl.chartRefService.ChartRefIdsCompatible(envConfigProperties.ChartRefId, request.TargetChartRefId)
+		if !compatible {
+			return bean.ProcessEnvConfigPropertiesBean{
+				StatusCode: http.StatusUnprocessableEntity,
+			}, errors.New("chart version is not compatible")
+		}
+
+		// Patch environment overrides based on chart changes
+		envConfigProperties.EnvOverrideValues, err = impl.chartService.PatchEnvOverrides(envConfigProperties.EnvOverrideValues, oldChartType, newChartType)
+		if err != nil {
+			return bean.ProcessEnvConfigPropertiesBean{
+				StatusCode: http.StatusInternalServerError,
+			}, err
+		}
+
+		// Handle rollout chart type
+		if newChartType == chartRefBean.RolloutChartType {
+			enabled, err := impl.deploymentTemplateValidationService.FlaggerCanaryEnabled(envConfigProperties.EnvOverrideValues)
+			if err != nil || enabled {
+				impl.logger.Errorw("rollout charts do not support flaggerCanary, ChangeChartRef", "err", err, "payload", request)
+				return bean.ProcessEnvConfigPropertiesBean{
+					StatusCode: http.StatusBadRequest,
+				}, err
+			}
+		}
+
+		// Retrieve environment metrics
+		envMetrics, err = impl.deployedAppMetricsService.GetMetricsFlagByAppIdAndEnvId(request.AppId, request.EnvId)
+		if err != nil {
+			impl.logger.Errorw("could not find envMetrics for, ChangeChartRef", "err", err, "payload", request)
+			return bean.ProcessEnvConfigPropertiesBean{
+				StatusCode: http.StatusBadRequest,
+			}, err
+		}
+		envConfigProperties.AppMetrics = &envMetrics
+
+		// Validate deployment template
+		scope := resourceQualifiers.Scope{
+			AppId:     request.AppId,
+			EnvId:     request.EnvId,
+			ClusterId: envConfigProperties.ClusterId,
+		}
+		validate, err := impl.deploymentTemplateValidationService.DeploymentTemplateValidate(ctx, envConfigProperties.EnvOverrideValues, envConfigProperties.ChartRefId, scope)
+		if !validate {
+			impl.logger.Errorw("validation err, UpdateAppOverride", "err", err, "payload", request)
+			return bean.ProcessEnvConfigPropertiesBean{
+				StatusCode: http.StatusBadRequest,
+			}, err
+		}
+	}
+
+	// Update environment properties
+	envConfigProperties.UserId = userId
+	envConfigProperties.ChartRefId = request.TargetChartRefId
+	envConfigProperties.EnvironmentId = request.EnvId
+
+	// Handle case when environment is overridden
+
+	envConfigProperties.IsOverride = true
+
+	// Fetch existing environment properties if available
+	envConfigPropertiesOld, err := impl.FetchEnvProperties(request.AppId, request.EnvId, request.TargetChartRefId)
+	if err == nil {
+		if envConfigPropertiesOld.Chart != nil {
+			envConfigProperties.EnvOverrideValues = json.RawMessage(envConfigPropertiesOld.Chart.Values)
+			envConfigProperties.Active = true
+			envConfigProperties.Status = models.CHARTSTATUS_SUCCESS
+		}
+		envConfigProperties.Id = envConfigPropertiesOld.Id
+	} else {
+		updateOverride = false
+
+		// Retrieve default chart override
+		_, appOverride, err := impl.chartRefService.GetAppOverrideForDefaultTemplate(request.TargetChartRefId)
+		if err != nil {
+			impl.logger.Errorw("service err, GetAppOverrideForDefaultTemplate", "err", err, "payload", envConfigProperties)
+			return bean.ProcessEnvConfigPropertiesBean{
+				StatusCode: http.StatusInternalServerError,
+			}, err
+		}
+		// Set default chart override
+		envConfigProperties.EnvOverrideValues = json.RawMessage(appOverride)
+	}
+
+	return bean.ProcessEnvConfigPropertiesBean{
+		EnvConfigProperties:     envConfigProperties,
+		IsEnvironmentOverridden: isEnvironmentOverridden,
+		EnvMetrics:              envMetrics,
+		UpdateOverride:          updateOverride,
+		StatusCode:              http.StatusOK,
+	}, nil
 }

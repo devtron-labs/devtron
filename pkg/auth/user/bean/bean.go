@@ -99,5 +99,5 @@ const (
 
 const (
 	API_TOKEN_USER_EMAIL_PREFIX = "API-TOKEN:"
-	ApiTokenTableName = "api_token"
+	ApiTokenTableName           = "api_token"
 )

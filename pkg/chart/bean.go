@@ -58,9 +58,10 @@ type ChartUpgradeRequest struct {
 }
 
 type ChartRefChangeRequest struct {
-	AppId            int `json:"appId" validate:"required"`
-	EnvId            int `json:"envId" validate:"required"`
-	TargetChartRefId int `json:"targetChartRefId" validate:"required"`
+	AppId            int  `json:"appId" validate:"required"`
+	EnvId            int  `json:"envId" validate:"required"`
+	TargetChartRefId int  `json:"targetChartRefId" validate:"required"`
+	AllowEnvOverride bool `json:"allowEnvOverride" default:"false"`
 }
 
 type PipelineConfigRequest struct {
