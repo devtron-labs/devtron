@@ -259,7 +259,7 @@ spec:
         app: minio
         release: {{ $.Release.Name }}
     spec:
-      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.minio.nodeSelector "tolerations" $.Values.minio.tolerations "imagePullSecrets" $.Values.minio.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.minio.nodeSelector "tolerations" $.Values.minio.tolerations "imagePullSecrets" $.Values.minio.imagePullSecrets "global" $.Values.global) | indent 6 }}
       serviceAccountName: "devtron-minio"
       securityContext:
         runAsUser: 1000
@@ -322,13 +322,14 @@ metadata:
     release: {{ $.Release.Name }}
     heritage: Helm
 spec:
+  ttlSecondsAfterFinished: 100
   template:
     metadata:
       labels:
         app: minio-job
         release: {{ $.Release.Name }}
     spec:
-      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.minio.nodeSelector "tolerations" $.Values.minio.tolerations "imagePullSecrets" $.Values.minio.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.minio.nodeSelector "tolerations" $.Values.minio.tolerations "imagePullSecrets" $.Values.minio.imagePullSecrets "global" $.Values.global) | indent 6 }}
       restartPolicy: OnFailure
       volumes:
         - name: minio-configuration
@@ -384,7 +385,7 @@ spec:
         app: minio
         release: devtron-minio
     spec:
-      {{ include "common.nodeSelector" (dict "nodeSelector" $.Values.minio.nodeSelector "tolerations" $.Values.minio.tolerations "imagePullSecrets" $.Values.minio.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.minio.nodeSelector "tolerations" $.Values.minio.tolerations "imagePullSecrets" $.Values.minio.imagePullSecrets "global" $.Values.global) | indent 6 }}
       serviceAccountName: "devtron-minio"
       containers:
         - name: minio

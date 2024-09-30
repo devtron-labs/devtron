@@ -9,13 +9,22 @@ global:
     runAsNonRoot: true
   containerRegistry: "quay.io/devtron"
   # The below values can be specified both at global as well as component level
+  # nodeSelector:
+  #   key: value
+  # tolerations:
+  #   - key: "key1"
+  #     operator: "Equal"
+  #     value: "value1"
+  #     effect: "NoSchedule"
+  # imagePullSecrets:
+  #     - name: your-image-pull-secret
   nodeSelector: {}
   tolerations: []
   imagePullSecrets: []
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
-  release: "v0.7.1"
+  release: "v0.7.2"
   registry: ""
   image: inception
   tag: 473deaa4-185-21582
@@ -24,7 +33,6 @@ installer:
   openshift: false # Set this to true if you are installing on openshift
   production_overrides: "" # Set true if you want to use this Devtron stack in Production (This will require more resources)
 # Change the below values for full mode only
-
 #Use secrets in plaintext, they'll be encoded to base64 automatically.
 secrets: {}
 #  REQUIRED IF BLOB_STORAGE_PROVIDER=AZURE Token with read write access to AZURE_BLOB_CONTAINER_CI_LOG and AZURE_BLOB_CONTAINER_CI_CACHE
@@ -61,16 +69,20 @@ components:
         ENABLE_CI_JOB: "true"
         GLOBAL_API_TIMEOUT: "60000"
         TRIGGER_API_TIMEOUT: "60000"
-        ENABLE_EXTERNAL_ARGO_CD: "false"
+        ENABLE_EXTERNAL_ARGO_CD: "true"
         SERVICE_WORKER_TIMEOUT: "1"
         API_BATCH_SIZE: "30"
+        FEATURE_EXTERNAL_FLUX_CD_ENABLE: "true"
+        FEATURE_STEP_WISE_LOGS_ENABLE: "true"
+        FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE: "true"
+        ENABLE_RESOURCE_SCAN: "true"
     registry: ""
-    image: "dashboard:5f95d187-690-23841"
+    image: "dashboard:215319c7-690-25536"
     imagePullPolicy: IfNotPresent
   devtron:
     registry: ""
-    image: "hyperion:291c4c75-280-23860"
-    cicdImage: "devtron:291c4c75-434-23853"
+    image: "hyperion:3f68456b-280-25566"
+    cicdImage: "devtron:3f68456b-434-25567"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
@@ -96,7 +108,7 @@ components:
       #      - devtron.example.com
   ciRunner:
     registry: ""
-    image: "ci-runner:48aca9f4-138-23844"
+    image: "ci-runner:fd5702db-138-25483"
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
@@ -105,7 +117,7 @@ components:
       authenticator: "authenticator:e414faff-393-13273"
   kubelink:
     registry: ""
-    image: "kubelink:0dee6306-564-23843"
+    image: "kubelink:6ef0fbbe-564-25533"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
@@ -123,7 +135,7 @@ components:
       keyName: postgresql-password
   kubewatch:
     registry: ""
-    image: "kubewatch:850b40d5-419-23840"
+    image: "kubewatch:7c8611f4-419-25531"
     imagePullPolicy: IfNotPresent
     configs:
       devtroncd_NAMESPACE: "devtron-ci"
@@ -145,7 +157,7 @@ components:
       volumeSize: "20Gi"
   gitsensor:
     registry: ""
-    image: "git-sensor:86e13283-200-23847"
+    image: "git-sensor:5b9cf0ec-200-25481"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
@@ -163,7 +175,7 @@ components:
   # Values for lens
   lens:
     registry: ""
-    image: "lens:56211042-333-23839"
+    image: "lens:9db8a2fb-333-25482"
     imagePullPolicy: IfNotPresent
     secrets: {}
     resources: {}
@@ -210,7 +222,7 @@ components:
         DB_NAME: "lens"
   chartSync:
     registry: ""
-    image: chart-sync:5a1d0301-150-23845
+    image: chart-sync:13ffae06-150-25515
 # values for argocd integration
 argo-cd:
   enabled: false
@@ -251,13 +263,7 @@ argo-cd:
           - all
       readOnlyRootFilesystem: true
       runAsNonRoot: true
-    env:
-      - name: ARGOCD_RECONCILIATION_TIMEOUT
-        valueFrom:
-          configMapKeyRef:
-            key: timeout.reconciliation
-            name: argocd-cm
-            optional: true
+    env: []
     affinity:
       podAntiAffinity:
         preferredDuringSchedulingIgnoredDuringExecution:
@@ -347,12 +353,6 @@ argo-cd:
       - --parallelismlimit
       - "50"
     env:
-      - name: ARGOCD_RECONCILIATION_TIMEOUT
-        valueFrom:
-          configMapKeyRef:
-            key: timeout.reconciliation
-            name: argocd-cm
-            optional: true
       - name: ARGOCD_EXEC_TIMEOUT
         value: 180s
     containerSecurityContext:
@@ -370,7 +370,7 @@ argo-cd:
 security:
   enabled: false
   imageScanner:
-    image: "image-scanner:137872c2-141-23848"
+    image: "image-scanner:348201f8-141-25486"
   # Values for trivy
   trivy:
     enabled: false
@@ -385,7 +385,7 @@ security:
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
-  image: "notifier:9639b1ab-372-23850"
+  image: "notifier:06392394-372-25535"
   configs:
     CD_ENVIRONMENT: PROD
     DB: orchestrator
@@ -436,3 +436,28 @@ monitoring:
       resources: {}
     persistence:
       storage: "2Gi"
+# Change these values for Devtron-Enterprise 
+devtronEnterprise:
+  enabled: false
+  casbin:
+    registry: ""
+    image: "casbin:efc28fb2-6de0e914-462-25420"
+    imagePullPolicy: IfNotPresent
+    configs:
+      PG_ADDR: postgresql-postgresql.devtroncd
+      PG_DATABASE: casbin
+      PG_PORT: "5432"
+      PG_USER: postgres
+    dbconfig:
+      secretName: postgresql-postgresql
+      keyName: postgresql-password
+    resources: {}
+  scoop:
+    enabled: false
+    registry: ""
+    image: "scoop:296d351d-629-24001"
+    imagePullPolicy: IfNotPresent
+    resources: {}
+    configs:
+      CLUSTER_ID: "1"
+      ORCHESTRATOR_URL: http://devtron-service.devtroncd.svc.cluster.local/orchestrator
