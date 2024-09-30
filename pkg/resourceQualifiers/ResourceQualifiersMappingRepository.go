@@ -88,6 +88,7 @@ func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappings(resourceType R
 	if err != nil {
 		return nil, err
 	}
+	qualifierMappings = DeduplicateQualifierMappings(qualifierMappings)
 	return qualifierMappings, nil
 }
 
@@ -143,6 +144,7 @@ func (repo *QualifiersMappingRepositoryImpl) GetMappingsByResourceTypeAndIdsAndQ
 	if err == pg.ErrNoRows {
 		err = nil
 	}
+	mappings = DeduplicateQualifierMappings(mappings)
 	return mappings, err
 }
 
@@ -165,6 +167,7 @@ func (repo *QualifiersMappingRepositoryImpl) GetQualifierMappingsForListOfQualif
 	if err != nil && err != pg.ErrNoRows {
 		return nil, err
 	}
+	qualifierMappings = DeduplicateQualifierMappings(qualifierMappings)
 	return qualifierMappings, nil
 }
 

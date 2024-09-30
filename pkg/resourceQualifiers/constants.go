@@ -35,3 +35,6 @@ var SystemVariables = []SystemVariableName{
 	DevtronAppName,
 	DevtronImage,
 }
+
+const AllExistingAndFutureNonProdEnvsInt = -1
+const AllExistingAndFutureProdEnvsInt = -2

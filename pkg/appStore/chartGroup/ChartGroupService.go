@@ -697,7 +697,7 @@ func (impl *ChartGroupServiceImpl) TriggerDeploymentEventAndHandleStatusUpdate(i
 
 func (impl *ChartGroupServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error) {
 	// STEP 1 - create environment with name "devton"
-	impl.logger.Infow("STEP 1", "create environment for cluster component", bean)
+	impl.logger.Infow("STEP 1", "create environment for cluster component", "clusterId", bean.Id)
 	envName := fmt.Sprintf("%d-%s", bean.Id, appStoreBean.DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT)
 	env, err := impl.environmentService.FindOne(envName)
 	if err != nil && err != pg.ErrNoRows {

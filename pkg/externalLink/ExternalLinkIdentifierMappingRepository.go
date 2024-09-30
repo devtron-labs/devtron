@@ -17,7 +17,6 @@
 package externalLink
 
 import (
-	"fmt"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"time"
@@ -94,32 +93,35 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) Update(link *ExternalLin
 func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByLinkIdentifier(linkIdentifier *LinkIdentifier, clusterId int) ([]ExternalLinkIdentifierMappingData, error) {
 	var links []ExternalLinkIdentifierMappingData
 	var query string
+	var queryParams []interface{}
 
 	if linkIdentifier.Type == getType(DEVTRON_APP) || linkIdentifier.Type == getType(DEVTRON_INSTALLED_APP) {
-		query = fmt.Sprintf("select el.id,el.external_link_monitoring_tool_id,el.name,el.url,el.is_editable,el.description,el.updated_on,"+
-			"elim.id as mapping_id,elim.active,elim.type,elim.identifier,elim.env_id,elim.app_id,elim.cluster_id"+
-			" FROM external_link el"+
-			" LEFT JOIN external_link_identifier_mapping elim ON el.id = elim.external_link_id"+
-			" WHERE el.active = true and elim.active = true and ( (elim.type = %d and elim.app_id = %d and elim.cluster_id = 0) or (elim.type = 0 and elim.app_id = 0 and elim.cluster_id = %d) "+
-			" or (elim.type = -1) );", TypeMappings[linkIdentifier.Type], linkIdentifier.AppId, clusterId)
+		query = `select el.id,el.external_link_monitoring_tool_id,el.name,el.url,el.is_editable,el.description,el.updated_on,
+			 elim.id as mapping_id,elim.active,elim.type,elim.identifier,elim.env_id,elim.app_id,elim.cluster_id 
+			 FROM external_link el 
+			 LEFT JOIN external_link_identifier_mapping elim ON el.id = elim.external_link_id 
+			 WHERE el.active = true and elim.active = true and ( (elim.type = ? and elim.app_id = ? and elim.cluster_id = 0) or (elim.type = 0 and elim.app_id = 0 and elim.cluster_id = ?)
+			 or (elim.type = -1) );`
+		queryParams = append(queryParams, TypeMappings[linkIdentifier.Type], linkIdentifier.AppId, clusterId)
 	} else {
-		query = fmt.Sprintf("select el.id,el.external_link_monitoring_tool_id,el.name,el.url,el.is_editable,el.description,el.updated_on,"+
-			"elim.id as mapping_id,elim.active,elim.type,elim.identifier,elim.env_id,elim.app_id,elim.cluster_id"+
-			" FROM external_link el"+
-			" LEFT JOIN external_link_identifier_mapping elim ON el.id = elim.external_link_id"+
-			" WHERE el.active = true and elim.active = true and ( (elim.type = %d and elim.identifier = '%s' and elim.cluster_id = 0) or (elim.type = 0 and elim.app_id = 0 and elim.cluster_id = %d) "+
-			" or (elim.type = -1) );", TypeMappings[linkIdentifier.Type], linkIdentifier.Identifier, clusterId)
+		query = `select el.id,el.external_link_monitoring_tool_id,el.name,el.url,el.is_editable,el.description,el.updated_on, 
+				 elim.id as mapping_id,elim.active,elim.type,elim.identifier,elim.env_id,elim.app_id,elim.cluster_id 
+				 FROM external_link el 
+				 LEFT JOIN external_link_identifier_mapping elim ON el.id = elim.external_link_id 
+				 WHERE el.active = true and elim.active = true and ( (elim.type = %d and elim.identifier = '%s' and elim.cluster_id = 0) or (elim.type = 0 and elim.app_id = 0 and elim.cluster_id = %d)  
+				 or (elim.type = -1) );`
+		queryParams = append(queryParams, TypeMappings[linkIdentifier.Type], linkIdentifier.Identifier, clusterId)
 	}
-	_, err := impl.dbConnection.Query(&links, query)
+	_, err := impl.dbConnection.Query(&links, query, queryParams...)
 	return links, err
 }
 
 func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveLinkIdentifierData() ([]ExternalLinkIdentifierMappingData, error) {
 	var links []ExternalLinkIdentifierMappingData
-	query := "select el.id,el.external_link_monitoring_tool_id,el.name,el.url,el.is_editable,el.description,el.updated_on," +
-		"elim.id as mapping_id,elim.active,elim.type,elim.identifier,elim.env_id,elim.app_id,elim.cluster_id" +
-		" FROM external_link el" +
-		" LEFT JOIN external_link_identifier_mapping elim ON el.id = elim.external_link_id Where el.active=true and elim.active = true;"
+	query := `select el.id,el.external_link_monitoring_tool_id,el.name,el.url,el.is_editable,el.description,el.updated_on, 
+			  elim.id as mapping_id,elim.active,elim.type,elim.identifier,elim.env_id,elim.app_id,elim.cluster_id
+			  FROM external_link el
+			  LEFT JOIN external_link_identifier_mapping elim ON el.id = elim.external_link_id Where el.active=true and elim.active = true;`
 	_, err := impl.dbConnection.Query(&links, query)
 	return links, err
 }

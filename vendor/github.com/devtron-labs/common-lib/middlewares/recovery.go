@@ -18,6 +18,7 @@ package middlewares
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/devtron-labs/common-lib/constants"
 	"github.com/devtron-labs/common-lib/pubsub-lib/metrics"
 	"log"
@@ -31,8 +32,15 @@ func Recovery(next http.Handler) http.Handler {
 		defer func() {
 			err := recover()
 			if err != nil {
-				metrics.IncPanicRecoveryCount("handler", r.Host, r.Method, r.RequestURI)
-				log.Print(constants.PanicLogIdentifier, "recovered from panic", "err", err, "stack", string(debug.Stack()))
+				if errors.Is(err.(error), http.ErrAbortHandler) {
+					// suppress logging for http.ErrAbortHandler panic
+					// separate metric for reverse proxy panic recovery
+					metrics.IncReverseProxyPanicRecoveryCount("proxy", r.Host, r.Method, r.RequestURI)
+				} else {
+					// log and increment panic recovery count
+					metrics.IncPanicRecoveryCount("handler", r.Host, r.Method, r.RequestURI)
+					log.Print(constants.PanicLogIdentifier, "recovered from panic", "err", err, "stack", string(debug.Stack()))
+				}
 				jsonBody, _ := json.Marshal(map[string]string{
 					"error": "internal server error",
 				})

@@ -105,7 +105,6 @@ func (impl *BlobStorageServiceImpl) DeleteObjectForS3(request *BlobStorageReques
 			return err
 		}
 	}
-
 	return nil
 }
 

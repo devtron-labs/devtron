@@ -18,13 +18,14 @@ package pipeline
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
 	"go.uber.org/zap"
 	"time"
 )
 
 type WebhookEventDataConfig interface {
-	Save(webhookEventDataRequest *WebhookEventDataRequest) error
-	GetById(payloadId int) (*WebhookEventDataRequest, error)
+	Save(webhookEventDataRequest *bean.CIPipelineGitWebhookEvent) error
+	GetById(payloadId int) (*bean.CIPipelineGitWebhookEvent, error)
 }
 
 type WebhookEventDataConfigImpl struct {
@@ -39,16 +40,7 @@ func NewWebhookEventDataConfigImpl(logger *zap.SugaredLogger, webhookEventDataRe
 	}
 }
 
-type WebhookEventDataRequest struct {
-	PayloadId          int       `json:"payloadId"`
-	GitHostId          int       `json:"gitHostId"`
-	GitHostName        string    `json:"gitHostName"`
-	EventType          string    `json:"eventType"`
-	RequestPayloadJson string    `json:"requestPayloadJson"`
-	CreatedOn          time.Time `json:"createdOn"`
-}
-
-func (impl WebhookEventDataConfigImpl) Save(webhookEventDataRequest *WebhookEventDataRequest) error {
+func (impl WebhookEventDataConfigImpl) Save(webhookEventDataRequest *bean.CIPipelineGitWebhookEvent) error {
 	impl.logger.Debug("save event data request")
 
 	webhookEventDataRequestSql := &repository.WebhookEventData{
@@ -70,7 +62,7 @@ func (impl WebhookEventDataConfigImpl) Save(webhookEventDataRequest *WebhookEven
 	return nil
 }
 
-func (impl WebhookEventDataConfigImpl) GetById(payloadId int) (*WebhookEventDataRequest, error) {
+func (impl WebhookEventDataConfigImpl) GetById(payloadId int) (*bean.CIPipelineGitWebhookEvent, error) {
 	impl.logger.Debug("get webhook payload request")
 
 	webhookEventData, err := impl.webhookEventDataRepository.GetById(payloadId)
@@ -79,7 +71,7 @@ func (impl WebhookEventDataConfigImpl) GetById(payloadId int) (*WebhookEventData
 		return nil, err
 	}
 
-	webhookEventDataRequest := &WebhookEventDataRequest{
+	webhookEventDataRequest := &bean.CIPipelineGitWebhookEvent{
 		RequestPayloadJson: webhookEventData.PayloadJson,
 	}
 

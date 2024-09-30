@@ -18,6 +18,7 @@ package bean
 
 import (
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
+	"time"
 )
 
 type BulkTriggerRequest struct {
@@ -46,8 +47,10 @@ type CdPipelineDeleteEvent struct {
 }
 
 type CIPipelineGitWebhookEvent struct {
-	GitHostId          int    `json:"gitHostId"`
-	GitHostName        string `json:"gitHostName"`
-	EventType          string `json:"eventType"`
-	RequestPayloadJson string `json:"requestPayloadJson"`
+	PayloadId          int       `json:"payloadId"`
+	GitHostId          int       `json:"gitHostId"`
+	GitHostName        string    `json:"gitHostName"`
+	EventType          string    `json:"eventType"`
+	RequestPayloadJson string    `json:"requestPayloadJson"`
+	CreatedOn          time.Time `json:"createdOn"`
 }

@@ -67,3 +67,29 @@ func getIdentifierNamesForAppEnv(envName string, appName string) *SelectionIdent
 		AppName:         appName,
 	}
 }
+
+func DeduplicateQualifierMappings(mappings []*QualifierMapping) []*QualifierMapping {
+	uniqueMappings := make(map[string]*QualifierMapping)
+
+	for _, mapping := range mappings {
+		key := generateKey(mapping)
+		if existing, found := uniqueMappings[key]; found {
+			if mapping.UpdatedOn.After(existing.UpdatedOn) {
+				uniqueMappings[key] = mapping
+			}
+		} else {
+			uniqueMappings[key] = mapping
+		}
+	}
+
+	result := make([]*QualifierMapping, 0, len(uniqueMappings))
+	for _, mapping := range uniqueMappings {
+		result = append(result, mapping)
+	}
+
+	return result
+}
+
+func generateKey(mapping *QualifierMapping) string {
+	return fmt.Sprintf("%d-%d-%d-%d-%d-%s", mapping.ResourceId, mapping.ResourceType, mapping.QualifierId, mapping.IdentifierKey, mapping.IdentifierValueInt, mapping.IdentifierValueString)
+}

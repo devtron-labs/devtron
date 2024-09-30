@@ -544,7 +544,7 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 		rq.SetBuildLogRequest(cmConfig, secretConfig)
 	}
 
-	impl.Logger.Infow("s3 log req ", "req", cdLogRequest)
+	impl.Logger.Debugw("s3 log req ", "pipelineId", pipelineId, "runnerId", cdWorkflow.Id)
 	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(impl.config.BaseLogLocationPath, cdLogRequest)
 	if err != nil {
 		impl.Logger.Errorw("err", err)
@@ -568,7 +568,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	}
 	workflow := impl.converterWFR(*workflowR)
 
-	triggeredByUserEmailId, err := impl.userService.GetEmailById(workflow.TriggeredBy)
+	triggeredByUserEmailId, err := impl.userService.GetActiveEmailById(workflow.TriggeredBy)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("err", "err", err)
 		return types.WorkflowResponse{}, err

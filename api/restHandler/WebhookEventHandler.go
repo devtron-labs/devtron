@@ -18,6 +18,7 @@ package restHandler
 
 import (
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
+	"github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"io/ioutil"
 	"net/http"
@@ -119,7 +120,7 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 	}
 
 	// make request to handle this webhook
-	webhookEvent := &pipeline.WebhookEventDataRequest{
+	webhookEvent := &bean.CIPipelineGitWebhookEvent{
 		GitHostId:          gitHostId,
 		GitHostName:        gitHostName,
 		EventType:          eventType,
@@ -135,7 +136,7 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 	}
 
 	// write event
-	err = impl.ciPipelineEventPublishService.PublishGitWebhookEvent(gitHostId, gitHostName, eventType, string(requestBodyBytes))
+	err = impl.ciPipelineEventPublishService.PublishGitWebhookEvent(webhookEvent)
 	if err != nil {
 		impl.logger.Errorw("Error while handling webhook in git-sensor", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

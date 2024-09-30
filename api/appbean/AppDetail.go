@@ -179,9 +179,10 @@ type Secret struct {
 }
 
 type ConfigMapSecretDataVolumeUsageConfig struct {
-	MountPath      string `json:"mountPath"`
-	SubPath        bool   `json:"subPath"`
-	FilePermission string `json:"filePermission"`
+	MountPath      string   `json:"mountPath"`
+	SubPath        bool     `json:"subPath"`
+	FilePermission string   `json:"filePermission"`
+	ESOSubPath     []string `json:"esoSubPath"`
 }
 
 type ExternalSecret struct {

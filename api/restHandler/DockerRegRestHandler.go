@@ -307,10 +307,10 @@ func (impl DockerRegRestHandlerImpl) ValidateDockerRegistryConfig(w http.Respons
 	}
 	bean.User = userId
 
-	impl.logger.Infow("request payload, ValidateDockerRegistryConfig", "payload", bean)
+	impl.logger.Infow("request payload, ValidateDockerRegistryConfig", "dockerRegistryId", bean.Id)
 	err = impl.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("validation err, ValidateDockerRegistryConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("validation err, ValidateDockerRegistryConfig", "err", err, "dockerRegistryId", bean.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -494,7 +494,7 @@ func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseW
 	var bean types.DockerArtifactStoreBean
 	err = decoder.Decode(&bean)
 	if err != nil {
-		impl.logger.Errorw("request err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("request err, UpdateDockerRegistryConfig", "err", err, "dockerRegistryId", bean.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -502,15 +502,15 @@ func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseW
 	requestErr := ValidateDockerArtifactStoreRequestBean(bean)
 	if requestErr != nil {
 		err = fmt.Errorf("invalid payload, missing or incorrect values for required fields")
-		impl.logger.Errorw("validation err, SaveDockerRegistryConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("validation err, SaveDockerRegistryConfig", "err", err, "dockerRegistryId", bean.Id)
 		common.WriteJsonResp(w, requestErr, nil, http.StatusBadRequest)
 		return
 	}
 
-	impl.logger.Infow("request payload, UpdateDockerRegistryConfig", "err", err, "payload", bean)
+	impl.logger.Infow("request payload, UpdateDockerRegistryConfig", "err", err, "dockerRegistryId", bean.Id)
 	err = impl.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("validation err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("validation err, UpdateDockerRegistryConfig", "err", err, "dockerRegistryId", bean.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -525,7 +525,7 @@ func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseW
 
 	res, err := impl.dockerRegistryConfig.Update(&bean)
 	if err != nil {
-		impl.logger.Errorw("service err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("service err, UpdateDockerRegistryConfig", "err", err, "dockerRegistryId", bean.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

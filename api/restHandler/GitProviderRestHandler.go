@@ -175,15 +175,15 @@ func (impl GitProviderRestHandlerImpl) UpdateGitRepoConfig(w http.ResponseWriter
 	var bean types.GitRegistry
 	err = decoder.Decode(&bean)
 	if err != nil {
-		impl.logger.Errorw("request err, UpdateGitRepoConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("request err, UpdateGitRepoConfig", "err", err, "gitRegistryId", bean.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	bean.UserId = userId
-	impl.logger.Infow("request payload, UpdateGitRepoConfig", "payload", bean)
+	impl.logger.Infow("request payload, UpdateGitRepoConfig", "gitRegistryId", bean.Id)
 	err = impl.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("validation err, UpdateGitRepoConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("validation err, UpdateGitRepoConfig", "err", err, "gitRegistryId", bean.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -197,7 +197,7 @@ func (impl GitProviderRestHandlerImpl) UpdateGitRepoConfig(w http.ResponseWriter
 
 	res, err := impl.gitRegistryConfig.Update(&bean)
 	if err != nil {
-		impl.logger.Errorw("service err, UpdateGitRepoConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("service err, UpdateGitRepoConfig", "err", err, "gitRegistryId", bean.Id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

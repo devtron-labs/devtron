@@ -20,22 +20,20 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/notifier/beans"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
-	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
 )
 
-const SES_CONFIG_TYPE = "ses"
-
 type SESNotificationService interface {
-	SaveOrEditNotificationConfig(channelReq []*SESConfigDto, userId int32) ([]int, error)
-	FetchSESNotificationConfigById(id int) (*SESConfigDto, error)
-	FetchAllSESNotificationConfig() ([]*SESConfigDto, error)
-	FetchAllSESNotificationConfigAutocomplete() ([]*NotificationChannelAutoResponse, error)
-	DeleteNotificationConfig(channelReq *SESConfigDto, userId int32) error
+	SaveOrEditNotificationConfig(channelReq []*beans.SESConfigDto, userId int32) ([]int, error)
+	FetchSESNotificationConfigById(id int) (*beans.SESConfigDto, error)
+	FetchAllSESNotificationConfig() ([]*beans.SESConfigDto, error)
+	FetchAllSESNotificationConfigAutocomplete() ([]*beans.NotificationChannelAutoResponse, error)
+	DeleteNotificationConfig(channelReq *beans.SESConfigDto, userId int32) error
 }
 
 type SESNotificationServiceImpl struct {
@@ -43,38 +41,6 @@ type SESNotificationServiceImpl struct {
 	teamService                    team.TeamService
 	sesRepository                  repository.SESNotificationRepository
 	notificationSettingsRepository repository.NotificationSettingsRepository
-}
-
-type SESChannelConfig struct {
-	Channel       util2.Channel   `json:"channel" validate:"required"`
-	SESConfigDtos []*SESConfigDto `json:"configs"`
-}
-
-type SESConfigDto struct {
-	OwnerId      int32  `json:"userId" validate:"number"`
-	TeamId       int    `json:"teamId" validate:"number"`
-	Region       string `json:"region" validate:"required"`
-	AccessKey    string `json:"accessKey" validate:"required"`
-	SecretKey    string `json:"secretKey" validate:"required"`
-	FromEmail    string `json:"fromEmail" validate:"email,required"`
-	ToEmail      string `json:"toEmail"`
-	SessionToken string `json:"sessionToken"`
-	ConfigName   string `json:"configName" validate:"required"`
-	Description  string `json:"description"`
-	Id           int    `json:"id" validate:"number"`
-	Default      bool   `json:"default,notnull"`
-}
-
-type NotificationChannelAutoResponse struct {
-	ConfigName string `json:"configName"`
-	Id         int    `json:"id"`
-	TeamId     int    `json:"-"`
-}
-
-type NotificationRecipientListingResponse struct {
-	Dest      util2.Channel `json:"dest"`
-	ConfigId  int           `json:"configId"`
-	Recipient string        `json:"recipient"`
 }
 
 func NewSESNotificationServiceImpl(logger *zap.SugaredLogger, sesRepository repository.SESNotificationRepository,
@@ -87,7 +53,7 @@ func NewSESNotificationServiceImpl(logger *zap.SugaredLogger, sesRepository repo
 	}
 }
 
-func (impl *SESNotificationServiceImpl) SaveOrEditNotificationConfig(channelReq []*SESConfigDto, userId int32) ([]int, error) {
+func (impl *SESNotificationServiceImpl) SaveOrEditNotificationConfig(channelReq []*beans.SESConfigDto, userId int32) ([]int, error) {
 	var responseIds []int
 	sesConfigs := buildSESNewConfigs(channelReq, userId)
 	for _, config := range sesConfigs {
@@ -149,7 +115,7 @@ func (impl *SESNotificationServiceImpl) SaveOrEditNotificationConfig(channelReq 
 	return responseIds, nil
 }
 
-func (impl *SESNotificationServiceImpl) FetchSESNotificationConfigById(id int) (*SESConfigDto, error) {
+func (impl *SESNotificationServiceImpl) FetchSESNotificationConfigById(id int) (*beans.SESConfigDto, error) {
 	sesConfig, err := impl.sesRepository.FindOne(id)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all slack config", "err", err)
@@ -159,12 +125,12 @@ func (impl *SESNotificationServiceImpl) FetchSESNotificationConfigById(id int) (
 	return sesConfigDto, nil
 }
 
-func (impl *SESNotificationServiceImpl) FetchAllSESNotificationConfig() ([]*SESConfigDto, error) {
-	var responseDto []*SESConfigDto
+func (impl *SESNotificationServiceImpl) FetchAllSESNotificationConfig() ([]*beans.SESConfigDto, error) {
+	var responseDto []*beans.SESConfigDto
 	sesConfigs, err := impl.sesRepository.FindAll()
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all slack config", "err", err)
-		return []*SESConfigDto{}, err
+		return []*beans.SESConfigDto{}, err
 	}
 	for _, sesConfig := range sesConfigs {
 		sesConfigDto := impl.adaptSESConfig(sesConfig)
@@ -172,20 +138,20 @@ func (impl *SESNotificationServiceImpl) FetchAllSESNotificationConfig() ([]*SESC
 		responseDto = append(responseDto, sesConfigDto)
 	}
 	if responseDto == nil {
-		responseDto = make([]*SESConfigDto, 0)
+		responseDto = make([]*beans.SESConfigDto, 0)
 	}
 	return responseDto, nil
 }
 
-func (impl *SESNotificationServiceImpl) FetchAllSESNotificationConfigAutocomplete() ([]*NotificationChannelAutoResponse, error) {
-	var responseDto []*NotificationChannelAutoResponse
+func (impl *SESNotificationServiceImpl) FetchAllSESNotificationConfigAutocomplete() ([]*beans.NotificationChannelAutoResponse, error) {
+	var responseDto []*beans.NotificationChannelAutoResponse
 	sesConfigs, err := impl.sesRepository.FindAll()
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all slack config", "err", err)
-		return []*NotificationChannelAutoResponse{}, err
+		return []*beans.NotificationChannelAutoResponse{}, err
 	}
 	for _, sesConfig := range sesConfigs {
-		sesConfigDto := &NotificationChannelAutoResponse{
+		sesConfigDto := &beans.NotificationChannelAutoResponse{
 			Id:         sesConfig.Id,
 			ConfigName: sesConfig.ConfigName}
 		responseDto = append(responseDto, sesConfigDto)
@@ -193,8 +159,8 @@ func (impl *SESNotificationServiceImpl) FetchAllSESNotificationConfigAutocomplet
 	return responseDto, nil
 }
 
-func (impl *SESNotificationServiceImpl) adaptSESConfig(sesConfig *repository.SESConfig) *SESConfigDto {
-	sesConfigDto := &SESConfigDto{
+func (impl *SESNotificationServiceImpl) adaptSESConfig(sesConfig *repository.SESConfig) *beans.SESConfigDto {
+	sesConfigDto := &beans.SESConfigDto{
 		OwnerId:      sesConfig.OwnerId,
 		Region:       sesConfig.Region,
 		AccessKey:    sesConfig.AccessKey,
@@ -209,7 +175,7 @@ func (impl *SESNotificationServiceImpl) adaptSESConfig(sesConfig *repository.SES
 	return sesConfigDto
 }
 
-func buildSESNewConfigs(sesReq []*SESConfigDto, userId int32) []*repository.SESConfig {
+func buildSESNewConfigs(sesReq []*beans.SESConfigDto, userId int32) []*repository.SESConfig {
 	var sesConfigs []*repository.SESConfig
 	for _, c := range sesReq {
 		sesConfig := &repository.SESConfig{
@@ -251,13 +217,13 @@ func (impl *SESNotificationServiceImpl) buildConfigUpdateModel(sesConfig *reposi
 	model.UpdatedBy = userId
 }
 
-func (impl *SESNotificationServiceImpl) DeleteNotificationConfig(deleteReq *SESConfigDto, userId int32) error {
+func (impl *SESNotificationServiceImpl) DeleteNotificationConfig(deleteReq *beans.SESConfigDto, userId int32) error {
 	existingConfig, err := impl.sesRepository.FindOne(deleteReq.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete", "err", err, "id", deleteReq.Id)
 		return err
 	}
-	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsByConfigIdAndConfigType(deleteReq.Id, SES_CONFIG_TYPE)
+	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsByConfigIdAndConfigType(deleteReq.Id, beans.SES_CONFIG_TYPE)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in deleting ses config", "config", deleteReq)
 		return err

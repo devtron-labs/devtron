@@ -18,6 +18,7 @@ package bean
 
 import (
 	"encoding/json"
+	"strings"
 )
 
 type ConfigDataRequest struct {
@@ -31,8 +32,10 @@ type ConfigDataRequest struct {
 type ESOSecretData struct {
 	SecretStore     json.RawMessage `json:"secretStore,omitempty"`
 	SecretStoreRef  json.RawMessage `json:"secretStoreRef,omitempty"`
-	EsoData         []ESOData       `json:"esoData,omitempty"`
+	ESOData         []ESOData       `json:"esoData,omitempty"`
 	RefreshInterval string          `json:"refreshInterval,omitempty"`
+	ESODataFrom     json.RawMessage `json:"esoDataFrom,omitempty"`
+	Template        json.RawMessage `json:"template,omitempty"`
 }
 
 type ESOData struct {
@@ -57,9 +60,15 @@ type ConfigData struct {
 	DefaultExternalSecret []ExternalSecret `json:"defaultSecretData,omitempty"`
 	RoleARN               string           `json:"roleARN"`
 	SubPath               bool             `json:"subPath"`
+	ESOSubPath            []string         `json:"esoSubPath"`
 	FilePermission        string           `json:"filePermission"`
 	Overridden            bool             `json:"overridden"`
 }
+
+func (c *ConfigData) IsESOExternalSecretType() bool {
+	return strings.HasPrefix(c.ExternalSecretType, "ESO")
+}
+
 type ExternalSecret struct {
 	Key      string `json:"key"`
 	Name     string `json:"name"`

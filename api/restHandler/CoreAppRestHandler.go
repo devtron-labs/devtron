@@ -891,7 +891,7 @@ func (handler CoreAppRestHandlerImpl) buildAppConfigMaps(appId int, envId int, c
 			}
 			var dataObj map[string]interface{}
 			if data != nil {
-				err := json.Unmarshal([]byte(data), &dataObj)
+				err := json.Unmarshal(data, &dataObj)
 				if err != nil {
 					handler.logger.Errorw("service err, un-marshaling of data fail in config map", "err", err, "appId", appId)
 					return nil, err, http.StatusInternalServerError
@@ -1041,6 +1041,7 @@ func (handler CoreAppRestHandlerImpl) buildAppSecrets(appId int, envId int, secr
 				globalSecret.DataVolumeUsageConfig = &appBean.ConfigMapSecretDataVolumeUsageConfig{
 					SubPath:        secret.SubPath,
 					FilePermission: secret.FilePermission,
+					ESOSubPath:     secret.ESOSubPath,
 				}
 				considerGlobalDefaultData := envId > 0 && secret.Data == nil
 				if considerGlobalDefaultData {
@@ -1486,6 +1487,7 @@ func (handler CoreAppRestHandlerImpl) createGlobalSecrets(appId int, userId int3
 			secretData.MountPath = dataVolumeUsageConfig.MountPath
 			secretData.SubPath = dataVolumeUsageConfig.SubPath
 			secretData.FilePermission = dataVolumeUsageConfig.FilePermission
+			secretData.ESOSubPath = dataVolumeUsageConfig.ESOSubPath
 		}
 
 		if secret.IsExternal {
@@ -1989,6 +1991,7 @@ func (handler CoreAppRestHandlerImpl) createEnvSecret(appId int, userId int32, e
 			secretData.MountPath = secretOverrideDataVolumeUsageConfig.MountPath
 			secretData.SubPath = secretOverrideDataVolumeUsageConfig.SubPath
 			secretData.FilePermission = secretOverrideDataVolumeUsageConfig.FilePermission
+			secretData.ESOSubPath = secretOverrideDataVolumeUsageConfig.ESOSubPath
 		}
 		var secretDataRequest []*bean2.ConfigData
 		secretDataRequest = append(secretDataRequest, secretData)

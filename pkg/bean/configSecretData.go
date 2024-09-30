@@ -19,6 +19,7 @@ package bean
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/util"
+	"strings"
 )
 
 type ConfigList struct {
@@ -29,6 +30,7 @@ type SecretList struct {
 	ConfigData []*ConfigData `json:"secrets"`
 }
 
+// TODO refactoring: duplicate struct of ConfigData in ConfigMapBean.go
 type ConfigData struct {
 	Name                  string           `json:"name"`
 	Type                  string           `json:"type"`
@@ -45,7 +47,12 @@ type ConfigData struct {
 	DefaultESOSecretData  ESOSecretData    `json:"defaultESOSecretData,omitempty"`
 	RoleARN               string           `json:"roleARN"`
 	SubPath               bool             `json:"subPath"`
+	ESOSubPath            []string         `json:"esoSubPath"`
 	FilePermission        string           `json:"filePermission"`
+}
+
+func (c *ConfigData) IsESOExternalSecretType() bool {
+	return strings.HasPrefix(c.ExternalSecretType, "ESO")
 }
 
 type ExternalSecret struct {
@@ -58,8 +65,10 @@ type ExternalSecret struct {
 type ESOSecretData struct {
 	SecretStore     json.RawMessage `json:"secretStore,omitempty"`
 	SecretStoreRef  json.RawMessage `json:"secretStoreRef,omitempty"`
-	EsoData         []ESOData       `json:"esoData"`
+	ESOData         []ESOData       `json:"esoData"`
 	RefreshInterval string          `json:"refreshInterval,omitempty"`
+	ESODataFrom     json.RawMessage `json:"esoDataFrom,omitempty"`
+	Template        json.RawMessage `json:"template,omitempty"`
 }
 
 type ESOData struct {
@@ -68,7 +77,7 @@ type ESOData struct {
 	Property  string `json:"property,omitempty"`
 }
 
-func (ConfigData) GetTransformedDataForSecretData(data string, mode util.SecretTransformMode) (string, error) {
+func GetTransformedDataForSecretData(data string, mode util.SecretTransformMode) (string, error) {
 	secretDataMap := make(map[string]*ConfigData)
 	err := json.Unmarshal([]byte(data), &secretDataMap)
 	if err != nil {

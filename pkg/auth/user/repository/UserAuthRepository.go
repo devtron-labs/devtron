@@ -258,11 +258,11 @@ func (impl UserAuthRepositoryImpl) GetRolesByActionAndAccessType(action string, 
 
 func (impl UserAuthRepositoryImpl) GetRoleByFilterForAllTypes(entity, team, app, env, act, accessType, cluster, namespace, group, kind, resource, action string, oldValues bool, workflow string) (RoleModel, error) {
 	switch entity {
-	case bean2.CLUSTER:
+	case bean2.CLUSTER_ENTITIY:
 		{
 			return impl.GetRoleForClusterEntity(cluster, namespace, group, kind, resource, action)
 		}
-	case bean.CHART_GROUP_ENTITY:
+	case bean2.CHART_GROUP_ENTITY:
 		{
 			return impl.GetRoleForChartGroupEntity(entity, app, act, accessType)
 		}
@@ -947,7 +947,7 @@ func (impl UserAuthRepositoryImpl) GetRoleForClusterEntity(cluster, namespace, g
 	var model RoleModel
 	var queryParams []interface{}
 	query := "SELECT * FROM roles  WHERE entity = ? "
-	queryParams = append(queryParams, bean.CLUSTER_ENTITIY)
+	queryParams = append(queryParams, bean2.CLUSTER_ENTITIY)
 	var err error
 
 	if len(cluster) > 0 {
@@ -989,7 +989,7 @@ func (impl UserAuthRepositoryImpl) GetRoleForClusterEntity(cluster, namespace, g
 	_, err = impl.dbConnection.Query(&model, query, queryParams...)
 	if err != nil {
 		impl.Logger.Errorw("error in getting roles for clusterEntity", "err", err,
-			bean2.CLUSTER, cluster, "namespace", namespace, "kind", kind, "group", group, "resource", resource)
+			bean2.CLUSTER_ENTITIY, cluster, "namespace", namespace, "kind", kind, "group", group, "resource", resource)
 		return model, err
 	}
 	return model, err

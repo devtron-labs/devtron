@@ -31,7 +31,7 @@ import (
 	"k8s.io/client-go/tools/pager"
 	watchutil "k8s.io/client-go/tools/watch"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/klog/v2/klogr"
+	"k8s.io/klog/v2/textlogger"
 	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -69,7 +69,9 @@ const (
 )
 
 type apiMeta struct {
-	namespaced  bool
+	namespaced bool
+	// watchCancel stops the watch of all resources for this API. This gets called when the cache is invalidated or when
+	// the watched API ceases to exist (e.g. a CRD gets deleted).
 	watchCancel context.CancelFunc
 }
 
@@ -120,6 +122,9 @@ type ClusterCache interface {
 	// IterateHierarchy iterates resource tree starting from the specified top level resource and executes callback for each resource in the tree.
 	// The action callback returns true if iteration should continue and false otherwise.
 	IterateHierarchy(key kube.ResourceKey, action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool)
+	// IterateHierarchyV2 iterates resource tree starting from the specified top level resources and executes callback for each resource in the tree.
+	// The action callback returns true if iteration should continue and false otherwise.
+	IterateHierarchyV2(keys []kube.ResourceKey, action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool)
 	// IsNamespaced answers if specified group/kind is a namespaced resource API or not
 	IsNamespaced(gk schema.GroupKind) (bool, error)
 	// GetManagedLiveObjs helps finding matching live K8S resources for a given resources list.
@@ -144,7 +149,7 @@ type ListRetryFunc func(err error) bool
 
 // NewClusterCache creates new instance of cluster cache
 func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCache {
-	log := klogr.New()
+	log := textlogger.NewLogger(textlogger.NewConfig())
 	cache := &clusterCache{
 		settings:           Settings{ResourceHealthOverride: &noopSettings{}, ResourcesFilter: &noopSettings{}},
 		apisMeta:           make(map[schema.GroupKind]*apiMeta),
@@ -300,10 +305,11 @@ func (c *clusterCache) GetServerVersion() string {
 }
 
 // GetAPIResources returns information about observed API resources
+// This method is called frequently during reconciliation to pass API resource info to `helm template`
+// NOTE: we do not provide any consistency guarantees about the returned list. The list might be
+// updated in place (anytime new CRDs are introduced or removed). If necessary, a separate method
+// would need to be introduced to return a copy of the list so it can be iterated consistently.
 func (c *clusterCache) GetAPIResources() []kube.APIResourceInfo {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
-
 	return c.apiResources
 }
 
@@ -467,7 +473,7 @@ func (c *clusterCache) stopWatching(gk schema.GroupKind, ns string) {
 	}
 }
 
-// startMissingWatches lists supported cluster resources and start watching for changes unless watch is already running
+// startMissingWatches lists supported cluster resources and starts watching for changes unless watch is already running
 func (c *clusterCache) startMissingWatches() error {
 	apis, err := c.kubectl.GetAPIResources(c.config, true, c.settings.ResourcesFilter)
 	if err != nil {
@@ -506,6 +512,7 @@ func (c *clusterCache) startMissingWatches() error {
 						delete(namespacedResources, api.GroupKind)
 						return nil
 					}
+
 				}
 				go c.watchEvents(ctx, api, resClient, ns, resourceVersion)
 				return nil
@@ -526,11 +533,13 @@ func runSynced(lock sync.Locker, action func() error) error {
 }
 
 // listResources creates list pager and enforces number of concurrent list requests
+// The callback should not wait on any locks that may be held by other callers.
 func (c *clusterCache) listResources(ctx context.Context, resClient dynamic.ResourceInterface, callback func(*pager.ListPager) error) (string, error) {
 	if err := c.listSemaphore.Acquire(ctx, 1); err != nil {
 		return "", err
 	}
 	defer c.listSemaphore.Release(1)
+
 	var retryCount int64 = 0
 	resourceVersion := ""
 	listPager := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
@@ -566,10 +575,11 @@ func (c *clusterCache) listResources(ctx context.Context, resClient dynamic.Reso
 	return resourceVersion, callback(listPager)
 }
 
+// loadInitialState loads the state of all the resources retrieved by the given resource client.
 func (c *clusterCache) loadInitialState(ctx context.Context, api kube.APIResourceInfo, resClient dynamic.ResourceInterface, ns string, lock bool) (string, error) {
-	return c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
-		var items []*Resource
-		err := listPager.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
+	var items []*Resource
+	resourceVersion, err := c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
+		return listPager.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
 			if un, ok := obj.(*unstructured.Unstructured); !ok {
 				return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
 			} else {
@@ -577,20 +587,21 @@ func (c *clusterCache) loadInitialState(ctx context.Context, api kube.APIResourc
 			}
 			return nil
 		})
+	})
 
-		if err != nil {
-			return fmt.Errorf("failed to load initial state of resource %s: %w", api.GroupKind.String(), err)
-		}
-		if lock {
-			return runSynced(&c.lock, func() error {
-				c.replaceResourceCache(api.GroupKind, items, ns)
-				return nil
-			})
-		} else {
+	if err != nil {
+		return "", fmt.Errorf("failed to load initial state of resource %s: %w", api.GroupKind.String(), err)
+	}
+
+	if lock {
+		return resourceVersion, runSynced(&c.lock, func() error {
 			c.replaceResourceCache(api.GroupKind, items, ns)
 			return nil
-		}
-	})
+		})
+	} else {
+		c.replaceResourceCache(api.GroupKind, items, ns)
+		return resourceVersion, nil
+	}
 }
 
 func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo, resClient dynamic.ResourceInterface, ns string, resourceVersion string) {
@@ -689,6 +700,7 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 							c.deleteAPIResource(resources[i])
 						}
 					} else {
+						c.log.Info("Updating Kubernetes APIs, watches, and Open API schemas due to CRD event", "eventType", event.Type, "groupKind", crd.GroupVersionKind().GroupKind().String())
 						// add new CRD's groupkind to c.apigroups
 						if event.Type == watch.Added {
 							for i := range resources {
@@ -722,6 +734,9 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 	})
 }
 
+// processApi processes all the resources for a given API. First we construct an API client for the given API. Then we
+// call the callback. If we're managing the whole cluster, we call the callback with the client and an empty namespace.
+// If we're managing specific namespaces, we call the callback for each namespace.
 func (c *clusterCache) processApi(client dynamic.Interface, api kube.APIResourceInfo, callback func(resClient dynamic.ResourceInterface, ns string) error) error {
 	resClient := client.Resource(api.GroupVersionResource)
 	switch {
@@ -791,6 +806,17 @@ func (c *clusterCache) checkPermission(ctx context.Context, reviewInterface auth
 	return true, nil
 }
 
+// sync retrieves the current state of the cluster and stores relevant information in the clusterCache fields.
+//
+// First we get some metadata from the cluster, like the server version, OpenAPI document, and the list of all API
+// resources.
+//
+// Then we get a list of the preferred versions of all API resources which are to be monitored (it's possible to exclude
+// resources from monitoring). We loop through those APIs asynchronously and for each API we list all resources. We also
+// kick off a goroutine to watch the resources for that API and update the cache constantly.
+//
+// When this function exits, the cluster cache is up to date, and the appropriate resources are being watched for
+// changes.
 func (c *clusterCache) sync() error {
 	c.log.Info("Start syncing cluster")
 
@@ -837,6 +863,8 @@ func (c *clusterCache) sync() error {
 	if err != nil {
 		return err
 	}
+
+	// Each API is processed in parallel, so we need to take out a lock when we update clusterCache fields.
 	lock := sync.Mutex{}
 	err = kube.RunAllAsync(len(apis), func(i int) error {
 		api := apis[i]
@@ -890,6 +918,7 @@ func (c *clusterCache) sync() error {
 	})
 
 	if err != nil {
+		c.log.Error(err, "Failed to sync cluster")
 		return fmt.Errorf("failed to sync cluster %s: %v", c.config.Host, err)
 	}
 
@@ -995,6 +1024,107 @@ func (c *clusterCache) IterateHierarchy(key kube.ResourceKey, action func(resour
 			}
 		}
 	}
+}
+
+// IterateHierarchy iterates resource tree starting from the specified top level resources and executes callback for each resource in the tree
+func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool) {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	keysPerNamespace := make(map[string][]kube.ResourceKey)
+	for _, key := range keys {
+		_, ok := c.resources[key]
+		if !ok {
+			continue
+		}
+		keysPerNamespace[key.Namespace] = append(keysPerNamespace[key.Namespace], key)
+	}
+	for namespace, namespaceKeys := range keysPerNamespace {
+		nsNodes := c.nsIndex[namespace]
+		graph := buildGraph(nsNodes)
+		visited := make(map[kube.ResourceKey]int)
+		for _, key := range namespaceKeys {
+			visited[key] = 0
+		}
+		for _, key := range namespaceKeys {
+			// The check for existence of key is done above.
+			res := c.resources[key]
+			if visited[key] == 2 || !action(res, nsNodes) {
+				continue
+			}
+			visited[key] = 1
+			if _, ok := graph[key]; ok {
+				for _, child := range graph[key] {
+					if visited[child.ResourceKey()] == 0 && action(child, nsNodes) {
+						child.iterateChildrenV2(graph, nsNodes, visited, func(err error, child *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool {
+							if err != nil {
+								c.log.V(2).Info(err.Error())
+								return false
+							}
+							return action(child, namespaceResources)
+						})
+					}
+				}
+			}
+			visited[key] = 2
+		}
+	}
+}
+
+func buildGraph(nsNodes map[kube.ResourceKey]*Resource) map[kube.ResourceKey]map[types.UID]*Resource {
+	// Prepare to construct a graph
+	nodesByUID := make(map[types.UID][]*Resource, len(nsNodes))
+	for _, node := range nsNodes {
+		nodesByUID[node.Ref.UID] = append(nodesByUID[node.Ref.UID], node)
+	}
+
+	// In graph, they key is the parent and the value is a list of children.
+	graph := make(map[kube.ResourceKey]map[types.UID]*Resource)
+
+	// Loop through all nodes, calling each one "childNode," because we're only bothering with it if it has a parent.
+	for _, childNode := range nsNodes {
+		for i, ownerRef := range childNode.OwnerRefs {
+			// First, backfill UID of inferred owner child references.
+			if ownerRef.UID == "" {
+				group, err := schema.ParseGroupVersion(ownerRef.APIVersion)
+				if err != nil {
+					// APIVersion is invalid, so we couldn't find the parent.
+					continue
+				}
+				graphKeyNode, ok := nsNodes[kube.ResourceKey{Group: group.Group, Kind: ownerRef.Kind, Namespace: childNode.Ref.Namespace, Name: ownerRef.Name}]
+				if ok {
+					ownerRef.UID = graphKeyNode.Ref.UID
+					childNode.OwnerRefs[i] = ownerRef
+				} else {
+					// No resource found with the given graph key, so move on.
+					continue
+				}
+			}
+
+			// Now that we have the UID of the parent, update the graph.
+			uidNodes, ok := nodesByUID[ownerRef.UID]
+			if ok {
+				for _, uidNode := range uidNodes {
+					// Update the graph for this owner to include the child.
+					if _, ok := graph[uidNode.ResourceKey()]; !ok {
+						graph[uidNode.ResourceKey()] = make(map[types.UID]*Resource)
+					}
+					r, ok := graph[uidNode.ResourceKey()][childNode.Ref.UID]
+					if !ok {
+						graph[uidNode.ResourceKey()][childNode.Ref.UID] = childNode
+					} else if r != nil {
+						// The object might have multiple children with the same UID (e.g. replicaset from apps and extensions group).
+						// It is ok to pick any object, but we need to make sure we pick the same child after every refresh.
+						key1 := r.ResourceKey()
+						key2 := childNode.ResourceKey()
+						if strings.Compare(key1.String(), key2.String()) > 0 {
+							graph[uidNode.ResourceKey()][childNode.Ref.UID] = childNode
+						}
+					}
+				}
+			}
+		}
+	}
+	return graph
 }
 
 // IsNamespaced answers if specified group/kind is a namespaced resource API or not
