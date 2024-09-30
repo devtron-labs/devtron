@@ -768,15 +768,16 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 		createdOn = imagePushedAt
 	}
 	buildArtifact := &repository.CiArtifact{
-		Image:        request.Image,
-		ImageDigest:  request.ImageDigest,
-		MaterialInfo: string(materialJson),
-		DataSource:   request.DataSource,
-		PipelineId:   pipeline.Id,
-		WorkflowId:   request.WorkflowId,
-		ScanEnabled:  pipeline.ScanEnabled,
-		Scanned:      false,
-		AuditLog:     sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: createdOn, UpdatedOn: updatedOn},
+		Image:              request.Image,
+		ImageDigest:        request.ImageDigest,
+		MaterialInfo:       string(materialJson),
+		DataSource:         request.DataSource,
+		PipelineId:         pipeline.Id,
+		WorkflowId:         request.WorkflowId,
+		ScanEnabled:        pipeline.ScanEnabled,
+		IsArtifactUploaded: request.IsArtifactUploaded, // for backward compatibility
+		Scanned:            false,
+		AuditLog:           sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: createdOn, UpdatedOn: updatedOn},
 	}
 	plugin, err := impl.globalPluginRepository.GetPluginByName(bean3.VULNERABILITY_SCANNING_PLUGIN)
 	if err != nil || len(plugin) == 0 {
@@ -816,6 +817,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 				ParentCiArtifact:      buildArtifact.Id,
 				Scanned:               buildArtifact.Scanned,
 				ScanEnabled:           buildArtifact.ScanEnabled,
+				IsArtifactUploaded:    request.IsArtifactUploaded, // for backward compatibility
 			}
 			pluginArtifacts = append(pluginArtifacts, pluginArtifact)
 		}
@@ -837,15 +839,16 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 	var ciArtifactArr []*repository.CiArtifact
 	for _, ci := range childrenCi {
 		ciArtifact := &repository.CiArtifact{
-			Image:            request.Image,
-			ImageDigest:      request.ImageDigest,
-			MaterialInfo:     string(materialJson),
-			DataSource:       request.DataSource,
-			PipelineId:       ci.Id,
-			ParentCiArtifact: buildArtifact.Id,
-			ScanEnabled:      ci.ScanEnabled,
-			Scanned:          false,
-			AuditLog:         sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
+			Image:              request.Image,
+			ImageDigest:        request.ImageDigest,
+			MaterialInfo:       string(materialJson),
+			DataSource:         request.DataSource,
+			PipelineId:         ci.Id,
+			ParentCiArtifact:   buildArtifact.Id,
+			IsArtifactUploaded: request.IsArtifactUploaded, // for backward compatibility
+			ScanEnabled:        ci.ScanEnabled,
+			Scanned:            false,
+			AuditLog:           sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
 		}
 		if ci.ScanEnabled {
 			ciArtifact.Scanned = true
