@@ -990,7 +990,7 @@ func (impl *TriggerServiceImpl) deployApp(ctx context.Context, overrideRequest *
 			return err
 		}
 	} else if util.IsHelmApp(overrideRequest.DeploymentAppType) {
-		_, err := impl.createHelmAppForCdPipeline(newCtx, overrideRequest, valuesOverrideResponse)
+		_, _, err := impl.createHelmAppForCdPipeline(newCtx, overrideRequest, valuesOverrideResponse)
 		if err != nil {
 			impl.logger.Errorw("error in creating or updating helm application for cd pipeline", "err", err)
 			return err
@@ -999,7 +999,7 @@ func (impl *TriggerServiceImpl) deployApp(ctx context.Context, overrideRequest *
 	return nil
 }
 
-func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse) (bool, error) {
+func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse) (bool, []byte, error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.createHelmAppForCdPipeline")
 	defer span.End()
 	pipelineModel := valuesOverrideResponse.Pipeline
@@ -1012,7 +1012,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 	}
 	referenceTemplate := envOverride.Chart.ReferenceTemplate
 	referenceTemplatePath := path.Join(bean5.RefChartDirPath, referenceTemplate)
-
+	var referenceChartByte []byte
 	if util.IsHelmApp(valuesOverrideResponse.DeploymentConfig.DeploymentAppType) {
 		var sanitizedK8sVersion string
 		//handle specific case for all cronjob charts from cronjob-chart_1-2-0 to cronjob-chart_1-5-0 where semverCompare
@@ -1023,7 +1023,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 			k8sServerVersion, err := impl.K8sUtil.GetKubeVersion()
 			if err != nil {
 				impl.logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
-				return false, err
+				return false, nil, err
 			}
 			sanitizedK8sVersion = k8s2.StripPrereleaseFromK8sVersion(k8sServerVersion.String())
 		}
@@ -1033,7 +1033,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 			refChartByte, err := impl.chartTemplateService.GetByteArrayRefChart(chartMetaData, referenceTemplatePath)
 			if err != nil {
 				impl.logger.Errorw("ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
-				return false, err
+				return false, nil, err
 			}
 			ch := envOverride.Chart
 			ch.ReferenceChart = refChartByte
@@ -1042,7 +1042,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 			err = impl.chartRepository.Update(ch)
 			if err != nil {
 				impl.logger.Errorw("chart update error", "err", err, "req", overrideRequest)
-				return false, err
+				return false, nil, err
 			}
 			referenceChartByte = refChartByte
 		}
@@ -1085,15 +1085,15 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 			if err != nil {
 				impl.logger.Errorw("error in updating helm application for cd pipelineModel", "err", err)
 				if util.IsErrorContextCancelled(err) {
-					return false, pipelineConfig.ErrorDeploymentSuperseded
+					return false, nil, pipelineConfig.ErrorDeploymentSuperseded
 				} else if util.IsErrorContextDeadlineExceeded(err) {
-					return false, context.DeadlineExceeded
+					return false, nil, context.DeadlineExceeded
 				}
 				apiError := clientErrors.ConvertToApiError(err)
 				if apiError != nil {
-					return false, apiError
+					return false, nil, apiError
 				}
-				return false, err
+				return false, nil, err
 			} else {
 				impl.logger.Debugw("updated helm application", "response", updateApplicationResponse, "isSuccess", updateApplicationResponse.Success)
 			}
@@ -1106,7 +1106,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 			// For connection related errors, no need to update the db
 			if err != nil && strings.Contains(err.Error(), "connection error") {
 				impl.logger.Errorw("error in helm install custom chart", "err", err)
-				return false, err
+				return false, nil, err
 			}
 
 			// IMP: update cd pipelineModel to mark deployment app created, even if helm install fails
@@ -1120,20 +1120,20 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 					impl.logger.Errorw("failed to update deployment app created flag in pipelineModel table", "err", err)
 				}
 				if util.IsErrorContextCancelled(err) {
-					return false, pipelineConfig.ErrorDeploymentSuperseded
+					return false, nil, pipelineConfig.ErrorDeploymentSuperseded
 				} else if util.IsErrorContextDeadlineExceeded(err) {
-					return false, context.DeadlineExceeded
+					return false, nil, context.DeadlineExceeded
 				}
 				apiError := clientErrors.ConvertToApiError(err)
 				if apiError != nil {
-					return false, apiError
+					return false, nil, apiError
 				}
-				return false, err
+				return false, nil, err
 			}
 
 			if pgErr != nil {
 				impl.logger.Errorw("failed to update deployment app created flag in pipelineModel table", "err", err)
-				return false, err
+				return false, nil, err
 			}
 
 			impl.logger.Debugw("received helm release response", "helmResponse", helmResponse, "isSuccess", helmResponse.Success)
@@ -1143,10 +1143,10 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 		err := impl.cdWorkflowCommonService.UpdateNonTerminalStatusInRunner(newCtx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowInProgress)
 		if err != nil {
 			impl.logger.Errorw("error in updating the workflow runner status, createHelmAppForCdPipeline", "err", err)
-			return false, err
+			return false, nil, err
 		}
 	}
-	return true, nil
+	return true, referenceChartByte, nil
 }
 
 func (impl *TriggerServiceImpl) deployArgoCdApp(ctx context.Context, overrideRequest *bean3.ValuesOverrideRequest,
