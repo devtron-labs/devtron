@@ -18,6 +18,7 @@ package delete
 
 import (
 	"fmt"
+	k8sUtil "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -53,6 +54,7 @@ func NewDeleteServiceExtendedImpl(logger *zap.SugaredLogger,
 	installedAppRepository repository2.InstalledAppRepository,
 	dockerRegistryConfig pipeline.DockerRegistryConfig,
 	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository,
+	K8sService k8sUtil.K8sService,
 ) *DeleteServiceExtendedImpl {
 	return &DeleteServiceExtendedImpl{
 		appRepository:         appRepository,
@@ -67,6 +69,7 @@ func NewDeleteServiceExtendedImpl(logger *zap.SugaredLogger,
 			installedAppRepository:   installedAppRepository,
 			dockerRegistryConfig:     dockerRegistryConfig,
 			dockerRegistryRepository: dockerRegistryRepository,
+			K8sUtil:                  K8sService,
 		},
 	}
 }
