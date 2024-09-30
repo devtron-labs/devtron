@@ -39,7 +39,7 @@ import (
 type RoleGroupService interface {
 	CreateRoleGroup(request *bean.RoleGroup) (*bean.RoleGroup, error)
 	UpdateRoleGroup(request *bean.RoleGroup, token string, checkRBACForGroupUpdate func(token string, groupInfo *bean.RoleGroup,
-		eliminatedRoleFilters []*repository.RoleModel) (isAuthorised bool, err error)) (*bean.RoleGroup, error)
+		eliminatedRoleFilters []*repository.RoleModel) (isAuthorised bool, err error), managerAuth func(resource, token string, object string) bool) (*bean.RoleGroup, error)
 	FetchDetailedRoleGroups(req *bean.ListingRequest) ([]*bean.RoleGroup, error)
 	FetchRoleGroupsById(id int32) (*bean.RoleGroup, error)
 	FetchRoleGroups() ([]*bean.RoleGroup, error)
@@ -369,7 +369,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForJobsEntity(roleFilter
 }
 
 func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token string, checkRBACForGroupUpdate func(token string, groupInfo *bean.RoleGroup,
-	eliminatedRoleFilters []*repository.RoleModel) (isAuthorised bool, err error)) (*bean.RoleGroup, error) {
+	eliminatedRoleFilters []*repository.RoleModel) (isAuthorised bool, err error), managerAuth func(resource, token string, object string) bool) (*bean.RoleGroup, error) {
 	dbConnection := impl.roleGroupRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -416,7 +416,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 
 		// DELETE PROCESS STARTS
 
-		items, eliminatedRoleModels, err = impl.userCommonService.RemoveRolesAndReturnEliminatedPoliciesForGroups(request, existingRoles, eliminatedRoles, tx)
+		items, eliminatedRoleModels, err = impl.userCommonService.RemoveRolesAndReturnEliminatedPoliciesForGroups(request, existingRoles, eliminatedRoles, tx, token, managerAuth)
 		if err != nil {
 			return nil, err
 		}

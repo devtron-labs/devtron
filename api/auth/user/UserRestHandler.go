@@ -142,7 +142,7 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	//RBAC enforcer Ends
 	//In create req, we also check if any email exists already. If yes, then in that case we go on and merge existing roles and groups with the ones in request
 	//but rbac is only checked on create request roles and groups as existing roles and groups are assumed to be checked when created/updated before
-	res, err := handler.userService.CreateUser(&userInfo)
+	res, err := handler.userService.CreateUser(&userInfo, token, handler.CheckManagerAuth)
 	if err != nil {
 		handler.logger.Errorw("service err, CreateUser", "err", err, "payload", userInfo)
 		if _, ok := err.(*util.ApiError); ok {
@@ -192,7 +192,7 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	res, err := handler.userService.UpdateUser(&userInfo, token, handler.checkRBACForUserUpdate)
+	res, err := handler.userService.UpdateUser(&userInfo, token, handler.checkRBACForUserUpdate, handler.CheckManagerAuth)
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateUser", "err", err, "payload", userInfo)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
@@ -698,7 +698,7 @@ func (handler UserRestHandlerImpl) UpdateRoleGroup(w http.ResponseWriter, r *htt
 		return
 	}
 
-	res, err := handler.roleGroupService.UpdateRoleGroup(&request, token, handler.checkRBACForRoleGroupUpdate)
+	res, err := handler.roleGroupService.UpdateRoleGroup(&request, token, handler.checkRBACForRoleGroupUpdate, handler.CheckManagerAuth)
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateRoleGroup", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
