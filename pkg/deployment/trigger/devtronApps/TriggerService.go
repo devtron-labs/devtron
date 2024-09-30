@@ -53,6 +53,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean9 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/publish"
@@ -162,6 +163,7 @@ type TriggerServiceImpl struct {
 	deploymentConfigService       common.DeploymentConfigService
 	deploymentServiceTypeConfig   *globalUtil.DeploymentServiceTypeConfig
 	ciCdPipelineOrchestrator      pipeline.CiCdPipelineOrchestrator
+	gitOperationService           git.GitOperationService
 }
 
 func NewTriggerServiceImpl(logger *zap.SugaredLogger,
@@ -217,6 +219,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 	transactionUtilImpl *sql.TransactionUtilImpl,
 	deploymentConfigService common.DeploymentConfigService,
 	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator,
+	gitOperationService git.GitOperationService,
 ) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
@@ -273,6 +276,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 		deploymentConfigService:             deploymentConfigService,
 		deploymentServiceTypeConfig:         envVariables.DeploymentServiceTypeConfig,
 		ciCdPipelineOrchestrator:            ciCdPipelineOrchestrator,
+		gitOperationService:                 gitOperationService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -366,13 +370,19 @@ func (impl *TriggerServiceImpl) validateDeploymentTriggerRequest(ctx context.Con
 // TODO: write a wrapper to handle auto and manual trigger
 func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest) (int, string, error) {
 
-	triggerContext.TriggerType = bean.Manual //TODO check actual usages, looks antipattern
+	triggerContext.TriggerType = bean.Manual
 	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 	releaseId := 0
 	ctx := triggerContext.Context
 	cdPipeline, err := impl.getCdPipelineForManualCdTrigger(ctx, overrideRequest.PipelineId)
 	if err != nil {
+		if overrideRequest.WfrId != 0 {
+			err2 := impl.cdWorkflowCommonService.MarkDeploymentFailedForRunnerId(overrideRequest.WfrId, err, overrideRequest.UserId)
+			if err2 != nil {
+				impl.logger.Errorw("error while updating current runner status to failed, ManualCdTrigger", "cdWfr", overrideRequest.WfrId, "err2", err2)
+			}
+		}
 		return 0, "", err
 	}
 	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(cdPipeline.AppId, cdPipeline.EnvironmentId)
@@ -908,7 +918,7 @@ func (impl *TriggerServiceImpl) triggerPipeline(overrideRequest *bean3.ValuesOve
 		}
 	}
 
-	go impl.writeCDTriggerEvent(overrideRequest, valuesOverrideResponse.Artifact, valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, valuesOverrideResponse.PipelineOverride.Id)
+	go impl.writeCDTriggerEvent(overrideRequest, valuesOverrideResponse.Artifact, valuesOverrideResponse.PipelineOverride.PipelineReleaseCounter, valuesOverrideResponse.PipelineOverride.Id, overrideRequest.WfrId)
 
 	_ = impl.markImageScanDeployed(newCtx, overrideRequest.AppId, overrideRequest.EnvId, overrideRequest.ClusterId,
 		valuesOverrideResponse.Artifact.ImageDigest, valuesOverrideResponse.Artifact.ScanEnabled, valuesOverrideResponse.Artifact.Image)
@@ -1209,6 +1219,11 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(ctx context.Context, pipeline
 				TargetRevision: bean7.TargetRevisionMaster,
 				PatchType:      bean7.PatchTypeMerge,
 			}
+			url, err := impl.gitOperationService.GetRepoUrlWithUserName(deploymentConfig.RepoURL)
+			if err != nil {
+				return false, err
+			}
+			patchRequestDto.GitRepoUrl = url
 			err = impl.argoClientWrapperService.PatchArgoCdApp(newCtx, patchRequestDto)
 			if err != nil {
 				impl.logger.Errorw("error in patching argo pipeline", "err", err, "req", patchRequestDto)
@@ -1271,6 +1286,10 @@ func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(ctx context.Cont
 			RepoUrl:         chart.GitRepoUrl,
 			AutoSyncEnabled: impl.ACDConfig.ArgoCDAutoSyncEnabled,
 		}
+		appRequest.RepoUrl, err = impl.gitOperationService.GetRepoUrlWithUserName(appRequest.RepoUrl)
+		if err != nil {
+			return "", err
+		}
 		argoAppName, err := impl.argoK8sClient.CreateAcdApp(newCtx, appRequest, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
 		if err != nil {
 			return "", err
@@ -1314,11 +1333,16 @@ func (impl *TriggerServiceImpl) helmInstallReleaseWithCustomChart(ctx context.Co
 	return impl.helmAppClient.InstallReleaseWithCustomChart(newCtx, &helmInstallRequest)
 }
 
-func (impl *TriggerServiceImpl) writeCDTriggerEvent(overrideRequest *bean3.ValuesOverrideRequest, artifact *repository3.CiArtifact, releaseId, pipelineOverrideId int) {
+func (impl *TriggerServiceImpl) getEnrichedWorkflowRunner(overrideRequest *bean3.ValuesOverrideRequest, artifact *repository3.CiArtifact, wfrId int) *pipelineConfig.CdWorkflowRunner {
+	return nil
+}
+
+func (impl *TriggerServiceImpl) writeCDTriggerEvent(overrideRequest *bean3.ValuesOverrideRequest, artifact *repository3.CiArtifact, releaseId, pipelineOverrideId, wfrId int) {
 
 	event := impl.eventFactory.Build(util2.Trigger, &overrideRequest.PipelineId, overrideRequest.AppId, &overrideRequest.EnvId, util2.CD)
-	impl.logger.Debugw("event writeCDTriggerEvent", "event", event)
-	event = impl.eventFactory.BuildExtraCDData(event, nil, pipelineOverrideId, bean3.CD_WORKFLOW_TYPE_DEPLOY)
+	impl.logger.Debugw("event WriteCDTriggerEvent", "event", event)
+	wfr := impl.getEnrichedWorkflowRunner(overrideRequest, artifact, wfrId)
+	event = impl.eventFactory.BuildExtraCDData(event, wfr, pipelineOverrideId, bean3.CD_WORKFLOW_TYPE_DEPLOY)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
 		impl.logger.Errorw("CD trigger event not sent", "error", evtErr)
