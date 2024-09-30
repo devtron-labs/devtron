@@ -174,7 +174,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDStageCompleteEvent() error {
 				impl.logger.Errorw("update cd-wf-runner failed for id ", "cdWfrId", wfr.Id, "err", err)
 				return
 			}
-		} else if cdStageCompleteEvent.IsArtifactUploaded {
+		} else {
 			err = impl.cdWorkflowRunnerService.UpdateIsArtifactUploaded(wfr.Id, cdStageCompleteEvent.IsArtifactUploaded)
 			if err != nil {
 				impl.logger.Errorw("error in updating isArtifactUploaded", "cdWfrId", wfr.Id, "err", err)
