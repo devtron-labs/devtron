@@ -9,6 +9,7 @@ DELETE FROM plugin_stage_mapping WHERE plugin_id =(SELECT id FROM plugin_metadat
 
 DELETE FROM plugin_tag_relation WHERE plugin_id in (SELECT id FROM plugin_metadata WHERE plugin_version='1.0.0' and name='Docker Lint' and deleted=false);
 
+DELETE FROM pipeline_stage_step_variable where pipeline_stage_step_id in (select id from pipeline_stage_step where name = 'Docker Lint') ;
 
 DELETE FROM pipeline_stage_step where ref_plugin_id in (SELECT id from plugin_metadata WHERE plugin_version='1.0.0' and name ='Docker Lint' and deleted=false);
 
