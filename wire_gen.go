@@ -98,6 +98,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/apiToken"
 	app2 "github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
@@ -359,7 +360,8 @@ func InitializeApp() (*App, error) {
 	}
 	helmAppClientImpl := gRPC.NewHelmAppClientImpl(sugaredLogger, helmClientConfig, configuration)
 	pumpImpl := connector.NewPumpImpl(sugaredLogger)
-	enforcerUtilHelmImpl := rbac.NewEnforcerUtilHelmImpl(sugaredLogger, clusterRepositoryImpl, teamRepositoryImpl, appRepositoryImpl, installedAppRepositoryImpl)
+	dbMigrationServiceImpl := dbMigration.NewDbMigrationServiceImpl(sugaredLogger, appRepositoryImpl, installedAppRepositoryImpl)
+	enforcerUtilHelmImpl := rbac.NewEnforcerUtilHelmImpl(sugaredLogger, clusterRepositoryImpl, teamRepositoryImpl, appRepositoryImpl, installedAppRepositoryImpl, dbMigrationServiceImpl)
 	serverDataStoreServerDataStore := serverDataStore.InitServerDataStore()
 	appStoreApplicationVersionRepositoryImpl := appStoreDiscoverRepository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
 	helmReleaseConfig, err := service.GetHelmReleaseConfig()
@@ -457,7 +459,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	enforcerUtilImpl := rbac.NewEnforcerUtilImpl(sugaredLogger, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, clusterRepositoryImpl, enforcerImpl)
+	enforcerUtilImpl := rbac.NewEnforcerUtilImpl(sugaredLogger, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, clusterRepositoryImpl, enforcerImpl, dbMigrationServiceImpl)
 	appStatusServiceImpl := appStatus2.NewAppStatusServiceImpl(appStatusRepositoryImpl, sugaredLogger, enforcerImpl, enforcerUtilImpl)
 	scopedVariableRepositoryImpl := repository7.NewScopedVariableRepository(db, sugaredLogger, transactionUtilImpl)
 	devtronResourceSearchableKeyRepositoryImpl := repository8.NewDevtronResourceSearchableKeyRepositoryImpl(sugaredLogger, db)
@@ -550,7 +552,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	appCrudOperationServiceImpl := app2.NewAppCrudOperationServiceImpl(appLabelRepositoryImpl, sugaredLogger, appRepositoryImpl, userRepositoryImpl, installedAppRepositoryImpl, genericNoteServiceImpl, materialRepositoryImpl, installedAppDBServiceImpl, crudOperationServiceConfig)
+	appCrudOperationServiceImpl := app2.NewAppCrudOperationServiceImpl(appLabelRepositoryImpl, sugaredLogger, appRepositoryImpl, userRepositoryImpl, installedAppRepositoryImpl, genericNoteServiceImpl, materialRepositoryImpl, installedAppDBServiceImpl, crudOperationServiceConfig, dbMigrationServiceImpl)
 	imageTagRepositoryImpl := repository2.NewImageTagRepository(db, sugaredLogger)
 	customTagServiceImpl := pipeline.NewCustomTagService(sugaredLogger, imageTagRepositoryImpl)
 	pluginInputVariableParserImpl := pipeline.NewPluginInputVariableParserImpl(sugaredLogger, dockerRegistryConfigImpl, customTagServiceImpl)

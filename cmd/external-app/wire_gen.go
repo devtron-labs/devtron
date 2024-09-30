@@ -57,6 +57,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/apiToken"
 	app2 "github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
 	repository7 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/chartProvider"
 	"github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
@@ -234,7 +235,8 @@ func InitializeApp() (*App, error) {
 	helmAppClientImpl := gRPC.NewHelmAppClientImpl(sugaredLogger, helmClientConfig, configuration)
 	pumpImpl := connector.NewPumpImpl(sugaredLogger)
 	appRepositoryImpl := app.NewAppRepositoryImpl(db, sugaredLogger)
-	enforcerUtilHelmImpl := rbac.NewEnforcerUtilHelmImpl(sugaredLogger, clusterRepositoryImpl, teamRepositoryImpl, appRepositoryImpl, installedAppRepositoryImpl)
+	dbMigrationServiceImpl := dbMigration.NewDbMigrationServiceImpl(sugaredLogger, appRepositoryImpl, installedAppRepositoryImpl)
+	enforcerUtilHelmImpl := rbac.NewEnforcerUtilHelmImpl(sugaredLogger, clusterRepositoryImpl, teamRepositoryImpl, appRepositoryImpl, installedAppRepositoryImpl, dbMigrationServiceImpl)
 	serverDataStoreServerDataStore := serverDataStore.InitServerDataStore()
 	appStoreApplicationVersionRepositoryImpl := appStoreDiscoverRepository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
 	pipelineRepositoryImpl := pipelineConfig.NewPipelineRepositoryImpl(db, sugaredLogger)
@@ -421,7 +423,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	appCrudOperationServiceImpl := app2.NewAppCrudOperationServiceImpl(appLabelRepositoryImpl, sugaredLogger, appRepositoryImpl, userRepositoryImpl, installedAppRepositoryImpl, genericNoteServiceImpl, materialRepositoryImpl, installedAppDBServiceImpl, crudOperationServiceConfig)
+	appCrudOperationServiceImpl := app2.NewAppCrudOperationServiceImpl(appLabelRepositoryImpl, sugaredLogger, appRepositoryImpl, userRepositoryImpl, installedAppRepositoryImpl, genericNoteServiceImpl, materialRepositoryImpl, installedAppDBServiceImpl, crudOperationServiceConfig, dbMigrationServiceImpl)
 	appInfoRestHandlerImpl := appInfo.NewAppInfoRestHandlerImpl(sugaredLogger, appCrudOperationServiceImpl, userServiceImpl, validate, enforcerUtilImpl, enforcerImpl, helmAppServiceImpl, enforcerUtilHelmImpl, genericNoteServiceImpl)
 	appInfoRouterImpl := appInfo2.NewAppInfoRouterImpl(sugaredLogger, appInfoRestHandlerImpl)
 	appFilteringRestHandlerImpl := appList.NewAppFilteringRestHandlerImpl(sugaredLogger, teamServiceImpl, enforcerImpl, userServiceImpl, clusterServiceImpl, environmentServiceImpl)

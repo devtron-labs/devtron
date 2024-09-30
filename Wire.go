@@ -105,6 +105,7 @@ import (
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
@@ -1005,6 +1006,9 @@ func InitializeApp() (*App, error) {
 
 		repocreds.NewServiceClientImpl,
 		wire.Bind(new(repocreds.ServiceClient), new(*repocreds.ServiceClientImpl)),
+
+		dbMigration.NewDbMigrationServiceImpl,
+		wire.Bind(new(dbMigration.DbMigration), new(*dbMigration.DbMigrationServiceImpl)),
 	)
 	return &App{}, nil
 }
