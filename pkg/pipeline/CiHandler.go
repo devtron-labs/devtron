@@ -929,7 +929,7 @@ func (impl *CiHandlerImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId i
 	request := &blob_storage.BlobStorageRequest{
 		StorageType:         impl.config.CloudProvider,
 		SourceKey:           key,
-		DestinationKey:      baseLogLocationPathConfig + item,
+		DestinationKey:      destinationKey,
 		AzureBlobBaseConfig: azureBlobConfig,
 		AwsS3BaseConfig:     awsS3BaseConfig,
 		GcpBlobBaseConfig:   gcpBlobBaseConfig,
