@@ -50,6 +50,7 @@ type CiWorkflowRepository interface {
 	FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error)
 
 	MigrateIsArtifactUploaded(wfId int, isArtifactUploaded bool)
+	MigrateCiArtifactLocation(wfId int, artifactLocation string)
 }
 
 type CiWorkflowRepositoryImpl struct {
@@ -384,5 +385,15 @@ func (impl *CiWorkflowRepositoryImpl) MigrateIsArtifactUploaded(wfId int, isArti
 		Update()
 	if err != nil {
 		impl.logger.Errorw("error occurred while updating is_artifact_uploaded", "wfId", wfId, "err", err)
+	}
+}
+
+func (impl *CiWorkflowRepositoryImpl) MigrateCiArtifactLocation(wfId int, artifactLocation string) {
+	_, err := impl.dbConnection.Model((*CiWorkflow)(nil)).
+		Set("ci_artifact_location = ?", artifactLocation).
+		Where("id = ?", wfId).
+		Update()
+	if err != nil {
+		impl.logger.Errorw("error occurred while updating ci_artifact_location", "wfId", wfId, "err", err)
 	}
 }

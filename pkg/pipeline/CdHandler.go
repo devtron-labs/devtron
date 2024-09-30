@@ -664,6 +664,8 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(buildId int) (*os.File, e
 	key := fmt.Sprintf(cdArtifactLocationFormat, wfr.CdWorkflow.Id, wfr.Id)
 	if len(wfr.CdArtifactLocation) != 0 && util2.IsValidUrlSubPath(wfr.CdArtifactLocation) {
 		key = wfr.CdArtifactLocation
+	} else if util2.IsValidUrlSubPath(key) {
+		impl.cdWorkflowRepository.MigrateCdArtifactLocation(wfr.Id, key)
 	}
 	baseLogLocationPathConfig := impl.config.BaseLogLocationPath
 	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)

@@ -78,6 +78,7 @@ type CdWorkflowRepository interface {
 	FindLatestRunnerByPipelineIdsAndRunnerType(ctx context.Context, pipelineIds []int, runnerType apiBean.WorkflowType) ([]CdWorkflowRunner, error)
 
 	MigrateIsArtifactUploaded(wfrId int, isArtifactUploaded bool)
+	MigrateCdArtifactLocation(wfrId int, cdArtifactLocation string)
 }
 
 type CdWorkflowRepositoryImpl struct {
@@ -747,5 +748,15 @@ func (impl *CdWorkflowRepositoryImpl) MigrateIsArtifactUploaded(wfrId int, isArt
 		Update()
 	if err != nil {
 		impl.logger.Errorw("error in updating is artifact uploaded", "wfrId", wfrId, "err", err)
+	}
+}
+
+func (impl *CdWorkflowRepositoryImpl) MigrateCdArtifactLocation(wfrId int, cdArtifactLocation string) {
+	_, err := impl.dbConnection.Model((*CdWorkflowRunner)(nil)).
+		Set("cd_artifact_location = ?", cdArtifactLocation).
+		Where("id = ?", wfrId).
+		Update()
+	if err != nil {
+		impl.logger.Errorw("error in updating cd artifact location", "wfrId", wfrId, "err", err)
 	}
 }

@@ -926,6 +926,8 @@ func (impl *CiHandlerImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId i
 	key := fmt.Sprintf(ciArtifactLocationFormat, ciWorkflow.Id, ciWorkflow.Id)
 	if len(ciWorkflow.CiArtifactLocation) != 0 && util3.IsValidUrlSubPath(ciWorkflow.CiArtifactLocation) {
 		key = ciWorkflow.CiArtifactLocation
+	} else if util3.IsValidUrlSubPath(key) {
+		impl.ciWorkflowRepository.MigrateCiArtifactLocation(ciWorkflow.Id, key)
 	}
 	baseLogLocationPathConfig := impl.config.BaseLogLocationPath
 	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
