@@ -23,7 +23,8 @@ import (
 	apiBean "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -42,7 +43,7 @@ type CdWorkflowRepository interface {
 	FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType apiBean.WorkflowType, limit int, runnerStatuses []string) ([]CdWorkflowRunner, error)
 	SaveWorkFlowRunner(wfr *CdWorkflowRunner) (*CdWorkflowRunner, error)
 	UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error
-	UpdateIsArtifactUploaded(wfrId int, isArtifactUploaded bool) error
+	UpdateIsArtifactUploaded(wfrId int, isArtifactUploaded workflow.ArtifactUploadedType) error
 	GetPreviousQueuedRunners(cdWfrId, pipelineId int) ([]*CdWorkflowRunner, error)
 	UpdateRunnerStatusToFailedForIds(errMsg string, triggeredBy int32, cdWfrIds ...int) error
 	UpdateWorkFlowRunnersWithTxn(wfrs []*CdWorkflowRunner, tx *pg.Tx) error
@@ -75,6 +76,8 @@ type CdWorkflowRepository interface {
 	FetchArtifactsByCdPipelineId(pipelineId int, runnerType apiBean.WorkflowType, offset, limit int, searchString string) ([]CdWorkflowRunner, error)
 	GetLatestTriggersOfHelmPipelinesStuckInNonTerminalStatuses(getPipelineDeployedWithinHours int) ([]*CdWorkflowRunner, error)
 	FindLatestRunnerByPipelineIdsAndRunnerType(ctx context.Context, pipelineIds []int, runnerType apiBean.WorkflowType) ([]CdWorkflowRunner, error)
+
+	MigrateIsArtifactUploaded(wfrId int, isArtifactUploaded bool)
 }
 
 type CdWorkflowRepositoryImpl struct {
@@ -113,7 +116,7 @@ type CdWorkflowRunner struct {
 	Namespace               string                          `sql:"namespace"`
 	LogLocation             string                          `sql:"log_file_path"`
 	CdArtifactLocation      string                          `sql:"cd_artifact_location"`
-	IsArtifactUploaded      *bool                           `sql:"is_artifact_uploaded"`
+	IsArtifactUploaded      workflow.ArtifactUploadedType   `sql:"is_artifact_uploaded"`
 	TriggeredBy             int32                           `sql:"triggered_by"`
 	CdWorkflowId            int                             `sql:"cd_workflow_id"`
 	PodName                 string                          `sql:"pod_name"`
@@ -123,6 +126,15 @@ type CdWorkflowRunner struct {
 	ReferenceId             *string                         `sql:"reference_id"`
 	CdWorkflow              *CdWorkflow
 	sql.AuditLog
+}
+
+func (c *CdWorkflowRunner) GetIsArtifactUploaded() (isArtifactUploaded bool, isMigrationRequired bool) {
+	return workflow.IsArtifactUploaded(c.IsArtifactUploaded)
+}
+
+func (c *CdWorkflowRunner) WithIsArtifactUploaded(isArtifactUploaded bool) *CdWorkflowRunner {
+	c.IsArtifactUploaded = workflow.GetArtifactUploadedType(isArtifactUploaded)
+	return c
 }
 
 func (c *CdWorkflowRunner) IsExternalRun() bool {
@@ -448,7 +460,7 @@ func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunner(wfr *CdWorkflowRunner
 	return err
 }
 
-func (impl *CdWorkflowRepositoryImpl) UpdateIsArtifactUploaded(wfrId int, isArtifactUploaded bool) error {
+func (impl *CdWorkflowRepositoryImpl) UpdateIsArtifactUploaded(wfrId int, isArtifactUploaded workflow.ArtifactUploadedType) error {
 	_, err := impl.dbConnection.Model((*CdWorkflowRunner)(nil)).
 		Set("is_artifact_uploaded = ?", isArtifactUploaded).
 		Where("id = ?", wfrId).
@@ -726,4 +738,14 @@ func (impl *CdWorkflowRepositoryImpl) FindLatestRunnerByPipelineIdsAndRunnerType
 		return nil, err
 	}
 	return latestWfrs, err
+}
+
+func (impl *CdWorkflowRepositoryImpl) MigrateIsArtifactUploaded(wfrId int, isArtifactUploaded bool) {
+	_, err := impl.dbConnection.Model((*CdWorkflowRunner)(nil)).
+		Set("is_artifact_uploaded = ?", workflow.GetArtifactUploadedType(isArtifactUploaded)).
+		Where("id = ?", wfrId).
+		Update()
+	if err != nil {
+		impl.logger.Errorw("error in updating is artifact uploaded", "wfrId", wfrId, "err", err)
+	}
 }

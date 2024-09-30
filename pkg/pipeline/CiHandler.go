@@ -22,7 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/workFlow"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	util3 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"io/ioutil"
 	"net/http"
@@ -530,9 +530,11 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 
 	var ciWorkLowResponses []types.WorkflowResponse
 	for _, w := range workFlows {
-		isArtifactUploaded := w.IsArtifactUploaded
-		if w.IsArtifactUploadedV2 != nil {
-			isArtifactUploaded = *w.IsArtifactUploadedV2
+		isArtifactUploaded, isMigrationRequired := w.GetIsArtifactUploaded()
+		if isMigrationRequired {
+			// Migrate isArtifactUploaded. For old records, set isArtifactUploaded -> w.IsArtifactUploaded
+			impl.ciWorkflowRepository.MigrateIsArtifactUploaded(w.Id, w.IsArtifactUploaded)
+			isArtifactUploaded = w.IsArtifactUploaded
 		}
 		wfResponse := types.WorkflowResponse{
 			Id:                  w.Id,
@@ -724,16 +726,18 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 	}
 	environmentName := ""
 	if workflow.EnvironmentId != 0 {
-		env, err := impl.envRepository.FindById(workflow.EnvironmentId)
+		envModel, err := impl.envRepository.FindById(workflow.EnvironmentId)
 		if err != nil && err != pg.ErrNoRows {
 			impl.Logger.Errorw("error in fetching environment details ", "err", err)
 			return types.WorkflowResponse{}, err
 		}
-		environmentName = env.Name
+		environmentName = envModel.Name
 	}
-	isArtifactUploaded := ciArtifact.IsArtifactUploaded
-	if workflow.IsArtifactUploaded != nil {
-		isArtifactUploaded = *workflow.IsArtifactUploaded
+	isArtifactUploaded, isMigrationRequired := workflow.GetIsArtifactUploaded()
+	if isMigrationRequired {
+		// Migrate isArtifactUploaded. For old records, set isArtifactUploaded -> ciArtifact.IsArtifactUploaded
+		impl.ciWorkflowRepository.MigrateIsArtifactUploaded(workflow.Id, ciArtifact.IsArtifactUploaded)
+		isArtifactUploaded = ciArtifact.IsArtifactUploaded
 	}
 	workflowResponse := types.WorkflowResponse{
 		Id:                 workflow.Id,

@@ -18,6 +18,7 @@ package cd
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
 	"github.com/go-pg/pg"
@@ -75,7 +76,7 @@ func (impl *CdWorkflowRunnerServiceImpl) UpdateWfr(dto *bean.CdWorkflowRunnerDto
 }
 
 func (impl *CdWorkflowRunnerServiceImpl) UpdateIsArtifactUploaded(wfrId int, isArtifactUploaded bool) error {
-	err := impl.cdWorkflowRepository.UpdateIsArtifactUploaded(wfrId, isArtifactUploaded)
+	err := impl.cdWorkflowRepository.UpdateIsArtifactUploaded(wfrId, workflow.GetArtifactUploadedType(isArtifactUploaded))
 	if err != nil {
 		impl.logger.Errorw("error in updating isArtifactUploaded in db", "wfrId", wfrId, "err", err)
 		return err

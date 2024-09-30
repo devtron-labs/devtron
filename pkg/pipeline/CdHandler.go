@@ -724,9 +724,13 @@ func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pip
 		workflow.Image = wfr.CdWorkflow.CiArtifact.Image
 		workflow.PipelineId = wfr.CdWorkflow.PipelineId
 		workflow.CiArtifactId = wfr.CdWorkflow.CiArtifactId
-		if wfr.IsArtifactUploaded != nil {
-			workflow.IsArtifactUploaded = *wfr.IsArtifactUploaded
+		isArtifactUploaded, isMigrationRequired := wfr.GetIsArtifactUploaded()
+		if isMigrationRequired {
+			// Migrate isArtifactUploaded. For old records, set isArtifactUploaded -> Uploaded
+			impl.cdWorkflowRepository.MigrateIsArtifactUploaded(wfr.Id, true)
+			isArtifactUploaded = true
 		}
+		workflow.IsArtifactUploaded = isArtifactUploaded
 		workflow.BlobStorageEnabled = wfr.BlobStorageEnabled
 		workflow.RefCdWorkflowRunnerId = wfr.RefCdWorkflowRunnerId
 	}

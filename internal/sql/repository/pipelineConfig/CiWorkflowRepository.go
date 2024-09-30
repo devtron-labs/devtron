@@ -19,7 +19,8 @@ package pipelineConfig
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -29,7 +30,7 @@ type CiWorkflowRepository interface {
 	SaveWorkFlow(wf *CiWorkflow) error
 	FindLastTriggeredWorkflow(pipelineId int) (*CiWorkflow, error)
 	UpdateWorkFlow(wf *CiWorkflow) error
-	UpdateArtifactUploaded(id int, isUploaded bool) error
+	UpdateArtifactUploaded(id int, isUploaded workflow.ArtifactUploadedType) error
 	FindByStatusesIn(activeStatuses []string) ([]*CiWorkflow, error)
 	FindByPipelineId(pipelineId int, offset int, size int) ([]WorkflowWithArtifact, error)
 	FindById(id int) (*CiWorkflow, error)
@@ -47,6 +48,8 @@ type CiWorkflowRepository interface {
 	ExistsByStatus(status string) (bool, error)
 	FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount
 	FIndCiWorkflowStatusesByAppId(appId int) ([]*CiWorkflowStatus, error)
+
+	MigrateIsArtifactUploaded(wfId int, isArtifactUploaded bool)
 }
 
 type CiWorkflowRepositoryImpl struct {
@@ -70,7 +73,7 @@ type CiWorkflow struct {
 	GitTriggers             map[int]GitCommit               `sql:"git_triggers"`
 	TriggeredBy             int32                           `sql:"triggered_by"`
 	CiArtifactLocation      string                          `sql:"ci_artifact_location"`
-	IsArtifactUploaded      *bool                           `sql:"is_artifact_uploaded"`
+	IsArtifactUploaded      workflow.ArtifactUploadedType   `sql:"is_artifact_uploaded"`
 	PodName                 string                          `sql:"pod_name"`
 	CiBuildType             string                          `sql:"ci_build_type"`
 	EnvironmentId           int                             `sql:"environment_id"`
@@ -80,6 +83,15 @@ type CiWorkflow struct {
 	ImagePathReservationId  int                             `sql:"image_path_reservation_id"`
 	ImagePathReservationIds []int                           `sql:"image_path_reservation_ids" pg:",array"`
 	CiPipeline              *CiPipeline
+}
+
+func (ciWorkflow *CiWorkflow) GetIsArtifactUploaded() (isArtifactUploaded bool, isMigrationRequired bool) {
+	return workflow.IsArtifactUploaded(ciWorkflow.IsArtifactUploaded)
+}
+
+func (ciWorkflow *CiWorkflow) WithIsArtifactUploaded(isArtifactUploaded bool) *CiWorkflow {
+	ciWorkflow.IsArtifactUploaded = workflow.GetArtifactUploadedType(isArtifactUploaded)
+	return ciWorkflow
 }
 
 func (ciWorkflow *CiWorkflow) InProgress() bool {
@@ -110,7 +122,7 @@ type WorkflowWithArtifact struct {
 	CiArtifactId            int                             `sql:"ci_artifact_id"`
 	BlobStorageEnabled      bool                            `sql:"blob_storage_enabled"`
 	CiBuildType             string                          `sql:"ci_build_type"`
-	IsArtifactUploadedV2    *bool                           `sql:"is_artifact_uploaded"`     // IsArtifactUploadedV2 is the new column from ci_workflow table, IsArtifactUploaded is Deprecated and will be removed in future
+	IsArtifactUploadedV2    workflow.ArtifactUploadedType   `sql:"is_artifact_uploaded"`     // IsArtifactUploadedV2 is the new column from ci_workflow table, IsArtifactUploaded is Deprecated and will be removed in future
 	IsArtifactUploaded      bool                            `sql:"old_is_artifact_uploaded"` // Deprecated; Use IsArtifactUploadedV2 instead. IsArtifactUploaded is the column from ci_artifact table
 	EnvironmentId           int                             `sql:"environment_id"`
 	EnvironmentName         string                          `sql:"environment_name"`
@@ -119,6 +131,10 @@ type WorkflowWithArtifact struct {
 	ExecutorType            cdWorkflow.WorkflowExecutorType `sql:"executor_type"` //awf, system
 	ImagePathReservationId  int                             `sql:"image_path_reservation_id"`
 	ImagePathReservationIds []int                           `sql:"image_path_reservation_ids" pg:",array"`
+}
+
+func (w *WorkflowWithArtifact) GetIsArtifactUploaded() (isArtifactUploaded bool, isMigrationRequired bool) {
+	return workflow.IsArtifactUploaded(w.IsArtifactUploadedV2)
 }
 
 type GitCommit struct {
@@ -256,7 +272,7 @@ func (impl *CiWorkflowRepositoryImpl) UpdateWorkFlow(wf *CiWorkflow) error {
 	return err
 }
 
-func (impl *CiWorkflowRepositoryImpl) UpdateArtifactUploaded(id int, isUploaded bool) error {
+func (impl *CiWorkflowRepositoryImpl) UpdateArtifactUploaded(id int, isUploaded workflow.ArtifactUploadedType) error {
 	_, err := impl.dbConnection.Model(&CiWorkflow{}).
 		Set("is_artifact_uploaded = ?", isUploaded).
 		Where("id = ?", id).
@@ -359,4 +375,14 @@ func (impl *CiWorkflowRepositoryImpl) FIndCiWorkflowStatusesByAppId(appId int) (
 		impl.logger.Errorw("error occurred while fetching build type vs status vs count data", "err", err)
 	}
 	return ciworkflowStatuses, err
+}
+
+func (impl *CiWorkflowRepositoryImpl) MigrateIsArtifactUploaded(wfId int, isArtifactUploaded bool) {
+	_, err := impl.dbConnection.Model((*CiWorkflow)(nil)).
+		Set("is_artifact_uploaded = ?", workflow.GetArtifactUploadedType(isArtifactUploaded)).
+		Where("id = ?", wfId).
+		Update()
+	if err != nil {
+		impl.logger.Errorw("error occurred while updating is_artifact_uploaded", "wfId", wfId, "err", err)
+	}
 }

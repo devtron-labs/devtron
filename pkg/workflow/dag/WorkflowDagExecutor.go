@@ -30,7 +30,8 @@ import (
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
-	cdWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow"
+	cdWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
@@ -727,7 +728,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 			return 0, err
 		}
 		savedWorkflow.Status = string(v1alpha1.NodeSucceeded)
-		savedWorkflow.IsArtifactUploaded = &request.IsArtifactUploaded
+		savedWorkflow.IsArtifactUploaded = workflow.GetArtifactUploadedType(request.IsArtifactUploaded)
 		impl.logger.Debugw("updating workflow ", "savedWorkflow", savedWorkflow)
 		err = impl.ciWorkflowRepository.UpdateWorkFlow(savedWorkflow)
 		if err != nil {
@@ -960,7 +961,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiStepFailedEvent(ciPipelineId int, r
 		return err
 	}
 	// update IsArtifactUploaded flag in workflow
-	dbErr := impl.ciWorkflowRepository.UpdateArtifactUploaded(savedWorkflow.Id, request.IsArtifactUploaded)
+	dbErr := impl.ciWorkflowRepository.UpdateArtifactUploaded(savedWorkflow.Id, workflow.GetArtifactUploadedType(request.IsArtifactUploaded))
 	if dbErr != nil {
 		impl.logger.Errorw("update workflow status", "ciWorkflowId", savedWorkflow.Id, "err", dbErr)
 	}
