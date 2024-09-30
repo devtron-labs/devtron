@@ -825,7 +825,7 @@ func (impl *CiHandlerImpl) getWorkflowLogs(ciWorkflow *pipelineConfig.CiWorkflow
 }
 
 func (impl *CiHandlerImpl) getLogsFromRepository(ciWorkflow *pipelineConfig.CiWorkflow, clusterConfig *k8s.ClusterConfig, isExt bool) (*bufio.Reader, func() error, error) {
-	impl.Logger.Debug("getting historic logs")
+	impl.Logger.Debug("getting historic logs", "ciWorkflowId", ciWorkflow.Id)
 	ciConfigLogsBucket := impl.config.GetDefaultBuildLogsBucket()
 	ciConfigCiCacheRegion := impl.config.DefaultCacheBucketRegion
 	logsFilePath := impl.config.GetDefaultBuildLogsKeyPrefix() + "/" + ciWorkflow.Name + "/main.log" // this is for backward compatibilty
@@ -956,7 +956,7 @@ func (impl *CiHandlerImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId i
 	}
 	_, numBytes, err := blobStorageService.Get(request)
 	if err != nil {
-		impl.Logger.Errorw("error occurred while downloading file", "request", request)
+		impl.Logger.Errorw("error occurred while downloading file", "request", request, "error", err)
 		return nil, errors.New("failed to download resource")
 	}
 
