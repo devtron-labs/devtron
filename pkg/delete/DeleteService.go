@@ -51,7 +51,7 @@ type DeleteServiceImpl struct {
 	installedAppRepository   repository.InstalledAppRepository
 	dockerRegistryConfig     pipeline.DockerRegistryConfig
 	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository
-	K8sUtil                  *k8s.K8sServiceImpl
+	K8sUtil                  k8s.K8sService
 	k8sInformerFactory       informer.K8sInformerFactory
 }
 
@@ -64,7 +64,7 @@ func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 	dockerRegistryConfig pipeline.DockerRegistryConfig,
 	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository,
 	k8sInformerFactory informer.K8sInformerFactory,
-	K8sUtil *k8s.K8sServiceImpl,
+	K8sUtil k8s.K8sService,
 ) *DeleteServiceImpl {
 	return &DeleteServiceImpl{
 		logger:                   logger,
