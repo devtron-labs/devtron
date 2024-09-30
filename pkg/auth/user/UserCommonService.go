@@ -338,18 +338,9 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 	toBeDeletedUserRolesIds := make([]int, 0, len(eliminatedRoleIds))
 	for _, userRoleModel := range eliminatedRoleIds {
 		if role, ok := roleIdVsRoleMap[userRoleModel.RoleId]; ok {
-			if len(role.Team) > 0 {
-				rbacObject := fmt.Sprintf("%s", role.Team)
-				isValidAuth := managerAuth(casbin.ResourceUser, token, rbacObject)
-				if !isValidAuth {
-					continue
-				}
-			}
-			if role.Entity == bean.CLUSTER_ENTITIY {
-				isValidAuth := impl.CheckRbacForClusterEntity(role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource, token, managerAuth)
-				if !isValidAuth {
-					continue
-				}
+			isValidAuth := impl.checkRbacForARole(role, token, managerAuth)
+			if !isValidAuth {
+				continue
 			}
 			toBeDeletedUserRolesIds = append(toBeDeletedUserRolesIds, userRoleModel.Id)
 			eliminatedRoles = append(eliminatedRoles, role)
@@ -502,18 +493,9 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 	}
 	for _, model := range eliminatedRoles {
 		if role, ok := roleIdVsRoleMap[model.RoleId]; ok {
-			if len(role.Team) > 0 {
-				rbacObject := fmt.Sprintf("%s", role.Team)
-				isValidAuth := managerAuth(casbin.ResourceUser, token, rbacObject)
-				if !isValidAuth {
-					continue
-				}
-			}
-			if role.Entity == bean.CLUSTER_ENTITIY {
-				isValidAuth := impl.CheckRbacForClusterEntity(role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource, token, managerAuth)
-				if !isValidAuth {
-					continue
-				}
+			isValidAuth := impl.checkRbacForARole(role, token, managerAuth)
+			if !isValidAuth {
+				continue
 			}
 			toBeDeletedRoleGroupRoleMappingsIds = append(toBeDeletedRoleGroupRoleMappingsIds, model.Id)
 			eliminatedRoleModels = append(eliminatedRoleModels, role)
@@ -528,6 +510,35 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 		}
 	}
 	return eliminatedPolicies, eliminatedRoleModels, nil
+}
+
+func (impl UserCommonServiceImpl) checkRbacForARole(role *repository.RoleModel, token string, managerAuth func(resource string, token string, object string) bool) bool {
+	isAuthorised := true
+	switch {
+	case role.AccessType == bean2.APP_ACCESS_TYPE_HELM || role.Entity == bean2.EntityJobs:
+		isValidAuth := managerAuth(casbin.ResourceGlobal, token, "*")
+		if !isValidAuth {
+			isAuthorised = false
+		}
+
+	case len(role.Team) > 0:
+		// this is case of devtron app
+		rbacObject := fmt.Sprintf("%s", role.Team)
+		isValidAuth := managerAuth(casbin.ResourceUser, token, rbacObject)
+		if !isValidAuth {
+			isAuthorised = false
+		}
+
+	case role.Entity == bean.CLUSTER_ENTITIY:
+		isValidAuth := impl.CheckRbacForClusterEntity(role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource, token, managerAuth)
+		if !isValidAuth {
+			isAuthorised = false
+		}
+
+	default:
+		isAuthorised = false
+	}
+	return isAuthorised
 }
 
 func containsArr(s []string, e string) bool {
