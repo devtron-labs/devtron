@@ -495,6 +495,11 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 		impl.logger.Errorw("error encountered in RemoveRolesAndReturnEliminatedPoliciesForGroups", "eliminatedRoles", eliminatedRoles, "err", err)
 		return nil, nil, err
 	}
+	policyGroup, err := impl.roleGroupRepository.GetRoleGroupById(request.Id)
+	if err != nil {
+		impl.logger.Errorw("error encountered in RemoveRolesAndReturnEliminatedPoliciesForGroups", "roleGroupId", request.Id, "err", err)
+		return nil, nil, err
+	}
 	for _, model := range eliminatedRoles {
 		if role, ok := roleIdVsRoleMap[model.RoleId]; ok {
 			if len(role.Team) > 0 {
@@ -511,10 +516,6 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 				}
 			}
 			toBeDeletedRoleGroupRoleMappingsIds = append(toBeDeletedRoleGroupRoleMappingsIds, model.Id)
-			policyGroup, err := impl.roleGroupRepository.GetRoleGroupById(model.RoleGroupId)
-			if err != nil {
-				return nil, nil, err
-			}
 			eliminatedRoleModels = append(eliminatedRoleModels, role)
 			eliminatedPolicies = append(eliminatedPolicies, casbin.Policy{Type: "g", Sub: casbin.Subject(policyGroup.CasbinName), Obj: casbin.Object(role.Role)})
 		}
