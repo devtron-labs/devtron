@@ -244,16 +244,9 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 	filteredRoleFilter := make([]bean.RoleFilter, 0)
 	if res.RoleFilters != nil && len(res.RoleFilters) > 0 {
 		for _, filter := range res.RoleFilters {
-			authPass := true
-			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, filter.Team); !ok {
-					authPass = false
-				}
-			}
-			if filter.Entity == bean2.CLUSTER_ENTITIY {
-				if ok := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !ok {
-					authPass = false
-				}
+			authPass := handler.checkRbacForFilter(token, filter)
+			if authPass {
+				filteredRoleFilter = append(filteredRoleFilter, filter)
 			}
 			if authPass {
 				filteredRoleFilter = append(filteredRoleFilter, filter)
@@ -579,17 +572,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *
 	filteredRoleFilter := make([]bean.RoleFilter, 0)
 	if res.RoleFilters != nil && len(res.RoleFilters) > 0 {
 		for _, filter := range res.RoleFilters {
-			authPass := true
-			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, filter.Team); !ok {
-					authPass = false
-				}
-			}
-			if filter.Entity == bean2.CLUSTER_ENTITIY {
-				if isValidAuth := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !isValidAuth {
-					authPass = false
-				}
-			}
+			authPass := handler.checkRbacForFilter(token, filter)
 			if authPass {
 				filteredRoleFilter = append(filteredRoleFilter, filter)
 			}
@@ -608,6 +591,32 @@ func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *
 	//RBAC enforcer Ends
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler UserRestHandlerImpl) checkRbacForFilter(token string, filter bean.RoleFilter) bool {
+	isAuthorised := true
+	switch {
+	case filter.AccessType == bean2.APP_ACCESS_TYPE_HELM || filter.Entity == bean2.EntityJobs:
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+			isAuthorised = false
+		}
+
+	case len(filter.Team) > 0:
+		// this is case of devtron app
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, filter.Team); !ok {
+			isAuthorised = false
+		}
+
+	case filter.Entity == bean.CLUSTER_ENTITIY:
+		isValidAuth := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth)
+		if !isValidAuth {
+			isAuthorised = false
+		}
+
+	default:
+		isAuthorised = false
+	}
+	return isAuthorised
 }
 
 func (handler UserRestHandlerImpl) CreateRoleGroup(w http.ResponseWriter, r *http.Request) {
