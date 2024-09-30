@@ -54,6 +54,7 @@ type ConfigSecretMap struct {
 	RoleARN        string          `json:"roleARN"`
 	SecretData     json.RawMessage `json:"secretData,omitempty"`
 	SubPath        bool            `json:"subPath"`
+	ESOSubPath     []string        `json:"esoSubPath"`
 	FilePermission string          `json:"filePermission"`
 }
 
@@ -70,7 +71,7 @@ func (configSecretJson *ConfigSecretJson) SetReferencedSecrets(secrets []ConfigS
 	configSecretJson.Secrets = util.GetReferencedArray(secrets)
 }
 
-func (ConfigSecretRootJson) GetTransformedDataForSecretData(data string, mode util.SecretTransformMode) (string, error) {
+func GetTransformedDataForSecretData(data string, mode util.SecretTransformMode) (string, error) {
 	secretsJson := ConfigSecretRootJson{}
 	err := json.Unmarshal([]byte(data), &secretsJson)
 	if err != nil {

@@ -118,6 +118,7 @@ const (
 	USER_TYPE_API_TOKEN             = "apiToken"
 	CHART_GROUP_ENTITY              = "chart-group"
 	CLUSTER_ENTITIY                 = "cluster"
+	ACTION_SUPERADMIN               = "super-admin"
 )
 
 type UserListingResponse struct {

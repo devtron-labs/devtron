@@ -20,22 +20,20 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/notifier/beans"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
-	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
 )
 
-const SMTP_CONFIG_TYPE = "smtp"
-
 type SMTPNotificationService interface {
-	SaveOrEditNotificationConfig(channelReq []*SMTPConfigDto, userId int32) ([]int, error)
-	FetchSMTPNotificationConfigById(id int) (*SMTPConfigDto, error)
-	FetchAllSMTPNotificationConfig() ([]*SMTPConfigDto, error)
-	FetchAllSMTPNotificationConfigAutocomplete() ([]*NotificationChannelAutoResponse, error)
-	DeleteNotificationConfig(channelReq *SMTPConfigDto, userId int32) error
+	SaveOrEditNotificationConfig(channelReq []*beans.SMTPConfigDto, userId int32) ([]int, error)
+	FetchSMTPNotificationConfigById(id int) (*beans.SMTPConfigDto, error)
+	FetchAllSMTPNotificationConfig() ([]*beans.SMTPConfigDto, error)
+	FetchAllSMTPNotificationConfigAutocomplete() ([]*beans.NotificationChannelAutoResponse, error)
+	DeleteNotificationConfig(channelReq *beans.SMTPConfigDto, userId int32) error
 }
 
 type SMTPNotificationServiceImpl struct {
@@ -55,27 +53,7 @@ func NewSMTPNotificationServiceImpl(logger *zap.SugaredLogger, smtpRepository re
 	}
 }
 
-type SMTPChannelConfig struct {
-	Channel        util2.Channel    `json:"channel" validate:"required"`
-	SMTPConfigDtos []*SMTPConfigDto `json:"configs"`
-}
-
-type SMTPConfigDto struct {
-	Id           int    `json:"id"`
-	Port         string `json:"port"`
-	Host         string `json:"host"`
-	AuthType     string `json:"authType"`
-	AuthUser     string `json:"authUser"`
-	AuthPassword string `json:"authPassword"`
-	FromEmail    string `json:"fromEmail"`
-	ConfigName   string `json:"configName"`
-	Description  string `json:"description"`
-	OwnerId      int32  `json:"ownerId"`
-	Default      bool   `json:"default"`
-	Deleted      bool   `json:"deleted"`
-}
-
-func (impl *SMTPNotificationServiceImpl) SaveOrEditNotificationConfig(channelReq []*SMTPConfigDto, userId int32) ([]int, error) {
+func (impl *SMTPNotificationServiceImpl) SaveOrEditNotificationConfig(channelReq []*beans.SMTPConfigDto, userId int32) ([]int, error) {
 	var responseIds []int
 	smtpConfigs := buildSMTPNewConfigs(channelReq, userId)
 	for _, config := range smtpConfigs {
@@ -137,7 +115,7 @@ func (impl *SMTPNotificationServiceImpl) SaveOrEditNotificationConfig(channelReq
 	return responseIds, nil
 }
 
-func (impl *SMTPNotificationServiceImpl) FetchSMTPNotificationConfigById(id int) (*SMTPConfigDto, error) {
+func (impl *SMTPNotificationServiceImpl) FetchSMTPNotificationConfigById(id int) (*beans.SMTPConfigDto, error) {
 	smtpConfig, err := impl.smtpRepository.FindOne(id)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all smtp config", "err", err)
@@ -147,12 +125,12 @@ func (impl *SMTPNotificationServiceImpl) FetchSMTPNotificationConfigById(id int)
 	return smtpConfigDto, nil
 }
 
-func (impl *SMTPNotificationServiceImpl) FetchAllSMTPNotificationConfig() ([]*SMTPConfigDto, error) {
-	var responseDto []*SMTPConfigDto
+func (impl *SMTPNotificationServiceImpl) FetchAllSMTPNotificationConfig() ([]*beans.SMTPConfigDto, error) {
+	var responseDto []*beans.SMTPConfigDto
 	smtpConfigs, err := impl.smtpRepository.FindAll()
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all smtp config", "err", err)
-		return []*SMTPConfigDto{}, err
+		return []*beans.SMTPConfigDto{}, err
 	}
 	for _, smtpConfig := range smtpConfigs {
 		smtpConfigDto := impl.adaptSMTPConfig(smtpConfig)
@@ -160,20 +138,20 @@ func (impl *SMTPNotificationServiceImpl) FetchAllSMTPNotificationConfig() ([]*SM
 		responseDto = append(responseDto, smtpConfigDto)
 	}
 	if responseDto == nil {
-		responseDto = make([]*SMTPConfigDto, 0)
+		responseDto = make([]*beans.SMTPConfigDto, 0)
 	}
 	return responseDto, nil
 }
 
-func (impl *SMTPNotificationServiceImpl) FetchAllSMTPNotificationConfigAutocomplete() ([]*NotificationChannelAutoResponse, error) {
-	var responseDto []*NotificationChannelAutoResponse
+func (impl *SMTPNotificationServiceImpl) FetchAllSMTPNotificationConfigAutocomplete() ([]*beans.NotificationChannelAutoResponse, error) {
+	var responseDto []*beans.NotificationChannelAutoResponse
 	smtpConfigs, err := impl.smtpRepository.FindAll()
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all smtp config", "err", err)
-		return []*NotificationChannelAutoResponse{}, err
+		return []*beans.NotificationChannelAutoResponse{}, err
 	}
 	for _, smtpConfig := range smtpConfigs {
-		smtpConfigDto := &NotificationChannelAutoResponse{
+		smtpConfigDto := &beans.NotificationChannelAutoResponse{
 			Id:         smtpConfig.Id,
 			ConfigName: smtpConfig.ConfigName}
 		responseDto = append(responseDto, smtpConfigDto)
@@ -181,8 +159,8 @@ func (impl *SMTPNotificationServiceImpl) FetchAllSMTPNotificationConfigAutocompl
 	return responseDto, nil
 }
 
-func (impl *SMTPNotificationServiceImpl) adaptSMTPConfig(smtpConfig *repository.SMTPConfig) *SMTPConfigDto {
-	smtpConfigDto := &SMTPConfigDto{
+func (impl *SMTPNotificationServiceImpl) adaptSMTPConfig(smtpConfig *repository.SMTPConfig) *beans.SMTPConfigDto {
+	smtpConfigDto := &beans.SMTPConfigDto{
 		OwnerId:      smtpConfig.OwnerId,
 		Port:         smtpConfig.Port,
 		Host:         smtpConfig.Host,
@@ -199,7 +177,7 @@ func (impl *SMTPNotificationServiceImpl) adaptSMTPConfig(smtpConfig *repository.
 	return smtpConfigDto
 }
 
-func buildSMTPNewConfigs(smtpReq []*SMTPConfigDto, userId int32) []*repository.SMTPConfig {
+func buildSMTPNewConfigs(smtpReq []*beans.SMTPConfigDto, userId int32) []*repository.SMTPConfig {
 	var smtpConfigs []*repository.SMTPConfig
 	for _, c := range smtpReq {
 		smtpConfig := &repository.SMTPConfig{
@@ -244,13 +222,13 @@ func (impl *SMTPNotificationServiceImpl) buildConfigUpdateModel(smtpConfig *repo
 	model.Deleted = false
 }
 
-func (impl *SMTPNotificationServiceImpl) DeleteNotificationConfig(deleteReq *SMTPConfigDto, userId int32) error {
+func (impl *SMTPNotificationServiceImpl) DeleteNotificationConfig(deleteReq *beans.SMTPConfigDto, userId int32) error {
 	existingConfig, err := impl.smtpRepository.FindOne(deleteReq.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete", "err", err, "id", deleteReq.Id)
 		return err
 	}
-	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsByConfigIdAndConfigType(deleteReq.Id, SMTP_CONFIG_TYPE)
+	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsByConfigIdAndConfigType(deleteReq.Id, beans.SMTP_CONFIG_TYPE)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in deleting smtp config", "config", deleteReq)
 		return err

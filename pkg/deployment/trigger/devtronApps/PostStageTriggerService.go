@@ -19,7 +19,7 @@ package devtronApps
 import (
 	"context"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
@@ -92,9 +92,9 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 	cdStageWorkflowRequest.Type = bean3.CD_WORKFLOW_PIPELINE_TYPE
 	// handling plugin specific logic
 
-	pluginImagePathReservationIds, err := impl.SetCopyContainerImagePluginDataInWorkflowRequest(cdStageWorkflowRequest, pipeline.Id, types.POST, cdWf.CiArtifact)
+	pluginImagePathReservationIds, err := impl.setCopyContainerImagePluginDataAndReserveImages(cdStageWorkflowRequest, pipeline.Id, types.POST, cdWf.CiArtifact)
 	if err != nil {
-		runner.Status = pipelineConfig.WorkflowFailed
+		runner.Status = cdWorkflow.WorkflowFailed
 		runner.Message = err.Error()
 		_ = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 		return err

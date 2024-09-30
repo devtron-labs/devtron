@@ -28,6 +28,7 @@ import (
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
+	cdWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
@@ -43,6 +44,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
+	bean4 "github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/workflow/dag/bean"
 	error2 "github.com/devtron-labs/devtron/util/error"
 	util2 "github.com/devtron-labs/devtron/util/event"
@@ -74,7 +76,7 @@ type WorkflowDagExecutor interface {
 	HandleCiSuccessEvent(triggerContext triggerBean.TriggerContext, ciPipelineId int, request *bean2.CiArtifactWebhookRequest, imagePushedAt time.Time) (id int, err error)
 	HandlePreStageSuccessEvent(triggerContext triggerBean.TriggerContext, cdStageCompleteEvent eventProcessorBean.CdStageCompleteEvent) error
 	HandleDeploymentSuccessEvent(triggerContext triggerBean.TriggerContext, pipelineOverride *chartConfig.PipelineOverride) error
-	HandlePostStageSuccessEvent(triggerContext triggerBean.TriggerContext, cdWorkflowId int, cdPipelineId int, triggeredBy int32, pluginRegistryImageDetails map[string][]string) error
+	HandlePostStageSuccessEvent(triggerContext triggerBean.TriggerContext, wfr *bean4.CdWorkflowRunnerDto, cdWorkflowId int, cdPipelineId int, triggeredBy int32, pluginRegistryImageDetails map[string][]string) error
 	HandleCdStageReTrigger(runner *pipelineConfig.CdWorkflowRunner) error
 	HandleCiStepFailedEvent(ciPipelineId int, request *bean2.CiArtifactWebhookRequest) (err error)
 	HandleExternalCiWebhook(externalCiId int, request *bean2.CiArtifactWebhookRequest,
@@ -250,7 +252,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 			return false
 		}
 		// If release not found, mark the deployment as failure
-		wfr.Status = pipelineConfig.WorkflowFailed
+		wfr.Status = cdWorkflow2.WorkflowFailed
 		wfr.Message = fmt.Sprintf("helm client error: %s", util.GetClientErrorDetailedMessage(err))
 		wfr.FinishedOn = time.Now()
 		return true
@@ -259,13 +261,13 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 	switch helmInstalledDevtronApp.GetReleaseStatus() {
 	case serverBean.HelmReleaseStatusSuperseded:
 		// If release status is superseded, mark the deployment as failure
-		wfr.Status = pipelineConfig.WorkflowFailed
-		wfr.Message = pipelineConfig.ErrorDeploymentSuperseded.Error()
+		wfr.Status = cdWorkflow2.WorkflowFailed
+		wfr.Message = cdWorkflow2.ErrorDeploymentSuperseded.Error()
 		wfr.FinishedOn = time.Now()
 		return true
 	case serverBean.HelmReleaseStatusFailed:
 		// If release status is failed, mark the deployment as failure
-		wfr.Status = pipelineConfig.WorkflowFailed
+		wfr.Status = cdWorkflow2.WorkflowFailed
 		wfr.Message = helmInstalledDevtronApp.GetDescription()
 		wfr.FinishedOn = time.Now()
 		return true
@@ -278,15 +280,15 @@ func (impl *WorkflowDagExecutorImpl) UpdateWorkflowRunnerStatusForDeployment(app
 
 		if helmInstalledDevtronApp.GetApplicationStatus() == argoApplication.Healthy {
 			// mark the deployment as succeed
-			wfr.Status = pipelineConfig.WorkflowSucceeded
+			wfr.Status = cdWorkflow2.WorkflowSucceeded
 			wfr.FinishedOn = time.Now()
 			return true
 		}
 	}
-	if wfr.Status == pipelineConfig.WorkflowInProgress {
+	if wfr.Status == cdWorkflow2.WorkflowInProgress {
 		return false
 	}
-	wfr.Status = pipelineConfig.WorkflowInProgress
+	wfr.Status = cdWorkflow2.WorkflowInProgress
 	return true
 }
 
@@ -315,7 +317,7 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 				return
 			}
 			if util4.IsRunnerStatusFailed(cdWfr.Status) {
-				if cdWfr.Message == pipelineConfig.ErrorDeploymentSuperseded.Error() {
+				if cdWfr.Message == cdWorkflow2.ErrorDeploymentSuperseded.Error() {
 					dbErr := impl.pipelineStatusTimelineService.MarkPipelineStatusTimelineSuperseded(cdWfr.Id)
 					if dbErr != nil {
 						impl.logger.Errorw("error updating CdPipelineStatusTimeline", "err", dbErr, "releaseErr", releaseErr)
@@ -345,7 +347,7 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 		}
 		return
 	} else if errors.Is(releaseErr, context.Canceled) || strings.Contains(releaseErr.Error(), context.Canceled.Error()) {
-		if err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, pipelineConfig.ErrorDeploymentSuperseded, overrideRequest.UserId); err != nil {
+		if err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, cdWorkflow2.ErrorDeploymentSuperseded, overrideRequest.UserId); err != nil {
 			impl.logger.Errorw("error while updating current runner status to failed, handleAsyncTriggerReleaseError", "cdWfr", cdWfr.Id, "err", err)
 		}
 		return
@@ -368,7 +370,7 @@ func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(cdAsyncIn
 	}
 	if util.IsHelmApp(overrideRequest.DeploymentAppType) {
 		// update workflow runner status, used in app workflow view
-		err = impl.cdWorkflowCommonService.UpdateNonTerminalStatusInRunner(newCtx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowStarting)
+		err = impl.cdWorkflowCommonService.UpdateNonTerminalStatusInRunner(newCtx, overrideRequest.WfrId, overrideRequest.UserId, cdWorkflow2.WorkflowStarting)
 		if err != nil {
 			impl.logger.Errorw("error in updating the workflow runner status, processDevtronAsyncHelmInstallRequest", "cdWfrId", cdWfr.Id, "err", err)
 			return err
@@ -533,6 +535,19 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext t
 		return err
 	}
 	if wfRunner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
+
+		pluginArtifacts := make(map[string][]string)
+		if cdStageCompleteEvent.PluginArtifacts != nil {
+			pluginArtifacts = cdStageCompleteEvent.PluginArtifacts.GetRegistryToUniqueContainerArtifactDataMapping()
+		}
+		util4.MergeMaps(pluginArtifacts, cdStageCompleteEvent.PluginRegistryArtifactDetails)
+
+		err = impl.deactivateUnusedPaths(wfRunner.ImagePathReservationIds, pluginArtifacts)
+		if err != nil {
+			impl.logger.Errorw("error in deactiving unusedImagePaths", "err", err)
+			return err
+		}
+
 		pipeline, err := impl.pipelineRepository.FindById(cdStageCompleteEvent.CdPipelineId)
 		if err != nil {
 			return err
@@ -548,7 +563,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext t
 				impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", ciArtifact.Id)
 			}
 		}
-		PreCDArtifacts, err := impl.commonArtifactService.SavePluginArtifacts(ciArtifact, cdStageCompleteEvent.PluginRegistryArtifactDetails, pipeline.Id, repository.PRE_CD, cdStageCompleteEvent.TriggeredBy)
+		PreCDArtifacts, err := impl.commonArtifactService.SavePluginArtifacts(ciArtifact, pluginArtifacts, pipeline.Id, repository.PRE_CD, cdStageCompleteEvent.TriggeredBy)
 		if err != nil {
 			impl.logger.Errorw("error in saving plugin artifacts", "err", err)
 			return err
@@ -629,7 +644,7 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(triggerContext
 	} else {
 		// to trigger next pre/cd, if any
 		// finding children cd by pipeline id
-		err = impl.HandlePostStageSuccessEvent(triggerContext, cdWorkflow.Id, pipelineOverride.PipelineId, 1, nil)
+		err = impl.HandlePostStageSuccessEvent(triggerContext, nil, cdWorkflow.Id, pipelineOverride.PipelineId, 1, nil)
 		if err != nil {
 			impl.logger.Errorw("error in triggering children cd after successful deployment event", "parentCdPipelineId", pipelineOverride.PipelineId)
 			return err
@@ -638,7 +653,7 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(triggerContext
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(triggerContext triggerBean.TriggerContext, cdWorkflowId int, cdPipelineId int, triggeredBy int32, pluginRegistryImageDetails map[string][]string) error {
+func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(triggerContext triggerBean.TriggerContext, wfr *bean4.CdWorkflowRunnerDto, cdWorkflowId int, cdPipelineId int, triggeredBy int32, pluginRegistryImageDetails map[string][]string) error {
 	// finding children cd by pipeline id
 	cdPipelinesMapping, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(cdPipelineId)
 	if err != nil {
@@ -651,6 +666,13 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(triggerContext 
 		return err
 	}
 	if len(pluginRegistryImageDetails) > 0 {
+		if wfr != nil {
+			err = impl.deactivateUnusedPaths(wfr.ImagePathReservationIds, pluginRegistryImageDetails)
+			if err != nil {
+				impl.logger.Errorw("error in deactivation images", "err", err)
+				return err
+			}
+		}
 		PostCDArtifacts, err := impl.commonArtifactService.SavePluginArtifacts(ciArtifact, pluginRegistryImageDetails, cdPipelineId, repository.POST_CD, triggeredBy)
 		if err != nil {
 			impl.logger.Errorw("error in saving plugin artifacts", "err", err)
@@ -706,6 +728,13 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 			impl.logger.Errorw("update wf failed for id ", "err", err)
 			return 0, err
 		}
+
+		err = impl.deactivateUnusedPaths(savedWorkflow.ImagePathReservationIds, request.PluginRegistryArtifactDetails)
+		if err != nil {
+			impl.logger.Errorw("error in deactivation images", "err", err)
+			return 0, err
+		}
+
 	}
 
 	pipeline, err := impl.ciPipelineRepository.FindByCiAndAppDetailsById(ciPipelineId)
@@ -870,6 +899,37 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 	}
 	impl.logger.Debugw("Completed: auto trigger for children Stage/CD pipelines", "Time taken", time.Since(start).Seconds())
 	return buildArtifact.Id, err
+}
+
+func (impl *WorkflowDagExecutorImpl) deactivateUnusedPaths(reserveImagePathIds []int, pluginRegistryArtifactDetails map[string][]string) error {
+	// for copy container image plugin if images reserved are not equal to actual copird
+	reservedImagePaths, err := impl.customTagService.GetImagePathsByIds(reserveImagePathIds)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting imagePaths by ids", "ImagePathReservationIds", reserveImagePathIds, "err", err)
+		return err
+	}
+
+	copiedImagesMapping := make(map[string]bool)
+	for _, savedImages := range pluginRegistryArtifactDetails {
+		for _, image := range savedImages {
+			copiedImagesMapping[image] = true
+		}
+	}
+
+	unusedPaths := make([]string, 0, len(reservedImagePaths))
+	for _, reservedImage := range reservedImagePaths {
+		if _, ok := copiedImagesMapping[reservedImage.ImagePath]; !ok {
+			unusedPaths = append(unusedPaths, reservedImage.ImagePath)
+		}
+	}
+
+	err = impl.customTagService.DeactivateImagePathReservationByImagePath(unusedPaths)
+	if err != nil {
+		impl.logger.Errorw("error in deactivating unused image paths", "imagePathReservationIds", reserveImagePathIds, "err", err)
+		return err
+	}
+
+	return nil
 }
 
 func (impl *WorkflowDagExecutorImpl) WriteCiSuccessEvent(request *bean2.CiArtifactWebhookRequest, pipeline *pipelineConfig.CiPipeline, artifact *repository.CiArtifact) {
