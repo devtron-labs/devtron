@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -280,9 +281,10 @@ func (repo AppRepositoryImpl) FindAllActiveAppsWithTeamWithTeamId(teamID int, ap
 
 func (repo AppRepositoryImpl) FindAllActiveAppsWithTeamByAppNameMatch(appNameMatch string, appType helper.AppType) ([]*App, error) {
 	var apps []*App
-	appNameLikeQuery := "app.app_name like '%" + appNameMatch + "%'"
 	err := repo.dbConnection.Model(&apps).Column("Team").
-		Where("app.active = ?", true).Where("app.app_type = ?", appType).Where(appNameLikeQuery).
+		Where("app.active = ?", true).
+		Where("app.app_type = ?", appType).
+		Where("app.app_name like ?", util.GetLIKEClauseQueryParam(appNameMatch)).
 		Select()
 	return apps, err
 }
@@ -446,24 +448,25 @@ func (repo AppRepositoryImpl) FetchAppIdsWithFilter(jobListingFilter helper.AppL
 		Id int `json:"id"`
 	}
 	var jobIds []AppId
-	whereCondition := " where active = true and app_type = 2 "
+	var queryParams []interface{}
+	query := "select id from app where active = true and app_type = 2  "
 	if len(jobListingFilter.Teams) > 0 {
-		whereCondition += " and team_id in (" + helper.GetCommaSepratedString(jobListingFilter.Teams) + ")"
+		query += " and team_id in (?) "
+		queryParams = append(queryParams, pg.In(jobListingFilter.Teams))
 	}
 	if len(jobListingFilter.AppIds) > 0 {
-		whereCondition += " and id in (" + helper.GetCommaSepratedString(jobListingFilter.AppIds) + ")"
+		query += " and id in (?) "
+		queryParams = append(queryParams, pg.In(jobListingFilter.AppIds))
 	}
-
 	if len(jobListingFilter.AppNameSearch) > 0 {
-		whereCondition += " and display_name like '%" + jobListingFilter.AppNameSearch + "%' "
+		query += " and display_name like ? "
+		queryParams = append(queryParams, util.GetLIKEClauseQueryParam(jobListingFilter.AppNameSearch))
 	}
-	orderByCondition := " order by display_name "
+	query += " order by display_name "
 	if jobListingFilter.SortOrder == "DESC" {
-		orderByCondition += string(jobListingFilter.SortOrder)
+		query += " DESC "
 	}
-	query := "select id " + "from app " + whereCondition + orderByCondition
-
-	_, err := repo.dbConnection.Query(&jobIds, query)
+	_, err := repo.dbConnection.Query(&jobIds, query, queryParams...)
 	appCounts := make([]int, 0)
 	for _, id := range jobIds {
 		appCounts = append(appCounts, id.Id)
@@ -482,12 +485,10 @@ func (repo AppRepositoryImpl) FetchAppIdsByDisplayNamesForJobs(names []string) (
 		DisplayName string `json:"display_name"`
 	}
 	var jobIdName []App
-	whereCondition := fmt.Sprintf(" where active = true and app_type = %v ", helper.Job)
-	whereCondition += " and display_name in (" + helper.GetCommaSepratedStringWithComma(names) + ");"
-	query := "select id, display_name from app " + whereCondition
-	_, err := repo.dbConnection.Query(&jobIdName, query)
-	appResp := make(map[int]string)
-	jobIds := make([]int, 0)
+	query := "select id, display_name from app where active = ? and app_type = ? and display_name in (?);"
+	_, err := repo.dbConnection.Query(&jobIdName, query, true, helper.Job, pg.In(names))
+	appResp := make(map[int]string, len(jobIdName))
+	jobIds := make([]int, 0, len(jobIdName))
 	for _, id := range jobIdName {
 		appResp[id.Id] = id.DisplayName
 		jobIds = append(jobIds, id.Id)

@@ -121,7 +121,7 @@ func (impl PipelineStrategyHistoryServiceImpl) GetDeploymentDetailsForDeployedSt
 	}
 	var historiesDto []*PipelineStrategyHistoryDto
 	for _, history := range histories {
-		emailId, err := impl.userService.GetEmailById(history.DeployedBy)
+		emailId, err := impl.userService.GetActiveEmailById(history.DeployedBy)
 		if err != nil {
 			impl.logger.Errorw("unable to find user email by id", "err", err, "userId", history.DeployedBy)
 			return nil, err
