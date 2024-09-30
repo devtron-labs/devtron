@@ -21,8 +21,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
-	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
+	"github.com/devtron-labs/common-lib/utils/registry"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -50,13 +50,9 @@ type ExternalCiWebhookDto struct {
 	AppName                       string                  `json:"appName"`
 	IsArtifactUploaded            bool                    `json:"isArtifactUploaded"`
 	FailureReason                 string                  `json:"failureReason"`
-	ImageDetailsFromCR            *ImageDetailsFromCR     `json:"imageDetailsFromCR"`
+	ImageDetailsFromCR            json.RawMessage         `json:"imageDetailsFromCR"`
 	PluginRegistryArtifactDetails map[string][]string     `json:"PluginRegistryArtifactDetails"`
 	PluginArtifactStage           string                  `json:"pluginArtifactStage"`
-}
-type ImageDetailsFromCR struct {
-	ImageDetails []types.ImageDetail `json:"imageDetails"`
-	Region       string              `json:"region"`
 }
 
 type CiArtifactWebhookRequest struct {
@@ -75,7 +71,7 @@ type CiArtifactWebhookRequest struct {
 
 type WebhookService interface {
 	AuthenticateExternalCiWebhook(apiKey string) (int, error)
-	HandleMultipleImagesFromEvent(imageDetails []types.ImageDetail, ciWorkflowId int) (map[string]*pipelineConfig.CiWorkflow, error)
+	HandleMultipleImagesFromEvent(imageDetails []*registry.GenericImageDetail, ciWorkflowId int) (map[string]*pipelineConfig.CiWorkflow, error)
 	GetTriggerValidateFuncs() []pubsub.ValidateMsg
 }
 
@@ -136,7 +132,7 @@ func (impl WebhookServiceImpl) AuthenticateExternalCiWebhook(apiKey string) (int
 }
 
 // HandleMultipleImagesFromEvent handles multiple images from plugin and creates ci workflow for n-1 images for mapping in ci_artifact
-func (impl *WebhookServiceImpl) HandleMultipleImagesFromEvent(imageDetails []types.ImageDetail, ciWorkflowId int) (map[string]*pipelineConfig.CiWorkflow, error) {
+func (impl *WebhookServiceImpl) HandleMultipleImagesFromEvent(imageDetails []*registry.GenericImageDetail, ciWorkflowId int) (map[string]*pipelineConfig.CiWorkflow, error) {
 	ciWorkflow, err := impl.ciWorkflowRepository.FindById(ciWorkflowId)
 	if err != nil {
 		impl.logger.Errorw("error in finding ci workflow by id ", "err", err, "ciWorkFlowId", ciWorkflowId)
@@ -146,7 +142,7 @@ func (impl *WebhookServiceImpl) HandleMultipleImagesFromEvent(imageDetails []typ
 	// creating n-1 workflows for rest images, oldest will be mapped to original workflow id.
 	digestWorkflowMap := make(map[string]*pipelineConfig.CiWorkflow)
 	// mapping oldest to original ciworkflowId
-	digestWorkflowMap[*imageDetails[0].ImageDigest] = ciWorkflow
+	digestWorkflowMap[imageDetails[0].GetGenericImageDetailIdentifier()] = ciWorkflow
 	for i := 1; i < len(imageDetails); i++ {
 		workflow := &pipelineConfig.CiWorkflow{
 			Name:               ciWorkflow.Name + fmt.Sprintf("-child-%d", i),
@@ -170,7 +166,7 @@ func (impl *WebhookServiceImpl) HandleMultipleImagesFromEvent(imageDetails []typ
 			impl.logger.Errorw("error in saving workflow for child workflow", "err", err, "parentCiWorkflowId", ciWorkflowId)
 			return nil, err
 		}
-		digestWorkflowMap[*imageDetails[i].ImageDigest] = workflow
+		digestWorkflowMap[imageDetails[i].GetGenericImageDetailIdentifier()] = workflow
 
 	}
 	return digestWorkflowMap, nil

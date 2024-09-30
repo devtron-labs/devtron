@@ -22,9 +22,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
-	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
+	"github.com/devtron-labs/common-lib/utils/registry"
 	apiBean "github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -185,8 +185,15 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDStageCompleteEvent() error {
 				return
 			}
 		} else if wfr.WorkflowType == apiBean.CD_WORKFLOW_TYPE_POST {
+
+			pluginArtifacts := make(map[string][]string)
+			if cdStageCompleteEvent.PluginArtifacts != nil {
+				pluginArtifacts = cdStageCompleteEvent.PluginArtifacts.GetRegistryToUniqueContainerArtifactDataMapping()
+			}
+			globalUtil.MergeMaps(pluginArtifacts, cdStageCompleteEvent.PluginRegistryArtifactDetails)
+
 			impl.logger.Debugw("received post stage success event for workflow runner ", "wfId", strconv.Itoa(wfr.Id))
-			err = impl.workflowDagExecutor.HandlePostStageSuccessEvent(triggerContext, wfr.CdWorkflowId, cdStageCompleteEvent.CdPipelineId, cdStageCompleteEvent.TriggeredBy, cdStageCompleteEvent.PluginRegistryArtifactDetails)
+			err = impl.workflowDagExecutor.HandlePostStageSuccessEvent(triggerContext, wfr, wfr.CdWorkflowId, cdStageCompleteEvent.CdPipelineId, cdStageCompleteEvent.TriggeredBy, pluginArtifacts)
 			if err != nil {
 				impl.logger.Errorw("deployment success event error", "err", err)
 				return
@@ -474,12 +481,25 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 	return nil
 }
 
+func (impl *WorkflowEventProcessorImpl) extractCiCompleteEventFrom(msg *model.PubSubMsg) (bean.CiCompleteEvent, error) {
+	ciCompleteEvent := bean.CiCompleteEvent{}
+	err := json.Unmarshal([]byte(msg.Data), &ciCompleteEvent)
+	if err != nil {
+		impl.logger.Error("error while unmarshalling json data", "error", err)
+		return ciCompleteEvent, err
+	}
+	err = ciCompleteEvent.SetImageDetailsFromCR()
+	if err != nil {
+		impl.logger.Error("error in unmarshalling imageDetailsFromCr results", "error", err)
+		return ciCompleteEvent, err
+	}
+	return ciCompleteEvent, nil
+}
+
 func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 	callback := func(msg *model.PubSubMsg) {
-		ciCompleteEvent := bean.CiCompleteEvent{}
-		err := json.Unmarshal([]byte(msg.Data), &ciCompleteEvent)
+		ciCompleteEvent, err := impl.extractCiCompleteEventFrom(msg)
 		if err != nil {
-			impl.logger.Error("error while unmarshalling json data", "error", err)
 			return
 		}
 		impl.logger.Debugw("ci complete event for ci", "ciPipelineId", ciCompleteEvent.PipelineId)
@@ -501,34 +521,33 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 					ciCompleteEvent.PipelineId, "request: ", req, "error: ", err)
 				return
 			}
-		} else if ciCompleteEvent.ImageDetailsFromCR != nil {
-			if len(ciCompleteEvent.ImageDetailsFromCR.ImageDetails) > 0 {
-				imageDetails := globalUtil.GetReverseSortedImageDetails(ciCompleteEvent.ImageDetailsFromCR.ImageDetails)
+		} else if ciCompleteEvent.GetPluginImageDetails() != nil {
+			if len(ciCompleteEvent.GetPluginImageDetails().ImageDetails) > 0 {
+				imageDetails := registry.SortGenericImageDetailByCreatedOn(ciCompleteEvent.GetPluginImageDetails().ImageDetails, registry.Ascending)
 				digestWorkflowMap, err := impl.webhookService.HandleMultipleImagesFromEvent(imageDetails, *ciCompleteEvent.WorkflowId)
 				if err != nil {
 					impl.logger.Errorw("error in getting digest workflow map", "err", err, "workflowId", ciCompleteEvent.WorkflowId)
 					return
 				}
 				for _, detail := range imageDetails {
-					if detail.ImageTags == nil {
+					if detail == nil || len(detail.Image) == 0 {
 						continue
 					}
-					request, err := impl.BuildCIArtifactRequestForImageFromCR(detail, ciCompleteEvent.ImageDetailsFromCR.Region, ciCompleteEvent, digestWorkflowMap[*detail.ImageDigest].Id)
+					request, err := impl.buildCIArtifactRequestForImageFromCR(detail, ciCompleteEvent, digestWorkflowMap[detail.GetGenericImageDetailIdentifier()].Id)
 					if err != nil {
 						impl.logger.Error("Error while creating request for pipelineID", "pipelineId", ciCompleteEvent.PipelineId, "err", err)
 						return
 					}
-					resp, err := impl.ValidateAndHandleCiSuccessEvent(triggerContext, ciCompleteEvent.PipelineId, request, detail.ImagePushedAt)
+					resp, err := impl.ValidateAndHandleCiSuccessEvent(triggerContext, ciCompleteEvent.PipelineId, request, detail.LastUpdatedOn)
 					if err != nil {
 						return
 					}
 					impl.logger.Debug("response of handle ci success event for multiple images from plugin", "resp", resp)
 				}
 			}
-
 		} else {
 			globalUtil.TriggerCIMetrics(ciCompleteEvent.Metrics, impl.globalEnvVariables.ExposeCiMetrics, ciCompleteEvent.PipelineName, ciCompleteEvent.AppName)
-			resp, err := impl.ValidateAndHandleCiSuccessEvent(triggerContext, ciCompleteEvent.PipelineId, req, &time.Time{})
+			resp, err := impl.ValidateAndHandleCiSuccessEvent(triggerContext, ciCompleteEvent.PipelineId, req, time.Time{})
 			if err != nil {
 				return
 			}
@@ -555,7 +574,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 	return nil
 }
 
-func (impl *WorkflowEventProcessorImpl) ValidateAndHandleCiSuccessEvent(triggerContext triggerBean.TriggerContext, ciPipelineId int, request *wrokflowDagBean.CiArtifactWebhookRequest, imagePushedAt *time.Time) (int, error) {
+func (impl *WorkflowEventProcessorImpl) ValidateAndHandleCiSuccessEvent(triggerContext triggerBean.TriggerContext, ciPipelineId int, request *wrokflowDagBean.CiArtifactWebhookRequest, imagePushedAt time.Time) (int, error) {
 	validationErr := impl.validator.Struct(request)
 	if validationErr != nil {
 		impl.logger.Errorw("validation err, HandleCiSuccessEvent", "err", validationErr, "payload", request)
@@ -624,6 +643,12 @@ func (impl *WorkflowEventProcessorImpl) BuildCiArtifactRequest(event bean.CiComp
 		event.TriggeredBy = 1 // system triggered event
 	}
 
+	pluginArtifacts := make(map[string][]string)
+	if event.PluginArtifacts != nil {
+		pluginArtifacts = event.PluginArtifacts.GetRegistryToUniqueContainerArtifactDataMapping()
+	}
+	globalUtil.MergeMaps(pluginArtifacts, event.PluginRegistryArtifactDetails)
+
 	request := &wrokflowDagBean.CiArtifactWebhookRequest{
 		Image:                         event.DockerImage,
 		ImageDigest:                   event.Digest,
@@ -633,7 +658,7 @@ func (impl *WorkflowEventProcessorImpl) BuildCiArtifactRequest(event bean.CiComp
 		UserId:                        event.TriggeredBy,
 		WorkflowId:                    event.WorkflowId,
 		IsArtifactUploaded:            event.IsArtifactUploaded,
-		PluginRegistryArtifactDetails: event.PluginRegistryArtifactDetails,
+		PluginRegistryArtifactDetails: pluginArtifacts,
 		PluginArtifactStage:           event.PluginArtifactStage,
 	}
 	// if DataSource is empty, repository.WEBHOOK is considered as default
@@ -643,13 +668,13 @@ func (impl *WorkflowEventProcessorImpl) BuildCiArtifactRequest(event bean.CiComp
 	return request, nil
 }
 
-func (impl *WorkflowEventProcessorImpl) BuildCIArtifactRequestForImageFromCR(imageDetails types.ImageDetail, region string, event bean.CiCompleteEvent, workflowId int) (*wrokflowDagBean.CiArtifactWebhookRequest, error) {
+func (impl *WorkflowEventProcessorImpl) buildCIArtifactRequestForImageFromCR(imageDetails *registry.GenericImageDetail, event bean.CiCompleteEvent, workflowId int) (*wrokflowDagBean.CiArtifactWebhookRequest, error) {
 	if event.TriggeredBy == 0 {
 		event.TriggeredBy = 1 // system triggered event
 	}
 	request := &wrokflowDagBean.CiArtifactWebhookRequest{
-		Image:              globalUtil.ExtractEcrImage(*imageDetails.RegistryId, region, *imageDetails.RepositoryName, imageDetails.ImageTags[0]),
-		ImageDigest:        *imageDetails.ImageDigest,
+		Image:              imageDetails.Image,
+		ImageDigest:        imageDetails.ImageDigest,
 		DataSource:         event.DataSource,
 		PipelineName:       event.PipelineName,
 		UserId:             event.TriggeredBy,

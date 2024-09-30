@@ -86,7 +86,7 @@ type HelmAppService interface {
 	UpdateApplicationWithChartInfoWithExtraValues(ctx context.Context, appIdentifier *helmBean.AppIdentifier, chartRepository *gRPC.ChartRepository, extraValues map[string]interface{}, extraValuesYamlUrl string, useLatestChartVersion bool) (*openapi.UpdateReleaseResponse, error)
 	TemplateChart(ctx context.Context, templateChartRequest *openapi2.TemplateChartRequest) (*openapi2.TemplateChartResponse, error)
 	GetNotes(ctx context.Context, request *gRPC.InstallReleaseRequest) (string, error)
-	ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *gRPC.RegistryCredential) bool
+	ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *gRPC.RegistryCredential) (bool, error)
 	GetRevisionHistoryMaxValue(appType bean.SourceAppType) int32
 	GetResourceTreeForExternalResources(ctx context.Context, clusterId int, clusterConfig *gRPC.ClusterConfig, resources []*gRPC.ExternalResourceDetail) (*gRPC.ResourceTreeResponse, error)
 	CheckIfNsExistsForClusterIds(clusterIdToNsMap map[int]string) error
@@ -1022,13 +1022,13 @@ func (impl *HelmAppServiceImpl) GetNotes(ctx context.Context, request *gRPC.Inst
 	return notesTxt, err
 }
 
-func (impl *HelmAppServiceImpl) ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *gRPC.RegistryCredential) bool {
+func (impl *HelmAppServiceImpl) ValidateOCIRegistry(ctx context.Context, OCIRegistryRequest *gRPC.RegistryCredential) (bool, error) {
 	response, err := impl.helmAppClient.ValidateOCIRegistry(ctx, OCIRegistryRequest)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart", "err", err)
-		return false
+		return false, err
 	}
-	return response.IsLoggedIn
+	return response.IsLoggedIn, nil
 }
 
 func (impl *HelmAppServiceImpl) DecodeAppId(appId string) (*helmBean.AppIdentifier, error) {
@@ -1136,7 +1136,7 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.D
 			// do not add app in the list which are created using cd_pipelines (check combination of clusterId, namespace, releaseName)
 			var toExcludeFromList bool
 			for _, helmCdPipeline := range helmCdPipelines {
-				helmAppReleaseName := util2.BuildDeployedAppName(helmCdPipeline.App.AppName, helmCdPipeline.Environment.Name)
+				helmAppReleaseName := helmCdPipeline.DeploymentAppName
 				if deployedapp.AppName == helmAppReleaseName && int(deployedapp.EnvironmentDetail.ClusterId) == helmCdPipeline.Environment.ClusterId && deployedapp.EnvironmentDetail.Namespace == helmCdPipeline.Environment.Namespace {
 					toExcludeFromList = true
 					break
@@ -1159,7 +1159,12 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *gRPC.D
 			}
 			// end
 			lastDeployed := deployedapp.LastDeployed.AsTime()
-			appDetails, appFetchErr := impl.appRepository.FindActiveByName(deployedapp.AppName)
+			appDetails, appFetchErr := impl.getAppForAppIdentifier(
+				&helmBean.AppIdentifier{
+					ClusterId:   int(deployedapp.EnvironmentDetail.ClusterId),
+					Namespace:   deployedapp.EnvironmentDetail.Namespace,
+					ReleaseName: deployedapp.AppName,
+				})
 			projectId := int32(0)
 			if appFetchErr == nil {
 				projectId = int32(appDetails.TeamId)

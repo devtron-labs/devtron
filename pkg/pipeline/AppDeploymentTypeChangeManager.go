@@ -242,7 +242,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 		TriggeredPipelines:    make([]*bean.CdPipelineTrigger, 0),
 	}
 
-	var deleteDeploymentType bean3.DeploymentType
+	var deleteDeploymentType string
 
 	if request.DesiredDeploymentType == bean3.ArgoCd {
 		deleteDeploymentType = bean3.Helm
@@ -251,12 +251,12 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangePipelineDeploymentType(ctx
 	}
 
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvIdAndDeploymentType(request.EnvId,
-		string(deleteDeploymentType), request.ExcludeApps, request.IncludeApps)
+		deleteDeploymentType, request.ExcludeApps, request.IncludeApps)
 
 	if err != nil {
 		impl.logger.Errorw("Error fetching cd pipelines",
 			"environmentId", request.EnvId,
-			"currentDeploymentAppType", string(deleteDeploymentType),
+			"currentDeploymentAppTypes", deleteDeploymentType,
 			"err", err)
 		return response, err
 	}
@@ -334,7 +334,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) TriggerDeploymentAfterTypeChange
 	var err error
 
 	cdPipelines, err := impl.pipelineRepository.FindActiveByEnvIdAndDeploymentType(request.EnvId,
-		string(request.DesiredDeploymentType), request.ExcludeApps, request.IncludeApps)
+		request.DesiredDeploymentType, request.ExcludeApps, request.IncludeApps)
 
 	if err != nil {
 		impl.logger.Errorw("Error fetching cd pipelines",
@@ -475,11 +475,10 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 			continue
 		}
 
-		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
 		// delete request
 		var err error
 		if envDeploymentConfig.DeploymentAppType == bean3.ArgoCd {
-			err = impl.deleteArgoCdApp(ctx, pipeline, deploymentAppName, true)
+			err = impl.deleteArgoCdApp(ctx, pipeline, pipeline.DeploymentAppName, true)
 
 		} else {
 
@@ -552,7 +551,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 			}
 			if err != nil {
 				impl.logger.Errorw("error registering app on ACD with error: "+err.Error(),
-					"deploymentAppName", deploymentAppName,
+					"deploymentAppName", pipeline.DeploymentAppName,
 					"envId", pipeline.EnvironmentId,
 					"appId", pipeline.AppId,
 					"err", err)
@@ -568,7 +567,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 
 		if err != nil {
 			impl.logger.Errorw("error deleting app on "+envDeploymentConfig.DeploymentAppType,
-				"deployment app name", deploymentAppName,
+				"deployment app name", pipeline.DeploymentAppName,
 				"err", err)
 
 			// deletion failed, append to the list of failed pipelines
@@ -597,7 +596,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentAppsForEnvironme
 
 	// fetch active pipelines from database for the given environment id and current deployment app type
 	pipelines, err := impl.pipelineRepository.FindActiveByEnvIdAndDeploymentType(environmentId,
-		string(currentDeploymentAppType), exclusionList, includeApps)
+		currentDeploymentAppType, exclusionList, includeApps)
 
 	deploymentConfigs := make([]*bean4.DeploymentConfig, 0)
 	for _, p := range pipelines {
@@ -728,7 +727,6 @@ func (impl *AppDeploymentTypeChangeManagerImpl) fetchDeletedApp(ctx context.Cont
 		if err != nil {
 			impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
 		}
-		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
 		if envDeploymentConfig.DeploymentAppType == bean3.ArgoCd {
 			appIdentifier := &helmBean.AppIdentifier{
 				ClusterId:   pipeline.Environment.ClusterId,
@@ -738,15 +736,15 @@ func (impl *AppDeploymentTypeChangeManagerImpl) fetchDeletedApp(ctx context.Cont
 			_, err = impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
 		} else {
 			req := &application.ApplicationQuery{
-				Name: &deploymentAppName,
+				Name: &pipeline.DeploymentAppName,
 			}
 			_, err = impl.application.Get(ctx, req)
 		}
 		if err != nil {
-			impl.logger.Errorw("error in getting application detail", "err", err, "deploymentAppName", deploymentAppName)
+			impl.logger.Errorw("error in getting application detail", "err", err, "deploymentAppName", pipeline.DeploymentAppName)
 		}
 
-		if err != nil && checkAppReleaseNotExist(err) {
+		if err != nil && CheckAppReleaseNotExist(err) {
 			successfulPipelines = impl.appendToDeploymentChangeStatusList(
 				successfulPipelines,
 				pipeline,

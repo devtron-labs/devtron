@@ -105,6 +105,7 @@ import (
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
@@ -125,6 +126,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
+	"github.com/devtron-labs/devtron/pkg/configDiff"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	deployment2 "github.com/devtron-labs/devtron/pkg/deployment"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
@@ -711,6 +713,13 @@ func InitializeApp() (*App, error) {
 		scopedVariable.NewScopedVariableRestHandlerImpl,
 		wire.Bind(new(scopedVariable.ScopedVariableRestHandler), new(*scopedVariable.ScopedVariableRestHandlerImpl)),
 
+		router.NewDeploymentConfigurationRouter,
+		wire.Bind(new(router.DeploymentConfigurationRouter), new(*router.DeploymentConfigurationRouterImpl)),
+		restHandler.NewDeploymentConfigurationRestHandlerImpl,
+		wire.Bind(new(restHandler.DeploymentConfigurationRestHandler), new(*restHandler.DeploymentConfigurationRestHandlerImpl)),
+		configDiff.NewDeploymentConfigurationServiceImpl,
+		wire.Bind(new(configDiff.DeploymentConfigurationService), new(*configDiff.DeploymentConfigurationServiceImpl)),
+
 		router.NewTelemetryRouterImpl,
 		wire.Bind(new(router.TelemetryRouter), new(*router.TelemetryRouterImpl)),
 		restHandler.NewTelemetryRestHandlerImpl,
@@ -997,6 +1006,9 @@ func InitializeApp() (*App, error) {
 
 		repocreds.NewServiceClientImpl,
 		wire.Bind(new(repocreds.ServiceClient), new(*repocreds.ServiceClientImpl)),
+
+		dbMigration.NewDbMigrationServiceImpl,
+		wire.Bind(new(dbMigration.DbMigration), new(*dbMigration.DbMigrationServiceImpl)),
 	)
 	return &App{}, nil
 }

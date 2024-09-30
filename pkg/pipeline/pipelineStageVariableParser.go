@@ -33,8 +33,9 @@ type copyContainerImagePluginInputVariable = string
 type RefPluginName = string
 
 const (
-	COPY_CONTAINER_IMAGE RefPluginName = "Copy container image"
-	EMPTY_STRING                       = " "
+	COPY_CONTAINER_IMAGE            RefPluginName = "Copy container image"
+	COPY_CONTAINER_IMAGE_VERSION_V1               = "1.0.0"
+	EMPTY_STRING                                  = " "
 )
 
 const (

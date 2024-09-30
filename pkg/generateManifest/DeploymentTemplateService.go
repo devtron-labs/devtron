@@ -501,7 +501,18 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 		impl.Logger.Errorw("error in fetching environment", "envId", envId, "err", err)
 		return nil, err
 	}
-	installReleaseRequests, err := impl.constructInstallReleaseBulkReq(apps, environment)
+
+	pipelineMap := make(map[string]*pipelineConfig.Pipeline)
+	pipelines, err := impl.pipelineRepository.FindActiveByInFilter(envId, appIds)
+	if err != nil {
+		impl.Logger.Errorw("error in getting pipelines by appIds and envId", "appIds", appIds, "envId", envId, "err", err)
+		return nil, err
+	}
+	for _, p := range pipelines {
+		pipelineMap[fmt.Sprintf("%d-%d", p.AppId, p.EnvironmentId)] = p
+	}
+
+	installReleaseRequests, err := impl.constructInstallReleaseBulkReq(apps, environment, pipelineMap)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching installReleaseRequests", "appIds", appIds, "envId", envId, "err", err)
 		return nil, err

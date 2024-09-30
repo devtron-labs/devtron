@@ -265,7 +265,7 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 			appLabelJsonByte = nil
 		}
 		mergedValues, err := impl.mergeOverrideValues(envOverride, releaseOverrideJson, configMapJson.MergedJson, appLabelJsonByte, strategy)
-		appName := fmt.Sprintf("%s-%s", overrideRequest.AppName, envOverride.Environment.Name)
+		appName := pipeline.DeploymentAppName
 		var k8sErr error
 		mergedValues, k8sErr = impl.updatedExternalCmCsHashForTrigger(newCtx, overrideRequest.ClusterId,
 			envOverride.Namespace, mergedValues, configMapJson.ExternalCmList, configMapJson.ExternalCsList)
@@ -275,10 +275,12 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 			// error is not returned as it's not blocking for deployment process
 			// blocking deployments based on this use case can vary for user to user
 		}
-		mergedValues, err = impl.autoscalingCheckBeforeTrigger(newCtx, appName, envOverride.Namespace, mergedValues, overrideRequest)
-		if err != nil {
-			impl.logger.Errorw("error in autoscaling check before trigger", "pipelineId", overrideRequest.PipelineId, "err", err)
-			return valuesOverrideResponse, err
+		if !envOverride.Environment.IsVirtualEnvironment {
+			mergedValues, err = impl.autoscalingCheckBeforeTrigger(newCtx, appName, envOverride.Namespace, mergedValues, overrideRequest)
+			if err != nil {
+				impl.logger.Errorw("error in autoscaling check before trigger", "pipelineId", overrideRequest.PipelineId, "err", err)
+				return valuesOverrideResponse, err
+			}
 		}
 		// handle image pull secret if access given
 		mergedValues, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(newCtx, envOverride.Environment, artifact, pipeline.CiPipelineId, mergedValues)
@@ -806,7 +808,7 @@ func (impl *ManifestCreationServiceImpl) checkAndFixDuplicateReleaseNo(override 
 				return err
 			}
 			override.PipelineReleaseCounter = currentReleaseNo + 1
-			err = impl.pipelineOverrideRepository.Save(override)
+			err = impl.pipelineOverrideRepository.Update(override)
 			if err != nil {
 				return err
 			}

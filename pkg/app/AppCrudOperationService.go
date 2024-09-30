@@ -24,6 +24,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
@@ -88,6 +89,7 @@ type AppCrudOperationServiceImpl struct {
 	gitMaterialRepository      pipelineConfig.MaterialRepository
 	installedAppDbService      EAMode.InstalledAppDBService
 	crudOperationServiceConfig *CrudOperationServiceConfig
+	dbMigration                dbMigration.DbMigration
 }
 
 func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository,
@@ -96,7 +98,8 @@ func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRe
 	genericNoteService genericNotes.GenericNoteService,
 	gitMaterialRepository pipelineConfig.MaterialRepository,
 	installedAppDbService EAMode.InstalledAppDBService,
-	crudOperationServiceConfig *CrudOperationServiceConfig) *AppCrudOperationServiceImpl {
+	crudOperationServiceConfig *CrudOperationServiceConfig,
+	dbMigration dbMigration.DbMigration) *AppCrudOperationServiceImpl {
 	impl := &AppCrudOperationServiceImpl{
 		appLabelRepository:     appLabelRepository,
 		logger:                 logger,
@@ -106,6 +109,7 @@ func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRe
 		genericNoteService:     genericNoteService,
 		gitMaterialRepository:  gitMaterialRepository,
 		installedAppDbService:  installedAppDbService,
+		dbMigration:            dbMigration,
 	}
 	crudOperationServiceConfig, err := GetCrudOperationServiceConfig()
 	if err != nil {
@@ -463,13 +467,29 @@ func (impl AppCrudOperationServiceImpl) getAppAndProjectForAppIdentifier(appIden
 	var err error
 	appNameUniqueIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
 	app, err = impl.appRepository.FindAppAndProjectByAppName(appNameUniqueIdentifier)
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil && err != pg.ErrNoRows && err != pg.ErrMultiRows {
 		impl.logger.Errorw("error in fetching app meta data by unique app identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
 		return app, err
+	}
+	if err == pg.ErrMultiRows {
+		validApp, err := impl.dbMigration.FixMultipleAppsForInstalledApp(appNameUniqueIdentifier)
+		if err != nil {
+			impl.logger.Errorw("error in fixing multiple installed app entries", "appName", appNameUniqueIdentifier, "err", err)
+			return app, err
+		}
+		return validApp, err
 	}
 	if util.IsErrNoRows(err) {
 		//find app by display name if not found by unique identifier
 		app, err = impl.appRepository.FindAppAndProjectByAppName(appIdentifier.ReleaseName)
+		if err == pg.ErrMultiRows {
+			validApp, err := impl.dbMigration.FixMultipleAppsForInstalledApp(appNameUniqueIdentifier)
+			if err != nil {
+				impl.logger.Errorw("error in fixing multiple installed app entries", "appName", appNameUniqueIdentifier, "err", err)
+				return app, err
+			}
+			return validApp, err
+		}
 		if err != nil {
 			impl.logger.Errorw("error in fetching app meta data by display name", "displayName", appIdentifier.ReleaseName, "err", err)
 			return app, err
@@ -533,10 +553,15 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 		}
 		// if app.DisplayName is empty then that app_name is not yet migrated to app name unique identifier
 		if app.Id > 0 && len(app.DisplayName) == 0 {
-			err = impl.updateAppNameToUniqueAppIdentifierInApp(app, appIdDecoded)
+			appNameUniqueIdentifier := appIdDecoded.GetUniqueAppNameIdentifier()
+			app.AppName = appNameUniqueIdentifier
+			app.DisplayName = appIdDecoded.ReleaseName
+			app.UpdatedBy = bean2.SystemUserId
+			app.UpdatedOn = time.Now()
+			err = impl.appRepository.Update(app)
 			if err != nil {
-				impl.logger.Errorw("GetHelmAppMetaInfo, error in migrating displayName and appName to unique identifier for external apps", "appIdentifier", appIdDecoded, "err", err)
-				//not returning from here as we need to show helm app metadata even if migration of app_name fails, then migration can happen on project update
+				impl.logger.Errorw("error in migrating displayName and appName to unique identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
+				return nil, err
 			}
 		}
 		if app.Id == 0 {
@@ -569,6 +594,12 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 		}
 	}
 
+	err = impl.fixMultipleInstalledAppForSingleApp(app)
+	if err != nil {
+		impl.logger.Errorw("GetHelmAppMetaInfo, error in fixing multiple installed apps linked to same app", "appId", appId, "err", err)
+		return nil, err
+	}
+
 	user, err := impl.userRepository.GetByIdIncludeDeleted(app.CreatedBy)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching user for app meta info", "error", err)
@@ -596,6 +627,26 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 		info.AppName = displayName
 	}
 	return info, nil
+}
+
+// fixMultipleInstalledAppForSingleApp fixes multiple entries of installed app for single app
+func (impl AppCrudOperationServiceImpl) fixMultipleInstalledAppForSingleApp(app *appRepository.App) error {
+	isLinked, installedApps, err := impl.installedAppDbService.IsExternalAppLinkedToChartStore(app.Id)
+	if err != nil {
+		impl.logger.Errorw("error in checking IsExternalAppLinkedToChartStore", "appId", app.Id, "err", err)
+		return err
+	}
+	//if isLinked is true and more than one installed app is found for that app, we will create new app for each installed app
+	if isLinked && len(installedApps) > 1 {
+		// if installed_apps are already present for that display_name then migrate the app_name to unique identifier with installedApp's ns and clusterId.
+		// creating new entry for app all installedApps with uniqueAppNameIdentifier and display name
+		err := impl.installedAppDbService.CreateNewAppEntryForAllInstalledApps(installedApps)
+		if err != nil {
+			impl.logger.Errorw("error in CreateNewAppEntryForAllInstalledApps", "appName", app.AppName, "err", err)
+			//not returning from here as we have to migrate the app for requested ext-app and return the response for meta info
+		}
+	}
+	return nil
 }
 
 func (impl AppCrudOperationServiceImpl) getLabelsByAppIdForDeployment(appId int) (map[string]string, error) {

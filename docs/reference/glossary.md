@@ -10,6 +10,12 @@ An immutable blob of data generated as an output after the execution of a job, b
 
 * Once a job is complete, you can view the job artifacts by going to Jobs → Run history (tab) → (choose a pipeline and date of triggering the build) → Artifacts (tab).
 
+### ArgoCD Apps
+
+ArgoCD Apps are the micro-services deployed using a [GitOps](#gitops) deployment tool named [Argo CD](https://argo-cd.readthedocs.io/en/stable/). 
+
+If ArgoCD applications are present in your cluster, they will appear in the [ArgoCD Apps listing](../user-guide/applications.md#enabling-argocd-app-listing). 
+
 ### Base Deployment Template
 
 A deployment template is a manifest of the application defining its runtime behavior. You can select one of the default deployment charts or custom deployment charts created by super-admin.
@@ -64,9 +70,9 @@ Temporarily marking a node as unschedulable, preventing new pods from being assi
 
 CronJob is used to create Jobs on a repeating schedule. It is commonly used for running periodic tasks with no manual intervention. In Devtron, you can view a list of cronjobs by going to Resource Browser → (choose a cluster) → Workloads → CronJob. [Read More...](../user-guide/creating-application/deployment-template/job-and-cronjob.md#2.-cronjob)
 
-### Custom Charts
+### Deployment Charts
 
-Devtron offers a variety of ready-made Helm charts for common tasks and functions. If you have a specific need that isn't met by these preconfigured charts, super-admins have the permission to upload their own custom charts. Once uploaded, these custom charts become accessible for use by all users on the Devtron platform. [Read More...](../user-guide/global-configurations/custom-charts.md)
+Devtron offers a variety of ready-made Helm charts for common tasks and functions. If you have a specific need that isn't met by these preconfigured charts, super-admins have the permission to upload their own charts. Once uploaded, these charts become accessible for use by all users on the Devtron platform. [Read More...](../user-guide/global-configurations/deployment-charts.md)
 
 ### DaemonSet
 
@@ -111,6 +117,12 @@ Similarly, the CPU and memory resources can be different for each environment. T
 ### External Links
 
 You can add external links related to the application. For e.g., you can add Prometheus, Grafana, and many more to your application by going to Global Configurations → External Links. [Read More...](../user-guide/global-configurations/external-links.md)
+
+### FluxCD Apps
+
+FluxCD Apps are the micro-services deployed using a [GitOps](#gitops) deployment tool named [Flux CD](https://fluxcd.io/). 
+
+If FluxCD applications are present in your cluster, they will appear in the [FluxCD Apps listing](../user-guide/applications.md#view-fluxcd-app-listing). 
 
 ### GitOps
 
