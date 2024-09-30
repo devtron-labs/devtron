@@ -248,9 +248,6 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 			if authPass {
 				filteredRoleFilter = append(filteredRoleFilter, filter)
 			}
-			if authPass {
-				filteredRoleFilter = append(filteredRoleFilter, filter)
-			}
 		}
 	}
 	for index, roleFilter := range filteredRoleFilter {
