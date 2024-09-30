@@ -934,7 +934,6 @@ func (impl *TriggerServiceImpl) getDeployStageDetails(pipelineId int) (pipelineC
 func (impl *TriggerServiceImpl) buildArtifactLocationForS3(cdWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner) (string, string, string) {
 	cdArtifactLocationFormat := impl.config.GetArtifactLocationFormat()
 	cdWorkflowConfigLogsBucket := impl.config.GetDefaultBuildLogsBucket()
-
 	ArtifactLocation := fmt.Sprintf("s3://"+path.Join(cdWorkflowConfigLogsBucket, cdArtifactLocationFormat), cdWf.Id, runner.Id)
 	artifactFileName := fmt.Sprintf(cdArtifactLocationFormat, cdWf.Id, runner.Id)
 	return ArtifactLocation, cdWorkflowConfigLogsBucket, artifactFileName
