@@ -366,7 +366,7 @@ func (impl *TriggerServiceImpl) validateDeploymentTriggerRequest(ctx context.Con
 // TODO: write a wrapper to handle auto and manual trigger
 func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest) (int, string, error) {
 
-	//triggerContext.TriggerType = bean.Manual
+	triggerContext.TriggerType = bean.Manual //TODO check actual usages, looks antipattern
 	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 	releaseId := 0
@@ -845,7 +845,7 @@ func (impl *TriggerServiceImpl) performGitOps(ctx context.Context,
 	manifestPushService := impl.getManifestPushService(triggerEvent)
 	manifestPushResponse := manifestPushService.PushChart(newCtx, manifestPushTemplate)
 	if manifestPushResponse.Error != nil {
-		impl.logger.Errorw("error in pushing manifest to git", "err", manifestPushResponse.Error, "git_repo_url", manifestPushTemplate.RepoUrl)
+		impl.logger.Errorw("error in pushing manifest to git/helm", "err", manifestPushResponse.Error, "git_repo_url", manifestPushTemplate.RepoUrl)
 		return manifestPushResponse.Error
 	}
 	if manifestPushResponse.IsNewGitRepoConfigured() {
