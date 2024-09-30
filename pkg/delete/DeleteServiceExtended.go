@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
@@ -55,6 +56,7 @@ func NewDeleteServiceExtendedImpl(logger *zap.SugaredLogger,
 	dockerRegistryConfig pipeline.DockerRegistryConfig,
 	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository,
 	K8sService k8sUtil.K8sService,
+	factory informer.K8sInformerFactory,
 ) *DeleteServiceExtendedImpl {
 	return &DeleteServiceExtendedImpl{
 		appRepository:         appRepository,
@@ -70,6 +72,7 @@ func NewDeleteServiceExtendedImpl(logger *zap.SugaredLogger,
 			dockerRegistryConfig:     dockerRegistryConfig,
 			dockerRegistryRepository: dockerRegistryRepository,
 			K8sUtil:                  K8sService,
+			k8sInformerFactory:       factory,
 		},
 	}
 }
