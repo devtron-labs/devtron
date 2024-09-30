@@ -959,11 +959,10 @@ func (impl *WorkflowDagExecutorImpl) HandleCiStepFailedEvent(ciPipelineId int, r
 		impl.logger.Errorw("cannot get saved wf", "wf ID: ", *request.WorkflowId, "err", err)
 		return err
 	}
-	if request.IsArtifactUploaded {
-		dbErr := impl.ciWorkflowRepository.UpdateArtifactUploaded(savedWorkflow.Id, request.IsArtifactUploaded)
-		if dbErr != nil {
-			impl.logger.Errorw("update workflow status", "ciWorkflowId", savedWorkflow.Id, "err", dbErr)
-		}
+	// update IsArtifactUploaded flag in workflow
+	dbErr := impl.ciWorkflowRepository.UpdateArtifactUploaded(savedWorkflow.Id, request.IsArtifactUploaded)
+	if dbErr != nil {
+		impl.logger.Errorw("update workflow status", "ciWorkflowId", savedWorkflow.Id, "err", dbErr)
 	}
 	pipelineModel, err := impl.ciPipelineRepository.FindByCiAndAppDetailsById(ciPipelineId)
 	if err != nil {
