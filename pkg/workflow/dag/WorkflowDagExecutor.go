@@ -51,7 +51,6 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/workflow/dag/bean"
 	error2 "github.com/devtron-labs/devtron/util/error"
 	util2 "github.com/devtron-labs/devtron/util/event"
-	"gopkg.in/go-playground/validator.v9"
 	"strings"
 	"sync"
 	"time"
@@ -124,7 +123,6 @@ type WorkflowDagExecutorImpl struct {
 	commonArtifactService   artifacts.CommonArtifactService
 	deploymentConfigService common2.DeploymentConfigService
 	asyncRunnable           *async.Runnable
-	validator               *validator.Validate
 }
 
 func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -148,7 +146,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	manifestCreationService manifest.ManifestCreationService,
 	commonArtifactService artifacts.CommonArtifactService,
 	deploymentConfigService common2.DeploymentConfigService,
-	asyncRunnable *async.Runnable, validator *validator.Validate) *WorkflowDagExecutorImpl {
+	asyncRunnable *async.Runnable) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -172,7 +170,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		commonArtifactService:         commonArtifactService,
 		deploymentConfigService:       deploymentConfigService,
 		asyncRunnable:                 asyncRunnable,
-		validator:                     validator,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
