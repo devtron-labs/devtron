@@ -723,7 +723,7 @@ func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pip
 		workflow.Image = wfr.CdWorkflow.CiArtifact.Image
 		workflow.PipelineId = wfr.CdWorkflow.PipelineId
 		workflow.CiArtifactId = wfr.CdWorkflow.CiArtifactId
-		if wfr.CdWorkflow.CiArtifact != nil {
+		if wfr.IsArtifactUploaded != nil {
 			workflow.IsArtifactUploaded = *wfr.IsArtifactUploaded
 		}
 		workflow.BlobStorageEnabled = wfr.BlobStorageEnabled
