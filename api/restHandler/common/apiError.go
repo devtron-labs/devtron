@@ -114,7 +114,7 @@ func WriteJsonResp(w http.ResponseWriter, err error, respBody interface{}, statu
 		}
 	}
 	if status > 299 || err != nil {
-		util.GetLogger().Infow("ERROR RES", "TYPE", "API-ERROR", "RES", response.Code, "ERROR-MSG", response.Errors, "err", err)
+		util.GetLogger().Infow("ERROR RES", "TYPE", "API-ERROR", "RES", response.Code, "err", err)
 	}
 	w.Header().Set(CONTENT_TYPE, APPLICATION_JSON)
 	w.WriteHeader(status)
