@@ -534,7 +534,7 @@ func (impl *AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Conte
 
 	err1 := impl.UpdatePreviousDeploymentStatusForAppStore(installedApp, triggeredAt, err)
 	if err1 != nil {
-		impl.logger.Errorw("error while update previous installed app version history", "err", err, "installAppVersionRequest", installedApp)
+		impl.logger.Errorw("error while update previous installed app version history", "err", err, "installAppVersionRequest.Id", installedApp.Id)
 		//if installed app is updated and error is in updating previous deployment status, then don't block user, just show error.
 	}
 
@@ -880,7 +880,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdatePreviousDeploymentStatusForAppS
 	}
 	err1 := impl.fullModeDeploymentService.UpdateInstalledAppAndPipelineStatusForFailedDeploymentStatus(installAppVersionRequest, triggeredAt, err)
 	if err1 != nil {
-		impl.logger.Errorw("error in updating previous deployment status for appStore", "err", err1, "installAppVersionRequest", installAppVersionRequest)
+		impl.logger.Errorw("error in updating previous deployment status for appStore", "err", err1, "installAppVersionRequestId", installAppVersionRequest.Id)
 		return err1
 	}
 	return nil

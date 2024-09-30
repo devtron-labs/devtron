@@ -17,14 +17,11 @@
 package security
 
 import (
-	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	securityBean "github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"strconv"
-	"strings"
 )
 
 type CveStore struct {
@@ -143,31 +140,34 @@ func (impl CveStoreRepositoryImpl) Update(team *CveStore) error {
 
 func (impl CveStoreRepositoryImpl) VulnerabilityExposure(request *VulnerabilityRequest) ([]*VulnerabilityExposure, error) {
 	var items []*VulnerabilityExposure
-
-	query := "SELECT a.id as app_id, a.app_name, a.app_type, p.environment_id as pipeline_env_id, ia.environment_id  as chart_env_id " +
-		" FROM app a" +
-		" LEFT JOIN pipeline p ON p.app_id=a.id" +
-		" LEFT JOIN installed_apps ia ON ia.app_id=a.id" +
-		" INNER JOIN environment env ON (env.id=p.environment_id OR env.id=ia.environment_id)"
-	query = query + " WHERE (p.deleted=? OR ia.active = ?) and env.active=true"
+	var queryParams []interface{}
+	query := `SELECT a.id as app_id, a.app_name, a.app_type, p.environment_id as pipeline_env_id, ia.environment_id  as chart_env_id 
+			  FROM app a 
+			  LEFT JOIN pipeline p ON p.app_id=a.id 
+			  LEFT JOIN installed_apps ia ON ia.app_id=a.id 
+			  INNER JOIN environment env ON (env.id=p.environment_id OR env.id=ia.environment_id) 
+			  WHERE (p.deleted=? OR ia.active = ?) and env.active=? `
+	queryParams = append(queryParams, false, true, true)
 	if len(request.AppName) > 0 {
-		query = query + " AND (a.app_name like '" + request.AppName + "')"
+		query = query + " AND (a.app_name like ? ) "
+		queryParams = append(queryParams, request.AppName)
 	}
 	if len(request.EnvIds) > 0 {
-		envIds := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(request.EnvIds)), ","), "[]")
-		query = query + " AND (env.id IN (" + envIds + "))"
+		query = query + " AND (env.id IN (?) )"
+		queryParams = append(queryParams, pg.In(request.EnvIds))
 	}
 	if len(request.ClusterIds) > 0 {
-		clusterIds := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(request.ClusterIds)), ","), "[]")
-		query = query + " AND (env.cluster_id IN (" + clusterIds + "))"
+		query = query + " AND (env.cluster_id IN (?) )"
+		queryParams = append(queryParams, pg.In(request.ClusterIds))
 	}
 	query = query + " ORDER BY a.id DESC"
 	if request.Size > 0 {
-		query = query + " LIMIT " + strconv.Itoa(request.Size) + " OFFSET " + strconv.Itoa(request.Offset) + ""
+		query = query + " LIMIT ? OFFSET ? "
+		queryParams = append(queryParams, request.Size, request.Offset)
 	}
 	query = query + " ;"
 	impl.logger.Debugw("query", "query:", query)
-	_, err := impl.dbConnection.Query(&items, query, false, true)
+	_, err := impl.dbConnection.Query(&items, query, queryParams...)
 	if err != nil {
 		impl.logger.Error("err", err)
 		return []*VulnerabilityExposure{}, err
