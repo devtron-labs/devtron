@@ -534,7 +534,8 @@ func (impl UserCommonServiceImpl) checkRbacForARole(role *repository.RoleModel, 
 		if !isValidAuth {
 			isAuthorised = false
 		}
-
+	case role.Entity == bean.CHART_GROUP_ENTITY:
+		isAuthorised = true
 	default:
 		isAuthorised = false
 	}

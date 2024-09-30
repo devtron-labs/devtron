@@ -609,7 +609,8 @@ func (handler UserRestHandlerImpl) checkRbacForFilter(token string, filter bean.
 		if !isValidAuth {
 			isAuthorised = false
 		}
-
+	case filter.Entity == bean.CHART_GROUP_ENTITY:
+		isAuthorised = true
 	default:
 		isAuthorised = false
 	}
