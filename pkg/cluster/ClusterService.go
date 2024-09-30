@@ -56,7 +56,6 @@ const (
 	CLUSTER_MODIFY_EVENT_SECRET_TYPE = "cluster.request/modify"
 	CLUSTER_ACTION_ADD               = "add"
 	CLUSTER_ACTION_UPDATE            = "update"
-	SECRET_NAME                      = "cluster-event"
 	SECRET_FIELD_CLUSTER_ID          = "cluster_id"
 	SECRET_FIELD_UPDATED_ON          = "updated_on"
 	SECRET_FIELD_ACTION              = "action"
@@ -331,7 +330,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 		return bean, nil
 	}
 	//creating cluster secret, this secret will be read informer in kubelink to know that a new cluster has been added
-	secretName := fmt.Sprintf("%s-%v", SECRET_NAME, bean.Id)
+	secretName := ParseSecretNameForKubelinkInformer(bean.Id)
 
 	data := make(map[string][]byte)
 	data[SECRET_FIELD_CLUSTER_ID] = []byte(fmt.Sprintf("%v", bean.Id))
@@ -572,7 +571,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	}
 	// below secret will act as an event for informer running on secret object in kubelink
 	if bean.HasConfigOrUrlChanged {
-		secretName := fmt.Sprintf("%s-%v", SECRET_NAME, bean.Id)
+		secretName := ParseSecretNameForKubelinkInformer(bean.Id)
 		secret, err := impl.K8sUtil.GetSecret(DEFAULT_NAMESPACE, secretName, k8sClient)
 		statusError, _ := err.(*errors.StatusError)
 		if err != nil && statusError.Status().Code != http.StatusNotFound {
@@ -694,7 +693,7 @@ func (impl *ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) (s
 		impl.logger.Errorw("error in getting in cluster k8s client", "err", err, "clusterName", bean.ClusterName)
 		return "", nil
 	}
-	secretName := fmt.Sprintf("%s-%v", SECRET_NAME, bean.Id)
+	secretName := ParseSecretNameForKubelinkInformer(bean.Id)
 	err = impl.K8sUtil.DeleteSecret(DEFAULT_NAMESPACE, secretName, k8sClient)
 	impl.logger.Errorw("error in deleting secret", "error", err)
 	return existingCluster.ClusterName, nil

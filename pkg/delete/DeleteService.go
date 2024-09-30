@@ -102,7 +102,7 @@ func (impl DeleteServiceImpl) DeleteClusterSecret(deleteRequest *cluster.Cluster
 		impl.logger.Errorw("error in getting in cluster k8s client", "err", err, "clusterName", deleteRequest.ClusterName)
 		return nil
 	}
-	secretName := fmt.Sprintf("%s-%v", cluster.SECRET_NAME, deleteRequest.Id)
+	secretName := cluster.ParseSecretNameForKubelinkInformer(deleteRequest.Id)
 	err = impl.K8sUtil.DeleteSecret(cluster.DEFAULT_NAMESPACE, secretName, k8sClient)
 	return err
 }
