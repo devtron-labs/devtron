@@ -106,10 +106,10 @@ func (impl *FullModeDeploymentServiceImpl) UpdateInstalledAppAndPipelineStatusFo
 			appStoreBean.InstalledAppTerminalStatusList,
 		)
 		if err != nil {
-			impl.Logger.Errorw("error fetching previous installed app version history, updating installed app version history status,", "err", err, "installAppVersionRequest", installAppVersionRequest)
+			impl.Logger.Errorw("error fetching previous installed app version history, updating installed app version history status,", "err", err, "installAppVersionRequestId", installAppVersionRequest.Id)
 			return err
 		} else if len(previousNonTerminalHistory) == 0 {
-			impl.Logger.Errorw("no previous history found in updating installedAppVersionHistory status,", "err", err, "installAppVersionRequest", installAppVersionRequest)
+			impl.Logger.Errorw("no previous history found in updating installedAppVersionHistory status,", "err", err, "installAppVersionRequestId", installAppVersionRequest.Id)
 			return nil
 		}
 		dbConnection := impl.installedAppRepositoryHistory.GetConnection()

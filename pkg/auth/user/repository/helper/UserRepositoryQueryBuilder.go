@@ -20,31 +20,40 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
-	"strconv"
+	"github.com/devtron-labs/devtron/util"
 )
 
-func GetQueryForUserListingWithFilters(req *bean.ListingRequest) string {
+func GetQueryForUserListingWithFilters(req *bean.ListingRequest) (string, []interface{}) {
 	whereCondition := fmt.Sprintf("where active = %t AND (user_type is NULL or user_type != '%s') ", true, bean.USER_TYPE_API_TOKEN)
 	orderCondition := ""
-
+	var queryParams []interface{}
 	if len(req.SearchKey) > 0 {
-		emailIdLike := "%" + req.SearchKey + "%"
-		whereCondition += fmt.Sprintf("AND email_id ilike '%s' ", emailIdLike)
+		whereCondition += " AND email_id ilike ? "
+		queryParams = append(queryParams, util.GetLIKEClauseQueryParam(req.SearchKey))
 	}
 
 	if len(req.SortBy) > 0 && !req.CountCheck {
-		orderCondition += fmt.Sprintf("order by %s ", req.SortBy)
+		orderCondition += " order by "
 		// Handling it for last login as it is time and show order differs on UI.
-		if req.SortBy == bean2.LastLogin && req.SortOrder == bean2.Asc {
-			orderCondition += string(bean2.Desc)
+		if req.SortBy == bean2.LastLogin {
+			if req.SortOrder == bean2.Asc {
+				orderCondition += fmt.Sprintf(" %s %s ", bean2.LastLogin, bean2.Desc)
+			} else {
+				orderCondition += fmt.Sprintf(" %s ", bean2.LastLogin)
+			}
 		}
-		if req.SortBy == bean2.Email && req.SortOrder == bean2.Desc {
-			orderCondition += string(req.SortOrder)
+		if req.SortBy == bean2.Email {
+			if req.SortOrder == bean2.Desc {
+				orderCondition += fmt.Sprintf(" %s %s ", bean2.Email, bean2.Desc)
+			} else {
+				orderCondition += fmt.Sprintf(" %s ", bean2.Email)
+			}
 		}
 	}
 
 	if req.Size > 0 && !req.CountCheck && !req.ShowAll {
-		orderCondition += " limit " + strconv.Itoa(req.Size) + " offset " + strconv.Itoa(req.Offset) + ""
+		orderCondition += " limit ? offset ? "
+		queryParams = append(queryParams, req.Size, req.Offset)
 	}
 	var query string
 	if req.CountCheck {
@@ -54,7 +63,7 @@ func GetQueryForUserListingWithFilters(req *bean.ListingRequest) string {
 		query = fmt.Sprintf(`SELECT "user_model".*, "user_audit"."id" AS "user_audit__id", "user_audit"."updated_on" AS "user_audit__updated_on","user_audit"."user_id" AS "user_audit__user_id" ,"user_audit"."created_on" AS "user_audit__created_on" ,"user_audit"."updated_on" AS "last_login" from users As "user_model" LEFT JOIN user_audit As "user_audit" on "user_audit"."user_id" = "user_model"."id" %s %s;`, whereCondition, orderCondition)
 	}
 
-	return query
+	return query, queryParams
 }
 
 func GetQueryForAllUserWithAudit() string {
@@ -64,23 +73,25 @@ func GetQueryForAllUserWithAudit() string {
 	return query
 }
 
-func GetQueryForGroupListingWithFilters(req *bean.ListingRequest) string {
-	whereCondition := fmt.Sprintf("where active = %t ", true)
-	orderCondition := ""
+func GetQueryForGroupListingWithFilters(req *bean.ListingRequest) (string, []interface{}) {
+	var queryParams []interface{}
+	whereCondition := " where active = ? "
+	queryParams = append(queryParams, true)
 	if len(req.SearchKey) > 0 {
-		nameIdLike := "%" + req.SearchKey + "%"
-		whereCondition += fmt.Sprintf("AND name ilike '%s' ", nameIdLike)
+		whereCondition += " AND name ilike ? "
+		queryParams = append(queryParams, util.GetLIKEClauseQueryParam(req.SearchKey))
 	}
 
+	orderCondition := ""
 	if len(req.SortBy) > 0 && !req.CountCheck {
-		orderCondition += fmt.Sprintf("order by %s ", req.SortBy)
+		orderCondition += fmt.Sprintf(" order by %s ", req.SortBy)
 		if req.SortOrder == bean2.Desc {
-			orderCondition += string(req.SortOrder)
+			orderCondition += fmt.Sprintf(" %s ", bean2.Desc)
 		}
 	}
-
 	if req.Size > 0 && !req.CountCheck && !req.ShowAll {
-		orderCondition += " limit " + strconv.Itoa(req.Size) + " offset " + strconv.Itoa(req.Offset) + ""
+		orderCondition += " limit ? offset ? "
+		queryParams = append(queryParams, req.Size, req.Offset)
 	}
 	var query string
 	if req.CountCheck {
@@ -88,7 +99,7 @@ func GetQueryForGroupListingWithFilters(req *bean.ListingRequest) string {
 	} else {
 		query = fmt.Sprintf("SELECT * from role_group %s %s;", whereCondition, orderCondition)
 	}
-	return query
+	return query, queryParams
 
 }
 

@@ -18,6 +18,10 @@ package bean
 
 type RoleType string
 
+func (r RoleType) String() string {
+	return string(r)
+}
+
 const (
 	SYSTEM_USER_ID                              = 1
 	PROJECT_TYPE                                = "team"
@@ -83,6 +87,14 @@ type RbacPolicyEntityGroupDto struct {
 
 type SortBy string
 type SortOrder string
+
+func (s SortBy) String() string {
+	return string(s)
+}
+
+func (s SortOrder) String() string {
+	return string(s)
+}
 
 const (
 	Asc  SortOrder = "ASC"
