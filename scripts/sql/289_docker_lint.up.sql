@@ -33,15 +33,14 @@ VALUES (
     echo $command
     docker_path="Dockerfile"
     echo $docker_path
-    if [ ! -z  "$DOCKER_FILE_PATH" ]
+    if [ ! -z  "$DockerFilePath" ]
     then
-        echo "hello"
-        docker_path=$DOCKER_FILE_PATH
+        docker_path=$DockerFilePath
     fi  
     echo $docker_path   
     cp hadolint-Linux-x86_64 hadolint
     chmod +x hadolint
-    if [[ $FAIL_ON_ERROR == "true" ]]
+    if [[ $FailOnError == "true" ]]
     then
         ./hadolint "/devtroncd/$docker_path"
     else
@@ -66,9 +65,9 @@ VALUES (nextval('id_seq_plugin_step'),(SELECT id FROM plugin_metadata WHERE plug
 
 
 INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value", "variable_type", "value_type","default_value", "variable_step_index", "deleted", "created_on", "created_by", "updated_on", "updated_by")
-VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.plugin_version='1.0.0' and p.name='Docker Lint' and p.deleted=false and ps."index"=1 and ps.deleted=false), 'DOCKER_FILE_PATH','STRING','Specify the file path to the Dockerfile for linting or processing. By default path is Dockerfile',true,true,'INPUT','NEW','',1 ,'f','now()', 1, 'now()', 1);
+VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.plugin_version='1.0.0' and p.name='Docker Lint' and p.deleted=false and ps."index"=1 and ps.deleted=false), 'DockerFilePath','STRING','Specify the file path to the Dockerfile for linting. Default path is Dockerfile if not specified',true,true,'INPUT','NEW','',1 ,'f','now()', 1, 'now()', 1);
 
 
 INSERT INTO "plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value","variable_type", "value_type","default_value", "variable_step_index", "deleted", "created_on", "created_by", "updated_on", "updated_by")
-VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.plugin_version='1.0.0' and p.name='Docker Lint' and p.deleted=false and ps."index"=1 and ps.deleted=false), 'FAIL_ON_ERROR','STRING','Pass true/false to fail the pipeline or not ',true,false,'INPUT','NEW','false',1 ,'f','now()', 1, 'now()', 1);
+VALUES (nextval('id_seq_plugin_step_variable'), (SELECT ps.id FROM plugin_metadata p inner JOIN plugin_step ps on ps.plugin_id=p.id WHERE p.plugin_version='1.0.0' and p.name='Docker Lint' and p.deleted=false and ps."index"=1 and ps.deleted=false), 'FailOnError','STRING','Pass true/false to fail/pass the pipeline on error in docker lint',true,false,'INPUT','NEW','false',1 ,'f','now()', 1, 'now()', 1);
 
