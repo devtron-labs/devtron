@@ -218,7 +218,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 	}
 
 	cdArtifactLocationFormat := impl.config.GetArtifactLocationFormat()
-	cdArtifactLocation := fmt.Sprintf(cdArtifactLocationFormat, savedWorkflow.Id, savedWorkflow.Id)
+	cdArtifactLocation := fmt.Sprintf(cdArtifactLocationFormat, savedWorkflow.CdWorkflowId, savedWorkflow.Id)
 	if impl.stateChanged(status, podStatus, message, workflowStatus.FinishedAt.Time, savedWorkflow) {
 		if savedWorkflow.Status != executors.WorkflowCancel {
 			savedWorkflow.Status = status
