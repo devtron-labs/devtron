@@ -448,7 +448,7 @@ spec:
           {{- if and (eq (len .Values.volumeMounts) 0) (eq ($hasPVCExists) false) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) }} [] {{- end }}      
 {{- if $.Values.appMetrics }}
         - name: envoy
-          image: {{ $.Values.envoyproxy.image | default "envoyproxy/envoy:v1.14.1"}}
+          image: {{ $.Values.envoyproxy.image | default "quay.io/devtron/envoy:v1.16.0"}}
           {{- if $.Values.envoyproxy.lifecycle }}
           lifecycle:
 {{ toYaml .Values.envoyproxy.lifecycle | indent 12 -}}
