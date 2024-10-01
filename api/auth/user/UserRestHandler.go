@@ -1149,7 +1149,7 @@ func (handler UserRestHandlerImpl) checkRBACForUserCreate(token string, requestS
 					isAuthorised = false
 				}
 				if !isAuthorised {
-					break
+					return false, nil
 				}
 			}
 		}
@@ -1178,7 +1178,7 @@ func (handler UserRestHandlerImpl) checkRBACForUserCreate(token string, requestS
 						isAuthorised = false
 					}
 					if !isAuthorised {
-						break
+						return false, nil
 					}
 				}
 			} else {
@@ -1217,7 +1217,7 @@ func (handler UserRestHandlerImpl) checkRBACForUserUpdate(token string, userInfo
 					isAuthorised = false
 				}
 				if !isAuthorised {
-					break
+					return false, nil
 				}
 			}
 		}
@@ -1236,7 +1236,7 @@ func (handler UserRestHandlerImpl) checkRBACForUserUpdate(token string, userInfo
 					isAuthorised = false
 				}
 				if !isAuthorised {
-					break
+					return false, nil
 				}
 			}
 		}
@@ -1263,7 +1263,7 @@ func (handler UserRestHandlerImpl) checkRBACForUserUpdate(token string, userInfo
 						isAuthorised = false
 					}
 					if !isAuthorised {
-						break
+						return false, nil
 					}
 				}
 			} else {
@@ -1301,7 +1301,7 @@ func (handler UserRestHandlerImpl) checkRBACForRoleGroupUpdate(token string, gro
 					isAuthorised = false
 				}
 				if !isAuthorised {
-					break
+					return false, nil
 				}
 			}
 		}
@@ -1320,7 +1320,7 @@ func (handler UserRestHandlerImpl) checkRBACForRoleGroupUpdate(token string, gro
 					isAuthorised = false
 				}
 				if !isAuthorised {
-					break
+					return false, nil
 				}
 			}
 		}
@@ -1349,7 +1349,7 @@ func (handler UserRestHandlerImpl) checkRBACForRoleGroupDelete(token string, gro
 					isAuthorised = false
 				}
 				if !isAuthorised {
-					break
+					return false, nil
 				}
 			}
 		}
