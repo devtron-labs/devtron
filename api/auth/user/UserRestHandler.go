@@ -243,8 +243,9 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 	// RBAC enforcer applying
 	filteredRoleFilter := make([]bean.RoleFilter, 0)
 	if res.RoleFilters != nil && len(res.RoleFilters) > 0 {
+		isUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 		for _, filter := range res.RoleFilters {
-			authPass := handler.checkRbacForFilter(token, filter)
+			authPass := handler.checkRbacForFilter(token, filter, isUserSuperAdmin)
 			if authPass {
 				filteredRoleFilter = append(filteredRoleFilter, filter)
 			}
@@ -568,8 +569,9 @@ func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *
 	token := r.Header.Get("token")
 	filteredRoleFilter := make([]bean.RoleFilter, 0)
 	if res.RoleFilters != nil && len(res.RoleFilters) > 0 {
+		isUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 		for _, filter := range res.RoleFilters {
-			authPass := handler.checkRbacForFilter(token, filter)
+			authPass := handler.checkRbacForFilter(token, filter, isUserSuperAdmin)
 			if authPass {
 				filteredRoleFilter = append(filteredRoleFilter, filter)
 			}
@@ -590,9 +592,11 @@ func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler UserRestHandlerImpl) checkRbacForFilter(token string, filter bean.RoleFilter) bool {
+func (handler UserRestHandlerImpl) checkRbacForFilter(token string, filter bean.RoleFilter, isUserSuperAdmin bool) bool {
 	isAuthorised := true
 	switch {
+	case isUserSuperAdmin:
+		isAuthorised = true
 	case filter.AccessType == bean2.APP_ACCESS_TYPE_HELM || filter.Entity == bean2.EntityJobs:
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 			isAuthorised = false
