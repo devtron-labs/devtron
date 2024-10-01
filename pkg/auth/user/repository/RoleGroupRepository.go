@@ -43,6 +43,7 @@ type RoleGroupRepository interface {
 	DeleteRoleGroupRoleMappingByRoleId(roleId int, tx *pg.Tx) error
 	DeleteRoleGroupRoleMappingByRoleIds(roleId []int, tx *pg.Tx) error
 	DeleteRoleGroupRoleMapping(model *RoleGroupRoleMapping, tx *pg.Tx) (bool, error)
+	DeleteRoleGroupRoleMappingsByIds(tx *pg.Tx, ids []int) error
 	GetConnection() (dbConnection *pg.DB)
 	GetRoleGroupListByNames(groupNames []string) ([]*RoleGroup, error)
 	GetRolesByRoleGroupIds(roleGroupIds []int32) ([]*RoleModel, error)
@@ -234,6 +235,11 @@ func (impl RoleGroupRepositoryImpl) DeleteRoleGroupRoleMapping(model *RoleGroupR
 		return false, err
 	}
 	return true, nil
+}
+
+func (impl RoleGroupRepositoryImpl) DeleteRoleGroupRoleMappingsByIds(tx *pg.Tx, ids []int) error {
+	_, err := tx.Model(&RoleGroupRoleMapping{}).Where("id in (?)", pg.In(ids)).Delete()
+	return err
 }
 
 func (impl RoleGroupRepositoryImpl) GetRoleGroupListByNames(groupNames []string) ([]*RoleGroup, error) {
