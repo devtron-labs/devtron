@@ -48,6 +48,7 @@ type TriggerRequest struct {
 	RefCdWorkflowRunnerId  int
 	RunStageInEnvNamespace string
 	WorkflowType           bean.WorkflowType
+	CdWorkflowRunnerId     int
 	TriggerContext
 }
 

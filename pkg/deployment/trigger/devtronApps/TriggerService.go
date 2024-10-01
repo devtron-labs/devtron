@@ -409,16 +409,37 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 
 	switch overrideRequest.CdWorkflowType {
 	case bean3.CD_WORKFLOW_TYPE_PRE:
+		var cdWf *pipelineConfig.CdWorkflow
+		if overrideRequest.CdWorkflowId == 0 {
+			cdWf = &pipelineConfig.CdWorkflow{
+				CiArtifactId: artifact.Id,
+				PipelineId:   cdPipeline.Id,
+				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: 1, UpdatedOn: triggeredAt, UpdatedBy: 1},
+			}
+			err := impl.cdWorkflowRepository.SaveWorkFlow(ctx, cdWf)
+			if err != nil {
+				return 0, "", err
+			}
+		} else {
+			cdWf, err = impl.cdWorkflowRepository.FindById(overrideRequest.CdWorkflowId)
+			if err != nil {
+				impl.logger.Errorw("error in TriggerPreStage, ManualCdTrigger", "err", err)
+				return 0, "", err
+			}
+		}
+		overrideRequest.CdWorkflowId = cdWf.Id
 
+		// FIXME: ENT end
 		_, span = otel.Tracer("orchestrator").Start(ctx, "TriggerPreStage")
 		triggerRequest := bean.TriggerRequest{
-			CdWf:                  nil,
+			CdWf:                  cdWf,
 			Artifact:              artifact,
 			Pipeline:              cdPipeline,
 			TriggeredBy:           overrideRequest.UserId,
 			ApplyAuth:             false,
 			TriggerContext:        triggerContext,
 			RefCdWorkflowRunnerId: 0,
+			CdWorkflowRunnerId:        overrideRequest.WfrId
 		}
 		err = impl.TriggerPreStage(triggerRequest)
 		span.End()
