@@ -381,11 +381,11 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 	return clusterBean, nil
 }
 
-func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId int32) error {
+func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId int32) (string, error) {
 	existingCluster, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete.", "id", bean.Id)
-		return err
+		return "", err
 	}
 	deleteReq := existingCluster
 	deleteReq.UpdatedOn = time.Now()
@@ -393,14 +393,7 @@ func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId in
 	err = impl.clusterRepository.MarkClusterDeleted(deleteReq)
 	if err != nil {
 		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err", err)
-		return err
+		return "", err
 	}
-	k8sClient, err := impl.ClusterServiceImpl.K8sUtil.GetCoreV1ClientInCluster()
-	if err != nil {
-		impl.logger.Errorw("error in creating k8s client set", "err", err, "clusterName", bean.ClusterName)
-	}
-	secretName := fmt.Sprintf("%s-%v", "cluster-event", bean.Id)
-	err = impl.K8sUtil.DeleteSecret("default", secretName, k8sClient)
-	impl.logger.Errorw("error in deleting secret", "error", err)
-	return nil
+	return existingCluster.ClusterName, nil
 }
