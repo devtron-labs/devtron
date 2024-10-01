@@ -919,7 +919,7 @@ func (handler UserRestHandlerImpl) DeleteRoleGroup(w http.ResponseWriter, r *htt
 		return
 	}
 	token := r.Header.Get("token")
-	isAuthorised, err := handler.checkRBACForRoleGroupDelete(token, userGroup.RoleFilters)
+	isAuthorised, err := handler.checkRBACForRoleGroupDelete(token, userGroup)
 	if err != nil {
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		return
@@ -1328,12 +1328,15 @@ func (handler UserRestHandlerImpl) checkRBACForRoleGroupUpdate(token string, gro
 	return isAuthorised, nil
 }
 
-func (handler UserRestHandlerImpl) checkRBACForRoleGroupDelete(token string, groupRoles []bean.RoleFilter) (isAuthorised bool, err error) {
+func (handler UserRestHandlerImpl) checkRBACForRoleGroupDelete(token string, userGroup *bean.RoleGroup) (isAuthorised bool, err error) {
 	isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+	if userGroup.SuperAdmin && !isActionUserSuperAdmin {
+		return false, nil
+	}
 	isAuthorised = isActionUserSuperAdmin
 	if !isAuthorised {
-		if groupRoles != nil && len(groupRoles) > 0 { //auth check inside roleFilters
-			for _, filter := range groupRoles {
+		if userGroup.RoleFilters != nil && len(userGroup.RoleFilters) > 0 { //auth check inside roleFilters
+			for _, filter := range userGroup.RoleFilters {
 				switch {
 				case filter.Action == bean.ACTION_SUPERADMIN:
 					isAuthorised = isActionUserSuperAdmin
