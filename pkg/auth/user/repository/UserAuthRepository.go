@@ -38,7 +38,7 @@ type UserAuthRepository interface {
 	CreateRole(role *RoleModel) (*RoleModel, error)
 	CreateRoleWithTxn(userModel *RoleModel, tx *pg.Tx) (*RoleModel, error)
 	GetRoleById(id int) (*RoleModel, error)
-	GetRolesByIds(ids []int) ([]RoleModel, error)
+	GetRolesByIds(ids []int) ([]*RoleModel, error)
 	GetRoleByRoles(roles []string) ([]RoleModel, error)
 	GetRolesByUserId(userId int32) ([]RoleModel, error)
 	GetRolesByGroupId(userId int32) ([]*RoleModel, error)
@@ -174,8 +174,8 @@ func (impl UserAuthRepositoryImpl) GetRoleById(id int) (*RoleModel, error) {
 	}
 	return &model, nil
 }
-func (impl UserAuthRepositoryImpl) GetRolesByIds(ids []int) ([]RoleModel, error) {
-	var model []RoleModel
+func (impl UserAuthRepositoryImpl) GetRolesByIds(ids []int) ([]*RoleModel, error) {
+	var model []*RoleModel
 	err := impl.dbConnection.Model(&model).Where("id IN (?)", pg.In(ids)).Select()
 	if err != nil {
 		impl.Logger.Error(err)
