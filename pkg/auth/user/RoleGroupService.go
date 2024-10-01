@@ -39,7 +39,7 @@ import (
 type RoleGroupService interface {
 	CreateRoleGroup(request *bean.RoleGroup) (*bean.RoleGroup, error)
 	UpdateRoleGroup(request *bean.RoleGroup, token string, checkRBACForGroupUpdate func(token string, groupInfo *bean.RoleGroup,
-		eliminatedRoleFilters []*repository.RoleModel) (isAuthorised bool, err error), managerAuth func(resource, token string, object string) bool) (*bean.RoleGroup, error)
+		eliminatedRoleFilters []*repository.RoleModel, isRoleGroupAlreadySuperAdmin bool) (isAuthorised bool, err error), managerAuth func(resource, token string, object string) bool) (*bean.RoleGroup, error)
 	FetchDetailedRoleGroups(req *bean.ListingRequest) ([]*bean.RoleGroup, error)
 	FetchRoleGroupsById(id int32) (*bean.RoleGroup, error)
 	FetchRoleGroups() ([]*bean.RoleGroup, error)
@@ -368,8 +368,25 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForJobsEntity(roleFilter
 	return policiesToBeAdded, nil
 }
 
+func (impl RoleGroupServiceImpl) checkIfRoleGroupSuperAdmin(casbinName string) (bool, error) {
+	rolesModels, err := impl.roleGroupRepository.GetRolesByGroupCasbinNames([]string{casbinName})
+	if err != nil {
+		impl.logger.Errorw("error in getting roles by group names", "err", err)
+		return false, err
+	}
+	isSuperAdmin := false
+	for _, roleModel := range rolesModels {
+		if roleModel.Action == bean2.SUPER_ADMIN {
+			isSuperAdmin = true
+			break
+		}
+	}
+	return isSuperAdmin, nil
+
+}
+
 func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token string, checkRBACForGroupUpdate func(token string, groupInfo *bean.RoleGroup,
-	eliminatedRoleFilters []*repository.RoleModel) (isAuthorised bool, err error), managerAuth func(resource, token string, object string) bool) (*bean.RoleGroup, error) {
+	eliminatedRoleFilters []*repository.RoleModel, isRoleGroupAlreadySuperAdmin bool) (isAuthorised bool, err error), managerAuth func(resource, token string, object string) bool) (*bean.RoleGroup, error) {
 	dbConnection := impl.roleGroupRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -381,6 +398,12 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 	roleGroup, err := impl.roleGroupRepository.GetRoleGroupById(request.Id)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
+
+	isRGSuperAdmin, err := impl.checkIfRoleGroupSuperAdmin(roleGroup.CasbinName)
+	if err != nil {
+		impl.logger.Errorw("error encountered in UpdateRoleGroup", "error", err, "roleGroupId", roleGroup.Id)
 		return nil, err
 	}
 
@@ -476,7 +499,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 	}
 
 	if checkRBACForGroupUpdate != nil {
-		isAuthorised, err := checkRBACForGroupUpdate(token, request, eliminatedRoleModels)
+		isAuthorised, err := checkRBACForGroupUpdate(token, request, eliminatedRoleModels, isRGSuperAdmin)
 		if err != nil {
 			impl.logger.Errorw("error in checking RBAC for role group update", "err", err, "request", request)
 			return nil, err

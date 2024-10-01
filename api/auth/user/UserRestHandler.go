@@ -1274,11 +1274,10 @@ func (handler UserRestHandlerImpl) checkRBACForUserUpdate(token string, userInfo
 	return isAuthorised, nil
 }
 
-func (handler UserRestHandlerImpl) checkRBACForRoleGroupUpdate(token string, groupInfo *bean.RoleGroup,
-	eliminatedRoleFilters []*repository.RoleModel) (isAuthorised bool, err error) {
+func (handler UserRestHandlerImpl) checkRBACForRoleGroupUpdate(token string, groupInfo *bean.RoleGroup, eliminatedRoleFilters []*repository.RoleModel, isRoleGroupAlreadySuperAdmin bool) (isAuthorised bool, err error) {
 	isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	requestSuperAdmin := groupInfo.SuperAdmin
-	if requestSuperAdmin && !isActionUserSuperAdmin {
+	if (requestSuperAdmin || isRoleGroupAlreadySuperAdmin) && !isActionUserSuperAdmin {
 		//if user is going to be provided with super-admin access or already a super-admin then the action user should be a super-admin
 		return false, nil
 	}
