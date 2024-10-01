@@ -714,11 +714,11 @@ func (handler *PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseW
 		return
 	}
 	cdPipelineRbacObjects := make([]string, len(cdPipelines))
-	rbacObjectToCdPipeline := make(map[string]*pipelineConfig.Pipeline)
+	rbacObjectCdTriggerTypeMap := make(map[string]pipelineConfig.TriggerType, len(cdPipelines))
 	for i, cdPipeline := range cdPipelines {
 		envObject := handler.enforcerUtil.GetAppRBACByAppIdAndPipelineId(cdPipeline.AppId, cdPipeline.Id)
 		cdPipelineRbacObjects[i] = envObject
-		rbacObjectToCdPipeline[envObject] = cdPipeline
+		rbacObjectCdTriggerTypeMap[envObject] = cdPipeline.TriggerType
 	}
 
 	hasAnyEnvTriggerAccess := len(cdPipelines) == 0 //if no pipelines then appAccess is enough. For jobs also, this will be true
@@ -726,8 +726,7 @@ func (handler *PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseW
 		//cdPipelines present, to check access for cd trigger
 		envRbacResultMap := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionTrigger, cdPipelineRbacObjects)
 		for rbacObject, rbacResultOk := range envRbacResultMap {
-			cdPipeline := rbacObjectToCdPipeline[rbacObject]
-			if cdPipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC && !rbacResultOk {
+			if rbacObjectCdTriggerTypeMap[rbacObject] == pipelineConfig.TRIGGER_TYPE_AUTOMATIC && !rbacResultOk {
 				common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 				return
 			}
