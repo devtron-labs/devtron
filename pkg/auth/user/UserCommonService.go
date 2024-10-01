@@ -515,7 +515,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 func (impl UserCommonServiceImpl) checkRbacForARole(role *repository.RoleModel, token string, managerAuth func(resource string, token string, object string) bool) bool {
 	isAuthorised := true
 	switch {
-	case role.AccessType == bean2.APP_ACCESS_TYPE_HELM || role.Entity == bean2.EntityJobs:
+	case role.Action == bean2.SUPER_ADMIN || role.AccessType == bean2.APP_ACCESS_TYPE_HELM || role.Entity == bean2.EntityJobs:
 		isValidAuth := managerAuth(casbin.ResourceGlobal, token, "*")
 		if !isValidAuth {
 			isAuthorised = false
