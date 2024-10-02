@@ -17,14 +17,12 @@
 package FullMode
 
 import (
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/appStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	"time"
-
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/devtron-labs/devtron/pkg/appStatus"
 )
 
 type InstalledAppDBExtendedService interface {
@@ -50,8 +48,7 @@ func NewInstalledAppDBExtendedServiceImpl(
 	}
 }
 
-func (impl *InstalledAppDBExtendedServiceImpl) UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error) {
-	isHealthy := false
+func (impl *InstalledAppDBExtendedServiceImpl) UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (isHealthy bool, err error) {
 	dbConnection := impl.InstalledAppRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -67,14 +64,16 @@ func (impl *InstalledAppDBExtendedServiceImpl) UpdateInstalledAppVersionStatus(a
 	}
 	versionHistory, err := impl.InstalledAppRepositoryHistory.GetLatestInstalledAppVersionHistoryByGitHash(gitHash)
 	if err != nil {
-		impl.Logger.Errorw("error while fetching installed version history", "error", err)
+		impl.Logger.Errorw("error while fetching installed version history", "gitHash", gitHash, "error", err)
 		return isHealthy, err
 	}
 	if versionHistory.Status != (argoApplication.Healthy) {
-		versionHistory.Status = string(application.Status.Health.Status)
-		versionHistory.UpdatedOn = time.Now()
-		versionHistory.UpdatedBy = 1
-		impl.InstalledAppRepositoryHistory.UpdateInstalledAppVersionHistory(versionHistory, tx)
+		versionHistory.SetStatus(string(application.Status.Health.Status))
+		versionHistory.UpdateAuditLog(1)
+		_, dbErr := impl.InstalledAppRepositoryHistory.UpdateInstalledAppVersionHistory(versionHistory, tx)
+		if dbErr != nil {
+			impl.Logger.Errorw("error while updating installed version history", "versionHistoryId", versionHistory.Id, "error", dbErr)
+		}
 	}
 	err = tx.Commit()
 	if err != nil {

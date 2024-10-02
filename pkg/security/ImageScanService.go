@@ -289,6 +289,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *bean3.Image
 			impl.Logger.Errorw("error while fetching scan execution result", "err", err)
 			return nil, err
 		}
+		imageScanResponse.Image = ciArtifact.Image
 		scanExecution, err := impl.scanHistoryRepository.FindByImageAndDigest(ciArtifact.ImageDigest, ciArtifact.Image)
 		if err != nil {
 			impl.Logger.Errorw("error while fetching scan execution result", "err", err)
@@ -389,6 +390,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *bean3.Image
 			}
 			imageScanResponse.ScanEnabled = ciArtifact.ScanEnabled
 			imageScanResponse.Scanned = ciArtifact.Scanned
+			imageScanResponse.Image = ciArtifact.Image
 		}
 	}
 

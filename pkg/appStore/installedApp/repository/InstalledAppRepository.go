@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
@@ -116,6 +116,7 @@ type InstalledAppRepository interface {
 	CreateInstalledAppVersion(model *InstalledAppVersions, tx *pg.Tx) (*InstalledAppVersions, error)
 	UpdateInstalledApp(model *InstalledApps, tx *pg.Tx) (*InstalledApps, error)
 	UpdateInstalledAppVersion(model *InstalledAppVersions, tx *pg.Tx) (*InstalledAppVersions, error)
+	DeleteInstalledAppVersions(tx *pg.Tx, installedAppId int, userId int32) (rowsUpdated int, err error)
 	GetInstalledApp(id int) (*InstalledApps, error)
 	GetInstalledAppsByAppId(appId int) (InstalledApps, error)
 	GetInstalledAppVersion(id int) (*InstalledAppVersions, error)
@@ -171,7 +172,7 @@ func NewInstalledAppRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.D
 	return &InstalledAppRepositoryImpl{dbConnection: dbConnection, Logger: Logger}
 }
 
-func (impl InstalledAppRepositoryImpl) CreateInstalledApp(model *InstalledApps, tx *pg.Tx) (*InstalledApps, error) {
+func (impl *InstalledAppRepositoryImpl) CreateInstalledApp(model *InstalledApps, tx *pg.Tx) (*InstalledApps, error) {
 	err := tx.Insert(model)
 	if err != nil {
 		impl.Logger.Error(err)
@@ -180,7 +181,7 @@ func (impl InstalledAppRepositoryImpl) CreateInstalledApp(model *InstalledApps, 
 	return model, nil
 }
 
-func (impl InstalledAppRepositoryImpl) CreateInstalledAppVersion(model *InstalledAppVersions, tx *pg.Tx) (*InstalledAppVersions, error) {
+func (impl *InstalledAppRepositoryImpl) CreateInstalledAppVersion(model *InstalledAppVersions, tx *pg.Tx) (*InstalledAppVersions, error) {
 	err := tx.Insert(model)
 	if err != nil {
 		impl.Logger.Error(err)
@@ -189,7 +190,7 @@ func (impl InstalledAppRepositoryImpl) CreateInstalledAppVersion(model *Installe
 	return model, nil
 }
 
-func (impl InstalledAppRepositoryImpl) UpdateInstalledApp(model *InstalledApps, tx *pg.Tx) (*InstalledApps, error) {
+func (impl *InstalledAppRepositoryImpl) UpdateInstalledApp(model *InstalledApps, tx *pg.Tx) (*InstalledApps, error) {
 	err := tx.Update(model)
 	if err != nil {
 		impl.Logger.Error(err)
@@ -198,7 +199,7 @@ func (impl InstalledAppRepositoryImpl) UpdateInstalledApp(model *InstalledApps, 
 	return model, nil
 }
 
-func (impl InstalledAppRepositoryImpl) UpdateInstalledAppVersion(model *InstalledAppVersions, tx *pg.Tx) (*InstalledAppVersions, error) {
+func (impl *InstalledAppRepositoryImpl) UpdateInstalledAppVersion(model *InstalledAppVersions, tx *pg.Tx) (*InstalledAppVersions, error) {
 	var err error
 	if tx == nil {
 		err = impl.dbConnection.Update(model)
@@ -211,7 +212,28 @@ func (impl InstalledAppRepositoryImpl) UpdateInstalledAppVersion(model *Installe
 	}
 	return model, nil
 }
-func (impl InstalledAppRepositoryImpl) FetchNotes(installedAppId int) (*InstalledApps, error) {
+
+func (impl *InstalledAppRepositoryImpl) DeleteInstalledAppVersions(tx *pg.Tx, installedAppId int, userId int32) (rowsUpdated int, err error) {
+	var query *orm.Query
+	if tx == nil {
+		query = impl.dbConnection.Model((*InstalledAppVersions)(nil))
+	} else {
+		query = tx.Model((*InstalledAppVersions)(nil))
+	}
+	res, err := query.
+		Set("active = ?", false).
+		Set("updated_by = ?", userId).
+		Set("updated_on = ?", time.Now()).
+		Where("installed_app_id = ?", installedAppId).
+		Where("active = ?", true).
+		Update()
+	if err != nil {
+		return rowsUpdated, err
+	}
+	return res.RowsAffected(), nil
+}
+
+func (impl *InstalledAppRepositoryImpl) FetchNotes(installedAppId int) (*InstalledApps, error) {
 	model := &InstalledApps{}
 	err := impl.dbConnection.Model(model).
 		Column("installed_apps.*", "App").
@@ -219,7 +241,7 @@ func (impl InstalledAppRepositoryImpl) FetchNotes(installedAppId int) (*Installe
 	return model, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetInstalledApp(id int) (*InstalledApps, error) {
+func (impl *InstalledAppRepositoryImpl) GetInstalledApp(id int) (*InstalledApps, error) {
 	model := &InstalledApps{}
 	err := impl.dbConnection.Model(model).
 		Column("installed_apps.*", "App", "Environment", "App.Team", "Environment.Cluster").
@@ -227,7 +249,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledApp(id int) (*InstalledApps, 
 	return model, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetInstalledAppsByAppId(appId int) (InstalledApps, error) {
+func (impl *InstalledAppRepositoryImpl) GetInstalledAppsByAppId(appId int) (InstalledApps, error) {
 	var model InstalledApps
 	err := impl.dbConnection.Model(&model).
 		Column("installed_apps.*", "App", "Environment", "App.Team", "Environment.Cluster").
@@ -235,7 +257,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppsByAppId(appId int) (Insta
 	return model, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByAppStoreId(appStoreId int) ([]*InstalledAppVersions, error) {
+func (impl *InstalledAppRepositoryImpl) GetInstalledAppVersionByAppStoreId(appStoreId int) ([]*InstalledAppVersions, error) {
 	var model []*InstalledAppVersions
 	err := impl.dbConnection.Model(&model).
 		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "AppStoreApplicationVersion").
@@ -264,7 +286,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByAppStoreId(appSto
 	return model, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByInstalledAppIdMeta(installedAppId int) ([]*InstalledAppVersions, error) {
+func (impl *InstalledAppRepositoryImpl) GetInstalledAppVersionByInstalledAppIdMeta(installedAppId int) ([]*InstalledAppVersions, error) {
 	var model []*InstalledAppVersions
 	err := impl.dbConnection.Model(&model).
 		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "AppStoreApplicationVersion").
@@ -294,7 +316,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByInstalledAppIdMet
 	return model, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetActiveInstalledAppVersionByInstalledAppId(installedAppId int) (*InstalledAppVersions, error) {
+func (impl *InstalledAppRepositoryImpl) GetActiveInstalledAppVersionByInstalledAppId(installedAppId int) (*InstalledAppVersions, error) {
 	model := &InstalledAppVersions{}
 	err := impl.dbConnection.Model(model).
 		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "AppStoreApplicationVersion").
@@ -321,7 +343,7 @@ func (impl InstalledAppRepositoryImpl) GetActiveInstalledAppVersionByInstalledAp
 	return model, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetLatestInstalledAppVersionByGitHash(gitHash string) (*InstalledAppVersions, error) {
+func (impl *InstalledAppRepositoryImpl) GetLatestInstalledAppVersionByGitHash(gitHash string) (*InstalledAppVersions, error) {
 	model := &InstalledAppVersions{}
 	err := impl.dbConnection.Model(model).
 		Column("installed_app_versions.*", "InstalledApp").
@@ -331,7 +353,7 @@ func (impl InstalledAppRepositoryImpl) GetLatestInstalledAppVersionByGitHash(git
 	return model, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetInstalledAppVersion(id int) (*InstalledAppVersions, error) {
+func (impl *InstalledAppRepositoryImpl) GetInstalledAppVersion(id int) (*InstalledAppVersions, error) {
 	model := &InstalledAppVersions{}
 	err := impl.dbConnection.Model(model).
 		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "InstalledApp.Environment", "InstalledApp.Environment.Cluster", "AppStoreApplicationVersion", "InstalledApp.App.Team").
@@ -357,8 +379,8 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersion(id int) (*Installe
 	return model, err
 }
 
-// it returns enable and disabled both version
-func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionAny(id int) (*InstalledAppVersions, error) {
+// GetInstalledAppVersionAny - returns enable and disabled both version
+func (impl *InstalledAppRepositoryImpl) GetInstalledAppVersionAny(id int) (*InstalledAppVersions, error) {
 	model := &InstalledAppVersions{}
 	err := impl.dbConnection.Model(model).
 		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "AppStoreApplicationVersion").
@@ -384,7 +406,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionAny(id int) (*Insta
 	return model, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.AppStoreFilter) ([]InstalledAppsWithChartDetails, error) {
+func (impl *InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.AppStoreFilter) ([]InstalledAppsWithChartDetails, error) {
 	var installedAppsWithChartDetails []InstalledAppsWithChartDetails
 	var query string
 	query = "select iav.updated_on, iav.id as installed_app_version_id, ch.name as chart_repo_name, das.id as docker_artifact_store_id,"
@@ -437,7 +459,7 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.
 	return installedAppsWithChartDetails, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetAllInstalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error) {
+func (impl *InstalledAppRepositoryImpl) GetAllInstalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error) {
 	var installedAppAndEnvDetails []InstalledAppAndEnvDetails
 	var queryTemp = "select env.environment_name, env.id as environment_id, a.app_name, a.display_name, a.app_offering_mode, ia.updated_on, u.email_id," +
 		" asav.id as app_store_application_version_id, iav.id as installed_app_version_id, ia.id as installed_app_id, ia.app_id, ia.deployment_app_type, app_status.status as app_status" +
@@ -456,7 +478,7 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledAppsByAppStoreId(appStoreI
 	return installedAppAndEnvDetails, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetAllInstalledAppsByChartRepoId(chartRepoId int) ([]InstalledAppAndEnvDetails, error) {
+func (impl *InstalledAppRepositoryImpl) GetAllInstalledAppsByChartRepoId(chartRepoId int) ([]InstalledAppAndEnvDetails, error) {
 	var installedAppAndEnvDetails []InstalledAppAndEnvDetails
 	var queryTemp = "select env.environment_name, env.id as environment_id, a.app_name, ia.updated_on, u.email_id, asav.id as app_store_application_version_id, iav.id as installed_app_version_id, ia.id as installed_app_id " +
 		" from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id = ia.id" +
@@ -473,7 +495,7 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledAppsByChartRepoId(chartRep
 	return installedAppAndEnvDetails, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId int, envId int) (*InstalledAppVersions, error) {
+func (impl *InstalledAppRepositoryImpl) GetInstalledAppVersionByInstalledAppIdAndEnvId(installedAppId int, envId int) (*InstalledAppVersions, error) {
 	installedAppVersion := &InstalledAppVersions{}
 	err := impl.dbConnection.
 		Model(installedAppVersion).
@@ -519,7 +541,7 @@ func sqlIntSeq(ns []int) string {
 	return string(b)
 }
 
-func (impl InstalledAppRepositoryImpl) DeleteInstalledApp(model *InstalledApps) (*InstalledApps, error) {
+func (impl *InstalledAppRepositoryImpl) DeleteInstalledApp(model *InstalledApps) (*InstalledApps, error) {
 	err := impl.dbConnection.Insert(model)
 	if err != nil {
 		impl.Logger.Error(err)
@@ -528,7 +550,7 @@ func (impl InstalledAppRepositoryImpl) DeleteInstalledApp(model *InstalledApps) 
 	return model, nil
 }
 
-func (impl InstalledAppRepositoryImpl) DeleteInstalledAppVersion(model *InstalledAppVersions) (*InstalledAppVersions, error) {
+func (impl *InstalledAppRepositoryImpl) DeleteInstalledAppVersion(model *InstalledAppVersions) (*InstalledAppVersions, error) {
 	err := impl.dbConnection.Insert(model)
 	if err != nil {
 		impl.Logger.Error(err)
@@ -537,7 +559,7 @@ func (impl InstalledAppRepositoryImpl) DeleteInstalledAppVersion(model *Installe
 	return model, nil
 }
 
-func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByInstalledAppId(installedAppId int) ([]*InstalledAppVersions, error) {
+func (impl *InstalledAppRepositoryImpl) GetInstalledAppVersionByInstalledAppId(installedAppId int) ([]*InstalledAppVersions, error) {
 	model := make([]*InstalledAppVersions, 0)
 	err := impl.dbConnection.Model(&model).
 		Column("installed_app_versions.*").
@@ -551,7 +573,7 @@ func (impl *InstalledAppRepositoryImpl) GetConnection() (dbConnection *pg.DB) {
 	return impl.dbConnection
 }
 
-func (impl InstalledAppRepositoryImpl) GetClusterComponentByClusterId(clusterId int) ([]*InstalledApps, error) {
+func (impl *InstalledAppRepositoryImpl) GetClusterComponentByClusterId(clusterId int) ([]*InstalledApps, error) {
 	var models []*InstalledApps
 	err := impl.dbConnection.Model(&models).
 		Column("installed_apps.*", "App", "Environment").
@@ -562,7 +584,7 @@ func (impl InstalledAppRepositoryImpl) GetClusterComponentByClusterId(clusterId 
 	return models, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetClusterComponentByClusterIds(clusterIds []int) ([]*InstalledApps, error) {
+func (impl *InstalledAppRepositoryImpl) GetClusterComponentByClusterIds(clusterIds []int) ([]*InstalledApps, error) {
 	var models []*InstalledApps
 	err := impl.dbConnection.Model(&models).
 		Column("installed_apps.*", "App", "Environment").
@@ -573,7 +595,7 @@ func (impl InstalledAppRepositoryImpl) GetClusterComponentByClusterIds(clusterId
 	return models, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByAppIdAndEnvId(appId int, envId int) (*InstalledAppVersions, error) {
+func (impl *InstalledAppRepositoryImpl) GetInstalledAppVersionByAppIdAndEnvId(appId int, envId int) (*InstalledAppVersions, error) {
 	installedAppVersion := &InstalledAppVersions{}
 	err := impl.dbConnection.
 		Model(installedAppVersion).
@@ -606,7 +628,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByAppIdAndEnvId(app
 	return installedAppVersion, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByClusterIds(clusterIds []int) ([]*InstalledAppVersions, error) {
+func (impl *InstalledAppRepositoryImpl) GetInstalledAppVersionByClusterIds(clusterIds []int) ([]*InstalledAppVersions, error) {
 	var installedAppVersions []*InstalledAppVersions
 	err := impl.dbConnection.
 		Model(&installedAppVersions).
@@ -640,7 +662,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByClusterIds(cluste
 	return installedAppVersions, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByClusterIdsV2(clusterIds []int) ([]*InstalledAppVersions, error) {
+func (impl *InstalledAppRepositoryImpl) GetInstalledAppVersionByClusterIdsV2(clusterIds []int) ([]*InstalledAppVersions, error) {
 	var installedAppVersions []*InstalledAppVersions
 	err := impl.dbConnection.
 		Model(&installedAppVersions).
@@ -673,7 +695,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByClusterIdsV2(clus
 	return installedAppVersions, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetInstalledApplicationByClusterIdAndNamespaceAndAppIdentifier(clusterId int, namespace string, appIdentifier string, appName string) (*InstalledApps, error) {
+func (impl *InstalledAppRepositoryImpl) GetInstalledApplicationByClusterIdAndNamespaceAndAppIdentifier(clusterId int, namespace string, appIdentifier string, appName string) (*InstalledApps, error) {
 	var installedApps []*InstalledApps
 	err := impl.dbConnection.Model(&installedApps).
 		Column("installed_apps.*", "App", "Environment", "App.Team").
@@ -705,7 +727,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledApplicationByClusterIdAndName
 	return &InstalledApps{}, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId int, namespace string, appName string) (*InstalledApps, error) {
+func (impl *InstalledAppRepositoryImpl) GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId int, namespace string, appName string) (*InstalledApps, error) {
 	model := &InstalledApps{}
 	err := impl.dbConnection.Model(model).
 		Column("installed_apps.*", "App", "Environment", "App.Team").
@@ -719,7 +741,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledApplicationByClusterIdAndName
 	return model, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypeInstalledApps(deploymentAppType string, clusterIds []int) ([]*InstalledApps, error) {
+func (impl *InstalledAppRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypeInstalledApps(deploymentAppType string, clusterIds []int) ([]*InstalledApps, error) {
 	var installedApps []*InstalledApps
 	err := impl.dbConnection.
 		Model(&installedApps).
@@ -733,7 +755,7 @@ func (impl InstalledAppRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypeIn
 	return installedApps, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetDeploymentSuccessfulStatusCountForTelemetry() (int, error) {
+func (impl *InstalledAppRepositoryImpl) GetDeploymentSuccessfulStatusCountForTelemetry() (int, error) {
 
 	countQuery := "select count(Id) from installed_apps where status=?;"
 	var count int
@@ -744,7 +766,7 @@ func (impl InstalledAppRepositoryImpl) GetDeploymentSuccessfulStatusCountForTele
 	return count, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) (InstalledApps, error) {
+func (impl *InstalledAppRepositoryImpl) GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) (InstalledApps, error) {
 	var installedApps InstalledApps
 	err := impl.dbConnection.Model(&installedApps).
 		Column("installed_apps.*", "App.id", "App.app_name", "Environment.namespace", "Environment.cluster_id", "Environment.environment_name").
@@ -759,7 +781,8 @@ func (impl InstalledAppRepositoryImpl) GetGitOpsInstalledAppsWhereArgoAppDeleted
 	}
 	return installedApps, nil
 }
-func (impl InstalledAppRepositoryImpl) GetInstalledAppByGitHash(gitHash string) (InstallAppDeleteRequest, error) {
+
+func (impl *InstalledAppRepositoryImpl) GetInstalledAppByGitHash(gitHash string) (InstallAppDeleteRequest, error) {
 	model := InstallAppDeleteRequest{}
 	query := "select iv.installed_app_id, a.app_name, i.app_id, i.environment_id, a.app_offering_mode, e.cluster_id, e.namespace " +
 		" from app a inner join installed_apps i on a.id=i.app_id  " +
@@ -774,7 +797,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppByGitHash(gitHash string) 
 	return model, nil
 }
 
-func (impl InstalledAppRepositoryImpl) GetInstalledAppByAppIdAndDeploymentType(appId int, deploymentAppType string) (InstalledApps, error) {
+func (impl *InstalledAppRepositoryImpl) GetInstalledAppByAppIdAndDeploymentType(appId int, deploymentAppType string) (InstalledApps, error) {
 	var installedApps InstalledApps
 	queryString := `select * from installed_apps 
                       	left join deployment_config dc on dc.active=true and dc.app_id = installed_apps.app_id and dc.environment_id=installed_apps.environment_id
@@ -788,7 +811,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppByAppIdAndDeploymentType(a
 	return installedApps, nil
 }
 
-func (impl InstalledAppRepositoryImpl) GetInstalledAppByAppName(appName string) (*InstalledApps, error) {
+func (impl *InstalledAppRepositoryImpl) GetInstalledAppByAppName(appName string) (*InstalledApps, error) {
 	model := &InstalledApps{}
 	err := impl.dbConnection.Model(model).
 		Column("installed_apps.*", "App", "Environment").
@@ -799,7 +822,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppByAppName(appName string) 
 	return model, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetInstalledAppByInstalledAppVersionId(installedAppVersionId int) (InstalledApps, error) {
+func (impl *InstalledAppRepositoryImpl) GetInstalledAppByInstalledAppVersionId(installedAppVersionId int) (InstalledApps, error) {
 	var installedApps InstalledApps
 	queryString := `select ia.* from installed_apps ia inner join installed_app_versions iav on ia.id=iav.installed_app_id
                     left join deployment_config dc on dc.active=true and dc.app_id = ia.app_id and dc.environment_id=ia.environment_id
@@ -813,7 +836,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppByInstalledAppVersionId(in
 	return installedApps, nil
 }
 
-func (impl InstalledAppRepositoryImpl) GetInstalledAppByGitOpsAppName(acdAppName string) (*InstalledApps, error) {
+func (impl *InstalledAppRepositoryImpl) GetInstalledAppByGitOpsAppName(acdAppName string) (*InstalledApps, error) {
 	model := &InstalledApps{}
 	err := impl.dbConnection.Model(model).
 		Column("installed_apps.*", "App", "Environment").
@@ -826,7 +849,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppByGitOpsAppName(acdAppName
 	return model, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetInstalledAppByGitRepoUrl(repoName, repoUrl string) (*InstalledApps, error) {
+func (impl *InstalledAppRepositoryImpl) GetInstalledAppByGitRepoUrl(repoName, repoUrl string) (*InstalledApps, error) {
 	model := &InstalledApps{}
 	err := impl.dbConnection.Model(model).
 		Column("installed_apps.*", "App").
@@ -839,7 +862,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppByGitRepoUrl(repoName, rep
 	return model, err
 }
 
-func (impl InstalledAppRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatusesForAppStore(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) ([]*InstalledAppVersions, error) {
+func (impl *InstalledAppRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatusesForAppStore(getPipelineDeployedBeforeMinutes int, getPipelineDeployedWithinHours int) ([]*InstalledAppVersions, error) {
 	var installedAppVersions []*InstalledAppVersions
 	queryString := `select iav.* from installed_app_versions iav 
     				inner join installed_apps ia on iav.installed_app_id=ia.id 
@@ -850,7 +873,7 @@ func (impl InstalledAppRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckI
                          group by installed_app_version_id, id order by installed_app_version_id, id desc ) and (ia.deployment_app_type=? or dc.deployment_app_type=?) and iav.active=?;`
 
 	_, err := impl.dbConnection.Query(&installedAppVersions, queryString, getPipelineDeployedBeforeMinutes, getPipelineDeployedWithinHours,
-		pg.In([]string{pipelineConfig.WorkflowAborted, pipelineConfig.WorkflowFailed, pipelineConfig.WorkflowSucceeded, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded)}),
+		pg.In([]string{cdWorkflow.WorkflowAborted, cdWorkflow.WorkflowFailed, cdWorkflow.WorkflowSucceeded, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded)}),
 		util2.PIPELINE_DEPLOYMENT_TYPE_ACD, util2.PIPELINE_DEPLOYMENT_TYPE_ACD, true)
 	if err != nil {
 		impl.Logger.Errorw("error in GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatusesForAppStore", "err", err)
@@ -859,7 +882,7 @@ func (impl InstalledAppRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckI
 	return installedAppVersions, nil
 }
 
-func (impl InstalledAppRepositoryImpl) GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelinesForAppStore(pendingSinceSeconds int, timeForDegradation int) ([]*InstalledAppVersions, error) {
+func (impl *InstalledAppRepositoryImpl) GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelinesForAppStore(pendingSinceSeconds int, timeForDegradation int) ([]*InstalledAppVersions, error) {
 	var installedAppVersions []*InstalledAppVersions
 	queryString := `select iav.* from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id=ia.id 
 					inner join installed_app_version_history iavh on iavh.installed_app_version_id=iav.id
@@ -880,7 +903,7 @@ func (impl InstalledAppRepositoryImpl) GetArgoPipelinesHavingTriggersStuckInLast
 	return installedAppVersions, nil
 }
 
-func (impl InstalledAppRepositoryImpl) GetHelmReleaseStatusConfigByInstalledAppId(installedAppVersionHistoryId int) (string, string, error) {
+func (impl *InstalledAppRepositoryImpl) GetHelmReleaseStatusConfigByInstalledAppId(installedAppVersionHistoryId int) (string, string, error) {
 	installStatus := struct {
 		HelmReleaseStatusConfig string
 		Status                  string
@@ -894,7 +917,7 @@ func (impl InstalledAppRepositoryImpl) GetHelmReleaseStatusConfigByInstalledAppI
 	return installStatus.HelmReleaseStatusConfig, installStatus.Status, nil
 }
 
-func (impl InstalledAppRepositoryImpl) GetActiveInstalledAppByEnvIdAndDeploymentType(envId int, deploymentType string,
+func (impl *InstalledAppRepositoryImpl) GetActiveInstalledAppByEnvIdAndDeploymentType(envId int, deploymentType string,
 	excludeAppIds []string, includeAppIds []string) ([]*InstalledApps, error) {
 	var installedApps []*InstalledApps
 
@@ -924,7 +947,7 @@ func (impl InstalledAppRepositoryImpl) GetActiveInstalledAppByEnvIdAndDeployment
 
 // UpdateDeploymentAppTypeInInstalledApp takes in deploymentAppType and list of installedAppIds and
 // updates the deploymentAppType in the table for given ids.
-func (impl InstalledAppRepositoryImpl) UpdateDeploymentAppTypeInInstalledApp(deploymentAppType string, installedAppIdIncludes []int, userId int32, deployStatus int) error {
+func (impl *InstalledAppRepositoryImpl) UpdateDeploymentAppTypeInInstalledApp(deploymentAppType string, installedAppIdIncludes []int, userId int32, deployStatus int) error {
 	query := "update installed_apps set deployment_app_type = ?,updated_by = ?, updated_on = ?, status = ? where id in (?);"
 	var installedApp *InstalledApps
 	_, err := impl.dbConnection.Query(installedApp, query, deploymentAppType, userId, time.Now(), deployStatus, pg.In(installedAppIdIncludes))
@@ -932,7 +955,7 @@ func (impl InstalledAppRepositoryImpl) UpdateDeploymentAppTypeInInstalledApp(dep
 	return err
 }
 
-func (impl InstalledAppRepositoryImpl) FindInstalledAppByIds(ids []int) ([]*InstalledApps, error) {
+func (impl *InstalledAppRepositoryImpl) FindInstalledAppByIds(ids []int) ([]*InstalledApps, error) {
 	var installedApps []*InstalledApps
 	err := impl.dbConnection.Model(&installedApps).
 		Column("installed_apps.*", "App", "Environment", "Environment.Cluster").
@@ -948,7 +971,7 @@ func (impl InstalledAppRepositoryImpl) FindInstalledAppByIds(ids []int) ([]*Inst
 	return installedApps, err
 }
 
-func (impl InstalledAppRepositoryImpl) FindInstalledAppsByAppId(appId int) ([]*InstalledApps, error) {
+func (impl *InstalledAppRepositoryImpl) FindInstalledAppsByAppId(appId int) ([]*InstalledApps, error) {
 	var installedApps []*InstalledApps
 	err := impl.dbConnection.Model(&installedApps).
 		Column("installed_apps.*", "App", "Environment").

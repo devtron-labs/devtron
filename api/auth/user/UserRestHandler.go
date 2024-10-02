@@ -250,7 +250,7 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 					authPass = false
 				}
 			}
-			if filter.Entity == bean.CLUSTER_ENTITIY {
+			if filter.Entity == bean2.CLUSTER_ENTITIY {
 				if ok := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !ok {
 					authPass = false
 				}
@@ -316,7 +316,7 @@ func (handler UserRestHandlerImpl) GetAllV2(w http.ResponseWriter, r *http.Reque
 						break
 					}
 				}
-				if filter.Entity == bean.CLUSTER_ENTITIY {
+				if filter.Entity == bean2.CLUSTER_ENTITIY {
 					if ok := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); ok {
 						isAuthorised = true
 						break
@@ -387,7 +387,7 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 						break
 					}
 				}
-				if filter.Entity == bean.CLUSTER_ENTITIY {
+				if filter.Entity == bean2.CLUSTER_ENTITIY {
 					if ok := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); ok {
 						isAuthorised = true
 						break
@@ -464,7 +464,7 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 	}
 	if user.RoleFilters != nil && len(user.RoleFilters) > 0 {
 		for _, filter := range user.RoleFilters {
-			if filter.AccessType == bean.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
+			if filter.AccessType == bean2.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
 				common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 				return
 			}
@@ -474,7 +474,7 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 					return
 				}
 			}
-			if filter.Entity == bean.CLUSTER_ENTITIY {
+			if filter.Entity == bean2.CLUSTER_ENTITIY {
 				if ok := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !ok {
 					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
@@ -585,7 +585,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *
 					authPass = false
 				}
 			}
-			if filter.Entity == bean.CLUSTER_ENTITIY {
+			if filter.Entity == bean2.CLUSTER_ENTITIY {
 				if isValidAuth := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !isValidAuth {
 					authPass = false
 				}
@@ -749,7 +749,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroupsV2(w http.ResponseWriter, r *h
 						break
 					}
 				}
-				if filter.Entity == bean.CLUSTER_ENTITIY {
+				if filter.Entity == bean2.CLUSTER_ENTITIY {
 					if isValidAuth := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); isValidAuth {
 						isAuthorised = true
 						break
@@ -820,7 +820,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 						break
 					}
 				}
-				if filter.Entity == bean.CLUSTER_ENTITIY {
+				if filter.Entity == bean2.CLUSTER_ENTITIY {
 					if isValidAuth := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); isValidAuth {
 						isAuthorised = true
 						break
@@ -1038,7 +1038,7 @@ func (handler UserRestHandlerImpl) SyncOrchestratorToCasbin(w http.ResponseWrite
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	userEmailId, err := handler.userService.GetEmailById(userId)
+	userEmailId, err := handler.userService.GetActiveEmailById(userId)
 	if err != nil {
 		handler.logger.Errorw("service err, SyncOrchestratorToCasbin", "err", err, "userId", userId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

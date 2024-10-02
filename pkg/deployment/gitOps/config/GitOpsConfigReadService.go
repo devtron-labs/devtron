@@ -83,7 +83,7 @@ func (impl *GitOpsConfigReadServiceImpl) GetUserEmailIdAndNameForGitOpsCommit(us
 	emailId := bean.GitOpsCommitDefaultEmailId
 	name := bean.GitOpsCommitDefaultName
 	//getting emailId associated with user
-	userEmail, err := impl.userService.GetEmailById(userId)
+	userEmail, err := impl.userService.GetActiveEmailById(userId)
 	if err != nil {
 		impl.logger.Errorw("error in getting user info by id", "err", err, "id", userId)
 	}

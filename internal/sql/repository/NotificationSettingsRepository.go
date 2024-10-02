@@ -17,9 +17,12 @@
 package repository
 
 import (
+	"fmt"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
+	"k8s.io/utils/pointer"
 	"strconv"
 )
 
@@ -83,6 +86,7 @@ type NotificationSettings struct {
 	ViewId               int      `sql:"view_id"`
 	NotificationRuleId   int      `sql:"notification_rule_id"`
 	AdditionalConfigJson string   `sql:"additional_config_json"` // user defined config json;
+	ClusterId            *int     `sql:"cluster_id"`
 }
 
 type SettingOptionDTO struct {
@@ -94,6 +98,7 @@ type SettingOptionDTO struct {
 	PipelineType    string `json:"pipelineType"`
 	AppName         string `json:"appName"`
 	EnvironmentName string `json:"environmentName,omitempty"`
+	ClusterName     string `json:"clusterName"`
 }
 
 func (impl *NotificationSettingsRepositoryImpl) FindNSViewCount() (int, error) {
@@ -221,40 +226,54 @@ func (impl *NotificationSettingsRepositoryImpl) DeleteNotificationSettingsViewBy
 
 func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingDeploymentOptions(settingRequest *SearchRequest) ([]*SettingOptionDTO, error) {
 	var settingOption []*SettingOptionDTO
-	query := "SELECT p.id as pipeline_id,p.pipeline_name, env.environment_name, a.app_name FROM pipeline p" +
+	query := "SELECT p.id as pipeline_id,p.pipeline_name, env.environment_name, a.app_name,c.cluster_name AS cluster_name " +
+		" FROM pipeline p" +
 		" INNER JOIN app a on a.id=p.app_id" +
-		" INNER JOIN environment env on env.id = p.environment_id"
+		" INNER JOIN environment env on env.id = p.environment_id " +
+		" INNER JOIN cluster c on c.id = env.cluster_id"
 	query = query + " WHERE p.deleted = false"
 
+	var envProdIdentifier *bool
+	envIds := make([]*int, 0)
+	for _, envId := range settingRequest.EnvId {
+		if *envId == resourceQualifiers.AllExistingAndFutureProdEnvsInt || *envId == resourceQualifiers.AllExistingAndFutureNonProdEnvsInt {
+			envProdIdentifier = pointer.Bool(*envId == resourceQualifiers.AllExistingAndFutureProdEnvsInt)
+			continue
+		}
+		envIds = append(envIds, envId)
+	}
+
+	queryParams := make([]interface{}, 0)
 	if len(settingRequest.TeamId) > 0 {
 		query = query + " AND a.team_id in (?)"
-	} else if len(settingRequest.EnvId) > 0 {
-		query = query + " AND p.environment_id in (?)"
+		queryParams = append(queryParams, pg.In(settingRequest.TeamId))
+	} else if len(envIds) > 0 || envProdIdentifier != nil {
+		envQuery := ""
+		if len(envIds) > 0 {
+			envQuery = " p.environment_id in (?) "
+			queryParams = append(queryParams, pg.In(envIds))
+		}
+		if envProdIdentifier != nil {
+			if len(envQuery) > 0 {
+				envQuery += " OR "
+			}
+			envQuery += " env.default = ? "
+			queryParams = append(queryParams, *envProdIdentifier)
+
+		}
+		query = query + fmt.Sprintf(" AND (%s)", envQuery)
 	} else if len(settingRequest.AppId) > 0 {
 		query = query + " AND p.app_id in (?)"
+		queryParams = append(queryParams, pg.In(settingRequest.AppId))
 	} else if len(settingRequest.PipelineName) > 0 {
 		query = query + " AND p.pipeline_name like (?)"
+		queryParams = append(queryParams, settingRequest.PipelineName)
+	} else if len(settingRequest.ClusterId) > 0 {
+		query = query + fmt.Sprintf(" AND env.cluster_id IN (?)")
+		queryParams = append(queryParams, pg.In(settingRequest.ClusterId))
 	}
-	query = query + " GROUP BY 1,2,3,4;"
-
-	var err error
-	if len(settingRequest.TeamId) > 0 && len(settingRequest.EnvId) == 0 && len(settingRequest.AppId) == 0 {
-		_, err = impl.dbConnection.Query(&settingOption, query, pg.In(settingRequest.TeamId))
-	} else if len(settingRequest.TeamId) == 0 && len(settingRequest.EnvId) > 0 && len(settingRequest.AppId) == 0 {
-		_, err = impl.dbConnection.Query(&settingOption, query, pg.In(settingRequest.EnvId))
-	} else if len(settingRequest.TeamId) == 0 && len(settingRequest.EnvId) == 0 && len(settingRequest.AppId) > 0 {
-		_, err = impl.dbConnection.Query(&settingOption, query, pg.In(settingRequest.AppId))
-	} else if len(settingRequest.TeamId) > 0 && len(settingRequest.EnvId) > 0 && len(settingRequest.AppId) == 0 {
-		_, err = impl.dbConnection.Query(&settingOption, query, pg.In(settingRequest.TeamId), pg.In(settingRequest.EnvId))
-	} else if len(settingRequest.TeamId) > 0 && len(settingRequest.EnvId) == 0 && len(settingRequest.AppId) > 0 {
-		_, err = impl.dbConnection.Query(&settingOption, query, pg.In(settingRequest.TeamId), pg.In(settingRequest.AppId))
-	} else if len(settingRequest.TeamId) == 0 && len(settingRequest.EnvId) > 0 && len(settingRequest.AppId) > 0 {
-		_, err = impl.dbConnection.Query(&settingOption, query, pg.In(settingRequest.EnvId), pg.In(settingRequest.AppId))
-	} else if len(settingRequest.TeamId) > 0 && len(settingRequest.EnvId) > 0 && len(settingRequest.AppId) > 0 {
-		_, err = impl.dbConnection.Query(&settingOption, query, pg.In(settingRequest.TeamId), pg.In(settingRequest.EnvId), pg.In(settingRequest.AppId))
-	} else if len(settingRequest.PipelineName) > 0 {
-		_, err = impl.dbConnection.Query(&settingOption, query, settingRequest.PipelineName)
-	}
+	query = query + " GROUP BY 1,2,3,4,5;"
+	_, err := impl.dbConnection.Query(&settingOption, query, queryParams...)
 	if err != nil {
 		return nil, err
 	}
@@ -263,44 +282,44 @@ func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingDeploymen
 
 func (impl *NotificationSettingsRepositoryImpl) FindNotificationSettingBuildOptions(settingRequest *SearchRequest) ([]*SettingOptionDTO, error) {
 	var settingOption []*SettingOptionDTO
+	envIds := make([]*int, 0)
+	for _, envId := range settingRequest.EnvId {
+		if *envId == resourceQualifiers.AllExistingAndFutureProdEnvsInt || *envId == resourceQualifiers.AllExistingAndFutureNonProdEnvsInt {
+			continue
+		}
+		envIds = append(envIds, envId)
+	}
+
 	query := "SELECT cip.id as pipeline_id,cip.name as pipeline_name, a.app_name from ci_pipeline cip" +
 		" INNER JOIN app a on a.id = cip.app_id" +
 		" INNER JOIN team t on t.id= a.team_id"
-	if len(settingRequest.EnvId) > 0 {
+	if len(envIds) > 0 || len(settingRequest.ClusterId) > 0 {
 		query = query + " INNER JOIN ci_artifact cia on cia.pipeline_id = cip.id"
 		query = query + " INNER JOIN cd_workflow wf on wf.ci_artifact_id = cia.id"
 		query = query + " INNER JOIN pipeline p on p.id = wf.pipeline_id"
+		query = query + " INNER JOIN environment e on e.id = p.environment_id"
 	}
-	query = query + " WHERE cip.deleted = false"
 
+	queryParams := make([]interface{}, 0)
+	query = query + " WHERE cip.deleted = false"
 	if len(settingRequest.TeamId) > 0 {
 		query = query + " AND a.team_id in (?)"
-	} else if len(settingRequest.EnvId) > 0 {
-		query = query + " AND p.environment_id in (?)"
+		queryParams = append(queryParams, pg.In(settingRequest.TeamId))
+	} else if len(envIds) > 0 {
+		query = query + " AND e.id in (?)"
+		queryParams = append(queryParams, pg.In(envIds))
 	} else if len(settingRequest.AppId) > 0 {
 		query = query + " AND cip.app_id in (?)"
+		queryParams = append(queryParams, pg.In(settingRequest.AppId))
 	} else if len(settingRequest.PipelineName) > 0 {
-		query = query + " AND cip.name like (?)"
+		query = query + " AND cip.name like ?"
+		queryParams = append(queryParams, "%"+settingRequest.PipelineName+"%")
+	} else if len(settingRequest.ClusterId) > 0 {
+		query = query + fmt.Sprintf(" AND e.cluster_id IN (?)")
+		queryParams = append(queryParams, pg.In(settingRequest.ClusterId))
 	}
 	query = query + " GROUP BY 1,2,3;"
-	var err error
-	if len(settingRequest.TeamId) > 0 && len(settingRequest.EnvId) == 0 && len(settingRequest.AppId) == 0 {
-		_, err = impl.dbConnection.Query(&settingOption, query, pg.In(settingRequest.TeamId))
-	} else if len(settingRequest.TeamId) == 0 && len(settingRequest.EnvId) > 0 && len(settingRequest.AppId) == 0 {
-		_, err = impl.dbConnection.Query(&settingOption, query, pg.In(settingRequest.EnvId))
-	} else if len(settingRequest.TeamId) == 0 && len(settingRequest.EnvId) == 0 && len(settingRequest.AppId) > 0 {
-		_, err = impl.dbConnection.Query(&settingOption, query, pg.In(settingRequest.AppId))
-	} else if len(settingRequest.TeamId) > 0 && len(settingRequest.EnvId) > 0 && len(settingRequest.AppId) == 0 {
-		_, err = impl.dbConnection.Query(&settingOption, query, pg.In(settingRequest.TeamId), pg.In(settingRequest.EnvId))
-	} else if len(settingRequest.TeamId) > 0 && len(settingRequest.EnvId) == 0 && len(settingRequest.AppId) > 0 {
-		_, err = impl.dbConnection.Query(&settingOption, query, pg.In(settingRequest.TeamId), pg.In(settingRequest.AppId))
-	} else if len(settingRequest.TeamId) == 0 && len(settingRequest.EnvId) > 0 && len(settingRequest.AppId) > 0 {
-		_, err = impl.dbConnection.Query(&settingOption, query, pg.In(settingRequest.EnvId), pg.In(settingRequest.AppId))
-	} else if len(settingRequest.TeamId) > 0 && len(settingRequest.EnvId) > 0 && len(settingRequest.AppId) > 0 {
-		_, err = impl.dbConnection.Query(&settingOption, query, pg.In(settingRequest.TeamId), pg.In(settingRequest.EnvId), pg.In(settingRequest.AppId))
-	} else if len(settingRequest.PipelineName) > 0 {
-		_, err = impl.dbConnection.Query(&settingOption, query, settingRequest.PipelineName)
-	}
+	_, err := impl.dbConnection.Query(&settingOption, query, queryParams...)
 	if err != nil {
 		return nil, err
 	}
@@ -311,6 +330,7 @@ type SearchRequest struct {
 	TeamId       []*int `json:"teamId" validate:"number"`
 	EnvId        []*int `json:"envId" validate:"number"`
 	AppId        []*int `json:"appId" validate:"number"`
+	ClusterId    []*int `json:"clusterId" validate:"number"`
 	PipelineName string `json:"pipelineName"`
 	UserId       int32  `json:"-"`
 }
