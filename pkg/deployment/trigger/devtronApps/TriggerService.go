@@ -429,7 +429,6 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		}
 		overrideRequest.CdWorkflowId = cdWf.Id
 
-		// FIXME: ENT end
 		_, span = otel.Tracer("orchestrator").Start(ctx, "TriggerPreStage")
 		triggerRequest := bean.TriggerRequest{
 			CdWf:                  cdWf,
@@ -439,7 +438,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			ApplyAuth:             false,
 			TriggerContext:        triggerContext,
 			RefCdWorkflowRunnerId: 0,
-			CdWorkflowRunnerId:        overrideRequest.WfrId
+			CdWorkflowRunnerId:    overrideRequest.WfrId,
 		}
 		err = impl.TriggerPreStage(triggerRequest)
 		span.End()
@@ -559,6 +558,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			TriggeredBy:           overrideRequest.UserId,
 			RefCdWorkflowRunnerId: 0,
 			TriggerContext:        triggerContext,
+			CdWorkflowRunnerId:    overrideRequest.WfrId,
 		}
 		err = impl.TriggerPostStage(triggerRequest)
 		span.End()
