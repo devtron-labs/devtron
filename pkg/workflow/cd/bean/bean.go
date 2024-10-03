@@ -18,7 +18,7 @@ package bean
 
 import (
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"time"
 )
 
@@ -50,4 +50,5 @@ type CdWorkflowRunnerDto struct {
 	RefCdWorkflowRunnerId   int                             `json:"refCdWorkflowRunnerId"`
 	ImagePathReservationIds []int                           `json:"imagePathReservationIds"`
 	ReferenceId             *string                         `json:"referenceId"`
+	IsArtifactUploaded      bool                            `json:"isArtifactUploaded"`
 }

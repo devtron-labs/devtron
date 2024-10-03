@@ -30,7 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	cdWorkflowModelBean "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
+	cdWorkflowModelBean "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	util3 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
@@ -165,12 +165,19 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDStageCompleteEvent() error {
 			impl.logger.Errorw("could not get wf runner", "err", err)
 			return
 		}
-
+		wfr.IsArtifactUploaded = cdStageCompleteEvent.IsArtifactUploaded
 		if wfr.Status != string(v1alpha1.NodeSucceeded) {
 			impl.logger.Debugw("event received from ci runner, updating workflow runner status as succeeded", "savedWorkflowRunnerId", wfr.Id, "oldStatus", wfr.Status, "podStatus", wfr.PodStatus)
-			err = impl.cdWorkflowRunnerService.UpdateWfrStatus(wfr, string(v1alpha1.NodeSucceeded), 1)
+			wfr.Status = string(v1alpha1.NodeSucceeded)
+			err = impl.cdWorkflowRunnerService.UpdateWfr(wfr, 1)
 			if err != nil {
 				impl.logger.Errorw("update cd-wf-runner failed for id ", "cdWfrId", wfr.Id, "err", err)
+				return
+			}
+		} else {
+			err = impl.cdWorkflowRunnerService.UpdateIsArtifactUploaded(wfr.Id, cdStageCompleteEvent.IsArtifactUploaded)
+			if err != nil {
+				impl.logger.Errorw("error in updating isArtifactUploaded", "cdWfrId", wfr.Id, "err", err)
 				return
 			}
 		}
@@ -514,7 +521,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 			ReferenceId: pointer.String(msg.MsgId),
 		}
 
-		if ciCompleteEvent.FailureReason != "" {
+		if len(ciCompleteEvent.FailureReason) != 0 {
 			req.FailureReason = ciCompleteEvent.FailureReason
 			err := impl.workflowDagExecutor.HandleCiStepFailedEvent(ciCompleteEvent.PipelineId, req)
 			if err != nil {
@@ -539,7 +546,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 						impl.logger.Error("Error while creating request for pipelineID", "pipelineId", ciCompleteEvent.PipelineId, "err", err)
 						return
 					}
-					resp, err := impl.ValidateAndHandleCiSuccessEvent(triggerContext, ciCompleteEvent.PipelineId, request, detail.LastUpdatedOn)
+					resp, err := impl.validateAndHandleCiSuccessEvent(triggerContext, ciCompleteEvent.PipelineId, request, detail.LastUpdatedOn)
 					if err != nil {
 						return
 					}
@@ -548,7 +555,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 			}
 		} else {
 			globalUtil.TriggerCIMetrics(ciCompleteEvent.Metrics, impl.globalEnvVariables.ExposeCiMetrics, ciCompleteEvent.PipelineName, ciCompleteEvent.AppName)
-			resp, err := impl.ValidateAndHandleCiSuccessEvent(triggerContext, ciCompleteEvent.PipelineId, req, time.Time{})
+			resp, err := impl.validateAndHandleCiSuccessEvent(triggerContext, ciCompleteEvent.PipelineId, req, time.Time{})
 			if err != nil {
 				return
 			}
@@ -575,12 +582,21 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 	return nil
 }
 
-func (impl *WorkflowEventProcessorImpl) ValidateAndHandleCiSuccessEvent(triggerContext triggerBean.TriggerContext, ciPipelineId int, request *wrokflowDagBean.CiArtifactWebhookRequest, imagePushedAt time.Time) (int, error) {
+func (impl *WorkflowEventProcessorImpl) validateAndHandleCiSuccessEvent(triggerContext triggerBean.TriggerContext, ciPipelineId int, request *wrokflowDagBean.CiArtifactWebhookRequest, imagePushedAt time.Time) (int, error) {
+	if request.WorkflowId != nil {
+		err := impl.workflowDagExecutor.UpdateCiWorkflowForCiSuccess(request)
+		if err != nil {
+			return 0, err
+		}
+	}
+	// Validate request, must be performed after workflowDagExecutor.UpdateCiWorkflow func
+	// As it is required to update IsArtifactUploaded field in UpdateCiWorkflow table, irrespective of CiArtifact creation
 	validationErr := impl.validator.Struct(request)
 	if validationErr != nil {
 		impl.logger.Errorw("validation err, HandleCiSuccessEvent", "err", validationErr, "payload", request)
 		return 0, validationErr
 	}
+	// Create CiArtifact and Trigger CI Success event
 	buildArtifactId, err := impl.workflowDagExecutor.HandleCiSuccessEvent(triggerContext, ciPipelineId, request, imagePushedAt)
 	if err != nil {
 		impl.logger.Error("Error while sending event for CI success for pipelineID",

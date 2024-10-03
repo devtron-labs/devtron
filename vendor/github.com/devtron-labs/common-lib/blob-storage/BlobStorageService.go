@@ -23,6 +23,7 @@ import (
 	"go.uber.org/zap"
 	"log"
 	"os"
+	"path/filepath"
 )
 
 type BlobStorageService interface {
@@ -70,7 +71,7 @@ func (impl *BlobStorageServiceImpl) Get(request *BlobStorageRequest) (bool, int6
 
 	downloadSuccess := false
 	numBytes := int64(0)
-	file, err := os.Create("/" + request.DestinationKey)
+	file, err := os.Create(filepath.Clean("/" + request.DestinationKey))
 	defer file.Close()
 	if err != nil {
 		log.Println(err)

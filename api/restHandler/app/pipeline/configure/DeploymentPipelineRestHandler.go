@@ -51,10 +51,10 @@ import (
 )
 
 type DeploymentHistoryResp struct {
-	CdWorkflows                []pipelineConfig.CdWorkflowWithArtifact `json:"cdWorkflows"`
-	TagsEdiatable              bool                                    `json:"tagsEditable"`
-	AppReleaseTagNames         []string                                `json:"appReleaseTagNames"` //unique list of tags exists in the app
-	HideImageTaggingHardDelete bool                                    `json:"hideImageTaggingHardDelete"`
+	CdWorkflows                []pipelineBean.CdWorkflowWithArtifact `json:"cdWorkflows"`
+	TagsEdiatable              bool                                  `json:"tagsEditable"`
+	AppReleaseTagNames         []string                              `json:"appReleaseTagNames"` //unique list of tags exists in the app
+	HideImageTaggingHardDelete bool                                  `json:"hideImageTaggingHardDelete"`
 }
 
 type DevtronAppDeploymentRestHandler interface {
@@ -1903,7 +1903,7 @@ func (handler *PipelineConfigRestHandlerImpl) DownloadArtifacts(w http.ResponseW
 	}
 	//RBAC CHECK
 
-	file, err := handler.cdHandler.DownloadCdWorkflowArtifacts(pipelineId, buildId)
+	file, err := handler.cdHandler.DownloadCdWorkflowArtifacts(buildId)
 	defer file.Close()
 
 	if err != nil {

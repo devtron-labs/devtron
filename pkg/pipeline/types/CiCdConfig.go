@@ -24,12 +24,13 @@ import (
 	"github.com/caarlos0/env"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"os/user"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -57,7 +58,6 @@ type CiCdConfig struct {
 	ExternalCiApiSecret              string                          `env:"EXTERNAL_CI_API_SECRET" envDefault:"devtroncd-secret"`
 	ExternalCiWebhookUrl             string                          `env:"EXTERNAL_CI_WEB_HOOK_URL" envDefault:""`
 	ExternalCiPayload                string                          `env:"EXTERNAL_CI_PAYLOAD" envDefault:"{\"ciProjectDetails\":[{\"gitRepository\":\"https://github.com/vikram1601/getting-started-nodejs.git\",\"checkoutPath\":\"./abc\",\"commitHash\":\"239077135f8cdeeccb7857e2851348f558cb53d3\",\"commitTime\":\"2022-10-30T20:00:00\",\"branch\":\"master\",\"message\":\"Update README.md\",\"author\":\"User Name \"}],\"dockerImage\":\"445808685819.dkr.ecr.us-east-2.amazonaws.com/orch:23907713-2\"}"`
-	CiArtifactLocationFormat         string                          `env:"CI_ARTIFACT_LOCATION_FORMAT" envDefault:"%d/%d.zip"`
 	ImageScannerEndpoint             string                          `env:"IMAGE_SCANNER_ENDPOINT" envDefault:"http://image-scanner-new-demo-devtroncd-service.devtroncd:80"`
 	CiDefaultAddressPoolBaseCidr     string                          `env:"CI_DEFAULT_ADDRESS_POOL_BASE_CIDR"`
 	CiDefaultAddressPoolSize         int                             `env:"CI_DEFAULT_ADDRESS_POOL_SIZE"`
@@ -100,7 +100,6 @@ type CiCdConfig struct {
 	CdDefaultBuildLogsBucket         string                          `env:"DEFAULT_BUILD_LOGS_BUCKET" `
 	CdNodeLabelSelector              []string                        `env:"CD_NODE_LABEL_SELECTOR"`
 	ExternalCdNodeLabelSelector      []string                        `env:"EXTERNAL_CD_NODE_LABEL_SELECTOR"`
-	CdArtifactLocationFormat         string                          `env:"CD_ARTIFACT_LOCATION_FORMAT" envDefault:"%d/%d.zip"`
 	CdDefaultNamespace               string                          `env:"DEFAULT_CD_NAMESPACE"`
 	CdDefaultImage                   string                          `env:"DEFAULT_CI_IMAGE"`
 	CdDefaultTimeout                 int64                           `env:"DEFAULT_CD_TIMEOUT" envDefault:"3600"`
@@ -165,6 +164,11 @@ const (
 	ProdMode              = "PROD"
 	CiConfigType          = "CiConfig"
 	CdConfigType          = "CdConfig"
+)
+
+const (
+	CiArtifactLocationFormat = "%d/%d.zip"
+	CdArtifactLocationFormat = "%d/%d.zip"
 )
 
 func GetCiConfig() (*CiConfig, error) {
@@ -363,7 +367,7 @@ func (impl *CiCdConfig) GetDefaultBuildLogsKeyPrefix() string {
 		return ""
 	}
 }
-func (impl *CiCdConfig) GetDefaultArtifactKeyPrefix() string {
+func (impl *CiCdConfig) getDefaultArtifactKeyPrefix() string {
 	switch impl.Type {
 	case CiConfigType:
 		return impl.CiDefaultArtifactKeyPrefix
@@ -388,9 +392,17 @@ func (impl *CiCdConfig) GetWorkflowServiceAccount() string {
 func (impl *CiCdConfig) GetArtifactLocationFormat() string {
 	switch impl.Type {
 	case CiConfigType:
-		return impl.CiArtifactLocationFormat
+		ciArtifactLocationFormat := CiArtifactLocationFormat
+		if len(impl.getDefaultArtifactKeyPrefix()) != 0 {
+			ciArtifactLocationFormat = path.Join(impl.getDefaultArtifactKeyPrefix(), ciArtifactLocationFormat)
+		}
+		return ciArtifactLocationFormat
 	case CdConfigType:
-		return impl.CdArtifactLocationFormat
+		cdArtifactLocationFormat := CdArtifactLocationFormat
+		if len(impl.getDefaultArtifactKeyPrefix()) != 0 {
+			cdArtifactLocationFormat = path.Join(impl.getDefaultArtifactKeyPrefix(), cdArtifactLocationFormat)
+		}
+		return cdArtifactLocationFormat
 	default:
 		return ""
 	}
