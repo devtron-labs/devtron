@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
+	cdWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
@@ -361,7 +362,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 			// not checking further and directly updating timedOutStatus
 			err := impl.UpdateCdWorkflowRunnerByACDObject(app, cdWfr.Id, true)
 			if err != nil {
-				impl.logger.Errorw("error on update cd workflow runner", "CdWorkflowId", pipelineOverride.CdWorkflowId, "status", pipelineConfig.WorkflowTimedOut, "err", err)
+				impl.logger.Errorw("error on update cd workflow runner", "CdWorkflowId", pipelineOverride.CdWorkflowId, "status", cdWorkflow2.WorkflowTimedOut, "err", err)
 				return isSucceeded, isTimelineUpdated, pipelineOverride, err
 			}
 			return isSucceeded, isTimelineUpdated, pipelineOverride, nil
@@ -428,7 +429,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 			// not checking further and directly updating timedOutStatus
 			err := impl.UpdateInstalledAppVersionHistoryByACDObject(app, installedAppVersionHistory.Id, true)
 			if err != nil {
-				impl.logger.Errorw("error on update installedAppVersionHistory", "installedAppVersionHistory", installedAppVersionHistory.Id, "status", pipelineConfig.WorkflowTimedOut, "err", err)
+				impl.logger.Errorw("error on update installedAppVersionHistory", "installedAppVersionHistory", installedAppVersionHistory.Id, "status", cdWorkflow2.WorkflowTimedOut, "err", err)
 				return isSucceeded, isTimelineUpdated, pipelineOverride, err
 			}
 			return isSucceeded, isTimelineUpdated, pipelineOverride, nil
@@ -1113,13 +1114,13 @@ func (impl *AppServiceImpl) UpdateInstalledAppVersionHistoryByACDObject(app *v1a
 		return err
 	}
 	if updateTimedOutStatus {
-		installedAppVersionHistory.Status = pipelineConfig.WorkflowTimedOut
+		installedAppVersionHistory.SetStatus(cdWorkflow2.WorkflowTimedOut)
 	} else {
 		if string(app.Status.Health.Status) == string(health.HealthStatusHealthy) {
-			installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
+			installedAppVersionHistory.SetStatus(cdWorkflow2.WorkflowSucceeded)
 			installedAppVersionHistory.SetFinishedOn()
 		} else {
-			installedAppVersionHistory.Status = pipelineConfig.WorkflowInProgress
+			installedAppVersionHistory.SetStatus(cdWorkflow2.WorkflowInProgress)
 		}
 	}
 	installedAppVersionHistory.UpdatedBy = 1
@@ -1139,13 +1140,13 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 		return err
 	}
 	if updateTimedOutStatus {
-		wfr.Status = pipelineConfig.WorkflowTimedOut
+		wfr.Status = cdWorkflow2.WorkflowTimedOut
 	} else {
 		if string(app.Status.Health.Status) == string(health.HealthStatusHealthy) {
-			wfr.Status = pipelineConfig.WorkflowSucceeded
+			wfr.Status = cdWorkflow2.WorkflowSucceeded
 			wfr.FinishedOn = time.Now()
 		} else {
-			wfr.Status = pipelineConfig.WorkflowInProgress
+			wfr.Status = cdWorkflow2.WorkflowInProgress
 		}
 	}
 	wfr.UpdatedBy = 1

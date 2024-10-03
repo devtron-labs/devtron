@@ -37,7 +37,7 @@ import (
 type EventFactory interface {
 	Build(eventType util.EventType, sourceId *int, appId int, envId *int, pipelineType util.PipelineType) Event
 	BuildExtraCDData(event Event, wfr *pipelineConfig.CdWorkflowRunner, pipelineOverrideId int, stage bean2.WorkflowType) Event
-	BuildExtraCIData(event Event, material *MaterialTriggerInfo, dockerImage string) Event
+	BuildExtraCIData(event Event, material *MaterialTriggerInfo) Event
 	//BuildFinalData(event Event) *Payload
 }
 
@@ -163,7 +163,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 	return event
 }
 
-func (impl *EventSimpleFactoryImpl) BuildExtraCIData(event Event, material *MaterialTriggerInfo, dockerImage string) Event {
+func (impl *EventSimpleFactoryImpl) BuildExtraCIData(event Event, material *MaterialTriggerInfo) Event {
 	if material == nil {
 		materialInfo, err := impl.getCiMaterialInfo(event.PipelineId, event.CiArtifactId)
 		if err != nil {

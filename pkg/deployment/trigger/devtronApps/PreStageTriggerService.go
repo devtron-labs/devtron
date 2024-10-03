@@ -25,7 +25,9 @@ import (
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
+	bean6 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
@@ -49,6 +51,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"maps"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -113,7 +116,7 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 	// handling copyContainerImage plugin specific logic
 	imagePathReservationIds, err := impl.setCopyContainerImagePluginDataAndReserveImages(cdStageWorkflowRequest, pipeline.Id, types.PRE, artifact)
 	if err != nil {
-		runner.Status = pipelineConfig.WorkflowFailed
+		runner.Status = cdWorkflow.WorkflowFailed
 		runner.Message = err.Error()
 		_ = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 		return err
@@ -166,7 +169,7 @@ func (impl *TriggerServiceImpl) createStartingWfAndRunner(request bean.TriggerRe
 		Name:                  pipeline.Name,
 		WorkflowType:          request.WorkflowType,
 		ExecutorType:          impl.config.GetWorkflowExecutorType(),
-		Status:                pipelineConfig.WorkflowStarting, // starting PreStage
+		Status:                cdWorkflow.WorkflowStarting, // starting PreStage
 		TriggeredBy:           triggeredBy,
 		StartedOn:             triggeredAt,
 		Namespace:             request.RunStageInEnvNamespace,
@@ -222,8 +225,8 @@ func (impl *TriggerServiceImpl) checkVulnerabilityStatusAndFailWfIfNeeded(ctx co
 	}
 	if isVulnerable {
 		// if image vulnerable, update timeline status and return
-		runner.Status = pipelineConfig.WorkflowFailed
-		runner.Message = pipelineConfig.FOUND_VULNERABILITY
+		runner.Status = cdWorkflow.WorkflowFailed
+		runner.Message = cdWorkflow.FOUND_VULNERABILITY
 		runner.FinishedOn = time.Now()
 		runner.UpdatedOn = time.Now()
 		runner.UpdatedBy = triggeredBy
@@ -362,10 +365,6 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 			return nil, err
 		}
 		cdPipeline.App = *appModel
-	}
-	cdWorkflowConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(cdPipeline.Id)
-	if err != nil && !util.IsErrNoRows(err) {
-		return nil, err
 	}
 
 	workflowExecutor := runner.ExecutorType
@@ -565,6 +564,12 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	if digestPolicyConfigurations.UseDigestForTrigger() {
 		image = ReplaceImageTagWithDigest(image, artifact.ImageDigest)
 	}
+
+	host, err := impl.attributeService.GetByKey(bean6.HostUrlKey)
+	if err != nil {
+		impl.logger.Errorw("error in getting hostUrl", "err", err)
+		return nil, err
+	}
 	cdStageWorkflowRequest := &types.WorkflowRequest{
 		EnvironmentId:         cdPipeline.EnvironmentId,
 		AppId:                 cdPipeline.AppId,
@@ -589,6 +594,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 			WorkflowId:   artifact.WorkflowId,
 		},
 		OrchestratorHost:  impl.config.OrchestratorHost,
+		HostUrl:           host.Value,
 		OrchestratorToken: impl.config.OrchestratorToken,
 		CloudProvider:     impl.config.CloudProvider,
 		WorkflowExecutor:  workflowExecutor,
@@ -706,9 +712,9 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	if pipelineReleaseCounter > 0 {
 		cdStageWorkflowRequest.DeploymentReleaseCounter = pipelineReleaseCounter
 	}
-	if cdWorkflowConfig.CdCacheRegion == "" {
-		cdWorkflowConfig.CdCacheRegion = impl.config.GetDefaultCdLogsBucketRegion()
-	}
+	cdWorkflowConfigCdCacheRegion := impl.config.GetDefaultCdLogsBucketRegion()
+	// For Pre-CD / Post-CD workflow, cache is not uploaded; hence no need to set cache bucket
+	cdWorkflowConfigCdCacheBucket := ""
 
 	if runner.WorkflowType == bean2.CD_WORKFLOW_TYPE_PRE {
 		//populate input variables of steps with extra env variables
@@ -722,19 +728,19 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	switch cdStageWorkflowRequest.CloudProvider {
 	case types.BLOB_STORAGE_S3:
 		//No AccessKey is used for uploading artifacts, instead IAM based auth is used
-		cdStageWorkflowRequest.CdCacheRegion = cdWorkflowConfig.CdCacheRegion
-		cdStageWorkflowRequest.CdCacheLocation = cdWorkflowConfig.CdCacheBucket
-		cdStageWorkflowRequest.ArtifactLocation, cdStageWorkflowRequest.CiArtifactBucket, cdStageWorkflowRequest.CiArtifactFileName = impl.buildArtifactLocationForS3(cdWorkflowConfig, cdWf, runner)
+		cdStageWorkflowRequest.CdCacheRegion = cdWorkflowConfigCdCacheRegion
+		cdStageWorkflowRequest.CdCacheLocation = cdWorkflowConfigCdCacheBucket
+		cdStageWorkflowRequest.ArtifactLocation, cdStageWorkflowRequest.CiArtifactBucket, cdStageWorkflowRequest.CiArtifactFileName = impl.buildArtifactLocationForS3(cdWf, runner)
 		cdStageWorkflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
 			AccessKey:                  impl.config.BlobStorageS3AccessKey,
 			Passkey:                    impl.config.BlobStorageS3SecretKey,
 			EndpointUrl:                impl.config.BlobStorageS3Endpoint,
 			IsInSecure:                 impl.config.BlobStorageS3EndpointInsecure,
-			CiCacheBucketName:          cdWorkflowConfig.CdCacheBucket,
-			CiCacheRegion:              cdWorkflowConfig.CdCacheRegion,
+			CiCacheBucketName:          cdWorkflowConfigCdCacheBucket,
+			CiCacheRegion:              cdWorkflowConfigCdCacheRegion,
 			CiCacheBucketVersioning:    impl.config.BlobStorageS3BucketVersioned,
 			CiArtifactBucketName:       cdStageWorkflowRequest.CiArtifactBucket,
-			CiArtifactRegion:           cdWorkflowConfig.CdCacheRegion,
+			CiArtifactRegion:           cdWorkflowConfigCdCacheRegion,
 			CiArtifactBucketVersioning: impl.config.BlobStorageS3BucketVersioned,
 			CiLogBucketName:            impl.config.GetDefaultBuildLogsBucket(),
 			CiLogRegion:                impl.config.GetDefaultCdLogsBucketRegion(),
@@ -746,7 +752,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 			ArtifactBucketName:     impl.config.GetDefaultBuildLogsBucket(),
 			LogBucketName:          impl.config.GetDefaultBuildLogsBucket(),
 		}
-		cdStageWorkflowRequest.ArtifactLocation = impl.buildDefaultArtifactLocation(cdWorkflowConfig, cdWf, runner)
+		cdStageWorkflowRequest.ArtifactLocation = impl.buildDefaultArtifactLocation(cdWf, runner)
 		cdStageWorkflowRequest.CiArtifactFileName = cdStageWorkflowRequest.ArtifactLocation
 	case types.BLOB_STORAGE_AZURE:
 		cdStageWorkflowRequest.AzureBlobConfig = &blob_storage.AzureBlobConfig{
@@ -764,7 +770,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 			CiLogRegion:     "",
 			AccessKey:       impl.config.AzureAccountName,
 		}
-		cdStageWorkflowRequest.ArtifactLocation = impl.buildDefaultArtifactLocation(cdWorkflowConfig, cdWf, runner)
+		cdStageWorkflowRequest.ArtifactLocation = impl.buildDefaultArtifactLocation(cdWf, runner)
 		cdStageWorkflowRequest.CiArtifactFileName = cdStageWorkflowRequest.ArtifactLocation
 	default:
 		if impl.config.BlobStorageEnabled {
@@ -914,7 +920,7 @@ func (impl *TriggerServiceImpl) getDeployStageDetails(pipelineId int) (pipelineC
 		impl.logger.Errorw("error in getting latest status of deploy type wfr by pipelineId", "err", err, "pipelineId", pipelineId)
 		return deployStageWfr, "", 0, err
 	}
-	deployStageTriggeredByUserEmail, err := impl.userService.GetEmailById(deployStageWfr.TriggeredBy)
+	deployStageTriggeredByUserEmail, err := impl.userService.GetActiveEmailById(deployStageWfr.TriggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error in getting user email by id", "err", err, "userId", deployStageWfr.TriggeredBy)
 		return deployStageWfr, "", 0, err
@@ -927,25 +933,17 @@ func (impl *TriggerServiceImpl) getDeployStageDetails(pipelineId int) (pipelineC
 	return deployStageWfr, deployStageTriggeredByUserEmail, pipelineReleaseCounter, nil
 }
 
-func (impl *TriggerServiceImpl) buildArtifactLocationForS3(cdWorkflowConfig *pipelineConfig.CdWorkflowConfig, cdWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner) (string, string, string) {
-	cdArtifactLocationFormat := cdWorkflowConfig.CdArtifactLocationFormat
-	if cdArtifactLocationFormat == "" {
-		cdArtifactLocationFormat = impl.config.GetArtifactLocationFormat()
-	}
-	if cdWorkflowConfig.LogsBucket == "" {
-		cdWorkflowConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket()
-	}
-	ArtifactLocation := fmt.Sprintf("s3://%s/"+impl.config.GetDefaultArtifactKeyPrefix()+"/"+cdArtifactLocationFormat, cdWorkflowConfig.LogsBucket, cdWf.Id, runner.Id)
-	artifactFileName := fmt.Sprintf(impl.config.GetDefaultArtifactKeyPrefix()+"/"+cdArtifactLocationFormat, cdWf.Id, runner.Id)
-	return ArtifactLocation, cdWorkflowConfig.LogsBucket, artifactFileName
+func (impl *TriggerServiceImpl) buildArtifactLocationForS3(cdWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner) (string, string, string) {
+	cdArtifactLocationFormat := impl.config.GetArtifactLocationFormat()
+	cdWorkflowConfigLogsBucket := impl.config.GetDefaultBuildLogsBucket()
+	ArtifactLocation := fmt.Sprintf("s3://"+path.Join(cdWorkflowConfigLogsBucket, cdArtifactLocationFormat), cdWf.Id, runner.Id)
+	artifactFileName := fmt.Sprintf(cdArtifactLocationFormat, cdWf.Id, runner.Id)
+	return ArtifactLocation, cdWorkflowConfigLogsBucket, artifactFileName
 }
 
-func (impl *TriggerServiceImpl) buildDefaultArtifactLocation(cdWorkflowConfig *pipelineConfig.CdWorkflowConfig, savedWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner) string {
-	cdArtifactLocationFormat := cdWorkflowConfig.CdArtifactLocationFormat
-	if cdArtifactLocationFormat == "" {
-		cdArtifactLocationFormat = impl.config.GetArtifactLocationFormat()
-	}
-	ArtifactLocation := fmt.Sprintf("%s/"+cdArtifactLocationFormat, impl.config.GetDefaultArtifactKeyPrefix(), savedWf.Id, runner.Id)
+func (impl *TriggerServiceImpl) buildDefaultArtifactLocation(savedWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner) string {
+	cdArtifactLocationFormat := impl.config.GetArtifactLocationFormat()
+	ArtifactLocation := fmt.Sprintf(cdArtifactLocationFormat, savedWf.Id, runner.Id)
 	return ArtifactLocation
 }
 

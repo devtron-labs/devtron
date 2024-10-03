@@ -23,6 +23,7 @@ import (
 	apiBean "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	internalUtil "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/app/status"
@@ -138,7 +139,7 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerAsyncRelease(userDeploymentR
 	}
 
 	//update workflow runner status, used in app workflow view
-	err = impl.cdWorkflowCommonService.UpdateNonTerminalStatusInRunner(newCtx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowInQueue)
+	err = impl.cdWorkflowCommonService.UpdateNonTerminalStatusInRunner(newCtx, overrideRequest.WfrId, overrideRequest.UserId, cdWorkflow.WorkflowInQueue)
 	if err != nil {
 		impl.logger.Errorw("error in updating the workflow runner status, TriggerAsyncRelease", "err", err)
 		return 0, err
@@ -158,7 +159,7 @@ func (impl *WorkflowEventPublishServiceImpl) TriggerBulkDeploymentAsync(requests
 			CiArtifactId:   request.CiArtifactId,
 			PipelineId:     request.PipelineId,
 			AuditLog:       sql.AuditLog{CreatedOn: time.Now(), CreatedBy: UserId, UpdatedOn: time.Now(), UpdatedBy: UserId},
-			WorkflowStatus: pipelineConfig.REQUEST_ACCEPTED,
+			WorkflowStatus: cdWorkflow.REQUEST_ACCEPTED,
 		}
 		cdWorkflows = append(cdWorkflows, cdWf)
 	}
@@ -175,13 +176,13 @@ func (impl *WorkflowEventPublishServiceImpl) triggerNatsEventForBulkAction(cdWor
 	for _, wf := range cdWorkflows {
 		data, err := json.Marshal(wf)
 		if err != nil {
-			wf.WorkflowStatus = pipelineConfig.QUE_ERROR
+			wf.WorkflowStatus = cdWorkflow.QUE_ERROR
 		} else {
 			err = impl.pubSubClient.Publish(pubsub.BULK_DEPLOY_TOPIC, string(data))
 			if err != nil {
-				wf.WorkflowStatus = pipelineConfig.QUE_ERROR
+				wf.WorkflowStatus = cdWorkflow.QUE_ERROR
 			} else {
-				wf.WorkflowStatus = pipelineConfig.ENQUEUED
+				wf.WorkflowStatus = cdWorkflow.ENQUEUED
 			}
 		}
 		err = impl.cdWorkflowRepository.UpdateWorkFlow(wf)

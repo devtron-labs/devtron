@@ -36,6 +36,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -430,8 +431,8 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 			if gitOpsConfigurationStatus.AllowCustomRepository || AppDeploymentConfig.ConfigType == bean4.CUSTOM.String() {
 				apiErr := &util.ApiError{
 					HttpStatusCode:  http.StatusConflict,
-					UserMessage:     pipelineConfig.GITOPS_REPO_NOT_CONFIGURED,
-					InternalMessage: pipelineConfig.GITOPS_REPO_NOT_CONFIGURED,
+					UserMessage:     cdWorkflow.GITOPS_REPO_NOT_CONFIGURED,
+					InternalMessage: cdWorkflow.GITOPS_REPO_NOT_CONFIGURED,
 				}
 				return nil, apiErr
 			}

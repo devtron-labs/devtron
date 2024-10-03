@@ -74,7 +74,7 @@ type CiArtifact struct {
 	ScanEnabled           bool      `sql:"scan_enabled,notnull"`
 	Scanned               bool      `sql:"scanned,notnull"`
 	ExternalCiPipelineId  int       `sql:"external_ci_pipeline_id"`
-	IsArtifactUploaded    bool      `sql:"is_artifact_uploaded"`
+	IsArtifactUploaded    bool      `sql:"is_artifact_uploaded"` // Deprecated; Use pipelineConfig.CiWorkflow instead.
 	CredentialsSourceType string    `sql:"credentials_source_type"`
 	CredentialSourceValue string    `sql:"credentials_source_value"`
 	ComponentId           int       `sql:"component_id"`

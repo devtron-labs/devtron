@@ -19,12 +19,15 @@ package appStoreBean
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/gitops-engine/pkg/health"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	bean3 "github.com/devtron-labs/devtron/api/helm-app/service/bean"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/util/gitUtil"
+	"slices"
 	"time"
 )
 
@@ -494,4 +497,14 @@ type AppListDetail struct {
 	HelmApps *[]HelmAppDetails `json:"helmApps,omitempty"`
 	// all helm app list, EA+ devtronapp
 	DevtronApps *[]openapi.DevtronApp `json:"devtronApps,omitempty"`
+}
+
+var InstalledAppTerminalStatusList = []string{string(health.HealthStatusHealthy), cdWorkflow.WorkflowAborted, cdWorkflow.WorkflowFailed, cdWorkflow.WorkflowSucceeded}
+
+func IsTerminalStatus(status string) bool {
+	return slices.Contains(InstalledAppTerminalStatusList, status)
+}
+
+func IsFailedStatus(status string) bool {
+	return status == cdWorkflow.WorkflowFailed
 }
