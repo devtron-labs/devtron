@@ -1,4 +1,5 @@
 ## Bugs
+- fix: stage artifact logic  (#5913)
 ## Enhancements
 ## Documentation
 ## Others
