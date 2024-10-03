@@ -19,8 +19,8 @@ metadata:
   {{- end }}
 spec:
   scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
     name: {{ include ".Chart.Name .fullname" $ }}
   minReplicas: {{ $.Values.autoscaling.MinReplicas  }}
   maxReplicas: {{ $.Values.autoscaling.MaxReplicas }}

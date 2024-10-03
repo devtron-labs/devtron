@@ -16,6 +16,7 @@ ContainerPort:
     useHTTP2: false
     supportStreaming: false
     idleTimeout: 1800s
+    protocol: TCP
 #    servicemonitor:
 #      enabled: true
 #      path: /abc
@@ -43,6 +44,7 @@ Spec:
 #  Key: kops.k8s.io/instancegroup 
   Values: ""
 
+affinity: {}
 
 image:
   pullPolicy: IfNotPresent
@@ -88,11 +90,11 @@ autoscaling:
   enabled: false
   MinReplicas: 1
   MaxReplicas: 2
-  # TargetCPUUtilizationPercentage: 90
-  # TargetMemoryUtilizationPercentage: 80
   annotations: {}
   labels: {}
   behavior: {}
+  containerResource:
+    enabled: false
 #    scaleDown:
 #      stabilizationWindowSeconds: 300
 #      policies:
@@ -165,6 +167,9 @@ service:
   annotations: {}
     # test1: test2
     # test3: test4
+  sessionAffinity:
+    enabled: false  
+
 istio:
   enable: false
   gateway:
@@ -329,13 +334,14 @@ EnvVariablesFromConfigMapKeys: []
   #   keyName: CONFIG_MAP_KEY
 
 LivenessProbe:
-  Path: /
+  Path: ""
   port: 8080
   initialDelaySeconds: 20
   periodSeconds: 10
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
+  scheme: ""
   httpHeaders: []
 #    - name: Custom-Header
 #      value: abc
@@ -343,13 +349,14 @@ LivenessProbe:
 
 
 ReadinessProbe:
-  Path: /
+  Path: ""
   port: 8080
   initialDelaySeconds: 20
   periodSeconds: 10
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
+  scheme: "" 
   httpHeaders: []
 #    - name: Custom-Header
 #      value: abc
@@ -549,15 +556,22 @@ ConfigMaps:
 
 
 ConfigSecrets:
- enabled: false
- secrets: []
-#  - name: config-secret-1
-#    type: environment
-#    external: false
-#    data:
-#     key1: key1value-1
-#     key2: key2value-1
-#     key3: key3value-1
+ enabled: true
+ secrets: 
+ - name: config-secret-1
+   type: volume
+   filePermission: "420"
+   externalType: ESO_GoogleSecretsManager
+   mountPath: /etc/config/2
+   esoSecretData:
+    esoData:
+    - key": kushagra-test
+      property: test1
+      secretKey: SECRET_KUSHAGRA
+  #  data:
+  #   key1: key1value-1
+  #   key2: key2value-1
+  #   key3: key3value-1
 #  - name: config-secret-2
 #    type: volume
 #    external: false
@@ -579,18 +593,18 @@ initContainers: []
   # # This will assign your application's docker image to init container.
   #   reuseContainerImage: true
 
-containers: []
+containers: 
   ## Additional init containers to run before the Scheduler pods.
   ## for example, be used to run a sidecar that chown Logs storage .
-#  - name: volume-mount-hack
-#    image: busybox
-#    command: ["sh", "-c", "chown -R 1000:1000 logs"]
-#    volumeMounts:
-#      - mountPath: /usr/local/airflow/logs
-#        name: logs-data
-#    envFrom:
-#    - configMapRef:
-#         name: kamal    
+ - name: volume-mount-hack
+   image: busybox
+   command: ["sh", "-c", "chown -R 1000:1000 logs"]
+   volumeMounts:
+     - mountPath: /usr/local/airflow/logs
+       name: logs-data
+   envFrom:
+   - configMapRef:
+        name: kamal    
 
 
 rawYaml: []
@@ -636,7 +650,8 @@ topologySpreadConstraints: []
   #   topologyKey: zone
   #   whenUnsatisfiable: DoNotSchedule
   #   autoLabelSelector: true
-  #   customLabelSelector: {}
+  #   minDomain: 1
+  #   nodeTaintsPolicy: Honor
 
 envoyproxy:
  image: docker.io/envoyproxy/envoy:v1.16.0
@@ -701,3 +716,7 @@ tolerations: []
 imagePullSecrets: []
   # - test1
   # - test2
+persistentVolumeClaim: {}
+
+verticalPodScaling:
+  enabled: false
