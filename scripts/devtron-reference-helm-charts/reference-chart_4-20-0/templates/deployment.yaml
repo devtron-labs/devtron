@@ -435,10 +435,26 @@ spec:
               mountPath: {{ $cmMountPath }}
 	      
           {{- else }}
-          {{- range $k, $v := .data }}
+          {{if (or (eq .externalType "ESO_GoogleSecretsManager") (eq .externalType "ESO_AWSSecretsManager") (eq .externalType "ESO_HashiCorpVault") (eq .externalType "ESO_AzureSecretsManager"))}}
+          {{- if and (.esoSubPath) (ne (len .esoSubPath) 0) }}
+          {{- range .esoSubPath }}
+            - name: {{ $cmName | replace "." "-"}}-vol
+              mountPath: {{ $cmMountPath}}/{{ . }}
+              subPath: {{ . }}  
+          {{- end }}
+          {{- else }}
+          {{- range .esoSecretData.esoData }}
+            - name: {{ $cmName | replace "." "-"}}-vol
+              mountPath: {{ $cmMountPath}}/{{ .secretKey }}
+              subPath: {{ .secretKey }}  
+          {{- end }}
+          {{- end }}
+          {{- else }}            
+          {{- range $k, $v := .data }} # for others secrets the mount path will be .data[i].secretKey
             - name: {{ $cmName | replace "." "-"}}-vol
               mountPath: {{ $cmMountPath}}/{{ $k}}
               subPath: {{ $k}}
+          {{- end }}
           {{- end }}
           {{- end }}
           {{- end }}
