@@ -57,6 +57,7 @@ import (
 	"go.uber.org/zap"
 	k8sApiV1 "k8s.io/api/core/v1"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -710,9 +711,18 @@ func (impl *ManifestCreationServiceImpl) getReleaseOverride(envOverride *chartCo
 	imageName := ""
 	tag := ""
 	if artifact != nil {
+		artifactImage := artifact.Image
+		imageTag := strings.Split(artifactImage, ":")
 
-		imageName = artifact.Image
-		_, tag = globalUtil.ExtractImageRepoAndTag(imageName)
+		imageTagLen := len(imageTag)
+
+		for i := 0; i < imageTagLen-1; i++ {
+			if i != imageTagLen-2 {
+				imageName = imageName + imageTag[i] + ":"
+			} else {
+				imageName = imageName + imageTag[i]
+			}
+		}
 
 		digestConfigurationRequest := imageDigestPolicy.DigestPolicyConfigurationRequest{PipelineId: overrideRequest.PipelineId}
 		digestPolicyConfigurations, err := impl.imageDigestPolicyService.GetDigestPolicyConfigurations(digestConfigurationRequest)
@@ -722,9 +732,10 @@ func (impl *ManifestCreationServiceImpl) getReleaseOverride(envOverride *chartCo
 		}
 
 		if digestPolicyConfigurations.UseDigestForTrigger() {
-			tag = fmt.Sprintf("%s@%s", tag, artifact.ImageDigest)
+			imageTag[imageTagLen-1] = fmt.Sprintf("%s@%s", imageTag[imageTagLen-1], artifact.ImageDigest)
 		}
 
+		tag = imageTag[imageTagLen-1]
 	}
 
 	override, err := app.NewReleaseAttributes(imageName, tag, overrideRequest.PipelineName, deploymentStrategy,

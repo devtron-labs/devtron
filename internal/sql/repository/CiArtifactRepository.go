@@ -85,8 +85,12 @@ type CiArtifact struct {
 	sql.AuditLog
 }
 
-func (artifact *CiArtifact) ExtractImageRepoAndTag() (repo string, tag string) {
-	return util.ExtractImageRepoAndTag(artifact.Image)
+func (artifact *CiArtifact) ExtractImageRepoAndTag() (repo string, tag string, err error) {
+	imageMetadata, err := util.ExtractImageRepoAndTag(artifact.Image)
+	if err != nil {
+		return "", "", err
+	}
+	return imageMetadata.Repo, imageMetadata.Tag, nil
 }
 
 func (artifact *CiArtifact) IsMigrationRequired() bool {

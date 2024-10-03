@@ -83,7 +83,10 @@ func (impl *TriggerEventEvaluatorImpl) getParamsForPriorityDeployment(valuesOver
 		impl.logger.Errorw("error while getting project", "projectId", valuesOverrideResponse.Pipeline.App.TeamId, "err", err)
 		return nil, err
 	}
-	containerRepository, containerImageTag := valuesOverrideResponse.Artifact.ExtractImageRepoAndTag()
+	containerRepository, containerImageTag, err := valuesOverrideResponse.Artifact.ExtractImageRepoAndTag()
+	if err != nil {
+		impl.logger.Errorw("error in getting image tag and repo", "err", err)
+	}
 
 	containerImage := valuesOverrideResponse.Artifact.Image
 	params := []cel.ExpressionParam{
