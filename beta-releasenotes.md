@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Bulk deploy panic and docker tag handling (#5949)
 - fix: stage artifact logic  (#5913)
 ## Enhancements
 ## Documentation
