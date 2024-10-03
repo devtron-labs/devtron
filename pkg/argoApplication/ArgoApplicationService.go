@@ -18,11 +18,14 @@ package argoApplication
 
 import (
 	"context"
+	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/helper"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/read"
@@ -30,15 +33,21 @@ import (
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/k8s/application"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"net/http"
 )
 
 type ArgoApplicationService interface {
 	ListApplications(clusterIds []int) ([]*bean.ArgoApplicationListDto, error)
 	HibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	UnHibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
+
+	//FUll mode
+	// ResourceTree	returns the status for all Apps deployed via ArgoCd
+	ResourceTree(ctx context.Context, query *application2.ResourcesQuery) (*argoApplication.ResourceTreeResponse, error)
 }
 
 type ArgoApplicationServiceImpl struct {
@@ -204,4 +213,8 @@ func (impl *ArgoApplicationServiceImpl) UnHibernateArgoApplication(ctx context.C
 	}
 	response := service.HibernateResponseAdaptor(res.Status)
 	return response, nil
+}
+
+func (impl *ArgoApplicationServiceImpl) ResourceTree(ctx context.Context, query *application2.ResourcesQuery) (*argoApplication.ResourceTreeResponse, error) {
+	return nil, util2.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(util.NotSupportedErr).WithUserMessage(util.NotSupportedErr)
 }

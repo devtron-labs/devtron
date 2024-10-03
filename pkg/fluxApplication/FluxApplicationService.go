@@ -3,7 +3,7 @@ package fluxApplication
 import (
 	"context"
 	"fmt"
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
@@ -138,15 +138,15 @@ func (impl *FluxApplicationServiceImpl) listApplications(ctx context.Context, cl
 	for _, clusterDetail := range clusters {
 		config := &gRPC.ClusterConfig{
 			ApiServerUrl:          clusterDetail.ServerUrl,
-			Token:                 clusterDetail.Config[k8s.BearerToken],
+			Token:                 clusterDetail.Config[commonBean.BearerToken],
 			ClusterId:             int32(clusterDetail.Id),
 			ClusterName:           clusterDetail.ClusterName,
 			InsecureSkipTLSVerify: clusterDetail.InsecureSkipTLSVerify,
 		}
 		if clusterDetail.InsecureSkipTLSVerify == false {
-			config.KeyData = clusterDetail.Config[k8s.TlsKey]
-			config.CertData = clusterDetail.Config[k8s.CertData]
-			config.CaData = clusterDetail.Config[k8s.CertificateAuthorityData]
+			config.KeyData = clusterDetail.Config[commonBean.TlsKey]
+			config.CertData = clusterDetail.Config[commonBean.CertData]
+			config.CaData = clusterDetail.Config[commonBean.CertificateAuthorityData]
 		}
 		req.Clusters = append(req.Clusters, config)
 	}

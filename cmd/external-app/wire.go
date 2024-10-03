@@ -114,7 +114,7 @@ func InitializeApp() (*App, error) {
 		terminal.TerminalWireSet,
 		gitOps.GitOpsEAWireSet,
 		providerConfig.DeploymentProviderConfigWireSet,
-		argoApplication.ArgoApplicationWireSet,
+		argoApplication.ArgoApplicationWireSetEA,
 		fluxApplication.FluxApplicationWireSet,
 		NewApp,
 		NewMuxRouter,

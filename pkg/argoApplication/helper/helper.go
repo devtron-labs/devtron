@@ -2,7 +2,7 @@ package helper
 
 import (
 	"fmt"
-	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -32,15 +32,15 @@ func DecodeExternalArgoAppId(appId string) (*bean.ArgoAppIdentifier, error) {
 func ConvertClusterBeanToGrpcConfig(cluster repository.Cluster) *gRPC.ClusterConfig {
 	config := &gRPC.ClusterConfig{
 		ApiServerUrl:          cluster.ServerUrl,
-		Token:                 cluster.Config[k8s.BearerToken],
+		Token:                 cluster.Config[commonBean.BearerToken],
 		ClusterId:             int32(cluster.Id),
 		ClusterName:           cluster.ClusterName,
 		InsecureSkipTLSVerify: cluster.InsecureSkipTlsVerify,
 	}
 	if cluster.InsecureSkipTlsVerify == false {
-		config.KeyData = cluster.Config[k8s.TlsKey]
-		config.CertData = cluster.Config[k8s.CertData]
-		config.CaData = cluster.Config[k8s.CertificateAuthorityData]
+		config.KeyData = cluster.Config[commonBean.TlsKey]
+		config.CertData = cluster.Config[commonBean.CertData]
+		config.CaData = cluster.Config[commonBean.CertificateAuthorityData]
 	}
 	return config
 

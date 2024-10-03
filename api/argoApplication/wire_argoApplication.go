@@ -22,7 +22,21 @@ import (
 	"github.com/google/wire"
 )
 
-var ArgoApplicationWireSet = wire.NewSet(
+var ArgoApplicationWireSetFull = wire.NewSet(
+	read.NewArgoApplicationReadServiceImpl,
+	wire.Bind(new(read.ArgoApplicationReadService), new(*read.ArgoApplicationReadServiceImpl)),
+
+	argoApplication.NewArgoApplicationServiceExtendedServiceImpl,
+	wire.Bind(new(argoApplication.ArgoApplicationService), new(*argoApplication.ArgoApplicationServiceExtendedImpl)),
+
+	NewArgoApplicationRestHandlerImpl,
+	wire.Bind(new(ArgoApplicationRestHandler), new(*ArgoApplicationRestHandlerImpl)),
+
+	NewArgoApplicationRouterImpl,
+	wire.Bind(new(ArgoApplicationRouter), new(*ArgoApplicationRouterImpl)),
+)
+
+var ArgoApplicationWireSetEA = wire.NewSet(
 	read.NewArgoApplicationReadServiceImpl,
 	wire.Bind(new(read.ArgoApplicationReadService), new(*read.ArgoApplicationReadServiceImpl)),
 
