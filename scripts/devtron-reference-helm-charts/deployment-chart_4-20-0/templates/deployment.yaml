@@ -525,7 +525,7 @@ spec:
 {{ toYaml $.Values.envoyproxy.readinessProbe | indent 12}} 
 {{- end }}  
 {{- if $.Values.envoyproxy.livenessProbe}}
-          readinessProbe:
+          livenessProbe:
 {{ toYaml $.Values.envoyproxy.livenessProbe | indent 12}} 
 {{- end }}                     
 {{- end}}
