@@ -5,5 +5,6 @@
 - feat: Feature release v9 sql scripts (#5950)
 ## Documentation
 ## Others
+- misc: Release candidate v0.19.0 (#5930)
 - misc: updated migration number (#5948)
 - misc: err handling for configmap access (#5938)
