@@ -601,6 +601,10 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardAccessEvent() error 
 		return err
 	}
 	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
+	if err != nil {
+		impl.logger.Errorw("DashboardAccessed EventForTelemetry,failed to get DevtronUniqueClientIdConfigMap", "error", err)
+		return err
+	}
 	datamap := cm.Data
 
 	accessEventValue, installEventKeyExists := datamap[UIEventKey]
@@ -667,6 +671,10 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardLoggedInEvent() erro
 		return err
 	}
 	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
+	if err != nil {
+		impl.logger.Errorw("DashboardLoggedIn EventForTelemetry,failed to get DevtronUniqueClientIdConfigMap", "error", err)
+		return err
+	}
 	datamap := cm.Data
 
 	accessEventValue, installEventKeyExists := datamap[UIEventKey]
