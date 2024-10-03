@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util"
 	"golang.org/x/exp/slices"
 	"strings"
 	"time"
@@ -82,6 +83,14 @@ type CiArtifact struct {
 	Latest                bool      `sql:"-"`
 	RunningOnParent       bool      `sql:"-"`
 	sql.AuditLog
+}
+
+func (artifact *CiArtifact) ExtractImageRepoAndTag() (repo string, tag string, err error) {
+	imageMetadata, err := util.ExtractImageRepoAndTag(artifact.Image)
+	if err != nil {
+		return "", "", err
+	}
+	return imageMetadata.Repo, imageMetadata.Tag, nil
 }
 
 func (artifact *CiArtifact) IsMigrationRequired() bool {

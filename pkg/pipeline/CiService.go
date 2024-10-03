@@ -308,6 +308,9 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		impl.Logger.Errorw("error in getting gitTrigger env data for stage", "gitTriggers", savedCiWf.GitTriggers, "err", err)
 		return 0, err
 	}
+	if trigger.ExtraEnvironmentVariables == nil {
+		trigger.ExtraEnvironmentVariables = make(map[string]string)
+	}
 	maps.Copy(trigger.ExtraEnvironmentVariables, gitTriggerEnvVariables)
 
 	workflowRequest, err := impl.buildWfRequestForCiPipeline(pipeline, trigger, ciMaterials, savedCiWf, ciWorkflowConfigNamespace, ciPipelineScripts, preCiSteps, postCiSteps, refPluginsData, isJob)
