@@ -142,7 +142,7 @@ func (impl EnforcerUtilHelmImpl) getAppObject(clusterId int, namespace string, a
 	appNameIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
 	appObj, err := impl.appRepository.FindAppAndProjectByAppName(appNameIdentifier)
 	if err == pg.ErrMultiRows {
-		appObj, err = impl.dbMigration.FixMultipleAppsForInstalledApp(appName)
+		appObj, err = impl.dbMigration.FixMultipleAppsForInstalledApp(appNameIdentifier)
 	}
 	if appObj == nil || err == pg.ErrNoRows {
 		impl.logger.Warnw("appObj not found, going to find app using display name ", "appIdentifier", appNameIdentifier, "appName", appName)

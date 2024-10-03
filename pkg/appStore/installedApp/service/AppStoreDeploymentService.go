@@ -29,13 +29,14 @@ import (
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/adapter"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
+	installedAppAdapter "github.com/devtron-labs/devtron/pkg/appStore/installedApp/adapter"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
@@ -404,6 +405,7 @@ func (impl *AppStoreDeploymentServiceImpl) LinkHelmApplicationToChartStore(ctx c
 		ReferenceValueKind: request.GetReferenceValueKind(),
 		DeploymentAppType:  util.PIPELINE_DEPLOYMENT_TYPE_HELM,
 		DisplayName:        appIdentifier.ReleaseName,
+		IsChartLinkRequest: true,
 	}
 
 	// STEP-2 InstallApp with only DB operations
@@ -541,17 +543,19 @@ func (impl *AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Conte
 }
 
 func (impl *AppStoreDeploymentServiceImpl) GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*bean3.DeploymentHistoryAndInstalledAppInfo, error) {
+	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "AppStoreDeploymentServiceImpl.GetDeploymentHistory")
+	defer span.End()
 	result := &bean3.DeploymentHistoryAndInstalledAppInfo{}
 	var err error
 	if util2.IsHelmApp(installedApp.AppOfferingMode) {
-		deploymentHistory, err := impl.eaModeDeploymentService.GetDeploymentHistory(ctx, installedApp)
+		deploymentHistory, err := impl.eaModeDeploymentService.GetDeploymentHistory(newCtx, installedApp)
 		if err != nil {
 			impl.logger.Errorw("error while getting deployment history", "error", err)
 			return nil, err
 		}
 		result.DeploymentHistory = deploymentHistory.GetDeploymentHistory()
 	} else {
-		deploymentHistory, err := impl.fullModeDeploymentService.GetDeploymentHistory(ctx, installedApp)
+		deploymentHistory, err := impl.fullModeDeploymentService.GetDeploymentHistory(newCtx, installedApp)
 		if err != nil {
 			impl.logger.Errorw("error while getting deployment history", "error", err)
 			return nil, err
@@ -616,6 +620,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 
 	installedApp, err := impl.installedAppService.GetInstalledAppById(upgradeAppRequest.InstalledAppId)
 	if err != nil {
+		impl.logger.Errorw("error in fetching installed app by id", "installedAppId", upgradeAppRequest.InstalledAppId, "err", err)
 		return nil, err
 	}
 	//checking if ns exists or not
@@ -631,6 +636,8 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 
 	err = impl.helmAppService.CheckIfNsExistsForClusterIds(clusterIdToNsMap)
 	if err != nil {
+		impl.logger.Errorw("error in checking if namespace exists or not", "clusterId",
+			installedApp.Environment.ClusterId, "namespace", installedApp.Environment.Namespace, "err", err)
 		return nil, err
 	}
 	upgradeAppRequest.UpdateDeploymentAppType(deploymentConfig.DeploymentAppType)
@@ -659,7 +666,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	//if chart is changed, then installedAppVersion id is sent as 0 from front-end
 	if upgradeAppRequest.Id == 0 {
 		isChartChanged = true
-		err = impl.appStoreDeploymentDBService.MarkInstalledAppVersionsInactiveByInstalledAppId(upgradeAppRequest.InstalledAppId, upgradeAppRequest.UserId, tx)
+		err = impl.installedAppService.MarkInstalledAppVersionsInactiveByInstalledAppId(upgradeAppRequest.InstalledAppId, upgradeAppRequest.UserId, tx)
 		if err != nil {
 			return nil, err
 		}
@@ -672,7 +679,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		// version is upgraded if appStoreApplication version from request payload is not equal to installed app version saved in DB
 		if installedAppVersion.AppStoreApplicationVersionId != upgradeAppRequest.AppStoreVersion {
 			isVersionChanged = true
-			err = impl.appStoreDeploymentDBService.MarkInstalledAppVersionModelInActive(installedAppVersion, upgradeAppRequest.UserId, tx)
+			err = impl.installedAppService.MarkInstalledAppVersionModelInActive(installedAppVersion, upgradeAppRequest.UserId, tx)
 		}
 	}
 
@@ -719,7 +726,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		IsReleaseInstalled:         false,
 		ErrorInInstallation:        false,
 	}
-	installedAppVersionHistory, err := adapter.NewInstallAppVersionHistoryModel(upgradeAppRequest, pipelineConfig.WorkflowInProgress, helmInstallConfigDTO)
+	installedAppVersionHistory, err := adapter.NewInstallAppVersionHistoryModel(upgradeAppRequest, cdWorkflow.WorkflowInProgress, helmInstallConfigDTO)
 	_, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
 	if err != nil {
 		impl.logger.Errorw("error while creating installed app version history for updating installed app", "error", err)
@@ -741,8 +748,11 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		// orchestrator cm prefix and appName.
 		manifest, err := impl.fullModeDeploymentService.GenerateManifest(upgradeAppRequest, appStoreAppVersion)
 		if err != nil {
-			impl.logger.Errorw("error in generating manifest for helm apps", "err", err)
-			_ = impl.appStoreDeploymentDBService.UpdateInstalledAppVersionHistoryStatus(upgradeAppRequest.InstalledAppVersionHistoryId, pipelineConfig.WorkflowFailed)
+			impl.logger.Errorw("error in generating manifest for helm apps", "installedAppVersionHistoryId", upgradeAppRequest.InstalledAppVersionHistoryId, "err", err)
+			_ = impl.appStoreDeploymentDBService.UpdateInstalledAppVersionHistoryStatus(
+				upgradeAppRequest.InstalledAppVersionHistoryId,
+				installedAppAdapter.FailedStatusUpdateOption(upgradeAppRequest.UserId, err),
+			)
 			return nil, err
 		}
 		err = impl.fullModeDeploymentService.CreateArgoRepoSecretIfNeeded(appStoreAppVersion)
@@ -823,13 +833,19 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 			upgradeAppRequest.AppName,
 			upgradeAppRequest.EnvironmentName,
 			installedApp.UpdatedOn)
-		err = impl.appStoreDeploymentDBService.UpdateInstalledAppVersionHistoryStatus(upgradeAppRequest.InstalledAppVersionHistoryId, pipelineConfig.WorkflowSucceeded)
+		err = impl.appStoreDeploymentDBService.UpdateInstalledAppVersionHistoryStatus(
+			upgradeAppRequest.InstalledAppVersionHistoryId,
+			installedAppAdapter.SuccessStatusUpdateOption(upgradeAppRequest.DeploymentAppType, upgradeAppRequest.UserId),
+		)
 		if err != nil {
 			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
 			return nil, err
 		}
 	} else if util.IsHelmApp(upgradeAppRequest.DeploymentAppType) && !impl.deploymentTypeConfig.HelmInstallASyncMode {
-		err = impl.appStoreDeploymentDBService.MarkHelmInstalledAppDeploymentSucceeded(upgradeAppRequest.InstalledAppVersionHistoryId)
+		err = impl.appStoreDeploymentDBService.UpdateInstalledAppVersionHistoryStatus(
+			upgradeAppRequest.InstalledAppVersionHistoryId,
+			installedAppAdapter.SuccessStatusUpdateOption(upgradeAppRequest.DeploymentAppType, upgradeAppRequest.UserId),
+		)
 		if err != nil {
 			impl.logger.Errorw("error in updating install app version history on sync", "err", err)
 			return nil, err
@@ -846,7 +862,10 @@ func (impl *AppStoreDeploymentServiceImpl) InstallAppByHelm(installAppVersionReq
 		return installAppVersionRequest, err
 	}
 	if util.IsHelmApp(installAppVersionRequest.DeploymentAppType) && !impl.deploymentTypeConfig.HelmInstallASyncMode {
-		err = impl.appStoreDeploymentDBService.MarkHelmInstalledAppDeploymentSucceeded(installAppVersionRequest.InstalledAppVersionHistoryId)
+		err = impl.appStoreDeploymentDBService.UpdateInstalledAppVersionHistoryStatus(
+			installAppVersionRequest.InstalledAppVersionHistoryId,
+			installedAppAdapter.SuccessStatusUpdateOption(installAppVersionRequest.DeploymentAppType, installAppVersionRequest.UserId),
+		)
 		if err != nil {
 			impl.logger.Errorw("error in updating installed app version history with sync", "err", err)
 			return installAppVersionRequest, err

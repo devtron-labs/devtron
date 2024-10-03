@@ -6,7 +6,7 @@ package execplugin
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"runtime"
@@ -14,14 +14,15 @@ import (
 
 	"github.com/google/shlex"
 
-	"github.com/pkg/errors"
 	"sigs.k8s.io/kustomize/api/internal/plugins/utils"
 	"sigs.k8s.io/kustomize/api/resmap"
+	"sigs.k8s.io/kustomize/kyaml/errors"
 	"sigs.k8s.io/yaml"
 )
 
 const (
 	tmpConfigFilePrefix = "kust-plugin-config-"
+	maxArgStringLength  = 131071
 )
 
 // ExecPlugin record the name and args of an executable
@@ -150,19 +151,19 @@ func (p *ExecPlugin) Transform(rm resmap.ResMap) error {
 // passes the full temp file path as the first arg to a process
 // running the plugin binary.  Process output is returned.
 func (p *ExecPlugin) invokePlugin(input []byte) ([]byte, error) {
-	f, err := ioutil.TempFile("", tmpConfigFilePrefix)
+	f, err := os.CreateTemp("", tmpConfigFilePrefix)
 	if err != nil {
-		return nil, errors.Wrap(
+		return nil, errors.WrapPrefixf(
 			err, "creating tmp plugin config file")
 	}
 	_, err = f.Write(p.cfg)
 	if err != nil {
-		return nil, errors.Wrap(
+		return nil, errors.WrapPrefixf(
 			err, "writing plugin config to "+f.Name())
 	}
 	err = f.Close()
 	if err != nil {
-		return nil, errors.Wrap(
+		return nil, errors.WrapPrefixf(
 			err, "closing plugin config file "+f.Name())
 	}
 	//nolint:gosec
@@ -170,23 +171,35 @@ func (p *ExecPlugin) invokePlugin(input []byte) ([]byte, error) {
 		p.path, append([]string{f.Name()}, p.args...)...)
 	cmd.Env = p.getEnv()
 	cmd.Stdin = bytes.NewReader(input)
-	cmd.Stderr = os.Stderr
+	var stdErr bytes.Buffer
+	cmd.Stderr = &stdErr
 	if _, err := os.Stat(p.h.Loader().Root()); err == nil {
 		cmd.Dir = p.h.Loader().Root()
 	}
 	result, err := cmd.Output()
 	if err != nil {
-		return nil, errors.Wrapf(
-			err, "failure in plugin configured via %s; %v",
-			f.Name(), err.Error())
+		return nil, errors.WrapPrefixf(
+			fmt.Errorf("failure in plugin configured via %s; %w",
+				f.Name(), err), stdErr.String())
 	}
 	return result, os.Remove(f.Name())
 }
 
 func (p *ExecPlugin) getEnv() []string {
 	env := os.Environ()
-	env = append(env,
-		"KUSTOMIZE_PLUGIN_CONFIG_STRING="+string(p.cfg),
-		"KUSTOMIZE_PLUGIN_CONFIG_ROOT="+p.h.Loader().Root())
+	pluginConfigString := "KUSTOMIZE_PLUGIN_CONFIG_STRING=" + string(p.cfg)
+	if len(pluginConfigString) <= maxArgStringLength {
+		env = append(env, pluginConfigString)
+	} else {
+		log.Printf("KUSTOMIZE_PLUGIN_CONFIG_STRING exceeds hard limit of %d characters, the environment variable "+
+			"will be omitted", maxArgStringLength)
+	}
+	pluginConfigRoot := "KUSTOMIZE_PLUGIN_CONFIG_ROOT=" + p.h.Loader().Root()
+	if len(pluginConfigRoot) <= maxArgStringLength {
+		env = append(env, pluginConfigRoot)
+	} else {
+		log.Printf("KUSTOMIZE_PLUGIN_CONFIG_ROOT exceeds hard limit of %d characters, the environment variable "+
+			"will be omitted", maxArgStringLength)
+	}
 	return env
 }

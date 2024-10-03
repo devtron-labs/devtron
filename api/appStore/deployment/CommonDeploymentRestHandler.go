@@ -92,8 +92,7 @@ func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppI
 			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "invalid app id"}
 			return appOfferingMode, installedAppDto, err
 		}
-		uniqueAppName := appIdentifier.GetUniqueAppNameIdentifier()
-		installedAppDto, err = handler.installedAppService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, uniqueAppName)
+		installedAppDto, err = handler.installedAppService.GetInstalledAppByClusterNamespaceAndName(appIdentifier)
 		if err != nil {
 			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "unable to find app in database"}
 			return appOfferingMode, installedAppDto, err
@@ -171,7 +170,7 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistory(w http.Resp
 	}
 	//rbac block ends here
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 	res, err := handler.appStoreDeploymentService.GetDeploymentHistory(ctx, installedAppDto)
 	if err != nil {

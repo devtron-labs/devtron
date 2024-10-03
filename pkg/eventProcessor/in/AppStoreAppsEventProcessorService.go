@@ -18,9 +18,10 @@ package in
 
 import (
 	"encoding/json"
+	"errors"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/chartGroup"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
@@ -99,9 +100,11 @@ func (impl *AppStoreAppsEventProcessorImpl) SubscribeHelmInstallStatusEvent() er
 			return
 		}
 		if helmInstallNatsMessage.ErrorInInstallation {
-			installedAppVersionHistory.Status = pipelineConfig.WorkflowFailed
+			// if error in installation then mark deployment failed
+			// for helmInstallNatsMessage.ErrorInInstallation = true, helmInstallNatsMessage.Message will have the error message from kubelink
+			installedAppVersionHistory.MarkDeploymentFailed(errors.New(helmInstallNatsMessage.Message))
 		} else {
-			installedAppVersionHistory.Status = pipelineConfig.WorkflowSucceeded
+			installedAppVersionHistory.SetStatus(cdWorkflow.WorkflowSucceeded)
 		}
 		installedAppVersionHistory.HelmReleaseStatusConfig = msg.Data
 		_, err = impl.iavHistoryRepository.UpdateInstalledAppVersionHistory(installedAppVersionHistory, nil)

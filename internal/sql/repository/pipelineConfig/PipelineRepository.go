@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/util"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
@@ -665,7 +666,7 @@ func (impl PipelineRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckInNon
                      	  group by pipeline_id, id order by pipeline_id, id desc))
     and (p.deployment_app_type=? or dc.deployment_app_type=?) and p.deleted=?;`
 	_, err := impl.dbConnection.Query(&pipelines, queryString, getPipelineDeployedBeforeMinutes, getPipelineDeployedWithinHours,
-		pg.In(append(WfrTerminalStatusList, WorkflowInitiated, WorkflowInQueue)),
+		pg.In(append(cdWorkflow.WfrTerminalStatusList, cdWorkflow.WorkflowInitiated, cdWorkflow.WorkflowInQueue)),
 		bean.CD_WORKFLOW_TYPE_DEPLOY, util.PIPELINE_DEPLOYMENT_TYPE_ACD, util.PIPELINE_DEPLOYMENT_TYPE_ACD, false)
 	if err != nil {
 		impl.logger.Errorw("error in GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses", "err", err)
@@ -762,7 +763,7 @@ func (impl PipelineRepositoryImpl) FindDeploymentTypeByPipelineIds(cdPipelineIds
 		"pco inner join pcos on pcos.id=pco.id" +
 		" inner join pipeline p on p.id=pco.pipeline_id left join app_status aps on aps.app_id=p.app_id " +
 		"and aps.env_id=p.environment_id;"
-	_, err := impl.dbConnection.Query(&deploymentType, query, pg.In(cdPipelineIds), bean.CD_WORKFLOW_TYPE_DEPLOY, pg.In([]string{WorkflowInitiated, WorkflowInQueue, WorkflowFailed}))
+	_, err := impl.dbConnection.Query(&deploymentType, query, pg.In(cdPipelineIds), bean.CD_WORKFLOW_TYPE_DEPLOY, pg.In([]string{cdWorkflow.WorkflowInitiated, cdWorkflow.WorkflowInQueue, cdWorkflow.WorkflowFailed}))
 	if err != nil {
 		return pipelineIdsMap, err
 	}
