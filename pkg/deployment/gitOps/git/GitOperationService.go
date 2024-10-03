@@ -56,6 +56,7 @@ type GitOperationService interface {
 	CloneInDir(repoUrl, chartDir string) (string, error)
 	ReloadGitOpsProvider() error
 	UpdateGitHostUrlByProvider(request *apiBean.GitOpsConfigDto) error
+	GetRepoUrlWithUserName(url string) (string, error)
 }
 
 type GitOperationServiceImpl struct {
@@ -474,4 +475,8 @@ func (impl *GitOperationServiceImpl) addConfigFileToChart(config *ChartConfig, d
 		return err
 	}
 	return nil
+}
+
+func (impl *GitOperationServiceImpl) GetRepoUrlWithUserName(url string) (string, error) {
+	return url, nil
 }
