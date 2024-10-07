@@ -136,12 +136,11 @@ func (impl *AppStoreDeploymentDBServiceImpl) AppStoreDeployOperationDB(installRe
 			TeamId:  installRequest.TeamId,
 			UserId:  installRequest.UserId,
 		}
-		if util4.IsExternalChartStoreApp(installRequest.DisplayName) {
+		if installRequest.IsChartLinkRequest {
 			//this is the case of linking external helm app to devtron chart store
 			appCreateRequest.AppType = helper.ExternalChartStoreApp
 			appCreateRequest.DisplayName = installRequest.DisplayName
-		}
-		if globalUtil.IsBaseStack() || globalUtil.IsHelmApp(installRequest.AppOfferingMode) {
+		} else if globalUtil.IsBaseStack() || globalUtil.IsHelmApp(installRequest.AppOfferingMode) {
 			appCreateRequest.DisplayName = installRequest.AppName
 			appCreateRequest.AppName = installRequest.GetAppIdentifierString()
 		}
