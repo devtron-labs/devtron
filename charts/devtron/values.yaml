@@ -24,7 +24,7 @@ global:
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
-  release: "v0.7.3"
+  release: "v0.7.4-rc.0"
   registry: ""
   image: inception
   tag: 473deaa4-185-21582
@@ -370,7 +370,7 @@ argo-cd:
 security:
   enabled: false
   imageScanner:
-    image: "image-scanner:348201f8-141-25486"
+    image: "image-scanner:b4049696-141-26051"
   # Values for trivy
   trivy:
     enabled: false
