@@ -23,6 +23,7 @@ import (
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/workflow/util"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -193,7 +194,7 @@ func (impl *WorkflowServiceImpl) getClusterConfig(workflowRequest *types.Workflo
 	env := workflowRequest.Env
 	if workflowRequest.IsExtRun {
 		configMap := env.Cluster.Config
-		bearerToken := configMap[k8s.BearerToken]
+		bearerToken := configMap[commonBean.BearerToken]
 		clusterConfig := &k8s.ClusterConfig{
 			ClusterName:           env.Cluster.ClusterName,
 			BearerToken:           bearerToken,

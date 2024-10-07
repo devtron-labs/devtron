@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	cronUtil "github.com/devtron-labs/devtron/util/cron"
 	"github.com/robfig/cron/v3"
 	"log"
@@ -117,13 +118,13 @@ func GetClusterBean(model repository.Cluster) ClusterBean {
 func (bean ClusterBean) GetClusterConfig() *k8s.ClusterConfig {
 	host := bean.ServerUrl
 	configMap := bean.Config
-	bearerToken := configMap[k8s.BearerToken]
+	bearerToken := configMap[commonBean.BearerToken]
 	clusterCfg := &k8s.ClusterConfig{Host: host, BearerToken: bearerToken}
 	clusterCfg.InsecureSkipTLSVerify = bean.InsecureSkipTLSVerify
 	if bean.InsecureSkipTLSVerify == false {
-		clusterCfg.KeyData = configMap[k8s.TlsKey]
-		clusterCfg.CertData = configMap[k8s.CertData]
-		clusterCfg.CAData = configMap[k8s.CertificateAuthorityData]
+		clusterCfg.KeyData = configMap[commonBean.TlsKey]
+		clusterCfg.CertData = configMap[commonBean.CertData]
+		clusterCfg.CAData = configMap[commonBean.CertificateAuthorityData]
 	}
 	return clusterCfg
 }
@@ -382,7 +383,7 @@ func (impl *ClusterServiceImpl) FindAllWithoutConfig() ([]*ClusterBean, error) {
 		return nil, err
 	}
 	for _, model := range models {
-		model.Config = map[string]string{k8s.BearerToken: ""}
+		model.Config = map[string]string{commonBean.BearerToken: ""}
 	}
 	return models, nil
 }
@@ -441,7 +442,7 @@ func (impl *ClusterServiceImpl) FindByIdWithoutConfig(id int) (*ClusterBean, err
 		return nil, err
 	}
 	//empty bearer token as it will be hidden for user
-	model.Config = map[string]string{k8s.BearerToken: ""}
+	model.Config = map[string]string{commonBean.BearerToken: ""}
 	return model, nil
 }
 
@@ -476,28 +477,28 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	}
 
 	// check whether config modified or not, if yes create informer with updated config
-	dbConfigBearerToken := model.Config[k8s.BearerToken]
-	requestConfigBearerToken := bean.Config[k8s.BearerToken]
+	dbConfigBearerToken := model.Config[commonBean.BearerToken]
+	requestConfigBearerToken := bean.Config[commonBean.BearerToken]
 	if len(requestConfigBearerToken) == 0 {
-		bean.Config[k8s.BearerToken] = model.Config[k8s.BearerToken]
+		bean.Config[commonBean.BearerToken] = model.Config[commonBean.BearerToken]
 	}
 
-	dbConfigTlsKey := model.Config[k8s.TlsKey]
-	requestConfigTlsKey := bean.Config[k8s.TlsKey]
+	dbConfigTlsKey := model.Config[commonBean.TlsKey]
+	requestConfigTlsKey := bean.Config[commonBean.TlsKey]
 	if len(requestConfigTlsKey) == 0 {
-		bean.Config[k8s.TlsKey] = model.Config[k8s.TlsKey]
+		bean.Config[commonBean.TlsKey] = model.Config[commonBean.TlsKey]
 	}
 
-	dbConfigCertData := model.Config[k8s.CertData]
-	requestConfigCertData := bean.Config[k8s.CertData]
+	dbConfigCertData := model.Config[commonBean.CertData]
+	requestConfigCertData := bean.Config[commonBean.CertData]
 	if len(requestConfigCertData) == 0 {
-		bean.Config[k8s.CertData] = model.Config[k8s.CertData]
+		bean.Config[commonBean.CertData] = model.Config[commonBean.CertData]
 	}
 
-	dbConfigCAData := model.Config[k8s.CertificateAuthorityData]
-	requestConfigCAData := bean.Config[k8s.CertificateAuthorityData]
+	dbConfigCAData := model.Config[commonBean.CertificateAuthorityData]
+	requestConfigCAData := bean.Config[commonBean.CertificateAuthorityData]
 	if len(requestConfigCAData) == 0 {
-		bean.Config[k8s.CertificateAuthorityData] = model.Config[k8s.CertificateAuthorityData]
+		bean.Config[commonBean.CertificateAuthorityData] = model.Config[commonBean.CertificateAuthorityData]
 	}
 
 	if bean.ServerUrl != model.ServerUrl || bean.InsecureSkipTLSVerify != model.InsecureSkipTlsVerify || dbConfigBearerToken != requestConfigBearerToken || dbConfigTlsKey != requestConfigTlsKey || dbConfigCertData != requestConfigCertData || dbConfigCAData != requestConfigCAData {
@@ -599,7 +600,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 }
 
 func (impl *ClusterServiceImpl) SyncNsInformer(bean *ClusterBean) {
-	requestConfig := bean.Config[k8s.BearerToken]
+	requestConfig := bean.Config[commonBean.BearerToken]
 	//before creating new informer for cluster, close existing one
 	impl.K8sInformerFactory.CleanNamespaceInformer(bean.ClusterName)
 	//create new informer for cluster with new config
@@ -611,9 +612,9 @@ func (impl *ClusterServiceImpl) SyncNsInformer(bean *ClusterBean) {
 		InsecureSkipTLSVerify: bean.InsecureSkipTLSVerify,
 	}
 	if !bean.InsecureSkipTLSVerify {
-		clusterInfo.KeyData = bean.Config[k8s.TlsKey]
-		clusterInfo.CertData = bean.Config[k8s.CertData]
-		clusterInfo.CAData = bean.Config[k8s.CertificateAuthorityData]
+		clusterInfo.KeyData = bean.Config[commonBean.TlsKey]
+		clusterInfo.CertData = bean.Config[commonBean.CertData]
+		clusterInfo.CAData = bean.Config[commonBean.CertificateAuthorityData]
 	}
 	impl.K8sInformerFactory.BuildInformer([]*bean2.ClusterInfo{clusterInfo})
 }
@@ -658,16 +659,16 @@ func (impl *ClusterServiceImpl) buildInformer() {
 	var clusterInfo []*bean2.ClusterInfo
 	for _, model := range models {
 		if !model.IsVirtualCluster {
-			bearerToken := model.Config[k8s.BearerToken]
+			bearerToken := model.Config[commonBean.BearerToken]
 			clusterInfo = append(clusterInfo, &bean2.ClusterInfo{
 				ClusterId:             model.Id,
 				ClusterName:           model.ClusterName,
 				BearerToken:           bearerToken,
 				ServerUrl:             model.ServerUrl,
 				InsecureSkipTLSVerify: model.InsecureSkipTlsVerify,
-				KeyData:               model.Config[k8s.TlsKey],
-				CertData:              model.Config[k8s.CertData],
-				CAData:                model.Config[k8s.CertificateAuthorityData],
+				KeyData:               model.Config[commonBean.TlsKey],
+				CertData:              model.Config[commonBean.CertData],
+				CAData:                model.Config[commonBean.CertificateAuthorityData],
 			})
 		}
 	}
@@ -1008,7 +1009,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 		if (userInfoObj == nil || userInfoObj.Token == "" && clusterObj.InsecureSkipTLSVerify) && (clusterBeanObject.ErrorInConnecting == "") {
 			clusterBeanObject.ErrorInConnecting = "token missing from the kubeconfig"
 		}
-		Config[k8s.BearerToken] = userInfoObj.Token
+		Config[commonBean.BearerToken] = userInfoObj.Token
 
 		if clusterObj != nil {
 			clusterBeanObject.InsecureSkipTLSVerify = clusterObj.InsecureSkipTLSVerify
@@ -1029,9 +1030,9 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 				missingFieldsStr = missingFieldsStr[:len(missingFieldsStr)-2]
 				clusterBeanObject.ErrorInConnecting = fmt.Sprintf("Missing fields against user: %s", missingFieldsStr)
 			} else {
-				Config[k8s.TlsKey] = string(userInfoObj.ClientKeyData)
-				Config[k8s.CertData] = string(userInfoObj.ClientCertificateData)
-				Config[k8s.CertificateAuthorityData] = string(clusterObj.CertificateAuthorityData)
+				Config[commonBean.TlsKey] = string(userInfoObj.ClientKeyData)
+				Config[commonBean.CertData] = string(userInfoObj.ClientCertificateData)
+				Config[commonBean.CertificateAuthorityData] = string(clusterObj.CertificateAuthorityData)
 			}
 		}
 
@@ -1086,7 +1087,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 }
 
 func (impl *ClusterServiceImpl) GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientset, clusterId int, respMap *sync.Map) {
-	response, err := impl.K8sUtil.GetLiveZCall(k8s.LiveZ, k8sClientSet)
+	response, err := impl.K8sUtil.GetLiveZCall(commonBean.LiveZ, k8sClientSet)
 	log.Println("received response for cluster livez status", "response", string(response), "err", err, "clusterId", clusterId)
 
 	if err != nil {
@@ -1119,17 +1120,17 @@ func (impl *ClusterServiceImpl) ConvertClusterBeanObjectToCluster(bean *ClusterB
 	configMap := bean.Config
 	serverUrl := bean.ServerUrl
 	bearerToken := ""
-	if configMap[k8s.BearerToken] != "" {
-		bearerToken = configMap[k8s.BearerToken]
+	if configMap[commonBean.BearerToken] != "" {
+		bearerToken = configMap[commonBean.BearerToken]
 	}
 	tlsConfig := v1alpha1.TLSClientConfig{
 		Insecure: bean.InsecureSkipTLSVerify,
 	}
 
 	if !bean.InsecureSkipTLSVerify {
-		tlsConfig.KeyData = []byte(bean.Config[k8s.TlsKey])
-		tlsConfig.CertData = []byte(bean.Config[k8s.CertData])
-		tlsConfig.CAData = []byte(bean.Config[k8s.CertificateAuthorityData])
+		tlsConfig.KeyData = []byte(bean.Config[commonBean.TlsKey])
+		tlsConfig.CertData = []byte(bean.Config[commonBean.CertData])
+		tlsConfig.CAData = []byte(bean.Config[commonBean.CertificateAuthorityData])
 	}
 	cdClusterConfig := v1alpha1.ClusterConfig{
 		BearerToken:     bearerToken,

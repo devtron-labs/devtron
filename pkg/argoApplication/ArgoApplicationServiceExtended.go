@@ -1,65 +1,132 @@
-/*
- * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-package application
+package argoApplication
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
+	"github.com/devtron-labs/devtron/api/helm-app/service"
+	application3 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/read"
+	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/argo"
+	"go.uber.org/zap"
 	v12 "k8s.io/api/apps/v1"
 	"strings"
 	"time"
 )
 
-// fill the health status in node from app resources
-func updateNodeHealthStatus(resp *v1alpha1.ApplicationTree, appResp *v1alpha1.ApplicationWatchEvent) {
-	if resp == nil || len(resp.Nodes) == 0 || appResp == nil || len(appResp.Application.Status.Resources) == 0 {
-		return
-	}
+type ArgoApplicationServiceExtendedImpl struct {
+	*ArgoApplicationServiceImpl
+	acdClient application3.ServiceClient
+}
 
-	for index, node := range resp.Nodes {
-		if node.Health != nil {
-			continue
-		}
-		for _, resource := range appResp.Application.Status.Resources {
-			if node.Group != resource.Group || node.Version != resource.Version || node.Kind != resource.Kind ||
-				node.Name != resource.Name || node.Namespace != resource.Namespace {
-				continue
-			}
-			resourceHealth := resource.Health
-			if resourceHealth != nil {
-				node.Health = &v1alpha1.HealthStatus{
-					Message: resourceHealth.Message,
-					Status:  resourceHealth.Status,
-				}
-				// updating the element in slice
-				// https://medium.com/@xcoulon/3-ways-to-update-elements-in-a-slice-d5df54c9b2f8
-				resp.Nodes[index] = node
-			}
-			break
-		}
+func NewArgoApplicationServiceExtendedServiceImpl(logger *zap.SugaredLogger,
+	clusterRepository clusterRepository.ClusterRepository,
+	k8sUtil *k8s.K8sServiceImpl,
+	argoUserService argo.ArgoUserService, helmAppClient gRPC.HelmAppClient,
+	helmAppService service.HelmAppService,
+	k8sApplicationService application.K8sApplicationService,
+	readService read.ArgoApplicationReadService) *ArgoApplicationServiceExtendedImpl {
+	return &ArgoApplicationServiceExtendedImpl{
+		ArgoApplicationServiceImpl: &ArgoApplicationServiceImpl{
+			logger:                logger,
+			clusterRepository:     clusterRepository,
+			k8sUtil:               k8sUtil,
+			argoUserService:       argoUserService,
+			helmAppService:        helmAppService,
+			helmAppClient:         helmAppClient,
+			k8sApplicationService: k8sApplicationService,
+			readService:           readService,
+		},
 	}
 }
 
-func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQuery, ctx context.Context, asc application.ApplicationServiceClient, err error, c ServiceClientImpl) []*argoApplication.Result {
+func (c *ArgoApplicationServiceExtendedImpl) ListApplications(clusterIds []int) ([]*bean.ArgoApplicationListDto, error) {
+	return c.ArgoApplicationServiceImpl.ListApplications(clusterIds)
+}
+func (c *ArgoApplicationServiceExtendedImpl) HibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
+	return c.ArgoApplicationServiceImpl.HibernateArgoApplication(ctx, app, hibernateRequest)
+}
+func (c *ArgoApplicationServiceExtendedImpl) UnHibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
+	return c.ArgoApplicationServiceImpl.UnHibernateArgoApplication(ctx, app, hibernateRequest)
+}
+
+func (impl *ArgoApplicationServiceExtendedImpl) ResourceTree(ctxt context.Context, query *application2.ResourcesQuery) (*argoApplication.ResourceTreeResponse, error) {
+	//all the apps deployed via argo are fetching status from here
+	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutSlow)
+	defer cancel()
+
+	asc, conn, err := impl.acdClient.GetArgoClient(ctxt)
+	if err != nil {
+		impl.logger.Errorw("Error in GetArgoClient", "err", err)
+		return nil, err
+	}
+	defer util.Close(conn, impl.logger)
+	impl.logger.Debugw("GRPC_GET_RESOURCETREE", "req", query)
+	resp, err := asc.ResourceTree(ctx, query)
+	if err != nil {
+		impl.logger.Errorw("GRPC_GET_RESOURCETREE", "req", query, "err", err)
+		return nil, err
+	}
+	responses := impl.parseResult(resp, query, ctx, asc, err)
+	podMetadata, newReplicaSets := impl.buildPodMetadata(resp, responses)
+
+	appQuery := application2.ApplicationQuery{Name: query.ApplicationName}
+	app, err := asc.Watch(ctxt, &appQuery)
+	var conditions = make([]v1alpha1.ApplicationCondition, 0)
+	resourcesSyncResultMap := make(map[string]string)
+	status := "Unknown"
+	hash := ""
+	if app != nil {
+		appResp, err := app.Recv()
+		if err == nil {
+			// https://github.com/argoproj/argo-cd/issues/11234 workaround
+			updateNodeHealthStatus(resp, appResp)
+			argoApplicationStatus := appResp.Application.Status
+			status = string(argoApplicationStatus.Health.Status)
+			hash = argoApplicationStatus.Sync.Revision
+			conditions = argoApplicationStatus.Conditions
+			for _, condition := range conditions {
+				if condition.Type != v1alpha1.ApplicationConditionSharedResourceWarning {
+					status = "Degraded"
+				}
+			}
+			if argoApplicationStatus.OperationState != nil && argoApplicationStatus.OperationState.SyncResult != nil {
+				resourcesSyncResults := argoApplicationStatus.OperationState.SyncResult.Resources
+				for _, resourcesSyncResult := range resourcesSyncResults {
+					if resourcesSyncResult == nil {
+						continue
+					}
+					resourceIdentifier := fmt.Sprintf("%s/%s", resourcesSyncResult.Kind, resourcesSyncResult.Name)
+					resourcesSyncResultMap[resourceIdentifier] = resourcesSyncResult.Message
+				}
+			}
+			if status == "" {
+				status = "Unknown"
+			}
+		}
+	}
+	return &argoApplication.ResourceTreeResponse{
+		ApplicationTree:          resp,
+		Status:                   status,
+		RevisionHash:             hash,
+		PodMetadata:              podMetadata,
+		Conditions:               conditions,
+		NewGenerationReplicaSets: newReplicaSets,
+		ResourcesSyncResultMap:   resourcesSyncResultMap,
+	}, err
+}
+
+func (impl *ArgoApplicationServiceImpl) parseResult(resp *v1alpha1.ApplicationTree, query *application2.ResourcesQuery, ctx context.Context, asc application2.ApplicationServiceClient, err error) []*argoApplication.Result {
 	var responses = make([]*argoApplication.Result, 0)
 	qCount := 0
 	response := make(chan argoApplication.Result)
@@ -95,7 +162,7 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 		}
 	}
 
-	c.logger.Debugw("needPods", "pods", needPods)
+	impl.logger.Debugw("needPods", "pods", needPods)
 
 	for _, node := range podParents {
 		queryNodes = append(queryNodes, node)
@@ -135,15 +202,15 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 	for _, node := range queryNodes {
 		rQuery := transform(node, query.ApplicationName)
 		qCount++
-		go func(request application.ApplicationResourceRequest) {
+		go func(request application2.ApplicationResourceRequest) {
 			ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 			defer cancel()
 			startTime := time.Now()
 			res, err := asc.GetResource(ctx, &request)
 			if err != nil {
-				c.logger.Errorw("GRPC_GET_RESOURCE", "data", request, "timeTaken", time.Since(startTime), "err", err)
+				impl.logger.Errorw("GRPC_GET_RESOURCE", "data", request, "timeTaken", time.Since(startTime), "err", err)
 			} else {
-				c.logger.Debugw("GRPC_GET_RESOURCE", "data", request, "timeTaken", time.Since(startTime))
+				impl.logger.Debugw("GRPC_GET_RESOURCE", "data", request, "timeTaken", time.Since(startTime))
 			}
 			if res != nil || err != nil {
 				response <- argoApplication.Result{Response: res, Error: err, Request: &request}
@@ -173,6 +240,140 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 		}
 	}
 	return responses
+}
+
+func (impl *ArgoApplicationServiceImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, responses []*argoApplication.Result) (podMetaData []*argoApplication.PodMetadata, newReplicaSets []string) {
+	rolloutManifests := make([]map[string]interface{}, 0)
+	statefulSetManifest := make(map[string]interface{})
+	deploymentManifests := make([]map[string]interface{}, 0)
+	daemonSetManifest := make(map[string]interface{})
+	replicaSetManifests := make([]map[string]interface{}, 0)
+	podManifests := make([]map[string]interface{}, 0)
+	controllerRevisionManifests := make([]map[string]interface{}, 0)
+	jobsManifest := make(map[string]interface{})
+	var parentWorkflow []string
+	for _, response := range responses {
+		if response != nil && response.Response != nil {
+			kind := *response.Request.Kind
+			manifestFromResponse := *response.Response.Manifest
+			if kind == "Rollout" {
+				manifest := make(map[string]interface{})
+				err := json.Unmarshal([]byte(manifestFromResponse), &manifest)
+				if err != nil {
+					impl.logger.Error(err)
+				} else {
+					rolloutManifests = append(rolloutManifests, manifest)
+				}
+			} else if kind == "Deployment" {
+				manifest := make(map[string]interface{})
+				err := json.Unmarshal([]byte(manifestFromResponse), &manifest)
+				if err != nil {
+					impl.logger.Error(err)
+				} else {
+					deploymentManifests = append(deploymentManifests, manifest)
+				}
+			} else if kind == "StatefulSet" {
+				err := json.Unmarshal([]byte(manifestFromResponse), &statefulSetManifest)
+				if err != nil {
+					impl.logger.Error(err)
+				}
+			} else if kind == "DaemonSet" {
+				err := json.Unmarshal([]byte(manifestFromResponse), &daemonSetManifest)
+				if err != nil {
+					impl.logger.Error(err)
+				}
+			} else if kind == "ReplicaSet" {
+				manifest := make(map[string]interface{})
+				err := json.Unmarshal([]byte(manifestFromResponse), &manifest)
+				if err != nil {
+					impl.logger.Error(err)
+				}
+				replicaSetManifests = append(replicaSetManifests, manifest)
+			} else if kind == "Pod" {
+				manifest := make(map[string]interface{})
+				err := json.Unmarshal([]byte(manifestFromResponse), &manifest)
+				if err != nil {
+					impl.logger.Error(err)
+				}
+				podManifests = append(podManifests, manifest)
+			} else if kind == "ControllerRevision" {
+				manifest := make(map[string]interface{})
+				err := json.Unmarshal([]byte(manifestFromResponse), &manifest)
+				if err != nil {
+					impl.logger.Error(err)
+				}
+				controllerRevisionManifests = append(controllerRevisionManifests, manifest)
+			} else if kind == "Job" {
+				err := json.Unmarshal([]byte(manifestFromResponse), &jobsManifest)
+				if err != nil {
+					impl.logger.Error(err)
+				}
+			}
+		}
+	}
+	newPodNames := make(map[string]bool, 0)
+	// for rollout we compare pod hash
+	for _, rolloutManifest := range rolloutManifests {
+		if _, ok := rolloutManifest["kind"]; ok {
+			newReplicaSet := getRolloutNewReplicaSetName(rolloutManifest, replicaSetManifests)
+			if len(newReplicaSet) > 0 {
+				newReplicaSets = append(newReplicaSets, newReplicaSet)
+			}
+		}
+	}
+
+	for _, deploymentManifest := range deploymentManifests {
+		if _, ok := deploymentManifest["kind"]; ok {
+			newReplicaSet := getDeploymentNewReplicaSetName(deploymentManifest, replicaSetManifests)
+			if len(newReplicaSet) > 0 {
+				newReplicaSets = append(newReplicaSets, newReplicaSet)
+			}
+		}
+	}
+
+	if _, ok := statefulSetManifest["kind"]; ok {
+		newPodNames = getStatefulSetNewPods(statefulSetManifest, podManifests)
+	}
+
+	if _, ok := daemonSetManifest["kind"]; ok {
+		newPodNames = getDaemonSetNewPods(daemonSetManifest, podManifests, controllerRevisionManifests)
+	}
+
+	if _, ok := jobsManifest["kind"]; ok {
+		newPodNames = getJobsNewPods(jobsManifest, podManifests)
+	}
+
+	for _, node := range resp.Nodes {
+		if node.Kind == "Workflow" {
+			parentWorkflow = append(parentWorkflow, node.Name)
+		}
+	}
+
+	for _, node := range resp.Nodes {
+		if node.Kind == "Pod" {
+			if contains(parentWorkflow, node.Name) {
+				newPodNames[node.Name] = true
+			}
+		}
+	}
+
+	//duplicatePodToReplicasetMapping can contain following data {Pod1: RS1, Pod2: RS1, Pod4: RS2, Pod5:RS2}, it contains pod
+	//to replica set mapping, where key is podName and value is its respective replicaset name, multiple keys(podName) can have
+	//single value (replicasetName)
+	duplicatePodToReplicasetMapping := make(map[string]string)
+	if len(newReplicaSets) > 0 {
+		results, duplicateMapping := buildPodMetadataFromReplicaSet(resp, newReplicaSets, replicaSetManifests)
+		for _, meta := range results {
+			podMetaData = append(podMetaData, meta)
+		}
+		duplicatePodToReplicasetMapping = duplicateMapping
+	}
+
+	if newPodNames != nil {
+		podsMetadataFromPods := buildPodMetadataFromPod(resp, podManifests, newPodNames)
+		podMetaData = updateMetadataOfDuplicatePods(podsMetadataFromPods, duplicatePodToReplicasetMapping, podMetaData)
+	}
+	return
 }
 
 func getDeploymentNewReplicaSetName(deploymentManifest map[string]interface{}, replicaSetManifests []map[string]interface{}) (newReplicaSet string) {
@@ -505,13 +706,13 @@ func getResourceName(resource map[string]interface{}) string {
 	return ""
 }
 
-func transform(resource v1alpha1.ResourceNode, name *string) *application.ApplicationResourceRequest {
+func transform(resource v1alpha1.ResourceNode, name *string) *application2.ApplicationResourceRequest {
 	resourceName := resource.Name
 	kind := resource.Kind
 	group := resource.Group
 	version := resource.Version
 	namespace := resource.Namespace
-	request := &application.ApplicationResourceRequest{
+	request := &application2.ApplicationResourceRequest{
 		Name:         name,
 		ResourceName: &resourceName,
 		Kind:         &kind,
@@ -584,4 +785,34 @@ func updateMetadataOfDuplicatePods(podsMetadataFromPods []*argoApplication.PodMe
 	}
 	// Return updated pod metadata
 	return podMetaData
+}
+
+// fill the health status in node from app resources
+func updateNodeHealthStatus(resp *v1alpha1.ApplicationTree, appResp *v1alpha1.ApplicationWatchEvent) {
+	if resp == nil || len(resp.Nodes) == 0 || appResp == nil || len(appResp.Application.Status.Resources) == 0 {
+		return
+	}
+
+	for index, node := range resp.Nodes {
+		if node.Health != nil {
+			continue
+		}
+		for _, resource := range appResp.Application.Status.Resources {
+			if node.Group != resource.Group || node.Version != resource.Version || node.Kind != resource.Kind ||
+				node.Name != resource.Name || node.Namespace != resource.Namespace {
+				continue
+			}
+			resourceHealth := resource.Health
+			if resourceHealth != nil {
+				node.Health = &v1alpha1.HealthStatus{
+					Message: resourceHealth.Message,
+					Status:  resourceHealth.Status,
+				}
+				// updating the element in slice
+				// https://medium.com/@xcoulon/3-ways-to-update-elements-in-a-slice-d5df54c9b2f8
+				resp.Nodes[index] = node
+			}
+			break
+		}
+	}
 }
