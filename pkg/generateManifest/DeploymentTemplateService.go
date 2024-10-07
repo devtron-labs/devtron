@@ -335,7 +335,7 @@ func (impl DeploymentTemplateServiceImpl) fetchResolvedTemplateForPublishedEnvs(
 		impl.Logger.Errorw("error in getting overridden values", "err", err)
 		return nil, err
 	}
-	_, _, version, _, err := impl.chartRefService.GetRefChart(request.ChartRefId)
+	_, _, version, _, err := impl.chartRefService.GetRefChart(override.EnvironmentConfig.ChartRefId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting chart ref by chartRefId ", "chartRefId", request.ChartRefId, "err", err)
 		return nil, err
