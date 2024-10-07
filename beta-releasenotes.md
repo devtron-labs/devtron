@@ -1,4 +1,5 @@
 ## Bugs
+- fix: migration seq fix (#5963)
 - fix: migration seq fix (#5962)
 - fix: develop main sync oss (#5961)
 - fix: modified the query for GetQueryForUserListingWithFilters (#5957)
