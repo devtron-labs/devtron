@@ -55,6 +55,7 @@ type AppRepository interface {
 	UpdateWithTxn(app *App, tx *pg.Tx) error
 	SetDescription(id int, description string, userId int32) error
 	FindActiveByName(appName string) (pipelineGroup *App, err error)
+	FindAllActiveByName(appName string) ([]*App, error)
 	FindAppIdByName(appName string) (int, error)
 
 	FindJobByDisplayName(appName string) (pipelineGroup *App, err error)
@@ -134,35 +135,24 @@ func (repo AppRepositoryImpl) SetDescription(id int, description string, userId 
 }
 
 func (repo AppRepositoryImpl) FindActiveByName(appName string) (*App, error) {
+	pipelineGroup := &App{}
+	err := repo.dbConnection.
+		Model(pipelineGroup).
+		Where("app_name = ?", appName).
+		Where("active = ?", true).
+		Order("id DESC").Limit(1).
+		Select()
+	return pipelineGroup, err
+}
+
+func (repo AppRepositoryImpl) FindAllActiveByName(appName string) ([]*App, error) {
 	var apps []*App
 	err := repo.dbConnection.
 		Model(&apps).
 		Where("app_name = ?", appName).
 		Where("active = ?", true).
-		Order("id DESC").
 		Select()
-	if len(apps) == 1 {
-		return apps[0], nil
-	} else if len(apps) > 1 {
-		isHelmApp := true
-		for _, app := range apps {
-			if app.AppType != helper.ChartStoreApp && app.AppType != helper.ExternalChartStoreApp {
-				isHelmApp = false
-				break
-			}
-		}
-		if isHelmApp {
-			err := repo.fixMultipleHelmAppsWithSameName(appName)
-			if err != nil {
-				repo.logger.Errorw("error in fixing duplicate helm apps with same name")
-				return nil, err
-			}
-		}
-		return apps[0], nil
-	} else {
-		err = pg.ErrNoRows
-	}
-	return nil, err
+	return apps, err
 }
 
 func (repo AppRepositoryImpl) FindAppIdByName(appName string) (int, error) {
@@ -351,50 +341,7 @@ func (repo AppRepositoryImpl) FindAppAndProjectByAppName(appName string) (*App, 
 		Where("app.app_name = ?", appName).
 		Where("app.active=?", true).
 		Select()
-
-	if err == pg.ErrMultiRows && (app.AppType == helper.ChartStoreApp || app.AppType == helper.ExternalChartStoreApp) {
-		// this case can arise in helms apps only
-
-		err := repo.fixMultipleHelmAppsWithSameName(appName)
-		if err != nil {
-			repo.logger.Errorw("error in fixing duplicate helm apps with same name")
-			return nil, err
-		}
-
-		err = repo.dbConnection.Model(app).Column("Team").
-			Where("app.app_name = ?", appName).
-			Where("app.active=?", true).
-			Select()
-		if err != nil {
-			repo.logger.Errorw("error in fetching apps by name", "appName", appName, "err", err)
-			return nil, err
-		}
-	}
 	return app, err
-}
-
-func (repo AppRepositoryImpl) fixMultipleHelmAppsWithSameName(appName string) error {
-	// updating installed apps setting app_id = max app_id
-	installAppUpdateQuery := `update installed_apps set 
-                          app_id=(select max(id) as id from app where app_name = ?) 
-                    	where app_id in (select id from app where app_name= ? )`
-
-	_, err := repo.dbConnection.Exec(installAppUpdateQuery, appName, appName)
-	if err != nil {
-		repo.logger.Errorw("error in updating maxAppId in installedApps", "appName", appName, "err", err)
-		return err
-	}
-
-	maxAppIdQuery := repo.dbConnection.Model((*App)(nil)).ColumnExpr("max(id)").
-		Where("app_name = ? ", appName).
-		Where("active = ? ", true)
-
-	// deleting all apps other than app with max id
-	_, err = repo.dbConnection.Model((*App)(nil)).
-		Set("active = ?", false).Set("updated_by = ?", SYSTEM_USER_ID).Set("updated_on = ?", time.Now()).
-		Where("id not in (?) ", maxAppIdQuery).Update()
-
-	return nil
 }
 
 func (repo AppRepositoryImpl) FindAllMatchesByAppName(appName string, appType helper.AppType) ([]*App, error) {

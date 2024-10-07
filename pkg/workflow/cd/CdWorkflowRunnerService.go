@@ -18,17 +18,18 @@ package cd
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"time"
 )
 
 type CdWorkflowRunnerService interface {
 	FindWorkflowRunnerById(wfrId int) (*bean.CdWorkflowRunnerDto, error)
 	CheckIfWfrLatest(wfrId, pipelineId int) (isLatest bool, err error)
-	UpdateWfrStatus(dto *bean.CdWorkflowRunnerDto, status string, updatedBy int) error
+	UpdateWfr(dto *bean.CdWorkflowRunnerDto, updatedBy int) error
+	UpdateIsArtifactUploaded(wfrId int, isArtifactUploaded bool) error
 }
 
 type CdWorkflowRunnerServiceImpl struct {
@@ -63,14 +64,21 @@ func (impl *CdWorkflowRunnerServiceImpl) CheckIfWfrLatest(wfrId, pipelineId int)
 	return isLatest, nil
 }
 
-func (impl *CdWorkflowRunnerServiceImpl) UpdateWfrStatus(dto *bean.CdWorkflowRunnerDto, status string, updatedBy int) error {
+func (impl *CdWorkflowRunnerServiceImpl) UpdateWfr(dto *bean.CdWorkflowRunnerDto, updatedBy int) error {
 	runnerDbObj := adapter.ConvertCdWorkflowRunnerDtoToDbObj(dto)
-	runnerDbObj.Status = status
-	runnerDbObj.UpdatedBy = int32(updatedBy)
-	runnerDbObj.UpdatedOn = time.Now()
+	runnerDbObj.UpdateAuditLog(int32(updatedBy))
 	err := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runnerDbObj)
 	if err != nil {
 		impl.logger.Errorw("error in updating runner status in db", "runnerId", runnerDbObj.Id, "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *CdWorkflowRunnerServiceImpl) UpdateIsArtifactUploaded(wfrId int, isArtifactUploaded bool) error {
+	err := impl.cdWorkflowRepository.UpdateIsArtifactUploaded(wfrId, workflow.GetArtifactUploadedType(isArtifactUploaded))
+	if err != nil {
+		impl.logger.Errorw("error in updating isArtifactUploaded in db", "wfrId", wfrId, "err", err)
 		return err
 	}
 	return nil

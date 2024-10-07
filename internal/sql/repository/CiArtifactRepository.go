@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util"
 	"golang.org/x/exp/slices"
 	"strings"
 	"time"
@@ -73,7 +74,7 @@ type CiArtifact struct {
 	ScanEnabled           bool      `sql:"scan_enabled,notnull"`
 	Scanned               bool      `sql:"scanned,notnull"`
 	ExternalCiPipelineId  int       `sql:"external_ci_pipeline_id"`
-	IsArtifactUploaded    bool      `sql:"is_artifact_uploaded"`
+	IsArtifactUploaded    bool      `sql:"is_artifact_uploaded"` // Deprecated; Use pipelineConfig.CiWorkflow instead.
 	CredentialsSourceType string    `sql:"credentials_source_type"`
 	CredentialSourceValue string    `sql:"credentials_source_value"`
 	ComponentId           int       `sql:"component_id"`
@@ -82,6 +83,14 @@ type CiArtifact struct {
 	Latest                bool      `sql:"-"`
 	RunningOnParent       bool      `sql:"-"`
 	sql.AuditLog
+}
+
+func (artifact *CiArtifact) ExtractImageRepoAndTag() (repo string, tag string, err error) {
+	imageMetadata, err := util.ExtractImageRepoAndTag(artifact.Image)
+	if err != nil {
+		return "", "", err
+	}
+	return imageMetadata.Repo, imageMetadata.Tag, nil
 }
 
 func (artifact *CiArtifact) IsMigrationRequired() bool {
