@@ -244,6 +244,7 @@ func ConvertConfigDataToPipelineConfigData(r *bean.ConfigData) *pipelineConfigBe
 		DefaultExternalSecret: ConvertExternalSecretToPipelineExternalSecret(r.DefaultExternalSecret),
 		RoleARN:               r.RoleARN,
 		SubPath:               r.SubPath,
+		ESOSubPath:            r.ESOSubPath,
 		FilePermission:        r.FilePermission,
 		Overridden:            r.Overridden,
 	}
@@ -253,7 +254,7 @@ func ConvertESOSecretDataToPipelineESOSecretData(r bean.ESOSecretData) pipelineC
 	return pipelineConfigBean.ESOSecretData{
 		SecretStore:     r.SecretStore,
 		SecretStoreRef:  r.SecretStoreRef,
-		EsoData:         ConvertEsoDataToPipelineEsoData(r.EsoData),
+		ESOData:         ConvertEsoDataToPipelineEsoData(r.ESOData),
 		RefreshInterval: r.RefreshInterval,
 	}
 }
@@ -304,6 +305,7 @@ func ConvertPipelineConfigDataToConfigData(r *pipelineConfigBean.ConfigData) *be
 		DefaultExternalSecret: ConvertPipelineExternalSecretToExternalSecret(r.DefaultExternalSecret),
 		RoleARN:               r.RoleARN,
 		SubPath:               r.SubPath,
+		ESOSubPath:            r.ESOSubPath,
 		FilePermission:        r.FilePermission,
 		Overridden:            r.Overridden,
 	}
@@ -313,7 +315,7 @@ func ConvertPipelineESOSecretDataToESOSecretData(r pipelineConfigBean.ESOSecretD
 	return bean.ESOSecretData{
 		SecretStore:     r.SecretStore,
 		SecretStoreRef:  r.SecretStoreRef,
-		EsoData:         ConvertPipelineEsoDataToEsoData(r.EsoData),
+		ESOData:         ConvertPipelineEsoDataToEsoData(r.ESOData),
 		RefreshInterval: r.RefreshInterval,
 	}
 }

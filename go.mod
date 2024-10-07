@@ -212,7 +212,7 @@ require (
 	github.com/nats-io/nats.go v1.28.0 // indirect
 	github.com/nats-io/nkeys v0.4.6 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
-	github.com/opencontainers/go-digest v1.0.0 // indirect
+	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc5 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pjbgf/sha1cd v0.3.0 // indirect
@@ -281,6 +281,8 @@ require (
 	xorm.io/core v0.7.2 // indirect
 	xorm.io/xorm v1.0.3 // indirect
 )
+
+require github.com/docker/distribution v2.8.2+incompatible
 
 require gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 
