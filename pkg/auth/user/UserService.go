@@ -51,10 +51,10 @@ const (
 )
 
 type UserService interface {
-	CreateUser(userInfo *bean.UserInfo) ([]*bean.UserInfo, error)
+	CreateUser(userInfo *bean.UserInfo, token string, managerAuth func(resource, token string, object string) bool) ([]*bean.UserInfo, error)
 	SelfRegisterUserIfNotExists(userInfo *bean.UserInfo) ([]*bean.UserInfo, error)
 	UpdateUser(userInfo *bean.UserInfo, token string, checkRBACForUserUpdate func(token string, userInfo *bean.UserInfo, isUserAlreadySuperAdmin bool,
-		eliminatedRoleFilters, eliminatedGroupRoles []*repository.RoleModel) (isAuthorised bool, err error)) (*bean.UserInfo, error)
+		eliminatedRoleFilters, eliminatedGroupRoles []*repository.RoleModel) (isAuthorised bool, err error), managerAuth func(resource, token string, object string) bool) (*bean.UserInfo, error)
 	GetById(id int32) (*bean.UserInfo, error)
 	GetAll() ([]bean.UserInfo, error)
 	GetAllWithFilters(request *bean.ListingRequest) (*bean.UserListingResponse, error)
@@ -286,7 +286,7 @@ func (impl *UserServiceImpl) saveUser(userInfo *bean.UserInfo, emailId string) (
 	return userInfo, nil
 }
 
-func (impl *UserServiceImpl) CreateUser(userInfo *bean.UserInfo) ([]*bean.UserInfo, error) {
+func (impl *UserServiceImpl) CreateUser(userInfo *bean.UserInfo, token string, managerAuth func(resource, token string, object string) bool) ([]*bean.UserInfo, error) {
 
 	var pass []string
 	var userResponse []*bean.UserInfo
@@ -300,7 +300,7 @@ func (impl *UserServiceImpl) CreateUser(userInfo *bean.UserInfo) ([]*bean.UserIn
 
 		//if found, update it with new roles
 		if dbUser != nil && dbUser.Id > 0 {
-			userInfo, err = impl.updateUserIfExists(userInfo, dbUser, emailId)
+			userInfo, err = impl.updateUserIfExists(userInfo, dbUser, emailId, token, managerAuth)
 			if err != nil {
 				impl.logger.Errorw("error while create user if exists in db", "error", err)
 				return nil, err
@@ -325,7 +325,7 @@ func (impl *UserServiceImpl) CreateUser(userInfo *bean.UserInfo) ([]*bean.UserIn
 	return userResponse, nil
 }
 
-func (impl *UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser *repository.UserModel, emailId string) (*bean.UserInfo, error) {
+func (impl *UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser *repository.UserModel, emailId string, token string, managerAuth func(resource, token string, object string) bool) (*bean.UserInfo, error) {
 	updateUserInfo, err := impl.GetById(dbUser.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -340,8 +340,8 @@ func (impl *UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser 
 	updateUserInfo.Groups = impl.mergeGroups(updateUserInfo.Groups, userInfo.Groups)
 	updateUserInfo.UserRoleGroup = impl.mergeUserRoleGroup(updateUserInfo.UserRoleGroup, userInfo.UserRoleGroup)
 	updateUserInfo.UserId = userInfo.UserId
-	updateUserInfo.EmailId = emailId                               // override case sensitivity
-	updateUserInfo, err = impl.UpdateUser(updateUserInfo, "", nil) //rbac already checked in create request handled
+	updateUserInfo.EmailId = emailId                                               // override case sensitivity
+	updateUserInfo, err = impl.UpdateUser(updateUserInfo, token, nil, managerAuth) //rbac already checked in create request handled
 	if err != nil {
 		impl.logger.Errorw("error while update user", "error", err)
 		return nil, err
@@ -635,7 +635,7 @@ func (impl *UserServiceImpl) mergeUserRoleGroup(oldUserRoleGroups []bean.UserRol
 }
 
 func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, checkRBACForUserUpdate func(token string, userInfo *bean.UserInfo,
-	isUserAlreadySuperAdmin bool, eliminatedRoleFilters, eliminatedGroupRoles []*repository.RoleModel) (isAuthorised bool, err error)) (*bean.UserInfo, error) {
+	isUserAlreadySuperAdmin bool, eliminatedRoleFilters, eliminatedGroupRoles []*repository.RoleModel) (isAuthorised bool, err error), managerAuth func(resource, token string, object string) bool) (*bean.UserInfo, error) {
 	//checking if request for same user is being processed
 	isLocked := impl.getUserReqLockStateById(userInfo.Id)
 	if isLocked {
@@ -706,7 +706,7 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, c
 
 		// DELETE Removed Items
 		var items []casbin2.Policy
-		items, eliminatedRoles, err = impl.userCommonService.RemoveRolesAndReturnEliminatedPolicies(userInfo, existingRoleIds, eliminatedRoleIds, tx)
+		items, eliminatedRoles, err = impl.userCommonService.RemoveRolesAndReturnEliminatedPolicies(userInfo, existingRoleIds, eliminatedRoleIds, tx, token, managerAuth)
 		if err != nil {
 			return nil, err
 		}

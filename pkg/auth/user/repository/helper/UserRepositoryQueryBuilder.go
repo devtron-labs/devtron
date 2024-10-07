@@ -57,10 +57,10 @@ func GetQueryForUserListingWithFilters(req *bean.ListingRequest) (string, []inte
 	}
 	var query string
 	if req.CountCheck {
-		query = fmt.Sprintf("select count(*) from users AS user_model left join user_audit AS au on au.user_id=user_model.id %s %s;", whereCondition, orderCondition)
+		query = fmt.Sprintf(`select count(*) from users AS user_model left join lateral (select ua.* from user_audit ua where ua.user_id=user_model.id order by ua.updated_on desc limit 1) AS au ON true left join timeout_window_configuration AS timeout_window_configuration ON timeout_window_configuration.id = user_model.timeout_window_configuration_id %s %s;`, whereCondition, orderCondition)
 	} else {
 		// have not collected client ip here. always will be empty
-		query = fmt.Sprintf(`SELECT "user_model".*, "user_audit"."id" AS "user_audit__id", "user_audit"."updated_on" AS "user_audit__updated_on","user_audit"."user_id" AS "user_audit__user_id" ,"user_audit"."created_on" AS "user_audit__created_on" ,"user_audit"."updated_on" AS "last_login" from users As "user_model" LEFT JOIN user_audit As "user_audit" on "user_audit"."user_id" = "user_model"."id" %s %s;`, whereCondition, orderCondition)
+		query = fmt.Sprintf(`SELECT user_model.*, timeout_window_configuration.id AS timeout_window_configuration__id, timeout_window_configuration.timeout_window_expression AS timeout_window_configuration__timeout_window_expression,timeout_window_configuration.timeout_window_expression_format AS timeout_window_configuration__timeout_window_expression_format, au.id AS user_audit__id, au.updated_on AS user_audit__updated_on, au.user_id AS user_audit__user_id, au.created_on AS user_audit__created_on,au.updated_on AS last_login FROM users AS user_model left join lateral (select ua.* from user_audit ua where ua.user_id=user_model.id order by ua.updated_on desc limit 1) au ON true LEFT JOIN timeout_window_configuration AS timeout_window_configuration ON timeout_window_configuration.id = user_model.timeout_window_configuration_id %s %s;`, whereCondition, orderCondition)
 	}
 
 	return query, queryParams

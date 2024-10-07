@@ -48,7 +48,7 @@ type InstalledAppDBService interface {
 	CheckAppExists(appNames []*appStoreBean.AppNames) ([]*appStoreBean.AppNames, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
 	GetInstalledAppById(installedAppId int) (*appStoreRepo.InstalledApps, error)
-	GetInstalledAppByClusterNamespaceAndName(clusterId int, namespace string, appName string) (*appStoreBean.InstallAppVersionDTO, error)
+	GetInstalledAppByClusterNamespaceAndName(appIdentifier *helmBean.AppIdentifier) (*appStoreBean.InstallAppVersionDTO, error)
 	GetInstalledAppByInstalledAppId(installedAppId int) (*appStoreBean.InstallAppVersionDTO, error)
 	GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
 	CreateInstalledAppVersion(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreRepo.InstalledAppVersions, error)
@@ -247,16 +247,22 @@ func (impl *InstalledAppDBServiceImpl) GetInstalledAppById(installedAppId int) (
 	return installedApp, err
 }
 
-func (impl *InstalledAppDBServiceImpl) GetInstalledAppByClusterNamespaceAndName(clusterId int, namespace string, appName string) (*appStoreBean.InstallAppVersionDTO, error) {
-	installedApp, err := impl.InstalledAppRepository.GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId, namespace, appName)
-	if err != nil {
+func (impl *InstalledAppDBServiceImpl) GetInstalledAppByClusterNamespaceAndName(appIdentifier *helmBean.AppIdentifier) (*appStoreBean.InstallAppVersionDTO, error) {
+	clusterId := appIdentifier.ClusterId
+	namespace := appIdentifier.Namespace
+	appName := appIdentifier.ReleaseName
+	uniqueAppName := appIdentifier.GetUniqueAppNameIdentifier()
+	installedApp, err := impl.InstalledAppRepository.GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId, namespace, uniqueAppName)
+	if err == pg.ErrNoRows {
+		installedApp, err = impl.InstalledAppRepository.GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId, namespace, appName)
 		if err == pg.ErrNoRows {
-			impl.Logger.Warnw("no installed apps found", "clusterId", clusterId)
+			impl.Logger.Warnw("no installed apps found", "uniqueAppName", uniqueAppName, "appName", appName, "clusterId", clusterId)
 			return nil, nil
-		} else {
-			impl.Logger.Errorw("error while fetching installed apps", "clusterId", clusterId, "error", err)
-			return nil, err
 		}
+	}
+	if err != nil {
+		impl.Logger.Errorw("error while fetching installed apps", "clusterId", clusterId, "error", err)
+		return nil, err
 	}
 
 	if installedApp.Id > 0 {
@@ -359,23 +365,10 @@ func (impl *InstalledAppDBServiceImpl) ChangeAppNameToDisplayNameForInstalledApp
 
 func (impl *InstalledAppDBServiceImpl) GetReleaseInfo(appIdentifier *helmBean.AppIdentifier) (*appStoreBean.InstallAppVersionDTO, error) {
 	//for external-apps appName would be uniqueIdentifier
-	appName := appIdentifier.GetUniqueAppNameIdentifier()
-	installedAppVersionDto, err := impl.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appName)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("GetReleaseInfo, error in getting installed app by clusterId, namespace and appUniqueIdentifierName", "appIdentifier", appIdentifier, "appUniqueIdentifierName", appName, "error", err)
+	installedAppVersionDto, err := impl.GetInstalledAppByClusterNamespaceAndName(appIdentifier)
+	if err != nil {
+		impl.Logger.Errorw("GetReleaseInfo, error in getting installed app by clusterId, namespace and appUniqueIdentifierName", "appIdentifier", appIdentifier, "error", err)
 		return nil, err
-	} else if util.IsErrNoRows(err) {
-		// when app_name is not yet migrated to unique identifier
-		installedAppVersionDto, err = impl.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
-		if err != nil {
-			impl.Logger.Errorw("GetReleaseInfo, error in getting installed app by clusterId, namespace and releaseName", "appIdentifier", appIdentifier, "error", err)
-			return nil, err
-		}
-		//if dto found, check if release-info request is for the same namespace app as stored in installed_app because two ext-apps can have same
-		//release name but in different namespaces, if they differ then release info request is for another ext-app with same name but in diff namespace
-		if installedAppVersionDto != nil && installedAppVersionDto.Id > 0 && installedAppVersionDto.Namespace != appIdentifier.Namespace {
-			installedAppVersionDto = nil
-		}
 	}
 	return installedAppVersionDto, nil
 }
