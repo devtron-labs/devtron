@@ -2,7 +2,6 @@ package restHandler
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -90,20 +89,6 @@ func (handler *DeploymentConfigurationRestHandlerImpl) GetConfigData(w http.Resp
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
-	}
-	switch r.Method {
-	case http.MethodPost:
-		if r.ContentLength > 0 {
-			valuesPayload := &bean.ValuesDto{}
-			decoder := json.NewDecoder(r.Body)
-			err = decoder.Decode(valuesPayload)
-			if err != nil {
-				handler.logger.Errorw("error in decoding the request payload", "err", err, "requestBody", r.Body)
-				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-				return
-			}
-			configDataQueryParams.Values = valuesPayload.Values
-		}
 	}
 
 	configDataQueryParams.UserId = userId

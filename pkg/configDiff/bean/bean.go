@@ -175,7 +175,6 @@ type ConfigDataQueryParams struct {
 	UserId       int32  `schema:"-"`
 	WfrId        int    `schema:"wfrId"`
 	ConfigArea   string `schema:"configArea"`
-	Values       string `schema:"values"`
 }
 
 // FilterCriteria []string `schema:"filterCriteria"`

@@ -142,31 +142,9 @@ func (impl *DeploymentConfigurationServiceImpl) GetAllConfigData(ctx context.Con
 		return impl.getConfigDataForCdRollback(ctx, configDataQueryParams, userHasAdminAccess)
 	case bean2.DeploymentHistory.ToString():
 		return impl.getConfigDataForDeploymentHistory(ctx, configDataQueryParams, userHasAdminAccess)
-	case bean2.ResolveData.ToString():
-		// this only supports resolution of deployment template data as of now
-		return impl.getResolvedConfigDataForValues(ctx, configDataQueryParams.Values, appId, envId)
 	}
 	// this would be the default case
 	return impl.getConfigDataForAppConfiguration(ctx, configDataQueryParams, appId, envId, clusterId, userHasAdminAccess)
-}
-
-func (impl *DeploymentConfigurationServiceImpl) getResolvedConfigDataForValues(ctx context.Context, values string, appId, envId int) (*bean2.DeploymentAndCmCsConfigDto, error) {
-	configDataDto := &bean2.DeploymentAndCmCsConfigDto{}
-	var err error
-	deploymentTemplateRequest := generateManifest.DeploymentTemplateRequest{
-		AppId:           appId,
-		RequestDataMode: generateManifest.Values,
-	}
-	if envId > 0 {
-		deploymentTemplateRequest.EnvId = envId
-	}
-	resolvedTemplate, _, err := impl.deploymentTemplateService.ResolveTemplateVariables(ctx, values, deploymentTemplateRequest)
-	if err != nil {
-		impl.logger.Errorw("error in getting resolved data for cm draft data ", "appId", appId, "err", err)
-		return nil, err
-	}
-
-	return configDataDto.WithDeploymentTemplateData(bean2.NewDeploymentAndCmCsConfig().WithResolvedValue(json.RawMessage(resolvedTemplate))), nil
 }
 
 func (impl *DeploymentConfigurationServiceImpl) getConfigDataForCdRollback(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams, userHasAdminAccess bool) (*bean2.DeploymentAndCmCsConfigDto, error) {
