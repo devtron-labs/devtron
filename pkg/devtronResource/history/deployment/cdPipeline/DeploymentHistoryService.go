@@ -4,6 +4,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	historyBean "github.com/devtron-labs/devtron/pkg/devtronResource/bean/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"go.uber.org/zap"
 )
@@ -36,7 +37,7 @@ func NewDeploymentHistoryServiceImpl(logger *zap.SugaredLogger,
 }
 
 func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistory(req *historyBean.CdPipelineDeploymentHistoryListReq) (resp historyBean.DeploymentHistoryResp, err error) {
-	var wfs []pipelineConfig.CdWorkflowWithArtifact
+	var wfs []bean.CdWorkflowWithArtifact
 	wfs, err = impl.cdHandler.GetCdBuildHistory(req.AppId, req.EnvId, req.PipelineId, req.Offset, req.Limit)
 	if err != nil {
 		impl.logger.Errorw("service err, List", "err", err, "req", req)

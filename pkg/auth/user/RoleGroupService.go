@@ -594,8 +594,8 @@ func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository.Role
 }
 
 func (impl RoleGroupServiceImpl) FetchDetailedRoleGroups(req *bean.ListingRequest) ([]*bean.RoleGroup, error) {
-	query := helper.GetQueryForGroupListingWithFilters(req)
-	roleGroups, err := impl.roleGroupRepository.GetAllExecutingQuery(query)
+	query, queryParams := helper.GetQueryForGroupListingWithFilters(req)
+	roleGroups, err := impl.roleGroupRepository.GetAllExecutingQuery(query, queryParams)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
@@ -673,8 +673,8 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *bean.Listin
 
 	// setting count check to true for getting only count
 	request.CountCheck = true
-	query := helper.GetQueryForGroupListingWithFilters(request)
-	totalCount, err := impl.userRepository.GetCountExecutingQuery(query)
+	query, queryParams := helper.GetQueryForGroupListingWithFilters(request)
+	totalCount, err := impl.userRepository.GetCountExecutingQuery(query, queryParams)
 	if err != nil {
 		impl.logger.Errorw("error in FetchRoleGroupsWithFilters", "err", err, "query", query)
 		return nil, err
@@ -682,8 +682,8 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *bean.Listin
 	// setting count check to false for getting data
 	request.CountCheck = false
 
-	query = helper.GetQueryForGroupListingWithFilters(request)
-	roleGroup, err := impl.roleGroupRepository.GetAllExecutingQuery(query)
+	query, queryParams = helper.GetQueryForGroupListingWithFilters(request)
+	roleGroup, err := impl.roleGroupRepository.GetAllExecutingQuery(query, queryParams)
 	if err != nil {
 		impl.logger.Errorw("error while FetchRoleGroupsWithFilters", "error", err, "query", query)
 		return nil, err
@@ -828,8 +828,8 @@ func (impl RoleGroupServiceImpl) BulkDeleteRoleGroups(request *bean.BulkDeleteRe
 // getGroupIdsHonoringFilters get the filtered group ids according to the request filters and returns groupIds and error(not nil) if any exception is caught.
 func (impl *RoleGroupServiceImpl) getGroupIdsHonoringFilters(request *bean.ListingRequest) ([]int32, error) {
 	//query to get particular models respecting filters
-	query := helper.GetQueryForGroupListingWithFilters(request)
-	models, err := impl.roleGroupRepository.GetAllExecutingQuery(query)
+	query, queryParams := helper.GetQueryForGroupListingWithFilters(request)
+	models, err := impl.roleGroupRepository.GetAllExecutingQuery(query, queryParams)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db in getGroupIdsHonoringFilters", "error", err)
 		return nil, err
