@@ -263,7 +263,8 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsConfigHistory(ctx context
 	var configData []*bean.ConfigData
 	configList := pipeline.ConfigsList{}
 	secretList := bean.SecretsList{}
-	if configType == repository3.CONFIGMAP_TYPE {
+	switch configType {
+	case repository3.CONFIGMAP_TYPE:
 		if len(history.Data) > 0 {
 			err = json.Unmarshal([]byte(history.Data), &configList)
 			if err != nil {
@@ -273,7 +274,7 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsConfigHistory(ctx context
 		}
 		resourceType = bean.CM
 		configData = configList.ConfigData
-	} else if configType == repository3.SECRET_TYPE {
+	case repository3.SECRET_TYPE:
 		if len(history.Data) > 0 {
 			err = json.Unmarshal([]byte(history.Data), &secretList)
 			if err != nil {
@@ -283,6 +284,7 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsConfigHistory(ctx context
 		}
 		resourceType = bean.CS
 		configData = secretList.ConfigData
+
 	}
 
 	resolvedDataMap, variableSnapshotMap, err := impl.scopedVariableManager.GetResolvedCMCSHistoryDtos(ctx, configType, adaptor.ReverseConfigListConvertor(configList), history, adaptor.ReverseSecretListConvertor(secretList))
@@ -632,7 +634,6 @@ func (impl *DeploymentConfigurationServiceImpl) getPublishedConfigData(ctx conte
 }
 
 func (impl *DeploymentConfigurationServiceImpl) getPublishedPipelineStrategyConfig(ctx context.Context, appId int, envId int) (*bean2.DeploymentAndCmCsConfig, error) {
-	pipelineStrategyJson := json.RawMessage{}
 	pipelineConfig := bean2.NewDeploymentAndCmCsConfig()
 	if envId == 0 {
 		return pipelineConfig, nil
@@ -649,6 +650,7 @@ func (impl *DeploymentConfigurationServiceImpl) getPublishedPipelineStrategyConf
 	} else if errors.IsNotFound(err) {
 		return pipelineConfig, nil
 	}
+	pipelineStrategyJson := json.RawMessage{}
 	err = pipelineStrategyJson.UnmarshalJSON([]byte(pipelineStrategy.CodeEditorValue.Value))
 	if err != nil {
 		impl.logger.Errorw("getDeploymentTemplateForEnvLevel, error in unmarshalling string  pipelineStrategyHistory data into json Raw message", "err", err)
