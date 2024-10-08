@@ -174,7 +174,8 @@ func (impl AppListingRepositoryQueryBuilder) BuildAppListingQueryLastDeploymentT
 func (impl AppListingRepositoryQueryBuilder) GetAppIdsQueryWithPaginationForLastDeployedSearch(appListingFilter AppListingFilter) (string, []interface{}) {
 	join, queryParams := impl.CommonJoinSubQuery(appListingFilter)
 	countQuery := " (SELECT count(distinct(a.id)) as count FROM app a " + join + ") AS total_count "
-
+	// appending query params for count query as well
+	queryParams = append(queryParams, queryParams...)
 	query := "SELECT a.id as app_id,MAX(pco.id) as last_deployed_time, " + countQuery +
 		` FROM pipeline p 
 		  INNER JOIN pipeline_config_override pco ON pco.pipeline_id = p.id and p.deleted=false 
