@@ -35,7 +35,7 @@ func NewArgoApplicationServiceExtendedServiceImpl(logger *zap.SugaredLogger,
 	argoUserService argo.ArgoUserService, helmAppClient gRPC.HelmAppClient,
 	helmAppService service.HelmAppService,
 	k8sApplicationService application.K8sApplicationService,
-	readService read.ArgoApplicationReadService) *ArgoApplicationServiceExtendedImpl {
+	readService read.ArgoApplicationReadService, acdClient application3.ServiceClient) *ArgoApplicationServiceExtendedImpl {
 	return &ArgoApplicationServiceExtendedImpl{
 		ArgoApplicationServiceImpl: &ArgoApplicationServiceImpl{
 			logger:                logger,
@@ -47,6 +47,7 @@ func NewArgoApplicationServiceExtendedServiceImpl(logger *zap.SugaredLogger,
 			k8sApplicationService: k8sApplicationService,
 			readService:           readService,
 		},
+		acdClient: acdClient,
 	}
 }
 
