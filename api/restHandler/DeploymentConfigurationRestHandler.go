@@ -103,9 +103,9 @@ func (handler *DeploymentConfigurationRestHandlerImpl) GetConfigData(w http.Resp
 	//RBAC END
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	userHasAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object)
-	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	ctx, _ := context.WithTimeout(r.Context(), 60*time.Second)
 	ctx = util2.SetSuperAdminInContext(ctx, isSuperAdmin)
-	defer cancel()
+
 	res, err := handler.deploymentConfigurationService.GetAllConfigData(ctx, configDataQueryParams, userHasAdminAccess)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAllConfigData ", "err", err)

@@ -27,6 +27,7 @@ import (
 	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
+	"github.com/juju/errors"
 	"go.uber.org/zap"
 	"net/http"
 )
@@ -190,18 +191,20 @@ func (impl *DeploymentConfigurationServiceImpl) getDeploymentHistoryConfig(ctx c
 
 func (impl *DeploymentConfigurationServiceImpl) getPipelineStrategyConfigHistory(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams) (*bean2.DeploymentAndCmCsConfig, error) {
 	pipelineStrategyJson := json.RawMessage{}
+	pipelineConfig := bean2.NewDeploymentAndCmCsConfig()
 	pipelineStrategyHistory, err := impl.pipelineStrategyHistoryRepository.GetHistoryByPipelineIdAndWfrId(ctx, configDataQueryParams.PipelineId, configDataQueryParams.WfrId)
-	if err != nil {
+	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error in checking if history exists for pipelineId and wfrId", "pipelineId", configDataQueryParams.PipelineId, "wfrId", configDataQueryParams.WfrId, "err", err)
 		return nil, err
+	} else if util.IsErrNoRows(err) {
+		return pipelineConfig, nil
 	}
 	err = pipelineStrategyJson.UnmarshalJSON([]byte(pipelineStrategyHistory.Config))
 	if err != nil {
 		impl.logger.Errorw("getDeploymentTemplateForEnvLevel, error in unmarshalling string  pipelineStrategyHistory data into json Raw message", "pipelineStrategyHistoryConfig", pipelineStrategyHistory.Config, "err", err)
 		return nil, err
 	}
-	pipelineConfig := bean2.NewDeploymentAndCmCsConfig().
-		WithConfigData(pipelineStrategyJson).
+	pipelineConfig.WithConfigData(pipelineStrategyJson).
 		WithResourceType(bean.PipelineStrategy).
 		WithPipelineStrategyMetadata(pipelineStrategyHistory.PipelineTriggerType, string(pipelineStrategyHistory.Strategy))
 	return pipelineConfig, nil
@@ -640,9 +643,11 @@ func (impl *DeploymentConfigurationServiceImpl) getPublishedPipelineStrategyConf
 		return nil, err
 	}
 	pipelineStrategy, err := impl.deploymentConfigService.GetLatestPipelineStrategyConfig(pipeline)
-	if err != nil {
+	if err != nil && !errors.IsNotFound(err) {
 		impl.logger.Errorw("error in GetLatestPipelineStrategyConfig", "pipelineId", pipeline.Id, "err", err)
 		return nil, err
+	} else if errors.IsNotFound(err) {
+		return pipelineConfig, nil
 	}
 	err = pipelineStrategyJson.UnmarshalJSON([]byte(pipelineStrategy.CodeEditorValue.Value))
 	if err != nil {
