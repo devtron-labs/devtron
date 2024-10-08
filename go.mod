@@ -21,7 +21,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/deckarep/golang-set v1.8.0
 	github.com/devtron-labs/authenticator v0.4.35-0.20240809073103-6e11da8083f8
-	github.com/devtron-labs/common-lib v0.18.1-0.20241003071930-acfb6a1b1e7f
+	github.com/devtron-labs/common-lib v0.18.1-0.20241001061923-eda545dc839e
 	github.com/devtron-labs/go-bitbucket v0.9.60-beta
 	github.com/devtron-labs/protos v0.0.3-0.20240802105333-92ee9bb85d80
 	github.com/evanphx/json-patch v5.7.0+incompatible
@@ -288,6 +288,7 @@ require gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 
 replace (
 	github.com/argoproj/argo-workflows/v3 v3.5.10 => github.com/devtron-labs/argo-workflows/v3 v3.5.10
+	github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20241007082547-2dffd643a849
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.5.5
 	k8s.io/api => k8s.io/api v0.29.7

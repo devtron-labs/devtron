@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -30,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	http2 "net/http"
 )
 
 type DeleteService interface {
@@ -145,14 +147,18 @@ func (impl DeleteServiceImpl) DeleteChartRepo(deleteRequest *chartRepo.ChartRepo
 }
 
 func (impl DeleteServiceImpl) DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error {
-	store, err := impl.dockerRegistryRepository.FindOneWithDeploymentCount(deleteRequest.Id)
+	deploymentCount, err := impl.dockerRegistryRepository.FindDeploymentCount(deleteRequest.Id)
 	if err != nil {
 		impl.logger.Errorw("error in deleting docker registry", "err", err, "deleteRequest", deleteRequest)
 		return err
 	}
-	if store.DeploymentCount > 0 {
+	if deploymentCount > 0 {
 		impl.logger.Errorw("err in deleting docker registry, found chart deployments using registry", "dockerRegistry", deleteRequest.Id, "err", err)
-		return fmt.Errorf(" Please update all related docker config before deleting this registry")
+		return &util.ApiError{
+			HttpStatusCode:  http2.StatusUnprocessableEntity,
+			InternalMessage: " Please update all related docker config before deleting this registry",
+			UserMessage:     "err in deleting docker registry, found chart deployments using registry",
+		}
 	}
 	err = impl.dockerRegistryConfig.DeleteReg(deleteRequest)
 	if err != nil {
@@ -164,12 +170,12 @@ func (impl DeleteServiceImpl) DeleteDockerRegistryConfig(deleteRequest *types.Do
 
 func (impl DeleteServiceImpl) CanDeleteChartRegistryPullConfig(storeId string) bool {
 	//finding if docker reg chart is used in any deployment, if yes then will not delete
-	store, err := impl.dockerRegistryRepository.FindOneWithDeploymentCount(storeId)
+	deploymentCount, err := impl.dockerRegistryRepository.FindDeploymentCount(storeId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching registry chart deployment docker registry", "dockerRegistry", storeId, "err", err)
 		return false
 	}
-	if store.DeploymentCount > 0 {
+	if deploymentCount > 0 {
 		return false
 	}
 	return true
