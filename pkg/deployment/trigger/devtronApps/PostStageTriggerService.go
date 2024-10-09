@@ -117,7 +117,7 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 		impl.logger.Error("error in updating image path reservation ids in cd workflow runner", "err", "err")
 	}
 
-	event := impl.eventFactory.Build(util2.Trigger, &pipeline.Id, pipeline.AppId, &pipeline.EnvironmentId, util2.CD)
+	event, _ := impl.eventFactory.Build(util2.Trigger, &pipeline.Id, pipeline.AppId, &pipeline.EnvironmentId, util2.CD)
 	impl.logger.Debugw("event Cd Post Trigger", "event", event)
 	event = impl.eventFactory.BuildExtraCDData(event, &wfr, 0, bean2.CD_WORKFLOW_TYPE_POST)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
