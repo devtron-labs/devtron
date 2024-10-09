@@ -229,7 +229,10 @@ func (impl *DeploymentConfigurationServiceImpl) getConfigDataForDeploymentHistor
 		impl.logger.Errorw("getConfigDataForDeploymentHistory, error in getPipelineStrategyConfigHistory", "configDataQueryParams", configDataQueryParams, "err", err)
 		return nil, err
 	}
-	configDataDto.WithPipelineConfigData(pipelineConfig)
+	if len(pipelineConfig.Data) > 0 {
+		configDataDto.WithPipelineConfigData(pipelineConfig)
+	}
+
 	// fetching for pipeline strategy config ends
 
 	// fetching for cm config starts
@@ -629,7 +632,9 @@ func (impl *DeploymentConfigurationServiceImpl) getPublishedConfigData(ctx conte
 		impl.logger.Errorw("getPublishedConfigData, error in getting publishedOnly pipeline strategy ", "configDataQueryParams", configDataQueryParams, "err", err)
 		return nil, err
 	}
-	configData.WithPipelineConfigData(pipelineConfigData)
+	if len(pipelineConfigData.Data) > 0 {
+		configData.WithPipelineConfigData(pipelineConfigData)
+	}
 	return configData, nil
 }
 
