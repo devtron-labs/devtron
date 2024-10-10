@@ -347,7 +347,7 @@ func (impl DeploymentTemplateServiceImpl) fetchResolvedTemplateForPublishedEnvs(
 	}
 	resolvedTemplate, variableSnapshot, err := impl.resolveTemplateVariables(ctx, values, request)
 	if err != nil {
-		impl.Logger.Errorw("error in resolving template variables for env override  ", "values", values, "err", err)
+		impl.Logger.Errorw("error in resolving template variables for env override  ", "deploymentTemplateRequest", request, "err", err)
 		return nil, err
 	}
 	return &DeploymentTemplateResponse{

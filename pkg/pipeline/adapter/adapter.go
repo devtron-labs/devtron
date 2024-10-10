@@ -228,26 +228,29 @@ func GetSourceCiDownStreamResponse(linkedCIDetails []ciPipeline.LinkedCIDetails,
 }
 
 func ConvertConfigDataToPipelineConfigData(r *bean.ConfigData) *pipelineConfigBean.ConfigData {
-	return &pipelineConfigBean.ConfigData{
-		Name:                  r.Name,
-		Type:                  r.Type,
-		External:              r.External,
-		MountPath:             r.MountPath,
-		Data:                  r.Data,
-		DefaultData:           r.DefaultData,
-		DefaultMountPath:      r.DefaultMountPath,
-		Global:                r.Global,
-		ExternalSecretType:    r.ExternalSecretType,
-		ESOSecretData:         ConvertESOSecretDataToPipelineESOSecretData(r.ESOSecretData),
-		DefaultESOSecretData:  ConvertESOSecretDataToPipelineESOSecretData(r.DefaultESOSecretData),
-		ExternalSecret:        ConvertExternalSecretToPipelineExternalSecret(r.ExternalSecret),
-		DefaultExternalSecret: ConvertExternalSecretToPipelineExternalSecret(r.DefaultExternalSecret),
-		RoleARN:               r.RoleARN,
-		SubPath:               r.SubPath,
-		ESOSubPath:            r.ESOSubPath,
-		FilePermission:        r.FilePermission,
-		Overridden:            r.Overridden,
+	if r != nil {
+		return &pipelineConfigBean.ConfigData{
+			Name:                  r.Name,
+			Type:                  r.Type,
+			External:              r.External,
+			MountPath:             r.MountPath,
+			Data:                  r.Data,
+			DefaultData:           r.DefaultData,
+			DefaultMountPath:      r.DefaultMountPath,
+			Global:                r.Global,
+			ExternalSecretType:    r.ExternalSecretType,
+			ESOSecretData:         ConvertESOSecretDataToPipelineESOSecretData(r.ESOSecretData),
+			DefaultESOSecretData:  ConvertESOSecretDataToPipelineESOSecretData(r.DefaultESOSecretData),
+			ExternalSecret:        ConvertExternalSecretToPipelineExternalSecret(r.ExternalSecret),
+			DefaultExternalSecret: ConvertExternalSecretToPipelineExternalSecret(r.DefaultExternalSecret),
+			RoleARN:               r.RoleARN,
+			SubPath:               r.SubPath,
+			ESOSubPath:            r.ESOSubPath,
+			FilePermission:        r.FilePermission,
+			Overridden:            r.Overridden,
+		}
 	}
+	return &pipelineConfigBean.ConfigData{}
 }
 
 func ConvertESOSecretDataToPipelineESOSecretData(r bean.ESOSecretData) pipelineConfigBean.ESOSecretData {
@@ -289,26 +292,30 @@ func ConvertEsoDataToPipelineEsoData(r []bean.ESOData) []pipelineConfigBean.ESOD
 // reverse adapter for the above adapters
 
 func ConvertPipelineConfigDataToConfigData(r *pipelineConfigBean.ConfigData) *bean.ConfigData {
-	return &bean.ConfigData{
-		Name:                  r.Name,
-		Type:                  r.Type,
-		External:              r.External,
-		MountPath:             r.MountPath,
-		Data:                  r.Data,
-		DefaultData:           r.DefaultData,
-		DefaultMountPath:      r.DefaultMountPath,
-		Global:                r.Global,
-		ExternalSecretType:    r.ExternalSecretType,
-		ESOSecretData:         ConvertPipelineESOSecretDataToESOSecretData(r.ESOSecretData),
-		DefaultESOSecretData:  ConvertPipelineESOSecretDataToESOSecretData(r.DefaultESOSecretData),
-		ExternalSecret:        ConvertPipelineExternalSecretToExternalSecret(r.ExternalSecret),
-		DefaultExternalSecret: ConvertPipelineExternalSecretToExternalSecret(r.DefaultExternalSecret),
-		RoleARN:               r.RoleARN,
-		SubPath:               r.SubPath,
-		ESOSubPath:            r.ESOSubPath,
-		FilePermission:        r.FilePermission,
-		Overridden:            r.Overridden,
+	if r != nil {
+		return &bean.ConfigData{
+			Name:                  r.Name,
+			Type:                  r.Type,
+			External:              r.External,
+			MountPath:             r.MountPath,
+			Data:                  r.Data,
+			DefaultData:           r.DefaultData,
+			DefaultMountPath:      r.DefaultMountPath,
+			Global:                r.Global,
+			ExternalSecretType:    r.ExternalSecretType,
+			ESOSecretData:         ConvertPipelineESOSecretDataToESOSecretData(r.ESOSecretData),
+			DefaultESOSecretData:  ConvertPipelineESOSecretDataToESOSecretData(r.DefaultESOSecretData),
+			ExternalSecret:        ConvertPipelineExternalSecretToExternalSecret(r.ExternalSecret),
+			DefaultExternalSecret: ConvertPipelineExternalSecretToExternalSecret(r.DefaultExternalSecret),
+			RoleARN:               r.RoleARN,
+			SubPath:               r.SubPath,
+			ESOSubPath:            r.ESOSubPath,
+			FilePermission:        r.FilePermission,
+			Overridden:            r.Overridden,
+		}
 	}
+	return &bean.ConfigData{}
+
 }
 
 func ConvertPipelineESOSecretDataToESOSecretData(r pipelineConfigBean.ESOSecretData) bean.ESOSecretData {
