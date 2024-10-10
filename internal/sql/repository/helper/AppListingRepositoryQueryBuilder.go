@@ -174,7 +174,8 @@ func (impl AppListingRepositoryQueryBuilder) BuildAppListingQueryLastDeploymentT
 func (impl AppListingRepositoryQueryBuilder) GetAppIdsQueryWithPaginationForLastDeployedSearch(appListingFilter AppListingFilter) (string, []interface{}) {
 	join, queryParams := impl.CommonJoinSubQuery(appListingFilter)
 	countQuery := " (SELECT count(distinct(a.id)) as count FROM app a " + join + ") AS total_count "
-
+	// appending query params for count query as well
+	queryParams = append(queryParams, queryParams...)
 	query := "SELECT a.id as app_id,MAX(pco.id) as last_deployed_time, " + countQuery +
 		` FROM pipeline p 
 		  INNER JOIN pipeline_config_override pco ON pco.pipeline_id = p.id and p.deleted=false 
@@ -259,7 +260,7 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appLi
 	}
 	if isNotDeployedFilterApplied {
 		deploymentAppType := "manifest_download"
-		whereCondition += " and (p.deployment_app_created=? and (p.deployment_app_type != ? || dc.deployment_app_type != ? ) or a.id NOT IN (SELECT app_id from pipeline) "
+		whereCondition += " and (p.deployment_app_created=? and (p.deployment_app_type != ? or dc.deployment_app_type != ? ) or a.id NOT IN (SELECT app_id from pipeline) "
 		queryParams = append(queryParams, false, deploymentAppType, deploymentAppType)
 		if len(appStatusExcludingNotDeployed) > 0 {
 			whereCondition += " or aps.status IN (?) "

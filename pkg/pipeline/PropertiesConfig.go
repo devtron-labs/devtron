@@ -129,6 +129,9 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environm
 			IsBasicViewLocked: envOverride.IsBasicViewLocked,
 			CurrentViewEditor: envOverride.CurrentViewEditor,
 		}
+		if chartRefId == 0 && envOverride.Chart != nil {
+			environmentProperties.ChartRefId = envOverride.Chart.ChartRefId
+		}
 
 		if environmentPropertiesResponse.Namespace == "" {
 			environmentPropertiesResponse.Namespace = envOverride.Namespace
@@ -140,8 +143,10 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environm
 	}
 	if errors.IsNotFound(err) {
 		environmentProperties.Id = 0
-		environmentProperties.ChartRefId = chartRefId
 		environmentProperties.IsOverride = false
+		if chartRefId > 0 {
+			environmentProperties.ChartRefId = chartRefId
+		}
 	} else {
 		environmentProperties.Id = ecOverride.Id
 		environmentProperties.Latest = ecOverride.Latest
@@ -153,6 +158,9 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environm
 		environmentProperties.Active = ecOverride.Active
 		environmentProperties.IsBasicViewLocked = ecOverride.IsBasicViewLocked
 		environmentProperties.CurrentViewEditor = ecOverride.CurrentViewEditor
+		if chartRefId == 0 && ecOverride.Chart != nil {
+			environmentProperties.ChartRefId = ecOverride.Chart.ChartRefId
+		}
 	}
 	environmentPropertiesResponse.ChartRefId = chartRefId
 	environmentPropertiesResponse.EnvironmentConfig = *environmentProperties

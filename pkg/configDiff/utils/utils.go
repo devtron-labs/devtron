@@ -14,3 +14,11 @@ func ConvertToJsonRawMessage(request interface{}) (json.RawMessage, error) {
 	}
 	return r, nil
 }
+
+func ConvertToString(req interface{}) (string, error) {
+	reqByte, err := json.Marshal(req)
+	if err != nil {
+		return "", err
+	}
+	return string(reqByte), nil
+}

@@ -69,6 +69,8 @@ type Event struct {
 	TeamId             int               `json:"teamId"`
 	AppId              int               `json:"appId"`
 	EnvId              int               `json:"envId"`
+	IsProdEnv          bool              `json:"isProdEnv"`
+	ClusterId          int               `json:"clusterId"`
 	CdWorkflowType     bean.WorkflowType `json:"cdWorkflowType,omitempty"`
 	CdWorkflowRunnerId int               `json:"cdWorkflowRunnerId"`
 	CiWorkflowRunnerId int               `json:"ciWorkflowRunnerId"`

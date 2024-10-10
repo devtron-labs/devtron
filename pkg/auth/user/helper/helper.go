@@ -93,3 +93,7 @@ func CreateErrorMessageForUserRoleGroups(restrictedGroups []bean2.RestrictedGrou
 	}
 	return errorMessageForGroupsWithoutSuperAdmin, errorMessageForGroupsWithSuperAdmin
 }
+
+func GetCasbinNameFromRoleGroupName(name string) string {
+	return "group:" + strings.ReplaceAll(strings.ToLower(name), " ", "_")
+}

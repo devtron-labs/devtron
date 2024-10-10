@@ -51,7 +51,7 @@ func NewDeploymentEventHandlerImpl(logger *zap.SugaredLogger, appListingService 
 }
 
 func (impl *DeploymentEventHandlerImpl) WriteCDDeploymentEvent(pipelineId, appId, envId int, eventType util.EventType) {
-	event := impl.eventFactory.Build(eventType, &pipelineId, appId, &envId, util.CD)
+	event, _ := impl.eventFactory.Build(eventType, &pipelineId, appId, &envId, util.CD)
 	impl.logger.Debugw("event WriteCDDeploymentEvent", "event", event)
 	event = impl.eventFactory.BuildExtraCDData(event, nil, 0, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)

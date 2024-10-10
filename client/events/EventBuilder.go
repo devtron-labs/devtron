@@ -19,6 +19,7 @@ package client
 import (
 	"context"
 	"fmt"
+	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"strings"
 	"time"
 
@@ -35,7 +36,7 @@ import (
 )
 
 type EventFactory interface {
-	Build(eventType util.EventType, sourceId *int, appId int, envId *int, pipelineType util.PipelineType) Event
+	Build(eventType util.EventType, sourceId *int, appId int, envId *int, pipelineType util.PipelineType) (Event, error)
 	BuildExtraCDData(event Event, wfr *pipelineConfig.CdWorkflowRunner, pipelineOverrideId int, stage bean2.WorkflowType) Event
 	BuildExtraCIData(event Event, material *MaterialTriggerInfo) Event
 	//BuildFinalData(event Event) *Payload
@@ -50,6 +51,7 @@ type EventSimpleFactoryImpl struct {
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
 	pipelineRepository           pipelineConfig.PipelineRepository
 	userRepository               repository.UserRepository
+	envRepository                repository4.EnvironmentRepository
 	ciArtifactRepository         repository2.CiArtifactRepository
 }
 
@@ -57,7 +59,7 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
-	userRepository repository.UserRepository, ciArtifactRepository repository2.CiArtifactRepository) *EventSimpleFactoryImpl {
+	userRepository repository.UserRepository, envRepository repository4.EnvironmentRepository, ciArtifactRepository repository2.CiArtifactRepository) *EventSimpleFactoryImpl {
 	return &EventSimpleFactoryImpl{
 		logger:                       logger,
 		cdWorkflowRepository:         cdWorkflowRepository,
@@ -68,10 +70,11 @@ func NewEventSimpleFactoryImpl(logger *zap.SugaredLogger, cdWorkflowRepository p
 		pipelineRepository:           pipelineRepository,
 		userRepository:               userRepository,
 		ciArtifactRepository:         ciArtifactRepository,
+		envRepository:                envRepository,
 	}
 }
 
-func (impl *EventSimpleFactoryImpl) Build(eventType util.EventType, sourceId *int, appId int, envId *int, pipelineType util.PipelineType) Event {
+func (impl *EventSimpleFactoryImpl) Build(eventType util.EventType, sourceId *int, appId int, envId *int, pipelineType util.PipelineType) (Event, error) {
 	correlationId := uuid.NewV4()
 	event := Event{}
 	event.EventTypeId = int(eventType)
@@ -80,12 +83,19 @@ func (impl *EventSimpleFactoryImpl) Build(eventType util.EventType, sourceId *in
 	}
 	event.AppId = appId
 	if envId != nil {
+		env, err := impl.envRepository.FindById(*envId)
+		if err != nil {
+			impl.logger.Errorw("error in getting env", "envId", *envId, "err", err)
+			return event, err
+		}
 		event.EnvId = *envId
+		event.ClusterId = env.ClusterId
+		event.IsProdEnv = env.Default
 	}
 	event.PipelineType = string(pipelineType)
 	event.CorrelationId = fmt.Sprintf("%s", correlationId)
 	event.EventTime = time.Now().Format(bean.LayoutRFC3339)
-	return event
+	return event, nil
 }
 
 func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineConfig.CdWorkflowRunner, pipelineOverrideId int, stage bean2.WorkflowType) Event {

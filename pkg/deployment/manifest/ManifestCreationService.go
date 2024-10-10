@@ -257,7 +257,7 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 		configMapJson, err = impl.getConfigMapAndSecretJsonV2(newCtx, request, envOverride)
 		if err != nil {
 			impl.logger.Errorw("error in fetching config map n secret ", "err", err)
-			configMapJson = nil
+			configMapJson.MergedJson = nil
 		}
 		appLabelJsonByte, err = impl.appCrudOperationService.GetAppLabelsForDeployment(newCtx, overrideRequest.AppId, overrideRequest.AppName, overrideRequest.EnvName)
 		if err != nil {
@@ -267,15 +267,15 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 		mergedValues, err := impl.mergeOverrideValues(envOverride, releaseOverrideJson, configMapJson.MergedJson, appLabelJsonByte, strategy)
 		appName := pipeline.DeploymentAppName
 		var k8sErr error
-		mergedValues, k8sErr = impl.updatedExternalCmCsHashForTrigger(newCtx, overrideRequest.ClusterId,
-			envOverride.Namespace, mergedValues, configMapJson.ExternalCmList, configMapJson.ExternalCsList)
-		if k8sErr != nil {
-			impl.logger.Errorw("error in updating external cm cs hash for trigger",
-				"clusterId", overrideRequest.ClusterId, "namespace", envOverride.Namespace, "err", k8sErr)
-			// error is not returned as it's not blocking for deployment process
-			// blocking deployments based on this use case can vary for user to user
-		}
 		if !envOverride.Environment.IsVirtualEnvironment {
+			mergedValues, k8sErr = impl.updatedExternalCmCsHashForTrigger(newCtx, overrideRequest.ClusterId,
+				envOverride.Namespace, mergedValues, configMapJson.ExternalCmList, configMapJson.ExternalCsList)
+			if k8sErr != nil {
+				impl.logger.Errorw("error in updating external cm cs hash for trigger",
+					"clusterId", overrideRequest.ClusterId, "namespace", envOverride.Namespace, "err", k8sErr)
+				// error is not returned as it's not blocking for deployment process
+				// blocking deployments based on this use case can vary for user to user
+			}
 			mergedValues, err = impl.autoscalingCheckBeforeTrigger(newCtx, appName, envOverride.Namespace, mergedValues, overrideRequest)
 			if err != nil {
 				impl.logger.Errorw("error in autoscaling check before trigger", "pipelineId", overrideRequest.PipelineId, "err", err)

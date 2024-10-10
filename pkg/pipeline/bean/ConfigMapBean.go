@@ -44,6 +44,8 @@ type ESOData struct {
 	Property  string `json:"property,omitempty"`
 }
 
+// there is an adapter written in pkg/bean folder to convert below ConfigData struct to pkg/bean's ConfigData
+
 type ConfigData struct {
 	Name                  string           `json:"name"`
 	Type                  string           `json:"type"`
@@ -129,6 +131,7 @@ const (
 	CM                 ResourceType = "ConfigMap"
 	CS                 ResourceType = "Secret"
 	DeploymentTemplate ResourceType = "Deployment Template"
+	PipelineStrategy   ResourceType = "Pipeline Strategy"
 )
 
 func (r ResourceType) ToString() string {

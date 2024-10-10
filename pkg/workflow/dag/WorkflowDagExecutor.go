@@ -942,7 +942,7 @@ func (impl *WorkflowDagExecutorImpl) deactivateUnusedPaths(reserveImagePathIds [
 }
 
 func (impl *WorkflowDagExecutorImpl) WriteCiSuccessEvent(request *bean2.CiArtifactWebhookRequest, pipeline *pipelineConfig.CiPipeline, artifact *repository.CiArtifact) {
-	event := impl.eventFactory.Build(util2.Success, &pipeline.Id, pipeline.AppId, nil, util2.CI)
+	event, _ := impl.eventFactory.Build(util2.Success, &pipeline.Id, pipeline.AppId, nil, util2.CI)
 	event.CiArtifactId = artifact.Id
 	if artifact.WorkflowId != nil {
 		event.CiWorkflowRunnerId = *artifact.WorkflowId
@@ -996,7 +996,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiStepFailedEvent(ciPipelineId int, r
 }
 
 func (impl *WorkflowDagExecutorImpl) WriteCiStepFailedEvent(pipeline *pipelineConfig.CiPipeline, request *bean2.CiArtifactWebhookRequest, ciWorkflow *pipelineConfig.CiWorkflow) {
-	event := impl.eventFactory.Build(util2.Fail, &pipeline.Id, pipeline.AppId, nil, util2.CI)
+	event, _ := impl.eventFactory.Build(util2.Fail, &pipeline.Id, pipeline.AppId, nil, util2.CI)
 	material := &client.MaterialTriggerInfo{}
 	material.GitTriggers = ciWorkflow.GitTriggers
 	event.CiWorkflowRunnerId = ciWorkflow.Id

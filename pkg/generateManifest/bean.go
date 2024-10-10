@@ -69,9 +69,11 @@ var ReleaseIdentifier = &gRPC.ReleaseIdentifier{
 }
 
 type DeploymentTemplateResponse struct {
-	Data             string            `json:"data"`
-	ResolvedData     string            `json:"resolvedData"`
-	VariableSnapshot map[string]string `json:"variableSnapshot"`
+	Data                string            `json:"data"`
+	ResolvedData        string            `json:"resolvedData"`
+	VariableSnapshot    map[string]string `json:"variableSnapshot"`
+	TemplateVersion     string            `json:"-"`
+	IsAppMetricsEnabled bool              `json:"-"`
 }
 
 type RestartPodResponse struct {
