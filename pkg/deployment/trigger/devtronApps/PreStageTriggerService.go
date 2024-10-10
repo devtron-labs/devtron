@@ -959,7 +959,7 @@ func (impl *TriggerServiceImpl) sendPreStageNotification(ctx context.Context, cd
 		return err
 	}
 
-	event := impl.eventFactory.Build(util2.Trigger, &pipeline.Id, pipeline.AppId, &pipeline.EnvironmentId, util2.CD)
+	event, _ := impl.eventFactory.Build(util2.Trigger, &pipeline.Id, pipeline.AppId, &pipeline.EnvironmentId, util2.CD)
 	impl.logger.Debugw("event PreStageTrigger", "event", event)
 	event = impl.eventFactory.BuildExtraCDData(event, &wfr, 0, bean2.CD_WORKFLOW_TYPE_PRE)
 	_, span := otel.Tracer("orchestrator").Start(ctx, "eventClient.WriteNotificationEvent")
