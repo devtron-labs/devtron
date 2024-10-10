@@ -127,20 +127,23 @@ func (impl GitHubClient) CreateRepository(ctx context.Context, config *bean2.Git
 	}
 	private := true
 	//	visibility := "private"
-	r, _, err := impl.client.Repositories.Create(ctx, impl.org,
+	r, _, err1 := impl.client.Repositories.Create(ctx, impl.org,
 		&github.Repository{Name: &config.GitRepoName,
 			Description: &config.Description,
 			Private:     &private,
 			//			Visibility:  &visibility,
 		})
-	if err != nil {
+	if err1 != nil {
 		impl.logger.Errorw("error in creating github repo, ", "repo", config.GitRepoName, "err", err)
-		detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
+
 		url, err = impl.GetRepoUrl(config)
 		if err != nil {
 			impl.logger.Errorw("error in getting github repo", "repo", config.GitRepoName, "err", err)
+			detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err1
 			return "", true, detailedErrorGitOpsConfigActions
 		}
+		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, GetRepoUrlStage)
+		return url, false, detailedErrorGitOpsConfigActions
 	}
 	impl.logger.Infow("github repo created ", "r", r.CloneURL)
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateRepoStage)
