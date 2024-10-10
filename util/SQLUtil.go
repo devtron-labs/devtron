@@ -8,3 +8,11 @@ import "fmt"
 func GetLIKEClauseQueryParam(s string) string {
 	return fmt.Sprintf("%%%s%%", s)
 }
+
+func GetCopyByValueObject[T any](input []T) []T {
+	res := make([]T, 0, len(input))
+	for _, item := range input {
+		res = append(res, item)
+	}
+	return res
+}

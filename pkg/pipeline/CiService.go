@@ -422,7 +422,7 @@ func (impl *CiServiceImpl) getEnvironmentForJob(pipeline *pipelineConfig.CiPipel
 }
 
 func (impl *CiServiceImpl) WriteCITriggerEvent(trigger types.Trigger, pipeline *pipelineConfig.CiPipeline, workflowRequest *types.WorkflowRequest) {
-	event := impl.eventFactory.Build(util2.Trigger, &pipeline.Id, pipeline.AppId, nil, util2.CI)
+	event, _ := impl.eventFactory.Build(util2.Trigger, &pipeline.Id, pipeline.AppId, nil, util2.CI)
 	material := &client.MaterialTriggerInfo{}
 
 	material.GitTriggers = trigger.CommitHashes

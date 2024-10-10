@@ -54,7 +54,7 @@ type UserService interface {
 	CreateUser(userInfo *bean.UserInfo, token string, managerAuth func(resource, token string, object string) bool) ([]*bean.UserInfo, error)
 	SelfRegisterUserIfNotExists(userInfo *bean.UserInfo) ([]*bean.UserInfo, error)
 	UpdateUser(userInfo *bean.UserInfo, token string, checkRBACForUserUpdate func(token string, userInfo *bean.UserInfo, isUserAlreadySuperAdmin bool,
-		eliminatedRoleFilters, eliminatedGroupRoles []*repository.RoleModel) (isAuthorised bool, err error), managerAuth func(resource, token string, object string) bool) (*bean.UserInfo, error)
+		eliminatedRoleFilters, eliminatedGroupRoles []*repository.RoleModel, mapOfExistingUserRoleGroup map[string]bool) (isAuthorised bool, err error), managerAuth func(resource, token string, object string) bool) (*bean.UserInfo, error)
 	GetById(id int32) (*bean.UserInfo, error)
 	GetAll() ([]bean.UserInfo, error)
 	GetAllWithFilters(request *bean.ListingRequest) (*bean.UserListingResponse, error)
@@ -635,7 +635,7 @@ func (impl *UserServiceImpl) mergeUserRoleGroup(oldUserRoleGroups []bean.UserRol
 }
 
 func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, checkRBACForUserUpdate func(token string, userInfo *bean.UserInfo,
-	isUserAlreadySuperAdmin bool, eliminatedRoleFilters, eliminatedGroupRoles []*repository.RoleModel) (isAuthorised bool, err error), managerAuth func(resource, token string, object string) bool) (*bean.UserInfo, error) {
+	isUserAlreadySuperAdmin bool, eliminatedRoleFilters, eliminatedGroupRoles []*repository.RoleModel, mapOfExistingUserRoleGroup map[string]bool) (isAuthorised bool, err error), managerAuth func(resource, token string, object string) bool) (*bean.UserInfo, error) {
 	//checking if request for same user is being processed
 	isLocked := impl.getUserReqLockStateById(userInfo.Id)
 	if isLocked {
@@ -684,6 +684,7 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, c
 	//loading policy for safety
 	casbin2.LoadPolicy()
 	var eliminatedRoles, eliminatedGroupRoles []*repository.RoleModel
+	mapOfExistingUserRoleGroup := make(map[string]bool)
 	if userInfo.SuperAdmin == false {
 		//Starts Role and Mapping
 		userRoleModels, err := impl.userAuthRepository.GetUserRoleMappingByUserId(model.Id)
@@ -732,6 +733,7 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, c
 		}
 		for _, oldItem := range userCasbinRoles {
 			oldGroupMap[oldItem] = oldItem
+			mapOfExistingUserRoleGroup[oldItem] = true
 		}
 		// START GROUP POLICY
 		for _, item := range userInfo.UserRoleGroup {
@@ -802,7 +804,7 @@ func (impl *UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, c
 	}
 
 	if checkRBACForUserUpdate != nil {
-		isAuthorised, err := checkRBACForUserUpdate(token, userInfo, isUserSuperAdmin, eliminatedRoles, eliminatedGroupRoles)
+		isAuthorised, err := checkRBACForUserUpdate(token, userInfo, isUserSuperAdmin, eliminatedRoles, eliminatedGroupRoles, mapOfExistingUserRoleGroup)
 		if err != nil {
 			impl.logger.Errorw("error in checking RBAC for user update", "err", err, "userInfo", userInfo)
 			return nil, err

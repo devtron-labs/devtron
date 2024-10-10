@@ -19,6 +19,7 @@ package user
 import (
 	"errors"
 	"fmt"
+	helper2 "github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	"net/http"
 	"strings"
@@ -101,9 +102,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 			Name:        request.Name,
 			Description: request.Description,
 		}
-		rgName := strings.ToLower(request.Name)
-		object := "group:" + strings.ReplaceAll(rgName, " ", "_")
-
+		object := helper2.GetCasbinNameFromRoleGroupName(request.Name)
 		exists, err := impl.roleGroupRepository.CheckRoleGroupExistByCasbinName(object)
 		if err != nil {
 			impl.logger.Errorw("error in getting role group by casbin name", "err", err, "casbinName", object)
