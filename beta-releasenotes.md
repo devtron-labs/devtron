@@ -12,6 +12,7 @@
 - feat: Feature release v9 sql scripts (#5950)
 ## Documentation
 ## Others
+- misc: error handling while creating github repo in case of concurrent reqs (#5978)
 - misc: Release candidate v0.20.0 (#5980)
 - misc: Release candidate v0.19.0 (#5930)
 - misc: updated migration number (#5948)
