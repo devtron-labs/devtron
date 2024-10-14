@@ -141,7 +141,7 @@ type PluginMetadata struct {
 	PluginVersion          string     `sql:"plugin_version, notnull"`
 	IsDeprecated           bool       `sql:"is_deprecated, notnull"`
 	DocLink                string     `sql:"doc_link"`
-	IsLatest               bool       `sql:"is_latest"`
+	IsLatest               bool       `sql:"is_latest, notnull"`
 	sql.AuditLog
 }
 
