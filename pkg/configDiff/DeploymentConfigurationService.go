@@ -375,7 +375,8 @@ func (impl *DeploymentConfigurationServiceImpl) getConfigDataForAppConfiguration
 	return configDataDto, nil
 }
 
-func (impl *DeploymentConfigurationServiceImpl) getCmCsEditDataForPublishedOnly(configDataQueryParams *bean2.ConfigDataQueryParams, envId, appId int) (*bean2.DeploymentAndCmCsConfigDto, error) {
+func (impl *DeploymentConfigurationServiceImpl) getCmCsEditDataForPublishedOnly(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams, envId,
+	appId int, clusterId int, userHasAdminAccess bool, systemMetadata *resourceQualifiers.SystemMetadata) (*bean2.DeploymentAndCmCsConfigDto, error) {
 	configDataDto := &bean2.DeploymentAndCmCsConfigDto{}
 
 	var resourceType bean.ResourceType
@@ -401,11 +402,29 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsEditDataForPublishedOnly(
 		impl.logger.Errorw("getCmCsEditDataForPublishedOnly, error in converting to json raw message", "configDataQueryParams", configDataQueryParams, "err", err)
 		return nil, err
 	}
+	resolvedCmCsMetadataDto, err := impl.ResolveCmCs(ctx, envId, appId, clusterId, userHasAdminAccess, configDataQueryParams.ResourceName, resourceType, systemMetadata)
+	if err != nil {
+		impl.logger.Errorw("error in resolving cm and cs for published only config only response", "appId", appId, "envId", envId, "err", err)
+		return nil, err
+	}
 
 	cmCsConfig := bean2.NewDeploymentAndCmCsConfig().WithConfigData(respJson).WithResourceType(resourceType)
+
 	if resourceType == bean.CS {
+		resolvedConfigDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedCmCsMetadataDto.ResolvedSecretData)
+		if err != nil {
+			impl.logger.Errorw("getCmCsPublishedConfigResponse, error in ConvertToJsonRawMessage ", "err", err)
+			return nil, err
+		}
+		cmCsConfig.WithResolvedValue(resolvedConfigDataStringJson).WithVariableSnapshot(resolvedCmCsMetadataDto.VariableMapCS)
 		configDataDto.WithSecretData(cmCsConfig)
 	} else if resourceType == bean.CM {
+		resolvedConfigDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedCmCsMetadataDto.ResolvedConfigMapData)
+		if err != nil {
+			impl.logger.Errorw("getCmCsPublishedConfigResponse, error in ConvertToJsonRawMessage for resolvedJson", "ResolvedConfigMapData", resolvedCmCsMetadataDto.ResolvedConfigMapData, "err", err)
+			return nil, err
+		}
+		cmCsConfig.WithResolvedValue(resolvedConfigDataStringJson).WithVariableSnapshot(resolvedCmCsMetadataDto.VariableMapCM)
 		configDataDto.WithConfigMapData(cmCsConfig)
 	}
 	return configDataDto, nil
@@ -439,7 +458,7 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsPublishedConfigResponse(c
 		return nil, err
 	}
 
-	resolvedCmCsMetadataDto, err := impl.ResolveCmCs(ctx, envId, appId, clusterId, userHasAdminAccess, systemMetadata)
+	resolvedCmCsMetadataDto, err := impl.ResolveCmCs(ctx, envId, appId, clusterId, userHasAdminAccess, "", "", systemMetadata)
 	if err != nil {
 		impl.logger.Errorw("error in resolving cm and cs for published only config only response", "appId", appId, "envId", envId, "err", err)
 		return nil, err
@@ -508,7 +527,8 @@ func (impl *DeploymentConfigurationServiceImpl) getMergedCmCs(envId, appId int) 
 	}, nil
 }
 
-func (impl *DeploymentConfigurationServiceImpl) ResolveCmCs(ctx context.Context, envId, appId, clusterId int, userHasAdminAccess bool, systemMetadata *resourceQualifiers.SystemMetadata) (*bean2.ResolvedCmCsMetadataDto, error) {
+func (impl *DeploymentConfigurationServiceImpl) ResolveCmCs(ctx context.Context, envId, appId, clusterId int, userHasAdminAccess bool,
+	resourceName string, resourceType bean.ResourceType, systemMetadata *resourceQualifiers.SystemMetadata) (*bean2.ResolvedCmCsMetadataDto, error) {
 	scope := resourceQualifiers.Scope{
 		AppId:          appId,
 		EnvId:          envId,
@@ -519,6 +539,10 @@ func (impl *DeploymentConfigurationServiceImpl) ResolveCmCs(ctx context.Context,
 	if err != nil {
 		impl.logger.Errorw("error in getting merged cm cs", "appId", appId, "envId", envId, "err", err)
 		return nil, err
+	}
+	// if resourceName is provided then, resolve cmcs request is for single resource, then remove other data from merged cmCs
+	if len(resourceName) > 0 {
+		helper.FilterOutMergedCmCsForResourceName(cmcsMetadataDto, resourceName, resourceType)
 	}
 	resolvedConfigList, resolvedSecretList, variableMapCM, variableMapCS, err := impl.scopedVariableManager.ResolveCMCS(ctx, scope, cmcsMetadataDto.ConfigAppLevelId, cmcsMetadataDto.ConfigEnvLevelId, cmcsMetadataDto.CmMap, cmcsMetadataDto.SecretMap)
 	if err != nil {
@@ -617,7 +641,7 @@ func (impl *DeploymentConfigurationServiceImpl) getPublishedConfigData(ctx conte
 	appId, envId, clusterId int, userHasAdminAccess bool, systemMetadata *resourceQualifiers.SystemMetadata) (*bean2.DeploymentAndCmCsConfigDto, error) {
 
 	if configDataQueryParams.IsRequestMadeForOneResource() {
-		return impl.getCmCsEditDataForPublishedOnly(configDataQueryParams, envId, appId)
+		return impl.getCmCsEditDataForPublishedOnly(ctx, configDataQueryParams, envId, appId, clusterId, userHasAdminAccess, systemMetadata)
 	}
 	//ConfigMapsData and SecretsData are populated here
 	configData, err := impl.getCmCsPublishedConfigResponse(ctx, envId, appId, clusterId, userHasAdminAccess, systemMetadata)
