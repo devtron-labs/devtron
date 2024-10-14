@@ -120,17 +120,21 @@ func (impl *DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, en
 
 func (impl *DeploymentConfigurationServiceImpl) GetAllConfigData(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams, userHasAdminAccess bool) (*bean2.DeploymentAndCmCsConfigDto, error) {
 	var err error
-	var envId int
-	var appId int
-	var clusterId int
+	var envId, appId, clusterId int
+	systemMetadata := &resourceQualifiers.SystemMetadata{
+		AppName: configDataQueryParams.AppName,
+	}
 	if configDataQueryParams.IsEnvNameProvided() {
-		env, err := impl.environmentRepository.FindByName(configDataQueryParams.EnvName)
+		env, err := impl.environmentRepository.FindEnvByNameWithClusterDetails(configDataQueryParams.EnvName)
 		if err != nil {
 			impl.logger.Errorw("GetAllConfigData, error in getting environment model by envName", "envName", configDataQueryParams.EnvName, "err", err)
 			return nil, err
 		}
 		envId = env.Id
 		clusterId = env.ClusterId
+		systemMetadata.EnvironmentName = env.Name
+		systemMetadata.Namespace = env.Name
+		systemMetadata.ClusterName = env.Cluster.ClusterName
 	}
 	appId, err = impl.appRepository.FindAppIdByName(configDataQueryParams.AppName)
 	if err != nil {
@@ -145,7 +149,7 @@ func (impl *DeploymentConfigurationServiceImpl) GetAllConfigData(ctx context.Con
 		return impl.getConfigDataForDeploymentHistory(ctx, configDataQueryParams, userHasAdminAccess)
 	}
 	// this would be the default case
-	return impl.getConfigDataForAppConfiguration(ctx, configDataQueryParams, appId, envId, clusterId, userHasAdminAccess)
+	return impl.getConfigDataForAppConfiguration(ctx, configDataQueryParams, appId, envId, clusterId, userHasAdminAccess, systemMetadata)
 }
 
 func (impl *DeploymentConfigurationServiceImpl) getConfigDataForCdRollback(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams, userHasAdminAccess bool) (*bean2.DeploymentAndCmCsConfigDto, error) {
@@ -357,12 +361,12 @@ func (impl *DeploymentConfigurationServiceImpl) encodeSecretDataFromNonAdminUser
 }
 
 func (impl *DeploymentConfigurationServiceImpl) getConfigDataForAppConfiguration(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams,
-	appId, envId, clusterId int, userHasAdminAccess bool) (*bean2.DeploymentAndCmCsConfigDto, error) {
+	appId, envId, clusterId int, userHasAdminAccess bool, systemMetadata *resourceQualifiers.SystemMetadata) (*bean2.DeploymentAndCmCsConfigDto, error) {
 	configDataDto := &bean2.DeploymentAndCmCsConfigDto{}
 	var err error
 	switch configDataQueryParams.ConfigType {
 	default: // keeping default as PublishedOnly
-		configDataDto, err = impl.getPublishedConfigData(ctx, configDataQueryParams, appId, envId, clusterId, userHasAdminAccess)
+		configDataDto, err = impl.getPublishedConfigData(ctx, configDataQueryParams, appId, envId, clusterId, userHasAdminAccess, systemMetadata)
 		if err != nil {
 			impl.logger.Errorw("GetAllConfigData, error in config data for PublishedOnly", "configDataQueryParams", configDataQueryParams, "err", err)
 			return nil, err
@@ -407,7 +411,7 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsEditDataForPublishedOnly(
 	return configDataDto, nil
 }
 
-func (impl *DeploymentConfigurationServiceImpl) getCmCsPublishedConfigResponse(ctx context.Context, envId, appId, clusterId int, userHasAdminAccess bool) (*bean2.DeploymentAndCmCsConfigDto, error) {
+func (impl *DeploymentConfigurationServiceImpl) getCmCsPublishedConfigResponse(ctx context.Context, envId, appId, clusterId int, userHasAdminAccess bool, systemMetadata *resourceQualifiers.SystemMetadata) (*bean2.DeploymentAndCmCsConfigDto, error) {
 
 	configDataDto := &bean2.DeploymentAndCmCsConfigDto{}
 	secretData, err := impl.getSecretConfigResponse("", 0, envId, appId)
@@ -435,7 +439,7 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsPublishedConfigResponse(c
 		return nil, err
 	}
 
-	resolvedCmCsMetadataDto, err := impl.ResolveCmCs(ctx, envId, appId, clusterId, userHasAdminAccess)
+	resolvedCmCsMetadataDto, err := impl.ResolveCmCs(ctx, envId, appId, clusterId, userHasAdminAccess, systemMetadata)
 	if err != nil {
 		impl.logger.Errorw("error in resolving cm and cs for published only config only response", "appId", appId, "envId", envId, "err", err)
 		return nil, err
@@ -504,11 +508,12 @@ func (impl *DeploymentConfigurationServiceImpl) getMergedCmCs(envId, appId int) 
 	}, nil
 }
 
-func (impl *DeploymentConfigurationServiceImpl) ResolveCmCs(ctx context.Context, envId, appId, clusterId int, userHasAdminAccess bool) (*bean2.ResolvedCmCsMetadataDto, error) {
+func (impl *DeploymentConfigurationServiceImpl) ResolveCmCs(ctx context.Context, envId, appId, clusterId int, userHasAdminAccess bool, systemMetadata *resourceQualifiers.SystemMetadata) (*bean2.ResolvedCmCsMetadataDto, error) {
 	scope := resourceQualifiers.Scope{
-		AppId:     appId,
-		EnvId:     envId,
-		ClusterId: clusterId,
+		AppId:          appId,
+		EnvId:          envId,
+		ClusterId:      clusterId,
+		SystemMetadata: systemMetadata,
 	}
 	cmcsMetadataDto, err := impl.getMergedCmCs(envId, appId)
 	if err != nil {
@@ -609,13 +614,13 @@ func (impl *DeploymentConfigurationServiceImpl) getPublishedDeploymentConfig(ctx
 }
 
 func (impl *DeploymentConfigurationServiceImpl) getPublishedConfigData(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams,
-	appId, envId, clusterId int, userHasAdminAccess bool) (*bean2.DeploymentAndCmCsConfigDto, error) {
+	appId, envId, clusterId int, userHasAdminAccess bool, systemMetadata *resourceQualifiers.SystemMetadata) (*bean2.DeploymentAndCmCsConfigDto, error) {
 
 	if configDataQueryParams.IsRequestMadeForOneResource() {
 		return impl.getCmCsEditDataForPublishedOnly(configDataQueryParams, envId, appId)
 	}
 	//ConfigMapsData and SecretsData are populated here
-	configData, err := impl.getCmCsPublishedConfigResponse(ctx, envId, appId, clusterId, userHasAdminAccess)
+	configData, err := impl.getCmCsPublishedConfigResponse(ctx, envId, appId, clusterId, userHasAdminAccess, systemMetadata)
 	if err != nil {
 		impl.logger.Errorw("getPublishedConfigData, error in getting cm cs for PublishedOnly state", "appName", configDataQueryParams.AppName, "envName", configDataQueryParams.EnvName, "err", err)
 		return nil, err
