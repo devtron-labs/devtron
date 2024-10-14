@@ -175,7 +175,15 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 		}
 	}
 	// Terminate workflow
-	err = impl.workflowService.TerminateWorkflow(workflowRunner.ExecutorType, workflowRunner.Name, workflowRunner.Namespace, restConfig, isExtCluster, nil)
+	cancelWfDtoRequest := &types.CancelWfRequestDto{
+		ExecutorType: workflowRunner.ExecutorType,
+		Name:         workflowRunner.Name,
+		Namespace:    workflowRunner.Namespace,
+		RestConfig:   restConfig,
+		IsExt:        isExtCluster,
+		Environment:  nil,
+	}
+	err = impl.workflowService.TerminateWorkflow(cancelWfDtoRequest)
 	if err != nil {
 		impl.Logger.Error("cannot terminate wf runner", "err", err)
 		return 0, err

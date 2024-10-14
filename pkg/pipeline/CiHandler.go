@@ -604,9 +604,18 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, er
 			return 0, err
 		}
 	}
-
 	// Terminate workflow
-	err = impl.workflowService.TerminateWorkflow(workflow.ExecutorType, workflow.Name, workflow.Namespace, restConfig, isExt, env)
+	cancelWfDtoRequest := &types.CancelWfRequestDto{
+		ExecutorType: workflow.ExecutorType,
+		Name:         workflow.Name,
+		Namespace:    workflow.Namespace,
+		RestConfig:   restConfig,
+		IsExt:        isExt,
+		Environment:  env,
+		ForceAbort:   forceAbort,
+	}
+	// Terminate workflow
+	err = impl.workflowService.TerminateWorkflow(cancelWfDtoRequest)
 	if err != nil && forceAbort {
 		impl.Logger.Errorw("error in terminating workflow, with force abort flag flag as true", "workflowName", workflow.Name, "err", err)
 		//ignoring error in case of force abort later updating workflow with force abort

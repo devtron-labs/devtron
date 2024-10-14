@@ -25,6 +25,7 @@ import (
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
@@ -36,6 +37,16 @@ import (
 	"strings"
 	"time"
 )
+
+type CancelWfRequestDto struct {
+	ExecutorType cdWorkflow.WorkflowExecutorType
+	Name         string
+	Namespace    string
+	RestConfig   *rest.Config
+	IsExt        bool
+	Environment  *repository.Environment
+	ForceAbort   bool
+}
 
 // build infra configurations like ciTimeout,ciCpuLimit,ciMemLimit,ciCpuReq,ciMemReq are being managed by infraConfig service
 
