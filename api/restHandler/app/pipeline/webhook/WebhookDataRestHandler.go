@@ -185,7 +185,7 @@ func (impl WebhookDataRestHandlerImpl) GetWebhookPayloadFilterDataForPipelineMat
 
 	// set payload json
 	if response != nil && response.PayloadId != 0 {
-		webhookEventData, err := impl.webhookEventDataConfig.GetById(int(response.PayloadId))
+		webhookEventData, err := impl.webhookEventDataConfig.GetById(response.PayloadId)
 		if err != nil {
 			impl.logger.Errorw("error in getting webhook payload data", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

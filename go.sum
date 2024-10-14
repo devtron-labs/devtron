@@ -794,8 +794,8 @@ github.com/devtron-labs/argo-workflows/v3 v3.5.10 h1:6rxQOesOzDz6SgQCMDQNHaehsKF
 github.com/devtron-labs/argo-workflows/v3 v3.5.10/go.mod h1:/vqxcovDPT4zqr4DjR5v7CF8ggpY1l3TSa2CIG3jmjA=
 github.com/devtron-labs/authenticator v0.4.35-0.20240809073103-6e11da8083f8 h1:2+Q7Jdhpo/uMiaQiZZzAh+ZX7wEJIFuMFG6DEiMuo64=
 github.com/devtron-labs/authenticator v0.4.35-0.20240809073103-6e11da8083f8/go.mod h1:702R6WIf5y9UzKGoCGxQ+x3l5Ws+l0fXg2xlCpSGFZI=
-github.com/devtron-labs/common-lib v0.19.0 h1:fz+8Uaacv1bmvS+V5dH38/2UbZzebBDCSxvEMBVtBEc=
-github.com/devtron-labs/common-lib v0.19.0/go.mod h1:I+B+0ZeOV1Qv8dE/uNAFXOhw7lxfD6FqK6KzTBLBY7E=
+github.com/devtron-labs/devtron-services/common-lib v0.0.0-20241010131105-e2c23f9c80da h1:vC6SMz6BM1doN+ZBGiDGyERJ/LphFQi5+Ab/YQkNJVo=
+github.com/devtron-labs/devtron-services/common-lib v0.0.0-20241010131105-e2c23f9c80da/go.mod h1:KpKnF4OSpQNDJmb4wVZq3Za88ePBw4xec2GOAGRm5UQ=
 github.com/devtron-labs/go-bitbucket v0.9.60-beta h1:VEx1jvDgdtDPS6A1uUFoaEi0l1/oLhbr+90xOwr6sDU=
 github.com/devtron-labs/go-bitbucket v0.9.60-beta/go.mod h1:GnuiCesvh8xyHeMCb+twm8lBR/kQzJYSKL28ZfObp1Y=
 github.com/devtron-labs/protos v0.0.3-0.20240802105333-92ee9bb85d80 h1:xwbTeijNTf4/j1v+tSfwVqwLVnReas/NqEKeQHvSTys=
@@ -807,6 +807,8 @@ github.com/distribution/reference v0.6.0 h1:0IXCQ5g4/QMHHkarYzh5l+u8T3t73zM5Qvfr
 github.com/distribution/reference v0.6.0/go.mod h1:BbU0aIcezP1/5jX/8MP0YiH4SdvB5Y4f/wlDRiLyi3E=
 github.com/docker/cli v24.0.6+incompatible h1:fF+XCQCgJjjQNIMjzaSmiKJSCcfcXb3TWTcc7GAneOY=
 github.com/docker/cli v24.0.6+incompatible/go.mod h1:JLrzqnKDaYBop7H2jaqPtU4hHvMKP+vjCwu2uszcLI8=
+github.com/docker/distribution v2.8.2+incompatible h1:T3de5rq0dB1j30rp0sA2rER+m322EBzniBPB6ZIzuh8=
+github.com/docker/distribution v2.8.2+incompatible/go.mod h1:J2gT2udsDAN96Uj4KfcMRqY0/ypR+oyYUYmja8H+y+w=
 github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815/go.mod h1:WwZ+bS3ebgob9U8Nd0kOddGdZWjyMGR8Wziv+TBNwSE=
 github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=

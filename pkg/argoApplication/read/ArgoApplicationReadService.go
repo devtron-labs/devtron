@@ -84,7 +84,7 @@ func (impl *ArgoApplicationReadServiceImpl) GetServerConfigIfClusterIsNotAddedOn
 			getHealthSyncStatusDestinationServerAndManagedResourcesForArgoK8sRawObject(resourceResp.Manifest.Object)
 	}
 	appDeployedOnClusterId := 0
-	if destinationServer == k8s.DefaultClusterUrl {
+	if destinationServer == k8sCommonBean.DefaultClusterUrl {
 		appDeployedOnClusterId = clusterWithApplicationObject.Id
 	} else if clusterIdFromMap, ok := clusterServerUrlIdMap[destinationServer]; ok {
 		appDeployedOnClusterId = clusterIdFromMap
@@ -205,7 +205,7 @@ func (impl *ArgoApplicationReadServiceImpl) GetAppDetail(resourceName, resourceN
 			getHealthSyncStatusDestinationServerAndManagedResourcesForArgoK8sRawObject(resp.Manifest.Object)
 	}
 	appDeployedOnClusterId := 0
-	if destinationServer == k8s.DefaultClusterUrl {
+	if destinationServer == k8sCommonBean.DefaultClusterUrl {
 		appDeployedOnClusterId = clusterWithApplicationObject.Id
 	} else if clusterIdFromMap, ok := clusterServerUrlIdMap[destinationServer]; ok {
 		appDeployedOnClusterId = clusterIdFromMap

@@ -19,6 +19,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"net/http"
 	"strings"
@@ -26,7 +27,6 @@ import (
 
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/devtron-labs/common-lib/utils/k8s"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -68,7 +68,7 @@ func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*ClusterBean, 
 		return nil, err
 	}
 	for _, bean := range beans {
-		bean.Config = map[string]string{k8s.BearerToken: ""}
+		bean.Config = map[string]string{commonBean.BearerToken: ""}
 	}
 	return beans, nil
 }
@@ -240,17 +240,17 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 		configMap := bean.Config
 		serverUrl := bean.ServerUrl
 		bearerToken := ""
-		if configMap[k8s.BearerToken] != "" {
-			bearerToken = configMap[k8s.BearerToken]
+		if configMap[commonBean.BearerToken] != "" {
+			bearerToken = configMap[commonBean.BearerToken]
 		}
 
 		tlsConfig := v1alpha1.TLSClientConfig{
 			Insecure: bean.InsecureSkipTLSVerify,
 		}
 		if !bean.InsecureSkipTLSVerify {
-			tlsConfig.KeyData = []byte(configMap[k8s.TlsKey])
-			tlsConfig.CertData = []byte(configMap[k8s.CertData])
-			tlsConfig.CAData = []byte(configMap[k8s.CertificateAuthorityData])
+			tlsConfig.KeyData = []byte(configMap[commonBean.TlsKey])
+			tlsConfig.CertData = []byte(configMap[commonBean.CertData])
+			tlsConfig.CAData = []byte(configMap[commonBean.CertificateAuthorityData])
 		}
 
 		cdClusterConfig := v1alpha1.ClusterConfig{
@@ -269,7 +269,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 		if err != nil {
 			impl.logger.Errorw("service err, Update", "error", err, "payload", cl)
 			userMsg := "failed to update on cluster via ACD"
-			if strings.Contains(err.Error(), k8s.DefaultClusterUrl) {
+			if strings.Contains(err.Error(), commonBean.DefaultClusterUrl) {
 				userMsg = fmt.Sprintf("%s, %s", err.Error(), ", successfully updated in ACD")
 			}
 			err = &util.ApiError{
@@ -381,11 +381,11 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 	return clusterBean, nil
 }
 
-func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId int32) error {
+func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId int32) (string, error) {
 	existingCluster, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete.", "id", bean.Id)
-		return err
+		return "", err
 	}
 	deleteReq := existingCluster
 	deleteReq.UpdatedOn = time.Now()
@@ -393,14 +393,7 @@ func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId in
 	err = impl.clusterRepository.MarkClusterDeleted(deleteReq)
 	if err != nil {
 		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err", err)
-		return err
+		return "", err
 	}
-	k8sClient, err := impl.ClusterServiceImpl.K8sUtil.GetCoreV1ClientInCluster()
-	if err != nil {
-		impl.logger.Errorw("error in creating k8s client set", "err", err, "clusterName", bean.ClusterName)
-	}
-	secretName := fmt.Sprintf("%s-%v", "cluster-event", bean.Id)
-	err = impl.K8sUtil.DeleteSecret("default", secretName, k8sClient)
-	impl.logger.Errorw("error in deleting secret", "error", err)
-	return nil
+	return existingCluster.ClusterName, nil
 }

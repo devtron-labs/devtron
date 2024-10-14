@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
+	util2 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -58,11 +59,11 @@ const (
 
 type CdHandler interface {
 	UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, string, error)
-	GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineConfig.CdWorkflowWithArtifact, error)
+	GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineBean.CdWorkflowWithArtifact, error)
 	GetRunningWorkflowLogs(environmentId int, pipelineId int, workflowId int) (*bufio.Reader, func() error, error)
 	FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int) (types.WorkflowResponse, error)
-	DownloadCdWorkflowArtifacts(pipelineId int, buildId int) (*os.File, error)
-	FetchCdPrePostStageStatus(pipelineId int) ([]pipelineConfig.CdWorkflowWithArtifact, error)
+	DownloadCdWorkflowArtifacts(buildId int) (*os.File, error)
+	FetchCdPrePostStageStatus(pipelineId int) ([]pipelineBean.CdWorkflowWithArtifact, error)
 	CancelStage(workflowRunnerId int, userId int32) (int, error)
 	FetchAppWorkflowStatusForTriggerView(appId int) ([]*pipelineConfig.CdWorkflowStatus, error)
 	FetchAppWorkflowStatusForTriggerViewForEnvironment(request resourceGroup2.ResourceGroupingRequest, token string) ([]*pipelineConfig.CdWorkflowStatus, error)
@@ -216,29 +217,20 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		return 0, "", err
 	}
 
-	ciWorkflowConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(savedWorkflow.CdWorkflow.PipelineId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("unable to fetch ciWorkflowConfig", "err", err)
-		return 0, "", err
-	}
-
-	ciArtifactLocationFormat := ciWorkflowConfig.CdArtifactLocationFormat
-	if ciArtifactLocationFormat == "" {
-		ciArtifactLocationFormat = impl.config.GetArtifactLocationFormat()
-	}
-
+	cdArtifactLocationFormat := impl.config.GetArtifactLocationFormat()
+	cdArtifactLocation := fmt.Sprintf(cdArtifactLocationFormat, savedWorkflow.CdWorkflowId, savedWorkflow.Id)
 	if impl.stateChanged(status, podStatus, message, workflowStatus.FinishedAt.Time, savedWorkflow) {
 		if savedWorkflow.Status != executors.WorkflowCancel {
 			savedWorkflow.Status = status
 		}
+		savedWorkflow.CdArtifactLocation = cdArtifactLocation
 		savedWorkflow.PodStatus = podStatus
 		savedWorkflow.Message = message
 		savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
 		savedWorkflow.Name = workflowName
 		// removed log location from here since we are saving it at trigger
 		savedWorkflow.PodName = podName
-		savedWorkflow.UpdatedOn = time.Now()
-		savedWorkflow.UpdatedBy = 1
+		savedWorkflow.UpdateAuditLog(1)
 		impl.Logger.Debugw("updating workflow ", "workflow", savedWorkflow)
 		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(savedWorkflow)
 		if err != nil {
@@ -304,9 +296,9 @@ func (impl *CdHandlerImpl) stateChanged(status string, podStatus string, msg str
 	return savedWorkflow.Status != status || savedWorkflow.PodStatus != podStatus || savedWorkflow.Message != msg || savedWorkflow.FinishedOn != finishedAt
 }
 
-func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineConfig.CdWorkflowWithArtifact, error) {
+func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipelineId int, offset int, size int) ([]pipelineBean.CdWorkflowWithArtifact, error) {
 
-	var cdWorkflowArtifact []pipelineConfig.CdWorkflowWithArtifact
+	var cdWorkflowArtifact []pipelineBean.CdWorkflowWithArtifact
 	// this map contains artifactId -> array of tags of that artifact
 	imageTagsDataMap, err := impl.imageTaggingService.GetTagsDataMapByAppId(appId)
 	if err != nil {
@@ -388,7 +380,7 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 			}
 			ciMaterialsArr = append(ciMaterialsArr, res)
 		}
-		var newCdWorkflowArtifact []pipelineConfig.CdWorkflowWithArtifact
+		var newCdWorkflowArtifact []pipelineBean.CdWorkflowWithArtifact
 		for _, cdWfA := range cdWorkflowArtifact {
 
 			gitTriggers := make(map[int]pipelineConfig.GitCommit)
@@ -492,18 +484,8 @@ func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineC
 func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, clusterConfig *k8s.ClusterConfig, isExt bool) (*bufio.Reader, func() error, error) {
 	impl.Logger.Debug("getting historic logs", "pipelineId", pipelineId)
 
-	cdConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(pipelineId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("err", err)
-		return nil, nil, err
-	}
-
-	if cdConfig.LogsBucket == "" {
-		cdConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket() // TODO -fixme
-	}
-	if cdConfig.CdCacheRegion == "" {
-		cdConfig.CdCacheRegion = impl.config.GetDefaultCdLogsBucketRegion()
-	}
+	cdConfigLogsBucket := impl.config.GetDefaultBuildLogsBucket() // TODO -fixme
+	cdConfigCdCacheRegion := impl.config.GetDefaultCdLogsBucketRegion()
 
 	cdLogRequest := types.BuildLogRequest{
 		PipelineId:    cdWorkflow.CdWorkflow.PipelineId,
@@ -522,12 +504,12 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 			Passkey:           impl.config.BlobStorageS3SecretKey,
 			EndpointUrl:       impl.config.BlobStorageS3Endpoint,
 			IsInSecure:        impl.config.BlobStorageS3EndpointInsecure,
-			BucketName:        cdConfig.LogsBucket,
-			Region:            cdConfig.CdCacheRegion,
+			BucketName:        cdConfigLogsBucket,
+			Region:            cdConfigCdCacheRegion,
 			VersioningEnabled: impl.config.BlobStorageS3BucketVersioned,
 		},
 		GcpBlobBaseConfig: &blob_storage.GcpBlobBaseConfig{
-			BucketName:             cdConfig.LogsBucket,
+			BucketName:             cdConfigLogsBucket,
 			CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
 		},
 	}
@@ -544,7 +526,7 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 		rq.SetBuildLogRequest(cmConfig, secretConfig)
 	}
 
-	impl.Logger.Infow("s3 log req ", "req", cdLogRequest)
+	impl.Logger.Debugw("s3 log req ", "pipelineId", pipelineId, "runnerId", cdWorkflow.Id)
 	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(impl.config.BaseLogLocationPath, cdLogRequest)
 	if err != nil {
 		impl.Logger.Errorw("err", err)
@@ -637,13 +619,14 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		IsVirtualEnvironment: workflowR.CdWorkflow.Pipeline.Environment.IsVirtualEnvironment,
 		PodName:              workflowR.PodName,
 		ArtifactId:           workflow.CiArtifactId,
+		IsArtifactUploaded:   workflow.IsArtifactUploaded,
 		CiPipelineId:         ciWf.CiPipelineId,
 	}
 	return workflowResponse, nil
 
 }
 
-func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId int) (*os.File, error) {
+func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(buildId int) (*os.File, error) {
 	wfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(buildId)
 	if err != nil {
 		impl.Logger.Errorw("unable to fetch ciWorkflow", "err", err)
@@ -654,18 +637,8 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 		return nil, errors.New("logs-not-stored-in-repository")
 	}
 
-	cdConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(pipelineId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("unable to fetch ciCdConfig", "err", err)
-		return nil, err
-	}
-
-	if cdConfig.LogsBucket == "" {
-		cdConfig.LogsBucket = impl.config.GetDefaultBuildLogsBucket()
-	}
-	if cdConfig.CdCacheRegion == "" {
-		cdConfig.CdCacheRegion = impl.config.GetDefaultCdLogsBucketRegion()
-	}
+	cdConfigLogsBucket := impl.config.GetDefaultBuildLogsBucket()
+	cdConfigCdCacheRegion := impl.config.GetDefaultCdLogsBucketRegion()
 
 	item := strconv.Itoa(wfr.Id)
 	awsS3BaseConfig := &blob_storage.AwsS3BaseConfig{
@@ -673,8 +646,8 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 		Passkey:           impl.config.BlobStorageS3SecretKey,
 		EndpointUrl:       impl.config.BlobStorageS3Endpoint,
 		IsInSecure:        impl.config.BlobStorageS3EndpointInsecure,
-		BucketName:        cdConfig.LogsBucket,
-		Region:            cdConfig.CdCacheRegion,
+		BucketName:        cdConfigLogsBucket,
+		Region:            cdConfigCdCacheRegion,
 		VersioningEnabled: impl.config.BlobStorageS3BucketVersioned,
 	}
 	azureBlobBaseConfig := &blob_storage.AzureBlobBaseConfig{
@@ -684,10 +657,16 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 		BlobContainerName: impl.config.AzureBlobContainerCiLog,
 	}
 	gcpBlobBaseConfig := &blob_storage.GcpBlobBaseConfig{
-		BucketName:             cdConfig.LogsBucket,
+		BucketName:             cdConfigLogsBucket,
 		CredentialFileJsonData: impl.config.BlobStorageGcpCredentialJson,
 	}
-	key := fmt.Sprintf("%s/"+impl.config.GetArtifactLocationFormat(), impl.config.GetDefaultArtifactKeyPrefix(), wfr.CdWorkflow.Id, wfr.Id)
+	cdArtifactLocationFormat := impl.config.GetArtifactLocationFormat()
+	key := fmt.Sprintf(cdArtifactLocationFormat, wfr.CdWorkflow.Id, wfr.Id)
+	if len(wfr.CdArtifactLocation) != 0 && util2.IsValidUrlSubPath(wfr.CdArtifactLocation) {
+		key = wfr.CdArtifactLocation
+	} else if util2.IsValidUrlSubPath(key) {
+		impl.cdWorkflowRepository.MigrateCdArtifactLocation(wfr.Id, key)
+	}
 	baseLogLocationPathConfig := impl.config.BaseLogLocationPath
 	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
 	destinationKey := filepath.Clean(filepath.Join(baseLogLocationPathConfig, item))
@@ -730,8 +709,8 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 	return file, nil
 }
 
-func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pipelineConfig.CdWorkflowWithArtifact {
-	workflow := pipelineConfig.CdWorkflowWithArtifact{}
+func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pipelineBean.CdWorkflowWithArtifact {
+	workflow := pipelineBean.CdWorkflowWithArtifact{}
 	if wfr.Id > 0 {
 		workflow.Name = wfr.Name
 		workflow.Id = wfr.Id
@@ -747,15 +726,22 @@ func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pip
 		workflow.Image = wfr.CdWorkflow.CiArtifact.Image
 		workflow.PipelineId = wfr.CdWorkflow.PipelineId
 		workflow.CiArtifactId = wfr.CdWorkflow.CiArtifactId
+		isArtifactUploaded, isMigrationRequired := wfr.GetIsArtifactUploaded()
+		if isMigrationRequired {
+			// Migrate isArtifactUploaded. For old records, set isArtifactUploaded -> Uploaded
+			impl.cdWorkflowRepository.MigrateIsArtifactUploaded(wfr.Id, true)
+			isArtifactUploaded = true
+		}
+		workflow.IsArtifactUploaded = isArtifactUploaded
 		workflow.BlobStorageEnabled = wfr.BlobStorageEnabled
 		workflow.RefCdWorkflowRunnerId = wfr.RefCdWorkflowRunnerId
 	}
 	return workflow
 }
 
-func (impl *CdHandlerImpl) converterWFRList(wfrList []pipelineConfig.CdWorkflowRunner) []pipelineConfig.CdWorkflowWithArtifact {
-	var workflowList []pipelineConfig.CdWorkflowWithArtifact
-	var results []pipelineConfig.CdWorkflowWithArtifact
+func (impl *CdHandlerImpl) converterWFRList(wfrList []pipelineConfig.CdWorkflowRunner) []pipelineBean.CdWorkflowWithArtifact {
+	var workflowList []pipelineBean.CdWorkflowWithArtifact
+	var results []pipelineBean.CdWorkflowWithArtifact
 	var ids []int32
 	for _, item := range wfrList {
 		ids = append(ids, item.TriggeredBy)
@@ -776,8 +762,8 @@ func (impl *CdHandlerImpl) converterWFRList(wfrList []pipelineConfig.CdWorkflowR
 	return results
 }
 
-func (impl *CdHandlerImpl) FetchCdPrePostStageStatus(pipelineId int) ([]pipelineConfig.CdWorkflowWithArtifact, error) {
-	var results []pipelineConfig.CdWorkflowWithArtifact
+func (impl *CdHandlerImpl) FetchCdPrePostStageStatus(pipelineId int) ([]pipelineBean.CdWorkflowWithArtifact, error) {
+	var results []pipelineBean.CdWorkflowWithArtifact
 	wfrPre, err := impl.cdWorkflowRepository.FindLatestByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_PRE)
 	if err != nil && err != pg.ErrNoRows {
 		return results, err
@@ -786,7 +772,7 @@ func (impl *CdHandlerImpl) FetchCdPrePostStageStatus(pipelineId int) ([]pipeline
 		workflowPre := impl.converterWFR(wfrPre)
 		results = append(results, workflowPre)
 	} else {
-		workflowPre := pipelineConfig.CdWorkflowWithArtifact{Status: "Notbuilt", WorkflowType: string(bean.CD_WORKFLOW_TYPE_PRE), PipelineId: pipelineId}
+		workflowPre := pipelineBean.CdWorkflowWithArtifact{Status: "Notbuilt", WorkflowType: string(bean.CD_WORKFLOW_TYPE_PRE), PipelineId: pipelineId}
 		results = append(results, workflowPre)
 	}
 
@@ -798,7 +784,7 @@ func (impl *CdHandlerImpl) FetchCdPrePostStageStatus(pipelineId int) ([]pipeline
 		workflowPost := impl.converterWFR(wfrPost)
 		results = append(results, workflowPost)
 	} else {
-		workflowPost := pipelineConfig.CdWorkflowWithArtifact{Status: "Notbuilt", WorkflowType: string(bean.CD_WORKFLOW_TYPE_POST), PipelineId: pipelineId}
+		workflowPost := pipelineBean.CdWorkflowWithArtifact{Status: "Notbuilt", WorkflowType: string(bean.CD_WORKFLOW_TYPE_POST), PipelineId: pipelineId}
 		results = append(results, workflowPost)
 	}
 	return results, nil
