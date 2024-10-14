@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
@@ -409,6 +409,7 @@ func (impl *InstalledAppRepositoryImpl) GetInstalledAppVersionAny(id int) (*Inst
 func (impl *InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.AppStoreFilter) ([]InstalledAppsWithChartDetails, error) {
 	var installedAppsWithChartDetails []InstalledAppsWithChartDetails
 	var query string
+	var queryParams []interface{}
 	query = "select iav.updated_on, iav.id as installed_app_version_id, ch.name as chart_repo_name, das.id as docker_artifact_store_id,"
 	query = query + " env.environment_name, env.id as environment_id, env.is_virtual_environment, a.app_name, a.display_name, a.app_offering_mode, asav.icon, asav.name as app_store_application_name,"
 	query = query + " env.namespace, cluster.cluster_name, a.team_id, cluster.id as cluster_id, "
@@ -425,34 +426,42 @@ func (impl *InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean
 	query = query + " left join app_status on app_status.app_id = ia.app_id and ia.environment_id = app_status.env_id"
 	query = query + " where ia.active = true and iav.active = true"
 	if filter.OnlyDeprecated {
-		query = query + " AND asav.deprecated = TRUE"
+		query = query + " AND asav.deprecated = ?"
+		queryParams = append(queryParams, "TRUE")
 	}
 	if len(filter.AppStoreName) > 0 {
-		query = query + " AND aps.name LIKE '%" + filter.AppStoreName + "%'"
+		query = query + " AND aps.name LIKE ? "
+		queryParams = append(queryParams, util.GetLIKEClauseQueryParam(filter.AppStoreName))
 	}
 	if len(filter.AppName) > 0 {
-		query = query + " AND a.app_name LIKE '%" + filter.AppName + "%'"
+		query = query + " AND a.app_name LIKE ? "
+		queryParams = append(queryParams, util.GetLIKEClauseQueryParam(filter.AppName))
 	}
 	if len(filter.ChartRepoId) > 0 {
-		query = query + " AND ch.id IN (" + sqlIntSeq(filter.ChartRepoId) + ")"
+		query = query + " AND ch.id IN (?) "
+		queryParams = append(queryParams, sqlIntSeq(filter.ChartRepoId))
 	}
 	if len(filter.EnvIds) > 0 {
-		query = query + " AND env.id IN (" + sqlIntSeq(filter.EnvIds) + ")"
+		query = query + " AND env.id IN (?) "
+		queryParams = append(queryParams, sqlIntSeq(filter.EnvIds))
 	}
 	if len(filter.ClusterIds) > 0 {
-		query = query + " AND cluster.id IN (" + sqlIntSeq(filter.ClusterIds) + ")"
+		query = query + " AND cluster.id IN (?) "
+		queryParams = append(queryParams, sqlIntSeq(filter.ClusterIds))
 	}
 	if len(filter.AppStatuses) > 0 {
-		appStatuses := util.ProcessAppStatuses(filter.AppStatuses)
-		query = query + " and app_status.status IN (" + appStatuses + ") "
+		appStatuses := pg.In(filter.AppStatuses)
+		query = query + " and app_status.status IN (?) "
+		queryParams = append(queryParams, appStatuses)
 	}
 	query = query + " ORDER BY aps.name ASC"
 	if filter.Size > 0 {
-		query = query + " OFFSET " + strconv.Itoa(filter.Offset) + " LIMIT " + strconv.Itoa(filter.Size) + ""
+		query = query + " OFFSET ? LIMIT ? "
+		queryParams = append(queryParams, strconv.Itoa(filter.Offset), strconv.Itoa(filter.Size))
 	}
 	query = query + ";"
 	var err error
-	_, err = impl.dbConnection.Query(&installedAppsWithChartDetails, query)
+	_, err = impl.dbConnection.Query(&installedAppsWithChartDetails, query, queryParams...)
 	if err != nil {
 		return nil, err
 	}

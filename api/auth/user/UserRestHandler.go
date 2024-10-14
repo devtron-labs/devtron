@@ -1190,7 +1190,7 @@ func (handler UserRestHandlerImpl) checkRBACForUserCreate(token string, requestS
 }
 
 func (handler UserRestHandlerImpl) checkRBACForUserUpdate(token string, userInfo *bean.UserInfo, isUserAlreadySuperAdmin bool, eliminatedRoleFilters,
-	eliminatedGroupRoles []*repository.RoleModel) (isAuthorised bool, err error) {
+	eliminatedGroupRoles []*repository.RoleModel, mapOfExistingUserRoleGroup map[string]bool) (isAuthorised bool, err error) {
 	isActionUserSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	requestSuperAdmin := userInfo.SuperAdmin
 	if (requestSuperAdmin || isUserAlreadySuperAdmin) && !isActionUserSuperAdmin {
@@ -1241,33 +1241,37 @@ func (handler UserRestHandlerImpl) checkRBACForUserUpdate(token string, userInfo
 			}
 		}
 		if len(roleGroups) > 0 { // auth check inside groups
-			groupRoles, err := handler.roleGroupService.FetchRolesForUserRoleGroups(roleGroups)
-			if err != nil && err != pg.ErrNoRows {
-				handler.logger.Errorw("service err, UpdateUser", "err", err, "payload", roleGroups)
-				return false, err
-			}
-			if len(groupRoles) > 0 {
-				for _, groupRole := range groupRoles {
-					switch {
-					case groupRole.Action == bean.ACTION_SUPERADMIN:
-						isAuthorised = isActionUserSuperAdmin
-					case groupRole.AccessType == bean.APP_ACCESS_TYPE_HELM || groupRole.Entity == bean2.EntityJobs:
-						isAuthorised = isActionUserSuperAdmin
-					case len(groupRole.Team) > 0:
-						isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, groupRole.Team)
-					case groupRole.Entity == bean.CLUSTER_ENTITIY:
-						isAuthorised = handler.userCommonService.CheckRbacForClusterEntity(groupRole.Cluster, groupRole.Namespace, groupRole.Group, groupRole.Kind, groupRole.Resource, token, handler.CheckManagerAuth)
-					case groupRole.Entity == bean.CHART_GROUP_ENTITY:
-						isAuthorised = true
-					default:
-						isAuthorised = false
-					}
-					if !isAuthorised {
-						return false, nil
-					}
+			//filter out roleGroups (existing has to be ignore while checking rbac)
+			filteredRoleGroups := util2.FilterRoleGroupIfAlreadyPresent(roleGroups, mapOfExistingUserRoleGroup)
+			if len(filteredRoleGroups) > 0 {
+				groupRoles, err := handler.roleGroupService.FetchRolesForUserRoleGroups(roleGroups)
+				if err != nil && err != pg.ErrNoRows {
+					handler.logger.Errorw("service err, UpdateUser", "err", err, "filteredRoleGroups", filteredRoleGroups)
+					return false, err
 				}
-			} else {
-				isAuthorised = false
+				if len(groupRoles) > 0 {
+					for _, groupRole := range groupRoles {
+						switch {
+						case groupRole.Action == bean.ACTION_SUPERADMIN:
+							isAuthorised = isActionUserSuperAdmin
+						case groupRole.AccessType == bean.APP_ACCESS_TYPE_HELM || groupRole.Entity == bean2.EntityJobs:
+							isAuthorised = isActionUserSuperAdmin
+						case len(groupRole.Team) > 0:
+							isAuthorised = handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, groupRole.Team)
+						case groupRole.Entity == bean.CLUSTER_ENTITIY:
+							isAuthorised = handler.userCommonService.CheckRbacForClusterEntity(groupRole.Cluster, groupRole.Namespace, groupRole.Group, groupRole.Kind, groupRole.Resource, token, handler.CheckManagerAuth)
+						case groupRole.Entity == bean.CHART_GROUP_ENTITY:
+							isAuthorised = true
+						default:
+							isAuthorised = false
+						}
+						if !isAuthorised {
+							return false, nil
+						}
+					}
+				} else {
+					isAuthorised = false
+				}
 			}
 		}
 	}

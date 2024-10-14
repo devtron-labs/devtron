@@ -22,6 +22,7 @@ import (
 	"fmt"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	util5 "github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
@@ -39,8 +40,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	repository4 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -1037,7 +1038,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 
 		releaseName := pipelineModel.DeploymentAppName
 		cluster := envOverride.Environment.Cluster
-		bearerToken := cluster.Config[util5.BearerToken]
+		bearerToken := cluster.Config[commonBean.BearerToken]
 		clusterConfig := &gRPC.ClusterConfig{
 			ClusterName:           cluster.ClusterName,
 			Token:                 bearerToken,
@@ -1045,9 +1046,9 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 			InsecureSkipTLSVerify: cluster.InsecureSkipTlsVerify,
 		}
 		if cluster.InsecureSkipTlsVerify == false {
-			clusterConfig.KeyData = cluster.Config[util5.TlsKey]
-			clusterConfig.CertData = cluster.Config[util5.CertData]
-			clusterConfig.CaData = cluster.Config[util5.CertificateAuthorityData]
+			clusterConfig.KeyData = cluster.Config[commonBean.TlsKey]
+			clusterConfig.CertData = cluster.Config[commonBean.CertData]
+			clusterConfig.CaData = cluster.Config[commonBean.CertificateAuthorityData]
 		}
 		releaseIdentifier := &gRPC.ReleaseIdentifier{
 			ReleaseName:      releaseName,
@@ -1314,7 +1315,7 @@ func (impl *TriggerServiceImpl) helmInstallReleaseWithCustomChart(ctx context.Co
 
 func (impl *TriggerServiceImpl) writeCDTriggerEvent(overrideRequest *bean3.ValuesOverrideRequest, artifact *repository3.CiArtifact, releaseId, pipelineOverrideId int) {
 
-	event := impl.eventFactory.Build(util2.Trigger, &overrideRequest.PipelineId, overrideRequest.AppId, &overrideRequest.EnvId, util2.CD)
+	event, _ := impl.eventFactory.Build(util2.Trigger, &overrideRequest.PipelineId, overrideRequest.AppId, &overrideRequest.EnvId, util2.CD)
 	impl.logger.Debugw("event writeCDTriggerEvent", "event", event)
 	event = impl.eventFactory.BuildExtraCDData(event, nil, pipelineOverrideId, bean3.CD_WORKFLOW_TYPE_DEPLOY)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)

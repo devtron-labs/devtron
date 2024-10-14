@@ -18,6 +18,7 @@ package delete
 
 import (
 	"fmt"
+	k8sUtil "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -28,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
@@ -53,6 +55,8 @@ func NewDeleteServiceExtendedImpl(logger *zap.SugaredLogger,
 	installedAppRepository repository2.InstalledAppRepository,
 	dockerRegistryConfig pipeline.DockerRegistryConfig,
 	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository,
+	K8sService k8sUtil.K8sService,
+	factory informer.K8sInformerFactory,
 ) *DeleteServiceExtendedImpl {
 	return &DeleteServiceExtendedImpl{
 		appRepository:         appRepository,
@@ -67,6 +71,8 @@ func NewDeleteServiceExtendedImpl(logger *zap.SugaredLogger,
 			installedAppRepository:   installedAppRepository,
 			dockerRegistryConfig:     dockerRegistryConfig,
 			dockerRegistryRepository: dockerRegistryRepository,
+			K8sUtil:                  K8sService,
+			k8sInformerFactory:       factory,
 		},
 	}
 }
@@ -82,11 +88,17 @@ func (impl DeleteServiceExtendedImpl) DeleteCluster(deleteRequest *cluster.Clust
 		impl.logger.Errorw("err in deleting cluster, found env in this cluster", "clusterName", deleteRequest.ClusterName, "err", err)
 		return &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: " Please delete all related environments before deleting this cluster"}
 	}
-	err = impl.clusterService.DeleteFromDb(deleteRequest, userId)
+	clusterName, err := impl.clusterService.DeleteFromDb(deleteRequest, userId)
 	if err != nil {
 		impl.logger.Errorw("error im deleting cluster", "err", err, "deleteRequest", deleteRequest)
 		return err
 	}
+	err = impl.DeleteClusterSecret(deleteRequest, err)
+	if err != nil {
+		impl.logger.Errorw("error in deleting cluster secret", "clusterId", deleteRequest.Id, "error", err)
+		return err
+	}
+	impl.k8sInformerFactory.DeleteClusterFromCache(clusterName)
 	return nil
 }
 

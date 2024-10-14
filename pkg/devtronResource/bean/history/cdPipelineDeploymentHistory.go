@@ -1,6 +1,8 @@
 package history
 
-import "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+import (
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+)
 
 type CdPipelineDeploymentHistoryListReq struct {
 	PipelineId int
@@ -18,8 +20,8 @@ type CdPipelineDeploymentHistoryConfigListReq struct {
 }
 
 type DeploymentHistoryResp struct {
-	CdWorkflows                []pipelineConfig.CdWorkflowWithArtifact `json:"cdWorkflows"`
-	TagsEditable               bool                                    `json:"tagsEditable"`
-	AppReleaseTagNames         []string                                `json:"appReleaseTagNames"` // unique list of tags exists in the app
-	HideImageTaggingHardDelete bool                                    `json:"hideImageTaggingHardDelete"`
+	CdWorkflows                []bean.CdWorkflowWithArtifact `json:"cdWorkflows"`
+	TagsEditable               bool                          `json:"tagsEditable"`
+	AppReleaseTagNames         []string                      `json:"appReleaseTagNames"` // unique list of tags exists in the app
+	HideImageTaggingHardDelete bool                          `json:"hideImageTaggingHardDelete"`
 }

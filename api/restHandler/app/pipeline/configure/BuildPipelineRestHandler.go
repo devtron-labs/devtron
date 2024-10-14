@@ -1032,7 +1032,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetHistoricBuildLogs(w http.Respon
 		return
 	}
 	//RBAC
-	resp, err := handler.ciHandler.GetHistoricBuildLogs(pipelineId, workflowId, nil)
+	resp, err := handler.ciHandler.GetHistoricBuildLogs(workflowId, nil)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetHistoricBuildLogs", "err", err, "pipelineId", pipelineId, "workflowId", workflowId)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
@@ -1171,7 +1171,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildLogs(w http.ResponseWriter
 			return
 		}
 	}
-	logsReader, cleanUp, err := handler.ciHandler.GetRunningWorkflowLogs(pipelineId, workflowId)
+	logsReader, cleanUp, err := handler.ciHandler.GetRunningWorkflowLogs(workflowId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetBuildLogs", "err", err, "pipelineId", pipelineId, "workflowId", workflowId, "lastEventId", lastEventId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

@@ -18,12 +18,14 @@ package delete
 
 import (
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils/k8s"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -39,6 +41,7 @@ type DeleteService interface {
 	DeleteChartRepo(deleteRequest *chartRepo.ChartRepoDto) error
 	DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error
 	CanDeleteChartRegistryPullConfig(storeId string) bool
+	DeleteClusterSecret(deleteRequest *cluster.ClusterBean, err error) error
 }
 
 type DeleteServiceImpl struct {
@@ -50,6 +53,8 @@ type DeleteServiceImpl struct {
 	installedAppRepository   repository.InstalledAppRepository
 	dockerRegistryConfig     pipeline.DockerRegistryConfig
 	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository
+	K8sUtil                  k8s.K8sService
+	k8sInformerFactory       informer.K8sInformerFactory
 }
 
 func NewDeleteServiceImpl(logger *zap.SugaredLogger,
@@ -60,6 +65,8 @@ func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepository repository.InstalledAppRepository,
 	dockerRegistryConfig pipeline.DockerRegistryConfig,
 	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository,
+	k8sInformerFactory informer.K8sInformerFactory,
+	K8sUtil k8s.K8sService,
 ) *DeleteServiceImpl {
 	return &DeleteServiceImpl{
 		logger:                   logger,
@@ -70,16 +77,36 @@ func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 		installedAppRepository:   installedAppRepository,
 		dockerRegistryConfig:     dockerRegistryConfig,
 		dockerRegistryRepository: dockerRegistryRepository,
+		K8sUtil:                  K8sUtil,
+		k8sInformerFactory:       k8sInformerFactory,
 	}
 }
 
 func (impl DeleteServiceImpl) DeleteCluster(deleteRequest *cluster.ClusterBean, userId int32) error {
-	err := impl.clusterService.DeleteFromDb(deleteRequest, userId)
+	clusterName, err := impl.clusterService.DeleteFromDb(deleteRequest, userId)
 	if err != nil {
 		impl.logger.Errorw("error im deleting cluster", "err", err, "deleteRequest", deleteRequest)
 		return err
 	}
+	err = impl.DeleteClusterSecret(deleteRequest, err)
+	if err != nil {
+		impl.logger.Errorw("error in deleting cluster secret", "clusterId", deleteRequest.Id, "error", err)
+		return err
+	}
+	impl.k8sInformerFactory.DeleteClusterFromCache(clusterName)
 	return nil
+}
+
+func (impl DeleteServiceImpl) DeleteClusterSecret(deleteRequest *cluster.ClusterBean, err error) error {
+	// kubelink informers are listening this secret, deleting this secret will inform kubelink that this cluster is deleted
+	k8sClient, err := impl.K8sUtil.GetCoreV1ClientInCluster()
+	if err != nil {
+		impl.logger.Errorw("error in getting in cluster k8s client", "err", err, "clusterName", deleteRequest.ClusterName)
+		return nil
+	}
+	secretName := cluster.ParseSecretNameForKubelinkInformer(deleteRequest.Id)
+	err = impl.K8sUtil.DeleteSecret(cluster.DEFAULT_NAMESPACE, secretName, k8sClient)
+	return err
 }
 
 func (impl DeleteServiceImpl) DeleteEnvironment(deleteRequest *bean.EnvironmentBean, userId int32) error {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024. Devtron Inc.
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,19 +14,22 @@
  * limitations under the License.
  */
 
-package util
+package urlUtil
 
-import "fmt"
+import (
+	"net/url"
+)
 
-func ProcessAppStatuses(appStatuses []string) string {
-	query := ""
-	n := len(appStatuses)
-	for i, status := range appStatuses {
-		query += fmt.Sprintf("'%s'", status)
-		if i < n-1 {
-			query += ","
-		}
+func IsValidUrl(input string) bool {
+	_, err := url.ParseRequestURI(input)
+	if err != nil {
+		return false
 	}
 
-	return query
+	u, err := url.Parse(input)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return false
+	}
+
+	return true
 }
