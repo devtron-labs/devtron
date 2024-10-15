@@ -119,6 +119,10 @@ type SecretsList struct {
 	ConfigData []*ConfigData `json:"secrets"`
 }
 
+type ConfigsList struct {
+	ConfigData []*ConfigData `json:"maps"`
+}
+
 type ConfigNameAndType struct {
 	Id   int
 	Name string

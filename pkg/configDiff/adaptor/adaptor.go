@@ -3,7 +3,6 @@ package adaptor
 import (
 	bean3 "github.com/devtron-labs/devtron/pkg/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/configDiff/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 )
@@ -31,12 +30,12 @@ func GetCmCsAppAndEnvLevelMap(cMCSNamesAppLevel, cMCSNamesEnvLevel []bean.Config
 	return cMCSNamesAppLevelMap, cMCSNamesEnvLevelMap
 }
 
-func ConfigListConvertor(r bean3.ConfigList) pipeline.ConfigsList {
+func ConfigListConvertor(r bean3.ConfigList) bean.ConfigsList {
 	pipelineConfigData := make([]*bean.ConfigData, 0, len(r.ConfigData))
 	for _, item := range r.ConfigData {
 		pipelineConfigData = append(pipelineConfigData, adapter.ConvertConfigDataToPipelineConfigData(item))
 	}
-	return pipeline.ConfigsList{ConfigData: pipelineConfigData}
+	return bean.ConfigsList{ConfigData: pipelineConfigData}
 }
 
 func SecretListConvertor(r bean3.SecretList) bean.SecretsList {
@@ -47,7 +46,7 @@ func SecretListConvertor(r bean3.SecretList) bean.SecretsList {
 	return bean.SecretsList{ConfigData: pipelineConfigData}
 }
 
-func ReverseConfigListConvertor(r pipeline.ConfigsList) bean3.ConfigList {
+func ReverseConfigListConvertor(r bean.ConfigsList) bean3.ConfigList {
 	configData := make([]*bean3.ConfigData, 0, len(r.ConfigData))
 	for _, item := range r.ConfigData {
 		configData = append(configData, adapter.ConvertPipelineConfigDataToConfigData(item))
