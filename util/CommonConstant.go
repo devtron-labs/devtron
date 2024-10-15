@@ -29,4 +29,5 @@ const (
 	ConfigMapSecretUsageTypeEnvironment string = "environment"
 	ConfigMapSecretUsageTypeVolume      string = "volume"
 	YamlSeparator                       string = "---\n"
+	NotSupportedErr                            = "This feature is not supported"
 )

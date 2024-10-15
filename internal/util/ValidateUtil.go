@@ -18,6 +18,7 @@ package util
 
 import (
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	"github.com/devtron-labs/devtron/util/urlUtil"
 	"regexp"
 	"strings"
 
@@ -65,7 +66,7 @@ func validateNonEmptyUrl(fl validator.FieldLevel) bool {
 	if value == "" {
 		return true
 	}
-	return IsValidUrl(value)
+	return urlUtil.IsValidUrl(value)
 }
 
 func IntValidator() (*validator.Validate, error) {

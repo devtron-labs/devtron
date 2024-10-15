@@ -111,13 +111,6 @@ func (router AppRouterImpl) InitAppRouter(AppRouter *mux.Router) {
 		HandlerFunc(router.appListingRestHandler.GetHostUrlsByBatch).
 		Methods("GET")
 
-	//This API used for fetch app details, not deployment details
-	AppRouter.Path("/detail").
-		Queries("app-id", "{app-id}").
-		Queries("env-id", "{env-id}").
-		HandlerFunc(router.appListingRestHandler.FetchAppDetails).
-		Methods("GET")
-
 	AppRouter.Path("/detail/v2").Queries("app-id", "{app-id}").
 		Queries("env-id", "{env-id}").
 		HandlerFunc(router.appListingRestHandler.FetchAppDetailsV2).
