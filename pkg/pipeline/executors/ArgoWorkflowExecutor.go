@@ -59,6 +59,7 @@ type WorkflowExecutor interface {
 	TerminateWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) error
 	GetWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) (*unstructured.UnstructuredList, error)
 	GetWorkflowStatus(workflowName string, namespace string, clusterConfig *rest.Config) (*types.WorkflowStatus, error)
+	TerminateDanglingWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) error
 }
 
 type ArgoWorkflowExecutor interface {
@@ -87,6 +88,10 @@ func (impl *ArgoWorkflowExecutorImpl) TerminateWorkflow(workflowName string, nam
 	}
 	err = util.TerminateWorkflow(context.Background(), wfClient, workflowName)
 	return err
+}
+
+func (impl *ArgoWorkflowExecutorImpl) TerminateDanglingWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) error {
+
 }
 
 func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.WorkflowTemplate) (*unstructured.UnstructuredList, error) {

@@ -114,6 +114,10 @@ func (impl *SystemWorkflowExecutorImpl) TerminateWorkflow(workflowName string, n
 	return err
 }
 
+func (impl *SystemWorkflowExecutorImpl) TerminateDanglingWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) error {
+
+}
+
 func (impl *SystemWorkflowExecutorImpl) GetWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) (*unstructured.UnstructuredList, error) {
 	templatesList := &unstructured.UnstructuredList{}
 	_, clientset, err := impl.k8sUtil.GetK8sConfigAndClientsByRestConfig(clusterConfig)
