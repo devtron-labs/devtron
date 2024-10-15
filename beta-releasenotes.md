@@ -13,6 +13,7 @@
 - feat: Feature release v9 sql scripts (#5950)
 ## Documentation
 ## Others
+- misc: Replaced != with <> for PostgreSQL compatibility (#5987)
 - misc: Main sync 14 oct 2024 (#5985)
 - misc: isLatest field in plugin_metadata tag changed to not_null (#5984)
 - chore: Main sync develop (#5983)
