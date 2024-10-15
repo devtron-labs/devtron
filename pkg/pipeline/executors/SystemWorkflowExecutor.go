@@ -114,8 +114,35 @@ func (impl *SystemWorkflowExecutorImpl) TerminateWorkflow(workflowName string, n
 	return err
 }
 
-func (impl *SystemWorkflowExecutorImpl) TerminateDanglingWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) error {
-
+func (impl *SystemWorkflowExecutorImpl) TerminateDanglingWorkflow(workflowGenerateName string, namespace string, clusterConfig *rest.Config) error {
+	_, clientset, err := impl.k8sUtil.GetK8sConfigAndClientsByRestConfig(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("error occurred while creating k8s client", "workflowGenerateName", workflowGenerateName, "namespace", namespace, "err", err)
+		return err
+	}
+	jobList, err := clientset.BatchV1().Jobs(namespace).List(context.Background(), v12.ListOptions{})
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching jobs list for terminating dangling workflows", "namespace", namespace, "err", err)
+		return err
+	}
+	var jobToDelete v1.Job
+	for _, job := range jobList.Items {
+		if job.ObjectMeta.GenerateName == workflowGenerateName {
+			jobToDelete = job
+			break
+		}
+	}
+	if len(jobToDelete.Name) > 0 {
+		err = clientset.BatchV1().Jobs(namespace).Delete(context.Background(), jobToDelete.Name, v12.DeleteOptions{})
+		if err != nil {
+			if errors.IsNotFound(err) {
+				err = fmt.Errorf("cannot find job workflow %s", jobToDelete.Name)
+			}
+			impl.logger.Errorw("error occurred while deleting workflow", "workflowName", jobToDelete.Name, "namespace", namespace, "err", err)
+			return err
+		}
+	}
+	return nil
 }
 
 func (impl *SystemWorkflowExecutorImpl) GetWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) (*unstructured.UnstructuredList, error) {

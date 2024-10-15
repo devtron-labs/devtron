@@ -39,13 +39,14 @@ import (
 )
 
 type CancelWfRequestDto struct {
-	ExecutorType cdWorkflow.WorkflowExecutorType
-	Name         string
-	Namespace    string
-	RestConfig   *rest.Config
-	IsExt        bool
-	Environment  *repository.Environment
-	ForceAbort   bool
+	ExecutorType         cdWorkflow.WorkflowExecutorType
+	WorkflowName         string
+	Namespace            string
+	RestConfig           *rest.Config
+	IsExt                bool
+	Environment          *repository.Environment
+	ForceAbort           bool
+	WorkflowGenerateName string
 }
 
 // build infra configurations like ciTimeout,ciCpuLimit,ciMemLimit,ciCpuReq,ciMemReq are being managed by infraConfig service

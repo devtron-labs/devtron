@@ -354,7 +354,7 @@ func (impl *WorkflowServiceImpl) GetWorkflowStatus(executorType cdWorkflow.Workf
 }
 
 func (impl *WorkflowServiceImpl) TerminateWorkflow(cancelWfDtoRequest *types.CancelWfRequestDto) error {
-	impl.Logger.Debugw("terminating wf", "name", cancelWfDtoRequest.Name)
+	impl.Logger.Debugw("terminating wf", "name", cancelWfDtoRequest.WorkflowName)
 	var err error
 	if cancelWfDtoRequest.ExecutorType != "" {
 		workflowExecutor := impl.getWorkflowExecutor(cancelWfDtoRequest.ExecutorType)
@@ -364,36 +364,28 @@ func (impl *WorkflowServiceImpl) TerminateWorkflow(cancelWfDtoRequest *types.Can
 		if cancelWfDtoRequest.RestConfig == nil {
 			cancelWfDtoRequest.RestConfig = impl.config
 		}
-		err = workflowExecutor.TerminateWorkflow(cancelWfDtoRequest.Name, cancelWfDtoRequest.Namespace, cancelWfDtoRequest.RestConfig)
+		err = workflowExecutor.TerminateWorkflow(cancelWfDtoRequest.WorkflowName, cancelWfDtoRequest.Namespace, cancelWfDtoRequest.RestConfig)
 	} else {
 		wfClient, err := impl.getWfClient(cancelWfDtoRequest.Environment, cancelWfDtoRequest.Namespace, cancelWfDtoRequest.IsExt)
 		if err != nil {
 			return err
 		}
-		err = util.TerminateWorkflow(context.Background(), wfClient, cancelWfDtoRequest.Name)
+		err = util.TerminateWorkflow(context.Background(), wfClient, cancelWfDtoRequest.WorkflowName)
 	}
 	return err
 }
 
 func (impl *WorkflowServiceImpl) TerminateDanglingWorkflows(cancelWfDtoRequest *types.CancelWfRequestDto) error {
-	impl.Logger.Debugw("terminating dangling wf", "name", cancelWfDtoRequest.Name)
+	impl.Logger.Debugw("terminating dangling wf", "name", cancelWfDtoRequest.WorkflowName)
 	var err error
-	if cancelWfDtoRequest.ExecutorType != "" {
-		workflowExecutor := impl.getWorkflowExecutor(cancelWfDtoRequest.ExecutorType)
-		if workflowExecutor == nil {
-			return errors.New("workflow executor not found")
-		}
-		if cancelWfDtoRequest.RestConfig == nil {
-			cancelWfDtoRequest.RestConfig = impl.config
-		}
-		err = workflowExecutor.TerminateWorkflow(cancelWfDtoRequest.Name, cancelWfDtoRequest.Namespace, cancelWfDtoRequest.RestConfig)
-	} else {
-		wfClient, err := impl.getWfClient(cancelWfDtoRequest.Environment, cancelWfDtoRequest.Namespace, cancelWfDtoRequest.IsExt)
-		if err != nil {
-			return err
-		}
-		err = util.TerminateWorkflow(context.Background(), wfClient, cancelWfDtoRequest.Name)
+	workflowExecutor := impl.getWorkflowExecutor(cancelWfDtoRequest.ExecutorType)
+	if workflowExecutor == nil {
+		return errors.New("workflow executor not found")
 	}
+	if cancelWfDtoRequest.RestConfig == nil {
+		cancelWfDtoRequest.RestConfig = impl.config
+	}
+	err = workflowExecutor.TerminateDanglingWorkflow(cancelWfDtoRequest.WorkflowGenerateName, cancelWfDtoRequest.Namespace, cancelWfDtoRequest.RestConfig)
 	return err
 }
 

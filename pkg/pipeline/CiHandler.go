@@ -607,7 +607,7 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, er
 	// Terminate workflow
 	cancelWfDtoRequest := &types.CancelWfRequestDto{
 		ExecutorType: workflow.ExecutorType,
-		Name:         workflow.Name,
+		WorkflowName: workflow.Name,
 		Namespace:    workflow.Namespace,
 		RestConfig:   restConfig,
 		IsExt:        isExt,
@@ -617,10 +617,12 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, er
 	err = impl.workflowService.TerminateWorkflow(cancelWfDtoRequest)
 	if err != nil && forceAbort {
 		impl.Logger.Errorw("error in terminating workflow, with force abort flag flag as true", "workflowName", workflow.Name, "err", err)
+
+		cancelWfDtoRequest.WorkflowGenerateName = fmt.Sprintf("%d-%s-", workflowId, workflow.Name)
 		err1 := impl.workflowService.TerminateDanglingWorkflows(cancelWfDtoRequest)
 		if err1 != nil {
 			impl.Logger.Errorw("error in terminating dangling workflows", "cancelWfDtoRequest", cancelWfDtoRequest, "err", err)
-			return 0, err1
+			// ignoring error here in case of force abort, confirmed from product
 		}
 	} else if err != nil && strings.Contains(err.Error(), "cannot find workflow") {
 		return 0, &util.ApiError{Code: "200", HttpStatusCode: http.StatusBadRequest, UserMessage: err.Error()}
