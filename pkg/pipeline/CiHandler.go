@@ -630,10 +630,13 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, er
 		impl.Logger.Errorw("cannot terminate wf", "err", err)
 		return 0, err
 	}
-	err = impl.handleForceAbortCase(workflow, forceAbort)
-	if err != nil {
-		impl.Logger.Errorw("error in handleForceAbortCase", "forceAbortFlag", forceAbort, "workflow", workflow, "err", err)
-		return 0, err
+	if forceAbort {
+		err = impl.handleForceAbortCase(workflow, forceAbort)
+		if err != nil {
+			impl.Logger.Errorw("error in handleForceAbortCase", "forceAbortFlag", forceAbort, "workflow", workflow, "err", err)
+			return 0, err
+		}
+		return workflow.Id, nil
 	}
 
 	workflow.Status = executors.WorkflowCancel
