@@ -532,7 +532,7 @@ func (handler *PipelineConfigRestHandlerImpl) checkCiPatchAccess(token string, r
 	}
 
 	appId := 0
-	envIds := make([]int, len(cdPipelines))
+	envIds := make([]int, 0, len(cdPipelines))
 	for _, cdPipeline := range cdPipelines {
 		envIds = append(envIds, cdPipeline.EnvironmentId)
 		appId = cdPipeline.AppId
