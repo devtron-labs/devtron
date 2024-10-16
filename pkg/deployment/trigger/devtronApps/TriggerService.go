@@ -98,6 +98,8 @@ type TriggerService interface {
 	TriggerPostStage(request bean.TriggerRequest) error
 	TriggerPreStage(request bean.TriggerRequest) error
 
+	TriggerAutoCDOnPreStageSuccess(triggerContext bean.TriggerContext, cdPipelineId, ciArtifactId, workflowId int, triggerdBy int32, scanExecutionHistoryId int) error
+	
 	TriggerStageForBulk(triggerRequest bean.TriggerRequest) error
 
 	ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest) (int, string, error)
