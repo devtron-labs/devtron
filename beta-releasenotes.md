@@ -1,4 +1,5 @@
 ## Bugs
+- fix: helm deployment status  (#5996)
 - fix: deployment window FIXED type (#5986)
 - fix: oss-app-details (#5970)
 - fix: appdetails fix (#5965)
