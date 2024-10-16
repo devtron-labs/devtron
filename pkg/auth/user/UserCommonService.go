@@ -18,6 +18,7 @@ package user
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/auth/user/util"
 	"golang.org/x/exp/maps"
 	"math"
 	"strings"
@@ -421,22 +422,21 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 			workflows := strings.Split(roleFilter.Workflow, ",")
 			accessType := roleFilter.AccessType
 			actionType := roleFilter.Action
+			entityToWorkflowMapping := util.GetCrossProductMappingForSlices(entityNames, workflows)
 			for _, environment := range environments {
-				for _, entityName := range entityNames {
-					for _, workflow := range workflows {
-						roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false, workflow)
-						if err != nil {
-							impl.logger.Errorw("Error in fetching roles by filter", "user", request)
-							return nil, nil, err
-						}
-						if roleModel.Id == 0 {
-							impl.logger.Warnw("no role found for given filter", "filter", roleFilter)
-							request.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
-							continue
-						}
-						if _, ok := existingRoles[roleModel.Id]; ok {
-							delete(eliminatedRoles, roleModel.Id)
-						}
+				for entityName, workflow := range entityToWorkflowMapping {
+					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false, workflow)
+					if err != nil {
+						impl.logger.Errorw("Error in fetching roles by filter", "user", request)
+						return nil, nil, err
+					}
+					if roleModel.Id == 0 {
+						impl.logger.Warnw("no role found for given filter", "filter", roleFilter)
+						request.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
+						continue
+					}
+					if _, ok := existingRoles[roleModel.Id]; ok {
+						delete(eliminatedRoles, roleModel.Id)
 					}
 				}
 			}
@@ -445,32 +445,30 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 			environments := strings.Split(roleFilter.Environment, ",")
 			accessType := roleFilter.AccessType
 			actionType := roleFilter.Action
-			for _, environment := range environments {
-				for _, entityName := range entityNames {
-					roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false, "")
-					if err != nil {
-						impl.logger.Errorw("Error in fetching roles by filter", "user", request)
-						return nil, nil, err
-					}
-					oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", true, "")
-					if err != nil {
-						impl.logger.Errorw("Error in fetching roles by filter by old values", "user", request)
-						return nil, nil, err
-					}
-					if roleModel.Id == 0 && oldRoleModel.Id == 0 {
-						impl.logger.Warnw("no role found for given filter", "filter", roleFilter)
-						request.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
-						continue
-					}
-					if _, ok := existingRoles[roleModel.Id]; ok {
-						delete(eliminatedRoles, roleModel.Id)
-					}
-					isChartGroupEntity := roleFilter.Entity == bean2.CHART_GROUP_ENTITY
-					if _, ok := existingRoles[oldRoleModel.Id]; ok && !isChartGroupEntity {
-						//delete old role mapping from existing but not from eliminated roles (so that it gets deleted)
-						delete(existingRoles, oldRoleModel.Id)
-					}
-
+			envEntityNameMapping := util.GetCrossProductMappingForSlices(environments, entityNames)
+			for environment, entityName := range envEntityNameMapping {
+				roleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", false, "")
+				if err != nil {
+					impl.logger.Errorw("Error in fetching roles by filter", "user", request)
+					return nil, nil, err
+				}
+				oldRoleModel, err := impl.userAuthRepository.GetRoleByFilterForAllTypes(roleFilter.Entity, roleFilter.Team, entityName, environment, actionType, accessType, "", "", "", "", "", "", true, "")
+				if err != nil {
+					impl.logger.Errorw("Error in fetching roles by filter by old values", "user", request)
+					return nil, nil, err
+				}
+				if roleModel.Id == 0 && oldRoleModel.Id == 0 {
+					impl.logger.Warnw("no role found for given filter", "filter", roleFilter)
+					request.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + actionType
+					continue
+				}
+				if _, ok := existingRoles[roleModel.Id]; ok {
+					delete(eliminatedRoles, roleModel.Id)
+				}
+				isChartGroupEntity := roleFilter.Entity == bean2.CHART_GROUP_ENTITY
+				if _, ok := existingRoles[oldRoleModel.Id]; ok && !isChartGroupEntity {
+					//delete old role mapping from existing but not from eliminated roles (so that it gets deleted)
+					delete(existingRoles, oldRoleModel.Id)
 				}
 			}
 		}

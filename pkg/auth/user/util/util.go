@@ -39,3 +39,16 @@ func CheckIfAdminOrApiToken(email string) bool {
 func CheckIfApiToken(email string) bool {
 	return strings.HasPrefix(email, ApiTokenPrefix)
 }
+
+// GetCrossProductMappingForSlices generates a cross product mapping for passed on slice, order of function
+// params matter where slice1 values will be the key and slice2 values will be corresponding map's values.
+// eg. params:- slice1:= [a,b], slice2:= [p,q] ;returns:- a:p, a:q, b:p, b:q
+func GetCrossProductMappingForSlices[T comparable](slice1 []T, slice2 []T) map[T]T {
+	entityMapping := make(map[T]T, len(slice1)*len(slice2))
+	for _, item1 := range slice1 {
+		for _, item2 := range slice2 {
+			entityMapping[item1] = item2
+		}
+	}
+	return entityMapping
+}

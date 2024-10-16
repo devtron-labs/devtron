@@ -446,6 +446,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 		// DELETE PROCESS ENDS
 
 		//Adding New Policies
+		start1 := time.Now()
 		for index, roleFilter := range request.RoleFilters {
 			if roleFilter.Entity == bean2.CLUSTER_ENTITIY {
 				policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, roleGroup, existingRoles, tx, mapping[index])
@@ -474,6 +475,8 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 				}
 			}
 		}
+		dur1 := time.Since(start1)
+		fmt.Println("for loop for CreateOrUpdateRoleGroupForOtherEntity- ", dur1)
 	} else if request.SuperAdmin == true {
 		flag, err := impl.userAuthRepository.CreateRoleForSuperAdminIfNotExists(tx, request.UserId)
 		if err != nil || flag == false {
