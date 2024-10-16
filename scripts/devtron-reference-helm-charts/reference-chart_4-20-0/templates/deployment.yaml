@@ -11,6 +11,11 @@
   {{- end }}
   {{- end }}
 
+  {{- $hasPVCExists := false -}}
+  {{- if .Values.persistentVolumeClaim.name }}
+  {{- $hasPVCExists = true }}
+  {{- end }}
+
   {{- $hasSecretEnvExists := false -}}
   {{- $hasSecretVolumeExists := false -}}
   {{- if .Values.ConfigSecrets.enabled }}
@@ -25,8 +30,8 @@
   {{- end }}
 
 
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   name: {{ include ".Chart.Name .fullname" $ }}
   labels:
@@ -35,18 +40,16 @@ metadata:
     release: {{ $.Release.Name }}
     releaseVersion: {{ $.Values.releaseVersion | quote }}
     pipelineName: {{ .Values.pipelineName }}
-{{- if .Values.deploymentLabels }}
-{{ toYaml .Values.deploymentLabels | indent 4 }}
+{{- if .Values.rolloutLabels }}
+{{ toYaml .Values.rolloutLabels | indent 4 }}
 {{- end }}
 {{- if .Values.appLabels }}
 {{ toYaml .Values.appLabels | indent 4 }}
 {{- end }}
-
-{{- if .Values.deploymentAnnotations }}
+{{- if .Values.rolloutAnnotations }}
   annotations:
-{{ toYaml .Values.deploymentAnnotations | indent 4 }}
+{{ toYaml .Values.rolloutAnnotations | indent 4 }}
 {{- end }}
-
 spec:
   selector:
     matchLabels:
@@ -67,6 +70,9 @@ spec:
         appId: {{ $.Values.app | quote }}
         envId: {{ $.Values.env | quote }}
         release: {{ $.Release.Name }}
+{{- if .Values.customPodLabels  }}
+{{ toYaml .Values.customPodLabels | indent 8 }}  
+{{- end }}        
 {{- if .Values.appLabels }}
 {{ toYaml .Values.appLabels | indent 8 }}
 {{- end }}
@@ -93,12 +99,18 @@ spec:
                 operator: In
                 values:
                 - {{ $.Values.Spec.Affinity.Values | default "nodes"  }}
+{{- else if $.Values.affinity.enabled }}
+      affinity: 
+{{ toYaml .Values.affinity.values | indent 8 }}
 {{- end }}
 {{- if $.Values.serviceAccountName }}
       serviceAccountName: {{ $.Values.serviceAccountName }}
 {{- else  }}
       serviceAccountName: {{ template "serviceAccountName" . }}
 {{- end }}
+{{- if $.Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName }}
+{{- end }}      
   {{- if .Values.tolerations }}
       tolerations:
 {{ toYaml .Values.tolerations | indent 8 }}
@@ -114,7 +126,7 @@ spec:
 {{- range $.Values.topologySpreadConstraints }}
       - maxSkew: {{ .maxSkew }}
         topologyKey: {{ .topologyKey }}
-        whenUnsatisfiable: {{ .whenUnsatisfiable }}
+        whenUnsatisfiable: {{ .whenUnsatisfiable }}             
         labelSelector:
           matchLabels:
           {{- if and .autoLabelSelector .customLabelSelector }}
@@ -128,13 +140,13 @@ spec:
 {{ toYaml .customLabelSelector | indent 12 }}
           {{- end }}
 {{- end }}
-{{- end }}
+{{- end }}    
 {{- if $.Values.podSecurityContext }}
       securityContext:
 {{ toYaml .Values.podSecurityContext | indent 8 }}
 {{- end }}
 {{- if $.Values.restartPolicy }}
-      restartPolicy: {{  $.Values.restartPolicy }}
+      restartPolicy: {{  $.Values.restartPolicy  }}
 {{- end }}
 {{- if $.Values.initContainers}}
       initContainers:
@@ -151,6 +163,10 @@ spec:
           command:
 {{ toYaml .command | indent 12 -}}
 {{- end}}
+{{- if .args}}
+          args:
+{{ toYaml .args | indent 12 -}}
+{{- end}}
 {{- if .resources}}
           resources:
 {{ toYaml .resources | indent 12 -}}
@@ -166,64 +182,6 @@ spec:
 {{- end}}
 {{- end}}
       containers:
-{{- if $.Values.appMetrics }}
-        - name: envoy
-          image: {{ $.Values.envoyproxy.image | default "envoyproxy/envoy:v1.14.1"}}
-          {{- if $.Values.envoyproxy.lifecycle }}
-          lifecycle:
-{{ toYaml .Values.envoyproxy.lifecycle | indent 12 -}}
-          {{- else if $.Values.containerSpec.lifecycle.enabled }}
-          lifecycle:
-           {{- if $.Values.containerSpec.lifecycle.preStop }}
-           preStop:
-{{ toYaml $.Values.containerSpec.lifecycle.preStop | indent 12 -}}
-           {{- end }}
-          {{- end }}
-          resources:
-{{ toYaml $.Values.envoyproxy.resources | trim | indent 12 }}
-          ports:
-            - containerPort: 9901
-              protocol: TCP
-              name: envoy-admin
-              {{- range $index, $element := .Values.ContainerPort }}
-            - name: {{ $element.name}}
-              containerPort: {{ $element.envoyPort | default (add 8790 $index) }}
-              protocol: TCP
-              {{- end }}
-          command: ["/usr/local/bin/envoy"]
-          args: ["-c", "/etc/envoy-config/envoy-config.json", "-l", "info", "--log-format", "[METADATA][%Y-%m-%d %T.%e][%t][%l][%n] %v"]
-          volumeMounts:
-            - name: {{ $.Values.envoyproxy.configMapName | default "envoy-config-volume" }}
-              mountPath: /etc/envoy-config/
-{{- end}}
-{{- if $.Values.containers }}
-{{- range $i, $c := .Values.containers }}
-{{- if .reuseContainerImage}}
-        - name: {{ $.Chart.Name }}-sidecontainer-{{ add1 $i }}
-          image: "{{ $.Values.server.deployment.image }}:{{ $.Values.server.deployment.image_tag }}"
-          imagePullPolicy: {{ $.Values.image.pullPolicy }}
-{{- if .securityContext }}
-          securityContext:
-{{ toYaml .securityContext | indent 12 }}
-{{- end }}
-{{- if .command}}
-          command:
-{{ toYaml .command | indent 12 -}}
-{{- end}}
-{{- if .resources}}
-          resources:
-{{ toYaml .resources | indent 12 -}}
-{{- end}}
-{{- if .volumeMounts}}
-          volumeMounts:
-{{ toYaml .volumeMounts | indent 12 -}}
-{{- end}}
-{{- else}}
-        -
-{{ toYaml . | indent 10 }}
-{{- end}}
-{{- end}}
-{{- end}}
         - name: {{ $.Chart.Name }}
           image: "{{ .Values.server.deployment.image }}:{{ .Values.server.deployment.image_tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
@@ -252,11 +210,15 @@ spec:
 {{- if $.Values.containerExtraSpecs }}	
 {{ toYaml .Values.containerExtraSpecs | indent 10 }}	
 {{- end }}
+{{- if $.Values.resizePolicy }}
+          resizePolicy:
+{{ toYaml .Values.resizePolicy | indent 12 }}          
+{{- end }}          
           ports:
           {{- range $.Values.ContainerPort }}
             - name: {{ .name}}
               containerPort: {{ .port  }}
-              protocol: TCP
+              protocol: {{ .protocol }}
           {{- end}}
 {{- if and $.Values.command.enabled $.Values.command.workingDir }}
           workingDir: {{ $.Values.command.workingDir }}
@@ -271,9 +233,9 @@ spec:
 {{- end }}
           env:
             - name: CONFIG_HASH
-              value: {{ include (print $.Chart.Name "/templates/configmap.yaml") . | sha256sum }}
+              value: {{ include (print $.Chart.Name "/templates/configmap.yaml") . | sha256sum }}{{ if and (.Values.devtronInternal) (.Values.devtronInternal.containerSpecs.ConfigHash) }}{{ .Values.devtronInternal.containerSpecs.ConfigHash }}{{ end }}
             - name: SECRET_HASH
-              value: {{ include (print $.Chart.Name "/templates/secret.yaml") . | sha256sum }}
+              value: {{ include (print $.Chart.Name "/templates/secret.yaml") . | sha256sum }}{{ if and (.Values.devtronInternal) (.Values.devtronInternal.containerSpecs.SecretHash) }}{{ .Values.devtronInternal.containerSpecs.SecretHash }}{{ end }}
             - name: DEVTRON_APP_NAME
               value: {{ template ".Chart.Name .name" $ }}
             - name: POD_NAME
@@ -285,11 +247,13 @@ spec:
             - name: DEVTRON_CONTAINER_TAG
               value: "{{ .Values.server.deployment.image_tag }}"
           {{- range $.Values.EnvVariablesFromFieldPath }}
+          {{- if and .name .fieldPath }}
             - name: {{ .name }}
               valueFrom:
                 fieldRef:
                  fieldPath: {{ .fieldPath }}
-          {{- end}}
+          {{- end }}
+          {{- end }}
           {{- range $.Values.EnvVariables }}
           {{- if and .name .value }}
             - name: {{ .name }}
@@ -342,12 +306,13 @@ spec:
           {{- end }}
           {{- end }}
 
-{{- if or $.Values.LivenessProbe.Path $.Values.LivenessProbe.command $.Values.LivenessProbe.tcp $.Values.LivenessProbe.grpc }}
+{{- if or $.Values.LivenessProbe.Path $.Values.LivenessProbe.command $.Values.LivenessProbe.tcp }}
           livenessProbe:
 {{- if $.Values.LivenessProbe.Path }}
             httpGet:
               path: {{ $.Values.LivenessProbe.Path  }}
               port: {{ $.Values.LivenessProbe.port }}
+              scheme: {{ $.Values.LivenessProbe.scheme }}
             {{- if $.Values.LivenessProbe.httpHeaders }}
               httpHeaders:
               {{- range $.Values.LivenessProbe.httpHeaders}}
@@ -370,17 +335,14 @@ spec:
             successThreshold: {{ $.Values.LivenessProbe.successThreshold  }}
             timeoutSeconds: {{ $.Values.LivenessProbe.timeoutSeconds  }}
             failureThreshold: {{ $.Values.LivenessProbe.failureThreshold  }}
-          {{- if $.Values.LivenessProbe.grpc }}
-            grpc:
-{{ toYaml .Values.LivenessProbe.grpc | indent 14 }}
-          {{- end }}
 {{- end }}
-{{- if or $.Values.ReadinessProbe.Path  $.Values.ReadinessProbe.command $.Values.ReadinessProbe.tcp $.Values.ReadinessProbe.grpc }}
+{{- if or $.Values.ReadinessProbe.Path  $.Values.ReadinessProbe.command $.Values.ReadinessProbe.tcp }}
           readinessProbe:
 {{- if $.Values.ReadinessProbe.Path }}
             httpGet:
               path: {{ $.Values.ReadinessProbe.Path  }}
               port: {{ $.Values.ReadinessProbe.port }}
+              scheme: {{ $.Values.ReadinessProbe.scheme }}
             {{- if $.Values.ReadinessProbe.httpHeaders }}
               httpHeaders:
               {{- range $.Values.ReadinessProbe.httpHeaders}}
@@ -403,14 +365,10 @@ spec:
             successThreshold: {{ $.Values.ReadinessProbe.successThreshold  }}
             timeoutSeconds: {{ $.Values.ReadinessProbe.timeoutSeconds  }}
             failureThreshold: {{ $.Values.ReadinessProbe.failureThreshold  }}
-          {{- if $.Values.ReadinessProbe.grpc }}
-            grpc:
-{{ toYaml .Values.ReadinessProbe.grpc | indent 14 }}
-            {{- end}}
 {{- end }}
           resources:
 {{ toYaml $.Values.resources | trim | indent 12 }}
-{{- if or $.Values.StartupProbe.Path  $.Values.StartupProbe.command $.Values.StartupProbe.tcp $.Values.StartupProbe.grpc }}
+{{- if or $.Values.StartupProbe.Path  $.Values.StartupProbe.command $.Values.StartupProbe.tcp }}
           startupProbe:
 {{- if $.Values.StartupProbe.Path }}
             httpGet:
@@ -438,15 +396,15 @@ spec:
             successThreshold: {{ $.Values.StartupProbe.successThreshold  }}
             timeoutSeconds: {{ $.Values.StartupProbe.timeoutSeconds  }}
             failureThreshold: {{ $.Values.StartupProbe.failureThreshold  }}
-            {{- if $.Values.StartupProbe.grpc }}
-            grpc:
-{{ toYaml .Values.StartupProbe.grpc | indent 14 }}
-            {{- end}}
 {{- end }}
           volumeMounts:
 {{- with .Values.volumeMounts }}
 {{ toYaml . | trim | indent 12 }}
 {{- end }}
+{{- if  $.Values.persistentVolumeClaim.name }}
+            - name: {{ .Values.persistentVolumeClaim.name }}-vol
+              mountPath: {{ .Values.persistentVolumeClaim.mountPath | default "/tmp" }}
+{{- end}}
           {{- if .Values.ConfigMaps.enabled }}
           {{- range .Values.ConfigMaps.maps }}
           {{- if eq .type "volume"}}
@@ -477,7 +435,22 @@ spec:
               mountPath: {{ $cmMountPath }}
 	      
           {{- else }}
-          {{- range $k, $v := .data }}
+          {{if (or (eq .externalType "ESO_GoogleSecretsManager") (eq .externalType "ESO_AWSSecretsManager") (eq .externalType "ESO_HashiCorpVault") (eq .externalType "ESO_AzureSecretsManager"))}}
+          {{- if and (.esoSubPath) (ne (len .esoSubPath) 0) }}
+          {{- range .esoSubPath }}
+            - name: {{ $cmName | replace "." "-"}}-vol
+              mountPath: {{ $cmMountPath}}/{{ . }}
+              subPath: {{ . }}  
+          {{- end }}
+          {{- else }}
+          {{- range .esoSecretData.esoData }}
+            - name: {{ $cmName | replace "." "-"}}-vol
+              mountPath: {{ $cmMountPath}}/{{ .secretKey }}
+              subPath: {{ .secretKey }}  
+          {{- end }}
+          {{- end }}
+          {{- else }}            
+          {{- range $k, $v := .data }} # for others secrets the mount path will be .data[i].secretKey
             - name: {{ $cmName | replace "." "-"}}-vol
               mountPath: {{ $cmMountPath}}/{{ $k}}
               subPath: {{ $k}}
@@ -486,15 +459,90 @@ spec:
           {{- end }}
           {{- end }}
           {{- end }}
-          {{- if and (eq (len .Values.volumes) 0) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) }} []{{- end }}
-          {{- if and (eq (len .Values.volumeMounts) 0) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) }} []{{- end }}
-
+          {{- end }}
+          {{- if and (eq (len .Values.volumes) 0) (eq ($hasPVCExists) false) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) }} []{{- end }}
+          {{- if and (eq (len .Values.volumeMounts) 0) (eq ($hasPVCExists) false) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) }} [] {{- end }}      
+{{- if $.Values.appMetrics }}
+        - name: envoy
+          image: {{ $.Values.envoyproxy.image | default "quay.io/devtron/envoy:v1.16.0"}}
+          {{- if $.Values.envoyproxy.lifecycle }}
+          lifecycle:
+{{ toYaml .Values.envoyproxy.lifecycle | indent 12 -}}
+          {{- else if $.Values.containerSpec.lifecycle.enabled }}
+          lifecycle:
+           {{- if $.Values.containerSpec.lifecycle.preStop }}
+           preStop:
+{{ toYaml $.Values.containerSpec.lifecycle.preStop | indent 12 -}}
+           {{- end }}
+          {{- end }}
+          resources:
+{{ toYaml $.Values.envoyproxy.resources | trim | indent 12 }}
+          ports:
+            - containerPort: 9901
+              protocol: TCP
+              name: envoy-admin
+              {{- range $index, $element := .Values.ContainerPort }}
+            - name: {{ $element.name}}
+              containerPort: {{ $element.envoyPort | default (add 8790 $index) }}
+              protocol: TCP
+              {{- end }}
+          command: ["/usr/local/bin/envoy"]
+          args: ["-c", "/etc/envoy-config/envoy-config.json", "-l", "info", "--log-format", "[METADATA][%Y-%m-%d %T.%e][%t][%l][%n] %v"]
+          volumeMounts:
+            - name: {{ $.Values.envoyproxy.configMapName | default "envoy-config-volume" }}
+              mountPath: /etc/envoy-config/envoy-config-volume
+{{- if $.Values.envoyproxy.readinessProbe}}
+          readinessProbe:
+{{ toYaml $.Values.envoyproxy.readinessProbe | indent 12}} 
+{{- end }}  
+{{- if $.Values.envoyproxy.livenessProbe}}
+          readinessProbe:
+{{ toYaml $.Values.envoyproxy.livenessProbe | indent 12}} 
+{{- end }}               
+{{- end}}
+{{- if $.Values.containers }}
+{{- range $i, $c := .Values.containers }}
+{{- if .reuseContainerImage}}
+        - name: {{ $.Chart.Name }}-sidecontainer-{{ add1 $i }}
+          image: "{{ $.Values.server.deployment.image }}:{{ $.Values.server.deployment.image_tag }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+{{- if .securityContext }}
+          securityContext:
+{{ toYaml .securityContext | indent 12 }}
+{{- end }}
+{{- if .command}}
+          command:
+{{ toYaml .command | indent 12 -}}
+{{- end}}
+{{- if .resizePolicy }}
+          resizePolicy:
+{{ toYaml .resziePolicy | indent 12}}
+{{- end }}
+{{- if .resources}}
+          resources:
+{{ toYaml .resources | indent 12 -}}
+{{- end}}
+{{- if .volumeMounts}}
+          volumeMounts:
+{{ toYaml .volumeMounts | indent 12 -}}
+{{- end}}
+{{- else}}
+        -
+{{ toYaml . | indent 10 }}
+{{- end}}
+{{- end}}
+{{- end}}
       volumes:
   {{- if $.Values.appMetrics }}
         - name: envoy-config-volume
           configMap:
             name: sidecar-config-{{ template ".Chart.Name .name" $ }}
   {{- end }}
+{{- if .Values.persistentVolumeClaim.name }}
+        - name: {{.Values.persistentVolumeClaim.name}}-vol
+          persistentVolumeClaim:
+            claimName: {{.Values.persistentVolumeClaim.name }}
+{{- end}}
 {{- with .Values.volumes }}
 {{ toYaml . | trim | indent 8 }}
 {{- end }}
@@ -515,7 +563,6 @@ spec:
       {{- end }}
       {{- end }}
       {{- end }}
-
       {{- if .Values.ConfigSecrets.enabled }}
       {{- range .Values.ConfigSecrets.secrets }}
       {{- if eq .type "volume"}}
@@ -533,19 +580,33 @@ spec:
       {{- end }}
       {{- end }}
       {{- end }}
-      {{- if and (eq (len .Values.volumes) 0) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) (eq (.Values.appMetrics) false) }} []{{- end }}
-      {{- if and (eq (len .Values.volumes) 0) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) (eq (.Values.appMetrics) false) }} []{{- end }}
-
+      {{- if and (eq (len .Values.volumes) 0) (eq ($hasPVCExists) false) (or (eq (.Values.ConfigSecrets.enabled) true) (eq (.Values.ConfigMaps.enabled) true)) (eq ($hasCMVolumeExists) false) (eq ($hasSecretVolumeExists) false) (eq (.Values.appMetrics) false) }} []{{- end }}
+      {{- if and (eq (len .Values.volumes) 0) (eq ($hasPVCExists) false) (eq (.Values.ConfigSecrets.enabled) false) (eq (.Values.ConfigMaps.enabled) false) (eq (.Values.appMetrics) false) }} []{{- end }}
   revisionHistoryLimit: 3
 ##  pauseForSecondsBeforeSwitchActive: {{ $.Values.pauseForSecondsBeforeSwitchActive }}
 #  waitForSecondsBeforeScalingDown: {{ $.Values.waitForSecondsBeforeScalingDown }}
   strategy:
-    {{- if eq .Values.deploymentType "ROLLING" }}
-    type: "RollingUpdate"
-    rollingUpdate:
+    {{- if eq .Values.deploymentType "BLUE-GREEN" }}
+    blueGreen: # A new field that used to provide configurable options for a BlueGreenUpdate strategy
+      previewService: {{ template ".previewservicename" . }} # Reference to a service that can serve traffic to a new image before it receives the active traffic
+      activeService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
+      autoPromotionSeconds: {{ $.Values.deployment.strategy.blueGreen.autoPromotionSeconds  }}
+      scaleDownDelaySeconds: {{ $.Values.deployment.strategy.blueGreen.scaleDownDelaySeconds }}
+      previewReplicaCount: {{ $.Values.deployment.strategy.blueGreen.previewReplicaCount  }}
+      autoPromotionEnabled: {{ $.Values.deployment.strategy.blueGreen.autoPromotionEnabled  }}
+    {{- else if eq .Values.deploymentType "ROLLING" }}
+    canary:
+      stableService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
       maxSurge: {{ $.Values.deployment.strategy.rolling.maxSurge }}
       maxUnavailable: {{ $.Values.deployment.strategy.rolling.maxUnavailable }}
-    {{- end }}
-    {{- if eq .Values.deploymentType "RECREATE" }}
-    type: "Recreate"
+    {{- else if eq .Values.deploymentType "RECREATE" }}
+    recreate:
+      activeService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
+    {{- else if eq .Values.deploymentType "CANARY" }}
+    canary:
+      stableService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
+      maxSurge: {{ $.Values.deployment.strategy.canary.maxSurge }}
+      maxUnavailable: {{ $.Values.deployment.strategy.canary.maxUnavailable }}
+      steps:
+{{ toYaml .Values.deployment.strategy.canary.steps | indent 8 }}
     {{- end }}

@@ -1,0 +1,48 @@
+{{ $serviceMonitorEnabled := include "serviceMonitorEnabled" . }}
+{{- if eq "true" $serviceMonitorEnabled -}}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ template ".Chart.Name .fullname" . }}-sm
+  labels:
+    kind: Prometheus
+    app: {{ template ".Chart.Name .name" . }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" . }}
+    release: {{ .Values.prometheus.release }}
+    {{- if .Values.servicemonitor.additionalLabels }}
+{{ toYaml .Values.servicemonitor.additionalLabels | indent 4 }}
+    {{- end }}
+spec:
+  endpoints:
+    {{- range .Values.ContainerPort }}
+      {{- if  .servicemonitor }}
+        {{- if .servicemonitor.enabled}}
+          {{- if .servicePort }}
+    - port: {{ .name }}
+      {{- if .servicemonitor.path }}
+      path: {{ .servicemonitor.path}}
+      {{- end }}
+      {{- if .servicemonitor.scheme }}
+      scheme: {{ .servicemonitor.scheme}}
+      {{- end }}
+      {{- if .servicemonitor.interval }}
+      interval: {{ .servicemonitor.interval}}
+      {{- end }}
+      {{- if .servicemonitor.scrapeTimeout }}
+      scrapeTimeout: {{ .servicemonitor.scrapeTimeout}}
+      {{- end }}
+      {{- if .servicemonitor.metricRelabelings}}
+      metricRelabelings:
+{{toYaml .servicemonitor.metricRelabelings | indent 8 }}
+      {{- end }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  selector:
+    matchLabels:
+      app: {{ template ".Chart.Name .name" $ }}
+{{- end }}
