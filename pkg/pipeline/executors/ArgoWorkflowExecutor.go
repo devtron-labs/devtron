@@ -110,11 +110,6 @@ func (impl *ArgoWorkflowExecutorImpl) TerminateDanglingWorkflow(workflowGenerate
 		}
 	}
 	if len(wfToDelete.Name) > 0 {
-		_, err = wfClient.Get(context.Background(), wfToDelete.Name, v1.GetOptions{})
-		if err != nil {
-			impl.logger.Errorw("cannot find workflow", "name", wfToDelete.Name, "err", err)
-			return errors.New("cannot find workflow " + wfToDelete.Name)
-		}
 		err = util.TerminateWorkflow(context.Background(), wfClient, wfToDelete.Name)
 		if err != nil {
 			impl.logger.Errorw("error in terminating argo executor workflow", "name", wfToDelete.Name, "err", err)
