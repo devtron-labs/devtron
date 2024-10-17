@@ -933,7 +933,7 @@ func (impl *WorkflowDagExecutorImpl) deactivateUnusedPaths(reserveImagePathIds [
 	unusedPaths := make([]string, 0, len(reservedImagePaths))
 	for _, reservedImage := range reservedImagePaths {
 		if _, ok := copiedImagesMapping[reservedImage.ImagePath]; !ok {
-			if len(buildImagePath) > 0 && !strings.Contains(reservedImage.ImagePath, buildImagePath) {
+			if !strings.Contains(reservedImage.ImagePath, buildImagePath) {
 				unusedPaths = append(unusedPaths, reservedImage.ImagePath)
 			}
 		}
