@@ -10,6 +10,7 @@
 - fix: Bulk deploy panic and docker tag handling (#5949)
 - fix: stage artifact logic  (#5913)
 ## Enhancements
+- feat: Config diff 3 oss (#5837)
 - feat: terminal role casbin policy (#5991)
 - feat: refactoring argo application service and common-lib constants (#5944)
 - feat: Feature release v9 sql scripts (#5950)
