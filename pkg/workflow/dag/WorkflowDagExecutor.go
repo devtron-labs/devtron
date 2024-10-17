@@ -913,7 +913,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 func (impl *WorkflowDagExecutorImpl) deactivateUnusedPaths(reserveImagePathIds []int, pluginRegistryArtifactDetails map[string][]string) error {
 	// for copy container image plugin if images reserved are not equal to actual copird
 
-	if pluginRegistryArtifactDetails == nil {
+	if len(pluginRegistryArtifactDetails) == 0 {
 		return nil
 	}
 
