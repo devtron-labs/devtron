@@ -229,5 +229,7 @@ type DeploymentTemplateMetadata struct {
 }
 
 const (
-	NoDeploymentDoneForSelectedImage = "there were no deployments done for the selected image"
+	NoDeploymentDoneForSelectedImage      = "there were no deployments done for the selected image"
+	ExpectedWfrIdNotPassedInQueryParamErr = "wfrId is expected in the query param which was not passed"
+	SecretMaskedValue                     = "*****"
 )

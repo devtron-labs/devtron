@@ -31,6 +31,7 @@ import (
 	"github.com/juju/errors"
 	"go.uber.org/zap"
 	"net/http"
+	"strconv"
 )
 
 type DeploymentConfigurationService interface {
@@ -140,7 +141,7 @@ func (impl *DeploymentConfigurationServiceImpl) GetAllConfigData(ctx context.Con
 		envId = env.Id
 		clusterId = env.ClusterId
 		systemMetadata.EnvironmentName = env.Name
-		systemMetadata.Namespace = env.Name
+		systemMetadata.Namespace = env.Namespace
 		systemMetadata.ClusterName = env.Cluster.ClusterName
 	}
 	appId, err = impl.appRepository.FindAppIdByName(configDataQueryParams.AppName)
@@ -161,6 +162,9 @@ func (impl *DeploymentConfigurationServiceImpl) GetAllConfigData(ctx context.Con
 
 func (impl *DeploymentConfigurationServiceImpl) getConfigDataForCdRollback(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams, userHasAdminAccess bool) (*bean2.DeploymentAndCmCsConfigDto, error) {
 	// wfrId is expected in this case to return the expected data
+	if configDataQueryParams.WfrId == 0 {
+		return nil, &util.ApiError{HttpStatusCode: http.StatusNotFound, Code: strconv.Itoa(http.StatusNotFound), InternalMessage: bean2.ExpectedWfrIdNotPassedInQueryParamErr, UserMessage: bean2.ExpectedWfrIdNotPassedInQueryParamErr}
+	}
 	return impl.getConfigDataForDeploymentHistory(ctx, configDataQueryParams, userHasAdminAccess)
 }
 
@@ -323,12 +327,7 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsConfigHistory(ctx context
 		return nil, err
 	}
 	resolvedConfigDataReq := &bean.ConfigDataRequest{ConfigData: resolvedConfigDataList}
-	resolvedConfigDataString, err := utils.ConvertToString(resolvedConfigDataReq)
-	if err != nil {
-		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in converting config data to json raw message", "pipelineId", configDataQueryParams.PipelineId, "wfrId", configDataQueryParams.WfrId, "err", err)
-		return nil, err
-	}
-	resolvedConfigDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedConfigDataString)
+	resolvedConfigDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedConfigDataReq)
 	if err != nil {
 		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in ConvertToJsonRawMessage for resolvedConfigDataString", "pipelineId", configDataQueryParams.PipelineId, "wfrId", configDataQueryParams.WfrId, "err", err)
 		return nil, err
@@ -355,7 +354,7 @@ func (impl *DeploymentConfigurationServiceImpl) encodeSecretDataFromNonAdminUser
 				}
 				for key, _ := range resultMap {
 					//hard-coding values to show them as hidden to user
-					resultMapFinal[key] = "*****"
+					resultMapFinal[key] = bean2.SecretMaskedValue
 				}
 				config.Data, err = utils.ConvertToJsonRawMessage(resultMapFinal)
 				if err != nil {

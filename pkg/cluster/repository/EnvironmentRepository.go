@@ -168,7 +168,6 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindEnvByNameWithClusterDetails(
 		Column("environment.*", "Cluster").
 		Where("environment.environment_name = ?", envName).
 		Where("environment.active = ?", true).
-		Limit(1).
 		Select()
 	return environment, err
 }

@@ -763,12 +763,7 @@ func (impl *ConfigMapHistoryServiceImpl) getResolvedConfigData(ctx context.Conte
 		return nil, err
 	}
 	resolvedConfigDataReq := &bean3.ConfigDataRequest{ConfigData: resolvedConfigDataList}
-	resolvedConfigDataString, err := utils.ConvertToString(resolvedConfigDataReq)
-	if err != nil {
-		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in converting config data to json raw message", "pipelineId", pipelineId, "deployedOn", deployedOn, "err", err)
-		return nil, err
-	}
-	resolvedConfigDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedConfigDataString)
+	resolvedConfigDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedConfigDataReq)
 	if err != nil {
 		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in ConvertToJsonRawMessage for resolvedJson", "resolvedJson", resolvedConfigDataStringJson, "err", err)
 		return nil, err

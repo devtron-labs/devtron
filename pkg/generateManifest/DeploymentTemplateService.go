@@ -235,11 +235,7 @@ func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Cont
 		result.ResolvedData = resolvedValue
 		result.VariableSnapshot = variableSnapshot
 		if response != nil {
-			result.Data = response.Data
-			result.ResolvedData = response.ResolvedData
-			result.VariableSnapshot = response.VariableSnapshot
-			result.TemplateVersion = response.TemplateVersion
-			result.IsAppMetricsEnabled = response.IsAppMetricsEnabled
+			result = ConvertPointerDeploymentTemplateResponseToNonPointer(response)
 		}
 		return result, nil
 	}
@@ -251,7 +247,9 @@ func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Cont
 	if err != nil {
 		return result, err
 	}
-	result.Data = *manifest.Manifest
+	if manifest != nil {
+		result.Data = *manifest.Manifest
+	}
 	return result, nil
 }
 
