@@ -923,16 +923,16 @@ func (impl *WorkflowDagExecutorImpl) deactivateUnusedPaths(reserveImagePathIds [
 		return err
 	}
 
-	usedImagesMapping := make(map[string]bool)
+	copiedImagesMapping := make(map[string]bool)
 	for _, savedImages := range pluginRegistryArtifactDetails {
 		for _, image := range savedImages {
-			usedImagesMapping[image] = true
+			copiedImagesMapping[image] = true
 		}
 	}
 
 	unusedPaths := make([]string, 0, len(reservedImagePaths))
 	for _, reservedImage := range reservedImagePaths {
-		if _, ok := usedImagesMapping[reservedImage.ImagePath]; !ok {
+		if _, ok := copiedImagesMapping[reservedImage.ImagePath]; !ok {
 			unusedPaths = append(unusedPaths, reservedImage.ImagePath)
 		}
 	}
