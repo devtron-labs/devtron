@@ -549,7 +549,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext t
 		}
 		util4.MergeMaps(pluginArtifacts, cdStageCompleteEvent.PluginRegistryArtifactDetails)
 
-		err = impl.deactivateUnusedPaths(wfRunner.ImagePathReservationIds, pluginArtifacts)
+		err = impl.deactivateUnusedPaths(wfRunner.ImagePathReservationIds, "", pluginArtifacts)
 		if err != nil {
 			impl.logger.Errorw("error in deactiving unusedImagePaths", "err", err)
 			return err
@@ -674,7 +674,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(triggerContext 
 	}
 	if len(pluginRegistryImageDetails) > 0 {
 		if wfr != nil {
-			err = impl.deactivateUnusedPaths(wfr.ImagePathReservationIds, pluginRegistryImageDetails)
+			err = impl.deactivateUnusedPaths(wfr.ImagePathReservationIds, "", pluginRegistryImageDetails)
 			if err != nil {
 				impl.logger.Errorw("error in deactivation images", "err", err)
 				return err
@@ -735,7 +735,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateCiWorkflowForCiSuccess(request *bean2
 		return err
 	}
 
-	err = impl.deactivateUnusedPaths(savedWorkflow.ImagePathReservationIds, request.PluginRegistryArtifactDetails)
+	err = impl.deactivateUnusedPaths(savedWorkflow.ImagePathReservationIds, request.Image, request.PluginRegistryArtifactDetails)
 	if err != nil {
 		impl.logger.Errorw("error in deactivation images", "err", err)
 		return err
@@ -910,8 +910,13 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 	return buildArtifact.Id, err
 }
 
-func (impl *WorkflowDagExecutorImpl) deactivateUnusedPaths(reserveImagePathIds []int, pluginRegistryArtifactDetails map[string][]string) error {
+func (impl *WorkflowDagExecutorImpl) deactivateUnusedPaths(reserveImagePathIds []int, buildImagePath string, pluginRegistryArtifactDetails map[string][]string) error {
 	// for copy container image plugin if images reserved are not equal to actual copird
+
+	if len(pluginRegistryArtifactDetails) == 0 {
+		return nil
+	}
+
 	reservedImagePaths, err := impl.customTagService.GetImagePathsByIds(reserveImagePathIds)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting imagePaths by ids", "ImagePathReservationIds", reserveImagePathIds, "err", err)
@@ -928,6 +933,9 @@ func (impl *WorkflowDagExecutorImpl) deactivateUnusedPaths(reserveImagePathIds [
 	unusedPaths := make([]string, 0, len(reservedImagePaths))
 	for _, reservedImage := range reservedImagePaths {
 		if _, ok := copiedImagesMapping[reservedImage.ImagePath]; !ok {
+			if len(buildImagePath) > 0 && strings.Contains(reservedImage.ImagePath, buildImagePath) {
+				continue
+			}
 			unusedPaths = append(unusedPaths, reservedImage.ImagePath)
 		}
 	}
