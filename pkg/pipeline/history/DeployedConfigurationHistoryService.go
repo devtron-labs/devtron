@@ -152,6 +152,7 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetDeployedConfigurationByW
 		impl.logger.Errorw("error in checking if history exists for deployment template", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		return nil, err
 	}
+
 	deploymentTemplateConfiguration := &DeploymentConfigurationDto{
 		Name: DEPLOYMENT_TEMPLATE_TYPE_HISTORY_COMPONENT,
 	}
@@ -161,6 +162,7 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetDeployedConfigurationByW
 	deployedConfigurations = append(deployedConfigurations, deploymentTemplateConfiguration)
 
 	//checking if pipeline strategy configuration for this pipelineId and wfrId exists or not
+
 	strategyHistoryId, exists, err := impl.strategyHistoryService.CheckIfHistoryExistsForPipelineIdAndWfrId(newCtx, pipelineId, wfrId)
 	if err != nil {
 		impl.logger.Errorw("error in checking if history exists for pipeline strategy", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
