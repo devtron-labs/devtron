@@ -59,6 +59,7 @@ type WorkflowExecutor interface {
 	TerminateWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) error
 	GetWorkflow(workflowName string, namespace string, clusterConfig *rest.Config) (*unstructured.UnstructuredList, error)
 	GetWorkflowStatus(workflowName string, namespace string, clusterConfig *rest.Config) (*types.WorkflowStatus, error)
+	TerminateDanglingWorkflow(workflowGenerateName string, namespace string, clusterConfig *rest.Config) error
 }
 
 type ArgoWorkflowExecutor interface {
@@ -87,6 +88,35 @@ func (impl *ArgoWorkflowExecutorImpl) TerminateWorkflow(workflowName string, nam
 	}
 	err = util.TerminateWorkflow(context.Background(), wfClient, workflowName)
 	return err
+}
+
+func (impl *ArgoWorkflowExecutorImpl) TerminateDanglingWorkflow(workflowGenerateName string, namespace string, clusterConfig *rest.Config) error {
+	impl.logger.Debugw("terminating dangling wf", "workflowGenerateName", workflowGenerateName)
+	wfClient, err := impl.getClientInstance(namespace, clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("cannot build wf client", "workflowGenerateName", workflowGenerateName, "err", err)
+		return err
+	}
+	wfList, err := wfClient.List(context.Background(), v1.ListOptions{})
+	if err != nil {
+		impl.logger.Errorw("error in fetching list of workflows", "namespace", namespace, "err", err)
+		return err
+	}
+	var wfToDelete v1alpha1.Workflow
+	for _, wf := range wfList.Items {
+		if wf.GenerateName == workflowGenerateName {
+			wfToDelete = wf
+			break
+		}
+	}
+	if len(wfToDelete.Name) > 0 {
+		err = util.TerminateWorkflow(context.Background(), wfClient, wfToDelete.Name)
+		if err != nil {
+			impl.logger.Errorw("error in terminating argo executor workflow", "name", wfToDelete.Name, "err", err)
+			return err
+		}
+	}
+	return nil
 }
 
 func (impl *ArgoWorkflowExecutorImpl) ExecuteWorkflow(workflowTemplate bean.WorkflowTemplate) (*unstructured.UnstructuredList, error) {

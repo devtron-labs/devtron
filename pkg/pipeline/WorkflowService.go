@@ -51,7 +51,8 @@ type WorkflowService interface {
 	GetWorkflowStatus(executorType cdWorkflow.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*types.WorkflowStatus, error)
 	// ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
 	// UpdateWorkflow(wf *v1alpha1.Workflow) (*v1alpha1.Workflow, error)
-	TerminateWorkflow(executorType cdWorkflow.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config, isExt bool, environment *repository.Environment) error
+	TerminateWorkflow(cancelWfDtoRequest *types.CancelWfRequestDto) error
+	TerminateDanglingWorkflows(cancelWfDtoRequest *types.CancelWfRequestDto) error
 }
 
 type WorkflowServiceImpl struct {
@@ -352,27 +353,42 @@ func (impl *WorkflowServiceImpl) GetWorkflowStatus(executorType cdWorkflow.Workf
 	return wfStatus, err
 }
 
-func (impl *WorkflowServiceImpl) TerminateWorkflow(executorType cdWorkflow.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config, isExt bool, environment *repository.Environment) error {
-	impl.Logger.Debugw("terminating wf", "name", name)
+func (impl *WorkflowServiceImpl) TerminateWorkflow(cancelWfDtoRequest *types.CancelWfRequestDto) error {
+	impl.Logger.Debugw("terminating wf", "name", cancelWfDtoRequest.WorkflowName)
 	var err error
-	if executorType != "" {
-		workflowExecutor := impl.getWorkflowExecutor(executorType)
+	if cancelWfDtoRequest.ExecutorType != "" {
+		workflowExecutor := impl.getWorkflowExecutor(cancelWfDtoRequest.ExecutorType)
 		if workflowExecutor == nil {
 			return errors.New("workflow executor not found")
 		}
-		if restConfig == nil {
-			restConfig = impl.config
+		if cancelWfDtoRequest.RestConfig == nil {
+			cancelWfDtoRequest.RestConfig = impl.config
 		}
-		err = workflowExecutor.TerminateWorkflow(name, namespace, restConfig)
+		err = workflowExecutor.TerminateWorkflow(cancelWfDtoRequest.WorkflowName, cancelWfDtoRequest.Namespace, cancelWfDtoRequest.RestConfig)
 	} else {
-		wfClient, err := impl.getWfClient(environment, namespace, isExt)
+		wfClient, err := impl.getWfClient(cancelWfDtoRequest.Environment, cancelWfDtoRequest.Namespace, cancelWfDtoRequest.IsExt)
 		if err != nil {
 			return err
 		}
-		err = util.TerminateWorkflow(context.Background(), wfClient, name)
+		err = util.TerminateWorkflow(context.Background(), wfClient, cancelWfDtoRequest.WorkflowName)
 	}
 	return err
 }
+
+func (impl *WorkflowServiceImpl) TerminateDanglingWorkflows(cancelWfDtoRequest *types.CancelWfRequestDto) error {
+	impl.Logger.Debugw("terminating dangling wf", "name", cancelWfDtoRequest.WorkflowName)
+	var err error
+	workflowExecutor := impl.getWorkflowExecutor(cancelWfDtoRequest.ExecutorType)
+	if workflowExecutor == nil {
+		return errors.New("workflow executor not found")
+	}
+	if cancelWfDtoRequest.RestConfig == nil {
+		cancelWfDtoRequest.RestConfig = impl.config
+	}
+	err = workflowExecutor.TerminateDanglingWorkflow(cancelWfDtoRequest.WorkflowGenerateName, cancelWfDtoRequest.Namespace, cancelWfDtoRequest.RestConfig)
+	return err
+}
+
 func (impl *WorkflowServiceImpl) getRuntimeEnvClientInstance(environment *repository.Environment) (v1alpha12.WorkflowInterface, error) {
 	restConfig, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(context.Background(), environment.ClusterId)
 	if err != nil {
