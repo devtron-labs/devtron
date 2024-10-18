@@ -327,7 +327,12 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsConfigHistory(ctx context
 		return nil, err
 	}
 	resolvedConfigDataReq := &bean.ConfigDataRequest{ConfigData: resolvedConfigDataList}
-	resolvedConfigDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedConfigDataReq)
+	resolvedConfigDataString, err := utils.ConvertToString(resolvedConfigDataReq)
+	if err != nil {
+		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in converting config data to json raw message", "pipelineId", configDataQueryParams.PipelineId, "wfrId", configDataQueryParams.WfrId, "err", err)
+		return nil, err
+	}
+	resolvedConfigDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedConfigDataString)
 	if err != nil {
 		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in ConvertToJsonRawMessage for resolvedConfigDataString", "pipelineId", configDataQueryParams.PipelineId, "wfrId", configDataQueryParams.WfrId, "err", err)
 		return nil, err
