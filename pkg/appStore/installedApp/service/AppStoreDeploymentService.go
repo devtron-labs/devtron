@@ -464,7 +464,7 @@ func (impl *AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Conte
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	if installedApp.InstalledAppId > 0 && installedApp.DeploymentAppType != util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+	if installedApp.InstalledAppId > 0 {
 		installedAppModel, err := impl.installedAppRepository.GetInstalledApp(installedApp.InstalledAppId)
 		if err != nil {
 			impl.logger.Errorw("error while fetching installed app", "error", err)
@@ -492,7 +492,8 @@ func (impl *AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Conte
 	}
 	// Rollback starts
 	var success bool
-	if installedApp.Id == 0 && util2.IsBaseStack() {
+	//case when the request is for external app case
+	if installedApp.Id == 0 {
 		installedApp, success, err = impl.eaModeDeploymentService.RollbackRelease(ctx, installedApp, request.GetVersion(), tx)
 		if err != nil {
 			impl.logger.Errorw("error while rollback helm release", "error", err)
