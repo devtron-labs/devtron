@@ -1364,6 +1364,9 @@ func (impl *TriggerServiceImpl) getEnrichedWorkflowRunner(overrideRequest *bean3
 func (impl *TriggerServiceImpl) writeCDTriggerEvent(overrideRequest *bean3.ValuesOverrideRequest, artifact *repository3.CiArtifact, releaseId, pipelineOverrideId, wfrId int) {
 
 	event, err := impl.eventFactory.Build(util2.Trigger, &overrideRequest.PipelineId, overrideRequest.AppId, &overrideRequest.EnvId, util2.CD)
+	if err != nil {
+		impl.logger.Errorw("error in building cd trigger event", "cdPipelineId", overrideRequest.PipelineId, "err", err)
+	}
 	impl.logger.Debugw("event WriteCDTriggerEvent", "event", event)
 	wfr := impl.getEnrichedWorkflowRunner(overrideRequest, artifact, wfrId)
 	event = impl.eventFactory.BuildExtraCDData(event, wfr, pipelineOverrideId, bean3.CD_WORKFLOW_TYPE_DEPLOY)
