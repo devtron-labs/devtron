@@ -1,0 +1,1 @@
+DELETE FROM casbin_rule where v0='role:super-admin___' and v1='terminal';

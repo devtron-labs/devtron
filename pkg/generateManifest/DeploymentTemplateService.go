@@ -62,6 +62,8 @@ type DeploymentTemplateService interface {
 	GetDeploymentTemplate(ctx context.Context, request DeploymentTemplateRequest) (DeploymentTemplateResponse, error)
 	GenerateManifest(ctx context.Context, request *DeploymentTemplateRequest, valuesYaml string) (*openapi2.TemplateChartResponse, error)
 	GetRestartWorkloadData(ctx context.Context, appIds []int, envId int) (*RestartPodResponse, error)
+	GetDeploymentTemplateWithResolvedData(ctx context.Context, request DeploymentTemplateRequest) (DeploymentTemplateResponse, error)
+	ResolveTemplateVariables(ctx context.Context, values string, request DeploymentTemplateRequest) (string, map[string]string, error)
 }
 type DeploymentTemplateServiceImpl struct {
 	Logger                           *zap.SugaredLogger
@@ -201,6 +203,7 @@ func (impl DeploymentTemplateServiceImpl) FetchDeploymentsWithChartRefs(appId in
 
 func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Context, request DeploymentTemplateRequest) (DeploymentTemplateResponse, error) {
 	var result DeploymentTemplateResponse
+	var response *DeploymentTemplateResponse
 	var values, resolvedValue string
 	var err error
 	var variableSnapshot map[string]string
@@ -217,9 +220,9 @@ func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Cont
 			_, values, err = impl.chartRefService.GetAppOverrideForDefaultTemplate(request.ChartRefId)
 			resolvedValue = values
 		case repository.PublishedOnEnvironments:
-			values, resolvedValue, variableSnapshot, err = impl.fetchResolvedTemplateForPublishedEnvs(ctx, request)
+			response, err = impl.fetchResolvedTemplateForPublishedEnvs(ctx, request)
 		case repository.DeployedOnSelfEnvironment, repository.DeployedOnOtherEnvironment:
-			values, resolvedValue, variableSnapshot, err = impl.fetchTemplateForDeployedEnv(ctx, request)
+			response, err = impl.fetchTemplateForDeployedEnv(ctx, request)
 		}
 		if err != nil {
 			impl.Logger.Errorw("error in getting values", "err", err)
@@ -227,6 +230,42 @@ func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Cont
 		}
 	}
 
+	if request.RequestDataMode == Values {
+		result.Data = values
+		result.ResolvedData = resolvedValue
+		result.VariableSnapshot = variableSnapshot
+		if response != nil {
+			result = ConvertPointerDeploymentTemplateResponseToNonPointer(response)
+		}
+		return result, nil
+	}
+	if variableSnapshot != nil {
+		result.VariableSnapshot = variableSnapshot
+	}
+	request = impl.setRequestMetadata(&request)
+	manifest, err := impl.GenerateManifest(ctx, &request, resolvedValue)
+	if err != nil {
+		return result, err
+	}
+	if manifest != nil {
+		result.Data = *manifest.Manifest
+	}
+	return result, nil
+}
+
+func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplateWithResolvedData(ctx context.Context, request DeploymentTemplateRequest) (DeploymentTemplateResponse, error) {
+	var result DeploymentTemplateResponse
+	var values, resolvedValue string
+	var err error
+	var variableSnapshot map[string]string
+
+	if request.Values != "" {
+		values = request.Values
+		resolvedValue, variableSnapshot, err = impl.resolveTemplateVariables(ctx, request.Values, request)
+		if err != nil {
+			return result, err
+		}
+	}
 	if request.RequestDataMode == Values {
 		result.Data = values
 		result.ResolvedData = resolvedValue
@@ -281,7 +320,7 @@ func (impl DeploymentTemplateServiceImpl) setRequestMetadata(request *Deployment
 	return *request
 }
 
-func (impl DeploymentTemplateServiceImpl) fetchResolvedTemplateForPublishedEnvs(ctx context.Context, request DeploymentTemplateRequest) (string, string, map[string]string, error) {
+func (impl DeploymentTemplateServiceImpl) fetchResolvedTemplateForPublishedEnvs(ctx context.Context, request DeploymentTemplateRequest) (*DeploymentTemplateResponse, error) {
 	var values string
 	override, err := impl.propertiesConfigService.GetEnvironmentProperties(request.AppId, request.EnvId, request.ChartRefId)
 	if err == nil && override.GlobalConfig != nil {
@@ -292,24 +331,47 @@ func (impl DeploymentTemplateServiceImpl) fetchResolvedTemplateForPublishedEnvs(
 		}
 	} else {
 		impl.Logger.Errorw("error in getting overridden values", "err", err)
-		return "", "", nil, err
+		return nil, err
+	}
+	// handle here for chart ref id in case
+	chartRefId := override.EnvironmentConfig.ChartRefId
+	if chartRefId == 0 {
+		chartRefId = override.GlobalChartRefId
+	}
+	_, _, version, _, err := impl.chartRefService.GetRefChart(chartRefId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting chart ref by chartRefId ", "chartRefId", request.ChartRefId, "err", err)
+		return nil, err
 	}
 	resolvedTemplate, variableSnapshot, err := impl.resolveTemplateVariables(ctx, values, request)
 	if err != nil {
-		return values, values, variableSnapshot, err
+		impl.Logger.Errorw("error in resolving template variables for env override  ", "deploymentTemplateRequest", request, "err", err)
+		return nil, err
 	}
-	return values, resolvedTemplate, variableSnapshot, nil
+	return &DeploymentTemplateResponse{
+		Data:                values,
+		ResolvedData:        resolvedTemplate,
+		VariableSnapshot:    variableSnapshot,
+		TemplateVersion:     version,
+		IsAppMetricsEnabled: *override.AppMetrics,
+	}, nil
 }
 
-func (impl DeploymentTemplateServiceImpl) fetchTemplateForDeployedEnv(ctx context.Context, request DeploymentTemplateRequest) (string, string, map[string]string, error) {
+func (impl DeploymentTemplateServiceImpl) fetchTemplateForDeployedEnv(ctx context.Context, request DeploymentTemplateRequest) (*DeploymentTemplateResponse, error) {
 	historyObject, err := impl.deploymentTemplateHistoryService.GetHistoryForDeployedTemplateById(ctx, request.DeploymentTemplateHistoryId, request.PipelineId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting deployment template history", "err", err, "id", request.DeploymentTemplateHistoryId, "pipelineId", request.PipelineId)
-		return "", "", nil, err
+		return nil, err
 	}
 
 	//todo Subhashish solve variable leak
-	return historyObject.CodeEditorValue.Value, historyObject.CodeEditorValue.ResolvedValue, historyObject.CodeEditorValue.VariableSnapshot, nil
+	return &DeploymentTemplateResponse{
+		Data:                historyObject.CodeEditorValue.Value,
+		ResolvedData:        historyObject.CodeEditorValue.ResolvedValue,
+		VariableSnapshot:    historyObject.CodeEditorValue.VariableSnapshot,
+		TemplateVersion:     historyObject.TemplateVersion,
+		IsAppMetricsEnabled: *historyObject.IsAppMetricsEnabled,
+	}, nil
 }
 
 func (impl DeploymentTemplateServiceImpl) resolveTemplateVariables(ctx context.Context, values string, request DeploymentTemplateRequest) (string, map[string]string, error) {
@@ -556,4 +618,22 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 		return nil, err
 	}
 	return podResp, nil
+}
+
+func (impl DeploymentTemplateServiceImpl) ResolveTemplateVariables(ctx context.Context, values string, request DeploymentTemplateRequest) (string, map[string]string, error) {
+
+	isSuperAdmin, err := util2.GetIsSuperAdminFromContext(ctx)
+	if err != nil {
+		return values, nil, err
+	}
+	scope, err := impl.extractScopeData(request)
+	if err != nil {
+		return values, nil, err
+	}
+	maskUnknownVariableForHelmGenerate := request.RequestDataMode == Manifest
+	resolvedTemplate, variableSnapshot, err := impl.scopedVariableManager.ExtractVariablesAndResolveTemplate(scope, values, parsers.JsonVariableTemplate, isSuperAdmin, maskUnknownVariableForHelmGenerate)
+	if err != nil {
+		return values, variableSnapshot, err
+	}
+	return resolvedTemplate, variableSnapshot, nil
 }

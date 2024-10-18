@@ -1,17 +1,20 @@
 package restHandler
 
 import (
+	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/configDiff"
 	"github.com/devtron-labs/devtron/pkg/configDiff/bean"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/schema"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
+	"time"
 )
 
 type DeploymentConfigurationRestHandler interface {
@@ -88,6 +91,7 @@ func (handler *DeploymentConfigurationRestHandlerImpl) GetConfigData(w http.Resp
 		return
 	}
 
+	configDataQueryParams.UserId = userId
 	//RBAC START
 	token := r.Header.Get(common.TokenHeaderKey)
 	object := handler.enforcerUtil.GetAppRBACName(configDataQueryParams.AppName)
@@ -97,8 +101,12 @@ func (handler *DeploymentConfigurationRestHandlerImpl) GetConfigData(w http.Resp
 		return
 	}
 	//RBAC END
-
-	res, err := handler.deploymentConfigurationService.GetAllConfigData(r.Context(), configDataQueryParams)
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+	userHasAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object)
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	defer cancel()
+	ctx = util2.SetSuperAdminInContext(ctx, isSuperAdmin)
+	res, err := handler.deploymentConfigurationService.GetAllConfigData(ctx, configDataQueryParams, userHasAdminAccess)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAllConfigData ", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
