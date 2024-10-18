@@ -549,12 +549,6 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext t
 		}
 		util4.MergeMaps(pluginArtifacts, cdStageCompleteEvent.PluginRegistryArtifactDetails)
 
-		err = impl.deactivateUnusedPaths(wfRunner.ImagePathReservationIds, "", pluginArtifacts)
-		if err != nil {
-			impl.logger.Errorw("error in deactiving unusedImagePaths", "err", err)
-			return err
-		}
-
 		pipeline, err := impl.pipelineRepository.FindById(cdStageCompleteEvent.CdPipelineId)
 		if err != nil {
 			return err
@@ -673,13 +667,6 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(triggerContext 
 		return err
 	}
 	if len(pluginRegistryImageDetails) > 0 {
-		if wfr != nil {
-			err = impl.deactivateUnusedPaths(wfr.ImagePathReservationIds, "", pluginRegistryImageDetails)
-			if err != nil {
-				impl.logger.Errorw("error in deactivation images", "err", err)
-				return err
-			}
-		}
 		PostCDArtifacts, err := impl.commonArtifactService.SavePluginArtifacts(ciArtifact, pluginRegistryImageDetails, cdPipelineId, repository.POST_CD, triggeredBy)
 		if err != nil {
 			impl.logger.Errorw("error in saving plugin artifacts", "err", err)
@@ -735,11 +722,6 @@ func (impl *WorkflowDagExecutorImpl) UpdateCiWorkflowForCiSuccess(request *bean2
 		return err
 	}
 
-	err = impl.deactivateUnusedPaths(savedWorkflow.ImagePathReservationIds, request.Image, request.PluginRegistryArtifactDetails)
-	if err != nil {
-		impl.logger.Errorw("error in deactivation images", "err", err)
-		return err
-	}
 	return nil
 }
 
@@ -908,45 +890,6 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 	}
 	impl.logger.Debugw("Completed: auto trigger for children Stage/CD pipelines", "Time taken", time.Since(start).Seconds())
 	return buildArtifact.Id, err
-}
-
-func (impl *WorkflowDagExecutorImpl) deactivateUnusedPaths(reserveImagePathIds []int, buildImagePath string, pluginRegistryArtifactDetails map[string][]string) error {
-	// for copy container image plugin if images reserved are not equal to actual copird
-
-	if len(pluginRegistryArtifactDetails) == 0 {
-		return nil
-	}
-
-	reservedImagePaths, err := impl.customTagService.GetImagePathsByIds(reserveImagePathIds)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting imagePaths by ids", "ImagePathReservationIds", reserveImagePathIds, "err", err)
-		return err
-	}
-
-	copiedImagesMapping := make(map[string]bool)
-	for _, savedImages := range pluginRegistryArtifactDetails {
-		for _, image := range savedImages {
-			copiedImagesMapping[image] = true
-		}
-	}
-
-	unusedPaths := make([]string, 0, len(reservedImagePaths))
-	for _, reservedImage := range reservedImagePaths {
-		if _, ok := copiedImagesMapping[reservedImage.ImagePath]; !ok {
-			if len(buildImagePath) > 0 && strings.Contains(reservedImage.ImagePath, buildImagePath) {
-				continue
-			}
-			unusedPaths = append(unusedPaths, reservedImage.ImagePath)
-		}
-	}
-
-	err = impl.customTagService.DeactivateImagePathReservationByImagePath(unusedPaths)
-	if err != nil {
-		impl.logger.Errorw("error in deactivating unused image paths", "imagePathReservationIds", reserveImagePathIds, "err", err)
-		return err
-	}
-
-	return nil
 }
 
 func (impl *WorkflowDagExecutorImpl) WriteCiSuccessEvent(request *bean2.CiArtifactWebhookRequest, pipeline *pipelineConfig.CiPipeline, artifact *repository.CiArtifact) {
