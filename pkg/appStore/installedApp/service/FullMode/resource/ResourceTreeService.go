@@ -35,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s"
@@ -74,6 +75,7 @@ type InstalledAppResourceServiceImpl struct {
 	K8sUtil                              k8s2.K8sService
 	deploymentConfigurationService       common.DeploymentConfigService
 	OCIRegistryConfigRepository          repository2.OCIRegistryConfigRepository
+	argoApplicationService               argoApplication.ArgoApplicationService
 }
 
 func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
@@ -86,7 +88,8 @@ func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
 	appStatusService appStatus.AppStatusService,
 	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService, K8sUtil k8s2.K8sService,
 	deploymentConfigurationService common.DeploymentConfigService,
-	OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository) *InstalledAppResourceServiceImpl {
+	OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository,
+	argoApplicationService argoApplication.ArgoApplicationService) *InstalledAppResourceServiceImpl {
 	return &InstalledAppResourceServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -103,6 +106,7 @@ func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
 		K8sUtil:                              K8sUtil,
 		deploymentConfigurationService:       deploymentConfigurationService,
 		OCIRegistryConfigRepository:          OCIRegistryConfigRepository,
+		argoApplicationService:               argoApplicationService,
 	}
 }
 
@@ -237,7 +241,7 @@ func (impl *InstalledAppResourceServiceImpl) fetchResourceTreeForACD(rctx contex
 	ctx = context.WithValue(ctx, "token", acdToken)
 	defer cancel()
 	start := time.Now()
-	resp, err := impl.acdClient.ResourceTree(ctx, query)
+	resp, err := impl.argoApplicationService.ResourceTree(ctx, query)
 	elapsed := time.Since(start)
 	impl.logger.Debugf("Time elapsed %s in fetching app-store installed application %s for environment %s", elapsed, deploymentAppName, envId)
 	if err != nil {

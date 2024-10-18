@@ -51,10 +51,10 @@ import (
 )
 
 type DeploymentHistoryResp struct {
-	CdWorkflows                []pipelineConfig.CdWorkflowWithArtifact `json:"cdWorkflows"`
-	TagsEdiatable              bool                                    `json:"tagsEditable"`
-	AppReleaseTagNames         []string                                `json:"appReleaseTagNames"` //unique list of tags exists in the app
-	HideImageTaggingHardDelete bool                                    `json:"hideImageTaggingHardDelete"`
+	CdWorkflows                []pipelineBean.CdWorkflowWithArtifact `json:"cdWorkflows"`
+	TagsEdiatable              bool                                  `json:"tagsEditable"`
+	AppReleaseTagNames         []string                              `json:"appReleaseTagNames"` //unique list of tags exists in the app
+	HideImageTaggingHardDelete bool                                  `json:"hideImageTaggingHardDelete"`
 }
 
 type DevtronAppDeploymentRestHandler interface {
@@ -237,14 +237,26 @@ func (handler *PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWr
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
+	ok := true
 	for _, deploymentPipeline := range cdPipeline.Pipelines {
-		if deploymentPipeline.EnvironmentId > 0 {
-			object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(app.AppName, deploymentPipeline.EnvironmentId)
-			handler.Logger.Debugw("Triggered Request By:", "object", object)
-			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); !ok {
-				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		//handling case of change of source from CI_PIPELINE to external-ci type (other change of type any -> any has been handled in ci-pipeline/patch api)
+		if deploymentPipeline.IsSwitchCiPipelineRequest() {
+			cdPipelines, err := handler.getCdPipelinesForCdPatchRbac(deploymentPipeline)
+			if err != nil && !errors.Is(err, pg.ErrNoRows) {
+				handler.Logger.Errorw("error in finding cdPipelines by deploymentPipeline", "deploymentPipeline", deploymentPipeline, "err", err)
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return
 			}
+			ok = handler.checkCiPatchAccess(token, resourceName, cdPipelines)
+
+		} else if deploymentPipeline.EnvironmentId > 0 {
+			object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(app.AppName, deploymentPipeline.EnvironmentId)
+			handler.Logger.Debugw("Triggered Request By:", "object", object)
+			ok = handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object)
+		}
+		if !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
 		}
 	}
 	//RBAC
@@ -1325,17 +1337,16 @@ func (handler *PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Re
 		return
 	}
 	//rbac block ends here
-	var ciArtifactResponse *bean.CiArtifactResponse
-	if handler.pipelineRestHandlerEnvConfig.UseArtifactListApiV2 {
-		artifactsListFilterOptions := &bean2.ArtifactsListFilterOptions{
-			Limit:        limit,
-			Offset:       offset,
-			SearchString: searchString,
-		}
-		ciArtifactResponse, err = handler.pipelineBuilder.RetrieveArtifactsByCDPipelineV2(pipeline, bean2.WorkflowType(stage), artifactsListFilterOptions)
-	} else {
-		ciArtifactResponse, err = handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage))
+	artifactsListFilterOptions := &bean2.ArtifactsListFilterOptions{
+		Limit:        limit,
+		Offset:       offset,
+		SearchString: searchString,
 	}
+
+	//RetrieveArtifactsByCDPipeline is deprecated and method is removed from code
+	//ciArtifactResponse, err = handler.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean2.WorkflowType(stage))
+
+	ciArtifactResponse, err := handler.pipelineBuilder.RetrieveArtifactsByCDPipelineV2(pipeline, bean2.WorkflowType(stage), artifactsListFilterOptions)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1891,7 +1902,7 @@ func (handler *PipelineConfigRestHandlerImpl) DownloadArtifacts(w http.ResponseW
 	}
 	//RBAC CHECK
 
-	file, err := handler.cdHandler.DownloadCdWorkflowArtifacts(pipelineId, buildId)
+	file, err := handler.cdHandler.DownloadCdWorkflowArtifacts(buildId)
 	defer file.Close()
 
 	if err != nil {
@@ -2560,4 +2571,29 @@ func (handler *PipelineConfigRestHandlerImpl) GetGitOpsConfiguration(w http.Resp
 		return
 	}
 	common.WriteJsonResp(w, nil, appGitOpsConfig, http.StatusOK)
+}
+
+// this is being used for getting all cdPipelines in the case of changing the source from any [except] -> external-ci
+func (handler *PipelineConfigRestHandlerImpl) getCdPipelinesForCdPatchRbac(deploymentPipeline *bean.CDPipelineConfigObject) (cdPipelines []*pipelineConfig.Pipeline, err error) {
+	componentId, componentType := deploymentPipeline.PatchSourceInfo()
+	// the appWorkflowId can be taken from patchRequest.AppWorkflowId but doing this can make 2 sources of truth to find the workflow
+	sourceAppWorkflowMapping, err := handler.appWorkflowService.FindWFMappingByComponent(componentType, componentId)
+	if err != nil {
+		handler.Logger.Errorw("error in finding the appWorkflowMapping using componentId and componentType", "componentType", componentType, "componentId", componentId, "err", err)
+		return nil, err
+	}
+	cdPipelineWFMappings, err := handler.appWorkflowService.FindWFCDMappingsByWorkflowId(sourceAppWorkflowMapping.AppWorkflowId)
+	if err != nil {
+		handler.Logger.Errorw("error in finding the appWorkflowMappings of cd pipeline for an appWorkflow", "appWorkflowId", sourceAppWorkflowMapping.AppWorkflowId, "err", err)
+		return cdPipelines, err
+	}
+	if len(cdPipelineWFMappings) == 0 {
+		return
+	}
+
+	cdPipelineIds := make([]int, 0, len(cdPipelineWFMappings))
+	for _, cdWfMapping := range cdPipelineWFMappings {
+		cdPipelineIds = append(cdPipelineIds, cdWfMapping.ComponentId)
+	}
+	return handler.pipelineRepository.FindByIdsIn(cdPipelineIds)
 }

@@ -19,13 +19,9 @@ package util
 import (
 	"errors"
 	"fmt"
-	"k8s.io/apimachinery/pkg/api/resource"
-	"math"
-	"regexp"
-	"strconv"
-	"strings"
-
 	"github.com/xeipuuv/gojsonschema"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"regexp"
 )
 
 const (
@@ -96,62 +92,6 @@ func CpuToNumber(cpu string) (int64, error) {
 		return 0, fmt.Errorf("value cannot be negative")
 	}
 	return quantity.MilliValue(), nil
-}
-
-func convertResource(rp *resourceParser, resource string) (float64, error) {
-	matches := rp.regex.FindAllStringSubmatch(resource, -1)
-	if len(matches) == 0 {
-		return float64(0), errors.New("expected pattern for" + rp.name + "should match" + rp.pattern + ", found " + resource)
-	}
-	if len(matches[0]) < 2 {
-		return float64(0), errors.New("expected pattern for" + rp.name + "should match" + rp.pattern + ", found " + resource)
-	}
-	num, err := ParseFloat(matches[0][1])
-	if err != nil {
-		return float64(0), err
-	}
-	if len(matches[0]) == 3 && matches[0][2] != "" {
-		if suffix, ok := rp.conversions[matches[0][2]]; ok {
-			return num * suffix, nil
-		}
-	} else {
-		return num, nil
-	}
-	return float64(0), errors.New("expected pattern for" + rp.name + "should match" + rp.pattern + ", found " + resource)
-}
-
-func ParseFloat(str string) (float64, error) {
-	val, err := strconv.ParseFloat(str, 64)
-	if err == nil {
-		return val, nil
-	}
-
-	//Some number may be seperated by comma, for example, 23,120,123, so remove the comma firstly
-	str = strings.Replace(str, ",", "", -1)
-
-	//Some number is specifed in scientific notation
-	pos := strings.IndexAny(str, "eE")
-	if pos < 0 {
-		return strconv.ParseFloat(str, 64)
-	}
-
-	var baseVal float64
-	var expVal int64
-
-	baseStr := str[0:pos]
-	baseVal, err = strconv.ParseFloat(baseStr, 64)
-	if err != nil {
-
-		return 0, err
-	}
-
-	expStr := str[(pos + 1):]
-	expVal, err = strconv.ParseInt(expStr, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	return baseVal * math.Pow10(int(expVal)), nil
 }
 
 func CompareLimitsRequests(dat map[string]interface{}, chartVersion string) (bool, error) {

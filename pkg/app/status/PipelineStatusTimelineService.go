@@ -232,7 +232,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 	}
 
 	deploymentAppType = envDeploymentConfig.DeploymentAppType
-	triggeredByUserEmailId, err := impl.userService.GetEmailById(triggeredBy)
+	triggeredByUserEmailId, err := impl.userService.GetActiveEmailById(triggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error in getting user email by id", "err", err, "userId", triggeredBy)
 		return nil, err
@@ -333,7 +333,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesForAppStore(install
 	}
 	installedAppVersionHistoryStatus = installedAppVersionHistory.Status
 	deploymentAppType = deploymentConfig.DeploymentAppType
-	triggeredByUserEmailId, err := impl.userService.GetEmailById(installedAppVersionHistory.CreatedBy)
+	triggeredByUserEmailId, err := impl.userService.GetActiveEmailById(installedAppVersionHistory.CreatedBy)
 	if err != nil {
 		impl.logger.Errorw("error in getting user email by id", "err", err, "userId", installedAppVersionHistory.CreatedBy)
 		return nil, err

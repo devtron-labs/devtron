@@ -35,6 +35,7 @@ type RefPluginName = string
 const (
 	COPY_CONTAINER_IMAGE            RefPluginName = "Copy container image"
 	COPY_CONTAINER_IMAGE_VERSION_V1               = "1.0.0"
+	COPY_CONTAINER_IMAGE_VERSION_V2               = "2.0.0"
 	EMPTY_STRING                                  = " "
 )
 

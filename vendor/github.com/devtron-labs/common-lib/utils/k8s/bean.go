@@ -35,22 +35,6 @@ import (
 	"time"
 )
 
-const (
-	DEFAULT_CLUSTER          = "default_cluster"
-	DEVTRON_SERVICE_NAME     = "devtron-service"
-	DefaultClusterUrl        = "https://kubernetes.default.svc"
-	BearerToken              = "bearer_token"
-	CertificateAuthorityData = "cert_auth_data"
-	CertData                 = "cert_data"
-	TlsKey                   = "tls_key"
-	LiveZ                    = "/livez"
-	Running                  = "Running"
-	RestartingNotSupported   = "restarting not supported"
-	DEVTRON_APP_LABEL_KEY    = "app"
-	DEVTRON_APP_LABEL_VALUE1 = "devtron"
-	DEVTRON_APP_LABEL_VALUE2 = "orchestrator"
-)
-
 type ClusterConfig struct {
 	ClusterName                     string
 	Host                            string

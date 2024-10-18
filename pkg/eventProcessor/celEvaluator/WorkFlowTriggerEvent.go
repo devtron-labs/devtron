@@ -10,7 +10,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"strings"
 )
 
 type TriggerEventEvaluator interface {
@@ -84,12 +83,11 @@ func (impl *TriggerEventEvaluatorImpl) getParamsForPriorityDeployment(valuesOver
 		impl.logger.Errorw("error while getting project", "projectId", valuesOverrideResponse.Pipeline.App.TeamId, "err", err)
 		return nil, err
 	}
-	lastColonIndex := strings.LastIndex(valuesOverrideResponse.Artifact.Image, ":")
-	var containerRepository, containerImageTag string
-	if len(valuesOverrideResponse.Artifact.Image)-1 > lastColonIndex && lastColonIndex != 1 {
-		containerRepository = valuesOverrideResponse.Artifact.Image[:lastColonIndex]
-		containerImageTag = valuesOverrideResponse.Artifact.Image[lastColonIndex+1:]
+	containerRepository, containerImageTag, err := valuesOverrideResponse.Artifact.ExtractImageRepoAndTag()
+	if err != nil {
+		impl.logger.Errorw("error in getting image tag and repo", "err", err)
 	}
+
 	containerImage := valuesOverrideResponse.Artifact.Image
 	params := []cel.ExpressionParam{
 		{

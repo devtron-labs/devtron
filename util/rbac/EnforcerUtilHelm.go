@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -40,6 +41,7 @@ type EnforcerUtilHelmImpl struct {
 	teamRepository         team.TeamRepository
 	appRepository          app.AppRepository
 	InstalledAppRepository repository2.InstalledAppRepository
+	dbMigration            dbMigration.DbMigration
 }
 
 func NewEnforcerUtilHelmImpl(logger *zap.SugaredLogger,
@@ -47,6 +49,7 @@ func NewEnforcerUtilHelmImpl(logger *zap.SugaredLogger,
 	teamRepository team.TeamRepository,
 	appRepository app.AppRepository,
 	installedAppRepository repository2.InstalledAppRepository,
+	migration dbMigration.DbMigration,
 ) *EnforcerUtilHelmImpl {
 	return &EnforcerUtilHelmImpl{
 		logger:                 logger,
@@ -54,6 +57,7 @@ func NewEnforcerUtilHelmImpl(logger *zap.SugaredLogger,
 		teamRepository:         teamRepository,
 		appRepository:          appRepository,
 		InstalledAppRepository: installedAppRepository,
+		dbMigration:            migration,
 	}
 }
 
@@ -98,7 +102,6 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterIdNamespaceAndAppName(clu
 			impl.logger.Errorw("error in fetching app details", "err", err)
 			return "", ""
 		}
-
 		if app.TeamId == 0 {
 			// case if project is not assigned to cli app
 			return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, appName), fmt.Sprintf("%s/%s/%s", team.UNASSIGNED_PROJECT, namespace, appName)
@@ -138,9 +141,15 @@ func (impl EnforcerUtilHelmImpl) getAppObject(clusterId int, namespace string, a
 	}
 	appNameIdentifier := appIdentifier.GetUniqueAppNameIdentifier()
 	appObj, err := impl.appRepository.FindAppAndProjectByAppName(appNameIdentifier)
+	if err == pg.ErrMultiRows {
+		appObj, err = impl.dbMigration.FixMultipleAppsForInstalledApp(appNameIdentifier)
+	}
 	if appObj == nil || err == pg.ErrNoRows {
 		impl.logger.Warnw("appObj not found, going to find app using display name ", "appIdentifier", appNameIdentifier, "appName", appName)
 		appObj, err = impl.appRepository.FindAppAndProjectByAppName(appName)
+		if err == pg.ErrMultiRows {
+			appObj, err = impl.dbMigration.FixMultipleAppsForInstalledApp(appName)
+		}
 	}
 	return appObj, err
 }

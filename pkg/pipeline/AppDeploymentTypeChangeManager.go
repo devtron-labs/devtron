@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	bean5 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
@@ -27,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
 	app2 "github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -192,8 +194,12 @@ func (impl *AppDeploymentTypeChangeManagerImpl) ChangeDeploymentType(ctx context
 
 	for _, pipeline := range pipelines {
 
-		artifactDetails, err := impl.appArtifactManager.RetrieveArtifactsByCDPipeline(pipeline, "DEPLOY")
-
+		artifactsListingFilterOptions := &bean5.ArtifactsListFilterOptions{
+			Limit:        10,
+			Offset:       0,
+			SearchString: "",
+		}
+		artifactDetails, err := impl.appArtifactManager.RetrieveArtifactsByCDPipelineV2(pipeline, bean5.CD_WORKFLOW_TYPE_DEPLOY, artifactsListingFilterOptions)
 		if err != nil {
 			impl.logger.Errorw("failed to fetch artifact details for cd pipeline",
 				"pipelineId", pipeline.Id,
@@ -381,8 +387,12 @@ func (impl *AppDeploymentTypeChangeManagerImpl) TriggerDeploymentAfterTypeChange
 
 	for _, pipeline := range pipelines {
 
-		artifactDetails, err := impl.appArtifactManager.RetrieveArtifactsByCDPipeline(pipeline, "DEPLOY")
-
+		artifactsListingFilterOptions := &bean5.ArtifactsListFilterOptions{
+			Limit:        10,
+			Offset:       0,
+			SearchString: "",
+		}
+		artifactDetails, err := impl.appArtifactManager.RetrieveArtifactsByCDPipelineV2(pipeline, bean5.CD_WORKFLOW_TYPE_DEPLOY, artifactsListingFilterOptions)
 		if err != nil {
 			impl.logger.Errorw("failed to fetch artifact details for cd pipeline",
 				"pipelineId", pipeline.Id,
@@ -500,7 +510,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 				if chartServiceErr == nil {
 					if gitOps.IsGitOpsRepoNotConfigured(chart.GitRepoUrl) {
 						if gitOpsConfigurationStatus.AllowCustomRepository || chart.IsCustomGitRepository {
-							gitOpsRepoNotFound = fmt.Errorf(pipelineConfig.GITOPS_REPO_NOT_CONFIGURED)
+							gitOpsRepoNotFound = fmt.Errorf(cdWorkflow.GITOPS_REPO_NOT_CONFIGURED)
 						} else {
 							_, chartGitAttr, createGitRepoErr = impl.appService.CreateGitOpsRepo(&app.App{Id: pipeline.AppId, AppName: pipeline.App.AppName}, userId)
 							if createGitRepoErr == nil {

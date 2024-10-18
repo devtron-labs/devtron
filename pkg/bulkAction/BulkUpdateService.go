@@ -48,6 +48,7 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/go-pg/pg"
@@ -201,7 +202,8 @@ func (impl BulkUpdateServiceImpl) GetBulkAppName(bulkUpdatePayload *BulkUpdatePa
 
 		//For ConfigMap
 		if bulkUpdatePayload.ConfigMap != nil && bulkUpdatePayload.ConfigMap.Spec != nil && len(bulkUpdatePayload.ConfigMap.Spec.Names) != 0 {
-			configMapAppModels, err := impl.bulkUpdateRepository.FindCMBulkAppModelForGlobal(appNameIncludes, appNameExcludes, bulkUpdatePayload.ConfigMap.Spec.Names)
+			cmNames := util2.GetCopyByValueObject(bulkUpdatePayload.ConfigMap.Spec.Names)
+			configMapAppModels, err := impl.bulkUpdateRepository.FindCMBulkAppModelForGlobal(appNameIncludes, appNameExcludes, cmNames)
 			if err != nil {
 				impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
 				return nil, err
@@ -234,7 +236,8 @@ func (impl BulkUpdateServiceImpl) GetBulkAppName(bulkUpdatePayload *BulkUpdatePa
 		}
 		//For Secret
 		if bulkUpdatePayload.Secret != nil && bulkUpdatePayload.Secret.Spec != nil && len(bulkUpdatePayload.Secret.Spec.Names) != 0 {
-			secretAppModels, err := impl.bulkUpdateRepository.FindSecretBulkAppModelForGlobal(appNameIncludes, appNameExcludes, bulkUpdatePayload.Secret.Spec.Names)
+			secretNames := util2.GetCopyByValueObject(bulkUpdatePayload.Secret.Spec.Names)
+			secretAppModels, err := impl.bulkUpdateRepository.FindSecretBulkAppModelForGlobal(appNameIncludes, appNameExcludes, secretNames)
 			if err != nil {
 				impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
 				return nil, err
@@ -287,7 +290,8 @@ func (impl BulkUpdateServiceImpl) GetBulkAppName(bulkUpdatePayload *BulkUpdatePa
 		}
 		//For ConfigMap
 		if bulkUpdatePayload.ConfigMap != nil && bulkUpdatePayload.ConfigMap.Spec != nil && len(bulkUpdatePayload.ConfigMap.Spec.Names) != 0 {
-			configMapEnvModels, err := impl.bulkUpdateRepository.FindCMBulkAppModelForEnv(appNameIncludes, appNameExcludes, envId, bulkUpdatePayload.ConfigMap.Spec.Names)
+			cmNames := util2.GetCopyByValueObject(bulkUpdatePayload.ConfigMap.Spec.Names)
+			configMapEnvModels, err := impl.bulkUpdateRepository.FindCMBulkAppModelForEnv(appNameIncludes, appNameExcludes, envId, cmNames)
 			if err != nil {
 				impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
 				return nil, err
@@ -322,7 +326,8 @@ func (impl BulkUpdateServiceImpl) GetBulkAppName(bulkUpdatePayload *BulkUpdatePa
 		}
 		//For Secret
 		if bulkUpdatePayload.Secret != nil && bulkUpdatePayload.Secret.Spec != nil && len(bulkUpdatePayload.Secret.Spec.Names) != 0 {
-			secretEnvModels, err := impl.bulkUpdateRepository.FindSecretBulkAppModelForEnv(appNameIncludes, appNameExcludes, envId, bulkUpdatePayload.Secret.Spec.Names)
+			secretNames := util2.GetCopyByValueObject(bulkUpdatePayload.Secret.Spec.Names)
+			secretEnvModels, err := impl.bulkUpdateRepository.FindSecretBulkAppModelForEnv(appNameIncludes, appNameExcludes, envId, secretNames)
 			if err != nil {
 				impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
 				return nil, err
@@ -1315,7 +1320,12 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			continue
 		}
 
-		artifactResponse, err := impl.pipelineBuilder.RetrieveArtifactsByCDPipeline(pipeline, bean.CD_WORKFLOW_TYPE_DEPLOY)
+		artifactsListingFilterOptions := &bean.ArtifactsListFilterOptions{
+			Limit:        10,
+			Offset:       0,
+			SearchString: "",
+		}
+		artifactResponse, err := impl.pipelineBuilder.RetrieveArtifactsByCDPipelineV2(pipeline, bean.CD_WORKFLOW_TYPE_DEPLOY, artifactsListingFilterOptions)
 		if err != nil {
 			impl.logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", pipeline.Id)
 			//return nil, err

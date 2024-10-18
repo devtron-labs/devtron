@@ -113,8 +113,9 @@ type K8sService interface {
 	CreateConfigMap(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) (*v1.ConfigMap, error)
 	GetConfigMap(namespace string, name string, client *v12.CoreV1Client) (*v1.ConfigMap, error)
 	GetConfigMapWithCtx(ctx context.Context, namespace string, name string, client *v12.CoreV1Client) (*v1.ConfigMap, error)
-	CheckIfNsExists(namespace string, client *v12.CoreV1Client) (exists bool, err error)
-	CreateNsIfNotExists(namespace string, clusterConfig *ClusterConfig) (err error)
+	GetNsIfExists(namespace string, client *v12.CoreV1Client) (ns *v1.Namespace, exists bool, err error)
+	CreateNsIfNotExists(namespace string, clusterConfig *ClusterConfig) (ns *v1.Namespace, nsCreated bool, err error)
+	UpdateNSLabels(namespace *v1.Namespace, labels map[string]string, clusterConfig *ClusterConfig) (ns *v1.Namespace, err error)
 	GetK8sDiscoveryClientInCluster() (*discovery.DiscoveryClient, error)
 	GetK8sDiscoveryClient(clusterConfig *ClusterConfig) (*discovery.DiscoveryClient, error)
 	GetClientForInCluster() (*v12.CoreV1Client, error)
@@ -178,7 +179,7 @@ func (impl *K8sServiceImpl) GetRestConfigByClusterWithoutCustomTransport(cluster
 	bearerToken := clusterConfig.BearerToken
 	var restConfig *rest.Config
 	var err error
-	if clusterConfig.Host == DefaultClusterUrl && len(bearerToken) == 0 {
+	if clusterConfig.Host == commonBean.DefaultClusterUrl && len(bearerToken) == 0 {
 		restConfig, err = impl.GetK8sInClusterRestConfig()
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
@@ -290,37 +291,58 @@ func (impl *K8sServiceImpl) GetK8sDiscoveryClientInCluster() (*discovery.Discove
 	return discoveryClient, err
 }
 
-func (impl *K8sServiceImpl) CreateNsIfNotExists(namespace string, clusterConfig *ClusterConfig) (err error) {
+func (impl *K8sServiceImpl) CreateNsIfNotExists(namespace string, clusterConfig *ClusterConfig) (ns *v1.Namespace, nsCreated bool, err error) {
 	v12Client, err := impl.GetCoreV1Client(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
-		return err
+		return nil, false, err
 	}
-	exists, err := impl.CheckIfNsExists(namespace, v12Client)
+	ns, exists, err := impl.GetNsIfExists(namespace, v12Client)
 	if err != nil {
 		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
-		return err
+		return ns, false, err
 	}
 	if exists {
+		nsCreated = false
 		impl.logger.Infow("namesapce already exist")
-		return nil
+		return ns, nsCreated, nil
 	}
 	impl.logger.Infow("ns not exists creating", "ns", namespace)
-	_, err = impl.CreateNs(namespace, v12Client)
-	return err
+	ns, err = impl.CreateNs(namespace, v12Client)
+	if err != nil {
+		impl.logger.Errorw("error in creating ns", "namespace", namespace, "err", err)
+		return nil, false, err
+	}
+	nsCreated = true
+	return ns, nsCreated, err
 }
 
-func (impl *K8sServiceImpl) CheckIfNsExists(namespace string, client *v12.CoreV1Client) (exists bool, err error) {
-	ns, err := client.Namespaces().Get(context.Background(), namespace, metav1.GetOptions{})
+func (impl *K8sServiceImpl) UpdateNSLabels(namespace *v1.Namespace, labels map[string]string, clusterConfig *ClusterConfig) (ns *v1.Namespace, err error) {
+	v12Client, err := impl.GetCoreV1Client(clusterConfig)
+	if err != nil {
+		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
+		return nil, err
+	}
+	namespace.Labels = labels
+	ns, err = v12Client.Namespaces().Update(context.Background(), namespace, metav1.UpdateOptions{})
+	if err != nil {
+		impl.logger.Errorw("error in updating ns", "namespace", namespace, "err", err)
+		return nil, err
+	}
+	return ns, nil
+}
+
+func (impl *K8sServiceImpl) GetNsIfExists(namespace string, client *v12.CoreV1Client) (ns *v1.Namespace, exists bool, err error) {
+	ns, err = client.Namespaces().Get(context.Background(), namespace, metav1.GetOptions{})
 	//ns, err := impl.k8sClient.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
 	impl.logger.Debugw("ns fetch", "name", namespace, "res", ns)
 	if errors.IsNotFound(err) {
-		return false, nil
+		return nil, false, nil
 	} else if err != nil {
 		impl.logger.Errorw("error in checking if ns exist", "err", err)
-		return false, err
+		return nil, false, err
 	} else {
-		return true, nil
+		return ns, true, nil
 	}
 
 }
@@ -610,7 +632,7 @@ func (impl *K8sServiceImpl) DiscoveryClientGetLiveZCall(cluster *ClusterConfig) 
 		return nil, err
 	}
 	//using livez path as healthz path is deprecated
-	response, err := impl.GetLiveZCall(LiveZ, k8sClientSet)
+	response, err := impl.GetLiveZCall(commonBean.LiveZ, k8sClientSet)
 	if err != nil {
 		impl.logger.Errorw("error in getting livez call", "err", err, "clusterName", cluster.ClusterName)
 		return nil, err
@@ -672,7 +694,7 @@ func (impl *K8sServiceImpl) DeletePodByLabel(namespace string, labels string, cl
 	}
 
 	for _, pod := range (*podList).Items {
-		if pod.Status.Phase != Running {
+		if pod.Status.Phase != commonBean.Running {
 			podName := pod.ObjectMeta.Name
 			err := pods.Delete(context.Background(), podName, metav1.DeleteOptions{})
 			if err != nil && !errors.IsNotFound(err) {
@@ -729,7 +751,7 @@ func (impl *K8sServiceImpl) ListNamespaces(client *v12.CoreV1Client) (*v1.Namesp
 }
 
 func (impl *K8sServiceImpl) GetClientByToken(serverUrl string, token map[string]string) (*v12.CoreV1Client, error) {
-	bearerToken := token[BearerToken]
+	bearerToken := token[commonBean.BearerToken]
 	clusterCfg := &ClusterConfig{Host: serverUrl, BearerToken: bearerToken}
 	v12Client, err := impl.GetCoreV1Client(clusterCfg)
 	if err != nil {
@@ -861,16 +883,30 @@ func (impl *K8sServiceImpl) BuildK8sObjectListTableData(manifest *unstructured.U
 			var cellObj map[string]interface{}
 			if cellObjUncast != nil {
 				cellObj = cellObjUncast.(map[string]interface{})
-				if cellObj != nil && cellObj[commonBean.K8sClusterResourceMetadataKey] != nil {
-					metadata := cellObj[commonBean.K8sClusterResourceMetadataKey].(map[string]interface{})
-					if metadata[commonBean.K8sClusterResourceNamespaceKey] != nil {
-						namespace = metadata[commonBean.K8sClusterResourceNamespaceKey].(string)
-						if namespaced {
-							rowIndex[commonBean.K8sClusterResourceNamespaceKey] = namespace
+				if cellObj != nil {
+					rowIndex[commonBean.K8sClusterResourceKindKey] = cellObj[commonBean.K8sClusterResourceKindKey].(string)
+					rowIndex[commonBean.K8sClusterResourceApiVersionKey] = cellObj[commonBean.K8sClusterResourceApiVersionKey].(string)
+
+					if cellObj[commonBean.K8sClusterResourceMetadataKey] != nil {
+						metadata := cellObj[commonBean.K8sClusterResourceMetadataKey].(map[string]interface{})
+						if metadata[commonBean.K8sClusterResourceNamespaceKey] != nil {
+							namespace = metadata[commonBean.K8sClusterResourceNamespaceKey].(string)
+							if namespaced {
+								rowIndex[commonBean.K8sClusterResourceNamespaceKey] = namespace
+							}
+						}
+						if includeMetadata {
+							rowIndex[commonBean.K8sClusterResourceMetadataKey] = metadata
 						}
 					}
-					if includeMetadata {
-						rowIndex[commonBean.K8sClusterResourceMetadataKey] = metadata
+
+					if cellObj[commonBean.K8sClusterResourceSpecKey] != nil {
+						spec, ok := cellObj[commonBean.K8sClusterResourceSpecKey].(map[string]interface{})
+						if ok {
+							rowIndex[commonBean.K8sClusterResourceSpecKey] = spec
+						} else {
+							impl.logger.Warnw("Not able to cast spec key of manifest to map")
+						}
 					}
 				}
 			}
@@ -1199,7 +1235,7 @@ func (impl *K8sServiceImpl) CreateK8sClientSet(restConfig *rest.Config) (*kubern
 
 func (impl *K8sServiceImpl) FetchConnectionStatusForCluster(k8sClientSet *kubernetes.Clientset) error {
 	//using livez path as healthz path is deprecated
-	path := LiveZ
+	path := commonBean.LiveZ
 	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
 	log.Println("received response for cluster livez status", "response", string(response), "err", err)
 	if err != nil {
@@ -1734,24 +1770,6 @@ func (impl *K8sServiceImpl) GetPodListByLabel(namespace, label string, clientSet
 		return nil, err
 	}
 	return podList.Items, nil
-}
-
-func IsService(gvk schema.GroupVersionKind) bool {
-	return gvk.Group == "" && gvk.Kind == commonBean.ServiceKind
-}
-
-func IsPod(gvk schema.GroupVersionKind) bool {
-	return gvk.Group == "" && gvk.Kind == commonBean.PodKind && gvk.Version == "v1"
-}
-
-func IsDevtronApp(labels map[string]string) bool {
-	isDevtronApp := false
-	if val, ok := labels[DEVTRON_APP_LABEL_KEY]; ok {
-		if val == DEVTRON_APP_LABEL_VALUE1 || val == DEVTRON_APP_LABEL_VALUE2 {
-			isDevtronApp = true
-		}
-	}
-	return isDevtronApp
 }
 
 //func GetHealthCheckFunc(gvk schema.GroupVersionKind) func(obj *unstructured.Unstructured) (*health.HealthStatus, error) {

@@ -38,6 +38,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
+	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -82,6 +83,7 @@ type InstalledAppDeploymentTypeChangeServiceImpl struct {
 	argoUserService               argo.ArgoUserService
 	clusterService                cluster.ClusterService
 	deploymentConfigService       common.DeploymentConfigService
+	argoApplicationService        argoApplication.ArgoApplicationService
 }
 
 func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
@@ -97,7 +99,8 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 	chartGroupService chartGroup.ChartGroupService, helmAppService client.HelmAppService,
 	argoUserService argo.ArgoUserService, clusterService cluster.ClusterService,
 	appRepository appRepository.AppRepository,
-	deploymentConfigService common.DeploymentConfigService) *InstalledAppDeploymentTypeChangeServiceImpl {
+	deploymentConfigService common.DeploymentConfigService,
+	argoApplicationService argoApplication.ArgoApplicationService) *InstalledAppDeploymentTypeChangeServiceImpl {
 	return &InstalledAppDeploymentTypeChangeServiceImpl{
 		logger:                        logger,
 		installedAppRepository:        installedAppRepository,
@@ -117,6 +120,7 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 		clusterService:                clusterService,
 		appRepository:                 appRepository,
 		deploymentConfigService:       deploymentConfigService,
+		argoApplicationService:        argoApplicationService,
 	}
 }
 
@@ -271,7 +275,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) AnnotateCRDsIfExist(ctx
 	query := &application.ResourcesQuery{
 		ApplicationName: &deploymentAppName,
 	}
-	resp, err := impl.acdClient.ResourceTree(ctx, query)
+	resp, err := impl.argoApplicationService.ResourceTree(ctx, query)
 	if err != nil {
 		impl.logger.Errorw("error in fetching resource tree", "err", err)
 		err = &util.ApiError{

@@ -22,6 +22,7 @@ import (
 	"fmt"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	util5 "github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
@@ -40,12 +41,14 @@ import (
 	repository4 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	statusBean "github.com/devtron-labs/devtron/pkg/app/status/bean"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -99,7 +102,7 @@ type TriggerService interface {
 	TriggerPreStage(request bean.TriggerRequest) error
 
 	TriggerAutoCDOnPreStageSuccess(triggerContext bean.TriggerContext, cdPipelineId, ciArtifactId, workflowId int, triggerdBy int32, scanExecutionHistoryId int) error
-	
+
 	TriggerStageForBulk(triggerRequest bean.TriggerRequest) error
 
 	ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest) (int, string, error)
@@ -166,6 +169,7 @@ type TriggerServiceImpl struct {
 	deploymentServiceTypeConfig   *globalUtil.DeploymentServiceTypeConfig
 	ciCdPipelineOrchestrator      pipeline.CiCdPipelineOrchestrator
 	gitOperationService           git.GitOperationService
+	attributeService              attributes.AttributesService
 }
 
 func NewTriggerServiceImpl(logger *zap.SugaredLogger,
@@ -222,6 +226,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 	deploymentConfigService common.DeploymentConfigService,
 	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator,
 	gitOperationService git.GitOperationService,
+	attributeService attributes.AttributesService,
 ) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
@@ -279,6 +284,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 		deploymentServiceTypeConfig:         envVariables.DeploymentServiceTypeConfig,
 		ciCdPipelineOrchestrator:            ciCdPipelineOrchestrator,
 		gitOperationService:                 gitOperationService,
+		attributeService:                    attributeService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -361,7 +367,7 @@ func (impl *TriggerServiceImpl) validateDeploymentTriggerRequest(ctx context.Con
 
 	if isVulnerable == true {
 		// if image vulnerable, update timeline status and return
-		if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(pipelineConfig.FOUND_VULNERABILITY), triggeredBy); err != nil {
+		if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(cdWorkflow.FOUND_VULNERABILITY), triggeredBy); err != nil {
 			impl.logger.Errorw("error while updating current runner status to failed, TriggerDeployment", "wfrId", runner.Id, "err", err)
 		}
 		return fmt.Errorf("found vulnerability for image digest %s", imageDigest)
@@ -477,8 +483,8 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		runner := &pipelineConfig.CdWorkflowRunner{
 			Name:         cdPipeline.Name,
 			WorkflowType: bean3.CD_WORKFLOW_TYPE_DEPLOY,
-			ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-			Status:       pipelineConfig.WorkflowInitiated, //deployment Initiated for manual trigger
+			ExecutorType: cdWorkflow.WORKFLOW_EXECUTOR_TYPE_AWF,
+			Status:       cdWorkflow.WorkflowInitiated, //deployment Initiated for manual trigger
 			TriggeredBy:  overrideRequest.UserId,
 			StartedOn:    triggeredAt,
 			Namespace:    impl.config.GetDefaultNamespace(),
@@ -607,8 +613,8 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 	runner := &pipelineConfig.CdWorkflowRunner{
 		Name:         pipeline.Name,
 		WorkflowType: bean3.CD_WORKFLOW_TYPE_DEPLOY,
-		ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM,
-		Status:       pipelineConfig.WorkflowInitiated, // deployment Initiated for auto trigger
+		ExecutorType: cdWorkflow.WORKFLOW_EXECUTOR_TYPE_SYSTEM,
+		Status:       cdWorkflow.WorkflowInitiated, // deployment Initiated for auto trigger
 		TriggeredBy:  1,
 		StartedOn:    triggeredAt,
 		Namespace:    impl.config.GetDefaultNamespace(),
@@ -852,7 +858,7 @@ func (impl *TriggerServiceImpl) performGitOps(ctx context.Context,
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.performGitOps")
 	defer span.End()
 	// update workflow runner status, used in app workflow view
-	err := impl.cdWorkflowCommonService.UpdateNonTerminalStatusInRunner(newCtx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowInProgress)
+	err := impl.cdWorkflowCommonService.UpdateNonTerminalStatusInRunner(newCtx, overrideRequest.WfrId, overrideRequest.UserId, cdWorkflow.WorkflowInProgress)
 	if err != nil {
 		impl.logger.Errorw("error in updating the workflow runner status", "err", err)
 		return err
@@ -1067,7 +1073,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 
 		releaseName := pipelineModel.DeploymentAppName
 		cluster := envOverride.Environment.Cluster
-		bearerToken := cluster.Config[util5.BearerToken]
+		bearerToken := cluster.Config[commonBean.BearerToken]
 		clusterConfig := &gRPC.ClusterConfig{
 			ClusterName:           cluster.ClusterName,
 			Token:                 bearerToken,
@@ -1075,9 +1081,9 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 			InsecureSkipTLSVerify: cluster.InsecureSkipTlsVerify,
 		}
 		if cluster.InsecureSkipTlsVerify == false {
-			clusterConfig.KeyData = cluster.Config[util5.TlsKey]
-			clusterConfig.CertData = cluster.Config[util5.CertData]
-			clusterConfig.CaData = cluster.Config[util5.CertificateAuthorityData]
+			clusterConfig.KeyData = cluster.Config[commonBean.TlsKey]
+			clusterConfig.CertData = cluster.Config[commonBean.CertData]
+			clusterConfig.CaData = cluster.Config[commonBean.CertificateAuthorityData]
 		}
 		releaseIdentifier := &gRPC.ReleaseIdentifier{
 			ReleaseName:      releaseName,
@@ -1103,7 +1109,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 			if err != nil {
 				impl.logger.Errorw("error in updating helm application for cd pipelineModel", "err", err)
 				if util.IsErrorContextCancelled(err) {
-					return false, nil, pipelineConfig.ErrorDeploymentSuperseded
+					return false, nil, cdWorkflow.ErrorDeploymentSuperseded
 				} else if util.IsErrorContextDeadlineExceeded(err) {
 					return false, nil, context.DeadlineExceeded
 				}
@@ -1138,7 +1144,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 					impl.logger.Errorw("failed to update deployment app created flag in pipelineModel table", "err", err)
 				}
 				if util.IsErrorContextCancelled(err) {
-					return false, nil, pipelineConfig.ErrorDeploymentSuperseded
+					return false, nil, cdWorkflow.ErrorDeploymentSuperseded
 				} else if util.IsErrorContextDeadlineExceeded(err) {
 					return false, nil, context.DeadlineExceeded
 				}
@@ -1158,7 +1164,7 @@ func (impl *TriggerServiceImpl) createHelmAppForCdPipeline(ctx context.Context, 
 		}
 
 		//update workflow runner status, used in app workflow view
-		err := impl.cdWorkflowCommonService.UpdateNonTerminalStatusInRunner(newCtx, overrideRequest.WfrId, overrideRequest.UserId, pipelineConfig.WorkflowInProgress)
+		err := impl.cdWorkflowCommonService.UpdateNonTerminalStatusInRunner(newCtx, overrideRequest.WfrId, overrideRequest.UserId, cdWorkflow.WorkflowInProgress)
 		if err != nil {
 			impl.logger.Errorw("error in updating the workflow runner status, createHelmAppForCdPipeline", "err", err)
 			return false, nil, err
@@ -1357,7 +1363,7 @@ func (impl *TriggerServiceImpl) getEnrichedWorkflowRunner(overrideRequest *bean3
 
 func (impl *TriggerServiceImpl) writeCDTriggerEvent(overrideRequest *bean3.ValuesOverrideRequest, artifact *repository3.CiArtifact, releaseId, pipelineOverrideId, wfrId int) {
 
-	event := impl.eventFactory.Build(util2.Trigger, &overrideRequest.PipelineId, overrideRequest.AppId, &overrideRequest.EnvId, util2.CD)
+	event, err := impl.eventFactory.Build(util2.Trigger, &overrideRequest.PipelineId, overrideRequest.AppId, &overrideRequest.EnvId, util2.CD)
 	impl.logger.Debugw("event WriteCDTriggerEvent", "event", event)
 	wfr := impl.getEnrichedWorkflowRunner(overrideRequest, artifact, wfrId)
 	event = impl.eventFactory.BuildExtraCDData(event, wfr, pipelineOverrideId, bean3.CD_WORKFLOW_TYPE_DEPLOY)
@@ -1516,13 +1522,13 @@ func (impl *TriggerServiceImpl) handleCustomGitOpsRepoValidation(runner *pipelin
 		//	return err
 		//}
 		if gitOps.IsGitOpsRepoNotConfigured(envDeploymentConfig.RepoURL) {
-			if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(pipelineConfig.GITOPS_REPO_NOT_CONFIGURED), triggeredBy); err != nil {
+			if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(cdWorkflow.GITOPS_REPO_NOT_CONFIGURED), triggeredBy); err != nil {
 				impl.logger.Errorw("error while updating current runner status to failed, TriggerDeployment", "wfrId", runner.Id, "err", err)
 			}
 			apiErr := &util.ApiError{
 				HttpStatusCode:  http.StatusConflict,
-				UserMessage:     pipelineConfig.GITOPS_REPO_NOT_CONFIGURED,
-				InternalMessage: pipelineConfig.GITOPS_REPO_NOT_CONFIGURED,
+				UserMessage:     cdWorkflow.GITOPS_REPO_NOT_CONFIGURED,
+				InternalMessage: cdWorkflow.GITOPS_REPO_NOT_CONFIGURED,
 			}
 			return apiErr
 		}

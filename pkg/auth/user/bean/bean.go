@@ -18,6 +18,10 @@ package bean
 
 type RoleType string
 
+func (r RoleType) String() string {
+	return string(r)
+}
+
 const (
 	SYSTEM_USER_ID                              = 1
 	PROJECT_TYPE                                = "team"
@@ -41,15 +45,27 @@ const (
 	EDIT_HELM_TYPE                     RoleType = "edit"
 	VIEW_HELM_TYPE                     RoleType = "view"
 	ENTITY_CLUSTER_EDIT_TYPE           RoleType = "clusterEdit"
-	DEVTRON_APP                                 = "devtron-app"
 	SUPER_ADMIN                                 = "super-admin"
-	CLUSTER                                     = "cluster"
 	GLOBAL_ENTITY                               = "globalEntity"
-	ENTITY_APPS                                 = "apps"
 	EMPTY_ROLEFILTER_ENTRY_PLACEHOLDER          = "NONE"
 	RoleNotFoundStatusPrefix                    = "role not fount for any given filter: "
-	EntityJobs                                  = "jobs"
 	EmptyStringIndicatingAll                    = ""
+)
+
+// entity
+
+const (
+	ENTITY_APPS        = "apps"
+	EntityJobs         = "jobs"
+	CHART_GROUP_ENTITY = "chart-group"
+	CLUSTER_ENTITIY    = "cluster"
+)
+
+//access types
+
+const (
+	DEVTRON_APP          = "devtron-app"
+	APP_ACCESS_TYPE_HELM = "helm-app"
 )
 
 const (
@@ -71,6 +87,14 @@ type RbacPolicyEntityGroupDto struct {
 
 type SortBy string
 type SortOrder string
+
+func (s SortBy) String() string {
+	return string(s)
+}
+
+func (s SortOrder) String() string {
+	return string(s)
+}
 
 const (
 	Asc  SortOrder = "ASC"
@@ -99,5 +123,7 @@ const (
 
 const (
 	API_TOKEN_USER_EMAIL_PREFIX = "API-TOKEN:"
-	ApiTokenTableName = "api_token"
+	ApiTokenTableName           = "api_token"
 )
+
+const AnonymousUserEmail string = "anonymous"

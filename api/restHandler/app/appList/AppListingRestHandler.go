@@ -45,6 +45,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
+	argoApplication2 "github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -72,7 +73,6 @@ import (
 )
 
 type AppListingRestHandler interface {
-	FetchAppDetails(w http.ResponseWriter, r *http.Request)
 	FetchJobs(w http.ResponseWriter, r *http.Request)
 	FetchJobOverviewCiPipelines(w http.ResponseWriter, r *http.Request)
 	FetchAppDetailsV2(w http.ResponseWriter, r *http.Request)
@@ -113,6 +113,7 @@ type AppListingRestHandlerImpl struct {
 	k8sApplicationService            application3.K8sApplicationService
 	deploymentTemplateService        generateManifest.DeploymentTemplateService
 	deploymentConfigService          common2.DeploymentConfigService
+	argoApplicationService           argoApplication2.ArgoApplicationService
 }
 
 type AppStatus struct {
@@ -146,6 +147,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	k8sApplicationService application3.K8sApplicationService,
 	deploymentTemplateService generateManifest.DeploymentTemplateService,
 	deploymentConfigService common2.DeploymentConfigService,
+	argoApplicationService argoApplication2.ArgoApplicationService,
 ) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
 		application:                      application,
@@ -170,6 +172,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		k8sApplicationService:            k8sApplicationService,
 		deploymentTemplateService:        deploymentTemplateService,
 		deploymentConfigService:          deploymentConfigService,
+		argoApplicationService:           argoApplicationService,
 	}
 	return appListingHandler
 }
@@ -496,86 +499,6 @@ func (handler AppListingRestHandlerImpl) FetchOverviewAppsByEnvironment(w http.R
 	}
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
 
-}
-
-func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	token := r.Header.Get("token")
-	appId, err := strconv.Atoi(vars["app-id"])
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	envId, err := strconv.Atoi(vars["env-id"])
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	pipelines, err := handler.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
-	if err == pg.ErrNoRows {
-		common.WriteJsonResp(w, err, "pipeline Not found in database", http.StatusNotFound)
-		return
-	}
-	if err != nil {
-		handler.logger.Errorw("error in fetching pipelines from db", "appId", appId, "envId", envId)
-		common.WriteJsonResp(w, err, "error in fetching pipeline from database", http.StatusInternalServerError)
-		return
-	}
-	if len(pipelines) == 0 {
-		common.WriteJsonResp(w, fmt.Errorf("app deleted"), nil, http.StatusNotFound)
-		return
-	}
-	if len(pipelines) != 1 {
-		common.WriteJsonResp(w, err, "multiple pipelines found for an envId", http.StatusBadRequest)
-		return
-	}
-	cdPipeline := pipelines[0]
-	appDetail, err := handler.appListingService.FetchAppDetails(r.Context(), appId, envId)
-	if err != nil {
-		handler.logger.Errorw("service err, FetchAppDetails", "err", err, "appId", appId, "envId", envId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-		return
-	}
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		common.WriteJsonResp(w, fmt.Errorf("error in getting acd token"), nil, http.StatusInternalServerError)
-		return
-	}
-	envDeploymentConfig, err := handler.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
-	if err != nil {
-		handler.logger.Errorw("error in fetching deployment config", "appId", appId, "envId", envId, "err", err)
-		common.WriteJsonResp(w, fmt.Errorf("error in getting deployment config for env"), nil, http.StatusInternalServerError)
-		return
-	}
-	resourceTree, err := handler.fetchResourceTree(w, r, appId, envId, acdToken, cdPipeline, envDeploymentConfig)
-	if appDetail.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-		apiError, ok := err.(*util.ApiError)
-		if ok && apiError != nil {
-			if apiError.Code == constants.AppDetailResourceTreeNotFound && appDetail.DeploymentAppDeleteRequest == true {
-				acdAppFound, _ := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(acdToken, cdPipeline)
-				if acdAppFound {
-					common.WriteJsonResp(w, fmt.Errorf("unable to fetch resource tree"), nil, http.StatusInternalServerError)
-					return
-				} else {
-					common.WriteJsonResp(w, fmt.Errorf("app deleted"), nil, http.StatusNotFound)
-					return
-				}
-			}
-		}
-	}
-	if err != nil {
-		common.WriteJsonResp(w, fmt.Errorf("unable to fetch resource tree"), nil, http.StatusInternalServerError)
-		return
-	}
-	appDetail.ResourceTree = resourceTree
-	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
 }
 
 func (handler AppListingRestHandlerImpl) FetchAppDetailsV2(w http.ResponseWriter, r *http.Request) {
@@ -1040,7 +963,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		defer cancel()
 		ctx = context.WithValue(ctx, "token", acdToken)
 		start := time.Now()
-		resp, err := handler.application.ResourceTree(ctx, query)
+		resp, err := handler.argoApplicationService.ResourceTree(ctx, query)
 		elapsed := time.Since(start)
 		handler.logger.Debugw("FetchAppDetailsV2, time elapsed in fetching application for environment ", "elapsed", elapsed, "appId", appId, "envId", envId)
 		if err != nil {

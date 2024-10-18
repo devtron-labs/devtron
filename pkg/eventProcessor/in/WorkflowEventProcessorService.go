@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	cdWorkflowModelBean "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	util3 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
@@ -164,12 +165,19 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDStageCompleteEvent() error {
 			impl.logger.Errorw("could not get wf runner", "err", err)
 			return
 		}
-
+		wfr.IsArtifactUploaded = cdStageCompleteEvent.IsArtifactUploaded
 		if wfr.Status != string(v1alpha1.NodeSucceeded) {
 			impl.logger.Debugw("event received from ci runner, updating workflow runner status as succeeded", "savedWorkflowRunnerId", wfr.Id, "oldStatus", wfr.Status, "podStatus", wfr.PodStatus)
-			err = impl.cdWorkflowRunnerService.UpdateWfrStatus(wfr, string(v1alpha1.NodeSucceeded), 1)
+			wfr.Status = string(v1alpha1.NodeSucceeded)
+			err = impl.cdWorkflowRunnerService.UpdateWfr(wfr, 1)
 			if err != nil {
 				impl.logger.Errorw("update cd-wf-runner failed for id ", "cdWfrId", wfr.Id, "err", err)
+				return
+			}
+		} else {
+			err = impl.cdWorkflowRunnerService.UpdateIsArtifactUploaded(wfr.Id, cdStageCompleteEvent.IsArtifactUploaded)
+			if err != nil {
+				impl.logger.Errorw("error in updating isArtifactUploaded", "cdWfrId", wfr.Id, "err", err)
 				return
 			}
 		}
@@ -238,7 +246,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeTriggerBulkAction() error {
 		latest, err := impl.cdWorkflowService.CheckIfLatestWf(cdWorkflow.PipelineId, cdWorkflow.Id)
 		if err != nil {
 			impl.logger.Errorw("error in determining latest", "wf", cdWorkflow, "err", err)
-			wf.WorkflowStatus = pipelineConfig.DEQUE_ERROR
+			wf.WorkflowStatus = cdWorkflowModelBean.DEQUE_ERROR
 			err = impl.cdWorkflowService.UpdateWorkFlow(wf)
 			if err != nil {
 				impl.logger.Errorw("error in updating wf", "err", err, "req", wf)
@@ -246,7 +254,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeTriggerBulkAction() error {
 			return
 		}
 		if !latest {
-			wf.WorkflowStatus = pipelineConfig.DROPPED_STALE
+			wf.WorkflowStatus = cdWorkflowModelBean.DROPPED_STALE
 			err = impl.cdWorkflowService.UpdateWorkFlow(wf)
 			if err != nil {
 				impl.logger.Errorw("error in updating wf", "err", err, "req", wf)
@@ -256,7 +264,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeTriggerBulkAction() error {
 		pipelineObj, err := impl.pipelineRepository.FindById(cdWorkflow.PipelineId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching pipeline", "err", err)
-			wf.WorkflowStatus = pipelineConfig.TRIGGER_ERROR
+			wf.WorkflowStatus = cdWorkflowModelBean.TRIGGER_ERROR
 			err = impl.cdWorkflowService.UpdateWorkFlow(wf)
 			if err != nil {
 				impl.logger.Errorw("error in updating wf", "err", err, "req", wf)
@@ -266,7 +274,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeTriggerBulkAction() error {
 		artifact, err := impl.ciArtifactRepository.Get(cdWorkflow.CiArtifactId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching artefact", "err", err)
-			wf.WorkflowStatus = pipelineConfig.TRIGGER_ERROR
+			wf.WorkflowStatus = cdWorkflowModelBean.TRIGGER_ERROR
 			err = impl.cdWorkflowService.UpdateWorkFlow(wf)
 			if err != nil {
 				impl.logger.Errorw("error in updating wf", "err", err, "req", wf)
@@ -295,9 +303,9 @@ func (impl *WorkflowEventProcessorImpl) SubscribeTriggerBulkAction() error {
 		err = impl.cdTriggerService.TriggerStageForBulk(triggerRequest)
 		if err != nil {
 			impl.logger.Errorw("error in cd trigger ", "err", err)
-			wf.WorkflowStatus = pipelineConfig.TRIGGER_ERROR
+			wf.WorkflowStatus = cdWorkflowModelBean.TRIGGER_ERROR
 		} else {
-			wf.WorkflowStatus = pipelineConfig.WF_STARTED
+			wf.WorkflowStatus = cdWorkflowModelBean.WF_STARTED
 		}
 		err = impl.cdWorkflowService.UpdateWorkFlow(wf)
 		if err != nil {
@@ -451,7 +459,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 			}
 
 			if wfr.WorkflowType == apiBean.CD_WORKFLOW_TYPE_PRE || wfr.WorkflowType == apiBean.CD_WORKFLOW_TYPE_POST {
-				event := impl.eventFactory.Build(eventType, &wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, &wfr.CdWorkflow.Pipeline.EnvironmentId, eventUtil.CD)
+				event, _ := impl.eventFactory.Build(eventType, &wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, &wfr.CdWorkflow.Pipeline.EnvironmentId, eventUtil.CD)
 				impl.logger.Debugw("event pre stage", "event", event)
 				event = impl.eventFactory.BuildExtraCDData(event, wfr, 0, wfr.WorkflowType)
 				_, evtErr := impl.eventClient.WriteNotificationEvent(event)
@@ -513,7 +521,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 			ReferenceId: pointer.String(msg.MsgId),
 		}
 
-		if ciCompleteEvent.FailureReason != "" {
+		if len(ciCompleteEvent.FailureReason) != 0 {
 			req.FailureReason = ciCompleteEvent.FailureReason
 			err := impl.workflowDagExecutor.HandleCiStepFailedEvent(ciCompleteEvent.PipelineId, req)
 			if err != nil {
@@ -538,7 +546,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 						impl.logger.Error("Error while creating request for pipelineID", "pipelineId", ciCompleteEvent.PipelineId, "err", err)
 						return
 					}
-					resp, err := impl.ValidateAndHandleCiSuccessEvent(triggerContext, ciCompleteEvent.PipelineId, request, detail.LastUpdatedOn)
+					resp, err := impl.validateAndHandleCiSuccessEvent(triggerContext, ciCompleteEvent.PipelineId, request, detail.LastUpdatedOn)
 					if err != nil {
 						return
 					}
@@ -547,7 +555,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 			}
 		} else {
 			globalUtil.TriggerCIMetrics(ciCompleteEvent.Metrics, impl.globalEnvVariables.ExposeCiMetrics, ciCompleteEvent.PipelineName, ciCompleteEvent.AppName)
-			resp, err := impl.ValidateAndHandleCiSuccessEvent(triggerContext, ciCompleteEvent.PipelineId, req, time.Time{})
+			resp, err := impl.validateAndHandleCiSuccessEvent(triggerContext, ciCompleteEvent.PipelineId, req, time.Time{})
 			if err != nil {
 				return
 			}
@@ -574,12 +582,21 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCICompleteEvent() error {
 	return nil
 }
 
-func (impl *WorkflowEventProcessorImpl) ValidateAndHandleCiSuccessEvent(triggerContext triggerBean.TriggerContext, ciPipelineId int, request *wrokflowDagBean.CiArtifactWebhookRequest, imagePushedAt time.Time) (int, error) {
+func (impl *WorkflowEventProcessorImpl) validateAndHandleCiSuccessEvent(triggerContext triggerBean.TriggerContext, ciPipelineId int, request *wrokflowDagBean.CiArtifactWebhookRequest, imagePushedAt time.Time) (int, error) {
+	if request.WorkflowId != nil {
+		err := impl.workflowDagExecutor.UpdateCiWorkflowForCiSuccess(request)
+		if err != nil {
+			return 0, err
+		}
+	}
+	// Validate request, must be performed after workflowDagExecutor.UpdateCiWorkflow func
+	// As it is required to update IsArtifactUploaded field in UpdateCiWorkflow table, irrespective of CiArtifact creation
 	validationErr := impl.validator.Struct(request)
 	if validationErr != nil {
 		impl.logger.Errorw("validation err, HandleCiSuccessEvent", "err", validationErr, "payload", request)
 		return 0, validationErr
 	}
+	// Create CiArtifact and Trigger CI Success event
 	buildArtifactId, err := impl.workflowDagExecutor.HandleCiSuccessEvent(triggerContext, ciPipelineId, request, imagePushedAt)
 	if err != nil {
 		impl.logger.Error("Error while sending event for CI success for pipelineID",
@@ -955,7 +972,7 @@ func (impl *WorkflowEventProcessorImpl) validateConcurrentOrInvalidRequest(ctx c
 	}
 	// request in process but for other wfrId
 	// skip if the cdWfr.Status is already in a terminal state
-	skipCDWfrStatusList := append(pipelineConfig.WfrTerminalStatusList, pipelineConfig.WorkflowInProgress)
+	skipCDWfrStatusList := append(cdWorkflowModelBean.WfrTerminalStatusList, cdWorkflowModelBean.WorkflowInProgress)
 	if slices.Contains(skipCDWfrStatusList, cdWfr.Status) {
 		impl.logger.Warnw("skipped deployment as the workflow runner status is already in terminal state, validateConcurrentOrInvalidRequest", "cdWfrId", cdWfr.Id, "status", cdWfr.Status)
 		return isValidRequest, nil
@@ -976,7 +993,7 @@ func (impl *WorkflowEventProcessorImpl) validateConcurrentOrInvalidRequest(ctx c
 	}
 	if !isLatestRequest {
 		impl.logger.Warnw("skipped deployment as the workflow runner is not the latest one", "cdWfrId", cdWfr.Id)
-		err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, pipelineConfig.ErrorDeploymentSuperseded, userId)
+		err := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(cdWfr, cdWorkflowModelBean.ErrorDeploymentSuperseded, userId)
 		if err != nil {
 			impl.logger.Errorw("error while updating current runner status to failed, validateConcurrentOrInvalidRequest", "cdWfr", cdWfr.Id, "err", err)
 			return isValidRequest, err
@@ -992,7 +1009,7 @@ func (impl *WorkflowEventProcessorImpl) UpdateReleaseContextForPipeline(ctx cont
 	if releaseContext, ok := impl.devtronAppReleaseContextMap[pipelineId]; ok {
 		impl.logger.Infow("new deployment has been triggered with a running deployment in progress!", "aborting deployment for pipelineId", pipelineId)
 		// abort previous running release
-		releaseContext.CancelContext(pipelineConfig.ErrorDeploymentSuperseded)
+		releaseContext.CancelContext(cdWorkflowModelBean.ErrorDeploymentSuperseded)
 		// cancelling parent context
 		releaseContext.CancelParentContext()
 	}
@@ -1053,7 +1070,7 @@ func (impl *WorkflowEventProcessorImpl) RemoveReleaseContextForPipeline(pipeline
 			impl.logger.Errorw("error while updating current runner status to failed, RemoveReleaseContextForPipeline", "cdWfr", cdWfr.Id, "err", err)
 		}
 		// cancelling child context. setting cancel cause -> pipeline deleted
-		releaseContext.CancelContext(errors.New(pipelineConfig.PIPELINE_DELETED))
+		releaseContext.CancelContext(errors.New(cdWorkflowModelBean.PIPELINE_DELETED))
 		// cancelling parent context
 		releaseContext.CancelParentContext()
 		delete(impl.devtronAppReleaseContextMap, pipelineId)
