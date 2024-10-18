@@ -51,6 +51,7 @@ type InstalledAppDBService interface {
 	GetInstalledAppByClusterNamespaceAndName(appIdentifier *helmBean.AppIdentifier) (*appStoreBean.InstallAppVersionDTO, error)
 	GetInstalledAppByInstalledAppId(installedAppId int) (*appStoreBean.InstallAppVersionDTO, error)
 	GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
+	GetInstalledAppVersionAny(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
 	CreateInstalledAppVersion(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreRepo.InstalledAppVersions, error)
 	UpdateInstalledAppVersion(installedAppVersion *appStoreRepo.InstalledAppVersions, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreRepo.InstalledAppVersions, error)
 
@@ -297,6 +298,50 @@ func (impl *InstalledAppDBServiceImpl) GetInstalledAppByInstalledAppId(installed
 
 func (impl *InstalledAppDBServiceImpl) GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
 	model, err := impl.InstalledAppRepository.GetInstalledAppVersion(id)
+	if err != nil {
+		if util.IsErrNoRows(err) {
+			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "400", UserMessage: "values are outdated. please fetch the latest version and try again", InternalMessage: err.Error()}
+		}
+		impl.Logger.Errorw("error while fetching from db", "error", err)
+		return nil, err
+	}
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForHelmApps(model.InstalledApp.AppId, model.InstalledApp.EnvironmentId)
+	if err != nil {
+		impl.Logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", model.InstalledApp.AppId, "envId", model.InstalledApp.EnvironmentId, "err", err)
+		return nil, err
+	}
+	// update InstallAppVersion configurations
+	installAppVersion := &appStoreBean.InstallAppVersionDTO{
+		Id:                    model.Id,
+		InstalledAppVersionId: model.Id,
+		ValuesOverrideYaml:    model.ValuesYaml,
+		ReferenceValueKind:    model.ReferenceValueKind,
+		ReferenceValueId:      model.ReferenceValueId,
+		InstalledAppId:        model.InstalledAppId,
+		AppStoreVersion:       model.AppStoreApplicationVersionId, //check viki
+		UserId:                userId,
+	}
+
+	// update App configurations
+	adapter.UpdateAppDetails(installAppVersion, &model.InstalledApp.App)
+
+	// update InstallApp configurations
+	adapter.UpdateInstallAppDetails(installAppVersion, &model.InstalledApp, deploymentConfig)
+
+	// update AppStoreApplication configurations
+	adapter.UpdateAppStoreApplicationDetails(installAppVersion, &model.AppStoreApplicationVersion)
+
+	environment, err := impl.EnvironmentService.GetExtendedEnvBeanById(installAppVersion.EnvironmentId)
+	if err != nil {
+		impl.Logger.Errorw("fetching environment error", "envId", installAppVersion.EnvironmentId, "err", err)
+		return nil, err
+	}
+	// update environment details configurations
+	adapter.UpdateAdditionalEnvDetails(installAppVersion, environment)
+	return installAppVersion, err
+}
+func (impl *InstalledAppDBServiceImpl) GetInstalledAppVersionAny(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
+	model, err := impl.InstalledAppRepository.GetInstalledAppVersionAny(id)
 	if err != nil {
 		if util.IsErrNoRows(err) {
 			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "400", UserMessage: "values are outdated. please fetch the latest version and try again", InternalMessage: err.Error()}

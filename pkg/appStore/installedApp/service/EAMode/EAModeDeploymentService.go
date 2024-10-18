@@ -18,15 +18,20 @@ package EAMode
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/adapter"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	validationBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
@@ -57,6 +62,9 @@ type EAModeDeploymentServiceImpl struct {
 	Logger                               *zap.SugaredLogger
 	helmAppService                       client.HelmAppService
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
+	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
+	userService                          user.UserService
+
 	// TODO fix me next
 	helmAppClient               gRPC.HelmAppClient // TODO refactoring: use HelmAppService instead
 	installedAppRepository      repository.InstalledAppRepository
@@ -67,14 +75,19 @@ func NewEAModeDeploymentServiceImpl(logger *zap.SugaredLogger, helmAppService cl
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	helmAppClient gRPC.HelmAppClient,
 	installedAppRepository repository.InstalledAppRepository,
-	OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository) *EAModeDeploymentServiceImpl {
+	OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository,
+	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
+	userService user.UserService,
+) *EAModeDeploymentServiceImpl {
 	return &EAModeDeploymentServiceImpl{
 		Logger:                               logger,
 		helmAppService:                       helmAppService,
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
+		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 		helmAppClient:                        helmAppClient,
 		installedAppRepository:               installedAppRepository,
 		OCIRegistryConfigRepository:          OCIRegistryConfigRepository,
+		userService:                          userService,
 	}
 }
 
@@ -204,6 +217,7 @@ func (impl *EAModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, in
 	// TODO : fetch values yaml from DB instead of fetching from helm cli
 	// TODO Dependency : on updating helm APP, DB is not being updated. values yaml is sent directly to helm cli. After DB updatation development, we can fetch values yaml from DB, not from CLI.
 
+	//this flow is dedicated for cli helm apps i.e. externally installed apps
 	helmAppIdeltifier := &helmBean.AppIdentifier{
 		ClusterId:   installedApp.ClusterId,
 		Namespace:   installedApp.Namespace,
@@ -239,19 +253,66 @@ func (impl *EAModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, in
 func (impl *EAModeDeploymentServiceImpl) GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*gRPC.HelmAppDeploymentHistory, error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "EAModeDeploymentServiceImpl.GetDeploymentHistory")
 	defer span.End()
-	helmAppIdentifier := &helmBean.AppIdentifier{
-		ClusterId:   installedApp.ClusterId,
-		Namespace:   installedApp.Namespace,
-		ReleaseName: installedApp.AppName,
-	}
-	history, err := impl.helmAppService.GetDeploymentHistory(newCtx, helmAppIdentifier)
-	if err != nil {
-		apiError := clientErrors.ConvertToApiError(err)
-		if apiError != nil {
-			err = apiError
+	if installedApp.InstalledAppId > 0 {
+		result := &gRPC.HelmAppDeploymentHistory{}
+		var history []*gRPC.HelmAppDeploymentDetail
+		//TODO - response setup
+
+		installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdMeta(installedApp.InstalledAppId)
+		if err != nil {
+			if err == pg.ErrNoRows {
+				return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "400", UserMessage: "values are outdated. please fetch the latest version and try again", InternalMessage: err.Error()}
+			}
+			impl.Logger.Errorw("error while fetching installed version", "error", err)
+			return result, err
 		}
+		for _, installedAppVersionModel := range installedAppVersions {
+			sources, jsonErr := impl.getSourcesFromManifest(installedAppVersionModel.AppStoreApplicationVersion.ChartYaml)
+			if jsonErr != nil {
+				impl.Logger.Errorw("error while fetching sources", "error", jsonErr)
+				//continues here, skip error in case found issue on fetching source
+			}
+			versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistoryByVersionId(installedAppVersionModel.Id)
+			if err != nil && err != pg.ErrNoRows {
+				impl.Logger.Errorw("error while fetching installed version history", "error", err)
+				return result, err
+			}
+			for _, updateHistory := range versionHistory {
+				if len(updateHistory.Message) == 0 && updateHistory.Status == cdWorkflow.WorkflowFailed {
+					// if message is empty and status is failed, then update message from helm release status config. for migration purpose
+					// updateHistory.HelmReleaseStatusConfig stores the failed description, if async operation failed
+					updateHistory.Message = impl.migrateDeploymentHistoryMessage(newCtx, updateHistory)
+				}
+				emailId, err := impl.userService.GetEmailById(updateHistory.CreatedBy)
+				if err != nil {
+					impl.Logger.Errorw("error while fetching user Details", "error", err)
+					return result, err
+				}
+				history = append(history, adapter.BuildDeploymentHistory(installedAppVersionModel, sources, updateHistory, emailId))
+			}
+		}
+
+		if len(history) == 0 {
+			history = make([]*gRPC.HelmAppDeploymentDetail, 0)
+		}
+		result.DeploymentHistory = history
+		return result, err
+	} else {
+		helmAppIdentifier := &helmBean.AppIdentifier{
+			ClusterId:   installedApp.ClusterId,
+			Namespace:   installedApp.Namespace,
+			ReleaseName: installedApp.AppName,
+		}
+		history, err := impl.helmAppService.GetDeploymentHistory(newCtx, helmAppIdentifier)
+		if err != nil {
+			apiError := clientErrors.ConvertToApiError(err)
+			if apiError != nil {
+				err = apiError
+			}
+		}
+		return history, err
 	}
-	return history, err
+
 }
 
 func (impl *EAModeDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int32) (*openapi.HelmAppDeploymentManifestDetail, error) {
@@ -450,4 +511,40 @@ func (impl *EAModeDeploymentServiceImpl) GetAcdAppGitOpsRepoURL(appName string, 
 
 func (impl *EAModeDeploymentServiceImpl) CreateArgoRepoSecretIfNeeded(appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error {
 	return errors.New("this is not implemented")
+}
+
+func (impl *EAModeDeploymentServiceImpl) getSourcesFromManifest(chartYaml string) ([]string, error) {
+	var b map[string]interface{}
+	var sources []string
+	err := json.Unmarshal([]byte(chartYaml), &b)
+	if err != nil {
+		impl.Logger.Errorw("error while unmarshal chart yaml", "error", err)
+		return sources, err
+	}
+	if b != nil && b["sources"] != nil {
+		slice := b["sources"].([]interface{})
+		for _, item := range slice {
+			sources = append(sources, item.(string))
+		}
+	}
+	return sources, nil
+}
+func (impl *EAModeDeploymentServiceImpl) migrateDeploymentHistoryMessage(ctx context.Context, updateHistory *repository.InstalledAppVersionHistory) (helmInstallStatusMsg string) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "FullModeDeploymentServiceImp.migrateDeploymentHistoryMessage")
+	defer span.End()
+	helmInstallStatusMsg = updateHistory.Message
+	helmInstallStatus := &appStoreBean.HelmReleaseStatusConfig{}
+	jsonErr := json.Unmarshal([]byte(updateHistory.HelmReleaseStatusConfig), helmInstallStatus)
+	if jsonErr != nil {
+		impl.Logger.Errorw("error while unmarshal helm release status config", "helmReleaseStatusConfig", updateHistory.HelmReleaseStatusConfig, "error", jsonErr)
+		return helmInstallStatusMsg
+	} else if helmInstallStatus.ErrorInInstallation {
+		helmInstallStatusMsg = fmt.Sprintf("Deployment failed: %v", helmInstallStatus.Message)
+		dbErr := impl.installedAppRepositoryHistory.UpdateDeploymentHistoryMessage(updateHistory.Id, helmInstallStatusMsg)
+		if dbErr != nil {
+			impl.Logger.Errorw("error while updating deployment history helmInstallStatusMsg", "error", dbErr)
+		}
+		return helmInstallStatusMsg
+	}
+	return helmInstallStatusMsg
 }

@@ -464,7 +464,7 @@ func (impl *AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Conte
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	if installedApp.InstalledAppId > 0 {
+	if installedApp.InstalledAppId > 0 && installedApp.DeploymentAppType != util.PIPELINE_DEPLOYMENT_TYPE_HELM {
 		installedAppModel, err := impl.installedAppRepository.GetInstalledApp(installedApp.InstalledAppId)
 		if err != nil {
 			impl.logger.Errorw("error while fetching installed app", "error", err)
@@ -492,12 +492,49 @@ func (impl *AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Conte
 	}
 	// Rollback starts
 	var success bool
-	if util2.IsHelmApp(installedApp.AppOfferingMode) {
+	if installedApp.Id == 0 && util2.IsBaseStack() {
 		installedApp, success, err = impl.eaModeDeploymentService.RollbackRelease(ctx, installedApp, request.GetVersion(), tx)
 		if err != nil {
 			impl.logger.Errorw("error while rollback helm release", "error", err)
 			return false, err
 		}
+	} else if installedApp.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM && installedApp.Id > 0 {
+		upgradeRequest := &appStoreBean.InstallAppVersionDTO{
+			UserId: userId,
+		}
+		upgradeRequest.InstalledAppId = installedApp.InstalledAppId
+		installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(request.GetVersion()))
+		if err != nil {
+			impl.logger.Errorw("error while fetching installed app version history from Db", "request", request, "error", err)
+			return false, err
+		}
+		if installedAppVersionHistory.Status == "Healthy" || installedAppVersionHistory.Status == "Succeeded" {
+			installedAppVersion, err := impl.installedAppService.GetInstalledAppVersionAny(installedAppVersionHistory.InstalledAppVersionId, userId)
+			if err != nil {
+				impl.logger.Errorw("error while fetching installed app version detail from Db", "installedAppVersion", installedAppVersionHistory.InstalledAppVersionId, "error", err)
+				return false, err
+			}
+
+			upgradeRequest.Id = installedApp.InstalledAppVersionId
+			upgradeRequest.AppStoreVersion = installedApp.AppStoreVersion
+
+			upgradeRequest.ValuesOverrideYaml = installedAppVersionHistory.ValuesYamlRaw
+			upgradeRequest.ReferenceValueId = installedAppVersion.ReferenceValueId
+			upgradeRequest.ReferenceValueKind = installedAppVersion.ReferenceValueKind
+
+			if installedApp.AppStoreVersion != installedAppVersion.AppStoreVersion {
+				upgradeRequest.Id = 0
+				upgradeRequest.AppStoreVersion = installedAppVersion.AppStoreVersion
+			}
+
+			installedApp, err = impl.UpdateInstalledApp(ctx, upgradeRequest)
+			if err != nil {
+				impl.logger.Errorw("error while performing update to the previous version", "upgradeRequest", upgradeRequest, "error", err)
+				return false, err
+			}
+			success = true
+		}
+
 	} else {
 		installedApp, success, err = impl.fullModeDeploymentService.RollbackRelease(ctx, installedApp, request.GetVersion(), tx)
 		if err != nil {
@@ -588,7 +625,7 @@ func (impl *AppStoreDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.
 	//var result interface{}
 	result := &openapi.HelmAppDeploymentManifestDetail{}
 	var err error
-	if util2.IsHelmApp(installedApp.AppOfferingMode) {
+	if installedApp.Id == 0 {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "eaModeDeploymentService.GetDeploymentHistoryInfo")
 		result, err = impl.eaModeDeploymentService.GetDeploymentHistoryInfo(ctx, installedApp, int32(version))
 		span.End()
