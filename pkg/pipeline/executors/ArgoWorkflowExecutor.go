@@ -97,22 +97,16 @@ func (impl *ArgoWorkflowExecutorImpl) TerminateDanglingWorkflow(workflowGenerate
 		impl.logger.Errorw("cannot build wf client", "workflowGenerateName", workflowGenerateName, "err", err)
 		return err
 	}
-	wfList, err := wfClient.List(context.Background(), v1.ListOptions{})
+	jobSelectorLabel := fmt.Sprintf("%s=%s", types.WorkflowGenerateNamePrefix, workflowGenerateName)
+	wfList, err := wfClient.List(context.Background(), v1.ListOptions{LabelSelector: jobSelectorLabel})
 	if err != nil {
 		impl.logger.Errorw("error in fetching list of workflows", "namespace", namespace, "err", err)
 		return err
 	}
-	var wfToDelete v1alpha1.Workflow
 	for _, wf := range wfList.Items {
-		if wf.GenerateName == workflowGenerateName {
-			wfToDelete = wf
-			break
-		}
-	}
-	if len(wfToDelete.Name) > 0 {
-		err = util.TerminateWorkflow(context.Background(), wfClient, wfToDelete.Name)
+		err = util.TerminateWorkflow(context.Background(), wfClient, wf.Name)
 		if err != nil {
-			impl.logger.Errorw("error in terminating argo executor workflow", "name", wfToDelete.Name, "err", err)
+			impl.logger.Errorw("error in terminating argo executor workflow", "name", wf.Name, "err", err)
 			return err
 		}
 	}

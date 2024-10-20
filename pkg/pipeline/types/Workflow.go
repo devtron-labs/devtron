@@ -151,6 +151,10 @@ type WorkflowRequest struct {
 	HostUrl                     string `json:"hostUrl"`
 }
 
+func (workflowRequest *WorkflowRequest) AddExtraLabelsInWorkflowTemplate() {
+	workflowRequest.AppLabels[WorkflowGenerateNamePrefix] = workflowRequest.WorkflowNamePrefix
+}
+
 func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
 	pipeline := workflowRequest.Pipeline
 	env := workflowRequest.Env
@@ -589,13 +593,13 @@ func updateContainerEnvs(isCM bool, workflowMainContainer *v1.Container, configS
 	}
 }
 
-const PRE = "PRE"
-
-const POST = "POST"
-
-const CI_NODE_PVC_ALL_ENV = "devtron.ai/ci-pvc-all"
-
-const CI_NODE_PVC_PIPELINE_PREFIX = "devtron.ai/ci-pvc"
+const (
+	PRE                         = "PRE"
+	POST                        = "POST"
+	CI_NODE_PVC_ALL_ENV         = "devtron.ai/ci-pvc-all"
+	CI_NODE_PVC_PIPELINE_PREFIX = "devtron.ai/ci-pvc"
+	WorkflowGenerateNamePrefix  = "devtron.ai/generate-name-prefix"
+)
 
 type CiArtifactDTO struct {
 	Id                   int    `json:"id"`

@@ -120,25 +120,19 @@ func (impl *SystemWorkflowExecutorImpl) TerminateDanglingWorkflow(workflowGenera
 		impl.logger.Errorw("error occurred while creating k8s client", "workflowGenerateName", workflowGenerateName, "namespace", namespace, "err", err)
 		return err
 	}
-	jobList, err := clientset.BatchV1().Jobs(namespace).List(context.Background(), v12.ListOptions{})
+	jobSelectorLabel := fmt.Sprintf("%s=%s", types2.WorkflowGenerateNamePrefix, workflowGenerateName)
+	jobList, err := clientset.BatchV1().Jobs(namespace).List(context.Background(), v12.ListOptions{LabelSelector: jobSelectorLabel})
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching jobs list for terminating dangling workflows", "namespace", namespace, "err", err)
 		return err
 	}
-	var jobToDelete v1.Job
 	for _, job := range jobList.Items {
-		if job.ObjectMeta.GenerateName == workflowGenerateName {
-			jobToDelete = job
-			break
-		}
-	}
-	if len(jobToDelete.Name) > 0 {
-		err = clientset.BatchV1().Jobs(namespace).Delete(context.Background(), jobToDelete.Name, v12.DeleteOptions{})
+		err = clientset.BatchV1().Jobs(namespace).Delete(context.Background(), job.Name, v12.DeleteOptions{})
 		if err != nil {
 			if errors.IsNotFound(err) {
-				err = fmt.Errorf("cannot find job workflow %s", jobToDelete.Name)
+				err = fmt.Errorf("cannot find job workflow %s", job.Name)
 			}
-			impl.logger.Errorw("error occurred while deleting workflow", "workflowName", jobToDelete.Name, "namespace", namespace, "err", err)
+			impl.logger.Errorw("error occurred while deleting workflow", "workflowName", job.Name, "namespace", namespace, "err", err)
 			return err
 		}
 	}

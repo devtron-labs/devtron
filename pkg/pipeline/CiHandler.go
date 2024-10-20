@@ -163,7 +163,7 @@ const Running = "Running"
 const Starting = "Starting"
 const POD_DELETED_MESSAGE = "pod deleted"
 const TERMINATE_MESSAGE = "workflow shutdown with strategy: Terminate"
-const ABORT_MESSAGE_AFTER_STARTING_STAGE = "workflow shutdown with strategy: Force Abort"
+const FORCE_ABORT_MESSAGE_AFTER_STARTING_STAGE = "workflow shutdown with strategy: Force Abort"
 
 func (impl *CiHandlerImpl) CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error {
 
@@ -618,7 +618,7 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, er
 	if err != nil && forceAbort {
 		impl.Logger.Errorw("error in terminating workflow, with force abort flag flag as true", "workflowName", workflow.Name, "err", err)
 
-		cancelWfDtoRequest.WorkflowGenerateName = fmt.Sprintf("%d-%s-", workflowId, workflow.Name)
+		cancelWfDtoRequest.WorkflowGenerateName = fmt.Sprintf("%d-%s", workflowId, workflow.Name)
 		err1 := impl.workflowService.TerminateDanglingWorkflows(cancelWfDtoRequest)
 		if err1 != nil {
 			impl.Logger.Errorw("error in terminating dangling workflows", "cancelWfDtoRequest", cancelWfDtoRequest, "err", err)
@@ -631,9 +631,9 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, er
 		return 0, err
 	}
 	if forceAbort {
-		err = impl.handleForceAbortCase(workflow, forceAbort)
+		err = impl.handleForceAbortCaseForCi(workflow, forceAbort)
 		if err != nil {
-			impl.Logger.Errorw("error in handleForceAbortCase", "forceAbortFlag", forceAbort, "workflow", workflow, "err", err)
+			impl.Logger.Errorw("error in handleForceAbortCaseForCi", "forceAbortFlag", forceAbort, "workflow", workflow, "err", err)
 			return 0, err
 		}
 		return workflow.Id, nil
@@ -666,7 +666,7 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, er
 	return workflow.Id, nil
 }
 
-func (impl *CiHandlerImpl) handleForceAbortCase(workflow *pipelineConfig.CiWorkflow, forceAbort bool) error {
+func (impl *CiHandlerImpl) handleForceAbortCaseForCi(workflow *pipelineConfig.CiWorkflow, forceAbort bool) error {
 	isWorkflowInNonTerminalStage := workflow.Status == string(v1alpha1.NodePending) || workflow.Status == string(v1alpha1.NodeRunning)
 	if !isWorkflowInNonTerminalStage {
 		if forceAbort {
@@ -685,7 +685,7 @@ func (impl *CiHandlerImpl) handleForceAbortCase(workflow *pipelineConfig.CiWorkf
 func (impl *CiHandlerImpl) updateWorkflowForForceAbort(workflow *pipelineConfig.CiWorkflow) error {
 	workflow.Status = executors.WorkflowCancel
 	workflow.PodStatus = string(bean.Failed)
-	workflow.Message = ABORT_MESSAGE_AFTER_STARTING_STAGE
+	workflow.Message = FORCE_ABORT_MESSAGE_AFTER_STARTING_STAGE
 	err := impl.ciWorkflowRepository.UpdateWorkFlow(workflow)
 	if err != nil {
 		impl.Logger.Errorw("error in updating workflow status", "err", err)
