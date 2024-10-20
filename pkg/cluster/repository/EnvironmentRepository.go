@@ -80,6 +80,7 @@ type EnvironmentRepository interface {
 	FindAllActiveWithFilter() ([]*Environment, error)
 	FindEnvClusterInfosByIds([]int) ([]*EnvCluserInfo, error)
 	FindEnvLinkedWithCiPipelines(externalCi bool, ciPipelineIds []int) ([]*Environment, error)
+	FindEnvByNameWithClusterDetails(envName string) (*Environment, error)
 }
 
 func NewEnvironmentRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, appStatusRepository appStatus.AppStatusRepository) *EnvironmentRepositoryImpl {
@@ -156,6 +157,17 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByName(name string) (*Enviro
 		Where("environment_name = ?", name).
 		Where("active = ?", true).
 		Limit(1).
+		Select()
+	return environment, err
+}
+
+func (repositoryImpl EnvironmentRepositoryImpl) FindEnvByNameWithClusterDetails(envName string) (*Environment, error) {
+	environment := &Environment{}
+	err := repositoryImpl.dbConnection.
+		Model(environment).
+		Column("environment.*", "Cluster").
+		Where("environment.environment_name = ?", envName).
+		Where("environment.active = ?", true).
 		Select()
 	return environment, err
 }
