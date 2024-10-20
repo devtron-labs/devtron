@@ -409,9 +409,17 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 		return 0, "", err
 	}
 
-	var imageTag string
-	if len(artifact.Image) > 0 {
-		imageTag = strings.Split(artifact.Image, ":")[1]
+	// Migration of deprecated DataSource Type
+	if artifact.IsMigrationRequired() {
+		migrationErr := impl.ciArtifactRepository.MigrateToWebHookDataSourceType(artifact.Id)
+		if migrationErr != nil {
+			impl.logger.Warnw("unable to migrate deprecated DataSource", "artifactId", artifact.Id)
+		}
+	}
+
+	_, imageTag, err := artifact.ExtractImageRepoAndTag()
+	if err != nil {
+		impl.logger.Errorw("error in getting image tag and repo", "err", err)
 	}
 	helmPackageName := fmt.Sprintf("%s-%s-%s", cdPipeline.App.AppName, cdPipeline.Environment.Name, imageTag)
 
