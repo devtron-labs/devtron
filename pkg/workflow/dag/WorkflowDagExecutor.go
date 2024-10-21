@@ -575,32 +575,16 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext t
 			impl.logger.Errorw("error in saving plugin artifacts", "err", err)
 			return err
 		}
-		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
-			if len(PreCDArtifacts) > 0 {
-				ciArtifact = PreCDArtifacts[0] // deployment will be trigger with artifact copied by plugin
-			}
-			cdWorkflow, err := impl.cdWorkflowRepository.FindById(cdStageCompleteEvent.WorkflowId)
-			if err != nil {
-				return err
-			}
-			//passing applyAuth as false since this event is for auto trigger and user who already has access to this cd can trigger pre cd also
-			applyAuth := false
-			if cdStageCompleteEvent.TriggeredBy != 1 {
-				applyAuth = true
-			}
-			triggerRequest := triggerBean.TriggerRequest{
-				CdWf:           cdWorkflow,
-				Pipeline:       pipeline,
-				Artifact:       ciArtifact,
-				ApplyAuth:      applyAuth,
-				TriggeredBy:    cdStageCompleteEvent.TriggeredBy,
-				TriggerContext: triggerContext,
-			}
-			triggerRequest.TriggerContext.Context = context.Background()
-			err = impl.cdTriggerService.TriggerAutomaticDeployment(triggerRequest)
-			if err != nil {
-				return err
-			}
+		ciArtifactId := 0
+		if len(PreCDArtifacts) > 0 {
+			ciArtifactId = PreCDArtifacts[len(PreCDArtifacts)-1].Id // deployment will be trigger with artifact copied by plugin
+		} else {
+			ciArtifactId = cdStageCompleteEvent.CiArtifactDTO.Id
+		}
+		err = impl.cdTriggerService.TriggerAutoCDOnPreStageSuccess(triggerContext, cdStageCompleteEvent.CdPipelineId, ciArtifactId, cdStageCompleteEvent.WorkflowId, cdStageCompleteEvent.TriggeredBy, 0)
+		if err != nil {
+			impl.logger.Errorw("error in triggering cd on pre cd succcess", "err", err)
+			return err
 		}
 	}
 	return nil
