@@ -113,6 +113,16 @@ func NewInstalledAppDeploymentAction(deploymentAppType string) *appStoreBean.Ins
 	}
 	return installedAppDeploymentAction
 }
+func GenerateUpdateRequestDTO(request *appStoreBean.InstallAppVersionDTO, installedApp *appStoreBean.InstallAppVersionDTO, installedAppVersionHistory *repository.InstalledAppVersionHistory, installedAppVersionDTO *appStoreBean.InstallAppVersionDTO) {
+	request.InstalledAppVersionId = installedApp.InstalledAppVersionId
+	request.AppStoreVersion = installedApp.AppStoreVersion
+
+	request.ValuesOverrideYaml = installedAppVersionHistory.ValuesYamlRaw
+
+	request.ReferenceValueKind = installedAppVersionDTO.ReferenceValueKind
+	request.ReferenceValueId = installedAppVersionDTO.ReferenceValueId
+
+}
 
 // GenerateInstallAppVersionDTO converts repository.InstalledApps and repository.InstalledAppVersions db object to appStoreBean.InstallAppVersionDTO bean
 func GenerateInstallAppVersionDTO(installedApp *repository.InstalledApps, installedAppVersion *repository.InstalledAppVersions, config *bean2.DeploymentConfig) *appStoreBean.InstallAppVersionDTO {
