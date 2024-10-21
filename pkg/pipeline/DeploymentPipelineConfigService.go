@@ -708,19 +708,6 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 		return deleteResponse, err
 	}
 
-	//getting deployment group for this pipeline
-	deploymentGroupNames, err := impl.deploymentGroupRepository.GetNamesByAppIdAndEnvId(pipeline.EnvironmentId, pipeline.AppId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting deployment group names by appId and envId", "err", err)
-		return deleteResponse, err
-	} else if len(deploymentGroupNames) > 0 {
-		groupNamesByte, err := json.Marshal(deploymentGroupNames)
-		if err != nil {
-			impl.logger.Errorw("error in marshaling deployment group names", "err", err, "deploymentGroupNames", deploymentGroupNames)
-		}
-		impl.logger.Debugw("cannot delete cd pipeline, is being used in deployment group")
-		return deleteResponse, fmt.Errorf("Please remove this CD pipeline from deployment groups : %s", string(groupNamesByte))
-	}
 	dbConnection := impl.pipelineRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -2034,19 +2021,6 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipelinePartial(pipeline *pipel
 		return deleteResponse, err
 	}
 
-	//getting deployment group for this pipeline
-	deploymentGroupNames, err := impl.deploymentGroupRepository.GetNamesByAppIdAndEnvId(pipeline.EnvironmentId, pipeline.AppId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting deployment group names by appId and envId", "err", err)
-		return deleteResponse, err
-	} else if len(deploymentGroupNames) > 0 {
-		groupNamesByte, err := json.Marshal(deploymentGroupNames)
-		if err != nil {
-			impl.logger.Errorw("error in marshaling deployment group names", "err", err, "deploymentGroupNames", deploymentGroupNames)
-		}
-		impl.logger.Debugw("cannot delete cd pipeline, is being used in deployment group")
-		return deleteResponse, fmt.Errorf("Please remove this CD pipeline from deployment groups : %s", string(groupNamesByte))
-	}
 	dbConnection := impl.pipelineRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
