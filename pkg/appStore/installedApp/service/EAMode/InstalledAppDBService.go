@@ -64,6 +64,11 @@ type InstalledAppDBService interface {
 	MarkInstalledAppVersionsInactiveByInstalledAppId(installedAppId int, UserId int32, tx *pg.Tx) error
 	// MarkInstalledAppVersionModelInActive will mark the given repository.InstalledAppVersions inactive
 	MarkInstalledAppVersionModelInActive(installedAppVersionModel *appStoreRepo.InstalledAppVersions, UserId int32, tx *pg.Tx) error
+	GetInstalledAppVersionByInstalledAppIdMeta(id int) ([]*appStoreRepo.InstalledAppVersions, error)
+	GetInstalledAppVersionHistory(int int) (*appStoreRepo.InstalledAppVersionHistory, error)
+	GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(version int) (int, error)
+	GetInstalledAppVersionHistoryByVersionId(id int) ([]*appStoreRepo.InstalledAppVersionHistory, error)
+	UpdateDeploymentHistoryMessage(installedAppVersionHistoryId int, message string) error
 }
 
 type InstalledAppDBServiceImpl struct {
@@ -92,6 +97,22 @@ func NewInstalledAppDBServiceImpl(logger *zap.SugaredLogger,
 		InstalledAppRepositoryHistory: installedAppRepositoryHistory,
 		deploymentConfigService:       deploymentConfigService,
 	}
+}
+
+func (impl *InstalledAppDBServiceImpl) GetInstalledAppVersionByInstalledAppIdMeta(id int) ([]*appStoreRepo.InstalledAppVersions, error) {
+	return impl.InstalledAppRepository.GetInstalledAppVersionByInstalledAppIdMeta(id)
+}
+func (impl *InstalledAppDBServiceImpl) GetInstalledAppVersionHistory(version int) (*appStoreRepo.InstalledAppVersionHistory, error) {
+	return impl.InstalledAppRepositoryHistory.GetInstalledAppVersionHistory(version)
+}
+func (impl *InstalledAppDBServiceImpl) GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(version int) (int, error) {
+	return impl.InstalledAppRepositoryHistory.GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(version)
+}
+func (impl *InstalledAppDBServiceImpl) GetInstalledAppVersionHistoryByVersionId(id int) ([]*appStoreRepo.InstalledAppVersionHistory, error) {
+	return impl.InstalledAppRepositoryHistory.GetInstalledAppVersionHistoryByVersionId(id)
+}
+func (impl *InstalledAppDBServiceImpl) UpdateDeploymentHistoryMessage(installedAppVersionHistoryId int, message string) error {
+	return impl.InstalledAppRepositoryHistory.UpdateDeploymentHistoryMessage(installedAppVersionHistoryId, message)
 }
 
 func (impl *InstalledAppDBServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) (appStoreBean.AppListDetail, error) {

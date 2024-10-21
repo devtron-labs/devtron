@@ -39,6 +39,7 @@ import (
 	installedAppAdapter "github.com/devtron-labs/devtron/pkg/appStore/installedApp/adapter"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
+	deployment2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	bean2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -77,7 +78,7 @@ type AppStoreDeploymentServiceImpl struct {
 	chartGroupDeploymentRepository       repository3.ChartGroupDeploymentRepository
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	appRepository                        app.AppRepository
-	eaModeDeploymentService              EAMode.EAModeDeploymentService
+	eaModeDeploymentService              deployment2.EAModeDeploymentService
 	fullModeDeploymentService            deployment.FullModeDeploymentService
 	environmentService                   cluster.EnvironmentService
 	helmAppService                       service.HelmAppService
@@ -97,7 +98,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
 	chartGroupDeploymentRepository repository3.ChartGroupDeploymentRepository,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	appRepository app.AppRepository,
-	eaModeDeploymentService EAMode.EAModeDeploymentService,
+	eaModeDeploymentService deployment2.EAModeDeploymentService,
 	fullModeDeploymentService deployment.FullModeDeploymentService,
 	environmentService cluster.EnvironmentService,
 	helmAppService service.HelmAppService,

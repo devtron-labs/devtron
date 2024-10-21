@@ -25,7 +25,6 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/adapter"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
 	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -35,11 +34,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
-	"net/http"
 	"time"
 
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
-	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -56,7 +53,6 @@ import (
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"k8s.io/utils/pointer"
 )
 
 // FullModeDeploymentService TODO refactoring: Use extended binding over EAMode.EAModeDeploymentService
@@ -372,49 +368,7 @@ func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, 
 func (impl *FullModeDeploymentServiceImpl) GetDeploymentHistory(ctx context.Context, installedAppDto *appStoreBean.InstallAppVersionDTO) (*gRPC.HelmAppDeploymentHistory, error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "FullModeDeploymentServiceImp.GetDeploymentHistory")
 	defer span.End()
-	result := &gRPC.HelmAppDeploymentHistory{}
-	var history []*gRPC.HelmAppDeploymentDetail
-	//TODO - response setup
-
-	installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdMeta(installedAppDto.InstalledAppId)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "400", UserMessage: "values are outdated. please fetch the latest version and try again", InternalMessage: err.Error()}
-		}
-		impl.Logger.Errorw("error while fetching installed version", "error", err)
-		return result, err
-	}
-	for _, installedAppVersionModel := range installedAppVersions {
-		sources, jsonErr := impl.getSourcesFromManifest(installedAppVersionModel.AppStoreApplicationVersion.ChartYaml)
-		if jsonErr != nil {
-			impl.Logger.Errorw("error while fetching sources", "error", jsonErr)
-			//continues here, skip error in case found issue on fetching source
-		}
-		versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistoryByVersionId(installedAppVersionModel.Id)
-		if err != nil && err != pg.ErrNoRows {
-			impl.Logger.Errorw("error while fetching installed version history", "error", err)
-			return result, err
-		}
-		for _, updateHistory := range versionHistory {
-			if len(updateHistory.Message) == 0 && updateHistory.Status == cdWorkflow.WorkflowFailed {
-				// if message is empty and status is failed, then update message from helm release status config. for migration purpose
-				// updateHistory.HelmReleaseStatusConfig stores the failed description, if async operation failed
-				updateHistory.Message = impl.migrateDeploymentHistoryMessage(newCtx, updateHistory)
-			}
-			emailId, err := impl.userService.GetEmailById(updateHistory.CreatedBy)
-			if err != nil {
-				impl.Logger.Errorw("error while fetching user Details", "error", err)
-				return result, err
-			}
-			history = append(history, adapter.BuildDeploymentHistory(installedAppVersionModel, sources, updateHistory, emailId))
-		}
-	}
-
-	if len(history) == 0 {
-		history = make([]*gRPC.HelmAppDeploymentDetail, 0)
-	}
-	result.DeploymentHistory = history
-	return result, err
+	return impl.appStoreDeploymentCommonService.GetDeploymentHistoryFromDB(newCtx, installedAppDto)
 }
 
 func (impl *FullModeDeploymentServiceImpl) migrateDeploymentHistoryMessage(ctx context.Context, updateHistory *repository.InstalledAppVersionHistory) (helmInstallStatusMsg string) {
@@ -439,48 +393,7 @@ func (impl *FullModeDeploymentServiceImpl) migrateDeploymentHistoryMessage(ctx c
 
 // GetDeploymentHistoryInfo TODO refactoring: use InstalledAppVersionHistoryId from appStoreBean.InstallAppVersionDTO instead of version int32
 func (impl *FullModeDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int32) (*openapi.HelmAppDeploymentManifestDetail, error) {
-	values := &openapi.HelmAppDeploymentManifestDetail{}
-	_, span := otel.Tracer("orchestrator").Start(ctx, "installedAppRepositoryHistory.GetInstalledAppVersionHistory")
-	versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(version))
-	span.End()
-	if err != nil {
-		impl.Logger.Errorw("error while fetching installed version history", "error", err)
-		return nil, err
-	}
-	values.ValuesYaml = &versionHistory.ValuesYamlRaw
-
-	envId := int32(installedApp.EnvironmentId)
-	clusterId := int32(installedApp.ClusterId)
-	appStoreApplicationVersionId, err := impl.installedAppRepositoryHistory.GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(int(version))
-	appStoreVersionId := pointer.Int32(int32(appStoreApplicationVersionId))
-
-	// as virtual environment doesn't exist on actual cluster, we will use default cluster for running helm template command
-	if installedApp.IsVirtualEnvironment {
-		clusterId = appStoreBean.DEFAULT_CLUSTER_ID
-		installedApp.Namespace = appStoreBean.DEFAULT_NAMESPACE
-	}
-
-	manifestRequest := openapi2.TemplateChartRequest{
-		EnvironmentId:                &envId,
-		ClusterId:                    &clusterId,
-		Namespace:                    &installedApp.Namespace,
-		ReleaseName:                  &installedApp.AppName,
-		AppStoreApplicationVersionId: appStoreVersionId,
-		ValuesYaml:                   values.ValuesYaml,
-	}
-
-	_, span = otel.Tracer("orchestrator").Start(ctx, "helmAppService.TemplateChart")
-	templateChart, manifestErr := impl.helmAppService.TemplateChart(ctx, &manifestRequest)
-	span.End()
-	manifest := templateChart.GetManifest()
-
-	if manifestErr != nil {
-		impl.Logger.Errorw("error in genetating manifest for argocd app", "err", manifestErr)
-	} else {
-		values.Manifest = &manifest
-	}
-
-	return values, err
+	return impl.appStoreDeploymentCommonService.GetDeploymentHistoryInfoFromDB(ctx, installedApp, version)
 }
 
 func (impl *FullModeDeploymentServiceImpl) getSourcesFromManifest(chartYaml string) ([]string, error) {
