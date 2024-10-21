@@ -16,6 +16,7 @@
 - feat: Feature release v9 sql scripts (#5950)
 ## Documentation
 ## Others
+- chore: Trigger clean (#6004)
 - misc: removed deployment group validation when deleting CD pipelines (#5989)
 - misc: Replaced != with <> for PostgreSQL compatibility (#5987)
 - misc: Main sync 14 oct 2024 (#5985)
