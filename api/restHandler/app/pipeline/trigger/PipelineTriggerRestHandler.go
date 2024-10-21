@@ -144,14 +144,14 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 	triggerContext := bean3.TriggerContext{
 		Context: ctx,
 	}
-	mergeResp, err := handler.cdTriggerService.ManualCdTrigger(triggerContext, &overrideRequest)
+	mergeResp, helmPackageName, err := handler.cdTriggerService.ManualCdTrigger(triggerContext, &overrideRequest)
 	span.End()
 	if err != nil {
 		handler.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)
 		common.WriteJsonResp(w, err, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	res := map[string]interface{}{"releaseId": mergeResp}
+	res := map[string]interface{}{"releaseId": mergeResp, "helmPackageName": helmPackageName}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
