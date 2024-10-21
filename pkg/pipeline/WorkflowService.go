@@ -165,8 +165,6 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 		impl.Logger.Errorw("error occurred while getting workflow main container", "err", err)
 		return bean3.WorkflowTemplate{}, err
 	}
-	// if anyone wants to add extra labels in workflow template then leverage below func.
-	workflowRequest.AddExtraLabelsInWorkflowTemplate()
 	workflowTemplate.Containers = []v12.Container{workflowMainContainer}
 	impl.updateBlobStorageConfig(workflowRequest, &workflowTemplate)
 	if workflowRequest.Type == bean3.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean3.JOB_WORKFLOW_PIPELINE_TYPE {

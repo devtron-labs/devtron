@@ -151,10 +151,6 @@ type WorkflowRequest struct {
 	HostUrl                     string `json:"hostUrl"`
 }
 
-func (workflowRequest *WorkflowRequest) AddExtraLabelsInWorkflowTemplate() {
-	workflowRequest.AppLabels[WorkflowGenerateNamePrefix] = workflowRequest.WorkflowNamePrefix
-}
-
 func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
 	pipeline := workflowRequest.Pipeline
 	env := workflowRequest.Env
@@ -598,7 +594,6 @@ const (
 	POST                        = "POST"
 	CI_NODE_PVC_ALL_ENV         = "devtron.ai/ci-pvc-all"
 	CI_NODE_PVC_PIPELINE_PREFIX = "devtron.ai/ci-pvc"
-	WorkflowGenerateNamePrefix  = "devtron.ai/generate-name-prefix"
 )
 
 type CiArtifactDTO struct {

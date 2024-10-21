@@ -97,7 +97,7 @@ func (impl *ArgoWorkflowExecutorImpl) TerminateDanglingWorkflow(workflowGenerate
 		impl.logger.Errorw("cannot build wf client", "workflowGenerateName", workflowGenerateName, "err", err)
 		return err
 	}
-	jobSelectorLabel := fmt.Sprintf("%s=%s", types.WorkflowGenerateNamePrefix, workflowGenerateName)
+	jobSelectorLabel := fmt.Sprintf("%s=%s", bean.WorkflowGenerateNamePrefix, workflowGenerateName)
 	wfList, err := wfClient.List(context.Background(), v1.ListOptions{LabelSelector: jobSelectorLabel})
 	if err != nil {
 		impl.logger.Errorw("error in fetching list of workflows", "namespace", namespace, "err", err)

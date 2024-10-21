@@ -120,7 +120,7 @@ func (impl *SystemWorkflowExecutorImpl) TerminateDanglingWorkflow(workflowGenera
 		impl.logger.Errorw("error occurred while creating k8s client", "workflowGenerateName", workflowGenerateName, "namespace", namespace, "err", err)
 		return err
 	}
-	jobSelectorLabel := fmt.Sprintf("%s=%s", types2.WorkflowGenerateNamePrefix, workflowGenerateName)
+	jobSelectorLabel := fmt.Sprintf("%s=%s", bean.WorkflowGenerateNamePrefix, workflowGenerateName)
 	jobList, err := clientset.BatchV1().Jobs(namespace).List(context.Background(), v12.ListOptions{LabelSelector: jobSelectorLabel})
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching jobs list for terminating dangling workflows", "namespace", namespace, "err", err)
@@ -185,8 +185,7 @@ func (impl *SystemWorkflowExecutorImpl) GetWorkflowStatus(workflowName string, n
 }
 
 func (impl *SystemWorkflowExecutorImpl) getJobTemplate(workflowTemplate bean.WorkflowTemplate) *v1.Job {
-
-	workflowLabels := map[string]string{DEVTRON_WORKFLOW_LABEL_KEY: DEVTRON_WORKFLOW_LABEL_VALUE, "devtron.ai/purpose": "workflow", "workflowType": workflowTemplate.WorkflowType}
+	workflowLabels := GetWorkflowLabelsForSystemExecutor(workflowTemplate)
 
 	//setting TerminationGracePeriodSeconds in PodSpec
 	//which ensures Pod has enough time to execute cleanup on SIGTERM event
