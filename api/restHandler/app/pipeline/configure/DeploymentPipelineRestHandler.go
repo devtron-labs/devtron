@@ -2072,11 +2072,14 @@ func (handler *PipelineConfigRestHandlerImpl) CancelStage(w http.ResponseWriter,
 		return
 	}
 	var forceAbort bool
-	forceAbort, err = strconv.ParseBool(r.URL.Query().Get("forceAbort"))
-	if err != nil {
-		handler.Logger.Errorw("request err, CancelWorkflow", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+	forceAbortQueryParam := r.URL.Query().Get("forceAbort")
+	if len(forceAbortQueryParam) > 0 {
+		forceAbort, err = strconv.ParseBool(forceAbortQueryParam)
+		if err != nil {
+			handler.Logger.Errorw("request err, CancelWorkflow", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 	}
 	handler.Logger.Infow("request payload, CancelStage", "pipelineId", pipelineId, "workflowRunnerId", workflowRunnerId)
 
