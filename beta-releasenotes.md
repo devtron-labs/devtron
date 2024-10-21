@@ -19,6 +19,7 @@
 - feat: Feature release v9 sql scripts (#5950)
 ## Documentation
 ## Others
+- chore: Cluster terminal images migration (#6006)
 - chore: Trigger clean (#6004)
 - misc: removed deployment group validation when deleting CD pipelines (#5989)
 - misc: Replaced != with <> for PostgreSQL compatibility (#5987)
