@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Config deployment history fix (#6003)
 - fix: Force abort fix (#5990)
 - fix: custom tag  (#5999)
 - fix: helm deployment status  (#5996)
