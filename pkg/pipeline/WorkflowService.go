@@ -22,6 +22,7 @@ import (
 	"errors"
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/workflow/util"
+	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -39,6 +40,8 @@ import (
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
+	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -380,7 +383,7 @@ func (impl *WorkflowServiceImpl) TerminateDanglingWorkflows(cancelWfDtoRequest *
 	var err error
 	workflowExecutor := impl.getWorkflowExecutor(cancelWfDtoRequest.ExecutorType)
 	if workflowExecutor == nil {
-		return errors.New("workflow executor not found")
+		return &utils.ApiError{HttpStatusCode: http.StatusNotFound, Code: strconv.Itoa(http.StatusNotFound), InternalMessage: "workflow executor not found", UserMessage: "workflow executor not found"}
 	}
 	if cancelWfDtoRequest.RestConfig == nil {
 		cancelWfDtoRequest.RestConfig = impl.config
