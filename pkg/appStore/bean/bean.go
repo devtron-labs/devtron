@@ -137,6 +137,17 @@ func (chart *InstallAppVersionDTO) GetAppIdentifierString() string {
 	}
 	return appIdentifier.GetUniqueAppNameIdentifier()
 }
+func (chart *InstallAppVersionDTO) NewInstalledAppVersionRequestDTO(userId int32, installedAppId int) *InstallAppVersionDTO {
+	chart.UserId = userId
+	chart.InstalledAppId = installedAppId
+	return chart
+}
+func (chart *InstallAppVersionDTO) UpdateLog(updatedOn time.Time) {
+	if chart == nil {
+		return
+	}
+	chart.UpdatedOn = updatedOn
+}
 
 // UpdateDeploymentAppType updates deploymentAppType to InstallAppVersionDTO
 func (chart *InstallAppVersionDTO) UpdateDeploymentAppType(deploymentAppType string) {
