@@ -14,6 +14,7 @@ type ConfigState string
 const (
 	PublishedConfigState ConfigState = "PublishedOnly"
 	PreviousDeployments  ConfigState = "PreviousDeployments"
+	DefaultVersion       ConfigState = "DefaultVersion"
 )
 
 func (r ConfigState) ToString() string {
