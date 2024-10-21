@@ -163,7 +163,7 @@ const Running = "Running"
 const Starting = "Starting"
 const POD_DELETED_MESSAGE = "pod deleted"
 const TERMINATE_MESSAGE = "workflow shutdown with strategy: Terminate"
-const ABORT_MESSAGE_AFTER_STARTING_STAGE = "workflow shutdown with strategy: Force Abort"
+const FORCE_ABORT_MESSAGE_AFTER_STARTING_STAGE = "workflow shutdown with strategy: Force Abort"
 
 func (impl *CiHandlerImpl) CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error {
 
@@ -592,19 +592,8 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, error) {
 	workflow, err := impl.ciWorkflowRepository.FindById(workflowId)
 	if err != nil {
-		impl.Logger.Errorw("err", "err", err)
+		impl.Logger.Errorw("error in finding ci-workflow by workflow id", "ciWorkflowId", workflowId, "err", err)
 		return 0, err
-	}
-	if !(string(v1alpha1.NodePending) == workflow.Status || string(v1alpha1.NodeRunning) == workflow.Status) {
-		if forceAbort {
-			return impl.cancelBuildAfterStartWorkflowStage(workflow)
-		} else {
-			return 0, &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: "cannot cancel build, build not in progress"}
-		}
-	}
-	//this arises when someone deletes the workflow in resource browser and wants to force abort a ci
-	if workflow.Status == string(v1alpha1.NodeRunning) && forceAbort {
-		return impl.cancelBuildAfterStartWorkflowStage(workflow)
 	}
 	isExt := workflow.Namespace != DefaultCiWorkflowNamespace
 	var env *repository3.Environment
@@ -615,14 +604,39 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, er
 			return 0, err
 		}
 	}
-
 	// Terminate workflow
-	err = impl.workflowService.TerminateWorkflow(workflow.ExecutorType, workflow.Name, workflow.Namespace, restConfig, isExt, env)
-	if err != nil && strings.Contains(err.Error(), "cannot find workflow") {
+	cancelWfDtoRequest := &types.CancelWfRequestDto{
+		ExecutorType: workflow.ExecutorType,
+		WorkflowName: workflow.Name,
+		Namespace:    workflow.Namespace,
+		RestConfig:   restConfig,
+		IsExt:        isExt,
+		Environment:  env,
+	}
+	// Terminate workflow
+	err = impl.workflowService.TerminateWorkflow(cancelWfDtoRequest)
+	if err != nil && forceAbort {
+		impl.Logger.Errorw("error in terminating workflow, with force abort flag flag as true", "workflowName", workflow.Name, "err", err)
+
+		cancelWfDtoRequest.WorkflowGenerateName = fmt.Sprintf("%d-%s", workflowId, workflow.Name)
+		err1 := impl.workflowService.TerminateDanglingWorkflows(cancelWfDtoRequest)
+		if err1 != nil {
+			impl.Logger.Errorw("error in terminating dangling workflows", "cancelWfDtoRequest", cancelWfDtoRequest, "err", err)
+			// ignoring error here in case of force abort, confirmed from product
+		}
+	} else if err != nil && strings.Contains(err.Error(), "cannot find workflow") {
 		return 0, &util.ApiError{Code: "200", HttpStatusCode: http.StatusBadRequest, UserMessage: err.Error()}
 	} else if err != nil {
 		impl.Logger.Errorw("cannot terminate wf", "err", err)
 		return 0, err
+	}
+	if forceAbort {
+		err = impl.handleForceAbortCaseForCi(workflow, forceAbort)
+		if err != nil {
+			impl.Logger.Errorw("error in handleForceAbortCaseForCi", "forceAbortFlag", forceAbort, "workflow", workflow, "err", err)
+			return 0, err
+		}
+		return workflow.Id, nil
 	}
 
 	workflow.Status = executors.WorkflowCancel
@@ -652,16 +666,32 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, er
 	return workflow.Id, nil
 }
 
-func (impl *CiHandlerImpl) cancelBuildAfterStartWorkflowStage(workflow *pipelineConfig.CiWorkflow) (int, error) {
+func (impl *CiHandlerImpl) handleForceAbortCaseForCi(workflow *pipelineConfig.CiWorkflow, forceAbort bool) error {
+	isWorkflowInNonTerminalStage := workflow.Status == string(v1alpha1.NodePending) || workflow.Status == string(v1alpha1.NodeRunning)
+	if !isWorkflowInNonTerminalStage {
+		if forceAbort {
+			return impl.updateWorkflowForForceAbort(workflow)
+		} else {
+			return &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: "cannot cancel build, build not in progress"}
+		}
+	}
+	//this arises when someone deletes the workflow in resource browser and wants to force abort a ci
+	if workflow.Status == string(v1alpha1.NodeRunning) && forceAbort {
+		return impl.updateWorkflowForForceAbort(workflow)
+	}
+	return nil
+}
+
+func (impl *CiHandlerImpl) updateWorkflowForForceAbort(workflow *pipelineConfig.CiWorkflow) error {
 	workflow.Status = executors.WorkflowCancel
 	workflow.PodStatus = string(bean.Failed)
-	workflow.Message = ABORT_MESSAGE_AFTER_STARTING_STAGE
+	workflow.Message = FORCE_ABORT_MESSAGE_AFTER_STARTING_STAGE
 	err := impl.ciWorkflowRepository.UpdateWorkFlow(workflow)
 	if err != nil {
 		impl.Logger.Errorw("error in updating workflow status", "err", err)
-		return 0, err
+		return err
 	}
-	return workflow.Id, nil
+	return nil
 }
 
 func (impl *CiHandlerImpl) getRestConfig(workflow *pipelineConfig.CiWorkflow) (*rest.Config, error) {

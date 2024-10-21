@@ -1562,12 +1562,16 @@ func (handler *PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWrit
 		return
 	}
 	var forceAbort bool
-	forceAbort, err = strconv.ParseBool(queryVars.Get("forceAbort"))
-	if err != nil {
-		handler.Logger.Errorw("request err, CancelWorkflow", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+	forceAbortQueryParam := queryVars.Get("forceAbort")
+	if len(forceAbortQueryParam) > 0 {
+		forceAbort, err = strconv.ParseBool(forceAbortQueryParam)
+		if err != nil {
+			handler.Logger.Errorw("request err, CancelWorkflow", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 	}
+
 	handler.Logger.Infow("request payload, CancelWorkflow", "workflowId", workflowId, "pipelineId", pipelineId)
 
 	ciPipeline, err := handler.ciPipelineRepository.FindById(pipelineId)
