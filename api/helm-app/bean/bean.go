@@ -31,10 +31,6 @@ const (
 	ErrReleaseNotFound       string        = "release: not found"
 )
 
-const (
-	ExternalCliHelmApp int = 0
-)
-
 type SourceAppType string
 
 type UpdateApplicationRequestDto struct {

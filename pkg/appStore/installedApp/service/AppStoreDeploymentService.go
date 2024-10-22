@@ -42,6 +42,7 @@ import (
 	deployment2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	bean2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
@@ -62,6 +63,7 @@ type AppStoreDeploymentService interface {
 	DeleteInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
 	LinkHelmApplicationToChartStore(ctx context.Context, request *openapi.UpdateReleaseWithChartLinkingRequest, appIdentifier *bean.AppIdentifier, userId int32) (*openapi.UpdateReleaseResponse, bool, error)
 	UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectHelmAppDTO) error
+	// RollbackApplication Here we are handling the request of rollback using this common function
 	RollbackApplication(ctx context.Context, request *openapi2.RollbackReleaseRequest, installedApp *appStoreBean.InstallAppVersionDTO, userId int32) (bool, error)
 	GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*bean3.DeploymentHistoryAndInstalledAppInfo, error)
 	GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, installedAppVersionHistoryId int) (*openapi.HelmAppDeploymentManifestDetail, error)
@@ -89,6 +91,7 @@ type AppStoreDeploymentServiceImpl struct {
 	deletePostProcessor                  DeletePostProcessor
 	appStoreValidator                    AppStoreValidator
 	deploymentConfigService              common.DeploymentConfigService
+	attributesService                    attributes.AttributesService
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
@@ -107,7 +110,9 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
 	aCDConfig *argocdServer.ACDConfig,
 	gitOpsConfigReadService config.GitOpsConfigReadService, deletePostProcessor DeletePostProcessor,
 	appStoreValidator AppStoreValidator,
-	deploymentConfigService common.DeploymentConfigService) *AppStoreDeploymentServiceImpl {
+	deploymentConfigService common.DeploymentConfigService, attributesService attributes.AttributesService,
+) *AppStoreDeploymentServiceImpl {
+
 	return &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -127,6 +132,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
 		deletePostProcessor:                  deletePostProcessor,
 		appStoreValidator:                    appStoreValidator,
 		deploymentConfigService:              deploymentConfigService,
+		attributesService:                    attributesService,
 	}
 }
 
@@ -457,52 +463,22 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest
 
 func (impl *AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Context, request *openapi2.RollbackReleaseRequest,
 	installedApp *appStoreBean.InstallAppVersionDTO, userId int32) (bool, error) {
-	triggeredAt := time.Now()
-	dbConnection := impl.installedAppRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return false, err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-	if installedApp.InstalledAppId > 0 {
-		installedAppModel, err := impl.installedAppRepository.GetInstalledApp(installedApp.InstalledAppId)
-		if err != nil {
-			impl.logger.Errorw("error while fetching installed app", "error", err)
-			return false, err
-		}
-		deploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForHelmApp(installedApp.AppId, installedApp.EnvironmentId)
-		if err != nil {
-			impl.logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", installedApp.AppId, "envId", installedApp.EnvironmentId, "err", err)
-			return false, err
-		}
-		installedApp.GitOpsRepoURL = deploymentConfig.RepoURL
-		// migrate installedApp.GitOpsRepoName to installedApp.GitOpsRepoUrl
-		if util.IsAcdApp(deploymentConfig.DeploymentAppType) &&
-			len(deploymentConfig.RepoName) != 0 &&
-			len(deploymentConfig.RepoURL) == 0 {
-			//as the installedApp.GitOpsRepoName is not an empty string; migrate installedApp.GitOpsRepoName to installedApp.GitOpsRepoUrl
-			migrationErr := impl.handleGitOpsRepoUrlMigration(tx, installedAppModel, deploymentConfig, userId)
-			if migrationErr != nil {
-				impl.logger.Errorw("error in GitOps repository url migration", "err", migrationErr)
-				return false, err
-			}
-			installedApp.GitOpsRepoURL = deploymentConfig.RepoURL
-		}
-		// migration ends
-	}
-	// Rollback starts
+	//triggeredAt := time.Now()
+	var err error
+
 	var success bool
 	upgradeRequest := installedApp.NewInstalledAppVersionRequestDTO(userId, installedApp.InstalledAppId)
 
-	//case when the request is for external cli apps  case
-	if installedApp.Id == bean3.ExternalCliHelmApp {
-		installedApp, success, err = impl.eaModeDeploymentService.RollbackRelease(ctx, installedApp, request.GetVersion(), tx)
+	//in case of externally cli helm apps, we set its installedAppId 0 in the request body, using which we are deciding the flow
+	if installedApp.IsExternalCliApp() {
+		installedApp, success, err = impl.eaModeDeploymentService.RollbackRelease(ctx, installedApp, request.GetVersion())
 		if err != nil {
 			impl.logger.Errorw("error while rollback helm release", "error", err)
 			return false, err
 		}
 	} else {
+
+		//we are fetching the values from installed app version history table (iavh) which is further used as different
 		installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(request.GetVersion()))
 		if err != nil {
 			impl.logger.Errorw("error while fetching installed app version history from Db", "request", request, "error", err)
@@ -523,8 +499,7 @@ func (impl *AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Conte
 			upgradeRequest.Id = 0
 			upgradeRequest.AppStoreVersion = installedAppVersionDTO.AppStoreVersion
 		}
-
-		upgradeRequest, err = impl.updateInstalledApp(ctx, upgradeRequest, tx)
+		upgradeRequest, err = impl.UpdateInstalledApp(ctx, upgradeRequest)
 		if err != nil {
 			impl.logger.Errorw("error while performing update to the previous version", "upgradeRequest", upgradeRequest, "error", err)
 			return false, err
@@ -534,28 +509,7 @@ func (impl *AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Conte
 	if !success {
 		return false, fmt.Errorf("rollback request failed")
 	}
-	//STEP 8: finish with return response
-	err = tx.Commit()
-	if err != nil {
-		impl.logger.Errorw("error while committing transaction to db", "error", err)
-		return false, err
-	}
-	if util.IsHelmApp(upgradeRequest.DeploymentAppType) && !impl.deploymentTypeConfig.HelmInstallASyncMode {
-		err = impl.appStoreDeploymentDBService.UpdateInstalledAppVersionHistoryStatus(
-			upgradeRequest.InstalledAppVersionHistoryId,
-			installedAppAdapter.SuccessStatusUpdateOption(upgradeRequest.DeploymentAppType, upgradeRequest.UserId),
-		)
-		if err != nil {
-			impl.logger.Errorw("error in updating install app version history on sync", "err", err)
-			return success, err
-		}
-	}
-	err1 := impl.UpdatePreviousDeploymentStatusForAppStore(upgradeRequest, triggeredAt, err)
-	if err1 != nil {
-		impl.logger.Errorw("error while update previous installed app version history", "err", err, "installAppVersionRequest.Id", installedApp.Id)
-		//if installed app is updated and error is in updating previous deployment status, then don't block user, just show error.
-	}
-	return success, nil
+	return success, err
 }
 
 func (impl *AppStoreDeploymentServiceImpl) GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*bean3.DeploymentHistoryAndInstalledAppInfo, error) {
@@ -832,6 +786,7 @@ func (impl *AppStoreDeploymentServiceImpl) updateInstalledApp(ctx context.Contex
 }
 
 func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context, upgradeAppRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
+	triggeredAt := time.Now()
 	// db operations
 	dbConnection := impl.installedAppRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -872,8 +827,15 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 			return nil, err
 		}
 	}
+	err1 := impl.UpdatePreviousDeploymentStatusForAppStore(upgradeAppRequest, triggeredAt, err)
+	if err1 != nil {
+		impl.logger.Errorw("error while update previous installed app version history", "err", err, "installAppVersionRequest", upgradeAppRequest)
+		//if installed app is updated and error is in updating previous deployment status, then don't block user, just show error.
+	}
 
-	return upgradeAppRequest, nil
+	err = impl.attributesService.UpdateKeyValueByOne(bean2.HELM_APP_UPDATE_COUNTER)
+
+	return upgradeAppRequest, err
 }
 
 func (impl *AppStoreDeploymentServiceImpl) InstallAppByHelm(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error) {

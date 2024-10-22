@@ -149,6 +149,11 @@ func (chart *InstallAppVersionDTO) UpdateLog(updatedOn time.Time) {
 	chart.UpdatedOn = updatedOn
 }
 
+// IsExternalCliApp It is used for filtering the incoming request for rollback case
+func (chart *InstallAppVersionDTO) IsExternalCliApp() bool {
+	return chart.InstalledAppId == 0
+}
+
 // UpdateDeploymentAppType updates deploymentAppType to InstallAppVersionDTO
 func (chart *InstallAppVersionDTO) UpdateDeploymentAppType(deploymentAppType string) {
 	if chart == nil {
