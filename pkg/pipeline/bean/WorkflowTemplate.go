@@ -50,13 +50,14 @@ type WorkflowTemplate struct {
 }
 
 const (
-	CI_WORKFLOW_NAME        = "ci"
-	CI_WORKFLOW_WITH_STAGES = "ci-stages-with-env"
-	CiStage                 = "CI"
-	JobStage                = "JOB"
-	CdStage                 = "CD"
-	CD_WORKFLOW_NAME        = "cd"
-	CD_WORKFLOW_WITH_STAGES = "cd-stages-with-env"
+	CI_WORKFLOW_NAME           = "ci"
+	CI_WORKFLOW_WITH_STAGES    = "ci-stages-with-env"
+	CiStage                    = "CI"
+	JobStage                   = "JOB"
+	CdStage                    = "CD"
+	CD_WORKFLOW_NAME           = "cd"
+	CD_WORKFLOW_WITH_STAGES    = "cd-stages-with-env"
+	WorkflowGenerateNamePrefix = "devtron.ai/generate-name-prefix"
 )
 
 func (workflowTemplate *WorkflowTemplate) GetEntrypoint() string {
@@ -72,17 +73,20 @@ func (workflowTemplate *WorkflowTemplate) GetEntrypoint() string {
 
 func (workflowTemplate *WorkflowTemplate) CreateObjectMetadata() *v12.ObjectMeta {
 
+	workflowLabels := map[string]string{WorkflowGenerateNamePrefix: workflowTemplate.WorkflowNamePrefix}
 	switch workflowTemplate.WorkflowType {
 	case CI_WORKFLOW_NAME:
+		workflowLabels["devtron.ai/workflow-purpose"] = "ci"
 		return &v12.ObjectMeta{
 			GenerateName: workflowTemplate.WorkflowNamePrefix + "-",
-			Labels:       map[string]string{"devtron.ai/workflow-purpose": "ci"},
+			Labels:       workflowLabels,
 		}
 	case CD_WORKFLOW_NAME:
+		workflowLabels["devtron.ai/workflow-purpose"] = "cd"
 		return &v12.ObjectMeta{
 			GenerateName: workflowTemplate.WorkflowNamePrefix + "-",
 			Annotations:  map[string]string{"workflows.argoproj.io/controller-instanceid": workflowTemplate.WfControllerInstanceID},
-			Labels:       map[string]string{"devtron.ai/workflow-purpose": "cd"},
+			Labels:       workflowLabels,
 		}
 	default:
 		return nil
