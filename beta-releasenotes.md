@@ -19,6 +19,7 @@
 - feat: Feature release v9 sql scripts (#5950)
 ## Documentation
 ## Others
+- fix : multiple param of filter in helm app list (#6013)
 - chore: adding refchart migration (#6007)
 - chore: Cluster terminal images migration (#6006)
 - chore: Trigger clean (#6004)
