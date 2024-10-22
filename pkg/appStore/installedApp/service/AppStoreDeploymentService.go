@@ -463,9 +463,7 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest
 
 func (impl *AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Context, request *openapi2.RollbackReleaseRequest,
 	installedApp *appStoreBean.InstallAppVersionDTO, userId int32) (bool, error) {
-	//triggeredAt := time.Now()
 	var err error
-
 	var success bool
 	upgradeRequest := installedApp.NewInstalledAppVersionRequestDTO(userId, installedApp.InstalledAppId)
 
