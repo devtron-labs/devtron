@@ -614,6 +614,9 @@ func (impl *GlobalPluginRepositoryImpl) GetPluginByName(pluginName string) ([]*P
 	if err != nil {
 		impl.logger.Errorw("err in getting pluginMetadata by pluginName", "err", err, "pluginName", pluginName)
 		return nil, err
+	} else if len(plugin) == 0 {
+		impl.logger.Warnw("no plugin found in GetPluginByName", "name", pluginName)
+		return nil, pg.ErrNoRows
 	}
 	return plugin, nil
 
