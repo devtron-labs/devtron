@@ -385,11 +385,11 @@ func getVariableDto(pluginVariable *repository.PluginStepVariable) *bean2.Plugin
 
 func (impl *GlobalPluginServiceImpl) GetRefPluginIdByRefPluginName(pluginName string) (pluginVersionDetail []bean2.PluginsVersionDetail, err error) {
 	pluginMetadata, err := impl.globalPluginRepository.GetPluginByName(pluginName)
-	if err != nil && !util.IsErrNoRows(err) {
+	if err != nil {
 		impl.logger.Errorw("error in fetching plugin metadata by name", "err", err)
 		return nil, err
 	}
-	if util.IsErrNoRows(err) || len(pluginMetadata) == 0 {
+	if len(pluginMetadata) == 0 {
 		return nil, nil
 	}
 	pluginVersionDetail = make([]bean2.PluginsVersionDetail, 0)
