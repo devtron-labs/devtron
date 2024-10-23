@@ -5,10 +5,16 @@
 apiVersion: getambassador.io/v3alpha1
 kind: Mapping
 metadata:
-  name:  {{ include ".Chart.Name .fullname" $ }}-mapping
+  {{- if .name }}
+  name: {{ .name }}
+  {{- else }}
+  name: {{ include ".Chart.Name .fullname" $ }}-mapping
+  {{- end }}
   labels:
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
     release: {{ $.Release.Name }}
     releaseVersion: {{ $.Values.releaseVersion | quote }}
     pipelineName: {{ $.Values.pipelineName }}
@@ -57,6 +63,8 @@ kind: TLSContext
 metadata:
   name: {{ .tls.context }}
   labels:
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}
     release: {{ $.Release.Name }}
@@ -65,6 +73,9 @@ metadata:
     {{- if .tls.labels }}
 {{ toYaml .tls.labels | nindent 4 }}
     {{- end }}
+{{- if $.Values.appLabels }}
+{{ toYaml $.Values.appLabels | indent 4 }}
+{{- end }}
 spec:
   {{- if .tls.secretName }}
   secret: {{ .tls.secretName }}

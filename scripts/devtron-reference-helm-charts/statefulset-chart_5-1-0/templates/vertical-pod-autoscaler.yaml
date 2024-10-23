@@ -1,0 +1,27 @@
+{{ $VerticalPodAutoScalingEnabled := include "VerticalPodAutoScalingEnabled" . }}
+{{- if eq "true" $VerticalPodAutoScalingEnabled -}}
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: {{ template ".Chart.Name .fullname" . }}-vpa
+  labels:
+    kind: Prometheus
+    app: {{ template ".Chart.Name .name" . }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" . }}
+    release: {{ .Values.prometheus.release }}
+spec:
+{{- if .Values.verticalPodScaling.resourcePolicy }}
+  resourcePolicy:
+{{ toYaml .Values.verticalPodScaling.resourcePolicy}}  
+{{- end }}
+{{- if .Values.verticalPodScaling.updatePolicy }}
+  updatePolicy:
+{{ toYaml .Values.verticalPodScaling.updatePolicy}}  
+{{- end }}
+  targetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: {{ include ".Chart.Name .fullname" $ }}
+{{- end }}    

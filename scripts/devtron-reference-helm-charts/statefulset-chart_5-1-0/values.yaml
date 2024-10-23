@@ -114,18 +114,23 @@ kedaAutoscaling:
 secret:
   enabled: false
 serviceheadless: 
-    enabled: true
+    enabled: false
+    sessionAffinity:
+      enabled: false 
 service:
   type: ClusterIP
   enabled: false
   #name: "test-service"
   annotations: {}
+  sessionAffinity:
+    enabled: false  
     # test1: test2
     # test3: test4
 statefulSetConfig:
   mountPath: "/tmp"
   serviceheadless: 
     enabled: false
+    
 
   volumeClaimTemplates: []
   # - spec:
@@ -600,3 +605,9 @@ tolerations: []
 imagePullSecrets: []
   # - test1
   # - test2
+
+affinity:
+  enabled: false
+
+verticalPodScaling:
+  enabled: false
