@@ -22,6 +22,8 @@
 <a href="https://twitter.com/DevtronL">Twitter</a>
 .
 <a href="https://www.youtube.com/channel/UCAHRp9qp0z1y9MMtQlcFtcw">YouTube</a>
+.
+<a href="https://gurubase.io/g/devtron">Ask Devtron Guru</a>
  
 </p>
 <p align="center">
@@ -32,6 +34,7 @@
 <a href="http://golang.org"><img src="https://img.shields.io/badge/Made%20with-Go-1f425f.svg" alt="made-with-Go"></a>
 <a href="http://devtron.ai/"><img src="https://img.shields.io/website-up-down-green-red/http/shields.io.svg" alt="Website devtron.ai"></a>
 <a href="https://twitter.com/intent/tweet?text=Devtron%20helps%20in%20simplifying%20software delivery%20workflow%20for%20Kubernetes,%20check%20it%20out!!%20&hashtags=OpenSource,Kubernetes,DevOps,CICD,go&url=https://github.com/devtron-labs/devtron%0a"><img src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social" alt="Tweet"></a>
+<a href="https://gurubase.io/g/devtron"><img src="https://img.shields.io/badge/Gurubase-Ask%20Devtron%20Guru-006BFF" alt="Devtron Guru on Gurubase.io"></a>
  
 <p align="center">
 <a href="https://devtron.ai/devops-in-a-box.html">🔥 Want to accelerate K8s adoption? Introducing DevOps in a Box; Leave DevOps on Devtron 🔥
