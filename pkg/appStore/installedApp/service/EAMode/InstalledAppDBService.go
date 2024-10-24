@@ -51,7 +51,7 @@ type InstalledAppDBService interface {
 	GetInstalledAppByClusterNamespaceAndName(appIdentifier *helmBean.AppIdentifier) (*appStoreBean.InstallAppVersionDTO, error)
 	GetInstalledAppByInstalledAppId(installedAppId int) (*appStoreBean.InstallAppVersionDTO, error)
 	GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
-	GetInstalledAppVersionAny(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
+	GetInstalledAppVersionByIdIncludeDeleted(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
 	CreateInstalledAppVersion(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreRepo.InstalledAppVersions, error)
 	UpdateInstalledAppVersion(installedAppVersion *appStoreRepo.InstalledAppVersions, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreRepo.InstalledAppVersions, error)
 
@@ -361,7 +361,7 @@ func (impl *InstalledAppDBServiceImpl) GetInstalledAppVersion(id int, userId int
 	adapter.UpdateAdditionalEnvDetails(installAppVersion, environment)
 	return installAppVersion, err
 }
-func (impl *InstalledAppDBServiceImpl) GetInstalledAppVersionAny(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
+func (impl *InstalledAppDBServiceImpl) GetInstalledAppVersionByIdIncludeDeleted(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
 	model, err := impl.InstalledAppRepository.GetInstalledAppVersionAny(id)
 	if err != nil {
 		if util.IsErrNoRows(err) {

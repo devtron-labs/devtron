@@ -482,7 +482,7 @@ func (impl *AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Conte
 			impl.logger.Errorw("error while fetching installed app version history from Db", "request", request, "error", err)
 			return false, err
 		}
-		installedAppVersionDTO, err := impl.installedAppService.GetInstalledAppVersionAny(installedAppVersionHistory.InstalledAppVersionId, userId)
+		installedAppVersionDTO, err := impl.installedAppService.GetInstalledAppVersionByIdIncludeDeleted(installedAppVersionHistory.InstalledAppVersionId, userId)
 		if err != nil {
 			impl.logger.Errorw("error while fetching installed app version detail from Db", "installedAppVersion", installedAppVersionHistory.InstalledAppVersionId, "error", err)
 			return false, err
