@@ -35,6 +35,7 @@ type PipelineStrategyHistoryRepository interface {
 	GetHistoryByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int) (*PipelineStrategyHistory, error)
 	CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (bool, error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*PipelineStrategyHistory, error)
+	FindPipelineStrategyForDeployedOnAndPipelineId(pipelineId int, deployedOn time.Time) (PipelineStrategyHistory, error)
 }
 
 type PipelineStrategyHistoryRepositoryImpl struct {
@@ -144,4 +145,12 @@ func (impl PipelineStrategyHistoryRepositoryImpl) CheckIfTriggerHistoryExistsFor
 		Where("pipeline_strategy_history.deployed = ?", true).
 		Exists()
 	return exists, err
+}
+
+func (impl PipelineStrategyHistoryRepositoryImpl) FindPipelineStrategyForDeployedOnAndPipelineId(pipelineId int, deployedOn time.Time) (PipelineStrategyHistory, error) {
+	var history PipelineStrategyHistory
+	err := impl.dbConnection.Model(&history).
+		Where("pipeline_strategy_history.deployed_on = ?", deployedOn).
+		Where("pipeline_strategy_history.pipeline_id = ?", pipelineId).Select()
+	return history, err
 }

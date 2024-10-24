@@ -39,6 +39,7 @@ type ConfigMapHistoryRepository interface {
 	GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, configType ConfigType) (*ConfigmapAndSecretHistory, error)
 	GetDeployedHistoryForPipelineIdOnTime(pipelineId int, deployedOn time.Time, configType ConfigType) (*ConfigmapAndSecretHistory, error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int, configType ConfigType, componentName string) ([]*ConfigmapAndSecretHistory, error)
+	GetDeployedHistoryByPipelineIdAndDeployedOn(pipelineId int, deployedOn time.Time, configType ConfigType) (*ConfigmapAndSecretHistory, error)
 }
 
 type ConfigMapHistoryRepositoryImpl struct {
@@ -71,6 +72,13 @@ type ConfigmapAndSecretHistory struct {
 	DeployedByEmailId string `sql:"-"`
 }
 
+func (r *ConfigmapAndSecretHistory) IsConfigmapHistorySecretType() bool {
+	return r.DataType == SECRET_TYPE
+}
+
+func (r *ConfigmapAndSecretHistory) IsConfigmapHistoryConfigMapType() bool {
+	return r.DataType == CONFIGMAP_TYPE
+}
 func (impl ConfigMapHistoryRepositoryImpl) CreateHistory(tx *pg.Tx, model *ConfigmapAndSecretHistory) (*ConfigmapAndSecretHistory, error) {
 	var err error
 	if tx != nil {
@@ -140,6 +148,17 @@ func (impl ConfigMapHistoryRepositoryImpl) GetDeployedHistoryList(pipelineId, ba
 }
 
 func (impl ConfigMapHistoryRepositoryImpl) GetDeployedHistoryForPipelineIdOnTime(pipelineId int, deployedOn time.Time, configType ConfigType) (*ConfigmapAndSecretHistory, error) {
+	var history ConfigmapAndSecretHistory
+	err := impl.dbConnection.Model(&history).
+		Where("pipeline_id = ?", pipelineId).
+		Where("data_type = ?", configType).
+		Where("deployed_on = ?", deployedOn).
+		Where("deployed = ?", true).
+		Select()
+	return &history, err
+}
+
+func (impl ConfigMapHistoryRepositoryImpl) GetDeployedHistoryByPipelineIdAndDeployedOn(pipelineId int, deployedOn time.Time, configType ConfigType) (*ConfigmapAndSecretHistory, error) {
 	var history ConfigmapAndSecretHistory
 	err := impl.dbConnection.Model(&history).
 		Where("pipeline_id = ?", pipelineId).

@@ -4,6 +4,8 @@ import "C"
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	bean3 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 )
 
@@ -11,6 +13,8 @@ type ConfigState string
 
 const (
 	PublishedConfigState ConfigState = "PublishedOnly"
+	PreviousDeployments  ConfigState = "PreviousDeployments"
+	DefaultVersion       ConfigState = "DefaultVersion"
 )
 
 func (r ConfigState) ToString() string {
@@ -24,6 +28,19 @@ const (
 	Inheriting ConfigStage = "Inheriting"
 	Overridden ConfigStage = "Overridden"
 )
+
+type ConfigArea string
+
+const (
+	AppConfiguration  ConfigArea = "AppConfiguration"
+	DeploymentHistory ConfigArea = "DeploymentHistory"
+	CdRollback        ConfigArea = "CdRollback"
+	ResolveData       ConfigArea = "ResolveData"
+)
+
+func (r ConfigArea) ToString() string {
+	return string(r)
+}
 
 type ConfigProperty struct {
 	Id          int               `json:"id"`
@@ -71,8 +88,16 @@ func (r *ConfigProperty) GetIdentifier() ConfigPropertyIdentifier {
 }
 
 type DeploymentAndCmCsConfig struct {
-	ResourceType bean.ResourceType `json:"resourceType"`
-	Data         json.RawMessage   `json:"data"`
+	ResourceType     bean.ResourceType            `json:"resourceType"`
+	Data             json.RawMessage              `json:"data"`
+	VariableSnapshot map[string]map[string]string `json:"variableSnapshot"` // for deployment->{Deployment Template: resolvedValuesMap}, for cm->{cmComponentName: resolvedValuesMap}
+	ResolvedValue    json.RawMessage              `json:"resolvedValue"`
+	// for deployment template
+	TemplateVersion     string `json:"templateVersion,omitempty"`
+	IsAppMetricsEnabled bool   `json:"isAppMetricsEnabled,omitempty"`
+	//for pipeline strategy
+	PipelineTriggerType pipelineConfig.TriggerType `json:"pipelineTriggerType,omitempty"`
+	Strategy            string                     `json:"strategy,omitempty"`
 }
 
 func NewDeploymentAndCmCsConfig() *DeploymentAndCmCsConfig {
@@ -89,10 +114,33 @@ func (r *DeploymentAndCmCsConfig) WithConfigData(data json.RawMessage) *Deployme
 	return r
 }
 
+func (r *DeploymentAndCmCsConfig) WithVariableSnapshot(snapshot map[string]map[string]string) *DeploymentAndCmCsConfig {
+	r.VariableSnapshot = snapshot
+	return r
+}
+
+func (r *DeploymentAndCmCsConfig) WithResolvedValue(resolvedValue json.RawMessage) *DeploymentAndCmCsConfig {
+	r.ResolvedValue = resolvedValue
+	return r
+}
+
+func (r *DeploymentAndCmCsConfig) WithDeploymentConfigMetadata(templateVersion string, isAppMetricsEnabled bool) *DeploymentAndCmCsConfig {
+	r.TemplateVersion = templateVersion
+	r.IsAppMetricsEnabled = isAppMetricsEnabled
+	return r
+}
+
+func (r *DeploymentAndCmCsConfig) WithPipelineStrategyMetadata(pipelineTriggerType pipelineConfig.TriggerType, strategy string) *DeploymentAndCmCsConfig {
+	r.PipelineTriggerType = pipelineTriggerType
+	r.Strategy = strategy
+	return r
+}
+
 type DeploymentAndCmCsConfigDto struct {
 	DeploymentTemplate *DeploymentAndCmCsConfig `json:"deploymentTemplate"`
 	ConfigMapsData     *DeploymentAndCmCsConfig `json:"configMapData"`
 	SecretsData        *DeploymentAndCmCsConfig `json:"secretsData"`
+	PipelineConfigData *DeploymentAndCmCsConfig `json:"pipelineConfigData,omitempty"`
 	IsAppAdmin         bool                     `json:"isAppAdmin"`
 }
 
@@ -112,17 +160,23 @@ func (r *DeploymentAndCmCsConfigDto) WithSecretData(data *DeploymentAndCmCsConfi
 	r.SecretsData = data
 	return r
 }
+func (r *DeploymentAndCmCsConfigDto) WithPipelineConfigData(data *DeploymentAndCmCsConfig) *DeploymentAndCmCsConfigDto {
+	r.PipelineConfigData = data
+	return r
+}
 
 type ConfigDataQueryParams struct {
 	AppName      string `schema:"appName"`
 	EnvName      string `schema:"envName"`
 	ConfigType   string `schema:"configType"`
 	IdentifierId int    `schema:"identifierId"`
-	PipelineId   int    `schema:"pipelineId"` // req for fetching previous deployments data
-	ResourceName string `schema:"resourceName"`
-	ResourceType string `schema:"resourceType"`
-	ResourceId   int    `schema:"resourceId"`
+	PipelineId   int    `schema:"pipelineId"`   // req for fetching previous deployments data
+	ResourceName string `schema:"resourceName"` // used in case of cm and cs
+	ResourceType string `schema:"resourceType"` // used in case of cm and cs
+	ResourceId   int    `schema:"resourceId"`   // used in case of cm and cs
 	UserId       int32  `schema:"-"`
+	WfrId        int    `schema:"wfrId"`
+	ConfigArea   string `schema:"configArea"`
 }
 
 // FilterCriteria []string `schema:"filterCriteria"`
@@ -149,4 +203,34 @@ func (r *ConfigDataQueryParams) IsRequestMadeForOneResource() bool {
 
 const (
 	InvalidConfigTypeErr = "invalid config type provided, please send a valid config type"
+)
+
+type CmCsMetadataDto struct {
+	CmMap            map[string]*bean3.ConfigData
+	SecretMap        map[string]*bean3.ConfigData
+	ConfigAppLevelId int
+	ConfigEnvLevelId int
+}
+
+type ResolvedCmCsMetadataDto struct {
+	ResolvedConfigMapData string
+	ResolvedSecretData    string
+	VariableMapCM         map[string]map[string]string
+	VariableMapCS         map[string]map[string]string
+}
+
+type ValuesDto struct {
+	Values string `json:"values"`
+}
+
+type DeploymentTemplateMetadata struct {
+	DeploymentTemplateJson json.RawMessage
+	TemplateVersion        string
+	IsAppMetricsEnabled    bool
+}
+
+const (
+	NoDeploymentDoneForSelectedImage      = "there were no deployments done for the selected image"
+	ExpectedWfrIdNotPassedInQueryParamErr = "wfrId is expected in the query param which was not passed"
+	SecretMaskedValue                     = "*****"
 )

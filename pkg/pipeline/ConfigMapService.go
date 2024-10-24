@@ -47,10 +47,6 @@ const (
 	HashiCorpVault    string = "HashiCorpVault"
 )
 
-type ConfigsList struct {
-	ConfigData []*bean.ConfigData `json:"maps"`
-}
-
 type ConfigMapService interface {
 	CMGlobalAddUpdate(configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error)
 	CMGlobalFetch(appId int) (*bean.ConfigDataRequest, error)
@@ -165,7 +161,7 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.Config
 			impl.logger.Errorw("error while fetching from db", "error", err)
 			return nil, err
 		}
-		configsList := &ConfigsList{}
+		configsList := &bean.ConfigsList{}
 		found := false
 		var configs []*bean.ConfigData
 		if len(model.ConfigMapData) > 0 {
@@ -208,7 +204,7 @@ func (impl ConfigMapServiceImpl) CMGlobalAddUpdate(configMapRequest *bean.Config
 
 	} else {
 		//creating config map record for first time
-		configsList := &ConfigsList{
+		configsList := &bean.ConfigsList{
 			ConfigData: configMapRequest.ConfigData,
 		}
 		configDataByte, err := json.Marshal(configsList)
@@ -254,7 +250,7 @@ func (impl ConfigMapServiceImpl) CMGlobalFetch(appId int) (*bean.ConfigDataReque
 		impl.logger.Debugw("no config map data found for this request", "appId", appId)
 	}
 
-	configMapGlobalList := &ConfigsList{}
+	configMapGlobalList := &bean.ConfigsList{}
 	if len(configMapGlobal.ConfigMapData) > 0 {
 		err = json.Unmarshal([]byte(configMapGlobal.ConfigMapData), configMapGlobalList)
 		if err != nil {
@@ -301,7 +297,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *bean.C
 		return nil, err
 	}
 	if err == nil && model.Id > 0 {
-		configsList := &ConfigsList{}
+		configsList := &bean.ConfigsList{}
 		found := false
 		var configs []*bean.ConfigData
 		if len(model.ConfigMapData) > 0 {
@@ -345,7 +341,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *bean.C
 
 	} else if err == pg.ErrNoRows {
 		//creating config map record for first time
-		configsList := &ConfigsList{
+		configsList := &bean.ConfigsList{
 			ConfigData: configMapRequest.ConfigData,
 		}
 		configDataByte, err := json.Marshal(configsList)
@@ -391,7 +387,7 @@ func (impl ConfigMapServiceImpl) CMGlobalFetchForEdit(name string, id int) (*bea
 		impl.logger.Debugw("no config map data found for this request", "id", id)
 	}
 
-	configMapGlobalList := &ConfigsList{}
+	configMapGlobalList := &bean.ConfigsList{}
 	if len(configMapGlobal.ConfigMapData) > 0 {
 		err = json.Unmarshal([]byte(configMapGlobal.ConfigMapData), configMapGlobalList)
 		if err != nil {
@@ -439,7 +435,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentFetch(appId int, envId int) (*bean
 	if pg.ErrNoRows == err {
 		impl.logger.Debugw("no config map data found for this request", "appId", appId)
 	}
-	configMapGlobalList := &ConfigsList{}
+	configMapGlobalList := &bean.ConfigsList{}
 	if len(configMapGlobal.ConfigMapData) > 0 {
 		err = json.Unmarshal([]byte(configMapGlobal.ConfigMapData), configMapGlobalList)
 		if err != nil {
@@ -454,7 +450,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentFetch(appId int, envId int) (*bean
 	if pg.ErrNoRows == err {
 		impl.logger.Debugw("no config map data found for this request", "appId", appId)
 	}
-	configsListEnvLevel := &ConfigsList{}
+	configsListEnvLevel := &bean.ConfigsList{}
 	if len(configMapEnvLevel.ConfigMapData) > 0 {
 		err = json.Unmarshal([]byte(configMapEnvLevel.ConfigMapData), configsListEnvLevel)
 		if err != nil {
@@ -918,7 +914,7 @@ func (impl ConfigMapServiceImpl) CMGlobalDelete(name string, id int, userId int3
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return false, err
 	}
-	configsList := &ConfigsList{}
+	configsList := &bean.ConfigsList{}
 	found := false
 	var configs []*bean.ConfigData
 	if len(model.ConfigMapData) > 0 {
@@ -974,7 +970,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentDelete(name string, id int, userId
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return false, err
 	}
-	configsList := &ConfigsList{}
+	configsList := &bean.ConfigsList{}
 	found := false
 	var configs []*bean.ConfigData
 	if len(model.ConfigMapData) > 0 {
@@ -1140,7 +1136,7 @@ func (impl ConfigMapServiceImpl) CMGlobalDeleteByAppId(name string, appId int, u
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return false, err
 	}
-	configsList := &ConfigsList{}
+	configsList := &bean.ConfigsList{}
 	found := false
 	var configs []*bean.ConfigData
 	if len(model.ConfigMapData) > 0 {
@@ -1190,7 +1186,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentDeleteByAppIdAndEnvId(name string,
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return false, err
 	}
-	configsList := &ConfigsList{}
+	configsList := &bean.ConfigsList{}
 	found := false
 	var configs []*bean.ConfigData
 	if len(model.ConfigMapData) > 0 {
@@ -1540,7 +1536,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretGlobalBulkPatch(bulkPatchRequest *b
 			continue
 		}
 		if bulkPatchRequest.Type == "CM" {
-			configsList := &ConfigsList{}
+			configsList := &bean.ConfigsList{}
 			var configs []*bean.ConfigData
 			if len(model.ConfigMapData) > 0 {
 				err = json.Unmarshal([]byte(model.ConfigMapData), configsList)
@@ -1645,7 +1641,7 @@ func (impl ConfigMapServiceImpl) ConfigSecretEnvironmentBulkPatch(bulkPatchReque
 			continue
 		}
 		if bulkPatchRequest.Type == "CM" {
-			configsList := &ConfigsList{}
+			configsList := &bean.ConfigsList{}
 			var configs []*bean.ConfigData
 			if len(model.ConfigMapData) > 0 {
 				err = json.Unmarshal([]byte(model.ConfigMapData), configsList)
