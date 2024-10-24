@@ -24,7 +24,7 @@ global:
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
-  release: "v0.7.4-rc.0"
+  release: "v1.0.0"
   registry: ""
   image: inception
   tag: 473deaa4-185-21582
@@ -223,6 +223,9 @@ components:
   chartSync:
     registry: ""
     image: chart-sync:13ffae06-150-25515
+    schedule: "0 19 * * *"
+    extraConfigs: {} 
+
 # values for argocd integration
 argo-cd:
   enabled: false
@@ -245,10 +248,6 @@ argo-cd:
       statusProcessors: "50"
       # -- define the application controller `--operation-processors`
       operationProcessors: "25"
-      # -- define the application controller `--app-hard-resync`
-      appHardResyncPeriod: "0"
-      # -- define the application controller `--app-resync`
-      appResyncPeriod: "180"
       # -- define the application controller `--self-heal-timeout-seconds`
       selfHealTimeout: "5"
       # -- define the application controller `--repo-server-timeout-seconds`
