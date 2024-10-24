@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
-	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -60,7 +59,6 @@ type CommonDeploymentRestHandlerImpl struct {
 	installedAppService       EAMode.InstalledAppDBService
 	validator                 *validator.Validate
 	helmAppService            service2.HelmAppService
-	helmAppRestHandler        client.HelmAppRestHandler
 	argoUserService           argo.ArgoUserService
 }
 
@@ -68,7 +66,7 @@ func NewCommonDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthServi
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm,
 	appStoreDeploymentService service.AppStoreDeploymentService, installedAppService EAMode.InstalledAppDBService,
 	validator *validator.Validate, helmAppService service2.HelmAppService,
-	helmAppRestHandler client.HelmAppRestHandler, argoUserService argo.ArgoUserService) *CommonDeploymentRestHandlerImpl {
+	argoUserService argo.ArgoUserService) *CommonDeploymentRestHandlerImpl {
 	return &CommonDeploymentRestHandlerImpl{
 		Logger:                    Logger,
 		userAuthService:           userAuthService,
@@ -79,7 +77,6 @@ func NewCommonDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthServi
 		installedAppService:       installedAppService,
 		validator:                 validator,
 		helmAppService:            helmAppService,
-		helmAppRestHandler:        helmAppRestHandler,
 		argoUserService:           argoUserService,
 	}
 }

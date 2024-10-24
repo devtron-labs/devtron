@@ -74,6 +74,7 @@ type ChartTemplateService interface {
 	CreateZipFileForChart(chart *chart.Chart, outputChartPathDir string) ([]byte, error)
 	PackageChart(tempReferenceTemplateDir string, chartMetaData *chart.Metadata) (*string, string, error)
 }
+
 type ChartTemplateServiceImpl struct {
 	randSource rand.Source
 	logger     *zap.SugaredLogger

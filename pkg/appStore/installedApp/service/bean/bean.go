@@ -32,3 +32,5 @@ type AppStoreGitOpsResponse struct {
 	ChartGitAttribute *commonBean.ChartGitAttribute
 	GitHash           string
 }
+
+const HELM_APP_UPDATE_COUNTER = "HelmAppUpdateCounter"
