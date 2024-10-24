@@ -1,4 +1,5 @@
 ## Bugs
+- fix: plugin getByName method error handling (#6016)
 - fix: Config deployment history fix (#6003)
 - fix: Force abort fix (#5990)
 - fix: custom tag  (#5999)
