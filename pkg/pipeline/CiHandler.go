@@ -1516,8 +1516,12 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 				return &types.GitTriggerInfoResponse{}, err
 			}
 		}
-
-		triggeredByUserEmailId, err = impl.userService.GetActiveEmailById(workflow.TriggeredBy)
+		userId, err := strconv.Atoi(deployDetail.LastDeployedBy)
+		if err != nil {
+			impl.Logger.Errorw("err in converting lastDeployedBy ", "err", err)
+			return &types.GitTriggerInfoResponse{}, err
+		}
+		triggeredByUserEmailId, err = impl.userService.GetActiveEmailById(int32(userId))
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.Logger.Errorw("err", "err", err)
 			return &types.GitTriggerInfoResponse{}, err
