@@ -118,5 +118,5 @@ type ImageScanExecutionDetail struct {
 	ScanEnabled           bool               `json:"scanEnabled,notnull"`
 	Scanned               bool               `json:"scanned,notnull"`
 	ObjectType            string             `json:"objectType,notnull"`
-	ScanToolId            int                `json:"scanToolId,omitempty""`
+	ScanToolId            int                `json:"scanToolId,omitempty"`
 }

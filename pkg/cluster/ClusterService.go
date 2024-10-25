@@ -136,7 +136,7 @@ type UserInfo struct {
 }
 
 type ValidateClusterBean struct {
-	UserInfos map[string]*UserInfo `json:"userInfos,omitempty""`
+	UserInfos map[string]*UserInfo `json:"userInfos,omitempty"`
 	*ClusterBean
 }
 

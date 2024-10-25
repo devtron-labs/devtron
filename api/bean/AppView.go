@@ -68,10 +68,10 @@ type GenericNoteResponseBean struct {
 
 type JobContainer struct {
 	JobId          int                     `json:"jobId"`
-	JobName        string                  `json:"jobName""`
-	JobActualName  string                  `json:"appName""`
+	JobName        string                  `json:"jobName"`
+	JobActualName  string                  `json:"appName"`
 	Description    GenericNoteResponseBean `json:"description"`
-	JobCiPipelines []JobCIPipeline         `json:"ciPipelines"'`
+	JobCiPipelines []JobCIPipeline         `json:"ciPipelines"`
 	ProjectId      int                     `json:"projectId"`
 }
 
