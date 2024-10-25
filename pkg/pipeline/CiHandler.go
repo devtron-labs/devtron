@@ -1521,7 +1521,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 			impl.Logger.Errorw("err in converting lastDeployedBy ", "err", err)
 			return &types.GitTriggerInfoResponse{}, err
 		}
-		triggeredByUserEmailId, err = impl.userService.GetActiveEmailById(int32(userId))
+		triggeredByUserEmailId, err = impl.userService.GetEmailById(int32(userId))
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.Logger.Errorw("err", "err", err)
 			return &types.GitTriggerInfoResponse{}, err
