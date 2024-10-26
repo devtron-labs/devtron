@@ -22,6 +22,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
+	"github.com/devtron-labs/devtron/pkg/infraConfig/bean"
+	"github.com/devtron-labs/devtron/pkg/infraConfig/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -70,10 +72,10 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWri
 	vars := mux.Vars(r)
 	profileName := strings.ToLower(vars["name"])
 	if profileName == "" {
-		common.WriteJsonResp(w, errors.New(infraConfig.InvalidProfileName), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New(util.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
-	payload := &infraConfig.ProfileBean{}
+	payload := &bean.ProfileBean{}
 	decoder := json.NewDecoder(r.Body)
 	err = decoder.Decode(payload)
 	if err != nil {
@@ -84,11 +86,11 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWri
 	payload.Name = strings.ToLower(payload.Name)
 	err = handler.validator.Struct(payload)
 	if err != nil {
-		err = errors.Wrap(err, infraConfig.PayloadValidationError)
+		err = errors.Wrap(err, util.PayloadValidationError)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 	}
-	if profileName == "" || (profileName == infraConfig.DEFAULT_PROFILE_NAME && payload.Name != infraConfig.DEFAULT_PROFILE_NAME) {
-		common.WriteJsonResp(w, errors.New(infraConfig.InvalidProfileName), nil, http.StatusBadRequest)
+	if profileName == "" || (profileName == util.DEFAULT_PROFILE_NAME && payload.Name != util.DEFAULT_PROFILE_NAME) {
+		common.WriteJsonResp(w, errors.New(util.InvalidProfileName), nil, http.StatusBadRequest)
 	}
 	err = handler.infraProfileService.UpdateProfile(userId, profileName, payload)
 	if err != nil {
@@ -114,23 +116,24 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 	vars := mux.Vars(r)
 	profileName := strings.ToLower(vars["name"])
 	if profileName == "" {
-		common.WriteJsonResp(w, errors.New(infraConfig.InvalidProfileName), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New(util.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
 
-	var profile *infraConfig.ProfileBean
+	var profile *bean.ProfileBean
 	defaultProfile, err := handler.infraProfileService.GetProfileByName(profileName)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if profileName == infraConfig.DEFAULT_PROFILE_NAME {
+	if profileName == util.DEFAULT_PROFILE_NAME {
 		profile = defaultProfile
 	}
-	resp := infraConfig.ProfileResponse{
+	resp := bean.ProfileResponse{
 		Profile: *profile,
 	}
 	resp.ConfigurationUnits = handler.infraProfileService.GetConfigurationUnits()
-	resp.DefaultConfigurations = defaultProfile.Configurations
+	//TODO: why below line ??
+	//resp.DefaultConfigurations = defaultProfile.Configurations
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }

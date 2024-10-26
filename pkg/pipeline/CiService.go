@@ -26,7 +26,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	bean4 "github.com/devtron-labs/devtron/pkg/attributes/bean"
-	"github.com/devtron-labs/devtron/pkg/infraConfig"
+	bean5 "github.com/devtron-labs/devtron/pkg/infraConfig/bean"
+	util4 "github.com/devtron-labs/devtron/pkg/infraConfig/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
@@ -569,7 +570,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		refPluginsData = []*pipelineConfigBean.RefPluginObject{}
 	}
 
-	infraConfigScope := &infraConfig.Scope{
+	infraConfigScope := &bean5.Scope{
 		AppId: pipeline.AppId,
 	}
 	infraGetter, err := impl.infraProvider.GetInfraProvider(pipelineConfigBean.CI_WORKFLOW_PIPELINE_TYPE)
@@ -584,7 +585,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			return nil, err
 		}
 	}
-	infraConfiguration, err := infraGetter.GetInfraConfigurationsByScope(infraConfigScope)
+	infraConfiguration, err := infraGetter.GetInfraConfigurationsByScope(infraConfigScope, util4.CI_RUNNER_PLATFORM)
 	if err != nil {
 		impl.Logger.Errorw("error in getting infra configuration using scope ", "ciPipelineId", pipeline.Id, "scope", infraConfigScope, "err", err)
 		return nil, err

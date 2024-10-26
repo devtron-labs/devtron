@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package infraConfig
+package bean
 
 import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
+	util2 "github.com/devtron-labs/devtron/pkg/infraConfig/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/util"
-	"math"
+	"strconv"
 	"time"
 )
 
@@ -36,9 +36,9 @@ type InfraProfileEntity struct {
 }
 
 func (infraProfile *InfraProfileEntity) ConvertToProfileBean() ProfileBean {
-	profileType := DEFAULT
-	if infraProfile.Name != DEFAULT_PROFILE_NAME {
-		profileType = NORMAL
+	profileType := util2.DEFAULT
+	if infraProfile.Name != util2.DEFAULT_PROFILE_NAME {
+		profileType = util2.NORMAL
 	}
 	return ProfileBean{
 		Id:          infraProfile.Id,
@@ -56,39 +56,29 @@ func (infraProfile *InfraProfileEntity) ConvertToProfileBean() ProfileBean {
 type InfraProfileConfigurationEntity struct {
 	tableName struct{}         `sql:"infra_profile_configuration" pg:",discard_unknown_columns"`
 	Id        int              `sql:"id"`
-	Key       ConfigKey        `sql:"key"`
-	Value     float64          `sql:"value"`
+	Key       util2.ConfigKey  `sql:"key"`
+	Value     string           `sql:"value"`
 	Unit      units.UnitSuffix `sql:"unit"`
 	ProfileId int              `sql:"profile_id"`
+	Platform  string           `sql:"platform"`
 	Active    bool             `sql:"active"`
 	sql.AuditLog
-}
-
-func (infraProfileConfiguration *InfraProfileConfigurationEntity) ConvertToConfigurationBean() ConfigurationBean {
-	return ConfigurationBean{
-		Id:        infraProfileConfiguration.Id,
-		Key:       GetConfigKeyStr(infraProfileConfiguration.Key),
-		Value:     infraProfileConfiguration.Value,
-		Unit:      GetUnitSuffixStr(infraProfileConfiguration.Key, infraProfileConfiguration.Unit),
-		ProfileId: infraProfileConfiguration.ProfileId,
-		Active:    infraProfileConfiguration.Active,
-	}
 }
 
 // service layer structs
 
 type ProfileBean struct {
-	Id             int                 `json:"id"`
-	Name           string              `json:"name" validate:"required,min=1,max=50"`
-	Description    string              `json:"description" validate:"max=300"`
-	Active         bool                `json:"active"`
-	Configurations []ConfigurationBean `json:"configurations" validate:"dive"`
-	Type           ProfileType         `json:"type"`
-	AppCount       int                 `json:"appCount"`
-	CreatedBy      int32               `json:"createdBy"`
-	CreatedOn      time.Time           `json:"createdOn"`
-	UpdatedBy      int32               `json:"updatedBy"`
-	UpdatedOn      time.Time           `json:"updatedOn"`
+	Id             int                             `json:"id"`
+	Name           string                          `json:"name" validate:"required,min=1,max=50"`
+	Description    string                          `json:"description" validate:"max=300"`
+	Active         bool                            `json:"active"`
+	Configurations map[string][]*ConfigurationBean `json:"configurations" validate:"dive"`
+	Type           util2.ProfileType               `json:"type"`
+	AppCount       int                             `json:"appCount"`
+	CreatedBy      int32                           `json:"createdBy"`
+	CreatedOn      time.Time                       `json:"createdOn"`
+	UpdatedBy      int32                           `json:"updatedBy"`
+	UpdatedOn      time.Time                       `json:"updatedOn"`
 }
 
 func (profileBean *ProfileBean) ConvertToInfraProfileEntity() *InfraProfileEntity {
@@ -100,41 +90,21 @@ func (profileBean *ProfileBean) ConvertToInfraProfileEntity() *InfraProfileEntit
 }
 
 type ConfigurationBean struct {
-	Id          int          `json:"id"`
-	Key         ConfigKeyStr `json:"key"`
-	Value       float64      `json:"value" validate:"required,gt=0"`
-	Unit        string       `json:"unit" validate:"required,gt=0"`
-	ProfileName string       `json:"profileName"`
-	ProfileId   int          `json:"profileId"`
-	Active      bool         `json:"active"`
-}
-
-func (configurationBean *ConfigurationBean) ConvertToInfraProfileConfigurationEntity() *InfraProfileConfigurationEntity {
-	value := util.TruncateFloat(configurationBean.Value, 2)
-	if configurationBean.Key == TIME_OUT {
-		value = math.Min(math.Floor(value), math.MaxInt64)
-	}
-	return &InfraProfileConfigurationEntity{
-		Id:        configurationBean.Id,
-		Key:       GetConfigKey(configurationBean.Key),
-		Value:     value,
-		Unit:      GetUnitSuffix(configurationBean.Key, configurationBean.Unit),
-		ProfileId: configurationBean.ProfileId,
-		Active:    configurationBean.Active,
-	}
+	Id          int                `json:"id"`
+	Key         util2.ConfigKeyStr `json:"key"`
+	Value       string             `json:"value" validate:"required,gt=0"`
+	Unit        string             `json:"unit" validate:"required,gt=0"`
+	ProfileName string             `json:"profileName"`
+	ProfileId   int                `json:"profileId"`
+	Active      bool               `json:"active"`
 }
 
 type InfraConfigMetaData struct {
-	DefaultConfigurations []ConfigurationBean                    `json:"defaultConfigurations"`
-	ConfigurationUnits    map[ConfigKeyStr]map[string]units.Unit `json:"configurationUnits"`
+	DefaultConfigurations []ConfigurationBean                          `json:"defaultConfigurations"`
+	ConfigurationUnits    map[util2.ConfigKeyStr]map[string]units.Unit `json:"configurationUnits"`
 }
 type ProfileResponse struct {
 	Profile ProfileBean `json:"profile"`
-	InfraConfigMetaData
-}
-
-type ProfilesResponse struct {
-	Profiles []ProfileBean `json:"profiles"`
 	InfraConfigMetaData
 }
 
@@ -156,7 +126,7 @@ func (infraConfig InfraConfig) GetCiLimitCpu() string {
 	return infraConfig.CiLimitCpu
 }
 
-func (infraConfig *InfraConfig) setCiLimitCpu(cpu string) {
+func (infraConfig *InfraConfig) SetCiLimitCpu(cpu string) {
 	infraConfig.CiLimitCpu = cpu
 }
 
@@ -164,7 +134,7 @@ func (infraConfig InfraConfig) GetCiLimitMem() string {
 	return infraConfig.CiLimitMem
 }
 
-func (infraConfig *InfraConfig) setCiLimitMem(mem string) {
+func (infraConfig *InfraConfig) SetCiLimitMem(mem string) {
 	infraConfig.CiLimitMem = mem
 }
 
@@ -172,7 +142,7 @@ func (infraConfig InfraConfig) GetCiReqCpu() string {
 	return infraConfig.CiReqCpu
 }
 
-func (infraConfig *InfraConfig) setCiReqCpu(cpu string) {
+func (infraConfig *InfraConfig) SetCiReqCpu(cpu string) {
 	infraConfig.CiReqCpu = cpu
 }
 
@@ -180,7 +150,7 @@ func (infraConfig InfraConfig) GetCiReqMem() string {
 	return infraConfig.CiReqMem
 }
 
-func (infraConfig *InfraConfig) setCiReqMem(mem string) {
+func (infraConfig *InfraConfig) SetCiReqMem(mem string) {
 	infraConfig.CiReqMem = mem
 }
 
@@ -188,7 +158,7 @@ func (infraConfig InfraConfig) GetCiDefaultTimeout() int64 {
 	return infraConfig.CiDefaultTimeout
 }
 
-func (infraConfig *InfraConfig) setCiDefaultTimeout(timeout int64) {
+func (infraConfig *InfraConfig) SetCiDefaultTimeout(timeout int64) {
 	infraConfig.CiDefaultTimeout = timeout
 }
 
@@ -198,8 +168,8 @@ func (infraConfig InfraConfig) LoadCiLimitCpu() (*InfraProfileConfigurationEntit
 		return nil, err
 	}
 	return &InfraProfileConfigurationEntity{
-		Key:   CPULimit,
-		Value: val,
+		Key:   util2.CPULimit,
+		Value: strconv.FormatFloat(val, 'f', -1, 64),
 		Unit:  units.CPUUnitStr(suffix).GetCPUUnit(),
 	}, nil
 
@@ -211,8 +181,8 @@ func (infraConfig InfraConfig) LoadCiLimitMem() (*InfraProfileConfigurationEntit
 		return nil, err
 	}
 	return &InfraProfileConfigurationEntity{
-		Key:   MemoryLimit,
-		Value: val,
+		Key:   util2.MemoryLimit,
+		Value: strconv.FormatFloat(val, 'f', -1, 64),
 		Unit:  units.MemoryUnitStr(suffix).GetMemoryUnit(),
 	}, nil
 
@@ -224,8 +194,8 @@ func (infraConfig InfraConfig) LoadCiReqCpu() (*InfraProfileConfigurationEntity,
 		return nil, err
 	}
 	return &InfraProfileConfigurationEntity{
-		Key:   CPURequest,
-		Value: val,
+		Key:   util2.CPURequest,
+		Value: strconv.FormatFloat(val, 'f', -1, 64),
 		Unit:  units.CPUUnitStr(suffix).GetCPUUnit(),
 	}, nil
 }
@@ -237,16 +207,16 @@ func (infraConfig InfraConfig) LoadCiReqMem() (*InfraProfileConfigurationEntity,
 	}
 
 	return &InfraProfileConfigurationEntity{
-		Key:   MemoryRequest,
-		Value: val,
+		Key:   util2.MemoryRequest,
+		Value: strconv.FormatFloat(val, 'f', -1, 64),
 		Unit:  units.MemoryUnitStr(suffix).GetMemoryUnit(),
 	}, nil
 }
 
 func (infraConfig InfraConfig) LoadDefaultTimeout() (*InfraProfileConfigurationEntity, error) {
 	return &InfraProfileConfigurationEntity{
-		Key:   TimeOut,
-		Value: float64(infraConfig.CiDefaultTimeout),
+		Key:   util2.TimeOut,
+		Value: strconv.FormatInt(infraConfig.CiDefaultTimeout, 10),
 		Unit:  units.SecondStr.GetTimeUnit(),
 	}, nil
 }
@@ -275,18 +245,4 @@ func (infraConfig InfraConfig) LoadInfraConfigInEntities() ([]*InfraProfileConfi
 
 	defaultConfigurations := []*InfraProfileConfigurationEntity{cpuLimit, memLimit, cpuReq, memReq, timeout}
 	return defaultConfigurations, nil
-}
-
-func UpdateProfileMissingConfigurationsWithDefault(profile ProfileBean, defaultConfigurations []ConfigurationBean) ProfileBean {
-	extraConfigurations := make([]ConfigurationBean, 0)
-	for _, defaultConfiguration := range defaultConfigurations {
-		// if profile doesn't have the default configuration, add it to the profile
-		if !util.Contains(profile.Configurations, func(config ConfigurationBean) bool {
-			return config.Key == defaultConfiguration.Key
-		}) {
-			extraConfigurations = append(extraConfigurations, defaultConfiguration)
-		}
-	}
-	profile.Configurations = append(profile.Configurations, extraConfigurations...)
-	return profile
 }

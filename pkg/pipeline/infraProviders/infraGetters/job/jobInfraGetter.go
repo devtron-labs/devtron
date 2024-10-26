@@ -18,16 +18,16 @@ package job
 
 import (
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/devtron/pkg/infraConfig"
+	"github.com/devtron-labs/devtron/pkg/infraConfig/bean"
 )
 
 // JobInfraGetter gets infra config for job workflows
 type JobInfraGetter struct {
-	jobInfra infraConfig.InfraConfig
+	jobInfra bean.InfraConfig
 }
 
 func NewJobInfraGetter() *JobInfraGetter {
-	infra := infraConfig.InfraConfig{}
+	infra := bean.InfraConfig{}
 	env.Parse(&infra)
 	return &JobInfraGetter{
 		jobInfra: infra,
@@ -35,7 +35,7 @@ func NewJobInfraGetter() *JobInfraGetter {
 }
 
 // GetInfraConfigurationsByScope gets infra config for ci workflows using the scope
-func (jobInfraGetter JobInfraGetter) GetInfraConfigurationsByScope(scope *infraConfig.Scope) (*infraConfig.InfraConfig, error) {
+func (jobInfraGetter JobInfraGetter) GetInfraConfigurationsByScope(scope *bean.Scope, platform string) (*bean.InfraConfig, error) {
 	infra := jobInfraGetter.jobInfra
 	return &infra, nil
 }
