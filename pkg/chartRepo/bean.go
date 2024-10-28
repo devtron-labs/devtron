@@ -16,7 +16,9 @@
 
 package chartRepo
 
-import "github.com/devtron-labs/devtron/internal/sql/repository"
+import (
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
+)
 
 const ValidationSuccessMsg = "Configurations are validated successfully"
 

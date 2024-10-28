@@ -21,7 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 	"go.uber.org/zap"
 	"io"
 	"io/ioutil"

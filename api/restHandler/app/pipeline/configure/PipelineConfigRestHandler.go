@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	repository2 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
@@ -120,7 +121,7 @@ type PipelineConfigRestHandlerImpl struct {
 	materialRepository                  pipelineConfig.MaterialRepository
 	policyService                       security2.PolicyService
 	scanResultRepository                security.ImageScanResultRepository
-	gitProviderRepo                     repository.GitProviderRepository
+	gitProviderRepo                     repository2.GitProviderRepository
 	argoUserService                     argo.ArgoUserService
 	imageTaggingService                 pipeline.ImageTaggingService
 	deploymentTemplateService           generateManifest.DeploymentTemplateService
@@ -150,7 +151,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	deploymentTemplateService generateManifest.DeploymentTemplateService,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
-	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
+	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository2.GitProviderRepository,
 	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	imageTaggingService pipeline.ImageTaggingService,
 	ciArtifactRepository repository.CiArtifactRepository,

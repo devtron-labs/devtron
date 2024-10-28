@@ -121,6 +121,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/asyncProvider"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/build"
+	repository11 "github.com/devtron-labs/devtron/pkg/build/git/gitHost/repository"
+	repository9 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
+	git3 "github.com/devtron-labs/devtron/pkg/build/git/gitWebhook/repository"
 	"github.com/devtron-labs/devtron/pkg/bulkAction"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
@@ -379,8 +382,8 @@ func InitializeApp() (*App, error) {
 		pipeline.NewCustomTagService,
 		wire.Bind(new(pipeline.CustomTagService), new(*pipeline.CustomTagServiceImpl)),
 
-		repository.NewGitProviderRepositoryImpl,
-		wire.Bind(new(repository.GitProviderRepository), new(*repository.GitProviderRepositoryImpl)),
+		repository9.NewGitProviderRepositoryImpl,
+		wire.Bind(new(repository9.GitProviderRepository), new(*repository9.GitProviderRepositoryImpl)),
 		pipeline.NewGitRegistryConfigImpl,
 		wire.Bind(new(pipeline.GitRegistryConfig), new(*pipeline.GitRegistryConfigImpl)),
 
@@ -500,8 +503,8 @@ func InitializeApp() (*App, error) {
 		git.NewGitWebhookServiceImpl,
 		wire.Bind(new(git.GitWebhookService), new(*git.GitWebhookServiceImpl)),
 
-		repository.NewGitWebhookRepositoryImpl,
-		wire.Bind(new(repository.GitWebhookRepository), new(*repository.GitWebhookRepositoryImpl)),
+		git3.NewGitWebhookRepositoryImpl,
+		wire.Bind(new(git3.GitWebhookRepository), new(*git3.GitWebhookRepositoryImpl)),
 
 		pipeline.NewCiHandlerImpl,
 		wire.Bind(new(pipeline.CiHandler), new(*pipeline.CiHandlerImpl)),
@@ -743,8 +746,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(restHandler.CoreAppRestHandler), new(*restHandler.CoreAppRestHandlerImpl)),
 
 		// Webhook
-		repository.NewGitHostRepositoryImpl,
-		wire.Bind(new(repository.GitHostRepository), new(*repository.GitHostRepositoryImpl)),
+		repository11.NewGitHostRepositoryImpl,
+		wire.Bind(new(repository11.GitHostRepository), new(*repository11.GitHostRepositoryImpl)),
 		restHandler.NewGitHostRestHandlerImpl,
 		wire.Bind(new(restHandler.GitHostRestHandler), new(*restHandler.GitHostRestHandlerImpl)),
 		restHandler.NewWebhookEventHandlerImpl,

@@ -17,8 +17,8 @@
 package bean
 
 import (
-	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	repository2 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 )
 
 type VariableType string
