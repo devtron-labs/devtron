@@ -293,7 +293,7 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolveCMCS(ctx context.Context,
 		return nil, nil, nil, nil, err
 	}
 
-	decodedSecrets, err := serviceBean.GetTransformedDataForSecretData(string(mergedSecretJson), util.DecodeSecret)
+	decodedSecrets, err := serviceBean.GetTransformedDataForSecretConfigData(string(mergedSecretJson), util.DecodeSecret)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -304,7 +304,7 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolveCMCS(ctx context.Context,
 		return nil, nil, nil, nil, err
 	}
 	variableMapCS = parsers.GetVariableMapForUsedVariables(scopedVariables, varNamesCS)
-	encodedSecretData, err = serviceBean.GetTransformedDataForSecretData(resolvedTemplateCS, util.EncodeSecret)
+	encodedSecretData, err = serviceBean.GetTransformedDataForSecretConfigData(resolvedTemplateCS, util.EncodeSecret)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -362,14 +362,14 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolvedVariableForLastSaved(scope re
 	}
 
 	if secretDataByte != nil && len(varNamesCS) > 0 {
-		data, err := bean.GetTransformedDataForSecretData(string(secretDataByte), util.DecodeSecret)
+		data, err := bean.GetTransformedDataForSecretRootJsonData(string(secretDataByte), util.DecodeSecret)
 		if err != nil {
 			return resolvedCM, string(secretDataByte), variableSnapshotForCM, variableSnapshotForCS, err
 		}
 		parserRequest := parsers.CreateParserRequest(data, parsers.StringVariableTemplate, scopedVariables, true)
 		resolvedCSDecoded, err := impl.ParseTemplateWithScopedVariables(parserRequest)
 		variableSnapshotForCS = parsers.GetVariableMapForUsedVariables(scopedVariables, varNamesCS)
-		resolvedCS, err = bean.GetTransformedDataForSecretData(resolvedCSDecoded, util.EncodeSecret)
+		resolvedCS, err = bean.GetTransformedDataForSecretRootJsonData(resolvedCSDecoded, util.EncodeSecret)
 		if err != nil {
 			return resolvedCM, resolvedCM, variableSnapshotForCM, variableSnapshotForCS, err
 		}
@@ -408,12 +408,12 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolvedVariableForSpecificType(confi
 		HistoryReferenceId:   secretHistoryId,
 		HistoryReferenceType: repository1.HistoryReferenceTypeSecret,
 	}
-	data, err := bean.GetTransformedDataForSecretData(string(secretDataByte), util.DecodeSecret)
+	data, err := bean.GetTransformedDataForSecretRootJsonData(string(secretDataByte), util.DecodeSecret)
 	if err != nil {
 		return "", "", nil, nil, err
 	}
 	variableMapCS, resolvedTemplateCS, err := impl.GetVariableSnapshotAndResolveTemplate(data, parsers.StringVariableTemplate, reference, true, true)
-	encodedSecretData, err := bean.GetTransformedDataForSecretData(resolvedTemplateCS, util.EncodeSecret)
+	encodedSecretData, err := bean.GetTransformedDataForSecretRootJsonData(resolvedTemplateCS, util.EncodeSecret)
 	if err != nil {
 		return "", "", nil, nil, err
 	}
