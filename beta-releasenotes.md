@@ -1,4 +1,5 @@
 ## Bugs
+- fix: fix for showing inaccurate data in template/list api while fetching previous deployments list in template/list api, output shown was cartesian product of deployment_template_history and wfr (#6034)
 - fix: plugin getByName method error handling (#6016)
 - fix: Config deployment history fix (#6003)
 - fix: Force abort fix (#5990)
