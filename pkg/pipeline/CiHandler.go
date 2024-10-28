@@ -1516,14 +1516,10 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 				return &types.GitTriggerInfoResponse{}, err
 			}
 		}
-		userId, err := strconv.Atoi(deployDetail.LastDeployedBy)
-		if err != nil {
-			impl.Logger.Errorw("err in converting lastDeployedBy ", "err", err)
-			return &types.GitTriggerInfoResponse{}, err
-		}
+
 		//getting the user including both active and inactive both
 		// as there arises case of having the deleted user had triggered the deployment
-		triggeredByUserEmailId, err = impl.userService.GetEmailById(int32(userId))
+		triggeredByUserEmailId, err = impl.userService.GetEmailById(int32(deployDetail.LastDeployedById))
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.Logger.Errorw("err", "err", err)
 			return &types.GitTriggerInfoResponse{}, err
