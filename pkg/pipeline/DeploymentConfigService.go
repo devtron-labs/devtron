@@ -25,6 +25,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -53,6 +54,7 @@ type PipelineDeploymentConfigServiceImpl struct {
 	scopedVariableManager       variables.ScopedVariableCMCSManager
 	deployedAppMetricsService   deployedAppMetrics.DeployedAppMetricsService
 	chartRefService             chartRef.ChartRefService
+	envConfigOverrideService    read.EnvConfigOverrideService
 }
 
 func NewPipelineDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
@@ -64,7 +66,8 @@ func NewPipelineDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 	configMapHistoryService history.ConfigMapHistoryService,
 	scopedVariableManager variables.ScopedVariableCMCSManager,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
-	chartRefService chartRef.ChartRefService) *PipelineDeploymentConfigServiceImpl {
+	chartRefService chartRef.ChartRefService,
+	envConfigOverrideService read.EnvConfigOverrideService) *PipelineDeploymentConfigServiceImpl {
 	return &PipelineDeploymentConfigServiceImpl{
 		logger:                      logger,
 		envConfigOverrideRepository: envConfigOverrideRepository,
@@ -76,6 +79,7 @@ func NewPipelineDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 		scopedVariableManager:       scopedVariableManager,
 		deployedAppMetricsService:   deployedAppMetricsService,
 		chartRefService:             chartRefService,
+		envConfigOverrideService:    envConfigOverrideService,
 	}
 }
 
@@ -117,7 +121,7 @@ func (impl *PipelineDeploymentConfigServiceImpl) GetLatestDeploymentTemplateConf
 		impl.logger.Errorw("error, GetMetricsFlagForAPipelineByAppIdAndEnvId", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
 		return nil, err
 	}
-	envOverride, err := impl.envConfigOverrideRepository.ActiveEnvConfigOverride(pipeline.AppId, pipeline.EnvironmentId)
+	envOverride, err := impl.envConfigOverrideService.ActiveEnvConfigOverride(pipeline.AppId, pipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("not able to get envConfigOverride", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
 		return nil, err

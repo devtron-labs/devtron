@@ -27,6 +27,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -49,6 +50,7 @@ type CommonServiceImpl struct {
 	teamRepository              repository2.TeamRepository
 	appRepository               app.AppRepository
 	gitOpsConfigReadService     config.GitOpsConfigReadService
+	envConfigOverrideReadService read.EnvConfigOverrideService
 }
 
 func NewCommonServiceImpl(logger *zap.SugaredLogger,
@@ -61,7 +63,8 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 	environmentRepository repository3.EnvironmentRepository,
 	teamRepository repository2.TeamRepository,
 	appRepository app.AppRepository,
-	gitOpsConfigReadService config.GitOpsConfigReadService) *CommonServiceImpl {
+	gitOpsConfigReadService config.GitOpsConfigReadService,
+	envConfigOverrideReadService read.EnvConfigOverrideService) *CommonServiceImpl {
 	serviceImpl := &CommonServiceImpl{
 		logger:                      logger,
 		chartRepository:             chartRepository,
@@ -74,6 +77,7 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 		teamRepository:              teamRepository,
 		appRepository:               appRepository,
 		gitOpsConfigReadService:     gitOpsConfigReadService,
+		envConfigOverrideReadService: envConfigOverrideReadService,
 	}
 	return serviceImpl
 }
@@ -104,7 +108,7 @@ type AppChecklist struct {
 func (impl *CommonServiceImpl) FetchLatestChart(appId int, envId int) (*chartRepoRepository.Chart, error) {
 	var chart *chartRepoRepository.Chart
 	if appId > 0 && envId > 0 {
-		envOverride, err := impl.environmentConfigRepository.ActiveEnvConfigOverride(appId, envId)
+		envOverride, err := impl.envConfigOverrideReadService.ActiveEnvConfigOverride(appId, envId)
 		if err != nil {
 			return nil, err
 		}

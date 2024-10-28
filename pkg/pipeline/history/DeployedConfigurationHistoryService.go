@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/bean"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util4 "github.com/devtron-labs/devtron/util"
@@ -38,7 +39,7 @@ import (
 
 type DeployedConfigurationHistoryService interface {
 	//TODO: rethink if the below method right at this place
-	CreateHistoriesForDeploymentTrigger(ctx context.Context, pipeline *pipelineConfig.Pipeline, strategy *chartConfig.PipelineStrategy, envOverride *chartConfig.EnvConfigOverride, deployedOn time.Time, deployedBy int32) error
+	CreateHistoriesForDeploymentTrigger(ctx context.Context, pipeline *pipelineConfig.Pipeline, strategy *chartConfig.PipelineStrategy, envOverride *bean2.EnvConfigOverride, deployedOn time.Time, deployedBy int32) error
 
 	GetDeployedConfigurationByWfrId(ctx context.Context, pipelineId, wfrId int) ([]*DeploymentConfigurationDto, error)
 	GetDeployedHistoryComponentList(pipelineId, baseConfigId int, historyComponent, historyComponentName string) ([]*DeployedHistoryComponentMetadataDto, error)
@@ -74,7 +75,7 @@ func NewDeployedConfigurationHistoryServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *DeployedConfigurationHistoryServiceImpl) CreateHistoriesForDeploymentTrigger(ctx context.Context, pipeline *pipelineConfig.Pipeline, strategy *chartConfig.PipelineStrategy, envOverride *chartConfig.EnvConfigOverride, deployedOn time.Time, deployedBy int32) error {
+func (impl *DeployedConfigurationHistoryServiceImpl) CreateHistoriesForDeploymentTrigger(ctx context.Context, pipeline *pipelineConfig.Pipeline, strategy *chartConfig.PipelineStrategy, envOverride *bean2.EnvConfigOverride, deployedOn time.Time, deployedBy int32) error {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "DeployedConfigurationHistoryServiceImpl.CreateHistoriesForDeploymentTrigger")
 	defer span.End()
 	deploymentTemplateHistoryId, templateHistoryExists, err := impl.deploymentTemplateHistoryService.CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipeline.Id, deployedOn)

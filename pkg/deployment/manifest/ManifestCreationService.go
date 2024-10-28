@@ -38,7 +38,9 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/helper"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
@@ -95,6 +97,7 @@ type ManifestCreationServiceImpl struct {
 	pipelineConfigRepository            chartConfig.PipelineConfigRepository
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository
 	deploymentConfigService             common.DeploymentConfigService
+	envConfigOverrideReadService        read.EnvConfigOverrideService
 }
 
 func NewManifestCreationServiceImpl(logger *zap.SugaredLogger,
@@ -119,7 +122,8 @@ func NewManifestCreationServiceImpl(logger *zap.SugaredLogger,
 	strategyHistoryRepository repository3.PipelineStrategyHistoryRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository,
-	deploymentConfigService common.DeploymentConfigService) *ManifestCreationServiceImpl {
+	deploymentConfigService common.DeploymentConfigService,
+	envConfigOverrideService read.EnvConfigOverrideService) *ManifestCreationServiceImpl {
 	return &ManifestCreationServiceImpl{
 		logger:                              logger,
 		dockerRegistryIpsConfigService:      dockerRegistryIpsConfigService,
@@ -144,6 +148,7 @@ func NewManifestCreationServiceImpl(logger *zap.SugaredLogger,
 		pipelineConfigRepository:            pipelineConfigRepository,
 		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
 		deploymentConfigService:             deploymentConfigService,
+		envConfigOverrideReadService:        envConfigOverrideService,
 	}
 }
 
@@ -196,7 +201,7 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 		pipelineOverride *chartConfig.PipelineOverride
 		appLabelJsonByte []byte
 		configMapJson    *bean3.MergedCmAndCsJsonV2Response
-		envOverride      *chartConfig.EnvConfigOverride
+		envOverride      *bean2.EnvConfigOverride
 	)
 	if isPipelineOverrideCreated {
 		pipelineOverride, err = impl.pipelineOverrideRepository.FindById(overrideRequest.PipelineOverrideId)
@@ -204,7 +209,7 @@ func (impl *ManifestCreationServiceImpl) GetValuesOverrideForTrigger(overrideReq
 			impl.logger.Errorw("error in getting pipelineOverride for valuesOverrideResponse", "PipelineOverrideId", overrideRequest.PipelineOverrideId)
 			return nil, err
 		}
-		envOverride, err = impl.environmentConfigRepository.GetByIdIncludingInactive(pipelineOverride.EnvConfigOverrideId)
+		envOverride, err = impl.envConfigOverrideReadService.GetByIdIncludingInactive(pipelineOverride.EnvConfigOverrideId)
 		if err != nil {
 			impl.logger.Errorw("error in getting env override by id", "id", pipelineOverride.EnvConfigOverrideId, "err", err)
 			return valuesOverrideResponse, err
@@ -335,11 +340,11 @@ func (impl *ManifestCreationServiceImpl) getDeploymentStrategyByTriggerType(over
 	return strategy, nil
 }
 
-func (impl *ManifestCreationServiceImpl) getEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error) {
-	envOverride := &chartConfig.EnvConfigOverride{}
+func (impl *ManifestCreationServiceImpl) getEnvOverrideByTriggerType(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time, ctx context.Context) (*bean2.EnvConfigOverride, error) {
+	envOverride := &bean2.EnvConfigOverride{}
 	var err error
 	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
-		envOverride, err = impl.getEnvOverrideForSpecificConfigTrigger(overrideRequest, ctx)
+		envOverride, err = impl.GetEnvOverrideForSpecificConfigTrigger(overrideRequest, ctx)
 		if err != nil {
 			impl.logger.Errorw("error, getEnvOverrideForSpecificConfigTrigger", "err", err, "overrideRequest", overrideRequest)
 			return nil, err
@@ -354,9 +359,9 @@ func (impl *ManifestCreationServiceImpl) getEnvOverrideByTriggerType(overrideReq
 	return envOverride, nil
 }
 
-func (impl *ManifestCreationServiceImpl) getEnvOverrideForSpecificConfigTrigger(overrideRequest *bean.ValuesOverrideRequest,
-	ctx context.Context) (*chartConfig.EnvConfigOverride, error) {
-	envOverride := &chartConfig.EnvConfigOverride{}
+func (impl *ManifestCreationServiceImpl) GetEnvOverrideForSpecificConfigTrigger(overrideRequest *bean.ValuesOverrideRequest,
+	ctx context.Context) (*bean2.EnvConfigOverride, error) {
+	envOverride := &bean2.EnvConfigOverride{}
 	var err error
 	_, span := otel.Tracer("orchestrator").Start(ctx, "deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId")
 	deploymentTemplateHistory, err := impl.deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId(overrideRequest.PipelineId, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
@@ -381,7 +386,7 @@ func (impl *ManifestCreationServiceImpl) getEnvOverrideForSpecificConfigTrigger(
 	}
 	//assuming that if a chartVersion is deployed then it's envConfigOverride will be available
 	_, span = otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.GetByAppIdEnvIdAndChartRefId")
-	envOverride, err = impl.environmentConfigRepository.GetByAppIdEnvIdAndChartRefId(overrideRequest.AppId, overrideRequest.EnvId, chartRefDto.Id)
+	envOverride, err = impl.envConfigOverrideReadService.GetByAppIdEnvIdAndChartRefId(overrideRequest.AppId, overrideRequest.EnvId, chartRefDto.Id)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in getting envConfigOverride for pipeline for specific chartVersion", "err", err, "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "chartRefId", chartRefDto.Id)
@@ -411,11 +416,11 @@ func (impl *ManifestCreationServiceImpl) getEnvOverrideForSpecificConfigTrigger(
 }
 
 func (impl *ManifestCreationServiceImpl) getEnvOverrideForLastSavedConfigTrigger(overrideRequest *bean.ValuesOverrideRequest,
-	triggeredAt time.Time, ctx context.Context) (*chartConfig.EnvConfigOverride, error) {
-	envOverride := &chartConfig.EnvConfigOverride{}
+	triggeredAt time.Time, ctx context.Context) (*bean2.EnvConfigOverride, error) {
+	envOverride := &bean2.EnvConfigOverride{}
 	var err error
 	_, span := otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.ActiveEnvConfigOverride")
-	envOverride, err = impl.environmentConfigRepository.ActiveEnvConfigOverride(overrideRequest.AppId, overrideRequest.EnvId)
+	envOverride, err = impl.envConfigOverrideReadService.ActiveEnvConfigOverride(overrideRequest.AppId, overrideRequest.EnvId)
 	var chart *chartRepoRepository.Chart
 	span.End()
 	if err != nil {
@@ -431,7 +436,7 @@ func (impl *ManifestCreationServiceImpl) getEnvOverrideForLastSavedConfigTrigger
 			return nil, err
 		}
 		_, span = otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.FindChartByAppIdAndEnvIdAndChartRefId")
-		envOverride, err = impl.environmentConfigRepository.FindChartByAppIdAndEnvIdAndChartRefId(overrideRequest.AppId, overrideRequest.EnvId, chart.ChartRefId)
+		envOverride, err = impl.envConfigOverrideReadService.FindChartByAppIdAndEnvIdAndChartRefId(overrideRequest.AppId, overrideRequest.EnvId, chart.ChartRefId)
 		span.End()
 		if err != nil && !errors2.IsNotFound(err) {
 			impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
@@ -446,7 +451,7 @@ func (impl *ManifestCreationServiceImpl) getEnvOverrideForLastSavedConfigTrigger
 			if err != nil && !util.IsErrNoRows(err) {
 				return nil, err
 			}
-			envOverride = &chartConfig.EnvConfigOverride{
+			envOverrideDBObj := &chartConfig.EnvConfigOverride{
 				Active:            true,
 				ManualReviewed:    true,
 				Status:            models.CHARTSTATUS_SUCCESS,
@@ -461,7 +466,7 @@ func (impl *ManifestCreationServiceImpl) getEnvOverrideForLastSavedConfigTrigger
 				CurrentViewEditor: chart.CurrentViewEditor,
 			}
 			_, span = otel.Tracer("orchestrator").Start(ctx, "environmentConfigRepository.Save")
-			err = impl.environmentConfigRepository.Save(envOverride)
+			err = impl.environmentConfigRepository.Save(envOverrideDBObj)
 			span.End()
 			if err != nil {
 				impl.logger.Errorw("error in creating envConfig", "data", envOverride, "error", err)
@@ -532,7 +537,7 @@ func (impl *ManifestCreationServiceImpl) getAppMetricsByTriggerType(overrideRequ
 	return appMetrics, nil
 }
 
-func (impl *ManifestCreationServiceImpl) mergeOverrideValues(envOverride *chartConfig.EnvConfigOverride, releaseOverrideJson string,
+func (impl *ManifestCreationServiceImpl) mergeOverrideValues(envOverride *bean2.EnvConfigOverride, releaseOverrideJson string,
 	configMapJson []byte, appLabelJsonByte []byte, strategy *chartConfig.PipelineStrategy) (mergedValues []byte, err error) {
 	//merge three values on the fly
 	//ordering is important here
@@ -574,7 +579,7 @@ func (impl *ManifestCreationServiceImpl) mergeOverrideValues(envOverride *chartC
 	return merged, nil
 }
 
-func (impl *ManifestCreationServiceImpl) getConfigMapAndSecretJsonV2(ctx context.Context, request bean3.GetMergedCmAndCsJsonV2Request, envOverride *chartConfig.EnvConfigOverride) (*bean3.MergedCmAndCsJsonV2Response, error) {
+func (impl *ManifestCreationServiceImpl) getConfigMapAndSecretJsonV2(ctx context.Context, request bean3.GetMergedCmAndCsJsonV2Request, envOverride *bean2.EnvConfigOverride) (*bean3.MergedCmAndCsJsonV2Response, error) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.getConfigMapAndSecretJsonV2")
 	defer span.End()
 	var configMapJson, secretDataJson, configMapJsonApp, secretDataJsonApp, configMapJsonEnv, secretDataJsonEnv string
@@ -700,7 +705,7 @@ func getExternalCmCsFromRootJson(cmRootJson bean.ConfigMapRootJson, csRootJson b
 	return externalCmList, externalCsList
 }
 
-func (impl *ManifestCreationServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfigOverride, overrideRequest *bean.ValuesOverrideRequest,
+func (impl *ManifestCreationServiceImpl) getReleaseOverride(envOverride *bean2.EnvConfigOverride, overrideRequest *bean.ValuesOverrideRequest,
 	artifact *repository.CiArtifact, pipelineReleaseCounter int, strategy *chartConfig.PipelineStrategy, appMetrics *bool) (releaseOverride string, err error) {
 
 	deploymentStrategy := ""
@@ -1145,7 +1150,7 @@ func (impl *ManifestCreationServiceImpl) getReplicaCountFromCustomChart(template
 	return helper.FetchRequiredReplicaCount(autoscalingReplicaCountVal, autoscalingMaxVal, autoscalingMinVal), nil
 }
 
-func (impl *ManifestCreationServiceImpl) setEnvironmentModelInEnvOverride(ctx context.Context, envOverride *chartConfig.EnvConfigOverride) error {
+func (impl *ManifestCreationServiceImpl) setEnvironmentModelInEnvOverride(ctx context.Context, envOverride *bean2.EnvConfigOverride) error {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "ManifestCreationServiceImpl.setEnvironmentModelInEnvOverride")
 	defer span.End()
 	env, err := impl.envRepository.FindById(envOverride.TargetEnvironment)

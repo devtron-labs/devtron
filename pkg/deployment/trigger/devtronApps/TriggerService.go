@@ -58,6 +58,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
+	bean10 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/bean"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/publish"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
@@ -1225,7 +1226,7 @@ func (impl *TriggerServiceImpl) deployArgoCdApp(ctx context.Context, overrideReq
 }
 
 // update repoUrl, revision and argo app sync mode (auto/manual) if needed
-func (impl *TriggerServiceImpl) updateArgoPipeline(ctx context.Context, pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride, deploymentConfig *bean9.DeploymentConfig) (bool, error) {
+func (impl *TriggerServiceImpl) updateArgoPipeline(ctx context.Context, pipeline *pipelineConfig.Pipeline, envOverride *bean10.EnvConfigOverride, deploymentConfig *bean9.DeploymentConfig) (bool, error) {
 	if ctx == nil {
 		impl.logger.Errorw("err in syncing ACD, ctx is NULL", "pipelineName", pipeline.Name)
 		return false, nil
@@ -1283,7 +1284,7 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(ctx context.Context, pipeline
 	}
 }
 
-func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(ctx context.Context, appId int, envConfigOverride *chartConfig.EnvConfigOverride, pipeline *pipelineConfig.Pipeline, userId int32) (string, error) {
+func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(ctx context.Context, appId int, envConfigOverride *bean10.EnvConfigOverride, pipeline *pipelineConfig.Pipeline, userId int32) (string, error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.createArgoApplicationIfRequired")
 	defer span.End()
 	// repo has been registered while helm create

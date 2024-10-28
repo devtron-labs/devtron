@@ -33,6 +33,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
+	bean6 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"io/ioutil"
 	"net/url"
@@ -125,6 +127,7 @@ type AppServiceImpl struct {
 	deploymentTemplateService              deploymentTemplate.DeploymentTemplateService
 	appListingService                      AppListingService
 	deploymentConfigService                common2.DeploymentConfigService
+	envConfigOverrideReadService           read.EnvConfigOverrideService
 }
 
 type AppService interface {
@@ -166,7 +169,8 @@ func NewAppService(
 	gitOpsConfigReadService config.GitOpsConfigReadService, gitOperationService git.GitOperationService,
 	deploymentTemplateService deploymentTemplate.DeploymentTemplateService,
 	appListingService AppListingService,
-	deploymentConfigService common2.DeploymentConfigService) *AppServiceImpl {
+	deploymentConfigService common2.DeploymentConfigService,
+	envConfigOverrideReadService read.EnvConfigOverrideService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -198,6 +202,7 @@ func NewAppService(
 		deploymentTemplateService:              deploymentTemplateService,
 		appListingService:                      appListingService,
 		deploymentConfigService:                deploymentConfigService,
+		envConfigOverrideReadService:           envConfigOverrideReadService,
 	}
 	return appServiceImpl
 }
@@ -830,7 +835,7 @@ func (impl *AppServiceImpl) BuildCDSuccessPayload(appName string, environmentNam
 type ValuesOverrideResponse struct {
 	MergedValues        string
 	ReleaseOverrideJSON string
-	EnvOverride         *chartConfig.EnvConfigOverride
+	EnvOverride         *bean6.EnvConfigOverride
 	PipelineStrategy    *chartConfig.PipelineStrategy
 	PipelineOverride    *chartConfig.PipelineOverride
 	Artifact            *repository.CiArtifact
@@ -866,7 +871,7 @@ func (impl *AppServiceImpl) GetDeployedManifestByPipelineIdAndCDWorkflowId(appId
 		return manifestByteArray, err
 	}
 
-	envConfigOverride, err := impl.environmentConfigRepository.GetByIdIncludingInactive(pipelineOverride.EnvConfigOverrideId)
+	envConfigOverride, err := impl.envConfigOverrideReadService.GetByIdIncludingInactive(pipelineOverride.EnvConfigOverrideId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching env config repository by appId and envId", "appId", appId, "envId", envId, "err", err)
 	}
