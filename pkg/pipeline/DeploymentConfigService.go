@@ -58,7 +58,6 @@ type PipelineDeploymentConfigServiceImpl struct {
 }
 
 func NewPipelineDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
-	envConfigOverrideRepository chartConfig.EnvConfigOverrideRepository,
 	chartRepository chartRepoRepository.ChartRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
@@ -69,17 +68,16 @@ func NewPipelineDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 	chartRefService chartRef.ChartRefService,
 	envConfigOverrideService read.EnvConfigOverrideService) *PipelineDeploymentConfigServiceImpl {
 	return &PipelineDeploymentConfigServiceImpl{
-		logger:                      logger,
-		envConfigOverrideRepository: envConfigOverrideRepository,
-		chartRepository:             chartRepository,
-		pipelineRepository:          pipelineRepository,
-		pipelineConfigRepository:    pipelineConfigRepository,
-		configMapRepository:         configMapRepository,
-		configMapHistoryService:     configMapHistoryService,
-		scopedVariableManager:       scopedVariableManager,
-		deployedAppMetricsService:   deployedAppMetricsService,
-		chartRefService:             chartRefService,
-		envConfigOverrideService:    envConfigOverrideService,
+		logger:                    logger,
+		chartRepository:           chartRepository,
+		pipelineRepository:        pipelineRepository,
+		pipelineConfigRepository:  pipelineConfigRepository,
+		configMapRepository:       configMapRepository,
+		configMapHistoryService:   configMapHistoryService,
+		scopedVariableManager:     scopedVariableManager,
+		deployedAppMetricsService: deployedAppMetricsService,
+		chartRefService:           chartRefService,
+		envConfigOverrideService:  envConfigOverrideService,
 	}
 }
 

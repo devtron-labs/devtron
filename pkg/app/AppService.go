@@ -97,7 +97,6 @@ func GetAppServiceConfig() (*AppServiceConfig, error) {
 }
 
 type AppServiceImpl struct {
-	environmentConfigRepository            chartConfig.EnvConfigOverrideRepository
 	pipelineOverrideRepository             chartConfig.PipelineOverrideRepository
 	mergeUtil                              *MergeUtil
 	logger                                 *zap.SugaredLogger
@@ -147,7 +146,6 @@ type AppService interface {
 }
 
 func NewAppService(
-	environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository,
 	mergeUtil *MergeUtil, logger *zap.SugaredLogger,
 	pipelineRepository pipelineConfig.PipelineRepository,
@@ -172,7 +170,6 @@ func NewAppService(
 	deploymentConfigService common2.DeploymentConfigService,
 	envConfigOverrideReadService read.EnvConfigOverrideService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
-		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
 		pipelineOverrideRepository:             pipelineOverrideRepository,
 		logger:                                 logger,

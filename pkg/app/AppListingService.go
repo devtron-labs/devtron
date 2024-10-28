@@ -137,7 +137,6 @@ type AppListingServiceImpl struct {
 	pipelineOverrideRepository     chartConfig.PipelineOverrideRepository
 	environmentRepository          repository2.EnvironmentRepository
 	argoUserService                argo.ArgoUserService
-	envOverrideRepository          chartConfig.EnvConfigOverrideRepository
 	chartRepository                chartRepoRepository.ChartRepository
 	ciPipelineRepository           pipelineConfig.CiPipelineRepository
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService
@@ -152,7 +151,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 	appListingViewBuilder AppListingViewBuilder, pipelineRepository pipelineConfig.PipelineRepository,
 	linkoutsRepository repository.LinkoutsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository repository2.EnvironmentRepository,
-	argoUserService argo.ArgoUserService, envOverrideRepository chartConfig.EnvConfigOverrideRepository,
+	argoUserService argo.ArgoUserService,
 	chartRepository chartRepoRepository.ChartRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService, userRepository userrepository.UserRepository,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService, ciArtifactRepository repository.CiArtifactRepository,
@@ -169,7 +168,6 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		pipelineOverrideRepository:     pipelineOverrideRepository,
 		environmentRepository:          environmentRepository,
 		argoUserService:                argoUserService,
-		envOverrideRepository:          envOverrideRepository,
 		chartRepository:                chartRepository,
 		ciPipelineRepository:           ciPipelineRepository,
 		dockerRegistryIpsConfigService: dockerRegistryIpsConfigService,

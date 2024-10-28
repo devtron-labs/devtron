@@ -91,7 +91,6 @@ type ConfigMapServiceImpl struct {
 	mergeUtil                   util.MergeUtil
 	pipelineConfigRepository    chartConfig.PipelineConfigRepository
 	configMapRepository         chartConfig.ConfigMapRepository
-	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
 	commonService               commonService.CommonService
 	appRepository               app.AppRepository
 	configMapHistoryService     history2.ConfigMapHistoryService
@@ -110,18 +109,17 @@ func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository
 	scopedVariableManager variables.ScopedVariableCMCSManager,
 ) *ConfigMapServiceImpl {
 	return &ConfigMapServiceImpl{
-		chartRepository:             chartRepository,
-		logger:                      logger,
-		repoRepository:              repoRepository,
-		mergeUtil:                   mergeUtil,
-		pipelineConfigRepository:    pipelineConfigRepository,
-		configMapRepository:         configMapRepository,
-		environmentConfigRepository: environmentConfigRepository,
-		commonService:               commonService,
-		appRepository:               appRepository,
-		configMapHistoryService:     configMapHistoryService,
-		environmentRepository:       environmentRepository,
-		scopedVariableManager:       scopedVariableManager,
+		chartRepository:          chartRepository,
+		logger:                   logger,
+		repoRepository:           repoRepository,
+		mergeUtil:                mergeUtil,
+		pipelineConfigRepository: pipelineConfigRepository,
+		configMapRepository:      configMapRepository,
+		commonService:            commonService,
+		appRepository:            appRepository,
+		configMapHistoryService:  configMapHistoryService,
+		environmentRepository:    environmentRepository,
+		scopedVariableManager:    scopedVariableManager,
 	}
 }
 
