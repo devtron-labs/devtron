@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret"
+	read2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/history/bean"
@@ -62,6 +63,7 @@ type DeployedConfigurationHistoryServiceImpl struct {
 	cdWorkflowRepository                 pipelineConfig.CdWorkflowRepository
 	scopedVariableManager                variables.ScopedVariableCMCSManager
 	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService
+	configMapHistoryReadService          read2.ConfigMapHistoryReadService
 }
 
 func NewDeployedConfigurationHistoryServiceImpl(logger *zap.SugaredLogger,
@@ -70,6 +72,7 @@ func NewDeployedConfigurationHistoryServiceImpl(logger *zap.SugaredLogger,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	scopedVariableManager variables.ScopedVariableCMCSManager,
 	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService,
+	configMapHistoryReadService read2.ConfigMapHistoryReadService,
 ) *DeployedConfigurationHistoryServiceImpl {
 	return &DeployedConfigurationHistoryServiceImpl{
 		logger:                               logger,
@@ -80,6 +83,7 @@ func NewDeployedConfigurationHistoryServiceImpl(logger *zap.SugaredLogger,
 		cdWorkflowRepository:                 cdWorkflowRepository,
 		scopedVariableManager:                scopedVariableManager,
 		deploymentTemplateHistoryReadService: deploymentTemplateHistoryReadService,
+		configMapHistoryReadService:          configMapHistoryReadService,
 	}
 }
 
@@ -100,7 +104,7 @@ func (impl *DeployedConfigurationHistoryServiceImpl) CreateHistoriesForDeploymen
 		}
 		deploymentTemplateHistoryId = deploymentTemplateHistory.Id
 	}
-	cmId, csId, cmCsHistoryExists, err := impl.configMapHistoryService.CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipeline.Id, deployedOn)
+	cmId, csId, cmCsHistoryExists, err := impl.configMapHistoryReadService.CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipeline.Id, deployedOn)
 	if err != nil {
 		impl.logger.Errorw("error in checking if config map/ secrete history exists for deployment trigger", "err", err)
 		return err
@@ -186,7 +190,7 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetDeployedConfigurationByW
 	}
 
 	//checking if configmap history data exists and get its details
-	configmapHistory, exists, names, err := impl.configMapHistoryService.GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId, repository.CONFIGMAP_TYPE)
+	configmapHistory, exists, names, err := impl.configMapHistoryReadService.GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId, repository.CONFIGMAP_TYPE)
 	if err != nil {
 		impl.logger.Errorw("error in checking if history exists for configmap", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		return nil, err
@@ -201,7 +205,7 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetDeployedConfigurationByW
 	}
 
 	//checking if secret history data exists and get its details
-	secretHistory, exists, names, err := impl.configMapHistoryService.GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId, repository.SECRET_TYPE)
+	secretHistory, exists, names, err := impl.configMapHistoryReadService.GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId, repository.SECRET_TYPE)
 	if err != nil {
 		impl.logger.Errorw("error in checking if history exists for secret", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		return nil, err
@@ -225,9 +229,9 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetDeployedHistoryComponent
 	} else if historyComponent == string(bean2.PIPELINE_STRATEGY_TYPE_HISTORY_COMPONENT) {
 		historyList, err = impl.strategyHistoryService.GetDeployedHistoryList(pipelineId, baseConfigId)
 	} else if historyComponent == string(bean2.CONFIGMAP_TYPE_HISTORY_COMPONENT) {
-		historyList, err = impl.configMapHistoryService.GetDeployedHistoryList(pipelineId, baseConfigId, repository.CONFIGMAP_TYPE, historyComponentName)
+		historyList, err = impl.configMapHistoryReadService.GetDeployedHistoryList(pipelineId, baseConfigId, repository.CONFIGMAP_TYPE, historyComponentName)
 	} else if historyComponent == string(bean2.SECRET_TYPE_HISTORY_COMPONENT) {
-		historyList, err = impl.configMapHistoryService.GetDeployedHistoryList(pipelineId, baseConfigId, repository.SECRET_TYPE, historyComponentName)
+		historyList, err = impl.configMapHistoryReadService.GetDeployedHistoryList(pipelineId, baseConfigId, repository.SECRET_TYPE, historyComponentName)
 	} else {
 		return nil, errors.New(fmt.Sprintf("history of %s not supported", historyComponent))
 	}
@@ -246,9 +250,9 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetDeployedHistoryComponent
 	} else if historyComponent == string(bean2.PIPELINE_STRATEGY_TYPE_HISTORY_COMPONENT) {
 		history, err = impl.strategyHistoryService.GetHistoryForDeployedStrategyById(id, pipelineId)
 	} else if historyComponent == string(bean2.CONFIGMAP_TYPE_HISTORY_COMPONENT) {
-		history, err = impl.configMapHistoryService.GetHistoryForDeployedCMCSById(ctx, id, pipelineId, repository.CONFIGMAP_TYPE, historyComponentName, userHasAdminAccess)
+		history, err = impl.configMapHistoryReadService.GetHistoryForDeployedCMCSById(ctx, id, pipelineId, repository.CONFIGMAP_TYPE, historyComponentName, userHasAdminAccess)
 	} else if historyComponent == string(bean2.SECRET_TYPE_HISTORY_COMPONENT) {
-		history, err = impl.configMapHistoryService.GetHistoryForDeployedCMCSById(ctx, id, pipelineId, repository.SECRET_TYPE, historyComponentName, userHasAdminAccess)
+		history, err = impl.configMapHistoryReadService.GetHistoryForDeployedCMCSById(ctx, id, pipelineId, repository.SECRET_TYPE, historyComponentName, userHasAdminAccess)
 	} else {
 		return nil, errors.New(fmt.Sprintf("history of %s not supported", historyComponent))
 	}
@@ -282,13 +286,13 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetAllDeployedConfiguration
 		return nil, err
 	}
 	//getting history of config map for latest deployment
-	configMapHistory, err := impl.configMapHistoryService.GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(ctx, pipelineId, wfrId, repository.CONFIGMAP_TYPE, userHasAdminAccess)
+	configMapHistory, err := impl.configMapHistoryReadService.GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(ctx, pipelineId, wfrId, repository.CONFIGMAP_TYPE, userHasAdminAccess)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting config map history by pipelineId and wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		return nil, err
 	}
 	//getting history of secret for latest deployment
-	secretHistory, err := impl.configMapHistoryService.GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(ctx, pipelineId, wfrId, repository.SECRET_TYPE, userHasAdminAccess)
+	secretHistory, err := impl.configMapHistoryReadService.GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(ctx, pipelineId, wfrId, repository.SECRET_TYPE, userHasAdminAccess)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting secret history by pipelineId and wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		return nil, err

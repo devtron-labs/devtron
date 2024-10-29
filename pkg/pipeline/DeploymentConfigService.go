@@ -23,7 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	"github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/history/bean"
@@ -50,10 +50,10 @@ type PipelineDeploymentConfigServiceImpl struct {
 	pipelineRepository          pipelineConfig.PipelineRepository
 	pipelineConfigRepository    chartConfig.PipelineConfigRepository
 	configMapRepository         chartConfig.ConfigMapRepository
-	configMapHistoryService     configMapAndSecret.ConfigMapHistoryService
 	scopedVariableManager       variables.ScopedVariableCMCSManager
 	deployedAppMetricsService   deployedAppMetrics.DeployedAppMetricsService
 	chartRefService             chartRef.ChartRefService
+	configMapHistoryReadService read.ConfigMapHistoryReadService
 }
 
 func NewPipelineDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
@@ -62,10 +62,11 @@ func NewPipelineDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
-	configMapHistoryService configMapAndSecret.ConfigMapHistoryService,
 	scopedVariableManager variables.ScopedVariableCMCSManager,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
-	chartRefService chartRef.ChartRefService) *PipelineDeploymentConfigServiceImpl {
+	chartRefService chartRef.ChartRefService,
+	configMapHistoryReadService read.ConfigMapHistoryReadService,
+) *PipelineDeploymentConfigServiceImpl {
 	return &PipelineDeploymentConfigServiceImpl{
 		logger:                      logger,
 		envConfigOverrideRepository: envConfigOverrideRepository,
@@ -73,10 +74,10 @@ func NewPipelineDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 		pipelineRepository:          pipelineRepository,
 		pipelineConfigRepository:    pipelineConfigRepository,
 		configMapRepository:         configMapRepository,
-		configMapHistoryService:     configMapHistoryService,
 		scopedVariableManager:       scopedVariableManager,
 		deployedAppMetricsService:   deployedAppMetricsService,
 		chartRefService:             chartRefService,
+		configMapHistoryReadService: configMapHistoryReadService,
 	}
 }
 
@@ -272,7 +273,7 @@ func (impl *PipelineDeploymentConfigServiceImpl) GetLatestCMCSConfig(ctx context
 
 	var cmConfigsDto []*bean2.ComponentLevelHistoryDetailDto
 	for _, data := range mergedConfigMap {
-		convertedData, err := impl.configMapHistoryService.ConvertConfigDataToComponentLevelDto(data, repository2.CONFIGMAP_TYPE, userHasAdminAccess)
+		convertedData, err := impl.configMapHistoryReadService.ConvertConfigDataToComponentLevelDto(data, repository2.CONFIGMAP_TYPE, userHasAdminAccess)
 		if err != nil {
 			impl.logger.Errorw("error in converting cmConfig to componentLevelData", "err", err)
 			return nil, nil, err
@@ -284,7 +285,7 @@ func (impl *PipelineDeploymentConfigServiceImpl) GetLatestCMCSConfig(ctx context
 
 	var secretConfigsDto []*bean2.ComponentLevelHistoryDetailDto
 	for _, data := range mergedSecret {
-		convertedData, err := impl.configMapHistoryService.ConvertConfigDataToComponentLevelDto(data, repository2.SECRET_TYPE, userHasAdminAccess)
+		convertedData, err := impl.configMapHistoryReadService.ConvertConfigDataToComponentLevelDto(data, repository2.SECRET_TYPE, userHasAdminAccess)
 		if err != nil {
 			impl.logger.Errorw("error in converting secretConfig to componentLevelData", "err", err)
 			return nil, nil, err
