@@ -46,7 +46,7 @@ type PropertiesConfigService interface {
 	CreateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties) (*bean.EnvironmentProperties, error)
 	UpdateEnvironmentProperties(appId int, propertiesRequest *bean.EnvironmentProperties, userId int32) (*bean.EnvironmentProperties, error)
 	//create environment entry for each new environment
-	CreateIfRequired(chart *chartRepoRepository.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride, isAppMetricsEnabled bool, namespace string, IsBasicViewLocked bool, CurrentViewEditor models.ChartsViewEditorType, tx *pg.Tx) (*bean4.EnvConfigOverride, bool, error)
+	CreateIfRequired(request *bean.EnvironmentOverrideCreateInternalDTO, tx *pg.Tx) (*bean4.EnvConfigOverride, bool, error)
 	GetEnvironmentProperties(appId, environmentId int, chartRefId int) (environmentPropertiesResponse *bean.EnvironmentPropertiesResponse, err error)
 	GetEnvironmentPropertiesById(environmentId int) ([]bean.EnvironmentProperties, error)
 
@@ -212,7 +212,19 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 	if environmentProperties.AppMetrics != nil {
 		appMetrics = *environmentProperties.AppMetrics
 	}
-	envOverride, appMetrics, err := impl.CreateIfRequired(chart, environmentProperties.EnvironmentId, environmentProperties.UserId, environmentProperties.ManualReviewed, models.CHARTSTATUS_SUCCESS, true, appMetrics, environmentProperties.Namespace, environmentProperties.IsBasicViewLocked, environmentProperties.CurrentViewEditor, nil)
+	overrideCreateRequest := &bean.EnvironmentOverrideCreateInternalDTO{
+		Chart:               chart,
+		EnvironmentId:       environmentProperties.EnvironmentId,
+		UserId:              environmentProperties.UserId,
+		ManualReviewed:      environmentProperties.ManualReviewed,
+		ChartStatus:         models.CHARTSTATUS_SUCCESS,
+		IsOverride:          true,
+		IsAppMetricsEnabled: appMetrics,
+		IsBasicViewLocked:   environmentProperties.IsBasicViewLocked,
+		Namespace:           environmentProperties.Namespace,
+		CurrentViewEditor:   environmentProperties.CurrentViewEditor,
+	}
+	envOverride, appMetrics, err := impl.CreateIfRequired(overrideCreateRequest, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -345,10 +357,22 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 	return propertiesRequest, err
 }
 
-func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoRepository.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride, isAppMetricsEnabled bool, namespace string, IsBasicViewLocked bool, CurrentViewEditor models.ChartsViewEditorType, tx *pg.Tx) (*bean4.EnvConfigOverride, bool, error) {
+func (impl PropertiesConfigServiceImpl) CreateIfRequired(request *bean.EnvironmentOverrideCreateInternalDTO, tx *pg.Tx) (*bean4.EnvConfigOverride, bool, error) {
+
+	chart := request.Chart
+	environmentId := request.EnvironmentId
+	userId := request.UserId
+	manualReviewed := request.ManualReviewed
+	chartStatus := request.ChartStatus
+	isOverride := request.IsOverride
+	isAppMetricsEnabled := request.IsAppMetricsEnabled
+	IsBasicViewLocked := request.IsBasicViewLocked
+	namespace := request.Namespace
+	CurrentViewEditor := request.CurrentViewEditor
+
 	env, err := impl.environmentRepository.FindById(environmentId)
 	if err != nil {
-		return nil, isAppMetricsEnabled, err
+		return nil, request.IsAppMetricsEnabled, err
 	}
 
 	if env != nil && len(env.Namespace) > 0 {
@@ -570,7 +594,19 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespace
 		if environmentProperties.AppMetrics != nil {
 			appMetrics = *environmentProperties.AppMetrics
 		}
-		envOverride, appMetrics, err = impl.CreateIfRequired(chart, environmentProperties.EnvironmentId, environmentProperties.UserId, environmentProperties.ManualReviewed, models.CHARTSTATUS_SUCCESS, false, appMetrics, environmentProperties.Namespace, environmentProperties.IsBasicViewLocked, environmentProperties.CurrentViewEditor, nil)
+		overrideCreateRequest := &bean.EnvironmentOverrideCreateInternalDTO{
+			Chart:               chart,
+			EnvironmentId:       environmentProperties.EnvironmentId,
+			UserId:              environmentProperties.UserId,
+			ManualReviewed:      environmentProperties.ManualReviewed,
+			ChartStatus:         models.CHARTSTATUS_SUCCESS,
+			IsOverride:          false,
+			IsAppMetricsEnabled: appMetrics,
+			IsBasicViewLocked:   environmentProperties.IsBasicViewLocked,
+			Namespace:           environmentProperties.Namespace,
+			CurrentViewEditor:   environmentProperties.CurrentViewEditor,
+		}
+		envOverride, appMetrics, err = impl.CreateIfRequired(overrideCreateRequest, nil)
 		if err != nil {
 			return nil, err
 		}

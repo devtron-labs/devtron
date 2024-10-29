@@ -1865,8 +1865,21 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 		appMetrics = *envConfigProperties.AppMetrics
 	}
 	chartEntry.GlobalOverride = string(envConfigProperties.EnvOverrideValues)
-	_, updatedAppMetrics, err := handler.propertiesConfigService.CreateIfRequired(chartEntry, envId, userId, envConfigProperties.ManualReviewed, models.CHARTSTATUS_SUCCESS,
-		true, appMetrics, envConfigProperties.Namespace, envConfigProperties.IsBasicViewLocked, envConfigProperties.CurrentViewEditor, nil)
+
+	overrideCreateRequest := &bean2.EnvironmentOverrideCreateInternalDTO{
+		Chart:               chartEntry,
+		EnvironmentId:       envConfigProperties.EnvironmentId,
+		UserId:              envConfigProperties.UserId,
+		ManualReviewed:      envConfigProperties.ManualReviewed,
+		ChartStatus:         models.CHARTSTATUS_SUCCESS,
+		IsOverride:          true,
+		IsAppMetricsEnabled: appMetrics,
+		IsBasicViewLocked:   envConfigProperties.IsBasicViewLocked,
+		Namespace:           envConfigProperties.Namespace,
+		CurrentViewEditor:   envConfigProperties.CurrentViewEditor,
+	}
+
+	_, updatedAppMetrics, err := handler.propertiesConfigService.CreateIfRequired(overrideCreateRequest, nil)
 	if err != nil {
 		handler.logger.Errorw("service err, CreateIfRequired", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
 		return err
