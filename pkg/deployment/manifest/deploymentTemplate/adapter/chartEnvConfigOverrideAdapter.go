@@ -32,6 +32,7 @@ func EnvOverrideDBToDTO(dbObj *chartConfig.EnvConfigOverride) *bean.EnvConfigOve
 		VariableSnapshotForCM:     dbObj.VariableSnapshotForCM,
 		VariableSnapshotForCS:     dbObj.VariableSnapshotForCS,
 		Chart:                     dbObj.Chart,
+		MergeStrategy:             dbObj.MergeStrategy,
 	}
 	return envOverride
 }
@@ -63,6 +64,7 @@ func EnvOverrideDTOToDB(DTO *bean.EnvConfigOverride) *chartConfig.EnvConfigOverr
 		VariableSnapshot:          DTO.VariableSnapshot,
 		VariableSnapshotForCM:     DTO.VariableSnapshotForCM,
 		VariableSnapshotForCS:     DTO.VariableSnapshotForCS,
+		MergeStrategy:             DTO.MergeStrategy,
 	}
 	envOverride.Chart = DTO.Chart
 	return envOverride

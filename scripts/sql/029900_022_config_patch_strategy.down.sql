@@ -1,0 +1,1 @@
+ALTER TABLE chart_env_config_override DROP COLUMN merge_strategy;

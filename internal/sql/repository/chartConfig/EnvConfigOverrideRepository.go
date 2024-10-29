@@ -42,6 +42,7 @@ type EnvConfigOverride struct {
 	IsOverride        bool                        `sql:"is_override,notnull"`
 	IsBasicViewLocked bool                        `sql:"is_basic_view_locked,notnull"`
 	CurrentViewEditor models.ChartsViewEditorType `sql:"current_view_editor"`
+	MergeStrategy     models.MergeStrategy        `sql:"merge_strategy"`
 	sql.AuditLog
 	ResolvedEnvOverrideValues string            `sql:"-"`
 	VariableSnapshot          map[string]string `sql:"-"`

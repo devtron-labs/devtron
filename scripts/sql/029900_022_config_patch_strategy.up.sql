@@ -1,0 +1,1 @@
+ALTER TABLE chart_env_config_override ADD COLUMN merge_strategy VARCHAR(100);

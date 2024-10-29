@@ -29,6 +29,7 @@ type EnvConfigOverride struct {
 	UpdatedOn                 time.Time
 	UpdatedBy                 int32
 	ResolvedEnvOverrideValues string
+	MergeStrategy             models.MergeStrategy
 	VariableSnapshot          map[string]string
 	//ResolvedEnvOverrideValuesForCM string
 	VariableSnapshotForCM map[string]string

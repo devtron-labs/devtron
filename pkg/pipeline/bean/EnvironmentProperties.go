@@ -39,6 +39,7 @@ type EnvironmentProperties struct {
 	CurrentViewEditor models.ChartsViewEditorType `json:"currentViewEditor"` //default "UNDEFINED" in db
 	Description       string                      `json:"description" validate:"max=40"`
 	ClusterId         int                         `json:"clusterId"`
+	MergeStrategy          models.MergeStrategy        `json:"mergeStrategy"`
 }
 
 type EnvironmentPropertiesResponse struct {
