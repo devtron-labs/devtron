@@ -1877,6 +1877,7 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 		IsBasicViewLocked:   envConfigProperties.IsBasicViewLocked,
 		Namespace:           envConfigProperties.Namespace,
 		CurrentViewEditor:   envConfigProperties.CurrentViewEditor,
+		MergeStrategy:       envConfigProperties.MergeStrategy,
 	}
 
 	_, updatedAppMetrics, err := handler.propertiesConfigService.CreateIfRequired(overrideCreateRequest, nil)

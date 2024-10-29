@@ -52,6 +52,7 @@ type EnvironmentOverrideCreateInternalDTO struct {
 	IsOverride, IsAppMetricsEnabled, IsBasicViewLocked bool
 	Namespace                                          string
 	CurrentViewEditor                                  models.ChartsViewEditorType
+	MergeStrategy                                      models.MergeStrategy
 }
 
 type EnvironmentPropertiesResponse struct {

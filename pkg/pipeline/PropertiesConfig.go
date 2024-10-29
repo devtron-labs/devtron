@@ -223,6 +223,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 		IsBasicViewLocked:   environmentProperties.IsBasicViewLocked,
 		Namespace:           environmentProperties.Namespace,
 		CurrentViewEditor:   environmentProperties.CurrentViewEditor,
+		MergeStrategy:       environmentProperties.MergeStrategy,
 	}
 	envOverride, appMetrics, err := impl.CreateIfRequired(overrideCreateRequest, nil)
 	if err != nil {
@@ -605,6 +606,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespace
 			IsBasicViewLocked:   environmentProperties.IsBasicViewLocked,
 			Namespace:           environmentProperties.Namespace,
 			CurrentViewEditor:   environmentProperties.CurrentViewEditor,
+			MergeStrategy:       environmentProperties.MergeStrategy,
 		}
 		envOverride, appMetrics, err = impl.CreateIfRequired(overrideCreateRequest, nil)
 		if err != nil {

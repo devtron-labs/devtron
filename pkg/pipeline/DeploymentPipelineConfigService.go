@@ -1732,6 +1732,7 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 			IsBasicViewLocked:   false,
 			Namespace:           pipeline.Namespace,
 			CurrentViewEditor:   chart.CurrentViewEditor,
+			MergeStrategy:       "",
 		}
 
 		envOverride, updatedAppMetrics, err := impl.propertiesConfigService.CreateIfRequired(overrideCreateRequest, tx)
