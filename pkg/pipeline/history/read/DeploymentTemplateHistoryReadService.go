@@ -3,6 +3,7 @@ package read
 import (
 	"context"
 	"errors"
+	"github.com/devtron-labs/devtron/pkg/pipeline/history/adaptors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/variables"
@@ -62,17 +63,7 @@ func (impl *DeploymentTemplateHistoryReadServiceImpl) GetHistoryForDeployedTempl
 	if err != nil {
 		impl.logger.Errorw("error while resolving template from history", "err", err, "id", id, "pipelineID", pipelineId)
 	}
-	return &bean.HistoryDetailDto{
-		TemplateName:        history.TemplateName,
-		TemplateVersion:     history.TemplateVersion,
-		IsAppMetricsEnabled: &history.IsAppMetricsEnabled,
-		CodeEditorValue: &bean.HistoryDetailConfig{
-			DisplayName:      "values.yaml",
-			Value:            history.Template,
-			VariableSnapshot: variableSnapshotMap,
-			ResolvedValue:    resolvedTemplate,
-		},
-	}, nil
+	return adaptors.GetHistoryDetailDto(history, variableSnapshotMap, resolvedTemplate), nil
 }
 
 func (impl *DeploymentTemplateHistoryReadServiceImpl) CheckIfHistoryExistsForPipelineIdAndWfrId(pipelineId, wfrId int) (historyId int, exists bool, err error) {
@@ -112,18 +103,7 @@ func (impl *DeploymentTemplateHistoryReadServiceImpl) GetDeployedHistoryByPipeli
 		impl.logger.Errorw("error while resolving template from history", "err", err, "wfrId", wfrId, "pipelineID", pipelineId)
 	}
 
-	historyDto := &bean.HistoryDetailDto{
-		TemplateName:        history.TemplateName,
-		TemplateVersion:     history.TemplateVersion,
-		IsAppMetricsEnabled: &history.IsAppMetricsEnabled,
-		CodeEditorValue: &bean.HistoryDetailConfig{
-			DisplayName:      "values.yaml",
-			Value:            history.Template,
-			VariableSnapshot: variableSnapshotMap,
-			ResolvedValue:    resolvedTemplate,
-		},
-	}
-	return historyDto, nil
+	return adaptors.GetHistoryDetailDto(history, variableSnapshotMap, resolvedTemplate), nil
 }
 
 func (impl *DeploymentTemplateHistoryReadServiceImpl) CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (deploymentTemplateHistoryId int, exists bool, err error) {
