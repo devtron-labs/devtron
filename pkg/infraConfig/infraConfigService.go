@@ -192,8 +192,20 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 		return err
 	}
 	defaultConfigurationsFromDBMap := make(map[util2.ConfigKey]bool)
+	updatableConfigurations := make([]*bean.InfraProfileConfigurationEntity, 0, len(defaultConfigurationsFromEnv))
 	for _, defaultConfigurationFromDB := range defaultConfigurationsFromDB {
 		defaultConfigurationsFromDBMap[defaultConfigurationFromDB.Key] = true
+		if defaultConfigurationFromDB.Platform == "" {
+			defaultConfigurationFromDB.Platform = util2.CI_RUNNER_PLATFORM
+			updatableConfigurations = append(updatableConfigurations, defaultConfigurationFromDB)
+		}
+	}
+	if len(updatableConfigurations) > 0 {
+		err = impl.infraProfileRepo.UpdateConfigurations(tx, updatableConfigurations)
+		if err != nil {
+			impl.logger.Errorw("error in updating default configurations", "configurations", updatableConfigurations, "error", err)
+			return err
+		}
 	}
 
 	creatableConfigurations := make([]*bean.InfraProfileConfigurationEntity, 0, len(defaultConfigurationsFromEnv))

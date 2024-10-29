@@ -36,13 +36,15 @@ func ConvertFromPlatformMap(platformMap map[string][]*bean.ConfigurationBean, pr
 
 func getConfigurationBean(infraProfileConfiguration *bean.InfraProfileConfigurationEntity, profileName string) *bean.ConfigurationBean {
 	return &bean.ConfigurationBean{
-		Id:          infraProfileConfiguration.Id,
-		Key:         util.GetConfigKeyStr(infraProfileConfiguration.Key),
-		Value:       infraProfileConfiguration.Value,
-		Unit:        util.GetUnitSuffixStr(infraProfileConfiguration.Key, infraProfileConfiguration.Unit),
-		ProfileId:   infraProfileConfiguration.ProfileId,
-		Active:      infraProfileConfiguration.Active,
-		ProfileName: profileName,
+		ConfigurationBeanAbstract: bean.ConfigurationBeanAbstract{
+			Id:          infraProfileConfiguration.Id,
+			Key:         util.GetConfigKeyStr(infraProfileConfiguration.Key),
+			Unit:        util.GetUnitSuffixStr(infraProfileConfiguration.Key, infraProfileConfiguration.Unit),
+			ProfileId:   infraProfileConfiguration.ProfileId,
+			Active:      infraProfileConfiguration.Active,
+			ProfileName: profileName,
+		},
+		Value: infraProfileConfiguration.Value,
 	}
 }
 
@@ -82,4 +84,100 @@ func formatFloatIfNeeded(configKey util.ConfigKeyStr, configValue string) string
 	}
 
 	return configValue
+}
+
+func GetV0ProfileBean(profileBean *bean.ProfileBean) *bean.ProfileBeanV0 {
+	if profileBean == nil {
+		return &bean.ProfileBeanV0{}
+	}
+	ciRunnerConfig := profileBean.Configurations[util.CI_RUNNER_PLATFORM]
+	return &bean.ProfileBeanV0{
+		ProfileBeanAbstract: bean.ProfileBeanAbstract{
+			Id:          profileBean.Id,
+			Name:        profileBean.Name,
+			Description: profileBean.Description,
+			Active:      profileBean.Active,
+			Type:        profileBean.Type,
+			AppCount:    profileBean.AppCount,
+			CreatedBy:   profileBean.CreatedBy,
+			CreatedOn:   profileBean.CreatedOn,
+			UpdatedBy:   profileBean.UpdatedBy,
+			UpdatedOn:   profileBean.UpdatedOn,
+		},
+		Configurations: GetV0ConfigurationBeans(ciRunnerConfig),
+	}
+
+}
+
+func GetV1ProfileBean(profileBean *bean.ProfileBeanV0) *bean.ProfileBean {
+	if profileBean == nil {
+		return nil
+	}
+	return &bean.ProfileBean{
+		ProfileBeanAbstract: bean.ProfileBeanAbstract{
+			Id:          profileBean.Id,
+			Name:        profileBean.Name,
+			Description: profileBean.Description,
+			Active:      profileBean.Active,
+			Type:        profileBean.Type,
+			AppCount:    profileBean.AppCount,
+			CreatedBy:   profileBean.CreatedBy,
+			CreatedOn:   profileBean.CreatedOn,
+			UpdatedBy:   profileBean.UpdatedBy,
+			UpdatedOn:   profileBean.UpdatedOn,
+		},
+		Configurations: map[string][]*bean.ConfigurationBean{util.CI_RUNNER_PLATFORM: GetV1ConfigurationBeans(profileBean.Configurations)},
+	}
+
+}
+
+func GetV1ConfigurationBeans(configBeans []bean.ConfigurationBeanV0) []*bean.ConfigurationBean {
+	if len(configBeans) == 0 {
+		return nil
+	}
+	resp := make([]*bean.ConfigurationBean, 0)
+	for _, configBean := range configBeans {
+		valueString := strconv.FormatFloat(configBean.Value, 'f', -1, 64)
+
+		configBeanV1 := &bean.ConfigurationBean{
+			ConfigurationBeanAbstract: bean.ConfigurationBeanAbstract{
+				Id:          configBean.Id,
+				Key:         configBean.Key,
+				Unit:        configBean.Unit,
+				ProfileName: configBean.ProfileName,
+				ProfileId:   configBean.ProfileId,
+				Active:      configBean.Active,
+			},
+			Value: valueString,
+		}
+		resp = append(resp, configBeanV1)
+	}
+	return resp
+}
+
+func GetV0ConfigurationBeans(configBeans []*bean.ConfigurationBean) []bean.ConfigurationBeanV0 {
+	if len(configBeans) == 0 {
+		return []bean.ConfigurationBeanV0{}
+	}
+
+	resp := make([]bean.ConfigurationBeanV0, 0)
+	for _, configBean := range configBeans {
+		valueFloat, _ := strconv.ParseFloat(configBean.Value, 64)
+
+		beanv0 := bean.ConfigurationBeanV0{
+			ConfigurationBeanAbstract: bean.ConfigurationBeanAbstract{
+				Id:          configBean.Id,
+				Key:         configBean.Key,
+				Unit:        configBean.Unit,
+				ProfileName: configBean.ProfileName,
+				ProfileId:   configBean.ProfileId,
+				Active:      configBean.Active,
+			},
+			Value: valueFloat,
+		}
+		resp = append(resp, beanv0)
+	}
+
+	return resp
+
 }

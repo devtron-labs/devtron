@@ -35,7 +35,7 @@ func NewJobInfraGetter() *JobInfraGetter {
 }
 
 // GetInfraConfigurationsByScope gets infra config for ci workflows using the scope
-func (jobInfraGetter JobInfraGetter) GetInfraConfigurationsByScope(scope *bean.Scope, platform string) (*bean.InfraConfig, error) {
+func (jobInfraGetter JobInfraGetter) GetInfraConfigurationsByScopeAndPlatform(scope *bean.Scope, platform string) (*bean.InfraConfig, error) {
 	infra := jobInfraGetter.jobInfra
 	return &infra, nil
 }

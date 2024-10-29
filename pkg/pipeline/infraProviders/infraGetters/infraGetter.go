@@ -21,5 +21,5 @@ import (
 )
 
 type InfraGetter interface {
-	GetInfraConfigurationsByScope(scope *bean.Scope, platform string) (*bean.InfraConfig, error)
+	GetInfraConfigurationsByScopeAndPlatform(scope *bean.Scope, platform string) (*bean.InfraConfig, error)
 }

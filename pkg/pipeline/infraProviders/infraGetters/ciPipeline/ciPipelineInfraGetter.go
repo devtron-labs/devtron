@@ -31,6 +31,6 @@ func NewCiInfraGetter(infraConfigService infraConfig.InfraConfigService) *CiInfr
 }
 
 // GetInfraConfigurationsByScope gets infra config for ci workflows using the scope
-func (ciInfraGetter CiInfraGetter) GetInfraConfigurationsByScope(scope *bean.Scope, platform string) (*bean.InfraConfig, error) {
+func (ciInfraGetter CiInfraGetter) GetInfraConfigurationsByScopeAndPlatform(scope *bean.Scope, platform string) (*bean.InfraConfig, error) {
 	return ciInfraGetter.infraConfigService.GetInfraConfigurationsByScopeAndPlatform(*scope, platform)
 }

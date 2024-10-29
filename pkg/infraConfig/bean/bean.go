@@ -41,15 +41,17 @@ func (infraProfile *InfraProfileEntity) ConvertToProfileBean() ProfileBean {
 		profileType = util2.NORMAL
 	}
 	return ProfileBean{
-		Id:          infraProfile.Id,
-		Name:        infraProfile.Name,
-		Type:        profileType,
-		Description: infraProfile.Description,
-		Active:      infraProfile.Active,
-		CreatedBy:   infraProfile.CreatedBy,
-		CreatedOn:   infraProfile.CreatedOn,
-		UpdatedBy:   infraProfile.UpdatedBy,
-		UpdatedOn:   infraProfile.UpdatedOn,
+		ProfileBeanAbstract: ProfileBeanAbstract{
+			Id:          infraProfile.Id,
+			Name:        infraProfile.Name,
+			Type:        profileType,
+			Description: infraProfile.Description,
+			Active:      infraProfile.Active,
+			CreatedBy:   infraProfile.CreatedBy,
+			CreatedOn:   infraProfile.CreatedOn,
+			UpdatedBy:   infraProfile.UpdatedBy,
+			UpdatedOn:   infraProfile.UpdatedOn,
+		},
 	}
 }
 
@@ -68,17 +70,27 @@ type InfraProfileConfigurationEntity struct {
 // service layer structs
 
 type ProfileBean struct {
-	Id             int                             `json:"id"`
-	Name           string                          `json:"name" validate:"required,min=1,max=50"`
-	Description    string                          `json:"description" validate:"max=300"`
-	Active         bool                            `json:"active"`
+	ProfileBeanAbstract
 	Configurations map[string][]*ConfigurationBean `json:"configurations" validate:"dive"`
-	Type           util2.ProfileType               `json:"type"`
-	AppCount       int                             `json:"appCount"`
-	CreatedBy      int32                           `json:"createdBy"`
-	CreatedOn      time.Time                       `json:"createdOn"`
-	UpdatedBy      int32                           `json:"updatedBy"`
-	UpdatedOn      time.Time                       `json:"updatedOn"`
+}
+
+// Deprecated
+type ProfileBeanV0 struct {
+	ProfileBeanAbstract
+	Configurations []ConfigurationBeanV0 `json:"configurations" validate:"dive"`
+}
+
+type ProfileBeanAbstract struct {
+	Id          int               `json:"id"`
+	Name        string            `json:"name" validate:"required,min=1,max=50"`
+	Description string            `json:"description" validate:"max=300"`
+	Active      bool              `json:"active"`
+	Type        util2.ProfileType `json:"type"`
+	AppCount    int               `json:"appCount"`
+	CreatedBy   int32             `json:"createdBy"`
+	CreatedOn   time.Time         `json:"createdOn"`
+	UpdatedBy   int32             `json:"updatedBy"`
+	UpdatedOn   time.Time         `json:"updatedOn"`
 }
 
 func (profileBean *ProfileBean) ConvertToInfraProfileEntity() *InfraProfileEntity {
@@ -90,9 +102,19 @@ func (profileBean *ProfileBean) ConvertToInfraProfileEntity() *InfraProfileEntit
 }
 
 type ConfigurationBean struct {
+	ConfigurationBeanAbstract
+	Value string `json:"value" validate:"required,gt=0"`
+}
+
+// Deprecated
+type ConfigurationBeanV0 struct {
+	ConfigurationBeanAbstract
+	Value float64 `json:"value" validate:"required,gt=0"`
+}
+
+type ConfigurationBeanAbstract struct {
 	Id          int                `json:"id"`
 	Key         util2.ConfigKeyStr `json:"key"`
-	Value       string             `json:"value" validate:"required,gt=0"`
 	Unit        string             `json:"unit" validate:"required,gt=0"`
 	ProfileName string             `json:"profileName"`
 	ProfileId   int                `json:"profileId"`
@@ -100,12 +122,25 @@ type ConfigurationBean struct {
 }
 
 type InfraConfigMetaData struct {
-	DefaultConfigurations []ConfigurationBean                          `json:"defaultConfigurations"`
+	DefaultConfigurations map[string][]*ConfigurationBean              `json:"defaultConfigurations"`
 	ConfigurationUnits    map[util2.ConfigKeyStr]map[string]units.Unit `json:"configurationUnits"`
 }
+
+// Deprecated
+type InfraConfigMetaDataV0 struct {
+	DefaultConfigurations []ConfigurationBeanV0                        `json:"defaultConfigurations"`
+	ConfigurationUnits    map[util2.ConfigKeyStr]map[string]units.Unit `json:"configurationUnits"`
+}
+
 type ProfileResponse struct {
 	Profile ProfileBean `json:"profile"`
 	InfraConfigMetaData
+}
+
+// Deprecated
+type ProfileResponseV0 struct {
+	Profile ProfileBeanV0 `json:"profile"`
+	InfraConfigMetaDataV0
 }
 
 type Scope struct {
