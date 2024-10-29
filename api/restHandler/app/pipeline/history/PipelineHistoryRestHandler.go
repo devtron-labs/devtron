@@ -18,6 +18,7 @@ package history
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"net/http"
 	"strconv"
 
@@ -44,7 +45,7 @@ type PipelineHistoryRestHandlerImpl struct {
 	userAuthService                     user.UserService
 	enforcer                            casbin.Enforcer
 	strategyHistoryService              history2.PipelineStrategyHistoryService
-	deploymentTemplateHistoryService    history2.DeploymentTemplateHistoryService
+	deploymentTemplateHistoryService    deploymentTemplate.DeploymentTemplateHistoryService
 	configMapHistoryService             history2.ConfigMapHistoryService
 	prePostCiScriptHistoryService       history2.PrePostCiScriptHistoryService
 	prePostCdScriptHistoryService       history2.PrePostCdScriptHistoryService
@@ -54,7 +55,7 @@ type PipelineHistoryRestHandlerImpl struct {
 
 func NewPipelineHistoryRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, strategyHistoryService history2.PipelineStrategyHistoryService,
-	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService,
+	deploymentTemplateHistoryService deploymentTemplate.DeploymentTemplateHistoryService,
 	configMapHistoryService history2.ConfigMapHistoryService,
 	prePostCiScriptHistoryService history2.PrePostCiScriptHistoryService,
 	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService,

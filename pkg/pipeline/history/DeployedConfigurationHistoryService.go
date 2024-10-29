@@ -21,8 +21,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/history/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/history/read"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util4 "github.com/devtron-labs/devtron/util"
@@ -38,6 +39,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// TODO: Prakash, merge this interface with interface in deployment/manifest/deploymentTemplate/DeploymentTemplateHistoryService.go and extract out read logic in read repo
 type DeployedConfigurationHistoryService interface {
 	//TODO: rethink if the below method right at this place
 	CreateHistoriesForDeploymentTrigger(ctx context.Context, pipeline *pipelineConfig.Pipeline, strategy *chartConfig.PipelineStrategy, envOverride *chartConfig.EnvConfigOverride, deployedOn time.Time, deployedBy int32) error
@@ -53,7 +55,7 @@ type DeployedConfigurationHistoryService interface {
 type DeployedConfigurationHistoryServiceImpl struct {
 	logger                               *zap.SugaredLogger
 	userService                          user.UserService
-	deploymentTemplateHistoryService     DeploymentTemplateHistoryService
+	deploymentTemplateHistoryService     deploymentTemplate.DeploymentTemplateHistoryService
 	strategyHistoryService               PipelineStrategyHistoryService
 	configMapHistoryService              ConfigMapHistoryService
 	cdWorkflowRepository                 pipelineConfig.CdWorkflowRepository
@@ -62,7 +64,7 @@ type DeployedConfigurationHistoryServiceImpl struct {
 }
 
 func NewDeployedConfigurationHistoryServiceImpl(logger *zap.SugaredLogger,
-	userService user.UserService, deploymentTemplateHistoryService DeploymentTemplateHistoryService,
+	userService user.UserService, deploymentTemplateHistoryService deploymentTemplate.DeploymentTemplateHistoryService,
 	strategyHistoryService PipelineStrategyHistoryService, configMapHistoryService ConfigMapHistoryService,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	scopedVariableManager variables.ScopedVariableCMCSManager,

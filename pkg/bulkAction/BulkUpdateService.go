@@ -40,6 +40,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
@@ -84,7 +85,7 @@ type BulkUpdateServiceImpl struct {
 	environmentRepository            repository2.EnvironmentRepository
 	pipelineRepository               pipelineConfig.PipelineRepository
 	appRepository                    app.AppRepository
-	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
+	deploymentTemplateHistoryService deploymentTemplate.DeploymentTemplateHistoryService
 	configMapHistoryService          history.ConfigMapHistoryService
 	pipelineBuilder                  pipeline.PipelineBuilder
 	enforcerUtil                     rbac.EnforcerUtil
@@ -104,7 +105,7 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	environmentRepository repository2.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appRepository app.AppRepository,
-	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
+	deploymentTemplateHistoryService deploymentTemplate.DeploymentTemplateHistoryService,
 	configMapHistoryService history.ConfigMapHistoryService,
 	pipelineBuilder pipeline.PipelineBuilder,
 	enforcerUtil rbac.EnforcerUtil,

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package history
+package deploymentTemplate
 
 import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"

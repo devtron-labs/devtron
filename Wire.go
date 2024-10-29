@@ -131,6 +131,7 @@ import (
 	deployment2 "github.com/devtron-labs/devtron/pkg/deployment"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	git2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/publish"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
@@ -208,7 +209,6 @@ func InitializeApp() (*App, error) {
 		workflow3.WorkflowWireSet,
 
 		devtronResource.DevtronResourceWireSet,
-		history3.AllHistoryWireSet,
 		// -------wireset end ----------
 		// -------
 		gitSensor.GetConfig,
@@ -819,8 +819,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(history3.PrePostCdScriptHistoryService), new(*history3.PrePostCdScriptHistoryServiceImpl)),
 		history3.NewPrePostCiScriptHistoryServiceImpl,
 		wire.Bind(new(history3.PrePostCiScriptHistoryService), new(*history3.PrePostCiScriptHistoryServiceImpl)),
-		history3.NewDeploymentTemplateHistoryServiceImpl,
-		wire.Bind(new(history3.DeploymentTemplateHistoryService), new(*history3.DeploymentTemplateHistoryServiceImpl)),
+		deploymentTemplate.NewDeploymentTemplateHistoryServiceImpl,
+		wire.Bind(new(deploymentTemplate.DeploymentTemplateHistoryService), new(*deploymentTemplate.DeploymentTemplateHistoryServiceImpl)),
 		history3.NewConfigMapHistoryServiceImpl,
 		wire.Bind(new(history3.ConfigMapHistoryService), new(*history3.ConfigMapHistoryServiceImpl)),
 		history3.NewPipelineStrategyHistoryServiceImpl,
