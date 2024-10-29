@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/history/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -30,7 +31,7 @@ import (
 
 type PrePostCdScriptHistoryService interface {
 	CreatePrePostCdScriptHistory(pipeline *pipelineConfig.Pipeline, tx *pg.Tx, stage repository.CdStageType, deployed bool, deployedBy int32, deployedOn time.Time) error
-	GetHistoryForDeployedPrePostCdScript(pipelineId int, stage repository.CdStageType) ([]*PrePostCdScriptHistoryDto, error)
+	GetHistoryForDeployedPrePostCdScript(pipelineId int, stage repository.CdStageType) ([]*bean2.PrePostCdScriptHistoryDto, error)
 }
 
 type PrePostCdScriptHistoryServiceImpl struct {
@@ -95,13 +96,13 @@ func (impl PrePostCdScriptHistoryServiceImpl) CreatePrePostCdScriptHistory(pipel
 	return nil
 }
 
-func (impl PrePostCdScriptHistoryServiceImpl) GetHistoryForDeployedPrePostCdScript(pipelineId int, stage repository.CdStageType) ([]*PrePostCdScriptHistoryDto, error) {
+func (impl PrePostCdScriptHistoryServiceImpl) GetHistoryForDeployedPrePostCdScript(pipelineId int, stage repository.CdStageType) ([]*bean2.PrePostCdScriptHistoryDto, error) {
 	histories, err := impl.prePostCdScriptHistoryRepository.GetHistoryForDeployedPrePostScriptByStage(pipelineId, stage)
 	if err != nil {
 		impl.logger.Errorw("error in getting pre/post cd script history", "err", err, "pipelineId", pipelineId)
 		return nil, err
 	}
-	var historiesDto []*PrePostCdScriptHistoryDto
+	var historiesDto []*bean2.PrePostCdScriptHistoryDto
 	for _, history := range histories {
 		configMapList := bean.ConfigList{}
 		if len(history.ConfigMapData) > 0 {
@@ -119,7 +120,7 @@ func (impl PrePostCdScriptHistoryServiceImpl) GetHistoryForDeployedPrePostCdScri
 				return nil, err
 			}
 		}
-		var configMapSecretNames PrePostStageConfigMapSecretNames
+		var configMapSecretNames bean2.PrePostStageConfigMapSecretNames
 		if history.ConfigMapSecretNames != "" {
 			err = json.Unmarshal([]byte(history.ConfigMapSecretNames), &configMapSecretNames)
 			if err != nil {
@@ -128,7 +129,7 @@ func (impl PrePostCdScriptHistoryServiceImpl) GetHistoryForDeployedPrePostCdScri
 			}
 		}
 
-		historyDto := &PrePostCdScriptHistoryDto{
+		historyDto := &bean2.PrePostCdScriptHistoryDto{
 			Id:                   history.Id,
 			PipelineId:           history.PipelineId,
 			Script:               history.Script,
@@ -148,7 +149,7 @@ func (impl PrePostCdScriptHistoryServiceImpl) GetHistoryForDeployedPrePostCdScri
 }
 
 func (impl PrePostCdScriptHistoryServiceImpl) GetConfigMapSecretData(pipeline *pipelineConfig.Pipeline, stage repository.CdStageType) (configMapData, secretData string, err error) {
-	var configMapSecretNames PrePostStageConfigMapSecretNames
+	var configMapSecretNames bean2.PrePostStageConfigMapSecretNames
 	if stage == repository.PRE_CD_TYPE {
 		if pipeline.PreStageConfigMapSecretNames != "" {
 			err = json.Unmarshal([]byte(pipeline.PreStageConfigMapSecretNames), &configMapSecretNames)

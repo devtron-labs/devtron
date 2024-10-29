@@ -38,7 +38,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/pipeline/history"
+	"github.com/devtron-labs/devtron/pkg/pipeline/history/read"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
@@ -66,25 +66,25 @@ type DeploymentTemplateService interface {
 	ResolveTemplateVariables(ctx context.Context, values string, request DeploymentTemplateRequest) (string, map[string]string, error)
 }
 type DeploymentTemplateServiceImpl struct {
-	Logger                           *zap.SugaredLogger
-	chartService                     chart.ChartService
-	appListingService                app.AppListingService
-	deploymentTemplateRepository     repository.DeploymentTemplateRepository
-	helmAppService                   client.HelmAppService
-	chartTemplateServiceImpl         util.ChartTemplateService
-	K8sUtil                          *k8s.K8sServiceImpl
-	helmAppClient                    gRPC.HelmAppClient
-	propertiesConfigService          pipeline.PropertiesConfigService
-	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
-	environmentRepository            repository3.EnvironmentRepository
-	appRepository                    appRepository.AppRepository
-	scopedVariableManager            variables.ScopedVariableManager
-	chartRefService                  chartRef.ChartRefService
-	pipelineOverrideRepository       chartConfig.PipelineOverrideRepository
-	pipelineRepository               pipelineConfig.PipelineRepository
-	chartRepository                  chartRepoRepository.ChartRepository
-	restartWorkloadConfig            *RestartWorkloadConfig
-	mergeUtil                        *util.MergeUtil
+	Logger                               *zap.SugaredLogger
+	chartService                         chart.ChartService
+	appListingService                    app.AppListingService
+	deploymentTemplateRepository         repository.DeploymentTemplateRepository
+	helmAppService                       client.HelmAppService
+	chartTemplateServiceImpl             util.ChartTemplateService
+	K8sUtil                              *k8s.K8sServiceImpl
+	helmAppClient                        gRPC.HelmAppClient
+	propertiesConfigService              pipeline.PropertiesConfigService
+	environmentRepository                repository3.EnvironmentRepository
+	appRepository                        appRepository.AppRepository
+	scopedVariableManager                variables.ScopedVariableManager
+	chartRefService                      chartRef.ChartRefService
+	pipelineOverrideRepository           chartConfig.PipelineOverrideRepository
+	pipelineRepository                   pipelineConfig.PipelineRepository
+	chartRepository                      chartRepoRepository.ChartRepository
+	restartWorkloadConfig                *RestartWorkloadConfig
+	mergeUtil                            *util.MergeUtil
+	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService
 }
 
 func GetRestartWorkloadConfig() (*RestartWorkloadConfig, error) {
@@ -101,7 +101,6 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 	helmAppClient gRPC.HelmAppClient,
 	K8sUtil *k8s.K8sServiceImpl,
 	propertiesConfigService pipeline.PropertiesConfigService,
-	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	environmentRepository repository3.EnvironmentRepository,
 	appRepository appRepository.AppRepository,
 	scopedVariableManager variables.ScopedVariableManager,
@@ -110,26 +109,27 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 	chartRepository chartRepoRepository.ChartRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	mergeUtil *util.MergeUtil,
+	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService,
 ) (*DeploymentTemplateServiceImpl, error) {
 	deploymentTemplateServiceImpl := &DeploymentTemplateServiceImpl{
-		Logger:                           Logger,
-		chartService:                     chartService,
-		appListingService:                appListingService,
-		deploymentTemplateRepository:     deploymentTemplateRepository,
-		helmAppService:                   helmAppService,
-		chartTemplateServiceImpl:         chartTemplateServiceImpl,
-		K8sUtil:                          K8sUtil,
-		helmAppClient:                    helmAppClient,
-		propertiesConfigService:          propertiesConfigService,
-		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
-		environmentRepository:            environmentRepository,
-		appRepository:                    appRepository,
-		scopedVariableManager:            scopedVariableManager,
-		chartRefService:                  chartRefService,
-		pipelineOverrideRepository:       pipelineOverrideRepository,
-		chartRepository:                  chartRepository,
-		pipelineRepository:               pipelineRepository,
-		mergeUtil:                        mergeUtil,
+		Logger:                               Logger,
+		chartService:                         chartService,
+		appListingService:                    appListingService,
+		deploymentTemplateRepository:         deploymentTemplateRepository,
+		helmAppService:                       helmAppService,
+		chartTemplateServiceImpl:             chartTemplateServiceImpl,
+		K8sUtil:                              K8sUtil,
+		helmAppClient:                        helmAppClient,
+		propertiesConfigService:              propertiesConfigService,
+		environmentRepository:                environmentRepository,
+		appRepository:                        appRepository,
+		scopedVariableManager:                scopedVariableManager,
+		chartRefService:                      chartRefService,
+		pipelineOverrideRepository:           pipelineOverrideRepository,
+		chartRepository:                      chartRepository,
+		pipelineRepository:                   pipelineRepository,
+		mergeUtil:                            mergeUtil,
+		deploymentTemplateHistoryReadService: deploymentTemplateHistoryReadService,
 	}
 	cfg, err := GetRestartWorkloadConfig()
 	if err != nil {
@@ -358,7 +358,7 @@ func (impl DeploymentTemplateServiceImpl) fetchResolvedTemplateForPublishedEnvs(
 }
 
 func (impl DeploymentTemplateServiceImpl) fetchTemplateForDeployedEnv(ctx context.Context, request DeploymentTemplateRequest) (*DeploymentTemplateResponse, error) {
-	historyObject, err := impl.deploymentTemplateHistoryService.GetHistoryForDeployedTemplateById(ctx, request.DeploymentTemplateHistoryId, request.PipelineId)
+	historyObject, err := impl.deploymentTemplateHistoryReadService.GetHistoryForDeployedTemplateById(ctx, request.DeploymentTemplateHistoryId, request.PipelineId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting deployment template history", "err", err, "id", request.DeploymentTemplateHistoryId, "pipelineId", request.PipelineId)
 		return nil, err

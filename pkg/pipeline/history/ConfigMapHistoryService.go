@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/configDiff/utils"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	bean4 "github.com/devtron-labs/devtron/pkg/pipeline/history/bean"
 	globalUtil "github.com/devtron-labs/devtron/util"
 	"time"
 
@@ -44,15 +45,15 @@ type ConfigMapHistoryService interface {
 	CreateHistoryFromEnvLevelConfig(envLevelConfig *chartConfig.ConfigMapEnvModel, configType repository.ConfigType) error
 	CreateCMCSHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, deployedOn time.Time, deployedBy int32) (int, int, error)
 	MergeAppLevelAndEnvLevelConfigs(appLevelConfig *chartConfig.ConfigMapAppModel, envLevelConfig *chartConfig.ConfigMapEnvModel, configType repository.ConfigType, configMapSecretNames []string) (string, error)
-	GetDeploymentDetailsForDeployedCMCSHistory(pipelineId int, configType repository.ConfigType) ([]*ConfigMapAndSecretHistoryDto, error)
+	GetDeploymentDetailsForDeployedCMCSHistory(pipelineId int, configType repository.ConfigType) ([]*bean4.ConfigMapAndSecretHistoryDto, error)
 
-	GetHistoryForDeployedCMCSById(ctx context.Context, id, pipelineId int, configType repository.ConfigType, componentName string, userHasAdminAccess bool) (*HistoryDetailDto, error)
+	GetHistoryForDeployedCMCSById(ctx context.Context, id, pipelineId int, configType repository.ConfigType, componentName string, userHasAdminAccess bool) (*bean4.HistoryDetailDto, error)
 	GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, configType repository.ConfigType) (history *repository.ConfigmapAndSecretHistory, exists bool, cmCsNames []string, err error)
-	GetDeployedHistoryList(pipelineId, baseConfigId int, configType repository.ConfigType, componentName string) ([]*DeployedHistoryComponentMetadataDto, error)
+	GetDeployedHistoryList(pipelineId, baseConfigId int, configType repository.ConfigType, componentName string) ([]*bean4.DeployedHistoryComponentMetadataDto, error)
 
 	CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (cmId int, csId int, exists bool, err error)
-	GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int, configType repository.ConfigType, userHasAdminAccess bool) ([]*ComponentLevelHistoryDetailDto, error)
-	ConvertConfigDataToComponentLevelDto(config *bean.ConfigData, configType repository.ConfigType, userHasAdminAccess bool) (*ComponentLevelHistoryDetailDto, error)
+	GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int, configType repository.ConfigType, userHasAdminAccess bool) ([]*bean4.ComponentLevelHistoryDetailDto, error)
+	ConvertConfigDataToComponentLevelDto(config *bean.ConfigData, configType repository.ConfigType, userHasAdminAccess bool) (*bean4.ComponentLevelHistoryDetailDto, error)
 
 	GetConfigmapHistoryDataByDeployedOnAndPipelineId(ctx context.Context, pipelineId int, deployedOn time.Time, userHasAdminAccess bool) (*bean2.DeploymentAndCmCsConfig, *bean2.DeploymentAndCmCsConfig, error)
 }
@@ -356,20 +357,20 @@ func (impl ConfigMapHistoryServiceImpl) MergeAppLevelAndEnvLevelConfigs(appLevel
 	return string(finalConfigDataByte), err
 }
 
-func (impl ConfigMapHistoryServiceImpl) GetDeploymentDetailsForDeployedCMCSHistory(pipelineId int, configType repository.ConfigType) ([]*ConfigMapAndSecretHistoryDto, error) {
+func (impl ConfigMapHistoryServiceImpl) GetDeploymentDetailsForDeployedCMCSHistory(pipelineId int, configType repository.ConfigType) ([]*bean4.ConfigMapAndSecretHistoryDto, error) {
 	histories, err := impl.configMapHistoryRepository.GetDeploymentDetailsForDeployedCMCSHistory(pipelineId, configType)
 	if err != nil {
 		impl.logger.Errorw("error in getting histories for cm/cs", "err", err, "pipelineId", pipelineId)
 		return nil, err
 	}
-	var historiesDto []*ConfigMapAndSecretHistoryDto
+	var historiesDto []*bean4.ConfigMapAndSecretHistoryDto
 	for _, history := range histories {
 		userEmailId, err := impl.userService.GetActiveEmailById(history.DeployedBy)
 		if err != nil {
 			impl.logger.Errorw("unable to find user email by id", "err", err, "id", history.DeployedBy)
 			return nil, err
 		}
-		historyDto := &ConfigMapAndSecretHistoryDto{
+		historyDto := &bean4.ConfigMapAndSecretHistoryDto{
 			Id:         history.Id,
 			AppId:      history.AppId,
 			PipelineId: history.PipelineId,
@@ -425,7 +426,7 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryByPipelineIdAndWfrId(p
 	return history, true, cmCsNames, nil
 }
 
-func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryList(pipelineId, baseConfigId int, configType repository.ConfigType, componentName string) ([]*DeployedHistoryComponentMetadataDto, error) {
+func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryList(pipelineId, baseConfigId int, configType repository.ConfigType, componentName string) ([]*bean4.DeployedHistoryComponentMetadataDto, error) {
 	impl.logger.Debugw("received request, GetDeployedHistoryList", "pipelineId", pipelineId, "baseConfigId", baseConfigId)
 
 	//checking if history exists for pipelineId and wfrId
@@ -434,9 +435,9 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryList(pipelineId, baseC
 		impl.logger.Errorw("error in getting history list for pipelineId and baseConfigId", "err", err, "pipelineId", pipelineId)
 		return nil, err
 	}
-	var historyList []*DeployedHistoryComponentMetadataDto
+	var historyList []*bean4.DeployedHistoryComponentMetadataDto
 	for _, history := range histories {
-		historyList = append(historyList, &DeployedHistoryComponentMetadataDto{
+		historyList = append(historyList, &bean4.DeployedHistoryComponentMetadataDto{
 			Id:               history.Id,
 			DeployedOn:       history.DeployedOn,
 			DeployedBy:       history.DeployedByEmailId,
@@ -446,7 +447,7 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryList(pipelineId, baseC
 	return historyList, nil
 }
 
-func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx context.Context, id, pipelineId int, configType repository.ConfigType, componentName string, userHasAdminAccess bool) (*HistoryDetailDto, error) {
+func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx context.Context, id, pipelineId int, configType repository.ConfigType, componentName string, userHasAdminAccess bool) (*bean4.HistoryDetailDto, error) {
 	history, err := impl.configMapHistoryRepository.GetHistoryForDeployedCMCSById(id, pipelineId, configType)
 	if err != nil {
 		impl.logger.Errorw("error in getting histories for cm/cs", "err", err, "id", id, "pipelineId", pipelineId)
@@ -490,14 +491,14 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx contex
 			break
 		}
 	}
-	historyDto := &HistoryDetailDto{
+	historyDto := &bean4.HistoryDetailDto{
 		Type:           config.Type,
 		External:       &config.External,
 		MountPath:      config.MountPath,
 		SubPath:        &config.SubPath,
 		FilePermission: config.FilePermission,
-		CodeEditorValue: &HistoryDetailConfig{
-			DisplayName:      DataDisplayName,
+		CodeEditorValue: &bean4.HistoryDetailConfig{
+			DisplayName:      bean4.DataDisplayName,
 			Value:            string(config.Data),
 			VariableSnapshot: variableSnapshotMap,
 			ResolvedValue:    resolvedTemplate,
@@ -536,7 +537,7 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx contex
 					impl.logger.Errorw("error in marshaling external secret data", "err", err)
 				}
 				if len(externalSecretData) > 0 {
-					historyDto.CodeEditorValue.DisplayName = ExternalSecretDisplayName
+					historyDto.CodeEditorValue.DisplayName = bean4.ExternalSecretDisplayName
 					historyDto.CodeEditorValue.Value = string(externalSecretData)
 				}
 			} else if config.IsESOExternalSecretType() {
@@ -546,7 +547,7 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx contex
 					return nil, jErr
 				}
 				if len(externalSecretDataBytes) > 0 {
-					historyDto.CodeEditorValue.DisplayName = ESOSecretDataDisplayName
+					historyDto.CodeEditorValue.DisplayName = bean4.ESOSecretDataDisplayName
 					historyDto.CodeEditorValue.Value = string(externalSecretDataBytes)
 				}
 			}
@@ -555,7 +556,7 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx contex
 	return historyDto, nil
 }
 
-func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int, configType repository.ConfigType, userHasAdminAccess bool) ([]*ComponentLevelHistoryDetailDto, error) {
+func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int, configType repository.ConfigType, userHasAdminAccess bool) ([]*bean4.ComponentLevelHistoryDetailDto, error) {
 	history, err := impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId, configType)
 	if err != nil {
 		impl.logger.Errorw("error in getting histories for cm/cs", "err", err, "wfrId", wfrId, "pipelineId", pipelineId)
@@ -593,7 +594,7 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 		return nil, err
 	}
 
-	var componentLevelHistoryData []*ComponentLevelHistoryDetailDto
+	var componentLevelHistoryData []*bean4.ComponentLevelHistoryDetailDto
 	for _, config := range configData {
 		componentLevelData, err := impl.ConvertConfigDataToComponentLevelDto(config, configType, userHasAdminAccess)
 		if err != nil {
@@ -606,15 +607,15 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 	return componentLevelHistoryData, nil
 }
 
-func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(config *bean.ConfigData, configType repository.ConfigType, userHasAdminAccess bool) (*ComponentLevelHistoryDetailDto, error) {
-	historyDto := &HistoryDetailDto{
+func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(config *bean.ConfigData, configType repository.ConfigType, userHasAdminAccess bool) (*bean4.ComponentLevelHistoryDetailDto, error) {
+	historyDto := &bean4.HistoryDetailDto{
 		Type:           config.Type,
 		External:       &config.External,
 		MountPath:      config.MountPath,
 		SubPath:        &config.SubPath,
 		FilePermission: config.FilePermission,
-		CodeEditorValue: &HistoryDetailConfig{
-			DisplayName: DataDisplayName,
+		CodeEditorValue: &bean4.HistoryDetailConfig{
+			DisplayName: bean4.DataDisplayName,
 			Value:       string(config.Data),
 		},
 	}
@@ -649,14 +650,14 @@ func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(con
 			var externalSecretData []byte
 			displayName := historyDto.CodeEditorValue.DisplayName
 			if config.IsESOExternalSecretType() {
-				displayName = ESOSecretDataDisplayName
+				displayName = bean4.ESOSecretDataDisplayName
 				externalSecretData, err = json.Marshal(config.ESOSecretData)
 				if err != nil {
 					impl.logger.Errorw("error in marshaling external secret data", "err", err)
 					return nil, err
 				}
 			} else {
-				displayName = ExternalSecretDisplayName
+				displayName = bean4.ExternalSecretDisplayName
 				externalSecretData, err = json.Marshal(config.ExternalSecret)
 				if err != nil {
 					impl.logger.Errorw("error in marshaling external secret data", "err", err)
@@ -669,7 +670,7 @@ func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(con
 			}
 		}
 	}
-	componentLevelData := &ComponentLevelHistoryDetailDto{
+	componentLevelData := &bean4.ComponentLevelHistoryDetailDto{
 		ComponentName: config.Name,
 		HistoryConfig: historyDto,
 	}
