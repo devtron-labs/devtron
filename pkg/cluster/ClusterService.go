@@ -90,6 +90,7 @@ type ClusterBean struct {
 	IsCdArgoSetup           bool                       `json:"isCdArgoSetup"`
 	IsVirtualCluster        bool                       `json:"isVirtualCluster"`
 	ClusterUpdated          bool                       `json:"clusterUpdated"`
+	IsProd                  bool                       `json:"isProd"`
 }
 
 func GetClusterBean(model repository.Cluster) ClusterBean {
@@ -106,6 +107,7 @@ func GetClusterBean(model repository.Cluster) ClusterBean {
 	bean.InsecureSkipTLSVerify = model.InsecureSkipTlsVerify
 	bean.IsVirtualCluster = model.IsVirtualCluster
 	bean.ErrorInConnecting = model.ErrorInConnecting
+	bean.IsProd = model.IsProd
 	bean.PrometheusAuth = &PrometheusAuth{
 		UserName:      model.PUserName,
 		Password:      model.PPassword,
@@ -241,6 +243,7 @@ func (impl *ClusterServiceImpl) ConvertClusterBeanToCluster(clusterBean *Cluster
 	model.Config = clusterBean.Config
 	model.PrometheusEndpoint = clusterBean.PrometheusUrl
 	model.InsecureSkipTlsVerify = clusterBean.InsecureSkipTLSVerify
+	model.IsProd = clusterBean.IsProd
 
 	if clusterBean.PrometheusAuth != nil {
 		model.PUserName = clusterBean.PrometheusAuth.UserName
@@ -374,7 +377,6 @@ func (impl *ClusterServiceImpl) FindOneActive(clusterName string) (*ClusterBean,
 	}
 	bean := GetClusterBean(*model)
 	return &bean, nil
-
 }
 
 func (impl *ClusterServiceImpl) FindAllWithoutConfig() ([]*ClusterBean, error) {
@@ -534,6 +536,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	}
 	model.ErrorInConnecting = "" //setting empty because config to be updated is already validated
 	model.Active = bean.Active
+	model.IsProd = bean.IsProd
 	model.Config = bean.Config
 	model.UpdatedBy = userId
 	model.UpdatedOn = time.Now()
@@ -646,7 +649,7 @@ func (impl *ClusterServiceImpl) FindAllForAutoComplete() ([]ClusterBean, error) 
 }
 
 func (impl *ClusterServiceImpl) CreateGrafanaDataSource(clusterBean *ClusterBean, env *repository.Environment) (int, error) {
-	impl.logger.Errorw("CreateGrafanaDataSource not inplementd in ClusterServiceImpl")
+	impl.logger.Errorw("CreateGrafanaDataSource not implemented in ClusterServiceImpl")
 	return 0, fmt.Errorf("method not implemented")
 }
 
