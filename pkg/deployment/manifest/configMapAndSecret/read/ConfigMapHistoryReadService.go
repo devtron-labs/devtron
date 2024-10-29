@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/configDiff/adaptor"
 	bean3 "github.com/devtron-labs/devtron/pkg/configDiff/bean"
@@ -33,20 +32,17 @@ type ConfigMapHistoryReadService interface {
 type ConfigMapHistoryReadServiceImpl struct {
 	logger                     *zap.SugaredLogger
 	configMapHistoryRepository repository.ConfigMapHistoryRepository
-	userService                user.UserService
 	scopedVariableManager      variables.ScopedVariableCMCSManager
 }
 
 func NewConfigMapHistoryReadService(
 	logger *zap.SugaredLogger,
 	configMapHistoryRepository repository.ConfigMapHistoryRepository,
-	userService user.UserService,
 	scopedVariableManager variables.ScopedVariableCMCSManager,
 ) *ConfigMapHistoryReadServiceImpl {
 	return &ConfigMapHistoryReadServiceImpl{
 		logger:                     logger,
 		configMapHistoryRepository: configMapHistoryRepository,
-		userService:                userService,
 		scopedVariableManager:      scopedVariableManager,
 	}
 }
