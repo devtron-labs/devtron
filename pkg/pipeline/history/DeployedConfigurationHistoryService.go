@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/history/bean"
@@ -57,7 +58,7 @@ type DeployedConfigurationHistoryServiceImpl struct {
 	userService                          user.UserService
 	deploymentTemplateHistoryService     deploymentTemplate.DeploymentTemplateHistoryService
 	strategyHistoryService               PipelineStrategyHistoryService
-	configMapHistoryService              ConfigMapHistoryService
+	configMapHistoryService              configMapAndSecret.ConfigMapHistoryService
 	cdWorkflowRepository                 pipelineConfig.CdWorkflowRepository
 	scopedVariableManager                variables.ScopedVariableCMCSManager
 	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService
@@ -65,7 +66,7 @@ type DeployedConfigurationHistoryServiceImpl struct {
 
 func NewDeployedConfigurationHistoryServiceImpl(logger *zap.SugaredLogger,
 	userService user.UserService, deploymentTemplateHistoryService deploymentTemplate.DeploymentTemplateHistoryService,
-	strategyHistoryService PipelineStrategyHistoryService, configMapHistoryService ConfigMapHistoryService,
+	strategyHistoryService PipelineStrategyHistoryService, configMapHistoryService configMapAndSecret.ConfigMapHistoryService,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	scopedVariableManager variables.ScopedVariableCMCSManager,
 	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService,

@@ -23,9 +23,9 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
-	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/history/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -50,7 +50,7 @@ type PipelineDeploymentConfigServiceImpl struct {
 	pipelineRepository          pipelineConfig.PipelineRepository
 	pipelineConfigRepository    chartConfig.PipelineConfigRepository
 	configMapRepository         chartConfig.ConfigMapRepository
-	configMapHistoryService     history.ConfigMapHistoryService
+	configMapHistoryService     configMapAndSecret.ConfigMapHistoryService
 	scopedVariableManager       variables.ScopedVariableCMCSManager
 	deployedAppMetricsService   deployedAppMetrics.DeployedAppMetricsService
 	chartRefService             chartRef.ChartRefService
@@ -62,7 +62,7 @@ func NewPipelineDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
-	configMapHistoryService history.ConfigMapHistoryService,
+	configMapHistoryService configMapAndSecret.ConfigMapHistoryService,
 	scopedVariableManager variables.ScopedVariableCMCSManager,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	chartRefService chartRef.ChartRefService) *PipelineDeploymentConfigServiceImpl {

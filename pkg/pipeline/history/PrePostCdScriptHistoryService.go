@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/history/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -38,11 +39,11 @@ type PrePostCdScriptHistoryServiceImpl struct {
 	logger                           *zap.SugaredLogger
 	prePostCdScriptHistoryRepository repository.PrePostCdScriptHistoryRepository
 	configMapRepository              chartConfig.ConfigMapRepository
-	configMapHistoryService          ConfigMapHistoryService
+	configMapHistoryService          configMapAndSecret.ConfigMapHistoryService
 }
 
 func NewPrePostCdScriptHistoryServiceImpl(logger *zap.SugaredLogger, prePostCdScriptHistoryRepository repository.PrePostCdScriptHistoryRepository,
-	configMapRepository chartConfig.ConfigMapRepository, configMapHistoryService ConfigMapHistoryService) *PrePostCdScriptHistoryServiceImpl {
+	configMapRepository chartConfig.ConfigMapRepository, configMapHistoryService configMapAndSecret.ConfigMapHistoryService) *PrePostCdScriptHistoryServiceImpl {
 	return &PrePostCdScriptHistoryServiceImpl{
 		logger:                           logger,
 		prePostCdScriptHistoryRepository: prePostCdScriptHistoryRepository,

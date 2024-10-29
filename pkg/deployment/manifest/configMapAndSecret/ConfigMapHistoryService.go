@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package history
+package configMapAndSecret
 
 import (
 	"context"

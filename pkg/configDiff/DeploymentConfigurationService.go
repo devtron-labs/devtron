@@ -15,13 +15,13 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/configDiff/bean"
 	"github.com/devtron-labs/devtron/pkg/configDiff/helper"
 	"github.com/devtron-labs/devtron/pkg/configDiff/utils"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
@@ -55,7 +55,7 @@ type DeploymentConfigurationServiceImpl struct {
 	deploymentConfigService              pipeline.PipelineDeploymentConfigService
 	chartRefService                      chartRef.ChartRefService
 	pipelineRepository                   pipelineConfig.PipelineRepository
-	configMapHistoryService              history.ConfigMapHistoryService
+	configMapHistoryService              configMapAndSecret.ConfigMapHistoryService
 	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService
 }
 
@@ -73,7 +73,7 @@ func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
 	deploymentConfigService pipeline.PipelineDeploymentConfigService,
 	chartRefService chartRef.ChartRefService,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	configMapHistoryService history.ConfigMapHistoryService,
+	configMapHistoryService configMapAndSecret.ConfigMapHistoryService,
 	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService,
 ) (*DeploymentConfigurationServiceImpl, error) {
 	deploymentConfigurationService := &DeploymentConfigurationServiceImpl{
