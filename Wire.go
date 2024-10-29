@@ -147,7 +147,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
-	"github.com/devtron-labs/devtron/pkg/pipeline/history/read"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -209,7 +208,7 @@ func InitializeApp() (*App, error) {
 		workflow3.WorkflowWireSet,
 
 		devtronResource.DevtronResourceWireSet,
-
+		history3.AllHistoryWireSet,
 		// -------wireset end ----------
 		// -------
 		gitSensor.GetConfig,
@@ -822,10 +821,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(history3.PrePostCiScriptHistoryService), new(*history3.PrePostCiScriptHistoryServiceImpl)),
 		history3.NewDeploymentTemplateHistoryServiceImpl,
 		wire.Bind(new(history3.DeploymentTemplateHistoryService), new(*history3.DeploymentTemplateHistoryServiceImpl)),
-
-		read.NewDeploymentTemplateHistoryReadServiceImpl,
-		wire.Bind(new(read.DeploymentTemplateHistoryReadService), new(*read.DeploymentTemplateHistoryReadServiceImpl)),
-
 		history3.NewConfigMapHistoryServiceImpl,
 		wire.Bind(new(history3.ConfigMapHistoryService), new(*history3.ConfigMapHistoryServiceImpl)),
 		history3.NewPipelineStrategyHistoryServiceImpl,
