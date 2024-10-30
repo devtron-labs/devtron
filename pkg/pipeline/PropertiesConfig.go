@@ -443,10 +443,10 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(request *bean.Environme
 			CurrentViewEditor: CurrentViewEditor,
 		}
 		if isOverride {
-			envOverride.EnvOverrideValues = chart.GlobalOverride
-			envOverride.Latest = true
+			envOverrideDBObj.EnvOverrideValues = chart.GlobalOverride
+			envOverrideDBObj.Latest = true
 		} else {
-			envOverride.EnvOverrideValues = "{}"
+			envOverrideDBObj.EnvOverrideValues = "{}"
 		}
 		//maintaining backward compatibility for while
 		if tx != nil {
@@ -458,6 +458,7 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(request *bean.Environme
 			impl.logger.Errorw("error in creating envconfig", "data", envOverride, "error", err)
 			return nil, isAppMetricsEnabled, err
 		}
+		envOverride = adapter.EnvOverrideDBToDTO(envOverrideDBObj)
 		err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride, tx, isAppMetricsEnabled, 0)
 		if err != nil {
 			impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
