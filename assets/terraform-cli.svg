@@ -1,17 +1,6 @@
-<!--
-  - Copyright (c) 2024. Devtron Inc.
-  -
-  - Licensed under the Apache License, Version 2.0 (the "License");
-  - you may not use this file except in compliance with the License.
-  - You may obtain a copy of the License at
-  -
-  -     http://www.apache.org/licenses/LICENSE-2.0
-  -
-  - Unless required by applicable law or agreed to in writing, software
-  - distributed under the License is distributed on an "AS IS" BASIS,
-  - WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  - See the License for the specific language governing permissions and
-  - limitations under the License.
-  -->
-
-<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><g fill="#813cf3"><path d="m12.042 6.858 8.029 4.59v9.014l-8.029-4.594z"/><path d="m20.5 20.415 7.959-4.575v-8.953l-7.959 4.542z"/><path d="m3.541 11.01 8.03 4.589v-9.009l-8.03-4.59z"/><path d="m12.042 25.41 8.029 4.59v-9.043l-8.029-4.589z"/></g></svg>
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M21.1992 11.0247V20.4899L29.3996 15.7602V6.28516L21.1992 11.0247Z" fill="#4040B2"/>
+<path d="M12.0997 6.2849L20.3001 11.0245V20.4896L12.0997 15.7542V6.2849ZM3 1V10.4701L11.2004 15.2055V5.73463L3 1ZM12.0997 26.2645L20.3001 31V21.5291L12.0997 16.7945V26.2645Z" fill="#5C4EE5"/>
+<path d="M31.5 21.8002C31.5 20.6404 30.5598 19.7002 29.4 19.7002H20.6C19.4402 19.7002 18.5 20.6404 18.5 21.8002V29.4002C18.5 30.56 19.4402 31.5002 20.6 31.5002H29.4C30.5598 31.5002 31.5 30.56 31.5 29.4002V21.8002Z" fill="white" stroke="white"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M29.4 20.2002C30.2837 20.2002 31 20.9165 31 21.8002V29.4002C31 30.2839 30.2837 31.0002 29.4 31.0002H20.6C19.7163 31.0002 19 30.2839 19 29.4002V21.8002C19 20.9165 19.7163 20.2002 20.6 20.2002H29.4ZM21.6146 23.6439C21.3695 23.8889 21.3608 24.2775 21.5951 24.5118L22.8679 25.7846L21.5369 27.1156C21.2919 27.3607 21.2832 27.7492 21.5175 27.9836C21.7518 28.2179 22.1404 28.2092 22.3854 27.9642L24.1601 26.1895C24.4052 25.9444 24.4139 25.5558 24.1796 25.3215L22.4825 23.6245C22.2482 23.3901 21.8596 23.3988 21.6146 23.6439ZM28 26.8002H25.6C25.2686 26.8002 25 27.0811 25 27.4276C25 27.7742 25.2686 28.0551 25.6 28.0551H28C28.3314 28.0551 28.6 27.7742 28.6 27.4276C28.6 27.0811 28.3314 26.8002 28 26.8002Z" fill="#3B444C"/>
+</svg>
