@@ -74,7 +74,7 @@ func (impl *InfraConfigRepositoryImpl) UpdateConfigurations(tx *pg.Tx, configura
 	var err error
 	for _, configuration := range configurations {
 		_, err = tx.Model(configuration).
-			Set("value = ?", configuration.Value).
+			Set("value_string = ?", configuration.ValueString).
 			Set("unit = ?", configuration.Unit).
 			Set("updated_by = ?", configuration.UpdatedBy).
 			Set("updated_on = ?", configuration.UpdatedOn).

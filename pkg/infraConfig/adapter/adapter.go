@@ -35,29 +35,35 @@ func ConvertFromPlatformMap(platformMap map[string][]*bean.ConfigurationBean, pr
 }
 
 func getConfigurationBean(infraProfileConfiguration *bean.InfraProfileConfigurationEntity, profileName string) *bean.ConfigurationBean {
+	valueString := infraProfileConfiguration.ValueString
+	//handle old values
+	if len(valueString) == 0 && infraProfileConfiguration.Unit > 0 {
+		valueString = strconv.FormatFloat(infraProfileConfiguration.Value, 'f', -1, 64)
+	}
 	return &bean.ConfigurationBean{
 		ConfigurationBeanAbstract: bean.ConfigurationBeanAbstract{
-			Id:          infraProfileConfiguration.Id,
-			Key:         util.GetConfigKeyStr(infraProfileConfiguration.Key),
+			Id:  infraProfileConfiguration.Id,
+			Key: util.GetConfigKeyStr(infraProfileConfiguration.Key),
+
 			Unit:        util.GetUnitSuffixStr(infraProfileConfiguration.Key, infraProfileConfiguration.Unit),
 			ProfileId:   infraProfileConfiguration.ProfileId,
 			Active:      infraProfileConfiguration.Active,
 			ProfileName: profileName,
 		},
-		Value: infraProfileConfiguration.Value,
+		Value: valueString,
 	}
 }
 
 func getInfraProfileEntity(configurationBean *bean.ConfigurationBean, profileBean *bean.ProfileBean, platform string, userId int32) *bean.InfraProfileConfigurationEntity {
 
 	infraProfile := &bean.InfraProfileConfigurationEntity{
-		Id:        configurationBean.Id,
-		Key:       util.GetConfigKey(configurationBean.Key),
-		Value:     formatFloatIfNeeded(configurationBean.Key, configurationBean.Value),
-		Unit:      util.GetUnitSuffix(configurationBean.Key, configurationBean.Unit),
-		ProfileId: profileBean.Id,
-		Platform:  platform,
-		Active:    configurationBean.Active,
+		Id:          configurationBean.Id,
+		Key:         util.GetConfigKey(configurationBean.Key),
+		ValueString: formatFloatIfNeeded(configurationBean.Key, configurationBean.Value),
+		Unit:        util.GetUnitSuffix(configurationBean.Key, configurationBean.Unit),
+		ProfileId:   profileBean.Id,
+		Platform:    platform,
+		Active:      configurationBean.Active,
 	}
 	infraProfile.UpdatedOn = time.Now()
 	infraProfile.UpdatedBy = userId

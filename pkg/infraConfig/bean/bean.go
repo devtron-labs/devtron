@@ -56,14 +56,15 @@ func (infraProfile *InfraProfileEntity) ConvertToProfileBean() ProfileBean {
 }
 
 type InfraProfileConfigurationEntity struct {
-	tableName struct{}         `sql:"infra_profile_configuration" pg:",discard_unknown_columns"`
-	Id        int              `sql:"id"`
-	Key       util2.ConfigKey  `sql:"key"`
-	Value     string           `sql:"value"`
-	Unit      units.UnitSuffix `sql:"unit"`
-	ProfileId int              `sql:"profile_id"`
-	Platform  string           `sql:"platform"`
-	Active    bool             `sql:"active"`
+	tableName   struct{}         `sql:"infra_profile_configuration" pg:",discard_unknown_columns"`
+	Id          int              `sql:"id"`
+	Key         util2.ConfigKey  `sql:"key"`
+	Value       float64          `sql:"value"`
+	ValueString string           `sql:"value_string"`
+	Unit        units.UnitSuffix `sql:"unit"`
+	ProfileId   int              `sql:"profile_id"`
+	Platform    string           `sql:"platform"`
+	Active      bool             `sql:"active"`
 	sql.AuditLog
 }
 
@@ -203,9 +204,9 @@ func (infraConfig InfraConfig) LoadCiLimitCpu() (*InfraProfileConfigurationEntit
 		return nil, err
 	}
 	return &InfraProfileConfigurationEntity{
-		Key:   util2.CPULimit,
-		Value: strconv.FormatFloat(val, 'f', -1, 64),
-		Unit:  units.CPUUnitStr(suffix).GetCPUUnit(),
+		Key:         util2.CPULimit,
+		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
+		Unit:        units.CPUUnitStr(suffix).GetCPUUnit(),
 	}, nil
 
 }
@@ -216,9 +217,9 @@ func (infraConfig InfraConfig) LoadCiLimitMem() (*InfraProfileConfigurationEntit
 		return nil, err
 	}
 	return &InfraProfileConfigurationEntity{
-		Key:   util2.MemoryLimit,
-		Value: strconv.FormatFloat(val, 'f', -1, 64),
-		Unit:  units.MemoryUnitStr(suffix).GetMemoryUnit(),
+		Key:         util2.MemoryLimit,
+		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
+		Unit:        units.MemoryUnitStr(suffix).GetMemoryUnit(),
 	}, nil
 
 }
@@ -229,9 +230,9 @@ func (infraConfig InfraConfig) LoadCiReqCpu() (*InfraProfileConfigurationEntity,
 		return nil, err
 	}
 	return &InfraProfileConfigurationEntity{
-		Key:   util2.CPURequest,
-		Value: strconv.FormatFloat(val, 'f', -1, 64),
-		Unit:  units.CPUUnitStr(suffix).GetCPUUnit(),
+		Key:         util2.CPURequest,
+		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
+		Unit:        units.CPUUnitStr(suffix).GetCPUUnit(),
 	}, nil
 }
 
@@ -242,17 +243,17 @@ func (infraConfig InfraConfig) LoadCiReqMem() (*InfraProfileConfigurationEntity,
 	}
 
 	return &InfraProfileConfigurationEntity{
-		Key:   util2.MemoryRequest,
-		Value: strconv.FormatFloat(val, 'f', -1, 64),
-		Unit:  units.MemoryUnitStr(suffix).GetMemoryUnit(),
+		Key:         util2.MemoryRequest,
+		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
+		Unit:        units.MemoryUnitStr(suffix).GetMemoryUnit(),
 	}, nil
 }
 
 func (infraConfig InfraConfig) LoadDefaultTimeout() (*InfraProfileConfigurationEntity, error) {
 	return &InfraProfileConfigurationEntity{
-		Key:   util2.TimeOut,
-		Value: strconv.FormatInt(infraConfig.CiDefaultTimeout, 10),
-		Unit:  units.SecondStr.GetTimeUnit(),
+		Key:         util2.TimeOut,
+		ValueString: strconv.FormatInt(infraConfig.CiDefaultTimeout, 10),
+		Unit:        units.SecondStr.GetTimeUnit(),
 	}, nil
 }
 
