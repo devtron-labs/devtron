@@ -113,15 +113,23 @@ func NewInstalledAppDeploymentAction(deploymentAppType string) *appStoreBean.Ins
 	}
 	return installedAppDeploymentAction
 }
-func GenerateUpdateRequestDTO(request *appStoreBean.InstallAppVersionDTO, installedApp *appStoreBean.InstallAppVersionDTO, installedAppVersionHistory *repository.InstalledAppVersionHistory, installedAppVersionDTO *appStoreBean.InstallAppVersionDTO) {
+func UpdateRequestDTOForRollback(request, installedApp, installedAppVersionDTO *appStoreBean.InstallAppVersionDTO, installedAppVersionHistory *repository.InstalledAppVersionHistory) {
+	// Update basic version information and IDs for rollback
 	request.InstalledAppVersionId = installedApp.InstalledAppVersionId
-	request.AppStoreVersion = installedApp.AppStoreVersion
+	request.AppStoreVersion = installedAppVersionDTO.AppStoreVersion
 
+	// Set the ID to installed app version if only the chart version changes
+	if installedApp.AppStoreVersion != installedAppVersionDTO.AppStoreVersion {
+		request.Id = installedAppVersionDTO.InstalledAppVersionId
+	}
+	// If the AppStoreId changes, reset the ID to indicate a new chart
+	if installedApp.AppStoreId != installedAppVersionDTO.AppStoreId {
+		request.Id = 0
+	}
+	// setting historical version overrides and reference information
 	request.ValuesOverrideYaml = installedAppVersionHistory.ValuesYamlRaw
-
 	request.ReferenceValueKind = installedAppVersionDTO.ReferenceValueKind
 	request.ReferenceValueId = installedAppVersionDTO.ReferenceValueId
-
 }
 
 // GenerateInstallAppVersionDTO converts repository.InstalledApps and repository.InstalledAppVersions db object to appStoreBean.InstallAppVersionDTO bean

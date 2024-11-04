@@ -42,7 +42,6 @@ import (
 	deployment2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	bean2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
-	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
@@ -91,7 +90,6 @@ type AppStoreDeploymentServiceImpl struct {
 	deletePostProcessor                  DeletePostProcessor
 	appStoreValidator                    AppStoreValidator
 	deploymentConfigService              common.DeploymentConfigService
-	attributesService                    attributes.AttributesService
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
@@ -110,7 +108,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
 	aCDConfig *argocdServer.ACDConfig,
 	gitOpsConfigReadService config.GitOpsConfigReadService, deletePostProcessor DeletePostProcessor,
 	appStoreValidator AppStoreValidator,
-	deploymentConfigService common.DeploymentConfigService, attributesService attributes.AttributesService,
+	deploymentConfigService common.DeploymentConfigService,
 ) *AppStoreDeploymentServiceImpl {
 
 	return &AppStoreDeploymentServiceImpl{
@@ -132,7 +130,6 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
 		deletePostProcessor:                  deletePostProcessor,
 		appStoreValidator:                    appStoreValidator,
 		deploymentConfigService:              deploymentConfigService,
-		attributesService:                    attributesService,
 	}
 }
 
@@ -475,7 +472,6 @@ func (impl *AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Conte
 			return false, err
 		}
 	} else {
-
 		//we are fetching the values from installed app version history table (iavh) which is further used as different
 		installedAppVersionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(request.GetVersion()))
 		if err != nil {
@@ -487,16 +483,8 @@ func (impl *AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Conte
 			impl.logger.Errorw("error while fetching installed app version detail from Db", "installedAppVersion", installedAppVersionHistory.InstalledAppVersionId, "error", err)
 			return false, err
 		}
+		adapter.UpdateRequestDTOForRollback(upgradeRequest, installedApp, installedAppVersionDTO, installedAppVersionHistory)
 
-		adapter.GenerateUpdateRequestDTO(upgradeRequest, installedApp, installedAppVersionHistory, installedAppVersionDTO)
-
-		// installedApp.AppStoreVersion is the current chart version
-		// previous state of installedAppVersion.AppStoreVersion
-		if installedApp.AppStoreVersion != installedAppVersionDTO.AppStoreVersion {
-			// indicates that the chart/ chart version has been changed
-			upgradeRequest.Id = 0
-			upgradeRequest.AppStoreVersion = installedAppVersionDTO.AppStoreVersion
-		}
 		upgradeRequest, err = impl.UpdateInstalledApp(ctx, upgradeRequest)
 		if err != nil {
 			impl.logger.Errorw("error while performing update to the previous version", "upgradeRequest", upgradeRequest, "error", err)
@@ -830,9 +818,6 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 		impl.logger.Errorw("error while update previous installed app version history", "err", err, "installAppVersionRequest", upgradeAppRequest)
 		//if installed app is updated and error is in updating previous deployment status, then don't block user, just show error.
 	}
-
-	err = impl.attributesService.UpdateKeyValueByOne(bean2.HELM_APP_UPDATE_COUNTER)
-
 	return upgradeAppRequest, err
 }
 

@@ -22,6 +22,8 @@ import (
 	"fmt"
 	service2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"net/http"
 	"strconv"
 	"time"
@@ -60,13 +62,14 @@ type CommonDeploymentRestHandlerImpl struct {
 	validator                 *validator.Validate
 	helmAppService            service2.HelmAppService
 	argoUserService           argo.ArgoUserService
+	attributesService         attributes.AttributesService
 }
 
 func NewCommonDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm,
 	appStoreDeploymentService service.AppStoreDeploymentService, installedAppService EAMode.InstalledAppDBService,
 	validator *validator.Validate, helmAppService service2.HelmAppService,
-	argoUserService argo.ArgoUserService) *CommonDeploymentRestHandlerImpl {
+	argoUserService argo.ArgoUserService, attributesService attributes.AttributesService) *CommonDeploymentRestHandlerImpl {
 	return &CommonDeploymentRestHandlerImpl{
 		Logger:                    Logger,
 		userAuthService:           userAuthService,
@@ -78,6 +81,7 @@ func NewCommonDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthServi
 		validator:                 validator,
 		helmAppService:            helmAppService,
 		argoUserService:           argoUserService,
+		attributesService:         attributesService,
 	}
 }
 func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppId string, appId string) (string, *appStoreBean.InstallAppVersionDTO, error) {
@@ -321,5 +325,6 @@ func (handler *CommonDeploymentRestHandlerImpl) RollbackApplication(w http.Respo
 	res := &openapi2.RollbackReleaseResponse{
 		Success: &success,
 	}
+	handler.attributesService.UpdateKeyValueByOne(bean.HELM_APP_UPDATE_COUNTER)
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }

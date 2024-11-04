@@ -28,6 +28,8 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
+	bean2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -64,6 +66,7 @@ type AppStoreDeploymentRestHandlerImpl struct {
 	helmAppService              service2.HelmAppService
 	argoUserService             argo.ArgoUserService
 	installAppService           EAMode.InstalledAppDBService
+	attributesService           attributes.AttributesService
 }
 
 func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
@@ -72,7 +75,7 @@ func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthSer
 	appStoreDeploymentDBService service.AppStoreDeploymentDBService,
 	validator *validator.Validate, helmAppService service2.HelmAppService,
 	argoUserService argo.ArgoUserService,
-	installAppService EAMode.InstalledAppDBService) *AppStoreDeploymentRestHandlerImpl {
+	installAppService EAMode.InstalledAppDBService, attributesService attributes.AttributesService) *AppStoreDeploymentRestHandlerImpl {
 	return &AppStoreDeploymentRestHandlerImpl{
 		Logger:                      Logger,
 		userAuthService:             userAuthService,
@@ -85,6 +88,7 @@ func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthSer
 		helmAppService:              helmAppService,
 		argoUserService:             argoUserService,
 		installAppService:           installAppService,
+		attributesService:           attributesService,
 	}
 }
 
@@ -490,6 +494,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	err = handler.attributesService.UpdateKeyValueByOne(bean2.HELM_APP_UPDATE_COUNTER)
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
