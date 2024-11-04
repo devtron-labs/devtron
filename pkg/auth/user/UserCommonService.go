@@ -697,9 +697,9 @@ func BuildRoleFilterKeyForOtherEntity(roleFilterMap map[string]*bean.RoleFilter,
 func (impl UserCommonServiceImpl) GetUniqueKeyForAllEntity(role repository.RoleModel) string {
 	key := ""
 	if len(role.Team) > 0 && role.Entity != bean2.EntityJobs {
-		key = fmt.Sprintf("%s_%s_%s", role.Team, role.Action, role.AccessType)
+		key = fmt.Sprintf("%s_%s_%s_%s", role.Team, role.Environment, role.Action, role.AccessType)
 	} else if role.Entity == bean2.EntityJobs {
-		key = fmt.Sprintf("%s_%s_%s_%s", role.Team, role.Action, role.AccessType, role.Entity)
+		key = fmt.Sprintf("%s_%s_%s_%s_%s", role.Team, role.Environment, role.Action, role.AccessType, role.Entity)
 	} else if len(role.Entity) > 0 {
 		if role.Entity == bean2.CLUSTER_ENTITIY {
 			key = fmt.Sprintf("%s_%s_%s_%s_%s", role.Entity, role.Action, role.Cluster,
