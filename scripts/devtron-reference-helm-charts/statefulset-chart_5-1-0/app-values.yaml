@@ -234,6 +234,9 @@ Spec:
     Key:
     #  Key: kops.k8s.io/instancegroup
     Values:
+affinity:
+  enabled: false
+  values: {}    
 
 ambassadorMapping:
   enabled: false
@@ -259,6 +262,10 @@ autoscaling:
   annotations: {}
   labels: {}
   behavior: {}
+  containerResource:
+    enabled: false
+    TargetCPUUtilizationPercentage: 90
+    TargetMemoryUtilizationPercentage: 80  
 #    scaleDown:
 #      stabilizationWindowSeconds: 300
 #      policies:
@@ -311,7 +318,7 @@ servicemonitor:
   additionalLabels: {}
 
 envoyproxy:
-  image: quay.io/devtron/envoy:v1.14.1
+  image: quay.io/devtron/envoy:v1.16.0
   configMapName: ""
   lifecycle: {}
   resources:
@@ -386,3 +393,6 @@ hostAliases: []
 #     hostnames:
 #     - "foo.remote"
 #     - "bar.remote"
+
+verticalPodScaling:
+  enabled: false

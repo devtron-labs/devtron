@@ -2,7 +2,28 @@
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
+  {{- if $.Values.kedaAutoscaling.name }}
+  name: {{ $.Values.kedaAutoscaling.name }}
+  {{- else }}
   name: {{ template ".Chart.Name .fullname" $ }}-keda
+  {{- end }}
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    release: {{ .Release.Name }}
+  {{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels | indent 4 }}
+  {{- end }}
+  {{- if .Values.kedaAutoscaling.labels }}
+{{ toYaml .Values.kedaAutoscaling.labels | indent 4 }}
+  {{- end }}
+  {{- if .Values.kedaAutoscaling.annotations }}
+  annotations:
+{{ toYaml .Values.kedaAutoscaling.annotations | indent 4 }}
+  {{- end }}
 spec:
   scaleTargetRef:
     apiVersion: argoproj.io/v1alpha1
@@ -42,6 +63,13 @@ apiVersion: keda.sh/v1alpha1
 kind: TriggerAuthentication
 metadata:
   name: {{ $.Values.kedaAutoscaling.triggerAuthentication.name }}
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+
 spec:
 {{ toYaml $.Values.kedaAutoscaling.triggerAuthentication.spec | indent 2 }}
 {{- end }}
