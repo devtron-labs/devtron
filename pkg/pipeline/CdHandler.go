@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
+	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
 	util2 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"os"
@@ -64,7 +65,7 @@ type CdHandler interface {
 	FetchCdWorkflowDetails(appId int, environmentId int, pipelineId int, buildId int) (types.WorkflowResponse, error)
 	DownloadCdWorkflowArtifacts(buildId int) (*os.File, error)
 	FetchCdPrePostStageStatus(pipelineId int) ([]pipelineBean.CdWorkflowWithArtifact, error)
-	CancelStage(workflowRunnerId int, userId int32) (int, error)
+	CancelStage(workflowRunnerId int, forceAbort bool, userId int32) (int, error)
 	FetchAppWorkflowStatusForTriggerView(appId int) ([]*pipelineConfig.CdWorkflowStatus, error)
 	FetchAppWorkflowStatusForTriggerViewForEnvironment(request resourceGroup2.ResourceGroupingRequest, token string) ([]*pipelineConfig.CdWorkflowStatus, error)
 	FetchAppDeploymentStatusForEnvironments(request resourceGroup2.ResourceGroupingRequest, token string) ([]*pipelineConfig.AppDeploymentStatus, error)
@@ -133,15 +134,11 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
 	return cdh
 }
 
-func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int, error) {
+func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, forceAbort bool, userId int32) (int, error) {
 	workflowRunner, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(workflowRunnerId)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return 0, err
-	}
-	if !(string(v1alpha1.NodePending) == workflowRunner.Status || string(v1alpha1.NodeRunning) == workflowRunner.Status) {
-		impl.Logger.Info("cannot cancel stage, stage not in progress")
-		return 0, errors.New("cannot cancel stage, stage not in progress")
 	}
 	pipeline, err := impl.pipelineRepository.FindById(workflowRunner.CdWorkflow.PipelineId)
 	if err != nil {
@@ -175,10 +172,34 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 		}
 	}
 	// Terminate workflow
-	err = impl.workflowService.TerminateWorkflow(workflowRunner.ExecutorType, workflowRunner.Name, workflowRunner.Namespace, restConfig, isExtCluster, nil)
-	if err != nil {
+	cancelWfDtoRequest := &types.CancelWfRequestDto{
+		ExecutorType: workflowRunner.ExecutorType,
+		WorkflowName: workflowRunner.Name,
+		Namespace:    workflowRunner.Namespace,
+		RestConfig:   restConfig,
+		IsExt:        isExtCluster,
+		Environment:  nil,
+	}
+	err = impl.workflowService.TerminateWorkflow(cancelWfDtoRequest)
+	if err != nil && forceAbort {
+		impl.Logger.Errorw("error in terminating workflow, with force abort flag as true", "workflowName", workflowRunner.Name, "err", err)
+		cancelWfDtoRequest.WorkflowGenerateName = fmt.Sprintf("%d-%s", workflowRunnerId, workflowRunner.Name)
+		err1 := impl.workflowService.TerminateDanglingWorkflows(cancelWfDtoRequest)
+		if err1 != nil {
+			impl.Logger.Errorw("error in terminating dangling workflows", "cancelWfDtoRequest", cancelWfDtoRequest, "err", err)
+			// ignoring error here in case of force abort, confirmed from product
+		}
+	} else if err != nil {
 		impl.Logger.Error("cannot terminate wf runner", "err", err)
 		return 0, err
+	}
+	if forceAbort {
+		err = impl.handleForceAbortCaseForCdStage(workflowRunner, forceAbort)
+		if err != nil {
+			impl.Logger.Errorw("error in handleForceAbortCaseForCdStage", "forceAbortFlag", forceAbort, "workflowRunner", workflowRunner, "err", err)
+			return 0, err
+		}
+		return workflowRunner.Id, nil
 	}
 	if len(workflowRunner.ImagePathReservationIds) > 0 {
 		err := impl.customTagService.DeactivateImagePathReservationByImageIds(workflowRunner.ImagePathReservationIds)
@@ -196,6 +217,34 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, userId int32) (int,
 		return 0, err
 	}
 	return workflowRunner.Id, nil
+}
+
+func (impl *CdHandlerImpl) updateWorkflowRunnerForForceAbort(workflowRunner *pipelineConfig.CdWorkflowRunner) error {
+	workflowRunner.Status = executors.WorkflowCancel
+	workflowRunner.PodStatus = string(bean2.Failed)
+	workflowRunner.Message = FORCE_ABORT_MESSAGE_AFTER_STARTING_STAGE
+	err := impl.cdWorkflowRepository.UpdateWorkFlowRunner(workflowRunner)
+	if err != nil {
+		impl.Logger.Errorw("error in updating workflow status in cd workflow runner in force abort case", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *CdHandlerImpl) handleForceAbortCaseForCdStage(workflowRunner *pipelineConfig.CdWorkflowRunner, forceAbort bool) error {
+	isWorkflowInNonTerminalStage := workflowRunner.Status == string(v1alpha1.NodePending) || workflowRunner.Status == string(v1alpha1.NodeRunning)
+	if !isWorkflowInNonTerminalStage {
+		if forceAbort {
+			return impl.updateWorkflowRunnerForForceAbort(workflowRunner)
+		} else {
+			return &util.ApiError{Code: "200", HttpStatusCode: 400, UserMessage: "cannot cancel stage, stage not in progress"}
+		}
+	}
+	//this arises when someone deletes the workflow in resource browser and wants to force abort a cd stage(pre/post)
+	if workflowRunner.Status == string(v1alpha1.NodeRunning) && forceAbort {
+		return impl.updateWorkflowRunnerForForceAbort(workflowRunner)
+	}
+	return nil
 }
 
 func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, string, error) {

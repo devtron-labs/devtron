@@ -693,9 +693,10 @@ func (impl *CdWorkflowRepositoryImpl) GetLatestTriggersOfHelmPipelinesStuckInNon
 		Where("cd_workflow_runner.cd_workflow_id in"+
 			" (SELECT max(cd_workflow.id) as id from cd_workflow"+
 			" INNER JOIN cd_workflow_runner on cd_workflow.id = cd_workflow_runner.cd_workflow_id"+
-			" WHERE cd_workflow_runner.status != ?"+
+			" WHERE cd_workflow_runner.workflow_type = ? "+
+			" AND cd_workflow_runner.status != ?"+
 			" GROUP BY cd_workflow.pipeline_id"+
-			" ORDER BY cd_workflow.pipeline_id desc)", cdWorkflow.WorkflowInQueue).
+			" ORDER BY cd_workflow.pipeline_id desc)", apiBean.CD_WORKFLOW_TYPE_DEPLOY, cdWorkflow.WorkflowInQueue).
 		Where("(cd_workflow__pipeline.deployment_app_type=? or dc.deployment_app_type=?)", util.PIPELINE_DEPLOYMENT_TYPE_HELM, util.PIPELINE_DEPLOYMENT_TYPE_HELM).
 		Where("cd_workflow_runner.started_on > NOW() - INTERVAL '? hours'", getPipelineDeployedWithinHours).
 		Where("cd_workflow__pipeline.deleted=?", false).
