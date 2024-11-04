@@ -137,6 +137,22 @@ func (chart *InstallAppVersionDTO) GetAppIdentifierString() string {
 	}
 	return appIdentifier.GetUniqueAppNameIdentifier()
 }
+func (chart *InstallAppVersionDTO) NewInstalledAppVersionRequestDTO(userId int32, installedAppId int) *InstallAppVersionDTO {
+	chart.UserId = userId
+	chart.InstalledAppId = installedAppId
+	return chart
+}
+func (chart *InstallAppVersionDTO) UpdateLog(updatedOn time.Time) {
+	if chart == nil {
+		return
+	}
+	chart.UpdatedOn = updatedOn
+}
+
+// IsExternalCliApp It is used for filtering the incoming request for rollback case
+func (chart *InstallAppVersionDTO) IsExternalCliApp() bool {
+	return chart.InstalledAppId == 0
+}
 
 // UpdateDeploymentAppType updates deploymentAppType to InstallAppVersionDTO
 func (chart *InstallAppVersionDTO) UpdateDeploymentAppType(deploymentAppType string) {
