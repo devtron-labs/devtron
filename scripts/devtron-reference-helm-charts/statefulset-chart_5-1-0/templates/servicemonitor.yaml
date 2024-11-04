@@ -39,7 +39,7 @@ spec:
       interval: {{ .servicemonitor.interval}}
       {{- end }}
       {{- if .servicemonitor.scrapeTimeout }}
-      scrapeTimeout: {{ .servicemonitor.scrapeTimeout}}
+      scrapeTimeout: {{ .servicemonitor.scrapeTimeout | quote}}
       {{- end }}
       {{- if .servicemonitor.basicAuth }}
       basicAuth:

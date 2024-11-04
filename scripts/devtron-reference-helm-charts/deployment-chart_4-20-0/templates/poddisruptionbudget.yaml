@@ -6,11 +6,17 @@ apiVersion: policy/v1beta1
 {{- end }}
 kind: PodDisruptionBudget
 metadata:
+  {{- if .Values.podDisruptionBudget.name }}
+  name: {{ .Values.podDisruptionBudget.name }}
+  {{- else }}
   name: {{ include ".Chart.Name .fullname" $ }}
+  {{- end }}
   labels:
     app: {{ template ".Chart.Name .name" $ }}
     appId: {{ $.Values.app | quote }}
     envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
 spec:
   {{- if .Values.podDisruptionBudget.minAvailable }}
   minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
@@ -20,6 +26,10 @@ spec:
   {{- end }}
   selector:
     matchLabels:
+    {{- if .Values.customPodLabels }}
+{{ toYaml .Values.customPodLabels | indent 6 }}  
+    {{- else }}
       appId: {{ $.Values.app | quote }}
       envId: {{ $.Values.env | quote }}
+    {{- end }}
   {{- end }}

@@ -80,7 +80,7 @@ type ESOData struct {
 	Property  string `json:"property,omitempty"`
 }
 
-func GetTransformedDataForSecretData(data string, mode util.SecretTransformMode) (string, error) {
+func GetTransformedDataForSecretConfigData(data string, mode util.SecretTransformMode) (string, error) {
 	secretDataMap := make(map[string]*ConfigData)
 	err := json.Unmarshal([]byte(data), &secretDataMap)
 	if err != nil {
