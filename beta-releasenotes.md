@@ -1,4 +1,5 @@
 ## Bugs
+- fix: helm rollback in case of no gitops (#6005)
 - fix: app detail deployed by (#6032)
 - fix: removed not null constraint for releaseOverride (#6044)
 - fix: fix for showing inaccurate data in template/list api while fetching previous deployments list in template/list api, output shown was cartesian product of deployment_template_history and wfr (#6034)
