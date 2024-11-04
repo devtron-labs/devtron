@@ -1519,7 +1519,9 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 			}
 		}
 
-		triggeredByUserEmailId, err = impl.userService.GetActiveEmailById(workflow.TriggeredBy)
+		//getting the user including both active and inactive both
+		// as there arises case of having the deleted user had triggered the deployment
+		triggeredByUserEmailId, err = impl.userService.GetEmailById(int32(deployDetail.LastDeployedById))
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.Logger.Errorw("err", "err", err)
 			return &types.GitTriggerInfoResponse{}, err
