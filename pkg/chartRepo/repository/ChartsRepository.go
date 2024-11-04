@@ -31,11 +31,11 @@ type Chart struct {
 	ChartVersion            string                      `sql:"chart_version"`
 	ChartRepo               string                      `sql:"chart_repo"`
 	ChartRepoUrl            string                      `sql:"chart_repo_url"`
-	Values                  string                      `sql:"values_yaml"`       //json format // used at for release. this should be always updated
-	GlobalOverride          string                      `sql:"global_override"`   //json format    // global overrides visible to user only
-	ReleaseOverride         string                      `sql:"release_override"`  //json format   //image descriptor template used for injecting tigger metadata injection
-	PipelineOverride        string                      `sql:"pipeline_override"` //json format  // pipeline values -> strategy values
-	Status                  models.ChartStatus          `sql:"status"`            //(new , deployment-in-progress, deployed-To-production, error )
+	Values                  string                      `sql:"values_yaml"`              //json format // used at for release. this should be always updated
+	GlobalOverride          string                      `sql:"global_override"`          //json format    // global overrides visible to user only
+	ReleaseOverride         string                      `sql:"release_override,notnull"` //json format   //image descriptor template used for injecting tigger metadata injection
+	PipelineOverride        string                      `sql:"pipeline_override"`        //json format  // pipeline values -> strategy values
+	Status                  models.ChartStatus          `sql:"status"`                   //(new , deployment-in-progress, deployed-To-production, error )
 	Active                  bool                        `sql:"active"`
 	GitRepoUrl              string                      `sql:"git_repo_url"`   // Deprecated;  use deployment_config table instead   //git repository where chart is stored
 	ChartLocation           string                      `sql:"chart_location"` //location within git repo where current chart is pointing
