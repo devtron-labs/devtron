@@ -518,6 +518,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	model.ClusterName = bean.ClusterName
 	model.ServerUrl = bean.ServerUrl
 	model.InsecureSkipTlsVerify = bean.InsecureSkipTLSVerify
+	model.IsProd = bean.IsProd
 	model.PrometheusEndpoint = bean.PrometheusUrl
 
 	if bean.PrometheusAuth != nil {
@@ -536,7 +537,6 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	}
 	model.ErrorInConnecting = "" //setting empty because config to be updated is already validated
 	model.Active = bean.Active
-	model.IsProd = bean.IsProd
 	model.Config = bean.Config
 	model.UpdatedBy = userId
 	model.UpdatedOn = time.Now()
