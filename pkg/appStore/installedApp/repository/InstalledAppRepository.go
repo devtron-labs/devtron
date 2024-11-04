@@ -439,15 +439,15 @@ func (impl *InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean
 	}
 	if len(filter.ChartRepoId) > 0 {
 		query = query + " AND ch.id IN (?) "
-		queryParams = append(queryParams, sqlIntSeq(filter.ChartRepoId))
+		queryParams = append(queryParams, pg.In(filter.ChartRepoId))
 	}
 	if len(filter.EnvIds) > 0 {
 		query = query + " AND env.id IN (?) "
-		queryParams = append(queryParams, sqlIntSeq(filter.EnvIds))
+		queryParams = append(queryParams, pg.In(filter.EnvIds))
 	}
 	if len(filter.ClusterIds) > 0 {
 		query = query + " AND cluster.id IN (?) "
-		queryParams = append(queryParams, sqlIntSeq(filter.ClusterIds))
+		queryParams = append(queryParams, pg.In(filter.ClusterIds))
 	}
 	if len(filter.AppStatuses) > 0 {
 		appStatuses := pg.In(filter.AppStatuses)

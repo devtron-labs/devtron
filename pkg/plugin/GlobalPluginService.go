@@ -389,7 +389,7 @@ func (impl *GlobalPluginServiceImpl) GetRefPluginIdByRefPluginName(pluginName st
 		impl.logger.Errorw("error in fetching plugin metadata by name", "err", err)
 		return nil, err
 	}
-	if pluginMetadata == nil {
+	if len(pluginMetadata) == 0 {
 		return nil, nil
 	}
 	pluginVersionDetail = make([]bean2.PluginsVersionDetail, 0)
