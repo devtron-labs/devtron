@@ -23,6 +23,7 @@
 - feat: Feature release v9 sql scripts (#5950)
 ## Documentation
 ## Others
+- misc: Main sync develop (#6047)
 - misc: permission access getting clubbed (#6045)
 - fix : multiple param of filter in helm app list (#6013)
 - chore: adding refchart migration (#6007)
