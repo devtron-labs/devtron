@@ -104,6 +104,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterListRaw(w http.ResponseWrit
 				Name:              cluster.ClusterName,
 				ErrorInConnection: cluster.ErrorInConnecting,
 				IsVirtualCluster:  cluster.IsVirtualCluster,
+				IsProd:            cluster.IsProd,
 			}
 			clusterDetailList = append(clusterDetailList, clusterDetail)
 		}
