@@ -331,6 +331,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	}
 
 	workflowRequest.Scope = scope
+	workflowRequest.AppId = pipeline.AppId
 	workflowRequest.BuildxCacheModeMin = impl.buildxCacheFlags.BuildxCacheModeMin
 	workflowRequest.AsyncBuildxCacheExport = impl.buildxCacheFlags.AsyncBuildxCacheExport
 	if impl.config != nil && impl.config.BuildxK8sDriverOptions != "" {
@@ -349,7 +350,6 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	if err != nil {
 		return 0, err
 	}
-	workflowRequest.AppId = pipeline.AppId
 	workflowRequest.AppLabels = appLabels
 	workflowRequest.Env = envModal
 	if isJob {
