@@ -23,6 +23,10 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/workFlow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
+	bean4 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/environment"
+	repository3 "github.com/devtron-labs/devtron/pkg/environment/repository"
 	util3 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"io/ioutil"
 	"net/http"
@@ -40,7 +44,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
@@ -114,14 +117,14 @@ type CiHandlerImpl struct {
 	k8sCommonService             k8s2.K8sCommonService
 	clusterService               cluster.ClusterService
 	blobConfigStorageService     BlobStorageConfigService
-	envService                   cluster.EnvironmentService
+	envService                   environment.EnvironmentService
 }
 
 func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService,
 	ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sServiceImpl, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup.ResourceGroupService, envRepository repository3.EnvironmentRepository,
 	imageTaggingService ImageTaggingService, k8sCommonService k8s2.K8sCommonService, clusterService cluster.ClusterService, blobConfigStorageService BlobStorageConfigService, appWorkflowRepository appWorkflow.AppWorkflowRepository, customTagService CustomTagService,
-	envService cluster.EnvironmentService) *CiHandlerImpl {
+	envService environment.EnvironmentService) *CiHandlerImpl {
 	cih := &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -701,7 +704,7 @@ func (impl *CiHandlerImpl) getRestConfig(workflow *pipelineConfig.CiWorkflow) (*
 		return nil, err
 	}
 
-	clusterBean := cluster.GetClusterBean(*env.Cluster)
+	clusterBean := adapter.GetClusterBean(*env.Cluster)
 
 	clusterConfig := clusterBean.GetClusterConfig()
 	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
@@ -831,9 +834,9 @@ func (impl *CiHandlerImpl) getWorkflowLogs(ciWorkflow *pipelineConfig.CiWorkflow
 		if err != nil {
 			return nil, nil, err
 		}
-		var clusterBean cluster.ClusterBean
+		var clusterBean bean4.ClusterBean
 		if env != nil && env.Cluster != nil {
-			clusterBean = cluster.GetClusterBean(*env.Cluster)
+			clusterBean = adapter.GetClusterBean(*env.Cluster)
 		}
 		clusterConfig = clusterBean.GetClusterConfig()
 		isExt = true

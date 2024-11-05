@@ -22,7 +22,7 @@ import (
 	"github.com/caarlos0/env"
 	repository "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"

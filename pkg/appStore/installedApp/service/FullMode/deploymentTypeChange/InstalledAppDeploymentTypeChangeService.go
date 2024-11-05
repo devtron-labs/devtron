@@ -46,6 +46,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	"github.com/devtron-labs/devtron/pkg/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
@@ -71,7 +72,7 @@ type InstalledAppDeploymentTypeChangeServiceImpl struct {
 	appStatusRepository           appStatus2.AppStatusRepository
 	appRepository                 appRepository.AppRepository
 	gitOpsConfigReadService       config.GitOpsConfigReadService
-	environmentRepository         repository5.EnvironmentRepository
+	environmentRepository         repository.EnvironmentRepository
 	acdClient                     application2.ServiceClient
 	k8sCommonService              k8s.K8sCommonService
 	k8sUtil                       k8s2.K8sService
@@ -91,7 +92,7 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
 	appStatusRepository appStatus2.AppStatusRepository,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	environmentRepository repository5.EnvironmentRepository,
+	environmentRepository repository.EnvironmentRepository,
 	acdClient application2.ServiceClient, k8sCommonService k8s.K8sCommonService,
 	k8sUtil k8s2.K8sService, fullModeDeploymentService deployment.FullModeDeploymentService,
 	eaModeDeploymentService deployment2.EAModeDeploymentService,

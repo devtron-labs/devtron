@@ -29,7 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/helper"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/read"
-	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/k8s/application"
@@ -114,7 +114,7 @@ func (impl *ArgoApplicationServiceImpl) ListApplications(clusterIds []int) ([]*b
 		if clusterObj.IsVirtualCluster || len(clusterObj.ErrorInConnecting) != 0 {
 			continue
 		}
-		clusterBean := cluster2.GetClusterBean(clusterObj)
+		clusterBean := adapter.GetClusterBean(clusterObj)
 		clusterConfig := clusterBean.GetClusterConfig()
 		restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 		if err != nil {

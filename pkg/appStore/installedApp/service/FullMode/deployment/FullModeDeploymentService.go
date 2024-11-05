@@ -26,12 +26,12 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
 	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds"
-	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation"
+	repository5 "github.com/devtron-labs/devtron/pkg/environment/repository"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"time"
 

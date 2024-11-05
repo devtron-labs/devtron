@@ -23,7 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
-	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository3 "github.com/devtron-labs/devtron/pkg/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"

@@ -27,8 +27,8 @@ import (
 	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
-	clutserBean "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
+	clutserBean "github.com/devtron-labs/devtron/pkg/environment/bean"
 	"time"
 )
 

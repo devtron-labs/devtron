@@ -21,6 +21,8 @@ import (
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
+	"github.com/devtron-labs/devtron/pkg/environment"
+	repository4 "github.com/devtron-labs/devtron/pkg/environment/repository"
 	util3 "github.com/devtron-labs/devtron/util"
 	"testing"
 
@@ -149,7 +151,7 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 	db, _ := sql.NewDbConnection(config, sugaredLogger)
 	attributeRepo := repository.NewAttributesRepositoryImpl(db)
 	discoverRepository := appStoreDiscoverRepository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
-	environmentRepository := repository2.NewEnvironmentRepositoryImpl(db, sugaredLogger, nil)
+	environmentRepository := repository4.NewEnvironmentRepositoryImpl(db, sugaredLogger, nil)
 
 	k8sUtil := util2.NewK8sUtil(sugaredLogger, &util2.RuntimeConfig{LocalDevMode: true})
 
@@ -167,7 +169,7 @@ func initAppStoreDeploymentService(t *testing.T, internalUse bool) *AppStoreDepl
 		userRepositoryImpl,
 		roleGroupRepositoryImpl)
 
-	environmentService := cluster.NewEnvironmentServiceImpl(environmentRepository, clusterService, sugaredLogger, k8sUtil, nil, nil, nil)
+	environmentService := environment.NewEnvironmentServiceImpl(environmentRepository, clusterService, sugaredLogger, k8sUtil, nil, nil, nil)
 	envVariables := &util3.EnvironmentVariables{
 		DeploymentServiceTypeConfig: &util3.DeploymentServiceTypeConfig{
 			ExternallyManagedDeploymentType: internalUse,

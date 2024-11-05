@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	clusterService "github.com/devtron-labs/devtron/pkg/cluster"
+	repository3 "github.com/devtron-labs/devtron/pkg/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/notifier/beans"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	util3 "github.com/devtron-labs/devtron/util"
@@ -27,7 +28,6 @@ import (
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository4 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
-	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"

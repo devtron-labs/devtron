@@ -81,12 +81,15 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	rbac2 "github.com/devtron-labs/devtron/pkg/cluster/rbac"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/clusterTerminalAccess"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
+	"github.com/devtron-labs/devtron/pkg/environment"
+	repository9 "github.com/devtron-labs/devtron/pkg/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/externalLink"
 	"github.com/devtron-labs/devtron/pkg/fluxApplication"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
@@ -211,9 +214,9 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	appStatusRepositoryImpl := appStatus.NewAppStatusRepositoryImpl(db, sugaredLogger)
-	environmentRepositoryImpl := repository2.NewEnvironmentRepositoryImpl(db, sugaredLogger, appStatusRepositoryImpl)
+	environmentRepositoryImpl := repository9.NewEnvironmentRepositoryImpl(db, sugaredLogger, appStatusRepositoryImpl)
 	attributesRepositoryImpl := repository3.NewAttributesRepositoryImpl(db)
-	environmentServiceImpl := cluster.NewEnvironmentServiceImpl(environmentRepositoryImpl, clusterServiceImpl, sugaredLogger, k8sServiceImpl, k8sInformerFactoryImpl, userAuthServiceImpl, attributesRepositoryImpl)
+	environmentServiceImpl := environment.NewEnvironmentServiceImpl(environmentRepositoryImpl, clusterServiceImpl, sugaredLogger, k8sServiceImpl, k8sInformerFactoryImpl, userAuthServiceImpl, attributesRepositoryImpl)
 	chartRepoRepositoryImpl := chartRepoRepository.NewChartRepoRepositoryImpl(db)
 	acdAuthConfig, err := util3.GetACDAuthConfig()
 	if err != nil {
@@ -271,7 +274,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	clusterRbacServiceImpl := cluster.NewClusterRbacServiceImpl(environmentServiceImpl, enforcerImpl, clusterServiceImpl, sugaredLogger, userServiceImpl)
+	clusterRbacServiceImpl := rbac2.NewClusterRbacServiceImpl(environmentServiceImpl, enforcerImpl, clusterServiceImpl, sugaredLogger, userServiceImpl)
 	clusterRestHandlerImpl := cluster2.NewClusterRestHandlerImpl(clusterServiceImpl, genericNoteServiceImpl, clusterDescriptionServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl, deleteServiceImpl, helmUserServiceImpl, environmentServiceImpl, clusterRbacServiceImpl)
 	clusterRouterImpl := cluster2.NewClusterRouterImpl(clusterRestHandlerImpl)
 	dashboardConfig, err := dashboard.GetConfig()

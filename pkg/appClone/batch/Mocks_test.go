@@ -25,8 +25,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/ciPipeline"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	bean3 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	bean4 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/environment/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"go.uber.org/zap"
@@ -178,7 +178,7 @@ func (impl EnvironmentServiceMock) FindById(id int) (*bean3.EnvironmentBean, err
 	panic("implement me")
 }
 
-func (impl EnvironmentServiceMock) getClusterConfig(cluster *cluster.ClusterBean) (*k8s.ClusterConfig, error) {
+func (impl EnvironmentServiceMock) getClusterConfig(cluster *bean4.ClusterBean) (*k8s.ClusterConfig, error) {
 	panic("implement me")
 }
 
@@ -186,7 +186,7 @@ func (impl EnvironmentServiceMock) Update(mappings *bean3.EnvironmentBean, userI
 	panic("implement me")
 }
 
-func (impl EnvironmentServiceMock) FindClusterByEnvId(id int) (*cluster.ClusterBean, error) {
+func (impl EnvironmentServiceMock) FindClusterByEnvId(id int) (*bean4.ClusterBean, error) {
 	panic("implement me")
 }
 

@@ -137,6 +137,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
+	rbac2 "github.com/devtron-labs/devtron/pkg/cluster/rbac"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/clusterTerminalAccess"
 	"github.com/devtron-labs/devtron/pkg/commonService"
@@ -163,6 +164,8 @@ import (
 	read2 "github.com/devtron-labs/devtron/pkg/devtronResource/read"
 	repository8 "github.com/devtron-labs/devtron/pkg/devtronResource/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/environment"
+	repository19 "github.com/devtron-labs/devtron/pkg/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/celEvaluator"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/in"
@@ -241,7 +244,7 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	appStatusRepositoryImpl := appStatus.NewAppStatusRepositoryImpl(db, sugaredLogger)
-	environmentRepositoryImpl := repository.NewEnvironmentRepositoryImpl(db, sugaredLogger, appStatusRepositoryImpl)
+	environmentRepositoryImpl := repository19.NewEnvironmentRepositoryImpl(db, sugaredLogger, appStatusRepositoryImpl)
 	httpClient := util.NewHttpClient()
 	grafanaClientConfig, err := grafana.GetGrafanaClientConfig()
 	if err != nil {
@@ -320,7 +323,7 @@ func InitializeApp() (*App, error) {
 	clusterServiceImplExtended := cluster2.NewClusterServiceImplExtended(environmentRepositoryImpl, grafanaClientImpl, installedAppRepositoryImpl, serviceClientImpl, gitOpsConfigReadServiceImpl, clusterServiceImpl)
 	loginService := middleware.NewUserLogin(sessionManager, k8sClient)
 	userAuthServiceImpl := user.NewUserAuthServiceImpl(userAuthRepositoryImpl, sessionManager, loginService, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, userServiceImpl)
-	environmentServiceImpl := cluster2.NewEnvironmentServiceImpl(environmentRepositoryImpl, clusterServiceImplExtended, sugaredLogger, k8sServiceImpl, k8sInformerFactoryImpl, userAuthServiceImpl, attributesRepositoryImpl)
+	environmentServiceImpl := environment.NewEnvironmentServiceImpl(environmentRepositoryImpl, clusterServiceImplExtended, sugaredLogger, k8sServiceImpl, k8sInformerFactoryImpl, userAuthServiceImpl, attributesRepositoryImpl)
 	validate, err := util.IntValidator()
 	if err != nil {
 		return nil, err
@@ -414,7 +417,7 @@ func InitializeApp() (*App, error) {
 	genericNoteServiceImpl := genericNotes.NewGenericNoteServiceImpl(genericNoteRepositoryImpl, genericNoteHistoryServiceImpl, userRepositoryImpl, sugaredLogger)
 	clusterDescriptionRepositoryImpl := repository.NewClusterDescriptionRepositoryImpl(db, sugaredLogger)
 	clusterDescriptionServiceImpl := cluster2.NewClusterDescriptionServiceImpl(clusterDescriptionRepositoryImpl, userRepositoryImpl, sugaredLogger)
-	clusterRbacServiceImpl := cluster2.NewClusterRbacServiceImpl(environmentServiceImpl, enforcerImpl, clusterServiceImplExtended, sugaredLogger, userServiceImpl)
+	clusterRbacServiceImpl := rbac2.NewClusterRbacServiceImpl(environmentServiceImpl, enforcerImpl, clusterServiceImplExtended, sugaredLogger, userServiceImpl)
 	clusterRestHandlerImpl := cluster3.NewClusterRestHandlerImpl(clusterServiceImplExtended, genericNoteServiceImpl, clusterDescriptionServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl, deleteServiceExtendedImpl, argoUserServiceImpl, environmentServiceImpl, clusterRbacServiceImpl)
 	clusterRouterImpl := cluster3.NewClusterRouterImpl(clusterRestHandlerImpl)
 	ciCdConfig, err := types.GetCiCdConfig()

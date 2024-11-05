@@ -22,13 +22,13 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"time"
 
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/sql"
 

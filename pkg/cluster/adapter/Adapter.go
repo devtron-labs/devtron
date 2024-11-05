@@ -17,13 +17,15 @@
 package adapter
 
 import (
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	"github.com/devtron-labs/devtron/pkg/environment/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/environment/repository"
 )
 
 // NewEnvironmentBean provides a new cluster.EnvironmentBean for the given repository.Environment
 // Note: NewEnvironmentBean doesn't include AppCount and AllowedDeploymentTypes
-func NewEnvironmentBean(envModel *repository.Environment) *bean.EnvironmentBean {
+func NewEnvironmentBean(envModel *repository2.Environment) *bean.EnvironmentBean {
 	envBean := &bean.EnvironmentBean{
 		Id:                    envModel.Id,
 		Environment:           envModel.Name,
@@ -44,4 +46,27 @@ func NewEnvironmentBean(envModel *repository.Environment) *bean.EnvironmentBean 
 		envBean.ErrorInConnecting = envModel.Cluster.ErrorInConnecting
 	}
 	return envBean
+}
+
+func GetClusterBean(model repository.Cluster) bean2.ClusterBean {
+	bean := bean2.ClusterBean{}
+	bean.Id = model.Id
+	bean.ClusterName = model.ClusterName
+	//bean.Note = model.Note
+	bean.ServerUrl = model.ServerUrl
+	bean.PrometheusUrl = model.PrometheusEndpoint
+	bean.AgentInstallationStage = model.AgentInstallationStage
+	bean.Active = model.Active
+	bean.Config = model.Config
+	bean.K8sVersion = model.K8sVersion
+	bean.InsecureSkipTLSVerify = model.InsecureSkipTlsVerify
+	bean.IsVirtualCluster = model.IsVirtualCluster
+	bean.ErrorInConnecting = model.ErrorInConnecting
+	bean.PrometheusAuth = &bean2.PrometheusAuth{
+		UserName:      model.PUserName,
+		Password:      model.PPassword,
+		TlsClientCert: model.PTlsClientCert,
+		TlsClientKey:  model.PTlsClientKey,
+	}
+	return bean
 }

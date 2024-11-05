@@ -14,14 +14,17 @@
  * limitations under the License.
  */
 
-package cluster
+package environment
 
 import (
 	"encoding/json"
 	"fmt"
 	bean3 "github.com/devtron-labs/devtron/pkg/attributes/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
-	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	bean4 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/environment/bean"
+	"github.com/devtron-labs/devtron/pkg/environment/repository"
 	"strconv"
 	"strings"
 	"sync"
@@ -34,7 +37,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -48,7 +50,7 @@ type EnvironmentService interface {
 	GetAllActive() ([]bean2.EnvironmentBean, error)
 	GetAllActiveEnvironmentCount() (int, error)
 	Delete(deleteReq *bean2.EnvironmentBean, userId int32) error
-	FindClusterByEnvId(id int) (*ClusterBean, error)
+	FindClusterByEnvId(id int) (*bean4.ClusterBean, error)
 	// FindById provides an exposed struct of bean.EnvironmentBean;
 	// Usage - can be used for API responses;
 	FindById(id int) (*bean2.EnvironmentBean, error)
@@ -64,14 +66,14 @@ type EnvironmentService interface {
 	GetByClusterId(id int) ([]*bean2.EnvironmentBean, error)
 	GetCombinedEnvironmentListForDropDown(token string, isActionUserSuperAdmin bool, auth func(email string, object []string) map[string]bool) ([]*bean2.ClusterEnvDto, error)
 	GetCombinedEnvironmentListForDropDownByClusterIds(token string, clusterIds []int, auth func(token string, object string) bool) ([]*bean2.ClusterEnvDto, error)
-	HandleErrorInClusterConnections(clusters []*ClusterBean, respMap *sync.Map, clusterExistInDb bool)
+	HandleErrorInClusterConnections(clusters []*bean4.ClusterBean, respMap *sync.Map, clusterExistInDb bool)
 	GetDetailsById(envId int) (*repository.Environment, error)
 }
 
 type EnvironmentServiceImpl struct {
 	environmentRepository repository.EnvironmentRepository
 	logger                *zap.SugaredLogger
-	clusterService        ClusterService
+	clusterService        cluster.ClusterService
 	K8sUtil               *util2.K8sServiceImpl
 	k8sInformerFactory    informer.K8sInformerFactory
 	//propertiesConfigService pipeline.PropertiesConfigService
@@ -80,7 +82,7 @@ type EnvironmentServiceImpl struct {
 }
 
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
-	clusterService ClusterService, logger *zap.SugaredLogger,
+	clusterService cluster.ClusterService, logger *zap.SugaredLogger,
 	K8sUtil *util2.K8sServiceImpl, k8sInformerFactory informer.K8sInformerFactory,
 	//  propertiesConfigService pipeline.PropertiesConfigService,
 	userAuthService user.UserAuthService, attributesRepository repository2.AttributesRepository) *EnvironmentServiceImpl {
@@ -332,13 +334,13 @@ func (impl EnvironmentServiceImpl) GetExtendedEnvBeanById(id int) (*bean2.Enviro
 	return adapter.NewEnvironmentBean(model), nil
 }
 
-func (impl EnvironmentServiceImpl) FindClusterByEnvId(id int) (*ClusterBean, error) {
+func (impl EnvironmentServiceImpl) FindClusterByEnvId(id int) (*bean4.ClusterBean, error) {
 	model, err := impl.environmentRepository.FindById(id)
 	if err != nil {
 		impl.logger.Errorw("fetch cluster by environment id", "err", err)
 		return nil, err
 	}
-	clusterBean := &ClusterBean{}
+	clusterBean := &bean4.ClusterBean{}
 	clusterBean.Id = model.Cluster.Id
 	clusterBean.ClusterName = model.Cluster.ClusterName
 	clusterBean.Active = model.Cluster.Active
@@ -735,7 +737,7 @@ func (impl EnvironmentServiceImpl) Delete(deleteReq *bean2.EnvironmentBean, user
 	return nil
 }
 
-func (impl EnvironmentServiceImpl) HandleErrorInClusterConnections(clusters []*ClusterBean, respMap *sync.Map, clusterExistInDb bool) {
+func (impl EnvironmentServiceImpl) HandleErrorInClusterConnections(clusters []*bean4.ClusterBean, respMap *sync.Map, clusterExistInDb bool) {
 	impl.clusterService.HandleErrorInClusterConnections(clusters, respMap, clusterExistInDb)
 }
 

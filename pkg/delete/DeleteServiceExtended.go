@@ -27,8 +27,10 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/environment"
+	"github.com/devtron-labs/devtron/pkg/environment/bean"
+	"github.com/devtron-labs/devtron/pkg/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -47,7 +49,7 @@ type DeleteServiceExtendedImpl struct {
 func NewDeleteServiceExtendedImpl(logger *zap.SugaredLogger,
 	teamService team.TeamService,
 	clusterService cluster.ClusterService,
-	environmentService cluster.EnvironmentService,
+	environmentService environment.EnvironmentService,
 	appRepository app.AppRepository,
 	environmentRepository repository.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
@@ -77,7 +79,7 @@ func NewDeleteServiceExtendedImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl DeleteServiceExtendedImpl) DeleteCluster(deleteRequest *cluster.ClusterBean, userId int32) error {
+func (impl DeleteServiceExtendedImpl) DeleteCluster(deleteRequest *bean2.ClusterBean, userId int32) error {
 	//finding if there are env in this cluster or not, if yes then will not delete
 	env, err := impl.environmentRepository.FindByClusterId(deleteRequest.Id)
 	if err != nil && err != pg.ErrNoRows {

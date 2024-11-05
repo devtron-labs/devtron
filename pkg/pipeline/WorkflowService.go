@@ -28,7 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/app"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"

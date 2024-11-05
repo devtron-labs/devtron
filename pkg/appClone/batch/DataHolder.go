@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	"github.com/devtron-labs/devtron/pkg/environment"
+	bean2 "github.com/devtron-labs/devtron/pkg/environment/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/util"
@@ -38,10 +38,10 @@ type DataHolderActionImpl struct {
 	logger           *zap.SugaredLogger
 	appRepo          app.AppRepository
 	configMapService pipeline.ConfigMapService
-	envService       cluster.EnvironmentService
+	envService       environment.EnvironmentService
 }
 
-func NewDataHolderActionImpl(appRepo app.AppRepository, configMapService pipeline.ConfigMapService, envService cluster.EnvironmentService, logger *zap.SugaredLogger) *DataHolderActionImpl {
+func NewDataHolderActionImpl(appRepo app.AppRepository, configMapService pipeline.ConfigMapService, envService environment.EnvironmentService, logger *zap.SugaredLogger) *DataHolderActionImpl {
 	dh := &DataHolderActionImpl{
 		logger:           logger,
 		appRepo:          appRepo,

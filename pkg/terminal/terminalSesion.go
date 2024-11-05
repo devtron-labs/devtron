@@ -28,7 +28,9 @@ import (
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/read"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/environment"
 	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"io"
@@ -447,7 +449,7 @@ type TerminalSessionHandler interface {
 }
 
 type TerminalSessionHandlerImpl struct {
-	environmentService         cluster.EnvironmentService
+	environmentService         environment.EnvironmentService
 	clusterService             cluster.ClusterService
 	logger                     *zap.SugaredLogger
 	k8sUtil                    *k8s.K8sServiceImpl
@@ -455,7 +457,7 @@ type TerminalSessionHandlerImpl struct {
 	argoApplicationReadService read.ArgoApplicationReadService
 }
 
-func NewTerminalSessionHandlerImpl(environmentService cluster.EnvironmentService, clusterService cluster.ClusterService,
+func NewTerminalSessionHandlerImpl(environmentService environment.EnvironmentService, clusterService cluster.ClusterService,
 	logger *zap.SugaredLogger, k8sUtil *k8s.K8sServiceImpl, ephemeralContainerService cluster.EphemeralContainerService,
 	argoApplicationReadService read.ArgoApplicationReadService) *TerminalSessionHandlerImpl {
 	return &TerminalSessionHandlerImpl{
@@ -526,7 +528,7 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 }
 
 func (impl *TerminalSessionHandlerImpl) getClientSetAndRestConfigForTerminalConn(req *TerminalSessionRequest) (*rest.Config, *kubernetes.Clientset, error) {
-	var clusterBean *cluster.ClusterBean
+	var clusterBean *bean.ClusterBean
 	var clusterConfig *k8s.ClusterConfig
 	var restConfig *rest.Config
 	var err error

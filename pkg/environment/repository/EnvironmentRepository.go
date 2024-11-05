@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
@@ -37,7 +38,7 @@ type Environment struct {
 	Id                    int      `sql:"id,pk"`
 	Name                  string   `sql:"environment_name"`
 	ClusterId             int      `sql:"cluster_id"`
-	Cluster               *Cluster
+	Cluster               *repository.Cluster
 	Active                bool   `sql:"active,notnull"`
 	Default               bool   `sql:"default,notnull"`
 	GrafanaDatasourceId   int    `sql:"grafana_datasource_id"`

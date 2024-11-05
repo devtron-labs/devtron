@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	securityBean "github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
+	"github.com/devtron-labs/devtron/pkg/environment"
 	"net/http"
 	"strconv"
 
@@ -28,7 +29,6 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
-	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
@@ -47,14 +47,14 @@ type PolicyRestHandlerImpl struct {
 	userAuthService    user2.UserAuthService
 	enforcer           casbin.Enforcer
 	enforcerUtil       rbac.EnforcerUtil
-	environmentService cluster.EnvironmentService
+	environmentService environment.EnvironmentService
 }
 
 func NewPolicyRestHandlerImpl(logger *zap.SugaredLogger,
 	policyService security.PolicyService,
 	userService user2.UserService, userAuthService user2.UserAuthService,
 	enforcer casbin.Enforcer,
-	enforcerUtil rbac.EnforcerUtil, environmentService cluster.EnvironmentService) *PolicyRestHandlerImpl {
+	enforcerUtil rbac.EnforcerUtil, environmentService environment.EnvironmentService) *PolicyRestHandlerImpl {
 	return &PolicyRestHandlerImpl{
 		logger:             logger,
 		policyService:      policyService,

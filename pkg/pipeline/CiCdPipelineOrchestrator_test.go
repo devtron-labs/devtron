@@ -18,6 +18,7 @@ package pipeline
 
 import (
 	"fmt"
+	repository3 "github.com/devtron-labs/devtron/pkg/environment/repository"
 	"log"
 	"testing"
 
@@ -34,7 +35,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"

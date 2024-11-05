@@ -18,7 +18,7 @@ package service
 
 import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	"github.com/devtron-labs/devtron/pkg/environment/bean"
 	"go.uber.org/zap"
 )
 

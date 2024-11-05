@@ -19,6 +19,7 @@ package rbac
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
+	repository2 "github.com/devtron-labs/devtron/pkg/environment/repository"
 	"golang.org/x/exp/maps"
 	"strings"
 
@@ -85,7 +86,7 @@ type EnforcerUtilImpl struct {
 	logger                *zap.SugaredLogger
 	teamRepository        team.TeamRepository
 	appRepo               app.AppRepository
-	environmentRepository repository.EnvironmentRepository
+	environmentRepository repository2.EnvironmentRepository
 	pipelineRepository    pipelineConfig.PipelineRepository
 	ciPipelineRepository  pipelineConfig.CiPipelineRepository
 	clusterRepository     repository.ClusterRepository
@@ -94,7 +95,7 @@ type EnforcerUtilImpl struct {
 }
 
 func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepository,
-	appRepo app.AppRepository, environmentRepository repository.EnvironmentRepository,
+	appRepo app.AppRepository, environmentRepository repository2.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	clusterRepository repository.ClusterRepository, enforcer casbin.Enforcer,
 	dbMigration dbMigration.DbMigration) *EnforcerUtilImpl {
@@ -752,7 +753,7 @@ func (impl EnforcerUtilImpl) GetRbacObjectsByEnvIdsAndAppIdBatch(appIdToEnvIds m
 		impl.logger.Errorw("error occurred in fetching environments", "envIds", envIds)
 		return objects
 	}
-	envIdIdToEnv := make(map[int]*repository.Environment)
+	envIdIdToEnv := make(map[int]*repository2.Environment)
 	for _, env := range environments {
 		envIdIdToEnv[env.Id] = env
 	}
@@ -766,7 +767,7 @@ func (impl EnforcerUtilImpl) GetRbacObjectsByEnvIdsAndAppIdBatch(appIdToEnvIds m
 		var appName = application.AppName
 		for _, envId := range envIds {
 
-			var env *repository.Environment
+			var env *repository2.Environment
 			var ok bool
 			if env, ok = envIdIdToEnv[envId]; !ok {
 				continue

@@ -27,6 +27,7 @@ import (
 	internalUtil "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/read"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/util"
 	"go.opentelemetry.io/otel"
@@ -52,7 +53,7 @@ type K8sCommonService interface {
 	UpdateResource(ctx context.Context, request *ResourceRequestBean) (resp *k8s.ManifestResponse, err error)
 	DeleteResource(ctx context.Context, request *ResourceRequestBean) (resp *k8s.ManifestResponse, err error)
 	ListEvents(ctx context.Context, request *ResourceRequestBean) (*k8s.EventsResponse, error)
-	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *cluster.ClusterBean)
+	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *bean2.ClusterBean)
 	GetManifestsByBatch(ctx context.Context, request []ResourceRequestBean) ([]BatchResourceResponse, error)
 	FilterK8sResources(ctx context.Context, resourceTreeInf map[string]interface{}, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string, externalArgoAppName string) []ResourceRequestBean
 	RotatePods(ctx context.Context, request *RotatePodRequest) (*RotatePodResponse, error)
@@ -61,7 +62,7 @@ type K8sCommonService interface {
 	GetK8sServerVersion(clusterId int) (*version.Info, error)
 	PortNumberExtraction(resp []BatchResourceResponse, resourceTree map[string]interface{}) map[string]interface{}
 	GetRestConfigOfCluster(ctx context.Context, request *ResourceRequestBean) (*rest.Config, error)
-	GetK8sConfigAndClients(ctx context.Context, cluster *cluster.ClusterBean) (*rest.Config, *http.Client, *kubernetes.Clientset, error)
+	GetK8sConfigAndClients(ctx context.Context, cluster *bean2.ClusterBean) (*rest.Config, *http.Client, *kubernetes.Clientset, error)
 	GetK8sConfigAndClientsByClusterId(ctx context.Context, clusterId int) (*rest.Config, *http.Client, *kubernetes.Clientset, error)
 	GetPreferredVersionForAPIGroup(ctx context.Context, clusterId int, groupName string) (string, error)
 }
@@ -311,7 +312,7 @@ func (impl *K8sCommonServiceImpl) GetManifestsByBatch(ctx context.Context, reque
 	return res, nil
 }
 
-func (impl *K8sCommonServiceImpl) GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *cluster.ClusterBean) {
+func (impl *K8sCommonServiceImpl) GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *bean2.ClusterBean) {
 	_, span := otel.Tracer("orchestrator").Start(ctx, "K8sApplicationService.GetRestConfigByClusterId")
 	defer span.End()
 	cluster, err := impl.clusterService.FindById(clusterId)
@@ -689,7 +690,7 @@ func (impl *K8sCommonServiceImpl) PortNumberExtraction(resp []BatchResourceRespo
 	return resourceTree
 }
 
-func (impl *K8sCommonServiceImpl) GetK8sConfigAndClients(ctx context.Context, cluster *cluster.ClusterBean) (*rest.Config, *http.Client, *kubernetes.Clientset, error) {
+func (impl *K8sCommonServiceImpl) GetK8sConfigAndClients(ctx context.Context, cluster *bean2.ClusterBean) (*rest.Config, *http.Client, *kubernetes.Clientset, error) {
 	clusterConfig := cluster.GetClusterConfig()
 	return impl.K8sUtil.GetK8sConfigAndClients(clusterConfig)
 }
@@ -724,7 +725,7 @@ func (impl *K8sCommonServiceImpl) GetPreferredVersionForAPIGroup(ctx context.Con
 	return "", k8s.NotFoundError
 }
 
-func (impl *K8sCommonServiceImpl) getClusterBean(clusterId int) (*cluster.ClusterBean, error) {
+func (impl *K8sCommonServiceImpl) getClusterBean(clusterId int) (*bean2.ClusterBean, error) {
 	clusterDto, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId", clusterId)

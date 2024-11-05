@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/devtronResource/read"
+	repository3 "github.com/devtron-labs/devtron/pkg/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables/cache"
@@ -56,7 +57,7 @@ type ScopedVariableServiceImpl struct {
 	VariableCache            *cache.VariableCacheObj
 }
 
-func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository.EnvironmentRepository, devtronResourceSearchableKeyService read.DevtronResourceSearchableKeyService, clusterRepository repository.ClusterRepository,
+func NewScopedVariableServiceImpl(logger *zap.SugaredLogger, scopedVariableRepository repository2.ScopedVariableRepository, appRepository app.AppRepository, environmentRepository repository3.EnvironmentRepository, devtronResourceSearchableKeyService read.DevtronResourceSearchableKeyService, clusterRepository repository.ClusterRepository,
 	qualifierMappingService resourceQualifiers.QualifierMappingService) (*ScopedVariableServiceImpl, error) {
 	scopedVariableService := &ScopedVariableServiceImpl{
 		logger:                   logger,

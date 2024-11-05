@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/ciPipeline"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/environment/repository"
 	ciPipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util/response/pagination"

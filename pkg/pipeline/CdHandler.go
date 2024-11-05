@@ -22,7 +22,10 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
+	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
+	repository2 "github.com/devtron-labs/devtron/pkg/environment/repository"
 	util2 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"os"
 	"path/filepath"
@@ -39,7 +42,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -152,9 +154,9 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, forceAbort bool, us
 		return 0, err
 	}
 
-	var clusterBean cluster.ClusterBean
+	var clusterBean bean3.ClusterBean
 	if env != nil && env.Cluster != nil {
-		clusterBean = cluster.GetClusterBean(*env.Cluster)
+		clusterBean = adapter.GetClusterBean(*env.Cluster)
 	}
 	clusterConfig := clusterBean.GetClusterConfig()
 	var isExtCluster bool
@@ -491,9 +493,9 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 		impl.Logger.Errorw("error while fetching cd pipeline", "err", err)
 		return nil, nil, err
 	}
-	var clusterBean cluster.ClusterBean
+	var clusterBean bean3.ClusterBean
 	if env != nil && env.Cluster != nil {
-		clusterBean = cluster.GetClusterBean(*env.Cluster)
+		clusterBean = adapter.GetClusterBean(*env.Cluster)
 	}
 	clusterConfig := clusterBean.GetClusterConfig()
 	var isExtCluster bool

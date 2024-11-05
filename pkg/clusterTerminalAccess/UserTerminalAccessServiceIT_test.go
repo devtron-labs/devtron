@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
+	repository3 "github.com/devtron-labs/devtron/pkg/environment/repository"
 	"testing"
 	"time"
 
@@ -161,7 +162,7 @@ func initTerminalAccessService(t *testing.T) *UserTerminalAccessServiceImpl {
 	//clusterServiceImpl := cluster2.NewClusterServiceImplExtended(clusterRepositoryImpl, nil, nil, sugaredLogger, nil, nil, nil, nil, nil)
 	k8sResourceHistoryRepositoryImpl := repository10.NewK8sResourceHistoryRepositoryImpl(db, sugaredLogger)
 	appRepositoryImpl := app.NewAppRepositoryImpl(db, sugaredLogger)
-	environmentRepositoryImpl := repository2.NewEnvironmentRepositoryImpl(db, sugaredLogger, nil)
+	environmentRepositoryImpl := repository3.NewEnvironmentRepositoryImpl(db, sugaredLogger, nil)
 	k8sResourceHistoryServiceImpl := kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl(k8sResourceHistoryRepositoryImpl, sugaredLogger, appRepositoryImpl, environmentRepositoryImpl)
 	//k8sApplicationService := application.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, nil, nil, nil, nil, k8sResourceHistoryServiceImpl, nil)
 	K8sCommonService := k8s.NewK8sCommonServiceImpl(sugaredLogger, nil, nil, k8sResourceHistoryServiceImpl, clusterServiceImpl, nil)

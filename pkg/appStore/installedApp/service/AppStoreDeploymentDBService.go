@@ -34,13 +34,14 @@ import (
 	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	clusterService "github.com/devtron-labs/devtron/pkg/cluster"
-	clutserBean "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	gitOpsBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
 	validationBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
+	"github.com/devtron-labs/devtron/pkg/environment"
+	clutserBean "github.com/devtron-labs/devtron/pkg/environment/bean"
 	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -75,7 +76,7 @@ type AppStoreDeploymentDBServiceImpl struct {
 	installedAppRepository               repository.InstalledAppRepository
 	appStoreApplicationVersionRepository discoverRepository.AppStoreApplicationVersionRepository
 	appRepository                        app.AppRepository
-	environmentService                   clusterService.EnvironmentService
+	environmentService                   environment.EnvironmentService
 	clusterService                       clusterService.ClusterService
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
 	deploymentTypeConfig                 *globalUtil.DeploymentServiceTypeConfig
@@ -91,7 +92,7 @@ func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepository repository.InstalledAppRepository,
 	appStoreApplicationVersionRepository discoverRepository.AppStoreApplicationVersionRepository,
 	appRepository app.AppRepository,
-	environmentService clusterService.EnvironmentService,
+	environmentService environment.EnvironmentService,
 	clusterService clusterService.ClusterService,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
 	envVariables *globalUtil.EnvironmentVariables,
@@ -651,7 +652,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) createEnvironmentIfNotExists(instal
 		}
 
 		environmentBean := &clutserBean.EnvironmentBean{
-			Environment: clusterService.BuildEnvironmentName(cluster.ClusterName, namespace),
+			Environment: environment.BuildEnvironmentName(cluster.ClusterName, namespace),
 			ClusterId:   clusterId,
 			Namespace:   namespace,
 			Default:     false,

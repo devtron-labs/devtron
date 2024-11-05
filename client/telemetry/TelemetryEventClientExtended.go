@@ -21,6 +21,7 @@ import (
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	client "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	"github.com/devtron-labs/devtron/pkg/environment"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	cron3 "github.com/devtron-labs/devtron/util/cron"
 	"net/http"
@@ -49,7 +50,7 @@ import (
 const AppsCount int = 50
 
 type TelemetryEventClientImplExtended struct {
-	environmentService            cluster.EnvironmentService
+	environmentService            environment.EnvironmentService
 	appListingRepository          repository.AppListingRepository
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	pipelineRepository            pipelineConfig.PipelineRepository
@@ -68,7 +69,7 @@ type TelemetryEventClientImplExtended struct {
 
 func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
 	K8sUtil *util2.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig,
-	environmentService cluster.EnvironmentService, userService user2.UserService,
+	environmentService environment.EnvironmentService, userService user2.UserService,
 	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
 	gitProviderRepository repository.GitProviderRepository, attributeRepo repository.AttributesRepository,

@@ -19,7 +19,9 @@ package cluster
 import (
 	"context"
 	"encoding/json"
-	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	request "github.com/devtron-labs/devtron/pkg/environment"
+	bean2 "github.com/devtron-labs/devtron/pkg/environment/bean"
 	"net/http"
 	"strconv"
 	"strings"
@@ -35,7 +37,6 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	request "github.com/devtron-labs/devtron/pkg/cluster"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -516,6 +517,6 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentConnection(w http.ResponseW
 	//updating the cluster connection error to db
 	mapObj := &sync.Map{}
 	mapObj.Store(clusterBean.Id, err)
-	impl.environmentClusterMappingsService.HandleErrorInClusterConnections([]*request.ClusterBean{clusterBean}, mapObj, true)
+	impl.environmentClusterMappingsService.HandleErrorInClusterConnections([]*bean3.ClusterBean{clusterBean}, mapObj, true)
 	common.WriteJsonResp(w, nil, responseObj, http.StatusOK)
 }

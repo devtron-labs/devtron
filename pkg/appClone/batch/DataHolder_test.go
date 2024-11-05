@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	v1 "github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
-	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/environment"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v2"
@@ -316,7 +316,7 @@ data:
 		logger           *zap.SugaredLogger
 		appRepo          app.AppRepository
 		configMapService pipeline.ConfigMapService
-		envService       cluster.EnvironmentService
+		envService       environment.EnvironmentService
 	}
 	type args struct {
 		holder   *v1.DataHolder

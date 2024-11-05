@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cluster
+package environment
 
 import (
 	"fmt"

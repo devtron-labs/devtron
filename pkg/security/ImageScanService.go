@@ -19,8 +19,9 @@ package security
 import (
 	"context"
 	securityBean "github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	"github.com/devtron-labs/devtron/pkg/environment"
+	"github.com/devtron-labs/devtron/pkg/environment/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/security/bean"
 	"go.opentelemetry.io/otel"
 	"time"
@@ -33,7 +34,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
-	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -57,7 +57,7 @@ type ImageScanServiceImpl struct {
 	userService                               user.UserService
 	teamRepository                            repository2.TeamRepository
 	appRepository                             repository1.AppRepository
-	envService                                cluster.EnvironmentService
+	envService                                environment.EnvironmentService
 	ciArtifactRepository                      repository.CiArtifactRepository
 	policyService                             PolicyService
 	pipelineRepository                        pipelineConfig.PipelineRepository
@@ -72,7 +72,7 @@ func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository se
 	cveStoreRepository security.CveStoreRepository, imageScanDeployInfoRepository security.ImageScanDeployInfoRepository,
 	userService user.UserService, teamRepository repository2.TeamRepository,
 	appRepository repository1.AppRepository,
-	envService cluster.EnvironmentService, ciArtifactRepository repository.CiArtifactRepository, policyService PolicyService,
+	envService environment.EnvironmentService, ciArtifactRepository repository.CiArtifactRepository, policyService PolicyService,
 	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository, scanToolMetaDataRepository security.ScanToolMetadataRepository, scanToolExecutionHistoryMappingRepository security.ScanToolExecutionHistoryMappingRepository,
 	cvePolicyRepository security.CvePolicyRepository) *ImageScanServiceImpl {
 	return &ImageScanServiceImpl{Logger: Logger, scanHistoryRepository: scanHistoryRepository, scanResultRepository: scanResultRepository,

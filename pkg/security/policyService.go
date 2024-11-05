@@ -23,6 +23,7 @@ import (
 	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	securityBean "github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
+	"github.com/devtron-labs/devtron/pkg/environment"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"net/http"
@@ -51,7 +52,7 @@ type PolicyService interface {
 	HasBlockedCVE(cves []*security.CveStore, cvePolicy map[string]*security.CvePolicy, severityPolicy map[securityBean.Severity]*security.CvePolicy) bool
 }
 type PolicyServiceImpl struct {
-	environmentService            cluster.EnvironmentService
+	environmentService            environment.EnvironmentService
 	logger                        *zap.SugaredLogger
 	apRepository                  repository1.AppRepository
 	pipelineOverride              chartConfig.PipelineOverrideRepository
@@ -69,7 +70,7 @@ type PolicyServiceImpl struct {
 	ciTemplateRepository          pipelineConfig.CiTemplateRepository
 }
 
-func NewPolicyServiceImpl(environmentService cluster.EnvironmentService,
+func NewPolicyServiceImpl(environmentService environment.EnvironmentService,
 	logger *zap.SugaredLogger,
 	apRepository repository1.AppRepository,
 	pipelineOverride chartConfig.PipelineOverrideRepository,
