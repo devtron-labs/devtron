@@ -26,8 +26,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
+	adapter2 "github.com/devtron-labs/devtron/pkg/environment/adapter"
 	clutserBean "github.com/devtron-labs/devtron/pkg/environment/bean"
 	"time"
 )
@@ -153,7 +153,7 @@ func GenerateInstallAppVersionDTO(installedApp *repository.InstalledApps, instal
 		Username = chartVersionApp.AppStore.DockerArtifactStore.Username
 		Password = chartVersionApp.AppStore.DockerArtifactStore.Password
 	}
-	envBean := adapter.NewEnvironmentBean(&installedApp.Environment)
+	envBean := adapter2.NewEnvironmentBean(&installedApp.Environment)
 	installAppDto := &appStoreBean.InstallAppVersionDTO{
 		TeamName: installedApp.App.Team.Name,
 		InstallAppVersionChartDTO: &appStoreBean.InstallAppVersionChartDTO{

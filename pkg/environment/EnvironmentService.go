@@ -21,8 +21,8 @@ import (
 	"fmt"
 	bean3 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	bean4 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	adapter2 "github.com/devtron-labs/devtron/pkg/environment/adapter"
 	bean2 "github.com/devtron-labs/devtron/pkg/environment/bean"
 	"github.com/devtron-labs/devtron/pkg/environment/repository"
 	"strconv"
@@ -331,7 +331,7 @@ func (impl EnvironmentServiceImpl) GetExtendedEnvBeanById(id int) (*bean2.Enviro
 		impl.logger.Errorw("error in fetch environment by id", "err", err)
 		return nil, err
 	}
-	return adapter.NewEnvironmentBean(model), nil
+	return adapter2.NewEnvironmentBean(model), nil
 }
 
 func (impl EnvironmentServiceImpl) FindClusterByEnvId(id int) (*bean4.ClusterBean, error) {
@@ -503,7 +503,7 @@ func (impl EnvironmentServiceImpl) FindOneByNamespaceAndClusterId(namespaces str
 		impl.logger.Errorw("error in getting environment by namespace and cluster id", "namespaces", namespaces, "clusterId", clusterId)
 		return nil, err
 	}
-	return adapter.NewEnvironmentBean(env), err
+	return adapter2.NewEnvironmentBean(env), err
 }
 
 func (impl EnvironmentServiceImpl) GetByClusterId(id int) ([]*bean2.EnvironmentBean, error) {
