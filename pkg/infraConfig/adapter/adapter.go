@@ -3,10 +3,10 @@ package adapter
 import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig/bean"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/util"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/util"
 	"math"
 	"strconv"
-	"time"
 )
 
 func ConvertToPlatformMap(infraProfileConfigurationEntities []*bean.InfraProfileConfigurationEntity, profileName string) map[string][]*bean.ConfigurationBean {
@@ -64,9 +64,8 @@ func getInfraProfileEntity(configurationBean *bean.ConfigurationBean, profileBea
 		ProfileId:   profileBean.Id,
 		Platform:    platform,
 		Active:      configurationBean.Active,
+		AuditLog:    sql.NewDefaultAuditLog(userId),
 	}
-	infraProfile.UpdatedOn = time.Now()
-	infraProfile.UpdatedBy = userId
 	if profileBean.Name == util.DEFAULT_PROFILE_NAME {
 		infraProfile.Active = true
 	}
