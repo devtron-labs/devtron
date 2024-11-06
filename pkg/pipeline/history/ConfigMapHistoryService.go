@@ -20,7 +20,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"strings"
+	"github.com/devtron-labs/devtron/pkg/configDiff/adaptor"
+	bean2 "github.com/devtron-labs/devtron/pkg/configDiff/bean"
+	"github.com/devtron-labs/devtron/pkg/configDiff/utils"
+	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
+	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -48,6 +53,8 @@ type ConfigMapHistoryService interface {
 	CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (cmId int, csId int, exists bool, err error)
 	GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int, configType repository.ConfigType, userHasAdminAccess bool) ([]*ComponentLevelHistoryDetailDto, error)
 	ConvertConfigDataToComponentLevelDto(config *bean.ConfigData, configType repository.ConfigType, userHasAdminAccess bool) (*ComponentLevelHistoryDetailDto, error)
+
+	GetConfigmapHistoryDataByDeployedOnAndPipelineId(ctx context.Context, pipelineId int, deployedOn time.Time, userHasAdminAccess bool) (*bean2.DeploymentAndCmCsConfig, *bean2.DeploymentAndCmCsConfig, error)
 }
 
 type ConfigMapHistoryServiceImpl struct {
@@ -357,7 +364,7 @@ func (impl ConfigMapHistoryServiceImpl) GetDeploymentDetailsForDeployedCMCSHisto
 	}
 	var historiesDto []*ConfigMapAndSecretHistoryDto
 	for _, history := range histories {
-		userEmailId, err := impl.userService.GetEmailById(history.DeployedBy)
+		userEmailId, err := impl.userService.GetActiveEmailById(history.DeployedBy)
 		if err != nil {
 			impl.logger.Errorw("unable to find user email by id", "err", err, "id", history.DeployedBy)
 			return nil, err
@@ -490,7 +497,7 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx contex
 		SubPath:        &config.SubPath,
 		FilePermission: config.FilePermission,
 		CodeEditorValue: &HistoryDetailConfig{
-			DisplayName:      "Data",
+			DisplayName:      DataDisplayName,
 			Value:            string(config.Data),
 			VariableSnapshot: variableSnapshotMap,
 			ResolvedValue:    resolvedTemplate,
@@ -521,13 +528,27 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(ctx contex
 		}
 		historyDto.ExternalSecretType = config.ExternalSecretType
 		historyDto.RoleARN = config.RoleARN
+		historyDto.ESOSubPath = config.ESOSubPath
 		if config.External {
-			externalSecretData, err := json.Marshal(config.ExternalSecret)
-			if err != nil {
-				impl.logger.Errorw("error in marshaling external secret data", "err", err)
-			}
-			if len(externalSecretData) > 0 {
-				historyDto.CodeEditorValue.Value = string(externalSecretData)
+			if config.ExternalSecretType == globalUtil.KubernetesSecret {
+				externalSecretData, err := json.Marshal(config.ExternalSecret)
+				if err != nil {
+					impl.logger.Errorw("error in marshaling external secret data", "err", err)
+				}
+				if len(externalSecretData) > 0 {
+					historyDto.CodeEditorValue.DisplayName = ExternalSecretDisplayName
+					historyDto.CodeEditorValue.Value = string(externalSecretData)
+				}
+			} else if config.IsESOExternalSecretType() {
+				externalSecretDataBytes, jErr := json.Marshal(config.ESOSecretData)
+				if jErr != nil {
+					impl.logger.Errorw("error in marshaling eso secret data", "esoSecretData", config.ESOSecretData, "err", jErr)
+					return nil, jErr
+				}
+				if len(externalSecretDataBytes) > 0 {
+					historyDto.CodeEditorValue.DisplayName = ESOSecretDataDisplayName
+					historyDto.CodeEditorValue.Value = string(externalSecretDataBytes)
+				}
 			}
 		}
 	}
@@ -593,7 +614,7 @@ func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(con
 		SubPath:        &config.SubPath,
 		FilePermission: config.FilePermission,
 		CodeEditorValue: &HistoryDetailConfig{
-			DisplayName: "Data",
+			DisplayName: DataDisplayName,
 			Value:       string(config.Data),
 		},
 	}
@@ -623,15 +644,19 @@ func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(con
 		}
 		historyDto.ExternalSecretType = config.ExternalSecretType
 		historyDto.RoleARN = config.RoleARN
+		historyDto.ESOSubPath = config.ESOSubPath
 		if config.External {
 			var externalSecretData []byte
-			if strings.HasPrefix(config.ExternalSecretType, "ESO") {
+			displayName := historyDto.CodeEditorValue.DisplayName
+			if config.IsESOExternalSecretType() {
+				displayName = ESOSecretDataDisplayName
 				externalSecretData, err = json.Marshal(config.ESOSecretData)
 				if err != nil {
 					impl.logger.Errorw("error in marshaling external secret data", "err", err)
 					return nil, err
 				}
 			} else {
+				displayName = ExternalSecretDisplayName
 				externalSecretData, err = json.Marshal(config.ExternalSecret)
 				if err != nil {
 					impl.logger.Errorw("error in marshaling external secret data", "err", err)
@@ -639,6 +664,7 @@ func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(con
 				}
 			}
 			if len(externalSecretData) > 0 {
+				historyDto.CodeEditorValue.DisplayName = displayName
 				historyDto.CodeEditorValue.Value = string(externalSecretData)
 			}
 		}
@@ -671,4 +697,130 @@ func (impl ConfigMapHistoryServiceImpl) CheckIfTriggerHistoryExistsForPipelineId
 		exists = true
 	}
 	return cmId, csId, exists, nil
+}
+
+func (impl ConfigMapHistoryServiceImpl) GetConfigmapHistoryDataByDeployedOnAndPipelineId(ctx context.Context, pipelineId int, deployedOn time.Time, userHasAdminAccess bool) (*bean2.DeploymentAndCmCsConfig, *bean2.DeploymentAndCmCsConfig, error) {
+	secretConfigData, err := impl.getResolvedConfigData(ctx, pipelineId, deployedOn, repository.SECRET_TYPE, userHasAdminAccess)
+	if err != nil {
+		impl.logger.Errorw("error in getting resolved secret config data in case of previous deployments ", "pipelineId", pipelineId, "deployedOn", deployedOn, "err", err)
+		return nil, nil, err
+	}
+	cmConfigData, err := impl.getResolvedConfigData(ctx, pipelineId, deployedOn, repository.CONFIGMAP_TYPE, userHasAdminAccess)
+	if err != nil {
+		impl.logger.Errorw("error in getting resolved cm config data in case of previous deployments ", "pipelineId", pipelineId, "deployedOn", deployedOn, "err", err)
+		return nil, nil, err
+	}
+
+	return secretConfigData, cmConfigData, nil
+}
+
+func (impl *ConfigMapHistoryServiceImpl) getResolvedConfigData(ctx context.Context, pipelineId int, deployedOn time.Time, configType repository.ConfigType, userHasAdminAccess bool) (*bean2.DeploymentAndCmCsConfig, error) {
+	configsList := &bean3.ConfigsList{}
+	secretsList := &bean3.SecretsList{}
+	var err error
+	history, err := impl.configMapHistoryRepository.GetDeployedHistoryByPipelineIdAndDeployedOn(pipelineId, deployedOn, configType)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployed history by pipeline id and deployed on", "pipelineId", pipelineId, "deployedOn", deployedOn, "err", err)
+		return nil, err
+	}
+	if configType == repository.SECRET_TYPE {
+		_, secretsList, err = impl.getConfigDataRequestForHistory(history)
+		if err != nil {
+			impl.logger.Errorw("error in getting config data request for history", "err", err)
+			return nil, err
+		}
+	} else if configType == repository.CONFIGMAP_TYPE {
+		configsList, _, err = impl.getConfigDataRequestForHistory(history)
+		if err != nil {
+			impl.logger.Errorw("error in getting config data request for history", "cmCsHistory", history, "err", err)
+			return nil, err
+		}
+	}
+
+	resolvedDataMap, variableSnapshotMap, err := impl.scopedVariableManager.GetResolvedCMCSHistoryDtos(ctx, configType, adaptor.ReverseConfigListConvertor(*configsList), history, adaptor.ReverseSecretListConvertor(*secretsList))
+	if err != nil {
+		return nil, err
+	}
+	resolvedConfigDataList := make([]*bean3.ConfigData, 0, len(resolvedDataMap))
+	for _, resolvedConfigData := range resolvedDataMap {
+		resolvedConfigDataList = append(resolvedConfigDataList, adapter.ConvertConfigDataToPipelineConfigData(&resolvedConfigData))
+	}
+	configDataReq := &bean3.ConfigDataRequest{}
+	var resourceType bean3.ResourceType
+	if configType == repository.SECRET_TYPE {
+		impl.encodeSecretDataFromNonAdminUsers(secretsList.ConfigData, userHasAdminAccess)
+		impl.encodeSecretDataFromNonAdminUsers(resolvedConfigDataList, userHasAdminAccess)
+		configDataReq.ConfigData = secretsList.ConfigData
+		resourceType = bean3.CS
+	} else if configType == repository.CONFIGMAP_TYPE {
+		configDataReq.ConfigData = configsList.ConfigData
+		resourceType = bean3.CM
+	}
+
+	configDataJson, err := utils.ConvertToJsonRawMessage(configDataReq)
+	if err != nil {
+		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in converting config data to json raw message", "pipelineId", pipelineId, "deployedOn", deployedOn, "err", err)
+		return nil, err
+	}
+	resolvedConfigDataReq := &bean3.ConfigDataRequest{ConfigData: resolvedConfigDataList}
+	resolvedConfigDataString, err := utils.ConvertToString(resolvedConfigDataReq)
+	if err != nil {
+		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in converting config data to json raw message", "pipelineId", pipelineId, "deployedOn", deployedOn, "err", err)
+		return nil, err
+	}
+	resolvedConfigDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedConfigDataString)
+	if err != nil {
+		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in ConvertToJsonRawMessage for resolvedJson", "resolvedJson", resolvedConfigDataStringJson, "err", err)
+		return nil, err
+	}
+	return bean2.NewDeploymentAndCmCsConfig().WithConfigData(configDataJson).WithResourceType(resourceType).
+		WithVariableSnapshot(variableSnapshotMap).WithResolvedValue(resolvedConfigDataStringJson), nil
+}
+
+func (impl *ConfigMapHistoryServiceImpl) encodeSecretDataFromNonAdminUsers(configDataList []*bean3.ConfigData, userHasAdminAccess bool) {
+	for _, config := range configDataList {
+		if config.Data != nil {
+			if !userHasAdminAccess {
+				//removing keys and sending
+				resultMap := make(map[string]string)
+				resultMapFinal := make(map[string]string)
+				err := json.Unmarshal(config.Data, &resultMap)
+				if err != nil {
+					impl.logger.Errorw("unmarshal failed", "error", err)
+					return
+				}
+				for key, _ := range resultMap {
+					//hard-coding values to show them as hidden to user
+					resultMapFinal[key] = "*****"
+				}
+				config.Data, err = utils.ConvertToJsonRawMessage(resultMapFinal)
+				if err != nil {
+					impl.logger.Errorw("error while marshaling request", "err", err)
+					return
+				}
+			}
+		}
+	}
+}
+
+func (impl ConfigMapHistoryServiceImpl) getConfigDataRequestForHistory(history *repository.ConfigmapAndSecretHistory) (*bean3.ConfigsList, *bean3.SecretsList, error) {
+
+	configsList := &bean3.ConfigsList{}
+	secretsList := &bean3.SecretsList{}
+	if history.IsConfigmapHistorySecretType() {
+		err := json.Unmarshal([]byte(history.Data), secretsList)
+		if err != nil {
+			impl.logger.Errorw("error while Unmarshal in secret history data", "error", err)
+			return configsList, secretsList, err
+		}
+		return configsList, secretsList, nil
+	} else if history.IsConfigmapHistoryConfigMapType() {
+		err := json.Unmarshal([]byte(history.Data), configsList)
+		if err != nil {
+			impl.logger.Errorw("error while Unmarshal in config history data", "historyData", history.Data, "error", err)
+			return configsList, secretsList, err
+		}
+		return configsList, secretsList, nil
+	}
+	return configsList, secretsList, nil
 }

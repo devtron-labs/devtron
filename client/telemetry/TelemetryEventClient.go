@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	cron3 "github.com/devtron-labs/devtron/util/cron"
@@ -259,15 +260,16 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 		req := &gRPC.AppListRequest{}
 		config := &gRPC.ClusterConfig{
 			ApiServerUrl:          clusterDetail.ServerUrl,
-			Token:                 clusterDetail.Config[k8s.BearerToken],
+			Token:                 clusterDetail.Config[commonBean.BearerToken],
 			ClusterId:             int32(clusterDetail.Id),
 			ClusterName:           clusterDetail.ClusterName,
 			InsecureSkipTLSVerify: clusterDetail.InsecureSkipTLSVerify,
 		}
+
 		if clusterDetail.InsecureSkipTLSVerify == false {
-			config.KeyData = clusterDetail.Config[k8s.TlsKey]
-			config.CertData = clusterDetail.Config[k8s.CertData]
-			config.CaData = clusterDetail.Config[k8s.CertificateAuthorityData]
+			config.KeyData = clusterDetail.Config[commonBean.TlsKey]
+			config.CertData = clusterDetail.Config[commonBean.CertData]
+			config.CaData = clusterDetail.Config[commonBean.CertificateAuthorityData]
 		}
 		req.Clusters = append(req.Clusters, config)
 		applicationStream, err := impl.helmAppClient.ListApplication(context.Background(), req)
@@ -601,6 +603,10 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardAccessEvent() error 
 		return err
 	}
 	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
+	if err != nil {
+		impl.logger.Errorw("DashboardAccessed EventForTelemetry,failed to get DevtronUniqueClientIdConfigMap", "error", err)
+		return err
+	}
 	datamap := cm.Data
 
 	accessEventValue, installEventKeyExists := datamap[UIEventKey]
@@ -667,6 +673,10 @@ func (impl *TelemetryEventClientImpl) SendTelemetryDashboardLoggedInEvent() erro
 		return err
 	}
 	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
+	if err != nil {
+		impl.logger.Errorw("DashboardLoggedIn EventForTelemetry,failed to get DevtronUniqueClientIdConfigMap", "error", err)
+		return err
+	}
 	datamap := cm.Data
 
 	accessEventValue, installEventKeyExists := datamap[UIEventKey]

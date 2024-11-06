@@ -714,17 +714,33 @@ func (handler *PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseW
 		return
 	}
 	cdPipelineRbacObjects := make([]string, len(cdPipelines))
+	rbacObjectCdTriggerTypeMap := make(map[string]pipelineConfig.TriggerType, len(cdPipelines))
 	for i, cdPipeline := range cdPipelines {
 		envObject := handler.enforcerUtil.GetAppRBACByAppIdAndPipelineId(cdPipeline.AppId, cdPipeline.Id)
 		cdPipelineRbacObjects[i] = envObject
+		rbacObjectCdTriggerTypeMap[envObject] = cdPipeline.TriggerType
 	}
-	envRbacResultMap := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionTrigger, cdPipelineRbacObjects)
-	for _, rbacResultOk := range envRbacResultMap {
-		if !rbacResultOk {
+
+	hasAnyEnvTriggerAccess := len(cdPipelines) == 0 //if no pipelines then appAccess is enough. For jobs also, this will be true
+	if !hasAnyEnvTriggerAccess {
+		//cdPipelines present, to check access for cd trigger
+		envRbacResultMap := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionTrigger, cdPipelineRbacObjects)
+		for rbacObject, rbacResultOk := range envRbacResultMap {
+			if rbacObjectCdTriggerTypeMap[rbacObject] == pipelineConfig.TRIGGER_TYPE_AUTOMATIC && !rbacResultOk {
+				common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+				return
+			}
+			if rbacResultOk { //this flow will come if pipeline is automatic and has access or if pipeline is manual,
+				// by which we can ensure if there are no automatic pipelines then atleast access on one manual is present
+				hasAnyEnvTriggerAccess = true
+			}
+		}
+		if !hasAnyEnvTriggerAccess {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	}
+
 	//RBAC ENDS
 	response := make(map[string]string)
 	resp, err := handler.ciHandler.HandleCIManual(ciTriggerRequest)
@@ -1016,7 +1032,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetHistoricBuildLogs(w http.Respon
 		return
 	}
 	//RBAC
-	resp, err := handler.ciHandler.GetHistoricBuildLogs(pipelineId, workflowId, nil)
+	resp, err := handler.ciHandler.GetHistoricBuildLogs(workflowId, nil)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetHistoricBuildLogs", "err", err, "pipelineId", pipelineId, "workflowId", workflowId)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
@@ -1155,7 +1171,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildLogs(w http.ResponseWriter
 			return
 		}
 	}
-	logsReader, cleanUp, err := handler.ciHandler.GetRunningWorkflowLogs(pipelineId, workflowId)
+	logsReader, cleanUp, err := handler.ciHandler.GetRunningWorkflowLogs(workflowId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetBuildLogs", "err", err, "pipelineId", pipelineId, "workflowId", workflowId, "lastEventId", lastEventId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1546,12 +1562,16 @@ func (handler *PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWrit
 		return
 	}
 	var forceAbort bool
-	forceAbort, err = strconv.ParseBool(queryVars.Get("forceAbort"))
-	if err != nil {
-		handler.Logger.Errorw("request err, CancelWorkflow", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+	forceAbortQueryParam := queryVars.Get("forceAbort")
+	if len(forceAbortQueryParam) > 0 {
+		forceAbort, err = strconv.ParseBool(forceAbortQueryParam)
+		if err != nil {
+			handler.Logger.Errorw("request err, CancelWorkflow", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 	}
+
 	handler.Logger.Infow("request payload, CancelWorkflow", "workflowId", workflowId, "pipelineId", pipelineId)
 
 	ciPipeline, err := handler.ciPipelineRepository.FindById(pipelineId)

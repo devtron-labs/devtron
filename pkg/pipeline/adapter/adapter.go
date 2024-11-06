@@ -21,6 +21,7 @@ import (
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/ciPipeline"
+	"github.com/devtron-labs/devtron/pkg/bean"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -224,4 +225,131 @@ func GetSourceCiDownStreamResponse(linkedCIDetails []ciPipeline.LinkedCIDetails,
 		response = append(response, linkedCIDetailsRes)
 	}
 	return response
+}
+
+func ConvertConfigDataToPipelineConfigData(r *bean.ConfigData) *pipelineConfigBean.ConfigData {
+	if r != nil {
+		return &pipelineConfigBean.ConfigData{
+			Name:                  r.Name,
+			Type:                  r.Type,
+			External:              r.External,
+			MountPath:             r.MountPath,
+			Data:                  r.Data,
+			DefaultData:           r.DefaultData,
+			DefaultMountPath:      r.DefaultMountPath,
+			Global:                r.Global,
+			ExternalSecretType:    r.ExternalSecretType,
+			ESOSecretData:         ConvertESOSecretDataToPipelineESOSecretData(r.ESOSecretData),
+			DefaultESOSecretData:  ConvertESOSecretDataToPipelineESOSecretData(r.DefaultESOSecretData),
+			ExternalSecret:        ConvertExternalSecretToPipelineExternalSecret(r.ExternalSecret),
+			DefaultExternalSecret: ConvertExternalSecretToPipelineExternalSecret(r.DefaultExternalSecret),
+			RoleARN:               r.RoleARN,
+			SubPath:               r.SubPath,
+			ESOSubPath:            r.ESOSubPath,
+			FilePermission:        r.FilePermission,
+			Overridden:            r.Overridden,
+		}
+	}
+	return &pipelineConfigBean.ConfigData{}
+}
+
+func ConvertESOSecretDataToPipelineESOSecretData(r bean.ESOSecretData) pipelineConfigBean.ESOSecretData {
+	return pipelineConfigBean.ESOSecretData{
+		SecretStore:     r.SecretStore,
+		SecretStoreRef:  r.SecretStoreRef,
+		ESOData:         ConvertEsoDataToPipelineEsoData(r.ESOData),
+		RefreshInterval: r.RefreshInterval,
+	}
+}
+
+func ConvertExternalSecretToPipelineExternalSecret(r []bean.ExternalSecret) []pipelineConfigBean.ExternalSecret {
+	extSec := make([]pipelineConfigBean.ExternalSecret, 0, len(r))
+	for _, item := range r {
+		newItem := pipelineConfigBean.ExternalSecret{
+			Key:      item.Key,
+			Name:     item.Name,
+			Property: item.Property,
+			IsBinary: item.IsBinary,
+		}
+		extSec = append(extSec, newItem)
+	}
+	return extSec
+}
+
+func ConvertEsoDataToPipelineEsoData(r []bean.ESOData) []pipelineConfigBean.ESOData {
+	newEsoData := make([]pipelineConfigBean.ESOData, 0, len(r))
+	for _, item := range r {
+		newItem := pipelineConfigBean.ESOData{
+			SecretKey: item.SecretKey,
+			Key:       item.Key,
+			Property:  item.Property,
+		}
+		newEsoData = append(newEsoData, newItem)
+	}
+	return newEsoData
+}
+
+// reverse adapter for the above adapters
+
+func ConvertPipelineConfigDataToConfigData(r *pipelineConfigBean.ConfigData) *bean.ConfigData {
+	if r != nil {
+		return &bean.ConfigData{
+			Name:                  r.Name,
+			Type:                  r.Type,
+			External:              r.External,
+			MountPath:             r.MountPath,
+			Data:                  r.Data,
+			DefaultData:           r.DefaultData,
+			DefaultMountPath:      r.DefaultMountPath,
+			Global:                r.Global,
+			ExternalSecretType:    r.ExternalSecretType,
+			ESOSecretData:         ConvertPipelineESOSecretDataToESOSecretData(r.ESOSecretData),
+			DefaultESOSecretData:  ConvertPipelineESOSecretDataToESOSecretData(r.DefaultESOSecretData),
+			ExternalSecret:        ConvertPipelineExternalSecretToExternalSecret(r.ExternalSecret),
+			DefaultExternalSecret: ConvertPipelineExternalSecretToExternalSecret(r.DefaultExternalSecret),
+			RoleARN:               r.RoleARN,
+			SubPath:               r.SubPath,
+			ESOSubPath:            r.ESOSubPath,
+			FilePermission:        r.FilePermission,
+			Overridden:            r.Overridden,
+		}
+	}
+	return &bean.ConfigData{}
+
+}
+
+func ConvertPipelineESOSecretDataToESOSecretData(r pipelineConfigBean.ESOSecretData) bean.ESOSecretData {
+	return bean.ESOSecretData{
+		SecretStore:     r.SecretStore,
+		SecretStoreRef:  r.SecretStoreRef,
+		ESOData:         ConvertPipelineEsoDataToEsoData(r.ESOData),
+		RefreshInterval: r.RefreshInterval,
+	}
+}
+
+func ConvertPipelineExternalSecretToExternalSecret(r []pipelineConfigBean.ExternalSecret) []bean.ExternalSecret {
+	extSec := make([]bean.ExternalSecret, 0, len(r))
+	for _, item := range r {
+		newItem := bean.ExternalSecret{
+			Key:      item.Key,
+			Name:     item.Name,
+			Property: item.Property,
+			IsBinary: item.IsBinary,
+		}
+		extSec = append(extSec, newItem)
+	}
+	return extSec
+}
+
+func ConvertPipelineEsoDataToEsoData(r []pipelineConfigBean.ESOData) []bean.ESOData {
+	newEsoData := make([]bean.ESOData, 0, len(r))
+	for _, item := range r {
+		newItem := bean.ESOData{
+			SecretKey: item.SecretKey,
+			Key:       item.Key,
+			Property:  item.Property,
+		}
+		newEsoData = append(newEsoData, newItem)
+	}
+	return newEsoData
 }

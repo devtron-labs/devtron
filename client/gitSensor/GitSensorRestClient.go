@@ -273,7 +273,6 @@ func (session *RestClientImpl) doRequest(clientRequest *ClientRequest) (resBody 
 		if req, err := json.Marshal(clientRequest.RequestBody); err != nil {
 			return nil, nil, err
 		} else {
-			session.logger.Debugw("argo req with body", "body", string(req))
 			body = bytes.NewBuffer(req)
 		}
 	}

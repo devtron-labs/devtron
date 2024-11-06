@@ -19,6 +19,7 @@ package user
 import (
 	"errors"
 	"fmt"
+	helper2 "github.com/devtron-labs/devtron/pkg/auth/user/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository/helper"
 	"net/http"
 	"strings"
@@ -39,7 +40,7 @@ import (
 type RoleGroupService interface {
 	CreateRoleGroup(request *bean.RoleGroup) (*bean.RoleGroup, error)
 	UpdateRoleGroup(request *bean.RoleGroup, token string, checkRBACForGroupUpdate func(token string, groupInfo *bean.RoleGroup,
-		eliminatedRoleFilters []*repository.RoleModel) (isAuthorised bool, err error)) (*bean.RoleGroup, error)
+		eliminatedRoleFilters []*repository.RoleModel, isRoleGroupAlreadySuperAdmin bool) (isAuthorised bool, err error), managerAuth func(resource, token string, object string) bool) (*bean.RoleGroup, error)
 	FetchDetailedRoleGroups(req *bean.ListingRequest) ([]*bean.RoleGroup, error)
 	FetchRoleGroupsById(id int32) (*bean.RoleGroup, error)
 	FetchRoleGroups() ([]*bean.RoleGroup, error)
@@ -101,9 +102,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 			Name:        request.Name,
 			Description: request.Description,
 		}
-		rgName := strings.ToLower(request.Name)
-		object := "group:" + strings.ReplaceAll(rgName, " ", "_")
-
+		object := helper2.GetCasbinNameFromRoleGroupName(request.Name)
 		exists, err := impl.roleGroupRepository.CheckRoleGroupExistByCasbinName(object)
 		if err != nil {
 			impl.logger.Errorw("error in getting role group by casbin name", "err", err, "casbinName", object)
@@ -137,7 +136,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 		if request.SuperAdmin == false {
 			for index, roleFilter := range request.RoleFilters {
 				entity := roleFilter.Entity
-				if entity == bean.CLUSTER_ENTITIY {
+				if entity == bean2.CLUSTER_ENTITIY {
 					policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, model, nil, tx, mapping[index])
 					policies = append(policies, policiesToBeAdded...)
 					if err != nil {
@@ -275,7 +274,7 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForOtherEntity(roleFilte
 			}
 			if roleModel.Id == 0 {
 				request.Status = fmt.Sprintf("%s+%s,%s,%s,%s", bean2.RoleNotFoundStatusPrefix, roleFilter.Team, environment, entityName, actionType)
-				if roleFilter.Entity == bean2.ENTITY_APPS || roleFilter.Entity == bean.CHART_GROUP_ENTITY {
+				if roleFilter.Entity == bean2.ENTITY_APPS || roleFilter.Entity == bean2.CHART_GROUP_ENTITY {
 					flag, err, policiesAdded := impl.userCommonService.CreateDefaultPoliciesForAllTypes(roleFilter.Team, entityName, environment, entity, "", "", "", "", "", actionType, accessType, "", request.UserId)
 					if err != nil || flag == false {
 						return nil, err
@@ -368,8 +367,25 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForJobsEntity(roleFilter
 	return policiesToBeAdded, nil
 }
 
+func (impl RoleGroupServiceImpl) checkIfRoleGroupSuperAdmin(casbinName string) (bool, error) {
+	rolesModels, err := impl.roleGroupRepository.GetRolesByGroupCasbinNames([]string{casbinName})
+	if err != nil {
+		impl.logger.Errorw("error in getting roles by group names", "err", err)
+		return false, err
+	}
+	isSuperAdmin := false
+	for _, roleModel := range rolesModels {
+		if roleModel.Action == bean2.SUPER_ADMIN {
+			isSuperAdmin = true
+			break
+		}
+	}
+	return isSuperAdmin, nil
+
+}
+
 func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token string, checkRBACForGroupUpdate func(token string, groupInfo *bean.RoleGroup,
-	eliminatedRoleFilters []*repository.RoleModel) (isAuthorised bool, err error)) (*bean.RoleGroup, error) {
+	eliminatedRoleFilters []*repository.RoleModel, isRoleGroupAlreadySuperAdmin bool) (isAuthorised bool, err error), managerAuth func(resource, token string, object string) bool) (*bean.RoleGroup, error) {
 	dbConnection := impl.roleGroupRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -381,6 +397,12 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 	roleGroup, err := impl.roleGroupRepository.GetRoleGroupById(request.Id)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
+
+	isRGSuperAdmin, err := impl.checkIfRoleGroupSuperAdmin(roleGroup.CasbinName)
+	if err != nil {
+		impl.logger.Errorw("error encountered in UpdateRoleGroup", "error", err, "roleGroupId", roleGroup.Id)
 		return nil, err
 	}
 
@@ -416,7 +438,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 
 		// DELETE PROCESS STARTS
 
-		items, eliminatedRoleModels, err = impl.userCommonService.RemoveRolesAndReturnEliminatedPoliciesForGroups(request, existingRoles, eliminatedRoles, tx)
+		items, eliminatedRoleModels, err = impl.userCommonService.RemoveRolesAndReturnEliminatedPoliciesForGroups(request, existingRoles, eliminatedRoles, tx, token, managerAuth)
 		if err != nil {
 			return nil, err
 		}
@@ -425,7 +447,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 
 		//Adding New Policies
 		for index, roleFilter := range request.RoleFilters {
-			if roleFilter.Entity == bean.CLUSTER_ENTITIY {
+			if roleFilter.Entity == bean2.CLUSTER_ENTITIY {
 				policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, roleGroup, existingRoles, tx, mapping[index])
 				policies = append(policies, policiesToBeAdded...)
 				if err != nil {
@@ -465,10 +487,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 		}
 		if roleModel.Id > 0 {
 			roleGroupMappingModel := &repository.RoleGroupRoleMapping{RoleGroupId: roleGroup.Id, RoleId: roleModel.Id}
-			roleGroupMappingModel.CreatedBy = request.UserId
-			roleGroupMappingModel.UpdatedBy = request.UserId
-			roleGroupMappingModel.CreatedOn = time.Now()
-			roleGroupMappingModel.UpdatedOn = time.Now()
+			roleGroupMappingModel.CreateAuditLog(request.UserId)
 			roleGroupMappingModel, err = impl.roleGroupRepository.CreateRoleGroupRoleMapping(roleGroupMappingModel, tx)
 			if err != nil {
 				impl.logger.Errorw("error in creating role group role mapping", "err", err, "RoleGroupId", roleGroup.Id)
@@ -479,7 +498,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 	}
 
 	if checkRBACForGroupUpdate != nil {
-		isAuthorised, err := checkRBACForGroupUpdate(token, request, eliminatedRoleModels)
+		isAuthorised, err := checkRBACForGroupUpdate(token, request, eliminatedRoleModels, isRGSuperAdmin)
 		if err != nil {
 			impl.logger.Errorw("error in checking RBAC for role group update", "err", err, "request", request)
 			return nil, err
@@ -597,8 +616,8 @@ func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository.Role
 }
 
 func (impl RoleGroupServiceImpl) FetchDetailedRoleGroups(req *bean.ListingRequest) ([]*bean.RoleGroup, error) {
-	query := helper.GetQueryForGroupListingWithFilters(req)
-	roleGroups, err := impl.roleGroupRepository.GetAllExecutingQuery(query)
+	query, queryParams := helper.GetQueryForGroupListingWithFilters(req)
+	roleGroups, err := impl.roleGroupRepository.GetAllExecutingQuery(query, queryParams)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
@@ -676,8 +695,8 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *bean.Listin
 
 	// setting count check to true for getting only count
 	request.CountCheck = true
-	query := helper.GetQueryForGroupListingWithFilters(request)
-	totalCount, err := impl.userRepository.GetCountExecutingQuery(query)
+	query, queryParams := helper.GetQueryForGroupListingWithFilters(request)
+	totalCount, err := impl.userRepository.GetCountExecutingQuery(query, queryParams)
 	if err != nil {
 		impl.logger.Errorw("error in FetchRoleGroupsWithFilters", "err", err, "query", query)
 		return nil, err
@@ -685,8 +704,8 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsWithFilters(request *bean.Listin
 	// setting count check to false for getting data
 	request.CountCheck = false
 
-	query = helper.GetQueryForGroupListingWithFilters(request)
-	roleGroup, err := impl.roleGroupRepository.GetAllExecutingQuery(query)
+	query, queryParams = helper.GetQueryForGroupListingWithFilters(request)
+	roleGroup, err := impl.roleGroupRepository.GetAllExecutingQuery(query, queryParams)
 	if err != nil {
 		impl.logger.Errorw("error while FetchRoleGroupsWithFilters", "error", err, "query", query)
 		return nil, err
@@ -831,8 +850,8 @@ func (impl RoleGroupServiceImpl) BulkDeleteRoleGroups(request *bean.BulkDeleteRe
 // getGroupIdsHonoringFilters get the filtered group ids according to the request filters and returns groupIds and error(not nil) if any exception is caught.
 func (impl *RoleGroupServiceImpl) getGroupIdsHonoringFilters(request *bean.ListingRequest) ([]int32, error) {
 	//query to get particular models respecting filters
-	query := helper.GetQueryForGroupListingWithFilters(request)
-	models, err := impl.roleGroupRepository.GetAllExecutingQuery(query)
+	query, queryParams := helper.GetQueryForGroupListingWithFilters(request)
+	models, err := impl.roleGroupRepository.GetAllExecutingQuery(query, queryParams)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db in getGroupIdsHonoringFilters", "error", err)
 		return nil, err

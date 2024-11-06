@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/api/helm-app/models"
@@ -234,15 +235,15 @@ func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*gRPC.ClusterConf
 	}
 	config := &gRPC.ClusterConfig{
 		ApiServerUrl:          cluster.ServerUrl,
-		Token:                 cluster.Config[k8s.BearerToken],
+		Token:                 cluster.Config[commonBean.BearerToken],
 		ClusterId:             int32(cluster.Id),
 		ClusterName:           cluster.ClusterName,
 		InsecureSkipTLSVerify: cluster.InsecureSkipTLSVerify,
 	}
 	if cluster.InsecureSkipTLSVerify == false {
-		config.KeyData = cluster.Config[k8s.TlsKey]
-		config.CertData = cluster.Config[k8s.CertData]
-		config.CaData = cluster.Config[k8s.CertificateAuthorityData]
+		config.KeyData = cluster.Config[commonBean.TlsKey]
+		config.CertData = cluster.Config[commonBean.CertData]
+		config.CaData = cluster.Config[commonBean.CertificateAuthorityData]
 	}
 	return config, nil
 }
@@ -609,7 +610,7 @@ func (impl *HelmAppServiceImpl) checkIfNsExists(namespace string, clusterBean *c
 		impl.logger.Errorw("error in getting k8s client", "err", err, "clusterHost", config.Host)
 		return false, err
 	}
-	exists, err := impl.K8sUtil.CheckIfNsExists(namespace, v12Client)
+	_, exists, err := impl.K8sUtil.GetNsIfExists(namespace, v12Client)
 	if err != nil {
 		if IsClusterUnReachableError(err) {
 			impl.logger.Errorw("k8s cluster unreachable", "err", err)
@@ -1095,15 +1096,15 @@ func (impl *HelmAppServiceImpl) listApplications(ctx context.Context, clusterIds
 	for _, clusterDetail := range clusters {
 		config := &gRPC.ClusterConfig{
 			ApiServerUrl:          clusterDetail.ServerUrl,
-			Token:                 clusterDetail.Config[k8s.BearerToken],
+			Token:                 clusterDetail.Config[commonBean.BearerToken],
 			ClusterId:             int32(clusterDetail.Id),
 			ClusterName:           clusterDetail.ClusterName,
 			InsecureSkipTLSVerify: clusterDetail.InsecureSkipTLSVerify,
 		}
 		if clusterDetail.InsecureSkipTLSVerify == false {
-			config.KeyData = clusterDetail.Config[k8s.TlsKey]
-			config.CertData = clusterDetail.Config[k8s.CertData]
-			config.CaData = clusterDetail.Config[k8s.CertificateAuthorityData]
+			config.KeyData = clusterDetail.Config[commonBean.TlsKey]
+			config.CertData = clusterDetail.Config[commonBean.CertData]
+			config.CaData = clusterDetail.Config[commonBean.CertificateAuthorityData]
 		}
 		req.Clusters = append(req.Clusters, config)
 	}

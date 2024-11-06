@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -204,7 +205,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			ImageRetryCount:           0,
 			ImageRetryInterval:        5,
 			Type:                      bean2.CI_WORKFLOW_PIPELINE_TYPE,
-			WorkflowExecutor:          pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+			WorkflowExecutor:          cdWorkflow.WORKFLOW_EXECUTOR_TYPE_AWF,
 		}
 
 		data, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
@@ -340,7 +341,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			ImageRetryCount:           0,
 			ImageRetryInterval:        5,
 			Type:                      bean2.CI_WORKFLOW_PIPELINE_TYPE,
-			WorkflowExecutor:          pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+			WorkflowExecutor:          cdWorkflow.WORKFLOW_EXECUTOR_TYPE_AWF,
 		}
 
 		data, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
@@ -508,7 +509,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			ImageRetryCount:           0,
 			ImageRetryInterval:        5,
 			Type:                      bean2.JOB_WORKFLOW_PIPELINE_TYPE,
-			WorkflowExecutor:          pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+			WorkflowExecutor:          cdWorkflow.WORKFLOW_EXECUTOR_TYPE_AWF,
 		}
 
 		data, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
@@ -737,7 +738,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 				IsVirtualEnvironment:  false,
 			},
 			Type:             bean2.JOB_WORKFLOW_PIPELINE_TYPE,
-			WorkflowExecutor: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+			WorkflowExecutor: cdWorkflow.WORKFLOW_EXECUTOR_TYPE_AWF,
 		}
 
 		data, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)

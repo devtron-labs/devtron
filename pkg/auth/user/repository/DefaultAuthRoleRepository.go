@@ -68,15 +68,17 @@ func (impl DefaultAuthRoleRepositoryImpl) UpdateRole(role *DefaultAuthRole) (*De
 
 func (impl DefaultAuthRoleRepositoryImpl) GetRoleByRoleTypeAndEntityType(roleType bean.RoleType, accessType string, entity string) (role string, err error) {
 	var model DefaultAuthRole
-	query := "SELECT * FROM default_auth_role WHERE role_type = ? "
-	query += " and entity = '" + entity + "' "
+	var queryParams []interface{}
+	query := "SELECT * FROM default_auth_role WHERE role_type = ? and entity = ?  "
+	queryParams = append(queryParams, roleType.String(), entity)
 	if accessType == "" {
 		query += "and access_type IS NULL ;"
 	} else {
-		query += "and access_type ='" + accessType + "' ;"
+		query += "and access_type = ?;"
+		queryParams = append(queryParams, accessType)
 	}
 
-	_, err = impl.dbConnection.Query(&model, query, roleType)
+	_, err = impl.dbConnection.Query(&model, query, queryParams...)
 	if err != nil {
 		impl.logger.Error("error in getting role by roleType", "err", err, "roleType", roleType)
 		return "", err

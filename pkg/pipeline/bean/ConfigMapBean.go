@@ -18,6 +18,7 @@ package bean
 
 import (
 	"encoding/json"
+	"strings"
 )
 
 type ConfigDataRequest struct {
@@ -31,8 +32,10 @@ type ConfigDataRequest struct {
 type ESOSecretData struct {
 	SecretStore     json.RawMessage `json:"secretStore,omitempty"`
 	SecretStoreRef  json.RawMessage `json:"secretStoreRef,omitempty"`
-	EsoData         []ESOData       `json:"esoData,omitempty"`
+	ESOData         []ESOData       `json:"esoData,omitempty"`
 	RefreshInterval string          `json:"refreshInterval,omitempty"`
+	ESODataFrom     json.RawMessage `json:"esoDataFrom,omitempty"`
+	Template        json.RawMessage `json:"template,omitempty"`
 }
 
 type ESOData struct {
@@ -40,6 +43,8 @@ type ESOData struct {
 	Key       string `json:"key"`
 	Property  string `json:"property,omitempty"`
 }
+
+// there is an adapter written in pkg/bean folder to convert below ConfigData struct to pkg/bean's ConfigData
 
 type ConfigData struct {
 	Name                  string           `json:"name"`
@@ -57,9 +62,15 @@ type ConfigData struct {
 	DefaultExternalSecret []ExternalSecret `json:"defaultSecretData,omitempty"`
 	RoleARN               string           `json:"roleARN"`
 	SubPath               bool             `json:"subPath"`
+	ESOSubPath            []string         `json:"esoSubPath"`
 	FilePermission        string           `json:"filePermission"`
 	Overridden            bool             `json:"overridden"`
 }
+
+func (c *ConfigData) IsESOExternalSecretType() bool {
+	return strings.HasPrefix(c.ExternalSecretType, "ESO")
+}
+
 type ExternalSecret struct {
 	Key      string `json:"key"`
 	Name     string `json:"name"`
@@ -108,6 +119,10 @@ type SecretsList struct {
 	ConfigData []*ConfigData `json:"secrets"`
 }
 
+type ConfigsList struct {
+	ConfigData []*ConfigData `json:"maps"`
+}
+
 type ConfigNameAndType struct {
 	Id   int
 	Name string
@@ -120,6 +135,7 @@ const (
 	CM                 ResourceType = "ConfigMap"
 	CS                 ResourceType = "Secret"
 	DeploymentTemplate ResourceType = "Deployment Template"
+	PipelineStrategy   ResourceType = "Pipeline Strategy"
 )
 
 func (r ResourceType) ToString() string {

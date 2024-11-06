@@ -43,7 +43,7 @@ spec:
       {{- if (and (eq $.Values.service.type "NodePort") .nodePort )}}
       nodePort: {{ .nodePort }}
       {{- end }}
-      protocol: TCP
+      protocol: {{ .protocol }}
       name: {{ .name }}
     {{- end }}
       {{- if $.Values.appMetrics }}
@@ -56,6 +56,13 @@ spec:
     {{- else }}
     app: {{ template ".Chart.Name .name" . }}
     {{- end }}
+{{- if .Values.service.sessionAffinity.enabled }}    
+  sessionAffinity: ClientIP
+{{- end }}   
+{{- if .Values.service.sessionAffinityConfig }}    
+  sessionAffinityConfig:
+{{ toYaml .Values.service.sessionAffinityConfig | indent 4 }}  
+{{- end }}  
 {{- end }}
 ---
 {{- if or  .Values.service.enabled .Values.serviceheadless.enabled  }}
@@ -114,6 +121,13 @@ spec:
     {{- else }}
     app: {{ template ".Chart.Name .name" . }}
     {{- end }}
+{{- if .Values.serviceheadless.sessionAffinity.enabled }}    
+  sessionAffinity: ClientIP
+{{- end }}   
+{{- if .Values.serviceheadless.sessionAffinityConfig }}    
+  sessionAffinityConfig:
+{{ toYaml .Values.serviceheadless.sessionAffinityConfig | indent 4 }}  
+{{- end }}      
   type: ClusterIP
 {{- if (and (eq .Values.service.type "LoadBalancer") .Values.service.loadBalancerSourceRanges )}}
   loadBalancerSourceRanges: 

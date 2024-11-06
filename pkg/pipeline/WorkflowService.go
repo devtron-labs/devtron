@@ -22,9 +22,11 @@ import (
 	"errors"
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/workflow/util"
+	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
@@ -38,6 +40,8 @@ import (
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
+	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -46,11 +50,12 @@ import (
 type WorkflowService interface {
 	SubmitWorkflow(workflowRequest *types.WorkflowRequest) (*unstructured.UnstructuredList, error)
 	// DeleteWorkflow(wfName string, namespace string) error
-	GetWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*unstructured.UnstructuredList, error)
-	GetWorkflowStatus(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*types.WorkflowStatus, error)
+	GetWorkflow(executorType cdWorkflow.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*unstructured.UnstructuredList, error)
+	GetWorkflowStatus(executorType cdWorkflow.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*types.WorkflowStatus, error)
 	// ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
 	// UpdateWorkflow(wf *v1alpha1.Workflow) (*v1alpha1.Workflow, error)
-	TerminateWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config, isExt bool, environment *repository.Environment) error
+	TerminateWorkflow(cancelWfDtoRequest *types.CancelWfRequestDto) error
+	TerminateDanglingWorkflows(cancelWfDtoRequest *types.CancelWfRequestDto) error
 }
 
 type WorkflowServiceImpl struct {
@@ -156,12 +161,10 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 	}
 
 	workflowMainContainer, err := workflowRequest.GetWorkflowMainContainer(impl.ciCdConfig, infraConfiguration, workflowJson, &workflowTemplate, workflowConfigMaps, workflowSecrets)
-
 	if err != nil {
 		impl.Logger.Errorw("error occurred while getting workflow main container", "err", err)
 		return bean3.WorkflowTemplate{}, err
 	}
-
 	workflowTemplate.Containers = []v12.Container{workflowMainContainer}
 	impl.updateBlobStorageConfig(workflowRequest, &workflowTemplate)
 	if workflowRequest.Type == bean3.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean3.JOB_WORKFLOW_PIPELINE_TYPE {
@@ -193,7 +196,7 @@ func (impl *WorkflowServiceImpl) getClusterConfig(workflowRequest *types.Workflo
 	env := workflowRequest.Env
 	if workflowRequest.IsExtRun {
 		configMap := env.Cluster.Config
-		bearerToken := configMap[k8s.BearerToken]
+		bearerToken := configMap[commonBean.BearerToken]
 		clusterConfig := &k8s.ClusterConfig{
 			ClusterName:           env.Cluster.ClusterName,
 			BearerToken:           bearerToken,
@@ -317,16 +320,16 @@ func (impl *WorkflowServiceImpl) getAppLabelNodeSelector(workflowRequest *types.
 	return nil
 }
 
-func (impl *WorkflowServiceImpl) getWorkflowExecutor(executorType pipelineConfig.WorkflowExecutorType) executors.WorkflowExecutor {
-	if executorType == "" || executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF {
+func (impl *WorkflowServiceImpl) getWorkflowExecutor(executorType cdWorkflow.WorkflowExecutorType) executors.WorkflowExecutor {
+	if executorType == "" || executorType == cdWorkflow.WORKFLOW_EXECUTOR_TYPE_AWF {
 		return impl.argoWorkflowExecutor
-	} else if executorType == pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
+	} else if executorType == cdWorkflow.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
 		return impl.systemWorkflowExecutor
 	}
 	impl.Logger.Warnw("workflow executor not found", "type", executorType)
 	return nil
 }
-func (impl *WorkflowServiceImpl) GetWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*unstructured.UnstructuredList, error) {
+func (impl *WorkflowServiceImpl) GetWorkflow(executorType cdWorkflow.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*unstructured.UnstructuredList, error) {
 	impl.Logger.Debug("getting wf", name)
 	workflowExecutor := impl.getWorkflowExecutor(executorType)
 	if workflowExecutor == nil {
@@ -338,7 +341,7 @@ func (impl *WorkflowServiceImpl) GetWorkflow(executorType pipelineConfig.Workflo
 	return workflowExecutor.GetWorkflow(name, namespace, restConfig)
 }
 
-func (impl *WorkflowServiceImpl) GetWorkflowStatus(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*types.WorkflowStatus, error) {
+func (impl *WorkflowServiceImpl) GetWorkflowStatus(executorType cdWorkflow.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*types.WorkflowStatus, error) {
 	impl.Logger.Debug("getting wf", name)
 	workflowExecutor := impl.getWorkflowExecutor(executorType)
 	if workflowExecutor == nil {
@@ -351,27 +354,42 @@ func (impl *WorkflowServiceImpl) GetWorkflowStatus(executorType pipelineConfig.W
 	return wfStatus, err
 }
 
-func (impl *WorkflowServiceImpl) TerminateWorkflow(executorType pipelineConfig.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config, isExt bool, environment *repository.Environment) error {
-	impl.Logger.Debugw("terminating wf", "name", name)
+func (impl *WorkflowServiceImpl) TerminateWorkflow(cancelWfDtoRequest *types.CancelWfRequestDto) error {
+	impl.Logger.Debugw("terminating wf", "name", cancelWfDtoRequest.WorkflowName)
 	var err error
-	if executorType != "" {
-		workflowExecutor := impl.getWorkflowExecutor(executorType)
+	if cancelWfDtoRequest.ExecutorType != "" {
+		workflowExecutor := impl.getWorkflowExecutor(cancelWfDtoRequest.ExecutorType)
 		if workflowExecutor == nil {
 			return errors.New("workflow executor not found")
 		}
-		if restConfig == nil {
-			restConfig = impl.config
+		if cancelWfDtoRequest.RestConfig == nil {
+			cancelWfDtoRequest.RestConfig = impl.config
 		}
-		err = workflowExecutor.TerminateWorkflow(name, namespace, restConfig)
+		err = workflowExecutor.TerminateWorkflow(cancelWfDtoRequest.WorkflowName, cancelWfDtoRequest.Namespace, cancelWfDtoRequest.RestConfig)
 	} else {
-		wfClient, err := impl.getWfClient(environment, namespace, isExt)
+		wfClient, err := impl.getWfClient(cancelWfDtoRequest.Environment, cancelWfDtoRequest.Namespace, cancelWfDtoRequest.IsExt)
 		if err != nil {
 			return err
 		}
-		err = util.TerminateWorkflow(context.Background(), wfClient, name)
+		err = util.TerminateWorkflow(context.Background(), wfClient, cancelWfDtoRequest.WorkflowName)
 	}
 	return err
 }
+
+func (impl *WorkflowServiceImpl) TerminateDanglingWorkflows(cancelWfDtoRequest *types.CancelWfRequestDto) error {
+	impl.Logger.Debugw("terminating dangling wf", "name", cancelWfDtoRequest.WorkflowName)
+	var err error
+	workflowExecutor := impl.getWorkflowExecutor(cancelWfDtoRequest.ExecutorType)
+	if workflowExecutor == nil {
+		return &utils.ApiError{HttpStatusCode: http.StatusNotFound, Code: strconv.Itoa(http.StatusNotFound), InternalMessage: "workflow executor not found", UserMessage: "workflow executor not found"}
+	}
+	if cancelWfDtoRequest.RestConfig == nil {
+		cancelWfDtoRequest.RestConfig = impl.config
+	}
+	err = workflowExecutor.TerminateDanglingWorkflow(cancelWfDtoRequest.WorkflowGenerateName, cancelWfDtoRequest.Namespace, cancelWfDtoRequest.RestConfig)
+	return err
+}
+
 func (impl *WorkflowServiceImpl) getRuntimeEnvClientInstance(environment *repository.Environment) (v1alpha12.WorkflowInterface, error) {
 	restConfig, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(context.Background(), environment.ClusterId)
 	if err != nil {

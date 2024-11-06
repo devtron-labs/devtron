@@ -50,6 +50,8 @@ type DeploymentTemplateHistoryService interface {
 
 	// used for rollback
 	GetDeployedHistoryByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int) (*HistoryDetailDto, error)
+
+	GetTemplateHistoryModelForDeployedTemplateById(deploymentTemplateHistoryId, pipelineId int) (*repository.DeploymentTemplateHistory, error)
 }
 
 type DeploymentTemplateHistoryServiceImpl struct {
@@ -267,7 +269,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeploymentDetailsForDeployed
 	var historiesDto []*DeploymentTemplateHistoryDto
 	for _, history := range histories {
 		if wfrIndex, ok := deploymentTimeStatusMap[history.DeployedOn]; ok {
-			userEmailId, err := impl.userService.GetEmailById(history.DeployedBy)
+			userEmailId, err := impl.userService.GetActiveEmailById(history.DeployedBy)
 			if err != nil {
 				impl.logger.Errorw("unable to find user email by id", "err", err, "id", history.DeployedBy)
 				return nil, err
@@ -406,4 +408,13 @@ func (impl DeploymentTemplateHistoryServiceImpl) CheckIfTriggerHistoryExistsForP
 	deploymentTemplateHistoryId = history.Id
 	exists = true
 	return deploymentTemplateHistoryId, exists, err
+}
+
+func (impl DeploymentTemplateHistoryServiceImpl) GetTemplateHistoryModelForDeployedTemplateById(deploymentTemplateHistoryId, pipelineId int) (*repository.DeploymentTemplateHistory, error) {
+	history, err := impl.deploymentTemplateHistoryRepository.GetHistoryForDeployedTemplateById(deploymentTemplateHistoryId, pipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment template history", "err", err, "deploymentTemplateHistoryId", deploymentTemplateHistoryId, "pipelineId", pipelineId)
+		return nil, err
+	}
+	return history, nil
 }

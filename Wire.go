@@ -202,7 +202,7 @@ func InitializeApp() (*App, error) {
 		terminal.TerminalWireSet,
 		build.BuildWireSet,
 		deployment2.DeploymentWireSet,
-		argoApplication.ArgoApplicationWireSet,
+		argoApplication.ArgoApplicationWireSetFull,
 		fluxApplication.FluxApplicationWireSet,
 		eventProcessor.EventProcessorWireSet,
 		workflow3.WorkflowWireSet,

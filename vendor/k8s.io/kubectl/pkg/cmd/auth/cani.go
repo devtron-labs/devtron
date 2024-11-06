@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"sort"
 	"strings"
@@ -35,7 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	discovery "k8s.io/client-go/discovery"
 	authorizationv1client "k8s.io/client-go/kubernetes/typed/authorization/v1"
@@ -63,7 +62,7 @@ type CanIOptions struct {
 	ResourceName   string
 	List           bool
 
-	genericclioptions.IOStreams
+	genericiooptions.IOStreams
 	WarningPrinter *printers.WarningPrinter
 }
 
@@ -83,6 +82,11 @@ var (
 
 		# Check to see if I can list deployments in my current namespace
 		kubectl auth can-i list deployments.apps
+
+		# Check to see if service account "foo" of namespace "dev" can list pods
+		# in the namespace "prod".
+		# You must be allowed to use impersonation for the global option "--as".
+		kubectl auth can-i list pods --as=system:serviceaccount:dev:foo -n prod
 
 		# Check to see if I can do everything in my current namespace ("*" means all)
 		kubectl auth can-i '*' '*'
@@ -106,7 +110,7 @@ var (
 )
 
 // NewCmdCanI returns an initialized Command for 'auth can-i' sub command
-func NewCmdCanI(f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCanI(f cmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	o := &CanIOptions{
 		IOStreams: streams,
 	}
@@ -157,7 +161,7 @@ func (o *CanIOptions) Complete(f cmdutil.Factory, args []string) error {
 		}
 	} else {
 		if o.Quiet {
-			o.Out = ioutil.Discard
+			o.Out = io.Discard
 		}
 
 		switch len(args) {

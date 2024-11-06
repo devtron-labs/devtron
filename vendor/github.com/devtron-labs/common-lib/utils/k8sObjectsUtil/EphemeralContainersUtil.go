@@ -74,7 +74,3 @@ func IsExternalEphemeralContainer(cmds []string, name string) bool {
 	}
 	return isExternal
 }
-
-func IsPod(kind string, group string) bool {
-	return kind == "Pod" && group == ""
-}
