@@ -63,3 +63,10 @@ build-ea:
 
 fetch-all-env:
 	go run fetchAllEnv/fetchAllEnv.go
+
+TARGET_BRANCH?=main
+dep-update-oss:
+	go mod edit -replace=github.com/devtron-labs/common-lib=github.com/devtron-labs/devtron-services/common-lib@$(TARGET_BRANCH) \
+				-replace=github.com/devtron-labs/authenticator=github.com/devtron-labs/devtron-services/authenticator@$(TARGET_BRANCH)
+	go mod tidy
+	go mod vendor
