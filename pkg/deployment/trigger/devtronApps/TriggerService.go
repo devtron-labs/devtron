@@ -144,7 +144,6 @@ type TriggerServiceImpl struct {
 	enforcerUtil                        rbac.EnforcerUtil
 	userDeploymentRequestService        service.UserDeploymentRequestService
 	helmAppClient                       gRPC.HelmAppClient //TODO refactoring: use helm app service instead
-
 	appRepository                 appRepository.AppRepository
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
 	imageScanHistoryRepository    security.ImageScanHistoryRepository
@@ -256,6 +255,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 		enforcerUtil:                        enforcerUtil,
 		eventFactory:                        eventFactory,
 		eventClient:                         eventClient,
+
 		globalEnvVariables:                  envVariables.GlobalEnvVariables,
 		userDeploymentRequestService:        userDeploymentRequestService,
 		helmAppClient:                       helmAppClient,
@@ -277,9 +277,12 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 		ciPipelineRepository:                ciPipelineRepository,
 		appWorkflowRepository:               appWorkflowRepository,
 		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
+
 		imageScanService:                    imageScanService,
 		K8sUtil:                             K8sUtil,
+
 		transactionUtilImpl:                 transactionUtilImpl,
+
 		deploymentConfigService:             deploymentConfigService,
 		deploymentServiceTypeConfig:         envVariables.DeploymentServiceTypeConfig,
 		ciCdPipelineOrchestrator:            ciCdPipelineOrchestrator,

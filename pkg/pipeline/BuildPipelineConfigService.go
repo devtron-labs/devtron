@@ -60,13 +60,13 @@ type CiPipelineConfigService interface {
 	GetCiPipelineById(pipelineId int) (ciPipeline *bean.CiPipeline, err error)
 	//GetTriggerViewCiPipeline : retrieves a detailed view of the CI pipelines configured for a specific application (appId).
 	// It includes information on CI pipeline materials, scripts, configurations, and linked pipelines.
-	//If any errors occur ,It returns an error along with a nil result(bean.TriggerViewCiConfig).
+	// If any errors occur ,It returns an error along with a nil result(bean.TriggerViewCiConfig).
 	GetTriggerViewCiPipeline(appId int) (*bean.TriggerViewCiConfig, error)
-	//GetExternalCi : Lists externalCi for given appId
-	//"external CI" refers to CI pipelines and configurations that are managed externally,
-	//like by third-party services or tools.
-	//It fetches information about external CI pipelines, their webhooks, payload configurations, and related roles.
-	//The function constructs an array of ExternalCiConfig objects and returns it.
+	// GetExternalCi : Lists externalCi for given appId
+	// "external CI" refers to CI pipelines and configurations that are managed externally,
+	// like by third-party services or tools.
+	// It fetches information about external CI pipelines, their webhooks, payload configurations, and related roles.
+	// The function constructs an array of ExternalCiConfig objects and returns it.
 	// If any errors occur, the function returns an error along with a nil result([]*bean.ExternalCiConfig).
 	GetExternalCi(appId int) (ciConfig []*bean.ExternalCiConfig, err error)
 	//GetExternalCiById : Retrieve externalCi for given appId and externalCiId.
@@ -1672,7 +1672,6 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironment(request reso
 	}
 
 	var externalCiConfig bean.ExternalCiConfig
-	//var parentCiPipelineIds []int
 	for appId, ciPipelinesConfigByApp := range ciPipelinesConfigMap {
 		var ciPipelineResp []*bean.CiPipeline
 

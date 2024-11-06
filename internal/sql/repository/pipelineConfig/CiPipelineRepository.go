@@ -186,6 +186,9 @@ func (impl *CiPipelineRepositoryImpl) FindByParentIdAndType(parentCiPipelineId i
 
 func (impl *CiPipelineRepositoryImpl) FindByIdsIn(ids []int) ([]*CiPipeline, error) {
 	var ciPipelines []*CiPipeline
+	if len(ids) == 0 {
+		return ciPipelines, nil
+	}
 	err := impl.dbConnection.Model(&ciPipelines).
 		Where("id in (?)", pg.In(ids)).
 		Select()
@@ -248,6 +251,9 @@ func (impl *CiPipelineRepositoryImpl) FindByAppId(appId int) (pipelines []*CiPip
 }
 
 func (impl *CiPipelineRepositoryImpl) FindByAppIds(appIds []int) (pipelines []*CiPipeline, err error) {
+	if len(appIds) == 0 {
+		return pipelines, err
+	}
 	err = impl.dbConnection.Model(&pipelines).
 		Column("ci_pipeline.*", "App", "CiPipelineMaterials", "CiPipelineMaterials.GitMaterial").
 		Where("ci_pipeline.app_id in (?)", pg.In(appIds)).

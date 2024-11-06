@@ -437,7 +437,7 @@ func (impl *AppArtifactManagerImpl) extractParentMetaDataByPipeline(pipeline *pi
 			impl.logger.Errorw("error in fetching PRE-CD stage by cd pipeline id", "pipelineId", pipeline.Id, "err", err)
 			return parentId, parentType, parentCdId, err
 		}
-		if (pipelinePreStage != nil && pipelinePreStage.Id != 0) || len(pipeline.PreStageConfig) > 0 {
+		if len(pipeline.PreStageConfig) > 0 || pipelinePreStage.IsPipelineStageExists() {
 			// Parent type will be PRE for DEPLOY stage
 			parentId = pipeline.Id
 			parentType = bean.CD_WORKFLOW_TYPE_PRE
