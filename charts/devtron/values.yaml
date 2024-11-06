@@ -77,7 +77,7 @@ components:
         FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE: "true"
         ENABLE_RESOURCE_SCAN: "true"
     registry: ""
-    image: "dashboard:215319c7-690-25536"
+    image: "dashboard:5be7fbeb-690-26830"
     imagePullPolicy: IfNotPresent
   devtron:
     registry: ""
@@ -224,8 +224,7 @@ components:
     registry: ""
     image: chart-sync:13ffae06-150-25515
     schedule: "0 19 * * *"
-    extraConfigs: {} 
-
+    extraConfigs: {}
 # values for argocd integration
 argo-cd:
   enabled: false

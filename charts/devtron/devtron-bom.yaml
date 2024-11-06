@@ -10,7 +10,7 @@ global:
   containerRegistry: "quay.io/devtron"
 extraManifests: []
 installer:
-  release: "v0.7.4"
+  release: "v0.7.4-rc.0"
   registry: ""
   image: "inception"
   tag: "473deaa4-185-21582"
@@ -34,7 +34,7 @@ components:
         FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE: "true"
         ENABLE_RESOURCE_SCAN: "true"
     registry: ""
-    image: "dashboard:215319c7-690-25536"
+    image: "dashboard:5be7fbeb-690-26830"
     imagePullPolicy: IfNotPresent
   devtron:
     registry: ""
