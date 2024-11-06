@@ -1,3 +1,5 @@
+## v0.7.4
+
 ## Bugs
 - fix: Helm rollback in case of no gitops (#6005)
 - fix: App detail deployed by (#6032)
@@ -35,3 +37,5 @@
 - misc: Release candidate v0.19.0 (#5930)
 - misc: updated migration number (#5948)
 - misc: err handling for configmap access (#5938)
+
+
