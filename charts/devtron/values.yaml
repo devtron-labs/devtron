@@ -117,7 +117,7 @@ components:
       authenticator: "authenticator:e414faff-393-13273"
   kubelink:
     registry: ""
-    image: "kubelink:6ef0fbbe-564-25533"
+    image: "kubelink:73ce53e5-564-26855"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
