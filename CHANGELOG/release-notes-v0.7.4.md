@@ -1,5 +1,9 @@
 ## v0.7.4
 
+
+
+## v0.7.4
+
 ## Bugs
 - fix: Helm rollback in case of no gitops (#6005)
 - fix: App detail deployed by (#6032)
