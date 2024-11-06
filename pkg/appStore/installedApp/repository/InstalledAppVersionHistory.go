@@ -195,7 +195,7 @@ func (impl *InstalledAppVersionHistoryRepositoryImpl) FindPreviousInstalledAppVe
 	err := impl.dbConnection.
 		Model(&iavr).
 		Column("installed_app_version_history.*").
-		Where("installed_app_version_history.installed_app_version_id = ?", installedAppId).
+		Where("installed_app_version_history.installed_app_version_id in ( select id from installed_app_versions where installed_app_id in (?))", installedAppId).
 		Where("installed_app_version_history.id < ?", installedAppVersionHistoryId).
 		Where("installed_app_version_history.status not in (?) ", pg.In(status)).
 		Order("installed_app_version_history.id DESC").
