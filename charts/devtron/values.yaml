@@ -222,7 +222,7 @@ components:
         DB_NAME: "lens"
   chartSync:
     registry: ""
-    image: chart-sync:73ce53e5-836-26851
+    image: chart-sync:73ce53e5-836-26871
     schedule: "0 19 * * *"
     extraConfigs: {}
 # values for argocd integration
