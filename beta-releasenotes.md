@@ -18,7 +18,6 @@
 - feat: Terminal role casbin policy (#5991)
 - feat: Refactoring argo application service and common-lib constants (#5944)
 - feat: Feature release v9 sql scripts (#5950)
-## Documentation
 ## Others
 - misc: Main sync develop (#6047)
 - misc: Permission access getting clubbed (#6045)
