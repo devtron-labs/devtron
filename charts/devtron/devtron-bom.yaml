@@ -91,7 +91,7 @@ components:
       armImage: postgres_exporter:v0.10.1
   gitsensor:
     registry: ""
-    image: "git-sensor:5b9cf0ec-200-25481"
+    image: "git-sensor:73ce53e5-200-26860"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
