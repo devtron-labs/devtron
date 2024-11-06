@@ -24,7 +24,7 @@ global:
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
-  release: "v0.7.3"
+  release: "v0.7.4"
   registry: ""
   image: inception
   tag: 473deaa4-185-21582
@@ -77,12 +77,12 @@ components:
         FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE: "true"
         ENABLE_RESOURCE_SCAN: "true"
     registry: ""
-    image: "dashboard:215319c7-690-25536"
+    image: "dashboard:5be7fbeb-690-26830"
     imagePullPolicy: IfNotPresent
   devtron:
     registry: ""
-    image: "hyperion:e17c52eb-280-25812"
-    cicdImage: "devtron:e17c52eb-434-25813"
+    image: "hyperion:4288e910-280-26829"
+    cicdImage: "devtron:4288e910-434-26828"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
@@ -117,7 +117,7 @@ components:
       authenticator: "authenticator:e414faff-393-13273"
   kubelink:
     registry: ""
-    image: "kubelink:6ef0fbbe-564-25533"
+    image: "kubelink:73ce53e5-564-26855"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
@@ -135,7 +135,7 @@ components:
       keyName: postgresql-password
   kubewatch:
     registry: ""
-    image: "kubewatch:7c8611f4-419-25531"
+    image: "kubewatch:b4888f54-419-26859"
     imagePullPolicy: IfNotPresent
     configs:
       devtroncd_NAMESPACE: "devtron-ci"
@@ -157,7 +157,7 @@ components:
       volumeSize: "20Gi"
   gitsensor:
     registry: ""
-    image: "git-sensor:5b9cf0ec-200-25481"
+    image: "git-sensor:73ce53e5-200-26860"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
@@ -175,7 +175,7 @@ components:
   # Values for lens
   lens:
     registry: ""
-    image: "lens:9db8a2fb-333-25482"
+    image: "lens:b4888f54-333-26837"
     imagePullPolicy: IfNotPresent
     secrets: {}
     resources: {}
@@ -222,7 +222,9 @@ components:
         DB_NAME: "lens"
   chartSync:
     registry: ""
-    image: chart-sync:13ffae06-150-25515
+    image: chart-sync:73ce53e5-836-26871
+    schedule: "0 19 * * *"
+    extraConfigs: {}
 # values for argocd integration
 argo-cd:
   enabled: false
@@ -245,10 +247,6 @@ argo-cd:
       statusProcessors: "50"
       # -- define the application controller `--operation-processors`
       operationProcessors: "25"
-      # -- define the application controller `--app-hard-resync`
-      appHardResyncPeriod: "0"
-      # -- define the application controller `--app-resync`
-      appResyncPeriod: "180"
       # -- define the application controller `--self-heal-timeout-seconds`
       selfHealTimeout: "5"
       # -- define the application controller `--repo-server-timeout-seconds`
@@ -370,7 +368,7 @@ argo-cd:
 security:
   enabled: false
   imageScanner:
-    image: "image-scanner:348201f8-141-25486"
+    image: "image-scanner:d5458e1a-141-26846"
   # Values for trivy
   trivy:
     enabled: false
@@ -385,7 +383,7 @@ security:
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
-  image: "notifier:06392394-372-25535"
+  image: "notifier:133c887d-372-26845"
   configs:
     CD_ENVIRONMENT: PROD
     DB: orchestrator
