@@ -22,6 +22,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	ciConfig "github.com/devtron-labs/devtron/pkg/pipeline/ci/config"
 	cron3 "github.com/devtron-labs/devtron/util/cron"
 	"net/http"
 	"time"
@@ -51,7 +52,7 @@ const AppsCount int = 50
 type TelemetryEventClientImplExtended struct {
 	environmentService            cluster.EnvironmentService
 	appListingRepository          repository.AppListingRepository
-	ciPipelineRepository          pipelineConfig.CiPipelineRepository
+	ciPipelineConfigReadService   ciConfig.CiPipelineConfigReadService
 	pipelineRepository            pipelineConfig.PipelineRepository
 	gitProviderRepository         repository.GitProviderRepository
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository
@@ -70,7 +71,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	K8sUtil *util2.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig,
 	environmentService cluster.EnvironmentService, userService user2.UserService,
 	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,
-	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
+	ciPipelineConfigReadService ciConfig.CiPipelineConfigReadService, pipelineRepository pipelineConfig.PipelineRepository,
 	gitProviderRepository repository.GitProviderRepository, attributeRepo repository.AttributesRepository,
 	ssoLoginService sso.SSOLoginService, appRepository app.AppRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
@@ -88,7 +89,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	watcher := &TelemetryEventClientImplExtended{
 		environmentService:            environmentService,
 		appListingRepository:          appListingRepository,
-		ciPipelineRepository:          ciPipelineRepository,
+		ciPipelineConfigReadService:   ciPipelineConfigReadService,
 		pipelineRepository:            pipelineRepository,
 		gitProviderRepository:         gitProviderRepository,
 		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
@@ -238,12 +239,12 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 		nonProdApps = -1
 	}
 
-	ciPipelineCount, err := impl.ciPipelineRepository.FindAllPipelineCreatedCountInLast24Hour()
+	ciPipelineCount, err := impl.ciPipelineConfigReadService.FindAllPipelineCreatedCountInLast24Hour()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("exception caught inside telemetry summary event, while retrieving ciPipelineCount, setting its value to -1", "err", err)
 		ciPipelineCount = -1
 	}
-	ciPipelineDeletedCount, err := impl.ciPipelineRepository.FindAllDeletedPipelineCountInLast24Hour()
+	ciPipelineDeletedCount, err := impl.ciPipelineConfigReadService.FindAllDeletedPipelineCountInLast24Hour()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("exception caught inside telemetry summary event, while retrieving ciPipelineDeletedCount, setting its value to -1", "err", err)
 		ciPipelineDeletedCount = -1
@@ -313,7 +314,7 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 		if err != nil {
 			impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving AppsWithDeploymentTemplateConfigured", "err", err)
 		}
-		payload.AppsWithCiPipelineConfigured, err = impl.ciPipelineRepository.FindNumberOfAppsWithCiPipeline(appIds)
+		payload.AppsWithCiPipelineConfigured, err = impl.ciPipelineConfigReadService.FindNumberOfAppsWithCiPipeline(appIds)
 		if err != nil {
 			impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving AppsWithCiPipelineConfigured", "err", err)
 		}
