@@ -66,7 +66,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
+	deployment2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds"
 	"github.com/devtron-labs/devtron/pkg/attributes"
@@ -185,7 +185,7 @@ func InitializeApp() (*App, error) {
 		// needed for enforcer util ends
 
 		// binding gitops to helm (for hyperion)
-		wire.Bind(new(deployment.FullModeDeploymentService), new(*EAMode.EAModeDeploymentServiceImpl)),
+		wire.Bind(new(deployment.FullModeDeploymentService), new(*deployment2.EAModeDeploymentServiceImpl)),
 
 		router.NewTelemetryRouterImpl,
 		wire.Bind(new(router.TelemetryRouter), new(*router.TelemetryRouterImpl)),

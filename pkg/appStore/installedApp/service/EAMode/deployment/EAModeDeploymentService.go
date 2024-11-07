@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package EAMode
+package deployment
 
 import (
 	"context"
@@ -26,6 +26,7 @@ import (
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
+	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	validationBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
@@ -47,7 +48,7 @@ import (
 type EAModeDeploymentService interface {
 	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *commonBean.ChartGitAttribute, ctx context.Context, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error)
 	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error
-	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, bool, error)
+	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (*appStoreBean.InstallAppVersionDTO, bool, error)
 	GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*gRPC.HelmAppDeploymentHistory, error)
 	GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int32) (*openapi.HelmAppDeploymentManifestDetail, error)
 	UpgradeDeployment(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, installedAppVersionHistoryId int, ctx context.Context) error
@@ -57,6 +58,7 @@ type EAModeDeploymentServiceImpl struct {
 	Logger                               *zap.SugaredLogger
 	helmAppService                       client.HelmAppService
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
+	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	// TODO fix me next
 	helmAppClient               gRPC.HelmAppClient // TODO refactoring: use HelmAppService instead
 	installedAppRepository      repository.InstalledAppRepository
@@ -67,7 +69,9 @@ func NewEAModeDeploymentServiceImpl(logger *zap.SugaredLogger, helmAppService cl
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	helmAppClient gRPC.HelmAppClient,
 	installedAppRepository repository.InstalledAppRepository,
-	OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository) *EAModeDeploymentServiceImpl {
+	OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository,
+	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
+) *EAModeDeploymentServiceImpl {
 	return &EAModeDeploymentServiceImpl{
 		Logger:                               logger,
 		helmAppService:                       helmAppService,
@@ -75,6 +79,7 @@ func NewEAModeDeploymentServiceImpl(logger *zap.SugaredLogger, helmAppService cl
 		helmAppClient:                        helmAppClient,
 		installedAppRepository:               installedAppRepository,
 		OCIRegistryConfigRepository:          OCIRegistryConfigRepository,
+		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
 	}
 }
 
@@ -199,18 +204,16 @@ func (impl *EAModeDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context,
 }
 
 // returns - valuesYamlStr, success, error
-func (impl *EAModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, bool, error) {
+func (impl *EAModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (*appStoreBean.InstallAppVersionDTO, bool, error) {
 
-	// TODO : fetch values yaml from DB instead of fetching from helm cli
-	// TODO Dependency : on updating helm APP, DB is not being updated. values yaml is sent directly to helm cli. After DB updatation development, we can fetch values yaml from DB, not from CLI.
-
-	helmAppIdeltifier := &helmBean.AppIdentifier{
+	//this flow is dedicated for cli helm apps i.e. externally installed apps, so there is no need to perform any db operation, the version request here was from directly helm.
+	helmAppIdentifier := &helmBean.AppIdentifier{
 		ClusterId:   installedApp.ClusterId,
 		Namespace:   installedApp.Namespace,
 		ReleaseName: installedApp.AppName,
 	}
 
-	helmAppDeploymentDetail, err := impl.helmAppService.GetDeploymentDetail(ctx, helmAppIdeltifier, deploymentVersion)
+	helmAppDeploymentDetail, err := impl.helmAppService.GetDeploymentDetail(ctx, helmAppIdentifier, deploymentVersion)
 	if err != nil {
 		impl.Logger.Errorw("Error in getting helm application deployment detail", "err", err)
 		apiError := clientErrors.ConvertToApiError(err)
@@ -227,7 +230,7 @@ func (impl *EAModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, in
 	}
 
 	// send to helm
-	success, err := impl.helmAppService.RollbackRelease(ctx, helmAppIdeltifier, deploymentVersion)
+	success, err := impl.helmAppService.RollbackRelease(ctx, helmAppIdentifier, deploymentVersion)
 	if err != nil {
 		impl.Logger.Errorw("Error in helm rollback release", "err", err)
 		return installedApp, false, err
@@ -239,59 +242,78 @@ func (impl *EAModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, in
 func (impl *EAModeDeploymentServiceImpl) GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*gRPC.HelmAppDeploymentHistory, error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "EAModeDeploymentServiceImpl.GetDeploymentHistory")
 	defer span.End()
-	helmAppIdentifier := &helmBean.AppIdentifier{
-		ClusterId:   installedApp.ClusterId,
-		Namespace:   installedApp.Namespace,
-		ReleaseName: installedApp.AppName,
-	}
-	history, err := impl.helmAppService.GetDeploymentHistory(newCtx, helmAppIdentifier)
-	if err != nil {
-		apiError := clientErrors.ConvertToApiError(err)
-		if apiError != nil {
-			err = apiError
+	if installedApp.InstalledAppId > 0 {
+		history, err := impl.appStoreDeploymentCommonService.GetDeploymentHistoryFromDB(ctx, installedApp)
+		if err != nil {
+			impl.Logger.Errorw("error while fetching deployment history", "error", err)
+			return history, err
 		}
+		return history, nil
+	} else {
+		helmAppIdentifier := &helmBean.AppIdentifier{
+			ClusterId:   installedApp.ClusterId,
+			Namespace:   installedApp.Namespace,
+			ReleaseName: installedApp.AppName,
+		}
+		history, err := impl.helmAppService.GetDeploymentHistory(newCtx, helmAppIdentifier)
+		if err != nil {
+			apiError := clientErrors.ConvertToApiError(err)
+			if apiError != nil {
+				err = apiError
+			}
+		}
+		return history, err
 	}
-	return history, err
+
 }
-
 func (impl *EAModeDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int32) (*openapi.HelmAppDeploymentManifestDetail, error) {
-	helmAppIdeltifier := &helmBean.AppIdentifier{
-		ClusterId:   installedApp.ClusterId,
-		Namespace:   installedApp.Namespace,
-		ReleaseName: installedApp.AppName,
-	}
-	config, err := impl.helmAppService.GetClusterConf(helmAppIdeltifier.ClusterId)
-	if err != nil {
-		impl.Logger.Errorw("error in fetching cluster detail", "clusterId", helmAppIdeltifier.ClusterId, "err", err)
-		return nil, err
-	}
-
-	req := &gRPC.DeploymentDetailRequest{
-		ReleaseIdentifier: &gRPC.ReleaseIdentifier{
-			ClusterConfig:    config,
-			ReleaseName:      helmAppIdeltifier.ReleaseName,
-			ReleaseNamespace: helmAppIdeltifier.Namespace,
-		},
-		DeploymentVersion: version,
-	}
-	_, span := otel.Tracer("orchestrator").Start(ctx, "helmAppClient.GetDeploymentDetail")
-	deploymentDetail, err := impl.helmAppClient.GetDeploymentDetail(ctx, req)
-	span.End()
-	if err != nil {
-		impl.Logger.Errorw("error in getting deployment detail", "err", err)
-		apiError := clientErrors.ConvertToApiError(err)
-		if apiError != nil {
-			err = apiError
+	if installedApp.InstalledAppId > 0 {
+		res, err := impl.appStoreDeploymentCommonService.GetDeploymentHistoryInfoFromDB(ctx, installedApp, version)
+		if err != nil {
+			impl.Logger.Errorw("error while fetching installed version history", "error", err)
+			return nil, err
 		}
-		return nil, err
+		return res, nil
+	} else {
+		helmAppIdentifier := &helmBean.AppIdentifier{
+			ClusterId:   installedApp.ClusterId,
+			Namespace:   installedApp.Namespace,
+			ReleaseName: installedApp.AppName,
+		}
+		config, err := impl.helmAppService.GetClusterConf(helmAppIdentifier.ClusterId)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching cluster detail", "clusterId", helmAppIdentifier.ClusterId, "err", err)
+			return nil, err
+		}
+
+		req := &gRPC.DeploymentDetailRequest{
+			ReleaseIdentifier: &gRPC.ReleaseIdentifier{
+				ClusterConfig:    config,
+				ReleaseName:      helmAppIdentifier.ReleaseName,
+				ReleaseNamespace: helmAppIdentifier.Namespace,
+			},
+			DeploymentVersion: version,
+		}
+		_, span := otel.Tracer("orchestrator").Start(ctx, "helmAppClient.GetDeploymentDetail")
+		deploymentDetail, err := impl.helmAppClient.GetDeploymentDetail(ctx, req)
+		span.End()
+		if err != nil {
+			impl.Logger.Errorw("error in getting deployment detail", "err", err)
+			apiError := clientErrors.ConvertToApiError(err)
+			if apiError != nil {
+				err = apiError
+			}
+			return nil, err
+		}
+
+		response := &openapi.HelmAppDeploymentManifestDetail{
+			Manifest:   &deploymentDetail.Manifest,
+			ValuesYaml: &deploymentDetail.ValuesYaml,
+		}
+
+		return response, nil
 	}
 
-	response := &openapi.HelmAppDeploymentManifestDetail{
-		Manifest:   &deploymentDetail.Manifest,
-		ValuesYaml: &deploymentDetail.ValuesYaml,
-	}
-
-	return response, nil
 }
 
 func (impl *EAModeDeploymentServiceImpl) updateApplicationWithChartInfo(ctx context.Context, installedAppId int, appStoreApplicationVersionId int, valuesOverrideYaml string, installAppVersionHistoryId int) error {
