@@ -38,7 +38,7 @@ type TeamService interface {
 	Update(request *bean2.TeamRequest) (*bean2.TeamRequest, error)
 	Delete(request *bean2.TeamRequest) error
 	FetchForAutocomplete() ([]bean2.TeamRequest, error)
-	FindByIds(ids []*int) ([]*TeamBean, error)
+	FindByIds(ids []*int) ([]*bean2.TeamBean, error)
 	FindByTeamName(teamName string) (*bean2.TeamRequest, error)
 }
 type TeamServiceImpl struct {
@@ -209,15 +209,15 @@ func (impl TeamServiceImpl) FetchForAutocomplete() ([]bean2.TeamRequest, error) 
 	return teamRequests, err
 }
 
-func (impl TeamServiceImpl) FindByIds(ids []*int) ([]*TeamBean, error) {
+func (impl TeamServiceImpl) FindByIds(ids []*int) ([]*bean2.TeamBean, error) {
 	teams, err := impl.teamRepository.FindByIds(ids)
 	if err != nil {
 		impl.logger.Errorw("error in fetch all team", "err", err)
 		return nil, err
 	}
-	var teamRequests []*TeamBean
+	var teamRequests []*bean2.TeamBean
 	for _, team := range teams {
-		team := &TeamBean{
+		team := &bean2.TeamBean{
 			Id:   team.Id,
 			Name: team.Name,
 		}
@@ -242,9 +242,4 @@ func (impl TeamServiceImpl) FindByTeamName(teamName string) (*bean2.TeamRequest,
 	}
 
 	return teamRes, err
-}
-
-type TeamBean struct {
-	Id   int    `json:"id"`
-	Name string `json:"name,notnull"`
 }

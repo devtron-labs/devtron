@@ -3,7 +3,6 @@
 package mocks
 
 import (
-	team "github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/team/bean"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -132,19 +131,19 @@ func (_m *TeamService) FetchOne(id int) (*bean.TeamRequest, error) {
 }
 
 // FindByIds provides a mock function with given fields: ids
-func (_m *TeamService) FindByIds(ids []*int) ([]*team.TeamBean, error) {
+func (_m *TeamService) FindByIds(ids []*int) ([]*bean.TeamBean, error) {
 	ret := _m.Called(ids)
 
-	var r0 []*team.TeamBean
+	var r0 []*bean.TeamBean
 	var r1 error
-	if rf, ok := ret.Get(0).(func([]*int) ([]*team.TeamBean, error)); ok {
+	if rf, ok := ret.Get(0).(func([]*int) ([]*bean.TeamBean, error)); ok {
 		return rf(ids)
 	}
-	if rf, ok := ret.Get(0).(func([]*int) []*team.TeamBean); ok {
+	if rf, ok := ret.Get(0).(func([]*int) []*bean.TeamBean); ok {
 		r0 = rf(ids)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*team.TeamBean)
+			r0 = ret.Get(0).([]*bean.TeamBean)
 		}
 	}
 

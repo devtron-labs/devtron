@@ -20,3 +20,8 @@ type Team struct {
 	Active    bool     `sql:"active,notnull"`
 	sql.AuditLog
 }
+
+type TeamBean struct {
+	Id   int    `json:"id"`
+	Name string `json:"name,notnull"`
+}
