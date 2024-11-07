@@ -369,7 +369,7 @@ type RegistryCredentials struct {
 }
 
 const (
-	NoPluginOrParentIdProvidedErr            = "no value for pluginVersionIds and parentPluginIds provided in query param"
+	NoPluginOrParentIdProvidedErr            = "Empty values for both pluginVersionIds and parentPluginIds. Please provide at least one of them"
 	NoPluginFoundForThisSearchQueryErr       = "unable to find desired plugin for the query filter"
 	PluginStepsNotProvidedError              = "plugin steps not provided"
 	PluginWithSameNameExistError             = "plugin with the same name exists, please choose another name"
