@@ -1,4 +1,5 @@
 ## Bugs
+- fix: email-template-subject (#6057)
 ## Enhancements
 ## Documentation
 ## Others
