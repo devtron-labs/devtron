@@ -23,17 +23,16 @@ import (
 	"github.com/devtron-labs/devtron/pkg/environment"
 	"github.com/devtron-labs/devtron/pkg/environment/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/security/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/team/repository"
 	"go.opentelemetry.io/otel"
 	"time"
 
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	"github.com/devtron-labs/devtron/pkg/auth/user"
-	repository2 "github.com/devtron-labs/devtron/pkg/team"
-
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )

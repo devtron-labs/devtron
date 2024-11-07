@@ -39,7 +39,8 @@ import (
 	cluster2 "github.com/devtron-labs/devtron/pkg/environment"
 	bean2 "github.com/devtron-labs/devtron/pkg/environment/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
-	repository4 "github.com/devtron-labs/devtron/pkg/team"
+	bean4 "github.com/devtron-labs/devtron/pkg/team/bean"
+	repository4 "github.com/devtron-labs/devtron/pkg/team/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	"io/ioutil"
 	"os"
@@ -726,7 +727,7 @@ func (impl *ChartGroupServiceImpl) DeployDefaultChartOnCluster(bean *bean3.Clust
 		return false, err
 	}
 	if err == pg.ErrNoRows {
-		t := &repository4.Team{
+		t := &bean4.Team{
 			Name:     appStoreBean.DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT,
 			Active:   true,
 			AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},

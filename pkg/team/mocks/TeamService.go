@@ -4,6 +4,7 @@ package mocks
 
 import (
 	team "github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/pkg/team/bean"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -13,23 +14,23 @@ type TeamService struct {
 }
 
 // Create provides a mock function with given fields: request
-func (_m *TeamService) Create(request *team.TeamRequest) (*team.TeamRequest, error) {
+func (_m *TeamService) Create(request *bean.TeamRequest) (*bean.TeamRequest, error) {
 	ret := _m.Called(request)
 
-	var r0 *team.TeamRequest
+	var r0 *bean.TeamRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func(*team.TeamRequest) (*team.TeamRequest, error)); ok {
+	if rf, ok := ret.Get(0).(func(*bean.TeamRequest) (*bean.TeamRequest, error)); ok {
 		return rf(request)
 	}
-	if rf, ok := ret.Get(0).(func(*team.TeamRequest) *team.TeamRequest); ok {
+	if rf, ok := ret.Get(0).(func(*bean.TeamRequest) *bean.TeamRequest); ok {
 		r0 = rf(request)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*team.TeamRequest)
+			r0 = ret.Get(0).(*bean.TeamRequest)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(*team.TeamRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(*bean.TeamRequest) error); ok {
 		r1 = rf(request)
 	} else {
 		r1 = ret.Error(1)
@@ -39,11 +40,11 @@ func (_m *TeamService) Create(request *team.TeamRequest) (*team.TeamRequest, err
 }
 
 // Delete provides a mock function with given fields: request
-func (_m *TeamService) Delete(request *team.TeamRequest) error {
+func (_m *TeamService) Delete(request *bean.TeamRequest) error {
 	ret := _m.Called(request)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*team.TeamRequest) error); ok {
+	if rf, ok := ret.Get(0).(func(*bean.TeamRequest) error); ok {
 		r0 = rf(request)
 	} else {
 		r0 = ret.Error(0)
@@ -53,19 +54,19 @@ func (_m *TeamService) Delete(request *team.TeamRequest) error {
 }
 
 // FetchAllActive provides a mock function with given fields:
-func (_m *TeamService) FetchAllActive() ([]team.TeamRequest, error) {
+func (_m *TeamService) FetchAllActive() ([]bean.TeamRequest, error) {
 	ret := _m.Called()
 
-	var r0 []team.TeamRequest
+	var r0 []bean.TeamRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func() ([]team.TeamRequest, error)); ok {
+	if rf, ok := ret.Get(0).(func() ([]bean.TeamRequest, error)); ok {
 		return rf()
 	}
-	if rf, ok := ret.Get(0).(func() []team.TeamRequest); ok {
+	if rf, ok := ret.Get(0).(func() []bean.TeamRequest); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]team.TeamRequest)
+			r0 = ret.Get(0).([]bean.TeamRequest)
 		}
 	}
 
@@ -79,19 +80,19 @@ func (_m *TeamService) FetchAllActive() ([]team.TeamRequest, error) {
 }
 
 // FetchForAutocomplete provides a mock function with given fields:
-func (_m *TeamService) FetchForAutocomplete() ([]team.TeamRequest, error) {
+func (_m *TeamService) FetchForAutocomplete() ([]bean.TeamRequest, error) {
 	ret := _m.Called()
 
-	var r0 []team.TeamRequest
+	var r0 []bean.TeamRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func() ([]team.TeamRequest, error)); ok {
+	if rf, ok := ret.Get(0).(func() ([]bean.TeamRequest, error)); ok {
 		return rf()
 	}
-	if rf, ok := ret.Get(0).(func() []team.TeamRequest); ok {
+	if rf, ok := ret.Get(0).(func() []bean.TeamRequest); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]team.TeamRequest)
+			r0 = ret.Get(0).([]bean.TeamRequest)
 		}
 	}
 
@@ -105,19 +106,19 @@ func (_m *TeamService) FetchForAutocomplete() ([]team.TeamRequest, error) {
 }
 
 // FetchOne provides a mock function with given fields: id
-func (_m *TeamService) FetchOne(id int) (*team.TeamRequest, error) {
+func (_m *TeamService) FetchOne(id int) (*bean.TeamRequest, error) {
 	ret := _m.Called(id)
 
-	var r0 *team.TeamRequest
+	var r0 *bean.TeamRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func(int) (*team.TeamRequest, error)); ok {
+	if rf, ok := ret.Get(0).(func(int) (*bean.TeamRequest, error)); ok {
 		return rf(id)
 	}
-	if rf, ok := ret.Get(0).(func(int) *team.TeamRequest); ok {
+	if rf, ok := ret.Get(0).(func(int) *bean.TeamRequest); ok {
 		r0 = rf(id)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*team.TeamRequest)
+			r0 = ret.Get(0).(*bean.TeamRequest)
 		}
 	}
 
@@ -157,19 +158,19 @@ func (_m *TeamService) FindByIds(ids []*int) ([]*team.TeamBean, error) {
 }
 
 // FindByTeamName provides a mock function with given fields: teamName
-func (_m *TeamService) FindByTeamName(teamName string) (*team.TeamRequest, error) {
+func (_m *TeamService) FindByTeamName(teamName string) (*bean.TeamRequest, error) {
 	ret := _m.Called(teamName)
 
-	var r0 *team.TeamRequest
+	var r0 *bean.TeamRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string) (*team.TeamRequest, error)); ok {
+	if rf, ok := ret.Get(0).(func(string) (*bean.TeamRequest, error)); ok {
 		return rf(teamName)
 	}
-	if rf, ok := ret.Get(0).(func(string) *team.TeamRequest); ok {
+	if rf, ok := ret.Get(0).(func(string) *bean.TeamRequest); ok {
 		r0 = rf(teamName)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*team.TeamRequest)
+			r0 = ret.Get(0).(*bean.TeamRequest)
 		}
 	}
 
@@ -183,23 +184,23 @@ func (_m *TeamService) FindByTeamName(teamName string) (*team.TeamRequest, error
 }
 
 // Update provides a mock function with given fields: request
-func (_m *TeamService) Update(request *team.TeamRequest) (*team.TeamRequest, error) {
+func (_m *TeamService) Update(request *bean.TeamRequest) (*bean.TeamRequest, error) {
 	ret := _m.Called(request)
 
-	var r0 *team.TeamRequest
+	var r0 *bean.TeamRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func(*team.TeamRequest) (*team.TeamRequest, error)); ok {
+	if rf, ok := ret.Get(0).(func(*bean.TeamRequest) (*bean.TeamRequest, error)); ok {
 		return rf(request)
 	}
-	if rf, ok := ret.Get(0).(func(*team.TeamRequest) *team.TeamRequest); ok {
+	if rf, ok := ret.Get(0).(func(*bean.TeamRequest) *bean.TeamRequest); ok {
 		r0 = rf(request)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*team.TeamRequest)
+			r0 = ret.Get(0).(*bean.TeamRequest)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(*team.TeamRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(*bean.TeamRequest) error); ok {
 		r1 = rf(request)
 	} else {
 		r1 = ret.Error(1)

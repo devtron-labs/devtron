@@ -18,6 +18,8 @@ package team
 
 import (
 	"errors"
+	bean2 "github.com/devtron-labs/devtron/pkg/team/bean"
+	"github.com/devtron-labs/devtron/pkg/team/repository"
 	"strings"
 	"time"
 
@@ -30,30 +32,22 @@ import (
 )
 
 type TeamService interface {
-	Create(request *TeamRequest) (*TeamRequest, error)
-	FetchAllActive() ([]TeamRequest, error)
-	FetchOne(id int) (*TeamRequest, error)
-	Update(request *TeamRequest) (*TeamRequest, error)
-	Delete(request *TeamRequest) error
-	FetchForAutocomplete() ([]TeamRequest, error)
+	Create(request *bean2.TeamRequest) (*bean2.TeamRequest, error)
+	FetchAllActive() ([]bean2.TeamRequest, error)
+	FetchOne(id int) (*bean2.TeamRequest, error)
+	Update(request *bean2.TeamRequest) (*bean2.TeamRequest, error)
+	Delete(request *bean2.TeamRequest) error
+	FetchForAutocomplete() ([]bean2.TeamRequest, error)
 	FindByIds(ids []*int) ([]*TeamBean, error)
-	FindByTeamName(teamName string) (*TeamRequest, error)
+	FindByTeamName(teamName string) (*bean2.TeamRequest, error)
 }
 type TeamServiceImpl struct {
 	logger          *zap.SugaredLogger
-	teamRepository  TeamRepository
+	teamRepository  repository.TeamRepository
 	userAuthService user.UserAuthService
 }
 
-type TeamRequest struct {
-	Id        int       `json:"id,omitempty" validate:"number"`
-	Name      string    `json:"name,omitempty" validate:"required"`
-	Active    bool      `json:"active"`
-	UserId    int32     `json:"-"`
-	CreatedOn time.Time `json:"-"`
-}
-
-func NewTeamServiceImpl(logger *zap.SugaredLogger, teamRepository TeamRepository,
+func NewTeamServiceImpl(logger *zap.SugaredLogger, teamRepository repository.TeamRepository,
 	userAuthService user.UserAuthService) *TeamServiceImpl {
 	return &TeamServiceImpl{
 		logger:          logger,
@@ -62,14 +56,14 @@ func NewTeamServiceImpl(logger *zap.SugaredLogger, teamRepository TeamRepository
 	}
 }
 
-func (impl TeamServiceImpl) Create(request *TeamRequest) (*TeamRequest, error) {
+func (impl TeamServiceImpl) Create(request *bean2.TeamRequest) (*bean2.TeamRequest, error) {
 	impl.logger.Debugw("team create request", "req", request)
 	if len(request.Name) < 3 || strings.Contains(request.Name, " ") {
 		impl.logger.Errorw("name should not contain white spaces and should have min 3 chars ")
 		err := errors.New("name should not contain white spaces and should have min 3 chars")
 		return nil, err
 	}
-	t := &Team{
+	t := &bean2.Team{
 		Name:     request.Name,
 		Id:       request.Id,
 		Active:   request.Active,
@@ -88,16 +82,16 @@ func (impl TeamServiceImpl) Create(request *TeamRequest) (*TeamRequest, error) {
 	return request, nil
 }
 
-func (impl TeamServiceImpl) FetchAllActive() ([]TeamRequest, error) {
+func (impl TeamServiceImpl) FetchAllActive() ([]bean2.TeamRequest, error) {
 	impl.logger.Debug("fetch all team from db")
 	teams, err := impl.teamRepository.FindAllActive()
 	if err != nil {
 		impl.logger.Errorw("error in fetch all team", "err", err)
 		return nil, err
 	}
-	var teamRequests []TeamRequest
+	var teamRequests []bean2.TeamRequest
 	for _, team := range teams {
-		providerRes := TeamRequest{
+		providerRes := bean2.TeamRequest{
 			Id:     team.Id,
 			Name:   team.Name,
 			Active: team.Active,
@@ -108,7 +102,7 @@ func (impl TeamServiceImpl) FetchAllActive() ([]TeamRequest, error) {
 	return teamRequests, err
 }
 
-func (impl TeamServiceImpl) FetchOne(teamId int) (*TeamRequest, error) {
+func (impl TeamServiceImpl) FetchOne(teamId int) (*bean2.TeamRequest, error) {
 	impl.logger.Debug("fetch team by ID from db")
 	team, err := impl.teamRepository.FindOne(teamId)
 	if err != nil {
@@ -116,7 +110,7 @@ func (impl TeamServiceImpl) FetchOne(teamId int) (*TeamRequest, error) {
 		return nil, err
 	}
 
-	teamRes := &TeamRequest{
+	teamRes := &bean2.TeamRequest{
 		Id:        team.Id,
 		Name:      team.Name,
 		Active:    team.Active,
@@ -127,7 +121,7 @@ func (impl TeamServiceImpl) FetchOne(teamId int) (*TeamRequest, error) {
 	return teamRes, err
 }
 
-func (impl TeamServiceImpl) Update(request *TeamRequest) (*TeamRequest, error) {
+func (impl TeamServiceImpl) Update(request *bean2.TeamRequest) (*bean2.TeamRequest, error) {
 	impl.logger.Debugw("team update request", "req", request)
 	existingProvider, err0 := impl.teamRepository.FindOne(request.Id)
 	if err0 != nil {
@@ -139,7 +133,7 @@ func (impl TeamServiceImpl) Update(request *TeamRequest) (*TeamRequest, error) {
 		}
 		return nil, err0
 	}
-	team := &Team{
+	team := &bean2.Team{
 		Name:     request.Name,
 		Id:       request.Id,
 		Active:   request.Active,
@@ -159,7 +153,7 @@ func (impl TeamServiceImpl) Update(request *TeamRequest) (*TeamRequest, error) {
 	return request, nil
 }
 
-func (impl TeamServiceImpl) Delete(deleteRequest *TeamRequest) error {
+func (impl TeamServiceImpl) Delete(deleteRequest *bean2.TeamRequest) error {
 	existingTeam, err := impl.teamRepository.FindOne(deleteRequest.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete.", "id", deleteRequest.Id)
@@ -173,7 +167,7 @@ func (impl TeamServiceImpl) Delete(deleteRequest *TeamRequest) error {
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	deleteReq := &Team{
+	deleteReq := &bean2.Team{
 		Name:     deleteRequest.Name,
 		Id:       deleteRequest.Id,
 		Active:   deleteRequest.Active,
@@ -197,16 +191,16 @@ func (impl TeamServiceImpl) Delete(deleteRequest *TeamRequest) error {
 	return nil
 }
 
-func (impl TeamServiceImpl) FetchForAutocomplete() ([]TeamRequest, error) {
+func (impl TeamServiceImpl) FetchForAutocomplete() ([]bean2.TeamRequest, error) {
 	impl.logger.Debug("fetch all team from db")
 	teams, err := impl.teamRepository.FindAllActive()
 	if err != nil {
 		impl.logger.Errorw("error in fetch all team", "err", err)
 		return nil, err
 	}
-	var teamRequests []TeamRequest
+	var teamRequests []bean2.TeamRequest
 	for _, team := range teams {
-		providerRes := TeamRequest{
+		providerRes := bean2.TeamRequest{
 			Id:   team.Id,
 			Name: team.Name,
 		}
@@ -232,7 +226,7 @@ func (impl TeamServiceImpl) FindByIds(ids []*int) ([]*TeamBean, error) {
 	return teamRequests, err
 }
 
-func (impl TeamServiceImpl) FindByTeamName(teamName string) (*TeamRequest, error) {
+func (impl TeamServiceImpl) FindByTeamName(teamName string) (*bean2.TeamRequest, error) {
 	impl.logger.Debug("fetch team by name from db")
 	team, err := impl.teamRepository.FindByTeamName(teamName)
 	if err != nil {
@@ -240,7 +234,7 @@ func (impl TeamServiceImpl) FindByTeamName(teamName string) (*TeamRequest, error
 		return nil, err
 	}
 
-	teamRes := &TeamRequest{
+	teamRes := &bean2.TeamRequest{
 		Id:     team.Id,
 		Name:   team.Name,
 		Active: team.Active,

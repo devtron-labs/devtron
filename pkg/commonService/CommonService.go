@@ -27,7 +27,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	repository3 "github.com/devtron-labs/devtron/pkg/environment/repository"
-	repository2 "github.com/devtron-labs/devtron/pkg/team"
+	repository2 "github.com/devtron-labs/devtron/pkg/team/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
