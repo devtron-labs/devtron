@@ -20,7 +20,7 @@ func ConvertToPlatformMap(infraProfileConfigurationEntities []*bean.InfraProfile
 		}
 
 		// Add the ConfigurationBean to the corresponding platform entry in the map
-		platformMap[infraProfileConfiguration.Platform] = append(platformMap[infraProfileConfiguration.Platform], ConfigurationBean)
+		platformMap[platform] = append(platformMap[platform], ConfigurationBean)
 	}
 
 	return platformMap
