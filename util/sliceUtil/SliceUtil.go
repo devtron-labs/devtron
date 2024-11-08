@@ -1,5 +1,7 @@
 package sliceUtil
 
+// GetUniqueElements returns a new slice containing only the unique elements of the specified sliceList.
+// for example, GetUniqueElements([1, 2, 3, 2, 1]) returns [1, 2, 3]
 func GetUniqueElements[T comparable](sliceList []T) []T {
 	if len(sliceList) == 0 {
 		return sliceList
@@ -15,6 +17,8 @@ func GetUniqueElements[T comparable](sliceList []T) []T {
 	return list
 }
 
+// GetMapOf returns a map with the specified sliceList as keys and defaultValue as values.
+// for example, GetMapOf([1, 2, 3], "default") returns {1: "default", 2: "default", 3: "default"}
 func GetMapOf[K comparable, V comparable](sliceList []K, defaultValue V) map[K]V {
 	if len(sliceList) == 0 {
 		return make(map[K]V)
@@ -26,6 +30,8 @@ func GetMapOf[K comparable, V comparable](sliceList []K, defaultValue V) map[K]V
 	return result
 }
 
+// GetSliceOfElement returns a slice containing the specified element.
+// for example, GetSliceOfElement(1) returns [1]
 func GetSliceOfElement[T any](element T) []T {
 	return []T{element}
 }
