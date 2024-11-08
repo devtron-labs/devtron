@@ -14,6 +14,10 @@ func ConvertToPlatformMap(infraProfileConfigurationEntities []*bean.InfraProfile
 
 	for _, infraProfileConfiguration := range infraProfileConfigurationEntities {
 		ConfigurationBean := getConfigurationBean(infraProfileConfiguration, profileName)
+		platform := infraProfileConfiguration.Platform
+		if len(platform) == 0 {
+			platform = util.CI_RUNNER_PLATFORM
+		}
 
 		// Add the ConfigurationBean to the corresponding platform entry in the map
 		platformMap[infraProfileConfiguration.Platform] = append(platformMap[infraProfileConfiguration.Platform], ConfigurationBean)
