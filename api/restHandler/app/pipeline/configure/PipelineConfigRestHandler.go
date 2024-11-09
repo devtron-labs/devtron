@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging/read"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
@@ -122,6 +123,7 @@ type PipelineConfigRestHandlerImpl struct {
 	scanResultRepository                security.ImageScanResultRepository
 	gitProviderRepo                     repository.GitProviderRepository
 	argoUserService                     argo.ArgoUserService
+	imageTaggingReadService             read.ImageTaggingReadService
 	imageTaggingService                 pipeline.ImageTaggingService
 	deploymentTemplateService           generateManifest.DeploymentTemplateService
 	pipelineRestHandlerEnvConfig        *PipelineRestHandlerEnvConfig
@@ -142,7 +144,8 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	ciHandler pipeline.CiHandler,
 	validator *validator.Validate,
 	gitSensorClient gitSensor.Client,
-	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
+	ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	pipelineRepository pipelineConfig.PipelineRepository,
 	enforcerUtil rbac.EnforcerUtil,
 	dockerRegistryConfig pipeline.DockerRegistryConfig,
 	cdHandler pipeline.CdHandler,
@@ -152,6 +155,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
 	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
 	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
+	imageTaggingReadService read.ImageTaggingReadService,
 	imageTaggingService pipeline.ImageTaggingService,
 	ciArtifactRepository repository.CiArtifactRepository,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
@@ -188,6 +192,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		gitProviderRepo:                     gitProviderRepo,
 		argoUserService:                     argoUserService,
 		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
+		imageTaggingReadService:             imageTaggingReadService,
 		imageTaggingService:                 imageTaggingService,
 		deploymentTemplateService:           deploymentTemplateService,
 		pipelineRestHandlerEnvConfig:        envConfig,

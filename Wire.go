@@ -122,6 +122,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/asyncProvider"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/build"
+	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	"github.com/devtron-labs/devtron/pkg/bulkAction"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
@@ -207,7 +208,7 @@ func InitializeApp() (*App, error) {
 		fluxApplication.FluxApplicationWireSet,
 		eventProcessor.EventProcessorWireSet,
 		workflow3.WorkflowWireSet,
-
+		imageTagging.WireSet,
 		devtronResource.DevtronResourceWireSet,
 
 		// -------wireset end ----------

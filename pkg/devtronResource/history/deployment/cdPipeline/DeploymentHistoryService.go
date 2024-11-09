@@ -2,6 +2,7 @@ package cdPipeline
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging/read"
 	historyBean "github.com/devtron-labs/devtron/pkg/devtronResource/bean/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -17,6 +18,7 @@ type DeploymentHistoryService interface {
 type DeploymentHistoryServiceImpl struct {
 	logger                              *zap.SugaredLogger
 	cdHandler                           pipeline.CdHandler
+	imageTaggingReadService             read.ImageTaggingReadService
 	imageTaggingService                 pipeline.ImageTaggingService
 	pipelineRepository                  pipelineConfig.PipelineRepository
 	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService
@@ -24,12 +26,14 @@ type DeploymentHistoryServiceImpl struct {
 
 func NewDeploymentHistoryServiceImpl(logger *zap.SugaredLogger,
 	cdHandler pipeline.CdHandler,
+	imageTaggingReadService read.ImageTaggingReadService,
 	imageTaggingService pipeline.ImageTaggingService,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService) *DeploymentHistoryServiceImpl {
 	return &DeploymentHistoryServiceImpl{
 		logger:                              logger,
 		cdHandler:                           cdHandler,
+		imageTaggingReadService:             imageTaggingReadService,
 		imageTaggingService:                 imageTaggingService,
 		pipelineRepository:                  pipelineRepository,
 		deployedConfigurationHistoryService: deployedConfigurationHistoryService,
@@ -45,7 +49,7 @@ func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistory(req *hi
 	}
 
 	resp.CdWorkflows = wfs
-	appTags, err := impl.imageTaggingService.GetUniqueTagsByAppId(req.AppId)
+	appTags, err := impl.imageTaggingReadService.GetUniqueTagsByAppId(req.AppId)
 	if err != nil {
 		impl.logger.Errorw("service err, GetTagsByAppId", "err", err, "appId", req.AppId)
 		return resp, err
