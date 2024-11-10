@@ -9,9 +9,8 @@
  
 <p align="center">
 <br>
-<a href="https://docs.devtron.ai/" rel="nofollow"><strong>Explore documentation »</strong></a>
-<br>
-<a href="https://dashboard.devtron.ai/dashboard" rel="nofollow"><strong>Try Devtron Demo »</strong></a>
+<a href="https://docs.devtron.ai/" rel="nofollow"><strong>«Explore Documentation»</strong></a> <strong>||</strong>
+<a href="https://preview.devtron.ai/dashboard/" rel="nofollow"><strong>«Try Devtron Demo»</strong></a>
 <br>
 <a href="https://devtron.ai/">Website</a>
 ·
@@ -23,16 +22,19 @@
 .
 <a href="https://www.youtube.com/channel/UCAHRp9qp0z1y9MMtQlcFtcw">YouTube</a>
  
+
 </p>
 <p align="center">
-<a href="https://discord.gg/jsRG5qx2gp"><img src="https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg" alt="Join Discord"></a>
+<a href="https://discord.gg/jsRG5qx2gp"><img src="https://img.shields.io/discord/687207715902193673?logo=discord&label=Discord&color=5865F2&logoColor=white" alt="Join Discord"></a>
 <a href="https://goreportcard.com/badge/github.com/devtron-labs/devtron"><img src="https://goreportcard.com/badge/github.com/devtron-labs/devtron" alt="Go Report Card"></a>
 <a href="./LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
+<a href="./CONTRIBUTING.md"><img src="https://img.shields.io/github/contributors/devtron-labs/devtron" alt="contributors"></a>
+<a href="https://github.com/devtron-labs/devtron"><img src="https://img.shields.io/github/commit-activity/m/devtron-labs/devtron" alt="Commit Activity"></a>
 <a href="https://bestpractices.coreinfrastructure.org/projects/4411"><img src="https://bestpractices.coreinfrastructure.org/projects/4411/badge" alt="CII Best Practices"></a>
 <a href="http://golang.org"><img src="https://img.shields.io/badge/Made%20with-Go-1f425f.svg" alt="made-with-Go"></a>
 <a href="http://devtron.ai/"><img src="https://img.shields.io/website-up-down-green-red/http/shields.io.svg" alt="Website devtron.ai"></a>
+<a href="https://github.com/devtron-labs/devtron/releases"><img src="https://img.shields.io/github/v/release/devtron-labs/devtron"></a>
 <a href="https://twitter.com/intent/tweet?text=Devtron%20helps%20in%20simplifying%20software delivery%20workflow%20for%20Kubernetes,%20check%20it%20out!!%20&hashtags=OpenSource,Kubernetes,DevOps,CICD,go&url=https://github.com/devtron-labs/devtron%0a"><img src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social" alt="Tweet"></a>
- 
 <h1></h1>
 
 Devtron's **extensible Kubernetes Dashboard** provides clear visibility into your Kubernetes clusters and streamlines Helm app management through a single, intuitive interface. With built-in RBAC, it ensures secure access while offering integrated insights into workloads deployed via GitOps tools like **ArgoCD** and **FluxCD** across multiple clusters. Devtron creates a centralized DevOps hub, accelerating operations by up to 20x :rocket:
@@ -51,6 +53,19 @@ Out of the box, Devtron's Kubernetes Dashboard includes:
 - [Fine Grained RBAC](https://docs.devtron.ai/global-configurations/authorization/user-access) to control the level of access users have to different Dashboard and Cluster resources.
 
 [Devtron](#install-devtron) helps you deploy, observe, manage & debug existing Helm apps in all your clusters.
+
+## Devtron Dashboard Features 🤩
+
+Devtron's Kubernetes Dashboard offers a variety of different features, giving you flexibility to manage your clusters as you desire. You can find some of the key features below.
+
+- Simplified configuration and management for Helm applications with easy rollback
+- Compare and reconcile configuration drifts across enviornments
+- Manage Helm deployments to multiple Kubernetes enviornments
+- A single pane of glass for Helm, ArgoCD and FluxCD applications across multiple clusters
+- Centralized Dashboard to view and manage K8s resources across multiple clusters
+- Comprehensive SSO and RBAC to ensure secure dashboard access for team collaboration
+
+To get a more comprehensive understanding of Devtron's features, please visit the [documentation](https://docs.devtron.ai/)
 
 ## Installation
 
