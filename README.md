@@ -9,7 +9,7 @@
  
 <p align="center">
 <br>
-<a href="https://docs.devtron.ai/" rel="nofollow"><strong>«Explore Documentation»</strong></a> <strong>||</strong>
+<a href="https://docs.dashboard.devtron.ai/" rel="nofollow"><strong>«Explore Documentation»</strong></a> <strong>||</strong>
 <a href="https://preview.devtron.ai/dashboard/" rel="nofollow"><strong>«Try Devtron Demo»</strong></a>
 <br>
 <a href="https://devtron.ai/">Website</a>
@@ -48,10 +48,10 @@ Check out the below video to experince the full power of the **Kubernetes Dashbo
 </a>
 
 Out of the box, Devtron's Kubernetes Dashboard includes:
-- [Helm Application Management](https://docs.devtron.ai/usage/deploy-chart/overview-of-charts) to streamline deploying, configuration, and management of Helm apps 
-- [Resource Browser](https://docs.devtron.ai/usage/resource-browser) to visualize and manage different cluster resources like Nodes, Pods, ConfigMaps, Custom Resource Definations (CRDs), etc
-- [Single Sign On (SSO)](https://docs.devtron.ai/global-configurations/authorization/sso-login) to simplify onboarding and authenticating team members.
-- [Fine Grained RBAC](https://docs.devtron.ai/global-configurations/authorization/user-access) to control the level of access users have to different Dashboard and Cluster resources.
+- [Helm Application Management](https://docs.dashboard.devtron.ai/user-guide/helm-apps) to streamline deploying, configuration, and management of Helm apps 
+- [Resource Browser](https://docs.dashboard.devtron.ai/user-guide/resource-browser) to visualize and manage different cluster resources like Nodes, Pods, ConfigMaps, Custom Resource Definations (CRDs), etc
+- [Single Sign On (SSO)](https://docs.dashboard.devtron.ai/operator-guide/authorization/sso-login-services) to simplify onboarding and authenticating team members.
+- [Fine Grained RBAC](https://docs.dashboard.devtron.ai/operator-guide/authorization) to control the level of access users have to different Dashboard and Cluster resources.
 
 [Devtron](#install-devtron) helps you deploy, observe, manage & debug existing Helm apps in all your clusters.
 
@@ -66,7 +66,7 @@ Devtron's Kubernetes Dashboard offers a variety of different features, giving yo
 - Centralized Dashboard to view and manage K8s resources across multiple clusters
 - Comprehensive SSO and RBAC to ensure secure dashboard access for team collaboration
 
-To get a more comprehensive understanding of Devtron's features, please visit the [documentation](https://docs.devtron.ai/)
+To get a more comprehensive understanding of Devtron's features, please visit the [documentation](https://docs.dashboard.devtron.ai/)
 
 ## Installation
 
@@ -74,7 +74,7 @@ Before you begin, you must create a [Kubernetes cluster](https://kubernetes.io/d
 
 ### Install Devtron's Kubernetes Dashboard
 
-Run the following command to install the latest version of Devtron along with the CI/CD module:
+Run the following command to install the latest version of Devtron's Kubernetes Dashboard:
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
@@ -107,34 +107,35 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 ```
 
 
-Please refer to the document for more information on how to [access the Devtron Dashboard](https://docs.devtron.ai/install/install-devtron#devtron-dashboard).
+Please refer to the document for more information on how to [access the Devtron Dashboard](https://docs.dashboard.devtron.ai/getting-started/install-devtron-dashboard).
 
 ### Install Multi-Architecture Nodes (ARM and AMD)
 
 To install Devtron on clusters with the multi-architecture nodes (ARM and AMD), append the Devtron installation command with ```--set installer.arch=multi-arch```
 
+### Install Devtron Platform
+
+Run the following command to install the latest version of the Devtron Platform:
+
+```bash
+helm repo add devtron https://helm.devtron.ai
+
+helm repo update devtron
+
+helm install devtron devtron/devtron-operator \
+--create-namespace --namespace devtroncd \
+--set installer.modules={cicd} \
+--set argo-cd.enabled=true
+```
 ## :blue_heart: Technology
  
 Devtron is built on some of the most trusted and loved technologies:
 <br>
 <p align="center"><img width="70%" height="70%" src="./assets/we-support.jpg"></p>
 
-## :muscle: Trusted By
- 
-Devtron is trusted by communities all across the globe. The list of organizations using Devtron can be found [here](./USERS.md).
-
- 
 ## :question: FAQs & Troubleshooting
  
 - For troubleshooting Devtron please [refer to this docs page](https://docs.devtron.ai/resources/devtron-troubleshoot)
- 
-## :page_facing_up: Compatibility
- 
-### Current build
- 
-- Devtron uses modified version of [Argo Rollout](https://argoproj.github.io/argo-rollouts/)
-- Application metrics only work for K8s version 1.16+
- 
  
 ## :busts_in_silhouette: Community
  
@@ -142,6 +143,7 @@ Get updates on Devtron's development and chat with project maintainers, contribu
 - Follow [@DevtronL on Twitter](https://twitter.com/DevtronL)
 - Raise feature requests, suggest enhancements, and report bugs in our [GitHub Issues](https://github.com/devtron-labs/devtron/issues)
 - Articles, Howtos, Tutorials - [Devtron Blogs](https://devtron.ai/blog/)
+- Devtron is trusted by communities all across the globe. The list of organizations using Devtron can be found [here](./USERS.md).
  
 ### Join us at Discord channel
 <p>
