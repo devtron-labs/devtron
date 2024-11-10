@@ -4,14 +4,14 @@
   <source media="(prefers-color-scheme: light)"  srcset="./assets/devtron-lightmode-logo.png">
   <img width="333.333" height="260" src="./assets/devtron-logo-dark-light.png">
 </picture>
-<h1 align= "center">Cloud Native tool integration platform for Kubernetes</h1>
+<h1 align= "center">Kubernetes Dashboard for a Centralized DevOps Hub</h1>
 </p>
  
 <p align="center">
 <br>
 <a href="https://docs.devtron.ai/" rel="nofollow"><strong>Explore documentation »</strong></a>
 <br>
-<a href="https://preview.devtron.ai/dashboard/" rel="nofollow"><strong>Try Devtron Demo »</strong></a>
+<a href="https://dashboard.devtron.ai/dashboard" rel="nofollow"><strong>Try Devtron Demo »</strong></a>
 <br>
 <a href="https://devtron.ai/">Website</a>
 ·
@@ -33,73 +33,30 @@
 <a href="http://devtron.ai/"><img src="https://img.shields.io/website-up-down-green-red/http/shields.io.svg" alt="Website devtron.ai"></a>
 <a href="https://twitter.com/intent/tweet?text=Devtron%20helps%20in%20simplifying%20software delivery%20workflow%20for%20Kubernetes,%20check%20it%20out!!%20&hashtags=OpenSource,Kubernetes,DevOps,CICD,go&url=https://github.com/devtron-labs/devtron%0a"><img src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social" alt="Tweet"></a>
  
-<p align="center">
-<a href="https://devtron.ai/devops-in-a-box.html">🔥 Want to accelerate K8s adoption? Introducing DevOps in a Box; Leave DevOps on Devtron 🔥
-</a>
-<br>
-</p>
 <h1></h1>
 
-Devtron deeply integrates with products across the lifecycle of microservices,i.e., CI, CD, security, cost, debugging, and observability via an intuitive web interface.
+Devtron's **extensible Kubernetes Dashboard** provides clear visibility into your Kubernetes clusters and streamlines Helm app management through a single, intuitive interface. With built-in RBAC, it ensures secure access while offering integrated insights into workloads deployed via GitOps tools like **ArgoCD** and **FluxCD** across multiple clusters. Devtron creates a centralized DevOps hub, accelerating operations by up to 20x :rocket:
+
+Check out the below video to experince the full power of the **Kubernetes Dashboard**.
+
+<a href="https://youtu.be/oqCAB9b-SGQ?si=YoUJfHL43VXRU5wx">
 <br>
-<p align="center"><img src="./assets/readme-comic.png"></p>
+<p align="center"><img src="./assets/dashboard.png"></p>
+</a>
+
+Out of the box, Devtron's Kubernetes Dashboard includes:
+- [Helm Application Management](https://docs.devtron.ai/usage/deploy-chart/overview-of-charts) to streamline deploying, configuration, and management of Helm apps 
+- [Resource Browser](https://docs.devtron.ai/usage/resource-browser) to visualize and manage different cluster resources like Nodes, Pods, ConfigMaps, Custom Resource Definations (CRDs), etc
+- [Single Sign On (SSO)](https://docs.devtron.ai/global-configurations/authorization/sso-login) to simplify onboarding and authenticating team members.
+- [Fine Grained RBAC](https://docs.devtron.ai/global-configurations/authorization/user-access) to control the level of access users have to different Dashboard and Cluster resources.
 
 [Devtron](#install-devtron) helps you deploy, observe, manage & debug existing Helm apps in all your clusters.
-
-
-## Devtron Demo Environment
-
-Please log in the <a href="https://preview.devtron.ai/dashboard/" rel="nofollow">Demo environment</a> using github credentials. Please note the user is granted view access.
-
-## Devtron Features
-
-<details><summary><b>Application-level Resource grouping for easier Debugging</b></summary>
-<br>
- 
-- Devtron groups your Kubernetes objects deployed via Helm charts and display them in a slick UI for easier monitoring or debugging. Access pod logs and resource manifests right from the Devtron UI and even edit them!
- 
-</details>
-<details><summary> <b>Centralized Access Management</b></summary>
-<br>
-
-- Control and give customizable view-only, edit access to users on Project, Environment and Application levels
-</details>
-
-<details><summary> <b>Deploy, Manage and Observe on multiple clusters</b></summary>
-<br>
-
-- Deploy and manage Helm charts, applications across multiple Kubernetes clusters (hosted on multiple clouds/on-prem) right from a single Devtron setup
-</details>
-
-<br>
-
-## Integrations
-
-Devtron is designed to be modular, and its functionality can be easily extended with the help of integrations.
-
-### CI/CD Integration
-
-[Devtron CI/CD with GitOps](#install-devtron-with-cicd-integration) integration is used to automate the builds and deployments and enables the software development teams to focus on meeting the business requirements, code quality, and security.
-
-* Devtron leverages Kubernetes auto-scaling and centralized caching to give you unlimited cost-efficient CI workers.
-* Supports pre-CI and post-CI integrations for code quality monitoring.
-* Seamlessly integrates with Clair for image vulnerability scanning.
-* Supports different deployment strategies: Blue/Green, Rolling, Canary, and Recreate.
-* Implements GitOps to manage the state of Kubernetes applications.
-* Integrates with ArgoCD for continuous deployment.
-* Checks logs, events, and manifests or exec inside containers for debugging.
-* Provides deployment metrics like; deployment frequency, lead time, change failure rate, and mean-time recovery.
-* Seamlessly integrates with Grafana for continuous application metrics like CPU and memory usage, status code, throughput, and latency on the dashboard.
-
-## Architecture
-
-<p align="center"><img src="./assets/Architecture.jpg"></p>
 
 ## Installation
 
 Before you begin, you must create a [Kubernetes cluster](https://kubernetes.io/docs/tutorials/kubernetes-basics/create-cluster/) (preferably K8s 1.16 or higher) and install [Helm](https://helm.sh/docs/intro/install/).
 
-### 1. Install Devtron with CI/CD Integration
+### Install Devtron's Kubernetes Dashboard
 
 Run the following command to install the latest version of Devtron along with the CI/CD module:
 
@@ -107,8 +64,7 @@ Run the following command to install the latest version of Devtron along with th
 helm repo add devtron https://helm.devtron.ai
 
 helm install devtron devtron/devtron-operator \
---create-namespace --namespace devtroncd \
---set installer.modules={cicd}
+--create-namespace --namespace devtroncd
 ```
 
 ### Access Devtron
@@ -135,30 +91,7 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 ```
 
 
-Please refer to the document for more information on how to [access the Devtron Dashboard](./docs/setup/install/install-devtron-with-cicd.md/#access-devtron-dashboard).
-
-#### Installation Status
-
-The above install command for CI/CD integration starts Devtron-operator, which takes about 20 minutes to spin up all of the Devtron microservices one by one. You can check the status of the installation with the following command:
-
-```bash
-kubectl -n devtroncd get installers installer-devtron \
--o jsonpath='{.status.sync.status}'
-```
-
-The command executes with one of the following output messages, indicating the status of the installation:
-
-* **Downloaded**: The installer has downloaded all the manifests, and installation is in progress.
-* **Applied**: The installer has successfully applied all the manifests, and the installation is complete.
-
-### 2. Install Devtron with Helm Bundle
-
-```bash
-helm repo add devtron https://helm.devtron.ai
-
-helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd
-
-```
+Please refer to the document for more information on how to [access the Devtron Dashboard](https://docs.devtron.ai/install/install-devtron#devtron-dashboard).
 
 ### Install Multi-Architecture Nodes (ARM and AMD)
 
@@ -169,21 +102,6 @@ To install Devtron on clusters with the multi-architecture nodes (ARM and AMD), 
 Devtron is built on some of the most trusted and loved technologies:
 <br>
 <p align="center"><img width="70%" height="70%" src="./assets/we-support.jpg"></p>
- 
-## :video_camera: Videos
- 
-- [Devtron - A Comprehensive Overview](https://youtu.be/FB5BI3Ef7uw?t=363)
-- [Viktor Farcic's review](https://youtu.be/ZKcfZC-zSMM)
-- [Running an application on Devtron](https://youtu.be/bA6zgjPD_yA?t=2927)
-- [Devtron Demo](https://youtu.be/ekxHV2Gje-E?t=7856)
-
-## :memo: Blogs from Community
-
-* [How Livspace revolutionised its CI/CD saga](https://blog.livspace.io/how-livspace-revolutionised-its-ci-cd-saga-3120724e271b)
-* [AppOps with Kubernetes and Devtron: The Perfect Fit](https://hackernoon.com/appops-with-kubernetes-and-devtron-the-perfect-fit-sj934qj)
-* [Getting started with GitOps on Kubernetes with Devtron](https://piotrminkowski.com/2022/05/04/getting-started-with-gitops-on-kubernetes-with-devtron)
-* [Zero to hero on Kubernetes with Devtron](https://dzone.com/articles/zero-to-hero-on-kubernetes-with-devtron)
-* [Kubernetes deployment made easy](https://medium.com/container-talks/kubernetes-deployment-made-easy-cc74f0242f06)
 
 ## :muscle: Trusted By
  
@@ -192,7 +110,7 @@ Devtron is trusted by communities all across the globe. The list of organization
  
 ## :question: FAQs & Troubleshooting
  
-- Devtron - [see here](https://docs.devtron.ai/resources/devtron-troubleshoot)
+- For troubleshooting Devtron please [refer to this docs page](https://docs.devtron.ai/resources/devtron-troubleshoot)
  
 ## :page_facing_up: Compatibility
  
@@ -201,7 +119,6 @@ Devtron is trusted by communities all across the globe. The list of organization
 - Devtron uses modified version of [Argo Rollout](https://argoproj.github.io/argo-rollouts/)
 - Application metrics only work for K8s version 1.16+
  
-## Support, Contribution, and Community
  
 ## :busts_in_silhouette: Community
  
