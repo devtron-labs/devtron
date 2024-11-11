@@ -568,7 +568,7 @@ func TestImageTaggingService(t *testing.T) {
 		tt.Run("GetTagsDataMapByAppId,GetTagsByAppId repo func throws error, return same error", func(ttt *testing.T) {
 			testErr := "error in GetTagsByAppId"
 			mockedImageTaggingRepo := mocks.NewImageTaggingRepository(tt)
-			mockedImageTaggingRepo.On(":", appId).Return(nil, errors.New(testErr))
+			mockedImageTaggingRepo.On("GetTagsByAppId", appId).Return(nil, errors.New(testErr))
 			mockedImageTaggingReadService := mocks4.NewImageTaggingReadService(t)
 			imageTaggingService := NewImageTaggingServiceImpl(mockedImageTaggingRepo, mockedImageTaggingReadService, nil, nil, nil, sugaredLogger)
 			resMap, err := imageTaggingService.GetTagsDataMapByAppId(appId)
