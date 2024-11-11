@@ -24,7 +24,7 @@ global:
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
-  release: "v0.7.4"
+  release: "v1.0.0"
   registry: ""
   image: inception
   tag: 473deaa4-185-21582
@@ -77,12 +77,12 @@ components:
         FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE: "true"
         ENABLE_RESOURCE_SCAN: "true"
     registry: ""
-    image: "dashboard:5be7fbeb-690-26830"
+    image: "dashboard:7e7a0d0a-690-26996"
     imagePullPolicy: IfNotPresent
   devtron:
     registry: ""
-    image: "hyperion:4288e910-280-26829"
-    cicdImage: "devtron:4288e910-434-26828"
+    image: "hyperion:15cf0137-280-27017"
+    cicdImage: "devtron:15cf0137-434-27015"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
@@ -108,7 +108,7 @@ components:
       #      - devtron.example.com
   ciRunner:
     registry: ""
-    image: "ci-runner:fd5702db-138-25483"
+    image: "ci-runner:3e71f258-138-27009"
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
