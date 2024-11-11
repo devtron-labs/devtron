@@ -1,5 +1,3 @@
-We are extremely excited to announce Devtron's official release of Devtron 1.0. This marks an incredible milestone in our journey. Your valuable feedback and suggestions are what have helped us build the platform and constantly provide value to our users. This is just the beginning - we remain committed to innovation and will continue to deliver powerful features that enhance your DevOps experience based on community feedback and evolving industry needs.
-
 ## v1.0.0
 
 ## Bugs

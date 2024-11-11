@@ -124,7 +124,7 @@ func (impl *DeployedApplicationEventProcessorImpl) SubscribeArgoAppUpdate() erro
 				return
 			}
 		}
-		isSucceeded, pipelineOverride, err := impl.appService.UpdateDeploymentStatusAndCheckIsSucceeded(app, applicationDetail.StatusTime, isAppStoreApplication)
+		isSucceeded, _, pipelineOverride, err := impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, applicationDetail.StatusTime, isAppStoreApplication)
 		if err != nil {
 			impl.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
 			// TODO - check update for charts - fix this call
