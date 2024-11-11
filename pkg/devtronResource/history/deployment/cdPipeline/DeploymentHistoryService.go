@@ -6,12 +6,13 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
+	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/history/bean"
 	"go.uber.org/zap"
 )
 
 type DeploymentHistoryService interface {
 	GetCdPipelineDeploymentHistory(req *historyBean.CdPipelineDeploymentHistoryListReq) (resp historyBean.DeploymentHistoryResp, err error)
-	GetCdPipelineDeploymentHistoryConfigList(req *historyBean.CdPipelineDeploymentHistoryConfigListReq) (resp []*history.DeployedHistoryComponentMetadataDto, err error)
+	GetCdPipelineDeploymentHistoryConfigList(req *historyBean.CdPipelineDeploymentHistoryConfigListReq) (resp []*bean2.DeployedHistoryComponentMetadataDto, err error)
 }
 
 type DeploymentHistoryServiceImpl struct {
@@ -62,7 +63,7 @@ func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistory(req *hi
 	return resp, nil
 }
 
-func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistoryConfigList(req *historyBean.CdPipelineDeploymentHistoryConfigListReq) (resp []*history.DeployedHistoryComponentMetadataDto, err error) {
+func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistoryConfigList(req *historyBean.CdPipelineDeploymentHistoryConfigListReq) (resp []*bean2.DeployedHistoryComponentMetadataDto, err error) {
 	res, err := impl.deployedConfigurationHistoryService.GetDeployedHistoryComponentList(req.PipelineId, req.BaseConfigurationId, req.HistoryComponent, req.HistoryComponentName)
 	if err != nil {
 		impl.logger.Errorw("service err, GetDeployedHistoryComponentList", "err", err, "pipelineId", req.PipelineId)

@@ -43,6 +43,10 @@ const (
 	LINKED_CD PipelineType = "LINKED_CD"
 )
 
+func (pType PipelineType) ToString() string {
+	return string(pType)
+}
+
 type CiBuildConfigBean struct {
 	Id                        int                `json:"id"`
 	GitMaterialId             int                `json:"gitMaterialId,omitempty" validate:"required"`

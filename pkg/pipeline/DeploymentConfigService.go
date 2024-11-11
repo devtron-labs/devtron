@@ -23,9 +23,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
-	"github.com/devtron-labs/devtron/pkg/pipeline/history"
+	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/history/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
@@ -37,9 +38,9 @@ import (
 )
 
 type PipelineDeploymentConfigService interface {
-	GetLatestDeploymentConfigurationByPipelineId(ctx context.Context, pipelineId int, userHasAdminAccess bool) (*history.AllDeploymentConfigurationDetail, error)
+	GetLatestDeploymentConfigurationByPipelineId(ctx context.Context, pipelineId int, userHasAdminAccess bool) (*bean2.AllDeploymentConfigurationDetail, error)
 	GetMergedCMCSConfigMap(appLevelConfig, envLevelConfig string, configType repository2.ConfigType) (map[string]*bean.ConfigData, error)
-	GetLatestPipelineStrategyConfig(pipeline *pipelineConfig.Pipeline) (*history.HistoryDetailDto, error)
+	GetLatestPipelineStrategyConfig(pipeline *pipelineConfig.Pipeline) (*bean2.HistoryDetailDto, error)
 }
 
 type PipelineDeploymentConfigServiceImpl struct {
@@ -49,10 +50,10 @@ type PipelineDeploymentConfigServiceImpl struct {
 	pipelineRepository          pipelineConfig.PipelineRepository
 	pipelineConfigRepository    chartConfig.PipelineConfigRepository
 	configMapRepository         chartConfig.ConfigMapRepository
-	configMapHistoryService     history.ConfigMapHistoryService
 	scopedVariableManager       variables.ScopedVariableCMCSManager
 	deployedAppMetricsService   deployedAppMetrics.DeployedAppMetricsService
 	chartRefService             chartRef.ChartRefService
+	configMapHistoryReadService read.ConfigMapHistoryReadService
 }
 
 func NewPipelineDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
@@ -61,10 +62,11 @@ func NewPipelineDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
-	configMapHistoryService history.ConfigMapHistoryService,
 	scopedVariableManager variables.ScopedVariableCMCSManager,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
-	chartRefService chartRef.ChartRefService) *PipelineDeploymentConfigServiceImpl {
+	chartRefService chartRef.ChartRefService,
+	configMapHistoryReadService read.ConfigMapHistoryReadService,
+) *PipelineDeploymentConfigServiceImpl {
 	return &PipelineDeploymentConfigServiceImpl{
 		logger:                      logger,
 		envConfigOverrideRepository: envConfigOverrideRepository,
@@ -72,15 +74,15 @@ func NewPipelineDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 		pipelineRepository:          pipelineRepository,
 		pipelineConfigRepository:    pipelineConfigRepository,
 		configMapRepository:         configMapRepository,
-		configMapHistoryService:     configMapHistoryService,
 		scopedVariableManager:       scopedVariableManager,
 		deployedAppMetricsService:   deployedAppMetricsService,
 		chartRefService:             chartRefService,
+		configMapHistoryReadService: configMapHistoryReadService,
 	}
 }
 
-func (impl *PipelineDeploymentConfigServiceImpl) GetLatestDeploymentConfigurationByPipelineId(ctx context.Context, pipelineId int, userHasAdminAccess bool) (*history.AllDeploymentConfigurationDetail, error) {
-	configResp := &history.AllDeploymentConfigurationDetail{}
+func (impl *PipelineDeploymentConfigServiceImpl) GetLatestDeploymentConfigurationByPipelineId(ctx context.Context, pipelineId int, userHasAdminAccess bool) (*bean2.AllDeploymentConfigurationDetail, error) {
+	configResp := &bean2.AllDeploymentConfigurationDetail{}
 	pipeline, err := impl.pipelineRepository.FindById(pipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in getting pipeline by id", "err", err, "id", pipelineId)
@@ -111,7 +113,7 @@ func (impl *PipelineDeploymentConfigServiceImpl) GetLatestDeploymentConfiguratio
 	return configResp, nil
 }
 
-func (impl *PipelineDeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(ctx context.Context, pipeline *pipelineConfig.Pipeline) (*history.HistoryDetailDto, error) {
+func (impl *PipelineDeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(ctx context.Context, pipeline *pipelineConfig.Pipeline) (*bean2.HistoryDetailDto, error) {
 	isAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagForAPipelineByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error, GetMetricsFlagForAPipelineByAppIdAndEnvId", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
@@ -123,7 +125,7 @@ func (impl *PipelineDeploymentConfigServiceImpl) GetLatestDeploymentTemplateConf
 		return nil, err
 	}
 	impl.logger.Infow("received override chart", "envConfigOverride", envOverride)
-	deploymentTemplateConfig := &history.HistoryDetailDto{}
+	deploymentTemplateConfig := &bean2.HistoryDetailDto{}
 	if envOverride != nil && envOverride.Id > 0 && envOverride.IsOverride {
 		if envOverride.Chart != nil {
 			chartRefDto, err := impl.chartRefService.FindById(envOverride.Chart.ChartRefId)
@@ -149,11 +151,11 @@ func (impl *PipelineDeploymentConfigServiceImpl) GetLatestDeploymentTemplateConf
 				impl.logger.Errorw("could not resolve template", "err", err, "envOverrideId", envOverride.Id, "scope", scope, "pipelineId", pipeline.Id)
 			}
 
-			deploymentTemplateConfig = &history.HistoryDetailDto{
+			deploymentTemplateConfig = &bean2.HistoryDetailDto{
 				TemplateName:        envOverride.Chart.ChartName,
 				TemplateVersion:     chartRefDto.Version,
 				IsAppMetricsEnabled: &isAppMetricsEnabled,
-				CodeEditorValue: &history.HistoryDetailConfig{
+				CodeEditorValue: &bean2.HistoryDetailConfig{
 					DisplayName:      "values.yaml",
 					Value:            envOverride.EnvOverrideValues,
 					VariableSnapshot: scopedVariablesMap,
@@ -190,11 +192,11 @@ func (impl *PipelineDeploymentConfigServiceImpl) GetLatestDeploymentTemplateConf
 		if err != nil {
 			impl.logger.Errorw("could not resolve template", "err", err, "chartId", chart.Id, "scope", scope, "pipelineId", pipeline.Id)
 		}
-		deploymentTemplateConfig = &history.HistoryDetailDto{
+		deploymentTemplateConfig = &bean2.HistoryDetailDto{
 			TemplateName:        chart.ChartName,
 			TemplateVersion:     chartRefDto.Version,
 			IsAppMetricsEnabled: &isAppMetricsEnabled,
-			CodeEditorValue: &history.HistoryDetailConfig{
+			CodeEditorValue: &bean2.HistoryDetailConfig{
 				DisplayName:      "values.yaml",
 				Value:            chart.GlobalOverride,
 				VariableSnapshot: scopedVariablesMap,
@@ -205,17 +207,17 @@ func (impl *PipelineDeploymentConfigServiceImpl) GetLatestDeploymentTemplateConf
 	return deploymentTemplateConfig, nil
 }
 
-func (impl *PipelineDeploymentConfigServiceImpl) GetLatestPipelineStrategyConfig(pipeline *pipelineConfig.Pipeline) (*history.HistoryDetailDto, error) {
+func (impl *PipelineDeploymentConfigServiceImpl) GetLatestPipelineStrategyConfig(pipeline *pipelineConfig.Pipeline) (*bean2.HistoryDetailDto, error) {
 
 	pipelineStrategy, err := impl.pipelineConfigRepository.GetDefaultStrategyByPipelineId(pipeline.Id)
 	if err != nil {
 		impl.logger.Errorw("error in getting default pipelineStrategy by pipelineId", "err", err, "pipelineId", pipeline.Id)
 		return nil, err
 	}
-	pipelineStrategyConfig := &history.HistoryDetailDto{
+	pipelineStrategyConfig := &bean2.HistoryDetailDto{
 		Strategy:            string(pipelineStrategy.Strategy),
 		PipelineTriggerType: pipeline.TriggerType,
-		CodeEditorValue: &history.HistoryDetailConfig{
+		CodeEditorValue: &bean2.HistoryDetailConfig{
 			DisplayName: "Strategy configuration",
 			Value:       pipelineStrategy.Config,
 		},
@@ -223,7 +225,7 @@ func (impl *PipelineDeploymentConfigServiceImpl) GetLatestPipelineStrategyConfig
 	return pipelineStrategyConfig, nil
 }
 
-func (impl *PipelineDeploymentConfigServiceImpl) GetLatestCMCSConfig(ctx context.Context, pipeline *pipelineConfig.Pipeline, userHasAdminAccess bool) ([]*history.ComponentLevelHistoryDetailDto, []*history.ComponentLevelHistoryDetailDto, error) {
+func (impl *PipelineDeploymentConfigServiceImpl) GetLatestCMCSConfig(ctx context.Context, pipeline *pipelineConfig.Pipeline, userHasAdminAccess bool) ([]*bean2.ComponentLevelHistoryDetailDto, []*bean2.ComponentLevelHistoryDetailDto, error) {
 
 	configAppLevel, err := impl.configMapRepository.GetByAppIdAppLevel(pipeline.AppId)
 	if err != nil && pg.ErrNoRows != err {
@@ -269,9 +271,9 @@ func (impl *PipelineDeploymentConfigServiceImpl) GetLatestCMCSConfig(ctx context
 		return nil, nil, err
 	}
 
-	var cmConfigsDto []*history.ComponentLevelHistoryDetailDto
+	var cmConfigsDto []*bean2.ComponentLevelHistoryDetailDto
 	for _, data := range mergedConfigMap {
-		convertedData, err := impl.configMapHistoryService.ConvertConfigDataToComponentLevelDto(data, repository2.CONFIGMAP_TYPE, userHasAdminAccess)
+		convertedData, err := impl.configMapHistoryReadService.ConvertConfigDataToComponentLevelDto(data, repository2.CONFIGMAP_TYPE, userHasAdminAccess)
 		if err != nil {
 			impl.logger.Errorw("error in converting cmConfig to componentLevelData", "err", err)
 			return nil, nil, err
@@ -281,9 +283,9 @@ func (impl *PipelineDeploymentConfigServiceImpl) GetLatestCMCSConfig(ctx context
 		cmConfigsDto = append(cmConfigsDto, convertedData)
 	}
 
-	var secretConfigsDto []*history.ComponentLevelHistoryDetailDto
+	var secretConfigsDto []*bean2.ComponentLevelHistoryDetailDto
 	for _, data := range mergedSecret {
-		convertedData, err := impl.configMapHistoryService.ConvertConfigDataToComponentLevelDto(data, repository2.SECRET_TYPE, userHasAdminAccess)
+		convertedData, err := impl.configMapHistoryReadService.ConvertConfigDataToComponentLevelDto(data, repository2.SECRET_TYPE, userHasAdminAccess)
 		if err != nil {
 			impl.logger.Errorw("error in converting secretConfig to componentLevelData", "err", err)
 			return nil, nil, err
