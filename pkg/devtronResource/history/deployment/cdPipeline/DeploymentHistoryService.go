@@ -57,12 +57,12 @@ func (impl *DeploymentHistoryServiceImpl) GetCdPipelineDeploymentHistory(req *hi
 	resp.AppReleaseTagNames = appTags
 
 	prodEnvExists, err := impl.imageTaggingService.GetProdEnvByCdPipelineId(req.PipelineId)
-	resp.TagsEditable = prodEnvExists
-	resp.HideImageTaggingHardDelete = impl.imageTaggingService.GetImageTaggingServiceConfig().HideImageTaggingHardDelete
 	if err != nil {
-		impl.logger.Errorw("service err, GetProdEnvFromParentAndLinkedWorkflow", "err", err, "cdPipelineId", req.PipelineId)
+		impl.logger.Errorw("service err, GetProdEnvByCdPipelineId", "err", err, "cdPipelineId", req.PipelineId)
 		return resp, err
 	}
+	resp.TagsEditable = prodEnvExists
+	resp.HideImageTaggingHardDelete = impl.imageTaggingReadService.GetImageTaggingServiceConfig().IsHardDeleteHidden()
 	return resp, nil
 }
 

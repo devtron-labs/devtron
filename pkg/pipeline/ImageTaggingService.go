@@ -19,7 +19,6 @@ package pipeline
 import (
 	"encoding/json"
 	"errors"
-	"github.com/caarlos0/env"
 	repository "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging/read"
@@ -34,10 +33,6 @@ import (
 const TagsKey = "tags"
 const CommentKey = "comment"
 const DuplicateTagsInAppError = "cannot create duplicate tags in the same app"
-
-type ImageTaggingServiceConfig struct {
-	HideImageTaggingHardDelete bool `env:"HIDE_IMAGE_TAGGING_HARD_DELETE" envDefault:"false"`
-}
 
 type ImageTaggingService interface {
 	// GetTagsData returns the following fields in response Object
@@ -55,18 +50,17 @@ type ImageTaggingService interface {
 	GetTagsDataMapByAppId(appId int) (map[int][]*repository.ImageTag, error)
 	// GetImageCommentsDataMapByArtifactIds this will fetch a map of artifact vs imageComment for given artifactIds
 	GetImageCommentsDataMapByArtifactIds(artifactIds []int) (map[int]*repository.ImageComment, error)
-	GetImageTaggingServiceConfig() ImageTaggingServiceConfig
+	IsHardDeleteHidden() bool
 	FindProdEnvExists(externalCi bool, pipelineIds []int) (bool, error)
 }
 
 type ImageTaggingServiceImpl struct {
-	imageTaggingRepo          repository.ImageTaggingRepository
-	imageTaggingReadService   read.ImageTaggingReadService
-	ciPipelineRepository      pipelineConfig.CiPipelineRepository // TODO: remove this dependency; use read service
-	cdPipelineRepository      pipelineConfig.PipelineRepository   // TODO: remove this dependency; use read service
-	environmentRepository     repository2.EnvironmentRepository   // TODO: remove this dependency; use read service
-	logger                    *zap.SugaredLogger
-	imageTaggingServiceConfig *ImageTaggingServiceConfig
+	imageTaggingRepo        repository.ImageTaggingRepository
+	imageTaggingReadService read.ImageTaggingReadService
+	ciPipelineRepository    pipelineConfig.CiPipelineRepository // TODO: remove this dependency; use read service
+	cdPipelineRepository    pipelineConfig.PipelineRepository   // TODO: remove this dependency; use read service
+	environmentRepository   repository2.EnvironmentRepository   // TODO: remove this dependency; use read service
+	logger                  *zap.SugaredLogger
 }
 
 func NewImageTaggingServiceImpl(imageTaggingRepo repository.ImageTaggingRepository,
@@ -75,24 +69,18 @@ func NewImageTaggingServiceImpl(imageTaggingRepo repository.ImageTaggingReposito
 	cdPipelineRepository pipelineConfig.PipelineRepository,
 	environmentRepository repository2.EnvironmentRepository,
 	logger *zap.SugaredLogger) *ImageTaggingServiceImpl {
-	imageTaggingServiceConfig := &ImageTaggingServiceConfig{}
-	err := env.Parse(imageTaggingServiceConfig)
-	if err != nil {
-		logger.Infow("error occurred while parsing ImageTaggingServiceConfig,so setting HIDE_IMAGE_TAGGING_HARD_DELETE to default value", "err", err)
-	}
 	return &ImageTaggingServiceImpl{
-		imageTaggingRepo:          imageTaggingRepo,
-		imageTaggingReadService:   imageTaggingReadService,
-		ciPipelineRepository:      ciPipelineRepository,
-		cdPipelineRepository:      cdPipelineRepository,
-		environmentRepository:     environmentRepository,
-		logger:                    logger,
-		imageTaggingServiceConfig: imageTaggingServiceConfig,
+		imageTaggingRepo:        imageTaggingRepo,
+		imageTaggingReadService: imageTaggingReadService,
+		ciPipelineRepository:    ciPipelineRepository,
+		cdPipelineRepository:    cdPipelineRepository,
+		environmentRepository:   environmentRepository,
+		logger:                  logger,
 	}
 }
 
-func (impl *ImageTaggingServiceImpl) GetImageTaggingServiceConfig() ImageTaggingServiceConfig {
-	return *impl.imageTaggingServiceConfig
+func (impl *ImageTaggingServiceImpl) IsHardDeleteHidden() bool {
+	return impl.imageTaggingReadService.GetImageTaggingServiceConfig().IsHardDeleteHidden()
 }
 
 // GetTagsData returns the following fields in reponse Object
@@ -132,7 +120,7 @@ func (impl *ImageTaggingServiceImpl) GetTagsData(ciPipelineId, appId, artifactId
 	resp.ImageReleaseTags = imageReleaseTags
 	resp.ImageComment = &imageComment
 	resp.ProdEnvExists = prodEnvExists
-	resp.HideImageTaggingHardDelete = impl.imageTaggingServiceConfig.HideImageTaggingHardDelete
+	resp.HideImageTaggingHardDelete = impl.IsHardDeleteHidden()
 	return resp, err
 }
 
@@ -330,7 +318,7 @@ func (impl *ImageTaggingServiceImpl) performTagOperationsAndGetAuditList(tx *pg.
 	}
 	//hard delete tags
 	hardDeleteAuditTags := make([]string, len(imageTaggingRequest.HardDeleteTags))
-	if !impl.imageTaggingServiceConfig.HideImageTaggingHardDelete {
+	if !impl.IsHardDeleteHidden() {
 		for i, tag := range imageTaggingRequest.HardDeleteTags {
 			tag.AppId = appId
 			tag.ArtifactId = artifactId
@@ -354,7 +342,7 @@ func (impl *ImageTaggingServiceImpl) performTagOperationsAndGetAuditList(tx *pg.
 		}
 	}
 
-	if len(imageTaggingRequest.HardDeleteTags) > 0 && !impl.imageTaggingServiceConfig.HideImageTaggingHardDelete {
+	if len(imageTaggingRequest.HardDeleteTags) > 0 && !impl.IsHardDeleteHidden() {
 		err = impl.imageTaggingRepo.DeleteReleaseTagInBulk(tx, imageTaggingRequest.HardDeleteTags)
 		if err != nil {
 			impl.logger.Errorw("error in deleting releaseTag in bulk", "err", err, "releaseTags", imageTaggingRequest.HardDeleteTags)

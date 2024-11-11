@@ -18,12 +18,15 @@ package read
 
 import (
 	"errors"
+	"github.com/caarlos0/env"
 	repository "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
 type ImageTaggingReadService interface {
+	// GetImageTaggingServiceConfig returns the ImageTaggingServiceConfig
+	GetImageTaggingServiceConfig() *ImageTaggingServiceConfig
 	// GetTagNamesByArtifactId gets all the tag names for the given artifactId
 	GetTagNamesByArtifactId(artifactId int) ([]string, error)
 	// GetUniqueTagsByAppId gets all the unique tag names for the given appId
@@ -31,17 +34,29 @@ type ImageTaggingReadService interface {
 }
 
 type ImageTaggingReadServiceImpl struct {
-	logger           *zap.SugaredLogger
-	imageTaggingRepo repository.ImageTaggingRepository
+	logger                    *zap.SugaredLogger
+	imageTaggingServiceConfig *ImageTaggingServiceConfig
+	imageTaggingRepo          repository.ImageTaggingRepository
 }
 
 func NewImageTaggingReadServiceImpl(
 	imageTaggingRepo repository.ImageTaggingRepository,
-	logger *zap.SugaredLogger) *ImageTaggingReadServiceImpl {
-	return &ImageTaggingReadServiceImpl{
-		logger:           logger,
-		imageTaggingRepo: imageTaggingRepo,
+	logger *zap.SugaredLogger) (*ImageTaggingReadServiceImpl, error) {
+	imageTaggingServiceConfig := &ImageTaggingServiceConfig{}
+	err := env.Parse(imageTaggingServiceConfig)
+	if err != nil {
+		logger.Infow("error occurred while parsing ImageTaggingServiceConfig,so setting HIDE_IMAGE_TAGGING_HARD_DELETE to default value", "err", err)
+		return nil, err
 	}
+	return &ImageTaggingReadServiceImpl{
+		logger:                    logger,
+		imageTaggingServiceConfig: imageTaggingServiceConfig,
+		imageTaggingRepo:          imageTaggingRepo,
+	}, nil
+}
+
+func (impl *ImageTaggingReadServiceImpl) GetImageTaggingServiceConfig() *ImageTaggingServiceConfig {
+	return impl.imageTaggingServiceConfig
 }
 
 func (impl *ImageTaggingReadServiceImpl) GetTagNamesByArtifactId(artifactId int) ([]string, error) {
