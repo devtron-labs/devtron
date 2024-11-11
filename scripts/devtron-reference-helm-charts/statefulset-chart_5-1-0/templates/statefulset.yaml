@@ -85,6 +85,9 @@ spec:
       labels:
       {{- if .Values.customPodLabels }}
 {{ toYaml .Values.customPodLabels | indent 8 }}  
+      {{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels | indent 8 }}
+      {{- end }}
       {{- else }}
         app: {{ template ".Chart.Name .name" $ }}
         appId: {{ $.Values.app | quote }}
