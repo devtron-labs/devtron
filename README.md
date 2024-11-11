@@ -1,3 +1,6 @@
+Note: We have restrucutred the readme. If you are looking for Devtron's CI/CD capabilites, please [click here](#devtron-platform)
+#
+
 <p align="center">
 <picture>
   <source media="(prefers-color-scheme: dark)"  srcset="./assets/devtron-darkmode-logo.png">
@@ -154,14 +157,10 @@ To get a more comprehensive understanding of Devtron Platform's features, please
 Run the following command to install the latest version of the Devtron Platform:
 
 ```bash
-helm repo add devtron https://helm.devtron.ai
-
-helm repo update devtron
-
-helm install devtron devtron/devtron-operator \
---create-namespace --namespace devtroncd \
---set installer.modules={cicd} \
---set argo-cd.enabled=true
+helm install devtron devtron/devtron-operator --namespace devtroncd \
+--set installer.modules={cicd} --set argo-cd.enabled=true \ 
+--set security.enabled=true  --set notifier.enabled=true  \
+--set security.trivy.enabled=true --set monitoring.grafana.enabled=true
 ```
 ## :blue_heart: Technology
  
