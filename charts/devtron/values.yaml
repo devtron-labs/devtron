@@ -108,7 +108,7 @@ components:
       #      - devtron.example.com
   ciRunner:
     registry: ""
-    image: "ci-runner:fd5702db-138-25483"
+    image: "ci-runner:3e71f258-138-27009"
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
