@@ -56,9 +56,10 @@ spec:
     matchLabels:
 {{- if .Values.customMatchLabels  }}
 {{ toYaml .Values.customMatchLabels | indent 6 }}  
-{{- end }}                    
+ {{- else }}                  
       app: {{ template ".Chart.Name .name" $ }}
       release: {{ $.Release.Name }}
+{{- end }}      
   replicas: {{ $.Values.replicaCount }}
   minReadySeconds: {{ $.Values.MinReadySeconds }}
   template:

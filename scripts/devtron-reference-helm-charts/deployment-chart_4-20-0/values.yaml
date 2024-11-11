@@ -558,6 +558,8 @@ ConfigMaps:
 ConfigSecrets:
  enabled: false
  secrets: []
+ enabled: false
+ secrets:  []
   #  data:
   #   key1: key1value-1
   #   key2: key2value-1
@@ -583,19 +585,9 @@ initContainers: []
   # # This will assign your application's docker image to init container.
   #   reuseContainerImage: true
 
-containers: 
+containers: []
   ## Additional init containers to run before the Scheduler pods.
   ## for example, be used to run a sidecar that chown Logs storage .
- - name: volume-mount-hack
-   image: busybox
-   command: ["sh", "-c", "chown -R 1000:1000 logs"]
-   volumeMounts:
-     - mountPath: /usr/local/airflow/logs
-       name: logs-data
-   envFrom:
-   - configMapRef:
-        name: kamal    
-
 
 rawYaml: []
 # - apiVersion: v1
