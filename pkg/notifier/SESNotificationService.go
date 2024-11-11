@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/notifier/adapter"
 	"github.com/devtron-labs/devtron/pkg/notifier/beans"
-	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -55,7 +55,7 @@ func NewSESNotificationServiceImpl(logger *zap.SugaredLogger, sesRepository repo
 
 func (impl *SESNotificationServiceImpl) SaveOrEditNotificationConfig(channelReq []*beans.SESConfigDto, userId int32) ([]int, error) {
 	var responseIds []int
-	sesConfigs := buildSESNewConfigs(channelReq, userId)
+	sesConfigs := adapter.BuildSESNewConfigs(channelReq, userId)
 	for _, config := range sesConfigs {
 		if config.Id != 0 {
 
@@ -80,7 +80,7 @@ func (impl *SESNotificationServiceImpl) SaveOrEditNotificationConfig(channelReq 
 				impl.logger.Errorw("err while fetching ses config", "err", err)
 				return []int{}, err
 			}
-			impl.buildConfigUpdateModel(config, model, userId)
+			adapter.BuildConfigUpdateModelForSES(config, model, userId)
 			model, uErr := impl.sesRepository.UpdateSESConfig(model)
 			if uErr != nil {
 				impl.logger.Errorw("err while updating ses config", "err", err)
@@ -121,7 +121,7 @@ func (impl *SESNotificationServiceImpl) FetchSESNotificationConfigById(id int) (
 		impl.logger.Errorw("cannot find all slack config", "err", err)
 		return nil, err
 	}
-	sesConfigDto := impl.adaptSESConfig(sesConfig)
+	sesConfigDto := adapter.AdaptSESConfig(sesConfig)
 	return sesConfigDto, nil
 }
 
@@ -133,7 +133,7 @@ func (impl *SESNotificationServiceImpl) FetchAllSESNotificationConfig() ([]*bean
 		return []*beans.SESConfigDto{}, err
 	}
 	for _, sesConfig := range sesConfigs {
-		sesConfigDto := impl.adaptSESConfig(sesConfig)
+		sesConfigDto := adapter.AdaptSESConfig(sesConfig)
 		sesConfigDto.SecretKey = "**********"
 		responseDto = append(responseDto, sesConfigDto)
 	}
@@ -157,64 +157,6 @@ func (impl *SESNotificationServiceImpl) FetchAllSESNotificationConfigAutocomplet
 		responseDto = append(responseDto, sesConfigDto)
 	}
 	return responseDto, nil
-}
-
-func (impl *SESNotificationServiceImpl) adaptSESConfig(sesConfig *repository.SESConfig) *beans.SESConfigDto {
-	sesConfigDto := &beans.SESConfigDto{
-		OwnerId:      sesConfig.OwnerId,
-		Region:       sesConfig.Region,
-		AccessKey:    sesConfig.AccessKey,
-		SecretKey:    sesConfig.SecretKey,
-		FromEmail:    sesConfig.FromEmail,
-		SessionToken: sesConfig.SessionToken,
-		ConfigName:   sesConfig.ConfigName,
-		Description:  sesConfig.Description,
-		Id:           sesConfig.Id,
-		Default:      sesConfig.Default,
-	}
-	return sesConfigDto
-}
-
-func buildSESNewConfigs(sesReq []*beans.SESConfigDto, userId int32) []*repository.SESConfig {
-	var sesConfigs []*repository.SESConfig
-	for _, c := range sesReq {
-		sesConfig := &repository.SESConfig{
-			Id:           c.Id,
-			Region:       c.Region,
-			AccessKey:    c.AccessKey,
-			SecretKey:    c.SecretKey,
-			ConfigName:   c.ConfigName,
-			FromEmail:    c.FromEmail,
-			SessionToken: c.SessionToken,
-			Description:  c.Description,
-			Default:      c.Default,
-			AuditLog: sql.AuditLog{
-				CreatedBy: userId,
-				CreatedOn: time.Now(),
-				UpdatedOn: time.Now(),
-				UpdatedBy: userId,
-			},
-		}
-
-		sesConfig.OwnerId = userId
-		sesConfigs = append(sesConfigs, sesConfig)
-	}
-	return sesConfigs
-}
-
-func (impl *SESNotificationServiceImpl) buildConfigUpdateModel(sesConfig *repository.SESConfig, model *repository.SESConfig, userId int32) {
-	model.Id = sesConfig.Id
-	model.OwnerId = sesConfig.OwnerId
-	model.Region = sesConfig.Region
-	model.AccessKey = sesConfig.AccessKey
-	model.SecretKey = sesConfig.SecretKey
-	model.FromEmail = sesConfig.FromEmail
-	model.SessionToken = sesConfig.SessionToken
-	model.ConfigName = sesConfig.ConfigName
-	model.Description = sesConfig.Description
-	model.Default = sesConfig.Default
-	model.UpdatedOn = time.Now()
-	model.UpdatedBy = userId
 }
 
 func (impl *SESNotificationServiceImpl) DeleteNotificationConfig(deleteReq *beans.SESConfigDto, userId int32) error {

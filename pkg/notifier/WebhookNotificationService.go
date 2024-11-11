@@ -24,7 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
-	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/notifier/adapter"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -60,7 +60,7 @@ func NewWebhookNotificationServiceImpl(logger *zap.SugaredLogger, webhookReposit
 
 func (impl *WebhookNotificationServiceImpl) SaveOrEditNotificationConfig(channelReq []beans.WebhookConfigDto, userId int32) ([]int, error) {
 	var responseIds []int
-	webhookConfigs := buildWebhookNewConfigs(channelReq, userId)
+	webhookConfigs := adapter.BuildWebhookNewConfigs(channelReq, userId)
 	for _, config := range webhookConfigs {
 		if config.Id != 0 {
 			model, err := impl.webhookRepository.FindOne(config.Id)
@@ -68,7 +68,7 @@ func (impl *WebhookNotificationServiceImpl) SaveOrEditNotificationConfig(channel
 				impl.logger.Errorw("err while fetching webhook config", "err", err)
 				return []int{}, err
 			}
-			impl.buildConfigUpdateModel(config, model, userId)
+			adapter.BuildConfigUpdateModelForWebhook(config, model, userId)
 			model, uErr := impl.webhookRepository.UpdateWebhookConfig(model)
 			if uErr != nil {
 				impl.logger.Errorw("err while updating webhook config", "err", err)
@@ -93,7 +93,7 @@ func (impl *WebhookNotificationServiceImpl) FetchWebhookNotificationConfigById(i
 		impl.logger.Errorw("cannot find all webhoook config", "err", err)
 		return nil, err
 	}
-	webhoookConfigDto := impl.adaptWebhookConfig(*webhookConfig)
+	webhoookConfigDto := adapter.AdaptWebhookConfig(*webhookConfig)
 	return &webhoookConfigDto, nil
 }
 
@@ -122,7 +122,7 @@ func (impl *WebhookNotificationServiceImpl) FetchAllWebhookNotificationConfig() 
 		return []*beans.WebhookConfigDto{}, err
 	}
 	for _, webhookConfig := range webhookConfigs {
-		webhookConfigDto := impl.adaptWebhookConfig(webhookConfig)
+		webhookConfigDto := adapter.AdaptWebhookConfig(webhookConfig)
 		responseDto = append(responseDto, &webhookConfigDto)
 	}
 	if responseDto == nil {
@@ -146,53 +146,6 @@ func (impl *WebhookNotificationServiceImpl) FetchAllWebhookNotificationConfigAut
 		responseDto = append(responseDto, webhookConfigDto)
 	}
 	return responseDto, nil
-}
-
-func (impl *WebhookNotificationServiceImpl) adaptWebhookConfig(webhookConfig repository.WebhookConfig) beans.WebhookConfigDto {
-	webhookConfigDto := beans.WebhookConfigDto{
-		OwnerId:     webhookConfig.OwnerId,
-		WebhookUrl:  webhookConfig.WebHookUrl,
-		ConfigName:  webhookConfig.ConfigName,
-		Header:      webhookConfig.Header,
-		Payload:     webhookConfig.Payload,
-		Description: webhookConfig.Description,
-		Id:          webhookConfig.Id,
-	}
-	return webhookConfigDto
-}
-
-func buildWebhookNewConfigs(webhookReq []beans.WebhookConfigDto, userId int32) []*repository.WebhookConfig {
-	var webhookConfigs []*repository.WebhookConfig
-	for _, c := range webhookReq {
-		webhookConfig := &repository.WebhookConfig{
-			Id:          c.Id,
-			ConfigName:  c.ConfigName,
-			WebHookUrl:  c.WebhookUrl,
-			Header:      c.Header,
-			Payload:     c.Payload,
-			Description: c.Description,
-			AuditLog: sql.AuditLog{
-				CreatedBy: userId,
-				CreatedOn: time.Now(),
-				UpdatedOn: time.Now(),
-				UpdatedBy: userId,
-			},
-		}
-		webhookConfig.OwnerId = userId
-		webhookConfigs = append(webhookConfigs, webhookConfig)
-	}
-	return webhookConfigs
-}
-
-func (impl *WebhookNotificationServiceImpl) buildConfigUpdateModel(webhookConfig *repository.WebhookConfig, model *repository.WebhookConfig, userId int32) {
-	model.WebHookUrl = webhookConfig.WebHookUrl
-	model.ConfigName = webhookConfig.ConfigName
-	model.Description = webhookConfig.Description
-	model.Payload = webhookConfig.Payload
-	model.Header = webhookConfig.Header
-	model.OwnerId = webhookConfig.OwnerId
-	model.UpdatedOn = time.Now()
-	model.UpdatedBy = userId
 }
 
 func (impl *WebhookNotificationServiceImpl) DeleteNotificationConfig(deleteReq *beans.WebhookConfigDto, userId int32) error {

@@ -392,3 +392,15 @@ type WebhookConfigDto struct {
 	Description string                 `json:"description"`
 	Id          int                    `json:"id" validate:"number"`
 }
+
+type Config struct {
+	AppId        int               `json:"appId"`
+	EnvId        int               `json:"envId"`
+	Pipelines    []int             `json:"pipelineIds"`
+	PipelineType util.PipelineType `json:"pipelineType" validate:"required"`
+	EventTypeIds []int             `json:"eventTypeIds" validate:"required"`
+	Providers    []Provider        `json:"providers" validate:"required"`
+}
+
+const AllNonProdEnvsName = "All non-prod environments"
+const AllProdEnvsName = "All prod environments"
