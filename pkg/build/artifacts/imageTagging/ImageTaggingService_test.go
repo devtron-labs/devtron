@@ -24,6 +24,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	mocks2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/mocks"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging/read"
+	mocks4 "github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging/read/mocks"
 	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	mocks3 "github.com/devtron-labs/devtron/pkg/cluster/repository/mocks"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -35,11 +37,12 @@ import (
 
 func TestImageTaggingService(t *testing.T) {
 
-	//test data and mocks intialisation
+	// test data and mocks initialisation
 	sugaredLogger, err := util.NewSugardLogger()
 	assert.True(t, err == nil, err)
 
 	appId, artifactId, ciPipelineId, userId := 1, 3, 1, 2
+	appReleaseTags := []string{"devtron-v1.1.5", "devtron-v1.1.6"}
 	testPayload := &types.ImageTaggingRequestDTO{
 		CreateTags: []*repository.ImageTag{{
 			TagName:    "devtron-v1.1.6",
@@ -65,35 +68,39 @@ func TestImageTaggingService(t *testing.T) {
 		ExternalCi: false,
 	}
 
-	initRepos := func() (ImageTaggingService, *mocks.ImageTaggingRepository, *mocks2.CiPipelineRepository, *mocks2.PipelineRepository, *mocks3.EnvironmentRepository) {
+	initRepos := func() (ImageTaggingService, *mocks4.ImageTaggingReadService, *mocks.ImageTaggingRepository, *mocks2.CiPipelineRepository, *mocks2.PipelineRepository, *mocks3.EnvironmentRepository) {
 		mockedImageTaggingRepo := mocks.NewImageTaggingRepository(t)
+		mockedImageTaggingReadService := mocks4.NewImageTaggingReadService(t)
 		mockedCiPipelineRepo := mocks2.NewCiPipelineRepository(t)
 		mockedCdPipelineRepo := mocks2.NewPipelineRepository(t)
 		mockedEnvironmentRepo := mocks3.NewEnvironmentRepository(t)
-		imageTaggingService := NewImageTaggingServiceImpl(mockedImageTaggingRepo, mockedCiPipelineRepo, mockedCdPipelineRepo, mockedEnvironmentRepo, sugaredLogger)
+		imageTaggingService := NewImageTaggingServiceImpl(mockedImageTaggingRepo,
+			mockedImageTaggingReadService, mockedCiPipelineRepo, mockedCdPipelineRepo,
+			mockedEnvironmentRepo, sugaredLogger)
 		//mockedImageTaggingRepo.On("UpdateImageComment", &pg.Tx{}, mock.Anything).Return(nil)
-		return imageTaggingService, mockedImageTaggingRepo, mockedCiPipelineRepo, mockedCdPipelineRepo, mockedEnvironmentRepo
+		return imageTaggingService, mockedImageTaggingReadService, mockedImageTaggingRepo, mockedCiPipelineRepo, mockedCdPipelineRepo, mockedEnvironmentRepo
 	}
 
 	//test cases starts here
 	t.Run("CreateOrUpdateImageTagging,Valid payload Request,expected: valid response with nil error", func(tt *testing.T) {
 		//tt.SkipNow()
 
-		imageTaggingService, mockedImageTaggingRepo, mockedCiPipelineRepo, _, mockedEnvironmentRepo := initRepos()
+		imageTaggingService, mockedImageTaggingReadService, mockedImageTaggingRepo, mockedCiPipelineRepo, _, mockedEnvironmentRepo := initRepos()
 		mockedImageTaggingRepo.On("SaveImageComment", &pg.Tx{}, mock.Anything).Return(nil)
 		mockedImageTaggingRepo.On("SaveAuditLogsInBulk", &pg.Tx{}, mock.Anything).Return(nil)
 		mockedImageTaggingRepo.On("UpdateReleaseTagInBulk", &pg.Tx{}, mock.Anything).Return(nil)
 		mockedImageTaggingRepo.On("DeleteReleaseTagInBulk", &pg.Tx{}, mock.Anything).Return(nil)
 		mockedImageTaggingRepo.On("SaveReleaseTagsInBulk", &pg.Tx{}, mock.Anything).Return(nil)
 		mockedImageTaggingRepo.On("GetImageComment", artifactId).Return(testPayload.ImageComment, nil)
-		mockedImageTaggingRepo.On("GetTagsByAppId", appId).Return(append(testPayload.SoftDeleteTags, testPayload.CreateTags...), nil)
-		mockedImageTaggingRepo.On("getTagsByArtifactId", artifactId).Return(append(testPayload.SoftDeleteTags, testPayload.CreateTags...), nil)
+		mockedImageTaggingRepo.On("GetTagsByArtifactId", artifactId).Return(append(testPayload.SoftDeleteTags, testPayload.CreateTags...), nil)
 		mockedCiPipelineRepo.On("FindByParentCiPipelineId", ciPipelineId).Return([]*pipelineConfig.CiPipeline{}, nil)
 		mockedEnvironmentRepo.On("FindEnvLinkedWithCiPipelines", testPayload.ExternalCi, []int{ciPipelineId}).Return(nil, nil)
 		mockedImageTaggingRepo.On("StartTx").Return(&pg.Tx{}, nil)
 		mockedImageTaggingRepo.On("RollbackTx", &pg.Tx{}).Return(nil)
 		mockedImageTaggingRepo.On("CommitTx", &pg.Tx{}).Return(nil)
 
+		mockedImageTaggingReadService.On("GetImageTaggingServiceConfig").Return(&read.ImageTaggingServiceConfig{HideImageTaggingHardDelete: false})
+		mockedImageTaggingReadService.On("GetUniqueTagsByAppId", appId).Return(appReleaseTags, nil)
 		res, err := imageTaggingService.CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, userId, testPayload)
 		assert.NotNil(tt, res)
 		assert.Nil(tt, err)
@@ -105,11 +112,12 @@ func TestImageTaggingService(t *testing.T) {
 	t.Run("CreateOrUpdateImageTagging,Valid Request payload, error in SoftDeleting Tags,expected: nil response with non nil error", func(tt *testing.T) {
 		//tt.SkipNow()
 
-		imageTaggingService, mockedImageTaggingRepo, _, _, _ := initRepos()
+		imageTaggingService, mockedImageTaggingReadService, mockedImageTaggingRepo, _, _, _ := initRepos()
 		softDeleteError := errors.New("error in updating image tags")
 		mockedImageTaggingRepo.On("UpdateReleaseTagInBulk", &pg.Tx{}, mock.Anything).Return(softDeleteError)
 		mockedImageTaggingRepo.On("StartTx").Return(&pg.Tx{}, nil)
 		mockedImageTaggingRepo.On("RollbackTx", &pg.Tx{}).Return(nil)
+		mockedImageTaggingReadService.On("GetImageTaggingServiceConfig").Return(&read.ImageTaggingServiceConfig{HideImageTaggingHardDelete: false})
 
 		res, err := imageTaggingService.CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, userId, testPayload)
 		assert.Nil(tt, res)
@@ -120,12 +128,13 @@ func TestImageTaggingService(t *testing.T) {
 	t.Run("Valid Request, error in HardDeleting Tags", func(tt *testing.T) {
 		//tt.SkipNow()
 
-		imageTaggingService, mockedImageTaggingRepo, _, _, _ := initRepos()
+		imageTaggingService, mockedImageTaggingReadService, mockedImageTaggingRepo, _, _, _ := initRepos()
 		hardDeleteError := errors.New("error in HardDeleting image tags")
 		mockedImageTaggingRepo.On("DeleteReleaseTagInBulk", &pg.Tx{}, mock.Anything).Return(hardDeleteError)
 		mockedImageTaggingRepo.On("StartTx").Return(&pg.Tx{}, nil)
 		mockedImageTaggingRepo.On("RollbackTx", &pg.Tx{}).Return(nil)
 		mockedImageTaggingRepo.On("UpdateReleaseTagInBulk", &pg.Tx{}, mock.Anything).Return(nil)
+		mockedImageTaggingReadService.On("GetImageTaggingServiceConfig").Return(&read.ImageTaggingServiceConfig{HideImageTaggingHardDelete: false})
 
 		res, err := imageTaggingService.CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, userId, testPayload)
 		assert.Nil(tt, res)
@@ -135,7 +144,7 @@ func TestImageTaggingService(t *testing.T) {
 	t.Run("Valid Request, error in saveComment", func(tt *testing.T) {
 		//tt.SkipNow()
 
-		imageTaggingService, mockedImageTaggingRepo, _, _, _ := initRepos()
+		imageTaggingService, mockedImageTaggingReadService, mockedImageTaggingRepo, _, _, _ := initRepos()
 		saveCommentError := errors.New("error in saveComment")
 		mockedImageTaggingRepo.On("SaveImageComment", &pg.Tx{}, mock.Anything).Return(saveCommentError)
 		mockedImageTaggingRepo.On("DeleteReleaseTagInBulk", &pg.Tx{}, mock.Anything).Return(nil)
@@ -144,6 +153,7 @@ func TestImageTaggingService(t *testing.T) {
 		mockedImageTaggingRepo.On("UpdateReleaseTagInBulk", &pg.Tx{}, mock.Anything).Return(nil)
 		mockedImageTaggingRepo.On("SaveReleaseTagsInBulk", &pg.Tx{}, mock.Anything).Return(nil)
 		mockedImageTaggingRepo.On("GetImageComment", artifactId).Return(repository.ImageComment{}, nil)
+		mockedImageTaggingReadService.On("GetImageTaggingServiceConfig").Return(&read.ImageTaggingServiceConfig{HideImageTaggingHardDelete: false})
 
 		res, err := imageTaggingService.CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, userId, testPayload)
 		assert.Nil(tt, res)
@@ -153,7 +163,7 @@ func TestImageTaggingService(t *testing.T) {
 	t.Run("Valid Request, error in SaveAuditLogsInBulk", func(tt *testing.T) {
 		//tt.SkipNow()
 
-		imageTaggingService, mockedImageTaggingRepo, _, _, _ := initRepos()
+		imageTaggingService, mockedImageTaggingReadService, mockedImageTaggingRepo, _, _, _ := initRepos()
 		saveAuditLogsInBulkError := errors.New("error in saveAuditLogsInBulk ")
 		mockedImageTaggingRepo.On("SaveAuditLogsInBulk", &pg.Tx{}, mock.Anything).Return(saveAuditLogsInBulkError)
 		mockedImageTaggingRepo.On("SaveImageComment", &pg.Tx{}, mock.Anything).Return(nil)
@@ -163,6 +173,7 @@ func TestImageTaggingService(t *testing.T) {
 		mockedImageTaggingRepo.On("UpdateReleaseTagInBulk", &pg.Tx{}, mock.Anything).Return(nil)
 		mockedImageTaggingRepo.On("SaveReleaseTagsInBulk", &pg.Tx{}, mock.Anything).Return(nil)
 		mockedImageTaggingRepo.On("GetImageComment", artifactId).Return(repository.ImageComment{}, nil)
+		mockedImageTaggingReadService.On("GetImageTaggingServiceConfig").Return(&read.ImageTaggingServiceConfig{HideImageTaggingHardDelete: false})
 
 		res, err := imageTaggingService.CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, userId, testPayload)
 		assert.Nil(tt, res)
@@ -173,9 +184,8 @@ func TestImageTaggingService(t *testing.T) {
 	t.Run("Valid Request, error in GetTagsByAppId", func(tt *testing.T) {
 		//tt.SkipNow()
 
-		imageTaggingService, mockedImageTaggingRepo, _, _, _ := initRepos()
-		GetTagsByAppIdError := errors.New("error in GetTagsByAppId ")
-		mockedImageTaggingRepo.On("GetTagsByAppId", appId).Return(nil, GetTagsByAppIdError)
+		imageTaggingService, mockedImageTaggingReadService, mockedImageTaggingRepo, _, _, _ := initRepos()
+		GetTagsByAppIdError := errors.New("error in GetTagsByAppId")
 		mockedImageTaggingRepo.On("SaveAuditLogsInBulk", &pg.Tx{}, mock.Anything).Return(nil)
 		mockedImageTaggingRepo.On("SaveImageComment", &pg.Tx{}, mock.Anything).Return(nil)
 		mockedImageTaggingRepo.On("DeleteReleaseTagInBulk", &pg.Tx{}, mock.Anything).Return(nil)
@@ -185,6 +195,8 @@ func TestImageTaggingService(t *testing.T) {
 		mockedImageTaggingRepo.On("UpdateReleaseTagInBulk", &pg.Tx{}, mock.Anything).Return(nil)
 		mockedImageTaggingRepo.On("SaveReleaseTagsInBulk", &pg.Tx{}, mock.Anything).Return(nil)
 		mockedImageTaggingRepo.On("GetImageComment", artifactId).Return(repository.ImageComment{}, nil)
+		mockedImageTaggingReadService.On("GetImageTaggingServiceConfig").Return(&read.ImageTaggingServiceConfig{HideImageTaggingHardDelete: false})
+		mockedImageTaggingReadService.On("GetUniqueTagsByAppId", appId).Return(nil, GetTagsByAppIdError)
 
 		res, err := imageTaggingService.CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, userId, testPayload)
 		assert.NotNil(tt, res)
@@ -197,7 +209,7 @@ func TestImageTaggingService(t *testing.T) {
 
 	t.Run("Valid Request, error in GetImageComment", func(tt *testing.T) {
 		//tt.SkipNow()
-		imageTaggingService, mockedImageTaggingRepo, _, _, _ := initRepos()
+		imageTaggingService, mockedImageTaggingReadService, mockedImageTaggingRepo, _, _, _ := initRepos()
 		GetImageCommentError := errors.New("error in GetImageComment ")
 		mockedImageTaggingRepo.On("GetImageComment", artifactId).Return(repository.ImageComment{}, GetImageCommentError)
 		mockedImageTaggingRepo.On("DeleteReleaseTagInBulk", &pg.Tx{}, mock.Anything).Return(nil)
@@ -205,6 +217,7 @@ func TestImageTaggingService(t *testing.T) {
 		mockedImageTaggingRepo.On("RollbackTx", &pg.Tx{}).Return(nil)
 		mockedImageTaggingRepo.On("UpdateReleaseTagInBulk", &pg.Tx{}, mock.Anything).Return(nil)
 		mockedImageTaggingRepo.On("SaveReleaseTagsInBulk", &pg.Tx{}, mock.Anything).Return(nil)
+		mockedImageTaggingReadService.On("GetImageTaggingServiceConfig").Return(&read.ImageTaggingServiceConfig{HideImageTaggingHardDelete: false})
 
 		testPayload.ImageComment.Id = 1
 		res, err := imageTaggingService.CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, userId, testPayload)
@@ -218,7 +231,7 @@ func TestImageTaggingService(t *testing.T) {
 		testPipelineId := 0
 		testError := fmt.Sprintf("error in fetching pipeline by pipelineId %v", testPipelineId)
 		mockedCdPipelineRepo.On("FindById", testPipelineId).Return(nil, errors.New(testError))
-		imageTaggingService := NewImageTaggingServiceImpl(nil, nil, mockedCdPipelineRepo, nil, sugaredLogger)
+		imageTaggingService := NewImageTaggingServiceImpl(nil, nil, nil, mockedCdPipelineRepo, nil, sugaredLogger)
 		res, err := imageTaggingService.GetProdEnvByCdPipelineId(testPipelineId)
 		assert.Equal(tt, false, res)
 		assert.NotNil(tt, err)
@@ -238,7 +251,7 @@ func TestImageTaggingService(t *testing.T) {
 		}
 		//testError := fmt.Sprintf("error in fetching pipeline by pipelineId %v", testPipelineId)
 		mockedCdPipelineRepo.On("FindById", testPipelineId).Return(testPipeline, nil)
-		imageTaggingService := NewImageTaggingServiceImpl(nil, nil, mockedCdPipelineRepo, nil, sugaredLogger)
+		imageTaggingService := NewImageTaggingServiceImpl(nil, nil, nil, mockedCdPipelineRepo, nil, sugaredLogger)
 		res, err := imageTaggingService.GetProdEnvByCdPipelineId(testPipelineId)
 		assert.Equal(tt, true, res)
 		assert.Nil(tt, err)
@@ -261,7 +274,7 @@ func TestImageTaggingService(t *testing.T) {
 		//testCiPipelinesResponse := []bean.CiPipeline
 		mockedCdPipelineRepo.On("FindById", testPipelineId).Return(testPipeline, nil)
 		mockedCiPipelineRepo.On("FindByParentCiPipelineId", testCiPipelineId).Return(nil, errors.New(testError))
-		imageTaggingService := NewImageTaggingServiceImpl(nil, mockedCiPipelineRepo, mockedCdPipelineRepo, nil, sugaredLogger)
+		imageTaggingService := NewImageTaggingServiceImpl(nil, nil, mockedCiPipelineRepo, mockedCdPipelineRepo, nil, sugaredLogger)
 		res, err := imageTaggingService.GetProdEnvByCdPipelineId(testPipelineId)
 		assert.Equal(tt, false, res)
 		assert.NotNil(tt, err)
@@ -307,7 +320,7 @@ func TestImageTaggingService(t *testing.T) {
 		mockedCiPipelineRepo.On("FindByParentCiPipelineId", testCiPipelineId).Return(testCipipelinesResp, nil)
 		mockedEnvRepo.On("FindEnvLinkedWithCiPipelines", false, testCipipelineIds).Return(nil, errors.New(testError))
 
-		imageTaggingService := NewImageTaggingServiceImpl(nil, mockedCiPipelineRepo, mockedCdPipelineRepo, mockedEnvRepo, sugaredLogger)
+		imageTaggingService := NewImageTaggingServiceImpl(nil, nil, mockedCiPipelineRepo, mockedCdPipelineRepo, mockedEnvRepo, sugaredLogger)
 		res, err := imageTaggingService.GetProdEnvByCdPipelineId(testPipelineId)
 		assert.Equal(tt, false, res)
 		assert.NotNil(tt, err)
@@ -361,7 +374,7 @@ func TestImageTaggingService(t *testing.T) {
 		mockedEnvRepo.On("FindEnvLinkedWithCiPipelines", false, testCipipelineIds).Return(testEnvs, nil)
 
 		//test the service
-		imageTaggingService := NewImageTaggingServiceImpl(nil, mockedCiPipelineRepo, mockedCdPipelineRepo, mockedEnvRepo, sugaredLogger)
+		imageTaggingService := NewImageTaggingServiceImpl(nil, nil, mockedCiPipelineRepo, mockedCdPipelineRepo, mockedEnvRepo, sugaredLogger)
 		res, err := imageTaggingService.GetProdEnvByCdPipelineId(testPipelineId)
 		assert.Equal(tt, false, res)
 		assert.Nil(tt, err)
@@ -414,7 +427,7 @@ func TestImageTaggingService(t *testing.T) {
 		mockedCdPipelineRepo.On("FindById", testPipelineId).Return(testPipeline, nil)
 		mockedCiPipelineRepo.On("FindByParentCiPipelineId", testCiPipelineId).Return(testCipipelinesResp, nil)
 		mockedEnvRepo.On("FindEnvLinkedWithCiPipelines", false, testCipipelineIds).Return(testEnvs, nil)
-		imageTaggingService := NewImageTaggingServiceImpl(nil, mockedCiPipelineRepo, mockedCdPipelineRepo, mockedEnvRepo, sugaredLogger)
+		imageTaggingService := NewImageTaggingServiceImpl(nil, nil, mockedCiPipelineRepo, mockedCdPipelineRepo, mockedEnvRepo, sugaredLogger)
 		res, err := imageTaggingService.GetProdEnvByCdPipelineId(testPipelineId)
 		assert.Equal(tt, true, res)
 		assert.Nil(tt, err)
@@ -491,7 +504,7 @@ func TestImageTaggingService(t *testing.T) {
 			assert.NotNil(ttt, err)
 			assert.Equal(ttt, false, valid)
 		}
-		imageTaggingService := NewImageTaggingServiceImpl(nil, nil, nil, nil, sugaredLogger)
+		imageTaggingService := NewImageTaggingServiceImpl(nil, nil, nil, nil, nil, sugaredLogger)
 		tt.Run("valid payload", func(ttt *testing.T) {
 
 			valid, err := imageTaggingService.ValidateImageTaggingRequest(&testImageTaggingRequest, appId, artifactId)
@@ -544,7 +557,8 @@ func TestImageTaggingService(t *testing.T) {
 		tt.Run("GetTagsDataMapByAppId, no error case", func(ttt *testing.T) {
 			mockedImageTaggingRepo := mocks.NewImageTaggingRepository(tt)
 			mockedImageTaggingRepo.On("GetTagsByAppId", appId).Return(testTags, nil)
-			imageTaggingService := NewImageTaggingServiceImpl(mockedImageTaggingRepo, nil, nil, nil, sugaredLogger)
+			mockedImageTaggingReadService := mocks4.NewImageTaggingReadService(t)
+			imageTaggingService := NewImageTaggingServiceImpl(mockedImageTaggingRepo, mockedImageTaggingReadService, nil, nil, nil, sugaredLogger)
 			resMap, err := imageTaggingService.GetTagsDataMapByAppId(appId)
 			assert.NotNil(ttt, resMap)
 			assert.Nil(ttt, err)
@@ -554,8 +568,9 @@ func TestImageTaggingService(t *testing.T) {
 		tt.Run("GetTagsDataMapByAppId,GetTagsByAppId repo func throws error, return same error", func(ttt *testing.T) {
 			testErr := "error in GetTagsByAppId"
 			mockedImageTaggingRepo := mocks.NewImageTaggingRepository(tt)
-			mockedImageTaggingRepo.On("GetTagsByAppId", appId).Return(nil, errors.New(testErr))
-			imageTaggingService := NewImageTaggingServiceImpl(mockedImageTaggingRepo, nil, nil, nil, sugaredLogger)
+			mockedImageTaggingRepo.On(":", appId).Return(nil, errors.New(testErr))
+			mockedImageTaggingReadService := mocks4.NewImageTaggingReadService(t)
+			imageTaggingService := NewImageTaggingServiceImpl(mockedImageTaggingRepo, mockedImageTaggingReadService, nil, nil, nil, sugaredLogger)
 			resMap, err := imageTaggingService.GetTagsDataMapByAppId(appId)
 			assert.Nil(ttt, resMap)
 			assert.NotNil(ttt, err)
@@ -566,7 +581,8 @@ func TestImageTaggingService(t *testing.T) {
 		tt.Run("GetImageCommentsDataMapByArtifactIds,no error case", func(ttt *testing.T) {
 			mockedImageTaggingRepo := mocks.NewImageTaggingRepository(tt)
 			mockedImageTaggingRepo.On("GetImageCommentsByArtifactIds", []int{testArtifactId1}).Return(testComments, nil)
-			imageTaggingService := NewImageTaggingServiceImpl(mockedImageTaggingRepo, nil, nil, nil, sugaredLogger)
+			mockedImageTaggingReadService := mocks4.NewImageTaggingReadService(t)
+			imageTaggingService := NewImageTaggingServiceImpl(mockedImageTaggingRepo, mockedImageTaggingReadService, nil, nil, nil, sugaredLogger)
 			resMap, err := imageTaggingService.GetImageCommentsDataMapByArtifactIds([]int{testArtifactId1})
 			assert.NotNil(ttt, resMap)
 			assert.Nil(ttt, err)
@@ -577,7 +593,8 @@ func TestImageTaggingService(t *testing.T) {
 			testErr := "error in GetImageCommentsByAppId"
 			mockedImageTaggingRepo := mocks.NewImageTaggingRepository(tt)
 			mockedImageTaggingRepo.On("GetImageCommentsByArtifactIds", []int{testArtifactId1}).Return(nil, errors.New(testErr))
-			imageTaggingService := NewImageTaggingServiceImpl(mockedImageTaggingRepo, nil, nil, nil, sugaredLogger)
+			mockedImageTaggingReadService := mocks4.NewImageTaggingReadService(t)
+			imageTaggingService := NewImageTaggingServiceImpl(mockedImageTaggingRepo, mockedImageTaggingReadService, nil, nil, nil, sugaredLogger)
 			resMap, err := imageTaggingService.GetImageCommentsDataMapByArtifactIds([]int{testArtifactId1})
 			assert.Nil(ttt, resMap)
 			assert.NotNil(ttt, err)
@@ -587,11 +604,12 @@ func TestImageTaggingService(t *testing.T) {
 
 	})
 
-	t.Run("getTagsByArtifactId, getTagsByArtifactId throws error", func(tt *testing.T) {
-		testErr := "error in getTagsByArtifactId"
+	t.Run("GetTagsByArtifactId, GetTagsByArtifactId throws error", func(tt *testing.T) {
+		testErr := "error in GetTagsByArtifactId"
 		mockedImageTaggingRepo := mocks.NewImageTaggingRepository(tt)
-		mockedImageTaggingRepo.On("getTagsByArtifactId", artifactId).Return(nil, errors.New(testErr))
-		imageTaggingService := NewImageTaggingServiceImpl(mockedImageTaggingRepo, nil, nil, nil, sugaredLogger)
+		mockedImageTaggingRepo.On("GetTagsByArtifactId", artifactId).Return(nil, errors.New(testErr))
+		mockedImageTaggingReadService := mocks4.NewImageTaggingReadService(t)
+		imageTaggingService := NewImageTaggingServiceImpl(mockedImageTaggingRepo, mockedImageTaggingReadService, nil, nil, nil, sugaredLogger)
 		tags, err := imageTaggingService.getTagsByArtifactId(artifactId)
 		assert.Nil(tt, tags)
 		assert.Equal(tt, 0, len(tags))
@@ -628,7 +646,9 @@ func TestImageTaggingService(t *testing.T) {
 			mockedImageTaggingRepo.On("SaveReleaseTagsInBulk", tx, testImageTaggingRequest.CreateTags).Return(errors.New(testErr))
 			mockedImageTaggingRepo.On("UpdateReleaseTagInBulk", tx, testImageTaggingRequest.SoftDeleteTags).Return(nil)
 			mockedImageTaggingRepo.On("DeleteReleaseTagInBulk", tx, testImageTaggingRequest.HardDeleteTags).Return(nil)
-			imageTaggingService := NewImageTaggingServiceImpl(mockedImageTaggingRepo, nil, nil, nil, sugaredLogger)
+			mockedImageTaggingReadService := mocks4.NewImageTaggingReadService(t)
+			mockedImageTaggingReadService.On("GetImageTaggingServiceConfig").Return(&read.ImageTaggingServiceConfig{HideImageTaggingHardDelete: false})
+			imageTaggingService := NewImageTaggingServiceImpl(mockedImageTaggingRepo, mockedImageTaggingReadService, nil, nil, nil, sugaredLogger)
 			res, err := imageTaggingService.performTagOperationsAndGetAuditList(tx, appId, artifactId, userId, &testImageTaggingRequest)
 			assert.Nil(ttt, res)
 			assert.NotNil(ttt, err)
