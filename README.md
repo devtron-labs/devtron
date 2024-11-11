@@ -55,9 +55,11 @@ Out of the box, Devtron's Kubernetes Dashboard includes:
 
 [Devtron](#install-devtron) helps you deploy, observe, manage & debug existing Helm apps in all your clusters.
 
-## Devtron Dashboard Features 🤩
+## Devtron Dashboard 
 
-Devtron's Kubernetes Dashboard offers a variety of different features, giving you flexibility to manage your clusters as you desire. You can find some of the key features below.
+Devtron's Kubernetes Dashboard offers a variety of different features, giving you flexibility to manage your clusters as you desire.
+
+### Features 🤩
 
 - Simplified configuration and management for Helm applications with easy rollback
 - Compare and reconcile configuration drifts across enviornments
@@ -66,9 +68,9 @@ Devtron's Kubernetes Dashboard offers a variety of different features, giving yo
 - Centralized Dashboard to view and manage K8s resources across multiple clusters
 - Comprehensive SSO and RBAC to ensure secure dashboard access for team collaboration
 
-To get a more comprehensive understanding of Devtron's features, please visit the [documentation](https://docs.dashboard.devtron.ai/)
+To get a more comprehensive understanding of Devtron's Kubernetes Dashboard, please visit the [documentation](https://docs.dashboard.devtron.ai/)
 
-## Installation
+### Installation
 
 Before you begin, you must create a [Kubernetes cluster](https://kubernetes.io/docs/tutorials/kubernetes-basics/create-cluster/) (preferably K8s 1.16 or higher) and install [Helm](https://helm.sh/docs/intro/install/).
 
@@ -112,6 +114,20 @@ Please refer to the document for more information on how to [access the Devtron 
 ### Install Multi-Architecture Nodes (ARM and AMD)
 
 To install Devtron on clusters with the multi-architecture nodes (ARM and AMD), append the Devtron installation command with ```--set installer.arch=multi-arch```
+
+## Devtron Platform
+
+The Devtron Platform provides a complete solution for all DevOps requirements, helping to create a single centrailzed DevOps Platform for managing all applications across Kubernetes clusters. 
+
+### Features 🤩
+
+- End-to-End CI/CD pipeline enabling a No Code software delivery workflow for Kubernetes through Helm or GitOps with ArgoCD
+- Deploy applications to multiple Kubernetes clusters on multiple cloud/on-prem from one Devtron setup
+- Robust DevSecOps implementation with battle tested tools like Trivy and Clair
+- A Single dashboard to cater to all debugging requirements for applications
+- Deployment metrics to measure the success of the agile process. It captures MTTR, change failure rate, deployment frequency, and deployment size.
+
+To get a more comprehensive understanding of Devtron Platform's features, please visit the [documentation](https://docs.devtron.ai/)
 
 ### Install Devtron Platform
 
