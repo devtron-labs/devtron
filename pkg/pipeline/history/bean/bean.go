@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package history
+package bean
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
