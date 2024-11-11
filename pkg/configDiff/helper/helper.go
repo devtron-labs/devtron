@@ -2,8 +2,8 @@ package helper
 
 import (
 	bean3 "github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/bean/configMapBean"
 	bean2 "github.com/devtron-labs/devtron/pkg/configDiff/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 )
 
 func GetCombinedPropertiesMap(cmcsKeyPropertyAppLevelMap, cmcsKeyPropertyEnvLevelMap map[string]*bean2.ConfigProperty) []*bean2.ConfigProperty {
@@ -31,7 +31,7 @@ func GetKeysToDelete(cmcsData map[string]*bean3.ConfigData, resourceName string)
 	return keysToDelete
 }
 
-func FilterOutMergedCmCsForResourceName(cmcsMerged *bean2.CmCsMetadataDto, resourceName string, resourceType bean.ResourceType) {
+func FilterOutMergedCmCsForResourceName(cmcsMerged *bean2.CmCsMetadataDto, resourceName string, resourceType configMapBean.ResourceType) {
 	for _, key := range GetKeysToDelete(cmcsMerged.SecretMap, resourceName) {
 		delete(cmcsMerged.SecretMap, key)
 	}
@@ -40,14 +40,14 @@ func FilterOutMergedCmCsForResourceName(cmcsMerged *bean2.CmCsMetadataDto, resou
 	}
 
 	// handle the case when a cm and a cs can have a same name, in that case, check from resource type if correct key is filtered out or not
-	if resourceType == bean.CS {
+	if resourceType == configMapBean.CS {
 		if len(cmcsMerged.CmMap) > 0 {
 			// delete all elements from cmMap as requested resource is of secret type
 			for key, _ := range cmcsMerged.CmMap {
 				delete(cmcsMerged.CmMap, key)
 			}
 		}
-	} else if resourceType == bean.CM {
+	} else if resourceType == configMapBean.CM {
 		if len(cmcsMerged.SecretMap) > 0 {
 			// delete all elements from secretMap as requested resource is of secret type
 			for key, _ := range cmcsMerged.SecretMap {

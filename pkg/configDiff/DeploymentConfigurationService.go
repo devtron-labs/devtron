@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	bean3 "github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/bean/configMapBean"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/configDiff/adaptor"
@@ -22,7 +23,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
@@ -125,7 +125,7 @@ func (impl *DeploymentConfigurationServiceImpl) ConfigAutoComplete(appId int, en
 		}
 	}
 	combinedProperties := helper.GetCombinedPropertiesMap(cmcsKeyPropertyAppLevelMap, cmcsKeyPropertyEnvLevelMap)
-	combinedProperties = append(combinedProperties, adaptor.GetConfigProperty(0, "", bean.DeploymentTemplate, bean2.PublishedConfigState))
+	combinedProperties = append(combinedProperties, adaptor.GetConfigProperty(0, "", configMapBean.DeploymentTemplate, bean2.PublishedConfigState))
 
 	configDataResp := bean2.NewConfigDataResponse().WithResourceConfig(combinedProperties)
 	return configDataResp, nil
@@ -202,8 +202,8 @@ func (impl *DeploymentConfigurationServiceImpl) getDeploymentHistoryConfig(ctx c
 
 	deploymentConfig := bean2.NewDeploymentAndCmCsConfig().
 		WithConfigData(deploymentJson).
-		WithResourceType(bean.DeploymentTemplate).
-		WithVariableSnapshot(map[string]map[string]string{bean.DeploymentTemplate.ToString(): variableSnapshotMap}).
+		WithResourceType(configMapBean.DeploymentTemplate).
+		WithVariableSnapshot(map[string]map[string]string{configMapBean.DeploymentTemplate.ToString(): variableSnapshotMap}).
 		WithResolvedValue(json.RawMessage(resolvedTemplate)).
 		WithDeploymentConfigMetadata(deploymentHistory.TemplateVersion, deploymentHistory.IsAppMetricsEnabled)
 	return deploymentConfig, nil
@@ -225,7 +225,7 @@ func (impl *DeploymentConfigurationServiceImpl) getPipelineStrategyConfigHistory
 		return nil, err
 	}
 	pipelineConfig.WithConfigData(pipelineStrategyJson).
-		WithResourceType(bean.PipelineStrategy).
+		WithResourceType(configMapBean.PipelineStrategy).
 		WithPipelineStrategyMetadata(pipelineStrategyHistory.PipelineTriggerType, string(pipelineStrategyHistory.Strategy))
 	return pipelineConfig, nil
 }
@@ -277,15 +277,15 @@ func (impl *DeploymentConfigurationServiceImpl) getConfigDataForDeploymentHistor
 }
 
 func (impl *DeploymentConfigurationServiceImpl) getCmCsConfigHistory(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams, configType repository3.ConfigType, userHasAdminAccess bool) (*bean2.DeploymentAndCmCsConfig, error) {
-	var resourceType bean.ResourceType
+	var resourceType configMapBean.ResourceType
 	history, err := impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(configDataQueryParams.PipelineId, configDataQueryParams.WfrId, configType)
 	if err != nil {
 		impl.logger.Errorw("error in checking if cm cs history exists for pipelineId and wfrId", "pipelineId", configDataQueryParams.PipelineId, "wfrId", configDataQueryParams.WfrId, "err", err)
 		return nil, err
 	}
-	var configData []*bean.ConfigData
-	configList := bean.ConfigsList{}
-	secretList := bean.SecretsList{}
+	var configData []*configMapBean.ConfigData
+	configList := configMapBean.ConfigsList{}
+	secretList := configMapBean.SecretsList{}
 	switch configType {
 	case repository3.CONFIGMAP_TYPE:
 		if len(history.Data) > 0 {
@@ -295,7 +295,7 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsConfigHistory(ctx context
 				return nil, err
 			}
 		}
-		resourceType = bean.CM
+		resourceType = configMapBean.CM
 		configData = configList.ConfigData
 	case repository3.SECRET_TYPE:
 		if len(history.Data) > 0 {
@@ -305,7 +305,7 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsConfigHistory(ctx context
 				return nil, err
 			}
 		}
-		resourceType = bean.CS
+		resourceType = configMapBean.CS
 		configData = secretList.ConfigData
 
 	}
@@ -314,7 +314,7 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsConfigHistory(ctx context
 	if err != nil {
 		return nil, err
 	}
-	resolvedConfigDataList := make([]*bean.ConfigData, 0, len(resolvedDataMap))
+	resolvedConfigDataList := make([]*configMapBean.ConfigData, 0, len(resolvedDataMap))
 	for _, resolvedConfigData := range resolvedDataMap {
 		resolvedConfigDataList = append(resolvedConfigDataList, adapter.ConvertConfigDataToPipelineConfigData(&resolvedConfigData))
 	}
@@ -325,13 +325,13 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsConfigHistory(ctx context
 
 	}
 
-	configDataReq := &bean.ConfigDataRequest{ConfigData: configData}
+	configDataReq := &configMapBean.ConfigDataRequest{ConfigData: configData}
 	configDataJson, err := utils.ConvertToJsonRawMessage(configDataReq)
 	if err != nil {
 		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in converting config data to json raw message", "pipelineId", configDataQueryParams.PipelineId, "wfrId", configDataQueryParams.WfrId, "err", err)
 		return nil, err
 	}
-	resolvedConfigDataReq := &bean.ConfigDataRequest{ConfigData: resolvedConfigDataList}
+	resolvedConfigDataReq := &configMapBean.ConfigDataRequest{ConfigData: resolvedConfigDataList}
 	resolvedConfigDataString, err := utils.ConvertToString(resolvedConfigDataReq)
 	if err != nil {
 		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in converting config data to json raw message", "pipelineId", configDataQueryParams.PipelineId, "wfrId", configDataQueryParams.WfrId, "err", err)
@@ -350,7 +350,7 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsConfigHistory(ctx context
 	return cmConfigData, nil
 }
 
-func (impl *DeploymentConfigurationServiceImpl) encodeSecretDataFromNonAdminUsers(configDataList []*bean.ConfigData, userHasAdminAccess bool) {
+func (impl *DeploymentConfigurationServiceImpl) encodeSecretDataFromNonAdminUsers(configDataList []*configMapBean.ConfigData, userHasAdminAccess bool) {
 	for _, config := range configDataList {
 		if config.Data != nil {
 			if !userHasAdminAccess {
@@ -416,7 +416,7 @@ func (impl *DeploymentConfigurationServiceImpl) getPipelineStrategyForPreviousDe
 		return nil, err
 	}
 	pipelineConfig.WithConfigData(pipelineStrategyJson).
-		WithResourceType(bean.PipelineStrategy).
+		WithResourceType(configMapBean.PipelineStrategy).
 		WithPipelineStrategyMetadata(pipelineStrategyHistory.PipelineTriggerType, string(pipelineStrategyHistory.Strategy))
 	return pipelineConfig, nil
 }
@@ -468,12 +468,12 @@ func (impl *DeploymentConfigurationServiceImpl) getDeploymentAndCmCsConfigDataFo
 		impl.logger.Errorw("error in unmarshalling string  deploymentTemplateResponse data into json Raw message", "appName", configDataQueryParams.AppName, "envName", configDataQueryParams.EnvName, "err", err)
 		return nil, err
 	}
-	variableSnapShotMap := map[string]map[string]string{bean.DeploymentTemplate.ToString(): deploymentTemplateData.VariableSnapshot}
+	variableSnapShotMap := map[string]map[string]string{configMapBean.DeploymentTemplate.ToString(): deploymentTemplateData.VariableSnapshot}
 
 	deploymentConfig := bean2.NewDeploymentAndCmCsConfig().
 		WithDeploymentConfigMetadata(deploymentTemplateData.TemplateVersion, deploymentTemplateData.IsAppMetricsEnabled).
 		WithConfigData(deploymentJson).
-		WithResourceType(bean.DeploymentTemplate).
+		WithResourceType(configMapBean.DeploymentTemplate).
 		WithResolvedValue(json.RawMessage(deploymentTemplateData.ResolvedData)).
 		WithVariableSnapshot(variableSnapShotMap)
 
@@ -537,7 +537,7 @@ func (impl *DeploymentConfigurationServiceImpl) getDeploymentAndCmCsConfigDataFo
 		impl.logger.Errorw("GetAllConfigData, error in getting deployment config for default version", "chartRefId", configDataQueryParams.IdentifierId, "err", err)
 		return nil, err
 	}
-	deploymentConfig := bean2.NewDeploymentAndCmCsConfig().WithConfigData(deploymentTemplateJsonData).WithResourceType(bean.DeploymentTemplate)
+	deploymentConfig := bean2.NewDeploymentAndCmCsConfig().WithConfigData(deploymentTemplateJsonData).WithResourceType(configMapBean.DeploymentTemplate)
 	configData.WithDeploymentTemplateData(deploymentConfig)
 	return configData, nil
 }
@@ -546,16 +546,16 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsEditDataForPublishedOnly(
 	appId int, clusterId int, userHasAdminAccess bool, systemMetadata *resourceQualifiers.SystemMetadata) (*bean2.DeploymentAndCmCsConfigDto, error) {
 	configDataDto := &bean2.DeploymentAndCmCsConfigDto{}
 
-	var resourceType bean.ResourceType
-	var fetchConfigFunc func(string, int, int, int) (*bean.ConfigDataRequest, error)
+	var resourceType configMapBean.ResourceType
+	var fetchConfigFunc func(string, int, int, int) (*configMapBean.ConfigDataRequest, error)
 
 	if configDataQueryParams.IsResourceTypeSecret() {
 		//handles for single resource when resource type is secret and for a given resource name
-		resourceType = bean.CS
+		resourceType = configMapBean.CS
 		fetchConfigFunc = impl.getSecretConfigResponse
 	} else if configDataQueryParams.IsResourceTypeConfigMap() {
 		//handles for single resource when resource type is configMap and for a given resource name
-		resourceType = bean.CM
+		resourceType = configMapBean.CM
 		fetchConfigFunc = impl.getConfigMapResponse
 	}
 	cmcsConfigData, err := fetchConfigFunc(configDataQueryParams.ResourceName, configDataQueryParams.ResourceId, envId, appId)
@@ -577,7 +577,7 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsEditDataForPublishedOnly(
 
 	cmCsConfig := bean2.NewDeploymentAndCmCsConfig().WithConfigData(respJson).WithResourceType(resourceType)
 
-	if resourceType == bean.CS {
+	if resourceType == configMapBean.CS {
 		resolvedConfigDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedCmCsMetadataDto.ResolvedSecretData)
 		if err != nil {
 			impl.logger.Errorw("getCmCsPublishedConfigResponse, error in ConvertToJsonRawMessage ", "err", err)
@@ -585,7 +585,7 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsEditDataForPublishedOnly(
 		}
 		cmCsConfig.WithResolvedValue(resolvedConfigDataStringJson).WithVariableSnapshot(resolvedCmCsMetadataDto.VariableMapCS)
 		configDataDto.WithSecretData(cmCsConfig)
-	} else if resourceType == bean.CM {
+	} else if resourceType == configMapBean.CM {
 		resolvedConfigDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedCmCsMetadataDto.ResolvedConfigMapData)
 		if err != nil {
 			impl.logger.Errorw("getCmCsPublishedConfigResponse, error in ConvertToJsonRawMessage for resolvedJson", "ResolvedConfigMapData", resolvedCmCsMetadataDto.ResolvedConfigMapData, "err", err)
@@ -641,10 +641,10 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsPublishedConfigResponse(c
 		return nil, err
 	}
 
-	cmConfigData := bean2.NewDeploymentAndCmCsConfig().WithConfigData(cmRespJson).WithResourceType(bean.CM).
+	cmConfigData := bean2.NewDeploymentAndCmCsConfig().WithConfigData(cmRespJson).WithResourceType(configMapBean.CM).
 		WithResolvedValue(resolvedConfigMapDataStringJson).WithVariableSnapshot(resolvedCmCsMetadataDto.VariableMapCM)
 
-	secretConfigData := bean2.NewDeploymentAndCmCsConfig().WithConfigData(secretRespJson).WithResourceType(bean.CS).
+	secretConfigData := bean2.NewDeploymentAndCmCsConfig().WithConfigData(secretRespJson).WithResourceType(configMapBean.CS).
 		WithResolvedValue(resolvedSecretDataStringJson).WithVariableSnapshot(resolvedCmCsMetadataDto.VariableMapCS)
 
 	configDataDto.WithConfigMapData(cmConfigData).WithSecretData(secretConfigData)
@@ -695,7 +695,7 @@ func (impl *DeploymentConfigurationServiceImpl) getMergedCmCs(envId, appId int) 
 }
 
 func (impl *DeploymentConfigurationServiceImpl) ResolveCmCs(ctx context.Context, envId, appId, clusterId int, userHasAdminAccess bool,
-	resourceName string, resourceType bean.ResourceType, systemMetadata *resourceQualifiers.SystemMetadata) (*bean2.ResolvedCmCsMetadataDto, error) {
+	resourceName string, resourceType configMapBean.ResourceType, systemMetadata *resourceQualifiers.SystemMetadata) (*bean2.ResolvedCmCsMetadataDto, error) {
 	scope := resourceQualifiers.Scope{
 		AppId:          appId,
 		EnvId:          envId,
@@ -735,8 +735,8 @@ func (impl *DeploymentConfigurationServiceImpl) ResolveCmCs(ctx context.Context,
 func (impl *DeploymentConfigurationServiceImpl) getStringifiedCmCs(resolvedCmMap map[string]*bean3.ConfigData, resolvedSecretMap map[string]*bean3.ConfigData,
 	userHasAdminAccess bool) (string, string, error) {
 
-	resolvedConfigDataList := make([]*bean.ConfigData, 0, len(resolvedCmMap))
-	resolvedSecretDataList := make([]*bean.ConfigData, 0, len(resolvedSecretMap))
+	resolvedConfigDataList := make([]*configMapBean.ConfigData, 0, len(resolvedCmMap))
+	resolvedSecretDataList := make([]*configMapBean.ConfigData, 0, len(resolvedSecretMap))
 
 	for _, resolvedConfigData := range resolvedCmMap {
 		resolvedConfigDataList = append(resolvedConfigDataList, adapter.ConvertConfigDataToPipelineConfigData(resolvedConfigData))
@@ -748,13 +748,13 @@ func (impl *DeploymentConfigurationServiceImpl) getStringifiedCmCs(resolvedCmMap
 	if len(resolvedSecretMap) > 0 {
 		impl.encodeSecretDataFromNonAdminUsers(resolvedSecretDataList, userHasAdminAccess)
 	}
-	resolvedConfigDataReq := &bean.ConfigDataRequest{ConfigData: resolvedConfigDataList}
+	resolvedConfigDataReq := &configMapBean.ConfigDataRequest{ConfigData: resolvedConfigDataList}
 	resolvedConfigDataString, err := utils.ConvertToString(resolvedConfigDataReq)
 	if err != nil {
 		impl.logger.Errorw(" error in converting resolved config data to string", "resolvedConfigDataReq", resolvedConfigDataReq, "err", err)
 		return "", "", err
 	}
-	resolvedSecretDataReq := &bean.ConfigDataRequest{ConfigData: resolvedSecretDataList}
+	resolvedSecretDataReq := &configMapBean.ConfigDataRequest{ConfigData: resolvedSecretDataList}
 	resolvedSecretDataString, err := utils.ConvertToString(resolvedSecretDataReq)
 	if err != nil {
 		impl.logger.Errorw(" error in converting resolved config data to string", "err", err)
@@ -777,9 +777,9 @@ func (impl *DeploymentConfigurationServiceImpl) getPublishedDeploymentConfig(ctx
 		}
 
 		variableSnapShotMap := make(map[string]map[string]string, len(deplTemplateResp.VariableSnapshot))
-		variableSnapShotMap[bean.DeploymentTemplate.ToString()] = deplTemplateResp.VariableSnapshot
+		variableSnapShotMap[configMapBean.DeploymentTemplate.ToString()] = deplTemplateResp.VariableSnapshot
 
-		return bean2.NewDeploymentAndCmCsConfig().WithConfigData(deploymentJson).WithResourceType(bean.DeploymentTemplate).
+		return bean2.NewDeploymentAndCmCsConfig().WithConfigData(deploymentJson).WithResourceType(configMapBean.DeploymentTemplate).
 			WithResolvedValue(json.RawMessage(deplTemplateResp.ResolvedData)).WithVariableSnapshot(variableSnapShotMap).
 			WithDeploymentConfigMetadata(deplTemplateResp.TemplateVersion, deplTemplateResp.IsAppMetricsEnabled), nil
 	}
@@ -798,8 +798,8 @@ func (impl *DeploymentConfigurationServiceImpl) getPublishedDeploymentConfig(ctx
 		return nil, err
 	}
 
-	variableSnapShotMap := map[string]map[string]string{bean.DeploymentTemplate.ToString(): variableSnapshot}
-	return bean2.NewDeploymentAndCmCsConfig().WithConfigData(deplMetadata.DeploymentTemplateJson).WithResourceType(bean.DeploymentTemplate).
+	variableSnapShotMap := map[string]map[string]string{configMapBean.DeploymentTemplate.ToString(): variableSnapshot}
+	return bean2.NewDeploymentAndCmCsConfig().WithConfigData(deplMetadata.DeploymentTemplateJson).WithResourceType(configMapBean.DeploymentTemplate).
 		WithResolvedValue(json.RawMessage(resolvedTemplate)).WithVariableSnapshot(variableSnapShotMap).
 		WithDeploymentConfigMetadata(deplMetadata.TemplateVersion, deplMetadata.IsAppMetricsEnabled), nil
 }
@@ -858,7 +858,7 @@ func (impl *DeploymentConfigurationServiceImpl) getPublishedPipelineStrategyConf
 		return nil, err
 	}
 	pipelineConfig.WithConfigData(pipelineStrategyJson).
-		WithResourceType(bean.PipelineStrategy).
+		WithResourceType(configMapBean.PipelineStrategy).
 		WithPipelineStrategyMetadata(pipelineStrategy.PipelineTriggerType, string(pipelineStrategy.Strategy))
 	return pipelineConfig, nil
 }
@@ -898,12 +898,12 @@ func (impl *DeploymentConfigurationServiceImpl) getDeploymentTemplateForEnvLevel
 	return deploymentTemplateResponse, nil
 }
 
-func (impl *DeploymentConfigurationServiceImpl) getSecretConfigResponse(resourceName string, resourceId, envId, appId int) (*bean.ConfigDataRequest, error) {
+func (impl *DeploymentConfigurationServiceImpl) getSecretConfigResponse(resourceName string, resourceId, envId, appId int) (*configMapBean.ConfigDataRequest, error) {
 	if len(resourceName) > 0 {
 		if envId > 0 {
 			return impl.configMapService.CSEnvironmentFetchForEdit(resourceName, resourceId, appId, envId)
 		}
-		return impl.configMapService.ConfigGlobalFetchEditUsingAppId(resourceName, appId, bean.CS)
+		return impl.configMapService.ConfigGlobalFetchEditUsingAppId(resourceName, appId, configMapBean.CS)
 	}
 
 	if envId > 0 {
@@ -912,12 +912,12 @@ func (impl *DeploymentConfigurationServiceImpl) getSecretConfigResponse(resource
 	return impl.configMapService.CSGlobalFetch(appId)
 }
 
-func (impl *DeploymentConfigurationServiceImpl) getConfigMapResponse(resourceName string, resourceId, envId, appId int) (*bean.ConfigDataRequest, error) {
+func (impl *DeploymentConfigurationServiceImpl) getConfigMapResponse(resourceName string, resourceId, envId, appId int) (*configMapBean.ConfigDataRequest, error) {
 	if len(resourceName) > 0 {
 		if envId > 0 {
 			return impl.configMapService.CMEnvironmentFetchForEdit(resourceName, resourceId, appId, envId)
 		}
-		return impl.configMapService.ConfigGlobalFetchEditUsingAppId(resourceName, appId, bean.CM)
+		return impl.configMapService.ConfigGlobalFetchEditUsingAppId(resourceName, appId, configMapBean.CM)
 	}
 
 	if envId > 0 {

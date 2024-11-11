@@ -17,7 +17,7 @@
 package chartConfig
 
 import (
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/bean/configMapBean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
@@ -39,7 +39,7 @@ type ConfigMapRepository interface {
 	GetByAppIdAppLevel(appId int) (*ConfigMapAppModel, error)
 	GetByAppIdAndEnvIdEnvLevel(appId int, envId int) (*ConfigMapEnvModel, error)
 	GetEnvLevelByAppId(appId int) ([]*ConfigMapEnvModel, error)
-	GetConfigNamesForAppAndEnvLevel(appId int, envId int) ([]bean.ConfigNameAndType, error)
+	GetConfigNamesForAppAndEnvLevel(appId int, envId int) ([]configMapBean.ConfigNameAndType, error)
 }
 
 type ConfigMapRepositoryImpl struct {
@@ -70,7 +70,7 @@ type cMCSNames struct {
 	CSName string `json:"cs_name"`
 }
 
-func (impl ConfigMapRepositoryImpl) GetConfigNamesForAppAndEnvLevel(appId int, envId int) ([]bean.ConfigNameAndType, error) {
+func (impl ConfigMapRepositoryImpl) GetConfigNamesForAppAndEnvLevel(appId int, envId int) ([]configMapBean.ConfigNameAndType, error) {
 	var cMCSNames []cMCSNames
 	tableName := ConfigMapEnvLevel
 	if envId == -1 {
@@ -94,20 +94,20 @@ func (impl ConfigMapRepositoryImpl) GetConfigNamesForAppAndEnvLevel(appId int, e
 			return nil, err
 		}
 	}
-	var configNames []bean.ConfigNameAndType
+	var configNames []configMapBean.ConfigNameAndType
 	for _, name := range cMCSNames {
 		if name.CMName != "" {
-			configNames = append(configNames, bean.ConfigNameAndType{
+			configNames = append(configNames, configMapBean.ConfigNameAndType{
 				Id:   name.Id,
 				Name: name.CMName,
-				Type: bean.CM,
+				Type: configMapBean.CM,
 			})
 		}
 		if name.CSName != "" {
-			configNames = append(configNames, bean.ConfigNameAndType{
+			configNames = append(configNames, configMapBean.ConfigNameAndType{
 				Id:   name.Id,
 				Name: name.CSName,
-				Type: bean.CS,
+				Type: configMapBean.CS,
 			})
 		}
 	}

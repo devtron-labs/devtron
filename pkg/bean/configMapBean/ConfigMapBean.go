@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package bean
+package configMapBean
 
 import (
 	"encoding/json"

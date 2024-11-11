@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean3 "github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/bean/configMapBean"
 )
 
 type ConfigState string
@@ -43,11 +43,11 @@ func (r ConfigArea) ToString() string {
 }
 
 type ConfigProperty struct {
-	Id          int               `json:"id"`
-	Name        string            `json:"name"`
-	ConfigState ConfigState       `json:"configState"`
-	Type        bean.ResourceType `json:"type"`
-	ConfigStage ConfigStage       `json:"configStage"`
+	Id          int                        `json:"id"`
+	Name        string                     `json:"name"`
+	ConfigState ConfigState                `json:"configState"`
+	Type        configMapBean.ResourceType `json:"type"`
+	ConfigStage ConfigStage                `json:"configStage"`
 }
 
 func NewConfigProperty() *ConfigProperty {
@@ -76,8 +76,8 @@ func (r *ConfigProperty) GetKey() string {
 }
 
 type ConfigPropertyIdentifier struct {
-	Name string            `json:"name"`
-	Type bean.ResourceType `json:"type"`
+	Name string                     `json:"name"`
+	Type configMapBean.ResourceType `json:"type"`
 }
 
 func (r *ConfigProperty) GetIdentifier() ConfigPropertyIdentifier {
@@ -88,7 +88,7 @@ func (r *ConfigProperty) GetIdentifier() ConfigPropertyIdentifier {
 }
 
 type DeploymentAndCmCsConfig struct {
-	ResourceType     bean.ResourceType            `json:"resourceType"`
+	ResourceType     configMapBean.ResourceType   `json:"resourceType"`
 	Data             json.RawMessage              `json:"data"`
 	VariableSnapshot map[string]map[string]string `json:"variableSnapshot"` // for deployment->{Deployment Template: resolvedValuesMap}, for cm->{cmComponentName: resolvedValuesMap}
 	ResolvedValue    json.RawMessage              `json:"resolvedValue"`
@@ -104,7 +104,7 @@ func NewDeploymentAndCmCsConfig() *DeploymentAndCmCsConfig {
 	return &DeploymentAndCmCsConfig{}
 }
 
-func (r *DeploymentAndCmCsConfig) WithResourceType(resourceType bean.ResourceType) *DeploymentAndCmCsConfig {
+func (r *DeploymentAndCmCsConfig) WithResourceType(resourceType configMapBean.ResourceType) *DeploymentAndCmCsConfig {
 	r.ResourceType = resourceType
 	return r
 }
@@ -183,11 +183,11 @@ type ConfigDataQueryParams struct {
 // OffSet         int      `schema:"offSet"`
 // Limit          int      `schema:"limit"`
 func (r *ConfigDataQueryParams) IsResourceTypeSecret() bool {
-	return r.ResourceType == bean.CS.ToString()
+	return r.ResourceType == configMapBean.CS.ToString()
 }
 
 func (r *ConfigDataQueryParams) IsResourceTypeConfigMap() bool {
-	return r.ResourceType == bean.CM.ToString()
+	return r.ResourceType == configMapBean.CM.ToString()
 }
 
 func (r *ConfigDataQueryParams) IsEnvNameProvided() bool {

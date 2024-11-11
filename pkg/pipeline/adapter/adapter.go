@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/ciPipeline"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/bean/configMapBean"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -227,9 +228,9 @@ func GetSourceCiDownStreamResponse(linkedCIDetails []ciPipeline.LinkedCIDetails,
 	return response
 }
 
-func ConvertConfigDataToPipelineConfigData(r *bean.ConfigData) *pipelineConfigBean.ConfigData {
+func ConvertConfigDataToPipelineConfigData(r *bean.ConfigData) *configMapBean.ConfigData {
 	if r != nil {
-		return &pipelineConfigBean.ConfigData{
+		return &configMapBean.ConfigData{
 			Name:                  r.Name,
 			Type:                  r.Type,
 			External:              r.External,
@@ -250,11 +251,11 @@ func ConvertConfigDataToPipelineConfigData(r *bean.ConfigData) *pipelineConfigBe
 			Overridden:            r.Overridden,
 		}
 	}
-	return &pipelineConfigBean.ConfigData{}
+	return &configMapBean.ConfigData{}
 }
 
-func ConvertESOSecretDataToPipelineESOSecretData(r bean.ESOSecretData) pipelineConfigBean.ESOSecretData {
-	return pipelineConfigBean.ESOSecretData{
+func ConvertESOSecretDataToPipelineESOSecretData(r bean.ESOSecretData) configMapBean.ESOSecretData {
+	return configMapBean.ESOSecretData{
 		SecretStore:     r.SecretStore,
 		SecretStoreRef:  r.SecretStoreRef,
 		ESOData:         ConvertEsoDataToPipelineEsoData(r.ESOData),
@@ -262,10 +263,10 @@ func ConvertESOSecretDataToPipelineESOSecretData(r bean.ESOSecretData) pipelineC
 	}
 }
 
-func ConvertExternalSecretToPipelineExternalSecret(r []bean.ExternalSecret) []pipelineConfigBean.ExternalSecret {
-	extSec := make([]pipelineConfigBean.ExternalSecret, 0, len(r))
+func ConvertExternalSecretToPipelineExternalSecret(r []bean.ExternalSecret) []configMapBean.ExternalSecret {
+	extSec := make([]configMapBean.ExternalSecret, 0, len(r))
 	for _, item := range r {
-		newItem := pipelineConfigBean.ExternalSecret{
+		newItem := configMapBean.ExternalSecret{
 			Key:      item.Key,
 			Name:     item.Name,
 			Property: item.Property,
@@ -276,10 +277,10 @@ func ConvertExternalSecretToPipelineExternalSecret(r []bean.ExternalSecret) []pi
 	return extSec
 }
 
-func ConvertEsoDataToPipelineEsoData(r []bean.ESOData) []pipelineConfigBean.ESOData {
-	newEsoData := make([]pipelineConfigBean.ESOData, 0, len(r))
+func ConvertEsoDataToPipelineEsoData(r []bean.ESOData) []configMapBean.ESOData {
+	newEsoData := make([]configMapBean.ESOData, 0, len(r))
 	for _, item := range r {
-		newItem := pipelineConfigBean.ESOData{
+		newItem := configMapBean.ESOData{
 			SecretKey: item.SecretKey,
 			Key:       item.Key,
 			Property:  item.Property,
@@ -291,7 +292,7 @@ func ConvertEsoDataToPipelineEsoData(r []bean.ESOData) []pipelineConfigBean.ESOD
 
 // reverse adapter for the above adapters
 
-func ConvertPipelineConfigDataToConfigData(r *pipelineConfigBean.ConfigData) *bean.ConfigData {
+func ConvertPipelineConfigDataToConfigData(r *configMapBean.ConfigData) *bean.ConfigData {
 	if r != nil {
 		return &bean.ConfigData{
 			Name:                  r.Name,
@@ -318,7 +319,7 @@ func ConvertPipelineConfigDataToConfigData(r *pipelineConfigBean.ConfigData) *be
 
 }
 
-func ConvertPipelineESOSecretDataToESOSecretData(r pipelineConfigBean.ESOSecretData) bean.ESOSecretData {
+func ConvertPipelineESOSecretDataToESOSecretData(r configMapBean.ESOSecretData) bean.ESOSecretData {
 	return bean.ESOSecretData{
 		SecretStore:     r.SecretStore,
 		SecretStoreRef:  r.SecretStoreRef,
@@ -327,7 +328,7 @@ func ConvertPipelineESOSecretDataToESOSecretData(r pipelineConfigBean.ESOSecretD
 	}
 }
 
-func ConvertPipelineExternalSecretToExternalSecret(r []pipelineConfigBean.ExternalSecret) []bean.ExternalSecret {
+func ConvertPipelineExternalSecretToExternalSecret(r []configMapBean.ExternalSecret) []bean.ExternalSecret {
 	extSec := make([]bean.ExternalSecret, 0, len(r))
 	for _, item := range r {
 		newItem := bean.ExternalSecret{
@@ -341,7 +342,7 @@ func ConvertPipelineExternalSecretToExternalSecret(r []pipelineConfigBean.Extern
 	return extSec
 }
 
-func ConvertPipelineEsoDataToEsoData(r []pipelineConfigBean.ESOData) []bean.ESOData {
+func ConvertPipelineEsoDataToEsoData(r []configMapBean.ESOData) []bean.ESOData {
 	newEsoData := make([]bean.ESOData, 0, len(r))
 	for _, item := range r {
 		newItem := bean.ESOData{

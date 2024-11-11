@@ -2,12 +2,12 @@ package adaptor
 
 import (
 	bean3 "github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/bean/configMapBean"
 	bean2 "github.com/devtron-labs/devtron/pkg/configDiff/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 )
 
-func GetConfigProperty(id int, name string, configType bean.ResourceType, State bean2.ConfigState) *bean2.ConfigProperty {
+func GetConfigProperty(id int, name string, configType configMapBean.ResourceType, State bean2.ConfigState) *bean2.ConfigProperty {
 	return &bean2.ConfigProperty{
 		Id:          id,
 		Name:        name,
@@ -16,7 +16,7 @@ func GetConfigProperty(id int, name string, configType bean.ResourceType, State 
 	}
 }
 
-func GetCmCsAppAndEnvLevelMap(cMCSNamesAppLevel, cMCSNamesEnvLevel []bean.ConfigNameAndType) (map[string]*bean2.ConfigProperty, map[string]*bean2.ConfigProperty) {
+func GetCmCsAppAndEnvLevelMap(cMCSNamesAppLevel, cMCSNamesEnvLevel []configMapBean.ConfigNameAndType) (map[string]*bean2.ConfigProperty, map[string]*bean2.ConfigProperty) {
 	cMCSNamesAppLevelMap, cMCSNamesEnvLevelMap := make(map[string]*bean2.ConfigProperty, len(cMCSNamesAppLevel)), make(map[string]*bean2.ConfigProperty, len(cMCSNamesEnvLevel))
 
 	for _, cmcs := range cMCSNamesAppLevel {
@@ -30,23 +30,23 @@ func GetCmCsAppAndEnvLevelMap(cMCSNamesAppLevel, cMCSNamesEnvLevel []bean.Config
 	return cMCSNamesAppLevelMap, cMCSNamesEnvLevelMap
 }
 
-func ConfigListConvertor(r bean3.ConfigList) bean.ConfigsList {
-	pipelineConfigData := make([]*bean.ConfigData, 0, len(r.ConfigData))
+func ConfigListConvertor(r bean3.ConfigList) configMapBean.ConfigsList {
+	pipelineConfigData := make([]*configMapBean.ConfigData, 0, len(r.ConfigData))
 	for _, item := range r.ConfigData {
 		pipelineConfigData = append(pipelineConfigData, adapter.ConvertConfigDataToPipelineConfigData(item))
 	}
-	return bean.ConfigsList{ConfigData: pipelineConfigData}
+	return configMapBean.ConfigsList{ConfigData: pipelineConfigData}
 }
 
-func SecretListConvertor(r bean3.SecretList) bean.SecretsList {
-	pipelineConfigData := make([]*bean.ConfigData, 0, len(r.ConfigData))
+func SecretListConvertor(r bean3.SecretList) configMapBean.SecretsList {
+	pipelineConfigData := make([]*configMapBean.ConfigData, 0, len(r.ConfigData))
 	for _, item := range r.ConfigData {
 		pipelineConfigData = append(pipelineConfigData, adapter.ConvertConfigDataToPipelineConfigData(item))
 	}
-	return bean.SecretsList{ConfigData: pipelineConfigData}
+	return configMapBean.SecretsList{ConfigData: pipelineConfigData}
 }
 
-func ReverseConfigListConvertor(r bean.ConfigsList) bean3.ConfigList {
+func ReverseConfigListConvertor(r configMapBean.ConfigsList) bean3.ConfigList {
 	configData := make([]*bean3.ConfigData, 0, len(r.ConfigData))
 	for _, item := range r.ConfigData {
 		configData = append(configData, adapter.ConvertPipelineConfigDataToConfigData(item))
@@ -54,7 +54,7 @@ func ReverseConfigListConvertor(r bean.ConfigsList) bean3.ConfigList {
 	return bean3.ConfigList{ConfigData: configData}
 }
 
-func ReverseSecretListConvertor(r bean.SecretsList) bean3.SecretList {
+func ReverseSecretListConvertor(r configMapBean.SecretsList) bean3.SecretList {
 	configData := make([]*bean3.ConfigData, 0, len(r.ConfigData))
 	for _, item := range r.ConfigData {
 		configData = append(configData, adapter.ConvertPipelineConfigDataToConfigData(item))

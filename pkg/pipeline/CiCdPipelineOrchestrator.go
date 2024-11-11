@@ -26,6 +26,7 @@ import (
 	"errors"
 	"fmt"
 	attributesBean "github.com/devtron-labs/devtron/pkg/attributes/bean"
+	"github.com/devtron-labs/devtron/pkg/bean/configMapBean"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/plugin"
@@ -437,7 +438,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 				return nil, err
 			}
 			if createRequest.EnvironmentId != 0 {
-				createJobEnvOverrideRequest := &pipelineConfigBean.CreateJobEnvOverridePayload{
+				createJobEnvOverrideRequest := &configMapBean.CreateJobEnvOverridePayload{
 					AppId:  createRequest.AppId,
 					EnvId:  createRequest.EnvironmentId,
 					UserId: userId,
@@ -966,7 +967,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			}
 
 			if ciPipeline.EnvironmentId != 0 && !createRequest.IsCloneJob {
-				createJobEnvOverrideRequest := &pipelineConfigBean.CreateJobEnvOverridePayload{
+				createJobEnvOverrideRequest := &configMapBean.CreateJobEnvOverridePayload{
 					AppId:  createRequest.AppId,
 					EnvId:  ciPipeline.EnvironmentId,
 					UserId: createRequest.UserId,

@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/bean/configMapBean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -355,7 +356,7 @@ func (impl *AppCloneServiceImpl) CreateAppMetrics(oldAppId, newAppId int, userId
 
 }
 
-func (impl *AppCloneServiceImpl) CreateGlobalCM(oldAppId, newAppId int, userId int32) (*bean3.ConfigDataRequest, error) {
+func (impl *AppCloneServiceImpl) CreateGlobalCM(oldAppId, newAppId int, userId int32) (*configMapBean.ConfigDataRequest, error) {
 	refCM, err := impl.configMapService.CMGlobalFetch(oldAppId)
 	if err != nil {
 		return nil, err
@@ -367,10 +368,10 @@ func (impl *AppCloneServiceImpl) CreateGlobalCM(oldAppId, newAppId int, userId i
 
 	cfgDatas := impl.configDataClone(refCM.ConfigData)
 	for _, cfgData := range cfgDatas {
-		newCm := &bean3.ConfigDataRequest{
+		newCm := &configMapBean.ConfigDataRequest{
 			AppId:         newAppId,
 			EnvironmentId: refCM.EnvironmentId,
-			ConfigData:    []*bean3.ConfigData{cfgData},
+			ConfigData:    []*configMapBean.ConfigData{cfgData},
 			UserId:        userId,
 			Id:            thisCm.Id,
 		}
@@ -399,7 +400,7 @@ func (impl *AppCloneServiceImpl) CreateEnvCm(ctx context.Context, oldAppId, newA
 			return nil, err
 		}
 
-		var refEnvCm []*bean3.ConfigData
+		var refEnvCm []*configMapBean.ConfigData
 		for _, refCmData := range refCm.ConfigData {
 			if !refCmData.Global || refCmData.Data != nil {
 				refEnvCm = append(refEnvCm, refCmData)
@@ -411,10 +412,10 @@ func (impl *AppCloneServiceImpl) CreateEnvCm(ctx context.Context, oldAppId, newA
 		}
 		cfgDatas := impl.configDataClone(refEnvCm)
 		for _, cfgData := range cfgDatas {
-			newCm := &bean3.ConfigDataRequest{
+			newCm := &configMapBean.ConfigDataRequest{
 				AppId:         newAppId,
 				EnvironmentId: refEnv.EnvironmentId,
-				ConfigData:    []*bean3.ConfigData{cfgData},
+				ConfigData:    []*configMapBean.ConfigData{cfgData},
 				UserId:        userId,
 				Id:            thisCm.Id,
 			}
@@ -443,7 +444,7 @@ func (impl *AppCloneServiceImpl) CreateEnvSecret(ctx context.Context, oldAppId, 
 			return nil, err
 		}
 
-		var refEnvCm []*bean3.ConfigData
+		var refEnvCm []*configMapBean.ConfigData
 		for _, refCmData := range refCm.ConfigData {
 			if !refCmData.Global || refCmData.Data != nil {
 				refEnvCm = append(refEnvCm, refCmData)
@@ -455,9 +456,9 @@ func (impl *AppCloneServiceImpl) CreateEnvSecret(ctx context.Context, oldAppId, 
 		}
 		cfgDatas := impl.configDataClone(refEnvCm)
 		for _, cfgData := range cfgDatas {
-			var configData []*bean3.ConfigData
+			var configData []*configMapBean.ConfigData
 			configData = append(configData, cfgData)
-			newCm := &bean3.ConfigDataRequest{
+			newCm := &configMapBean.ConfigDataRequest{
 				AppId:         newAppId,
 				EnvironmentId: refEnv.EnvironmentId,
 				ConfigData:    configData,
@@ -541,10 +542,10 @@ func (impl *AppCloneServiceImpl) createEnvOverride(oldAppId, newAppId int, userI
 	return nil, nil
 }
 
-func (impl *AppCloneServiceImpl) configDataClone(cfData []*bean3.ConfigData) []*bean3.ConfigData {
-	var copiedData []*bean3.ConfigData
+func (impl *AppCloneServiceImpl) configDataClone(cfData []*configMapBean.ConfigData) []*configMapBean.ConfigData {
+	var copiedData []*configMapBean.ConfigData
 	for _, refdata := range cfData {
-		data := &bean3.ConfigData{
+		data := &configMapBean.ConfigData{
 			Name:               refdata.Name,
 			Type:               refdata.Type,
 			External:           refdata.External,
@@ -563,7 +564,7 @@ func (impl *AppCloneServiceImpl) configDataClone(cfData []*bean3.ConfigData) []*
 	return copiedData
 }
 
-func (impl *AppCloneServiceImpl) CreateGlobalSecret(oldAppId, newAppId int, userId int32) (*bean3.ConfigDataRequest, error) {
+func (impl *AppCloneServiceImpl) CreateGlobalSecret(oldAppId, newAppId int, userId int32) (*configMapBean.ConfigDataRequest, error) {
 
 	refCs, err := impl.configMapService.CSGlobalFetch(oldAppId)
 	if err != nil {
@@ -576,9 +577,9 @@ func (impl *AppCloneServiceImpl) CreateGlobalSecret(oldAppId, newAppId int, user
 
 	cfgDatas := impl.configDataClone(refCs.ConfigData)
 	for _, cfgData := range cfgDatas {
-		var configData []*bean3.ConfigData
+		var configData []*configMapBean.ConfigData
 		configData = append(configData, cfgData)
-		newCm := &bean3.ConfigDataRequest{
+		newCm := &configMapBean.ConfigDataRequest{
 			AppId:         newAppId,
 			EnvironmentId: refCs.EnvironmentId,
 			ConfigData:    configData,

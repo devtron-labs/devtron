@@ -21,10 +21,10 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
+	"github.com/devtron-labs/devtron/pkg/bean/configMapBean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"strings"
@@ -94,7 +94,7 @@ func executeDataHolderClone(impl DataHolderActionImpl, holder *v1.DataHolder, da
 	}
 	var envSrc *bean2.EnvironmentBean
 	var envDest *bean2.EnvironmentBean
-	var configData *bean.ConfigDataRequest
+	var configData *configMapBean.ConfigDataRequest
 	if holder.Source.Environment != nil {
 		if envSrc, err = impl.envService.FindOne(*holder.Source.Environment); err != nil {
 			return err
@@ -168,7 +168,7 @@ func executeDataHolderClone(impl DataHolderActionImpl, holder *v1.DataHolder, da
 	return nil
 }
 
-func updateKeys(dataType string, holder *v1.DataHolder, configData *bean.ConfigDataRequest) error {
+func updateKeys(dataType string, holder *v1.DataHolder, configData *configMapBean.ConfigDataRequest) error {
 	var name string
 	if dataType == v1.ConfigMap && holder.Destination.ConfigMap != nil {
 		name = *holder.Destination.ConfigMap
@@ -226,7 +226,7 @@ func executeDataHolderDelete(impl DataHolderActionImpl, holder *v1.DataHolder, d
 		if strings.ToLower(dataType) == v1.ConfigMap {
 			//TODO: pass userId
 			if len(holder.Data) > 0 {
-				err = deleteKeys(func() (request *bean.ConfigDataRequest, err error) {
+				err = deleteKeys(func() (request *configMapBean.ConfigDataRequest, err error) {
 					return impl.configMapService.CMEnvironmentFetch(app.Id, env.Id)
 				}, impl.configMapService.CMEnvironmentAddUpdate, holder, dataType)
 				if err != nil {
@@ -243,7 +243,7 @@ func executeDataHolderDelete(impl DataHolderActionImpl, holder *v1.DataHolder, d
 			}
 		} else {
 			if len(holder.Data) > 0 {
-				err = deleteKeys(func() (request *bean.ConfigDataRequest, err error) {
+				err = deleteKeys(func() (request *configMapBean.ConfigDataRequest, err error) {
 					return impl.configMapService.CSEnvironmentFetch(app.Id, env.Id)
 				}, impl.configMapService.CSEnvironmentAddUpdate, holder, dataType)
 				if err != nil {
@@ -263,7 +263,7 @@ func executeDataHolderDelete(impl DataHolderActionImpl, holder *v1.DataHolder, d
 		if strings.ToLower(dataType) == v1.ConfigMap {
 			//TODO: pass userId
 			if len(holder.Data) > 0 {
-				err = deleteKeys(func() (request *bean.ConfigDataRequest, err error) {
+				err = deleteKeys(func() (request *configMapBean.ConfigDataRequest, err error) {
 					return impl.configMapService.CMGlobalFetch(app.Id)
 				}, impl.configMapService.CMGlobalAddUpdate, holder, dataType)
 				if err != nil {
@@ -280,7 +280,7 @@ func executeDataHolderDelete(impl DataHolderActionImpl, holder *v1.DataHolder, d
 			}
 		} else {
 			if len(holder.Data) > 0 {
-				err = deleteKeys(func() (request *bean.ConfigDataRequest, err error) {
+				err = deleteKeys(func() (request *configMapBean.ConfigDataRequest, err error) {
 					return impl.configMapService.CSGlobalFetch(app.Id)
 				}, impl.configMapService.CSGlobalAddUpdate, holder, dataType)
 				if err != nil {
@@ -300,7 +300,7 @@ func executeDataHolderDelete(impl DataHolderActionImpl, holder *v1.DataHolder, d
 	return nil
 }
 
-func deleteKeys(fetch func() (*bean.ConfigDataRequest, error), save func(request *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error), holder *v1.DataHolder, dataType string) error {
+func deleteKeys(fetch func() (*configMapBean.ConfigDataRequest, error), save func(request *configMapBean.ConfigDataRequest) (*configMapBean.ConfigDataRequest, error), holder *v1.DataHolder, dataType string) error {
 	configData, err := fetch()
 	if err != nil {
 		return err
@@ -320,7 +320,7 @@ func deleteKeys(fetch func() (*bean.ConfigDataRequest, error), save func(request
 	return nil
 }
 
-func deleteDataKeys(dataType string, holder *v1.DataHolder, configData *bean.ConfigDataRequest) error {
+func deleteDataKeys(dataType string, holder *v1.DataHolder, configData *configMapBean.ConfigDataRequest) error {
 	var name string
 	if dataType == v1.ConfigMap {
 		name = *holder.Destination.ConfigMap
@@ -331,7 +331,7 @@ func deleteDataKeys(dataType string, holder *v1.DataHolder, configData *bean.Con
 	if len(name) == 0 {
 		return nil
 	}
-	cda := make([]*bean.ConfigData, 0)
+	cda := make([]*configMapBean.ConfigData, 0)
 	for _, item := range configData.ConfigData {
 		if item.Name == name {
 			d := make(map[string]interface{}, 0)
@@ -390,8 +390,8 @@ func executeDataHolderCreate(impl DataHolderActionImpl, holder *v1.DataHolder, d
 	if len(holder.ExternalType) != 0 && !holder.External {
 		external = true
 	}
-	var configDataArr []*bean.ConfigData
-	configDataArr = append(configDataArr, &bean.ConfigData{
+	var configDataArr []*configMapBean.ConfigData
+	configDataArr = append(configDataArr, &configMapBean.ConfigData{
 		Name:               name,
 		Type:               holder.Type,
 		External:           external,
@@ -403,7 +403,7 @@ func executeDataHolderCreate(impl DataHolderActionImpl, holder *v1.DataHolder, d
 		ExternalSecretType: holder.ExternalType,
 	})
 	//TODO: add User Id
-	configData := &bean.ConfigDataRequest{
+	configData := &configMapBean.ConfigDataRequest{
 		AppId:         app.Id,
 		EnvironmentId: envId,
 		ConfigData:    configDataArr,
