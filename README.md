@@ -117,7 +117,27 @@ To install Devtron on clusters with the multi-architecture nodes (ARM and AMD), 
 
 ## Devtron Platform
 
-The Devtron Platform provides a complete solution for all DevOps requirements, helping to create a single centrailzed DevOps Platform for managing all applications across Kubernetes clusters. 
+The Devtron Platform provides a complete solution for all DevOps requirements, helping to create a single centrailzed DevOps Platform for managing all applications across Kubernetes clusters. <br>
+
+With Devtron Platform, you can accelerate your application delivery lifecycle by leveraging advanced features like canary deployments, A/B testing, and automated rollbacks. Devtron Platform helps you achieve faster time-to-market and improved application reliability by simplifying Kubernetes operations and streamlining development workflows.
+
+<p align="center"><img src="./assets/devtron-feat-glance.png"></p>
+
+Devtron deeply integrates with products across the lifecycle of microservices,i.e., CI, CD, security, cost, debugging, and observability via an intuitive web interface and helps you deploy, observe, manage & debug applications across all your Kubernetes clusters.
+
+### Devtron Integrations
+
+By harnessing the potential of diverse integrations, Devtron Dashboard can evolve into a robust platform, automating Kubernetes application workflows, from CI/CD pipelines to ongoing maintenance
+
+Devtron comes with the following integrations:
+
+- [Build and Deploy (CI/CD)](https://docs.devtron.ai/usage/integrations/build-and-deploy-ci-cd) integration enables software development teams to automate the build and deployment process, allowing them to focus on meeting the business requirements, maintaining code quality, and ensuring security
+- [GitOps (Argo CD)](https://docs.devtron.ai/usage/integrations/argocd) integration uses ArgoCD to implement GitOps for continuous delivery with GitOps patterns
+- [Vulnerability Scanning (Clair)](https://docs.devtron.ai/usage/integrations/clair) integration enables you to scan the vulnerabilities of the images during the time of image build only.
+- [Vulnerability Scanning (Trivy)](https://docs.devtron.ai/usage/integrations/clair) integration enables you to scan the vulnerabilities of the images during the time of image build only.
+- [Notifications](https://docs.devtron.ai/usage/integrations/notifications) integration, lets you receive alerts for build and deployment pipelines on trigger, success, and failure events to your email or a Slack channel via SES and SMTP.
+- [Monitoring (Grafana)](https://docs.devtron.ai/usage/integrations/grafana) integration uses Grafana to gather application metrics like CPU, Memory utilization, Status 4xx/ 5xx/ 2xx, Throughput, and Latency.
+
 
 ### Features 🤩
 
