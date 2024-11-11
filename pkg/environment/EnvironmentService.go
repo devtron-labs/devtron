@@ -46,7 +46,6 @@ type EnvironmentService interface {
 	FindOne(environment string) (*bean2.EnvironmentBean, error)
 	Create(mappings *bean2.EnvironmentBean, userId int32) (*bean2.EnvironmentBean, error)
 	Update(mappings *bean2.EnvironmentBean, userId int32) (*bean2.EnvironmentBean, error)
-	GetAll() ([]bean2.EnvironmentBean, error)
 	GetAllActive() ([]bean2.EnvironmentBean, error)
 	GetAllActiveEnvironmentCount() (int, error)
 	Delete(deleteReq *bean2.EnvironmentBean, userId int32) error
@@ -182,31 +181,6 @@ func (impl EnvironmentServiceImpl) FindOne(environment string) (*bean2.Environme
 		Description:           model.Description,
 	}
 	return bean, nil
-}
-
-func (impl EnvironmentServiceImpl) GetAll() ([]bean2.EnvironmentBean, error) {
-	models, err := impl.environmentRepository.FindAll()
-	if err != nil {
-		impl.logger.Errorw("error in fetching environment", "err", err)
-	}
-	var beans []bean2.EnvironmentBean
-	for _, model := range models {
-		beans = append(beans, bean2.EnvironmentBean{
-			Id:                    model.Id,
-			Environment:           model.Name,
-			ClusterId:             model.Cluster.Id,
-			ClusterName:           model.Cluster.ClusterName,
-			Active:                model.Active,
-			PrometheusEndpoint:    model.Cluster.PrometheusEndpoint,
-			Namespace:             model.Namespace,
-			Default:               model.Default,
-			CdArgoSetup:           model.Cluster.CdArgoSetup,
-			EnvironmentIdentifier: model.EnvironmentIdentifier,
-			Description:           model.Description,
-			IsVirtualEnvironment:  model.IsVirtualEnvironment,
-		})
-	}
-	return beans, nil
 }
 
 func (impl EnvironmentServiceImpl) GetAllActive() ([]bean2.EnvironmentBean, error) {

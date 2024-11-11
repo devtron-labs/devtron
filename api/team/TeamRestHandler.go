@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/pkg/team/bean"
+	"github.com/devtron-labs/devtron/pkg/team/read"
 	"net/http"
 	"strconv"
 	"strings"
@@ -52,6 +53,7 @@ type TeamRestHandler interface {
 type TeamRestHandlerImpl struct {
 	logger          *zap.SugaredLogger
 	teamService     team.TeamService
+	teamReadService read.TeamReadService
 	userService     user2.UserService
 	validator       *validator.Validate
 	enforcer        casbin.Enforcer
@@ -62,6 +64,7 @@ type TeamRestHandlerImpl struct {
 
 func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
 	teamService team.TeamService,
+	teamReadService read.TeamReadService,
 	userService user2.UserService,
 	enforcer casbin.Enforcer,
 	validator *validator.Validate, userAuthService user2.UserAuthService,
@@ -78,6 +81,7 @@ func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
 	return &TeamRestHandlerImpl{
 		logger:          logger,
 		teamService:     teamService,
+		teamReadService: teamReadService,
 		userService:     userService,
 		validator:       validator,
 		enforcer:        enforcer,
@@ -126,7 +130,7 @@ func (impl TeamRestHandlerImpl) SaveTeam(w http.ResponseWriter, r *http.Request)
 
 func (impl TeamRestHandlerImpl) FetchAll(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
-	res, err := impl.teamService.FetchAllActive()
+	res, err := impl.teamReadService.FetchAllActive()
 	if err != nil {
 		impl.logger.Errorw("service err, FetchAllActive", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

@@ -22,6 +22,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	request "github.com/devtron-labs/devtron/pkg/environment"
 	bean2 "github.com/devtron-labs/devtron/pkg/environment/bean"
+	"github.com/devtron-labs/devtron/pkg/environment/read"
 	"net/http"
 	"strconv"
 	"strings"
@@ -62,6 +63,7 @@ type EnvironmentRestHandler interface {
 
 type EnvironmentRestHandlerImpl struct {
 	environmentClusterMappingsService request.EnvironmentService
+	environmentReadService            read.EnvironmentReadService
 	k8sCommonService                  k8s.K8sCommonService
 	logger                            *zap.SugaredLogger
 	userService                       user.UserService
@@ -77,7 +79,7 @@ type ClusterReachableResponse struct {
 	ClusterName      string `json:"clusterName"`
 }
 
-func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.SugaredLogger, userService user.UserService, validator *validator.Validate, enforcer casbin.Enforcer, deleteService delete2.DeleteService, k8sUtil *k8s2.K8sServiceImpl, k8sCommonService k8s.K8sCommonService) *EnvironmentRestHandlerImpl {
+func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, environmentReadService read.EnvironmentReadService, logger *zap.SugaredLogger, userService user.UserService, validator *validator.Validate, enforcer casbin.Enforcer, deleteService delete2.DeleteService, k8sUtil *k8s2.K8sServiceImpl, k8sCommonService k8s.K8sCommonService) *EnvironmentRestHandlerImpl {
 	cfg := &bean.Config{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -87,6 +89,7 @@ func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.S
 	logger.Infow("evironment rest handler initialized", "ignoreAuthCheckValue", cfg.IgnoreAuthCheck)
 	return &EnvironmentRestHandlerImpl{
 		environmentClusterMappingsService: svc,
+		environmentReadService:            environmentReadService,
 		logger:                            logger,
 		userService:                       userService,
 		validator:                         validator,
@@ -161,7 +164,7 @@ func (impl EnvironmentRestHandlerImpl) Get(w http.ResponseWriter, r *http.Reques
 }
 
 func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request) {
-	environments, err := impl.environmentClusterMappingsService.GetAll()
+	environments, err := impl.environmentReadService.GetAll()
 	if err != nil {
 		impl.logger.Errorw("service err, GetAll", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

@@ -33,7 +33,6 @@ import (
 
 type TeamService interface {
 	Create(request *bean2.TeamRequest) (*bean2.TeamRequest, error)
-	FetchAllActive() ([]bean2.TeamRequest, error)
 	FetchOne(id int) (*bean2.TeamRequest, error)
 	Update(request *bean2.TeamRequest) (*bean2.TeamRequest, error)
 	Delete(request *bean2.TeamRequest) error
@@ -80,26 +79,6 @@ func (impl TeamServiceImpl) Create(request *bean2.TeamRequest) (*bean2.TeamReque
 	}
 	request.Id = t.Id
 	return request, nil
-}
-
-func (impl TeamServiceImpl) FetchAllActive() ([]bean2.TeamRequest, error) {
-	impl.logger.Debug("fetch all team from db")
-	teams, err := impl.teamRepository.FindAllActive()
-	if err != nil {
-		impl.logger.Errorw("error in fetch all team", "err", err)
-		return nil, err
-	}
-	var teamRequests []bean2.TeamRequest
-	for _, team := range teams {
-		providerRes := bean2.TeamRequest{
-			Id:     team.Id,
-			Name:   team.Name,
-			Active: team.Active,
-			UserId: team.CreatedBy,
-		}
-		teamRequests = append(teamRequests, providerRes)
-	}
-	return teamRequests, err
 }
 
 func (impl TeamServiceImpl) FetchOne(teamId int) (*bean2.TeamRequest, error) {

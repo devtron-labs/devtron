@@ -18,6 +18,7 @@ package team
 
 import (
 	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/pkg/team/read"
 	"github.com/devtron-labs/devtron/pkg/team/repository"
 	"github.com/google/wire"
 )
@@ -30,6 +31,8 @@ var TeamsWireSet = wire.NewSet(
 	wire.Bind(new(repository.TeamRepository), new(*repository.TeamRepositoryImpl)),
 	team.NewTeamServiceImpl,
 	wire.Bind(new(team.TeamService), new(*team.TeamServiceImpl)),
+	read.NewTeamReadServiceImpl,
+	wire.Bind(new(read.TeamReadService), new(*read.TeamReadServiceImpl)),
 	NewTeamRestHandlerImpl,
 	wire.Bind(new(TeamRestHandler), new(*TeamRestHandlerImpl)),
 	NewTeamRouterImpl,

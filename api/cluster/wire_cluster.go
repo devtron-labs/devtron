@@ -19,8 +19,10 @@ package cluster
 import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/rbac"
+	"github.com/devtron-labs/devtron/pkg/cluster/read"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/environment"
+	read2 "github.com/devtron-labs/devtron/pkg/environment/read"
 	repository3 "github.com/devtron-labs/devtron/pkg/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	repository2 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
@@ -35,6 +37,8 @@ var ClusterWireSet = wire.NewSet(
 	cluster.NewClusterServiceImpl,
 	cluster.NewClusterServiceImplExtended,
 	wire.Bind(new(cluster.ClusterService), new(*cluster.ClusterServiceImplExtended)),
+	read.NewClusterReadServiceImpl,
+	wire.Bind(new(read.ClusterReadService), new(*read.ClusterReadServiceImpl)),
 
 	rbac.NewClusterRbacServiceImpl,
 	wire.Bind(new(rbac.ClusterRbacService), new(*rbac.ClusterRbacServiceImpl)),
@@ -61,6 +65,8 @@ var ClusterWireSet = wire.NewSet(
 	wire.Bind(new(repository3.EnvironmentRepository), new(*repository3.EnvironmentRepositoryImpl)),
 	environment.NewEnvironmentServiceImpl,
 	wire.Bind(new(environment.EnvironmentService), new(*environment.EnvironmentServiceImpl)),
+	read2.NewEnvironmentReadServiceImpl,
+	wire.Bind(new(read2.EnvironmentReadService), new(*read2.EnvironmentReadServiceImpl)),
 	NewEnvironmentRestHandlerImpl,
 	wire.Bind(new(EnvironmentRestHandler), new(*EnvironmentRestHandlerImpl)),
 	NewEnvironmentRouterImpl,
@@ -75,6 +81,8 @@ var ClusterWireSetEa = wire.NewSet(
 	wire.Bind(new(rbac.ClusterRbacService), new(*rbac.ClusterRbacServiceImpl)),
 	cluster.NewClusterServiceImpl,
 	wire.Bind(new(cluster.ClusterService), new(*cluster.ClusterServiceImpl)),
+	read.NewClusterReadServiceImpl,
+	wire.Bind(new(read.ClusterReadService), new(*read.ClusterReadServiceImpl)),
 
 	repository.NewClusterDescriptionRepositoryImpl,
 	wire.Bind(new(repository.ClusterDescriptionRepository), new(*repository.ClusterDescriptionRepositoryImpl)),
@@ -97,6 +105,8 @@ var ClusterWireSetEa = wire.NewSet(
 	wire.Bind(new(repository3.EnvironmentRepository), new(*repository3.EnvironmentRepositoryImpl)),
 	environment.NewEnvironmentServiceImpl,
 	wire.Bind(new(environment.EnvironmentService), new(*environment.EnvironmentServiceImpl)),
+	read2.NewEnvironmentReadServiceImpl,
+	wire.Bind(new(read2.EnvironmentReadService), new(*read2.EnvironmentReadServiceImpl)),
 	NewEnvironmentRestHandlerImpl,
 	wire.Bind(new(EnvironmentRestHandler), new(*EnvironmentRestHandlerImpl)),
 	NewEnvironmentRouterImpl,
