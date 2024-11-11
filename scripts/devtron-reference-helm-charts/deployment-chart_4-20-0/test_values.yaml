@@ -763,4 +763,17 @@ affinity:
             operator: In
             values:
             - S1
-        topologyKey: topology.kubernetes.io/zone    
+        topologyKey: topology.kubernetes.io/zone
+
+secondaryWorkload:
+  enabled: true
+  postfix: "od"
+  replicaCount: 1
+  affinity: {}
+  tolerations: []
+  autoscaling:
+    enabled: true
+    MinReplicas: 1
+    MaxReplicas: 2
+    TargetCPUUtilizationPercentage: 90
+    TargetMemoryUtilizationPercentage: 80
