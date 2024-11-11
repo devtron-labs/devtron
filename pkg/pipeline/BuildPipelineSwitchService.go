@@ -21,9 +21,9 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline/read"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
-	"github.com/devtron-labs/devtron/pkg/pipeline/ci/config"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -50,7 +50,7 @@ type BuildPipelineSwitchService interface {
 
 type BuildPipelineSwitchServiceImpl struct {
 	logger                       *zap.SugaredLogger
-	ciPipelineConfigReadService  config.CiPipelineConfigReadService
+	ciPipelineConfigReadService  read.CiPipelineConfigReadService
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
 	ciCdPipelineOrchestrator     CiCdPipelineOrchestrator
 	pipelineRepository           pipelineConfig.PipelineRepository
@@ -62,7 +62,7 @@ type BuildPipelineSwitchServiceImpl struct {
 }
 
 func NewBuildPipelineSwitchServiceImpl(logger *zap.SugaredLogger,
-	ciPipelineConfigReadService config.CiPipelineConfigReadService,
+	ciPipelineConfigReadService read.CiPipelineConfigReadService,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
 	pipelineRepository pipelineConfig.PipelineRepository,

@@ -30,9 +30,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline/read"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
-	"github.com/devtron-labs/devtron/pkg/pipeline/ci/config"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -116,7 +116,7 @@ type CiPipelineConfigServiceImpl struct {
 	logger                        *zap.SugaredLogger
 	ciTemplateService             CiTemplateService
 	materialRepo                  pipelineConfig.MaterialRepository
-	ciPipelineConfigReadService   config.CiPipelineConfigReadService
+	ciPipelineConfigReadService   read.CiPipelineConfigReadService
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	ciConfig                      *types.CiCdConfig
 	attributesService             attributes.AttributesService
@@ -147,7 +147,7 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 	materialRepo pipelineConfig.MaterialRepository,
 	pipelineGroupRepo app2.AppRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	ciPipelineConfigReadService config.CiPipelineConfigReadService,
+	ciPipelineConfigReadService read.CiPipelineConfigReadService,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	ecrConfig *EcrConfig,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,

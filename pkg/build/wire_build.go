@@ -18,9 +18,11 @@ package build
 
 import (
 	"github.com/devtron-labs/devtron/pkg/build/artifacts"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	"github.com/google/wire"
 )
 
-var BuildWireSet = wire.NewSet(
-	artifacts.ArtifactsWireSet,
+var WireSet = wire.NewSet(
+	artifacts.WireSet,
+	pipeline.WireSet,
 )
