@@ -27,7 +27,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	repository2 "github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/pkg/team/read"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -46,9 +46,9 @@ type CommonServiceImpl struct {
 	attributeRepo               repository.AttributesRepository
 	gitProviderRepository       repository.GitProviderRepository
 	environmentRepository       repository3.EnvironmentRepository
-	teamRepository              repository2.TeamRepository
 	appRepository               app.AppRepository
 	gitOpsConfigReadService     config.GitOpsConfigReadService
+	teamReadService             read.TeamReadService
 }
 
 func NewCommonServiceImpl(logger *zap.SugaredLogger,
@@ -59,9 +59,9 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 	attributeRepo repository.AttributesRepository,
 	gitProviderRepository repository.GitProviderRepository,
 	environmentRepository repository3.EnvironmentRepository,
-	teamRepository repository2.TeamRepository,
 	appRepository app.AppRepository,
-	gitOpsConfigReadService config.GitOpsConfigReadService) *CommonServiceImpl {
+	gitOpsConfigReadService config.GitOpsConfigReadService,
+	teamReadService read.TeamReadService) *CommonServiceImpl {
 	serviceImpl := &CommonServiceImpl{
 		logger:                      logger,
 		chartRepository:             chartRepository,
@@ -71,9 +71,9 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 		attributeRepo:               attributeRepo,
 		gitProviderRepository:       gitProviderRepository,
 		environmentRepository:       environmentRepository,
-		teamRepository:              teamRepository,
 		appRepository:               appRepository,
 		gitOpsConfigReadService:     gitOpsConfigReadService,
+		teamReadService:             teamReadService,
 	}
 	return serviceImpl
 }
@@ -157,7 +157,7 @@ func (impl *CommonServiceImpl) GlobalChecklist() (*GlobalChecklist, error) {
 		return nil, err
 	}
 
-	project, err := impl.teamRepository.FindAllActive()
+	project, err := impl.teamReadService.FindAllActive()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("GlobalChecklist, error while getting error", "err", err)
 		return nil, err

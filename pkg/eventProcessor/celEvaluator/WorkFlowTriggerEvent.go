@@ -7,7 +7,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	attributesBean "github.com/devtron-labs/devtron/pkg/attributes/bean"
-	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/pkg/team/read"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -19,22 +19,22 @@ type TriggerEventEvaluator interface {
 type TriggerEventEvaluatorImpl struct {
 	logger              *zap.SugaredLogger
 	imageTagRepository  repository.ImageTaggingRepository // TODO: fix import cycle issue for pipeline.ImageTaggingService
-	teamService         team.TeamService
 	attributesService   attributes.AttributesService
 	celEvaluatorService cel.EvaluatorService
+	teamReadService     read.TeamReadService
 }
 
 func NewTriggerEventEvaluatorImpl(logger *zap.SugaredLogger,
 	imageTagRepository repository.ImageTaggingRepository,
-	teamService team.TeamService,
 	attributesService attributes.AttributesService,
-	celEvaluatorService cel.EvaluatorService) (*TriggerEventEvaluatorImpl, error) {
+	celEvaluatorService cel.EvaluatorService,
+	teamReadService read.TeamReadService) (*TriggerEventEvaluatorImpl, error) {
 	impl := &TriggerEventEvaluatorImpl{
 		logger:              logger,
 		imageTagRepository:  imageTagRepository,
-		teamService:         teamService,
 		attributesService:   attributesService,
 		celEvaluatorService: celEvaluatorService,
+		teamReadService:     teamReadService,
 	}
 	return impl, nil
 }
@@ -78,7 +78,7 @@ func (impl *TriggerEventEvaluatorImpl) getParamsForPriorityDeployment(valuesOver
 	for _, imageTag := range imageReleaseTags {
 		imageLabels = append(imageLabels, imageTag.TagName)
 	}
-	project, err := impl.teamService.FetchOne(valuesOverrideResponse.Pipeline.App.TeamId)
+	project, err := impl.teamReadService.FindOne(valuesOverrideResponse.Pipeline.App.TeamId)
 	if err != nil {
 		impl.logger.Errorw("error while getting project", "projectId", valuesOverrideResponse.Pipeline.App.TeamId, "err", err)
 		return nil, err

@@ -22,17 +22,16 @@ import (
 	clusterService "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/notifier/beans"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+	"github.com/devtron-labs/devtron/pkg/team/read"
 	util3 "github.com/devtron-labs/devtron/util"
 	"time"
 
-	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	repository4 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
-	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	repository2 "github.com/devtron-labs/devtron/pkg/team"
-
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
+	repository4 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -59,12 +58,12 @@ type NotificationConfigServiceImpl struct {
 	webhookRepository              repository.WebhookNotificationRepository
 	sesRepository                  repository.SESNotificationRepository
 	smtpRepository                 repository.SMTPNotificationRepository
-	teamRepository                 repository2.TeamRepository
 	environmentRepository          repository3.EnvironmentRepository
 	clusterService                 clusterService.ClusterService
 	appRepository                  app.AppRepository
 	userRepository                 repository4.UserRepository
 	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
+	teamReadService                read.TeamReadService
 }
 
 const allNonProdEnvsName = "All non-prod environments"
@@ -73,9 +72,9 @@ const allProdEnvsName = "All prod environments"
 func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSettingsRepository repository.NotificationSettingsRepository, notificationConfigBuilder NotificationConfigBuilder, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, slackRepository repository.SlackNotificationRepository, webhookRepository repository.WebhookNotificationRepository,
 	sesRepository repository.SESNotificationRepository, smtpRepository repository.SMTPNotificationRepository,
-	teamRepository repository2.TeamRepository,
 	environmentRepository repository3.EnvironmentRepository, appRepository app.AppRepository, clusterService clusterService.ClusterService,
-	userRepository repository4.UserRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *NotificationConfigServiceImpl {
+	userRepository repository4.UserRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
+	teamReadService read.TeamReadService) *NotificationConfigServiceImpl {
 	return &NotificationConfigServiceImpl{
 		logger:                         logger,
 		notificationSettingsRepository: notificationSettingsRepository,
@@ -86,12 +85,12 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 		slackRepository:                slackRepository,
 		webhookRepository:              webhookRepository,
 		smtpRepository:                 smtpRepository,
-		teamRepository:                 teamRepository,
 		environmentRepository:          environmentRepository,
 		appRepository:                  appRepository,
 		userRepository:                 userRepository,
 		ciPipelineMaterialRepository:   ciPipelineMaterialRepository,
 		clusterService:                 clusterService,
+		teamReadService:                teamReadService,
 	}
 }
 
@@ -235,7 +234,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 		}
 
 		if config.TeamId != nil && len(config.TeamId) > 0 {
-			teams, err := impl.teamRepository.FindByIds(config.TeamId)
+			teams, err := impl.teamReadService.FindByIds(config.TeamId)
 			if err != nil && err != pg.ErrNoRows {
 				impl.logger.Errorw("error in fetching team", "err", err)
 				return notificationSettingsResponses, deletedItemCount, err
@@ -765,7 +764,7 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 	var envResponse []*beans.EnvResponse
 	var clusterResponse []*beans.ClusterResponse
 	if settingRequest.TeamId != nil && len(settingRequest.TeamId) > 0 {
-		teams, err := impl.teamRepository.FindByIds(settingRequest.TeamId)
+		teams, err := impl.teamReadService.FindByIds(settingRequest.TeamId)
 		if err != nil {
 			impl.logger.Errorw("error on fetch teams", "err", err)
 			return searchFilterResponse, err

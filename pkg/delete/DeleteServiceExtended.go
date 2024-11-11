@@ -32,6 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
+	bean2 "github.com/devtron-labs/devtron/pkg/team/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
@@ -136,7 +137,7 @@ func (impl DeleteServiceExtendedImpl) DeleteEnvironment(deleteRequest *bean.Envi
 	}
 	return nil
 }
-func (impl DeleteServiceExtendedImpl) DeleteTeam(deleteRequest *team.TeamRequest) error {
+func (impl DeleteServiceExtendedImpl) DeleteTeam(deleteRequest *bean2.TeamRequest) error {
 	//finding if this project is used in some app; if yes, will not perform delete operation
 	apps, err := impl.appRepository.FindAppsByTeamId(deleteRequest.Id)
 	if err != nil && err != pg.ErrNoRows {

@@ -25,7 +25,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -42,17 +41,15 @@ type WebhookNotificationService interface {
 type WebhookNotificationServiceImpl struct {
 	logger                         *zap.SugaredLogger
 	webhookRepository              repository.WebhookNotificationRepository
-	teamService                    team.TeamService
 	userRepository                 repository2.UserRepository
 	notificationSettingsRepository repository.NotificationSettingsRepository
 }
 
-func NewWebhookNotificationServiceImpl(logger *zap.SugaredLogger, webhookRepository repository.WebhookNotificationRepository, teamService team.TeamService,
+func NewWebhookNotificationServiceImpl(logger *zap.SugaredLogger, webhookRepository repository.WebhookNotificationRepository,
 	userRepository repository2.UserRepository, notificationSettingsRepository repository.NotificationSettingsRepository) *WebhookNotificationServiceImpl {
 	return &WebhookNotificationServiceImpl{
 		logger:                         logger,
 		webhookRepository:              webhookRepository,
-		teamService:                    teamService,
 		userRepository:                 userRepository,
 		notificationSettingsRepository: notificationSettingsRepository,
 	}

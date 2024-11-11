@@ -27,7 +27,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
-	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/schema"
 	"go.uber.org/zap"
@@ -44,7 +43,6 @@ type ReleaseMetricsRestHandlerImpl struct {
 	enforcer           casbin.Enforcer
 	ReleaseDataService app.ReleaseDataService
 	userAuthService    user.UserService
-	teamService        team.TeamService
 	pipelineRepository pipelineConfig.PipelineRepository
 	enforcerUtil       rbac.EnforcerUtil
 }
@@ -54,14 +52,12 @@ func NewReleaseMetricsRestHandlerImpl(
 	enforcer casbin.Enforcer,
 	ReleaseDataService app.ReleaseDataService,
 	userAuthService user.UserService,
-	teamService team.TeamService,
 	pipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil) *ReleaseMetricsRestHandlerImpl {
 	return &ReleaseMetricsRestHandlerImpl{
 		logger:             logger,
 		enforcer:           enforcer,
 		ReleaseDataService: ReleaseDataService,
 		userAuthService:    userAuthService,
-		teamService:        teamService,
 		pipelineRepository: pipelineRepository,
 		enforcerUtil:       enforcerUtil,
 	}

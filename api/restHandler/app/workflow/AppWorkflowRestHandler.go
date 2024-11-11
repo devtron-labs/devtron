@@ -35,7 +35,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
-	"github.com/devtron-labs/devtron/pkg/team"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
@@ -57,7 +56,6 @@ type AppWorkflowRestHandlerImpl struct {
 	Logger             *zap.SugaredLogger
 	appWorkflowService appWorkflow.AppWorkflowService
 	userAuthService    user.UserService
-	teamService        team.TeamService
 	enforcer           casbin.Enforcer
 	pipelineBuilder    pipeline.PipelineBuilder
 	appRepository      app.AppRepository
@@ -66,13 +64,12 @@ type AppWorkflowRestHandlerImpl struct {
 }
 
 func NewAppWorkflowRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, appWorkflowService appWorkflow.AppWorkflowService,
-	teamService team.TeamService, enforcer casbin.Enforcer, pipelineBuilder pipeline.PipelineBuilder,
+	enforcer casbin.Enforcer, pipelineBuilder pipeline.PipelineBuilder,
 	appRepository app.AppRepository, enforcerUtil rbac.EnforcerUtil, chartService chart.ChartService) *AppWorkflowRestHandlerImpl {
 	return &AppWorkflowRestHandlerImpl{
 		Logger:             Logger,
 		appWorkflowService: appWorkflowService,
 		userAuthService:    userAuthService,
-		teamService:        teamService,
 		enforcer:           enforcer,
 		pipelineBuilder:    pipelineBuilder,
 		appRepository:      appRepository,

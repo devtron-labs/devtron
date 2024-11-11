@@ -28,7 +28,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/gitops"
-	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -50,20 +49,18 @@ type GitOpsConfigRestHandlerImpl struct {
 	userAuthService     user.UserService
 	validator           *validator.Validate
 	enforcer            casbin.Enforcer
-	teamService         team.TeamService
 }
 
 func NewGitOpsConfigRestHandlerImpl(
 	logger *zap.SugaredLogger,
 	gitOpsConfigService gitops.GitOpsConfigService, userAuthService user.UserService,
-	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService) *GitOpsConfigRestHandlerImpl {
+	validator *validator.Validate, enforcer casbin.Enforcer) *GitOpsConfigRestHandlerImpl {
 	return &GitOpsConfigRestHandlerImpl{
 		logger:              logger,
 		gitOpsConfigService: gitOpsConfigService,
 		userAuthService:     userAuthService,
 		validator:           validator,
 		enforcer:            enforcer,
-		teamService:         teamService,
 	}
 }
 

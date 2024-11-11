@@ -24,7 +24,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
-	"github.com/devtron-labs/devtron/pkg/team"
+	bean3 "github.com/devtron-labs/devtron/pkg/team/bean"
+	"github.com/devtron-labs/devtron/pkg/team/read"
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
@@ -38,20 +39,20 @@ type AppFilteringRestHandler interface {
 
 type AppFilteringRestHandlerImpl struct {
 	logger                            *zap.SugaredLogger
-	teamService                       team.TeamService
 	enforcer                          casbin.Enforcer
 	userService                       user.UserService
 	clusterService                    cluster.ClusterService
 	environmentClusterMappingsService cluster.EnvironmentService
 	cfg                               *bean.Config
+	teamReadService                   read.TeamReadService
 }
 
 func NewAppFilteringRestHandlerImpl(logger *zap.SugaredLogger,
-	teamService team.TeamService,
 	enforcer casbin.Enforcer,
 	userService user.UserService,
 	clusterService cluster.ClusterService,
 	environmentClusterMappingsService cluster.EnvironmentService,
+	teamReadService read.TeamReadService,
 ) *AppFilteringRestHandlerImpl {
 	cfg := &bean.Config{}
 	err := env.Parse(cfg)
@@ -62,12 +63,12 @@ func NewAppFilteringRestHandlerImpl(logger *zap.SugaredLogger,
 	logger.Infow("app listing rest handler initialized", "ignoreAuthCheckValue", cfg.IgnoreAuthCheck)
 	appFilteringRestHandler := &AppFilteringRestHandlerImpl{
 		logger:                            logger,
-		teamService:                       teamService,
 		enforcer:                          enforcer,
 		userService:                       userService,
 		clusterService:                    clusterService,
 		environmentClusterMappingsService: environmentClusterMappingsService,
 		cfg:                               cfg,
+		teamReadService:                   teamReadService,
 	}
 	return appFilteringRestHandler
 }
@@ -168,7 +169,7 @@ func (handler AppFilteringRestHandlerImpl) GetClusterTeamAndEnvListForAutocomple
 
 	//getting teams for autocomplete
 	start = time.Now()
-	teams, err := handler.teamService.FetchForAutocomplete()
+	teams, err := handler.teamReadService.FindAllActive()
 	if err != nil {
 		handler.logger.Errorw("service err, FetchForAutocomplete at teamService layer", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -178,7 +179,7 @@ func (handler AppFilteringRestHandlerImpl) GetClusterTeamAndEnvListForAutocomple
 	var grantedTeams = teams
 	start = time.Now()
 	if !handler.cfg.IgnoreAuthCheck {
-		grantedTeams = make([]team.TeamRequest, 0)
+		grantedTeams = make([]bean3.TeamRequest, 0)
 		// RBAC enforcer applying
 		var teamNameList []string
 		for _, item := range teams {
