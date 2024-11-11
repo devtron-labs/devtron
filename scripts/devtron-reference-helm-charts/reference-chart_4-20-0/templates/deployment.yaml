@@ -53,8 +53,12 @@ metadata:
 spec:
   selector:
     matchLabels:
+{{- if .Values.customMatchLabels  }}
+{{ toYaml .Values.customMatchLabels | indent 6 }}  
+ {{- else }}                  
       app: {{ template ".Chart.Name .name" $ }}
       release: {{ $.Release.Name }}
+{{- end }}      
   replicas: {{ $.Values.replicaCount }}
   minReadySeconds: {{ $.Values.MinReadySeconds }}
   template:
@@ -66,19 +70,23 @@ spec:
       {{- end }}
     {{- end }}
       labels:
+{{- if .Values.customPodLabels  }}
+{{ toYaml .Values.customPodLabels | indent 8 }}
+{{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels | indent 8 }}
+{{- end }}
+ {{- else }}        
         app: {{ template ".Chart.Name .name" $ }}
         appId: {{ $.Values.app | quote }}
         envId: {{ $.Values.env | quote }}
-        release: {{ $.Release.Name }}
-{{- if .Values.customPodLabels  }}
-{{ toYaml .Values.customPodLabels | indent 8 }}  
-{{- end }}        
+        release: {{ $.Release.Name }}      
 {{- if .Values.appLabels }}
 {{ toYaml .Values.appLabels | indent 8 }}
 {{- end }}
 {{- if .Values.podLabels }}
 {{ toYaml .Values.podLabels | indent 8 }}
 {{- end }}
+{{- end }}                
     spec:
 {{- if $.Values.podExtraSpecs }}	
 {{ toYaml .Values.podExtraSpecs | indent 6 }}	
@@ -506,6 +514,14 @@ spec:
         - name: {{ $.Chart.Name }}-sidecontainer-{{ add1 $i }}
           image: "{{ $.Values.server.deployment.image }}:{{ $.Values.server.deployment.image_tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
+{{- if .env }}
+          env:
+{{ toYaml .env | indent 12 }}
+{{- end }}
+ {{- if .envFrom }}
+          envFrom:
+{{ toYaml .env | indent 12 }}
+{{- end }}                   
 {{- if .securityContext }}
           securityContext:
 {{ toYaml .securityContext | indent 12 }}
