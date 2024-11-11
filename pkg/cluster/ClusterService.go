@@ -752,7 +752,7 @@ func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int
 	}
 	namespaceListGroupByCLuster := impl.K8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
 	namespaces := namespaceListGroupByCLuster[clusterBean.ClusterName]
-	if len(namespaces) == 0 && globalUtil.IsBaseStack() {
+	if len(namespaces) == 0 {
 		impl.logger.Errorw("no namespaces found for cluster", "clusterName", clusterBean.ClusterName)
 		impl.SyncNsInformer(clusterBean)
 	}
