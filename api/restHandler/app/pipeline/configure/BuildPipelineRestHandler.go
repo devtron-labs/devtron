@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	"golang.org/x/exp/maps"
 	"io"
 	"net/http"
@@ -2074,7 +2075,7 @@ func (handler *PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Re
 	// pass it to the service layer
 	resp, err := handler.imageTaggingService.CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, int(userId), req)
 	if err != nil {
-		if err.Error() == pipeline.DuplicateTagsInAppError {
+		if err.Error() == imageTagging.DuplicateTagsInAppError {
 			appReleaseTags, err1 := handler.imageTaggingReadService.GetUniqueTagsByAppId(appId)
 			if err1 != nil {
 				handler.Logger.Errorw("error occurred in getting unique tags in app", "err", err1, "appId", appId)

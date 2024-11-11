@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package pipeline
+package imageTagging
 
 import (
 	"errors"

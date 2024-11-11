@@ -2,6 +2,7 @@ package cdPipeline
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging/read"
 	historyBean "github.com/devtron-labs/devtron/pkg/devtronResource/bean/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -20,7 +21,7 @@ type DeploymentHistoryServiceImpl struct {
 	logger                              *zap.SugaredLogger
 	cdHandler                           pipeline.CdHandler
 	imageTaggingReadService             read.ImageTaggingReadService
-	imageTaggingService                 pipeline.ImageTaggingService
+	imageTaggingService                 imageTagging.ImageTaggingService
 	pipelineRepository                  pipelineConfig.PipelineRepository
 	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService
 }
@@ -28,7 +29,7 @@ type DeploymentHistoryServiceImpl struct {
 func NewDeploymentHistoryServiceImpl(logger *zap.SugaredLogger,
 	cdHandler pipeline.CdHandler,
 	imageTaggingReadService read.ImageTaggingReadService,
-	imageTaggingService pipeline.ImageTaggingService,
+	imageTaggingService imageTagging.ImageTaggingService,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService) *DeploymentHistoryServiceImpl {
 	return &DeploymentHistoryServiceImpl{
