@@ -31,7 +31,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/team"
-	bean3 "github.com/devtron-labs/devtron/pkg/team/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	http2 "net/http"
@@ -40,7 +39,7 @@ import (
 type DeleteService interface {
 	DeleteCluster(deleteRequest *bean2.ClusterBean, userId int32) error
 	DeleteEnvironment(deleteRequest *bean.EnvironmentBean, userId int32) error
-	DeleteTeam(deleteRequest *bean3.TeamRequest) error
+	DeleteTeam(deleteRequest *team.TeamRequest) error
 	DeleteChartRepo(deleteRequest *chartRepo.ChartRepoDto) error
 	DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error
 	CanDeleteChartRegistryPullConfig(storeId string) bool
@@ -120,7 +119,7 @@ func (impl DeleteServiceImpl) DeleteEnvironment(deleteRequest *bean.EnvironmentB
 	}
 	return nil
 }
-func (impl DeleteServiceImpl) DeleteTeam(deleteRequest *bean3.TeamRequest) error {
+func (impl DeleteServiceImpl) DeleteTeam(deleteRequest *team.TeamRequest) error {
 	err := impl.teamService.Delete(deleteRequest)
 	if err != nil {
 		impl.logger.Errorw("error in deleting team", "err", err, "deleteRequest", deleteRequest)

@@ -23,7 +23,7 @@ import (
 	repository3 "github.com/devtron-labs/devtron/pkg/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/notifier/beans"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
-	repository2 "github.com/devtron-labs/devtron/pkg/team/repository"
+	"github.com/devtron-labs/devtron/pkg/team"
 	util3 "github.com/devtron-labs/devtron/util"
 	"time"
 
@@ -58,7 +58,7 @@ type NotificationConfigServiceImpl struct {
 	webhookRepository              repository.WebhookNotificationRepository
 	sesRepository                  repository.SESNotificationRepository
 	smtpRepository                 repository.SMTPNotificationRepository
-	teamRepository                 repository2.TeamRepository
+	teamRepository                 team.TeamRepository
 	environmentRepository          repository3.EnvironmentRepository
 	clusterService                 clusterService.ClusterService
 	appRepository                  app.AppRepository
@@ -72,7 +72,7 @@ const allProdEnvsName = "All prod environments"
 func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSettingsRepository repository.NotificationSettingsRepository, notificationConfigBuilder NotificationConfigBuilder, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, slackRepository repository.SlackNotificationRepository, webhookRepository repository.WebhookNotificationRepository,
 	sesRepository repository.SESNotificationRepository, smtpRepository repository.SMTPNotificationRepository,
-	teamRepository repository2.TeamRepository,
+	teamRepository team.TeamRepository,
 	environmentRepository repository3.EnvironmentRepository, appRepository app.AppRepository, clusterService clusterService.ClusterService,
 	userRepository repository4.UserRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *NotificationConfigServiceImpl {
 	return &NotificationConfigServiceImpl{

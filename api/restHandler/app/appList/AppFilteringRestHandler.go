@@ -27,7 +27,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/environment"
 	bean2 "github.com/devtron-labs/devtron/pkg/environment/bean"
 	"github.com/devtron-labs/devtron/pkg/team"
-	bean4 "github.com/devtron-labs/devtron/pkg/team/bean"
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
@@ -181,7 +180,7 @@ func (handler AppFilteringRestHandlerImpl) GetClusterTeamAndEnvListForAutocomple
 	var grantedTeams = teams
 	start = time.Now()
 	if !handler.cfg.IgnoreAuthCheck {
-		grantedTeams = make([]bean4.TeamRequest, 0)
+		grantedTeams = make([]team.TeamRequest, 0)
 		// RBAC enforcer applying
 		var teamNameList []string
 		for _, item := range teams {

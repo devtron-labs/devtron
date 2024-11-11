@@ -19,8 +19,6 @@ package team
 import (
 	"encoding/json"
 	"fmt"
-	bean2 "github.com/devtron-labs/devtron/pkg/team/bean"
-	"github.com/devtron-labs/devtron/pkg/team/read"
 	"net/http"
 	"strconv"
 	"strings"
@@ -53,7 +51,6 @@ type TeamRestHandler interface {
 type TeamRestHandlerImpl struct {
 	logger          *zap.SugaredLogger
 	teamService     team.TeamService
-	teamReadService read.TeamReadService
 	userService     user2.UserService
 	validator       *validator.Validate
 	enforcer        casbin.Enforcer
@@ -64,7 +61,6 @@ type TeamRestHandlerImpl struct {
 
 func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
 	teamService team.TeamService,
-	teamReadService read.TeamReadService,
 	userService user2.UserService,
 	enforcer casbin.Enforcer,
 	validator *validator.Validate, userAuthService user2.UserAuthService,
@@ -81,7 +77,6 @@ func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
 	return &TeamRestHandlerImpl{
 		logger:          logger,
 		teamService:     teamService,
-		teamReadService: teamReadService,
 		userService:     userService,
 		validator:       validator,
 		enforcer:        enforcer,
@@ -98,7 +93,7 @@ func (impl TeamRestHandlerImpl) SaveTeam(w http.ResponseWriter, r *http.Request)
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean bean2.TeamRequest
+	var bean team.TeamRequest
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, SaveTeam", "err", err, "payload", bean)
@@ -130,14 +125,14 @@ func (impl TeamRestHandlerImpl) SaveTeam(w http.ResponseWriter, r *http.Request)
 
 func (impl TeamRestHandlerImpl) FetchAll(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
-	res, err := impl.teamReadService.FetchAllActive()
+	res, err := impl.teamService.FetchAllActive()
 	if err != nil {
 		impl.logger.Errorw("service err, FetchAllActive", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	// RBAC enforcer applying
-	var result []bean2.TeamRequest
+	var result []team.TeamRequest
 	for _, item := range res {
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionGet, item.Name); ok {
 			result = append(result, item)
@@ -181,7 +176,7 @@ func (impl TeamRestHandlerImpl) UpdateTeam(w http.ResponseWriter, r *http.Reques
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean bean2.TeamRequest
+	var bean team.TeamRequest
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, UpdateTeam", "err", err, "bean", bean)
@@ -217,7 +212,7 @@ func (impl TeamRestHandlerImpl) DeleteTeam(w http.ResponseWriter, r *http.Reques
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var deleteRequest bean2.TeamRequest
+	var deleteRequest team.TeamRequest
 	err = decoder.Decode(&deleteRequest)
 	if err != nil {
 		impl.logger.Errorw("request err, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
@@ -266,7 +261,7 @@ func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *h
 	var grantedTeams = teams
 	start = time.Now()
 	if !impl.cfg.IgnoreAuthCheck {
-		grantedTeams = make([]bean2.TeamRequest, 0)
+		grantedTeams = make([]team.TeamRequest, 0)
 		// RBAC enforcer applying
 		var teamNameList []string
 		for _, item := range teams {

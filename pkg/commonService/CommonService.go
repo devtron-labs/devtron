@@ -27,7 +27,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	repository3 "github.com/devtron-labs/devtron/pkg/environment/repository"
-	repository2 "github.com/devtron-labs/devtron/pkg/team/repository"
+	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -46,7 +46,7 @@ type CommonServiceImpl struct {
 	attributeRepo               repository.AttributesRepository
 	gitProviderRepository       repository.GitProviderRepository
 	environmentRepository       repository3.EnvironmentRepository
-	teamRepository              repository2.TeamRepository
+	teamRepository              team.TeamRepository
 	appRepository               app.AppRepository
 	gitOpsConfigReadService     config.GitOpsConfigReadService
 }
@@ -59,7 +59,7 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 	attributeRepo repository.AttributesRepository,
 	gitProviderRepository repository.GitProviderRepository,
 	environmentRepository repository3.EnvironmentRepository,
-	teamRepository repository2.TeamRepository,
+	teamRepository team.TeamRepository,
 	appRepository app.AppRepository,
 	gitOpsConfigReadService config.GitOpsConfigReadService) *CommonServiceImpl {
 	serviceImpl := &CommonServiceImpl{
