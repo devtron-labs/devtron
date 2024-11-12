@@ -621,6 +621,10 @@ func (impl *PolicyServiceImpl) GetPolicies(policyLevel securityBean.PolicyLevel,
 			envId = append(envId, &pipeline.EnvironmentId)
 		}
 		envs, err := impl.environmentService.FindByIds(envId)
+		if err != nil {
+			impl.logger.Errorw("Error in fetching env", "envId", envId, "err", err)
+			return nil, err
+		}
 		for _, env := range envs {
 			cvePolicy, severityPolicy, err := impl.getPolicies(policyLevel, env.ClusterId, env.Id, appId)
 			if err != nil {
