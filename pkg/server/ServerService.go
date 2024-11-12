@@ -67,8 +67,14 @@ func (impl ServerServiceImpl) GetServerInfo(showServerStatus bool) (*serverBean.
 		impl.logger.Debug("error encountered on getting devtron helm release, now retrying", "err", impl.serverEnvConfig.ErrorEncounteredOnGettingDevtronHelmRelease)
 		err := impl.serverCacheService.UpdateServerEnvAndDataStore()
 		if err != nil || impl.serverEnvConfig.ErrorEncounteredOnGettingDevtronHelmRelease != nil {
-			impl.logger.Errorw("error encountered in GetServerInfo", "err", err, "errorWhileUpdating", impl.serverEnvConfig.ErrorEncounteredOnGettingDevtronHelmRelease)
-			return nil, err
+			var errToReturn error
+			if err != nil {
+				errToReturn = err
+			} else {
+				errToReturn = impl.serverEnvConfig.ErrorEncounteredOnGettingDevtronHelmRelease
+			}
+			impl.logger.Errorw("error encountered in GetServerInfo", "err", errToReturn)
+			return nil, errToReturn
 		}
 	}
 	serverInfoDto := &serverBean.ServerInfoDto{
