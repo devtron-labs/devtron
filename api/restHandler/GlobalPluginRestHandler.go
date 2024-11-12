@@ -33,6 +33,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type GlobalPluginRestHandler interface {
@@ -387,6 +388,10 @@ func (handler *GlobalPluginRestHandlerImpl) getPluginDetailsRequestDto(r *http.R
 		if err != nil {
 			handler.logger.Errorw("error in parsing query param", "err", err)
 			return request, err
+		}
+		parentPluginIdentifiers := strings.Split(request.ParentPluginIdentifier, ",")
+		for _, identifiers := range parentPluginIdentifiers {
+			request.ParentPluginIdentifiers = append(request.ParentPluginIdentifiers, strings.TrimSpace(identifiers))
 		}
 	}
 	return request, nil

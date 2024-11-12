@@ -389,6 +389,7 @@ type GlobalPluginDetailsRequest struct {
 	PluginIds               []int    `schema:"pluginId" json:"pluginIds"`
 	ParentPluginIds         []int    `schema:"parentPluginId" json:"parentPluginIds"`
 	FetchAllVersionDetails  bool     `schema:"fetchAllVersionDetails" json:"fetchAllVersionDetails"`
+	ParentPluginIdentifier  string   `schema:"parentPluginIdentifier"` // comma separated parentPluginIdentifiers
 	ParentPluginIdentifiers []string `schema:"-" json:"parentPluginIdentifiers"`
 	AppId                   int      `schema:"appId" json:"appId"`
 }
