@@ -216,7 +216,6 @@ func (impl *InstalledAppVersionHistoryRepositoryImpl) UpdateDeploymentHistoryMes
 	_, err := impl.dbConnection.Model((*InstalledAppVersionHistory)(nil)).
 		Set("message = ?", message).
 		Where("id = ?", installedAppVersionHistoryId).
-		Where("active = ?", true).
 		Update()
 	return err
 }
