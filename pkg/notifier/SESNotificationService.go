@@ -22,7 +22,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/notifier/beans"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -38,16 +37,13 @@ type SESNotificationService interface {
 
 type SESNotificationServiceImpl struct {
 	logger                         *zap.SugaredLogger
-	teamService                    team.TeamService
 	sesRepository                  repository.SESNotificationRepository
 	notificationSettingsRepository repository.NotificationSettingsRepository
 }
 
-func NewSESNotificationServiceImpl(logger *zap.SugaredLogger, sesRepository repository.SESNotificationRepository,
-	teamService team.TeamService, notificationSettingsRepository repository.NotificationSettingsRepository) *SESNotificationServiceImpl {
+func NewSESNotificationServiceImpl(logger *zap.SugaredLogger, sesRepository repository.SESNotificationRepository, notificationSettingsRepository repository.NotificationSettingsRepository) *SESNotificationServiceImpl {
 	return &SESNotificationServiceImpl{
 		logger:                         logger,
-		teamService:                    teamService,
 		sesRepository:                  sesRepository,
 		notificationSettingsRepository: notificationSettingsRepository,
 	}

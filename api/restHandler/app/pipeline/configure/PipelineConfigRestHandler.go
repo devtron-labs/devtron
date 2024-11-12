@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	"github.com/devtron-labs/devtron/pkg/team/read"
 	"io"
 	"net/http"
 	"strconv"
@@ -53,7 +54,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	security2 "github.com/devtron-labs/devtron/pkg/security"
-	"github.com/devtron-labs/devtron/pkg/team"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
@@ -108,7 +108,6 @@ type PipelineConfigRestHandlerImpl struct {
 	propertiesConfigService             pipeline.PropertiesConfigService
 	userAuthService                     user.UserService
 	validator                           *validator.Validate
-	teamService                         team.TeamService
 	enforcer                            casbin.Enforcer
 	gitSensorClient                     gitSensor.Client
 	pipelineRepository                  pipelineConfig.PipelineRepository
@@ -129,6 +128,7 @@ type PipelineConfigRestHandlerImpl struct {
 	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
 	chartRefService                     chartRef.ChartRefService
 	ciCdPipelineOrchestrator            pipeline.CiCdPipelineOrchestrator
+	teamReadService                     read.TeamReadService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -137,7 +137,6 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	devtronAppGitOpConfigService gitOpsConfig.DevtronAppGitOpConfigService,
 	propertiesConfigService pipeline.PropertiesConfigService,
 	userAuthService user.UserService,
-	teamService team.TeamService,
 	enforcer casbin.Enforcer,
 	ciHandler pipeline.CiHandler,
 	validator *validator.Validate,
@@ -156,7 +155,8 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	ciArtifactRepository repository.CiArtifactRepository,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	chartRefService chartRef.ChartRefService,
-	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator) *PipelineConfigRestHandlerImpl {
+	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator,
+	teamReadService read.TeamReadService) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
 	if err != nil {
@@ -171,7 +171,6 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		propertiesConfigService:             propertiesConfigService,
 		userAuthService:                     userAuthService,
 		validator:                           validator,
-		teamService:                         teamService,
 		enforcer:                            enforcer,
 		ciHandler:                           ciHandler,
 		gitSensorClient:                     gitSensorClient,
@@ -195,6 +194,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		deployedAppMetricsService:           deployedAppMetricsService,
 		chartRefService:                     chartRefService,
 		ciCdPipelineOrchestrator:            ciCdPipelineOrchestrator,
+		teamReadService:                     teamReadService,
 	}
 }
 
@@ -351,7 +351,7 @@ func (handler *PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r
 		return
 	}
 
-	project, err := handler.teamService.FetchOne(createRequest.TeamId)
+	project, err := handler.teamReadService.FindOne(createRequest.TeamId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return

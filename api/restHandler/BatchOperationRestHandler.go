@@ -28,7 +28,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appClone/batch"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
-	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
@@ -42,20 +41,18 @@ type BatchOperationRestHandlerImpl struct {
 	userAuthService user.UserService
 	enforcer        casbin.Enforcer
 	workflowAction  batch.WorkflowAction
-	teamService     team.TeamService
 	logger          *zap.SugaredLogger
 	enforcerUtil    rbac.EnforcerUtil
 	argoUserService argo.ArgoUserService
 }
 
 func NewBatchOperationRestHandlerImpl(userAuthService user.UserService, enforcer casbin.Enforcer, workflowAction batch.WorkflowAction,
-	teamService team.TeamService, logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
+	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
 	argoUserService argo.ArgoUserService) *BatchOperationRestHandlerImpl {
 	return &BatchOperationRestHandlerImpl{
 		userAuthService: userAuthService,
 		enforcer:        enforcer,
 		workflowAction:  workflowAction,
-		teamService:     teamService,
 		logger:          logger,
 		enforcerUtil:    enforcerUtil,
 		argoUserService: argoUserService,

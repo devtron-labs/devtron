@@ -29,7 +29,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -67,7 +66,6 @@ type ConfigMapRestHandlerImpl struct {
 	Logger             *zap.SugaredLogger
 	chartService       chart.ChartService
 	userAuthService    user.UserService
-	teamService        team.TeamService
 	enforcer           casbin.Enforcer
 	pipelineRepository pipelineConfig.PipelineRepository
 	enforcerUtil       rbac.EnforcerUtil
@@ -75,7 +73,7 @@ type ConfigMapRestHandlerImpl struct {
 }
 
 func NewConfigMapRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
-	chartService chart.ChartService, userAuthService user.UserService, teamService team.TeamService,
+	chartService chart.ChartService, userAuthService user.UserService,
 	enforcer casbin.Enforcer, pipelineRepository pipelineConfig.PipelineRepository,
 	enforcerUtil rbac.EnforcerUtil, configMapService pipeline.ConfigMapService) *ConfigMapRestHandlerImpl {
 	return &ConfigMapRestHandlerImpl{
@@ -83,7 +81,6 @@ func NewConfigMapRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logge
 		Logger:             Logger,
 		chartService:       chartService,
 		userAuthService:    userAuthService,
-		teamService:        teamService,
 		enforcer:           enforcer,
 		pipelineRepository: pipelineRepository,
 		enforcerUtil:       enforcerUtil,

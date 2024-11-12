@@ -40,7 +40,6 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
@@ -61,7 +60,6 @@ type PipelineTriggerRestHandlerImpl struct {
 	userAuthService             user.UserService
 	validator                   *validator.Validate
 	enforcer                    casbin.Enforcer
-	teamService                 team.TeamService
 	logger                      *zap.SugaredLogger
 	enforcerUtil                rbac.EnforcerUtil
 	deploymentGroupService      deploymentGroup.DeploymentGroupService
@@ -73,7 +71,7 @@ type PipelineTriggerRestHandlerImpl struct {
 }
 
 func NewPipelineRestHandler(appService app.AppService, userAuthService user.UserService, validator *validator.Validate,
-	enforcer casbin.Enforcer, teamService team.TeamService, logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
+	enforcer casbin.Enforcer, logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
 	deploymentGroupService deploymentGroup.DeploymentGroupService,
 	argoUserService argo.ArgoUserService, deploymentConfigService pipeline.PipelineDeploymentConfigService,
 	deployedAppService deployedApp.DeployedAppService,
@@ -84,7 +82,6 @@ func NewPipelineRestHandler(appService app.AppService, userAuthService user.User
 		userAuthService:             userAuthService,
 		validator:                   validator,
 		enforcer:                    enforcer,
-		teamService:                 teamService,
 		logger:                      logger,
 		enforcerUtil:                enforcerUtil,
 		deploymentGroupService:      deploymentGroupService,

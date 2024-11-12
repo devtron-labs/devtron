@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package team
+package repository
 
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"

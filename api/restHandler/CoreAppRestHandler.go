@@ -23,6 +23,7 @@ import (
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/api/restHandler/app/pipeline/configure"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	"github.com/devtron-labs/devtron/pkg/team/read"
 	"net/http"
 	"strconv"
 	"strings"
@@ -47,7 +48,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -93,10 +93,10 @@ type CoreAppRestHandlerImpl struct {
 	environmentRepository   repository2.EnvironmentRepository
 	configMapRepository     chartConfig.ConfigMapRepository
 	chartRepo               chartRepoRepository.ChartRepository
-	teamService             team.TeamService
 	argoUserService         argo.ArgoUserService
 	pipelineStageService    pipeline.PipelineStageService
 	ciPipelineRepository    pipelineConfig.CiPipelineRepository
+	teamReadService         read.TeamReadService
 }
 
 func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
@@ -105,8 +105,9 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 	propertiesConfigService pipeline.PropertiesConfigService, appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, gitProviderRepo repository.GitProviderRepository,
 	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository repository2.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository,
-	chartRepo chartRepoRepository.ChartRepository, teamService team.TeamService,
-	argoUserService argo.ArgoUserService, pipelineStageService pipeline.PipelineStageService, ciPipelineRepository pipelineConfig.CiPipelineRepository) *CoreAppRestHandlerImpl {
+	chartRepo chartRepoRepository.ChartRepository,
+	argoUserService argo.ArgoUserService, pipelineStageService pipeline.PipelineStageService, ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	teamReadService read.TeamReadService) *CoreAppRestHandlerImpl {
 	handler := &CoreAppRestHandlerImpl{
 		logger:                  logger,
 		userAuthService:         userAuthService,
@@ -127,10 +128,10 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 		environmentRepository:   environmentRepository,
 		configMapRepository:     configMapRepository,
 		chartRepo:               chartRepo,
-		teamService:             teamService,
 		argoUserService:         argoUserService,
 		pipelineStageService:    pipelineStageService,
 		ciPipelineRepository:    ciPipelineRepository,
+		teamReadService:         teamReadService,
 	}
 	return handler
 }
@@ -278,13 +279,13 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 	}
 
 	//rbac starts
-	team, err := handler.teamService.FindByTeamName(createAppRequest.Metadata.ProjectName)
+	team, err := handler.teamReadService.FindByTeamName(createAppRequest.Metadata.ProjectName)
 	if err != nil {
 		handler.logger.Errorw("Error in getting team", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if team == nil {
+	if team == nil || (team != nil && team.Id == 0) {
 		handler.logger.Errorw("no project found by name in CreateApp request by API")
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -1142,7 +1143,7 @@ func (handler CoreAppRestHandlerImpl) createBlankApp(appMetadata *appBean.AppMet
 		return nil, err, http.StatusBadRequest
 	}
 
-	team, err := handler.teamService.FindByTeamName(appMetadata.ProjectName)
+	team, err := handler.teamReadService.FindByTeamName(appMetadata.ProjectName)
 	if err != nil {
 		handler.logger.Infow("no project found by name in CreateApp request by API")
 		return nil, err, http.StatusBadRequest

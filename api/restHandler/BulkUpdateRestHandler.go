@@ -39,7 +39,6 @@ import (
 	request "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	security2 "github.com/devtron-labs/devtron/pkg/security"
-	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
@@ -70,7 +69,6 @@ type BulkUpdateRestHandlerImpl struct {
 	application             application.ServiceClient
 	userAuthService         user.UserService
 	validator               *validator.Validate
-	teamService             team.TeamService
 	enforcer                casbin.Enforcer
 	gitSensorClient         gitSensor.Client
 	pipelineRepository      pipelineConfig.PipelineRepository
@@ -93,7 +91,6 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 	propertiesConfigService pipeline.PropertiesConfigService,
 	application application.ServiceClient,
 	userAuthService user.UserService,
-	teamService team.TeamService,
 	enforcer casbin.Enforcer,
 	ciHandler pipeline.CiHandler,
 	validator *validator.Validate,
@@ -116,7 +113,6 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 		application:             application,
 		userAuthService:         userAuthService,
 		validator:               validator,
-		teamService:             teamService,
 		enforcer:                enforcer,
 		ciHandler:               ciHandler,
 		gitSensorClient:         gitSensorClient,

@@ -22,7 +22,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/notifier/beans"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -38,16 +37,14 @@ type SMTPNotificationService interface {
 
 type SMTPNotificationServiceImpl struct {
 	logger                         *zap.SugaredLogger
-	teamService                    team.TeamService
 	smtpRepository                 repository.SMTPNotificationRepository
 	notificationSettingsRepository repository.NotificationSettingsRepository
 }
 
 func NewSMTPNotificationServiceImpl(logger *zap.SugaredLogger, smtpRepository repository.SMTPNotificationRepository,
-	teamService team.TeamService, notificationSettingsRepository repository.NotificationSettingsRepository) *SMTPNotificationServiceImpl {
+	notificationSettingsRepository repository.NotificationSettingsRepository) *SMTPNotificationServiceImpl {
 	return &SMTPNotificationServiceImpl{
 		logger:                         logger,
-		teamService:                    teamService,
 		smtpRepository:                 smtpRepository,
 		notificationSettingsRepository: notificationSettingsRepository,
 	}

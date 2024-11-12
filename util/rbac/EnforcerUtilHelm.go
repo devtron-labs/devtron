@@ -23,7 +23,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/pkg/team/read"
+	repository3 "github.com/devtron-labs/devtron/pkg/team/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -38,26 +39,26 @@ type EnforcerUtilHelm interface {
 type EnforcerUtilHelmImpl struct {
 	logger                 *zap.SugaredLogger
 	clusterRepository      repository.ClusterRepository
-	teamRepository         team.TeamRepository
 	appRepository          app.AppRepository
 	InstalledAppRepository repository2.InstalledAppRepository
 	dbMigration            dbMigration.DbMigration
+	teamReadService        read.TeamReadService
 }
 
 func NewEnforcerUtilHelmImpl(logger *zap.SugaredLogger,
 	clusterRepository repository.ClusterRepository,
-	teamRepository team.TeamRepository,
 	appRepository app.AppRepository,
 	installedAppRepository repository2.InstalledAppRepository,
 	migration dbMigration.DbMigration,
+	teamReadService read.TeamReadService,
 ) *EnforcerUtilHelmImpl {
 	return &EnforcerUtilHelmImpl{
 		logger:                 logger,
 		clusterRepository:      clusterRepository,
-		teamRepository:         teamRepository,
 		appRepository:          appRepository,
 		InstalledAppRepository: installedAppRepository,
 		dbMigration:            migration,
+		teamReadService:        teamReadService,
 	}
 }
 
@@ -66,14 +67,14 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterId(clusterId int, namespa
 	if err != nil {
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
-	return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, appName)
+	return fmt.Sprintf("%s/%s__%s/%s", repository3.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, appName)
 }
 
 func (impl EnforcerUtilHelmImpl) GetHelmObjectByTeamIdAndClusterId(teamId int, clusterId int, namespace string, appName string) string {
 
 	cluster, err := impl.clusterRepository.FindById(clusterId)
 
-	teamObj, err := impl.teamRepository.FindOne(teamId)
+	teamObj, err := impl.teamReadService.FindOne(teamId)
 
 	if err != nil {
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
@@ -104,7 +105,7 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterIdNamespaceAndAppName(clu
 		}
 		if app.TeamId == 0 {
 			// case if project is not assigned to cli app
-			return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, appName), fmt.Sprintf("%s/%s/%s", team.UNASSIGNED_PROJECT, namespace, appName)
+			return fmt.Sprintf("%s/%s__%s/%s", repository3.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, appName), fmt.Sprintf("%s/%s/%s", repository3.UNASSIGNED_PROJECT, namespace, appName)
 		} else {
 			// case if project is assigned
 			return fmt.Sprintf("%s/%s__%s/%s", app.Team.Name, cluster.ClusterName, namespace, appName), fmt.Sprintf("%s/%s/%s", app.Team.Name, namespace, appName)
@@ -114,8 +115,8 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterIdNamespaceAndAppName(clu
 
 	if installedApp.App.TeamId == 0 {
 		// for EA apps which have no project assigned to them
-		return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, appName),
-			fmt.Sprintf("%s/%s/%s", team.UNASSIGNED_PROJECT, installedApp.Environment.EnvironmentIdentifier, appName)
+		return fmt.Sprintf("%s/%s__%s/%s", repository3.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, appName),
+			fmt.Sprintf("%s/%s/%s", repository3.UNASSIGNED_PROJECT, installedApp.Environment.EnvironmentIdentifier, appName)
 
 	} else {
 		if installedApp.EnvironmentId == 0 {
@@ -200,7 +201,7 @@ func (impl EnforcerUtilHelmImpl) GetAppRBACNameByInstalledAppIdAndTeamId(install
 		impl.logger.Errorw("error in fetching installed app version data", "err", err)
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
-	project, err := impl.teamRepository.FindOne(teamId)
+	project, err := impl.teamReadService.FindOne(teamId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching project by teamID", "err", err)
 		return fmt.Sprintf("%s/%s/%s", "", "", "")

@@ -33,7 +33,6 @@ import (
 	"k8s.io/utils/strings/slices"
 
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -70,7 +69,6 @@ type DockerRegRestHandlerImpl struct {
 	userAuthService      user.UserService
 	validator            *validator.Validate
 	enforcer             casbin.Enforcer
-	teamService          team.TeamService
 	deleteService        deleteService.DeleteService
 }
 
@@ -79,7 +77,7 @@ func NewDockerRegRestHandlerExtendedImpl(
 	logger *zap.SugaredLogger,
 	chartProviderService chartProviderService.ChartProviderService,
 	userAuthService user.UserService,
-	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService,
+	validator *validator.Validate, enforcer casbin.Enforcer,
 	deleteService deleteService.DeleteService,
 	deleteServiceFullMode deleteService.DeleteServiceFullMode) *DockerRegRestHandlerExtendedImpl {
 	return &DockerRegRestHandlerExtendedImpl{
@@ -91,7 +89,6 @@ func NewDockerRegRestHandlerExtendedImpl(
 			userAuthService:      userAuthService,
 			validator:            validator,
 			enforcer:             enforcer,
-			teamService:          teamService,
 			deleteService:        deleteService,
 		},
 	}
@@ -102,7 +99,7 @@ func NewDockerRegRestHandlerImpl(
 	logger *zap.SugaredLogger,
 	chartProviderService chartProviderService.ChartProviderService,
 	userAuthService user.UserService,
-	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService,
+	validator *validator.Validate, enforcer casbin.Enforcer,
 	deleteService deleteService.DeleteService) *DockerRegRestHandlerImpl {
 	return &DockerRegRestHandlerImpl{
 		dockerRegistryConfig: dockerRegistryConfig,
@@ -111,7 +108,6 @@ func NewDockerRegRestHandlerImpl(
 		userAuthService:      userAuthService,
 		validator:            validator,
 		enforcer:             enforcer,
-		teamService:          teamService,
 		deleteService:        deleteService,
 	}
 }

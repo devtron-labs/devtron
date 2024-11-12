@@ -26,7 +26,6 @@ import (
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
-	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -50,7 +49,6 @@ type GitProviderRestHandlerImpl struct {
 	userAuthService       user.UserService
 	validator             *validator.Validate
 	enforcer              casbin.Enforcer
-	teamService           team.TeamService
 	deleteServiceFullMode delete2.DeleteServiceFullMode
 }
 
@@ -58,7 +56,7 @@ func NewGitProviderRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryC
 	logger *zap.SugaredLogger,
 	gitRegistryConfig pipeline.GitRegistryConfig,
 	userAuthService user.UserService,
-	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService,
+	validator *validator.Validate, enforcer casbin.Enforcer,
 	deleteServiceFullMode delete2.DeleteServiceFullMode) *GitProviderRestHandlerImpl {
 	return &GitProviderRestHandlerImpl{
 		dockerRegistryConfig:  dockerRegistryConfig,
@@ -67,7 +65,6 @@ func NewGitProviderRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryC
 		userAuthService:       userAuthService,
 		validator:             validator,
 		enforcer:              enforcer,
-		teamService:           teamService,
 		deleteServiceFullMode: deleteServiceFullMode,
 	}
 }

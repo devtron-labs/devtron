@@ -18,6 +18,8 @@ package team
 
 import (
 	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/pkg/team/read"
+	"github.com/devtron-labs/devtron/pkg/team/repository"
 	"github.com/google/wire"
 )
 
@@ -25,12 +27,14 @@ import (
 //TODO integrate user auth module
 
 var TeamsWireSet = wire.NewSet(
-	team.NewTeamRepositoryImpl,
-	wire.Bind(new(team.TeamRepository), new(*team.TeamRepositoryImpl)),
+	repository.NewTeamRepositoryImpl,
+	wire.Bind(new(repository.TeamRepository), new(*repository.TeamRepositoryImpl)),
 	team.NewTeamServiceImpl,
 	wire.Bind(new(team.TeamService), new(*team.TeamServiceImpl)),
 	NewTeamRestHandlerImpl,
 	wire.Bind(new(TeamRestHandler), new(*TeamRestHandlerImpl)),
 	NewTeamRouterImpl,
 	wire.Bind(new(TeamRouter), new(*TeamRouterImpl)),
+	read.NewTeamReadService,
+	wire.Bind(new(read.TeamReadService), new(*read.TeamReadServiceImpl)),
 )

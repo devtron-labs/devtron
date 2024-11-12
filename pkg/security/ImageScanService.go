@@ -25,14 +25,12 @@ import (
 	"go.opentelemetry.io/otel"
 	"time"
 
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	"github.com/devtron-labs/devtron/pkg/auth/user"
-	repository2 "github.com/devtron-labs/devtron/pkg/team"
-
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -55,7 +53,6 @@ type ImageScanServiceImpl struct {
 	cveStoreRepository                        security.CveStoreRepository
 	imageScanDeployInfoRepository             security.ImageScanDeployInfoRepository
 	userService                               user.UserService
-	teamRepository                            repository2.TeamRepository
 	appRepository                             repository1.AppRepository
 	envService                                cluster.EnvironmentService
 	ciArtifactRepository                      repository.CiArtifactRepository
@@ -70,7 +67,7 @@ type ImageScanServiceImpl struct {
 func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository security.ImageScanHistoryRepository,
 	scanResultRepository security.ImageScanResultRepository, scanObjectMetaRepository security.ImageScanObjectMetaRepository,
 	cveStoreRepository security.CveStoreRepository, imageScanDeployInfoRepository security.ImageScanDeployInfoRepository,
-	userService user.UserService, teamRepository repository2.TeamRepository,
+	userService user.UserService,
 	appRepository repository1.AppRepository,
 	envService cluster.EnvironmentService, ciArtifactRepository repository.CiArtifactRepository, policyService PolicyService,
 	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository, scanToolMetaDataRepository security.ScanToolMetadataRepository, scanToolExecutionHistoryMappingRepository security.ScanToolExecutionHistoryMappingRepository,
@@ -79,7 +76,6 @@ func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository se
 		scanObjectMetaRepository: scanObjectMetaRepository, cveStoreRepository: cveStoreRepository,
 		imageScanDeployInfoRepository:             imageScanDeployInfoRepository,
 		userService:                               userService,
-		teamRepository:                            teamRepository,
 		appRepository:                             appRepository,
 		envService:                                envService,
 		ciArtifactRepository:                      ciArtifactRepository,

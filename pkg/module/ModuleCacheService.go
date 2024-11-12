@@ -23,7 +23,7 @@ import (
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
-	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/pkg/team/read"
 	util2 "github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -48,11 +48,12 @@ type ModuleCacheServiceImpl struct {
 	serverEnvConfig  *serverEnvConfig.ServerEnvConfig
 	serverDataStore  *serverDataStore.ServerDataStore
 	moduleRepository moduleRepo.ModuleRepository
-	teamService      team.TeamService
+	teamReadService  read.TeamReadService
 }
 
 func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *k8s.K8sServiceImpl, moduleEnvConfig *ModuleEnvConfig, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
-	serverDataStore *serverDataStore.ServerDataStore, moduleRepository moduleRepo.ModuleRepository, teamService team.TeamService) (*ModuleCacheServiceImpl, error) {
+	serverDataStore *serverDataStore.ServerDataStore, moduleRepository moduleRepo.ModuleRepository,
+	teamReadService read.TeamReadService) (*ModuleCacheServiceImpl, error) {
 	impl := &ModuleCacheServiceImpl{
 		logger:           logger,
 		K8sUtil:          K8sUtil,
@@ -60,7 +61,7 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *k8s.K8sServic
 		serverEnvConfig:  serverEnvConfig,
 		serverDataStore:  serverDataStore,
 		moduleRepository: moduleRepository,
-		teamService:      teamService,
+		teamReadService:  teamReadService,
 	}
 
 	// DB migration - if server mode is not base stack and data in modules table is empty, then insert entries in DB
@@ -79,7 +80,7 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *k8s.K8sServic
 
 			// if old installation (i.e. project was created more than 1 hour ago then insert rest entries)
 			teamId := 1
-			team, err := teamService.FetchOne(teamId)
+			team, err := teamReadService.FindOne(teamId)
 			if err != nil {
 				log.Println("Error while getting team.", "teamId", teamId, "err", err)
 				return nil, err

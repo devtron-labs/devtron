@@ -27,7 +27,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/team"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -44,18 +43,16 @@ type SlackNotificationService interface {
 
 type SlackNotificationServiceImpl struct {
 	logger                         *zap.SugaredLogger
-	teamService                    team.TeamService
 	slackRepository                repository.SlackNotificationRepository
 	webhookRepository              repository.WebhookNotificationRepository
 	userRepository                 repository2.UserRepository
 	notificationSettingsRepository repository.NotificationSettingsRepository
 }
 
-func NewSlackNotificationServiceImpl(logger *zap.SugaredLogger, slackRepository repository.SlackNotificationRepository, webhookRepository repository.WebhookNotificationRepository, teamService team.TeamService,
+func NewSlackNotificationServiceImpl(logger *zap.SugaredLogger, slackRepository repository.SlackNotificationRepository, webhookRepository repository.WebhookNotificationRepository,
 	userRepository repository2.UserRepository, notificationSettingsRepository repository.NotificationSettingsRepository) *SlackNotificationServiceImpl {
 	return &SlackNotificationServiceImpl{
 		logger:                         logger,
-		teamService:                    teamService,
 		slackRepository:                slackRepository,
 		webhookRepository:              webhookRepository,
 		userRepository:                 userRepository,

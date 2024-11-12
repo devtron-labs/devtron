@@ -26,7 +26,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
-	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -50,15 +49,14 @@ type DeploymentGroupRestHandlerImpl struct {
 	logger                 *zap.SugaredLogger
 	validator              *validator.Validate
 	enforcer               casbin.Enforcer
-	teamService            team.TeamService
 	userAuthService        user.UserService
 	enforcerUtil           rbac.EnforcerUtil
 }
 
 func NewDeploymentGroupRestHandlerImpl(deploymentGroupService deploymentGroup.DeploymentGroupService, logger *zap.SugaredLogger,
-	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService, userAuthService user.UserService, enforcerUtil rbac.EnforcerUtil) *DeploymentGroupRestHandlerImpl {
+	validator *validator.Validate, enforcer casbin.Enforcer, userAuthService user.UserService, enforcerUtil rbac.EnforcerUtil) *DeploymentGroupRestHandlerImpl {
 	return &DeploymentGroupRestHandlerImpl{deploymentGroupService: deploymentGroupService, logger: logger, validator: validator,
-		enforcer: enforcer, teamService: teamService, userAuthService: userAuthService, enforcerUtil: enforcerUtil}
+		enforcer: enforcer, userAuthService: userAuthService, enforcerUtil: enforcerUtil}
 }
 
 func (impl *DeploymentGroupRestHandlerImpl) CreateDeploymentGroup(w http.ResponseWriter, r *http.Request) {
