@@ -20,14 +20,14 @@ import (
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/hex"
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
+	bean2 "github.com/devtron-labs/devtron/pkg/build/git/gitHost/bean"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
 )
 
 type WebhookSecretValidator interface {
-	ValidateSecret(r *http.Request, secretInUrl string, requestBodyBytes []byte, gitHost *types.GitHostRequest) bool
+	ValidateSecret(r *http.Request, secretInUrl string, requestBodyBytes []byte, gitHost *bean2.GitHostRequest) bool
 }
 
 type WebhookSecretValidatorImpl struct {
@@ -50,7 +50,7 @@ const (
 // URL_APPEND : Secret will come in URL (last path param of URL)
 // PLAIN_TEXT : Plain text value in request header
 // SHA1 : SHA1 encrypted text in request header
-func (impl *WebhookSecretValidatorImpl) ValidateSecret(r *http.Request, secretInUrl string, requestBodyBytes []byte, gitHost *types.GitHostRequest) bool {
+func (impl *WebhookSecretValidatorImpl) ValidateSecret(r *http.Request, secretInUrl string, requestBodyBytes []byte, gitHost *bean2.GitHostRequest) bool {
 
 	secretValidator := gitHost.SecretValidator
 	impl.logger.Debug("Validating signature for secret validator : ", secretValidator)

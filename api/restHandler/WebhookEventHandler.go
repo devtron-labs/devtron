@@ -17,9 +17,9 @@
 package restHandler
 
 import (
+	bean3 "github.com/devtron-labs/devtron/pkg/build/git/gitHost/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -66,7 +66,7 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 	var gitHostId int
 	var err error
 	var gitHostName string
-	var gitHost *types.GitHostRequest
+	var gitHost *bean3.GitHostRequest
 	if gitHostId, err = strconv.Atoi(vars["gitHostId"]); err != nil {
 		gitHostName = vars["gitHostId"]
 		// get git host from DB

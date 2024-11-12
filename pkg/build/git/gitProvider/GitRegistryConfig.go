@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package pipeline
+package gitProvider
 
 import (
 	"context"
@@ -22,8 +22,8 @@ import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
+	bean2 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/bean"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
@@ -34,12 +34,12 @@ import (
 )
 
 type GitRegistryConfig interface {
-	Create(request *types.GitRegistry) (*types.GitRegistry, error)
-	GetAll() ([]types.GitRegistry, error)
-	FetchAllGitProviders() ([]types.GitRegistry, error)
-	FetchOneGitProvider(id string) (*types.GitRegistry, error)
-	Update(request *types.GitRegistry) (*types.GitRegistry, error)
-	Delete(request *types.GitRegistry) error
+	Create(request *bean2.GitRegistry) (*bean2.GitRegistry, error)
+	GetAll() ([]bean2.GitRegistry, error)
+	FetchAllGitProviders() ([]bean2.GitRegistry, error)
+	FetchOneGitProvider(id string) (*bean2.GitRegistry, error)
+	Update(request *bean2.GitRegistry) (*bean2.GitRegistry, error)
+	Delete(request *bean2.GitRegistry) error
 }
 type GitRegistryConfigImpl struct {
 	logger              *zap.SugaredLogger
@@ -56,7 +56,7 @@ func NewGitRegistryConfigImpl(logger *zap.SugaredLogger, gitProviderRepo reposit
 	}
 }
 
-func (impl GitRegistryConfigImpl) Create(request *types.GitRegistry) (*types.GitRegistry, error) {
+func (impl GitRegistryConfigImpl) Create(request *bean2.GitRegistry) (*bean2.GitRegistry, error) {
 	impl.logger.Debugw("get repo create request", "req", request)
 	exist, err := impl.gitProviderRepo.ProviderExists(request.Url)
 	if err != nil {
@@ -156,16 +156,16 @@ func (impl GitRegistryConfigImpl) Create(request *types.GitRegistry) (*types.Git
 }
 
 // get all active git providers
-func (impl GitRegistryConfigImpl) GetAll() ([]types.GitRegistry, error) {
+func (impl GitRegistryConfigImpl) GetAll() ([]bean2.GitRegistry, error) {
 	impl.logger.Debug("get all provider request")
 	providers, err := impl.gitProviderRepo.FindAllActiveForAutocomplete()
 	if err != nil {
 		impl.logger.Errorw("error in fetch all git providers", "err", err)
 		return nil, err
 	}
-	var gitProviders []types.GitRegistry
+	var gitProviders []bean2.GitRegistry
 	for _, provider := range providers {
-		providerRes := types.GitRegistry{
+		providerRes := bean2.GitRegistry{
 			Id:                    provider.Id,
 			Name:                  provider.Name,
 			Url:                   provider.Url,
@@ -186,16 +186,16 @@ func (impl GitRegistryConfigImpl) GetAll() ([]types.GitRegistry, error) {
 	return gitProviders, err
 }
 
-func (impl GitRegistryConfigImpl) FetchAllGitProviders() ([]types.GitRegistry, error) {
+func (impl GitRegistryConfigImpl) FetchAllGitProviders() ([]bean2.GitRegistry, error) {
 	impl.logger.Debug("fetch all git providers from db")
 	providers, err := impl.gitProviderRepo.FindAll()
 	if err != nil {
 		impl.logger.Errorw("error in fetch all git providers", "err", err)
 		return nil, err
 	}
-	var gitProviders []types.GitRegistry
+	var gitProviders []bean2.GitRegistry
 	for _, provider := range providers {
-		providerRes := types.GitRegistry{
+		providerRes := bean2.GitRegistry{
 			Id:                    provider.Id,
 			Name:                  provider.Name,
 			Url:                   provider.Url,
@@ -222,7 +222,7 @@ func (impl GitRegistryConfigImpl) FetchAllGitProviders() ([]types.GitRegistry, e
 	return gitProviders, err
 }
 
-func (impl GitRegistryConfigImpl) FetchOneGitProvider(providerId string) (*types.GitRegistry, error) {
+func (impl GitRegistryConfigImpl) FetchOneGitProvider(providerId string) (*bean2.GitRegistry, error) {
 	impl.logger.Debug("fetch git provider by ID from db")
 	provider, err := impl.gitProviderRepo.FindOne(providerId)
 	if err != nil {
@@ -230,7 +230,7 @@ func (impl GitRegistryConfigImpl) FetchOneGitProvider(providerId string) (*types
 		return nil, err
 	}
 
-	providerRes := &types.GitRegistry{
+	providerRes := &bean2.GitRegistry{
 		Id:                    provider.Id,
 		Name:                  provider.Name,
 		Url:                   provider.Url,
@@ -256,7 +256,7 @@ func (impl GitRegistryConfigImpl) FetchOneGitProvider(providerId string) (*types
 	return providerRes, err
 }
 
-func (impl GitRegistryConfigImpl) Update(request *types.GitRegistry) (*types.GitRegistry, error) {
+func (impl GitRegistryConfigImpl) Update(request *bean2.GitRegistry) (*bean2.GitRegistry, error) {
 	impl.logger.Debugw("get repo create request", "req", request)
 
 	/*
@@ -380,7 +380,7 @@ func (impl GitRegistryConfigImpl) Update(request *types.GitRegistry) (*types.Git
 	return request, nil
 }
 
-func (impl GitRegistryConfigImpl) Delete(request *types.GitRegistry) error {
+func (impl GitRegistryConfigImpl) Delete(request *bean2.GitRegistry) error {
 	providerId := strconv.Itoa(request.Id)
 	gitProviderConfig, err := impl.gitProviderRepo.FindOne(providerId)
 	if err != nil {

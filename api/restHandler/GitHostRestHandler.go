@@ -19,6 +19,8 @@ package restHandler
 import (
 	"context"
 	"encoding/json"
+	bean2 "github.com/devtron-labs/devtron/pkg/build/git/gitHost/bean"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
 	"net/http"
 	"strconv"
 
@@ -27,7 +29,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -49,12 +50,12 @@ type GitHostRestHandlerImpl struct {
 	validator         *validator.Validate
 	enforcer          casbin.Enforcer
 	gitSensorClient   gitSensor.Client
-	gitProviderConfig pipeline.GitRegistryConfig
+	gitProviderConfig gitProvider.GitRegistryConfig
 }
 
 func NewGitHostRestHandlerImpl(logger *zap.SugaredLogger,
 	gitHostConfig pipeline.GitHostConfig, userAuthService user.UserService,
-	validator *validator.Validate, enforcer casbin.Enforcer, gitSensorClient gitSensor.Client, gitProviderConfig pipeline.GitRegistryConfig) *GitHostRestHandlerImpl {
+	validator *validator.Validate, enforcer casbin.Enforcer, gitSensorClient gitSensor.Client, gitProviderConfig gitProvider.GitRegistryConfig) *GitHostRestHandlerImpl {
 	return &GitHostRestHandlerImpl{
 		logger:            logger,
 		gitHostConfig:     gitHostConfig,
@@ -84,7 +85,7 @@ func (impl GitHostRestHandlerImpl) GetGitHosts(w http.ResponseWriter, r *http.Re
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	result := make([]types.GitHostRequest, 0)
+	result := make([]bean2.GitHostRequest, 0)
 	for _, item := range res {
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionGet, item.Name); ok {
 			result = append(result, item)
@@ -136,7 +137,7 @@ func (impl GitHostRestHandlerImpl) CreateGitHost(w http.ResponseWriter, r *http.
 
 	decoder := json.NewDecoder(r.Body)
 
-	var bean types.GitHostRequest
+	var bean bean2.GitHostRequest
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, CreateGitHost", "err", err, "payload", bean)
@@ -300,6 +301,6 @@ func (impl GitHostRestHandlerImpl) GetWebhookDataMetaConfig(w http.ResponseWrite
 
 type WebhookDataMetaConfigResponse struct {
 	GitHostId     int                             `json:"gitHostId"`
-	GitHost       *types.GitHostRequest           `json:"gitHost"`
+	GitHost       *bean2.GitHostRequest           `json:"gitHost"`
 	WebhookEvents []*gitSensor.WebhookEventConfig `json:"webhookEvents"`
 }

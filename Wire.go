@@ -122,6 +122,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/build"
 	repository11 "github.com/devtron-labs/devtron/pkg/build/git/gitHost/repository"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
 	repository9 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 	git3 "github.com/devtron-labs/devtron/pkg/build/git/gitWebhook/repository"
 	"github.com/devtron-labs/devtron/pkg/bulkAction"
@@ -384,8 +385,8 @@ func InitializeApp() (*App, error) {
 
 		repository9.NewGitProviderRepositoryImpl,
 		wire.Bind(new(repository9.GitProviderRepository), new(*repository9.GitProviderRepositoryImpl)),
-		pipeline.NewGitRegistryConfigImpl,
-		wire.Bind(new(pipeline.GitRegistryConfig), new(*pipeline.GitRegistryConfigImpl)),
+		gitProvider.NewGitRegistryConfigImpl,
+		wire.Bind(new(gitProvider.GitRegistryConfig), new(*gitProvider.GitRegistryConfigImpl)),
 
 		appList.NewAppFilteringRouterImpl,
 		wire.Bind(new(appList.AppFilteringRouter), new(*appList.AppFilteringRouterImpl)),

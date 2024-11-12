@@ -20,8 +20,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	bean2 "github.com/devtron-labs/devtron/pkg/build/git/gitHost/bean"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitHost/repository"
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/juju/errors"
@@ -30,10 +30,10 @@ import (
 )
 
 type GitHostConfig interface {
-	GetAll() ([]types.GitHostRequest, error)
-	GetById(id int) (*types.GitHostRequest, error)
-	GetByName(uniqueName string) (*types.GitHostRequest, error)
-	Create(request *types.GitHostRequest) (int, error)
+	GetAll() ([]bean2.GitHostRequest, error)
+	GetById(id int) (*bean2.GitHostRequest, error)
+	GetByName(uniqueName string) (*bean2.GitHostRequest, error)
+	Create(request *bean2.GitHostRequest) (int, error)
 }
 
 type GitHostConfigImpl struct {
@@ -51,7 +51,7 @@ func NewGitHostConfigImpl(gitHostRepo repository.GitHostRepository, logger *zap.
 }
 
 // get all git hosts
-func (impl GitHostConfigImpl) GetAll() ([]types.GitHostRequest, error) {
+func (impl GitHostConfigImpl) GetAll() ([]bean2.GitHostRequest, error) {
 	impl.logger.Debug("get all hosts request")
 	hosts, err := impl.gitHostRepo.FindAll()
 	if err != nil {
@@ -59,14 +59,14 @@ func (impl GitHostConfigImpl) GetAll() ([]types.GitHostRequest, error) {
 		return nil, err
 	}
 
-	var gitHosts []types.GitHostRequest
+	var gitHosts []bean2.GitHostRequest
 	for _, host := range hosts {
 		//display_name can be null for old data hence checking for name field
 		displayName := host.DisplayName
 		if len(displayName) == 0 {
 			displayName = host.Name
 		}
-		hostRes := types.GitHostRequest{
+		hostRes := bean2.GitHostRequest{
 			Id:     host.Id,
 			Name:   displayName,
 			Active: host.Active,
@@ -77,7 +77,7 @@ func (impl GitHostConfigImpl) GetAll() ([]types.GitHostRequest, error) {
 }
 
 // get git host by Id
-func (impl GitHostConfigImpl) GetById(id int) (*types.GitHostRequest, error) {
+func (impl GitHostConfigImpl) GetById(id int) (*bean2.GitHostRequest, error) {
 	impl.logger.Debug("get hosts request for Id", id)
 	host, err := impl.gitHostRepo.FindOneById(id)
 	if err != nil {
@@ -90,7 +90,7 @@ func (impl GitHostConfigImpl) GetById(id int) (*types.GitHostRequest, error) {
 }
 
 // get git host by Name
-func (impl GitHostConfigImpl) GetByName(uniqueName string) (*types.GitHostRequest, error) {
+func (impl GitHostConfigImpl) GetByName(uniqueName string) (*bean2.GitHostRequest, error) {
 	impl.logger.Debug("get hosts request for name", uniqueName)
 	host, err := impl.gitHostRepo.FindOneByName(uniqueName)
 	if err != nil {
@@ -101,7 +101,7 @@ func (impl GitHostConfigImpl) GetByName(uniqueName string) (*types.GitHostReques
 	return impl.processAndReturnGitHost(host)
 }
 
-func (impl GitHostConfigImpl) processAndReturnGitHost(host repository.GitHost) (*types.GitHostRequest, error) {
+func (impl GitHostConfigImpl) processAndReturnGitHost(host repository.GitHost) (*bean2.GitHostRequest, error) {
 	// get orchestrator host
 	orchestratorHost, err := impl.attributeService.GetByKey("url")
 	if err != nil {
@@ -117,7 +117,7 @@ func (impl GitHostConfigImpl) processAndReturnGitHost(host repository.GitHost) (
 	}
 	webhookUrl := webhookUrlPrepend + host.WebhookUrl
 
-	gitHost := &types.GitHostRequest{
+	gitHost := &bean2.GitHostRequest{
 		Id:              host.Id,
 		Name:            host.Name,
 		Active:          host.Active,
@@ -132,7 +132,7 @@ func (impl GitHostConfigImpl) processAndReturnGitHost(host repository.GitHost) (
 }
 
 // Create in DB
-func (impl GitHostConfigImpl) Create(request *types.GitHostRequest) (int, error) {
+func (impl GitHostConfigImpl) Create(request *bean2.GitHostRequest) (int, error) {
 	impl.logger.Debugw("get git host create request", "req", request)
 	exist, err := impl.gitHostRepo.Exists(request.Name)
 	if err != nil {

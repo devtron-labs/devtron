@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -53,7 +54,7 @@ type DevtronAppAutoCompleteRestHandlerImpl struct {
 	enforcerUtil            rbac.EnforcerUtil
 	devtronAppConfigService pipeline.DevtronAppConfigService
 	envService              cluster.EnvironmentService
-	gitRegistryConfig       pipeline.GitRegistryConfig
+	gitRegistryConfig       gitProvider.GitRegistryConfig
 	dockerRegistryConfig    pipeline.DockerRegistryConfig
 }
 
@@ -65,7 +66,7 @@ func NewDevtronAppAutoCompleteRestHandlerImpl(
 	enforcerUtil rbac.EnforcerUtil,
 	devtronAppConfigService pipeline.DevtronAppConfigService,
 	envService cluster.EnvironmentService,
-	gitRegistryConfig pipeline.GitRegistryConfig,
+	gitRegistryConfig gitProvider.GitRegistryConfig,
 	dockerRegistryConfig pipeline.DockerRegistryConfig) *DevtronAppAutoCompleteRestHandlerImpl {
 	return &DevtronAppAutoCompleteRestHandlerImpl{
 		Logger:                  Logger,
