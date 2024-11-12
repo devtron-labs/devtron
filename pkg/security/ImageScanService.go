@@ -22,7 +22,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/security/bean"
-	"github.com/devtron-labs/devtron/pkg/team/read"
 	"go.opentelemetry.io/otel"
 	"time"
 
@@ -72,8 +71,7 @@ func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository se
 	appRepository repository1.AppRepository,
 	envService cluster.EnvironmentService, ciArtifactRepository repository.CiArtifactRepository, policyService PolicyService,
 	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository, scanToolMetaDataRepository security.ScanToolMetadataRepository, scanToolExecutionHistoryMappingRepository security.ScanToolExecutionHistoryMappingRepository,
-	cvePolicyRepository security.CvePolicyRepository,
-	teamReadService read.TeamReadService) *ImageScanServiceImpl {
+	cvePolicyRepository security.CvePolicyRepository) *ImageScanServiceImpl {
 	return &ImageScanServiceImpl{Logger: Logger, scanHistoryRepository: scanHistoryRepository, scanResultRepository: scanResultRepository,
 		scanObjectMetaRepository: scanObjectMetaRepository, cveStoreRepository: cveStoreRepository,
 		imageScanDeployInfoRepository:             imageScanDeployInfoRepository,
