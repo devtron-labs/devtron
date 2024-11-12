@@ -782,6 +782,10 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	// Rollback tx on error.
 	defer tx.Rollback()
 	upgradeAppRequest, err = impl.updateInstalledApp(ctx, upgradeAppRequest, tx)
+	if err != nil {
+		impl.logger.Errorw("error while performing update to the previous version", "upgradeRequest", upgradeAppRequest, "error", err)
+		return nil, err
+	}
 
 	//STEP 8: finish with return response
 	err = tx.Commit()
