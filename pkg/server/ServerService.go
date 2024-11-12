@@ -64,6 +64,7 @@ func NewServerServiceImpl(logger *zap.SugaredLogger, serverActionAuditLogReposit
 func (impl ServerServiceImpl) GetServerInfo(showServerStatus bool) (*serverBean.ServerInfoDto, error) {
 	impl.logger.Debug("getting server info")
 	if impl.serverEnvConfig.ErrorEncounteredOnGettingDevtronHelmRelease != nil {
+		// if on initialisation any error have occurred, have captured that error and retry mechanism is done here, possible scenario  is migration did not complete but devtron pod came up so values set would not be correct.
 		impl.logger.Debug("error encountered on getting devtron helm release, now retrying", "err", impl.serverEnvConfig.ErrorEncounteredOnGettingDevtronHelmRelease)
 		err := impl.serverCacheService.UpdateServerEnvAndDataStore()
 		if err != nil || impl.serverEnvConfig.ErrorEncounteredOnGettingDevtronHelmRelease != nil {
