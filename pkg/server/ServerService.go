@@ -44,10 +44,12 @@ type ServerServiceImpl struct {
 	serverEnvConfig                *serverEnvConfig.ServerEnvConfig
 	helmAppService                 client.HelmAppService
 	moduleRepository               moduleRepo.ModuleRepository
+	serverCacheService             *ServerCacheServiceImpl
 }
 
 func NewServerServiceImpl(logger *zap.SugaredLogger, serverActionAuditLogRepository ServerActionAuditLogRepository,
-	serverDataStore *serverDataStore.ServerDataStore, serverEnvConfig *serverEnvConfig.ServerEnvConfig, helmAppService client.HelmAppService, moduleRepository moduleRepo.ModuleRepository) *ServerServiceImpl {
+	serverDataStore *serverDataStore.ServerDataStore, serverEnvConfig *serverEnvConfig.ServerEnvConfig, helmAppService client.HelmAppService, moduleRepository moduleRepo.ModuleRepository,
+	serverCacheService *ServerCacheServiceImpl) *ServerServiceImpl {
 	return &ServerServiceImpl{
 		logger:                         logger,
 		serverActionAuditLogRepository: serverActionAuditLogRepository,
@@ -55,12 +57,20 @@ func NewServerServiceImpl(logger *zap.SugaredLogger, serverActionAuditLogReposit
 		serverEnvConfig:                serverEnvConfig,
 		helmAppService:                 helmAppService,
 		moduleRepository:               moduleRepository,
+		serverCacheService:             serverCacheService,
 	}
 }
 
 func (impl ServerServiceImpl) GetServerInfo(showServerStatus bool) (*serverBean.ServerInfoDto, error) {
 	impl.logger.Debug("getting server info")
-
+	if impl.serverEnvConfig.ErrorEncounteredOnGettingDevtronHelmRelease != nil {
+		impl.logger.Debug("error encountered on getting devtron helm release, now retrying", "err", impl.serverEnvConfig.ErrorEncounteredOnGettingDevtronHelmRelease)
+		err := impl.serverCacheService.UpdateServerEnvAndDataStore()
+		if err != nil || impl.serverEnvConfig.ErrorEncounteredOnGettingDevtronHelmRelease != nil {
+			impl.logger.Errorw("error encountered in GetServerInfo", "err", err, "errorWhileUpdating", impl.serverEnvConfig.ErrorEncounteredOnGettingDevtronHelmRelease)
+			return nil, err
+		}
+	}
 	serverInfoDto := &serverBean.ServerInfoDto{
 		CurrentVersion:   impl.serverDataStore.CurrentVersion,
 		ReleaseName:      impl.serverEnvConfig.DevtronHelmReleaseName,
