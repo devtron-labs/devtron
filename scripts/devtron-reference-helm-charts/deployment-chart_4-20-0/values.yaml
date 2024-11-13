@@ -556,18 +556,8 @@ ConfigMaps:
 
 
 ConfigSecrets:
- enabled: true
- secrets: 
- - name: config-secret-1
-   type: volume
-   filePermission: "420"
-   externalType: ESO_GoogleSecretsManager
-   mountPath: /etc/config/2
-   esoSecretData:
-    esoData:
-    - key": kushagra-test
-      property: test1
-      secretKey: SECRET_KUSHAGRA
+ enabled: false
+ secrets: []
   #  data:
   #   key1: key1value-1
   #   key2: key2value-1

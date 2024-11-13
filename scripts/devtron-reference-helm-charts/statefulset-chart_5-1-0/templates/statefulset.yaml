@@ -307,7 +307,7 @@ spec:
           {{- range $.Values.ContainerPort }}
             - name: {{ .name}}
               containerPort: {{ .port  }}
-              protocol: {{ .protocol }}
+              protocol: {{ .protocol | default "TCP" }}
           {{- end}}
 {{- if and $.Values.command.enabled $.Values.command.workingDir }}
           workingDir: {{ $.Values.command.workingDir }}
