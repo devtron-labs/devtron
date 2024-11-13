@@ -982,6 +982,9 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 
 		var pipelineMaterials []*pipelineConfig.CiPipelineMaterial
 		for _, r := range ciPipeline.CiMaterial {
+			if ciPipeline.PipelineType == CiPipeline.LINKED_CD {
+				continue
+			}
 			material := &pipelineConfig.CiPipelineMaterial{
 				GitMaterialId: r.GitMaterialId,
 				ScmId:         r.ScmId,

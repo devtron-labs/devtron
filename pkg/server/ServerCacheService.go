@@ -53,6 +53,16 @@ func NewServerCacheServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serve
 		return impl, nil
 	}
 
+	err := impl.UpdateServerEnvAndDataStore()
+	if err != nil {
+		logger.Errorw("error encountered in updating UpdateServerEnvAndDataStore", "error", err)
+		return nil, err
+	}
+
+	return impl, nil
+}
+
+func (impl *ServerCacheServiceImpl) UpdateServerEnvAndDataStore() error {
 	// devtron helm release identifier
 	appIdentifier := bean.AppIdentifier{
 		ClusterId:   1,
@@ -63,7 +73,8 @@ func NewServerCacheServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serve
 	// check if the release is installed or not
 	isDevtronHelmReleaseInstalled, err := impl.helmAppService.IsReleaseInstalled(context.Background(), &appIdentifier)
 	if err != nil {
-		logger.Errorw("not able to check if the devtron helm release exists or not.", "error", err)
+		impl.logger.Errorw("not able to check if the devtron helm release exists or not.", "error", err)
+		impl.serverEnvConfig.ErrorEncounteredOnGettingDevtronHelmRelease = err
 		// return nil, err
 		// not returning the error as it will bring down orchestrator
 	}
@@ -71,25 +82,24 @@ func NewServerCacheServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serve
 	// if not installed, treat it as OSS kubectl user
 	// if installed, treat it as OSS helm user and fetch current version
 	if isDevtronHelmReleaseInstalled {
-		serverEnvConfig.DevtronInstallationType = serverBean.DevtronInstallationTypeOssHelm
+		impl.serverEnvConfig.DevtronInstallationType = serverBean.DevtronInstallationTypeOssHelm
 
 		// fetch current version from helm release
 		releaseInfo, err := impl.helmAppService.GetValuesYaml(context.Background(), &appIdentifier)
 		if err != nil {
 			log.Println("got error in fetching devtron helm release values.", "error", err)
-			return nil, err
+			return err
 		}
 		currentVersion := gjson.Get(releaseInfo.GetMergedValues(), impl.serverEnvConfig.DevtronVersionIdentifierInHelmValues).String()
 		if len(currentVersion) == 0 {
 			log.Println("current devtron version found empty")
-			return nil, err
+			return err
 		}
 
 		// store current version in-memory
 		impl.serverDataStore.CurrentVersion = currentVersion
 	} else {
-		serverEnvConfig.DevtronInstallationType = serverBean.DevtronInstallationTypeOssKubectl
+		impl.serverEnvConfig.DevtronInstallationType = serverBean.DevtronInstallationTypeOssKubectl
 	}
-
-	return impl, nil
+	return nil
 }
