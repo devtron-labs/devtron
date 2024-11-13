@@ -1,7 +1,37 @@
 package beans
 
 import (
+	"github.com/devtron-labs/devtron/client/events/bean"
 	util "github.com/devtron-labs/devtron/util/event"
+)
+
+const (
+	SLACK_CONFIG_TYPE = "slack"
+	SLACK_URL         = "https://hooks.slack.com/"
+	WEBHOOK_URL       = "https://"
+)
+
+const WEBHOOK_CONFIG_TYPE = "webhook"
+
+type WebhookVariable string
+
+const (
+	// these fields will be configurable in future
+	DevtronContainerImageTag  WebhookVariable = "{{devtronContainerImageTag}}"
+	DevtronContainerImageRepo WebhookVariable = "{{devtronContainerImageRepo}}"
+	DevtronAppName            WebhookVariable = "{{devtronAppName}}"
+	DevtronAppId              WebhookVariable = "{{devtronAppId}}"
+	DevtronEnvName            WebhookVariable = "{{devtronEnvName}}"
+	DevtronEnvId              WebhookVariable = "{{devtronEnvId}}"
+	DevtronCiPipelineId       WebhookVariable = "{{devtronCiPipelineId}}"
+	DevtronCdPipelineId       WebhookVariable = "{{devtronCdPipelineId}}"
+	DevtronTriggeredByEmail   WebhookVariable = "{{devtronTriggeredByEmail}}"
+	EventType                 WebhookVariable = "{{eventType}}"
+)
+
+const (
+	AllNonProdEnvsName = "All non-prod environments"
+	AllProdEnvsName    = "All prod environments"
 )
 
 type NotificationConfigRequest struct {
@@ -15,7 +45,7 @@ type NotificationConfigRequest struct {
 	PipelineId   *int              `json:"pipelineId"`
 	PipelineType util.PipelineType `json:"pipelineType" validate:"required"`
 	EventTypeIds []int             `json:"eventTypeIds" validate:"required"`
-	Providers    []*Provider       `json:"providers"`
+	Providers    []*bean.Provider  `json:"providers"`
 }
 
 func (notificationSettingsRequest *NotificationConfigRequest) GenerateSettingCombinationsV1() []*LocalRequest {
@@ -173,7 +203,7 @@ type NSConfig struct {
 	ClusterId    []*int            `json:"clusterId"`
 	PipelineType util.PipelineType `json:"pipelineType" validate:"required"`
 	EventTypeIds []int             `json:"eventTypeIds" validate:"required"`
-	Providers    []*Provider       `json:"providers" validate:"required"`
+	Providers    []*bean.Provider  `json:"providers" validate:"required"`
 }
 
 type NotificationSettingRequest struct {
@@ -184,18 +214,11 @@ type NotificationSettingRequest struct {
 	//Pipelines    []int             `json:"pipelineIds"`
 	PipelineType util.PipelineType `json:"pipelineType" validate:"required"`
 	EventTypeIds []int             `json:"eventTypeIds" validate:"required"`
-	Providers    []Provider        `json:"providers" validate:"required"`
-}
-
-type Provider struct {
-	Destination util.Channel `json:"dest"`
-	Rule        string       `json:"rule"`
-	ConfigId    int          `json:"configId"`
-	Recipient   string       `json:"recipient"`
+	Providers    []bean.Provider   `json:"providers" validate:"required"`
 }
 
 type Providers struct {
-	Providers []Provider `json:"providers"`
+	Providers []bean.Provider `json:"providers"`
 }
 
 type NSDeleteRequest struct {
@@ -205,7 +228,7 @@ type NSDeleteRequest struct {
 type NotificationRequest struct {
 	UpdateType                util.UpdateType              `json:"updateType,omitempty"`
 	SesConfigId               int                          `json:"sesConfigId,omitempty"`
-	Providers                 []*Provider                  `json:"providers"`
+	Providers                 []*bean.Provider             `json:"providers"`
 	NotificationConfigRequest []*NotificationConfigRequest `json:"notificationConfigRequest" validate:"required"`
 }
 
@@ -286,6 +309,20 @@ type LocalRequest struct {
 	ClusterId  *int `json:"clusterId"`
 }
 
+type NotificationChannelAutoResponse struct {
+	ConfigName string `json:"configName"`
+	Id         int    `json:"id"`
+	TeamId     int    `json:"-"`
+}
+
+type NotificationRecipientListingResponse struct {
+	Dest      util.Channel `json:"dest"`
+	ConfigId  int          `json:"configId"`
+	Recipient string       `json:"recipient"`
+}
+
+//SES
+
 type SESChannelConfig struct {
 	Channel       util.Channel    `json:"channel" validate:"required"`
 	SESConfigDtos []*SESConfigDto `json:"configs"`
@@ -306,23 +343,7 @@ type SESConfigDto struct {
 	Default      bool   `json:"default,notnull"`
 }
 
-type NotificationChannelAutoResponse struct {
-	ConfigName string `json:"configName"`
-	Id         int    `json:"id"`
-	TeamId     int    `json:"-"`
-}
-
-type NotificationRecipientListingResponse struct {
-	Dest      util.Channel `json:"dest"`
-	ConfigId  int          `json:"configId"`
-	Recipient string       `json:"recipient"`
-}
-
-const SES_CONFIG_TYPE = "ses"
-
-const SLACK_CONFIG_TYPE = "slack"
-const SLACK_URL = "https://hooks.slack.com/"
-const WEBHOOK_URL = "https://"
+//Slack
 
 type SlackChannelConfig struct {
 	Channel         util.Channel     `json:"channel" validate:"required"`
@@ -338,7 +359,7 @@ type SlackConfigDto struct {
 	Id          int    `json:"id" validate:"number"`
 }
 
-const SMTP_CONFIG_TYPE = "smtp"
+//SMTP
 
 type SMTPChannelConfig struct {
 	Channel        util.Channel     `json:"channel" validate:"required"`
@@ -360,23 +381,7 @@ type SMTPConfigDto struct {
 	Deleted      bool   `json:"deleted"`
 }
 
-const WEBHOOK_CONFIG_TYPE = "webhook"
-
-type WebhookVariable string
-
-const (
-	// these fields will be configurable in future
-	DevtronContainerImageTag  WebhookVariable = "{{devtronContainerImageTag}}"
-	DevtronContainerImageRepo WebhookVariable = "{{devtronContainerImageRepo}}"
-	DevtronAppName            WebhookVariable = "{{devtronAppName}}"
-	DevtronAppId              WebhookVariable = "{{devtronAppId}}"
-	DevtronEnvName            WebhookVariable = "{{devtronEnvName}}"
-	DevtronEnvId              WebhookVariable = "{{devtronEnvId}}"
-	DevtronCiPipelineId       WebhookVariable = "{{devtronCiPipelineId}}"
-	DevtronCdPipelineId       WebhookVariable = "{{devtronCdPipelineId}}"
-	DevtronTriggeredByEmail   WebhookVariable = "{{devtronTriggeredByEmail}}"
-	EventType                 WebhookVariable = "{{eventType}}"
-)
+//webhook
 
 type WebhookChannelConfig struct {
 	Channel           util.Channel        `json:"channel" validate:"required"`
@@ -399,8 +404,5 @@ type Config struct {
 	Pipelines    []int             `json:"pipelineIds"`
 	PipelineType util.PipelineType `json:"pipelineType" validate:"required"`
 	EventTypeIds []int             `json:"eventTypeIds" validate:"required"`
-	Providers    []Provider        `json:"providers" validate:"required"`
+	Providers    []bean.Provider   `json:"providers" validate:"required"`
 }
-
-const AllNonProdEnvsName = "All non-prod environments"
-const AllProdEnvsName = "All prod environments"

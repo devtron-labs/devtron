@@ -19,6 +19,7 @@ package notifier
 import (
 	"encoding/json"
 	"errors"
+	"github.com/devtron-labs/devtron/client/events/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/notifier/beans"
 	"github.com/devtron-labs/devtron/util/event"
@@ -29,7 +30,7 @@ import (
 type NotificationConfigBuilder interface {
 	BuildNotificationSettingsConfig(notificationSettingsRequest *beans.NotificationConfigRequest, existingNotificationSettingsConfig *repository.NotificationSettingsView, userId int32) (*repository.NotificationSettingsView, error)
 	BuildNewNotificationSettings(notificationSettingsRequest *beans.NotificationConfigRequest, notificationSettingsView *repository.NotificationSettingsView) ([]repository.NotificationSettings, error)
-	BuildNotificationSettingWithPipeline(teamId *int, envId *int, appId *int, pipelineId *int, clusterId *int, pipelineType util.PipelineType, eventTypeId int, viewId int, providers []*beans.Provider) (repository.NotificationSettings, error)
+	BuildNotificationSettingWithPipeline(teamId *int, envId *int, appId *int, pipelineId *int, clusterId *int, pipelineType util.PipelineType, eventTypeId int, viewId int, providers []*bean.Provider) (repository.NotificationSettings, error)
 }
 
 type NotificationConfigBuilderImpl struct {
@@ -112,7 +113,7 @@ func (impl NotificationConfigBuilderImpl) buildNotificationSetting(notificationS
 	return notificationSetting, nil
 }
 
-func (impl NotificationConfigBuilderImpl) BuildNotificationSettingWithPipeline(teamId *int, envId *int, appId *int, pipelineId *int, clusterId *int, pipelineType util.PipelineType, eventTypeId int, viewId int, providers []*beans.Provider) (repository.NotificationSettings, error) {
+func (impl NotificationConfigBuilderImpl) BuildNotificationSettingWithPipeline(teamId *int, envId *int, appId *int, pipelineId *int, clusterId *int, pipelineType util.PipelineType, eventTypeId int, viewId int, providers []*bean.Provider) (repository.NotificationSettings, error) {
 
 	if teamId == nil && appId == nil && envId == nil && pipelineId == nil && clusterId == nil {
 		return repository.NotificationSettings{}, errors.New("no filter criteria is selected")

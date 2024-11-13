@@ -18,6 +18,7 @@ package notifier
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/client/events/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/notifier/adapter"
@@ -80,7 +81,7 @@ func (impl *SMTPNotificationServiceImpl) SaveOrEditNotificationConfig(channelReq
 				impl.logger.Errorw("err while fetching smtp config", "err", err)
 				return []int{}, err
 			}
-			adapter.BuildConfigUpdateModelSMTP(config, model, userId)
+			adapter.BuildConfigUpdateModelForSMTP(config, model, userId)
 			model, uErr := impl.smtpRepository.UpdateSMTPConfig(model)
 			if uErr != nil {
 				impl.logger.Errorw("err while updating smtp config", "err", err)
@@ -165,7 +166,7 @@ func (impl *SMTPNotificationServiceImpl) DeleteNotificationConfig(deleteReq *bea
 		impl.logger.Errorw("No matching entry found for delete", "err", err, "id", deleteReq.Id)
 		return err
 	}
-	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsByConfigIdAndConfigType(deleteReq.Id, beans.SMTP_CONFIG_TYPE)
+	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsByConfigIdAndConfigType(deleteReq.Id, bean.SMTP_CONFIG_TYPE)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in deleting smtp config", "config", deleteReq)
 		return err
