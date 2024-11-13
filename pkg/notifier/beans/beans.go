@@ -11,7 +11,11 @@ const (
 	WEBHOOK_URL       = "https://"
 )
 
-const WEBHOOK_CONFIG_TYPE = "webhook"
+const (
+	WEBHOOK_CONFIG_TYPE = "webhook"
+	SES_CONFIG_TYPE     = "ses"
+	SMTP_CONFIG_TYPE    = "smtp"
+)
 
 type WebhookVariable string
 

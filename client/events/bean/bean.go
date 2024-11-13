@@ -8,6 +8,3 @@ type Provider struct {
 	ConfigId    int          `json:"configId"`
 	Recipient   string       `json:"recipient"`
 }
-
-const SES_CONFIG_TYPE = "ses"
-const SMTP_CONFIG_TYPE = "smtp"
