@@ -226,7 +226,7 @@ spec:
           {{- range $.Values.ContainerPort }}
             - name: {{ .name}}
               containerPort: {{ .port  }}
-              protocol: {{ .protocol }}
+              protocol: {{ .protocol | default "TCP" }}
           {{- end}}
 {{- if and $.Values.command.enabled $.Values.command.workingDir }}
           workingDir: {{ $.Values.command.workingDir }}
@@ -498,13 +498,13 @@ spec:
           args: ["-c", "/etc/envoy-config/envoy-config.json", "-l", "info", "--log-format", "[METADATA][%Y-%m-%d %T.%e][%t][%l][%n] %v"]
           volumeMounts:
             - name: {{ $.Values.envoyproxy.configMapName | default "envoy-config-volume" }}
-              mountPath: /etc/envoy-config/envoy-config-volume
+              mountPath: /etc/envoy-config/
 {{- if $.Values.envoyproxy.readinessProbe}}
           readinessProbe:
 {{ toYaml $.Values.envoyproxy.readinessProbe | indent 12}} 
 {{- end }}  
 {{- if $.Values.envoyproxy.livenessProbe}}
-          readinessProbe:
+          livenessProbe:
 {{ toYaml $.Values.envoyproxy.livenessProbe | indent 12}} 
 {{- end }}               
 {{- end}}

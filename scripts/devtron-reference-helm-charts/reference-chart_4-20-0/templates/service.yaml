@@ -39,7 +39,7 @@ spec:
       {{- if (and (eq $.Values.service.type "NodePort") .nodePort )}}
       nodePort: {{ .nodePort }}
       {{- end }}
-      protocol: {{ .protocol }}
+      protocol: {{ .protocol | default "TCP" }}
       name: {{ .name }}
     {{- end }}
       {{- if $.Values.appMetrics }}

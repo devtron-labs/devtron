@@ -557,7 +557,7 @@ ConfigMaps:
 
 ConfigSecrets:
  enabled: false
- secrets:  []
+ secrets: []
   #  data:
   #   key1: key1value-1
   #   key2: key2value-1
