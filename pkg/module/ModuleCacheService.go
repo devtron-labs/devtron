@@ -77,23 +77,6 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *k8s.K8sServic
 				return nil, err
 			}
 
-			// if old installation (i.e. project was created more than 1 hour ago then insert rest entries)
-			teamId := 1
-			team, err := teamService.FetchOne(teamId)
-			if err != nil {
-				log.Println("Error while getting team.", "teamId", teamId, "err", err)
-				return nil, err
-			}
-
-			// insert first release components if this was old release and user installed full mode at that time
-			if time.Now().After(team.CreatedOn.Add(1 * time.Hour)) {
-				for _, supportedModuleName := range SupportedModuleNamesListFirstReleaseExcludingCicd {
-					err = impl.updateModuleToInstalled(supportedModuleName)
-					if err != nil {
-						return nil, err
-					}
-				}
-			}
 		}
 	}
 
