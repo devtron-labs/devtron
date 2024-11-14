@@ -27,8 +27,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	bean4 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
-	bean5 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/infraConfig"
+	bean6 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	bean5 "github.com/devtron-labs/devtron/pkg/infraConfig/bean"
+	util4 "github.com/devtron-labs/devtron/pkg/infraConfig/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
@@ -172,12 +173,12 @@ func (impl *CiServiceImpl) GetCiMaterials(pipelineId int, ciMaterials []*pipelin
 
 func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger, ciMaterials []*pipelineConfig.CiPipelineMaterial, workflowRequest *types.WorkflowRequest) error {
 	// externalCi artifact is meant only for CI_JOB
-	if trigger.PipelineType != string(bean5.CI_JOB) {
+	if trigger.PipelineType != string(bean6.CI_JOB) {
 		return nil
 	}
 
 	// checking if user has given run time parameters for externalCiArtifact, if given then sending git material to Ci-Runner
-	externalCiArtifact, exists := trigger.ExtraEnvironmentVariables[bean5.ExtraEnvVarExternalCiArtifactKey]
+	externalCiArtifact, exists := trigger.ExtraEnvironmentVariables[bean6.ExtraEnvVarExternalCiArtifactKey]
 	// validate externalCiArtifact as docker image
 	if exists {
 		externalCiArtifact = strings.TrimSpace(externalCiArtifact)
@@ -202,11 +203,11 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 
 		}
 
-		trigger.ExtraEnvironmentVariables[bean5.ExtraEnvVarExternalCiArtifactKey] = externalCiArtifact
+		trigger.ExtraEnvironmentVariables[bean6.ExtraEnvVarExternalCiArtifactKey] = externalCiArtifact
 
 		var artifactExists bool
 		var err error
-		if trigger.ExtraEnvironmentVariables[bean5.ExtraEnvVarImageDigestKey] == "" {
+		if trigger.ExtraEnvironmentVariables[bean6.ExtraEnvVarImageDigestKey] == "" {
 			artifactExists, err = impl.ciArtifactRepository.IfArtifactExistByImage(externalCiArtifact, trigger.PipelineId)
 			if err != nil {
 				impl.Logger.Errorw("error in fetching ci artifact", "err", err)
@@ -217,7 +218,7 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 				return fmt.Errorf("ci artifact already exists with same image name")
 			}
 		} else {
-			artifactExists, err = impl.ciArtifactRepository.IfArtifactExistByImageDigest(trigger.ExtraEnvironmentVariables[bean5.ExtraEnvVarImageDigestKey], externalCiArtifact, trigger.PipelineId)
+			artifactExists, err = impl.ciArtifactRepository.IfArtifactExistByImageDigest(trigger.ExtraEnvironmentVariables[bean6.ExtraEnvVarImageDigestKey], externalCiArtifact, trigger.PipelineId)
 			if err != nil {
 				impl.Logger.Errorw("error in fetching ci artifact", "err", err)
 				return err
@@ -230,7 +231,7 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 		}
 
 	}
-	if trigger.PipelineType == string(bean5.CI_JOB) && len(ciMaterials) != 0 && !exists && externalCiArtifact == "" {
+	if trigger.PipelineType == string(bean6.CI_JOB) && len(ciMaterials) != 0 && !exists && externalCiArtifact == "" {
 		ciMaterials[0].GitMaterial = nil
 		ciMaterials[0].GitMaterialId = 0
 	}
@@ -331,6 +332,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	}
 
 	workflowRequest.Scope = scope
+	workflowRequest.AppId = pipeline.AppId
 	workflowRequest.BuildxCacheModeMin = impl.buildxCacheFlags.BuildxCacheModeMin
 	workflowRequest.AsyncBuildxCacheExport = impl.buildxCacheFlags.AsyncBuildxCacheExport
 	if impl.config != nil && impl.config.BuildxK8sDriverOptions != "" {
@@ -349,7 +351,6 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	if err != nil {
 		return 0, err
 	}
-	workflowRequest.AppId = pipeline.AppId
 	workflowRequest.AppLabels = appLabels
 	workflowRequest.Env = envModal
 	if isJob {
@@ -384,19 +385,27 @@ func (impl *CiServiceImpl) setBuildxK8sDriverData(workflowRequest *types.Workflo
 	ciBuildConfig := workflowRequest.CiBuildConfig
 	if ciBuildConfig != nil {
 		if dockerBuildConfig := ciBuildConfig.DockerBuildConfig; dockerBuildConfig != nil {
-			buildxK8sDriverOptions := make([]map[string]string, 0)
-			err := json.Unmarshal([]byte(impl.config.BuildxK8sDriverOptions), &buildxK8sDriverOptions)
+			k8sDriverOptions, err := impl.getK8sDriverOptions()
 			if err != nil {
 				errMsg := "error in parsing BUILDX_K8S_DRIVER_OPTIONS from the devtron-cm, "
 				err = errors.New(errMsg + "error : " + err.Error())
 				impl.Logger.Errorw(errMsg, "err", err)
-				return err
-			} else {
-				dockerBuildConfig.BuildxK8sDriverOptions = buildxK8sDriverOptions
 			}
+			dockerBuildConfig.BuildxK8sDriverOptions = k8sDriverOptions
+
 		}
 	}
 	return nil
+}
+
+func (impl *CiServiceImpl) getK8sDriverOptions() ([]map[string]string, error) {
+	buildxK8sDriverOptions := make([]map[string]string, 0)
+	err := json.Unmarshal([]byte(impl.config.BuildxK8sDriverOptions), &buildxK8sDriverOptions)
+	if err != nil {
+		return nil, err
+	} else {
+		return buildxK8sDriverOptions, nil
+	}
 }
 
 func (impl *CiServiceImpl) getEnvironmentForJob(pipeline *pipelineConfig.CiPipeline, trigger types.Trigger) (*repository1.Environment, bool, error) {
@@ -570,7 +579,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		refPluginsData = []*pipelineConfigBean.RefPluginObject{}
 	}
 
-	infraConfigScope := &infraConfig.Scope{
+	infraConfigScope := &bean5.Scope{
 		AppId: pipeline.AppId,
 	}
 	infraGetter, err := impl.infraProvider.GetInfraProvider(pipelineConfigBean.CI_WORKFLOW_PIPELINE_TYPE)
@@ -585,7 +594,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			return nil, err
 		}
 	}
-	infraConfiguration, err := infraGetter.GetInfraConfigurationsByScope(infraConfigScope)
+	infraConfiguration, err := infraGetter.GetInfraConfigurationsByScopeAndPlatform(infraConfigScope, util4.CI_RUNNER_PLATFORM)
 	if err != nil {
 		impl.Logger.Errorw("error in getting infra configuration using scope ", "ciPipelineId", pipeline.Id, "scope", infraConfigScope, "err", err)
 		return nil, err
@@ -622,7 +631,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	var dockerfilePath string
 	var dockerRepository string
 	var checkoutPath string
-	var ciBuildConfigBean *bean5.CiBuildConfigBean
+	var ciBuildConfigBean *bean6.CiBuildConfigBean
 	dockerRegistry := &repository3.DockerArtifactStore{}
 	ciBaseBuildConfigEntity := ciTemplate.CiBuildConfig
 	ciBaseBuildConfigBean, err := adapter.ConvertDbBuildConfigToBean(ciBaseBuildConfigEntity)
@@ -735,13 +744,13 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 
 	ciBuildConfigBean.PipelineType = trigger.PipelineType
 
-	if ciBuildConfigBean.CiBuildType == bean5.SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == bean5.MANAGED_DOCKERFILE_BUILD_TYPE {
+	if ciBuildConfigBean.CiBuildType == bean6.SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == bean6.MANAGED_DOCKERFILE_BUILD_TYPE {
 		ciBuildConfigBean.DockerBuildConfig.BuildContext = filepath.Join(buildContextCheckoutPath, ciBuildConfigBean.DockerBuildConfig.BuildContext)
 		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig
 		dockerfilePath = filepath.Join(checkoutPath, dockerBuildConfig.DockerfilePath)
 		dockerBuildConfig.DockerfilePath = dockerfilePath
 		checkoutPath = dockerfilePath[:strings.LastIndex(dockerfilePath, "/")+1]
-	} else if ciBuildConfigBean.CiBuildType == bean5.BUILDPACK_BUILD_TYPE {
+	} else if ciBuildConfigBean.CiBuildType == bean6.BUILDPACK_BUILD_TYPE {
 		buildPackConfig := ciBuildConfigBean.BuildPackConfig
 		checkoutPath = filepath.Join(checkoutPath, buildPackConfig.ProjectPath)
 	}
@@ -804,7 +813,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	if pipeline.App.AppType == helper.Job {
 		workflowRequest.AppName = pipeline.App.DisplayName
 	}
-	if trigger.PipelineType == string(bean5.CI_JOB) {
+	if trigger.PipelineType == string(bean6.CI_JOB) {
 		workflowRequest.IgnoreDockerCachePush = impl.config.SkipCiJobBuildCachePushPull
 		workflowRequest.IgnoreDockerCachePull = impl.config.SkipCiJobBuildCachePushPull
 	}
