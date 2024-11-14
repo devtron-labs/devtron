@@ -122,7 +122,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/asyncProvider"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/build"
-	git3 "github.com/devtron-labs/devtron/pkg/build/git/gitWebhook/repository"
 	"github.com/devtron-labs/devtron/pkg/bulkAction"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
@@ -490,9 +489,6 @@ func InitializeApp() (*App, error) {
 
 		restHandler.NewGitWebhookRestHandlerImpl,
 		wire.Bind(new(restHandler.GitWebhookRestHandler), new(*restHandler.GitWebhookRestHandlerImpl)),
-
-		git3.NewGitWebhookRepositoryImpl,
-		wire.Bind(new(git3.GitWebhookRepository), new(*git3.GitWebhookRepositoryImpl)),
 
 		pipeline.NewCiHandlerImpl,
 		wire.Bind(new(pipeline.CiHandler), new(*pipeline.CiHandlerImpl)),
