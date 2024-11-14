@@ -186,6 +186,7 @@ type DeploymentDetailContainer struct {
 	DeploymentConfig              *bean.DeploymentConfig `json:"-"`
 	IsPipelineTriggered           bool                   `json:"isPipelineTriggered"`
 	ReleaseMode                   string                 `json:"releaseMode"`
+	LastDeployedById              int                    `json:"-" sql:"last_deployed_by_id"`
 }
 
 type AppDetailContainer struct {

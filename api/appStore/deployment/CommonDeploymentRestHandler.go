@@ -22,12 +22,13 @@ import (
 	"fmt"
 	service2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
-	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -60,15 +61,15 @@ type CommonDeploymentRestHandlerImpl struct {
 	installedAppService       EAMode.InstalledAppDBService
 	validator                 *validator.Validate
 	helmAppService            service2.HelmAppService
-	helmAppRestHandler        client.HelmAppRestHandler
 	argoUserService           argo.ArgoUserService
+	attributesService         attributes.AttributesService
 }
 
 func NewCommonDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm,
 	appStoreDeploymentService service.AppStoreDeploymentService, installedAppService EAMode.InstalledAppDBService,
 	validator *validator.Validate, helmAppService service2.HelmAppService,
-	helmAppRestHandler client.HelmAppRestHandler, argoUserService argo.ArgoUserService) *CommonDeploymentRestHandlerImpl {
+	argoUserService argo.ArgoUserService, attributesService attributes.AttributesService) *CommonDeploymentRestHandlerImpl {
 	return &CommonDeploymentRestHandlerImpl{
 		Logger:                    Logger,
 		userAuthService:           userAuthService,
@@ -79,8 +80,8 @@ func NewCommonDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthServi
 		installedAppService:       installedAppService,
 		validator:                 validator,
 		helmAppService:            helmAppService,
-		helmAppRestHandler:        helmAppRestHandler,
 		argoUserService:           argoUserService,
+		attributesService:         attributesService,
 	}
 }
 func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppId string, appId string) (string, *appStoreBean.InstallAppVersionDTO, error) {
@@ -324,5 +325,6 @@ func (handler *CommonDeploymentRestHandlerImpl) RollbackApplication(w http.Respo
 	res := &openapi2.RollbackReleaseResponse{
 		Success: &success,
 	}
+	handler.attributesService.UpdateKeyValueByOne(bean.HELM_APP_UPDATE_COUNTER)
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
