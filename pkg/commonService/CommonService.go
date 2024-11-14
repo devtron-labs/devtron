@@ -25,7 +25,6 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
-	repository5 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -46,7 +45,6 @@ type CommonServiceImpl struct {
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
 	dockerReg                   dockerRegistryRepository.DockerArtifactStoreRepository
 	attributeRepo               repository.AttributesRepository
-	gitProviderRepository       repository5.GitProviderRepository
 	gitProviderReadService      read.GitProviderReadService
 	environmentRepository       repository3.EnvironmentRepository
 	teamRepository              repository2.TeamRepository
@@ -60,7 +58,6 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
 	dockerReg dockerRegistryRepository.DockerArtifactStoreRepository,
 	attributeRepo repository.AttributesRepository,
-	gitProviderRepository repository5.GitProviderRepository,
 	environmentRepository repository3.EnvironmentRepository,
 	teamRepository repository2.TeamRepository,
 	appRepository app.AppRepository,
@@ -73,7 +70,6 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 		environmentConfigRepository: environmentConfigRepository,
 		dockerReg:                   dockerReg,
 		attributeRepo:               attributeRepo,
-		gitProviderRepository:       gitProviderRepository,
 		environmentRepository:       environmentRepository,
 		teamRepository:              teamRepository,
 		appRepository:               appRepository,
