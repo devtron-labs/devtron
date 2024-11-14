@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/workFlow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	bean4 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	util3 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"io/ioutil"
 	"net/http"
@@ -265,10 +266,11 @@ func (impl *CiHandlerImpl) HandleCIWebhook(gitCiTriggerRequest bean.GitCiTrigger
 	impl.Logger.Debugw("HandleCIWebhook for material ", "material", gitCiTriggerRequest.CiPipelineMaterial)
 	ciPipeline, err := impl.GetCiPipeline(gitCiTriggerRequest.CiPipelineMaterial.Id)
 	if err != nil {
+		impl.Logger.Errorw("err in getting ci_pipeline by ciPipelineMaterialId", "ciPipelineMaterialId", gitCiTriggerRequest.CiPipelineMaterial.Id, "err", err)
 		return 0, err
 	}
-	if ciPipeline.IsManual {
-		impl.Logger.Debugw("not handling manual pipeline", "pipelineId", ciPipeline.Id)
+	if ciPipeline.IsManual || ciPipeline.PipelineType == bean4.LINKED_CD.ToString() {
+		impl.Logger.Debugw("not handling for manual pipeline or in case of linked cd", "pipelineId", ciPipeline.Id)
 		return 0, err
 	}
 
@@ -1517,7 +1519,9 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 			}
 		}
 
-		triggeredByUserEmailId, err = impl.userService.GetActiveEmailById(workflow.TriggeredBy)
+		//getting the user including both active and inactive both
+		// as there arises case of having the deleted user had triggered the deployment
+		triggeredByUserEmailId, err = impl.userService.GetEmailById(int32(deployDetail.LastDeployedById))
 		if err != nil && !util.IsErrNoRows(err) {
 			impl.Logger.Errorw("err", "err", err)
 			return &types.GitTriggerInfoResponse{}, err

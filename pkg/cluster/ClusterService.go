@@ -755,7 +755,13 @@ func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int
 	}
 	namespaceListGroupByCLuster := impl.K8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
 	namespaces := namespaceListGroupByCLuster[clusterBean.ClusterName]
-
+	if len(namespaces) == 0 {
+		// TODO: Verify if this is a valid scenario, if yes, then handle it
+		// ideally, all clusters should have at least one `default` namespace
+		// this is a fallback scenario, for handling the namespace informer failure at start up...
+		impl.logger.Warnw("no namespaces found for cluster", "clusterName", clusterBean.ClusterName)
+		impl.SyncNsInformer(clusterBean)
+	}
 	if isActionUserSuperAdmin {
 		for namespace, value := range namespaces {
 			if value {
