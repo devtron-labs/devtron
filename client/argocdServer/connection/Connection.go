@@ -126,5 +126,6 @@ func (impl *ArgoCDConnectionManagerImpl) getArgoCdSettings() *settings.ArgoCDSet
 		}
 		impl.argoCDSettings = settings
 	}
+	impl.logger.Infow("get acd connection", "settings", settings)
 	return impl.argoCDSettings
 }
