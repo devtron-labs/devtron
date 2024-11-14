@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -46,7 +47,7 @@ type CiMaterialConfigService interface {
 type CiMaterialConfigServiceImpl struct {
 	logger                       *zap.SugaredLogger
 	materialRepo                 pipelineConfig.MaterialRepository
-	ciTemplateService            CiTemplateService
+	ciTemplateService            pipeline.CiTemplateReadService
 	ciCdPipelineOrchestrator     CiCdPipelineOrchestrator
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
 	gitMaterialHistoryService    history.GitMaterialHistoryService
@@ -58,7 +59,7 @@ type CiMaterialConfigServiceImpl struct {
 func NewCiMaterialConfigServiceImpl(
 	logger *zap.SugaredLogger,
 	materialRepo pipelineConfig.MaterialRepository,
-	ciTemplateService CiTemplateService,
+	ciTemplateService pipeline.CiTemplateReadService,
 	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	gitMaterialHistoryService history.GitMaterialHistoryService,
