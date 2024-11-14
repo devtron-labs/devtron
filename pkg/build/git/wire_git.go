@@ -9,12 +9,10 @@ import (
 
 var GitWireSet = wire.NewSet(
 	gitProvider.GitProviderWireSet,
+	gitHost.GitHostWireSet,
 
 	gitWebhook.NewWebhookSecretValidatorImpl,
 	wire.Bind(new(gitWebhook.WebhookSecretValidator), new(*gitWebhook.WebhookSecretValidatorImpl)),
 
 	gitWebhook.NewGitWebhookServiceImpl,
-	wire.Bind(new(gitWebhook.GitWebhookService), new(*gitWebhook.GitWebhookServiceImpl)),
-
-	gitHost.NewGitHostConfigImpl,
-	wire.Bind(new(gitHost.GitHostConfig), new(*gitHost.GitHostConfigImpl)))
+	wire.Bind(new(gitWebhook.GitWebhookService), new(*gitWebhook.GitWebhookServiceImpl)))

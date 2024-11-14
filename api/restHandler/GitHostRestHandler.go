@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitHost"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/git/gitHost/bean"
+	read2 "github.com/devtron-labs/devtron/pkg/build/git/gitHost/read"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	"net/http"
 	"strconv"
@@ -46,6 +47,7 @@ type GitHostRestHandler interface {
 type GitHostRestHandlerImpl struct {
 	logger                 *zap.SugaredLogger
 	gitHostConfig          gitHost.GitHostConfig
+	gitHostReadService     read2.GitHostReadService
 	userAuthService        user.UserService
 	validator              *validator.Validate
 	enforcer               casbin.Enforcer
@@ -56,7 +58,8 @@ type GitHostRestHandlerImpl struct {
 func NewGitHostRestHandlerImpl(logger *zap.SugaredLogger,
 	gitHostConfig gitHost.GitHostConfig, userAuthService user.UserService,
 	validator *validator.Validate, enforcer casbin.Enforcer, gitSensorClient gitSensor.Client,
-	gitProviderReadService read.GitProviderReadService) *GitHostRestHandlerImpl {
+	gitProviderReadService read.GitProviderReadService,
+	gitHostReadService read2.GitHostReadService) *GitHostRestHandlerImpl {
 	return &GitHostRestHandlerImpl{
 		logger:                 logger,
 		gitHostConfig:          gitHostConfig,
@@ -65,6 +68,7 @@ func NewGitHostRestHandlerImpl(logger *zap.SugaredLogger,
 		enforcer:               enforcer,
 		gitSensorClient:        gitSensorClient,
 		gitProviderReadService: gitProviderReadService,
+		gitHostReadService:     gitHostReadService,
 	}
 }
 
@@ -77,7 +81,7 @@ func (impl GitHostRestHandlerImpl) GetGitHosts(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	res, err := impl.gitHostConfig.GetAll()
+	res, err := impl.gitHostReadService.GetAll()
 	if err != nil {
 		impl.logger.Errorw("service err, GetGitHosts", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -116,7 +120,7 @@ func (impl GitHostRestHandlerImpl) GetGitHostById(w http.ResponseWriter, r *http
 		return
 	}
 
-	res, err := impl.gitHostConfig.GetById(id)
+	res, err := impl.gitHostReadService.GetById(id)
 
 	if err != nil {
 		impl.logger.Errorw("service err, GetGitHostById", "err", err)
@@ -191,7 +195,7 @@ func (impl GitHostRestHandlerImpl) GetAllWebhookEventConfig(w http.ResponseWrite
 		return
 	}
 
-	gitHost, err := impl.gitHostConfig.GetById(id)
+	gitHost, err := impl.gitHostReadService.GetById(id)
 	if err != nil {
 		impl.logger.Errorw("service err, GetGitHostById", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -276,7 +280,7 @@ func (impl GitHostRestHandlerImpl) GetWebhookDataMetaConfig(w http.ResponseWrite
 	}
 
 	if gitHostId != 0 {
-		gitHost, err := impl.gitHostConfig.GetById(gitHostId)
+		gitHost, err := impl.gitHostReadService.GetById(gitHostId)
 		if err != nil {
 			impl.logger.Errorw("service err, GetGitHostById", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
