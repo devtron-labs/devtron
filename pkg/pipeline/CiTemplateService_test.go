@@ -22,7 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/mocks"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	pipelineMocks "github.com/devtron-labs/devtron/pkg/pipeline/mocks"
 	"github.com/devtron-labs/devtron/pkg/sql"

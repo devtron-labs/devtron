@@ -26,6 +26,8 @@ import (
 	"errors"
 	"fmt"
 	attributesBean "github.com/devtron-labs/devtron/pkg/attributes/bean"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline"
+	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/plugin"
@@ -91,7 +93,7 @@ type CiCdPipelineOrchestrator interface {
 	PatchMaterialValue(createRequest *bean.CiPipeline, userId int32, oldPipeline *pipelineConfig.CiPipeline) (*bean.CiPipeline, error)
 	PatchCiMaterialSource(ciPipeline *bean.CiMaterialPatchRequest, userId int32) (*bean.CiMaterialPatchRequest, error)
 	PatchCiMaterialSourceValue(patchRequest *bean.CiMaterialValuePatchRequest, userId int32, value string, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error)) (*pipelineConfig.CiPipelineMaterial, error)
-	CreateCiTemplateBean(ciPipelineId int, dockerRegistryId string, dockerRepository string, gitMaterialId int, ciBuildConfig *CiPipeline.CiBuildConfigBean, userId int32) pipelineConfigBean.CiTemplateBean
+	CreateCiTemplateBean(ciPipelineId int, dockerRegistryId string, dockerRepository string, gitMaterialId int, ciBuildConfig *CiPipeline.CiBuildConfigBean, userId int32) bean2.CiTemplateBean
 	UpdateCiPipelineMaterials(materialsUpdate []*pipelineConfig.CiPipelineMaterial) error
 	PipelineExists(name string) (bool, error)
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
@@ -125,6 +127,7 @@ type CiCdPipelineOrchestratorImpl struct {
 	userAuthService               user.UserAuthService
 	prePostCdScriptHistoryService history3.PrePostCdScriptHistoryService
 	pipelineStageService          PipelineStageService
+	ciTemplateReadService         pipeline.CiTemplateReadService
 	ciTemplateService             CiTemplateService
 	gitMaterialHistoryService     history3.GitMaterialHistoryService
 	ciPipelineHistoryService      history3.CiPipelineHistoryService
@@ -157,6 +160,7 @@ func NewCiCdPipelineOrchestrator(
 	pipelineStageService PipelineStageService,
 	gitMaterialHistoryService history3.GitMaterialHistoryService,
 	ciPipelineHistoryService history3.CiPipelineHistoryService,
+	ciTemplateReadService pipeline.CiTemplateReadService,
 	ciTemplateService CiTemplateService,
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
 	CiArtifactRepository repository.CiArtifactRepository,
@@ -564,7 +568,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 	}
 	if !createRequest.IsExternal && createRequest.IsDockerConfigOverridden {
 		//get override
-		savedTemplateOverrideBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(createRequest.Id)
+		savedTemplateOverrideBean, err := impl.ciTemplateReadService.FindTemplateOverrideByCiPipelineId(createRequest.Id)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting templateOverride by ciPipelineId", "err", err, "ciPipelineId", createRequest.Id)
 			return nil, err
@@ -597,7 +601,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			templateOverrideReq.Id = savedTemplateOverride.Id
 			templateOverrideReq.CreatedOn = savedTemplateOverride.CreatedOn
 			templateOverrideReq.CreatedBy = savedTemplateOverride.CreatedBy
-			ciTemplateBean := &pipelineConfigBean.CiTemplateBean{
+			ciTemplateBean := &bean2.CiTemplateBean{
 				CiTemplateOverride: templateOverrideReq,
 				CiBuildConfig:      ciBuildConfigBean,
 				UserId:             userId,
@@ -614,7 +618,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			}
 
 		} else {
-			ciTemplateBean := &pipelineConfigBean.CiTemplateBean{
+			ciTemplateBean := &bean2.CiTemplateBean{
 				CiTemplateOverride: templateOverrideReq,
 				CiBuildConfig:      ciBuildConfigBean,
 				UserId:             userId,
@@ -632,7 +636,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 
 		}
 	} else {
-		ciTemplateBean := &pipelineConfigBean.CiTemplateBean{
+		ciTemplateBean := &bean2.CiTemplateBean{
 			CiTemplateOverride: &pipelineConfig.CiTemplateOverride{},
 			CiBuildConfig:      nil,
 			UserId:             userId,
@@ -836,8 +840,8 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipelineAndCiEnvMappings(tx *pg
 	return err
 }
 
-func (impl CiCdPipelineOrchestratorImpl) CreateCiTemplateBean(ciPipelineId int, dockerRegistryId string, dockerRepository string, gitMaterialId int, ciBuildConfig *CiPipeline.CiBuildConfigBean, userId int32) pipelineConfigBean.CiTemplateBean {
-	CiTemplateBean := pipelineConfigBean.CiTemplateBean{
+func (impl CiCdPipelineOrchestratorImpl) CreateCiTemplateBean(ciPipelineId int, dockerRegistryId string, dockerRepository string, gitMaterialId int, ciBuildConfig *CiPipeline.CiBuildConfigBean, userId int32) bean2.CiTemplateBean {
+	CiTemplateBean := bean2.CiTemplateBean{
 		CiTemplate: nil,
 		CiTemplateOverride: &pipelineConfig.CiTemplateOverride{
 			CiPipelineId:     ciPipelineId,
@@ -860,7 +864,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiTemplateBean(ciPipelineId int, 
 }
 
 func (impl CiCdPipelineOrchestratorImpl) SaveHistoryOfBaseTemplate(userId int32, pipeline *pipelineConfig.CiPipeline, materials []*pipelineConfig.CiPipelineMaterial) error {
-	CiTemplateBean := pipelineConfigBean.CiTemplateBean{
+	CiTemplateBean := bean2.CiTemplateBean{
 		CiTemplate:         nil,
 		CiTemplateOverride: &pipelineConfig.CiTemplateOverride{},
 		CiBuildConfig:      &CiPipeline.CiBuildConfigBean{},
@@ -1069,7 +1073,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			}
 		}
 
-		ciTemplateBean := &pipelineConfigBean.CiTemplateBean{}
+		ciTemplateBean := &bean2.CiTemplateBean{}
 		if ciPipeline.IsDockerConfigOverridden {
 			//creating template override
 			templateOverride := &pipelineConfig.CiTemplateOverride{
@@ -1087,7 +1091,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 					UpdatedOn: time.Now(),
 				},
 			}
-			ciTemplateBean = &pipelineConfigBean.CiTemplateBean{
+			ciTemplateBean = &bean2.CiTemplateBean{
 				CiTemplateOverride: templateOverride,
 				CiBuildConfig:      ciPipeline.DockerConfigOverride.CiBuildConfig,
 				UserId:             createRequest.UserId,

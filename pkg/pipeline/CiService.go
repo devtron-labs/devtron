@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	bean4 "github.com/devtron-labs/devtron/pkg/attributes/bean"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
@@ -87,7 +88,7 @@ type CiServiceImpl struct {
 	ciArtifactRepository         repository5.CiArtifactRepository
 	pipelineStageService         PipelineStageService
 	userService                  user.UserService
-	ciTemplateService            CiTemplateService
+	ciTemplateService            pipeline.CiTemplateReadService
 	appCrudOperationService      app.AppCrudOperationService
 	envRepository                repository1.EnvironmentRepository
 	appRepository                appRepository.AppRepository
@@ -110,7 +111,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	ciArtifactRepository repository5.CiArtifactRepository,
 	pipelineStageService PipelineStageService,
 	userService user.UserService,
-	ciTemplateService CiTemplateService, appCrudOperationService app.AppCrudOperationService, envRepository repository1.EnvironmentRepository, appRepository appRepository.AppRepository,
+	ciTemplateService pipeline.CiTemplateReadService, appCrudOperationService app.AppCrudOperationService, envRepository repository1.EnvironmentRepository, appRepository appRepository.AppRepository,
 	scopedVariableManager variables.ScopedVariableManager,
 	customTagService CustomTagService,
 	pluginInputVariableParser PluginInputVariableParser,

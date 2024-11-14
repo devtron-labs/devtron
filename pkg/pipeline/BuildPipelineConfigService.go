@@ -30,6 +30,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline"
+	bean3 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -114,6 +116,7 @@ type CiPipelineConfigService interface {
 type CiPipelineConfigServiceImpl struct {
 	logger                        *zap.SugaredLogger
 	ciTemplateService             CiTemplateService
+	ciTemplateReadService         pipeline.CiTemplateReadService
 	materialRepo                  pipelineConfig.MaterialRepository
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	ciConfig                      *types.CiCdConfig
@@ -153,6 +156,7 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 	pipelineStageService PipelineStageService,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	ciTemplateService CiTemplateService,
+	ciTemplateReadService pipeline.CiTemplateReadService,
 	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
 	CiTemplateHistoryService history.CiTemplateHistoryService,
 	enforcerUtil rbac.EnforcerUtil,
@@ -183,6 +187,7 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 		pipelineStageService:          pipelineStageService,
 		ciPipelineMaterialRepository:  ciPipelineMaterialRepository,
 		ciTemplateService:             ciTemplateService,
+		ciTemplateReadService:         ciTemplateReadService,
 		ciTemplateOverrideRepository:  ciTemplateOverrideRepository,
 		CiTemplateHistoryService:      CiTemplateHistoryService,
 		enforcerUtil:                  enforcerUtil,
@@ -199,7 +204,7 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 
 func (impl *CiPipelineConfigServiceImpl) getCiTemplateVariablesByAppIds(appIds []int) (map[int]*bean.CiConfigRequest, error) {
 	ciConfigMap := make(map[int]*bean.CiConfigRequest)
-	ciTemplateMap, err := impl.ciTemplateService.FindByAppIds(appIds)
+	ciTemplateMap, err := impl.ciTemplateReadService.FindByAppIds(appIds)
 	if err != nil && !errors.IsNotFound(err) {
 		impl.logger.Errorw("error in fetching ci pipeline", "appIds", appIds, "err", err)
 		return nil, err
@@ -434,7 +439,7 @@ func (impl *CiPipelineConfigServiceImpl) buildExternalCiWebhookSchema() map[stri
 }
 
 func (impl *CiPipelineConfigServiceImpl) getCiTemplateVariables(appId int) (ciConfig *bean.CiConfigRequest, err error) {
-	ciTemplateBean, err := impl.ciTemplateService.FindByAppId(appId)
+	ciTemplateBean, err := impl.ciTemplateReadService.FindByAppId(appId)
 	if err != nil && !errors.IsNotFound(err) {
 		impl.logger.Errorw("error in fetching ci pipeline", "appId", appId, "err", err)
 		return nil, err
@@ -525,8 +530,8 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipeline(appId int) (ciConfig *bea
 		}
 	}
 	//map of ciPipelineId and their templateOverrideConfig
-	ciOverrideTemplateMap := make(map[int]*pipelineConfigBean.CiTemplateBean)
-	ciTemplateBeanOverrides, err := impl.ciTemplateService.FindTemplateOverrideByAppId(appId)
+	ciOverrideTemplateMap := make(map[int]*bean3.CiTemplateBean)
+	ciTemplateBeanOverrides, err := impl.ciTemplateReadService.FindTemplateOverrideByAppId(appId)
 	if err != nil {
 		return nil, err
 	}
@@ -757,7 +762,7 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineById(pipelineId int) (ciPi
 		ciPipeline.EnvironmentId = ciEnvMapping.EnvironmentId
 	}
 	if !ciPipeline.IsExternal && ciPipeline.IsDockerConfigOverridden {
-		ciTemplateBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(ciPipeline.Id)
+		ciTemplateBean, err := impl.ciTemplateReadService.FindTemplateOverrideByCiPipelineId(ciPipeline.Id)
 		if err != nil {
 			return nil, err
 		}
@@ -834,8 +839,8 @@ func (impl *CiPipelineConfigServiceImpl) GetTriggerViewCiPipeline(appId int) (*b
 		return nil, err
 	}
 
-	ciOverrideTemplateMap := make(map[int]*pipelineConfigBean.CiTemplateBean)
-	ciTemplateBeanOverrides, err := impl.ciTemplateService.FindTemplateOverrideByAppId(appId)
+	ciOverrideTemplateMap := make(map[int]*bean3.CiTemplateBean)
+	ciTemplateBeanOverrides, err := impl.ciTemplateReadService.FindTemplateOverrideByAppId(appId)
 	if err != nil {
 		return nil, err
 	}
@@ -1192,7 +1197,7 @@ func (impl *CiPipelineConfigServiceImpl) UpdateCiTemplate(updateRequest *bean.Ci
 	}
 
 	ciBuildConfig.Id = originalCiBuildConfig.Id
-	ciTemplateBean := &pipelineConfigBean.CiTemplateBean{
+	ciTemplateBean := &bean3.CiTemplateBean{
 		CiTemplate:    ciTemplate,
 		CiBuildConfig: ciBuildConfig,
 		UserId:        updateRequest.UserId,
@@ -1411,7 +1416,7 @@ func (impl *CiPipelineConfigServiceImpl) CreateCiPipeline(createRequest *bean.Ci
 		ciTemplate.DockerRepository = createRequest.DockerRepository
 	}
 
-	ciTemplateBean := &pipelineConfigBean.CiTemplateBean{
+	ciTemplateBean := &bean3.CiTemplateBean{
 		CiTemplate:    ciTemplate,
 		CiBuildConfig: createRequest.CiBuildConfig,
 	}
@@ -1659,13 +1664,13 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironment(request reso
 	}
 
 	_, span = otel.Tracer("orchestrator").Start(request.Ctx, "ciHandler.FindTemplateOverrideByCiPipelineIds")
-	ciTemplateBeanOverrides, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineIds(ciPipelineIds)
+	ciTemplateBeanOverrides, err := impl.ciTemplateReadService.FindTemplateOverrideByCiPipelineIds(ciPipelineIds)
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in fetching templates override", "appIds", appIds, "err", err)
 		return nil, err
 	}
-	ciOverrideTemplateMap := make(map[int]*pipelineConfigBean.CiTemplateBean)
+	ciOverrideTemplateMap := make(map[int]*bean3.CiTemplateBean)
 	for _, templateBeanOverride := range ciTemplateBeanOverrides {
 		ciTemplateOverride := templateBeanOverride.CiTemplateOverride
 		ciOverrideTemplateMap[ciTemplateOverride.CiPipelineId] = templateBeanOverride
