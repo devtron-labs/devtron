@@ -1,4 +1,4 @@
--- File: scripts/sql/30002100_cluster_panel_.down.sql
+-- File: scripts/sql/30202300_cluster_panel_.down.sql
 
 -- Drop Table
 DROP TABLE IF EXISTS "public"."panel";

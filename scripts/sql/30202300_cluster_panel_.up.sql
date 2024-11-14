@@ -1,4 +1,4 @@
--- File: scripts/sql/30002100_cluster_panel_.up.sql
+-- File: scripts/sql/30202300_cluster_panel_.up.sql
 
 -- Sequence and defined type
 CREATE SEQUENCE IF NOT EXISTS id_seq_panel;
