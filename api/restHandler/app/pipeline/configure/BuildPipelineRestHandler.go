@@ -1530,7 +1530,7 @@ func (handler *PipelineConfigRestHandlerImpl) validForMultiMaterial(ciTriggerReq
 }
 
 func (handler *PipelineConfigRestHandlerImpl) ValidateGitMaterialUrl(gitProviderId int, url string) (bool, error) {
-	gitProvider, err := handler.gitProviderRepo.FindOne(strconv.Itoa(gitProviderId))
+	gitProvider, err := handler.gitProviderReadService.FetchOneGitProvider(strconv.Itoa(gitProviderId))
 	if err != nil {
 		return false, err
 	}

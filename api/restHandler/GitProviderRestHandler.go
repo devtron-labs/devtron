@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/bean"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	"net/http"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -45,14 +46,15 @@ type GitProviderRestHandler interface {
 }
 
 type GitProviderRestHandlerImpl struct {
-	dockerRegistryConfig  pipeline.DockerRegistryConfig
-	logger                *zap.SugaredLogger
-	gitRegistryConfig     gitProvider.GitRegistryConfig
-	userAuthService       user.UserService
-	validator             *validator.Validate
-	enforcer              casbin.Enforcer
-	teamService           team.TeamService
-	deleteServiceFullMode delete2.DeleteServiceFullMode
+	dockerRegistryConfig   pipeline.DockerRegistryConfig
+	logger                 *zap.SugaredLogger
+	gitRegistryConfig      gitProvider.GitRegistryConfig
+	gitProviderReadService read.GitProviderReadService
+	userAuthService        user.UserService
+	validator              *validator.Validate
+	enforcer               casbin.Enforcer
+	teamService            team.TeamService
+	deleteServiceFullMode  delete2.DeleteServiceFullMode
 }
 
 func NewGitProviderRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryConfig,
@@ -60,16 +62,18 @@ func NewGitProviderRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryC
 	gitRegistryConfig gitProvider.GitRegistryConfig,
 	userAuthService user.UserService,
 	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService,
-	deleteServiceFullMode delete2.DeleteServiceFullMode) *GitProviderRestHandlerImpl {
+	deleteServiceFullMode delete2.DeleteServiceFullMode,
+	gitProviderReadService read.GitProviderReadService) *GitProviderRestHandlerImpl {
 	return &GitProviderRestHandlerImpl{
-		dockerRegistryConfig:  dockerRegistryConfig,
-		logger:                logger,
-		gitRegistryConfig:     gitRegistryConfig,
-		userAuthService:       userAuthService,
-		validator:             validator,
-		enforcer:              enforcer,
-		teamService:           teamService,
-		deleteServiceFullMode: deleteServiceFullMode,
+		dockerRegistryConfig:   dockerRegistryConfig,
+		logger:                 logger,
+		gitRegistryConfig:      gitRegistryConfig,
+		gitProviderReadService: gitProviderReadService,
+		userAuthService:        userAuthService,
+		validator:              validator,
+		enforcer:               enforcer,
+		teamService:            teamService,
+		deleteServiceFullMode:  deleteServiceFullMode,
 	}
 }
 
@@ -114,7 +118,7 @@ func (impl GitProviderRestHandlerImpl) SaveGitRepoConfig(w http.ResponseWriter, 
 }
 
 func (impl GitProviderRestHandlerImpl) GetGitProviders(w http.ResponseWriter, r *http.Request) {
-	res, err := impl.gitRegistryConfig.GetAll()
+	res, err := impl.gitProviderReadService.GetAll()
 	if err != nil {
 		impl.logger.Errorw("service err, GetGitProviders", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -125,7 +129,7 @@ func (impl GitProviderRestHandlerImpl) GetGitProviders(w http.ResponseWriter, r 
 }
 
 func (impl GitProviderRestHandlerImpl) FetchAllGitProviders(w http.ResponseWriter, r *http.Request) {
-	res, err := impl.gitRegistryConfig.FetchAllGitProviders()
+	res, err := impl.gitProviderReadService.FetchAllGitProviders()
 	if err != nil {
 		impl.logger.Errorw("service err, FetchAllGitProviders", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -148,7 +152,7 @@ func (impl GitProviderRestHandlerImpl) FetchAllGitProviders(w http.ResponseWrite
 func (impl GitProviderRestHandlerImpl) FetchOneGitProviders(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id := params["id"]
-	res, err := impl.gitRegistryConfig.FetchOneGitProvider(id)
+	res, err := impl.gitProviderReadService.FetchOneGitProvider(id)
 	if err != nil {
 		impl.logger.Errorw("service err, FetchOneGitProviders", "err", err, "id", id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

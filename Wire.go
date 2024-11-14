@@ -122,8 +122,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/build"
 	repository11 "github.com/devtron-labs/devtron/pkg/build/git/gitHost/repository"
-	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
-	repository9 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 	git3 "github.com/devtron-labs/devtron/pkg/build/git/gitWebhook/repository"
 	"github.com/devtron-labs/devtron/pkg/bulkAction"
 	"github.com/devtron-labs/devtron/pkg/chart"
@@ -140,7 +138,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
-	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	infraConfigService "github.com/devtron-labs/devtron/pkg/infraConfig"
@@ -383,11 +380,6 @@ func InitializeApp() (*App, error) {
 		pipeline.NewCustomTagService,
 		wire.Bind(new(pipeline.CustomTagService), new(*pipeline.CustomTagServiceImpl)),
 
-		repository9.NewGitProviderRepositoryImpl,
-		wire.Bind(new(repository9.GitProviderRepository), new(*repository9.GitProviderRepositoryImpl)),
-		gitProvider.NewGitRegistryConfigImpl,
-		wire.Bind(new(gitProvider.GitRegistryConfig), new(*gitProvider.GitRegistryConfigImpl)),
-
 		appList.NewAppFilteringRouterImpl,
 		wire.Bind(new(appList.AppFilteringRouter), new(*appList.AppFilteringRouterImpl)),
 		appList2.NewAppFilteringRestHandlerImpl,
@@ -500,9 +492,6 @@ func InitializeApp() (*App, error) {
 
 		restHandler.NewGitWebhookRestHandlerImpl,
 		wire.Bind(new(restHandler.GitWebhookRestHandler), new(*restHandler.GitWebhookRestHandlerImpl)),
-
-		git.NewGitWebhookServiceImpl,
-		wire.Bind(new(git.GitWebhookService), new(*git.GitWebhookServiceImpl)),
 
 		git3.NewGitWebhookRepositoryImpl,
 		wire.Bind(new(git3.GitWebhookRepository), new(*git3.GitWebhookRepositoryImpl)),
@@ -757,10 +746,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.GitHostRouter), new(*router.GitHostRouterImpl)),
 		router.NewWebhookListenerRouterImpl,
 		wire.Bind(new(router.WebhookListenerRouter), new(*router.WebhookListenerRouterImpl)),
-		git.NewWebhookSecretValidatorImpl,
-		wire.Bind(new(git.WebhookSecretValidator), new(*git.WebhookSecretValidatorImpl)),
-		pipeline.NewGitHostConfigImpl,
-		wire.Bind(new(pipeline.GitHostConfig), new(*pipeline.GitHostConfigImpl)),
 		repository.NewWebhookEventDataRepositoryImpl,
 		wire.Bind(new(repository.WebhookEventDataRepository), new(*repository.WebhookEventDataRepositoryImpl)),
 		pipeline.NewWebhookEventDataConfigImpl,

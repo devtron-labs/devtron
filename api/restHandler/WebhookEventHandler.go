@@ -17,7 +17,9 @@
 package restHandler
 
 import (
+	"github.com/devtron-labs/devtron/pkg/build/git/gitHost"
 	bean3 "github.com/devtron-labs/devtron/pkg/build/git/gitHost/bean"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitWebhook"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
 	"io/ioutil"
@@ -26,7 +28,6 @@ import (
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	client "github.com/devtron-labs/devtron/client/events"
-	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -38,15 +39,15 @@ type WebhookEventHandler interface {
 
 type WebhookEventHandlerImpl struct {
 	logger                        *zap.SugaredLogger
-	gitHostConfig                 pipeline.GitHostConfig
+	gitHostConfig                 gitHost.GitHostConfig
 	eventClient                   client.EventClient
-	webhookSecretValidator        git.WebhookSecretValidator
+	webhookSecretValidator        gitWebhook.WebhookSecretValidator
 	webhookEventDataConfig        pipeline.WebhookEventDataConfig
 	ciPipelineEventPublishService out.CIPipelineEventPublishService
 }
 
-func NewWebhookEventHandlerImpl(logger *zap.SugaredLogger, gitHostConfig pipeline.GitHostConfig, eventClient client.EventClient,
-	webhookSecretValidator git.WebhookSecretValidator, webhookEventDataConfig pipeline.WebhookEventDataConfig,
+func NewWebhookEventHandlerImpl(logger *zap.SugaredLogger, gitHostConfig gitHost.GitHostConfig, eventClient client.EventClient,
+	webhookSecretValidator gitWebhook.WebhookSecretValidator, webhookEventDataConfig pipeline.WebhookEventDataConfig,
 	ciPipelineEventPublishService out.CIPipelineEventPublishService) *WebhookEventHandlerImpl {
 	return &WebhookEventHandlerImpl{
 		logger:                        logger,

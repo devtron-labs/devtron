@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	repository2 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
@@ -122,6 +123,7 @@ type PipelineConfigRestHandlerImpl struct {
 	policyService                       security2.PolicyService
 	scanResultRepository                security.ImageScanResultRepository
 	gitProviderRepo                     repository2.GitProviderRepository
+	gitProviderReadService              read.GitProviderReadService
 	argoUserService                     argo.ArgoUserService
 	imageTaggingService                 pipeline.ImageTaggingService
 	deploymentTemplateService           generateManifest.DeploymentTemplateService
@@ -157,7 +159,8 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	ciArtifactRepository repository.CiArtifactRepository,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	chartRefService chartRef.ChartRefService,
-	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator) *PipelineConfigRestHandlerImpl {
+	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator,
+	gitProviderReadService read.GitProviderReadService) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
 	if err != nil {
@@ -196,6 +199,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		deployedAppMetricsService:           deployedAppMetricsService,
 		chartRefService:                     chartRefService,
 		ciCdPipelineOrchestrator:            ciCdPipelineOrchestrator,
+		gitProviderReadService:              gitProviderReadService,
 	}
 }
 

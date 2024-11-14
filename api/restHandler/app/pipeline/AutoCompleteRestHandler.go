@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
-	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -54,7 +54,7 @@ type DevtronAppAutoCompleteRestHandlerImpl struct {
 	enforcerUtil            rbac.EnforcerUtil
 	devtronAppConfigService pipeline.DevtronAppConfigService
 	envService              cluster.EnvironmentService
-	gitRegistryConfig       gitProvider.GitRegistryConfig
+	gitProviderReadService  read.GitProviderReadService
 	dockerRegistryConfig    pipeline.DockerRegistryConfig
 }
 
@@ -66,8 +66,8 @@ func NewDevtronAppAutoCompleteRestHandlerImpl(
 	enforcerUtil rbac.EnforcerUtil,
 	devtronAppConfigService pipeline.DevtronAppConfigService,
 	envService cluster.EnvironmentService,
-	gitRegistryConfig gitProvider.GitRegistryConfig,
-	dockerRegistryConfig pipeline.DockerRegistryConfig) *DevtronAppAutoCompleteRestHandlerImpl {
+	dockerRegistryConfig pipeline.DockerRegistryConfig,
+	gitProviderReadService read.GitProviderReadService) *DevtronAppAutoCompleteRestHandlerImpl {
 	return &DevtronAppAutoCompleteRestHandlerImpl{
 		Logger:                  Logger,
 		userAuthService:         userAuthService,
@@ -76,8 +76,8 @@ func NewDevtronAppAutoCompleteRestHandlerImpl(
 		enforcerUtil:            enforcerUtil,
 		devtronAppConfigService: devtronAppConfigService,
 		envService:              envService,
-		gitRegistryConfig:       gitRegistryConfig,
 		dockerRegistryConfig:    dockerRegistryConfig,
+		gitProviderReadService:  gitProviderReadService,
 	}
 }
 
@@ -211,7 +211,7 @@ func (handler DevtronAppAutoCompleteRestHandlerImpl) GitListAutocomplete(w http.
 		return
 	}
 	//RBAC
-	res, err := handler.gitRegistryConfig.GetAll()
+	res, err := handler.gitProviderReadService.GetAll()
 	if err != nil {
 		handler.Logger.Errorw("service err, GitListAutocomplete", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

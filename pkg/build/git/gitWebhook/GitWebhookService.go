@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package git
+package gitWebhook
 
 import (
 	"github.com/devtron-labs/devtron/client/gitSensor"

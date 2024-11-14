@@ -24,6 +24,7 @@ import (
 	helper2 "github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes/bean"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	repository5 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -46,6 +47,7 @@ type CommonServiceImpl struct {
 	dockerReg                   dockerRegistryRepository.DockerArtifactStoreRepository
 	attributeRepo               repository.AttributesRepository
 	gitProviderRepository       repository5.GitProviderRepository
+	gitProviderReadService      read.GitProviderReadService
 	environmentRepository       repository3.EnvironmentRepository
 	teamRepository              repository2.TeamRepository
 	appRepository               app.AppRepository
@@ -62,7 +64,8 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 	environmentRepository repository3.EnvironmentRepository,
 	teamRepository repository2.TeamRepository,
 	appRepository app.AppRepository,
-	gitOpsConfigReadService config.GitOpsConfigReadService) *CommonServiceImpl {
+	gitOpsConfigReadService config.GitOpsConfigReadService,
+	gitProviderReadService read.GitProviderReadService) *CommonServiceImpl {
 	serviceImpl := &CommonServiceImpl{
 		logger:                      logger,
 		chartRepository:             chartRepository,
@@ -75,6 +78,7 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 		teamRepository:              teamRepository,
 		appRepository:               appRepository,
 		gitOpsConfigReadService:     gitOpsConfigReadService,
+		gitProviderReadService:      gitProviderReadService,
 	}
 	return serviceImpl
 }
@@ -152,7 +156,7 @@ func (impl *CommonServiceImpl) GlobalChecklist() (*GlobalChecklist, error) {
 		return nil, err
 	}
 
-	git, err := impl.gitProviderRepository.FindAllActiveForAutocomplete()
+	git, err := impl.gitProviderReadService.GetAll()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("GlobalChecklist, error while getting error", "err", err)
 		return nil, err

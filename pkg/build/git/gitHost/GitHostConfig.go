@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package pipeline
+package gitHost
 
 import (
 	"github.com/devtron-labs/devtron/internal/constants"

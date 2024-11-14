@@ -19,8 +19,9 @@ package restHandler
 import (
 	"context"
 	"encoding/json"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitHost"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/git/gitHost/bean"
-	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	"net/http"
 	"strconv"
 
@@ -28,7 +29,6 @@ import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -44,26 +44,27 @@ type GitHostRestHandler interface {
 }
 
 type GitHostRestHandlerImpl struct {
-	logger            *zap.SugaredLogger
-	gitHostConfig     pipeline.GitHostConfig
-	userAuthService   user.UserService
-	validator         *validator.Validate
-	enforcer          casbin.Enforcer
-	gitSensorClient   gitSensor.Client
-	gitProviderConfig gitProvider.GitRegistryConfig
+	logger                 *zap.SugaredLogger
+	gitHostConfig          gitHost.GitHostConfig
+	userAuthService        user.UserService
+	validator              *validator.Validate
+	enforcer               casbin.Enforcer
+	gitSensorClient        gitSensor.Client
+	gitProviderReadService read.GitProviderReadService
 }
 
 func NewGitHostRestHandlerImpl(logger *zap.SugaredLogger,
-	gitHostConfig pipeline.GitHostConfig, userAuthService user.UserService,
-	validator *validator.Validate, enforcer casbin.Enforcer, gitSensorClient gitSensor.Client, gitProviderConfig gitProvider.GitRegistryConfig) *GitHostRestHandlerImpl {
+	gitHostConfig gitHost.GitHostConfig, userAuthService user.UserService,
+	validator *validator.Validate, enforcer casbin.Enforcer, gitSensorClient gitSensor.Client,
+	gitProviderReadService read.GitProviderReadService) *GitHostRestHandlerImpl {
 	return &GitHostRestHandlerImpl{
-		logger:            logger,
-		gitHostConfig:     gitHostConfig,
-		userAuthService:   userAuthService,
-		validator:         validator,
-		enforcer:          enforcer,
-		gitSensorClient:   gitSensorClient,
-		gitProviderConfig: gitProviderConfig,
+		logger:                 logger,
+		gitHostConfig:          gitHostConfig,
+		userAuthService:        userAuthService,
+		validator:              validator,
+		enforcer:               enforcer,
+		gitSensorClient:        gitSensorClient,
+		gitProviderReadService: gitProviderReadService,
 	}
 }
 
@@ -260,7 +261,7 @@ func (impl GitHostRestHandlerImpl) GetWebhookDataMetaConfig(w http.ResponseWrite
 	params := mux.Vars(r)
 	gitProviderId := params["gitProviderId"]
 
-	gitProvider, err := impl.gitProviderConfig.FetchOneGitProvider(gitProviderId)
+	gitProvider, err := impl.gitProviderReadService.FetchOneGitProvider(gitProviderId)
 
 	if err != nil {
 		impl.logger.Errorw("service err FetchOneGitProvider, GetWebhookDataMetaConfig", "err", err)
