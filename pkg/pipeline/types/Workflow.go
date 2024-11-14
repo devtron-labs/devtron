@@ -29,10 +29,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
+	bean5 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean5 "github.com/devtron-labs/devtron/pkg/infraConfig/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	bean4 "github.com/devtron-labs/devtron/pkg/plugin/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"k8s.io/api/core/v1"
@@ -100,7 +100,7 @@ type WorkflowRequest struct {
 	RefPlugins                 []*bean.RefPluginObject           `json:"refPlugins"`
 	AppName                    string                            `json:"appName"`
 	TriggerByAuthor            string                            `json:"triggerByAuthor"`
-	CiBuildConfig              *CiPipeline.CiBuildConfigBean     `json:"ciBuildConfig"`
+	CiBuildConfig              *bean5.CiBuildConfigBean          `json:"ciBuildConfig"`
 	CiBuildDockerMtuValue      int                               `json:"ciBuildDockerMtuValue"`
 	IgnoreDockerCachePush      bool                              `json:"ignoreDockerCachePush"`
 	IgnoreDockerCachePull      bool                              `json:"ignoreDockerCachePull"`

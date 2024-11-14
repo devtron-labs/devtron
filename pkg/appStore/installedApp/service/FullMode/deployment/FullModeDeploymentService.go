@@ -24,8 +24,6 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/adapter"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
 	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -35,11 +33,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
-	"net/http"
 	"time"
 
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
-	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -56,7 +52,6 @@ import (
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
-	"k8s.io/utils/pointer"
 )
 
 // FullModeDeploymentService TODO refactoring: Use extended binding over EAMode.EAModeDeploymentService
@@ -69,7 +64,7 @@ type FullModeDeploymentService interface {
 	// DeleteInstalledApp will delete entry from appStatus.AppStatusDto table and from repository.ChartGroupDeployment table (if exists)
 	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error
 	// RollbackRelease will rollback to a previous deployment for the given installedAppVersionHistoryId; returns - valuesYamlStr, success, error
-	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, bool, error)
+	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (*appStoreBean.InstallAppVersionDTO, bool, error)
 	// GetDeploymentHistory will return gRPC.HelmAppDeploymentHistory for the given installedAppDto.InstalledAppId
 	GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*gRPC.HelmAppDeploymentHistory, error)
 	// GetDeploymentHistoryInfo will return openapi.HelmAppDeploymentManifestDetail for the given appStoreBean.InstallAppVersionDTO
@@ -236,185 +231,14 @@ func (impl *FullModeDeploymentServiceImpl) DeleteInstalledApp(ctx context.Contex
 	return nil
 }
 
-func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, installedAppVersionHistoryId int32, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, bool, error) {
-	//request version id for
-	versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(installedAppVersionHistoryId))
-	if err != nil {
-		impl.Logger.Errorw("error", "err", err)
-		err = &util.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: fmt.Sprintf("No deployment history version found for id: %d", installedAppVersionHistoryId), InternalMessage: err.Error()}
-		return installedApp, false, err
-	}
-	installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionAny(versionHistory.InstalledAppVersionId)
-	if err != nil {
-		impl.Logger.Errorw("error", "err", err)
-		err = &util.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: fmt.Sprintf("No installed app version found for id: %d", versionHistory.InstalledAppVersionId), InternalMessage: err.Error()}
-		return installedApp, false, err
-	}
-	activeInstalledAppVersion, err := impl.installedAppRepository.GetActiveInstalledAppVersionByInstalledAppId(installedApp.InstalledAppId)
-	if err != nil {
-		impl.Logger.Errorw("error", "err", err)
-		return installedApp, false, err
-	}
-
-	deploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForHelmApp(installedApp.AppId, installedApp.EnvironmentId)
-	if err != nil {
-		impl.Logger.Errorw("error in getiting deployment config db object by appId and envId", "appId", installedApp.AppId, "envId", installedApp.EnvironmentId, "err", err)
-		return installedApp, false, err
-	}
-
-	//validate relations
-	if installedApp.InstalledAppId != installedAppVersion.InstalledAppId {
-		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "bad request, requested version are not belongs to each other", InternalMessage: ""}
-		return installedApp, false, err
-	}
-
-	installedApp.InstalledAppVersionId = installedAppVersion.Id
-	installedApp.AppStoreVersion = installedAppVersion.AppStoreApplicationVersionId
-	installedApp.ValuesOverrideYaml = versionHistory.ValuesYamlRaw
-	installedApp.AppStoreId = installedAppVersion.AppStoreApplicationVersion.AppStoreId
-	installedApp.AppStoreName = installedAppVersion.AppStoreApplicationVersion.AppStore.Name
-	installedApp.GitOpsRepoURL = deploymentConfig.RepoURL
-	installedApp.ACDAppName = fmt.Sprintf("%s-%s", installedApp.AppName, installedApp.EnvironmentName)
-
-	//create an entry in version history table
-	installedAppVersionHistory := &repository.InstalledAppVersionHistory{}
-	installedAppVersionHistory.InstalledAppVersionId = installedApp.InstalledAppVersionId
-	installedAppVersionHistory.ValuesYamlRaw = installedApp.ValuesOverrideYaml
-	installedAppVersionHistory.StartedOn = time.Now()
-	installedAppVersionHistory.SetStatus(cdWorkflow.WorkflowInProgress)
-	installedAppVersionHistory.CreateAuditLog(installedApp.UserId)
-	installedAppVersionHistory, err = impl.installedAppRepositoryHistory.CreateInstalledAppVersionHistory(installedAppVersionHistory, tx)
-	if err != nil {
-		impl.Logger.Errorw("error while fetching from db", "error", err)
-		return installedApp, false, err
-	}
-	installedApp.InstalledAppVersionHistoryId = installedAppVersionHistory.Id
-
-	//creating deployment started status timeline when mono repo migration is not required
-	deploymentInitiatedTimeline := impl.pipelineStatusTimelineService.
-		NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_INITIATED, "Deployment initiated successfully.", installedApp.UserId)
-
-	err = impl.pipelineStatusTimelineService.SaveTimeline(deploymentInitiatedTimeline, tx)
-	if err != nil {
-		impl.Logger.Errorw("error in creating timeline status for deployment initiation for update of installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installedApp.InstalledAppVersionHistoryId)
-	}
-	//If current version upgrade/degrade to another, update requirement dependencies
-	if versionHistory.InstalledAppVersionId != activeInstalledAppVersion.Id {
-		err = impl.updateRequirementYamlInGit(installedApp, &installedAppVersion.AppStoreApplicationVersion)
-		if err != nil {
-			if errors.Is(err, errors.New(timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString())) {
-				impl.Logger.Errorw("error", "err", err)
-				GitCommitFailTimeline := impl.pipelineStatusTimelineService.
-					NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED, "Git commit failed.", installedApp.UserId)
-				_ = impl.pipelineStatusTimelineService.SaveTimeline(GitCommitFailTimeline, tx)
-			}
-			return installedApp, false, nil
-		}
-		activeInstalledAppVersion.Active = false
-		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(activeInstalledAppVersion, nil)
-		if err != nil {
-			impl.Logger.Errorw("error", "err", err)
-			return installedApp, false, nil
-		}
-	}
-	//Update Values config
-	installedApp, err = impl.updateValuesYamlInGit(installedApp)
-	if err != nil {
-		impl.Logger.Errorw("error", "err", err)
-		if errors.Is(err, errors.New(timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED.ToString())) {
-			GitCommitFailTimeline := impl.pipelineStatusTimelineService.
-				NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_GIT_COMMIT_FAILED, "Git commit failed.", installedApp.UserId)
-			_ = impl.pipelineStatusTimelineService.SaveTimeline(GitCommitFailTimeline, tx)
-		}
-		return installedApp, false, nil
-	}
-	installedAppVersionHistory.GitHash = installedApp.GitHash
-	_, err = impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(installedAppVersionHistory, tx)
-	if err != nil {
-		impl.Logger.Errorw("error in updating installed app version history repository", "err", err)
-		return installedApp, false, err
-	}
-
-	isManualSync := impl.acdConfig.IsManualSyncEnabled()
-
-	GitCommitSuccessTimeline := impl.pipelineStatusTimelineService.
-		NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_GIT_COMMIT, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_GIT_COMMIT, installedApp.UserId)
-	timelines := []*pipelineConfig.PipelineStatusTimeline{GitCommitSuccessTimeline}
-	if isManualSync {
-		// add ARGOCD_SYNC_INITIATED timeline if manual sync
-		ArgocdSyncInitiatedTimeline := impl.pipelineStatusTimelineService.
-			NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_INITIATED, installedApp.UserId)
-		timelines = append(timelines, ArgocdSyncInitiatedTimeline)
-	}
-	err = impl.pipelineStatusTimelineService.SaveMultipleTimelinesIfNotAlreadyPresent(timelines, tx)
-	if err != nil {
-		impl.Logger.Errorw("error in creating timeline status for deployment initiation for update of installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installedApp.InstalledAppVersionHistoryId)
-	}
-
-	err = impl.argoClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, installedApp.ACDAppName)
-	if err != nil {
-		impl.Logger.Errorw("error in getting the argo application with normal refresh", "err", err)
-		return installedApp, true, nil
-	}
-	if isManualSync {
-		ArgocdSyncCompletedTimeline := impl.pipelineStatusTimelineService.
-			NewHelmAppDeploymentStatusTimelineDbObject(installedApp.InstalledAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED, timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_COMPLETED, installedApp.UserId)
-		err = impl.pipelineStatusTimelineService.SaveTimeline(ArgocdSyncCompletedTimeline, tx)
-		if err != nil {
-			impl.Logger.Errorw("error in creating timeline status for deployment initiation for update of installedAppVersionHistoryId", "err", err, "installedAppVersionHistoryId", installedApp.InstalledAppVersionHistoryId)
-		}
-	}
-	//ACD sync operation
-	//impl.appStoreDeploymentFullModeService.SyncACD(installedApp.ACDAppName, ctx)
-	return installedApp, true, nil
+func (impl *FullModeDeploymentServiceImpl) RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, installedAppVersionHistoryId int32) (*appStoreBean.InstallAppVersionDTO, bool, error) {
+	return nil, false, errors.New("this is not implemented")
 }
 
 func (impl *FullModeDeploymentServiceImpl) GetDeploymentHistory(ctx context.Context, installedAppDto *appStoreBean.InstallAppVersionDTO) (*gRPC.HelmAppDeploymentHistory, error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "FullModeDeploymentServiceImp.GetDeploymentHistory")
 	defer span.End()
-	result := &gRPC.HelmAppDeploymentHistory{}
-	var history []*gRPC.HelmAppDeploymentDetail
-	//TODO - response setup
-
-	installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdMeta(installedAppDto.InstalledAppId)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "400", UserMessage: "values are outdated. please fetch the latest version and try again", InternalMessage: err.Error()}
-		}
-		impl.Logger.Errorw("error while fetching installed version", "error", err)
-		return result, err
-	}
-	for _, installedAppVersionModel := range installedAppVersions {
-		sources, jsonErr := impl.getSourcesFromManifest(installedAppVersionModel.AppStoreApplicationVersion.ChartYaml)
-		if jsonErr != nil {
-			impl.Logger.Errorw("error while fetching sources", "error", jsonErr)
-			//continues here, skip error in case found issue on fetching source
-		}
-		versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistoryByVersionId(installedAppVersionModel.Id)
-		if err != nil && err != pg.ErrNoRows {
-			impl.Logger.Errorw("error while fetching installed version history", "error", err)
-			return result, err
-		}
-		for _, updateHistory := range versionHistory {
-			if len(updateHistory.Message) == 0 && updateHistory.Status == cdWorkflow.WorkflowFailed {
-				// if message is empty and status is failed, then update message from helm release status config. for migration purpose
-				// updateHistory.HelmReleaseStatusConfig stores the failed description, if async operation failed
-				updateHistory.Message = impl.migrateDeploymentHistoryMessage(newCtx, updateHistory)
-			}
-			emailId, err := impl.userService.GetEmailById(updateHistory.CreatedBy)
-			if err != nil {
-				impl.Logger.Errorw("error while fetching user Details", "error", err)
-				return result, err
-			}
-			history = append(history, adapter.BuildDeploymentHistory(installedAppVersionModel, sources, updateHistory, emailId))
-		}
-	}
-
-	if len(history) == 0 {
-		history = make([]*gRPC.HelmAppDeploymentDetail, 0)
-	}
-	result.DeploymentHistory = history
-	return result, err
+	return impl.appStoreDeploymentCommonService.GetDeploymentHistoryFromDB(newCtx, installedAppDto)
 }
 
 func (impl *FullModeDeploymentServiceImpl) migrateDeploymentHistoryMessage(ctx context.Context, updateHistory *repository.InstalledAppVersionHistory) (helmInstallStatusMsg string) {
@@ -439,48 +263,7 @@ func (impl *FullModeDeploymentServiceImpl) migrateDeploymentHistoryMessage(ctx c
 
 // GetDeploymentHistoryInfo TODO refactoring: use InstalledAppVersionHistoryId from appStoreBean.InstallAppVersionDTO instead of version int32
 func (impl *FullModeDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int32) (*openapi.HelmAppDeploymentManifestDetail, error) {
-	values := &openapi.HelmAppDeploymentManifestDetail{}
-	_, span := otel.Tracer("orchestrator").Start(ctx, "installedAppRepositoryHistory.GetInstalledAppVersionHistory")
-	versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(version))
-	span.End()
-	if err != nil {
-		impl.Logger.Errorw("error while fetching installed version history", "error", err)
-		return nil, err
-	}
-	values.ValuesYaml = &versionHistory.ValuesYamlRaw
-
-	envId := int32(installedApp.EnvironmentId)
-	clusterId := int32(installedApp.ClusterId)
-	appStoreApplicationVersionId, err := impl.installedAppRepositoryHistory.GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(int(version))
-	appStoreVersionId := pointer.Int32(int32(appStoreApplicationVersionId))
-
-	// as virtual environment doesn't exist on actual cluster, we will use default cluster for running helm template command
-	if installedApp.IsVirtualEnvironment {
-		clusterId = appStoreBean.DEFAULT_CLUSTER_ID
-		installedApp.Namespace = appStoreBean.DEFAULT_NAMESPACE
-	}
-
-	manifestRequest := openapi2.TemplateChartRequest{
-		EnvironmentId:                &envId,
-		ClusterId:                    &clusterId,
-		Namespace:                    &installedApp.Namespace,
-		ReleaseName:                  &installedApp.AppName,
-		AppStoreApplicationVersionId: appStoreVersionId,
-		ValuesYaml:                   values.ValuesYaml,
-	}
-
-	_, span = otel.Tracer("orchestrator").Start(ctx, "helmAppService.TemplateChart")
-	templateChart, manifestErr := impl.helmAppService.TemplateChart(ctx, &manifestRequest)
-	span.End()
-	manifest := templateChart.GetManifest()
-
-	if manifestErr != nil {
-		impl.Logger.Errorw("error in genetating manifest for argocd app", "err", manifestErr)
-	} else {
-		values.Manifest = &manifest
-	}
-
-	return values, err
+	return impl.appStoreDeploymentCommonService.GetDeploymentHistoryInfoFromDB(ctx, installedApp, version)
 }
 
 func (impl *FullModeDeploymentServiceImpl) getSourcesFromManifest(chartYaml string) ([]string, error) {

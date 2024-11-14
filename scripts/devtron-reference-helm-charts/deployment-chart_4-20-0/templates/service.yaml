@@ -47,7 +47,11 @@ spec:
       name: envoy-admin
       {{- end }}
   selector:
+    {{- if .Values.customPodLabels }}
+{{ toYaml .Values.customPodLabels | indent 4 }}  
+    {{- else }}
     app: {{ template ".Chart.Name .name" . }}
+    {{- end }}
 {{- if .Values.service.sessionAffinity.enabled }}    
   sessionAffinity: ClientIP
 {{- end }}   
@@ -85,6 +89,10 @@ spec:
         name: envoy-admin
       {{- end }}
   selector:
+    {{- if .Values.customPodLabels }}
+{{ toYaml .Values.customPodLabels | indent 4 }}  
+    {{- else }}
     app: {{ template ".Chart.Name .name" . }}
+    {{- end }}
 {{- end }}
 {{- end }}
