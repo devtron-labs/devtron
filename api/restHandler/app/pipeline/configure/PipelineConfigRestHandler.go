@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
-	repository2 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
@@ -122,7 +121,6 @@ type PipelineConfigRestHandlerImpl struct {
 	materialRepository                  pipelineConfig.MaterialRepository
 	policyService                       security2.PolicyService
 	scanResultRepository                security.ImageScanResultRepository
-	gitProviderRepo                     repository2.GitProviderRepository
 	gitProviderReadService              read.GitProviderReadService
 	argoUserService                     argo.ArgoUserService
 	imageTaggingService                 pipeline.ImageTaggingService
@@ -153,7 +151,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	deploymentTemplateService generateManifest.DeploymentTemplateService,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
-	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository2.GitProviderRepository,
+	scanResultRepository security.ImageScanResultRepository,
 	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	imageTaggingService pipeline.ImageTaggingService,
 	ciArtifactRepository repository.CiArtifactRepository,
@@ -189,7 +187,6 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		materialRepository:                  materialRepository,
 		policyService:                       policyService,
 		scanResultRepository:                scanResultRepository,
-		gitProviderRepo:                     gitProviderRepo,
 		argoUserService:                     argoUserService,
 		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
 		imageTaggingService:                 imageTaggingService,
