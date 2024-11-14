@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package CiPipeline
+package bean
 
 type CiBuildType string
 
@@ -42,6 +42,10 @@ const (
 	CI_JOB    PipelineType = "CI_JOB"
 	LINKED_CD PipelineType = "LINKED_CD"
 )
+
+func (pType PipelineType) ToString() string {
+	return string(pType)
+}
 
 type CiBuildConfigBean struct {
 	Id                        int                `json:"id"`

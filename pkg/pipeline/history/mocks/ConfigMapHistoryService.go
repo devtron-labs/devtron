@@ -5,7 +5,7 @@ package mocks
 import (
 	chartConfig "github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	history "github.com/devtron-labs/devtron/pkg/pipeline/history"
+	history "github.com/devtron-labs/devtron/pkg/pipeline/history/bean"
 
 	mock "github.com/stretchr/testify/mock"
 
