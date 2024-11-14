@@ -4,6 +4,7 @@
 - feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
+- misc: Sql query fixes (#6097)
 - misc: Kubecon 2024 oss sync (#6094)
 - chore: refactoring and created CiTemplateReadService.go (#6090)
 - chore: depandabot fixes (#6070)
