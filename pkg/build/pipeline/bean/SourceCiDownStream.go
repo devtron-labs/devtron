@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package CiPipeline
+package bean
 
 import "github.com/devtron-labs/devtron/util/response/pagination"
 
