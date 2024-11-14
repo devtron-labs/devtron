@@ -1,5 +1,6 @@
 ## Bugs
 ## Enhancements
+- feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
 - misc: Kubecon 2024 oss sync (#6094)
