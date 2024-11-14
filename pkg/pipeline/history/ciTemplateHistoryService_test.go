@@ -20,7 +20,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository/mocks"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -88,11 +87,11 @@ func TestCiTemplateHistoryService(t *testing.T) {
 				CiBuildConfig:      nil,
 			},
 			CiTemplateOverride: nil,
-			CiBuildConfig: &CiPipeline.CiBuildConfigBean{
+			CiBuildConfig: &bean2.CiBuildConfigBean{
 				Id:                20,
 				GitMaterialId:     22,
 				CiBuildType:       "self-dockerfile-build",
-				DockerBuildConfig: &CiPipeline.DockerBuildConfig{DockerfileContent: ""},
+				DockerBuildConfig: &bean2.DockerBuildConfig{DockerfileContent: ""},
 				BuildPackConfig:   nil,
 			},
 			UserId: 0,

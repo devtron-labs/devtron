@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/workFlow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	bean4 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	util3 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"io/ioutil"
 	"net/http"
@@ -269,7 +269,7 @@ func (impl *CiHandlerImpl) HandleCIWebhook(gitCiTriggerRequest bean.GitCiTrigger
 		impl.Logger.Errorw("err in getting ci_pipeline by ciPipelineMaterialId", "ciPipelineMaterialId", gitCiTriggerRequest.CiPipelineMaterial.Id, "err", err)
 		return 0, err
 	}
-	if ciPipeline.IsManual || ciPipeline.PipelineType == CiPipeline.LINKED_CD.ToString() {
+	if ciPipeline.IsManual || ciPipeline.PipelineType == bean4.LINKED_CD.ToString() {
 		impl.Logger.Debugw("not handling for manual pipeline or in case of linked cd", "pipelineId", ciPipeline.Id)
 		return 0, err
 	}

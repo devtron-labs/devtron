@@ -5,7 +5,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -35,7 +34,7 @@ func NewCiTemplateReadServiceImpl(logger *zap.SugaredLogger, ciTemplateRepositor
 	}
 }
 
-func (impl CiTemplateReadServiceImpl) FindByAppId(appId int) (ciTemplateBean *bean.CiTemplateBean, err error) {
+func (impl *CiTemplateReadServiceImpl) FindByAppId(appId int) (ciTemplateBean *bean.CiTemplateBean, err error) {
 	ciTemplate, err := impl.CiTemplateRepository.FindByAppId(appId)
 	if err != nil {
 		return nil, err
@@ -60,7 +59,7 @@ func (impl CiTemplateReadServiceImpl) FindByAppId(appId int) (ciTemplateBean *be
 	}, err
 }
 
-func (impl CiTemplateReadServiceImpl) FindTemplateOverrideByAppId(appId int) (ciTemplateBeans []*bean.CiTemplateBean, err error) {
+func (impl *CiTemplateReadServiceImpl) FindTemplateOverrideByAppId(appId int) (ciTemplateBeans []*bean.CiTemplateBean, err error) {
 	templateOverrides, err := impl.CiTemplateOverrideRepository.FindByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in getting ciTemplateOverrides by appId", "err", err, "appId", appId)
@@ -81,7 +80,7 @@ func (impl CiTemplateReadServiceImpl) FindTemplateOverrideByAppId(appId int) (ci
 	return templateBeanOverrides, nil
 }
 
-func (impl CiTemplateReadServiceImpl) FindTemplateOverrideByCiPipelineIds(ciPipelineIds []int) (ciTemplateBeans []*bean.CiTemplateBean, err error) {
+func (impl *CiTemplateReadServiceImpl) FindTemplateOverrideByCiPipelineIds(ciPipelineIds []int) (ciTemplateBeans []*bean.CiTemplateBean, err error) {
 	templateOverrides, err := impl.CiTemplateOverrideRepository.FindByCiPipelineIds(ciPipelineIds)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in getting ciTemplateOverrides by appId", "err", err, "ciPipelineIds", ciPipelineIds)
@@ -102,7 +101,7 @@ func (impl CiTemplateReadServiceImpl) FindTemplateOverrideByCiPipelineIds(ciPipe
 	return templateBeanOverrides, nil
 }
 
-func (impl CiTemplateReadServiceImpl) extractBuildConfigBean(templateOverride *pipelineConfig.CiTemplateOverride) (*CiPipeline.CiBuildConfigBean, error) {
+func (impl *CiTemplateReadServiceImpl) extractBuildConfigBean(templateOverride *pipelineConfig.CiTemplateOverride) (*bean.CiBuildConfigBean, error) {
 	ciBuildConfigBean, err := adapter.ConvertDbBuildConfigToBean(templateOverride.CiBuildConfig)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while converting dbBuildConfig to bean", "ciBuildConfig",
@@ -120,7 +119,7 @@ func (impl CiTemplateReadServiceImpl) extractBuildConfigBean(templateOverride *p
 	return ciBuildConfigBean, nil
 }
 
-func (impl CiTemplateReadServiceImpl) FindTemplateOverrideByCiPipelineId(ciPipelineId int) (*bean.CiTemplateBean, error) {
+func (impl *CiTemplateReadServiceImpl) FindTemplateOverrideByCiPipelineId(ciPipelineId int) (*bean.CiTemplateBean, error) {
 	templateOverride, err := impl.CiTemplateOverrideRepository.FindByCiPipelineId(ciPipelineId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in getting ciTemplateOverrides by ciPipelineId", "err", err, "ciPipelineId", ciPipelineId)
@@ -130,7 +129,7 @@ func (impl CiTemplateReadServiceImpl) FindTemplateOverrideByCiPipelineId(ciPipel
 	return &bean.CiTemplateBean{CiTemplateOverride: templateOverride, CiBuildConfig: ciBuildConfigBean}, err
 }
 
-func (impl CiTemplateReadServiceImpl) GetAppliedDockerConfigForCiPipeline(ciPipelineId, appId int, isOverridden bool) (*types.DockerArtifactStoreBean, error) {
+func (impl *CiTemplateReadServiceImpl) GetAppliedDockerConfigForCiPipeline(ciPipelineId, appId int, isOverridden bool) (*types.DockerArtifactStoreBean, error) {
 	if !isOverridden {
 		return impl.GetBaseDockerConfigForCiPipeline(appId)
 	}
@@ -145,7 +144,7 @@ func (impl CiTemplateReadServiceImpl) GetAppliedDockerConfigForCiPipeline(ciPipe
 	return adapter.GetDockerConfigBean(templateOverride.DockerRegistry), nil
 }
 
-func (impl CiTemplateReadServiceImpl) GetBaseDockerConfigForCiPipeline(appId int) (*types.DockerArtifactStoreBean, error) {
+func (impl *CiTemplateReadServiceImpl) GetBaseDockerConfigForCiPipeline(appId int) (*types.DockerArtifactStoreBean, error) {
 	ciTemplate, err := impl.CiTemplateRepository.FindByAppId(appId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting ciTemplate by appId", "err", err, "appId", appId)
@@ -154,7 +153,7 @@ func (impl CiTemplateReadServiceImpl) GetBaseDockerConfigForCiPipeline(appId int
 	return adapter.GetDockerConfigBean(ciTemplate.DockerRegistry), nil
 }
 
-func (impl CiTemplateReadServiceImpl) FindByAppIds(appIds []int) (map[int]*bean.CiTemplateBean, error) {
+func (impl *CiTemplateReadServiceImpl) FindByAppIds(appIds []int) (map[int]*bean.CiTemplateBean, error) {
 	ciTemplates, err := impl.CiTemplateRepository.FindByAppIds(appIds)
 	if err != nil {
 		return nil, err
