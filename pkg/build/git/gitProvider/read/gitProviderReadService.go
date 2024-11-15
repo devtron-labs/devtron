@@ -37,7 +37,7 @@ func (impl *GitProviderReadServiceImpl) GetAll() ([]bean2.GitRegistry, error) {
 	}
 	var gitProviders []bean2.GitRegistry
 	for _, provider := range providers {
-		providerRes := adapter.ConvertGitRegistryDToToBean(provider, false)
+		providerRes := adapter.ConvertGitRegistryDtoToBean(provider, false)
 		gitProviders = append(gitProviders, providerRes)
 	}
 	return gitProviders, err
@@ -52,7 +52,7 @@ func (impl *GitProviderReadServiceImpl) FetchAllGitProviders() ([]bean2.GitRegis
 	}
 	var gitProviders []bean2.GitRegistry
 	for _, provider := range providers {
-		providerRes := adapter.ConvertGitRegistryDToToBean(provider, false)
+		providerRes := adapter.ConvertGitRegistryDtoToBean(provider, false)
 		gitProviders = append(gitProviders, providerRes)
 	}
 	return gitProviders, err
@@ -66,7 +66,7 @@ func (impl *GitProviderReadServiceImpl) FetchOneGitProvider(providerId string) (
 		return nil, err
 	}
 
-	providerRes := adapter.ConvertGitRegistryDToToBean(provider, true)
+	providerRes := adapter.ConvertGitRegistryDtoToBean(provider, true)
 	return &providerRes, err
 }
 func (impl *GitProviderReadServiceImpl) FindByUrl(url string) (*bean2.GitRegistry, error) {
@@ -75,6 +75,6 @@ func (impl *GitProviderReadServiceImpl) FindByUrl(url string) (*bean2.GitRegistr
 		impl.logger.Errorw("error in FindByUrl", "url", url, "err", err)
 		return nil, err
 	}
-	gitRegistryBean := adapter.ConvertGitRegistryDToToBean(provider, true)
+	gitRegistryBean := adapter.ConvertGitRegistryDtoToBean(provider, true)
 	return &gitRegistryBean, nil
 }

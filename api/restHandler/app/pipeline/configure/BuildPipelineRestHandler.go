@@ -21,8 +21,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
-	repository2 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 	"golang.org/x/exp/maps"
 	"io"
 	"net/http"
@@ -1534,7 +1534,7 @@ func (handler *PipelineConfigRestHandlerImpl) ValidateGitMaterialUrl(gitProvider
 	if err != nil {
 		return false, err
 	}
-	if gitProvider.AuthMode == repository2.AUTH_MODE_SSH {
+	if gitProvider.AuthMode == constants.AUTH_MODE_SSH {
 		hasPrefixResult := strings.HasPrefix(url, SSH_URL_PREFIX)
 		return hasPrefixResult, nil
 	}

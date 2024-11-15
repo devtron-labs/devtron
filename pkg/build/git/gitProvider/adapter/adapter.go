@@ -6,7 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 )
 
-func ConvertGitRegistryDToToBean(provider repository.GitProvider, withSensitiveData bool) bean2.GitRegistry {
+func ConvertGitRegistryDtoToBean(provider repository.GitProvider, withSensitiveData bool) bean2.GitRegistry {
 	registryBean := bean2.GitRegistry{
 		Id:                    provider.Id,
 		Name:                  provider.Name,

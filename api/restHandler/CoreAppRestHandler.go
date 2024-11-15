@@ -22,9 +22,9 @@ import (
 	"errors"
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/api/restHandler/app/pipeline/configure"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
-	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"net/http"
 	"strconv"
@@ -1289,7 +1289,7 @@ func (handler CoreAppRestHandlerImpl) createGitMaterials(appId int, gitMaterials
 		//validating git material by git provider auth mode
 		var hasPrefixResult bool
 		var expectedUrlPrefix string
-		if gitProvider.AuthMode == repository.AUTH_MODE_SSH {
+		if gitProvider.AuthMode == constants.AUTH_MODE_SSH {
 			hasPrefixResult = strings.HasPrefix(material.GitRepoUrl, app2.SSH_URL_PREFIX)
 			expectedUrlPrefix = app2.SSH_URL_PREFIX
 		} else {
