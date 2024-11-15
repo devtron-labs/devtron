@@ -156,7 +156,7 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*b
 	if err != nil {
 		return nil, err
 	}
-	manifestPushTemplate, err := impl.getManifestPushTemplateForPreStage(envDeploymentConfig, pipeline, artifact, jobHelmPackagePath, cdWf, runner, triggeredBy, triggeredAt, request)
+	manifestPushTemplate, err := impl.getManifestPushTemplateForPreStage(ctx, envDeploymentConfig, pipeline, artifact, jobHelmPackagePath, cdWf, runner, triggeredBy, triggeredAt, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting manifest push template", "err", err)
 		return nil, err

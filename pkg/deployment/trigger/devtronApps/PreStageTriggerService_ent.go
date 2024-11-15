@@ -1,6 +1,7 @@
 package devtronApps
 
 import (
+	"context"
 	"fmt"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -22,7 +23,7 @@ func (impl *TriggerServiceImpl) createAuditDataForDeploymentWindowBypass(request
 	return nil
 }
 
-func (impl *TriggerServiceImpl) getManifestPushTemplateForPreStage(envDeploymentConfig *bean3.DeploymentConfig,
+func (impl *TriggerServiceImpl) getManifestPushTemplateForPreStage(ctx context.Context, envDeploymentConfig *bean3.DeploymentConfig,
 	pipeline *pipelineConfig.Pipeline, artifact *repository2.CiArtifact, jobHelmPackagePath string,
 	cdWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner, triggeredBy int32, triggeredAt time.Time,
 	request bean2.TriggerRequest) (*bean6.ManifestPushTemplate, error) {
