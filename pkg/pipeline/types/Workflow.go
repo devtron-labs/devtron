@@ -589,13 +589,12 @@ func updateContainerEnvs(isCM bool, workflowMainContainer *v1.Container, configS
 	}
 }
 
-const PRE = "PRE"
-
-const POST = "POST"
-
-const CI_NODE_PVC_ALL_ENV = "devtron.ai/ci-pvc-all"
-
-const CI_NODE_PVC_PIPELINE_PREFIX = "devtron.ai/ci-pvc"
+const (
+	PRE                         = "PRE"
+	POST                        = "POST"
+	CI_NODE_PVC_ALL_ENV         = "devtron.ai/ci-pvc-all"
+	CI_NODE_PVC_PIPELINE_PREFIX = "devtron.ai/ci-pvc"
+)
 
 type CiArtifactDTO struct {
 	Id                   int    `json:"id"`

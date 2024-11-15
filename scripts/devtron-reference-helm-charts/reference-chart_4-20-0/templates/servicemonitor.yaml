@@ -1,0 +1,114 @@
+{{ $serviceMonitorEnabled := include "serviceMonitorEnabled" . }}
+{{- if eq "true" $serviceMonitorEnabled -}}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  {{- if .Values.servicemonitor.name }}
+  name: {{ .Values.servicemonitor.name }}
+  {{- else }}
+  name: {{ template ".Chart.Name .fullname" . }}-sm
+  {{- end }}
+  labels:
+    kind: Prometheus
+    app: {{ template ".Chart.Name .name" . }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" . }}
+    release: {{ .Values.prometheus.release }}
+    {{- if .Values.servicemonitor.additionalLabels }}
+{{ toYaml .Values.servicemonitor.additionalLabels | indent 4 }}
+    {{- end }}
+spec:
+  endpoints:
+    {{- range .Values.ContainerPort }}
+      {{- if  .servicemonitor }}
+        {{- if .servicemonitor.enabled}}
+    {{- if .servicemonitor.targetPort }}
+    - targetPort: {{ .servicemonitor.targetPort }}
+    {{- else if .servicePort }}
+    - port: {{ .name }}
+    {{- end }}
+      {{- if .servicemonitor.path }}
+      path: {{ .servicemonitor.path}}
+      {{- end }}
+      {{- if .servicemonitor.scheme }}
+      scheme: {{ .servicemonitor.scheme}}
+      {{- end }}
+      {{- if .servicemonitor.interval }}
+      interval: {{ .servicemonitor.interval}}
+      {{- end }}
+      {{- if .servicemonitor.scrapeTimeout }}
+      scrapeTimeout: {{ .servicemonitor.scrapeTimeout | quote }}
+      {{- end }}
+      {{- if .servicemonitor.basicAuth }}
+      basicAuth:
+      {{- toYaml .servicemonitor.basicAuth | nindent 8 }}
+      {{- end }}
+      {{- if .servicemonitor.insecureTLS }}
+      tlsConfig:
+        insecureSkipVerify: true
+      {{- else if .servicemonitor.tlsConfig }}
+      tlsConfig:
+      {{- toYaml .servicemonitor.tlsConfig | nindent 8 }}
+      {{- end }}
+      {{- if .servicemonitor.metricRelabelings}}
+      metricRelabelings:
+{{toYaml .servicemonitor.metricRelabelings | indent 8 }}
+      {{- end }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+    {{- range .Values.containers }}
+      {{- range .ports }}
+        {{- if  .servicemonitor }}
+          {{- if .servicemonitor.enabled}}
+    {{- if .servicemonitor.targetPort }}
+    - targetPort: {{ .servicemonitor.targetPort }}
+    {{- else if .servicePort }}
+    - port: {{ .name }}
+    {{- end }}
+      {{- if .servicemonitor.path }}
+      path: {{ .servicemonitor.path}}
+      {{- end }}
+      {{- if .servicemonitor.scheme }}
+      scheme: {{ .servicemonitor.scheme}}
+      {{- end }}
+      {{- if .servicemonitor.interval }}
+      interval: {{ .servicemonitor.interval}}
+      {{- end }}
+      {{- if .servicemonitor.scrapeTimeout }}
+      scrapeTimeout: {{ .servicemonitor.scrapeTimeout}}
+      {{- end }}
+      {{- if .servicemonitor.basicAuth }}
+      basicAuth:
+      {{- toYaml .servicemonitor.basicAuth | nindent 8 }}
+      {{- end }}
+      {{- if .servicemonitor.insecureTLS }}
+      tlsConfig:
+        insecureSkipVerify: true
+      {{- else if .servicemonitor.tlsConfig }}
+      tlsConfig:
+      {{- toYaml .servicemonitor.tlsConfig | nindent 8 }}
+      {{- end }}
+      {{- if .servicemonitor.metricRelabelings}}
+      metricRelabelings:
+{{toYaml .servicemonitor.metricRelabelings | indent 8 }}
+      {{- end }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- if .Values.servicemonitor.namespaceSelector }}
+  namespaceSelector:
+    matchNames:
+      {{- toYaml .Values.servicemonitor.namespaceSelector | nindent 6 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- if .Values.servicemonitor.matchLabels }}
+      {{- toYaml .Values.servicemonitor.matchLabels | nindent 6 }}
+      {{- else }}
+      app: {{ template ".Chart.Name .name" $ }}
+      {{- end }}
+{{- end }}

@@ -327,7 +327,12 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsConfigHistory(ctx context
 		return nil, err
 	}
 	resolvedConfigDataReq := &bean.ConfigDataRequest{ConfigData: resolvedConfigDataList}
-	resolvedConfigDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedConfigDataReq)
+	resolvedConfigDataString, err := utils.ConvertToString(resolvedConfigDataReq)
+	if err != nil {
+		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in converting config data to json raw message", "pipelineId", configDataQueryParams.PipelineId, "wfrId", configDataQueryParams.WfrId, "err", err)
+		return nil, err
+	}
+	resolvedConfigDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedConfigDataString)
 	if err != nil {
 		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in ConvertToJsonRawMessage for resolvedConfigDataString", "pipelineId", configDataQueryParams.PipelineId, "wfrId", configDataQueryParams.WfrId, "err", err)
 		return nil, err
@@ -477,6 +482,13 @@ func (impl *DeploymentConfigurationServiceImpl) getConfigDataForAppConfiguration
 	configDataDto := &bean2.DeploymentAndCmCsConfigDto{}
 	var err error
 	switch configDataQueryParams.ConfigType {
+	case bean2.DefaultVersion.ToString():
+		configDataDto, err = impl.getDeploymentAndCmCsConfigDataForDefaultVersion(ctx, configDataQueryParams)
+		if err != nil {
+			impl.logger.Errorw("GetAllConfigData, error in config data for Default version", "configDataQueryParams", configDataQueryParams, "err", err)
+			return nil, err
+		}
+		//no cm or cs to send for default versions
 	case bean2.PreviousDeployments.ToString():
 		configDataDto, err = impl.getDeploymentAndCmCsConfigDataForPreviousDeployments(ctx, configDataQueryParams, appId, envId, userHasAdminAccess)
 		if err != nil {
@@ -491,6 +503,38 @@ func (impl *DeploymentConfigurationServiceImpl) getConfigDataForAppConfiguration
 		}
 	}
 	return configDataDto, nil
+}
+
+func (impl *DeploymentConfigurationServiceImpl) getDeploymentsConfigForDefaultVersion(ctx context.Context, chartRefId int) (json.RawMessage, error) {
+	deploymentTemplateRequest := generateManifest.DeploymentTemplateRequest{
+		ChartRefId:      chartRefId,
+		RequestDataMode: generateManifest.Values,
+		Type:            repository2.DefaultVersions,
+	}
+	deploymentTemplateResponse, err := impl.deploymentTemplateService.GetDeploymentTemplate(ctx, deploymentTemplateRequest)
+	if err != nil {
+		impl.logger.Errorw("getDeploymentTemplateForEnvLevel, error in getting deployment template for ", "deploymentTemplateRequest", deploymentTemplateRequest, "err", err)
+		return nil, err
+	}
+	deploymentJson := json.RawMessage{}
+	err = deploymentJson.UnmarshalJSON([]byte(deploymentTemplateResponse.Data))
+	if err != nil {
+		impl.logger.Errorw("getDeploymentTemplateForEnvLevel, error in unmarshalling string  deploymentTemplateResponse data into json Raw message", "data", deploymentTemplateResponse.Data, "err", err)
+		return nil, err
+	}
+	return deploymentJson, nil
+}
+
+func (impl *DeploymentConfigurationServiceImpl) getDeploymentAndCmCsConfigDataForDefaultVersion(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams) (*bean2.DeploymentAndCmCsConfigDto, error) {
+	configData := &bean2.DeploymentAndCmCsConfigDto{}
+	deploymentTemplateJsonData, err := impl.getDeploymentsConfigForDefaultVersion(ctx, configDataQueryParams.IdentifierId)
+	if err != nil {
+		impl.logger.Errorw("GetAllConfigData, error in getting deployment config for default version", "chartRefId", configDataQueryParams.IdentifierId, "err", err)
+		return nil, err
+	}
+	deploymentConfig := bean2.NewDeploymentAndCmCsConfig().WithConfigData(deploymentTemplateJsonData).WithResourceType(bean.DeploymentTemplate)
+	configData.WithDeploymentTemplateData(deploymentConfig)
+	return configData, nil
 }
 
 func (impl *DeploymentConfigurationServiceImpl) getCmCsEditDataForPublishedOnly(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams, envId,

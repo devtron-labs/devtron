@@ -256,3 +256,12 @@ func CheckIfReTriggerRequired(status, message, workflowRunnerStatus string) bool
 
 const WorkflowCancel = "CANCELLED"
 const POD_DELETED_MESSAGE = "pod deleted"
+
+func GetWorkflowLabelsForSystemExecutor(workflowTemplate bean.WorkflowTemplate) map[string]string {
+	return map[string]string{
+		DEVTRON_WORKFLOW_LABEL_KEY:      DEVTRON_WORKFLOW_LABEL_VALUE,
+		"devtron.ai/purpose":            "workflow",
+		"workflowType":                  workflowTemplate.WorkflowType,
+		bean.WorkflowGenerateNamePrefix: workflowTemplate.WorkflowNamePrefix,
+	}
+}
