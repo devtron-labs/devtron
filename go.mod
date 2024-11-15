@@ -32,7 +32,7 @@ require (
 	github.com/go-pg/pg v6.15.1+incompatible
 	github.com/go-resty/resty/v2 v2.7.0
 	github.com/gogo/protobuf v1.3.2
-	github.com/golang-jwt/jwt/v4 v4.5.0
+	github.com/golang-jwt/jwt/v4 v4.5.1
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.4
 	github.com/google/cel-go v0.17.8
@@ -90,7 +90,7 @@ require (
 	k8s.io/client-go v0.29.7
 	k8s.io/helm v2.12.3+incompatible
 	k8s.io/kubectl v0.29.7
-	k8s.io/kubernetes v1.29.6
+	k8s.io/kubernetes v1.29.10
 	k8s.io/metrics v0.29.7
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
 	sigs.k8s.io/yaml v1.4.0
@@ -288,7 +288,7 @@ require gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 
 replace (
 	github.com/argoproj/argo-workflows/v3 v3.5.10 => github.com/devtron-labs/argo-workflows/v3 v3.5.10
-	github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20241024135802-b4888f54a136
+	github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20241114074942-28eb96763c64
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.5.5
 	k8s.io/api => k8s.io/api v0.29.7

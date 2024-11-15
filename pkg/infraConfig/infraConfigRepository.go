@@ -17,21 +17,23 @@
 package infraConfig
 
 import (
+	"github.com/devtron-labs/devtron/pkg/infraConfig/bean"
+	"github.com/devtron-labs/devtron/pkg/infraConfig/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 )
 
 type InfraConfigRepository interface {
-	GetProfileByName(name string) (*InfraProfileEntity, error)
-	GetConfigurationsByProfileName(profileName string) ([]*InfraProfileConfigurationEntity, error)
-	GetConfigurationsByProfileId(profileId int) ([]*InfraProfileConfigurationEntity, error)
+	GetProfileByName(name string) (*bean.InfraProfileEntity, error)
+	GetConfigurationsByProfileName(profileName string) ([]*bean.InfraProfileConfigurationEntity, error)
+	GetConfigurationsByProfileId(profileId int) ([]*bean.InfraProfileConfigurationEntity, error)
 
-	CreateProfile(tx *pg.Tx, infraProfile *InfraProfileEntity) error
-	CreateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfigurationEntity) error
+	CreateProfile(tx *pg.Tx, infraProfile *bean.InfraProfileEntity) error
+	CreateConfigurations(tx *pg.Tx, configurations []*bean.InfraProfileConfigurationEntity) error
 
-	UpdateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfigurationEntity) error
-	UpdateProfile(tx *pg.Tx, profileName string, profile *InfraProfileEntity) error
+	UpdateConfigurations(tx *pg.Tx, configurations []*bean.InfraProfileConfigurationEntity) error
+	UpdateProfile(tx *pg.Tx, profileName string, profile *bean.InfraProfileEntity) error
 	sql.TransactionWrapper
 }
 
@@ -49,13 +51,13 @@ func NewInfraProfileRepositoryImpl(dbConnection *pg.DB, TransactionUtilImpl *sql
 
 // CreateProfile saves the default profile in the database only once in a lifetime.
 // If the default profile already exists, it will not be saved again.
-func (impl *InfraConfigRepositoryImpl) CreateProfile(tx *pg.Tx, infraProfile *InfraProfileEntity) error {
+func (impl *InfraConfigRepositoryImpl) CreateProfile(tx *pg.Tx, infraProfile *bean.InfraProfileEntity) error {
 	err := tx.Insert(infraProfile)
 	return err
 }
 
-func (impl *InfraConfigRepositoryImpl) GetProfileByName(name string) (*InfraProfileEntity, error) {
-	infraProfile := &InfraProfileEntity{}
+func (impl *InfraConfigRepositoryImpl) GetProfileByName(name string) (*bean.InfraProfileEntity, error) {
+	infraProfile := &bean.InfraProfileEntity{}
 	err := impl.dbConnection.Model(infraProfile).
 		Where("name = ?", name).
 		Where("active = ?", true).
@@ -63,16 +65,16 @@ func (impl *InfraConfigRepositoryImpl) GetProfileByName(name string) (*InfraProf
 	return infraProfile, err
 }
 
-func (impl *InfraConfigRepositoryImpl) CreateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfigurationEntity) error {
+func (impl *InfraConfigRepositoryImpl) CreateConfigurations(tx *pg.Tx, configurations []*bean.InfraProfileConfigurationEntity) error {
 	err := tx.Insert(&configurations)
 	return err
 }
 
-func (impl *InfraConfigRepositoryImpl) UpdateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfigurationEntity) error {
+func (impl *InfraConfigRepositoryImpl) UpdateConfigurations(tx *pg.Tx, configurations []*bean.InfraProfileConfigurationEntity) error {
 	var err error
 	for _, configuration := range configurations {
 		_, err = tx.Model(configuration).
-			Set("value = ?", configuration.Value).
+			Set("value_string = ?", configuration.ValueString).
 			Set("unit = ?", configuration.Unit).
 			Set("updated_by = ?", configuration.UpdatedBy).
 			Set("updated_on = ?", configuration.UpdatedOn).
@@ -82,31 +84,31 @@ func (impl *InfraConfigRepositoryImpl) UpdateConfigurations(tx *pg.Tx, configura
 	return err
 }
 
-func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileName(profileName string) ([]*InfraProfileConfigurationEntity, error) {
-	var configurations []*InfraProfileConfigurationEntity
+func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileName(profileName string) ([]*bean.InfraProfileConfigurationEntity, error) {
+	var configurations []*bean.InfraProfileConfigurationEntity
 	err := impl.dbConnection.Model(&configurations).
 		Where("profile_id IN (SELECT id FROM infra_profile WHERE name = ? AND active = true)", profileName).
 		Where("active = ?", true).
 		Select()
 	if errors.Is(err, pg.ErrNoRows) {
-		return nil, errors.New(NO_PROPERTIES_FOUND)
+		return nil, errors.New(util.NO_PROPERTIES_FOUND)
 	}
 	return configurations, err
 }
 
-func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileId int) ([]*InfraProfileConfigurationEntity, error) {
-	var configurations []*InfraProfileConfigurationEntity
+func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileId int) ([]*bean.InfraProfileConfigurationEntity, error) {
+	var configurations []*bean.InfraProfileConfigurationEntity
 	err := impl.dbConnection.Model(&configurations).
 		Where("profile_id = ?", profileId).
 		Where("active = ?", true).
 		Select()
 	if errors.Is(err, pg.ErrNoRows) {
-		return nil, errors.New(NO_PROPERTIES_FOUND)
+		return nil, errors.New(util.NO_PROPERTIES_FOUND)
 	}
 	return configurations, err
 }
 
-func (impl *InfraConfigRepositoryImpl) UpdateProfile(tx *pg.Tx, profileName string, profile *InfraProfileEntity) error {
+func (impl *InfraConfigRepositoryImpl) UpdateProfile(tx *pg.Tx, profileName string, profile *bean.InfraProfileEntity) error {
 	_, err := tx.Model(profile).
 		Set("description=?", profile.Description).
 		Set("updated_by=?", profile.UpdatedBy).

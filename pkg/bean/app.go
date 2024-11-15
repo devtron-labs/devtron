@@ -24,10 +24,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	CiPipeline2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	CiPipeline2 "github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"strings"
 	"time"
@@ -649,13 +649,13 @@ const (
 	PARALLEL   CDPipelineAddType = "PARALLEL"
 )
 
-func (cdpipelineConfig *CDPipelineConfigObject) IsSwitchCiPipelineRequest() bool {
-	return cdpipelineConfig.SwitchFromCiPipelineId > 0 && cdpipelineConfig.AppWorkflowId > 0
+func (cdPipelineConfig *CDPipelineConfigObject) IsSwitchCiPipelineRequest() bool {
+	return cdPipelineConfig.SwitchFromCiPipelineId > 0 && cdPipelineConfig.AppWorkflowId > 0
 }
 
-func (cdpipelineConfig *CDPipelineConfigObject) PatchSourceInfo() (int, string) {
+func (cdPipelineConfig *CDPipelineConfigObject) PatchSourceInfo() (int, string) {
 	//as the source will be always CI_PIPELINE in case of external-ci change request
-	return cdpipelineConfig.SwitchFromCiPipelineId, appWorkflow.CIPIPELINE
+	return cdPipelineConfig.SwitchFromCiPipelineId, appWorkflow.CIPIPELINE
 }
 
 type PreStageConfigMapSecretNames struct {

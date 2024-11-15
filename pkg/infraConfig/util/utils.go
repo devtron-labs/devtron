@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
-package infraConfig
+package util
 
-import "github.com/devtron-labs/devtron/pkg/infraConfig/units"
+import (
+	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
+)
 
 // GetUnitSuffix loosely typed method to get the unit suffix using the unitKey type
 func GetUnitSuffix(unitKey ConfigKeyStr, unitStr string) units.UnitSuffix {
