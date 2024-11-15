@@ -122,6 +122,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/asyncProvider"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/build"
+	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	pipeline6 "github.com/devtron-labs/devtron/pkg/build/pipeline"
 	"github.com/devtron-labs/devtron/pkg/bulkAction"
 	"github.com/devtron-labs/devtron/pkg/chart"
@@ -209,7 +210,7 @@ func InitializeApp() (*App, error) {
 		fluxApplication.FluxApplicationWireSet,
 		eventProcessor.EventProcessorWireSet,
 		workflow3.WorkflowWireSet,
-
+		imageTagging.WireSet,
 		devtronResource.DevtronResourceWireSet,
 		// -------wireset end ----------
 		// -------
@@ -446,8 +447,8 @@ func InitializeApp() (*App, error) {
 		// session.NewK8sClient,
 		repository8.NewImageTaggingRepositoryImpl,
 		wire.Bind(new(repository8.ImageTaggingRepository), new(*repository8.ImageTaggingRepositoryImpl)),
-		pipeline.NewImageTaggingServiceImpl,
-		wire.Bind(new(pipeline.ImageTaggingService), new(*pipeline.ImageTaggingServiceImpl)),
+		imageTagging.NewImageTaggingServiceImpl,
+		wire.Bind(new(imageTagging.ImageTaggingService), new(*imageTagging.ImageTaggingServiceImpl)),
 		argocdServer.NewVersionServiceImpl,
 		wire.Bind(new(argocdServer.VersionService), new(*argocdServer.VersionServiceImpl)),
 
