@@ -38,6 +38,10 @@ const (
 	Webhook Channel = "webhook"
 )
 
+func (c Channel) String() string {
+	return string(c)
+}
+
 type UpdateType string
 
 const (

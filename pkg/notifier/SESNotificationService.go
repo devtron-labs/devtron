@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/notifier/adapter"
 	"github.com/devtron-labs/devtron/pkg/notifier/beans"
 	"github.com/devtron-labs/devtron/pkg/team"
+	eventUtil "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -165,7 +166,7 @@ func (impl *SESNotificationServiceImpl) DeleteNotificationConfig(deleteReq *bean
 		impl.logger.Errorw("No matching entry found for delete", "err", err, "id", deleteReq.Id)
 		return err
 	}
-	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsByConfigIdAndConfigType(deleteReq.Id, beans.SES_CONFIG_TYPE)
+	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsByConfigIdAndConfigType(deleteReq.Id, eventUtil.SES.String())
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in deleting ses config", "config", deleteReq)
 		return err

@@ -19,6 +19,7 @@ package notifier
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/notifier/beans"
+	eventUtil "github.com/devtron-labs/devtron/util/event"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -154,7 +155,7 @@ func (impl *WebhookNotificationServiceImpl) DeleteNotificationConfig(deleteReq *
 		impl.logger.Errorw("No matching entry found for delete", "err", err, "id", deleteReq.Id)
 		return err
 	}
-	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsByConfigIdAndConfigType(deleteReq.Id, beans.WEBHOOK_CONFIG_TYPE)
+	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsByConfigIdAndConfigType(deleteReq.Id, eventUtil.Webhook.String())
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in deleting webhook config", "config", deleteReq)
 		return err

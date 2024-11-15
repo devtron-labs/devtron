@@ -6,15 +6,8 @@ import (
 )
 
 const (
-	SLACK_CONFIG_TYPE = "slack"
-	SLACK_URL         = "https://hooks.slack.com/"
-	WEBHOOK_URL       = "https://"
-)
-
-const (
-	WEBHOOK_CONFIG_TYPE = "webhook"
-	SES_CONFIG_TYPE     = "ses"
-	SMTP_CONFIG_TYPE    = "smtp"
+	SLACK_URL   = "https://hooks.slack.com/"
+	WEBHOOK_URL = "https://"
 )
 
 type WebhookVariable string

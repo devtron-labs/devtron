@@ -28,7 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/team"
-	util2 "github.com/devtron-labs/devtron/util/event"
+	eventUtil "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -148,7 +148,7 @@ func (impl *SlackNotificationServiceImpl) RecipientListingSuggestion(value strin
 		result := &beans.NotificationRecipientListingResponse{
 			ConfigId:  slackConfig.Id,
 			Recipient: slackConfig.ConfigName,
-			Dest:      util2.Slack}
+			Dest:      eventUtil.Slack}
 		results = append(results, result)
 	}
 	webhookConfigs, err := impl.webhookRepository.FindByName(value)
@@ -161,7 +161,7 @@ func (impl *SlackNotificationServiceImpl) RecipientListingSuggestion(value strin
 		result := &beans.NotificationRecipientListingResponse{
 			ConfigId:  webhookConfig.Id,
 			Recipient: webhookConfig.ConfigName,
-			Dest:      util2.Webhook}
+			Dest:      eventUtil.Webhook}
 		results = append(results, result)
 	}
 	userList, err := impl.userRepository.FetchUserMatchesByEmailIdExcludingApiTokenUser(value)
@@ -173,7 +173,7 @@ func (impl *SlackNotificationServiceImpl) RecipientListingSuggestion(value strin
 		result := &beans.NotificationRecipientListingResponse{
 			ConfigId:  int(item.Id),
 			Recipient: item.EmailId,
-			Dest:      util2.SES}
+			Dest:      eventUtil.SES}
 		results = append(results, result)
 	}
 
@@ -200,11 +200,11 @@ func (impl *SlackNotificationServiceImpl) RecipientListingSuggestion(value strin
 									Recipient: v.(string),
 								}
 								if strings.Contains(v.(string), beans.SLACK_URL) {
-									result.Dest = util2.Slack
+									result.Dest = eventUtil.Slack
 								} else if strings.Contains(v.(string), beans.WEBHOOK_URL) {
-									result.Dest = util2.Webhook
+									result.Dest = eventUtil.Webhook
 								} else {
-									result.Dest = util2.SES
+									result.Dest = eventUtil.SES
 								}
 								results = append(results, result)
 							}
@@ -223,7 +223,7 @@ func (impl *SlackNotificationServiceImpl) DeleteNotificationConfig(deleteReq *be
 		impl.logger.Errorw("No matching entry found for delete", "err", err, "id", deleteReq.Id)
 		return err
 	}
-	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsByConfigIdAndConfigType(deleteReq.Id, beans.SLACK_CONFIG_TYPE)
+	notifications, err := impl.notificationSettingsRepository.FindNotificationSettingsByConfigIdAndConfigType(deleteReq.Id, eventUtil.Slack.String())
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in deleting slack config", "config", deleteReq)
 		return err
