@@ -4,6 +4,7 @@
 - feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
+- chore: refactoring image tagging reader service (#6063)
 - chore: refactoring ci pipeline reader service (#6062)
 - chore: Read service/git provider (#6091)
 - misc: Update pr-issue-validator.yaml (#6086)
