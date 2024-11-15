@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package infraConfig
+package util
 
 type ConfigKey int
 type ConfigKeyStr string
@@ -45,3 +45,6 @@ const CPU_REQUEST ConfigKeyStr = "cpu_request"
 const MEMORY_LIMIT ConfigKeyStr = "memory_limit"
 const MEMORY_REQUEST ConfigKeyStr = "memory_request"
 const TIME_OUT ConfigKeyStr = "timeout"
+
+// internal-platforms
+const CI_RUNNER_PLATFORM = "ci-runner"

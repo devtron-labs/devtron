@@ -987,8 +987,11 @@ func (impl *CdPipelineConfigServiceImpl) GetTriggerViewCdPipelinesForApp(appId i
 	for _, dbPipeline := range triggerViewCdPipelinesResp.Pipelines {
 		dbPipelineIds = append(dbPipelineIds, dbPipeline.Id)
 	}
+	if len(dbPipelineIds) == 0 {
+		return triggerViewCdPipelinesResp, nil
+	}
 
-	//construct strategiesMapping to get all strategies against pipelineId
+	// construct strategiesMapping to get all strategies against pipelineId
 	strategiesMapping, err := impl.getStrategiesMapping(dbPipelineIds)
 	if err != nil {
 		return triggerViewCdPipelinesResp, err
@@ -1271,6 +1274,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 				return nil, err
 			}
 		}
+
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                            dbPipeline.Id,
 			Name:                          dbPipeline.Name,
@@ -1411,7 +1415,7 @@ func (impl *CdPipelineConfigServiceImpl) RetrieveParentDetails(pipelineId int) (
 			return 0, "", err
 		}
 
-		if len(parentPipeline.PostStageConfig) > 0 || (parentPostStage != nil && parentPostStage.Id > 0) {
+		if len(parentPipeline.PostStageConfig) > 0 || parentPostStage.IsPipelineStageExists() {
 			return workflow.ParentId, bean2.CD_WORKFLOW_TYPE_POST, nil
 		}
 		return workflow.ParentId, bean2.CD_WORKFLOW_TYPE_DEPLOY, nil

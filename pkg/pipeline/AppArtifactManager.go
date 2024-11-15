@@ -19,6 +19,7 @@ package pipeline
 import (
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"sort"
 	"strings"
@@ -60,7 +61,7 @@ type AppArtifactManagerImpl struct {
 	cdPipelineConfigService CdPipelineConfigService
 	dockerArtifactRegistry  dockerArtifactStoreRegistry.DockerArtifactStoreRepository
 	CiPipelineRepository    pipelineConfig.CiPipelineRepository
-	ciTemplateService       CiTemplateService
+	ciTemplateService       pipeline.CiTemplateReadService
 }
 
 func NewAppArtifactManagerImpl(
@@ -74,7 +75,7 @@ func NewAppArtifactManagerImpl(
 	cdPipelineConfigService CdPipelineConfigService,
 	dockerArtifactRegistry dockerArtifactStoreRegistry.DockerArtifactStoreRepository,
 	CiPipelineRepository pipelineConfig.CiPipelineRepository,
-	ciTemplateService CiTemplateService) *AppArtifactManagerImpl {
+	ciTemplateService pipeline.CiTemplateReadService) *AppArtifactManagerImpl {
 	cdConfig, err := types.GetCdConfig()
 	if err != nil {
 		return nil
@@ -438,7 +439,7 @@ func (impl *AppArtifactManagerImpl) extractParentMetaDataByPipeline(pipeline *pi
 			impl.logger.Errorw("error in fetching PRE-CD stage by cd pipeline id", "pipelineId", pipeline.Id, "err", err)
 			return parentId, parentType, parentCdId, err
 		}
-		if (pipelinePreStage != nil && pipelinePreStage.Id != 0) || len(pipeline.PreStageConfig) > 0 {
+		if len(pipeline.PreStageConfig) > 0 || pipelinePreStage.IsPipelineStageExists() {
 			// Parent type will be PRE for DEPLOY stage
 			parentId = pipeline.Id
 			parentType = bean.CD_WORKFLOW_TYPE_PRE

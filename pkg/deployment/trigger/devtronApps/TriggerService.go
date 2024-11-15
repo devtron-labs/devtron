@@ -51,6 +51,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
+	pipeline2 "github.com/devtron-labs/devtron/pkg/build/pipeline"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
@@ -144,7 +145,6 @@ type TriggerServiceImpl struct {
 	enforcerUtil                        rbac.EnforcerUtil
 	userDeploymentRequestService        service.UserDeploymentRequestService
 	helmAppClient                       gRPC.HelmAppClient //TODO refactoring: use helm app service instead
-
 	appRepository                 appRepository.AppRepository
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
 	imageScanHistoryRepository    security.ImageScanHistoryRepository
@@ -157,7 +157,7 @@ type TriggerServiceImpl struct {
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
 	ciArtifactRepository          repository3.CiArtifactRepository
-	ciTemplateService             pipeline.CiTemplateService
+	ciTemplateService             pipeline2.CiTemplateReadService
 	materialRepository            pipelineConfig.MaterialRepository
 	appLabelRepository            pipelineConfig.AppLabelRepository
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
@@ -214,7 +214,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	ciArtifactRepository repository3.CiArtifactRepository,
-	ciTemplateService pipeline.CiTemplateService,
+	ciTemplateService pipeline2.CiTemplateReadService,
 	materialRepository pipelineConfig.MaterialRepository,
 	appLabelRepository pipelineConfig.AppLabelRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
@@ -256,6 +256,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 		enforcerUtil:                        enforcerUtil,
 		eventFactory:                        eventFactory,
 		eventClient:                         eventClient,
+
 		globalEnvVariables:                  envVariables.GlobalEnvVariables,
 		userDeploymentRequestService:        userDeploymentRequestService,
 		helmAppClient:                       helmAppClient,
@@ -277,9 +278,12 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 		ciPipelineRepository:                ciPipelineRepository,
 		appWorkflowRepository:               appWorkflowRepository,
 		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
+
 		imageScanService:                    imageScanService,
 		K8sUtil:                             K8sUtil,
+
 		transactionUtilImpl:                 transactionUtilImpl,
+
 		deploymentConfigService:             deploymentConfigService,
 		deploymentServiceTypeConfig:         envVariables.DeploymentServiceTypeConfig,
 		ciCdPipelineOrchestrator:            ciCdPipelineOrchestrator,
