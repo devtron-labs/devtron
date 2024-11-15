@@ -17,36 +17,28 @@
 package repository
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 )
 
-type AuthMode string
-
-const (
-	AUTH_MODE_USERNAME_PASSWORD AuthMode = "USERNAME_PASSWORD"
-	AUTH_MODE_SSH               AuthMode = "SSH"
-	AUTH_MODE_ACCESS_TOKEN      AuthMode = "ACCESS_TOKEN"
-	AUTH_MODE_ANONYMOUS         AuthMode = "ANONYMOUS"
-)
-
 type GitProvider struct {
-	tableName             struct{} `sql:"git_provider" pg:",discard_unknown_columns"`
-	Id                    int      `sql:"id,pk"`
-	Name                  string   `sql:"name,notnull"`
-	Url                   string   `sql:"url,notnull"`
-	UserName              string   `sql:"user_name"`
-	Password              string   `sql:"password"`
-	SshPrivateKey         string   `sql:"ssh_private_key"`
-	AccessToken           string   `sql:"access_token"`
-	AuthMode              AuthMode `sql:"auth_mode,notnull"`
-	Active                bool     `sql:"active,notnull"`
-	Deleted               bool     `sql:"deleted,notnull"`
-	GitHostId             int      `sql:"git_host_id"` //id stored in db git_host( foreign key)
-	TlsCert               string   `sql:"tls_cert"`
-	TlsKey                string   `sql:"tls_key"`
-	CaCert                string   `sql:"ca_cert"`
-	EnableTLSVerification bool     `sql:"enable_tls_verification"`
+	tableName             struct{}           `sql:"git_provider" pg:",discard_unknown_columns"`
+	Id                    int                `sql:"id,pk"`
+	Name                  string             `sql:"name,notnull"`
+	Url                   string             `sql:"url,notnull"`
+	UserName              string             `sql:"user_name"`
+	Password              string             `sql:"password"`
+	SshPrivateKey         string             `sql:"ssh_private_key"`
+	AccessToken           string             `sql:"access_token"`
+	AuthMode              constants.AuthMode `sql:"auth_mode,notnull"`
+	Active                bool               `sql:"active,notnull"`
+	Deleted               bool               `sql:"deleted,notnull"`
+	GitHostId             int                `sql:"git_host_id"` //id stored in db git_host( foreign key)
+	TlsCert               string             `sql:"tls_cert"`
+	TlsKey                string             `sql:"tls_key"`
+	CaCert                string             `sql:"ca_cert"`
+	EnableTLSVerification bool               `sql:"enable_tls_verification"`
 	sql.AuditLog
 }
 

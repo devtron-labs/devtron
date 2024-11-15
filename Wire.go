@@ -122,6 +122,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/asyncProvider"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/build"
+	pipeline6 "github.com/devtron-labs/devtron/pkg/build/pipeline"
 	"github.com/devtron-labs/devtron/pkg/bulkAction"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
@@ -139,7 +140,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
-	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	infraConfigService "github.com/devtron-labs/devtron/pkg/infraConfig"
@@ -378,11 +378,6 @@ func InitializeApp() (*App, error) {
 		pipeline.NewCustomTagService,
 		wire.Bind(new(pipeline.CustomTagService), new(*pipeline.CustomTagServiceImpl)),
 
-		repository.NewGitProviderRepositoryImpl,
-		wire.Bind(new(repository.GitProviderRepository), new(*repository.GitProviderRepositoryImpl)),
-		pipeline.NewGitRegistryConfigImpl,
-		wire.Bind(new(pipeline.GitRegistryConfig), new(*pipeline.GitRegistryConfigImpl)),
-
 		appList.NewAppFilteringRouterImpl,
 		wire.Bind(new(appList.AppFilteringRouter), new(*appList.AppFilteringRouterImpl)),
 		appList2.NewAppFilteringRestHandlerImpl,
@@ -495,12 +490,6 @@ func InitializeApp() (*App, error) {
 
 		restHandler.NewGitWebhookRestHandlerImpl,
 		wire.Bind(new(restHandler.GitWebhookRestHandler), new(*restHandler.GitWebhookRestHandlerImpl)),
-
-		git.NewGitWebhookServiceImpl,
-		wire.Bind(new(git.GitWebhookService), new(*git.GitWebhookServiceImpl)),
-
-		repository.NewGitWebhookRepositoryImpl,
-		wire.Bind(new(repository.GitWebhookRepository), new(*repository.GitWebhookRepositoryImpl)),
 
 		pipeline.NewCiHandlerImpl,
 		wire.Bind(new(pipeline.CiHandler), new(*pipeline.CiHandlerImpl)),
@@ -744,8 +733,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(restHandler.CoreAppRestHandler), new(*restHandler.CoreAppRestHandlerImpl)),
 
 		// Webhook
-		repository.NewGitHostRepositoryImpl,
-		wire.Bind(new(repository.GitHostRepository), new(*repository.GitHostRepositoryImpl)),
 		restHandler.NewGitHostRestHandlerImpl,
 		wire.Bind(new(restHandler.GitHostRestHandler), new(*restHandler.GitHostRestHandlerImpl)),
 		restHandler.NewWebhookEventHandlerImpl,
@@ -754,10 +741,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.GitHostRouter), new(*router.GitHostRouterImpl)),
 		router.NewWebhookListenerRouterImpl,
 		wire.Bind(new(router.WebhookListenerRouter), new(*router.WebhookListenerRouterImpl)),
-		git.NewWebhookSecretValidatorImpl,
-		wire.Bind(new(git.WebhookSecretValidator), new(*git.WebhookSecretValidatorImpl)),
-		pipeline.NewGitHostConfigImpl,
-		wire.Bind(new(pipeline.GitHostConfig), new(*pipeline.GitHostConfigImpl)),
 		repository.NewWebhookEventDataRepositoryImpl,
 		wire.Bind(new(repository.WebhookEventDataRepository), new(*repository.WebhookEventDataRepositoryImpl)),
 		pipeline.NewWebhookEventDataConfigImpl,
@@ -904,6 +887,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.CiBuildConfigService), new(*pipeline.CiBuildConfigServiceImpl)),
 		pipeline.NewCiTemplateServiceImpl,
 		wire.Bind(new(pipeline.CiTemplateService), new(*pipeline.CiTemplateServiceImpl)),
+		pipeline6.NewCiTemplateReadServiceImpl,
+		wire.Bind(new(pipeline6.CiTemplateReadService), new(*pipeline6.CiTemplateReadServiceImpl)),
 		router.NewGlobalCMCSRouterImpl,
 		wire.Bind(new(router.GlobalCMCSRouter), new(*router.GlobalCMCSRouterImpl)),
 		restHandler.NewGlobalCMCSRestHandlerImpl,

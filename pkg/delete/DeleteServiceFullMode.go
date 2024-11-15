@@ -21,6 +21,8 @@ import (
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/go-pg/pg"
@@ -29,7 +31,7 @@ import (
 )
 
 type DeleteServiceFullMode interface {
-	DeleteGitProvider(deleteRequest *types.GitRegistry) error
+	DeleteGitProvider(deleteRequest *bean.GitRegistry) error
 	DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error
 	CanDeleteContainerRegistryConfig(storeId string) bool
 }
@@ -37,7 +39,7 @@ type DeleteServiceFullMode interface {
 type DeleteServiceFullModeImpl struct {
 	logger                   *zap.SugaredLogger
 	gitMaterialRepository    pipelineConfig.MaterialRepository
-	gitRegistryConfig        pipeline.GitRegistryConfig
+	gitRegistryConfig        gitProvider.GitRegistryConfig
 	ciTemplateRepository     pipelineConfig.CiTemplateRepository
 	dockerRegistryConfig     pipeline.DockerRegistryConfig
 	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository
@@ -45,7 +47,7 @@ type DeleteServiceFullModeImpl struct {
 
 func NewDeleteServiceFullModeImpl(logger *zap.SugaredLogger,
 	gitMaterialRepository pipelineConfig.MaterialRepository,
-	gitRegistryConfig pipeline.GitRegistryConfig,
+	gitRegistryConfig gitProvider.GitRegistryConfig,
 	ciTemplateRepository pipelineConfig.CiTemplateRepository,
 	dockerRegistryConfig pipeline.DockerRegistryConfig,
 	dockerRegistryRepository dockerRegistryRepository.DockerArtifactStoreRepository,
@@ -59,7 +61,7 @@ func NewDeleteServiceFullModeImpl(logger *zap.SugaredLogger,
 		dockerRegistryRepository: dockerRegistryRepository,
 	}
 }
-func (impl DeleteServiceFullModeImpl) DeleteGitProvider(deleteRequest *types.GitRegistry) error {
+func (impl DeleteServiceFullModeImpl) DeleteGitProvider(deleteRequest *bean.GitRegistry) error {
 	//finding if this git account is used in any git material, if yes then will not delete
 	materials, err := impl.gitMaterialRepository.FindByGitProviderId(deleteRequest.Id)
 	if err != nil && err != pg.ErrNoRows {

@@ -21,13 +21,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
+	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"golang.org/x/exp/maps"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/util/response/pagination"
 	"github.com/gorilla/schema"
 
@@ -441,8 +442,8 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWr
 		ciConfigRequest := bean.CiConfigRequest{}
 		ciConfigRequest.DockerRegistry = emptyDockerRegistry
 		ciConfigRequest.AppId = patchRequest.AppId
-		ciConfigRequest.CiBuildConfig = &CiPipeline.CiBuildConfigBean{}
-		ciConfigRequest.CiBuildConfig.CiBuildType = CiPipeline.SKIP_BUILD_TYPE
+		ciConfigRequest.CiBuildConfig = &bean2.CiBuildConfigBean{}
+		ciConfigRequest.CiBuildConfig.CiBuildType = bean2.SKIP_BUILD_TYPE
 		ciConfigRequest.UserId = patchRequest.UserId
 		if patchRequest.CiPipeline == nil || patchRequest.CiPipeline.CiMaterial == nil {
 			handler.Logger.Errorw("Invalid patch ci-pipeline request", "request", patchRequest, "err", "invalid CiPipeline data")
@@ -463,7 +464,7 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWr
 	}
 	createResp, err := handler.pipelineBuilder.PatchCiPipeline(&patchRequest)
 	if err != nil {
-		if err.Error() == CiPipeline.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
+		if err.Error() == bean2.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
 			handler.Logger.Errorw("service err, pipeline name already exist ", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
@@ -1529,11 +1530,11 @@ func (handler *PipelineConfigRestHandlerImpl) validForMultiMaterial(ciTriggerReq
 }
 
 func (handler *PipelineConfigRestHandlerImpl) ValidateGitMaterialUrl(gitProviderId int, url string) (bool, error) {
-	gitProvider, err := handler.gitProviderRepo.FindOne(strconv.Itoa(gitProviderId))
+	gitProvider, err := handler.gitProviderReadService.FetchOneGitProvider(strconv.Itoa(gitProviderId))
 	if err != nil {
 		return false, err
 	}
-	if gitProvider.AuthMode == repository.AUTH_MODE_SSH {
+	if gitProvider.AuthMode == constants.AUTH_MODE_SSH {
 		hasPrefixResult := strings.HasPrefix(url, SSH_URL_PREFIX)
 		return hasPrefixResult, nil
 	}
@@ -2254,7 +2255,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetSourceCiDownStreamInfo(w http.R
 		return
 	}
 
-	req := &CiPipeline.SourceCiDownStreamFilters{}
+	req := &bean2.SourceCiDownStreamFilters{}
 	err = decoder.Decode(req, r.URL.Query())
 	if err != nil {
 		handler.Logger.Errorw("request err, GetSourceCiDownStreamInfo", "err", err, "payload", req)

@@ -96,6 +96,8 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailList(ctx context.Con
 		}
 		clusterCapacityDetail.Id = cluster.Id
 		clusterCapacityDetail.Name = cluster.ClusterName
+		clusterCapacityDetail.IsVirtualCluster = cluster.IsVirtualCluster
+		clusterCapacityDetail.IsProd = cluster.IsProd
 		clustersDetails = append(clustersDetails, clusterCapacityDetail)
 	}
 	return clustersDetails, nil
@@ -140,6 +142,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(ctx context.Context
 			return nil, err
 		}
 	}
+	clusterDetail.IsProd = cluster.IsProd
 	return clusterDetail, nil
 }
 

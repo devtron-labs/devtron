@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package git
+package gitWebhook
 
 import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitWebhook/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"go.uber.org/zap"
 )

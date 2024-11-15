@@ -22,7 +22,11 @@ import (
 	"errors"
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/api/restHandler/app/pipeline/configure"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
+	appWorkflowBean "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
+	pipelineBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"net/http"
 	"strconv"
 	"strings"
@@ -31,7 +35,6 @@ import (
 	appBean "github.com/devtron-labs/devtron/api/appbean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/models"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -81,14 +84,14 @@ type CoreAppRestHandlerImpl struct {
 	enforcer                casbin.Enforcer
 	appCrudOperationService app.AppCrudOperationService
 	pipelineBuilder         pipeline.PipelineBuilder
-	gitRegistryService      pipeline.GitRegistryConfig
+	gitRegistryService      gitProvider.GitRegistryConfig
+	gitProviderReadService  read.GitProviderReadService
 	chartService            chart.ChartService
 	configMapService        pipeline.ConfigMapService
 	appListingService       app.AppListingService
 	propertiesConfigService pipeline.PropertiesConfigService
 	appWorkflowService      appWorkflow.AppWorkflowService
 	materialRepository      pipelineConfig.MaterialRepository
-	gitProviderRepo         repository.GitProviderRepository
 	appWorkflowRepository   appWorkflow2.AppWorkflowRepository
 	environmentRepository   repository2.EnvironmentRepository
 	configMapRepository     chartConfig.ConfigMapRepository
@@ -100,13 +103,14 @@ type CoreAppRestHandlerImpl struct {
 }
 
 func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
-	enforcer casbin.Enforcer, appCrudOperationService app.AppCrudOperationService, pipelineBuilder pipeline.PipelineBuilder, gitRegistryService pipeline.GitRegistryConfig,
+	enforcer casbin.Enforcer, appCrudOperationService app.AppCrudOperationService, pipelineBuilder pipeline.PipelineBuilder, gitRegistryService gitProvider.GitRegistryConfig,
 	chartService chart.ChartService, configMapService pipeline.ConfigMapService, appListingService app.AppListingService,
 	propertiesConfigService pipeline.PropertiesConfigService, appWorkflowService appWorkflow.AppWorkflowService,
-	materialRepository pipelineConfig.MaterialRepository, gitProviderRepo repository.GitProviderRepository,
+	materialRepository pipelineConfig.MaterialRepository,
 	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository repository2.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository,
 	chartRepo chartRepoRepository.ChartRepository, teamService team.TeamService,
-	argoUserService argo.ArgoUserService, pipelineStageService pipeline.PipelineStageService, ciPipelineRepository pipelineConfig.CiPipelineRepository) *CoreAppRestHandlerImpl {
+	argoUserService argo.ArgoUserService, pipelineStageService pipeline.PipelineStageService, ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	gitProviderReadService read.GitProviderReadService) *CoreAppRestHandlerImpl {
 	handler := &CoreAppRestHandlerImpl{
 		logger:                  logger,
 		userAuthService:         userAuthService,
@@ -116,13 +120,13 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 		appCrudOperationService: appCrudOperationService,
 		pipelineBuilder:         pipelineBuilder,
 		gitRegistryService:      gitRegistryService,
+		gitProviderReadService:  gitProviderReadService,
 		chartService:            chartService,
 		configMapService:        configMapService,
 		appListingService:       appListingService,
 		propertiesConfigService: propertiesConfigService,
 		appWorkflowService:      appWorkflowService,
 		materialRepository:      materialRepository,
-		gitProviderRepo:         gitProviderRepo,
 		appWorkflowRepository:   appWorkflowRepository,
 		environmentRepository:   environmentRepository,
 		configMapRepository:     configMapRepository,
@@ -197,7 +201,7 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 
 	//get/build app workflows starts
 	//using empty workflow name because it is optional, if not provided then workflows will be fetched on the basis of app
-	wfCloneRequest := &appWorkflow.WorkflowCloneRequest{AppId: appId}
+	wfCloneRequest := &appWorkflowBean.WorkflowCloneRequest{AppId: appId}
 	appWorkflows, err, statusCode := handler.buildAppWorkflows(wfCloneRequest)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
@@ -477,7 +481,7 @@ func (handler CoreAppRestHandlerImpl) buildAppGitMaterials(appId int) ([]*appBea
 	var gitMaterialsResp []*appBean.GitMaterial
 	if len(gitMaterials) > 0 {
 		for _, gitMaterial := range gitMaterials {
-			gitRegistry, err := handler.gitRegistryService.FetchOneGitProvider(strconv.Itoa(gitMaterial.GitProviderId))
+			gitRegistry, err := handler.gitProviderReadService.FetchOneGitProvider(strconv.Itoa(gitMaterial.GitProviderId))
 			if err != nil {
 				handler.logger.Errorw("service err, getGitProvider in GetAppAllDetail", "err", err, "appId", appId)
 				return nil, err, http.StatusInternalServerError
@@ -626,9 +630,9 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentDeploymentTemplate(appI
 }
 
 // validate and build workflows
-func (handler CoreAppRestHandlerImpl) buildAppWorkflows(request *appWorkflow.WorkflowCloneRequest) ([]*appBean.AppWorkflow, error, int) {
+func (handler CoreAppRestHandlerImpl) buildAppWorkflows(request *appWorkflowBean.WorkflowCloneRequest) ([]*appBean.AppWorkflow, error, int) {
 	handler.logger.Debugw("Getting app detail - workflows", "appId", request.AppId)
-	var workflowsList []appWorkflow.AppWorkflowDto
+	var workflowsList []appWorkflowBean.AppWorkflowDto
 	var err error
 	if len(request.WorkflowName) != 0 {
 		workflow, err := handler.appWorkflowService.FindAppWorkflowByName(request.WorkflowName, request.AppId)
@@ -636,14 +640,14 @@ func (handler CoreAppRestHandlerImpl) buildAppWorkflows(request *appWorkflow.Wor
 			handler.logger.Errorw("error in fetching workflow by name", "err", err, "workflowName", request.WorkflowName, "appId", request.AppId)
 			return nil, err, http.StatusInternalServerError
 		}
-		workflowsList = []appWorkflow.AppWorkflowDto{workflow}
+		workflowsList = []appWorkflowBean.AppWorkflowDto{workflow}
 	} else if request.WorkflowId > 0 {
 		workflow, err := handler.appWorkflowService.FindAppWorkflowById(request.WorkflowId, request.AppId)
 		if err != nil {
 			handler.logger.Errorw("error in fetching workflow by id", "err", err, "workflowName", request.WorkflowName, "appId", request.AppId)
 			return nil, err, http.StatusInternalServerError
 		}
-		workflowsList = []appWorkflow.AppWorkflowDto{workflow}
+		workflowsList = []appWorkflowBean.AppWorkflowDto{workflow}
 	} else {
 		workflowsList, err = handler.appWorkflowService.FindAppWorkflows(request.AppId)
 		if err != nil {
@@ -1277,7 +1281,7 @@ func (handler CoreAppRestHandlerImpl) createGitMaterials(appId int, gitMaterials
 		}
 
 		//finding gitProvider to update gitMaterial
-		gitProvider, err := handler.gitProviderRepo.FindByUrl(material.GitProviderUrl)
+		gitProvider, err := handler.gitProviderReadService.FindByUrl(material.GitProviderUrl)
 		if err != nil {
 			handler.logger.Errorw("service err, FindByUrl in CreateGitMaterials", "err", err, "gitProviderUrl", material.GitProviderUrl)
 			return err, http.StatusInternalServerError
@@ -1286,7 +1290,7 @@ func (handler CoreAppRestHandlerImpl) createGitMaterials(appId int, gitMaterials
 		//validating git material by git provider auth mode
 		var hasPrefixResult bool
 		var expectedUrlPrefix string
-		if gitProvider.AuthMode == repository.AUTH_MODE_SSH {
+		if gitProvider.AuthMode == constants.AUTH_MODE_SSH {
 			hasPrefixResult = strings.HasPrefix(material.GitRepoUrl, app2.SSH_URL_PREFIX)
 			expectedUrlPrefix = app2.SSH_URL_PREFIX
 		} else {
@@ -1323,9 +1327,9 @@ func (handler CoreAppRestHandlerImpl) createDockerConfig(appId int, dockerConfig
 	dockerBuildConfig := dockerConfig.DockerBuildConfig
 	if dockerBuildConfig != nil {
 		dockerConfig.CheckoutPath = dockerBuildConfig.GitCheckoutPath
-		dockerConfig.CiBuildConfig = &CiPipeline.CiBuildConfigBean{
-			CiBuildType: CiPipeline.SELF_DOCKERFILE_BUILD_TYPE,
-			DockerBuildConfig: &CiPipeline.DockerBuildConfig{
+		dockerConfig.CiBuildConfig = &pipelineBean.CiBuildConfigBean{
+			CiBuildType: pipelineBean.SELF_DOCKERFILE_BUILD_TYPE,
+			DockerBuildConfig: &pipelineBean.DockerBuildConfig{
 				DockerfilePath:     dockerBuildConfig.DockerfileRelativePath,
 				DockerBuildOptions: dockerBuildConfig.DockerBuildOptions,
 				Args:               dockerBuildConfig.Args,
@@ -1546,7 +1550,7 @@ func (handler CoreAppRestHandlerImpl) createWorkflows(ctx context.Context, appId
 		//Creating CI pipeline starts
 		ciPipeline, err := handler.createCiPipeline(appId, userId, workflowId, workflow.CiPipeline)
 		if err != nil {
-			if err.Error() == CiPipeline.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
+			if err.Error() == pipelineBean.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
 				handler.logger.Errorw("service err, DeleteAppWorkflow ", "err", err)
 				return err, http.StatusBadRequest
 			}
@@ -1683,7 +1687,7 @@ func (handler CoreAppRestHandlerImpl) createCiPipeline(appId int, userId int32, 
 			ParentCiPipeline:         ciPipelineData.ParentCiPipeline,
 			ParentAppId:              ciPipelineData.ParentAppId,
 			LinkedCount:              ciPipelineData.LinkedCount,
-			PipelineType:             CiPipeline.PipelineType(ciPipelineData.PipelineType),
+			PipelineType:             pipelineBean.PipelineType(ciPipelineData.PipelineType),
 		},
 	}
 
@@ -2330,7 +2334,7 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflow(w http.ResponseWriter, r *h
 
 	//get/build app workflows starts
 	//using empty workflow name because it is optional, if not provided then workflows will be fetched on the basis of app
-	wfCloneRequest := &appWorkflow.WorkflowCloneRequest{AppId: appId}
+	wfCloneRequest := &appWorkflowBean.WorkflowCloneRequest{AppId: appId}
 	appWorkflows, err, statusCode := handler.buildAppWorkflows(wfCloneRequest)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
@@ -2378,7 +2382,7 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	wfCloneRequest := &appWorkflow.WorkflowCloneRequest{AppId: appId}
+	wfCloneRequest := &appWorkflowBean.WorkflowCloneRequest{AppId: appId}
 	workflowName := r.URL.Query().Get("workflowName")
 	wfCloneRequest.WorkflowName = workflowName
 	environmentIdStr := r.URL.Query().Get("environmentId")
