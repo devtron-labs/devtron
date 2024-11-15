@@ -165,7 +165,7 @@ func (impl *PipelineBuilderImpl) getGitMaterialsForApp(appId int) ([]*bean.GitMa
 				}
 			}
 			if userName == "" || password == "" {
-				return nil, util.ApiError{}.ErrorfUser("invalid git credentials config")
+				return nil, util.NewApiError().ErrorfUser("invalid git credentials config")
 			}
 			u.User = url.UserPassword(userName, password)
 			gitUrl = u.String()

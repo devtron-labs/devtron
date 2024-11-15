@@ -649,13 +649,13 @@ const (
 	PARALLEL   CDPipelineAddType = "PARALLEL"
 )
 
-func (cdpipelineConfig *CDPipelineConfigObject) IsSwitchCiPipelineRequest() bool {
-	return cdpipelineConfig.SwitchFromCiPipelineId > 0 && cdpipelineConfig.AppWorkflowId > 0
+func (cdPipelineConfig *CDPipelineConfigObject) IsSwitchCiPipelineRequest() bool {
+	return cdPipelineConfig.SwitchFromCiPipelineId > 0 && cdPipelineConfig.AppWorkflowId > 0
 }
 
-func (cdpipelineConfig *CDPipelineConfigObject) PatchSourceInfo() (int, string) {
+func (cdPipelineConfig *CDPipelineConfigObject) PatchSourceInfo() (int, string) {
 	//as the source will be always CI_PIPELINE in case of external-ci change request
-	return cdpipelineConfig.SwitchFromCiPipelineId, appWorkflow.CIPIPELINE
+	return cdPipelineConfig.SwitchFromCiPipelineId, appWorkflow.CIPIPELINE
 }
 
 type PreStageConfigMapSecretNames struct {
