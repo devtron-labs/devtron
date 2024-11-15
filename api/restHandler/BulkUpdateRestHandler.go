@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
 	"net/http"
 	"strconv"
 	"strings"
@@ -77,7 +78,7 @@ type BulkUpdateRestHandlerImpl struct {
 	appWorkflowService      appWorkflow.AppWorkflowService
 	enforcerUtil            rbac.EnforcerUtil
 	envService              request.EnvironmentService
-	gitRegistryConfig       pipeline.GitRegistryConfig
+	gitRegistryConfig       gitProvider.GitRegistryConfig
 	dockerRegistryConfig    pipeline.DockerRegistryConfig
 	cdHandelr               pipeline.CdHandler
 	appCloneService         appClone.AppCloneService
@@ -100,7 +101,7 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 	gitSensorClient gitSensor.Client,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
 	enforcerUtil rbac.EnforcerUtil, envService request.EnvironmentService,
-	gitRegistryConfig pipeline.GitRegistryConfig, dockerRegistryConfig pipeline.DockerRegistryConfig,
+	gitRegistryConfig gitProvider.GitRegistryConfig, dockerRegistryConfig pipeline.DockerRegistryConfig,
 	cdHandelr pipeline.CdHandler,
 	appCloneService appClone.AppCloneService,
 	appWorkflowService appWorkflow.AppWorkflowService,
