@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	bean4 "github.com/devtron-labs/devtron/pkg/attributes/bean"
+	repository6 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	bean5 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/infraConfig"
@@ -532,7 +533,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			},
 		}
 
-		if ciMaterial.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK {
+		if ciMaterial.Type == repository6.SOURCE_TYPE_WEBHOOK {
 			webhookData := commitHashForPipelineId.WebhookData
 			ciProjectDetail.WebhookData = pipelineConfig.WebhookData{
 				Id:              webhookData.Id,

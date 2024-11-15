@@ -34,6 +34,7 @@ import (
 	util3 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	userBean "github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
 	deploymentBean "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
@@ -614,9 +615,9 @@ func (impl *WorkflowEventProcessorImpl) BuildCiArtifactRequest(event bean.CiComp
 		var branch string
 		var tag string
 		var webhookData repository.WebhookData
-		if p.SourceType == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
+		if p.SourceType == repository2.SOURCE_TYPE_BRANCH_FIXED {
 			branch = p.SourceValue
-		} else if p.SourceType == pipelineConfig.SOURCE_TYPE_WEBHOOK {
+		} else if p.SourceType == repository2.SOURCE_TYPE_WEBHOOK {
 			webhookData = repository.WebhookData{
 				Id:              p.WebhookData.Id,
 				EventActionType: p.WebhookData.EventActionType,

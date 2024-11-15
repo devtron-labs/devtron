@@ -18,6 +18,7 @@ package bean
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 )
 
@@ -116,12 +117,12 @@ type CiProjectDetails struct {
 	GitTag          string `json:"gitTag"`
 	CommitTime      string `json:"commitTime"`
 	//Branch        string          `json:"branch"`
-	Type        string                    `json:"type"`
-	Message     string                    `json:"message"`
-	Author      string                    `json:"author"`
-	GitOptions  GitOptions                `json:"gitOptions"`
-	SourceType  pipelineConfig.SourceType `json:"sourceType"`
-	SourceValue string                    `json:"sourceValue"`
+	Type        string                `json:"type"`
+	Message     string                `json:"message"`
+	Author      string                `json:"author"`
+	GitOptions  GitOptions            `json:"gitOptions"`
+	SourceType  repository.SourceType `json:"sourceType"`
+	SourceValue string                `json:"sourceValue"`
 	WebhookData pipelineConfig.WebhookData
 }
 type GitOptions struct {

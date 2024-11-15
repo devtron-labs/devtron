@@ -21,6 +21,7 @@ import (
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -38,7 +39,7 @@ type DeleteServiceFullMode interface {
 
 type DeleteServiceFullModeImpl struct {
 	logger                   *zap.SugaredLogger
-	gitMaterialRepository    pipelineConfig.MaterialRepository
+	gitMaterialReadService   read.GitMaterialReadService
 	gitRegistryConfig        gitProvider.GitRegistryConfig
 	ciTemplateRepository     pipelineConfig.CiTemplateRepository
 	dockerRegistryConfig     pipeline.DockerRegistryConfig
@@ -46,7 +47,7 @@ type DeleteServiceFullModeImpl struct {
 }
 
 func NewDeleteServiceFullModeImpl(logger *zap.SugaredLogger,
-	gitMaterialRepository pipelineConfig.MaterialRepository,
+	gitMaterialReadService read.GitMaterialReadService,
 	gitRegistryConfig gitProvider.GitRegistryConfig,
 	ciTemplateRepository pipelineConfig.CiTemplateRepository,
 	dockerRegistryConfig pipeline.DockerRegistryConfig,
@@ -54,7 +55,7 @@ func NewDeleteServiceFullModeImpl(logger *zap.SugaredLogger,
 ) *DeleteServiceFullModeImpl {
 	return &DeleteServiceFullModeImpl{
 		logger:                   logger,
-		gitMaterialRepository:    gitMaterialRepository,
+		gitMaterialReadService:   gitMaterialReadService,
 		gitRegistryConfig:        gitRegistryConfig,
 		ciTemplateRepository:     ciTemplateRepository,
 		dockerRegistryConfig:     dockerRegistryConfig,
@@ -63,7 +64,7 @@ func NewDeleteServiceFullModeImpl(logger *zap.SugaredLogger,
 }
 func (impl DeleteServiceFullModeImpl) DeleteGitProvider(deleteRequest *bean.GitRegistry) error {
 	//finding if this git account is used in any git material, if yes then will not delete
-	materials, err := impl.gitMaterialRepository.FindByGitProviderId(deleteRequest.Id)
+	materials, err := impl.gitMaterialReadService.FindByGitProviderId(deleteRequest.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("err in deleting git provider", "gitProvider", deleteRequest.Name, "err", err)
 		return err

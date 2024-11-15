@@ -51,6 +51,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
 	pipeline2 "github.com/devtron-labs/devtron/pkg/build/pipeline"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -159,7 +160,7 @@ type TriggerServiceImpl struct {
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
 	ciArtifactRepository          repository3.CiArtifactRepository
 	ciTemplateService             pipeline2.CiTemplateReadService
-	materialRepository            pipelineConfig.MaterialRepository
+	gitMaterialReadService        read.GitMaterialReadService
 	appLabelRepository            pipelineConfig.AppLabelRepository
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	appWorkflowRepository         appWorkflow.AppWorkflowRepository
@@ -216,7 +217,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	ciArtifactRepository repository3.CiArtifactRepository,
 	ciTemplateService pipeline2.CiTemplateReadService,
-	materialRepository pipelineConfig.MaterialRepository,
+	gitMaterialReadService read.GitMaterialReadService,
 	appLabelRepository pipelineConfig.AppLabelRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
@@ -273,7 +274,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 		ciWorkflowRepository:                ciWorkflowRepository,
 		ciArtifactRepository:                ciArtifactRepository,
 		ciTemplateService:                   ciTemplateService,
-		materialRepository:                  materialRepository,
+		gitMaterialReadService:              gitMaterialReadService,
 		appLabelRepository:                  appLabelRepository,
 		ciPipelineRepository:                ciPipelineRepository,
 		appWorkflowRepository:               appWorkflowRepository,

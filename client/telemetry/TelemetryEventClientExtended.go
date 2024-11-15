@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	client "github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
 	repository3 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -59,7 +60,7 @@ type TelemetryEventClientImplExtended struct {
 	appRepository                 app.AppRepository
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
-	materialRepository            pipelineConfig.MaterialRepository
+	gitMaterialReadService        read.GitMaterialReadService
 	ciTemplateRepository          pipelineConfig.CiTemplateRepository
 	chartRepository               chartRepoRepository.ChartRepository
 	ciBuildConfigService          pipeline.CiBuildConfigService
@@ -76,7 +77,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	ssoLoginService sso.SSOLoginService, appRepository app.AppRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
-	materialRepository pipelineConfig.MaterialRepository, ciTemplateRepository pipelineConfig.CiTemplateRepository,
+	gitMaterialReadService read.GitMaterialReadService, ciTemplateRepository pipelineConfig.CiTemplateRepository,
 	chartRepository chartRepoRepository.ChartRepository, userAuditService user2.UserAuditService,
 	ciBuildConfigService pipeline.CiBuildConfigService, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore,
 	helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository, userAttributesRepository repository.UserAttributesRepository,
@@ -96,7 +97,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 		appRepository:                 appRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
 		ciWorkflowRepository:          ciWorkflowRepository,
-		materialRepository:            materialRepository,
+		gitMaterialReadService:        gitMaterialReadService,
 		ciTemplateRepository:          ciTemplateRepository,
 		chartRepository:               chartRepository,
 		ciBuildConfigService:          ciBuildConfigService,
@@ -302,7 +303,7 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 
 	payload.AppCount = len(appIds)
 	if len(appIds) < AppsCount {
-		payload.AppsWithGitRepoConfigured, err = impl.materialRepository.FindNumberOfAppsWithGitRepo(appIds)
+		payload.AppsWithGitRepoConfigured, err = impl.gitMaterialReadService.FindNumberOfAppsWithGitRepo(appIds)
 		if err != nil {
 			impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving AppsWithGitRepoConfigured", "err", err)
 		}

@@ -338,8 +338,6 @@ func InitializeApp() (*App, error) {
 
 		pipeline.NewCiCdPipelineOrchestrator,
 		wire.Bind(new(pipeline.CiCdPipelineOrchestrator), new(*pipeline.CiCdPipelineOrchestratorImpl)),
-		pipelineConfig.NewMaterialRepositoryImpl,
-		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),
 
 		// scoped variables start
 		variables.NewScopedVariableServiceImpl,

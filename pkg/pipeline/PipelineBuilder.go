@@ -19,6 +19,7 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
 	repository2 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 	"net/url"
 	"strings"
@@ -27,7 +28,6 @@ import (
 	"github.com/caarlos0/env"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -67,9 +67,9 @@ type PipelineBuilder interface {
 }
 
 type PipelineBuilderImpl struct {
-	logger          *zap.SugaredLogger
-	materialRepo    pipelineConfig.MaterialRepository
-	chartRepository chartRepoRepository.ChartRepository
+	logger                 *zap.SugaredLogger
+	gitMaterialReadService read.GitMaterialReadService
+	chartRepository        chartRepoRepository.ChartRepository
 	CiPipelineConfigService
 	CiMaterialConfigService
 	AppArtifactManager
@@ -82,7 +82,7 @@ type PipelineBuilderImpl struct {
 
 func NewPipelineBuilderImpl(
 	logger *zap.SugaredLogger,
-	materialRepo pipelineConfig.MaterialRepository,
+	gitMaterialReadService read.GitMaterialReadService,
 	chartRepository chartRepoRepository.ChartRepository,
 	ciPipelineConfigService CiPipelineConfigService,
 	ciMaterialConfigService CiMaterialConfigService,
@@ -100,7 +100,7 @@ func NewPipelineBuilderImpl(
 	}
 	return &PipelineBuilderImpl{
 		logger:                         logger,
-		materialRepo:                   materialRepo,
+		gitMaterialReadService:         gitMaterialReadService,
 		chartRepository:                chartRepository,
 		CiPipelineConfigService:        ciPipelineConfigService,
 		CiMaterialConfigService:        ciMaterialConfigService,
@@ -138,7 +138,7 @@ func formatDate(t time.Time, layout string) string {
 */
 
 func (impl *PipelineBuilderImpl) getGitMaterialsForApp(appId int) ([]*bean.GitMaterial, error) {
-	materials, err := impl.materialRepo.FindByAppId(appId)
+	materials, err := impl.gitMaterialReadService.FindByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching materials for app", "appId", appId, "err", err)
 		return nil, err

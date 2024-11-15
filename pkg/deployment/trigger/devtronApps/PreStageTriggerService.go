@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	bean6 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/bean"
+	repository4 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	bean7 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
@@ -460,7 +461,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 					break
 				}
 			}
-			gitMaterial, err := impl.materialRepository.FindById(m.GitMaterialId)
+			gitMaterial, err := impl.gitMaterialReadService.FindById(m.GitMaterialId)
 			if err != nil && !util.IsErrNoRows(err) {
 				impl.logger.Errorw("could not fetch git materials", "err", err)
 				return nil, err
@@ -502,7 +503,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 			}
 
 			// set webhook data
-			if m.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK && len(ciMaterialCurrent.Modifications) > 0 {
+			if m.Type == repository4.SOURCE_TYPE_WEBHOOK && len(ciMaterialCurrent.Modifications) > 0 {
 				webhookData := ciMaterialCurrent.Modifications[0].WebhookData
 				ciProjectDetail.WebhookData = pipelineConfig.WebhookData{
 					Id:              webhookData.Id,

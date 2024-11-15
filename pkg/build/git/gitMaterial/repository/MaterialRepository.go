@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package pipelineConfig
+package repository
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"

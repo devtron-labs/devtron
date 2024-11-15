@@ -34,6 +34,7 @@ import (
 	cdWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts"
+	repository3 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	bean5 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
@@ -1012,9 +1013,9 @@ func (impl *WorkflowDagExecutorImpl) BuildCiArtifactRequestForWebhook(event pipe
 		var branch string
 		var tag string
 		var webhookData repository.WebhookData
-		if p.SourceType == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
+		if p.SourceType == repository3.SOURCE_TYPE_BRANCH_FIXED {
 			branch = p.SourceValue
-		} else if p.SourceType == pipelineConfig.SOURCE_TYPE_WEBHOOK {
+		} else if p.SourceType == repository3.SOURCE_TYPE_WEBHOOK {
 			webhookData = repository.WebhookData{
 				Id:              p.WebhookData.Id,
 				EventActionType: p.WebhookData.EventActionType,
