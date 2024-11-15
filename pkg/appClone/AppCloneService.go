@@ -31,6 +31,7 @@ import (
 	bean4 "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	pipeline2 "github.com/devtron-labs/devtron/pkg/build/pipeline"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -53,7 +54,7 @@ type AppCloneServiceImpl struct {
 	appListingService       app.AppListingService
 	propertiesConfigService pipeline.PropertiesConfigService
 	pipelineStageService    pipeline.PipelineStageService
-	ciTemplateService       pipeline.CiTemplateService
+	ciTemplateService       pipeline2.CiTemplateReadService
 	appRepository           app2.AppRepository
 	ciPipelineRepository    pipelineConfig.CiPipelineRepository
 	pipelineRepository      pipelineConfig.PipelineRepository
@@ -69,7 +70,7 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	appListingService app.AppListingService,
 	propertiesConfigService pipeline.PropertiesConfigService,
-	pipelineStageService pipeline.PipelineStageService, ciTemplateService pipeline.CiTemplateService,
+	pipelineStageService pipeline.PipelineStageService, ciTemplateService pipeline2.CiTemplateReadService,
 	appRepository app2.AppRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciPipelineConfigService pipeline.CiPipelineConfigService,

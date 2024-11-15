@@ -18,6 +18,7 @@ package pipeline
 
 import (
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"sort"
 	"strings"
@@ -59,7 +60,7 @@ type AppArtifactManagerImpl struct {
 	cdPipelineConfigService CdPipelineConfigService
 	dockerArtifactRegistry  dockerArtifactStoreRegistry.DockerArtifactStoreRepository
 	CiPipelineRepository    pipelineConfig.CiPipelineRepository
-	ciTemplateService       CiTemplateService
+	ciTemplateService       pipeline.CiTemplateReadService
 }
 
 func NewAppArtifactManagerImpl(
@@ -73,7 +74,7 @@ func NewAppArtifactManagerImpl(
 	cdPipelineConfigService CdPipelineConfigService,
 	dockerArtifactRegistry dockerArtifactStoreRegistry.DockerArtifactStoreRepository,
 	CiPipelineRepository pipelineConfig.CiPipelineRepository,
-	ciTemplateService CiTemplateService) *AppArtifactManagerImpl {
+	ciTemplateService pipeline.CiTemplateReadService) *AppArtifactManagerImpl {
 	cdConfig, err := types.GetCdConfig()
 	if err != nil {
 		return nil
