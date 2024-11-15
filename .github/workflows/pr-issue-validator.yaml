@@ -10,6 +10,7 @@ on:
     branches:    
       - 'main'
       - 'release-**'
+      - 'develop'
     # paths-ignore:
     #   - 'docs/**'
     #   - '.github/'
@@ -42,7 +43,7 @@ jobs:
         PRNUM: ${{ github.event.pull_request.number }}
         TITLE: ${{ github.event.pull_request.title }}
       run: |
-        set -x
+        set -ex
         echo "base or target repo : ${{ github.event.pull_request.base.repo.full_name }}"
         echo "head or source repo : ${{ github.event.pull_request.head.repo.full_name }}"
         if [[ ${{ github.event.pull_request.head.repo.full_name }} == ${{ github.event.pull_request.base.repo.full_name }} ]]; then
@@ -169,7 +170,7 @@ jobs:
           pr_no: ${{ github.event.pull_request.number }}
           GH_TOKEN: ${{ github.token }}
       run: |
-        
+        set -ex
         # Fetch the latest changes from the main branch
         git fetch origin main
         
