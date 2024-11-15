@@ -230,7 +230,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCdStageReTrigger(runner *pipelineConf
 	}
 
 	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
-		err = impl.cdTriggerService.TriggerPreStage(triggerRequest)
+		_, err = impl.cdTriggerService.TriggerPreStage(triggerRequest)
 		if err != nil {
 			impl.logger.Errorw("error in TriggerPreStage ", "err", err, "cdWorkflowRunnerId", runner.Id)
 			return err
@@ -515,7 +515,7 @@ func (impl *WorkflowDagExecutorImpl) triggerIfAutoStageCdPipeline(request trigge
 		// pre stage exists
 		if request.Pipeline.PreTriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
 			impl.logger.Debugw("trigger pre stage for pipeline", "artifactId", request.Artifact.Id, "pipelineId", request.Pipeline.Id)
-			err = impl.cdTriggerService.TriggerPreStage(request) // TODO handle error here
+			_, err = impl.cdTriggerService.TriggerPreStage(request) // TODO handle error here
 			return err
 		}
 	} else if request.Pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {

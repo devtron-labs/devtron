@@ -99,7 +99,7 @@ import (
 
 type TriggerService interface {
 	TriggerPostStage(request bean.TriggerRequest) error
-	TriggerPreStage(request bean.TriggerRequest) error
+	TriggerPreStage(request bean.TriggerRequest) (*bean4.ManifestPushTemplate, error)
 
 	TriggerAutoCDOnPreStageSuccess(triggerContext bean.TriggerContext, cdPipelineId, ciArtifactId, workflowId int, triggerdBy int32, scanExecutionHistoryId int) error
 
@@ -314,7 +314,7 @@ func (impl *TriggerServiceImpl) TriggerStageForBulk(triggerRequest bean.TriggerR
 		//pre stage exists
 		impl.logger.Debugw("trigger pre stage for pipeline", "artifactId", triggerRequest.Artifact.Id, "pipelineId", triggerRequest.Pipeline.Id)
 		triggerRequest.RefCdWorkflowRunnerId = 0
-		err = impl.TriggerPreStage(triggerRequest) // TODO handle error here
+		_, err = impl.TriggerPreStage(triggerRequest) // TODO handle error here
 		return err
 	} else {
 		// trigger deployment
@@ -457,7 +457,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			RefCdWorkflowRunnerId: 0,
 			CdWorkflowRunnerId:    overrideRequest.WfrId,
 		}
-		err = impl.TriggerPreStage(triggerRequest)
+		_, err = impl.TriggerPreStage(triggerRequest)
 		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in TriggerPreStage, ManualCdTrigger", "err", err)
