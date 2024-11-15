@@ -472,6 +472,7 @@ func (impl EnvironmentServiceImpl) FindByIds(ids []*int) ([]*bean2.EnvironmentBe
 	models, err := impl.environmentRepository.FindByIds(ids)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment", "err", err)
+		return nil, err
 	}
 	var beans []*bean2.EnvironmentBean
 	for _, model := range models {
