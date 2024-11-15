@@ -186,7 +186,7 @@ jobs:
         cat diff
         
         # Extract relevant .up.sql migration files from the changed files list
-        changed_files=$(grep "^$MIGRATION_DIR/" diff | grep -E "\.up\.sql$")
+        changed_files=$(grep "scripts/sql" diff | grep -E "\.up\.sql$")
         
         # Check if there are any .up.sql migration files in the changed files list
         if [ -z "$changed_files" ]; then
