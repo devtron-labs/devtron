@@ -164,7 +164,7 @@ jobs:
             exit 1
         fi
     - name: Check SQL file format and duplicates
-      shell: bash
+      shell: zsh
       env: 
           pr_no: ${{ github.event.pull_request.number }}
           GH_TOKEN: ${{ github.token }}
