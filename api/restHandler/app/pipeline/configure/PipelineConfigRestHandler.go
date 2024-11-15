@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	imageTaggingRead "github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging/read"
+	read2 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
 	gitProviderRead "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	bean3 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
@@ -120,7 +121,7 @@ type PipelineConfigRestHandlerImpl struct {
 	dockerRegistryConfig                pipeline.DockerRegistryConfig
 	cdHandler                           pipeline.CdHandler
 	appCloneService                     appClone.AppCloneService
-	materialRepository                  pipelineConfig.MaterialRepository
+	gitMaterialReadService              read2.GitMaterialReadService
 	policyService                       security2.PolicyService
 	scanResultRepository                security.ImageScanResultRepository
 	gitProviderReadService              gitProviderRead.GitProviderReadService
@@ -154,7 +155,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	appCloneService appClone.AppCloneService,
 	deploymentTemplateService generateManifest.DeploymentTemplateService,
 	appWorkflowService appWorkflow.AppWorkflowService,
-	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
+	gitMaterialReadService read2.GitMaterialReadService, policyService security2.PolicyService,
 	scanResultRepository security.ImageScanResultRepository,
 	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	imageTaggingReadService imageTaggingRead.ImageTaggingReadService,
@@ -189,7 +190,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		cdHandler:                           cdHandler,
 		appCloneService:                     appCloneService,
 		appWorkflowService:                  appWorkflowService,
-		materialRepository:                  materialRepository,
+		gitMaterialReadService:              gitMaterialReadService,
 		policyService:                       policyService,
 		scanResultRepository:                scanResultRepository,
 		argoUserService:                     argoUserService,

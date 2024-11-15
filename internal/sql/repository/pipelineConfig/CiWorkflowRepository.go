@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -148,7 +149,7 @@ type GitCommit struct {
 	CiConfigureSourceValue string
 	GitRepoUrl             string
 	GitRepoName            string
-	CiConfigureSourceType  SourceType
+	CiConfigureSourceType  repository.SourceType
 }
 
 type WebhookData struct {

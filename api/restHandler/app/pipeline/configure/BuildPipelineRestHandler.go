@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
+	repository3 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"golang.org/x/exp/maps"
 	"io"
@@ -340,7 +341,7 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdAndE
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if !(patchRequest.Source.Type == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED || patchRequest.Source.Type == pipelineConfig.SOURCE_TYPE_BRANCH_REGEX) {
+	if !(patchRequest.Source.Type == repository3.SOURCE_TYPE_BRANCH_FIXED || patchRequest.Source.Type == repository3.SOURCE_TYPE_BRANCH_REGEX) {
 		handler.Logger.Errorw("Unsupported source type, PatchCiMaterialSource", "err", err, "PatchCiMaterialSource", patchRequest)
 		common.WriteJsonResp(w, err, "source.type not supported", http.StatusBadRequest)
 		return
@@ -875,7 +876,7 @@ func (handler *PipelineConfigRestHandlerImpl) RefreshMaterials(w http.ResponseWr
 		return
 	}
 	handler.Logger.Infow("request payload, RefreshMaterials", "gitMaterialId", gitMaterialId)
-	material, err := handler.materialRepository.FindById(gitMaterialId)
+	material, err := handler.gitMaterialReadService.FindById(gitMaterialId)
 	if err != nil {
 		handler.Logger.Errorw("service err, RefreshMaterials", "err", err, "gitMaterialId", gitMaterialId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

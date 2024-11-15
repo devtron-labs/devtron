@@ -2,6 +2,7 @@ package git
 
 import (
 	"github.com/devtron-labs/devtron/pkg/build/git/gitHost"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitWebhook"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitWebhook/repository"
@@ -11,6 +12,7 @@ import (
 var GitWireSet = wire.NewSet(
 	gitProvider.GitProviderWireSet,
 	gitHost.GitHostWireSet,
+	gitMaterial.GitMaterialWireSet,
 
 	gitWebhook.NewWebhookSecretValidatorImpl,
 	wire.Bind(new(gitWebhook.WebhookSecretValidator), new(*gitWebhook.WebhookSecretValidatorImpl)),

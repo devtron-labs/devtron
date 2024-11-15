@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	repository4 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	CiPipeline2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
@@ -41,9 +42,9 @@ const (
 )
 
 type SourceTypeConfig struct {
-	Type  pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED SOURCE_TYPE_BRANCH_REGEX SOURCE_TYPE_TAG_ANY WEBHOOK"`
-	Value string                    `json:"value,omitempty" `
-	Regex string                    `json:"regex"`
+	Type  repository4.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED SOURCE_TYPE_BRANCH_REGEX SOURCE_TYPE_TAG_ANY WEBHOOK"`
+	Value string                 `json:"value,omitempty" `
+	Regex string                 `json:"regex"`
 }
 
 type CreateAppDTO struct {
@@ -809,7 +810,7 @@ type CiArtifactBean struct {
 	Scanned                       bool                      `json:"scanned,notnull"`
 	WfrId                         int                       `json:"wfrId"`
 	DeployedBy                    string                    `json:"deployedBy"`
-	CiConfigureSourceType         pipelineConfig.SourceType `json:"ciConfigureSourceType"`
+	CiConfigureSourceType         repository4.SourceType    `json:"ciConfigureSourceType"`
 	CiConfigureSourceValue        string                    `json:"ciConfigureSourceValue"`
 	ImageReleaseTags              []*repository2.ImageTag   `json:"imageReleaseTags"`
 	ImageComment                  *repository2.ImageComment `json:"imageComment"`

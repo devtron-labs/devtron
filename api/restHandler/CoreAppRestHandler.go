@@ -24,6 +24,8 @@ import (
 	app2 "github.com/devtron-labs/devtron/api/restHandler/app/pipeline/configure"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	appWorkflowBean "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
+	read2 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
+	repository3 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	pipelineBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
@@ -91,7 +93,7 @@ type CoreAppRestHandlerImpl struct {
 	appListingService       app.AppListingService
 	propertiesConfigService pipeline.PropertiesConfigService
 	appWorkflowService      appWorkflow.AppWorkflowService
-	materialRepository      pipelineConfig.MaterialRepository
+	gitMaterialReadService  read2.GitMaterialReadService
 	appWorkflowRepository   appWorkflow2.AppWorkflowRepository
 	environmentRepository   repository2.EnvironmentRepository
 	configMapRepository     chartConfig.ConfigMapRepository
@@ -106,11 +108,11 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 	enforcer casbin.Enforcer, appCrudOperationService app.AppCrudOperationService, pipelineBuilder pipeline.PipelineBuilder, gitRegistryService gitProvider.GitRegistryConfig,
 	chartService chart.ChartService, configMapService pipeline.ConfigMapService, appListingService app.AppListingService,
 	propertiesConfigService pipeline.PropertiesConfigService, appWorkflowService appWorkflow.AppWorkflowService,
-	materialRepository pipelineConfig.MaterialRepository,
 	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository repository2.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository,
 	chartRepo chartRepoRepository.ChartRepository, teamService team.TeamService,
 	argoUserService argo.ArgoUserService, pipelineStageService pipeline.PipelineStageService, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	gitProviderReadService read.GitProviderReadService) *CoreAppRestHandlerImpl {
+	gitProviderReadService read.GitProviderReadService,
+	gitMaterialReadService read2.GitMaterialReadService) *CoreAppRestHandlerImpl {
 	handler := &CoreAppRestHandlerImpl{
 		logger:                  logger,
 		userAuthService:         userAuthService,
@@ -126,7 +128,7 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 		appListingService:       appListingService,
 		propertiesConfigService: propertiesConfigService,
 		appWorkflowService:      appWorkflowService,
-		materialRepository:      materialRepository,
+		gitMaterialReadService:  gitMaterialReadService,
 		appWorkflowRepository:   appWorkflowRepository,
 		environmentRepository:   environmentRepository,
 		configMapRepository:     configMapRepository,
@@ -514,7 +516,7 @@ func (handler CoreAppRestHandlerImpl) buildDockerConfig(appId int) (*appBean.Doc
 	}
 
 	//getting gitMaterialUrl by id
-	gitMaterial, err := handler.materialRepository.FindById(ciConfig.CiBuildConfig.GitMaterialId)
+	gitMaterial, err := handler.gitMaterialReadService.FindById(ciConfig.CiBuildConfig.GitMaterialId)
 	if err != nil {
 		handler.logger.Errorw("error in fetching materialUrl by ID in GetAppAllDetail", "err", err, "gitMaterialId", ciConfig.CiBuildConfig.GitMaterialId)
 		return nil, err, http.StatusInternalServerError
@@ -730,7 +732,7 @@ func (handler CoreAppRestHandlerImpl) buildCiPipelineResp(appId int, ciPipeline 
 	//build ciPipelineMaterial resp
 	var ciPipelineMaterialsConfig []*appBean.CiPipelineMaterialConfig
 	for _, ciMaterial := range ciPipeline.CiMaterial {
-		gitMaterial, err := handler.materialRepository.FindById(ciMaterial.GitMaterialId)
+		gitMaterial, err := handler.gitMaterialReadService.FindById(ciMaterial.GitMaterialId)
 		if err != nil {
 			handler.logger.Errorw("service err, GitMaterialById in GetAppAllDetail", "err", err, "appId", appId)
 			return nil, err
@@ -1346,7 +1348,7 @@ func (handler CoreAppRestHandlerImpl) createDockerConfig(appId int, dockerConfig
 	}
 
 	//finding gitMaterial by appId and checkoutPath
-	gitMaterial, err := handler.materialRepository.FindByAppIdAndCheckoutPath(appId, dockerConfig.CheckoutPath)
+	gitMaterial, err := handler.gitMaterialReadService.FindByAppIdAndCheckoutPath(appId, dockerConfig.CheckoutPath)
 	if err != nil {
 		handler.logger.Errorw("service err, FindByAppIdAndCheckoutPath in CreateDockerConfig", "err", err, "appId", appId)
 		return err, http.StatusInternalServerError
@@ -1633,14 +1635,14 @@ func (handler CoreAppRestHandlerImpl) createCiPipeline(appId int, userId int32, 
 	// build ci pipeline materials starts
 	var ciMaterialsRequest []*bean.CiMaterial
 	for _, ciMaterial := range ciPipelineData.CiPipelineMaterialsConfig {
-		var gitMaterial *pipelineConfig.GitMaterial
+		var gitMaterial *repository3.GitMaterial
 		var err error
 		if ciPipelineData.ParentCiPipeline == 0 && ciPipelineData.ParentAppId == 0 {
 			//finding gitMaterial by appId and checkoutPath
-			gitMaterial, err = handler.materialRepository.FindByAppIdAndCheckoutPath(appId, ciMaterial.CheckoutPath)
+			gitMaterial, err = handler.gitMaterialReadService.FindByAppIdAndCheckoutPath(appId, ciMaterial.CheckoutPath)
 		} else {
 			//if linked CI find git material by it's parentAppId and Id
-			gitMaterial, err = handler.materialRepository.FindByAppIdAndGitMaterialId(ciPipelineData.ParentAppId, ciMaterial.GitMaterialId)
+			gitMaterial, err = handler.gitMaterialReadService.FindByAppIdAndGitMaterialId(ciPipelineData.ParentAppId, ciMaterial.GitMaterialId)
 		}
 		if err != nil {
 			handler.logger.Errorw("service err, FindByAppIdAndCheckoutPath in CreateWorkflows", "err", err, "appId", appId)
@@ -2172,7 +2174,7 @@ func (handler CoreAppRestHandlerImpl) ValidateAppWorkflowRequest(createAppWorkfl
 			ciMaterialCheckoutPaths := make([]string, 0)
 			for _, ciPipelineMaterialConfig := range workflow.CiPipeline.CiPipelineMaterialsConfig {
 				// value for webhook type CiPipelineMaterial should be a valid json string
-				if ciPipelineMaterialConfig.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK {
+				if ciPipelineMaterialConfig.Type == repository3.SOURCE_TYPE_WEBHOOK {
 					var jsonValueMap map[string]interface{}
 					err := json.Unmarshal([]byte(ciPipelineMaterialConfig.Value), &jsonValueMap)
 					if err != nil {
