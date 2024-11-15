@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
 	client "github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	repository3 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	ciConfig "github.com/devtron-labs/devtron/pkg/build/pipeline/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -54,7 +55,7 @@ type TelemetryEventClientImplExtended struct {
 	appListingRepository          repository.AppListingRepository
 	ciPipelineConfigReadService   ciConfig.CiPipelineConfigReadService
 	pipelineRepository            pipelineConfig.PipelineRepository
-	gitProviderRepository         repository.GitProviderRepository
+	gitProviderRepository         repository3.GitProviderRepository
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository
 	appRepository                 app.AppRepository
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
@@ -72,7 +73,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	environmentService cluster.EnvironmentService, userService user2.UserService,
 	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,
 	ciPipelineConfigReadService ciConfig.CiPipelineConfigReadService, pipelineRepository pipelineConfig.PipelineRepository,
-	gitProviderRepository repository.GitProviderRepository, attributeRepo repository.AttributesRepository,
+	gitProviderRepository repository3.GitProviderRepository, attributeRepo repository.AttributesRepository,
 	ssoLoginService sso.SSOLoginService, appRepository app.AppRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
