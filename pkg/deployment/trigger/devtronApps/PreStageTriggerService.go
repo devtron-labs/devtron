@@ -901,50 +901,61 @@ getBuildRegistryConfigForArtifact performs the following logic to get Pre/Post C
     We will always fetch the registry credentials from the ci_template_override table
 */
 func (impl *TriggerServiceImpl) getBuildRegistryConfigForArtifact(sourceCiPipeline *pipelineConfig.CiPipeline, artifact *repository.CiArtifact, appId int) (*types.DockerArtifactStoreBean, error) {
-	// Handling for Skopeo Plugin
-	if artifact.IsRegistryCredentialMapped() {
-		dockerArtifactStore, err := impl.dockerArtifactStoreRepository.FindOne(artifact.CredentialSourceValue)
-		if util.IsErrNoRows(err) {
-			impl.logger.Errorw("source artifact registry not found", "registryId", artifact.CredentialSourceValue, "err", err)
-			return nil, fmt.Errorf("source artifact registry '%s' not found", artifact.CredentialSourceValue)
-		} else if err != nil {
-			impl.logger.Errorw("error in fetching artifact info", "err", err)
-			return nil, err
-		}
-		return adapter.GetDockerConfigBean(dockerArtifactStore), nil
-	}
+	var buildRegistryConfig *types.DockerArtifactStoreBean
+	var err error
 
-	// Handling for CI Job
-	if adapter.IsCIJob(sourceCiPipeline) {
-		// for bean.CI_JOB the source artifact is always driven from overridden ci template
-		buildRegistryConfig, err := impl.ciTemplateService.GetAppliedDockerConfigForCiPipeline(sourceCiPipeline.Id, sourceCiPipeline.AppId, true)
+	if sourceCiPipeline != nil && sourceCiPipeline.Id != 0 {
+		// Handling for Skopeo Plugin
+		if artifact.IsRegistryCredentialMapped() {
+			dockerArtifactStore, err := impl.dockerArtifactStoreRepository.FindOne(artifact.CredentialSourceValue)
+			if util.IsErrNoRows(err) {
+				impl.logger.Errorw("source artifact registry not found", "registryId", artifact.CredentialSourceValue, "err", err)
+				return nil, fmt.Errorf("source artifact registry '%s' not found", artifact.CredentialSourceValue)
+			} else if err != nil {
+				impl.logger.Errorw("error in fetching artifact info", "err", err)
+				return nil, err
+			}
+			return adapter.GetDockerConfigBean(dockerArtifactStore), nil
+		}
+
+		// Handling for CI Job
+		if adapter.IsCIJob(sourceCiPipeline) {
+			// for bean.CI_JOB the source artifact is always driven from overridden ci template
+			buildRegistryConfig, err = impl.ciTemplateService.GetAppliedDockerConfigForCiPipeline(sourceCiPipeline.Id, sourceCiPipeline.AppId, true)
+			if err != nil {
+				impl.logger.Errorw("error in getting build configurations", "err", err)
+				return nil, fmt.Errorf("error in getting build configurations")
+			}
+			return buildRegistryConfig, nil
+		}
+
+		// Handling for Linked CI
+		if adapter.IsLinkedCI(sourceCiPipeline) {
+			parentCiPipeline, err := impl.ciPipelineRepository.FindById(sourceCiPipeline.ParentCiPipeline)
+			if err != nil {
+				impl.logger.Errorw("error in finding ciPipeline", "ciPipelineId", sourceCiPipeline.ParentCiPipeline, "err", err)
+				return nil, err
+			}
+			buildRegistryConfig, err = impl.ciTemplateService.GetAppliedDockerConfigForCiPipeline(parentCiPipeline.Id, parentCiPipeline.AppId, parentCiPipeline.IsDockerConfigOverridden)
+			if err != nil {
+				impl.logger.Errorw("error in getting build configurations", "err", err)
+				return nil, fmt.Errorf("error in getting build configurations")
+			}
+			return buildRegistryConfig, nil
+		}
+
+		// Handling for Build CI
+		buildRegistryConfig, err = impl.ciTemplateService.GetAppliedDockerConfigForCiPipeline(sourceCiPipeline.Id, sourceCiPipeline.AppId, sourceCiPipeline.IsDockerConfigOverridden)
 		if err != nil {
 			impl.logger.Errorw("error in getting build configurations", "err", err)
 			return nil, fmt.Errorf("error in getting build configurations")
 		}
-		return buildRegistryConfig, nil
-	}
-
-	// Handling for Linked CI
-	if adapter.IsLinkedCI(sourceCiPipeline) {
-		parentCiPipeline, err := impl.ciPipelineRepository.FindById(sourceCiPipeline.ParentCiPipeline)
+	} else {
+		buildRegistryConfig, err = impl.getPreStageBuildRegistryConfigIfSourcePipelineNotPresent(appId)
 		if err != nil {
-			impl.logger.Errorw("error in finding ciPipeline", "ciPipelineId", sourceCiPipeline.ParentCiPipeline, "err", err)
+			impl.logger.Errorw("error in getting build configuration", "err", err)
 			return nil, err
 		}
-		buildRegistryConfig, err := impl.ciTemplateService.GetAppliedDockerConfigForCiPipeline(parentCiPipeline.Id, parentCiPipeline.AppId, parentCiPipeline.IsDockerConfigOverridden)
-		if err != nil {
-			impl.logger.Errorw("error in getting build configurations", "err", err)
-			return nil, fmt.Errorf("error in getting build configurations")
-		}
-		return buildRegistryConfig, nil
-	}
-
-	// Handling for Build CI
-	buildRegistryConfig, err := impl.ciTemplateService.GetAppliedDockerConfigForCiPipeline(sourceCiPipeline.Id, sourceCiPipeline.AppId, sourceCiPipeline.IsDockerConfigOverridden)
-	if err != nil {
-		impl.logger.Errorw("error in getting build configurations", "err", err)
-		return nil, fmt.Errorf("error in getting build configurations")
 	}
 	return buildRegistryConfig, nil
 }
