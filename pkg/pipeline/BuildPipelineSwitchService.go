@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline/read"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
@@ -49,6 +50,7 @@ type BuildPipelineSwitchService interface {
 
 type BuildPipelineSwitchServiceImpl struct {
 	logger                       *zap.SugaredLogger
+	ciPipelineConfigReadService  read.CiPipelineConfigReadService
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
 	ciCdPipelineOrchestrator     CiCdPipelineOrchestrator
 	pipelineRepository           pipelineConfig.PipelineRepository
@@ -60,6 +62,7 @@ type BuildPipelineSwitchServiceImpl struct {
 }
 
 func NewBuildPipelineSwitchServiceImpl(logger *zap.SugaredLogger,
+	ciPipelineConfigReadService read.CiPipelineConfigReadService,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
 	pipelineRepository pipelineConfig.PipelineRepository,
@@ -70,6 +73,7 @@ func NewBuildPipelineSwitchServiceImpl(logger *zap.SugaredLogger,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *BuildPipelineSwitchServiceImpl {
 	return &BuildPipelineSwitchServiceImpl{
 		logger:                       logger,
+		ciPipelineConfigReadService:  ciPipelineConfigReadService,
 		ciPipelineRepository:         ciPipelineRepository,
 		ciCdPipelineOrchestrator:     ciCdPipelineOrchestrator,
 		pipelineRepository:           pipelineRepository,
@@ -355,7 +359,7 @@ func (impl *BuildPipelineSwitchServiceImpl) updateLinkedAppWorkflowMappings(tx *
 func (impl *BuildPipelineSwitchServiceImpl) validateSwitchPreConditions(switchFromCiPipelineId int) error {
 
 	// old ci_pipeline should not contain any linked ci_pipelines.
-	linkedCiPipelines, err := impl.ciPipelineRepository.FindLinkedCiCount(switchFromCiPipelineId)
+	linkedCiPipelines, err := impl.ciPipelineConfigReadService.FindLinkedCiCount(switchFromCiPipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in finding the linkedCi count for the pipeline", "ciPipelineId", switchFromCiPipelineId, "err", err)
 		return err

@@ -203,7 +203,7 @@ func InitializeApp() (*App, error) {
 		apiToken.ApiTokenWireSet,
 		webhookHelm.WebhookHelmWireSet,
 		terminal.TerminalWireSet,
-		build.BuildWireSet,
+		build.WireSet,
 		deployment2.DeploymentWireSet,
 		argoApplication.ArgoApplicationWireSetFull,
 		fluxApplication.FluxApplicationWireSet,
