@@ -81,10 +81,31 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*b
 		return nil, nil
 	}
 	request.RunStageInEnvNamespace = namespace
+
+	filterEvaluationAudit, err := impl.checkFeasibilityForPreStage(pipeline, &request, env, artifact, triggeredBy)
+	if err != nil {
+		impl.logger.Errorw("error, checkFeasibilityForPreStage", "err", err, "pipeline", pipeline)
+		return nil, nil
+	}
+
 	cdWf, runner, err := impl.createStartingWfAndRunner(request, triggeredAt)
 	if err != nil {
 		impl.logger.Errorw("error in creating wf starting and runner entry", "err", err, "request", request)
 		return nil, err
+	}
+
+	// setting triggered as same from runner started on (done for release as cd workflow runners are already created) will be same for other flows as runner are created with time.Now()
+	triggeredAt = runner.StartedOn
+
+	impl.createAuditDataForDeploymentWindowBypass(request, runner.Id)
+
+	if filterEvaluationAudit != nil {
+		// update resource_filter_evaluation entry with wfrId and type
+		err = impl.resourceFilterService.UpdateFilterEvaluationAuditRef(filterEvaluationAudit.Id, resourceFilter.CdWorkflowRunner, runner.Id)
+		if err != nil {
+			impl.logger.Errorw("error in updating filter evaluation audit reference", "filterEvaluationAuditId", filterEvaluationAudit.Id, "err", err)
+			return nil, err
+		}
 	}
 
 	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(pipeline.AppId, pipeline.EnvironmentId)
@@ -132,6 +153,15 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*b
 	cdStageWorkflowRequest.Type = pipelineConfigBean.CD_WORKFLOW_PIPELINE_TYPE
 	_, err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
 	span.End()
+	if err != nil {
+		return nil, err
+	}
+	manifestPushTemplate, err := impl.getManifestPushTemplateForPreStage(envDeploymentConfig, pipeline, artifact, jobHelmPackagePath, cdWf, runner, triggeredBy, triggeredAt, request)
+	if err != nil {
+		impl.logger.Errorw("error in getting manifest push template", "err", err)
+		return nil, err
+	}
+
 	err = impl.sendPreStageNotification(ctx, cdWf, pipeline)
 	if err != nil {
 		return nil, err
@@ -144,7 +174,7 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*b
 		impl.logger.Errorw("error in creating pre cd script entry", "err", err, "pipeline", pipeline)
 		return nil, err
 	}
-	return nil, nil
+	return manifestPushTemplate, nil
 }
 
 func (impl *TriggerServiceImpl) TriggerAutoCDOnPreStageSuccess(triggerContext bean.TriggerContext, cdPipelineId, ciArtifactId, workflowId int, triggerdBy int32, scanExecutionHistoryId int) error {
@@ -485,7 +515,11 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 					AuthMode:      gitMaterial.GitProvider.AuthMode,
 				},
 			}
-
+			cloningModeErr := impl.setCloningModeInCIProjectDetail(&ciProjectDetail, ciPipeline.AppId, m)
+			if cloningModeErr != nil {
+				impl.logger.Errorw("could not fetch feature flag value", "err", cloningModeErr)
+				return nil, cloningModeErr
+			}
 			if len(ciMaterialCurrent.Modifications) > 0 {
 				ciProjectDetail.CommitHash = ciMaterialCurrent.Modifications[0].Revision
 				ciProjectDetail.Author = ciMaterialCurrent.Modifications[0].Author
