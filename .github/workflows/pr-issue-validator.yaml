@@ -178,6 +178,8 @@ jobs:
         
         # Specify the directory containing migration files
         MIGRATION_DIR="scripts/sql"
+        ls
+        pwd
         
         # Print changed files
         echo "Changed files:"
