@@ -20,6 +20,7 @@ import (
 	"context"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/constants"
+	constants2 "github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/bean"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
@@ -201,7 +202,7 @@ func (impl GitRegistryConfigImpl) Update(request *bean2.GitRegistry) (*bean2.Git
 		AuditLog:              sql.AuditLog{CreatedBy: existingProvider.CreatedBy, CreatedOn: existingProvider.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
 
-	if request.AuthMode != repository.AUTH_MODE_USERNAME_PASSWORD {
+	if request.AuthMode != constants2.AUTH_MODE_USERNAME_PASSWORD {
 		provider.Password = ""
 		provider.TlsCert = ""
 		provider.TlsKey = ""
@@ -324,8 +325,8 @@ func (impl GitRegistryConfigImpl) UpdateGitSensor(provider *repository.GitProvid
 }
 
 // Modifying Ssh Private Key because Ssh key authentication requires a new-line at the end of string & there are chances that user skips sending \n
-func ModifySshPrivateKey(sshPrivateKey string, authMode repository.AuthMode) string {
-	if authMode == repository.AUTH_MODE_SSH {
+func ModifySshPrivateKey(sshPrivateKey string, authMode constants2.AuthMode) string {
+	if authMode == constants2.AUTH_MODE_SSH {
 		if !strings.HasSuffix(sshPrivateKey, "\n") {
 			sshPrivateKey += "\n"
 		}

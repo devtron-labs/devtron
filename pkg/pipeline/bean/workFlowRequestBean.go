@@ -17,9 +17,9 @@
 package bean
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
-	repository2 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 )
 
 type VariableType string
@@ -126,15 +126,15 @@ type CiProjectDetails struct {
 	WebhookData pipelineConfig.WebhookData
 }
 type GitOptions struct {
-	UserName              string               `json:"userName"`
-	Password              string               `json:"password"`
-	SshPrivateKey         string               `json:"sshPrivateKey"`
-	AccessToken           string               `json:"accessToken"`
-	AuthMode              repository2.AuthMode `json:"authMode"`
-	TlsKey                string               `json:"tlsKey"`
-	TlsCert               string               `json:"tlsCert"`
-	CaCert                string               `json:"caCert"`
-	EnableTLSVerification bool                 `json:"enableTLSVerification"`
+	UserName              string             `json:"userName"`
+	Password              string             `json:"password"`
+	SshPrivateKey         string             `json:"sshPrivateKey"`
+	AccessToken           string             `json:"accessToken"`
+	AuthMode              constants.AuthMode `json:"authMode"`
+	TlsKey                string             `json:"tlsKey"`
+	TlsCert               string             `json:"tlsCert"`
+	CaCert                string             `json:"caCert"`
+	EnableTLSVerification bool               `json:"enableTLSVerification"`
 }
 
 type NodeConstraints struct {

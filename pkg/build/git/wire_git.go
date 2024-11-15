@@ -9,7 +9,7 @@ import (
 	"github.com/google/wire"
 )
 
-var GitWireSet = wire.NewSet(
+var WireSet = wire.NewSet(
 	gitProvider.GitProviderWireSet,
 	gitHost.GitHostWireSet,
 	gitMaterial.GitMaterialWireSet,

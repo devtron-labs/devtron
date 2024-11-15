@@ -11,3 +11,7 @@ type GitHostRequest struct {
 	SecretValidator string `json:"secretValidator"`
 	UserId          int32  `json:"-"`
 }
+
+const (
+	HostUrlPlaceHolder = "{HOST_URL_PLACEHOLDER}"
+)

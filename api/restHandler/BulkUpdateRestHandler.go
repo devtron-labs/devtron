@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
 	"net/http"
 	"strconv"
@@ -83,7 +82,6 @@ type BulkUpdateRestHandlerImpl struct {
 	dockerRegistryConfig    pipeline.DockerRegistryConfig
 	cdHandelr               pipeline.CdHandler
 	appCloneService         appClone.AppCloneService
-	materialRepository      repository.MaterialRepository
 	policyService           security2.PolicyService
 	scanResultRepository    security.ImageScanResultRepository
 	argoUserService         argo.ArgoUserService
@@ -105,8 +103,7 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 	gitRegistryConfig gitProvider.GitRegistryConfig, dockerRegistryConfig pipeline.DockerRegistryConfig,
 	cdHandelr pipeline.CdHandler,
 	appCloneService appClone.AppCloneService,
-	appWorkflowService appWorkflow.AppWorkflowService,
-	materialRepository repository.MaterialRepository, policyService security2.PolicyService,
+	appWorkflowService appWorkflow.AppWorkflowService, policyService security2.PolicyService,
 	scanResultRepository security.ImageScanResultRepository,
 	argoUserService argo.ArgoUserService) *BulkUpdateRestHandlerImpl {
 	return &BulkUpdateRestHandlerImpl{
@@ -131,7 +128,6 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 		cdHandelr:               cdHandelr,
 		appCloneService:         appCloneService,
 		appWorkflowService:      appWorkflowService,
-		materialRepository:      materialRepository,
 		policyService:           policyService,
 		scanResultRepository:    scanResultRepository,
 		argoUserService:         argoUserService,

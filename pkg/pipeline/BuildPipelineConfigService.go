@@ -30,10 +30,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
+	read2 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
 	repository3 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline/read"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -63,13 +64,13 @@ type CiPipelineConfigService interface {
 	GetCiPipelineById(pipelineId int) (ciPipeline *bean.CiPipeline, err error)
 	//GetTriggerViewCiPipeline : retrieves a detailed view of the CI pipelines configured for a specific application (appId).
 	// It includes information on CI pipeline materials, scripts, configurations, and linked pipelines.
-	//If any errors occur ,It returns an error along with a nil result(bean.TriggerViewCiConfig).
+	// If any errors occur ,It returns an error along with a nil result(bean.TriggerViewCiConfig).
 	GetTriggerViewCiPipeline(appId int) (*bean.TriggerViewCiConfig, error)
-	//GetExternalCi : Lists externalCi for given appId
-	//"external CI" refers to CI pipelines and configurations that are managed externally,
-	//like by third-party services or tools.
-	//It fetches information about external CI pipelines, their webhooks, payload configurations, and related roles.
-	//The function constructs an array of ExternalCiConfig objects and returns it.
+	// GetExternalCi : Lists externalCi for given appId
+	// "external CI" refers to CI pipelines and configurations that are managed externally,
+	// like by third-party services or tools.
+	// It fetches information about external CI pipelines, their webhooks, payload configurations, and related roles.
+	// The function constructs an array of ExternalCiConfig objects and returns it.
 	// If any errors occur, the function returns an error along with a nil result([]*bean.ExternalCiConfig).
 	GetExternalCi(appId int) (ciConfig []*bean.ExternalCiConfig, err error)
 	//GetExternalCiById : Retrieve externalCi for given appId and externalCiId.
@@ -118,7 +119,8 @@ type CiPipelineConfigServiceImpl struct {
 	logger                        *zap.SugaredLogger
 	ciTemplateService             CiTemplateService
 	ciTemplateReadService         pipeline.CiTemplateReadService
-	gitMaterialReadService        read.GitMaterialReadService
+	gitMaterialReadService        read2.GitMaterialReadService
+	ciPipelineConfigReadService   read.CiPipelineConfigReadService
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	ciConfig                      *types.CiCdConfig
 	attributesService             attributes.AttributesService
@@ -146,9 +148,10 @@ type CiPipelineConfigServiceImpl struct {
 func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
-	gitMaterialReadService read.GitMaterialReadService,
+	gitMaterialReadService read2.GitMaterialReadService,
 	pipelineGroupRepo app2.AppRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
+	ciPipelineConfigReadService read.CiPipelineConfigReadService,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	ecrConfig *EcrConfig,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
@@ -180,6 +183,7 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 		gitMaterialReadService:        gitMaterialReadService,
 		appRepo:                       pipelineGroupRepo,
 		pipelineRepository:            pipelineRepository,
+		ciPipelineConfigReadService:   ciPipelineConfigReadService,
 		ciPipelineRepository:          ciPipelineRepository,
 		ecrConfig:                     ecrConfig,
 		appWorkflowRepository:         appWorkflowRepository,
@@ -1678,7 +1682,6 @@ func (impl *CiPipelineConfigServiceImpl) GetCiPipelineByEnvironment(request reso
 	}
 
 	var externalCiConfig bean.ExternalCiConfig
-	//var parentCiPipelineIds []int
 	for appId, ciPipelinesConfigByApp := range ciPipelinesConfigMap {
 		var ciPipelineResp []*bean.CiPipeline
 
@@ -2013,8 +2016,8 @@ func (impl *CiPipelineConfigServiceImpl) DeleteCiPipeline(request *bean.CiPatchR
 	ciPipelineId := request.CiPipeline.Id
 
 	// check for linked ci's before deleting the ci pipeline
-	count, err := impl.ciPipelineRepository.FindByLinkedCiCount(ciPipelineId)
-	if err != nil && err != pg.ErrNoRows {
+	count, err := impl.ciPipelineConfigReadService.GetChildrenCiCount(ciPipelineId)
+	if err != nil {
 		impl.logger.Errorw("error in checking for any linked ci before deleting the ci pipeline", "ciPipelineId", ciPipelineId, "err", err)
 		return nil, err
 	}

@@ -22,12 +22,13 @@ import (
 	"errors"
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/api/restHandler/app/pipeline/configure"
-	read2 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
-	repository3 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
+	appWorkflowBean "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
-	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
-	bean3 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	pipelineBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	read2 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
+	repository3 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"net/http"
 	"strconv"
 	"strings"
@@ -202,7 +203,7 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 
 	//get/build app workflows starts
 	//using empty workflow name because it is optional, if not provided then workflows will be fetched on the basis of app
-	wfCloneRequest := &appWorkflow.WorkflowCloneRequest{AppId: appId}
+	wfCloneRequest := &appWorkflowBean.WorkflowCloneRequest{AppId: appId}
 	appWorkflows, err, statusCode := handler.buildAppWorkflows(wfCloneRequest)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
@@ -631,9 +632,9 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentDeploymentTemplate(appI
 }
 
 // validate and build workflows
-func (handler CoreAppRestHandlerImpl) buildAppWorkflows(request *appWorkflow.WorkflowCloneRequest) ([]*appBean.AppWorkflow, error, int) {
+func (handler CoreAppRestHandlerImpl) buildAppWorkflows(request *appWorkflowBean.WorkflowCloneRequest) ([]*appBean.AppWorkflow, error, int) {
 	handler.logger.Debugw("Getting app detail - workflows", "appId", request.AppId)
-	var workflowsList []appWorkflow.AppWorkflowDto
+	var workflowsList []appWorkflowBean.AppWorkflowDto
 	var err error
 	if len(request.WorkflowName) != 0 {
 		workflow, err := handler.appWorkflowService.FindAppWorkflowByName(request.WorkflowName, request.AppId)
@@ -641,14 +642,14 @@ func (handler CoreAppRestHandlerImpl) buildAppWorkflows(request *appWorkflow.Wor
 			handler.logger.Errorw("error in fetching workflow by name", "err", err, "workflowName", request.WorkflowName, "appId", request.AppId)
 			return nil, err, http.StatusInternalServerError
 		}
-		workflowsList = []appWorkflow.AppWorkflowDto{workflow}
+		workflowsList = []appWorkflowBean.AppWorkflowDto{workflow}
 	} else if request.WorkflowId > 0 {
 		workflow, err := handler.appWorkflowService.FindAppWorkflowById(request.WorkflowId, request.AppId)
 		if err != nil {
 			handler.logger.Errorw("error in fetching workflow by id", "err", err, "workflowName", request.WorkflowName, "appId", request.AppId)
 			return nil, err, http.StatusInternalServerError
 		}
-		workflowsList = []appWorkflow.AppWorkflowDto{workflow}
+		workflowsList = []appWorkflowBean.AppWorkflowDto{workflow}
 	} else {
 		workflowsList, err = handler.appWorkflowService.FindAppWorkflows(request.AppId)
 		if err != nil {
@@ -1291,7 +1292,7 @@ func (handler CoreAppRestHandlerImpl) createGitMaterials(appId int, gitMaterials
 		//validating git material by git provider auth mode
 		var hasPrefixResult bool
 		var expectedUrlPrefix string
-		if gitProvider.AuthMode == repository.AUTH_MODE_SSH {
+		if gitProvider.AuthMode == constants.AUTH_MODE_SSH {
 			hasPrefixResult = strings.HasPrefix(material.GitRepoUrl, app2.SSH_URL_PREFIX)
 			expectedUrlPrefix = app2.SSH_URL_PREFIX
 		} else {
@@ -1328,9 +1329,9 @@ func (handler CoreAppRestHandlerImpl) createDockerConfig(appId int, dockerConfig
 	dockerBuildConfig := dockerConfig.DockerBuildConfig
 	if dockerBuildConfig != nil {
 		dockerConfig.CheckoutPath = dockerBuildConfig.GitCheckoutPath
-		dockerConfig.CiBuildConfig = &bean3.CiBuildConfigBean{
-			CiBuildType: bean3.SELF_DOCKERFILE_BUILD_TYPE,
-			DockerBuildConfig: &bean3.DockerBuildConfig{
+		dockerConfig.CiBuildConfig = &pipelineBean.CiBuildConfigBean{
+			CiBuildType: pipelineBean.SELF_DOCKERFILE_BUILD_TYPE,
+			DockerBuildConfig: &pipelineBean.DockerBuildConfig{
 				DockerfilePath:     dockerBuildConfig.DockerfileRelativePath,
 				DockerBuildOptions: dockerBuildConfig.DockerBuildOptions,
 				Args:               dockerBuildConfig.Args,
@@ -1551,7 +1552,7 @@ func (handler CoreAppRestHandlerImpl) createWorkflows(ctx context.Context, appId
 		//Creating CI pipeline starts
 		ciPipeline, err := handler.createCiPipeline(appId, userId, workflowId, workflow.CiPipeline)
 		if err != nil {
-			if err.Error() == bean3.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
+			if err.Error() == pipelineBean.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
 				handler.logger.Errorw("service err, DeleteAppWorkflow ", "err", err)
 				return err, http.StatusBadRequest
 			}
@@ -1688,7 +1689,7 @@ func (handler CoreAppRestHandlerImpl) createCiPipeline(appId int, userId int32, 
 			ParentCiPipeline:         ciPipelineData.ParentCiPipeline,
 			ParentAppId:              ciPipelineData.ParentAppId,
 			LinkedCount:              ciPipelineData.LinkedCount,
-			PipelineType:             bean3.PipelineType(ciPipelineData.PipelineType),
+			PipelineType:             pipelineBean.PipelineType(ciPipelineData.PipelineType),
 		},
 	}
 
@@ -2335,7 +2336,7 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflow(w http.ResponseWriter, r *h
 
 	//get/build app workflows starts
 	//using empty workflow name because it is optional, if not provided then workflows will be fetched on the basis of app
-	wfCloneRequest := &appWorkflow.WorkflowCloneRequest{AppId: appId}
+	wfCloneRequest := &appWorkflowBean.WorkflowCloneRequest{AppId: appId}
 	appWorkflows, err, statusCode := handler.buildAppWorkflows(wfCloneRequest)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
@@ -2383,7 +2384,7 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	wfCloneRequest := &appWorkflow.WorkflowCloneRequest{AppId: appId}
+	wfCloneRequest := &appWorkflowBean.WorkflowCloneRequest{AppId: appId}
 	workflowName := r.URL.Query().Get("workflowName")
 	wfCloneRequest.WorkflowName = workflowName
 	environmentIdStr := r.URL.Query().Get("environmentId")

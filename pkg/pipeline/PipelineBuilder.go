@@ -19,8 +19,8 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
-	repository2 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 	"net/url"
 	"strings"
 	"time"
@@ -147,25 +147,25 @@ func (impl *PipelineBuilderImpl) getGitMaterialsForApp(appId int) ([]*bean.GitMa
 
 	for _, material := range materials {
 		gitUrl := material.Url
-		if material.GitProvider.AuthMode == repository2.AUTH_MODE_USERNAME_PASSWORD ||
-			material.GitProvider.AuthMode == repository2.AUTH_MODE_ACCESS_TOKEN {
+		if material.GitProvider.AuthMode == constants.AUTH_MODE_USERNAME_PASSWORD ||
+			material.GitProvider.AuthMode == constants.AUTH_MODE_ACCESS_TOKEN {
 			u, err := url.Parse(gitUrl)
 			if err != nil {
 				return nil, err
 			}
 			var password string
 			userName := material.GitProvider.UserName
-			if material.GitProvider.AuthMode == repository2.AUTH_MODE_USERNAME_PASSWORD {
+			if material.GitProvider.AuthMode == constants.AUTH_MODE_USERNAME_PASSWORD {
 				password = material.GitProvider.Password
 
-			} else if material.GitProvider.AuthMode == repository2.AUTH_MODE_ACCESS_TOKEN {
+			} else if material.GitProvider.AuthMode == constants.AUTH_MODE_ACCESS_TOKEN {
 				password = material.GitProvider.AccessToken
 				if userName == "" {
 					userName = "devtron-boat"
 				}
 			}
 			if userName == "" || password == "" {
-				return nil, util.ApiError{}.ErrorfUser("invalid git credentials config")
+				return nil, util.NewApiError().ErrorfUser("invalid git credentials config")
 			}
 			u.User = url.UserPassword(userName, password)
 			gitUrl = u.String()

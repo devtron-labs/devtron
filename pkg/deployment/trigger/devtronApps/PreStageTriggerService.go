@@ -522,8 +522,8 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	var preDeploySteps []*pipelineConfigBean.StepObject
 	var postDeploySteps []*pipelineConfigBean.StepObject
 	var refPluginsData []*pipelineConfigBean.RefPluginObject
-	//if pipeline_stage_steps present for pre-CD or post-CD then no need to add stageYaml to cdWorkflowRequest in that
-	//case add PreDeploySteps and PostDeploySteps to cdWorkflowRequest, this is done for backward compatibility
+	// if pipeline_stage_steps present for pre-CD or post-CD then no need to add stageYaml to cdWorkflowRequest in that
+	// case add PreDeploySteps and PostDeploySteps to cdWorkflowRequest, this is done for backward compatibility
 	pipelineStage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(cdPipeline.Id, runner.WorkflowType.WorkflowTypeToStageType())
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching CD pipeline stage", "cdPipelineId", cdPipeline.Id, "stage ", runner.WorkflowType.WorkflowTypeToStageType(), "err", err)

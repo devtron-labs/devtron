@@ -18,7 +18,7 @@ package chartRepo
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"testing"
 
 	"github.com/devtron-labs/devtron/internal/util"
@@ -109,7 +109,7 @@ func TestUpdateRepository_NewRepository(t *testing.T) {
 	req := &ChartRepoDto{
 		Name:     "myrepo2",
 		Url:      "https://github.com/devtron/myrepo2/",
-		AuthMode: repository.AUTH_MODE_USERNAME_PASSWORD,
+		AuthMode: constants.AUTH_MODE_USERNAME_PASSWORD,
 		UserName: "myuser",
 		Password: "mypass",
 	}
@@ -140,7 +140,7 @@ func TestUpdateRepository_ExistingRepository(t *testing.T) {
 	req := &ChartRepoDto{
 		Name:     "myrepo",
 		Url:      "https://github.com/devtron/myrepo2/",
-		AuthMode: repository.AUTH_MODE_USERNAME_PASSWORD,
+		AuthMode: constants.AUTH_MODE_USERNAME_PASSWORD,
 		UserName: "myuser2",
 		Password: "mypass2",
 	}

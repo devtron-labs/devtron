@@ -1,7 +1,7 @@
 package read
 
 import (
-	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/adapter"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/bean"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 	"go.uber.org/zap"
@@ -37,22 +37,7 @@ func (impl *GitProviderReadServiceImpl) GetAll() ([]bean2.GitRegistry, error) {
 	}
 	var gitProviders []bean2.GitRegistry
 	for _, provider := range providers {
-		providerRes := bean2.GitRegistry{
-			Id:                    provider.Id,
-			Name:                  provider.Name,
-			Url:                   provider.Url,
-			GitHostId:             provider.GitHostId,
-			AuthMode:              provider.AuthMode,
-			EnableTLSVerification: provider.EnableTLSVerification,
-			TLSConfig: bean.TLSConfig{
-				CaData:      "",
-				TLSCertData: "",
-				TLSKeyData:  "",
-			},
-			IsCADataPresent:      len(provider.CaCert) > 0,
-			IsTLSKeyDataPresent:  len(provider.TlsKey) > 0,
-			IsTLSCertDataPresent: len(provider.TlsCert) > 0,
-		}
+		providerRes := adapter.ConvertGitRegistryDtoToBean(provider, false)
 		gitProviders = append(gitProviders, providerRes)
 	}
 	return gitProviders, err
@@ -67,28 +52,7 @@ func (impl *GitProviderReadServiceImpl) FetchAllGitProviders() ([]bean2.GitRegis
 	}
 	var gitProviders []bean2.GitRegistry
 	for _, provider := range providers {
-		providerRes := bean2.GitRegistry{
-			Id:                    provider.Id,
-			Name:                  provider.Name,
-			Url:                   provider.Url,
-			UserName:              provider.UserName,
-			Password:              "",
-			AuthMode:              provider.AuthMode,
-			AccessToken:           "",
-			SshPrivateKey:         "",
-			Active:                provider.Active,
-			UserId:                provider.CreatedBy,
-			GitHostId:             provider.GitHostId,
-			EnableTLSVerification: provider.EnableTLSVerification,
-			TLSConfig: bean.TLSConfig{
-				CaData:      "",
-				TLSCertData: "",
-				TLSKeyData:  "",
-			},
-			IsCADataPresent:      len(provider.CaCert) > 0,
-			IsTLSKeyDataPresent:  len(provider.TlsKey) > 0,
-			IsTLSCertDataPresent: len(provider.TlsCert) > 0,
-		}
+		providerRes := adapter.ConvertGitRegistryDtoToBean(provider, false)
 		gitProviders = append(gitProviders, providerRes)
 	}
 	return gitProviders, err
@@ -102,30 +66,8 @@ func (impl *GitProviderReadServiceImpl) FetchOneGitProvider(providerId string) (
 		return nil, err
 	}
 
-	providerRes := &bean2.GitRegistry{
-		Id:                    provider.Id,
-		Name:                  provider.Name,
-		Url:                   provider.Url,
-		UserName:              provider.UserName,
-		Password:              provider.Password,
-		AuthMode:              provider.AuthMode,
-		AccessToken:           provider.AccessToken,
-		SshPrivateKey:         provider.SshPrivateKey,
-		Active:                provider.Active,
-		UserId:                provider.CreatedBy,
-		GitHostId:             provider.GitHostId,
-		EnableTLSVerification: provider.EnableTLSVerification,
-		TLSConfig: bean.TLSConfig{
-			CaData:      "",
-			TLSCertData: "",
-			TLSKeyData:  "",
-		},
-		IsCADataPresent:      len(provider.CaCert) > 0,
-		IsTLSKeyDataPresent:  len(provider.TlsKey) > 0,
-		IsTLSCertDataPresent: len(provider.TlsCert) > 0,
-	}
-
-	return providerRes, err
+	providerRes := adapter.ConvertGitRegistryDtoToBean(provider, true)
+	return &providerRes, err
 }
 func (impl *GitProviderReadServiceImpl) FindByUrl(url string) (*bean2.GitRegistry, error) {
 	provider, err := impl.gitProviderRepository.FindByUrl(url)
@@ -133,27 +75,6 @@ func (impl *GitProviderReadServiceImpl) FindByUrl(url string) (*bean2.GitRegistr
 		impl.logger.Errorw("error in FindByUrl", "url", url, "err", err)
 		return nil, err
 	}
-	gitRegistryBean := &bean2.GitRegistry{
-		Id:                    provider.Id,
-		Name:                  provider.Name,
-		Url:                   provider.Url,
-		UserName:              provider.UserName,
-		Password:              provider.Password,
-		AuthMode:              provider.AuthMode,
-		AccessToken:           provider.AccessToken,
-		SshPrivateKey:         provider.SshPrivateKey,
-		Active:                provider.Active,
-		UserId:                provider.CreatedBy,
-		GitHostId:             provider.GitHostId,
-		EnableTLSVerification: provider.EnableTLSVerification,
-		TLSConfig: bean.TLSConfig{
-			CaData:      "",
-			TLSCertData: "",
-			TLSKeyData:  "",
-		},
-		IsCADataPresent:      len(provider.CaCert) > 0,
-		IsTLSKeyDataPresent:  len(provider.TlsKey) > 0,
-		IsTLSCertDataPresent: len(provider.TlsCert) > 0,
-	}
-	return gitRegistryBean, nil
+	gitRegistryBean := adapter.ConvertGitRegistryDtoToBean(provider, true)
+	return &gitRegistryBean, nil
 }
