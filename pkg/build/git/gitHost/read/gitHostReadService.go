@@ -90,7 +90,7 @@ func (impl *GitHostReadServiceImpl) processAndReturnGitHost(host repository.GitH
 
 	var webhookUrlPrepend string
 	if orchestratorHost == nil || len(orchestratorHost.Value) == 0 {
-		webhookUrlPrepend = "{HOST_URL_PLACEHOLDER}"
+		webhookUrlPrepend = bean2.HostUrlPlaceHolder
 	} else {
 		webhookUrlPrepend = orchestratorHost.Value
 	}
