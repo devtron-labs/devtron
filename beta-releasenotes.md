@@ -4,6 +4,7 @@
 - feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
+- misc: Update pr-issue-validator.yaml (#6086)
 - chore: refactoring mandatory plugin v2 (#6056)
 - misc: Sql query fixes (#6097)
 - misc: Kubecon 2024 oss sync (#6094)
