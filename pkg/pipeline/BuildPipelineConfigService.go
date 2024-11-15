@@ -32,6 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline/read"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -117,6 +118,7 @@ type CiPipelineConfigServiceImpl struct {
 	ciTemplateService             CiTemplateService
 	ciTemplateReadService         pipeline.CiTemplateReadService
 	materialRepo                  pipelineConfig.MaterialRepository
+	ciPipelineConfigReadService   read.CiPipelineConfigReadService
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	ciConfig                      *types.CiCdConfig
 	attributesService             attributes.AttributesService
@@ -147,6 +149,7 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 	materialRepo pipelineConfig.MaterialRepository,
 	pipelineGroupRepo app2.AppRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
+	ciPipelineConfigReadService read.CiPipelineConfigReadService,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	ecrConfig *EcrConfig,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
@@ -178,6 +181,7 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 		materialRepo:                  materialRepo,
 		appRepo:                       pipelineGroupRepo,
 		pipelineRepository:            pipelineRepository,
+		ciPipelineConfigReadService:   ciPipelineConfigReadService,
 		ciPipelineRepository:          ciPipelineRepository,
 		ecrConfig:                     ecrConfig,
 		appWorkflowRepository:         appWorkflowRepository,
@@ -2010,8 +2014,8 @@ func (impl *CiPipelineConfigServiceImpl) DeleteCiPipeline(request *bean.CiPatchR
 	ciPipelineId := request.CiPipeline.Id
 
 	// check for linked ci's before deleting the ci pipeline
-	count, err := impl.ciPipelineRepository.FindByLinkedCiCount(ciPipelineId)
-	if err != nil && err != pg.ErrNoRows {
+	count, err := impl.ciPipelineConfigReadService.GetChildrenCiCount(ciPipelineId)
+	if err != nil {
 		impl.logger.Errorw("error in checking for any linked ci before deleting the ci pipeline", "ciPipelineId", ciPipelineId, "err", err)
 		return nil, err
 	}

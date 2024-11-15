@@ -88,6 +88,8 @@ type CiPipelineScript struct {
 	sql.AuditLog
 }
 
+// CiPipelineRepository :
+// use config.CiPipelineConfigReadService instead of directly using CiPipelineRepository
 type CiPipelineRepository interface {
 	sql.TransactionWrapper
 	Save(pipeline *CiPipeline, tx *pg.Tx) error
@@ -121,7 +123,7 @@ type CiPipelineRepository interface {
 	PipelineExistsByName(names []string) (found []string, err error)
 	FindByName(pipelineName string) (pipeline *CiPipeline, err error)
 	CheckIfPipelineExistsByNameAndAppId(pipelineName string, appId int) (bool, error)
-	FindByLinkedCiCount(parentCiPipelineId int) (int, error)
+	GetChildrenCiCount(parentCiPipelineId int) (int, error)
 	FindByParentCiPipelineId(parentCiPipelineId int) ([]*CiPipeline, error)
 	FindByParentIdAndType(parentCiPipelineId int, pipelineType string) ([]*CiPipeline, error)
 
@@ -158,7 +160,7 @@ func NewCiPipelineRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *CiPipelineRepositoryImpl) FindByLinkedCiCount(parentCiPipelineId int) (int, error) {
+func (impl *CiPipelineRepositoryImpl) GetChildrenCiCount(parentCiPipelineId int) (int, error) {
 	return impl.dbConnection.Model((*CiPipeline)(nil)).
 		Where("parent_ci_pipeline = ?", parentCiPipelineId).
 		Where("active = ?", true).

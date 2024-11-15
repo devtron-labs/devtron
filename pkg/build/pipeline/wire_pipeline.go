@@ -14,17 +14,14 @@
  * limitations under the License.
  */
 
-package build
+package pipeline
 
 import (
-	"github.com/devtron-labs/devtron/pkg/build/artifacts"
-	"github.com/devtron-labs/devtron/pkg/build/git"
-	"github.com/devtron-labs/devtron/pkg/build/pipeline"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline/read"
 	"github.com/google/wire"
 )
 
 var WireSet = wire.NewSet(
-	artifacts.WireSet,
-	pipeline.WireSet,
-	git.GitWireSet,
+	read.NewCiPipelineConfigReadServiceImpl,
+	wire.Bind(new(read.CiPipelineConfigReadService), new(*read.CiPipelineConfigReadServiceImpl)),
 )
