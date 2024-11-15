@@ -170,7 +170,6 @@ jobs:
           pr_no: ${{ github.event.pull_request.number }}
           GH_TOKEN: ${{ github.token }}
       run: |
-        set -ex
         # Fetch the latest changes from the main branch
         git fetch origin main
         
