@@ -4,6 +4,7 @@
 - feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
+- chore: refactoring mandatory plugin v2 (#6056)
 - misc: Sql query fixes (#6097)
 - misc: Kubecon 2024 oss sync (#6094)
 - chore: refactoring and created CiTemplateReadService.go (#6090)
