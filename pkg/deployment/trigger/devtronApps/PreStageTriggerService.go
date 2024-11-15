@@ -719,7 +719,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 		}
 		extraEnvVariables["APP_NAME"] = sourceCiPipeline.App.AppName
 		cdStageWorkflowRequest.CiPipelineType = sourceCiPipeline.PipelineType
-		buildRegistryConfig, dbErr := impl.getBuildRegistryConfigForArtifact(sourceCiPipeline, *artifact)
+		buildRegistryConfig, dbErr := impl.getBuildRegistryConfigForArtifact(sourceCiPipeline, artifact, cdPipeline.AppId)
 		if dbErr != nil {
 			impl.logger.Errorw("error in getting registry credentials for the artifact", "err", dbErr)
 			return nil, dbErr
@@ -866,7 +866,7 @@ getBuildRegistryConfigForArtifact performs the following logic to get Pre/Post C
     If the ci_pipeline_type type is CI_JOB
     We will always fetch the registry credentials from the ci_template_override table
 */
-func (impl *TriggerServiceImpl) getBuildRegistryConfigForArtifact(sourceCiPipeline *pipelineConfig.CiPipeline, artifact repository.CiArtifact) (*types.DockerArtifactStoreBean, error) {
+func (impl *TriggerServiceImpl) getBuildRegistryConfigForArtifact(sourceCiPipeline *pipelineConfig.CiPipeline, artifact *repository.CiArtifact, appId int) (*types.DockerArtifactStoreBean, error) {
 	// Handling for Skopeo Plugin
 	if artifact.IsRegistryCredentialMapped() {
 		dockerArtifactStore, err := impl.dockerArtifactStoreRepository.FindOne(artifact.CredentialSourceValue)
