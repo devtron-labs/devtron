@@ -881,7 +881,7 @@ func (impl *TriggerServiceImpl) getBuildRegistryConfigForArtifact(sourceCiPipeli
 	}
 
 	// Handling for CI Job
-	if adapter.IsCIJob(sourceCiPipeline) {
+	if adapter.IsCIJob(&sourceCiPipeline) {
 		// for bean.CI_JOB the source artifact is always driven from overridden ci template
 		buildRegistryConfig, err := impl.ciTemplateService.GetAppliedDockerConfigForCiPipeline(sourceCiPipeline.Id, sourceCiPipeline.AppId, true)
 		if err != nil {
@@ -892,7 +892,7 @@ func (impl *TriggerServiceImpl) getBuildRegistryConfigForArtifact(sourceCiPipeli
 	}
 
 	// Handling for Linked CI
-	if adapter.IsLinkedCI(sourceCiPipeline) {
+	if adapter.IsLinkedCI(&sourceCiPipeline) {
 		parentCiPipeline, err := impl.ciPipelineRepository.FindById(sourceCiPipeline.ParentCiPipeline)
 		if err != nil {
 			impl.logger.Errorw("error in finding ciPipeline", "ciPipelineId", sourceCiPipeline.ParentCiPipeline, "err", err)
