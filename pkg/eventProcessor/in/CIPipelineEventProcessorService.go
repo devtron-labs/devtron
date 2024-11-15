@@ -21,18 +21,18 @@ import (
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/devtron/client/gitSensor"
-	"github.com/devtron-labs/devtron/pkg/git"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitWebhook"
 	"go.uber.org/zap"
 )
 
 type CIPipelineEventProcessorImpl struct {
 	logger            *zap.SugaredLogger
 	pubSubClient      *pubsub.PubSubClientServiceImpl
-	gitWebhookService git.GitWebhookService
+	gitWebhookService gitWebhook.GitWebhookService
 }
 
 func NewCIPipelineEventProcessorImpl(logger *zap.SugaredLogger, pubSubClient *pubsub.PubSubClientServiceImpl,
-	gitWebhookService git.GitWebhookService) *CIPipelineEventProcessorImpl {
+	gitWebhookService gitWebhook.GitWebhookService) *CIPipelineEventProcessorImpl {
 	ciPipelineEventProcessorImpl := &CIPipelineEventProcessorImpl{
 		logger:            logger,
 		pubSubClient:      pubSubClient,

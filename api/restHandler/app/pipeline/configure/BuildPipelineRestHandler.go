@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"golang.org/x/exp/maps"
 	"io"
@@ -1530,11 +1531,11 @@ func (handler *PipelineConfigRestHandlerImpl) validForMultiMaterial(ciTriggerReq
 }
 
 func (handler *PipelineConfigRestHandlerImpl) ValidateGitMaterialUrl(gitProviderId int, url string) (bool, error) {
-	gitProvider, err := handler.gitProviderRepo.FindOne(strconv.Itoa(gitProviderId))
+	gitProvider, err := handler.gitProviderReadService.FetchOneGitProvider(strconv.Itoa(gitProviderId))
 	if err != nil {
 		return false, err
 	}
-	if gitProvider.AuthMode == repository.AUTH_MODE_SSH {
+	if gitProvider.AuthMode == constants.AUTH_MODE_SSH {
 		hasPrefixResult := strings.HasPrefix(url, SSH_URL_PREFIX)
 		return hasPrefixResult, nil
 	}
