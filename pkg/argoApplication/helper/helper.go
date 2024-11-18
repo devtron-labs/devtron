@@ -45,3 +45,58 @@ func ConvertClusterBeanToGrpcConfig(cluster repository.Cluster) *gRPC.ClusterCon
 	return config
 
 }
+
+func GetHealthSyncStatusDestinationServerAndManagedResourcesForArgoK8sRawObject(obj map[string]interface{}) (string,
+	string, string, []*bean.ArgoManagedResource) {
+	var healthStatus, syncStatus, destinationServer string
+	argoManagedResources := make([]*bean.ArgoManagedResource, 0)
+	if specObjRaw, ok := obj[commonBean.Spec]; ok {
+		specObj := specObjRaw.(map[string]interface{})
+		if destinationObjRaw, ok2 := specObj[bean.Destination]; ok2 {
+			destinationObj := destinationObjRaw.(map[string]interface{})
+			if destinationServerIf, ok3 := destinationObj[bean.Server]; ok3 {
+				destinationServer = destinationServerIf.(string)
+			}
+		}
+	}
+	if statusObjRaw, ok := obj[commonBean.K8sClusterResourceStatusKey]; ok {
+		statusObj := statusObjRaw.(map[string]interface{})
+		if healthObjRaw, ok2 := statusObj[commonBean.K8sClusterResourceHealthKey]; ok2 {
+			healthObj := healthObjRaw.(map[string]interface{})
+			if healthStatusIf, ok3 := healthObj[commonBean.K8sClusterResourceStatusKey]; ok3 {
+				healthStatus = healthStatusIf.(string)
+			}
+		}
+		if syncObjRaw, ok2 := statusObj[commonBean.K8sClusterResourceSyncKey]; ok2 {
+			syncObj := syncObjRaw.(map[string]interface{})
+			if syncStatusIf, ok3 := syncObj[commonBean.K8sClusterResourceStatusKey]; ok3 {
+				syncStatus = syncStatusIf.(string)
+			}
+		}
+		if resourceObjsRaw, ok2 := statusObj[commonBean.K8sClusterResourceResourcesKey]; ok2 {
+			resourceObjs := resourceObjsRaw.([]interface{})
+			argoManagedResources = make([]*bean.ArgoManagedResource, 0, len(resourceObjs))
+			for _, resourceObjRaw := range resourceObjs {
+				argoManagedResource := &bean.ArgoManagedResource{}
+				resourceObj := resourceObjRaw.(map[string]interface{})
+				if groupRaw, ok := resourceObj[commonBean.K8sClusterResourceGroupKey]; ok {
+					argoManagedResource.Group = groupRaw.(string)
+				}
+				if kindRaw, ok := resourceObj[commonBean.K8sClusterResourceKindKey]; ok {
+					argoManagedResource.Kind = kindRaw.(string)
+				}
+				if versionRaw, ok := resourceObj[commonBean.K8sClusterResourceVersionKey]; ok {
+					argoManagedResource.Version = versionRaw.(string)
+				}
+				if nameRaw, ok := resourceObj[commonBean.K8sClusterResourceMetadataNameKey]; ok {
+					argoManagedResource.Name = nameRaw.(string)
+				}
+				if namespaceRaw, ok := resourceObj[commonBean.K8sClusterResourceNamespaceKey]; ok {
+					argoManagedResource.Namespace = namespaceRaw.(string)
+				}
+				argoManagedResources = append(argoManagedResources, argoManagedResource)
+			}
+		}
+	}
+	return healthStatus, syncStatus, destinationServer, argoManagedResources
+}
