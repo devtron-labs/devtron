@@ -74,6 +74,7 @@ type AppRepository interface {
 	FindByIds(ids []*int) ([]*App, error)
 	FetchAppsByFilterV2(appNameIncludes string, appNameExcludes string, environmentId int) ([]*App, error)
 	FindAppAndProjectByAppId(appId int) (*App, error)
+	FindAppAndProjectByAppIds(appIds []*int) ([]*App, error)
 	FindAppAndProjectByAppName(appName string) (*App, error)
 	GetConnection() *pg.DB
 	FindAllMatchesByAppName(appName string, appType helper.AppType) ([]*App, error)
@@ -179,6 +180,19 @@ func (repo AppRepositoryImpl) FindJobByDisplayName(appName string) (*App, error)
 		Select()
 	// there is only single active app will be present in db with a same name.
 	return pipelineGroup, err
+}
+
+func (repo AppRepositoryImpl) FindAppAndProjectByAppIds(appIds []*int) ([]*App, error) {
+	var apps []*App
+	if len(appIds) == 0 {
+		return apps, nil
+	}
+
+	err := repo.dbConnection.Model(&apps).Column("Team").
+		Where("app.id in (?)", pg.In(appIds)).
+		Where("app.active=?", true).
+		Select()
+	return apps, err
 }
 
 func (repo AppRepositoryImpl) FindActiveListByName(appName string) ([]*App, error) {
