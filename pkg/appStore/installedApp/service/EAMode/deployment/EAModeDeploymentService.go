@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
+	"github.com/devtron-labs/devtron/api/helm-app/service/read"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
@@ -57,6 +58,7 @@ type EAModeDeploymentService interface {
 type EAModeDeploymentServiceImpl struct {
 	Logger                               *zap.SugaredLogger
 	helmAppService                       client.HelmAppService
+	helmAppReadService                   read.HelmAppReadService
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	// TODO fix me next
@@ -71,10 +73,12 @@ func NewEAModeDeploymentServiceImpl(logger *zap.SugaredLogger, helmAppService cl
 	installedAppRepository repository.InstalledAppRepository,
 	OCIRegistryConfigRepository repository2.OCIRegistryConfigRepository,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
+	helmAppReadService read.HelmAppReadService,
 ) *EAModeDeploymentServiceImpl {
 	return &EAModeDeploymentServiceImpl{
 		Logger:                               logger,
 		helmAppService:                       helmAppService,
+		helmAppReadService:                   helmAppReadService,
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 		helmAppClient:                        helmAppClient,
 		installedAppRepository:               installedAppRepository,
@@ -280,7 +284,7 @@ func (impl *EAModeDeploymentServiceImpl) GetDeploymentHistoryInfo(ctx context.Co
 			Namespace:   installedApp.Namespace,
 			ReleaseName: installedApp.AppName,
 		}
-		config, err := impl.helmAppService.GetClusterConf(helmAppIdentifier.ClusterId)
+		config, err := impl.helmAppReadService.GetClusterConf(helmAppIdentifier.ClusterId)
 		if err != nil {
 			impl.Logger.Errorw("error in fetching cluster detail", "clusterId", helmAppIdentifier.ClusterId, "err", err)
 			return nil, err

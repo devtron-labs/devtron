@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/api/helm-app/service/read"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/fluxApplication/bean"
 	"github.com/gogo/protobuf/proto"
@@ -24,28 +25,28 @@ type FluxApplicationService interface {
 }
 
 type FluxApplicationServiceImpl struct {
-	logger         *zap.SugaredLogger
-	helmAppService service.HelmAppService
-	clusterService cluster.ClusterService
-	helmAppClient  gRPC.HelmAppClient
-	pump           connector.Pump
+	logger             *zap.SugaredLogger
+	helmAppReadService read.HelmAppReadService
+	clusterService     cluster.ClusterService
+	helmAppClient      gRPC.HelmAppClient
+	pump               connector.Pump
 }
 
 func NewFluxApplicationServiceImpl(logger *zap.SugaredLogger,
-	helmAppService service.HelmAppService,
+	helmAppReadService read.HelmAppReadService,
 	clusterService cluster.ClusterService,
 	helmAppClient gRPC.HelmAppClient, pump connector.Pump) *FluxApplicationServiceImpl {
 	return &FluxApplicationServiceImpl{
-		logger:         logger,
-		helmAppService: helmAppService,
-		clusterService: clusterService,
-		helmAppClient:  helmAppClient,
-		pump:           pump,
+		logger:             logger,
+		helmAppReadService: helmAppReadService,
+		clusterService:     clusterService,
+		helmAppClient:      helmAppClient,
+		pump:               pump,
 	}
 
 }
 func (impl *FluxApplicationServiceImpl) HibernateFluxApplication(ctx context.Context, app *bean.FluxAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
-	conf, err := impl.helmAppService.GetClusterConf(app.ClusterId)
+	conf, err := impl.helmAppReadService.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("HibernateFluxApplication", "error in getting the cluster config", err, "clusterId", app.ClusterId, "appName", app.Name)
 		return nil, err
@@ -63,7 +64,7 @@ func (impl *FluxApplicationServiceImpl) HibernateFluxApplication(ctx context.Con
 
 func (impl *FluxApplicationServiceImpl) UnHibernateFluxApplication(ctx context.Context, app *bean.FluxAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
 
-	conf, err := impl.helmAppService.GetClusterConf(app.ClusterId)
+	conf, err := impl.helmAppReadService.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("UnHibernateFluxApplication", "error in getting the cluster config", err, "clusterId", app.ClusterId, "appName", app.Name)
 		return nil, err
@@ -90,7 +91,7 @@ func (impl *FluxApplicationServiceImpl) ListFluxApplications(ctx context.Context
 		})
 }
 func (impl *FluxApplicationServiceImpl) GetFluxAppDetail(ctx context.Context, app *bean.FluxAppIdentifier) (*bean.FluxApplicationDetailDto, error) {
-	config, err := impl.helmAppService.GetClusterConf(app.ClusterId)
+	config, err := impl.helmAppReadService.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster config", "appIdentifier", app, "err", err)
 		return nil, fmt.Errorf("failed to get cluster config for app %s in namespace %s: %w", app.Name, app.Namespace, err)
