@@ -5,6 +5,7 @@
 - feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
+- misc: main sync develop nov18 (#6107)
 - chore: read service/material (#6101)
 - chore: implemented Rbac enforcer in batch (#6103)
 - misc: Update codeowner (#6099)
