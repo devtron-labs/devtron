@@ -23,7 +23,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
-	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	read2 "github.com/devtron-labs/devtron/api/helm-app/service/read"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -71,7 +71,7 @@ type DeploymentTemplateServiceImpl struct {
 	chartService                         chart.ChartService
 	appListingService                    app.AppListingService
 	deploymentTemplateRepository         repository.DeploymentTemplateRepository
-	helmAppService                       client.HelmAppService
+	helmAppReadService                   read2.HelmAppReadService
 	chartTemplateServiceImpl             util.ChartTemplateService
 	K8sUtil                              *k8s.K8sServiceImpl
 	helmAppClient                        gRPC.HelmAppClient
@@ -97,7 +97,7 @@ func GetRestartWorkloadConfig() (*RestartWorkloadConfig, error) {
 func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService chart.ChartService,
 	appListingService app.AppListingService,
 	deploymentTemplateRepository repository.DeploymentTemplateRepository,
-	helmAppService client.HelmAppService,
+	helmAppReadService read2.HelmAppReadService,
 	chartTemplateServiceImpl util.ChartTemplateService,
 	helmAppClient gRPC.HelmAppClient,
 	K8sUtil *k8s.K8sServiceImpl,
@@ -117,7 +117,7 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 		chartService:                         chartService,
 		appListingService:                    appListingService,
 		deploymentTemplateRepository:         deploymentTemplateRepository,
-		helmAppService:                       helmAppService,
+		helmAppReadService:                   helmAppReadService,
 		chartTemplateServiceImpl:             chartTemplateServiceImpl,
 		K8sUtil:                              K8sUtil,
 		helmAppClient:                        helmAppClient,
@@ -480,7 +480,7 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 			Content: chartInBytes,
 		},
 	}
-	config, err := impl.helmAppService.GetClusterConf(bean.DEFAULT_CLUSTER_ID)
+	config, err := impl.helmAppReadService.GetClusterConf(bean.DEFAULT_CLUSTER_ID)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching cluster detail", "clusterId", 1, "err", err)
 		return nil, err

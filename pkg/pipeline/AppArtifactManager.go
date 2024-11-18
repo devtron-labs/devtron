@@ -18,6 +18,7 @@ package pipeline
 
 import (
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"sort"
@@ -52,7 +53,7 @@ type AppArtifactManagerImpl struct {
 	logger                  *zap.SugaredLogger
 	cdWorkflowRepository    pipelineConfig.CdWorkflowRepository
 	userService             user.UserService
-	imageTaggingService     ImageTaggingService
+	imageTaggingService     imageTagging.ImageTaggingService
 	ciArtifactRepository    repository.CiArtifactRepository
 	ciWorkflowRepository    pipelineConfig.CiWorkflowRepository
 	pipelineStageService    PipelineStageService
@@ -67,7 +68,7 @@ func NewAppArtifactManagerImpl(
 	logger *zap.SugaredLogger,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	userService user.UserService,
-	imageTaggingService ImageTaggingService,
+	imageTaggingService imageTagging.ImageTaggingService,
 	ciArtifactRepository repository.CiArtifactRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	pipelineStageService PipelineStageService,

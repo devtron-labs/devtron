@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	repository3 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
@@ -1111,7 +1112,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildHistory(w http.ResponseWri
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
 		return
 	}
-	appTags, err := handler.imageTaggingService.GetUniqueTagsByAppId(ciPipeline.AppId)
+	appTags, err := handler.imageTaggingReadService.GetUniqueTagsByAppId(ciPipeline.AppId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetTagsByAppId", "err", err, "appId", ciPipeline.AppId)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
@@ -1121,7 +1122,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildHistory(w http.ResponseWri
 
 	prodEnvExists, err := handler.imageTaggingService.GetProdEnvFromParentAndLinkedWorkflow(ciPipeline.Id)
 	resp.TagsEditable = prodEnvExists && triggerAccess
-	resp.HideImageTaggingHardDelete = handler.imageTaggingService.GetImageTaggingServiceConfig().HideImageTaggingHardDelete
+	resp.HideImageTaggingHardDelete = handler.imageTaggingService.IsHardDeleteHidden()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetProdEnvFromParentAndLinkedWorkflow", "err", err, "ciPipelineId", ciPipeline.Id)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
@@ -2073,11 +2074,11 @@ func (handler *PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Re
 		return
 	}
 	req.ExternalCi = externalCi
-	//pass it to service layer
+	// pass it to the service layer
 	resp, err := handler.imageTaggingService.CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, int(userId), req)
 	if err != nil {
-		if err.Error() == pipeline.DuplicateTagsInAppError {
-			appReleaseTags, err1 := handler.imageTaggingService.GetUniqueTagsByAppId(appId)
+		if err.Error() == imageTagging.DuplicateTagsInAppError {
+			appReleaseTags, err1 := handler.imageTaggingReadService.GetUniqueTagsByAppId(appId)
 			if err1 != nil {
 				handler.Logger.Errorw("error occurred in getting unique tags in app", "err", err1, "appId", appId)
 				err = err1
@@ -2113,7 +2114,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetImageTaggingData(w http.Respons
 
 	externalCi, ciPipelineId, appId, err := handler.extractCipipelineMetaForImageTags(artifactId)
 	if err != nil {
-		handler.Logger.Errorw("error occurred in fetching extractCipipelineMetaForImageTags by artifact Id ", "err", err, "artifactId", artifactId)
+		handler.Logger.Errorw("error occurred in fetching extract ci pipeline metadata for ImageTags by artifact id", "err", err, "artifactId", artifactId)
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusInternalServerError)
 		return
 	}
