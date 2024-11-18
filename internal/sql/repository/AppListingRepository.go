@@ -124,7 +124,11 @@ func (impl AppListingRepositoryImpl) FetchJobs(appIds []int, statuses []string, 
 		impl.Logger.Error(appsErr)
 		return jobContainers, appsErr
 	}
-	jobContainers = impl.extractEnvironmentNameFromId(jobContainers)
+	jobContainers, err := impl.extractEnvironmentNameFromId(jobContainers)
+	if err != nil {
+		impl.Logger.Errorw("Error in extractEnvironmentNameFromId", "jobContainers", jobContainers, "err", err)
+		return nil, err
+	}
 	return jobContainers, nil
 }
 
@@ -137,7 +141,11 @@ func (impl AppListingRepositoryImpl) FetchOverviewCiPipelines(jobId int) ([]*bea
 		impl.Logger.Error(appsErr)
 		return jobContainers, appsErr
 	}
-	jobContainers = impl.extractEnvironmentNameFromId(jobContainers)
+	jobContainers, err := impl.extractEnvironmentNameFromId(jobContainers)
+	if err != nil {
+		impl.Logger.Errorw("Error in extractEnvironmentNameFromId", "jobContainers", jobContainers, "err", err)
+		return nil, err
+	}
 	return jobContainers, nil
 }
 
@@ -732,7 +740,7 @@ func (impl AppListingRepositoryImpl) FindAppCount(isProd bool) (int, error) {
 	return count, nil
 }
 
-func (impl AppListingRepositoryImpl) extractEnvironmentNameFromId(jobContainers []*bean.JobListingContainer) []*bean.JobListingContainer {
+func (impl AppListingRepositoryImpl) extractEnvironmentNameFromId(jobContainers []*bean.JobListingContainer) ([]*bean.JobListingContainer, error) {
 	var envIds []*int
 	for _, job := range jobContainers {
 		if job.EnvironmentId != 0 {
@@ -742,7 +750,11 @@ func (impl AppListingRepositoryImpl) extractEnvironmentNameFromId(jobContainers 
 			envIds = append(envIds, &job.LastTriggeredEnvironmentId)
 		}
 	}
-	envs, _ := impl.environmentRepository.FindByIds(envIds)
+	envs, err := impl.environmentRepository.FindByIds(envIds)
+	if err != nil {
+		impl.Logger.Errorw("Error in getting environment", "envIds", envIds, "err", err)
+		return nil, err
+	}
 
 	envIdNameMap := make(map[int]string)
 
@@ -759,5 +771,5 @@ func (impl AppListingRepositoryImpl) extractEnvironmentNameFromId(jobContainers 
 		}
 	}
 
-	return jobContainers
+	return jobContainers, nil
 }

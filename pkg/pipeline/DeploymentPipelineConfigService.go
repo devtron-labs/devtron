@@ -238,6 +238,10 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 		impl.logger.Errorw("error in fetching pipeline", "err", err)
 		return cdPipeline, err
 	}
+	if environment == nil || environment.Id == 0 {
+		impl.logger.Errorw("environment doesn't exists", "environmentId", dbPipeline.EnvironmentId)
+		return cdPipeline, err
+	}
 	strategies, err := impl.pipelineConfigRepository.GetAllStrategyByPipelineId(dbPipeline.Id)
 	if err != nil && errors.IsNotFound(err) {
 		impl.logger.Errorw("error in fetching strategies", "err", err)
