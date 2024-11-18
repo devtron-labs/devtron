@@ -34,6 +34,12 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	ObjectTypeApp   = "app"
+	ObjectTypeChart = "chart"
+	ObjectTypePod   = "pod"
+)
+
 type ImageScanRestHandler interface {
 	ScanExecutionList(w http.ResponseWriter, r *http.Request)
 	FetchExecutionDetail(w http.ResponseWriter, r *http.Request)
@@ -100,7 +106,7 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 
 	IdToAppEnvPairs := make(map[int][2]int)
 	for _, item := range deployInfoList {
-		if item.ScanObjectMetaId > 0 && (item.ObjectType == "app" || item.ObjectType == "chart") {
+		if item.ScanObjectMetaId > 0 && (item.ObjectType == ObjectTypeApp || item.ObjectType == ObjectTypeChart) {
 			IdToAppEnvPairs[item.Id] = [2]int{item.ScanObjectMetaId, item.EnvId}
 		}
 	}
@@ -112,7 +118,7 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 	}
 
 	for _, item := range deployInfoList {
-		if item.ScanObjectMetaId > 0 && (item.ObjectType == "app" || item.ObjectType == "chart") {
+		if item.ScanObjectMetaId > 0 && (item.ObjectType == ObjectTypeApp || item.ObjectType == ObjectTypeChart) {
 			appObject := appObjects[item.Id]
 			envObject := envObjects[item.Id]
 			if appObject != "" {
@@ -121,7 +127,7 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 			if envObject != "" {
 				envRBACObjects = append(envRBACObjects, envObject)
 			}
-		} else if item.ScanObjectMetaId > 0 && (item.ObjectType == "pod") {
+		} else if item.ScanObjectMetaId > 0 && (item.ObjectType == ObjectTypePod) {
 			environments, err := impl.environmentService.GetByClusterId(item.ClusterId)
 			if err != nil {
 				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -140,7 +146,7 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 	podResults := impl.enforcer.EnforceInBatch(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, podRBACObjects)
 
 	for _, item := range deployInfoList {
-		if impl.enforcerUtil.IsAuthorizedForApp(item.ScanObjectMetaId, appResults, appIdtoApp) && impl.enforcerUtil.IsAuthorizedForEnv(item.ScanObjectMetaId, item.EnvId, envResults, appIdtoApp, envIdToEnv) {
+		if impl.enforcerUtil.IsAuthorizedForAppInAppResults(item.ScanObjectMetaId, appResults, appIdtoApp) && impl.enforcerUtil.IsAuthorizedForEnvInEnvResults(item.ScanObjectMetaId, item.EnvId, envResults, appIdtoApp, envIdToEnv) {
 			ids = append(ids, item.Id)
 		}
 	}

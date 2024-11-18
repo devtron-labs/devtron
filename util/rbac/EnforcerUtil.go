@@ -38,8 +38,8 @@ import (
 
 type EnforcerUtil interface {
 	GetAppAndEnvRBACNamesByAppAndEnvIds(IdToAppEnvPairs map[int][2]int) (map[int]string, map[int]string, map[int]*app.App, map[int]*repository.Environment, error)
-	IsAuthorizedForApp(appId int, rbacResults map[string]bool, appIdtoApp map[int]*app.App) bool
-	IsAuthorizedForEnv(appId int, envId int, appResults map[string]bool, appIdtoApp map[int]*app.App, envIdToEnv map[int]*repository.Environment) bool
+	IsAuthorizedForAppInAppResults(appId int, rbacResults map[string]bool, appIdtoApp map[int]*app.App) bool
+	IsAuthorizedForEnvInEnvResults(appId int, envId int, appResults map[string]bool, appIdtoApp map[int]*app.App, envIdToEnv map[int]*repository.Environment) bool
 	GetAppRBACName(appName string) string
 	GetRbacObjectsForAllApps(appType helper.AppType) map[int]string
 	GetRbacObjectsForAllAppsWithTeamID(teamID int, appType helper.AppType) map[int]string
@@ -114,7 +114,7 @@ func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepo
 	}
 }
 
-func (impl EnforcerUtilImpl) IsAuthorizedForApp(appId int, rbacResults map[string]bool, appIdtoApp map[int]*app.App) bool {
+func (impl EnforcerUtilImpl) IsAuthorizedForAppInAppResults(appId int, rbacResults map[string]bool, appIdtoApp map[int]*app.App) bool {
 	app, appExists := appIdtoApp[appId]
 	if !appExists {
 		return false
@@ -127,7 +127,7 @@ func (impl EnforcerUtilImpl) IsAuthorizedForApp(appId int, rbacResults map[strin
 	return false
 }
 
-func (impl EnforcerUtilImpl) IsAuthorizedForEnv(appId int, envId int, rbacResults map[string]bool, appIdtoApp map[int]*app.App, envIdToEnv map[int]*repository.Environment) bool {
+func (impl EnforcerUtilImpl) IsAuthorizedForEnvInEnvResults(appId int, envId int, rbacResults map[string]bool, appIdtoApp map[int]*app.App, envIdToEnv map[int]*repository.Environment) bool {
 	app, appExists := appIdtoApp[appId]
 	if !appExists {
 		return false
