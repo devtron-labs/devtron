@@ -222,8 +222,10 @@ func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Cont
 			resolvedValue = values
 		case repository.PublishedOnEnvironments:
 			response, err = impl.fetchResolvedTemplateForPublishedEnvs(ctx, request)
+			resolvedValue = response.ResolvedData
 		case repository.DeployedOnSelfEnvironment, repository.DeployedOnOtherEnvironment:
 			response, err = impl.fetchTemplateForDeployedEnv(ctx, request)
+			resolvedValue = response.ResolvedData
 		}
 		if err != nil {
 			impl.Logger.Errorw("error in getting values", "err", err)

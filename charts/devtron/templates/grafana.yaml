@@ -12,7 +12,7 @@ kind: Job
 metadata:
   name: grafana-org-job
 spec:
-  ttlSecondsAfterFinished: 100
+  ttlSecondsAfterFinished: 1000
   template:
     spec:
       {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.monitoring.grafana.nodeSelector "tolerations" $.Values.monitoring.grafana.tolerations "imagePullSecrets" $.Values.monitoring.grafana.imagePullSecrets "global" $.Values.global) | indent 6 }}
