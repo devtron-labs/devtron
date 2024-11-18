@@ -70,11 +70,12 @@ metadata:
   annotations:
     "helm.sh/resource-policy": keep
 spec:
-  schedule: "0 19 * * *"
+  schedule: {{ $.Values.components.chartSync.schedule | quote }}
   jobTemplate:
     spec:
       template:
         spec:
+          activeDeadlineSeconds: 15000
           serviceAccountName: chart-sync
           {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.chartSync.nodeSelector "tolerations" $.Values.components.chartSync.tolerations "imagePullSecrets" $.Values.components.chartSync.imagePullSecrets "global" $.Values.global) | indent 10 }}
           {{- if and $.Values.global $.Values.global.podSecurityContext }}
@@ -98,6 +99,8 @@ spec:
             envFrom:
             - secretRef:
                 name: devtron-secret
+            - configMapRef: 
+                name: app-sync-cm
             {{- if .Values.components.migrator }}
             {{- if .Values.components.migrator.appSync }}
             {{- if .Values.components.migrator.appSync.resources }}
@@ -108,3 +111,16 @@ spec:
             {{- end }}
           restartPolicy: Never
       backoffLimit: 4
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-sync-cm
+  labels:
+    app: app-sync-cronjob
+    release: devtron
+data:
+{{- if $.Values.components.chartSync.extraConfigs }}
+{{ toYaml $.Values.components.chartSync.extraConfigs | indent 2 }}
+{{- end }}
+---
