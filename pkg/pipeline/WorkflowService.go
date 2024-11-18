@@ -195,6 +195,7 @@ func (impl *WorkflowServiceImpl) shouldAddExistingCmCsInWorkflow(workflowRequest
 
 func (impl *WorkflowServiceImpl) getClusterConfig(workflowRequest *types.WorkflowRequest) (*rest.Config, error) {
 	env := workflowRequest.Env
+
 	if workflowRequest.IsExtRun {
 
 		configMap := env.Cluster.Config
