@@ -38,3 +38,4 @@ UPDATE plugin_parent_metadata SET icon='https://seeklogo.com/images/W/webhooks-l
 UPDATE plugin_parent_metadata SET icon='https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/bitbucket-logo-plugin.jpeg' WHERE name='BitBucket Runner Trigger v1.0.0';
 UPDATE plugin_parent_metadata SET icon='https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/plugin-golang-migrate.png' WHERE name='GoLang-migrate';
 UPDATE plugin_parent_metadata SET icon='https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/plugin-icons/ic-plugin-crane.png' WHERE name='CraneCopy';
+update plugin_parent_metadata set icon='' where name='Devtron CI Trigger';

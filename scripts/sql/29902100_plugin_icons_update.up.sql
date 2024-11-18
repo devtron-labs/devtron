@@ -38,3 +38,5 @@ update plugin_parent_metadata set icon='https://raw.githubusercontent.com/devtro
 update plugin_parent_metadata set icon='https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/plugin-icons/ic-plugin-bitbucket-runner-trigger.png' where name='BitBucket Runner Trigger v1.0.0';
 update plugin_parent_metadata set icon='https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/plugin-icons/ic-plugin-golang-migrate.png' where name='GoLang-migrate';
 update plugin_parent_metadata set icon='https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/plugin-icons/ic-plugin-crane.png' where name='CraneCopy';
+update plugin_parent_metadata set icon='https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/plugin-icons/ic-plugin-devtron-ci-trigger.png' where name='Devtron CI Trigger';
+
