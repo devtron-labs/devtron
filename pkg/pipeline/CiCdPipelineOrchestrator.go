@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	constants2 "github.com/devtron-labs/devtron/internal/sql/constants"
 	attributesBean "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	repository6 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
@@ -271,7 +272,7 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCiPipelineMaterials(materialsUpda
 
 func (impl CiCdPipelineOrchestratorImpl) validateCiPipelineMaterial(ciPipelineMaterial *pipelineConfig.CiPipelineMaterial, value string, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error), appId int) error {
 	// Change branch source is supported for SOURCE_TYPE_BRANCH_FIXED and SOURCE_TYPE_BRANCH_REGEX
-	if ciPipelineMaterial.Type != repository6.SOURCE_TYPE_BRANCH_FIXED && ciPipelineMaterial.Type != repository6.SOURCE_TYPE_BRANCH_REGEX {
+	if ciPipelineMaterial.Type != constants2.SOURCE_TYPE_BRANCH_FIXED && ciPipelineMaterial.Type != constants2.SOURCE_TYPE_BRANCH_REGEX {
 		return errors.New(string(bean.CI_BRANCH_TYPE_ERROR))
 	}
 
@@ -497,7 +498,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			GitMaterialId: material.GitMaterialId,
 			AuditLog:      sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 		}
-		if material.Source.Type == repository6.SOURCE_TYPE_BRANCH_FIXED {
+		if material.Source.Type == constants2.SOURCE_TYPE_BRANCH_FIXED {
 			materialGitMap[material.GitMaterialId] = material.Source.Value
 		}
 		if material.Id == 0 {
@@ -1003,7 +1004,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 				Regex:         r.Source.Regex,
 				AuditLog:      sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 			}
-			if material.Regex == "" && r.Source.Type == repository6.SOURCE_TYPE_BRANCH_REGEX {
+			if material.Regex == "" && r.Source.Type == constants2.SOURCE_TYPE_BRANCH_REGEX {
 				material.Regex = r.Source.Value
 			}
 			pipelineMaterials = append(pipelineMaterials, material)
@@ -1200,7 +1201,7 @@ func (impl CiCdPipelineOrchestratorImpl) generateExternalCiPayload(ciPipeline *b
 func (impl CiCdPipelineOrchestratorImpl) AddPipelineMaterialInGitSensor(pipelineMaterials []*pipelineConfig.CiPipelineMaterial) error {
 	var materials []*gitSensor.CiPipelineMaterial
 	for _, ciPipelineMaterial := range pipelineMaterials {
-		if ciPipelineMaterial.Type != repository6.SOURCE_TYPE_BRANCH_REGEX {
+		if ciPipelineMaterial.Type != constants2.SOURCE_TYPE_BRANCH_REGEX {
 			material := &gitSensor.CiPipelineMaterial{
 				Id:            ciPipelineMaterial.Id,
 				Active:        ciPipelineMaterial.Active,
@@ -2364,7 +2365,7 @@ func (impl *CiCdPipelineOrchestratorImpl) GetGitCommitEnvVarDataForCICDStage(git
 			})
 
 			// CODE-BLOCK starts - store extra environment variables if webhook
-			if gitTrigger.CiConfigureSourceType == repository6.SOURCE_TYPE_WEBHOOK {
+			if gitTrigger.CiConfigureSourceType == constants2.SOURCE_TYPE_WEBHOOK {
 				webhookDataId := gitTrigger.WebhookData.Id
 				if webhookDataId > 0 {
 					webhookDataRequest := &gitSensor.WebhookDataRequest{

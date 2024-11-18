@@ -21,9 +21,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
-	repository3 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
+	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"golang.org/x/exp/maps"
 	"io"
@@ -341,7 +340,7 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdAndE
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if !(patchRequest.Source.Type == repository3.SOURCE_TYPE_BRANCH_FIXED || patchRequest.Source.Type == repository3.SOURCE_TYPE_BRANCH_REGEX) {
+	if !(patchRequest.Source.Type == constants.SOURCE_TYPE_BRANCH_FIXED || patchRequest.Source.Type == constants.SOURCE_TYPE_BRANCH_REGEX) {
 		handler.Logger.Errorw("Unsupported source type, PatchCiMaterialSource", "err", err, "PatchCiMaterialSource", patchRequest)
 		common.WriteJsonResp(w, err, "source.type not supported", http.StatusBadRequest)
 		return

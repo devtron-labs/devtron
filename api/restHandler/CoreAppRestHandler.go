@@ -2174,7 +2174,7 @@ func (handler CoreAppRestHandlerImpl) ValidateAppWorkflowRequest(createAppWorkfl
 			ciMaterialCheckoutPaths := make([]string, 0)
 			for _, ciPipelineMaterialConfig := range workflow.CiPipeline.CiPipelineMaterialsConfig {
 				// value for webhook type CiPipelineMaterial should be a valid json string
-				if ciPipelineMaterialConfig.Type == repository3.SOURCE_TYPE_WEBHOOK {
+				if ciPipelineMaterialConfig.Type == constants.SOURCE_TYPE_WEBHOOK {
 					var jsonValueMap map[string]interface{}
 					err := json.Unmarshal([]byte(ciPipelineMaterialConfig.Value), &jsonValueMap)
 					if err != nil {

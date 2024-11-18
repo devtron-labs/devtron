@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
@@ -1526,7 +1527,7 @@ func (impl *CiPipelineConfigServiceImpl) PatchRegexCiPipeline(request *bean.CiRe
 			Id:            material.Id,
 			Value:         material.Value,
 			CiPipelineId:  materialDbObject.CiPipelineId,
-			Type:          repository3.SourceType(material.Type),
+			Type:          constants.SourceType(material.Type),
 			Active:        true,
 			GitMaterialId: materialDbObject.GitMaterialId,
 			Regex:         materialDbObject.Regex,

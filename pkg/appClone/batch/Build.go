@@ -18,13 +18,13 @@ package batch
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	pc "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	v1 "github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
-	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/util"
 	uuid "github.com/satori/go.uuid"
@@ -185,13 +185,13 @@ func executeBuildCreate(impl BuildActionImpl, build *v1.Build) error {
 			Regex: material.Source.Regex,
 		}
 		if material.Source.Type == v1.BranchFixed {
-			stc.Type = repository.SOURCE_TYPE_BRANCH_FIXED
+			stc.Type = constants.SOURCE_TYPE_BRANCH_FIXED
 		} else if material.Source.Type == v1.BranchRegex {
-			stc.Type = repository.SOURCE_TYPE_BRANCH_REGEX
+			stc.Type = constants.SOURCE_TYPE_BRANCH_REGEX
 		} else if material.Source.Type == v1.TagAny {
-			stc.Type = repository.SOURCE_TYPE_TAG_ANY
+			stc.Type = constants.SOURCE_TYPE_TAG_ANY
 		} else if material.Source.Type == v1.Webhook {
-			stc.Type = repository.SOURCE_TYPE_WEBHOOK
+			stc.Type = constants.SOURCE_TYPE_WEBHOOK
 		}
 
 		cm := bean.CiMaterial{

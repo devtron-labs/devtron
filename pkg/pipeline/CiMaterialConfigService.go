@@ -18,6 +18,7 @@ package pipeline
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
@@ -187,7 +188,7 @@ func (impl *CiMaterialConfigServiceImpl) BulkPatchCiMaterialSource(ciPipelines *
 		ciPipelineMaterial, err := impl.ciCdPipelineOrchestrator.PatchCiMaterialSourceValue(ciPipeline, userId, ciPipelines.Value, token, checkAppSpecificAccess)
 
 		if err == nil {
-			ciPipelineMaterial.Type = repository.SOURCE_TYPE_BRANCH_FIXED
+			ciPipelineMaterial.Type = constants.SOURCE_TYPE_BRANCH_FIXED
 			ciPipelineMaterials = append(ciPipelineMaterials, ciPipelineMaterial)
 		}
 		response.Apps = append(response.Apps, bean.CiMaterialPatchResponse{

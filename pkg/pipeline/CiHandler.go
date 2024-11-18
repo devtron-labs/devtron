@@ -22,9 +22,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/workFlow"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
-	repository2 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	bean4 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	util3 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"io/ioutil"
@@ -319,7 +319,7 @@ func (impl *CiHandlerImpl) validateBuildSequence(gitCiTriggerRequest bean.GitCiT
 
 	ciPipelineMaterial := gitCiTriggerRequest.CiPipelineMaterial
 
-	if ciPipelineMaterial.Type == string(repository2.SOURCE_TYPE_BRANCH_FIXED) {
+	if ciPipelineMaterial.Type == string(constants.SOURCE_TYPE_BRANCH_FIXED) {
 		if ciPipelineMaterial.GitCommit.Date.Before(lastTriggeredBuild.GitTriggers[ciPipelineMaterial.Id].Date) {
 			impl.Logger.Warnw("older commit cannot be built for pipeline", "pipelineId", pipelineId, "ciMaterial", gitCiTriggerRequest.CiPipelineMaterial.Id)
 			isValid = false
@@ -1298,7 +1298,7 @@ func (impl *CiHandlerImpl) buildManualTriggerCommitHashes(ciTriggerRequest bean.
 		}
 
 		pipelineType := pipeLineMaterialFromDb.Type
-		if pipelineType == repository2.SOURCE_TYPE_BRANCH_FIXED {
+		if pipelineType == constants.SOURCE_TYPE_BRANCH_FIXED {
 			gitCommit, err := impl.BuildManualTriggerCommitHashesForSourceTypeBranchFix(ciPipelineMaterial, pipeLineMaterialFromDb)
 			if err != nil {
 				impl.Logger.Errorw("err", "err", err)
@@ -1306,7 +1306,7 @@ func (impl *CiHandlerImpl) buildManualTriggerCommitHashes(ciTriggerRequest bean.
 			}
 			commitHashes[ciPipelineMaterial.Id] = gitCommit
 
-		} else if pipelineType == repository2.SOURCE_TYPE_WEBHOOK {
+		} else if pipelineType == constants.SOURCE_TYPE_WEBHOOK {
 			gitCommit, extraEnvVariables, err := impl.BuildManualTriggerCommitHashesForSourceTypeWebhook(ciPipelineMaterial, pipeLineMaterialFromDb)
 			if err != nil {
 				impl.Logger.Errorw("err", "err", err)

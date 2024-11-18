@@ -23,13 +23,13 @@ import (
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
 	bean6 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/bean"
-	repository4 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	bean7 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
@@ -503,7 +503,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 			}
 
 			// set webhook data
-			if m.Type == repository4.SOURCE_TYPE_WEBHOOK && len(ciMaterialCurrent.Modifications) > 0 {
+			if m.Type == constants.SOURCE_TYPE_WEBHOOK && len(ciMaterialCurrent.Modifications) > 0 {
 				webhookData := ciMaterialCurrent.Modifications[0].WebhookData
 				ciProjectDetail.WebhookData = pipelineConfig.WebhookData{
 					Id:              webhookData.Id,
