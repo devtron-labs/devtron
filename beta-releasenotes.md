@@ -1,6 +1,7 @@
 ## Bugs
 - fix: update sql fix buildx (#6096)
 ## Enhancements
+- feat: app details refactoring (#6104)
 - feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
