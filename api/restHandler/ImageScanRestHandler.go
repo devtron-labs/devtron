@@ -90,18 +90,36 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 		}
 		return
 	}
+
 	token := r.Header.Get("token")
 	var ids []int
+	var appRBACObjects []string
+	var envRBACObjects []string
+	var podRBACObjects []string
+	podRBACMap := make(map[string]int)
+
+	IdToAppEnvPairs := make(map[int][2]int)
 	for _, item := range deployInfoList {
 		if item.ScanObjectMetaId > 0 && (item.ObjectType == "app" || item.ObjectType == "chart") {
-			object := impl.enforcerUtil.GetAppRBACNameByAppId(item.ScanObjectMetaId)
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
-				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-				return
+			IdToAppEnvPairs[item.Id] = [2]int{item.ScanObjectMetaId, item.EnvId}
+		}
+	}
+
+	appObjects, envObjects, appIdtoApp, envIdToEnv, err := impl.enforcerUtil.GetAppAndEnvRBACNamesByAppAndEnvIds(IdToAppEnvPairs)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	for _, item := range deployInfoList {
+		if item.ScanObjectMetaId > 0 && (item.ObjectType == "app" || item.ObjectType == "chart") {
+			appObject := appObjects[item.Id]
+			envObject := envObjects[item.Id]
+			if appObject != "" {
+				appRBACObjects = append(appRBACObjects, appObject)
 			}
-			object = impl.enforcerUtil.GetEnvRBACNameByAppId(item.ScanObjectMetaId, item.EnvId)
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); ok {
-				ids = append(ids, item.Id)
+			if envObject != "" {
+				envRBACObjects = append(envRBACObjects, envObject)
 			}
 		} else if item.ScanObjectMetaId > 0 && (item.ObjectType == "pod") {
 			environments, err := impl.environmentService.GetByClusterId(item.ClusterId)
@@ -109,18 +127,35 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return
 			}
-			pass := false
 			for _, environment := range environments {
-				if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, environment.EnvironmentIdentifier); ok {
-					pass = true
-					continue
-				}
-			}
-			if pass {
-				ids = append(ids, item.Id)
+				podObject := environment.EnvironmentIdentifier
+				podRBACObjects = append(podRBACObjects, podObject)
+				podRBACMap[podObject] = item.Id
 			}
 		}
-		// skip for pod
+	}
+
+	appResults := impl.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, appRBACObjects)
+	envResults := impl.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionGet, envRBACObjects)
+	podResults := impl.enforcer.EnforceInBatch(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, podRBACObjects)
+
+	for _, item := range deployInfoList {
+		if impl.enforcerUtil.IsAuthorizedForApp(item.ScanObjectMetaId, appResults, appIdtoApp) && impl.enforcerUtil.IsAuthorizedForEnv(item.ScanObjectMetaId, item.EnvId, envResults, appIdtoApp, envIdToEnv) {
+			ids = append(ids, item.Id)
+		}
+	}
+	for podObject, authorized := range podResults {
+		if authorized {
+			if itemId, exists := podRBACMap[podObject]; exists {
+				ids = append(ids, itemId)
+			}
+		}
+	}
+
+	if ids == nil || len(ids) == 0 {
+		responseList := make([]*securityBean.ImageScanHistoryResponse, 0)
+		common.WriteJsonResp(w, nil, &securityBean.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
+		return
 	}
 
 	results, err := impl.imageScanService.FetchScanExecutionListing(request, ids)
