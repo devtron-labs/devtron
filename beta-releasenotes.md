@@ -5,6 +5,7 @@
 - feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
+- chore: implemented Rbac enforcer in batch (#6103)
 - misc: Update codeowner (#6099)
 - chore: refactoring notification bean (#6085)
 - chore: refactoring image tagging reader service (#6063)
