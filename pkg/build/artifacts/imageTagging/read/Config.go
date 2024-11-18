@@ -14,17 +14,18 @@
  * limitations under the License.
  */
 
-package build
+package read
 
-import (
-	"github.com/devtron-labs/devtron/pkg/build/artifacts"
-	"github.com/devtron-labs/devtron/pkg/build/git"
-	"github.com/devtron-labs/devtron/pkg/build/pipeline"
-	"github.com/google/wire"
-)
+// ImageTaggingServiceConfig holds the configuration for the image tagging service
+type ImageTaggingServiceConfig struct {
+	// HideImageTaggingHardDelete is a flag to hide the hard delete option in the image tagging service
+	HideImageTaggingHardDelete bool `env:"HIDE_IMAGE_TAGGING_HARD_DELETE" envDefault:"false"`
+}
 
-var WireSet = wire.NewSet(
-	artifacts.WireSet,
-	pipeline.WireSet,
-	git.GitWireSet,
-)
+func (c *ImageTaggingServiceConfig) IsHardDeleteHidden() bool {
+	if c == nil {
+		// return default value of ImageTaggingServiceConfig.HideImageTaggingHardDelete
+		return false
+	}
+	return c.HideImageTaggingHardDelete
+}

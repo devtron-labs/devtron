@@ -21,7 +21,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
+	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
+	imageTaggingRead "github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging/read"
+	gitProviderRead "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	bean3 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
@@ -121,9 +123,10 @@ type PipelineConfigRestHandlerImpl struct {
 	materialRepository                  pipelineConfig.MaterialRepository
 	policyService                       security2.PolicyService
 	scanResultRepository                security.ImageScanResultRepository
-	gitProviderReadService              read.GitProviderReadService
+	gitProviderReadService              gitProviderRead.GitProviderReadService
 	argoUserService                     argo.ArgoUserService
-	imageTaggingService                 pipeline.ImageTaggingService
+	imageTaggingReadService             imageTaggingRead.ImageTaggingReadService
+	imageTaggingService                 imageTagging.ImageTaggingService
 	deploymentTemplateService           generateManifest.DeploymentTemplateService
 	pipelineRestHandlerEnvConfig        *PipelineRestHandlerEnvConfig
 	ciArtifactRepository                repository.CiArtifactRepository
@@ -143,7 +146,8 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	ciHandler pipeline.CiHandler,
 	validator *validator.Validate,
 	gitSensorClient gitSensor.Client,
-	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
+	ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	pipelineRepository pipelineConfig.PipelineRepository,
 	enforcerUtil rbac.EnforcerUtil,
 	dockerRegistryConfig pipeline.DockerRegistryConfig,
 	cdHandler pipeline.CdHandler,
@@ -153,12 +157,13 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
 	scanResultRepository security.ImageScanResultRepository,
 	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	imageTaggingService pipeline.ImageTaggingService,
+	imageTaggingReadService imageTaggingRead.ImageTaggingReadService,
+	imageTaggingService imageTagging.ImageTaggingService,
 	ciArtifactRepository repository.CiArtifactRepository,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	chartRefService chartRef.ChartRefService,
 	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator,
-	gitProviderReadService read.GitProviderReadService) *PipelineConfigRestHandlerImpl {
+	gitProviderReadService gitProviderRead.GitProviderReadService) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
 	if err != nil {
@@ -189,6 +194,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		scanResultRepository:                scanResultRepository,
 		argoUserService:                     argoUserService,
 		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
+		imageTaggingReadService:             imageTaggingReadService,
 		imageTaggingService:                 imageTaggingService,
 		deploymentTemplateService:           deploymentTemplateService,
 		pipelineRestHandlerEnvConfig:        envConfig,
