@@ -203,7 +203,7 @@ func (impl *WorkflowServiceImpl) getClusterConfig(workflowRequest *types.Workflo
 			Host:                  env.Cluster.ServerUrl,
 			InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
 		}
-		if !clusterConfig.InsecureSkipTLSVerify {
+		if !env.Cluster.InsecureSkipTlsVerify {
 			clusterConfig.KeyData = configMap[commonBean.TlsKey]
 			clusterConfig.CertData = configMap[commonBean.CertData]
 			clusterConfig.CAData = configMap[commonBean.CertificateAuthorityData]
