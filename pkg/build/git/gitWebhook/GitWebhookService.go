@@ -18,6 +18,7 @@ package gitWebhook
 
 import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitWebhook/repository"
@@ -59,7 +60,7 @@ func (impl *GitWebhookServiceImpl) HandleGitWebhook(gitWebhookRequest gitSensor.
 		},
 	}
 
-	if string(gitWebhookRequest.Type) == string(pipelineConfig.SOURCE_TYPE_WEBHOOK) {
+	if string(gitWebhookRequest.Type) == string(constants.SOURCE_TYPE_WEBHOOK) {
 		webhookData := gitWebhookRequest.GitCommit.WebhookData
 		ciPipelineMaterial.GitCommit.WebhookData = pipelineConfig.WebhookData{
 			Id:              webhookData.Id,

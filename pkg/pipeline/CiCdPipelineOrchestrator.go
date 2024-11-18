@@ -25,7 +25,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	constants2 "github.com/devtron-labs/devtron/internal/sql/constants"
 	attributesBean "github.com/devtron-labs/devtron/pkg/attributes/bean"
+	repository6 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
@@ -112,7 +114,7 @@ type CiCdPipelineOrchestrator interface {
 type CiCdPipelineOrchestratorImpl struct {
 	appRepository                 app2.AppRepository
 	logger                        *zap.SugaredLogger
-	materialRepository            pipelineConfig.MaterialRepository
+	materialRepository            repository6.MaterialRepository
 	pipelineRepository            pipelineConfig.PipelineRepository
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
@@ -144,7 +146,7 @@ type CiCdPipelineOrchestratorImpl struct {
 func NewCiCdPipelineOrchestrator(
 	pipelineGroupRepository app2.AppRepository,
 	logger *zap.SugaredLogger,
-	materialRepository pipelineConfig.MaterialRepository,
+	materialRepository repository6.MaterialRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
@@ -270,7 +272,7 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateCiPipelineMaterials(materialsUpda
 
 func (impl CiCdPipelineOrchestratorImpl) validateCiPipelineMaterial(ciPipelineMaterial *pipelineConfig.CiPipelineMaterial, value string, token string, checkAppSpecificAccess func(token, action string, appId int) (bool, error), appId int) error {
 	// Change branch source is supported for SOURCE_TYPE_BRANCH_FIXED and SOURCE_TYPE_BRANCH_REGEX
-	if ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_FIXED && ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
+	if ciPipelineMaterial.Type != constants2.SOURCE_TYPE_BRANCH_FIXED && ciPipelineMaterial.Type != constants2.SOURCE_TYPE_BRANCH_REGEX {
 		return errors.New(string(bean.CI_BRANCH_TYPE_ERROR))
 	}
 
@@ -496,7 +498,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			GitMaterialId: material.GitMaterialId,
 			AuditLog:      sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 		}
-		if material.Source.Type == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
+		if material.Source.Type == constants2.SOURCE_TYPE_BRANCH_FIXED {
 			materialGitMap[material.GitMaterialId] = material.Source.Value
 		}
 		if material.Id == 0 {
@@ -1002,7 +1004,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 				Regex:         r.Source.Regex,
 				AuditLog:      sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 			}
-			if material.Regex == "" && r.Source.Type == pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
+			if material.Regex == "" && r.Source.Type == constants2.SOURCE_TYPE_BRANCH_REGEX {
 				material.Regex = r.Source.Value
 			}
 			pipelineMaterials = append(pipelineMaterials, material)
@@ -1199,7 +1201,7 @@ func (impl CiCdPipelineOrchestratorImpl) generateExternalCiPayload(ciPipeline *b
 func (impl CiCdPipelineOrchestratorImpl) AddPipelineMaterialInGitSensor(pipelineMaterials []*pipelineConfig.CiPipelineMaterial) error {
 	var materials []*gitSensor.CiPipelineMaterial
 	for _, ciPipelineMaterial := range pipelineMaterials {
-		if ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
+		if ciPipelineMaterial.Type != constants2.SOURCE_TYPE_BRANCH_REGEX {
 			material := &gitSensor.CiPipelineMaterial{
 				Id:            ciPipelineMaterial.Id,
 				Active:        ciPipelineMaterial.Active,
@@ -1444,7 +1446,7 @@ func (impl CiCdPipelineOrchestratorImpl) UpdateMaterial(updateMaterialDTO *bean.
 	return updateMaterialDTO, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *pipelineConfig.GitMaterial, cloningMode string) error {
+func (impl CiCdPipelineOrchestratorImpl) updateRepositoryToGitSensor(material *repository6.GitMaterial, cloningMode string) error {
 	sensorMaterial := &gitSensor.GitMaterial{
 		Name:             material.Name,
 		Url:              material.Url,
@@ -1576,7 +1578,7 @@ func (impl CiCdPipelineOrchestratorImpl) validateCheckoutPathsForMultiGit(allPat
 	return nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) updateMaterial(tx *pg.Tx, updateMaterialDTO *bean.UpdateMaterialDTO) (*pipelineConfig.GitMaterial, error) {
+func (impl CiCdPipelineOrchestratorImpl) updateMaterial(tx *pg.Tx, updateMaterialDTO *bean.UpdateMaterialDTO) (*repository6.GitMaterial, error) {
 	existingMaterials, err := impl.materialRepository.FindByAppId(updateMaterialDTO.AppId)
 	if err != nil {
 		impl.logger.Errorw("err", "err", err)
@@ -1586,7 +1588,7 @@ func (impl CiCdPipelineOrchestratorImpl) updateMaterial(tx *pg.Tx, updateMateria
 	for _, material := range existingMaterials {
 		checkoutPaths[material.Id] = material.CheckoutPath
 	}
-	var currentMaterial *pipelineConfig.GitMaterial
+	var currentMaterial *repository6.GitMaterial
 	for _, m := range existingMaterials {
 		if m.Id == updateMaterialDTO.Material.Id {
 			currentMaterial = m
@@ -1629,10 +1631,10 @@ func (impl CiCdPipelineOrchestratorImpl) updateMaterial(tx *pg.Tx, updateMateria
 	return currentMaterial, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) createMaterial(tx *pg.Tx, inputMaterial *bean.GitMaterial, appId int, userId int32) (*pipelineConfig.GitMaterial, error) {
+func (impl CiCdPipelineOrchestratorImpl) createMaterial(tx *pg.Tx, inputMaterial *bean.GitMaterial, appId int, userId int32) (*repository6.GitMaterial, error) {
 	basePath := path.Base(inputMaterial.Url)
 	basePath = strings.TrimSuffix(basePath, ".git")
-	material := &pipelineConfig.GitMaterial{
+	material := &repository6.GitMaterial{
 		Url:             inputMaterial.Url,
 		AppId:           appId,
 		Name:            strconv.Itoa(inputMaterial.GitProviderId) + "-" + basePath,
@@ -2363,7 +2365,7 @@ func (impl *CiCdPipelineOrchestratorImpl) GetGitCommitEnvVarDataForCICDStage(git
 			})
 
 			// CODE-BLOCK starts - store extra environment variables if webhook
-			if gitTrigger.CiConfigureSourceType == pipelineConfig.SOURCE_TYPE_WEBHOOK {
+			if gitTrigger.CiConfigureSourceType == constants2.SOURCE_TYPE_WEBHOOK {
 				webhookDataId := gitTrigger.WebhookData.Id
 				if webhookDataId > 0 {
 					webhookDataRequest := &gitSensor.WebhookDataRequest{

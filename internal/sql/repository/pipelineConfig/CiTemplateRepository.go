@@ -19,6 +19,7 @@ package pipelineConfig
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
@@ -47,7 +48,7 @@ type CiTemplate struct {
 	sql.AuditLog
 	App            *app.App
 	DockerRegistry *dockerRegistryRepository.DockerArtifactStore
-	GitMaterial    *GitMaterial
+	GitMaterial    *repository.GitMaterial
 	CiBuildConfig  *CiBuildConfig
 }
 

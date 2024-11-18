@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
@@ -30,6 +31,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	read2 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
+	repository3 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	bean3 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline/read"
@@ -117,8 +120,8 @@ type CiPipelineConfigServiceImpl struct {
 	logger                        *zap.SugaredLogger
 	ciTemplateService             CiTemplateService
 	ciTemplateReadService         pipeline.CiTemplateReadService
-	materialRepo                  pipelineConfig.MaterialRepository
 	ciPipelineConfigReadService   read.CiPipelineConfigReadService
+	gitMaterialReadService        read2.GitMaterialReadService
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	ciConfig                      *types.CiCdConfig
 	attributesService             attributes.AttributesService
@@ -146,7 +149,7 @@ type CiPipelineConfigServiceImpl struct {
 func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
-	materialRepo pipelineConfig.MaterialRepository,
+	gitMaterialReadService read2.GitMaterialReadService,
 	pipelineGroupRepo app2.AppRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciPipelineConfigReadService read.CiPipelineConfigReadService,
@@ -178,7 +181,7 @@ func NewCiPipelineConfigServiceImpl(logger *zap.SugaredLogger,
 		logger:                        logger,
 		ciCdPipelineOrchestrator:      ciCdPipelineOrchestrator,
 		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
-		materialRepo:                  materialRepo,
+		gitMaterialReadService:        gitMaterialReadService,
 		appRepo:                       pipelineGroupRepo,
 		pipelineRepository:            pipelineRepository,
 		ciPipelineConfigReadService:   ciPipelineConfigReadService,
@@ -217,8 +220,8 @@ func (impl *CiPipelineConfigServiceImpl) getCiTemplateVariablesByAppIds(appIds [
 		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no ci pipeline exists"}
 		return nil, err
 	}
-	gitMaterialsMap := make(map[int][]*pipelineConfig.GitMaterial)
-	allGitMaterials, err := impl.materialRepo.FindByAppIds(appIds)
+	gitMaterialsMap := make(map[int][]*repository3.GitMaterial)
+	allGitMaterials, err := impl.gitMaterialReadService.FindByAppIds(appIds)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching git materials", "appIds", appIds, "err", err)
 		return nil, err
@@ -454,7 +457,7 @@ func (impl *CiPipelineConfigServiceImpl) getCiTemplateVariables(appId int) (ciCo
 	}
 	template := ciTemplateBean.CiTemplate
 
-	gitMaterials, err := impl.materialRepo.FindByAppId(appId)
+	gitMaterials, err := impl.gitMaterialReadService.FindByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching git materials", "appId", appId, "err", err)
 		return nil, err
@@ -1524,7 +1527,7 @@ func (impl *CiPipelineConfigServiceImpl) PatchRegexCiPipeline(request *bean.CiRe
 			Id:            material.Id,
 			Value:         material.Value,
 			CiPipelineId:  materialDbObject.CiPipelineId,
-			Type:          pipelineConfig.SourceType(material.Type),
+			Type:          constants.SourceType(material.Type),
 			Active:        true,
 			GitMaterialId: materialDbObject.GitMaterialId,
 			Regex:         materialDbObject.Regex,

@@ -14,22 +14,13 @@
  * limitations under the License.
  */
 
-package pipelineConfig
+package repository
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
-)
-
-type SourceType string
-
-const (
-	SOURCE_TYPE_BRANCH_FIXED SourceType = "SOURCE_TYPE_BRANCH_FIXED"
-	SOURCE_TYPE_BRANCH_REGEX SourceType = "SOURCE_TYPE_BRANCH_REGEX"
-	SOURCE_TYPE_TAG_ANY      SourceType = "SOURCE_TYPE_TAG_ANY"
-	SOURCE_TYPE_WEBHOOK      SourceType = "WEBHOOK"
 )
 
 // TODO: add support for submodule

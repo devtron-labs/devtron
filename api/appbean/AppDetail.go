@@ -17,6 +17,7 @@
 package appbean
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
@@ -111,10 +112,10 @@ type CiPipelineDetails struct {
 }
 
 type CiPipelineMaterialConfig struct {
-	Type          pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED SOURCE_TYPE_BRANCH_REGEX SOURCE_TYPE_TAG_ANY WEBHOOK"`
-	Value         string                    `json:"value,omitempty" `
-	CheckoutPath  string                    `json:"checkoutPath"`
-	GitMaterialId int                       `json:"gitMaterialId"`
+	Type          constants.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED SOURCE_TYPE_BRANCH_REGEX SOURCE_TYPE_TAG_ANY WEBHOOK"`
+	Value         string               `json:"value,omitempty" `
+	CheckoutPath  string               `json:"checkoutPath"`
+	GitMaterialId int                  `json:"gitMaterialId"`
 }
 
 type BuildScript struct {
