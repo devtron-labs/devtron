@@ -5,6 +5,7 @@
 - feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
+- chore: ciTemplateReadService fix (#6111)
 - chore: use certificates data when InsecureSkipTLSVerify is false for a cluster in case of external run CI (#6100)
 - misc: main sync develop nov18 (#6107)
 - chore: read service/material (#6101)
