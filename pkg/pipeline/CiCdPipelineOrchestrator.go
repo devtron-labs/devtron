@@ -190,6 +190,7 @@ func NewCiCdPipelineOrchestrator(
 		pipelineStageService:          pipelineStageService,
 		gitMaterialHistoryService:     gitMaterialHistoryService,
 		ciPipelineHistoryService:      ciPipelineHistoryService,
+		ciTemplateReadService:         ciTemplateReadService,
 		ciTemplateService:             ciTemplateService,
 		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
 		CiArtifactRepository:          CiArtifactRepository,
