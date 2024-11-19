@@ -201,7 +201,12 @@ func (impl *WorkflowServiceImpl) getClusterConfig(workflowRequest *types.Workflo
 			ClusterName:           env.Cluster.ClusterName,
 			BearerToken:           bearerToken,
 			Host:                  env.Cluster.ServerUrl,
-			InsecureSkipTLSVerify: true,
+			InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
+		}
+		if !env.Cluster.InsecureSkipTlsVerify {
+			clusterConfig.KeyData = configMap[commonBean.TlsKey]
+			clusterConfig.CertData = configMap[commonBean.CertData]
+			clusterConfig.CAData = configMap[commonBean.CertificateAuthorityData]
 		}
 		restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 		if err != nil {
