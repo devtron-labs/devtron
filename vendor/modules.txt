@@ -344,7 +344,7 @@ github.com/devtron-labs/authenticator/jwt
 github.com/devtron-labs/authenticator/middleware
 github.com/devtron-labs/authenticator/oidc
 github.com/devtron-labs/authenticator/password
-# github.com/devtron-labs/common-lib v0.18.1-0.20241001061923-eda545dc839e => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20241024135802-b4888f54a136
+# github.com/devtron-labs/common-lib v0.19.2-0.20241112112602-4a23a105c420 => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20241024135802-b4888f54a136
 ## explicit; go 1.21
 github.com/devtron-labs/common-lib/async
 github.com/devtron-labs/common-lib/blob-storage
