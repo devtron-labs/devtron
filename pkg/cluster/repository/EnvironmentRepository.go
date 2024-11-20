@@ -325,6 +325,9 @@ func (repositoryImpl EnvironmentRepositoryImpl) FindByClusterId(clusterId int) (
 
 func (repositoryImpl EnvironmentRepositoryImpl) FindByIds(ids []*int) ([]*Environment, error) {
 	var apps []*Environment
+	if len(ids) == 0 {
+		return []*Environment{}, nil
+	}
 	err := repositoryImpl.dbConnection.Model(&apps).Where("active = ?", true).Where("id in (?)", pg.In(ids)).Select()
 	return apps, err
 }

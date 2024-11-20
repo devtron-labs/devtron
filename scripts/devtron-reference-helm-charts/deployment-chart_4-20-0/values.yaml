@@ -720,3 +720,17 @@ persistentVolumeClaim: {}
 
 verticalPodScaling:
   enabled: false
+
+secondaryWorkload:
+  enabled: false
+  Spec:
+    Affinity:
+      Key: ""
+      Values: ""
+  replicaCount: 1
+  affinity: {}
+  tolerations: []
+  autoscaling:
+    enabled: false
+    containerResource:
+      enabled: false

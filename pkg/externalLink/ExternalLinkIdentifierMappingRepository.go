@@ -108,7 +108,7 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByLinkIdent
 				 elim.id as mapping_id,elim.active,elim.type,elim.identifier,elim.env_id,elim.app_id,elim.cluster_id 
 				 FROM external_link el 
 				 LEFT JOIN external_link_identifier_mapping elim ON el.id = elim.external_link_id 
-				 WHERE el.active = true and elim.active = true and ( (elim.type = %d and elim.identifier = '%s' and elim.cluster_id = 0) or (elim.type = 0 and elim.app_id = 0 and elim.cluster_id = %d)  
+				 WHERE el.active = true and elim.active = true and ( (elim.type = ? and elim.identifier = ? and elim.cluster_id = 0) or (elim.type = 0 and elim.app_id = 0 and elim.cluster_id = ?)  
 				 or (elim.type = -1) );`
 		queryParams = append(queryParams, TypeMappings[linkIdentifier.Type], linkIdentifier.Identifier, clusterId)
 	}

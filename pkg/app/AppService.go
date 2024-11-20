@@ -131,7 +131,6 @@ type AppServiceImpl struct {
 
 type AppService interface {
 	UpdateReleaseStatus(request *bean.ReleaseStatusUpdateRequest) (bool, error)
-	UpdateDeploymentStatusAndCheckIsSucceeded(app *v1alpha1.Application, statusTime time.Time, isAppStore bool) (bool, *chartConfig.PipelineOverride, error)
 	GetConfigMapAndSecretJson(appId int, envId int, pipelineId int) ([]byte, error)
 	UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Application, cdWfrId int, updateTimedOutStatus bool) error
 	GetCmSecretNew(appId int, envId int, isJob bool, scope resourceQualifiers.Scope) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
@@ -211,64 +210,6 @@ func (impl *AppServiceImpl) UpdateReleaseStatus(updateStatusRequest *bean.Releas
 		return false, err
 	}
 	return count == 1, nil
-}
-
-func (impl *AppServiceImpl) UpdateDeploymentStatusAndCheckIsSucceeded(app *v1alpha1.Application, statusTime time.Time, isAppStore bool) (bool, *chartConfig.PipelineOverride, error) {
-	isSucceeded := false
-	var err error
-	var pipelineOverride *chartConfig.PipelineOverride
-	if isAppStore {
-		var installAppDeleteRequest repository4.InstallAppDeleteRequest
-		var gitHash string
-		if app.Operation != nil && app.Operation.Sync != nil {
-			gitHash = app.Operation.Sync.Revision
-		} else if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
-			gitHash = app.Status.OperationState.Operation.Sync.Revision
-		}
-		installAppDeleteRequest, err = impl.installedAppRepository.GetInstalledAppByGitHash(gitHash)
-		if err != nil {
-			impl.logger.Errorw("error in fetching installed app by git hash from installed app repository", "err", err)
-			return isSucceeded, pipelineOverride, err
-		}
-		if installAppDeleteRequest.EnvironmentId > 0 {
-			err = impl.appStatusService.UpdateStatusWithAppIdEnvId(installAppDeleteRequest.AppId, installAppDeleteRequest.EnvironmentId, string(app.Status.Health.Status))
-			if err != nil {
-				impl.logger.Errorw("error occurred while updating app status in app_status table", "error", err, "appId", installAppDeleteRequest.AppId, "envId", installAppDeleteRequest.EnvironmentId)
-			}
-			impl.logger.Debugw("skipping application status update as this app is chart", "appId", installAppDeleteRequest.AppId, "envId", installAppDeleteRequest.EnvironmentId)
-		}
-	} else {
-		repoUrl := app.Spec.Source.RepoURL
-		// backward compatibility for updating application status - if unable to find app check it in charts
-		chart, err := impl.chartRepository.FindChartByGitRepoUrl(repoUrl)
-		if err != nil {
-			impl.logger.Errorw("error in fetching chart", "repoUrl", repoUrl, "err", err)
-			return isSucceeded, pipelineOverride, err
-		}
-		if chart == nil {
-			impl.logger.Errorw("no git repo found for url", "repoUrl", repoUrl)
-			return isSucceeded, pipelineOverride, fmt.Errorf("no git repo found for url %s", repoUrl)
-		}
-		envId, err := impl.appRepository.FindEnvironmentIdForInstalledApp(chart.AppId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching app", "err", err, "app", chart.AppId)
-			return isSucceeded, pipelineOverride, err
-		}
-		if envId > 0 {
-			err = impl.appStatusService.UpdateStatusWithAppIdEnvId(chart.AppId, envId, string(app.Status.Health.Status))
-			if err != nil {
-				impl.logger.Errorw("error occurred while updating app status in app_status table", "error", err, "appId", chart.AppId, "envId", envId)
-			}
-			impl.logger.Debugw("skipping application status update as this app is chart", "appId", chart.AppId, "envId", envId)
-		}
-	}
-
-	isSucceeded, _, pipelineOverride, err = impl.UpdateDeploymentStatusForGitOpsPipelines(app, statusTime, isAppStore)
-	if err != nil {
-		impl.logger.Errorw("error in updating deployment status", "argoAppName", app.Name)
-		return isSucceeded, pipelineOverride, err
-	}
-	return isSucceeded, pipelineOverride, nil
 }
 
 func (impl *AppServiceImpl) ComputeAppstatus(appId, envId int, status health2.HealthStatusCode) (string, error) {

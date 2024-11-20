@@ -33,4 +33,6 @@ var DeploymentTemplateWireSet = wire.NewSet(
 	wire.Bind(new(DeploymentTemplateValidationService), new(*DeploymentTemplateValidationServiceImpl)),
 	chartRef.NewChartRefServiceImpl,
 	wire.Bind(new(chartRef.ChartRefService), new(*chartRef.ChartRefServiceImpl)),
+	read.NewDeploymentTemplateHistoryReadServiceImpl,
+	wire.Bind(new(read.DeploymentTemplateHistoryReadService), new(*read.DeploymentTemplateHistoryReadServiceImpl)),
 )

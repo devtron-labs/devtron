@@ -27,6 +27,11 @@ import (
 )
 
 type PluginType string
+
+func (p PluginType) ToString() string {
+	return string(p)
+}
+
 type ScriptType string
 type ScriptImagePullSecretType string
 type ScriptMappingType string
@@ -346,9 +351,11 @@ type GlobalPluginRepository interface {
 	GetPluginVersionsByParentId(parentPluginId int) ([]*PluginMetadata, error)
 
 	GetPluginParentMetadataByIdentifier(pluginIdentifier string) (*PluginParentMetadata, error)
+	GetPluginParentsMetadataByIdentifiers(pluginIdentifiers ...string) ([]*PluginParentMetadata, error)
 	GetAllFilteredPluginParentMetadata(searchKey string, tags []string) ([]*PluginParentMetadata, error)
 	GetPluginParentMetadataByIds(ids []int) ([]*PluginParentMetadata, error)
 	GetAllPluginMinData() ([]*PluginParentMetadata, error)
+	GetAllPluginMinDataByType(pluginType string) ([]*PluginParentMetadata, error)
 	GetPluginParentMinDataById(id int) (*PluginParentMetadata, error)
 	MarkPreviousPluginVersionLatestFalse(pluginParentId int) error
 
@@ -814,12 +821,29 @@ func (impl *GlobalPluginRepositoryImpl) UpdateInBulkPluginStepConditions(pluginS
 
 func (impl *GlobalPluginRepositoryImpl) GetPluginParentMetadataByIdentifier(pluginIdentifier string) (*PluginParentMetadata, error) {
 	var pluginParentMetadata PluginParentMetadata
-	err := impl.dbConnection.Model(&pluginParentMetadata).Where("identifier = ?", pluginIdentifier).
-		Where("deleted = ?", false).Select()
+	err := impl.dbConnection.Model(&pluginParentMetadata).
+		Where("identifier = ?", pluginIdentifier).
+		Where("deleted = ?", false).
+		Select()
 	if err != nil {
 		return nil, err
 	}
 	return &pluginParentMetadata, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetPluginParentsMetadataByIdentifiers(pluginIdentifiers ...string) ([]*PluginParentMetadata, error) {
+	if len(pluginIdentifiers) == 0 {
+		return []*PluginParentMetadata{}, nil
+	}
+	var pluginParentMetadata []*PluginParentMetadata
+	err := impl.dbConnection.Model(&pluginParentMetadata).
+		Where("identifier IN (?)", pg.In(pluginIdentifiers)).
+		Where("deleted = ?", false).
+		Select()
+	if err != nil {
+		return nil, err
+	}
+	return pluginParentMetadata, nil
 }
 
 func (impl *GlobalPluginRepositoryImpl) GetPluginParentMinDataById(id int) (*PluginParentMetadata, error) {
@@ -881,11 +905,18 @@ func (impl *GlobalPluginRepositoryImpl) GetPluginParentMetadataByIds(ids []int) 
 }
 
 func (impl *GlobalPluginRepositoryImpl) GetAllPluginMinData() ([]*PluginParentMetadata, error) {
+	return impl.GetAllPluginMinDataByType("")
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetAllPluginMinDataByType(pluginType string) ([]*PluginParentMetadata, error) {
 	var plugins []*PluginParentMetadata
-	err := impl.dbConnection.Model(&plugins).
+	query := impl.dbConnection.Model(&plugins).
 		Column("plugin_parent_metadata.id", "plugin_parent_metadata.name", "plugin_parent_metadata.type", "plugin_parent_metadata.icon", "plugin_parent_metadata.identifier").
-		Where("deleted = ?", false).
-		Select()
+		Where("deleted = ?", false)
+	if len(pluginType) != 0 {
+		query.Where("type = ?", pluginType)
+	}
+	err := query.Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting all plugin parent metadata min data", "err", err)
 		return nil, err

@@ -23,10 +23,11 @@ import (
 	helper2 "github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes/bean"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
+	read2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -38,17 +39,17 @@ type CommonService interface {
 }
 
 type CommonServiceImpl struct {
-	logger                      *zap.SugaredLogger
-	chartRepository             chartRepoRepository.ChartRepository
-	installedAppRepository      repository4.InstalledAppRepository
-	dockerReg                   dockerRegistryRepository.DockerArtifactStoreRepository
-	attributeRepo               repository.AttributesRepository
-	gitProviderRepository       repository.GitProviderRepository
-	environmentRepository       repository3.EnvironmentRepository
-	teamRepository              repository2.TeamRepository
-	appRepository               app.AppRepository
-	gitOpsConfigReadService     config.GitOpsConfigReadService
-	envConfigOverrideReadService read.EnvConfigOverrideService
+	logger                       *zap.SugaredLogger
+	chartRepository              chartRepoRepository.ChartRepository
+	installedAppRepository       repository4.InstalledAppRepository
+	dockerReg                    dockerRegistryRepository.DockerArtifactStoreRepository
+	attributeRepo                repository.AttributesRepository
+	gitProviderReadService       read.GitProviderReadService
+	environmentRepository        repository3.EnvironmentRepository
+	teamRepository               repository2.TeamRepository
+	appRepository                app.AppRepository
+	gitOpsConfigReadService      config.GitOpsConfigReadService
+	envConfigOverrideReadService read2.EnvConfigOverrideService
 }
 
 func NewCommonServiceImpl(logger *zap.SugaredLogger,
@@ -56,23 +57,23 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepository repository4.InstalledAppRepository,
 	dockerReg dockerRegistryRepository.DockerArtifactStoreRepository,
 	attributeRepo repository.AttributesRepository,
-	gitProviderRepository repository.GitProviderRepository,
 	environmentRepository repository3.EnvironmentRepository,
 	teamRepository repository2.TeamRepository,
 	appRepository app.AppRepository,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	envConfigOverrideReadService read.EnvConfigOverrideService) *CommonServiceImpl {
+	gitProviderReadService read.GitProviderReadService,
+	envConfigOverrideReadService read2.EnvConfigOverrideService) *CommonServiceImpl {
 	serviceImpl := &CommonServiceImpl{
-		logger:                      logger,
-		chartRepository:             chartRepository,
-		installedAppRepository:      installedAppRepository,
-		dockerReg:                   dockerReg,
-		attributeRepo:               attributeRepo,
-		gitProviderRepository:       gitProviderRepository,
-		environmentRepository:       environmentRepository,
-		teamRepository:              teamRepository,
-		appRepository:               appRepository,
-		gitOpsConfigReadService:     gitOpsConfigReadService,
+		logger:                       logger,
+		chartRepository:              chartRepository,
+		installedAppRepository:       installedAppRepository,
+		dockerReg:                    dockerReg,
+		attributeRepo:                attributeRepo,
+		environmentRepository:        environmentRepository,
+		teamRepository:               teamRepository,
+		appRepository:                appRepository,
+		gitOpsConfigReadService:      gitOpsConfigReadService,
+		gitProviderReadService:       gitProviderReadService,
 		envConfigOverrideReadService: envConfigOverrideReadService,
 	}
 	return serviceImpl
@@ -151,7 +152,7 @@ func (impl *CommonServiceImpl) GlobalChecklist() (*GlobalChecklist, error) {
 		return nil, err
 	}
 
-	git, err := impl.gitProviderRepository.FindAllActiveForAutocomplete()
+	git, err := impl.gitProviderReadService.GetAll()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("GlobalChecklist, error while getting error", "err", err)
 		return nil, err

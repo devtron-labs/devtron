@@ -17,16 +17,17 @@
 package restHandler
 
 import (
+	bean3 "github.com/devtron-labs/devtron/pkg/build/git/gitHost/bean"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitHost/read"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitWebhook"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	client "github.com/devtron-labs/devtron/client/events"
-	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -38,23 +39,24 @@ type WebhookEventHandler interface {
 
 type WebhookEventHandlerImpl struct {
 	logger                        *zap.SugaredLogger
-	gitHostConfig                 pipeline.GitHostConfig
+	gitHostReadService            read.GitHostReadService
 	eventClient                   client.EventClient
-	webhookSecretValidator        git.WebhookSecretValidator
+	webhookSecretValidator        gitWebhook.WebhookSecretValidator
 	webhookEventDataConfig        pipeline.WebhookEventDataConfig
 	ciPipelineEventPublishService out.CIPipelineEventPublishService
 }
 
-func NewWebhookEventHandlerImpl(logger *zap.SugaredLogger, gitHostConfig pipeline.GitHostConfig, eventClient client.EventClient,
-	webhookSecretValidator git.WebhookSecretValidator, webhookEventDataConfig pipeline.WebhookEventDataConfig,
-	ciPipelineEventPublishService out.CIPipelineEventPublishService) *WebhookEventHandlerImpl {
+func NewWebhookEventHandlerImpl(logger *zap.SugaredLogger, eventClient client.EventClient,
+	webhookSecretValidator gitWebhook.WebhookSecretValidator, webhookEventDataConfig pipeline.WebhookEventDataConfig,
+	ciPipelineEventPublishService out.CIPipelineEventPublishService,
+	gitHostReadService read.GitHostReadService) *WebhookEventHandlerImpl {
 	return &WebhookEventHandlerImpl{
 		logger:                        logger,
-		gitHostConfig:                 gitHostConfig,
 		eventClient:                   eventClient,
 		webhookSecretValidator:        webhookSecretValidator,
 		webhookEventDataConfig:        webhookEventDataConfig,
 		ciPipelineEventPublishService: ciPipelineEventPublishService,
+		gitHostReadService:            gitHostReadService,
 	}
 }
 
@@ -66,11 +68,11 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 	var gitHostId int
 	var err error
 	var gitHostName string
-	var gitHost *types.GitHostRequest
+	var gitHost *bean3.GitHostRequest
 	if gitHostId, err = strconv.Atoi(vars["gitHostId"]); err != nil {
 		gitHostName = vars["gitHostId"]
 		// get git host from DB
-		gitHost, err = impl.gitHostConfig.GetByName(gitHostName)
+		gitHost, err = impl.gitHostReadService.GetByName(gitHostName)
 		if err != nil {
 			impl.logger.Errorw("Error in getting git host from DB by Name", "err", err, "gitHostName", gitHostName)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -80,7 +82,7 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 
 	} else {
 		// get git host from DB
-		gitHost, err = impl.gitHostConfig.GetById(gitHostId)
+		gitHost, err = impl.gitHostReadService.GetById(gitHostId)
 		if err != nil {
 			impl.logger.Errorw("Error in getting git host from DB by Id", "err", err, "gitHostId", gitHostId)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
