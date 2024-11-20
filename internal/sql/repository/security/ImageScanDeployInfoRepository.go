@@ -237,7 +237,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithObject(request *s
 	query = query + ` INNER JOIN environment env on env.id=info.env_id 
 	 				  INNER JOIN cluster c on c.id=env.cluster_id 
 					  WHERE info.scan_object_meta_id > 0 and env.active=true and info.image_scan_execution_history_id[1] != -1 
- 					  AND a.app_name like '%" + request.AppName + "%' `
+ 					  AND a.app_name like '%"` + request.AppName + ` "%' `
 
 	if len(deployInfoIds) > 0 {
 		query += " AND info.id IN (?) "
