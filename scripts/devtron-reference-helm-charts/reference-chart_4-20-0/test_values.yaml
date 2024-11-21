@@ -646,3 +646,68 @@ affinity:
             values:
             - S1
         topologyKey: topology.kubernetes.io/zone          
+
+istio:
+  enable: true
+  gateway:
+    enabled: true
+    labels: {}
+    annotations: {}
+    host: "example.com"
+    hosts:
+      - "example1.com"
+      - "example2.com"
+    tls:
+      enabled: true
+      secretName: secret-name
+  virtualService:
+    enabled: true
+    labels: {}
+    annotations: {}
+    gateways: []
+    hosts: 
+    - "example3.com"
+    - "example4.com"
+    http: []
+      # - match:
+      #   - uri:
+      #       prefix: /v1
+      #   - uri:
+      #       prefix: /v2
+      #   timeout: 12
+      #   headers:
+      #     request:
+      #       add:
+      #         x-some-header: "value"
+      #   retries:
+      #     attempts: 2 
+      #     perTryTimeout: 3s 
+  destinationRule:
+    enabled: false
+    labels: {}
+    annotations: {}
+    subsets: []
+    trafficPolicy: {}
+  peerAuthentication:
+    enabled: false
+    labels: {}
+    annotations: {}
+    selector:
+      enabled: false
+    mtls:
+      mode: ""
+    portLevelMtls: {}
+  requestAuthentication:
+    enabled: false
+    labels: {}
+    annotations: {}
+    selector:
+      enabled: false
+    jwtRules: []
+  authorizationPolicy:
+    enabled: false
+    labels: {}
+    annotations: {}
+    action:
+    provider: {}
+    rules: []

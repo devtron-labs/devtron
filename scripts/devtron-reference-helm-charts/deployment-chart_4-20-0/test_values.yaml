@@ -162,17 +162,20 @@ service:
   # test3: test4
 
 istio:
-  enable: false
+  enable: true
   gateway:
-    enabled: false
+    enabled: true
     labels: {}
     annotations: {}
-    host: example.com
+    # host: example.com
+    hosts:
+    - kamal
+    - "example4.com"
     tls:
-      enabled: false
+      enabled: true
       secretName: example-tls-secret
   virtualService:
-    enabled: false
+    enabled: true
     labels: {}
     annotations: {}
     gateways: []
