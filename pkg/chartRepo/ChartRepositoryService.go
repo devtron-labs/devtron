@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	util3 "github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"io"
 	"io/ioutil"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
@@ -31,7 +32,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -725,7 +725,7 @@ func (impl *ChartRepositoryServiceImpl) TriggerChartSyncManual(chartProviderConf
 
 	defaultClusterConfig := defaultClusterBean.GetClusterConfig()
 
-	manualAppSyncJobByteArr := manualAppSyncJobByteArr(impl.serverEnvConfig.AppSyncImage, impl.serverEnvConfig.AppSyncJobResourcesObj, impl.serverEnvConfig.AppSyncServiceAccount, chartProviderConfig,impl.serverEnvConfig.ParallelismLimitForTagProcessing)
+	manualAppSyncJobByteArr := manualAppSyncJobByteArr(impl.serverEnvConfig.AppSyncImage, impl.serverEnvConfig.AppSyncJobResourcesObj, impl.serverEnvConfig.AppSyncServiceAccount, chartProviderConfig, impl.serverEnvConfig.ParallelismLimitForTagProcessing)
 	err = impl.K8sUtil.DeleteAndCreateJob(manualAppSyncJobByteArr, impl.aCDAuthConfig.ACDConfigMapNamespace, defaultClusterConfig)
 	if err != nil {
 		impl.logger.Errorw("DeleteAndCreateJob err, TriggerChartSyncManual", "err", err)
@@ -787,14 +787,14 @@ func (impl *ChartRepositoryServiceImpl) newChartRepository(cfg *repo.Entry, gett
 
 func (impl *ChartRepositoryServiceImpl) createRepoElement(request *ChartRepoDto) *AcdConfigMapRepositoriesDto {
 	repoData := &AcdConfigMapRepositoriesDto{}
-	if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
+	if request.AuthMode == constants.AUTH_MODE_USERNAME_PASSWORD {
 		usernameSecret := &KeyDto{Name: request.UserName, Key: "username"}
 		passwordSecret := &KeyDto{Name: request.Password, Key: "password"}
 		repoData.PasswordSecret = passwordSecret
 		repoData.UsernameSecret = usernameSecret
-	} else if request.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
+	} else if request.AuthMode == constants.AUTH_MODE_ACCESS_TOKEN {
 		// TODO - is it access token or ca cert nd secret
-	} else if request.AuthMode == repository.AUTH_MODE_SSH {
+	} else if request.AuthMode == constants.AUTH_MODE_SSH {
 		keySecret := &KeyDto{Name: request.SshKey, Key: "key"}
 		repoData.KeySecret = keySecret
 	}
@@ -849,14 +849,14 @@ func (impl *ChartRepositoryServiceImpl) updateRepoData(data map[string]string, r
 	for _, item := range repositories {
 		//if request chart repo found, then update its values
 		if item.Name == request.Name {
-			if request.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
+			if request.AuthMode == constants.AUTH_MODE_USERNAME_PASSWORD {
 				usernameSecret := &KeyDto{Name: request.UserName, Key: "username"}
 				passwordSecret := &KeyDto{Name: request.Password, Key: "password"}
 				item.PasswordSecret = passwordSecret
 				item.UsernameSecret = usernameSecret
-			} else if request.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
+			} else if request.AuthMode == constants.AUTH_MODE_ACCESS_TOKEN {
 				// TODO - is it access token or ca cert nd secret
-			} else if request.AuthMode == repository.AUTH_MODE_SSH {
+			} else if request.AuthMode == constants.AUTH_MODE_SSH {
 				keySecret := &KeyDto{Name: request.SshKey, Key: "key"}
 				item.KeySecret = keySecret
 			}

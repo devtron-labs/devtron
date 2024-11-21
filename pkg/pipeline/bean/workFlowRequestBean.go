@@ -17,7 +17,7 @@
 package bean
 
 import (
-	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 )
 
@@ -116,24 +116,24 @@ type CiProjectDetails struct {
 	GitTag          string `json:"gitTag"`
 	CommitTime      string `json:"commitTime"`
 	//Branch        string          `json:"branch"`
-	Type        string                    `json:"type"`
-	Message     string                    `json:"message"`
-	Author      string                    `json:"author"`
-	GitOptions  GitOptions                `json:"gitOptions"`
-	SourceType  pipelineConfig.SourceType `json:"sourceType"`
-	SourceValue string                    `json:"sourceValue"`
+	Type        string               `json:"type"`
+	Message     string               `json:"message"`
+	Author      string               `json:"author"`
+	GitOptions  GitOptions           `json:"gitOptions"`
+	SourceType  constants.SourceType `json:"sourceType"`
+	SourceValue string               `json:"sourceValue"`
 	WebhookData pipelineConfig.WebhookData
 }
 type GitOptions struct {
-	UserName              string               `json:"userName"`
-	Password              string               `json:"password"`
-	SshPrivateKey         string               `json:"sshPrivateKey"`
-	AccessToken           string               `json:"accessToken"`
-	AuthMode              repository2.AuthMode `json:"authMode"`
-	TlsKey                string               `json:"tlsKey"`
-	TlsCert               string               `json:"tlsCert"`
-	CaCert                string               `json:"caCert"`
-	EnableTLSVerification bool                 `json:"enableTLSVerification"`
+	UserName              string             `json:"userName"`
+	Password              string             `json:"password"`
+	SshPrivateKey         string             `json:"sshPrivateKey"`
+	AccessToken           string             `json:"accessToken"`
+	AuthMode              constants.AuthMode `json:"authMode"`
+	TlsKey                string             `json:"tlsKey"`
+	TlsCert               string             `json:"tlsCert"`
+	CaCert                string             `json:"caCert"`
+	EnableTLSVerification bool               `json:"enableTLSVerification"`
 }
 
 type NodeConstraints struct {

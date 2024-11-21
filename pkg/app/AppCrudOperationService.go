@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/bean"
 	"go.opentelemetry.io/otel"
 	"regexp"
@@ -86,7 +87,7 @@ type AppCrudOperationServiceImpl struct {
 	userRepository             repository.UserRepository
 	installedAppRepository     repository2.InstalledAppRepository
 	genericNoteService         genericNotes.GenericNoteService
-	gitMaterialRepository      pipelineConfig.MaterialRepository
+	gitMaterialReadService     read.GitMaterialReadService
 	installedAppDbService      EAMode.InstalledAppDBService
 	crudOperationServiceConfig *CrudOperationServiceConfig
 	dbMigration                dbMigration.DbMigration
@@ -96,10 +97,10 @@ func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRe
 	logger *zap.SugaredLogger, appRepository appRepository.AppRepository, userRepository repository.UserRepository,
 	installedAppRepository repository2.InstalledAppRepository,
 	genericNoteService genericNotes.GenericNoteService,
-	gitMaterialRepository pipelineConfig.MaterialRepository,
 	installedAppDbService EAMode.InstalledAppDBService,
 	crudOperationServiceConfig *CrudOperationServiceConfig,
-	dbMigration dbMigration.DbMigration) *AppCrudOperationServiceImpl {
+	dbMigration dbMigration.DbMigration,
+	gitMaterialReadService read.GitMaterialReadService) *AppCrudOperationServiceImpl {
 	impl := &AppCrudOperationServiceImpl{
 		appLabelRepository:     appLabelRepository,
 		logger:                 logger,
@@ -107,9 +108,9 @@ func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRe
 		userRepository:         userRepository,
 		installedAppRepository: installedAppRepository,
 		genericNoteService:     genericNoteService,
-		gitMaterialRepository:  gitMaterialRepository,
 		installedAppDbService:  installedAppDbService,
 		dbMigration:            dbMigration,
+		gitMaterialReadService: gitMaterialReadService,
 	}
 	crudOperationServiceConfig, err := GetCrudOperationServiceConfig()
 	if err != nil {
@@ -427,7 +428,7 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int, installedAppId
 		}
 	} else {
 		//app type not helm type, getting gitMaterials
-		gitMaterials, err := impl.gitMaterialRepository.FindByAppId(appId)
+		gitMaterials, err := impl.gitMaterialReadService.FindByAppId(appId)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting gitMaterials by appId", "err", err, "appId", appId)
 			return nil, err
