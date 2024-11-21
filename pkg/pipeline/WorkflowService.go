@@ -28,11 +28,12 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/app"
-	"github.com/devtron-labs/devtron/pkg/environment/repository"
-	"github.com/devtron-labs/devtron/pkg/infraConfig"
+	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	bean4 "github.com/devtron-labs/devtron/pkg/infraConfig/bean"
+	util2 "github.com/devtron-labs/devtron/pkg/infraConfig/util"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -63,7 +64,7 @@ type WorkflowServiceImpl struct {
 	config                 *rest.Config
 	ciCdConfig             *types.CiCdConfig
 	appService             app.AppService
-	envRepository          repository.EnvironmentRepository
+	envRepository          repository2.EnvironmentRepository
 	globalCMCSService      GlobalCMCSService
 	argoWorkflowExecutor   executors.ArgoWorkflowExecutor
 	systemWorkflowExecutor executors.SystemWorkflowExecutor
@@ -74,7 +75,7 @@ type WorkflowServiceImpl struct {
 
 // TODO: Move to bean
 
-func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.EnvironmentRepository, ciCdConfig *types.CiCdConfig,
+func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository2.EnvironmentRepository, ciCdConfig *types.CiCdConfig,
 	appService app.AppService, globalCMCSService GlobalCMCSService, argoWorkflowExecutor executors.ArgoWorkflowExecutor,
 	k8sUtil *k8s.K8sServiceImpl,
 	systemWorkflowExecutor executors.SystemWorkflowExecutor, k8sCommonService k8s2.K8sCommonService,
@@ -147,13 +148,13 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 	workflowTemplate.Volumes = executors.ExtractVolumesFromCmCs(workflowConfigMaps, workflowSecrets)
 
 	workflowRequest.AddNodeConstraintsFromConfig(&workflowTemplate, impl.ciCdConfig)
-	infraConfiguration := &infraConfig.InfraConfig{}
+	infraConfiguration := &bean4.InfraConfig{}
 	if workflowRequest.Type == bean3.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean3.JOB_WORKFLOW_PIPELINE_TYPE {
-		infraConfigScope := &infraConfig.Scope{
+		infraConfigScope := &bean4.Scope{
 			AppId: workflowRequest.AppId,
 		}
 		infraGetter, _ := impl.infraProvider.GetInfraProvider(workflowRequest.Type)
-		infraConfiguration, err = infraGetter.GetInfraConfigurationsByScope(infraConfigScope)
+		infraConfiguration, err = infraGetter.GetInfraConfigurationsByScopeAndPlatform(infraConfigScope, util2.CI_RUNNER_PLATFORM)
 		if err != nil {
 			impl.Logger.Errorw("error occurred while getting infra config", "infraConfigScope", infraConfigScope, "err", err)
 			return bean3.WorkflowTemplate{}, err
@@ -186,7 +187,7 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 
 func (impl *WorkflowServiceImpl) shouldAddExistingCmCsInWorkflow(workflowRequest *types.WorkflowRequest) bool {
 	// CmCs are not added for CI_JOB if IgnoreCmCsInCiJob is true
-	if workflowRequest.CiPipelineType == string(CiPipeline.CI_JOB) && impl.ciCdConfig.IgnoreCmCsInCiJob {
+	if workflowRequest.CiPipelineType == string(bean2.CI_JOB) && impl.ciCdConfig.IgnoreCmCsInCiJob {
 		return false
 	}
 	return true
@@ -390,7 +391,7 @@ func (impl *WorkflowServiceImpl) TerminateDanglingWorkflows(cancelWfDtoRequest *
 	return err
 }
 
-func (impl *WorkflowServiceImpl) getRuntimeEnvClientInstance(environment *repository.Environment) (v1alpha12.WorkflowInterface, error) {
+func (impl *WorkflowServiceImpl) getRuntimeEnvClientInstance(environment *repository2.Environment) (v1alpha12.WorkflowInterface, error) {
 	restConfig, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(context.Background(), environment.ClusterId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting rest config by cluster id", "err", err)
@@ -404,7 +405,7 @@ func (impl *WorkflowServiceImpl) getRuntimeEnvClientInstance(environment *reposi
 	return wfClient, nil
 }
 
-func (impl *WorkflowServiceImpl) getWfClient(environment *repository.Environment, namespace string, isExt bool) (v1alpha12.WorkflowInterface, error) {
+func (impl *WorkflowServiceImpl) getWfClient(environment *repository2.Environment, namespace string, isExt bool) (v1alpha12.WorkflowInterface, error) {
 	var wfClient v1alpha12.WorkflowInterface
 	var err error
 	if isExt {

@@ -32,6 +32,7 @@ type ClusterBean struct {
 	IsCdArgoSetup           bool                       `json:"isCdArgoSetup"`
 	IsVirtualCluster        bool                       `json:"isVirtualCluster"`
 	ClusterUpdated          bool                       `json:"clusterUpdated"`
+	IsProd                  bool                       `json:"isProd"`
 }
 
 func (bean ClusterBean) GetClusterConfig() *k8s.ClusterConfig {

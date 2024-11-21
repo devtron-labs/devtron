@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/cluster/rbac"
-	"github.com/devtron-labs/devtron/pkg/environment"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	"net/http"
 	"strconv"
@@ -106,6 +106,8 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterListRaw(w http.ResponseWrit
 				Id:                cluster.Id,
 				Name:              cluster.ClusterName,
 				ErrorInConnection: cluster.ErrorInConnecting,
+				IsVirtualCluster:  cluster.IsVirtualCluster,
+				IsProd:            cluster.IsProd,
 			}
 			clusterDetailList = append(clusterDetailList, clusterDetail)
 		}

@@ -21,7 +21,7 @@ import (
 	"errors"
 	"fmt"
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
-	repository3 "github.com/devtron-labs/devtron/pkg/environment/repository"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"testing"
 	"time"
 

@@ -20,9 +20,9 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	repository4 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
-	"github.com/devtron-labs/devtron/pkg/environment"
-	repository4 "github.com/devtron-labs/devtron/pkg/environment/repository"
 	util3 "github.com/devtron-labs/devtron/util"
 	"testing"
 

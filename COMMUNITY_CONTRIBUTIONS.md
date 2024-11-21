@@ -22,7 +22,7 @@
 * https://www.financialexpress.com/industry/sme/devtron-a-business-opportunity-in-developers-needs/2274094/ - By Srinath Srinivasan
 
 
-## Videos
+## :video_camera: Videos
 
 * https://www.youtube.com/watch?v=ZKcfZC-zSMM - By Victor Farcic
 
@@ -33,3 +33,4 @@
 * https://www.youtube.com/watch?v=W4-UorfDQxI - Carbon_Capital Consulting 
 
 * https://www.youtube.com/watch?v=FB5BI3Ef7uw&t=363s - Let's learn Devtron
+

@@ -28,7 +28,7 @@ import (
 	k8sObjectUtils "github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
-	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/api/helm-app/service/read"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	util3 "github.com/devtron-labs/devtron/api/util"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -49,11 +49,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean5 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
-	bean2 "github.com/devtron-labs/devtron/pkg/environment/bean"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	"github.com/devtron-labs/devtron/pkg/k8s"
@@ -100,7 +100,7 @@ type AppListingRestHandlerImpl struct {
 	userService            user.UserService
 	// TODO fix me next
 	helmAppClient                    gRPC.HelmAppClient // TODO refactoring: use HelmAppService
-	helmAppService                   client.HelmAppService
+	helmAppReadService               read.HelmAppReadService
 	argoUserService                  argo.ArgoUserService
 	k8sCommonService                 k8s.K8sCommonService
 	installedAppService              FullMode.InstalledAppDBExtendedService
@@ -136,7 +136,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	pipeline pipeline.PipelineBuilder,
 	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
 	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService,
-	helmAppClient gRPC.HelmAppClient, helmAppService client.HelmAppService,
+	helmAppClient gRPC.HelmAppClient, helmAppReadService read.HelmAppReadService,
 	argoUserService argo.ArgoUserService, k8sCommonService k8s.K8sCommonService,
 	installedAppService FullMode.InstalledAppDBExtendedService,
 	installedAppResourceService resource.InstalledAppResourceService,
@@ -159,7 +159,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		deploymentGroupService:           deploymentGroupService,
 		userService:                      userService,
 		helmAppClient:                    helmAppClient,
-		helmAppService:                   helmAppService,
+		helmAppReadService:               helmAppReadService,
 		argoUserService:                  argoUserService,
 		k8sCommonService:                 k8sCommonService,
 		installedAppService:              installedAppService,
@@ -1024,7 +1024,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		}()
 
 	} else if len(cdPipeline.DeploymentAppName) > 0 && cdPipeline.EnvironmentId > 0 && util.IsHelmApp(deploymentConfig.DeploymentAppType) {
-		config, err := handler.helmAppService.GetClusterConf(cdPipeline.Environment.ClusterId)
+		config, err := handler.helmAppReadService.GetClusterConf(cdPipeline.Environment.ClusterId)
 		if err != nil {
 			handler.logger.Errorw("error in fetching cluster detail", "err", err)
 		}

@@ -21,7 +21,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/bean"
-	"github.com/devtron-labs/devtron/pkg/environment/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/go-pg/pg"
 	"github.com/stretchr/testify/mock"
 )

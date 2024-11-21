@@ -21,7 +21,7 @@ import (
 	"errors"
 	"fmt"
 	securityBean "github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
-	"github.com/devtron-labs/devtron/pkg/environment"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"net/http"
 	"strconv"
 

@@ -23,7 +23,7 @@ import (
 	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	securityBean "github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
-	"github.com/devtron-labs/devtron/pkg/environment"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"net/http"
@@ -622,6 +622,10 @@ func (impl *PolicyServiceImpl) GetPolicies(policyLevel securityBean.PolicyLevel,
 			envId = append(envId, &pipeline.EnvironmentId)
 		}
 		envs, err := impl.environmentService.FindByIds(envId)
+		if err != nil {
+			impl.logger.Errorw("Error in fetching env", "envId", envId, "err", err)
+			return nil, err
+		}
 		for _, env := range envs {
 			cvePolicy, severityPolicy, err := impl.getPolicies(policyLevel, env.ClusterId, env.Id, appId)
 			if err != nil {

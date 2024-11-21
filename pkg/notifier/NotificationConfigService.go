@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	clusterService "github.com/devtron-labs/devtron/pkg/cluster"
-	repository3 "github.com/devtron-labs/devtron/pkg/environment/repository"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/notifier/beans"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -65,9 +65,6 @@ type NotificationConfigServiceImpl struct {
 	userRepository                 repository4.UserRepository
 	ciPipelineMaterialRepository   pipelineConfig.CiPipelineMaterialRepository
 }
-
-const allNonProdEnvsName = "All non-prod environments"
-const allProdEnvsName = "All prod environments"
 
 func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSettingsRepository repository.NotificationSettingsRepository, notificationConfigBuilder NotificationConfigBuilder, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, slackRepository repository.SlackNotificationRepository, webhookRepository repository.WebhookNotificationRepository,
@@ -146,15 +143,6 @@ func (impl *NotificationConfigServiceImpl) DeleteNotificationSettings(request be
 		return err
 	}
 	return nil
-}
-
-type config struct {
-	AppId        int               `json:"appId"`
-	EnvId        int               `json:"envId"`
-	Pipelines    []int             `json:"pipelineIds"`
-	PipelineType util.PipelineType `json:"pipelineType" validate:"required"`
-	EventTypeIds []int             `json:"eventTypeIds" validate:"required"`
-	Providers    []beans.Provider  `json:"providers" validate:"required"`
 }
 
 func (impl *NotificationConfigServiceImpl) CreateOrUpdateNotificationSettings(notificationSettingsRequest *beans.NotificationRequest, userId int32) (int, error) {
@@ -251,9 +239,9 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 			envIds := make([]*int, 0)
 			for _, envId := range config.EnvId {
 				if *envId == resourceQualifiers.AllExistingAndFutureProdEnvsInt {
-					envResponse = append(envResponse, &beans.EnvResponse{Id: envId, Name: allProdEnvsName})
+					envResponse = append(envResponse, &beans.EnvResponse{Id: envId, Name: beans.AllProdEnvsName})
 				} else if *envId == resourceQualifiers.AllExistingAndFutureNonProdEnvsInt {
-					envResponse = append(envResponse, &beans.EnvResponse{Id: envId, Name: allNonProdEnvsName})
+					envResponse = append(envResponse, &beans.EnvResponse{Id: envId, Name: beans.AllNonProdEnvsName})
 				} else {
 					envIds = append(envIds, envId)
 				}
@@ -416,7 +404,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 	return notificationSettingsResponses, deletedItemCount, nil
 }
 
-func (impl *NotificationConfigServiceImpl) buildProvidersConfig(config config) ([]beans.ProvidersConfig, error) {
+func (impl *NotificationConfigServiceImpl) buildProvidersConfig(config beans.Config) ([]beans.ProvidersConfig, error) {
 	var providerConfigs []beans.ProvidersConfig
 	if len(config.Providers) > 0 {
 		sesConfigNamesMap := map[int]string{}
@@ -505,7 +493,7 @@ func (impl *NotificationConfigServiceImpl) buildProvidersConfig(config config) (
 	return providerConfigs, nil
 }
 
-func (impl *NotificationConfigServiceImpl) buildPipelineResponses(config config, ciPipelines []*pipelineConfig.CiPipeline, cdPipelines []*pipelineConfig.Pipeline) (util.PipelineType, []beans.PipelineResponse, error) {
+func (impl *NotificationConfigServiceImpl) buildPipelineResponses(config beans.Config, ciPipelines []*pipelineConfig.CiPipeline, cdPipelines []*pipelineConfig.Pipeline) (util.PipelineType, []beans.PipelineResponse, error) {
 	var pipelineType util.PipelineType
 	var err error
 
@@ -777,9 +765,9 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 		envIds := make([]*int, 0)
 		for _, envId := range settingRequest.EnvId {
 			if *envId == resourceQualifiers.AllExistingAndFutureProdEnvsInt {
-				envResponse = append(envResponse, &beans.EnvResponse{Id: envId, Name: allProdEnvsName})
+				envResponse = append(envResponse, &beans.EnvResponse{Id: envId, Name: beans.AllProdEnvsName})
 			} else if *envId == resourceQualifiers.AllExistingAndFutureNonProdEnvsInt {
-				envResponse = append(envResponse, &beans.EnvResponse{Id: envId, Name: allNonProdEnvsName})
+				envResponse = append(envResponse, &beans.EnvResponse{Id: envId, Name: beans.AllNonProdEnvsName})
 			} else {
 				envIds = append(envIds, envId)
 			}

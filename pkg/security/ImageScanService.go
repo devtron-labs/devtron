@@ -19,9 +19,9 @@ package security
 import (
 	"context"
 	securityBean "github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
-	"github.com/devtron-labs/devtron/pkg/environment"
-	"github.com/devtron-labs/devtron/pkg/environment/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/security/bean"
 	"go.opentelemetry.io/otel"
 	"time"

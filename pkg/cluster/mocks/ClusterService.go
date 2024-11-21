@@ -4,10 +4,9 @@ package mocks
 
 import (
 	context "context"
-	"github.com/devtron-labs/devtron/pkg/cluster/bean"
-	repository2 "github.com/devtron-labs/devtron/pkg/environment/repository"
-
 	userrepository "github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	mock "github.com/stretchr/testify/mock"
 
 	repository "github.com/devtron-labs/devtron/pkg/cluster/repository"

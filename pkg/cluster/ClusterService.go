@@ -23,7 +23,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	"github.com/devtron-labs/devtron/pkg/cluster/bean"
-	repository2 "github.com/devtron-labs/devtron/pkg/environment/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	cronUtil "github.com/devtron-labs/devtron/util/cron"
 	"github.com/robfig/cron/v3"
 	"log"
@@ -149,6 +149,7 @@ func (impl *ClusterServiceImpl) ConvertClusterBeanToCluster(clusterBean *bean.Cl
 	model.Config = clusterBean.Config
 	model.PrometheusEndpoint = clusterBean.PrometheusUrl
 	model.InsecureSkipTlsVerify = clusterBean.InsecureSkipTLSVerify
+	model.IsProd = clusterBean.IsProd
 
 	if clusterBean.PrometheusAuth != nil {
 		model.PUserName = clusterBean.PrometheusAuth.UserName
@@ -282,7 +283,6 @@ func (impl *ClusterServiceImpl) FindOneActive(clusterName string) (*bean.Cluster
 	}
 	bean := adapter.GetClusterBean(*model)
 	return &bean, nil
-
 }
 
 func (impl *ClusterServiceImpl) FindAllWithoutConfig() ([]*bean.ClusterBean, error) {
@@ -424,6 +424,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *bean.ClusterBe
 	model.ClusterName = bean.ClusterName
 	model.ServerUrl = bean.ServerUrl
 	model.InsecureSkipTlsVerify = bean.InsecureSkipTLSVerify
+	model.IsProd = bean.IsProd
 	model.PrometheusEndpoint = bean.PrometheusUrl
 
 	if bean.PrometheusAuth != nil {
@@ -554,7 +555,7 @@ func (impl *ClusterServiceImpl) FindAllForAutoComplete() ([]bean.ClusterBean, er
 }
 
 func (impl *ClusterServiceImpl) CreateGrafanaDataSource(clusterBean *bean.ClusterBean, env *repository2.Environment) (int, error) {
-	impl.logger.Errorw("CreateGrafanaDataSource not inplementd in ClusterServiceImpl")
+	impl.logger.Errorw("CreateGrafanaDataSource not implemented in ClusterServiceImpl")
 	return 0, fmt.Errorf("method not implemented")
 }
 
@@ -660,7 +661,13 @@ func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int
 	}
 	namespaceListGroupByCLuster := impl.K8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
 	namespaces := namespaceListGroupByCLuster[clusterBean.ClusterName]
-
+	if len(namespaces) == 0 {
+		// TODO: Verify if this is a valid scenario, if yes, then handle it
+		// ideally, all clusters should have at least one `default` namespace
+		// this is a fallback scenario, for handling the namespace informer failure at start up...
+		impl.logger.Warnw("no namespaces found for cluster", "clusterName", clusterBean.ClusterName)
+		impl.SyncNsInformer(clusterBean)
+	}
 	if isActionUserSuperAdmin {
 		for namespace, value := range namespaces {
 			if value {

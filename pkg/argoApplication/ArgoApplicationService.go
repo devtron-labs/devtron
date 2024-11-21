@@ -28,7 +28,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/helper"
-	"github.com/devtron-labs/devtron/pkg/argoApplication/read"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/read/config"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
@@ -51,14 +51,14 @@ type ArgoApplicationService interface {
 }
 
 type ArgoApplicationServiceImpl struct {
-	logger                *zap.SugaredLogger
-	clusterRepository     clusterRepository.ClusterRepository
-	k8sUtil               *k8s.K8sServiceImpl
-	argoUserService       argo.ArgoUserService
-	helmAppClient         gRPC.HelmAppClient
-	helmAppService        service.HelmAppService
-	k8sApplicationService application.K8sApplicationService
-	readService           read.ArgoApplicationReadService
+	logger                       *zap.SugaredLogger
+	clusterRepository            clusterRepository.ClusterRepository
+	k8sUtil                      *k8s.K8sServiceImpl
+	argoUserService              argo.ArgoUserService
+	helmAppClient                gRPC.HelmAppClient
+	helmAppService               service.HelmAppService
+	k8sApplicationService        application.K8sApplicationService
+	argoApplicationConfigService config.ArgoApplicationConfigService
 }
 
 func NewArgoApplicationServiceImpl(logger *zap.SugaredLogger,
@@ -67,16 +67,16 @@ func NewArgoApplicationServiceImpl(logger *zap.SugaredLogger,
 	argoUserService argo.ArgoUserService, helmAppClient gRPC.HelmAppClient,
 	helmAppService service.HelmAppService,
 	k8sApplicationService application.K8sApplicationService,
-	readService read.ArgoApplicationReadService) *ArgoApplicationServiceImpl {
+	argoApplicationConfigService config.ArgoApplicationConfigService) *ArgoApplicationServiceImpl {
 	return &ArgoApplicationServiceImpl{
-		logger:                logger,
-		clusterRepository:     clusterRepository,
-		k8sUtil:               k8sUtil,
-		argoUserService:       argoUserService,
-		helmAppService:        helmAppService,
-		helmAppClient:         helmAppClient,
-		k8sApplicationService: k8sApplicationService,
-		readService:           readService,
+		logger:                       logger,
+		clusterRepository:            clusterRepository,
+		k8sUtil:                      k8sUtil,
+		argoUserService:              argoUserService,
+		helmAppService:               helmAppService,
+		helmAppClient:                helmAppClient,
+		k8sApplicationService:        k8sApplicationService,
+		argoApplicationConfigService: argoApplicationConfigService,
 	}
 
 }
@@ -178,7 +178,7 @@ func getApplicationListDtos(resp *k8s.ClusterResourceListMap, clusterName string
 }
 
 func (impl *ArgoApplicationServiceImpl) HibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
-	_, clusterBean, _, err := impl.readService.GetClusterConfigFromAllClusters(app.ClusterId)
+	_, clusterBean, _, err := impl.argoApplicationConfigService.GetClusterConfigFromAllClusters(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("HibernateArgoApplication", "error in getting the cluster config", err, "clusterId", app.ClusterId, "appName", app.AppName)
 		return nil, err
@@ -197,7 +197,7 @@ func (impl *ArgoApplicationServiceImpl) HibernateArgoApplication(ctx context.Con
 }
 
 func (impl *ArgoApplicationServiceImpl) UnHibernateArgoApplication(ctx context.Context, app *bean.ArgoAppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
-	_, clusterBean, _, err := impl.readService.GetClusterConfigFromAllClusters(app.ClusterId)
+	_, clusterBean, _, err := impl.argoApplicationConfigService.GetClusterConfigFromAllClusters(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("HibernateArgoApplication", "error in getting the cluster config", err, "clusterId", app.ClusterId, "appName", app.AppName)
 		return nil, err

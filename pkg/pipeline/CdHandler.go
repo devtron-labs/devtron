@@ -22,10 +22,11 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
-	repository2 "github.com/devtron-labs/devtron/pkg/environment/repository"
 	util2 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"os"
 	"path/filepath"
@@ -81,12 +82,12 @@ type CdHandlerImpl struct {
 	ciArtifactRepository         repository.CiArtifactRepository
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
 	cdWorkflowRepository         pipelineConfig.CdWorkflowRepository
-	envRepository                repository2.EnvironmentRepository
+	envRepository                repository3.EnvironmentRepository
 	pipelineRepository           pipelineConfig.PipelineRepository
 	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
 	enforcerUtil                 rbac.EnforcerUtil
 	resourceGroupService         resourceGroup2.ResourceGroupService
-	imageTaggingService          ImageTaggingService
+	imageTaggingService          imageTagging.ImageTaggingService
 	k8sUtil                      *k8s.K8sServiceImpl
 	workflowService              WorkflowService
 	config                       *types.CdConfig
@@ -100,10 +101,10 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, ciLogService CiLogService,
 	ciArtifactRepository repository.CiArtifactRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	pipelineRepository pipelineConfig.PipelineRepository, envRepository repository2.EnvironmentRepository,
+	pipelineRepository pipelineConfig.PipelineRepository, envRepository repository3.EnvironmentRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, enforcerUtil rbac.EnforcerUtil,
 	resourceGroupService resourceGroup2.ResourceGroupService,
-	imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sServiceImpl,
+	imageTaggingService imageTagging.ImageTaggingService, k8sUtil *k8s.K8sServiceImpl,
 	workflowService WorkflowService, clusterService cluster.ClusterService,
 	blobConfigStorageService BlobStorageConfigService, customTagService CustomTagService,
 	deploymentConfigService common2.DeploymentConfigService,

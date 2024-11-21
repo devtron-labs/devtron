@@ -18,6 +18,7 @@ package pipelineConfig
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	repository2 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -35,7 +36,7 @@ type CiTemplateOverride struct {
 	Active                    bool     `sql:"active,notnull"`
 	CiBuildConfigId           int      `sql:"ci_build_config_id"`
 	sql.AuditLog
-	GitMaterial    *GitMaterial
+	GitMaterial    *repository2.GitMaterial
 	DockerRegistry *repository.DockerArtifactStore
 	CiBuildConfig  *CiBuildConfig
 }

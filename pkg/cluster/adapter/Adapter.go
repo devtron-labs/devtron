@@ -17,29 +17,30 @@
 package adapter
 
 import (
-	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 )
 
-func GetClusterBean(model repository.Cluster) bean2.ClusterBean {
-	bean := bean2.ClusterBean{}
-	bean.Id = model.Id
-	bean.ClusterName = model.ClusterName
-	//bean.Note = model.Note
-	bean.ServerUrl = model.ServerUrl
-	bean.PrometheusUrl = model.PrometheusEndpoint
-	bean.AgentInstallationStage = model.AgentInstallationStage
-	bean.Active = model.Active
-	bean.Config = model.Config
-	bean.K8sVersion = model.K8sVersion
-	bean.InsecureSkipTLSVerify = model.InsecureSkipTlsVerify
-	bean.IsVirtualCluster = model.IsVirtualCluster
-	bean.ErrorInConnecting = model.ErrorInConnecting
-	bean.PrometheusAuth = &bean2.PrometheusAuth{
+func GetClusterBean(model repository.Cluster) bean.ClusterBean {
+	clusterBean := bean.ClusterBean{}
+	clusterBean.Id = model.Id
+	clusterBean.ClusterName = model.ClusterName
+	//clusterBean.Note = model.Note
+	clusterBean.ServerUrl = model.ServerUrl
+	clusterBean.PrometheusUrl = model.PrometheusEndpoint
+	clusterBean.AgentInstallationStage = model.AgentInstallationStage
+	clusterBean.Active = model.Active
+	clusterBean.Config = model.Config
+	clusterBean.K8sVersion = model.K8sVersion
+	clusterBean.InsecureSkipTLSVerify = model.InsecureSkipTlsVerify
+	clusterBean.IsVirtualCluster = model.IsVirtualCluster
+	clusterBean.ErrorInConnecting = model.ErrorInConnecting
+	clusterBean.IsProd = model.IsProd
+	clusterBean.PrometheusAuth = &bean.PrometheusAuth{
 		UserName:      model.PUserName,
 		Password:      model.PPassword,
 		TlsClientCert: model.PTlsClientCert,
 		TlsClientKey:  model.PTlsClientKey,
 	}
-	return bean
+	return clusterBean
 }

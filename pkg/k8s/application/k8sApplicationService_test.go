@@ -23,7 +23,7 @@ import (
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
-	"github.com/devtron-labs/devtron/pkg/environment/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/stretchr/testify/mock"

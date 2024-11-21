@@ -19,7 +19,7 @@ package rbac
 import (
 	"errors"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/environment"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"strings"
 
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"

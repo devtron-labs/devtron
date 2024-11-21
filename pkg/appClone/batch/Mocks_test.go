@@ -25,8 +25,9 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/ciPipeline"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	bean4 "github.com/devtron-labs/devtron/pkg/cluster/bean"
-	bean3 "github.com/devtron-labs/devtron/pkg/environment/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"go.uber.org/zap"
@@ -446,21 +447,21 @@ type MaterialRepositoryMock struct{}
 func (impl MaterialRepositoryMock) MaterialExists(url string) (bool, error) {
 	panic("implement me")
 }
-func (impl MaterialRepositoryMock) SaveMaterial(material *pipelineConfig.GitMaterial) error {
+func (impl MaterialRepositoryMock) SaveMaterial(material *repository.GitMaterial) error {
 	panic("implement me")
 }
-func (impl MaterialRepositoryMock) UpdateMaterial(material *pipelineConfig.GitMaterial) error {
+func (impl MaterialRepositoryMock) UpdateMaterial(material *repository.GitMaterial) error {
 	panic("implement me")
 }
-func (impl MaterialRepositoryMock) Update(materials []*pipelineConfig.GitMaterial) error {
+func (impl MaterialRepositoryMock) Update(materials []*repository.GitMaterial) error {
 	panic("implement me")
 }
-func (impl MaterialRepositoryMock) FindByAppId(appId int) ([]*pipelineConfig.GitMaterial, error) {
+func (impl MaterialRepositoryMock) FindByAppId(appId int) ([]*repository.GitMaterial, error) {
 	panic("implement me")
 }
-func (impl MaterialRepositoryMock) FindById(Id int) (*pipelineConfig.GitMaterial, error) {
+func (impl MaterialRepositoryMock) FindById(Id int) (*repository.GitMaterial, error) {
 	panic("implement me")
 }
-func (impl MaterialRepositoryMock) UpdateMaterialScmId(material *pipelineConfig.GitMaterial) error {
+func (impl MaterialRepositoryMock) UpdateMaterialScmId(material *repository.GitMaterial) error {
 	panic("implement me")
 }

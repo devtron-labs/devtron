@@ -20,6 +20,7 @@ import (
 	grpcUtil "github.com/devtron-labs/common-lib/utils/grpc"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/api/helm-app/service/read"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/google/wire"
 )
@@ -31,6 +32,8 @@ var HelmAppWireSet = wire.NewSet(
 	service.GetHelmReleaseConfig,
 	service.NewHelmAppServiceImpl,
 	wire.Bind(new(service.HelmAppService), new(*service.HelmAppServiceImpl)),
+	read.NewHelmAppReadServiceImpl,
+	wire.Bind(new(read.HelmAppReadService), new(*read.HelmAppReadServiceImpl)),
 	NewHelmAppRestHandlerImpl,
 	wire.Bind(new(HelmAppRestHandler), new(*HelmAppRestHandlerImpl)),
 	NewHelmAppRouterImpl,
