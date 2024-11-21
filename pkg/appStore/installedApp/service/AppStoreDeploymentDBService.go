@@ -34,7 +34,8 @@ import (
 	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	clusterService "github.com/devtron-labs/devtron/pkg/cluster"
-	clutserBean "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	environment2 "github.com/devtron-labs/devtron/pkg/cluster/environment"
+	clutserBean "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -75,7 +76,7 @@ type AppStoreDeploymentDBServiceImpl struct {
 	installedAppRepository               repository.InstalledAppRepository
 	appStoreApplicationVersionRepository discoverRepository.AppStoreApplicationVersionRepository
 	appRepository                        app.AppRepository
-	environmentService                   clusterService.EnvironmentService
+	environmentService                   environment2.EnvironmentService
 	clusterService                       clusterService.ClusterService
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
 	deploymentTypeConfig                 *globalUtil.DeploymentServiceTypeConfig
@@ -91,7 +92,7 @@ func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepository repository.InstalledAppRepository,
 	appStoreApplicationVersionRepository discoverRepository.AppStoreApplicationVersionRepository,
 	appRepository app.AppRepository,
-	environmentService clusterService.EnvironmentService,
+	environmentService environment2.EnvironmentService,
 	clusterService clusterService.ClusterService,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
 	envVariables *globalUtil.EnvironmentVariables,
@@ -651,7 +652,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) createEnvironmentIfNotExists(instal
 		}
 
 		environmentBean := &clutserBean.EnvironmentBean{
-			Environment: clusterService.BuildEnvironmentName(cluster.ClusterName, namespace),
+			Environment: environment2.BuildEnvironmentName(cluster.ClusterName, namespace),
 			ClusterId:   clusterId,
 			Namespace:   namespace,
 			Default:     false,

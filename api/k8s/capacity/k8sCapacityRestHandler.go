@@ -21,6 +21,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	"github.com/devtron-labs/devtron/pkg/cluster/rbac"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	"net/http"
 	"strconv"
@@ -53,16 +56,16 @@ type K8sCapacityRestHandlerImpl struct {
 	userService        user.UserService
 	enforcer           casbin.Enforcer
 	clusterService     cluster.ClusterService
-	environmentService cluster.EnvironmentService
-	clusterRbacService cluster.ClusterRbacService
+	environmentService environment.EnvironmentService
+	clusterRbacService rbac.ClusterRbacService
 }
 
 func NewK8sCapacityRestHandlerImpl(logger *zap.SugaredLogger,
 	k8sCapacityService capacity.K8sCapacityService, userService user.UserService,
 	enforcer casbin.Enforcer,
 	clusterService cluster.ClusterService,
-	environmentService cluster.EnvironmentService,
-	clusterRbacService cluster.ClusterRbacService) *K8sCapacityRestHandlerImpl {
+	environmentService environment.EnvironmentService,
+	clusterRbacService rbac.ClusterRbacService) *K8sCapacityRestHandlerImpl {
 	return &K8sCapacityRestHandlerImpl{
 		logger:             logger,
 		k8sCapacityService: k8sCapacityService,
@@ -88,7 +91,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterListRaw(w http.ResponseWrit
 		return
 	}
 	// RBAC enforcer applying
-	var authenticatedClusters []*cluster.ClusterBean
+	var authenticatedClusters []*bean2.ClusterBean
 	var clusterDetailList []*bean.ClusterCapacityDetail
 	for _, cluster := range clusters {
 		authenticated, err := handler.clusterRbacService.CheckAuthorization(cluster.ClusterName, cluster.Id, token, userId, true)
@@ -130,7 +133,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterListWithDetail(w http.Respo
 		return
 	}
 	// RBAC enforcer applying
-	var authenticatedClusters []*cluster.ClusterBean
+	var authenticatedClusters []*bean2.ClusterBean
 	for _, cluster := range clusters {
 		authenticated, err := handler.clusterRbacService.CheckAuthorization(cluster.ClusterName, cluster.Id, token, userId, true)
 		if err != nil {

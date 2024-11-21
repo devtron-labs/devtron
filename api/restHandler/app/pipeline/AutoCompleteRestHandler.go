@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
-	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
@@ -53,7 +53,7 @@ type DevtronAppAutoCompleteRestHandlerImpl struct {
 	enforcer                casbin.Enforcer
 	enforcerUtil            rbac.EnforcerUtil
 	devtronAppConfigService pipeline.DevtronAppConfigService
-	envService              cluster.EnvironmentService
+	envService              environment.EnvironmentService
 	gitProviderReadService  read.GitProviderReadService
 	dockerRegistryConfig    pipeline.DockerRegistryConfig
 }
@@ -65,7 +65,7 @@ func NewDevtronAppAutoCompleteRestHandlerImpl(
 	enforcer casbin.Enforcer,
 	enforcerUtil rbac.EnforcerUtil,
 	devtronAppConfigService pipeline.DevtronAppConfigService,
-	envService cluster.EnvironmentService,
+	envService environment.EnvironmentService,
 	dockerRegistryConfig pipeline.DockerRegistryConfig,
 	gitProviderReadService read.GitProviderReadService) *DevtronAppAutoCompleteRestHandlerImpl {
 	return &DevtronAppAutoCompleteRestHandlerImpl{

@@ -28,7 +28,7 @@ import (
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
 	"github.com/devtron-labs/devtron/internal/util"
-	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"go.opentelemetry.io/otel"
 	"strings"
 	"time"

@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
@@ -29,7 +30,6 @@ import (
 	"time"
 
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -58,7 +58,7 @@ type PropertiesConfigServiceImpl struct {
 	logger                           *zap.SugaredLogger
 	envConfigRepo                    chartConfig.EnvConfigOverrideRepository
 	chartRepo                        chartRepoRepository.ChartRepository
-	environmentRepository            repository2.EnvironmentRepository
+	environmentRepository            repository.EnvironmentRepository
 	deploymentTemplateHistoryService deploymentTemplate.DeploymentTemplateHistoryService
 	scopedVariableManager            variables.ScopedVariableManager
 	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
@@ -67,7 +67,7 @@ type PropertiesConfigServiceImpl struct {
 func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 	envConfigRepo chartConfig.EnvConfigOverrideRepository,
 	chartRepo chartRepoRepository.ChartRepository,
-	environmentRepository repository2.EnvironmentRepository,
+	environmentRepository repository.EnvironmentRepository,
 	deploymentTemplateHistoryService deploymentTemplate.DeploymentTemplateHistoryService,
 	scopedVariableManager variables.ScopedVariableManager,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService) *PropertiesConfigServiceImpl {
