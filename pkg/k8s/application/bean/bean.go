@@ -25,10 +25,14 @@ const (
 	AppIdDecodingError = "error in decoding appId"
 )
 const (
+	ALL = "*"
+)
+const (
 	DEFAULT_NAMESPACE = "default"
 	EVENT_K8S_KIND    = "Event"
 	LIST_VERB         = "list"
 	Delete            = "delete"
+	Node              = "node"
 )
 
 const (
