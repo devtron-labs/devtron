@@ -25,14 +25,29 @@ const (
 	AppIdDecodingError = "error in decoding appId"
 )
 const (
-	ALL = "*"
+	Authorization     = "Authorization"
+	BaseForK8sProxy   = "/orchestrator/k8s/proxy"
+	Cluster           = "cluster"
+	Empty             = ""
+	Env               = "env"
+	ClusterIdentifier = "clusterIdentifier"
+	EnvIdentifier     = "envIdentifier"
+	RoleView          = "View"
+	RoleAdmin         = "Admin"
+	API               = "api"
+	APIs              = "apis"
+	K8sEmpty          = "k8sempty"
+	V1                = "v1"
+	ALL               = "*"
+	NAMESPACES        = "namespaces"
+	NODES             = "nodes"
+	Node              = "nodes"
 )
 const (
 	DEFAULT_NAMESPACE = "default"
 	EVENT_K8S_KIND    = "Event"
 	LIST_VERB         = "list"
 	Delete            = "delete"
-	Node              = "node"
 )
 
 const (
