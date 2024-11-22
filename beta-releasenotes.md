@@ -5,6 +5,7 @@
 - feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
+- misc: Main sync devlop nov22 (#6122)
 - misc: Cluster, project, environment read and beans (#6067)
 - chore: ciTemplateReadService fix (#6111)
 - chore: use certificates data when InsecureSkipTLSVerify is false for a cluster in case of external run CI (#6100)
