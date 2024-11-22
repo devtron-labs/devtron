@@ -142,6 +142,7 @@ type DeploymentAndCmCsConfigDto struct {
 	SecretsData        *DeploymentAndCmCsConfig `json:"secretsData"`
 	PipelineConfigData *DeploymentAndCmCsConfig `json:"pipelineConfigData,omitempty"`
 	IsAppAdmin         bool                     `json:"isAppAdmin"`
+	Index              int                      `json:"index"`
 }
 
 func NewDeploymentAndCmCsConfigDto() *DeploymentAndCmCsConfigDto {
@@ -166,22 +167,19 @@ func (r *DeploymentAndCmCsConfigDto) WithPipelineConfigData(data *DeploymentAndC
 }
 
 type ConfigDataQueryParams struct {
-	AppName      string `schema:"appName"`
-	EnvName      string `schema:"envName"`
-	ConfigType   string `schema:"configType"`
-	IdentifierId int    `schema:"identifierId"`
-	PipelineId   int    `schema:"pipelineId"`   // req for fetching previous deployments data
-	ResourceName string `schema:"resourceName"` // used in case of cm and cs
-	ResourceType string `schema:"resourceType"` // used in case of cm and cs
-	ResourceId   int    `schema:"resourceId"`   // used in case of cm and cs
+	AppName      string `schema:"appName" json:"appName"`
+	EnvName      string `schema:"envName" json:"envName"`
+	ConfigType   string `schema:"configType" json:"configType"`
+	IdentifierId int    `schema:"identifierId" json:"identifierId"`
+	PipelineId   int    `schema:"pipelineId" json:"pipelineId"`     // req for fetching previous deployments data
+	ResourceName string `schema:"resourceName" json:"resourceName"` // used in case of cm and cs
+	ResourceType string `schema:"resourceType" json:"resourceType"` // used in case of cm and cs
+	ResourceId   int    `schema:"resourceId" json:"resourceId"`     // used in case of cm and cs
 	UserId       int32  `schema:"-"`
-	WfrId        int    `schema:"wfrId"`
-	ConfigArea   string `schema:"configArea"`
+	WfrId        int    `schema:"wfrId" json:"wfrId"`
+	ConfigArea   string `schema:"configArea" json:"configArea"`
 }
 
-// FilterCriteria []string `schema:"filterCriteria"`
-// OffSet         int      `schema:"offSet"`
-// Limit          int      `schema:"limit"`
 func (r *ConfigDataQueryParams) IsResourceTypeSecret() bool {
 	return r.ResourceType == bean.CS.ToString()
 }
@@ -232,5 +230,52 @@ type DeploymentTemplateMetadata struct {
 const (
 	NoDeploymentDoneForSelectedImage      = "there were no deployments done for the selected image"
 	ExpectedWfrIdNotPassedInQueryParamErr = "wfrId is expected in the query param which was not passed"
-	SecretMaskedValue                     = "*****"
+	SecretMaskedValue                     = "********"
+	SecretMaskedValueLong                 = "************"
 )
+
+type ComparisonItemRequestDto struct {
+	Index int `json:"index"`
+	*ConfigDataQueryParams
+}
+
+type ComparisonRequestDto struct {
+	AppName         string                      `json:"appName"`
+	EnvName         string                      `json:"envName"`
+	ComparisonItems []*ComparisonItemRequestDto `json:"comparisonItems"` // comparisonItems contains array of objects that a user wants to compare
+}
+
+// revisit this maybe we can extract userId out in ComparisonRequestDto,
+func (r *ComparisonRequestDto) UpdateUserIdInComparisonItems(userId int32) {
+	for _, item := range r.ComparisonItems {
+		item.UserId = userId
+	}
+}
+
+type ComparisonResponseDto struct {
+	ComparisonItemResponse []*DeploymentAndCmCsConfigDto `json:"comparisonItemResponse"`
+}
+
+func DefaultComparisonResponseDto() *ComparisonResponseDto {
+	return &ComparisonResponseDto{ComparisonItemResponse: make([]*DeploymentAndCmCsConfigDto, 0)}
+}
+func (r *ComparisonResponseDto) WithComparisonItemResponse(comparisonItemResponse []*DeploymentAndCmCsConfigDto) *ComparisonResponseDto {
+	r.ComparisonItemResponse = comparisonItemResponse
+	return r
+}
+
+type AppEnvAndClusterMetadata struct {
+	AppId     int
+	EnvId     int
+	ClusterId int
+}
+
+type CmCsScopeVariableMetadata struct {
+	ResolvedConfigData []*bean.ConfigData
+	VariableSnapShot   map[string]map[string]string
+}
+
+type SecretConfigMetadata struct {
+	SecretsList                 *bean.SecretsList
+	SecretScopeVariableMetadata *CmCsScopeVariableMetadata
+}

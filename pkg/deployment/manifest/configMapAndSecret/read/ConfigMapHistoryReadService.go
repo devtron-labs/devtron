@@ -26,7 +26,8 @@ type ConfigMapHistoryReadService interface {
 	CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (cmId int, csId int, exists bool, err error)
 	GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int, configType repository.ConfigType, userHasAdminAccess bool) ([]*bean.ComponentLevelHistoryDetailDto, error)
 	ConvertConfigDataToComponentLevelDto(config *bean2.ConfigData, configType repository.ConfigType, userHasAdminAccess bool) (*bean.ComponentLevelHistoryDetailDto, error)
-	GetConfigmapHistoryDataByDeployedOnAndPipelineId(ctx context.Context, pipelineId int, deployedOn time.Time, userHasAdminAccess bool) (*bean3.DeploymentAndCmCsConfig, *bean3.DeploymentAndCmCsConfig, error)
+	GetCmCsHistoryByDeployedOnAndPipelineId(ctx context.Context, pipelineId int, deployedOn time.Time, configType repository.ConfigType, userHasAdminAccess bool) (*bean3.DeploymentAndCmCsConfig, error)
+	GetCmCsListObjectFromHistory(history *repository.ConfigmapAndSecretHistory) (*bean4.ConfigsList, *bean4.SecretsList, error)
 }
 
 type ConfigMapHistoryReadServiceImpl struct {
@@ -363,19 +364,13 @@ func (impl *ConfigMapHistoryReadServiceImpl) ConvertConfigDataToComponentLevelDt
 	return componentLevelData, nil
 }
 
-func (impl *ConfigMapHistoryReadServiceImpl) GetConfigmapHistoryDataByDeployedOnAndPipelineId(ctx context.Context, pipelineId int, deployedOn time.Time, userHasAdminAccess bool) (*bean3.DeploymentAndCmCsConfig, *bean3.DeploymentAndCmCsConfig, error) {
-	secretConfigData, err := impl.getResolvedConfigData(ctx, pipelineId, deployedOn, repository.SECRET_TYPE, userHasAdminAccess)
+func (impl *ConfigMapHistoryReadServiceImpl) GetCmCsHistoryByDeployedOnAndPipelineId(ctx context.Context, pipelineId int, deployedOn time.Time, configType repository.ConfigType, userHasAdminAccess bool) (*bean3.DeploymentAndCmCsConfig, error) {
+	configData, err := impl.getResolvedConfigData(ctx, pipelineId, deployedOn, configType, userHasAdminAccess)
 	if err != nil {
-		impl.logger.Errorw("error in getting resolved secret config data in case of previous deployments ", "pipelineId", pipelineId, "deployedOn", deployedOn, "err", err)
-		return nil, nil, err
+		impl.logger.Errorw("error in getting resolved secret/cm config data in case of previous deployments ", "pipelineId", pipelineId, "deployedOn", deployedOn, "err", err)
+		return nil, err
 	}
-	cmConfigData, err := impl.getResolvedConfigData(ctx, pipelineId, deployedOn, repository.CONFIGMAP_TYPE, userHasAdminAccess)
-	if err != nil {
-		impl.logger.Errorw("error in getting resolved cm config data in case of previous deployments ", "pipelineId", pipelineId, "deployedOn", deployedOn, "err", err)
-		return nil, nil, err
-	}
-
-	return secretConfigData, cmConfigData, nil
+	return configData, nil
 }
 
 func (impl *ConfigMapHistoryReadServiceImpl) getResolvedConfigData(ctx context.Context, pipelineId int, deployedOn time.Time, configType repository.ConfigType, userHasAdminAccess bool) (*bean3.DeploymentAndCmCsConfig, error) {
@@ -388,13 +383,13 @@ func (impl *ConfigMapHistoryReadServiceImpl) getResolvedConfigData(ctx context.C
 		return nil, err
 	}
 	if configType == repository.SECRET_TYPE {
-		_, secretsList, err = impl.getConfigDataRequestForHistory(history)
+		_, secretsList, err = impl.GetCmCsListObjectFromHistory(history)
 		if err != nil {
 			impl.logger.Errorw("error in getting config data request for history", "err", err)
 			return nil, err
 		}
 	} else if configType == repository.CONFIGMAP_TYPE {
-		configsList, _, err = impl.getConfigDataRequestForHistory(history)
+		configsList, _, err = impl.GetCmCsListObjectFromHistory(history)
 		if err != nil {
 			impl.logger.Errorw("error in getting config data request for history", "cmCsHistory", history, "err", err)
 			return nil, err
@@ -467,7 +462,7 @@ func (impl *ConfigMapHistoryReadServiceImpl) encodeSecretDataFromNonAdminUsers(c
 	}
 }
 
-func (impl *ConfigMapHistoryReadServiceImpl) getConfigDataRequestForHistory(history *repository.ConfigmapAndSecretHistory) (*bean4.ConfigsList, *bean4.SecretsList, error) {
+func (impl *ConfigMapHistoryReadServiceImpl) GetCmCsListObjectFromHistory(history *repository.ConfigmapAndSecretHistory) (*bean4.ConfigsList, *bean4.SecretsList, error) {
 
 	configsList := &bean4.ConfigsList{}
 	secretsList := &bean4.SecretsList{}
