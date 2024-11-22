@@ -165,6 +165,10 @@ func (r *DeploymentAndCmCsConfigDto) WithPipelineConfigData(data *DeploymentAndC
 	r.PipelineConfigData = data
 	return r
 }
+func (r *DeploymentAndCmCsConfigDto) WithIndex(index int) *DeploymentAndCmCsConfigDto {
+	r.Index = index
+	return r
+}
 
 type ConfigDataQueryParams struct {
 	AppName      string `schema:"appName" json:"appName"`

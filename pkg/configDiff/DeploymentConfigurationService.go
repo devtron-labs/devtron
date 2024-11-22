@@ -932,7 +932,7 @@ func (impl *DeploymentConfigurationServiceImpl) getConfigMapResponse(resourceNam
 }
 
 func (impl *DeploymentConfigurationServiceImpl) CompareCategoryWiseConfigData(ctx context.Context, comparisonRequestDto bean2.ComparisonRequestDto, userHasAdminAccess bool) (*bean2.ComparisonResponseDto, error) {
-	allSecretConfigDto := make([]*bean2.DeploymentAndCmCsConfigDto, 0)
+
 	indexVsSecretConfigMetadata := make(map[int]*bean2.SecretConfigMetadata, len(comparisonRequestDto.ComparisonItems))
 	allComparisonSecretsMetadata := make([]*bean2.SecretConfigMetadata, 0, len(comparisonRequestDto.ComparisonItems))
 	for _, comparisonItem := range comparisonRequestDto.ComparisonItems {
@@ -941,7 +941,6 @@ func (impl *DeploymentConfigurationServiceImpl) CompareCategoryWiseConfigData(ct
 			impl.logger.Errorw("error in getting single secret config for comparison", "comparisonItem", comparisonItem, "err", err)
 			return nil, err
 		}
-		//secretConfigDto.Index = comparisonItem.Index
 		if _, ok := indexVsSecretConfigMetadata[comparisonItem.Index]; !ok {
 			indexVsSecretConfigMetadata[comparisonItem.Index] = secretConfigMetadata
 		}
@@ -956,9 +955,41 @@ func (impl *DeploymentConfigurationServiceImpl) CompareCategoryWiseConfigData(ct
 		}
 	}
 
-	//prepare response
-
+	//prepare final response with index
+	allSecretConfigDto, err := impl.getAllComparableSecretResponseDto(indexVsSecretConfigMetadata)
+	if err != nil {
+		impl.logger.Errorw("error in getting all comparable secrets response dto", "err", err)
+		return nil, err
+	}
 	return bean2.DefaultComparisonResponseDto().WithComparisonItemResponse(allSecretConfigDto), nil
+}
+
+func (impl *DeploymentConfigurationServiceImpl) getAllComparableSecretResponseDto(indexVsSecretConfigMetadata map[int]*bean2.SecretConfigMetadata) ([]*bean2.DeploymentAndCmCsConfigDto, error) {
+	allSecretConfigDto := make([]*bean2.DeploymentAndCmCsConfigDto, 0, len(indexVsSecretConfigMetadata))
+	for index, secretConfigMetadata := range indexVsSecretConfigMetadata {
+		// prepare secrets list data part for response
+		configDataReq := &bean.ConfigDataRequest{ConfigData: secretConfigMetadata.SecretsList.ConfigData}
+		configDataJson, err := utils.ConvertToJsonRawMessage(configDataReq)
+		if err != nil {
+			impl.logger.Errorw("error in converting secrets list config data to json raw message", "err", err)
+			return nil, err
+		}
+		// prepare resolved data part for response
+		resolvedConfigDataReq := &bean.ConfigDataRequest{ConfigData: secretConfigMetadata.SecretScopeVariableMetadata.ResolvedConfigData}
+		resolvedConfigDataJson, err := utils.ConvertToJsonRawMessage(resolvedConfigDataReq)
+		if err != nil {
+			impl.logger.Errorw("error in converting resolved secret config data to json raw message", "err", err)
+			return nil, err
+		}
+		secretConfigDto := bean2.NewDeploymentAndCmCsConfig().
+			WithConfigData(configDataJson).
+			WithResourceType(bean.CS).
+			WithVariableSnapshot(secretConfigMetadata.SecretScopeVariableMetadata.VariableSnapShot).
+			WithResolvedValue(resolvedConfigDataJson)
+
+		allSecretConfigDto = append(allSecretConfigDto, bean2.NewDeploymentAndCmCsConfigDto().WithSecretData(secretConfigDto).WithIndex(index))
+	}
+	return allSecretConfigDto, nil
 }
 
 func (impl *DeploymentConfigurationServiceImpl) prepareKeyValMapForSingleSecretAndMaskValue(secretMetadata *bean2.SecretConfigMetadata) (map[string]map[string]string, map[string]map[string]string, error) {
