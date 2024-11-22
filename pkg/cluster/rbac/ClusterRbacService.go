@@ -31,6 +31,7 @@ import (
 type ClusterRbacService interface {
 	CheckAuthorization(clusterName string, clusterId int, token string, userId int32, rbacForClusterMappingsAlso bool) (bool, error)
 	CheckAuthorisationForNode(token string, clusterName string, nodeName string, action string) (authenticated bool)
+	CheckAuthorisationForNodeWithClusterId(token string, clusterId int, nodeName string, action string) (authenticated bool, err error)
 }
 
 type ClusterRbacServiceImpl struct {
@@ -58,6 +59,15 @@ func NewClusterRbacServiceImpl(environmentService environment.EnvironmentService
 	}
 
 	return clusterRbacService
+}
+
+func (impl *ClusterRbacServiceImpl) CheckAuthorisationForNodeWithClusterId(token string, clusterId int, nodeName string, action string) (authenticated bool, err error) {
+	cluster, err := impl.clusterService.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error encountered in CheckAuthorisationForNodeWithClusterId", "clusterId", clusterId, "err", err)
+		return false, err
+	}
+	return impl.CheckAuthorisationForNode(token, cluster.ClusterName, nodeName, action), nil
 }
 
 func (impl *ClusterRbacServiceImpl) CheckAuthorisationForNode(token string, clusterName string, nodeName string, action string) (authenticated bool) {
