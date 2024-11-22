@@ -20,6 +20,7 @@ import (
 	"errors"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	"github.com/devtron-labs/devtron/util/rbac"
 	"strings"
 
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -29,18 +30,21 @@ import (
 
 type ClusterRbacService interface {
 	CheckAuthorization(clusterName string, clusterId int, token string, userId int32, rbacForClusterMappingsAlso bool) (bool, error)
+	CheckAuthorisationForNode(token string, clusterName string, nodeName string, action string) (authenticated bool)
 }
 
 type ClusterRbacServiceImpl struct {
 	logger             *zap.SugaredLogger
 	environmentService environment.EnvironmentService
 	enforcer           casbin.Enforcer
+	enforcerUtil       rbac.EnforcerUtil
 	clusterService     cluster.ClusterService
 	userService        user.UserService
 }
 
 func NewClusterRbacServiceImpl(environmentService environment.EnvironmentService,
 	enforcer casbin.Enforcer,
+	enforcerUtil rbac.EnforcerUtil,
 	clusterService cluster.ClusterService,
 	logger *zap.SugaredLogger,
 	userService user.UserService) *ClusterRbacServiceImpl {
@@ -48,11 +52,22 @@ func NewClusterRbacServiceImpl(environmentService environment.EnvironmentService
 		logger:             logger,
 		environmentService: environmentService,
 		enforcer:           enforcer,
+		enforcerUtil:       enforcerUtil,
 		clusterService:     clusterService,
 		userService:        userService,
 	}
 
 	return clusterRbacService
+}
+
+func (impl *ClusterRbacServiceImpl) CheckAuthorisationForNode(token string, clusterName string, nodeName string, action string) (authenticated bool) {
+	// specific check for node where user should have access to cluster with all namespaces
+	// res , object  are generic for all resources res--> clusterName/* (all namespaces) object--> k8sempty/node/nodeName if nodeName is empty , * signifying all
+	resource, object := impl.enforcerUtil.GetRbacResourceAndObjectForNode(clusterName, nodeName)
+	if ok := impl.enforcer.Enforce(token, strings.ToLower(resource), action, object); ok {
+		return true
+	}
+	return false
 }
 
 func (impl *ClusterRbacServiceImpl) CheckAuthorization(clusterName string, clusterId int, token string, userId int32, rbacForClusterMappingsAlso bool) (authenticated bool, err error) {

@@ -18,10 +18,12 @@ package rbac
 
 import (
 	"fmt"
+	bean3 "github.com/devtron-labs/devtron/api/k8s/bean"
 	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"golang.org/x/exp/maps"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"strings"
 
 	"github.com/devtron-labs/common-lib/utils/k8s"
@@ -83,6 +85,7 @@ type EnforcerUtil interface {
 	GetRbacObjectsByEnvIdsAndAppIdBatch(appIdToEnvIds map[int][]int) map[int]map[int]string
 	GetEnvRBACNameByAppAndEnvName(appName, envName string) string
 	GetAppRBACNameByAppName(appName string) string
+	GetRbacResourceAndObjectForNode(clusterName string, nodeName string) (string, string)
 }
 
 type EnforcerUtilImpl struct {
@@ -877,4 +880,20 @@ func (impl EnforcerUtilImpl) GetEnvRBACNameByAppAndEnvName(appName, envName stri
 		return fmt.Sprintf("%s/%s", "", appName)
 	}
 	return fmt.Sprintf("%s/%s", env.EnvironmentIdentifier, appName)
+}
+
+func (impl EnforcerUtilImpl) GetRbacResourceAndObjectForNode(clusterName string, nodeName string) (string, string) {
+	// currently if user has access to all nodes for all namespaces in a cluster, then he will have access to nodes in all namespaces in that cluster
+	if nodeName == "" {
+		nodeName = bean3.ALL
+	}
+	resource, object := impl.GetRBACNameForClusterEntity(clusterName, k8s.ResourceIdentifier{
+		Name:      nodeName,  // signifying all resources
+		Namespace: bean3.ALL, // signifying all namespaces
+		GroupVersionKind: schema.GroupVersionKind{
+			Group: casbin.ClusterEmptyGroupPlaceholder,
+			Kind:  bean3.Node,
+		},
+	})
+	return resource, object
 }
