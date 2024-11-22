@@ -18,7 +18,7 @@ package rbac
 
 import (
 	"fmt"
-	bean3 "github.com/devtron-labs/devtron/api/k8s/bean"
+	bean3 "github.com/devtron-labs/devtron/api/k8s/application/bean"
 	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/team"
