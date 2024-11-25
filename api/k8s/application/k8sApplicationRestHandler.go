@@ -817,7 +817,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 	} else if resourceRequestBean.AppIdentifier == nil && resourceRequestBean.DevtronAppIdentifier == nil && resourceRequestBean.ExternalFluxAppIdentifier == nil && resourceRequestBean.ExternalArgoApplicationName == "" && resourceRequestBean.ClusterId > 0 {
 		//RBAC enforcer applying for Resource Browser
 		resource, object := handler.enforcerUtil.GetRbacResourceAndObjectForNodeByClusterId(resourceRequestBean.ClusterId, bean2.ALL)
-		if !(handler.handleRbac(r, w, *resourceRequestBean, token, casbin.ActionUpdate) || handler.enforcer.Enforce(token, resource, casbin.ActionUpdate, object)) {
+		if !(handler.enforcer.Enforce(token, resource, casbin.ActionUpdate, object) || handler.handleRbac(r, w, *resourceRequestBean, token, casbin.ActionUpdate)) {
 			return
 		}
 		//RBAC enforcer Ends
