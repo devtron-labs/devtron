@@ -888,7 +888,7 @@ func (impl EnforcerUtilImpl) GetRbacResourceAndObjectForNode(clusterName string,
 		nodeName = bean2.ALL
 	}
 	resource, object := impl.GetRBACNameForClusterEntity(clusterName, k8s.ResourceIdentifier{
-		Name:      nodeName,  // signifying all resources
+		Name:      nodeName,  // signifying all resources if nodeName is empty
 		Namespace: bean2.ALL, // signifying all namespaces
 		GroupVersionKind: schema.GroupVersionKind{
 			Group: casbin.ClusterEmptyGroupPlaceholder,
