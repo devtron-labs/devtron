@@ -86,6 +86,7 @@ type EnforcerUtil interface {
 	GetEnvRBACNameByAppAndEnvName(appName, envName string) string
 	GetAppRBACNameByAppName(appName string) string
 	GetRbacResourceAndObjectForNode(clusterName string, nodeName string) (string, string)
+	GetRbacResourceAndObjectForNodeByClusterId(clusterId int, nodeName string) (string, string)
 }
 
 type EnforcerUtilImpl struct {
@@ -896,4 +897,13 @@ func (impl EnforcerUtilImpl) GetRbacResourceAndObjectForNode(clusterName string,
 		},
 	})
 	return resource, object
+}
+
+func (impl EnforcerUtilImpl) GetRbacResourceAndObjectForNodeByClusterId(clusterId int, nodeName string) (string, string) {
+	cluster, err := impl.clusterRepository.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error encountered in CheckAuthorisationForNodeWithClusterId", "clusterId", clusterId, "err", err)
+		return "", ""
+	}
+	return impl.GetRbacResourceAndObjectForNode(cluster.ClusterName, nodeName)
 }
