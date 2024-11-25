@@ -477,7 +477,8 @@ func (impl ClusterRestHandlerImpl) UpdateClusterDescription(w http.ResponseWrite
 		return
 	}
 	// RBAC enforcer applying
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionUpdate, clusterDescription.ClusterName); !ok {
+	authenticated := impl.clusterRbacService.CheckAuthorisationForAllK8sPermissions(token, clusterDescription.ClusterName, casbin.ActionUpdate)
+	if !authenticated {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -521,7 +522,8 @@ func (impl ClusterRestHandlerImpl) UpdateClusterNote(w http.ResponseWriter, r *h
 		return
 	}
 	// RBAC enforcer applying
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionUpdate, clusterDescription.ClusterName); !ok {
+	authenticated := impl.clusterRbacService.CheckAuthorisationForAllK8sPermissions(token, clusterDescription.ClusterName, casbin.ActionUpdate)
+	if !authenticated {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}

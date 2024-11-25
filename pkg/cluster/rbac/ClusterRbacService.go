@@ -18,9 +18,12 @@ package rbac
 
 import (
 	"errors"
+	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	"github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"strings"
 
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -32,6 +35,7 @@ type ClusterRbacService interface {
 	CheckAuthorization(clusterName string, clusterId int, token string, userId int32, rbacForClusterMappingsAlso bool) (bool, error)
 	CheckAuthorisationForNode(token string, clusterName string, nodeName string, action string) (authenticated bool)
 	CheckAuthorisationForNodeWithClusterId(token string, clusterId int, nodeName string, action string) (authenticated bool, err error)
+	CheckAuthorisationForAllK8sPermissions(token string, clusterName string, action string) bool
 }
 
 type ClusterRbacServiceImpl struct {
@@ -138,4 +142,13 @@ func (impl *ClusterRbacServiceImpl) FetchAllowedClusterMap(userId int32) (map[st
 	}
 	return allowedClustersMap, err
 
+}
+
+func (impl *ClusterRbacServiceImpl) CheckAuthorisationForAllK8sPermissions(token string, clusterName string, action string) (b2 bool) {
+	resource, object := impl.enforcerUtil.GetRBACNameForClusterEntity(clusterName, k8s.ResourceIdentifier{
+		Name:             bean.ALL,
+		Namespace:        bean.ALL,
+		GroupVersionKind: schema.GroupVersionKind{Group: bean.ALL, Kind: bean.ALL},
+	})
+	return impl.enforcer.Enforce(token, strings.ToLower(resource), action, object)
 }
