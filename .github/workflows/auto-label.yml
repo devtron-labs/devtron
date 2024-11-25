@@ -1,0 +1,64 @@
+name: Devtron-auto-labeller
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_comment:
+    types: [created]
+
+jobs:
+  manage-labels:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Parse and manage labels
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          #comment body and issue/PR number
+          COMMENT_BODY=$(jq -r '.comment.body' "$GITHUB_EVENT_PATH")
+          ISSUE_NUMBER=$(jq -r '.issue.number // .pull_request.number' "$GITHUB_EVENT_PATH")
+
+          # check for existing labels on issues and prs 
+          EXISTING_LABELS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUMBER" | jq -r '.labels[].name')
+
+          
+          if [[ "$COMMENT_BODY" =~ ^/([^ ]+)$ ]]; then
+            LABEL_NAME="${COMMENT_BODY:1}"
+
+            # Existence of label in the repository
+            REPO_LABELS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/labels")
+
+            if echo "$REPO_LABELS" | jq -e ".[] | select(.name == \"$LABEL_NAME\")" > /dev/null; then
+              # Add the requested label, keeping existing ones intact
+              UPDATED_LABELS=$(echo "$EXISTING_LABELS" | jq -R 'split("\n") | . + ["'"$LABEL_NAME"'"] | unique')
+              curl -s -X PATCH -H "Authorization: token $GITHUB_TOKEN" \
+                -H "Accept: application/vnd.github.v3+json" \
+                -d "{\"labels\": $UPDATED_LABELS}" \
+                "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUMBER"
+
+              echo "Successfully added label '$LABEL_NAME' to issue/PR #$ISSUE_NUMBER."
+            else
+              echo "The label '$LABEL_NAME' doesn't exist in the repository. Please create it first."
+            fi
+          fi
+
+          # Remove labels when asked
+          if [[ "$COMMENT_BODY" =~ ^/remove[[:space:]](.+)$ ]]; then
+            LABEL_NAME_TO_REMOVE=$(echo "$COMMENT_BODY" | sed -n 's|/remove ||p')
+
+            # Remove the specified label 
+            if echo "$EXISTING_LABELS" | grep -q "^$LABEL_NAME_TO_REMOVE$"; then
+              curl -s -X DELETE -H "Authorization: token $GITHUB_TOKEN" \
+                -H "Accept: application/vnd.github.v3+json" \
+                "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUMBER/labels/$LABEL_NAME_TO_REMOVE"
+
+              echo "Successfully removed label '$LABEL_NAME_TO_REMOVE' from issue/PR #$ISSUE_NUMBER."
+            else
+              echo "The label '$LABEL_NAME_TO_REMOVE' is not attached to issue/PR #$ISSUE_NUMBER."
+            fi
+          fi
