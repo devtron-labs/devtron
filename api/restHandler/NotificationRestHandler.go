@@ -26,7 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
-	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/notifier/beans"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -81,7 +81,7 @@ type NotificationRestHandlerImpl struct {
 	smtpService          notifier.SMTPNotificationService
 	enforcer             casbin.Enforcer
 	teamService          team.TeamService
-	environmentService   cluster.EnvironmentService
+	environmentService   environment.EnvironmentService
 	pipelineBuilder      pipeline.PipelineBuilder
 	enforcerUtil         rbac.EnforcerUtil
 }
@@ -95,7 +95,7 @@ func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistry
 	userAuthService user.UserService,
 	validator *validator.Validate, notificationService notifier.NotificationConfigService,
 	slackService notifier.SlackNotificationService, webhookService notifier.WebhookNotificationService, sesService notifier.SESNotificationService, smtpService notifier.SMTPNotificationService,
-	enforcer casbin.Enforcer, teamService team.TeamService, environmentService cluster.EnvironmentService, pipelineBuilder pipeline.PipelineBuilder,
+	enforcer casbin.Enforcer, teamService team.TeamService, environmentService environment.EnvironmentService, pipelineBuilder pipeline.PipelineBuilder,
 	enforcerUtil rbac.EnforcerUtil) *NotificationRestHandlerImpl {
 	return &NotificationRestHandlerImpl{
 		dockerRegistryConfig: dockerRegistryConfig,

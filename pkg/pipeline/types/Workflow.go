@@ -30,7 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	bean5 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository4 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	bean6 "github.com/devtron-labs/devtron/pkg/infraConfig/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/plugin/bean"
@@ -142,7 +142,7 @@ type WorkflowRequest struct {
 	ImageScanRetryDelay         int                                  `json:"imageScanRetryDelay,omitempty"`
 	Type                        bean.WorkflowPipelineType
 	Pipeline                    *pipelineConfig.Pipeline
-	Env                         *repository.Environment
+	Env                         *repository4.Environment
 	AppLabels                   map[string]string
 	Scope                       resourceQualifiers.Scope
 	BuildxCacheModeMin          bool   `json:"buildxCacheModeMin"`

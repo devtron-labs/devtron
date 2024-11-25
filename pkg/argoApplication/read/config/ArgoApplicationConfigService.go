@@ -8,7 +8,7 @@ import (
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/helper"
-	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.uber.org/zap"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,7 +54,7 @@ func (impl *ArgoApplicationConfigServiceImpl) GetClusterConfigFromAllClusters(cl
 	if len(clusterWithApplicationObject.ErrorInConnecting) != 0 {
 		return nil, clusterWithApplicationObject, nil, fmt.Errorf("error in connecting to cluster")
 	}
-	clusterBean := cluster2.GetClusterBean(clusterWithApplicationObject)
+	clusterBean := adapter.GetClusterBean(clusterWithApplicationObject)
 	clusterConfig := clusterBean.GetClusterConfig()
 	return clusterConfig, clusterWithApplicationObject, clusterServerUrlIdMap, err
 }

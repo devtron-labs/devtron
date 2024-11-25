@@ -24,7 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"go.opentelemetry.io/otel"
 	"golang.org/x/exp/maps"
 )

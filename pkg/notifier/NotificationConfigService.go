@@ -20,19 +20,18 @@ import (
 	"encoding/json"
 	"errors"
 	clusterService "github.com/devtron-labs/devtron/pkg/cluster"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/notifier/beans"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+	"github.com/devtron-labs/devtron/pkg/team"
 	util3 "github.com/devtron-labs/devtron/util"
 	"time"
 
-	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	repository4 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
-	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	repository2 "github.com/devtron-labs/devtron/pkg/team"
-
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
+	repository4 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -59,7 +58,7 @@ type NotificationConfigServiceImpl struct {
 	webhookRepository              repository.WebhookNotificationRepository
 	sesRepository                  repository.SESNotificationRepository
 	smtpRepository                 repository.SMTPNotificationRepository
-	teamRepository                 repository2.TeamRepository
+	teamRepository                 team.TeamRepository
 	environmentRepository          repository3.EnvironmentRepository
 	clusterService                 clusterService.ClusterService
 	appRepository                  app.AppRepository
@@ -70,7 +69,7 @@ type NotificationConfigServiceImpl struct {
 func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSettingsRepository repository.NotificationSettingsRepository, notificationConfigBuilder NotificationConfigBuilder, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, slackRepository repository.SlackNotificationRepository, webhookRepository repository.WebhookNotificationRepository,
 	sesRepository repository.SESNotificationRepository, smtpRepository repository.SMTPNotificationRepository,
-	teamRepository repository2.TeamRepository,
+	teamRepository team.TeamRepository,
 	environmentRepository repository3.EnvironmentRepository, appRepository app.AppRepository, clusterService clusterService.ClusterService,
 	userRepository repository4.UserRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *NotificationConfigServiceImpl {
 	return &NotificationConfigServiceImpl{

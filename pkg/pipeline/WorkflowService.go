@@ -29,7 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/app"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	bean4 "github.com/devtron-labs/devtron/pkg/infraConfig/bean"
 	util2 "github.com/devtron-labs/devtron/pkg/infraConfig/util"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
@@ -64,7 +64,7 @@ type WorkflowServiceImpl struct {
 	config                 *rest.Config
 	ciCdConfig             *types.CiCdConfig
 	appService             app.AppService
-	envRepository          repository.EnvironmentRepository
+	envRepository          repository2.EnvironmentRepository
 	globalCMCSService      GlobalCMCSService
 	argoWorkflowExecutor   executors.ArgoWorkflowExecutor
 	systemWorkflowExecutor executors.SystemWorkflowExecutor
@@ -75,7 +75,7 @@ type WorkflowServiceImpl struct {
 
 // TODO: Move to bean
 
-func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository.EnvironmentRepository, ciCdConfig *types.CiCdConfig,
+func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository2.EnvironmentRepository, ciCdConfig *types.CiCdConfig,
 	appService app.AppService, globalCMCSService GlobalCMCSService, argoWorkflowExecutor executors.ArgoWorkflowExecutor,
 	k8sUtil *k8s.K8sServiceImpl,
 	systemWorkflowExecutor executors.SystemWorkflowExecutor, k8sCommonService k8s2.K8sCommonService,
@@ -202,7 +202,12 @@ func (impl *WorkflowServiceImpl) getClusterConfig(workflowRequest *types.Workflo
 			ClusterName:           env.Cluster.ClusterName,
 			BearerToken:           bearerToken,
 			Host:                  env.Cluster.ServerUrl,
-			InsecureSkipTLSVerify: true,
+			InsecureSkipTLSVerify: env.Cluster.InsecureSkipTlsVerify,
+		}
+		if !env.Cluster.InsecureSkipTlsVerify {
+			clusterConfig.KeyData = configMap[commonBean.TlsKey]
+			clusterConfig.CertData = configMap[commonBean.CertData]
+			clusterConfig.CAData = configMap[commonBean.CertificateAuthorityData]
 		}
 		restConfig, err := impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
 		if err != nil {
@@ -391,7 +396,7 @@ func (impl *WorkflowServiceImpl) TerminateDanglingWorkflows(cancelWfDtoRequest *
 	return err
 }
 
-func (impl *WorkflowServiceImpl) getRuntimeEnvClientInstance(environment *repository.Environment) (v1alpha12.WorkflowInterface, error) {
+func (impl *WorkflowServiceImpl) getRuntimeEnvClientInstance(environment *repository2.Environment) (v1alpha12.WorkflowInterface, error) {
 	restConfig, err, _ := impl.k8sCommonService.GetRestConfigByClusterId(context.Background(), environment.ClusterId)
 	if err != nil {
 		impl.Logger.Errorw("error in getting rest config by cluster id", "err", err)
@@ -405,7 +410,7 @@ func (impl *WorkflowServiceImpl) getRuntimeEnvClientInstance(environment *reposi
 	return wfClient, nil
 }
 
-func (impl *WorkflowServiceImpl) getWfClient(environment *repository.Environment, namespace string, isExt bool) (v1alpha12.WorkflowInterface, error) {
+func (impl *WorkflowServiceImpl) getWfClient(environment *repository2.Environment, namespace string, isExt bool) (v1alpha12.WorkflowInterface, error) {
 	var wfClient v1alpha12.WorkflowInterface
 	var err error
 	if isExt {

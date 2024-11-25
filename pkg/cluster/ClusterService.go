@@ -21,6 +21,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
+	"github.com/devtron-labs/devtron/pkg/cluster/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	cronUtil "github.com/devtron-labs/devtron/util/cron"
 	"github.com/robfig/cron/v3"
 	"log"
@@ -63,133 +66,36 @@ const (
 	TokenFilePath                    = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 )
 
-type PrometheusAuth struct {
-	UserName      string `json:"userName,omitempty"`
-	Password      string `json:"password,omitempty"`
-	TlsClientCert string `json:"tlsClientCert,omitempty"`
-	TlsClientKey  string `json:"tlsClientKey,omitempty"`
-	IsAnonymous   bool   `json:"isAnonymous"`
-}
-
-type ClusterBean struct {
-	Id                      int                        `json:"id" validate:"number"`
-	ClusterName             string                     `json:"cluster_name,omitempty" validate:"required"`
-	Description             string                     `json:"description"`
-	ServerUrl               string                     `json:"server_url,omitempty" validate:"url,required"`
-	PrometheusUrl           string                     `json:"prometheus_url,omitempty" validate:"validate-non-empty-url"`
-	Active                  bool                       `json:"active"`
-	Config                  map[string]string          `json:"config,omitempty"`
-	PrometheusAuth          *PrometheusAuth            `json:"prometheusAuth,omitempty"`
-	DefaultClusterComponent []*DefaultClusterComponent `json:"defaultClusterComponent"`
-	AgentInstallationStage  int                        `json:"agentInstallationStage,notnull"` // -1=external, 0=not triggered, 1=progressing, 2=success, 3=fails
-	K8sVersion              string                     `json:"k8sVersion"`
-	HasConfigOrUrlChanged   bool                       `json:"-"`
-	UserName                string                     `json:"userName,omitempty"`
-	InsecureSkipTLSVerify   bool                       `json:"insecureSkipTlsVerify"`
-	ErrorInConnecting       string                     `json:"errorInConnecting"`
-	IsCdArgoSetup           bool                       `json:"isCdArgoSetup"`
-	IsVirtualCluster        bool                       `json:"isVirtualCluster"`
-	ClusterUpdated          bool                       `json:"clusterUpdated"`
-	IsProd                  bool                       `json:"isProd"`
-}
-
-func GetClusterBean(model repository.Cluster) ClusterBean {
-	bean := ClusterBean{}
-	bean.Id = model.Id
-	bean.ClusterName = model.ClusterName
-	//bean.Note = model.Note
-	bean.ServerUrl = model.ServerUrl
-	bean.PrometheusUrl = model.PrometheusEndpoint
-	bean.AgentInstallationStage = model.AgentInstallationStage
-	bean.Active = model.Active
-	bean.Config = model.Config
-	bean.K8sVersion = model.K8sVersion
-	bean.InsecureSkipTLSVerify = model.InsecureSkipTlsVerify
-	bean.IsVirtualCluster = model.IsVirtualCluster
-	bean.ErrorInConnecting = model.ErrorInConnecting
-	bean.IsProd = model.IsProd
-	bean.PrometheusAuth = &PrometheusAuth{
-		UserName:      model.PUserName,
-		Password:      model.PPassword,
-		TlsClientCert: model.PTlsClientCert,
-		TlsClientKey:  model.PTlsClientKey,
-	}
-	return bean
-}
-
-func (bean ClusterBean) GetClusterConfig() *k8s.ClusterConfig {
-	host := bean.ServerUrl
-	configMap := bean.Config
-	bearerToken := configMap[commonBean.BearerToken]
-	clusterCfg := &k8s.ClusterConfig{Host: host, BearerToken: bearerToken}
-	clusterCfg.InsecureSkipTLSVerify = bean.InsecureSkipTLSVerify
-	if bean.InsecureSkipTLSVerify == false {
-		clusterCfg.KeyData = configMap[commonBean.TlsKey]
-		clusterCfg.CertData = configMap[commonBean.CertData]
-		clusterCfg.CAData = configMap[commonBean.CertificateAuthorityData]
-	}
-	return clusterCfg
-}
-
-type UserInfo struct {
-	UserName          string            `json:"userName,omitempty"`
-	Config            map[string]string `json:"config,omitempty"`
-	ErrorInConnecting string            `json:"errorInConnecting"`
-}
-
-type ValidateClusterBean struct {
-	UserInfos map[string]*UserInfo `json:"userInfos,omitempty""`
-	*ClusterBean
-}
-
-type UserClusterBeanMapping struct {
-	Mapping map[string]*ClusterBean `json:"mapping"`
-}
-
-type Kubeconfig struct {
-	Config string `json:"config"`
-}
-
-type DefaultClusterComponent struct {
-	ComponentName  string `json:"name"`
-	AppId          int    `json:"appId"`
-	InstalledAppId int    `json:"installedAppId,omitempty"`
-	EnvId          int    `json:"envId"`
-	EnvName        string `json:"envName"`
-	Status         string `json:"status"`
-}
-
 type ClusterService interface {
-	Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error)
-	UpdateClusterDescription(bean *ClusterBean, userId int32) error
-	ValidateKubeconfig(kubeConfig string) (map[string]*ValidateClusterBean, error)
-	FindOne(clusterName string) (*ClusterBean, error)
-	FindOneActive(clusterName string) (*ClusterBean, error)
-	FindAll() ([]*ClusterBean, error)
-	FindAllExceptVirtual() ([]*ClusterBean, error)
-	FindAllWithoutConfig() ([]*ClusterBean, error)
-	FindAllActive() ([]ClusterBean, error)
-	DeleteFromDb(bean *ClusterBean, userId int32) (string, error)
+	Save(parent context.Context, bean *bean.ClusterBean, userId int32) (*bean.ClusterBean, error)
+	UpdateClusterDescription(bean *bean.ClusterBean, userId int32) error
+	ValidateKubeconfig(kubeConfig string) (map[string]*bean.ValidateClusterBean, error)
+	FindOne(clusterName string) (*bean.ClusterBean, error)
+	FindOneActive(clusterName string) (*bean.ClusterBean, error)
+	FindAll() ([]*bean.ClusterBean, error)
+	FindAllExceptVirtual() ([]*bean.ClusterBean, error)
+	FindAllWithoutConfig() ([]*bean.ClusterBean, error)
+	FindAllActive() ([]bean.ClusterBean, error)
+	DeleteFromDb(bean *bean.ClusterBean, userId int32) (string, error)
 
-	FindById(id int) (*ClusterBean, error)
-	FindByIdWithoutConfig(id int) (*ClusterBean, error)
-	FindByIds(id []int) ([]ClusterBean, error)
-	Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error)
-	Delete(bean *ClusterBean, userId int32) error
+	FindById(id int) (*bean.ClusterBean, error)
+	FindByIdWithoutConfig(id int) (*bean.ClusterBean, error)
+	FindByIds(id []int) ([]bean.ClusterBean, error)
+	Update(ctx context.Context, bean *bean.ClusterBean, userId int32) (*bean.ClusterBean, error)
+	Delete(bean *bean.ClusterBean, userId int32) error
 
-	FindAllForAutoComplete() ([]ClusterBean, error)
-	CreateGrafanaDataSource(clusterBean *ClusterBean, env *repository.Environment) (int, error)
+	FindAllForAutoComplete() ([]bean.ClusterBean, error)
+	CreateGrafanaDataSource(clusterBean *bean.ClusterBean, env *repository2.Environment) (int, error)
 	GetAllClusterNamespaces() map[string][]string
 	FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool) ([]string, error)
-	FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]ClusterBean, error)
+	FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]bean.ClusterBean, error)
 	FetchRolesFromGroup(userId int32) ([]*repository3.RoleModel, error)
-	HandleErrorInClusterConnections(clusters []*ClusterBean, respMap *sync.Map, clusterExistInDb bool)
-	ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool)
-	ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster
-	ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster
+	HandleErrorInClusterConnections(clusters []*bean.ClusterBean, respMap *sync.Map, clusterExistInDb bool)
+	ConnectClustersInBatch(clusters []*bean.ClusterBean, clusterExistInDb bool)
+	ConvertClusterBeanToCluster(clusterBean *bean.ClusterBean, userId int32) *repository.Cluster
+	ConvertClusterBeanObjectToCluster(bean *bean.ClusterBean) *v1alpha1.Cluster
 
 	GetClusterConfigByClusterId(clusterId int) (*k8s.ClusterConfig, error)
-	IsClusterReachable(clusterId int) (bool, error)
 }
 
 type ClusterServiceImpl struct {
@@ -232,7 +138,7 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 	return clusterService, nil
 }
 
-func (impl *ClusterServiceImpl) ConvertClusterBeanToCluster(clusterBean *ClusterBean, userId int32) *repository.Cluster {
+func (impl *ClusterServiceImpl) ConvertClusterBeanToCluster(clusterBean *bean.ClusterBean, userId int32) *repository.Cluster {
 
 	model := &repository.Cluster{}
 
@@ -277,7 +183,7 @@ func (impl *ClusterServiceImpl) getAndUpdateClusterConnectionStatus() {
 	impl.ConnectClustersInBatch(clusters, true)
 }
 
-func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
+func (impl *ClusterServiceImpl) Save(parent context.Context, bean *bean.ClusterBean, userId int32) (*bean.ClusterBean, error) {
 	//validating config
 
 	err := impl.CheckIfConfigIsValid(bean)
@@ -351,7 +257,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 
 // UpdateClusterDescription is new api service logic to only update description, this should be done in cluster update operation only
 // but not supported currently as per product
-func (impl *ClusterServiceImpl) UpdateClusterDescription(bean *ClusterBean, userId int32) error {
+func (impl *ClusterServiceImpl) UpdateClusterDescription(bean *bean.ClusterBean, userId int32) error {
 	//updating description as other fields are not supported yet
 	err := impl.clusterRepository.SetDescription(bean.Id, bean.Description, userId)
 	if err != nil {
@@ -361,25 +267,25 @@ func (impl *ClusterServiceImpl) UpdateClusterDescription(bean *ClusterBean, user
 	return nil
 }
 
-func (impl *ClusterServiceImpl) FindOne(clusterName string) (*ClusterBean, error) {
+func (impl *ClusterServiceImpl) FindOne(clusterName string) (*bean.ClusterBean, error) {
 	model, err := impl.clusterRepository.FindOne(clusterName)
 	if err != nil {
 		return nil, err
 	}
-	bean := GetClusterBean(*model)
+	bean := adapter.GetClusterBean(*model)
 	return &bean, nil
 }
 
-func (impl *ClusterServiceImpl) FindOneActive(clusterName string) (*ClusterBean, error) {
+func (impl *ClusterServiceImpl) FindOneActive(clusterName string) (*bean.ClusterBean, error) {
 	model, err := impl.clusterRepository.FindOneActive(clusterName)
 	if err != nil {
 		return nil, err
 	}
-	bean := GetClusterBean(*model)
+	bean := adapter.GetClusterBean(*model)
 	return &bean, nil
 }
 
-func (impl *ClusterServiceImpl) FindAllWithoutConfig() ([]*ClusterBean, error) {
+func (impl *ClusterServiceImpl) FindAllWithoutConfig() ([]*bean.ClusterBean, error) {
 	models, err := impl.FindAll()
 	if err != nil {
 		return nil, err
@@ -390,55 +296,55 @@ func (impl *ClusterServiceImpl) FindAllWithoutConfig() ([]*ClusterBean, error) {
 	return models, nil
 }
 
-func (impl *ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
+func (impl *ClusterServiceImpl) FindAll() ([]*bean.ClusterBean, error) {
 	models, err := impl.clusterRepository.FindAllActive()
 	if err != nil {
 		return nil, err
 	}
-	var beans []*ClusterBean
+	var beans []*bean.ClusterBean
 	for _, model := range models {
-		bean := GetClusterBean(model)
+		bean := adapter.GetClusterBean(model)
 		beans = append(beans, &bean)
 	}
 	return beans, nil
 }
 
-func (impl *ClusterServiceImpl) FindAllExceptVirtual() ([]*ClusterBean, error) {
+func (impl *ClusterServiceImpl) FindAllExceptVirtual() ([]*bean.ClusterBean, error) {
 	models, err := impl.clusterRepository.FindAllActiveExceptVirtual()
 	if err != nil {
 		return nil, err
 	}
-	var beans []*ClusterBean
+	var beans []*bean.ClusterBean
 	for _, model := range models {
-		bean := GetClusterBean(model)
+		bean := adapter.GetClusterBean(model)
 		beans = append(beans, &bean)
 	}
 	return beans, nil
 }
 
-func (impl *ClusterServiceImpl) FindAllActive() ([]ClusterBean, error) {
+func (impl *ClusterServiceImpl) FindAllActive() ([]bean.ClusterBean, error) {
 	models, err := impl.clusterRepository.FindAllActive()
 	if err != nil {
 		return nil, err
 	}
-	var beans []ClusterBean
+	var beans []bean.ClusterBean
 	for _, model := range models {
-		bean := GetClusterBean(model)
+		bean := adapter.GetClusterBean(model)
 		beans = append(beans, bean)
 	}
 	return beans, nil
 }
 
-func (impl *ClusterServiceImpl) FindById(id int) (*ClusterBean, error) {
+func (impl *ClusterServiceImpl) FindById(id int) (*bean.ClusterBean, error) {
 	model, err := impl.clusterRepository.FindById(id)
 	if err != nil {
 		return nil, err
 	}
-	bean := GetClusterBean(*model)
+	bean := adapter.GetClusterBean(*model)
 	return &bean, nil
 }
 
-func (impl *ClusterServiceImpl) FindByIdWithoutConfig(id int) (*ClusterBean, error) {
+func (impl *ClusterServiceImpl) FindByIdWithoutConfig(id int) (*bean.ClusterBean, error) {
 	model, err := impl.FindById(id)
 	if err != nil {
 		return nil, err
@@ -448,21 +354,21 @@ func (impl *ClusterServiceImpl) FindByIdWithoutConfig(id int) (*ClusterBean, err
 	return model, nil
 }
 
-func (impl *ClusterServiceImpl) FindByIds(ids []int) ([]ClusterBean, error) {
+func (impl *ClusterServiceImpl) FindByIds(ids []int) ([]bean.ClusterBean, error) {
 	models, err := impl.clusterRepository.FindByIds(ids)
 	if err != nil {
 		return nil, err
 	}
-	var beans []ClusterBean
+	var beans []bean.ClusterBean
 
 	for _, model := range models {
-		bean := GetClusterBean(model)
+		bean := adapter.GetClusterBean(model)
 		beans = append(beans, bean)
 	}
 	return beans, nil
 }
 
-func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
+func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *bean.ClusterBean, userId int32) (*bean.ClusterBean, error) {
 	model, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
 		impl.logger.Error(err)
@@ -602,7 +508,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	return bean, nil
 }
 
-func (impl *ClusterServiceImpl) SyncNsInformer(bean *ClusterBean) {
+func (impl *ClusterServiceImpl) SyncNsInformer(bean *bean.ClusterBean) {
 	requestConfig := bean.Config[commonBean.BearerToken]
 	//before creating new informer for cluster, close existing one
 	impl.K8sInformerFactory.CleanNamespaceInformer(bean.ClusterName)
@@ -622,7 +528,7 @@ func (impl *ClusterServiceImpl) SyncNsInformer(bean *ClusterBean) {
 	impl.K8sInformerFactory.BuildInformer([]*bean2.ClusterInfo{clusterInfo})
 }
 
-func (impl *ClusterServiceImpl) Delete(bean *ClusterBean, userId int32) error {
+func (impl *ClusterServiceImpl) Delete(bean *bean.ClusterBean, userId int32) error {
 	model, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
 		return err
@@ -630,14 +536,14 @@ func (impl *ClusterServiceImpl) Delete(bean *ClusterBean, userId int32) error {
 	return impl.clusterRepository.Delete(model)
 }
 
-func (impl *ClusterServiceImpl) FindAllForAutoComplete() ([]ClusterBean, error) {
+func (impl *ClusterServiceImpl) FindAllForAutoComplete() ([]bean.ClusterBean, error) {
 	model, err := impl.clusterRepository.FindAll()
 	if err != nil {
 		return nil, err
 	}
-	var beans []ClusterBean
+	var beans []bean.ClusterBean
 	for _, m := range model {
-		beans = append(beans, ClusterBean{
+		beans = append(beans, bean.ClusterBean{
 			Id:                m.Id,
 			ClusterName:       m.ClusterName,
 			ErrorInConnecting: m.ErrorInConnecting,
@@ -648,7 +554,7 @@ func (impl *ClusterServiceImpl) FindAllForAutoComplete() ([]ClusterBean, error) 
 	return beans, nil
 }
 
-func (impl *ClusterServiceImpl) CreateGrafanaDataSource(clusterBean *ClusterBean, env *repository.Environment) (int, error) {
+func (impl *ClusterServiceImpl) CreateGrafanaDataSource(clusterBean *bean.ClusterBean, env *repository2.Environment) (int, error) {
 	impl.logger.Errorw("CreateGrafanaDataSource not implemented in ClusterServiceImpl")
 	return 0, fmt.Errorf("method not implemented")
 }
@@ -678,7 +584,7 @@ func (impl *ClusterServiceImpl) buildInformer() {
 	impl.K8sInformerFactory.BuildInformer(clusterInfo)
 }
 
-func (impl *ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) (string, error) {
+func (impl *ClusterServiceImpl) DeleteFromDb(bean *bean.ClusterBean, userId int32) (string, error) {
 	existingCluster, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete.", "id", bean.Id)
@@ -703,7 +609,7 @@ func (impl *ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) (s
 	return existingCluster.ClusterName, nil
 }
 
-func (impl *ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error {
+func (impl *ClusterServiceImpl) CheckIfConfigIsValid(cluster *bean.ClusterBean) error {
 	clusterConfig := cluster.GetClusterConfig()
 	response, err := impl.K8sUtil.DiscoveryClientGetLiveZCall(clusterConfig)
 	if err != nil {
@@ -797,7 +703,7 @@ func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int
 	return result, nil
 }
 
-func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]ClusterBean, error) {
+func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]bean.ClusterBean, error) {
 	if isActionUserSuperAdmin {
 		return impl.FindAllForAutoComplete()
 	}
@@ -816,10 +722,10 @@ func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32, isAction
 		impl.logger.Errorw("error on fetching clusters", "err", err)
 		return nil, err
 	}
-	var beans []ClusterBean
+	var beans []bean.ClusterBean
 	for _, model := range models {
 		if _, ok := allowedClustersMap[model.ClusterName]; ok {
-			beans = append(beans, ClusterBean{
+			beans = append(beans, bean.ClusterBean{
 				Id:                model.Id,
 				ClusterName:       model.ClusterName,
 				ErrorInConnecting: model.ErrorInConnecting,
@@ -862,7 +768,7 @@ func (impl *ClusterServiceImpl) updateConnectionStatusForVirtualCluster(respMap 
 	respMap.Store(clusterId, connErr)
 }
 
-func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, clusterExistInDb bool) {
+func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*bean.ClusterBean, clusterExistInDb bool) {
 	var wg sync.WaitGroup
 	respMap := &sync.Map{}
 	for idx, cluster := range clusters {
@@ -871,7 +777,7 @@ func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, 
 			continue
 		}
 		wg.Add(1)
-		go func(idx int, cluster *ClusterBean) {
+		go func(idx int, cluster *bean.ClusterBean) {
 			defer wg.Done()
 			clusterConfig := cluster.GetClusterConfig()
 			_, _, k8sClientSet, err := impl.K8sUtil.GetK8sConfigAndClients(clusterConfig)
@@ -892,7 +798,7 @@ func (impl *ClusterServiceImpl) ConnectClustersInBatch(clusters []*ClusterBean, 
 	impl.HandleErrorInClusterConnections(clusters, respMap, clusterExistInDb)
 }
 
-func (impl *ClusterServiceImpl) HandleErrorInClusterConnections(clusters []*ClusterBean, respMap *sync.Map, clusterExistInDb bool) {
+func (impl *ClusterServiceImpl) HandleErrorInClusterConnections(clusters []*bean.ClusterBean, respMap *sync.Map, clusterExistInDb bool) {
 	respMap.Range(func(key, value any) bool {
 		defer func() {
 			// defer to handle panic on type assertion
@@ -928,7 +834,7 @@ func (impl *ClusterServiceImpl) HandleErrorInClusterConnections(clusters []*Clus
 	})
 }
 
-func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[string]*ValidateClusterBean, error) {
+func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[string]*bean.ValidateClusterBean, error) {
 
 	kubeConfigObject := api.Config{}
 
@@ -960,10 +866,10 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 	}
 
 	//var clusterBeanObjects []*ClusterBean
-	ValidateObjects := make(map[string]*ValidateClusterBean)
+	ValidateObjects := make(map[string]*bean.ValidateClusterBean)
 
-	var clusterBeansWithNoValidationErrors []*ClusterBean
-	var clusterBeanObjects []*ClusterBean
+	var clusterBeansWithNoValidationErrors []*bean.ClusterBean
+	var clusterBeanObjects []*bean.ClusterBean
 	if err != nil {
 		return ValidateObjects, err
 	}
@@ -979,9 +885,9 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 		clusterListMapWithId[c.ClusterName] = c.Id
 	}
 
-	userInfosMap := map[string]*UserInfo{}
+	userInfosMap := map[string]*bean.UserInfo{}
 	for _, ctx := range kubeConfigObject.Contexts {
-		clusterBeanObject := &ClusterBean{}
+		clusterBeanObject := &bean.ClusterBean{}
 		clusterName := ctx.Cluster
 		userName := ctx.AuthInfo
 		clusterObj := kubeConfigObject.Clusters[clusterName]
@@ -1045,16 +951,16 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 			}
 		}
 
-		userInfo := UserInfo{
+		userInfo := bean.UserInfo{
 			UserName:          userName,
 			Config:            Config,
 			ErrorInConnecting: clusterBeanObject.ErrorInConnecting,
 		}
 
 		userInfosMap[userInfo.UserName] = &userInfo
-		validateObject := &ValidateClusterBean{}
+		validateObject := &bean.ValidateClusterBean{}
 		if _, ok := ValidateObjects[clusterBeanObject.ClusterName]; !ok {
-			validateObject.UserInfos = make(map[string]*UserInfo)
+			validateObject.UserInfos = make(map[string]*bean.UserInfo)
 			validateObject.ClusterBean = clusterBeanObject
 			ValidateObjects[clusterBeanObject.ClusterName] = validateObject
 		}
@@ -1125,7 +1031,7 @@ func (impl *ClusterServiceImpl) GetAndUpdateConnectionStatusForOneCluster(k8sCli
 	respMap.Store(clusterId, err)
 }
 
-func (impl *ClusterServiceImpl) ConvertClusterBeanObjectToCluster(bean *ClusterBean) *v1alpha1.Cluster {
+func (impl *ClusterServiceImpl) ConvertClusterBeanObjectToCluster(bean *bean.ClusterBean) *v1alpha1.Cluster {
 	configMap := bean.Config
 	serverUrl := bean.ServerUrl
 	bearerToken := ""
@@ -1163,17 +1069,4 @@ func (impl *ClusterServiceImpl) GetClusterConfigByClusterId(clusterId int) (*k8s
 	rq := *clusterBean
 	clusterConfig := rq.GetClusterConfig()
 	return clusterConfig, nil
-}
-
-func (impl *ClusterServiceImpl) IsClusterReachable(clusterId int) (bool, error) {
-	cluster, err := impl.clusterRepository.FindById(clusterId)
-	if err != nil {
-		impl.logger.Errorw("error in finding cluster from clusterId", "envId", clusterId)
-		return false, err
-	}
-	if len(cluster.ErrorInConnecting) > 0 {
-		return false, nil
-	}
-	return true, nil
-
 }

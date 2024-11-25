@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	bean2 "github.com/devtron-labs/devtron/pkg/attributes/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	cron3 "github.com/devtron-labs/devtron/util/cron"
 	"net/http"
 	"time"
@@ -198,7 +199,7 @@ const (
 	SIG_TERM                     TelemetryEventType = "SIG_TERM"
 )
 
-func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cluster.ClusterBean, user []bean.UserInfo,
+func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []bean3.ClusterBean, user []bean.UserInfo,
 	k8sServerVersion *version.Info, hostURL bool, ssoSetup bool, HelmAppAccessCount string, ChartStoreVisitCount string,
 	SkippedOnboarding bool, HelmAppUpdateCounter string, helmChartSuccessfulDeploymentCount int, ExternalHelmAppClusterCount map[int32]int) {
 

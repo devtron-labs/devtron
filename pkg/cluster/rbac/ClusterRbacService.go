@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
-package cluster
+package rbac
 
 import (
 	"errors"
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"strings"
 
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -31,15 +33,15 @@ type ClusterRbacService interface {
 
 type ClusterRbacServiceImpl struct {
 	logger             *zap.SugaredLogger
-	environmentService EnvironmentService
+	environmentService environment.EnvironmentService
 	enforcer           casbin.Enforcer
-	clusterService     ClusterService
+	clusterService     cluster.ClusterService
 	userService        user.UserService
 }
 
-func NewClusterRbacServiceImpl(environmentService EnvironmentService,
+func NewClusterRbacServiceImpl(environmentService environment.EnvironmentService,
 	enforcer casbin.Enforcer,
-	clusterService ClusterService,
+	clusterService cluster.ClusterService,
 	logger *zap.SugaredLogger,
 	userService user.UserService) *ClusterRbacServiceImpl {
 	clusterRbacService := &ClusterRbacServiceImpl{

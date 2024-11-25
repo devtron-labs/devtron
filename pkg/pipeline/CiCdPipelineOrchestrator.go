@@ -30,6 +30,7 @@ import (
 	repository6 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/plugin"
@@ -55,7 +56,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
-	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	repository3 "github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -190,6 +190,7 @@ func NewCiCdPipelineOrchestrator(
 		pipelineStageService:          pipelineStageService,
 		gitMaterialHistoryService:     gitMaterialHistoryService,
 		ciPipelineHistoryService:      ciPipelineHistoryService,
+		ciTemplateReadService:         ciTemplateReadService,
 		ciTemplateService:             ciTemplateService,
 		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
 		CiArtifactRepository:          CiArtifactRepository,
