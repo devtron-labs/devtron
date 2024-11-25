@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/rbac"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -624,17 +625,61 @@ func (impl ClusterRestHandlerImpl) DeleteCluster(w http.ResponseWriter, r *http.
 
 func (impl ClusterRestHandlerImpl) GetAllClusterNamespaces(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		impl.logger.Errorw("err, GetAllClusterNamespaces", "error", err, "userId", userId)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	clusterNamespaces := impl.clusterService.GetAllClusterNamespaces()
 
 	// RBAC enforcer applying
-	for clusterName, _ := range clusterNamespaces {
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, clusterName); !ok {
-			delete(clusterNamespaces, clusterName)
-		}
+	filteredClusterNamespaces, err := impl.HandleRbacForClusterNamespace(userId, token, clusterNamespaces)
+	if err != nil {
+		impl.logger.Errorw("error in GetAllClusterNamespaces", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
 	}
 	//RBAC enforcer Ends
 
-	common.WriteJsonResp(w, nil, clusterNamespaces, http.StatusOK)
+	common.WriteJsonResp(w, nil, filteredClusterNamespaces, http.StatusOK)
+}
+
+func (impl ClusterRestHandlerImpl) HandleRbacForClusterNamespace(userId int32, token string, clusterNamespaces map[string][]string) (map[string][]string, error) {
+	filteredClusterNamespaces := make(map[string][]string)
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
+		return clusterNamespaces, nil
+	}
+	roles, err := impl.clusterService.FetchRolesFromGroup(userId)
+	if err != nil {
+		impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
+		return nil, err
+	}
+
+	clusterAndNameSpaceVsAllowedMap := make(map[string]bool, len(roles))
+	clusterNameVsAllAllowedMap := make(map[string]bool, len(roles))
+	for _, role := range roles {
+		clusterAndNameSpaceVsAllowedMap[strings.ToLower(role.Cluster+"_"+role.Namespace)] = true
+		if role.Namespace == "" {
+			clusterNameVsAllAllowedMap[role.Cluster] = true
+		} else {
+			clusterNameVsAllAllowedMap[role.Cluster] = false
+		}
+	}
+
+	for clusterName, allNamespaces := range clusterNamespaces {
+		if val, exist := clusterNameVsAllAllowedMap[clusterName]; val {
+			filteredClusterNamespaces[clusterName] = allNamespaces
+		} else if exist {
+			for _, namespace := range allNamespaces {
+				if val2, exist2 := clusterAndNameSpaceVsAllowedMap[strings.ToLower(clusterName+"_"+namespace)]; exist2 && val2 {
+					filteredClusterNamespaces[clusterName] = append(filteredClusterNamespaces[clusterName], namespace)
+				}
+			}
+		}
+	}
+	return filteredClusterNamespaces, nil
+
 }
 
 func (impl ClusterRestHandlerImpl) GetClusterNamespaces(w http.ResponseWriter, r *http.Request) {
