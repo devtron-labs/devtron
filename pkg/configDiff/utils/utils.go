@@ -46,6 +46,9 @@ func GetKeyValMapForSecretConfigDataAndMaskData(configDataList []*bean.ConfigDat
 		}
 		newMaskedSecretData := make(map[string]string, len(secretData))
 		for key, val := range secretData {
+			if keyValMapForSecretConfig[secretConfigData.Name] == nil {
+				keyValMapForSecretConfig[secretConfigData.Name] = make(map[string]string)
+			}
 			keyValMapForSecretConfig[secretConfigData.Name][key] = val
 			newMaskedSecretData[key] = bean2.SecretMaskedValue
 		}

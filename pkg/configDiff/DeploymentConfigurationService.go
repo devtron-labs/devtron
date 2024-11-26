@@ -1111,6 +1111,19 @@ func (impl *DeploymentConfigurationServiceImpl) getSingleSecretDataForAppConfigu
 	var secretConfigMetadata *bean2.SecretConfigMetadata
 	var err error
 	switch comparisonItem.ConfigType {
+	case bean2.DraftOnly.ToString():
+		secretConfigMetadata, err = impl.getSingleSecretDataForDraftOnly(ctx, appEnvAndClusterMetadata, comparisonItem.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in getting single secret data for draft only", "appEnvAndClusterMetadata", appEnvAndClusterMetadata, "err", err)
+			return nil, err
+		}
+	case bean2.PublishedWithDraft.ToString():
+		secretConfigMetadata, err = impl.getSingleSecretDataForPublishedWithDraft(ctx, appEnvAndClusterMetadata, systemMetadata, comparisonItem.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in getting single secret data for published with draft ", "appEnvAndClusterMetadata", appEnvAndClusterMetadata, "err", err)
+			return nil, err
+		}
+
 	case bean2.PreviousDeployments.ToString():
 		secretConfigMetadata, err = impl.getHistoricalSecretData(ctx, comparisonItem)
 		if err != nil {

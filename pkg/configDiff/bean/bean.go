@@ -13,6 +13,8 @@ type ConfigState string
 
 const (
 	PublishedConfigState ConfigState = "PublishedOnly"
+	DraftOnly            ConfigState = "DraftOnly"
+	PublishedWithDraft   ConfigState = "PublishedWithDraft"
 	PreviousDeployments  ConfigState = "PreviousDeployments"
 	DefaultVersion       ConfigState = "DefaultVersion"
 )
