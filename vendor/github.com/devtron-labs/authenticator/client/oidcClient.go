@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"sync"
 	"time"
 )
 
@@ -65,8 +66,8 @@ func getOidcClient(dexServerAddress string, settings *oidc.Settings, userVerifie
 		},
 	}
 	dexProxy := oidc.NewDexHTTPReverseProxy(dexServerAddress, dexClient.Transport)
-	cahecStore := &oidc.Cache{OidcState: map[string]*oidc.OIDCState{}}
-	oidcClient, err := oidc.NewClientApp(settings, cahecStore, "/", userVerifier, RedirectUrlSanitiser)
+	cacheStore := &oidc.Cache{OidcState: sync.Map{}}
+	oidcClient, err := oidc.NewClientApp(settings, cacheStore, "/", userVerifier, RedirectUrlSanitiser)
 	if err != nil {
 		return nil, nil, err
 	}
