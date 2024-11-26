@@ -258,6 +258,14 @@ func (r *ComparisonRequestDto) UpdateUserIdInComparisonItems(userId int32) {
 	}
 }
 
+func (r *ComparisonRequestDto) UpdateAppAndEnvNameInComparisonItems(appName, envName string) {
+	for _, item := range r.ComparisonItems {
+		item.EnvName = envName
+		item.AppName = appName
+
+	}
+}
+
 type ComparisonResponseDto struct {
 	ComparisonItemResponse []*DeploymentAndCmCsConfigDto `json:"comparisonItemResponse"`
 }

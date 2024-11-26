@@ -934,7 +934,6 @@ func (impl *DeploymentConfigurationServiceImpl) getConfigMapResponse(resourceNam
 func (impl *DeploymentConfigurationServiceImpl) CompareCategoryWiseConfigData(ctx context.Context, comparisonRequestDto bean2.ComparisonRequestDto, userHasAdminAccess bool) (*bean2.ComparisonResponseDto, error) {
 
 	indexVsSecretConfigMetadata := make(map[int]*bean2.SecretConfigMetadata, len(comparisonRequestDto.ComparisonItems))
-	allComparisonSecretsMetadata := make([]*bean2.SecretConfigMetadata, 0, len(comparisonRequestDto.ComparisonItems))
 	for _, comparisonItem := range comparisonRequestDto.ComparisonItems {
 		secretConfigMetadata, err := impl.getSingleSecretConfigForComparison(ctx, comparisonItem)
 		if err != nil {
@@ -944,11 +943,10 @@ func (impl *DeploymentConfigurationServiceImpl) CompareCategoryWiseConfigData(ct
 		if _, ok := indexVsSecretConfigMetadata[comparisonItem.Index]; !ok {
 			indexVsSecretConfigMetadata[comparisonItem.Index] = secretConfigMetadata
 		}
-		allComparisonSecretsMetadata = append(allComparisonSecretsMetadata, secretConfigMetadata)
 	}
 	if !userHasAdminAccess {
 		// compare secrets data and mask if necessary
-		err := impl.CompareSecretDataAndMaskIfNecessary(allComparisonSecretsMetadata)
+		err := impl.CompareSecretDataAndMaskIfNecessary(indexVsSecretConfigMetadata)
 		if err != nil {
 			impl.logger.Errorw("error in comparing secret and masking if necessary", "err", err)
 			return nil, err
@@ -1030,22 +1028,19 @@ func (impl *DeploymentConfigurationServiceImpl) compareAndMaskOtherComparableSec
 	return nil
 }
 
-func (impl *DeploymentConfigurationServiceImpl) CompareSecretDataAndMaskIfNecessary(comparisonItems []*bean2.SecretConfigMetadata) error {
-	if len(comparisonItems) > 1 {
-		secretMetadata1 := comparisonItems[0]
-		keyValMapForSecretConfig1, keyValMapForResolvedSecretConfig1, err := impl.prepareKeyValMapForSingleSecretAndMaskValue(secretMetadata1)
-		if err != nil {
-			impl.logger.Errorw("error in preparing key val map for secret and mask the values", "err", err)
-			return err
-		}
-		secretMetadata2 := comparisonItems[1]
-		err = impl.compareAndMaskOtherComparableSecretValues(secretMetadata2, keyValMapForSecretConfig1, keyValMapForResolvedSecretConfig1)
-		if err != nil {
-			impl.logger.Errorw("error in comparing and masking other secret's value", "err", err)
-			return err
-		}
-
+func (impl *DeploymentConfigurationServiceImpl) CompareSecretDataAndMaskIfNecessary(indexVsComparisonItems map[int]*bean2.SecretConfigMetadata) error {
+	secretComparisonItem1, secretComparisonItem2 := indexVsComparisonItems[0], indexVsComparisonItems[1]
+	keyValMapForSecretConfig1, keyValMapForResolvedSecretConfig1, err := impl.prepareKeyValMapForSingleSecretAndMaskValue(secretComparisonItem1)
+	if err != nil {
+		impl.logger.Errorw("error in preparing key val map for secret and mask the values", "err", err)
+		return err
 	}
+	err = impl.compareAndMaskOtherComparableSecretValues(secretComparisonItem2, keyValMapForSecretConfig1, keyValMapForResolvedSecretConfig1)
+	if err != nil {
+		impl.logger.Errorw("error in comparing and masking other secret's value", "err", err)
+		return err
+	}
+
 	return nil
 }
 

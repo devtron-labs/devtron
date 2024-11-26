@@ -169,6 +169,7 @@ func (handler *DeploymentConfigurationRestHandlerImpl) CompareCategoryWiseConfig
 	}
 
 	comparisonRequestDto.UpdateUserIdInComparisonItems(userId)
+	comparisonRequestDto.UpdateAppAndEnvNameInComparisonItems(comparisonRequestDto.AppName, comparisonRequestDto.EnvName)
 
 	//RBAC START
 	token := r.Header.Get(common.TokenHeaderKey)
