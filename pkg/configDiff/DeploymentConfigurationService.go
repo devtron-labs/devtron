@@ -991,36 +991,36 @@ func (impl *DeploymentConfigurationServiceImpl) getAllComparableSecretResponseDt
 
 func (impl *DeploymentConfigurationServiceImpl) prepareSecretNameWithKeyValMapAndMaskValue(secretMetadata *bean2.SecretConfigMetadata) (map[string]map[string]string, map[string]map[string]string, error) {
 
-	keyValMapForSecretConfig, err := utils.GetKeyValMapForSecretConfigDataAndMaskData(secretMetadata.SecretsList.ConfigData)
+	unresolvedSecretMapping, err := utils.GetKeyValMapForSecretConfigDataAndMaskData(secretMetadata.SecretsList.ConfigData)
 	if err != nil {
 		impl.logger.Errorw("error in getting key val map for SecretsList's config data with masking", "err", err)
 		return nil, nil, err
 	}
-	keyValMapForResolvedSecretConfig := make(map[string]map[string]string)
+	resolvedSecretMapping := make(map[string]map[string]string)
 	if len(secretMetadata.SecretScopeVariableMetadata.VariableSnapShot) > 0 {
 		//scope variable is used so mask scope variable secret data also
-		keyValMapForResolvedSecretConfig, err = utils.GetKeyValMapForSecretConfigDataAndMaskData(secretMetadata.SecretScopeVariableMetadata.ResolvedConfigData)
+		resolvedSecretMapping, err = utils.GetKeyValMapForSecretConfigDataAndMaskData(secretMetadata.SecretScopeVariableMetadata.ResolvedConfigData)
 		if err != nil {
 			impl.logger.Errorw("error in getting key val map for  resolved config data with masking", "err", err)
 			return nil, nil, err
 		}
 	}
 
-	return keyValMapForSecretConfig, keyValMapForResolvedSecretConfig, nil
+	return unresolvedSecretMapping, resolvedSecretMapping, nil
 }
 
-func (impl *DeploymentConfigurationServiceImpl) compareAndMaskOtherComparableSecretValues(secretMetadata2 *bean2.SecretConfigMetadata, keyValMapForSecretConfig1 map[string]map[string]string,
-	keyValMapForResolvedSecretConfig1 map[string]map[string]string) error {
+func (impl *DeploymentConfigurationServiceImpl) compareAndMaskOtherComparableSecretValues(secretMetadata2 *bean2.SecretConfigMetadata, unresolvedSecretMapping1 map[string]map[string]string,
+	resolvedSecretMapping1 map[string]map[string]string) error {
 
-	err := utils.CompareAndMaskSecretValuesInConfigData(secretMetadata2.SecretsList.ConfigData, keyValMapForSecretConfig1)
+	err := utils.CompareAndMaskSecretValuesInConfigData(secretMetadata2.SecretsList.ConfigData, unresolvedSecretMapping1)
 	if err != nil {
-		impl.logger.Errorw("error in comparing and masking secretsList's secret values ", "err", err)
+		impl.logger.Errorw("error in comparing and masking secretsList's secret values", "err", err)
 		return err
 	}
 	if len(secretMetadata2.SecretScopeVariableMetadata.VariableSnapShot) > 0 {
-		err = utils.CompareAndMaskSecretValuesInConfigData(secretMetadata2.SecretScopeVariableMetadata.ResolvedConfigData, keyValMapForResolvedSecretConfig1)
+		err = utils.CompareAndMaskSecretValuesInConfigData(secretMetadata2.SecretScopeVariableMetadata.ResolvedConfigData, resolvedSecretMapping1)
 		if err != nil {
-			impl.logger.Errorw("error in comparing and masking resolvedConfigData's secret values  ", "err", err)
+			impl.logger.Errorw("error in comparing and masking resolvedConfigData's secret values", "err", err)
 			return err
 		}
 	}
@@ -1029,17 +1029,16 @@ func (impl *DeploymentConfigurationServiceImpl) compareAndMaskOtherComparableSec
 
 func (impl *DeploymentConfigurationServiceImpl) CompareSecretDataAndMaskIfNecessary(indexVsComparisonItems map[int]*bean2.SecretConfigMetadata) error {
 	secretComparisonItem1, secretComparisonItem2 := indexVsComparisonItems[0], indexVsComparisonItems[1]
-	keyValMapForSecretConfig1, keyValMapForResolvedSecretConfig1, err := impl.prepareSecretNameWithKeyValMapAndMaskValue(secretComparisonItem1)
+	unresolvedSecretMapping1, resolvedSecretMapping1, err := impl.prepareSecretNameWithKeyValMapAndMaskValue(secretComparisonItem1)
 	if err != nil {
 		impl.logger.Errorw("error in preparing key val map for secret and mask the values", "err", err)
 		return err
 	}
-	err = impl.compareAndMaskOtherComparableSecretValues(secretComparisonItem2, keyValMapForSecretConfig1, keyValMapForResolvedSecretConfig1)
+	err = impl.compareAndMaskOtherComparableSecretValues(secretComparisonItem2, unresolvedSecretMapping1, resolvedSecretMapping1)
 	if err != nil {
 		impl.logger.Errorw("error in comparing and masking other secret's value", "err", err)
 		return err
 	}
-
 	return nil
 }
 
