@@ -3,62 +3,62 @@ name: Devtron-auto-labeller
 on:
   issue_comment:
     types: [created]
-  pull_request_comment:
-    types: [created]
+
 
 jobs:
   manage-labels:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Parse and manage labels
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Install GitHub CLI
         run: |
-          #comment body and issue/PR number
+          sudo apt-get install -y jq
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt update && sudo apt install gh -y
+
+      - name: Authenticate with GitHub CLI
+        run: |
+          echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token
+
+      - name: Parse and manage labels
+        run: |
+          set -e
+          set -x  # Enable debugging
+
+          # Extract comment on  body and issue number
           COMMENT_BODY=$(jq -r '.comment.body' "$GITHUB_EVENT_PATH")
           ISSUE_NUMBER=$(jq -r '.issue.number // .pull_request.number' "$GITHUB_EVENT_PATH")
 
-          # check for existing labels on issues and prs 
-          EXISTING_LABELS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUMBER" | jq -r '.labels[].name')
+          # Get the existing labels on the issue 
+          EXISTING_LABELS=$(gh issue view "$ISSUE_NUMBER" --json labels -q '.labels[].name')
 
-          
+          # Add Label 
           if [[ "$COMMENT_BODY" =~ ^/([^ ]+)$ ]]; then
             LABEL_NAME="${COMMENT_BODY:1}"
 
-            # Existence of label in the repository
-            REPO_LABELS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-              -H "Accept: application/vnd.github.v3+json" \
-              "https://api.github.com/repos/${{ github.repository }}/labels")
-
-            if echo "$REPO_LABELS" | jq -e ".[] | select(.name == \"$LABEL_NAME\")" > /dev/null; then
+            # check for already existing labels in reppo
+            if gh label list --json name -q '.[].name' | grep -q "^$LABEL_NAME$"; then
               # Add the requested label, keeping existing ones intact
-              UPDATED_LABELS=$(echo "$EXISTING_LABELS" | jq -R 'split("\n") | . + ["'"$LABEL_NAME"'"] | unique')
-              curl -s -X PATCH -H "Authorization: token $GITHUB_TOKEN" \
-                -H "Accept: application/vnd.github.v3+json" \
-                -d "{\"labels\": $UPDATED_LABELS}" \
-                "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUMBER"
-
-              echo "Successfully added label '$LABEL_NAME' to issue/PR #$ISSUE_NUMBER."
+              gh issue edit "$ISSUE_NUMBER" --add-label "$LABEL_NAME"
+              echo "Successfully added label '$LABEL_NAME' to issue #$ISSUE_NUMBER."
             else
-              echo "The label '$LABEL_NAME' doesn't exist in the repository. Please create it first."
+              echo "The label '$LABEL_NAME' doesn't exist in the repository. You may need to create a label first."
             fi
           fi
 
-          # Remove labels when asked
+          # Remove Label Logic
           if [[ "$COMMENT_BODY" =~ ^/remove[[:space:]](.+)$ ]]; then
             LABEL_NAME_TO_REMOVE=$(echo "$COMMENT_BODY" | sed -n 's|/remove ||p')
 
-            # Remove the specified label 
+            # Remove the specified label
             if echo "$EXISTING_LABELS" | grep -q "^$LABEL_NAME_TO_REMOVE$"; then
-              curl -s -X DELETE -H "Authorization: token $GITHUB_TOKEN" \
-                -H "Accept: application/vnd.github.v3+json" \
-                "https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUMBER/labels/$LABEL_NAME_TO_REMOVE"
-
-              echo "Successfully removed label '$LABEL_NAME_TO_REMOVE' from issue/PR #$ISSUE_NUMBER."
+              gh issue edit "$ISSUE_NUMBER" --remove-label "$LABEL_NAME_TO_REMOVE"
+              echo "Successfully removed label '$LABEL_NAME_TO_REMOVE' from issue #$ISSUE_NUMBER."
             else
-              echo "The label '$LABEL_NAME_TO_REMOVE' is not attached to issue/PR #$ISSUE_NUMBER."
+              echo "The label '$LABEL_NAME_TO_REMOVE' is not attached to issue #$ISSUE_NUMBER."
             fi
           fi
