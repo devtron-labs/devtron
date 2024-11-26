@@ -265,14 +265,16 @@ func (impl *DeploymentConfigurationServiceImpl) getConfigDataForDeploymentHistor
 	configDataDto.WithConfigMapData(cmConfigData)
 	// fetching for cm config ends
 
-	// fetching for cs config starts
-	secretConfigDto, err := impl.getCmCsConfigHistory(ctx, configDataQueryParams, repository3.SECRET_TYPE, userHasAdminAccess)
-	if err != nil {
-		impl.logger.Errorw("getConfigDataForDeploymentHistory, error in getSecretConfigHistory", "configDataQueryParams", configDataQueryParams, "err", err)
-		return nil, err
+	if userHasAdminAccess {
+		// fetching for cs config starts
+		secretConfigDto, err := impl.getCmCsConfigHistory(ctx, configDataQueryParams, repository3.SECRET_TYPE, userHasAdminAccess)
+		if err != nil {
+			impl.logger.Errorw("getConfigDataForDeploymentHistory, error in getSecretConfigHistory", "configDataQueryParams", configDataQueryParams, "err", err)
+			return nil, err
+		}
+		configDataDto.WithSecretData(secretConfigDto)
+		// fetching for cs config ends
 	}
-	configDataDto.WithSecretData(secretConfigDto)
-	// fetching for cs config ends
 
 	return configDataDto, nil
 }
@@ -385,18 +387,21 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsDataForPreviousDeployment
 		impl.logger.Errorw("error in getting deployment template history", "err", err, "deploymentTemplateHistoryId", deploymentTemplateHistoryId, "pipelineId", pipelineId)
 		return nil, err
 	}
-	secretConfigData, err := impl.configMapHistoryReadService.GetCmCsHistoryByDeployedOnAndPipelineId(ctx, pipelineId, deplTemplateHistory.DeployedOn, repository3.SECRET_TYPE, userHasAdminAccess)
-	if err != nil {
-		impl.logger.Errorw("error in getting secretData and cmData", "err", err, "deploymentTemplateHistoryId", deploymentTemplateHistoryId, "pipelineId", pipelineId)
-		return nil, err
-	}
-
 	cmConfigData, err := impl.configMapHistoryReadService.GetCmCsHistoryByDeployedOnAndPipelineId(ctx, pipelineId, deplTemplateHistory.DeployedOn, repository3.CONFIGMAP_TYPE, userHasAdminAccess)
 	if err != nil {
 		impl.logger.Errorw("error in getting secretData and cmData", "err", err, "deploymentTemplateHistoryId", deploymentTemplateHistoryId, "pipelineId", pipelineId)
 		return nil, err
 	}
-	configDataDto.WithConfigMapData(cmConfigData).WithSecretData(secretConfigData)
+	configDataDto.WithConfigMapData(cmConfigData)
+	if userHasAdminAccess {
+		secretConfigData, err := impl.configMapHistoryReadService.GetCmCsHistoryByDeployedOnAndPipelineId(ctx, pipelineId, deplTemplateHistory.DeployedOn, repository3.SECRET_TYPE, userHasAdminAccess)
+		if err != nil {
+			impl.logger.Errorw("error in getting secretData and cmData", "err", err, "deploymentTemplateHistoryId", deploymentTemplateHistoryId, "pipelineId", pipelineId)
+			return nil, err
+		}
+		configDataDto.WithSecretData(secretConfigData)
+	}
+
 	return configDataDto, nil
 
 }
@@ -603,33 +608,18 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsEditDataForPublishedOnly(
 }
 
 func (impl *DeploymentConfigurationServiceImpl) getCmCsPublishedConfigResponse(ctx context.Context, envId, appId, clusterId int, userHasAdminAccess bool, systemMetadata *resourceQualifiers.SystemMetadata) (*bean2.DeploymentAndCmCsConfigDto, error) {
-
 	configDataDto := &bean2.DeploymentAndCmCsConfigDto{}
-	secretData, err := impl.getSecretConfigResponse("", 0, envId, appId)
-	if err != nil {
-		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in getting secret config response by appId and envId", "appId", appId, "envId", envId, "err", err)
-		return nil, err
-	}
-
 	//iterate on secret configData and then and set draft data from draftResourcesMap if same resourceName found do the same for configMap below
 	cmData, err := impl.getConfigMapResponse("", 0, envId, appId)
 	if err != nil {
 		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in getting config map by appId and envId", "appId", appId, "envId", envId, "err", err)
 		return nil, err
 	}
-
-	secretRespJson, err := utils.ConvertToJsonRawMessage(secretData)
-	if err != nil {
-		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in converting secret data to json raw message", "appId", appId, "envId", envId, "err", err)
-		return nil, err
-	}
-
 	cmRespJson, err := utils.ConvertToJsonRawMessage(cmData)
 	if err != nil {
 		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in converting config map data to json raw message", "appId", appId, "envId", envId, "err", err)
 		return nil, err
 	}
-
 	resolvedCmCsMetadataDto, err := impl.ResolveCmCs(ctx, envId, appId, clusterId, userHasAdminAccess, "", "", systemMetadata)
 	if err != nil {
 		impl.logger.Errorw("error in resolving cm and cs for published only config only response", "appId", appId, "envId", envId, "err", err)
@@ -640,19 +630,30 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsPublishedConfigResponse(c
 		impl.logger.Errorw("error in ConvertToJsonRawMessage for resolvedConfigMapDataStringJson", "resolvedCmData", resolvedCmCsMetadataDto.ResolvedConfigMapData, "err", err)
 		return nil, err
 	}
-	resolvedSecretDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedCmCsMetadataDto.ResolvedSecretData)
-	if err != nil {
-		impl.logger.Errorw(" error in ConvertToJsonRawMessage for resolvedConfigDataString", "err", err)
-		return nil, err
-	}
-
 	cmConfigData := bean2.NewDeploymentAndCmCsConfig().WithConfigData(cmRespJson).WithResourceType(bean.CM).
 		WithResolvedValue(resolvedConfigMapDataStringJson).WithVariableSnapshot(resolvedCmCsMetadataDto.VariableMapCM)
+	configDataDto.WithConfigMapData(cmConfigData)
 
-	secretConfigData := bean2.NewDeploymentAndCmCsConfig().WithConfigData(secretRespJson).WithResourceType(bean.CS).
-		WithResolvedValue(resolvedSecretDataStringJson).WithVariableSnapshot(resolvedCmCsMetadataDto.VariableMapCS)
-
-	configDataDto.WithConfigMapData(cmConfigData).WithSecretData(secretConfigData)
+	if userHasAdminAccess {
+		secretData, err := impl.getSecretConfigResponse("", 0, envId, appId)
+		if err != nil {
+			impl.logger.Errorw("getCmCsPublishedConfigResponse, error in getting secret config response by appId and envId", "appId", appId, "envId", envId, "err", err)
+			return nil, err
+		}
+		secretRespJson, err := utils.ConvertToJsonRawMessage(secretData)
+		if err != nil {
+			impl.logger.Errorw("getCmCsPublishedConfigResponse, error in converting secret data to json raw message", "appId", appId, "envId", envId, "err", err)
+			return nil, err
+		}
+		resolvedSecretDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedCmCsMetadataDto.ResolvedSecretData)
+		if err != nil {
+			impl.logger.Errorw(" error in ConvertToJsonRawMessage for resolvedConfigDataString", "err", err)
+			return nil, err
+		}
+		secretConfigData := bean2.NewDeploymentAndCmCsConfig().WithConfigData(secretRespJson).WithResourceType(bean.CS).
+			WithResolvedValue(resolvedSecretDataStringJson).WithVariableSnapshot(resolvedCmCsMetadataDto.VariableMapCS)
+		configDataDto.WithSecretData(secretConfigData)
+	}
 	return configDataDto, nil
 
 }
