@@ -5,6 +5,7 @@
 - feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
+- misc: bulk update cm/cs name reference update fix (#6130)
 - misc: Main sync devlop nov22 (#6122)
 - misc: Cluster, project, environment read and beans (#6067)
 - chore: ciTemplateReadService fix (#6111)
