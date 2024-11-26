@@ -966,24 +966,22 @@ func (impl *DeploymentConfigurationServiceImpl) getAllComparableSecretResponseDt
 	allSecretConfigDto := make([]*bean2.DeploymentAndCmCsConfigDto, 0, len(indexVsSecretConfigMetadata))
 	for index, secretConfigMetadata := range indexVsSecretConfigMetadata {
 		// prepare secrets list data part for response
-		configDataReq := &bean.ConfigDataRequest{ConfigData: secretConfigMetadata.SecretsList.ConfigData}
-		configDataJson, err := utils.ConvertToJsonRawMessage(configDataReq)
+		unresolvedSecretConfigData, err := helper.GetConfigDataRequestJsonRawMessage(secretConfigMetadata.SecretsList.ConfigData)
 		if err != nil {
 			impl.logger.Errorw("error in converting secrets list config data to json raw message", "err", err)
 			return nil, err
 		}
 		// prepare resolved data part for response
-		resolvedConfigDataReq := &bean.ConfigDataRequest{ConfigData: secretConfigMetadata.SecretScopeVariableMetadata.ResolvedConfigData}
-		resolvedConfigDataJson, err := utils.ConvertToJsonRawMessage(resolvedConfigDataReq)
+		resolvedSecretConfigData, err := helper.GetConfigDataRequestJsonRawMessage(secretConfigMetadata.SecretScopeVariableMetadata.ResolvedConfigData)
 		if err != nil {
 			impl.logger.Errorw("error in converting resolved secret config data to json raw message", "err", err)
 			return nil, err
 		}
 		secretConfigDto := bean2.NewDeploymentAndCmCsConfig().
-			WithConfigData(configDataJson).
+			WithConfigData(unresolvedSecretConfigData).
 			WithResourceType(bean.CS).
 			WithVariableSnapshot(secretConfigMetadata.SecretScopeVariableMetadata.VariableSnapShot).
-			WithResolvedValue(resolvedConfigDataJson)
+			WithResolvedValue(resolvedSecretConfigData)
 
 		allSecretConfigDto = append(allSecretConfigDto, bean2.NewDeploymentAndCmCsConfigDto().WithSecretData(secretConfigDto).WithIndex(index))
 	}
