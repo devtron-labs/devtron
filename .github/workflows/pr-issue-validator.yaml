@@ -57,6 +57,7 @@ jobs:
           "((Fixes|Resolves):? #devtron-labs/sprint-tasks/issues/[0-9]+)" 
           "((Fixes|Resolves) https://github.com/devtron-labs/devops-sprint/issues/[0-9]+)"
           "((Fixes|Resolves) https://github.com/devtron-labs/sprint-tasks/issues/[0-9]+)"
+          "((Fixes|Resolves):? #devtron-labs/sprint-tasks#[0-9]+)" 
         )
     
         # Extract issue number and repo from PR body
