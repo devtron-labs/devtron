@@ -990,7 +990,7 @@ func (impl *DeploymentConfigurationServiceImpl) getAllComparableSecretResponseDt
 	return allSecretConfigDto, nil
 }
 
-func (impl *DeploymentConfigurationServiceImpl) prepareKeyValMapForSingleSecretAndMaskValue(secretMetadata *bean2.SecretConfigMetadata) (map[string]map[string]string, map[string]map[string]string, error) {
+func (impl *DeploymentConfigurationServiceImpl) prepareSecretNameWithKeyValMapAndMaskValue(secretMetadata *bean2.SecretConfigMetadata) (map[string]map[string]string, map[string]map[string]string, error) {
 
 	keyValMapForSecretConfig, err := utils.GetKeyValMapForSecretConfigDataAndMaskData(secretMetadata.SecretsList.ConfigData)
 	if err != nil {
@@ -1030,7 +1030,7 @@ func (impl *DeploymentConfigurationServiceImpl) compareAndMaskOtherComparableSec
 
 func (impl *DeploymentConfigurationServiceImpl) CompareSecretDataAndMaskIfNecessary(indexVsComparisonItems map[int]*bean2.SecretConfigMetadata) error {
 	secretComparisonItem1, secretComparisonItem2 := indexVsComparisonItems[0], indexVsComparisonItems[1]
-	keyValMapForSecretConfig1, keyValMapForResolvedSecretConfig1, err := impl.prepareKeyValMapForSingleSecretAndMaskValue(secretComparisonItem1)
+	keyValMapForSecretConfig1, keyValMapForResolvedSecretConfig1, err := impl.prepareSecretNameWithKeyValMapAndMaskValue(secretComparisonItem1)
 	if err != nil {
 		impl.logger.Errorw("error in preparing key val map for secret and mask the values", "err", err)
 		return err
