@@ -22,7 +22,7 @@ type ProfileType string
 
 const NORMAL ProfileType = "NORMAL"
 const InvalidUnit = "invalid %s unit found in %s "
-const DEFAULT_PROFILE_NAME = "default"
+const GLOBAL_PROFILE_NAME = "global"
 const DEFAULT_PROFILE_EXISTS = "default profile exists"
 const NO_PROPERTIES_FOUND = "no properties found"
 const DEFAULT ProfileType = "DEFAULT"
@@ -30,6 +30,7 @@ const InvalidProfileName = "profile name is invalid"
 const PayloadValidationError = "payload validation failed"
 const CPULimReqErrorCompErr = "cpu limit should not be less than cpu request"
 const MEMLimReqErrorCompErr = "memory limit should not be less than memory request"
+const InvalidValueType = "invalid Value type Found"
 
 const CPULimit ConfigKey = 1
 const CPURequest ConfigKey = 2
@@ -47,4 +48,4 @@ const MEMORY_REQUEST ConfigKeyStr = "memory_request"
 const TIME_OUT ConfigKeyStr = "timeout"
 
 // internal-platforms
-const CI_RUNNER_PLATFORM = "ci-runner"
+const DEFAULT_PLATFORM = "default"

@@ -35,12 +35,12 @@ type InfraProfileEntity struct {
 	sql.AuditLog
 }
 
-func (infraProfile *InfraProfileEntity) ConvertToProfileBean() ProfileBean {
+func (infraProfile *InfraProfileEntity) ConvertToProfileBean() ProfileBeanDTO {
 	profileType := util2.DEFAULT
-	if infraProfile.Name != util2.DEFAULT_PROFILE_NAME {
+	if infraProfile.Name != util2.GLOBAL_PROFILE_NAME {
 		profileType = util2.NORMAL
 	}
-	return ProfileBean{
+	return ProfileBeanDTO{
 		ProfileBeanAbstract: ProfileBeanAbstract{
 			Id:          infraProfile.Id,
 			Name:        infraProfile.Name,
@@ -56,30 +56,20 @@ func (infraProfile *InfraProfileEntity) ConvertToProfileBean() ProfileBean {
 }
 
 type InfraProfileConfigurationEntity struct {
-	tableName   struct{}         `sql:"infra_profile_configuration" pg:",discard_unknown_columns"`
-	Id          int              `sql:"id"`
-	Key         util2.ConfigKey  `sql:"key"`
-	Value       float64          `sql:"value"`
-	ValueString string           `sql:"value_string"`
-	Unit        units.UnitSuffix `sql:"unit"`
-	ProfileId   int              `sql:"profile_id"`
-	Platform    string           `sql:"platform"`
-	Active      bool             `sql:"active"`
+	tableName     struct{}         `sql:"infra_profile_configuration" pg:",discard_unknown_columns"`
+	Id            int              `sql:"id"`
+	Key           util2.ConfigKey  `sql:"key"`
+	Value         float64          `sql:"value"`
+	ValueString   string           `sql:"value_string"`
+	Unit          units.UnitSuffix `sql:"unit"`
+	ProfileId     int              `sql:"profile_id"`
+	Platform      string           `sql:"platform"`
+	Active        bool             `sql:"active"`
+	SkipThisValue bool             `sql:"skip_this_value"`
 	sql.AuditLog
 }
 
 // service layer structs
-
-type ProfileBean struct {
-	ProfileBeanAbstract
-	Configurations map[string][]*ConfigurationBean `json:"configurations" validate:"dive"`
-}
-
-// Deprecated
-type ProfileBeanV0 struct {
-	ProfileBeanAbstract
-	Configurations []ConfigurationBeanV0 `json:"configurations" validate:"dive"`
-}
 
 type ProfileBeanAbstract struct {
 	Id          int               `json:"id"`
@@ -94,7 +84,18 @@ type ProfileBeanAbstract struct {
 	UpdatedOn   time.Time         `json:"updatedOn"`
 }
 
-func (profileBean *ProfileBean) ConvertToInfraProfileEntity() *InfraProfileEntity {
+type ProfileBeanDTO struct {
+	ProfileBeanAbstract
+	Configurations map[string][]*ConfigurationBean `json:"configurations"`
+}
+
+// Deprecated
+type ProfileBeanV0 struct {
+	ProfileBeanAbstract
+	Configurations []ConfigurationBeanV0 `json:"configurations" validate:"dive"`
+}
+
+func (profileBean *ProfileBeanDTO) ConvertToInfraProfileEntity() *InfraProfileEntity {
 	return &InfraProfileEntity{
 		Id:          profileBean.Id,
 		Name:        profileBean.Name,
@@ -104,7 +105,7 @@ func (profileBean *ProfileBean) ConvertToInfraProfileEntity() *InfraProfileEntit
 
 type ConfigurationBean struct {
 	ConfigurationBeanAbstract
-	Value string `json:"value" validate:"required,gt=0"`
+	Value interface{} `json:"value" validate:"validateValue"`
 }
 
 // Deprecated
@@ -114,12 +115,13 @@ type ConfigurationBeanV0 struct {
 }
 
 type ConfigurationBeanAbstract struct {
-	Id          int                `json:"id"`
-	Key         util2.ConfigKeyStr `json:"key"`
-	Unit        string             `json:"unit" validate:"required,gt=0"`
-	ProfileName string             `json:"profileName"`
-	ProfileId   int                `json:"profileId"`
-	Active      bool               `json:"active"`
+	Id            int                `json:"id"`
+	Key           util2.ConfigKeyStr `json:"key"`
+	Unit          string             `json:"unit" validate:"required,gt=0"`
+	ProfileName   string             `json:"profileName"`
+	ProfileId     int                `json:"profileId"`
+	Active        bool               `json:"active"`
+	SkipThisValue bool               `json:"skipThisValue"`
 }
 
 type InfraConfigMetaData struct {
@@ -134,7 +136,7 @@ type InfraConfigMetaDataV0 struct {
 }
 
 type ProfileResponse struct {
-	Profile ProfileBean `json:"profile"`
+	Profile ProfileBeanDTO `json:"profile"`
 	InfraConfigMetaData
 }
 

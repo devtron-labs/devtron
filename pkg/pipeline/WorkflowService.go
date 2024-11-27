@@ -154,7 +154,7 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 			AppId: workflowRequest.AppId,
 		}
 		infraGetter, _ := impl.infraProvider.GetInfraProvider(workflowRequest.Type)
-		infraConfiguration, err = infraGetter.GetInfraConfigurationsByScopeAndPlatform(infraConfigScope, util2.CI_RUNNER_PLATFORM)
+		infraConfiguration, err = infraGetter.GetInfraConfigurationsByScopeAndPlatform(infraConfigScope, util2.DEFAULT_PLATFORM)
 		if err != nil {
 			impl.Logger.Errorw("error occurred while getting infra config", "infraConfigScope", infraConfigScope, "err", err)
 			return bean3.WorkflowTemplate{}, err
