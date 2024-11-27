@@ -407,6 +407,7 @@ func (impl *GlobalPluginRepositoryImpl) GetMetaDataForAllPlugins() ([]*PluginMet
 	var plugins []*PluginMetadata
 	err := impl.dbConnection.Model(&plugins).
 		Where("deleted = ?", false).
+		Where("is_deprecated= ?", false).
 		Order("id").
 		Select()
 	if err != nil {
