@@ -13,13 +13,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Install GitHub CLI
-        run: |
-          sudo apt-get install -y jq
-          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-          echo "deb [signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-          sudo apt update && sudo apt install gh -y
-
       - name: Authenticate with GitHub CLI
         run: |
           echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token
@@ -32,6 +25,21 @@ jobs:
           # Extract comment on  body and issue number
           COMMENT_BODY=$(jq -r '.comment.body' "$GITHUB_EVENT_PATH")
           ISSUE_NUMBER=$(jq -r '.issue.number // .pull_request.number' "$GITHUB_EVENT_PATH")
+
+          ORG_NAME="devtron-labs"
+
+          # checks if the person is authorized to add labels or not
+          ORG_MEMBERSHIP_STATUS=$(gh api "orgs/$ORG_NAME/members/$COMMENT_AUTHOR" --silent --exit-status)
+
+          if [[ $? -ne 0 ]]; then
+            gh issue comment "$ISSUE_NUMBER" --body "Hi @$COMMENT_AUTHOR, you must be a member of the organization '$ORG_NAME' to add or remove labels."
+
+            echo "User '$COMMENT_AUTHOR' is not a member of the organization '$ORG_NAME'. Exiting."
+            exit 1
+          fi
+
+          echo "User '$COMMENT_AUTHOR' is a verified member of the organization '$ORG_NAME'. Adding label"
+
 
           # Get the existing labels on the issue 
           EXISTING_LABELS=$(gh issue view "$ISSUE_NUMBER" --json labels -q '.labels[].name')
