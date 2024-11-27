@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Update pr-issue-validator.yaml (#6133)
 - fix: update sql fix buildx (#6096)
 ## Enhancements
 - feat: app details refactoring (#6104)
