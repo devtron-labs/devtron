@@ -1821,7 +1821,7 @@ func (impl *GlobalPluginServiceImpl) GetPluginDetailV2(queryParams bean2.GlobalP
 	}
 	queryParams.ParentPluginIds = append(queryParams.ParentPluginIds, additionalPluginParentIds...)
 	queryParams.ParentPluginIds = sliceUtil.GetUniqueElements(queryParams.ParentPluginIds)
-	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins()
+	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPluginsIncludingDeprecated()
 	if err != nil {
 		impl.logger.Errorw("GetPluginDetailV2, error in getting all plugins versions metadata", "err", err)
 		return nil, err
@@ -1884,7 +1884,7 @@ func (impl *GlobalPluginServiceImpl) GetAllUniqueTags() (*bean2.PluginTagsDto, e
 }
 
 func (impl *GlobalPluginServiceImpl) MigratePluginData() error {
-	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins()
+	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPluginsIncludingDeprecated()
 	if err != nil {
 		impl.logger.Errorw("MigratePluginData, error in getting plugins", "err", err)
 		return err
