@@ -5,6 +5,7 @@
 - feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
+- misc: Update pull_request_template.md (#6134)
 - misc: authenticator panic fix (#6131)
 - misc: bulk update cm/cs name reference update fix (#6130)
 - misc: Main sync devlop nov22 (#6122)
