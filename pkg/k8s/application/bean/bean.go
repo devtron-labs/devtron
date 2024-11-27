@@ -41,7 +41,7 @@ const (
 	ALL               = "*"
 	NAMESPACES        = "namespaces"
 	NODES             = "nodes"
-	Node              = "nodes"
+	Node              = "node"
 )
 const (
 	DEFAULT_NAMESPACE = "default"
