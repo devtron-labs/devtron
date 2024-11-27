@@ -326,8 +326,7 @@ type PluginStageMapping struct {
 }
 
 type GlobalPluginRepository interface {
-	GetMetaDataForAllPlugins() ([]*PluginMetadata, error)
-	GetMetaDataForAllPluginsIncludingDeprecated() ([]*PluginMetadata, error)
+	GetMetaDataForAllPlugins(excludeDeprecated bool) ([]*PluginMetadata, error)
 	GetMetaDataForPluginWithStageType(stageType int) ([]*PluginMetadata, error)
 	GetMetaDataByPluginId(pluginId int) (*PluginMetadata, error)
 	GetMetaDataByPluginIds(pluginIds []int) ([]*PluginMetadata, error)
@@ -404,26 +403,15 @@ func (impl *GlobalPluginRepositoryImpl) GetConnection() (dbConnection *pg.DB) {
 	return impl.dbConnection
 }
 
-func (impl *GlobalPluginRepositoryImpl) GetMetaDataForAllPlugins() ([]*PluginMetadata, error) {
+func (impl *GlobalPluginRepositoryImpl) GetMetaDataForAllPlugins(excludeDeprecated bool) ([]*PluginMetadata, error) {
 	var plugins []*PluginMetadata
-	err := impl.dbConnection.Model(&plugins).
+	query := impl.dbConnection.Model(&plugins).
 		Where("deleted = ?", false).
-		Where("is_deprecated= ?", false).
-		Order("id").
-		Select()
-	if err != nil {
-		impl.logger.Errorw("err in getting all plugins", "err", err)
-		return nil, err
+		Order("id")
+	if excludeDeprecated {
+		query = query.Where("is_deprecated = ?", false)
 	}
-	return plugins, nil
-}
-
-func (impl *GlobalPluginRepositoryImpl) GetMetaDataForAllPluginsIncludingDeprecated() ([]*PluginMetadata, error) {
-	var plugins []*PluginMetadata
-	err := impl.dbConnection.Model(&plugins).
-		Where("deleted = ?", false).
-		Order("id").
-		Select()
+	err := query.Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting all plugins", "err", err)
 		return nil, err

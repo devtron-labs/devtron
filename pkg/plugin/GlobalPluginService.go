@@ -228,7 +228,7 @@ func (impl *GlobalPluginServiceImpl) ListAllPlugins(stageTypeReq string) ([]*bea
 
 	//getting all plugins metadata(without tags)
 	if len(stageTypeReq) == 0 {
-		pluginsMetadata, err = impl.globalPluginRepository.GetMetaDataForAllPlugins()
+		pluginsMetadata, err = impl.globalPluginRepository.GetMetaDataForAllPlugins(true)
 		if err != nil {
 			impl.logger.Errorw("error in getting plugins", "err", err)
 			return nil, err
@@ -1749,7 +1749,7 @@ func (impl *GlobalPluginServiceImpl) GetPluginParentMetadataDtos(parentIdVsPlugi
 
 func (impl *GlobalPluginServiceImpl) ListAllPluginsV2(filter *bean2.PluginsListFilter) (*bean2.PluginsDto, error) {
 	impl.logger.Infow("request received, ListAllPluginsV2", "filter", filter)
-	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins()
+	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins(true)
 	if err != nil {
 		impl.logger.Errorw("ListAllPluginsV2, error in getting plugins", "err", err)
 		return nil, err
@@ -1821,7 +1821,7 @@ func (impl *GlobalPluginServiceImpl) GetPluginDetailV2(queryParams bean2.GlobalP
 	}
 	queryParams.ParentPluginIds = append(queryParams.ParentPluginIds, additionalPluginParentIds...)
 	queryParams.ParentPluginIds = sliceUtil.GetUniqueElements(queryParams.ParentPluginIds)
-	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPluginsIncludingDeprecated()
+	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins(false)
 	if err != nil {
 		impl.logger.Errorw("GetPluginDetailV2, error in getting all plugins versions metadata", "err", err)
 		return nil, err
@@ -1884,7 +1884,7 @@ func (impl *GlobalPluginServiceImpl) GetAllUniqueTags() (*bean2.PluginTagsDto, e
 }
 
 func (impl *GlobalPluginServiceImpl) MigratePluginData() error {
-	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPluginsIncludingDeprecated()
+	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins(false)
 	if err != nil {
 		impl.logger.Errorw("MigratePluginData, error in getting plugins", "err", err)
 		return err
