@@ -122,7 +122,7 @@ jobs:
             echo "Adding extra arguments for authentication: private repository detected."
             issue_status=$(curl -s \
             --header "authorization: Bearer ${{ secrets.GH_PR_VALIDATOR_TOKEN }}" \
-            "$issue_api_url")
+            "$issue_api_url"| jq '.state'|tr -d \")
           fi
           echo "Issue Status: $issue_status"
 
