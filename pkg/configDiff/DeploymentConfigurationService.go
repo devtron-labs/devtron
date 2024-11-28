@@ -1105,13 +1105,13 @@ func (impl *DeploymentConfigurationServiceImpl) getSingleSecretDataForAppConfigu
 	var err error
 	switch comparisonItem.ConfigType {
 	case bean2.DraftOnly.ToString():
-		secretConfigMetadata, err = impl.getSingleSecretDataForDraftOnly(ctx, appEnvAndClusterMetadata, comparisonItem.UserId)
+		secretConfigMetadata, err = impl.getSecretDataForDraftOnly(ctx, appEnvAndClusterMetadata, comparisonItem.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in getting single secret data for draft only", "appEnvAndClusterMetadata", appEnvAndClusterMetadata, "err", err)
 			return nil, err
 		}
 	case bean2.PublishedWithDraft.ToString():
-		secretConfigMetadata, err = impl.getSingleSecretDataForPublishedWithDraft(ctx, appEnvAndClusterMetadata, systemMetadata, comparisonItem.UserId)
+		secretConfigMetadata, err = impl.getSecretDataForPublishedWithDraft(ctx, appEnvAndClusterMetadata, systemMetadata, comparisonItem.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in getting single secret data for published with draft ", "appEnvAndClusterMetadata", appEnvAndClusterMetadata, "err", err)
 			return nil, err
@@ -1124,7 +1124,7 @@ func (impl *DeploymentConfigurationServiceImpl) getSingleSecretDataForAppConfigu
 			return nil, err
 		}
 	default: // keeping default as PublishedOnly
-		secretConfigMetadata, err = impl.getSingleSecretDataForPublishedOnly(ctx, appEnvAndClusterMetadata, systemMetadata)
+		secretConfigMetadata, err = impl.getSecretDataForPublishedOnly(ctx, appEnvAndClusterMetadata, systemMetadata)
 		if err != nil {
 			impl.logger.Errorw("error in config data for PublishedOnly", "comparisonDataPayload", comparisonItem.ConfigDataQueryParams, "err", err)
 			return nil, err
@@ -1174,7 +1174,7 @@ func (impl *DeploymentConfigurationServiceImpl) getSingleSecretDataForPreviousDe
 	return secretsList, resolvedSecretData, nil
 }
 
-func (impl *DeploymentConfigurationServiceImpl) getSingleSecretDataForPublishedOnly(ctx context.Context, appEnvAndClusterMetadata *bean2.AppEnvAndClusterMetadata,
+func (impl *DeploymentConfigurationServiceImpl) getSecretDataForPublishedOnly(ctx context.Context, appEnvAndClusterMetadata *bean2.AppEnvAndClusterMetadata,
 	systemMetadata *resourceQualifiers.SystemMetadata) (*bean2.SecretConfigMetadata, error) {
 	secretData, err := impl.getSecretConfigResponse("", 0, appEnvAndClusterMetadata.EnvId, appEnvAndClusterMetadata.AppId)
 	if err != nil {

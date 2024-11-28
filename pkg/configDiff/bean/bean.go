@@ -293,3 +293,16 @@ type SecretConfigMetadata struct {
 	SecretsList                 *bean.SecretsList
 	SecretScopeVariableMetadata *CmCsScopeVariableMetadata
 }
+
+type Resource string
+
+const (
+	ConfigMap          Resource = "cm"
+	Secret             Resource = "secret"
+	DeploymentTemplate Resource = "dt"
+	PipelineStrategy   Resource = "ps"
+)
+
+func (r Resource) ToString() string {
+	return string(r)
+}

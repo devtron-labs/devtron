@@ -154,7 +154,7 @@ func (handler *DeploymentConfigurationRestHandlerImpl) CompareCategoryWiseConfig
 		return
 	}
 	vars := mux.Vars(r)
-	configCategory := vars["category"]
+	configCategory := vars["resource"]
 	var comparisonRequestDto bean.ComparisonRequestDto
 	err = json.NewDecoder(r.Body).Decode(&comparisonRequestDto)
 	if err != nil {

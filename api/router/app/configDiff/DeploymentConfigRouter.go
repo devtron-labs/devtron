@@ -27,7 +27,7 @@ func (router DeploymentConfigurationRouterImpl) InitDeploymentConfigurationRoute
 	configRouter.Path("/data").
 		HandlerFunc(router.deploymentGroupRestHandler.GetConfigData).
 		Methods("GET")
-	configRouter.Path("/compare/{category}").
+	configRouter.Path("/compare/{resource}").
 		HandlerFunc(router.deploymentGroupRestHandler.CompareCategoryWiseConfigData).
 		Methods("GET")
 

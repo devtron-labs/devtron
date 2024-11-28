@@ -5,7 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/configDiff/bean"
 )
 
-var validConfigCategories = map[string]bool{"secret": true, "cm": true, "dt": true, "ps": true}
+var validConfigCategories = map[string]bool{bean.Secret.ToString(): true, bean.ConfigMap.ToString(): true, bean.DeploymentTemplate.ToString(): true, bean.PipelineStrategy.ToString(): true}
 var ErrInvalidConfigCategory = errors.New("invalid config category provided")
 var ErrInvalidComparisonItems = errors.New("invalid comparison items, only 2 items are supported for comparison")
 var ErrInvalidIndexValInComparisonItems = errors.New("invalid index values in comparison items")
