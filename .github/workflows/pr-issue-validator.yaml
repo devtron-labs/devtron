@@ -120,7 +120,7 @@ jobs:
           echo "Issue #$issue_num is valid and exists in $repo."
 
           # Fetch the current state of the issue (open/closed) from the private repository.
-          issue_status=$(curl -s -o /dev/null -w "%{http_code}" $extra_args_for_auth "$issue_api_url" | jq '.state'|tr -d \")
+          issue_status=$(curl -s $extra_args_for_auth "$issue_api_url" | jq '.state'|tr -d \")
           # Check if the issue is still open.
           if [[ "$issue_status" == open ]]; then
             echo "Issue #$issue_num is opened."
