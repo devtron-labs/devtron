@@ -27,7 +27,6 @@ type DeploymentTemplateHistoryRepository interface {
 	CreateHistory(chart *DeploymentTemplateHistory) (*DeploymentTemplateHistory, error)
 	CreateHistoryWithTxn(chart *DeploymentTemplateHistory, tx *pg.Tx) (*DeploymentTemplateHistory, error)
 	GetHistoryForDeployedTemplateById(id, pipelineId int) (*DeploymentTemplateHistory, error)
-	GetDeploymentDetailsForDeployedTemplateHistory(pipelineId, offset, limit int) ([]*DeploymentTemplateHistory, error)
 	GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int) (*DeploymentTemplateHistory, error)
 	GetDeployedHistoryForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (*DeploymentTemplateHistory, error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*DeploymentTemplateHistory, error)
@@ -90,18 +89,6 @@ func (impl DeploymentTemplateHistoryRepositoryImpl) GetHistoryForDeployedTemplat
 		return &history, err
 	}
 	return &history, nil
-}
-
-func (impl DeploymentTemplateHistoryRepositoryImpl) GetDeploymentDetailsForDeployedTemplateHistory(pipelineId, offset, limit int) ([]*DeploymentTemplateHistory, error) {
-	var histories []*DeploymentTemplateHistory
-	err := impl.dbConnection.Model(&histories).Where("pipeline_id = ?", pipelineId).
-		Where("deployed = ?", true).
-		Offset(offset).Limit(limit).Select()
-	if err != nil {
-		impl.logger.Errorw("error in getting deployment template history", "err", err)
-		return histories, err
-	}
-	return histories, nil
 }
 
 func (impl DeploymentTemplateHistoryRepositoryImpl) GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int) (*DeploymentTemplateHistory, error) {

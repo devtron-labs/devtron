@@ -37,6 +37,9 @@ import (
 )
 
 type EnforcerUtil interface {
+	GetAppAndEnvRBACNamesByAppAndEnvIds(IdToAppEnvPairs map[int][2]int) (map[int]string, map[int]string, map[int]*app.App, map[int]*repository.Environment, error)
+	IsAuthorizedForAppInAppResults(appId int, rbacResults map[string]bool, appIdtoApp map[int]*app.App) bool
+	IsAuthorizedForEnvInEnvResults(appId int, envId int, appResults map[string]bool, appIdtoApp map[int]*app.App, envIdToEnv map[int]*repository.Environment) bool
 	GetAppRBACName(appName string) string
 	GetRbacObjectsForAllApps(appType helper.AppType) map[int]string
 	GetRbacObjectsForAllAppsWithTeamID(teamID int, appType helper.AppType) map[int]string
@@ -109,6 +112,87 @@ func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepo
 		enforcer:              enforcer,
 		dbMigration:           dbMigration,
 	}
+}
+
+func (impl EnforcerUtilImpl) IsAuthorizedForAppInAppResults(appId int, rbacResults map[string]bool, appIdtoApp map[int]*app.App) bool {
+	app, appExists := appIdtoApp[appId]
+	if !appExists {
+		return false
+	}
+
+	appObject := fmt.Sprintf("%s/%s", app.Team.Name, app.AppName)
+	if authorized, exists := rbacResults[appObject]; exists && authorized {
+		return true
+	}
+	return false
+}
+
+func (impl EnforcerUtilImpl) IsAuthorizedForEnvInEnvResults(appId int, envId int, rbacResults map[string]bool, appIdtoApp map[int]*app.App, envIdToEnv map[int]*repository.Environment) bool {
+	app, appExists := appIdtoApp[appId]
+	if !appExists {
+		return false
+	}
+	env, envExists := envIdToEnv[envId]
+	if !envExists {
+		return false
+	}
+
+	envObject := fmt.Sprintf("%s/%s", env.EnvironmentIdentifier, app.AppName)
+	if authorized, exists := rbacResults[envObject]; exists && authorized {
+		return true
+	}
+	return false
+}
+
+func (impl EnforcerUtilImpl) GetAppAndEnvRBACNamesByAppAndEnvIds(appEnvPairs map[int][2]int) (map[int]string, map[int]string, map[int]*app.App, map[int]*repository.Environment, error) {
+	appObjects := make(map[int]string)
+	envObjects := make(map[int]string)
+
+	appIds := make([]*int, 0, len(appEnvPairs))
+	envIds := make([]*int, 0, len(appEnvPairs))
+	for _, pair := range appEnvPairs {
+		appId := pair[0]
+		envId := pair[1]
+		appIds = append(appIds, &appId)
+		envIds = append(envIds, &envId)
+	}
+	appIdToAppMap := make(map[int]*app.App)
+	envIdToEnvMap := make(map[int]*repository.Environment)
+	applications, err := impl.appRepo.FindAppAndProjectByAppIds(appIds)
+
+	if err != nil {
+		return nil, nil, appIdToAppMap, envIdToEnvMap, err
+	}
+
+	for _, app := range applications {
+		appIdToAppMap[app.Id] = app
+	}
+
+	environments, err := impl.environmentRepository.FindByIds(envIds)
+	if err != nil {
+		return nil, nil, appIdToAppMap, envIdToEnvMap, err
+	}
+
+	for _, env := range environments {
+		envIdToEnvMap[env.Id] = env
+	}
+
+	for id, pair := range appEnvPairs {
+		appId := pair[0]
+		envId := pair[1]
+		// check if app and env exists
+		// handling for deleted app and env
+		if _, ok := appIdToAppMap[appId]; !ok {
+			continue
+		}
+		if _, ok := envIdToEnvMap[envId]; !ok {
+			continue
+		}
+		appObjects[id] = fmt.Sprintf("%s/%s", appIdToAppMap[appId].Team.Name, appIdToAppMap[appId].AppName)
+		envObjects[id] = fmt.Sprintf("%s/%s", envIdToEnvMap[envId].EnvironmentIdentifier, appIdToAppMap[appId].AppName)
+	}
+
+	return appObjects, envObjects, appIdToAppMap, envIdToEnvMap, nil
 }
 
 func (impl EnforcerUtilImpl) GetRbacObjectsByEnvIdsAndAppId(envIds []int, appId int) (map[int]string, map[string]string) {

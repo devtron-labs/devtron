@@ -28,9 +28,12 @@ import (
 	"github.com/devtron-labs/devtron/pkg/plugin/bean"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/schema"
 	"go.uber.org/zap"
+	"io"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type GlobalPluginRestHandler interface {
@@ -310,12 +313,13 @@ func (handler *GlobalPluginRestHandlerImpl) GetAllUniqueTags(w http.ResponseWrit
 
 func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailByIds(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
-	appId, err := common.ExtractIntQueryParam(w, r, "appId", 0)
+	request, err := handler.getPluginDetailsRequestDto(r)
 	if err != nil {
+		common.WriteJsonResp(w, err, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	ok, err := handler.IsUserAuthorized(token, appId)
+	ok, err := handler.IsUserAuthorized(token, request.AppId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -325,15 +329,9 @@ func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailByIds(w http.Response
 		return
 	}
 
-	pluginIds, parentPluginIds, fetchAllVersionDetails, err := handler.extractQueryParamsForPluginDetail(r)
+	pluginDetail, err := handler.globalPluginService.GetPluginDetailV2(request)
 	if err != nil {
-		common.WriteJsonResp(w, err, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	pluginDetail, err := handler.globalPluginService.GetPluginDetailV2(pluginIds, parentPluginIds, fetchAllVersionDetails)
-	if err != nil {
-		handler.logger.Errorw("error in getting plugin detail", "pluginIds", pluginIds, "parentPluginIds", parentPluginIds, "fetchAllVersionDetails", fetchAllVersionDetails, "err", err)
+		handler.logger.Errorw("error in getting plugin detail", "request", request, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -376,22 +374,27 @@ func (handler *GlobalPluginRestHandlerImpl) getListFilterFromQueryParam(w http.R
 	return listFilter, nil
 }
 
-func (handler *GlobalPluginRestHandlerImpl) extractQueryParamsForPluginDetail(r *http.Request) ([]int, []int, bool, error) {
-	pluginIds, parentPluginIds := make([]int, 0), make([]int, 0)
-
-	pluginIds, err := common.ExtractIntArrayFromQueryParam(r, "pluginId")
-	if err != nil {
-		return nil, nil, false, errors.New("invalid pluginId")
+func (handler *GlobalPluginRestHandlerImpl) getPluginDetailsRequestDto(r *http.Request) (bean.GlobalPluginDetailsRequest, error) {
+	request := bean.GlobalPluginDetailsRequest{}
+	jsonDecoder := json.NewDecoder(r.Body)
+	err := jsonDecoder.Decode(&request)
+	if err != nil && err != io.EOF {
+		handler.logger.Errorw("request err, CreateOrUpdateGlobalPolicy", "err", err, "payload", request)
+		return request, err
+	} else if err == io.EOF {
+		var schemaDecoder = schema.NewDecoder()
+		schemaDecoder.IgnoreUnknownKeys(true)
+		err = schemaDecoder.Decode(&request, r.URL.Query())
+		if err != nil {
+			handler.logger.Errorw("error in parsing query param", "err", err)
+			return request, err
+		}
+		parentPluginIdentifiers := strings.Split(request.ParentPluginIdentifier, ",")
+		for _, identifiers := range parentPluginIdentifiers {
+			request.ParentPluginIdentifiers = append(request.ParentPluginIdentifiers, strings.TrimSpace(identifiers))
+		}
 	}
-	parentPluginIds, err = common.ExtractIntArrayFromQueryParam(r, "parentPluginId")
-	if err != nil {
-		return nil, nil, false, errors.New("invalid parentPluginId")
-	}
-	fetchAllVersionDetails, err := common.ExtractBoolQueryParam(r, "fetchAllVersionDetails")
-	if err != nil {
-		return nil, nil, fetchAllVersionDetails, errors.New("invalid fetchAllVersionDetails value")
-	}
-	return pluginIds, parentPluginIds, fetchAllVersionDetails, nil
+	return request, nil
 }
 
 func (handler *GlobalPluginRestHandlerImpl) IsUserAuthorized(token string, appId int) (bool, error) {
@@ -465,12 +468,19 @@ func (handler *GlobalPluginRestHandlerImpl) CreatePlugin(w http.ResponseWriter, 
 
 func (handler *GlobalPluginRestHandlerImpl) GetAllPluginMinData(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
-	appId, err := common.ExtractIntQueryParam(w, r, "appId", 0)
+	v := r.URL.Query()
+	var schemaDecoder = schema.NewDecoder()
+	schemaDecoder.IgnoreUnknownKeys(true)
+	queryParams := bean.PluginDetailsMinQuery{}
+	err := schemaDecoder.Decode(&queryParams, v)
 	if err != nil {
+		handler.logger.Errorw("error in parsing query param", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	ok, err := handler.IsUserAuthorized(token, appId)
+	ok, err := handler.IsUserAuthorized(token, queryParams.AppId)
 	if err != nil {
+		handler.logger.Errorw("error in verifying rbac", "appId", queryParams.AppId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -478,8 +488,11 @@ func (handler *GlobalPluginRestHandlerImpl) GetAllPluginMinData(w http.ResponseW
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-
-	pluginDetail, err := handler.globalPluginService.GetAllPluginMinData()
+	if !queryParams.IsValidPluginType() {
+		common.WriteJsonResp(w, fmt.Errorf("invalid query param 'type'"), "invalid query param 'type'", http.StatusBadRequest)
+		return
+	}
+	pluginDetail, err := handler.globalPluginService.GetAllPluginMinData(queryParams.GetPluginType())
 	if err != nil {
 		handler.logger.Errorw("error in getting all unique tags", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

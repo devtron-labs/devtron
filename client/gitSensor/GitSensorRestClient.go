@@ -21,7 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
@@ -98,7 +98,7 @@ type GitProvider struct {
 	SshPrivateKey         string
 	AccessToken           string
 	Active                bool
-	AuthMode              repository.AuthMode
+	AuthMode              constants.AuthMode
 	EnableTlsVerification bool
 	CaCert                string
 	TlsCert               string

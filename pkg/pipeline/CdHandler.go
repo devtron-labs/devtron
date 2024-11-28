@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
 	util2 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"os"
@@ -84,7 +85,7 @@ type CdHandlerImpl struct {
 	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
 	enforcerUtil                 rbac.EnforcerUtil
 	resourceGroupService         resourceGroup2.ResourceGroupService
-	imageTaggingService          ImageTaggingService
+	imageTaggingService          imageTagging.ImageTaggingService
 	k8sUtil                      *k8s.K8sServiceImpl
 	workflowService              WorkflowService
 	config                       *types.CdConfig
@@ -101,7 +102,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
 	pipelineRepository pipelineConfig.PipelineRepository, envRepository repository2.EnvironmentRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, enforcerUtil rbac.EnforcerUtil,
 	resourceGroupService resourceGroup2.ResourceGroupService,
-	imageTaggingService ImageTaggingService, k8sUtil *k8s.K8sServiceImpl,
+	imageTaggingService imageTagging.ImageTaggingService, k8sUtil *k8s.K8sServiceImpl,
 	workflowService WorkflowService, clusterService cluster.ClusterService,
 	blobConfigStorageService BlobStorageConfigService, customTagService CustomTagService,
 	deploymentConfigService common2.DeploymentConfigService,
