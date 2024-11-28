@@ -104,6 +104,9 @@ jobs:
         
         if [[ $repo == "devtron-labs/devtron" || $repo == "devtron-labs/devtron-services" || $repo == "devtron-labs/dashboard" ]]; then
           echo "No extra arguments needed: public repository detected."
+          response_code=$(curl -s -o /dev/null -w "%{http_code}" \
+          "$issue_api_url")
+
         else
           echo "Adding extra arguments for authentication: private repository detected."
           response_code=$(curl -s -o /dev/null -w "%{http_code}" \
@@ -118,6 +121,8 @@ jobs:
           # Fetch the current state of the issue (open/closed) from the private repository.
           if [[ $repo == "devtron-labs/devtron" || $repo == "devtron-labs/devtron-services" || $repo == "devtron-labs/dashboard" ]]; then
             echo "No extra arguments needed: public repository detected."
+            issue_status=$(curl -s \
+            "$issue_api_url"| jq '.state'|tr -d \")
           else
             echo "Adding extra arguments for authentication: private repository detected."
             issue_status=$(curl -s \
