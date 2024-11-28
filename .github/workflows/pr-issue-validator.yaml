@@ -108,7 +108,7 @@ jobs:
           extra_args_for_auth=""
         else
           echo "Adding extra arguments for authentication: private repository detected."
-          extra_args_for_auth='--header "Authorization: Bearer ${{ secrets.GH_PR_VALIDATOR_TOKEN }}"'
+          extra_args_for_auth='--header "authorization: Bearer ${{ secrets.GH_PR_VALIDATOR_TOKEN }}"'
         fi
 
         # Check if the issue exists in the private repo
@@ -116,7 +116,7 @@ jobs:
 
         echo "Checking extra arguments for authentication: $extra_args_for_auth"
 
-        
+
         echo "Response Code: $response_code"
         if [[ "$response_code" -eq 200 ]]; then
           echo "Issue #$issue_num is valid and exists in $repo."
