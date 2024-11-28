@@ -20,8 +20,10 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	bean2 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"golang.org/x/exp/maps"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"strings"
 
 	"github.com/devtron-labs/common-lib/utils/k8s"
@@ -83,6 +85,8 @@ type EnforcerUtil interface {
 	GetRbacObjectsByEnvIdsAndAppIdBatch(appIdToEnvIds map[int][]int) map[int]map[int]string
 	GetEnvRBACNameByAppAndEnvName(appName, envName string) string
 	GetAppRBACNameByAppName(appName string) string
+	GetRbacResourceAndObjectForNode(clusterName string, nodeName string) (string, string)
+	GetRbacResourceAndObjectForNodeByClusterId(clusterId int, nodeName string) (string, string)
 }
 
 type EnforcerUtilImpl struct {
@@ -877,4 +881,29 @@ func (impl EnforcerUtilImpl) GetEnvRBACNameByAppAndEnvName(appName, envName stri
 		return fmt.Sprintf("%s/%s", "", appName)
 	}
 	return fmt.Sprintf("%s/%s", env.EnvironmentIdentifier, appName)
+}
+
+func (impl EnforcerUtilImpl) GetRbacResourceAndObjectForNode(clusterName string, nodeName string) (string, string) {
+	// currently if user has access to all nodes for all namespaces in a cluster, then he will have access to nodes in all namespaces in that cluster
+	if nodeName == "" {
+		nodeName = bean2.ALL
+	}
+	resource, object := impl.GetRBACNameForClusterEntity(clusterName, k8s.ResourceIdentifier{
+		Name:      nodeName,  // signifying all resources if nodeName is empty
+		Namespace: bean2.ALL, // signifying all namespaces
+		GroupVersionKind: schema.GroupVersionKind{
+			Group: casbin.ClusterEmptyGroupPlaceholder,
+			Kind:  bean2.Node,
+		},
+	})
+	return resource, object
+}
+
+func (impl EnforcerUtilImpl) GetRbacResourceAndObjectForNodeByClusterId(clusterId int, nodeName string) (string, string) {
+	cluster, err := impl.clusterRepository.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error encountered in CheckAuthorisationForNodeWithClusterId", "clusterId", clusterId, "err", err)
+		return "", ""
+	}
+	return impl.GetRbacResourceAndObjectForNode(cluster.ClusterName, nodeName)
 }
