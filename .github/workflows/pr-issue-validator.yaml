@@ -114,7 +114,9 @@ jobs:
         # Check if the issue exists in the private repo
         response_code=$(curl -s -o /dev/null -w "%{http_code}" $extra_args_for_auth "$issue_api_url")
 
+        echo "Checking extra arguments for authentication: $extra_args_for_auth"
 
+        
         echo "Response Code: $response_code"
         if [[ "$response_code" -eq 200 ]]; then
           echo "Issue #$issue_num is valid and exists in $repo."
