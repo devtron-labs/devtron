@@ -14,11 +14,9 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Authenticate with GitHub CLI
-        env:
-          GH_TOKEN: ${{ secrets.GH_SYSTEMSDT_TOKEN }}
-
       - name: Parse and manage labels
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
           set -x  # Enable debugging
