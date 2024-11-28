@@ -102,26 +102,30 @@ jobs:
         issue_api_url="https://api.github.com/repos/$repo/issues/$issue_num"
         echo "API URL: $issue_api_url"
         
-        extra_args_for_auth=()
         if [[ $repo == "devtron-labs/devtron" || $repo == "devtron-labs/devtron-services" || $repo == "devtron-labs/dashboard" ]]; then
           echo "No extra arguments needed: public repository detected."
         else
           echo "Adding extra arguments for authentication: private repository detected."
-          extra_args_for_auth=(--header "authorization: Bearer ${{ secrets.GH_PR_VALIDATOR_TOKEN }}")
+          response_code=$(curl -s -o /dev/null -w "%{http_code}" \
+          --header "authorization: Bearer ${{ secrets.GH_PR_VALIDATOR_TOKEN }}" \
+          "$issue_api_url")
         fi
-        
-        # Check if the issue exists in the private repo
-        response_code=$(curl -s -o /dev/null -w "%{http_code}" "${extra_args_for_auth[@]}" "$issue_api_url")
-
-        echo "Checking extra arguments for authentication: " "${extra_args_for_auth[@]}"
-
 
         echo "Response Code: $response_code"
         if [[ "$response_code" -eq 200 ]]; then
           echo "Issue #$issue_num is valid and exists in $repo."
 
           # Fetch the current state of the issue (open/closed) from the private repository.
-          issue_status=$(curl -s "${extra_args_for_auth[@]}" "$issue_api_url" | jq '.state'|tr -d \")
+          if [[ $repo == "devtron-labs/devtron" || $repo == "devtron-labs/devtron-services" || $repo == "devtron-labs/dashboard" ]]; then
+            echo "No extra arguments needed: public repository detected."
+          else
+            echo "Adding extra arguments for authentication: private repository detected."
+            issue_status=$(curl -s \
+            --header "authorization: Bearer ${{ secrets.GH_PR_VALIDATOR_TOKEN }}" \
+            "$issue_api_url")
+          fi
+          echo "Issue Status: $issue_status"
+
           # Check if the issue is still open.
           if [[ "$issue_status" == open ]]; then
             echo "Issue #$issue_num is opened."
