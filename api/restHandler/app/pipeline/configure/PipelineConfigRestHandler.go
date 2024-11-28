@@ -30,6 +30,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	security2 "github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning"
+	"github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning/read"
 	"io"
 	"net/http"
 	"strconv"
@@ -50,13 +52,11 @@ import (
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	security2 "github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/team"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -123,7 +123,7 @@ type PipelineConfigRestHandlerImpl struct {
 	appCloneService                     appClone.AppCloneService
 	gitMaterialReadService              read2.GitMaterialReadService
 	policyService                       security2.PolicyService
-	scanResultRepository                security.ImageScanResultRepository
+	imageScanResultReadService          read.ImageScanResultReadService
 	gitProviderReadService              gitProviderRead.GitProviderReadService
 	argoUserService                     argo.ArgoUserService
 	imageTaggingReadService             imageTaggingRead.ImageTaggingReadService
@@ -156,7 +156,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	deploymentTemplateService generateManifest.DeploymentTemplateService,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	gitMaterialReadService read2.GitMaterialReadService, policyService security2.PolicyService,
-	scanResultRepository security.ImageScanResultRepository,
+	imageScanResultReadService read.ImageScanResultReadService,
 	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	imageTaggingReadService imageTaggingRead.ImageTaggingReadService,
 	imageTaggingService imageTagging.ImageTaggingService,
@@ -192,7 +192,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		appWorkflowService:                  appWorkflowService,
 		gitMaterialReadService:              gitMaterialReadService,
 		policyService:                       policyService,
-		scanResultRepository:                scanResultRepository,
+		imageScanResultReadService:          imageScanResultReadService,
 		argoUserService:                     argoUserService,
 		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
 		imageTaggingReadService:             imageTaggingReadService,

@@ -14,18 +14,19 @@
  * limitations under the License.
  */
 
-package security
+package imageScanning
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
+	repository2 "github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning/repository"
 	"testing"
 )
 
 func TestPolicyServiceImpl_HasBlockedCVE(t *testing.T) {
 	type args struct {
-		cves           []*security.CveStore
-		cvePolicy      map[string]*security.CvePolicy
-		severityPolicy map[security.Severity]*security.CvePolicy
+		cves           []*repository2.CveStore
+		cvePolicy      map[string]*repository2.CvePolicy
+		severityPolicy map[security.Severity]*repository2.CvePolicy
 	}
 	tests := []struct {
 		name string
@@ -36,7 +37,7 @@ func TestPolicyServiceImpl_HasBlockedCVE(t *testing.T) {
 		{
 			name: "Test 1",
 			args: args{
-				cves: []*security.CveStore{
+				cves: []*repository2.CveStore{
 					{
 						Name: "abc",
 					},
@@ -44,12 +45,12 @@ func TestPolicyServiceImpl_HasBlockedCVE(t *testing.T) {
 						Severity: security.Low,
 					},
 				},
-				cvePolicy: map[string]*security.CvePolicy{
+				cvePolicy: map[string]*repository2.CvePolicy{
 					"abc": {
 						Action: security.Allow,
 					},
 				},
-				severityPolicy: map[security.Severity]*security.CvePolicy{
+				severityPolicy: map[security.Severity]*repository2.CvePolicy{
 					security.Low: {
 						Action: security.Allow,
 					},
@@ -60,30 +61,30 @@ func TestPolicyServiceImpl_HasBlockedCVE(t *testing.T) {
 		{
 			name: "Test 2",
 			args: args{
-				cves: []*security.CveStore{
+				cves: []*repository2.CveStore{
 					{
 						Name: "abc",
 					},
 				},
-				cvePolicy: map[string]*security.CvePolicy{
+				cvePolicy: map[string]*repository2.CvePolicy{
 					"abc": {
 						Action: security.Block,
 					},
 				},
-				severityPolicy: map[security.Severity]*security.CvePolicy{},
+				severityPolicy: map[security.Severity]*repository2.CvePolicy{},
 			},
 			want: true,
 		},
 		{
 			name: "Test 3",
 			args: args{
-				cves: []*security.CveStore{
+				cves: []*repository2.CveStore{
 					{
 						Severity: security.High,
 					},
 				},
-				cvePolicy: map[string]*security.CvePolicy{},
-				severityPolicy: map[security.Severity]*security.CvePolicy{
+				cvePolicy: map[string]*repository2.CvePolicy{},
+				severityPolicy: map[security.Severity]*repository2.CvePolicy{
 					security.High: {
 						Action: security.Block,
 					},
@@ -94,49 +95,49 @@ func TestPolicyServiceImpl_HasBlockedCVE(t *testing.T) {
 		{
 			name: "Test 4",
 			args: args{
-				cves: []*security.CveStore{
+				cves: []*repository2.CveStore{
 					{
 						Name:         "abc",
 						FixedVersion: "1.0.0",
 					},
 				},
-				cvePolicy: map[string]*security.CvePolicy{
+				cvePolicy: map[string]*repository2.CvePolicy{
 					"abc": {
 						Action: security.Blockiffixed,
 					},
 				},
-				severityPolicy: map[security.Severity]*security.CvePolicy{},
+				severityPolicy: map[security.Severity]*repository2.CvePolicy{},
 			},
 			want: true,
 		},
 		{
 			name: "Test 5",
 			args: args{
-				cves: []*security.CveStore{
+				cves: []*repository2.CveStore{
 					{
 						Name: "abc",
 					},
 				},
-				cvePolicy: map[string]*security.CvePolicy{
+				cvePolicy: map[string]*repository2.CvePolicy{
 					"abc": {
 						Action: security.Blockiffixed,
 					},
 				},
-				severityPolicy: map[security.Severity]*security.CvePolicy{},
+				severityPolicy: map[security.Severity]*repository2.CvePolicy{},
 			},
 			want: false,
 		},
 		{
 			name: "Test 6",
 			args: args{
-				cves: []*security.CveStore{
+				cves: []*repository2.CveStore{
 					{
 						Severity:     security.High,
 						FixedVersion: "1.0.0",
 					},
 				},
-				cvePolicy: map[string]*security.CvePolicy{},
-				severityPolicy: map[security.Severity]*security.CvePolicy{
+				cvePolicy: map[string]*repository2.CvePolicy{},
+				severityPolicy: map[security.Severity]*repository2.CvePolicy{
 					security.High: {
 						Action: security.Blockiffixed,
 					},
@@ -147,13 +148,13 @@ func TestPolicyServiceImpl_HasBlockedCVE(t *testing.T) {
 		{
 			name: "Test 7",
 			args: args{
-				cves: []*security.CveStore{
+				cves: []*repository2.CveStore{
 					{
 						Severity: security.High,
 					},
 				},
-				cvePolicy: map[string]*security.CvePolicy{},
-				severityPolicy: map[security.Severity]*security.CvePolicy{
+				cvePolicy: map[string]*repository2.CvePolicy{},
+				severityPolicy: map[security.Severity]*repository2.CvePolicy{
 					security.High: {
 						Action: security.Blockiffixed,
 					},

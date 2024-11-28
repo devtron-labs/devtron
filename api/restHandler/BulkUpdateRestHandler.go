@@ -23,6 +23,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	security2 "github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning"
+	repository2 "github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning/repository"
 	"net/http"
 	"strconv"
 	"strings"
@@ -32,7 +34,6 @@ import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -40,7 +41,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bulkAction"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	security2 "github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -85,7 +85,7 @@ type BulkUpdateRestHandlerImpl struct {
 	appCloneService         appClone.AppCloneService
 	materialRepository      repository.MaterialRepository
 	policyService           security2.PolicyService
-	scanResultRepository    security.ImageScanResultRepository
+	scanResultRepository    repository2.ImageScanResultRepository
 	argoUserService         argo.ArgoUserService
 }
 
@@ -107,7 +107,7 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 	appCloneService appClone.AppCloneService,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository repository.MaterialRepository, policyService security2.PolicyService,
-	scanResultRepository security.ImageScanResultRepository,
+	scanResultRepository repository2.ImageScanResultRepository,
 	argoUserService argo.ArgoUserService) *BulkUpdateRestHandlerImpl {
 	return &BulkUpdateRestHandlerImpl{
 		pipelineBuilder:         pipelineBuilder,

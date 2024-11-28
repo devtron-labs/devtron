@@ -20,16 +20,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
-	securityBean "github.com/devtron-labs/devtron/pkg/security/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning"
+	securityBean "github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning/bean"
+	security2 "github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning/repository"
 	"net/http"
 	"strconv"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
-	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
 )
@@ -49,7 +49,7 @@ type ImageScanRestHandler interface {
 
 type ImageScanRestHandlerImpl struct {
 	logger             *zap.SugaredLogger
-	imageScanService   security.ImageScanService
+	imageScanService   imageScanning.ImageScanService
 	userService        user.UserService
 	enforcer           casbin.Enforcer
 	enforcerUtil       rbac.EnforcerUtil
@@ -57,7 +57,7 @@ type ImageScanRestHandlerImpl struct {
 }
 
 func NewImageScanRestHandlerImpl(logger *zap.SugaredLogger,
-	imageScanService security.ImageScanService, userService user.UserService, enforcer casbin.Enforcer,
+	imageScanService imageScanning.ImageScanService, userService user.UserService, enforcer casbin.Enforcer,
 	enforcerUtil rbac.EnforcerUtil, environmentService environment.EnvironmentService) *ImageScanRestHandlerImpl {
 	return &ImageScanRestHandlerImpl{
 		logger:             logger,

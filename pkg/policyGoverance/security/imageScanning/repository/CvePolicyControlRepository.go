@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package security
+package repository
 
 import (
 	"fmt"
-	securityBean "github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
+	securityBean "github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning/repository/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
