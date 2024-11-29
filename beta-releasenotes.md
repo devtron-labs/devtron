@@ -10,6 +10,7 @@
 - feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
+- misc: addign new plugins images (#6145)
 - misc: updated authenticator to c3254b79e386 (#6144)
 - misc:  adding pr validator for fork prs as gh command will not work (#6143)
 - misc: adding validation for public repo (#6137)
