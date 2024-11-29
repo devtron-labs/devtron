@@ -135,8 +135,13 @@ jobs:
           if [[ "$issue_status" == open ]]; then
             echo "Issue #$issue_num is opened."
             # Remove the 'Issue-verification-failed' label (if present) and add 'Ready-to-Review'.
-            gh pr edit $PRNUM --remove-label "PR:Issue-verification-failed"
-            gh pr edit $PRNUM --add-label "PR:Ready-to-Review"
+            curl -X PATCH \
+              -H "Authorization: Bearer ${{ secrets.GH_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              $issue_api_url \
+              -d '{
+                "labels": ["PR:Ready-to-Review"]
+              }'
           else
             echo "Issue #$issue_num is closed. Please link an open issue to proceed."
             # Add a comment to the PR indicating the issue is not linked correctly.
