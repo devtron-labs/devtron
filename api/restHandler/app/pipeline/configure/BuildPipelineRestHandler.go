@@ -21,13 +21,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
+	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
+	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"golang.org/x/exp/maps"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/util/response/pagination"
 	"github.com/gorilla/schema"
 
@@ -338,7 +340,7 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCiMaterialSourceWithAppIdAndE
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if !(patchRequest.Source.Type == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED || patchRequest.Source.Type == pipelineConfig.SOURCE_TYPE_BRANCH_REGEX) {
+	if !(patchRequest.Source.Type == constants.SOURCE_TYPE_BRANCH_FIXED || patchRequest.Source.Type == constants.SOURCE_TYPE_BRANCH_REGEX) {
 		handler.Logger.Errorw("Unsupported source type, PatchCiMaterialSource", "err", err, "PatchCiMaterialSource", patchRequest)
 		common.WriteJsonResp(w, err, "source.type not supported", http.StatusBadRequest)
 		return
@@ -441,8 +443,8 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWr
 		ciConfigRequest := bean.CiConfigRequest{}
 		ciConfigRequest.DockerRegistry = emptyDockerRegistry
 		ciConfigRequest.AppId = patchRequest.AppId
-		ciConfigRequest.CiBuildConfig = &CiPipeline.CiBuildConfigBean{}
-		ciConfigRequest.CiBuildConfig.CiBuildType = CiPipeline.SKIP_BUILD_TYPE
+		ciConfigRequest.CiBuildConfig = &bean2.CiBuildConfigBean{}
+		ciConfigRequest.CiBuildConfig.CiBuildType = bean2.SKIP_BUILD_TYPE
 		ciConfigRequest.UserId = patchRequest.UserId
 		if patchRequest.CiPipeline == nil || patchRequest.CiPipeline.CiMaterial == nil {
 			handler.Logger.Errorw("Invalid patch ci-pipeline request", "request", patchRequest, "err", "invalid CiPipeline data")
@@ -463,7 +465,7 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWr
 	}
 	createResp, err := handler.pipelineBuilder.PatchCiPipeline(&patchRequest)
 	if err != nil {
-		if err.Error() == CiPipeline.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
+		if err.Error() == bean2.PIPELINE_NAME_ALREADY_EXISTS_ERROR {
 			handler.Logger.Errorw("service err, pipeline name already exist ", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
@@ -873,7 +875,7 @@ func (handler *PipelineConfigRestHandlerImpl) RefreshMaterials(w http.ResponseWr
 		return
 	}
 	handler.Logger.Infow("request payload, RefreshMaterials", "gitMaterialId", gitMaterialId)
-	material, err := handler.materialRepository.FindById(gitMaterialId)
+	material, err := handler.gitMaterialReadService.FindById(gitMaterialId)
 	if err != nil {
 		handler.Logger.Errorw("service err, RefreshMaterials", "err", err, "gitMaterialId", gitMaterialId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1109,7 +1111,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildHistory(w http.ResponseWri
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
 		return
 	}
-	appTags, err := handler.imageTaggingService.GetUniqueTagsByAppId(ciPipeline.AppId)
+	appTags, err := handler.imageTaggingReadService.GetUniqueTagsByAppId(ciPipeline.AppId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetTagsByAppId", "err", err, "appId", ciPipeline.AppId)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
@@ -1119,7 +1121,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildHistory(w http.ResponseWri
 
 	prodEnvExists, err := handler.imageTaggingService.GetProdEnvFromParentAndLinkedWorkflow(ciPipeline.Id)
 	resp.TagsEditable = prodEnvExists && triggerAccess
-	resp.HideImageTaggingHardDelete = handler.imageTaggingService.GetImageTaggingServiceConfig().HideImageTaggingHardDelete
+	resp.HideImageTaggingHardDelete = handler.imageTaggingService.IsHardDeleteHidden()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetProdEnvFromParentAndLinkedWorkflow", "err", err, "ciPipelineId", ciPipeline.Id)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
@@ -1529,11 +1531,11 @@ func (handler *PipelineConfigRestHandlerImpl) validForMultiMaterial(ciTriggerReq
 }
 
 func (handler *PipelineConfigRestHandlerImpl) ValidateGitMaterialUrl(gitProviderId int, url string) (bool, error) {
-	gitProvider, err := handler.gitProviderRepo.FindOne(strconv.Itoa(gitProviderId))
+	gitProvider, err := handler.gitProviderReadService.FetchOneGitProvider(strconv.Itoa(gitProviderId))
 	if err != nil {
 		return false, err
 	}
-	if gitProvider.AuthMode == repository.AUTH_MODE_SSH {
+	if gitProvider.AuthMode == constants.AUTH_MODE_SSH {
 		hasPrefixResult := strings.HasPrefix(url, SSH_URL_PREFIX)
 		return hasPrefixResult, nil
 	}
@@ -2071,11 +2073,11 @@ func (handler *PipelineConfigRestHandlerImpl) CreateUpdateImageTagging(w http.Re
 		return
 	}
 	req.ExternalCi = externalCi
-	//pass it to service layer
+	// pass it to the service layer
 	resp, err := handler.imageTaggingService.CreateOrUpdateImageTagging(ciPipelineId, appId, artifactId, int(userId), req)
 	if err != nil {
-		if err.Error() == pipeline.DuplicateTagsInAppError {
-			appReleaseTags, err1 := handler.imageTaggingService.GetUniqueTagsByAppId(appId)
+		if err.Error() == imageTagging.DuplicateTagsInAppError {
+			appReleaseTags, err1 := handler.imageTaggingReadService.GetUniqueTagsByAppId(appId)
 			if err1 != nil {
 				handler.Logger.Errorw("error occurred in getting unique tags in app", "err", err1, "appId", appId)
 				err = err1
@@ -2111,7 +2113,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetImageTaggingData(w http.Respons
 
 	externalCi, ciPipelineId, appId, err := handler.extractCipipelineMetaForImageTags(artifactId)
 	if err != nil {
-		handler.Logger.Errorw("error occurred in fetching extractCipipelineMetaForImageTags by artifact Id ", "err", err, "artifactId", artifactId)
+		handler.Logger.Errorw("error occurred in fetching extract ci pipeline metadata for ImageTags by artifact id", "err", err, "artifactId", artifactId)
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusInternalServerError)
 		return
 	}
@@ -2254,7 +2256,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetSourceCiDownStreamInfo(w http.R
 		return
 	}
 
-	req := &CiPipeline.SourceCiDownStreamFilters{}
+	req := &bean2.SourceCiDownStreamFilters{}
 	err = decoder.Decode(req, r.URL.Query())
 	if err != nil {
 		handler.Logger.Errorw("request err, GetSourceCiDownStreamInfo", "err", err, "payload", req)

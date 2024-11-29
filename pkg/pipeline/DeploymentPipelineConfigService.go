@@ -42,14 +42,16 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	clutserBean "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
+	repository6 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	clutserBean "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	config2 "github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
@@ -127,7 +129,7 @@ type CdPipelineConfigService interface {
 type CdPipelineConfigServiceImpl struct {
 	logger                            *zap.SugaredLogger
 	pipelineRepository                pipelineConfig.PipelineRepository
-	environmentRepository             repository2.EnvironmentRepository
+	environmentRepository             repository6.EnvironmentRepository
 	pipelineConfigRepository          chartConfig.PipelineConfigRepository
 	appWorkflowRepository             appWorkflow.AppWorkflowRepository
 	pipelineStageService              PipelineStageService
@@ -145,7 +147,7 @@ type CdPipelineConfigServiceImpl struct {
 	chartRepository                   chartRepoRepository.ChartRepository
 	resourceGroupService              resourceGroup2.ResourceGroupService
 	propertiesConfigService           PropertiesConfigService
-	deploymentTemplateHistoryService  history.DeploymentTemplateHistoryService
+	deploymentTemplateHistoryService  deploymentTemplate.DeploymentTemplateHistoryService
 	scopedVariableManager             variables.ScopedVariableManager
 	deploymentConfig                  *util2.DeploymentServiceTypeConfig
 	application                       application.ServiceClient
@@ -164,7 +166,7 @@ type CdPipelineConfigServiceImpl struct {
 }
 
 func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
-	environmentRepository repository2.EnvironmentRepository, pipelineConfigRepository chartConfig.PipelineConfigRepository,
+	environmentRepository repository6.EnvironmentRepository, pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository, pipelineStageService PipelineStageService,
 	appRepo app2.AppRepository, appService app.AppService, deploymentGroupRepository repository.DeploymentGroupRepository,
 	ciCdPipelineOrchestrator CiCdPipelineOrchestrator, appStatusRepository appStatus.AppStatusRepository,
@@ -173,7 +175,7 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 	enforcerUtil rbac.EnforcerUtil, pipelineStrategyHistoryService history.PipelineStrategyHistoryService,
 	chartRepository chartRepoRepository.ChartRepository, resourceGroupService resourceGroup2.ResourceGroupService,
 	propertiesConfigService PropertiesConfigService,
-	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
+	deploymentTemplateHistoryService deploymentTemplate.DeploymentTemplateHistoryService,
 	scopedVariableManager variables.ScopedVariableManager, envVariables *util2.EnvironmentVariables,
 	application application.ServiceClient, customTagService CustomTagService,
 	ciPipelineConfigService CiPipelineConfigService, buildPipelineSwitchService BuildPipelineSwitchService,
@@ -235,6 +237,10 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelineById(pipelineId int) (cdPi
 	environment, err := impl.environmentRepository.FindById(dbPipeline.EnvironmentId)
 	if err != nil && errors.IsNotFound(err) {
 		impl.logger.Errorw("error in fetching pipeline", "err", err)
+		return cdPipeline, err
+	}
+	if environment == nil || environment.Id == 0 {
+		impl.logger.Errorw("environment doesn't exists", "environmentId", dbPipeline.EnvironmentId)
 		return cdPipeline, err
 	}
 	strategies, err := impl.pipelineConfigRepository.GetAllStrategyByPipelineId(dbPipeline.Id)
@@ -986,8 +992,11 @@ func (impl *CdPipelineConfigServiceImpl) GetTriggerViewCdPipelinesForApp(appId i
 	for _, dbPipeline := range triggerViewCdPipelinesResp.Pipelines {
 		dbPipelineIds = append(dbPipelineIds, dbPipeline.Id)
 	}
+	if len(dbPipelineIds) == 0 {
+		return triggerViewCdPipelinesResp, nil
+	}
 
-	//construct strategiesMapping to get all strategies against pipelineId
+	// construct strategiesMapping to get all strategies against pipelineId
 	strategiesMapping, err := impl.getStrategiesMapping(dbPipelineIds)
 	if err != nil {
 		return triggerViewCdPipelinesResp, err
@@ -1024,7 +1033,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 	if len(envIds) == 0 || len(dbPipelineIds) == 0 {
 		return cdPipelines, nil
 	}
-	envMapping := make(map[int]*repository2.Environment)
+	envMapping := make(map[int]*repository6.Environment)
 	appWorkflowMapping := make(map[int]*appWorkflow.AppWorkflowMapping)
 
 	envs, err := impl.environmentRepository.FindByIds(envIds)
@@ -1051,7 +1060,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 
 	var pipelines []*bean.CDPipelineConfigObject
 	for _, dbPipeline := range cdPipelines.Pipelines {
-		environment := &repository2.Environment{}
+		environment := &repository6.Environment{}
 		var strategies []*chartConfig.PipelineStrategy
 		appToWorkflowMapping := &appWorkflow.AppWorkflowMapping{}
 
@@ -1270,6 +1279,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 				return nil, err
 			}
 		}
+
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                            dbPipeline.Id,
 			Name:                          dbPipeline.Name,
@@ -1410,7 +1420,7 @@ func (impl *CdPipelineConfigServiceImpl) RetrieveParentDetails(pipelineId int) (
 			return 0, "", err
 		}
 
-		if len(parentPipeline.PostStageConfig) > 0 || (parentPostStage != nil && parentPostStage.Id > 0) {
+		if len(parentPipeline.PostStageConfig) > 0 || parentPostStage.IsPipelineStageExists() {
 			return workflow.ParentId, bean2.CD_WORKFLOW_TYPE_POST, nil
 		}
 		return workflow.ParentId, bean2.CD_WORKFLOW_TYPE_DEPLOY, nil
@@ -1510,7 +1520,7 @@ func (impl *CdPipelineConfigServiceImpl) MarkGitOpsDevtronAppsDeletedWhereArgoAp
 
 func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*clutserBean.ResourceGroupingResponse, error) {
 	result := &clutserBean.ResourceGroupingResponse{}
-	var models []*repository2.Environment
+	var models []*repository6.Environment
 	var beans []clutserBean.EnvironmentBean
 	var err error
 	if len(envName) > 0 && len(clusterIds) > 0 {

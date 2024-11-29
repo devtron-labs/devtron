@@ -42,7 +42,7 @@ import (
 	deployment2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	bean2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
-	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -81,7 +81,7 @@ type AppStoreDeploymentServiceImpl struct {
 	appRepository                        app.AppRepository
 	eaModeDeploymentService              deployment2.EAModeDeploymentService
 	fullModeDeploymentService            deployment.FullModeDeploymentService
-	environmentService                   cluster.EnvironmentService
+	environmentService                   environment.EnvironmentService
 	helmAppService                       service.HelmAppService
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
 	deploymentTypeConfig                 *util2.DeploymentServiceTypeConfig
@@ -101,7 +101,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
 	appRepository app.AppRepository,
 	eaModeDeploymentService deployment2.EAModeDeploymentService,
 	fullModeDeploymentService deployment.FullModeDeploymentService,
-	environmentService cluster.EnvironmentService,
+	environmentService environment.EnvironmentService,
 	helmAppService service.HelmAppService,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
 	envVariables *util2.EnvironmentVariables,

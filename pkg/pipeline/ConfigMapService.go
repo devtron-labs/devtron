@@ -24,10 +24,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
+	history2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	history2 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
@@ -95,7 +95,7 @@ type ConfigMapServiceImpl struct {
 	commonService               commonService.CommonService
 	appRepository               app.AppRepository
 	configMapHistoryService     history2.ConfigMapHistoryService
-	environmentRepository       repository2.EnvironmentRepository
+	environmentRepository       repository3.EnvironmentRepository
 	scopedVariableManager       variables.ScopedVariableCMCSManager
 }
 
@@ -106,7 +106,7 @@ func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository, environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
 	commonService commonService.CommonService, appRepository app.AppRepository,
-	configMapHistoryService history2.ConfigMapHistoryService, environmentRepository repository2.EnvironmentRepository,
+	configMapHistoryService history2.ConfigMapHistoryService, environmentRepository repository3.EnvironmentRepository,
 	scopedVariableManager variables.ScopedVariableCMCSManager,
 ) *ConfigMapServiceImpl {
 	return &ConfigMapServiceImpl{

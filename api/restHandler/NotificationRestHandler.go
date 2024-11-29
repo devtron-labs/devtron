@@ -25,7 +25,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
-	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/notifier/beans"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -70,7 +71,7 @@ type NotificationRestHandler interface {
 type NotificationRestHandlerImpl struct {
 	dockerRegistryConfig pipeline.DockerRegistryConfig
 	logger               *zap.SugaredLogger
-	gitRegistryConfig    pipeline.GitRegistryConfig
+	gitRegistryConfig    gitProvider.GitRegistryConfig
 	userAuthService      user.UserService
 	validator            *validator.Validate
 	notificationService  notifier.NotificationConfigService
@@ -80,7 +81,7 @@ type NotificationRestHandlerImpl struct {
 	smtpService          notifier.SMTPNotificationService
 	enforcer             casbin.Enforcer
 	teamService          team.TeamService
-	environmentService   cluster.EnvironmentService
+	environmentService   environment.EnvironmentService
 	pipelineBuilder      pipeline.PipelineBuilder
 	enforcerUtil         rbac.EnforcerUtil
 }
@@ -90,11 +91,11 @@ type ChannelDto struct {
 }
 
 func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryConfig,
-	logger *zap.SugaredLogger, gitRegistryConfig pipeline.GitRegistryConfig,
+	logger *zap.SugaredLogger, gitRegistryConfig gitProvider.GitRegistryConfig,
 	userAuthService user.UserService,
 	validator *validator.Validate, notificationService notifier.NotificationConfigService,
 	slackService notifier.SlackNotificationService, webhookService notifier.WebhookNotificationService, sesService notifier.SESNotificationService, smtpService notifier.SMTPNotificationService,
-	enforcer casbin.Enforcer, teamService team.TeamService, environmentService cluster.EnvironmentService, pipelineBuilder pipeline.PipelineBuilder,
+	enforcer casbin.Enforcer, teamService team.TeamService, environmentService environment.EnvironmentService, pipelineBuilder pipeline.PipelineBuilder,
 	enforcerUtil rbac.EnforcerUtil) *NotificationRestHandlerImpl {
 	return &NotificationRestHandlerImpl{
 		dockerRegistryConfig: dockerRegistryConfig,

@@ -27,6 +27,11 @@ import (
 )
 
 type PluginType string
+
+func (p PluginType) ToString() string {
+	return string(p)
+}
+
 type ScriptType string
 type ScriptImagePullSecretType string
 type ScriptMappingType string
@@ -321,7 +326,7 @@ type PluginStageMapping struct {
 }
 
 type GlobalPluginRepository interface {
-	GetMetaDataForAllPlugins() ([]*PluginMetadata, error)
+	GetMetaDataForAllPlugins(excludeDeprecated bool) ([]*PluginMetadata, error)
 	GetMetaDataForPluginWithStageType(stageType int) ([]*PluginMetadata, error)
 	GetMetaDataByPluginId(pluginId int) (*PluginMetadata, error)
 	GetMetaDataByPluginIds(pluginIds []int) ([]*PluginMetadata, error)
@@ -346,9 +351,11 @@ type GlobalPluginRepository interface {
 	GetPluginVersionsByParentId(parentPluginId int) ([]*PluginMetadata, error)
 
 	GetPluginParentMetadataByIdentifier(pluginIdentifier string) (*PluginParentMetadata, error)
+	GetPluginParentsMetadataByIdentifiers(pluginIdentifiers ...string) ([]*PluginParentMetadata, error)
 	GetAllFilteredPluginParentMetadata(searchKey string, tags []string) ([]*PluginParentMetadata, error)
 	GetPluginParentMetadataByIds(ids []int) ([]*PluginParentMetadata, error)
 	GetAllPluginMinData() ([]*PluginParentMetadata, error)
+	GetAllPluginMinDataByType(pluginType string) ([]*PluginParentMetadata, error)
 	GetPluginParentMinDataById(id int) (*PluginParentMetadata, error)
 	MarkPreviousPluginVersionLatestFalse(pluginParentId int) error
 
@@ -396,12 +403,15 @@ func (impl *GlobalPluginRepositoryImpl) GetConnection() (dbConnection *pg.DB) {
 	return impl.dbConnection
 }
 
-func (impl *GlobalPluginRepositoryImpl) GetMetaDataForAllPlugins() ([]*PluginMetadata, error) {
+func (impl *GlobalPluginRepositoryImpl) GetMetaDataForAllPlugins(excludeDeprecated bool) ([]*PluginMetadata, error) {
 	var plugins []*PluginMetadata
-	err := impl.dbConnection.Model(&plugins).
+	query := impl.dbConnection.Model(&plugins).
 		Where("deleted = ?", false).
-		Order("id").
-		Select()
+		Order("id")
+	if excludeDeprecated {
+		query = query.Where("is_deprecated = ?", false)
+	}
+	err := query.Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting all plugins", "err", err)
 		return nil, err
@@ -814,12 +824,29 @@ func (impl *GlobalPluginRepositoryImpl) UpdateInBulkPluginStepConditions(pluginS
 
 func (impl *GlobalPluginRepositoryImpl) GetPluginParentMetadataByIdentifier(pluginIdentifier string) (*PluginParentMetadata, error) {
 	var pluginParentMetadata PluginParentMetadata
-	err := impl.dbConnection.Model(&pluginParentMetadata).Where("identifier = ?", pluginIdentifier).
-		Where("deleted = ?", false).Select()
+	err := impl.dbConnection.Model(&pluginParentMetadata).
+		Where("identifier = ?", pluginIdentifier).
+		Where("deleted = ?", false).
+		Select()
 	if err != nil {
 		return nil, err
 	}
 	return &pluginParentMetadata, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetPluginParentsMetadataByIdentifiers(pluginIdentifiers ...string) ([]*PluginParentMetadata, error) {
+	if len(pluginIdentifiers) == 0 {
+		return []*PluginParentMetadata{}, nil
+	}
+	var pluginParentMetadata []*PluginParentMetadata
+	err := impl.dbConnection.Model(&pluginParentMetadata).
+		Where("identifier IN (?)", pg.In(pluginIdentifiers)).
+		Where("deleted = ?", false).
+		Select()
+	if err != nil {
+		return nil, err
+	}
+	return pluginParentMetadata, nil
 }
 
 func (impl *GlobalPluginRepositoryImpl) GetPluginParentMinDataById(id int) (*PluginParentMetadata, error) {
@@ -848,7 +875,7 @@ func (impl *GlobalPluginRepositoryImpl) GetAllFilteredPluginParentMetadata(searc
 	var plugins []*PluginParentMetadata
 	query := "select ppm.id, ppm.identifier,ppm.name,ppm.description,ppm.type,ppm.icon,ppm.deleted,ppm.created_by, ppm.created_on,ppm.updated_by,ppm.updated_on from plugin_parent_metadata ppm" +
 		" inner join plugin_metadata pm on pm.plugin_parent_metadata_id=ppm.id"
-	whereCondition := fmt.Sprintf(" where ppm.deleted=false AND pm.deleted=false AND pm.is_latest=true")
+	whereCondition := fmt.Sprintf(" where ppm.deleted=false AND pm.deleted=false AND pm.is_latest=true and pm.is_deprecated=false")
 	if len(tags) > 0 {
 		tagFilterSubQuery := fmt.Sprintf("select ptr.plugin_id from plugin_tag_relation ptr inner join plugin_tag pt on ptr.tag_id =pt.id where pt.deleted =false and  pt.name in (%s) group by ptr.plugin_id having count(ptr.plugin_id )=%d", helper.GetCommaSepratedStringWithComma(tags), len(tags))
 		whereCondition += fmt.Sprintf(" AND pm.id in (%s)", tagFilterSubQuery)
@@ -881,11 +908,18 @@ func (impl *GlobalPluginRepositoryImpl) GetPluginParentMetadataByIds(ids []int) 
 }
 
 func (impl *GlobalPluginRepositoryImpl) GetAllPluginMinData() ([]*PluginParentMetadata, error) {
+	return impl.GetAllPluginMinDataByType("")
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetAllPluginMinDataByType(pluginType string) ([]*PluginParentMetadata, error) {
 	var plugins []*PluginParentMetadata
-	err := impl.dbConnection.Model(&plugins).
+	query := impl.dbConnection.Model(&plugins).
 		Column("plugin_parent_metadata.id", "plugin_parent_metadata.name", "plugin_parent_metadata.type", "plugin_parent_metadata.icon", "plugin_parent_metadata.identifier").
-		Where("deleted = ?", false).
-		Select()
+		Where("deleted = ?", false)
+	if len(pluginType) != 0 {
+		query.Where("type = ?", pluginType)
+	}
+	err := query.Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting all plugin parent metadata min data", "err", err)
 		return nil, err

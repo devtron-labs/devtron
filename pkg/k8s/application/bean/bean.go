@@ -25,6 +25,25 @@ const (
 	AppIdDecodingError = "error in decoding appId"
 )
 const (
+	Authorization     = "Authorization"
+	BaseForK8sProxy   = "/orchestrator/k8s/proxy"
+	Cluster           = "cluster"
+	Empty             = ""
+	Env               = "env"
+	ClusterIdentifier = "clusterIdentifier"
+	EnvIdentifier     = "envIdentifier"
+	RoleView          = "View"
+	RoleAdmin         = "Admin"
+	API               = "api"
+	APIs              = "apis"
+	K8sEmpty          = "k8sempty"
+	V1                = "v1"
+	ALL               = "*"
+	NAMESPACES        = "namespaces"
+	NODES             = "nodes"
+	Node              = "node"
+)
+const (
 	DEFAULT_NAMESPACE = "default"
 	EVENT_K8S_KIND    = "Event"
 	LIST_VERB         = "list"
@@ -36,7 +55,7 @@ const (
 	DevtronAppType = 0 // Identifier for Devtron Apps
 	HelmAppType    = 1 // Identifier for Helm Apps
 	ArgoAppType    = 2
-	FluxAppType    = 3 //Identifier for Flux Apps
+	FluxAppType    = 3 // Identifier for Flux Apps
 	// Deployment Type Identifiers
 	HelmInstalledType = 0 // Identifier for Helm deployment
 	ArgoInstalledType = 1 // Identifier for ArgoCD deployment

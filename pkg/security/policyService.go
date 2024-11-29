@@ -23,6 +23,7 @@ import (
 	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	securityBean "github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"net/http"
@@ -51,7 +52,7 @@ type PolicyService interface {
 	HasBlockedCVE(cves []*security.CveStore, cvePolicy map[string]*security.CvePolicy, severityPolicy map[securityBean.Severity]*security.CvePolicy) bool
 }
 type PolicyServiceImpl struct {
-	environmentService            cluster.EnvironmentService
+	environmentService            environment.EnvironmentService
 	logger                        *zap.SugaredLogger
 	apRepository                  repository1.AppRepository
 	pipelineOverride              chartConfig.PipelineOverrideRepository
@@ -69,7 +70,7 @@ type PolicyServiceImpl struct {
 	ciTemplateRepository          pipelineConfig.CiTemplateRepository
 }
 
-func NewPolicyServiceImpl(environmentService cluster.EnvironmentService,
+func NewPolicyServiceImpl(environmentService environment.EnvironmentService,
 	logger *zap.SugaredLogger,
 	apRepository repository1.AppRepository,
 	pipelineOverride chartConfig.PipelineOverrideRepository,
@@ -621,6 +622,10 @@ func (impl *PolicyServiceImpl) GetPolicies(policyLevel securityBean.PolicyLevel,
 			envId = append(envId, &pipeline.EnvironmentId)
 		}
 		envs, err := impl.environmentService.FindByIds(envId)
+		if err != nil {
+			impl.logger.Errorw("Error in fetching env", "envId", envId, "err", err)
+			return nil, err
+		}
 		for _, env := range envs {
 			cvePolicy, severityPolicy, err := impl.getPolicies(policyLevel, env.ClusterId, env.Id, appId)
 			if err != nil {

@@ -10,17 +10,19 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	bean3 "github.com/devtron-labs/devtron/pkg/bean"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository4 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/configDiff/adaptor"
 	bean2 "github.com/devtron-labs/devtron/pkg/configDiff/bean"
 	"github.com/devtron-labs/devtron/pkg/configDiff/helper"
 	"github.com/devtron-labs/devtron/pkg/configDiff/utils"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret"
+	read2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
@@ -40,28 +42,29 @@ type DeploymentConfigurationService interface {
 }
 
 type DeploymentConfigurationServiceImpl struct {
-	logger                              *zap.SugaredLogger
-	configMapService                    pipeline.ConfigMapService
-	appRepository                       appRepository.AppRepository
-	environmentRepository               repository.EnvironmentRepository
-	chartService                        chartService.ChartService
-	deploymentTemplateService           generateManifest.DeploymentTemplateService
-	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository
-	pipelineStrategyHistoryRepository   repository3.PipelineStrategyHistoryRepository
-	configMapHistoryRepository          repository3.ConfigMapHistoryRepository
-	scopedVariableManager               variables.ScopedVariableCMCSManager
-	configMapRepository                 chartConfig.ConfigMapRepository
-	deploymentConfigService             pipeline.PipelineDeploymentConfigService
-	chartRefService                     chartRef.ChartRefService
-	pipelineRepository                  pipelineConfig.PipelineRepository
-	deploymentTemplateHistoryService    history.DeploymentTemplateHistoryService
-	configMapHistoryService             history.ConfigMapHistoryService
+	logger                               *zap.SugaredLogger
+	configMapService                     pipeline.ConfigMapService
+	appRepository                        appRepository.AppRepository
+	environmentRepository                repository4.EnvironmentRepository
+	chartService                         chartService.ChartService
+	deploymentTemplateService            generateManifest.DeploymentTemplateService
+	deploymentTemplateHistoryRepository  repository3.DeploymentTemplateHistoryRepository
+	pipelineStrategyHistoryRepository    repository3.PipelineStrategyHistoryRepository
+	configMapHistoryRepository           repository3.ConfigMapHistoryRepository
+	scopedVariableManager                variables.ScopedVariableCMCSManager
+	configMapRepository                  chartConfig.ConfigMapRepository
+	deploymentConfigService              pipeline.PipelineDeploymentConfigService
+	chartRefService                      chartRef.ChartRefService
+	pipelineRepository                   pipelineConfig.PipelineRepository
+	configMapHistoryService              configMapAndSecret.ConfigMapHistoryService
+	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService
+	configMapHistoryReadService          read2.ConfigMapHistoryReadService
 }
 
 func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
 	configMapService pipeline.ConfigMapService,
 	appRepository appRepository.AppRepository,
-	environmentRepository repository.EnvironmentRepository,
+	environmentRepository repository4.EnvironmentRepository,
 	chartService chartService.ChartService,
 	deploymentTemplateService generateManifest.DeploymentTemplateService,
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository,
@@ -72,26 +75,28 @@ func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
 	deploymentConfigService pipeline.PipelineDeploymentConfigService,
 	chartRefService chartRef.ChartRefService,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
-	configMapHistoryService history.ConfigMapHistoryService,
+	configMapHistoryService configMapAndSecret.ConfigMapHistoryService,
+	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService,
+	configMapHistoryReadService read2.ConfigMapHistoryReadService,
 ) (*DeploymentConfigurationServiceImpl, error) {
 	deploymentConfigurationService := &DeploymentConfigurationServiceImpl{
-		logger:                              logger,
-		configMapService:                    configMapService,
-		appRepository:                       appRepository,
-		environmentRepository:               environmentRepository,
-		chartService:                        chartService,
-		deploymentTemplateService:           deploymentTemplateService,
-		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
-		pipelineStrategyHistoryRepository:   pipelineStrategyHistoryRepository,
-		configMapHistoryRepository:          configMapHistoryRepository,
-		scopedVariableManager:               scopedVariableManager,
-		configMapRepository:                 configMapRepository,
-		deploymentConfigService:             deploymentConfigService,
-		chartRefService:                     chartRefService,
-		pipelineRepository:                  pipelineRepository,
-		deploymentTemplateHistoryService:    deploymentTemplateHistoryService,
-		configMapHistoryService:             configMapHistoryService,
+		logger:                               logger,
+		configMapService:                     configMapService,
+		appRepository:                        appRepository,
+		environmentRepository:                environmentRepository,
+		chartService:                         chartService,
+		deploymentTemplateService:            deploymentTemplateService,
+		deploymentTemplateHistoryRepository:  deploymentTemplateHistoryRepository,
+		pipelineStrategyHistoryRepository:    pipelineStrategyHistoryRepository,
+		configMapHistoryRepository:           configMapHistoryRepository,
+		scopedVariableManager:                scopedVariableManager,
+		configMapRepository:                  configMapRepository,
+		deploymentConfigService:              deploymentConfigService,
+		chartRefService:                      chartRefService,
+		pipelineRepository:                   pipelineRepository,
+		configMapHistoryService:              configMapHistoryService,
+		deploymentTemplateHistoryReadService: deploymentTemplateHistoryReadService,
+		configMapHistoryReadService:          configMapHistoryReadService,
 	}
 
 	return deploymentConfigurationService, nil
@@ -375,13 +380,13 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsDataForPreviousDeployment
 
 	configDataDto := &bean2.DeploymentAndCmCsConfigDto{}
 
-	deplTemplateHistory, err := impl.deploymentTemplateHistoryService.GetTemplateHistoryModelForDeployedTemplateById(deploymentTemplateHistoryId, pipelineId)
+	deplTemplateHistory, err := impl.deploymentTemplateHistoryReadService.GetTemplateHistoryModelForDeployedTemplateById(deploymentTemplateHistoryId, pipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment template history", "err", err, "deploymentTemplateHistoryId", deploymentTemplateHistoryId, "pipelineId", pipelineId)
 		return nil, err
 	}
 
-	secretConfigData, cmConfigData, err := impl.configMapHistoryService.GetConfigmapHistoryDataByDeployedOnAndPipelineId(ctx, pipelineId, deplTemplateHistory.DeployedOn, userHasAdminAccess)
+	secretConfigData, cmConfigData, err := impl.configMapHistoryReadService.GetConfigmapHistoryDataByDeployedOnAndPipelineId(ctx, pipelineId, deplTemplateHistory.DeployedOn, userHasAdminAccess)
 	if err != nil {
 		impl.logger.Errorw("error in getting secretData and cmData", "err", err, "deploymentTemplateHistoryId", deploymentTemplateHistoryId, "pipelineId", pipelineId)
 		return nil, err
@@ -393,7 +398,7 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsDataForPreviousDeployment
 func (impl *DeploymentConfigurationServiceImpl) getPipelineStrategyForPreviousDeployments(ctx context.Context, deploymentTemplateHistoryId, pipelineId int) (*bean2.DeploymentAndCmCsConfig, error) {
 	pipelineStrategyJson := json.RawMessage{}
 	pipelineConfig := bean2.NewDeploymentAndCmCsConfig()
-	deplTemplateHistory, err := impl.deploymentTemplateHistoryService.GetTemplateHistoryModelForDeployedTemplateById(deploymentTemplateHistoryId, pipelineId)
+	deplTemplateHistory, err := impl.deploymentTemplateHistoryReadService.GetTemplateHistoryModelForDeployedTemplateById(deploymentTemplateHistoryId, pipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment template history", "deploymentTemplateHistoryId", deploymentTemplateHistoryId, "pipelineId", pipelineId, "err", err)
 		return nil, err

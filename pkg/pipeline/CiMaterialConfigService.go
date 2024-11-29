@@ -18,8 +18,12 @@ package pipeline
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -45,8 +49,9 @@ type CiMaterialConfigService interface {
 
 type CiMaterialConfigServiceImpl struct {
 	logger                       *zap.SugaredLogger
-	materialRepo                 pipelineConfig.MaterialRepository
-	ciTemplateService            CiTemplateService
+	materialRepo                 repository.MaterialRepository
+	gitMaterialReadService       read.GitMaterialReadService
+	ciTemplateService            pipeline.CiTemplateReadService
 	ciCdPipelineOrchestrator     CiCdPipelineOrchestrator
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
 	gitMaterialHistoryService    history.GitMaterialHistoryService
@@ -57,14 +62,15 @@ type CiMaterialConfigServiceImpl struct {
 
 func NewCiMaterialConfigServiceImpl(
 	logger *zap.SugaredLogger,
-	materialRepo pipelineConfig.MaterialRepository,
-	ciTemplateService CiTemplateService,
+	materialRepo repository.MaterialRepository,
+	ciTemplateService pipeline.CiTemplateReadService,
 	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	gitMaterialHistoryService history.GitMaterialHistoryService,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	transactionManager sql.TransactionWrapper) *CiMaterialConfigServiceImpl {
+	transactionManager sql.TransactionWrapper,
+	gitMaterialReadService read.GitMaterialReadService) *CiMaterialConfigServiceImpl {
 
 	return &CiMaterialConfigServiceImpl{
 		logger:                       logger,
@@ -76,6 +82,7 @@ func NewCiMaterialConfigServiceImpl(
 		pipelineRepository:           pipelineRepository,
 		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
 		transactionManager:           transactionManager,
+		gitMaterialReadService:       gitMaterialReadService,
 	}
 }
 
@@ -117,7 +124,7 @@ func (impl *CiMaterialConfigServiceImpl) DeleteMaterial(request *bean.UpdateMate
 			}
 		}
 	}
-	existingMaterial, err := impl.materialRepo.FindById(request.Material.Id)
+	existingMaterial, err := impl.gitMaterialReadService.FindById(request.Material.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete", "gitMaterial", request.Material)
 		return err
@@ -181,7 +188,7 @@ func (impl *CiMaterialConfigServiceImpl) BulkPatchCiMaterialSource(ciPipelines *
 		ciPipelineMaterial, err := impl.ciCdPipelineOrchestrator.PatchCiMaterialSourceValue(ciPipeline, userId, ciPipelines.Value, token, checkAppSpecificAccess)
 
 		if err == nil {
-			ciPipelineMaterial.Type = pipelineConfig.SOURCE_TYPE_BRANCH_FIXED
+			ciPipelineMaterial.Type = constants.SOURCE_TYPE_BRANCH_FIXED
 			ciPipelineMaterials = append(ciPipelineMaterials, ciPipelineMaterial)
 		}
 		response.Apps = append(response.Apps, bean.CiMaterialPatchResponse{
@@ -200,7 +207,7 @@ func (impl *CiMaterialConfigServiceImpl) BulkPatchCiMaterialSource(ciPipelines *
 }
 
 func (impl *CiMaterialConfigServiceImpl) GetMaterialsForAppId(appId int) []*bean.GitMaterial {
-	materials, err := impl.materialRepo.FindByAppId(appId)
+	materials, err := impl.gitMaterialReadService.FindByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching materials", "appId", appId, "err", err)
 	}

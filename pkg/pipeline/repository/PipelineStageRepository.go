@@ -65,6 +65,15 @@ type PipelineStage struct {
 	sql.AuditLog
 }
 
+func (ps *PipelineStage) IsPipelineStageExists() bool {
+	if ps == nil {
+		return false
+	}
+	// if id is not 0 then it exists; special case id is -1 for dummy stage.
+	// Dummy stage is used if no stage is found for a pipeline but mandatory stage plugins is required.
+	return ps.Id != 0
+}
+
 type PipelineStageStep struct {
 	tableName                struct{}         `sql:"pipeline_stage_step" pg:",discard_unknown_columns"`
 	Id                       int              `sql:"id,pk"`
@@ -286,7 +295,8 @@ func (impl *PipelineStageRepositoryImpl) GetCdStageByCdPipelineIdAndStageType(cd
 	err := impl.dbConnection.Model(&pipelineStage).
 		Where("cd_pipeline_id = ?", cdPipelineId).
 		Where("type = ?", stageType).
-		Where("deleted = ?", false).Select()
+		Where("deleted = ?", false).
+		Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting cd stage by cdPipelineId", "err", err, "cdPipelineId", cdPipelineId)
 		return nil, err

@@ -27,14 +27,15 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/stretchr/testify/assert"
@@ -76,7 +77,7 @@ func getWorkflowServiceImpl(t *testing.T) *WorkflowServiceImpl {
 	clusterService := cluster.NewClusterServiceImpl(clusterRepositoryImpl, logger, k8sUtil, k8sInformerFactoryImpl, nil, nil, nil)
 	k8sCommonServiceImpl := k8s2.NewK8sCommonServiceImpl(logger, k8sUtil, clusterService, nil)
 	appStatusRepositoryImpl := appStatus.NewAppStatusRepositoryImpl(dbConnection, logger)
-	environmentRepositoryImpl := repository3.NewEnvironmentRepositoryImpl(dbConnection, logger, appStatusRepositoryImpl)
+	environmentRepositoryImpl := repository2.NewEnvironmentRepositoryImpl(dbConnection, logger, appStatusRepositoryImpl)
 	argoWorkflowExecutorImpl := executors.NewArgoWorkflowExecutorImpl(logger)
 	workflowServiceImpl, _ := NewWorkflowServiceImpl(logger, environmentRepositoryImpl, ciCdConfig, appService, globalCMCSServiceImpl, argoWorkflowExecutorImpl, k8sUtil, nil, k8sCommonServiceImpl, nil)
 	return workflowServiceImpl
@@ -170,13 +171,13 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			RefPlugins:                 nil,
 			AppName:                    "app",
 			TriggerByAuthor:            "admin",
-			CiBuildConfig: &CiPipeline.CiBuildConfigBean{
+			CiBuildConfig: &bean.CiBuildConfigBean{
 				Id:                        1,
 				GitMaterialId:             0,
 				BuildContextGitMaterialId: 1,
 				UseRootBuildContext:       true,
 				CiBuildType:               "self-dockerfile-build",
-				DockerBuildConfig: &CiPipeline.DockerBuildConfig{
+				DockerBuildConfig: &bean.DockerBuildConfig{
 					DockerfilePath:         "Dockerfile",
 					DockerfileContent:      "",
 					Args:                   nil,
@@ -306,13 +307,13 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			RefPlugins:                 nil,
 			AppName:                    "app",
 			TriggerByAuthor:            "admin",
-			CiBuildConfig: &CiPipeline.CiBuildConfigBean{
+			CiBuildConfig: &bean.CiBuildConfigBean{
 				Id:                        1,
 				GitMaterialId:             0,
 				BuildContextGitMaterialId: 1,
 				UseRootBuildContext:       true,
 				CiBuildType:               "self-dockerfile-build",
-				DockerBuildConfig: &CiPipeline.DockerBuildConfig{
+				DockerBuildConfig: &bean.DockerBuildConfig{
 					DockerfilePath:         "Dockerfile",
 					DockerfileContent:      "",
 					Args:                   nil,
@@ -485,7 +486,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			RefPlugins:      nil,
 			AppName:         "job/f1851uikJ",
 			TriggerByAuthor: "admin",
-			CiBuildConfig: &CiPipeline.CiBuildConfigBean{
+			CiBuildConfig: &bean.CiBuildConfigBean{
 				Id:                        2,
 				GitMaterialId:             0,
 				BuildContextGitMaterialId: 0,
@@ -682,7 +683,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			RefPlugins:      nil,
 			AppName:         "",
 			TriggerByAuthor: "admin",
-			CiBuildConfig: &CiPipeline.CiBuildConfigBean{
+			CiBuildConfig: &bean.CiBuildConfigBean{
 				Id:                        2,
 				GitMaterialId:             0,
 				BuildContextGitMaterialId: 0,
@@ -705,7 +706,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			IsExtRun:                  false,
 			ImageRetryCount:           0,
 			ImageRetryInterval:        5,
-			Env: &repository3.Environment{
+			Env: &repository2.Environment{
 				Id:        3,
 				Name:      "2-devtron",
 				ClusterId: 2,

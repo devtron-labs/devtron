@@ -30,9 +30,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/plugin/utils"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"golang.org/x/mod/semver"
 	"net/http"
 	"strings"
 	"time"
@@ -76,9 +76,9 @@ type GlobalPluginService interface {
 
 	CreatePluginOrVersions(pluginDto *bean2.PluginParentMetadataDto, userId int32) (int, error)
 	ListAllPluginsV2(filter *bean2.PluginsListFilter) (*bean2.PluginsDto, error)
-	GetPluginDetailV2(pluginVersionIds, parentPluginIds []int, fetchAllVersionDetails bool) (*bean2.PluginsDto, error)
+	GetPluginDetailV2(queryParams bean2.GlobalPluginDetailsRequest) (*bean2.PluginsDto, error)
 	GetAllUniqueTags() (*bean2.PluginTagsDto, error)
-	GetAllPluginMinData() ([]*bean2.PluginMinDto, error)
+	GetAllPluginMinData(pluginType bean2.PluginType) ([]*bean2.PluginMinDto, error)
 	MigratePluginData() error
 }
 
@@ -228,7 +228,7 @@ func (impl *GlobalPluginServiceImpl) ListAllPlugins(stageTypeReq string) ([]*bea
 
 	//getting all plugins metadata(without tags)
 	if len(stageTypeReq) == 0 {
-		pluginsMetadata, err = impl.globalPluginRepository.GetMetaDataForAllPlugins()
+		pluginsMetadata, err = impl.globalPluginRepository.GetMetaDataForAllPlugins(true)
 		if err != nil {
 			impl.logger.Errorw("error in getting plugins", "err", err)
 			return nil, err
@@ -400,6 +400,21 @@ func (impl *GlobalPluginServiceImpl) GetRefPluginIdByRefPluginName(pluginName st
 		})
 	}
 	return pluginVersionDetail, nil
+}
+
+func (impl *GlobalPluginServiceImpl) GetParentPluginIdByIdentifiers(identifiers ...string) (pluginParentIds []int, err error) {
+	if len(identifiers) == 0 {
+		return pluginParentIds, nil
+	}
+	pluginParentsMetadata, err := impl.globalPluginRepository.GetPluginParentsMetadataByIdentifiers(identifiers...)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in GetPluginParentsMetadataByIdentifiers", "pluginIdentifiers", identifiers, "err", err)
+		return pluginParentIds, err
+	}
+	for _, pluginParentMetadata := range pluginParentsMetadata {
+		pluginParentIds = append(pluginParentIds, pluginParentMetadata.Id)
+	}
+	return sliceUtil.GetUniqueElements(pluginParentIds), nil
 }
 
 func (impl *GlobalPluginServiceImpl) PatchPlugin(pluginDto *bean2.PluginMetadataDto, userId int32) (*bean2.PluginMetadataDto, error) {
@@ -1734,7 +1749,7 @@ func (impl *GlobalPluginServiceImpl) GetPluginParentMetadataDtos(parentIdVsPlugi
 
 func (impl *GlobalPluginServiceImpl) ListAllPluginsV2(filter *bean2.PluginsListFilter) (*bean2.PluginsDto, error) {
 	impl.logger.Infow("request received, ListAllPluginsV2", "filter", filter)
-	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins()
+	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins(true)
 	if err != nil {
 		impl.logger.Errorw("ListAllPluginsV2, error in getting plugins", "err", err)
 		return nil, err
@@ -1798,25 +1813,31 @@ func (impl *GlobalPluginServiceImpl) validateDetailRequest(pluginVersions []*rep
 
 // GetPluginDetailV2 returns all details of the of a plugin version according to the pluginVersionIds and parentPluginIds
 // provided by user, and minimal data for all versions of that plugin.
-func (impl *GlobalPluginServiceImpl) GetPluginDetailV2(pluginVersionIds, parentPluginIds []int, fetchAllVersionDetails bool) (*bean2.PluginsDto, error) {
-	var err error
-	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins()
+func (impl *GlobalPluginServiceImpl) GetPluginDetailV2(queryParams bean2.GlobalPluginDetailsRequest) (*bean2.PluginsDto, error) {
+	additionalPluginParentIds, err := impl.GetParentPluginIdByIdentifiers(queryParams.ParentPluginIdentifiers...)
+	if err != nil {
+		impl.logger.Errorw("GetPluginDetailV2, error in getting additional plugin parent ids", "err", err)
+		return nil, err
+	}
+	queryParams.ParentPluginIds = append(queryParams.ParentPluginIds, additionalPluginParentIds...)
+	queryParams.ParentPluginIds = sliceUtil.GetUniqueElements(queryParams.ParentPluginIds)
+	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins(false)
 	if err != nil {
 		impl.logger.Errorw("GetPluginDetailV2, error in getting all plugins versions metadata", "err", err)
 		return nil, err
 	}
-	err = impl.validateDetailRequest(pluginVersionsMetadata, pluginVersionIds, parentPluginIds)
+	err = impl.validateDetailRequest(pluginVersionsMetadata, queryParams.PluginIds, queryParams.ParentPluginIds)
 	if err != nil {
 		return nil, err
 	}
-	pluginParentMetadataDtos := make([]*bean2.PluginParentMetadataDto, 0, len(pluginVersionIds)+len(parentPluginIds))
-	if len(pluginVersionIds) == 0 && len(parentPluginIds) == 0 {
+	pluginParentMetadataDtos := make([]*bean2.PluginParentMetadataDto, 0, len(queryParams.PluginIds)+len(queryParams.ParentPluginIds))
+	if len(queryParams.PluginIds) == 0 && len(queryParams.ParentPluginIds) == 0 {
 		return nil, util.GetApiError(http.StatusBadRequest, bean2.NoPluginOrParentIdProvidedErr, bean2.NoPluginOrParentIdProvidedErr)
 	}
-	pluginVersionIdsMap, parentPluginIdsMap := helper2.GetPluginVersionAndParentPluginIdsMap(pluginVersionIds, parentPluginIds)
+	pluginVersionIdsMap, parentPluginIdsMap := helper2.GetPluginVersionAndParentPluginIdsMap(queryParams.PluginIds, queryParams.ParentPluginIds)
 
-	pluginParentMetadataIds := make([]int, 0, len(pluginVersionIds)+len(parentPluginIds))
-	pluginVersionsIdToInclude := make(map[int]bool, len(pluginVersionIds)+len(parentPluginIds))
+	pluginParentMetadataIds := make([]int, 0, len(queryParams.PluginIds)+len(queryParams.ParentPluginIds))
+	pluginVersionsIdToInclude := make(map[int]bool, len(queryParams.PluginIds)+len(queryParams.ParentPluginIds))
 
 	filteredPluginVersionMetadata := helper2.GetPluginVersionsMetadataByVersionAndParentPluginIds(pluginVersionsMetadata, pluginVersionIdsMap, parentPluginIdsMap)
 	if len(filteredPluginVersionMetadata) == 0 {
@@ -1824,7 +1845,7 @@ func (impl *GlobalPluginServiceImpl) GetPluginDetailV2(pluginVersionIds, parentP
 	}
 	for _, version := range filteredPluginVersionMetadata {
 		_, found := pluginVersionIdsMap[version.Id]
-		wantDetailedData := found || fetchAllVersionDetails || version.IsLatest
+		wantDetailedData := found || queryParams.FetchAllVersionDetails || version.IsLatest
 		if wantDetailedData {
 			pluginVersionsIdToInclude[version.Id] = true
 		}
@@ -1863,7 +1884,7 @@ func (impl *GlobalPluginServiceImpl) GetAllUniqueTags() (*bean2.PluginTagsDto, e
 }
 
 func (impl *GlobalPluginServiceImpl) MigratePluginData() error {
-	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins()
+	pluginVersionsMetadata, err := impl.globalPluginRepository.GetMetaDataForAllPlugins(false)
 	if err != nil {
 		impl.logger.Errorw("MigratePluginData, error in getting plugins", "err", err)
 		return err
@@ -1942,19 +1963,22 @@ func (impl *GlobalPluginServiceImpl) MigratePluginDataToParentPluginMetadata(plu
 	return nil
 }
 
-func (impl *GlobalPluginServiceImpl) GetAllPluginMinData() ([]*bean2.PluginMinDto, error) {
-	pluginsParentMinData, err := impl.globalPluginRepository.GetAllPluginMinData()
+func (impl *GlobalPluginServiceImpl) GetAllPluginMinData(pluginType bean2.PluginType) ([]*bean2.PluginMinDto, error) {
+	pluginsParentMinData, err := impl.globalPluginRepository.GetAllPluginMinDataByType(pluginType.ToString())
 	if err != nil {
 		impl.logger.Errorw("GetAllPluginMinData, error in getting all plugin parent metadata min data", "err", err)
 		return nil, err
 	}
 	pluginMinList := make([]*bean2.PluginMinDto, 0, len(pluginsParentMinData))
 	for _, item := range pluginsParentMinData {
-		//since creating new version of preset plugin is disabled for end user, hence ignoring PRESET plugin in min list
-		if item.Type == repository.PLUGIN_TYPE_PRESET {
-			continue
-		}
-		pluginMinList = append(pluginMinList, bean2.NewPluginMinDto().WithParentPluginId(item.Id).WithPluginName(item.Name).WithIcon(item.Icon))
+		pluginMinList = append(pluginMinList,
+			bean2.NewPluginMinDto().
+				WithParentPluginId(item.Id).
+				WithPluginName(item.Name).
+				WithPluginIdentifier(item.Identifier).
+				WithPluginType(item.Type).
+				WithIcon(item.Icon),
+		)
 	}
 	return pluginMinList, nil
 }
@@ -2013,12 +2037,10 @@ func (impl *GlobalPluginServiceImpl) validateV2PluginRequest(pluginReq *bean2.Pl
 		}
 	}
 	version := pluginReq.Versions.DetailedPluginVersionData[0].Version
-	if !strings.Contains(version, "v") {
-		version = fmt.Sprintf("v%s", version)
-	}
+
 	// semantic versioning validation on plugin's version
-	if !semver.IsValid(version) {
-		return util.GetApiError(http.StatusBadRequest, bean2.PluginVersionNotSemanticallyCorrectError, bean2.PluginVersionNotSemanticallyCorrectError)
+	if err := utils.ValidatePluginVersion(version); err != nil {
+		return err
 	}
 	//validate icon url and size
 	if len(pluginReq.Icon) > 0 {
