@@ -353,7 +353,7 @@
             "type":"integer",
             "description": "    Specifies the number of retries before marking this job failed. Defaults is 5"
           },
-          "completions"{
+          "completions":{
             "type":"integer",
             "description": "Specifies the desired number of successfully finished pods the job should be run with. More info:  https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/"
         },
