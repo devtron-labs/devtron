@@ -9,6 +9,7 @@
 - feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
+- misc:  adding pr validator for fork prs as gh command will not work (#6143)
 - misc: adding validation for public repo (#6137)
 - misc: Update pull_request_template.md (#6134)
 - misc: authenticator panic fix (#6131)
