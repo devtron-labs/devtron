@@ -378,25 +378,20 @@ func (impl *DeploymentConfigurationServiceImpl) encodeSecretDataFromNonAdminUser
 	}
 }
 
-func (impl *DeploymentConfigurationServiceImpl) getCmCsDataForPreviousDeployments(ctx context.Context, deploymentTemplateHistoryId, pipelineId int, userHasAdminAccess bool) (*bean2.DeploymentAndCmCsConfigDto, error) {
+func (impl *DeploymentConfigurationServiceImpl) getCmCsDataForPreviousDeployments(ctx context.Context, wfrId, pipelineId int, userHasAdminAccess bool) (*bean2.DeploymentAndCmCsConfigDto, error) {
 
 	configDataDto := &bean2.DeploymentAndCmCsConfigDto{}
 
-	deplTemplateHistory, err := impl.deploymentTemplateHistoryReadService.GetTemplateHistoryModelForDeployedTemplateById(deploymentTemplateHistoryId, pipelineId)
+	cmConfigData, err := impl.configMapHistoryReadService.GetCmCsHistoryByWfrIdAndPipelineId(ctx, pipelineId, wfrId, repository3.CONFIGMAP_TYPE, userHasAdminAccess)
 	if err != nil {
-		impl.logger.Errorw("error in getting deployment template history", "err", err, "deploymentTemplateHistoryId", deploymentTemplateHistoryId, "pipelineId", pipelineId)
-		return nil, err
-	}
-	cmConfigData, err := impl.configMapHistoryReadService.GetCmCsHistoryByDeployedOnAndPipelineId(ctx, pipelineId, deplTemplateHistory.DeployedOn, repository3.CONFIGMAP_TYPE, userHasAdminAccess)
-	if err != nil {
-		impl.logger.Errorw("error in getting secretData and cmData", "err", err, "deploymentTemplateHistoryId", deploymentTemplateHistoryId, "pipelineId", pipelineId)
+		impl.logger.Errorw("error in getting secretData and cmData", "err", err, "wfrId", wfrId, "pipelineId", pipelineId)
 		return nil, err
 	}
 	configDataDto.WithConfigMapData(cmConfigData)
 	if userHasAdminAccess {
-		secretConfigData, err := impl.configMapHistoryReadService.GetCmCsHistoryByDeployedOnAndPipelineId(ctx, pipelineId, deplTemplateHistory.DeployedOn, repository3.SECRET_TYPE, userHasAdminAccess)
+		secretConfigData, err := impl.configMapHistoryReadService.GetCmCsHistoryByWfrIdAndPipelineId(ctx, pipelineId, wfrId, repository3.SECRET_TYPE, userHasAdminAccess)
 		if err != nil {
-			impl.logger.Errorw("error in getting secretData and cmData", "err", err, "deploymentTemplateHistoryId", deploymentTemplateHistoryId, "pipelineId", pipelineId)
+			impl.logger.Errorw("error in getting secretData and cmData", "err", err, "wfrId", wfrId, "pipelineId", pipelineId)
 			return nil, err
 		}
 		configDataDto.WithSecretData(secretConfigData)
@@ -405,47 +400,44 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsDataForPreviousDeployment
 	return configDataDto, nil
 
 }
-func (impl *DeploymentConfigurationServiceImpl) getPipelineStrategyForPreviousDeployments(ctx context.Context, deploymentTemplateHistoryId, pipelineId int) (*bean2.DeploymentAndCmCsConfig, error) {
+func (impl *DeploymentConfigurationServiceImpl) getPipelineStrategyForPreviousDeployments(ctx context.Context, wfrId, pipelineId int) (*bean2.DeploymentAndCmCsConfig, error) {
 	pipelineStrategyJson := json.RawMessage{}
 	pipelineConfig := bean2.NewDeploymentAndCmCsConfig()
-	deplTemplateHistory, err := impl.deploymentTemplateHistoryReadService.GetTemplateHistoryModelForDeployedTemplateById(deploymentTemplateHistoryId, pipelineId)
-	if err != nil {
-		impl.logger.Errorw("error in getting deployment template history", "deploymentTemplateHistoryId", deploymentTemplateHistoryId, "pipelineId", pipelineId, "err", err)
-		return nil, err
-	}
-	pipelineStrategyHistory, err := impl.pipelineStrategyHistoryRepository.FindPipelineStrategyForDeployedOnAndPipelineId(pipelineId, deplTemplateHistory.DeployedOn)
+	pipelineStrategyHistory, err := impl.pipelineStrategyHistoryRepository.GetHistoryByPipelineIdAndWfrId(ctx, pipelineId, wfrId)
 	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Errorw("error in FindPipelineStrategyForDeployedOnAndPipelineId", "deploymentTemplateHistoryId", deploymentTemplateHistoryId, "deployedOn", deplTemplateHistory.DeployedOn, "pipelineId", pipelineId, "err", err)
+		impl.logger.Errorw("error in FindPipelineStrategyForDeployedOnAndPipelineId", "wfrId", wfrId, "pipelineId", pipelineId, "err", err)
 		return nil, err
 	} else if util.IsErrNoRows(err) {
 		return pipelineConfig, nil
 	}
-	err = pipelineStrategyJson.UnmarshalJSON([]byte(pipelineStrategyHistory.Config))
-	if err != nil {
-		impl.logger.Errorw("getDeploymentTemplateForEnvLevel, error in unmarshalling string  pipelineStrategyHistory data into json Raw message", "err", err)
-		return nil, err
+	if pipelineStrategyHistory != nil {
+		err = pipelineStrategyJson.UnmarshalJSON([]byte(pipelineStrategyHistory.Config))
+		if err != nil {
+			impl.logger.Errorw("getDeploymentTemplateForEnvLevel, error in unmarshalling string  pipelineStrategyHistory data into json Raw message", "err", err)
+			return nil, err
+		}
+		pipelineConfig.WithConfigData(pipelineStrategyJson).
+			WithResourceType(bean.PipelineStrategy).
+			WithPipelineStrategyMetadata(pipelineStrategyHistory.PipelineTriggerType, string(pipelineStrategyHistory.Strategy))
 	}
-	pipelineConfig.WithConfigData(pipelineStrategyJson).
-		WithResourceType(bean.PipelineStrategy).
-		WithPipelineStrategyMetadata(pipelineStrategyHistory.PipelineTriggerType, string(pipelineStrategyHistory.Strategy))
 	return pipelineConfig, nil
 }
 
-func (impl *DeploymentConfigurationServiceImpl) getDeploymentsConfigForPreviousDeployments(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams,
-	appId, envId int) (generateManifest.DeploymentTemplateResponse, error) {
-	deploymentTemplateRequest := generateManifest.DeploymentTemplateRequest{
-		PipelineId:                  configDataQueryParams.PipelineId,
-		DeploymentTemplateHistoryId: configDataQueryParams.IdentifierId,
-		RequestDataMode:             generateManifest.Values,
-		Type:                        repository2.DeployedOnSelfEnvironment,
-	}
+func (impl *DeploymentConfigurationServiceImpl) getDeploymentsConfigForPreviousDeployments(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams) (generateManifest.DeploymentTemplateResponse, error) {
+
 	var deploymentTemplateResponse generateManifest.DeploymentTemplateResponse
-	deploymentTemplateResponse, err := impl.deploymentTemplateService.GetDeploymentTemplate(ctx, deploymentTemplateRequest)
+	deplTemplate, err := impl.deploymentTemplateHistoryReadService.GetDeployedHistoryByPipelineIdAndWfrId(ctx, configDataQueryParams.PipelineId, configDataQueryParams.WfrId)
 	if err != nil {
-		impl.logger.Errorw("getDeploymentTemplateForEnvLevel, error in getting deployment template for ", "deploymentTemplateRequest", deploymentTemplateRequest, "err", err)
+		impl.logger.Errorw("getDeploymentsConfigForPreviousDeployments, error in getting deployment template  by pipelineId and wfrId ", "pipelineId", configDataQueryParams.PipelineId, "wfrId", configDataQueryParams.WfrId, "err", err)
 		return deploymentTemplateResponse, err
 	}
-
+	deploymentTemplateResponse = generateManifest.DeploymentTemplateResponse{
+		Data:                deplTemplate.CodeEditorValue.Value,
+		ResolvedData:        deplTemplate.CodeEditorValue.ResolvedValue,
+		VariableSnapshot:    deplTemplate.CodeEditorValue.VariableSnapshot,
+		TemplateVersion:     deplTemplate.TemplateVersion,
+		IsAppMetricsEnabled: *deplTemplate.IsAppMetricsEnabled,
+	}
 	return deploymentTemplateResponse, nil
 }
 
@@ -453,29 +445,29 @@ func (impl *DeploymentConfigurationServiceImpl) getDeploymentAndCmCsConfigDataFo
 	appId, envId int, userHasAdminAccess bool) (*bean2.DeploymentAndCmCsConfigDto, error) {
 
 	// getting DeploymentAndCmCsConfigDto obj with cm and cs data populated
-	configDataDto, err := impl.getCmCsDataForPreviousDeployments(ctx, configDataQueryParams.IdentifierId, configDataQueryParams.PipelineId, userHasAdminAccess)
+	configDataDto, err := impl.getCmCsDataForPreviousDeployments(ctx, configDataQueryParams.WfrId, configDataQueryParams.PipelineId, userHasAdminAccess)
 	if err != nil {
-		impl.logger.Errorw("error in getting cm cs for PreviousDeployments state", "deploymentTemplateHistoryId", configDataQueryParams.IdentifierId, "pipelineId", configDataQueryParams.PipelineId, "err", err)
+		impl.logger.Errorw("error in getting cm cs for PreviousDeployments state", "configDataQueryParams", configDataQueryParams, "err", err)
 		return nil, err
 	}
-	pipelineStrategy, err := impl.getPipelineStrategyForPreviousDeployments(ctx, configDataQueryParams.IdentifierId, configDataQueryParams.PipelineId)
+	pipelineStrategy, err := impl.getPipelineStrategyForPreviousDeployments(ctx, configDataQueryParams.WfrId, configDataQueryParams.PipelineId)
 	if err != nil {
-		impl.logger.Errorw(" error in getting cm cs for PreviousDeployments state", "deploymentTemplateHistoryId", configDataQueryParams.IdentifierId, "pipelineId", configDataQueryParams.PipelineId, "err", err)
+		impl.logger.Errorw(" error in getting cm cs for PreviousDeployments state", "configDataQueryParams", configDataQueryParams, "err", err)
 		return nil, err
 	}
 	if len(pipelineStrategy.Data) > 0 {
 		configDataDto.WithPipelineConfigData(pipelineStrategy)
 	}
 
-	deploymentTemplateData, err := impl.getDeploymentsConfigForPreviousDeployments(ctx, configDataQueryParams, appId, envId)
+	deploymentTemplateData, err := impl.getDeploymentsConfigForPreviousDeployments(ctx, configDataQueryParams)
 	if err != nil {
-		impl.logger.Errorw("error in getting deployment config", "appName", configDataQueryParams.AppName, "envName", configDataQueryParams.EnvName, "err", err)
+		impl.logger.Errorw("error in getting deployment config", "configDataQueryParams", configDataQueryParams, "err", err)
 		return nil, err
 	}
 	deploymentJson := json.RawMessage{}
 	err = deploymentJson.UnmarshalJSON([]byte(deploymentTemplateData.Data))
 	if err != nil {
-		impl.logger.Errorw("error in unmarshalling string  deploymentTemplateResponse data into json Raw message", "appName", configDataQueryParams.AppName, "envName", configDataQueryParams.EnvName, "err", err)
+		impl.logger.Errorw("error in unmarshalling string  deploymentTemplateResponse data into json Raw message", "configDataQueryParams", configDataQueryParams, "err", err)
 		return nil, err
 	}
 	variableSnapShotMap := map[string]map[string]string{bean.DeploymentTemplate.ToString(): deploymentTemplateData.VariableSnapshot}

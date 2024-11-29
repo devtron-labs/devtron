@@ -26,7 +26,7 @@ type ConfigMapHistoryReadService interface {
 	CheckIfTriggerHistoryExistsForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (cmId int, csId int, exists bool, err error)
 	GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int, configType repository.ConfigType, userHasAdminAccess bool) ([]*bean.ComponentLevelHistoryDetailDto, error)
 	ConvertConfigDataToComponentLevelDto(config *bean2.ConfigData, configType repository.ConfigType, userHasAdminAccess bool) (*bean.ComponentLevelHistoryDetailDto, error)
-	GetCmCsHistoryByDeployedOnAndPipelineId(ctx context.Context, pipelineId int, deployedOn time.Time, configType repository.ConfigType, userHasAdminAccess bool) (*bean3.DeploymentAndCmCsConfig, error)
+	GetCmCsHistoryByWfrIdAndPipelineId(ctx context.Context, pipelineId int, wfrId int, configType repository.ConfigType, userHasAdminAccess bool) (*bean3.DeploymentAndCmCsConfig, error)
 	GetCmCsListObjectFromHistory(history *repository.ConfigmapAndSecretHistory) (*bean4.ConfigsList, *bean4.SecretsList, error)
 }
 
@@ -364,22 +364,22 @@ func (impl *ConfigMapHistoryReadServiceImpl) ConvertConfigDataToComponentLevelDt
 	return componentLevelData, nil
 }
 
-func (impl *ConfigMapHistoryReadServiceImpl) GetCmCsHistoryByDeployedOnAndPipelineId(ctx context.Context, pipelineId int, deployedOn time.Time, configType repository.ConfigType, userHasAdminAccess bool) (*bean3.DeploymentAndCmCsConfig, error) {
-	configData, err := impl.getResolvedConfigData(ctx, pipelineId, deployedOn, configType, userHasAdminAccess)
+func (impl *ConfigMapHistoryReadServiceImpl) GetCmCsHistoryByWfrIdAndPipelineId(ctx context.Context, pipelineId int, wfrId int, configType repository.ConfigType, userHasAdminAccess bool) (*bean3.DeploymentAndCmCsConfig, error) {
+	configData, err := impl.getResolvedConfigData(ctx, pipelineId, wfrId, configType, userHasAdminAccess)
 	if err != nil {
-		impl.logger.Errorw("error in getting resolved secret/cm config data in case of previous deployments ", "pipelineId", pipelineId, "deployedOn", deployedOn, "err", err)
+		impl.logger.Errorw("error in getting resolved secret/cm config data in case of previous deployments ", "pipelineId", pipelineId, "wfrId", wfrId, "err", err)
 		return nil, err
 	}
 	return configData, nil
 }
 
-func (impl *ConfigMapHistoryReadServiceImpl) getResolvedConfigData(ctx context.Context, pipelineId int, deployedOn time.Time, configType repository.ConfigType, userHasAdminAccess bool) (*bean3.DeploymentAndCmCsConfig, error) {
+func (impl *ConfigMapHistoryReadServiceImpl) getResolvedConfigData(ctx context.Context, pipelineId int, wfrId int, configType repository.ConfigType, userHasAdminAccess bool) (*bean3.DeploymentAndCmCsConfig, error) {
 	configsList := &bean4.ConfigsList{}
 	secretsList := &bean4.SecretsList{}
 	var err error
-	history, err := impl.configMapHistoryRepository.GetDeployedHistoryByPipelineIdAndDeployedOn(pipelineId, deployedOn, configType)
+	history, err := impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId, configType)
 	if err != nil {
-		impl.logger.Errorw("error in getting deployed history by pipeline id and deployed on", "pipelineId", pipelineId, "deployedOn", deployedOn, "err", err)
+		impl.logger.Errorw("error in getting deployed history by pipeline id and deployed on", "pipelineId", pipelineId, "wfrId", wfrId, "err", err)
 		return nil, err
 	}
 	if configType == repository.SECRET_TYPE {
@@ -418,13 +418,13 @@ func (impl *ConfigMapHistoryReadServiceImpl) getResolvedConfigData(ctx context.C
 
 	configDataJson, err := utils.ConvertToJsonRawMessage(configDataReq)
 	if err != nil {
-		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in converting config data to json raw message", "pipelineId", pipelineId, "deployedOn", deployedOn, "err", err)
+		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in converting config data to json raw message", "pipelineId", pipelineId, "wfrId", wfrId, "err", err)
 		return nil, err
 	}
 	resolvedConfigDataReq := &bean4.ConfigDataRequest{ConfigData: resolvedConfigDataList}
 	resolvedConfigDataString, err := utils.ConvertToString(resolvedConfigDataReq)
 	if err != nil {
-		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in converting config data to json raw message", "pipelineId", pipelineId, "deployedOn", deployedOn, "err", err)
+		impl.logger.Errorw("getCmCsPublishedConfigResponse, error in converting config data to json raw message", "pipelineId", pipelineId, "wfrId", wfrId, "err", err)
 		return nil, err
 	}
 	resolvedConfigDataStringJson, err := utils.ConvertToJsonRawMessage(resolvedConfigDataString)
