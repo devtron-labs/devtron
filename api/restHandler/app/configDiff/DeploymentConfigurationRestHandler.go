@@ -155,10 +155,13 @@ func (handler *DeploymentConfigurationRestHandlerImpl) CompareCategoryWiseConfig
 	}
 	vars := mux.Vars(r)
 	configCategory := vars["resource"]
+
+	v := r.URL.Query()
+	comparisonReqString := v.Get("compareConfig")
 	var comparisonRequestDto bean.ComparisonRequestDto
-	err = json.NewDecoder(r.Body).Decode(&comparisonRequestDto)
+	err = json.Unmarshal([]byte(comparisonReqString), &comparisonRequestDto)
 	if err != nil {
-		handler.logger.Errorw("error in decoding request body", "err", err)
+		handler.logger.Errorw("error in unmarshalling stringified json query param", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
