@@ -41,12 +41,12 @@ func (impl *InfraConfigRouterImpl) InitInfraConfigRouter(configRouter *mux.Route
 	//	HandlerFunc(impl.infraConfigRestHandler.UpdateInfraProfileV0).
 	//	Methods("PUT")
 
-	configRouter.Path("/profile").
+	configRouter.Path("/profile/alpha1").
 		Queries("name", "{name}").
 		HandlerFunc(impl.infraConfigRestHandler.GetProfile).
 		Methods("GET")
 
-	configRouter.Path("/profile").
+	configRouter.Path("/profile/alpha1").
 		Queries("name", "{name}").
 		HandlerFunc(impl.infraConfigRestHandler.UpdateInfraProfile).
 		Methods("PUT")
