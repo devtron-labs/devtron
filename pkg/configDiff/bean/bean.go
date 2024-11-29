@@ -246,8 +246,6 @@ type ComparisonItemRequestDto struct {
 }
 
 type ComparisonRequestDto struct {
-	AppName         string                      `json:"appName"`
-	EnvName         string                      `json:"envName"`
 	ComparisonItems []*ComparisonItemRequestDto `json:"comparisonItems"` // comparisonItems contains array of objects that a user wants to compare
 }
 
@@ -258,12 +256,11 @@ func (r *ComparisonRequestDto) UpdateUserIdInComparisonItems(userId int32) {
 	}
 }
 
-func (r *ComparisonRequestDto) UpdateAppAndEnvNameInComparisonItems(appName, envName string) {
+func (r *ComparisonRequestDto) GetAppName() string {
 	for _, item := range r.ComparisonItems {
-		item.EnvName = envName
-		item.AppName = appName
-
+		return item.AppName
 	}
+	return ""
 }
 
 type ComparisonResponseDto struct {

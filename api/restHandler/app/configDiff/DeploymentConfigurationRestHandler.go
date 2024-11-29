@@ -172,11 +172,11 @@ func (handler *DeploymentConfigurationRestHandlerImpl) CompareCategoryWiseConfig
 	}
 
 	comparisonRequestDto.UpdateUserIdInComparisonItems(userId)
-	comparisonRequestDto.UpdateAppAndEnvNameInComparisonItems(comparisonRequestDto.AppName, comparisonRequestDto.EnvName)
+	appName := comparisonRequestDto.GetAppName()
 
 	//RBAC START
 	token := r.Header.Get(common.TokenHeaderKey)
-	object := handler.enforcerUtil.GetAppRBACName(comparisonRequestDto.AppName)
+	object := handler.enforcerUtil.GetAppRBACName(appName)
 
 	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
 	if !ok {
@@ -188,7 +188,7 @@ func (handler *DeploymentConfigurationRestHandlerImpl) CompareCategoryWiseConfig
 	//or not while resolving scope variable.
 	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
 	//userHasAdminAccess is required to mask secrets in the response after scope resolution.
-	userHasAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object)
+	userHasAdminAccess := handler.checkIfUserHasAdminAccessForLeastPrivilegeEnv(token, comparisonRequestDto)
 
 	ctx := util2.SetSuperAdminInContext(r.Context(), isSuperAdmin)
 	res, err := handler.deploymentConfigurationService.CompareCategoryWiseConfigData(ctx, comparisonRequestDto, userHasAdminAccess)
@@ -200,4 +200,16 @@ func (handler *DeploymentConfigurationRestHandlerImpl) CompareCategoryWiseConfig
 	//res.IsAppAdmin = handler.enforceForAppAndEnv(configDataQueryParams.AppName, configDataQueryParams.EnvName, token, casbin.ActionUpdate)
 
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
+}
+
+// checkIfUserHasAdminAccessForLeastPrivilegeEnv computes if a user has admin access or not for all env,
+// if a user is non admin for at least one env then return false.
+func (handler *DeploymentConfigurationRestHandlerImpl) checkIfUserHasAdminAccessForLeastPrivilegeEnv(token string, comparisonRequestDto bean.ComparisonRequestDto) bool {
+	for _, item := range comparisonRequestDto.ComparisonItems {
+		userHadAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, item.EnvName)
+		if !userHadAdminAccess {
+			return false
+		}
+	}
+	return true
 }
