@@ -160,11 +160,14 @@ func (impl *CiMaterialConfigServiceImpl) DeleteMaterial(request *bean.UpdateMate
 		materials = append(materials, materialDbObject[0])
 	}
 
-	if len(materials) == 0 {
-		return nil
+	if len(materials) != 0 {
+		err = impl.ciPipelineMaterialRepository.Update(tx, materials...)
+		if err != nil {
+			return err
+		}
 	}
 
-	err = impl.ciPipelineMaterialRepository.Update(tx, materials...)
+	//err = impl.ciPipelineMaterialRepository.Update(tx, materials...)
 	err = tx.Commit()
 	if err != nil {
 		return err
