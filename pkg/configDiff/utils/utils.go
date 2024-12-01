@@ -40,8 +40,12 @@ func GetKeyValMapForSecretConfigDataAndMaskData(configDataList []*bean.ConfigDat
 		if secretConfigData.IsESOExternalSecretType() || secretConfigData.External {
 			continue
 		}
+		secretRawData := secretConfigData.Data
+		if secretConfigData.Global {
+			secretRawData = secretConfigData.DefaultData
+		}
 		var secretData map[string]string
-		if err := json.Unmarshal(secretConfigData.Data, &secretData); err != nil {
+		if err := json.Unmarshal(secretRawData, &secretData); err != nil {
 			return nil, err
 		}
 		newMaskedSecretData := make(map[string]string, len(secretData))
@@ -56,7 +60,11 @@ func GetKeyValMapForSecretConfigDataAndMaskData(configDataList []*bean.ConfigDat
 		if err != nil {
 			return nil, err
 		}
-		secretConfigData.Data = maskedSecretJson
+		if secretConfigData.Global {
+			secretConfigData.DefaultData = maskedSecretJson
+		} else {
+			secretConfigData.Data = maskedSecretJson
+		}
 	}
 	return keyValMapForSecretConfig, nil
 }
@@ -72,8 +80,12 @@ func CompareAndMaskSecretValuesInConfigData(configDataList []*bean.ConfigData, k
 		if secretConfigData.IsESOExternalSecretType() || secretConfigData.External {
 			continue
 		}
+		secretConfig := secretConfigData.Data
+		if secretConfigData.Global {
+			secretConfig = secretConfigData.DefaultData
+		}
 		var secretDataMap map[string]string
-		if err := json.Unmarshal(secretConfigData.Data, &secretDataMap); err != nil {
+		if err := json.Unmarshal(secretConfig, &secretDataMap); err != nil {
 			return err
 		}
 		if _, ok := keyValMapForSecretConfig1[secretConfigData.Name]; ok {
@@ -94,7 +106,12 @@ func CompareAndMaskSecretValuesInConfigData(configDataList []*bean.ConfigData, k
 			if err != nil {
 				return err
 			}
-			secretConfigData.Data = maskedSecretJson
+			if secretConfigData.Global {
+				secretConfigData.DefaultData = maskedSecretJson
+			} else {
+				secretConfigData.Data = maskedSecretJson
+			}
+
 		} else {
 			//mask all the secret values with SecretMaskedValue(i.e. "********")
 			newMaskedSecretData := make(map[string]string, len(secretDataMap))
@@ -105,7 +122,12 @@ func CompareAndMaskSecretValuesInConfigData(configDataList []*bean.ConfigData, k
 			if err != nil {
 				return err
 			}
-			secretConfigData.Data = maskedSecretJson
+			if secretConfigData.Global {
+				secretConfigData.DefaultData = maskedSecretJson
+			} else {
+				secretConfigData.Data = maskedSecretJson
+			}
+
 		}
 	}
 	return nil
