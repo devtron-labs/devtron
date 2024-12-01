@@ -43,10 +43,6 @@ func (impl *GlobalPluginRouterImpl) initGlobalPluginRouter(globalPluginRouter *m
 		HandlerFunc(impl.globalPluginRestHandler.MigratePluginData).Methods("PUT")
 	globalPluginRouter.Path("/create").
 		HandlerFunc(impl.globalPluginRestHandler.CreatePlugin).Methods("POST")
-	// versioning impact handling to be done for below apis,
-	// TODO: the below API is not yet used in UI, need to revisit for breaking cases.
-	globalPluginRouter.Path("").
-		HandlerFunc(impl.globalPluginRestHandler.PatchPlugin).Methods("POST")
 	globalPluginRouter.Path("/detail/all").
 		HandlerFunc(impl.globalPluginRestHandler.GetAllDetailedPluginInfo).Methods("GET")
 	globalPluginRouter.Path("/detail/{pluginId}").

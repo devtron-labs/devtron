@@ -37,7 +37,6 @@ import (
 )
 
 type GlobalPluginRestHandler interface {
-	PatchPlugin(w http.ResponseWriter, r *http.Request)
 	CreatePlugin(w http.ResponseWriter, r *http.Request)
 
 	GetAllGlobalVariables(w http.ResponseWriter, r *http.Request)
@@ -75,7 +74,12 @@ type GlobalPluginRestHandlerImpl struct {
 	userService         user.UserService
 }
 
-func (handler *GlobalPluginRestHandlerImpl) PatchPlugin(w http.ResponseWriter, r *http.Request) {
+// Deprecated: method patchPlugin
+// The below API was initially designed to handle the older design of global plugins.
+// The API is not yet used in UI.
+// The CODE is not yet tested for all the cases.
+// TODO: remove this dead code and all the related handling.
+func (handler *GlobalPluginRestHandlerImpl) patchPlugin(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -85,7 +89,7 @@ func (handler *GlobalPluginRestHandlerImpl) PatchPlugin(w http.ResponseWriter, r
 	var pluginDataDto bean.PluginMetadataDto
 	err = decoder.Decode(&pluginDataDto)
 	if err != nil {
-		handler.logger.Errorw("request err, PatchPlugin", "error", err, "payload", pluginDataDto)
+		handler.logger.Errorw("request err, patchPlugin", "error", err, "payload", pluginDataDto)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -105,8 +109,8 @@ func (handler *GlobalPluginRestHandlerImpl) PatchPlugin(w http.ResponseWriter, r
 		return
 	}
 	common.WriteJsonResp(w, nil, pluginData, http.StatusOK)
-
 }
+
 func (handler *GlobalPluginRestHandlerImpl) GetDetailedPluginInfoByPluginId(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
