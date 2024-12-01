@@ -21,9 +21,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	apiBean "github.com/devtron-labs/devtron/api/restHandler/app/pipeline/configure/bean"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	"github.com/devtron-labs/devtron/util/stringsUtil"
 	"golang.org/x/exp/maps"
 	"io"
 	"net/http"
@@ -47,21 +49,12 @@ import (
 	bean1 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup "github.com/devtron-labs/devtron/pkg/resourceGroup"
-	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/response"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
 )
 
-const GIT_MATERIAL_DELETE_SUCCESS_RESP = "Git material deleted successfully."
-
-type BuildHistoryResponse struct {
-	HideImageTaggingHardDelete bool                     `json:"hideImageTaggingHardDelete"`
-	TagsEditable               bool                     `json:"tagsEditable"`
-	AppReleaseTagNames         []string                 `json:"appReleaseTagNames"` //unique list of tags exists in the app
-	CiWorkflows                []types.WorkflowResponse `json:"ciWorkflows"`
-}
 type DevtronAppBuildRestHandler interface {
 	CreateCiConfig(w http.ResponseWriter, r *http.Request)
 	UpdateCiTemplate(w http.ResponseWriter, r *http.Request)
@@ -648,43 +641,20 @@ func (handler *PipelineConfigRestHandlerImpl) GetExternalCiById(w http.ResponseW
 	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
 }
 
-func (handler *PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	decoder := json.NewDecoder(r.Body)
-	var ciTriggerRequest bean.CiTriggerRequest
-	err = decoder.Decode(&ciTriggerRequest)
+func (handler *PipelineConfigRestHandlerImpl) validateCiTriggerRBAC(token string, ciPipelineId, triggerEnvironmentId int) error {
+	// RBAC STARTS
+	// checking if user has trigger access on app, if not will be forbidden to trigger independent of number of cd cdPipelines
+	ciPipeline, err := handler.ciPipelineRepository.FindById(ciPipelineId)
 	if err != nil {
-		handler.Logger.Errorw("request err, TriggerCiPipeline", "err", err, "payload", ciTriggerRequest)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+		handler.Logger.Errorw("err in finding ci pipeline, TriggerCiPipeline", "err", err, "ciPipelineId", ciPipelineId)
+		errMsg := fmt.Sprintf("error in finding ci pipeline for id '%d'", ciPipelineId)
+		return util.NewApiError(http.StatusBadRequest, errMsg, errMsg)
 	}
-	if !handler.validForMultiMaterial(ciTriggerRequest) {
-		handler.Logger.Errorw("invalid req, commit hash not present for multi-git", "payload", ciTriggerRequest)
-		common.WriteJsonResp(w, errors.New("invalid req, commit hash not present for multi-git"),
-			nil, http.StatusBadRequest)
-	}
-	ciTriggerRequest.TriggeredBy = userId
-	token := r.Header.Get("token")
-
-	handler.Logger.Infow("request payload, TriggerCiPipeline", "payload", ciTriggerRequest)
-
-	//RBAC STARTS
-	//checking if user has trigger access on app, if not will be forbidden to trigger independent of number of cd cdPipelines
-	ciPipeline, err := handler.ciPipelineRepository.FindById(ciTriggerRequest.PipelineId)
+	appWorkflowMapping, err := handler.appWorkflowService.FindAppWorkflowByCiPipelineId(ciPipelineId)
 	if err != nil {
-		handler.Logger.Errorw("err in finding ci pipeline, TriggerCiPipeline", "err", err, "ciPipelineId", ciTriggerRequest.PipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	appWorkflowMapping, err := handler.appWorkflowService.FindAppWorkflowByCiPipelineId(ciTriggerRequest.PipelineId)
-	if err != nil {
-		handler.Logger.Errorw("err in finding appWorkflowMapping, TriggerCiPipeline", "err", err, "ciPipelineId", ciTriggerRequest.PipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
+		handler.Logger.Errorw("err in finding appWorkflowMapping, TriggerCiPipeline", "err", err, "ciPipelineId", ciPipelineId)
+		errMsg := fmt.Sprintf("error in finding appWorkflowMapping for ciPipelineId '%d'", ciPipelineId)
+		return util.NewApiError(http.StatusBadRequest, errMsg, errMsg)
 	}
 	workflowName := ""
 	if len(appWorkflowMapping) > 0 {
@@ -692,12 +662,12 @@ func (handler *PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseW
 	}
 	// This is being done for jobs, jobs execute in default-env (devtron-ci) namespace by default. so considering DefaultCiNamespace as env for rbac enforcement
 	envName := ""
-	if ciTriggerRequest.EnvironmentId == 0 {
+	if triggerEnvironmentId == 0 {
 		envName = pipeline.DefaultCiWorkflowNamespace
 	}
 	appObject := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
-	workflowObject := handler.enforcerUtil.GetWorkflowRBACByCiPipelineId(ciTriggerRequest.PipelineId, workflowName)
-	triggerObject := handler.enforcerUtil.GetTeamEnvRBACNameByCiPipelineIdAndEnvIdOrName(ciTriggerRequest.PipelineId, ciTriggerRequest.EnvironmentId, envName)
+	workflowObject := handler.enforcerUtil.GetWorkflowRBACByCiPipelineId(ciPipelineId, workflowName)
+	triggerObject := handler.enforcerUtil.GetTeamEnvRBACNameByCiPipelineIdAndEnvIdOrName(ciPipelineId, triggerEnvironmentId, envName)
 	appRbacOk := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, appObject)
 	if !appRbacOk {
 		appRbacOk = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionTrigger, appObject) && handler.enforcer.Enforce(token, casbin.ResourceWorkflow, casbin.ActionTrigger, workflowObject) && handler.enforcer.Enforce(token, casbin.ResourceJobsEnv, casbin.ActionTrigger, triggerObject)
@@ -705,15 +675,14 @@ func (handler *PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseW
 
 	if !appRbacOk {
 		handler.Logger.Debug(fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		return
+		return util.NewApiError(http.StatusForbidden, common.UnAuthorisedUser, common.UnAuthorisedUser)
 	}
-	//checking rbac for cd cdPipelines
-	cdPipelines, err := handler.pipelineRepository.FindByCiPipelineId(ciTriggerRequest.PipelineId)
+	// checking rbac for cd cdPipelines
+	cdPipelines, err := handler.pipelineRepository.FindByCiPipelineId(ciPipelineId)
 	if err != nil {
-		handler.Logger.Errorw("error in finding ccd cdPipelines by ciPipelineId", "err", err, "ciPipelineId", ciTriggerRequest.PipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
+		handler.Logger.Errorw("error in finding ccd cdPipelines by ciPipelineId", "err", err, "ciPipelineId", ciPipelineId)
+		errMsg := fmt.Sprintf("error in finding cd cdPipelines for ciPipelineId '%d'", ciPipelineId)
+		return util.NewApiError(http.StatusBadRequest, errMsg, errMsg)
 	}
 	cdPipelineRbacObjects := make([]string, len(cdPipelines))
 	rbacObjectCdTriggerTypeMap := make(map[string]pipelineConfig.TriggerType, len(cdPipelines))
@@ -729,8 +698,7 @@ func (handler *PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseW
 		envRbacResultMap := handler.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionTrigger, cdPipelineRbacObjects)
 		for rbacObject, rbacResultOk := range envRbacResultMap {
 			if rbacObjectCdTriggerTypeMap[rbacObject] == pipelineConfig.TRIGGER_TYPE_AUTOMATIC && !rbacResultOk {
-				common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-				return
+				return util.NewApiError(http.StatusForbidden, common.UnAuthorisedUser, common.UnAuthorisedUser)
 			}
 			if rbacResultOk { //this flow will come if pipeline is automatic and has access or if pipeline is manual,
 				// by which we can ensure if there are no automatic pipelines then atleast access on one manual is present
@@ -738,12 +706,42 @@ func (handler *PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseW
 			}
 		}
 		if !hasAnyEnvTriggerAccess {
-			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-			return
+			return util.NewApiError(http.StatusForbidden, common.UnAuthorisedUser, common.UnAuthorisedUser)
 		}
 	}
+	// RBAC ENDS
+	return nil
+}
 
-	//RBAC ENDS
+func (handler *PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var ciTriggerRequest bean.CiTriggerRequest
+	err = decoder.Decode(&ciTriggerRequest)
+	if err != nil {
+		handler.Logger.Errorw("request err, TriggerCiPipeline", "err", err, "payload", ciTriggerRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	// RBAC block starts
+	err = handler.validateCiTriggerRBAC(token, ciTriggerRequest.PipelineId, ciTriggerRequest.EnvironmentId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	// RBAC block ends
+	if !handler.validForMultiMaterial(ciTriggerRequest) {
+		handler.Logger.Errorw("invalid req, commit hash not present for multi-git", "payload", ciTriggerRequest)
+		common.WriteJsonResp(w, errors.New("invalid req, commit hash not present for multi-git"),
+			nil, http.StatusBadRequest)
+	}
+	ciTriggerRequest.TriggeredBy = userId
+	handler.Logger.Infow("request payload, TriggerCiPipeline", "payload", ciTriggerRequest)
 	response := make(map[string]string)
 	resp, err := handler.ciHandler.HandleCIManual(ciTriggerRequest)
 	if errors.Is(err, bean1.ErrImagePathInUse) {
@@ -916,7 +914,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetCiPipelineMin(w http.ResponseWr
 	envIdsString := v.Get("envIds")
 	envIds := make([]int, 0)
 	if len(envIdsString) > 0 {
-		envIds, err = util2.SplitCommaSeparatedIntValues(envIdsString)
+		envIds, err = stringsUtil.SplitCommaSeparatedIntValues(envIdsString)
 		if err != nil {
 			common.WriteJsonResp(w, err, "please provide valid envIds", http.StatusBadRequest)
 			return
@@ -1103,7 +1101,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildHistory(w http.ResponseWri
 	//RBAC for edit tag access , user should have build permission in current ci-pipeline
 	triggerAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object) || handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionTrigger, object)
 	//RBAC
-	resp := BuildHistoryResponse{}
+	resp := apiBean.BuildHistoryResponse{}
 	workflowsResp, err := handler.ciHandler.GetBuildHistory(pipelineId, ciPipeline.AppId, offset, limit)
 	resp.CiWorkflows = workflowsResp
 	if err != nil {
@@ -1497,7 +1495,7 @@ func (handler *PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWrit
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, GIT_MATERIAL_DELETE_SUCCESS_RESP, http.StatusOK)
+	common.WriteJsonResp(w, err, apiBean.GIT_MATERIAL_DELETE_SUCCESS_RESP, http.StatusOK)
 }
 
 func (handler *PipelineConfigRestHandlerImpl) HandleWorkflowWebhook(w http.ResponseWriter, r *http.Request) {

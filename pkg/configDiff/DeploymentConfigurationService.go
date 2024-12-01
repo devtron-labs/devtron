@@ -180,7 +180,7 @@ func (impl *DeploymentConfigurationServiceImpl) getDeploymentHistoryConfig(ctx c
 		impl.logger.Errorw("error in getting deployment template history for pipelineId and wfrId", "pipelineId", configDataQueryParams.PipelineId, "wfrId", configDataQueryParams.WfrId, "err", err)
 		return nil, err
 	} else if util.IsErrNoRows(err) {
-		return nil, util.GetApiError(http.StatusNotFound, bean2.NoDeploymentDoneForSelectedImage, bean2.NoDeploymentDoneForSelectedImage)
+		return nil, util.NewApiError(http.StatusNotFound, bean2.NoDeploymentDoneForSelectedImage, bean2.NoDeploymentDoneForSelectedImage)
 	}
 	err = deploymentJson.UnmarshalJSON([]byte(deploymentHistory.Template))
 	if err != nil {

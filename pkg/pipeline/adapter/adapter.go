@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"time"
@@ -352,4 +353,22 @@ func ConvertPipelineEsoDataToEsoData(r []pipelineConfigBean.ESOData) []bean.ESOD
 		newEsoData = append(newEsoData, newItem)
 	}
 	return newEsoData
+}
+
+func GetStepVariableDto(variable *repository.PipelineStageStepVariable) (*pipelineConfigBean.StepVariableDto, error) {
+	variableDto := &pipelineConfigBean.StepVariableDto{
+		Id:                        variable.Id,
+		Name:                      variable.Name,
+		Format:                    variable.Format,
+		Description:               variable.Description,
+		AllowEmptyValue:           variable.AllowEmptyValue,
+		DefaultValue:              variable.DefaultValue,
+		Value:                     variable.Value,
+		ValueType:                 variable.ValueType,
+		PreviousStepIndex:         variable.PreviousStepIndex,
+		ReferenceVariableName:     variable.ReferenceVariableName,
+		ReferenceVariableStage:    variable.ReferenceVariableStage,
+		VariableStepIndexInPlugin: variable.VariableStepIndexInPlugin,
+	}
+	return variableDto, nil
 }

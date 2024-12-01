@@ -26,10 +26,49 @@ import (
 
 type PipelineStageType string
 type PipelineStepType string
+
+func (p PipelineStepType) String() string {
+	return string(p)
+}
+
 type PipelineStageStepVariableType string
+
+func (p PipelineStageStepVariableType) IsOutput() bool {
+	return p == PIPELINE_STAGE_STEP_VARIABLE_TYPE_OUTPUT
+}
+
+func (p PipelineStageStepVariableType) IsInput() bool {
+	return p == PIPELINE_STAGE_STEP_VARIABLE_TYPE_INPUT
+}
+
 type PipelineStageStepVariableValueType string
+
+func (p PipelineStageStepVariableValueType) String() string {
+	return string(p)
+}
+
+func (p PipelineStageStepVariableValueType) IsGlobalDefinedValue() bool {
+	return p == PIPELINE_STAGE_STEP_VARIABLE_VALUE_TYPE_GLOBAL
+}
+
+func (p PipelineStageStepVariableValueType) IsUserDefinedValue() bool {
+	return p == PIPELINE_STAGE_STEP_VARIABLE_VALUE_TYPE_NEW
+}
+
+func (p PipelineStageStepVariableValueType) IsPreviousOutputDefinedValue() bool {
+	return p == PIPELINE_STAGE_STEP_VARIABLE_VALUE_TYPE_PREVIOUS
+}
+
 type PipelineStageStepConditionType string
+
+// PipelineStageStepVariableFormatType - Duplicate of repository.PluginStepVariableFormatType
+// TODO: analyse if we can remove the duplicates.
+// Should ideally be a subset of repository.PluginStepVariableFormatType
 type PipelineStageStepVariableFormatType string
+
+func (p PipelineStageStepVariableFormatType) String() string {
+	return string(p)
+}
 
 const (
 	PIPELINE_STAGE_TYPE_PRE_CI                       PipelineStageType                   = "PRE_CI"
@@ -92,7 +131,9 @@ type PipelineStageStep struct {
 }
 
 // Below two tables are used at plugin-steps level too
+// TODO: remove these duplicate tables definitions
 
+// PluginPipelineScript is the duplicate declaration of repository.PluginPipelineScript
 type PluginPipelineScript struct {
 	tableName                struct{}                             `sql:"plugin_pipeline_script" pg:",discard_unknown_columns"`
 	Id                       int                                  `sql:"id,pk"`
@@ -111,6 +152,7 @@ type PluginPipelineScript struct {
 	sql.AuditLog
 }
 
+// ScriptPathArgPortMapping is the duplicate declaration of repository.ScriptPathArgPortMapping
 type ScriptPathArgPortMapping struct {
 	tableName           struct{}                     `sql:"script_path_arg_port_mapping" pg:",discard_unknown_columns"`
 	Id                  int                          `sql:"id,pk"`
@@ -127,23 +169,27 @@ type ScriptPathArgPortMapping struct {
 }
 
 type PipelineStageStepVariable struct {
-	tableName                 struct{}                            `sql:"pipeline_stage_step_variable" pg:",discard_unknown_columns"`
-	Id                        int                                 `sql:"id,pk"`
-	PipelineStageStepId       int                                 `sql:"pipeline_stage_step_id"`
-	Name                      string                              `sql:"name"`
-	Format                    PipelineStageStepVariableFormatType `sql:"format"`
-	Description               string                              `sql:"description"`
-	IsExposed                 bool                                `sql:"is_exposed,notnull"`
-	AllowEmptyValue           bool                                `sql:"allow_empty_value,notnull"`
-	DefaultValue              string                              `sql:"default_value"`
-	Value                     string                              `sql:"value"`
-	VariableType              PipelineStageStepVariableType       `sql:"variable_type"`
-	ValueType                 PipelineStageStepVariableValueType  `sql:"value_type"`
-	PreviousStepIndex         int                                 `sql:"previous_step_index,type:integer"`
-	VariableStepIndexInPlugin int                                 `sql:"variable_step_index_in_plugin,type:integer"`
-	ReferenceVariableName     string                              `sql:"reference_variable_name,type:text"`
-	ReferenceVariableStage    PipelineStageType                   `sql:"reference_variable_stage,type:text"`
-	Deleted                   bool                                `sql:"deleted,notnull"`
+	tableName           struct{}                            `sql:"pipeline_stage_step_variable" pg:",discard_unknown_columns"`
+	Id                  int                                 `sql:"id,pk"`
+	PipelineStageStepId int                                 `sql:"pipeline_stage_step_id"`
+	Name                string                              `sql:"name"`
+	Format              PipelineStageStepVariableFormatType `sql:"format"` // oneof: STRING, NUMBER, BOOL, DATE
+	Description         string                              `sql:"description"`
+	// IsExposed: has conflicting data in DB.
+	// Ideally, for user given input variables, it should always be TRUE.
+	// Also, if IsExposed is false, then it's an internal variable (should not be exposed in UI).
+	// TODO: investigate the conflicting data in DB.
+	IsExposed                 bool                               `sql:"is_exposed,notnull"`
+	AllowEmptyValue           bool                               `sql:"allow_empty_value,notnull"`
+	DefaultValue              string                             `sql:"default_value"`
+	Value                     string                             `sql:"value"`
+	VariableType              PipelineStageStepVariableType      `sql:"variable_type"`
+	ValueType                 PipelineStageStepVariableValueType `sql:"value_type"`
+	PreviousStepIndex         int                                `sql:"previous_step_index,type:integer"`
+	VariableStepIndexInPlugin int                                `sql:"variable_step_index_in_plugin,type:integer"`
+	ReferenceVariableName     string                             `sql:"reference_variable_name,type:text"`
+	ReferenceVariableStage    PipelineStageType                  `sql:"reference_variable_stage,type:text"`
+	Deleted                   bool                               `sql:"deleted,notnull"`
 	sql.AuditLog
 }
 
@@ -175,7 +221,7 @@ type PipelineStageRepository interface {
 
 	GetStepIdsByStageId(stageId int) ([]int, error)
 	CreatePipelineStageStep(step *PipelineStageStep, tx *pg.Tx) (*PipelineStageStep, error)
-	UpdatePipelineStageStep(step *PipelineStageStep) (*PipelineStageStep, error)
+	UpdatePipelineStageStep(step *PipelineStageStep, tx *pg.Tx) (*PipelineStageStep, error)
 	MarkPipelineStageStepsDeletedByStageId(stageId int, updatedBy int32, tx *pg.Tx) error
 	GetAllStepsByStageId(stageId int) ([]*PipelineStageStep, error)
 	GetAllCiPipelineIdsByPluginIdAndStageType(pluginId int, stageType string) ([]int, error)
@@ -190,9 +236,9 @@ type PipelineStageRepository interface {
 	GetScriptIdsByStageId(stageId int) ([]int, error)
 	MarkPipelineScriptsDeletedByIds(ids []int, updatedBy int32, tx *pg.Tx) error
 	GetScriptDetailById(id int) (*PluginPipelineScript, error)
-	MarkScriptDeletedById(scriptId int) error
+	MarkScriptDeletedById(scriptId int, tx *pg.Tx) error
 
-	MarkScriptMappingDeletedByScriptId(scriptId int) error
+	MarkScriptMappingDeletedByScriptId(scriptId int, tx *pg.Tx) error
 	CreateScriptMapping(mappings []ScriptPathArgPortMapping, tx *pg.Tx) error
 	UpdateScriptMapping(mappings []*ScriptPathArgPortMapping, tx *pg.Tx) error
 	GetScriptMappingIdsByStageId(stageId int) ([]int, error)
@@ -207,8 +253,8 @@ type PipelineStageRepository interface {
 	GetVariableIdsByStageId(stageId int) ([]int, error)
 	MarkPipelineStageStepVariablesDeletedByIds(ids []int, updatedBy int32, tx *pg.Tx) error
 	GetVariablesByStepId(stepId int) ([]*PipelineStageStepVariable, error)
-	GetVariableIdsByStepIdAndVariableType(stepId int, variableType PipelineStageStepVariableType) ([]int, error)
-	MarkVariablesDeletedByStepIdAndVariableType(stepId int, variableType PipelineStageStepVariableType, tx *pg.Tx) error
+	GetVariablesByStepIdAndVariableType(stepId int, variableType PipelineStageStepVariableType) (variables []*PipelineStageStepVariable, err error)
+	MarkVariablesDeletedByStepIdAndVariableType(stepId int, variableType PipelineStageStepVariableType, userId int32, tx *pg.Tx) error
 	MarkVariablesDeletedExcludingActiveVariablesInUpdateReq(activeVariableIdsPresentInReq []int, stepId int, variableType PipelineStageStepVariableType, tx *pg.Tx) error
 
 	CreatePipelineStageStepConditions([]PipelineStageStepCondition, *pg.Tx) ([]PipelineStageStepCondition, error)
@@ -365,8 +411,8 @@ func (impl *PipelineStageRepositoryImpl) CreatePipelineStageStep(step *PipelineS
 	return step, nil
 }
 
-func (impl *PipelineStageRepositoryImpl) UpdatePipelineStageStep(step *PipelineStageStep) (*PipelineStageStep, error) {
-	err := impl.dbConnection.Update(step)
+func (impl *PipelineStageRepositoryImpl) UpdatePipelineStageStep(step *PipelineStageStep, tx *pg.Tx) (*PipelineStageStep, error) {
+	err := tx.Update(step)
 	if err != nil {
 		impl.logger.Errorw("error in updating pipeline stage step", "err", err, "step", step)
 		return nil, err
@@ -534,9 +580,9 @@ func (impl *PipelineStageRepositoryImpl) GetScriptDetailById(id int) (*PluginPip
 	return &scriptDetail, nil
 }
 
-func (impl *PipelineStageRepositoryImpl) MarkScriptDeletedById(scriptId int) error {
+func (impl *PipelineStageRepositoryImpl) MarkScriptDeletedById(scriptId int, tx *pg.Tx) error {
 	var script PluginPipelineScript
-	_, err := impl.dbConnection.Model(&script).Set("deleted = ?", true).
+	_, err := tx.Model(&script).Set("deleted = ?", true).
 		Where("id = ?", scriptId).Update()
 	if err != nil {
 		impl.logger.Errorw("error in marking script deleted", "err", err, "scriptId", scriptId)
@@ -545,9 +591,9 @@ func (impl *PipelineStageRepositoryImpl) MarkScriptDeletedById(scriptId int) err
 	return nil
 }
 
-func (impl *PipelineStageRepositoryImpl) MarkScriptMappingDeletedByScriptId(scriptId int) error {
+func (impl *PipelineStageRepositoryImpl) MarkScriptMappingDeletedByScriptId(scriptId int, tx *pg.Tx) error {
 	var scriptMapping ScriptPathArgPortMapping
-	_, err := impl.dbConnection.Model(&scriptMapping).Set("deleted = ?", true).
+	_, err := tx.Model(&scriptMapping).Set("deleted = ?", true).
 		Where("script_id = ?", scriptId).Update()
 	if err != nil {
 		impl.logger.Errorw("error in marking script mappings deleted", "err", err, "scriptId", scriptId)
@@ -682,7 +728,7 @@ func (impl *PipelineStageRepositoryImpl) CreatePipelineStageStepVariables(variab
 }
 
 func (impl *PipelineStageRepositoryImpl) UpdatePipelineStageStepVariables(variables []PipelineStageStepVariable, tx *pg.Tx) ([]PipelineStageStepVariable, error) {
-	_, err := tx.Model(&variables).Update()
+	_, err := tx.Model(&variables).UpdateNotNull()
 	if err != nil {
 		impl.logger.Errorw("error in updating pipeline stage step variables", "err", err, "variables", variables)
 		return variables, err
@@ -721,7 +767,8 @@ func (impl *PipelineStageRepositoryImpl) GetVariablesByStepId(stepId int) ([]*Pi
 	var variables []*PipelineStageStepVariable
 	err := impl.dbConnection.Model(&variables).
 		Where("pipeline_stage_step_id = ?", stepId).
-		Where("deleted = ?", false).Select()
+		Where("deleted = ?", false).
+		Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting variables by stepId", "err", err, "stepId", stepId)
 		return nil, err
@@ -729,22 +776,26 @@ func (impl *PipelineStageRepositoryImpl) GetVariablesByStepId(stepId int) ([]*Pi
 	return variables, nil
 }
 
-func (impl *PipelineStageRepositoryImpl) GetVariableIdsByStepIdAndVariableType(stepId int, variableType PipelineStageStepVariableType) ([]int, error) {
-	var ids []int
-	query := "SELECT pssv.id from pipeline_stage_step_variable pssv where pssv.pipeline_stage_step_id = ? and pssv.deleted = false and pssv.variable_type = ?;"
-	_, err := impl.dbConnection.Query(&ids, query, stepId, variableType)
-	if err != nil {
-		impl.logger.Errorw("err in getting variableIds by stepId", "err", err, "stepId", stepId)
-		return nil, err
-	}
-	return ids, nil
+func (impl *PipelineStageRepositoryImpl) GetVariablesByStepIdAndVariableType(stepId int, variableType PipelineStageStepVariableType) (variables []*PipelineStageStepVariable, err error) {
+	err = impl.dbConnection.Model().
+		Table("pipeline_stage_step_variable").
+		Column("pipeline_stage_step_variable.*").
+		Where("deleted = ?", false).
+		Where("pipeline_stage_step_id = ?", stepId).
+		Where("variable_type = ?", variableType).
+		Select(&variables)
+	return variables, nil
 }
 
-func (impl *PipelineStageRepositoryImpl) MarkVariablesDeletedByStepIdAndVariableType(stepId int, variableType PipelineStageStepVariableType, tx *pg.Tx) error {
+func (impl *PipelineStageRepositoryImpl) MarkVariablesDeletedByStepIdAndVariableType(stepId int, variableType PipelineStageStepVariableType, userId int32, tx *pg.Tx) error {
 	var variable PipelineStageStepVariable
-	_, err := tx.Model(&variable).Set("deleted = ?", true).
+	_, err := tx.Model(&variable).
+		Set("deleted = ?", true).
+		Set("updated_by = ?", userId).
+		Set("updated_on = ?", time.Now()).
 		Where("pipeline_stage_step_id = ?", stepId).
-		Where("variable_type = ?", variableType).Update()
+		Where("variable_type = ?", variableType).
+		Update()
 	if err != nil {
 		impl.logger.Errorw("error in deleting variables by stepId", "err", err, "stepId", stepId)
 		return err

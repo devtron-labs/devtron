@@ -19,6 +19,8 @@ package read
 import (
 	"errors"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline/read/adapter"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline/read/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -29,6 +31,7 @@ type CiPipelineConfigReadService interface {
 	FindAllPipelineCreatedCountInLast24Hour() (pipelineCount int, err error)
 	FindAllDeletedPipelineCountInLast24Hour() (pipelineCount int, err error)
 	GetChildrenCiCount(parentCiPipelineId int) (int, error)
+	GetCiPipelineById(ciPipelineId int) (*bean.CiPipelineMin, error)
 }
 
 type CiPipelineConfigReadServiceImpl struct {
@@ -72,4 +75,13 @@ func (impl *CiPipelineConfigReadServiceImpl) GetChildrenCiCount(parentCiPipeline
 		return 0, nil
 	}
 	return count, nil
+}
+
+func (impl *CiPipelineConfigReadServiceImpl) GetCiPipelineById(ciPipelineId int) (*bean.CiPipelineMin, error) {
+	ciPipeline, err := impl.ciPipelineRepository.FindOneWithMinData(ciPipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in getting ciPipeline by id", "ciPipelineId", ciPipelineId, "err", err)
+		return nil, err
+	}
+	return adapter.NewCiPipelineMin(ciPipeline)
 }

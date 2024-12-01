@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/workFlow"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	"github.com/devtron-labs/devtron/pkg/bean/common"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	bean4 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
@@ -232,7 +233,7 @@ func (impl *CiHandlerImpl) reTriggerCi(retryCount int, refCiWorkflow *pipelineCo
 
 func (impl *CiHandlerImpl) HandleCIManual(ciTriggerRequest bean.CiTriggerRequest) (int, error) {
 	impl.Logger.Debugw("HandleCIManual for pipeline ", "PipelineId", ciTriggerRequest.PipelineId)
-	commitHashes, extraEnvironmentVariables, err := impl.buildManualTriggerCommitHashes(ciTriggerRequest)
+	commitHashes, runtimeParams, err := impl.buildManualTriggerCommitHashes(ciTriggerRequest)
 	if err != nil {
 		return 0, err
 	}
@@ -249,15 +250,15 @@ func (impl *CiHandlerImpl) HandleCIManual(ciTriggerRequest bean.CiTriggerRequest
 	}
 
 	trigger := types.Trigger{
-		PipelineId:                ciTriggerRequest.PipelineId,
-		CommitHashes:              commitHashes,
-		CiMaterials:               nil,
-		TriggeredBy:               ciTriggerRequest.TriggeredBy,
-		InvalidateCache:           ciTriggerRequest.InvalidateCache,
-		ExtraEnvironmentVariables: extraEnvironmentVariables,
-		EnvironmentId:             ciTriggerRequest.EnvironmentId,
-		PipelineType:              ciTriggerRequest.PipelineType,
-		CiArtifactLastFetch:       createdOn,
+		PipelineId:          ciTriggerRequest.PipelineId,
+		CommitHashes:        commitHashes,
+		CiMaterials:         nil,
+		TriggeredBy:         ciTriggerRequest.TriggeredBy,
+		InvalidateCache:     ciTriggerRequest.InvalidateCache,
+		RuntimeParameters:   runtimeParams,
+		EnvironmentId:       ciTriggerRequest.EnvironmentId,
+		PipelineType:        ciTriggerRequest.PipelineType,
+		CiArtifactLastFetch: createdOn,
 	}
 	id, err := impl.ciService.TriggerCiPipeline(trigger)
 
@@ -289,18 +290,23 @@ func (impl *CiHandlerImpl) HandleCIWebhook(gitCiTriggerRequest bean.GitCiTrigger
 		return 0, errors.New("ignoring older build for ciMaterial " + strconv.Itoa(gitCiTriggerRequest.CiPipelineMaterial.Id) +
 			" commit " + gitCiTriggerRequest.CiPipelineMaterial.GitCommit.Commit)
 	}
-
+	// updating runtime params
+	runtimeParams := common.NewRuntimeParameters()
+	for k, v := range gitCiTriggerRequest.ExtraEnvironmentVariables {
+		runtimeParams.RuntimePluginVariables = append(runtimeParams.RuntimePluginVariables,
+			common.NewRuntimeGlobalVariableDto(k, v))
+	}
 	commitHashes, err := impl.buildAutomaticTriggerCommitHashes(ciMaterials, gitCiTriggerRequest)
 	if err != nil {
 		return 0, err
 	}
 
 	trigger := types.Trigger{
-		PipelineId:                ciPipeline.Id,
-		CommitHashes:              commitHashes,
-		CiMaterials:               ciMaterials,
-		TriggeredBy:               gitCiTriggerRequest.TriggeredBy,
-		ExtraEnvironmentVariables: gitCiTriggerRequest.ExtraEnvironmentVariables,
+		PipelineId:        ciPipeline.Id,
+		CommitHashes:      commitHashes,
+		CiMaterials:       ciMaterials,
+		TriggeredBy:       gitCiTriggerRequest.TriggeredBy,
+		RuntimeParameters: runtimeParams,
 	}
 	id, err := impl.ciService.TriggerCiPipeline(trigger)
 	if err != nil {
@@ -1289,9 +1295,9 @@ func SetGitCommitValuesForBuildingCommitHash(ciMaterial *pipelineConfig.CiPipeli
 	return newGitCommit
 }
 
-func (impl *CiHandlerImpl) buildManualTriggerCommitHashes(ciTriggerRequest bean.CiTriggerRequest) (map[int]pipelineConfig.GitCommit, map[string]string, error) {
+func (impl *CiHandlerImpl) buildManualTriggerCommitHashes(ciTriggerRequest bean.CiTriggerRequest) (map[int]pipelineConfig.GitCommit, *common.RuntimeParameters, error) {
 	commitHashes := map[int]pipelineConfig.GitCommit{}
-	extraEnvironmentVariables := make(map[string]string)
+	runtimeParams := common.NewRuntimeParameters()
 	for _, ciPipelineMaterial := range ciTriggerRequest.CiPipelineMaterial {
 
 		pipeLineMaterialFromDb, err := impl.ciPipelineMaterialRepository.GetById(ciPipelineMaterial.Id)
@@ -1316,11 +1322,13 @@ func (impl *CiHandlerImpl) buildManualTriggerCommitHashes(ciTriggerRequest bean.
 				return map[int]pipelineConfig.GitCommit{}, nil, err
 			}
 			commitHashes[ciPipelineMaterial.Id] = gitCommit
-			extraEnvironmentVariables = extraEnvVariables
+			for key, value := range extraEnvVariables {
+				runtimeParams.RuntimePluginVariables = append(runtimeParams.RuntimePluginVariables,
+					common.NewRuntimeGlobalVariableDto(key, value))
+			}
 		}
-
 	}
-	return commitHashes, extraEnvironmentVariables, nil
+	return commitHashes, runtimeParams, nil
 }
 
 func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeBranchFix(ciPipelineMaterial bean.CiPipelineMaterial, pipeLineMaterialFromDb *pipelineConfig.CiPipelineMaterial) (pipelineConfig.GitCommit, error) {

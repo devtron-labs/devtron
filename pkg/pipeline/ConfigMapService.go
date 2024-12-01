@@ -1450,23 +1450,23 @@ func (impl ConfigMapServiceImpl) validateConfigDataForSecretsOnly(configData *be
 		err = util2.ValidateEncodedDataByDecoding(dataMap)
 		if err != nil {
 			impl.logger.Errorw("error in decoding secret data", "error", err)
-			return false, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithCode(strconv.Itoa(http.StatusUnprocessableEntity)).
+			return false, util.DefaultApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithCode(strconv.Itoa(http.StatusUnprocessableEntity)).
 				WithUserMessage("error in decoding data, make sure the secret data is encoded properly").
 				WithInternalMessage("error in decoding data, make sure the secret data is encoded properly")
 		}
 	}
 	if configData.IsESOExternalSecretType() {
 		if !configData.External {
-			return false, util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithCode(strconv.Itoa(http.StatusBadRequest)).
+			return false, util.DefaultApiError().WithHttpStatusCode(http.StatusBadRequest).WithCode(strconv.Itoa(http.StatusBadRequest)).
 				WithUserMessage(fmt.Sprintf("external flag should be true for '%s' secret type", configData.ExternalSecretType)).
 				WithInternalMessage(fmt.Sprintf("external flag should be true for '%s' secret type", configData.ExternalSecretType))
 		}
 		if configData.ESOSecretData.ESODataFrom == nil && configData.ESOSecretData.ESOData == nil {
-			return false, util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithCode(strconv.Itoa(http.StatusBadRequest)).
+			return false, util.DefaultApiError().WithHttpStatusCode(http.StatusBadRequest).WithCode(strconv.Itoa(http.StatusBadRequest)).
 				WithUserMessage("both esoSecretData.esoDataFrom and esoSecretData.esoData can't be empty").
 				WithInternalMessage("both esoSecretData.esoDataFrom and esoSecretData.esoData can't be empty")
 		} else if configData.ESOSecretData.SecretStore == nil && configData.ESOSecretData.SecretStoreRef == nil {
-			return false, util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithCode(strconv.Itoa(http.StatusBadRequest)).
+			return false, util.DefaultApiError().WithHttpStatusCode(http.StatusBadRequest).WithCode(strconv.Itoa(http.StatusBadRequest)).
 				WithUserMessage("both esoSecretData.secretStore and esoSecretData.secretStoreRef can't be empty").
 				WithInternalMessage("both esoSecretData.secretStore and esoSecretData.secretStoreRef can't be empty")
 		}

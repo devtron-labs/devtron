@@ -21,21 +21,24 @@ import (
 	"errors"
 	"fmt"
 	"github.com/caarlos0/env"
+	commonBean "github.com/devtron-labs/common-lib/ci-runner/bean"
 	"github.com/devtron-labs/common-lib/utils"
 	bean3 "github.com/devtron-labs/common-lib/utils/bean"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	bean4 "github.com/devtron-labs/devtron/pkg/attributes/bean"
+	"github.com/devtron-labs/devtron/pkg/bean/common"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	bean6 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	repository6 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	bean5 "github.com/devtron-labs/devtron/pkg/infraConfig/bean"
 	util4 "github.com/devtron-labs/devtron/pkg/infraConfig/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
+	pipelineConst "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
-	"maps"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -56,7 +59,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository4 "github.com/devtron-labs/devtron/pkg/variables/repository"
-	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"net/http"
 
@@ -179,7 +181,7 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 	}
 
 	// checking if user has given run time parameters for externalCiArtifact, if given then sending git material to Ci-Runner
-	externalCiArtifact, exists := trigger.ExtraEnvironmentVariables[bean6.ExtraEnvVarExternalCiArtifactKey]
+	externalCiArtifact, exists := trigger.RuntimeParameters.GetGlobalRuntimeVariables()[pipelineConst.ExtraEnvVarExternalCiArtifactKey]
 	// validate externalCiArtifact as docker image
 	if exists {
 		externalCiArtifact = strings.TrimSpace(externalCiArtifact)
@@ -203,12 +205,14 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 			}
 
 		}
-
-		trigger.ExtraEnvironmentVariables[bean6.ExtraEnvVarExternalCiArtifactKey] = externalCiArtifact
+		trigger.RuntimeParameters.RuntimePluginVariables = append(trigger.RuntimeParameters.RuntimePluginVariables,
+			common.NewRuntimeGlobalVariableDto(pipelineConst.ExtraEnvVarExternalCiArtifactKey, externalCiArtifact))
 
 		var artifactExists bool
 		var err error
-		if trigger.ExtraEnvironmentVariables[bean6.ExtraEnvVarImageDigestKey] == "" {
+
+		_, ok := trigger.RuntimeParameters.GetGlobalRuntimeVariables()[pipelineConst.ExtraEnvVarImageDigestKey]
+		if !ok || len(trigger.RuntimeParameters.GetGlobalRuntimeVariables()[pipelineConst.ExtraEnvVarImageDigestKey]) == 0 {
 			artifactExists, err = impl.ciArtifactRepository.IfArtifactExistByImage(externalCiArtifact, trigger.PipelineId)
 			if err != nil {
 				impl.Logger.Errorw("error in fetching ci artifact", "err", err)
@@ -219,7 +223,7 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 				return fmt.Errorf("ci artifact already exists with same image name")
 			}
 		} else {
-			artifactExists, err = impl.ciArtifactRepository.IfArtifactExistByImageDigest(trigger.ExtraEnvironmentVariables[bean6.ExtraEnvVarImageDigestKey], externalCiArtifact, trigger.PipelineId)
+			artifactExists, err = impl.ciArtifactRepository.IfArtifactExistByImageDigest(trigger.RuntimeParameters.GetGlobalRuntimeVariables()[pipelineConst.ExtraEnvVarImageDigestKey], externalCiArtifact, trigger.PipelineId)
 			if err != nil {
 				impl.Logger.Errorw("error in fetching ci artifact", "err", err)
 				return err
@@ -286,7 +290,8 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	}
 
 	// preCiSteps, postCiSteps, refPluginsData, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, ciEvent)
-	prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, pipelineConfigBean.CiStage, scope)
+	request := pipelineConfigBean.NewBuildPrePostStepDataReq(pipeline.Id, pipelineConfigBean.CiStage, scope)
+	prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(request)
 	if err != nil {
 		impl.Logger.Errorw("error in getting pre steps data for wf request", "err", err, "ciPipelineId", pipeline.Id)
 		return 0, err
@@ -311,10 +316,11 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		impl.Logger.Errorw("error in getting gitTrigger env data for stage", "gitTriggers", savedCiWf.GitTriggers, "err", err)
 		return 0, err
 	}
-	if trigger.ExtraEnvironmentVariables == nil {
-		trigger.ExtraEnvironmentVariables = make(map[string]string)
+
+	for k, v := range gitTriggerEnvVariables {
+		trigger.RuntimeParameters.RuntimePluginVariables = append(trigger.RuntimeParameters.RuntimePluginVariables,
+			common.NewRuntimeGlobalVariableDto(k, v))
 	}
-	maps.Copy(trigger.ExtraEnvironmentVariables, gitTriggerEnvVariables)
 
 	workflowRequest, err := impl.buildWfRequestForCiPipeline(pipeline, trigger, ciMaterials, savedCiWf, ciWorkflowConfigNamespace, ciPipelineScripts, preCiSteps, postCiSteps, refPluginsData, isJob)
 	if err != nil {
@@ -368,7 +374,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	}
 	impl.Logger.Debugw("ci triggered", " pipeline ", trigger.PipelineId)
 
-	var variableSnapshotHistories = util3.GetBeansPtr(
+	var variableSnapshotHistories = sliceUtil.GetBeansPtr(
 		repository4.GetSnapshotBean(savedCiWf.Id, repository4.HistoryReferenceTypeCIWORKFLOW, variableSnapshot))
 	if len(variableSnapshotHistories) > 0 {
 		err = impl.scopedVariableManager.SaveVariableHistoriesForTrigger(variableSnapshotHistories, trigger.TriggeredBy)
@@ -794,7 +800,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		IgnoreDockerCachePush:       impl.config.IgnoreDockerCacheForCI,
 		IgnoreDockerCachePull:       impl.config.IgnoreDockerCacheForCI,
 		CacheInvalidate:             trigger.InvalidateCache,
-		ExtraEnvironmentVariables:   trigger.ExtraEnvironmentVariables,
+		ExtraEnvironmentVariables:   trigger.RuntimeParameters.GetGlobalRuntimeVariables(),
 		EnableBuildContext:          impl.config.EnableBuildContext,
 		OrchestratorHost:            impl.config.OrchestratorHost,
 		HostUrl:                     host.Value,
@@ -977,29 +983,29 @@ func (impl *CiServiceImpl) ReserveImagesGeneratedAtPlugin(customTagId int, desti
 func buildCiStepsDataFromDockerBuildScripts(dockerBuildScripts []*bean.CiScript) []*pipelineConfigBean.StepObject {
 	// before plugin support, few variables were set as env vars in ci-runner
 	// these variables are now moved to global vars in plugin steps, but to avoid error in old scripts adding those variables in payload
-	inputVars := []*pipelineConfigBean.VariableObject{
+	inputVars := []*commonBean.VariableObject{
 		{
 			Name:                  "DOCKER_IMAGE_TAG",
 			Format:                "STRING",
-			VariableType:          pipelineConfigBean.VARIABLE_TYPE_REF_GLOBAL,
+			VariableType:          commonBean.VariableTypeRefGlobal,
 			ReferenceVariableName: "DOCKER_IMAGE_TAG",
 		},
 		{
 			Name:                  "DOCKER_REPOSITORY",
 			Format:                "STRING",
-			VariableType:          pipelineConfigBean.VARIABLE_TYPE_REF_GLOBAL,
+			VariableType:          commonBean.VariableTypeRefGlobal,
 			ReferenceVariableName: "DOCKER_REPOSITORY",
 		},
 		{
 			Name:                  "DOCKER_REGISTRY_URL",
 			Format:                "STRING",
-			VariableType:          pipelineConfigBean.VARIABLE_TYPE_REF_GLOBAL,
+			VariableType:          commonBean.VariableTypeRefGlobal,
 			ReferenceVariableName: "DOCKER_REGISTRY_URL",
 		},
 		{
 			Name:                  "DOCKER_IMAGE",
 			Format:                "STRING",
-			VariableType:          pipelineConfigBean.VARIABLE_TYPE_REF_GLOBAL,
+			VariableType:          commonBean.VariableTypeRefGlobal,
 			ReferenceVariableName: "DOCKER_IMAGE",
 		},
 	}

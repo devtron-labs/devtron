@@ -19,9 +19,9 @@ package pipeline
 import (
 	"errors"
 	"fmt"
+	commonBean "github.com/devtron-labs/common-lib/ci-runner/bean"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
 	"github.com/go-pg/pg"
 	errors1 "github.com/juju/errors"
@@ -45,7 +45,7 @@ const (
 )
 
 type PluginInputVariableParser interface {
-	HandleCopyContainerImagePluginInputVariables(inputVariables []*bean.VariableObject, dockerImageTag string, pluginTriggerImage string, sourceImageDockerRegistry string) (registryDestinationImageMap map[string][]string, registryCredentials map[string]bean2.RegistryCredentials, err error)
+	HandleCopyContainerImagePluginInputVariables(inputVariables []*commonBean.VariableObject, dockerImageTag string, pluginTriggerImage string, sourceImageDockerRegistry string) (registryDestinationImageMap map[string][]string, registryCredentials map[string]bean2.RegistryCredentials, err error)
 }
 
 type PluginInputVariableParserImpl struct {
@@ -66,7 +66,7 @@ func NewPluginInputVariableParserImpl(
 	}
 }
 
-func (impl *PluginInputVariableParserImpl) HandleCopyContainerImagePluginInputVariables(inputVariables []*bean.VariableObject,
+func (impl *PluginInputVariableParserImpl) HandleCopyContainerImagePluginInputVariables(inputVariables []*commonBean.VariableObject,
 	dockerImageTag string,
 	pluginTriggerImage string,
 	sourceImageDockerRegistry string) (registryDestinationImageMap map[string][]string, registryCredentials map[string]bean2.RegistryCredentials, err error) {
