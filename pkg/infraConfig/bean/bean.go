@@ -68,6 +68,14 @@ type InfraProfileConfigurationEntity struct {
 	SkipThisValue bool             `sql:"skip_this_value"`
 	sql.AuditLog
 }
+type ProfilePlatformMapping struct {
+	tableName struct{} `sql:"profile_platform_mapping" pg:",discard_unknown_columns"`
+	Id        int      `sql:"id"`
+	ProfileId int      `sql:"profile_id"`
+	Platform  string   `sql:"platform"`
+	Active    bool     `sql:"active"`
+	sql.AuditLog
+}
 
 // service layer structs
 
