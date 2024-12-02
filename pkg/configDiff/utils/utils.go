@@ -40,9 +40,9 @@ func GetKeyValMapForSecretConfigDataAndMaskData(configDataList []*bean.ConfigDat
 		if secretConfigData.IsESOExternalSecretType() || secretConfigData.External {
 			continue
 		}
-		secretRawData := secretConfigData.Data
-		if secretConfigData.Global {
-			secretRawData = secretConfigData.DefaultData
+		secretRawData := secretConfigData.DefaultData
+		if len(secretConfigData.Data) > 0 {
+			secretRawData = secretConfigData.Data
 		}
 		var secretData map[string]string
 		if err := json.Unmarshal(secretRawData, &secretData); err != nil {
@@ -60,10 +60,10 @@ func GetKeyValMapForSecretConfigDataAndMaskData(configDataList []*bean.ConfigDat
 		if err != nil {
 			return nil, err
 		}
-		if secretConfigData.Global {
-			secretConfigData.DefaultData = maskedSecretJson
-		} else {
+		if len(secretConfigData.Data) > 0 {
 			secretConfigData.Data = maskedSecretJson
+		} else {
+			secretConfigData.DefaultData = maskedSecretJson
 		}
 	}
 	return keyValMapForSecretConfig, nil
@@ -80,9 +80,9 @@ func CompareAndMaskSecretValuesInConfigData(configDataList []*bean.ConfigData, k
 		if secretConfigData.IsESOExternalSecretType() || secretConfigData.External {
 			continue
 		}
-		secretConfig := secretConfigData.Data
-		if secretConfigData.Global {
-			secretConfig = secretConfigData.DefaultData
+		secretConfig := secretConfigData.DefaultData
+		if len(secretConfigData.Data) > 0 {
+			secretConfig = secretConfigData.Data
 		}
 		var secretDataMap map[string]string
 		if err := json.Unmarshal(secretConfig, &secretDataMap); err != nil {
@@ -106,10 +106,10 @@ func CompareAndMaskSecretValuesInConfigData(configDataList []*bean.ConfigData, k
 			if err != nil {
 				return err
 			}
-			if secretConfigData.Global {
-				secretConfigData.DefaultData = maskedSecretJson
-			} else {
+			if len(secretConfigData.Data) > 0 {
 				secretConfigData.Data = maskedSecretJson
+			} else {
+				secretConfigData.DefaultData = maskedSecretJson
 			}
 
 		} else {
@@ -122,10 +122,10 @@ func CompareAndMaskSecretValuesInConfigData(configDataList []*bean.ConfigData, k
 			if err != nil {
 				return err
 			}
-			if secretConfigData.Global {
-				secretConfigData.DefaultData = maskedSecretJson
-			} else {
+			if len(secretConfigData.Data) > 0 {
 				secretConfigData.Data = maskedSecretJson
+			} else {
+				secretConfigData.DefaultData = maskedSecretJson
 			}
 
 		}

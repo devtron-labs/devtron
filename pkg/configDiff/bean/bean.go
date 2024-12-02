@@ -144,7 +144,7 @@ type DeploymentAndCmCsConfigDto struct {
 	SecretsData        *DeploymentAndCmCsConfig `json:"secretsData"`
 	PipelineConfigData *DeploymentAndCmCsConfig `json:"pipelineConfigData,omitempty"`
 	IsAppAdmin         bool                     `json:"isAppAdmin"`
-	Index              int                      `json:"index,omitempty"`
+	Index              int                      `json:"index"`
 }
 
 func NewDeploymentAndCmCsConfigDto() *DeploymentAndCmCsConfigDto {

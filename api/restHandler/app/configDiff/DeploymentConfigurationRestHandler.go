@@ -197,7 +197,6 @@ func (handler *DeploymentConfigurationRestHandlerImpl) CompareCategoryWiseConfig
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	//res.IsAppAdmin = handler.enforceForAppAndEnv(configDataQueryParams.AppName, configDataQueryParams.EnvName, token, casbin.ActionUpdate)
 
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
