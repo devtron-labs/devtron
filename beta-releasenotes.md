@@ -1,4 +1,5 @@
 ## Bugs
+- fix: delete git repo without pipeline config (#6148)
 - fix: all modules installation fix (#6140)
 - fix: Update pr-issue-validator.yaml (#6133)
 - fix: update sql fix buildx (#6096)
