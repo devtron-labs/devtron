@@ -103,7 +103,7 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, pipeline, envDeploymentConfig, triggeredBy)
 	span.End()
 	if err != nil {
-		return err
+		return impl.buildWfRequestErrorHandler(runner, err, triggeredBy)
 	}
 	cdStageWorkflowRequest.StageType = types.PRE
 	// handling copyContainerImage plugin specific logic

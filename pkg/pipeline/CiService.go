@@ -41,6 +41,7 @@ import (
 	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"path"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -243,6 +244,27 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 	return nil
 }
 
+func (impl *CiServiceImpl) markCurrentCiWorkflowFailed(savedCiWf *pipelineConfig.CiWorkflow, validationErr error) error {
+	// TODO: mature this method to create ci workflow and mark it failed if required
+	// currently such requirement is not there
+	if savedCiWf == nil {
+		return nil
+	}
+	if slices.Contains(cdWorkflow.WfrTerminalStatusList, savedCiWf.Status) {
+		impl.Logger.Debug("workflow is already in terminal state", "status", savedCiWf.Status, "workflowId", savedCiWf.Id, "message", savedCiWf.Message)
+		return nil
+	}
+	savedCiWf.Status = cdWorkflow.WorkflowFailed
+	savedCiWf.Message = validationErr.Error()
+	savedCiWf.FinishedOn = time.Now()
+	dbErr := impl.ciWorkflowRepository.SaveWorkFlow(savedCiWf)
+	if dbErr != nil {
+		impl.Logger.Errorw("saving workflow error", "err", dbErr)
+		return dbErr
+	}
+	return nil
+}
+
 func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error) {
 	impl.Logger.Debug("ci pipeline manual trigger")
 	ciMaterials, err := impl.GetCiMaterials(trigger.PipelineId, trigger.CiMaterials)
@@ -289,11 +311,21 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		}
 	}
 
+	savedCiWf, err := impl.saveNewWorkflow(pipeline, ciWorkflowConfigNamespace, trigger.CommitHashes, trigger.TriggeredBy, trigger.EnvironmentId, isJob, trigger.ReferenceCiWorkflowId)
+	if err != nil {
+		impl.Logger.Errorw("could not save new workflow", "err", err)
+		return 0, err
+	}
+
 	// preCiSteps, postCiSteps, refPluginsData, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, ciEvent)
 	request := pipelineConfigBean.NewBuildPrePostStepDataReq(pipeline.Id, pipelineConfigBean.CiStage, scope)
 	prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(request)
 	if err != nil {
 		impl.Logger.Errorw("error in getting pre steps data for wf request", "err", err, "ciPipelineId", pipeline.Id)
+		dbErr := impl.markCurrentCiWorkflowFailed(savedCiWf, err)
+		if dbErr != nil {
+			impl.Logger.Errorw("saving workflow error", "err", dbErr)
+		}
 		return 0, err
 	}
 	preCiSteps := prePostAndRefPluginResponse.PreStageSteps
@@ -302,12 +334,10 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	variableSnapshot := prePostAndRefPluginResponse.VariableSnapshot
 
 	if len(preCiSteps) == 0 && isJob {
-		return 0, &util.ApiError{HttpStatusCode: http.StatusNotFound, UserMessage: "No tasks are configured in this job pipeline"}
-	}
-	savedCiWf, err := impl.saveNewWorkflow(pipeline, ciWorkflowConfigNamespace, trigger.CommitHashes, trigger.TriggeredBy, trigger.EnvironmentId, isJob, trigger.ReferenceCiWorkflowId)
-	if err != nil {
-		impl.Logger.Errorw("could not save new workflow", "err", err)
-		return 0, err
+		errMsg := fmt.Sprintf("No tasks are configured in this job pipeline")
+		validationErr := util.NewApiError(http.StatusNotFound, errMsg, errMsg)
+
+		return 0, validationErr
 	}
 
 	// get env variables of git trigger data and add it in the extraEnvVariables
@@ -684,11 +714,11 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		imagePathReservation, err := impl.customTagService.GenerateImagePath(pipelineConfigBean.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id), dockerRegistry.RegistryURL, dockerRepository)
 		if err != nil {
 			if errors.Is(err, pipelineConfigBean.ErrImagePathInUse) {
-				savedWf.Status = cdWorkflow.WorkflowFailed
-				savedWf.Message = pipelineConfigBean.ImageTagUnavailableMessage
-				err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
-				if err1 != nil {
-					impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
+				errMsg := pipelineConfigBean.ImageTagUnavailableMessage
+				validationErr := util.NewApiError(http.StatusConflict, errMsg, errMsg)
+				dbErr := impl.markCurrentCiWorkflowFailed(savedWf, validationErr)
+				if dbErr != nil {
+					impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag", "err", dbErr, "savedWf", savedWf.Id)
 				}
 				return nil, err
 			}
@@ -718,11 +748,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			dockerRegistry.Id)
 		if err != nil {
 			impl.Logger.Errorw("error in getting env variables for copyContainerImage plugin")
-			savedWf.Status = cdWorkflow.WorkflowFailed
-			savedWf.Message = err.Error()
-			err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
-			if err1 != nil {
-				impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
+			dbErr := impl.markCurrentCiWorkflowFailed(savedWf, err)
+			if dbErr != nil {
+				impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag", "err", dbErr, "savedWf", savedWf.Id)
 			}
 			return nil, err
 		}
