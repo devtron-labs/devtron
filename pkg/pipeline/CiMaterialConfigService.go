@@ -163,6 +163,7 @@ func (impl *CiMaterialConfigServiceImpl) DeleteMaterial(request *bean.UpdateMate
 	if len(materials) != 0 {
 		err = impl.ciPipelineMaterialRepository.Update(tx, materials...)
 		if err != nil {
+			impl.logger.Errorw("error while updating ci pipeline material", "appId", request.AppId, "err", err)
 			return err
 		}
 	}
@@ -170,6 +171,7 @@ func (impl *CiMaterialConfigServiceImpl) DeleteMaterial(request *bean.UpdateMate
 	//err = impl.ciPipelineMaterialRepository.Update(tx, materials...)
 	err = tx.Commit()
 	if err != nil {
+		impl.logger.Errorw("error in committing changes in ci pipeline material", "appId", request.AppId, "err", err)
 		return err
 	}
 
