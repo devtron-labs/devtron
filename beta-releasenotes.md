@@ -11,6 +11,7 @@
 - feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
+- misc: Main sync develop dec2 (#6149)
 - misc: refactor-plugin-images migrations (#6108)
 - misc: addign new plugins images (#6145)
 - misc: updated authenticator to c3254b79e386 (#6144)
