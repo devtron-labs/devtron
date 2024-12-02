@@ -139,6 +139,8 @@ type CiArtifactRepository interface {
 	// MigrateToWebHookDataSourceType is used for backward compatibility. It'll migrate the deprecated DataSource type
 	MigrateToWebHookDataSourceType(id int) error
 	UpdateLatestTimestamp(artifactIds []int) error
+
+	Update(ciArtifact *CiArtifact) (*CiArtifact, error)
 }
 
 type CiArtifactRepositoryImpl struct {
@@ -857,4 +859,13 @@ func (impl CiArtifactRepositoryImpl) FindCiArtifactByImagePaths(images []string)
 		return ciArtifacts, err
 	}
 	return ciArtifacts, nil
+}
+
+func (impl CiArtifactRepositoryImpl) Update(ciArtifact *CiArtifact) (*CiArtifact, error) {
+	err := impl.dbConnection.Update(ciArtifact)
+	if err != nil {
+		impl.logger.Errorw("error in updating ciArtifact", "ciArtifact", ciArtifact, "err", err)
+		return nil, err
+	}
+	return ciArtifact, nil
 }

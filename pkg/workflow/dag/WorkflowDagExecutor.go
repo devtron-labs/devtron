@@ -33,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow"
 	cdWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts"
 	bean5 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
@@ -44,6 +45,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/userDeploymentRequest/service"
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -125,6 +127,7 @@ type WorkflowDagExecutorImpl struct {
 	commonArtifactService   artifacts.CommonArtifactService
 	deploymentConfigService common2.DeploymentConfigService
 	asyncRunnable           *async.Runnable
+	scanHistoryRepository   security.ImageScanHistoryRepository
 }
 
 func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -148,7 +151,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	manifestCreationService manifest.ManifestCreationService,
 	commonArtifactService artifacts.CommonArtifactService,
 	deploymentConfigService common2.DeploymentConfigService,
-	asyncRunnable *async.Runnable) *WorkflowDagExecutorImpl {
+	asyncRunnable *async.Runnable,
+	scanHistoryRepository security.ImageScanHistoryRepository) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -172,6 +176,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		commonArtifactService:         commonArtifactService,
 		deploymentConfigService:       deploymentConfigService,
 		asyncRunnable:                 asyncRunnable,
+		scanHistoryRepository:         scanHistoryRepository,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -559,6 +564,20 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext t
 		if err != nil {
 			return err
 		}
+		scanEnabled, scanned := ciArtifact.ScanEnabled, ciArtifact.Scanned
+		err = impl.handleScanningEventForArtifact(ciArtifact, cdStageCompleteEvent.CdPipelineId, repository4.PIPELINE_STAGE_TYPE_PRE_CD)
+		if err != nil {
+			impl.logger.Errorw("error in handling scanning event for ci artifact", "ciArtifact", ciArtifact, "err", err)
+			return err
+		}
+		// if ciArtifact scanEnabled and scanned state changed from above func then update ciArtifact
+		if scanEnabled != ciArtifact.ScanEnabled || scanned != ciArtifact.Scanned {
+			ciArtifact, err = impl.ciArtifactRepository.Update(ciArtifact)
+			if err != nil {
+				impl.logger.Errorw("error in updating ci artifact after handling scan event for this artifact", "ciArtifact", ciArtifact, "err", err)
+				return err
+			}
+		}
 		// Migration of deprecated DataSource Type
 		if ciArtifact.IsMigrationRequired() {
 			migrationErr := impl.ciArtifactRepository.MigrateToWebHookDataSourceType(ciArtifact.Id)
@@ -652,6 +671,20 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(triggerContext 
 		impl.logger.Errorw("error in finding artifact by cd workflow id", "err", err, "cdWorkflowId", cdWorkflowId)
 		return err
 	}
+	scanEnabled, scanned := ciArtifact.ScanEnabled, ciArtifact.Scanned
+	err = impl.handleScanningEventForArtifact(ciArtifact, cdPipelineId, repository4.PIPELINE_STAGE_TYPE_POST_CD)
+	if err != nil {
+		impl.logger.Errorw("error in handling scanning event for ci artifact", "ciArtifact", ciArtifact, "err", err)
+		return err
+	}
+	// if ciArtifact scanEnabled and scanned state changed from above func then update ciArtifact
+	if scanEnabled != ciArtifact.ScanEnabled || scanned != ciArtifact.Scanned {
+		ciArtifact, err = impl.ciArtifactRepository.Update(ciArtifact)
+		if err != nil {
+			impl.logger.Errorw("error in updating ci artifact after handling scan event for this artifact", "ciArtifact", ciArtifact, "err", err)
+			return err
+		}
+	}
 	if len(pluginRegistryImageDetails) > 0 {
 		PostCDArtifacts, err := impl.commonArtifactService.SavePluginArtifacts(ciArtifact, pluginRegistryImageDetails, cdPipelineId, repository.POST_CD, triggeredBy)
 		if err != nil {
@@ -711,20 +744,47 @@ func (impl *WorkflowDagExecutorImpl) UpdateCiWorkflowForCiSuccess(request *bean2
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) isImageScanningPluginConfiguredInCiPipeline(ciPipelineId int) (bool, error) {
-	var isScanPluginConfigured bool
-	var err error
-	plugin, err := impl.globalPluginRepository.GetPluginByName(bean3.VULNERABILITY_SCANNING_PLUGIN)
-	if err != nil || len(plugin) == 0 {
-		impl.logger.Errorw("error in getting image scanning plugin", "err", err)
-		return isScanPluginConfigured, err
-	}
-	isScanPluginConfigured, err = impl.pipelineStageRepository.CheckPluginExistsInCiPipeline(ciPipelineId, string(repository4.PIPELINE_STAGE_TYPE_POST_CI), plugin[0].Id)
+func (impl *WorkflowDagExecutorImpl) isScanPluginConfiguredAtPipelineStage(pipelineId int, pipelineStage repository4.PipelineStageType) (bool, error) {
+	plugin, err := impl.globalPluginRepository.GetPluginByName(bean2.ImageScanningPluginToCheckInPipelineStageStep)
 	if err != nil {
-		impl.logger.Errorw("error in getting ci pipelineModal plugin", "err", err, "ciPipelineId", ciPipelineId, "pluginId", plugin[0].Id)
-		return isScanPluginConfigured, err
+		impl.logger.Errorw("error in getting image scanning plugin, Vulnerability Scanning", "pipelineId", pipelineId, "pipelineStage", pipelineStage, "err", err)
+		return false, err
+	}
+	if len(plugin) == 0 {
+		return false, nil
+	}
+	isScanPluginConfigured, err := impl.pipelineStageRepository.CheckIfPluginExistsInPipelineStage(pipelineId, pipelineStage, plugin[0].Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting ci pipeline plugin", "err", err, "pipelineId", pipelineId, "pluginId", plugin[0].Id)
+		return false, err
 	}
 	return isScanPluginConfigured, nil
+}
+
+func (impl *WorkflowDagExecutorImpl) handleScanningEventForArtifact(ciArtifact *repository.CiArtifact, pipelineId int,
+	pipelineStage repository4.PipelineStageType) error {
+
+	isScanPluginConfigured, err := impl.isScanPluginConfiguredAtPipelineStage(pipelineId, pipelineStage)
+	if err != nil {
+		impl.logger.Errorw("error in fetching if a scan plugin is configured or not in a pipeline", "pipelineStage", pipelineStage, "ciArtifact", ciArtifact)
+		return err
+	}
+	if isScanPluginConfigured {
+		ciArtifact.ScanEnabled = true
+		// if scan history is present for this artifact, then this image has been scanned
+		// else there was some issue with the scanning plugin completing its job.
+		_, err := impl.scanHistoryRepository.FindByImageAndDigest(ciArtifact.ImageDigest, ciArtifact.Image)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.logger.Errorw("error while fetching latest image scan execution history for image and image digest", "image", ciArtifact.Image, "imageDigest", ciArtifact.ImageDigest, "err", err)
+			return err
+		} else if util.IsErrNoRows(err) {
+			//scan history not found for image and digest hence marking scanned as false
+			ciArtifact.Scanned = false
+		} else {
+			ciArtifact.Scanned = true
+		}
+	}
+	return nil
 }
 
 func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext triggerBean.TriggerContext, ciPipelineId int, request *bean2.CiArtifactWebhookRequest, imagePushedAt time.Time) (id int, err error) {
@@ -749,13 +809,16 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 	}
 	buildArtifact := helper.GetBuildArtifact(request, pipelineModal.Id, materialJson, createdOn, updatedOn)
 
-	isScanPluginConfigured, err := impl.isImageScanningPluginConfiguredInCiPipeline(pipelineModal.Id)
+	pipelineStage := repository4.PIPELINE_STAGE_TYPE_POST_CI
+	if pipelineModal.PipelineType == constants2.CI_JOB.ToString() {
+		pipelineStage = repository4.PIPELINE_STAGE_TYPE_PRE_CI
+	}
+	err = impl.handleScanningEventForArtifact(buildArtifact, pipelineModal.Id, pipelineStage)
 	if err != nil {
-		impl.logger.Errorw("error in checking isImageScanningPluginConfiguredInCiPipeline", "ciPipelineId", ciPipelineId, "err", err)
+		impl.logger.Errorw("error in handling scanning event for this ci artifact", "ciArtifact", buildArtifact, "err", err)
 		return 0, err
 	}
-
-	if request.IsScanEnabled || isScanPluginConfigured {
+	if request.IsScanEnabled {
 		buildArtifact.Scanned = true
 		buildArtifact.ScanEnabled = true
 	}
