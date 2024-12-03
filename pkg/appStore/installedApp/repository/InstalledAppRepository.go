@@ -861,7 +861,7 @@ func (impl *InstalledAppRepositoryImpl) GetInstalledAppByInstalledAppVersionId(i
 func (impl *InstalledAppRepositoryImpl) GetInstalledAppByGitOpsAppName(acdAppName string) (*InstalledApps, error) {
 	model := &InstalledApps{}
 	err := impl.dbConnection.Model(model).
-		Column("installed_apps.*", "App", "Environment").
+		Column("installed_apps.*", "App.app_name", "Environment.environment_name").
 		// TODO add deployment_app_name field in installed_apps table
 		Where("CONCAT(app.app_name, ?, environment.environment_name) = ?", "-", acdAppName).
 		Where("installed_apps.active = true").
