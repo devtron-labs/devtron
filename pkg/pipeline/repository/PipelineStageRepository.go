@@ -17,7 +17,6 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -908,11 +907,9 @@ func (impl *PipelineStageRepositoryImpl) CheckIfPluginExistsInPipelineStage(pipe
 		query.Where("ps.cd_pipeline_id= ?", pipelineId)
 	}
 	err := query.Select()
-	if err != nil && !util.IsErrNoRows(err) {
+	if err != nil {
 		impl.logger.Errorw("error in getting plugin stage step by pipelineId, stageType nad plugin id", "pipelineId", pipelineId, "stageType", stageType.ToString(), "pluginId", pluginId, "err", err)
 		return false, err
-	} else if util.IsErrNoRows(err) {
-		return false, nil
 	}
 	return step.Id != 0, nil
 }
