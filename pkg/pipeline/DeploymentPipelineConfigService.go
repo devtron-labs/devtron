@@ -42,8 +42,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	clutserBean "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
+	repository6 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	clutserBean "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
@@ -128,7 +129,7 @@ type CdPipelineConfigService interface {
 type CdPipelineConfigServiceImpl struct {
 	logger                            *zap.SugaredLogger
 	pipelineRepository                pipelineConfig.PipelineRepository
-	environmentRepository             repository2.EnvironmentRepository
+	environmentRepository             repository6.EnvironmentRepository
 	pipelineConfigRepository          chartConfig.PipelineConfigRepository
 	appWorkflowRepository             appWorkflow.AppWorkflowRepository
 	pipelineStageService              PipelineStageService
@@ -165,7 +166,7 @@ type CdPipelineConfigServiceImpl struct {
 }
 
 func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
-	environmentRepository repository2.EnvironmentRepository, pipelineConfigRepository chartConfig.PipelineConfigRepository,
+	environmentRepository repository6.EnvironmentRepository, pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository, pipelineStageService PipelineStageService,
 	appRepo app2.AppRepository, appService app.AppService, deploymentGroupRepository repository.DeploymentGroupRepository,
 	ciCdPipelineOrchestrator CiCdPipelineOrchestrator, appStatusRepository appStatus.AppStatusRepository,
@@ -1032,7 +1033,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 	if len(envIds) == 0 || len(dbPipelineIds) == 0 {
 		return cdPipelines, nil
 	}
-	envMapping := make(map[int]*repository2.Environment)
+	envMapping := make(map[int]*repository6.Environment)
 	appWorkflowMapping := make(map[int]*appWorkflow.AppWorkflowMapping)
 
 	envs, err := impl.environmentRepository.FindByIds(envIds)
@@ -1059,7 +1060,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesForApp(appId int) (cdPipe
 
 	var pipelines []*bean.CDPipelineConfigObject
 	for _, dbPipeline := range cdPipelines.Pipelines {
-		environment := &repository2.Environment{}
+		environment := &repository6.Environment{}
 		var strategies []*chartConfig.PipelineStrategy
 		appToWorkflowMapping := &appWorkflow.AppWorkflowMapping{}
 
@@ -1519,7 +1520,7 @@ func (impl *CdPipelineConfigServiceImpl) MarkGitOpsDevtronAppsDeletedWhereArgoAp
 
 func (impl *CdPipelineConfigServiceImpl) GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*clutserBean.ResourceGroupingResponse, error) {
 	result := &clutserBean.ResourceGroupingResponse{}
-	var models []*repository2.Environment
+	var models []*repository6.Environment
 	var beans []clutserBean.EnvironmentBean
 	var err error
 	if len(envName) > 0 && len(clusterIds) > 0 {

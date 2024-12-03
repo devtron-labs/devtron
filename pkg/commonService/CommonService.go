@@ -19,16 +19,17 @@ package commonService
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	helper2 "github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	read2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
-	repository2 "github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -42,11 +43,12 @@ type CommonServiceImpl struct {
 	logger                       *zap.SugaredLogger
 	chartRepository              chartRepoRepository.ChartRepository
 	installedAppRepository       repository4.InstalledAppRepository
+	environmentConfigRepository  chartConfig.EnvConfigOverrideRepository
 	dockerReg                    dockerRegistryRepository.DockerArtifactStoreRepository
 	attributeRepo                repository.AttributesRepository
 	gitProviderReadService       read.GitProviderReadService
 	environmentRepository        repository3.EnvironmentRepository
-	teamRepository               repository2.TeamRepository
+	teamRepository               team.TeamRepository
 	appRepository                app.AppRepository
 	gitOpsConfigReadService      config.GitOpsConfigReadService
 	envConfigOverrideReadService read2.EnvConfigOverrideService
@@ -58,7 +60,7 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 	dockerReg dockerRegistryRepository.DockerArtifactStoreRepository,
 	attributeRepo repository.AttributesRepository,
 	environmentRepository repository3.EnvironmentRepository,
-	teamRepository repository2.TeamRepository,
+	teamRepository team.TeamRepository,
 	appRepository app.AppRepository,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitProviderReadService read.GitProviderReadService,

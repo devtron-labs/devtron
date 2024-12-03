@@ -23,7 +23,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"go.uber.org/zap"
 	"net/http"
@@ -42,7 +44,7 @@ type AppFilteringRestHandlerImpl struct {
 	enforcer                          casbin.Enforcer
 	userService                       user.UserService
 	clusterService                    cluster.ClusterService
-	environmentClusterMappingsService cluster.EnvironmentService
+	environmentClusterMappingsService environment.EnvironmentService
 	cfg                               *bean.Config
 }
 
@@ -51,7 +53,7 @@ func NewAppFilteringRestHandlerImpl(logger *zap.SugaredLogger,
 	enforcer casbin.Enforcer,
 	userService user.UserService,
 	clusterService cluster.ClusterService,
-	environmentClusterMappingsService cluster.EnvironmentService,
+	environmentClusterMappingsService environment.EnvironmentService,
 ) *AppFilteringRestHandlerImpl {
 	cfg := &bean.Config{}
 	err := env.Parse(cfg)
@@ -78,7 +80,7 @@ func (handler AppFilteringRestHandlerImpl) GetClusterTeamAndEnvListForAutocomple
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	clusterMapping := make(map[string]cluster.ClusterBean)
+	clusterMapping := make(map[string]bean3.ClusterBean)
 	start := time.Now()
 	clusterList, err := handler.clusterService.FindAllForAutoComplete()
 	dbOperationTime := time.Since(start)
@@ -87,7 +89,7 @@ func (handler AppFilteringRestHandlerImpl) GetClusterTeamAndEnvListForAutocomple
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	var granterClusters []cluster.ClusterBean
+	var granterClusters []bean3.ClusterBean
 	v := r.URL.Query()
 	authEnabled := true
 	auth := v.Get("auth")
@@ -117,7 +119,7 @@ func (handler AppFilteringRestHandlerImpl) GetClusterTeamAndEnvListForAutocomple
 	//RBAC enforcer Ends
 
 	if len(granterClusters) == 0 {
-		granterClusters = make([]cluster.ClusterBean, 0)
+		granterClusters = make([]bean3.ClusterBean, 0)
 	}
 
 	//getting environment for autocomplete

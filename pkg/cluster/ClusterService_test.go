@@ -19,6 +19,7 @@ package cluster
 import (
 	util2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	"go.uber.org/zap"
@@ -34,7 +35,7 @@ func TestClusterServiceImpl_CheckIfConfigIsValid(t *testing.T) {
 		K8sInformerFactory informer.K8sInformerFactory
 	}
 	type args struct {
-		cluster *ClusterBean
+		cluster *bean.ClusterBean
 	}
 	tests := []struct {
 		name    string
@@ -45,7 +46,7 @@ func TestClusterServiceImpl_CheckIfConfigIsValid(t *testing.T) {
 		{
 			//incorrect server config
 			args: args{
-				cluster: &ClusterBean{
+				cluster: &bean.ClusterBean{
 					Id:        4,
 					ServerUrl: "",
 					Config: map[string]string{
@@ -58,7 +59,7 @@ func TestClusterServiceImpl_CheckIfConfigIsValid(t *testing.T) {
 		{
 			//correct server config
 			args: args{
-				cluster: &ClusterBean{
+				cluster: &bean.ClusterBean{
 					Id:        5,
 					ServerUrl: "",
 					Config: map[string]string{

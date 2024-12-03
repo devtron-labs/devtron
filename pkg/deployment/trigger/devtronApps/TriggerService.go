@@ -54,7 +54,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
 	pipeline2 "github.com/devtron-labs/devtron/pkg/build/pipeline"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean9 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -147,31 +147,31 @@ type TriggerServiceImpl struct {
 	enforcerUtil                        rbac.EnforcerUtil
 	userDeploymentRequestService        service.UserDeploymentRequestService
 	helmAppClient                       gRPC.HelmAppClient //TODO refactoring: use helm app service instead
-	appRepository                 appRepository.AppRepository
-	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
-	imageScanHistoryRepository    security.ImageScanHistoryRepository
-	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository
-	pipelineRepository            pipelineConfig.PipelineRepository
-	pipelineOverrideRepository    chartConfig.PipelineOverrideRepository
-	manifestPushConfigRepository  repository.ManifestPushConfigRepository
-	chartRepository               chartRepoRepository.ChartRepository
-	envRepository                 repository2.EnvironmentRepository
-	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
-	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
-	ciArtifactRepository          repository3.CiArtifactRepository
-	ciTemplateService             pipeline2.CiTemplateReadService
-	gitMaterialReadService        read.GitMaterialReadService
-	appLabelRepository            pipelineConfig.AppLabelRepository
-	ciPipelineRepository          pipelineConfig.CiPipelineRepository
-	appWorkflowRepository         appWorkflow.AppWorkflowRepository
-	dockerArtifactStoreRepository repository4.DockerArtifactStoreRepository
-	K8sUtil                       *util5.K8sServiceImpl
-	transactionUtilImpl           *sql.TransactionUtilImpl
-	deploymentConfigService       common.DeploymentConfigService
-	deploymentServiceTypeConfig   *globalUtil.DeploymentServiceTypeConfig
-	ciCdPipelineOrchestrator      pipeline.CiCdPipelineOrchestrator
-	gitOperationService           git.GitOperationService
-	attributeService              attributes.AttributesService
+	appRepository                       appRepository.AppRepository
+	ciPipelineMaterialRepository        pipelineConfig.CiPipelineMaterialRepository
+	imageScanHistoryRepository          security.ImageScanHistoryRepository
+	imageScanDeployInfoRepository       security.ImageScanDeployInfoRepository
+	pipelineRepository                  pipelineConfig.PipelineRepository
+	pipelineOverrideRepository          chartConfig.PipelineOverrideRepository
+	manifestPushConfigRepository        repository.ManifestPushConfigRepository
+	chartRepository                     chartRepoRepository.ChartRepository
+	envRepository                       repository2.EnvironmentRepository
+	cdWorkflowRepository                pipelineConfig.CdWorkflowRepository
+	ciWorkflowRepository                pipelineConfig.CiWorkflowRepository
+	ciArtifactRepository                repository3.CiArtifactRepository
+	ciTemplateService                   pipeline2.CiTemplateReadService
+	gitMaterialReadService              read.GitMaterialReadService
+	appLabelRepository                  pipelineConfig.AppLabelRepository
+	ciPipelineRepository                pipelineConfig.CiPipelineRepository
+	appWorkflowRepository               appWorkflow.AppWorkflowRepository
+	dockerArtifactStoreRepository       repository4.DockerArtifactStoreRepository
+	K8sUtil                             *util5.K8sServiceImpl
+	transactionUtilImpl                 *sql.TransactionUtilImpl
+	deploymentConfigService             common.DeploymentConfigService
+	deploymentServiceTypeConfig         *globalUtil.DeploymentServiceTypeConfig
+	ciCdPipelineOrchestrator            pipeline.CiCdPipelineOrchestrator
+	gitOperationService                 git.GitOperationService
+	attributeService                    attributes.AttributesService
 }
 
 func NewTriggerServiceImpl(logger *zap.SugaredLogger,
@@ -259,38 +259,38 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 		eventFactory:                        eventFactory,
 		eventClient:                         eventClient,
 
-		globalEnvVariables:                  envVariables.GlobalEnvVariables,
-		userDeploymentRequestService:        userDeploymentRequestService,
-		helmAppClient:                       helmAppClient,
-		appRepository:                       appRepository,
-		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
-		imageScanHistoryRepository:          imageScanHistoryRepository,
-		imageScanDeployInfoRepository:       imageScanDeployInfoRepository,
-		pipelineRepository:                  pipelineRepository,
-		pipelineOverrideRepository:          pipelineOverrideRepository,
-		manifestPushConfigRepository:        manifestPushConfigRepository,
-		chartRepository:                     chartRepository,
-		envRepository:                       envRepository,
-		cdWorkflowRepository:                cdWorkflowRepository,
-		ciWorkflowRepository:                ciWorkflowRepository,
-		ciArtifactRepository:                ciArtifactRepository,
-		ciTemplateService:                   ciTemplateService,
-		gitMaterialReadService:              gitMaterialReadService,
-		appLabelRepository:                  appLabelRepository,
-		ciPipelineRepository:                ciPipelineRepository,
-		appWorkflowRepository:               appWorkflowRepository,
-		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
+		globalEnvVariables:            envVariables.GlobalEnvVariables,
+		userDeploymentRequestService:  userDeploymentRequestService,
+		helmAppClient:                 helmAppClient,
+		appRepository:                 appRepository,
+		ciPipelineMaterialRepository:  ciPipelineMaterialRepository,
+		imageScanHistoryRepository:    imageScanHistoryRepository,
+		imageScanDeployInfoRepository: imageScanDeployInfoRepository,
+		pipelineRepository:            pipelineRepository,
+		pipelineOverrideRepository:    pipelineOverrideRepository,
+		manifestPushConfigRepository:  manifestPushConfigRepository,
+		chartRepository:               chartRepository,
+		envRepository:                 envRepository,
+		cdWorkflowRepository:          cdWorkflowRepository,
+		ciWorkflowRepository:          ciWorkflowRepository,
+		ciArtifactRepository:          ciArtifactRepository,
+		ciTemplateService:             ciTemplateService,
+		gitMaterialReadService:        gitMaterialReadService,
+		appLabelRepository:            appLabelRepository,
+		ciPipelineRepository:          ciPipelineRepository,
+		appWorkflowRepository:         appWorkflowRepository,
+		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
 
-		imageScanService:                    imageScanService,
-		K8sUtil:                             K8sUtil,
+		imageScanService: imageScanService,
+		K8sUtil:          K8sUtil,
 
-		transactionUtilImpl:                 transactionUtilImpl,
+		transactionUtilImpl: transactionUtilImpl,
 
-		deploymentConfigService:             deploymentConfigService,
-		deploymentServiceTypeConfig:         envVariables.DeploymentServiceTypeConfig,
-		ciCdPipelineOrchestrator:            ciCdPipelineOrchestrator,
-		gitOperationService:                 gitOperationService,
-		attributeService:                    attributeService,
+		deploymentConfigService:     deploymentConfigService,
+		deploymentServiceTypeConfig: envVariables.DeploymentServiceTypeConfig,
+		ciCdPipelineOrchestrator:    ciCdPipelineOrchestrator,
+		gitOperationService:         gitOperationService,
+		attributeService:            attributeService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {

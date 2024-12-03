@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-package cluster
+package environment
 
 import (
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	mocks2 "github.com/devtron-labs/devtron/internal/sql/repository/mocks"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository/mocks"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -38,8 +39,8 @@ func TestGetEnvironmentListForAutocomplete(t *testing.T) {
 		}
 
 		mockError := error(nil)
-		mockModels := []*repository.Environment{}
-		mockModel := repository.Environment{
+		mockModels := []*repository3.Environment{}
+		mockModel := repository3.Environment{
 			Id: 1,
 			Cluster: &repository.Cluster{
 				ClusterName: "demo",
@@ -71,8 +72,8 @@ func TestGetEnvironmentListForAutocomplete(t *testing.T) {
 		}
 
 		mockError := error(nil)
-		mockModels := []*repository.Environment{}
-		mockModel := repository.Environment{
+		mockModels := []*repository3.Environment{}
+		mockModel := repository3.Environment{
 			Id: 1,
 			Cluster: &repository.Cluster{
 				ClusterName: "demo",
@@ -104,8 +105,8 @@ func TestGetEnvironmentListForAutocomplete(t *testing.T) {
 		}
 
 		mockError := error(nil)
-		mockModels := []*repository.Environment{}
-		mockModel := repository.Environment{
+		mockModels := []*repository3.Environment{}
+		mockModel := repository3.Environment{
 			Id: 1,
 			Cluster: &repository.Cluster{
 				ClusterName: "demo",
@@ -135,8 +136,8 @@ func TestGetEnvironmentListForAutocomplete(t *testing.T) {
 		}
 
 		mockError := error(nil)
-		mockModels := []*repository.Environment{}
-		mockModel := repository.Environment{
+		mockModels := []*repository3.Environment{}
+		mockModel := repository3.Environment{
 			Id:   1,
 			Name: "demo-devtron",
 			Cluster: &repository.Cluster{

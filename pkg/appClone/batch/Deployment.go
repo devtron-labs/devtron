@@ -25,8 +25,8 @@ import (
 	pc "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/util"
 	uuid "github.com/satori/go.uuid"
@@ -43,7 +43,7 @@ type DeploymentActionImpl struct {
 	logger                   *zap.SugaredLogger
 	pipelineBuilder          pipeline.PipelineBuilder
 	appRepo                  app.AppRepository
-	envService               cluster.EnvironmentService
+	envService               environment.EnvironmentService
 	appWorkflowRepo          appWorkflow.AppWorkflowRepository
 	ciPipelineRepository     pc.CiPipelineRepository
 	cdPipelineRepository     pc.PipelineRepository
@@ -52,7 +52,7 @@ type DeploymentActionImpl struct {
 }
 
 func NewDeploymentActionImpl(pipelineBuilder pipeline.PipelineBuilder, logger *zap.SugaredLogger,
-	appRepo app.AppRepository, envService cluster.EnvironmentService, appWorkflowRepo appWorkflow.AppWorkflowRepository,
+	appRepo app.AppRepository, envService environment.EnvironmentService, appWorkflowRepo appWorkflow.AppWorkflowRepository,
 	ciPipelineRepository pc.CiPipelineRepository, cdPipelineRepository pc.PipelineRepository, dataHolderAction DataHolderAction, deploymentTemplateAction DeploymentTemplateAction) *DeploymentActionImpl {
 	return &DeploymentActionImpl{
 		pipelineBuilder:          pipelineBuilder,

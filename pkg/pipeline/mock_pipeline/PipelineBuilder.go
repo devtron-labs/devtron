@@ -6,7 +6,7 @@ package mock_pipeline
 
 import (
 	context "context"
-	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	reflect "reflect"
 
 	bean "github.com/devtron-labs/devtron/api/bean"
