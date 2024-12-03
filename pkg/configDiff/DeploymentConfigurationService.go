@@ -60,6 +60,7 @@ type DeploymentConfigurationServiceImpl struct {
 	configMapHistoryService              configMapAndSecret.ConfigMapHistoryService
 	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService
 	configMapHistoryReadService          read2.ConfigMapHistoryReadService
+	cdWorkflowRepository                 pipelineConfig.CdWorkflowRepository
 }
 
 func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
@@ -79,6 +80,7 @@ func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
 	configMapHistoryService configMapAndSecret.ConfigMapHistoryService,
 	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService,
 	configMapHistoryReadService read2.ConfigMapHistoryReadService,
+	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 ) (*DeploymentConfigurationServiceImpl, error) {
 	deploymentConfigurationService := &DeploymentConfigurationServiceImpl{
 		logger:                               logger,
@@ -98,6 +100,7 @@ func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
 		configMapHistoryService:              configMapHistoryService,
 		deploymentTemplateHistoryReadService: deploymentTemplateHistoryReadService,
 		configMapHistoryReadService:          configMapHistoryReadService,
+		cdWorkflowRepository:                 cdWorkflowRepository,
 	}
 
 	return deploymentConfigurationService, nil
@@ -264,8 +267,12 @@ func (impl *DeploymentConfigurationServiceImpl) getConfigDataForDeploymentHistor
 	}
 	configDataDto.WithConfigMapData(cmConfigData)
 	// fetching for cm config ends
-
-	if userHasAdminAccess {
+	isWfrFirstDeployment, err := impl.IsFirstDeployment(configDataQueryParams.PipelineId, configDataQueryParams.WfrId)
+	if err != nil {
+		impl.logger.Errorw("error in checking if a single deployment history is present for pipelineId or not", "pipelineId", configDataQueryParams.PipelineId, "err", err)
+		return nil, err
+	}
+	if userHasAdminAccess || isWfrFirstDeployment {
 		// fetching for cs config starts
 		secretConfigDto, err := impl.getCmCsConfigHistory(ctx, configDataQueryParams, repository3.SECRET_TYPE, userHasAdminAccess)
 		if err != nil {
@@ -277,6 +284,18 @@ func (impl *DeploymentConfigurationServiceImpl) getConfigDataForDeploymentHistor
 	}
 
 	return configDataDto, nil
+}
+
+func (impl *DeploymentConfigurationServiceImpl) IsFirstDeployment(pipelineId, wfrId int) (bool, error) {
+	wfrs, err := impl.cdWorkflowRepository.FindDeployedCdWorkflowRunnersByPipelineId(pipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in getting all cd workflow runners for a pipeline id", "pipelineId", pipelineId, "err", err)
+		return false, err
+	}
+	if len(wfrs) > 0 && wfrs[0].Id == wfrId {
+		return true, nil
+	}
+	return false, nil
 }
 
 func (impl *DeploymentConfigurationServiceImpl) getCmCsConfigHistory(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams, configType repository3.ConfigType, userHasAdminAccess bool) (*bean2.DeploymentAndCmCsConfig, error) {
