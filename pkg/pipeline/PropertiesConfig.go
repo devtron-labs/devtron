@@ -442,6 +442,7 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(request *bean.Environme
 			IsOverride:        isOverride,
 			IsBasicViewLocked: IsBasicViewLocked,
 			CurrentViewEditor: CurrentViewEditor,
+			MergeStrategy:     request.MergeStrategy,
 		}
 		if isOverride {
 			envOverrideDBObj.EnvOverrideValues = chart.GlobalOverride
