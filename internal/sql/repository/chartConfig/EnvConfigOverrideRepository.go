@@ -214,6 +214,7 @@ func (r EnvConfigOverrideRepositoryImpl) UpdateProperties(config *EnvConfigOverr
 		Set("latest =?", config.Latest).
 		Set("is_basic_view_locked = ?", config.IsBasicViewLocked).
 		Set("current_view_editor = ?", config.CurrentViewEditor).
+		Set("merge_strategy = ?", config.MergeStrategy).
 		//Set("app_metrics_override =?", config.AppMetricsOverride).
 		WherePK().
 		Update()
