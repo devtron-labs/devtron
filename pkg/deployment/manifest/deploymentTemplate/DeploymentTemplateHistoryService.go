@@ -213,6 +213,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 		TemplateName:            chartRefDto.Name,
 		TemplateVersion:         chartRefDto.Version,
 		IsAppMetricsEnabled:     isAppMetricsEnabled,
+		MergeStrategy:           string(envOverride.MergeStrategy),
 		AuditLog: sql.AuditLog{
 			CreatedOn: deployedOn,
 			CreatedBy: deployedBy,
