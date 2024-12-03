@@ -64,10 +64,12 @@ type UserDeploymentRequestRepository interface {
 }
 
 func NewUserDeploymentRequestRepositoryImpl(dbConnection *pg.DB, transactionUtilImpl *sql.TransactionUtilImpl) *UserDeploymentRequestRepositoryImpl {
-	return &UserDeploymentRequestRepositoryImpl{
+	impl := &UserDeploymentRequestRepositoryImpl{
 		dbConnection:        dbConnection,
 		TransactionUtilImpl: transactionUtilImpl,
 	}
+	impl.GetAllInCompleteRequests(context.Background())
+	return impl
 }
 
 type UserDeploymentRequestRepositoryImpl struct {
@@ -149,7 +151,7 @@ func (impl *UserDeploymentRequestRepositoryImpl) GetAllInCompleteRequests(ctx co
 		Where("cdwfr.status NOT IN (?)", pg.In(append(cdWorkflow.WfrTerminalStatusList, cdWorkflow.WorkflowInQueue))).
 		Where("pst.status = ?", timelineStatus.TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED).
 		Where("NOT EXISTS (?)", subQuery).
-		Group("pipeline_id")
+		Group("user_deployment_request.pipeline_id")
 	err := impl.dbConnection.Model().
 		Table("user_deployment_request").
 		Column("user_deployment_request.*").

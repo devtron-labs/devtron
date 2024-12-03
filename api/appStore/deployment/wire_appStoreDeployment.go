@@ -19,6 +19,7 @@ package appStoreDeployment
 import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/util"
+	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
@@ -27,7 +28,7 @@ import (
 	"github.com/google/wire"
 )
 
-var AppStoreDeploymentWireSet = wire.NewSet(
+var WireSet = wire.NewSet(
 	//util.GetDeploymentServiceTypeConfig,
 	util.NewChartTemplateServiceImpl,
 	wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
@@ -54,4 +55,6 @@ var AppStoreDeploymentWireSet = wire.NewSet(
 
 	EAMode.NewInstalledAppDBServiceImpl,
 	wire.Bind(new(EAMode.InstalledAppDBService), new(*EAMode.InstalledAppDBServiceImpl)),
+
+	installedAppReader.EAWireSet,
 )

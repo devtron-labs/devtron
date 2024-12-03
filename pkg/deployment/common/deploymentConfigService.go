@@ -7,7 +7,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/bean"
@@ -35,7 +35,7 @@ type DeploymentConfigServiceImpl struct {
 	chartRepository             chartRepoRepository.ChartRepository
 	pipelineRepository          pipelineConfig.PipelineRepository
 	appRepository               appRepository.AppRepository
-	installedAppRepository      repository.InstalledAppRepository
+	installedAppReadService     installedAppReader.InstalledAppReadServiceEA
 	deploymentServiceTypeConfig *util.DeploymentServiceTypeConfig
 }
 
@@ -45,7 +45,7 @@ func NewDeploymentConfigServiceImpl(
 	chartRepository chartRepoRepository.ChartRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appRepository appRepository.AppRepository,
-	installedAppRepository repository.InstalledAppRepository,
+	installedAppReadService installedAppReader.InstalledAppReadServiceEA,
 	envVariables *util.EnvironmentVariables,
 ) *DeploymentConfigServiceImpl {
 	return &DeploymentConfigServiceImpl{
@@ -54,7 +54,7 @@ func NewDeploymentConfigServiceImpl(
 		chartRepository:             chartRepository,
 		pipelineRepository:          pipelineRepository,
 		appRepository:               appRepository,
-		installedAppRepository:      installedAppRepository,
+		installedAppReadService:     installedAppReadService,
 		deploymentServiceTypeConfig: envVariables.DeploymentServiceTypeConfig,
 	}
 }
@@ -389,7 +389,7 @@ func (impl *DeploymentConfigServiceImpl) migrateHelmAppDataToDeploymentConfig(ap
 }
 
 func (impl *DeploymentConfigServiceImpl) parseConfigForHelmApps(appId int, envId int) (*deploymentConfig.DeploymentConfig, error) {
-	installedApp, err := impl.installedAppRepository.GetInstalledAppsByAppId(appId)
+	installedApp, err := impl.installedAppReadService.GetInstalledAppsByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in getting installed app by appId", "appId", appId, "err", err)
 		return nil, err

@@ -144,10 +144,10 @@ type InstalledAppRepository interface {
 	GetAppAndEnvDetailsForDeploymentAppTypeInstalledApps(deploymentAppType string, clusterIds []int) ([]*InstalledApps, error)
 	GetDeploymentSuccessfulStatusCountForTelemetry() (int, error)
 	GetGitOpsInstalledAppsWhereArgoAppDeletedIsTrue(installedAppId int, envId int) (InstalledApps, error)
-	GetInstalledAppByGitHash(gitHash string) (InstallAppDeleteRequest, error)
+	GetInstalledAppByGitHash(gitHash string) (*InstallAppDeleteRequest, error)
 	GetInstalledAppByAppName(appName string) (*InstalledApps, error)
-	GetInstalledAppByAppIdAndDeploymentType(appId int, deploymentAppType string) (InstalledApps, error)
-	GetInstalledAppByInstalledAppVersionId(installedAppVersionId int) (InstalledApps, error)
+	GetInstalledAppByAppIdAndDeploymentType(appId int, deploymentAppType string) (*InstalledApps, error)
+	GetInstalledAppByInstalledAppVersionId(installedAppVersionId int) (*InstalledApps, error)
 	// GetInstalledAppByGitOpsAppName will return all the active installed_apps with matching `app_name-environment_name`
 	GetInstalledAppByGitOpsAppName(acdAppName string) (*InstalledApps, error)
 	GetInstalledAppByGitRepoUrl(repoName, repoUrl string) (*InstalledApps, error)
@@ -161,6 +161,9 @@ type InstalledAppRepository interface {
 	FindInstalledAppByIds(ids []int) ([]*InstalledApps, error)
 	// FindInstalledAppsByAppId returns multiple installed apps for an appId, this only happens for external-apps with same name installed in diff namespaces
 	FindInstalledAppsByAppId(appId int) ([]*InstalledApps, error)
+	// GetInstalledAppsMinByAppId will return the installed app by app id.
+	// Extra Environment, App, Team, Cluster details are not fetched
+	GetInstalledAppsMinByAppId(appId int) (*InstalledApps, error)
 }
 
 type InstalledAppRepositoryImpl struct {
@@ -255,6 +258,16 @@ func (impl *InstalledAppRepositoryImpl) GetInstalledAppsByAppId(appId int) (Inst
 		Column("installed_apps.*", "App", "Environment", "App.Team", "Environment.Cluster").
 		Where("installed_apps.app_id = ?", appId).Where("installed_apps.active = true").Select()
 	return model, err
+}
+
+func (impl *InstalledAppRepositoryImpl) GetInstalledAppsMinByAppId(appId int) (*InstalledApps, error) {
+	var model InstalledApps
+	err := impl.dbConnection.Model(&model).
+		Column("installed_apps.*").
+		Where("installed_apps.app_id = ?", appId).
+		Where("installed_apps.active = ?", true).
+		Select()
+	return &model, err
 }
 
 func (impl *InstalledAppRepositoryImpl) GetInstalledAppVersionByAppStoreId(appStoreId int) ([]*InstalledAppVersions, error) {
@@ -791,7 +804,7 @@ func (impl *InstalledAppRepositoryImpl) GetGitOpsInstalledAppsWhereArgoAppDelete
 	return installedApps, nil
 }
 
-func (impl *InstalledAppRepositoryImpl) GetInstalledAppByGitHash(gitHash string) (InstallAppDeleteRequest, error) {
+func (impl *InstalledAppRepositoryImpl) GetInstalledAppByGitHash(gitHash string) (*InstallAppDeleteRequest, error) {
 	model := InstallAppDeleteRequest{}
 	query := "select iv.installed_app_id, a.app_name, i.app_id, i.environment_id, a.app_offering_mode, e.cluster_id, e.namespace " +
 		" from app a inner join installed_apps i on a.id=i.app_id  " +
@@ -801,12 +814,12 @@ func (impl *InstalledAppRepositoryImpl) GetInstalledAppByGitHash(gitHash string)
 	_, err := impl.dbConnection.Query(&model, query, gitHash)
 	if err != nil {
 		impl.Logger.Errorw("error in getting delete request data", "err", err)
-		return model, err
+		return &model, err
 	}
-	return model, nil
+	return &model, nil
 }
 
-func (impl *InstalledAppRepositoryImpl) GetInstalledAppByAppIdAndDeploymentType(appId int, deploymentAppType string) (InstalledApps, error) {
+func (impl *InstalledAppRepositoryImpl) GetInstalledAppByAppIdAndDeploymentType(appId int, deploymentAppType string) (*InstalledApps, error) {
 	var installedApps InstalledApps
 	queryString := `select * from installed_apps 
                       	left join deployment_config dc on dc.active=true and dc.app_id = installed_apps.app_id and dc.environment_id=installed_apps.environment_id
@@ -814,10 +827,10 @@ func (impl *InstalledAppRepositoryImpl) GetInstalledAppByAppIdAndDeploymentType(
 	_, err := impl.dbConnection.Query(&installedApps, queryString, true, appId, deploymentAppType, deploymentAppType)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching InstalledApp", "err", err)
-		return installedApps, err
+		return &installedApps, err
 	}
 
-	return installedApps, nil
+	return &installedApps, nil
 }
 
 func (impl *InstalledAppRepositoryImpl) GetInstalledAppByAppName(appName string) (*InstalledApps, error) {
@@ -831,7 +844,7 @@ func (impl *InstalledAppRepositoryImpl) GetInstalledAppByAppName(appName string)
 	return model, err
 }
 
-func (impl *InstalledAppRepositoryImpl) GetInstalledAppByInstalledAppVersionId(installedAppVersionId int) (InstalledApps, error) {
+func (impl *InstalledAppRepositoryImpl) GetInstalledAppByInstalledAppVersionId(installedAppVersionId int) (*InstalledApps, error) {
 	var installedApps InstalledApps
 	queryString := `select ia.* from installed_apps ia inner join installed_app_versions iav on ia.id=iav.installed_app_id
                     left join deployment_config dc on dc.active=true and dc.app_id = ia.app_id and dc.environment_id=ia.environment_id
@@ -839,17 +852,17 @@ func (impl *InstalledAppRepositoryImpl) GetInstalledAppByInstalledAppVersionId(i
 	_, err := impl.dbConnection.Query(&installedApps, queryString, true, installedAppVersionId, util2.PIPELINE_DEPLOYMENT_TYPE_ACD, util2.PIPELINE_DEPLOYMENT_TYPE_ACD)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching InstalledApp", "err", err)
-		return installedApps, err
+		return &installedApps, err
 	}
 
-	return installedApps, nil
+	return &installedApps, nil
 }
 
 func (impl *InstalledAppRepositoryImpl) GetInstalledAppByGitOpsAppName(acdAppName string) (*InstalledApps, error) {
 	model := &InstalledApps{}
 	err := impl.dbConnection.Model(model).
-		Column("installed_apps.*", "App", "Environment").
-		// TODO add deployment_app_name filed in installed_apps table
+		Column("installed_apps.*").
+		// TODO add deployment_app_name field in installed_apps table
 		Where("CONCAT(app.app_name, ?, environment.environment_name) = ?", "-", acdAppName).
 		Where("installed_apps.active = true").
 		Where("environment.active = true").
