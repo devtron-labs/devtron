@@ -3,6 +3,14 @@ package configDiff
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	k8sUtil "github.com/devtron-labs/common-lib/utils/k8s"
+	bean4 "github.com/devtron-labs/devtron/api/bean"
+	bean5 "github.com/devtron-labs/devtron/api/helm-app/bean"
+	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	"github.com/devtron-labs/devtron/api/helm-app/service"
+	read3 "github.com/devtron-labs/devtron/api/helm-app/service/read"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -18,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret"
 	read2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -29,9 +38,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	repository6 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
+	chart2 "helm.sh/helm/v3/pkg/chart"
 	"net/http"
 	"strconv"
 )
@@ -39,6 +50,7 @@ import (
 type DeploymentConfigurationService interface {
 	ConfigAutoComplete(appId int, envId int) (*bean2.ConfigDataResponse, error)
 	GetAllConfigData(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams, userHasAdminAccess bool) (*bean2.DeploymentAndCmCsConfigDto, error)
+	GetManifest(ctx context.Context, manifestRequest *bean2.ManifestRequest) (*bean2.ManifestResponse, error)
 }
 
 type DeploymentConfigurationServiceImpl struct {
@@ -59,6 +71,13 @@ type DeploymentConfigurationServiceImpl struct {
 	configMapHistoryService              configMapAndSecret.ConfigMapHistoryService
 	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService
 	configMapHistoryReadService          read2.ConfigMapHistoryReadService
+	envConfigOverrideService             read.EnvConfigOverrideService
+	chartTemplateService                 util.ChartTemplateService
+	helmAppClient                        gRPC.HelmAppClient
+	helmAppService                       service.HelmAppService
+	k8sUtil                              k8sUtil.K8sService
+	mergeUtil                            util.MergeUtil
+	HelmAppReadService                   read3.HelmAppReadService
 }
 
 func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
@@ -78,6 +97,13 @@ func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
 	configMapHistoryService configMapAndSecret.ConfigMapHistoryService,
 	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService,
 	configMapHistoryReadService read2.ConfigMapHistoryReadService,
+	envConfigOverrideService read.EnvConfigOverrideService,
+	chartTemplateService util.ChartTemplateService,
+	helmAppClient gRPC.HelmAppClient,
+	helmAppService service.HelmAppService,
+	k8sUtil k8sUtil.K8sService,
+	mergeUtil util.MergeUtil,
+	HelmAppReadService read3.HelmAppReadService,
 ) (*DeploymentConfigurationServiceImpl, error) {
 	deploymentConfigurationService := &DeploymentConfigurationServiceImpl{
 		logger:                               logger,
@@ -97,6 +123,13 @@ func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
 		configMapHistoryService:              configMapHistoryService,
 		deploymentTemplateHistoryReadService: deploymentTemplateHistoryReadService,
 		configMapHistoryReadService:          configMapHistoryReadService,
+		envConfigOverrideService:             envConfigOverrideService,
+		chartTemplateService:                 chartTemplateService,
+		helmAppClient:                        helmAppClient,
+		helmAppService:                       helmAppService,
+		k8sUtil:                              k8sUtil,
+		mergeUtil:                            mergeUtil,
+		HelmAppReadService:                   HelmAppReadService,
 	}
 
 	return deploymentConfigurationService, nil
@@ -163,6 +196,292 @@ func (impl *DeploymentConfigurationServiceImpl) GetAllConfigData(ctx context.Con
 	}
 	// this would be the default case
 	return impl.getConfigDataForAppConfiguration(ctx, configDataQueryParams, appId, envId, clusterId, userHasAdminAccess, systemMetadata)
+}
+
+func (impl *DeploymentConfigurationServiceImpl) GetManifest(ctx context.Context, manifestRequest *bean2.ManifestRequest) (*bean2.ManifestResponse, error) {
+
+	appId := manifestRequest.AppId
+	envId := manifestRequest.EnvironmentId
+
+	app, err := impl.appRepository.FindById(manifestRequest.AppId)
+	if err != nil {
+		impl.logger.Errorw("error in finding app by id", "appId", appId, "err", err)
+		return nil, err
+	}
+
+	refChart, chartInBytes, err := impl.getRefChartBytes(ctx, envId, appId, app)
+	if err != nil {
+		impl.logger.Errorw("error in getting ref chart bytes", "appId", appId, "envId", envId, "err", err)
+		return nil, err
+	}
+
+	values := manifestRequest.Values
+
+	scope := resourceQualifiers.Scope{
+		AppId: appId,
+		EnvId: envId,
+		SystemMetadata: &resourceQualifiers.SystemMetadata{
+			AppName: app.AppName,
+		},
+	}
+	var namespace, envName string
+	if manifestRequest.EnvironmentId > 0 {
+		environment, err := impl.environmentRepository.FindById(envId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting environment", "envId", envId, "err", err)
+			return nil, err
+		}
+		envName = environment.Name
+		scope.ClusterId = environment.ClusterId
+		scope.SystemMetadata.EnvironmentName = envName
+		scope.SystemMetadata.ClusterName = environment.Cluster.ClusterName
+		namespace = environment.Namespace
+		scope.SystemMetadata.Namespace = namespace
+	}
+
+	isSuperAdmin, err := util2.GetIsSuperAdminFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var decodedValuesByte []byte
+	if manifestRequest.ResourceType == bean.CS {
+		decodedValuesByte, err = util2.GetDecodedAndEncodedData(values, util2.DecodeSecret)
+		if err != nil {
+			impl.logger.Errorw("error in decoding secret", "appId", appId, "envId", envId, "err", err)
+			return nil, err
+		}
+	} else {
+		decodedValuesByte = []byte(values)
+	}
+
+	resolvedTemplate, _, err := impl.scopedVariableManager.ExtractVariablesAndResolveTemplate(scope, string(decodedValuesByte), parsers.JsonVariableTemplate, isSuperAdmin, true)
+	if err != nil {
+		return nil, err
+	}
+
+	k8sServerVersion, err := impl.k8sUtil.GetKubeVersion()
+	if err != nil {
+		impl.logger.Errorw("exception caught in getting k8sServerVersion", "err", err)
+		return nil, err
+	}
+
+	sanitizedK8sVersion := k8sServerVersion.String()
+
+	releaseName := app.AppName
+	if len(envName) > 0 {
+		releaseName = fmt.Sprintf("%s-%s", app.AppName, envName)
+	}
+	installReleaseRequest := &gRPC.InstallReleaseRequest{
+		AppName:         app.AppName,
+		ChartName:       refChart.Name,
+		ChartVersion:    refChart.Version,
+		K8SVersion:      sanitizedK8sVersion,
+		ChartRepository: generateManifest.ChartRepository,
+		ChartContent: &gRPC.ChartContent{
+			Content: chartInBytes,
+		},
+		ReleaseIdentifier: &gRPC.ReleaseIdentifier{
+			ReleaseName: releaseName,
+		},
+	}
+	config, err := impl.HelmAppReadService.GetClusterConf(bean5.DEFAULT_CLUSTER_ID)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster detail", "clusterId", 1, "err", err)
+		return nil, err
+	}
+	installReleaseRequest.ReleaseIdentifier.ClusterConfig = config
+
+	mergedValuesYAML, err := impl.getMergedValuesForCMCSHelmTemplate(manifestRequest, resolvedTemplate, app, envId)
+	if err != nil {
+		impl.logger.Errorw("error in merging values for cm cs ", "err", err)
+		return nil, err
+	}
+
+	installReleaseRequest.ValuesYaml = string(mergedValuesYAML)
+
+	templateChartResponse, err := impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
+	if err != nil {
+		impl.logger.Errorw("error in templating chart", "err", err)
+		clientErrCode, errMsg := util.GetClientDetailedError(err)
+		if clientErrCode.IsFailedPreconditionCode() {
+			return nil, &util.ApiError{HttpStatusCode: http.StatusUnprocessableEntity, Code: strconv.Itoa(http.StatusUnprocessableEntity), InternalMessage: errMsg, UserMessage: errMsg}
+		} else if clientErrCode.IsInvalidArgumentCode() {
+			return nil, &util.ApiError{HttpStatusCode: http.StatusConflict, Code: strconv.Itoa(http.StatusConflict), InternalMessage: errMsg, UserMessage: errMsg}
+		}
+		return nil, err
+	}
+
+	yamlSplits, err := kube.SplitYAML([]byte(templateChartResponse.GeneratedManifest))
+	for _, yaml := range yamlSplits {
+		if (manifestRequest.ResourceType == bean.CM && yaml.GetKind() == "ConfigMap") || (manifestRequest.ResourceType == bean.CS && yaml.GetKind() == "Secret") {
+			name := yaml.GetName()
+			if name == manifestRequest.ResourceName || name == fmt.Sprintf("%s-%d", manifestRequest.ResourceName, appId) {
+				yamlJSON, err := yaml.MarshalJSON()
+				if err != nil {
+					return nil, err
+				}
+				return &bean2.ManifestResponse{Manifest: string(yamlJSON)}, nil
+			}
+		}
+	}
+
+	return &bean2.ManifestResponse{Manifest: ""}, nil
+}
+
+func (impl *DeploymentConfigurationServiceImpl) getMergedValuesForCMCSHelmTemplate(manifestRequest *bean2.ManifestRequest, resolvedTemplate string, app *appRepository.App, envId int) ([]byte, error) {
+	var (
+		CMCSValues []byte
+		err        error
+	)
+	switch manifestRequest.ResourceType {
+	case bean.CM:
+		ConfigMapRoot := bean4.ConfigMapRootJson{
+			ConfigMapJson: bean4.ConfigMapJson{
+				Enabled: true,
+				Maps: []bean4.ConfigSecretMap{
+					{
+						Name: manifestRequest.ResourceName,
+						Data: json.RawMessage(resolvedTemplate),
+					},
+				},
+			},
+		}
+		CMCSValues, err = json.Marshal(ConfigMapRoot)
+		if err != nil {
+			impl.logger.Errorw("error in marshalling config map obj", "appId", manifestRequest.AppId, "envId", manifestRequest.EnvironmentId, "err", err)
+			return nil, err
+		}
+	case bean.CS:
+
+		secretMap := make(map[string]interface{})
+		err := json.Unmarshal([]byte(resolvedTemplate), &secretMap)
+		if err != nil {
+			impl.logger.Errorw("error in unmarshalling secret draft data ", "err", err)
+			return nil, err
+		}
+		for key, _ := range secretMap {
+			if !manifestRequest.UserHasAdminAccess {
+				secretMap[key] = bean2.SecretMaskedValue
+			}
+		}
+		decodedSecretData, err := json.Marshal(secretMap)
+		if err != nil {
+			impl.logger.Errorw("error in decoding secret data", "err", err)
+			return nil, err
+		}
+		resolvedTemplate = string(decodedSecretData)
+
+		ConfigMapRoot := bean4.ConfigSecretRootJson{
+			ConfigSecretJson: bean4.ConfigSecretJson{
+				Enabled: true,
+				Secrets: []*bean4.ConfigSecretMap{
+					{
+						Name: manifestRequest.ResourceName,
+						Data: json.RawMessage(resolvedTemplate),
+					},
+				},
+			},
+		}
+		CMCSValues, err = json.Marshal(ConfigMapRoot)
+		if err != nil {
+			impl.logger.Errorw("error in marshalling config map obj", "appId", manifestRequest.AppId, "envId", manifestRequest.EnvironmentId, "err", err)
+			return nil, err
+		}
+	}
+	labelValues := struct {
+		App int `json:"app"`
+		Env int `json:"env"`
+	}{
+		App: app.Id,
+		Env: envId,
+	}
+
+	labelValuesJSON, err := json.Marshal(labelValues)
+	if err != nil {
+		return nil, err
+	}
+
+	mergedValues, err := impl.mergeUtil.JsonPatch(CMCSValues, labelValuesJSON)
+	if err != nil {
+		return nil, err
+	}
+
+	mergedValuesYAML, err := yaml.JSONToYAML(mergedValues)
+	if err != nil {
+		return nil, err
+	}
+	return mergedValuesYAML, nil
+}
+
+func (impl *DeploymentConfigurationServiceImpl) getRefChartBytes(ctx context.Context, envId int, appId int, app *appRepository.App) (*chartRefBean.ChartRefDto, []byte, error) {
+
+	chartRefId, err := impl.getConfiguredChartRef(envId, appId)
+	if err != nil {
+		impl.logger.Errorw("error in getting configured chart ref", "appId", appId, "envId", envId, "err", err)
+		return nil, nil, err
+	}
+
+	refChart, err := impl.chartRefService.FindById(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
+		return nil, nil, err
+	}
+
+	chartMetaData := &chart2.Metadata{
+		Name:    app.AppName,
+		Version: refChart.Version,
+	}
+
+	refChartPath, err := impl.chartRefService.GetChartLocation(refChart.Location, refChart.ChartData)
+	if err != nil {
+		impl.logger.Errorw("error in getting chart location", "chartMetaData", chartMetaData, "refChartLocation", refChart.Location)
+		return nil, nil, err
+	}
+
+	tempReferenceTemplateDir, err := impl.chartTemplateService.BuildChart(ctx, chartMetaData, refChartPath)
+	if err != nil {
+		impl.logger.Errorw("error in building chart", "chartMetaData", chartMetaData, "refChartPath", refChartPath)
+		return nil, nil, err
+	}
+
+	chartInBytes, err := impl.chartTemplateService.LoadChartInBytes(tempReferenceTemplateDir, true)
+	if err != nil {
+		impl.logger.Errorw("error in loading chart bytes from dir", "dir", tempReferenceTemplateDir, "chartMetadata", chartMetaData, "err", err)
+		return nil, nil, err
+	}
+
+	return refChart, chartInBytes, nil
+}
+
+func (impl *DeploymentConfigurationServiceImpl) getConfiguredChartRef(envId int, appId int) (int, error) {
+	var chartRefId int
+	if envId > 0 {
+		envOverride, err := impl.envConfigOverrideService.FindLatestChartForAppByAppIdAndEnvId(appId, envId)
+		if err != nil && !errors.IsNotFound(err) {
+			impl.logger.Errorw("error in fetching latest chart", "err", err)
+			return 0, nil
+		}
+		if envOverride != nil && envOverride.Chart != nil {
+			chartRefId = envOverride.Chart.ChartRefId
+		} else {
+			chart, err := impl.chartService.FindLatestChartForAppByAppId(appId)
+			if err != nil && err != pg.ErrNoRows {
+				impl.logger.Errorw("error in fetching latest chart", "err", err)
+				return 0, nil
+			}
+
+			chartRefId = chart.ChartRefId
+		}
+	} else {
+		chart, err := impl.chartService.FindLatestChartForAppByAppId(appId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching latest chart", "err", err)
+			return 0, nil
+		}
+		chartRefId = chart.ChartRefId
+	}
+	return chartRefId, nil
 }
 
 func (impl *DeploymentConfigurationServiceImpl) getConfigDataForCdRollback(ctx context.Context, configDataQueryParams *bean2.ConfigDataQueryParams, userHasAdminAccess bool) (*bean2.DeploymentAndCmCsConfigDto, error) {

@@ -18,6 +18,7 @@ package bean
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"strings"
 )
 
@@ -47,24 +48,26 @@ type ESOData struct {
 // there is an adapter written in pkg/bean folder to convert below ConfigData struct to pkg/bean's ConfigData
 
 type ConfigData struct {
-	Name                  string           `json:"name"`
-	Type                  string           `json:"type"`
-	External              bool             `json:"external"`
-	MountPath             string           `json:"mountPath,omitempty"`
-	Data                  json.RawMessage  `json:"data"`
-	DefaultData           json.RawMessage  `json:"defaultData,omitempty"`
-	DefaultMountPath      string           `json:"defaultMountPath,omitempty"`
-	Global                bool             `json:"global"`
-	ExternalSecretType    string           `json:"externalType"`
-	ESOSecretData         ESOSecretData    `json:"esoSecretData"`
-	DefaultESOSecretData  ESOSecretData    `json:"defaultESOSecretData,omitempty"`
-	ExternalSecret        []ExternalSecret `json:"secretData"`
-	DefaultExternalSecret []ExternalSecret `json:"defaultSecretData,omitempty"`
-	RoleARN               string           `json:"roleARN"`
-	SubPath               bool             `json:"subPath"`
-	ESOSubPath            []string         `json:"esoSubPath"`
-	FilePermission        string           `json:"filePermission"`
-	Overridden            bool             `json:"overridden"`
+	Name                  string               `json:"name"`
+	Type                  string               `json:"type"`
+	External              bool                 `json:"external"`
+	MountPath             string               `json:"mountPath,omitempty"`
+	Data                  json.RawMessage      `json:"data"`
+	PatchData             json.RawMessage      `json:"patchData"`
+	MergeStrategy         models.MergeStrategy `json:"mergeStrategy"`
+	DefaultData           json.RawMessage      `json:"defaultData,omitempty"`
+	DefaultMountPath      string               `json:"defaultMountPath,omitempty"`
+	Global                bool                 `json:"global"`
+	ExternalSecretType    string               `json:"externalType"`
+	ESOSecretData         ESOSecretData        `json:"esoSecretData"`
+	DefaultESOSecretData  ESOSecretData        `json:"defaultESOSecretData,omitempty"`
+	ExternalSecret        []ExternalSecret     `json:"secretData"`
+	DefaultExternalSecret []ExternalSecret     `json:"defaultSecretData,omitempty"`
+	RoleARN               string               `json:"roleARN"`
+	SubPath               bool                 `json:"subPath"`
+	ESOSubPath            []string             `json:"esoSubPath"`
+	FilePermission        string               `json:"filePermission"`
+	Overridden            bool                 `json:"overridden"`
 }
 
 func (c *ConfigData) IsESOExternalSecretType() bool {

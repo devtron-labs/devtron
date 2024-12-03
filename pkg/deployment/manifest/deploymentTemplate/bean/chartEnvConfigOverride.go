@@ -3,7 +3,7 @@ package bean
 import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"time"
 )
 
@@ -18,7 +18,7 @@ type EnvConfigOverride struct {
 	Active                    bool
 	Namespace                 string
 	Chart                     *chartRepoRepository.Chart
-	Environment               *repository.Environment
+	Environment               *repository2.Environment
 	Latest                    bool
 	Previous                  bool
 	IsOverride                bool

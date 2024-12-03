@@ -4,6 +4,7 @@ import "C"
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean3 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -177,6 +178,21 @@ type ConfigDataQueryParams struct {
 	UserId       int32  `schema:"-"`
 	WfrId        int    `schema:"wfrId"`
 	ConfigArea   string `schema:"configArea"`
+}
+
+type ManifestRequest struct {
+	Values             json.RawMessage      `json:"values"`
+	MergeStrategy      models.MergeStrategy `json:"mergeStrategy"`
+	ResourceType       bean.ResourceType    `json:"resourceType"`
+	ResourceId         int                  `json:"resourceId"`
+	ResourceName       string               `json:"resourceName"`
+	AppId              int                  `json:"appId"`
+	EnvironmentId      int                  `json:"environmentId"`
+	UserHasAdminAccess bool                 `json:"-"`
+}
+
+type ManifestResponse struct {
+	Manifest string `json:"manifest"`
 }
 
 // FilterCriteria []string `schema:"filterCriteria"`

@@ -2,6 +2,7 @@ package restHandler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -20,6 +21,7 @@ import (
 type DeploymentConfigurationRestHandler interface {
 	ConfigAutoComplete(w http.ResponseWriter, r *http.Request)
 	GetConfigData(w http.ResponseWriter, r *http.Request)
+	GetManifest(w http.ResponseWriter, r *http.Request)
 }
 type DeploymentConfigurationRestHandlerImpl struct {
 	logger                         *zap.SugaredLogger
@@ -114,6 +116,48 @@ func (handler *DeploymentConfigurationRestHandlerImpl) GetConfigData(w http.Resp
 	}
 	res.IsAppAdmin = handler.enforceForAppAndEnv(configDataQueryParams.AppName, configDataQueryParams.EnvName, token, casbin.ActionUpdate)
 
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
+}
+
+func (handler *DeploymentConfigurationRestHandlerImpl) GetManifest(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	var request bean.ManifestRequest
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.logger.Errorw("request err, HandleGitWebhook", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	//RBAC START
+	token := r.Header.Get(common.TokenHeaderKey)
+	//RBAC START
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(request.AppId)
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
+	if !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	defer cancel()
+	ctx = util2.SetSuperAdminInContext(ctx, isSuperAdmin)
+
+	request.UserHasAdminAccess = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object)
+
+	res, err := handler.deploymentConfigurationService.GetManifest(ctx, &request)
+	if err != nil {
+		handler.logger.Errorw("service err, GetMergedValues ", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
