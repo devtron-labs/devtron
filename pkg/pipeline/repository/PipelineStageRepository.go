@@ -895,10 +895,10 @@ func (impl *PipelineStageRepositoryImpl) CheckIfPluginExistsInPipelineStage(pipe
 	var step PipelineStageStep
 	query := impl.dbConnection.Model(&step).
 		Column("pipeline_stage_step.*").
-		Join("INNER JOIN pipeline_stage ps on ps.id = plugin_stage_step.pipeline_stage_id").
-		Where("plugin_stage_step.ref_plugin_id = ?", pluginId).
+		Join("INNER JOIN pipeline_stage ps on ps.id = pipeline_stage_step.pipeline_stage_id").
+		Where("pipeline_stage_step.ref_plugin_id = ?", pluginId).
 		Where("ps.type = ?", stageType).
-		Where("plugin_stage_step.deleted=?", false).
+		Where("pipeline_stage_step.deleted=?", false).
 		Where("ps.deleted= ?", false)
 
 	if stageType.IsStageTypePostCi() || stageType.IsStageTypePostCi() {
