@@ -1985,6 +1985,7 @@ func (impl ConfigMapServiceImpl) ConfigGlobalFetchEditUsingAppId(name string, ap
 		impl.logger.Errorw("error in fetching global cm using app id ", "cmName", name, "appId", appId, "err", err)
 		return nil, err
 	}
+	configDataRequest.Deletable = true // always true in oss
 	configs := make([]*bean.ConfigData, 0, len(configDataRequest.ConfigData))
 	for _, configData := range configDataRequest.ConfigData {
 		if configData.Name == name {

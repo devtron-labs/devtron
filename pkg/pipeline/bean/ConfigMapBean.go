@@ -27,6 +27,7 @@ type ConfigDataRequest struct {
 	AppId         int           `json:"appId"`
 	EnvironmentId int           `json:"environmentId,omitempty"`
 	ConfigData    []*ConfigData `json:"configData"`
+	Deletable     bool          `json:"isDeletable"`
 	UserId        int32         `json:"-"`
 }
 
