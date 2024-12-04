@@ -426,7 +426,7 @@
               "title": "Custom Scaling Queue Length Deduction"
             },
             "customScalingRunningJobPercentage":{
-              "type": "integer",
+              "type": "string",
               "description": "Optional. A parameter to optimize custom ScalingStrategy.",
               "title": "Custom Scaling QueueLengthDeduction"
             },
@@ -441,7 +441,7 @@
               
             },
             "pendingPodConditions": {
-              "type": "string",
+              "type": "array",
               "description": "Optional. A parameter to calculate pending job count per the specified pod conditions",
               "title": "Pending Pod Conditions",
               "enum":[ "Ready", "PodScheduled","AnyOtherCustomPodCondition"]
@@ -464,12 +464,12 @@
         "triggerAuthentication":{
           "type": "object",
           "title": "Trigger Authentication",
+          "description": "TriggerAuthentication allows you to describe authentication parameters separate from the ScaledObject and the deployment containers.",
           "properties":
           {
-            "enabled":
-            {
+            "enabled": {
               "type": "boolean",
-              "enum": ["true","false"]
+              "description": "enabling TriggerAuthentication"
             },
             "name": {
               "type": "string"
