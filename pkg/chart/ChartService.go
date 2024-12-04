@@ -27,7 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -81,7 +81,7 @@ type ChartServiceImpl struct {
 	mergeUtil                        util.MergeUtil
 	envOverrideRepository            chartConfig.EnvConfigOverrideRepository
 	pipelineConfigRepository         chartConfig.PipelineConfigRepository
-	environmentRepository            repository4.EnvironmentRepository
+	environmentRepository            repository.EnvironmentRepository
 	deploymentTemplateHistoryService deploymentTemplate.DeploymentTemplateHistoryService
 	scopedVariableManager            variables.ScopedVariableManager
 	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
@@ -98,7 +98,7 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	mergeUtil util.MergeUtil,
 	envOverrideRepository chartConfig.EnvConfigOverrideRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
-	environmentRepository repository4.EnvironmentRepository,
+	environmentRepository repository.EnvironmentRepository,
 	deploymentTemplateHistoryService deploymentTemplate.DeploymentTemplateHistoryService,
 	scopedVariableManager variables.ScopedVariableManager,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,

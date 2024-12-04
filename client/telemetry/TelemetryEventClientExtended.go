@@ -24,6 +24,7 @@ import (
 	repository3 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	ciConfig "github.com/devtron-labs/devtron/pkg/build/pipeline/read"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	cron3 "github.com/devtron-labs/devtron/util/cron"
 	"net/http"
@@ -52,7 +53,7 @@ import (
 const AppsCount int = 50
 
 type TelemetryEventClientImplExtended struct {
-	environmentService            cluster.EnvironmentService
+	environmentService            environment.EnvironmentService
 	appListingRepository          repository.AppListingRepository
 	ciPipelineConfigReadService   ciConfig.CiPipelineConfigReadService
 	pipelineRepository            pipelineConfig.PipelineRepository
@@ -71,7 +72,7 @@ type TelemetryEventClientImplExtended struct {
 
 func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
 	K8sUtil *util2.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig,
-	environmentService cluster.EnvironmentService, userService user2.UserService,
+	environmentService environment.EnvironmentService, userService user2.UserService,
 	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,
 	ciPipelineConfigReadService ciConfig.CiPipelineConfigReadService, pipelineRepository pipelineConfig.PipelineRepository,
 	gitProviderRepository repository3.GitProviderRepository, attributeRepo repository.AttributesRepository,

@@ -26,6 +26,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	bean4 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
+	bean5 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	util3 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"io/ioutil"
 	"net/http"
@@ -43,7 +47,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
@@ -109,7 +112,7 @@ type CiHandlerImpl struct {
 	cdPipelineRepository         pipelineConfig.PipelineRepository
 	enforcerUtil                 rbac.EnforcerUtil
 	resourceGroupService         resourceGroup.ResourceGroupService
-	envRepository                repository3.EnvironmentRepository
+	envRepository                repository2.EnvironmentRepository
 	imageTaggingService          imageTagging.ImageTaggingService
 	customTagService             CustomTagService
 	appWorkflowRepository        appWorkflow.AppWorkflowRepository
@@ -117,14 +120,14 @@ type CiHandlerImpl struct {
 	k8sCommonService             k8s2.K8sCommonService
 	clusterService               cluster.ClusterService
 	blobConfigStorageService     BlobStorageConfigService
-	envService                   cluster.EnvironmentService
+	envService                   environment.EnvironmentService
 }
 
 func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService,
 	ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sServiceImpl, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup.ResourceGroupService, envRepository repository3.EnvironmentRepository,
+	appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sServiceImpl, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup.ResourceGroupService, envRepository repository2.EnvironmentRepository,
 	imageTaggingService imageTagging.ImageTaggingService, k8sCommonService k8s2.K8sCommonService, clusterService cluster.ClusterService, blobConfigStorageService BlobStorageConfigService, appWorkflowRepository appWorkflow.AppWorkflowRepository, customTagService CustomTagService,
-	envService cluster.EnvironmentService) *CiHandlerImpl {
+	envService environment.EnvironmentService) *CiHandlerImpl {
 	cih := &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -600,7 +603,7 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, er
 		return 0, err
 	}
 	isExt := workflow.Namespace != DefaultCiWorkflowNamespace
-	var env *repository3.Environment
+	var env *repository2.Environment
 	var restConfig *rest.Config
 	if isExt {
 		restConfig, err = impl.getRestConfig(workflow)
@@ -705,7 +708,7 @@ func (impl *CiHandlerImpl) getRestConfig(workflow *pipelineConfig.CiWorkflow) (*
 		return nil, err
 	}
 
-	clusterBean := cluster.GetClusterBean(*env.Cluster)
+	clusterBean := adapter.GetClusterBean(*env.Cluster)
 
 	clusterConfig := clusterBean.GetClusterConfig()
 	restConfig, err := impl.K8sUtil.GetRestConfigByCluster(clusterConfig)
@@ -835,9 +838,9 @@ func (impl *CiHandlerImpl) getWorkflowLogs(ciWorkflow *pipelineConfig.CiWorkflow
 		if err != nil {
 			return nil, nil, err
 		}
-		var clusterBean cluster.ClusterBean
+		var clusterBean bean5.ClusterBean
 		if env != nil && env.Cluster != nil {
-			clusterBean = cluster.GetClusterBean(*env.Cluster)
+			clusterBean = adapter.GetClusterBean(*env.Cluster)
 		}
 		clusterConfig = clusterBean.GetClusterConfig()
 		isExt = true
@@ -1606,7 +1609,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 
 	for _, ciWorkflow := range ciWorkflows {
 		var isExt bool
-		var env *repository3.Environment
+		var env *repository2.Environment
 		var restConfig *rest.Config
 		if ciWorkflow.Namespace != DefaultCiWorkflowNamespace {
 			isExt = true

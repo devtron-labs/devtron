@@ -10,7 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	bean3 "github.com/devtron-labs/devtron/pkg/bean"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository4 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/configDiff/adaptor"
 	bean2 "github.com/devtron-labs/devtron/pkg/configDiff/bean"
 	"github.com/devtron-labs/devtron/pkg/configDiff/helper"
@@ -45,7 +45,7 @@ type DeploymentConfigurationServiceImpl struct {
 	logger                               *zap.SugaredLogger
 	configMapService                     pipeline.ConfigMapService
 	appRepository                        appRepository.AppRepository
-	environmentRepository                repository.EnvironmentRepository
+	environmentRepository                repository4.EnvironmentRepository
 	chartService                         chartService.ChartService
 	deploymentTemplateService            generateManifest.DeploymentTemplateService
 	deploymentTemplateHistoryRepository  repository3.DeploymentTemplateHistoryRepository
@@ -64,7 +64,7 @@ type DeploymentConfigurationServiceImpl struct {
 func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
 	configMapService pipeline.ConfigMapService,
 	appRepository appRepository.AppRepository,
-	environmentRepository repository.EnvironmentRepository,
+	environmentRepository repository4.EnvironmentRepository,
 	chartService chartService.ChartService,
 	deploymentTemplateService generateManifest.DeploymentTemplateService,
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository,

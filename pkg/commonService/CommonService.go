@@ -26,9 +26,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	repository2 "github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -47,7 +47,7 @@ type CommonServiceImpl struct {
 	attributeRepo               repository.AttributesRepository
 	gitProviderReadService      read.GitProviderReadService
 	environmentRepository       repository3.EnvironmentRepository
-	teamRepository              repository2.TeamRepository
+	teamRepository              team.TeamRepository
 	appRepository               app.AppRepository
 	gitOpsConfigReadService     config.GitOpsConfigReadService
 }
@@ -59,7 +59,7 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 	dockerReg dockerRegistryRepository.DockerArtifactStoreRepository,
 	attributeRepo repository.AttributesRepository,
 	environmentRepository repository3.EnvironmentRepository,
-	teamRepository repository2.TeamRepository,
+	teamRepository team.TeamRepository,
 	appRepository app.AppRepository,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitProviderReadService read.GitProviderReadService) *CommonServiceImpl {

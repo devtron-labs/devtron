@@ -48,8 +48,8 @@ import (
 	argoApplication2 "github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	bean5 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
@@ -127,7 +127,7 @@ type AppStatus struct {
 type AppAutocomplete struct {
 	Teams        []team.TeamRequest
 	Environments []bean2.EnvironmentBean
-	Clusters     []cluster.ClusterBean
+	Clusters     []bean5.ClusterBean
 }
 
 func NewAppListingRestHandlerImpl(application application.ServiceClient,

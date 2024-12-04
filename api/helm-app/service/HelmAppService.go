@@ -29,6 +29,8 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/service/read"
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/go-pg/pg"
 	"net/http"
 	"reflect"
@@ -102,7 +104,7 @@ type HelmAppServiceImpl struct {
 	serverDataStore                      *serverDataStore.ServerDataStore
 	serverEnvConfig                      *serverEnvConfig.ServerEnvConfig
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
-	environmentService                   cluster.EnvironmentService
+	environmentService                   environment.EnvironmentService
 	pipelineRepository                   pipelineConfig.PipelineRepository
 	installedAppRepository               repository.InstalledAppRepository
 	appRepository                        app.AppRepository
@@ -116,7 +118,7 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.Clu
 	helmAppClient gRPC.HelmAppClient, pump connector.Pump, enforcerUtil rbac.EnforcerUtilHelm,
 	serverDataStore *serverDataStore.ServerDataStore, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
-	environmentService cluster.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository,
+	environmentService environment.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository,
 	installedAppRepository repository.InstalledAppRepository, appRepository app.AppRepository,
 	clusterRepository clusterRepository.ClusterRepository, K8sUtil *k8s.K8sServiceImpl,
 	helmReleaseConfig *HelmReleaseConfig,
@@ -584,7 +586,7 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *helm
 	return response, nil
 }
 
-func (impl *HelmAppServiceImpl) checkIfNsExists(namespace string, clusterBean *cluster.ClusterBean) (bool, error) {
+func (impl *HelmAppServiceImpl) checkIfNsExists(namespace string, clusterBean *bean2.ClusterBean) (bool, error) {
 
 	config := clusterBean.GetClusterConfig()
 	v12Client, err := impl.K8sUtil.GetCoreV1Client(config)

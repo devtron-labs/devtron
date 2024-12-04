@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/ciPipeline"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util/response/pagination"
@@ -62,7 +62,7 @@ type CiEnvMapping struct {
 	CiPipelineId  int      `sql:"ci_pipeline_id"`
 	Deleted       bool     `sql:"deleted,notnull"`
 	CiPipeline    CiPipeline
-	Environment   repository.Environment
+	Environment   repository2.Environment
 	sql.AuditLog
 }
 
