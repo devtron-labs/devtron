@@ -1419,6 +1419,16 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetchForEdit(name string, id int, 
 		}
 		for _, item := range configsList.ConfigData {
 			if item.Name == name {
+
+				appLevelConfigMap, err := impl.ConfigGlobalFetchEditUsingAppId(name, appId, bean.CS)
+				if err != nil && err != pg.ErrNoRows {
+					impl.logger.Errorw("error in fetching app level config", "appId", appId, "err", err)
+					return nil, err
+				}
+				if len(item.MergeStrategy) == 0 && len(appLevelConfigMap.ConfigData) > 0 {
+					item.MergeStrategy = models.MERGE_STRATEGY_REPLACE
+				}
+
 				configs = append(configs, item)
 				break
 			}
