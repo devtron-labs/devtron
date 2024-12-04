@@ -64,7 +64,6 @@ func NewDeleteServiceExtendedImpl(logger *zap.SugaredLogger,
 		appRepository:         appRepository,
 		environmentRepository: environmentRepository,
 		pipelineRepository:    pipelineRepository,
-		// TODO Asutosh: here...
 		DeleteServiceImpl: &DeleteServiceImpl{
 			logger:                   logger,
 			teamService:              teamService,
@@ -116,7 +115,6 @@ func (impl DeleteServiceExtendedImpl) DeleteEnvironment(deleteRequest *bean.Envi
 	filter := &appStoreBean.AppStoreFilter{
 		EnvIds: []int{deleteRequest.Id},
 	}
-	// TODO Asutosh: here...
 	installedApps, err := impl.installedAppRepository.GetAllInstalledApps(filter)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("err in deleting env", "envName", deleteRequest.Environment, "err", err)
