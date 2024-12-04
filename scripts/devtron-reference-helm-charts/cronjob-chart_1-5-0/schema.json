@@ -365,7 +365,8 @@
           "type":"boolean",
           "description": "This flag tells the controller to suspend subsequent executions, it does not apply to already started executions.  Defaults is false."
         }
-      },
+      }
+    },
       "kind":{
         "type": "string",
         "description": "Kind is a string value representing the object type.",
@@ -755,5 +756,4 @@
         "title": "Wait For Seconds Before Scaling Down"
       }
     }
-  }
 }
