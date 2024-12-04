@@ -37,15 +37,15 @@ type LogInResponse struct {
 }
 
 type EnvironmentConf struct {
-    TestEnv string `json.testEnv`
+    TestEnv string `json:"testEnv"`
     EnvList []Environment `json:"environment"`
 }
 
 type Environment struct {
     EnvironmentName string `json:"envName"`
-    BaseServerUrl string `json:baseServerUrl`
+    BaseServerUrl string `json:"baseServerUrl"`
     LogInUserName string `json:"loginUserName"`
-    LogInUserPwd string `json:loginUserPwd`
+    LogInUserPwd string `json:"loginUserPwd"`
 }
 
 //Give resty client along with some basic settings like cookie etc

@@ -149,7 +149,7 @@ func (ciPipeline *CiPipeline) IsLinkedCi() bool {
 type DockerConfigOverride struct {
 	DockerRegistry   string                         `json:"dockerRegistry,omitempty"`
 	DockerRepository string                         `json:"dockerRepository,omitempty"`
-	CiBuildConfig    *CiPipeline2.CiBuildConfigBean `json:"ciBuildConfig,omitEmpty"`
+	CiBuildConfig    *CiPipeline2.CiBuildConfigBean `json:"ciBuildConfig,omitempty"`
 	//DockerBuildConfig *DockerBuildConfig  `json:"dockerBuildConfig,omitempty"`
 }
 
