@@ -352,20 +352,15 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataByStepIdDeepC
 	variableNameIdMap := make(map[int]string)
 	for _, variable := range variables {
 		variableNameIdMap[variable.Id] = variable.Name
+		variableDto, convErr := adapter.GetStepVariableDto(variable)
+		if convErr != nil {
+			impl.logger.Errorw("error in converting variable to dto", "err", convErr, "variable", variable)
+			return nil, nil, nil, convErr
+		}
 		if variable.VariableType.IsInput() {
-			inputVariableDto, convErr := adapter.GetStepVariableDto(variable)
-			if convErr != nil {
-				impl.logger.Errorw("error in converting variable to dto", "err", convErr, "variable", variable)
-				return nil, nil, nil, convErr
-			}
-			inputVariablesDto = append(inputVariablesDto, inputVariableDto)
+			inputVariablesDto = append(inputVariablesDto, variableDto)
 		} else if variable.VariableType.IsOutput() {
-			outputVariableDto, convErr := adapter.GetStepVariableDto(variable)
-			if convErr != nil {
-				impl.logger.Errorw("error in converting variable to dto", "err", convErr, "variable", variable)
-				return nil, nil, nil, convErr
-			}
-			outputVariablesDto = append(outputVariablesDto, outputVariableDto)
+			outputVariablesDto = append(outputVariablesDto, variableDto)
 		}
 	}
 	conditions, err := impl.pipelineStageRepository.GetConditionsByStepId(stepId)
@@ -563,20 +558,15 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataByStepId(step
 	variableNameIdMap := make(map[int]string)
 	for _, variable := range variables {
 		variableNameIdMap[variable.Id] = variable.Name
-		if variable.VariableType == repository.PIPELINE_STAGE_STEP_VARIABLE_TYPE_INPUT {
-			inputVariableDto, convErr := adapter.GetStepVariableDto(variable)
-			if convErr != nil {
-				impl.logger.Errorw("error in converting variable to dto", "err", convErr, "variable", variable)
-				return nil, nil, nil, convErr
-			}
-			inputVariablesDto = append(inputVariablesDto, inputVariableDto)
-		} else if variable.VariableType == repository.PIPELINE_STAGE_STEP_VARIABLE_TYPE_OUTPUT {
-			outputVariableDto, convErr := adapter.GetStepVariableDto(variable)
-			if convErr != nil {
-				impl.logger.Errorw("error in converting variable to dto", "err", convErr, "variable", variable)
-				return nil, nil, nil, convErr
-			}
-			outputVariablesDto = append(outputVariablesDto, outputVariableDto)
+		variableDto, convErr := adapter.GetStepVariableDto(variable)
+		if convErr != nil {
+			impl.logger.Errorw("error in converting variable to dto", "err", convErr, "variable", variable)
+			return nil, nil, nil, convErr
+		}
+		if variable.VariableType.IsInput() {
+			inputVariablesDto = append(inputVariablesDto, variableDto)
+		} else if variable.VariableType.IsOutput() {
+			outputVariablesDto = append(outputVariablesDto, variableDto)
 		}
 	}
 	conditions, err := impl.pipelineStageRepository.GetConditionsByStepId(stepId)
