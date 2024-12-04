@@ -581,8 +581,15 @@ func (impl *DeploymentConfigurationServiceImpl) getCmCsEditDataForPublishedOnly(
 	}
 	cmcsConfigData, err := fetchConfigFunc(configDataQueryParams.ResourceName, configDataQueryParams.ResourceId, envId, appId)
 	if err != nil {
-		impl.logger.Errorw("getCmCsEditDataForPublishedOnly, error in getting config response", "resourceName", configDataQueryParams.ResourceName, "envName", configDataQueryParams.EnvName, "err", err)
+		impl.logger.Errorw("error in getting config response", "resourceName", configDataQueryParams.ResourceName, "envName", configDataQueryParams.EnvName, "err", err)
 		return nil, err
+	}
+	if configDataQueryParams.IsResourceTypeSecret() && !userHasAdminAccess {
+		_, err := utils.GetKeyValMapForSecretConfigDataAndMaskData(cmcsConfigData.ConfigData)
+		if err != nil {
+			impl.logger.Errorw("error in getting config response", "resourceName", configDataQueryParams.ResourceName, "envName", configDataQueryParams.EnvName, "err", err)
+			return nil, err
+		}
 	}
 
 	respJson, err := utils.ConvertToJsonRawMessage(cmcsConfigData)
