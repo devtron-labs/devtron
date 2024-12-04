@@ -443,9 +443,7 @@
             "pendingPodConditions": {
               "type": "array",
               "description": "Optional. A parameter to calculate pending job count per the specified pod conditions",
-              "title": "Pending Pod Conditions",
-              "enum":[ "Ready", "PodScheduled","AnyOtherCustomPodCondition"]
-
+              "title": "Pending Pod Conditions"
             },
             "strategy":{
               "type": "string",
