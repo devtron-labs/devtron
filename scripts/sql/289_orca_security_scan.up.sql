@@ -1,5 +1,5 @@
 INSERT INTO "plugin_parent_metadata" ("id", "name","identifier", "description","type","icon","deleted", "created_on", "created_by", "updated_on", "updated_by")
-VALUES (nextval('id_seq_plugin_parent_metadata'), 'ORCA SECURITY SCAN','security-image-scan','Orca Cloud Security plugin for scanning container images and detecting vulnerabilities','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/devtron-logo-plugin.png','f', 'now()', 1, 'now()', 1);
+VALUES (nextval('id_seq_plugin_parent_metadata'), 'ORCA SECURITY SCAN','security-image-scan','Orca Cloud Security plugin for scanning container images and detecting vulnerabilities','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/orca_security_scan_logo.png','f', 'now()', 1, 'now()', 1);
 
 
 UPDATE plugin_metadata SET is_latest = false WHERE id = (SELECT id FROM plugin_metadata WHERE name= 'ORCA SECURITY SCAN' and is_latest= true);
