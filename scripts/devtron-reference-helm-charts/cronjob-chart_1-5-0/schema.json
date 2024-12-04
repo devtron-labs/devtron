@@ -488,7 +488,7 @@
 
       },
       "podAnnotations":{
-        "type": "yaml",
+        "type": "object",
         "description": "adding extra annotations to pod"
       },
       "ephemeralContainers":
