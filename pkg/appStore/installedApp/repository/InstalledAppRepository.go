@@ -120,7 +120,10 @@ type InstalledAppRepository interface {
 	GetInstalledApp(id int) (*InstalledApps, error)
 	GetInstalledAppsByAppId(appId int) (InstalledApps, error)
 	GetInstalledAppVersion(id int) (*InstalledAppVersions, error)
-	GetInstalledAppVersionAny(id int) (*InstalledAppVersions, error)
+	// GetInstalledAppVersionIncludingDeleted -
+	// For the given installed app version id, it will return the installed app version (both active and inactive)
+	//	- returns InstalledAppVersions by id for both active and inactive versions
+	GetInstalledAppVersionIncludingDeleted(id int) (*InstalledAppVersions, error)
 	GetAllInstalledApps(filter *appStoreBean.AppStoreFilter) ([]InstalledAppsWithChartDetails, error)
 	GetAllInstalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error)
 	GetAllInstalledAppsByChartRepoId(chartRepoId int) ([]InstalledAppAndEnvDetails, error)
@@ -133,7 +136,6 @@ type InstalledAppRepository interface {
 	GetConnection() (dbConnection *pg.DB)
 	GetInstalledAppVersionByInstalledAppIdMeta(installedAppId int) ([]*InstalledAppVersions, error)
 	GetActiveInstalledAppVersionByInstalledAppId(installedAppId int) (*InstalledAppVersions, error)
-	GetLatestInstalledAppVersionByGitHash(gitHash string) (*InstalledAppVersions, error)
 	GetClusterComponentByClusterId(clusterId int) ([]*InstalledApps, error)     //unused
 	GetClusterComponentByClusterIds(clusterIds []int) ([]*InstalledApps, error) //unused
 	GetInstalledAppVersionByAppIdAndEnvId(appId int, envId int) (*InstalledAppVersions, error)
@@ -356,16 +358,6 @@ func (impl *InstalledAppRepositoryImpl) GetActiveInstalledAppVersionByInstalledA
 	return model, err
 }
 
-func (impl *InstalledAppRepositoryImpl) GetLatestInstalledAppVersionByGitHash(gitHash string) (*InstalledAppVersions, error) {
-	model := &InstalledAppVersions{}
-	err := impl.dbConnection.Model(model).
-		Column("installed_app_versions.*", "InstalledApp").
-		Column("AppStoreApplicationVersion.AppStore.ChartRepo").
-		Where("installed_app_versions.git_hash = ?", gitHash).
-		Where("installed_app_versions.active = true").Order("installed_app_versions.id desc").Limit(1).Select()
-	return model, err
-}
-
 func (impl *InstalledAppRepositoryImpl) GetInstalledAppVersion(id int) (*InstalledAppVersions, error) {
 	model := &InstalledAppVersions{}
 	err := impl.dbConnection.Model(model).
@@ -392,8 +384,8 @@ func (impl *InstalledAppRepositoryImpl) GetInstalledAppVersion(id int) (*Install
 	return model, err
 }
 
-// GetInstalledAppVersionAny - returns enable and disabled both version
-func (impl *InstalledAppRepositoryImpl) GetInstalledAppVersionAny(id int) (*InstalledAppVersions, error) {
+// GetInstalledAppVersionIncludingDeleted - returns enable and disabled both versions
+func (impl *InstalledAppRepositoryImpl) GetInstalledAppVersionIncludingDeleted(id int) (*InstalledAppVersions, error) {
 	model := &InstalledAppVersions{}
 	err := impl.dbConnection.Model(model).
 		Column("installed_app_versions.*", "InstalledApp", "InstalledApp.App", "AppStoreApplicationVersion").

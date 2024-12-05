@@ -74,3 +74,38 @@ func GetInstalledAppDeleteRequest(installedAppModel *repository.InstallAppDelete
 		Namespace:       installedAppModel.Namespace,
 	}
 }
+
+// GetInstalledAppVersionMin will return the installed app version minimum details.
+//   - input: installedAppVersionModel *repository.InstalledAppVersions
+//   - returns: *bean.InstalledAppVersionMin
+func GetInstalledAppVersionMin(installedAppVersionModel *repository.InstalledAppVersions) *bean.InstalledAppVersionMin {
+	if installedAppVersionModel == nil {
+		return nil
+	}
+	return &bean.InstalledAppVersionMin{
+		Id:                           installedAppVersionModel.Id,
+		InstalledAppId:               installedAppVersionModel.InstalledAppId,
+		AppStoreApplicationVersionId: installedAppVersionModel.AppStoreApplicationVersionId,
+		ValuesYaml:                   installedAppVersionModel.ValuesYaml,
+		Active:                       installedAppVersionModel.Active,
+		ReferenceValueId:             installedAppVersionModel.ReferenceValueId,
+		ReferenceValueKind:           installedAppVersionModel.ReferenceValueKind,
+	}
+}
+
+// GetInstalledAppVersionWithAppStoreDetails will return the installed app version with app store details.
+//   - input: installedAppVersionModel *repository.InstalledAppVersions
+//   - returns: *bean.InstalledAppVersionWithAppStoreDetails
+func GetInstalledAppVersionWithAppStoreDetails(installedAppVersionModel *repository.InstalledAppVersions) *bean.InstalledAppVersionWithAppStoreDetails {
+	if installedAppVersionModel == nil {
+		return nil
+	}
+	versionDetails := &bean.InstalledAppVersionWithAppStoreDetails{
+		InstalledAppVersionMin: util.GetDeReferencedBean(GetInstalledAppVersionMin(installedAppVersionModel)),
+	}
+	// Extra App Store Application Version details
+	if !installedAppVersionModel.AppStoreApplicationVersion.IsEmpty() {
+		versionDetails.AppStoreVersion = installedAppVersionModel.AppStoreApplicationVersion.Version
+	}
+	return versionDetails
+}
