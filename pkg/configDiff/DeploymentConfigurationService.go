@@ -927,7 +927,7 @@ func (impl *DeploymentConfigurationServiceImpl) getSecretConfigResponse(resource
 		if envId > 0 {
 			return impl.configMapService.CSEnvironmentFetchForEdit(resourceName, resourceId, appId, envId)
 		}
-		return impl.configMapService.ConfigGlobalFetchEditUsingAppId(resourceName, appId, bean.CS)
+		return impl.configMapService.CmCsConfigGlobalFetchUsingAppId(resourceName, appId, bean.CS)
 	}
 
 	if envId > 0 {
@@ -941,7 +941,7 @@ func (impl *DeploymentConfigurationServiceImpl) getConfigMapResponse(resourceNam
 		if envId > 0 {
 			return impl.configMapService.CMEnvironmentFetchForEdit(resourceName, resourceId, appId, envId)
 		}
-		return impl.configMapService.ConfigGlobalFetchEditUsingAppId(resourceName, appId, bean.CM)
+		return impl.configMapService.CmCsConfigGlobalFetchUsingAppId(resourceName, appId, bean.CM)
 	}
 
 	if envId > 0 {
