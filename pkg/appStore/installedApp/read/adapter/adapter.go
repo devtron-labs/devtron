@@ -15,20 +15,20 @@ func GetInstalledAppInternal(installedAppModel *repository.InstalledApps) *bean.
 	installedAppInternal := &bean.InstalledAppWithEnvAndClusterDetails{}
 	installedAppInternal.InstalledAppMin = GetInstalledAppMin(installedAppModel)
 	// Extra App details
-	if !installedAppModel.App.IsZero() {
+	if !installedAppModel.App.IsEmpty() {
 		installedAppInternal.AppName = installedAppModel.App.AppName
 		installedAppInternal.AppOfferingMode = installedAppModel.App.AppOfferingMode
 		installedAppInternal.TeamId = installedAppModel.App.TeamId
 	}
 	// Extra Environment details
-	if !installedAppModel.Environment.IsZero() {
+	if !installedAppModel.Environment.IsEmpty() {
 		installedAppInternal.EnvironmentName = installedAppModel.Environment.Name
 		installedAppInternal.EnvironmentIdentifier = installedAppModel.Environment.EnvironmentIdentifier
 		installedAppInternal.Namespace = installedAppModel.Environment.Namespace
 		installedAppInternal.ClusterId = installedAppModel.Environment.ClusterId
 	}
 	// Cluster details
-	if !installedAppModel.Environment.Cluster.IsZero() {
+	if !installedAppModel.Environment.Cluster.IsEmpty() {
 		installedAppInternal.ClusterName = installedAppModel.Environment.Cluster.ClusterName
 	}
 	return installedAppInternal

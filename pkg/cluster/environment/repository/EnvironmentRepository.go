@@ -49,7 +49,7 @@ type Environment struct {
 	sql.AuditLog
 }
 
-func (environment *Environment) IsZero() bool {
+func (environment *Environment) IsEmpty() bool {
 	if environment == nil {
 		return true
 	}
