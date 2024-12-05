@@ -290,7 +290,7 @@ func (impl *GitCliManagerImpl) Clone(gitContext GitContext, prj CiProjectDetails
 		logrus.Error("could not clone repo ", "msgMsg: ", msgMsg, " err: ", cErr)
 		return "", msgMsg, cErr
 	}
-	projectName := util.GetProjectName(prj.GitRepository)
+	projectName := util.GetGitRepoNameFromGitRepoUrl(prj.GitRepository)
 	projRootDir := filepath.Join(checkoutPath, projectName)
 
 	_, msgMsg, cErr = impl.moveFilesFromSourceToDestination(projRootDir, checkoutPath)
