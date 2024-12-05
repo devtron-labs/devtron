@@ -24,11 +24,14 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	deployment2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode/deployment"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deploymentTypeChange"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
 	"github.com/google/wire"
 )
 
-var WireSet = wire.NewSet(
+var EAModeWireSet = wire.NewSet(
 	//util.GetDeploymentServiceTypeConfig,
 	util.NewChartTemplateServiceImpl,
 	wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
@@ -57,4 +60,20 @@ var WireSet = wire.NewSet(
 	wire.Bind(new(EAMode.InstalledAppDBService), new(*EAMode.InstalledAppDBServiceImpl)),
 
 	installedAppReader.EAWireSet,
+)
+
+var FullModeWireSet = wire.NewSet(
+
+	EAModeWireSet,
+
+	FullMode.NewInstalledAppDBExtendedServiceImpl,
+	wire.Bind(new(FullMode.InstalledAppDBExtendedService), new(*FullMode.InstalledAppDBExtendedServiceImpl)),
+
+	resource.NewInstalledAppResourceServiceImpl,
+	wire.Bind(new(resource.InstalledAppResourceService), new(*resource.InstalledAppResourceServiceImpl)),
+
+	deploymentTypeChange.NewInstalledAppDeploymentTypeChangeServiceImpl,
+	wire.Bind(new(deploymentTypeChange.InstalledAppDeploymentTypeChangeService), new(*deploymentTypeChange.InstalledAppDeploymentTypeChangeServiceImpl)),
+
+	installedAppReader.WireSet,
 )

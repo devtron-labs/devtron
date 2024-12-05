@@ -17,7 +17,7 @@ type InstalledAppMin struct {
 }
 
 type InstalledAppWithAppDetails struct {
-	InstalledAppMin
+	*InstalledAppMin
 	// Extra App details
 	AppName         string
 	AppOfferingMode string
@@ -25,7 +25,7 @@ type InstalledAppWithAppDetails struct {
 }
 
 type InstalledAppWithEnvDetails struct {
-	InstalledAppWithAppDetails
+	*InstalledAppWithAppDetails
 	// Extra Environment details
 	EnvironmentName       string
 	EnvironmentIdentifier string
@@ -44,7 +44,7 @@ type InstalledAppDeleteRequest struct {
 }
 
 type InstalledAppWithEnvAndClusterDetails struct {
-	InstalledAppWithEnvDetails
+	*InstalledAppWithEnvDetails
 	// Extra Cluster details
 	ClusterName string
 }
@@ -53,19 +53,19 @@ func (i *InstalledAppWithEnvAndClusterDetails) GetInstalledAppMin() *InstalledAp
 	if i == nil {
 		return nil
 	}
-	return &i.InstalledAppMin
+	return i.InstalledAppMin
 }
 
 func (i *InstalledAppWithEnvAndClusterDetails) GetInstalledAppWithAppDetails() *InstalledAppWithAppDetails {
 	if i == nil {
 		return nil
 	}
-	return &i.InstalledAppWithAppDetails
+	return i.InstalledAppWithAppDetails
 }
 
 func (i *InstalledAppWithEnvAndClusterDetails) GetInstalledAppWithEnvDetails() *InstalledAppWithEnvDetails {
 	if i == nil {
 		return nil
 	}
-	return &i.InstalledAppWithEnvDetails
+	return i.InstalledAppWithEnvDetails
 }

@@ -3,7 +3,6 @@ package adapter
 import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/read/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
-	"github.com/devtron-labs/devtron/util"
 )
 
 // GetInstalledAppInternal will return the installed app with environment and cluster details.
@@ -14,7 +13,7 @@ func GetInstalledAppInternal(installedAppModel *repository.InstalledApps) *bean.
 		return nil
 	}
 	installedAppInternal := &bean.InstalledAppWithEnvAndClusterDetails{}
-	installedAppInternal.InstalledAppMin = util.GetDeReferencedBean(GetInstalledAppMin(installedAppModel))
+	installedAppInternal.InstalledAppMin = GetInstalledAppMin(installedAppModel)
 	// Extra App details
 	if !installedAppModel.App.IsZero() {
 		installedAppInternal.AppName = installedAppModel.App.AppName
