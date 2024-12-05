@@ -901,15 +901,15 @@ func (impl *PipelineStageRepositoryImpl) CheckIfPluginExistsInPipelineStage(pipe
 		Where("pipeline_stage_step.deleted=?", false).
 		Where("ps.deleted= ?", false)
 
-	if stageType.IsStageTypePostCi() || stageType.IsStageTypePostCi() {
+	if stageType.IsStageTypePostCi() || stageType.IsStageTypePreCi() {
 		query.Where("ps.ci_pipeline_id= ?", pipelineId)
-	} else if stageType.IsStageTypePostCd() || stageType.IsStageTypePostCd() {
+	} else if stageType.IsStageTypePostCd() || stageType.IsStageTypePreCd() {
 		query.Where("ps.cd_pipeline_id= ?", pipelineId)
 	}
-	err := query.Select()
+	exists, err := query.Exists()
 	if err != nil {
 		impl.logger.Errorw("error in getting plugin stage step by pipelineId, stageType nad plugin id", "pipelineId", pipelineId, "stageType", stageType.ToString(), "pluginId", pluginId, "err", err)
 		return false, err
 	}
-	return step.Id != 0, nil
+	return exists, nil
 }

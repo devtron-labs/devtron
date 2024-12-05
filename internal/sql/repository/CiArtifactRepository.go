@@ -140,7 +140,7 @@ type CiArtifactRepository interface {
 	MigrateToWebHookDataSourceType(id int) error
 	UpdateLatestTimestamp(artifactIds []int) error
 
-	Update(ciArtifact *CiArtifact) (*CiArtifact, error)
+	Update(ciArtifact *CiArtifact) error
 }
 
 type CiArtifactRepositoryImpl struct {
@@ -861,11 +861,11 @@ func (impl CiArtifactRepositoryImpl) FindCiArtifactByImagePaths(images []string)
 	return ciArtifacts, nil
 }
 
-func (impl CiArtifactRepositoryImpl) Update(ciArtifact *CiArtifact) (*CiArtifact, error) {
+func (impl CiArtifactRepositoryImpl) Update(ciArtifact *CiArtifact) error {
 	err := impl.dbConnection.Update(ciArtifact)
 	if err != nil {
 		impl.logger.Errorw("error in updating ciArtifact", "ciArtifact", ciArtifact, "err", err)
-		return nil, err
+		return err
 	}
-	return ciArtifact, nil
+	return nil
 }
