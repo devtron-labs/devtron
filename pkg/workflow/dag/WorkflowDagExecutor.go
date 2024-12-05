@@ -764,16 +764,18 @@ func (impl *WorkflowDagExecutorImpl) UpdateCiWorkflowForCiSuccess(request *bean2
 
 func (impl *WorkflowDagExecutorImpl) isArtifactScannedByPluginForPipeline(ciArtifact *repository.CiArtifact, pipelineId int,
 	pipelineStage repository4.PipelineStageType, pluginName string) (bool, bool, error) {
-
+	var isScanningDone bool
 	isScanPluginConfigured, err := impl.pipelineStageService.IsScanPluginConfiguredAtPipelineStage(pipelineId, pipelineStage, pluginName)
 	if err != nil {
 		impl.logger.Errorw("error in fetching if a scan plugin is configured or not in a pipeline", "pipelineStage", pipelineStage, "ciArtifact", ciArtifact)
 		return false, false, err
 	}
-	isScanningDone, err := impl.imageScanService.IsImageScanExecutionCompleted(ciArtifact.Image, ciArtifact.ImageDigest)
-	if err != nil {
-		impl.logger.Errorw("error in checking if image scanning is completed or not", "image", ciArtifact.Image, "imageDigest", ciArtifact.ImageDigest)
-		return false, false, err
+	if isScanPluginConfigured {
+		isScanningDone, err = impl.imageScanService.IsImageScanExecutionCompleted(ciArtifact.Image, ciArtifact.ImageDigest)
+		if err != nil {
+			impl.logger.Errorw("error in checking if image scanning is completed or not", "image", ciArtifact.Image, "imageDigest", ciArtifact.ImageDigest)
+			return false, false, err
+		}
 	}
 	return isScanPluginConfigured, isScanningDone, nil
 }
