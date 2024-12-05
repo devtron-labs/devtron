@@ -573,15 +573,11 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext t
 		scanEnabled, scanned := ciArtifact.ScanEnabled, ciArtifact.Scanned
 		isScanPluginConfigured, isScanningDoneViaPlugin, err := impl.isArtifactScannedByPluginForPipeline(ciArtifact, cdStageCompleteEvent.CdPipelineId, repository4.PIPELINE_STAGE_TYPE_PRE_CD, bean2.ImageScanningPluginToCheckInPipelineStageStep)
 		if err != nil {
-			impl.logger.Errorw("error in handling scanning event for ci artifact", "ciArtifact", ciArtifact, "err", err)
+			impl.logger.Errorw("error in checking if artifact scanned by plugin for a pipeline or not", "ciArtifact", ciArtifact, "err", err)
 			return err
 		}
-		if isScanPluginConfigured {
-			ciArtifact.ScanEnabled = true
-		}
-		if isScanningDoneViaPlugin {
-			ciArtifact.Scanned = true
-		}
+		helper.UpdateScanStatusInCiArtifact(ciArtifact, isScanPluginConfigured, isScanningDoneViaPlugin)
+
 		// if ciArtifact scanEnabled and scanned state changed from above func then update ciArtifact
 		if scanEnabled != ciArtifact.ScanEnabled || scanned != ciArtifact.Scanned {
 			err = impl.ciArtifactRepository.Update(ciArtifact)
@@ -686,15 +682,11 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(triggerContext 
 	scanEnabled, scanned := ciArtifact.ScanEnabled, ciArtifact.Scanned
 	isScanPluginConfigured, isScanningDoneViaPlugin, err := impl.isArtifactScannedByPluginForPipeline(ciArtifact, cdPipelineId, repository4.PIPELINE_STAGE_TYPE_POST_CD, bean2.ImageScanningPluginToCheckInPipelineStageStep)
 	if err != nil {
-		impl.logger.Errorw("error in handling scanning event for ci artifact", "ciArtifact", ciArtifact, "err", err)
+		impl.logger.Errorw("error in checking if artifact scanned by plugin for a pipeline or not", "ciArtifact", ciArtifact, "err", err)
 		return err
 	}
-	if isScanPluginConfigured {
-		ciArtifact.ScanEnabled = true
-	}
-	if isScanningDoneViaPlugin {
-		ciArtifact.Scanned = true
-	}
+	helper.UpdateScanStatusInCiArtifact(ciArtifact, isScanPluginConfigured, isScanningDoneViaPlugin)
+
 	// if ciArtifact scanEnabled and scanned state changed from above func then update ciArtifact
 	if scanEnabled != ciArtifact.ScanEnabled || scanned != ciArtifact.Scanned {
 		err = impl.ciArtifactRepository.Update(ciArtifact)
@@ -814,15 +806,10 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 	} else {
 		isScanPluginConfigured, isScanningDoneViaPlugin, err := impl.isArtifactScannedByPluginForPipeline(buildArtifact, pipelineModal.Id, pipelineStage, bean2.ImageScanningPluginToCheckInPipelineStageStep)
 		if err != nil {
-			impl.logger.Errorw("error in handling scanning event for this ci artifact", "ciArtifact", buildArtifact, "err", err)
+			impl.logger.Errorw("error in checking if artifact scanned by plugin for a pipeline or not", "ciArtifact", buildArtifact, "err", err)
 			return 0, err
 		}
-		if isScanPluginConfigured {
-			buildArtifact.ScanEnabled = true
-		}
-		if isScanningDoneViaPlugin {
-			buildArtifact.Scanned = true
-		}
+		helper.UpdateScanStatusInCiArtifact(buildArtifact, isScanPluginConfigured, isScanningDoneViaPlugin)
 	}
 
 	if err = impl.ciArtifactRepository.Save(buildArtifact); err != nil {

@@ -19,7 +19,6 @@ package security
 import (
 	"context"
 	securityBean "github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
@@ -651,7 +650,7 @@ func (impl ImageScanServiceImpl) updateCount(severity securityBean.Severity, cri
 func (impl ImageScanServiceImpl) IsImageScanExecutionCompleted(image, imageDigest string) (bool, error) {
 	var isScanningCompleted bool
 	allScanHistoryMappings, err := impl.scanToolExecutionHistoryMappingRepository.FetchScanHistoryMappingsUsingImageAndImageDigest(image, imageDigest)
-	if err != nil && !util.IsErrNoRows(err) {
+	if err != nil {
 		impl.Logger.Errorw("error in fetching all scan execution history mapping", "image", image, "imageDigest", imageDigest, "err", err)
 		return false, err
 	}

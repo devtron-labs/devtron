@@ -3,6 +3,7 @@ package helper
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 )
 
 func GetMaterialInfoJson(materialInfo json.RawMessage) ([]byte, error) {
@@ -18,4 +19,13 @@ func GetMaterialInfoJson(materialInfo json.RawMessage) ([]byte, error) {
 	}
 	matJson = dst.Bytes()
 	return matJson, nil
+}
+
+func UpdateScanStatusInCiArtifact(ciArtifact *repository.CiArtifact, isScanPluginConfigured, isScanningDoneViaPlugin bool) {
+	if isScanPluginConfigured {
+		ciArtifact.ScanEnabled = true
+	}
+	if isScanningDoneViaPlugin {
+		ciArtifact.Scanned = true
+	}
 }

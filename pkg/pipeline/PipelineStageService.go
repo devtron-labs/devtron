@@ -2180,7 +2180,7 @@ func (impl *PipelineStageServiceImpl) IsScanPluginConfiguredAtPipelineStage(pipe
 		return false, nil
 	}
 	isScanPluginConfigured, err := impl.pipelineStageRepository.CheckIfPluginExistsInPipelineStage(pipelineId, pipelineStage, plugin[0].Id)
-	if err != nil && !util.IsErrNoRows(err) {
+	if err != nil {
 		impl.logger.Errorw("error in getting ci pipeline plugin", "err", err, "pipelineId", pipelineId, "pluginId", plugin[0].Id)
 		return false, err
 	}
