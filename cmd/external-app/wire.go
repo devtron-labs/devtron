@@ -108,7 +108,7 @@ func InitializeApp() (*App, error) {
 		chartProvider.AppStoreChartProviderWireSet,
 		appStoreValues.WireSet,
 		util3.GetEnvironmentVariables,
-		appStoreDeployment.WireSet,
+		appStoreDeployment.EAModeWireSet,
 		server.ServerWireSet,
 		module.ModuleWireSet,
 		apiToken.ApiTokenWireSet,
@@ -242,7 +242,7 @@ func InitializeApp() (*App, error) {
 
 		// end: docker registry wire set injection
 		cron.NewCronLoggerImpl,
-		appStore.AppStoreWireSet,
+		appStore.EAModeWireSet,
 
 		deploymentConfig.NewRepositoryImpl,
 		wire.Bind(new(deploymentConfig.Repository), new(*deploymentConfig.RepositoryImpl)),
