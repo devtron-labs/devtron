@@ -100,7 +100,7 @@ func GetInstalledAppVersionWithAppStoreDetails(installedAppVersionModel *reposit
 		return nil
 	}
 	versionDetails := &bean.InstalledAppVersionWithAppStoreDetails{
-		InstalledAppVersionMin: util.GetDeReferencedBean(GetInstalledAppVersionMin(installedAppVersionModel)),
+		InstalledAppVersionMin: GetInstalledAppVersionMin(installedAppVersionModel),
 	}
 	// Extra App Store Application Version details
 	if !installedAppVersionModel.AppStoreApplicationVersion.IsEmpty() {

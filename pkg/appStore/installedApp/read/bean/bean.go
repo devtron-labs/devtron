@@ -82,7 +82,7 @@ type InstalledAppVersionMin struct {
 }
 
 type InstalledAppVersionWithAppStoreDetails struct {
-	InstalledAppVersionMin
+	*InstalledAppVersionMin
 	// Extra App Store Version details
 	AppStoreVersion string
 }
