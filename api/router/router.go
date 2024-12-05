@@ -39,6 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/router/app"
+	"github.com/devtron-labs/devtron/api/router/app/configDiff"
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/team"
 	terminal2 "github.com/devtron-labs/devtron/api/terminal"
@@ -114,7 +115,7 @@ type MuxRouter struct {
 	rbacRoleRouter                     user.RbacRoleRouter
 	scopedVariableRouter               ScopedVariableRouter
 	ciTriggerCron                      cron.CiTriggerCron
-	deploymentConfigurationRouter      DeploymentConfigurationRouter
+	deploymentConfigurationRouter      configDiff.DeploymentConfigurationRouter
 	infraConfigRouter                  infraConfig.InfraConfigRouter
 	argoApplicationRouter              argoApplication.ArgoApplicationRouter
 	fluxApplicationRouter              fluxApplication2.FluxApplicationRouter
@@ -147,12 +148,12 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	scopedVariableRouter ScopedVariableRouter,
 	ciTriggerCron cron.CiTriggerCron,
 	proxyRouter proxy.ProxyRouter,
-	deploymentConfigurationRouter DeploymentConfigurationRouter,
+	deploymentConfigurationRouter configDiff.DeploymentConfigurationRouter,
 	infraConfigRouter infraConfig.InfraConfigRouter,
 	argoApplicationRouter argoApplication.ArgoApplicationRouter,
 	devtronResourceRouter devtronResource.DevtronResourceRouter,
 	fluxApplicationRouter fluxApplication2.FluxApplicationRouter,
-	) *MuxRouter {
+) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		EnvironmentClusterMappingsRouter:   EnvironmentClusterMappingsRouter,
@@ -298,7 +299,7 @@ func (r MuxRouter) Init() {
 
 	configRouter := r.Router.PathPrefix("/orchestrator/config").Subrouter()
 	r.ConfigMapRouter.initConfigMapRouter(configRouter)
-	r.deploymentConfigurationRouter.initDeploymentConfigurationRouter(configRouter)
+	r.deploymentConfigurationRouter.InitDeploymentConfigurationRouter(configRouter)
 
 	appStoreRouter := r.Router.PathPrefix("/orchestrator/app-store").Subrouter()
 	r.AppStoreRouter.Init(appStoreRouter)
