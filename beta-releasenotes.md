@@ -11,6 +11,7 @@
 - feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
+- chore: vendor update runtime, changes in makefile (#6161)
 - chore: go mod tidy and vendor (#6160)
 - misc: Release candidate v0.24.0 (#6157)
 - misc: Main sync develop dec2 (#6149)
