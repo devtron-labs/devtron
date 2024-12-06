@@ -1,4 +1,4 @@
-package bean
+package workflow
 
 import (
 	"encoding/base64"

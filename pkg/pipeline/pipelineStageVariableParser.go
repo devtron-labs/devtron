@@ -19,7 +19,7 @@ package pipeline
 import (
 	"errors"
 	"fmt"
-	commonBean "github.com/devtron-labs/common-lib/ci-runner/bean"
+	commonBean "github.com/devtron-labs/common-lib/workflow"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/util"
 	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"

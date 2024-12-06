@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	commonBean "github.com/devtron-labs/common-lib/ci-runner/bean"
+	commonBean "github.com/devtron-labs/common-lib/workflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"

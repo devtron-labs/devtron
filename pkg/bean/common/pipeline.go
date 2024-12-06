@@ -1,7 +1,7 @@
 package common
 
 import (
-	commonBean "github.com/devtron-labs/common-lib/ci-runner/bean"
+	commonBean "github.com/devtron-labs/common-lib/workflow"
 )
 
 // RuntimeParameters holds values that needed to be injected/used in ci build process.

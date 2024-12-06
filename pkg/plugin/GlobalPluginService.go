@@ -19,7 +19,7 @@ package plugin
 import (
 	"errors"
 	"fmt"
-	commonBean "github.com/devtron-labs/common-lib/ci-runner/bean"
+	commonBean "github.com/devtron-labs/common-lib/workflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user"

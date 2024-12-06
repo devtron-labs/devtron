@@ -17,7 +17,7 @@
 package bean
 
 import (
-	commonBean "github.com/devtron-labs/common-lib/ci-runner/bean"
+	commonBean "github.com/devtron-labs/common-lib/workflow"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 )

@@ -21,7 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
-	commonBean "github.com/devtron-labs/common-lib/ci-runner/bean"
+	commonBean "github.com/devtron-labs/common-lib/workflow"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
