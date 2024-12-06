@@ -64,12 +64,10 @@ type UserDeploymentRequestRepository interface {
 }
 
 func NewUserDeploymentRequestRepositoryImpl(dbConnection *pg.DB, transactionUtilImpl *sql.TransactionUtilImpl) *UserDeploymentRequestRepositoryImpl {
-	impl := &UserDeploymentRequestRepositoryImpl{
+	return &UserDeploymentRequestRepositoryImpl{
 		dbConnection:        dbConnection,
 		TransactionUtilImpl: transactionUtilImpl,
 	}
-	impl.GetAllInCompleteRequests(context.Background())
-	return impl
 }
 
 type UserDeploymentRequestRepositoryImpl struct {
