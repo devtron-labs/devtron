@@ -46,7 +46,7 @@ type Cluster struct {
 	sql.AuditLog
 }
 
-func (c *Cluster) IsZero() bool {
+func (c *Cluster) IsEmpty() bool {
 	if c == nil {
 		return true
 	}

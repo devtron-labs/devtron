@@ -362,7 +362,7 @@ func (impl *InstalledAppDBServiceImpl) GetInstalledAppVersion(id int, userId int
 	return installAppVersion, err
 }
 func (impl *InstalledAppDBServiceImpl) GetInstalledAppVersionByIdIncludeDeleted(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
-	model, err := impl.InstalledAppRepository.GetInstalledAppVersionAny(id)
+	model, err := impl.InstalledAppRepository.GetInstalledAppVersionIncludingDeleted(id)
 	if err != nil {
 		if util.IsErrNoRows(err) {
 			return nil, &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "400", UserMessage: "values are outdated. please fetch the latest version and try again", InternalMessage: err.Error()}

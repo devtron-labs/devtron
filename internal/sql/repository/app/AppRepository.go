@@ -41,7 +41,7 @@ type App struct {
 	sql.AuditLog
 }
 
-func (app *App) IsZero() bool {
+func (app *App) IsEmpty() bool {
 	if app == nil {
 		return true
 	}

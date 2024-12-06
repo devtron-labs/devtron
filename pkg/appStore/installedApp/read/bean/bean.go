@@ -69,3 +69,20 @@ func (i *InstalledAppWithEnvAndClusterDetails) GetInstalledAppWithEnvDetails() *
 	}
 	return i.InstalledAppWithEnvDetails
 }
+
+type InstalledAppVersionMin struct {
+	// Installed App Version details
+	Id                           int
+	InstalledAppId               int
+	AppStoreApplicationVersionId int
+	ValuesYaml                   string
+	Active                       bool
+	ReferenceValueId             int
+	ReferenceValueKind           string
+}
+
+type InstalledAppVersionWithAppStoreDetails struct {
+	*InstalledAppVersionMin
+	// Extra App Store Version details
+	AppStoreVersion string
+}
