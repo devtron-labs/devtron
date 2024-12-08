@@ -18,6 +18,7 @@ package infraConfig
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -54,6 +55,10 @@ type InfraConfigRestHandlerImpl struct {
 }
 
 func NewInfraConfigRestHandlerImpl(logger *zap.SugaredLogger, infraProfileService infraConfig.InfraConfigService, userService user.UserService, enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, validator *validator.Validate) *InfraConfigRestHandlerImpl {
+	if validator == nil {
+		panic("validator is not initialized")
+	}
+	validator.RegisterValidation("validateValue", ValidateValue)
 	return &InfraConfigRestHandlerImpl{
 		logger:              logger,
 		infraProfileService: infraProfileService,
@@ -76,13 +81,14 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWri
 		return
 	}
 
-	vars := mux.Vars(r)
-	profileName := strings.ToLower(vars["name"])
+	//vars := mux.Vars(r)
+	val := r.URL.Query().Get("name")
+	profileName := strings.ToLower(val)
 	if profileName == "" {
 		common.WriteJsonResp(w, errors.New(util.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
-	payload := &bean.ProfileBean{}
+	payload := &bean.ProfileBeanDTO{}
 	decoder := json.NewDecoder(r.Body)
 	err = decoder.Decode(payload)
 	if err != nil {
@@ -90,13 +96,22 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	//handler.validator.RegisterValidation("validateValue", ValidateValue)
 	payload.Name = strings.ToLower(payload.Name)
 	err = handler.validator.Struct(payload)
 	if err != nil {
 		err = errors.Wrap(err, util.PayloadValidationError)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 	}
-	if profileName == "" || (profileName == util.DEFAULT_PROFILE_NAME && payload.Name != util.DEFAULT_PROFILE_NAME) {
+	// Custom validation for configurations
+	for _, config := range payload.Configurations {
+		err = handler.validateConfigItem(config)
+		if err != nil {
+			err = errors.Wrap(err, util.PayloadValidationError)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		}
+	}
+	if profileName == "" || (profileName == util.GLOBAL_PROFILE_NAME && payload.Name != util.GLOBAL_PROFILE_NAME) {
 		common.WriteJsonResp(w, errors.New(util.InvalidProfileName), nil, http.StatusBadRequest)
 	}
 	err = handler.infraProfileService.UpdateProfile(userId, profileName, payload)
@@ -106,6 +121,29 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWri
 		return
 	}
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
+}
+
+func (handler *InfraConfigRestHandlerImpl) validateConfigItem(configs []*bean.ConfigurationBean) error {
+
+	for _, config := range configs {
+		err := handler.validator.Struct(config)
+		if err != nil {
+			return err
+		}
+		switch config.Key {
+		case util.CPU_REQUEST, util.CPU_LIMIT, util.MEMORY_REQUEST, util.MEMORY_LIMIT:
+			if _, ok := config.Value.(float64); !ok {
+				return fmt.Errorf("invalid value type for key %s: expected string", config.Key)
+			}
+		case util.TIME_OUT:
+			if _, ok := config.Value.(float64); !ok {
+				return fmt.Errorf("invalid value type for key %s: expected integer", config.Key)
+			}
+		default:
+			return fmt.Errorf("unsupported configuration key: %s", config.Key)
+		}
+	}
+	return nil
 }
 
 func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *http.Request) {
@@ -120,20 +158,20 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 		return
 	}
 
-	vars := mux.Vars(r)
-	profileName := strings.ToLower(vars["name"])
+	identifier := r.URL.Query().Get("name")
+	profileName := strings.ToLower(identifier)
 	if profileName == "" {
 		common.WriteJsonResp(w, errors.New(util.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
 
-	var profile *bean.ProfileBean
+	var profile *bean.ProfileBeanDTO
 	defaultProfile, err := handler.infraProfileService.GetProfileByName(profileName)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if profileName == util.DEFAULT_PROFILE_NAME {
+	if profileName == util.GLOBAL_PROFILE_NAME {
 		profile = defaultProfile
 	}
 	resp := bean.ProfileResponse{
@@ -178,7 +216,7 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfileV0(w http.ResponseW
 		err = errors.Wrap(err, util.PayloadValidationError)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 	}
-	if profileName == "" || (profileName == util.DEFAULT_PROFILE_NAME && payload.Name != util.DEFAULT_PROFILE_NAME) {
+	if profileName == "" || (profileName == util.GLOBAL_PROFILE_NAME && payload.Name != util.GLOBAL_PROFILE_NAME) {
 		common.WriteJsonResp(w, errors.New(util.InvalidProfileName), nil, http.StatusBadRequest)
 	}
 	payloadV1 := adapter.GetV1ProfileBean(payload)
@@ -218,7 +256,7 @@ func (handler *InfraConfigRestHandlerImpl) GetProfileV0(w http.ResponseWriter, r
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if profileName == util.DEFAULT_PROFILE_NAME {
+	if profileName == util.GLOBAL_PROFILE_NAME {
 		profile = defaultProfileV0
 	}
 	resp := bean.ProfileResponseV0{
@@ -228,4 +266,46 @@ func (handler *InfraConfigRestHandlerImpl) GetProfileV0(w http.ResponseWriter, r
 	//TODO: why below line ??
 	resp.DefaultConfigurations = defaultProfileV0.Configurations
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+
+func ValidateValue(fl validator.FieldLevel) bool {
+	value := fl.Field().Interface()
+
+	switch v := value.(type) {
+	case float64:
+		// Validate float64
+		return v > 0
+	case int, int64:
+		// Validate int or int64
+		if num, ok := value.(int); ok {
+			return num > 0
+		}
+		if num, ok := value.(int64); ok {
+			return num > 0
+		}
+	case []struct{ Key, Value string }:
+		// Validate slice of structs with {Key string, Value string}
+		for _, item := range v {
+			if item.Key == "" || item.Value == "" {
+				return false
+			}
+		}
+		return true
+	case []struct {
+		Key    string
+		Value  string
+		Effect int
+	}:
+		// Validate slice of structs with {Key string, Value string, Effect int}
+		for _, item := range v {
+			if item.Key == "" || item.Value == "" || item.Effect < 0 {
+				return false
+			}
+		}
+		return true
+	default:
+		// For unsupported types, validation fails
+		return false
+	}
+	return false
 }
