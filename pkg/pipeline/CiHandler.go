@@ -293,7 +293,7 @@ func (impl *CiHandlerImpl) HandleCIWebhook(gitCiTriggerRequest bean.GitCiTrigger
 	// updating runtime params
 	runtimeParams := common.NewRuntimeParameters()
 	for k, v := range gitCiTriggerRequest.ExtraEnvironmentVariables {
-		runtimeParams = runtimeParams.AddSystemVariables(k, v)
+		runtimeParams = runtimeParams.AddSystemVariable(k, v)
 	}
 	commitHashes, err := impl.buildAutomaticTriggerCommitHashes(ciMaterials, gitCiTriggerRequest)
 	if err != nil {
@@ -1322,7 +1322,7 @@ func (impl *CiHandlerImpl) buildManualTriggerCommitHashes(ciTriggerRequest bean.
 			}
 			commitHashes[ciPipelineMaterial.Id] = gitCommit
 			for key, value := range extraEnvVariables {
-				runtimeParams = runtimeParams.AddSystemVariables(key, value)
+				runtimeParams = runtimeParams.AddSystemVariable(key, value)
 			}
 		}
 	}

@@ -181,7 +181,7 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 	}
 
 	// checking if user has given run time parameters for externalCiArtifact, if given then sending git material to Ci-Runner
-	externalCiArtifact, exists := trigger.RuntimeParameters.GetSystemVariables()[pipelineConst.ExtraEnvVarExternalCiArtifactKey]
+	externalCiArtifact, exists := trigger.RuntimeParameters.GetGlobalRuntimeVariables()[pipelineConst.ExtraEnvVarExternalCiArtifactKey]
 	// validate externalCiArtifact as docker image
 	if exists {
 		externalCiArtifact = strings.TrimSpace(externalCiArtifact)
@@ -205,12 +205,13 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 			}
 
 		}
-		trigger.RuntimeParameters = trigger.RuntimeParameters.AddSystemVariables(pipelineConst.ExtraEnvVarExternalCiArtifactKey, externalCiArtifact)
+		// This will overwrite the existing runtime parameters value for constants.externalCiArtifact
+		trigger.RuntimeParameters = trigger.RuntimeParameters.AddRuntimeGlobalVariable(pipelineConst.ExtraEnvVarExternalCiArtifactKey, externalCiArtifact)
 		var artifactExists bool
 		var err error
 
-		_, ok := trigger.RuntimeParameters.GetSystemVariables()[pipelineConst.ExtraEnvVarImageDigestKey]
-		if !ok || len(trigger.RuntimeParameters.GetSystemVariables()[pipelineConst.ExtraEnvVarImageDigestKey]) == 0 {
+		imageDigest, ok := trigger.RuntimeParameters.GetGlobalRuntimeVariables()[pipelineConst.ExtraEnvVarImageDigestKey]
+		if !ok || len(imageDigest) == 0 {
 			artifactExists, err = impl.ciArtifactRepository.IfArtifactExistByImage(externalCiArtifact, trigger.PipelineId)
 			if err != nil {
 				impl.Logger.Errorw("error in fetching ci artifact", "err", err)
@@ -221,9 +222,9 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 				return fmt.Errorf("ci artifact already exists with same image name")
 			}
 		} else {
-			artifactExists, err = impl.ciArtifactRepository.IfArtifactExistByImageDigest(trigger.RuntimeParameters.GetSystemVariables()[pipelineConst.ExtraEnvVarImageDigestKey], externalCiArtifact, trigger.PipelineId)
+			artifactExists, err = impl.ciArtifactRepository.IfArtifactExistByImageDigest(imageDigest, externalCiArtifact, trigger.PipelineId)
 			if err != nil {
-				impl.Logger.Errorw("error in fetching ci artifact", "err", err)
+				impl.Logger.Errorw("error in fetching ci artifact", "err", err, "imageDigest", imageDigest)
 				return err
 			}
 			if artifactExists {
@@ -345,7 +346,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	}
 
 	for k, v := range gitTriggerEnvVariables {
-		trigger.RuntimeParameters = trigger.RuntimeParameters.AddSystemVariables(k, v)
+		trigger.RuntimeParameters = trigger.RuntimeParameters.AddSystemVariable(k, v)
 	}
 
 	workflowRequest, err := impl.buildWfRequestForCiPipeline(pipeline, trigger, ciMaterials, savedCiWf, ciWorkflowConfigNamespace, ciPipelineScripts, preCiSteps, postCiSteps, refPluginsData, isJob)

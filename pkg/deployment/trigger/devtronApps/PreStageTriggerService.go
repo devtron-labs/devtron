@@ -648,9 +648,9 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 		Scope:             scope,
 	}
 	runtimeParams := common.NewRuntimeParameters()
-	runtimeParams = runtimeParams.AddSystemVariables(plugin.CD_PIPELINE_ENV_NAME_KEY, env.Name)
+	runtimeParams = runtimeParams.AddSystemVariable(plugin.CD_PIPELINE_ENV_NAME_KEY, env.Name)
 	if env.Cluster != nil {
-		runtimeParams = runtimeParams.AddSystemVariables(plugin.CD_PIPELINE_CLUSTER_NAME_KEY, env.Cluster.ClusterName)
+		runtimeParams = runtimeParams.AddSystemVariable(plugin.CD_PIPELINE_CLUSTER_NAME_KEY, env.Cluster.ClusterName)
 	}
 	ciWf, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(artifact.Id)
 	if err != nil && err != pg.ErrNoRows {
@@ -669,7 +669,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	}
 	// add git trigger env variables to extraEnvVariables
 	for k, v := range gitTriggerEnvVariables {
-		runtimeParams = runtimeParams.AddSystemVariables(k, v)
+		runtimeParams = runtimeParams.AddSystemVariable(k, v)
 	}
 
 	childCdIds, err := impl.appWorkflowRepository.FindChildCDIdsByParentCDPipelineId(cdPipeline.Id)
@@ -686,10 +686,10 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 		var childCdEnvVariables []types.ChildCdMetadata
 		for i, childPipeline := range childPipelines {
 			childCdEnvVariableKey := fmt.Sprintf("%s_%d", bean.CHILD_CD_ENV_NAME_PREFIX, i+1)
-			runtimeParams = runtimeParams.AddSystemVariables(childCdEnvVariableKey, childPipeline.Environment.Name)
+			runtimeParams = runtimeParams.AddSystemVariable(childCdEnvVariableKey, childPipeline.Environment.Name)
 
 			childCdClusterNameKey := fmt.Sprintf("%s_%d", bean.CHILD_CD_CLUSTER_NAME_PREFIX, i+1)
-			runtimeParams = runtimeParams.AddSystemVariables(childCdClusterNameKey, childPipeline.Environment.Cluster.ClusterName)
+			runtimeParams = runtimeParams.AddSystemVariable(childCdClusterNameKey, childPipeline.Environment.Cluster.ClusterName)
 
 			childCdEnvVariables = append(childCdEnvVariables, types.ChildCdMetadata{
 				ChildCdEnvName:     childPipeline.Environment.Name,
@@ -701,8 +701,8 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 			impl.logger.Errorw("err while marshaling childCdEnvVariables", "err", err)
 			return nil, err
 		}
-		runtimeParams = runtimeParams.AddSystemVariables(plugin.CHILD_CD_METADATA, string(childCdEnvVariablesMetadata))
-		runtimeParams = runtimeParams.AddSystemVariables(bean.CHILD_CD_COUNT, strconv.Itoa(len(childPipelines)))
+		runtimeParams = runtimeParams.AddSystemVariable(plugin.CHILD_CD_METADATA, string(childCdEnvVariablesMetadata))
+		runtimeParams = runtimeParams.AddSystemVariable(bean.CHILD_CD_COUNT, strconv.Itoa(len(childPipelines)))
 	}
 
 	if ciPipeline != nil && ciPipeline.Id > 0 {
@@ -711,7 +711,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 			impl.logger.Errorw("error in getting source ciPipeline for artifact", "err", err)
 			return nil, err
 		}
-		runtimeParams = runtimeParams.AddSystemVariables(bean.APP_NAME, ciPipeline.App.AppName)
+		runtimeParams = runtimeParams.AddSystemVariable(bean.APP_NAME, ciPipeline.App.AppName)
 		cdStageWorkflowRequest.CiPipelineType = sourceCiPipeline.PipelineType
 		buildRegistryConfig, dbErr := impl.getBuildRegistryConfigForArtifact(*sourceCiPipeline, *artifact)
 		if dbErr != nil {
@@ -721,7 +721,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 		adapter.UpdateRegistryDetailsToWrfReq(cdStageWorkflowRequest, buildRegistryConfig)
 	} else if cdPipeline.AppId > 0 {
 		// the below flow is used for external ci base pipelines;
-		runtimeParams = runtimeParams.AddSystemVariables(bean.APP_NAME, cdPipeline.App.AppName)
+		runtimeParams = runtimeParams.AddSystemVariable(bean.APP_NAME, cdPipeline.App.AppName)
 		buildRegistryConfig, err := impl.ciTemplateService.GetBaseDockerConfigForCiPipeline(cdPipeline.AppId)
 		if err != nil {
 			impl.logger.Errorw("error in getting build configurations", "err", err)
@@ -736,10 +736,10 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 		var appLabelEnvVariables []types.AppLabelMetadata
 		for i, appLabel := range appLabels {
 			appLabelKeyVariable := fmt.Sprintf("%s_%d", bean.APP_LABEL_KEY_PREFIX, i+1)
-			runtimeParams = runtimeParams.AddSystemVariables(appLabelKeyVariable, appLabel.Key)
+			runtimeParams = runtimeParams.AddSystemVariable(appLabelKeyVariable, appLabel.Key)
 
 			appLabelValueVariable := fmt.Sprintf("%s_%d", bean.APP_LABEL_VALUE_PREFIX, i+1)
-			runtimeParams = runtimeParams.AddSystemVariables(appLabelValueVariable, appLabel.Value)
+			runtimeParams = runtimeParams.AddSystemVariable(appLabelValueVariable, appLabel.Value)
 
 			appLabelEnvVariables = append(appLabelEnvVariables, types.AppLabelMetadata{
 				AppLabelKey:   appLabel.Key,
@@ -747,14 +747,14 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 			})
 		}
 		if len(appLabels) > 0 {
-			runtimeParams = runtimeParams.AddSystemVariables(bean.APP_LABEL_COUNT, strconv.Itoa(len(appLabels)))
+			runtimeParams = runtimeParams.AddSystemVariable(bean.APP_LABEL_COUNT, strconv.Itoa(len(appLabels)))
 
 			appLabelEnvVariablesMetadata, err := json.Marshal(&appLabelEnvVariables)
 			if err != nil {
 				impl.logger.Errorw("err while marshaling appLabelEnvVariables", "err", err)
 				return nil, err
 			}
-			runtimeParams = runtimeParams.AddSystemVariables(plugin.APP_LABEL_METADATA, string(appLabelEnvVariablesMetadata))
+			runtimeParams = runtimeParams.AddSystemVariable(plugin.APP_LABEL_METADATA, string(appLabelEnvVariablesMetadata))
 		}
 	}
 	cdStageWorkflowRequest.SystemEnvironmentVariables = runtimeParams.GetSystemVariables()
