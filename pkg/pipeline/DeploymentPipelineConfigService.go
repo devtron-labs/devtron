@@ -1730,8 +1730,22 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 			return 0, err
 		}
 		appLevelAppMetricsEnabled = isAppLevelMetricsEnabled
-		envOverride, updatedAppMetrics, err := impl.propertiesConfigService.CreateIfRequired(chart, pipeline.EnvironmentId, userId, false,
-			models.CHARTSTATUS_NEW, false, appLevelAppMetricsEnabled, pipeline.Namespace, chart.IsBasicViewLocked, chart.CurrentViewEditor, tx)
+
+		overrideCreateRequest := &pipelineConfigBean.EnvironmentOverrideCreateInternalDTO{
+			Chart:               chart,
+			EnvironmentId:       pipeline.EnvironmentId,
+			UserId:              userId,
+			ManualReviewed:      false,
+			ChartStatus:         models.CHARTSTATUS_NEW,
+			IsOverride:          false,
+			IsAppMetricsEnabled: appLevelAppMetricsEnabled,
+			IsBasicViewLocked:   false,
+			Namespace:           pipeline.Namespace,
+			CurrentViewEditor:   chart.CurrentViewEditor,
+			MergeStrategy:       "",
+		}
+
+		envOverride, updatedAppMetrics, err := impl.propertiesConfigService.CreateIfRequired(overrideCreateRequest, tx)
 		if err != nil {
 			return 0, err
 		}

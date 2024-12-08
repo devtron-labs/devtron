@@ -27,5 +27,7 @@ func (router DeploymentConfigurationRouterImpl) initDeploymentConfigurationRoute
 	configRouter.Path("/data").
 		HandlerFunc(router.deploymentGroupRestHandler.GetConfigData).
 		Methods("GET")
-
+	configRouter.Path("/manifest").
+		HandlerFunc(router.deploymentGroupRestHandler.GetManifest).
+		Methods("POST")
 }

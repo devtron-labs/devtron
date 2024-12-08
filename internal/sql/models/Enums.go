@@ -53,3 +53,9 @@ const (
 	//default value
 	EDITOR_TYPE_UNDEFINED ChartsViewEditorType = "UNDEFINED"
 )
+
+type MergeStrategy string
+
+const (
+	MERGE_STRATEGY_REPLACE MergeStrategy = "replace"
+)

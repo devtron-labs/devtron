@@ -559,6 +559,7 @@ func (impl *AppCloneServiceImpl) configDataClone(cfData []*bean3.ConfigData) []*
 			FilePermission:     refdata.FilePermission,
 			SubPath:            refdata.SubPath,
 			ESOSubPath:         refdata.ESOSubPath,
+			MergeStrategy:      refdata.MergeStrategy,
 		}
 		copiedData = append(copiedData, data)
 	}
