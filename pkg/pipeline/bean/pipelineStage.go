@@ -17,6 +17,7 @@
 package bean
 
 import (
+	commonBean "github.com/devtron-labs/common-lib/workflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
@@ -173,4 +174,51 @@ func NewBuildPrePostStepDataReq(pipelineId int, stageType string, scope resource
 		StageType:  stageType,
 		Scope:      scope,
 	}
+}
+
+type VariableAndConditionDataForStep struct {
+	inputVariables           []*commonBean.VariableObject
+	outputVariables          []*commonBean.VariableObject
+	triggerSkipConditions    []*ConditionObject
+	successFailureConditions []*ConditionObject
+}
+
+func NewVariableAndConditionDataForStep() *VariableAndConditionDataForStep {
+	return &VariableAndConditionDataForStep{}
+}
+
+func (v *VariableAndConditionDataForStep) AddInputVariable(variable *commonBean.VariableObject) *VariableAndConditionDataForStep {
+	v.inputVariables = append(v.inputVariables, variable)
+	return v
+}
+
+func (v *VariableAndConditionDataForStep) AddOutputVariable(variable *commonBean.VariableObject) *VariableAndConditionDataForStep {
+	v.outputVariables = append(v.outputVariables, variable)
+	return v
+}
+
+func (v *VariableAndConditionDataForStep) AddTriggerSkipCondition(condition *ConditionObject) *VariableAndConditionDataForStep {
+	v.triggerSkipConditions = append(v.triggerSkipConditions, condition)
+	return v
+}
+
+func (v *VariableAndConditionDataForStep) AddSuccessFailureCondition(condition *ConditionObject) *VariableAndConditionDataForStep {
+	v.successFailureConditions = append(v.successFailureConditions, condition)
+	return v
+}
+
+func (v *VariableAndConditionDataForStep) GetInputVariables() []*commonBean.VariableObject {
+	return v.inputVariables
+}
+
+func (v *VariableAndConditionDataForStep) GetOutputVariables() []*commonBean.VariableObject {
+	return v.outputVariables
+}
+
+func (v *VariableAndConditionDataForStep) GetTriggerSkipConditions() []*ConditionObject {
+	return v.triggerSkipConditions
+}
+
+func (v *VariableAndConditionDataForStep) GetSuccessFailureConditions() []*ConditionObject {
+	return v.successFailureConditions
 }

@@ -9,10 +9,15 @@ type RuntimeParameters struct {
 	RuntimePluginVariables []*RuntimePluginVariableDto `json:"runtimePluginVariables,omitempty" validate:"dive"`
 }
 
-func (r *RuntimeParameters) GetGlobalRuntimeVariables() map[string]string {
+func (r *RuntimeParameters) AddSystemVariables(name, value string) *RuntimeParameters {
+	r.RuntimePluginVariables = append(r.RuntimePluginVariables, NewRuntimeSystemVariableDto(name, value))
+	return r
+}
+
+func (r *RuntimeParameters) GetSystemVariables() map[string]string {
 	response := make(map[string]string)
 	for _, variable := range r.RuntimePluginVariables {
-		if variable.IsGlobalVariableScope() {
+		if variable.IsSystemVariableScope() {
 			response[variable.Name] = variable.Value
 		}
 	}
@@ -32,9 +37,9 @@ func NewRuntimeParameters() *RuntimeParameters {
 	return &RuntimeParameters{}
 }
 
-// NewRuntimeGlobalVariableDto returns a new instance of RuntimePluginVariableDto with global variable scope.
-func NewRuntimeGlobalVariableDto(name, value string) *RuntimePluginVariableDto {
-	return NewRuntimePluginVariableDto(name, value, commonBean.FormatTypeString, GlobalVariableScope)
+// NewRuntimeSystemVariableDto returns a new instance of RuntimePluginVariableDto with system variable.
+func NewRuntimeSystemVariableDto(name, value string) *RuntimePluginVariableDto {
+	return NewRuntimePluginVariableDto(name, value, commonBean.FormatTypeString, SystemVariableScope)
 }
 
 // NewRuntimePluginVariableDto returns a new instance of RuntimePluginVariableDto.
@@ -47,19 +52,19 @@ func NewRuntimePluginVariableDto(name, value string, format commonBean.Format, v
 	}
 }
 
-// IsGlobalVariableScope returns true if the runtime plugin variable is of global variable scope.
+// IsSystemVariableScope returns true if the variable is of SYSTEM variable type.
 // If the variable is nil, it returns false.
-func (r *RuntimePluginVariableDto) IsGlobalVariableScope() bool {
+func (r *RuntimePluginVariableDto) IsSystemVariableScope() bool {
 	if r == nil {
 		return false
 	}
-	return r.VariableStepScope == GlobalVariableScope
+	return r.VariableStepScope == SystemVariableScope
 }
 
 // VariableStepScope is used to define the scope of the runtime plugin variable.
 type VariableStepScope string
 
 const (
-	// GlobalVariableScope is used to define the global variable scope.
-	GlobalVariableScope VariableStepScope = "GLOBAL"
+	// SystemVariableScope is used to define the global variable scope.
+	SystemVariableScope VariableStepScope = "SYSTEM"
 )

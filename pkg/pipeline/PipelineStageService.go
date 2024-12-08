@@ -1394,41 +1394,58 @@ func (impl *PipelineStageServiceImpl) UpdateInputAndOutputVariables(stepId int, 
 	return inputVarNameIdMap, outputVarNameIdMap, nil
 }
 
-func getNewVariablesPresentInReq(variables []*bean.StepVariableDto, activeVariableIdsMap map[int]*repository.PipelineStageStepVariable) (variablesToBeCreated []*bean.StepVariableDto) {
-	idsOfVariablesToBeUpdated := make(map[int]bool)
-	variablesToBeCreated = make([]*bean.StepVariableDto, 0, len(variables))
+// updateVariablesRequest function is used to update the variables []*bean.StepVariableDto request
+// - If variableId is 0, it will be handled as new variable
+// - If variableId is repeated in request, from second occurrence it will be handled as new variable.
+func updateVariablesRequest(variables []*bean.StepVariableDto) []*bean.StepVariableDto {
+	uniqueIdsOfVariable := make(map[int]bool)
 	for _, variable := range variables {
-		_, idFound := activeVariableIdsMap[variable.Id]
-		_, idRepeated := idsOfVariablesToBeUpdated[variable.Id]
-		if !idFound || idRepeated {
+		if variable.Id == 0 {
+			// variableId is 0, will be handled as new variable
+			continue
+		}
+		_, idRepeated := uniqueIdsOfVariable[variable.Id]
+		if idRepeated {
 			// NOTE: repeated variableId in request will be handled as new variable.
 			// This was initially placed to handle the alternative UI (not shipped).
-			// TODO: Analyse the impact of removing this repeated logic. Until then keep it as is.
+			// TODO: Analyse the impact of removing this idRepeated logic.
+			// Until then keep it as is.
 
-			// variableId present in current active variables but repeated in request, will be handled as new variable
-			// OR
-			// variableId not present in current active variables, will be handled as new variable
+			// variableId is repeated in request, will be handled as new variable
 			variable.Id = 0 // setting id to 0, for repeated variableId in request
-			variablesToBeCreated = append(variablesToBeCreated, variable)
 		} else {
 			// variableId present in current active variables and not repeated in request
 			// will be used for update
-			idsOfVariablesToBeUpdated[variable.Id] = true
+			uniqueIdsOfVariable[variable.Id] = true
+		}
+	}
+	return variables
+}
+
+// getNewVariablesPresentInReq function is used to get the new variables []*bean.StepVariableDto present in request
+// - If variableId is not present in current active variables, it will be handled as new variable
+func getNewVariablesPresentInReq(variables []*bean.StepVariableDto, activeVariableIdsMap map[int]*repository.PipelineStageStepVariable) (variablesToBeCreated []*bean.StepVariableDto) {
+	variablesToBeCreated = make([]*bean.StepVariableDto, 0, len(variables))
+	for _, variable := range variables {
+		_, idFound := activeVariableIdsMap[variable.Id]
+		if !idFound {
+			// variableId, not present in current active variables, will be handled as new variable
+			variable.Id = 0 // setting id to 0, for repeated variableId in request
+			variablesToBeCreated = append(variablesToBeCreated, variable)
 		}
 	}
 	return variablesToBeCreated
 }
 
+// getExistingVariablesPresentInReq function is used to get the existing variables []*bean.StepVariableDto present in request
+// - If variableId is present in current active variables, it will be updated
 func getExistingVariablesPresentInReq(variables []*bean.StepVariableDto, activeVariableIdsMap map[int]*repository.PipelineStageStepVariable) (variablesToBeUpdated []*bean.StepVariableDto) {
-	idsOfVariablesToBeUpdated := make(map[int]bool)
 	variablesToBeUpdated = make([]*bean.StepVariableDto, 0, len(variables))
 	for _, variable := range variables {
 		_, idFound := activeVariableIdsMap[variable.Id]
-		_, idRepeated := idsOfVariablesToBeUpdated[variable.Id]
-		if idFound && !idRepeated {
-			// variableId present in current active variables and not repeated in request will be updated
+		if idFound {
+			// variableId present in current active variables, will be updated
 			variablesToBeUpdated = append(variablesToBeUpdated, variable)
-			idsOfVariablesToBeUpdated[variable.Id] = true
 		}
 	}
 	return variablesToBeUpdated
@@ -1454,8 +1471,8 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStageStepVariables(stepId in
 	activeVariablesMap := sliceUtil.NewMapFromFuncExec(activeVariables, func(variable *repository.PipelineStageStepVariable) int {
 		return variable.Id
 	})
+	variables = updateVariablesRequest(variables)
 	variablesToBeCreated := getNewVariablesPresentInReq(variables, activeVariablesMap)
-
 	variablesToBeUpdated := getExistingVariablesPresentInReq(variables, activeVariablesMap)
 
 	// activeVariableIdsPresentInReq: all the variable ids that are currently active and present in update request
@@ -1948,26 +1965,25 @@ func (impl *PipelineStageServiceImpl) buildPipelineStepDataForWfRequest(step *re
 		stepData.ExecutorType = "PLUGIN" //added only to avoid un-marshaling issues at ci-runner side, will not be used
 		stepData.RefPluginId = step.RefPluginId
 	}
-	inputVars, outputVars, triggerSkipConditions, successFailureConditions, err := impl.buildVariableAndConditionDataForWfRequest(step.Id)
+	variableAndConditionData, err := impl.buildVariableAndConditionDataForWfRequest(step.Id)
 	if err != nil {
 		impl.logger.Errorw("error in getting variable and conditions data for wf request", "err", err, "stepId", step.Id)
 		return nil, err
 	}
-	stepData.InputVars = inputVars
-	stepData.OutputVars = outputVars
-	stepData.TriggerSkipConditions = triggerSkipConditions
-	stepData.SuccessFailureConditions = successFailureConditions
+	stepData.InputVars = variableAndConditionData.GetInputVariables()
+	stepData.OutputVars = variableAndConditionData.GetOutputVariables()
+	stepData.TriggerSkipConditions = variableAndConditionData.GetTriggerSkipConditions()
+	stepData.SuccessFailureConditions = variableAndConditionData.GetSuccessFailureConditions()
 	return stepData, nil
 }
 
-func (impl *PipelineStageServiceImpl) buildVariableAndConditionDataForWfRequest(stepId int) ([]*commonBean.VariableObject, []*commonBean.VariableObject, []*bean.ConditionObject, []*bean.ConditionObject, error) {
-	var inputVariables []*commonBean.VariableObject
-	var outputVariables []*commonBean.VariableObject
+func (impl *PipelineStageServiceImpl) buildVariableAndConditionDataForWfRequest(stepId int) (*bean.VariableAndConditionDataForStep, error) {
+	variableAndConditionData := bean.NewVariableAndConditionDataForStep()
 	//getting all variables in the step
 	variables, err := impl.pipelineStageRepository.GetVariablesByStepId(stepId)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error in getting variables by stepId", "err", err, "stepId", stepId)
-		return nil, nil, nil, nil, err
+		return variableAndConditionData, err
 	}
 	variableNameIdMap := make(map[int]string)
 	for _, variable := range variables {
@@ -2003,18 +2019,16 @@ func (impl *PipelineStageServiceImpl) buildVariableAndConditionDataForWfRequest(
 				// if the format is not file, then the value will be the value provided by user
 				variableData.Value = variable.Value
 			}
-			inputVariables = append(inputVariables, variableData)
+			variableAndConditionData = variableAndConditionData.AddInputVariable(variableData)
 		} else if variable.VariableType.IsOutput() {
-			outputVariables = append(outputVariables, variableData)
+			variableAndConditionData = variableAndConditionData.AddOutputVariable(variableData)
 		}
 	}
 	conditions, err := impl.pipelineStageRepository.GetConditionsByStepId(stepId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting conditions by stepId", "err", err, "stepId", stepId)
-		return nil, nil, nil, nil, err
+		return variableAndConditionData, err
 	}
-	var triggerSkipConditions []*bean.ConditionObject
-	var successFailureConditions []*bean.ConditionObject
 	for _, condition := range conditions {
 		conditionData := &bean.ConditionObject{
 			ConditionalOperator: condition.ConditionalOperator,
@@ -2026,12 +2040,12 @@ func (impl *PipelineStageServiceImpl) buildVariableAndConditionDataForWfRequest(
 			conditionData.ConditionOnVariable = varName
 		}
 		if condition.ConditionType == repository.PIPELINE_STAGE_STEP_CONDITION_TYPE_TRIGGER || condition.ConditionType == repository.PIPELINE_STAGE_STEP_CONDITION_TYPE_SKIP {
-			triggerSkipConditions = append(triggerSkipConditions, conditionData)
+			variableAndConditionData = variableAndConditionData.AddTriggerSkipCondition(conditionData)
 		} else if condition.ConditionType == repository.PIPELINE_STAGE_STEP_CONDITION_TYPE_SUCCESS || condition.ConditionType == repository.PIPELINE_STAGE_STEP_CONDITION_TYPE_FAIL {
-			successFailureConditions = append(successFailureConditions, conditionData)
+			variableAndConditionData = variableAndConditionData.AddSuccessFailureCondition(conditionData)
 		}
 	}
-	return inputVariables, outputVariables, triggerSkipConditions, successFailureConditions, nil
+	return variableAndConditionData, nil
 }
 
 func (impl *PipelineStageServiceImpl) BuildPluginStepDataForWfRequest(step *repository2.PluginStep) (*bean.StepObject, error) {

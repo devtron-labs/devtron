@@ -150,16 +150,6 @@ func NewMapFromFuncExec[T any, K comparable](input []T, transform func(inp T) K)
 	return res
 }
 
-// ContainsWithFuncExec whether the input slice contains an element that satisfies the given predicate function
-func ContainsWithFuncExec[T any](input []T, check func(inp T) bool) bool {
-	for i, _ := range input {
-		if check(input[i]) {
-			return true
-		}
-	}
-	return false
-}
-
 // ContainsStringAlias reports whether v is present in s.
 func ContainsStringAlias[S ~[]E, E ~string](s S, v E) bool {
 	for i := range s {
