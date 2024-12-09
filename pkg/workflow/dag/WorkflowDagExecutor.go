@@ -865,12 +865,12 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 			PipelineId:         ci.Id,
 			ParentCiArtifact:   buildArtifact.Id,
 			IsArtifactUploaded: request.IsArtifactUploaded, // for backward compatibility
-			ScanEnabled:        request.IsScanEnabled,
+			ScanEnabled:        buildArtifact.ScanEnabled,
 			Scanned:            false,
 			AuditLog:           sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
 		}
-		if request.IsScanEnabled {
-			ciArtifact.Scanned = true
+		if buildArtifact.ScanEnabled {
+			ciArtifact.Scanned = buildArtifact.Scanned
 		}
 		ciArtifactArr = append(ciArtifactArr, ciArtifact)
 	}
