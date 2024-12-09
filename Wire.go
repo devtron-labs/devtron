@@ -49,6 +49,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/devtron-labs/devtron/api/restHandler/app/appInfo"
 	appList2 "github.com/devtron-labs/devtron/api/restHandler/app/appList"
+	configDiff2 "github.com/devtron-labs/devtron/api/restHandler/app/configDiff"
 	pipeline3 "github.com/devtron-labs/devtron/api/restHandler/app/pipeline"
 	pipeline2 "github.com/devtron-labs/devtron/api/restHandler/app/pipeline/configure"
 	"github.com/devtron-labs/devtron/api/restHandler/app/pipeline/history"
@@ -61,6 +62,7 @@ import (
 	app3 "github.com/devtron-labs/devtron/api/router/app"
 	appInfo2 "github.com/devtron-labs/devtron/api/router/app/appInfo"
 	"github.com/devtron-labs/devtron/api/router/app/appList"
+	configDiff3 "github.com/devtron-labs/devtron/api/router/app/configDiff"
 	pipeline5 "github.com/devtron-labs/devtron/api/router/app/pipeline"
 	pipeline4 "github.com/devtron-labs/devtron/api/router/app/pipeline/configure"
 	history2 "github.com/devtron-labs/devtron/api/router/app/pipeline/history"
@@ -683,10 +685,10 @@ func InitializeApp() (*App, error) {
 		scopedVariable.NewScopedVariableRestHandlerImpl,
 		wire.Bind(new(scopedVariable.ScopedVariableRestHandler), new(*scopedVariable.ScopedVariableRestHandlerImpl)),
 
-		router.NewDeploymentConfigurationRouter,
-		wire.Bind(new(router.DeploymentConfigurationRouter), new(*router.DeploymentConfigurationRouterImpl)),
-		restHandler.NewDeploymentConfigurationRestHandlerImpl,
-		wire.Bind(new(restHandler.DeploymentConfigurationRestHandler), new(*restHandler.DeploymentConfigurationRestHandlerImpl)),
+		configDiff3.NewDeploymentConfigurationRouter,
+		wire.Bind(new(configDiff3.DeploymentConfigurationRouter), new(*configDiff3.DeploymentConfigurationRouterImpl)),
+		configDiff2.NewDeploymentConfigurationRestHandlerImpl,
+		wire.Bind(new(configDiff2.DeploymentConfigurationRestHandler), new(*configDiff2.DeploymentConfigurationRestHandlerImpl)),
 		configDiff.NewDeploymentConfigurationServiceImpl,
 		wire.Bind(new(configDiff.DeploymentConfigurationService), new(*configDiff.DeploymentConfigurationServiceImpl)),
 
