@@ -79,6 +79,7 @@ type CdWorkflowRepository interface {
 
 	MigrateIsArtifactUploaded(wfrId int, isArtifactUploaded bool)
 	MigrateCdArtifactLocation(wfrId int, cdArtifactLocation string)
+	FindDeployedCdWorkflowRunnersByPipelineId(pipelineId int) ([]*CdWorkflowRunner, error)
 }
 
 type CdWorkflowRepositoryImpl struct {
@@ -760,4 +761,20 @@ func (impl *CdWorkflowRepositoryImpl) MigrateCdArtifactLocation(wfrId int, cdArt
 	if err != nil {
 		impl.logger.Errorw("error in updating cd artifact location", "wfrId", wfrId, "err", err)
 	}
+}
+
+func (impl *CdWorkflowRepositoryImpl) FindDeployedCdWorkflowRunnersByPipelineId(pipelineId int) ([]*CdWorkflowRunner, error) {
+	var runners []*CdWorkflowRunner
+	err := impl.dbConnection.
+		Model(&runners).
+		Column("cd_workflow_runner.*", "CdWorkflow").
+		Where("cd_workflow.pipeline_id = ?", pipelineId).
+		Where("workflow_type = ? ", apiBean.CD_WORKFLOW_TYPE_DEPLOY).
+		Order("cd_workflow_runner.id").
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in finding previous co workflow runners by pipeline id ", "pipelineId", pipelineId, "err", err)
+		return nil, err
+	}
+	return runners, nil
 }
