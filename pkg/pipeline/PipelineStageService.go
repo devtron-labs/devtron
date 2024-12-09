@@ -1997,6 +1997,8 @@ func (impl *PipelineStageServiceImpl) buildVariableAndConditionDataForWfRequest(
 			ReferenceVariableStepIndex: variable.PreviousStepIndex,
 			ReferenceVariableName:      variable.ReferenceVariableName,
 			VariableStepIndexInPlugin:  variable.VariableStepIndexInPlugin,
+			//  default VariableType is commonBean.VariableTypeValue
+			VariableType: commonBean.VariableTypeValue,
 		}
 		if variable.ValueType.IsUserDefinedValue() {
 			variableData.VariableType = commonBean.VariableTypeValue
