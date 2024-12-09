@@ -213,7 +213,7 @@ func InitializeApp() (*App, error) {
 		workflow3.WorkflowWireSet,
 		imageTagging.WireSet,
 		devtronResource.DevtronResourceWireSet,
-		policyGovernance.PolicyGoveranceWireSet,
+		policyGovernance.PolicyGovernanceWireSet,
 
 		// -------wireset end ----------
 		// -------

@@ -5,6 +5,6 @@ import (
 	"github.com/google/wire"
 )
 
-var PolicyGoveranceWireSet = wire.NewSet(
+var PolicyGovernanceWireSet = wire.NewSet(
 	imageScanning.ImageScanningWireSet,
 )
