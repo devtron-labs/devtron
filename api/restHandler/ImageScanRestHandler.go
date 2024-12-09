@@ -20,9 +20,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
-	"github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning"
-	securityBean "github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning/bean"
-	security2 "github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning/repository"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
+	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/bean"
+	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	"net/http"
 	"strconv"
 

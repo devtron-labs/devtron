@@ -18,7 +18,7 @@ package repository
 
 import (
 	"fmt"
-	securityBean "github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning/bean"
+	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
 	"time"

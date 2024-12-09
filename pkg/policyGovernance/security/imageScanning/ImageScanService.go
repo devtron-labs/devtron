@@ -21,9 +21,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
-	bean3 "github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning/bean"
-	repository3 "github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning/repository"
-	securityBean "github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning/repository/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/bean"
+	repository3 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
+	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
 	"go.opentelemetry.io/otel"
 	"time"
 

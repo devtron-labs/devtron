@@ -1,7 +1,7 @@
-package policyGoverance
+package policyGovernance
 
 import (
-	"github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
 	"github.com/google/wire"
 )
 

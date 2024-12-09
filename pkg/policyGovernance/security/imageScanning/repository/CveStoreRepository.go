@@ -18,7 +18,7 @@ package repository
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	securityBean "github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning/repository/bean"
+	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"

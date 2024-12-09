@@ -18,7 +18,7 @@ package imageScanning
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
-	repository2 "github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	"testing"
 )
 

@@ -17,7 +17,7 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/pkg/policyGoverance/security/resourceScanning/repository"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/resourceScanning/repository"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"

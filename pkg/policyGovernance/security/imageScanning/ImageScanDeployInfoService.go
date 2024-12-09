@@ -1,7 +1,7 @@
 package imageScanning
 
 import (
-	"github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning/repository"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	"go.uber.org/zap"
 )
 

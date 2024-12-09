@@ -21,8 +21,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
-	"github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning"
-	securityBean "github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning/repository/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
+	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
 	"net/http"
 	"strconv"
 
