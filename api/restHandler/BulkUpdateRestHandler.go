@@ -24,7 +24,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	security2 "github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning"
-	repository2 "github.com/devtron-labs/devtron/pkg/policyGoverance/security/imageScanning/repository"
 	"net/http"
 	"strconv"
 	"strings"
@@ -85,7 +84,6 @@ type BulkUpdateRestHandlerImpl struct {
 	appCloneService         appClone.AppCloneService
 	materialRepository      repository.MaterialRepository
 	policyService           security2.PolicyService
-	scanResultRepository    repository2.ImageScanResultRepository
 	argoUserService         argo.ArgoUserService
 }
 
@@ -107,7 +105,6 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 	appCloneService appClone.AppCloneService,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository repository.MaterialRepository, policyService security2.PolicyService,
-	scanResultRepository repository2.ImageScanResultRepository,
 	argoUserService argo.ArgoUserService) *BulkUpdateRestHandlerImpl {
 	return &BulkUpdateRestHandlerImpl{
 		pipelineBuilder:         pipelineBuilder,
@@ -133,7 +130,6 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 		appWorkflowService:      appWorkflowService,
 		materialRepository:      materialRepository,
 		policyService:           policyService,
-		scanResultRepository:    scanResultRepository,
 		argoUserService:         argoUserService,
 	}
 }
