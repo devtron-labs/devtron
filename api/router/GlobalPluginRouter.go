@@ -64,8 +64,11 @@ func (impl *GlobalPluginRouterImpl) initGlobalPluginRouter(globalPluginRouter *m
 	globalPluginRouter.Path("/list/v2").
 		HandlerFunc(impl.globalPluginRestHandler.ListAllPluginsV2).Methods("GET")
 
+	// /list/detail/v2 - get plugin details; method: GET / POST
 	globalPluginRouter.Path("/list/detail/v2").
-		HandlerFunc(impl.globalPluginRestHandler.GetPluginDetailByIds).Methods("GET")
+		HandlerFunc(impl.globalPluginRestHandler.GetPluginDetailByIds).Methods("GET") // Deprecated; use POST method
+	globalPluginRouter.Path("/list/detail/v2").
+		HandlerFunc(impl.globalPluginRestHandler.GetPluginDetailByIds).Methods("POST")
 
 	globalPluginRouter.Path("/list/tags").
 		HandlerFunc(impl.globalPluginRestHandler.GetAllUniqueTags).Methods("GET")

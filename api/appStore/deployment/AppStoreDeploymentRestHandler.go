@@ -21,18 +21,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	service2 "github.com/devtron-labs/devtron/api/helm-app/service"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
-
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
+	service2 "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
+	bean2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
@@ -43,9 +39,10 @@ import (
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
+	"net/http"
+	"strconv"
+	"strings"
 )
-
-const HELM_APP_UPDATE_COUNTER = "HelmAppUpdateCounter"
 
 type AppStoreDeploymentRestHandler interface {
 	InstallApp(w http.ResponseWriter, r *http.Request)
@@ -68,8 +65,8 @@ type AppStoreDeploymentRestHandlerImpl struct {
 	validator                   *validator.Validate
 	helmAppService              service2.HelmAppService
 	argoUserService             argo.ArgoUserService
-	attributesService           attributes.AttributesService
 	installAppService           EAMode.InstalledAppDBService
+	attributesService           attributes.AttributesService
 }
 
 func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
@@ -77,8 +74,8 @@ func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthSer
 	appStoreDeploymentService service.AppStoreDeploymentService,
 	appStoreDeploymentDBService service.AppStoreDeploymentDBService,
 	validator *validator.Validate, helmAppService service2.HelmAppService,
-	argoUserService argo.ArgoUserService, attributesService attributes.AttributesService,
-	installAppService EAMode.InstalledAppDBService) *AppStoreDeploymentRestHandlerImpl {
+	argoUserService argo.ArgoUserService,
+	installAppService EAMode.InstalledAppDBService, attributesService attributes.AttributesService) *AppStoreDeploymentRestHandlerImpl {
 	return &AppStoreDeploymentRestHandlerImpl{
 		Logger:                      Logger,
 		userAuthService:             userAuthService,
@@ -90,8 +87,8 @@ func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthSer
 		validator:                   validator,
 		helmAppService:              helmAppService,
 		argoUserService:             argoUserService,
-		attributesService:           attributesService,
 		installAppService:           installAppService,
+		attributesService:           attributesService,
 	}
 }
 
@@ -488,7 +485,6 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 		}
 		ctx = context.WithValue(r.Context(), "token", acdToken)
 	}
-	triggeredAt := time.Now()
 	res, err := handler.appStoreDeploymentService.UpdateInstalledApp(ctx, &request)
 	if err != nil {
 		if strings.Contains(err.Error(), "application spec is invalid") {
@@ -498,13 +494,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	err1 := handler.appStoreDeploymentService.UpdatePreviousDeploymentStatusForAppStore(res, triggeredAt, err)
-	if err1 != nil {
-		handler.Logger.Errorw("error while update previous installed app version history", "err", err, "installAppVersionRequest", res)
-		//if installed app is updated and error is in updating previous deployment status, then don't block user, just show error.
-	}
-
-	err = handler.attributesService.UpdateKeyValueByOne(HELM_APP_UPDATE_COUNTER)
+	err = handler.attributesService.UpdateKeyValueByOne(bean2.HELM_APP_UPDATE_COUNTER)
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }

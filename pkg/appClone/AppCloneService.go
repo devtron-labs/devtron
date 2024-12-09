@@ -28,8 +28,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
+	bean4 "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	pipeline2 "github.com/devtron-labs/devtron/pkg/build/pipeline"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -52,7 +54,7 @@ type AppCloneServiceImpl struct {
 	appListingService       app.AppListingService
 	propertiesConfigService pipeline.PropertiesConfigService
 	pipelineStageService    pipeline.PipelineStageService
-	ciTemplateService       pipeline.CiTemplateService
+	ciTemplateService       pipeline2.CiTemplateReadService
 	appRepository           app2.AppRepository
 	ciPipelineRepository    pipelineConfig.CiPipelineRepository
 	pipelineRepository      pipelineConfig.PipelineRepository
@@ -68,7 +70,7 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	appListingService app.AppListingService,
 	propertiesConfigService pipeline.PropertiesConfigService,
-	pipelineStageService pipeline.PipelineStageService, ciTemplateService pipeline.CiTemplateService,
+	pipelineStageService pipeline.PipelineStageService, ciTemplateService pipeline2.CiTemplateReadService,
 	appRepository app2.AppRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciPipelineConfigService pipeline.CiPipelineConfigService,
@@ -605,7 +607,7 @@ func (impl *AppCloneServiceImpl) CreateWf(oldAppId, newAppId int, userId int32, 
 		oldToNewCDPipelineId: make(map[int]int),
 	}
 	for _, refAppWF := range refAppWFs {
-		thisWf := appWorkflow.AppWorkflowDto{
+		thisWf := bean4.AppWorkflowDto{
 			Id:                    0,
 			Name:                  refAppWF.Name,
 			AppId:                 newAppId,
@@ -673,11 +675,11 @@ func (impl *AppCloneServiceImpl) createExternalCiAndAppWorkflowMapping(createWor
 	return externalCiPipelineId, nil
 }
 
-func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []appWorkflow.AppWorkflowMappingDto, createWorkflowMappingDto CreateWorkflowMappingDto, ctx context.Context) (CreateWorkflowMappingDto, error) {
+func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []bean4.AppWorkflowMappingDto, createWorkflowMappingDto CreateWorkflowMappingDto, ctx context.Context) (CreateWorkflowMappingDto, error) {
 	impl.logger.Debugw("wf mapping cloning", "refWfMappings", refWfMappings)
-	var ciMapping []appWorkflow.AppWorkflowMappingDto
-	var cdMappings []appWorkflow.AppWorkflowMappingDto
-	var webhookMappings []appWorkflow.AppWorkflowMappingDto
+	var ciMapping []bean4.AppWorkflowMappingDto
+	var cdMappings []bean4.AppWorkflowMappingDto
+	var webhookMappings []bean4.AppWorkflowMappingDto
 
 	refWfMappings = appWorkflow.LevelWiseSort(refWfMappings)
 
@@ -1030,7 +1032,7 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 	if refCdPipeline.ParentPipelineType == "WEBHOOK" {
 		cdPipeline.CiPipelineId = 0
 		cdPipeline.ParentPipelineId = req.externalCiPipelineId
-	} else if refCdPipeline.ParentPipelineType != appWorkflow.CI_PIPELINE_TYPE {
+	} else if refCdPipeline.ParentPipelineType != bean4.CI_PIPELINE_TYPE {
 		cdPipeline.ParentPipelineId = refCdPipeline.ParentPipelineId
 	}
 	cdPipelineReq := &bean.CdPipelines{

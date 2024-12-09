@@ -19,6 +19,8 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
 	"net/url"
 	"strings"
 	"time"
@@ -26,7 +28,6 @@ import (
 	"github.com/caarlos0/env"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -66,9 +67,9 @@ type PipelineBuilder interface {
 }
 
 type PipelineBuilderImpl struct {
-	logger          *zap.SugaredLogger
-	materialRepo    pipelineConfig.MaterialRepository
-	chartRepository chartRepoRepository.ChartRepository
+	logger                 *zap.SugaredLogger
+	gitMaterialReadService read.GitMaterialReadService
+	chartRepository        chartRepoRepository.ChartRepository
 	CiPipelineConfigService
 	CiMaterialConfigService
 	AppArtifactManager
@@ -81,7 +82,7 @@ type PipelineBuilderImpl struct {
 
 func NewPipelineBuilderImpl(
 	logger *zap.SugaredLogger,
-	materialRepo pipelineConfig.MaterialRepository,
+	gitMaterialReadService read.GitMaterialReadService,
 	chartRepository chartRepoRepository.ChartRepository,
 	ciPipelineConfigService CiPipelineConfigService,
 	ciMaterialConfigService CiMaterialConfigService,
@@ -99,7 +100,7 @@ func NewPipelineBuilderImpl(
 	}
 	return &PipelineBuilderImpl{
 		logger:                         logger,
-		materialRepo:                   materialRepo,
+		gitMaterialReadService:         gitMaterialReadService,
 		chartRepository:                chartRepository,
 		CiPipelineConfigService:        ciPipelineConfigService,
 		CiMaterialConfigService:        ciMaterialConfigService,
@@ -137,7 +138,7 @@ func formatDate(t time.Time, layout string) string {
 */
 
 func (impl *PipelineBuilderImpl) getGitMaterialsForApp(appId int) ([]*bean.GitMaterial, error) {
-	materials, err := impl.materialRepo.FindByAppId(appId)
+	materials, err := impl.gitMaterialReadService.FindByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching materials for app", "appId", appId, "err", err)
 		return nil, err
@@ -146,25 +147,25 @@ func (impl *PipelineBuilderImpl) getGitMaterialsForApp(appId int) ([]*bean.GitMa
 
 	for _, material := range materials {
 		gitUrl := material.Url
-		if material.GitProvider.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD ||
-			material.GitProvider.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
+		if material.GitProvider.AuthMode == constants.AUTH_MODE_USERNAME_PASSWORD ||
+			material.GitProvider.AuthMode == constants.AUTH_MODE_ACCESS_TOKEN {
 			u, err := url.Parse(gitUrl)
 			if err != nil {
 				return nil, err
 			}
 			var password string
 			userName := material.GitProvider.UserName
-			if material.GitProvider.AuthMode == repository.AUTH_MODE_USERNAME_PASSWORD {
+			if material.GitProvider.AuthMode == constants.AUTH_MODE_USERNAME_PASSWORD {
 				password = material.GitProvider.Password
 
-			} else if material.GitProvider.AuthMode == repository.AUTH_MODE_ACCESS_TOKEN {
+			} else if material.GitProvider.AuthMode == constants.AUTH_MODE_ACCESS_TOKEN {
 				password = material.GitProvider.AccessToken
 				if userName == "" {
 					userName = "devtron-boat"
 				}
 			}
 			if userName == "" || password == "" {
-				return nil, util.ApiError{}.ErrorfUser("invalid git credentials config")
+				return nil, util.NewApiError().ErrorfUser("invalid git credentials config")
 			}
 			u.User = url.UserPassword(userName, password)
 			gitUrl = u.String()

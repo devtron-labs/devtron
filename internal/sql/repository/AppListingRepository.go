@@ -124,7 +124,11 @@ func (impl AppListingRepositoryImpl) FetchJobs(appIds []int, statuses []string, 
 		impl.Logger.Error(appsErr)
 		return jobContainers, appsErr
 	}
-	jobContainers = impl.extractEnvironmentNameFromId(jobContainers)
+	jobContainers, err := impl.extractEnvironmentNameFromId(jobContainers)
+	if err != nil {
+		impl.Logger.Errorw("Error in extractEnvironmentNameFromId", "jobContainers", jobContainers, "err", err)
+		return nil, err
+	}
 	return jobContainers, nil
 }
 
@@ -137,7 +141,11 @@ func (impl AppListingRepositoryImpl) FetchOverviewCiPipelines(jobId int) ([]*bea
 		impl.Logger.Error(appsErr)
 		return jobContainers, appsErr
 	}
-	jobContainers = impl.extractEnvironmentNameFromId(jobContainers)
+	jobContainers, err := impl.extractEnvironmentNameFromId(jobContainers)
+	if err != nil {
+		impl.Logger.Errorw("Error in extractEnvironmentNameFromId", "jobContainers", jobContainers, "err", err)
+		return nil, err
+	}
 	return jobContainers, nil
 }
 
@@ -699,7 +707,7 @@ func (impl AppListingRepositoryImpl) FetchMinDetailOtherEnvironment(appId int) (
 func (impl AppListingRepositoryImpl) DeploymentDetailByArtifactId(ciArtifactId int, envId int) (bean.DeploymentDetailContainer, error) {
 	impl.Logger.Debug("reached at AppListingRepository:")
 	var deploymentDetail bean.DeploymentDetailContainer
-	query := "SELECT env.id AS environment_id, env.environment_name, env.default, pco.created_on as last_deployed_time, a.app_name" +
+	query := "SELECT env.id AS environment_id, env.environment_name, env.default, pco.created_on as last_deployed_time, pco.updated_by as last_deployed_by_id, a.app_name" +
 		" FROM pipeline_config_override pco" +
 		" INNER JOIN pipeline p on p.id = pco.pipeline_id" +
 		" INNER JOIN environment env ON env.id=p.environment_id" +
@@ -732,7 +740,7 @@ func (impl AppListingRepositoryImpl) FindAppCount(isProd bool) (int, error) {
 	return count, nil
 }
 
-func (impl AppListingRepositoryImpl) extractEnvironmentNameFromId(jobContainers []*bean.JobListingContainer) []*bean.JobListingContainer {
+func (impl AppListingRepositoryImpl) extractEnvironmentNameFromId(jobContainers []*bean.JobListingContainer) ([]*bean.JobListingContainer, error) {
 	var envIds []*int
 	for _, job := range jobContainers {
 		if job.EnvironmentId != 0 {
@@ -742,7 +750,11 @@ func (impl AppListingRepositoryImpl) extractEnvironmentNameFromId(jobContainers 
 			envIds = append(envIds, &job.LastTriggeredEnvironmentId)
 		}
 	}
-	envs, _ := impl.environmentRepository.FindByIds(envIds)
+	envs, err := impl.environmentRepository.FindByIds(envIds)
+	if err != nil {
+		impl.Logger.Errorw("Error in getting environment", "envIds", envIds, "err", err)
+		return nil, err
+	}
 
 	envIdNameMap := make(map[int]string)
 
@@ -759,5 +771,5 @@ func (impl AppListingRepositoryImpl) extractEnvironmentNameFromId(jobContainers 
 		}
 	}
 
-	return jobContainers
+	return jobContainers, nil
 }

@@ -87,6 +87,7 @@ type PipelineRepository interface {
 	FindActiveByEnvIdAndDeploymentType(environmentId int, deploymentAppType string, exclusionList []int, includeApps []int) ([]*Pipeline, error)
 	FindByIdsIn(ids []int) ([]*Pipeline, error)
 	FindByCiPipelineIdsIn(ciPipelineIds []int) ([]*Pipeline, error)
+
 	FindAutomaticByCiPipelineId(ciPipelineId int) (pipelines []*Pipeline, err error)
 	GetByEnvOverrideId(envOverrideId int) ([]Pipeline, error)
 	GetByEnvOverrideIdAndEnvId(envOverrideId, envId int) (Pipeline, error)

@@ -192,7 +192,6 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 	}
 	moduleMetaDataStr := string(moduleMetaData)
 	isLegacyModule := gjson.Get(moduleMetaDataStr, "result.isIncludedInLegacyFullPackage").Bool()
-	baseMinVersionSupported := gjson.Get(moduleMetaDataStr, "result.baseMinVersionSupported").String()
 	moduleType := gjson.Get(moduleMetaDataStr, "result.moduleType").String()
 
 	flagForEnablingState := false
@@ -256,30 +255,6 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 				}
 			} else {
 				impl.logger.Warnw("Invalid installerModulesIfaceKind expected slice", "installerModulesIfaceKind", installerModulesIfaceKind, "val", installerModulesIface)
-			}
-		}
-	}
-
-	// if module not enabled in helm for non enterprise-user
-	if isLegacyModule && moduleName != ModuleNameCicd {
-		for _, firstReleaseModuleName := range SupportedModuleNamesListFirstReleaseExcludingCicd {
-			if moduleName != firstReleaseModuleName {
-				cicdModule, err := impl.moduleRepository.FindOne(ModuleNameCicd)
-				if err != nil {
-					if err == pg.ErrNoRows {
-						return ModuleStatusNotInstalled, moduleType, false, nil
-					} else {
-						impl.logger.Errorw("Error in getting cicd module from DB", "err", err)
-						return ModuleStatusNotInstalled, moduleType, false, err
-					}
-				}
-				cicdVersion := cicdModule.Version
-				// if cicd was installed and any module/integration comes after that then mark that module installed only if cicd was installed before that module introduction
-				if len(baseMinVersionSupported) > 0 && cicdVersion < baseMinVersionSupported {
-					status, err := impl.saveModuleAsInstalled(moduleName, moduleType, flagForEnablingState)
-					return status, moduleType, false, err
-				}
-				break
 			}
 		}
 	}
