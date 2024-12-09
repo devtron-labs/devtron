@@ -193,7 +193,7 @@ func (handler *DeploymentConfigurationRestHandlerImpl) CompareCategoryWiseConfig
 	ctx := util2.SetSuperAdminInContext(r.Context(), isSuperAdmin)
 	res, err := handler.deploymentConfigurationService.CompareCategoryWiseConfigData(ctx, comparisonRequestDto, userHasAdminAccess)
 	if err != nil {
-		handler.logger.Errorw("service err, GetAllConfigData ", "err", err)
+		handler.logger.Errorw("service err, CompareCategoryWiseConfigData ", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
