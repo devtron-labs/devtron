@@ -2316,13 +2316,6 @@ func validatePluginVariable(variable *bean2.PluginVariableDto) error {
 		return util.NewApiError(http.StatusBadRequest, errMsg, errMsg)
 	}
 
-	// validate mandatory value
-	// if invalid, return error
-	if !variable.IsEmptyValueAllowed() && variable.IsEmptyValue() {
-		errMsg := fmt.Sprintf("variable '%s' does not allow empty value", variable.Name)
-		return util.NewApiError(http.StatusBadRequest, errMsg, errMsg)
-	}
-
 	// value is optional
 	if len(variable.GetValue()) != 0 {
 		// validate value based on format
