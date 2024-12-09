@@ -22,7 +22,7 @@ import (
 	repository "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging/read"
-	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -59,7 +59,7 @@ type ImageTaggingServiceImpl struct {
 	imageTaggingReadService read.ImageTaggingReadService
 	ciPipelineRepository    pipelineConfig.CiPipelineRepository // TODO: remove this dependency; use read service
 	cdPipelineRepository    pipelineConfig.PipelineRepository   // TODO: remove this dependency; use read service
-	environmentRepository   repository2.EnvironmentRepository   // TODO: remove this dependency; use read service
+	environmentRepository   repository3.EnvironmentRepository   // TODO: remove this dependency; use read service
 	logger                  *zap.SugaredLogger
 }
 
@@ -67,7 +67,7 @@ func NewImageTaggingServiceImpl(imageTaggingRepo repository.ImageTaggingReposito
 	imageTaggingReadService read.ImageTaggingReadService,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	cdPipelineRepository pipelineConfig.PipelineRepository,
-	environmentRepository repository2.EnvironmentRepository,
+	environmentRepository repository3.EnvironmentRepository,
 	logger *zap.SugaredLogger) *ImageTaggingServiceImpl {
 	return &ImageTaggingServiceImpl{
 		imageTaggingRepo:        imageTaggingRepo,

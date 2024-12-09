@@ -31,7 +31,7 @@ import (
 	bean6 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/bean"
 	bean7 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
-	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository4 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	adapter2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
@@ -241,10 +241,10 @@ func (impl *TriggerServiceImpl) createStartingWfAndRunner(request bean.TriggerRe
 	return cdWf, runner, nil
 }
 
-func (impl *TriggerServiceImpl) getEnvAndNsIfRunStageInEnv(ctx context.Context, request bean.TriggerRequest) (*repository2.Environment, string, error) {
+func (impl *TriggerServiceImpl) getEnvAndNsIfRunStageInEnv(ctx context.Context, request bean.TriggerRequest) (*repository4.Environment, string, error) {
 	workflowStage := request.WorkflowType
 	pipeline := request.Pipeline
-	var env *repository2.Environment
+	var env *repository4.Environment
 	var err error
 	namespace := impl.config.GetDefaultNamespace()
 	runStageInEnv := false
