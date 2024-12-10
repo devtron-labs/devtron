@@ -100,11 +100,10 @@ func GetCasbinNameFromRoleGroupName(name string) string {
 }
 
 func CheckIfSuperAdminFromRoles(roles []*repository.RoleModel) bool {
-	isSuperAdmin := false
 	for _, role := range roles {
 		if role.Role == bean2.SUPERADMIN {
-			isSuperAdmin = true
+			return true
 		}
 	}
-	return isSuperAdmin
+	return false
 }
