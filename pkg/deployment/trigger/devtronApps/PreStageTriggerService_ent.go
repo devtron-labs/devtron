@@ -15,7 +15,8 @@ import (
 )
 
 func (impl *TriggerServiceImpl) checkFeasibilityForPreStage(pipeline *pipelineConfig.Pipeline, request *bean2.TriggerRequest,
-	env *repository.Environment, artifact *repository2.CiArtifact, triggeredBy int32) (*ResourceFilterEvaluationAudit, error) {
+	env *repository.Environment, artifact *repository2.CiArtifact, triggeredBy int32) (interface{}, error) {
+	//here return type is interface as ResourceFilterEvaluationAudit is not present in this version
 	return nil, nil
 }
 
@@ -37,4 +38,10 @@ func (impl *TriggerServiceImpl) setCloningModeInCIProjectDetail(ciProjectDetail 
 
 func (impl *TriggerServiceImpl) getPreStageBuildRegistryConfigIfSourcePipelineNotPresent(appId int) (*types.DockerArtifactStoreBean, error) {
 	return nil, fmt.Errorf("soucePipeline is mandatory, corrupt data")
+}
+
+func (impl *TriggerServiceImpl) handlerFilterEvaluationAudit(filterEvaluationAudit interface{},
+	runner *pipelineConfig.CdWorkflowRunner) error {
+	//here ip type of filterEvaluationAudit is interface as ResourceFilterEvaluationAudit is not present in this version
+	return nil
 }

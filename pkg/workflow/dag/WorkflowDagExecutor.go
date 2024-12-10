@@ -237,7 +237,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCdStageReTrigger(runner *pipelineConf
 			return err
 		}
 	} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
-		err = impl.cdTriggerService.TriggerPostStage(triggerRequest)
+		_, err = impl.cdTriggerService.TriggerPostStage(triggerRequest)
 		if err != nil {
 			impl.logger.Errorw("error in TriggerPostStage ", "err", err, "cdWorkflowRunnerId", runner.Id)
 			return err
@@ -389,7 +389,7 @@ func (impl *WorkflowDagExecutorImpl) ProcessDevtronAsyncInstallRequest(cdAsyncIn
 		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "err", err)
 		return err
 	}
-	releaseId, releaseErr := impl.cdTriggerService.TriggerRelease(overrideRequest, envDeploymentConfig, newCtx, cdAsyncInstallReq.TriggeredAt, cdAsyncInstallReq.TriggeredBy)
+	releaseId, _, releaseErr := impl.cdTriggerService.TriggerRelease(overrideRequest, envDeploymentConfig, newCtx, cdAsyncInstallReq.TriggeredAt, cdAsyncInstallReq.TriggeredBy)
 	if releaseErr != nil {
 		impl.handleAsyncTriggerReleaseError(newCtx, releaseErr, cdWfr, overrideRequest)
 		return releaseErr
@@ -529,7 +529,7 @@ func (impl *WorkflowDagExecutorImpl) triggerIfAutoStageCdPipeline(request trigge
 }
 
 func (impl *WorkflowDagExecutorImpl) getPipelineStage(pipelineId int, stageType repository4.PipelineStageType) (*repository4.PipelineStage, error) {
-	stage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(pipelineId, stageType)
+	stage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(pipelineId, stageType, false)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching CD pipeline stage", "cdPipelineId", pipelineId, "stage ", stage, "err", err)
 		return nil, err
@@ -621,7 +621,7 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(triggerContext
 				RefCdWorkflowRunnerId: 0,
 			}
 			triggerRequest.TriggerContext.Context = context.Background()
-			err = impl.cdTriggerService.TriggerPostStage(triggerRequest)
+			_, err = impl.cdTriggerService.TriggerPostStage(triggerRequest)
 			if err != nil {
 				impl.logger.Errorw("error in triggering post stage after successful deployment event", "err", err, "cdWorkflow", cdWorkflow)
 				return err

@@ -23,7 +23,7 @@ import (
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
-	"github.com/devtron-labs/devtron/internal/sql/constants"
+	constants2 "github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
@@ -31,7 +31,6 @@ import (
 	bean6 "github.com/devtron-labs/devtron/pkg/app/bean"
 	attributesBean "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/bean"
-	bean7 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	adapter2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
@@ -40,6 +39,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
@@ -70,7 +70,7 @@ const (
 
 func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*bean6.ManifestPushTemplate, error) {
 	request.WorkflowType = bean2.CD_WORKFLOW_TYPE_PRE
-	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
+	// setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 	triggeredBy := request.TriggeredBy
 	artifact := request.Artifact
@@ -98,15 +98,16 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*b
 	// setting triggered as same from runner started on (done for release as cd workflow runners are already created) will be same for other flows as runner are created with time.Now()
 	triggeredAt = runner.StartedOn
 
-	impl.createAuditDataForDeploymentWindowBypass(request, runner.Id)
+	dbErr := impl.createAuditDataForDeploymentWindowBypass(request, runner.Id)
+	if dbErr != nil {
+		impl.logger.Errorw("error in creating audit data for deployment window bypass", "runnerId", runner.Id, "err", dbErr)
+		// skip error for audit data creation
+	}
 
-	if filterEvaluationAudit != nil {
-		// update resource_filter_evaluation entry with wfrId and type
-		err = impl.resourceFilterService.UpdateFilterEvaluationAuditRef(filterEvaluationAudit.Id, resourceFilter.CdWorkflowRunner, runner.Id)
-		if err != nil {
-			impl.logger.Errorw("error in updating filter evaluation audit reference", "filterEvaluationAuditId", filterEvaluationAudit.Id, "err", err)
-			return nil, err
-		}
+	err = impl.handlerFilterEvaluationAudit(filterEvaluationAudit, runner)
+	if err != nil {
+		impl.logger.Errorw("error, handlerFilterEvaluationAudit", "err", err)
+		return nil, err
 	}
 
 	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(pipeline.AppId, pipeline.EnvironmentId)
@@ -152,7 +153,7 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*b
 	cdStageWorkflowRequest.Pipeline = pipeline
 	cdStageWorkflowRequest.Env = env
 	cdStageWorkflowRequest.Type = pipelineConfigBean.CD_WORKFLOW_PIPELINE_TYPE
-	_, err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
+	_, jobHelmPackagePath, err := impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
 	span.End()
 	if err != nil {
 		return nil, err
@@ -531,7 +532,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 					return nil, err
 				}
 				ciProjectDetail.CommitTime = commitTime.Format(bean4.LayoutRFC3339)
-			} else if ciPipeline.PipelineType == string(bean7.CI_JOB) {
+			} else if ciPipeline.PipelineType == string(constants.CI_JOB) {
 				// This has been done to resolve unmarshalling issue in ci-runner, in case of no commit time(eg- polling container images)
 				ciProjectDetail.CommitTime = time.Time{}.Format(bean4.LayoutRFC3339)
 			} else {
@@ -540,7 +541,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 			}
 
 			// set webhook data
-			if m.Type == constants.SOURCE_TYPE_WEBHOOK && len(ciMaterialCurrent.Modifications) > 0 {
+			if m.Type == constants2.SOURCE_TYPE_WEBHOOK && len(ciMaterialCurrent.Modifications) > 0 {
 				webhookData := ciMaterialCurrent.Modifications[0].WebhookData
 				ciProjectDetail.WebhookData = pipelineConfig.WebhookData{
 					Id:              webhookData.Id,
@@ -561,7 +562,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	var refPluginsData []*pipelineConfigBean.RefPluginObject
 	// if pipeline_stage_steps present for pre-CD or post-CD then no need to add stageYaml to cdWorkflowRequest in that
 	// case add PreDeploySteps and PostDeploySteps to cdWorkflowRequest, this is done for backward compatibility
-	pipelineStage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(cdPipeline.Id, runner.WorkflowType.WorkflowTypeToStageType())
+	pipelineStage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(cdPipeline.Id, runner.WorkflowType.WorkflowTypeToStageType(), false)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching CD pipeline stage", "cdPipelineId", cdPipeline.Id, "stage ", runner.WorkflowType.WorkflowTypeToStageType(), "err", err)
 		return nil, err

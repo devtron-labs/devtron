@@ -208,7 +208,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			WorkflowExecutor:          cdWorkflow.WORKFLOW_EXECUTOR_TYPE_AWF,
 		}
 
-		data, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
+		data, _, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
 
 		createdWf := &v1alpha1.Workflow{}
 		obj := data.Items[0].Object
@@ -344,7 +344,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			WorkflowExecutor:          cdWorkflow.WORKFLOW_EXECUTOR_TYPE_AWF,
 		}
 
-		data, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
+		data, _, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
 
 		createdWf := &v1alpha1.Workflow{}
 		obj := data.Items[0].Object
@@ -512,7 +512,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			WorkflowExecutor:          cdWorkflow.WORKFLOW_EXECUTOR_TYPE_AWF,
 		}
 
-		data, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
+		data, _, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
 
 		createdWf := &v1alpha1.Workflow{}
 		obj := data.Items[0].Object
@@ -741,7 +741,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			WorkflowExecutor: cdWorkflow.WORKFLOW_EXECUTOR_TYPE_AWF,
 		}
 
-		data, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
+		data, _, _ := workflowServiceImpl.SubmitWorkflow(&workflowRequest)
 
 		createdWf := &v1alpha1.Workflow{}
 		obj := data.Items[0].Object
