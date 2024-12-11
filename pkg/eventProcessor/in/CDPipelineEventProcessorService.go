@@ -86,7 +86,7 @@ func (impl *CDPipelineEventProcessorImpl) SubscribeCDBulkTriggerTopic() error {
 			ReferenceId: pointer.String(msg.MsgId),
 			Context:     ctx,
 		}
-		_, _, err = impl.cdTriggerService.ManualCdTrigger(triggerContext, event.ValuesOverrideRequest)
+		_, _, _, err = impl.cdTriggerService.ManualCdTrigger(triggerContext, event.ValuesOverrideRequest)
 		if err != nil {
 			impl.logger.Errorw("Error triggering CD", "topic", pubsub.CD_BULK_DEPLOY_TRIGGER_TOPIC, "msg", msg.Data, "err", err)
 		}

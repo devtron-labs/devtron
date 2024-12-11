@@ -110,7 +110,7 @@ func (impl *DeployedAppServiceImpl) StopStartApp(ctx context.Context, stopReques
 		Context:     ctx,
 		ReferenceId: stopRequest.ReferenceId,
 	}
-	id, _, err := impl.cdTriggerService.ManualCdTrigger(triggerContext, overrideRequest)
+	id, _, _, err := impl.cdTriggerService.ManualCdTrigger(triggerContext, overrideRequest)
 	if err != nil {
 		impl.logger.Errorw("error in stopping app", "err", err, "appId", stopRequest.AppId, "envId", stopRequest.EnvironmentId)
 		return 0, err

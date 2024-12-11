@@ -20,6 +20,7 @@ import (
 	"context"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
@@ -28,9 +29,9 @@ import (
 	"time"
 )
 
-func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) error {
+func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) (*bean4.ManifestPushTemplate, error) {
 	request.WorkflowType = bean2.CD_WORKFLOW_TYPE_POST
-	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
+	// setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 	triggeredBy := request.TriggeredBy
 	pipeline := request.Pipeline
@@ -39,21 +40,23 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 	env, namespace, err := impl.getEnvAndNsIfRunStageInEnv(ctx, request)
 	if err != nil {
 		impl.logger.Errorw("error, getEnvAndNsIfRunStageInEnv", "err", err, "pipeline", pipeline, "stage", request.WorkflowType)
-		return nil
+		return nil, nil
 	}
 	request.RunStageInEnvNamespace = namespace
+
 	cdWf, runner, err := impl.createStartingWfAndRunner(request, triggeredAt)
 	if err != nil {
 		impl.logger.Errorw("error in creating wf starting and runner entry", "err", err, "request", request)
-		return err
+		return nil, err
 	}
 	if cdWf.CiArtifact == nil || cdWf.CiArtifact.Id == 0 {
 		cdWf.CiArtifact, err = impl.ciArtifactRepository.Get(cdWf.CiArtifactId)
 		if err != nil {
 			impl.logger.Errorw("error fetching artifact data", "err", err)
-			return err
+			return nil, err
 		}
 	}
+
 	// Migration of deprecated DataSource Type
 	if cdWf.CiArtifact.IsMigrationRequired() {
 		migrationErr := impl.ciArtifactRepository.MigrateToWebHookDataSourceType(cdWf.CiArtifact.Id)
@@ -62,29 +65,48 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 		}
 	}
 
+	filterEvaluationAudit, err := impl.checkFeasibilityForPostStage(pipeline, &request, env, cdWf, triggeredBy)
+	if err != nil {
+		impl.logger.Errorw("error, checkFeasibilityForPostStage", "err", err, "pipeline", pipeline)
+		return nil, nil
+	}
+
 	envDevploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(pipeline.AppId, pipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
-		return err
+		return nil, err
+	}
+
+	dbErr := impl.createAuditDataForDeploymentWindowBypass(request, runner.Id)
+	if dbErr != nil {
+		impl.logger.Errorw("error in creating audit data for deployment window bypass", "runnerId", runner.Id, "err", dbErr)
+		// skip error for audit data creation
+	}
+
+	err = impl.handlerFilterEvaluationAudit(filterEvaluationAudit, runner)
+	if err != nil {
+		impl.logger.Errorw("error, handlerFilterEvaluationAudit", "err", err)
+		return nil, err
 	}
 
 	// custom GitOps repo url validation --> Start
 	err = impl.handleCustomGitOpsRepoValidation(runner, pipeline, envDevploymentConfig, triggeredBy)
 	if err != nil {
 		impl.logger.Errorw("custom GitOps repository validation error, TriggerPreStage", "err", err)
-		return err
+		return nil, err
 	}
 	// custom GitOps repo url validation --> Ends
 
+	// checking vulnerability for the selected image
 	err = impl.checkVulnerabilityStatusAndFailWfIfNeeded(ctx, cdWf.CiArtifact, pipeline, runner, triggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error, checkVulnerabilityStatusAndFailWfIfNeeded", "err", err, "runner", runner)
-		return err
+		return nil, err
 	}
 	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, pipeline, envDevploymentConfig, triggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error in building wfRequest", "err", err, "runner", runner, "cdWf", cdWf, "pipeline", pipeline)
-		return err
+		return nil, err
 	}
 	cdStageWorkflowRequest.StageType = types.POST
 	cdStageWorkflowRequest.Pipeline = pipeline
@@ -97,19 +119,23 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 		runner.Status = cdWorkflow.WorkflowFailed
 		runner.Message = err.Error()
 		_ = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
-		return err
+		return nil, err
 	}
 
-	_, err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
+	_, jobHelmPackagePath, err := impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
 	if err != nil {
 		impl.logger.Errorw("error in submitting workflow", "err", err, "workflowId", cdStageWorkflowRequest.WorkflowId, "pipeline", pipeline, "env", env)
-		return err
+		return nil, err
 	}
-
+	manifestPushTempate, err := impl.getManifestPushTemplateForPostStage(request, envDevploymentConfig, jobHelmPackagePath, cdStageWorkflowRequest, cdWf, runner, pipeline, triggeredBy, triggeredAt)
+	if err != nil {
+		impl.logger.Errorw("error in getting manifest push template", "err", err)
+		return nil, err
+	}
 	wfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(context.Background(), cdWf.Id, bean2.CD_WORKFLOW_TYPE_POST)
 	if err != nil {
 		impl.logger.Errorw("error in getting wfr by workflowId and runnerType", "err", err, "wfId", cdWf.Id)
-		return err
+		return nil, err
 	}
 	wfr.ImagePathReservationIds = pluginImagePathReservationIds
 	err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(&wfr)
@@ -124,11 +150,11 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 	if evtErr != nil {
 		impl.logger.Errorw("CD trigger event not sent", "error", evtErr)
 	}
-	//creating cd config history entry
+	// creating cd config history entry
 	err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, nil, repository3.POST_CD_TYPE, true, triggeredBy, triggeredAt)
 	if err != nil {
 		impl.logger.Errorw("error in creating post cd script entry", "err", err, "pipeline", pipeline)
-		return err
+		return nil, err
 	}
-	return nil
+	return manifestPushTempate, nil
 }

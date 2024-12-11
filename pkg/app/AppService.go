@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	cdWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	bean3 "github.com/devtron-labs/devtron/pkg/app/bean"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
@@ -769,14 +770,15 @@ func (impl *AppServiceImpl) BuildCDSuccessPayload(appName string, environmentNam
 }
 
 type ValuesOverrideResponse struct {
-	MergedValues        string
-	ReleaseOverrideJSON string
-	EnvOverride         *chartConfig.EnvConfigOverride
-	PipelineStrategy    *chartConfig.PipelineStrategy
-	PipelineOverride    *chartConfig.PipelineOverride
-	Artifact            *repository.CiArtifact
-	Pipeline            *pipelineConfig.Pipeline
-	DeploymentConfig    *bean2.DeploymentConfig
+	MergedValues         string
+	ReleaseOverrideJSON  string
+	EnvOverride          *chartConfig.EnvConfigOverride
+	PipelineStrategy     *chartConfig.PipelineStrategy
+	PipelineOverride     *chartConfig.PipelineOverride
+	Artifact             *repository.CiArtifact
+	Pipeline             *pipelineConfig.Pipeline
+	DeploymentConfig     *bean2.DeploymentConfig
+	ManifestPushTemplate *bean3.ManifestPushTemplate
 }
 
 func (impl *AppServiceImpl) buildACDContext() (acdContext context.Context, err error) {
