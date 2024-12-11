@@ -21,7 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	bean3 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
-	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"net/http"
 	"strconv"
@@ -76,7 +76,7 @@ type InstalledAppDBServiceImpl struct {
 	InstalledAppRepository        appStoreRepo.InstalledAppRepository
 	AppRepository                 app.AppRepository
 	UserService                   user.UserService
-	EnvironmentService            cluster.EnvironmentService
+	EnvironmentService            environment.EnvironmentService
 	InstalledAppRepositoryHistory appStoreRepo.InstalledAppVersionHistoryRepository
 	deploymentConfigService       common.DeploymentConfigService
 }
@@ -85,7 +85,7 @@ func NewInstalledAppDBServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepository appStoreRepo.InstalledAppRepository,
 	appRepository app.AppRepository,
 	userService user.UserService,
-	environmentService cluster.EnvironmentService,
+	environmentService environment.EnvironmentService,
 	installedAppRepositoryHistory appStoreRepo.InstalledAppVersionHistoryRepository,
 	deploymentConfigService common.DeploymentConfigService) *InstalledAppDBServiceImpl {
 	return &InstalledAppDBServiceImpl{

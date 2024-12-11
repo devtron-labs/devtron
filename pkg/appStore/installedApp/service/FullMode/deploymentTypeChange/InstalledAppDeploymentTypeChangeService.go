@@ -41,6 +41,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster/read"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
@@ -71,7 +73,7 @@ type InstalledAppDeploymentTypeChangeServiceImpl struct {
 	appStatusRepository           appStatus2.AppStatusRepository
 	appRepository                 appRepository.AppRepository
 	gitOpsConfigReadService       config.GitOpsConfigReadService
-	environmentRepository         repository5.EnvironmentRepository
+	environmentRepository         repository.EnvironmentRepository
 	acdClient                     application2.ServiceClient
 	k8sCommonService              k8s.K8sCommonService
 	k8sUtil                       k8s2.K8sService
@@ -82,6 +84,7 @@ type InstalledAppDeploymentTypeChangeServiceImpl struct {
 	helmAppService                client.HelmAppService
 	argoUserService               argo.ArgoUserService
 	clusterService                cluster.ClusterService
+	clusterReadService            read.ClusterReadService
 	deploymentConfigService       common.DeploymentConfigService
 	argoApplicationService        argoApplication.ArgoApplicationService
 }
@@ -91,13 +94,14 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
 	appStatusRepository appStatus2.AppStatusRepository,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	environmentRepository repository5.EnvironmentRepository,
+	environmentRepository repository.EnvironmentRepository,
 	acdClient application2.ServiceClient, k8sCommonService k8s.K8sCommonService,
 	k8sUtil k8s2.K8sService, fullModeDeploymentService deployment.FullModeDeploymentService,
 	eaModeDeploymentService deployment2.EAModeDeploymentService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	chartGroupService chartGroup.ChartGroupService, helmAppService client.HelmAppService,
 	argoUserService argo.ArgoUserService, clusterService cluster.ClusterService,
+	clusterReadService read.ClusterReadService,
 	appRepository appRepository.AppRepository,
 	deploymentConfigService common.DeploymentConfigService,
 	argoApplicationService argoApplication.ArgoApplicationService) *InstalledAppDeploymentTypeChangeServiceImpl {
@@ -118,6 +122,7 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 		helmAppService:                helmAppService,
 		argoUserService:               argoUserService,
 		clusterService:                clusterService,
+		clusterReadService:            clusterReadService,
 		appRepository:                 appRepository,
 		deploymentConfigService:       deploymentConfigService,
 		argoApplicationService:        argoApplicationService,
@@ -152,7 +157,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) MigrateDeploymentType(c
 	}
 	//if cluster unreachable return with error, this is done to handle the case when cluster is unreachable and
 	//delete req sent to argo cd the app deletion is stuck in deleting state
-	isClusterReachable, err := impl.clusterService.IsClusterReachable(envBean.ClusterId)
+	isClusterReachable, err := impl.clusterReadService.IsClusterReachable(envBean.ClusterId)
 	if err != nil {
 		return response, err
 	}

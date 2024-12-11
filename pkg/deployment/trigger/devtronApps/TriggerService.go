@@ -52,7 +52,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
 	pipeline2 "github.com/devtron-labs/devtron/pkg/build/pipeline"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean9 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -169,8 +170,7 @@ type TriggerServiceImpl struct {
 	ciCdPipelineOrchestrator            pipeline.CiCdPipelineOrchestrator
 	gitOperationService                 git.GitOperationService
 	attributeService                    attributes.AttributesService
-
-	clusterRepository repository2.ClusterRepository
+	clusterRepository                   repository5.ClusterRepository
 }
 
 func NewTriggerServiceImpl(logger *zap.SugaredLogger,
@@ -228,7 +228,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator,
 	gitOperationService git.GitOperationService,
 	attributeService attributes.AttributesService,
-	clusterRepository repository2.ClusterRepository,
+	clusterRepository repository5.ClusterRepository,
 ) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,

@@ -29,6 +29,7 @@ import (
 	bean4 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	bean6 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	repository6 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	bean5 "github.com/devtron-labs/devtron/pkg/infraConfig/bean"
 	util4 "github.com/devtron-labs/devtron/pkg/infraConfig/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
@@ -47,7 +48,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
-	repository1 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
@@ -92,7 +92,7 @@ type CiServiceImpl struct {
 	userService                  user.UserService
 	ciTemplateService            pipeline.CiTemplateReadService
 	appCrudOperationService      app.AppCrudOperationService
-	envRepository                repository1.EnvironmentRepository
+	envRepository                repository6.EnvironmentRepository
 	appRepository                appRepository.AppRepository
 	customTagService             CustomTagService
 	config                       *types.CiConfig
@@ -113,7 +113,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	ciArtifactRepository repository5.CiArtifactRepository,
 	pipelineStageService PipelineStageService,
 	userService user.UserService,
-	ciTemplateService pipeline.CiTemplateReadService, appCrudOperationService app.AppCrudOperationService, envRepository repository1.EnvironmentRepository, appRepository appRepository.AppRepository,
+	ciTemplateService pipeline.CiTemplateReadService, appCrudOperationService app.AppCrudOperationService, envRepository repository6.EnvironmentRepository, appRepository appRepository.AppRepository,
 	scopedVariableManager variables.ScopedVariableManager,
 	customTagService CustomTagService,
 	pluginInputVariableParser PluginInputVariableParser,
@@ -409,14 +409,14 @@ func (impl *CiServiceImpl) getK8sDriverOptions() ([]map[string]string, error) {
 	}
 }
 
-func (impl *CiServiceImpl) getEnvironmentForJob(pipeline *pipelineConfig.CiPipeline, trigger types.Trigger) (*repository1.Environment, bool, error) {
+func (impl *CiServiceImpl) getEnvironmentForJob(pipeline *pipelineConfig.CiPipeline, trigger types.Trigger) (*repository6.Environment, bool, error) {
 	app, err := impl.appRepository.FindById(pipeline.AppId)
 	if err != nil {
 		impl.Logger.Errorw("could not find app", "err", err)
 		return nil, false, err
 	}
 
-	var env *repository1.Environment
+	var env *repository6.Environment
 	isJob := false
 	if app.AppType == helper.Job {
 		isJob = true

@@ -14,10 +14,16 @@
  * limitations under the License.
  */
 
-package cluster
+package rbac
 
 import (
 	"errors"
+	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	"github.com/devtron-labs/devtron/pkg/k8s/application/bean"
+	"github.com/devtron-labs/devtron/util/rbac"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"strings"
 
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -27,30 +33,55 @@ import (
 
 type ClusterRbacService interface {
 	CheckAuthorization(clusterName string, clusterId int, token string, userId int32, rbacForClusterMappingsAlso bool) (bool, error)
+	CheckAuthorisationForNode(token string, clusterName string, nodeName string, action string) (authenticated bool)
+	CheckAuthorisationForNodeWithClusterId(token string, clusterId int, nodeName string, action string) (authenticated bool, err error)
+	CheckAuthorisationForAllK8sPermissions(token string, clusterName string, action string) bool
 }
 
 type ClusterRbacServiceImpl struct {
 	logger             *zap.SugaredLogger
-	environmentService EnvironmentService
+	environmentService environment.EnvironmentService
 	enforcer           casbin.Enforcer
-	clusterService     ClusterService
+	enforcerUtil       rbac.EnforcerUtil
+	clusterService     cluster.ClusterService
 	userService        user.UserService
 }
 
-func NewClusterRbacServiceImpl(environmentService EnvironmentService,
+func NewClusterRbacServiceImpl(environmentService environment.EnvironmentService,
 	enforcer casbin.Enforcer,
-	clusterService ClusterService,
+	enforcerUtil rbac.EnforcerUtil,
+	clusterService cluster.ClusterService,
 	logger *zap.SugaredLogger,
 	userService user.UserService) *ClusterRbacServiceImpl {
 	clusterRbacService := &ClusterRbacServiceImpl{
 		logger:             logger,
 		environmentService: environmentService,
 		enforcer:           enforcer,
+		enforcerUtil:       enforcerUtil,
 		clusterService:     clusterService,
 		userService:        userService,
 	}
 
 	return clusterRbacService
+}
+
+func (impl *ClusterRbacServiceImpl) CheckAuthorisationForNodeWithClusterId(token string, clusterId int, nodeName string, action string) (authenticated bool, err error) {
+	cluster, err := impl.clusterService.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error encountered in CheckAuthorisationForNodeWithClusterId", "clusterId", clusterId, "err", err)
+		return false, err
+	}
+	return impl.CheckAuthorisationForNode(token, cluster.ClusterName, nodeName, action), nil
+}
+
+func (impl *ClusterRbacServiceImpl) CheckAuthorisationForNode(token string, clusterName string, nodeName string, action string) (authenticated bool) {
+	// specific check for node where user should have access to cluster with all namespaces
+	// res , object  are generic for all resources res--> clusterName/* (all namespaces) object--> k8sempty/node/nodeName if nodeName is empty , * signifying all
+	resource, object := impl.enforcerUtil.GetRbacResourceAndObjectForNode(clusterName, nodeName)
+	if ok := impl.enforcer.Enforce(token, strings.ToLower(resource), action, object); ok {
+		return true
+	}
+	return false
 }
 
 func (impl *ClusterRbacServiceImpl) CheckAuthorization(clusterName string, clusterId int, token string, userId int32, rbacForClusterMappingsAlso bool) (authenticated bool, err error) {
@@ -111,4 +142,13 @@ func (impl *ClusterRbacServiceImpl) FetchAllowedClusterMap(userId int32) (map[st
 	}
 	return allowedClustersMap, err
 
+}
+
+func (impl *ClusterRbacServiceImpl) CheckAuthorisationForAllK8sPermissions(token string, clusterName string, action string) (b2 bool) {
+	resource, object := impl.enforcerUtil.GetRBACNameForClusterEntity(clusterName, k8s.ResourceIdentifier{
+		Name:             bean.ALL,
+		Namespace:        bean.ALL,
+		GroupVersionKind: schema.GroupVersionKind{Group: bean.ALL, Kind: bean.ALL},
+	})
+	return impl.enforcer.Enforce(token, strings.ToLower(resource), action, object)
 }

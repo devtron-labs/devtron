@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
@@ -76,7 +77,7 @@ func getWorkflowServiceImpl(t *testing.T) *WorkflowServiceImpl {
 	clusterService := cluster.NewClusterServiceImpl(clusterRepositoryImpl, logger, k8sUtil, k8sInformerFactoryImpl, nil, nil, nil)
 	k8sCommonServiceImpl := k8s2.NewK8sCommonServiceImpl(logger, k8sUtil, clusterService, nil)
 	appStatusRepositoryImpl := appStatus.NewAppStatusRepositoryImpl(dbConnection, logger)
-	environmentRepositoryImpl := repository3.NewEnvironmentRepositoryImpl(dbConnection, logger, appStatusRepositoryImpl)
+	environmentRepositoryImpl := repository2.NewEnvironmentRepositoryImpl(dbConnection, logger, appStatusRepositoryImpl)
 	argoWorkflowExecutorImpl := executors.NewArgoWorkflowExecutorImpl(logger)
 	workflowServiceImpl, _ := NewWorkflowServiceImpl(logger, environmentRepositoryImpl, ciCdConfig, appService, globalCMCSServiceImpl, argoWorkflowExecutorImpl, k8sUtil, nil, k8sCommonServiceImpl, nil)
 	return workflowServiceImpl
@@ -705,7 +706,7 @@ func TestWorkflowServiceImpl_SubmitWorkflow(t *testing.T) {
 			IsExtRun:                  false,
 			ImageRetryCount:           0,
 			ImageRetryInterval:        5,
-			Env: &repository3.Environment{
+			Env: &repository2.Environment{
 				Id:        3,
 				Name:      "2-devtron",
 				ClusterId: 2,

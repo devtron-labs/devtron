@@ -19,7 +19,7 @@ package devtronApps
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
