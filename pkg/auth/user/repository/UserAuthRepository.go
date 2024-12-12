@@ -40,7 +40,7 @@ type UserAuthRepository interface {
 	GetRoleById(id int) (*RoleModel, error)
 	GetRolesByIds(ids []int) ([]*RoleModel, error)
 	GetRoleByRoles(roles []string) ([]RoleModel, error)
-	GetRolesByUserId(userId int32) ([]RoleModel, error)
+	GetRolesByUserId(userId int32) ([]*RoleModel, error)
 	GetRolesByGroupId(userId int32) ([]*RoleModel, error)
 	GetAllRole() ([]RoleModel, error)
 	GetRolesByActionAndAccessType(action string, accessType string) ([]RoleModel, error)
@@ -147,6 +147,19 @@ type ClusterRolePolicyDetails struct {
 	ResourceObj  string
 }
 
+func (r RoleModel) GetTeam() string        { return r.Team }
+func (r RoleModel) GetEntity() string      { return r.Entity }
+func (r RoleModel) GetAction() string      { return r.Action }
+func (r RoleModel) GetAccessType() string  { return r.AccessType }
+func (r RoleModel) GetEnvironment() string { return r.Environment }
+func (r RoleModel) GetCluster() string     { return r.Cluster }
+func (r RoleModel) GetGroup() string       { return r.Group }
+func (r RoleModel) GetKind() string        { return r.Kind }
+func (r RoleModel) GetEntityName() string  { return r.EntityName }
+func (r RoleModel) GetResource() string    { return r.Resource }
+func (r RoleModel) GetWorkflow() string    { return r.Workflow }
+func (r RoleModel) GetNamespace() string   { return r.Namespace }
+
 func (impl UserAuthRepositoryImpl) CreateRole(role *RoleModel) (*RoleModel, error) {
 	err := impl.dbConnection.Insert(role)
 	if err != nil {
@@ -193,8 +206,8 @@ func (impl UserAuthRepositoryImpl) GetRoleByRoles(roles []string) ([]RoleModel, 
 	return model, nil
 }
 
-func (impl UserAuthRepositoryImpl) GetRolesByUserId(userId int32) ([]RoleModel, error) {
-	var models []RoleModel
+func (impl UserAuthRepositoryImpl) GetRolesByUserId(userId int32) ([]*RoleModel, error) {
+	var models []*RoleModel
 	err := impl.dbConnection.Model(&models).
 		Column("role_model.*").
 		Join("INNER JOIN user_roles ur on ur.role_id=role_model.id").
