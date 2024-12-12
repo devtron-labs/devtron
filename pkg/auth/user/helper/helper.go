@@ -21,6 +21,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"golang.org/x/exp/slices"
 	"strings"
 )
@@ -96,4 +97,13 @@ func CreateErrorMessageForUserRoleGroups(restrictedGroups []bean2.RestrictedGrou
 
 func GetCasbinNameFromRoleGroupName(name string) string {
 	return "group:" + strings.ReplaceAll(strings.ToLower(name), " ", "_")
+}
+
+func CheckIfSuperAdminFromRoles(roles []*repository.RoleModel) bool {
+	for _, role := range roles {
+		if role.Role == bean2.SUPERADMIN {
+			return true
+		}
+	}
+	return false
 }

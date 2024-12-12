@@ -569,46 +569,11 @@ func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository.Role
 		impl.logger.Errorw("No Roles Found for user", "roleGroupId", roleGroup.Id)
 	}
 	var roleFilters []bean.RoleFilter
-	isSuperAdmin := false
-	roleFilterMap := make(map[string]*bean.RoleFilter)
-	for _, role := range roles {
-		key := impl.userCommonService.GetUniqueKeyForAllEntity(*role)
-		if _, ok := roleFilterMap[key]; ok {
-			impl.userCommonService.BuildRoleFilterForAllTypes(roleFilterMap, *role, key)
-		} else {
-			roleFilterMap[key] = &bean.RoleFilter{
-				Entity:      role.Entity,
-				Team:        role.Team,
-				Environment: role.Environment,
-				EntityName:  role.EntityName,
-				Action:      role.Action,
-				AccessType:  role.AccessType,
-				Cluster:     role.Cluster,
-				Namespace:   role.Namespace,
-				Group:       role.Group,
-				Kind:        role.Kind,
-				Resource:    role.Resource,
-				Workflow:    role.Workflow,
-			}
-		}
-		if role.Role == bean.SUPERADMIN {
-			isSuperAdmin = true
-		}
-	}
-	for _, v := range roleFilterMap {
-		if v.Action == bean2.SUPER_ADMIN {
-			continue
-		}
-		roleFilters = append(roleFilters, *v)
-	}
-	for index, roleFilter := range roleFilters {
-		if roleFilter.Entity == "" {
-			roleFilters[index].Entity = bean2.ENTITY_APPS
-		}
-		if roleFilter.Entity == bean2.ENTITY_APPS && roleFilter.AccessType == "" {
-			roleFilters[index].AccessType = bean2.DEVTRON_APP
-		}
-	}
+	isSuperAdmin := helper2.CheckIfSuperAdminFromRoles(roles)
+	// merging considering base as env  first
+	roleFilters = impl.userCommonService.BuildRoleFiltersAfterMerging(ConvertRolesToEntityProcessors(roles), bean2.EnvironmentBasedKey)
+	// merging role filters based on application now, first took env as base merged, now application as base , merged
+	roleFilters = impl.userCommonService.BuildRoleFiltersAfterMerging(ConvertRoleFiltersToEntityProcessors(roleFilters), bean2.ApplicationBasedKey)
 	if len(roleFilters) == 0 {
 		roleFilters = make([]bean.RoleFilter, 0)
 	}
