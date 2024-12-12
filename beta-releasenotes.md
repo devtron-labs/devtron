@@ -1,4 +1,5 @@
 ## Bugs
+- fix: user permissions not merging on same environments (#6167)
 - fix: Secret masking fix (#6136)
 - fix: delete git repo without pipeline config (#6148)
 - fix: all modules installation fix (#6140)
