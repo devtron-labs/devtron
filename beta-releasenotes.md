@@ -12,6 +12,7 @@
 - feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
+- misc: cdworflow read service (#6172)
 - misc: added the token that contains the permissions to read the org members (#6164)
 - chore: vendor update runtime, changes in makefile (#6161)
 - chore: go mod tidy and vendor (#6160)
