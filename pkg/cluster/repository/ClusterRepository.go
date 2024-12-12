@@ -46,6 +46,13 @@ type Cluster struct {
 	sql.AuditLog
 }
 
+func (c *Cluster) IsZero() bool {
+	if c == nil {
+		return true
+	}
+	return c.Id == 0
+}
+
 type ClusterRepository interface {
 	Save(model *Cluster) error
 	FindOne(clusterName string) (*Cluster, error)

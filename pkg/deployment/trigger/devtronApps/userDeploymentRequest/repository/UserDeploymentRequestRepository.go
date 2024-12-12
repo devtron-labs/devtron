@@ -149,7 +149,7 @@ func (impl *UserDeploymentRequestRepositoryImpl) GetAllInCompleteRequests(ctx co
 		Where("cdwfr.status NOT IN (?)", pg.In(append(cdWorkflow.WfrTerminalStatusList, cdWorkflow.WorkflowInQueue))).
 		Where("pst.status = ?", timelineStatus.TIMELINE_STATUS_DEPLOYMENT_REQUEST_VALIDATED).
 		Where("NOT EXISTS (?)", subQuery).
-		Group("pipeline_id")
+		Group("user_deployment_request.pipeline_id")
 	err := impl.dbConnection.Model().
 		Table("user_deployment_request").
 		Column("user_deployment_request.*").
