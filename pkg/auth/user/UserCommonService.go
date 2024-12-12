@@ -41,7 +41,7 @@ type UserCommonService interface {
 	RemoveRolesAndReturnEliminatedPoliciesForGroups(request *bean.RoleGroup, existingRoles map[int]*repository.RoleGroupRoleMapping, eliminatedRoles map[int]*repository.RoleGroupRoleMapping, tx *pg.Tx, token string, managerAuth func(resource string, token string, object string) bool) ([]casbin.Policy, []*repository.RoleModel, error)
 	CheckRbacForClusterEntity(cluster, namespace, group, kind, resource, token string, managerAuth func(resource, token, object string) bool) bool
 	GetCapacityForRoleFilter(roleFilters []bean.RoleFilter) (int, map[int]int)
-	BuildRoleFilterForAllTypes(roleFilterMap map[string]*bean.RoleFilter, entityProcessor EntityKeyProcessor, key string)
+	BuildRoleFilterForAllTypes(roleFilterMap map[string]*bean.RoleFilter, entityProcessor EntityKeyProcessor, key string, basetoConsider bean2.MergingBaseKey)
 	GetUniqueKeyForAllEntity(entityProcessor EntityKeyProcessor, baseToConsider bean2.MergingBaseKey) string
 	SetDefaultValuesIfNotPresent(request *bean.ListingRequest, isRoleGroup bool)
 	DeleteRoleForUserFromCasbin(mappings map[string][]string) bool
@@ -632,7 +632,7 @@ func (impl UserCommonServiceImpl) GetCapacityForRoleFilter(roleFilters []bean.Ro
 	return capacity, m
 }
 
-func (impl UserCommonServiceImpl) BuildRoleFilterForAllTypes(roleFilterMap map[string]*bean.RoleFilter, entityProcessor EntityKeyProcessor, key string) {
+func (impl UserCommonServiceImpl) BuildRoleFilterForAllTypes(roleFilterMap map[string]*bean.RoleFilter, entityProcessor EntityKeyProcessor, key string, basetoConsider bean2.MergingBaseKey) {
 	switch entityProcessor.GetEntity() {
 	case bean2.CLUSTER_ENTITIY:
 		{
@@ -640,11 +640,11 @@ func (impl UserCommonServiceImpl) BuildRoleFilterForAllTypes(roleFilterMap map[s
 		}
 	case bean2.EntityJobs:
 		{
-			BuildRoleFilterKeyForJobs(roleFilterMap, entityProcessor, key)
+			BuildRoleFilterKeyForJobs(roleFilterMap, entityProcessor, key, basetoConsider)
 		}
 	default:
 		{
-			BuildRoleFilterKeyForOtherEntity(roleFilterMap, entityProcessor, key)
+			BuildRoleFilterKeyForOtherEntity(roleFilterMap, entityProcessor, key, basetoConsider)
 		}
 	}
 }
@@ -676,18 +676,35 @@ func BuildRoleFilterKeyForCluster(roleFilterMap map[string]*bean.RoleFilter, ent
 	}
 }
 
-func BuildRoleFilterKeyForJobs(roleFilterMap map[string]*bean.RoleFilter, entityProcessor EntityKeyProcessor, key string) {
-	envArr := strings.Split(roleFilterMap[key].Environment, ",")
-	if containsArr(envArr, AllEnvironment) {
-		roleFilterMap[key].Environment = AllEnvironment
-	} else if !containsArr(envArr, entityProcessor.GetEnvironment()) {
-		roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, entityProcessor.GetEnvironment())
-	}
-	entityArr := strings.Split(roleFilterMap[key].EntityName, ",")
-	if containsArr(entityArr, bean2.EmptyStringIndicatingAll) {
-		roleFilterMap[key].EntityName = bean2.EmptyStringIndicatingAll
-	} else if !containsArr(entityArr, entityProcessor.GetEntityName()) {
-		roleFilterMap[key].EntityName = fmt.Sprintf("%s,%s", roleFilterMap[key].EntityName, entityProcessor.GetEntityName())
+func BuildRoleFilterKeyForJobs(roleFilterMap map[string]*bean.RoleFilter, entityProcessor EntityKeyProcessor, key string, baseToConsider bean2.MergingBaseKey) {
+	switch baseToConsider {
+	case bean2.ApplicationBasedKey:
+		envArr := strings.Split(roleFilterMap[key].Environment, ",")
+		if containsArr(envArr, AllEnvironment) {
+			roleFilterMap[key].Environment = AllEnvironment
+		} else if !containsArr(envArr, entityProcessor.GetEnvironment()) {
+			roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, entityProcessor.GetEnvironment())
+		}
+	case bean2.EnvironmentBasedKey:
+		entityArr := strings.Split(roleFilterMap[key].EntityName, ",")
+		if containsArr(entityArr, bean2.EmptyStringIndicatingAll) {
+			roleFilterMap[key].EntityName = bean2.EmptyStringIndicatingAll
+		} else if !containsArr(entityArr, entityProcessor.GetEntityName()) {
+			roleFilterMap[key].EntityName = fmt.Sprintf("%s,%s", roleFilterMap[key].EntityName, entityProcessor.GetEntityName())
+		}
+	default:
+		envArr := strings.Split(roleFilterMap[key].Environment, ",")
+		if containsArr(envArr, AllEnvironment) {
+			roleFilterMap[key].Environment = AllEnvironment
+		} else if !containsArr(envArr, entityProcessor.GetEnvironment()) {
+			roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, entityProcessor.GetEnvironment())
+		}
+		entityArr := strings.Split(roleFilterMap[key].EntityName, ",")
+		if containsArr(entityArr, bean2.EmptyStringIndicatingAll) {
+			roleFilterMap[key].EntityName = bean2.EmptyStringIndicatingAll
+		} else if !containsArr(entityArr, entityProcessor.GetEntityName()) {
+			roleFilterMap[key].EntityName = fmt.Sprintf("%s,%s", roleFilterMap[key].EntityName, entityProcessor.GetEntityName())
+		}
 	}
 	workflowArr := strings.Split(roleFilterMap[key].Workflow, ",")
 	if containsArr(workflowArr, AllWorkflow) {
@@ -697,18 +714,35 @@ func BuildRoleFilterKeyForJobs(roleFilterMap map[string]*bean.RoleFilter, entity
 	}
 }
 
-func BuildRoleFilterKeyForOtherEntity(roleFilterMap map[string]*bean.RoleFilter, entityProcessor EntityKeyProcessor, key string) {
-	envArr := strings.Split(roleFilterMap[key].Environment, ",")
-	if containsArr(envArr, AllEnvironment) {
-		roleFilterMap[key].Environment = AllEnvironment
-	} else if !containsArr(envArr, entityProcessor.GetEnvironment()) {
-		roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, entityProcessor.GetEnvironment())
-	}
-	entityArr := strings.Split(roleFilterMap[key].EntityName, ",")
-	if containsArr(entityArr, bean2.EmptyStringIndicatingAll) {
-		roleFilterMap[key].EntityName = bean2.EmptyStringIndicatingAll
-	} else if !containsArr(entityArr, entityProcessor.GetEntityName()) {
-		roleFilterMap[key].EntityName = fmt.Sprintf("%s,%s", roleFilterMap[key].EntityName, entityProcessor.GetEntityName())
+func BuildRoleFilterKeyForOtherEntity(roleFilterMap map[string]*bean.RoleFilter, entityProcessor EntityKeyProcessor, key string, baseToConsider bean2.MergingBaseKey) {
+	switch baseToConsider {
+	case bean2.ApplicationBasedKey:
+		envArr := strings.Split(roleFilterMap[key].Environment, ",")
+		if containsArr(envArr, AllEnvironment) {
+			roleFilterMap[key].Environment = AllEnvironment
+		} else if !containsArr(envArr, entityProcessor.GetEnvironment()) {
+			roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, entityProcessor.GetEnvironment())
+		}
+	case bean2.EnvironmentBasedKey:
+		entityArr := strings.Split(roleFilterMap[key].EntityName, ",")
+		if containsArr(entityArr, bean2.EmptyStringIndicatingAll) {
+			roleFilterMap[key].EntityName = bean2.EmptyStringIndicatingAll
+		} else if !containsArr(entityArr, entityProcessor.GetEntityName()) {
+			roleFilterMap[key].EntityName = fmt.Sprintf("%s,%s", roleFilterMap[key].EntityName, entityProcessor.GetEntityName())
+		}
+	default:
+		envArr := strings.Split(roleFilterMap[key].Environment, ",")
+		if containsArr(envArr, AllEnvironment) {
+			roleFilterMap[key].Environment = AllEnvironment
+		} else if !containsArr(envArr, entityProcessor.GetEnvironment()) {
+			roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, entityProcessor.GetEnvironment())
+		}
+		entityArr := strings.Split(roleFilterMap[key].EntityName, ",")
+		if containsArr(entityArr, bean2.EmptyStringIndicatingAll) {
+			roleFilterMap[key].EntityName = bean2.EmptyStringIndicatingAll
+		} else if !containsArr(entityArr, entityProcessor.GetEntityName()) {
+			roleFilterMap[key].EntityName = fmt.Sprintf("%s,%s", roleFilterMap[key].EntityName, entityProcessor.GetEntityName())
+		}
 	}
 }
 func (impl UserCommonServiceImpl) GetUniqueKeyForAllEntity(entityProcessor EntityKeyProcessor, baseToConsider bean2.MergingBaseKey) string {
@@ -727,7 +761,7 @@ func (impl UserCommonServiceImpl) GetUniqueKeyForAllEntity(entityProcessor Entit
 		case bean2.EnvironmentBasedKey:
 			key = fmt.Sprintf("%s_%s_%s_%s_%s", entityProcessor.GetTeam(), entityProcessor.GetEnvironment(), entityProcessor.GetAction(), entityProcessor.GetAccessType(), entityProcessor.GetEntity())
 		case bean2.ApplicationBasedKey:
-			key = fmt.Sprintf("%s_%s_%s_%s_%s", entityProcessor.GetTeam(), entityProcessor.GetEntityName, entityProcessor.GetAction(), entityProcessor.GetAccessType(), entityProcessor.GetEntity())
+			key = fmt.Sprintf("%s_%s_%s_%s_%s", entityProcessor.GetTeam(), entityProcessor.GetEntityName(), entityProcessor.GetAction(), entityProcessor.GetAccessType(), entityProcessor.GetEntity())
 		default:
 			key = fmt.Sprintf("%s_%s_%s_%s", entityProcessor.GetTeam(), entityProcessor.GetAction(), entityProcessor.GetAccessType(), entityProcessor.GetEntity())
 		}
@@ -791,7 +825,7 @@ func (impl UserCommonServiceImpl) BuildRoleFiltersAfterMerging(entityProcessors 
 	for _, entityProcessor := range entityProcessors {
 		key := impl.GetUniqueKeyForAllEntity(entityProcessor, baseKey)
 		if _, ok := roleFilterMap[key]; ok {
-			impl.BuildRoleFilterForAllTypes(roleFilterMap, entityProcessor, key)
+			impl.BuildRoleFilterForAllTypes(roleFilterMap, entityProcessor, key, baseKey)
 		} else {
 			roleFilterMap[key] = &bean.RoleFilter{
 				Entity:      entityProcessor.GetEntity(),
