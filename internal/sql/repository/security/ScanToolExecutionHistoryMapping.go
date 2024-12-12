@@ -45,6 +45,7 @@ type ScanToolExecutionHistoryMappingRepository interface {
 	GetAllScanHistoriesByState(state serverBean.ScanExecutionProcessState) ([]*ScanToolExecutionHistoryMapping, error)
 	GetAllScanHistoriesByExecutionHistoryIdAndStates(executionHistoryId int, states []serverBean.ScanExecutionProcessState) ([]*ScanToolExecutionHistoryMapping, error)
 	GetAllScanHistoriesByExecutionHistoryIds(ids []int) ([]*ScanToolExecutionHistoryMapping, error)
+	FetchScanHistoryMappingsUsingImageAndImageDigest(image, imageDigest string) ([]*ScanToolExecutionHistoryMapping, error)
 }
 
 type ScanToolExecutionHistoryMappingRepositoryImpl struct {
@@ -138,6 +139,21 @@ func (repo *ScanToolExecutionHistoryMappingRepositoryImpl) GetAllScanHistoriesBy
 		Select()
 	if err != nil {
 		repo.logger.Errorw("error in getting ScanToolExecutionHistoryMappingRepository, GetAllScanHistoriesByState", "err", err)
+		return nil, err
+	}
+	return models, nil
+}
+
+func (repo *ScanToolExecutionHistoryMappingRepositoryImpl) FetchScanHistoryMappingsUsingImageAndImageDigest(image, imageDigest string) ([]*ScanToolExecutionHistoryMapping, error) {
+	var models []*ScanToolExecutionHistoryMapping
+	err := repo.dbConnection.Model(&models).
+		Column("scan_tool_execution_history_mapping.*").
+		Join("INNER JOIN image_scan_execution_history iseh on iseh.id=scan_tool_execution_history_mapping.image_scan_execution_history_id").
+		Where("iseh.image = ?", image).
+		Where("iseh.image_hash = ?", imageDigest).
+		Select()
+	if err != nil {
+		repo.logger.Errorw("error in getting ScanToolExecutionHistoryMapping using image and image hash", "err", err)
 		return nil, err
 	}
 	return models, nil

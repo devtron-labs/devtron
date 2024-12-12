@@ -50,6 +50,7 @@ type PipelineStageService interface {
 	// , there was a bug(https://github.com/devtron-labs/devtron/issues/3826) where we were not deleting pipeline stage entry even after deleting all the pipelineStageSteps
 	// , this will delete those pipelineStage entry
 	DeletePipelineStageIfReq(stageReq *bean.PipelineStageDto, userId int32) (error, bool)
+	IsScanPluginConfiguredAtPipelineStage(pipelineId int, pipelineStage repository.PipelineStageType, pluginName string) (bool, error)
 }
 
 func NewPipelineStageService(logger *zap.SugaredLogger,
@@ -2167,4 +2168,21 @@ func (impl *PipelineStageServiceImpl) extractAndMapScopedVariables(stageReq *bea
 
 	return impl.scopedVariableManager.ExtractAndMapVariables(string(requestJson), stageReq.Id, repository3.EntityTypePipelineStage, userId, tx)
 
+}
+
+func (impl *PipelineStageServiceImpl) IsScanPluginConfiguredAtPipelineStage(pipelineId int, pipelineStage repository.PipelineStageType, pluginName string) (bool, error) {
+	plugin, err := impl.globalPluginRepository.GetPluginByName(pluginName)
+	if err != nil {
+		impl.logger.Errorw("error in getting image scanning plugin, Vulnerability Scanning", "pipelineId", pipelineId, "pipelineStage", pipelineStage, "err", err)
+		return false, err
+	}
+	if len(plugin) == 0 {
+		return false, nil
+	}
+	isScanPluginConfigured, err := impl.pipelineStageRepository.CheckIfPluginExistsInPipelineStage(pipelineId, pipelineStage, plugin[0].Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting ci pipeline plugin", "err", err, "pipelineId", pipelineId, "pluginId", plugin[0].Id)
+		return false, err
+	}
+	return isScanPluginConfigured, nil
 }
