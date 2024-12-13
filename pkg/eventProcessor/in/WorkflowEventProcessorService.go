@@ -73,6 +73,7 @@ type WorkflowEventProcessorImpl struct {
 	cdWorkflowService            cd.CdWorkflowService
 	cdWorkflowReadService        read.CdWorkflowReadService
 	cdWorkflowRunnerService      cd.CdWorkflowRunnerService
+	cdWorkflowRunnerReadService  read.CdWorkflowRunnerReadService
 	workflowDagExecutor          dag.WorkflowDagExecutor
 	argoUserService              argo.ArgoUserService
 	ciHandler                    pipeline.CiHandler
@@ -104,6 +105,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	cdWorkflowService cd.CdWorkflowService,
 	cdWorkflowReadService read.CdWorkflowReadService,
 	cdWorkflowRunnerService cd.CdWorkflowRunnerService,
+	cdWorkflowRunnerReadService read.CdWorkflowRunnerReadService,
 	workflowDagExecutor dag.WorkflowDagExecutor,
 	argoUserService argo.ArgoUserService,
 	ciHandler pipeline.CiHandler, cdHandler pipeline.CdHandler,
@@ -126,6 +128,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 		cdWorkflowService:               cdWorkflowService,
 		cdWorkflowReadService:           cdWorkflowReadService,
 		cdWorkflowRunnerService:         cdWorkflowRunnerService,
+		cdWorkflowRunnerReadService:     cdWorkflowRunnerReadService,
 		argoUserService:                 argoUserService,
 		ciHandler:                       ciHandler,
 		cdHandler:                       cdHandler,
@@ -165,7 +168,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDStageCompleteEvent() error {
 			impl.logger.Errorw("error while unmarshalling cdStageCompleteEvent object", "err", err, "msg", msg.Data)
 			return
 		}
-		wfr, err := impl.cdWorkflowRunnerService.FindWorkflowRunnerById(cdStageCompleteEvent.WorkflowRunnerId)
+		wfr, err := impl.cdWorkflowRunnerReadService.FindWorkflowRunnerById(cdStageCompleteEvent.WorkflowRunnerId)
 		if err != nil {
 			impl.logger.Errorw("could not get wf runner", "err", err)
 			return
@@ -990,7 +993,7 @@ func (impl *WorkflowEventProcessorImpl) validateConcurrentOrInvalidRequest(ctx c
 			return isValidRequest, err
 		}
 	} else {
-		isLatestRequest, err = impl.cdWorkflowRunnerService.CheckIfWfrLatest(cdWfr.Id, pipelineId)
+		isLatestRequest, err = impl.cdWorkflowRunnerReadService.CheckIfWfrLatest(cdWfr.Id, pipelineId)
 		if err != nil {
 			impl.logger.Errorw("error, CheckIfWfrLatest", "err", err, "cdWfrId", cdWfr.Id)
 			return isValidRequest, err
