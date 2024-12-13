@@ -70,19 +70,20 @@ spec:
       {{- end }}
     {{- end }}
       labels:
-        app: {{ template ".Chart.Name .name" $ }}
         appId: {{ $.Values.app | quote }}
         envId: {{ $.Values.env | quote }}
-        release: {{ $.Release.Name }}
-{{- if .Values.customPodLabels  }}
-{{ toYaml .Values.customPodLabels | indent 8 }}  
-{{- end }}                
-{{- if .Values.appLabels }}
+ {{- if .Values.appLabels }}
 {{ toYaml .Values.appLabels | indent 8 }}
-{{- end }}
+{{- end }}             
+{{- if .Values.customPodLabels  }}
+{{ toYaml .Values.customPodLabels | indent 8 }}
+ {{- else }}        
+        app: {{ template ".Chart.Name .name" $ }}
+        release: {{ $.Release.Name }}      
 {{- if .Values.podLabels }}
 {{ toYaml .Values.podLabels | indent 8 }}
 {{- end }}
+{{- end }}   
     spec:
 {{- if $.Values.podExtraSpecs }}	
 {{ toYaml .Values.podExtraSpecs | indent 6 }}	
