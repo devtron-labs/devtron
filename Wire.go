@@ -104,7 +104,6 @@ import (
 	repository8 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	resourceGroup "github.com/devtron-labs/devtron/internal/sql/repository/resourceGroup"
-	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
@@ -159,9 +158,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository6 "github.com/devtron-labs/devtron/pkg/plugin/repository"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
-	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/pkg/variables"
@@ -214,6 +213,8 @@ func InitializeApp() (*App, error) {
 		workflow3.WorkflowWireSet,
 		imageTagging.WireSet,
 		devtronResource.DevtronResourceWireSet,
+		policyGovernance.PolicyGovernanceWireSet,
+
 		// -------wireset end ----------
 		// -------
 		gitSensor.GetConfig,
@@ -646,30 +647,10 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.ImageScanRouter), new(*router.ImageScanRouterImpl)),
 		restHandler.NewImageScanRestHandlerImpl,
 		wire.Bind(new(restHandler.ImageScanRestHandler), new(*restHandler.ImageScanRestHandlerImpl)),
-		security.NewImageScanServiceImpl,
-		wire.Bind(new(security.ImageScanService), new(*security.ImageScanServiceImpl)),
-		security2.NewImageScanHistoryRepositoryImpl,
-		wire.Bind(new(security2.ImageScanHistoryRepository), new(*security2.ImageScanHistoryRepositoryImpl)),
-		security2.NewImageScanResultRepositoryImpl,
-		wire.Bind(new(security2.ImageScanResultRepository), new(*security2.ImageScanResultRepositoryImpl)),
-		security2.NewImageScanObjectMetaRepositoryImpl,
-		wire.Bind(new(security2.ImageScanObjectMetaRepository), new(*security2.ImageScanObjectMetaRepositoryImpl)),
-		security2.NewCveStoreRepositoryImpl,
-		wire.Bind(new(security2.CveStoreRepository), new(*security2.CveStoreRepositoryImpl)),
-		security2.NewImageScanDeployInfoRepositoryImpl,
-		wire.Bind(new(security2.ImageScanDeployInfoRepository), new(*security2.ImageScanDeployInfoRepositoryImpl)),
-		security2.NewScanToolMetadataRepositoryImpl,
-		wire.Bind(new(security2.ScanToolMetadataRepository), new(*security2.ScanToolMetadataRepositoryImpl)),
 		router.NewPolicyRouterImpl,
 		wire.Bind(new(router.PolicyRouter), new(*router.PolicyRouterImpl)),
 		restHandler.NewPolicyRestHandlerImpl,
 		wire.Bind(new(restHandler.PolicyRestHandler), new(*restHandler.PolicyRestHandlerImpl)),
-		security.NewPolicyServiceImpl,
-		wire.Bind(new(security.PolicyService), new(*security.PolicyServiceImpl)),
-		security2.NewPolicyRepositoryImpl,
-		wire.Bind(new(security2.CvePolicyRepository), new(*security2.CvePolicyRepositoryImpl)),
-		security2.NewScanToolExecutionHistoryMappingRepositoryImpl,
-		wire.Bind(new(security2.ScanToolExecutionHistoryMappingRepository), new(*security2.ScanToolExecutionHistoryMappingRepositoryImpl)),
 
 		argocdServer.NewArgoK8sClientImpl,
 		wire.Bind(new(argocdServer.ArgoK8sClient), new(*argocdServer.ArgoK8sClientImpl)),
