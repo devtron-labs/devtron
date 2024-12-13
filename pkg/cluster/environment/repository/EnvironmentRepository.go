@@ -49,6 +49,13 @@ type Environment struct {
 	sql.AuditLog
 }
 
+func (environment *Environment) IsZero() bool {
+	if environment == nil {
+		return true
+	}
+	return environment.Id == 0
+}
+
 type EnvironmentRepository interface {
 	FindOne(environment string) (*Environment, error)
 	Create(mappings *Environment) error
