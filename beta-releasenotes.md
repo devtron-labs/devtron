@@ -13,6 +13,7 @@
 - feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
+- chore: installed app version read service (#6162)
 - chore: refactoring installed app read service (#6153)
 - misc: main branch sync (#6174)
 - misc: cdworflow read service (#6172)
