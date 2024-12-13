@@ -17,7 +17,6 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/resourceScanning/repository"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -53,7 +52,7 @@ func (ed *ExecutionData) IsCode() bool {
 	return ed.SourceType == SourceTypeCode && ed.SourceSubType == SourceSubTypeCi
 }
 
-func (ed *ExecutionData) ContainsType(typeToCheck repository.ResourceScanType) bool {
+func (ed *ExecutionData) ContainsType(typeToCheck ResourceScanType) bool {
 	for _, scanType := range ed.Types {
 		if scanType == int(typeToCheck) {
 			return true
