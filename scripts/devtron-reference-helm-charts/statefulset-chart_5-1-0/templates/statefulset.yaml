@@ -85,6 +85,9 @@ spec:
       labels:
       {{- if .Values.customPodLabels }}
 {{ toYaml .Values.customPodLabels | indent 8 }}  
+      {{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels | indent 8 }}
+      {{- end }}
       {{- else }}
         app: {{ template ".Chart.Name .name" $ }}
         appId: {{ $.Values.app | quote }}
@@ -307,7 +310,7 @@ spec:
           {{- range $.Values.ContainerPort }}
             - name: {{ .name}}
               containerPort: {{ .port  }}
-              protocol: {{ .protocol }}
+              protocol: {{ .protocol | default "TCP" }}
           {{- end}}
 {{- if and $.Values.command.enabled $.Values.command.workingDir }}
           workingDir: {{ $.Values.command.workingDir }}

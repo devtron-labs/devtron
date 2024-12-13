@@ -156,7 +156,7 @@ EnvVariables:
     value: qa
 
 LivenessProbe:
-  Path: /
+  Path: ""
   port: 8080
   initialDelaySeconds: 20
   periodSeconds: 10
@@ -168,7 +168,7 @@ LivenessProbe:
 #      value: abc
 
 ReadinessProbe:
-  Path: /
+  Path: ""
   port: 8080
   initialDelaySeconds: 20
   periodSeconds: 10
