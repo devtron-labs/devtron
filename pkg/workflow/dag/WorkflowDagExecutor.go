@@ -33,7 +33,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow"
 	cdWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
-	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts"
 	bean5 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
@@ -48,7 +47,8 @@ import (
 	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
-	security2 "github.com/devtron-labs/devtron/pkg/security"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
+	repository3 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	bean4 "github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
@@ -129,8 +129,8 @@ type WorkflowDagExecutorImpl struct {
 	commonArtifactService   artifacts.CommonArtifactService
 	deploymentConfigService common2.DeploymentConfigService
 	asyncRunnable           *async.Runnable
-	scanHistoryRepository   security.ImageScanHistoryRepository
-	imageScanService        security2.ImageScanService
+	scanHistoryRepository   repository3.ImageScanHistoryRepository
+	imageScanService        imageScanning.ImageScanService
 }
 
 func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -155,8 +155,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	commonArtifactService artifacts.CommonArtifactService,
 	deploymentConfigService common2.DeploymentConfigService,
 	asyncRunnable *async.Runnable,
-	scanHistoryRepository security.ImageScanHistoryRepository,
-	imageScanService security2.ImageScanService,
+	scanHistoryRepository repository3.ImageScanHistoryRepository,
+	imageScanService imageScanning.ImageScanService,
 ) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
