@@ -49,6 +49,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
 	cdWorkflowBean "github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
+	"github.com/devtron-labs/devtron/pkg/workflow/cd/read"
 	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	wrokflowDagBean "github.com/devtron-labs/devtron/pkg/workflow/dag/bean"
 	globalUtil "github.com/devtron-labs/devtron/util"
@@ -70,6 +71,7 @@ type WorkflowEventProcessorImpl struct {
 	logger                       *zap.SugaredLogger
 	pubSubClient                 *pubsub.PubSubClientServiceImpl
 	cdWorkflowService            cd.CdWorkflowService
+	cdWorkflowReadService        read.CdWorkflowReadService
 	cdWorkflowRunnerService      cd.CdWorkflowRunnerService
 	workflowDagExecutor          dag.WorkflowDagExecutor
 	argoUserService              argo.ArgoUserService
@@ -100,6 +102,7 @@ type WorkflowEventProcessorImpl struct {
 func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	pubSubClient *pubsub.PubSubClientServiceImpl,
 	cdWorkflowService cd.CdWorkflowService,
+	cdWorkflowReadService read.CdWorkflowReadService,
 	cdWorkflowRunnerService cd.CdWorkflowRunnerService,
 	workflowDagExecutor dag.WorkflowDagExecutor,
 	argoUserService argo.ArgoUserService,
@@ -121,6 +124,7 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 		logger:                          logger,
 		pubSubClient:                    pubSubClient,
 		cdWorkflowService:               cdWorkflowService,
+		cdWorkflowReadService:           cdWorkflowReadService,
 		cdWorkflowRunnerService:         cdWorkflowRunnerService,
 		argoUserService:                 argoUserService,
 		ciHandler:                       ciHandler,
@@ -244,7 +248,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeTriggerBulkAction() error {
 			PipelineId:   cdWorkflow.PipelineId,
 			UserId:       userBean.SYSTEM_USER_ID,
 		}
-		latest, err := impl.cdWorkflowService.CheckIfLatestWf(cdWorkflow.PipelineId, cdWorkflow.Id)
+		latest, err := impl.cdWorkflowReadService.CheckIfLatestWf(cdWorkflow.PipelineId, cdWorkflow.Id)
 		if err != nil {
 			impl.logger.Errorw("error in determining latest", "wf", cdWorkflow, "err", err)
 			wf.WorkflowStatus = cdWorkflowModelBean.DEQUE_ERROR
