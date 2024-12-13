@@ -339,7 +339,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 			return nil, isTimelineUpdated
 		}
 		// ArgoCD application nam: format: <appName>-<envName>
-		acdAppName := appDetails.AppName + "-" + envDetail.Name
+		acdAppName := util3.BuildDeployedAppName(appDetails.AppName, envDetail.Name)
 
 		// this should only be called when we have git-ops configured
 		// try fetching status from argo cd
@@ -555,7 +555,7 @@ func (impl *WorkflowStatusServiceImpl) syncACDHelmApps(deployedBeforeMinutes int
 		if err != nil {
 			impl.logger.Errorw("error in fetching environment by envId", "err", err)
 		}
-		argoAppName := fmt.Sprintf("%s-%s", appDetails.AppName, envDetails.Name)
+		argoAppName := util3.BuildDeployedAppName(appDetails.AppName, envDetails.Name)
 		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
 			impl.logger.Errorw("error in getting acd token", "err", err)

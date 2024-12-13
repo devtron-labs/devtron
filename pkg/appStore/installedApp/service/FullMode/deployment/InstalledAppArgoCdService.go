@@ -29,6 +29,7 @@ import (
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"net/http"
 	"strconv"
@@ -58,12 +59,12 @@ func (impl *FullModeDeploymentServiceImpl) GetAcdAppGitOpsRepoName(appName strin
 	}
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "token", acdToken)
-	acdAppName := fmt.Sprintf("%s-%s", appName, environmentName)
+	acdAppName := util2.BuildDeployedAppName(appName, environmentName)
 	return impl.argoClientWrapperService.GetGitOpsRepoName(ctx, acdAppName)
 }
 
 func (impl *FullModeDeploymentServiceImpl) DeleteACDAppObject(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
-	acdAppName := appName + "-" + environmentName
+	acdAppName := util2.BuildDeployedAppName(appName, environmentName)
 	var err error
 	err = impl.DeleteACD(acdAppName, ctx, installAppVersionRequest.NonCascadeDelete)
 	if err != nil {
@@ -240,6 +241,6 @@ func (impl *FullModeDeploymentServiceImpl) GetAcdAppGitOpsRepoURL(appName string
 	}
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "token", acdToken)
-	acdAppName := fmt.Sprintf("%s-%s", appName, environmentName)
+	acdAppName := util2.BuildDeployedAppName(appName, environmentName)
 	return impl.argoClientWrapperService.GetGitOpsRepoURL(ctx, acdAppName)
 }
