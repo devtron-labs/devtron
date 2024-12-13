@@ -16,13 +16,18 @@
 
 package cd
 
-import "github.com/google/wire"
+import (
+	"github.com/devtron-labs/devtron/pkg/workflow/cd/read"
+	"github.com/google/wire"
+)
 
 var CdWorkflowWireSet = wire.NewSet(
 	NewCdWorkflowCommonServiceImpl,
 	wire.Bind(new(CdWorkflowCommonService), new(*CdWorkflowCommonServiceImpl)),
 	NewCdWorkflowServiceImpl,
 	wire.Bind(new(CdWorkflowService), new(*CdWorkflowServiceImpl)),
+	read.NewCdWorkflowReadServiceImpl,
+	wire.Bind(new(read.CdWorkflowReadService), new(*read.CdWorkflowReadServiceImpl)),
 	NewCdWorkflowRunnerServiceImpl,
 	wire.Bind(new(CdWorkflowRunnerService), new(*CdWorkflowRunnerServiceImpl)),
 )

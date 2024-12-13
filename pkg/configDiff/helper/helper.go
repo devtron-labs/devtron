@@ -1,8 +1,10 @@
 package helper
 
 import (
+	"encoding/json"
 	bean3 "github.com/devtron-labs/devtron/pkg/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/configDiff/bean"
+	"github.com/devtron-labs/devtron/pkg/configDiff/utils"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 )
 
@@ -55,4 +57,13 @@ func FilterOutMergedCmCsForResourceName(cmcsMerged *bean2.CmCsMetadataDto, resou
 			}
 		}
 	}
+}
+
+func GetConfigDataRequestJsonRawMessage(configDataList []*bean.ConfigData) (json.RawMessage, error) {
+	configDataReq := &bean.ConfigDataRequest{ConfigData: configDataList}
+	configDataJson, err := utils.ConvertToJsonRawMessage(configDataReq)
+	if err != nil {
+		return nil, err
+	}
+	return configDataJson, nil
 }

@@ -24,6 +24,7 @@ type DeploymentTemplateHistoryReadService interface {
 	GetDeployedHistoryByPipelineIdAndWfrId(ctx context.Context, pipelineId, wfrId int) (*bean.HistoryDetailDto, error)
 
 	GetTemplateHistoryModelForDeployedTemplateById(deploymentTemplateHistoryId, pipelineId int) (*repository2.DeploymentTemplateHistory, error)
+	GetDeployedOnByDeploymentTemplateAndPipelineId(deploymentTemplateHistoryId, pipelineId int) (time.Time, error)
 }
 
 type DeploymentTemplateHistoryReadServiceImpl struct {
@@ -147,4 +148,13 @@ func (impl *DeploymentTemplateHistoryReadServiceImpl) GetDeployedHistoryList(pip
 		})
 	}
 	return historyList, nil
+}
+
+func (impl *DeploymentTemplateHistoryReadServiceImpl) GetDeployedOnByDeploymentTemplateAndPipelineId(deploymentTemplateHistoryId, pipelineId int) (time.Time, error) {
+	deployedOn, err := impl.deploymentTemplateHistoryRepository.GetDeployedOnByDeploymentTemplateAndPipelineId(deploymentTemplateHistoryId, pipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment template history", "err", err, "deploymentTemplateHistoryId", deploymentTemplateHistoryId, "pipelineId", pipelineId)
+		return deployedOn, err
+	}
+	return deployedOn, nil
 }

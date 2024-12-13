@@ -55,7 +55,9 @@ type ConfigMapService interface {
 	CMEnvironmentFetch(appId int, envId int) (*bean.ConfigDataRequest, error)
 	CMGlobalFetchForEdit(name string, id int) (*bean.ConfigDataRequest, error)
 	CMEnvironmentFetchForEdit(name string, id int, appId int, envId int) (*bean.ConfigDataRequest, error)
-	ConfigGlobalFetchEditUsingAppId(name string, appId int, resourceType bean.ResourceType) (*bean.ConfigDataRequest, error)
+
+	CmCsConfigGlobalFetchUsingAppId(name string, appId int, resourceType bean.ResourceType) (*bean.ConfigDataRequest, error)
+	CmCsConfigOverrideFetchUsingAppAndEnvId(name string, appId, envId int, resourceType bean.ResourceType) (*bean.ConfigDataRequest, error)
 
 	CSGlobalAddUpdate(configMapRequest *bean.ConfigDataRequest) (*bean.ConfigDataRequest, error)
 	CSGlobalFetch(appId int) (*bean.ConfigDataRequest, error)
@@ -286,7 +288,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *bean.C
 		return configMapRequest, err
 	}
 
-	appLevelConfigMap, err := impl.ConfigGlobalFetchEditUsingAppId(configData.Name, configMapRequest.AppId, bean.CM)
+	appLevelConfigMap, err := impl.CmCsConfigGlobalFetchUsingAppId(configData.Name, configMapRequest.AppId, bean.CM)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching app level config", "appId", configMapRequest.AppId, "err", err)
 		return configMapRequest, err
@@ -718,7 +720,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *bean.C
 		return configMapRequest, err
 	}
 
-	appLevelSecret, err := impl.ConfigGlobalFetchEditUsingAppId(configData.Name, configMapRequest.AppId, bean.CS)
+	appLevelSecret, err := impl.CmCsConfigGlobalFetchUsingAppId(configData.Name, configMapRequest.AppId, bean.CS)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching app level config", "appId", configMapRequest.AppId, "err", err)
 		return configMapRequest, err
@@ -1420,7 +1422,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetchForEdit(name string, id int, 
 		for _, item := range configsList.ConfigData {
 			if item.Name == name {
 
-				appLevelConfigMap, err := impl.ConfigGlobalFetchEditUsingAppId(name, appId, bean.CS)
+				appLevelConfigMap, err := impl.CmCsConfigGlobalFetchUsingAppId(name, appId, bean.CS)
 				if err != nil && err != pg.ErrNoRows {
 					impl.logger.Errorw("error in fetching app level config", "appId", appId, "err", err)
 					return nil, err
@@ -1983,7 +1985,7 @@ func (impl ConfigMapServiceImpl) FetchCmCsNamesAppAndEnvLevel(appId int, envId i
 	return cMCSNamesAppLevel, cMCSNamesEnvLevel, nil
 }
 
-func (impl ConfigMapServiceImpl) ConfigGlobalFetchEditUsingAppId(name string, appId int, resourceType bean.ResourceType) (*bean.ConfigDataRequest, error) {
+func (impl ConfigMapServiceImpl) CmCsConfigGlobalFetchUsingAppId(name string, appId int, resourceType bean.ResourceType) (*bean.ConfigDataRequest, error) {
 	var fetchGlobalConfigFunc func(int) (*bean.ConfigDataRequest, error)
 	if resourceType == bean.CS {
 		fetchGlobalConfigFunc = impl.CSGlobalFetch
@@ -1996,6 +1998,28 @@ func (impl ConfigMapServiceImpl) ConfigGlobalFetchEditUsingAppId(name string, ap
 		return nil, err
 	}
 	configDataRequest.Deletable = true // always true in oss
+	configs := make([]*bean.ConfigData, 0, len(configDataRequest.ConfigData))
+	for _, configData := range configDataRequest.ConfigData {
+		if configData.Name == name {
+			configs = append(configs, configData)
+		}
+	}
+	configDataRequest.ConfigData = configs
+	return configDataRequest, nil
+}
+
+func (impl ConfigMapServiceImpl) CmCsConfigOverrideFetchUsingAppAndEnvId(name string, appId, envId int, resourceType bean.ResourceType) (*bean.ConfigDataRequest, error) {
+	var fetchGlobalConfigFunc func(int, int) (*bean.ConfigDataRequest, error)
+	if resourceType == bean.CS {
+		fetchGlobalConfigFunc = impl.CSEnvironmentFetch
+	} else if resourceType == bean.CM {
+		fetchGlobalConfigFunc = impl.CMEnvironmentFetch
+	}
+	configDataRequest, err := fetchGlobalConfigFunc(appId, envId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching global cm using app id ", "cmName", name, "appId", appId, "err", err)
+		return nil, err
+	}
 	configs := make([]*bean.ConfigData, 0, len(configDataRequest.ConfigData))
 	for _, configData := range configDataRequest.ConfigData {
 		if configData.Name == name {
