@@ -825,7 +825,7 @@ func (impl *CiHandlerImpl) GetRunningWorkflowLogs(workflowId int) (*bufio.Reader
 
 func (impl *CiHandlerImpl) getWorkflowLogs(ciWorkflow *pipelineConfig.CiWorkflow) (*bufio.Reader, func() error, error) {
 	if string(v1alpha1.NodePending) == ciWorkflow.PodStatus {
-		return bufio.NewReader(strings.NewReader("")), nil, nil
+		return bufio.NewReader(strings.NewReader("")), func() error { return nil }, nil
 	}
 	ciLogRequest := types.BuildLogRequest{
 		PodName:   ciWorkflow.PodName,
