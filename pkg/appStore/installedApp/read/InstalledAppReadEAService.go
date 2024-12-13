@@ -27,6 +27,11 @@ type InstalledAppReadServiceEA interface {
 	// Only the minimum details are fetched.
 	// Refer bean.InstalledAppMin for more details.
 	GetInstalledAppByInstalledAppVersionId(installedAppVersionId int) (*bean.InstalledAppMin, error)
+	// GetInstalledAppVersionIncludingDeleted will return the installed app version by installed app version id.
+	// Both active and deleted installed app versions are fetched.
+	// Additional details like app store details are also fetched.
+	// Refer bean.InstalledAppVersionWithAppStoreDetails for more details.
+	GetInstalledAppVersionIncludingDeleted(installedAppVersionId int) (*bean.InstalledAppVersionWithAppStoreDetails, error)
 }
 
 type InstalledAppReadServiceEAImpl struct {
@@ -82,4 +87,13 @@ func (impl *InstalledAppReadServiceEAImpl) GetInstalledAppByInstalledAppVersionI
 		return nil, err
 	}
 	return adapter.GetInstalledAppInternal(installedAppModel).GetInstalledAppMin(), nil
+}
+
+func (impl *InstalledAppReadServiceEAImpl) GetInstalledAppVersionIncludingDeleted(installedAppVersionId int) (*bean.InstalledAppVersionWithAppStoreDetails, error) {
+	installedAppVersionModel, err := impl.installedAppRepository.GetInstalledAppVersionIncludingDeleted(installedAppVersionId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching installed app version by installed app version id", "installedAppVersionId", installedAppVersionId, "error", err)
+		return nil, err
+	}
+	return adapter.GetInstalledAppVersionWithAppStoreDetails(installedAppVersionModel), nil
 }
