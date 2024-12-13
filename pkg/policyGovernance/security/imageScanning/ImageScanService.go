@@ -24,6 +24,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
+	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	"go.opentelemetry.io/otel"
 	"time"
 
@@ -43,6 +44,7 @@ type ImageScanService interface {
 	FetchMinScanResultByAppIdAndEnvId(request *bean3.ImageScanRequest) (*bean3.ImageScanExecutionDetail, error)
 	VulnerabilityExposure(request *repository3.VulnerabilityRequest) (*repository3.VulnerabilityExposureListingResponse, error)
 	GetArtifactVulnerabilityStatus(ctx context.Context, request *bean2.VulnerabilityCheckRequest) (bool, error)
+	IsImageScanExecutionCompleted(image, imageDigest string) (bool, error)
 }
 
 type ImageScanServiceImpl struct {
@@ -643,4 +645,20 @@ func (impl ImageScanServiceImpl) updateCount(severity securityBean.Severity, cri
 		unkownCount += 1
 	}
 	return criticalCount, highCount, moderateCount, lowCount, unkownCount
+}
+
+func (impl ImageScanServiceImpl) IsImageScanExecutionCompleted(image, imageDigest string) (bool, error) {
+	var isScanningCompleted bool
+	allScanHistoryMappings, err := impl.scanToolExecutionHistoryMappingRepository.FetchScanHistoryMappingsUsingImageAndImageDigest(image, imageDigest)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching all scan execution history mapping", "image", image, "imageDigest", imageDigest, "err", err)
+		return false, err
+	}
+
+	for _, scanHistoryMapping := range allScanHistoryMappings {
+		if scanHistoryMapping.State == serverBean.ScanExecutionProcessStateCompleted {
+			isScanningCompleted = true
+		}
+	}
+	return isScanningCompleted, nil
 }

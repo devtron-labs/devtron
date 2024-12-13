@@ -53,6 +53,22 @@ const (
 	PIPELINE_STAGE_STEP_VARIABLE_FORMAT_TYPE_DATE    PipelineStageStepVariableFormatType = "DATE"
 )
 
+func (r PipelineStageType) ToString() string {
+	return string(r)
+}
+func (r PipelineStageType) IsStageTypePreCi() bool {
+	return r == PIPELINE_STAGE_TYPE_PRE_CI
+}
+func (r PipelineStageType) IsStageTypePreCd() bool {
+	return r == PIPELINE_STAGE_TYPE_PRE_CD
+}
+func (r PipelineStageType) IsStageTypePostCi() bool {
+	return r == PIPELINE_STAGE_TYPE_POST_CI
+}
+func (r PipelineStageType) IsStageTypePostCd() bool {
+	return r == PIPELINE_STAGE_TYPE_POST_CD
+}
+
 type PipelineStage struct {
 	tableName    struct{}          `sql:"pipeline_stage" pg:",discard_unknown_columns"`
 	Id           int               `sql:"id,pk"`
@@ -184,6 +200,7 @@ type PipelineStageRepository interface {
 	MarkStepsDeletedByStageId(stageId int) error
 	MarkStepsDeletedExcludingActiveStepsInUpdateReq(activeStepIdsPresentInReq []int, stageId int) error
 	GetActiveStepsByRefPluginId(refPluginId int) ([]*PipelineStageStep, error)
+	CheckIfPluginExistsInPipelineStage(pipelineId int, stageType PipelineStageType, pluginId int) (bool, error)
 
 	CreatePipelineScript(pipelineScript *PluginPipelineScript, tx *pg.Tx) (*PluginPipelineScript, error)
 	UpdatePipelineScript(pipelineScript *PluginPipelineScript) (*PluginPipelineScript, error)
@@ -872,4 +889,27 @@ func (impl *PipelineStageRepositoryImpl) MarkConditionsDeletedExcludingActiveVar
 		return err
 	}
 	return nil
+}
+
+func (impl *PipelineStageRepositoryImpl) CheckIfPluginExistsInPipelineStage(pipelineId int, stageType PipelineStageType, pluginId int) (bool, error) {
+	var step PipelineStageStep
+	query := impl.dbConnection.Model(&step).
+		Column("pipeline_stage_step.*").
+		Join("INNER JOIN pipeline_stage ps on ps.id = pipeline_stage_step.pipeline_stage_id").
+		Where("pipeline_stage_step.ref_plugin_id = ?", pluginId).
+		Where("ps.type = ?", stageType).
+		Where("pipeline_stage_step.deleted=?", false).
+		Where("ps.deleted= ?", false)
+
+	if stageType.IsStageTypePostCi() || stageType.IsStageTypePreCi() {
+		query.Where("ps.ci_pipeline_id= ?", pipelineId)
+	} else if stageType.IsStageTypePostCd() || stageType.IsStageTypePreCd() {
+		query.Where("ps.cd_pipeline_id= ?", pipelineId)
+	}
+	exists, err := query.Exists()
+	if err != nil {
+		impl.logger.Errorw("error in getting plugin stage step by pipelineId, stageType nad plugin id", "pipelineId", pipelineId, "stageType", stageType.ToString(), "pluginId", pluginId, "err", err)
+		return false, err
+	}
+	return exists, nil
 }
