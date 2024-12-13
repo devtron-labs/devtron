@@ -72,6 +72,19 @@ type RoleFilter struct {
 	Workflow  string `json:"workflow"`
 }
 
+func (rf RoleFilter) GetTeam() string        { return rf.Team }
+func (rf RoleFilter) GetEntity() string      { return rf.Entity }
+func (rf RoleFilter) GetAction() string      { return rf.Action }
+func (rf RoleFilter) GetAccessType() string  { return rf.AccessType }
+func (rf RoleFilter) GetEnvironment() string { return rf.Environment }
+func (rf RoleFilter) GetCluster() string     { return rf.Cluster }
+func (rf RoleFilter) GetGroup() string       { return rf.Group }
+func (rf RoleFilter) GetKind() string        { return rf.Kind }
+func (rf RoleFilter) GetEntityName() string  { return rf.EntityName }
+func (rf RoleFilter) GetResource() string    { return rf.Resource }
+func (rf RoleFilter) GetWorkflow() string    { return rf.Workflow }
+func (rf RoleFilter) GetNamespace() string   { return rf.Namespace }
+
 type Role struct {
 	Id   int    `json:"id" validate:"number"`
 	Role string `json:"role" validate:"required"`
