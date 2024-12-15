@@ -58,7 +58,7 @@ CREATE SEQUENCE IF NOT EXISTS public.id_seq_profile_platform_mapping;
 -- Step 5: Create profile_platform_mapping Table
 -- ---------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.profile_platform_mapping (
-                                                               id INT4 NOT NULL DEFAULT nextval('public.id_seq_profile_platform_mapping'), -- Primary key with auto-increment
+    id INT4 NOT NULL DEFAULT nextval('public.id_seq_profile_platform_mapping'), -- Primary key with auto-increment
     profile_id INTEGER NOT NULL, -- Foreign key to `infra_profile`
     platform VARCHAR(50) NOT NULL, -- Platform column
     active BOOLEAN NOT NULL, -- Active status column
