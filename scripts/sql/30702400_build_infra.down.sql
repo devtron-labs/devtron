@@ -1,12 +1,42 @@
--- Step 1: Remove the `skip_this_value` column from `infra_profile_configuration`
+
+-- ---------------------------------------------------
+-- Step 1: Begin Transaction
+-- ---------------------------------------------------
+BEGIN;
+
+-- ---------------------------------------------------
+-- Step 2: Modify infra_profile_configuration Table
+-- ---------------------------------------------------
+
+-- 2.1: Remove NOT NULL Constraint from 'platform' Column
 ALTER TABLE public.infra_profile_configuration
-DROP COLUMN IF EXISTS skip_this_value;
+    ALTER COLUMN platform DROP NOT NULL;
 
--- Step 2: Revert `platform` updates in `infra_profile_configuration` (if needed)
--- Since the original values are not stored, this step can't accurately revert changes.
+-- 2.2: Remove DEFAULT Value from 'platform' Column
+ALTER TABLE public.infra_profile_configuration
+    ALTER COLUMN platform DROP DEFAULT;
 
--- Step 3: Drop the `profile_platform_mapping` table if it exists
+-- ---------------------------------------------------
+-- Step 3: Revert Data Changes in infra_profile_configuration
+-- ---------------------------------------------------
+
+UPDATE public.infra_profile_configuration
+SET platform = 'ci-runner'
+WHERE platform = 'default';
+
+-- ---------------------------------------------------
+-- Step 4: Drop profile_platform_mapping Table
+-- ---------------------------------------------------
+
+-- This will automatically drop any indexes and constraints associated with the table.
 DROP TABLE IF EXISTS public.profile_platform_mapping;
 
--- Step 4: Drop the sequence `id_seq_profile_platform_mapping` if it exists
-DROP SEQUENCE IF EXISTS id_seq_profile_platform_mapping;
+-- ---------------------------------------------------
+-- Step 5: Drop Sequence for profile_platform_mapping
+-- ---------------------------------------------------
+
+DROP SEQUENCE IF EXISTS public.id_seq_profile_platform_mapping;
+-- ---------------------------------------------------
+-- Step 6: Commit Transaction
+-- ---------------------------------------------------
+COMMIT;
