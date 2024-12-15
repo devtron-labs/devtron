@@ -1,7 +1,8 @@
-package restHandler
+package configDiff
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -10,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/configDiff/bean"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -20,6 +22,7 @@ import (
 type DeploymentConfigurationRestHandler interface {
 	ConfigAutoComplete(w http.ResponseWriter, r *http.Request)
 	GetConfigData(w http.ResponseWriter, r *http.Request)
+	CompareCategoryWiseConfigData(w http.ResponseWriter, r *http.Request)
 }
 type DeploymentConfigurationRestHandlerImpl struct {
 	logger                         *zap.SugaredLogger
@@ -142,4 +145,70 @@ func getConfigDataQueryParams(r *http.Request) (*bean.ConfigDataQueryParams, err
 	}
 
 	return &queryParams, nil
+}
+
+func (handler *DeploymentConfigurationRestHandlerImpl) CompareCategoryWiseConfigData(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	configCategory := vars["resource"]
+
+	v := r.URL.Query()
+	comparisonReqString := v.Get("compareConfig")
+	var comparisonRequestDto bean.ComparisonRequestDto
+	err = json.Unmarshal([]byte(comparisonReqString), &comparisonRequestDto)
+	if err != nil {
+		handler.logger.Errorw("error in unmarshalling stringified json query param", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	err = validateComparisonRequest(configCategory, comparisonRequestDto)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	comparisonRequestDto.UpdateUserIdInComparisonItems(userId)
+	appName := comparisonRequestDto.GetAppName()
+
+	//RBAC START
+	token := r.Header.Get(common.TokenHeaderKey)
+	object := handler.enforcerUtil.GetAppRBACName(appName)
+
+	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, object, casbin.ActionGet)
+	if !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC END
+	//isSuperAdmin is required to make decision if a sensitive data(as defined by super admin) needs to be redacted
+	//or not while resolving scope variable.
+	isSuperAdmin := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*")
+	//userHasAdminAccess is required to mask secrets in the response after scope resolution.
+	userHasAdminAccess := handler.checkIfUserHasAdminAccessForLeastPrivilegeEnv(token, comparisonRequestDto)
+
+	ctx := util2.SetSuperAdminInContext(r.Context(), isSuperAdmin)
+	res, err := handler.deploymentConfigurationService.CompareCategoryWiseConfigData(ctx, comparisonRequestDto, userHasAdminAccess)
+	if err != nil {
+		handler.logger.Errorw("service err, CompareCategoryWiseConfigData ", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
+}
+
+// checkIfUserHasAdminAccessForLeastPrivilegeEnv computes if a user has admin access or not for all env,
+// if a user is non admin for at least one env then return false.
+func (handler *DeploymentConfigurationRestHandlerImpl) checkIfUserHasAdminAccessForLeastPrivilegeEnv(token string, comparisonRequestDto bean.ComparisonRequestDto) bool {
+	for _, item := range comparisonRequestDto.ComparisonItems {
+		userHadAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, item.EnvName)
+		if !userHadAdminAccess {
+			return false
+		}
+	}
+	return true
 }

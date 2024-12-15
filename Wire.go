@@ -49,6 +49,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/devtron-labs/devtron/api/restHandler/app/appInfo"
 	appList2 "github.com/devtron-labs/devtron/api/restHandler/app/appList"
+	configDiff2 "github.com/devtron-labs/devtron/api/restHandler/app/configDiff"
 	pipeline3 "github.com/devtron-labs/devtron/api/restHandler/app/pipeline"
 	pipeline2 "github.com/devtron-labs/devtron/api/restHandler/app/pipeline/configure"
 	"github.com/devtron-labs/devtron/api/restHandler/app/pipeline/history"
@@ -61,6 +62,7 @@ import (
 	app3 "github.com/devtron-labs/devtron/api/router/app"
 	appInfo2 "github.com/devtron-labs/devtron/api/router/app/appInfo"
 	"github.com/devtron-labs/devtron/api/router/app/appList"
+	configDiff3 "github.com/devtron-labs/devtron/api/router/app/configDiff"
 	pipeline5 "github.com/devtron-labs/devtron/api/router/app/pipeline"
 	pipeline4 "github.com/devtron-labs/devtron/api/router/app/pipeline/configure"
 	history2 "github.com/devtron-labs/devtron/api/router/app/pipeline/history"
@@ -113,10 +115,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/chartGroup"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	repository9 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	deployment3 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deploymentTypeChange"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds"
 	"github.com/devtron-labs/devtron/pkg/asyncProvider"
@@ -196,9 +195,9 @@ func InitializeApp() (*App, error) {
 		chartRepo.ChartRepositoryWireSet,
 		appStoreDiscover.AppStoreDiscoverWireSet,
 		chartProvider.AppStoreChartProviderWireSet,
-		appStoreValues.AppStoreValuesWireSet,
+		appStoreValues.WireSet,
 		util2.GetEnvironmentVariables,
-		appStoreDeployment.AppStoreDeploymentWireSet,
+		appStoreDeployment.FullModeWireSet,
 		server.ServerWireSet,
 		module.ModuleWireSet,
 		apiToken.ApiTokenWireSet,
@@ -538,19 +537,6 @@ func InitializeApp() (*App, error) {
 
 		notifier.NewNotificationConfigBuilderImpl,
 		wire.Bind(new(notifier.NotificationConfigBuilder), new(*notifier.NotificationConfigBuilderImpl)),
-		appStoreRestHandler.NewAppStoreStatusTimelineRestHandlerImpl,
-		wire.Bind(new(appStoreRestHandler.AppStoreStatusTimelineRestHandler), new(*appStoreRestHandler.AppStoreStatusTimelineRestHandlerImpl)),
-		appStoreRestHandler.NewInstalledAppRestHandlerImpl,
-		wire.Bind(new(appStoreRestHandler.InstalledAppRestHandler), new(*appStoreRestHandler.InstalledAppRestHandlerImpl)),
-		FullMode.NewInstalledAppDBExtendedServiceImpl,
-		wire.Bind(new(FullMode.InstalledAppDBExtendedService), new(*FullMode.InstalledAppDBExtendedServiceImpl)),
-		resource.NewInstalledAppResourceServiceImpl,
-		wire.Bind(new(resource.InstalledAppResourceService), new(*resource.InstalledAppResourceServiceImpl)),
-		deploymentTypeChange.NewInstalledAppDeploymentTypeChangeServiceImpl,
-		wire.Bind(new(deploymentTypeChange.InstalledAppDeploymentTypeChangeService), new(*deploymentTypeChange.InstalledAppDeploymentTypeChangeServiceImpl)),
-
-		appStoreRestHandler.NewAppStoreRouterImpl,
-		wire.Bind(new(appStoreRestHandler.AppStoreRouter), new(*appStoreRestHandler.AppStoreRouterImpl)),
 
 		workflow.NewAppWorkflowRestHandlerImpl,
 		wire.Bind(new(workflow.AppWorkflowRestHandler), new(*workflow.AppWorkflowRestHandlerImpl)),
@@ -702,10 +688,10 @@ func InitializeApp() (*App, error) {
 		scopedVariable.NewScopedVariableRestHandlerImpl,
 		wire.Bind(new(scopedVariable.ScopedVariableRestHandler), new(*scopedVariable.ScopedVariableRestHandlerImpl)),
 
-		router.NewDeploymentConfigurationRouter,
-		wire.Bind(new(router.DeploymentConfigurationRouter), new(*router.DeploymentConfigurationRouterImpl)),
-		restHandler.NewDeploymentConfigurationRestHandlerImpl,
-		wire.Bind(new(restHandler.DeploymentConfigurationRestHandler), new(*restHandler.DeploymentConfigurationRestHandlerImpl)),
+		configDiff3.NewDeploymentConfigurationRouter,
+		wire.Bind(new(configDiff3.DeploymentConfigurationRouter), new(*configDiff3.DeploymentConfigurationRouterImpl)),
+		configDiff2.NewDeploymentConfigurationRestHandlerImpl,
+		wire.Bind(new(configDiff2.DeploymentConfigurationRestHandler), new(*configDiff2.DeploymentConfigurationRestHandlerImpl)),
 		configDiff.NewDeploymentConfigurationServiceImpl,
 		wire.Bind(new(configDiff.DeploymentConfigurationService), new(*configDiff.DeploymentConfigurationServiceImpl)),
 
@@ -975,7 +961,7 @@ func InitializeApp() (*App, error) {
 		certificate.NewServiceClientImpl,
 		wire.Bind(new(certificate.Client), new(*certificate.ServiceClientImpl)),
 
-		appStoreRestHandler.AppStoreWireSet,
+		appStoreRestHandler.FullModeWireSet,
 
 		cel.NewCELServiceImpl,
 		wire.Bind(new(cel.EvaluatorService), new(*cel.EvaluatorServiceImpl)),

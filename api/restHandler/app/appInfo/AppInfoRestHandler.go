@@ -147,7 +147,7 @@ func (handler AppInfoRestHandlerImpl) GetHelmAppMetaInfo(w http.ResponseWriter, 
 	appIdReq := vars["appId"]
 	appIdSplit := strings.Split(appIdReq, "|")
 
-	handler.logger.Infow("request payload, GetHelmAppMetaInfo", appIdReq)
+	handler.logger.Infow("request payload, GetHelmAppMetaInfo", "appIdReq", appIdReq)
 	if len(appIdSplit) > 1 {
 
 		appIdDecoded, err := handler.helmAppService.DecodeAppId(appIdReq)
