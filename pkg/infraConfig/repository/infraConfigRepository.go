@@ -33,16 +33,15 @@ type InfraProfileEntity struct {
 	sql.AuditLog
 }
 type InfraProfileConfigurationEntity struct {
-	tableName     struct{}            `sql:"infra_profile_configuration" pg:",discard_unknown_columns"`
-	Id            int                 `sql:"id"`
-	Key           constants.ConfigKey `sql:"key"`
-	Value         float64             `sql:"value"`
-	ValueString   string              `sql:"value_string"`
-	Unit          units.UnitSuffix    `sql:"unit"`
-	ProfileId     int                 `sql:"profile_id"`
-	Platform      string              `sql:"platform"`
-	Active        bool                `sql:"active"`
-	SkipThisValue bool                `sql:"skip_this_value"`
+	tableName   struct{}            `sql:"infra_profile_configuration" pg:",discard_unknown_columns"`
+	Id          int                 `sql:"id"`
+	Key         constants.ConfigKey `sql:"key"`
+	Value       float64             `sql:"value"`
+	ValueString string              `sql:"value_string"`
+	Unit        units.UnitSuffix    `sql:"unit"`
+	ProfileId   int                 `sql:"profile_id"`
+	Platform    string              `sql:"platform"`
+	Active      bool                `sql:"active"`
 	sql.AuditLog
 }
 
@@ -59,6 +58,9 @@ type InfraConfigRepository interface {
 	GetProfileByName(name string) (*InfraProfileEntity, error)
 	GetConfigurationsByProfileName(profileName string) ([]*InfraProfileConfigurationEntity, error)
 	GetConfigurationsByProfileId(profileId int) ([]*InfraProfileConfigurationEntity, error)
+
+	GetPlatformListByProfileName(profileName string) ([]string, error)
+	CreatePlatformProfileMapping(tx *pg.Tx, platformMapping []*ProfilePlatformMapping) error
 
 	CreateProfile(tx *pg.Tx, infraProfile *InfraProfileEntity) error
 	CreateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfigurationEntity) error
@@ -147,5 +149,20 @@ func (impl *InfraConfigRepositoryImpl) UpdateProfile(tx *pg.Tx, profileName stri
 		Where("name = ?", profileName).
 		Where("active = ?", true).
 		Update()
+	return err
+}
+func (impl *InfraConfigRepositoryImpl) GetPlatformListByProfileName(profileName string) ([]string, error) {
+	var platforms []string
+	err := impl.dbConnection.Model(&ProfilePlatformMapping{}).
+		ColumnExpr("platform").
+		Join("INNER JOIN infra_profile ip ON profile_platform_mapping.profile_id = ip.id").
+		Where("ip.name = ?", profileName).
+		Where("ip.active = ?", true).
+		Where("profile_platform_mapping.active = ?", true).
+		Select(&platforms)
+	return platforms, err
+}
+func (impl *InfraConfigRepositoryImpl) CreatePlatformProfileMapping(tx *pg.Tx, platformMapping []*ProfilePlatformMapping) error {
+	err := tx.Insert(&platformMapping)
 	return err
 }

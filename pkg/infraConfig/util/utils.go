@@ -17,13 +17,16 @@
 package util
 
 import (
+	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/infraConfig/bean"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/constants"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	util2 "github.com/devtron-labs/devtron/util"
 	"math"
 	"reflect"
 	"strconv"
+	"strings"
 )
 
 // GetUnitSuffix loosely typed method to get the unit suffix using the unitKey type
@@ -40,9 +43,9 @@ func GetUnitSuffix(unitKey constants.ConfigKeyStr, unitStr string) units.UnitSuf
 // GetUnitSuffixStr loosely typed method to get the unit suffix using the unitKey type
 func GetUnitSuffixStr(unitKey constants.ConfigKey, unit units.UnitSuffix) string {
 	switch unitKey {
-	case constants.CPULimit, constants.CPURequest:
+	case constants.CPULimitKey, constants.CPURequestKey:
 		return string(unit.GetCPUUnitStr())
-	case constants.MemoryLimit, constants.MemoryRequest:
+	case constants.MemoryLimitKey, constants.MemoryRequestKey:
 		return string(unit.GetMemoryUnitStr())
 	}
 	return string(unit.GetTimeUnitStr())
@@ -61,15 +64,15 @@ func GetDefaultConfigKeysMap() map[constants.ConfigKeyStr]bool {
 
 func GetConfigKeyStr(configKey constants.ConfigKey) constants.ConfigKeyStr {
 	switch configKey {
-	case constants.CPULimit:
+	case constants.CPULimitKey:
 		return constants.CPU_LIMIT
-	case constants.CPURequest:
+	case constants.CPURequestKey:
 		return constants.CPU_REQUEST
-	case constants.MemoryLimit:
+	case constants.MemoryLimitKey:
 		return constants.MEMORY_LIMIT
-	case constants.MemoryRequest:
+	case constants.MemoryRequestKey:
 		return constants.MEMORY_REQUEST
-	case constants.TimeOut:
+	case constants.TimeOutKey:
 		return constants.TIME_OUT
 	}
 	return ""
@@ -78,47 +81,84 @@ func GetConfigKeyStr(configKey constants.ConfigKey) constants.ConfigKeyStr {
 func GetConfigKey(configKeyStr constants.ConfigKeyStr) constants.ConfigKey {
 	switch configKeyStr {
 	case constants.CPU_LIMIT:
-		return constants.CPULimit
+		return constants.CPULimitKey
 	case constants.CPU_REQUEST:
-		return constants.CPURequest
+		return constants.CPURequestKey
 	case constants.MEMORY_LIMIT:
-		return constants.MemoryLimit
+		return constants.MemoryLimitKey
 	case constants.MEMORY_REQUEST:
-		return constants.MemoryRequest
+		return constants.MemoryRequestKey
 	case constants.TIME_OUT:
-		return constants.TimeOut
+		return constants.TimeOutKey
 	}
 	return 0
 }
 
-func GetTypedValue(configKey constants.ConfigKeyStr, value interface{}) interface{} {
+func GetTypedValue(configKey constants.ConfigKeyStr, value interface{}) (interface{}, error) {
 	switch configKey {
 	case constants.CPU_LIMIT, constants.CPU_REQUEST, constants.MEMORY_LIMIT, constants.MEMORY_REQUEST:
-		// Assume value is float64 or convertible to it
+		//value is float64 or convertible to it
 		switch v := value.(type) {
 		case string:
-			valueFloat, _ := strconv.ParseFloat(v, 64)
-			return util2.TruncateFloat(valueFloat, 2)
+			valueFloat, err := strconv.ParseFloat(v, 64)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse string to float for %s: %w", configKey, err)
+			}
+			return util2.TruncateFloat(valueFloat, 2), nil
 		case float64:
-			return util2.TruncateFloat(v, 2)
+			return util2.TruncateFloat(v, 2), nil
 		default:
-			panic(fmt.Sprintf("Unsupported type for %s: %v", configKey, reflect.TypeOf(value)))
+			return nil, fmt.Errorf("unsupported type for %s: %v", configKey, reflect.TypeOf(value))
 		}
-
 	case constants.TIME_OUT:
-		// Ensure the value is a float64 within int64 bounds
 		switch v := value.(type) {
 		case string:
-			valueFloat, _ := strconv.ParseFloat(v, 64)
-			return math.Min(math.Floor(valueFloat), math.MaxInt64)
+			valueFloat, err := strconv.ParseFloat(v, 64)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse string to float for %s: %w", configKey, err)
+			}
+			return math.Min(math.Floor(valueFloat), math.MaxInt64), nil
 		case float64:
-			return math.Min(math.Floor(v), math.MaxInt64)
+			return math.Min(math.Floor(v), math.MaxInt64), nil
 		default:
-			panic(fmt.Sprintf("Unsupported type for %s: %v", configKey, reflect.TypeOf(value)))
+			return nil, fmt.Errorf("unsupported type for %s: %v", configKey, reflect.TypeOf(value))
 		}
 	// Default case
 	default:
-		// Return value as-is
-		return value
+		return nil, fmt.Errorf("unsupported config key: %s", configKey)
 	}
+}
+
+// todo remove this validation, as it is written additionally due to validator v9.30.0 constraint for map[string]*struct is not handled
+func ValidatePayloadConfig(profileToUpdate *bean.ProfileBeanDto) error {
+	if len(profileToUpdate.Name) == 0 {
+		return errors.New("profile name is required")
+	}
+	defaultKeyMap := GetDefaultConfigKeysMap()
+	for _, config := range profileToUpdate.Configurations {
+		err := validateConfigItems(config, defaultKeyMap)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func validateConfigItems(propertyConfigs []*bean.ConfigurationBean, defaultKeyMap map[constants.ConfigKeyStr]bool) error {
+	var validationErrors []string
+	for _, config := range propertyConfigs {
+		if _, isValidKey := defaultKeyMap[config.Key]; !isValidKey {
+			validationErrors = append(validationErrors, fmt.Sprintf("invalid configuration property \"%s\"", config.Key))
+			continue
+		}
+		//_, err := GetTypedValue(config.Key, config.Value)
+		//if err != nil {
+		//	validationErrors = append(validationErrors, fmt.Sprintf("error in parsing value for key \"%s\": %v", config.Key, err))
+		//	continue
+		//}
+	}
+	// If any validation errors were found, return them as a single error
+	if len(validationErrors) > 0 {
+		return fmt.Errorf("validation errors: %s", strings.Join(validationErrors, "; "))
+	}
+	return nil
 }

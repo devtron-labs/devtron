@@ -237,7 +237,6 @@ func (handler *InfraConfigRestHandlerImpl) GetProfileV0(w http.ResponseWriter, r
 		Profile: *profile,
 	}
 	resp.ConfigurationUnits = handler.infraProfileService.GetConfigurationUnits()
-	//TODO: why below line ??
 	resp.DefaultConfigurations = defaultProfileV0.Configurations
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }

@@ -70,13 +70,12 @@ type ConfigurationBeanV0 struct {
 }
 
 type ConfigurationBeanAbstract struct {
-	Id            int                `json:"id"`
-	Key           util2.ConfigKeyStr `json:"key"`
-	Unit          string             `json:"unit" validate:"required,gt=0"`
-	ProfileName   string             `json:"profileName"`
-	ProfileId     int                `json:"profileId"`
-	Active        bool               `json:"active"`
-	SkipThisValue bool               `json:"skipThisValue"`
+	Id          int                `json:"id"`
+	Key         util2.ConfigKeyStr `json:"key"`
+	Unit        string             `json:"unit" validate:"required,gt=0"`
+	ProfileName string             `json:"profileName"`
+	ProfileId   int                `json:"profileId"`
+	Active      bool               `json:"active"`
 }
 
 type InfraConfigMetaData struct {
@@ -161,9 +160,10 @@ func (infraConfig InfraConfig) LoadCiLimitCpu() (*repository.InfraProfileConfigu
 		return nil, err
 	}
 	return &repository.InfraProfileConfigurationEntity{
-		Key:         util2.CPULimit,
+		Key:         util2.CPULimitKey,
 		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
 		Unit:        units.CPUUnitStr(suffix).GetCPUUnit(),
+		Platform:    util2.DEFAULT_PLATFORM,
 	}, nil
 
 }
@@ -174,9 +174,10 @@ func (infraConfig InfraConfig) LoadCiLimitMem() (*repository.InfraProfileConfigu
 		return nil, err
 	}
 	return &repository.InfraProfileConfigurationEntity{
-		Key:         util2.MemoryLimit,
+		Key:         util2.MemoryLimitKey,
 		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
 		Unit:        units.MemoryUnitStr(suffix).GetMemoryUnit(),
+		Platform:    util2.DEFAULT_PLATFORM,
 	}, nil
 
 }
@@ -187,9 +188,10 @@ func (infraConfig InfraConfig) LoadCiReqCpu() (*repository.InfraProfileConfigura
 		return nil, err
 	}
 	return &repository.InfraProfileConfigurationEntity{
-		Key:         util2.CPURequest,
+		Key:         util2.CPURequestKey,
 		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
 		Unit:        units.CPUUnitStr(suffix).GetCPUUnit(),
+		Platform:    util2.DEFAULT_PLATFORM,
 	}, nil
 }
 
@@ -200,17 +202,19 @@ func (infraConfig InfraConfig) LoadCiReqMem() (*repository.InfraProfileConfigura
 	}
 
 	return &repository.InfraProfileConfigurationEntity{
-		Key:         util2.MemoryRequest,
+		Key:         util2.MemoryRequestKey,
 		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
 		Unit:        units.MemoryUnitStr(suffix).GetMemoryUnit(),
+		Platform:    util2.DEFAULT_PLATFORM,
 	}, nil
 }
 
 func (infraConfig InfraConfig) LoadDefaultTimeout() (*repository.InfraProfileConfigurationEntity, error) {
 	return &repository.InfraProfileConfigurationEntity{
-		Key:         util2.TimeOut,
+		Key:         util2.TimeOutKey,
 		ValueString: strconv.FormatInt(infraConfig.CiDefaultTimeout, 10),
 		Unit:        units.SecondStr.GetTimeUnit(),
+		Platform:    util2.DEFAULT_PLATFORM,
 	}, nil
 }
 

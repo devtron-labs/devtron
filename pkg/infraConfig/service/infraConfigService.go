@@ -30,7 +30,6 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"reflect"
 	"time"
 )
 
@@ -89,7 +88,11 @@ func (impl *InfraConfigServiceImpl) GetProfileByName(name string) (*bean.Profile
 		return nil, err
 	}
 
-	configurationBeans := adapter.ConvertToPlatformMap(infraConfigurations, profileBean.Name)
+	configurationBeans, err := adapter.ConvertToPlatformMap(infraConfigurations, profileBean.Name)
+	if err != nil {
+		impl.logger.Errorw("error in fetching default configurations", "error", err)
+		return nil, err
+	}
 
 	profileBean.Configurations = configurationBeans
 	appCount, err := impl.appService.GetActiveCiCdAppsCount()
@@ -125,7 +128,13 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 		impl.logger.Errorw("error in starting transaction to update profile", "profileBean", profileToUpdate, "error", err)
 		return err
 	}
-	defer impl.infraProfileRepo.RollbackTx(tx)
+	defer func(infraProfileRepo repository.InfraConfigRepository, tx *pg.Tx) {
+		err := infraProfileRepo.RollbackTx(tx)
+		if err != nil {
+			impl.logger.Errorw("error in rolling back transaction to update profile", "error", err)
+		}
+	}(impl.infraProfileRepo, tx)
+
 	infraProfileEntity.UpdatedOn = time.Now()
 	infraProfileEntity.UpdatedBy = userId
 	err = impl.infraProfileRepo.UpdateProfile(tx, profileName, infraProfileEntity)
@@ -162,7 +171,13 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 		impl.logger.Errorw("error in starting transaction to save default configurations", "error", err)
 		return err
 	}
-	defer impl.infraProfileRepo.RollbackTx(tx)
+	defer func(infraProfileRepo repository.InfraConfigRepository, tx *pg.Tx) {
+		err := infraProfileRepo.RollbackTx(tx)
+		if err != nil {
+			impl.logger.Errorw("error in rolling back transaction to save default configurations", "error", err)
+		}
+	}(impl.infraProfileRepo, tx)
+
 	if profileCreationRequired {
 		// if default profiles not found then create default profile
 		defaultProfile := &repository.InfraProfileEntity{
@@ -188,8 +203,7 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 
 	// get db configurations and create new entries if db is out of sync
 	defaultConfigurationsFromDB, err := impl.infraProfileRepo.GetConfigurationsByProfileName(constants.GLOBAL_PROFILE_NAME)
-	// todo: check the error logic here
-	if err != nil {
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in fetching default configurations", "error", err)
 		return err
 	}
@@ -199,20 +213,42 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 	}
 
 	creatableConfigurations := make([]*repository.InfraProfileConfigurationEntity, 0, len(defaultConfigurationsFromEnv))
+	creatableProfilePlatformMapping := make([]*repository.ProfilePlatformMapping, 0)
 	for _, configurationFromEnv := range defaultConfigurationsFromEnv {
-		if !defaultConfigurationsFromDBMap[configurationFromEnv.Key] {
+		if ok, exist := defaultConfigurationsFromDBMap[configurationFromEnv.Key]; !exist || !ok {
 			configurationFromEnv.ProfileId = profile.Id
 			configurationFromEnv.Active = true
-			configurationFromEnv.SkipThisValue = false
+			configurationFromEnv.Platform = constants.DEFAULT_PLATFORM
 			configurationFromEnv.AuditLog = sql.NewDefaultAuditLog(1)
 			creatableConfigurations = append(creatableConfigurations, configurationFromEnv)
 		}
+	}
+
+	_, err = impl.infraProfileRepo.GetPlatformListByProfileName(constants.GLOBAL_PROFILE_NAME)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in fetching platforms from db", "error", err)
+		return err
+	}
+	if errors.Is(err, pg.ErrNoRows) {
+		creatableProfilePlatformMapping = append(creatableProfilePlatformMapping, &repository.ProfilePlatformMapping{
+			Platform:  constants.DEFAULT_PLATFORM,
+			ProfileId: profile.Id,
+			Active:    true,
+		})
 	}
 
 	if len(creatableConfigurations) > 0 {
 		err = impl.infraProfileRepo.CreateConfigurations(tx, creatableConfigurations)
 		if err != nil {
 			impl.logger.Errorw("error in saving default configurations", "configurations", creatableConfigurations, "error", err)
+			return err
+		}
+	}
+
+	if len(creatableProfilePlatformMapping) > 0 {
+		err = impl.infraProfileRepo.CreatePlatformProfileMapping(tx, creatableProfilePlatformMapping)
+		if err != nil {
+			impl.logger.Errorw("error in saving default configurations", "error", err)
 			return err
 		}
 	}
@@ -232,8 +268,11 @@ func (impl *InfraConfigServiceImpl) GetInfraConfigurationsByScopeAndPlatform(sco
 		return nil, err
 	}
 
-	defaultConfigurationsMap := adapter.ConvertToPlatformMap(defaultConfigurations, constants.GLOBAL_PROFILE_NAME)
-
+	defaultConfigurationsMap, err := adapter.ConvertToPlatformMap(defaultConfigurations, constants.GLOBAL_PROFILE_NAME)
+	if err != nil {
+		impl.logger.Errorw("error in fetching default configurations", "scope", scope, "error", err)
+		return nil, err
+	}
 	platformConfigurationBean := defaultConfigurationsMap[platform]
 	if platformConfigurationBean == nil {
 		return &bean.InfraConfig{}, nil
@@ -266,7 +305,7 @@ func (impl *InfraConfigServiceImpl) getInfraConfigForConfigBean(platformConfigur
 
 func (impl *InfraConfigServiceImpl) getResolvedValue(configurationBean bean.ConfigurationBean) interface{} {
 	// for timeout we need to get the value in seconds
-	if configurationBean.Key == util2.GetConfigKeyStr(constants.TimeOut) {
+	if configurationBean.Key == util2.GetConfigKeyStr(constants.TimeOutKey) {
 		timeout := configurationBean.Value.(float64)
 		//timeout, _ := strconv.ParseFloat(configurationBean.Value.(float64), 64)
 		// if user ever gives the timeout in float, after conversion to int64 it will be rounded off
@@ -306,50 +345,12 @@ func (impl *InfraConfigServiceImpl) GetConfigurationUnits() map[constants.Config
 }
 
 func (impl *InfraConfigServiceImpl) Validate(profileToUpdate *bean.ProfileBeanDto, defaultProfile *bean.ProfileBeanDto) error {
-	var err error = nil
-	defaultConfigurationsKeyMap := util2.GetDefaultConfigKeysMap()
-	for _, platformConfiguration := range profileToUpdate.Configurations {
-		// validate configurations only contain default configurations types.(cpu_limit,cpu_request,mem_limit,mem_request,timeout)
-		for _, propertyConfig := range platformConfiguration {
-			if _, ok := defaultConfigurationsKeyMap[propertyConfig.Key]; !ok {
-				errorMsg := fmt.Sprintf("invalid configuration property \"%s\"", propertyConfig.Key)
-				if err == nil {
-					err = errors.New(errorMsg)
-				}
-				err = errors.Wrap(err, errorMsg)
-				continue
-			}
-			// Validate the property value based on its key
-			expectedValue := util2.GetTypedValue(propertyConfig.Key, propertyConfig.Value)
-			if expectedValue == nil {
-				errorMsg := fmt.Sprintf("invalid value type or format for property \"%s\"", propertyConfig.Key)
-				if err == nil {
-					err = errors.New(errorMsg)
-				}
-				err = errors.Wrap(err, errorMsg)
-				continue
-			}
-
-			switch propertyConfig.Key {
-			case constants.CPU_LIMIT, constants.CPU_REQUEST, constants.MEMORY_LIMIT, constants.MEMORY_REQUEST, constants.TIME_OUT:
-				// Ensure the value is a positive float
-				if value, ok := expectedValue.(float64); !ok || value <= 0 {
-					errorMsg := fmt.Sprintf("property \"%s\" must be a positive number", propertyConfig.Key)
-					if err == nil {
-						err = errors.New(errorMsg)
-					}
-					err = errors.Wrap(err, errorMsg)
-				}
-			}
-		}
-	}
-
+	err := util2.ValidatePayloadConfig(profileToUpdate)
 	if err != nil {
-		err = errors.Wrap(err, constants.PayloadValidationError)
 		return err
 	}
 
-	err = impl.validateCpuMem(profileToUpdate, defaultProfile)
+	err = impl.validateInfraConfig(profileToUpdate, defaultProfile)
 	if err != nil {
 		err = errors.Wrap(err, constants.PayloadValidationError)
 		return err
@@ -357,7 +358,7 @@ func (impl *InfraConfigServiceImpl) Validate(profileToUpdate *bean.ProfileBeanDt
 	return nil
 }
 
-func (impl *InfraConfigServiceImpl) validateCpuMem(profileBean *bean.ProfileBeanDto, defaultProfile *bean.ProfileBeanDto) error {
+func (impl *InfraConfigServiceImpl) validateInfraConfig(profileBean *bean.ProfileBeanDto, defaultProfile *bean.ProfileBeanDto) error {
 
 	// currently validating cpu and memory limits and reqs only
 	var (
@@ -365,6 +366,7 @@ func (impl *InfraConfigServiceImpl) validateCpuMem(profileBean *bean.ProfileBean
 		cpuReq   *bean.ConfigurationBean
 		memLimit *bean.ConfigurationBean
 		memReq   *bean.ConfigurationBean
+		timeout  *bean.ConfigurationBean
 	)
 
 	for _, platformConfigurations := range profileBean.Configurations {
@@ -379,6 +381,8 @@ func (impl *InfraConfigServiceImpl) validateCpuMem(profileBean *bean.ProfileBean
 				memLimit = configuration
 			case constants.MEMORY_REQUEST:
 				memReq = configuration
+			case constants.TIME_OUT:
+				timeout = configuration
 			}
 		}
 	}
@@ -390,6 +394,11 @@ func (impl *InfraConfigServiceImpl) validateCpuMem(profileBean *bean.ProfileBean
 	}
 	// validate mem
 	err = impl.validateMEM(memLimit, memReq)
+	if err != nil {
+		return err
+	}
+
+	err = impl.validateTimeOut(timeout)
 	if err != nil {
 		return err
 	}
@@ -408,21 +417,49 @@ func (impl *InfraConfigServiceImpl) validateCPU(cpuLimit, cpuReq *bean.Configura
 	if !ok {
 		return errors.New(fmt.Sprintf(constants.InvalidUnit, cpuReq.Unit, cpuReq.Key))
 	}
-	cpuLimitVal, ok := util2.GetTypedValue(cpuLimit.Key, cpuLimit.Value).(float64)
+
+	cpuLimitInterfaceVal, err := util2.GetTypedValue(cpuLimit.Key, cpuLimit.Value)
+	if err != nil {
+		return errors.New(fmt.Sprintf(constants.InvalidTypeValue, cpuLimit.Key, cpuLimit.Value))
+	}
+	cpuLimitVal, ok := cpuLimitInterfaceVal.(float64)
 	if !ok {
-		return errors.New(fmt.Sprintf("%s has an invalid value type: %v", cpuLimit.Key, reflect.TypeOf(cpuLimit.Value)))
+		return errors.New(fmt.Sprintf(constants.InvalidTypeValue, cpuLimit.Key, cpuLimit.Value))
 	}
 
-	cpuReqVal, ok := util2.GetTypedValue(cpuReq.Key, cpuReq.Value).(float64)
+	cpuReqInterfaceVal, err := util2.GetTypedValue(cpuReq.Key, cpuReq.Value)
+	if err != nil {
+		return errors.New(fmt.Sprintf(constants.InvalidTypeValue, cpuReq.Key, cpuReq.Value))
+	}
+	cpuReqVal, ok := cpuReqInterfaceVal.(float64)
 	if !ok {
-		return errors.New(fmt.Sprintf("%s has an invalid value type: %v", cpuReq.Key, reflect.TypeOf(cpuReq.Value)))
+		return errors.New(fmt.Sprintf(constants.InvalidTypeValue, cpuReq.Key, cpuReq.Value))
 	}
 	if !validLimReq(cpuLimitVal, cpuLimitUnit.ConversionFactor, cpuReqVal, cpuReqUnit.ConversionFactor) {
 		return errors.New(constants.CPULimReqErrorCompErr)
 	}
 	return nil
 }
-
+func (impl *InfraConfigServiceImpl) validateTimeOut(timeOut *bean.ConfigurationBean) error {
+	if timeOut == nil {
+		return nil
+	}
+	timeoutUnitSuffix := units.TimeUnitStr(timeOut.Unit)
+	timeUnits := impl.units.GetTimeUnits()
+	_, ok := timeUnits[timeoutUnitSuffix]
+	if !ok {
+		return errors.New(fmt.Sprintf(constants.InvalidUnit, timeOut.Unit, timeOut.Key))
+	}
+	timeout, err := util2.GetTypedValue(timeOut.Key, timeOut.Value)
+	if err != nil {
+		return errors.New(fmt.Sprintf(constants.InvalidTypeValue, timeOut.Key, timeOut.Value))
+	}
+	_, ok = timeout.(float64)
+	if !ok {
+		return errors.New(fmt.Sprintf(constants.InvalidTypeValue, timeOut.Key, timeOut.Value))
+	}
+	return nil
+}
 func (impl *InfraConfigServiceImpl) validateMEM(memLimit, memReq *bean.ConfigurationBean) error {
 	memLimitUnitSuffix := units.MemoryUnitStr(memLimit.Unit)
 	memReqUnitSuffix := units.MemoryUnitStr(memReq.Unit)
@@ -437,14 +474,23 @@ func (impl *InfraConfigServiceImpl) validateMEM(memLimit, memReq *bean.Configura
 	}
 
 	// Use getTypedValue to retrieve appropriate types
-	memLimitVal, ok := util2.GetTypedValue(memLimit.Key, memLimit.Value).(float64)
+	memLimitInterfaceVal, err := util2.GetTypedValue(memLimit.Key, memLimit.Value)
+	if err != nil {
+		return errors.New(fmt.Sprintf(constants.InvalidTypeValue, memLimit.Key, memLimit.Value))
+	}
+	memLimitVal, ok := memLimitInterfaceVal.(float64)
 	if !ok {
-		return errors.New(fmt.Sprintf("%s has an invalid value type: %v", memLimit.Key, reflect.TypeOf(memLimit.Value)))
+		return errors.New(fmt.Sprintf(constants.InvalidTypeValue, memLimit.Key, memLimit.Value))
 	}
 
-	memReqVal, ok := util2.GetTypedValue(memReq.Key, memReq.Value).(float64)
+	memReqInterfaceVal, err := util2.GetTypedValue(memReq.Key, memReq.Value)
+	if err != nil {
+		return errors.New(fmt.Sprintf(constants.InvalidTypeValue, memReq.Key, memReq.Value))
+	}
+
+	memReqVal, ok := memReqInterfaceVal.(float64)
 	if !ok {
-		return errors.New(fmt.Sprintf("%s has an invalid value type: %v", memReq.Key, reflect.TypeOf(memReq.Value)))
+		return errors.New(fmt.Sprintf(constants.InvalidTypeValue, memReq.Key, memReq.Value))
 	}
 
 	if !validLimReq(memLimitVal, memLimitUnit.ConversionFactor, memReqVal, memReqUnit.ConversionFactor) {
