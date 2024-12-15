@@ -119,15 +119,30 @@ func formatFloatIfNeeded(configKey constants.ConfigKeyStr, configValue interface
 		configKey == constants.CPU_REQUEST ||
 		configKey == constants.MEMORY_LIMIT ||
 		configKey == constants.MEMORY_REQUEST {
-
-		//valueFloat, _ := strconv.ParseFloat(configValue.(float64), 64)
-		truncateValue := util2.TruncateFloat(configValue.(float64), 2)
+		var valueFloat float64
+		// Handle string input or directly as float64
+		switch v := configValue.(type) {
+		case string:
+			valueFloat, _ = strconv.ParseFloat(v, 64)
+		case float64:
+			valueFloat = v
+		}
+		// Truncate and format the float value
+		truncateValue := util2.TruncateFloat(valueFloat, 2)
 		return strconv.FormatFloat(truncateValue, 'f', -1, 64)
+		//valueFloat, _ := strconv.ParseFloat(configValue.(float64), 64)
 	}
 
 	if configKey == constants.TIME_OUT {
+		var valueFloat float64
+		switch v := configValue.(type) {
+		case string:
+			valueFloat, _ = strconv.ParseFloat(v, 64)
+		case float64:
+			valueFloat = v
+		}
 		//valueFloat, _ := strconv.ParseFloat(configValue, 64)
-		modifiedValue := math.Min(math.Floor(configValue.(float64)), math.MaxInt64)
+		modifiedValue := math.Min(math.Floor(valueFloat), math.MaxInt64)
 		return strconv.FormatFloat(modifiedValue, 'f', -1, 64)
 	}
 
@@ -138,21 +153,31 @@ func GetV0ProfileBean(profileBean *bean.ProfileBeanDto) *bean.ProfileBeanV0 {
 	if profileBean == nil {
 		return &bean.ProfileBeanV0{}
 	}
-	ciRunnerConfig := profileBean.Configurations[constants.CI_RUNNER_PLATFORM]
+	profileName := profileBean.Name
+	if profileName == constants.GLOBAL_PROFILE_NAME {
+		profileName = constants.DEFAULT_PROFILE_NAME
+	}
+
+	profileType := profileBean.Type
+	if profileType == constants.GLOBAL {
+		profileType = constants.DEFAULT
+	}
+
+	ciRunnerConfig := profileBean.Configurations[constants.DEFAULT_PLATFORM]
 	return &bean.ProfileBeanV0{
 		ProfileBeanAbstract: bean.ProfileBeanAbstract{
 			Id:          profileBean.Id,
-			Name:        profileBean.Name,
+			Name:        profileName,
 			Description: profileBean.Description,
 			Active:      profileBean.Active,
-			Type:        profileBean.Type,
+			Type:        profileType,
 			AppCount:    profileBean.AppCount,
 			CreatedBy:   profileBean.CreatedBy,
 			CreatedOn:   profileBean.CreatedOn,
 			UpdatedBy:   profileBean.UpdatedBy,
 			UpdatedOn:   profileBean.UpdatedOn,
 		},
-		Configurations: GetV0ConfigurationBeans(ciRunnerConfig),
+		Configurations: GetV0ConfigurationBeans(ciRunnerConfig, profileName),
 	}
 
 }
@@ -161,25 +186,33 @@ func GetV1ProfileBean(profileBean *bean.ProfileBeanV0) *bean.ProfileBeanDto {
 	if profileBean == nil {
 		return nil
 	}
+	profileName := profileBean.Name
+	if profileName == constants.DEFAULT_PROFILE_NAME {
+		profileName = constants.GLOBAL_PROFILE_NAME
+	}
+	profileType := profileBean.Type
+	if profileType == constants.GLOBAL {
+		profileType = constants.DEFAULT
+	}
 	return &bean.ProfileBeanDto{
 		ProfileBeanAbstract: bean.ProfileBeanAbstract{
 			Id:          profileBean.Id,
-			Name:        profileBean.Name,
+			Name:        profileName,
 			Description: profileBean.Description,
 			Active:      profileBean.Active,
-			Type:        profileBean.Type,
+			Type:        profileType,
 			AppCount:    profileBean.AppCount,
 			CreatedBy:   profileBean.CreatedBy,
 			CreatedOn:   profileBean.CreatedOn,
 			UpdatedBy:   profileBean.UpdatedBy,
 			UpdatedOn:   profileBean.UpdatedOn,
 		},
-		Configurations: map[string][]*bean.ConfigurationBean{constants.DEFAULT_PLATFORM: GetV1ConfigurationBeans(profileBean.Configurations)},
+		Configurations: map[string][]*bean.ConfigurationBean{constants.DEFAULT_PLATFORM: GetV1ConfigurationBeans(profileBean.Configurations, profileName)},
 	}
 
 }
 
-func GetV1ConfigurationBeans(configBeans []bean.ConfigurationBeanV0) []*bean.ConfigurationBean {
+func GetV1ConfigurationBeans(configBeans []bean.ConfigurationBeanV0, profileName string) []*bean.ConfigurationBean {
 	if len(configBeans) == 0 {
 		return nil
 	}
@@ -192,7 +225,7 @@ func GetV1ConfigurationBeans(configBeans []bean.ConfigurationBeanV0) []*bean.Con
 				Id:          configBean.Id,
 				Key:         configBean.Key,
 				Unit:        configBean.Unit,
-				ProfileName: configBean.ProfileName,
+				ProfileName: profileName,
 				ProfileId:   configBean.ProfileId,
 				Active:      configBean.Active,
 			},
@@ -203,7 +236,7 @@ func GetV1ConfigurationBeans(configBeans []bean.ConfigurationBeanV0) []*bean.Con
 	return resp
 }
 
-func GetV0ConfigurationBeans(configBeans []*bean.ConfigurationBean) []bean.ConfigurationBeanV0 {
+func GetV0ConfigurationBeans(configBeans []*bean.ConfigurationBean, profileName string) []bean.ConfigurationBeanV0 {
 	if len(configBeans) == 0 {
 		return []bean.ConfigurationBeanV0{}
 	}
@@ -218,7 +251,7 @@ func GetV0ConfigurationBeans(configBeans []*bean.ConfigurationBean) []bean.Confi
 				Id:          configBean.Id,
 				Key:         configBean.Key,
 				Unit:        configBean.Unit,
-				ProfileName: configBean.ProfileName,
+				ProfileName: profileName,
 				ProfileId:   configBean.ProfileId,
 				Active:      configBean.Active,
 			},
@@ -230,7 +263,7 @@ func GetV0ConfigurationBeans(configBeans []*bean.ConfigurationBean) []bean.Confi
 }
 
 func ConvertToProfileBean(infraProfile *repository.InfraProfileEntity) bean.ProfileBeanDto {
-	profileType := constants.DEFAULT
+	profileType := constants.GLOBAL
 	if infraProfile.Name != constants.GLOBAL_PROFILE_NAME {
 		profileType = constants.NORMAL
 	}

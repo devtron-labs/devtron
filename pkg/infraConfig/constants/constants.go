@@ -20,6 +20,7 @@ type ConfigKey int
 type ConfigKeyStr string
 type ProfileType string
 
+const GLOBAL ProfileType = "GLOBAL"
 const NORMAL ProfileType = "NORMAL"
 const InvalidUnit = "invalid %s unit found in %s "
 const InvalidTypeValue = "invalid value found in %s with value %s "

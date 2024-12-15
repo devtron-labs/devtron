@@ -21,7 +21,7 @@ SET platform = 'default';
 
 -- Alter the `platform` column to set NOT NULL and default to 'default'
 ALTER TABLE public.infra_profile_configuration
-    ALTER COLUMN platform SET NOT NULL,
+    ALTER COLUMN platform SET NOT NULL;
 --     ALTER COLUMN platform SET DEFAULT 'default';
 
 -- Remove the default value from the `platform` column to enforce explicit assignment in the future

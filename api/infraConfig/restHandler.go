@@ -185,9 +185,16 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfileV0(w http.ResponseW
 		err = errors.Wrap(err, constants.PayloadValidationError)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 	}
-	if profileName == "" || (profileName == constants.GLOBAL_PROFILE_NAME && payload.Name != constants.GLOBAL_PROFILE_NAME) {
+	if profileName != constants.DEFAULT_PROFILE_NAME || payload.Name != constants.DEFAULT_PROFILE_NAME {
 		common.WriteJsonResp(w, errors.New(constants.InvalidProfileName), nil, http.StatusBadRequest)
+		return
 	}
+	if payload.Name != constants.DEFAULT_PROFILE_NAME {
+		common.WriteJsonResp(w, errors.New(constants.InvalidProfileName), nil, http.StatusBadRequest)
+		return
+	}
+	profileName = constants.GLOBAL_PROFILE_NAME
+
 	payloadV1 := adapter.GetV1ProfileBean(payload)
 	err = handler.infraProfileService.UpdateProfile(userId, profileName, payloadV1)
 	if err != nil {
