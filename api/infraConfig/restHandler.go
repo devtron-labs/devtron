@@ -18,14 +18,13 @@ package infraConfig
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
-	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/adapter"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/bean"
-	"github.com/devtron-labs/devtron/pkg/infraConfig/util"
+	"github.com/devtron-labs/devtron/pkg/infraConfig/constants"
+	"github.com/devtron-labs/devtron/pkg/infraConfig/service"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -47,18 +46,14 @@ type InfraConfigRestHandler interface {
 }
 type InfraConfigRestHandlerImpl struct {
 	logger              *zap.SugaredLogger
-	infraProfileService infraConfig.InfraConfigService
+	infraProfileService service.InfraConfigService
 	userService         user.UserService
 	enforcer            casbin.Enforcer
 	enforcerUtil        rbac.EnforcerUtil
 	validator           *validator.Validate
 }
 
-func NewInfraConfigRestHandlerImpl(logger *zap.SugaredLogger, infraProfileService infraConfig.InfraConfigService, userService user.UserService, enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, validator *validator.Validate) *InfraConfigRestHandlerImpl {
-	if validator == nil {
-		panic("validator is not initialized")
-	}
-	validator.RegisterValidation("validateValue", ValidateValue)
+func NewInfraConfigRestHandlerImpl(logger *zap.SugaredLogger, infraProfileService service.InfraConfigService, userService user.UserService, enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, validator *validator.Validate) *InfraConfigRestHandlerImpl {
 	return &InfraConfigRestHandlerImpl{
 		logger:              logger,
 		infraProfileService: infraProfileService,
@@ -83,12 +78,13 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWri
 
 	//vars := mux.Vars(r)
 	val := r.URL.Query().Get("name")
-	profileName := strings.ToLower(val)
-	if profileName == "" {
-		common.WriteJsonResp(w, errors.New(util.InvalidProfileName), nil, http.StatusBadRequest)
+	if len(val) == 0 {
+		common.WriteJsonResp(w, errors.New(constants.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
-	payload := &bean.ProfileBeanDTO{}
+	profileName := strings.ToLower(val)
+
+	payload := &bean.ProfileBeanDto{}
 	decoder := json.NewDecoder(r.Body)
 	err = decoder.Decode(payload)
 	if err != nil {
@@ -100,50 +96,20 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWri
 	payload.Name = strings.ToLower(payload.Name)
 	err = handler.validator.Struct(payload)
 	if err != nil {
-		err = errors.Wrap(err, util.PayloadValidationError)
+		err = errors.Wrap(err, constants.PayloadValidationError)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 	}
-	// Custom validation for configurations
-	for _, config := range payload.Configurations {
-		err = handler.validateConfigItem(config)
-		if err != nil {
-			err = errors.Wrap(err, util.PayloadValidationError)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		}
-	}
-	if profileName == "" || (profileName == util.GLOBAL_PROFILE_NAME && payload.Name != util.GLOBAL_PROFILE_NAME) {
-		common.WriteJsonResp(w, errors.New(util.InvalidProfileName), nil, http.StatusBadRequest)
+
+	if profileName == "" || (profileName == constants.GLOBAL_PROFILE_NAME && payload.Name != constants.GLOBAL_PROFILE_NAME) {
+		common.WriteJsonResp(w, errors.New(constants.InvalidProfileName), nil, http.StatusBadRequest)
 	}
 	err = handler.infraProfileService.UpdateProfile(userId, profileName, payload)
 	if err != nil {
 		handler.logger.Errorw("error in updating profile and configurations", "profileName", profileName, "payLoad", payload, "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
-}
-
-func (handler *InfraConfigRestHandlerImpl) validateConfigItem(configs []*bean.ConfigurationBean) error {
-
-	for _, config := range configs {
-		err := handler.validator.Struct(config)
-		if err != nil {
-			return err
-		}
-		switch config.Key {
-		case util.CPU_REQUEST, util.CPU_LIMIT, util.MEMORY_REQUEST, util.MEMORY_LIMIT:
-			if _, ok := config.Value.(float64); !ok {
-				return fmt.Errorf("invalid value type for key %s: expected string", config.Key)
-			}
-		case util.TIME_OUT:
-			if _, ok := config.Value.(float64); !ok {
-				return fmt.Errorf("invalid value type for key %s: expected integer", config.Key)
-			}
-		default:
-			return fmt.Errorf("unsupported configuration key: %s", config.Key)
-		}
-	}
-	return nil
 }
 
 func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *http.Request) {
@@ -159,21 +125,24 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 	}
 
 	identifier := r.URL.Query().Get("name")
-	profileName := strings.ToLower(identifier)
-	if profileName == "" {
-		common.WriteJsonResp(w, errors.New(util.InvalidProfileName), nil, http.StatusBadRequest)
+
+	if len(identifier) == 0 {
+		common.WriteJsonResp(w, errors.New(constants.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
-
-	var profile *bean.ProfileBeanDTO
+	profileName := strings.ToLower(identifier)
+	var profile *bean.ProfileBeanDto
+	if profileName != constants.GLOBAL_PROFILE_NAME {
+		common.WriteJsonResp(w, errors.New(constants.InvalidProfileName), nil, http.StatusBadRequest)
+		return
+	}
 	defaultProfile, err := handler.infraProfileService.GetProfileByName(profileName)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if profileName == util.GLOBAL_PROFILE_NAME {
-		profile = defaultProfile
-	}
+	profile = defaultProfile
+
 	resp := bean.ProfileResponse{
 		Profile: *profile,
 	}
@@ -199,7 +168,7 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfileV0(w http.ResponseW
 	vars := mux.Vars(r)
 	profileName := strings.ToLower(vars["name"])
 	if profileName == "" {
-		common.WriteJsonResp(w, errors.New(util.InvalidProfileName), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New(constants.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
 	payload := &bean.ProfileBeanV0{}
@@ -213,11 +182,11 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfileV0(w http.ResponseW
 	payload.Name = strings.ToLower(payload.Name)
 	err = handler.validator.Struct(payload)
 	if err != nil {
-		err = errors.Wrap(err, util.PayloadValidationError)
+		err = errors.Wrap(err, constants.PayloadValidationError)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 	}
-	if profileName == "" || (profileName == util.GLOBAL_PROFILE_NAME && payload.Name != util.GLOBAL_PROFILE_NAME) {
-		common.WriteJsonResp(w, errors.New(util.InvalidProfileName), nil, http.StatusBadRequest)
+	if profileName == "" || (profileName == constants.GLOBAL_PROFILE_NAME && payload.Name != constants.GLOBAL_PROFILE_NAME) {
+		common.WriteJsonResp(w, errors.New(constants.InvalidProfileName), nil, http.StatusBadRequest)
 	}
 	payloadV1 := adapter.GetV1ProfileBean(payload)
 	err = handler.infraProfileService.UpdateProfile(userId, profileName, payloadV1)
@@ -245,9 +214,16 @@ func (handler *InfraConfigRestHandlerImpl) GetProfileV0(w http.ResponseWriter, r
 	vars := mux.Vars(r)
 	profileName := strings.ToLower(vars["name"])
 	if profileName == "" {
-		common.WriteJsonResp(w, errors.New(util.InvalidProfileName), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New(constants.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
+
+	if profileName != constants.DEFAULT_PROFILE_NAME {
+		common.WriteJsonResp(w, errors.New(constants.InvalidProfileName), nil, http.StatusBadRequest)
+		return
+	}
+
+	profileName = constants.GLOBAL_PROFILE_NAME
 
 	var profile *bean.ProfileBeanV0
 	defaultProfileV1, err := handler.infraProfileService.GetProfileByName(profileName)
@@ -256,9 +232,7 @@ func (handler *InfraConfigRestHandlerImpl) GetProfileV0(w http.ResponseWriter, r
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if profileName == util.GLOBAL_PROFILE_NAME {
-		profile = defaultProfileV0
-	}
+	profile = defaultProfileV0
 	resp := bean.ProfileResponseV0{
 		Profile: *profile,
 	}
@@ -266,46 +240,4 @@ func (handler *InfraConfigRestHandlerImpl) GetProfileV0(w http.ResponseWriter, r
 	//TODO: why below line ??
 	resp.DefaultConfigurations = defaultProfileV0.Configurations
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
-}
-
-func ValidateValue(fl validator.FieldLevel) bool {
-	value := fl.Field().Interface()
-
-	switch v := value.(type) {
-	case float64:
-		// Validate float64
-		return v > 0
-	case int, int64:
-		// Validate int or int64
-		if num, ok := value.(int); ok {
-			return num > 0
-		}
-		if num, ok := value.(int64); ok {
-			return num > 0
-		}
-	case []struct{ Key, Value string }:
-		// Validate slice of structs with {Key string, Value string}
-		for _, item := range v {
-			if item.Key == "" || item.Value == "" {
-				return false
-			}
-		}
-		return true
-	case []struct {
-		Key    string
-		Value  string
-		Effect int
-	}:
-		// Validate slice of structs with {Key string, Value string, Effect int}
-		for _, item := range v {
-			if item.Key == "" || item.Value == "" || item.Effect < 0 {
-				return false
-			}
-		}
-		return true
-	default:
-		// For unsupported types, validation fails
-		return false
-	}
-	return false
 }

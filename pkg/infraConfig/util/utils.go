@@ -17,70 +17,108 @@
 package util
 
 import (
+	"fmt"
+	"github.com/devtron-labs/devtron/pkg/infraConfig/constants"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
+	util2 "github.com/devtron-labs/devtron/util"
+	"math"
+	"reflect"
+	"strconv"
 )
 
 // GetUnitSuffix loosely typed method to get the unit suffix using the unitKey type
-func GetUnitSuffix(unitKey ConfigKeyStr, unitStr string) units.UnitSuffix {
+func GetUnitSuffix(unitKey constants.ConfigKeyStr, unitStr string) units.UnitSuffix {
 	switch unitKey {
-	case CPU_LIMIT, CPU_REQUEST:
+	case constants.CPU_LIMIT, constants.CPU_REQUEST:
 		return units.CPUUnitStr(unitStr).GetCPUUnit()
-	case MEMORY_LIMIT, MEMORY_REQUEST:
+	case constants.MEMORY_LIMIT, constants.MEMORY_REQUEST:
 		return units.MemoryUnitStr(unitStr).GetMemoryUnit()
 	}
 	return units.TimeUnitStr(unitStr).GetTimeUnit()
 }
 
 // GetUnitSuffixStr loosely typed method to get the unit suffix using the unitKey type
-func GetUnitSuffixStr(unitKey ConfigKey, unit units.UnitSuffix) string {
+func GetUnitSuffixStr(unitKey constants.ConfigKey, unit units.UnitSuffix) string {
 	switch unitKey {
-	case CPULimit, CPURequest:
+	case constants.CPULimit, constants.CPURequest:
 		return string(unit.GetCPUUnitStr())
-	case MemoryLimit, MemoryRequest:
+	case constants.MemoryLimit, constants.MemoryRequest:
 		return string(unit.GetMemoryUnitStr())
 	}
 	return string(unit.GetTimeUnitStr())
 }
 
 // GetDefaultConfigKeysMap returns a map of default config keys
-func GetDefaultConfigKeysMap() map[ConfigKeyStr]bool {
-	return map[ConfigKeyStr]bool{
-		CPU_LIMIT:      true,
-		CPU_REQUEST:    true,
-		MEMORY_LIMIT:   true,
-		MEMORY_REQUEST: true,
-		TIME_OUT:       true,
+func GetDefaultConfigKeysMap() map[constants.ConfigKeyStr]bool {
+	return map[constants.ConfigKeyStr]bool{
+		constants.CPU_LIMIT:      true,
+		constants.CPU_REQUEST:    true,
+		constants.MEMORY_LIMIT:   true,
+		constants.MEMORY_REQUEST: true,
+		constants.TIME_OUT:       true,
 	}
 }
 
-func GetConfigKeyStr(configKey ConfigKey) ConfigKeyStr {
+func GetConfigKeyStr(configKey constants.ConfigKey) constants.ConfigKeyStr {
 	switch configKey {
-	case CPULimit:
-		return CPU_LIMIT
-	case CPURequest:
-		return CPU_REQUEST
-	case MemoryLimit:
-		return MEMORY_LIMIT
-	case MemoryRequest:
-		return MEMORY_REQUEST
-	case TimeOut:
-		return TIME_OUT
+	case constants.CPULimit:
+		return constants.CPU_LIMIT
+	case constants.CPURequest:
+		return constants.CPU_REQUEST
+	case constants.MemoryLimit:
+		return constants.MEMORY_LIMIT
+	case constants.MemoryRequest:
+		return constants.MEMORY_REQUEST
+	case constants.TimeOut:
+		return constants.TIME_OUT
 	}
 	return ""
 }
 
-func GetConfigKey(configKeyStr ConfigKeyStr) ConfigKey {
+func GetConfigKey(configKeyStr constants.ConfigKeyStr) constants.ConfigKey {
 	switch configKeyStr {
-	case CPU_LIMIT:
-		return CPULimit
-	case CPU_REQUEST:
-		return CPURequest
-	case MEMORY_LIMIT:
-		return MemoryLimit
-	case MEMORY_REQUEST:
-		return MemoryRequest
-	case TIME_OUT:
-		return TimeOut
+	case constants.CPU_LIMIT:
+		return constants.CPULimit
+	case constants.CPU_REQUEST:
+		return constants.CPURequest
+	case constants.MEMORY_LIMIT:
+		return constants.MemoryLimit
+	case constants.MEMORY_REQUEST:
+		return constants.MemoryRequest
+	case constants.TIME_OUT:
+		return constants.TimeOut
 	}
 	return 0
+}
+
+func GetTypedValue(configKey constants.ConfigKeyStr, value interface{}) interface{} {
+	switch configKey {
+	case constants.CPU_LIMIT, constants.CPU_REQUEST, constants.MEMORY_LIMIT, constants.MEMORY_REQUEST:
+		// Assume value is float64 or convertible to it
+		switch v := value.(type) {
+		case string:
+			valueFloat, _ := strconv.ParseFloat(v, 64)
+			return util2.TruncateFloat(valueFloat, 2)
+		case float64:
+			return util2.TruncateFloat(v, 2)
+		default:
+			panic(fmt.Sprintf("Unsupported type for %s: %v", configKey, reflect.TypeOf(value)))
+		}
+
+	case constants.TIME_OUT:
+		// Ensure the value is a float64 within int64 bounds
+		switch v := value.(type) {
+		case string:
+			valueFloat, _ := strconv.ParseFloat(v, 64)
+			return math.Min(math.Floor(valueFloat), math.MaxInt64)
+		case float64:
+			return math.Min(math.Floor(v), math.MaxInt64)
+		default:
+			panic(fmt.Sprintf("Unsupported type for %s: %v", configKey, reflect.TypeOf(value)))
+		}
+	// Default case
+	default:
+		// Return value as-is
+		return value
+	}
 }

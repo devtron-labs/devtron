@@ -17,16 +17,16 @@
 package ciPipeline
 
 import (
-	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/bean"
+	"github.com/devtron-labs/devtron/pkg/infraConfig/service"
 )
 
 // CiInfraGetter gets infra config for ci workflows
 type CiInfraGetter struct {
-	infraConfigService infraConfig.InfraConfigService
+	infraConfigService service.InfraConfigService
 }
 
-func NewCiInfraGetter(infraConfigService infraConfig.InfraConfigService) *CiInfraGetter {
+func NewCiInfraGetter(infraConfigService service.InfraConfigService) *CiInfraGetter {
 	return &CiInfraGetter{infraConfigService: infraConfigService}
 }
 

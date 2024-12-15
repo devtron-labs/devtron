@@ -17,65 +17,12 @@
 package bean
 
 import (
+	util2 "github.com/devtron-labs/devtron/pkg/infraConfig/constants"
+	"github.com/devtron-labs/devtron/pkg/infraConfig/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
-	util2 "github.com/devtron-labs/devtron/pkg/infraConfig/util"
-	"github.com/devtron-labs/devtron/pkg/sql"
 	"strconv"
 	"time"
 )
-
-// repo structs
-
-type InfraProfileEntity struct {
-	tableName   struct{} `sql:"infra_profile" pg:",discard_unknown_columns"`
-	Id          int      `sql:"id"`
-	Name        string   `sql:"name"`
-	Description string   `sql:"description"`
-	Active      bool     `sql:"active"`
-	sql.AuditLog
-}
-
-func (infraProfile *InfraProfileEntity) ConvertToProfileBean() ProfileBeanDTO {
-	profileType := util2.DEFAULT
-	if infraProfile.Name != util2.GLOBAL_PROFILE_NAME {
-		profileType = util2.NORMAL
-	}
-	return ProfileBeanDTO{
-		ProfileBeanAbstract: ProfileBeanAbstract{
-			Id:          infraProfile.Id,
-			Name:        infraProfile.Name,
-			Type:        profileType,
-			Description: infraProfile.Description,
-			Active:      infraProfile.Active,
-			CreatedBy:   infraProfile.CreatedBy,
-			CreatedOn:   infraProfile.CreatedOn,
-			UpdatedBy:   infraProfile.UpdatedBy,
-			UpdatedOn:   infraProfile.UpdatedOn,
-		},
-	}
-}
-
-type InfraProfileConfigurationEntity struct {
-	tableName     struct{}         `sql:"infra_profile_configuration" pg:",discard_unknown_columns"`
-	Id            int              `sql:"id"`
-	Key           util2.ConfigKey  `sql:"key"`
-	Value         float64          `sql:"value"`
-	ValueString   string           `sql:"value_string"`
-	Unit          units.UnitSuffix `sql:"unit"`
-	ProfileId     int              `sql:"profile_id"`
-	Platform      string           `sql:"platform"`
-	Active        bool             `sql:"active"`
-	SkipThisValue bool             `sql:"skip_this_value"`
-	sql.AuditLog
-}
-type ProfilePlatformMapping struct {
-	tableName struct{} `sql:"profile_platform_mapping" pg:",discard_unknown_columns"`
-	Id        int      `sql:"id"`
-	ProfileId int      `sql:"profile_id"`
-	Platform  string   `sql:"platform"`
-	Active    bool     `sql:"active"`
-	sql.AuditLog
-}
 
 // service layer structs
 
@@ -92,7 +39,7 @@ type ProfileBeanAbstract struct {
 	UpdatedOn   time.Time         `json:"updatedOn"`
 }
 
-type ProfileBeanDTO struct {
+type ProfileBeanDto struct {
 	ProfileBeanAbstract
 	Configurations map[string][]*ConfigurationBean `json:"configurations"`
 }
@@ -103,8 +50,8 @@ type ProfileBeanV0 struct {
 	Configurations []ConfigurationBeanV0 `json:"configurations" validate:"dive"`
 }
 
-func (profileBean *ProfileBeanDTO) ConvertToInfraProfileEntity() *InfraProfileEntity {
-	return &InfraProfileEntity{
+func (profileBean *ProfileBeanDto) ConvertToInfraProfileEntity() *repository.InfraProfileEntity {
+	return &repository.InfraProfileEntity{
 		Id:          profileBean.Id,
 		Name:        profileBean.Name,
 		Description: profileBean.Description,
@@ -113,7 +60,7 @@ func (profileBean *ProfileBeanDTO) ConvertToInfraProfileEntity() *InfraProfileEn
 
 type ConfigurationBean struct {
 	ConfigurationBeanAbstract
-	Value interface{} `json:"value" validate:"validateValue"`
+	Value interface{} `json:"value"`
 }
 
 // Deprecated
@@ -144,7 +91,7 @@ type InfraConfigMetaDataV0 struct {
 }
 
 type ProfileResponse struct {
-	Profile ProfileBeanDTO `json:"profile"`
+	Profile ProfileBeanDto `json:"profile"`
 	InfraConfigMetaData
 }
 
@@ -208,12 +155,12 @@ func (infraConfig *InfraConfig) SetCiDefaultTimeout(timeout int64) {
 	infraConfig.CiDefaultTimeout = timeout
 }
 
-func (infraConfig InfraConfig) LoadCiLimitCpu() (*InfraProfileConfigurationEntity, error) {
+func (infraConfig InfraConfig) LoadCiLimitCpu() (*repository.InfraProfileConfigurationEntity, error) {
 	val, suffix, err := units.ParseValAndUnit(infraConfig.CiLimitCpu)
 	if err != nil {
 		return nil, err
 	}
-	return &InfraProfileConfigurationEntity{
+	return &repository.InfraProfileConfigurationEntity{
 		Key:         util2.CPULimit,
 		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
 		Unit:        units.CPUUnitStr(suffix).GetCPUUnit(),
@@ -221,12 +168,12 @@ func (infraConfig InfraConfig) LoadCiLimitCpu() (*InfraProfileConfigurationEntit
 
 }
 
-func (infraConfig InfraConfig) LoadCiLimitMem() (*InfraProfileConfigurationEntity, error) {
+func (infraConfig InfraConfig) LoadCiLimitMem() (*repository.InfraProfileConfigurationEntity, error) {
 	val, suffix, err := units.ParseValAndUnit(infraConfig.CiLimitMem)
 	if err != nil {
 		return nil, err
 	}
-	return &InfraProfileConfigurationEntity{
+	return &repository.InfraProfileConfigurationEntity{
 		Key:         util2.MemoryLimit,
 		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
 		Unit:        units.MemoryUnitStr(suffix).GetMemoryUnit(),
@@ -234,40 +181,40 @@ func (infraConfig InfraConfig) LoadCiLimitMem() (*InfraProfileConfigurationEntit
 
 }
 
-func (infraConfig InfraConfig) LoadCiReqCpu() (*InfraProfileConfigurationEntity, error) {
+func (infraConfig InfraConfig) LoadCiReqCpu() (*repository.InfraProfileConfigurationEntity, error) {
 	val, suffix, err := units.ParseValAndUnit(infraConfig.CiReqCpu)
 	if err != nil {
 		return nil, err
 	}
-	return &InfraProfileConfigurationEntity{
+	return &repository.InfraProfileConfigurationEntity{
 		Key:         util2.CPURequest,
 		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
 		Unit:        units.CPUUnitStr(suffix).GetCPUUnit(),
 	}, nil
 }
 
-func (infraConfig InfraConfig) LoadCiReqMem() (*InfraProfileConfigurationEntity, error) {
+func (infraConfig InfraConfig) LoadCiReqMem() (*repository.InfraProfileConfigurationEntity, error) {
 	val, suffix, err := units.ParseValAndUnit(infraConfig.CiReqMem)
 	if err != nil {
 		return nil, err
 	}
 
-	return &InfraProfileConfigurationEntity{
+	return &repository.InfraProfileConfigurationEntity{
 		Key:         util2.MemoryRequest,
 		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
 		Unit:        units.MemoryUnitStr(suffix).GetMemoryUnit(),
 	}, nil
 }
 
-func (infraConfig InfraConfig) LoadDefaultTimeout() (*InfraProfileConfigurationEntity, error) {
-	return &InfraProfileConfigurationEntity{
+func (infraConfig InfraConfig) LoadDefaultTimeout() (*repository.InfraProfileConfigurationEntity, error) {
+	return &repository.InfraProfileConfigurationEntity{
 		Key:         util2.TimeOut,
 		ValueString: strconv.FormatInt(infraConfig.CiDefaultTimeout, 10),
 		Unit:        units.SecondStr.GetTimeUnit(),
 	}, nil
 }
 
-func (infraConfig InfraConfig) LoadInfraConfigInEntities() ([]*InfraProfileConfigurationEntity, error) {
+func (infraConfig InfraConfig) LoadInfraConfigInEntities() ([]*repository.InfraProfileConfigurationEntity, error) {
 	cpuLimit, err := infraConfig.LoadCiLimitCpu()
 	if err != nil {
 		return nil, err
@@ -289,6 +236,6 @@ func (infraConfig InfraConfig) LoadInfraConfigInEntities() ([]*InfraProfileConfi
 		return nil, err
 	}
 
-	defaultConfigurations := []*InfraProfileConfigurationEntity{cpuLimit, memLimit, cpuReq, memReq, timeout}
+	defaultConfigurations := []*repository.InfraProfileConfigurationEntity{cpuLimit, memLimit, cpuReq, memReq, timeout}
 	return defaultConfigurations, nil
 }

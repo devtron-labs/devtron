@@ -31,7 +31,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	bean4 "github.com/devtron-labs/devtron/pkg/infraConfig/bean"
-	util2 "github.com/devtron-labs/devtron/pkg/infraConfig/util"
+	util2 "github.com/devtron-labs/devtron/pkg/infraConfig/constants"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
@@ -159,6 +159,7 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 			impl.Logger.Errorw("error occurred while getting infra config", "infraConfigScope", infraConfigScope, "err", err)
 			return bean3.WorkflowTemplate{}, err
 		}
+		workflowTemplate.SetActiveDeadlineSeconds(infraConfiguration.GetCiDefaultTimeout())
 	}
 
 	workflowMainContainer, err := workflowRequest.GetWorkflowMainContainer(impl.ciCdConfig, infraConfiguration, workflowJson, &workflowTemplate, workflowConfigMaps, workflowSecrets)
