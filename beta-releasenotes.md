@@ -15,6 +15,7 @@
 - feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
+- misc: asset for plugin (#6184)
 - chore: updating deployment status start and end time (#6171)
 - misc: Main sync develop 16dec (#6182)
 - chore: adding logs in deployment trigger flow (#6180)
