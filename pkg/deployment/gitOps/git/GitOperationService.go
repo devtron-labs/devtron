@@ -333,7 +333,7 @@ func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(ctx context
 			return nil, "", err
 		}
 	}
-	acdAppName := fmt.Sprintf("%s-%s", PushChartToGitRequest.AppName, PushChartToGitRequest.EnvName)
+	acdAppName := globalUtil.BuildDeployedAppName(PushChartToGitRequest.AppName, PushChartToGitRequest.EnvName)
 	dir := filepath.Join(clonedDir, acdAppName)
 	err := os.MkdirAll(dir, os.ModePerm)
 	if err != nil {
