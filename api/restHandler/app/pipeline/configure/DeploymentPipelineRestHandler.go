@@ -1808,7 +1808,11 @@ func (handler *PipelineConfigRestHandlerImpl) GetPrePostDeploymentLogs(w http.Re
 		}(ctx.Done(), cn.CloseNotify())
 	}
 	defer cancel()
-	defer cleanUp()
+	defer func() {
+		if cleanUp != nil {
+			cleanUp()
+		}
+	}()
 	handler.streamOutput(w, logsReader, lastSeenMsgId)
 }
 

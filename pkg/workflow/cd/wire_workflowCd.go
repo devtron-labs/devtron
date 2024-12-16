@@ -30,4 +30,6 @@ var CdWorkflowWireSet = wire.NewSet(
 	wire.Bind(new(read.CdWorkflowReadService), new(*read.CdWorkflowReadServiceImpl)),
 	NewCdWorkflowRunnerServiceImpl,
 	wire.Bind(new(CdWorkflowRunnerService), new(*CdWorkflowRunnerServiceImpl)),
+	read.NewCdWorkflowRunnerReadServiceImpl,
+	wire.Bind(new(read.CdWorkflowRunnerReadService), new(*read.CdWorkflowRunnerReadServiceImpl)),
 )
