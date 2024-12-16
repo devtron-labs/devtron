@@ -830,8 +830,10 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 	if err != nil {
 		return releaseNo, err
 	}
+	impl.logger.Debugw("processing TriggerRelease", "wfrId", overrideRequest.WfrId, "triggerEvent", triggerEvent)
 	// request has already been served, skipping
 	if skipRequest {
+		impl.logger.Infow("request already served, skipping", "wfrId", overrideRequest.WfrId)
 		return releaseNo, nil
 	}
 	// build merged values and save PCO history for the release
@@ -857,6 +859,7 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 		impl.logger.Errorw("error in building merged manifest for trigger", "err", err)
 		return releaseNo, err
 	}
+	impl.logger.Debugw("triggering pipeline for release", "wfrId", overrideRequest.WfrId, "builtChartPath", builtChartPath)
 	releaseNo, err = impl.triggerPipeline(overrideRequest, valuesOverrideResponse, builtChartPath, triggerEvent, newCtx)
 	if err != nil {
 		return 0, err
@@ -867,6 +870,7 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 	if dbErr != nil {
 		impl.logger.Errorw("error in creating timeline status for deployment completed", "err", dbErr, "timeline", timeline)
 	}
+	impl.logger.Debugw("triggered pipeline for release successfully", "wfrId", overrideRequest.WfrId, "builtChartPath", builtChartPath)
 	return releaseNo, nil
 }
 
@@ -938,11 +942,13 @@ func (impl *TriggerServiceImpl) triggerPipeline(overrideRequest *bean3.ValuesOve
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.triggerPipeline")
 	defer span.End()
 	if triggerEvent.PerformChartPush {
+		impl.logger.Debugw("performing chart push operation in triggerPipeline", "cdWfrId", overrideRequest.WfrId)
 		err = impl.performGitOps(newCtx, overrideRequest, valuesOverrideResponse, builtChartPath, triggerEvent)
 		if err != nil {
 			impl.logger.Errorw("error in performing GitOps", "cdWfrId", overrideRequest.WfrId, "err", err)
 			return releaseNo, err
 		}
+		impl.logger.Debugw("chart push operation completed successfully", "cdWfrId", overrideRequest.WfrId)
 	}
 	if triggerEvent.PerformDeploymentOnCluster {
 		err = impl.deployApp(newCtx, overrideRequest, valuesOverrideResponse, triggerEvent)
