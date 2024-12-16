@@ -25,6 +25,10 @@ import (
 var DeploymentTemplateWireSet = wire.NewSet(
 	NewDeploymentTemplateServiceImpl,
 	wire.Bind(new(DeploymentTemplateService), new(*DeploymentTemplateServiceImpl)),
+
+	read.NewEnvConfigOverrideReadServiceImpl,
+	wire.Bind(new(read.EnvConfigOverrideService), new(*read.EnvConfigOverrideReadServiceImpl)),
+
 	NewDeploymentTemplateValidationServiceImpl,
 	wire.Bind(new(DeploymentTemplateValidationService), new(*DeploymentTemplateValidationServiceImpl)),
 	chartRef.NewChartRefServiceImpl,

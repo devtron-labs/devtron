@@ -31,4 +31,7 @@ func (router DeploymentConfigurationRouterImpl) InitDeploymentConfigurationRoute
 		HandlerFunc(router.deploymentGroupRestHandler.CompareCategoryWiseConfigData).
 		Methods("GET")
 
+	configRouter.Path("/manifest").
+		HandlerFunc(router.deploymentGroupRestHandler.GetManifest).
+		Methods("POST")
 }

@@ -19,6 +19,7 @@ package bean
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 )
 
 type EnvironmentProperties struct {
@@ -39,6 +40,19 @@ type EnvironmentProperties struct {
 	CurrentViewEditor models.ChartsViewEditorType `json:"currentViewEditor"` //default "UNDEFINED" in db
 	Description       string                      `json:"description" validate:"max=40"`
 	ClusterId         int                         `json:"clusterId"`
+	MergeStrategy     models.MergeStrategy        `json:"mergeStrategy"`
+}
+
+type EnvironmentOverrideCreateInternalDTO struct {
+	Chart                                              *chartRepoRepository.Chart
+	EnvironmentId                                      int
+	UserId                                             int32
+	ManualReviewed                                     bool
+	ChartStatus                                        models.ChartStatus
+	IsOverride, IsAppMetricsEnabled, IsBasicViewLocked bool
+	Namespace                                          string
+	CurrentViewEditor                                  models.ChartsViewEditorType
+	MergeStrategy                                      models.MergeStrategy
 }
 
 type EnvironmentPropertiesResponse struct {
