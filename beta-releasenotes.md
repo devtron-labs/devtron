@@ -15,6 +15,7 @@
 - feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
+- chore: runtime params variable refactorings (#6183)
 - misc: asset for plugin (#6184)
 - chore: updating deployment status start and end time (#6171)
 - misc: Main sync develop 16dec (#6182)
