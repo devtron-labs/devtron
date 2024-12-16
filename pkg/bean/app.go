@@ -285,7 +285,7 @@ type CiMaterialPatchResponse struct {
 }
 
 type CiPatchRequest struct {
-	CiPipeline    *CiPipeline `json:"ciPipeline" validate:"dive"`
+	CiPipeline    *CiPipeline `json:"ciPipeline" validate:"omitempty,dive"`
 	AppId         int         `json:"appId,omitempty"`
 	Action        PatchAction `json:"action"`
 	AppWorkflowId int         `json:"appWorkflowId,omitempty"`
