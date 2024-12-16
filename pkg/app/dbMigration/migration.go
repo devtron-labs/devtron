@@ -2,7 +2,7 @@ package dbMigration
 
 import (
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
-	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
+	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
 	"go.uber.org/zap"
 	"time"
 )
@@ -12,25 +12,25 @@ type DbMigration interface {
 }
 
 type DbMigrationServiceImpl struct {
-	logger                 *zap.SugaredLogger
-	appRepository          appRepository.AppRepository
-	installedAppRepository repository2.InstalledAppRepository
+	logger                  *zap.SugaredLogger
+	appRepository           appRepository.AppRepository
+	installedAppReadService installedAppReader.InstalledAppReadServiceEA
 }
 
 func NewDbMigrationServiceImpl(
 	logger *zap.SugaredLogger, appRepository appRepository.AppRepository,
-	installedAppRepository repository2.InstalledAppRepository,
+	installedAppReadService installedAppReader.InstalledAppReadServiceEA,
 ) *DbMigrationServiceImpl {
 	impl := &DbMigrationServiceImpl{
-		logger:                 logger,
-		appRepository:          appRepository,
-		installedAppRepository: installedAppRepository,
+		logger:                  logger,
+		appRepository:           appRepository,
+		installedAppReadService: installedAppReadService,
 	}
 	return impl
 }
 
 func (impl DbMigrationServiceImpl) FixMultipleAppsForInstalledApp(appNameUniqueIdentifier string) (*appRepository.App, error) {
-	installedApp, err := impl.installedAppRepository.GetInstalledAppByAppName(appNameUniqueIdentifier)
+	installedApp, err := impl.installedAppReadService.GetInstalledAppByAppName(appNameUniqueIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error in fetching installed app by unique identifier", "appNameUniqueIdentifier", appNameUniqueIdentifier, "err", err)
 		return nil, err

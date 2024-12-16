@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
+	read2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/history/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -45,7 +46,6 @@ type PipelineDeploymentConfigService interface {
 
 type PipelineDeploymentConfigServiceImpl struct {
 	logger                      *zap.SugaredLogger
-	envConfigOverrideRepository chartConfig.EnvConfigOverrideRepository
 	chartRepository             chartRepoRepository.ChartRepository
 	pipelineRepository          pipelineConfig.PipelineRepository
 	pipelineConfigRepository    chartConfig.PipelineConfigRepository
@@ -54,10 +54,10 @@ type PipelineDeploymentConfigServiceImpl struct {
 	deployedAppMetricsService   deployedAppMetrics.DeployedAppMetricsService
 	chartRefService             chartRef.ChartRefService
 	configMapHistoryReadService read.ConfigMapHistoryReadService
+	envConfigOverrideService    read2.EnvConfigOverrideService
 }
 
 func NewPipelineDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
-	envConfigOverrideRepository chartConfig.EnvConfigOverrideRepository,
 	chartRepository chartRepoRepository.ChartRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
@@ -66,10 +66,10 @@ func NewPipelineDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	chartRefService chartRef.ChartRefService,
 	configMapHistoryReadService read.ConfigMapHistoryReadService,
+	envConfigOverrideService read2.EnvConfigOverrideService,
 ) *PipelineDeploymentConfigServiceImpl {
 	return &PipelineDeploymentConfigServiceImpl{
 		logger:                      logger,
-		envConfigOverrideRepository: envConfigOverrideRepository,
 		chartRepository:             chartRepository,
 		pipelineRepository:          pipelineRepository,
 		pipelineConfigRepository:    pipelineConfigRepository,
@@ -78,6 +78,7 @@ func NewPipelineDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 		deployedAppMetricsService:   deployedAppMetricsService,
 		chartRefService:             chartRefService,
 		configMapHistoryReadService: configMapHistoryReadService,
+		envConfigOverrideService:    envConfigOverrideService,
 	}
 }
 
@@ -119,7 +120,7 @@ func (impl *PipelineDeploymentConfigServiceImpl) GetLatestDeploymentTemplateConf
 		impl.logger.Errorw("error, GetMetricsFlagForAPipelineByAppIdAndEnvId", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
 		return nil, err
 	}
-	envOverride, err := impl.envConfigOverrideRepository.ActiveEnvConfigOverride(pipeline.AppId, pipeline.EnvironmentId)
+	envOverride, err := impl.envConfigOverrideService.ActiveEnvConfigOverride(pipeline.AppId, pipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("not able to get envConfigOverride", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
 		return nil, err

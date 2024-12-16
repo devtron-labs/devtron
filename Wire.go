@@ -104,7 +104,6 @@ import (
 	repository8 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	resourceGroup "github.com/devtron-labs/devtron/internal/sql/repository/resourceGroup"
-	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
@@ -115,10 +114,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/chartGroup"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	repository9 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	deployment3 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deploymentTypeChange"
-	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds"
 	"github.com/devtron-labs/devtron/pkg/asyncProvider"
@@ -158,9 +154,9 @@ import (
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
-	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/pkg/variables"
@@ -197,9 +193,9 @@ func InitializeApp() (*App, error) {
 		chartRepo.ChartRepositoryWireSet,
 		appStoreDiscover.AppStoreDiscoverWireSet,
 		chartProvider.AppStoreChartProviderWireSet,
-		appStoreValues.AppStoreValuesWireSet,
+		appStoreValues.WireSet,
 		util2.GetEnvironmentVariables,
-		appStoreDeployment.AppStoreDeploymentWireSet,
+		appStoreDeployment.FullModeWireSet,
 		server.ServerWireSet,
 		module.ModuleWireSet,
 		apiToken.ApiTokenWireSet,
@@ -213,6 +209,8 @@ func InitializeApp() (*App, error) {
 		workflow3.WorkflowWireSet,
 		imageTagging.WireSet,
 		devtronResource.DevtronResourceWireSet,
+		policyGovernance.PolicyGovernanceWireSet,
+
 		// -------wireset end ----------
 		// -------
 		gitSensor.GetConfig,
@@ -539,19 +537,6 @@ func InitializeApp() (*App, error) {
 
 		notifier.NewNotificationConfigBuilderImpl,
 		wire.Bind(new(notifier.NotificationConfigBuilder), new(*notifier.NotificationConfigBuilderImpl)),
-		appStoreRestHandler.NewAppStoreStatusTimelineRestHandlerImpl,
-		wire.Bind(new(appStoreRestHandler.AppStoreStatusTimelineRestHandler), new(*appStoreRestHandler.AppStoreStatusTimelineRestHandlerImpl)),
-		appStoreRestHandler.NewInstalledAppRestHandlerImpl,
-		wire.Bind(new(appStoreRestHandler.InstalledAppRestHandler), new(*appStoreRestHandler.InstalledAppRestHandlerImpl)),
-		FullMode.NewInstalledAppDBExtendedServiceImpl,
-		wire.Bind(new(FullMode.InstalledAppDBExtendedService), new(*FullMode.InstalledAppDBExtendedServiceImpl)),
-		resource.NewInstalledAppResourceServiceImpl,
-		wire.Bind(new(resource.InstalledAppResourceService), new(*resource.InstalledAppResourceServiceImpl)),
-		deploymentTypeChange.NewInstalledAppDeploymentTypeChangeServiceImpl,
-		wire.Bind(new(deploymentTypeChange.InstalledAppDeploymentTypeChangeService), new(*deploymentTypeChange.InstalledAppDeploymentTypeChangeServiceImpl)),
-
-		appStoreRestHandler.NewAppStoreRouterImpl,
-		wire.Bind(new(appStoreRestHandler.AppStoreRouter), new(*appStoreRestHandler.AppStoreRouterImpl)),
 
 		workflow.NewAppWorkflowRestHandlerImpl,
 		wire.Bind(new(workflow.AppWorkflowRestHandler), new(*workflow.AppWorkflowRestHandlerImpl)),
@@ -645,30 +630,10 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.ImageScanRouter), new(*router.ImageScanRouterImpl)),
 		restHandler.NewImageScanRestHandlerImpl,
 		wire.Bind(new(restHandler.ImageScanRestHandler), new(*restHandler.ImageScanRestHandlerImpl)),
-		security.NewImageScanServiceImpl,
-		wire.Bind(new(security.ImageScanService), new(*security.ImageScanServiceImpl)),
-		security2.NewImageScanHistoryRepositoryImpl,
-		wire.Bind(new(security2.ImageScanHistoryRepository), new(*security2.ImageScanHistoryRepositoryImpl)),
-		security2.NewImageScanResultRepositoryImpl,
-		wire.Bind(new(security2.ImageScanResultRepository), new(*security2.ImageScanResultRepositoryImpl)),
-		security2.NewImageScanObjectMetaRepositoryImpl,
-		wire.Bind(new(security2.ImageScanObjectMetaRepository), new(*security2.ImageScanObjectMetaRepositoryImpl)),
-		security2.NewCveStoreRepositoryImpl,
-		wire.Bind(new(security2.CveStoreRepository), new(*security2.CveStoreRepositoryImpl)),
-		security2.NewImageScanDeployInfoRepositoryImpl,
-		wire.Bind(new(security2.ImageScanDeployInfoRepository), new(*security2.ImageScanDeployInfoRepositoryImpl)),
-		security2.NewScanToolMetadataRepositoryImpl,
-		wire.Bind(new(security2.ScanToolMetadataRepository), new(*security2.ScanToolMetadataRepositoryImpl)),
 		router.NewPolicyRouterImpl,
 		wire.Bind(new(router.PolicyRouter), new(*router.PolicyRouterImpl)),
 		restHandler.NewPolicyRestHandlerImpl,
 		wire.Bind(new(restHandler.PolicyRestHandler), new(*restHandler.PolicyRestHandlerImpl)),
-		security.NewPolicyServiceImpl,
-		wire.Bind(new(security.PolicyService), new(*security.PolicyServiceImpl)),
-		security2.NewPolicyRepositoryImpl,
-		wire.Bind(new(security2.CvePolicyRepository), new(*security2.CvePolicyRepositoryImpl)),
-		security2.NewScanToolExecutionHistoryMappingRepositoryImpl,
-		wire.Bind(new(security2.ScanToolExecutionHistoryMappingRepository), new(*security2.ScanToolExecutionHistoryMappingRepositoryImpl)),
 
 		argocdServer.NewArgoK8sClientImpl,
 		wire.Bind(new(argocdServer.ArgoK8sClient), new(*argocdServer.ArgoK8sClientImpl)),
@@ -971,7 +936,7 @@ func InitializeApp() (*App, error) {
 		certificate.NewServiceClientImpl,
 		wire.Bind(new(certificate.Client), new(*certificate.ServiceClientImpl)),
 
-		appStoreRestHandler.AppStoreWireSet,
+		appStoreRestHandler.FullModeWireSet,
 
 		cel.NewCELServiceImpl,
 		wire.Bind(new(cel.EvaluatorService), new(*cel.EvaluatorServiceImpl)),

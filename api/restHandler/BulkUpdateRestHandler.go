@@ -32,7 +32,6 @@ import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -40,7 +39,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bulkAction"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	security2 "github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -84,8 +82,6 @@ type BulkUpdateRestHandlerImpl struct {
 	cdHandelr               pipeline.CdHandler
 	appCloneService         appClone.AppCloneService
 	materialRepository      repository.MaterialRepository
-	policyService           security2.PolicyService
-	scanResultRepository    security.ImageScanResultRepository
 	argoUserService         argo.ArgoUserService
 }
 
@@ -106,8 +102,7 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 	cdHandelr pipeline.CdHandler,
 	appCloneService appClone.AppCloneService,
 	appWorkflowService appWorkflow.AppWorkflowService,
-	materialRepository repository.MaterialRepository, policyService security2.PolicyService,
-	scanResultRepository security.ImageScanResultRepository,
+	materialRepository repository.MaterialRepository,
 	argoUserService argo.ArgoUserService) *BulkUpdateRestHandlerImpl {
 	return &BulkUpdateRestHandlerImpl{
 		pipelineBuilder:         pipelineBuilder,
@@ -132,8 +127,6 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 		appCloneService:         appCloneService,
 		appWorkflowService:      appWorkflowService,
 		materialRepository:      materialRepository,
-		policyService:           policyService,
-		scanResultRepository:    scanResultRepository,
 		argoUserService:         argoUserService,
 	}
 }

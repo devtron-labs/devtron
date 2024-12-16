@@ -22,12 +22,12 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	helper2 "github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	repository4 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	read2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -41,7 +41,6 @@ type CommonService interface {
 type CommonServiceImpl struct {
 	logger                      *zap.SugaredLogger
 	chartRepository             chartRepoRepository.ChartRepository
-	installedAppRepository      repository4.InstalledAppRepository
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
 	dockerReg                   dockerRegistryRepository.DockerArtifactStoreRepository
 	attributeRepo               repository.AttributesRepository
@@ -50,11 +49,11 @@ type CommonServiceImpl struct {
 	teamRepository              team.TeamRepository
 	appRepository               app.AppRepository
 	gitOpsConfigReadService     config.GitOpsConfigReadService
+	envConfigOverrideReadService read2.EnvConfigOverrideService
 }
 
 func NewCommonServiceImpl(logger *zap.SugaredLogger,
 	chartRepository chartRepoRepository.ChartRepository,
-	installedAppRepository repository4.InstalledAppRepository,
 	environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
 	dockerReg dockerRegistryRepository.DockerArtifactStoreRepository,
 	attributeRepo repository.AttributesRepository,
@@ -62,11 +61,11 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 	teamRepository team.TeamRepository,
 	appRepository app.AppRepository,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	gitProviderReadService read.GitProviderReadService) *CommonServiceImpl {
+	gitProviderReadService read.GitProviderReadService,
+	envConfigOverrideReadService read2.EnvConfigOverrideService) *CommonServiceImpl {
 	serviceImpl := &CommonServiceImpl{
 		logger:                      logger,
 		chartRepository:             chartRepository,
-		installedAppRepository:      installedAppRepository,
 		environmentConfigRepository: environmentConfigRepository,
 		dockerReg:                   dockerReg,
 		attributeRepo:               attributeRepo,
@@ -75,6 +74,7 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 		appRepository:               appRepository,
 		gitOpsConfigReadService:     gitOpsConfigReadService,
 		gitProviderReadService:      gitProviderReadService,
+		envConfigOverrideReadService: envConfigOverrideReadService,
 	}
 	return serviceImpl
 }
@@ -105,7 +105,7 @@ type AppChecklist struct {
 func (impl *CommonServiceImpl) FetchLatestChart(appId int, envId int) (*chartRepoRepository.Chart, error) {
 	var chart *chartRepoRepository.Chart
 	if appId > 0 && envId > 0 {
-		envOverride, err := impl.environmentConfigRepository.ActiveEnvConfigOverride(appId, envId)
+		envOverride, err := impl.envConfigOverrideReadService.ActiveEnvConfigOverride(appId, envId)
 		if err != nil {
 			return nil, err
 		}
