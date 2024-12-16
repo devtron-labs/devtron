@@ -216,5 +216,5 @@ func (impl *ArgoApplicationServiceImpl) UnHibernateArgoApplication(ctx context.C
 }
 
 func (impl *ArgoApplicationServiceImpl) ResourceTree(ctx context.Context, query *application2.ResourcesQuery) (*argoApplication.ResourceTreeResponse, error) {
-	return nil, util2.NewApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(util.NotSupportedErr).WithUserMessage(util.NotSupportedErr)
+	return nil, util2.DefaultApiError().WithHttpStatusCode(http.StatusNotFound).WithInternalMessage(util.NotSupportedErr).WithUserMessage(util.NotSupportedErr)
 }

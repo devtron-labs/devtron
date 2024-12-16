@@ -120,8 +120,8 @@ type CiPipelineConfigServiceImpl struct {
 	logger                        *zap.SugaredLogger
 	ciTemplateService             CiTemplateService
 	ciTemplateReadService         pipeline.CiTemplateReadService
-	ciPipelineConfigReadService   read.CiPipelineConfigReadService
 	gitMaterialReadService        read2.GitMaterialReadService
+	ciPipelineConfigReadService   read.CiPipelineConfigReadService
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	ciConfig                      *types.CiCdConfig
 	attributesService             attributes.AttributesService
@@ -309,7 +309,7 @@ func (impl *CiPipelineConfigServiceImpl) patchCiPipelineUpdateSource(baseCiConfi
 	if !modifiedCiPipeline.PipelineType.IsValidPipelineType() {
 		impl.logger.Debugw(" Invalid PipelineType", "PipelineType", modifiedCiPipeline.PipelineType)
 		errorMessage := fmt.Sprintf(bean3.PIPELINE_TYPE_IS_NOT_VALID, modifiedCiPipeline.Name)
-		return nil, util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithInternalMessage(errorMessage).WithUserMessage(errorMessage)
+		return nil, util.DefaultApiError().WithHttpStatusCode(http.StatusBadRequest).WithInternalMessage(errorMessage).WithUserMessage(errorMessage)
 	}
 	cannotUpdate := false
 	for _, material := range pipeline.CiPipelineMaterials {
@@ -2024,7 +2024,7 @@ func (impl *CiPipelineConfigServiceImpl) DeleteCiPipeline(request *bean.CiPatchR
 	}
 
 	if count > 0 {
-		return nil, util.NewApiError().WithHttpStatusCode(http.StatusPreconditionFailed).
+		return nil, util.DefaultApiError().WithHttpStatusCode(http.StatusPreconditionFailed).
 			WithInternalMessage("cannot delete ci pipeline as it has linked ci").
 			WithUserMessage("cannot delete ci pipeline as it has linked ci")
 	}

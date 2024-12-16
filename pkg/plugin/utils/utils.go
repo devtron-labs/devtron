@@ -106,7 +106,7 @@ func ValidatePluginVersion(version string) error {
 	}
 	// semantic versioning validation on plugin's version
 	if !semver.IsValid(version) {
-		return util.GetApiError(http.StatusBadRequest, bean2.PluginVersionNotSemanticallyCorrectError, bean2.PluginVersionNotSemanticallyCorrectError)
+		return util.NewApiError(http.StatusBadRequest, bean2.PluginVersionNotSemanticallyCorrectError, bean2.PluginVersionNotSemanticallyCorrectError)
 	}
 	return nil
 }

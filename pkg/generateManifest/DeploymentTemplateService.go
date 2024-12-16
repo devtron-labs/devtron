@@ -44,6 +44,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	"github.com/devtron-labs/devtron/pkg/variables/utils"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"github.com/gammazero/workerpool"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -556,7 +557,7 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 	if len(appIds) == 0 {
 		return podResp, nil
 	}
-	apps, err := impl.appRepository.FindByIds(util2.GetReferencedArray(appIds))
+	apps, err := impl.appRepository.FindByIds(sliceUtil.GetReferencedSlice(appIds))
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app", "appIds", appIds, "err", err)
 		return nil, err
