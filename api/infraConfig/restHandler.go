@@ -23,7 +23,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/adapter"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/bean"
-	"github.com/devtron-labs/devtron/pkg/infraConfig/constants"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/service"
 	util2 "github.com/devtron-labs/devtron/pkg/infraConfig/util"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -80,7 +79,7 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWri
 	//vars := mux.Vars(r)
 	val := r.URL.Query().Get("name")
 	if len(val) == 0 {
-		common.WriteJsonResp(w, errors.New(constants.InvalidProfileName), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
 	profileName := strings.ToLower(val)
@@ -97,11 +96,11 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWri
 	payload.Name = strings.ToLower(payload.Name)
 	err = handler.validator.Struct(payload)
 	if err != nil {
-		err = errors.Wrap(err, constants.PayloadValidationError)
+		err = errors.Wrap(err, bean.PayloadValidationError)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 	}
 	if !util2.IsValidProfileNameRequested(profileName, payload.Name) {
-		common.WriteJsonResp(w, errors.New(constants.InvalidProfileName), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
 	err = handler.infraProfileService.UpdateProfile(userId, profileName, payload)
@@ -128,13 +127,13 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 	identifier := r.URL.Query().Get("name")
 
 	if len(identifier) == 0 {
-		common.WriteJsonResp(w, errors.New(constants.InvalidProfileName), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
 	profileName := strings.ToLower(identifier)
 	var profile *bean.ProfileBeanDto
-	if profileName != constants.GLOBAL_PROFILE_NAME {
-		common.WriteJsonResp(w, errors.New(constants.InvalidProfileName), nil, http.StatusBadRequest)
+	if profileName != bean.GLOBAL_PROFILE_NAME {
+		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
 	defaultProfile, err := handler.infraProfileService.GetProfileByName(profileName)
@@ -169,7 +168,7 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfileV0(w http.ResponseW
 	vars := mux.Vars(r)
 	profileName := strings.ToLower(vars["name"])
 	if profileName == "" {
-		common.WriteJsonResp(w, errors.New(constants.InvalidProfileName), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
 	payload := &bean.ProfileBeanV0{}
@@ -183,19 +182,19 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfileV0(w http.ResponseW
 	payload.Name = strings.ToLower(payload.Name)
 	err = handler.validator.Struct(payload)
 	if err != nil {
-		err = errors.Wrap(err, constants.PayloadValidationError)
+		err = errors.Wrap(err, bean.PayloadValidationError)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 	}
 	if !util2.IsValidProfileNameRequestedV0(profileName, payload.Name) {
-		common.WriteJsonResp(w, errors.New(constants.InvalidProfileName), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
-	if payload.Name != constants.DEFAULT_PROFILE_NAME {
-		common.WriteJsonResp(w, errors.New(constants.InvalidProfileName), nil, http.StatusBadRequest)
+	if payload.Name != bean.DEFAULT_PROFILE_NAME {
+		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
 
-	profileName = constants.GLOBAL_PROFILE_NAME
+	profileName = bean.GLOBAL_PROFILE_NAME
 	payloadV1 := adapter.GetV1ProfileBean(payload)
 	err = handler.infraProfileService.UpdateProfile(userId, profileName, payloadV1)
 	if err != nil {
@@ -222,16 +221,16 @@ func (handler *InfraConfigRestHandlerImpl) GetProfileV0(w http.ResponseWriter, r
 	vars := mux.Vars(r)
 	profileName := strings.ToLower(vars["name"])
 	if profileName == "" {
-		common.WriteJsonResp(w, errors.New(constants.InvalidProfileName), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
 
-	if profileName != constants.DEFAULT_PROFILE_NAME {
-		common.WriteJsonResp(w, errors.New(constants.InvalidProfileName), nil, http.StatusBadRequest)
+	if profileName != bean.DEFAULT_PROFILE_NAME {
+		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
 
-	profileName = constants.GLOBAL_PROFILE_NAME
+	profileName = bean.GLOBAL_PROFILE_NAME
 
 	var profile *bean.ProfileBeanV0
 	defaultProfileV1, err := handler.infraProfileService.GetProfileByName(profileName)

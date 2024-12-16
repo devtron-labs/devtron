@@ -17,7 +17,6 @@
 package bean
 
 import (
-	util2 "github.com/devtron-labs/devtron/pkg/infraConfig/constants"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"time"
 )
@@ -25,16 +24,16 @@ import (
 // service layer structs
 
 type ProfileBeanAbstract struct {
-	Id          int               `json:"id"`
-	Name        string            `json:"name" validate:"required,min=1,max=50"`
-	Description string            `json:"description" validate:"max=300"`
-	Active      bool              `json:"active"`
-	Type        util2.ProfileType `json:"type"`
-	AppCount    int               `json:"appCount"`
-	CreatedBy   int32             `json:"createdBy"`
-	CreatedOn   time.Time         `json:"createdOn"`
-	UpdatedBy   int32             `json:"updatedBy"`
-	UpdatedOn   time.Time         `json:"updatedOn"`
+	Id          int         `json:"id"`
+	Name        string      `json:"name" validate:"required,min=1,max=50"`
+	Description string      `json:"description" validate:"max=300"`
+	Active      bool        `json:"active"`
+	Type        ProfileType `json:"type"`
+	AppCount    int         `json:"appCount"`
+	CreatedBy   int32       `json:"createdBy"`
+	CreatedOn   time.Time   `json:"createdOn"`
+	UpdatedBy   int32       `json:"updatedBy"`
+	UpdatedOn   time.Time   `json:"updatedOn"`
 }
 
 type ProfileBeanDto struct {
@@ -60,23 +59,23 @@ type ConfigurationBeanV0 struct {
 }
 
 type ConfigurationBeanAbstract struct {
-	Id          int                `json:"id"`
-	Key         util2.ConfigKeyStr `json:"key"`
-	Unit        string             `json:"unit" validate:"required,gt=0"`
-	ProfileName string             `json:"profileName"`
-	ProfileId   int                `json:"profileId"`
-	Active      bool               `json:"active"`
+	Id          int          `json:"id"`
+	Key         ConfigKeyStr `json:"key"`
+	Unit        string       `json:"unit" validate:"required,gt=0"`
+	ProfileName string       `json:"profileName"`
+	ProfileId   int          `json:"profileId"`
+	Active      bool         `json:"active"`
 }
 
 type InfraConfigMetaData struct {
-	DefaultConfigurations map[string][]*ConfigurationBean              `json:"defaultConfigurations"`
-	ConfigurationUnits    map[util2.ConfigKeyStr]map[string]units.Unit `json:"configurationUnits"`
+	DefaultConfigurations map[string][]*ConfigurationBean        `json:"defaultConfigurations"`
+	ConfigurationUnits    map[ConfigKeyStr]map[string]units.Unit `json:"configurationUnits"`
 }
 
 // Deprecated
 type InfraConfigMetaDataV0 struct {
-	DefaultConfigurations []ConfigurationBeanV0                        `json:"defaultConfigurations"`
-	ConfigurationUnits    map[util2.ConfigKeyStr]map[string]units.Unit `json:"configurationUnits"`
+	DefaultConfigurations []ConfigurationBeanV0                  `json:"defaultConfigurations"`
+	ConfigurationUnits    map[ConfigKeyStr]map[string]units.Unit `json:"configurationUnits"`
 }
 
 type ProfileResponse struct {

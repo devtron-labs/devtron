@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/bean"
-	"github.com/devtron-labs/devtron/pkg/infraConfig/constants"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	util2 "github.com/devtron-labs/devtron/util"
 	"math"
@@ -30,73 +29,73 @@ import (
 )
 
 // GetUnitSuffix loosely typed method to get the unit suffix using the unitKey type
-func GetUnitSuffix(unitKey constants.ConfigKeyStr, unitStr string) units.UnitSuffix {
+func GetUnitSuffix(unitKey bean.ConfigKeyStr, unitStr string) units.UnitSuffix {
 	switch unitKey {
-	case constants.CPU_LIMIT, constants.CPU_REQUEST:
+	case bean.CPU_LIMIT, bean.CPU_REQUEST:
 		return units.CPUUnitStr(unitStr).GetCPUUnit()
-	case constants.MEMORY_LIMIT, constants.MEMORY_REQUEST:
+	case bean.MEMORY_LIMIT, bean.MEMORY_REQUEST:
 		return units.MemoryUnitStr(unitStr).GetMemoryUnit()
 	}
 	return units.TimeUnitStr(unitStr).GetTimeUnit()
 }
 
 // GetUnitSuffixStr loosely typed method to get the unit suffix using the unitKey type
-func GetUnitSuffixStr(unitKey constants.ConfigKey, unit units.UnitSuffix) string {
+func GetUnitSuffixStr(unitKey bean.ConfigKey, unit units.UnitSuffix) string {
 	switch unitKey {
-	case constants.CPULimitKey, constants.CPURequestKey:
+	case bean.CPULimitKey, bean.CPURequestKey:
 		return string(unit.GetCPUUnitStr())
-	case constants.MemoryLimitKey, constants.MemoryRequestKey:
+	case bean.MemoryLimitKey, bean.MemoryRequestKey:
 		return string(unit.GetMemoryUnitStr())
 	}
 	return string(unit.GetTimeUnitStr())
 }
 
 // GetDefaultConfigKeysMap returns a map of default config keys
-func GetDefaultConfigKeysMap() map[constants.ConfigKeyStr]bool {
-	return map[constants.ConfigKeyStr]bool{
-		constants.CPU_LIMIT:      true,
-		constants.CPU_REQUEST:    true,
-		constants.MEMORY_LIMIT:   true,
-		constants.MEMORY_REQUEST: true,
-		constants.TIME_OUT:       true,
+func GetDefaultConfigKeysMap() map[bean.ConfigKeyStr]bool {
+	return map[bean.ConfigKeyStr]bool{
+		bean.CPU_LIMIT:      true,
+		bean.CPU_REQUEST:    true,
+		bean.MEMORY_LIMIT:   true,
+		bean.MEMORY_REQUEST: true,
+		bean.TIME_OUT:       true,
 	}
 }
 
-func GetConfigKeyStr(configKey constants.ConfigKey) constants.ConfigKeyStr {
+func GetConfigKeyStr(configKey bean.ConfigKey) bean.ConfigKeyStr {
 	switch configKey {
-	case constants.CPULimitKey:
-		return constants.CPU_LIMIT
-	case constants.CPURequestKey:
-		return constants.CPU_REQUEST
-	case constants.MemoryLimitKey:
-		return constants.MEMORY_LIMIT
-	case constants.MemoryRequestKey:
-		return constants.MEMORY_REQUEST
-	case constants.TimeOutKey:
-		return constants.TIME_OUT
+	case bean.CPULimitKey:
+		return bean.CPU_LIMIT
+	case bean.CPURequestKey:
+		return bean.CPU_REQUEST
+	case bean.MemoryLimitKey:
+		return bean.MEMORY_LIMIT
+	case bean.MemoryRequestKey:
+		return bean.MEMORY_REQUEST
+	case bean.TimeOutKey:
+		return bean.TIME_OUT
 	}
 	return ""
 }
 
-func GetConfigKey(configKeyStr constants.ConfigKeyStr) constants.ConfigKey {
+func GetConfigKey(configKeyStr bean.ConfigKeyStr) bean.ConfigKey {
 	switch configKeyStr {
-	case constants.CPU_LIMIT:
-		return constants.CPULimitKey
-	case constants.CPU_REQUEST:
-		return constants.CPURequestKey
-	case constants.MEMORY_LIMIT:
-		return constants.MemoryLimitKey
-	case constants.MEMORY_REQUEST:
-		return constants.MemoryRequestKey
-	case constants.TIME_OUT:
-		return constants.TimeOutKey
+	case bean.CPU_LIMIT:
+		return bean.CPULimitKey
+	case bean.CPU_REQUEST:
+		return bean.CPURequestKey
+	case bean.MEMORY_LIMIT:
+		return bean.MemoryLimitKey
+	case bean.MEMORY_REQUEST:
+		return bean.MemoryRequestKey
+	case bean.TIME_OUT:
+		return bean.TimeOutKey
 	}
 	return 0
 }
 
-func GetTypedValue(configKey constants.ConfigKeyStr, value interface{}) (interface{}, error) {
+func GetTypedValue(configKey bean.ConfigKeyStr, value interface{}) (interface{}, error) {
 	switch configKey {
-	case constants.CPU_LIMIT, constants.CPU_REQUEST, constants.MEMORY_LIMIT, constants.MEMORY_REQUEST:
+	case bean.CPU_LIMIT, bean.CPU_REQUEST, bean.MEMORY_LIMIT, bean.MEMORY_REQUEST:
 		//value is float64 or convertible to it
 		switch v := value.(type) {
 		case string:
@@ -110,7 +109,7 @@ func GetTypedValue(configKey constants.ConfigKeyStr, value interface{}) (interfa
 		default:
 			return nil, fmt.Errorf("unsupported type for %s: %v", configKey, reflect.TypeOf(value))
 		}
-	case constants.TIME_OUT:
+	case bean.TIME_OUT:
 		switch v := value.(type) {
 		case string:
 			valueFloat, err := strconv.ParseFloat(v, 64)
@@ -143,7 +142,7 @@ func ValidatePayloadConfig(profileToUpdate *bean.ProfileBeanDto) error {
 	}
 	return nil
 }
-func validateConfigItems(propertyConfigs []*bean.ConfigurationBean, defaultKeyMap map[constants.ConfigKeyStr]bool) error {
+func validateConfigItems(propertyConfigs []*bean.ConfigurationBean, defaultKeyMap map[bean.ConfigKeyStr]bool) error {
 	var validationErrors []string
 	for _, config := range propertyConfigs {
 		if _, isValidKey := defaultKeyMap[config.Key]; !isValidKey {
@@ -164,9 +163,9 @@ func validateConfigItems(propertyConfigs []*bean.ConfigurationBean, defaultKeyMa
 }
 
 func IsValidProfileNameRequested(profileName, reqProfileName string) bool {
-	return !(profileName == "" || (profileName == constants.GLOBAL_PROFILE_NAME && reqProfileName != constants.GLOBAL_PROFILE_NAME))
+	return !(profileName == "" || (profileName == bean.GLOBAL_PROFILE_NAME && reqProfileName != bean.GLOBAL_PROFILE_NAME))
 }
 
 func IsValidProfileNameRequestedV0(profileName, reqProfileName string) bool {
-	return !(profileName == "" || (profileName == constants.DEFAULT_PROFILE_NAME && reqProfileName != constants.DEFAULT_PROFILE_NAME))
+	return !(profileName == "" || (profileName == bean.DEFAULT_PROFILE_NAME && reqProfileName != bean.DEFAULT_PROFILE_NAME))
 }

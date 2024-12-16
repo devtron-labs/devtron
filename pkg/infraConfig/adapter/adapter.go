@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/bean"
-	"github.com/devtron-labs/devtron/pkg/infraConfig/constants"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/util"
@@ -30,7 +29,7 @@ func ConvertToPlatformMap(infraProfileConfigurationEntities []*repository.InfraP
 		}
 		platform := infraProfileConfiguration.Platform
 		if len(platform) == 0 {
-			platform = constants.DEFAULT_PLATFORM
+			platform = bean.DEFAULT_PLATFORM
 		}
 
 		// Add the ConfigurationBean to the corresponding platform entry in the map
@@ -52,14 +51,14 @@ func ConvertFromPlatformMap(platformMap map[string][]*bean.ConfigurationBean, pr
 }
 
 // Function to convert valueString to interface{} based on key
-func convertValueStringToInterface(configKey constants.ConfigKeyStr, valueString string) (interface{}, error) {
+func convertValueStringToInterface(configKey bean.ConfigKeyStr, valueString string) (interface{}, error) {
 	switch configKey {
-	case constants.CPU_LIMIT, constants.CPU_REQUEST, constants.MEMORY_LIMIT, constants.MEMORY_REQUEST:
+	case bean.CPU_LIMIT, bean.CPU_REQUEST, bean.MEMORY_LIMIT, bean.MEMORY_REQUEST:
 		// Convert string to float64 and truncate to 2 decimal places
 		valueFloat, err := strconv.ParseFloat(valueString, 64)
 		truncateValue := util2.TruncateFloat(valueFloat, 2)
 		return truncateValue, err // Returning float64 for resource values
-	case constants.TIME_OUT:
+	case bean.TIME_OUT:
 		// Convert string to float64 and ensure it's within integer range
 		valueFloat, err := strconv.ParseFloat(valueString, 64)
 		modifiedValue := math.Min(math.Floor(valueFloat), math.MaxInt64)
@@ -109,17 +108,17 @@ func getInfraProfileEntity(configurationBean *bean.ConfigurationBean, profileBea
 		Active:      configurationBean.Active,
 		AuditLog:    sql.NewDefaultAuditLog(userId),
 	}
-	if profileBean.Name == constants.GLOBAL_PROFILE_NAME {
+	if profileBean.Name == bean.GLOBAL_PROFILE_NAME {
 		infraProfile.Active = true
 	}
 	return infraProfile
 }
 
-func formatFloatIfNeeded(configKey constants.ConfigKeyStr, configValue interface{}) string {
-	if configKey == constants.CPU_LIMIT ||
-		configKey == constants.CPU_REQUEST ||
-		configKey == constants.MEMORY_LIMIT ||
-		configKey == constants.MEMORY_REQUEST {
+func formatFloatIfNeeded(configKey bean.ConfigKeyStr, configValue interface{}) string {
+	if configKey == bean.CPU_LIMIT ||
+		configKey == bean.CPU_REQUEST ||
+		configKey == bean.MEMORY_LIMIT ||
+		configKey == bean.MEMORY_REQUEST {
 		var valueFloat float64
 		// Handle string input or directly as float64
 		switch v := configValue.(type) {
@@ -134,7 +133,7 @@ func formatFloatIfNeeded(configKey constants.ConfigKeyStr, configValue interface
 		//valueFloat, _ := strconv.ParseFloat(configValue.(float64), 64)
 	}
 
-	if configKey == constants.TIME_OUT {
+	if configKey == bean.TIME_OUT {
 		var valueFloat float64
 		switch v := configValue.(type) {
 		case string:
@@ -155,16 +154,16 @@ func GetV0ProfileBean(profileBean *bean.ProfileBeanDto) *bean.ProfileBeanV0 {
 		return &bean.ProfileBeanV0{}
 	}
 	profileName := profileBean.Name
-	if profileName == constants.GLOBAL_PROFILE_NAME {
-		profileName = constants.DEFAULT_PROFILE_NAME
+	if profileName == bean.GLOBAL_PROFILE_NAME {
+		profileName = bean.DEFAULT_PROFILE_NAME
 	}
 
 	profileType := profileBean.Type
-	if profileType == constants.GLOBAL {
-		profileType = constants.DEFAULT
+	if profileType == bean.GLOBAL {
+		profileType = bean.DEFAULT
 	}
 
-	ciRunnerConfig := profileBean.Configurations[constants.DEFAULT_PLATFORM]
+	ciRunnerConfig := profileBean.Configurations[bean.DEFAULT_PLATFORM]
 	return &bean.ProfileBeanV0{
 		ProfileBeanAbstract: bean.ProfileBeanAbstract{
 			Id:          profileBean.Id,
@@ -188,12 +187,12 @@ func GetV1ProfileBean(profileBean *bean.ProfileBeanV0) *bean.ProfileBeanDto {
 		return nil
 	}
 	profileName := profileBean.Name
-	if profileName == constants.DEFAULT_PROFILE_NAME {
-		profileName = constants.GLOBAL_PROFILE_NAME
+	if profileName == bean.DEFAULT_PROFILE_NAME {
+		profileName = bean.GLOBAL_PROFILE_NAME
 	}
 	profileType := profileBean.Type
-	if profileType == constants.GLOBAL {
-		profileType = constants.DEFAULT
+	if profileType == bean.GLOBAL {
+		profileType = bean.DEFAULT
 	}
 	return &bean.ProfileBeanDto{
 		ProfileBeanAbstract: bean.ProfileBeanAbstract{
@@ -208,7 +207,7 @@ func GetV1ProfileBean(profileBean *bean.ProfileBeanV0) *bean.ProfileBeanDto {
 			UpdatedBy:   profileBean.UpdatedBy,
 			UpdatedOn:   profileBean.UpdatedOn,
 		},
-		Configurations: map[string][]*bean.ConfigurationBean{constants.DEFAULT_PLATFORM: GetV1ConfigurationBeans(profileBean.Configurations, profileName)},
+		Configurations: map[string][]*bean.ConfigurationBean{bean.DEFAULT_PLATFORM: GetV1ConfigurationBeans(profileBean.Configurations, profileName)},
 	}
 
 }
@@ -264,9 +263,9 @@ func GetV0ConfigurationBeans(configBeans []*bean.ConfigurationBean, profileName 
 }
 
 func ConvertToProfileBean(infraProfile *repository.InfraProfileEntity) bean.ProfileBeanDto {
-	profileType := constants.GLOBAL
-	if infraProfile.Name != constants.GLOBAL_PROFILE_NAME {
-		profileType = constants.NORMAL
+	profileType := bean.GLOBAL
+	if infraProfile.Name != bean.GLOBAL_PROFILE_NAME {
+		profileType = bean.NORMAL
 	}
 	return bean.ProfileBeanDto{
 		ProfileBeanAbstract: bean.ProfileBeanAbstract{
@@ -297,10 +296,10 @@ func LoadCiLimitCpu(infraConfig *bean.InfraConfig) (*repository.InfraProfileConf
 		return nil, err
 	}
 	return &repository.InfraProfileConfigurationEntity{
-		Key:         constants.CPULimitKey,
+		Key:         bean.CPULimitKey,
 		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
 		Unit:        units.CPUUnitStr(suffix).GetCPUUnit(),
-		Platform:    constants.DEFAULT_PLATFORM,
+		Platform:    bean.DEFAULT_PLATFORM,
 	}, nil
 
 }
@@ -332,10 +331,10 @@ func LoadInfraConfigInEntities(infraConfig *bean.InfraConfig) ([]*repository.Inf
 
 func LoadDefaultTimeout(infraConfig *bean.InfraConfig) (*repository.InfraProfileConfigurationEntity, error) {
 	return &repository.InfraProfileConfigurationEntity{
-		Key:         constants.TimeOutKey,
+		Key:         bean.TimeOutKey,
 		ValueString: strconv.FormatInt(infraConfig.CiDefaultTimeout, 10),
 		Unit:        units.SecondStr.GetTimeUnit(),
-		Platform:    constants.DEFAULT_PLATFORM,
+		Platform:    bean.DEFAULT_PLATFORM,
 	}, nil
 }
 
@@ -345,10 +344,10 @@ func LoadCiReqCpu(infraConfig *bean.InfraConfig) (*repository.InfraProfileConfig
 		return nil, err
 	}
 	return &repository.InfraProfileConfigurationEntity{
-		Key:         constants.CPURequestKey,
+		Key:         bean.CPURequestKey,
 		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
 		Unit:        units.CPUUnitStr(suffix).GetCPUUnit(),
-		Platform:    constants.DEFAULT_PLATFORM,
+		Platform:    bean.DEFAULT_PLATFORM,
 	}, nil
 }
 
@@ -359,10 +358,10 @@ func LoadCiReqMem(infraConfig *bean.InfraConfig) (*repository.InfraProfileConfig
 	}
 
 	return &repository.InfraProfileConfigurationEntity{
-		Key:         constants.MemoryRequestKey,
+		Key:         bean.MemoryRequestKey,
 		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
 		Unit:        units.MemoryUnitStr(suffix).GetMemoryUnit(),
-		Platform:    constants.DEFAULT_PLATFORM,
+		Platform:    bean.DEFAULT_PLATFORM,
 	}, nil
 }
 
@@ -372,10 +371,10 @@ func LoadCiLimitMem(infraConfig *bean.InfraConfig) (*repository.InfraProfileConf
 		return nil, err
 	}
 	return &repository.InfraProfileConfigurationEntity{
-		Key:         constants.MemoryLimitKey,
+		Key:         bean.MemoryLimitKey,
 		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
 		Unit:        units.MemoryUnitStr(suffix).GetMemoryUnit(),
-		Platform:    constants.DEFAULT_PLATFORM,
+		Platform:    bean.DEFAULT_PLATFORM,
 	}, nil
 
 }

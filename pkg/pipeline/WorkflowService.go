@@ -31,7 +31,6 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	bean4 "github.com/devtron-labs/devtron/pkg/infraConfig/bean"
-	util2 "github.com/devtron-labs/devtron/pkg/infraConfig/constants"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
@@ -154,7 +153,7 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 			AppId: workflowRequest.AppId,
 		}
 		infraGetter, _ := impl.infraProvider.GetInfraProvider(workflowRequest.Type)
-		infraConfiguration, err = infraGetter.GetInfraConfigurationsByScopeAndPlatform(infraConfigScope, util2.DEFAULT_PLATFORM)
+		infraConfiguration, err = infraGetter.GetInfraConfigurationsByScopeAndPlatform(infraConfigScope, bean4.DEFAULT_PLATFORM)
 		if err != nil {
 			impl.Logger.Errorw("error occurred while getting infra config", "infraConfigScope", infraConfigScope, "err", err)
 			return bean3.WorkflowTemplate{}, err

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package constants
+package bean
 
 type ConfigKey int
 type ConfigKeyStr string

@@ -17,7 +17,7 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/pkg/infraConfig/constants"
+	"github.com/devtron-labs/devtron/pkg/infraConfig/bean"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -33,15 +33,15 @@ type InfraProfileEntity struct {
 	sql.AuditLog
 }
 type InfraProfileConfigurationEntity struct {
-	tableName   struct{}            `sql:"infra_profile_configuration" pg:",discard_unknown_columns"`
-	Id          int                 `sql:"id"`
-	Key         constants.ConfigKey `sql:"key"`
-	Value       float64             `sql:"value"`
-	ValueString string              `sql:"value_string"`
-	Unit        units.UnitSuffix    `sql:"unit"`
-	ProfileId   int                 `sql:"profile_id"`
-	Platform    string              `sql:"platform"`
-	Active      bool                `sql:"active"`
+	tableName   struct{}         `sql:"infra_profile_configuration" pg:",discard_unknown_columns"`
+	Id          int              `sql:"id"`
+	Key         bean.ConfigKey   `sql:"key"`
+	Value       float64          `sql:"value"`
+	ValueString string           `sql:"value_string"`
+	Unit        units.UnitSuffix `sql:"unit"`
+	ProfileId   int              `sql:"profile_id"`
+	Platform    string           `sql:"platform"`
+	Active      bool             `sql:"active"`
 	sql.AuditLog
 }
 
@@ -124,7 +124,7 @@ func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileName(profileNam
 		Where("active = ?", true).
 		Select()
 	if errors.Is(err, pg.ErrNoRows) {
-		return nil, errors.New(constants.NO_PROPERTIES_FOUND)
+		return nil, errors.New(bean.NO_PROPERTIES_FOUND)
 	}
 	return configurations, err
 }
@@ -136,7 +136,7 @@ func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileId in
 		Where("active = ?", true).
 		Select()
 	if errors.Is(err, pg.ErrNoRows) {
-		return nil, errors.New(constants.NO_PROPERTIES_FOUND)
+		return nil, errors.New(bean.NO_PROPERTIES_FOUND)
 	}
 	return configurations, err
 }
