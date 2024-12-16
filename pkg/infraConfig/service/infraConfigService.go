@@ -163,6 +163,7 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 	profile, err := impl.infraProfileRepo.GetProfileByName(constants.GLOBAL_PROFILE_NAME)
 	// make sure about no rows error
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in fetching default profile", "error", err)
 		return err
 	}
 	profileCreationRequired := errors.Is(err, pg.ErrNoRows)
