@@ -22,7 +22,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	helper2 "github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	repository4 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes/bean"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -40,23 +39,22 @@ type CommonService interface {
 }
 
 type CommonServiceImpl struct {
-	logger                       *zap.SugaredLogger
-	chartRepository              chartRepoRepository.ChartRepository
-	installedAppRepository       repository4.InstalledAppRepository
-	environmentConfigRepository  chartConfig.EnvConfigOverrideRepository
-	dockerReg                    dockerRegistryRepository.DockerArtifactStoreRepository
-	attributeRepo                repository.AttributesRepository
-	gitProviderReadService       read.GitProviderReadService
-	environmentRepository        repository3.EnvironmentRepository
-	teamRepository               team.TeamRepository
-	appRepository                app.AppRepository
-	gitOpsConfigReadService      config.GitOpsConfigReadService
+	logger                      *zap.SugaredLogger
+	chartRepository             chartRepoRepository.ChartRepository
+	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
+	dockerReg                   dockerRegistryRepository.DockerArtifactStoreRepository
+	attributeRepo               repository.AttributesRepository
+	gitProviderReadService      read.GitProviderReadService
+	environmentRepository       repository3.EnvironmentRepository
+	teamRepository              team.TeamRepository
+	appRepository               app.AppRepository
+	gitOpsConfigReadService     config.GitOpsConfigReadService
 	envConfigOverrideReadService read2.EnvConfigOverrideService
 }
 
 func NewCommonServiceImpl(logger *zap.SugaredLogger,
 	chartRepository chartRepoRepository.ChartRepository,
-	installedAppRepository repository4.InstalledAppRepository,
+	environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
 	dockerReg dockerRegistryRepository.DockerArtifactStoreRepository,
 	attributeRepo repository.AttributesRepository,
 	environmentRepository repository3.EnvironmentRepository,
@@ -66,16 +64,16 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 	gitProviderReadService read.GitProviderReadService,
 	envConfigOverrideReadService read2.EnvConfigOverrideService) *CommonServiceImpl {
 	serviceImpl := &CommonServiceImpl{
-		logger:                       logger,
-		chartRepository:              chartRepository,
-		installedAppRepository:       installedAppRepository,
-		dockerReg:                    dockerReg,
-		attributeRepo:                attributeRepo,
-		environmentRepository:        environmentRepository,
-		teamRepository:               teamRepository,
-		appRepository:                appRepository,
-		gitOpsConfigReadService:      gitOpsConfigReadService,
-		gitProviderReadService:       gitProviderReadService,
+		logger:                      logger,
+		chartRepository:             chartRepository,
+		environmentConfigRepository: environmentConfigRepository,
+		dockerReg:                   dockerReg,
+		attributeRepo:               attributeRepo,
+		environmentRepository:       environmentRepository,
+		teamRepository:              teamRepository,
+		appRepository:               appRepository,
+		gitOpsConfigReadService:     gitOpsConfigReadService,
+		gitProviderReadService:      gitProviderReadService,
 		envConfigOverrideReadService: envConfigOverrideReadService,
 	}
 	return serviceImpl

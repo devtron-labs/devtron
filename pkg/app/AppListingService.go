@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	util2 "github.com/devtron-labs/devtron/util"
 	"net/http"
 	"strconv"
 	"strings"
@@ -561,7 +562,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 		if env.EnvironmentName == "" {
 			continue
 		}
-		appName := fmt.Sprintf("%s-%s", env.AppName, env.EnvironmentName)
+		appName := util2.BuildDeployedAppName(env.AppName, env.EnvironmentName)
 		appNames = append(appNames, appName)
 		pipelineIds = append(pipelineIds, env.PipelineId)
 	}

@@ -79,6 +79,13 @@ type AppStoreApplicationVersion struct {
 	AppStore         *AppStore
 }
 
+func (a *AppStoreApplicationVersion) IsEmpty() bool {
+	if a == nil {
+		return true
+	}
+	return a.Id == 0
+}
+
 func (impl AppStoreApplicationVersionRepositoryImpl) GetChartInfoById(id int) (*AppStoreApplicationVersion, error) {
 	var appStoreWithVersion AppStoreApplicationVersion
 	err := impl.dbConnection.Model(&appStoreWithVersion).Column("readme", "values_schema_json", "notes", "id").
