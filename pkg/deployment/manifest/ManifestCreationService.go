@@ -831,12 +831,12 @@ func (impl *ManifestCreationServiceImpl) getK8sHPAResourceManifest(ctx context.C
 	resourceManifest := make(map[string]interface{})
 	version, err := impl.k8sCommonService.GetPreferredVersionForAPIGroup(ctx, clusterId, hpaResourceRequest.Group)
 	if err != nil && !k8sUtil.IsNotFoundError(err) {
-		return resourceManifest, util.NewApiError().
+		return resourceManifest, util.DefaultApiError().
 			WithHttpStatusCode(http.StatusPreconditionFailed).
 			WithInternalMessage(err.Error()).
 			WithUserDetailMessage("unable to find preferred version for hpa resource")
 	} else if k8sUtil.IsNotFoundError(err) {
-		return resourceManifest, util.NewApiError().
+		return resourceManifest, util.DefaultApiError().
 			WithHttpStatusCode(http.StatusPreconditionFailed).
 			WithInternalMessage("unable to find preferred version for hpa resource").
 			WithUserDetailMessage("unable to find preferred version for hpa resource")
@@ -861,13 +861,13 @@ func (impl *ManifestCreationServiceImpl) getK8sHPAResourceManifest(ctx context.C
 			return resourceManifest, nil
 		} else if k8s.IsBadRequestErr(err) {
 			impl.logger.Errorw("bad request error occurred while fetching hpa resource for app", "resourceName", hpaResourceRequest.ResourceName, "err", err)
-			return resourceManifest, util.NewApiError().
+			return resourceManifest, util.DefaultApiError().
 				WithHttpStatusCode(http.StatusPreconditionFailed).
 				WithInternalMessage(err.Error()).
 				WithUserDetailMessage(err.Error())
 		} else if k8s.IsServerTimeoutErr(err) {
 			impl.logger.Errorw("targeted hpa resource could not be served", "resourceName", hpaResourceRequest.ResourceName, "err", err)
-			return resourceManifest, util.NewApiError().
+			return resourceManifest, util.DefaultApiError().
 				WithHttpStatusCode(http.StatusRequestTimeout).
 				WithInternalMessage(err.Error()).
 				WithUserDetailMessage("taking longer than expected, please try again later")
@@ -903,7 +903,7 @@ func (impl *ManifestCreationServiceImpl) getArgoCdHPAResourceManifest(ctx contex
 			return resourceManifest, fmt.Errorf("ArgoCd server error: %s", errMsg)
 		} else if grpcCode.IsDeadlineExceededCode() {
 			impl.logger.Errorw("ArgoCd resource request timeout", "resourceName", hpaResourceRequest.ResourceName, "err", errMsg)
-			return resourceManifest, util.NewApiError().
+			return resourceManifest, util.DefaultApiError().
 				WithHttpStatusCode(http.StatusRequestTimeout).
 				WithInternalMessage(errMsg).
 				WithUserDetailMessage("ArgoCd server is not responding, please try again later")
@@ -1119,7 +1119,7 @@ func (impl *ManifestCreationServiceImpl) autoscalingCheckBeforeTrigger(ctx conte
 func (impl *ManifestCreationServiceImpl) getReplicaCountFromCustomChart(templateMap map[string]interface{}, merged []byte) (float64, error) {
 	autoscalingMinVal, err := helper.ExtractParamValue(templateMap, appBean.CustomAutoscalingMinPathKey, merged)
 	if helper.IsNotFoundErr(err) {
-		return 0, util.NewApiError().
+		return 0, util.DefaultApiError().
 			WithHttpStatusCode(http.StatusPreconditionFailed).
 			WithInternalMessage(helper.KeyNotFoundError).
 			WithUserDetailMessage(fmt.Sprintf("empty value for key [%s]", appBean.CustomAutoscalingMinPathKey))
@@ -1129,7 +1129,7 @@ func (impl *ManifestCreationServiceImpl) getReplicaCountFromCustomChart(template
 	}
 	autoscalingMaxVal, err := helper.ExtractParamValue(templateMap, appBean.CustomAutoscalingMaxPathKey, merged)
 	if helper.IsNotFoundErr(err) {
-		return 0, util.NewApiError().
+		return 0, util.DefaultApiError().
 			WithHttpStatusCode(http.StatusPreconditionFailed).
 			WithInternalMessage(helper.KeyNotFoundError).
 			WithUserDetailMessage(fmt.Sprintf("empty value for key [%s]", appBean.CustomAutoscalingMaxPathKey))
@@ -1139,7 +1139,7 @@ func (impl *ManifestCreationServiceImpl) getReplicaCountFromCustomChart(template
 	}
 	autoscalingReplicaCountVal, err := helper.ExtractParamValue(templateMap, appBean.CustomAutoscalingReplicaCountPathKey, merged)
 	if helper.IsNotFoundErr(err) {
-		return 0, util.NewApiError().
+		return 0, util.DefaultApiError().
 			WithHttpStatusCode(http.StatusPreconditionFailed).
 			WithInternalMessage(helper.KeyNotFoundError).
 			WithUserDetailMessage(fmt.Sprintf("empty value for key [%s]", appBean.CustomAutoscalingReplicaCountPathKey))

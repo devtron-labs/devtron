@@ -29,7 +29,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/history/bean"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
-	util4 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"go.opentelemetry.io/otel"
 	"time"
 
@@ -133,7 +133,7 @@ func (impl *DeployedConfigurationHistoryServiceImpl) CreateHistoriesForDeploymen
 		}
 	}
 
-	var variableSnapshotHistories = util4.GetBeansPtr(
+	var variableSnapshotHistories = sliceUtil.GetBeansPtr(
 		repository5.GetSnapshotBean(deploymentTemplateHistoryId, repository5.HistoryReferenceTypeDeploymentTemplate, envOverride.VariableSnapshot),
 		repository5.GetSnapshotBean(cmId, repository5.HistoryReferenceTypeConfigMap, envOverride.VariableSnapshotForCM),
 		repository5.GetSnapshotBean(csId, repository5.HistoryReferenceTypeSecret, envOverride.VariableSnapshotForCS),

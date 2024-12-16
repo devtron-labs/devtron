@@ -17,8 +17,8 @@
 package imageScanning
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	repository2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
+	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
 	"testing"
 )
 
@@ -26,7 +26,7 @@ func TestPolicyServiceImpl_HasBlockedCVE(t *testing.T) {
 	type args struct {
 		cves           []*repository2.CveStore
 		cvePolicy      map[string]*repository2.CvePolicy
-		severityPolicy map[security.Severity]*repository2.CvePolicy
+		severityPolicy map[securityBean.Severity]*repository2.CvePolicy
 	}
 	tests := []struct {
 		name string

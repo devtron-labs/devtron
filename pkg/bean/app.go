@@ -117,10 +117,10 @@ type CiPipeline struct {
 	AppType                  helper.AppType           `json:"appType,omitempty"`
 	ExternalCiConfig         ExternalCiConfig         `json:"externalCiConfig"`
 	CiMaterial               []*CiMaterial            `json:"ciMaterial,omitempty" validate:"dive,min=1"`
-	Name                     string                   `json:"name,omitempty" validate:"name-component,max=100"` //name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
+	Name                     string                   `json:"name,omitempty" validate:"name-component,max=100"` // name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
 	Id                       int                      `json:"id,omitempty" `
-	Version                  string                   `json:"version,omitempty"` //matchIf token version in gocd . used for update request
-	Active                   bool                     `json:"active,omitempty"`  //pipeline is active or not
+	Version                  string                   `json:"version,omitempty"` // matchIf token version in gocd . used for update request
+	Active                   bool                     `json:"active,omitempty"`  // pipeline is active or not
 	Deleted                  bool                     `json:"deleted,omitempty"`
 	BeforeDockerBuild        []*Task                  `json:"beforeDockerBuild,omitempty" validate:"dive"`
 	AfterDockerBuild         []*Task                  `json:"afterDockerBuild,omitempty" validate:"dive"`
@@ -130,8 +130,8 @@ type CiPipeline struct {
 	PipelineType             CiPipeline2.PipelineType `json:"pipelineType,omitempty"`
 	ScanEnabled              bool                     `json:"scanEnabled,notnull"`
 	AppWorkflowId            int                      `json:"appWorkflowId,omitempty"`
-	PreBuildStage            *bean.PipelineStageDto   `json:"preBuildStage,omitempty"`
-	PostBuildStage           *bean.PipelineStageDto   `json:"postBuildStage,omitempty"`
+	PreBuildStage            *bean.PipelineStageDto   `json:"preBuildStage,omitempty" validate:"omitempty,dive"`
+	PostBuildStage           *bean.PipelineStageDto   `json:"postBuildStage,omitempty" validate:"omitempty,dive"`
 	TargetPlatform           string                   `json:"targetPlatform,omitempty"`
 	IsDockerConfigOverridden bool                     `json:"isDockerConfigOverridden"`
 	DockerConfigOverride     DockerConfigOverride     `json:"dockerConfigOverride,omitempty"`
@@ -285,7 +285,7 @@ type CiMaterialPatchResponse struct {
 }
 
 type CiPatchRequest struct {
-	CiPipeline    *CiPipeline `json:"ciPipeline"`
+	CiPipeline    *CiPipeline `json:"ciPipeline" validate:"omitempty,dive"`
 	AppId         int         `json:"appId,omitempty"`
 	Action        PatchAction `json:"action"`
 	AppWorkflowId int         `json:"appWorkflowId,omitempty"`
