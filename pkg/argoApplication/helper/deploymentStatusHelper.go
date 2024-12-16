@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// GetSyncStartTime assumes that it is always called for calculating start time of latest git hash
 func GetSyncStartTime(app *v1alpha1.Application, defaultStartTime time.Time) time.Time {
 	startTime := metav1.NewTime(defaultStartTime)
 	gitHash := app.Status.Sync.Revision
@@ -21,6 +22,7 @@ func GetSyncStartTime(app *v1alpha1.Application, defaultStartTime time.Time) tim
 	return startTime.Time
 }
 
+// GetSyncFinishTime assumes that it is always called for calculating finish time of latest git hash
 func GetSyncFinishTime(app *v1alpha1.Application, defaultEndTime time.Time) time.Time {
 	finishTime := metav1.NewTime(defaultEndTime)
 	gitHash := app.Status.Sync.Revision
