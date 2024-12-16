@@ -12,7 +12,7 @@ func GetInstalledAppInternal(installedAppModel *repository.InstalledApps) *bean.
 	if installedAppModel == nil {
 		return nil
 	}
-	installedAppInternal := &bean.InstalledAppWithEnvAndClusterDetails{}
+	installedAppInternal := GetNewInstalledAppWithEnvAndClusterDetails()
 	installedAppInternal.InstalledAppMin = GetInstalledAppMin(installedAppModel)
 	// Extra App details
 	if !installedAppModel.App.IsEmpty() {
@@ -107,4 +107,20 @@ func GetInstalledAppVersionWithAppStoreDetails(installedAppVersionModel *reposit
 		versionDetails.AppStoreVersion = installedAppVersionModel.AppStoreApplicationVersion.Version
 	}
 	return versionDetails
+}
+
+func GetNewInstalledAppWithEnvAndClusterDetails() *bean.InstalledAppWithEnvAndClusterDetails {
+	return &bean.InstalledAppWithEnvAndClusterDetails{
+		InstalledAppWithEnvDetails: GetNewInstalledAppWithEnvDetails(),
+	}
+}
+
+func GetNewInstalledAppWithEnvDetails() *bean.InstalledAppWithEnvDetails {
+	return &bean.InstalledAppWithEnvDetails{
+		InstalledAppWithAppDetails: GetNewInstalledAppWithAppDetails(),
+	}
+}
+
+func GetNewInstalledAppWithAppDetails() *bean.InstalledAppWithAppDetails {
+	return &bean.InstalledAppWithAppDetails{}
 }
