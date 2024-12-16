@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -87,18 +88,17 @@ type ConfigMapService interface {
 }
 
 type ConfigMapServiceImpl struct {
-	chartRepository             chartRepoRepository.ChartRepository
-	logger                      *zap.SugaredLogger
-	repoRepository              chartRepoRepository.ChartRepoRepository
-	mergeUtil                   util.MergeUtil
-	pipelineConfigRepository    chartConfig.PipelineConfigRepository
-	configMapRepository         chartConfig.ConfigMapRepository
-	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
-	commonService               commonService.CommonService
-	appRepository               app.AppRepository
-	configMapHistoryService     history2.ConfigMapHistoryService
-	environmentRepository       repository3.EnvironmentRepository
-	scopedVariableManager       variables.ScopedVariableCMCSManager
+	chartRepository          chartRepoRepository.ChartRepository
+	logger                   *zap.SugaredLogger
+	repoRepository           chartRepoRepository.ChartRepoRepository
+	mergeUtil                util.MergeUtil
+	pipelineConfigRepository chartConfig.PipelineConfigRepository
+	configMapRepository      chartConfig.ConfigMapRepository
+	commonService            commonService.CommonService
+	appRepository            app.AppRepository
+	configMapHistoryService  history2.ConfigMapHistoryService
+	environmentRepository    repository3.EnvironmentRepository
+	scopedVariableManager    variables.ScopedVariableCMCSManager
 }
 
 func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository,
@@ -112,18 +112,17 @@ func NewConfigMapServiceImpl(chartRepository chartRepoRepository.ChartRepository
 	scopedVariableManager variables.ScopedVariableCMCSManager,
 ) *ConfigMapServiceImpl {
 	return &ConfigMapServiceImpl{
-		chartRepository:             chartRepository,
-		logger:                      logger,
-		repoRepository:              repoRepository,
-		mergeUtil:                   mergeUtil,
-		pipelineConfigRepository:    pipelineConfigRepository,
-		configMapRepository:         configMapRepository,
-		environmentConfigRepository: environmentConfigRepository,
-		commonService:               commonService,
-		appRepository:               appRepository,
-		configMapHistoryService:     configMapHistoryService,
-		environmentRepository:       environmentRepository,
-		scopedVariableManager:       scopedVariableManager,
+		chartRepository:          chartRepository,
+		logger:                   logger,
+		repoRepository:           repoRepository,
+		mergeUtil:                mergeUtil,
+		pipelineConfigRepository: pipelineConfigRepository,
+		configMapRepository:      configMapRepository,
+		commonService:            commonService,
+		appRepository:            appRepository,
+		configMapHistoryService:  configMapHistoryService,
+		environmentRepository:    environmentRepository,
+		scopedVariableManager:    scopedVariableManager,
 	}
 }
 
@@ -288,6 +287,13 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *bean.C
 		impl.logger.Errorw("error in validating", "error", err)
 		return configMapRequest, err
 	}
+
+	appLevelConfigMap, err := impl.CmCsConfigGlobalFetchUsingAppId(configData.Name, configMapRequest.AppId, bean.CM)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching app level config", "appId", configMapRequest.AppId, "err", err)
+		return configMapRequest, err
+	}
+
 	var model *chartConfig.ConfigMapEnvModel
 	if configMapRequest.Id > 0 {
 		model, err = impl.configMapRepository.GetByIdEnvLevel(configMapRequest.Id)
@@ -318,6 +324,12 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *bean.C
 				item.SubPath = configData.SubPath
 				item.FilePermission = configData.FilePermission
 				found = true
+				item.MergeStrategy = configData.MergeStrategy
+				if len(appLevelConfigMap.ConfigData) > 0 {
+					if len(item.MergeStrategy) == 0 {
+						item.MergeStrategy = models.MERGE_STRATEGY_REPLACE
+					}
+				}
 			}
 			configs = append(configs, item)
 		}
@@ -496,6 +508,11 @@ func (impl ConfigMapServiceImpl) CMEnvironmentFetch(appId int, envId int) (*bean
 			item.DefaultMountPath = kv11[item.Name]
 			item.Global = true
 			item.Overridden = true
+
+			if len(item.MergeStrategy) == 0 {
+				item.MergeStrategy = models.MERGE_STRATEGY_REPLACE
+			}
+
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
 		} else {
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
@@ -702,6 +719,13 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *bean.C
 		impl.logger.Errorw("error in validating", "error", err)
 		return configMapRequest, err
 	}
+
+	appLevelSecret, err := impl.CmCsConfigGlobalFetchUsingAppId(configData.Name, configMapRequest.AppId, bean.CS)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching app level config", "appId", configMapRequest.AppId, "err", err)
+		return configMapRequest, err
+	}
+
 	var model *chartConfig.ConfigMapEnvModel
 	if configMapRequest.Id > 0 {
 		model, err = impl.configMapRepository.GetByIdEnvLevel(configMapRequest.Id)
@@ -736,6 +760,12 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *bean.C
 				item.ESOSubPath = configData.ESOSubPath
 				item.FilePermission = configData.FilePermission
 				found = true
+				item.MergeStrategy = configData.MergeStrategy
+				if len(appLevelSecret.ConfigData) > 0 {
+					if len(item.MergeStrategy) == 0 {
+						item.MergeStrategy = models.MERGE_STRATEGY_REPLACE
+					}
+				}
 			}
 			configs = append(configs, item)
 		}
@@ -894,6 +924,11 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*bean
 			item.Global = true
 			item.Overridden = true
 			item.DefaultESOSecretData = kv1ESOSecret[item.Name]
+
+			if len(item.MergeStrategy) == 0 {
+				item.MergeStrategy = models.MERGE_STRATEGY_REPLACE
+			}
+
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
 		} else {
 			configDataRequest.ConfigData = append(configDataRequest.ConfigData, item)
@@ -1386,6 +1421,16 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetchForEdit(name string, id int, 
 		}
 		for _, item := range configsList.ConfigData {
 			if item.Name == name {
+
+				appLevelConfigMap, err := impl.CmCsConfigGlobalFetchUsingAppId(name, appId, bean.CS)
+				if err != nil && err != pg.ErrNoRows {
+					impl.logger.Errorw("error in fetching app level config", "appId", appId, "err", err)
+					return nil, err
+				}
+				if len(item.MergeStrategy) == 0 && len(appLevelConfigMap.ConfigData) > 0 {
+					item.MergeStrategy = models.MERGE_STRATEGY_REPLACE
+				}
+
 				configs = append(configs, item)
 				break
 			}
@@ -1452,23 +1497,23 @@ func (impl ConfigMapServiceImpl) validateConfigDataForSecretsOnly(configData *be
 		err = util2.ValidateEncodedDataByDecoding(dataMap)
 		if err != nil {
 			impl.logger.Errorw("error in decoding secret data", "error", err)
-			return false, util.NewApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithCode(strconv.Itoa(http.StatusUnprocessableEntity)).
+			return false, util.DefaultApiError().WithHttpStatusCode(http.StatusUnprocessableEntity).WithCode(strconv.Itoa(http.StatusUnprocessableEntity)).
 				WithUserMessage("error in decoding data, make sure the secret data is encoded properly").
 				WithInternalMessage("error in decoding data, make sure the secret data is encoded properly")
 		}
 	}
 	if configData.IsESOExternalSecretType() {
 		if !configData.External {
-			return false, util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithCode(strconv.Itoa(http.StatusBadRequest)).
+			return false, util.DefaultApiError().WithHttpStatusCode(http.StatusBadRequest).WithCode(strconv.Itoa(http.StatusBadRequest)).
 				WithUserMessage(fmt.Sprintf("external flag should be true for '%s' secret type", configData.ExternalSecretType)).
 				WithInternalMessage(fmt.Sprintf("external flag should be true for '%s' secret type", configData.ExternalSecretType))
 		}
 		if configData.ESOSecretData.ESODataFrom == nil && configData.ESOSecretData.ESOData == nil {
-			return false, util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithCode(strconv.Itoa(http.StatusBadRequest)).
+			return false, util.DefaultApiError().WithHttpStatusCode(http.StatusBadRequest).WithCode(strconv.Itoa(http.StatusBadRequest)).
 				WithUserMessage("both esoSecretData.esoDataFrom and esoSecretData.esoData can't be empty").
 				WithInternalMessage("both esoSecretData.esoDataFrom and esoSecretData.esoData can't be empty")
 		} else if configData.ESOSecretData.SecretStore == nil && configData.ESOSecretData.SecretStoreRef == nil {
-			return false, util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithCode(strconv.Itoa(http.StatusBadRequest)).
+			return false, util.DefaultApiError().WithHttpStatusCode(http.StatusBadRequest).WithCode(strconv.Itoa(http.StatusBadRequest)).
 				WithUserMessage("both esoSecretData.secretStore and esoSecretData.secretStoreRef can't be empty").
 				WithInternalMessage("both esoSecretData.secretStore and esoSecretData.secretStoreRef can't be empty")
 		}
@@ -1952,6 +1997,7 @@ func (impl ConfigMapServiceImpl) CmCsConfigGlobalFetchUsingAppId(name string, ap
 		impl.logger.Errorw("error in fetching global cm using app id ", "cmName", name, "appId", appId, "err", err)
 		return nil, err
 	}
+	configDataRequest.Deletable = true // always true in oss
 	configs := make([]*bean.ConfigData, 0, len(configDataRequest.ConfigData))
 	for _, configData := range configDataRequest.ConfigData {
 		if configData.Name == name {

@@ -1,22 +1,22 @@
 package adaptor
 
 import (
-	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
+	pluginBean "github.com/devtron-labs/devtron/pkg/plugin/bean"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 )
 
-func GetPluginParentMetadataDbObject(pluginDto *bean2.PluginParentMetadataDto, userId int32) *repository.PluginParentMetadata {
+func GetPluginParentMetadataDbObject(pluginDto *pluginBean.PluginParentMetadataDto, userId int32) *repository.PluginParentMetadata {
 	return repository.NewPluginParentMetadata().CreateAuditLog(userId).
 		WithBasicMetadata(pluginDto.Name, pluginDto.PluginIdentifier, pluginDto.Description, pluginDto.Icon, repository.PLUGIN_TYPE_SHARED)
 }
 
-func GetPluginVersionMetadataDbObject(pluginDto *bean2.PluginParentMetadataDto, userId int32) *repository.PluginMetadata {
+func GetPluginVersionMetadataDbObject(pluginDto *pluginBean.PluginParentMetadataDto, userId int32) *repository.PluginMetadata {
 	versionDto := pluginDto.Versions.DetailedPluginVersionData[0]
 	return repository.NewPluginVersionMetadata().CreateAuditLog(userId).WithBasicMetadata(pluginDto.Name, versionDto.Description, versionDto.Version, versionDto.DocLink)
 }
 
-func GetPluginStepDbObject(pluginStepDto *bean2.PluginStepsDto, pluginVersionMetadataId int, userId int32) *repository.PluginStep {
+func GetPluginStepDbObject(pluginStepDto *pluginBean.PluginStepsDto, pluginVersionMetadataId int, userId int32) *repository.PluginStep {
 	return &repository.PluginStep{
 		PluginId:            pluginVersionMetadataId,
 		Name:                pluginStepDto.Name,
@@ -29,7 +29,7 @@ func GetPluginStepDbObject(pluginStepDto *bean2.PluginStepsDto, pluginVersionMet
 		AuditLog:            sql.NewDefaultAuditLog(userId),
 	}
 }
-func GetPluginPipelineScriptDbObject(pluginPipelineScript *bean2.PluginPipelineScript, userId int32) *repository.PluginPipelineScript {
+func GetPluginPipelineScriptDbObject(pluginPipelineScript *pluginBean.PluginPipelineScript, userId int32) *repository.PluginPipelineScript {
 	return &repository.PluginPipelineScript{
 		Script:                   pluginPipelineScript.Script,
 		StoreScriptAt:            pluginPipelineScript.StoreScriptAt,
@@ -47,8 +47,8 @@ func GetPluginPipelineScriptDbObject(pluginPipelineScript *bean2.PluginPipelineS
 
 }
 
-func GetPluginStepVariableDbObject(pluginStepId int, pluginVariableDto *bean2.PluginVariableDto, userId int32) *repository.PluginStepVariable {
-	return &repository.PluginStepVariable{
+func GetPluginStepVariableDbObject(pluginStepId int, pluginVariableDto *pluginBean.PluginVariableDto, userId int32) *repository.PluginStepVariable {
+	model := &repository.PluginStepVariable{
 		PluginStepId:              pluginStepId,
 		Name:                      pluginVariableDto.Name,
 		Format:                    pluginVariableDto.Format,
@@ -65,9 +65,10 @@ func GetPluginStepVariableDbObject(pluginStepId int, pluginVariableDto *bean2.Pl
 		ReferenceVariableName:     pluginVariableDto.ReferenceVariableName,
 		AuditLog:                  sql.NewDefaultAuditLog(userId),
 	}
+	return model
 }
 
-func GetPluginStepConditionDbObject(stepDataId, pluginStepVariableId int, pluginStepCondition *bean2.PluginStepCondition,
+func GetPluginStepConditionDbObject(stepDataId, pluginStepVariableId int, pluginStepCondition *pluginBean.PluginStepCondition,
 	userId int32) *repository.PluginStepCondition {
 	return &repository.PluginStepCondition{
 		PluginStepId:        stepDataId,

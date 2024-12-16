@@ -23,6 +23,7 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils"
 	bean3 "github.com/devtron-labs/common-lib/utils/bean"
+	commonBean "github.com/devtron-labs/common-lib/workflow"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/attributes"
@@ -31,11 +32,13 @@ import (
 	bean6 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	repository6 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
+	pipelineConst "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
-	"maps"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"path"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -54,7 +57,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository4 "github.com/devtron-labs/devtron/pkg/variables/repository"
-	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"net/http"
 
@@ -177,7 +179,7 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 	}
 
 	// checking if user has given run time parameters for externalCiArtifact, if given then sending git material to Ci-Runner
-	externalCiArtifact, exists := trigger.ExtraEnvironmentVariables[bean6.ExtraEnvVarExternalCiArtifactKey]
+	externalCiArtifact, exists := trigger.RuntimeParameters.GetGlobalRuntimeVariables()[pipelineConst.ExtraEnvVarExternalCiArtifactKey]
 	// validate externalCiArtifact as docker image
 	if exists {
 		externalCiArtifact = strings.TrimSpace(externalCiArtifact)
@@ -201,12 +203,13 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 			}
 
 		}
-
-		trigger.ExtraEnvironmentVariables[bean6.ExtraEnvVarExternalCiArtifactKey] = externalCiArtifact
-
+		// This will overwrite the existing runtime parameters value for constants.externalCiArtifact
+		trigger.RuntimeParameters = trigger.RuntimeParameters.AddRuntimeGlobalVariable(pipelineConst.ExtraEnvVarExternalCiArtifactKey, externalCiArtifact)
 		var artifactExists bool
 		var err error
-		if trigger.ExtraEnvironmentVariables[bean6.ExtraEnvVarImageDigestKey] == "" {
+
+		imageDigest, ok := trigger.RuntimeParameters.GetGlobalRuntimeVariables()[pipelineConst.ExtraEnvVarImageDigestKey]
+		if !ok || len(imageDigest) == 0 {
 			artifactExists, err = impl.ciArtifactRepository.IfArtifactExistByImage(externalCiArtifact, trigger.PipelineId)
 			if err != nil {
 				impl.Logger.Errorw("error in fetching ci artifact", "err", err)
@@ -217,9 +220,9 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 				return fmt.Errorf("ci artifact already exists with same image name")
 			}
 		} else {
-			artifactExists, err = impl.ciArtifactRepository.IfArtifactExistByImageDigest(trigger.ExtraEnvironmentVariables[bean6.ExtraEnvVarImageDigestKey], externalCiArtifact, trigger.PipelineId)
+			artifactExists, err = impl.ciArtifactRepository.IfArtifactExistByImageDigest(imageDigest, externalCiArtifact, trigger.PipelineId)
 			if err != nil {
-				impl.Logger.Errorw("error in fetching ci artifact", "err", err)
+				impl.Logger.Errorw("error in fetching ci artifact", "err", err, "imageDigest", imageDigest)
 				return err
 			}
 			if artifactExists {
@@ -233,6 +236,27 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 	if trigger.PipelineType == string(bean6.CI_JOB) && len(ciMaterials) != 0 && !exists && externalCiArtifact == "" {
 		ciMaterials[0].GitMaterial = nil
 		ciMaterials[0].GitMaterialId = 0
+	}
+	return nil
+}
+
+func (impl *CiServiceImpl) markCurrentCiWorkflowFailed(savedCiWf *pipelineConfig.CiWorkflow, validationErr error) error {
+	// TODO: mature this method to create ci workflow and mark it failed if required
+	// currently such requirement is not there
+	if savedCiWf == nil {
+		return nil
+	}
+	if slices.Contains(cdWorkflow.WfrTerminalStatusList, savedCiWf.Status) {
+		impl.Logger.Debug("workflow is already in terminal state", "status", savedCiWf.Status, "workflowId", savedCiWf.Id, "message", savedCiWf.Message)
+		return nil
+	}
+	savedCiWf.Status = cdWorkflow.WorkflowFailed
+	savedCiWf.Message = validationErr.Error()
+	savedCiWf.FinishedOn = time.Now()
+	dbErr := impl.ciWorkflowRepository.SaveWorkFlow(savedCiWf)
+	if dbErr != nil {
+		impl.Logger.Errorw("saving workflow error", "err", dbErr)
+		return dbErr
 	}
 	return nil
 }
@@ -283,10 +307,21 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		}
 	}
 
+	savedCiWf, err := impl.saveNewWorkflow(pipeline, ciWorkflowConfigNamespace, trigger.CommitHashes, trigger.TriggeredBy, trigger.EnvironmentId, isJob, trigger.ReferenceCiWorkflowId)
+	if err != nil {
+		impl.Logger.Errorw("could not save new workflow", "err", err)
+		return 0, err
+	}
+
 	// preCiSteps, postCiSteps, refPluginsData, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, ciEvent)
-	prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id, pipelineConfigBean.CiStage, scope)
+	request := pipelineConfigBean.NewBuildPrePostStepDataReq(pipeline.Id, pipelineConfigBean.CiStage, scope)
+	prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(request)
 	if err != nil {
 		impl.Logger.Errorw("error in getting pre steps data for wf request", "err", err, "ciPipelineId", pipeline.Id)
+		dbErr := impl.markCurrentCiWorkflowFailed(savedCiWf, err)
+		if dbErr != nil {
+			impl.Logger.Errorw("saving workflow error", "err", dbErr)
+		}
 		return 0, err
 	}
 	preCiSteps := prePostAndRefPluginResponse.PreStageSteps
@@ -295,12 +330,10 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	variableSnapshot := prePostAndRefPluginResponse.VariableSnapshot
 
 	if len(preCiSteps) == 0 && isJob {
-		return 0, &util.ApiError{HttpStatusCode: http.StatusNotFound, UserMessage: "No tasks are configured in this job pipeline"}
-	}
-	savedCiWf, err := impl.saveNewWorkflow(pipeline, ciWorkflowConfigNamespace, trigger.CommitHashes, trigger.TriggeredBy, trigger.EnvironmentId, isJob, trigger.ReferenceCiWorkflowId)
-	if err != nil {
-		impl.Logger.Errorw("could not save new workflow", "err", err)
-		return 0, err
+		errMsg := fmt.Sprintf("No tasks are configured in this job pipeline")
+		validationErr := util.NewApiError(http.StatusNotFound, errMsg, errMsg)
+
+		return 0, validationErr
 	}
 
 	// get env variables of git trigger data and add it in the extraEnvVariables
@@ -309,10 +342,10 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 		impl.Logger.Errorw("error in getting gitTrigger env data for stage", "gitTriggers", savedCiWf.GitTriggers, "err", err)
 		return 0, err
 	}
-	if trigger.ExtraEnvironmentVariables == nil {
-		trigger.ExtraEnvironmentVariables = make(map[string]string)
+
+	for k, v := range gitTriggerEnvVariables {
+		trigger.RuntimeParameters = trigger.RuntimeParameters.AddSystemVariable(k, v)
 	}
-	maps.Copy(trigger.ExtraEnvironmentVariables, gitTriggerEnvVariables)
 
 	workflowRequest, err := impl.buildWfRequestForCiPipeline(pipeline, trigger, ciMaterials, savedCiWf, ciWorkflowConfigNamespace, ciPipelineScripts, preCiSteps, postCiSteps, refPluginsData, isJob)
 	if err != nil {
@@ -366,7 +399,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	}
 	impl.Logger.Debugw("ci triggered", " pipeline ", trigger.PipelineId)
 
-	var variableSnapshotHistories = util3.GetBeansPtr(
+	var variableSnapshotHistories = sliceUtil.GetBeansPtr(
 		repository4.GetSnapshotBean(savedCiWf.Id, repository4.HistoryReferenceTypeCIWORKFLOW, variableSnapshot))
 	if len(variableSnapshotHistories) > 0 {
 		err = impl.scopedVariableManager.SaveVariableHistoriesForTrigger(variableSnapshotHistories, trigger.TriggeredBy)
@@ -651,11 +684,11 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		imagePathReservation, err := impl.customTagService.GenerateImagePath(pipelineConfigBean.EntityTypeCiPipelineId, strconv.Itoa(pipeline.Id), dockerRegistry.RegistryURL, dockerRepository)
 		if err != nil {
 			if errors.Is(err, pipelineConfigBean.ErrImagePathInUse) {
-				savedWf.Status = cdWorkflow.WorkflowFailed
-				savedWf.Message = pipelineConfigBean.ImageTagUnavailableMessage
-				err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
-				if err1 != nil {
-					impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
+				errMsg := pipelineConfigBean.ImageTagUnavailableMessage
+				validationErr := util.NewApiError(http.StatusConflict, errMsg, errMsg)
+				dbErr := impl.markCurrentCiWorkflowFailed(savedWf, validationErr)
+				if dbErr != nil {
+					impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag", "err", dbErr, "savedWf", savedWf.Id)
 				}
 				return nil, err
 			}
@@ -685,11 +718,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			dockerRegistry.Id)
 		if err != nil {
 			impl.Logger.Errorw("error in getting env variables for copyContainerImage plugin")
-			savedWf.Status = cdWorkflow.WorkflowFailed
-			savedWf.Message = err.Error()
-			err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
-			if err1 != nil {
-				impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
+			dbErr := impl.markCurrentCiWorkflowFailed(savedWf, err)
+			if dbErr != nil {
+				impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag", "err", dbErr, "savedWf", savedWf.Id)
 			}
 			return nil, err
 		}
@@ -766,7 +797,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		IgnoreDockerCachePush:       impl.config.IgnoreDockerCacheForCI,
 		IgnoreDockerCachePull:       impl.config.IgnoreDockerCacheForCI,
 		CacheInvalidate:             trigger.InvalidateCache,
-		ExtraEnvironmentVariables:   trigger.ExtraEnvironmentVariables,
+		SystemEnvironmentVariables:  trigger.RuntimeParameters.GetSystemVariables(),
 		EnableBuildContext:          impl.config.EnableBuildContext,
 		OrchestratorHost:            impl.config.OrchestratorHost,
 		HostUrl:                     host.Value,
@@ -949,29 +980,29 @@ func (impl *CiServiceImpl) ReserveImagesGeneratedAtPlugin(customTagId int, desti
 func buildCiStepsDataFromDockerBuildScripts(dockerBuildScripts []*bean.CiScript) []*pipelineConfigBean.StepObject {
 	// before plugin support, few variables were set as env vars in ci-runner
 	// these variables are now moved to global vars in plugin steps, but to avoid error in old scripts adding those variables in payload
-	inputVars := []*pipelineConfigBean.VariableObject{
+	inputVars := []*commonBean.VariableObject{
 		{
 			Name:                  "DOCKER_IMAGE_TAG",
 			Format:                "STRING",
-			VariableType:          pipelineConfigBean.VARIABLE_TYPE_REF_GLOBAL,
+			VariableType:          commonBean.VariableTypeRefGlobal,
 			ReferenceVariableName: "DOCKER_IMAGE_TAG",
 		},
 		{
 			Name:                  "DOCKER_REPOSITORY",
 			Format:                "STRING",
-			VariableType:          pipelineConfigBean.VARIABLE_TYPE_REF_GLOBAL,
+			VariableType:          commonBean.VariableTypeRefGlobal,
 			ReferenceVariableName: "DOCKER_REPOSITORY",
 		},
 		{
 			Name:                  "DOCKER_REGISTRY_URL",
 			Format:                "STRING",
-			VariableType:          pipelineConfigBean.VARIABLE_TYPE_REF_GLOBAL,
+			VariableType:          commonBean.VariableTypeRefGlobal,
 			ReferenceVariableName: "DOCKER_REGISTRY_URL",
 		},
 		{
 			Name:                  "DOCKER_IMAGE",
 			Format:                "STRING",
-			VariableType:          pipelineConfigBean.VARIABLE_TYPE_REF_GLOBAL,
+			VariableType:          commonBean.VariableTypeRefGlobal,
 			ReferenceVariableName: "DOCKER_IMAGE",
 		},
 	}

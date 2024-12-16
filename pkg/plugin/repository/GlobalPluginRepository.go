@@ -37,9 +37,32 @@ type ScriptImagePullSecretType string
 type ScriptMappingType string
 type PluginStepType string
 type PluginStepVariableType string
+
+func (p PluginStepVariableType) IsOutput() bool {
+	return p == PLUGIN_VARIABLE_TYPE_OUTPUT
+}
+
 type PluginStepVariableValueType string
+
+func (p PluginStepVariableValueType) String() string {
+	return string(p)
+}
+
+func (p PluginStepVariableValueType) IsGlobalDefinedValue() bool {
+	return p == PLUGIN_VARIABLE_VALUE_TYPE_GLOBAL
+}
+
+func (p PluginStepVariableValueType) IsPreviousOutputDefinedValue() bool {
+	return p == PLUGIN_VARIABLE_VALUE_TYPE_PREVIOUS
+}
+
 type PluginStepConditionType string
+
 type PluginStepVariableFormatType string
+
+func (p PluginStepVariableFormatType) String() string {
+	return string(p)
+}
 
 const (
 	PLUGIN_TYPE_SHARED                  PluginType                   = "SHARED"
@@ -333,7 +356,6 @@ type GlobalPluginRepository interface {
 	GetAllPluginTags() ([]*PluginTag, error)
 	GetPluginTagByNames(tagNames []string) ([]*PluginTag, error)
 	GetAllPluginTagRelations() ([]*PluginTagRelation, error)
-	GetTagsByPluginId(pluginId int) ([]string, error)
 	GetScriptDetailById(id int) (*PluginPipelineScript, error)
 	GetScriptMappingDetailByScriptId(scriptId int) ([]*ScriptPathArgPortMapping, error)
 	GetVariablesByStepId(stepId int) ([]*PluginStepVariable, error)
@@ -467,17 +489,6 @@ func (impl *GlobalPluginRepositoryImpl) GetAllPluginTagRelations() ([]*PluginTag
 		return nil, err
 	}
 	return rel, nil
-}
-
-func (impl *GlobalPluginRepositoryImpl) GetTagsByPluginId(pluginId int) ([]string, error) {
-	var tags []string
-	query := "SELECT pt.name from plugin_tag pt INNER JOIN plugin_tag_relation ptr on pt.id = ptr.tag_id where ptr.plugin_id = ? and pt.deleted = false"
-	_, err := impl.dbConnection.Query(&tags, query, pluginId)
-	if err != nil {
-		impl.logger.Errorw("err in getting tags by pluginId", "err", err, "pluginId", pluginId)
-		return nil, err
-	}
-	return tags, nil
 }
 
 func (impl *GlobalPluginRepositoryImpl) GetMetaDataByPluginId(pluginId int) (*PluginMetadata, error) {

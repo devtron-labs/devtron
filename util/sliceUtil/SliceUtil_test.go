@@ -15,7 +15,7 @@ func TestSliceUtil(t *testing.T) {
 	t.Run("GetMapOfWithNonEmptySlice", TestGetMapOfWithNonEmptySlice)
 	t.Run("GetMapOfWithEmptySlice", TestGetMapOfWithEmptySlice)
 	t.Run("GetMapOfWithLargeInput", TestGetMapOfWithLargeInput)
-	t.Run("GetSliceOfElement", TestGetSliceOfElement)
+	t.Run("GetSliceOf", TestGetSliceOfElement)
 	t.Run("GetSliceOfElementWithZeroValue", TestGetSliceOfElementWithZeroValue)
 	t.Run("CompareTwoSlicesEqualIgnoringOrder", TestCompareTwoSlicesEqualIgnoringOrder)
 	t.Run("CompareTwoSlicesNotEqual", TestCompareTwoSlicesNotEqual)
@@ -119,7 +119,7 @@ func TestGetMapOfWithLargeInput(t *testing.T) {
 func TestGetSliceOfElement(t *testing.T) {
 	element := 1
 	expected := []int{1}
-	result := GetSliceOfElement(element)
+	result := GetSliceOf(element)
 	if !reflect.DeepEqual(result, expected) {
 		t.Errorf("expected %v, got %v", expected, result)
 	}
@@ -136,7 +136,7 @@ func TestGetSliceOfElementWithZeroValue(t *testing.T) {
 	}
 	element := &test_element{}
 	expected := []*test_element{{}}
-	result := GetSliceOfElement(element)
+	result := GetSliceOf(element)
 	if !reflect.DeepEqual(result, expected) {
 		t.Errorf("expected %v, got %v", expected, result)
 	}

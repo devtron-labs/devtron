@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	commonBean "github.com/devtron-labs/common-lib/workflow"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
@@ -30,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	bean6 "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/bean/common"
 	bean7 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
@@ -47,24 +49,14 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	repository5 "github.com/devtron-labs/devtron/pkg/variables/repository"
-	util4 "github.com/devtron-labs/devtron/util"
 	util2 "github.com/devtron-labs/devtron/util/event"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
-	"maps"
 	"path"
 	"strconv"
 	"strings"
 	"time"
-)
-
-const (
-	APP_LABEL_KEY_PREFIX         = "APP_LABEL_KEY"
-	APP_LABEL_VALUE_PREFIX       = "APP_LABEL_VALUE"
-	APP_LABEL_COUNT              = "APP_LABEL_COUNT"
-	CHILD_CD_ENV_NAME_PREFIX     = "CHILD_CD_ENV_NAME"
-	CHILD_CD_CLUSTER_NAME_PREFIX = "CHILD_CD_CLUSTER_NAME"
-	CHILD_CD_COUNT               = "CHILD_CD_COUNT"
 )
 
 func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) error {
@@ -111,7 +103,7 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, pipeline, envDeploymentConfig, triggeredBy)
 	span.End()
 	if err != nil {
-		return err
+		return impl.buildWfRequestErrorHandler(runner, err, triggeredBy)
 	}
 	cdStageWorkflowRequest.StageType = types.PRE
 	// handling copyContainerImage plugin specific logic
@@ -552,20 +544,22 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	if pipelineStage != nil {
 		var variableSnapshot map[string]string
 		if runner.WorkflowType == bean2.CD_WORKFLOW_TYPE_PRE {
-			//TODO: use const from pipeline.WorkflowService:95
-			prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, "preCD", scope)
+			// TODO: use const from pipeline.WorkflowService:95
+			request := pipelineConfigBean.NewBuildPrePostStepDataReq(cdPipeline.Id, "preCD", scope)
+			prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(request)
 			if err != nil {
-				impl.logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "cdPipelineId", cdPipeline.Id)
+				impl.logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "request", request)
 				return nil, err
 			}
 			preDeploySteps = prePostAndRefPluginResponse.PreStageSteps
 			refPluginsData = prePostAndRefPluginResponse.RefPluginData
 			variableSnapshot = prePostAndRefPluginResponse.VariableSnapshot
 		} else if runner.WorkflowType == bean2.CD_WORKFLOW_TYPE_POST {
-			//TODO: use const from pipeline.WorkflowService:96
-			prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(cdPipeline.Id, "postCD", scope)
+			// TODO: use const from pipeline.WorkflowService:96
+			request := pipelineConfigBean.NewBuildPrePostStepDataReq(cdPipeline.Id, "postCD", scope)
+			prePostAndRefPluginResponse, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(request)
 			if err != nil {
-				impl.logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "cdPipelineId", cdPipeline.Id)
+				impl.logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "request", request)
 				return nil, err
 			}
 			postDeploySteps = prePostAndRefPluginResponse.PostStageSteps
@@ -580,8 +574,8 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 			return nil, fmt.Errorf("unsupported workflow triggerd")
 		}
 
-		//Save Scoped VariableSnapshot
-		var variableSnapshotHistories = util4.GetBeansPtr(
+		// Save Scoped VariableSnapshot
+		var variableSnapshotHistories = sliceUtil.GetBeansPtr(
 			repository5.GetSnapshotBean(runner.Id, repository5.HistoryReferenceTypeCDWORKFLOWRUNNER, variableSnapshot))
 		if len(variableSnapshotHistories) > 0 {
 			err = impl.scopedVariableManager.SaveVariableHistoriesForTrigger(variableSnapshotHistories, runner.TriggeredBy)
@@ -653,13 +647,10 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 		RefPlugins:        refPluginsData,
 		Scope:             scope,
 	}
-
-	extraEnvVariables := make(map[string]string)
-	if env != nil {
-		extraEnvVariables[plugin.CD_PIPELINE_ENV_NAME_KEY] = env.Name
-		if env.Cluster != nil {
-			extraEnvVariables[plugin.CD_PIPELINE_CLUSTER_NAME_KEY] = env.Cluster.ClusterName
-		}
+	runtimeParams := common.NewRuntimeParameters()
+	runtimeParams = runtimeParams.AddSystemVariable(plugin.CD_PIPELINE_ENV_NAME_KEY, env.Name)
+	if env.Cluster != nil {
+		runtimeParams = runtimeParams.AddSystemVariable(plugin.CD_PIPELINE_CLUSTER_NAME_KEY, env.Cluster.ClusterName)
 	}
 	ciWf, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(artifact.Id)
 	if err != nil && err != pg.ErrNoRows {
@@ -676,7 +667,10 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 		impl.logger.Errorw("error in getting gitTrigger env data for stage", "gitTriggers", ciWf.GitTriggers, "err", err)
 		return nil, err
 	}
-	maps.Copy(extraEnvVariables, gitTriggerEnvVariables)
+	// add git trigger env variables to extraEnvVariables
+	for k, v := range gitTriggerEnvVariables {
+		runtimeParams = runtimeParams.AddSystemVariable(k, v)
+	}
 
 	childCdIds, err := impl.appWorkflowRepository.FindChildCDIdsByParentCDPipelineId(cdPipeline.Id)
 	if err != nil && err != pg.ErrNoRows {
@@ -691,8 +685,11 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 		}
 		var childCdEnvVariables []types.ChildCdMetadata
 		for i, childPipeline := range childPipelines {
-			extraEnvVariables[fmt.Sprintf("%s_%d", CHILD_CD_ENV_NAME_PREFIX, i+1)] = childPipeline.Environment.Name
-			extraEnvVariables[fmt.Sprintf("%s_%d", CHILD_CD_CLUSTER_NAME_PREFIX, i+1)] = childPipeline.Environment.Cluster.ClusterName
+			childCdEnvVariableKey := fmt.Sprintf("%s_%d", bean.CHILD_CD_ENV_NAME_PREFIX, i+1)
+			runtimeParams = runtimeParams.AddSystemVariable(childCdEnvVariableKey, childPipeline.Environment.Name)
+
+			childCdClusterNameKey := fmt.Sprintf("%s_%d", bean.CHILD_CD_CLUSTER_NAME_PREFIX, i+1)
+			runtimeParams = runtimeParams.AddSystemVariable(childCdClusterNameKey, childPipeline.Environment.Cluster.ClusterName)
 
 			childCdEnvVariables = append(childCdEnvVariables, types.ChildCdMetadata{
 				ChildCdEnvName:     childPipeline.Environment.Name,
@@ -704,9 +701,8 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 			impl.logger.Errorw("err while marshaling childCdEnvVariables", "err", err)
 			return nil, err
 		}
-		extraEnvVariables[plugin.CHILD_CD_METADATA] = string(childCdEnvVariablesMetadata)
-
-		extraEnvVariables[CHILD_CD_COUNT] = strconv.Itoa(len(childPipelines))
+		runtimeParams = runtimeParams.AddSystemVariable(plugin.CHILD_CD_METADATA, string(childCdEnvVariablesMetadata))
+		runtimeParams = runtimeParams.AddSystemVariable(bean.CHILD_CD_COUNT, strconv.Itoa(len(childPipelines)))
 	}
 
 	if ciPipeline != nil && ciPipeline.Id > 0 {
@@ -715,7 +711,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 			impl.logger.Errorw("error in getting source ciPipeline for artifact", "err", err)
 			return nil, err
 		}
-		extraEnvVariables["APP_NAME"] = sourceCiPipeline.App.AppName
+		runtimeParams = runtimeParams.AddSystemVariable(bean.APP_NAME, ciPipeline.App.AppName)
 		cdStageWorkflowRequest.CiPipelineType = sourceCiPipeline.PipelineType
 		buildRegistryConfig, dbErr := impl.getBuildRegistryConfigForArtifact(*sourceCiPipeline, *artifact)
 		if dbErr != nil {
@@ -725,7 +721,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 		adapter.UpdateRegistryDetailsToWrfReq(cdStageWorkflowRequest, buildRegistryConfig)
 	} else if cdPipeline.AppId > 0 {
 		// the below flow is used for external ci base pipelines;
-		extraEnvVariables["APP_NAME"] = cdPipeline.App.AppName
+		runtimeParams = runtimeParams.AddSystemVariable(bean.APP_NAME, cdPipeline.App.AppName)
 		buildRegistryConfig, err := impl.ciTemplateService.GetBaseDockerConfigForCiPipeline(cdPipeline.AppId)
 		if err != nil {
 			impl.logger.Errorw("error in getting build configurations", "err", err)
@@ -739,25 +735,29 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 		}
 		var appLabelEnvVariables []types.AppLabelMetadata
 		for i, appLabel := range appLabels {
-			extraEnvVariables[fmt.Sprintf("%s_%d", APP_LABEL_KEY_PREFIX, i+1)] = appLabel.Key
-			extraEnvVariables[fmt.Sprintf("%s_%d", APP_LABEL_VALUE_PREFIX, i+1)] = appLabel.Value
+			appLabelKeyVariable := fmt.Sprintf("%s_%d", bean.APP_LABEL_KEY_PREFIX, i+1)
+			runtimeParams = runtimeParams.AddSystemVariable(appLabelKeyVariable, appLabel.Key)
+
+			appLabelValueVariable := fmt.Sprintf("%s_%d", bean.APP_LABEL_VALUE_PREFIX, i+1)
+			runtimeParams = runtimeParams.AddSystemVariable(appLabelValueVariable, appLabel.Value)
+
 			appLabelEnvVariables = append(appLabelEnvVariables, types.AppLabelMetadata{
 				AppLabelKey:   appLabel.Key,
 				AppLabelValue: appLabel.Value,
 			})
 		}
 		if len(appLabels) > 0 {
-			extraEnvVariables[APP_LABEL_COUNT] = strconv.Itoa(len(appLabels))
+			runtimeParams = runtimeParams.AddSystemVariable(bean.APP_LABEL_COUNT, strconv.Itoa(len(appLabels)))
+
 			appLabelEnvVariablesMetadata, err := json.Marshal(&appLabelEnvVariables)
 			if err != nil {
 				impl.logger.Errorw("err while marshaling appLabelEnvVariables", "err", err)
 				return nil, err
 			}
-			extraEnvVariables[plugin.APP_LABEL_METADATA] = string(appLabelEnvVariablesMetadata)
-
+			runtimeParams = runtimeParams.AddSystemVariable(plugin.APP_LABEL_METADATA, string(appLabelEnvVariablesMetadata))
 		}
 	}
-	cdStageWorkflowRequest.ExtraEnvironmentVariables = extraEnvVariables
+	cdStageWorkflowRequest.SystemEnvironmentVariables = runtimeParams.GetSystemVariables()
 	cdStageWorkflowRequest.DeploymentTriggerTime = deployStageWfr.StartedOn
 	cdStageWorkflowRequest.DeploymentTriggeredBy = deployStageTriggeredByUserEmail
 
@@ -769,11 +769,12 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	cdWorkflowConfigCdCacheBucket := ""
 
 	if runner.WorkflowType == bean2.CD_WORKFLOW_TYPE_PRE {
-		//populate input variables of steps with extra env variables
-		setExtraEnvVariableInDeployStep(preDeploySteps, extraEnvVariables, webhookAndCiData)
+		// populate input variables of steps with extra env variables
+		setExtraEnvVariableInDeployStep(preDeploySteps, runtimeParams.GetSystemVariables(), webhookAndCiData)
 		cdStageWorkflowRequest.PrePostDeploySteps = preDeploySteps
 	} else if runner.WorkflowType == bean2.CD_WORKFLOW_TYPE_POST {
-		setExtraEnvVariableInDeployStep(postDeploySteps, extraEnvVariables, webhookAndCiData)
+		// populate input variables of steps with extra env variables
+		setExtraEnvVariableInDeployStep(postDeploySteps, runtimeParams.GetSystemVariables(), webhookAndCiData)
 		cdStageWorkflowRequest.PrePostDeploySteps = postDeploySteps
 	}
 	cdStageWorkflowRequest.BlobStorageConfigured = runner.BlobStorageEnabled
@@ -951,11 +952,11 @@ func setExtraEnvVariableInDeployStep(deploySteps []*pipelineConfigBean.StepObjec
 	for _, deployStep := range deploySteps {
 		for variableKey, variableValue := range extraEnvVariables {
 			if isExtraVariableDynamic(variableKey, webhookAndCiData) && deployStep.StepType == "INLINE" {
-				extraInputVar := &pipelineConfigBean.VariableObject{
+				extraInputVar := &commonBean.VariableObject{
 					Name:                  variableKey,
 					Format:                "STRING",
 					Value:                 variableValue,
-					VariableType:          pipelineConfigBean.VARIABLE_TYPE_REF_GLOBAL,
+					VariableType:          commonBean.VariableTypeRefGlobal,
 					ReferenceVariableName: variableKey,
 				}
 				deployStep.InputVars = append(deployStep.InputVars, extraInputVar)
@@ -1025,9 +1026,9 @@ func (impl *TriggerServiceImpl) sendPreStageNotification(ctx context.Context, cd
 
 func isExtraVariableDynamic(variableName string, webhookAndCiData *gitSensorClient.WebhookAndCiData) bool {
 	if strings.Contains(variableName, types.GIT_COMMIT_HASH_PREFIX) || strings.Contains(variableName, types.GIT_SOURCE_TYPE_PREFIX) || strings.Contains(variableName, types.GIT_SOURCE_VALUE_PREFIX) ||
-		strings.Contains(variableName, APP_LABEL_VALUE_PREFIX) || strings.Contains(variableName, APP_LABEL_KEY_PREFIX) ||
-		strings.Contains(variableName, CHILD_CD_ENV_NAME_PREFIX) || strings.Contains(variableName, CHILD_CD_CLUSTER_NAME_PREFIX) ||
-		strings.Contains(variableName, CHILD_CD_COUNT) || strings.Contains(variableName, APP_LABEL_COUNT) || strings.Contains(variableName, types.GIT_SOURCE_COUNT) ||
+		strings.Contains(variableName, bean.APP_LABEL_VALUE_PREFIX) || strings.Contains(variableName, bean.APP_LABEL_KEY_PREFIX) ||
+		strings.Contains(variableName, bean.CHILD_CD_ENV_NAME_PREFIX) || strings.Contains(variableName, bean.CHILD_CD_CLUSTER_NAME_PREFIX) ||
+		strings.Contains(variableName, bean.CHILD_CD_COUNT) || strings.Contains(variableName, bean.APP_LABEL_COUNT) || strings.Contains(variableName, types.GIT_SOURCE_COUNT) ||
 		webhookAndCiData != nil {
 
 		return true
