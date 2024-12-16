@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package security
+package repository
 
 import (
 	"github.com/go-pg/pg"
