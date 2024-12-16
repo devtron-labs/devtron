@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	cdWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
@@ -116,7 +117,7 @@ type AppServiceImpl struct {
 	pipelineStatusTimelineService          status2.PipelineStatusTimelineService
 	appStatusConfig                        *AppServiceConfig
 	appStatusService                       appStatus.AppStatusService
-	installedAppRepository                 repository4.InstalledAppRepository
+	installedAppReadService                installedAppReader.InstalledAppReadService
 	installedAppVersionHistoryRepository   repository4.InstalledAppVersionHistoryRepository
 	scopedVariableManager                  variables.ScopedVariableCMCSManager
 	acdConfig                              *argocdServer.ACDConfig
@@ -159,7 +160,7 @@ func NewAppService(
 	pipelineStatusSyncDetailService status2.PipelineStatusSyncDetailService,
 	pipelineStatusTimelineService status2.PipelineStatusTimelineService,
 	appStatusConfig *AppServiceConfig, appStatusService appStatus.AppStatusService,
-	installedAppRepository repository4.InstalledAppRepository,
+	installedAppReadService installedAppReader.InstalledAppReadService,
 	installedAppVersionHistoryRepository repository4.InstalledAppVersionHistoryRepository,
 	scopedVariableManager variables.ScopedVariableCMCSManager, acdConfig *argocdServer.ACDConfig,
 	gitOpsConfigReadService config.GitOpsConfigReadService, gitOperationService git.GitOperationService,
@@ -188,7 +189,7 @@ func NewAppService(
 		pipelineStatusTimelineService:          pipelineStatusTimelineService,
 		appStatusConfig:                        appStatusConfig,
 		appStatusService:                       appStatusService,
-		installedAppRepository:                 installedAppRepository,
+		installedAppReadService:                installedAppReadService,
 		installedAppVersionHistoryRepository:   installedAppVersionHistoryRepository,
 		scopedVariableManager:                  scopedVariableManager,
 		acdConfig:                              acdConfig,
@@ -398,7 +399,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitOpsA
 	var err error
 	installedAppVersionHistory := &repository4.InstalledAppVersionHistory{}
 	// checking if the gitOpsAppName is present in installed_apps table, if yes the find installed_app_version_history else return
-	installedAppModel, err := impl.installedAppRepository.GetInstalledAppByGitOpsAppName(gitOpsAppName)
+	installedAppModel, err := impl.installedAppReadService.GetInstalledAppByGitOpsAppName(gitOpsAppName)
 	if err != nil {
 		impl.logger.Errorw("error in getting all installed apps in GetAllGitOpsAppNameAndInstalledAppMapping", "err", err, "gitOpsAppName", gitOpsAppName)
 		return isValid, installedAppVersionHistory, 0, 0, err

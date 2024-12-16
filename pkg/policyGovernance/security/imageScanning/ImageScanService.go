@@ -14,15 +14,16 @@
  * limitations under the License.
  */
 
-package security
+package imageScanning
 
 import (
 	"context"
-	securityBean "github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
-	bean3 "github.com/devtron-labs/devtron/pkg/security/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/bean"
+	repository3 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
+	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
 	"go.opentelemetry.io/otel"
 	"time"
 
@@ -30,28 +31,27 @@ import (
 	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
 type ImageScanService interface {
-	FetchAllDeployInfo(request *bean3.ImageScanRequest) ([]*security.ImageScanDeployInfo, error)
+	FetchAllDeployInfo(request *bean3.ImageScanRequest) ([]*repository3.ImageScanDeployInfo, error)
 	FetchScanExecutionListing(request *bean3.ImageScanRequest, ids []int) (*bean3.ImageScanHistoryListingResponse, error)
 	FetchExecutionDetailResult(request *bean3.ImageScanRequest) (*bean3.ImageScanExecutionDetail, error)
 	FetchMinScanResultByAppIdAndEnvId(request *bean3.ImageScanRequest) (*bean3.ImageScanExecutionDetail, error)
-	VulnerabilityExposure(request *security.VulnerabilityRequest) (*security.VulnerabilityExposureListingResponse, error)
+	VulnerabilityExposure(request *repository3.VulnerabilityRequest) (*repository3.VulnerabilityExposureListingResponse, error)
 	GetArtifactVulnerabilityStatus(ctx context.Context, request *bean2.VulnerabilityCheckRequest) (bool, error)
 }
 
 type ImageScanServiceImpl struct {
 	Logger                                    *zap.SugaredLogger
-	scanHistoryRepository                     security.ImageScanHistoryRepository
-	scanResultRepository                      security.ImageScanResultRepository
-	scanObjectMetaRepository                  security.ImageScanObjectMetaRepository
-	cveStoreRepository                        security.CveStoreRepository
-	imageScanDeployInfoRepository             security.ImageScanDeployInfoRepository
+	scanHistoryRepository                     repository3.ImageScanHistoryRepository
+	scanResultRepository                      repository3.ImageScanResultRepository
+	scanObjectMetaRepository                  repository3.ImageScanObjectMetaRepository
+	cveStoreRepository                        repository3.CveStoreRepository
+	imageScanDeployInfoRepository             repository3.ImageScanDeployInfoRepository
 	userService                               user.UserService
 	appRepository                             repository1.AppRepository
 	envService                                environment.EnvironmentService
@@ -59,19 +59,19 @@ type ImageScanServiceImpl struct {
 	policyService                             PolicyService
 	pipelineRepository                        pipelineConfig.PipelineRepository
 	ciPipelineRepository                      pipelineConfig.CiPipelineRepository
-	scanToolMetaDataRepository                security.ScanToolMetadataRepository
-	scanToolExecutionHistoryMappingRepository security.ScanToolExecutionHistoryMappingRepository
-	cvePolicyRepository                       security.CvePolicyRepository
+	scanToolMetaDataRepository                repository3.ScanToolMetadataRepository
+	scanToolExecutionHistoryMappingRepository repository3.ScanToolExecutionHistoryMappingRepository
+	cvePolicyRepository                       repository3.CvePolicyRepository
 }
 
-func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository security.ImageScanHistoryRepository,
-	scanResultRepository security.ImageScanResultRepository, scanObjectMetaRepository security.ImageScanObjectMetaRepository,
-	cveStoreRepository security.CveStoreRepository, imageScanDeployInfoRepository security.ImageScanDeployInfoRepository,
+func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository repository3.ImageScanHistoryRepository,
+	scanResultRepository repository3.ImageScanResultRepository, scanObjectMetaRepository repository3.ImageScanObjectMetaRepository,
+	cveStoreRepository repository3.CveStoreRepository, imageScanDeployInfoRepository repository3.ImageScanDeployInfoRepository,
 	userService user.UserService,
 	appRepository repository1.AppRepository,
 	envService environment.EnvironmentService, ciArtifactRepository repository.CiArtifactRepository, policyService PolicyService,
-	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository, scanToolMetaDataRepository security.ScanToolMetadataRepository, scanToolExecutionHistoryMappingRepository security.ScanToolExecutionHistoryMappingRepository,
-	cvePolicyRepository security.CvePolicyRepository) *ImageScanServiceImpl {
+	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository, scanToolMetaDataRepository repository3.ScanToolMetadataRepository, scanToolExecutionHistoryMappingRepository repository3.ScanToolExecutionHistoryMappingRepository,
+	cvePolicyRepository repository3.CvePolicyRepository) *ImageScanServiceImpl {
 	return &ImageScanServiceImpl{Logger: Logger, scanHistoryRepository: scanHistoryRepository, scanResultRepository: scanResultRepository,
 		scanObjectMetaRepository: scanObjectMetaRepository, cveStoreRepository: cveStoreRepository,
 		imageScanDeployInfoRepository:             imageScanDeployInfoRepository,
@@ -88,7 +88,7 @@ func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository se
 	}
 }
 
-func (impl ImageScanServiceImpl) FetchAllDeployInfo(request *bean3.ImageScanRequest) ([]*security.ImageScanDeployInfo, error) {
+func (impl ImageScanServiceImpl) FetchAllDeployInfo(request *bean3.ImageScanRequest) ([]*repository3.ImageScanDeployInfo, error) {
 	deployedList, err := impl.imageScanDeployInfoRepository.FindAll()
 	if err != nil {
 		impl.Logger.Errorw("error while fetching scan execution result", "err", err)
@@ -120,7 +120,7 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *bean3.ImageS
 		return nil, err
 	}
 
-	groupByListMap := make(map[int]*security.ImageScanDeployInfo)
+	groupByListMap := make(map[int]*repository3.ImageScanDeployInfo)
 	executionHistoryIds := make([]int, 0, len(deployedList)*2)
 	for _, item := range deployedList {
 		groupByListMap[item.Id] = item
@@ -191,7 +191,7 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *bean3.ImageS
 				imageScanHistoryResponse.AppId = item.ScanObjectMetaId
 			}
 		} else {
-			if item.ObjectType == security.ScanObjectType_APP || item.ObjectType == security.ScanObjectType_CHART {
+			if item.ObjectType == repository3.ScanObjectType_APP || item.ObjectType == repository3.ScanObjectType_CHART {
 				app, err := impl.appRepository.FindById(item.ScanObjectMetaId)
 				if err != nil && err != pg.ErrNoRows {
 					return nil, err
@@ -202,7 +202,7 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *bean3.ImageS
 				imageScanHistoryResponse.AppId = app.Id
 				imageScanHistoryResponse.Name = app.AppName
 				imageScanHistoryResponse.Type = item.ObjectType
-			} else if item.ObjectType == security.ScanObjectType_POD {
+			} else if item.ObjectType == repository3.ScanObjectType_POD {
 				scanObjectMeta, err := impl.scanObjectMetaRepository.FindOne(item.ScanObjectMetaId)
 				if err != nil && err != pg.ErrNoRows {
 					return nil, err
@@ -264,13 +264,13 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *bean3.Image
 
 		scanExecutionIds = append(scanExecutionIds, scanDeployInfo.ImageScanExecutionHistoryId...)
 
-		if scanDeployInfo.ObjectType == security.ScanObjectType_APP || scanDeployInfo.ObjectType == security.ScanObjectType_CHART {
+		if scanDeployInfo.ObjectType == repository3.ScanObjectType_APP || scanDeployInfo.ObjectType == repository3.ScanObjectType_CHART {
 			request.AppId = scanDeployInfo.ScanObjectMetaId
-		} else if scanDeployInfo.ObjectType == security.ScanObjectType_POD {
+		} else if scanDeployInfo.ObjectType == repository3.ScanObjectType_POD {
 			request.ObjectId = scanDeployInfo.ScanObjectMetaId
 		}
 		request.EnvId = scanDeployInfo.EnvId
-		if scanDeployInfo.ObjectType == security.ScanObjectType_APP {
+		if scanDeployInfo.ObjectType == repository3.ScanObjectType_APP {
 			isRegularApp = true
 		}
 		imageScanResponse.ObjectType = scanDeployInfo.ObjectType
@@ -306,12 +306,12 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *bean3.Image
 			impl.Logger.Debugw("returning without result as scan disabled for this artifact", "ciArtifact", ciArtifact)
 			return imageScanResponse, nil
 		}
-		imageScanResponse.ObjectType = security.ScanObjectType_APP
+		imageScanResponse.ObjectType = repository3.ScanObjectType_APP
 	}
 
 	var vulnerabilities []*bean3.Vulnerabilities
 	var criticalCount, highCount, moderateCount, lowCount, unkownCount int
-	var cveStores []*security.CveStore
+	var cveStores []*repository3.CveStore
 	imageDigests := make(map[string]string)
 	if len(scanExecutionIds) > 0 {
 		//var imageScanResultFinal []*security.ImageScanExecutionResult
@@ -445,7 +445,7 @@ func (impl *ImageScanServiceImpl) FetchMinScanResultByAppIdAndEnvId(request *bea
 	var executionTime time.Time
 
 	var objectType []string
-	objectType = append(objectType, security.ScanObjectType_APP, security.ScanObjectType_CHART)
+	objectType = append(objectType, repository3.ScanObjectType_APP, repository3.ScanObjectType_CHART)
 	scanDeployInfo, err := impl.imageScanDeployInfoRepository.FetchByAppIdAndEnvId(request.AppId, request.EnvId, objectType)
 	if err != nil && pg.ErrNoRows != err {
 		impl.Logger.Errorw("error while fetching scan execution result", "err", err)
@@ -513,8 +513,8 @@ func (impl *ImageScanServiceImpl) getScanToolIdFromExecutionHistory(scanExecutio
 	return -1, err
 }
 
-func (impl *ImageScanServiceImpl) VulnerabilityExposure(request *security.VulnerabilityRequest) (*security.VulnerabilityExposureListingResponse, error) {
-	vulnerabilityExposureListingResponse := &security.VulnerabilityExposureListingResponse{
+func (impl *ImageScanServiceImpl) VulnerabilityExposure(request *repository3.VulnerabilityRequest) (*repository3.VulnerabilityExposureListingResponse, error) {
+	vulnerabilityExposureListingResponse := &repository3.VulnerabilityExposureListingResponse{
 		Offset: request.Offset,
 		Size:   request.Size,
 	}
@@ -533,7 +533,7 @@ func (impl *ImageScanServiceImpl) VulnerabilityExposure(request *security.Vulner
 		return nil, err
 	}
 
-	var cveStores []*security.CveStore
+	var cveStores []*repository3.CveStore
 	cveStore, err := impl.cveStoreRepository.FindByName(request.CveName)
 	if err != nil {
 		impl.Logger.Errorw("error while fetching cve store", "err", err)
@@ -597,7 +597,7 @@ func (impl *ImageScanServiceImpl) CalculateSeverityCountInfo(vulnerabilities []*
 func (impl *ImageScanServiceImpl) GetArtifactVulnerabilityStatus(ctx context.Context, request *bean2.VulnerabilityCheckRequest) (bool, error) {
 	isVulnerable := false
 	if len(request.ImageDigest) > 0 {
-		var cveStores []*security.CveStore
+		var cveStores []*repository3.CveStore
 		_, span := otel.Tracer("orchestrator").Start(ctx, "scanResultRepository.FindByImageDigest")
 		imageScanResult, err := impl.scanResultRepository.FindByImageDigest(request.ImageDigest)
 		span.End()

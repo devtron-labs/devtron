@@ -98,3 +98,11 @@ func TruncateFloat(value float64, decimals int) float64 {
 	pow10 := math.Pow10(decimals)
 	return math.Trunc(value*pow10) / pow10
 }
+
+func GetDeReferencedBean[T any](ptrObject *T) T {
+	var deReferencedObj T
+	if ptrObject != nil {
+		deReferencedObj = *ptrObject
+	}
+	return deReferencedObj
+}

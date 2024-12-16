@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package security
+package repository
 
 import (
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
