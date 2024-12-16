@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig/bean"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/constants"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/service"
+	util2 "github.com/devtron-labs/devtron/pkg/infraConfig/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -99,9 +100,9 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWri
 		err = errors.Wrap(err, constants.PayloadValidationError)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 	}
-
-	if profileName == "" || (profileName == constants.GLOBAL_PROFILE_NAME && payload.Name != constants.GLOBAL_PROFILE_NAME) {
+	if !util2.IsValidProfileNameRequested(profileName, payload.Name) {
 		common.WriteJsonResp(w, errors.New(constants.InvalidProfileName), nil, http.StatusBadRequest)
+		return
 	}
 	err = handler.infraProfileService.UpdateProfile(userId, profileName, payload)
 	if err != nil {
@@ -185,7 +186,7 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfileV0(w http.ResponseW
 		err = errors.Wrap(err, constants.PayloadValidationError)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 	}
-	if profileName != constants.DEFAULT_PROFILE_NAME || payload.Name != constants.DEFAULT_PROFILE_NAME {
+	if !util2.IsValidProfileNameRequestedV0(profileName, payload.Name) {
 		common.WriteJsonResp(w, errors.New(constants.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
@@ -193,8 +194,8 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfileV0(w http.ResponseW
 		common.WriteJsonResp(w, errors.New(constants.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
-	profileName = constants.GLOBAL_PROFILE_NAME
 
+	profileName = constants.GLOBAL_PROFILE_NAME
 	payloadV1 := adapter.GetV1ProfileBean(payload)
 	err = handler.infraProfileService.UpdateProfile(userId, profileName, payloadV1)
 	if err != nil {

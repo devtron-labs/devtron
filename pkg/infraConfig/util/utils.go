@@ -162,3 +162,11 @@ func validateConfigItems(propertyConfigs []*bean.ConfigurationBean, defaultKeyMa
 	}
 	return nil
 }
+
+func IsValidProfileNameRequested(profileName, reqProfileName string) bool {
+	return !(profileName == "" || (profileName == constants.GLOBAL_PROFILE_NAME && reqProfileName != constants.GLOBAL_PROFILE_NAME))
+}
+
+func IsValidProfileNameRequestedV0(profileName, reqProfileName string) bool {
+	return !(profileName == "" || (profileName == constants.DEFAULT_PROFILE_NAME && reqProfileName != constants.DEFAULT_PROFILE_NAME))
+}

@@ -18,9 +18,7 @@ package bean
 
 import (
 	util2 "github.com/devtron-labs/devtron/pkg/infraConfig/constants"
-	"github.com/devtron-labs/devtron/pkg/infraConfig/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
-	"strconv"
 	"time"
 )
 
@@ -48,14 +46,6 @@ type ProfileBeanDto struct {
 type ProfileBeanV0 struct {
 	ProfileBeanAbstract
 	Configurations []ConfigurationBeanV0 `json:"configurations" validate:"dive"`
-}
-
-func (profileBean *ProfileBeanDto) ConvertToInfraProfileEntity() *repository.InfraProfileEntity {
-	return &repository.InfraProfileEntity{
-		Id:          profileBean.Id,
-		Name:        profileBean.Name,
-		Description: profileBean.Description,
-	}
 }
 
 type ConfigurationBean struct {
@@ -152,94 +142,4 @@ func (infraConfig InfraConfig) GetCiDefaultTimeout() int64 {
 
 func (infraConfig *InfraConfig) SetCiDefaultTimeout(timeout int64) {
 	infraConfig.CiDefaultTimeout = timeout
-}
-
-func (infraConfig InfraConfig) LoadCiLimitCpu() (*repository.InfraProfileConfigurationEntity, error) {
-	val, suffix, err := units.ParseValAndUnit(infraConfig.CiLimitCpu)
-	if err != nil {
-		return nil, err
-	}
-	return &repository.InfraProfileConfigurationEntity{
-		Key:         util2.CPULimitKey,
-		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
-		Unit:        units.CPUUnitStr(suffix).GetCPUUnit(),
-		Platform:    util2.DEFAULT_PLATFORM,
-	}, nil
-
-}
-
-func (infraConfig InfraConfig) LoadCiLimitMem() (*repository.InfraProfileConfigurationEntity, error) {
-	val, suffix, err := units.ParseValAndUnit(infraConfig.CiLimitMem)
-	if err != nil {
-		return nil, err
-	}
-	return &repository.InfraProfileConfigurationEntity{
-		Key:         util2.MemoryLimitKey,
-		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
-		Unit:        units.MemoryUnitStr(suffix).GetMemoryUnit(),
-		Platform:    util2.DEFAULT_PLATFORM,
-	}, nil
-
-}
-
-func (infraConfig InfraConfig) LoadCiReqCpu() (*repository.InfraProfileConfigurationEntity, error) {
-	val, suffix, err := units.ParseValAndUnit(infraConfig.CiReqCpu)
-	if err != nil {
-		return nil, err
-	}
-	return &repository.InfraProfileConfigurationEntity{
-		Key:         util2.CPURequestKey,
-		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
-		Unit:        units.CPUUnitStr(suffix).GetCPUUnit(),
-		Platform:    util2.DEFAULT_PLATFORM,
-	}, nil
-}
-
-func (infraConfig InfraConfig) LoadCiReqMem() (*repository.InfraProfileConfigurationEntity, error) {
-	val, suffix, err := units.ParseValAndUnit(infraConfig.CiReqMem)
-	if err != nil {
-		return nil, err
-	}
-
-	return &repository.InfraProfileConfigurationEntity{
-		Key:         util2.MemoryRequestKey,
-		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
-		Unit:        units.MemoryUnitStr(suffix).GetMemoryUnit(),
-		Platform:    util2.DEFAULT_PLATFORM,
-	}, nil
-}
-
-func (infraConfig InfraConfig) LoadDefaultTimeout() (*repository.InfraProfileConfigurationEntity, error) {
-	return &repository.InfraProfileConfigurationEntity{
-		Key:         util2.TimeOutKey,
-		ValueString: strconv.FormatInt(infraConfig.CiDefaultTimeout, 10),
-		Unit:        units.SecondStr.GetTimeUnit(),
-		Platform:    util2.DEFAULT_PLATFORM,
-	}, nil
-}
-
-func (infraConfig InfraConfig) LoadInfraConfigInEntities() ([]*repository.InfraProfileConfigurationEntity, error) {
-	cpuLimit, err := infraConfig.LoadCiLimitCpu()
-	if err != nil {
-		return nil, err
-	}
-	memLimit, err := infraConfig.LoadCiLimitMem()
-	if err != nil {
-		return nil, err
-	}
-	cpuReq, err := infraConfig.LoadCiReqCpu()
-	if err != nil {
-		return nil, err
-	}
-	memReq, err := infraConfig.LoadCiReqMem()
-	if err != nil {
-		return nil, err
-	}
-	timeout, err := infraConfig.LoadDefaultTimeout()
-	if err != nil {
-		return nil, err
-	}
-
-	defaultConfigurations := []*repository.InfraProfileConfigurationEntity{cpuLimit, memLimit, cpuReq, memReq, timeout}
-	return defaultConfigurations, nil
 }

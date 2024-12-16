@@ -117,7 +117,7 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 	}
 	// validations end
 
-	infraProfileEntity := profileToUpdate.ConvertToInfraProfileEntity()
+	infraProfileEntity := adapter.ConvertToInfraProfileEntity(profileToUpdate)
 	// user couldn't delete the profile, always set this to active
 	infraProfileEntity.Active = true
 
@@ -195,7 +195,7 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 		profile = defaultProfile
 	}
 
-	defaultConfigurationsFromEnv, err := impl.infraConfig.LoadInfraConfigInEntities()
+	defaultConfigurationsFromEnv, err := adapter.LoadInfraConfigInEntities(impl.infraConfig)
 	if err != nil {
 		impl.logger.Errorw("error in loading default configurations from environment", "error", err)
 		return err
@@ -229,6 +229,7 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 		impl.logger.Errorw("error in fetching platforms from db", "error", err)
 		return err
 	}
+	//creating default platform if not found in db
 	if errors.Is(err, pg.ErrNoRows) {
 		creatableProfilePlatformMapping = append(creatableProfilePlatformMapping, &repository.ProfilePlatformMapping{
 			Platform:  constants.DEFAULT_PLATFORM,

@@ -1,25 +1,19 @@
 
--- ---------------------------------------------------
--- Step 1: Begin Transaction
--- ---------------------------------------------------
 BEGIN;
 
--- ---------------------------------------------------
+UPDATE public.infra_profile
+SET name = 'default'
+WHERE name = 'global';
+
 -- Step 2: Modify infra_profile_configuration Table
--- ---------------------------------------------------
 
 -- 2.1: Remove NOT NULL Constraint from 'platform' Column
 ALTER TABLE public.infra_profile_configuration
     ALTER COLUMN platform DROP NOT NULL;
 
--- 2.2: Remove DEFAULT Value from 'platform' Column
-ALTER TABLE public.infra_profile_configuration
-    ALTER COLUMN platform DROP DEFAULT;
-
 -- ---------------------------------------------------
 -- Step 3: Revert Data Changes in infra_profile_configuration
 -- ---------------------------------------------------
-
 UPDATE public.infra_profile_configuration
 SET platform = 'ci-runner'
 WHERE platform = 'default';
