@@ -14,6 +14,7 @@
 - feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
+- chore: read service/image scanning (#6166)
 - chore: refactoring image scanning and resource scanning (#6177)
 - chore: installed app version read service (#6162)
 - chore: refactoring installed app read service (#6153)
