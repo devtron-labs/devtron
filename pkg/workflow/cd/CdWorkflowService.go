@@ -24,7 +24,6 @@ import (
 )
 
 type CdWorkflowService interface {
-	CheckIfLatestWf(pipelineId, cdWfId int) (latest bool, err error)
 	UpdateWorkFlow(dto *bean.CdWorkflowDto) error
 }
 
@@ -39,15 +38,6 @@ func NewCdWorkflowServiceImpl(logger *zap.SugaredLogger,
 		logger:               logger,
 		cdWorkflowRepository: cdWorkflowRepository,
 	}
-}
-
-func (impl *CdWorkflowServiceImpl) CheckIfLatestWf(pipelineId, cdWfId int) (latest bool, err error) {
-	latest, err = impl.cdWorkflowRepository.IsLatestWf(pipelineId, cdWfId)
-	if err != nil {
-		impl.logger.Errorw("error in checking if wf is latest", "pipelineId", pipelineId, "cdWfId", cdWfId, "err", err)
-		return false, err
-	}
-	return latest, nil
 }
 
 func (impl *CdWorkflowServiceImpl) UpdateWorkFlow(dto *bean.CdWorkflowDto) error {

@@ -1,7 +1,7 @@
 package bean
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
 	"time"
 )
 

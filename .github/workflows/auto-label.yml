@@ -4,7 +4,6 @@ on:
   issue_comment:
     types: [created]
 
-
 jobs:
   manage-labels:
     if: ${{ !github.event.issue.pull_request }}
@@ -16,40 +15,37 @@ jobs:
 
       - name: Parse and manage labels
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.ORG_MEMBERSHIP_SECRET }}
         run: |
           set -e
           set -x  # Enable debugging
 
-          # Extract comment on  body and issue number
+          # Extract comment body, issue number, and author
           COMMENT_BODY=$(jq -r '.comment.body' "$GITHUB_EVENT_PATH")
           ISSUE_NUMBER=$(jq -r '.issue.number // .pull_request.number' "$GITHUB_EVENT_PATH")
+          COMMENT_AUTHOR=$(jq -r '.comment.user.login' "$GITHUB_EVENT_PATH")
 
-          ORG_NAME="devtron-labs"
+          ORG_NAME="satyam-tests"
 
-          # checks if the person is authorized to add labels or not
-          ORG_MEMBERSHIP_STATUS=$(gh api "orgs/$ORG_NAME/members/$COMMENT_AUTHOR" --silent --exit-status)
-
+          # Check if the person is authorized to add labels
+          curl -s -H "Authorization: token $GH_TOKEN" "https://api.github.com/orgs/$ORG_NAME/members/$COMMENT_AUTHOR" > /dev/null
           if [[ $? -ne 0 ]]; then
             gh issue comment "$ISSUE_NUMBER" --body "Hi @$COMMENT_AUTHOR, you must be a member of the organization '$ORG_NAME' to add or remove labels."
-
             echo "User '$COMMENT_AUTHOR' is not a member of the organization '$ORG_NAME'. Exiting."
             exit 1
           fi
 
-          echo "User '$COMMENT_AUTHOR' is a verified member of the organization '$ORG_NAME'. Adding label"
+          echo "User '$COMMENT_AUTHOR' is a verified member of the organization '$ORG_NAME'. Proceeding with label management."
 
-
-          # Get the existing labels on the issue 
+          # Get the existing labels on the issue
           EXISTING_LABELS=$(gh issue view "$ISSUE_NUMBER" --json labels -q '.labels[].name')
 
-          # Add Label 
+          # Add Label Logic
           if [[ "$COMMENT_BODY" =~ ^/([^ ]+)$ ]]; then
             LABEL_NAME="${COMMENT_BODY:1}"
 
-            # check for already existing labels in reppo
+            # Check if the label exists in the repository
             if gh label list --json name -q '.[].name' | grep -q "^$LABEL_NAME$"; then
-              # Add the requested label, keeping existing ones intact
               gh issue edit "$ISSUE_NUMBER" --add-label "$LABEL_NAME"
               echo "Successfully added label '$LABEL_NAME' to issue #$ISSUE_NUMBER."
             else

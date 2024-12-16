@@ -709,7 +709,7 @@ func (impl *AppStoreDeploymentServiceImpl) updateInstalledApp(ctx context.Contex
 		}
 		// required if gitOps repo name is changed, gitOps repo name will change if env variable which we use as suffix changes
 		monoRepoMigrationRequired = impl.checkIfMonoRepoMigrationRequired(installedApp, deploymentConfig)
-		argocdAppName := installedApp.App.AppName + "-" + installedApp.Environment.Name
+		argocdAppName := util2.BuildDeployedAppName(installedApp.App.AppName, installedApp.Environment.Name)
 		upgradeAppRequest.ACDAppName = argocdAppName
 
 		var gitOpsErr error
@@ -877,7 +877,7 @@ func (impl *AppStoreDeploymentServiceImpl) MarkGitOpsInstalledAppsDeletedIfArgoA
 		return nil
 	}
 	// Operates for ArgoCd apps only
-	acdAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
+	acdAppName := util2.BuildDeployedAppName(installedApp.App.AppName, installedApp.Environment.Name)
 	isFound, err := impl.fullModeDeploymentService.CheckIfArgoAppExists(acdAppName)
 	if err != nil {
 		impl.logger.Errorw("error in CheckIfArgoAppExists", "err", err)

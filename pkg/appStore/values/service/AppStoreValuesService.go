@@ -18,6 +18,7 @@ package service
 
 import (
 	"fmt"
+	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
 	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"time"
 
@@ -45,17 +46,22 @@ type AppStoreValuesServiceImpl struct {
 	logger                          *zap.SugaredLogger
 	appStoreApplicationRepository   appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	installedAppRepository          repository.InstalledAppRepository
+	installedAppReadService         installedAppReader.InstalledAppReadServiceEA
 	appStoreVersionValuesRepository appStoreValuesRepository.AppStoreVersionValuesRepository
 	userService                     user.UserService
 }
 
 func NewAppStoreValuesServiceImpl(logger *zap.SugaredLogger,
-	appStoreApplicationRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository, installedAppRepository repository.InstalledAppRepository,
-	appStoreVersionValuesRepository appStoreValuesRepository.AppStoreVersionValuesRepository, userService user.UserService) *AppStoreValuesServiceImpl {
+	appStoreApplicationRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
+	installedAppRepository repository.InstalledAppRepository,
+	installedAppReadServiceEA installedAppReader.InstalledAppReadServiceEA,
+	appStoreVersionValuesRepository appStoreValuesRepository.AppStoreVersionValuesRepository,
+	userService user.UserService) *AppStoreValuesServiceImpl {
 	return &AppStoreValuesServiceImpl{
 		logger:                          logger,
 		appStoreApplicationRepository:   appStoreApplicationRepository,
 		installedAppRepository:          installedAppRepository,
+		installedAppReadService:         installedAppReadServiceEA,
 		appStoreVersionValuesRepository: appStoreVersionValuesRepository,
 		userService:                     userService,
 	}
@@ -151,7 +157,7 @@ func (impl AppStoreValuesServiceImpl) FindValuesByIdAndKind(referenceId int, kin
 		}
 		return valDto, err
 	} else if kind == appStoreBean.REFERENCE_TYPE_EXISTING {
-		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionAny(referenceId)
+		installedAppVersion, err := impl.installedAppReadService.GetInstalledAppVersionIncludingDeleted(referenceId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching installed App", "id", referenceId, "err", err)
 		}
@@ -159,7 +165,7 @@ func (impl AppStoreValuesServiceImpl) FindValuesByIdAndKind(referenceId int, kin
 			Name:              appStoreBean.REFERENCE_TYPE_EXISTING,
 			Id:                installedAppVersion.Id,
 			Values:            installedAppVersion.ValuesYaml,
-			ChartVersion:      installedAppVersion.AppStoreApplicationVersion.Version,
+			ChartVersion:      installedAppVersion.AppStoreVersion,
 			AppStoreVersionId: installedAppVersion.AppStoreApplicationVersionId,
 		}
 		return valDto, err
