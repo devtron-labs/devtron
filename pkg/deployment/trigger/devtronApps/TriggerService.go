@@ -42,7 +42,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
-	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	bean4 "github.com/devtron-labs/devtron/pkg/app/bean"
@@ -76,7 +75,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
-	security2 "github.com/devtron-labs/devtron/pkg/security"
+	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
+	read2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/read"
+	repository6 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
@@ -148,8 +149,9 @@ type TriggerServiceImpl struct {
 	helmAppClient                       gRPC.HelmAppClient //TODO refactoring: use helm app service instead
 	appRepository                       appRepository.AppRepository
 	ciPipelineMaterialRepository        pipelineConfig.CiPipelineMaterialRepository
-	imageScanHistoryRepository          security.ImageScanHistoryRepository
-	imageScanDeployInfoRepository       security.ImageScanDeployInfoRepository
+	imageScanHistoryReadService         read2.ImageScanHistoryReadService
+	imageScanDeployInfoService          security2.ImageScanDeployInfoService
+	imageScanDeployInfoReadService      read2.ImageScanDeployInfoReadService
 	pipelineRepository                  pipelineConfig.PipelineRepository
 	pipelineOverrideRepository          chartConfig.PipelineOverrideRepository
 	manifestPushConfigRepository        repository.ManifestPushConfigRepository
@@ -205,8 +207,9 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 	envVariables *globalUtil.EnvironmentVariables,
 	appRepository appRepository.AppRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	imageScanHistoryRepository security.ImageScanHistoryRepository,
-	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository,
+	imageScanHistoryReadService read2.ImageScanHistoryReadService,
+	imageScanDeployInfoReadService read2.ImageScanDeployInfoReadService,
+	imageScanDeployInfoService security2.ImageScanDeployInfoService,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository,
 	manifestPushConfigRepository repository.ManifestPushConfigRepository,
@@ -258,27 +261,28 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 		eventFactory:                        eventFactory,
 		eventClient:                         eventClient,
 
-		globalEnvVariables:            envVariables.GlobalEnvVariables,
-		userDeploymentRequestService:  userDeploymentRequestService,
-		helmAppClient:                 helmAppClient,
-		appRepository:                 appRepository,
-		ciPipelineMaterialRepository:  ciPipelineMaterialRepository,
-		imageScanHistoryRepository:    imageScanHistoryRepository,
-		imageScanDeployInfoRepository: imageScanDeployInfoRepository,
-		pipelineRepository:            pipelineRepository,
-		pipelineOverrideRepository:    pipelineOverrideRepository,
-		manifestPushConfigRepository:  manifestPushConfigRepository,
-		chartRepository:               chartRepository,
-		envRepository:                 envRepository,
-		cdWorkflowRepository:          cdWorkflowRepository,
-		ciWorkflowRepository:          ciWorkflowRepository,
-		ciArtifactRepository:          ciArtifactRepository,
-		ciTemplateService:             ciTemplateService,
-		gitMaterialReadService:        gitMaterialReadService,
-		appLabelRepository:            appLabelRepository,
-		ciPipelineRepository:          ciPipelineRepository,
-		appWorkflowRepository:         appWorkflowRepository,
-		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
+		globalEnvVariables:             envVariables.GlobalEnvVariables,
+		userDeploymentRequestService:   userDeploymentRequestService,
+		helmAppClient:                  helmAppClient,
+		appRepository:                  appRepository,
+		ciPipelineMaterialRepository:   ciPipelineMaterialRepository,
+		imageScanHistoryReadService:    imageScanHistoryReadService,
+		imageScanDeployInfoReadService: imageScanDeployInfoReadService,
+		imageScanDeployInfoService:     imageScanDeployInfoService,
+		pipelineRepository:             pipelineRepository,
+		pipelineOverrideRepository:     pipelineOverrideRepository,
+		manifestPushConfigRepository:   manifestPushConfigRepository,
+		chartRepository:                chartRepository,
+		envRepository:                  envRepository,
+		cdWorkflowRepository:           cdWorkflowRepository,
+		ciWorkflowRepository:           ciWorkflowRepository,
+		ciArtifactRepository:           ciArtifactRepository,
+		ciTemplateService:              ciTemplateService,
+		gitMaterialReadService:         gitMaterialReadService,
+		appLabelRepository:             appLabelRepository,
+		ciPipelineRepository:           ciPipelineRepository,
+		appWorkflowRepository:          appWorkflowRepository,
+		dockerArtifactStoreRepository:  dockerArtifactStoreRepository,
 
 		imageScanService: imageScanService,
 		K8sUtil:          K8sUtil,
@@ -1422,7 +1426,7 @@ func (impl *TriggerServiceImpl) markImageScanDeployed(ctx context.Context, appId
 	defer span.End()
 	// TODO KB: send NATS event for self consumption
 	impl.logger.Debugw("mark image scan deployed for devtron app, from cd auto or manual trigger", "imageDigest", imageDigest)
-	executionHistory, err := impl.imageScanHistoryRepository.FindByImageAndDigest(imageDigest, image)
+	executionHistory, err := impl.imageScanHistoryReadService.FindByImageAndDigest(imageDigest, image)
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in fetching execution history", "err", err)
 		return err
@@ -1442,7 +1446,7 @@ func (impl *TriggerServiceImpl) markImageScanDeployed(ctx context.Context, appId
 	var ids []int
 	ids = append(ids, executionHistory.Id)
 
-	ot, err := impl.imageScanDeployInfoRepository.FetchByAppIdAndEnvId(appId, envId, []string{security.ScanObjectType_APP})
+	ot, err := impl.imageScanDeployInfoReadService.FetchByAppIdAndEnvId(appId, envId, []string{repository6.ScanObjectType_APP})
 
 	if err == pg.ErrNoRows && !isScanEnabled {
 		//ignoring if no rows are found and scan is disabled
@@ -1452,10 +1456,10 @@ func (impl *TriggerServiceImpl) markImageScanDeployed(ctx context.Context, appId
 	if err != nil && err != pg.ErrNoRows {
 		return err
 	} else if err == pg.ErrNoRows && isScanEnabled {
-		imageScanDeployInfo := &security.ImageScanDeployInfo{
+		imageScanDeployInfo := &repository6.ImageScanDeployInfo{
 			ImageScanExecutionHistoryId: ids,
 			ScanObjectMetaId:            appId,
-			ObjectType:                  security.ScanObjectType_APP,
+			ObjectType:                  repository6.ScanObjectType_APP,
 			EnvId:                       envId,
 			ClusterId:                   clusterId,
 			AuditLog: sql.AuditLog{
@@ -1466,7 +1470,7 @@ func (impl *TriggerServiceImpl) markImageScanDeployed(ctx context.Context, appId
 			},
 		}
 		impl.logger.Debugw("mark image scan deployed for normal app, from cd auto or manual trigger", "imageScanDeployInfo", imageScanDeployInfo)
-		err = impl.imageScanDeployInfoRepository.Save(imageScanDeployInfo)
+		err = impl.imageScanDeployInfoService.Save(imageScanDeployInfo)
 		if err != nil {
 			impl.logger.Errorw("error in creating deploy info", "err", err)
 		}
@@ -1478,7 +1482,7 @@ func (impl *TriggerServiceImpl) markImageScanDeployed(ctx context.Context, appId
 			arr := []int{-1}
 			ot.ImageScanExecutionHistoryId = arr
 		}
-		err = impl.imageScanDeployInfoRepository.Update(ot)
+		err = impl.imageScanDeployInfoService.Update(ot)
 		if err != nil {
 			impl.logger.Errorw("error in updating deploy info for latest deployed image", "err", err)
 		}
