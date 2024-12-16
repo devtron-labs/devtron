@@ -14,6 +14,7 @@
 - feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
+- chore: adding logs in deployment trigger flow (#6180)
 - misc: fix wire_gen (#6181)
 - misc: added cd workflow runner read service (#6175)
 - chore: read service/image scanning (#6166)
