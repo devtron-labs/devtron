@@ -184,9 +184,9 @@ func (handler *GlobalPluginRestHandlerImpl) GetAllGlobalVariables(w http.Respons
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	authorised := false
 	if app.AppType == helper.Job {
-		authorised = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object)
-	} else if app.AppType == helper.CustomApp {
 		authorised = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, object)
+	} else if app.AppType == helper.CustomApp {
+		authorised = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object)
 	}
 	if !authorised {
 		common.WriteJsonResp(w, common.ErrUnAuthorized, nil, http.StatusForbidden)
