@@ -907,13 +907,13 @@ func (impl DockerRegistryConfigImpl) ValidateRegistryCredentials(bean *types.Doc
 	isLoggedIn, err := impl.helmAppService.ValidateOCIRegistry(context.Background(), request)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart", "err", err)
-		return util.NewApiError().
+		return util.DefaultApiError().
 			WithUserMessage("error in validating oci registry").
 			WithInternalMessage(err.Error()).
 			WithHttpStatusCode(http.StatusInternalServerError)
 	}
 	if !isLoggedIn {
-		return util.NewApiError().
+		return util.DefaultApiError().
 			WithUserMessage(ociRegistryInvalidCredsMsg).
 			WithInternalMessage(ociRegistryInvalidCredsMsg).
 			WithHttpStatusCode(http.StatusBadRequest)

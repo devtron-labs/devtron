@@ -2204,7 +2204,7 @@ func (impl CiCdPipelineOrchestratorImpl) AddPipelineToTemplate(createRequest *be
 		if !ciPipeline.PipelineType.IsValidPipelineType() {
 			impl.logger.Debugw(" Invalid PipelineType", "ciPipeline.PipelineType", ciPipeline.PipelineType)
 			errorMessage := fmt.Sprintf(bean2.PIPELINE_TYPE_IS_NOT_VALID, ciPipeline.PipelineType)
-			return nil, util.NewApiError().WithHttpStatusCode(http.StatusBadRequest).WithInternalMessage(errorMessage).WithUserMessage(errorMessage)
+			return nil, util.DefaultApiError().WithHttpStatusCode(http.StatusBadRequest).WithInternalMessage(errorMessage).WithUserMessage(errorMessage)
 		}
 	}
 	if createRequest.AppWorkflowId == 0 {

@@ -27,7 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	bean4 "github.com/devtron-labs/devtron/pkg/cluster/bean"
-	bean3 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"go.uber.org/zap"

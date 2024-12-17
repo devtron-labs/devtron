@@ -41,12 +41,19 @@ type App struct {
 	sql.AuditLog
 }
 
+func (app *App) IsEmpty() bool {
+	if app == nil {
+		return true
+	}
+	return app.Id == 0
+}
+
 const (
 	SYSTEM_USER_ID = 1
 )
 
-func (r *App) IsAppJobOrExternalType() bool {
-	return len(r.DisplayName) > 0
+func (app *App) IsAppJobOrExternalType() bool {
+	return len(app.DisplayName) > 0
 }
 
 type AppRepository interface {

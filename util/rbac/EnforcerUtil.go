@@ -22,17 +22,16 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"golang.org/x/exp/maps"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"strings"
 
 	"github.com/devtron-labs/common-lib/utils/k8s"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
-	"github.com/devtron-labs/devtron/util"
-
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/go-pg/pg"
@@ -211,7 +210,7 @@ func (impl EnforcerUtilImpl) GetRbacObjectsByEnvIdsAndAppId(envIds []int, appId 
 	}
 
 	var appName = application.AppName
-	envs, err := impl.environmentRepository.FindByIds(util.GetReferencedArray(envIds))
+	envs, err := impl.environmentRepository.FindByIds(sliceUtil.GetReferencedSlice(envIds))
 	if err != nil {
 		impl.logger.Errorw("error occurred in fetching environments", "envIds", envIds)
 		return objects, envObjectToName
@@ -820,7 +819,7 @@ func (impl EnforcerUtilImpl) CheckAppRbacForAppOrJobInBulk(token, action string,
 func (impl EnforcerUtilImpl) GetRbacObjectsByEnvIdsAndAppIdBatch(appIdToEnvIds map[int][]int) map[int]map[int]string {
 	objects := make(map[int]map[int]string)
 
-	applications, err := impl.appRepo.FindByIds(util.GetReferencedArray(maps.Keys(appIdToEnvIds)))
+	applications, err := impl.appRepo.FindByIds(sliceUtil.GetReferencedSlice(maps.Keys(appIdToEnvIds)))
 	if err != nil {
 		impl.logger.Errorw("error occurred in fetching apps")
 		return objects
@@ -836,7 +835,7 @@ func (impl EnforcerUtilImpl) GetRbacObjectsByEnvIdsAndAppIdBatch(appIdToEnvIds m
 			envIds = append(envIds, envId)
 		}
 	}
-	environments, err := impl.environmentRepository.FindByIds(util.GetReferencedArray(envIds))
+	environments, err := impl.environmentRepository.FindByIds(sliceUtil.GetReferencedSlice(envIds))
 	if err != nil {
 		impl.logger.Errorw("error occurred in fetching environments", "envIds", envIds)
 		return objects

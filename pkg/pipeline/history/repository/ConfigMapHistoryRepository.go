@@ -35,11 +35,9 @@ type ConfigMapHistoryRepository interface {
 	sql.TransactionWrapper
 	CreateHistory(tx *pg.Tx, model *ConfigmapAndSecretHistory) (*ConfigmapAndSecretHistory, error)
 	GetHistoryForDeployedCMCSById(id, pipelineId int, configType ConfigType) (*ConfigmapAndSecretHistory, error)
-	GetDeploymentDetailsForDeployedCMCSHistory(pipelineId int, configType ConfigType) ([]*ConfigmapAndSecretHistory, error)
 	GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, configType ConfigType) (*ConfigmapAndSecretHistory, error)
 	GetDeployedHistoryForPipelineIdOnTime(pipelineId int, deployedOn time.Time, configType ConfigType) (*ConfigmapAndSecretHistory, error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int, configType ConfigType, componentName string) ([]*ConfigmapAndSecretHistory, error)
-	GetDeployedHistoryByPipelineIdAndDeployedOn(pipelineId int, deployedOn time.Time, configType ConfigType) (*ConfigmapAndSecretHistory, error)
 }
 
 type ConfigMapHistoryRepositoryImpl struct {
@@ -106,18 +104,6 @@ func (impl ConfigMapHistoryRepositoryImpl) GetHistoryForDeployedCMCSById(id, pip
 	return &history, nil
 }
 
-func (impl ConfigMapHistoryRepositoryImpl) GetDeploymentDetailsForDeployedCMCSHistory(pipelineId int, configType ConfigType) ([]*ConfigmapAndSecretHistory, error) {
-	var histories []*ConfigmapAndSecretHistory
-	err := impl.dbConnection.Model(&histories).Where("pipeline_id = ?", pipelineId).
-		Where("data_type = ?", configType).
-		Where("deployed = ?", true).Select()
-	if err != nil {
-		impl.logger.Errorw("error in getting deployed CM/CS history", "err", err)
-		return histories, err
-	}
-	return histories, nil
-}
-
 func (impl ConfigMapHistoryRepositoryImpl) GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, configType ConfigType) (*ConfigmapAndSecretHistory, error) {
 	var history ConfigmapAndSecretHistory
 	query := "SELECT cmh.* FROM config_map_history cmh" +
@@ -148,17 +134,6 @@ func (impl ConfigMapHistoryRepositoryImpl) GetDeployedHistoryList(pipelineId, ba
 }
 
 func (impl ConfigMapHistoryRepositoryImpl) GetDeployedHistoryForPipelineIdOnTime(pipelineId int, deployedOn time.Time, configType ConfigType) (*ConfigmapAndSecretHistory, error) {
-	var history ConfigmapAndSecretHistory
-	err := impl.dbConnection.Model(&history).
-		Where("pipeline_id = ?", pipelineId).
-		Where("data_type = ?", configType).
-		Where("deployed_on = ?", deployedOn).
-		Where("deployed = ?", true).
-		Select()
-	return &history, err
-}
-
-func (impl ConfigMapHistoryRepositoryImpl) GetDeployedHistoryByPipelineIdAndDeployedOn(pipelineId int, deployedOn time.Time, configType ConfigType) (*ConfigmapAndSecretHistory, error) {
 	var history ConfigmapAndSecretHistory
 	err := impl.dbConnection.Model(&history).
 		Where("pipeline_id = ?", pipelineId).

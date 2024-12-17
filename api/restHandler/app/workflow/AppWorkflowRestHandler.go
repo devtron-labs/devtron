@@ -19,6 +19,7 @@ package workflow
 import (
 	"encoding/json"
 	bean2 "github.com/devtron-labs/devtron/pkg/appWorkflow/bean"
+	"github.com/devtron-labs/devtron/util/stringsUtil"
 	"github.com/gorilla/schema"
 	"net/http"
 	"strconv"
@@ -38,7 +39,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	"github.com/devtron-labs/devtron/pkg/team"
-	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
@@ -199,7 +199,7 @@ func (impl AppWorkflowRestHandlerImpl) FindAppWorkflow(w http.ResponseWriter, r 
 	envIdsString := v.Get("envIds")
 	envIds := make([]int, 0)
 	if len(envIdsString) > 0 {
-		envIds, err = util2.SplitCommaSeparatedIntValues(envIdsString)
+		envIds, err = stringsUtil.SplitCommaSeparatedIntValues(envIdsString)
 		if err != nil {
 			common.WriteJsonResp(w, err, "please provide valid envIds", http.StatusBadRequest)
 			return
@@ -448,7 +448,7 @@ func (handler *AppWorkflowRestHandlerImpl) GetWorkflowsViewData(w http.ResponseW
 	}
 
 	if len(queryParams.EnvIdsString) > 0 {
-		envIds, err := util2.SplitCommaSeparatedIntValues(queryParams.EnvIdsString)
+		envIds, err := stringsUtil.SplitCommaSeparatedIntValues(queryParams.EnvIdsString)
 		if err != nil {
 			common.WriteJsonResp(w, err, "please provide valid envIds", http.StatusBadRequest)
 			return

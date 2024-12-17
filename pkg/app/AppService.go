@@ -28,12 +28,16 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	cdWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	bean3 "github.com/devtron-labs/devtron/pkg/app/bean"
+	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/helper"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
+	bean6 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"io/ioutil"
 	"net/url"
@@ -96,7 +100,6 @@ func GetAppServiceConfig() (*AppServiceConfig, error) {
 }
 
 type AppServiceImpl struct {
-	environmentConfigRepository            chartConfig.EnvConfigOverrideRepository
 	pipelineOverrideRepository             chartConfig.PipelineOverrideRepository
 	mergeUtil                              *MergeUtil
 	logger                                 *zap.SugaredLogger
@@ -117,7 +120,7 @@ type AppServiceImpl struct {
 	pipelineStatusTimelineService          status2.PipelineStatusTimelineService
 	appStatusConfig                        *AppServiceConfig
 	appStatusService                       appStatus.AppStatusService
-	installedAppRepository                 repository4.InstalledAppRepository
+	installedAppReadService                installedAppReader.InstalledAppReadService
 	installedAppVersionHistoryRepository   repository4.InstalledAppVersionHistoryRepository
 	scopedVariableManager                  variables.ScopedVariableCMCSManager
 	acdConfig                              *argocdServer.ACDConfig
@@ -126,6 +129,7 @@ type AppServiceImpl struct {
 	deploymentTemplateService              deploymentTemplate.DeploymentTemplateService
 	appListingService                      AppListingService
 	deploymentConfigService                common2.DeploymentConfigService
+	envConfigOverrideReadService           read.EnvConfigOverrideService
 }
 
 type AppService interface {
@@ -144,7 +148,6 @@ type AppService interface {
 }
 
 func NewAppService(
-	environmentConfigRepository chartConfig.EnvConfigOverrideRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository,
 	mergeUtil *MergeUtil, logger *zap.SugaredLogger,
 	pipelineRepository pipelineConfig.PipelineRepository,
@@ -160,15 +163,15 @@ func NewAppService(
 	pipelineStatusSyncDetailService status2.PipelineStatusSyncDetailService,
 	pipelineStatusTimelineService status2.PipelineStatusTimelineService,
 	appStatusConfig *AppServiceConfig, appStatusService appStatus.AppStatusService,
-	installedAppRepository repository4.InstalledAppRepository,
+	installedAppReadService installedAppReader.InstalledAppReadService,
 	installedAppVersionHistoryRepository repository4.InstalledAppVersionHistoryRepository,
 	scopedVariableManager variables.ScopedVariableCMCSManager, acdConfig *argocdServer.ACDConfig,
 	gitOpsConfigReadService config.GitOpsConfigReadService, gitOperationService git.GitOperationService,
 	deploymentTemplateService deploymentTemplate.DeploymentTemplateService,
 	appListingService AppListingService,
-	deploymentConfigService common2.DeploymentConfigService) *AppServiceImpl {
+	deploymentConfigService common2.DeploymentConfigService,
+	envConfigOverrideReadService read.EnvConfigOverrideService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
-		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
 		pipelineOverrideRepository:             pipelineOverrideRepository,
 		logger:                                 logger,
@@ -189,7 +192,7 @@ func NewAppService(
 		pipelineStatusTimelineService:          pipelineStatusTimelineService,
 		appStatusConfig:                        appStatusConfig,
 		appStatusService:                       appStatusService,
-		installedAppRepository:                 installedAppRepository,
+		installedAppReadService:                installedAppReadService,
 		installedAppVersionHistoryRepository:   installedAppVersionHistoryRepository,
 		scopedVariableManager:                  scopedVariableManager,
 		acdConfig:                              acdConfig,
@@ -198,6 +201,7 @@ func NewAppService(
 		deploymentTemplateService:              deploymentTemplateService,
 		appListingService:                      appListingService,
 		deploymentConfigService:                deploymentConfigService,
+		envConfigOverrideReadService:           envConfigOverrideReadService,
 	}
 	return appServiceImpl
 }
@@ -399,7 +403,7 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitOpsA
 	var err error
 	installedAppVersionHistory := &repository4.InstalledAppVersionHistory{}
 	// checking if the gitOpsAppName is present in installed_apps table, if yes the find installed_app_version_history else return
-	installedAppModel, err := impl.installedAppRepository.GetInstalledAppByGitOpsAppName(gitOpsAppName)
+	installedAppModel, err := impl.installedAppReadService.GetInstalledAppByGitOpsAppName(gitOpsAppName)
 	if err != nil {
 		impl.logger.Errorw("error in getting all installed apps in GetAllGitOpsAppNameAndInstalledAppMapping", "err", err, "gitOpsAppName", gitOpsAppName)
 		return isValid, installedAppVersionHistory, 0, 0, err
@@ -550,7 +554,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		// creating cd pipeline status timeline
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: runnerHistoryId,
-			StatusTime:         statusTime,
+			StatusTime:         helper.GetSyncStartTime(app, statusTime),
 			AuditLog: sql.AuditLog{
 				CreatedBy: 1,
 				CreatedOn: time.Now(),
@@ -583,6 +587,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			timeline.Id = 0
 			timeline.Status = timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
 			timeline.StatusDetail = app.Status.OperationState.Message
+			timeline.StatusTime = helper.GetSyncFinishTime(app, statusTime)
 			// checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
 			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
 			if err != nil {
@@ -662,7 +667,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		// creating installedAppVersionHistory status timeline
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			InstalledAppVersionHistoryId: runnerHistoryId,
-			StatusTime:                   statusTime,
+			StatusTime:                   helper.GetSyncStartTime(app, statusTime),
 			AuditLog: sql.AuditLog{
 				CreatedBy: 1,
 				CreatedOn: time.Now(),
@@ -695,6 +700,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			timeline.Id = 0
 			timeline.Status = timelineStatus.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
 			timeline.StatusDetail = app.Status.OperationState.Message
+			timeline.StatusTime = helper.GetSyncFinishTime(app, statusTime)
 			// checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
 			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
 			if err != nil {
@@ -772,7 +778,7 @@ func (impl *AppServiceImpl) BuildCDSuccessPayload(appName string, environmentNam
 type ValuesOverrideResponse struct {
 	MergedValues         string
 	ReleaseOverrideJSON  string
-	EnvOverride          *chartConfig.EnvConfigOverride
+	EnvOverride          *bean6.EnvConfigOverride
 	PipelineStrategy     *chartConfig.PipelineStrategy
 	PipelineOverride     *chartConfig.PipelineOverride
 	Artifact             *repository.CiArtifact
@@ -809,7 +815,7 @@ func (impl *AppServiceImpl) GetDeployedManifestByPipelineIdAndCDWorkflowId(appId
 		return manifestByteArray, err
 	}
 
-	envConfigOverride, err := impl.environmentConfigRepository.GetByIdIncludingInactive(pipelineOverride.EnvConfigOverrideId)
+	envConfigOverride, err := impl.envConfigOverrideReadService.GetByIdIncludingInactive(pipelineOverride.EnvConfigOverrideId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching env config repository by appId and envId", "appId", appId, "envId", envId, "err", err)
 	}

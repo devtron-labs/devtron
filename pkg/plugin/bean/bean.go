@@ -319,6 +319,41 @@ type PluginVariableDto struct {
 	PluginStepCondition       []*PluginStepCondition                  `json:"pluginStepCondition,omitempty"`
 }
 
+func (s *PluginVariableDto) GetValue() string {
+	if s == nil {
+		return ""
+	} else if len(s.Value) != 0 {
+		return s.Value
+	} else {
+		return s.DefaultValue
+	}
+}
+
+func (s *PluginVariableDto) IsEmptyValueAllowed() bool {
+	if s == nil {
+		return false
+	}
+	// for output type variable, empty value is allowed
+	if s.VariableType.IsOutput() {
+		return true
+	}
+	// the empty value refers to StepVariableDto.AllowEmptyValue
+	return s.AllowEmptyValue
+}
+
+func (s *PluginVariableDto) IsEmptyValue() bool {
+	if s == nil {
+		return true
+	}
+	// If the variable is global, then the value is empty, but referenceVariableName should not be empty
+	if s.ValueType.IsGlobalDefinedValue() {
+		return len(s.ReferenceVariableName) == 0
+	} else if s.ValueType.IsPreviousOutputDefinedValue() {
+		return len(s.ReferenceVariableName) == 0 || s.PreviousStepIndex == 0
+	}
+	return len(s.GetValue()) == 0
+}
+
 type PluginPipelineScript struct {
 	Id                       int                                  `json:"id"`
 	Script                   string                               `json:"script"`

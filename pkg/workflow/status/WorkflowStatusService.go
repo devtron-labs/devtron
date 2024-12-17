@@ -33,6 +33,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	app_status "github.com/devtron-labs/devtron/pkg/appStatus"
+	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
+	installedAppReadBean "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
@@ -53,8 +55,7 @@ type WorkflowStatusService interface {
 	CheckHelmAppStatusPeriodicallyAndUpdateInDb(helmPipelineStatusCheckEligibleTime int,
 		getPipelineDeployedWithinHours int) error
 
-	UpdatePipelineTimelineAndStatusByLiveApplicationFetch(triggerContext bean3.TriggerContext,
-		pipeline *pipelineConfig.Pipeline, installedApp repository3.InstalledApps, userId int32) (error, bool)
+	UpdatePipelineTimelineAndStatusByLiveApplicationFetch(triggerContext bean3.TriggerContext, pipeline *pipelineConfig.Pipeline, installedApp *installedAppReadBean.InstalledAppMin, userId int32) (error, bool)
 
 	CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, installedAppVersionId int,
 		userId int32, isAppStoreApplication bool)
@@ -84,6 +85,7 @@ type WorkflowStatusServiceImpl struct {
 	appRepository                        appRepository.AppRepository
 	envRepository                        repository2.EnvironmentRepository
 	installedAppRepository               repository3.InstalledAppRepository
+	installedAppReadService              installedAppReader.InstalledAppReadService
 	pipelineStatusTimelineRepository     pipelineConfig.PipelineStatusTimelineRepository
 	pipelineRepository                   pipelineConfig.PipelineRepository
 	appListingService                    app.AppListingService
@@ -107,6 +109,7 @@ func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
 	appRepository appRepository.AppRepository,
 	envRepository repository2.EnvironmentRepository,
 	installedAppRepository repository3.InstalledAppRepository,
+	installedAppReadService installedAppReader.InstalledAppReadService,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	application application.ServiceClient,
@@ -131,6 +134,7 @@ func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
 		appRepository:                        appRepository,
 		envRepository:                        envRepository,
 		installedAppRepository:               installedAppRepository,
+		installedAppReadService:              installedAppReadService,
 		pipelineStatusTimelineRepository:     pipelineStatusTimelineRepository,
 		pipelineRepository:                   pipelineRepository,
 		application:                          application,
@@ -210,7 +214,7 @@ func (impl *WorkflowStatusServiceImpl) CheckHelmAppStatusPeriodicallyAndUpdateIn
 }
 
 func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch(triggerContext bean3.TriggerContext,
-	pipeline *pipelineConfig.Pipeline, installedApp repository3.InstalledApps, userId int32) (error, bool) {
+	pipeline *pipelineConfig.Pipeline, installedApp *installedAppReadBean.InstalledAppMin, userId int32) (error, bool) {
 	isTimelineUpdated := false
 	isSucceeded := false
 	var pipelineOverride *chartConfig.PipelineOverride
@@ -305,14 +309,14 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 				return err, isTimelineUpdated
 			}
 		}
-	} else {
+	} else if installedApp != nil {
 		isAppStore := true
 		installedAppVersionHistory, err := impl.installedAppVersionHistoryRepository.GetLatestInstalledAppVersionHistoryByInstalledAppId(installedApp.Id)
 		if err != nil {
 			impl.logger.Errorw("error in getting latest installedAppVersionHistory by installedAppId", "err", err, "installedAppId", installedApp.Id)
 			return nil, isTimelineUpdated
 		}
-		impl.logger.Debugw("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "checkingDeploymentStatus", "argoAppName", installedApp, "installedAppVersionHistory", installedAppVersionHistory)
+		impl.logger.Debugw("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "checkingDeploymentStatus", "installedApp", installedApp, "installedAppVersionHistory", installedAppVersionHistory)
 		if util3.IsTerminalRunnerStatus(installedAppVersionHistory.Status) {
 			// drop event
 			return nil, isTimelineUpdated
@@ -334,12 +338,8 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 			impl.logger.Errorw("error in getting envDetails from environment id", "err", err)
 			return nil, isTimelineUpdated
 		}
-		var acdAppName string
-		if len(installedApp.Environment.Name) != 0 {
-			acdAppName = appDetails.AppName + installedApp.Environment.Name
-		} else {
-			acdAppName = appDetails.AppName + "-" + envDetail.Name
-		}
+		// ArgoCD application nam: format: <appName>-<envName>
+		acdAppName := util3.BuildDeployedAppName(appDetails.AppName, envDetail.Name)
 
 		// this should only be called when we have git-ops configured
 		// try fetching status from argo cd
@@ -354,7 +354,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 		}
 		app, err := impl.application.Get(ctx, query)
 		if err != nil {
-			impl.logger.Errorw("error in getting acd application", "err", err, "argoAppName", installedApp)
+			impl.logger.Errorw("error in getting acd application", "err", err, "installedApp", installedApp)
 			// updating cdWfr status
 			installedAppVersionHistory.SetStatus(cdWorkflow2.WorkflowUnableToFetchState)
 			installedAppVersionHistory.UpdateAuditLog(1)
@@ -541,7 +541,7 @@ func (impl *WorkflowStatusServiceImpl) syncACDHelmApps(deployedBeforeMinutes int
 		return err
 	}
 	if pipelineStatusTimeline.Status == timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_INITIATED && time.Since(pipelineStatusTimeline.StatusTime) >= time.Minute*time.Duration(deployedBeforeMinutes) {
-		installedApp, err := impl.installedAppRepository.GetInstalledAppByInstalledAppVersionId(installedAppVersionHistory.InstalledAppVersionId)
+		installedApp, err := impl.installedAppReadService.GetInstalledAppByInstalledAppVersionId(installedAppVersionHistory.InstalledAppVersionId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching installed_app by installedAppVersionId", "err", err)
 			return err
@@ -555,7 +555,7 @@ func (impl *WorkflowStatusServiceImpl) syncACDHelmApps(deployedBeforeMinutes int
 		if err != nil {
 			impl.logger.Errorw("error in fetching environment by envId", "err", err)
 		}
-		argoAppName := fmt.Sprintf("%s-%s", appDetails.AppName, envDetails.Name)
+		argoAppName := util3.BuildDeployedAppName(appDetails.AppName, envDetails.Name)
 		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
 			impl.logger.Errorw("error in getting acd token", "err", err)

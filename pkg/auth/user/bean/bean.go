@@ -127,3 +127,10 @@ const (
 )
 
 const AnonymousUserEmail string = "anonymous"
+
+type MergingBaseKey string
+
+const (
+	ApplicationBasedKey MergingBaseKey = "application"
+	EnvironmentBasedKey MergingBaseKey = "environment"
+)
