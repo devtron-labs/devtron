@@ -82,7 +82,7 @@ metadata:
   {{- if $.Values.kedaAutoscaling.name }}
   name: {{ $.Values.kedaAutoscaling.name }}
   {{- else }}
-  name: {{ template ".Chart.Name .fullname" $ }}-keda
+  name: {{ template ".Chart.Name .fullname" $ }}-keda-deply
   {{- end }}
   labels:
     app: {{ template ".Chart.Name .name" $ }}
