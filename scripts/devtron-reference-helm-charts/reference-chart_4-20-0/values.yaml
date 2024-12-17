@@ -4,8 +4,8 @@
 
 deploymentStrategy: "ROLLING"
 
-switchToDeployment: true
-turnOffRollout: true
+switchToDeployment: false
+turnOffRollout: false
 
 replicaCount: 1
 MinReadySeconds: 5
