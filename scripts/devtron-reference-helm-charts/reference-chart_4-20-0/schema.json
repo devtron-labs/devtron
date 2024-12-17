@@ -265,21 +265,33 @@
       }
     },
     "MaxSurge": {
-      "type": [
-              "integer",
-              "string"
-            ],
-            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
-      "description": "maximum number of pods that can be created over the desired number of pods",
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum number of pods that can be created over the desired number of pods (absolute value)"
+        },
+        {
+          "type": "string",
+          "pattern": "^(@\\{\\{[a-zA-Z0-9-+/*%_\\s]+\\}}|[0-9]+%)$",
+          "description": "Maximum number of pods that can be created over the desired number of pods (percentage or template)"
+        }
+      ],
       "title": "Maximum Surge"
     },
     "MaxUnavailable": {
-      "type": [
-              "integer",
-              "string"
-            ],
-            "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
-      "description": "maximum number of pods that can be unavailable during the update process",
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum number of pods that can be unavailable during the update process (absolute value)"
+        },
+        {
+          "type": "string",
+          "pattern": "^(@\\{\\{[a-zA-Z0-9-+/*%_\\s]+\\}}|[0-9]+%)$",
+          "description": "Maximum number of pods that can be unavailable during the update process (percentage or template)"
+        }
+      ],
       "title": "Maximum Unavailable"
     },
     "MinReadySeconds": {
