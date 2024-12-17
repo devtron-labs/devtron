@@ -35,14 +35,13 @@ import (
 )
 
 type InfraConfigRestHandler interface {
-	UpdateInfraProfile(w http.ResponseWriter, r *http.Request)
 	GetProfile(w http.ResponseWriter, r *http.Request)
-
-	// Deprecated: UpdateInfraProfileV0 is deprecated in favour of UpdateInfraProfile
-	UpdateInfraProfileV0(w http.ResponseWriter, r *http.Request)
+	UpdateInfraProfile(w http.ResponseWriter, r *http.Request)
 
 	// Deprecated: GetProfileV0 is deprecated in favour of GetProfile
 	GetProfileV0(w http.ResponseWriter, r *http.Request)
+	// Deprecated: UpdateInfraProfileV0 is deprecated in favour of UpdateInfraProfile
+	UpdateInfraProfileV0(w http.ResponseWriter, r *http.Request)
 }
 type InfraConfigRestHandlerImpl struct {
 	logger              *zap.SugaredLogger
@@ -62,6 +61,46 @@ func NewInfraConfigRestHandlerImpl(logger *zap.SugaredLogger, infraProfileServic
 		enforcerUtil:        enforcerUtil,
 		validator:           validator,
 	}
+}
+
+func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	identifier := r.URL.Query().Get("name")
+
+	if len(identifier) == 0 {
+		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
+		return
+	}
+	profileName := strings.ToLower(identifier)
+	var profile *bean.ProfileBeanDto
+	if profileName != bean.GLOBAL_PROFILE_NAME {
+		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
+		return
+	}
+	defaultProfile, err := handler.infraProfileService.GetProfileByName(profileName)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	profile = defaultProfile
+
+	resp := bean.ProfileResponse{
+		Profile: *profile,
+	}
+	resp.ConfigurationUnits = handler.infraProfileService.GetConfigurationUnits()
+	//TODO: why below line ??
+	resp.DefaultConfigurations = defaultProfile.Configurations
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
 func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWriter, r *http.Request) {
@@ -112,7 +151,8 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWri
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 }
 
-func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *http.Request) {
+// Deprecated
+func (handler *InfraConfigRestHandlerImpl) GetProfileV0(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -124,31 +164,33 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 		return
 	}
 
-	identifier := r.URL.Query().Get("name")
+	vars := mux.Vars(r)
+	profileName := strings.ToLower(vars["name"])
+	if profileName == "" {
+		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
+		return
+	}
 
-	if len(identifier) == 0 {
+	if profileName != bean.DEFAULT_PROFILE_NAME {
 		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
-	profileName := strings.ToLower(identifier)
-	var profile *bean.ProfileBeanDto
-	if profileName != bean.GLOBAL_PROFILE_NAME {
-		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
-		return
-	}
-	defaultProfile, err := handler.infraProfileService.GetProfileByName(profileName)
+
+	profileName = bean.GLOBAL_PROFILE_NAME
+
+	var profile *bean.ProfileBeanV0
+	defaultProfileV1, err := handler.infraProfileService.GetProfileByName(profileName)
+	defaultProfileV0 := adapter.GetV0ProfileBean(defaultProfileV1)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	profile = defaultProfile
-
-	resp := bean.ProfileResponse{
+	profile = defaultProfileV0
+	resp := bean.ProfileResponseV0{
 		Profile: *profile,
 	}
 	resp.ConfigurationUnits = handler.infraProfileService.GetConfigurationUnits()
-	//TODO: why below line ??
-	resp.DefaultConfigurations = defaultProfile.Configurations
+	resp.DefaultConfigurations = defaultProfileV0.Configurations
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
@@ -203,47 +245,4 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfileV0(w http.ResponseW
 		return
 	}
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
-}
-
-// Deprecated
-func (handler *InfraConfigRestHandlerImpl) GetProfileV0(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-
-	vars := mux.Vars(r)
-	profileName := strings.ToLower(vars["name"])
-	if profileName == "" {
-		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
-		return
-	}
-
-	if profileName != bean.DEFAULT_PROFILE_NAME {
-		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
-		return
-	}
-
-	profileName = bean.GLOBAL_PROFILE_NAME
-
-	var profile *bean.ProfileBeanV0
-	defaultProfileV1, err := handler.infraProfileService.GetProfileByName(profileName)
-	defaultProfileV0 := adapter.GetV0ProfileBean(defaultProfileV1)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	profile = defaultProfileV0
-	resp := bean.ProfileResponseV0{
-		Profile: *profile,
-	}
-	resp.ConfigurationUnits = handler.infraProfileService.GetConfigurationUnits()
-	resp.DefaultConfigurations = defaultProfileV0.Configurations
-	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }

@@ -101,7 +101,7 @@ func getInfraProfileEntity(configurationBean *bean.ConfigurationBean, profileBea
 	infraProfile := &repository.InfraProfileConfigurationEntity{
 		Id:          configurationBean.Id,
 		Key:         util.GetConfigKey(configurationBean.Key),
-		ValueString: formatFloatIfNeeded(configurationBean.Key, configurationBean.Value),
+		ValueString: FormatTypedValueAsString(configurationBean.Key, configurationBean.Value),
 		Unit:        util.GetUnitSuffix(configurationBean.Key, configurationBean.Unit),
 		ProfileId:   profileBean.Id,
 		Platform:    platform,
@@ -114,7 +114,7 @@ func getInfraProfileEntity(configurationBean *bean.ConfigurationBean, profileBea
 	return infraProfile
 }
 
-func formatFloatIfNeeded(configKey bean.ConfigKeyStr, configValue interface{}) string {
+func FormatTypedValueAsString(configKey bean.ConfigKeyStr, configValue interface{}) string {
 	if configKey == bean.CPU_LIMIT ||
 		configKey == bean.CPU_REQUEST ||
 		configKey == bean.MEMORY_LIMIT ||
