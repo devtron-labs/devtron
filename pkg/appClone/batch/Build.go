@@ -18,11 +18,13 @@ package batch
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	pc "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	v1 "github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/util"
 	uuid "github.com/satori/go.uuid"
@@ -34,24 +36,24 @@ type BuildAction interface {
 }
 
 type BuildActionImpl struct {
-	logger               *zap.SugaredLogger
-	pipelineBuilder      pipeline.PipelineBuilder
-	appRepo              app.AppRepository
-	appWorkflowRepo      appWorkflow.AppWorkflowRepository
-	ciPipelineRepository pc.CiPipelineRepository
-	materialRepo         pc.MaterialRepository
+	logger                 *zap.SugaredLogger
+	pipelineBuilder        pipeline.PipelineBuilder
+	appRepo                app.AppRepository
+	appWorkflowRepo        appWorkflow.AppWorkflowRepository
+	ciPipelineRepository   pc.CiPipelineRepository
+	gitMaterialReadService read.GitMaterialReadService
 }
 
 func NewBuildActionImpl(pipelineBuilder pipeline.PipelineBuilder, logger *zap.SugaredLogger,
 	appRepo app.AppRepository, appWorkflowRepo appWorkflow.AppWorkflowRepository,
-	ciPipelineRepository pc.CiPipelineRepository, materialRepo pc.MaterialRepository) *BuildActionImpl {
+	ciPipelineRepository pc.CiPipelineRepository, gitMaterialReadService read.GitMaterialReadService) *BuildActionImpl {
 	return &BuildActionImpl{
-		pipelineBuilder:      pipelineBuilder,
-		appRepo:              appRepo,
-		appWorkflowRepo:      appWorkflowRepo,
-		ciPipelineRepository: ciPipelineRepository,
-		materialRepo:         materialRepo,
-		logger:               logger,
+		pipelineBuilder:        pipelineBuilder,
+		appRepo:                appRepo,
+		appWorkflowRepo:        appWorkflowRepo,
+		ciPipelineRepository:   ciPipelineRepository,
+		logger:                 logger,
+		gitMaterialReadService: gitMaterialReadService,
 	}
 }
 
@@ -152,7 +154,7 @@ func executeBuildCreate(impl BuildActionImpl, build *v1.Build) error {
 		externalCiConfig.Payload = *build.Payload
 	}
 
-	gitMaterials, err := impl.materialRepo.FindByAppId(app.Id)
+	gitMaterials, err := impl.gitMaterialReadService.FindByAppId(app.Id)
 
 	if err != nil {
 		return err
@@ -183,13 +185,13 @@ func executeBuildCreate(impl BuildActionImpl, build *v1.Build) error {
 			Regex: material.Source.Regex,
 		}
 		if material.Source.Type == v1.BranchFixed {
-			stc.Type = pc.SOURCE_TYPE_BRANCH_FIXED
+			stc.Type = constants.SOURCE_TYPE_BRANCH_FIXED
 		} else if material.Source.Type == v1.BranchRegex {
-			stc.Type = pc.SOURCE_TYPE_BRANCH_REGEX
+			stc.Type = constants.SOURCE_TYPE_BRANCH_REGEX
 		} else if material.Source.Type == v1.TagAny {
-			stc.Type = pc.SOURCE_TYPE_TAG_ANY
+			stc.Type = constants.SOURCE_TYPE_TAG_ANY
 		} else if material.Source.Type == v1.Webhook {
-			stc.Type = pc.SOURCE_TYPE_WEBHOOK
+			stc.Type = constants.SOURCE_TYPE_WEBHOOK
 		}
 
 		cm := bean.CiMaterial{

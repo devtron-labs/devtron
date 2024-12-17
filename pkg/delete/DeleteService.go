@@ -24,32 +24,34 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/team"
-	bean2 "github.com/devtron-labs/devtron/pkg/team/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/team/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	http2 "net/http"
 )
 
 type DeleteService interface {
-	DeleteCluster(deleteRequest *cluster.ClusterBean, userId int32) error
+	DeleteCluster(deleteRequest *bean2.ClusterBean, userId int32) error
 	DeleteEnvironment(deleteRequest *bean.EnvironmentBean, userId int32) error
-	DeleteTeam(deleteRequest *bean2.TeamRequest) error
+	DeleteTeam(deleteRequest *bean3.TeamRequest) error
 	DeleteChartRepo(deleteRequest *chartRepo.ChartRepoDto) error
 	DeleteDockerRegistryConfig(deleteRequest *types.DockerArtifactStoreBean) error
 	CanDeleteChartRegistryPullConfig(storeId string) bool
-	DeleteClusterSecret(deleteRequest *cluster.ClusterBean, err error) error
+	DeleteClusterSecret(deleteRequest *bean2.ClusterBean, err error) error
 }
 
 type DeleteServiceImpl struct {
 	logger                   *zap.SugaredLogger
 	teamService              team.TeamService
 	clusterService           cluster.ClusterService
-	environmentService       cluster.EnvironmentService
+	environmentService       environment.EnvironmentService
 	chartRepositoryService   chartRepo.ChartRepositoryService
 	installedAppRepository   repository.InstalledAppRepository
 	dockerRegistryConfig     pipeline.DockerRegistryConfig
@@ -61,7 +63,7 @@ type DeleteServiceImpl struct {
 func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 	teamService team.TeamService,
 	clusterService cluster.ClusterService,
-	environmentService cluster.EnvironmentService,
+	environmentService environment.EnvironmentService,
 	chartRepositoryService chartRepo.ChartRepositoryService,
 	installedAppRepository repository.InstalledAppRepository,
 	dockerRegistryConfig pipeline.DockerRegistryConfig,
@@ -83,7 +85,7 @@ func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl DeleteServiceImpl) DeleteCluster(deleteRequest *cluster.ClusterBean, userId int32) error {
+func (impl DeleteServiceImpl) DeleteCluster(deleteRequest *bean2.ClusterBean, userId int32) error {
 	clusterName, err := impl.clusterService.DeleteFromDb(deleteRequest, userId)
 	if err != nil {
 		impl.logger.Errorw("error im deleting cluster", "err", err, "deleteRequest", deleteRequest)
@@ -98,7 +100,7 @@ func (impl DeleteServiceImpl) DeleteCluster(deleteRequest *cluster.ClusterBean, 
 	return nil
 }
 
-func (impl DeleteServiceImpl) DeleteClusterSecret(deleteRequest *cluster.ClusterBean, err error) error {
+func (impl DeleteServiceImpl) DeleteClusterSecret(deleteRequest *bean2.ClusterBean, err error) error {
 	// kubelink informers are listening this secret, deleting this secret will inform kubelink that this cluster is deleted
 	k8sClient, err := impl.K8sUtil.GetCoreV1ClientInCluster()
 	if err != nil {
@@ -118,7 +120,7 @@ func (impl DeleteServiceImpl) DeleteEnvironment(deleteRequest *bean.EnvironmentB
 	}
 	return nil
 }
-func (impl DeleteServiceImpl) DeleteTeam(deleteRequest *bean2.TeamRequest) error {
+func (impl DeleteServiceImpl) DeleteTeam(deleteRequest *bean3.TeamRequest) error {
 	err := impl.teamService.Delete(deleteRequest)
 	if err != nil {
 		impl.logger.Errorw("error in deleting team", "err", err, "deleteRequest", deleteRequest)

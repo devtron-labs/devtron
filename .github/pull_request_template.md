@@ -20,8 +20,8 @@ Please include a summary of the change and which issue is fixed. Please also inc
 Fixes #
 <!--
 For example:
-Fixes https://github.com/devtron-labs/devtron/issues/00001
-Fixes devtron-labs/devtron#0001
+Fixes https://github.com/devtron-labs/<repo_name>/issues/<issue_number>
+Fixes devtron-labs/<repo_name>#<issue_number>
 
 PS: Please ensure that you've attached a valid issue that is OPEN
 -->

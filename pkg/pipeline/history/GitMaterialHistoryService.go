@@ -17,7 +17,7 @@
 package history
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	repository2 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -25,9 +25,9 @@ import (
 )
 
 type GitMaterialHistoryService interface {
-	CreateMaterialHistory(tx *pg.Tx, inputMaterial *pipelineConfig.GitMaterial) error
-	CreateDeleteMaterialHistory(materials []*pipelineConfig.GitMaterial) error
-	MarkMaterialDeletedAndCreateHistory(tx *pg.Tx, material *pipelineConfig.GitMaterial) error
+	CreateMaterialHistory(tx *pg.Tx, inputMaterial *repository2.GitMaterial) error
+	CreateDeleteMaterialHistory(materials []*repository2.GitMaterial) error
+	MarkMaterialDeletedAndCreateHistory(tx *pg.Tx, material *repository2.GitMaterial) error
 }
 
 type GitMaterialHistoryServiceImpl struct {
@@ -44,7 +44,7 @@ func NewGitMaterialHistoryServiceImpl(gitMaterialHistoryRepository repository.Gi
 	}
 }
 
-func (impl GitMaterialHistoryServiceImpl) CreateMaterialHistory(tx *pg.Tx, inputMaterial *pipelineConfig.GitMaterial) error {
+func (impl GitMaterialHistoryServiceImpl) CreateMaterialHistory(tx *pg.Tx, inputMaterial *repository2.GitMaterial) error {
 
 	material := &repository.GitMaterialHistory{
 		GitMaterialId:   inputMaterial.Id,
@@ -67,7 +67,7 @@ func (impl GitMaterialHistoryServiceImpl) CreateMaterialHistory(tx *pg.Tx, input
 
 }
 
-func (impl GitMaterialHistoryServiceImpl) CreateDeleteMaterialHistory(materials []*pipelineConfig.GitMaterial) error {
+func (impl GitMaterialHistoryServiceImpl) CreateDeleteMaterialHistory(materials []*repository2.GitMaterial) error {
 
 	materialsHistory := []*repository.GitMaterialHistory{}
 
@@ -103,7 +103,7 @@ func (impl GitMaterialHistoryServiceImpl) CreateDeleteMaterialHistory(materials 
 
 }
 
-func (impl GitMaterialHistoryServiceImpl) MarkMaterialDeletedAndCreateHistory(tx *pg.Tx, material *pipelineConfig.GitMaterial) error {
+func (impl GitMaterialHistoryServiceImpl) MarkMaterialDeletedAndCreateHistory(tx *pg.Tx, material *repository2.GitMaterial) error {
 
 	material.Active = false
 

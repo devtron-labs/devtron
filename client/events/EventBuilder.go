@@ -19,7 +19,7 @@ package client
 import (
 	"context"
 	"fmt"
-	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository4 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"strings"
 	"time"
 

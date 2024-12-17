@@ -25,6 +25,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
+	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
+	installedAppReadBean "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
@@ -62,7 +64,7 @@ type CdApplicationStatusUpdateHandlerImpl struct {
 	cdWorkflowRepository                 pipelineConfig.CdWorkflowRepository
 	pipelineRepository                   pipelineConfig.PipelineRepository
 	installedAppVersionHistoryRepository repository2.InstalledAppVersionHistoryRepository
-	installedAppVersionRepository        repository2.InstalledAppRepository
+	installedAppReadService              installedAppReader.InstalledAppReadService
 	cdWorkflowCommonService              cd.CdWorkflowCommonService
 	workflowStatusService                status.WorkflowStatusService
 }
@@ -74,7 +76,7 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 	eventClient client2.EventClient, appListingRepository repository.AppListingRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, installedAppVersionHistoryRepository repository2.InstalledAppVersionHistoryRepository,
-	installedAppVersionRepository repository2.InstalledAppRepository, cronLogger *cron2.CronLoggerImpl,
+	installedAppReadService installedAppReader.InstalledAppReadService, cronLogger *cron2.CronLoggerImpl,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
 	workflowStatusService status.WorkflowStatusService) *CdApplicationStatusUpdateHandlerImpl {
 
@@ -94,7 +96,7 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 		cdWorkflowRepository:                 cdWorkflowRepository,
 		pipelineRepository:                   pipelineRepository,
 		installedAppVersionHistoryRepository: installedAppVersionHistoryRepository,
-		installedAppVersionRepository:        installedAppVersionRepository,
+		installedAppReadService:              installedAppReadService,
 		cdWorkflowCommonService:              cdWorkflowCommonService,
 		workflowStatusService:                workflowStatusService,
 	}
@@ -199,11 +201,11 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) SyncPipelineStatusForAppStoreF
 
 func (impl *CdApplicationStatusUpdateHandlerImpl) ManualSyncPipelineStatus(appId, envId int, userId int32) error {
 	var cdPipeline *pipelineConfig.Pipeline
-	var installedApp repository2.InstalledApps
+	var installedApp *installedAppReadBean.InstalledAppMin
 	var err error
 
 	if envId == 0 {
-		installedApp, err = impl.installedAppVersionRepository.GetInstalledAppByAppIdAndDeploymentType(appId, util2.PIPELINE_DEPLOYMENT_TYPE_ACD)
+		installedApp, err = impl.installedAppReadService.GetInstalledAppByAppIdAndDeploymentType(appId, util2.PIPELINE_DEPLOYMENT_TYPE_ACD)
 		if err != nil {
 			impl.logger.Errorw("error in getting installed app by appId", "err", err, "appid", appId)
 			return nil

@@ -19,17 +19,17 @@ package pipeline
 import (
 	"errors"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"go.uber.org/zap"
 	"time"
 )
 
 type CiBuildConfigService interface {
-	Save(templateId int, overrideTemplateId int, ciBuildConfigBean *CiPipeline.CiBuildConfigBean, userId int32) error
-	UpdateOrSave(templateId int, overrideTemplateId int, ciBuildConfig *CiPipeline.CiBuildConfigBean, userId int32) (*CiPipeline.CiBuildConfigBean, error)
+	Save(templateId int, overrideTemplateId int, ciBuildConfigBean *bean.CiBuildConfigBean, userId int32) error
+	UpdateOrSave(templateId int, overrideTemplateId int, ciBuildConfig *bean.CiBuildConfigBean, userId int32) (*bean.CiBuildConfigBean, error)
 	Delete(ciBuildConfigId int) error
-	GetCountByBuildType() map[CiPipeline.CiBuildType]int
+	GetCountByBuildType() map[bean.CiBuildType]int
 }
 
 type CiBuildConfigServiceImpl struct {
@@ -44,7 +44,7 @@ func NewCiBuildConfigServiceImpl(logger *zap.SugaredLogger, ciBuildConfigReposit
 	}
 }
 
-func (impl *CiBuildConfigServiceImpl) Save(templateId int, overrideTemplateId int, ciBuildConfigBean *CiPipeline.CiBuildConfigBean, userId int32) error {
+func (impl *CiBuildConfigServiceImpl) Save(templateId int, overrideTemplateId int, ciBuildConfigBean *bean.CiBuildConfigBean, userId int32) error {
 	ciBuildConfigEntity, err := adapter.ConvertBuildConfigBeanToDbEntity(templateId, overrideTemplateId, ciBuildConfigBean, userId)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while converting build config to db entity", "templateId", templateId,
@@ -62,7 +62,7 @@ func (impl *CiBuildConfigServiceImpl) Save(templateId int, overrideTemplateId in
 	return nil
 }
 
-func (impl *CiBuildConfigServiceImpl) UpdateOrSave(templateId int, overrideTemplateId int, ciBuildConfig *CiPipeline.CiBuildConfigBean, userId int32) (*CiPipeline.CiBuildConfigBean, error) {
+func (impl *CiBuildConfigServiceImpl) UpdateOrSave(templateId int, overrideTemplateId int, ciBuildConfig *bean.CiBuildConfigBean, userId int32) (*bean.CiBuildConfigBean, error) {
 	if ciBuildConfig == nil {
 		impl.Logger.Warnw("not updating build config as object is empty", "ciBuildConfig", ciBuildConfig)
 		return nil, nil
@@ -92,14 +92,14 @@ func (impl *CiBuildConfigServiceImpl) Delete(ciBuildConfigId int) error {
 	return impl.CiBuildConfigRepository.Delete(ciBuildConfigId)
 }
 
-func (impl *CiBuildConfigServiceImpl) GetCountByBuildType() map[CiPipeline.CiBuildType]int {
-	result := make(map[CiPipeline.CiBuildType]int)
+func (impl *CiBuildConfigServiceImpl) GetCountByBuildType() map[bean.CiBuildType]int {
+	result := make(map[bean.CiBuildType]int)
 	buildTypeVsCount, err := impl.CiBuildConfigRepository.GetCountByBuildType()
 	if err != nil {
 		return result
 	}
 	for buildType, count := range buildTypeVsCount {
-		result[CiPipeline.CiBuildType(buildType)] = count
+		result[bean.CiBuildType(buildType)] = count
 	}
 	return result
 }

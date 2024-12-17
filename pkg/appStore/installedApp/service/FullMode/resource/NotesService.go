@@ -160,7 +160,7 @@ func (impl *InstalledAppResourceServiceImpl) findNotesForArgoApplication(install
 		}
 
 		clusterId := installedAppVerison.InstalledApp.Environment.ClusterId
-		config, err := impl.helmAppService.GetClusterConf(clusterId)
+		config, err := impl.helmAppReadService.GetClusterConf(clusterId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching cluster detail", "clusterId", clusterId, "err", err)
 			return "", err

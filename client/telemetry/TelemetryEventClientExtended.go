@@ -19,27 +19,31 @@ package telemetry
 import (
 	"encoding/json"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
+	util2 "github.com/devtron-labs/common-lib/utils/k8s"
 	client "github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
+	"github.com/devtron-labs/devtron/pkg/auth/sso"
+	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
+	repository3 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	ciConfig "github.com/devtron-labs/devtron/pkg/build/pipeline/read"
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
+	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
+	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
+	util3 "github.com/devtron-labs/devtron/pkg/util"
 	cron3 "github.com/devtron-labs/devtron/util/cron"
 	"net/http"
 	"time"
 
-	util2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
-	"github.com/devtron-labs/devtron/pkg/auth/sso"
-	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
-	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/robfig/cron/v3"
@@ -49,16 +53,16 @@ import (
 const AppsCount int = 50
 
 type TelemetryEventClientImplExtended struct {
-	environmentService            cluster.EnvironmentService
+	environmentService            environment.EnvironmentService
 	appListingRepository          repository.AppListingRepository
-	ciPipelineRepository          pipelineConfig.CiPipelineRepository
+	ciPipelineConfigReadService   ciConfig.CiPipelineConfigReadService
 	pipelineRepository            pipelineConfig.PipelineRepository
-	gitProviderRepository         repository.GitProviderRepository
+	gitProviderRepository         repository3.GitProviderRepository
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository
 	appRepository                 app.AppRepository
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
-	materialRepository            pipelineConfig.MaterialRepository
+	gitMaterialReadService        read.GitMaterialReadService
 	ciTemplateRepository          pipelineConfig.CiTemplateRepository
 	chartRepository               chartRepoRepository.ChartRepository
 	ciBuildConfigService          pipeline.CiBuildConfigService
@@ -68,17 +72,17 @@ type TelemetryEventClientImplExtended struct {
 
 func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
 	K8sUtil *util2.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig,
-	environmentService cluster.EnvironmentService, userService user2.UserService,
+	environmentService environment.EnvironmentService, userService user2.UserService,
 	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,
-	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
-	gitProviderRepository repository.GitProviderRepository, attributeRepo repository.AttributesRepository,
+	ciPipelineConfigReadService ciConfig.CiPipelineConfigReadService, pipelineRepository pipelineConfig.PipelineRepository,
+	gitProviderRepository repository3.GitProviderRepository, attributeRepo repository.AttributesRepository,
 	ssoLoginService sso.SSOLoginService, appRepository app.AppRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
-	materialRepository pipelineConfig.MaterialRepository, ciTemplateRepository pipelineConfig.CiTemplateRepository,
+	gitMaterialReadService read.GitMaterialReadService, ciTemplateRepository pipelineConfig.CiTemplateRepository,
 	chartRepository chartRepoRepository.ChartRepository, userAuditService user2.UserAuditService,
 	ciBuildConfigService pipeline.CiBuildConfigService, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore,
-	helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository, userAttributesRepository repository.UserAttributesRepository,
+	helmAppClient client.HelmAppClient, installedAppReadService installedAppReader.InstalledAppReadService, userAttributesRepository repository.UserAttributesRepository,
 	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, cronLogger *cron3.CronLoggerImpl,
 	gitOpsConfigReadService config.GitOpsConfigReadService) (*TelemetryEventClientImplExtended, error) {
 
@@ -88,14 +92,14 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	watcher := &TelemetryEventClientImplExtended{
 		environmentService:            environmentService,
 		appListingRepository:          appListingRepository,
-		ciPipelineRepository:          ciPipelineRepository,
+		ciPipelineConfigReadService:   ciPipelineConfigReadService,
 		pipelineRepository:            pipelineRepository,
 		gitProviderRepository:         gitProviderRepository,
 		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
 		appRepository:                 appRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
 		ciWorkflowRepository:          ciWorkflowRepository,
-		materialRepository:            materialRepository,
+		gitMaterialReadService:        gitMaterialReadService,
 		ciTemplateRepository:          ciTemplateRepository,
 		chartRepository:               chartRepository,
 		ciBuildConfigService:          ciBuildConfigService,
@@ -115,7 +119,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 			serverDataStore:                serverDataStore,
 			userAuditService:               userAuditService,
 			helmAppClient:                  helmAppClient,
-			InstalledAppRepository:         InstalledAppRepository,
+			installedAppReadService:        installedAppReadService,
 			userAttributesRepository:       userAttributesRepository,
 			cloudProviderIdentifierService: cloudProviderIdentifierService,
 			telemetryConfig:                TelemetryConfig{},
@@ -238,12 +242,12 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 		nonProdApps = -1
 	}
 
-	ciPipelineCount, err := impl.ciPipelineRepository.FindAllPipelineCreatedCountInLast24Hour()
+	ciPipelineCount, err := impl.ciPipelineConfigReadService.FindAllPipelineCreatedCountInLast24Hour()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("exception caught inside telemetry summary event, while retrieving ciPipelineCount, setting its value to -1", "err", err)
 		ciPipelineCount = -1
 	}
-	ciPipelineDeletedCount, err := impl.ciPipelineRepository.FindAllDeletedPipelineCountInLast24Hour()
+	ciPipelineDeletedCount, err := impl.ciPipelineConfigReadService.FindAllDeletedPipelineCountInLast24Hour()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("exception caught inside telemetry summary event, while retrieving ciPipelineDeletedCount, setting its value to -1", "err", err)
 		ciPipelineDeletedCount = -1
@@ -301,7 +305,7 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 
 	payload.AppCount = len(appIds)
 	if len(appIds) < AppsCount {
-		payload.AppsWithGitRepoConfigured, err = impl.materialRepository.FindNumberOfAppsWithGitRepo(appIds)
+		payload.AppsWithGitRepoConfigured, err = impl.gitMaterialReadService.FindNumberOfAppsWithGitRepo(appIds)
 		if err != nil {
 			impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving AppsWithGitRepoConfigured", "err", err)
 		}
@@ -313,7 +317,7 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 		if err != nil {
 			impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving AppsWithDeploymentTemplateConfigured", "err", err)
 		}
-		payload.AppsWithCiPipelineConfigured, err = impl.ciPipelineRepository.FindNumberOfAppsWithCiPipeline(appIds)
+		payload.AppsWithCiPipelineConfigured, err = impl.ciPipelineConfigReadService.FindNumberOfAppsWithCiPipeline(appIds)
 		if err != nil {
 			impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving AppsWithCiPipelineConfigured", "err", err)
 		}
@@ -387,16 +391,16 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	}
 
 	payload.SelfDockerfileCount = selfDockerfileCount
-	payload.SelfDockerfileSuccessCount = successCount[CiPipeline.SELF_DOCKERFILE_BUILD_TYPE]
-	payload.SelfDockerfileFailureCount = failureCount[CiPipeline.SELF_DOCKERFILE_BUILD_TYPE]
+	payload.SelfDockerfileSuccessCount = successCount[bean.SELF_DOCKERFILE_BUILD_TYPE]
+	payload.SelfDockerfileFailureCount = failureCount[bean.SELF_DOCKERFILE_BUILD_TYPE]
 
 	payload.ManagedDockerfileCount = managedDockerfileCount
-	payload.ManagedDockerfileSuccessCount = successCount[CiPipeline.MANAGED_DOCKERFILE_BUILD_TYPE]
-	payload.ManagedDockerfileFailureCount = failureCount[CiPipeline.MANAGED_DOCKERFILE_BUILD_TYPE]
+	payload.ManagedDockerfileSuccessCount = successCount[bean.MANAGED_DOCKERFILE_BUILD_TYPE]
+	payload.ManagedDockerfileFailureCount = failureCount[bean.MANAGED_DOCKERFILE_BUILD_TYPE]
 
 	payload.BuildPackCount = buildpackCount
-	payload.BuildPackSuccessCount = successCount[CiPipeline.BUILDPACK_BUILD_TYPE]
-	payload.BuildPackFailureCount = failureCount[CiPipeline.BUILDPACK_BUILD_TYPE]
+	payload.BuildPackSuccessCount = successCount[bean.BUILDPACK_BUILD_TYPE]
+	payload.BuildPackFailureCount = failureCount[bean.BUILDPACK_BUILD_TYPE]
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
@@ -420,24 +424,24 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 
 func (impl *TelemetryEventClientImplExtended) getCiBuildTypeData() (int, int, int) {
 	countByBuildType := impl.ciBuildConfigService.GetCountByBuildType()
-	return countByBuildType[CiPipeline.SELF_DOCKERFILE_BUILD_TYPE], countByBuildType[CiPipeline.MANAGED_DOCKERFILE_BUILD_TYPE], countByBuildType[CiPipeline.BUILDPACK_BUILD_TYPE]
+	return countByBuildType[bean.SELF_DOCKERFILE_BUILD_TYPE], countByBuildType[bean.MANAGED_DOCKERFILE_BUILD_TYPE], countByBuildType[bean.BUILDPACK_BUILD_TYPE]
 }
 
-func (impl *TelemetryEventClientImplExtended) getCiBuildTypeVsStatusVsCount() (successCount map[CiPipeline.CiBuildType]int, failureCount map[CiPipeline.CiBuildType]int) {
-	successCount = make(map[CiPipeline.CiBuildType]int)
-	failureCount = make(map[CiPipeline.CiBuildType]int)
+func (impl *TelemetryEventClientImplExtended) getCiBuildTypeVsStatusVsCount() (successCount map[bean.CiBuildType]int, failureCount map[bean.CiBuildType]int) {
+	successCount = make(map[bean.CiBuildType]int)
+	failureCount = make(map[bean.CiBuildType]int)
 	buildTypeAndStatusVsCount := impl.ciWorkflowRepository.FindBuildTypeAndStatusDataOfLast1Day()
 	for _, buildTypeCount := range buildTypeAndStatusVsCount {
 		if buildTypeCount == nil {
 			continue
 		}
 		if buildTypeCount.Type == "" {
-			buildTypeCount.Type = string(CiPipeline.SELF_DOCKERFILE_BUILD_TYPE)
+			buildTypeCount.Type = string(bean.SELF_DOCKERFILE_BUILD_TYPE)
 		}
 		if buildTypeCount.Status == "Succeeded" {
-			successCount[CiPipeline.CiBuildType(buildTypeCount.Type)] = buildTypeCount.Count
+			successCount[bean.CiBuildType(buildTypeCount.Type)] = buildTypeCount.Count
 		} else {
-			failureCount[CiPipeline.CiBuildType(buildTypeCount.Type)] = buildTypeCount.Count
+			failureCount[bean.CiBuildType(buildTypeCount.Type)] = buildTypeCount.Count
 		}
 	}
 	return successCount, failureCount

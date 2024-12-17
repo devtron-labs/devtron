@@ -16,6 +16,10 @@
 
 package common
 
+import (
+	"errors"
+)
+
 const (
 	UnAuthenticated     = "E100"
 	UnAuthorized        = "E101"
@@ -37,3 +41,7 @@ var errorMessage = map[string]string{
 func ErrorMessage(code string) string {
 	return errorMessage[code]
 }
+
+// ErrUnAuthorized is the error object for unauthorized user.
+// Use this error object when user is not authorized to perform an action.
+var ErrUnAuthorized = errors.New("unauthorized user")

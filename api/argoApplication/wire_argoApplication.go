@@ -19,12 +19,16 @@ package argoApplication
 import (
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/read"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/read/config"
 	"github.com/google/wire"
 )
 
 var ArgoApplicationWireSetFull = wire.NewSet(
 	read.NewArgoApplicationReadServiceImpl,
 	wire.Bind(new(read.ArgoApplicationReadService), new(*read.ArgoApplicationReadServiceImpl)),
+
+	config.NewArgoApplicationConfigServiceImpl,
+	wire.Bind(new(config.ArgoApplicationConfigService), new(*config.ArgoApplicationConfigServiceImpl)),
 
 	argoApplication.NewArgoApplicationServiceExtendedServiceImpl,
 	wire.Bind(new(argoApplication.ArgoApplicationService), new(*argoApplication.ArgoApplicationServiceExtendedImpl)),
@@ -39,6 +43,9 @@ var ArgoApplicationWireSetFull = wire.NewSet(
 var ArgoApplicationWireSetEA = wire.NewSet(
 	read.NewArgoApplicationReadServiceImpl,
 	wire.Bind(new(read.ArgoApplicationReadService), new(*read.ArgoApplicationReadServiceImpl)),
+
+	config.NewArgoApplicationConfigServiceImpl,
+	wire.Bind(new(config.ArgoApplicationConfigService), new(*config.ArgoApplicationConfigServiceImpl)),
 
 	argoApplication.NewArgoApplicationServiceImpl,
 	wire.Bind(new(argoApplication.ArgoApplicationService), new(*argoApplication.ArgoApplicationServiceImpl)),

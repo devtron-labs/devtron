@@ -19,6 +19,7 @@ package devtronApps
 import (
 	"context"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -83,8 +84,7 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 	}
 	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, pipeline, envDevploymentConfig, triggeredBy)
 	if err != nil {
-		impl.logger.Errorw("error in building wfRequest", "err", err, "runner", runner, "cdWf", cdWf, "pipeline", pipeline)
-		return err
+		return impl.buildWfRequestErrorHandler(runner, err, triggeredBy)
 	}
 	cdStageWorkflowRequest.StageType = types.POST
 	cdStageWorkflowRequest.Pipeline = pipeline
@@ -131,4 +131,12 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) er
 		return err
 	}
 	return nil
+}
+
+func (impl *TriggerServiceImpl) buildWfRequestErrorHandler(runner *pipelineConfig.CdWorkflowRunner, err error, triggeredBy int32) error {
+	dbErr := impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, err, triggeredBy)
+	if dbErr != nil {
+		impl.logger.Errorw("error while updating current runner status to failed, buildWfRequestErrorHandler", "runner", runner.Id, "err", dbErr, "releaseErr", err)
+	}
+	return err
 }

@@ -19,6 +19,7 @@ package bean
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 )
 
 type ConfigMapRootJson struct {
@@ -64,11 +65,11 @@ func (configSecret ConfigSecretMap) GetDataMap() (map[string]string, error) {
 	return datamap, err
 }
 func (configSecretJson ConfigSecretJson) GetDereferencedSecrets() []ConfigSecretMap {
-	return util.GetDeReferencedArray(configSecretJson.Secrets)
+	return sliceUtil.GetDeReferencedSlice(configSecretJson.Secrets)
 }
 
 func (configSecretJson *ConfigSecretJson) SetReferencedSecrets(secrets []ConfigSecretMap) {
-	configSecretJson.Secrets = util.GetReferencedArray(secrets)
+	configSecretJson.Secrets = sliceUtil.GetReferencedSlice(secrets)
 }
 
 func GetTransformedDataForSecretRootJsonData(data string, mode util.SecretTransformMode) (string, error) {

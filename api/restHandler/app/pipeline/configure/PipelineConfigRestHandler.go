@@ -21,12 +21,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
+	imageTaggingRead "github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging/read"
+	read2 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
+	gitProviderRead "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
+	bean3 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
-	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
-	"github.com/devtron-labs/devtron/pkg/team/read"
+	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/read"
+	read3 "github.com/devtron-labs/devtron/pkg/team/read"
 	"io"
 	"net/http"
 	"strconv"
@@ -47,13 +53,11 @@ import (
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	security2 "github.com/devtron-labs/devtron/pkg/security"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
@@ -116,19 +120,20 @@ type PipelineConfigRestHandlerImpl struct {
 	dockerRegistryConfig                pipeline.DockerRegistryConfig
 	cdHandler                           pipeline.CdHandler
 	appCloneService                     appClone.AppCloneService
-	materialRepository                  pipelineConfig.MaterialRepository
+	gitMaterialReadService              read2.GitMaterialReadService
 	policyService                       security2.PolicyService
-	scanResultRepository                security.ImageScanResultRepository
-	gitProviderRepo                     repository.GitProviderRepository
+	imageScanResultReadService          read.ImageScanResultReadService
+	gitProviderReadService              gitProviderRead.GitProviderReadService
 	argoUserService                     argo.ArgoUserService
-	imageTaggingService                 pipeline.ImageTaggingService
+	imageTaggingReadService             imageTaggingRead.ImageTaggingReadService
+	imageTaggingService                 imageTagging.ImageTaggingService
 	deploymentTemplateService           generateManifest.DeploymentTemplateService
 	pipelineRestHandlerEnvConfig        *PipelineRestHandlerEnvConfig
 	ciArtifactRepository                repository.CiArtifactRepository
 	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
 	chartRefService                     chartRef.ChartRefService
 	ciCdPipelineOrchestrator            pipeline.CiCdPipelineOrchestrator
-	teamReadService                     read.TeamReadService
+	teamReadService                     read3.TeamReadService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -141,22 +146,25 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	ciHandler pipeline.CiHandler,
 	validator *validator.Validate,
 	gitSensorClient gitSensor.Client,
-	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
+	ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	pipelineRepository pipelineConfig.PipelineRepository,
 	enforcerUtil rbac.EnforcerUtil,
 	dockerRegistryConfig pipeline.DockerRegistryConfig,
 	cdHandler pipeline.CdHandler,
 	appCloneService appClone.AppCloneService,
 	deploymentTemplateService generateManifest.DeploymentTemplateService,
 	appWorkflowService appWorkflow.AppWorkflowService,
-	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
-	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
+	gitMaterialReadService read2.GitMaterialReadService, policyService security2.PolicyService,
+	imageScanResultReadService read.ImageScanResultReadService,
 	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	imageTaggingService pipeline.ImageTaggingService,
+	imageTaggingReadService imageTaggingRead.ImageTaggingReadService,
+	imageTaggingService imageTagging.ImageTaggingService,
 	ciArtifactRepository repository.CiArtifactRepository,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	chartRefService chartRef.ChartRefService,
 	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator,
-	teamReadService read.TeamReadService) *PipelineConfigRestHandlerImpl {
+	gitProviderReadService gitProviderRead.GitProviderReadService,
+	teamReadService read3.TeamReadService) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
 	if err != nil {
@@ -181,12 +189,12 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		cdHandler:                           cdHandler,
 		appCloneService:                     appCloneService,
 		appWorkflowService:                  appWorkflowService,
-		materialRepository:                  materialRepository,
+		gitMaterialReadService:              gitMaterialReadService,
 		policyService:                       policyService,
-		scanResultRepository:                scanResultRepository,
-		gitProviderRepo:                     gitProviderRepo,
+		imageScanResultReadService:          imageScanResultReadService,
 		argoUserService:                     argoUserService,
 		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
+		imageTaggingReadService:             imageTaggingReadService,
 		imageTaggingService:                 imageTaggingService,
 		deploymentTemplateService:           deploymentTemplateService,
 		pipelineRestHandlerEnvConfig:        envConfig,
@@ -194,6 +202,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		deployedAppMetricsService:           deployedAppMetricsService,
 		chartRefService:                     chartRefService,
 		ciCdPipelineOrchestrator:            ciCdPipelineOrchestrator,
+		gitProviderReadService:              gitProviderReadService,
 		teamReadService:                     teamReadService,
 	}
 }

@@ -5,9 +5,9 @@
 package mocks
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	reflect "reflect"
 
-	pipelineConfig "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	pg "github.com/go-pg/pg"
 	gomock "github.com/golang/mock/gomock"
 )

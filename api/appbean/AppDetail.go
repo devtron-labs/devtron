@@ -17,11 +17,12 @@
 package appbean
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 )
 
 type AppDetail struct {
@@ -62,11 +63,11 @@ type GitMaterial struct {
 }
 
 type DockerConfig struct {
-	DockerRegistry    string                        `json:"dockerRegistry" validate:"required"`
-	DockerRepository  string                        `json:"dockerRepository" validate:"required"`
-	CiBuildConfig     *CiPipeline.CiBuildConfigBean `json:"ciBuildConfig"`
-	DockerBuildConfig *DockerBuildConfig            `json:"dockerBuildConfig,omitempty"` // Deprecated, should use CiBuildConfig for development
-	CheckoutPath      string                        `json:"checkoutPath"`
+	DockerRegistry    string                   `json:"dockerRegistry" validate:"required"`
+	DockerRepository  string                   `json:"dockerRepository" validate:"required"`
+	CiBuildConfig     *bean2.CiBuildConfigBean `json:"ciBuildConfig"`
+	DockerBuildConfig *DockerBuildConfig       `json:"dockerBuildConfig,omitempty"` // Deprecated, should use CiBuildConfig for development
+	CheckoutPath      string                   `json:"checkoutPath"`
 }
 
 type DockerBuildConfig struct {
@@ -111,10 +112,10 @@ type CiPipelineDetails struct {
 }
 
 type CiPipelineMaterialConfig struct {
-	Type          pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED SOURCE_TYPE_BRANCH_REGEX SOURCE_TYPE_TAG_ANY WEBHOOK"`
-	Value         string                    `json:"value,omitempty" `
-	CheckoutPath  string                    `json:"checkoutPath"`
-	GitMaterialId int                       `json:"gitMaterialId"`
+	Type          constants.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED SOURCE_TYPE_BRANCH_REGEX SOURCE_TYPE_TAG_ANY WEBHOOK"`
+	Value         string               `json:"value,omitempty" `
+	CheckoutPath  string               `json:"checkoutPath"`
+	GitMaterialId int                  `json:"gitMaterialId"`
 }
 
 type BuildScript struct {

@@ -23,7 +23,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/helm-app/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
-	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	read2 "github.com/devtron-labs/devtron/api/helm-app/service/read"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -33,7 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
@@ -44,6 +44,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables/parsers"
 	"github.com/devtron-labs/devtron/pkg/variables/utils"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"github.com/gammazero/workerpool"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -71,7 +72,7 @@ type DeploymentTemplateServiceImpl struct {
 	chartService                         chart.ChartService
 	appListingService                    app.AppListingService
 	deploymentTemplateRepository         repository.DeploymentTemplateRepository
-	helmAppService                       client.HelmAppService
+	helmAppReadService                   read2.HelmAppReadService
 	chartTemplateServiceImpl             util.ChartTemplateService
 	K8sUtil                              *k8s.K8sServiceImpl
 	helmAppClient                        gRPC.HelmAppClient
@@ -97,7 +98,7 @@ func GetRestartWorkloadConfig() (*RestartWorkloadConfig, error) {
 func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService chart.ChartService,
 	appListingService app.AppListingService,
 	deploymentTemplateRepository repository.DeploymentTemplateRepository,
-	helmAppService client.HelmAppService,
+	helmAppReadService read2.HelmAppReadService,
 	chartTemplateServiceImpl util.ChartTemplateService,
 	helmAppClient gRPC.HelmAppClient,
 	K8sUtil *k8s.K8sServiceImpl,
@@ -117,7 +118,7 @@ func NewDeploymentTemplateServiceImpl(Logger *zap.SugaredLogger, chartService ch
 		chartService:                         chartService,
 		appListingService:                    appListingService,
 		deploymentTemplateRepository:         deploymentTemplateRepository,
-		helmAppService:                       helmAppService,
+		helmAppReadService:                   helmAppReadService,
 		chartTemplateServiceImpl:             chartTemplateServiceImpl,
 		K8sUtil:                              K8sUtil,
 		helmAppClient:                        helmAppClient,
@@ -222,8 +223,10 @@ func (impl DeploymentTemplateServiceImpl) GetDeploymentTemplate(ctx context.Cont
 			resolvedValue = values
 		case repository.PublishedOnEnvironments:
 			response, err = impl.fetchResolvedTemplateForPublishedEnvs(ctx, request)
+			resolvedValue = response.ResolvedData
 		case repository.DeployedOnSelfEnvironment, repository.DeployedOnOtherEnvironment:
 			response, err = impl.fetchTemplateForDeployedEnv(ctx, request)
+			resolvedValue = response.ResolvedData
 		}
 		if err != nil {
 			impl.Logger.Errorw("error in getting values", "err", err)
@@ -480,7 +483,7 @@ func (impl DeploymentTemplateServiceImpl) GenerateManifest(ctx context.Context, 
 			Content: chartInBytes,
 		},
 	}
-	config, err := impl.helmAppService.GetClusterConf(bean.DEFAULT_CLUSTER_ID)
+	config, err := impl.helmAppReadService.GetClusterConf(bean.DEFAULT_CLUSTER_ID)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching cluster detail", "clusterId", 1, "err", err)
 		return nil, err
@@ -554,7 +557,7 @@ func (impl DeploymentTemplateServiceImpl) GetRestartWorkloadData(ctx context.Con
 	if len(appIds) == 0 {
 		return podResp, nil
 	}
-	apps, err := impl.appRepository.FindByIds(util2.GetReferencedArray(appIds))
+	apps, err := impl.appRepository.FindByIds(sliceUtil.GetReferencedSlice(appIds))
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app", "appIds", appIds, "err", err)
 		return nil, err

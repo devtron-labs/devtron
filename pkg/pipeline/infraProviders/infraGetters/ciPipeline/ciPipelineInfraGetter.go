@@ -16,7 +16,10 @@
 
 package ciPipeline
 
-import "github.com/devtron-labs/devtron/pkg/infraConfig"
+import (
+	"github.com/devtron-labs/devtron/pkg/infraConfig"
+	"github.com/devtron-labs/devtron/pkg/infraConfig/bean"
+)
 
 // CiInfraGetter gets infra config for ci workflows
 type CiInfraGetter struct {
@@ -28,6 +31,6 @@ func NewCiInfraGetter(infraConfigService infraConfig.InfraConfigService) *CiInfr
 }
 
 // GetInfraConfigurationsByScope gets infra config for ci workflows using the scope
-func (ciInfraGetter CiInfraGetter) GetInfraConfigurationsByScope(scope *infraConfig.Scope) (*infraConfig.InfraConfig, error) {
-	return ciInfraGetter.infraConfigService.GetInfraConfigurationsByScope(*scope)
+func (ciInfraGetter CiInfraGetter) GetInfraConfigurationsByScopeAndPlatform(scope *bean.Scope, platform string) (*bean.InfraConfig, error) {
+	return ciInfraGetter.infraConfigService.GetInfraConfigurationsByScopeAndPlatform(*scope, platform)
 }

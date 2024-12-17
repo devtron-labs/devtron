@@ -27,12 +27,14 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
-	bean2 "github.com/devtron-labs/devtron/pkg/team/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/team/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
@@ -48,7 +50,7 @@ type DeleteServiceExtendedImpl struct {
 func NewDeleteServiceExtendedImpl(logger *zap.SugaredLogger,
 	teamService team.TeamService,
 	clusterService cluster.ClusterService,
-	environmentService cluster.EnvironmentService,
+	environmentService environment.EnvironmentService,
 	appRepository app.AppRepository,
 	environmentRepository repository.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
@@ -78,7 +80,7 @@ func NewDeleteServiceExtendedImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl DeleteServiceExtendedImpl) DeleteCluster(deleteRequest *cluster.ClusterBean, userId int32) error {
+func (impl DeleteServiceExtendedImpl) DeleteCluster(deleteRequest *bean2.ClusterBean, userId int32) error {
 	//finding if there are env in this cluster or not, if yes then will not delete
 	env, err := impl.environmentRepository.FindByClusterId(deleteRequest.Id)
 	if err != nil && err != pg.ErrNoRows {
@@ -137,7 +139,7 @@ func (impl DeleteServiceExtendedImpl) DeleteEnvironment(deleteRequest *bean.Envi
 	}
 	return nil
 }
-func (impl DeleteServiceExtendedImpl) DeleteTeam(deleteRequest *bean2.TeamRequest) error {
+func (impl DeleteServiceExtendedImpl) DeleteTeam(deleteRequest *bean3.TeamRequest) error {
 	//finding if this project is used in some app; if yes, will not perform delete operation
 	apps, err := impl.appRepository.FindAppsByTeamId(deleteRequest.Id)
 	if err != nil && err != pg.ErrNoRows {

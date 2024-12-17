@@ -17,8 +17,8 @@
 package history
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	repository2 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository/mocks"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -37,7 +37,7 @@ func TestGitMaterialService(t *testing.T) {
 
 		GitHistoryServiceImpl := NewGitMaterialHistoryServiceImpl(mockedGitMaterialHistoryRepository, sugaredLogger)
 
-		GitMaterial := &pipelineConfig.GitMaterial{
+		GitMaterial := &repository2.GitMaterial{
 			Id:              1,
 			Url:             "https://github.com/devtron-labs/ci-runner",
 			AppId:           49,
@@ -87,7 +87,7 @@ func TestGitMaterialService(t *testing.T) {
 			AuditLog:        sql.AuditLog{},
 		}
 
-		GitMaterial := &pipelineConfig.GitMaterial{
+		GitMaterial := &repository2.GitMaterial{
 			Id:              1,
 			Url:             "https://github.com/devtron-labs/ci-runner",
 			AppId:           49,

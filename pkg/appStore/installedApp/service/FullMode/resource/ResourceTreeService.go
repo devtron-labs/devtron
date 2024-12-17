@@ -26,7 +26,8 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
-	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/api/helm-app/service/read"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
@@ -68,7 +69,8 @@ type InstalledAppResourceServiceImpl struct {
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
 	argoUserService                      argo.ArgoUserService
 	helmAppClient                        gRPC.HelmAppClient
-	helmAppService                       client.HelmAppService
+	helmAppService                       service.HelmAppService
+	helmAppReadService                   read.HelmAppReadService
 	appStatusService                     appStatus.AppStatusService
 	k8sCommonService                     k8s.K8sCommonService
 	k8sApplicationService                application3.K8sApplicationService
@@ -84,7 +86,8 @@ func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
 	acdClient application2.ServiceClient,
 	aCDAuthConfig *util3.ACDAuthConfig,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
-	argoUserService argo.ArgoUserService, helmAppClient gRPC.HelmAppClient, helmAppService client.HelmAppService,
+	argoUserService argo.ArgoUserService, helmAppClient gRPC.HelmAppClient, helmAppService service.HelmAppService,
+	helmAppReadService read.HelmAppReadService,
 	appStatusService appStatus.AppStatusService,
 	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService, K8sUtil k8s2.K8sService,
 	deploymentConfigurationService common.DeploymentConfigService,
@@ -100,6 +103,7 @@ func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
 		argoUserService:                      argoUserService,
 		helmAppClient:                        helmAppClient,
 		helmAppService:                       helmAppService,
+		helmAppReadService:                   helmAppReadService,
 		appStatusService:                     appStatusService,
 		k8sCommonService:                     k8sCommonService,
 		k8sApplicationService:                k8sApplicationService,
@@ -113,11 +117,11 @@ func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
 func (impl *InstalledAppResourceServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetailsContainer *bean.AppDetailsContainer, installedApp repository.InstalledApps, deploymentConfig *bean2.DeploymentConfig, helmReleaseInstallStatus string, status string) error {
 	var err error
 	var resourceTree map[string]interface{}
-	deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
+	deploymentAppName := util2.BuildDeployedAppName(installedApp.App.AppName, installedApp.Environment.Name)
 	if util.IsAcdApp(deploymentConfig.DeploymentAppType) {
 		resourceTree, err = impl.fetchResourceTreeForACD(rctx, cn, installedApp.App.Id, installedApp.EnvironmentId, installedApp.Environment.ClusterId, deploymentAppName, installedApp.Environment.Namespace)
 	} else if util.IsHelmApp(deploymentConfig.DeploymentAppType) {
-		config, err := impl.helmAppService.GetClusterConf(installedApp.Environment.ClusterId)
+		config, err := impl.helmAppReadService.GetClusterConf(installedApp.Environment.ClusterId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		}
@@ -205,7 +209,7 @@ func (impl *InstalledAppResourceServiceImpl) FetchResourceTreeWithHibernateForAC
 	}
 	ctx = context.WithValue(ctx, "token", acdToken)
 	defer cancel()
-	deploymentAppName := fmt.Sprintf("%s-%s", appDetail.AppName, appDetail.EnvironmentName)
+	deploymentAppName := util2.BuildDeployedAppName(appDetail.AppName, appDetail.EnvironmentName)
 	resourceTree, err := impl.fetchResourceTreeForACD(rctx, cn, appDetail.InstalledAppId, appDetail.EnvironmentId, appDetail.ClusterId, deploymentAppName, appDetail.Namespace)
 	appDetail.ResourceTree = resourceTree
 	if err != nil {

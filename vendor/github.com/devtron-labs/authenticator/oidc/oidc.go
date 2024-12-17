@@ -32,6 +32,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
@@ -69,16 +70,23 @@ type OIDCStateStorage interface {
 }
 
 type Cache struct {
-	OidcState map[string]*OIDCState
+	OidcState sync.Map
 }
 
 func (c *Cache) GetOIDCState(key string) (*OIDCState, error) {
-	state := c.OidcState[key]
+	value, exists := c.OidcState.Load(key)
+	if !exists {
+		return nil, ErrCacheMiss
+	}
+	state, ok := value.(*OIDCState)
+	if !ok || state == nil {
+		return nil, ErrInvalidState
+	}
 	return state, nil
 }
 
 func (c *Cache) SetOIDCState(key string, state *OIDCState) error {
-	c.OidcState[key] = state
+	c.OidcState.Store(key, state)
 	return nil
 }
 
@@ -287,12 +295,15 @@ func (a *ClientApp) generateAppState(returnURL string) string {
 }
 
 var ErrCacheMiss = errors.New("cache: key is missing")
+var ErrInvalidState = errors.New("invalid app state")
 
 func (a *ClientApp) verifyAppState(state string) (*OIDCState, error) {
 	res, err := a.cache.GetOIDCState(state)
 	if err != nil {
-		if err == ErrCacheMiss {
+		if errors.Is(err, ErrCacheMiss) {
 			return nil, fmt.Errorf("unknown app state %s", state)
+		} else if errors.Is(err, ErrInvalidState) {
+			return nil, fmt.Errorf("invalid app state %s", state)
 		} else {
 			return nil, fmt.Errorf("failed to verify app state %s: %v", state, err)
 		}

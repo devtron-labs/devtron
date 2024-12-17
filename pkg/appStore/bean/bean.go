@@ -18,14 +18,14 @@ package appStoreBean
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	bean3 "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/gitUtil"
 	"slices"
 	"time"
@@ -167,7 +167,7 @@ func (chart *InstallAppVersionDTO) UpdateACDAppName() {
 	if chart == nil {
 		return
 	}
-	chart.ACDAppName = fmt.Sprintf("%s-%s", chart.AppName, chart.EnvironmentName)
+	chart.ACDAppName = util.BuildDeployedAppName(chart.AppName, chart.EnvironmentName)
 }
 
 func (chart *InstallAppVersionDTO) UpdateCustomGitOpsRepoUrl(allowCustomRepository bool, installAppVersionRequestType InstallAppVersionRequestType) {

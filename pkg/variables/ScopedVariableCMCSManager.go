@@ -29,6 +29,7 @@ import (
 	repository1 "github.com/devtron-labs/devtron/pkg/variables/repository"
 	"github.com/devtron-labs/devtron/pkg/variables/utils"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"go.uber.org/zap"
 )
 
@@ -311,11 +312,11 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolveCMCS(ctx context.Context,
 
 	resolvedConfigList, resolvedSecretList, err := GetResolvedCMCSList(resolvedTemplateCM, encodedSecretData)
 
-	granularSnapshotCM, err := impl.getGranularSnapshotDataForConfigDataList(util.GetMapValuesPtr(mergedConfigMap), variableMapCM)
+	granularSnapshotCM, err := impl.getGranularSnapshotDataForConfigDataList(sliceUtil.GetMapValuesPtr(mergedConfigMap), variableMapCM)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	secretList := serviceBean.SecretList{ConfigData: util.GetMapValuesPtr(mergedSecret)}
+	secretList := serviceBean.SecretList{ConfigData: sliceUtil.GetMapValuesPtr(mergedSecret)}
 	granularSnapshotCS, err := impl.getGranularSnapshotDataForCS(secretList, variableMapCS)
 	if err != nil {
 		return nil, nil, nil, nil, err
@@ -327,11 +328,11 @@ func (impl *ScopedVariableCMCSManagerImpl) ResolveCMCS(ctx context.Context,
 func (impl *ScopedVariableCMCSManagerImpl) getScopedAndCollectVarNames(scope resourceQualifiers.Scope, configMapAppId int, configMapEnvId int, unmaskSensitive bool) ([]string, []string, []*models2.ScopedVariableData, error) {
 	varNamesCM := make([]string, 0)
 	varNamesCS := make([]string, 0)
-	entitiesForCM := util.GetBeans(
+	entitiesForCM := sliceUtil.GetBeans(
 		repository1.GetEntity(configMapAppId, repository1.EntityTypeConfigMapAppLevel),
 		repository1.GetEntity(configMapEnvId, repository1.EntityTypeConfigMapEnvLevel),
 	)
-	entitiesForCS := util.GetBeans(
+	entitiesForCS := sliceUtil.GetBeans(
 		repository1.GetEntity(configMapAppId, repository1.EntityTypeSecretAppLevel),
 		repository1.GetEntity(configMapEnvId, repository1.EntityTypeSecretEnvLevel),
 	)

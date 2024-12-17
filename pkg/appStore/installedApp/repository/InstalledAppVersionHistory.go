@@ -34,7 +34,7 @@ type InstalledAppVersionHistoryRepository interface {
 	GetLatestInstalledAppVersionHistoryByGitHash(gitHash string) (*InstalledAppVersionHistory, error)
 	GetAppIdAndEnvIdWithInstalledAppVersionId(id int) (int, int, error)
 	GetLatestInstalledAppVersionHistoryByInstalledAppId(installedAppId int) (*InstalledAppVersionHistory, error)
-	FindPreviousInstalledAppVersionHistoryByStatus(installedAppVersionId int, installedAppVersionHistoryId int, status []string) ([]*InstalledAppVersionHistory, error)
+	FindPreviousInstalledAppVersionHistoryByStatus(installedAppId int, installedAppVersionHistoryId int, status []string) ([]*InstalledAppVersionHistory, error)
 	UpdateInstalledAppVersionHistoryWithTxn(models []*InstalledAppVersionHistory, tx *pg.Tx) error
 	GetAppStoreApplicationVersionIdByInstalledAppVersionHistoryId(installedAppVersionHistoryId int) (int, error)
 	UpdateGitHash(installedAppVersionHistoryId int, gitHash string, tx *pg.Tx) error
@@ -190,12 +190,12 @@ func (impl *InstalledAppVersionHistoryRepositoryImpl) GetLatestInstalledAppVersi
 	return model, nil
 }
 
-func (impl *InstalledAppVersionHistoryRepositoryImpl) FindPreviousInstalledAppVersionHistoryByStatus(installedAppVersionId int, installedAppVersionHistoryId int, status []string) ([]*InstalledAppVersionHistory, error) {
+func (impl *InstalledAppVersionHistoryRepositoryImpl) FindPreviousInstalledAppVersionHistoryByStatus(installedAppId int, installedAppVersionHistoryId int, status []string) ([]*InstalledAppVersionHistory, error) {
 	var iavr []*InstalledAppVersionHistory
 	err := impl.dbConnection.
 		Model(&iavr).
 		Column("installed_app_version_history.*").
-		Where("installed_app_version_history.installed_app_version_id = ?", installedAppVersionId).
+		Where("installed_app_version_history.installed_app_version_id in ( select id from installed_app_versions where installed_app_id in (?))", installedAppId).
 		Where("installed_app_version_history.id < ?", installedAppVersionHistoryId).
 		Where("installed_app_version_history.status not in (?) ", pg.In(status)).
 		Order("installed_app_version_history.id DESC").
@@ -216,7 +216,6 @@ func (impl *InstalledAppVersionHistoryRepositoryImpl) UpdateDeploymentHistoryMes
 	_, err := impl.dbConnection.Model((*InstalledAppVersionHistory)(nil)).
 		Set("message = ?", message).
 		Where("id = ?", installedAppVersionHistoryId).
-		Where("active = ?", true).
 		Update()
 	return err
 }

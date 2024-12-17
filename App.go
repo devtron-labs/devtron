@@ -47,15 +47,16 @@ import (
 )
 
 type App struct {
-	MuxRouter             *router.MuxRouter
-	Logger                *zap.SugaredLogger
-	SSE                   *sse.SSE
-	Enforcer              *casbin.SyncedEnforcer
-	EnforcerV2            *casbinv2.SyncedEnforcer
-	server                *http.Server
-	db                    *pg.DB
-	posthogClient         *telemetry.PosthogClient
-	centralEventProcessor *eventProcessor.CentralEventProcessor
+	MuxRouter     *router.MuxRouter
+	Logger        *zap.SugaredLogger
+	SSE           *sse.SSE
+	Enforcer      *casbin.SyncedEnforcer
+	EnforcerV2    *casbinv2.SyncedEnforcer
+	server        *http.Server
+	db            *pg.DB
+	posthogClient *telemetry.PosthogClient
+	// eventProcessor.CentralEventProcessor is used to register event processors
+	centralEventProcessor *eventProcessor.CentralEventProcessor // do not remove this.
 	// used for local dev only
 	serveTls                   bool
 	sessionManager2            *authMiddleware.SessionManager
@@ -85,7 +86,7 @@ func NewApp(router *router.MuxRouter,
 		Logger:                     Logger,
 		SSE:                        sse,
 		Enforcer:                   enforcer,
-		EnforcerV2:            enforcerV2,
+		EnforcerV2:                 enforcerV2,
 		db:                         db,
 		serveTls:                   false,
 		sessionManager2:            sessionManager2,

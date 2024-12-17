@@ -30,6 +30,7 @@ import (
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	validationBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/google/go-github/github"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/xanzy/go-gitlab"
@@ -308,7 +309,7 @@ func (impl *FullModeDeploymentServiceImpl) getGitCommitConfig(installAppVersionR
 		return nil, err
 	}
 
-	argocdAppName := installAppVersionRequest.AppName + "-" + environment.Name
+	argocdAppName := util2.BuildDeployedAppName(installAppVersionRequest.AppName, environment.Name)
 	if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) &&
 		len(installAppVersionRequest.GitOpsRepoURL) == 0 &&
 		installAppVersionRequest.InstalledAppId != 0 {

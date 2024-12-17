@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
-	"github.com/devtron-labs/devtron/pkg/git"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitWebhook"
 	"go.uber.org/zap"
 	"net/http"
 )
@@ -31,10 +31,10 @@ type GitWebhookRestHandler interface {
 
 type GitWebhookRestHandlerImpl struct {
 	logger            *zap.SugaredLogger
-	gitWebhookService git.GitWebhookService
+	gitWebhookService gitWebhook.GitWebhookService
 }
 
-func NewGitWebhookRestHandlerImpl(logger *zap.SugaredLogger, gitWebhookService git.GitWebhookService) *GitWebhookRestHandlerImpl {
+func NewGitWebhookRestHandlerImpl(logger *zap.SugaredLogger, gitWebhookService gitWebhook.GitWebhookService) *GitWebhookRestHandlerImpl {
 	return &GitWebhookRestHandlerImpl{
 		gitWebhookService: gitWebhookService,
 		logger:            logger,

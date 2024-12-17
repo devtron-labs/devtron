@@ -18,6 +18,7 @@ package pipeline
 
 import (
 	"fmt"
+	repository5 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"log"
 	"testing"
 
@@ -147,7 +148,7 @@ func InitClusterNoteService() {
 	}
 
 	appRepository := app.NewAppRepositoryImpl(conn, logger)
-	materialRepository := pipelineConfig.NewMaterialRepositoryImpl(conn)
+	materialRepository := repository5.NewMaterialRepositoryImpl(conn)
 	pipelineRepository := pipelineConfig.NewPipelineRepositoryImpl(conn, logger)
 	ciPipelineRepository := pipelineConfig.NewCiPipelineRepositoryImpl(conn, logger)
 	ciPipelineHistoryRepository := repository4.NewCiPipelineHistoryRepositoryImpl(conn, logger)

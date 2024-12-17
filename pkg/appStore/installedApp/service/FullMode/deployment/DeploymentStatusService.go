@@ -101,7 +101,7 @@ func (impl *FullModeDeploymentServiceImpl) UpdateInstalledAppAndPipelineStatusFo
 	} else {
 		//update [n,n-1] statuses as failed if not terminal
 		previousNonTerminalHistory, err := impl.installedAppRepositoryHistory.FindPreviousInstalledAppVersionHistoryByStatus(
-			installAppVersionRequest.Id,
+			installAppVersionRequest.InstalledAppId,
 			installAppVersionRequest.InstalledAppVersionHistoryId,
 			appStoreBean.InstalledAppTerminalStatusList,
 		)

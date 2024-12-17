@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package bean
 
 import (
@@ -60,6 +61,8 @@ type PluginMinDto struct {
 	PluginName      string `json:"name,omitempty"`
 	Icon            string `json:"icon,omitempty"`
 	PluginVersionId int    `json:"pluginVersionId,omitempty"`
+	Identifier      string `json:"pluginIdentifier"`
+	Type            string `json:"type,omitempty"`
 }
 
 func NewPluginMinDto() *PluginMinDto {
@@ -83,6 +86,16 @@ func (r *PluginMinDto) WithIcon(icon string) *PluginMinDto {
 
 func (r *PluginMinDto) WithPluginVersionId(versionId int) *PluginMinDto {
 	r.PluginVersionId = versionId
+	return r
+}
+
+func (r *PluginMinDto) WithPluginIdentifier(identifier string) *PluginMinDto {
+	r.Identifier = identifier
+	return r
+}
+
+func (r *PluginMinDto) WithPluginType(pluginType repository.PluginType) *PluginMinDto {
+	r.Type = pluginType.ToString()
 	return r
 }
 
@@ -306,6 +319,41 @@ type PluginVariableDto struct {
 	PluginStepCondition       []*PluginStepCondition                  `json:"pluginStepCondition,omitempty"`
 }
 
+func (s *PluginVariableDto) GetValue() string {
+	if s == nil {
+		return ""
+	} else if len(s.Value) != 0 {
+		return s.Value
+	} else {
+		return s.DefaultValue
+	}
+}
+
+func (s *PluginVariableDto) IsEmptyValueAllowed() bool {
+	if s == nil {
+		return false
+	}
+	// for output type variable, empty value is allowed
+	if s.VariableType.IsOutput() {
+		return true
+	}
+	// the empty value refers to StepVariableDto.AllowEmptyValue
+	return s.AllowEmptyValue
+}
+
+func (s *PluginVariableDto) IsEmptyValue() bool {
+	if s == nil {
+		return true
+	}
+	// If the variable is global, then the value is empty, but referenceVariableName should not be empty
+	if s.ValueType.IsGlobalDefinedValue() {
+		return len(s.ReferenceVariableName) == 0
+	} else if s.ValueType.IsPreviousOutputDefinedValue() {
+		return len(s.ReferenceVariableName) == 0 || s.PreviousStepIndex == 0
+	}
+	return len(s.GetValue()) == 0
+}
+
 type PluginPipelineScript struct {
 	Id                       int                                  `json:"id"`
 	Script                   string                               `json:"script"`
@@ -356,7 +404,7 @@ type RegistryCredentials struct {
 }
 
 const (
-	NoPluginOrParentIdProvidedErr            = "no value for pluginVersionIds and parentPluginIds provided in query param"
+	NoPluginOrParentIdProvidedErr            = "Empty values for both pluginVersionIds and parentPluginIds. Please provide at least one of them"
 	NoPluginFoundForThisSearchQueryErr       = "unable to find desired plugin for the query filter"
 	PluginStepsNotProvidedError              = "plugin steps not provided"
 	PluginWithSameNameExistError             = "plugin with the same name exists, please choose another name"
@@ -371,3 +419,52 @@ const (
 	SpecialCharsRegex        = ` !"#$%&'()*+,./:;<=>?@[\]^_{|}~` + "`"
 	PluginIconMaxSizeInBytes = 2 * 1024 * 1024
 )
+
+type GlobalPluginDetailsRequest struct {
+	PluginIds               []int    `schema:"pluginId" json:"pluginIds"`
+	ParentPluginIds         []int    `schema:"parentPluginId" json:"parentPluginIds"`
+	FetchAllVersionDetails  bool     `schema:"fetchAllVersionDetails" json:"fetchAllVersionDetails"`
+	ParentPluginIdentifier  string   `schema:"parentPluginIdentifier"` // comma separated parentPluginIdentifiers
+	ParentPluginIdentifiers []string `schema:"-" json:"parentPluginIdentifiers"`
+	AppId                   int      `schema:"appId" json:"appId"`
+}
+
+type PluginDetailsMinQuery struct {
+	AppId int `schema:"appId"`
+	// Supports SHARED, PRESET, ALL.
+	// Default is SHARED to maintain backward compatibility.
+	// Note: Type is string as schema.NewDecoder does not support derived types - PluginType
+	Type string `schema:"type,default:SHARED"`
+}
+
+func (r *PluginDetailsMinQuery) GetPluginType() PluginType {
+	return GetPluginType(r.Type)
+}
+
+type PluginType string
+
+func GetPluginType(t string) PluginType {
+	return PluginType(t)
+}
+
+const (
+	ALL    PluginType = "ALL"
+	PRESET PluginType = "PRESET"
+	SHARED PluginType = "SHARED"
+)
+
+func (r PluginType) ToString() string {
+	if r == ALL {
+		return ""
+	}
+	return string(r)
+}
+
+func (r *PluginDetailsMinQuery) IsValidPluginType() bool {
+	switch GetPluginType(r.Type) {
+	case ALL, PRESET, SHARED:
+		return true
+	default:
+		return false
+	}
+}

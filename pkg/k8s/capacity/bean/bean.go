@@ -82,6 +82,8 @@ type ClusterCapacityDetail struct {
 	ServerVersion     string                                `json:"serverVersion,omitempty"`
 	Cpu               *ResourceDetailObject                 `json:"cpu"`
 	Memory            *ResourceDetailObject                 `json:"memory"`
+	IsVirtualCluster  bool                                  `json:"isVirtualCluster"`
+	IsProd            bool                                  `json:"isProd"`
 }
 
 type NodeCapacityDetail struct {

@@ -18,6 +18,7 @@ package pipelineConfig
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
@@ -148,7 +149,7 @@ type GitCommit struct {
 	CiConfigureSourceValue string
 	GitRepoUrl             string
 	GitRepoName            string
-	CiConfigureSourceType  SourceType
+	CiConfigureSourceType  constants.SourceType
 }
 
 type WebhookData struct {

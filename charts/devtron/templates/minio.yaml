@@ -322,7 +322,7 @@ metadata:
     release: {{ $.Release.Name }}
     heritage: Helm
 spec:
-  ttlSecondsAfterFinished: 100
+  ttlSecondsAfterFinished: 1000
   template:
     metadata:
       labels:

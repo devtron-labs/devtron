@@ -92,3 +92,13 @@ type VulnerabilityCheckRequest struct {
 const (
 	CronJobChartRegexExpression = "cronjob-chart_1-(2|3|4|5)-0"
 )
+
+const (
+	APP_LABEL_KEY_PREFIX         = "APP_LABEL_KEY"
+	APP_LABEL_VALUE_PREFIX       = "APP_LABEL_VALUE"
+	APP_LABEL_COUNT              = "APP_LABEL_COUNT"
+	CHILD_CD_ENV_NAME_PREFIX     = "CHILD_CD_ENV_NAME"
+	CHILD_CD_CLUSTER_NAME_PREFIX = "CHILD_CD_CLUSTER_NAME"
+	CHILD_CD_COUNT               = "CHILD_CD_COUNT"
+	APP_NAME                     = "APP_NAME"
+)

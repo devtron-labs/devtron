@@ -20,7 +20,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	securityBean "github.com/devtron-labs/devtron/internal/sql/repository/security/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
+	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
 	"net/http"
 	"strconv"
 
@@ -28,8 +30,6 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
 )
@@ -42,19 +42,19 @@ type PolicyRestHandler interface {
 }
 type PolicyRestHandlerImpl struct {
 	logger             *zap.SugaredLogger
-	policyService      security.PolicyService
+	policyService      imageScanning.PolicyService
 	userService        user2.UserService
 	userAuthService    user2.UserAuthService
 	enforcer           casbin.Enforcer
 	enforcerUtil       rbac.EnforcerUtil
-	environmentService cluster.EnvironmentService
+	environmentService environment.EnvironmentService
 }
 
 func NewPolicyRestHandlerImpl(logger *zap.SugaredLogger,
-	policyService security.PolicyService,
+	policyService imageScanning.PolicyService,
 	userService user2.UserService, userAuthService user2.UserAuthService,
 	enforcer casbin.Enforcer,
-	enforcerUtil rbac.EnforcerUtil, environmentService cluster.EnvironmentService) *PolicyRestHandlerImpl {
+	enforcerUtil rbac.EnforcerUtil, environmentService environment.EnvironmentService) *PolicyRestHandlerImpl {
 	return &PolicyRestHandlerImpl{
 		logger:             logger,
 		policyService:      policyService,
@@ -302,7 +302,7 @@ func (impl PolicyRestHandlerImpl) GetPolicy(w http.ResponseWriter, r *http.Reque
 func (impl PolicyRestHandlerImpl) VerifyImage(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
-	var req security.VerifyImageRequest
+	var req imageScanning.VerifyImageRequest
 
 	err := decoder.Decode(&req)
 	if err != nil {

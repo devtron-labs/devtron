@@ -17,31 +17,30 @@
 package adapter
 
 import (
+	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
 )
 
-// NewEnvironmentBean provides a new cluster.EnvironmentBean for the given repository.Environment
-// Note: NewEnvironmentBean doesn't include AppCount and AllowedDeploymentTypes
-func NewEnvironmentBean(envModel *repository.Environment) *bean.EnvironmentBean {
-	envBean := &bean.EnvironmentBean{
-		Id:                    envModel.Id,
-		Environment:           envModel.Name,
-		ClusterId:             envModel.ClusterId,
-		Active:                envModel.Active,
-		Default:               envModel.Default,
-		Namespace:             envModel.Namespace,
-		EnvironmentIdentifier: envModel.EnvironmentIdentifier,
-		Description:           envModel.Description,
-		IsVirtualEnvironment:  envModel.IsVirtualEnvironment,
+func GetClusterBean(model repository.Cluster) bean.ClusterBean {
+	clusterBean := bean.ClusterBean{}
+	clusterBean.Id = model.Id
+	clusterBean.ClusterName = model.ClusterName
+	//clusterBean.Note = model.Note
+	clusterBean.ServerUrl = model.ServerUrl
+	clusterBean.PrometheusUrl = model.PrometheusEndpoint
+	clusterBean.AgentInstallationStage = model.AgentInstallationStage
+	clusterBean.Active = model.Active
+	clusterBean.Config = model.Config
+	clusterBean.K8sVersion = model.K8sVersion
+	clusterBean.InsecureSkipTLSVerify = model.InsecureSkipTlsVerify
+	clusterBean.IsVirtualCluster = model.IsVirtualCluster
+	clusterBean.ErrorInConnecting = model.ErrorInConnecting
+	clusterBean.IsProd = model.IsProd
+	clusterBean.PrometheusAuth = &bean.PrometheusAuth{
+		UserName:      model.PUserName,
+		Password:      model.PPassword,
+		TlsClientCert: model.PTlsClientCert,
+		TlsClientKey:  model.PTlsClientKey,
 	}
-	if envModel.Cluster != nil {
-		envBean.ClusterName = envModel.Cluster.ClusterName
-		envBean.PrometheusEndpoint = envModel.Cluster.PrometheusEndpoint
-		envBean.CdArgoSetup = envModel.Cluster.CdArgoSetup
-		// populate internal use only fields
-		envBean.ClusterServerUrl = envModel.Cluster.ServerUrl
-		envBean.ErrorInConnecting = envModel.Cluster.ErrorInConnecting
-	}
-	return envBean
+	return clusterBean
 }

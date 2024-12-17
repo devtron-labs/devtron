@@ -16,8 +16,10 @@
 
 package infraGetters
 
-import "github.com/devtron-labs/devtron/pkg/infraConfig"
+import (
+	"github.com/devtron-labs/devtron/pkg/infraConfig/bean"
+)
 
 type InfraGetter interface {
-	GetInfraConfigurationsByScope(scope *infraConfig.Scope) (*infraConfig.InfraConfig, error)
+	GetInfraConfigurationsByScopeAndPlatform(scope *bean.Scope, platform string) (*bean.InfraConfig, error)
 }

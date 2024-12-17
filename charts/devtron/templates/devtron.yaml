@@ -122,6 +122,7 @@ data:
   FEATURE_RESTART_WORKLOAD_WORKER_POOL_SIZE: "5"
   USE_GIT_CLI: "false"
   PROPAGATE_EXTRA_LABELS: "false"
+  USE_DEPLOYMENT_CONFIG_DATA: "false"
 {{- if $.Values.configs }}
 {{- if or ($.Values.minio.enabled) ($.Values.configs.BLOB_STORAGE_PROVIDER) }}
   BLOB_STORAGE_ENABLED: "true"

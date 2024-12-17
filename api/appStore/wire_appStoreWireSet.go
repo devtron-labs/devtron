@@ -21,11 +21,24 @@ import (
 	"github.com/google/wire"
 )
 
-var AppStoreWireSet = wire.NewSet(
+var EAModeWireSet = wire.NewSet(
 
 	service.NewDeletePostProcessorImpl,
 	wire.Bind(new(service.DeletePostProcessor), new(*service.DeletePostProcessorImpl)),
 
 	service.NewAppAppStoreValidatorImpl,
 	wire.Bind(new(service.AppStoreValidator), new(*service.AppStoreValidatorImpl)),
+)
+
+var FullModeWireSet = wire.NewSet(
+	EAModeWireSet,
+
+	NewAppStoreStatusTimelineRestHandlerImpl,
+	wire.Bind(new(AppStoreStatusTimelineRestHandler), new(*AppStoreStatusTimelineRestHandlerImpl)),
+
+	NewInstalledAppRestHandlerImpl,
+	wire.Bind(new(InstalledAppRestHandler), new(*InstalledAppRestHandlerImpl)),
+
+	NewAppStoreRouterImpl,
+	wire.Bind(new(AppStoreRouter), new(*AppStoreRouterImpl)),
 )

@@ -18,6 +18,7 @@ package notifier
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/notifier/adapter"
 	"github.com/devtron-labs/devtron/pkg/notifier/beans"
 	"testing"
 
@@ -66,7 +67,7 @@ func Test_buildWebhookNewConfigs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := buildWebhookNewConfigs(tt.args.webhookReq, tt.args.userId)
+			got := adapter.BuildWebhookNewConfigs(tt.args.webhookReq, tt.args.userId)
 
 			assert.Equal(t, len(tt.want), len(got), "Number of webhook configs mismatch")
 

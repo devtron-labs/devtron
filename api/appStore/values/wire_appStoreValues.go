@@ -23,7 +23,7 @@ import (
 	"github.com/google/wire"
 )
 
-var AppStoreValuesWireSet = wire.NewSet(
+var WireSet = wire.NewSet(
 	NewAppStoreValuesRouterImpl,
 	wire.Bind(new(AppStoreValuesRouter), new(*AppStoreValuesRouterImpl)),
 	NewAppStoreValuesRestHandlerImpl,

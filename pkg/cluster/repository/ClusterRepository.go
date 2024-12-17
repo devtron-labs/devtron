@@ -42,7 +42,15 @@ type Cluster struct {
 	ErrorInConnecting      string            `sql:"error_in_connecting"`
 	IsVirtualCluster       bool              `sql:"is_virtual_cluster"`
 	InsecureSkipTlsVerify  bool              `sql:"insecure_skip_tls_verify"`
+	IsProd                 bool              `sql:"is_prod"`
 	sql.AuditLog
+}
+
+func (c *Cluster) IsEmpty() bool {
+	if c == nil {
+		return true
+	}
+	return c.Id == 0
 }
 
 type ClusterRepository interface {

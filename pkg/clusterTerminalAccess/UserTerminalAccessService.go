@@ -60,6 +60,7 @@ type UserTerminalAccessService interface {
 	FetchPodEvents(ctx context.Context, userTerminalAccessId int) (*models.UserTerminalPodEvents, error)
 	ValidateShell(podName, namespace, shellName, containerName string, clusterId int) (bool, string, error)
 	EditTerminalPodManifest(ctx context.Context, request *models.UserTerminalSessionRequest, override bool) (ManifestEditResponse, error)
+	GetTerminalAccessSessionDataFromCacheById(terminalAccessId int) (*models.UserTerminalAccessData, bool)
 }
 
 type UserTerminalAccessServiceImpl struct {
@@ -1262,4 +1263,11 @@ func (impl *UserTerminalAccessServiceImpl) GenerateNodeDebugPod(o *models.UserTe
 
 	err = impl.applyTemplate(context.Background(), o.ClusterId, podTemplate, podTemplate, false, o.Namespace)
 	return debugPod, err
+}
+
+func (impl *UserTerminalAccessServiceImpl) GetTerminalAccessSessionDataFromCacheById(terminalAccessId int) (*models.UserTerminalAccessData, bool) {
+	terminalAccessDataMap := *impl.TerminalAccessSessionDataMap
+	terminalAccessSessionData, present := terminalAccessDataMap[terminalAccessId]
+
+	return terminalAccessSessionData.terminalAccessDataEntity, present
 }

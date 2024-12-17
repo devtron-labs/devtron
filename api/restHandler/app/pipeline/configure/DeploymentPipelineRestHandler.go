@@ -23,6 +23,7 @@ import (
 	"fmt"
 	devtronAppGitOpConfigBean "github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig/bean"
 	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	"io"
 	"net/http"
 	"strconv"
@@ -33,7 +34,6 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -1353,7 +1353,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Re
 		return
 	}
 
-	appTags, err := handler.imageTaggingService.GetUniqueTagsByAppId(pipeline.AppId)
+	appTags, err := handler.imageTaggingReadService.GetUniqueTagsByAppId(pipeline.AppId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetTagsByAppId", "err", err, "appId", pipeline.AppId)
 		common.WriteJsonResp(w, err, ciArtifactResponse, http.StatusInternalServerError)
@@ -1364,7 +1364,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Re
 
 	prodEnvExists, err := handler.imageTaggingService.GetProdEnvByCdPipelineId(pipeline.Id)
 	ciArtifactResponse.TagsEditable = prodEnvExists && triggerAccess
-	ciArtifactResponse.HideImageTaggingHardDelete = handler.imageTaggingService.GetImageTaggingServiceConfig().HideImageTaggingHardDelete
+	ciArtifactResponse.HideImageTaggingHardDelete = handler.imageTaggingService.IsHardDeleteHidden()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetProdEnvByCdPipelineId", "err", err, "cdPipelineId", pipeline.Id)
 		common.WriteJsonResp(w, err, ciArtifactResponse, http.StatusInternalServerError)
@@ -1390,14 +1390,14 @@ func (handler *PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Re
 		}
 
 		// get image scan results from DB for given digests
-		imageScanResults, err := handler.scanResultRepository.FindByImageDigests(digests)
+		imageScanResults, err := handler.imageScanResultReadService.FindByImageDigests(digests)
 		// ignore error
 		if err != nil && err != pg.ErrNoRows {
 			handler.Logger.Errorw("service err, FindByImageDigests", "err", err, "cdPipelineId", cdPipelineId, "stage", stage, "digests", digests)
 		}
 
 		// build digest vs cve-stores
-		digestVsCveStores := make(map[string][]*security.CveStore)
+		digestVsCveStores := make(map[string][]*repository.CveStore)
 		for _, result := range imageScanResults {
 			imageHash := result.ImageScanExecutionHistory.ImageHash
 
@@ -1406,7 +1406,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Re
 
 				// configuring size as len of ImageScanExecutionResult assuming all the
 				//scan results could belong to a single hash
-				cveStores := make([]*security.CveStore, 0, len(imageScanResults))
+				cveStores := make([]*repository.CveStore, 0, len(imageScanResults))
 				cveStores = append(cveStores, &result.CveStore)
 				digestVsCveStores[imageHash] = cveStores
 
@@ -1597,7 +1597,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.Res
 		common.WriteJsonResp(w, err, "unable to fetch artifacts", http.StatusInternalServerError)
 		return
 	}
-	appTags, err := handler.imageTaggingService.GetUniqueTagsByAppId(app.Id)
+	appTags, err := handler.imageTaggingReadService.GetUniqueTagsByAppId(app.Id)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetTagsByAppId", "err", err, "appId", app.Id)
 		common.WriteJsonResp(w, err, ciArtifactResponse, http.StatusInternalServerError)
@@ -1608,7 +1608,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.Res
 
 	prodEnvExists, err := handler.imageTaggingService.GetProdEnvByCdPipelineId(cdPipelineId)
 	ciArtifactResponse.TagsEditable = prodEnvExists && triggerAccess
-	ciArtifactResponse.HideImageTaggingHardDelete = handler.imageTaggingService.GetImageTaggingServiceConfig().HideImageTaggingHardDelete
+	ciArtifactResponse.HideImageTaggingHardDelete = handler.imageTaggingService.IsHardDeleteHidden()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetProdEnvByCdPipelineId", "err", err, "cdPipelineId", app.Id)
 		common.WriteJsonResp(w, err, ciArtifactResponse, http.StatusInternalServerError)
@@ -1723,7 +1723,7 @@ func (handler *PipelineConfigRestHandlerImpl) ListDeploymentHistory(w http.Respo
 		return
 	}
 
-	appTags, err := handler.imageTaggingService.GetUniqueTagsByAppId(appId)
+	appTags, err := handler.imageTaggingReadService.GetUniqueTagsByAppId(appId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetTagsByAppId", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
@@ -1733,7 +1733,7 @@ func (handler *PipelineConfigRestHandlerImpl) ListDeploymentHistory(w http.Respo
 
 	prodEnvExists, err := handler.imageTaggingService.GetProdEnvByCdPipelineId(pipelineId)
 	resp.TagsEdiatable = prodEnvExists
-	resp.HideImageTaggingHardDelete = handler.imageTaggingService.GetImageTaggingServiceConfig().HideImageTaggingHardDelete
+	resp.HideImageTaggingHardDelete = handler.imageTaggingService.IsHardDeleteHidden()
 	if err != nil {
 		handler.Logger.Errorw("service err, GetProdEnvFromParentAndLinkedWorkflow", "err", err, "cdPipelineId", pipelineId)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
@@ -1808,7 +1808,11 @@ func (handler *PipelineConfigRestHandlerImpl) GetPrePostDeploymentLogs(w http.Re
 		}(ctx.Done(), cn.CloseNotify())
 	}
 	defer cancel()
-	defer cleanUp()
+	defer func() {
+		if cleanUp != nil {
+			cleanUp()
+		}
+	}()
 	handler.streamOutput(w, logsReader, lastSeenMsgId)
 }
 

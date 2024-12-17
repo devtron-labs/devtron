@@ -83,6 +83,7 @@ func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string
 					// setting user id in context
 					ctx := context.WithValue(r.Context(), "userId", userId)
 					ctx = context.WithValue(ctx, "token", token)
+					ctx = context.WithValue(ctx, "devtronToken", token) //this is set with duplicate value as token key because in orchestrator sometimes token key is overridden with acdToken value thus causing enforcer to fail
 					ctx = context.WithValue(ctx, "emailId", emailId)
 					r = r.WithContext(ctx)
 				}

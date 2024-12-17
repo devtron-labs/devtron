@@ -19,15 +19,16 @@ package bean
 import (
 	"encoding/json"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	CiPipeline2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	CiPipeline2 "github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"strings"
 	"time"
@@ -41,9 +42,9 @@ const (
 )
 
 type SourceTypeConfig struct {
-	Type  pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED SOURCE_TYPE_BRANCH_REGEX SOURCE_TYPE_TAG_ANY WEBHOOK"`
-	Value string                    `json:"value,omitempty" `
-	Regex string                    `json:"regex"`
+	Type  constants.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED SOURCE_TYPE_BRANCH_REGEX SOURCE_TYPE_TAG_ANY WEBHOOK"`
+	Value string               `json:"value,omitempty" `
+	Regex string               `json:"regex"`
 }
 
 type CreateAppDTO struct {
@@ -116,10 +117,10 @@ type CiPipeline struct {
 	AppType                  helper.AppType           `json:"appType,omitempty"`
 	ExternalCiConfig         ExternalCiConfig         `json:"externalCiConfig"`
 	CiMaterial               []*CiMaterial            `json:"ciMaterial,omitempty" validate:"dive,min=1"`
-	Name                     string                   `json:"name,omitempty" validate:"name-component,max=100"` //name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
+	Name                     string                   `json:"name,omitempty" validate:"name-component,max=100"` // name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
 	Id                       int                      `json:"id,omitempty" `
-	Version                  string                   `json:"version,omitempty"` //matchIf token version in gocd . used for update request
-	Active                   bool                     `json:"active,omitempty"`  //pipeline is active or not
+	Version                  string                   `json:"version,omitempty"` // matchIf token version in gocd . used for update request
+	Active                   bool                     `json:"active,omitempty"`  // pipeline is active or not
 	Deleted                  bool                     `json:"deleted,omitempty"`
 	BeforeDockerBuild        []*Task                  `json:"beforeDockerBuild,omitempty" validate:"dive"`
 	AfterDockerBuild         []*Task                  `json:"afterDockerBuild,omitempty" validate:"dive"`
@@ -129,8 +130,8 @@ type CiPipeline struct {
 	PipelineType             CiPipeline2.PipelineType `json:"pipelineType,omitempty"`
 	ScanEnabled              bool                     `json:"scanEnabled,notnull"`
 	AppWorkflowId            int                      `json:"appWorkflowId,omitempty"`
-	PreBuildStage            *bean.PipelineStageDto   `json:"preBuildStage,omitempty"`
-	PostBuildStage           *bean.PipelineStageDto   `json:"postBuildStage,omitempty"`
+	PreBuildStage            *bean.PipelineStageDto   `json:"preBuildStage,omitempty" validate:"omitempty,dive"`
+	PostBuildStage           *bean.PipelineStageDto   `json:"postBuildStage,omitempty" validate:"omitempty,dive"`
 	TargetPlatform           string                   `json:"targetPlatform,omitempty"`
 	IsDockerConfigOverridden bool                     `json:"isDockerConfigOverridden"`
 	DockerConfigOverride     DockerConfigOverride     `json:"dockerConfigOverride,omitempty"`
@@ -284,7 +285,7 @@ type CiMaterialPatchResponse struct {
 }
 
 type CiPatchRequest struct {
-	CiPipeline    *CiPipeline `json:"ciPipeline"`
+	CiPipeline    *CiPipeline `json:"ciPipeline" validate:"omitempty,dive"`
 	AppId         int         `json:"appId,omitempty"`
 	Action        PatchAction `json:"action"`
 	AppWorkflowId int         `json:"appWorkflowId,omitempty"`
@@ -649,13 +650,13 @@ const (
 	PARALLEL   CDPipelineAddType = "PARALLEL"
 )
 
-func (cdpipelineConfig *CDPipelineConfigObject) IsSwitchCiPipelineRequest() bool {
-	return cdpipelineConfig.SwitchFromCiPipelineId > 0 && cdpipelineConfig.AppWorkflowId > 0
+func (cdPipelineConfig *CDPipelineConfigObject) IsSwitchCiPipelineRequest() bool {
+	return cdPipelineConfig.SwitchFromCiPipelineId > 0 && cdPipelineConfig.AppWorkflowId > 0
 }
 
-func (cdpipelineConfig *CDPipelineConfigObject) PatchSourceInfo() (int, string) {
+func (cdPipelineConfig *CDPipelineConfigObject) PatchSourceInfo() (int, string) {
 	//as the source will be always CI_PIPELINE in case of external-ci change request
-	return cdpipelineConfig.SwitchFromCiPipelineId, appWorkflow.CIPIPELINE
+	return cdPipelineConfig.SwitchFromCiPipelineId, appWorkflow.CIPIPELINE
 }
 
 type PreStageConfigMapSecretNames struct {
@@ -809,7 +810,7 @@ type CiArtifactBean struct {
 	Scanned                       bool                      `json:"scanned,notnull"`
 	WfrId                         int                       `json:"wfrId"`
 	DeployedBy                    string                    `json:"deployedBy"`
-	CiConfigureSourceType         pipelineConfig.SourceType `json:"ciConfigureSourceType"`
+	CiConfigureSourceType         constants.SourceType      `json:"ciConfigureSourceType"`
 	CiConfigureSourceValue        string                    `json:"ciConfigureSourceValue"`
 	ImageReleaseTags              []*repository2.ImageTag   `json:"imageReleaseTags"`
 	ImageComment                  *repository2.ImageComment `json:"imageComment"`
