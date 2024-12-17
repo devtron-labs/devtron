@@ -606,7 +606,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(triggerContext t
 		} else {
 			ciArtifactId = cdStageCompleteEvent.CiArtifactDTO.Id
 		}
-		err = impl.cdTriggerService.TriggerAutoCDOnPreStageSuccess(triggerContext, cdStageCompleteEvent.CdPipelineId, ciArtifactId, cdStageCompleteEvent.WorkflowId, cdStageCompleteEvent.TriggeredBy, 0)
+		err = impl.cdTriggerService.TriggerAutoCDOnPreStageSuccess(triggerContext, cdStageCompleteEvent.CdPipelineId, ciArtifactId, cdStageCompleteEvent.WorkflowId, cdStageCompleteEvent.TriggeredBy)
 		if err != nil {
 			impl.logger.Errorw("error in triggering cd on pre cd succcess", "err", err)
 			return err

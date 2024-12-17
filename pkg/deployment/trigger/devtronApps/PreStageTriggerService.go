@@ -171,7 +171,7 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*b
 	return manifestPushTemplate, nil
 }
 
-func (impl *TriggerServiceImpl) TriggerAutoCDOnPreStageSuccess(triggerContext bean.TriggerContext, cdPipelineId, ciArtifactId, workflowId int, triggerdBy int32, scanExecutionHistoryId int) error {
+func (impl *TriggerServiceImpl) TriggerAutoCDOnPreStageSuccess(triggerContext bean.TriggerContext, cdPipelineId, ciArtifactId, workflowId int, triggerdBy int32) error {
 	pipeline, err := impl.pipelineRepository.FindById(cdPipelineId)
 	if err != nil {
 		return err

@@ -104,7 +104,7 @@ type TriggerService interface {
 	TriggerPostStage(request bean.TriggerRequest) (*bean4.ManifestPushTemplate, error)
 	TriggerPreStage(request bean.TriggerRequest) (*bean4.ManifestPushTemplate, error)
 
-	TriggerAutoCDOnPreStageSuccess(triggerContext bean.TriggerContext, cdPipelineId, ciArtifactId, workflowId int, triggerdBy int32, scanExecutionHistoryId int) error
+	TriggerAutoCDOnPreStageSuccess(triggerContext bean.TriggerContext, cdPipelineId, ciArtifactId, workflowId int, triggerdBy int32) error
 
 	TriggerStageForBulk(triggerRequest bean.TriggerRequest) error
 
