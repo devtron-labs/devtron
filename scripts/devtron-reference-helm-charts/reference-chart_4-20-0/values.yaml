@@ -2,6 +2,11 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+deploymentStrategy: "ROLLING"
+
+switchToDeployment: true
+turnOffRollout: true
+
 replicaCount: 1
 MinReadySeconds: 5
 MaxSurge: 1
@@ -56,6 +61,7 @@ image:
 restartPolicy: Always
 
 autoscaling:
+  enableForDeployment: false
   enabled: false
   MinReplicas: 1
   MaxReplicas: 2
@@ -95,6 +101,7 @@ autoscaling:
 #
 
 kedaAutoscaling:
+  enableForDeployment: false
   enabled: false
   envSourceContainerName: "" # Optional. Default: .spec.template.spec.containers[0]
   cooldownPeriod: 300 # Optional. Default: 300 seconds
