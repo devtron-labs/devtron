@@ -58,15 +58,6 @@ type ConfigurationBeanV0 struct {
 	Value float64 `json:"value" validate:"required,gt=0"`
 }
 
-type ConfigurationBeanAbstract struct {
-	Id          int          `json:"id"`
-	Key         ConfigKeyStr `json:"key"`
-	Unit        string       `json:"unit" validate:"required,gt=0"`
-	ProfileName string       `json:"profileName"`
-	ProfileId   int          `json:"profileId"`
-	Active      bool         `json:"active"`
-}
-
 type InfraConfigMetaData struct {
 	DefaultConfigurations map[string][]*ConfigurationBean        `json:"defaultConfigurations"`
 	ConfigurationUnits    map[ConfigKeyStr]map[string]units.Unit `json:"configurationUnits"`
@@ -91,6 +82,15 @@ type ProfileResponseV0 struct {
 
 type Scope struct {
 	AppId int
+}
+
+type ConfigurationBeanAbstract struct {
+	Id          int          `json:"id"`
+	Key         ConfigKeyStr `json:"key"`
+	Unit        string       `json:"unit" validate:"required,gt=0"`
+	ProfileName string       `json:"profileName"`
+	ProfileId   int          `json:"profileId"`
+	Active      bool         `json:"active"`
 }
 
 // InfraConfig is used for read only purpose outside this package

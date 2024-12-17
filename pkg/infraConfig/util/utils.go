@@ -93,6 +93,40 @@ func GetConfigKey(configKeyStr bean.ConfigKeyStr) bean.ConfigKey {
 	return 0
 }
 
+// todo remove this validation, as it is written additionally due to validator v9.30.0 constraint for map[string]*struct is not handled
+func ValidatePayloadConfig(profileToUpdate *bean.ProfileBeanDto) error {
+	if len(profileToUpdate.Name) == 0 {
+		return errors.New("profile name is required")
+	}
+	defaultKeyMap := GetDefaultConfigKeysMap()
+	for _, config := range profileToUpdate.Configurations {
+		err := validateConfigItems(config, defaultKeyMap)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func validateConfigItems(propertyConfigs []*bean.ConfigurationBean, defaultKeyMap map[bean.ConfigKeyStr]bool) error {
+	var validationErrors []string
+	for _, config := range propertyConfigs {
+		if _, isValidKey := defaultKeyMap[config.Key]; !isValidKey {
+			validationErrors = append(validationErrors, fmt.Sprintf("invalid configuration property \"%s\"", config.Key))
+			continue
+		}
+		//_, err := GetTypedValue(config.Key, config.Value)
+		//if err != nil {
+		//	validationErrors = append(validationErrors, fmt.Sprintf("error in parsing value for key \"%s\": %v", config.Key, err))
+		//	continue
+		//}
+	}
+	// If any validation errors were found, return them as a single error
+	if len(validationErrors) > 0 {
+		return fmt.Errorf("validation errors: %s", strings.Join(validationErrors, "; "))
+	}
+	return nil
+}
+
 func GetTypedValue(configKey bean.ConfigKeyStr, value interface{}) (interface{}, error) {
 	switch configKey {
 	case bean.CPU_LIMIT, bean.CPU_REQUEST, bean.MEMORY_LIMIT, bean.MEMORY_REQUEST:
@@ -128,44 +162,22 @@ func GetTypedValue(configKey bean.ConfigKeyStr, value interface{}) (interface{},
 	}
 }
 
-// todo remove this validation, as it is written additionally due to validator v9.30.0 constraint for map[string]*struct is not handled
-func ValidatePayloadConfig(profileToUpdate *bean.ProfileBeanDto) error {
-	if len(profileToUpdate.Name) == 0 {
-		return errors.New("profile name is required")
+func IsValidProfileNameRequested(profileName, payloadProfileName string) bool {
+	if len(payloadProfileName) == 0 || len(profileName) == 0 {
+		return false
 	}
-	defaultKeyMap := GetDefaultConfigKeysMap()
-	for _, config := range profileToUpdate.Configurations {
-		err := validateConfigItems(config, defaultKeyMap)
-		if err != nil {
-			return err
-		}
+	if profileName == bean.GLOBAL_PROFILE_NAME && payloadProfileName == bean.GLOBAL_PROFILE_NAME {
+		return true
 	}
-	return nil
-}
-func validateConfigItems(propertyConfigs []*bean.ConfigurationBean, defaultKeyMap map[bean.ConfigKeyStr]bool) error {
-	var validationErrors []string
-	for _, config := range propertyConfigs {
-		if _, isValidKey := defaultKeyMap[config.Key]; !isValidKey {
-			validationErrors = append(validationErrors, fmt.Sprintf("invalid configuration property \"%s\"", config.Key))
-			continue
-		}
-		//_, err := GetTypedValue(config.Key, config.Value)
-		//if err != nil {
-		//	validationErrors = append(validationErrors, fmt.Sprintf("error in parsing value for key \"%s\": %v", config.Key, err))
-		//	continue
-		//}
-	}
-	// If any validation errors were found, return them as a single error
-	if len(validationErrors) > 0 {
-		return fmt.Errorf("validation errors: %s", strings.Join(validationErrors, "; "))
-	}
-	return nil
+	return false
 }
 
-func IsValidProfileNameRequested(profileName, reqProfileName string) bool {
-	return !(profileName == "" || (profileName == bean.GLOBAL_PROFILE_NAME && reqProfileName != bean.GLOBAL_PROFILE_NAME))
-}
-
-func IsValidProfileNameRequestedV0(profileName, reqProfileName string) bool {
-	return !(profileName == "" || (profileName == bean.DEFAULT_PROFILE_NAME && reqProfileName != bean.DEFAULT_PROFILE_NAME))
+func IsValidProfileNameRequestedV0(profileName, payloadProfileName string) bool {
+	if len(payloadProfileName) == 0 || len(profileName) == 0 {
+		return false
+	}
+	if profileName == bean.DEFAULT_PROFILE_NAME && payloadProfileName == bean.DEFAULT_PROFILE_NAME {
+		return true
+	}
+	return false
 }
