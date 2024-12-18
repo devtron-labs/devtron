@@ -35,6 +35,10 @@ apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
   name: {{ include ".Chart.Name .fullname" $ }}
+{{-  if .Values.switchToDeployment }}
+  finalizers:
+    - kubernetes.io/rollout-protection
+{{- end }}
   labels:
     app: {{ template ".Chart.Name .name" $ }}
     chart: {{ template ".Chart.Name .chart" $ }}
