@@ -149,6 +149,10 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 	workflowRequest.AddNodeConstraintsFromConfig(&workflowTemplate, impl.ciCdConfig)
 	infraConfiguration := &bean4.InfraConfig{}
 	if workflowRequest.Type == bean3.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean3.JOB_WORKFLOW_PIPELINE_TYPE {
+		nodeSelector := impl.getAppLabelNodeSelector(workflowRequest)
+		if nodeSelector != nil {
+			workflowTemplate.NodeSelector = nodeSelector
+		}
 		infraConfigScope := &bean4.Scope{
 			AppId: workflowRequest.AppId,
 		}
@@ -168,12 +172,6 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 	}
 	workflowTemplate.Containers = []v12.Container{workflowMainContainer}
 	impl.updateBlobStorageConfig(workflowRequest, &workflowTemplate)
-	if workflowRequest.Type == bean3.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean3.JOB_WORKFLOW_PIPELINE_TYPE {
-		nodeSelector := impl.getAppLabelNodeSelector(workflowRequest)
-		if nodeSelector != nil {
-			workflowTemplate.NodeSelector = nodeSelector
-		}
-	}
 	if workflowRequest.Type == bean3.CD_WORKFLOW_PIPELINE_TYPE {
 		workflowTemplate.WfControllerInstanceID = impl.ciCdConfig.WfControllerInstanceID
 	}

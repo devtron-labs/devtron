@@ -42,7 +42,7 @@ type InfraConfigService interface {
 	// If profileName is empty, it will return an error.
 	UpdateProfile(userId int32, profileName string, profileBean *bean.ProfileBeanDto) error
 
-	GetInfraConfigurationsByScopeAndPlatform(scope bean.Scope, platform string) (*bean.InfraConfig, error)
+	GetInfraConfigurationsByScopeAndPlatform(scope *bean.Scope, platform string) (*bean.InfraConfig, error)
 }
 
 type InfraConfigServiceImpl struct {
@@ -261,7 +261,7 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 	return err
 }
 
-func (impl *InfraConfigServiceImpl) GetInfraConfigurationsByScopeAndPlatform(scope bean.Scope, platform string) (*bean.InfraConfig, error) {
+func (impl *InfraConfigServiceImpl) GetInfraConfigurationsByScopeAndPlatform(scope *bean.Scope, platform string) (*bean.InfraConfig, error) {
 
 	defaultConfigurations, err := impl.infraProfileRepo.GetConfigurationsByProfileName(bean.GLOBAL_PROFILE_NAME)
 	if err != nil {
