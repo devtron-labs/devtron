@@ -44,7 +44,7 @@ type BulkUpdateRepository interface {
 	FindAppByChartEnvId(chartEnvId int) (*app.App, error)
 	FindBulkChartsByAppNameSubstring(appNameIncludes []string, appNameExcludes []string) ([]*chartRepoRepository.Chart, error)
 	FindBulkChartsEnvByAppNameSubstring(appNameIncludes []string, appNameExcludes []string, envId int) ([]*chartConfig.EnvConfigOverride, error)
-	BulkUpdateChartsValuesYamlAndGlobalOverrideById(id int, patch string) error
+	BulkUpdateChartsValuesYamlAndGlobalOverrideById(id int, patchValuesYml string, patchGlobalOverrideYml string) error
 	BulkUpdateChartsEnvYamlOverrideById(id int, patch string) error
 
 	//For ConfigMap & Secret :
@@ -222,12 +222,12 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkChartsEnvByAppNameSubstri
 	err := q.Select()
 	return charts, err
 }
-func (repositoryImpl BulkUpdateRepositoryImpl) BulkUpdateChartsValuesYamlAndGlobalOverrideById(id int, patch string) error {
+func (repositoryImpl BulkUpdateRepositoryImpl) BulkUpdateChartsValuesYamlAndGlobalOverrideById(id int, patchValuesYml string, patchGlobalOverrideYml string) error {
 	chart := &chartRepoRepository.Chart{}
 	_, err := repositoryImpl.dbConnection.
 		Model(chart).
-		Set("values_yaml = ?", patch).
-		Set("global_override = ?", patch).
+		Set("values_yaml = ?", patchValuesYml).
+		Set("global_override = ?", patchGlobalOverrideYml).
 		Where("id = ?", id).
 		Update()
 	if err != nil {
