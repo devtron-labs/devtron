@@ -406,9 +406,9 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 			} else {
 				for _, chart := range charts {
 					appDetailsByChart, _ := impl.bulkUpdateRepository.FindAppByChartId(chart.Id)
-					modified, err := impl.ApplyJsonPatch(deploymentTemplatePatch, chart.Values)
+					modifiedValuesYml, err := impl.ApplyJsonPatch(deploymentTemplatePatch, chart.Values)
 					if err != nil {
-						impl.logger.Errorw("error in applying JSON patch", "err", err)
+						impl.logger.Errorw("error in applying JSON patch to chart.Values", "err", err)
 						bulkUpdateFailedResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
 							AppId:   appDetailsByChart.Id,
 							AppName: appDetailsByChart.AppName,
@@ -416,42 +416,54 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 						}
 						deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
 					} else {
-						err = impl.bulkUpdateRepository.BulkUpdateChartsValuesYamlAndGlobalOverrideById(chart.Id, modified)
+						modifiedGlobalOverrideYml, err := impl.ApplyJsonPatch(deploymentTemplatePatch, chart.GlobalOverride)
 						if err != nil {
-							impl.logger.Errorw("error in bulk updating charts", "err", err)
+							impl.logger.Errorw("error in applying JSON patch to GlobalOverride", "err", err)
 							bulkUpdateFailedResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
 								AppId:   appDetailsByChart.Id,
 								AppName: appDetailsByChart.AppName,
-								Message: fmt.Sprintf("Error in updating in db : %s", err.Error()),
+								Message: fmt.Sprintf("Error in applying JSON patch : %s", err.Error()),
 							}
 							deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
 						} else {
-							bulkUpdateSuccessResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
-								AppId:   appDetailsByChart.Id,
-								AppName: appDetailsByChart.AppName,
-								Message: "Updated Successfully",
-							}
-							deploymentTemplateBulkUpdateResponse.Successful = append(deploymentTemplateBulkUpdateResponse.Successful, bulkUpdateSuccessResponse)
+							err = impl.bulkUpdateRepository.BulkUpdateChartsValuesYamlAndGlobalOverrideById(chart.Id, modifiedValuesYml, modifiedGlobalOverrideYml)
+							if err != nil {
+								impl.logger.Errorw("error in bulk updating charts", "err", err)
+								bulkUpdateFailedResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
+									AppId:   appDetailsByChart.Id,
+									AppName: appDetailsByChart.AppName,
+									Message: fmt.Sprintf("Error in updating in db : %s", err.Error()),
+								}
+								deploymentTemplateBulkUpdateResponse.Failure = append(deploymentTemplateBulkUpdateResponse.Failure, bulkUpdateFailedResponse)
+							} else {
+								bulkUpdateSuccessResponse := &DeploymentTemplateBulkUpdateResponseForOneApp{
+									AppId:   appDetailsByChart.Id,
+									AppName: appDetailsByChart.AppName,
+									Message: "Updated Successfully",
+								}
+								deploymentTemplateBulkUpdateResponse.Successful = append(deploymentTemplateBulkUpdateResponse.Successful, bulkUpdateSuccessResponse)
 
-							//creating history entry for deployment template
-							appLevelAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagByAppId(chart.AppId)
-							if err != nil {
-								impl.logger.Errorw("error in getting app level metrics app level", "error", err, "appId", chart.AppId)
-								return nil
-							}
-							chart.GlobalOverride = modified
-							chart.Values = modified
-							err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(chart, nil, appLevelAppMetricsEnabled)
-							if err != nil {
-								impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", chart)
-							}
-							//VARIABLE_MAPPING_UPDATE
-							//NOTE: this flow is doesn't have the user info, therefore updated by is being set to the last updated by
-							err = impl.scopedVariableManager.ExtractAndMapVariables(chart.GlobalOverride, chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, chart.UpdatedBy, nil)
-							if err != nil {
-								return nil
+								//creating history entry for deployment template
+								appLevelAppMetricsEnabled, err := impl.deployedAppMetricsService.GetMetricsFlagByAppId(chart.AppId)
+								if err != nil {
+									impl.logger.Errorw("error in getting app level metrics app level", "error", err, "appId", chart.AppId)
+									return nil
+								}
+								chart.GlobalOverride = modifiedGlobalOverrideYml
+								chart.Values = modifiedValuesYml
+								err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(chart, nil, appLevelAppMetricsEnabled)
+								if err != nil {
+									impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", chart)
+								}
+								//VARIABLE_MAPPING_UPDATE
+								//NOTE: this flow is doesn't have the user info, therefore updated by is being set to the last updated by
+								err = impl.scopedVariableManager.ExtractAndMapVariables(chart.GlobalOverride, chart.Id, repository5.EntityTypeDeploymentTemplateAppLevel, chart.UpdatedBy, nil)
+								if err != nil {
+									return nil
+								}
 							}
 						}
+
 					}
 				}
 			}
