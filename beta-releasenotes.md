@@ -16,6 +16,7 @@
 - feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
+- misc: Release candidate v0.25.0 (#6194)
 - chore: panic fix (#6188)
 - chore: panic fix installed app read service (#6185)
 - chore: runtime params variable refactorings (#6183)
