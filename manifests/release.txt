@@ -1,1 +1,1 @@
-beta 0 v1.0.2-rc.0
+major 0 v1.0.2-rc.0
