@@ -16,6 +16,7 @@
 - feat: K8sdriverOptions suppport in build infra (#6040)
 ## Documentation
 ## Others
+- chore: read service for team (#6201)
 - chore: oss ent triggerService changes (#6189)
 - misc: Release candidate v0.25.0 (#6194)
 - chore: panic fix (#6188)
