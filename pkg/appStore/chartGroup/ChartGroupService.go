@@ -39,7 +39,7 @@ import (
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
-	"github.com/devtron-labs/devtron/pkg/team"
+	repository3 "github.com/devtron-labs/devtron/pkg/team/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	"io/ioutil"
 	"os"
@@ -69,7 +69,7 @@ type ChartGroupServiceImpl struct {
 	userAuthService                      user.UserAuthService
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	environmentService                   cluster2.EnvironmentService
-	teamRepository                       team.TeamRepository
+	teamRepository                       repository3.TeamRepository
 	clusterInstalledAppsRepository       repository.ClusterInstalledAppsRepository
 	appStoreValuesService                service.AppStoreValuesService
 	appStoreDeploymentService            service2.AppStoreDeploymentService
@@ -93,7 +93,7 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 	userAuthService user.UserAuthService,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentService cluster2.EnvironmentService,
-	teamRepository team.TeamRepository,
+	teamRepository repository3.TeamRepository,
 	clusterInstalledAppsRepository repository.ClusterInstalledAppsRepository,
 	appStoreValuesService service.AppStoreValuesService,
 	appStoreDeploymentService service2.AppStoreDeploymentService,
@@ -726,7 +726,7 @@ func (impl *ChartGroupServiceImpl) DeployDefaultChartOnCluster(bean *bean3.Clust
 		return false, err
 	}
 	if err == pg.ErrNoRows {
-		t := &team.Team{
+		t := &repository3.Team{
 			Name:     appStoreBean.DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT,
 			Active:   true,
 			AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},

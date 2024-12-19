@@ -21,7 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
-	"github.com/devtron-labs/devtron/pkg/team"
+	repository3 "github.com/devtron-labs/devtron/pkg/team/repository"
 	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"golang.org/x/exp/maps"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -90,7 +90,7 @@ type EnforcerUtil interface {
 
 type EnforcerUtilImpl struct {
 	logger                *zap.SugaredLogger
-	teamRepository        team.TeamRepository
+	teamRepository        repository3.TeamRepository
 	appRepo               app.AppRepository
 	environmentRepository repository2.EnvironmentRepository
 	pipelineRepository    pipelineConfig.PipelineRepository
@@ -100,7 +100,7 @@ type EnforcerUtilImpl struct {
 	dbMigration           dbMigration.DbMigration
 }
 
-func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepository,
+func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository repository3.TeamRepository,
 	appRepo app.AppRepository, environmentRepository repository2.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	clusterRepository repository.ClusterRepository, enforcer casbin.Enforcer,
