@@ -39,6 +39,7 @@ import (
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
+	"github.com/devtron-labs/devtron/pkg/team/read"
 	repository3 "github.com/devtron-labs/devtron/pkg/team/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	"io/ioutil"
@@ -81,6 +82,7 @@ type ChartGroupServiceImpl struct {
 	gitOperationService                  git.GitOperationService
 	installAppService                    FullMode.InstalledAppDBExtendedService
 	appStoreAppsEventPublishService      out.AppStoreAppsEventPublishService
+	teamReadService                      read.TeamReadService
 }
 
 func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
@@ -104,7 +106,8 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 	fullModeDeploymentService deployment.FullModeDeploymentService,
 	gitOperationService git.GitOperationService,
 	installAppService FullMode.InstalledAppDBExtendedService,
-	appStoreAppsEventPublishService out.AppStoreAppsEventPublishService) (*ChartGroupServiceImpl, error) {
+	appStoreAppsEventPublishService out.AppStoreAppsEventPublishService,
+	teamReadService read.TeamReadService) (*ChartGroupServiceImpl, error) {
 	impl := &ChartGroupServiceImpl{
 		logger:                               logger,
 		chartGroupEntriesRepository:          chartGroupEntriesRepository,
@@ -128,6 +131,7 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 		installAppService:                    installAppService,
 		appStoreAppsEventPublishService:      appStoreAppsEventPublishService,
 		appStoreRepository:                   appStoreRepository,
+		teamReadService:                      teamReadService,
 	}
 	return impl, nil
 }
@@ -721,7 +725,7 @@ func (impl *ChartGroupServiceImpl) DeployDefaultChartOnCluster(bean *bean3.Clust
 
 	// STEP 2 - create project with name "devtron"
 	impl.logger.Info("STEP 2", "create project for cluster components")
-	t, err := impl.teamRepository.FindByTeamName(appStoreBean.DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT)
+	t, err := impl.teamReadService.FindByTeamName(appStoreBean.DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT)
 	if err != nil && err != pg.ErrNoRows {
 		return false, err
 	}

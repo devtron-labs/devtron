@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
+	"github.com/devtron-labs/devtron/pkg/team/read"
 	repository3 "github.com/devtron-labs/devtron/pkg/team/repository"
 	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"golang.org/x/exp/maps"
@@ -90,7 +91,6 @@ type EnforcerUtil interface {
 
 type EnforcerUtilImpl struct {
 	logger                *zap.SugaredLogger
-	teamRepository        repository3.TeamRepository
 	appRepo               app.AppRepository
 	environmentRepository repository2.EnvironmentRepository
 	pipelineRepository    pipelineConfig.PipelineRepository
@@ -98,16 +98,17 @@ type EnforcerUtilImpl struct {
 	clusterRepository     repository.ClusterRepository
 	enforcer              casbin.Enforcer
 	dbMigration           dbMigration.DbMigration
+	teamReadService       read.TeamReadService
 }
 
 func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository repository3.TeamRepository,
 	appRepo app.AppRepository, environmentRepository repository2.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	clusterRepository repository.ClusterRepository, enforcer casbin.Enforcer,
-	dbMigration dbMigration.DbMigration) *EnforcerUtilImpl {
+	dbMigration dbMigration.DbMigration,
+	teamReadService read.TeamReadService) *EnforcerUtilImpl {
 	return &EnforcerUtilImpl{
 		logger:                logger,
-		teamRepository:        teamRepository,
 		appRepo:               appRepo,
 		environmentRepository: environmentRepository,
 		pipelineRepository:    pipelineRepository,
@@ -115,6 +116,7 @@ func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository repository3.T
 		clusterRepository:     clusterRepository,
 		enforcer:              enforcer,
 		dbMigration:           dbMigration,
+		teamReadService:       teamReadService,
 	}
 }
 
@@ -535,7 +537,7 @@ func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envI
 }
 
 func (impl EnforcerUtilImpl) GetHelmObjectByProjectIdAndEnvId(teamId int, envId int) (string, string) {
-	team, err := impl.teamRepository.FindOne(teamId)
+	team, err := impl.teamReadService.FindOne(teamId)
 	if err != nil {
 		impl.logger.Errorw("error on fetching data for rbac object", "err", err)
 		return fmt.Sprintf("%s/%s/%s", "", "", ""), fmt.Sprintf("%s/%s/%s", "", "", "")
@@ -580,7 +582,7 @@ func (impl EnforcerUtilImpl) GetAppRBACNameByTeamIdAndAppId(teamId int, appId in
 		impl.logger.Errorw("error on fetching data for rbac object", "err", err)
 		return fmt.Sprintf("%s/%s", "", "")
 	}
-	team, err := impl.teamRepository.FindOne(teamId)
+	team, err := impl.teamReadService.FindOne(teamId)
 	if err != nil {
 		impl.logger.Errorw("error on fetching data for rbac object", "err", err)
 		return fmt.Sprintf("%s/%s", "", "")
@@ -658,7 +660,7 @@ func (impl EnforcerUtilImpl) GetAppAndEnvObjectByPipeline(cdPipelines []*bean.CD
 	for _, pipeline := range cdPipelines {
 		teamIds = append(teamIds, &pipeline.TeamId)
 	}
-	teams, err := impl.teamRepository.FindByIds(teamIds)
+	teams, err := impl.teamReadService.FindByIds(teamIds)
 	if err != nil {
 		return objects
 	}
@@ -685,7 +687,7 @@ func (impl EnforcerUtilImpl) GetAppAndEnvObjectByDbPipeline(cdPipelines []*pipel
 	for _, pipeline := range cdPipelines {
 		teamIds = append(teamIds, &pipeline.App.TeamId)
 	}
-	teams, err := impl.teamRepository.FindByIds(teamIds)
+	teams, err := impl.teamReadService.FindByIds(teamIds)
 	if err != nil {
 		return objects
 	}
@@ -705,7 +707,7 @@ func (impl EnforcerUtilImpl) GetAppAndEnvObjectByDbPipeline(cdPipelines []*pipel
 }
 
 func (impl EnforcerUtilImpl) GetAllActiveTeamNames() ([]string, error) {
-	teamNames, err := impl.teamRepository.FindAllActiveTeamNames()
+	teamNames, err := impl.teamReadService.FindAllActiveTeamNames()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching active team names", "err", err)
 		return nil, err

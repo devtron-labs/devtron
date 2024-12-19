@@ -287,7 +287,7 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	ciPipelineRepositoryImpl := pipelineConfig.NewCiPipelineRepositoryImpl(db, sugaredLogger, transactionUtilImpl)
-	enforcerUtilImpl := rbac.NewEnforcerUtilImpl(sugaredLogger, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, clusterRepositoryImpl, enforcerImpl, dbMigrationServiceImpl)
+	enforcerUtilImpl := rbac.NewEnforcerUtilImpl(sugaredLogger, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, clusterRepositoryImpl, enforcerImpl, dbMigrationServiceImpl, teamReadServiceImpl)
 	clusterRbacServiceImpl := rbac2.NewClusterRbacServiceImpl(environmentServiceImpl, enforcerImpl, enforcerUtilImpl, clusterServiceImpl, sugaredLogger, userServiceImpl)
 	clusterRestHandlerImpl := cluster2.NewClusterRestHandlerImpl(clusterServiceImpl, genericNoteServiceImpl, clusterDescriptionServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl, deleteServiceImpl, helmUserServiceImpl, environmentServiceImpl, clusterRbacServiceImpl)
 	clusterRouterImpl := cluster2.NewClusterRouterImpl(clusterRestHandlerImpl)

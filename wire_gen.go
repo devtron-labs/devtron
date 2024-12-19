@@ -450,7 +450,7 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	ciPipelineRepositoryImpl := pipelineConfig.NewCiPipelineRepositoryImpl(db, sugaredLogger, transactionUtilImpl)
-	enforcerUtilImpl := rbac.NewEnforcerUtilImpl(sugaredLogger, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, clusterRepositoryImpl, enforcerImpl, dbMigrationServiceImpl)
+	enforcerUtilImpl := rbac.NewEnforcerUtilImpl(sugaredLogger, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, clusterRepositoryImpl, enforcerImpl, dbMigrationServiceImpl, teamReadServiceImpl)
 	clusterRbacServiceImpl := rbac2.NewClusterRbacServiceImpl(environmentServiceImpl, enforcerImpl, enforcerUtilImpl, clusterServiceImplExtended, sugaredLogger, userServiceImpl)
 	clusterRestHandlerImpl := cluster3.NewClusterRestHandlerImpl(clusterServiceImplExtended, genericNoteServiceImpl, clusterDescriptionServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl, deleteServiceExtendedImpl, argoUserServiceImpl, environmentServiceImpl, clusterRbacServiceImpl)
 	clusterRouterImpl := cluster3.NewClusterRouterImpl(clusterRestHandlerImpl)
@@ -483,7 +483,7 @@ func InitializeApp() (*App, error) {
 	gitProviderRepositoryImpl := repository10.NewGitProviderRepositoryImpl(db)
 	gitProviderReadServiceImpl := read5.NewGitProviderReadService(sugaredLogger, gitProviderRepositoryImpl)
 	envConfigOverrideReadServiceImpl := read6.NewEnvConfigOverrideReadServiceImpl(envConfigOverrideRepositoryImpl, sugaredLogger)
-	commonServiceImpl := commonService.NewCommonServiceImpl(sugaredLogger, chartRepositoryImpl, envConfigOverrideRepositoryImpl, dockerArtifactStoreRepositoryImpl, attributesRepositoryImpl, environmentRepositoryImpl, teamRepositoryImpl, appRepositoryImpl, gitOpsConfigReadServiceImpl, gitProviderReadServiceImpl, envConfigOverrideReadServiceImpl)
+	commonServiceImpl := commonService.NewCommonServiceImpl(sugaredLogger, chartRepositoryImpl, envConfigOverrideRepositoryImpl, dockerArtifactStoreRepositoryImpl, attributesRepositoryImpl, environmentRepositoryImpl, appRepositoryImpl, gitOpsConfigReadServiceImpl, gitProviderReadServiceImpl, envConfigOverrideReadServiceImpl, teamReadServiceImpl)
 	chartTemplateServiceImpl := util.NewChartTemplateServiceImpl(sugaredLogger)
 	pipelineStatusTimelineRepositoryImpl := pipelineConfig.NewPipelineStatusTimelineRepositoryImpl(db, sugaredLogger)
 	pipelineStatusTimelineResourcesRepositoryImpl := pipelineConfig.NewPipelineStatusTimelineResourcesRepositoryImpl(db, sugaredLogger)
@@ -749,7 +749,7 @@ func InitializeApp() (*App, error) {
 	webhookNotificationRepositoryImpl := repository2.NewWebhookNotificationRepositoryImpl(db)
 	sesNotificationRepositoryImpl := repository2.NewSESNotificationRepositoryImpl(db)
 	smtpNotificationRepositoryImpl := repository2.NewSMTPNotificationRepositoryImpl(db)
-	notificationConfigServiceImpl := notifier.NewNotificationConfigServiceImpl(sugaredLogger, notificationSettingsRepositoryImpl, notificationConfigBuilderImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, slackNotificationRepositoryImpl, webhookNotificationRepositoryImpl, sesNotificationRepositoryImpl, smtpNotificationRepositoryImpl, teamRepositoryImpl, environmentRepositoryImpl, appRepositoryImpl, clusterServiceImplExtended, userRepositoryImpl, ciPipelineMaterialRepositoryImpl)
+	notificationConfigServiceImpl := notifier.NewNotificationConfigServiceImpl(sugaredLogger, notificationSettingsRepositoryImpl, notificationConfigBuilderImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, slackNotificationRepositoryImpl, webhookNotificationRepositoryImpl, sesNotificationRepositoryImpl, smtpNotificationRepositoryImpl, teamRepositoryImpl, environmentRepositoryImpl, appRepositoryImpl, clusterServiceImplExtended, userRepositoryImpl, ciPipelineMaterialRepositoryImpl, teamReadServiceImpl)
 	slackNotificationServiceImpl := notifier.NewSlackNotificationServiceImpl(sugaredLogger, slackNotificationRepositoryImpl, webhookNotificationRepositoryImpl, teamServiceImpl, userRepositoryImpl, notificationSettingsRepositoryImpl)
 	webhookNotificationServiceImpl := notifier.NewWebhookNotificationServiceImpl(sugaredLogger, webhookNotificationRepositoryImpl, teamServiceImpl, userRepositoryImpl, notificationSettingsRepositoryImpl)
 	sesNotificationServiceImpl := notifier.NewSESNotificationServiceImpl(sugaredLogger, sesNotificationRepositoryImpl, teamServiceImpl, notificationSettingsRepositoryImpl)
@@ -792,7 +792,7 @@ func InitializeApp() (*App, error) {
 	deletePostProcessorImpl := service4.NewDeletePostProcessorImpl(sugaredLogger)
 	appStoreDeploymentServiceImpl := service4.NewAppStoreDeploymentServiceImpl(sugaredLogger, installedAppRepositoryImpl, installedAppDBServiceImpl, appStoreDeploymentDBServiceImpl, chartGroupDeploymentRepositoryImpl, appStoreApplicationVersionRepositoryImpl, appRepositoryImpl, eaModeDeploymentServiceImpl, fullModeDeploymentServiceImpl, environmentServiceImpl, helmAppServiceImpl, installedAppVersionHistoryRepositoryImpl, environmentVariables, acdConfig, gitOpsConfigReadServiceImpl, deletePostProcessorImpl, appStoreValidatorImpl, deploymentConfigServiceImpl)
 	appStoreAppsEventPublishServiceImpl := out.NewAppStoreAppsEventPublishServiceImpl(sugaredLogger, pubSubClientServiceImpl)
-	chartGroupServiceImpl, err := chartGroup.NewChartGroupServiceImpl(sugaredLogger, chartGroupEntriesRepositoryImpl, chartGroupReposotoryImpl, chartGroupDeploymentRepositoryImpl, installedAppRepositoryImpl, appStoreVersionValuesRepositoryImpl, appStoreRepositoryImpl, userAuthServiceImpl, appStoreApplicationVersionRepositoryImpl, environmentServiceImpl, teamRepositoryImpl, clusterInstalledAppsRepositoryImpl, appStoreValuesServiceImpl, appStoreDeploymentServiceImpl, appStoreDeploymentDBServiceImpl, argoUserServiceImpl, pipelineStatusTimelineServiceImpl, acdConfig, fullModeDeploymentServiceImpl, gitOperationServiceImpl, installedAppDBExtendedServiceImpl, appStoreAppsEventPublishServiceImpl)
+	chartGroupServiceImpl, err := chartGroup.NewChartGroupServiceImpl(sugaredLogger, chartGroupEntriesRepositoryImpl, chartGroupReposotoryImpl, chartGroupDeploymentRepositoryImpl, installedAppRepositoryImpl, appStoreVersionValuesRepositoryImpl, appStoreRepositoryImpl, userAuthServiceImpl, appStoreApplicationVersionRepositoryImpl, environmentServiceImpl, teamRepositoryImpl, clusterInstalledAppsRepositoryImpl, appStoreValuesServiceImpl, appStoreDeploymentServiceImpl, appStoreDeploymentDBServiceImpl, argoUserServiceImpl, pipelineStatusTimelineServiceImpl, acdConfig, fullModeDeploymentServiceImpl, gitOperationServiceImpl, installedAppDBExtendedServiceImpl, appStoreAppsEventPublishServiceImpl, teamReadServiceImpl)
 	if err != nil {
 		return nil, err
 	}
