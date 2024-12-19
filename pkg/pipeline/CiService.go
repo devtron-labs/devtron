@@ -31,8 +31,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	bean6 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	repository6 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
-	bean5 "github.com/devtron-labs/devtron/pkg/infraConfig/bean"
-	util4 "github.com/devtron-labs/devtron/pkg/infraConfig/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	pipelineConst "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
@@ -612,27 +610,6 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		postCiSteps = buildCiStepsDataFromDockerBuildScripts(afterDockerBuildScripts)
 		refPluginsData = []*pipelineConfigBean.RefPluginObject{}
 	}
-
-	infraConfigScope := &bean5.Scope{
-		AppId: pipeline.AppId,
-	}
-	infraGetter, err := impl.infraProvider.GetInfraProvider(pipelineConfigBean.CI_WORKFLOW_PIPELINE_TYPE)
-	if err != nil {
-		impl.Logger.Errorw("error in getting infra provider", "err", err, "infraProviderType", pipelineConfigBean.CI_WORKFLOW_PIPELINE_TYPE)
-		return nil, err
-	}
-	if isJob {
-		infraGetter, err = impl.infraProvider.GetInfraProvider(pipelineConfigBean.JOB_WORKFLOW_PIPELINE_TYPE)
-		if err != nil {
-			impl.Logger.Errorw("error in getting infra provider", "err", err, "infraProviderType", pipelineConfigBean.JOB_WORKFLOW_PIPELINE_TYPE)
-			return nil, err
-		}
-	}
-	infraConfiguration, err := infraGetter.GetInfraConfigurationsByScopeAndPlatform(infraConfigScope, util4.CI_RUNNER_PLATFORM)
-	if err != nil {
-		impl.Logger.Errorw("error in getting infra configuration using scope ", "ciPipelineId", pipeline.Id, "scope", infraConfigScope, "err", err)
-		return nil, err
-	}
 	host, err := impl.attributeService.GetByKey(bean4.HostUrlKey)
 	if err != nil {
 		impl.Logger.Errorw("error in getting host url", "err", err, "hostUrl", host.Value)
@@ -643,10 +620,6 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	ciWorkflowConfigCiCacheRegion := impl.config.DefaultCacheBucketRegion
 
 	ciWorkflowConfigCiImage := impl.config.GetDefaultImage()
-
-	// get it from infraConfig
-	ciWorkflowConfigCiTimeout := infraConfiguration.GetCiDefaultTimeout()
-
 	ciTemplate := pipeline.CiTemplate
 	ciLevelArgs := pipeline.DockerArgs
 
@@ -807,7 +780,6 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		Namespace:                   ciWorkflowConfigNamespace,
 		BlobStorageConfigured:       savedWf.BlobStorageEnabled,
 		CiImage:                     ciWorkflowConfigCiImage,
-		ActiveDeadlineSeconds:       ciWorkflowConfigCiTimeout,
 		WorkflowId:                  savedWf.Id,
 		TriggeredBy:                 savedWf.TriggeredBy,
 		CacheLimit:                  impl.config.CacheLimit,
