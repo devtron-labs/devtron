@@ -47,12 +47,12 @@ func ConvertToPlatformMap(infraProfileConfigurationEntities []*repository.InfraP
 	return platformMap, nil
 }
 
-// ConvertFromPlatformMap converts map[platform][]*ConfigurationBean back to []InfraProfileConfigurationEntity
-func ConvertFromPlatformMap(platformMap map[string][]*bean.ConfigurationBean, profileBean *bean.ProfileBeanDto, userId int32) []*repository.InfraProfileConfigurationEntity {
+// ConvertFromPlatformMap converts bean.ProfileBeanDto back to []repository.InfraProfileConfigurationEntity
+func ConvertFromPlatformMap(profileBean *bean.ProfileBeanDto, userId int32) []*repository.InfraProfileConfigurationEntity {
 	var entities []*repository.InfraProfileConfigurationEntity
-	for platform, configBeans := range platformMap {
+	for platform, configBeans := range profileBean.Configurations {
 		for _, configBean := range configBeans {
-			entity := getInfraProfileEntity(configBean, profileBean, platform, userId)
+			entity := getInfraProfileEntity(configBean, profileBean.Id, profileBean.Name, platform, userId)
 			entities = append(entities, entity)
 		}
 	}
@@ -60,7 +60,7 @@ func ConvertFromPlatformMap(platformMap map[string][]*bean.ConfigurationBean, pr
 }
 
 // Function to convert valueString to interface{} based on key
-func convertValueStringToInterface(configKey bean.ConfigKeyStr, valueString string) (interface{}, error) {
+func convertValueStringToInterface(configKey bean.ConfigKeyStr, valueString string) (any, error) {
 	switch configKey {
 	case bean.CPU_LIMIT, bean.CPU_REQUEST, bean.MEMORY_LIMIT, bean.MEMORY_REQUEST:
 		// Convert string to float64 and truncate to 2 decimal places
@@ -75,7 +75,7 @@ func convertValueStringToInterface(configKey bean.ConfigKeyStr, valueString stri
 
 	// Add more cases as needed for different config keys
 	default:
-		// Default case, return the string as is
+		// Default case, return error for unsupported key
 		err := errors.New(fmt.Sprintf("unsupported key found %s", configKey))
 		return nil, err
 	}
@@ -104,19 +104,18 @@ func getConfigurationBean(infraProfileConfiguration *repository.InfraProfileConf
 	}, nil
 }
 
-func getInfraProfileEntity(configurationBean *bean.ConfigurationBean, profileBean *bean.ProfileBeanDto, platform string, userId int32) *repository.InfraProfileConfigurationEntity {
-
+func getInfraProfileEntity(configurationBean *bean.ConfigurationBean, profileId int, profileName string, platform string, userId int32) *repository.InfraProfileConfigurationEntity {
 	infraProfile := &repository.InfraProfileConfigurationEntity{
 		Id:          configurationBean.Id,
 		Key:         util.GetConfigKey(configurationBean.Key),
 		ValueString: formatTypedValueAsString(configurationBean.Key, configurationBean.Value),
 		Unit:        util.GetUnitSuffix(configurationBean.Key, configurationBean.Unit),
-		ProfileId:   profileBean.Id,
+		ProfileId:   profileId,
 		Platform:    platform,
 		Active:      configurationBean.Active,
 		AuditLog:    sql.NewDefaultAuditLog(userId),
 	}
-	if profileBean.Name == bean.GLOBAL_PROFILE_NAME {
+	if profileName == bean.GLOBAL_PROFILE_NAME {
 		infraProfile.Active = true
 	}
 	return infraProfile

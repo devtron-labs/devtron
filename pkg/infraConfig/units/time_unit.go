@@ -23,6 +23,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/infraConfig/units/bean"
 	"go.uber.org/zap"
+	"math"
+	"strconv"
 )
 
 type TimeUnitFactory struct {
@@ -47,7 +49,14 @@ func (t *TimeUnitFactory) GetAllUnits() map[string]bean.Unit {
 }
 
 func (t *TimeUnitFactory) ParseValAndUnit(val string) (*bean2.ParsedValue, error) {
-	return bean2.NewParsedValue().WithValueString(val).WithUnit(bean2.SecondStr.String()), nil
+	valueFloat, err := strconv.ParseFloat(val, 64)
+	if err != nil {
+		return nil, err
+	}
+	modifiedValue := math.Min(math.Floor(valueFloat), math.MaxInt64)
+	return bean2.NewParsedValue().
+		WithValueString(strconv.FormatInt(int64(modifiedValue), 10)).
+		WithUnit(bean2.SecondStr.String()), nil
 }
 
 func (t *TimeUnitFactory) Validate(profileBean, defaultProfile *bean.ProfileBeanDto) error {

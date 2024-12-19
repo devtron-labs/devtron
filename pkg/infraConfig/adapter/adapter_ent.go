@@ -6,6 +6,10 @@ import (
 	"github.com/devtron-labs/devtron/pkg/infraConfig/repository"
 )
 
+func ConvertToProfilePlatformMap(infraProfileConfigurationEntities []*repository.InfraProfileConfigurationEntity, profilesMap map[int]bean.ProfileBeanDto, profilePlatforms []*repository.ProfilePlatformMapping) (map[int]map[string][]*bean.ConfigurationBean, error) {
+	return nil, errors.New("method ConvertToProfilePlatformMap not implemented")
+}
+
 func SetProfilePlatformMappings(platforms []string, infraProfileId int, userId int32) []*repository.ProfilePlatformMapping {
 	return nil
 }

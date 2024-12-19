@@ -20,23 +20,23 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/bean"
-	bean2 "github.com/devtron-labs/devtron/pkg/infraConfig/units/bean"
+	unitsBean "github.com/devtron-labs/devtron/pkg/infraConfig/units/bean"
 	"strings"
 )
 
 // GetUnitSuffix loosely typed method to get the unit suffix using the unitKey type
-func GetUnitSuffix(unitKey bean.ConfigKeyStr, unitStr string) bean2.UnitType {
+func GetUnitSuffix(unitKey bean.ConfigKeyStr, unitStr string) unitsBean.UnitType {
 	switch unitKey {
 	case bean.CPU_LIMIT, bean.CPU_REQUEST:
-		return bean2.CPUUnitStr(unitStr).GetUnitSuffix()
+		return unitsBean.CPUUnitStr(unitStr).GetUnitSuffix()
 	case bean.MEMORY_LIMIT, bean.MEMORY_REQUEST:
-		return bean2.MemoryUnitStr(unitStr).GetUnitSuffix()
+		return unitsBean.MemoryUnitStr(unitStr).GetUnitSuffix()
 	}
-	return bean2.TimeUnitStr(unitStr).GetUnitSuffix()
+	return unitsBean.TimeUnitStr(unitStr).GetUnitSuffix()
 }
 
 // GetUnitSuffixStr loosely typed method to get the unit suffix using the unitKey type
-func GetUnitSuffixStr(unitKey bean.ConfigKey, unit bean2.UnitType) string {
+func GetUnitSuffixStr(unitKey bean.ConfigKey, unit unitsBean.UnitType) string {
 	switch unitKey {
 	case bean.CPULimitKey, bean.CPURequestKey:
 		return string(unit.GetCPUUnitStr())

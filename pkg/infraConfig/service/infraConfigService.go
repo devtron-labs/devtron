@@ -142,8 +142,10 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 	infraProfileEntity := adapter.ConvertToInfraProfileEntity(profileToUpdate)
 	// user couldn't delete the profile, always set this to active
 	infraProfileEntity.Active = true
-
-	infraConfigurations := adapter.ConvertFromPlatformMap(profileToUpdate.Configurations, defaultProfile, userId)
+	// set default values, user can't change these values
+	profileToUpdate.Id = defaultProfile.Id
+	profileToUpdate.Name = defaultProfile.Name
+	infraConfigurations := adapter.ConvertFromPlatformMap(profileToUpdate, userId)
 
 	tx, err := impl.infraProfileRepo.StartTx()
 	if err != nil {

@@ -78,33 +78,38 @@ func (c *CPUUnitFactory) Validate(profileBean, defaultProfile *bean.ProfileBeanD
 
 func validateCPU(cpuLimit, cpuReq *bean.ConfigurationBean) error {
 	cpuLimitUnitSuffix := bean2.CPUUnitStr(cpuLimit.Unit)
-	cpuReqUnitSuffix := bean2.CPUUnitStr(cpuReq.Unit)
 	cpuLimitUnit, ok := cpuLimitUnitSuffix.GetUnit()
 	if !ok {
 		return errors.New(fmt.Sprintf(bean.InvalidUnit, cpuLimit.Unit, cpuLimit.Key))
-	}
-	cpuReqUnit, ok := cpuReqUnitSuffix.GetUnit()
-	if !ok {
-		return errors.New(fmt.Sprintf(bean.InvalidUnit, cpuReq.Unit, cpuReq.Key))
 	}
 
 	cpuLimitInterfaceVal, err := adapter.GetTypedValue(cpuLimit.Key, cpuLimit.Value)
 	if err != nil {
 		return errors.New(fmt.Sprintf(bean.InvalidTypeValue, cpuLimit.Key, cpuLimit.Value))
 	}
+
 	cpuLimitVal, ok := cpuLimitInterfaceVal.(float64)
 	if !ok {
 		return errors.New(fmt.Sprintf(bean.InvalidTypeValue, cpuLimit.Key, cpuLimit.Value))
+	}
+
+	cpuReqUnitSuffix := bean2.CPUUnitStr(cpuReq.Unit)
+	cpuReqUnit, ok := cpuReqUnitSuffix.GetUnit()
+	if !ok {
+		return errors.New(fmt.Sprintf(bean.InvalidUnit, cpuReq.Unit, cpuReq.Key))
 	}
 
 	cpuReqInterfaceVal, err := adapter.GetTypedValue(cpuReq.Key, cpuReq.Value)
 	if err != nil {
 		return errors.New(fmt.Sprintf(bean.InvalidTypeValue, cpuReq.Key, cpuReq.Value))
 	}
+
 	cpuReqVal, ok := cpuReqInterfaceVal.(float64)
 	if !ok {
 		return errors.New(fmt.Sprintf(bean.InvalidTypeValue, cpuReq.Key, cpuReq.Value))
 	}
+
+	// validate cpu limit and req
 	if !validLimReq(cpuLimitVal, cpuLimitUnit.ConversionFactor, cpuReqVal, cpuReqUnit.ConversionFactor) {
 		return errors.New(bean.CPULimReqErrorCompErr)
 	}
