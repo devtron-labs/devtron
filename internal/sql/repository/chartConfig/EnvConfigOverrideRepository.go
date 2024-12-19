@@ -42,6 +42,7 @@ type EnvConfigOverride struct {
 	IsOverride        bool                        `sql:"is_override,notnull"`
 	IsBasicViewLocked bool                        `sql:"is_basic_view_locked,notnull"`
 	CurrentViewEditor models.ChartsViewEditorType `sql:"current_view_editor"`
+	MergeStrategy     models.MergeStrategy        `sql:"merge_strategy"`
 	sql.AuditLog
 	ResolvedEnvOverrideValues string            `sql:"-"`
 	VariableSnapshot          map[string]string `sql:"-"`
@@ -213,6 +214,7 @@ func (r EnvConfigOverrideRepositoryImpl) UpdateProperties(config *EnvConfigOverr
 		Set("latest =?", config.Latest).
 		Set("is_basic_view_locked = ?", config.IsBasicViewLocked).
 		Set("current_view_editor = ?", config.CurrentViewEditor).
+		Set("merge_strategy = ?", config.MergeStrategy).
 		//Set("app_metrics_override =?", config.AppMetricsOverride).
 		WherePK().
 		Update()

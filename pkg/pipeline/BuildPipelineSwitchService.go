@@ -150,7 +150,7 @@ func (impl *BuildPipelineSwitchServiceImpl) createNewPipelineAndReplaceOldPipeli
 	isSelfLinkedCiPipeline := switchFromType != pipelineConfigBean.EXTERNAL && ciPipelineReq.IsLinkedCi() && ciPipelineReq.ParentCiPipeline == switchFromPipelineId
 	if isSelfLinkedCiPipeline {
 		errMsg := "cannot create linked ci pipeline from the same source"
-		return nil, util.NewApiError().WithInternalMessage(errMsg).WithUserMessage(errMsg).WithHttpStatusCode(http.StatusBadRequest)
+		return nil, util.DefaultApiError().WithInternalMessage(errMsg).WithUserMessage(errMsg).WithHttpStatusCode(http.StatusBadRequest)
 	}
 
 	tx, err := impl.ciPipelineRepository.StartTx()

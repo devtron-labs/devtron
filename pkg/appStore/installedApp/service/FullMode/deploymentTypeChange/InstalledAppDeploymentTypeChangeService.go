@@ -276,7 +276,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) performDbOperationsAfte
 }
 
 func (impl *InstalledAppDeploymentTypeChangeServiceImpl) AnnotateCRDsIfExist(ctx context.Context, appName, envName, namespace string, clusterId int) error {
-	deploymentAppName := fmt.Sprintf("%s-%s", appName, envName)
+	deploymentAppName := util3.BuildDeployedAppName(appName, envName)
 	query := &application.ResourcesQuery{
 		ApplicationName: &deploymentAppName,
 	}
@@ -346,7 +346,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) deleteInstalledApps(ctx
 			continue
 		}
 
-		deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
+		deploymentAppName := util3.BuildDeployedAppName(installedApp.App.AppName, installedApp.Environment.Name)
 		// delete request
 		if deploymentConfig.DeploymentAppType == bean2.ArgoCd {
 			err = impl.fullModeDeploymentService.DeleteACD(deploymentAppName, ctx, false)
@@ -632,7 +632,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) fetchDeletedInstalledAp
 
 	for _, installedApp := range installedApps {
 
-		deploymentAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
+		deploymentAppName := util3.BuildDeployedAppName(installedApp.App.AppName, installedApp.Environment.Name)
 		var err error
 		if installedApp.DeploymentAppType == bean2.ArgoCd {
 			appIdentifier := &helmBean.AppIdentifier{

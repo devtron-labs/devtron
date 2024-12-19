@@ -23,6 +23,15 @@ import (
 )
 
 type WorkflowType string
+
+func (workflowType WorkflowType) String() string {
+	return string(workflowType)
+}
+
+func NewWorkflowType(workflowType string) WorkflowType {
+	return WorkflowType(workflowType)
+}
+
 type DeploymentConfigurationType string
 
 const (

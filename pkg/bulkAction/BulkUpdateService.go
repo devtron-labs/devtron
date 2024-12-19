@@ -41,6 +41,7 @@ import (
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
@@ -518,7 +519,8 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 								return nil
 							}
 							chartEnv.EnvOverrideValues = modified
-							err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(chartEnv, nil, isAppMetricsEnabled, 0)
+							chartEnvDTO := adapter.EnvOverrideDBToDTO(chartEnv)
+							err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(chartEnvDTO, nil, isAppMetricsEnabled, 0)
 							if err != nil {
 								impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", chartEnv)
 							}

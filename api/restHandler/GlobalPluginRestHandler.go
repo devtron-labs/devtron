@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -37,7 +38,6 @@ import (
 )
 
 type GlobalPluginRestHandler interface {
-	PatchPlugin(w http.ResponseWriter, r *http.Request)
 	CreatePlugin(w http.ResponseWriter, r *http.Request)
 
 	GetAllGlobalVariables(w http.ResponseWriter, r *http.Request)
@@ -75,7 +75,12 @@ type GlobalPluginRestHandlerImpl struct {
 	userService         user.UserService
 }
 
-func (handler *GlobalPluginRestHandlerImpl) PatchPlugin(w http.ResponseWriter, r *http.Request) {
+// Deprecated: method patchPlugin
+// The below API was initially designed to handle the older design of global plugins.
+// The API is not yet used in UI.
+// The CODE is not yet tested for all the cases.
+// TODO: remove this dead code and all the related handling.
+func (handler *GlobalPluginRestHandlerImpl) patchPlugin(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -85,7 +90,7 @@ func (handler *GlobalPluginRestHandlerImpl) PatchPlugin(w http.ResponseWriter, r
 	var pluginDataDto bean.PluginMetadataDto
 	err = decoder.Decode(&pluginDataDto)
 	if err != nil {
-		handler.logger.Errorw("request err, PatchPlugin", "error", err, "payload", pluginDataDto)
+		handler.logger.Errorw("request err, patchPlugin", "error", err, "payload", pluginDataDto)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -105,8 +110,8 @@ func (handler *GlobalPluginRestHandlerImpl) PatchPlugin(w http.ResponseWriter, r
 		return
 	}
 	common.WriteJsonResp(w, nil, pluginData, http.StatusOK)
-
 }
+
 func (handler *GlobalPluginRestHandlerImpl) GetDetailedPluginInfoByPluginId(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -159,7 +164,6 @@ func (handler *GlobalPluginRestHandlerImpl) GetAllDetailedPluginInfo(w http.Resp
 }
 
 func (handler *GlobalPluginRestHandlerImpl) GetAllGlobalVariables(w http.ResponseWriter, r *http.Request) {
-	token := r.Header.Get("token")
 	appIdQueryParam := r.URL.Query().Get("appId")
 	appId, err := strconv.Atoi(appIdQueryParam)
 	if appIdQueryParam == "" || err != nil {
@@ -172,15 +176,24 @@ func (handler *GlobalPluginRestHandlerImpl) GetAllGlobalVariables(w http.Respons
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	//using appId for rbac in plugin(global resource), because this data must be visible to person having create permission
-	//on atleast one app & we can't check this without iterating through every app
-	//TODO: update plugin as a resource in casbin and make rbac independent of appId
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	ok := handler.enforcerUtil.CheckAppRbacForAppOrJob(token, resourceName, casbin.ActionCreate)
-	if !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+
+	//RBAC START
+	// TODO: RBAC fix; Mature CheckAppRbacForAppOrJob method to handle based on AppType
+	// Should be implemented as below
+	token := r.Header.Get(common.TokenHeaderKey)
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	authorised := false
+	if app.AppType == helper.Job {
+		authorised = handler.enforcer.Enforce(token, casbin.ResourceJobs, casbin.ActionGet, object)
+	} else if app.AppType == helper.CustomApp {
+		authorised = handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object)
+	}
+	if !authorised {
+		common.WriteJsonResp(w, common.ErrUnAuthorized, nil, http.StatusForbidden)
 		return
 	}
+	//RBAC END
+
 	globalVariables, err := handler.globalPluginService.GetAllGlobalVariables(app.AppType)
 	if err != nil {
 		handler.logger.Errorw("error in getting global variable list", "err", err)

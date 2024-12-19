@@ -23,6 +23,7 @@ import (
 	"fmt"
 	devtronAppGitOpConfigBean "github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig/bean"
 	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	"io"
 	"net/http"
 	"strconv"
@@ -33,7 +34,6 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -1390,14 +1390,14 @@ func (handler *PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Re
 		}
 
 		// get image scan results from DB for given digests
-		imageScanResults, err := handler.scanResultRepository.FindByImageDigests(digests)
+		imageScanResults, err := handler.imageScanResultReadService.FindByImageDigests(digests)
 		// ignore error
 		if err != nil && err != pg.ErrNoRows {
 			handler.Logger.Errorw("service err, FindByImageDigests", "err", err, "cdPipelineId", cdPipelineId, "stage", stage, "digests", digests)
 		}
 
 		// build digest vs cve-stores
-		digestVsCveStores := make(map[string][]*security.CveStore)
+		digestVsCveStores := make(map[string][]*repository.CveStore)
 		for _, result := range imageScanResults {
 			imageHash := result.ImageScanExecutionHistory.ImageHash
 
@@ -1406,7 +1406,7 @@ func (handler *PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Re
 
 				// configuring size as len of ImageScanExecutionResult assuming all the
 				//scan results could belong to a single hash
-				cveStores := make([]*security.CveStore, 0, len(imageScanResults))
+				cveStores := make([]*repository.CveStore, 0, len(imageScanResults))
 				cveStores = append(cveStores, &result.CveStore)
 				digestVsCveStores[imageHash] = cveStores
 
