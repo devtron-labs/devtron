@@ -44,7 +44,7 @@ components:
     customOverrides: {}
   ciRunner:
     registry: ""
-    image: "ci-runner:3e71f258-138-27009"
+    image: "ci-runner:6c0c7082-138-27873"
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
