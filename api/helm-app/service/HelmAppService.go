@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/models"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/service/read"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
@@ -158,13 +159,22 @@ func GetHelmReleaseConfig() (*HelmReleaseConfig, error) {
 func (impl *HelmAppServiceImpl) ListHelmApplications(ctx context.Context, clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool) {
 	var helmCdPipelines []*pipelineConfig.Pipeline
 	var installedHelmApps []*repository.InstalledApps
+	if len(clusterIds) == 0 {
+		common.WriteJsonResp(w, util.DefaultApiError().WithHttpStatusCode(http.StatusBadRequest).WithInternalMessage("Invalid payload. Provide cluster ids in request").WithUserMessage("Invalid payload. Provide cluster ids in request"),
+			nil,
+			http.StatusBadRequest)
+		return
+	}
 	start := time.Now()
 	appStream, err := impl.listApplications(ctx, clusterIds)
 	middleware.AppListingDuration.WithLabelValues("listApplications", "helm").Observe(time.Since(start).Seconds())
 	if err != nil {
 		impl.logger.Errorw("error in fetching app list", "clusters", clusterIds, "err", err)
-	}
-	if err == nil && len(clusterIds) > 0 {
+		common.WriteJsonResp(w, util.DefaultApiError().WithHttpStatusCode(http.StatusInternalServerError).WithInternalMessage("error in fetching app list").WithUserMessage("error in fetching app list"),
+			nil,
+			http.StatusInternalServerError)
+		return
+	} else if len(clusterIds) > 0 {
 		// get helm apps which are created using cd_pipelines
 		newCtx, span := otel.Tracer("pipelineRepository").Start(ctx, "GetAppAndEnvDetailsForDeploymentAppTypePipeline")
 		start = time.Now()
