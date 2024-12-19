@@ -24,15 +24,15 @@ import (
 	commonBean "github.com/devtron-labs/common-lib/workflow"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	gitSensorClient "github.com/devtron-labs/devtron/client/gitSensor"
-	"github.com/devtron-labs/devtron/internal/sql/constants"
+	constants2 "github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
-	bean6 "github.com/devtron-labs/devtron/pkg/attributes/bean"
+	bean6 "github.com/devtron-labs/devtron/pkg/app/bean"
+	attributesBean "github.com/devtron-labs/devtron/pkg/attributes/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/bean/common"
-	bean7 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	adapter2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/adapter"
@@ -41,6 +41,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
@@ -59,9 +60,9 @@ import (
 	"time"
 )
 
-func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) error {
+func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*bean6.ManifestPushTemplate, error) {
 	request.WorkflowType = bean2.CD_WORKFLOW_TYPE_PRE
-	//setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
+	// setting triggeredAt variable to have consistent data for various audit log places in db for deployment time
 	triggeredAt := time.Now()
 	triggeredBy := request.TriggeredBy
 	artifact := request.Artifact
@@ -70,26 +71,48 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 	env, namespace, err := impl.getEnvAndNsIfRunStageInEnv(ctx, request)
 	if err != nil {
 		impl.logger.Errorw("error, getEnvAndNsIfRunStageInEnv", "err", err, "pipeline", pipeline, "stage", request.WorkflowType)
-		return nil
+		return nil, nil
 	}
 	request.RunStageInEnvNamespace = namespace
+
+	filterEvaluationAudit, err := impl.checkFeasibilityForPreStage(pipeline, &request, env, artifact, triggeredBy)
+	if err != nil {
+		impl.logger.Errorw("error, checkFeasibilityForPreStage", "err", err, "pipeline", pipeline)
+		return nil, nil
+	}
+
 	cdWf, runner, err := impl.createStartingWfAndRunner(request, triggeredAt)
 	if err != nil {
 		impl.logger.Errorw("error in creating wf starting and runner entry", "err", err, "request", request)
-		return err
+		return nil, err
+	}
+
+	// setting triggered as same from runner started on (done for release as cd workflow runners are already created) will be same for other flows as runner are created with time.Now()
+	triggeredAt = runner.StartedOn
+
+	dbErr := impl.createAuditDataForDeploymentWindowBypass(request, runner.Id)
+	if dbErr != nil {
+		impl.logger.Errorw("error in creating audit data for deployment window bypass", "runnerId", runner.Id, "err", dbErr)
+		// skip error for audit data creation
+	}
+
+	err = impl.handlerFilterEvaluationAudit(filterEvaluationAudit, runner)
+	if err != nil {
+		impl.logger.Errorw("error, handlerFilterEvaluationAudit", "err", err)
+		return nil, err
 	}
 
 	envDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(pipeline.AppId, pipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
-		return err
+		return nil, err
 	}
 
 	// custom GitOps repo url validation --> Start
 	err = impl.handleCustomGitOpsRepoValidation(runner, pipeline, envDeploymentConfig, triggeredBy)
 	if err != nil {
 		impl.logger.Errorw("custom GitOps repository validation error, TriggerPreStage", "err", err)
-		return err
+		return nil, err
 	}
 	// custom GitOps repo url validation --> Ends
 
@@ -97,7 +120,7 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 	err = impl.checkVulnerabilityStatusAndFailWfIfNeeded(ctx, artifact, pipeline, runner, triggeredBy)
 	if err != nil {
 		impl.logger.Errorw("error, checkVulnerabilityStatusAndFailWfIfNeeded", "err", err, "runner", runner)
-		return err
+		return nil, err
 	}
 	_, span := otel.Tracer("orchestrator").Start(ctx, "buildWFRequest")
 	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, pipeline, envDeploymentConfig, triggeredBy)
@@ -112,7 +135,7 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 		runner.Status = cdWorkflow.WorkflowFailed
 		runner.Message = err.Error()
 		_ = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
-		return err
+		return nil, err
 	} else {
 		runner.ImagePathReservationIds = imagePathReservationIds
 		_ = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
@@ -122,11 +145,20 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 	cdStageWorkflowRequest.Pipeline = pipeline
 	cdStageWorkflowRequest.Env = env
 	cdStageWorkflowRequest.Type = pipelineConfigBean.CD_WORKFLOW_PIPELINE_TYPE
-	_, err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
+	_, jobHelmPackagePath, err := impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
 	span.End()
+	if err != nil {
+		return nil, err
+	}
+	manifestPushTemplate, err := impl.getManifestPushTemplateForPreStage(ctx, envDeploymentConfig, pipeline, artifact, jobHelmPackagePath, cdWf, runner, triggeredBy, triggeredAt, request)
+	if err != nil {
+		impl.logger.Errorw("error in getting manifest push template", "err", err)
+		return nil, err
+	}
+
 	err = impl.sendPreStageNotification(ctx, cdWf, pipeline)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	//creating cd config history entry
 	_, span = otel.Tracer("orchestrator").Start(ctx, "prePostCdScriptHistoryService.CreatePrePostCdScriptHistory")
@@ -134,12 +166,12 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) err
 	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in creating pre cd script entry", "err", err, "pipeline", pipeline)
-		return err
+		return nil, err
 	}
-	return nil
+	return manifestPushTemplate, nil
 }
 
-func (impl *TriggerServiceImpl) TriggerAutoCDOnPreStageSuccess(triggerContext bean.TriggerContext, cdPipelineId, ciArtifactId, workflowId int, triggerdBy int32, scanExecutionHistoryId int) error {
+func (impl *TriggerServiceImpl) TriggerAutoCDOnPreStageSuccess(triggerContext bean.TriggerContext, cdPipelineId, ciArtifactId, workflowId int, triggerdBy int32) error {
 	pipeline, err := impl.pipelineRepository.FindById(cdPipelineId)
 	if err != nil {
 		return err
@@ -347,21 +379,23 @@ func (impl *TriggerServiceImpl) setCopyContainerImagePluginDataAndReserveImages(
 	}
 
 	// fetch already saved artifacts to check if they are already present
-
-	savedCIArtifacts, err := impl.ciArtifactRepository.FindCiArtifactByImagePaths(allDestinationImages)
-	if err != nil {
-		impl.logger.Errorw("error in fetching artifacts by image path", "err", err)
-		return nil, err
-	}
-	if len(savedCIArtifacts) > 0 {
-		// if already present in ci artifact, return "image path already in use error"
-		return nil, pipelineConfigBean.ErrImagePathInUse
-	}
-	// reserve all images where data will be
-	imagePathReservationIds, err := impl.ReserveImagesGeneratedAtPlugin(customTagId, allDestinationImages)
-	if err != nil {
-		impl.logger.Errorw("error in reserving image", "err", err)
-		return imagePathReservationIds, err
+	var imagePathReservationIds []int
+	if len(allDestinationImages) > 0 {
+		savedCIArtifacts, err := impl.ciArtifactRepository.FindCiArtifactByImagePaths(allDestinationImages)
+		if err != nil {
+			impl.logger.Errorw("error in fetching artifacts by image path", "err", err)
+			return nil, err
+		}
+		if len(savedCIArtifacts) > 0 {
+			// if already present in ci artifact, return "image path already in use error"
+			return nil, pipelineConfigBean.ErrImagePathInUse
+		}
+		// reserve all images where data will be
+		imagePathReservationIds, err = impl.ReserveImagesGeneratedAtPlugin(customTagId, allDestinationImages)
+		if err != nil {
+			impl.logger.Errorw("error in reserving image", "err", err)
+			return imagePathReservationIds, err
+		}
 	}
 	return imagePathReservationIds, nil
 }
@@ -475,7 +509,11 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 					AuthMode:      gitMaterial.GitProvider.AuthMode,
 				},
 			}
-
+			cloningModeErr := impl.setCloningModeInCIProjectDetail(&ciProjectDetail, ciPipeline.AppId, m)
+			if cloningModeErr != nil {
+				impl.logger.Errorw("could not fetch feature flag value", "err", cloningModeErr)
+				return nil, cloningModeErr
+			}
 			if len(ciMaterialCurrent.Modifications) > 0 {
 				ciProjectDetail.CommitHash = ciMaterialCurrent.Modifications[0].Revision
 				ciProjectDetail.Author = ciMaterialCurrent.Modifications[0].Author
@@ -486,7 +524,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 					return nil, err
 				}
 				ciProjectDetail.CommitTime = commitTime.Format(bean4.LayoutRFC3339)
-			} else if ciPipeline.PipelineType == string(bean7.CI_JOB) {
+			} else if ciPipeline.PipelineType == string(constants.CI_JOB) {
 				// This has been done to resolve unmarshalling issue in ci-runner, in case of no commit time(eg- polling container images)
 				ciProjectDetail.CommitTime = time.Time{}.Format(bean4.LayoutRFC3339)
 			} else {
@@ -495,7 +533,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 			}
 
 			// set webhook data
-			if m.Type == constants.SOURCE_TYPE_WEBHOOK && len(ciMaterialCurrent.Modifications) > 0 {
+			if m.Type == constants2.SOURCE_TYPE_WEBHOOK && len(ciMaterialCurrent.Modifications) > 0 {
 				webhookData := ciMaterialCurrent.Modifications[0].WebhookData
 				ciProjectDetail.WebhookData = pipelineConfig.WebhookData{
 					Id:              webhookData.Id,
@@ -516,7 +554,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	var refPluginsData []*pipelineConfigBean.RefPluginObject
 	// if pipeline_stage_steps present for pre-CD or post-CD then no need to add stageYaml to cdWorkflowRequest in that
 	// case add PreDeploySteps and PostDeploySteps to cdWorkflowRequest, this is done for backward compatibility
-	pipelineStage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(cdPipeline.Id, runner.WorkflowType.WorkflowTypeToStageType())
+	pipelineStage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(cdPipeline.Id, runner.WorkflowType.WorkflowTypeToStageType(), false)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching CD pipeline stage", "cdPipelineId", cdPipeline.Id, "stage ", runner.WorkflowType.WorkflowTypeToStageType(), "err", err)
 		return nil, err
@@ -611,7 +649,7 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 		image = ReplaceImageTagWithDigest(image, artifact.ImageDigest)
 	}
 
-	host, err := impl.attributeService.GetByKey(bean6.HostUrlKey)
+	host, err := impl.attributeService.GetByKey(attributesBean.HostUrlKey)
 	if err != nil {
 		impl.logger.Errorw("error in getting hostUrl", "err", err)
 		return nil, err
@@ -706,14 +744,14 @@ func (impl *TriggerServiceImpl) buildWFRequest(runner *pipelineConfig.CdWorkflow
 	}
 
 	if ciPipeline != nil && ciPipeline.Id > 0 {
-		sourceCiPipeline, err := impl.getSourceCiPipelineForArtifact(*ciPipeline)
+		sourceCiPipeline, err := impl.ciCdPipelineOrchestrator.GetSourceCiPipelineForArtifact(*ciPipeline)
 		if err != nil {
 			impl.logger.Errorw("error in getting source ciPipeline for artifact", "err", err)
 			return nil, err
 		}
 		runtimeParams = runtimeParams.AddSystemVariable(bean.APP_NAME, ciPipeline.App.AppName)
 		cdStageWorkflowRequest.CiPipelineType = sourceCiPipeline.PipelineType
-		buildRegistryConfig, dbErr := impl.getBuildRegistryConfigForArtifact(*sourceCiPipeline, *artifact)
+		buildRegistryConfig, dbErr := impl.getBuildRegistryConfigForArtifact(sourceCiPipeline, artifact, cdPipeline.AppId)
 		if dbErr != nil {
 			impl.logger.Errorw("error in getting registry credentials for the artifact", "err", dbErr)
 			return nil, dbErr
@@ -865,70 +903,64 @@ getBuildRegistryConfigForArtifact performs the following logic to get Pre/Post C
     If the ci_pipeline_type type is CI_JOB
     We will always fetch the registry credentials from the ci_template_override table
 */
-func (impl *TriggerServiceImpl) getBuildRegistryConfigForArtifact(sourceCiPipeline pipelineConfig.CiPipeline, artifact repository.CiArtifact) (*types.DockerArtifactStoreBean, error) {
-	// Handling for Skopeo Plugin
-	if artifact.IsRegistryCredentialMapped() {
-		dockerArtifactStore, err := impl.dockerArtifactStoreRepository.FindOne(artifact.CredentialSourceValue)
-		if util.IsErrNoRows(err) {
-			impl.logger.Errorw("source artifact registry not found", "registryId", artifact.CredentialSourceValue, "err", err)
-			return nil, fmt.Errorf("source artifact registry '%s' not found", artifact.CredentialSourceValue)
-		} else if err != nil {
-			impl.logger.Errorw("error in fetching artifact info", "err", err)
-			return nil, err
-		}
-		return adapter.GetDockerConfigBean(dockerArtifactStore), nil
-	}
+func (impl *TriggerServiceImpl) getBuildRegistryConfigForArtifact(sourceCiPipeline *pipelineConfig.CiPipeline, artifact *repository.CiArtifact, appId int) (*types.DockerArtifactStoreBean, error) {
+	var buildRegistryConfig *types.DockerArtifactStoreBean
+	var err error
 
-	// Handling for CI Job
-	if adapter.IsCIJob(sourceCiPipeline) {
-		// for bean.CI_JOB the source artifact is always driven from overridden ci template
-		buildRegistryConfig, err := impl.ciTemplateService.GetAppliedDockerConfigForCiPipeline(sourceCiPipeline.Id, sourceCiPipeline.AppId, true)
+	if sourceCiPipeline != nil && sourceCiPipeline.Id != 0 {
+		// Handling for Skopeo Plugin
+		if artifact.IsRegistryCredentialMapped() {
+			dockerArtifactStore, err := impl.dockerArtifactStoreRepository.FindOne(artifact.CredentialSourceValue)
+			if util.IsErrNoRows(err) {
+				impl.logger.Errorw("source artifact registry not found", "registryId", artifact.CredentialSourceValue, "err", err)
+				return nil, fmt.Errorf("source artifact registry '%s' not found", artifact.CredentialSourceValue)
+			} else if err != nil {
+				impl.logger.Errorw("error in fetching artifact info", "err", err)
+				return nil, err
+			}
+			return adapter.GetDockerConfigBean(dockerArtifactStore), nil
+		}
+
+		// Handling for CI Job
+		if adapter.IsCIJob(sourceCiPipeline) {
+			// for bean.CI_JOB the source artifact is always driven from overridden ci template
+			buildRegistryConfig, err = impl.ciTemplateService.GetAppliedDockerConfigForCiPipeline(sourceCiPipeline.Id, sourceCiPipeline.AppId, true)
+			if err != nil {
+				impl.logger.Errorw("error in getting build configurations", "err", err)
+				return nil, fmt.Errorf("error in getting build configurations")
+			}
+			return buildRegistryConfig, nil
+		}
+
+		// Handling for Linked CI
+		if adapter.IsLinkedCI(sourceCiPipeline) {
+			parentCiPipeline, err := impl.ciPipelineRepository.FindById(sourceCiPipeline.ParentCiPipeline)
+			if err != nil {
+				impl.logger.Errorw("error in finding ciPipeline", "ciPipelineId", sourceCiPipeline.ParentCiPipeline, "err", err)
+				return nil, err
+			}
+			buildRegistryConfig, err = impl.ciTemplateService.GetAppliedDockerConfigForCiPipeline(parentCiPipeline.Id, parentCiPipeline.AppId, parentCiPipeline.IsDockerConfigOverridden)
+			if err != nil {
+				impl.logger.Errorw("error in getting build configurations", "err", err)
+				return nil, fmt.Errorf("error in getting build configurations")
+			}
+			return buildRegistryConfig, nil
+		}
+
+		// Handling for Build CI
+		buildRegistryConfig, err = impl.ciTemplateService.GetAppliedDockerConfigForCiPipeline(sourceCiPipeline.Id, sourceCiPipeline.AppId, sourceCiPipeline.IsDockerConfigOverridden)
 		if err != nil {
 			impl.logger.Errorw("error in getting build configurations", "err", err)
 			return nil, fmt.Errorf("error in getting build configurations")
 		}
-		return buildRegistryConfig, nil
-	}
-
-	// Handling for Linked CI
-	if adapter.IsLinkedCI(sourceCiPipeline) {
-		parentCiPipeline, err := impl.ciPipelineRepository.FindById(sourceCiPipeline.ParentCiPipeline)
+	} else {
+		buildRegistryConfig, err = impl.getPreStageBuildRegistryConfigIfSourcePipelineNotPresent(appId)
 		if err != nil {
-			impl.logger.Errorw("error in finding ciPipeline", "ciPipelineId", sourceCiPipeline.ParentCiPipeline, "err", err)
+			impl.logger.Errorw("error in getting build configuration", "err", err)
 			return nil, err
 		}
-		buildRegistryConfig, err := impl.ciTemplateService.GetAppliedDockerConfigForCiPipeline(parentCiPipeline.Id, parentCiPipeline.AppId, parentCiPipeline.IsDockerConfigOverridden)
-		if err != nil {
-			impl.logger.Errorw("error in getting build configurations", "err", err)
-			return nil, fmt.Errorf("error in getting build configurations")
-		}
-		return buildRegistryConfig, nil
-	}
-
-	// Handling for Build CI
-	buildRegistryConfig, err := impl.ciTemplateService.GetAppliedDockerConfigForCiPipeline(sourceCiPipeline.Id, sourceCiPipeline.AppId, sourceCiPipeline.IsDockerConfigOverridden)
-	if err != nil {
-		impl.logger.Errorw("error in getting build configurations", "err", err)
-		return nil, fmt.Errorf("error in getting build configurations")
 	}
 	return buildRegistryConfig, nil
-}
-
-func (impl *TriggerServiceImpl) getSourceCiPipelineForArtifact(ciPipeline pipelineConfig.CiPipeline) (*pipelineConfig.CiPipeline, error) {
-	sourceCiPipeline := &ciPipeline
-	if adapter.IsLinkedCD(ciPipeline) {
-		sourceCdPipeline, err := impl.pipelineRepository.FindById(ciPipeline.ParentCiPipeline)
-		if err != nil {
-			impl.logger.Errorw("error in finding source cdPipeline for linked cd", "cdPipelineId", ciPipeline.ParentCiPipeline, "err", err)
-			return nil, err
-		}
-		sourceCiPipeline, err = impl.ciPipelineRepository.FindOneWithAppData(sourceCdPipeline.CiPipelineId)
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.logger.Errorw("error in finding ciPipeline for the cd pipeline", "CiPipelineId", sourceCdPipeline.Id, "CiPipelineId", sourceCdPipeline.CiPipelineId, "err", err)
-			return nil, err
-		}
-	}
-	return sourceCiPipeline, nil
 }
 
 func (impl *TriggerServiceImpl) ReserveImagesGeneratedAtPlugin(customTagId int, destinationImages []string) ([]int, error) {

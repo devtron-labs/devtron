@@ -773,7 +773,6 @@ func (impl *WorkflowEventProcessorImpl) extractAsyncCdDeployRequestFromEventMsg(
 		impl.logger.Errorw("error in unmarshalling CD async install request nats message", "err", err)
 		return nil, err
 	}
-	impl.logger.Infow("received async cd pipeline deployment request", "appId", cdAsyncInstallReq.ValuesOverrideRequest.AppId, "envId", cdAsyncInstallReq.ValuesOverrideRequest.EnvId)
 	if cdAsyncInstallReq.Id == 0 && cdAsyncInstallReq.ValuesOverrideRequest == nil {
 		impl.logger.Errorw("invalid async cd pipeline deployment request", "msg", msg.Data)
 		return nil, fmt.Errorf("invalid async cd pipeline deployment request")
@@ -795,6 +794,7 @@ func (impl *WorkflowEventProcessorImpl) extractAsyncCdDeployRequestFromEventMsg(
 		impl.logger.Errorw("error in setting additional data to UserDeploymentRequest", "err", err)
 		return nil, err
 	}
+	impl.logger.Infow("received async cd pipeline deployment request", "appId", cdAsyncInstallReq.ValuesOverrideRequest.AppId, "envId", cdAsyncInstallReq.ValuesOverrideRequest.EnvId)
 	return cdAsyncInstallReq, nil
 }
 
