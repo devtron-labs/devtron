@@ -27,8 +27,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	"github.com/devtron-labs/devtron/pkg/team"
-	bean4 "github.com/devtron-labs/devtron/pkg/team/bean"
-	"github.com/devtron-labs/devtron/pkg/team/read"
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
@@ -48,7 +46,6 @@ type AppFilteringRestHandlerImpl struct {
 	clusterService                    cluster.ClusterService
 	environmentClusterMappingsService environment.EnvironmentService
 	cfg                               *bean.Config
-	teamReadService                   read.TeamReadService
 }
 
 func NewAppFilteringRestHandlerImpl(logger *zap.SugaredLogger,
@@ -57,7 +54,6 @@ func NewAppFilteringRestHandlerImpl(logger *zap.SugaredLogger,
 	userService user.UserService,
 	clusterService cluster.ClusterService,
 	environmentClusterMappingsService environment.EnvironmentService,
-	teamReadService read.TeamReadService,
 ) *AppFilteringRestHandlerImpl {
 	cfg := &bean.Config{}
 	err := env.Parse(cfg)
@@ -74,7 +70,6 @@ func NewAppFilteringRestHandlerImpl(logger *zap.SugaredLogger,
 		clusterService:                    clusterService,
 		environmentClusterMappingsService: environmentClusterMappingsService,
 		cfg:                               cfg,
-		teamReadService:                   teamReadService,
 	}
 	return appFilteringRestHandler
 }
@@ -175,7 +170,7 @@ func (handler AppFilteringRestHandlerImpl) GetClusterTeamAndEnvListForAutocomple
 
 	//getting teams for autocomplete
 	start = time.Now()
-	teams, err := handler.teamReadService.FindAllActive()
+	teams, err := handler.teamService.FetchForAutocomplete()
 	if err != nil {
 		handler.logger.Errorw("service err, FetchForAutocomplete at teamService layer", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -185,7 +180,7 @@ func (handler AppFilteringRestHandlerImpl) GetClusterTeamAndEnvListForAutocomple
 	var grantedTeams = teams
 	start = time.Now()
 	if !handler.cfg.IgnoreAuthCheck {
-		grantedTeams = make([]bean4.TeamRequest, 0)
+		grantedTeams = make([]team.TeamRequest, 0)
 		// RBAC enforcer applying
 		var teamNameList []string
 		for _, item := range teams {

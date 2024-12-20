@@ -108,7 +108,6 @@ type CiCdPipelineOrchestrator interface {
 	AddPipelineToTemplate(createRequest *bean.CiConfigRequest, isSwitchCiPipelineRequest bool) (resp *bean.CiConfigRequest, err error)
 	GetSourceCiDownStreamFilters(ctx context.Context, sourceCiPipelineId int) (*bean2.SourceCiDownStreamEnv, error)
 	GetSourceCiDownStreamInfo(ctx context.Context, sourceCIPipeline int, req *bean2.SourceCiDownStreamFilters) (pagination.PaginatedResponse[bean2.SourceCiDownStreamResponse], error)
-	GetSourceCiPipelineForArtifact(ciPipeline pipelineConfig.CiPipeline) (*pipelineConfig.CiPipeline, error)
 	GetGitCommitEnvVarDataForCICDStage(gitTriggers map[int]pipelineConfig.GitCommit) (map[string]string, *gitSensor.WebhookAndCiData, error)
 }
 
@@ -2343,23 +2342,6 @@ func (impl CiCdPipelineOrchestratorImpl) GetSourceCiDownStreamInfo(ctx context.C
 	data := adapter.GetSourceCiDownStreamResponse(linkedCIDetails, latestWfrs...)
 	response.PushData(data...)
 	return response, nil
-}
-
-func (impl *CiCdPipelineOrchestratorImpl) GetSourceCiPipelineForArtifact(ciPipeline pipelineConfig.CiPipeline) (*pipelineConfig.CiPipeline, error) {
-	sourceCiPipeline := &ciPipeline
-	if adapter.IsLinkedCD(ciPipeline) {
-		sourceCdPipeline, err := impl.pipelineRepository.FindById(ciPipeline.ParentCiPipeline)
-		if err != nil {
-			impl.logger.Errorw("error in finding source cdPipeline for linked cd", "cdPipelineId", ciPipeline.ParentCiPipeline, "err", err)
-			return nil, err
-		}
-		sourceCiPipeline, err = impl.ciPipelineRepository.FindOneWithAppData(sourceCdPipeline.CiPipelineId)
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.logger.Errorw("error in finding ciPipeline for the cd pipeline", "CiPipelineId", sourceCdPipeline.Id, "CiPipelineId", sourceCdPipeline.CiPipelineId, "err", err)
-			return nil, err
-		}
-	}
-	return sourceCiPipeline, nil
 }
 
 func (impl *CiCdPipelineOrchestratorImpl) GetGitCommitEnvVarDataForCICDStage(gitTriggers map[int]pipelineConfig.GitCommit) (map[string]string, *gitSensor.WebhookAndCiData, error) {

@@ -59,7 +59,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application3 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	bean6 "github.com/devtron-labs/devtron/pkg/team/bean"
+	"github.com/devtron-labs/devtron/pkg/team"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -125,7 +125,7 @@ type AppStatus struct {
 }
 
 type AppAutocomplete struct {
-	Teams        []bean6.TeamRequest
+	Teams        []team.TeamRequest
 	Environments []bean2.EnvironmentBean
 	Clusters     []bean5.ClusterBean
 }

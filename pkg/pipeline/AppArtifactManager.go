@@ -434,7 +434,7 @@ func (impl *AppArtifactManagerImpl) extractParentMetaDataByPipeline(pipeline *pi
 	}
 
 	if stage == bean.CD_WORKFLOW_TYPE_DEPLOY {
-		pipelinePreStage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(pipeline.Id, repository2.PIPELINE_STAGE_TYPE_PRE_CD, false)
+		pipelinePreStage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(pipeline.Id, repository2.PIPELINE_STAGE_TYPE_PRE_CD)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in fetching PRE-CD stage by cd pipeline id", "pipelineId", pipeline.Id, "err", err)
 			return parentId, parentType, parentCdId, err

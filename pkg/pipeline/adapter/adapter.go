@@ -192,19 +192,13 @@ func IsLinkedCD(ci pipelineConfig.CiPipeline) bool {
 }
 
 // IsLinkedCI will return if the pipelineConfig.CiPipeline is a Linked CI
-func IsLinkedCI(ci *pipelineConfig.CiPipeline) bool {
-	if ci == nil {
-		return false
-	}
+func IsLinkedCI(ci pipelineConfig.CiPipeline) bool {
 	return ci.ParentCiPipeline != 0 &&
 		ci.PipelineType == string(bean2.LINKED)
 }
 
 // IsCIJob will return if the pipelineConfig.CiPipeline is a CI JOB
-func IsCIJob(ci *pipelineConfig.CiPipeline) bool {
-	if ci == nil {
-		return false
-	}
+func IsCIJob(ci pipelineConfig.CiPipeline) bool {
 	return ci.PipelineType == string(bean2.CI_JOB)
 }
 
