@@ -21,6 +21,7 @@ import (
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned"
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
+	"github.com/devtron-labs/common-lib/utils"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -34,6 +35,17 @@ import (
 
 var ArgoWorkflowOwnerRef = v1.OwnerReference{APIVersion: "argoproj.io/v1alpha1", Kind: "Workflow", Name: "{{workflow.name}}", UID: "{{workflow.uid}}", BlockOwnerDeletion: &[]bool{true}[0]}
 
+func ExtractVolumes(configMaps []bean2.ConfigSecretMap, secrets []bean2.ConfigSecretMap) []v12.Volume {
+	var volumes []v12.Volume
+	configMapVolumes := ExtractVolumesFromCmCs(configMaps, secrets)
+	volumes = append(volumes, configMapVolumes...)
+
+	// Add downwardAPI volume
+	downwardAPIVolume := createDownwardAPIVolume()
+	volumes = append(volumes, downwardAPIVolume)
+	return volumes
+}
+
 func ExtractVolumesFromCmCs(configMaps []bean2.ConfigSecretMap, secrets []bean2.ConfigSecretMap) []v12.Volume {
 	var volumes []v12.Volume
 	configMapVolumes := extractVolumesFromConfigSecretMaps(true, configMaps)
@@ -45,7 +57,32 @@ func ExtractVolumesFromCmCs(configMaps []bean2.ConfigSecretMap, secrets []bean2.
 	for _, volume := range secretVolumes {
 		volumes = append(volumes, volume)
 	}
+
 	return volumes
+}
+
+func createDownwardAPIVolume() v12.Volume {
+	return v12.Volume{
+		Name: utils.DEVTRON_SELF_DOWNWARD_API_VOLUME,
+		VolumeSource: v12.VolumeSource{
+			DownwardAPI: &v12.DownwardAPIVolumeSource{
+				Items: []v12.DownwardAPIVolumeFile{
+					{
+						Path: "labels",
+						FieldRef: &v12.ObjectFieldSelector{
+							FieldPath: "metadata.labels",
+						},
+					},
+					{
+						Path: "annotations",
+						FieldRef: &v12.ObjectFieldSelector{
+							FieldPath: "metadata.annotations",
+						},
+					},
+				},
+			},
+		},
+	}
 }
 
 func extractVolumesFromConfigSecretMaps(isCm bool, configSecretMaps []bean2.ConfigSecretMap) []v12.Volume {

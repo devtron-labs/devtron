@@ -32,9 +32,11 @@ import (
 var chars = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
 
 const (
-	DOCKER_REGISTRY_TYPE_DOCKERHUB = "docker-hub"
-	DEVTRON_SELF_POD_UID           = "DEVTRON_SELF_POD_UID"
-	DEVTRON_SELF_POD_NAME          = "DEVTRON_SELF_POD_NAME"
+	DOCKER_REGISTRY_TYPE_DOCKERHUB        = "docker-hub"
+	DEVTRON_SELF_POD_UID                  = "DEVTRON_SELF_POD_UID"
+	DEVTRON_SELF_POD_NAME                 = "DEVTRON_SELF_POD_NAME"
+	DEVTRON_SELF_DOWNWARD_API_VOLUME      = "devtron-pod-info"
+	DEVTRON_SELF_DOWNWARD_API_VOLUME_PATH = "/etc/devtron-pod-info"
 )
 
 // Generates random string
