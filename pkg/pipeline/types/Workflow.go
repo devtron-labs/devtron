@@ -29,10 +29,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/infraConfig"
+	bean5 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	repository4 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	bean6 "github.com/devtron-labs/devtron/pkg/infraConfig/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean/CiPipeline"
 	bean4 "github.com/devtron-labs/devtron/pkg/plugin/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"k8s.io/api/core/v1"
@@ -52,69 +52,70 @@ const (
 )
 
 type WorkflowRequest struct {
-	WorkflowNamePrefix         string                            `json:"workflowNamePrefix"`
-	PipelineName               string                            `json:"pipelineName"`
-	PipelineId                 int                               `json:"pipelineId"`
-	DockerImageTag             string                            `json:"dockerImageTag"`
-	DockerRegistryId           string                            `json:"dockerRegistryId"`
-	DockerRegistryType         string                            `json:"dockerRegistryType"`
-	DockerRegistryURL          string                            `json:"dockerRegistryURL"`
-	DockerConnection           string                            `json:"dockerConnection"`
-	DockerCert                 string                            `json:"dockerCert"`
-	DockerRepository           string                            `json:"dockerRepository"`
-	CheckoutPath               string                            `json:"checkoutPath"`
-	DockerUsername             string                            `json:"dockerUsername"`
-	DockerPassword             string                            `json:"dockerPassword"`
-	AwsRegion                  string                            `json:"awsRegion"`
-	AccessKey                  string                            `json:"accessKey"`
-	SecretKey                  string                            `json:"secretKey"`
-	CiCacheLocation            string                            `json:"ciCacheLocation"`
-	CiCacheRegion              string                            `json:"ciCacheRegion"`
-	CiCacheFileName            string                            `json:"ciCacheFileName"`
-	CiProjectDetails           []bean.CiProjectDetails           `json:"ciProjectDetails"`
-	ContainerResources         bean.ContainerResources           `json:"containerResources"`
-	ActiveDeadlineSeconds      int64                             `json:"activeDeadlineSeconds"`
-	CiImage                    string                            `json:"ciImage"`
-	Namespace                  string                            `json:"namespace"`
-	WorkflowId                 int                               `json:"workflowId"`
-	TriggeredBy                int32                             `json:"triggeredBy"`
-	CacheLimit                 int64                             `json:"cacheLimit"`
-	BeforeDockerBuildScripts   []*bean2.CiScript                 `json:"beforeDockerBuildScripts"`
-	AfterDockerBuildScripts    []*bean2.CiScript                 `json:"afterDockerBuildScripts"`
-	CiArtifactLocation         string                            `json:"ciArtifactLocation"`
-	CiArtifactBucket           string                            `json:"ciArtifactBucket"`
-	CiArtifactFileName         string                            `json:"ciArtifactFileName"`
-	CiArtifactRegion           string                            `json:"ciArtifactRegion"`
-	ScanEnabled                bool                              `json:"scanEnabled"`
-	CloudProvider              blob_storage.BlobStorageType      `json:"cloudProvider"`
-	BlobStorageConfigured      bool                              `json:"blobStorageConfigured"`
-	BlobStorageS3Config        *blob_storage.BlobStorageS3Config `json:"blobStorageS3Config"`
-	AzureBlobConfig            *blob_storage.AzureBlobConfig     `json:"azureBlobConfig"`
-	GcpBlobConfig              *blob_storage.GcpBlobConfig       `json:"gcpBlobConfig"`
-	BlobStorageLogsKey         string                            `json:"blobStorageLogsKey"`
-	InAppLoggingEnabled        bool                              `json:"inAppLoggingEnabled"`
-	DefaultAddressPoolBaseCidr string                            `json:"defaultAddressPoolBaseCidr"`
-	DefaultAddressPoolSize     int                               `json:"defaultAddressPoolSize"`
-	PreCiSteps                 []*bean.StepObject                `json:"preCiSteps"`
-	PostCiSteps                []*bean.StepObject                `json:"postCiSteps"`
-	RefPlugins                 []*bean.RefPluginObject           `json:"refPlugins"`
-	AppName                    string                            `json:"appName"`
-	TriggerByAuthor            string                            `json:"triggerByAuthor"`
-	CiBuildConfig              *CiPipeline.CiBuildConfigBean     `json:"ciBuildConfig"`
-	CiBuildDockerMtuValue      int                               `json:"ciBuildDockerMtuValue"`
-	IgnoreDockerCachePush      bool                              `json:"ignoreDockerCachePush"`
-	IgnoreDockerCachePull      bool                              `json:"ignoreDockerCachePull"`
-	CacheInvalidate            bool                              `json:"cacheInvalidate"`
-	IsPvcMounted               bool                              `json:"IsPvcMounted"`
-	ExtraEnvironmentVariables  map[string]string                 `json:"extraEnvironmentVariables"`
-	EnableBuildContext         bool                              `json:"enableBuildContext"`
-	AppId                      int                               `json:"appId"`
-	EnvironmentId              int                               `json:"environmentId"`
-	OrchestratorHost           string                            `json:"orchestratorHost"`
-	OrchestratorToken          string                            `json:"orchestratorToken"`
-	IsExtRun                   bool                              `json:"isExtRun"`
-	ImageRetryCount            int                               `json:"imageRetryCount"`
-	ImageRetryInterval         int                               `json:"imageRetryInterval"`
+	WorkflowNamePrefix          string                            `json:"workflowNamePrefix"`
+	PipelineName                string                            `json:"pipelineName"`
+	PipelineId                  int                               `json:"pipelineId"`
+	DockerImageTag              string                            `json:"dockerImageTag"`
+	DockerRegistryId            string                            `json:"dockerRegistryId"`
+	DockerRegistryType          string                            `json:"dockerRegistryType"`
+	DockerRegistryURL           string                            `json:"dockerRegistryURL"`
+	DockerConnection            string                            `json:"dockerConnection"`
+	DockerCert                  string                            `json:"dockerCert"`
+	DockerRepository            string                            `json:"dockerRepository"`
+	CheckoutPath                string                            `json:"checkoutPath"`
+	DockerUsername              string                            `json:"dockerUsername"`
+	DockerPassword              string                            `json:"dockerPassword"`
+	AwsRegion                   string                            `json:"awsRegion"`
+	AccessKey                   string                            `json:"accessKey"`
+	SecretKey                   string                            `json:"secretKey"`
+	CiCacheLocation             string                            `json:"ciCacheLocation"`
+	CiCacheRegion               string                            `json:"ciCacheRegion"`
+	CiCacheFileName             string                            `json:"ciCacheFileName"`
+	CiProjectDetails            []bean.CiProjectDetails           `json:"ciProjectDetails"`
+	ContainerResources          bean.ContainerResources           `json:"containerResources"`
+	ActiveDeadlineSeconds       int64                             `json:"activeDeadlineSeconds"`
+	CiImage                     string                            `json:"ciImage"`
+	Namespace                   string                            `json:"namespace"`
+	WorkflowId                  int                               `json:"workflowId"`
+	TriggeredBy                 int32                             `json:"triggeredBy"`
+	CacheLimit                  int64                             `json:"cacheLimit"`
+	BeforeDockerBuildScripts    []*bean2.CiScript                 `json:"beforeDockerBuildScripts"`
+	AfterDockerBuildScripts     []*bean2.CiScript                 `json:"afterDockerBuildScripts"`
+	CiArtifactLocation          string                            `json:"ciArtifactLocation"`
+	CiArtifactBucket            string                            `json:"ciArtifactBucket"`
+	CiArtifactFileName          string                            `json:"ciArtifactFileName"`
+	CiArtifactRegion            string                            `json:"ciArtifactRegion"`
+	ScanEnabled                 bool                              `json:"scanEnabled"`
+	CloudProvider               blob_storage.BlobStorageType      `json:"cloudProvider"`
+	BlobStorageConfigured       bool                              `json:"blobStorageConfigured"`
+	BlobStorageS3Config         *blob_storage.BlobStorageS3Config `json:"blobStorageS3Config"`
+	AzureBlobConfig             *blob_storage.AzureBlobConfig     `json:"azureBlobConfig"`
+	GcpBlobConfig               *blob_storage.GcpBlobConfig       `json:"gcpBlobConfig"`
+	BlobStorageLogsKey          string                            `json:"blobStorageLogsKey"`
+	InAppLoggingEnabled         bool                              `json:"inAppLoggingEnabled"`
+	DefaultAddressPoolBaseCidr  string                            `json:"defaultAddressPoolBaseCidr"`
+	DefaultAddressPoolSize      int                               `json:"defaultAddressPoolSize"`
+	PreCiSteps                  []*bean.StepObject                `json:"preCiSteps"`
+	PostCiSteps                 []*bean.StepObject                `json:"postCiSteps"`
+	RefPlugins                  []*bean.RefPluginObject           `json:"refPlugins"`
+	AppName                     string                            `json:"appName"`
+	TriggerByAuthor             string                            `json:"triggerByAuthor"`
+	CiBuildConfig               *bean5.CiBuildConfigBean          `json:"ciBuildConfig"`
+	CiBuildDockerMtuValue       int                               `json:"ciBuildDockerMtuValue"`
+	IgnoreDockerCachePush       bool                              `json:"ignoreDockerCachePush"`
+	IgnoreDockerCachePull       bool                              `json:"ignoreDockerCachePull"`
+	CacheInvalidate             bool                              `json:"cacheInvalidate"`
+	IsPvcMounted                bool                              `json:"IsPvcMounted"`
+	RuntimeEnvironmentVariables map[string]string                 `json:"runtimeEnvironmentVariables"`
+	SystemEnvironmentVariables  map[string]string                 `json:"systemEnvironmentVariables"`
+	EnableBuildContext          bool                              `json:"enableBuildContext"`
+	AppId                       int                               `json:"appId"`
+	EnvironmentId               int                               `json:"environmentId"`
+	OrchestratorHost            string                            `json:"orchestratorHost"`
+	OrchestratorToken           string                            `json:"orchestratorToken"`
+	IsExtRun                    bool                              `json:"isExtRun"`
+	ImageRetryCount             int                               `json:"imageRetryCount"`
+	ImageRetryInterval          int                               `json:"imageRetryInterval"`
 	// Data from CD Workflow service
 	WorkflowRunnerId            int                                  `json:"workflowRunnerId"`
 	CdPipelineId                int                                  `json:"cdPipelineId"`
@@ -142,7 +143,7 @@ type WorkflowRequest struct {
 	ImageScanRetryDelay         int                                  `json:"imageScanRetryDelay,omitempty"`
 	Type                        bean.WorkflowPipelineType
 	Pipeline                    *pipelineConfig.Pipeline
-	Env                         *repository.Environment
+	Env                         *repository4.Environment
 	AppLabels                   map[string]string
 	Scope                       resourceQualifiers.Scope
 	BuildxCacheModeMin          bool   `json:"buildxCacheModeMin"`
@@ -441,7 +442,7 @@ func (workflowRequest *WorkflowRequest) GetNodeConstraints(config *CiCdConfig) *
 	}
 }
 
-func (workflowRequest *WorkflowRequest) GetLimitReqCpuMem(config *CiCdConfig, infraConfigurations *infraConfig.InfraConfig) v1.ResourceRequirements {
+func (workflowRequest *WorkflowRequest) GetLimitReqCpuMem(config *CiCdConfig, infraConfigurations *bean6.InfraConfig) v1.ResourceRequirements {
 	limitReqCpuMem := &bean.LimitReqCpuMem{}
 	switch workflowRequest.Type {
 	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE:
@@ -482,7 +483,7 @@ func (workflowRequest *WorkflowRequest) getWorkflowImage() string {
 	}
 }
 
-func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdConfig, infraConfigurations *infraConfig.InfraConfig, workflowJson []byte, workflowTemplate *bean.WorkflowTemplate, workflowConfigMaps []bean3.ConfigSecretMap, workflowSecrets []bean3.ConfigSecretMap) (v1.Container, error) {
+func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdConfig, infraConfigurations *bean6.InfraConfig, workflowJson []byte, workflowTemplate *bean.WorkflowTemplate, workflowConfigMaps []bean3.ConfigSecretMap, workflowSecrets []bean3.ConfigSecretMap) (v1.Container, error) {
 	privileged := true
 	pvc := workflowRequest.getPVCForWorkflowRequest()
 	containerEnvVariables := workflowRequest.getContainerEnvVariables(config, workflowJson)

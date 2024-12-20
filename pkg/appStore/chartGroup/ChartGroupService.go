@@ -33,12 +33,13 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/appStore/values/service"
-	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
-	bean2 "github.com/devtron-labs/devtron/pkg/cluster/repository/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	cluster2 "github.com/devtron-labs/devtron/pkg/cluster/environment"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
-	repository4 "github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/util/argo"
 	"io/ioutil"
 	"os"
@@ -68,7 +69,7 @@ type ChartGroupServiceImpl struct {
 	userAuthService                      user.UserAuthService
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	environmentService                   cluster2.EnvironmentService
-	teamRepository                       repository4.TeamRepository
+	teamRepository                       team.TeamRepository
 	clusterInstalledAppsRepository       repository.ClusterInstalledAppsRepository
 	appStoreValuesService                service.AppStoreValuesService
 	appStoreDeploymentService            service2.AppStoreDeploymentService
@@ -92,7 +93,7 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 	userAuthService user.UserAuthService,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentService cluster2.EnvironmentService,
-	teamRepository repository4.TeamRepository,
+	teamRepository team.TeamRepository,
 	clusterInstalledAppsRepository repository.ClusterInstalledAppsRepository,
 	appStoreValuesService service.AppStoreValuesService,
 	appStoreDeploymentService service2.AppStoreDeploymentService,
@@ -142,7 +143,7 @@ type ChartGroupService interface {
 	DeleteChartGroup(req *ChartGroupBean) error
 
 	DeployBulk(chartGroupInstallRequest *ChartGroupInstallRequest) (*ChartGroupInstallAppRes, error)
-	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
+	DeployDefaultChartOnCluster(bean *bean3.ClusterBean, userId int32) (bool, error)
 	TriggerDeploymentEventAndHandleStatusUpdate(installAppVersions []*appStoreBean.InstallAppVersionDTO)
 
 	PerformDeployStage(installedAppVersionId int, installedAppVersionHistoryId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
@@ -695,7 +696,7 @@ func (impl *ChartGroupServiceImpl) TriggerDeploymentEventAndHandleStatusUpdate(i
 	}
 }
 
-func (impl *ChartGroupServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error) {
+func (impl *ChartGroupServiceImpl) DeployDefaultChartOnCluster(bean *bean3.ClusterBean, userId int32) (bool, error) {
 	// STEP 1 - create environment with name "devton"
 	impl.logger.Infow("STEP 1", "create environment for cluster component", "clusterId", bean.Id)
 	envName := fmt.Sprintf("%d-%s", bean.Id, appStoreBean.DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT)
@@ -725,7 +726,7 @@ func (impl *ChartGroupServiceImpl) DeployDefaultChartOnCluster(bean *cluster2.Cl
 		return false, err
 	}
 	if err == pg.ErrNoRows {
-		t := &repository4.Team{
+		t := &team.Team{
 			Name:     appStoreBean.DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT,
 			Active:   true,
 			AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},

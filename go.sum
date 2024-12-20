@@ -792,10 +792,10 @@ github.com/denisenkom/go-mssqldb v0.0.0-20200428022330-06a60b6afbbc h1:VRRKCwnzq
 github.com/denisenkom/go-mssqldb v0.0.0-20200428022330-06a60b6afbbc/go.mod h1:xbL0rPBG9cCiLr28tMa8zpbdarY27NDyej4t/EjAShU=
 github.com/devtron-labs/argo-workflows/v3 v3.5.10 h1:6rxQOesOzDz6SgQCMDQNHaehsKFW3C7U8CZeEek5kgQ=
 github.com/devtron-labs/argo-workflows/v3 v3.5.10/go.mod h1:/vqxcovDPT4zqr4DjR5v7CF8ggpY1l3TSa2CIG3jmjA=
-github.com/devtron-labs/authenticator v0.4.35-0.20240809073103-6e11da8083f8 h1:2+Q7Jdhpo/uMiaQiZZzAh+ZX7wEJIFuMFG6DEiMuo64=
-github.com/devtron-labs/authenticator v0.4.35-0.20240809073103-6e11da8083f8/go.mod h1:702R6WIf5y9UzKGoCGxQ+x3l5Ws+l0fXg2xlCpSGFZI=
-github.com/devtron-labs/devtron-services/common-lib v0.0.0-20241024135802-b4888f54a136 h1:rNGxjU5L6NvObxGMt0+vNFmjkqstm7zDASiS+pakrgQ=
-github.com/devtron-labs/devtron-services/common-lib v0.0.0-20241024135802-b4888f54a136/go.mod h1:KpKnF4OSpQNDJmb4wVZq3Za88ePBw4xec2GOAGRm5UQ=
+github.com/devtron-labs/devtron-services/authenticator v0.0.0-20241219033445-6c0c7082c583 h1:YN6O8N4+msUbbmWB+QOpq6ha7hCjF/kkds9bsOZ0EWg=
+github.com/devtron-labs/devtron-services/authenticator v0.0.0-20241219033445-6c0c7082c583/go.mod h1:vFJ3M7akwAWCtugDXRW+5Q9P+cp0RiH+K/D5FBbb/JA=
+github.com/devtron-labs/devtron-services/common-lib v0.0.0-20241219033445-6c0c7082c583 h1:TmL6N8vzg0/Lq65Y7PVqkRpvRKGAwCS/74dIPMiTJtU=
+github.com/devtron-labs/devtron-services/common-lib v0.0.0-20241219033445-6c0c7082c583/go.mod h1:NJSMdv+zTUK3p7rML12RZSeAUKHeLaoY3sR/oK0xhwo=
 github.com/devtron-labs/go-bitbucket v0.9.60-beta h1:VEx1jvDgdtDPS6A1uUFoaEi0l1/oLhbr+90xOwr6sDU=
 github.com/devtron-labs/go-bitbucket v0.9.60-beta/go.mod h1:GnuiCesvh8xyHeMCb+twm8lBR/kQzJYSKL28ZfObp1Y=
 github.com/devtron-labs/protos v0.0.3-0.20240802105333-92ee9bb85d80 h1:xwbTeijNTf4/j1v+tSfwVqwLVnReas/NqEKeQHvSTys=
@@ -953,8 +953,9 @@ github.com/gogo/protobuf v1.2.0/go.mod h1:r8qH/GZQm5c6nD/R0oafs1akxWv10x8SbQlK7a
 github.com/gogo/protobuf v1.3.2 h1:Ov1cvc58UF3b5XjBnZv7+opcTcQFZebYjWzi34vdm4Q=
 github.com/gogo/protobuf v1.3.2/go.mod h1:P1XiOD3dCwIKUDQYPy72D8LYyHL2YPYrpS2s69NZV8Q=
 github.com/golang-jwt/jwt/v4 v4.0.0/go.mod h1:/xlHOz8bRuivTWchD4jCa+NbatV+wEUSzwAxVc6locg=
-github.com/golang-jwt/jwt/v4 v4.5.0 h1:7cYmW1XlMY7h7ii7UhUyChSgS5wUJEnm9uZVTGqOWzg=
 github.com/golang-jwt/jwt/v4 v4.5.0/go.mod h1:m21LjoU+eqJr34lmDMbreY2eSTRJ1cv77w39/MY0Ch0=
+github.com/golang-jwt/jwt/v4 v4.5.1 h1:JdqV9zKUdtaa9gdPlywC3aeoEsR681PlKC+4F5gQgeo=
+github.com/golang-jwt/jwt/v4 v4.5.1/go.mod h1:m21LjoU+eqJr34lmDMbreY2eSTRJ1cv77w39/MY0Ch0=
 github.com/golang-sql/civil v0.0.0-20190719163853-cb61b32ac6fe h1:lXe2qZdvpiX5WZkZR4hgp4KJVfY3nMkvmwbVkpv1rVY=
 github.com/golang-sql/civil v0.0.0-20190719163853-cb61b32ac6fe/go.mod h1:8vg3r2VgvsThLBIFL93Qb5yWzgyZWhEmBwUJWevAkK0=
 github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0/go.mod h1:E/TSTwGwJL78qG/PmXZO1EjYhfJinVAhrmmHX6Z8B9k=
@@ -2481,8 +2482,8 @@ k8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00 h1:aVUu9fTY98ivBPKR9Y5w/A
 k8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00/go.mod h1:AsvuZPBlUDVuCdzJ87iajxtXuR9oktsTctW/R9wwouA=
 k8s.io/kubectl v0.29.7 h1:D+Jheug9M++zlt67cROZgxaIjrDdLqp9jkW/EYrXAoM=
 k8s.io/kubectl v0.29.7/go.mod h1:VOEJkcfKTO/X8xSSB6d2JXP/Qni6xtjuI3CUP52T9bM=
-k8s.io/kubernetes v1.29.6 h1:jn8kA/oVOAWZOeoorx6xZ4d+KgGp+Evgi90x9bEI/DE=
-k8s.io/kubernetes v1.29.6/go.mod h1:28sDhcb87LX5z3GWAKYmLrhrifxi4W9bEWua4DRTIvk=
+k8s.io/kubernetes v1.29.10 h1:vlze77k0CbdevTbgliyxpSjfI3bvOUhPEJVSJAEUl5Q=
+k8s.io/kubernetes v1.29.10/go.mod h1:L6/pfKQZ6Tv2O8gyT4OxhGZp+nNsjV54xtNodRoup9k=
 k8s.io/metrics v0.29.7 h1:/oMPdVL7dt+lF8W6lXTg9gIKz1dDKgVBfDnJwgyJrhk=
 k8s.io/metrics v0.29.7/go.mod h1:5AiYPn1Crd25wtTh7OxHg9Rm2t9THSXJVp3Lb2k7MB8=
 k8s.io/utils v0.0.0-20210802155522-efc7438f0176/go.mod h1:jPW/WVKK9YHAvNhRxK0md/EJ228hCsBRufyofKtW8HA=

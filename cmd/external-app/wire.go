@@ -61,7 +61,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
@@ -70,6 +69,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps"
@@ -77,6 +77,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
+	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
@@ -105,9 +107,9 @@ func InitializeApp() (*App, error) {
 		chartRepo.ChartRepositoryWireSet,
 		appStoreDiscover.AppStoreDiscoverWireSet,
 		chartProvider.AppStoreChartProviderWireSet,
-		appStoreValues.AppStoreValuesWireSet,
+		appStoreValues.WireSet,
 		util3.GetEnvironmentVariables,
-		appStoreDeployment.AppStoreDeploymentWireSet,
+		appStoreDeployment.EAModeWireSet,
 		server.ServerWireSet,
 		module.ModuleWireSet,
 		apiToken.ApiTokenWireSet,
@@ -125,11 +127,10 @@ func InitializeApp() (*App, error) {
 		util2.GetACDAuthConfig,
 		telemetry.NewPosthogClient,
 		delete2.NewDeleteServiceImpl,
+		gitMaterial.GitMaterialWireSet,
 
 		sql.NewTransactionUtilImpl,
 
-		pipelineConfig.NewMaterialRepositoryImpl,
-		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),
 		// appStatus
 		appStatus.NewAppStatusRepositoryImpl,
 		wire.Bind(new(appStatus.AppStatusRepository), new(*appStatus.AppStatusRepositoryImpl)),
@@ -218,6 +219,9 @@ func InitializeApp() (*App, error) {
 		kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl,
 		wire.Bind(new(kubernetesResourceAuditLogs.K8sResourceHistoryService), new(*kubernetesResourceAuditLogs.K8sResourceHistoryServiceImpl)),
 
+		imageScanning.NewScanToolMetadataServiceImpl,
+		wire.Bind(new(imageScanning.ScanToolMetadataService), new(*imageScanning.ScanToolMetadataServiceImpl)),
+
 		security2.NewScanToolMetadataRepositoryImpl,
 		wire.Bind(new(security2.ScanToolMetadataRepository), new(*security2.ScanToolMetadataRepositoryImpl)),
 
@@ -242,7 +246,7 @@ func InitializeApp() (*App, error) {
 
 		// end: docker registry wire set injection
 		cron.NewCronLoggerImpl,
-		appStore.AppStoreWireSet,
+		appStore.EAModeWireSet,
 
 		deploymentConfig.NewRepositoryImpl,
 		wire.Bind(new(deploymentConfig.Repository), new(*deploymentConfig.RepositoryImpl)),

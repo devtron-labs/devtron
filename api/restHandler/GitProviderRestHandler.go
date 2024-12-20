@@ -18,6 +18,9 @@ package restHandler
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/bean"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	"net/http"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -25,7 +28,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -44,31 +46,34 @@ type GitProviderRestHandler interface {
 }
 
 type GitProviderRestHandlerImpl struct {
-	dockerRegistryConfig  pipeline.DockerRegistryConfig
-	logger                *zap.SugaredLogger
-	gitRegistryConfig     pipeline.GitRegistryConfig
-	userAuthService       user.UserService
-	validator             *validator.Validate
-	enforcer              casbin.Enforcer
-	teamService           team.TeamService
-	deleteServiceFullMode delete2.DeleteServiceFullMode
+	dockerRegistryConfig   pipeline.DockerRegistryConfig
+	logger                 *zap.SugaredLogger
+	gitRegistryConfig      gitProvider.GitRegistryConfig
+	gitProviderReadService read.GitProviderReadService
+	userAuthService        user.UserService
+	validator              *validator.Validate
+	enforcer               casbin.Enforcer
+	teamService            team.TeamService
+	deleteServiceFullMode  delete2.DeleteServiceFullMode
 }
 
 func NewGitProviderRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryConfig,
 	logger *zap.SugaredLogger,
-	gitRegistryConfig pipeline.GitRegistryConfig,
+	gitRegistryConfig gitProvider.GitRegistryConfig,
 	userAuthService user.UserService,
 	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService,
-	deleteServiceFullMode delete2.DeleteServiceFullMode) *GitProviderRestHandlerImpl {
+	deleteServiceFullMode delete2.DeleteServiceFullMode,
+	gitProviderReadService read.GitProviderReadService) *GitProviderRestHandlerImpl {
 	return &GitProviderRestHandlerImpl{
-		dockerRegistryConfig:  dockerRegistryConfig,
-		logger:                logger,
-		gitRegistryConfig:     gitRegistryConfig,
-		userAuthService:       userAuthService,
-		validator:             validator,
-		enforcer:              enforcer,
-		teamService:           teamService,
-		deleteServiceFullMode: deleteServiceFullMode,
+		dockerRegistryConfig:   dockerRegistryConfig,
+		logger:                 logger,
+		gitRegistryConfig:      gitRegistryConfig,
+		gitProviderReadService: gitProviderReadService,
+		userAuthService:        userAuthService,
+		validator:              validator,
+		enforcer:               enforcer,
+		teamService:            teamService,
+		deleteServiceFullMode:  deleteServiceFullMode,
 	}
 }
 
@@ -79,7 +84,7 @@ func (impl GitProviderRestHandlerImpl) SaveGitRepoConfig(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean types.GitRegistry
+	var bean bean.GitRegistry
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, SaveGitRepoConfig", "err", err, "payload", bean)
@@ -113,7 +118,7 @@ func (impl GitProviderRestHandlerImpl) SaveGitRepoConfig(w http.ResponseWriter, 
 }
 
 func (impl GitProviderRestHandlerImpl) GetGitProviders(w http.ResponseWriter, r *http.Request) {
-	res, err := impl.gitRegistryConfig.GetAll()
+	res, err := impl.gitProviderReadService.GetAll()
 	if err != nil {
 		impl.logger.Errorw("service err, GetGitProviders", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -124,7 +129,7 @@ func (impl GitProviderRestHandlerImpl) GetGitProviders(w http.ResponseWriter, r 
 }
 
 func (impl GitProviderRestHandlerImpl) FetchAllGitProviders(w http.ResponseWriter, r *http.Request) {
-	res, err := impl.gitRegistryConfig.FetchAllGitProviders()
+	res, err := impl.gitProviderReadService.FetchAllGitProviders()
 	if err != nil {
 		impl.logger.Errorw("service err, FetchAllGitProviders", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -133,7 +138,7 @@ func (impl GitProviderRestHandlerImpl) FetchAllGitProviders(w http.ResponseWrite
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	result := make([]types.GitRegistry, 0)
+	result := make([]bean.GitRegistry, 0)
 	for _, item := range res {
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionGet, item.Name); ok {
 			result = append(result, item)
@@ -147,7 +152,7 @@ func (impl GitProviderRestHandlerImpl) FetchAllGitProviders(w http.ResponseWrite
 func (impl GitProviderRestHandlerImpl) FetchOneGitProviders(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id := params["id"]
-	res, err := impl.gitRegistryConfig.FetchOneGitProvider(id)
+	res, err := impl.gitProviderReadService.FetchOneGitProvider(id)
 	if err != nil {
 		impl.logger.Errorw("service err, FetchOneGitProviders", "err", err, "id", id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -172,7 +177,7 @@ func (impl GitProviderRestHandlerImpl) UpdateGitRepoConfig(w http.ResponseWriter
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean types.GitRegistry
+	var bean bean.GitRegistry
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, UpdateGitRepoConfig", "err", err, "gitRegistryId", bean.Id)
@@ -211,7 +216,7 @@ func (impl GitProviderRestHandlerImpl) DeleteGitRepoConfig(w http.ResponseWriter
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean types.GitRegistry
+	var bean bean.GitRegistry
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, DeleteGitRepoConfig", "err", err, "payload", bean)

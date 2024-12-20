@@ -25,7 +25,8 @@ import (
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/bean/common"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
@@ -532,21 +533,21 @@ type GitTriggerInfoResponse struct {
 }
 
 type Trigger struct {
-	PipelineId                int
-	CommitHashes              map[int]pipelineConfig.GitCommit
-	CiMaterials               []*pipelineConfig.CiPipelineMaterial
-	TriggeredBy               int32
-	InvalidateCache           bool
-	ExtraEnvironmentVariables map[string]string // extra env variables which will be used for CI
-	EnvironmentId             int
-	PipelineType              string
-	CiArtifactLastFetch       time.Time
-	ReferenceCiWorkflowId     int
+	PipelineId            int
+	CommitHashes          map[int]pipelineConfig.GitCommit
+	CiMaterials           []*pipelineConfig.CiPipelineMaterial
+	TriggeredBy           int32
+	InvalidateCache       bool
+	RuntimeParameters     *common.RuntimeParameters // extra env variables which will be used for CI
+	EnvironmentId         int
+	PipelineType          string
+	CiArtifactLastFetch   time.Time
+	ReferenceCiWorkflowId int
 }
 
 func (obj *Trigger) BuildTriggerObject(refCiWorkflow *pipelineConfig.CiWorkflow,
 	ciMaterials []*pipelineConfig.CiPipelineMaterial, triggeredBy int32,
-	invalidateCache bool, extraEnvironmentVariables map[string]string,
+	invalidateCache bool, runtimeParameters *common.RuntimeParameters,
 	pipelineType string) {
 
 	obj.PipelineId = refCiWorkflow.CiPipelineId
@@ -557,7 +558,7 @@ func (obj *Trigger) BuildTriggerObject(refCiWorkflow *pipelineConfig.CiWorkflow,
 	obj.EnvironmentId = refCiWorkflow.EnvironmentId
 	obj.ReferenceCiWorkflowId = refCiWorkflow.Id
 	obj.InvalidateCache = invalidateCache
-	obj.ExtraEnvironmentVariables = extraEnvironmentVariables
+	obj.RuntimeParameters = runtimeParameters
 	obj.PipelineType = pipelineType
 
 }

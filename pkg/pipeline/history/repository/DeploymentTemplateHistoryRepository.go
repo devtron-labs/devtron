@@ -27,10 +27,10 @@ type DeploymentTemplateHistoryRepository interface {
 	CreateHistory(chart *DeploymentTemplateHistory) (*DeploymentTemplateHistory, error)
 	CreateHistoryWithTxn(chart *DeploymentTemplateHistory, tx *pg.Tx) (*DeploymentTemplateHistory, error)
 	GetHistoryForDeployedTemplateById(id, pipelineId int) (*DeploymentTemplateHistory, error)
-	GetDeploymentDetailsForDeployedTemplateHistory(pipelineId, offset, limit int) ([]*DeploymentTemplateHistory, error)
 	GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int) (*DeploymentTemplateHistory, error)
 	GetDeployedHistoryForPipelineIdOnTime(pipelineId int, deployedOn time.Time) (*DeploymentTemplateHistory, error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*DeploymentTemplateHistory, error)
+	GetDeployedOnByDeploymentTemplateAndPipelineId(id, pipelineId int) (time.Time, error)
 }
 
 type DeploymentTemplateHistoryRepositoryImpl struct {
@@ -56,6 +56,7 @@ type DeploymentTemplateHistory struct {
 	Deployed                bool      `sql:"deployed"`
 	DeployedOn              time.Time `sql:"deployed_on"`
 	DeployedBy              int32     `sql:"deployed_by"`
+	MergeStrategy           string    `sql:"merge_strategy"`
 	sql.AuditLog
 	//getting below data from cd_workflow_runner and users join
 	DeploymentStatus  string `sql:"-"`
@@ -90,18 +91,6 @@ func (impl DeploymentTemplateHistoryRepositoryImpl) GetHistoryForDeployedTemplat
 		return &history, err
 	}
 	return &history, nil
-}
-
-func (impl DeploymentTemplateHistoryRepositoryImpl) GetDeploymentDetailsForDeployedTemplateHistory(pipelineId, offset, limit int) ([]*DeploymentTemplateHistory, error) {
-	var histories []*DeploymentTemplateHistory
-	err := impl.dbConnection.Model(&histories).Where("pipeline_id = ?", pipelineId).
-		Where("deployed = ?", true).
-		Offset(offset).Limit(limit).Select()
-	if err != nil {
-		impl.logger.Errorw("error in getting deployment template history", "err", err)
-		return histories, err
-	}
-	return histories, nil
 }
 
 func (impl DeploymentTemplateHistoryRepositoryImpl) GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int) (*DeploymentTemplateHistory, error) {
@@ -142,4 +131,16 @@ func (impl DeploymentTemplateHistoryRepositoryImpl) GetDeployedHistoryForPipelin
 		Where("deployment_template_history.deployed = ?", true).
 		Select()
 	return &history, err
+}
+
+func (impl DeploymentTemplateHistoryRepositoryImpl) GetDeployedOnByDeploymentTemplateAndPipelineId(id, pipelineId int) (time.Time, error) {
+	var deployedOn time.Time
+	err := impl.dbConnection.Model((*DeploymentTemplateHistory)(nil)).Column("deployed_on").Where("id = ?", id).
+		Where("pipeline_id = ?", pipelineId).
+		Where("deployed = ?", true).Select(&deployedOn)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployed on by deploymentTemplateHistoryId and pipelineId", "err", err)
+		return time.Time{}, err
+	}
+	return deployedOn, nil
 }

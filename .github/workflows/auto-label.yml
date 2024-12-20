@@ -1,0 +1,67 @@
+name: Devtron-auto-labeller
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  manage-labels:
+    if: ${{ !github.event.issue.pull_request }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Parse and manage labels
+        env:
+          GH_TOKEN: ${{ secrets.ORG_MEMBERSHIP_SECRET }}
+        run: |
+          set -e
+          set -x  # Enable debugging
+
+          # Extract comment body, issue number, and author
+          COMMENT_BODY=$(jq -r '.comment.body' "$GITHUB_EVENT_PATH")
+          ISSUE_NUMBER=$(jq -r '.issue.number // .pull_request.number' "$GITHUB_EVENT_PATH")
+          COMMENT_AUTHOR=$(jq -r '.comment.user.login' "$GITHUB_EVENT_PATH")
+
+          ORG_NAME="satyam-tests"
+
+          # Check if the person is authorized to add labels
+          curl -s -H "Authorization: token $GH_TOKEN" "https://api.github.com/orgs/$ORG_NAME/members/$COMMENT_AUTHOR" > /dev/null
+          if [[ $? -ne 0 ]]; then
+            gh issue comment "$ISSUE_NUMBER" --body "Hi @$COMMENT_AUTHOR, you must be a member of the organization '$ORG_NAME' to add or remove labels."
+            echo "User '$COMMENT_AUTHOR' is not a member of the organization '$ORG_NAME'. Exiting."
+            exit 1
+          fi
+
+          echo "User '$COMMENT_AUTHOR' is a verified member of the organization '$ORG_NAME'. Proceeding with label management."
+
+          # Get the existing labels on the issue
+          EXISTING_LABELS=$(gh issue view "$ISSUE_NUMBER" --json labels -q '.labels[].name')
+
+          # Add Label Logic
+          if [[ "$COMMENT_BODY" =~ ^/([^ ]+)$ ]]; then
+            LABEL_NAME="${COMMENT_BODY:1}"
+
+            # Check if the label exists in the repository
+            if gh label list --json name -q '.[].name' | grep -q "^$LABEL_NAME$"; then
+              gh issue edit "$ISSUE_NUMBER" --add-label "$LABEL_NAME"
+              echo "Successfully added label '$LABEL_NAME' to issue #$ISSUE_NUMBER."
+            else
+              echo "The label '$LABEL_NAME' doesn't exist in the repository. You may need to create a label first."
+            fi
+          fi
+
+          # Remove Label Logic
+          if [[ "$COMMENT_BODY" =~ ^/remove[[:space:]](.+)$ ]]; then
+            LABEL_NAME_TO_REMOVE=$(echo "$COMMENT_BODY" | sed -n 's|/remove ||p')
+
+            # Remove the specified label
+            if echo "$EXISTING_LABELS" | grep -q "^$LABEL_NAME_TO_REMOVE$"; then
+              gh issue edit "$ISSUE_NUMBER" --remove-label "$LABEL_NAME_TO_REMOVE"
+              echo "Successfully removed label '$LABEL_NAME_TO_REMOVE' from issue #$ISSUE_NUMBER."
+            else
+              echo "The label '$LABEL_NAME_TO_REMOVE' is not attached to issue #$ISSUE_NUMBER."
+            fi
+          fi

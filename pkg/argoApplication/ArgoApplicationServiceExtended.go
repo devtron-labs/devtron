@@ -13,7 +13,7 @@ import (
 	application3 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
-	"github.com/devtron-labs/devtron/pkg/argoApplication/read"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/read/config"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/util"
@@ -35,17 +35,17 @@ func NewArgoApplicationServiceExtendedServiceImpl(logger *zap.SugaredLogger,
 	argoUserService argo.ArgoUserService, helmAppClient gRPC.HelmAppClient,
 	helmAppService service.HelmAppService,
 	k8sApplicationService application.K8sApplicationService,
-	readService read.ArgoApplicationReadService, acdClient application3.ServiceClient) *ArgoApplicationServiceExtendedImpl {
+	argoApplicationConfigService config.ArgoApplicationConfigService, acdClient application3.ServiceClient) *ArgoApplicationServiceExtendedImpl {
 	return &ArgoApplicationServiceExtendedImpl{
 		ArgoApplicationServiceImpl: &ArgoApplicationServiceImpl{
-			logger:                logger,
-			clusterRepository:     clusterRepository,
-			k8sUtil:               k8sUtil,
-			argoUserService:       argoUserService,
-			helmAppService:        helmAppService,
-			helmAppClient:         helmAppClient,
-			k8sApplicationService: k8sApplicationService,
-			readService:           readService,
+			logger:                       logger,
+			clusterRepository:            clusterRepository,
+			k8sUtil:                      k8sUtil,
+			argoUserService:              argoUserService,
+			helmAppService:               helmAppService,
+			helmAppClient:                helmAppClient,
+			k8sApplicationService:        k8sApplicationService,
+			argoApplicationConfigService: argoApplicationConfigService,
 		},
 		acdClient: acdClient,
 	}

@@ -19,24 +19,29 @@ package rbac
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/app/dbMigration"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	bean2 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
+	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"golang.org/x/exp/maps"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"strings"
 
 	"github.com/devtron-labs/common-lib/utils/k8s"
-	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
-	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
-	"github.com/devtron-labs/devtron/util"
-
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
 type EnforcerUtil interface {
+	GetAppAndEnvRBACNamesByAppAndEnvIds(IdToAppEnvPairs map[int][2]int) (map[int]string, map[int]string, map[int]*app.App, map[int]*repository2.Environment, error)
+	IsAuthorizedForAppInAppResults(appId int, rbacResults map[string]bool, appIdtoApp map[int]*app.App) bool
+	IsAuthorizedForEnvInEnvResults(appId int, envId int, appResults map[string]bool, appIdtoApp map[int]*app.App, envIdToEnv map[int]*repository2.Environment) bool
 	GetAppRBACName(appName string) string
 	GetRbacObjectsForAllApps(appType helper.AppType) map[int]string
 	GetRbacObjectsForAllAppsWithTeamID(teamID int, appType helper.AppType) map[int]string
@@ -79,13 +84,15 @@ type EnforcerUtil interface {
 	GetRbacObjectsByEnvIdsAndAppIdBatch(appIdToEnvIds map[int][]int) map[int]map[int]string
 	GetEnvRBACNameByAppAndEnvName(appName, envName string) string
 	GetAppRBACNameByAppName(appName string) string
+	GetRbacResourceAndObjectForNode(clusterName string, nodeName string) (string, string)
+	GetRbacResourceAndObjectForNodeByClusterId(clusterId int, nodeName string) (string, string)
 }
 
 type EnforcerUtilImpl struct {
 	logger                *zap.SugaredLogger
 	teamRepository        team.TeamRepository
 	appRepo               app.AppRepository
-	environmentRepository repository.EnvironmentRepository
+	environmentRepository repository2.EnvironmentRepository
 	pipelineRepository    pipelineConfig.PipelineRepository
 	ciPipelineRepository  pipelineConfig.CiPipelineRepository
 	clusterRepository     repository.ClusterRepository
@@ -94,7 +101,7 @@ type EnforcerUtilImpl struct {
 }
 
 func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepository,
-	appRepo app.AppRepository, environmentRepository repository.EnvironmentRepository,
+	appRepo app.AppRepository, environmentRepository repository2.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	clusterRepository repository.ClusterRepository, enforcer casbin.Enforcer,
 	dbMigration dbMigration.DbMigration) *EnforcerUtilImpl {
@@ -111,6 +118,87 @@ func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepo
 	}
 }
 
+func (impl EnforcerUtilImpl) IsAuthorizedForAppInAppResults(appId int, rbacResults map[string]bool, appIdtoApp map[int]*app.App) bool {
+	app, appExists := appIdtoApp[appId]
+	if !appExists {
+		return false
+	}
+
+	appObject := fmt.Sprintf("%s/%s", app.Team.Name, app.AppName)
+	if authorized, exists := rbacResults[appObject]; exists && authorized {
+		return true
+	}
+	return false
+}
+
+func (impl EnforcerUtilImpl) IsAuthorizedForEnvInEnvResults(appId int, envId int, rbacResults map[string]bool, appIdtoApp map[int]*app.App, envIdToEnv map[int]*repository2.Environment) bool {
+	app, appExists := appIdtoApp[appId]
+	if !appExists {
+		return false
+	}
+	env, envExists := envIdToEnv[envId]
+	if !envExists {
+		return false
+	}
+
+	envObject := fmt.Sprintf("%s/%s", env.EnvironmentIdentifier, app.AppName)
+	if authorized, exists := rbacResults[envObject]; exists && authorized {
+		return true
+	}
+	return false
+}
+
+func (impl EnforcerUtilImpl) GetAppAndEnvRBACNamesByAppAndEnvIds(appEnvPairs map[int][2]int) (map[int]string, map[int]string, map[int]*app.App, map[int]*repository2.Environment, error) {
+	appObjects := make(map[int]string)
+	envObjects := make(map[int]string)
+
+	appIds := make([]*int, 0, len(appEnvPairs))
+	envIds := make([]*int, 0, len(appEnvPairs))
+	for _, pair := range appEnvPairs {
+		appId := pair[0]
+		envId := pair[1]
+		appIds = append(appIds, &appId)
+		envIds = append(envIds, &envId)
+	}
+	appIdToAppMap := make(map[int]*app.App)
+	envIdToEnvMap := make(map[int]*repository2.Environment)
+	applications, err := impl.appRepo.FindAppAndProjectByAppIds(appIds)
+
+	if err != nil {
+		return nil, nil, appIdToAppMap, envIdToEnvMap, err
+	}
+
+	for _, app := range applications {
+		appIdToAppMap[app.Id] = app
+	}
+
+	environments, err := impl.environmentRepository.FindByIds(envIds)
+	if err != nil {
+		return nil, nil, appIdToAppMap, envIdToEnvMap, err
+	}
+
+	for _, env := range environments {
+		envIdToEnvMap[env.Id] = env
+	}
+
+	for id, pair := range appEnvPairs {
+		appId := pair[0]
+		envId := pair[1]
+		// check if app and env exists
+		// handling for deleted app and env
+		if _, ok := appIdToAppMap[appId]; !ok {
+			continue
+		}
+		if _, ok := envIdToEnvMap[envId]; !ok {
+			continue
+		}
+		appObjects[id] = fmt.Sprintf("%s/%s", appIdToAppMap[appId].Team.Name, appIdToAppMap[appId].AppName)
+		envObjects[id] = fmt.Sprintf("%s/%s", envIdToEnvMap[envId].EnvironmentIdentifier, appIdToAppMap[appId].AppName)
+	}
+
+	return appObjects, envObjects, appIdToAppMap, envIdToEnvMap, nil
+}
+
 func (impl EnforcerUtilImpl) GetRbacObjectsByEnvIdsAndAppId(envIds []int, appId int) (map[int]string, map[string]string) {
 
 	objects := make(map[int]string)
@@ -122,7 +210,7 @@ func (impl EnforcerUtilImpl) GetRbacObjectsByEnvIdsAndAppId(envIds []int, appId 
 	}
 
 	var appName = application.AppName
-	envs, err := impl.environmentRepository.FindByIds(util.GetReferencedArray(envIds))
+	envs, err := impl.environmentRepository.FindByIds(sliceUtil.GetReferencedSlice(envIds))
 	if err != nil {
 		impl.logger.Errorw("error occurred in fetching environments", "envIds", envIds)
 		return objects, envObjectToName
@@ -731,7 +819,7 @@ func (impl EnforcerUtilImpl) CheckAppRbacForAppOrJobInBulk(token, action string,
 func (impl EnforcerUtilImpl) GetRbacObjectsByEnvIdsAndAppIdBatch(appIdToEnvIds map[int][]int) map[int]map[int]string {
 	objects := make(map[int]map[int]string)
 
-	applications, err := impl.appRepo.FindByIds(util.GetReferencedArray(maps.Keys(appIdToEnvIds)))
+	applications, err := impl.appRepo.FindByIds(sliceUtil.GetReferencedSlice(maps.Keys(appIdToEnvIds)))
 	if err != nil {
 		impl.logger.Errorw("error occurred in fetching apps")
 		return objects
@@ -747,12 +835,12 @@ func (impl EnforcerUtilImpl) GetRbacObjectsByEnvIdsAndAppIdBatch(appIdToEnvIds m
 			envIds = append(envIds, envId)
 		}
 	}
-	environments, err := impl.environmentRepository.FindByIds(util.GetReferencedArray(envIds))
+	environments, err := impl.environmentRepository.FindByIds(sliceUtil.GetReferencedSlice(envIds))
 	if err != nil {
 		impl.logger.Errorw("error occurred in fetching environments", "envIds", envIds)
 		return objects
 	}
-	envIdIdToEnv := make(map[int]*repository.Environment)
+	envIdIdToEnv := make(map[int]*repository2.Environment)
 	for _, env := range environments {
 		envIdIdToEnv[env.Id] = env
 	}
@@ -766,7 +854,7 @@ func (impl EnforcerUtilImpl) GetRbacObjectsByEnvIdsAndAppIdBatch(appIdToEnvIds m
 		var appName = application.AppName
 		for _, envId := range envIds {
 
-			var env *repository.Environment
+			var env *repository2.Environment
 			var ok bool
 			if env, ok = envIdIdToEnv[envId]; !ok {
 				continue
@@ -792,4 +880,29 @@ func (impl EnforcerUtilImpl) GetEnvRBACNameByAppAndEnvName(appName, envName stri
 		return fmt.Sprintf("%s/%s", "", appName)
 	}
 	return fmt.Sprintf("%s/%s", env.EnvironmentIdentifier, appName)
+}
+
+func (impl EnforcerUtilImpl) GetRbacResourceAndObjectForNode(clusterName string, nodeName string) (string, string) {
+	// currently if user has access to all nodes for all namespaces in a cluster, then he will have access to nodes in all namespaces in that cluster
+	if nodeName == "" {
+		nodeName = bean2.ALL
+	}
+	resource, object := impl.GetRBACNameForClusterEntity(clusterName, k8s.ResourceIdentifier{
+		Name:      nodeName,  // signifying all resources if nodeName is empty
+		Namespace: bean2.ALL, // signifying all namespaces
+		GroupVersionKind: schema.GroupVersionKind{
+			Group: casbin.ClusterEmptyGroupPlaceholder,
+			Kind:  bean2.Node,
+		},
+	})
+	return resource, object
+}
+
+func (impl EnforcerUtilImpl) GetRbacResourceAndObjectForNodeByClusterId(clusterId int, nodeName string) (string, string) {
+	cluster, err := impl.clusterRepository.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error encountered in CheckAuthorisationForNodeWithClusterId", "clusterId", clusterId, "err", err)
+		return "", ""
+	}
+	return impl.GetRbacResourceAndObjectForNode(cluster.ClusterName, nodeName)
 }

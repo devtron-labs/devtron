@@ -44,7 +44,7 @@ type BulkUpdateRepository interface {
 	FindAppByChartEnvId(chartEnvId int) (*app.App, error)
 	FindBulkChartsByAppNameSubstring(appNameIncludes []string, appNameExcludes []string) ([]*chartRepoRepository.Chart, error)
 	FindBulkChartsEnvByAppNameSubstring(appNameIncludes []string, appNameExcludes []string, envId int) ([]*chartConfig.EnvConfigOverride, error)
-	BulkUpdateChartsValuesYamlAndGlobalOverrideById(id int, patch string) error
+	BulkUpdateChartsValuesYamlAndGlobalOverrideById(id int, patchValuesYml string, patchGlobalOverrideYml string) error
 	BulkUpdateChartsEnvYamlOverrideById(id int, patch string) error
 
 	//For ConfigMap & Secret :
@@ -85,10 +85,11 @@ func appendBuildCMNameQuery(q *orm.Query, configMapNames []string) *orm.Query {
 		return q
 	}
 	//replacing configMapName with "%configMapName%"
+	configMapNamesLikeClause := make([]string, len(configMapNames))
 	for i := range configMapNames {
-		configMapNames[i] = util.GetLIKEClauseQueryParam(configMapNames[i])
+		configMapNamesLikeClause[i] = util.GetLIKEClauseQueryParam(configMapNames[i])
 	}
-	return q.Where("config_map_data LIKE ANY (array[?])", pg.In(configMapNames))
+	return q.Where("config_map_data LIKE ANY (array[?])", pg.In(configMapNamesLikeClause))
 }
 
 func appendBuildSecretNameQuery(q *orm.Query, secretNames []string) *orm.Query {
@@ -96,10 +97,11 @@ func appendBuildSecretNameQuery(q *orm.Query, secretNames []string) *orm.Query {
 		return q
 	}
 	//replacing secretName with "%secretName%"
+	secretNamesLikeClause := make([]string, len(secretNames))
 	for i := range secretNames {
-		secretNames[i] = util.GetLIKEClauseQueryParam(secretNames[i])
+		secretNamesLikeClause[i] = util.GetLIKEClauseQueryParam(secretNames[i])
 	}
-	return q.Where("secret_data LIKE ANY (array[?])", pg.In(secretNames))
+	return q.Where("secret_data LIKE ANY (array[?])", pg.In(secretNamesLikeClause))
 }
 
 func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkUpdateReadme(resource string) (*BulkUpdateReadme, error) {
@@ -220,12 +222,12 @@ func (repositoryImpl BulkUpdateRepositoryImpl) FindBulkChartsEnvByAppNameSubstri
 	err := q.Select()
 	return charts, err
 }
-func (repositoryImpl BulkUpdateRepositoryImpl) BulkUpdateChartsValuesYamlAndGlobalOverrideById(id int, patch string) error {
+func (repositoryImpl BulkUpdateRepositoryImpl) BulkUpdateChartsValuesYamlAndGlobalOverrideById(id int, patchValuesYml string, patchGlobalOverrideYml string) error {
 	chart := &chartRepoRepository.Chart{}
 	_, err := repositoryImpl.dbConnection.
 		Model(chart).
-		Set("values_yaml = ?", patch).
-		Set("global_override = ?", patch).
+		Set("values_yaml = ?", patchValuesYml).
+		Set("global_override = ?", patchGlobalOverrideYml).
 		Where("id = ?", id).
 		Update()
 	if err != nil {

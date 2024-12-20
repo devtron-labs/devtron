@@ -19,9 +19,9 @@ package deploymentTemplate
 import (
 	"context"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
 	"go.opentelemetry.io/otel"
@@ -34,7 +34,7 @@ import (
 )
 
 type DeploymentTemplateService interface {
-	BuildChartAndGetPath(appName string, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) (string, error)
+	BuildChartAndGetPath(appName string, envOverride *bean.EnvConfigOverride, ctx context.Context) (string, error)
 }
 
 type DeploymentTemplateServiceImpl struct {
@@ -57,7 +57,7 @@ func NewDeploymentTemplateServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *DeploymentTemplateServiceImpl) BuildChartAndGetPath(appName string, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) (string, error) {
+func (impl *DeploymentTemplateServiceImpl) BuildChartAndGetPath(appName string, envOverride *bean.EnvConfigOverride, ctx context.Context) (string, error) {
 	if !strings.HasSuffix(envOverride.Chart.ChartLocation, fmt.Sprintf("%s%s", "/", envOverride.Chart.ChartVersion)) {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "autoHealChartLocationInChart")
 		err := impl.autoHealChartLocationInChart(ctx, envOverride)
@@ -98,7 +98,7 @@ func (impl *DeploymentTemplateServiceImpl) BuildChartAndGetPath(appName string, 
 	return tempReferenceTemplateDir, nil
 }
 
-func (impl *DeploymentTemplateServiceImpl) autoHealChartLocationInChart(ctx context.Context, envOverride *chartConfig.EnvConfigOverride) error {
+func (impl *DeploymentTemplateServiceImpl) autoHealChartLocationInChart(ctx context.Context, envOverride *bean.EnvConfigOverride) error {
 	chartId := envOverride.Chart.Id
 	impl.logger.Infow("auto-healing: Chart location in chart not correct. modifying ", "chartId", chartId,
 		"current chartLocation", envOverride.Chart.ChartLocation, "current chartVersion", envOverride.Chart.ChartVersion)

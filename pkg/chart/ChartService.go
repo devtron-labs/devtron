@@ -27,15 +27,17 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	chartRefBean "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/history"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	variablesRepository "github.com/devtron-labs/devtron/pkg/variables/repository"
@@ -81,13 +83,14 @@ type ChartServiceImpl struct {
 	mergeUtil                        util.MergeUtil
 	envOverrideRepository            chartConfig.EnvConfigOverrideRepository
 	pipelineConfigRepository         chartConfig.PipelineConfigRepository
-	environmentRepository            repository4.EnvironmentRepository
-	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
+	environmentRepository            repository.EnvironmentRepository
+	deploymentTemplateHistoryService deploymentTemplate.DeploymentTemplateHistoryService
 	scopedVariableManager            variables.ScopedVariableManager
 	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
 	chartRefService                  chartRef.ChartRefService
 	gitOpsConfigReadService          config.GitOpsConfigReadService
 	deploymentConfigService          common.DeploymentConfigService
+	envConfigOverrideReadService     read.EnvConfigOverrideService
 }
 
 func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
@@ -98,13 +101,14 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	mergeUtil util.MergeUtil,
 	envOverrideRepository chartConfig.EnvConfigOverrideRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
-	environmentRepository repository4.EnvironmentRepository,
-	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
+	environmentRepository repository.EnvironmentRepository,
+	deploymentTemplateHistoryService deploymentTemplate.DeploymentTemplateHistoryService,
 	scopedVariableManager variables.ScopedVariableManager,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	chartRefService chartRef.ChartRefService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	deploymentConfigService common.DeploymentConfigService) *ChartServiceImpl {
+	deploymentConfigService common.DeploymentConfigService,
+	envConfigOverrideReadService read.EnvConfigOverrideService) *ChartServiceImpl {
 	return &ChartServiceImpl{
 		chartRepository:                  chartRepository,
 		logger:                           logger,
@@ -121,6 +125,7 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 		chartRefService:                  chartRefService,
 		gitOpsConfigReadService:          gitOpsConfigReadService,
 		deploymentConfigService:          deploymentConfigService,
+		envConfigOverrideReadService:     envConfigOverrideReadService,
 	}
 }
 
@@ -777,7 +782,7 @@ type IsReady struct {
 
 func (impl *ChartServiceImpl) IsReadyToTrigger(appId int, envId int, pipelineId int) (IsReady, error) {
 	isReady := IsReady{Flag: false}
-	envOverride, err := impl.envOverrideRepository.ActiveEnvConfigOverride(appId, envId)
+	envOverride, err := impl.envConfigOverrideReadService.ActiveEnvConfigOverride(appId, envId)
 	if err != nil {
 		impl.logger.Errorf("invalid state", "err", err, "envId", envId)
 		isReady.Message = "Something went wrong"
@@ -844,7 +849,7 @@ func (impl *ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId i
 	}
 
 	if envId > 0 {
-		envOverride, err := impl.envOverrideRepository.FindLatestChartForAppByAppIdAndEnvId(appId, envId)
+		envOverride, err := impl.envConfigOverrideReadService.FindLatestChartForAppByAppIdAndEnvId(appId, envId)
 		if err != nil && !errors.IsNotFound(err) {
 			impl.logger.Errorw("error in fetching latest chart", "err", err)
 			return chartRefResponse, err
@@ -913,7 +918,7 @@ func (impl *ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOve
 	//STEP 2 - env upgrade
 	impl.logger.Debugw("creating env and pipeline config for app", "appId", appId)
 	//step 1
-	envOverrides, err := impl.envOverrideRepository.GetEnvConfigByChartId(currentChart.Id)
+	envOverrides, err := impl.envConfigOverrideReadService.GetEnvConfigByChartId(currentChart.Id)
 	if err != nil && envOverrides == nil {
 		return false, err
 	}
@@ -949,12 +954,14 @@ func (impl *ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOve
 			impl.logger.Errorw("error, GetMetricsFlagForAPipelineByAppIdAndEnvId", "err", err, "appId", appId, "envId", envOverrideNew.TargetEnvironment)
 			return false, err
 		}
-		err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverrideNew, nil, isAppMetricsEnabled, 0)
+		envOverrideNewDTO := adapter.EnvOverrideDBToDTO(envOverrideNew)
+		err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverrideNewDTO, nil, isAppMetricsEnabled, 0)
 		if err != nil {
-			impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverrideNew)
+			impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverrideNewDTO)
 			return false, err
 		}
 		//VARIABLE_MAPPING_UPDATE
+		//TODO ayush, check if this is needed
 		err = impl.scopedVariableManager.ExtractAndMapVariables(envOverrideNew.EnvOverrideValues, envOverrideNew.Id, variablesRepository.EntityTypeDeploymentTemplateEnvLevel, envOverrideNew.CreatedBy, nil)
 		if err != nil {
 			return false, err

@@ -37,7 +37,7 @@ type ApiError struct {
 	UserDetailMessage string      `json:"userDetailMessage,omitempty"`
 }
 
-func GetApiError(code int, userMessage, internalMessage string) *ApiError {
+func NewApiError(code int, userMessage, internalMessage string) *ApiError {
 	return &ApiError{
 		HttpStatusCode:  code,
 		Code:            strconv.Itoa(code),
@@ -45,7 +45,7 @@ func GetApiError(code int, userMessage, internalMessage string) *ApiError {
 		UserMessage:     userMessage,
 	}
 }
-func NewApiError() *ApiError {
+func DefaultApiError() *ApiError {
 	return &ApiError{}
 }
 
@@ -82,7 +82,7 @@ func (e *ApiError) ErrorfInternal(format string, a ...interface{}) error {
 }
 
 // default user message will be set
-func (e ApiError) ErrorfUser(format string, a ...interface{}) error {
+func (e *ApiError) ErrorfUser(format string, a ...interface{}) error {
 	return &ApiError{InternalMessage: fmt.Sprintf(format, a...)}
 }
 

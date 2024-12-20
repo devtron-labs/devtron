@@ -42,7 +42,7 @@ import (
 	deployment2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	bean2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
-	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -81,7 +81,7 @@ type AppStoreDeploymentServiceImpl struct {
 	appRepository                        app.AppRepository
 	eaModeDeploymentService              deployment2.EAModeDeploymentService
 	fullModeDeploymentService            deployment.FullModeDeploymentService
-	environmentService                   cluster.EnvironmentService
+	environmentService                   environment.EnvironmentService
 	helmAppService                       service.HelmAppService
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
 	deploymentTypeConfig                 *util2.DeploymentServiceTypeConfig
@@ -101,7 +101,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger,
 	appRepository app.AppRepository,
 	eaModeDeploymentService deployment2.EAModeDeploymentService,
 	fullModeDeploymentService deployment.FullModeDeploymentService,
-	environmentService cluster.EnvironmentService,
+	environmentService environment.EnvironmentService,
 	helmAppService service.HelmAppService,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
 	envVariables *util2.EnvironmentVariables,
@@ -709,7 +709,7 @@ func (impl *AppStoreDeploymentServiceImpl) updateInstalledApp(ctx context.Contex
 		}
 		// required if gitOps repo name is changed, gitOps repo name will change if env variable which we use as suffix changes
 		monoRepoMigrationRequired = impl.checkIfMonoRepoMigrationRequired(installedApp, deploymentConfig)
-		argocdAppName := installedApp.App.AppName + "-" + installedApp.Environment.Name
+		argocdAppName := util2.BuildDeployedAppName(installedApp.App.AppName, installedApp.Environment.Name)
 		upgradeAppRequest.ACDAppName = argocdAppName
 
 		var gitOpsErr error
@@ -782,6 +782,10 @@ func (impl *AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Contex
 	// Rollback tx on error.
 	defer tx.Rollback()
 	upgradeAppRequest, err = impl.updateInstalledApp(ctx, upgradeAppRequest, tx)
+	if err != nil {
+		impl.logger.Errorw("error while performing updateInstalledApp", "upgradeRequest", upgradeAppRequest, "err", err)
+		return nil, err
+	}
 
 	//STEP 8: finish with return response
 	err = tx.Commit()
@@ -873,7 +877,7 @@ func (impl *AppStoreDeploymentServiceImpl) MarkGitOpsInstalledAppsDeletedIfArgoA
 		return nil
 	}
 	// Operates for ArgoCd apps only
-	acdAppName := fmt.Sprintf("%s-%s", installedApp.App.AppName, installedApp.Environment.Name)
+	acdAppName := util2.BuildDeployedAppName(installedApp.App.AppName, installedApp.Environment.Name)
 	isFound, err := impl.fullModeDeploymentService.CheckIfArgoAppExists(acdAppName)
 	if err != nil {
 		impl.logger.Errorw("error in CheckIfArgoAppExists", "err", err)

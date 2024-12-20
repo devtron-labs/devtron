@@ -43,9 +43,6 @@ func (impl *GlobalPluginRouterImpl) initGlobalPluginRouter(globalPluginRouter *m
 		HandlerFunc(impl.globalPluginRestHandler.MigratePluginData).Methods("PUT")
 	globalPluginRouter.Path("/create").
 		HandlerFunc(impl.globalPluginRestHandler.CreatePlugin).Methods("POST")
-	// versioning impact handling to be done for below apis,
-	globalPluginRouter.Path("").
-		HandlerFunc(impl.globalPluginRestHandler.PatchPlugin).Methods("POST")
 	globalPluginRouter.Path("/detail/all").
 		HandlerFunc(impl.globalPluginRestHandler.GetAllDetailedPluginInfo).Methods("GET")
 	globalPluginRouter.Path("/detail/{pluginId}").
@@ -64,8 +61,11 @@ func (impl *GlobalPluginRouterImpl) initGlobalPluginRouter(globalPluginRouter *m
 	globalPluginRouter.Path("/list/v2").
 		HandlerFunc(impl.globalPluginRestHandler.ListAllPluginsV2).Methods("GET")
 
+	// /list/detail/v2 - get plugin details; method: GET / POST
 	globalPluginRouter.Path("/list/detail/v2").
-		HandlerFunc(impl.globalPluginRestHandler.GetPluginDetailByIds).Methods("GET")
+		HandlerFunc(impl.globalPluginRestHandler.GetPluginDetailByIds).Methods("GET") // Deprecated; use POST method
+	globalPluginRouter.Path("/list/detail/v2").
+		HandlerFunc(impl.globalPluginRestHandler.GetPluginDetailByIds).Methods("POST")
 
 	globalPluginRouter.Path("/list/tags").
 		HandlerFunc(impl.globalPluginRestHandler.GetAllUniqueTags).Methods("GET")

@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/registry"
 	apiBean "github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
+	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -48,6 +49,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
 	cdWorkflowBean "github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
+	"github.com/devtron-labs/devtron/pkg/workflow/cd/read"
 	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	wrokflowDagBean "github.com/devtron-labs/devtron/pkg/workflow/dag/bean"
 	globalUtil "github.com/devtron-labs/devtron/util"
@@ -69,7 +71,9 @@ type WorkflowEventProcessorImpl struct {
 	logger                       *zap.SugaredLogger
 	pubSubClient                 *pubsub.PubSubClientServiceImpl
 	cdWorkflowService            cd.CdWorkflowService
+	cdWorkflowReadService        read.CdWorkflowReadService
 	cdWorkflowRunnerService      cd.CdWorkflowRunnerService
+	cdWorkflowRunnerReadService  read.CdWorkflowRunnerReadService
 	workflowDagExecutor          dag.WorkflowDagExecutor
 	argoUserService              argo.ArgoUserService
 	ciHandler                    pipeline.CiHandler
@@ -99,7 +103,9 @@ type WorkflowEventProcessorImpl struct {
 func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	pubSubClient *pubsub.PubSubClientServiceImpl,
 	cdWorkflowService cd.CdWorkflowService,
+	cdWorkflowReadService read.CdWorkflowReadService,
 	cdWorkflowRunnerService cd.CdWorkflowRunnerService,
+	cdWorkflowRunnerReadService read.CdWorkflowRunnerReadService,
 	workflowDagExecutor dag.WorkflowDagExecutor,
 	argoUserService argo.ArgoUserService,
 	ciHandler pipeline.CiHandler, cdHandler pipeline.CdHandler,
@@ -120,7 +126,9 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 		logger:                          logger,
 		pubSubClient:                    pubSubClient,
 		cdWorkflowService:               cdWorkflowService,
+		cdWorkflowReadService:           cdWorkflowReadService,
 		cdWorkflowRunnerService:         cdWorkflowRunnerService,
+		cdWorkflowRunnerReadService:     cdWorkflowRunnerReadService,
 		argoUserService:                 argoUserService,
 		ciHandler:                       ciHandler,
 		cdHandler:                       cdHandler,
@@ -160,7 +168,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDStageCompleteEvent() error {
 			impl.logger.Errorw("error while unmarshalling cdStageCompleteEvent object", "err", err, "msg", msg.Data)
 			return
 		}
-		wfr, err := impl.cdWorkflowRunnerService.FindWorkflowRunnerById(cdStageCompleteEvent.WorkflowRunnerId)
+		wfr, err := impl.cdWorkflowRunnerReadService.FindWorkflowRunnerById(cdStageCompleteEvent.WorkflowRunnerId)
 		if err != nil {
 			impl.logger.Errorw("could not get wf runner", "err", err)
 			return
@@ -243,7 +251,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeTriggerBulkAction() error {
 			PipelineId:   cdWorkflow.PipelineId,
 			UserId:       userBean.SYSTEM_USER_ID,
 		}
-		latest, err := impl.cdWorkflowService.CheckIfLatestWf(cdWorkflow.PipelineId, cdWorkflow.Id)
+		latest, err := impl.cdWorkflowReadService.CheckIfLatestWf(cdWorkflow.PipelineId, cdWorkflow.Id)
 		if err != nil {
 			impl.logger.Errorw("error in determining latest", "wf", cdWorkflow, "err", err)
 			wf.WorkflowStatus = cdWorkflowModelBean.DEQUE_ERROR
@@ -614,9 +622,9 @@ func (impl *WorkflowEventProcessorImpl) BuildCiArtifactRequest(event bean.CiComp
 		var branch string
 		var tag string
 		var webhookData repository.WebhookData
-		if p.SourceType == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
+		if p.SourceType == constants.SOURCE_TYPE_BRANCH_FIXED {
 			branch = p.SourceValue
-		} else if p.SourceType == pipelineConfig.SOURCE_TYPE_WEBHOOK {
+		} else if p.SourceType == constants.SOURCE_TYPE_WEBHOOK {
 			webhookData = repository.WebhookData{
 				Id:              p.WebhookData.Id,
 				EventActionType: p.WebhookData.EventActionType,
@@ -677,6 +685,7 @@ func (impl *WorkflowEventProcessorImpl) BuildCiArtifactRequest(event bean.CiComp
 		IsArtifactUploaded:            event.IsArtifactUploaded,
 		PluginRegistryArtifactDetails: pluginArtifacts,
 		PluginArtifactStage:           event.PluginArtifactStage,
+		IsScanEnabled:                 event.IsScanEnabled,
 	}
 	// if DataSource is empty, repository.WEBHOOK is considered as default
 	if request.DataSource == "" {
@@ -785,6 +794,7 @@ func (impl *WorkflowEventProcessorImpl) extractAsyncCdDeployRequestFromEventMsg(
 		impl.logger.Errorw("error in setting additional data to UserDeploymentRequest", "err", err)
 		return nil, err
 	}
+	impl.logger.Infow("received async cd pipeline deployment request", "appId", cdAsyncInstallReq.ValuesOverrideRequest.AppId, "envId", cdAsyncInstallReq.ValuesOverrideRequest.EnvId)
 	return cdAsyncInstallReq, nil
 }
 
@@ -927,6 +937,7 @@ func (impl *WorkflowEventProcessorImpl) ProcessConcurrentAsyncDeploymentReq(ctx 
 		impl.logger.Errorw("err on fetching cd workflow runner by id", "err", err, "cdWfrId", cdWfrId)
 		return err
 	}
+	impl.logger.Debugw("currently in ProcessConcurrentAsyncDeploymentReq", "pipelineId", pipelineId, "cdWfrId", cdWfrId)
 	acdCtx, err := impl.argoUserService.GetACDContext(newCtx)
 	if err != nil {
 		impl.logger.Errorw("error in creating ArgoCd context", "err", err)
@@ -985,7 +996,7 @@ func (impl *WorkflowEventProcessorImpl) validateConcurrentOrInvalidRequest(ctx c
 			return isValidRequest, err
 		}
 	} else {
-		isLatestRequest, err = impl.cdWorkflowRunnerService.CheckIfWfrLatest(cdWfr.Id, pipelineId)
+		isLatestRequest, err = impl.cdWorkflowRunnerReadService.CheckIfWfrLatest(cdWfr.Id, pipelineId)
 		if err != nil {
 			impl.logger.Errorw("error, CheckIfWfrLatest", "err", err, "cdWfrId", cdWfr.Id)
 			return isValidRequest, err
