@@ -1,3 +1,5 @@
+## v1.1.0
+
 ## Bugs
 - fix: Changes in labels of ref chart 4.20 (#6178)
 - fix: Fix cd-trigger-plugin (#6203)
@@ -47,3 +49,5 @@
 - misc: Kubecon 2024 oss sync (#6094)
 - chore: Depandabot fixes (#6070)
 - misc: Handler error while while helm deployment (#6082)
+
+
