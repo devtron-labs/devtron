@@ -1,4 +1,5 @@
 ## Bugs
+- fix: changes in labels of ref chart 4.20 (#6178)
 - fix:  fix cd-trigger-plugin (#6203)
 - fix: bulk edit fix for global override (#6193)
 - fix: panic handling for get workflow logs (#6168)
