@@ -1,4 +1,5 @@
 ## Bugs
+- fix:  fix cd-trigger-plugin (#6203)
 - fix: bulk edit fix for global override (#6193)
 - fix: panic handling for get workflow logs (#6168)
 - fix: user permissions not merging on same environments (#6167)
