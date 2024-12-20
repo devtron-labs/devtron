@@ -77,7 +77,7 @@ components:
         FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE: "true"
         ENABLE_RESOURCE_SCAN: "true"
     registry: ""
-    image: "dashboard:65a96bbc-690-27870"
+    image: "dashboard:a88790b2-690-27891"
     imagePullPolicy: IfNotPresent
   devtron:
     registry: ""
