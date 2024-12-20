@@ -53,7 +53,7 @@ jobs:
 
         set -x    
         # Skip validation for documentation or chore PRs
-        if [[ "$TITLE" =~ ^(doc:|docs:|chore:|misc:) ]]; then
+        if [[ "$TITLE" =~ ^(doc:|docs:|chore:|misc:|Release:|release:) ]]; then
           echo "Skipping validation for docs/chore PR."
           echo "PR NUMBER-: $PRNUM "
           gh pr edit $PRNUM --remove-label "PR:Issue-verification-failed"
