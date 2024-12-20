@@ -17,6 +17,9 @@ metadata:
     envId: {{ $.Values.env | quote }}
     chart: {{ template ".Chart.Name .chart" $ }}
     release: {{ $.Release.Name }}
+    {{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels | indent 4 }}
+    {{- end }}        
 spec:
   {{- if .Values.podDisruptionBudget.minAvailable }}
   minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}

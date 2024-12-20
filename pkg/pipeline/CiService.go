@@ -243,21 +243,28 @@ func (impl *CiServiceImpl) handleRuntimeParamsValidations(trigger types.Trigger,
 }
 
 func (impl *CiServiceImpl) markCurrentCiWorkflowFailed(savedCiWf *pipelineConfig.CiWorkflow, validationErr error) error {
-	// TODO: mature this method to create ci workflow and mark it failed if required
 	// currently such requirement is not there
 	if savedCiWf == nil {
 		return nil
 	}
-	if slices.Contains(cdWorkflow.WfrTerminalStatusList, savedCiWf.Status) {
+	if savedCiWf.Id != 0 && slices.Contains(cdWorkflow.WfrTerminalStatusList, savedCiWf.Status) {
 		impl.Logger.Debug("workflow is already in terminal state", "status", savedCiWf.Status, "workflowId", savedCiWf.Id, "message", savedCiWf.Message)
 		return nil
 	}
+
 	savedCiWf.Status = cdWorkflow.WorkflowFailed
 	savedCiWf.Message = validationErr.Error()
 	savedCiWf.FinishedOn = time.Now()
-	dbErr := impl.ciWorkflowRepository.SaveWorkFlow(savedCiWf)
+
+	var dbErr error
+	if savedCiWf.Id == 0 {
+		dbErr = impl.ciWorkflowRepository.SaveWorkFlow(savedCiWf)
+	} else {
+		dbErr = impl.ciWorkflowRepository.UpdateWorkFlow(savedCiWf)
+	}
+
 	if dbErr != nil {
-		impl.Logger.Errorw("saving workflow error", "err", dbErr)
+		impl.Logger.Errorw("save/update workflow error", "err", dbErr)
 		return dbErr
 	}
 	return nil

@@ -19,6 +19,9 @@ metadata:
     {{- if .Values.servicemonitor.additionalLabels }}
 {{ toYaml .Values.servicemonitor.additionalLabels | indent 4 }}
     {{- end }}
+    {{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels | indent 4 }}
+    {{- end }}        
 spec:
   endpoints:
     {{- range .Values.ContainerPort }}
