@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/team/repository"
+	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -37,7 +37,7 @@ type App struct {
 	AppType         helper.AppType `sql:"app_type, notnull"`
 	AppOfferingMode string         `sql:"app_offering_mode,notnull"`
 	Description     string         `sql:"description"`
-	Team            repository.Team
+	Team            team.Team
 	sql.AuditLog
 }
 

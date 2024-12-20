@@ -27,8 +27,8 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
-	read3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
-	read2 "github.com/devtron-labs/devtron/pkg/team/read"
+	read2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
+	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -39,17 +39,17 @@ type CommonService interface {
 }
 
 type CommonServiceImpl struct {
-	logger                       *zap.SugaredLogger
-	chartRepository              chartRepoRepository.ChartRepository
-	environmentConfigRepository  chartConfig.EnvConfigOverrideRepository
-	dockerReg                    dockerRegistryRepository.DockerArtifactStoreRepository
-	attributeRepo                repository.AttributesRepository
-	gitProviderReadService       read.GitProviderReadService
-	environmentRepository        repository3.EnvironmentRepository
-	appRepository                app.AppRepository
-	gitOpsConfigReadService      config.GitOpsConfigReadService
-	envConfigOverrideReadService read3.EnvConfigOverrideService
-	teamReadService              read2.TeamReadService
+	logger                      *zap.SugaredLogger
+	chartRepository             chartRepoRepository.ChartRepository
+	environmentConfigRepository chartConfig.EnvConfigOverrideRepository
+	dockerReg                   dockerRegistryRepository.DockerArtifactStoreRepository
+	attributeRepo               repository.AttributesRepository
+	gitProviderReadService      read.GitProviderReadService
+	environmentRepository       repository3.EnvironmentRepository
+	teamRepository              team.TeamRepository
+	appRepository               app.AppRepository
+	gitOpsConfigReadService     config.GitOpsConfigReadService
+	envConfigOverrideReadService read2.EnvConfigOverrideService
 }
 
 func NewCommonServiceImpl(logger *zap.SugaredLogger,
@@ -58,23 +58,23 @@ func NewCommonServiceImpl(logger *zap.SugaredLogger,
 	dockerReg dockerRegistryRepository.DockerArtifactStoreRepository,
 	attributeRepo repository.AttributesRepository,
 	environmentRepository repository3.EnvironmentRepository,
+	teamRepository team.TeamRepository,
 	appRepository app.AppRepository,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitProviderReadService read.GitProviderReadService,
-	envConfigOverrideReadService read3.EnvConfigOverrideService,
-	teamReadService read2.TeamReadService) *CommonServiceImpl {
+	envConfigOverrideReadService read2.EnvConfigOverrideService) *CommonServiceImpl {
 	serviceImpl := &CommonServiceImpl{
-		logger:                       logger,
-		chartRepository:              chartRepository,
-		environmentConfigRepository:  environmentConfigRepository,
-		dockerReg:                    dockerReg,
-		attributeRepo:                attributeRepo,
-		environmentRepository:        environmentRepository,
-		appRepository:                appRepository,
-		gitOpsConfigReadService:      gitOpsConfigReadService,
-		gitProviderReadService:       gitProviderReadService,
+		logger:                      logger,
+		chartRepository:             chartRepository,
+		environmentConfigRepository: environmentConfigRepository,
+		dockerReg:                   dockerReg,
+		attributeRepo:               attributeRepo,
+		environmentRepository:       environmentRepository,
+		teamRepository:              teamRepository,
+		appRepository:               appRepository,
+		gitOpsConfigReadService:     gitOpsConfigReadService,
+		gitProviderReadService:      gitProviderReadService,
 		envConfigOverrideReadService: envConfigOverrideReadService,
-		teamReadService:              teamReadService,
 	}
 	return serviceImpl
 }
@@ -158,7 +158,7 @@ func (impl *CommonServiceImpl) GlobalChecklist() (*GlobalChecklist, error) {
 		return nil, err
 	}
 
-	project, err := impl.teamReadService.FindAllActive()
+	project, err := impl.teamRepository.FindAllActive()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("GlobalChecklist, error while getting error", "err", err)
 		return nil, err

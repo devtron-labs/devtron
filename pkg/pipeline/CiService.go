@@ -526,7 +526,7 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 }
 
 func (impl *CiServiceImpl) executeCiPipeline(workflowRequest *types.WorkflowRequest) error {
-	_, _, err := impl.workflowService.SubmitWorkflow(workflowRequest)
+	_, err := impl.workflowService.SubmitWorkflow(workflowRequest)
 	if err != nil {
 		impl.Logger.Errorw("workflow error", "err", err)
 		return err

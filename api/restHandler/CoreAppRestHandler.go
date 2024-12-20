@@ -30,7 +30,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	pipelineBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
-	read3 "github.com/devtron-labs/devtron/pkg/team/read"
 	"net/http"
 	"strconv"
 	"strings"
@@ -99,10 +98,10 @@ type CoreAppRestHandlerImpl struct {
 	environmentRepository   repository.EnvironmentRepository
 	configMapRepository     chartConfig.ConfigMapRepository
 	chartRepo               chartRepoRepository.ChartRepository
+	teamService             team.TeamService
 	argoUserService         argo.ArgoUserService
 	pipelineStageService    pipeline.PipelineStageService
 	ciPipelineRepository    pipelineConfig.CiPipelineRepository
-	teamReadService         read3.TeamReadService
 }
 
 func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
@@ -113,8 +112,7 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 	chartRepo chartRepoRepository.ChartRepository, teamService team.TeamService,
 	argoUserService argo.ArgoUserService, pipelineStageService pipeline.PipelineStageService, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	gitProviderReadService read.GitProviderReadService,
-	gitMaterialReadService read2.GitMaterialReadService,
-	teamReadService read3.TeamReadService) *CoreAppRestHandlerImpl {
+	gitMaterialReadService read2.GitMaterialReadService) *CoreAppRestHandlerImpl {
 	handler := &CoreAppRestHandlerImpl{
 		logger:                  logger,
 		userAuthService:         userAuthService,
@@ -135,10 +133,10 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 		environmentRepository:   environmentRepository,
 		configMapRepository:     configMapRepository,
 		chartRepo:               chartRepo,
+		teamService:             teamService,
 		argoUserService:         argoUserService,
 		pipelineStageService:    pipelineStageService,
 		ciPipelineRepository:    ciPipelineRepository,
-		teamReadService:         teamReadService,
 	}
 	return handler
 }
@@ -286,7 +284,7 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 	}
 
 	//rbac starts
-	team, err := handler.teamReadService.FindByTeamName(createAppRequest.Metadata.ProjectName)
+	team, err := handler.teamService.FindByTeamName(createAppRequest.Metadata.ProjectName)
 	if err != nil {
 		handler.logger.Errorw("Error in getting team", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -1150,7 +1148,7 @@ func (handler CoreAppRestHandlerImpl) createBlankApp(appMetadata *appBean.AppMet
 		return nil, err, http.StatusBadRequest
 	}
 
-	team, err := handler.teamReadService.FindByTeamName(appMetadata.ProjectName)
+	team, err := handler.teamService.FindByTeamName(appMetadata.ProjectName)
 	if err != nil {
 		handler.logger.Infow("no project found by name in CreateApp request by API")
 		return nil, err, http.StatusBadRequest

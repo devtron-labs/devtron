@@ -19,7 +19,6 @@ package team
 import (
 	"encoding/json"
 	"fmt"
-	bean2 "github.com/devtron-labs/devtron/pkg/team/bean"
 	"net/http"
 	"strconv"
 	"strings"
@@ -94,7 +93,7 @@ func (impl TeamRestHandlerImpl) SaveTeam(w http.ResponseWriter, r *http.Request)
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean bean2.TeamRequest
+	var bean team.TeamRequest
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, SaveTeam", "err", err, "payload", bean)
@@ -133,7 +132,7 @@ func (impl TeamRestHandlerImpl) FetchAll(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	// RBAC enforcer applying
-	var result []bean2.TeamRequest
+	var result []team.TeamRequest
 	for _, item := range res {
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionGet, item.Name); ok {
 			result = append(result, item)
@@ -177,7 +176,7 @@ func (impl TeamRestHandlerImpl) UpdateTeam(w http.ResponseWriter, r *http.Reques
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean bean2.TeamRequest
+	var bean team.TeamRequest
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, UpdateTeam", "err", err, "bean", bean)
@@ -213,7 +212,7 @@ func (impl TeamRestHandlerImpl) DeleteTeam(w http.ResponseWriter, r *http.Reques
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var deleteRequest bean2.TeamRequest
+	var deleteRequest team.TeamRequest
 	err = decoder.Decode(&deleteRequest)
 	if err != nil {
 		impl.logger.Errorw("request err, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
@@ -262,7 +261,7 @@ func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *h
 	var grantedTeams = teams
 	start = time.Now()
 	if !impl.cfg.IgnoreAuthCheck {
-		grantedTeams = make([]bean2.TeamRequest, 0)
+		grantedTeams = make([]team.TeamRequest, 0)
 		// RBAC enforcer applying
 		var teamNameList []string
 		for _, item := range teams {

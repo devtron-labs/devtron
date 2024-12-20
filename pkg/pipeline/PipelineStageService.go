@@ -48,7 +48,7 @@ type PipelineStageService interface {
 	GetCiPipelineStageDataDeepCopy(ciPipelineId int) (preCiStage *bean.PipelineStageDto, postCiStage *bean.PipelineStageDto, err error)
 	GetCdPipelineStageDataDeepCopy(cdPipeline *pipelineConfig.Pipeline) (*bean.PipelineStageDto, *bean.PipelineStageDto, error)
 	GetCdPipelineStageDataDeepCopyForPipelineIds(cdPipelineIds []int, pipelineMap map[int]*pipelineConfig.Pipeline) (map[int][]*bean.PipelineStageDto, error)
-	GetCdStageByCdPipelineIdAndStageType(cdPipelineId int, stageType repository.PipelineStageType, enforcePluginPolicyV2 bool) (*repository.PipelineStage, error)
+	GetCdStageByCdPipelineIdAndStageType(cdPipelineId int, stageType repository.PipelineStageType) (*repository.PipelineStage, error)
 	// DeletePipelineStageIfReq function is used to delete corrupted pipelineStage data
 	// , there was a bug(https://github.com/devtron-labs/devtron/issues/3826) where we were not deleting pipeline stage entry even after deleting all the pipelineStageSteps
 	// , this will delete those pipelineStage entry
@@ -113,7 +113,7 @@ func (impl *PipelineStageServiceImpl) GetCiPipelineStageDataDeepCopy(ciPipelineI
 	return preCiStage, postCiStage, nil
 }
 
-func (impl *PipelineStageServiceImpl) GetCdStageByCdPipelineIdAndStageType(cdPipelineId int, stageType repository.PipelineStageType, enforcePluginPolicyV2 bool) (*repository.PipelineStage, error) {
+func (impl *PipelineStageServiceImpl) GetCdStageByCdPipelineIdAndStageType(cdPipelineId int, stageType repository.PipelineStageType) (*repository.PipelineStage, error) {
 	return impl.pipelineStageRepository.GetCdStageByCdPipelineIdAndStageType(cdPipelineId, stageType)
 }
 

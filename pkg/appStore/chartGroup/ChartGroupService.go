@@ -39,8 +39,7 @@ import (
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
-	"github.com/devtron-labs/devtron/pkg/team/read"
-	repository3 "github.com/devtron-labs/devtron/pkg/team/repository"
+	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/util/argo"
 	"io/ioutil"
 	"os"
@@ -70,7 +69,7 @@ type ChartGroupServiceImpl struct {
 	userAuthService                      user.UserAuthService
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	environmentService                   cluster2.EnvironmentService
-	teamRepository                       repository3.TeamRepository
+	teamRepository                       team.TeamRepository
 	clusterInstalledAppsRepository       repository.ClusterInstalledAppsRepository
 	appStoreValuesService                service.AppStoreValuesService
 	appStoreDeploymentService            service2.AppStoreDeploymentService
@@ -82,7 +81,6 @@ type ChartGroupServiceImpl struct {
 	gitOperationService                  git.GitOperationService
 	installAppService                    FullMode.InstalledAppDBExtendedService
 	appStoreAppsEventPublishService      out.AppStoreAppsEventPublishService
-	teamReadService                      read.TeamReadService
 }
 
 func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
@@ -95,7 +93,7 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 	userAuthService user.UserAuthService,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
 	environmentService cluster2.EnvironmentService,
-	teamRepository repository3.TeamRepository,
+	teamRepository team.TeamRepository,
 	clusterInstalledAppsRepository repository.ClusterInstalledAppsRepository,
 	appStoreValuesService service.AppStoreValuesService,
 	appStoreDeploymentService service2.AppStoreDeploymentService,
@@ -106,8 +104,7 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 	fullModeDeploymentService deployment.FullModeDeploymentService,
 	gitOperationService git.GitOperationService,
 	installAppService FullMode.InstalledAppDBExtendedService,
-	appStoreAppsEventPublishService out.AppStoreAppsEventPublishService,
-	teamReadService read.TeamReadService) (*ChartGroupServiceImpl, error) {
+	appStoreAppsEventPublishService out.AppStoreAppsEventPublishService) (*ChartGroupServiceImpl, error) {
 	impl := &ChartGroupServiceImpl{
 		logger:                               logger,
 		chartGroupEntriesRepository:          chartGroupEntriesRepository,
@@ -131,7 +128,6 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 		installAppService:                    installAppService,
 		appStoreAppsEventPublishService:      appStoreAppsEventPublishService,
 		appStoreRepository:                   appStoreRepository,
-		teamReadService:                      teamReadService,
 	}
 	return impl, nil
 }
@@ -725,12 +721,12 @@ func (impl *ChartGroupServiceImpl) DeployDefaultChartOnCluster(bean *bean3.Clust
 
 	// STEP 2 - create project with name "devtron"
 	impl.logger.Info("STEP 2", "create project for cluster components")
-	t, err := impl.teamReadService.FindByTeamName(appStoreBean.DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT)
+	t, err := impl.teamRepository.FindByTeamName(appStoreBean.DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT)
 	if err != nil && err != pg.ErrNoRows {
 		return false, err
 	}
 	if err == pg.ErrNoRows {
-		t := &repository3.Team{
+		t := &team.Team{
 			Name:     appStoreBean.DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT,
 			Active:   true,
 			AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
