@@ -9,6 +9,7 @@
 - fix: Update pr-issue-validator.yaml (#6133)
 - fix: update sql fix buildx (#6096)
 ## Enhancements
+- feat: Support to trigger with same hash in CD trigger plugin  (#6205)
 - feat: patch merge strategy for cm cs and dt (#6115)
 - feat: Adds Github actions to add the label using slash command (#6126)
 - feat: fetch all non deprecated plugins in list (#6135)
