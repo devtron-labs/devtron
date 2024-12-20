@@ -17,7 +17,6 @@
 - feat: Node k8s permissions (#6123)
 - feat: App details refactoring (#6104)
 - feat: K8sdriverOptions suppport in build infra (#6040)
-## Documentation
 ## Others
 - chore: Read service for team (#6201)
 - chore: Oss ent triggerService changes (#6189)
