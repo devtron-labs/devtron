@@ -10,7 +10,7 @@ global:
   containerRegistry: "quay.io/devtron"
 extraManifests: []
 installer:
-  release: "v1.1.0"
+  release: ""
   registry: ""
   image: "inception"
   tag: "473deaa4-185-21582"
@@ -176,7 +176,7 @@ workflowController:
   IMDSv1ExecutorImage: "argoexec:v3.0.7"
 security:
   imageScanner:
-    image: "image-scanner:d5458e1a-141-26846"
+    image: "image-scanner:33965457-141-27892"
   clair:
     image:
       repository: clair
