@@ -16,6 +16,7 @@
 - feat: Node k8s permissions (#6123)
 - feat: App details refactoring (#6104)
 ## Others
+- misc: Main sync develop 20dec (#6210)
 - misc: migration for mandatory tag (#6208)
 - chore: Read service for team (#6201)
 - chore: Oss ent triggerService changes (#6189)
