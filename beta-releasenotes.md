@@ -7,7 +7,6 @@
 - fix: Secret masking fix (#6136)
 - fix: Delete git repo without pipeline config (#6148)
 - fix: All modules installation fix (#6140)
-- fix: Update pr-issue-validator.yaml (#6133)
 - fix: Update sql fix buildx (#6096)
 ## Enhancements
 - feat: Support to trigger with same hash in CD trigger plugin  (#6205)
@@ -16,7 +15,6 @@
 - feat: Fetch all non deprecated plugins in list (#6135)
 - feat: Node k8s permissions (#6123)
 - feat: App details refactoring (#6104)
-- feat: K8sdriverOptions suppport in build infra (#6040)
 ## Others
 - chore: Read service for team (#6201)
 - chore: Oss ent triggerService changes (#6189)
