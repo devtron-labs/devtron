@@ -49,7 +49,7 @@ import (
 // TODO: move isCi/isJob to workflowRequest
 
 type WorkflowService interface {
-	SubmitWorkflow(workflowRequest *types.WorkflowRequest) (*unstructured.UnstructuredList, error)
+	SubmitWorkflow(workflowRequest *types.WorkflowRequest) (*unstructured.UnstructuredList, string, error)
 	// DeleteWorkflow(wfName string, namespace string) error
 	GetWorkflow(executorType cdWorkflow.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*unstructured.UnstructuredList, error)
 	GetWorkflowStatus(executorType cdWorkflow.WorkflowExecutorType, name string, namespace string, restConfig *rest.Config) (*types.WorkflowStatus, error)
@@ -108,17 +108,18 @@ const (
 	postCdStage = "postCD"
 )
 
-func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *types.WorkflowRequest) (*unstructured.UnstructuredList, error) {
+func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *types.WorkflowRequest) (*unstructured.UnstructuredList, string, error) {
 	workflowTemplate, err := impl.createWorkflowTemplate(workflowRequest)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	workflowExecutor := impl.getWorkflowExecutor(workflowRequest.WorkflowExecutor)
 	if workflowExecutor == nil {
-		return nil, errors.New("workflow executor not found")
+		return nil, "", errors.New("workflow executor not found")
 	}
 	createdWf, err := workflowExecutor.ExecuteWorkflow(workflowTemplate)
-	return createdWf, err
+	jobHelmPackagePath := "" // due to ENT
+	return createdWf, jobHelmPackagePath, err
 }
 
 func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.WorkflowRequest) (bean3.WorkflowTemplate, error) {
