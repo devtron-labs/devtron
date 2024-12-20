@@ -24,7 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/notifier/beans"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/team"
-	util3 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -275,7 +275,7 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 
 		var clusterResponse []*beans.ClusterResponse
 		if len(config.ClusterId) > 0 {
-			clusterIds := util3.Transform(config.ClusterId, func(id *int) int {
+			clusterIds := sliceUtil.NewSliceFromFuncExec(config.ClusterId, func(id *int) int {
 				return *id
 			})
 			clusterName, err := impl.clusterService.FindByIds(clusterIds)
@@ -795,7 +795,7 @@ func (impl *NotificationConfigServiceImpl) FindNotificationSettingOptions(settin
 	}
 
 	if len(settingRequest.ClusterId) > 0 {
-		clusterIds := util3.Transform(settingRequest.ClusterId, func(id *int) int {
+		clusterIds := sliceUtil.NewSliceFromFuncExec(settingRequest.ClusterId, func(id *int) int {
 			return *id
 		})
 		clusterName, err := impl.clusterService.FindByIds(clusterIds)

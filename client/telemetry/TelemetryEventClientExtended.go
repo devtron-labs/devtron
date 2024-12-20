@@ -19,31 +19,31 @@ package telemetry
 import (
 	"encoding/json"
 	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
+	util2 "github.com/devtron-labs/common-lib/utils/k8s"
 	client "github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
+	"github.com/devtron-labs/devtron/pkg/auth/sso"
+	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
 	repository3 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	ciConfig "github.com/devtron-labs/devtron/pkg/build/pipeline/read"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
+	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
+	util3 "github.com/devtron-labs/devtron/pkg/util"
 	cron3 "github.com/devtron-labs/devtron/util/cron"
 	"net/http"
 	"time"
 
-	util2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
-	"github.com/devtron-labs/devtron/pkg/auth/sso"
-	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
-	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/robfig/cron/v3"
@@ -82,7 +82,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	gitMaterialReadService read.GitMaterialReadService, ciTemplateRepository pipelineConfig.CiTemplateRepository,
 	chartRepository chartRepoRepository.ChartRepository, userAuditService user2.UserAuditService,
 	ciBuildConfigService pipeline.CiBuildConfigService, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore,
-	helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository, userAttributesRepository repository.UserAttributesRepository,
+	helmAppClient client.HelmAppClient, installedAppReadService installedAppReader.InstalledAppReadService, userAttributesRepository repository.UserAttributesRepository,
 	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, cronLogger *cron3.CronLoggerImpl,
 	gitOpsConfigReadService config.GitOpsConfigReadService) (*TelemetryEventClientImplExtended, error) {
 
@@ -119,7 +119,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 			serverDataStore:                serverDataStore,
 			userAuditService:               userAuditService,
 			helmAppClient:                  helmAppClient,
-			InstalledAppRepository:         InstalledAppRepository,
+			installedAppReadService:        installedAppReadService,
 			userAttributesRepository:       userAttributesRepository,
 			cloudProviderIdentifierService: cloudProviderIdentifierService,
 			telemetryConfig:                TelemetryConfig{},

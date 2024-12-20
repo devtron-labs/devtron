@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
@@ -97,6 +98,20 @@ func NewPipelineRestHandler(appService app.AppService, userAuthService user.User
 	return pipelineHandler
 }
 
+func (handler PipelineTriggerRestHandlerImpl) validateCdTriggerRBAC(token string, appId, cdPipelineId int) error {
+	// RBAC block starts from here
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
+		return util2.NewApiError(http.StatusForbidden, common.UnAuthorisedUser, common.UnAuthorisedUser)
+	}
+	object = handler.enforcerUtil.GetAppRBACByAppIdAndPipelineId(appId, cdPipelineId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, object); !ok {
+		return util2.NewApiError(http.StatusForbidden, common.UnAuthorisedUser, common.UnAuthorisedUser)
+	}
+	// RBAC block ends here
+	return nil
+}
+
 func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
@@ -120,19 +135,10 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 		return
 	}
 	token := r.Header.Get("token")
-
-	//rbac block starts from here
-	object := handler.enforcerUtil.GetAppRBACNameByAppId(overrideRequest.AppId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+	if rbacErr := handler.validateCdTriggerRBAC(token, overrideRequest.AppId, overrideRequest.PipelineId); rbacErr != nil {
+		common.WriteJsonResp(w, rbacErr, nil, http.StatusForbidden)
 		return
 	}
-	object = handler.enforcerUtil.GetAppRBACByAppIdAndPipelineId(overrideRequest.AppId, overrideRequest.PipelineId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, object); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	//rback block ends here
 	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		handler.logger.Errorw("error in getting acd token", "err", err)

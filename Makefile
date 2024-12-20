@@ -2,6 +2,7 @@
 
 all: fetch-all-env build
 
+TARGET_BRANCH?=main
 TAG?=$(shell bash -c 'git log --pretty=format:'%h' -n 1')
 FLAGS=
 ENVVAR=
@@ -63,3 +64,9 @@ build-ea:
 
 fetch-all-env:
 	go run fetchAllEnv/fetchAllEnv.go
+
+dep-update-oss:
+	go mod edit -replace=github.com/devtron-labs/common-lib=github.com/devtron-labs/devtron-services/common-lib@$(TARGET_BRANCH) \
+	            -replace=github.com/devtron-labs/authenticator=github.com/devtron-labs/devtron-services/authenticator@$(TARGET_BRANCH)
+	go mod tidy
+	go mod vendor

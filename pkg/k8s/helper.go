@@ -52,13 +52,13 @@ func ParseK8sClientErrorToApiError(err error) *util.ApiError {
 	}
 	// if error is of type k8sErrors.APIStatus, then extract the message from it
 	if status, ok := err.(k8sErrors.APIStatus); ok || errors.As(err, &status) {
-		return util.NewApiError().
+		return util.DefaultApiError().
 			WithHttpStatusCode(int(status.Status().Code)).
 			WithUserDetailMessage(status.Status().Message).
 			WithInternalMessage(status.Status().Message)
 	}
 	// generic error
-	return util.NewApiError().
+	return util.DefaultApiError().
 		WithUserDetailMessage(err.Error()).
 		WithInternalMessage(err.Error())
 }
