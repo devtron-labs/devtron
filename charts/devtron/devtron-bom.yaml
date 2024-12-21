@@ -10,7 +10,7 @@ global:
   containerRegistry: "quay.io/devtron"
 extraManifests: []
 installer:
-  release: "v1.0.1"
+  release: "v1.1.0"
   registry: ""
   image: "inception"
   tag: "473deaa4-185-21582"
@@ -34,17 +34,17 @@ components:
         FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE: "true"
         ENABLE_RESOURCE_SCAN: "true"
     registry: ""
-    image: "dashboard:7e7a0d0a-690-26996"
+    image: "dashboard:a88790b2-690-27891"
     imagePullPolicy: IfNotPresent
   devtron:
     registry: ""
-    image: "hyperion:50575235-280-27099"
-    cicdImage: "devtron:50575235-434-27098"
+    image: "hyperion:a109b8be-280-27896"
+    cicdImage: "devtron:a109b8be-434-27906"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
   ciRunner:
     registry: ""
-    image: "ci-runner:3e71f258-138-27009"
+    image: "ci-runner:54595cec-138-27894"
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
@@ -53,7 +53,7 @@ components:
       authenticator: "authenticator:e414faff-393-13273"
   kubelink:
     registry: ""
-    image: "kubelink:73ce53e5-564-26855"
+    image: "kubelink:6c0c7082-564-27862"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
@@ -71,7 +71,7 @@ components:
       keyName: postgresql-password
   kubewatch:
     registry: ""
-    image: "kubewatch:b4888f54-419-26859"
+    image: "kubewatch:33965457-419-27887"
     imagePullPolicy: IfNotPresent
     configs:
       devtroncd_NAMESPACE: "devtron-ci"
@@ -91,7 +91,7 @@ components:
       armImage: postgres_exporter:v0.10.1
   gitsensor:
     registry: ""
-    image: "git-sensor:73ce53e5-200-26860"
+    image: "git-sensor:6c0c7082-200-27863"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
@@ -109,7 +109,7 @@ components:
   # Values for lens
   lens:
     registry: ""
-    image: "lens:b4888f54-333-26837"
+    image: "lens:6c0c7082-333-27872"
     imagePullPolicy: IfNotPresent
     configs:
       GIT_SENSOR_PROTOCOL: GRPC
@@ -154,7 +154,7 @@ components:
         DB_NAME: "lens"
   chartSync:
     registry: ""
-    image: chart-sync:73ce53e5-836-26871
+    image: chart-sync:6c0c7082-836-27893
     schedule: "0 19 * * *"
     extraConfigs: {}
 # values for argocd integration
@@ -176,14 +176,14 @@ workflowController:
   IMDSv1ExecutorImage: "argoexec:v3.0.7"
 security:
   imageScanner:
-    image: "image-scanner:d5458e1a-141-26846"
+    image: "image-scanner:33965457-141-27892"
   clair:
     image:
       repository: clair
       tag: 4.3.6
 # Values for notifier integration
 notifier:
-  image: "notifier:133c887d-372-26845"
+  image: "notifier:2f9166d1-372-27880"
 minio:
   image: "minio:RELEASE.2021-02-14T04-01-33Z"
   mbImage: "minio-mc:RELEASE.2021-02-14T04-28-06Z"
