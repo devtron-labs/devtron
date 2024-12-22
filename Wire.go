@@ -46,6 +46,7 @@ import (
 	"github.com/devtron-labs/devtron/api/infraConfig"
 	"github.com/devtron-labs/devtron/api/k8s"
 	"github.com/devtron-labs/devtron/api/module"
+	"github.com/devtron-labs/devtron/api/resourceScan"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/devtron-labs/devtron/api/restHandler/app/appInfo"
 	appList2 "github.com/devtron-labs/devtron/api/restHandler/app/appList"
@@ -210,6 +211,7 @@ func InitializeApp() (*App, error) {
 		imageTagging.WireSet,
 		devtronResource.DevtronResourceWireSet,
 		policyGovernance.PolicyGovernanceWireSet,
+		resourceScan.ScanningResultWireSet,
 
 		// -------wireset end ----------
 		// -------

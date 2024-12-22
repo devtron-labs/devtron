@@ -37,6 +37,7 @@ import (
 	"github.com/devtron-labs/devtron/api/k8s/application"
 	"github.com/devtron-labs/devtron/api/k8s/capacity"
 	"github.com/devtron-labs/devtron/api/module"
+	"github.com/devtron-labs/devtron/api/resourceScan"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/router/app"
 	"github.com/devtron-labs/devtron/api/router/app/configDiff"
@@ -120,6 +121,7 @@ type MuxRouter struct {
 	argoApplicationRouter              argoApplication.ArgoApplicationRouter
 	fluxApplicationRouter              fluxApplication2.FluxApplicationRouter
 	devtronResourceRouter              devtronResource.DevtronResourceRouter
+	scanningResultRouter               resourceScan.ScanningResultRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger,
@@ -153,6 +155,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	argoApplicationRouter argoApplication.ArgoApplicationRouter,
 	devtronResourceRouter devtronResource.DevtronResourceRouter,
 	fluxApplicationRouter fluxApplication2.FluxApplicationRouter,
+	scanningResultRouter resourceScan.ScanningResultRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
@@ -218,6 +221,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		argoApplicationRouter:              argoApplicationRouter,
 		devtronResourceRouter:              devtronResourceRouter,
 		fluxApplicationRouter:              fluxApplicationRouter,
+		scanningResultRouter:               scanningResultRouter,
 	}
 	return r
 }
@@ -320,6 +324,9 @@ func (r MuxRouter) Init() {
 
 	imageScanRouter := r.Router.PathPrefix("/orchestrator/security/scan").Subrouter()
 	r.imageScanRouter.InitImageScanRouter(imageScanRouter)
+
+	scanResultRouter := r.Router.PathPrefix("/orchestrator/scan-result").Subrouter()
+	r.scanningResultRouter.InitScanningResultRouter(scanResultRouter)
 
 	policyRouter := r.Router.PathPrefix("/orchestrator/security/policy").Subrouter()
 	r.policyRouter.InitPolicyRouter(policyRouter)
@@ -429,4 +436,5 @@ func (r MuxRouter) Init() {
 
 	fluxApplicationRouter := r.Router.PathPrefix("/orchestrator/flux-application").Subrouter()
 	r.fluxApplicationRouter.InitFluxApplicationRouter(fluxApplicationRouter)
+
 }
