@@ -51,5 +51,5 @@ const MEMORY_REQUEST ConfigKeyStr = "memory_request"
 const TIME_OUT ConfigKeyStr = "timeout"
 
 // internal-platforms
-const DEFAULT_PLATFORM = "default"
+const RUNNER_PLATFORM = "runner"
 const CI_RUNNER_PLATFORM = "ci-runner"

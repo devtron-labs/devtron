@@ -29,7 +29,7 @@ func ConvertToPlatformMap(infraProfileConfigurationEntities []*repository.InfraP
 		}
 		platform := infraProfileConfiguration.Platform
 		if len(platform) == 0 {
-			platform = bean.DEFAULT_PLATFORM
+			platform = bean.RUNNER_PLATFORM
 		}
 
 		// Add the ConfigurationBean to the corresponding platform entry in the map
@@ -163,7 +163,7 @@ func GetV0ProfileBean(profileBean *bean.ProfileBeanDto) *bean.ProfileBeanV0 {
 		profileType = bean.DEFAULT
 	}
 
-	ciRunnerConfig := profileBean.Configurations[bean.DEFAULT_PLATFORM]
+	ciRunnerConfig := profileBean.Configurations[bean.RUNNER_PLATFORM]
 	return &bean.ProfileBeanV0{
 		ProfileBeanAbstract: bean.ProfileBeanAbstract{
 			Id:          profileBean.Id,
@@ -207,7 +207,7 @@ func GetV1ProfileBean(profileBean *bean.ProfileBeanV0) *bean.ProfileBeanDto {
 			UpdatedBy:   profileBean.UpdatedBy,
 			UpdatedOn:   profileBean.UpdatedOn,
 		},
-		Configurations: map[string][]*bean.ConfigurationBean{bean.DEFAULT_PLATFORM: GetV1ConfigurationBeans(profileBean.Configurations, profileName)},
+		Configurations: map[string][]*bean.ConfigurationBean{bean.RUNNER_PLATFORM: GetV1ConfigurationBeans(profileBean.Configurations, profileName)},
 	}
 
 }
@@ -299,7 +299,7 @@ func LoadCiLimitCpu(infraConfig *bean.InfraConfig) (*repository.InfraProfileConf
 		Key:         bean.CPULimitKey,
 		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
 		Unit:        units.CPUUnitStr(suffix).GetCPUUnit(),
-		Platform:    bean.DEFAULT_PLATFORM,
+		Platform:    bean.RUNNER_PLATFORM,
 	}, nil
 
 }
@@ -334,7 +334,7 @@ func LoadDefaultTimeout(infraConfig *bean.InfraConfig) (*repository.InfraProfile
 		Key:         bean.TimeOutKey,
 		ValueString: strconv.FormatInt(infraConfig.CiDefaultTimeout, 10),
 		Unit:        units.SecondStr.GetTimeUnit(),
-		Platform:    bean.DEFAULT_PLATFORM,
+		Platform:    bean.RUNNER_PLATFORM,
 	}, nil
 }
 
@@ -347,7 +347,7 @@ func LoadCiReqCpu(infraConfig *bean.InfraConfig) (*repository.InfraProfileConfig
 		Key:         bean.CPURequestKey,
 		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
 		Unit:        units.CPUUnitStr(suffix).GetCPUUnit(),
-		Platform:    bean.DEFAULT_PLATFORM,
+		Platform:    bean.RUNNER_PLATFORM,
 	}, nil
 }
 
@@ -361,7 +361,7 @@ func LoadCiReqMem(infraConfig *bean.InfraConfig) (*repository.InfraProfileConfig
 		Key:         bean.MemoryRequestKey,
 		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
 		Unit:        units.MemoryUnitStr(suffix).GetMemoryUnit(),
-		Platform:    bean.DEFAULT_PLATFORM,
+		Platform:    bean.RUNNER_PLATFORM,
 	}, nil
 }
 
@@ -374,7 +374,7 @@ func LoadCiLimitMem(infraConfig *bean.InfraConfig) (*repository.InfraProfileConf
 		Key:         bean.MemoryLimitKey,
 		ValueString: strconv.FormatFloat(val, 'f', -1, 64),
 		Unit:        units.MemoryUnitStr(suffix).GetMemoryUnit(),
-		Platform:    bean.DEFAULT_PLATFORM,
+		Platform:    bean.RUNNER_PLATFORM,
 	}, nil
 
 }

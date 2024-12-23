@@ -218,7 +218,7 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 		if ok, exist := defaultConfigurationsFromDBMap[configurationFromEnv.Key]; !exist || !ok {
 			configurationFromEnv.ProfileId = profile.Id
 			configurationFromEnv.Active = true
-			configurationFromEnv.Platform = bean.DEFAULT_PLATFORM
+			configurationFromEnv.Platform = bean.RUNNER_PLATFORM
 			configurationFromEnv.AuditLog = sql.NewDefaultAuditLog(1)
 			creatableConfigurations = append(creatableConfigurations, configurationFromEnv)
 		}
@@ -232,7 +232,7 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 	//creating default platform if not found in db
 	if errors.Is(err, pg.ErrNoRows) {
 		creatableProfilePlatformMapping = append(creatableProfilePlatformMapping, &repository.ProfilePlatformMapping{
-			Platform:  bean.DEFAULT_PLATFORM,
+			Platform:  bean.RUNNER_PLATFORM,
 			ProfileId: profile.Id,
 			Active:    true,
 		})
