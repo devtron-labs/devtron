@@ -2,17 +2,9 @@ package bean
 
 import (
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/helper/parser"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
-	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	"time"
-)
-
-type SortBy string
-type SortOrder string
-
-const (
-	Asc  SortOrder = "ASC"
-	Desc SortOrder = "DESC"
 )
 
 const (
@@ -64,20 +56,6 @@ type SeverityCount struct {
 	Unknown  int `json:"unknown"`
 }
 
-type ImageScanFilter struct {
-	Offset  int    `json:"offset"`
-	Size    int    `json:"size"`
-	CVEName string `json:"cveName"`
-	AppName string `json:"appName"`
-	// ObjectName deprecated
-	ObjectName     string    `json:"objectName"`
-	EnvironmentIds []int     `json:"envIds"`
-	ClusterIds     []int     `json:"clusterIds"`
-	Severity       []int     `json:"severity"`
-	SortOrder      SortOrder `json:"sortOrder"`
-	SortBy         SortBy    `json:"sortBy"` // sort by objectName,envName,lastChecked
-}
-
 type ImageScanRequest struct {
 	ScanExecutionId       int    `json:"ScanExecutionId"`
 	ImageScanDeployInfoId int    `json:"imageScanDeployInfo"`
@@ -86,7 +64,7 @@ type ImageScanRequest struct {
 	ObjectId              int    `json:"objectId"`
 	ArtifactId            int    `json:"artifactId"`
 	Image                 string `json:"image"`
-	ImageScanFilter
+	bean.ImageScanFilter
 }
 
 type ImageScanHistoryListingResponse struct {
@@ -126,5 +104,5 @@ type ImageScanExecutionDetail struct {
 	ObjectType            string                               `json:"objectType,notnull"`
 	ScanToolId            int                                  `json:"scanToolId,omitempty"`
 	ScanToolName          string                               `json:"scanToolName,omitempty"`
-	Status                serverBean.ScanExecutionProcessState `json:"status,omitempty"`
+	Status                repository.ScanExecutionProcessState `json:"status,omitempty"`
 }

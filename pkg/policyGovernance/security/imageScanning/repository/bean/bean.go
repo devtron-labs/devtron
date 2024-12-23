@@ -81,3 +81,25 @@ const (
 func (d PolicyLevel) String() string {
 	return [...]string{"global", "cluster", "environment", "application"}[d]
 }
+
+type ImageScanFilter struct {
+	Offset  int    `json:"offset"`
+	Size    int    `json:"size"`
+	CVEName string `json:"cveName"`
+	AppName string `json:"appName"`
+	// ObjectName deprecated
+	ObjectName     string    `json:"objectName"`
+	EnvironmentIds []int     `json:"envIds"`
+	ClusterIds     []int     `json:"clusterIds"`
+	Severity       []int     `json:"severity"`
+	SortOrder      SortOrder `json:"sortOrder"`
+	SortBy         SortBy    `json:"sortBy"` // sort by objectName,envName,lastChecked
+}
+
+type SortBy string
+type SortOrder string
+
+const (
+	Asc  SortOrder = "ASC"
+	Desc SortOrder = "DESC"
+)

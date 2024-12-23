@@ -17,7 +17,6 @@
 package repository
 
 import (
-	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -69,7 +68,7 @@ type ExecutionData struct {
 	SourceType    SourceType
 	SourceSubType SourceSubType
 	Types         []int `sql:"types" pg:",array"`
-	Status        serverBean.ScanExecutionProcessState
+	Status        ScanExecutionProcessState
 }
 
 // multiple history rows for one source event

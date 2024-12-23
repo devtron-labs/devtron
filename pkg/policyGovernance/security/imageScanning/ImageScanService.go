@@ -27,7 +27,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/helper/parser"
 	repository3 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
-	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	"go.opentelemetry.io/otel"
 	"time"
 
@@ -704,7 +703,7 @@ func (impl ImageScanServiceImpl) IsImageScanExecutionCompleted(image, imageDiges
 	}
 
 	for _, scanHistoryMapping := range allScanHistoryMappings {
-		if scanHistoryMapping.State == serverBean.ScanExecutionProcessStateCompleted {
+		if scanHistoryMapping.State == repository3.ScanExecutionProcessStateCompleted {
 			isScanningCompleted = true
 		}
 	}
