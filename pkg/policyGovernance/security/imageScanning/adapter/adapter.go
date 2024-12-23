@@ -47,6 +47,11 @@ func BuildMetadata(status string, startedOn time.Time, scanToolName string) pars
 
 func ExecutionDetailsToResourceScanResponseDto(respFromExecutionDetail *bean.ImageScanExecutionDetail) (resp parser.ResourceScanResponseDto) {
 	resp.Scanned = respFromExecutionDetail.Scanned
+	// if not scanned
+	if resp.Scanned == false {
+		// sanitise response if not scanned
+		resp.ImageScan = nil
+	}
 	vulnerabilityResponse := &parser.VulnerabilityResponse{}
 	vulnerabilities := BuildVulnerabilitiesWrapperWithSummary(respFromExecutionDetail.Vulnerabilities)
 	imageVulResp := BuildImageVulnerabilityResponse(respFromExecutionDetail.Image, *vulnerabilities, BuildMetadata(respFromExecutionDetail.Status.String(), respFromExecutionDetail.ExecutionTime, respFromExecutionDetail.ScanToolName))

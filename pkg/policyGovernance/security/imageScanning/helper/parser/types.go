@@ -86,5 +86,5 @@ type ImageScanResponse struct {
 
 type ResourceScanResponseDto struct {
 	Scanned   bool               `json:"scanned"`
-	ImageScan *ImageScanResponse `json:"imageScan,omitempty"`
+	ImageScan *ImageScanResponse `json:"imageScan"`
 }
