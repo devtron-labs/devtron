@@ -4,7 +4,7 @@ BEGIN;
 
 -- Ensure no NULL values exist before setting NOT NULL
 UPDATE public.infra_profile_configuration
-SET platform = 'default';
+SET platform = 'runner';
 
 -- Alter the `platform` column to set NOT NULL and default to 'default'
 ALTER TABLE public.infra_profile_configuration
@@ -15,7 +15,7 @@ ALTER TABLE public.infra_profile_configuration
 
 -- Update rows where `platform` is 'ci-runner' to 'default'
 UPDATE public.infra_profile_configuration
-SET platform = 'default'
+SET platform = 'runner'
 WHERE platform = 'ci-runner';
 
 -- Step 3: Update infra_profile Table
@@ -56,7 +56,7 @@ INSERT INTO public.profile_platform_mapping (
 )
 SELECT DISTINCT
     ip.id AS profile_id,
-    'default' AS platform,
+    'runner' AS platform,
     TRUE AS active,
     1 AS created_by,
     now() AS updated_on,
@@ -68,7 +68,7 @@ WHERE ip.active IS TRUE
     SELECT 1
     FROM public.profile_platform_mapping ppm
     WHERE ppm.profile_id = ip.id
-      AND ppm.platform = 'default'
+      AND ppm.platform = 'runner'
       AND ppm.active ='t'
 );
 

@@ -16,7 +16,7 @@ ALTER TABLE public.infra_profile_configuration
 -- ---------------------------------------------------
 UPDATE public.infra_profile_configuration
 SET platform = 'ci-runner'
-WHERE platform = 'default';
+WHERE platform = 'runner';
 
 -- ---------------------------------------------------
 -- Step 4: Drop profile_platform_mapping Table
