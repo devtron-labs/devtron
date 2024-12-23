@@ -47,10 +47,12 @@ func BuildMetadata(status string, startedOn time.Time, scanToolName string) pars
 
 func ExecutionDetailsToResourceScanResponseDto(respFromExecutionDetail *bean.ImageScanExecutionDetail) (resp parser.ResourceScanResponseDto) {
 	resp.Scanned = respFromExecutionDetail.Scanned
+	resp.IsImageScanEnabled = respFromExecutionDetail.ScanEnabled
 	// if not scanned
 	if resp.Scanned == false {
 		// sanitise response if not scanned
 		resp.ImageScan = nil
+		return resp
 	}
 	vulnerabilityResponse := &parser.VulnerabilityResponse{}
 	vulnerabilities := BuildVulnerabilitiesWrapperWithSummary(respFromExecutionDetail.Vulnerabilities)
