@@ -257,7 +257,7 @@ func (impl ImageScanServiceImpl) fetchImageExecutionHistoryMapByIds(historyIds [
 	}
 	return mapOfExecutionHistoryIdVsExecutionTime, nil
 }
-func (impl ImageScanServiceImpl) fetchResourceScanningDataForEnv(appId, envId int) (int, error) {
+func (impl ImageScanServiceImpl) fetchLatestArtifactIdForAppAndEnv(appId, envId int) (int, error) {
 	cdWfRunner, err := impl.cdWorkflowRepo.FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId, envId, bean4.CD_WORKFLOW_TYPE_DEPLOY)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching latest cd workflow runner of type DEPLOY for appId and envId", "appId", appId, "envId", envId, "err", err)
@@ -283,7 +283,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *bean3.Image
 	imageScanResponse := &bean3.ImageScanExecutionDetail{}
 	isRegularApp := false
 	if request.AppId > 0 && request.EnvId > 0 {
-		artifactId, err := impl.fetchResourceScanningDataForEnv(request.AppId, request.EnvId)
+		artifactId, err := impl.fetchLatestArtifactIdForAppAndEnv(request.AppId, request.EnvId)
 		if err != nil {
 			impl.Logger.Errorw("error while fetching scan execution result", "appId", request.AppId, "envId", request.EnvId, "err", err)
 			return nil, err
@@ -292,6 +292,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *bean3.Image
 		request.ArtifactId = artifactId
 	}
 	if request.ImageScanDeployInfoId > 0 {
+		// TODO: this flow is to be removed after sometime as not in use from now (23rd dec)
 		// scan detail for deployed images
 		scanDeployInfo, err := impl.imageScanDeployInfoRepository.FindOne(request.ImageScanDeployInfoId)
 		if err != nil {
@@ -323,7 +324,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *bean3.Image
 			return nil, err
 		}
 		imageScanResponse.Image = ciArtifact.Image
-		scanExecution, err := impl.scanHistoryRepository.FindByImageAndDigestWithState(ciArtifact.ImageDigest, ciArtifact.Image)
+		scanExecution, err := impl.scanHistoryRepository.FindByImageAndDigestWithHistoryMapping(ciArtifact.ImageDigest, ciArtifact.Image)
 		if err != nil {
 			impl.Logger.Errorw("error while fetching scan execution result", "err", err)
 			return nil, err

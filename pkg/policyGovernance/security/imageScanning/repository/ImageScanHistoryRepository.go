@@ -97,7 +97,7 @@ type ImageScanHistoryRepository interface {
 	FindByIds(ids []int) ([]*ImageScanExecutionHistory, error)
 	Update(model *ImageScanExecutionHistory) error
 	FindByImage(image string) (*ImageScanExecutionHistory, error)
-	FindByImageAndDigestWithState(imageDigest string, image string) (*ImageScanExecutionHistory, error)
+	FindByImageAndDigestWithHistoryMapping(imageDigest string, image string) (*ImageScanExecutionHistory, error)
 }
 
 type ImageScanHistoryRepositoryImpl struct {
@@ -165,7 +165,7 @@ func (impl ImageScanHistoryRepositoryImpl) FindByImage(image string) (*ImageScan
 	return &model, err
 }
 
-func (impl ImageScanHistoryRepositoryImpl) FindByImageAndDigestWithState(imageDigest string, image string) (*ImageScanExecutionHistory, error) {
+func (impl ImageScanHistoryRepositoryImpl) FindByImageAndDigestWithHistoryMapping(imageDigest string, image string) (*ImageScanExecutionHistory, error) {
 	var model ImageScanExecutionHistory
 	err := impl.dbConnection.Model(&model).
 		Column("image_scan_execution_history.*", "ScanToolExecutionHistoryMapping").
