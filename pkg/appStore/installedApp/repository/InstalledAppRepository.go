@@ -815,7 +815,7 @@ func (impl *InstalledAppRepositoryImpl) GetInstalledAppByAppIdAndDeploymentType(
 	var installedApps InstalledApps
 	queryString := `select * from installed_apps 
                       	left join deployment_config dc on dc.active=true and dc.app_id = installed_apps.app_id and dc.environment_id=installed_apps.environment_id
-         				where active=? and app_id=? and (installed_apps.deployment_app_type=? or dc.deployment_app_type=?);`
+         				where installed_apps.active=? and app_id=? and (installed_apps.deployment_app_type=? or dc.deployment_app_type=?);`
 	_, err := impl.dbConnection.Query(&installedApps, queryString, true, appId, deploymentAppType, deploymentAppType)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching InstalledApp", "err", err)
