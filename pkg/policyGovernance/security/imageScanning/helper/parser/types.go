@@ -5,7 +5,6 @@
 package parser
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -25,10 +24,6 @@ func (r Severity) ToString() string {
 
 type Summary struct {
 	Severities map[Severity]int `json:"severities"`
-}
-
-func (summary *Summary) String() string {
-	return fmt.Sprintf("%d Critical, %d High, %d Medium, %d Low, %d Unknown", summary.Severities[CRITICAL], summary.Severities[HIGH], summary.Severities[MEDIUM], summary.Severities[LOW], summary.Severities[UNKNOWN])
 }
 
 type Vulnerabilities struct {
@@ -77,7 +72,7 @@ func (vr *VulnerabilityResponse) Append(iv ImageVulnerability) {
 type ImageVulnerability struct {
 	Image string `json:"image"`
 	Vulnerabilities
-	Metadata
+	*Metadata
 }
 
 type ImageScanResponse struct {

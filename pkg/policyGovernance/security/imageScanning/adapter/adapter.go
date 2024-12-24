@@ -33,12 +33,12 @@ func ConvertBeanVulnerabilityToParserFormat(vulnerabilities []*bean.Vulnerabilit
 
 }
 
-func BuildImageVulnerabilityResponse(image string, vulnerabilities parser.Vulnerabilities, metadata parser.Metadata) *parser.ImageVulnerability {
+func BuildImageVulnerabilityResponse(image string, vulnerabilities parser.Vulnerabilities, metadata *parser.Metadata) *parser.ImageVulnerability {
 	return &parser.ImageVulnerability{Image: image, Vulnerabilities: vulnerabilities, Metadata: metadata}
 }
 
-func BuildMetadata(status string, startedOn time.Time, scanToolName string) parser.Metadata {
-	return parser.Metadata{
+func BuildMetadata(status string, startedOn time.Time, scanToolName string) *parser.Metadata {
+	return &parser.Metadata{
 		Status:       status,
 		StartedOn:    startedOn,
 		ScanToolName: scanToolName,
