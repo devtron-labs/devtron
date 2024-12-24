@@ -1244,7 +1244,11 @@ func (impl *UserServiceImpl) GetUserByToken(context context.Context, token strin
 }
 
 func (impl *UserServiceImpl) CheckIfTokenIsValid(email string, version string) error {
-	tokenName := userHelper.ExtractTokenNameFromEmail(email)
+	tokenName, err := userHelper.ExtractTokenNameFromEmail(email)
+	if err != nil {
+		impl.logger.Errorw("error in extracting token name from email", "email", email, "error", err)
+		return err
+	}
 	embeddedTokenVersion, _ := strconv.Atoi(version)
 	isProvidedTokenValid, err := impl.userRepository.CheckIfTokenExistsByTokenNameAndVersion(tokenName, embeddedTokenVersion)
 	if err != nil || !isProvidedTokenValid {
