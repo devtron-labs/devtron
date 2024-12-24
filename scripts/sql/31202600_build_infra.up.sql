@@ -2,6 +2,9 @@
 BEGIN;
 -- Step 1: Modify infra_profile_configuration Table
 
+ALTER TABLE public.infra_profile
+      ALTER COLUMN description TYPE VARCHAR(350);
+
 -- Ensure no NULL values exist before setting NOT NULL
 UPDATE public.infra_profile_configuration
 SET platform = 'runner';

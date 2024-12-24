@@ -1,6 +1,9 @@
 
 BEGIN;
 
+ALTER TABLE public.infra_profile
+  ALTER COLUMN description TYPE VARCHAR(300);
+
 UPDATE public.infra_profile
 SET name = 'default'
 WHERE name = 'global';
