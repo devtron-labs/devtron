@@ -32,6 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/read"
+	read3 "github.com/devtron-labs/devtron/pkg/team/read"
 	"io"
 	"net/http"
 	"strconv"
@@ -134,6 +135,7 @@ type PipelineConfigRestHandlerImpl struct {
 	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
 	chartRefService                     chartRef.ChartRefService
 	ciCdPipelineOrchestrator            pipeline.CiCdPipelineOrchestrator
+	teamReadService                     read3.TeamReadService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -164,7 +166,8 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	chartRefService chartRef.ChartRefService,
 	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator,
-	gitProviderReadService gitProviderRead.GitProviderReadService) *PipelineConfigRestHandlerImpl {
+	gitProviderReadService gitProviderRead.GitProviderReadService,
+	teamReadService read3.TeamReadService) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
 	if err != nil {
@@ -204,6 +207,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		chartRefService:                     chartRefService,
 		ciCdPipelineOrchestrator:            ciCdPipelineOrchestrator,
 		gitProviderReadService:              gitProviderReadService,
+		teamReadService:                     teamReadService,
 	}
 }
 
@@ -360,7 +364,7 @@ func (handler *PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r
 		return
 	}
 
-	project, err := handler.teamService.FetchOne(createRequest.TeamId)
+	project, err := handler.teamReadService.FindOne(createRequest.TeamId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
