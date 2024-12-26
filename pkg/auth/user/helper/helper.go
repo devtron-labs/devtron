@@ -17,6 +17,7 @@
 package helper
 
 import (
+	"errors"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -65,8 +66,12 @@ func CheckIfUserIdsExists(userIds []int32) error {
 	return nil
 }
 
-func ExtractTokenNameFromEmail(email string) string {
-	return strings.Split(email, ":")[1]
+func ExtractTokenNameFromEmail(email string) (string, error) {
+	splitData := strings.Split(email, ":")
+	if splitData == nil || len(splitData) != 2 {
+		return "", errors.New("invalid apitoken format")
+	}
+	return splitData[1], nil
 }
 
 func CreateErrorMessageForUserRoleGroups(restrictedGroups []bean2.RestrictedGroup) (string, string) {
