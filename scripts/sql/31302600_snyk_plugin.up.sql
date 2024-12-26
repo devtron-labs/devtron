@@ -15,6 +15,11 @@ VALUES ((SELECT id FROM plugin_metadata WHERE plugin_version='1.0.0' and name='C
 INSERT INTO "plugin_pipeline_script" ("id", "script","type","deleted","created_on", "created_by", "updated_on", "updated_by")VALUES (
     nextval('id_seq_plugin_pipeline_script'),
     E'#!/bin/sh
+pipeline_type=$(echo $CI_CD_EVENT | jq -r \'.type\')
+if [ $pipeline_type != "CI" ]; then
+    echo "Plugin only works in Post CI"
+    exit 1
+fi
 if [ -z "$ScanContext" ];then
     build_context=$(echo "$CI_CD_EVENT" | jq -r ".commonWorkflowRequest.ciBuildConfig.dockerBuildConfig.buildContext")
     if [ -z "$build_context" ];then
