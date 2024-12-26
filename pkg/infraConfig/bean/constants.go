@@ -14,14 +14,17 @@
  * limitations under the License.
  */
 
-package util
+package bean
 
 type ConfigKey int
 type ConfigKeyStr string
 type ProfileType string
 
+const GLOBAL ProfileType = "GLOBAL"
 const NORMAL ProfileType = "NORMAL"
 const InvalidUnit = "invalid %s unit found in %s "
+const InvalidTypeValue = "invalid value found in %s with value %s "
+const GLOBAL_PROFILE_NAME = "global"
 const DEFAULT_PROFILE_NAME = "default"
 const DEFAULT_PROFILE_EXISTS = "default profile exists"
 const NO_PROPERTIES_FOUND = "no properties found"
@@ -30,12 +33,13 @@ const InvalidProfileName = "profile name is invalid"
 const PayloadValidationError = "payload validation failed"
 const CPULimReqErrorCompErr = "cpu limit should not be less than cpu request"
 const MEMLimReqErrorCompErr = "memory limit should not be less than memory request"
+const InvalidValueType = "invalid Value type Found"
 
-const CPULimit ConfigKey = 1
-const CPURequest ConfigKey = 2
-const MemoryLimit ConfigKey = 3
-const MemoryRequest ConfigKey = 4
-const TimeOut ConfigKey = 5
+const CPULimitKey ConfigKey = 1
+const CPURequestKey ConfigKey = 2
+const MemoryLimitKey ConfigKey = 3
+const MemoryRequestKey ConfigKey = 4
+const TimeOutKey ConfigKey = 5
 
 // whenever new constant gets added here ,
 // we need to add it in GetDefaultConfigKeysMap method as well
@@ -47,4 +51,5 @@ const MEMORY_REQUEST ConfigKeyStr = "memory_request"
 const TIME_OUT ConfigKeyStr = "timeout"
 
 // internal-platforms
+const RUNNER_PLATFORM = "runner"
 const CI_RUNNER_PLATFORM = "ci-runner"
