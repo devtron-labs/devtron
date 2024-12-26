@@ -1,0 +1,1 @@
+ALTER TABLE "public"."ci_pipeline" ADD COLUMN IF NOT EXISTS "workflow_cache_config" varchar(50);
