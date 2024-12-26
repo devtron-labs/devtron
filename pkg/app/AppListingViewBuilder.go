@@ -17,6 +17,7 @@
 package app
 
 import (
+	"errors"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"go.uber.org/zap"
@@ -60,12 +61,16 @@ func (impl *AppListingViewBuilderImpl) BuildView(fetchAppListingRequest FetchApp
 
 	var appContainersResponses []*bean.AppContainer
 	for k, v := range filteredAppEnvMap {
-		appId, err := strconv.Atoi(strings.Split(k, "_")[0])
+		appIdAndName := strings.Split(k, "_")
+		if len(appIdAndName) != 2 {
+			return []*bean.AppContainer{}, errors.New("invalid format for app id and name. It should be in format <appId>_<appName>")
+		}
+		appId, err := strconv.Atoi(appIdAndName[0])
 		if err != nil {
 			impl.Logger.Error("err", err)
 			return []*bean.AppContainer{}, nil
 		}
-		appName := strings.Split(k, "_")[1]
+		appName := appIdAndName[1]
 		defaultEnv := bean.AppEnvironmentContainer{}
 		projectId := 0
 		for _, env := range v {
