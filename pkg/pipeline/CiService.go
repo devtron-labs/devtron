@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	bean4 "github.com/devtron-labs/devtron/pkg/attributes/bean"
+	"github.com/devtron-labs/devtron/pkg/bean/common"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	bean6 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	repository6 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
@@ -829,8 +830,6 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		TriggerByAuthor:             userEmailId,
 		CiBuildConfig:               ciBuildConfigBean,
 		CiBuildDockerMtuValue:       impl.config.CiRunnerDockerMTUValue,
-		IgnoreDockerCachePush:       impl.config.IgnoreDockerCacheForCI,
-		IgnoreDockerCachePull:       impl.config.IgnoreDockerCacheForCI,
 		CacheInvalidate:             trigger.InvalidateCache,
 		SystemEnvironmentVariables:  trigger.RuntimeParameters.GetSystemVariables(),
 		EnableBuildContext:          impl.config.EnableBuildContext,
@@ -852,12 +851,13 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	if pipeline.App.AppType == helper.Job {
 		workflowRequest.AppName = pipeline.App.DisplayName
 	}
-	if trigger.PipelineType == string(bean6.CI_JOB) {
-		workflowRequest.IgnoreDockerCachePush = impl.config.SkipCiJobBuildCachePushPull
-		workflowRequest.IgnoreDockerCachePull = impl.config.SkipCiJobBuildCachePushPull
-	}
-	if dockerRegistry != nil {
+	//in oss, there is no pipeline level workflow cache config, so we pass inherit to get the app level config
+	workflowCacheConfig := impl.ciCdPipelineOrchestrator.GetWorkflowCacheConfig(pipeline.App.AppType, trigger.PipelineType, common.WorkflowCacheConfigInherit)
+	workflowRequest.IgnoreDockerCachePush = !workflowCacheConfig.Value
+	workflowRequest.IgnoreDockerCachePull = !workflowCacheConfig.Value
+	impl.Logger.Debugw("Ignore Cache values", "IgnoreDockerCachePush", workflowRequest.IgnoreDockerCachePush, "IgnoreDockerCachePull", workflowRequest.IgnoreDockerCachePull)
 
+	if dockerRegistry != nil {
 		workflowRequest.DockerRegistryId = dockerRegistry.Id
 		workflowRequest.DockerRegistryType = string(dockerRegistry.RegistryType)
 		workflowRequest.DockerImageTag = dockerImageTag
