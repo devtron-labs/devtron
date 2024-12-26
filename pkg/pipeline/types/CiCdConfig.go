@@ -54,28 +54,30 @@ type CancelWfRequestDto struct {
 
 type CiCdConfig struct {
 	// from ciConfig
-	DefaultCacheBucket               string                          `env:"DEFAULT_CACHE_BUCKET" envDefault:"ci-caching"`
-	DefaultCacheBucketRegion         string                          `env:"DEFAULT_CACHE_BUCKET_REGION" envDefault:"us-east-2"`
-	CiLogsKeyPrefix                  string                          `env:"CI_LOGS_KEY_PREFIX" envDxefault:"my-artifacts"`
-	CiDefaultImage                   string                          `env:"DEFAULT_CI_IMAGE" envDefault:"686244538589.dkr.ecr.us-east-2.amazonaws.com/cirunner:47"`
-	CiDefaultNamespace               string                          `env:"DEFAULT_NAMESPACE" envDefault:"devtron-ci"`
-	CiDefaultBuildLogsBucket         string                          `env:"DEFAULT_BUILD_LOGS_BUCKET" envDefault:"devtron-pro-ci-logs"`
-	CiDefaultCdLogsBucketRegion      string                          `env:"DEFAULT_CD_LOGS_BUCKET_REGION" envDefault:"us-east-2"`
-	CiTaintKey                       string                          `env:"CI_NODE_TAINTS_KEY" envDefault:""`
-	CiTaintValue                     string                          `env:"CI_NODE_TAINTS_VALUE" envDefault:""`
-	CiNodeLabelSelector              []string                        `env:"CI_NODE_LABEL_SELECTOR"`
-	CacheLimit                       int64                           `env:"CACHE_LIMIT" envDefault:"5000000000"` // TODO: Add to default db config also
-	CiDefaultBuildLogsKeyPrefix      string                          `env:"DEFAULT_BUILD_LOGS_KEY_PREFIX" envDefault:"arsenal-v1"`
-	CiDefaultArtifactKeyPrefix       string                          `env:"DEFAULT_ARTIFACT_KEY_LOCATION" envDefault:"arsenal-v1/ci-artifacts"`
-	CiWorkflowServiceAccount         string                          `env:"WORKFLOW_SERVICE_ACCOUNT" envDefault:"ci-runner"`
-	ExternalCiApiSecret              string                          `env:"EXTERNAL_CI_API_SECRET" envDefault:"devtroncd-secret"`
-	ExternalCiWebhookUrl             string                          `env:"EXTERNAL_CI_WEB_HOOK_URL" envDefault:""`
-	ExternalCiPayload                string                          `env:"EXTERNAL_CI_PAYLOAD" envDefault:"{\"ciProjectDetails\":[{\"gitRepository\":\"https://github.com/vikram1601/getting-started-nodejs.git\",\"checkoutPath\":\"./abc\",\"commitHash\":\"239077135f8cdeeccb7857e2851348f558cb53d3\",\"commitTime\":\"2022-10-30T20:00:00\",\"branch\":\"master\",\"message\":\"Update README.md\",\"author\":\"User Name \"}],\"dockerImage\":\"445808685819.dkr.ecr.us-east-2.amazonaws.com/orch:23907713-2\"}"`
-	ImageScannerEndpoint             string                          `env:"IMAGE_SCANNER_ENDPOINT" envDefault:"http://image-scanner-new-demo-devtroncd-service.devtroncd:80"`
-	CiDefaultAddressPoolBaseCidr     string                          `env:"CI_DEFAULT_ADDRESS_POOL_BASE_CIDR"`
-	CiDefaultAddressPoolSize         int                             `env:"CI_DEFAULT_ADDRESS_POOL_SIZE"`
-	CiRunnerDockerMTUValue           int                             `env:"CI_RUNNER_DOCKER_MTU_VALUE" envDefault:"-1"`
+	DefaultCacheBucket           string   `env:"DEFAULT_CACHE_BUCKET" envDefault:"ci-caching"`
+	DefaultCacheBucketRegion     string   `env:"DEFAULT_CACHE_BUCKET_REGION" envDefault:"us-east-2"`
+	CiLogsKeyPrefix              string   `env:"CI_LOGS_KEY_PREFIX" envDxefault:"my-artifacts"`
+	CiDefaultImage               string   `env:"DEFAULT_CI_IMAGE" envDefault:"686244538589.dkr.ecr.us-east-2.amazonaws.com/cirunner:47"`
+	CiDefaultNamespace           string   `env:"DEFAULT_NAMESPACE" envDefault:"devtron-ci"`
+	CiDefaultBuildLogsBucket     string   `env:"DEFAULT_BUILD_LOGS_BUCKET" envDefault:"devtron-pro-ci-logs"`
+	CiDefaultCdLogsBucketRegion  string   `env:"DEFAULT_CD_LOGS_BUCKET_REGION" envDefault:"us-east-2"`
+	CiTaintKey                   string   `env:"CI_NODE_TAINTS_KEY" envDefault:""`
+	CiTaintValue                 string   `env:"CI_NODE_TAINTS_VALUE" envDefault:""`
+	CiNodeLabelSelector          []string `env:"CI_NODE_LABEL_SELECTOR"`
+	CacheLimit                   int64    `env:"CACHE_LIMIT" envDefault:"5000000000"` // TODO: Add to default db config also
+	CiDefaultBuildLogsKeyPrefix  string   `env:"DEFAULT_BUILD_LOGS_KEY_PREFIX" envDefault:"arsenal-v1"`
+	CiDefaultArtifactKeyPrefix   string   `env:"DEFAULT_ARTIFACT_KEY_LOCATION" envDefault:"arsenal-v1/ci-artifacts"`
+	CiWorkflowServiceAccount     string   `env:"WORKFLOW_SERVICE_ACCOUNT" envDefault:"ci-runner"`
+	ExternalCiApiSecret          string   `env:"EXTERNAL_CI_API_SECRET" envDefault:"devtroncd-secret"`
+	ExternalCiWebhookUrl         string   `env:"EXTERNAL_CI_WEB_HOOK_URL" envDefault:""`
+	ExternalCiPayload            string   `env:"EXTERNAL_CI_PAYLOAD" envDefault:"{\"ciProjectDetails\":[{\"gitRepository\":\"https://github.com/vikram1601/getting-started-nodejs.git\",\"checkoutPath\":\"./abc\",\"commitHash\":\"239077135f8cdeeccb7857e2851348f558cb53d3\",\"commitTime\":\"2022-10-30T20:00:00\",\"branch\":\"master\",\"message\":\"Update README.md\",\"author\":\"User Name \"}],\"dockerImage\":\"445808685819.dkr.ecr.us-east-2.amazonaws.com/orch:23907713-2\"}"`
+	ImageScannerEndpoint         string   `env:"IMAGE_SCANNER_ENDPOINT" envDefault:"http://image-scanner-new-demo-devtroncd-service.devtroncd:80"`
+	CiDefaultAddressPoolBaseCidr string   `env:"CI_DEFAULT_ADDRESS_POOL_BASE_CIDR"`
+	CiDefaultAddressPoolSize     int      `env:"CI_DEFAULT_ADDRESS_POOL_SIZE"`
+	CiRunnerDockerMTUValue       int      `env:"CI_RUNNER_DOCKER_MTU_VALUE" envDefault:"-1"`
+	//Deprecated: use WorkflowCacheConfig instead
 	IgnoreDockerCacheForCI           bool                            `env:"CI_IGNORE_DOCKER_CACHE"`
+	WorkflowCacheConfig              string                          `env:"WORKFLOW_CACHE_CONFIG" envDefault:"{}"`
 	VolumeMountsForCiJson            string                          `env:"CI_VOLUME_MOUNTS_JSON"`
 	BuildPvcCachePath                string                          `env:"PRE_CI_CACHE_PATH" envDefault:"/devtroncd-cache"`
 	DefaultPvcCachePath              string                          `env:"DOCKER_BUILD_CACHE_PATH" envDefault:"/var/lib/docker"`
@@ -96,7 +98,8 @@ type CiCdConfig struct {
 	ImageScanRetryDelay              int                             `env:"IMAGE_SCAN_RETRY_DELAY" envDefault:"5"`
 	ShowDockerBuildCmdInLogs         bool                            `env:"SHOW_DOCKER_BUILD_ARGS" envDefault:"true"`
 	IgnoreCmCsInCiJob                bool                            `env:"IGNORE_CM_CS_IN_CI_JOB" envDefault:"false"`
-	SkipCiJobBuildCachePushPull      bool                            `env:"SKIP_CI_JOB_BUILD_CACHE_PUSH_PULL" envDefault:"false"`
+	//Deprecated: use WorkflowCacheConfig instead
+	SkipCiJobBuildCachePushPull bool `env:"SKIP_CI_JOB_BUILD_CACHE_PUSH_PULL" envDefault:"false"`
 	// from CdConfig
 	CdLimitCpu                       string                          `env:"CD_LIMIT_CI_CPU" envDefault:"0.5"`
 	CdLimitMem                       string                          `env:"CD_LIMIT_CI_MEM" envDefault:"3G"`
@@ -194,6 +197,28 @@ func GetCiConfig() (*CiConfig, error) {
 	ciConfig.Type = CiConfigType
 	return &ciConfig, nil
 }
+
+func GetCiConfigWithWorkflowCacheConfig() (*CiConfig, WorkflowCacheConfig, error) {
+	ciConfig, err := GetCiConfig()
+	if err != nil {
+		return nil, WorkflowCacheConfig{}, err
+	}
+	workflowCacheConfig, err := getWorkflowCacheConfig(ciConfig.WorkflowCacheConfig)
+	if err != nil {
+		return nil, WorkflowCacheConfig{}, err
+	}
+	return ciConfig, workflowCacheConfig, nil
+}
+
+func getWorkflowCacheConfig(workflowCacheConfigEnv string) (WorkflowCacheConfig, error) {
+	workflowCacheConfig := WorkflowCacheConfig{}
+	err := json.Unmarshal([]byte(workflowCacheConfigEnv), &workflowCacheConfig)
+	if err != nil {
+		return WorkflowCacheConfig{}, err
+	}
+	return workflowCacheConfig, nil
+}
+
 func GetCdConfig() (*CdConfig, error) {
 	ciCdConfig := &CiCdConfig{}
 	err := env.Parse(ciCdConfig)
@@ -602,4 +627,10 @@ func DecodeSecretKey(secretKey string) string {
 		fmt.Println("error decoding base64 key:", err)
 	}
 	return string(decodedKey)
+}
+
+type WorkflowCacheConfig struct {
+	IgnoreCI    bool `json:"ignoreCI"`
+	IgnoreCIJob bool `json:"ignoreCIJob"`
+	IgnoreJob   bool `json:"ignoreJob"`
 }
