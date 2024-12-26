@@ -24,7 +24,9 @@ func GetWorkflowCacheConfig(WorkflowCacheConfig common.WorkflowCacheConfigType, 
 
 // in oss, only WorkflowCacheConfigInherit is supported
 func GetWorkflowCacheConfigWithBackwardCompatibility(WorkflowCacheConfig common.WorkflowCacheConfigType, WorkflowCacheConfigEnv string, globalValue bool, oldGlobalValue bool) bean.WorkflowCacheConfig {
-	if util.IsEmptyJSONForJsonString(WorkflowCacheConfigEnv) {
+	isEmptyJson, _ := util.IsEmptyJSONForJsonString(WorkflowCacheConfigEnv)
+	//TODO: error handling in next phase
+	if isEmptyJson {
 		//this means new global flag is not configured
 		return bean.WorkflowCacheConfig{
 			Type:        common.WorkflowCacheConfigInherit,
