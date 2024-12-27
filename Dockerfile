@@ -7,7 +7,7 @@ RUN go install github.com/google/wire/cmd/wire@latest
 WORKDIR /go/src/github.com/devtron-labs/devtron
 ADD . /go/src/github.com/devtron-labs/devtron/
 ADD ./vendor/github.com/Microsoft/ /go/src/github.com/devtron-labs/devtron/vendor/github.com/microsoft/
-RUN GOOS=linux make build-all
+RUN GOOS=linux make build
 
 # uncomment this post build arg
 FROM ubuntu:22.04@sha256:1b8d8ff4777f36f19bfe73ee4df61e3a0b789caeff29caa019539ec7c9a57f95 as  devtron-all
