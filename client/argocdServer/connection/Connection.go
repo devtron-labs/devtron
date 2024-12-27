@@ -139,6 +139,7 @@ func (impl *ArgoCDConnectionManagerImpl) GetConnection() *grpc.ClientConn {
 }
 
 func (impl *ArgoCDConnectionManagerImpl) getConnectionWithToken(token string) *grpc.ClientConn {
+	//TODO: config should be passed to this function as argument
 	conf, err := GetConfig()
 	if err != nil {
 		impl.logger.Errorw("error on get acd config while creating connection", "err", err)
