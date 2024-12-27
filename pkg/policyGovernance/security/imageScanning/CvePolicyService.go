@@ -23,6 +23,7 @@ import (
 	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	read2 "github.com/devtron-labs/devtron/pkg/cluster/read"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/read"
 	repository3 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
@@ -69,6 +70,7 @@ type PolicyServiceImpl struct {
 	imageScanHistoryReadService   read.ImageScanHistoryReadService
 	cveStoreRepository            repository3.CveStoreRepository
 	ciTemplateRepository          pipelineConfig.CiTemplateRepository
+	ClusterReadService            read2.ClusterReadService
 }
 
 func NewPolicyServiceImpl(environmentService environment.EnvironmentService,
@@ -84,7 +86,8 @@ func NewPolicyServiceImpl(environmentService environment.EnvironmentService,
 	ciArtifactRepository repository.CiArtifactRepository, ciConfig *types.CiCdConfig,
 	imageScanHistoryReadService read.ImageScanHistoryReadService,
 	cveStoreRepository repository3.CveStoreRepository,
-	ciTemplateRepository pipelineConfig.CiTemplateRepository) *PolicyServiceImpl {
+	ciTemplateRepository pipelineConfig.CiTemplateRepository,
+	ClusterReadService read2.ClusterReadService) *PolicyServiceImpl {
 	return &PolicyServiceImpl{
 		environmentService:            environmentService,
 		logger:                        logger,
@@ -102,6 +105,7 @@ func NewPolicyServiceImpl(environmentService environment.EnvironmentService,
 		imageScanHistoryReadService:   imageScanHistoryReadService,
 		cveStoreRepository:            cveStoreRepository,
 		ciTemplateRepository:          ciTemplateRepository,
+		ClusterReadService:            ClusterReadService,
 	}
 }
 
@@ -573,7 +577,7 @@ func (impl *PolicyServiceImpl) GetPolicies(policyLevel securityBean.PolicyLevel,
 			return nil, fmt.Errorf("cluster id is missing")
 		}
 		// get cluster name
-		cluster, err := impl.clusterService.FindById(clusterId)
+		cluster, err := impl.ClusterReadService.FindById(clusterId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching cluster details", "id", clusterId, "err", err)
 			return nil, err

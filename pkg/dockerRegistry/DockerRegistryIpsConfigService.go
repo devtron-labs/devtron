@@ -24,8 +24,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster/read"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -45,23 +45,24 @@ type DockerRegistryIpsConfigServiceImpl struct {
 	logger                            *zap.SugaredLogger
 	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository
 	k8sUtil                           *k8s.K8sServiceImpl
-	clusterService                    cluster.ClusterService
 	ciPipelineRepository              pipelineConfig.CiPipelineRepository
 	dockerArtifactStoreRepository     repository.DockerArtifactStoreRepository
 	ciTemplateOverrideRepository      pipelineConfig.CiTemplateOverrideRepository
+	clusterReadService                read.ClusterReadService
 }
 
 func NewDockerRegistryIpsConfigServiceImpl(logger *zap.SugaredLogger, dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository,
-	k8sUtil *k8s.K8sServiceImpl, clusterService cluster.ClusterService, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository, ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository) *DockerRegistryIpsConfigServiceImpl {
+	k8sUtil *k8s.K8sServiceImpl, ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository, ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
+	clusterReadService read.ClusterReadService) *DockerRegistryIpsConfigServiceImpl {
 	return &DockerRegistryIpsConfigServiceImpl{
 		logger:                            logger,
 		dockerRegistryIpsConfigRepository: dockerRegistryIpsConfigRepository,
 		k8sUtil:                           k8sUtil,
-		clusterService:                    clusterService,
 		ciPipelineRepository:              ciPipelineRepository,
 		dockerArtifactStoreRepository:     dockerArtifactStoreRepository,
 		ciTemplateOverrideRepository:      ciTemplateOverrideRepository,
+		clusterReadService:                clusterReadService,
 	}
 }
 
@@ -252,7 +253,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) createOrUpdateDockerRegistryImage
 		}
 	}
 
-	clusterBean, err := impl.clusterService.FindById(clusterId)
+	clusterBean, err := impl.clusterReadService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster", "clusterId", clusterId, "error", err)
 		return err

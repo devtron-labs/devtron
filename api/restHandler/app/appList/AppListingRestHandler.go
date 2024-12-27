@@ -61,7 +61,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean6 "github.com/devtron-labs/devtron/pkg/team/bean"
 	util2 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
@@ -101,7 +100,6 @@ type AppListingRestHandlerImpl struct {
 	// TODO fix me next
 	helmAppClient                    gRPC.HelmAppClient // TODO refactoring: use HelmAppService
 	helmAppReadService               read.HelmAppReadService
-	argoUserService                  argo.ArgoUserService
 	k8sCommonService                 k8s.K8sCommonService
 	installedAppService              FullMode.InstalledAppDBExtendedService
 	installedAppResourceService      resource.InstalledAppResourceService
@@ -137,7 +135,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
 	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService,
 	helmAppClient gRPC.HelmAppClient, helmAppReadService read.HelmAppReadService,
-	argoUserService argo.ArgoUserService, k8sCommonService k8s.K8sCommonService,
+	k8sCommonService k8s.K8sCommonService,
 	installedAppService FullMode.InstalledAppDBExtendedService,
 	installedAppResourceService resource.InstalledAppResourceService,
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
@@ -160,7 +158,6 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		userService:                      userService,
 		helmAppClient:                    helmAppClient,
 		helmAppReadService:               helmAppReadService,
-		argoUserService:                  argoUserService,
 		k8sCommonService:                 k8sCommonService,
 		installedAppService:              installedAppService,
 		installedAppResourceService:      installedAppResourceService,
@@ -565,34 +562,29 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		common.WriteJsonResp(w, fmt.Errorf("error in getting acd token"), nil, http.StatusInternalServerError)
-		return
-	}
 	envDeploymentConfig, err := handler.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
 	if err != nil {
 		handler.logger.Errorw("error in fetching deployment config", "appId", appId, "envId", envId, "err", err)
 		common.WriteJsonResp(w, fmt.Errorf("error in getting deployment config for env"), nil, http.StatusInternalServerError)
 		return
 	}
-	resourceTree, err := handler.fetchResourceTree(w, r, appId, envId, acdToken, cdPipeline, envDeploymentConfig)
+	resourceTree, err := handler.fetchResourceTree(w, r, appId, envId, cdPipeline, envDeploymentConfig)
 	if err != nil {
 		handler.logger.Errorw("error in fetching resource tree", "err", err, "appId", appId, "envId", envId)
-		handler.handleResourceTreeErrAndDeletePipelineIfNeeded(w, err, acdToken, cdPipeline, envDeploymentConfig)
+		handler.handleResourceTreeErrAndDeletePipelineIfNeeded(w, err, cdPipeline, envDeploymentConfig)
 		return
 	}
 	common.WriteJsonResp(w, err, resourceTree, http.StatusOK)
 }
 
 func (handler AppListingRestHandlerImpl) handleResourceTreeErrAndDeletePipelineIfNeeded(w http.ResponseWriter, err error,
-	acdToken string, cdPipeline *pipelineConfig.Pipeline, deploymentConfig *bean3.DeploymentConfig) {
+	cdPipeline *pipelineConfig.Pipeline, deploymentConfig *bean3.DeploymentConfig) {
 	var apiError *util.ApiError
 	ok := errors.As(err, &apiError)
 	if deploymentConfig.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		if ok && apiError != nil {
 			if apiError.Code == constants.AppDetailResourceTreeNotFound && cdPipeline.DeploymentAppDeleteRequest == true && cdPipeline.DeploymentAppCreated == true {
-				acdAppFound, appDeleteErr := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(acdToken, cdPipeline)
+				acdAppFound, appDeleteErr := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(cdPipeline)
 				if appDeleteErr != nil {
 					apiError.UserMessage = constants.ErrorDeletingPipelineForDeletedArgoAppMsg
 					common.WriteJsonResp(w, apiError, nil, http.StatusInternalServerError)
@@ -863,11 +855,6 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		resourceTree = resourceTreeAndNotesContainer.ResourceTree
 
 	} else {
-		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			common.WriteJsonResp(w, fmt.Errorf("error in getting acd token"), nil, http.StatusInternalServerError)
-			return
-		}
 		pipelines, err := handler.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
 		if err != nil && err != pg.ErrNoRows {
 			handler.logger.Errorw("error in fetching pipelines from db", "appId", appId, "envId", envId)
@@ -890,7 +877,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			common.WriteJsonResp(w, fmt.Errorf("error in getting deployment config for env"), nil, http.StatusInternalServerError)
 			return
 		}
-		resourceTree, err = handler.fetchResourceTree(w, r, appId, envId, acdToken, cdPipeline, envDeploymentConfig)
+		resourceTree, err = handler.fetchResourceTree(w, r, appId, envId, cdPipeline, envDeploymentConfig)
 	}
 	_, ok := resourceTree["nodes"]
 	if !ok {
@@ -938,7 +925,7 @@ func (handler AppListingRestHandlerImpl) getAppDetails(ctx context.Context, appI
 }
 
 // TODO: move this to service
-func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appId int, envId int, acdToken string, cdPipeline *pipelineConfig.Pipeline, deploymentConfig *bean3.DeploymentConfig) (map[string]interface{}, error) {
+func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appId int, envId int, cdPipeline *pipelineConfig.Pipeline, deploymentConfig *bean3.DeploymentConfig) (map[string]interface{}, error) {
 	var resourceTree map[string]interface{}
 	if !cdPipeline.DeploymentAppCreated {
 		handler.logger.Infow("deployment for this pipeline does not exist", "pipelineId", cdPipeline.Id)
@@ -961,7 +948,6 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			}(ctx.Done(), cn.CloseNotify())
 		}
 		defer cancel()
-		ctx = context.WithValue(ctx, "token", acdToken)
 		start := time.Now()
 		resp, err := handler.argoApplicationService.ResourceTree(ctx, query)
 		elapsed := time.Since(start)

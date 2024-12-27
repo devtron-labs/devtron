@@ -82,7 +82,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	globalUtil "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
@@ -130,7 +129,6 @@ type TriggerServiceImpl struct {
 	workflowEventPublishService         out.WorkflowEventPublishService
 	manifestCreationService             manifest.ManifestCreationService
 	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService
-	argoUserService                     argo.ArgoUserService
 	pipelineStageService                pipeline.PipelineStageService
 	globalPluginService                 plugin.GlobalPluginService
 	customTagService                    pipeline.CustomTagService
@@ -188,7 +186,6 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 	workflowEventPublishService out.WorkflowEventPublishService,
 	manifestCreationService manifest.ManifestCreationService,
 	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService,
-	argoUserService argo.ArgoUserService,
 	pipelineStageService pipeline.PipelineStageService,
 	globalPluginService plugin.GlobalPluginService,
 	customTagService pipeline.CustomTagService,
@@ -247,7 +244,6 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 		workflowEventPublishService:         workflowEventPublishService,
 		manifestCreationService:             manifestCreationService,
 		deployedConfigurationHistoryService: deployedConfigurationHistoryService,
-		argoUserService:                     argoUserService,
 		pipelineStageService:                pipelineStageService,
 		globalPluginService:                 globalPluginService,
 		customTagService:                    customTagService,
@@ -748,13 +744,8 @@ func (impl *TriggerServiceImpl) releasePipeline(ctx context.Context, pipeline *p
 
 	adapter.SetPipelineFieldsInOverrideRequest(request, pipeline, envDeploymentConfig)
 
-	releaseCtx, err := impl.argoUserService.GetACDContext(ctx)
-	if err != nil {
-		impl.logger.Errorw("error in creating acd sync context", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
-		return err
-	}
 	// setting deployedBy as 1(system user) since case of auto trigger
-	id, _, err := impl.handleCDTriggerRelease(releaseCtx, request, envDeploymentConfig, triggeredAt, 1)
+	id, _, err := impl.handleCDTriggerRelease(ctx, request, envDeploymentConfig, triggeredAt, 1)
 	if err != nil {
 		impl.logger.Errorw("error in auto  cd pipeline trigger", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
 	} else {

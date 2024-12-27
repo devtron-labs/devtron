@@ -37,7 +37,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	util2 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -72,7 +71,6 @@ type ClusterRestHandlerImpl struct {
 	validator                 *validator.Validate
 	enforcer                  casbin.Enforcer
 	deleteService             delete2.DeleteService
-	argoUserService           argo.ArgoUserService
 	environmentService        environment.EnvironmentService
 	clusterRbacService        rbac.ClusterRbacService
 }
@@ -85,7 +83,6 @@ func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 	validator *validator.Validate,
 	enforcer casbin.Enforcer,
 	deleteService delete2.DeleteService,
-	argoUserService argo.ArgoUserService,
 	environmentService environment.EnvironmentService,
 	clusterRbacService rbac.ClusterRbacService) *ClusterRestHandlerImpl {
 	return &ClusterRestHandlerImpl{
@@ -97,7 +94,6 @@ func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 		validator:                 validator,
 		enforcer:                  enforcer,
 		deleteService:             deleteService,
-		argoUserService:           argoUserService,
 		environmentService:        environmentService,
 		clusterRbacService:        clusterRbacService,
 	}
@@ -139,14 +135,6 @@ func (impl ClusterRestHandlerImpl) SaveClusters(w http.ResponseWriter, r *http.R
 	}
 	if util2.IsBaseStack() {
 		ctx = context.WithValue(ctx, "token", token)
-	} else {
-		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			impl.logger.Errorw("error in getting acd token", "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		ctx = context.WithValue(ctx, "token", acdToken)
 	}
 
 	for _, bean := range beans {
@@ -215,14 +203,6 @@ func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) 
 	}
 	if util2.IsBaseStack() {
 		ctx = context.WithValue(ctx, "token", token)
-	} else {
-		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			impl.logger.Errorw("error in getting acd token", "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		ctx = context.WithValue(ctx, "token", acdToken)
 	}
 	bean, err = impl.clusterService.Save(ctx, bean, userId)
 	if err != nil {
@@ -284,14 +264,6 @@ func (impl ClusterRestHandlerImpl) ValidateKubeconfig(w http.ResponseWriter, r *
 	}
 	if util2.IsBaseStack() {
 		ctx = context.WithValue(ctx, "token", token)
-	} else {
-		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			impl.logger.Errorw("error in getting acd token", "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		ctx = context.WithValue(ctx, "token", acdToken)
 	}
 	res, err := impl.clusterService.ValidateKubeconfig(bean.Config)
 	if err != nil {
@@ -434,14 +406,6 @@ func (impl ClusterRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request
 	}
 	if util2.IsBaseStack() {
 		ctx = context.WithValue(ctx, "token", token)
-	} else {
-		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			impl.logger.Errorw("error in getting acd token", "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		ctx = context.WithValue(ctx, "token", acdToken)
 	}
 	_, err = impl.clusterService.Update(ctx, &bean, userId)
 	if err != nil {

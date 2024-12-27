@@ -19,26 +19,25 @@ package app
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/internal/middleware"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	userrepository "github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
+	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	util2 "github.com/devtron-labs/devtron/util"
+	errors2 "github.com/juju/errors"
+	"go.opentelemetry.io/otel"
+	"golang.org/x/exp/slices"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
-	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
-	"github.com/devtron-labs/common-lib/utils/k8s/health"
-	"github.com/devtron-labs/devtron/internal/middleware"
-	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	userrepository "github.com/devtron-labs/devtron/pkg/auth/user/repository"
-	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
-	"github.com/devtron-labs/devtron/util/argo"
-	errors2 "github.com/juju/errors"
-	"go.opentelemetry.io/otel"
-	"golang.org/x/exp/slices"
 
 	"github.com/devtron-labs/devtron/api/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -137,7 +136,6 @@ type AppListingServiceImpl struct {
 	linkoutsRepository             repository.LinkoutsRepository
 	pipelineOverrideRepository     chartConfig.PipelineOverrideRepository
 	environmentRepository          repository2.EnvironmentRepository
-	argoUserService                argo.ArgoUserService
 	chartRepository                chartRepoRepository.ChartRepository
 	ciPipelineRepository           pipelineConfig.CiPipelineRepository
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService
@@ -152,7 +150,6 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 	appListingViewBuilder AppListingViewBuilder, pipelineRepository pipelineConfig.PipelineRepository,
 	linkoutsRepository repository.LinkoutsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository repository2.EnvironmentRepository,
-	argoUserService argo.ArgoUserService,
 	chartRepository chartRepoRepository.ChartRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService, userRepository userrepository.UserRepository,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService, ciArtifactRepository repository.CiArtifactRepository,
@@ -168,7 +165,6 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		cdWorkflowRepository:           cdWorkflowRepository,
 		pipelineOverrideRepository:     pipelineOverrideRepository,
 		environmentRepository:          environmentRepository,
-		argoUserService:                argoUserService,
 		chartRepository:                chartRepository,
 		ciPipelineRepository:           ciPipelineRepository,
 		dockerRegistryIpsConfigService: dockerRegistryIpsConfigService,

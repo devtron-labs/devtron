@@ -18,45 +18,14 @@ package cluster
 
 import (
 	"errors"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.uber.org/zap"
 	"time"
 )
 
-type EphemeralContainerRequest struct {
-	BasicData                   *EphemeralContainerBasicData    `json:"basicData"`
-	AdvancedData                *EphemeralContainerAdvancedData `json:"advancedData"`
-	Namespace                   string                          `json:"namespace" validate:"required"`
-	ClusterId                   int                             `json:"clusterId" validate:"gt=0"`
-	PodName                     string                          `json:"podName"   validate:"required"`
-	ExternalArgoApplicationName string                          `json:"externalArgoApplicationName,omitempty"`
-	UserId                      int32                           `json:"-"`
-}
-
-type EphemeralContainerAdvancedData struct {
-	Manifest string `json:"manifest"`
-}
-
-type EphemeralContainerBasicData struct {
-	ContainerName       string `json:"containerName"`
-	TargetContainerName string `json:"targetContainerName"`
-	Image               string `json:"image"`
-}
-
-func (request EphemeralContainerRequest) getContainerBean() repository.EphemeralContainerBean {
-	return repository.EphemeralContainerBean{
-		Name:                request.BasicData.ContainerName,
-		ClusterId:           request.ClusterId,
-		Namespace:           request.Namespace,
-		PodName:             request.PodName,
-		TargetContainer:     request.BasicData.TargetContainerName,
-		Config:              request.AdvancedData.Manifest,
-		IsExternallyCreated: false,
-	}
-}
-
 type EphemeralContainerService interface {
-	AuditEphemeralContainerAction(model EphemeralContainerRequest, actionType repository.ContainerAction) error
+	AuditEphemeralContainerAction(model bean.EphemeralContainerRequest, actionType repository.ContainerAction) error
 }
 
 type EphemeralContainerServiceImpl struct {
@@ -71,7 +40,7 @@ func NewEphemeralContainerServiceImpl(repository repository.EphemeralContainersR
 	}
 }
 
-func (impl *EphemeralContainerServiceImpl) AuditEphemeralContainerAction(model EphemeralContainerRequest, actionType repository.ContainerAction) error {
+func (impl *EphemeralContainerServiceImpl) AuditEphemeralContainerAction(model bean.EphemeralContainerRequest, actionType repository.ContainerAction) error {
 
 	container, err := impl.repository.FindContainerByName(model.ClusterId, model.Namespace, model.PodName, model.BasicData.ContainerName)
 	if err != nil {
@@ -99,7 +68,7 @@ func (impl *EphemeralContainerServiceImpl) AuditEphemeralContainerAction(model E
 
 	var auditLogBean repository.EphemeralContainerAction
 	if container == nil {
-		bean := model.getContainerBean()
+		bean := model.GetContainerBean()
 		if actionType != repository.ActionCreate {
 			// if a container is not present in database and the user is trying to access/terminate it means it is externally created
 			bean.IsExternallyCreated = true
