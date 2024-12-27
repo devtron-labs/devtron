@@ -1,9 +1,5 @@
 ## v1.1.0
 
-
-
-## v1.1.0
-
 ## Bugs
 - fix: Changes in labels of ref chart 4.20 (#6178)
 - fix: Fix cd-trigger-plugin (#6203)
