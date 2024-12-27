@@ -721,9 +721,6 @@ func (impl ImageScanServiceImpl) GetScanResults(resourceScanQueryParams *bean3.R
 		impl.Logger.Errorw("error encountered in GetScanResults", "req", request, "err", err)
 		return resp, err
 	}
-	if len(respFromExecutionDetail.Vulnerabilities) > 0 {
-		respFromExecutionDetail.Scanned = true
-	}
 	// build an adapter to convert the respFromExecutionDetail to the required ResourceScanResponseDto format
 	return adapter.ExecutionDetailsToResourceScanResponseDto(respFromExecutionDetail), nil
 
