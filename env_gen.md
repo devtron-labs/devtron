@@ -266,4 +266,5 @@
  | VARIABLE_EXPRESSION_REGEX | @{{([^}]+)}} |  | 
  | WEBHOOK_TOKEN |  |  | 
  | WF_CONTROLLER_INSTANCE_ID | devtron-runner |  | 
+ | WORKFLOW_CACHE_CONFIG | {} |  | 
  | WORKFLOW_SERVICE_ACCOUNT | ci-runner |  | 

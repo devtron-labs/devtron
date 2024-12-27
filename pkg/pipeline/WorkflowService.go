@@ -31,7 +31,6 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	bean4 "github.com/devtron-labs/devtron/pkg/infraConfig/bean"
-	util2 "github.com/devtron-labs/devtron/pkg/infraConfig/util"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
@@ -151,15 +150,20 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 	workflowRequest.AddNodeConstraintsFromConfig(&workflowTemplate, impl.ciCdConfig)
 	infraConfiguration := &bean4.InfraConfig{}
 	if workflowRequest.Type == bean3.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean3.JOB_WORKFLOW_PIPELINE_TYPE {
+		nodeSelector := impl.getAppLabelNodeSelector(workflowRequest)
+		if nodeSelector != nil {
+			workflowTemplate.NodeSelector = nodeSelector
+		}
 		infraConfigScope := &bean4.Scope{
 			AppId: workflowRequest.AppId,
 		}
 		infraGetter, _ := impl.infraProvider.GetInfraProvider(workflowRequest.Type)
-		infraConfiguration, err = infraGetter.GetInfraConfigurationsByScopeAndPlatform(infraConfigScope, util2.CI_RUNNER_PLATFORM)
+		infraConfiguration, err = infraGetter.GetInfraConfigurationsByScopeAndPlatform(infraConfigScope, bean4.RUNNER_PLATFORM)
 		if err != nil {
 			impl.Logger.Errorw("error occurred while getting infra config", "infraConfigScope", infraConfigScope, "err", err)
 			return bean3.WorkflowTemplate{}, err
 		}
+		workflowTemplate.SetActiveDeadlineSeconds(infraConfiguration.GetCiDefaultTimeout())
 	}
 
 	workflowMainContainer, err := workflowRequest.GetWorkflowMainContainer(impl.ciCdConfig, infraConfiguration, workflowJson, &workflowTemplate, workflowConfigMaps, workflowSecrets)
@@ -169,12 +173,6 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 	}
 	workflowTemplate.Containers = []v12.Container{workflowMainContainer}
 	impl.updateBlobStorageConfig(workflowRequest, &workflowTemplate)
-	if workflowRequest.Type == bean3.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean3.JOB_WORKFLOW_PIPELINE_TYPE {
-		nodeSelector := impl.getAppLabelNodeSelector(workflowRequest)
-		if nodeSelector != nil {
-			workflowTemplate.NodeSelector = nodeSelector
-		}
-	}
 	if workflowRequest.Type == bean3.CD_WORKFLOW_PIPELINE_TYPE {
 		workflowTemplate.WfControllerInstanceID = impl.ciCdConfig.WfControllerInstanceID
 	}
