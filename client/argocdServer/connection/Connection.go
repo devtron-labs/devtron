@@ -135,7 +135,27 @@ func (impl *ArgoCDConnectionManagerImpl) GetConnection() *grpc.ClientConn {
 	if err != nil {
 		impl.logger.Errorw("error in getting latest devtron argocd user token", "err", err)
 	}
-	return impl.GetConnectionWithToken(token)
+	return impl.getConnectionWithToken(token)
+}
+
+func (impl *ArgoCDConnectionManagerImpl) getConnectionWithToken(token string) *grpc.ClientConn {
+	conf, err := GetConfig()
+	if err != nil {
+		impl.logger.Errorw("error on get acd config while creating connection", "err", err)
+		return nil
+	}
+	settings := impl.getArgoCdSettings()
+	var option []grpc.DialOption
+	option = append(option, grpc.WithTransportCredentials(GetTLS(settings.Certificate)))
+	if len(token) > 0 {
+		option = append(option, grpc.WithPerRPCCredentials(TokenAuth{token: token}))
+	}
+	option = append(option, grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor, otelgrpc.UnaryClientInterceptor()), grpc.WithChainStreamInterceptor(grpc_prometheus.StreamClientInterceptor, otelgrpc.StreamClientInterceptor()))
+	conn, err := grpc.Dial(fmt.Sprintf("%s:%s", conf.Host, conf.Port), option...)
+	if err != nil {
+		return nil
+	}
+	return conn
 }
 
 func (impl *ArgoCDConnectionManagerImpl) GetLatestDevtronArgoCdUserToken(authConfig *bean.AcdAuthConfig) (string, error) {
@@ -380,7 +400,7 @@ func (impl *ArgoCDConnectionManagerImpl) createTokenForArgoCdUser(username, pass
 	}
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "token", token)
-	clientConn := impl.GetConnectionWithToken(token)
+	clientConn := impl.getConnectionWithToken(token)
 	accountServiceClient := account.NewAccountServiceClient(clientConn)
 	acdToken, err := accountServiceClient.CreateToken(ctx, &account.CreateTokenRequest{
 		Name: username,
@@ -399,29 +419,8 @@ func (impl *ArgoCDConnectionManagerImpl) createTokenForArgoCdUser(username, pass
 	return acdToken.Token, nil
 }
 
-// GetConnectionWithToken method is used for creating token with username/password
-func (impl *ArgoCDConnectionManagerImpl) GetConnectionWithToken(token string) *grpc.ClientConn {
-	conf, err := GetConfig()
-	if err != nil {
-		impl.logger.Errorw("error on get acd config while creating connection", "err", err)
-		return nil
-	}
-	settings := impl.getArgoCdSettings()
-	var option []grpc.DialOption
-	option = append(option, grpc.WithTransportCredentials(GetTLS(settings.Certificate)))
-	if len(token) > 0 {
-		option = append(option, grpc.WithPerRPCCredentials(TokenAuth{token: token}))
-	}
-	option = append(option, grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor, otelgrpc.UnaryClientInterceptor()), grpc.WithChainStreamInterceptor(grpc_prometheus.StreamClientInterceptor, otelgrpc.StreamClientInterceptor()))
-	conn, err := grpc.Dial(fmt.Sprintf("%s:%s", conf.Host, conf.Port), option...)
-	if err != nil {
-		return nil
-	}
-	return conn
-}
-
 func (impl *ArgoCDConnectionManagerImpl) passwordLogin(username, password string) (string, error) {
-	conn := impl.GetConnectionWithToken("")
+	conn := impl.getConnectionWithToken("")
 	serviceClient := session.NewSessionServiceClient(conn)
 	jwtToken, err := serviceClient.Create(context.Background(), username, password)
 	return jwtToken, err
