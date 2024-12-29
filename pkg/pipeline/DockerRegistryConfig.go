@@ -65,12 +65,12 @@ type DockerRegistryConfigImpl struct {
 	dockerArtifactStoreRepository     repository.DockerArtifactStoreRepository
 	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository
 	ociRegistryConfigRepository       repository.OCIRegistryConfigRepository
-	RepositorySecret                  argoRepositoryCreds.RepositorySecret
+	RepositorySecret                  argoRepositoryCreds.RepositoryCreds
 }
 
 func NewDockerRegistryConfigImpl(logger *zap.SugaredLogger, helmAppService client.HelmAppService, dockerArtifactStoreRepository repository.DockerArtifactStoreRepository,
 	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository, ociRegistryConfigRepository repository.OCIRegistryConfigRepository,
-	RepositorySecret argoRepositoryCreds.RepositorySecret) *DockerRegistryConfigImpl {
+	RepositorySecret argoRepositoryCreds.RepositoryCreds) *DockerRegistryConfigImpl {
 	return &DockerRegistryConfigImpl{
 		logger:                            logger,
 		helmAppService:                    helmAppService,
@@ -298,7 +298,7 @@ func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(bean *types.DockerArti
 func (impl DockerRegistryConfigImpl) CreateArgoRepositorySecretForRepositories(artifactStore *types.DockerArtifactStoreBean, ociRegistryConfig *repository.OCIRegistryConfig) error {
 	for _, repo := range artifactStore.RepositoryList {
 
-		err := impl.RepositorySecret.CreateArgoRepositorySecret(artifactStore.Username,
+		err := impl.RepositorySecret.CreateOrUpdateArgoRepositorySecretForOCI(artifactStore.Username,
 			artifactStore.Password,
 			ociRegistryConfig.Id,
 			artifactStore.RegistryURL,

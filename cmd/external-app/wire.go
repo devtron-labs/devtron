@@ -257,7 +257,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(util4.K8sService), new(*util4.K8sServiceImpl)),
 
 		argoRepositoryCreds.NewRepositorySecret,
-		wire.Bind(new(argoRepositoryCreds.RepositorySecret), new(*argoRepositoryCreds.RepositorySecretImpl)),
+		wire.Bind(new(argoRepositoryCreds.RepositoryCreds), new(*argoRepositoryCreds.RepositorySecretImpl)),
 
 		dbMigration.NewDbMigrationServiceImpl,
 		wire.Bind(new(dbMigration.DbMigration), new(*dbMigration.DbMigrationServiceImpl)),

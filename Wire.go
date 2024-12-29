@@ -949,7 +949,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(common.DeploymentConfigService), new(*common.DeploymentConfigServiceImpl)),
 
 		argoRepositoryCreds.NewRepositorySecret,
-		wire.Bind(new(argoRepositoryCreds.RepositorySecret), new(*argoRepositoryCreds.RepositorySecretImpl)),
+		wire.Bind(new(argoRepositoryCreds.RepositoryCreds), new(*argoRepositoryCreds.RepositorySecretImpl)),
 
 		repocreds.NewServiceClientImpl,
 		wire.Bind(new(repocreds.ServiceClient), new(*repocreds.ServiceClientImpl)),

@@ -406,7 +406,7 @@ func (impl *FullModeDeploymentServiceImpl) CreateArgoRepoSecretIfNeeded(appStore
 	appStore := appStoreApplicationVersion.AppStore
 	dockerArtifactStore := appStoreApplicationVersion.AppStore.DockerArtifactStore
 
-	err = impl.RepositorySecretService.CreateArgoRepositorySecret(
+	err = impl.RepositorySecretService.CreateOrUpdateArgoRepositorySecretForOCI(
 		dockerArtifactStore.Username,
 		dockerArtifactStore.Password,
 		dockerArtifactStore.OCIRegistryConfig[0].Id,

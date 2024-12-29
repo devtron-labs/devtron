@@ -99,7 +99,7 @@ type FullModeDeploymentServiceImpl struct {
 	environmentRepository                repository5.EnvironmentRepository
 	deploymentConfigService              common.DeploymentConfigService
 	chartTemplateService                 util.ChartTemplateService
-	RepositorySecretService              argoRepositoryCreds.RepositorySecret
+	RepositorySecretService              argoRepositoryCreds.RepositoryCreds
 }
 
 func NewFullModeDeploymentServiceImpl(
@@ -126,7 +126,7 @@ func NewFullModeDeploymentServiceImpl(
 	environmentRepository repository5.EnvironmentRepository,
 	deploymentConfigService common.DeploymentConfigService,
 	chartTemplateService util.ChartTemplateService,
-	RepositorySecretService argoRepositoryCreds.RepositorySecret) *FullModeDeploymentServiceImpl {
+	RepositorySecretService argoRepositoryCreds.RepositoryCreds) *FullModeDeploymentServiceImpl {
 	return &FullModeDeploymentServiceImpl{
 		Logger:                               logger,
 		acdClient:                            acdClient,
