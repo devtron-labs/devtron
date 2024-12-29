@@ -1,11 +1,11 @@
-package argoRepositoryCreds
+package repoCredsK8sClient
 
 import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/client/argocdServer/repoCredsK8sClient/bean"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
-	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/ghodss/yaml"
@@ -20,10 +20,11 @@ import (
 )
 
 type RepositoryCreds interface {
-	CreateOrUpdateArgoRepositorySecretForOCI(username, password string, uniqueId int, registryUrl, repo string, isPublic bool) error
-	AddChartRepositoryInArgoCDServer(request bean.ChartRepositoryAddRequest) error
-	UpdateChartRepositoryInArgoCDServer(request bean.ChartRepositoryUpdateRequest) error
-	DeleteChartRepoFromArgoCD(name, url string) error
+	AddOrUpdateOCIRegistry(username, password string, uniqueId int, registryUrl, repo string, isPublic bool) error
+	DeleteOCIRegistry(registryURL, repo string, ociRegistryId int) error
+	AddChartRepository(request bean.ChartRepositoryAddRequest) error
+	UpdateChartRepository(request bean.ChartRepositoryUpdateRequest) error
+	DeleteChartRepository(name, url string) error
 }
 
 type RepositorySecretImpl struct {
@@ -47,7 +48,7 @@ func NewRepositorySecret(
 	}
 }
 
-func (impl *RepositorySecretImpl) CreateOrUpdateArgoRepositorySecretForOCI(username, password string, uniqueId int, registryUrl, repo string, isPublic bool) error {
+func (impl *RepositorySecretImpl) AddOrUpdateOCIRegistry(username, password string, uniqueId int, registryUrl, repo string, isPublic bool) error {
 
 	secretData, uniqueSecretName, err := getSecretDataAndName(
 		username,
@@ -68,6 +69,23 @@ func (impl *RepositorySecretImpl) CreateOrUpdateArgoRepositorySecretForOCI(usern
 	}
 	return nil
 
+}
+
+func (impl *RepositorySecretImpl) DeleteOCIRegistry(registryURL, repo string, ociRegistryId int) error {
+
+	_, _, chartName, err := getHostAndFullRepoPathAndChartName(registryURL, repo)
+	if err != nil {
+		return err
+	}
+
+	uniqueSecretName := fmt.Sprintf("%s-%d", chartName, ociRegistryId)
+
+	err = impl.DeleteChartSecret(uniqueSecretName)
+	if err != nil {
+		impl.logger.Errorw("error in deleting oci registry secret", "secretName", uniqueSecretName, "err", err)
+		return err
+	}
+	return nil
 }
 
 func (impl *RepositorySecretImpl) createOrUpdateArgoRepoSecret(uniqueSecretName string, secretData map[string]string) error {
@@ -106,21 +124,26 @@ func (impl *RepositorySecretImpl) createOrUpdateArgoRepoSecret(uniqueSecretName 
 
 func getSecretDataAndName(username, password string, ociRegistryId int, registryUrl, repo string, isPublic bool) (map[string]string, string, error) {
 
-	url := registryUrl
-
-	host, fullRepoPath, err := GetHostAndFullRepoPath(url, repo)
+	host, fullRepoPath, chartName, err := getHostAndFullRepoPathAndChartName(registryUrl, repo)
 	if err != nil {
-		return nil, "", err
+		return nil, "", nil
 	}
-
-	repoSplit := strings.Split(fullRepoPath, "/")
-	chartName := repoSplit[len(repoSplit)-1]
 
 	uniqueSecretName := fmt.Sprintf("%s-%d", chartName, ociRegistryId)
 
 	secretData := parseSecretDataForOCI(username, password, fullRepoPath, host, isPublic)
 
 	return secretData, uniqueSecretName, nil
+}
+
+func getHostAndFullRepoPathAndChartName(registryUrl string, repo string) (string, string, string, error) {
+	host, fullRepoPath, err := GetHostAndFullRepoPath(registryUrl, repo)
+	if err != nil {
+		return "", "", "", err
+	}
+	repoSplit := strings.Split(fullRepoPath, "/")
+	chartName := repoSplit[len(repoSplit)-1]
+	return host, fullRepoPath, chartName, nil
 }
 
 func GetHostAndFullRepoPath(url string, repo string) (string, string, error) {
@@ -154,7 +177,7 @@ func parseSecretDataForOCI(username, password, repoName, repoHost string, isPubl
 	return secretData
 }
 
-func (impl *RepositorySecretImpl) AddChartRepositoryInArgoCDServer(request bean.ChartRepositoryAddRequest) error {
+func (impl *RepositorySecretImpl) AddChartRepository(request bean.ChartRepositoryAddRequest) error {
 	clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster bean from db", "err", err)
@@ -205,7 +228,7 @@ func (impl *RepositorySecretImpl) AddChartRepositoryInArgoCDServer(request bean.
 	return nil
 }
 
-func (impl *RepositorySecretImpl) UpdateChartRepositoryInArgoCDServer(request bean.ChartRepositoryUpdateRequest) error {
+func (impl *RepositorySecretImpl) UpdateChartRepository(request bean.ChartRepositoryUpdateRequest) error {
 	clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
 	if err != nil {
 		return err
@@ -558,7 +581,7 @@ func (impl *RepositorySecretImpl) CreateSecretDataForHelmChart(name, username, p
 	return secretData
 }
 
-func (impl *RepositorySecretImpl) DeleteChartRepoFromArgoCD(name, url string) error {
+func (impl *RepositorySecretImpl) DeleteChartRepository(name, url string) error {
 
 	clusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
 	if err != nil {

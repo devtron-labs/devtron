@@ -81,6 +81,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/certificate"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/client/argocdServer/connection"
+	"github.com/devtron-labs/devtron/client/argocdServer/repoCredsK8sClient"
 	repocreds "github.com/devtron-labs/devtron/client/argocdServer/repocreds"
 	repository2 "github.com/devtron-labs/devtron/client/argocdServer/repository"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
@@ -116,7 +117,6 @@ import (
 	repository9 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	deployment3 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
-	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds"
 	"github.com/devtron-labs/devtron/pkg/asyncProvider"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/build"
@@ -948,8 +948,8 @@ func InitializeApp() (*App, error) {
 		common.NewDeploymentConfigServiceImpl,
 		wire.Bind(new(common.DeploymentConfigService), new(*common.DeploymentConfigServiceImpl)),
 
-		argoRepositoryCreds.NewRepositorySecret,
-		wire.Bind(new(argoRepositoryCreds.RepositoryCreds), new(*argoRepositoryCreds.RepositorySecretImpl)),
+		repoCredsK8sClient.NewRepositorySecret,
+		wire.Bind(new(repoCredsK8sClient.RepositoryCreds), new(*repoCredsK8sClient.RepositorySecretImpl)),
 
 		repocreds.NewServiceClientImpl,
 		wire.Bind(new(repocreds.ServiceClient), new(*repocreds.ServiceClientImpl)),

@@ -75,6 +75,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/certificate"
 	"github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/client/argocdServer/connection"
+	"github.com/devtron-labs/devtron/client/argocdServer/repoCredsK8sClient"
 	repository26 "github.com/devtron-labs/devtron/client/argocdServer/repocreds"
 	repository21 "github.com/devtron-labs/devtron/client/argocdServer/repository"
 	cron2 "github.com/devtron-labs/devtron/client/cron"
@@ -126,7 +127,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	read15 "github.com/devtron-labs/devtron/pkg/argoApplication/read"
 	config2 "github.com/devtron-labs/devtron/pkg/argoApplication/read/config"
-	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds"
 	"github.com/devtron-labs/devtron/pkg/asyncProvider"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/authentication"
@@ -383,7 +383,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	repositorySecretImpl := argoRepositoryCreds.NewRepositorySecret(sugaredLogger, k8sServiceImpl, clusterServiceImplExtended, acdAuthConfig)
+	repositorySecretImpl := repoCredsK8sClient.NewRepositorySecret(sugaredLogger, k8sServiceImpl, clusterServiceImplExtended, acdAuthConfig)
 	chartRepositoryServiceImpl := chartRepo.NewChartRepositoryServiceImpl(sugaredLogger, chartRepoRepositoryImpl, k8sServiceImpl, clusterServiceImplExtended, acdAuthConfig, httpClient, serverEnvConfigServerEnvConfig, repositorySecretImpl)
 	helmClientConfig, err := gRPC.GetConfig()
 	if err != nil {
