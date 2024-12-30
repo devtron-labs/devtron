@@ -52,8 +52,6 @@ type ServiceClient interface {
 	Delete(ctx context.Context, query *application.ApplicationDeleteRequest) (*application.ApplicationResponse, error)
 
 	TerminateOperation(ctx context.Context, query *application.OperationTerminateRequest) (*application.OperationTerminateResponse, error)
-
-	Watch(ctxt context.Context, query *application.ApplicationQuery) (application.ApplicationService_WatchClient, error)
 }
 
 type ServiceClientImpl struct {
@@ -85,22 +83,6 @@ func (c *ServiceClientImpl) ResourceTree(ctxt context.Context, query *applicatio
 	defer util.Close(conn, c.logger)
 	c.logger.Debugw("GRPC_GET_RESOURCETREE", "req", query)
 	resp, err := asc.ResourceTree(ctxt, query)
-	if err != nil {
-		c.logger.Errorw("GRPC_GET_RESOURCETREE", "req", query, "err", err)
-		return nil, err
-	}
-	return resp, nil
-}
-
-func (c *ServiceClientImpl) Watch(ctxt context.Context, query *application.ApplicationQuery) (application.ApplicationService_WatchClient, error) {
-	asc, conn, err := c.GetArgoClient(ctxt)
-	if err != nil {
-		c.logger.Errorw("error getting ArgoCD client", "error", err)
-		return nil, err
-	}
-	defer util.Close(conn, c.logger)
-	c.logger.Debugw("GRPC_WATCH", "req", query)
-	resp, err := asc.Watch(ctxt, query)
 	if err != nil {
 		c.logger.Errorw("GRPC_GET_RESOURCETREE", "req", query, "err", err)
 		return nil, err
