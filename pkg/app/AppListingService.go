@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	errors2 "github.com/juju/errors"
@@ -784,6 +785,10 @@ func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, a
 		}
 
 		if ciPipeline != nil && ciPipeline.CiTemplate != nil && len(*ciPipeline.CiTemplate.DockerRegistryId) > 0 {
+			if !ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0 && ciPipeline.PipelineType != string(constants.LINKED_CD) {
+				appDetailContainer.IsExternalCi = false
+			}
+			// get dockerRegistryId starts
 			artifact, err := impl.ciArtifactRepository.Get(appDetailContainer.CiArtifactId)
 			if err != nil {
 				impl.Logger.Errorw("error in fetching ci artifact", "ciArtifactId", appDetailContainer.CiArtifactId, "error", err)
@@ -794,13 +799,12 @@ func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, a
 				impl.Logger.Errorw("error in fetching docker registry id", "ciPipelineId", ciPipelineId, "error", err)
 				return bean.AppDetailContainer{}, err
 			}
-			if !ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0 {
-				appDetailContainer.IsExternalCi = false
-			}
+
 			if dockerRegistryId == nil {
 				impl.Logger.Errorw("docker registry id not found", "ciPipelineId", ciPipelineId)
 				return appDetailContainer, nil
 			}
+			// get dockerRegistryId ends
 			appDetailContainer.DockerRegistryId = *dockerRegistryId
 
 			_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided")
