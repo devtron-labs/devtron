@@ -794,10 +794,15 @@ func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, a
 				impl.Logger.Errorw("error in fetching docker registry id", "ciPipelineId", ciPipelineId, "error", err)
 				return bean.AppDetailContainer{}, err
 			}
-			appDetailContainer.DockerRegistryId = *dockerRegistryId
 			if !ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0 {
 				appDetailContainer.IsExternalCi = false
 			}
+			if dockerRegistryId == nil {
+				impl.Logger.Errorw("docker registry id not found", "ciPipelineId", ciPipelineId)
+				return appDetailContainer, nil
+			}
+			appDetailContainer.DockerRegistryId = *dockerRegistryId
+
 			_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided")
 			// check ips access provided to this docker registry for that cluster
 			ipsAccessProvided, err := impl.dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided(*dockerRegistryId, clusterId, isVirtualEnv)
