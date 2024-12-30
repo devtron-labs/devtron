@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/common-lib/utils"
 	"net/http"
 	"os"
 	"time"
@@ -86,7 +85,6 @@ func (app *App) Start() {
 }
 
 func (app *App) Stop() {
-	defer utils.FlushOutMessages(app.Logger)
 	app.Logger.Info("orchestrator shutdown initiating")
 	posthogCl := app.posthogClient.Client
 	if posthogCl != nil {

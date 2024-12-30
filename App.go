@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"github.com/devtron-labs/common-lib/middlewares"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
-	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/in"
 	"log"
@@ -146,7 +145,6 @@ func (app *App) Start() {
 }
 
 func (app *App) Stop() {
-	defer utils.FlushOutMessages(app.Logger)
 	app.Logger.Info("orchestrator shutdown initiating")
 	err := app.pubSubClient.ShutDown()
 	if err != nil {
