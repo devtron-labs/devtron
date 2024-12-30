@@ -17,9 +17,13 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils"
 	"net/http"
 	"os"
+	"time"
 
 	authMiddleware "github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/common-lib/middlewares"
@@ -75,17 +79,33 @@ func (app *App) Start() {
 	app.server = server
 
 	err = server.ListenAndServe()
-	if err != nil {
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		app.Logger.Errorw("error in startup", "err", err)
 		os.Exit(2)
 	}
 }
 
 func (app *App) Stop() {
+	defer utils.FlushOutMessages(app.Logger)
 	app.Logger.Info("orchestrator shutdown initiating")
 	posthogCl := app.posthogClient.Client
 	if posthogCl != nil {
 		app.Logger.Info("flushing messages of posthog")
 		posthogCl.Close()
 	}
+
+	timeoutContext, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	app.Logger.Infow("closing router")
+	err := app.server.Shutdown(timeoutContext)
+	if err != nil {
+		app.Logger.Errorw("error in mux router shutdown", "err", err)
+	}
+
+	app.Logger.Infow("closing db connection")
+	err = app.db.Close()
+	if err != nil {
+		app.Logger.Errorw("error in closing db connection", "err", err)
+	}
+	app.Logger.Infow("housekeeping done. exiting now")
+
 }
