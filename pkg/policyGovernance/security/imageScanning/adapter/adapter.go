@@ -1,8 +1,12 @@
 package adapter
 
 import (
+	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/helper/parser"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
+	bean3 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"time"
 )
 
@@ -60,4 +64,22 @@ func ExecutionDetailsToResourceScanResponseDto(respFromExecutionDetail *bean.Ima
 	vulnerabilityResponse.Append(*imageVulResp)
 	resp.ImageScan = &parser.ImageScanResponse{Vulnerability: vulnerabilityResponse}
 	return resp
+}
+
+func BuildCvePolicy(request bean2.CreateVulnerabilityPolicyRequest, action bean3.PolicyAction, severity bean3.Severity, time time.Time, userId int32) *repository.CvePolicy {
+	return &repository.CvePolicy{
+		Global:        request.IsRequestGlobal(),
+		ClusterId:     request.ClusterId,
+		EnvironmentId: request.EnvId,
+		AppId:         request.AppId,
+		CVEStoreId:    request.CveId,
+		Action:        action,
+		Severity:      &severity,
+		AuditLog: sql.AuditLog{
+			CreatedOn: time,
+			CreatedBy: userId,
+			UpdatedOn: time,
+			UpdatedBy: userId,
+		},
+	}
 }

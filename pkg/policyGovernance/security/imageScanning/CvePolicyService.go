@@ -23,8 +23,10 @@ import (
 	bean2 "github.com/devtron-labs/common-lib/imageScan/bean"
 	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/adapter"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/read"
 	repository3 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
@@ -428,55 +430,32 @@ func (impl *PolicyServiceImpl) parsePolicyAction(action string) (securityBean.Po
 }
 
 func (impl *PolicyServiceImpl) SavePolicy(request bean.CreateVulnerabilityPolicyRequest, userId int32) (*bean.IdVulnerabilityPolicyResult, error) {
-	isGlobal := false
-	if request.ClusterId == 0 && request.EnvId == 0 && request.AppId == 0 {
-		isGlobal = true
-	}
 	action, err := impl.parsePolicyAction(string(*request.Action))
 	if err != nil {
+		impl.logger.Errorw("error in parsing policy action", "action", request.Action, "err", err)
 		return nil, err
 	}
 	var severity securityBean.Severity
 	if len(request.Severity) > 0 {
-		if request.Severity == securityBean.CRITICAL {
-			severity = securityBean.Critical
-		} else if request.Severity == securityBean.HIGH {
-			severity = securityBean.High
-		} else if request.Severity == securityBean.MODERATE || request.Severity == securityBean.MEDIUM {
-			severity = securityBean.Medium
-		} else if request.Severity == securityBean.LOW {
-			severity = securityBean.Low
-		} else if request.Severity == securityBean.UNKNOWN {
-			severity = securityBean.Unknown
-		} else {
+		severity, err = securityBean.SeverityStringToEnumWithError(request.Severity)
+		if err != nil {
 			return nil, fmt.Errorf("unsupported Severity %s", request.Severity)
 		}
 	} else {
 		cveStore, err := impl.cveStoreRepository.FindByName(request.CveId)
-		if err != nil {
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.logger.Errorw("error in finding cveStore by cveId", "cveId", request.CveId, "err", err)
 			return nil, err
+		} else if util.IsErrNoRows(err) {
+			errMessage := fmt.Sprintf("cve %s not found in our database", request.CveId)
+			return nil, util.NewApiError(http.StatusNotFound, errMessage, errMessage)
 		}
 		severity = cveStore.GetSeverity()
 	}
-	policy := &repository3.CvePolicy{
-		Global:        isGlobal,
-		ClusterId:     request.ClusterId,
-		EnvironmentId: request.EnvId,
-		AppId:         request.AppId,
-		CVEStoreId:    request.CveId,
-		Action:        action,
-		Severity:      &severity,
-		AuditLog: sql.AuditLog{
-			CreatedOn: time.Now(),
-			CreatedBy: userId,
-			UpdatedOn: time.Now(),
-			UpdatedBy: userId,
-		},
-	}
-	policy, err = impl.cvePolicyRepository.SavePolicy(policy)
+	policy, err := impl.cvePolicyRepository.SavePolicy(adapter.BuildCvePolicy(request, action, severity, time.Now(), userId))
 	if err != nil {
-		impl.logger.Errorw("error in saving policy", "err", err)
-		return nil, fmt.Errorf("error in saving policy")
+		impl.logger.Errorw("error in saving policy", "request", request, "err", err)
+		return nil, err
 	}
 	return &bean.IdVulnerabilityPolicyResult{Id: policy.Id}, nil
 }

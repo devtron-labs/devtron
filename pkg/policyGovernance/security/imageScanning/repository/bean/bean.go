@@ -16,6 +16,8 @@
 
 package bean
 
+import "fmt"
+
 const (
 	HIGH     string = "high"
 	CRITICAL string = "critical"
@@ -50,6 +52,23 @@ const (
 	Safe
 	Unknown
 )
+
+func SeverityStringToEnumWithError(severity string) (Severity, error) {
+	if severity == LOW {
+		return Low, nil
+	} else if severity == MEDIUM || severity == MODERATE {
+		return Medium, nil
+	} else if severity == HIGH {
+		return High, nil
+	} else if severity == CRITICAL {
+		return Critical, nil
+	} else if severity == SAFE {
+		return Safe, nil
+	} else if severity == UNKNOWN {
+		return Unknown, nil
+	}
+	return 0, fmt.Errorf("unsupported Severity %s", severity)
+}
 
 //// Handling for future use
 //func (d Severity) ValuesOf(severity string) Severity {
