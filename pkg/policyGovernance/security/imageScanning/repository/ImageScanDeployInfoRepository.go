@@ -18,7 +18,7 @@ package repository
 
 import (
 	"fmt"
-	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/bean"
+	repoBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util"
 	"time"
@@ -69,7 +69,7 @@ type ImageScanDeployInfoRepository interface {
 	FetchListingGroupByObject(size int, offset int) ([]*ImageScanDeployInfo, error)
 	FetchByAppIdAndEnvId(appId int, envId int, objectType []string) (*ImageScanDeployInfo, error)
 	FindByTypeMetaAndTypeId(scanObjectMetaId int, objectType string) (*ImageScanDeployInfo, error)
-	ScanListingWithFilter(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) ([]*ImageScanListingResponse, error)
+	ScanListingWithFilter(request *repoBean.ImageScanFilter, size int, offset int, deployInfoIds []int) ([]*ImageScanListingResponse, error)
 }
 
 type ImageScanDeployInfoRepositoryImpl struct {
@@ -144,7 +144,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) FindByTypeMetaAndTypeId(scanObject
 	return &model, err
 }
 
-func (impl ImageScanDeployInfoRepositoryImpl) ScanListingWithFilter(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) ([]*ImageScanListingResponse, error) {
+func (impl ImageScanDeployInfoRepositoryImpl) ScanListingWithFilter(request *repoBean.ImageScanFilter, size int, offset int, deployInfoIds []int) ([]*ImageScanListingResponse, error) {
 	var models []*ImageScanListingResponse
 	query, queryParams := impl.scanListingQueryBuilder(request, size, offset, deployInfoIds)
 	_, err := impl.dbConnection.Query(&models, query, queryParams...)
@@ -155,7 +155,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) ScanListingWithFilter(request *sec
 	return models, err
 }
 
-func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) (string, []interface{}) {
+func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request *repoBean.ImageScanFilter, size int, offset int, deployInfoIds []int) (string, []interface{}) {
 	var queryParams []interface{}
 	query := `select info.scan_object_meta_id,a.app_name as object_name, info.object_type, env.environment_name, max(info.id) as id, COUNT(*) OVER() AS total_count 
 				 from image_scan_deploy_info info `
@@ -201,7 +201,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithoutObject(request
 	return query, queryParams
 }
 
-func getOrderByQueryPart(sortBy securityBean.SortBy, sortOrder securityBean.SortOrder) (string, []interface{}) {
+func getOrderByQueryPart(sortBy repoBean.SortBy, sortOrder repoBean.SortOrder) (string, []interface{}) {
 	var queryParams []interface{}
 	var sort string
 	if sortBy == "appName" {
@@ -215,13 +215,13 @@ func getOrderByQueryPart(sortBy securityBean.SortBy, sortOrder securityBean.Sort
 	}
 
 	query := fmt.Sprintf(" ORDER BY %s ", sort)
-	if sortOrder == securityBean.Desc {
+	if sortOrder == repoBean.Desc {
 		query += " DESC "
 	}
 	return query, queryParams
 }
 
-func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithObject(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) (string, []interface{}) {
+func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithObject(request *repoBean.ImageScanFilter, size int, offset int, deployInfoIds []int) (string, []interface{}) {
 	var queryParams []interface{}
 
 	query := ` select info.scan_object_meta_id, a.app_name as object_name, info.object_type, env.environment_name, max(info.id) as id, COUNT(*) OVER() AS total_count 
@@ -270,7 +270,7 @@ func (impl ImageScanDeployInfoRepositoryImpl) scanListQueryWithObject(request *s
 	return query, queryParams
 }
 
-func (impl ImageScanDeployInfoRepositoryImpl) scanListingQueryBuilder(request *securityBean.ImageScanFilter, size int, offset int, deployInfoIds []int) (string, []interface{}) {
+func (impl ImageScanDeployInfoRepositoryImpl) scanListingQueryBuilder(request *repoBean.ImageScanFilter, size int, offset int, deployInfoIds []int) (string, []interface{}) {
 	query := ""
 	var queryParams []interface{}
 	if request.AppName == "" && request.CVEName == "" && request.ObjectName == "" {
