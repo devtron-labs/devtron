@@ -17,7 +17,6 @@
 package repository
 
 import (
-	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -25,25 +24,45 @@ import (
 )
 
 type ScanToolExecutionHistoryMapping struct {
-	tableName                   struct{}                             `sql:"scan_tool_execution_history_mapping" pg:",discard_unknown_columns"`
-	Id                          int                                  `sql:"id,pk"`
-	ImageScanExecutionHistoryId int                                  `sql:"image_scan_execution_history_id"`
-	ScanToolId                  int                                  `sql:"scan_tool_id"`
-	ExecutionStartTime          time.Time                            `sql:"execution_start_time,notnull"`
-	ExecutionFinishTime         time.Time                            `sql:"execution_finish_time,notnull"`
-	State                       serverBean.ScanExecutionProcessState `sql:"state"`
-	TryCount                    int                                  `sql:"try_count"`
-	ErrorMessage                string                               `sql:"error_message"`
+	tableName                   struct{}                  `sql:"scan_tool_execution_history_mapping" pg:",discard_unknown_columns"`
+	Id                          int                       `sql:"id,pk"`
+	ImageScanExecutionHistoryId int                       `sql:"image_scan_execution_history_id"`
+	ScanToolId                  int                       `sql:"scan_tool_id"`
+	ExecutionStartTime          time.Time                 `sql:"execution_start_time,notnull"`
+	ExecutionFinishTime         time.Time                 `sql:"execution_finish_time,notnull"`
+	State                       ScanExecutionProcessState `sql:"state"`
+	TryCount                    int                       `sql:"try_count"`
+	ErrorMessage                string                    `sql:"error_message"`
 	sql.AuditLog
 }
+type ScanExecutionProcessState int
+
+func (state ScanExecutionProcessState) String() string {
+	switch state {
+	case ScanExecutionProcessStateFailed:
+		return "Failed"
+	case ScanExecutionProcessStateRunning:
+		return "Running"
+	case ScanExecutionProcessStateCompleted:
+		return "Completed"
+	default:
+		return "Failed"
+	}
+}
+
+const (
+	ScanExecutionProcessStateFailed    ScanExecutionProcessState = iota - 1 //resolved value = -1
+	ScanExecutionProcessStateRunning                                        //resolved value =  0
+	ScanExecutionProcessStateCompleted                                      //resolved value =  1
+)
 
 type ScanToolExecutionHistoryMappingRepository interface {
 	Save(model *ScanToolExecutionHistoryMapping) error
 	SaveInBatch(models []*ScanToolExecutionHistoryMapping) error
-	UpdateStateByToolAndExecutionHistoryId(executionHistoryId, toolId int, state serverBean.ScanExecutionProcessState, executionFinishTime time.Time) error
+	UpdateStateByToolAndExecutionHistoryId(executionHistoryId, toolId int, state ScanExecutionProcessState, executionFinishTime time.Time) error
 	MarkAllRunningStateAsFailedHavingTryCountReachedLimit(tryCount int) error
-	GetAllScanHistoriesByState(state serverBean.ScanExecutionProcessState) ([]*ScanToolExecutionHistoryMapping, error)
-	GetAllScanHistoriesByExecutionHistoryIdAndStates(executionHistoryId int, states []serverBean.ScanExecutionProcessState) ([]*ScanToolExecutionHistoryMapping, error)
+	GetAllScanHistoriesByState(state ScanExecutionProcessState) ([]*ScanToolExecutionHistoryMapping, error)
+	GetAllScanHistoriesByExecutionHistoryIdAndStates(executionHistoryId int, states []ScanExecutionProcessState) ([]*ScanToolExecutionHistoryMapping, error)
 	GetAllScanHistoriesByExecutionHistoryIds(ids []int) ([]*ScanToolExecutionHistoryMapping, error)
 	FetchScanHistoryMappingsUsingImageAndImageDigest(image, imageDigest string) ([]*ScanToolExecutionHistoryMapping, error)
 }
@@ -80,7 +99,7 @@ func (repo *ScanToolExecutionHistoryMappingRepositoryImpl) SaveInBatch(models []
 }
 
 func (repo *ScanToolExecutionHistoryMappingRepositoryImpl) UpdateStateByToolAndExecutionHistoryId(executionHistoryId, toolId int,
-	state serverBean.ScanExecutionProcessState, executionFinishTime time.Time) error {
+	state ScanExecutionProcessState, executionFinishTime time.Time) error {
 	model := &ScanToolExecutionHistoryMapping{}
 	_, err := repo.dbConnection.Model(model).Set("state = ?", state).
 		Set("execution_finish_time  = ?", executionFinishTime).
@@ -98,10 +117,10 @@ func (repo *ScanToolExecutionHistoryMappingRepositoryImpl) UpdateStateByToolAndE
 func (repo *ScanToolExecutionHistoryMappingRepositoryImpl) MarkAllRunningStateAsFailedHavingTryCountReachedLimit(tryCount int) error {
 	var models []*ScanToolExecutionHistoryMapping
 	_, err := repo.dbConnection.Model(&models).
-		Set("state = ?", serverBean.ScanExecutionProcessStateFailed).
+		Set("state = ?", ScanExecutionProcessStateFailed).
 		Set("updated_on = ?", time.Now()).
 		Set("updated_by =?", time.Now()).
-		Where("state = ?", serverBean.ScanExecutionProcessStateRunning).
+		Where("state = ?", ScanExecutionProcessStateRunning).
 		Where("try_count > ?", tryCount).Update()
 	if err != nil {
 		repo.logger.Errorw("error in ScanToolExecutionHistoryMappingRepository, MarkAllRunningStateAsFailedHavingTryCountReachedLimit", "err", err)
@@ -110,7 +129,7 @@ func (repo *ScanToolExecutionHistoryMappingRepositoryImpl) MarkAllRunningStateAs
 	return nil
 }
 
-func (repo *ScanToolExecutionHistoryMappingRepositoryImpl) GetAllScanHistoriesByState(state serverBean.ScanExecutionProcessState) ([]*ScanToolExecutionHistoryMapping, error) {
+func (repo *ScanToolExecutionHistoryMappingRepositoryImpl) GetAllScanHistoriesByState(state ScanExecutionProcessState) ([]*ScanToolExecutionHistoryMapping, error) {
 	var models []*ScanToolExecutionHistoryMapping
 	err := repo.dbConnection.Model(&models).Column("scan_tool_execution_history_mapping.*").
 		Where("state = ?", state).Select()
@@ -121,7 +140,7 @@ func (repo *ScanToolExecutionHistoryMappingRepositoryImpl) GetAllScanHistoriesBy
 	return models, nil
 }
 
-func (repo *ScanToolExecutionHistoryMappingRepositoryImpl) GetAllScanHistoriesByExecutionHistoryIdAndStates(executionHistoryId int, states []serverBean.ScanExecutionProcessState) ([]*ScanToolExecutionHistoryMapping, error) {
+func (repo *ScanToolExecutionHistoryMappingRepositoryImpl) GetAllScanHistoriesByExecutionHistoryIdAndStates(executionHistoryId int, states []ScanExecutionProcessState) ([]*ScanToolExecutionHistoryMapping, error) {
 	var models []*ScanToolExecutionHistoryMapping
 	err := repo.dbConnection.Model(&models).Column("scan_tool_execution_history_mapping.*").
 		Where("image_scan_execution_history_id = ?", executionHistoryId).
