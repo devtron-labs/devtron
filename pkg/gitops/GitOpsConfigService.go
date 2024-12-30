@@ -26,7 +26,6 @@ import (
 	util4 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
-	bean2 "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/certificate"
 	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	repocreds "github.com/devtron-labs/devtron/client/argocdServer/repocreds"
@@ -114,13 +113,7 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *apiBe
 	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
 		//create argo-cd user, if not created, here argo-cd integration has to be installed
-
-		authConfig := &bean2.AcdAuthConfig{
-			ClusterId:                 1,
-			DevtronSecretName:         impl.devtronSecretConfig.DevtronSecretName,
-			DevtronDexSecretNamespace: impl.devtronSecretConfig.DevtronDexSecretNamespace,
-		}
-		_ = impl.argoCDConnectionManager.GetOrUpdateArgoCdUserDetail(authConfig)
+		_ = impl.argoCDConnectionManager.GetOrUpdateArgoCdUserDetail()
 		_, err := impl.createGitOpsConfig(context.Background(), config)
 		if err != nil {
 			impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", config)
@@ -173,12 +166,7 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *apiBe
 			}
 		}
 	}
-	authConfig := &bean2.AcdAuthConfig{
-		ClusterId:                 1,
-		DevtronSecretName:         impl.devtronSecretConfig.DevtronSecretName,
-		DevtronDexSecretNamespace: impl.devtronSecretConfig.DevtronDexSecretNamespace,
-	}
-	_ = impl.argoCDConnectionManager.GetOrUpdateArgoCdUserDetail(authConfig)
+	_ = impl.argoCDConnectionManager.GetOrUpdateArgoCdUserDetail()
 	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
 		err := impl.updateGitOpsConfig(config)

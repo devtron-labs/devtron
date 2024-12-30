@@ -64,7 +64,7 @@ const (
 
 type ArgoCDConnectionManager interface {
 	GetConnection() *grpc.ClientConn
-	GetOrUpdateArgoCdUserDetail(authConfig *bean.AcdAuthConfig) string
+	GetOrUpdateArgoCdUserDetail() string
 }
 type ArgoCDConnectionManagerImpl struct {
 	logger                  *zap.SugaredLogger
@@ -100,12 +100,7 @@ func NewArgoCDConnectionManagerImpl(Logger *zap.SugaredLogger, settingsManager *
 		runTimeConfig:           runTimeConfig,
 	}
 	if !runTimeConfig.LocalDevMode {
-		authConfig := &bean.AcdAuthConfig{
-			ClusterId:                 bean2.DefaultClusterId,
-			DevtronSecretName:         argoUserServiceImpl.devtronSecretConfig.DevtronSecretName,
-			DevtronDexSecretNamespace: argoUserServiceImpl.devtronSecretConfig.DevtronDexSecretNamespace,
-		}
-		go argoUserServiceImpl.ValidateGitOpsAndGetOrUpdateArgoCdUserDetail(authConfig)
+		go argoUserServiceImpl.ValidateGitOpsAndGetOrUpdateArgoCdUserDetail()
 	}
 	return argoUserServiceImpl, nil
 }
@@ -115,12 +110,12 @@ const (
 	ModuleStatusInstalled string = "installed"
 )
 
-func (impl *ArgoCDConnectionManagerImpl) ValidateGitOpsAndGetOrUpdateArgoCdUserDetail(authConfig *bean.AcdAuthConfig) string {
+func (impl *ArgoCDConnectionManagerImpl) ValidateGitOpsAndGetOrUpdateArgoCdUserDetail() string {
 	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil || !gitOpsConfigurationStatus.IsGitOpsConfigured {
 		return ""
 	}
-	return impl.GetOrUpdateArgoCdUserDetail(authConfig)
+	return impl.GetOrUpdateArgoCdUserDetail()
 }
 
 // GetConnection - this function will call only for acd connection
@@ -219,7 +214,15 @@ func (impl *ArgoCDConnectionManagerImpl) GetLatestDevtronArgoCdUserToken(authCon
 	return token, nil
 }
 
-func (impl *ArgoCDConnectionManagerImpl) GetOrUpdateArgoCdUserDetail(authConfig *bean.AcdAuthConfig) string {
+func (impl *ArgoCDConnectionManagerImpl) GetOrUpdateArgoCdUserDetail() string {
+
+	//TODO: authConfig should be passed as argument to this function
+	authConfig := &bean.AcdAuthConfig{
+		ClusterId:                 bean2.DefaultClusterId,
+		DevtronSecretName:         impl.devtronSecretConfig.DevtronSecretName,
+		DevtronDexSecretNamespace: impl.devtronSecretConfig.DevtronDexSecretNamespace,
+	}
+
 	token := ""
 	var (
 		k8sClient *v1.CoreV1Client
