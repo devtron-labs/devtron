@@ -1,0 +1,760 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "properties": {
+      "containerExtraSpecs": {
+        "type": "object",
+        "title": "containerExtraSpecs",
+        "description": "Define container extra specs here"
+      },
+      "ContainerPort": {
+        "type": "array",
+        "description": "defines ports on which application services will be exposed to other services",
+        "title": "Container Port",
+        "items": {
+          "type": "object",
+          "properties": {
+            "envoyPort": {
+              "type": [
+                "integer",
+                "string"
+              ],
+              "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+              "description": "envoy port for the container",
+              "title": "Envoy Port"
+            },
+            "idleTimeout": {
+              "type": "string",
+              "description": "duration of time for which a connection is idle before the connection is terminated",
+              "title": "Idle Timeout"
+            },
+            "name": {
+              "type": "string",
+              "description": "name of the port",
+              "title": "Name"
+            },
+            "port": {
+              "type": [
+                "integer",
+                "string"
+              ],
+              "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+              "description": "Port",
+              "title": "port for the container"
+            },
+            "servicePort": {
+              "type": [
+                "integer",
+                "string"
+              ],
+              "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+              "description": "port of the corresponding kubernetes service",
+              "title": "Service Port"
+            },
+            "nodePort": {
+              "type": [
+                "integer",
+                "string"
+              ],
+              "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+              "description": "nodeport of the corresponding kubernetes service",
+              "title": "Node Port"
+            },
+            "supportStreaming": {
+              "type": [
+                "boolean",
+                "string"
+              ],
+              "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+              "description": "field to enable/disable timeout for high performance protocols like grpc",
+              "title": "Support Streaming"
+            },
+            "useHTTP2": {
+              "type": [
+                "boolean",
+                "string"
+              ],
+              "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+              "description": " field for setting if envoy container can accept(or not) HTTP2 requests",
+              "title": "Use HTTP2"
+            }
+          }
+        }
+      },
+      "EnvVariables": {
+        "type": "array",
+        "items": {},
+        "description": "contains environment variables needed by the containers",
+        "title": "Environment Variables"
+      },
+      "EnvVariablesFromFieldPath": {
+        "type": "array",
+        "description": "Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`, spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs",
+        "title": "EnvVariablesFromFieldPath",
+        "items": [
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "title": "name",
+                "description": "Env variable name to be"
+              },
+              "fieldPath": {
+                "type": "string",
+                "title": "fieldPath",
+                "description": "Path of the field to select in the specified API version"
+              }
+            }
+          }
+        ]
+      },
+      "EnvVariablesFromSecretKeys": {
+        "type": "array",
+        "description": "Selects a field of the deployment: It is use to get the name of Environment Variable name, Secret name and the Key name from which we are using the value in that corresponding Environment Variable.",
+        "title": "EnvVariablesFromSecretKeys",
+        "items": [
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "title": "name",
+                "description": "Env variable name to be used."
+              },
+              "secretName": {
+                "type": "string",
+                "title": "secretName",
+                "description": "Name of Secret from which we are taking the value."
+              },
+              "keyName": {
+                "type": "string",
+                "title": "keyName",
+                "description": "Name of The Key Where the value is mapped with."
+              }
+            }
+          }
+        ]
+      },
+      "EnvVariablesFromConfigMapKeys": {
+        "type": "array",
+        "description": "Selects a field of the deployment: It is use to get the name of Environment Variable name, Config Map name and the Key name from which we are using the value in that corresponding Environment Variable.",
+        "title": "EnvVariablesFromConfigMapKeys",
+        "items": [
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "title": "name",
+                "description": "Env variable name to be used."
+              },
+              "configMapName": {
+                "type": "string",
+                "title": "configMapName",
+                "description": "Name of configMap from which we are taking the value."
+              },
+              "keyName": {
+                "type": "string",
+                "title": "keyName",
+                "description": "Name of The Key Where the value is mapped with."
+              }
+            }
+          }
+        ]
+      },
+      "GracePeriod": {
+        "type": [
+                "integer",
+                "string"
+              ],
+              "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+        "description": "time for which Kubernetes waits before terminating the pods",
+        "title": "Grace Period"
+      },
+      "MaxSurge": {
+        "type": [
+                "integer",
+                "string"
+              ],
+              "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+        "description": "maximum number of pods that can be created over the desired number of pods",
+        "title": "Maximum Surge"
+      },
+      "MaxUnavailable": {
+        "type": [
+                "integer",
+                "string"
+              ],
+              "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+        "description": "maximum number of pods that can be unavailable during the update process",
+        "title": "Maximum Unavailable"
+      },
+      "MinReadySeconds": {
+        "type": [
+                "integer",
+                "string"
+              ],
+              "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+        "description": "minimum number of seconds for which a newly created Pod should be ready without any of its containers crashing, for it to be considered available",
+        "title": "Minimum Ready Seconds"
+      },
+      "Spec": {
+        "type": "object",
+        "description": "used to define the desire state of the given container",
+        "title": "Spec",
+        "properties": {
+          "Affinity": {
+            "type": "object",
+            "description": "Node/Inter-pod Affinity allows you to constrain which nodes your pod is eligible to schedule on, based on labels of the node/pods",
+            "title": "Affinity",
+            "properties": {
+              "Key": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "string",
+                    "description": "Key part of the label for node/pod selection",
+                    "title": "Key"
+                  }
+                ]
+              },
+              "Values": {
+                "type": "string",
+                "description": "Value part of the label for node/pod selection",
+                "title": "Values"
+              },
+              "key": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "args": {
+        "type": "object",
+        "description": " used to give arguments to command",
+        "title": "Arguments",
+        "properties": {
+          "enabled": {
+            "type": [
+                "boolean",
+                "string"
+              ],
+              "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+            "description": "used for enabling/disabling aruguments",
+            "title": "Enabled"
+          },
+          "value": {
+            "type": "array",
+            "description": "values of the arguments",
+            "title": "Value",
+            "items": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        }
+      },
+      "command": {
+        "type": "object",
+        "description": "contains the commands for the server",
+        "title": "Command",
+        "properties": {
+          "enabled": {
+            "type": [
+                "boolean",
+                "string"
+              ],
+              "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+            "description": "used for enabling/disabling commands"
+          },
+          "value": {
+            "type": "array",
+            "items": {},
+            "description": "contains the commands",
+            "title": "Value"
+          },
+          "workingDir": {
+            "type": "object",
+            "items": {},
+            "description": "contains the working directory",
+            "title": "Working directory"
+          }
+        }
+      },
+      "cronjobConfigs": {
+        "type": "object",
+        "description": " used to give configs to schdule cronjob",
+        "title": "Cronjob Configs",
+        "properties": {
+          "concurrencyPolicy": {
+            "type": "string",
+            "description": "Specifies how to treat concurrent executions of a Job.",
+            "title": "cronjobConfigs",
+            "enum": [ "Allow", "Forbid","Replace"]
+          },
+          "failedJobsHistoryLimit": {
+            "type": "integer",
+            "description": "The number of failed finished jobs to retain. Value must be non-negative integer. Defaults to 1.",
+            "title": "failedJobsHistoryLimit"
+          },
+          "restartPolicy": {
+            "type": "string",
+            "description": "It restarts the docker container based on defined conditions.",
+            "title": "Restart Policy",
+            "enum": [
+              "Always",
+              "OnFailure",
+              "Never"
+            ]
+          },
+          "schedule": {
+            "type": "string",
+            "description": "The schedule in Cron format, see https://en.wikipedia.org/wiki/Cron.",
+            "title": "schedule"
+          },
+          "startingDeadlineSeconds":{
+            "type": "integer",
+            "description": "Optional deadline in seconds for starting the job if it misses scheduled time for any reason.",
+            "title": "startingDeadlineSeconds"
+          },
+          "successfulJobsHistoryLimit": {
+            "type": "integer",
+            "description": "The number of successful finished jobs to retain. Value must be non-negative integer. Defaults to 3.",
+            "title": "Successful  Jobs History Limit"
+          },
+          "suspend":{
+            "type":"boolean",
+            "description": "This flag tells the controller to suspend subsequent executions, it does not apply to already started executions.  Defaults is false."
+          }
+        }
+      },
+      "jobConfigs":{
+        "type":"object",
+        "description": "used to give configs to schdule job",
+        "title": "Job Config",
+        "properties": {
+          "activeDeadlineSeconds":{
+            "type":"integer",
+            "description": "Specifies the duration in seconds relative to the startTime that the job may be continuously active before the system tries to terminate it; value must be positive integer.",
+            "title": "Active Deadline Seconds"
+          },
+          "backoffLimit":{
+            "type":"integer",
+            "description": "Specifies the number of retries before marking this job failed. Defaults is 5"
+          },
+          "completions":{
+            "type":"integer",
+            "description": "Specifies the desired number of successfully finished pods the job should be run with. More info:  https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/"
+        },
+        "parallelism":{
+          "type":"integer",
+          "description": "Specifies the maximum desired number of pods the job should run at any given time. More info:  https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/"
+        },
+        "suspend":{
+          "type":"boolean",
+          "description": "This flag tells the controller to suspend subsequent executions, it does not apply to already started executions.  Defaults is false."
+        }
+      }
+       },
+      "kind":{
+        "type": "string",
+        "description": "Kind is a string value representing the object type.",
+        "enum": [
+          "Job",
+          "Cronjob",
+          "ScaledJob"
+        ],
+        "title": "Kind"
+
+      },
+
+      "kedaAutoscaling": {
+        "type": "object",
+        "description": "Kubernetes-based event driven autoscaler. With KEDA, one can drive the scaling of any container in Kubernetes based on the no. of events needing to be processed",
+        "title": "KEDA Autoscaling",
+        "properties": {
+          "envSourceContainerName":{
+            "type": "string",
+            "description": "Is an optional property that specifies the name of container in the target resource, from which KEDA should try to get environment properties holding secrets etc. ",
+            "title": "Env Source Container Name"
+          },
+          "failedJobsHistoryLimit": {
+            "type": "integer",
+            "description": "specifies how many failed jobs to keep",
+            "title": "Failed Jobs History Limit"
+          },
+          "maxReplicaCount":{
+            "type":"integer",
+            "description": "maxReplicaCount in KEDA specifies the maximum number of replicas the target resource can be scaled to.",
+            "title": "Max Replica Count"
+          },
+          "minReplicaCount":{
+            "type":"integer",
+            "description": "minReplicaCount in KEDA specifies the minimum number of replicas a resource will be scaled down to.",
+            "title": "Max Replica Count"
+
+        },
+        "pollingInterval":{
+          "type": "integer",
+          "description": "This is the interval to check each trigger on. By default, KEDA will check each trigger source on every ScaledObject every 30 seconds.",
+          "title": "Polling Interval"
+        },
+        "rolloutStrategy": {
+          "type": "string",
+          "description": "rollout.strategy specifies the rollout strategy KEDA will use while updating an existing ScaledJob",
+          "enum":[
+            "gradual","default"
+          ]
+        },
+        "scalingStrategy": {
+          "type": "object",
+          "properties":
+          {
+            "customScalingQueueLengthDeduction":{
+              "type": "integer",
+              "description": "Optional. A parameter to optimize custom ScalingStrategy.",
+              "title": "Custom Scaling Queue Length Deduction"
+            },
+            "customScalingRunningJobPercentage":{
+              "type": "string",
+              "description": "Optional. A parameter to optimize custom ScalingStrategy.",
+              "title": "Custom Scaling QueueLengthDeduction"
+            },
+            "multipleScalersCalculation": 
+            {
+              "type": "string",
+              "description": "Select a behavior if you have multiple triggers",
+              "title": "Multiple Scalers Calculation",
+              "enum":[
+                "max", "min", "avg", "sum"
+              ]
+              
+            },
+            "pendingPodConditions": {
+              "type": "array",
+              "description": "Optional. A parameter to calculate pending job count per the specified pod conditions",
+              "title": "Pending Pod Conditions"
+            },
+            "strategy":{
+              "type": "string",
+              "description": "Optional. Default: default. Which Scaling Strategy to use.",
+              "title":"Strategy",
+              "enum": ["default", "custom",  "accurate"]
+            }
+          }
+        
+        },
+        "successfulJobsHistoryLimit": {
+          "type": "integer",
+          "description": "    The number of successful finished jobs to retain. Value must be non-negative integer. Defaults to 3.",
+          "title": "Successful  Jobs History Limit"
+        },
+        "triggerAuthentication":{
+          "type": "object",
+          "title": "Trigger Authentication",
+          "description": "TriggerAuthentication allows you to describe authentication parameters separate from the ScaledObject and the deployment containers.",
+          "properties":
+          {
+            "enabled": {
+              "type": "boolean",
+              "description": "enabling TriggerAuthentication"
+            },
+            "name": {
+              "type": "string"
+            },
+            "spec":{
+              "type": "object"
+            }
+          }
+        },
+        "triggers":{
+          "type":"array",
+          "description": "list of triggers to activate scaling of the target resource"
+        }
+
+        }
+
+      },
+      "podAnnotations":{
+        "type": "object",
+        "description": "adding extra annotations to pod"
+      },
+      "ephemeralContainers":
+      {
+        "type": "array",
+        "description": "List of ephemeral containers run in this pod. Ephemeral containers may be run in an existing pod to perform user-initiated actions such as debugging."
+      },
+      "initContainers":{
+        "type":"array",
+        "description":"List of initialization containers belonging to the pod. Init containers are  executed in order prior to containers being started."
+      },
+      "imagePullSecrets":
+      {
+        "type":"array",
+        "description":"    ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images used by this PodSpec. If specified, these secrets will be passed to individual puller implementations for them to use. More info:  https://kubernetes.io/docs/concepts/containers/images#specifying-imagepullsecrets-on-a-pod"
+      }
+      ,
+      "containerSecurityContext": {
+        "type": "object",
+        "description": " defines privilege and access control settings for a Container",
+        "title": "Container Security Context"
+      },
+      "containers": {
+        "type": "array",
+        "items": {},
+        "description": " used to run side-car containers along with the main container within same pod"
+      },
+      "dbMigrationConfig": {
+        "type": "object",
+        "description": "used to configure database migration",
+        "title": "Db Migration Config",
+        "properties": {
+          "enabled": {
+            "type": [
+                "boolean",
+                "string"
+              ],
+              "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+            "description": "used for enabling/disabling the config",
+            "title": "Enabled"
+          }
+        }
+      },
+      "image": {
+        "type": "object",
+        "description": "used to access images in kubernetes",
+        "title": "Image",
+        "properties": {
+          "pullPolicy": {
+            "type": "string",
+            "description": "used to define the instances calling the image",
+            "title": "Pull Policy",
+            "enum": [
+              "IfNotPresent",
+              "Always"
+            ]
+          }
+        }
+      },
+      "podExtraSpecs": {
+        "type": "object",
+        "description": "ExtraSpec for the pods to be configured",
+        "title": "podExtraSpecs"
+      },
+      "podLabels": {
+        "type": "object",
+        "description": "key/value pairs that are attached to pods, are intended to be used to specify identifying attributes of objects that are meaningful and relevant to users, but do not directly imply semantics to the core system",
+        "title": "Pod Labels"
+      },
+      "podSecurityContext": {
+        "type": "object",
+        "description": "defines privilege and access control settings for a Pod or Container",
+        "title": "Pod Security Context"
+      },
+      "prometheus": {
+        "type": "object",
+        "description": "a kubernetes monitoring tool",
+        "title": "Prometheus",
+        "properties": {
+          "release": {
+            "type": "string",
+            "description": "name of the file to be monitored, describes the state of prometheus"
+          }
+        }
+      },
+      "rawYaml": {
+        "type": "array",
+        "items": {},
+        "description": "Accepts an array of Kubernetes objects. One can specify any kubernetes yaml here & it will be applied when a app gets deployed.",
+        "title": "Raw YAML"
+      },
+      "resources": {
+        "type": "object",
+        "description": "minimum and maximum RAM and CPU available to the application",
+        "title": "Resources",
+        "properties": {
+          "limits": {
+            "type": "object",
+            "description": "the maximum values a container can reach",
+            "title": "Limits",
+            "properties": {
+              "cpu": {
+                "type": "string",
+                "format": "cpu",
+                "description": "limit of CPU",
+                "title": "CPU"
+              },
+              "memory": {
+                "type": "string",
+                "format": "memory",
+                "description": "limit of memory",
+                "title": "Memory"
+              }
+            }
+          },
+          "requests": {
+            "type": "object",
+            "description": "request is what the container is guaranteed to get",
+            "title": "Requests",
+            "properties": {
+              "cpu": {
+                "type": "string",
+                "format": "cpu",
+                "description": "request value of CPU",
+                "title": "CPU"
+              },
+              "memory": {
+                "type": "string",
+                "format": "memory",
+                "description": "request value of memory",
+                "title": "Memory"
+              }
+            }
+          }
+        }
+      },
+      "secret": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "server": {
+        "type": "object",
+        "description": "used for providing server configurations.",
+        "title": "Server",
+        "properties": {
+          "deployment": {
+            "type": "object",
+            "description": "gives the details for deployment",
+            "title": "Deployment",
+            "properties": {
+              "image": {
+                "type": "string",
+                "description": "URL of the image",
+                "title": "Image"
+              },
+              "image_tag": {
+                "type": "string",
+                "description": "tag of the image",
+                "title": "Image Tag"
+              }
+            }
+          }
+        }
+      },
+      "service": {
+        "type": "object",
+        "description": "defines annotations and the type of service",
+        "title": "Service",
+        "properties": {
+          "annotations": {
+            "type": "object",
+            "title": "Annotations",
+            "description": "annotations of service"
+          },
+          "type": {
+            "type": "string",
+            "description": "type of service",
+            "title": "Type",
+            "enum": [
+              "ClusterIP",
+              "LoadBalancer",
+              "NodePort",
+              "ExternalName"
+            ]
+          },
+          "enabled": {
+            "type": [
+                "boolean",
+                "string"
+              ],
+              "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+            "description": "used to enable or disable service",
+            "title": "Enabled"
+          }
+        }
+      },
+      "serviceAccount": {
+        "type": "object",
+        "description": "defines service account for pods",
+        "title": "Service Account",
+        "properties": {
+          "annotations": {
+            "type": "object",
+            "title": "Annotations",
+            "description": "annotations of service account"
+          },
+          "name": {
+            "type": "string",
+            "description": "name of service account",
+            "title": "Name"
+          },
+          "create": {
+            "type": "boolean",
+            "description": "If set to true, a service account will be created, ensuring that no roles or role bindings are created in the process."
+
+          }
+        }
+      },
+      "servicemonitor": {
+        "type": "object",
+        "description": "gives the set of targets to be monitored",
+        "title": "Service Monitor",
+        "properties": {
+          "additionalLabels": {
+            "type": "object"
+          }
+        }
+      },
+      "tolerations": {
+        "type": "array",
+        "items": {},
+        "description": "a mechanism which work together with Taints which ensures that pods are not placed on inappropriate nodes",
+        "title": "Tolerations"
+      },
+      "topologySpreadConstraints": {
+        "type": "array",
+        "items": {},
+        "description": "used to control how Pods are spread across a cluster among failure-domains such as regions, zones, nodes, and other user-defined topology domains",
+        "title": "Topology Spread Constraints"
+      },
+      "volumeMounts": {
+        "type": "array",
+        "items": {},
+        "description": "used to provide mounts to the volume",
+        "title": "Volume Mounts"
+      },
+      "volumes": {
+        "type": "array",
+        "items": {},
+        "description": "required when some values need to be read from or written to an external disk",
+        "title": "Volumes"
+      },
+      "waitForSecondsBeforeScalingDown": {
+        "type": [
+                "integer",
+                "string"
+              ],
+              "pattern": "^@{{[a-zA-Z0-9-+/*%_\\s]+}}$",
+        "description": "Wait for given period of time before scaling down the container",
+        "title": "Wait For Seconds Before Scaling Down"
+      }
+    }
+}
