@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	bean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	mock "github.com/stretchr/testify/mock"
 )
 

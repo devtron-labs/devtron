@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package sql
@@ -33,11 +32,14 @@ type Config struct {
 	User                   string `env:"PG_USER" envDefault:""`
 	Password               string `env:"PG_PASSWORD" envDefault:"" secretData:"-"`
 	Database               string `env:"PG_DATABASE" envDefault:"orchestrator"`
-	ApplicationName        string `env:"APP" envDefault:"orchestrator"`
+	CasbinDatabase         string `env:"CASBIN_DATABASE" envDefault:"casbin"`
+	ApplicationName string `env:"APP" envDefault:"orchestrator" envDescription:"Application name"`
 	LogQuery               bool   `env:"PG_LOG_QUERY" envDefault:"true"`
 	LogAllQuery            bool   `env:"PG_LOG_ALL_QUERY" envDefault:"false"`
 	ExportPromMetrics      bool   `env:"PG_EXPORT_PROM_METRICS" envDefault:"false"`
 	QueryDurationThreshold int64  `env:"PG_QUERY_DUR_THRESHOLD" envDefault:"5000"`
+	ReadTimeout            int64  `env:"PG_READ_TIMEOUT" envDefault:"30"`
+	WriteTimeout           int64  `env:"PG_WRITE_TIMEOUT" envDefault:"30"`
 }
 
 func GetConfig() (*Config, error) {
@@ -53,9 +55,11 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 		Password:        cfg.Password,
 		Database:        cfg.Database,
 		ApplicationName: cfg.ApplicationName,
+		ReadTimeout:     time.Duration(cfg.ReadTimeout) * time.Second,
+		WriteTimeout:    time.Duration(cfg.WriteTimeout) * time.Second,
 	}
 	dbConnection := pg.Connect(&options)
-	//check db connection
+	// check db connection
 	var test string
 	_, err := dbConnection.QueryOne(&test, `SELECT 1`)
 
@@ -66,7 +70,7 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 		logger.Infow("connected with db", "db", obfuscateSecretTags(cfg))
 	}
 
-	//--------------
+	// --------------
 	dbConnection.OnQueryProcessed(func(event *pg.QueryProcessedEvent) {
 		queryDuration := time.Since(event.StartTime)
 

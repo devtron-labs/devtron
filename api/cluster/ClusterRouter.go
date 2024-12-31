@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package cluster
@@ -40,6 +39,14 @@ func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
 		Methods("POST").
 		HandlerFunc(impl.clusterRestHandler.Save)
 
+	clusterRouter.Path("/saveClusters").
+		Methods("POST").
+		HandlerFunc(impl.clusterRestHandler.SaveClusters)
+
+	clusterRouter.Path("/validate").
+		Methods("POST").
+		HandlerFunc(impl.clusterRestHandler.ValidateKubeconfig)
+
 	clusterRouter.Path("").
 		Methods("GET").
 		Queries("id", "{id}").
@@ -58,7 +65,7 @@ func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
 		Methods("PUT").
 		HandlerFunc(impl.clusterRestHandler.Update)
 
-	clusterRouter.Path("/description/note").
+	clusterRouter.Path("/note").
 		Methods("PUT").
 		HandlerFunc(impl.clusterRestHandler.UpdateClusterNote)
 
@@ -81,4 +88,8 @@ func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
 	clusterRouter.Path("/auth-list").
 		Methods("GET").
 		HandlerFunc(impl.clusterRestHandler.FindAllForClusterPermission)
+
+	clusterRouter.Path("/description").
+		Methods("PUT").
+		HandlerFunc(impl.clusterRestHandler.UpdateClusterDescription)
 }

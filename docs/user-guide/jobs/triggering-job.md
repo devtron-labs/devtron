@@ -29,6 +29,6 @@ Click `Source code` to view the details such as commit id, Author and commit mes
 
 Click `Artifacts` to download the _reports_ of the job, if any.
 
-If you have mulitple job pipelines, you can select a pipeline from the drop-down list to view th details of logs, source code, or artifacts.
+If you have multiple job pipelines, you can select a pipeline from the drop-down list to view th details of logs, source code, or artifacts.
 
 

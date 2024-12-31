@@ -22,7 +22,7 @@ In the `Workflow Editor` section, you can configure a job pipeline to be execute
 
 * To trigger job pipeline, go to the [Trigger Job](triggering-job.md) section. 
 
-`Note`: You can create more than one job pipeline by clicking **+ Job Pipeine**.
+`Note`: You can create more than one job pipeline by clicking **+ Job Pipeline**.
 
 
 ### Source type: Branch Fixed
@@ -43,9 +43,9 @@ For example if the user sets the Branch Regex as `feature-*`, then users can tri
 
 The **Source type** - "Pull Request" allows you to configure the CI Pipeline using the PR raised in your repository.
 
-> Before you begin, [configure the webhook](#configuring-webhook) for either GitHub or Bitbucket.
+> Before you begin, [configure the webhook](../creating-application/workflow/ci-pipeline.md#configuring-webhook) for either GitHub or Bitbucket.
 
-> The "Pull Request" source type feature only works for the host GitHub or Bitbucket cloud for now. To request support for a different Git host, please create a github issue [here](https://github.com/devtron-labs/devtron/issues).
+> The "Pull Request" source type feature only works for the host GitHub or Bitbucket cloud for now. To request support for a different Git host, please create a GitHub issue [here](https://github.com/devtron-labs/devtron/issues).
 
 
 To trigger the build from specific PRs, you can filter the PRs based on the following keys:
@@ -66,7 +66,7 @@ Select the appropriate filter and pass the matching condition as a regular expre
 
 The **Source type** - "Tag Creation" allows you to build the CI pipeline from a tag.
 
-> Before you begin, [configure the webhook](#configuring-webhook) for either GitHub or Bitbucket.
+> Before you begin, [configure the webhook](../creating-application/workflow/ci-pipeline.md#configuring-webhook) for either GitHub or Bitbucket.
 
 To trigger the build from specific tags, you can filter the tags based on the `author` and/or the `tag name`.
 
@@ -82,7 +82,7 @@ Select the appropriate filter and pass the matching condition as a regular expre
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/create-job/create-job-pipeline-add-tasks.jpg)
 
-You can also add preset plugins in your job pipeline to execute some standard tasks, such as Code analysis, Load testing, Security scanning etc. Click `Add Task` to add [preset plugins](https://docs.devtron.ai/v/v0.6/usage/applications/creating-application/ci-pipeline/ci-build-pre-post-plugins#configuring-pre-post-build-tasks).
+You can also add preset plugins in your job pipeline to execute some standard tasks, such as Code analysis, Load testing, Security scanning etc. Click `Add Task` to add [preset plugins](../creating-application/workflow/ci-build-pre-post-plugins.md#configuring-pre-post-build-tasks).
 
 
 ## Update Job Pipeline

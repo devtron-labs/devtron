@@ -1,68 +1,71 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package team
 
 import (
+	"errors"
+	bean2 "github.com/devtron-labs/devtron/pkg/team/bean"
+	"github.com/devtron-labs/devtron/pkg/team/read"
+	"github.com/devtron-labs/devtron/pkg/team/repository"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/bean"
 	"go.uber.org/zap"
-	"time"
 )
 
 type TeamService interface {
-	Create(request *TeamRequest) (*TeamRequest, error)
-	FetchAllActive() ([]TeamRequest, error)
-	FetchOne(id int) (*TeamRequest, error)
-	Update(request *TeamRequest) (*TeamRequest, error)
-	Delete(request *TeamRequest) error
-	FetchForAutocomplete() ([]TeamRequest, error)
-	FindByIds(ids []*int) ([]*TeamBean, error)
-	FindByTeamName(teamName string) (*TeamRequest, error)
+	Create(request *bean2.TeamRequest) (*bean2.TeamRequest, error)
+	FetchAllActive() ([]bean2.TeamRequest, error)
+	FetchOne(id int) (*bean2.TeamRequest, error)
+	Update(request *bean2.TeamRequest) (*bean2.TeamRequest, error)
+	Delete(request *bean2.TeamRequest) error
+	FetchForAutocomplete() ([]bean2.TeamRequest, error)
 }
 type TeamServiceImpl struct {
 	logger          *zap.SugaredLogger
-	teamRepository  TeamRepository
+	teamRepository  repository.TeamRepository
 	userAuthService user.UserAuthService
+	teamReadService read.TeamReadService
 }
 
-type TeamRequest struct {
-	Id        int       `json:"id,omitempty" validate:"number"`
-	Name      string    `json:"name,omitempty" validate:"required"`
-	Active    bool      `json:"active"`
-	UserId    int32     `json:"-"`
-	CreatedOn time.Time `json:"-"`
-}
-
-func NewTeamServiceImpl(logger *zap.SugaredLogger, teamRepository TeamRepository,
-	userAuthService user.UserAuthService) *TeamServiceImpl {
+func NewTeamServiceImpl(logger *zap.SugaredLogger, teamRepository repository.TeamRepository,
+	userAuthService user.UserAuthService,
+	teamReadService read.TeamReadService) *TeamServiceImpl {
 	return &TeamServiceImpl{
 		logger:          logger,
 		teamRepository:  teamRepository,
 		userAuthService: userAuthService,
+		teamReadService: teamReadService,
 	}
 }
 
-func (impl TeamServiceImpl) Create(request *TeamRequest) (*TeamRequest, error) {
+func (impl TeamServiceImpl) Create(request *bean2.TeamRequest) (*bean2.TeamRequest, error) {
 	impl.logger.Debugw("team create request", "req", request)
-	t := &Team{
+	if len(request.Name) < 3 || strings.Contains(request.Name, " ") {
+		impl.logger.Errorw("name should not contain white spaces and should have min 3 chars ")
+		err := errors.New("name should not contain white spaces and should have min 3 chars")
+		return nil, err
+	}
+	t := &repository.Team{
 		Name:     request.Name,
 		Id:       request.Id,
 		Active:   request.Active,
@@ -81,48 +84,29 @@ func (impl TeamServiceImpl) Create(request *TeamRequest) (*TeamRequest, error) {
 	return request, nil
 }
 
-func (impl TeamServiceImpl) FetchAllActive() ([]TeamRequest, error) {
+func (impl TeamServiceImpl) FetchAllActive() ([]bean2.TeamRequest, error) {
 	impl.logger.Debug("fetch all team from db")
-	teams, err := impl.teamRepository.FindAllActive()
+	teams, err := impl.teamReadService.FindAllActive()
 	if err != nil {
 		impl.logger.Errorw("error in fetch all team", "err", err)
 		return nil, err
 	}
-	var teamRequests []TeamRequest
-	for _, team := range teams {
-		providerRes := TeamRequest{
-			Id:     team.Id,
-			Name:   team.Name,
-			Active: team.Active,
-			UserId: team.CreatedBy,
-		}
-		teamRequests = append(teamRequests, providerRes)
-	}
-	return teamRequests, err
+	return teams, err
 }
 
-func (impl TeamServiceImpl) FetchOne(teamId int) (*TeamRequest, error) {
+func (impl TeamServiceImpl) FetchOne(teamId int) (*bean2.TeamRequest, error) {
 	impl.logger.Debug("fetch team by ID from db")
-	team, err := impl.teamRepository.FindOne(teamId)
+	team, err := impl.teamReadService.FindOne(teamId)
 	if err != nil {
 		impl.logger.Errorw("error in fetch all team", "err", err)
 		return nil, err
 	}
-
-	teamRes := &TeamRequest{
-		Id:        team.Id,
-		Name:      team.Name,
-		Active:    team.Active,
-		UserId:    team.CreatedBy,
-		CreatedOn: team.CreatedOn,
-	}
-
-	return teamRes, err
+	return team, err
 }
 
-func (impl TeamServiceImpl) Update(request *TeamRequest) (*TeamRequest, error) {
+func (impl TeamServiceImpl) Update(request *bean2.TeamRequest) (*bean2.TeamRequest, error) {
 	impl.logger.Debugw("team update request", "req", request)
-	existingProvider, err0 := impl.teamRepository.FindOne(request.Id)
+	existingProvider, err0 := impl.teamReadService.FindOne(request.Id)
 	if err0 != nil {
 		impl.logger.Errorw("No matching entry found for update.", "id", request.Id)
 		err0 = &util.ApiError{
@@ -132,11 +116,11 @@ func (impl TeamServiceImpl) Update(request *TeamRequest) (*TeamRequest, error) {
 		}
 		return nil, err0
 	}
-	team := &Team{
+	team := &repository.Team{
 		Name:     request.Name,
 		Id:       request.Id,
 		Active:   request.Active,
-		AuditLog: sql.AuditLog{CreatedBy: existingProvider.CreatedBy, CreatedOn: existingProvider.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: request.UserId},
+		AuditLog: sql.AuditLog{CreatedBy: existingProvider.UserId, CreatedOn: existingProvider.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
 	err := impl.teamRepository.Update(team)
 	if err != nil {
@@ -152,8 +136,8 @@ func (impl TeamServiceImpl) Update(request *TeamRequest) (*TeamRequest, error) {
 	return request, nil
 }
 
-func (impl TeamServiceImpl) Delete(deleteRequest *TeamRequest) error {
-	existingTeam, err := impl.teamRepository.FindOne(deleteRequest.Id)
+func (impl TeamServiceImpl) Delete(deleteRequest *bean2.TeamRequest) error {
+	existingTeam, err := impl.teamReadService.FindOne(deleteRequest.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete.", "id", deleteRequest.Id)
 		return err
@@ -166,11 +150,11 @@ func (impl TeamServiceImpl) Delete(deleteRequest *TeamRequest) error {
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	deleteReq := &Team{
+	deleteReq := &repository.Team{
 		Name:     deleteRequest.Name,
 		Id:       deleteRequest.Id,
 		Active:   deleteRequest.Active,
-		AuditLog: sql.AuditLog{CreatedBy: existingTeam.CreatedBy, CreatedOn: existingTeam.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: deleteRequest.UserId},
+		AuditLog: sql.AuditLog{CreatedBy: existingTeam.UserId, CreatedOn: existingTeam.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: deleteRequest.UserId},
 	}
 	err = impl.teamRepository.MarkTeamDeleted(deleteReq, tx)
 	if err != nil {
@@ -178,7 +162,7 @@ func (impl TeamServiceImpl) Delete(deleteRequest *TeamRequest) error {
 		return err
 	}
 	//deleting auth roles entries for this project
-	err = impl.userAuthService.DeleteRoles(bean.PROJECT_TYPE, deleteRequest.Name, tx, "")
+	err = impl.userAuthService.DeleteRoles(bean.PROJECT_TYPE, deleteRequest.Name, tx, "", "")
 	if err != nil {
 		impl.logger.Errorw("error in deleting auth roles", "err", err)
 		return err
@@ -190,60 +174,12 @@ func (impl TeamServiceImpl) Delete(deleteRequest *TeamRequest) error {
 	return nil
 }
 
-func (impl TeamServiceImpl) FetchForAutocomplete() ([]TeamRequest, error) {
+func (impl TeamServiceImpl) FetchForAutocomplete() ([]bean2.TeamRequest, error) {
 	impl.logger.Debug("fetch all team from db")
-	teams, err := impl.teamRepository.FindAllActive()
+	teams, err := impl.teamReadService.FindAllActive()
 	if err != nil {
 		impl.logger.Errorw("error in fetch all team", "err", err)
 		return nil, err
 	}
-	var teamRequests []TeamRequest
-	for _, team := range teams {
-		providerRes := TeamRequest{
-			Id:   team.Id,
-			Name: team.Name,
-		}
-		teamRequests = append(teamRequests, providerRes)
-	}
-	return teamRequests, err
-}
-
-func (impl TeamServiceImpl) FindByIds(ids []*int) ([]*TeamBean, error) {
-	teams, err := impl.teamRepository.FindByIds(ids)
-	if err != nil {
-		impl.logger.Errorw("error in fetch all team", "err", err)
-		return nil, err
-	}
-	var teamRequests []*TeamBean
-	for _, team := range teams {
-		team := &TeamBean{
-			Id:   team.Id,
-			Name: team.Name,
-		}
-		teamRequests = append(teamRequests, team)
-	}
-	return teamRequests, err
-}
-
-func (impl TeamServiceImpl) FindByTeamName(teamName string) (*TeamRequest, error) {
-	impl.logger.Debug("fetch team by name from db")
-	team, err := impl.teamRepository.FindByTeamName(teamName)
-	if err != nil {
-		impl.logger.Errorw("error in fetch team", "err", err)
-		return nil, err
-	}
-
-	teamRes := &TeamRequest{
-		Id:     team.Id,
-		Name:   team.Name,
-		Active: team.Active,
-		UserId: team.CreatedBy,
-	}
-
-	return teamRes, err
-}
-
-type TeamBean struct {
-	Id   int    `json:"id"`
-	Name string `json:"name,notnull"`
+	return teams, err
 }

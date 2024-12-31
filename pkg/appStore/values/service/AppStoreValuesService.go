@@ -1,32 +1,34 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package service
 
 import (
 	"fmt"
+	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
+	util2 "github.com/devtron-labs/devtron/pkg/appStore/util"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	appStoreValuesRepository "github.com/devtron-labs/devtron/pkg/appStore/values/repository"
-	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"go.uber.org/zap"
-	"time"
 )
 
 type AppStoreValuesService interface {
@@ -44,17 +46,22 @@ type AppStoreValuesServiceImpl struct {
 	logger                          *zap.SugaredLogger
 	appStoreApplicationRepository   appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	installedAppRepository          repository.InstalledAppRepository
+	installedAppReadService         installedAppReader.InstalledAppReadServiceEA
 	appStoreVersionValuesRepository appStoreValuesRepository.AppStoreVersionValuesRepository
 	userService                     user.UserService
 }
 
 func NewAppStoreValuesServiceImpl(logger *zap.SugaredLogger,
-	appStoreApplicationRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository, installedAppRepository repository.InstalledAppRepository,
-	appStoreVersionValuesRepository appStoreValuesRepository.AppStoreVersionValuesRepository, userService user.UserService) *AppStoreValuesServiceImpl {
+	appStoreApplicationRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
+	installedAppRepository repository.InstalledAppRepository,
+	installedAppReadServiceEA installedAppReader.InstalledAppReadServiceEA,
+	appStoreVersionValuesRepository appStoreValuesRepository.AppStoreVersionValuesRepository,
+	userService user.UserService) *AppStoreValuesServiceImpl {
 	return &AppStoreValuesServiceImpl{
 		logger:                          logger,
 		appStoreApplicationRepository:   appStoreApplicationRepository,
 		installedAppRepository:          installedAppRepository,
+		installedAppReadService:         installedAppReadServiceEA,
 		appStoreVersionValuesRepository: appStoreVersionValuesRepository,
 		userService:                     userService,
 	}
@@ -150,7 +157,7 @@ func (impl AppStoreValuesServiceImpl) FindValuesByIdAndKind(referenceId int, kin
 		}
 		return valDto, err
 	} else if kind == appStoreBean.REFERENCE_TYPE_EXISTING {
-		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersionAny(referenceId)
+		installedAppVersion, err := impl.installedAppReadService.GetInstalledAppVersionIncludingDeleted(referenceId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching installed App", "id", referenceId, "err", err)
 		}
@@ -158,7 +165,7 @@ func (impl AppStoreValuesServiceImpl) FindValuesByIdAndKind(referenceId int, kin
 			Name:              appStoreBean.REFERENCE_TYPE_EXISTING,
 			Id:                installedAppVersion.Id,
 			Values:            installedAppVersion.ValuesYaml,
-			ChartVersion:      installedAppVersion.AppStoreApplicationVersion.Version,
+			ChartVersion:      installedAppVersion.AppStoreVersion,
 			AppStoreVersionId: installedAppVersion.AppStoreApplicationVersionId,
 		}
 		return valDto, err
@@ -239,6 +246,9 @@ func (impl AppStoreValuesServiceImpl) FindValuesByAppStoreId(appStoreId int, ins
 			ChartVersion:      installedAppVersion.AppStoreApplicationVersion.Version,
 			EnvironmentName:   installedAppVersion.InstalledApp.Environment.Name,
 		}
+		if util2.IsExternalChartStoreApp(installedAppVersion.InstalledApp.App.DisplayName) {
+			appStoreVersion.Name = installedAppVersion.InstalledApp.App.DisplayName
+		}
 		installedVal.Values = append(installedVal.Values, appStoreVersion)
 	}
 
@@ -258,6 +268,9 @@ func (impl AppStoreValuesServiceImpl) FindValuesByAppStoreId(appStoreId int, ins
 			Name:              installedAppVersion.InstalledApp.App.AppName,
 			ChartVersion:      installedAppVersion.AppStoreApplicationVersion.Version,
 			EnvironmentName:   installedAppVersion.InstalledApp.Environment.Name,
+		}
+		if util2.IsExternalChartStoreApp(installedAppVersion.InstalledApp.App.DisplayName) {
+			appStoreVersion.Name = installedAppVersion.InstalledApp.App.DisplayName
 		}
 		existingVal.Values = append(existingVal.Values, appStoreVersion)
 	}
@@ -372,10 +385,15 @@ func (impl AppStoreValuesServiceImpl) GetSelectedChartMetaData(req *ChartMetaDat
 	for _, appversion := range appVersions {
 		chartMeta := &ChartMetaDataResponse{
 			ChartName:                    appversion.AppStore.Name,
-			ChartRepoName:                appversion.AppStore.ChartRepo.Name,
 			AppStoreApplicationVersionId: appversion.Id,
 			Icon:                         appversion.Icon,
 			Kind:                         appStoreBean.REFERENCE_TYPE_DEFAULT,
+		}
+		if appversion.AppStore.DockerArtifactStore != nil {
+			chartMeta.ChartRepoName = appversion.AppStore.DockerArtifactStore.Id
+		}
+		if appversion.AppStore.ChartRepo != nil {
+			chartMeta.ChartRepoName = appversion.AppStore.ChartRepo.Name
 		}
 		res = append(res, chartMeta)
 	}

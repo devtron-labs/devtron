@@ -1,16 +1,34 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package restHandler
 
 import (
 	"encoding/json"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strconv"
 )
 
 type GlobalCMCSRestHandler interface {
@@ -51,7 +69,7 @@ func (handler *GlobalCMCSRestHandlerImpl) CreateGlobalCMCSConfig(w http.Response
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var bean pipeline.GlobalCMCSDto
+	var bean pipelineBean.GlobalCMCSDto
 	err = decoder.Decode(&bean)
 	if err != nil {
 		handler.logger.Errorw("request err, CreateGlobalCMCSConfig", "err", err, "payload", bean)

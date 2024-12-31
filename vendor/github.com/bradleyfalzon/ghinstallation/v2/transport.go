@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/go-github/v41/github"
+	"github.com/google/go-github/v53/github"
 )
 
 const (
@@ -63,6 +64,11 @@ func (e *HTTPError) Error() string {
 	return e.Message
 }
 
+// Unwrap implements the standard library's error wrapping. It unwraps to the root cause.
+func (e *HTTPError) Unwrap() error {
+	return e.RootCause
+}
+
 var _ http.RoundTripper = &Transport{}
 
 // NewKeyFromFile returns a Transport using a private key from file.
@@ -111,15 +117,37 @@ func NewFromAppsTransport(atr *AppsTransport, installationID int64) *Transport {
 
 // RoundTrip implements http.RoundTripper interface.
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
+	reqBodyClosed := false
+	if req.Body != nil {
+		defer func() {
+			if !reqBodyClosed {
+				req.Body.Close()
+			}
+		}()
+	}
+
 	token, err := t.Token(req.Context())
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Set("Authorization", "token "+token)
-	req.Header.Add("Accept", acceptHeader) // We add to "Accept" header to avoid overwriting existing req headers.
-	resp, err := t.tr.RoundTrip(req)
+	creq := cloneRequest(req) // per RoundTripper contract
+	creq.Header.Set("Authorization", "token "+token)
+
+	if creq.Header.Get("Accept") == "" { // We only add an "Accept" header to avoid overwriting the expected behavior.
+		creq.Header.Add("Accept", acceptHeader)
+	}
+	reqBodyClosed = true // req.Body is assumed to be closed by the tr RoundTripper.
+	resp, err := t.tr.RoundTrip(creq)
 	return resp, err
+}
+
+func (at *accessToken) getRefreshTime() time.Time {
+	return at.ExpiresAt.Add(-time.Minute)
+}
+
+func (at *accessToken) isExpired() bool {
+	return at == nil || at.getRefreshTime().Before(time.Now())
 }
 
 // Token checks the active token expiration and renews if necessary. Token returns
@@ -127,7 +155,7 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 func (t *Transport) Token(ctx context.Context) (string, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if t.token == nil || t.token.ExpiresAt.Add(-time.Minute).Before(time.Now()) {
+	if t.token.isExpired() {
 		// Token is not set or expired/nearly expired, so refresh
 		if err := t.refreshToken(ctx); err != nil {
 			return "", fmt.Errorf("could not refresh installation id %v's token: %w", t.installationID, err)
@@ -151,6 +179,26 @@ func (t *Transport) Repositories() ([]github.Repository, error) {
 		return nil, fmt.Errorf("Repositories() = nil, err: nil token")
 	}
 	return t.token.Repositories, nil
+}
+
+// Expiry returns a transport token's expiration time and refresh time. There is a small grace period
+// built in where a token will be refreshed before it expires. expiresAt is the actual token expiry,
+// and refreshAt is when a call to Token() will cause it to be refreshed.
+func (t *Transport) Expiry() (expiresAt time.Time, refreshAt time.Time, err error) {
+	if t.token == nil {
+		return time.Time{}, time.Time{}, errors.New("Expiry() = unknown, err: nil token")
+	}
+	return t.token.ExpiresAt, t.token.getRefreshTime(), nil
+}
+
+// AppID returns the app ID associated with the transport
+func (t *Transport) AppID() int64 {
+	return t.appID
+}
+
+// InstallationID returns the installation ID associated with the transport
+func (t *Transport) InstallationID() int64 {
+	return t.installationID
 }
 
 func (t *Transport) refreshToken(ctx context.Context) error {
@@ -211,4 +259,18 @@ func GetReadWriter(i interface{}) (io.ReadWriter, error) {
 		}
 	}
 	return buf, nil
+}
+
+// cloneRequest returns a clone of the provided *http.Request.
+// The clone is a shallow copy of the struct and its Header map.
+func cloneRequest(r *http.Request) *http.Request {
+	// shallow copy of the struct
+	r2 := new(http.Request)
+	*r2 = *r
+	// deep copy of the Header
+	r2.Header = make(http.Header, len(r.Header))
+	for k, s := range r.Header {
+		r2.Header[k] = append([]string(nil), s...)
+	}
+	return r2
 }

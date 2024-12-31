@@ -21,7 +21,7 @@ Configure the following properties:
 | :--- | :--- | :--- |
 | **BASE\_URL\_SCHEME** | Either of HTTP or HTTPS \(required\) | HTTP |
 | **BASE\_URL** | URL without scheme and trailing slash, this is the domain pointing to the cluster on which the Devtron platform is being installed. For example, if you have directed domain `devtron.example.com` to the cluster and the ingress controller is listening on port `32080` then URL will be `devtron.example.com:32080` \(required\) | `change-me` |
-| **DEX\_CONFIG** | dex config if you want to integrate login with SSO \(optional\) for more information check [Argocd documentation](https://argoproj.github.io/argo-cd/operator-manual/user-management/) | NA |
+| **DEX\_CONFIG** | dex config if you want to integrate login with SSO \(optional\) for more information check [Argocd documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/user-management/) | NA |
 | **EXTERNAL\_SECRET\_AMAZON\_REGION** | AWS region for the secret manager to pick \(required\) | NA |
 | **PROMETHEUS\_URL** | URL of Prometheus where all cluster data is stored; if this is wrong, you will not be able to see application metrics like CPU, RAM, HTTP status code, latency, and throughput \(required\) | NA |
 
@@ -137,6 +137,7 @@ Use the following command to configure MinIO for storing logs and cache.
 helm repo update
 
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--reuse-values \
 --set installer.modules={cicd} \
 --set minio.enabled=true
 ```
@@ -153,6 +154,7 @@ Use the following command to configure AWS S3 bucket for storing build logs and 
 ```bash
 helm repo update
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--reuse-values \
 --set installer.modules={cicd} \
 --set configs.BLOB_STORAGE_PROVIDER=S3 \
 --set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
@@ -167,6 +169,7 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 helm repo update
 
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--reuse-values \
 --set installer.modules={cicd} \
 --set configs.BLOB_STORAGE_PROVIDER=S3 \
 --set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
@@ -183,6 +186,7 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 helm repo update
 
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--reuse-values \
 --set installer.modules={cicd} \
 --set configs.BLOB_STORAGE_PROVIDER=S3 \
 --set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
@@ -203,6 +207,7 @@ Refer to the `Azure specific` parameters on the [Storage for Logs and Cache](#az
 ```bash
 helm repo update
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--reuse-values \
 --set installer.modules={cicd} \
 --set secrets.AZURE_ACCOUNT_KEY=xxxxxxxxxx \
 --set configs.BLOB_STORAGE_PROVIDER=AZURE \
@@ -221,6 +226,7 @@ Refer to the `Google Cloud specific` parameters on the [Storage for Logs and Cac
 helm repo update
 
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--reuse-values \
 --set installer.modules={cicd} \
 --set configs.BLOB_STORAGE_PROVIDER=GCP \
 --set secrets.BLOB_STORAGE_GCP_CREDENTIALS_JSON=eyJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsInByb2plY3RfaWQiOiAiPHlvdXItcHJvamVjdC1pZD4iLCJwcml2YXRlX2tleV9pZCI6ICI8eW91ci1wcml2YXRlLWtleS1pZD4iLCJwcml2YXRlX2tleSI6ICI8eW91ci1wcml2YXRlLWtleT4iLCJjbGllbnRfZW1haWwiOiAiPHlvdXItY2xpZW50LWVtYWlsPiIsImNsaWVudF9pZCI6ICI8eW91ci1jbGllbnQtaWQ+IiwiYXV0aF91cmkiOiAiaHR0cHM6Ly9hY2NvdW50cy5nb29nbGUuY29tL28vb2F1dGgyL2F1dGgiLCJ0b2tlbl91cmkiOiAiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJhdXRoX3Byb3ZpZGVyX3g1MDlfY2VydF91cmwiOiAiaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vb2F1dGgyL3YxL2NlcnRzIiwiY2xpZW50X3g1MDlfY2VydF91cmwiOiAiPHlvdXItY2xpZW50LWNlcnQtdXJsPiJ9Cg== \

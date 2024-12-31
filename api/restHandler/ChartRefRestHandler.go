@@ -1,25 +1,25 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package restHandler
 
 import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/chart"
+	chartService "github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
@@ -33,17 +33,19 @@ type ChartRefRestHandler interface {
 }
 
 type ChartRefRestHandlerImpl struct {
-	chartService chart.ChartService
-	logger       *zap.SugaredLogger
+	logger          *zap.SugaredLogger
+	chartRefService chartRef.ChartRefService
+	chartService    chartService.ChartService
 }
 
-func NewChartRefRestHandlerImpl(chartService chart.ChartService, logger *zap.SugaredLogger) *ChartRefRestHandlerImpl {
-	handler := &ChartRefRestHandlerImpl{chartService: chartService, logger: logger}
+func NewChartRefRestHandlerImpl(logger *zap.SugaredLogger, chartRefService chartRef.ChartRefService,
+	chartService chartService.ChartService) *ChartRefRestHandlerImpl {
+	handler := &ChartRefRestHandlerImpl{logger: logger, chartRefService: chartRefService, chartService: chartService}
 	return handler
 }
 
 func (handler ChartRefRestHandlerImpl) ChartRefAutocomplete(w http.ResponseWriter, r *http.Request) {
-	result, err := handler.chartService.ChartRefAutocomplete()
+	result, err := handler.chartRefService.ChartRefAutocomplete()
 	if err != nil {
 		handler.logger.Errorw("service err, ChartRefAutocomplete", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

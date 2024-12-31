@@ -9,7 +9,7 @@
 A new application can be created from one of the following options:
 
 * Custom App
-* [From Chart Store](https://docs.devtron.ai/v/v0.6/usage/deploy-chart)
+* [From Chart Store](../user-guide/deploy-chart/README.md)
 
 
 ## Create Custom App
@@ -20,8 +20,8 @@ To create a new application from the custom app, select **Custom app**.
 
 * In the **Create application** window, enter an **App Name** and select a **Project**.
 * Select either:<ul><li>**Create from scratch** to create an application from scratch, or<li>**Clone existing application** to clone an existing application.</ul></li>
-* If you select **Create from scratch**, select the project from the drop-down list.<br>`Note`: You have to add [project under Global Configurations](https://docs.devtron.ai/global-configurations/projects). Only then, it will appear in the drop-down list here.
-* If you select **Clone existing application**, select an app you want to clone from and the project from the drop-down list.<br>`Note`: You have to add [project under Global Configurations](https://docs.devtron.ai/global-configurations/projects). Only then, it will appear in the drop-down list here.</br>
+* If you select **Create from scratch**, select the project from the drop-down list.<br>`Note`: You have to add [project under Global Configurations](./global-configurations/projects.md). Only then, it will appear in the drop-down list here.
+* If you select **Clone existing application**, select an app you want to clone from and the project from the drop-down list.<br>`Note`: You have to add [project under Global Configurations](./global-configurations/projects.md). Only then, it will appear in the drop-down list here.</br>
 
 
 ## Tags

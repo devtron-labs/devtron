@@ -7,8 +7,8 @@ waitForSecondsBeforeScalingDown: 30
 
 Spec:
  Affinity:
-  key: ""
-  Values: nodes
+  Key: ""
+  Values: ""
 
 autoscaling:
   enabled: false

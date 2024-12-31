@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package appWorkflow
@@ -45,6 +44,7 @@ type AppWorkflowRepository interface {
 	FindWFAllMappingByWorkflowId(workflowId int) ([]*AppWorkflowMapping, error)
 	FindWFCIMappingByCIPipelineId(ciPipelineId int) ([]*AppWorkflowMapping, error)
 	FindWFCDMappingByCIPipelineId(ciPipelineId int) ([]*AppWorkflowMapping, error)
+	FindWFCDMappingsByWorkflowId(appWorkflowId int) ([]*AppWorkflowMapping, error)
 	FindWFCDMappingByCDPipelineId(cdPipelineId int) (*AppWorkflowMapping, error)
 	GetParentDetailsByPipelineId(pipelineId int) (*AppWorkflowMapping, error)
 	DeleteAppWorkflowMapping(appWorkflow *AppWorkflowMapping, tx *pg.Tx) error
@@ -61,6 +61,9 @@ type AppWorkflowRepository interface {
 	FindByCDPipelineIds(cdPipelineIds []int) ([]*AppWorkflowMapping, error)
 	FindByWorkflowIds(workflowIds []int) ([]*AppWorkflowMapping, error)
 	FindMappingByAppIds(appIds []int) ([]*AppWorkflowMapping, error)
+	UpdateParentComponentDetails(tx *pg.Tx, oldComponentId int, oldComponentType string, newComponentId int, newComponentType string, componentIdsFilter []int) error
+	FindWFMappingByComponent(componentType string, componentId int) (*AppWorkflowMapping, error)
+	FindByComponentId(componentId int) ([]*AppWorkflowMapping, error)
 }
 
 type AppWorkflowRepositoryImpl struct {
@@ -263,10 +266,20 @@ func (impl AppWorkflowRepositoryImpl) FindWFAllMappingByWorkflowId(workflowId in
 
 func (impl AppWorkflowRepositoryImpl) FindWFCIMappingByCIPipelineId(ciPipelineId int) ([]*AppWorkflowMapping, error) {
 	var appWorkflowsMapping []*AppWorkflowMapping
-
 	err := impl.dbConnection.Model(&appWorkflowsMapping).
 		Where("component_id = ?", ciPipelineId).
 		Where("type = ?", CIPIPELINE).
+		Where("active = ?", true).
+		Select()
+	return appWorkflowsMapping, err
+}
+
+func (impl AppWorkflowRepositoryImpl) FindWFCDMappingsByWorkflowId(appWorkflowId int) ([]*AppWorkflowMapping, error) {
+	var appWorkflowsMapping []*AppWorkflowMapping
+
+	err := impl.dbConnection.Model(&appWorkflowsMapping).
+		Where("app_workflow_id = ?", appWorkflowId).
+		Where("type = ?", CDPIPELINE).
 		Where("active = ?", true).
 		Select()
 	return appWorkflowsMapping, err
@@ -412,6 +425,15 @@ func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByExternalCiId(externalCiId
 		Select()
 	return models, err
 }
+func (impl AppWorkflowRepositoryImpl) FindWFMappingByComponent(componentType string, componentId int) (*AppWorkflowMapping, error) {
+	model := AppWorkflowMapping{}
+	err := impl.dbConnection.Model(&model).
+		Where("type = ?", componentType).
+		Where("component_id = ?", componentId).
+		Where("active = ?", true).
+		Select()
+	return &model, err
+}
 
 func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByExternalCiIdByIdsIn(externalCiId []int) ([]*AppWorkflowMapping, error) {
 	var models []*AppWorkflowMapping
@@ -459,6 +481,37 @@ func (impl AppWorkflowRepositoryImpl) FindMappingByAppIds(appIds []int) ([]*AppW
 		Where("app_workflow.app_id in (?)", pg.In(appIds)).
 		Where("app_workflow.active = ?", true).
 		Where("app_workflow_mapping.active = ?", true).
+		Select()
+	return appWorkflowsMapping, err
+}
+
+func (impl AppWorkflowRepositoryImpl) UpdateParentComponentDetails(tx *pg.Tx, oldParentId int, oldParentType string, newParentId int, newParentType string, componentIdFilter []int) error {
+
+	/*updateQuery := fmt.Sprintf(" UPDATE app_workflow_mapping "+
+		" SET parent_type = (select type from new_app_workflow_mapping),parent_id = (select id from new_app_workflow_mapping) where parent_id = %v and parent_type='%v' and active = true", oldComponentId, oldComponentType)
+
+	finalQuery := withQuery + updateQuery*/
+	query := tx.Model((*AppWorkflowMapping)(nil)).
+		Set("parent_type = ?", newParentType).
+		Set("parent_id = ?", newParentId).
+		Where("parent_type = ?", oldParentType).
+		Where("parent_id = ?", oldParentId).
+		Where("active = true")
+
+	if len(componentIdFilter) > 0 {
+		query = query.Where("component_id in (?)", pg.In(componentIdFilter)).Where("type = ?", "CD_PIPELINE")
+	}
+	_, err := query.Update()
+	return err
+}
+
+func (impl AppWorkflowRepositoryImpl) FindByComponentId(componentId int) ([]*AppWorkflowMapping, error) {
+	var appWorkflowsMapping []*AppWorkflowMapping
+	err := impl.dbConnection.Model(&appWorkflowsMapping).Column("app_workflow_mapping.*", "AppWorkflow").
+		Where("app_workflow_mapping.component_id= ?", componentId).
+		Where("app_workflow.active = ?", true).
+		Where("app_workflow_mapping.active = ?", true).
+		Where("app_workflow_mapping.type = ?", CIPIPELINE).
 		Select()
 	return appWorkflowsMapping, err
 }

@@ -28,6 +28,13 @@ metadata:
 {{- if .configs }}
 data:
 {{ toYaml .configs | indent 2 }}
+{{- if $.Values.installer.modules }}
+{{- if has "cicd" $.Values.installer.modules }}
+  RUN_HELM_INSTALL_IN_ASYNC_MODE: "true"
+{{- else }}
+  RUN_HELM_INSTALL_IN_ASYNC_MODE: "false"
+{{- end }}
+{{- end }}
 {{- end }}
 ---
 apiVersion: apps/v1
@@ -50,6 +57,7 @@ spec:
       labels:
         app: kubelink
     spec:
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.kubelink.nodeSelector "tolerations" $.Values.components.kubelink.tolerations "imagePullSecrets" $.Values.components.kubelink.imagePullSecrets "global" $.Values.global) | indent 6 }}
       terminationGracePeriodSeconds: 30
       restartPolicy: Always
       serviceAccount: devtron
@@ -59,7 +67,7 @@ spec:
       {{- end }}
       containers:
         - name: kubelink
-          image: {{ .image }}
+          image: {{ include "common.image" (dict "component" $.Values.components.kubelink "global" $.Values.global ) }}
           imagePullPolicy: {{ .imagePullPolicy }}
           {{- if and $.Values.global $.Values.global.containerSecurityContext }}
           securityContext:

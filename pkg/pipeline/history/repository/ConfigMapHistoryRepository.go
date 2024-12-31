@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package repository
 
 import (
@@ -16,20 +32,26 @@ const (
 )
 
 type ConfigMapHistoryRepository interface {
-	CreateHistory(model *ConfigmapAndSecretHistory) (*ConfigmapAndSecretHistory, error)
+	sql.TransactionWrapper
+	CreateHistory(tx *pg.Tx, model *ConfigmapAndSecretHistory) (*ConfigmapAndSecretHistory, error)
 	GetHistoryForDeployedCMCSById(id, pipelineId int, configType ConfigType) (*ConfigmapAndSecretHistory, error)
-	GetDeploymentDetailsForDeployedCMCSHistory(pipelineId int, configType ConfigType) ([]*ConfigmapAndSecretHistory, error)
 	GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, configType ConfigType) (*ConfigmapAndSecretHistory, error)
+	GetDeployedHistoryForPipelineIdOnTime(pipelineId int, deployedOn time.Time, configType ConfigType) (*ConfigmapAndSecretHistory, error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int, configType ConfigType, componentName string) ([]*ConfigmapAndSecretHistory, error)
 }
 
 type ConfigMapHistoryRepositoryImpl struct {
-	dbConnection *pg.DB
 	logger       *zap.SugaredLogger
+	dbConnection *pg.DB
+	*sql.TransactionUtilImpl
 }
 
-func NewConfigMapHistoryRepositoryImpl(logger *zap.SugaredLogger, dbConnection *pg.DB) *ConfigMapHistoryRepositoryImpl {
-	return &ConfigMapHistoryRepositoryImpl{dbConnection: dbConnection, logger: logger}
+func NewConfigMapHistoryRepositoryImpl(logger *zap.SugaredLogger, dbConnection *pg.DB, transactionUtilImpl *sql.TransactionUtilImpl) *ConfigMapHistoryRepositoryImpl {
+	return &ConfigMapHistoryRepositoryImpl{
+		logger:              logger,
+		dbConnection:        dbConnection,
+		TransactionUtilImpl: transactionUtilImpl,
+	}
 }
 
 type ConfigmapAndSecretHistory struct {
@@ -48,8 +70,20 @@ type ConfigmapAndSecretHistory struct {
 	DeployedByEmailId string `sql:"-"`
 }
 
-func (impl ConfigMapHistoryRepositoryImpl) CreateHistory(model *ConfigmapAndSecretHistory) (*ConfigmapAndSecretHistory, error) {
-	err := impl.dbConnection.Insert(model)
+func (r *ConfigmapAndSecretHistory) IsConfigmapHistorySecretType() bool {
+	return r.DataType == SECRET_TYPE
+}
+
+func (r *ConfigmapAndSecretHistory) IsConfigmapHistoryConfigMapType() bool {
+	return r.DataType == CONFIGMAP_TYPE
+}
+func (impl ConfigMapHistoryRepositoryImpl) CreateHistory(tx *pg.Tx, model *ConfigmapAndSecretHistory) (*ConfigmapAndSecretHistory, error) {
+	var err error
+	if tx != nil {
+		err = tx.Insert(model)
+	} else {
+		err = impl.dbConnection.Insert(model)
+	}
 	if err != nil {
 		impl.logger.Errorw("err in creating env config map/secret history entry", "err", err)
 		return model, err
@@ -68,18 +102,6 @@ func (impl ConfigMapHistoryRepositoryImpl) GetHistoryForDeployedCMCSById(id, pip
 		return &history, err
 	}
 	return &history, nil
-}
-
-func (impl ConfigMapHistoryRepositoryImpl) GetDeploymentDetailsForDeployedCMCSHistory(pipelineId int, configType ConfigType) ([]*ConfigmapAndSecretHistory, error) {
-	var histories []*ConfigmapAndSecretHistory
-	err := impl.dbConnection.Model(&histories).Where("pipeline_id = ?", pipelineId).
-		Where("data_type = ?", configType).
-		Where("deployed = ?", true).Select()
-	if err != nil {
-		impl.logger.Errorw("error in getting deployed CM/CS history", "err", err)
-		return histories, err
-	}
-	return histories, nil
 }
 
 func (impl ConfigMapHistoryRepositoryImpl) GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, configType ConfigType) (*ConfigmapAndSecretHistory, error) {
@@ -109,4 +131,15 @@ func (impl ConfigMapHistoryRepositoryImpl) GetDeployedHistoryList(pipelineId, ba
 		return histories, err
 	}
 	return histories, nil
+}
+
+func (impl ConfigMapHistoryRepositoryImpl) GetDeployedHistoryForPipelineIdOnTime(pipelineId int, deployedOn time.Time, configType ConfigType) (*ConfigmapAndSecretHistory, error) {
+	var history ConfigmapAndSecretHistory
+	err := impl.dbConnection.Model(&history).
+		Where("pipeline_id = ?", pipelineId).
+		Where("data_type = ?", configType).
+		Where("deployed_on = ?", deployedOn).
+		Where("deployed = ?", true).
+		Select()
+	return &history, err
 }

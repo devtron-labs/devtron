@@ -1,19 +1,17 @@
 /*
- * Copyright (c) 2021 Devtron Labs
+ * Copyright (c) 2021-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * Some of the code has been taken from argocd, for them argocd licensing terms apply
  */
 
 package oidc
@@ -23,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	jwt2 "github.com/devtron-labs/authenticator/jwt"
 	"github.com/golang-jwt/jwt/v4"
 	"html"
 	"html/template"
@@ -35,9 +32,10 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
-	gooidc "github.com/coreos/go-oidc"
+	gooidc "github.com/coreos/go-oidc/v3/oidc"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 )
@@ -72,16 +70,23 @@ type OIDCStateStorage interface {
 }
 
 type Cache struct {
-	OidcState map[string]*OIDCState
+	OidcState sync.Map
 }
 
 func (c *Cache) GetOIDCState(key string) (*OIDCState, error) {
-	state := c.OidcState[key]
+	value, exists := c.OidcState.Load(key)
+	if !exists {
+		return nil, ErrCacheMiss
+	}
+	state, ok := value.(*OIDCState)
+	if !ok || state == nil {
+		return nil, ErrInvalidState
+	}
 	return state, nil
 }
 
 func (c *Cache) SetOIDCState(key string, state *OIDCState) error {
-	c.OidcState[key] = state
+	c.OidcState.Store(key, state)
 	return nil
 }
 
@@ -108,7 +113,7 @@ type ClientApp struct {
 	// cache holds temporary nonce tokens to which hold application state values
 	// See http://tools.ietf.org/html/rfc6749#section-10.12 for more info.
 	cache OIDCStateStorage
-	//used to verify user by email before setting cookie
+	// used to verify user by email before setting cookie
 	userVerifier UserVerifier
 
 	RedirectUrlSanitiser RedirectUrlSanitiser
@@ -131,7 +136,7 @@ func (a *ClientApp) UpdateConfig(c *ClientApp) {
 }
 
 type RedirectUrlSanitiser func(url string) string
-type UserVerifier func(email string) bool
+type UserVerifier func(claims jwt.MapClaims) bool
 
 func GetScopesOrDefault(scopes []string) []string {
 	if len(scopes) == 0 {
@@ -290,12 +295,15 @@ func (a *ClientApp) generateAppState(returnURL string) string {
 }
 
 var ErrCacheMiss = errors.New("cache: key is missing")
+var ErrInvalidState = errors.New("invalid app state")
 
 func (a *ClientApp) verifyAppState(state string) (*OIDCState, error) {
 	res, err := a.cache.GetOIDCState(state)
 	if err != nil {
-		if err == ErrCacheMiss {
+		if errors.Is(err, ErrCacheMiss) {
 			return nil, fmt.Errorf("unknown app state %s", state)
+		} else if errors.Is(err, ErrInvalidState) {
+			return nil, fmt.Errorf("invalid app state %s", state)
 		} else {
 			return nil, fmt.Errorf("failed to verify app state %s: %v", state, err)
 		}
@@ -338,9 +346,9 @@ func isValidRedirectURL(redirectURL string, allowedURLs []string) bool {
 		// scheme and host are mandatory to match.
 		if b.Scheme == r.Scheme && b.Host == r.Host {
 			// If path of redirectURL and allowedURL match, redirectURL is allowed
-			//if b.Path == r.Path {
+			// if b.Path == r.Path {
 			//	return true
-			//}
+			// }
 			// If path of redirectURL is within allowed URL's path, redirectURL is allowed
 			if strings.HasPrefix(path.Clean(r.Path), b.Path) {
 				return true
@@ -449,12 +457,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	returnUrl := appState.ReturnURL
 	// verify user in system
-	email := jwt2.GetField(claims, "email")
-	sub := jwt2.GetField(claims, "sub")
-	if email == "" && sub == "admin" {
-		email = sub
-	}
-	valid := a.userVerifier(email)
+	valid := a.userVerifier(claims)
 	//  end verify user in system
 	if !valid {
 		w.Header().Add("Set-Cookie", "")
@@ -558,7 +561,7 @@ func AppendClaimsAuthenticationRequestParameter(opts []oauth2.AuthCodeOption, re
 	if len(requestedClaims) == 0 {
 		return opts
 	}
-	log.Infof("RequestedClaims: %s\n", requestedClaims)
+	log.Infof("RequestedClaims: %v\n", requestedClaims)
 	claimsRequestParameter, err := createClaimsAuthenticationRequestParameter(requestedClaims)
 	if err != nil {
 		log.Errorf("Failed to create OIDC claims authentication request parameter from config: %s", err)

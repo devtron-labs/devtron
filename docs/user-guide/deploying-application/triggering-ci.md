@@ -1,41 +1,84 @@
-# Triggering CI
+# Triggering CI Pipelines
 
-## Triggering CI Pipelines
+To trigger the CI pipeline, first you need to select a Git commit. To select a Git commit, click the **Select Material** button present on the CI pipeline.
 
-The CI Pipeline can be triggered by selecting `Select Material`
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/select-material-new.jpg)
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/select-material.jpg)
+Once clicked, a list will appear showing various commits made in the repository, it includes details such as the author name, commit date, time, etc. Choose the desired commit for which you want to trigger the pipeline, and then click **Start Build** to initiate the CI pipeline.
 
-CI Pipelines that are set as automatic are always triggered as soon as a new commit is made to the git branch they're sensing. However, CI pipelines can always be manually triggered as and if required.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/trigger-build.jpg)
 
-Various commits done in the repository can be seen, here along with details like Author, Date etc. Select the commit that you want to trigger and then click on `Start Build` to trigger the CI pipeline.
+CI Pipelines with automatic trigger enabled are triggered immediately when a new commit is made to the git branch. If the trigger for a build pipeline is set to manual, it will not be automatically triggered and requires a manual trigger.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/start-build-1.jpg)
+---
 
+## Partal Cloning Feature [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
 
-**Refresh** icon, refreshes Git Commits in the CI Pipeline and fetches the latest commits from the “Repository”
+CI builds can be time-consuming for large repositories, especially for enterprises. However, Devtron's partial cloning feature significantly increases cloning speed, reducing the time it takes to clone your source code and leading to faster build times.
 
-**Ignore Cache** : This option will ignore the previous build cache and create a fresh build. If selected, will take a longer build time than usual.
+**Advantages**
+* Smaller image sizes
+* Reduced resource usage and costs
+* Faster software releases
+* Improved productivity
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/build-history.jpg)
+Get in touch with us if you are looking for a way to improve the efficiency of your software development process.
 
-It can be seen that the pipeline is triggered here and is the _Running_ state.
+The **Refresh** icon updates the Git Commits section in the CI Pipeline by fetching the latest commits from the repository. Clicking on the refresh icon ensures that you have the most recent commit available.
 
-Click on your `CI Pipeline` or click on `Build History` to get the details about the CI pipeline such as logs, reports etc.
+The **Ignore Cache** option ignores the previous build cache and creates a fresh build. If selected, will take a longer build time than usual.
 
-You can read the `logs` of the CI Pipeline from here.
+---
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/build-history-logs.jpg)
+## Passing Build Parameters [![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/elements/EnterpriseTag.svg)](https://devtron.ai/pricing)
 
-Click on `Source code` to view the details such as commit id, Author and commit message of the Git Material that you have selected for the build.
+{% hint style="warning" %}
+### Who Can Perform This Action?
+Users need to have [Build & deploy permission](../global-configurations/authorization/user-access.md#role-based-access-levels) or above (along with access to the environment and application) to pass build parameters.
+{% endhint %}
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/build-history-sc.jpg)
+If you wish to pass runtime parameters for a build job, you can provide key-value pairs before triggering the build. Thereafter, you can access those passed values by referencing the corresponding keys in the environment variable dictionary.
 
-Click on `Artifacts` to download the _reports_ of the Pre-CI and Post-CI stages if any.
+**Steps**
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/build-history-artifacts.jpg)
+1. Go to the **Parameters** tab available on the screen where you select the commit.
 
-Click on `security` to see if there is any vulnerabilities in the build image. You can see the vulnerabilities here only if you have enabled `Scan for vulnerabilities` before building image from advanced options of CI pipeline. To know more about this feature, follow our [documentation](../../user-guide/security-features.md).
+    ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/build-parameter-tab.jpg)
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/build-history-security.jpg)
+2. Click **+ Add parameter**.
 
+    ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/add-parameter.jpg)
+
+3. Enter your key-value pair as shown below. 
+
+    ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/key-value.jpg)
+
+    <br /> Similarly, you may add more than one key-value pair by using the **+ Add Parameter** button.
+
+4. Click **Start Build**.
+
+{% hint style="info" %}
+In case you trigger builds in bulk, you can consider passing build parameters in [Application Groups](../application-groups.md).
+{% endhint %}
+
+---
+
+## Fetching Logs and Reports
+
+Click the `CI Pipeline` or navigate to the `Build History` to get the CI pipeline details such as build logs, source code details, artifacts, and vulnerability scan reports.
+
+To access the logs of the CI Pipeline, simply click `Logs`.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/build-logs.jpg)
+
+To view specific details of the Git commit you've selected for the build, click on `Source`. This will provide you with information like the commit ID, author, and commit message associated with that particular commit.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/build-source.jpg)
+
+By selecting the `Artifacts` option, you can download reports related to the tasks performed in the Pre-CI and Post-CI stages. This will allow you to access and retrieve the generated reports, if any, related to these stages. Additionally, you have the option to add tags or comments to the image directly from this section.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/tags-and-artifacts.jpg)
+
+To check for any vulnerabilities in the build image, click on `Security`. Please note that vulnerabilities will only be visible if you have enabled the `Scan for vulnerabilities` option in the advanced options of the CI pipeline before building the image. For more information about this feature, please refer to this [documentation](../../user-guide/security-features.md).
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/security-scan-report.jpg)

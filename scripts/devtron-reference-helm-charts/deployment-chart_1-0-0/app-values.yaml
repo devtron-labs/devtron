@@ -1,7 +1,9 @@
 # Mandatory configs
 
-rolloutLabels: {}
-rolloutAnnotations: {}
+podDisruptionBudget: {}
+
+deploymentLabels: {}
+deploymentAnnotations: {}
 
 containerSpec:
   lifecycle:
@@ -205,9 +207,9 @@ containerSecurityContext: {}
 
 Spec:
   Affinity:
-    Key:
+    Key: ""
     #  Key: kops.k8s.io/instancegroup
-    Values:
+    Values: ""
 
 autoscaling:
   enabled: false

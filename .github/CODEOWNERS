@@ -1,0 +1,14 @@
+#ALL
+* @vikramdevtron @nishant-d @prakarsh-dt @vivek-devtron
+
+#Helm Charts
+charts/devtron/ @prakarsh-dt @pawan-mehta-dt @nishant-d @vikramdevtron
+scripts/devtron-reference-helm-charts @prakarsh-dt @pawan-mehta-dt @nishant-d @vikramdevtron
+CHANGELOG/ @prakarsh-dt @pawan-mehta-dt @nishant-d @vikramdevtron
+
+#Migration scripts
+scripts/sql @prakarsh-dt @vikramdevtron @nishant-d @vivek-devtron
+scripts/utilities @prakarsh-dt @nishant-d @pawan-mehta-dt @vivek-devtron
+
+#Github Specific
+.github/ @prakarsh-dt @nishant-d @pawan-mehta-dt @vikramdevtron @tayalrishabh96

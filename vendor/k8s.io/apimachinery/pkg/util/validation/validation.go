@@ -191,7 +191,13 @@ func IsDNS1123Label(value string) []string {
 		errs = append(errs, MaxLenError(DNS1123LabelMaxLength))
 	}
 	if !dns1123LabelRegexp.MatchString(value) {
-		errs = append(errs, RegexError(dns1123LabelErrMsg, dns1123LabelFmt, "my-name", "123-abc"))
+		if dns1123SubdomainRegexp.MatchString(value) {
+			// It was a valid subdomain and not a valid label.  Since we
+			// already checked length, it must be dots.
+			errs = append(errs, "must not contain dots")
+		} else {
+			errs = append(errs, RegexError(dns1123LabelErrMsg, dns1123LabelFmt, "my-name", "123-abc"))
+		}
 	}
 	return errs
 }
@@ -334,7 +340,7 @@ func IsValidPortName(port string) []string {
 		errs = append(errs, "must contain only alpha-numeric characters (a-z, 0-9), and hyphens (-)")
 	}
 	if !portNameOneLetterRegexp.MatchString(port) {
-		errs = append(errs, "must contain at least one letter or number (a-z, 0-9)")
+		errs = append(errs, "must contain at least one letter (a-z)")
 	}
 	if strings.Contains(port, "--") {
 		errs = append(errs, "must not contain consecutive hyphens")

@@ -1,9 +1,26 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package pipeline
 
 import (
 	"errors"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"go.uber.org/zap"
 	"time"
 )
@@ -28,7 +45,7 @@ func NewCiBuildConfigServiceImpl(logger *zap.SugaredLogger, ciBuildConfigReposit
 }
 
 func (impl *CiBuildConfigServiceImpl) Save(templateId int, overrideTemplateId int, ciBuildConfigBean *bean.CiBuildConfigBean, userId int32) error {
-	ciBuildConfigEntity, err := bean.ConvertBuildConfigBeanToDbEntity(templateId, overrideTemplateId, ciBuildConfigBean, userId)
+	ciBuildConfigEntity, err := adapter.ConvertBuildConfigBeanToDbEntity(templateId, overrideTemplateId, ciBuildConfigBean, userId)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while converting build config to db entity", "templateId", templateId,
 			"overrideTemplateId", overrideTemplateId, "ciBuildConfigBean", ciBuildConfigBean, "err", err)
@@ -50,7 +67,7 @@ func (impl *CiBuildConfigServiceImpl) UpdateOrSave(templateId int, overrideTempl
 		impl.Logger.Warnw("not updating build config as object is empty", "ciBuildConfig", ciBuildConfig)
 		return nil, nil
 	}
-	ciBuildConfigEntity, err := bean.ConvertBuildConfigBeanToDbEntity(templateId, overrideTemplateId, ciBuildConfig, userId)
+	ciBuildConfigEntity, err := adapter.ConvertBuildConfigBeanToDbEntity(templateId, overrideTemplateId, ciBuildConfig, userId)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while converting build config to db entity", "templateId", templateId,
 			"overrideTemplateId", overrideTemplateId, "ciBuildConfig", ciBuildConfig, "err", err)

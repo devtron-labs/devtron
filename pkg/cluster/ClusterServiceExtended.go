@@ -1,82 +1,80 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package cluster
 
 import (
 	"context"
 	"fmt"
-	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
-	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
-	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/rest"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	"github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"net/http"
 	"strings"
 	"time"
 
+	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/client/grafana"
-	"github.com/devtron-labs/devtron/client/k8s/informer"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"go.uber.org/zap"
+	repository2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 )
 
 // extends ClusterServiceImpl and enhances method of ClusterService with full mode specific errors
 type ClusterServiceImplExtended struct {
-	environmentRepository  repository.EnvironmentRepository
-	grafanaClient          grafana.GrafanaClient
-	installedAppRepository repository2.InstalledAppRepository
-	clusterServiceCD       cluster2.ServiceClient
-	K8sInformerFactory     informer.K8sInformerFactory
-	gitOpsRepository       repository3.GitOpsConfigRepository
+	environmentRepository   repository.EnvironmentRepository
+	grafanaClient           grafana.GrafanaClient
+	installedAppRepository  repository2.InstalledAppRepository
+	clusterServiceCD        cluster2.ServiceClient
+	gitOpsConfigReadService config.GitOpsConfigReadService
 	*ClusterServiceImpl
 }
 
-func NewClusterServiceImplExtended(repository repository.ClusterRepository, environmentRepository repository.EnvironmentRepository,
-	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository repository2.InstalledAppRepository,
-	K8sUtil *util.K8sUtil,
-	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory,
-	gitOpsRepository repository3.GitOpsConfigRepository, userAuthRepository repository4.UserAuthRepository,
-	userRepository repository4.UserRepository, roleGroupRepository repository4.RoleGroupRepository) *ClusterServiceImplExtended {
+func NewClusterServiceImplExtended(environmentRepository repository.EnvironmentRepository,
+	grafanaClient grafana.GrafanaClient, installedAppRepository repository2.InstalledAppRepository,
+	clusterServiceCD cluster2.ServiceClient,
+	gitOpsConfigReadService config.GitOpsConfigReadService,
+	clusterServiceImpl *ClusterServiceImpl) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
-		environmentRepository:  environmentRepository,
-		grafanaClient:          grafanaClient,
-		installedAppRepository: installedAppRepository,
-		clusterServiceCD:       clusterServiceCD,
-		gitOpsRepository:       gitOpsRepository,
-		ClusterServiceImpl: &ClusterServiceImpl{
-			clusterRepository:   repository,
-			logger:              logger,
-			K8sUtil:             K8sUtil,
-			K8sInformerFactory:  K8sInformerFactory,
-			userAuthRepository:  userAuthRepository,
-			userRepository:      userRepository,
-			roleGroupRepository: roleGroupRepository,
-		},
+		environmentRepository:   environmentRepository,
+		grafanaClient:           grafanaClient,
+		installedAppRepository:  installedAppRepository,
+		clusterServiceCD:        clusterServiceCD,
+		gitOpsConfigReadService: gitOpsConfigReadService,
+		ClusterServiceImpl:      clusterServiceImpl,
 	}
-	go clusterServiceExt.buildInformer()
 	return clusterServiceExt
 }
 
-func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*ClusterBean, error) {
+func (impl *ClusterServiceImplExtended) FindAllWithoutConfig() ([]*bean.ClusterBean, error) {
 	beans, err := impl.FindAll()
 	if err != nil {
 		return nil, err
 	}
 	for _, bean := range beans {
-		bean.Config = map[string]string{"bearer_token": ""}
+		bean.Config = map[string]string{commonBean.BearerToken: ""}
 	}
 	return beans, nil
 }
 
-func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
-	beans, err := impl.ClusterServiceImpl.FindAll()
-	if err != nil {
-		return nil, err
-	}
+func (impl *ClusterServiceImplExtended) GetClusterFullModeDTO(beans []*bean.ClusterBean) ([]*bean.ClusterBean, error) {
 	//devtron full mode logic
 	var clusterIds []int
 	for _, cluster := range beans {
@@ -101,7 +99,7 @@ func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 	}
 
 	for _, item := range beans {
-		defaultClusterComponents := make([]*DefaultClusterComponent, 0)
+		defaultClusterComponents := make([]*bean.DefaultClusterComponent, 0)
 		if _, ok := clusterComponentsMap[item.Id]; ok {
 			charts := clusterComponentsMap[item.Id]
 			failed := false
@@ -111,7 +109,7 @@ func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 				chartLen = len(charts)
 			}
 			for _, chart := range charts {
-				defaultClusterComponent := &DefaultClusterComponent{}
+				defaultClusterComponent := &bean.DefaultClusterComponent{}
 				defaultClusterComponent.AppId = chart.InstalledApp.AppId
 				defaultClusterComponent.InstalledAppId = chart.InstalledApp.Id
 				defaultClusterComponent.EnvId = chart.InstalledApp.EnvironmentId
@@ -144,8 +142,24 @@ func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 	return beans, nil
 }
 
-func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
-	isGitOpsConfigured, err1 := impl.gitOpsRepository.IsGitOpsConfigured()
+func (impl *ClusterServiceImplExtended) FindAll() ([]*bean.ClusterBean, error) {
+	beans, err := impl.ClusterServiceImpl.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	return impl.GetClusterFullModeDTO(beans)
+}
+
+func (impl *ClusterServiceImplExtended) FindAllExceptVirtual() ([]*bean.ClusterBean, error) {
+	beans, err := impl.ClusterServiceImpl.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	return impl.GetClusterFullModeDTO(beans)
+}
+
+func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *bean.ClusterBean, userId int32) (*bean.ClusterBean, error) {
+	gitOpsConfigurationStatus, err1 := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err1 != nil {
 		return nil, err1
 	}
@@ -223,17 +237,23 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 	}
 
 	// if git-ops configured, then only update cluster in ACD, otherwise ignore
-	if isGitOpsConfigured {
+	if gitOpsConfigurationStatus.IsGitOpsConfigured {
 		configMap := bean.Config
 		serverUrl := bean.ServerUrl
 		bearerToken := ""
-		if configMap["bearer_token"] != "" {
-			bearerToken = configMap["bearer_token"]
+		if configMap[commonBean.BearerToken] != "" {
+			bearerToken = configMap[commonBean.BearerToken]
 		}
 
 		tlsConfig := v1alpha1.TLSClientConfig{
-			Insecure: true,
+			Insecure: bean.InsecureSkipTLSVerify,
 		}
+		if !bean.InsecureSkipTLSVerify {
+			tlsConfig.KeyData = []byte(configMap[commonBean.TlsKey])
+			tlsConfig.CertData = []byte(configMap[commonBean.CertData])
+			tlsConfig.CAData = []byte(configMap[commonBean.CertificateAuthorityData])
+		}
+
 		cdClusterConfig := v1alpha1.ClusterConfig{
 			BearerToken:     bearerToken,
 			TLSClientConfig: tlsConfig,
@@ -250,7 +270,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 		if err != nil {
 			impl.logger.Errorw("service err, Update", "error", err, "payload", cl)
 			userMsg := "failed to update on cluster via ACD"
-			if strings.Contains(err.Error(), "https://kubernetes.default.svc") {
+			if strings.Contains(err.Error(), commonBean.DefaultClusterUrl) {
 				userMsg = fmt.Sprintf("%s, %s", err.Error(), ", successfully updated in ACD")
 			}
 			err = &util.ApiError{
@@ -269,7 +289,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 	return bean, err
 }
 
-func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *ClusterBean, env *repository.Environment) (int, error) {
+func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *bean.ClusterBean, env *repository.Environment) (int, error) {
 	grafanaDatasourceId := env.GrafanaDatasourceId
 	if grafanaDatasourceId == 0 {
 		//starts grafana creation
@@ -318,8 +338,8 @@ func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *Clu
 	return grafanaDatasourceId, nil
 }
 
-func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
-	isGitOpsConfigured, err := impl.gitOpsRepository.IsGitOpsConfigured()
+func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *bean.ClusterBean, userId int32) (*bean.ClusterBean, error) {
+	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil {
 		return nil, err
 	}
@@ -330,27 +350,9 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 	}
 
 	// if git-ops configured, then only add cluster in ACD, otherwise ignore
-	if isGitOpsConfigured {
+	if gitOpsConfigurationStatus.IsGitOpsConfigured {
 		//create it into argo cd as well
-		configMap := bean.Config
-		serverUrl := bean.ServerUrl
-		bearerToken := ""
-		if configMap["bearer_token"] != "" {
-			bearerToken = configMap["bearer_token"]
-		}
-		tlsConfig := v1alpha1.TLSClientConfig{
-			Insecure: true,
-		}
-		cdClusterConfig := v1alpha1.ClusterConfig{
-			BearerToken:     bearerToken,
-			TLSClientConfig: tlsConfig,
-		}
-
-		cl := &v1alpha1.Cluster{
-			Name:   bean.ClusterName,
-			Server: serverUrl,
-			Config: cdClusterConfig,
-		}
+		cl := impl.ConvertClusterBeanObjectToCluster(bean)
 
 		_, err = impl.clusterServiceCD.Create(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
 		if err != nil {
@@ -380,11 +382,11 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 	return clusterBean, nil
 }
 
-func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId int32) error {
+func (impl ClusterServiceImplExtended) DeleteFromDb(bean *bean.ClusterBean, userId int32) (string, error) {
 	existingCluster, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete.", "id", bean.Id)
-		return err
+		return "", err
 	}
 	deleteReq := existingCluster
 	deleteReq.UpdatedOn = time.Now()
@@ -392,27 +394,7 @@ func (impl ClusterServiceImplExtended) DeleteFromDb(bean *ClusterBean, userId in
 	err = impl.clusterRepository.MarkClusterDeleted(deleteReq)
 	if err != nil {
 		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err", err)
-		return err
+		return "", err
 	}
-	restConfig := &rest.Config{}
-	restConfig, err = rest.InClusterConfig()
-
-	if err != nil {
-		impl.logger.Errorw("Error in creating config for default cluster", "err", err)
-		return nil
-	}
-	httpClientFor, err := rest.HTTPClientFor(restConfig)
-	if err != nil {
-		impl.logger.Errorw("error occurred while overriding k8s client", "reason", err)
-		return nil
-	}
-	k8sClient, err := v12.NewForConfigAndClient(restConfig, httpClientFor)
-	if err != nil {
-		impl.logger.Errorw("error creating k8s client", "error", err)
-		return nil
-	}
-	secretName := fmt.Sprintf("%s-%v", "cluster-event", bean.Id)
-	err = impl.K8sUtil.DeleteSecret("default", secretName, k8sClient)
-	impl.logger.Errorw("error in deleting secret", "error", err)
-	return nil
+	return existingCluster.ClusterName, nil
 }

@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package restHandler
@@ -21,17 +20,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/api/restHandler/common"
-	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/security"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/devtron-labs/devtron/util/rbac"
-	"go.uber.org/zap"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
+	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
 	"net/http"
 	"strconv"
+
+	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/util/rbac"
+	"go.uber.org/zap"
 )
 
 type PolicyRestHandler interface {
@@ -42,19 +42,19 @@ type PolicyRestHandler interface {
 }
 type PolicyRestHandlerImpl struct {
 	logger             *zap.SugaredLogger
-	policyService      security.PolicyService
-	userService        user.UserService
-	userAuthService    user.UserAuthService
+	policyService      imageScanning.PolicyService
+	userService        user2.UserService
+	userAuthService    user2.UserAuthService
 	enforcer           casbin.Enforcer
 	enforcerUtil       rbac.EnforcerUtil
-	environmentService cluster.EnvironmentService
+	environmentService environment.EnvironmentService
 }
 
 func NewPolicyRestHandlerImpl(logger *zap.SugaredLogger,
-	policyService security.PolicyService,
-	userService user.UserService, userAuthService user.UserAuthService,
+	policyService imageScanning.PolicyService,
+	userService user2.UserService, userAuthService user2.UserAuthService,
 	enforcer casbin.Enforcer,
-	enforcerUtil rbac.EnforcerUtil, environmentService cluster.EnvironmentService) *PolicyRestHandlerImpl {
+	enforcerUtil rbac.EnforcerUtil, environmentService environment.EnvironmentService) *PolicyRestHandlerImpl {
 	return &PolicyRestHandlerImpl{
 		logger:             logger,
 		policyService:      policyService,
@@ -221,18 +221,18 @@ func (impl PolicyRestHandlerImpl) GetPolicy(w http.ResponseWriter, r *http.Reque
 		req.Id = ids
 	}
 	var clusterId, environmentId, appId int
-	var policyLevel security2.PolicyLevel
-	if level == security2.Global.String() {
-		policyLevel = security2.Global
-	} else if level == security2.Cluster.String() {
+	var policyLevel securityBean.PolicyLevel
+	if level == securityBean.Global.String() {
+		policyLevel = securityBean.Global
+	} else if level == securityBean.Cluster.String() {
 		clusterId = req.Id
-		policyLevel = security2.Cluster
-	} else if level == security2.Environment.String() {
+		policyLevel = securityBean.Cluster
+	} else if level == securityBean.Environment.String() {
 		environmentId = req.Id
-		policyLevel = security2.Environment
-	} else if level == security2.Application.String() {
+		policyLevel = securityBean.Environment
+	} else if level == securityBean.Application.String() {
 		appId = req.Id
-		policyLevel = security2.Application
+		policyLevel = securityBean.Application
 	}
 
 	token := r.Header.Get("token")
@@ -298,11 +298,11 @@ func (impl PolicyRestHandlerImpl) GetPolicy(w http.ResponseWriter, r *http.Reque
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-//TODO - move to image-scanner
+// TODO - move to image-scanner
 func (impl PolicyRestHandlerImpl) VerifyImage(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
-	var req security.VerifyImageRequest
+	var req imageScanning.VerifyImageRequest
 
 	err := decoder.Decode(&req)
 	if err != nil {

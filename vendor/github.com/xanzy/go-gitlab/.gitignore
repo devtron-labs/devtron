@@ -26,3 +26,8 @@ _testmain.go
 # IDE specific files and folders
 .idea
 *.iml
+*.swp
+*.swo
+
+# vendor
+vendor

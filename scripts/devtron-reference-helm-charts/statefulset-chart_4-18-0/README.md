@@ -386,6 +386,26 @@ ingress:
 | `host` | Host name |
 | `tls` | It contains security details |
 
+### additionalBackends
+
+This defines additional backend path in the ingress .
+
+```yaml
+    hosts:
+    - host: chart-example2.local
+      pathType: "ImplementationSpecific"
+      paths:
+        - /example2
+        - /example2/healthz
+      additionalBackends: 
+        - path: /example1
+          pathType: "ImplementationSpecific"
+          backend:
+            service:
+              name: test-service
+              port:
+                number: 80
+```
 ### Ingress Internal
 
 This allows private access to the url, please ensure you are using right nginx annotation for nginx class, its default value is nginx
@@ -814,8 +834,8 @@ Winter Soldier can be used to
 
 Given below is template values you can give in winter-soldier:
 ```yaml
-winterSoilder:
-  enable: false
+winterSoldier:
+  enabled: false
   apiVersion: pincher.devtron.ai/v1alpha1
   action: sleep
   timeRangesWithZone:
@@ -827,7 +847,7 @@ winterSoilder:
 Here, 
 | Key | values | Description |
 | :--- | :--- | :--- |
-| `enable` | `fasle`,`true` | decide the enabling factor  |
+| `enabled` | `fasle`,`true` | decide the enabling factor  |
 | `apiVersion` | `pincher.devtron.ai/v1beta1`, `pincher.devtron.ai/v1alpha1` | specific api version  |
 | `action` | `sleep`,`delete`, `scale` | This specify  the action need to perform.  |
 | `timeRangesWithZone`:`timeZone` | eg:- `"Asia/Kolkata"`,`"US/Pacific"` |  It use to specify the timeZone used. (It uses standard format. please refer [this](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones))  |
@@ -838,9 +858,9 @@ Here,
 
 here is an example,
 ```yaml
-winterSoilder:
+winterSoldier:
   apiVersion: pincher.devtron.ai/v1alpha1 
-  enable: true
+  enabled: true
   annotations: {}
   labels: {}
   timeRangesWithZone:

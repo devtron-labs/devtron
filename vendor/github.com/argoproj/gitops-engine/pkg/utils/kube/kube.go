@@ -224,6 +224,12 @@ func WriteKubeConfig(restConfig *rest.Config, namespace, filename string) error 
 
 // NewKubeConfig converts a clientcmdapi.Config (kubeconfig) from a rest.Config
 func NewKubeConfig(restConfig *rest.Config, namespace string) *clientcmdapi.Config {
+	var proxyUrl string
+	if restConfig.Proxy != nil {
+		if u, err := restConfig.Proxy(nil); err == nil {
+			proxyUrl = u.String()
+		}
+	}
 	return &clientcmdapi.Config{
 		CurrentContext: restConfig.Host,
 		Contexts: map[string]*clientcmdapi.Context{
@@ -240,6 +246,7 @@ func NewKubeConfig(restConfig *rest.Config, namespace string) *clientcmdapi.Conf
 				InsecureSkipTLSVerify:    restConfig.TLSClientConfig.Insecure,
 				CertificateAuthority:     restConfig.TLSClientConfig.CAFile,
 				CertificateAuthorityData: restConfig.TLSClientConfig.CAData,
+				ProxyURL:                 proxyUrl,
 			},
 		},
 		AuthInfos: map[string]*clientcmdapi.AuthInfo{
@@ -399,7 +406,7 @@ func GetDeploymentReplicas(u *unstructured.Unstructured) *int64 {
 
 // RetryUntilSucceed keep retrying given action with specified interval until action succeed or specified context is done.
 func RetryUntilSucceed(ctx context.Context, interval time.Duration, desc string, log logr.Logger, action func() error) {
-	pollErr := wait.PollImmediateUntil(interval, func() (bool /*done*/, error) {
+	pollErr := wait.PollUntilContextCancel(ctx, interval, true, func(ctx context.Context) (bool /*done*/, error) {
 		log.V(1).Info(fmt.Sprintf("Start %s", desc))
 		err := action()
 		if err == nil {
@@ -408,7 +415,7 @@ func RetryUntilSucceed(ctx context.Context, interval time.Duration, desc string,
 		}
 		log.V(1).Info(fmt.Sprintf("Failed to %s: %+v, retrying in %v", desc, err, interval))
 		return false, nil
-	}, ctx.Done())
+	})
 	if pollErr != nil {
 		// The only error that can happen here is wait.ErrWaitTimeout if ctx is done.
 		log.V(1).Info(fmt.Sprintf("Stop retrying %s", desc))

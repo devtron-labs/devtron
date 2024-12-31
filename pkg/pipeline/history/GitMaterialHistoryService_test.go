@@ -1,8 +1,24 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package history
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	repository2 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository/mocks"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -21,7 +37,7 @@ func TestGitMaterialService(t *testing.T) {
 
 		GitHistoryServiceImpl := NewGitMaterialHistoryServiceImpl(mockedGitMaterialHistoryRepository, sugaredLogger)
 
-		GitMaterial := &pipelineConfig.GitMaterial{
+		GitMaterial := &repository2.GitMaterial{
 			Id:              1,
 			Url:             "https://github.com/devtron-labs/ci-runner",
 			AppId:           49,
@@ -71,7 +87,7 @@ func TestGitMaterialService(t *testing.T) {
 			AuditLog:        sql.AuditLog{},
 		}
 
-		GitMaterial := &pipelineConfig.GitMaterial{
+		GitMaterial := &repository2.GitMaterial{
 			Id:              1,
 			Url:             "https://github.com/devtron-labs/ci-runner",
 			AppId:           49,

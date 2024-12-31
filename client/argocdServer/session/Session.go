@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package session
@@ -20,7 +19,7 @@ package session
 import (
 	"context"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
-	"github.com/devtron-labs/devtron/client/argocdServer"
+	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"time"
 )
 
@@ -32,7 +31,7 @@ type ServiceClientImpl struct {
 	ssc session.SessionServiceClient
 }
 
-func NewSessionServiceClient(argoCDConnectionManager argocdServer.ArgoCDConnectionManager) *ServiceClientImpl {
+func NewSessionServiceClient(argoCDConnectionManager connection.ArgoCDConnectionManager) *ServiceClientImpl {
 	// this function only called when gitops configured and user ask for creating acd token
 	conn := argoCDConnectionManager.GetConnection("")
 	ssc := session.NewSessionServiceClient(conn)

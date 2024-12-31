@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package restHandler
@@ -20,17 +19,25 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/api/restHandler/common"
-	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
-	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/devtron-labs/devtron/pkg/security"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/devtron-labs/devtron/util/rbac"
-	"go.uber.org/zap"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
+	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/bean"
+	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	"net/http"
 	"strconv"
+
+	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/util/rbac"
+	"go.uber.org/zap"
+)
+
+const (
+	ObjectTypeApp   = "app"
+	ObjectTypeChart = "chart"
+	ObjectTypePod   = "pod"
 )
 
 type ImageScanRestHandler interface {
@@ -42,16 +49,16 @@ type ImageScanRestHandler interface {
 
 type ImageScanRestHandlerImpl struct {
 	logger             *zap.SugaredLogger
-	imageScanService   security.ImageScanService
+	imageScanService   imageScanning.ImageScanService
 	userService        user.UserService
 	enforcer           casbin.Enforcer
 	enforcerUtil       rbac.EnforcerUtil
-	environmentService cluster.EnvironmentService
+	environmentService environment.EnvironmentService
 }
 
 func NewImageScanRestHandlerImpl(logger *zap.SugaredLogger,
-	imageScanService security.ImageScanService, userService user.UserService, enforcer casbin.Enforcer,
-	enforcerUtil rbac.EnforcerUtil, environmentService cluster.EnvironmentService) *ImageScanRestHandlerImpl {
+	imageScanService imageScanning.ImageScanService, userService user.UserService, enforcer casbin.Enforcer,
+	enforcerUtil rbac.EnforcerUtil, environmentService environment.EnvironmentService) *ImageScanRestHandlerImpl {
 	return &ImageScanRestHandlerImpl{
 		logger:             logger,
 		imageScanService:   imageScanService,
@@ -70,7 +77,7 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 	}
 
 	decoder := json.NewDecoder(r.Body)
-	var request *security.ImageScanRequest
+	var request *securityBean.ImageScanRequest
 	err = decoder.Decode(&request)
 	if err != nil {
 		impl.logger.Errorw("request err, ScanExecutionList", "err", err, "payload", request)
@@ -82,52 +89,87 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 	if err != nil {
 		impl.logger.Errorw("service err, ScanExecutionList", "err", err, "payload", request)
 		if util.IsErrNoRows(err) {
-			responseList := make([]*security.ImageScanHistoryResponse, 0)
-			common.WriteJsonResp(w, nil, &security.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
+			responseList := make([]*securityBean.ImageScanHistoryResponse, 0)
+			common.WriteJsonResp(w, nil, &securityBean.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
 		} else {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		}
 		return
 	}
+
 	token := r.Header.Get("token")
 	var ids []int
+	var appRBACObjects []string
+	var envRBACObjects []string
+	var podRBACObjects []string
+	podRBACMap := make(map[string]int)
+
+	IdToAppEnvPairs := make(map[int][2]int)
 	for _, item := range deployInfoList {
-		if item.ScanObjectMetaId > 0 && (item.ObjectType == "app" || item.ObjectType == "chart") {
-			object := impl.enforcerUtil.GetAppRBACNameByAppId(item.ScanObjectMetaId)
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
-				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-				return
+		if item.ScanObjectMetaId > 0 && (item.ObjectType == ObjectTypeApp || item.ObjectType == ObjectTypeChart) {
+			IdToAppEnvPairs[item.Id] = [2]int{item.ScanObjectMetaId, item.EnvId}
+		}
+	}
+
+	appObjects, envObjects, appIdtoApp, envIdToEnv, err := impl.enforcerUtil.GetAppAndEnvRBACNamesByAppAndEnvIds(IdToAppEnvPairs)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	for _, item := range deployInfoList {
+		if item.ScanObjectMetaId > 0 && (item.ObjectType == ObjectTypeApp || item.ObjectType == ObjectTypeChart) {
+			appObject := appObjects[item.Id]
+			envObject := envObjects[item.Id]
+			if appObject != "" {
+				appRBACObjects = append(appRBACObjects, appObject)
 			}
-			object = impl.enforcerUtil.GetEnvRBACNameByAppId(item.ScanObjectMetaId, item.EnvId)
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); ok {
-				ids = append(ids, item.Id)
+			if envObject != "" {
+				envRBACObjects = append(envRBACObjects, envObject)
 			}
-		} else if item.ScanObjectMetaId > 0 && (item.ObjectType == "pod") {
+		} else if item.ScanObjectMetaId > 0 && (item.ObjectType == ObjectTypePod) {
 			environments, err := impl.environmentService.GetByClusterId(item.ClusterId)
 			if err != nil {
 				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return
 			}
-			pass := false
 			for _, environment := range environments {
-				if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, environment.EnvironmentIdentifier); ok {
-					pass = true
-					continue
-				}
-			}
-			if pass {
-				ids = append(ids, item.Id)
+				podObject := environment.EnvironmentIdentifier
+				podRBACObjects = append(podRBACObjects, podObject)
+				podRBACMap[podObject] = item.Id
 			}
 		}
-		// skip for pod
+	}
+
+	appResults := impl.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, appRBACObjects)
+	envResults := impl.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionGet, envRBACObjects)
+	podResults := impl.enforcer.EnforceInBatch(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, podRBACObjects)
+
+	for _, item := range deployInfoList {
+		if impl.enforcerUtil.IsAuthorizedForAppInAppResults(item.ScanObjectMetaId, appResults, appIdtoApp) && impl.enforcerUtil.IsAuthorizedForEnvInEnvResults(item.ScanObjectMetaId, item.EnvId, envResults, appIdtoApp, envIdToEnv) {
+			ids = append(ids, item.Id)
+		}
+	}
+	for podObject, authorized := range podResults {
+		if authorized {
+			if itemId, exists := podRBACMap[podObject]; exists {
+				ids = append(ids, itemId)
+			}
+		}
+	}
+
+	if ids == nil || len(ids) == 0 {
+		responseList := make([]*securityBean.ImageScanHistoryResponse, 0)
+		common.WriteJsonResp(w, nil, &securityBean.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
+		return
 	}
 
 	results, err := impl.imageScanService.FetchScanExecutionListing(request, ids)
 	if err != nil {
 		impl.logger.Errorw("service err, ScanExecutionList", "err", err, "payload", request)
 		if util.IsErrNoRows(err) {
-			responseList := make([]*security.ImageScanHistoryResponse, 0)
-			common.WriteJsonResp(w, nil, &security.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
+			responseList := make([]*securityBean.ImageScanHistoryResponse, 0)
+			common.WriteJsonResp(w, nil, &securityBean.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
 		} else {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		}
@@ -177,7 +219,7 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 		}
 	}
 	image := v.Get("image")
-	request := &security.ImageScanRequest{
+	request := &securityBean.ImageScanRequest{
 		ImageScanDeployInfoId: imageScanDeployInfoId,
 		Image:                 image,
 		ArtifactId:            artifactId,
@@ -189,35 +231,40 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 	if err != nil {
 		impl.logger.Errorw("service err, FetchExecutionDetail", "err", err, "payload", request)
 		if util.IsErrNoRows(err) {
-			common.WriteJsonResp(w, nil, &security.ImageScanExecutionDetail{}, http.StatusOK)
+			common.WriteJsonResp(w, nil, &securityBean.ImageScanExecutionDetail{}, http.StatusOK)
 		} else {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		}
 		return
 	}
-	//RBAC
+
 	token := r.Header.Get("token")
-	if executionDetail.AppId > 0 && executionDetail.EnvId > 0 {
-		object := impl.enforcerUtil.GetAppRBACNameByAppId(appId)
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+	if executionDetail != nil {
+		//RBAC
+		if executionDetail.AppId > 0 && executionDetail.EnvId > 0 {
+			object := impl.enforcerUtil.GetAppRBACNameByAppId(appId)
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+				return
+			}
+			object = impl.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); !ok {
+				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+				return
+			}
+		} else if executionDetail.AppId > 0 {
+			object := impl.enforcerUtil.GetAppRBACNameByAppId(appId)
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+				return
+			}
+		} else {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-			return
 		}
-		object = impl.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); !ok {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-			return
-		}
-	} else if executionDetail.AppId > 0 {
-		object := impl.enforcerUtil.GetAppRBACNameByAppId(appId)
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-			return
-		}
+		//RBAC
 	} else {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		common.WriteJsonResp(w, err, &securityBean.ImageScanExecutionDetail{}, http.StatusOK)
 	}
-	//RBAC
 
 	common.WriteJsonResp(w, err, executionDetail, http.StatusOK)
 }
@@ -225,7 +272,7 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 func (impl ImageScanRestHandlerImpl) FetchMinScanResultByAppIdAndEnvId(w http.ResponseWriter, r *http.Request) {
 	v := r.URL.Query()
 	var appId, envId int
-	request := &security.ImageScanRequest{}
+	request := &securityBean.ImageScanRequest{}
 	appIds := v.Get("appId")
 	if len(appIds) > 0 {
 		appId, err := strconv.Atoi(appIds)
@@ -294,8 +341,8 @@ func (impl ImageScanRestHandlerImpl) VulnerabilityExposure(w http.ResponseWriter
 	if err != nil {
 		impl.logger.Errorw("service err, VulnerabilityExposure", "err", err, "payload", request)
 		if util.IsErrNoRows(err) {
-			responseList := make([]*security.ImageScanHistoryResponse, 0)
-			common.WriteJsonResp(w, nil, &security.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
+			responseList := make([]*securityBean.ImageScanHistoryResponse, 0)
+			common.WriteJsonResp(w, nil, &securityBean.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
 		} else {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		}

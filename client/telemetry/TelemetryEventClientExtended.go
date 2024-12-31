@@ -1,101 +1,128 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package telemetry
 
 import (
 	"encoding/json"
-	client "github.com/devtron-labs/devtron/api/helm-app"
+	cloudProviderIdentifier "github.com/devtron-labs/common-lib/cloud-provider-identifier"
+	util2 "github.com/devtron-labs/common-lib/utils/k8s"
+	client "github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
+	"github.com/devtron-labs/devtron/pkg/auth/sso"
+	user2 "github.com/devtron-labs/devtron/pkg/auth/user"
+	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
+	repository3 "github.com/devtron-labs/devtron/pkg/build/git/gitProvider/repository"
+	"github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
+	ciConfig "github.com/devtron-labs/devtron/pkg/build/pipeline/read"
+	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
+	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
+	util3 "github.com/devtron-labs/devtron/pkg/util"
+	cron3 "github.com/devtron-labs/devtron/util/cron"
+	"net/http"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	util2 "github.com/devtron-labs/devtron/internal/util"
-	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
-	"github.com/devtron-labs/devtron/pkg/sso"
-	"github.com/devtron-labs/devtron/pkg/user"
-	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
-	"net/http"
-	"time"
 )
 
 const AppsCount int = 50
 
 type TelemetryEventClientImplExtended struct {
-	environmentService            cluster.EnvironmentService
+	environmentService            environment.EnvironmentService
 	appListingRepository          repository.AppListingRepository
-	ciPipelineRepository          pipelineConfig.CiPipelineRepository
+	ciPipelineConfigReadService   ciConfig.CiPipelineConfigReadService
 	pipelineRepository            pipelineConfig.PipelineRepository
-	gitOpsConfigRepository        repository.GitOpsConfigRepository
-	gitProviderRepository         repository.GitProviderRepository
+	gitProviderRepository         repository3.GitProviderRepository
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository
 	appRepository                 app.AppRepository
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
-	materialRepository            pipelineConfig.MaterialRepository
+	gitMaterialReadService        read.GitMaterialReadService
 	ciTemplateRepository          pipelineConfig.CiTemplateRepository
 	chartRepository               chartRepoRepository.ChartRepository
 	ciBuildConfigService          pipeline.CiBuildConfigService
+	gitOpsConfigReadService       config.GitOpsConfigReadService
 	*TelemetryEventClientImpl
 }
 
 func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
-	K8sUtil *util2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
-	environmentService cluster.EnvironmentService, userService user.UserService,
+	K8sUtil *util2.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig,
+	environmentService environment.EnvironmentService, userService user2.UserService,
 	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,
-	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
-	gitOpsConfigRepository repository.GitOpsConfigRepository, gitProviderRepository repository.GitProviderRepository,
-	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService, appRepository app.AppRepository,
+	ciPipelineConfigReadService ciConfig.CiPipelineConfigReadService, pipelineRepository pipelineConfig.PipelineRepository,
+	gitProviderRepository repository3.GitProviderRepository, attributeRepo repository.AttributesRepository,
+	ssoLoginService sso.SSOLoginService, appRepository app.AppRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
-	materialRepository pipelineConfig.MaterialRepository, ciTemplateRepository pipelineConfig.CiTemplateRepository,
-	chartRepository chartRepoRepository.ChartRepository, userAuditService user.UserAuditService,
+	gitMaterialReadService read.GitMaterialReadService, ciTemplateRepository pipelineConfig.CiTemplateRepository,
+	chartRepository chartRepoRepository.ChartRepository, userAuditService user2.UserAuditService,
 	ciBuildConfigService pipeline.CiBuildConfigService, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore,
-	helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository, userAttributesRepository repository.UserAttributesRepository) (*TelemetryEventClientImplExtended, error) {
+	helmAppClient client.HelmAppClient, installedAppReadService installedAppReader.InstalledAppReadService, userAttributesRepository repository.UserAttributesRepository,
+	cloudProviderIdentifierService cloudProviderIdentifier.ProviderIdentifierService, cronLogger *cron3.CronLoggerImpl,
+	gitOpsConfigReadService config.GitOpsConfigReadService) (*TelemetryEventClientImplExtended, error) {
 
 	cron := cron.New(
-		cron.WithChain())
+		cron.WithChain(cron.Recover(cronLogger)))
 	cron.Start()
 	watcher := &TelemetryEventClientImplExtended{
 		environmentService:            environmentService,
 		appListingRepository:          appListingRepository,
-		ciPipelineRepository:          ciPipelineRepository,
+		ciPipelineConfigReadService:   ciPipelineConfigReadService,
 		pipelineRepository:            pipelineRepository,
-		gitOpsConfigRepository:        gitOpsConfigRepository,
 		gitProviderRepository:         gitProviderRepository,
 		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
 		appRepository:                 appRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
 		ciWorkflowRepository:          ciWorkflowRepository,
-		materialRepository:            materialRepository,
+		gitMaterialReadService:        gitMaterialReadService,
 		ciTemplateRepository:          ciTemplateRepository,
 		chartRepository:               chartRepository,
 		ciBuildConfigService:          ciBuildConfigService,
-
+		gitOpsConfigReadService:       gitOpsConfigReadService,
 		TelemetryEventClientImpl: &TelemetryEventClientImpl{
-			cron:                     cron,
-			logger:                   logger,
-			client:                   client,
-			clusterService:           clusterService,
-			K8sUtil:                  K8sUtil,
-			aCDAuthConfig:            aCDAuthConfig,
-			userService:              userService,
-			attributeRepo:            attributeRepo,
-			ssoLoginService:          ssoLoginService,
-			PosthogClient:            PosthogClient,
-			moduleRepository:         moduleRepository,
-			serverDataStore:          serverDataStore,
-			userAuditService:         userAuditService,
-			helmAppClient:            helmAppClient,
-			InstalledAppRepository:   InstalledAppRepository,
-			userAttributesRepository: userAttributesRepository,
+			cron:                           cron,
+			logger:                         logger,
+			client:                         client,
+			clusterService:                 clusterService,
+			K8sUtil:                        K8sUtil,
+			aCDAuthConfig:                  aCDAuthConfig,
+			userService:                    userService,
+			attributeRepo:                  attributeRepo,
+			ssoLoginService:                ssoLoginService,
+			PosthogClient:                  PosthogClient,
+			moduleRepository:               moduleRepository,
+			serverDataStore:                serverDataStore,
+			userAuditService:               userAuditService,
+			helmAppClient:                  helmAppClient,
+			installedAppReadService:        installedAppReadService,
+			userAttributesRepository:       userAttributesRepository,
+			cloudProviderIdentifierService: cloudProviderIdentifierService,
+			telemetryConfig:                TelemetryConfig{},
 		},
 	}
 
@@ -124,8 +151,12 @@ type TelemetryEventDto struct {
 	UserCount                            int                `json:"userCount,omitempty"`
 	EnvironmentCount                     int                `json:"environmentCount,omitempty"`
 	ClusterCount                         int                `json:"clusterCount,omitempty"`
-	CiCountPerDay                        int                `json:"ciCountPerDay,omitempty"`
-	CdCountPerDay                        int                `json:"cdCountPerDay,omitempty"`
+	CiCreatedPerDay                      int                `json:"ciCreatedPerDay"`
+	CdCreatedPerDay                      int                `json:"cdCreatedPerDay"`
+	CiDeletedPerDay                      int                `json:"ciDeletedPerDay"`
+	CdDeletedPerDay                      int                `json:"cdDeletedPerDay"`
+	CiTriggeredPerDay                    int                `json:"ciTriggeredPerDay"`
+	CdTriggeredPerDay                    int                `json:"cdTriggeredPerDay"`
 	HelmChartCount                       int                `json:"helmChartCount,omitempty"`
 	SecurityScanCountPerDay              int                `json:"securityScanCountPerDay,omitempty"`
 	GitAccountsCount                     int                `json:"gitAccountsCount,omitempty"`
@@ -166,6 +197,7 @@ type TelemetryEventDto struct {
 	HelmAppUpdateCounter                 string             `json:"HelmAppUpdateCounter,omitempty"`
 	HelmChartSuccessfulDeploymentCount   int                `json:"helmChartSuccessfulDeploymentCount,omitempty"`
 	ExternalHelmAppClusterCount          map[int32]int      `json:"ExternalHelmAppClusterCount"`
+	ClusterProvider                      string             `json:"clusterProvider,omitempty"`
 }
 
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
@@ -179,7 +211,7 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	impl.logger.Infow("sending summary event", "eventType", eventType)
 	ucid, err := impl.getUCID()
 	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		impl.logger.Errorw("exception caught inside telemetry summary event while retrieving ucid", "err", err)
 		return err
 	}
 
@@ -192,58 +224,77 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload := &TelemetryEventDto{UCID: ucid, Timestamp: time.Now(), EventType: TelemetryEventType(eventType), DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
 
-	environments, err := impl.environmentService.GetAllActive()
+	environmentCount, err := impl.environmentService.GetAllActiveEnvironmentCount()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event while retrieving environmentCount, setting its value to -1", "err", err)
+		environmentCount = -1
 	}
 
 	prodApps, err := impl.appListingRepository.FindAppCount(true)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event, while retrieving prodApps, setting its value to -1", "err", err)
+		prodApps = -1
 	}
 
 	nonProdApps, err := impl.appListingRepository.FindAppCount(false)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving nonProdApps, setting its value to -1", "err", err)
+		nonProdApps = -1
 	}
 
-	ciPipeline, err := impl.ciPipelineRepository.FindAllPipelineInLast24Hour()
+	ciPipelineCount, err := impl.ciPipelineConfigReadService.FindAllPipelineCreatedCountInLast24Hour()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event, while retrieving ciPipelineCount, setting its value to -1", "err", err)
+		ciPipelineCount = -1
+	}
+	ciPipelineDeletedCount, err := impl.ciPipelineConfigReadService.FindAllDeletedPipelineCountInLast24Hour()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("exception caught inside telemetry summary event, while retrieving ciPipelineDeletedCount, setting its value to -1", "err", err)
+		ciPipelineDeletedCount = -1
+	}
+	ciPipelineTriggeredCount, err := impl.ciWorkflowRepository.FindAllTriggeredWorkflowCountInLast24Hour()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("exception caught inside telemetry summary event, while retrieving ciPipelineTriggeredCount, setting its value to -1", "err", err)
+		ciPipelineTriggeredCount = -1
 	}
 
-	cdPipeline, err := impl.pipelineRepository.FindAllPipelineInLast24Hour()
+	cdPipelineCount, err := impl.pipelineRepository.FindAllPipelineCreatedCountInLast24Hour()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event, while retrieving cdPipelineCount, setting its value to -1", "err", err)
+		cdPipelineCount = -1
+	}
+	cdPipelineDeletedCount, err := impl.pipelineRepository.FindAllDeletedPipelineCountInLast24Hour()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("exception caught inside telemetry summary event, while retrieving cdPipelineDeletedCount, setting its value to -1", "err", err)
+		cdPipelineDeletedCount = -1
+	}
+	cdPipelineTriggeredCount, err := impl.cdWorkflowRepository.FindAllTriggeredWorkflowCountInLast24Hour()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("exception caught inside telemetry summary event, while retrieving cdPipelineTriggeredCount, setting its value to -1", "err", err)
+		cdPipelineTriggeredCount = -1
+	}
+	gitAccounts, err := impl.gitProviderRepository.FindAllGitProviderCount()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("exception caught inside telemetry summary event, while retrieving gitAccounts, setting its value to -1", "err", err)
+		gitAccounts = -1
 	}
 
-	gitAccounts, err := impl.gitProviderRepository.FindAll()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+	gitOpsCount, err := impl.gitOpsConfigReadService.GetConfiguredGitOpsCount()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving gitOpsCount, setting its value to -1", "err", err)
+		gitOpsCount = -1
 	}
 
-	gitOps, err := impl.gitOpsConfigRepository.GetAllGitOpsConfig()
+	containerRegistryCount, err := impl.dockerArtifactStoreRepository.FindAllDockerArtifactCount()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
-	}
-
-	containerRegistry, err := impl.dockerArtifactStoreRepository.FindAll()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return err
+		impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving containerRegistryCount, setting its value to -1", "err", err)
+		containerRegistryCount = -1
 	}
 
 	//appSetup := false
 	apps, err := impl.appRepository.FindAll()
 	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving apps", "err", err)
 		return err
 	}
 
@@ -254,26 +305,26 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 
 	payload.AppCount = len(appIds)
 	if len(appIds) < AppsCount {
-		payload.AppsWithGitRepoConfigured, err = impl.materialRepository.FindNumberOfAppsWithGitRepo(appIds)
+		payload.AppsWithGitRepoConfigured, err = impl.gitMaterialReadService.FindNumberOfAppsWithGitRepo(appIds)
 		if err != nil {
-			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+			impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving AppsWithGitRepoConfigured", "err", err)
 		}
 		payload.AppsWithDockerConfigured, err = impl.ciTemplateRepository.FindNumberOfAppsWithDockerConfigured(appIds)
 		if err != nil {
-			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+			impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving AppsWithDockerConfigured", "err", err)
 		}
 		payload.AppsWithDeploymentTemplateConfigured, err = impl.chartRepository.FindNumberOfAppsWithDeploymentTemplate(appIds)
 		if err != nil {
-			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+			impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving AppsWithDeploymentTemplateConfigured", "err", err)
 		}
-		payload.AppsWithCiPipelineConfigured, err = impl.ciPipelineRepository.FindNumberOfAppsWithCiPipeline(appIds)
+		payload.AppsWithCiPipelineConfigured, err = impl.ciPipelineConfigReadService.FindNumberOfAppsWithCiPipeline(appIds)
 		if err != nil {
-			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+			impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving AppsWithCiPipelineConfigured", "err", err)
 		}
 
 		payload.AppsWithCdPipelineConfigured, err = impl.pipelineRepository.FindNumberOfAppsWithCdPipeline(appIds)
 		if err != nil {
-			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+			impl.logger.Errorw("exception caught inside telemetry summary event,while retrieving AppsWithCdPipelineConfigured", "err", err)
 		}
 	}
 
@@ -294,16 +345,19 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	devtronVersion := util.GetDevtronVersion()
 	payload.ProdAppCount = prodApps
 	payload.NonProdAppCount = nonProdApps
-	payload.RegistryCount = len(containerRegistry)
+	payload.RegistryCount = containerRegistryCount
 	payload.SSOLogin = ssoSetup
 	payload.UserCount = len(users)
-	payload.EnvironmentCount = len(environments)
+	payload.EnvironmentCount = environmentCount
 	payload.ClusterCount = len(clusters)
-	payload.CiCountPerDay = len(ciPipeline)
-
-	payload.CdCountPerDay = len(cdPipeline)
-	payload.GitAccountsCount = len(gitAccounts)
-	payload.GitOpsCount = len(gitOps)
+	payload.CiCreatedPerDay = ciPipelineCount
+	payload.CiDeletedPerDay = ciPipelineDeletedCount
+	payload.CiTriggeredPerDay = ciPipelineTriggeredCount
+	payload.CdCreatedPerDay = cdPipelineCount
+	payload.CdDeletedPerDay = cdPipelineDeletedCount
+	payload.CdTriggeredPerDay = cdPipelineTriggeredCount
+	payload.GitAccountsCount = gitAccounts
+	payload.GitOpsCount = gitOpsCount
 	payload.HostURL = hostURL
 	payload.DevtronGitVersion = devtronVersion.GitCommit
 	payload.Build = build
@@ -320,6 +374,12 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.HelmAppUpdateCounter = HelmAppUpdateCounter
 	payload.HelmChartSuccessfulDeploymentCount = HelmChartSuccessfulDeploymentCount
 	payload.ExternalHelmAppClusterCount = ExternalHelmAppClusterCount
+
+	payload.ClusterProvider, err = impl.GetCloudProvider()
+	if err != nil {
+		impl.logger.Errorw("error while getting cluster provider", "error", err)
+		return err
+	}
 
 	latestUser, err := impl.userAuditService.GetLatestUser()
 	if err == nil {

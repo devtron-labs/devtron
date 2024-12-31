@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package batch
@@ -21,7 +20,7 @@ import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	v1 "github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
-	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v2"
@@ -317,7 +316,7 @@ data:
 		logger           *zap.SugaredLogger
 		appRepo          app.AppRepository
 		configMapService pipeline.ConfigMapService
-		envService       cluster.EnvironmentService
+		envService       environment.EnvironmentService
 	}
 	type args struct {
 		holder   *v1.DataHolder

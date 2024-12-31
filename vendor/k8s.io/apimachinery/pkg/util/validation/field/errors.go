@@ -42,9 +42,9 @@ func (v *Error) Error() string {
 	return fmt.Sprintf("%s: %s", v.Field, v.ErrorBody())
 }
 
-type omitValueType struct{}
+type OmitValueType struct{}
 
-var omitValue = omitValueType{}
+var omitValue = OmitValueType{}
 
 // ErrorBody returns the error message without the field name.  This is useful
 // for building nice-looking higher-level error reporting.
@@ -66,7 +66,7 @@ func (v *Error) ErrorBody() string {
 		valueType := reflect.TypeOf(value)
 		if value == nil || valueType == nil {
 			value = "null"
-		} else if valueType.Kind() == reflect.Ptr {
+		} else if valueType.Kind() == reflect.Pointer {
 			if reflectValue := reflect.ValueOf(value); reflectValue.IsNil() {
 				value = "null"
 			} else {
@@ -200,12 +200,12 @@ func Invalid(field *Path, value interface{}, detail string) *Error {
 // NotSupported returns a *Error indicating "unsupported value".
 // This is used to report unknown values for enumerated fields (e.g. a list of
 // valid values).
-func NotSupported(field *Path, value interface{}, validValues []string) *Error {
+func NotSupported[T ~string](field *Path, value interface{}, validValues []T) *Error {
 	detail := ""
 	if len(validValues) > 0 {
 		quotedValues := make([]string, len(validValues))
 		for i, v := range validValues {
-			quotedValues[i] = strconv.Quote(v)
+			quotedValues[i] = strconv.Quote(fmt.Sprint(v))
 		}
 		detail = "supported values: " + strings.Join(quotedValues, ", ")
 	}

@@ -1,6 +1,6 @@
 # Install Devtron
 
-In this section, we describe on how you can install Helm Dashboard by Devtron without any integrations. Integrations can be added later using [Devtron Stack Manager](https://docs.devtron.ai/v/v0.6/usage/integrations).
+In this section, we describe on how you can install Helm Dashboard by Devtron without any integrations. Integrations can be added later using [Devtron Stack Manager](../../user-guide/stack-manager.md).
 
 If you want to install Devtron on Minikube, Microk8s, K3s, Kind, refer this [section](./Install-devtron-on-Minikube-Microk8s-K3s-Kind.md).
 
@@ -14,9 +14,14 @@ Install [Helm](https://helm.sh/docs/intro/install/) if you have not installed it
 helm repo add devtron https://helm.devtron.ai
 ```
 
+## Update Helm Repo
+```bash
+helm repo update devtron
+```
+
 ## Install Helm Dashboard by Devtron
 
-**Note**: This installation command will not install CI/CD integration. For CI/CD, refer [install Devtron with CI/CD](https://docs.devtron.ai/install/install-devtron-with-cicd) section.
+**Note**: This installation command will not install CI/CD integration. For CI/CD, refer [install Devtron with CI/CD](../install/install-devtron-with-cicd.md) section.
 
 Run the following command to install Helm Dashboard by Devtron:
 
@@ -72,6 +77,12 @@ The hostname `aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws
 
 ## Devtron Admin credentials
 
+When you install Devtron for the first time, it creates a default admin user and password (with unrestricted access to Devtron). You can use that credentials to log in as an administrator. 
+
+After the initial login, we recommend you set up any SSO service like Google, GitHub, etc., and then add other users (including yourself). Subsequently, all the users can use the same SSO (let's say, GitHub) to log in to Devtron's dashboard.
+
+The section below will help you understand the process of getting the administrator credentials.
+
 ### For Devtron version v0.6.0 and higher
 
 **Username**: `admin` <br>
@@ -95,9 +106,9 @@ kubectl -n devtroncd get secret devtron-secret \
 </details>
 
 
-**Note**: If you want to uninstall Devtron or clean Devtron helm installer, refer our [uninstall Devtron](https://docs.devtron.ai/install/uninstall-devtron).
+**Note**: If you want to uninstall Devtron or clean Devtron helm installer, refer our [uninstall Devtron](../install/uninstall-devtron.md).
 
 
 ## Upgrade
 
-To use the CI/CD capabilities with Devtron, you can Install the [Devtron with CI/CD](https://docs.devtron.ai/install/install-devtron-with-cicd) or [Devtron with CI/CD along with GitOps (Argo CD)](https://docs.devtron.ai/install/install-devtron-with-cicd-with-gitops).
+To use the CI/CD capabilities with Devtron, you can Install the [Devtron with CI/CD](../install/install-devtron-with-cicd.md) or [Devtron with CI/CD along with GitOps (Argo CD)](../install/install-devtron-with-cicd-with-gitops.md).

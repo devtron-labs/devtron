@@ -51,6 +51,7 @@ type Epic struct {
 	Title                   string      `json:"title"`
 	Description             string      `json:"description"`
 	State                   string      `json:"state"`
+	Confidential            bool        `json:"confidential"`
 	WebURL                  string      `json:"web_url"`
 	Author                  *EpicAuthor `json:"author"`
 	StartDate               *ISOTime    `json:"start_date"`
@@ -80,20 +81,20 @@ func (e Epic) String() string {
 // GitLab API docs: https://docs.gitlab.com/ee/api/epics.html#list-epics-for-a-group
 type ListGroupEpicsOptions struct {
 	ListOptions
-	AuthorID                *int       `url:"author_id,omitempty" json:"author_id,omitempty"`
-	Labels                  *Labels    `url:"labels,comma,omitempty" json:"labels,omitempty"`
-	WithLabelDetails        *bool      `url:"with_labels_details,omitempty" json:"with_labels_details,omitempty"`
-	OrderBy                 *string    `url:"order_by,omitempty" json:"order_by,omitempty"`
-	Sort                    *string    `url:"sort,omitempty" json:"sort,omitempty"`
-	Search                  *string    `url:"search,omitempty" json:"search,omitempty"`
-	State                   *string    `url:"state,omitempty" json:"state,omitempty"`
-	CreatedAfter            *time.Time `url:"created_after,omitempty" json:"created_after,omitempty"`
-	CreatedBefore           *time.Time `url:"created_before,omitempty" json:"created_before,omitempty"`
-	UpdatedAfter            *time.Time `url:"updated_after,omitempty" json:"updated_after,omitempty"`
-	UpdatedBefore           *time.Time `url:"updated_before,omitempty" json:"updated_before,omitempty"`
-	IncludeAncestorGroups   *bool      `url:"include_ancestor_groups,omitempty" json:"include_ancestor_groups,omitempty"`
-	IncludeDescendantGroups *bool      `url:"include_descendant_groups,omitempty" json:"include_descendant_groups,omitempty"`
-	MyReactionEmoji         *string    `url:"my_reaction_emoji,omitempty" json:"my_reaction_emoji,omitempty"`
+	AuthorID                *int          `url:"author_id,omitempty" json:"author_id,omitempty"`
+	Labels                  *LabelOptions `url:"labels,comma,omitempty" json:"labels,omitempty"`
+	WithLabelDetails        *bool         `url:"with_labels_details,omitempty" json:"with_labels_details,omitempty"`
+	OrderBy                 *string       `url:"order_by,omitempty" json:"order_by,omitempty"`
+	Sort                    *string       `url:"sort,omitempty" json:"sort,omitempty"`
+	Search                  *string       `url:"search,omitempty" json:"search,omitempty"`
+	State                   *string       `url:"state,omitempty" json:"state,omitempty"`
+	CreatedAfter            *time.Time    `url:"created_after,omitempty" json:"created_after,omitempty"`
+	CreatedBefore           *time.Time    `url:"created_before,omitempty" json:"created_before,omitempty"`
+	UpdatedAfter            *time.Time    `url:"updated_after,omitempty" json:"updated_after,omitempty"`
+	UpdatedBefore           *time.Time    `url:"updated_before,omitempty" json:"updated_before,omitempty"`
+	IncludeAncestorGroups   *bool         `url:"include_ancestor_groups,omitempty" json:"include_ancestor_groups,omitempty"`
+	IncludeDescendantGroups *bool         `url:"include_descendant_groups,omitempty" json:"include_descendant_groups,omitempty"`
+	MyReactionEmoji         *string       `url:"my_reaction_emoji,omitempty" json:"my_reaction_emoji,omitempty"`
 }
 
 // ListGroupEpics gets a list of group epics. This function accepts pagination
@@ -118,7 +119,7 @@ func (s *EpicsService) ListGroupEpics(gid interface{}, opt *ListGroupEpicsOption
 		return nil, resp, err
 	}
 
-	return es, resp, err
+	return es, resp, nil
 }
 
 // GetEpic gets a single group epic.
@@ -142,7 +143,7 @@ func (s *EpicsService) GetEpic(gid interface{}, epic int, options ...RequestOpti
 		return nil, resp, err
 	}
 
-	return e, resp, err
+	return e, resp, nil
 }
 
 // GetEpicLinks gets all child epics of an epic.
@@ -166,20 +167,24 @@ func (s *EpicsService) GetEpicLinks(gid interface{}, epic int, options ...Reques
 		return nil, resp, err
 	}
 
-	return e, resp, err
+	return e, resp, nil
 }
 
 // CreateEpicOptions represents the available CreateEpic() options.
 //
 // GitLab API docs: https://docs.gitlab.com/ee/api/epics.html#new-epic
 type CreateEpicOptions struct {
-	Title            *string  `url:"title,omitempty" json:"title,omitempty"`
-	Description      *string  `url:"description,omitempty" json:"description,omitempty"`
-	Labels           *Labels  `url:"labels,comma,omitempty" json:"labels,omitempty"`
-	StartDateIsFixed *bool    `url:"start_date_is_fixed,omitempty" json:"start_date_is_fixed,omitempty"`
-	StartDateFixed   *ISOTime `url:"start_date_fixed,omitempty" json:"start_date_fixed,omitempty"`
-	DueDateIsFixed   *bool    `url:"due_date_is_fixed,omitempty" json:"due_date_is_fixed,omitempty"`
-	DueDateFixed     *ISOTime `url:"due_date_fixed,omitempty" json:"due_date_fixed,omitempty"`
+	Title            *string       `url:"title,omitempty" json:"title,omitempty"`
+	Labels           *LabelOptions `url:"labels,comma,omitempty" json:"labels,omitempty"`
+	Description      *string       `url:"description,omitempty" json:"description,omitempty"`
+	Color            *string       `url:"color,omitempty" json:"color,omitempty"`
+	Confidential     *bool         `url:"confidential,omitempty" json:"confidential,omitempty"`
+	CreatedAt        *time.Time    `url:"created_at,omitempty" json:"created_at,omitempty"`
+	StartDateIsFixed *bool         `url:"start_date_is_fixed,omitempty" json:"start_date_is_fixed,omitempty"`
+	StartDateFixed   *ISOTime      `url:"start_date_fixed,omitempty" json:"start_date_fixed,omitempty"`
+	DueDateIsFixed   *bool         `url:"due_date_is_fixed,omitempty" json:"due_date_is_fixed,omitempty"`
+	DueDateFixed     *ISOTime      `url:"due_date_fixed,omitempty" json:"due_date_fixed,omitempty"`
+	ParentID         *int          `url:"parent_id,omitempty" json:"parent_id,omitempty"`
 }
 
 // CreateEpic creates a new group epic.
@@ -203,21 +208,27 @@ func (s *EpicsService) CreateEpic(gid interface{}, opt *CreateEpicOptions, optio
 		return nil, resp, err
 	}
 
-	return e, resp, err
+	return e, resp, nil
 }
 
 // UpdateEpicOptions represents the available UpdateEpic() options.
 //
 // GitLab API docs: https://docs.gitlab.com/ee/api/epics.html#update-epic
 type UpdateEpicOptions struct {
-	Title            *string  `url:"title,omitempty" json:"title,omitempty"`
-	Description      *string  `url:"description,omitempty" json:"description,omitempty"`
-	Labels           *Labels  `url:"labels,comma,omitempty" json:"labels,omitempty"`
-	StartDateIsFixed *bool    `url:"start_date_is_fixed,omitempty" json:"start_date_is_fixed,omitempty"`
-	StartDateFixed   *ISOTime `url:"start_date_fixed,omitempty" json:"start_date_fixed,omitempty"`
-	DueDateIsFixed   *bool    `url:"due_date_is_fixed,omitempty" json:"due_date_is_fixed,omitempty"`
-	DueDateFixed     *ISOTime `url:"due_date_fixed,omitempty" json:"due_date_fixed,omitempty"`
-	StateEvent       *string  `url:"state_event,omitempty" json:"state_event,omitempty"`
+	AddLabels        *LabelOptions `url:"add_labels,omitempty" json:"add_labels,omitempty"`
+	Confidential     *bool         `url:"confidential,omitempty" json:"confidential,omitempty"`
+	Description      *string       `url:"description,omitempty" json:"description,omitempty"`
+	DueDateFixed     *ISOTime      `url:"due_date_fixed,omitempty" json:"due_date_fixed,omitempty"`
+	DueDateIsFixed   *bool         `url:"due_date_is_fixed,omitempty" json:"due_date_is_fixed,omitempty"`
+	Labels           *LabelOptions `url:"labels,comma,omitempty" json:"labels,omitempty"`
+	ParentID         *int          `url:"parent_id,omitempty" json:"parent_id,omitempty"`
+	RemoveLabels     *LabelOptions `url:"remove_labels,omitempty" json:"remove_labels,omitempty"`
+	StartDateFixed   *ISOTime      `url:"start_date_fixed,omitempty" json:"start_date_fixed,omitempty"`
+	StartDateIsFixed *bool         `url:"start_date_is_fixed,omitempty" json:"start_date_is_fixed,omitempty"`
+	StateEvent       *string       `url:"state_event,omitempty" json:"state_event,omitempty"`
+	Title            *string       `url:"title,omitempty" json:"title,omitempty"`
+	UpdatedAt        *time.Time    `url:"updated_at,omitempty" json:"updated_at,omitempty"`
+	Color            *string       `url:"color,omitempty" json:"color,omitempty"`
 }
 
 // UpdateEpic updates an existing group epic. This function is also used
@@ -242,7 +253,7 @@ func (s *EpicsService) UpdateEpic(gid interface{}, epic int, opt *UpdateEpicOpti
 		return nil, resp, err
 	}
 
-	return e, resp, err
+	return e, resp, nil
 }
 
 // DeleteEpic deletes a single group epic.

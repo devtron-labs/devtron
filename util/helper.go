@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package util
@@ -30,6 +29,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -102,6 +102,10 @@ func ExtractChartVersion(chartVersion string) (int, int, error) {
 	return chartMajorVersion, chartMinorVersion, nil
 }
 
+func ExtractEcrImage(registryId, region, repoName, tag string) string {
+	return fmt.Sprintf("%s.dkr.ecr.%s.amazonaws.com/%s:%s", registryId, region, repoName, tag)
+}
+
 type Closer interface {
 	Close() error
 }
@@ -126,6 +130,11 @@ func Generate(size int) string {
 	}
 	str := b.String()
 	return str
+}
+
+// Generates random name format name-clone-xyts
+func GenerateNewWorkflowName(name string) string {
+	return fmt.Sprintf("%s-clone-%s", name, Generate(4))
 }
 
 func HttpRequest(url string) (map[string]interface{}, error) {
@@ -267,6 +276,14 @@ func TriggerGitOpsMetrics(operation string, method string, startTime time.Time, 
 	middleware.GitOpsDuration.WithLabelValues(operation, method, status).Observe(time.Since(startTime).Seconds())
 }
 
+type EvalIsNonPublishableErr func(err error) bool
+
+func AllPublishableError() EvalIsNonPublishableErr {
+	return func(err error) bool {
+		return false
+	}
+}
+
 func InterfaceToString(resp interface{}) string {
 	var dat string
 	b, err := json.Marshal(resp)
@@ -293,4 +310,45 @@ func InterfaceToFloat(resp interface{}) float64 {
 		return dat
 	}
 	return dat
+}
+
+type HpaResourceRequest struct {
+	ResourceName    string
+	ReqReplicaCount float64
+	ReqMaxReplicas  float64
+	ReqMinReplicas  float64
+	IsEnable        bool
+	Group           string
+	Version         string
+	Kind            string
+}
+
+func ConvertStringSliceToMap(inputs []string) map[string]bool {
+	m := make(map[string]bool, len(inputs))
+	for _, input := range inputs {
+		m[input] = true
+	}
+	return m
+}
+
+func MatchRegexExpression(exp string, text string) (bool, error) {
+	rExp, err := regexp.Compile(exp)
+	if err != nil {
+		return false, err
+	}
+	matched := rExp.Match([]byte(text))
+	return matched, nil
+}
+
+func GetRandomStringOfGivenLength(length int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyz" +
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+	var seededRand = rand.New(
+		rand.NewSource(time.Now().UnixNano()))
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[seededRand.Intn(len(charset))]
+	}
+	return string(b)
 }

@@ -22,15 +22,17 @@ func ClonerUsingGitExec(repoSpec *RepoSpec) error {
 	if err = r.run("init"); err != nil {
 		return err
 	}
-	if err = r.run(
-		"remote", "add", "origin", repoSpec.CloneSpec()); err != nil {
+	// git relative submodule need origin, see https://github.com/kubernetes-sigs/kustomize/issues/5131
+	if err = r.run("remote", "add", "origin", repoSpec.CloneSpec()); err != nil {
 		return err
 	}
 	ref := "HEAD"
 	if repoSpec.Ref != "" {
 		ref = repoSpec.Ref
 	}
-	if err = r.run("fetch", "--depth=1", "origin", ref); err != nil {
+	// we use repoSpec.CloneSpec() instead of origin because on error,
+	// the prior prints the actual repo url for the user.
+	if err = r.run("fetch", "--depth=1", repoSpec.CloneSpec(), ref); err != nil {
 		return err
 	}
 	if err = r.run("checkout", "FETCH_HEAD"); err != nil {

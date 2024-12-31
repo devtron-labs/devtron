@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package util
@@ -39,6 +38,8 @@ func GetLogger() *zap.SugaredLogger {
 
 type LogConfig struct {
 	Level int `env:"LOG_LEVEL" envDefault:"0"` // default info
+
+	DevMode bool `env:"LOGGER_DEV_MODE" envDefault:"false"`
 }
 
 func InitLogger() (*zap.SugaredLogger, error) {
@@ -50,6 +51,13 @@ func InitLogger() (*zap.SugaredLogger, error) {
 	}
 
 	config := zap.NewProductionConfig()
+	if cfg.DevMode {
+		config = zap.NewDevelopmentConfig()
+		config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+		config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		config.EncoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
+	}
+
 	config.Level = zap.NewAtomicLevelAt(zapcore.Level(cfg.Level))
 	l, err := config.Build()
 	if err != nil {

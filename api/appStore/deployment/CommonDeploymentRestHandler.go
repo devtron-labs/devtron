@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package appStoreDeployment
@@ -21,25 +20,29 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	client "github.com/devtron-labs/devtron/api/helm-app"
+	service2 "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/bean"
+	"github.com/devtron-labs/devtron/pkg/attributes"
+	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
-	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
-	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	util2 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/k8sObjectsUtil"
+	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 type CommonDeploymentRestHandler interface {
@@ -49,33 +52,36 @@ type CommonDeploymentRestHandler interface {
 }
 
 type CommonDeploymentRestHandlerImpl struct {
-	Logger                     *zap.SugaredLogger
-	userAuthService            user.UserService
-	enforcer                   casbin.Enforcer
-	enforcerUtil               rbac.EnforcerUtil
-	enforcerUtilHelm           rbac.EnforcerUtilHelm
-	appStoreDeploymentService  service.AppStoreDeploymentService
-	appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService
-	validator                  *validator.Validate
-	helmAppService             client.HelmAppService
-	helmAppRestHandler         client.HelmAppRestHandler
+	Logger                    *zap.SugaredLogger
+	userAuthService           user.UserService
+	enforcer                  casbin.Enforcer
+	enforcerUtil              rbac.EnforcerUtil
+	enforcerUtilHelm          rbac.EnforcerUtilHelm
+	appStoreDeploymentService service.AppStoreDeploymentService
+	installedAppService       EAMode.InstalledAppDBService
+	validator                 *validator.Validate
+	helmAppService            service2.HelmAppService
+	argoUserService           argo.ArgoUserService
+	attributesService         attributes.AttributesService
 }
 
 func NewCommonDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
-	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm, appStoreDeploymentService service.AppStoreDeploymentService,
-	validator *validator.Validate, helmAppService client.HelmAppService, appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	helmAppRestHandler client.HelmAppRestHandler) *CommonDeploymentRestHandlerImpl {
+	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm,
+	appStoreDeploymentService service.AppStoreDeploymentService, installedAppService EAMode.InstalledAppDBService,
+	validator *validator.Validate, helmAppService service2.HelmAppService,
+	argoUserService argo.ArgoUserService, attributesService attributes.AttributesService) *CommonDeploymentRestHandlerImpl {
 	return &CommonDeploymentRestHandlerImpl{
-		Logger:                     Logger,
-		userAuthService:            userAuthService,
-		enforcer:                   enforcer,
-		enforcerUtil:               enforcerUtil,
-		enforcerUtilHelm:           enforcerUtilHelm,
-		appStoreDeploymentService:  appStoreDeploymentService,
-		validator:                  validator,
-		helmAppService:             helmAppService,
-		appStoreDeploymentServiceC: appStoreDeploymentServiceC,
-		helmAppRestHandler:         helmAppRestHandler,
+		Logger:                    Logger,
+		userAuthService:           userAuthService,
+		enforcer:                  enforcer,
+		enforcerUtil:              enforcerUtil,
+		enforcerUtilHelm:          enforcerUtilHelm,
+		appStoreDeploymentService: appStoreDeploymentService,
+		installedAppService:       installedAppService,
+		validator:                 validator,
+		helmAppService:            helmAppService,
+		argoUserService:           argoUserService,
+		attributesService:         attributesService,
 	}
 }
 func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppId string, appId string) (string, *appStoreBean.InstallAppVersionDTO, error) {
@@ -87,9 +93,9 @@ func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppI
 			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "invalid app id"}
 			return appOfferingMode, installedAppDto, err
 		}
-		installedAppDto, err = handler.appStoreDeploymentServiceC.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+		installedAppDto, err = handler.installedAppService.GetInstalledAppByClusterNamespaceAndName(appIdentifier)
 		if err != nil {
-			err = &util.ApiError{HttpStatusCode: http.StatusInternalServerError, UserMessage: "unable to find app in database"}
+			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "unable to find app in database"}
 			return appOfferingMode, installedAppDto, err
 		}
 		// this is the case when hyperion apps does not linked yet
@@ -113,9 +119,9 @@ func (handler *CommonDeploymentRestHandlerImpl) getAppOfferingMode(installedAppI
 			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "invalid installed app id"}
 			return appOfferingMode, installedAppDto, err
 		}
-		installedAppDto, err = handler.appStoreDeploymentServiceC.GetInstalledAppByInstalledAppId(installedAppId)
+		installedAppDto, err = handler.installedAppService.GetInstalledAppByInstalledAppId(installedAppId)
 		if err != nil {
-			err = &util.ApiError{HttpStatusCode: http.StatusInternalServerError, UserMessage: "unable to find app in database"}
+			err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "unable to find app in database"}
 			return appOfferingMode, installedAppDto, err
 		}
 	} else {
@@ -165,7 +171,7 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistory(w http.Resp
 	}
 	//rbac block ends here
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 	res, err := handler.appStoreDeploymentService.GetDeploymentHistory(ctx, installedAppDto)
 	if err != nil {
@@ -287,8 +293,28 @@ func (handler *CommonDeploymentRestHandlerImpl) RollbackApplication(w http.Respo
 		return
 	}
 	//rbac block ends here
+	ctx, cancel := context.WithCancel(r.Context())
+	if cn, ok := w.(http.CloseNotifier); ok {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	if util2.IsBaseStack() || util2.IsHelmApp(appOfferingMode) {
+		ctx = context.WithValue(r.Context(), "token", token)
+	} else {
+		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			handler.Logger.Errorw("error in getting acd token", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		ctx = context.WithValue(r.Context(), "token", acdToken)
+	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	success, err := handler.appStoreDeploymentService.RollbackApplication(ctx, request, installedAppDto, userId)
 	if err != nil {
@@ -299,5 +325,6 @@ func (handler *CommonDeploymentRestHandlerImpl) RollbackApplication(w http.Respo
 	res := &openapi2.RollbackReleaseResponse{
 		Success: &success,
 	}
+	handler.attributesService.UpdateKeyValueByOne(bean.HELM_APP_UPDATE_COUNTER)
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }

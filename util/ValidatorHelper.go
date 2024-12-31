@@ -1,15 +1,27 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package util
 
 import (
 	"errors"
 	"fmt"
-	"k8s.io/apimachinery/pkg/api/resource"
-	"math"
-	"regexp"
-	"strconv"
-	"strings"
-
 	"github.com/xeipuuv/gojsonschema"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"regexp"
 )
 
 const (
@@ -80,62 +92,6 @@ func CpuToNumber(cpu string) (int64, error) {
 		return 0, fmt.Errorf("value cannot be negative")
 	}
 	return quantity.MilliValue(), nil
-}
-
-func convertResource(rp *resourceParser, resource string) (float64, error) {
-	matches := rp.regex.FindAllStringSubmatch(resource, -1)
-	if len(matches) == 0 {
-		return float64(0), errors.New("expected pattern for" + rp.name + "should match" + rp.pattern + ", found " + resource)
-	}
-	if len(matches[0]) < 2 {
-		return float64(0), errors.New("expected pattern for" + rp.name + "should match" + rp.pattern + ", found " + resource)
-	}
-	num, err := ParseFloat(matches[0][1])
-	if err != nil {
-		return float64(0), err
-	}
-	if len(matches[0]) == 3 && matches[0][2] != "" {
-		if suffix, ok := rp.conversions[matches[0][2]]; ok {
-			return num * suffix, nil
-		}
-	} else {
-		return num, nil
-	}
-	return float64(0), errors.New("expected pattern for" + rp.name + "should match" + rp.pattern + ", found " + resource)
-}
-
-func ParseFloat(str string) (float64, error) {
-	val, err := strconv.ParseFloat(str, 64)
-	if err == nil {
-		return val, nil
-	}
-
-	//Some number may be seperated by comma, for example, 23,120,123, so remove the comma firstly
-	str = strings.Replace(str, ",", "", -1)
-
-	//Some number is specifed in scientific notation
-	pos := strings.IndexAny(str, "eE")
-	if pos < 0 {
-		return strconv.ParseFloat(str, 64)
-	}
-
-	var baseVal float64
-	var expVal int64
-
-	baseStr := str[0:pos]
-	baseVal, err = strconv.ParseFloat(baseStr, 64)
-	if err != nil {
-
-		return 0, err
-	}
-
-	expStr := str[(pos + 1):]
-	expVal, err = strconv.ParseInt(expStr, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	return baseVal * math.Pow10(int(expVal)), nil
 }
 
 func CompareLimitsRequests(dat map[string]interface{}, chartVersion string) (bool, error) {
@@ -228,6 +184,13 @@ func AutoScale(dat map[string]interface{}) (bool, error) {
 	if dat == nil {
 		return true, nil
 	}
+	kedaAutoScaleEnabled := false
+	if dat["kedaAutoscaling"] != nil {
+		kedaAutoScale, ok := dat["kedaAutoscaling"].(map[string]interface{})["enabled"]
+		if ok {
+			kedaAutoScaleEnabled = kedaAutoScale.(bool)
+		}
+	}
 	if dat["autoscaling"] != nil {
 		autoScaleEnabled, ok := dat["autoscaling"].(map[string]interface{})["enabled"]
 		if !ok {
@@ -243,6 +206,9 @@ func AutoScale(dat map[string]interface{}) (bool, error) {
 			// Bug fix PR https://github.com/devtron-labs/devtron/pull/884
 			if minReplicas.(float64) > maxReplicas.(float64) {
 				return false, errors.New("autoscaling.MinReplicas can not be greater than autoscaling.MaxReplicas")
+			}
+			if kedaAutoScaleEnabled {
+				return false, errors.New("autoscaling and kedaAutoscaling can not be enabled at the same time. Use additional scalers in kedaAutoscaling instead.")
 			}
 		}
 	}

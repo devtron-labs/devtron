@@ -52,6 +52,8 @@ func Every(interval time.Duration) Limit {
 // or its associated context.Context is canceled.
 //
 // The methods AllowN, ReserveN, and WaitN consume n tokens.
+//
+// Limiter is safe for simultaneous use by multiple goroutines.
 type Limiter struct {
 	mu     sync.Mutex
 	limit  Limit
@@ -83,7 +85,7 @@ func (lim *Limiter) Burst() int {
 // TokensAt returns the number of tokens available at time t.
 func (lim *Limiter) TokensAt(t time.Time) float64 {
 	lim.mu.Lock()
-	_, _, tokens := lim.advance(t) // does not mutute lim
+	_, tokens := lim.advance(t) // does not mutate lim
 	lim.mu.Unlock()
 	return tokens
 }
@@ -183,7 +185,7 @@ func (r *Reservation) CancelAt(t time.Time) {
 		return
 	}
 	// advance time to now
-	t, _, tokens := r.lim.advance(t)
+	t, tokens := r.lim.advance(t)
 	// calculate new number of tokens
 	tokens += restoreTokens
 	if burst := float64(r.lim.burst); tokens > burst {
@@ -304,7 +306,7 @@ func (lim *Limiter) SetLimitAt(t time.Time, newLimit Limit) {
 	lim.mu.Lock()
 	defer lim.mu.Unlock()
 
-	t, _, tokens := lim.advance(t)
+	t, tokens := lim.advance(t)
 
 	lim.last = t
 	lim.tokens = tokens
@@ -321,7 +323,7 @@ func (lim *Limiter) SetBurstAt(t time.Time, newBurst int) {
 	lim.mu.Lock()
 	defer lim.mu.Unlock()
 
-	t, _, tokens := lim.advance(t)
+	t, tokens := lim.advance(t)
 
 	lim.last = t
 	lim.tokens = tokens
@@ -356,7 +358,7 @@ func (lim *Limiter) reserveN(t time.Time, n int, maxFutureReserve time.Duration)
 		}
 	}
 
-	t, last, tokens := lim.advance(t)
+	t, tokens := lim.advance(t)
 
 	// Calculate the remaining number of tokens resulting from the request.
 	tokens -= float64(n)
@@ -379,15 +381,11 @@ func (lim *Limiter) reserveN(t time.Time, n int, maxFutureReserve time.Duration)
 	if ok {
 		r.tokens = n
 		r.timeToAct = t.Add(waitDuration)
-	}
 
-	// Update state
-	if ok {
+		// Update state
 		lim.last = t
 		lim.tokens = tokens
 		lim.lastEvent = r.timeToAct
-	} else {
-		lim.last = last
 	}
 
 	return r
@@ -396,7 +394,7 @@ func (lim *Limiter) reserveN(t time.Time, n int, maxFutureReserve time.Duration)
 // advance calculates and returns an updated state for lim resulting from the passage of time.
 // lim is not changed.
 // advance requires that lim.mu is held.
-func (lim *Limiter) advance(t time.Time) (newT time.Time, newLast time.Time, newTokens float64) {
+func (lim *Limiter) advance(t time.Time) (newT time.Time, newTokens float64) {
 	last := lim.last
 	if t.Before(last) {
 		last = t
@@ -409,7 +407,7 @@ func (lim *Limiter) advance(t time.Time) (newT time.Time, newLast time.Time, new
 	if burst := float64(lim.burst); tokens > burst {
 		tokens = burst
 	}
-	return t, last, tokens
+	return t, tokens
 }
 
 // durationFromTokens is a unit conversion function from the number of tokens to the duration

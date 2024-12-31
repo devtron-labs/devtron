@@ -39,6 +39,7 @@ type TopicsService struct {
 type Topic struct {
 	ID                 int    `json:"id"`
 	Name               string `json:"name"`
+	Title              string `json:"title"`
 	Description        string `json:"description"`
 	TotalProjectsCount uint64 `json:"total_projects_count"`
 	AvatarURL          string `json:"avatar_url"`
@@ -72,7 +73,7 @@ func (s *TopicsService) ListTopics(opt *ListTopicsOptions, options ...RequestOpt
 		return nil, resp, err
 	}
 
-	return t, resp, err
+	return t, resp, nil
 }
 
 // GetTopic gets a project topic by ID.
@@ -92,7 +93,7 @@ func (s *TopicsService) GetTopic(topic int, options ...RequestOptionFunc) (*Topi
 		return nil, resp, err
 	}
 
-	return t, resp, err
+	return t, resp, nil
 }
 
 // CreateTopicOptions represents the available CreateTopic() options.
@@ -101,6 +102,7 @@ func (s *TopicsService) GetTopic(topic int, options ...RequestOptionFunc) (*Topi
 // https://docs.gitlab.com/ee/api/topics.html#create-a-project-topic
 type CreateTopicOptions struct {
 	Name        *string      `url:"name,omitempty" json:"name,omitempty"`
+	Title       *string      `url:"title,omitempty" json:"title,omitempty"`
 	Description *string      `url:"description,omitempty" json:"description,omitempty"`
 	Avatar      *TopicAvatar `url:"-" json:"-"`
 }
@@ -151,7 +153,7 @@ func (s *TopicsService) CreateTopic(opt *CreateTopicOptions, options ...RequestO
 		return nil, resp, err
 	}
 
-	return t, resp, err
+	return t, resp, nil
 }
 
 // UpdateTopicOptions represents the available UpdateTopic() options.
@@ -160,6 +162,7 @@ func (s *TopicsService) CreateTopic(opt *CreateTopicOptions, options ...RequestO
 // https://docs.gitlab.com/ee/api/topics.html#update-a-project-topic
 type UpdateTopicOptions struct {
 	Name        *string      `url:"name,omitempty" json:"name,omitempty"`
+	Title       *string      `url:"title,omitempty" json:"title,omitempty"`
 	Description *string      `url:"description,omitempty" json:"description,omitempty"`
 	Avatar      *TopicAvatar `url:"-" json:"avatar,omitempty"`
 }
@@ -200,7 +203,7 @@ func (s *TopicsService) UpdateTopic(topic int, opt *UpdateTopicOptions, options 
 		return nil, resp, err
 	}
 
-	return t, resp, err
+	return t, resp, nil
 }
 
 // DeleteTopic deletes a project topic. Only available to administrators.

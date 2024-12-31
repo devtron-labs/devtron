@@ -23,11 +23,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/nats-io/nats.go/internal/parser"
 )
 
-// Notice: Experimental Preview
-//
-// This functionality is EXPERIMENTAL and may be changed in later releases.
+// KeyValueManager is used to manage KeyValue stores.
 type KeyValueManager interface {
 	// KeyValue will lookup and bind to an existing KeyValue store.
 	KeyValue(bucket string) (KeyValue, error)
@@ -41,9 +41,7 @@ type KeyValueManager interface {
 	KeyValueStores() <-chan KeyValueStatus
 }
 
-// Notice: Experimental Preview
-//
-// This functionality is EXPERIMENTAL and may be changed in later releases.
+// KeyValue contains methods to operate on a KeyValue store.
 type KeyValue interface {
 	// Get returns the latest value for the key.
 	Get(key string) (entry KeyValueEntry, err error)
@@ -299,6 +297,10 @@ var (
 	ErrNoKeysFound            = errors.New("nats: no keys found")
 )
 
+var (
+	ErrKeyExists JetStreamError = &jsError{apiErr: &APIError{ErrorCode: JSErrCodeStreamWrongLastSequence, Code: 400}, message: "key exists"}
+)
+
 const (
 	kvBucketNamePre         = "KV_"
 	kvBucketNameTmpl        = "KV_%s"
@@ -438,11 +440,15 @@ func (js *js) CreateKeyValue(cfg *KeyValueConfig) (KeyValue, error) {
 		// and we are now moving to a v2.7.2+. If that is the case
 		// and the only difference is the discard policy, then update
 		// the stream.
+		// The same logic applies for KVs created pre 2.9.x and
+		// the AllowDirect setting.
 		if err == ErrStreamNameAlreadyInUse {
 			if si, _ = js.StreamInfo(scfg.Name); si != nil {
 				// To compare, make the server's stream info discard
 				// policy same than ours.
 				si.Config.Discard = scfg.Discard
+				// Also need to set allow direct for v2.9.x+
+				si.Config.AllowDirect = scfg.AllowDirect
 				if reflect.DeepEqual(&si.Config, scfg) {
 					si, err = js.UpdateStream(scfg)
 				}
@@ -629,6 +635,13 @@ func (kv *kvs) Create(key string, value []byte) (revision uint64, err error) {
 		return kv.Update(key, value, e.Revision())
 	}
 
+	// Check if the expected last subject sequence is not zero which implies
+	// the key already exists.
+	if errors.Is(err, ErrKeyExists) {
+		jserr := ErrKeyExists.(*jsError)
+		return 0, fmt.Errorf("%w: %s", err, jserr.message)
+	}
+
 	return 0, err
 }
 
@@ -665,7 +678,11 @@ func (kv *kvs) Delete(key string, opts ...DeleteOpt) error {
 	if kv.useJSPfx {
 		b.WriteString(kv.js.opts.pre)
 	}
-	b.WriteString(kv.pre)
+	if kv.putPre != _EMPTY_ {
+		b.WriteString(kv.putPre)
+	} else {
+		b.WriteString(kv.pre)
+	}
 	b.WriteString(key)
 
 	// DEL op marker. For watch functionality.
@@ -874,7 +891,7 @@ func (kv *kvs) Watch(keys string, opts ...WatchOpt) (KeyWatcher, error) {
 	w := &watcher{updates: make(chan KeyValueEntry, 256), ctx: o.ctx}
 
 	update := func(m *Msg) {
-		tokens, err := getMetadataFields(m.Reply)
+		tokens, err := parser.GetMetadataFields(m.Reply)
 		if err != nil {
 			return
 		}
@@ -892,7 +909,7 @@ func (kv *kvs) Watch(keys string, opts ...WatchOpt) (KeyWatcher, error) {
 				op = KeyValuePurge
 			}
 		}
-		delta := uint64(parseNum(tokens[ackNumPendingTokenPos]))
+		delta := parser.ParseNum(tokens[ackNumPendingTokenPos])
 		w.mu.Lock()
 		defer w.mu.Unlock()
 		if !o.ignoreDeletes || (op != KeyValueDelete && op != KeyValuePurge) {
@@ -900,8 +917,8 @@ func (kv *kvs) Watch(keys string, opts ...WatchOpt) (KeyWatcher, error) {
 				bucket:   kv.name,
 				key:      subj,
 				value:    m.Data,
-				revision: uint64(parseNum(tokens[ackStreamSeqTokenPos])),
-				created:  time.Unix(0, parseNum(tokens[ackTimestampSeqTokenPos])),
+				revision: parser.ParseNum(tokens[ackStreamSeqTokenPos]),
+				created:  time.Unix(0, int64(parser.ParseNum(tokens[ackTimestampSeqTokenPos]))),
 				delta:    delta,
 				op:       op,
 			}
@@ -922,7 +939,7 @@ func (kv *kvs) Watch(keys string, opts ...WatchOpt) (KeyWatcher, error) {
 	}
 
 	// Used ordered consumer to deliver results.
-	subOpts := []SubOpt{OrderedConsumer()}
+	subOpts := []SubOpt{BindStream(kv.stream), OrderedConsumer()}
 	if !o.includeHistory {
 		subOpts = append(subOpts, DeliverLastPerSubject())
 	}
@@ -1009,7 +1026,7 @@ func (js *js) KeyValueStoreNames() <-chan string {
 		defer close(ch)
 		for l.Next() {
 			for _, info := range l.Page() {
-				if !strings.HasPrefix(info.Config.Name, "KV_") {
+				if !strings.HasPrefix(info.Config.Name, kvBucketNamePre) {
 					continue
 				}
 				ch <- info.Config.Name
@@ -1029,10 +1046,10 @@ func (js *js) KeyValueStores() <-chan KeyValueStatus {
 		defer close(ch)
 		for l.Next() {
 			for _, info := range l.Page() {
-				if !strings.HasPrefix(info.Config.Name, "KV_") {
+				if !strings.HasPrefix(info.Config.Name, kvBucketNamePre) {
 					continue
 				}
-				ch <- &KeyValueBucketStatus{nfo: info, bucket: strings.TrimPrefix(info.Config.Name, "KV_")}
+				ch <- &KeyValueBucketStatus{nfo: info, bucket: strings.TrimPrefix(info.Config.Name, kvBucketNamePre)}
 			}
 		}
 	}()

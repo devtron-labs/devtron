@@ -1,9 +1,27 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package cluster
 
 import (
-	"github.com/devtron-labs/devtron/client/k8s/informer"
+	util2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	"go.uber.org/zap"
 	"testing"
 )
@@ -13,11 +31,11 @@ func TestClusterServiceImpl_CheckIfConfigIsValid(t *testing.T) {
 	type fields struct {
 		clusterRepository  repository.ClusterRepository
 		logger             *zap.SugaredLogger
-		K8sUtil            *util.K8sUtil
+		K8sUtil            *util2.K8sServiceImpl
 		K8sInformerFactory informer.K8sInformerFactory
 	}
 	type args struct {
-		cluster *ClusterBean
+		cluster *bean.ClusterBean
 	}
 	tests := []struct {
 		name    string
@@ -28,7 +46,7 @@ func TestClusterServiceImpl_CheckIfConfigIsValid(t *testing.T) {
 		{
 			//incorrect server config
 			args: args{
-				cluster: &ClusterBean{
+				cluster: &bean.ClusterBean{
 					Id:        4,
 					ServerUrl: "",
 					Config: map[string]string{
@@ -41,7 +59,7 @@ func TestClusterServiceImpl_CheckIfConfigIsValid(t *testing.T) {
 		{
 			//correct server config
 			args: args{
-				cluster: &ClusterBean{
+				cluster: &bean.ClusterBean{
 					Id:        5,
 					ServerUrl: "",
 					Config: map[string]string{

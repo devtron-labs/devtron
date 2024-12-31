@@ -1,0 +1,37 @@
+{{- with .Values.istio }}
+{{- if and .enable .authorizationPolicy.enabled }}
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ template ".Chart.Name .fullname" $ }}
+  labels:
+    app: {{ template ".Chart.Name .name" $ }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" $ }}
+    release: {{ $.Release.Name }}
+{{- if $.Values.appLabels }}
+{{ toYaml $.Values.appLabels | indent 4 }}
+{{- end }}
+    {{- if .authorizationPolicy.labels }}
+{{ toYaml .authorizationPolicy.labels | indent 4 }}
+    {{- end }}
+{{- if .authorizationPolicy.annotations }}
+  annotations:
+{{ toYaml .authorizationPolicy.annotations | indent 4 }}
+{{- end }}
+spec:
+  selector:
+      matchLabels:
+        app.kubernetes.io/name: {{ template ".Chart.Name .fullname" $ }}
+  action: {{ .authorizationPolicy.action }}
+{{- if $.Values.istio.authorizationPolicy.provider }}
+  provider: 
+{{ toYaml $.Values.istio.authorizationPolicy.provider | indent 4 }}
+{{- end }}
+{{- if $.Values.istio.authorizationPolicy.rules }}
+  rules:
+{{ toYaml $.Values.istio.authorizationPolicy.rules | indent 4 }}
+{{- end }}
+{{- end }}
+{{- end }}

@@ -106,17 +106,17 @@ If you are using `Kubernetes External ConfigMap`, make sure you give the name of
 
 You have to ensure that the External ConfigMap exists and is available to the pod.
 
-![](../../.gitbook/assets/config4%20%283%29.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-maps/config4.jpg)
 
 The config map is created.
 
-![](../../.gitbook/assets/created-configmap.gif)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-maps/created-configmap.gif)
 
 ## Update ConfigMap
 
 You can update your configmap anytime later but you cannot change the name of your configmap. If you want to change the name of the configmap then you have to create a new configmap. To update configmap, click on the configmap you have created make changes as required.
 
-![](../../.gitbook/assets/update_configmap%20%281%29.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-maps/update_configmap.jpg)
 
 Click on `Update Configmap` to update your configmap.
 
@@ -124,5 +124,5 @@ Click on `Update Configmap` to update your configmap.
 
 You can delete your configmap. Click on your configmap and click on the `delete sign` to delete your configmap.
 
-![](../../.gitbook/assets/delete_configmap%20%282%29.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-maps/delete_configmap.jpg)
 

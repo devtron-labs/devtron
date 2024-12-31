@@ -22,6 +22,10 @@ type Item struct {
 	keyh   uint64
 }
 
+func (item Item) expired() bool {
+	return !item.ExpireAt.IsZero() && time.Now().After(item.ExpireAt)
+}
+
 type T struct {
 	w       int
 	samples int
@@ -90,18 +94,21 @@ func (t *T) Get(key string) (interface{}, bool) {
 	}
 
 	item := val.Value.(*Item)
+	if item.expired() {
+		t.del(val)
+		return nil, false
+	}
+
+	// Save the value since it is overwritten below.
+	value := item.Value
+
 	if item.listid == 0 {
 		t.lru.get(val)
 	} else {
 		t.slru.get(val)
 	}
 
-	if item.ExpireAt.IsZero() || time.Now().Before(item.ExpireAt) {
-		return item.Value, true
-	}
-
-	t.del(val)
-	return nil, false
+	return value, true
 }
 
 func (t *T) Set(newItem *Item) {

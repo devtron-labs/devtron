@@ -1,8 +1,26 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package pipeline
 
 import (
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/stretchr/testify/assert"
 	v12 "k8s.io/api/core/v1"
 	"testing"
@@ -15,16 +33,16 @@ func TestNewGlobalCMCSServiceImpl(t *testing.T) {
 		sugaredLogger, err := util.NewSugardLogger()
 		assert.Nil(t, err)
 
-		GlobalCmcsService := NewGlobalCMCSServiceImpl(sugaredLogger, nil)
+		NewGlobalCMCSServiceImpl(sugaredLogger, nil)
 
-		var globalCmCsConfigs []*GlobalCMCSDto
+		var globalCmCsConfigs []*bean.GlobalCMCSDto
 
 		data := make(map[string]string)
 
 		data["a"] = "b"
 		data["b"] = "c"
 
-		globalCmCsConfigs = append(globalCmCsConfigs, &GlobalCMCSDto{
+		globalCmCsConfigs = append(globalCmCsConfigs, &bean.GlobalCMCSDto{
 			Id:                 0,
 			ConfigType:         "SECRET",
 			Name:               "test-secret-4",
@@ -34,7 +52,7 @@ func TestNewGlobalCMCSServiceImpl(t *testing.T) {
 			Deleted:            false,
 			UserId:             0,
 			SecretIngestionFor: "CI/CD",
-		}, &GlobalCMCSDto{
+		}, &bean.GlobalCMCSDto{
 			Id:                 0,
 			ConfigType:         "CONFIGMAP",
 			Name:               "test-secret-4",
@@ -44,7 +62,7 @@ func TestNewGlobalCMCSServiceImpl(t *testing.T) {
 			Deleted:            false,
 			UserId:             0,
 			SecretIngestionFor: "CI/CD",
-		}, &GlobalCMCSDto{
+		}, &bean.GlobalCMCSDto{
 			Id:                 0,
 			ConfigType:         "SECRET",
 			Name:               "test-secret-4",
@@ -68,7 +86,7 @@ func TestNewGlobalCMCSServiceImpl(t *testing.T) {
 		volumes := make([]v12.Volume, 0)
 		templates := make([]v1alpha1.Template, 0)
 
-		err = GlobalCmcsService.AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs, &steps, &volumes, &templates)
+		err = executors.AddTemplatesForGlobalSecretsInWorkflowTemplate(globalCmCsConfigs, &steps, &volumes, &templates)
 		assert.Nil(t, err)
 		assert.Equal(t, len(steps), len(globalCmCsConfigs))
 		assert.Equal(t, len(templates), len(globalCmCsConfigs))

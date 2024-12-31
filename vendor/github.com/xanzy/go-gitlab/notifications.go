@@ -25,7 +25,7 @@ import (
 // NotificationSettingsService handles communication with the notification settings
 // related methods of the GitLab API.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/notification_settings.html
+// GitLab API docs: https://docs.gitlab.com/ee/api/notification_settings.html
 type NotificationSettingsService struct {
 	client *Client
 }
@@ -33,7 +33,7 @@ type NotificationSettingsService struct {
 // NotificationSettings represents the Gitlab notification setting.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/notification_settings.html#notification-settings
+// https://docs.gitlab.com/ee/api/notification_settings.html#valid-notification-levels
 type NotificationSettings struct {
 	Level             NotificationLevelValue `json:"level"`
 	NotificationEmail string                 `json:"notification_email"`
@@ -43,20 +43,26 @@ type NotificationSettings struct {
 // NotificationEvents represents the available notification setting events.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/notification_settings.html#notification-settings
+// https://docs.gitlab.com/ee/api/notification_settings.html#valid-notification-levels
 type NotificationEvents struct {
-	CloseIssue           bool `json:"close_issue"`
-	CloseMergeRequest    bool `json:"close_merge_request"`
-	FailedPipeline       bool `json:"failed_pipeline"`
-	MergeMergeRequest    bool `json:"merge_merge_request"`
-	NewIssue             bool `json:"new_issue"`
-	NewMergeRequest      bool `json:"new_merge_request"`
-	NewNote              bool `json:"new_note"`
-	ReassignIssue        bool `json:"reassign_issue"`
-	ReassignMergeRequest bool `json:"reassign_merge_request"`
-	ReopenIssue          bool `json:"reopen_issue"`
-	ReopenMergeRequest   bool `json:"reopen_merge_request"`
-	SuccessPipeline      bool `json:"success_pipeline"`
+	CloseIssue                bool `json:"close_issue"`
+	CloseMergeRequest         bool `json:"close_merge_request"`
+	FailedPipeline            bool `json:"failed_pipeline"`
+	FixedPipeline             bool `json:"fixed_pipeline"`
+	IssueDue                  bool `json:"issue_due"`
+	MergeWhenPipelineSucceeds bool `json:"merge_when_pipeline_succeeds"`
+	MergeMergeRequest         bool `json:"merge_merge_request"`
+	MovedProject              bool `json:"moved_project"`
+	NewIssue                  bool `json:"new_issue"`
+	NewMergeRequest           bool `json:"new_merge_request"`
+	NewEpic                   bool `json:"new_epic"`
+	NewNote                   bool `json:"new_note"`
+	PushToMergeRequest        bool `json:"push_to_merge_request"`
+	ReassignIssue             bool `json:"reassign_issue"`
+	ReassignMergeRequest      bool `json:"reassign_merge_request"`
+	ReopenIssue               bool `json:"reopen_issue"`
+	ReopenMergeRequest        bool `json:"reopen_merge_request"`
+	SuccessPipeline           bool `json:"success_pipeline"`
 }
 
 func (ns NotificationSettings) String() string {
@@ -66,7 +72,7 @@ func (ns NotificationSettings) String() string {
 // GetGlobalSettings returns current notification settings and email address.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/notification_settings.html#global-notification-settings
+// https://docs.gitlab.com/ee/api/notification_settings.html#global-notification-settings
 func (s *NotificationSettingsService) GetGlobalSettings(options ...RequestOptionFunc) (*NotificationSettings, *Response, error) {
 	u := "notification_settings"
 
@@ -81,32 +87,38 @@ func (s *NotificationSettingsService) GetGlobalSettings(options ...RequestOption
 		return nil, resp, err
 	}
 
-	return ns, resp, err
+	return ns, resp, nil
 }
 
 // NotificationSettingsOptions represents the available options that can be passed
 // to the API when updating the notification settings.
 type NotificationSettingsOptions struct {
-	Level                *NotificationLevelValue `url:"level,omitempty" json:"level,omitempty"`
-	NotificationEmail    *string                 `url:"notification_email,omitempty" json:"notification_email,omitempty"`
-	CloseIssue           *bool                   `url:"close_issue,omitempty" json:"close_issue,omitempty"`
-	CloseMergeRequest    *bool                   `url:"close_merge_request,omitempty" json:"close_merge_request,omitempty"`
-	FailedPipeline       *bool                   `url:"failed_pipeline,omitempty" json:"failed_pipeline,omitempty"`
-	MergeMergeRequest    *bool                   `url:"merge_merge_request,omitempty" json:"merge_merge_request,omitempty"`
-	NewIssue             *bool                   `url:"new_issue,omitempty" json:"new_issue,omitempty"`
-	NewMergeRequest      *bool                   `url:"new_merge_request,omitempty" json:"new_merge_request,omitempty"`
-	NewNote              *bool                   `url:"new_note,omitempty" json:"new_note,omitempty"`
-	ReassignIssue        *bool                   `url:"reassign_issue,omitempty" json:"reassign_issue,omitempty"`
-	ReassignMergeRequest *bool                   `url:"reassign_merge_request,omitempty" json:"reassign_merge_request,omitempty"`
-	ReopenIssue          *bool                   `url:"reopen_issue,omitempty" json:"reopen_issue,omitempty"`
-	ReopenMergeRequest   *bool                   `url:"reopen_merge_request,omitempty" json:"reopen_merge_request,omitempty"`
-	SuccessPipeline      *bool                   `url:"success_pipeline,omitempty" json:"success_pipeline,omitempty"`
+	Level                     *NotificationLevelValue `url:"level,omitempty" json:"level,omitempty"`
+	NotificationEmail         *string                 `url:"notification_email,omitempty" json:"notification_email,omitempty"`
+	CloseIssue                *bool                   `url:"close_issue,omitempty" json:"close_issue,omitempty"`
+	CloseMergeRequest         *bool                   `url:"close_merge_request,omitempty" json:"close_merge_request,omitempty"`
+	FailedPipeline            *bool                   `url:"failed_pipeline,omitempty" json:"failed_pipeline,omitempty"`
+	FixedPipeline             *bool                   `url:"fixed_pipeline,omitempty" json:"fixed_pipeline,omitempty"`
+	IssueDue                  *bool                   `url:"issue_due,omitempty" json:"issue_due,omitempty"`
+	MergeMergeRequest         *bool                   `url:"merge_merge_request,omitempty" json:"merge_merge_request,omitempty"`
+	MergeWhenPipelineSucceeds *bool                   `url:"merge_when_pipeline_succeeds,omitempty" json:"merge_when_pipeline_succeeds,omitempty"`
+	MovedProject              *bool                   `url:"moved_project,omitempty" json:"moved_project,omitempty"`
+	NewEpic                   *bool                   `url:"new_epic,omitempty" json:"new_epic,omitempty"`
+	NewIssue                  *bool                   `url:"new_issue,omitempty" json:"new_issue,omitempty"`
+	NewMergeRequest           *bool                   `url:"new_merge_request,omitempty" json:"new_merge_request,omitempty"`
+	NewNote                   *bool                   `url:"new_note,omitempty" json:"new_note,omitempty"`
+	PushToMergeRequest        *bool                   `url:"push_to_merge_request,omitempty" json:"push_to_merge_request,omitempty"`
+	ReassignIssue             *bool                   `url:"reassign_issue,omitempty" json:"reassign_issue,omitempty"`
+	ReassignMergeRequest      *bool                   `url:"reassign_merge_request,omitempty" json:"reassign_merge_request,omitempty"`
+	ReopenIssue               *bool                   `url:"reopen_issue,omitempty" json:"reopen_issue,omitempty"`
+	ReopenMergeRequest        *bool                   `url:"reopen_merge_request,omitempty" json:"reopen_merge_request,omitempty"`
+	SuccessPipeline           *bool                   `url:"success_pipeline,omitempty" json:"success_pipeline,omitempty"`
 }
 
 // UpdateGlobalSettings updates current notification settings and email address.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/notification_settings.html#update-global-notification-settings
+// https://docs.gitlab.com/ee/api/notification_settings.html#update-global-notification-settings
 func (s *NotificationSettingsService) UpdateGlobalSettings(opt *NotificationSettingsOptions, options ...RequestOptionFunc) (*NotificationSettings, *Response, error) {
 	if opt.Level != nil && *opt.Level == GlobalNotificationLevel {
 		return nil, nil, errors.New(
@@ -126,13 +138,13 @@ func (s *NotificationSettingsService) UpdateGlobalSettings(opt *NotificationSett
 		return nil, resp, err
 	}
 
-	return ns, resp, err
+	return ns, resp, nil
 }
 
 // GetSettingsForGroup returns current group notification settings.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/notification_settings.html#group-project-level-notification-settings
+// https://docs.gitlab.com/ee/api/notification_settings.html#group--project-level-notification-settings
 func (s *NotificationSettingsService) GetSettingsForGroup(gid interface{}, options ...RequestOptionFunc) (*NotificationSettings, *Response, error) {
 	group, err := parseID(gid)
 	if err != nil {
@@ -151,13 +163,13 @@ func (s *NotificationSettingsService) GetSettingsForGroup(gid interface{}, optio
 		return nil, resp, err
 	}
 
-	return ns, resp, err
+	return ns, resp, nil
 }
 
 // GetSettingsForProject returns current project notification settings.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/notification_settings.html#group-project-level-notification-settings
+// https://docs.gitlab.com/ee/api/notification_settings.html#group--project-level-notification-settings
 func (s *NotificationSettingsService) GetSettingsForProject(pid interface{}, options ...RequestOptionFunc) (*NotificationSettings, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
@@ -176,13 +188,13 @@ func (s *NotificationSettingsService) GetSettingsForProject(pid interface{}, opt
 		return nil, resp, err
 	}
 
-	return ns, resp, err
+	return ns, resp, nil
 }
 
 // UpdateSettingsForGroup updates current group notification settings.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/notification_settings.html#update-group-project-level-notification-settings
+// https://docs.gitlab.com/ee/api/notification_settings.html#update-groupproject-level-notification-settings
 func (s *NotificationSettingsService) UpdateSettingsForGroup(gid interface{}, opt *NotificationSettingsOptions, options ...RequestOptionFunc) (*NotificationSettings, *Response, error) {
 	group, err := parseID(gid)
 	if err != nil {
@@ -201,13 +213,13 @@ func (s *NotificationSettingsService) UpdateSettingsForGroup(gid interface{}, op
 		return nil, resp, err
 	}
 
-	return ns, resp, err
+	return ns, resp, nil
 }
 
 // UpdateSettingsForProject updates current project notification settings.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/notification_settings.html#update-group-project-level-notification-settings
+// https://docs.gitlab.com/ee/api/notification_settings.html#update-groupproject-level-notification-settings
 func (s *NotificationSettingsService) UpdateSettingsForProject(pid interface{}, opt *NotificationSettingsOptions, options ...RequestOptionFunc) (*NotificationSettings, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
@@ -226,5 +238,5 @@ func (s *NotificationSettingsService) UpdateSettingsForProject(pid interface{}, 
 		return nil, resp, err
 	}
 
-	return ns, resp, err
+	return ns, resp, nil
 }

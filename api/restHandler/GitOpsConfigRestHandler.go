@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package restHandler
@@ -20,18 +19,19 @@ package restHandler
 import (
 	"encoding/json"
 	"errors"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
+	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
+	"github.com/devtron-labs/devtron/api/util"
+	"net/http"
+	"strconv"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
+	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/team"
-	"github.com/devtron-labs/devtron/pkg/user"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"strconv"
 )
 
 type GitOpsConfigRestHandler interface {
@@ -51,13 +51,12 @@ type GitOpsConfigRestHandlerImpl struct {
 	validator           *validator.Validate
 	enforcer            casbin.Enforcer
 	teamService         team.TeamService
-	gitOpsRepository    repository.GitOpsConfigRepository
 }
 
 func NewGitOpsConfigRestHandlerImpl(
 	logger *zap.SugaredLogger,
 	gitOpsConfigService gitops.GitOpsConfigService, userAuthService user.UserService,
-	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService, gitOpsRepository repository.GitOpsConfigRepository) *GitOpsConfigRestHandlerImpl {
+	validator *validator.Validate, enforcer casbin.Enforcer, teamService team.TeamService) *GitOpsConfigRestHandlerImpl {
 	return &GitOpsConfigRestHandlerImpl{
 		logger:              logger,
 		gitOpsConfigService: gitOpsConfigService,
@@ -65,7 +64,6 @@ func NewGitOpsConfigRestHandlerImpl(
 		validator:           validator,
 		enforcer:            enforcer,
 		teamService:         teamService,
-		gitOpsRepository:    gitOpsRepository,
 	}
 }
 
@@ -86,25 +84,26 @@ func (impl GitOpsConfigRestHandlerImpl) CreateGitOpsConfig(w http.ResponseWriter
 	var bean bean2.GitOpsConfigDto
 	err = decoder.Decode(&bean)
 	if err != nil {
-		impl.logger.Errorw("request err, CreateGitOpsConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("request err, createGitOpsConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	bean.UserId = userId
-	impl.logger.Infow("request payload, CreateGitOpsConfig", "err", err, "payload", bean)
+	impl.logger.Infow("request payload, createGitOpsConfig", "err", err, "payload", bean)
 	err = impl.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("validation err, CreateGitOpsConfig", "err", err, "payload", bean)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		impl.logger.Errorw("validation err, createGitOpsConfig", "err", err, "payload", bean)
+		common.WriteJsonResp(w, util.CustomizeValidationError(err), nil, http.StatusBadRequest)
 		return
 	}
 	detailedErrorGitOpsConfigResponse, err := impl.gitOpsConfigService.ValidateAndCreateGitOpsConfig(&bean)
 	if err != nil {
 		impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
 	}
 	common.WriteJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)
-
+	return
 }
 
 func (impl GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter, r *http.Request) {
@@ -133,25 +132,26 @@ func (impl GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter
 		bean.Token = res.Token
 	}
 	if err != nil {
-		impl.logger.Errorw("request err, UpdateGitOpsConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("request err, updateGitOpsConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	bean.UserId = userId
-	impl.logger.Infow("request payload, UpdateGitOpsConfig", "payload", bean)
+	impl.logger.Infow("request payload, updateGitOpsConfig", "payload", bean)
 	err = impl.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("validation err, UpdateGitOpsConfig", "err", err, "payload", bean)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		impl.logger.Errorw("validation err, updateGitOpsConfig", "err", err, "payload", bean)
+		common.WriteJsonResp(w, util.CustomizeValidationError(err), nil, http.StatusBadRequest)
 		return
 	}
 	detailedErrorGitOpsConfigResponse, err := impl.gitOpsConfigService.ValidateAndUpdateGitOpsConfig(&bean)
 	if err != nil {
-		impl.logger.Errorw("service err, UpdateGitOpsConfig", "err", err, "payload", bean)
+		impl.logger.Errorw("service err, updateGitOpsConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
 	}
 	common.WriteJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)
-
+	return
 }
 
 func (impl GitOpsConfigRestHandlerImpl) GetGitOpsConfigById(w http.ResponseWriter, r *http.Request) {
@@ -198,15 +198,19 @@ func (impl GitOpsConfigRestHandlerImpl) GitOpsConfigured(w http.ResponseWriter, 
 		return
 	}
 	gitopsConfigured := false
+	allowCustomRepository := false
 	if len(result) > 0 {
 		for _, gitopsConf := range result {
 			if gitopsConf.Active {
 				gitopsConfigured = true
+				allowCustomRepository = gitopsConf.AllowCustomRepository
+				break
 			}
 		}
 	}
 	res := make(map[string]bool)
 	res["exists"] = gitopsConfigured
+	res["allowCustomRepository"] = allowCustomRepository
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 

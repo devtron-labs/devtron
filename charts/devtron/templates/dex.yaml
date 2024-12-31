@@ -59,6 +59,7 @@ spec:
       labels:
         app.kubernetes.io/name: argocd-dex-server
     spec:
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.argocdDexServer.nodeSelector "tolerations" $.Values.components.argocdDexServer.tolerations "imagePullSecrets" $.Values.components.argocdDexServer.imagePullSecrets "global" $.Values.global) | indent 6 }}
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -76,7 +77,7 @@ spec:
       - command:
         - /shared/authenticator
         - rundex
-        image: {{ .image }}
+        image: {{ include "common.image" (dict "component" $.Values.components.argocdDexServer "global" $.Values.global ) }}
         imagePullPolicy: {{ .imagePullPolicy }}
         name: dex
         {{- if and $.Values.global $.Values.global.containerSecurityContext }}
@@ -100,7 +101,7 @@ spec:
         - -n
         - /authenticator
         - /shared
-        image: {{ .initContainer.authenticator }}
+        image: {{ include "common.image" (dict "component" $.Values.components.argocdDexServer "global" $.Values.global  "extraImage" $.Values.components.argocdDexServer.initContainer.authenticator) }}
         imagePullPolicy: IfNotPresent
         name: copyutil
         {{- if and $.Values.global $.Values.global.containerSecurityContext }}

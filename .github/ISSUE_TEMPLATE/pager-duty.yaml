@@ -1,0 +1,167 @@
+name: "🚩 Pager duty Bug"
+description: "Submit a bug that is impacting/blocking/limiting a Devtron functionality for an Enterprise."
+title: "Bug: "
+labels: ["bug","pager-duty"]
+projects: ["Devtron Features Prioritization"]
+assignees: ["prakarsh-dt","vikramdevtron","kripanshdevtron","vivek-devtron"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out our bug report form 🙏
+  - type: textarea
+    id: description
+    validations:
+      required: true
+    attributes:
+      label: "📜 Description"
+      description: "A clear and concise description of what the bug is."
+      placeholder: "It bugs out when ..."
+  - type: dropdown
+    id: affected-areas
+    attributes:
+      label: "Affected areas"
+      description: "What areas of Devtron are impacted by the issue?"
+      options:
+        - Devtron dashboard completely down 
+        - Login issues 
+        - RBAC Issues 
+        - CI 
+        - CD 
+        - App creation 
+        - Deployment from Chart store 
+        - Security features 
+        - CI/CD Plugins 
+        - Other CRITICAL functionality 
+        - Other NON-CRITICAL functionality
+  - type: dropdown
+    id: additional-affected-areas
+    attributes:
+      label: "Additional affected areas"
+      description: "Are there any additional affected areas?"
+      options:
+        - Devtron dashboard completely down 
+        - Login issues 
+        - RBAC Issues 
+        - CI 
+        - CD 
+        - App creation 
+        - Deployment from Chart store 
+        - Security features
+        - CI/CD Plugins 
+        - Other CRITICAL functionality 
+        - Other NON-CRITICAL functionality 
+  - type: dropdown
+    id: prod-environment
+    attributes:
+      label: "Prod/Non-prod environments?"
+      description: "Is the issue affecting Prod environments?"
+      options:
+        - Prod 
+        - Non-prod 
+  - type: dropdown
+    id: user-unblocked
+    attributes:
+      label: "Is User unblocked?"
+      description: "Is the User unblocked?"
+      options:
+        - 'Yes' 
+        - 'No'
+  - type: dropdown
+    id: user-unblocked-reason
+    attributes:
+      label: "How was the user un-blocked?"
+      description: "If the user was unblocked. How was the user un-blocked?"
+      options:
+        - TEMPORARILY - By disabling a CRITICAL functionality 
+        - TEMPORARILY - By disabling a NON-CRITICAL functionality 
+        - TEMPORARILY - By doing some changes from the backend/DB 
+        - PERMANENTLY - By giving a workaround (From outside Devtron) 
+        - PERMANENTLY - By giving a workaround (Within Devtron) 
+  - type: textarea
+    id: impact
+    validations:
+      required: true
+    attributes:
+      label: "Impact on Enterprise"
+      description: "Describe the kind of Impact this bug/issue has on an Enterprise."
+      placeholder: "1. The users are unable to ..."
+  - type: textarea
+    id: steps-to-replicate
+    validations:
+      required: true
+    attributes:
+      label: "👟 Steps to replicate the Issue"
+      description: "How do you trigger this bug? Please walk us through it step by step."
+      placeholder: "1. When I ..."
+  - type: textarea
+    id: expected-behavior
+    validations:
+      required: true
+    attributes:
+      label: "👍 Expected behavior"
+      description: "What did you think would happen?"
+      placeholder: "It should ..."
+  - type: textarea
+    id: actual-behavior
+    validations:
+      required: true
+    attributes:
+      label: "👎 Actual Behavior"
+      description: "What did actually happen? Add screenshots, if applicable."
+      placeholder: "It actually ..."
+  - type: textarea
+    id: kuberentes-version
+    attributes:
+      label: "☸ Kubernetes version"
+      description: "What is your Kubernetes service and version?"
+      placeholder: "EKS 1.23, KOps 1.22, AKS 1.21 etc."
+    validations:
+      required: true
+  - type: textarea
+    id: cloudProvider
+    attributes:
+      label: "Cloud provider"
+      value: |
+        <details>
+
+        </details>
+    validations:
+      required: true
+  - type: dropdown
+    id: browser
+    attributes:
+      label: "🌍 Browser"
+      description: "What browser is your app running on?"
+      options:
+        - Chrome
+        - Safari
+        - Firefox
+        - Opera
+        - Edge
+        - Something Else
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    validations:
+      required: false
+    attributes:
+      label: "✅ Proposed Solution"
+      description: "Any thoughts as to potential solutions or ideas to go about finding one. Please include links to any research."
+      placeholder: "To fix this, I found ..."
+  - type: checkboxes
+    id: no-duplicate-issues
+    attributes:
+      label: "👀 Have you spent some time to check if this issue has been raised before?"
+      description: "Have you researched on internet for a similar issue or checked our older issues for a similar bug?"
+      options:
+        - label: "I checked and didn't find any similar issue"
+          required: true
+  - type: checkboxes
+    id: read-code-of-conduct
+    attributes:
+      label: "🏢 Have you read the Code of Conduct?"
+      options:
+        - label: "I have read the [Code of Conduct](https://github.com/devtron-labs/devtron/blob/main/CODE_OF_CONDUCT.md)"
+          required: true

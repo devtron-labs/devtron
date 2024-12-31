@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package chartRepoRepository
 
 import (
@@ -7,7 +23,6 @@ import (
 	"strings"
 )
 
-type RefChartDir string
 type ChartRef struct {
 	tableName              struct{} `sql:"chart_ref" pg:",discard_unknown_columns"`
 	Id                     int      `sql:"id,pk"`
@@ -35,13 +50,14 @@ type ChartRefRepository interface {
 	Save(chartRepo *ChartRef) error
 	GetDefault() (*ChartRef, error)
 	FindById(id int) (*ChartRef, error)
+	FindByIds(ids []int) ([]*ChartRef, error)
 	GetAll() ([]*ChartRef, error)
 	GetAllChartMetadata() ([]*ChartRefMetaData, error)
 	FindByVersionAndName(name, version string) (*ChartRef, error)
-	CheckIfDataExists(name string, version string) (bool, error)
+	CheckIfDataExists(location string) (bool, error)
 	FetchChart(name string) ([]*ChartRef, error)
 	FetchInfoOfChartConfiguredInApp(appId int) (*ChartRef, error)
-	FetchChartInfoByUploadFlag(userUploaded bool) ([]*ChartRef, error)
+	FetchAllNonUserUploadedChartInfo() ([]*ChartRef, error)
 }
 type ChartRefRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -71,6 +87,16 @@ func (impl ChartRefRepositoryImpl) FindById(id int) (*ChartRef, error) {
 		Where("id = ?", id).
 		Where("active = ?", true).Select()
 	return repo, err
+}
+func (impl ChartRefRepositoryImpl) FindByIds(ids []int) ([]*ChartRef, error) {
+	var chartRefs []*ChartRef
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	err := impl.dbConnection.Model(&chartRefs).
+		Where("id in (?)", pg.In(ids)).
+		Where("active = ?", true).Select()
+	return chartRefs, err
 }
 func (impl ChartRefRepositoryImpl) FindByVersionAndName(name, version string) (*ChartRef, error) {
 	repo := &ChartRef{}
@@ -102,27 +128,30 @@ func (impl ChartRefRepositoryImpl) GetAllChartMetadata() ([]*ChartRefMetaData, e
 	return chartRefMetaDatas, err
 }
 
-func (impl ChartRefRepositoryImpl) CheckIfDataExists(name string, version string) (bool, error) {
+func (impl ChartRefRepositoryImpl) CheckIfDataExists(location string) (bool, error) {
 	repo := &ChartRef{}
 	return impl.dbConnection.Model(repo).
-		Where("lower(name) = ?", strings.ToLower(name)).
-		Where("version = ? ", version).Exists()
+		Where("location = ?", location).
+		Exists()
 }
 
 func (impl ChartRefRepositoryImpl) FetchChart(name string) ([]*ChartRef, error) {
 	var chartRefs []*ChartRef
-	err := impl.dbConnection.Model(&chartRefs).Where("lower(name) = ?", strings.ToLower(name)).Select()
+	err := impl.dbConnection.
+		Model(&chartRefs).
+		Where("lower(name) = ?", strings.ToLower(name)).
+		Select()
 	if err != nil {
 		return nil, err
 	}
 	return chartRefs, err
 }
 
-func (impl ChartRefRepositoryImpl) FetchChartInfoByUploadFlag(userUploaded bool) ([]*ChartRef, error) {
+func (impl ChartRefRepositoryImpl) FetchAllNonUserUploadedChartInfo() ([]*ChartRef, error) {
 	var repo []*ChartRef
 	err := impl.dbConnection.Model(&repo).
-		Where("user_uploaded = ?", userUploaded).
-		Where("active = ?", true).Select()
+		Where("user_uploaded = ?", false).
+		Select()
 	if err != nil {
 		return repo, err
 	}

@@ -1,7 +1,8 @@
 #!make
 
-all: build
+all: fetch-all-env build
 
+TARGET_BRANCH?=main
 TAG?=$(shell bash -c 'git log --pretty=format:'%h' -n 1')
 FLAGS=
 ENVVAR=
@@ -17,10 +18,11 @@ SERVER_MODE_FULL= FULL
 SERVER_MODE_EA_ONLY=EA_ONLY
 #TEST_BRANCH=PUT_YOUR_BRANCH_HERE
 #LATEST_HASH=PUT_YOUR_HASH_HERE
+GOFLAGS:= $(GOFLAGS) -buildvcs=false
 include $(ENV_FILE)
 export
 
-build: clean wire test-all
+build: clean wire
 	$(ENVVAR) GOOS=$(GOOS) go build -o devtron \
 			-ldflags="-X 'github.com/devtron-labs/devtron/util.GitCommit=${GIT_COMMIT}' \
 			-X 'github.com/devtron-labs/devtron/util.BuildTime=${BUILD_TIME}' \
@@ -30,7 +32,7 @@ wire:
 	wire
 
 clean:
-	rm -f devtron
+	rm -rf devtron
 
 test-all: test-unit
 	echo 'test cases ran successfully'
@@ -39,17 +41,13 @@ test-unit:
 	go test ./pkg/pipeline
 
 test-integration:
-	export INTEGRATION_TEST_ENV_ID=$(docker run --env TEST_BRANCH=$TEST_BRANCH --env LATEST_HASH=$LATEST_HASH --privileged -d --name dind-test -v $PWD/tests/integrationTesting/:/tmp/ docker:dind)
-	docker exec ${INTEGRATION_TEST_ENV_ID} sh /tmp/create-test-env.sh
-	docker exec ${INTEGRATION_TEST_ENV_ID} sh /tests/integrationTesting/run-integration-test.sh
-
+	docker run --env-file=wireNilChecker.env  --privileged -d --name dind-test -v $(PWD)/:/wirenil/:ro -v $(PWD)/temp/:/tempfile docker:dind
+	docker exec dind-test sh -c "mkdir test && cp -r wirenil/* test/ && ./test/tests/integrationTesting/exportEnvsExecuteWireNilChecker.sh"
 run: build
 	./devtron
-
 .PHONY: build
 docker-build-image:  build
 	 docker build -t devtron:$(TAG) .
-
 .PHONY: build, all, wire, clean, run, set-docker-build-env, docker-build-push, devtron,
 docker-build-push: docker-build-image
 	docker tag devtron:${TAG}  ${REGISTRY}/devtron:${TAG}
@@ -62,3 +60,13 @@ build-all: build
 
 build-ea:
 	make --directory ./cmd/external-app build
+
+
+fetch-all-env:
+	go run fetchAllEnv/fetchAllEnv.go
+
+dep-update-oss:
+	go mod edit -replace=github.com/devtron-labs/common-lib=github.com/devtron-labs/devtron-services/common-lib@$(TARGET_BRANCH) \
+	            -replace=github.com/devtron-labs/authenticator=github.com/devtron-labs/devtron-services/authenticator@$(TARGET_BRANCH)
+	go mod tidy
+	go mod vendor

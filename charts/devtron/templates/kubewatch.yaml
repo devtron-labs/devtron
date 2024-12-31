@@ -1,0 +1,222 @@
+{{- if $.Values.installer.modules }}
+{{- if has "cicd" $.Values.installer.modules }}
+{{- with .Values.components.kubewatch }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: kubewatch
+    release: devtron
+  name: kubewatch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app: kubewatch
+    release: devtron
+  name: kubewatch
+rules:
+  - apiGroups:
+      - ""
+    resources:
+    - pods
+    - namespaces
+    - services
+    - deployments
+    - replicationcontrollers
+    - replicasets
+    - daemonsets
+    - persistentvolumes
+    - events
+    - workflows
+    verbs:
+    - list
+    - watch
+    - get
+  - apiGroups:
+    - apps
+    resources:
+    - daemonsets
+    - deployments
+    - deployments/scale
+    - replicasets
+    - replicasets/scale
+    - statefulsets
+    verbs:
+    - get
+    - list
+    - watch
+  - apiGroups:
+    - extensions
+    resources:
+    - daemonsets
+    - deployments
+    - deployments/scale
+    - replicasets
+    - replicasets/scale
+    - replicationcontrollers/scale
+    verbs:
+    - get
+    - list
+    - watch
+  - apiGroups:
+    - batch
+    resources:
+    - cronjobs
+    - jobs
+    verbs:
+    - get
+    - list
+    - watch
+  - apiGroups:
+    - argoproj.io
+    resources:
+    - workflows
+    - applications
+    verbs:
+    - get
+    - list
+    - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app: kubewatch
+    release: devtron
+  name: kubewatch
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubewatch
+subjects:
+  - kind: ServiceAccount
+    name: kubewatch
+    namespace: devtroncd
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kubewatch-secret
+  labels:
+    release: devtron
+    app: kubewatch
+type: Opaque
+{{- if .secrets }}
+data:
+{{- range $k, $v := .secrets }}
+  {{ $k }}: {{ $v | b64enc }}
+{{- end }}
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubewatch-resources-cm
+  labels:
+    release: devtron
+    app: kubewatch
+data:
+  .kubewatch.yaml: |
+    handler:
+      webhook:
+        enabled: false
+        url: http://devtroncd-event-handler-service-prod.devtroncd/event
+
+    resource:
+      daemonset: false
+      deployment: false
+      events: true
+      job: false
+      persistentvolume: false
+      pod: false
+      replicaset: false
+      replicationcontroller: false
+      services: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubewatch-cm
+  labels:
+    release: devtron
+    app: kubewatch
+data:
+{{- if .configs}}
+{{ toYaml .configs | indent 2 }}
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubewatch
+  labels:
+    app: kubewatch
+    release: devtron
+spec:
+  selector:
+    matchLabels:
+      app: kubewatch
+      release: devtron
+  replicas: 1
+  minReadySeconds: 60
+  template:
+    metadata:
+      labels:
+        app: kubewatch
+        release: devtron
+    spec:
+      {{- include "common.schedulerConfig" (dict "nodeSelector" $.Values.components.kubewatch.nodeSelector "tolerations" $.Values.components.kubewatch.tolerations "imagePullSecrets" $.Values.components.kubewatch.imagePullSecrets "global" $.Values.global) | indent 6 }}
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always
+      serviceAccountName: kubewatch
+      {{- if and $.Values.global $.Values.global.podSecurityContext }}
+      securityContext:
+{{- toYaml $.Values.global.podSecurityContext | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: kubewatch
+          image: {{ include "common.image" (dict "component" $.Values.components.kubewatch "global" $.Values.global) }}
+          imagePullPolicy: {{ .imagePullPolicy }}
+          {{- if and $.Values.global $.Values.global.containerSecurityContext }}
+          securityContext:
+{{- toYaml $.Values.global.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: app
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            {{- if .dbconfig }}
+            - name: DB_PWD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .dbconfig.secretName }}
+                  key: {{ .dbconfig.keyName }}
+            {{- end }}
+          envFrom:
+          - configMapRef:
+              name: kubewatch-cm
+          - secretRef:
+              name: kubewatch-secret
+          volumeMounts:
+          - name: kubewatch-resources-config
+            mountPath: /root/.kubewatch.yaml
+            subPath: .kubewatch.yaml
+{{- if .resources }}
+          resources:
+{{ toYaml .resources | indent 12 }}
+{{- end }}
+      volumes:
+      - name: kubewatch-resources-config
+        configMap:
+          name: kubewatch-resources-cm
+  revisionHistoryLimit: 3
+{{- end }}
+{{- end }}
+{{- end }}

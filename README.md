@@ -1,17 +1,19 @@
+Note: We have restrucutred the readme. If you are looking for Devtron's CI/CD capabilites, please [click here](#devtron-platform)
+#
+
 <p align="center">
 <picture>
   <source media="(prefers-color-scheme: dark)"  srcset="./assets/devtron-darkmode-logo.png">
   <source media="(prefers-color-scheme: light)"  srcset="./assets/devtron-lightmode-logo.png">
   <img width="333.333" height="260" src="./assets/devtron-logo-dark-light.png">
 </picture>
-<h1 align= "center">Cloud Native tool integration platform for Kubernetes</h1>
+<h1 align= "center">Kubernetes Dashboard for a Centralized DevOps Hub</h1>
 </p>
  
 <p align="center">
 <br>
-<a href="https://docs.devtron.ai/" rel="nofollow"><strong>Explore documentation »</strong></a>
-<br>
-<a href="https://preview.devtron.ai/dashboard/" rel="nofollow"><strong>Try Devtron Demo »</strong></a>
+<a href="https://docs.dashboard.devtron.ai/" rel="nofollow"><strong>«Explore Documentation»</strong></a> <strong>||</strong>
+<a href="https://preview.devtron.ai/dashboard/" rel="nofollow"><strong>«Try Devtron Demo»</strong></a>
 <br>
 <a href="https://devtron.ai/">Website</a>
 ·
@@ -23,92 +25,67 @@
 .
 <a href="https://www.youtube.com/channel/UCAHRp9qp0z1y9MMtQlcFtcw">YouTube</a>
  
+
 </p>
 <p align="center">
-<a href="https://discord.gg/jsRG5qx2gp"><img src="https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg" alt="Join Discord"></a>
+<a href="https://discord.gg/jsRG5qx2gp"><img src="https://img.shields.io/discord/687207715902193673?logo=discord&label=Discord&color=5865F2&logoColor=white" alt="Join Discord"></a>
 <a href="https://goreportcard.com/badge/github.com/devtron-labs/devtron"><img src="https://goreportcard.com/badge/github.com/devtron-labs/devtron" alt="Go Report Card"></a>
 <a href="./LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
+<a href="./CONTRIBUTING.md"><img src="https://img.shields.io/github/contributors/devtron-labs/devtron" alt="contributors"></a>
+<a href="https://github.com/devtron-labs/devtron"><img src="https://img.shields.io/github/commit-activity/m/devtron-labs/devtron" alt="Commit Activity"></a>
 <a href="https://bestpractices.coreinfrastructure.org/projects/4411"><img src="https://bestpractices.coreinfrastructure.org/projects/4411/badge" alt="CII Best Practices"></a>
 <a href="http://golang.org"><img src="https://img.shields.io/badge/Made%20with-Go-1f425f.svg" alt="made-with-Go"></a>
 <a href="http://devtron.ai/"><img src="https://img.shields.io/website-up-down-green-red/http/shields.io.svg" alt="Website devtron.ai"></a>
+<a href="https://github.com/devtron-labs/devtron/releases"><img src="https://img.shields.io/github/v/release/devtron-labs/devtron"></a>
 <a href="https://twitter.com/intent/tweet?text=Devtron%20helps%20in%20simplifying%20software delivery%20workflow%20for%20Kubernetes,%20check%20it%20out!!%20&hashtags=OpenSource,Kubernetes,DevOps,CICD,go&url=https://github.com/devtron-labs/devtron%0a"><img src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social" alt="Tweet"></a>
- 
-<p align="center">
-<a href="https://devtron.ai/devops-in-a-box.html">🔥 Want to accelerate K8s adoption? Introducing DevOps in a Box; Leave DevOps on Devtron 🔥
-</a>
-<br>
-</p>
 <h1></h1>
 
-Devtron deeply integrates with products across the lifecycle of microservices,i.e., CI, CD, security, cost, debugging, and observability via an intuitive web interface.
+Devtron's **extensible Kubernetes Dashboard** provides clear visibility into your Kubernetes clusters and streamlines Helm app management through a single, intuitive interface.<br> 
+With built-in RBAC, it ensures secure access while offering integrated insights into workloads deployed via GitOps tools like **ArgoCD** and **FluxCD** across multiple clusters. Devtron creates a centralized DevOps hub, accelerating operations by up to 20x :rocket:
+
+Check out the below video to experince the full power of the **Kubernetes Dashboard**.
+
+<a href="https://youtu.be/oqCAB9b-SGQ?si=YoUJfHL43VXRU5wx">
 <br>
-<p align="center"><img src="./assets/readme-comic.png"></p>
+<p align="center"><img src="./assets/dashboard.png"></p>
+</a>
+
+Out of the box, Devtron's Kubernetes Dashboard includes:
+- [Helm Application Management](https://docs.dashboard.devtron.ai/user-guide/helm-apps) to streamline deploying, configuration, and management of Helm apps 
+- [Resource Browser](https://docs.dashboard.devtron.ai/user-guide/resource-browser) to visualize and manage different cluster resources like Nodes, Pods, ConfigMaps, Custom Resource Definations (CRDs), etc
+- [Single Sign On (SSO)](https://docs.dashboard.devtron.ai/operator-guide/authorization/sso-login-services) to simplify onboarding and authenticating team members.
+- [Fine Grained RBAC](https://docs.dashboard.devtron.ai/operator-guide/authorization) to control the level of access users have to different Dashboard and Cluster resources.
 
 [Devtron](#install-devtron) helps you deploy, observe, manage & debug existing Helm apps in all your clusters.
 
+## Devtron Dashboard 
 
-## Devtron Demo Environment
+Devtron's Kubernetes Dashboard offers a variety of different features, giving you flexibility to manage your clusters as you desire.
 
-Please log in the <a href="https://preview.devtron.ai/dashboard/" rel="nofollow">Demo environment</a> using github credentials. Please note the user is granted view access.
+### Features 🤩
 
-## Devtron Features
+- Simplified configuration and management for Helm applications with easy rollback
+- Compare and reconcile configuration drifts across enviornments
+- Manage Helm deployments to multiple Kubernetes enviornments
+- A single pane of glass for Helm, ArgoCD and FluxCD applications across multiple clusters
+- Centralized Dashboard to view and manage K8s resources across multiple clusters
+- Comprehensive SSO and RBAC to ensure secure dashboard access for team collaboration
 
-<details><summary><b>Application-level Resource grouping for easier Debugging</b></summary>
-<br>
- 
-- Devtron groups your Kubernetes objects deployed via Helm charts and display them in a slick UI for easier monitoring or debugging. Access pod logs and resource manifests right from the Devtron UI and even edit them!
- 
-</details>
-<details><summary> <b>Centralized Access Management</b></summary>
-<br>
+To get a more comprehensive understanding of Devtron's Kubernetes Dashboard, please visit the [documentation](https://docs.dashboard.devtron.ai/)
 
-- Control and give customizable view-only, edit access to users on Project, Environment and Application levels
-</details>
-
-<details><summary> <b>Deploy, Manage and Observe on multiple clusters</b></summary>
-<br>
-
-- Deploy and manage Helm charts, applications across multiple Kubernetes clusters (hosted on multiple clouds/on-prem) right from a single Devtron setup
-</details>
-
-<br>
-
-## Integrations
-
-Devtron is designed to be modular, and its functionality can be easily extended with the help of integrations.
-
-### CI/CD Integration
-
-[Devtron CI/CD with GitOps](#install-devtron-with-cicd-integration) integration is used to automate the builds and deployments and enables the software development teams to focus on meeting the business requirements, code quality, and security.
-
-* Devtron leverages Kubernetes auto-scaling and centralized caching to give you unlimited cost-efficient CI workers.
-* Supports pre-CI and post-CI integrations for code quality monitoring.
-* Seamlessly integrates with Clair for image vulnerability scanning.
-* Supports different deployment strategies: Blue/Green, Rolling, Canary, and Recreate.
-* Implements GitOps to manage the state of Kubernetes applications.
-* Integrates with ArgoCD for continuous deployment.
-* Checks logs, events, and manifests or exec inside containers for debugging.
-* Provides deployment metrics like; deployment frequency, lead time, change failure rate, and mean-time recovery.
-* Seamlessly integrates with Grafana for continuous application metrics like CPU and memory usage, status code, throughput, and latency on the dashboard.
-
-## Architecture
-
-<p align="center"><img src="./assets/Architecture.jpg"></p>
-
-## Installation
+### Installation
 
 Before you begin, you must create a [Kubernetes cluster](https://kubernetes.io/docs/tutorials/kubernetes-basics/create-cluster/) (preferably K8s 1.16 or higher) and install [Helm](https://helm.sh/docs/intro/install/).
 
-### 1. Install Devtron with CI/CD Integration
+### Install Devtron's Kubernetes Dashboard
 
-Run the following command to install the latest version of Devtron along with the CI/CD module:
+Run the following command to install the latest version of Devtron's Kubernetes Dashboard:
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
 
 helm install devtron devtron/devtron-operator \
---create-namespace --namespace devtroncd \
---set installer.modules={cicd}
+--create-namespace --namespace devtroncd
 ```
 
 ### Access Devtron
@@ -135,75 +112,65 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 ```
 
 
-Please refer to the document for more information on how to [access the Devtron Dashboard](./docs/setup/install/install-devtron-with-cicd.md/#access-devtron-dashboard).
+Please refer to the document for more information on how to [access the Devtron Dashboard](https://docs.dashboard.devtron.ai/getting-started/install-devtron-dashboard).
 
-#### Installation Status
+### Install Multi-Architecture Nodes (ARM and AMD)
 
-The above install command for CI/CD integration starts Devtron-operator, which takes about 20 minutes to spin up all of the Devtron microservices one by one. You can check the status of the installation with the following command:
+To install Devtron on clusters with the multi-architecture nodes (ARM and AMD), append the Devtron installation command with ```--set installer.arch=multi-arch```
+
+## Devtron Platform
+
+The Devtron Platform provides a complete solution for all DevOps requirements, helping to create a single centrailzed DevOps Platform for managing all applications across Kubernetes clusters. <br>
+
+With Devtron Platform, you can accelerate your application delivery lifecycle by leveraging advanced features like canary deployments, A/B testing, and automated rollbacks. Devtron Platform helps you achieve faster time-to-market and improved application reliability by simplifying Kubernetes operations and streamlining development workflows.
+
+<p align="center"><img src="./assets/devtron-feat-glance.png"></p>
+
+Devtron deeply integrates with products across the lifecycle of microservices,i.e., CI, CD, security, cost, debugging, and observability via an intuitive web interface and helps you deploy, observe, manage & debug applications across all your Kubernetes clusters.
+
+### Devtron Integrations
+
+By harnessing the potential of diverse integrations, Devtron Dashboard can evolve into a robust platform, automating Kubernetes application workflows, from CI/CD pipelines to ongoing maintenance
+
+Devtron comes with the following integrations:
+
+- [Build and Deploy (CI/CD)](https://docs.devtron.ai/usage/integrations/build-and-deploy-ci-cd) integration enables software development teams to automate the build and deployment process, allowing them to focus on meeting the business requirements, maintaining code quality, and ensuring security
+- [GitOps (Argo CD)](https://docs.devtron.ai/usage/integrations/argocd) integration uses ArgoCD to implement GitOps for continuous delivery with GitOps patterns
+- [Vulnerability Scanning (Clair)](https://docs.devtron.ai/usage/integrations/clair) integration enables you to scan the vulnerabilities of the images during the time of image build only.
+- [Vulnerability Scanning (Trivy)](https://docs.devtron.ai/usage/integrations/clair) integration enables you to scan the vulnerabilities of the images during the time of image build only.
+- [Notifications](https://docs.devtron.ai/usage/integrations/notifications) integration, lets you receive alerts for build and deployment pipelines on trigger, success, and failure events to your email or a Slack channel via SES and SMTP.
+- [Monitoring (Grafana)](https://docs.devtron.ai/usage/integrations/grafana) integration uses Grafana to gather application metrics like CPU, Memory utilization, Status 4xx/ 5xx/ 2xx, Throughput, and Latency.
+
+
+### Features 🤩
+
+- End-to-End CI/CD pipeline enabling a No Code software delivery workflow for Kubernetes through Helm or GitOps with ArgoCD
+- Deploy applications to multiple Kubernetes clusters on multiple cloud/on-prem from one Devtron setup
+- Robust DevSecOps implementation with battle tested tools like Trivy and Clair
+- A Single dashboard to cater to all debugging requirements for applications
+- Deployment metrics to measure the success of the agile process. It captures MTTR, change failure rate, deployment frequency, and deployment size.
+
+To get a more comprehensive understanding of Devtron Platform's features, please visit the [documentation](https://docs.devtron.ai/)
+
+### Install Devtron Platform
+
+Run the following command to install the latest version of the Devtron Platform:
 
 ```bash
-kubectl -n devtroncd get installers installer-devtron \
--o jsonpath='{.status.sync.status}'
+helm install devtron devtron/devtron-operator --namespace devtroncd \
+--set installer.modules={cicd} --set argo-cd.enabled=true \ 
+--set security.enabled=true  --set notifier.enabled=true  \
+--set security.trivy.enabled=true --set monitoring.grafana.enabled=true
 ```
-
-The command executes with one of the following output messages, indicating the status of the installation:
-
-* **Downloaded**: The installer has downloaded all the manifests, and installation is in progress.
-* **Applied**: The installer has successfully applied all the manifests, and the installation is complete.
-
-### 2. Install Devtron with Helm Bundle
-
-```bash
-helm repo add devtron https://helm.devtron.ai
-
-helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd
-
-```
-
 ## :blue_heart: Technology
  
 Devtron is built on some of the most trusted and loved technologies:
 <br>
 <p align="center"><img width="70%" height="70%" src="./assets/we-support.jpg"></p>
- 
-## :video_camera: Videos
- 
-- [Devtron - A Comprehensive Overview](https://youtu.be/FB5BI3Ef7uw?t=363)
-- [Viktor Farcic's review](https://youtu.be/ZKcfZC-zSMM)
-- [Running an application on Devtron](https://youtu.be/bA6zgjPD_yA?t=2927)
-- [Devtron Demo](https://youtu.be/ekxHV2Gje-E?t=7856)
 
-## :memo: Blogs from Community
-
-* [How Livspace revolutionised its CI/CD saga](https://blog.livspace.io/how-livspace-revolutionised-its-ci-cd-saga-3120724e271b)
-* [AppOps with Kubernetes and Devtron: The Perfect Fit](https://hackernoon.com/appops-with-kubernetes-and-devtron-the-perfect-fit-sj934qj)
-* [Getting started with GitOps on Kubernetes with Devtron](https://piotrminkowski.com/2022/05/04/getting-started-with-gitops-on-kubernetes-with-devtron)
-* [Zero to hero on Kubernetes with Devtron](https://dzone.com/articles/zero-to-hero-on-kubernetes-with-devtron)
-* [Kubernetes deployment made easy](https://medium.com/container-talks/kubernetes-deployment-made-easy-cc74f0242f06)
-
-## :muscle: Trusted By
- 
-Devtron is trusted by Enterprises and Communities all across the globe:
-<br>
-
-- [Delhivery:](https://www.delhivery.com/) Delhivery is an Indian delivery and e-commerce logistics company, that provides end-to-end Supply Chain solutions through cutting-edge technology
-- [BharatPe:](https://bharatpe.com/) Bharatpe is an Indian fintech company that offers a range of products including interoperable QR codes for UPI payments, POS machines for card acceptance, and small business financing
-- [Livspace:](https://www.livspace.com/in) Livspace is a home interior and renovation company, that provides interior design and renovation services in Singapore and India
-- [Moglix:](https://www.moglix.com/) Moglix is an industrial B2B marketplace and an e-commerce platform for industrial tools and equipment, used largely by businesses in India
-- [Xoxoday:](https://www.xoxoday.com/) Xoxoday provides technology infrastructure to enable businesses to automate rewards, incentives & payouts for employees, customers & channel partners
- 
 ## :question: FAQs & Troubleshooting
  
-- Devtron - [see here](https://docs.devtron.ai/resources/devtron-troubleshoot)
- 
-## :page_facing_up: Compatibility
- 
-### Current build
- 
-- Devtron uses modified version of [Argo Rollout](https://argoproj.github.io/argo-rollouts/)
-- Application metrics only work for K8s version 1.16+
- 
-## Support, Contribution, and Community
+- For troubleshooting Devtron please [refer to this docs page](https://docs.devtron.ai/resources/devtron-troubleshoot)
  
 ## :busts_in_silhouette: Community
  
@@ -211,6 +178,7 @@ Get updates on Devtron's development and chat with project maintainers, contribu
 - Follow [@DevtronL on Twitter](https://twitter.com/DevtronL)
 - Raise feature requests, suggest enhancements, and report bugs in our [GitHub Issues](https://github.com/devtron-labs/devtron/issues)
 - Articles, Howtos, Tutorials - [Devtron Blogs](https://devtron.ai/blog/)
+- Devtron is trusted by communities all across the globe. The list of organizations using Devtron can be found [here](./USERS.md).
  
 ### Join us at Discord channel
 <p>

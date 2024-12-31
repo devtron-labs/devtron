@@ -6,6 +6,7 @@ A GitLab API client enabling Go programs to interact with GitLab in a simple and
 [![Sourcegraph](https://sourcegraph.com/github.com/xanzy/go-gitlab/-/badge.svg)](https://sourcegraph.com/github.com/xanzy/go-gitlab?badge)
 [![GoDoc](https://godoc.org/github.com/xanzy/go-gitlab?status.svg)](https://godoc.org/github.com/xanzy/go-gitlab)
 [![Go Report Card](https://goreportcard.com/badge/github.com/xanzy/go-gitlab)](https://goreportcard.com/report/github.com/xanzy/go-gitlab)
+[![Coverage](https://github.com/xanzy/go-gitlab/wiki/coverage.svg)](https://raw.githack.com/wiki/xanzy/go-gitlab/coverage.html)
 
 ## NOTE
 
@@ -27,13 +28,14 @@ to add new and/or missing endpoints. Currently, the following services are suppo
 - [x] Custom Attributes
 - [x] Deploy Keys
 - [x] Deployments
-- [ ] Discussions (threaded comments)
+- [x] Discussions (threaded comments)
 - [x] Environments
-- [ ] Epic Issues
-- [ ] Epics
+- [x] Epic Issues
+- [x] Epics
+- [x] Error Tracking
 - [x] Events
 - [x] Feature Flags
-- [ ] Geo Nodes
+- [x] Geo Nodes
 - [x] Generic Packages
 - [x] GitLab CI Config Templates
 - [x] Gitignores Templates
@@ -73,7 +75,9 @@ to add new and/or missing endpoints. Currently, the following services are suppo
 - [x] Project Import/export
 - [x] Project Members
 - [x] Project Milestones
+- [x] Project Repository Storage Moves
 - [x] Project Snippets
+- [x] Project Vulnerabilities
 - [x] Project-Level Variables
 - [x] Projects (including setting Webhooks)
 - [x] Protected Branches
@@ -90,6 +94,7 @@ to add new and/or missing endpoints. Currently, the following services are suppo
 - [x] System Hooks
 - [x] Tags
 - [x] Todos
+- [x] Topics
 - [x] Users
 - [x] Validate CI Configuration
 - [x] Version
@@ -129,7 +134,7 @@ to list all projects for user "svanharmelen":
 
 ```go
 git := gitlab.NewClient("yourtokengoeshere")
-opt := &ListProjectsOptions{Search: gitlab.String("svanharmelen")}
+opt := &gitlab.ListProjectsOptions{Search: gitlab.Ptr("svanharmelen")}
 projects, _, err := git.Projects.ListProjects(opt)
 ```
 
@@ -155,11 +160,11 @@ func main() {
 
 	// Create new project
 	p := &gitlab.CreateProjectOptions{
-		Name:                 gitlab.String("My Project"),
-		Description:          gitlab.String("Just a test project to play with"),
-		MergeRequestsEnabled: gitlab.Bool(true),
-		SnippetsEnabled:      gitlab.Bool(true),
-		Visibility:           gitlab.Visibility(gitlab.PublicVisibility),
+		Name:                     gitlab.Ptr("My Project"),
+		Description:              gitlab.Ptr("Just a test project to play with"),
+		MergeRequestsAccessLevel: gitlab.Ptr(gitlab.EnabledAccessControl),
+		SnippetsAccessLevel:      gitlab.Ptr(gitlab.EnabledAccessControl),
+		Visibility:               gitlab.Ptr(gitlab.PublicVisibility),
 	}
 	project, _, err := git.Projects.CreateProject(p)
 	if err != nil {
@@ -168,10 +173,10 @@ func main() {
 
 	// Add a new snippet
 	s := &gitlab.CreateProjectSnippetOptions{
-		Title:           gitlab.String("Dummy Snippet"),
-		FileName:        gitlab.String("snippet.go"),
-		Content:         gitlab.String("package main...."),
-		Visibility:      gitlab.Visibility(gitlab.PublicVisibility),
+		Title:           gitlab.Ptr("Dummy Snippet"),
+		FileName:        gitlab.Ptr("snippet.go"),
+		Content:         gitlab.Ptr("package main...."),
+		Visibility:      gitlab.Ptr(gitlab.PublicVisibility),
 	}
 	_, _, err = git.ProjectSnippets.CreateSnippet(project.ID, s)
 	if err != nil {
@@ -193,6 +198,10 @@ For complete usage of go-gitlab, see the full [package docs](https://godoc.org/g
 ## Author
 
 Sander van Harmelen (<sander@vanharmelen.nl>)
+
+## Contributing
+
+Contributions are always welcome. For more information, check out the [contributing guide](https://github.com/xanzy/go-gitlab/blob/master/CONTRIBUTING.md)
 
 ## License
 

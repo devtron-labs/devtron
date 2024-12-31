@@ -17,24 +17,31 @@
 package gitlab
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 )
+
+// Ptr is a helper that returns a pointer to v.
+func Ptr[T any](v T) *T {
+	return &v
+}
 
 // AccessControlValue represents an access control value within GitLab,
 // used for managing access to certain project features.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/projects.html
+// GitLab API docs: https://docs.gitlab.com/ee/api/projects.html
 type AccessControlValue string
 
 // List of available access control values.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/projects.html
+// GitLab API docs: https://docs.gitlab.com/ee/api/projects.html
 const (
 	DisabledAccessControl AccessControlValue = "disabled"
 	EnabledAccessControl  AccessControlValue = "enabled"
@@ -44,20 +51,20 @@ const (
 
 // AccessControl is a helper routine that allocates a new AccessControlValue
 // to store v and returns a pointer to it.
+//
+// Deprecated: Please use Ptr instead.
 func AccessControl(v AccessControlValue) *AccessControlValue {
-	p := new(AccessControlValue)
-	*p = v
-	return p
+	return Ptr(v)
 }
 
 // AccessLevelValue represents a permission level within GitLab.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/permissions/permissions.html
+// GitLab API docs: https://docs.gitlab.com/ee/user/permissions.html
 type AccessLevelValue int
 
-// List of available access levels
+// List of available access levels.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/permissions/permissions.html
+// GitLab API docs: https://docs.gitlab.com/ee/user/permissions.html
 const (
 	NoPermissions            AccessLevelValue = 0
 	MinimalAccessPermissions AccessLevelValue = 5
@@ -66,18 +73,20 @@ const (
 	DeveloperPermissions     AccessLevelValue = 30
 	MaintainerPermissions    AccessLevelValue = 40
 	OwnerPermissions         AccessLevelValue = 50
+	AdminPermissions         AccessLevelValue = 60
 
-	// These are deprecated and should be removed in a future version
+	// Deprecated: Renamed to MaintainerPermissions in GitLab 11.0.
 	MasterPermissions AccessLevelValue = 40
-	OwnerPermission   AccessLevelValue = 50
+	// Deprecated: Renamed to OwnerPermissions.
+	OwnerPermission AccessLevelValue = 50
 )
 
 // AccessLevel is a helper routine that allocates a new AccessLevelValue
 // to store v and returns a pointer to it.
+//
+// Deprecated: Please use Ptr instead.
 func AccessLevel(v AccessLevelValue) *AccessLevelValue {
-	p := new(AccessLevelValue)
-	*p = v
-	return p
+	return Ptr(v)
 }
 
 // UserIDValue represents a user ID value within GitLab.
@@ -104,7 +113,7 @@ func ApproverIDs(v interface{}) *ApproverIDsValue {
 	}
 }
 
-// EncodeValues implements the query.Encoder interface
+// EncodeValues implements the query.Encoder interface.
 func (a *ApproverIDsValue) EncodeValues(key string, v *url.Values) error {
 	switch value := a.value.(type) {
 	case UserIDValue:
@@ -119,12 +128,12 @@ func (a *ApproverIDsValue) EncodeValues(key string, v *url.Values) error {
 	return nil
 }
 
-// MarshalJSON implements the json.Marshaler interface
+// MarshalJSON implements the json.Marshaler interface.
 func (a ApproverIDsValue) MarshalJSON() ([]byte, error) {
 	return json.Marshal(a.value)
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (a *ApproverIDsValue) UnmarshalJSON(bytes []byte) error {
 	return json.Unmarshal(bytes, a.value)
 }
@@ -144,7 +153,7 @@ func AssigneeID(v interface{}) *AssigneeIDValue {
 	}
 }
 
-// EncodeValues implements the query.Encoder interface
+// EncodeValues implements the query.Encoder interface.
 func (a *AssigneeIDValue) EncodeValues(key string, v *url.Values) error {
 	switch value := a.value.(type) {
 	case UserIDValue:
@@ -155,12 +164,12 @@ func (a *AssigneeIDValue) EncodeValues(key string, v *url.Values) error {
 	return nil
 }
 
-// MarshalJSON implements the json.Marshaler interface
+// MarshalJSON implements the json.Marshaler interface.
 func (a AssigneeIDValue) MarshalJSON() ([]byte, error) {
 	return json.Marshal(a.value)
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (a *AssigneeIDValue) UnmarshalJSON(bytes []byte) error {
 	return json.Unmarshal(bytes, a.value)
 }
@@ -180,7 +189,7 @@ func ReviewerID(v interface{}) *ReviewerIDValue {
 	}
 }
 
-// EncodeValues implements the query.Encoder interface
+// EncodeValues implements the query.Encoder interface.
 func (a *ReviewerIDValue) EncodeValues(key string, v *url.Values) error {
 	switch value := a.value.(type) {
 	case UserIDValue:
@@ -191,12 +200,12 @@ func (a *ReviewerIDValue) EncodeValues(key string, v *url.Values) error {
 	return nil
 }
 
-// MarshalJSON implements the json.Marshaler interface
+// MarshalJSON implements the json.Marshaler interface.
 func (a ReviewerIDValue) MarshalJSON() ([]byte, error) {
 	return json.Marshal(a.value)
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (a *ReviewerIDValue) UnmarshalJSON(bytes []byte) error {
 	return json.Unmarshal(bytes, a.value)
 }
@@ -215,10 +224,10 @@ const (
 
 // Availability is a helper routine that allocates a new AvailabilityValue
 // to store v and returns a pointer to it.
+//
+// Deprecated: Please use Ptr instead.
 func Availability(v AvailabilityValue) *AvailabilityValue {
-	p := new(AvailabilityValue)
-	*p = v
-	return p
+	return Ptr(v)
 }
 
 // BuildStateValue represents a GitLab build state.
@@ -226,23 +235,62 @@ type BuildStateValue string
 
 // These constants represent all valid build states.
 const (
-	Pending  BuildStateValue = "pending"
-	Created  BuildStateValue = "created"
-	Running  BuildStateValue = "running"
-	Success  BuildStateValue = "success"
-	Failed   BuildStateValue = "failed"
-	Canceled BuildStateValue = "canceled"
-	Skipped  BuildStateValue = "skipped"
-	Manual   BuildStateValue = "manual"
+	Created            BuildStateValue = "created"
+	WaitingForResource BuildStateValue = "waiting_for_resource"
+	Preparing          BuildStateValue = "preparing"
+	Pending            BuildStateValue = "pending"
+	Running            BuildStateValue = "running"
+	Success            BuildStateValue = "success"
+	Failed             BuildStateValue = "failed"
+	Canceled           BuildStateValue = "canceled"
+	Skipped            BuildStateValue = "skipped"
+	Manual             BuildStateValue = "manual"
+	Scheduled          BuildStateValue = "scheduled"
 )
 
 // BuildState is a helper routine that allocates a new BuildStateValue
 // to store v and returns a pointer to it.
+//
+// Deprecated: Please use Ptr instead.
 func BuildState(v BuildStateValue) *BuildStateValue {
-	p := new(BuildStateValue)
-	*p = v
-	return p
+	return Ptr(v)
 }
+
+// CommentEventAction identifies if a comment has been newly created or updated.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/user/project/integrations/webhook_events.html#comment-events
+type CommentEventAction string
+
+const (
+	CommentEventActionCreate CommentEventAction = "create"
+	CommentEventActionUpdate CommentEventAction = "update"
+)
+
+// ContainerRegistryStatus represents the status of a Container Registry.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/container_registry.html#list-registry-repositories
+type ContainerRegistryStatus string
+
+// ContainerRegistryStatus represents all valid statuses of a Container Registry.
+//
+// Undocumented, see code at:
+// https://gitlab.com/gitlab-org/gitlab/-/blob/master/app/models/container_repository.rb?ref_type=heads#L35
+const (
+	ContainerRegistryStatusDeleteScheduled ContainerRegistryStatus = "delete_scheduled"
+	ContainerRegistryStatusDeleteFailed    ContainerRegistryStatus = "delete_failed"
+	ContainerRegistryStatusDeleteOngoing   ContainerRegistryStatus = "delete_ongoing"
+)
+
+// DeploymentApprovalStatus represents a Gitlab deployment approval status.
+type DeploymentApprovalStatus string
+
+// These constants represent all valid deployment approval statuses.
+const (
+	DeploymentApprovalStatusApproved DeploymentApprovalStatus = "approved"
+	DeploymentApprovalStatusRejected DeploymentApprovalStatus = "rejected"
+)
 
 // DeploymentStatusValue represents a Gitlab deployment status.
 type DeploymentStatusValue string
@@ -258,18 +306,49 @@ const (
 
 // DeploymentStatus is a helper routine that allocates a new
 // DeploymentStatusValue to store v and returns a pointer to it.
+//
+// Deprecated: Please use Ptr instead.
 func DeploymentStatus(v DeploymentStatusValue) *DeploymentStatusValue {
-	p := new(DeploymentStatusValue)
-	*p = v
-	return p
+	return Ptr(v)
 }
 
-// EventTypeValue represents actions type for contribution events
+// DORAMetricType represents all valid DORA metrics types.
+//
+// GitLab API docs: https://docs.gitlab.com/ee/api/dora/metrics.html
+type DORAMetricType string
+
+// List of available DORA metric type names.
+//
+// GitLab API docs: https://docs.gitlab.com/ee/api/dora/metrics.html
+const (
+	DORAMetricDeploymentFrequency  DORAMetricType = "deployment_frequency"
+	DORAMetricLeadTimeForChanges   DORAMetricType = "lead_time_for_changes"
+	DORAMetricTimeToRestoreService DORAMetricType = "time_to_restore_service"
+	DORAMetricChangeFailureRate    DORAMetricType = "change_failure_rate"
+)
+
+// DORAMetricInterval represents the time period over which the
+// metrics are aggregated.
+//
+// GitLab API docs: https://docs.gitlab.com/ee/api/dora/metrics.html
+type DORAMetricInterval string
+
+// List of available DORA metric interval types.
+//
+// GitLab API docs: https://docs.gitlab.com/ee/api/dora/metrics.html
+const (
+	DORAMetricIntervalDaily   DORAMetricInterval = "daily"
+	DORAMetricIntervalMonthly DORAMetricInterval = "monthly"
+	DORAMetricIntervalAll     DORAMetricInterval = "all"
+)
+
+// EventTypeValue represents actions type for contribution events.
 type EventTypeValue string
 
-// List of available action type
+// List of available action type.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/events.html#action-types
+// GitLab API docs:
+// https://docs.gitlab.com/ee/user/profile/contributions_calendar.html#user-contribution-events
 const (
 	CreatedEventType   EventTypeValue = "created"
 	UpdatedEventType   EventTypeValue = "updated"
@@ -284,12 +363,12 @@ const (
 	ExpiredEventType   EventTypeValue = "expired"
 )
 
-// EventTargetTypeValue represents actions type value for contribution events
+// EventTargetTypeValue represents actions type value for contribution events.
 type EventTargetTypeValue string
 
-// List of available action type
+// List of available action type.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/events.html#target-types
+// GitLab API docs: https://docs.gitlab.com/ee/api/events.html#target-types
 const (
 	IssueEventTargetType        EventTargetTypeValue = "issue"
 	MilestoneEventTargetType    EventTargetTypeValue = "milestone"
@@ -302,7 +381,8 @@ const (
 
 // FileActionValue represents the available actions that can be performed on a file.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/commits.html#create-a-commit-with-multiple-files-and-actions
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/commits.html#create-a-commit-with-multiple-files-and-actions
 type FileActionValue string
 
 // The available file actions.
@@ -316,10 +396,10 @@ const (
 
 // FileAction is a helper routine that allocates a new FileActionValue value
 // to store v and returns a pointer to it.
+//
+// Deprecated: Please use Ptr instead.
 func FileAction(v FileActionValue) *FileActionValue {
-	p := new(FileActionValue)
-	*p = v
-	return p
+	return Ptr(v)
 }
 
 // GenericPackageSelectValue represents a generic package select value.
@@ -332,10 +412,10 @@ const (
 
 // GenericPackageSelect is a helper routine that allocates a new
 // GenericPackageSelectValue value to store v and returns a pointer to it.
+//
+// Deprecated: Please use Ptr instead.
 func GenericPackageSelect(v GenericPackageSelectValue) *GenericPackageSelectValue {
-	p := new(GenericPackageSelectValue)
-	*p = v
-	return p
+	return Ptr(v)
 }
 
 // GenericPackageStatusValue represents a generic package status.
@@ -349,26 +429,32 @@ const (
 
 // GenericPackageStatus is a helper routine that allocates a new
 // GenericPackageStatusValue value to store v and returns a pointer to it.
+//
+// Deprecated: Please use Ptr instead.
 func GenericPackageStatus(v GenericPackageStatusValue) *GenericPackageStatusValue {
-	p := new(GenericPackageStatusValue)
-	*p = v
-	return p
+	return Ptr(v)
 }
 
-// ISOTime represents an ISO 8601 formatted date
+// ISOTime represents an ISO 8601 formatted date.
 type ISOTime time.Time
 
-// ISO 8601 date format
+// ISO 8601 date format.
 const iso8601 = "2006-01-02"
 
-// MarshalJSON implements the json.Marshaler interface
+// ParseISOTime parses an ISO 8601 formatted date.
+func ParseISOTime(s string) (ISOTime, error) {
+	t, err := time.Parse(iso8601, s)
+	return ISOTime(t), err
+}
+
+// MarshalJSON implements the json.Marshaler interface.
 func (t ISOTime) MarshalJSON() ([]byte, error) {
 	if reflect.ValueOf(t).IsZero() {
 		return []byte(`null`), nil
 	}
 
 	if y := time.Time(t).Year(); y < 0 || y >= 10000 {
-		// ISO 8901 uses 4 digits for the years
+		// ISO 8901 uses 4 digits for the years.
 		return nil, errors.New("json: ISOTime year outside of range [0,9999]")
 	}
 
@@ -380,9 +466,9 @@ func (t ISOTime) MarshalJSON() ([]byte, error) {
 	return b, nil
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (t *ISOTime) UnmarshalJSON(data []byte) error {
-	// Ignore null, like in the main JSON package
+	// Ignore null, like in the main JSON package.
 	if string(data) == "null" {
 		return nil
 	}
@@ -393,7 +479,7 @@ func (t *ISOTime) UnmarshalJSON(data []byte) error {
 	return err
 }
 
-// EncodeValues implements the query.Encoder interface
+// EncodeValues implements the query.Encoder interface.
 func (t *ISOTime) EncodeValues(key string, v *url.Values) error {
 	if t == nil || (time.Time(*t)).IsZero() {
 		return nil
@@ -402,18 +488,47 @@ func (t *ISOTime) EncodeValues(key string, v *url.Values) error {
 	return nil
 }
 
-// String implements the Stringer interface
+// String implements the Stringer interface.
 func (t ISOTime) String() string {
 	return time.Time(t).Format(iso8601)
+}
+
+// Labels represents a list of labels.
+type Labels []string
+
+// LabelOptions is a custom type with specific marshaling characteristics.
+type LabelOptions []string
+
+// MarshalJSON implements the json.Marshaler interface.
+func (l *LabelOptions) MarshalJSON() ([]byte, error) {
+	if *l == nil {
+		return []byte(`null`), nil
+	}
+	return json.Marshal(strings.Join(*l, ","))
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (l *LabelOptions) UnmarshalJSON(data []byte) error {
+	type alias LabelOptions
+	if !bytes.HasPrefix(data, []byte("[")) {
+		data = []byte(fmt.Sprintf("[%s]", string(data)))
+	}
+	return json.Unmarshal(data, (*alias)(l))
+}
+
+// EncodeValues implements the query.EncodeValues interface.
+func (l *LabelOptions) EncodeValues(key string, v *url.Values) error {
+	v.Set(key, strings.Join(*l, ","))
+	return nil
 }
 
 // LinkTypeValue represents a release link type.
 type LinkTypeValue string
 
-// List of available release link types
+// List of available release link types.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ee/api/releases/links.html#create-a-link
+// https://docs.gitlab.com/ee/api/releases/links.html#create-a-release-link
 const (
 	ImageLinkType   LinkTypeValue = "image"
 	OtherLinkType   LinkTypeValue = "other"
@@ -423,10 +538,10 @@ const (
 
 // LinkType is a helper routine that allocates a new LinkType value
 // to store v and returns a pointer to it.
+//
+// Deprecated: Please use Ptr instead.
 func LinkType(v LinkTypeValue) *LinkTypeValue {
-	p := new(LinkTypeValue)
-	*p = v
-	return p
+	return Ptr(v)
 }
 
 // LicenseApprovalStatusValue describe the approval statuses of a license.
@@ -438,24 +553,26 @@ type LicenseApprovalStatusValue string
 const (
 	LicenseApproved    LicenseApprovalStatusValue = "approved"
 	LicenseBlacklisted LicenseApprovalStatusValue = "blacklisted"
+	LicenseAllowed     LicenseApprovalStatusValue = "allowed"
+	LicenseDenied      LicenseApprovalStatusValue = "denied"
 )
 
 // LicenseApprovalStatus is a helper routine that allocates a new license
 // approval status value to store v and returns a pointer to it.
+//
+// Deprecated: Please use Ptr instead.
 func LicenseApprovalStatus(v LicenseApprovalStatusValue) *LicenseApprovalStatusValue {
-	p := new(LicenseApprovalStatusValue)
-	*p = v
-	return p
+	return Ptr(v)
 }
 
 // MergeMethodValue represents a project merge type within GitLab.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/projects.html#project-merge-method
+// GitLab API docs: https://docs.gitlab.com/ee/api/projects.html#project-merge-method
 type MergeMethodValue string
 
 // List of available merge type
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/projects.html#project-merge-method
+// GitLab API docs: https://docs.gitlab.com/ee/api/projects.html#project-merge-method
 const (
 	NoFastForwardMerge MergeMethodValue = "merge"
 	FastForwardMerge   MergeMethodValue = "ff"
@@ -463,11 +580,11 @@ const (
 )
 
 // MergeMethod is a helper routine that allocates a new MergeMethod
-// to sotre v and returns a pointer to it.
+// to store v and returns a pointer to it.
+//
+// Deprecated: Please use Ptr instead.
 func MergeMethod(v MergeMethodValue) *MergeMethodValue {
-	p := new(MergeMethodValue)
-	*p = v
-	return p
+	return Ptr(v)
 }
 
 // NoteTypeValue represents the type of a Note.
@@ -483,10 +600,10 @@ const (
 
 // NoteType is a helper routine that allocates a new NoteTypeValue to
 // store v and returns a pointer to it.
+//
+// Deprecated: Please use Ptr instead.
 func NoteType(v NoteTypeValue) *NoteTypeValue {
-	p := new(NoteTypeValue)
-	*p = v
-	return p
+	return Ptr(v)
 }
 
 // NotificationLevelValue represents a notification level.
@@ -553,20 +670,20 @@ var notificationLevelTypes = map[string]NotificationLevelValue{
 
 // NotificationLevel is a helper routine that allocates a new NotificationLevelValue
 // to store v and returns a pointer to it.
+//
+// Deprecated: Please use Ptr instead.
 func NotificationLevel(v NotificationLevelValue) *NotificationLevelValue {
-	p := new(NotificationLevelValue)
-	*p = v
-	return p
+	return Ptr(v)
 }
 
 // ProjectCreationLevelValue represents a project creation level within GitLab.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/
+// GitLab API docs: https://docs.gitlab.com/ee/api/
 type ProjectCreationLevelValue string
 
 // List of available project creation levels.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/
+// GitLab API docs: https://docs.gitlab.com/ee/api/
 const (
 	NoOneProjectCreation      ProjectCreationLevelValue = "noone"
 	MaintainerProjectCreation ProjectCreationLevelValue = "maintainer"
@@ -575,11 +692,50 @@ const (
 
 // ProjectCreationLevel is a helper routine that allocates a new ProjectCreationLevelValue
 // to store v and returns a pointer to it.
+// Please use Ptr instead.
 func ProjectCreationLevel(v ProjectCreationLevelValue) *ProjectCreationLevelValue {
-	p := new(ProjectCreationLevelValue)
-	*p = v
-	return p
+	return Ptr(v)
 }
+
+// ProjectHookEvent represents a project hook event.
+//
+// GitLab API docs: https://docs.gitlab.com/ee/api/projects.html#hook-events
+type ProjectHookEvent string
+
+// List of available project hook events.
+//
+// GitLab API docs: https://docs.gitlab.com/ee/api/projects.html#hook-events
+const (
+	ProjectHookEventPush                ProjectHookEvent = "push_events"
+	ProjectHookEventTagPush             ProjectHookEvent = "tag_push_events"
+	ProjectHookEventIssues              ProjectHookEvent = "issues_events"
+	ProjectHookEventConfidentialIssues  ProjectHookEvent = "confidential_issues_events"
+	ProjectHookEventNote                ProjectHookEvent = "note_events"
+	ProjectHookEventMergeRequests       ProjectHookEvent = "merge_requests_events"
+	ProjectHookEventJob                 ProjectHookEvent = "job_events"
+	ProjectHookEventPipeline            ProjectHookEvent = "pipeline_events"
+	ProjectHookEventWiki                ProjectHookEvent = "wiki_page_events"
+	ProjectHookEventReleases            ProjectHookEvent = "releases_events"
+	ProjectHookEventEmoji               ProjectHookEvent = "emoji_events"
+	ProjectHookEventResourceAccessToken ProjectHookEvent = "resource_access_token_events"
+)
+
+// ResourceGroupProcessMode represents a process mode for a resource group
+// within a GitLab project.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/ci/resource_groups/index.html#process-modes
+type ResourceGroupProcessMode string
+
+// List of available resource group process modes.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/ci/resource_groups/index.html#process-modes
+const (
+	Unordered   ResourceGroupProcessMode = "unordered"
+	OldestFirst ResourceGroupProcessMode = "oldest_first"
+	NewestFirst ResourceGroupProcessMode = "newest_first"
+)
 
 // SharedRunnersSettingValue determines whether shared runners are enabled for a
 // group’s subgroups and projects.
@@ -594,26 +750,30 @@ type SharedRunnersSettingValue string
 // https://docs.gitlab.com/ee/api/groups.html#options-for-shared_runners_setting
 const (
 	EnabledSharedRunnersSettingValue                  SharedRunnersSettingValue = "enabled"
-	DisabledWithOverrideSharedRunnersSettingValue     SharedRunnersSettingValue = "disabled_with_override"
+	DisabledAndOverridableSharedRunnersSettingValue   SharedRunnersSettingValue = "disabled_and_overridable"
 	DisabledAndUnoverridableSharedRunnersSettingValue SharedRunnersSettingValue = "disabled_and_unoverridable"
+
+	// Deprecated: DisabledWithOverrideSharedRunnersSettingValue is deprecated
+	// in favor of DisabledAndOverridableSharedRunnersSettingValue.
+	DisabledWithOverrideSharedRunnersSettingValue SharedRunnersSettingValue = "disabled_with_override"
 )
 
 // SharedRunnersSetting is a helper routine that allocates a new SharedRunnersSettingValue
 // to store v and returns a pointer to it.
+//
+// Deprecated: Please use Ptr instead.
 func SharedRunnersSetting(v SharedRunnersSettingValue) *SharedRunnersSettingValue {
-	p := new(SharedRunnersSettingValue)
-	*p = v
-	return p
+	return Ptr(v)
 }
 
 // SubGroupCreationLevelValue represents a sub group creation level within GitLab.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/
+// GitLab API docs: https://docs.gitlab.com/ee/api/
 type SubGroupCreationLevelValue string
 
 // List of available sub group creation levels.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/
+// GitLab API docs: https://docs.gitlab.com/ee/api/
 const (
 	OwnerSubGroupCreationLevelValue      SubGroupCreationLevelValue = "owner"
 	MaintainerSubGroupCreationLevelValue SubGroupCreationLevelValue = "maintainer"
@@ -621,10 +781,10 @@ const (
 
 // SubGroupCreationLevel is a helper routine that allocates a new SubGroupCreationLevelValue
 // to store v and returns a pointer to it.
+//
+// Deprecated: Please use Ptr instead.
 func SubGroupCreationLevel(v SubGroupCreationLevelValue) *SubGroupCreationLevelValue {
-	p := new(SubGroupCreationLevelValue)
-	*p = v
-	return p
+	return Ptr(v)
 }
 
 // SquashOptionValue represents a squash optional level within GitLab.
@@ -644,10 +804,10 @@ const (
 
 // SquashOption is a helper routine that allocates a new SquashOptionValue
 // to store s and returns a pointer to it.
+//
+// Deprecated: Please use Ptr instead.
 func SquashOption(s SquashOptionValue) *SquashOptionValue {
-	p := new(SquashOptionValue)
-	*p = s
-	return p
+	return Ptr(s)
 }
 
 // TasksCompletionStatus represents tasks of the issue/merge request.
@@ -658,7 +818,7 @@ type TasksCompletionStatus struct {
 
 // TodoAction represents the available actions that can be performed on a todo.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/todos.html
+// GitLab API docs: https://docs.gitlab.com/ee/api/todos.html
 type TodoAction string
 
 // The available todo actions.
@@ -673,7 +833,7 @@ const (
 
 // TodoTargetType represents the available target that can be linked to a todo.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/todos.html
+// GitLab API docs: https://docs.gitlab.com/ee/api/todos.html
 type TodoTargetType string
 
 const (
@@ -694,12 +854,12 @@ const (
 
 // VariableTypeValue represents a variable type within GitLab.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/
+// GitLab API docs: https://docs.gitlab.com/ee/api/
 type VariableTypeValue string
 
 // List of available variable types.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/
+// GitLab API docs: https://docs.gitlab.com/ee/api/
 const (
 	EnvVariableType  VariableTypeValue = "env_var"
 	FileVariableType VariableTypeValue = "file"
@@ -707,20 +867,20 @@ const (
 
 // VariableType is a helper routine that allocates a new VariableTypeValue
 // to store v and returns a pointer to it.
+//
+// Deprecated: Please use Ptr instead.
 func VariableType(v VariableTypeValue) *VariableTypeValue {
-	p := new(VariableTypeValue)
-	*p = v
-	return p
+	return Ptr(v)
 }
 
 // VisibilityValue represents a visibility level within GitLab.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/
+// GitLab API docs: https://docs.gitlab.com/ee/api/
 type VisibilityValue string
 
 // List of available visibility levels.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/
+// GitLab API docs: https://docs.gitlab.com/ee/api/
 const (
 	PrivateVisibility  VisibilityValue = "private"
 	InternalVisibility VisibilityValue = "internal"
@@ -729,15 +889,15 @@ const (
 
 // Visibility is a helper routine that allocates a new VisibilityValue
 // to store v and returns a pointer to it.
+//
+// Deprecated: Please use Ptr instead.
 func Visibility(v VisibilityValue) *VisibilityValue {
-	p := new(VisibilityValue)
-	*p = v
-	return p
+	return Ptr(v)
 }
 
 // WikiFormatValue represents the available wiki formats.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/wikis.html
+// GitLab API docs: https://docs.gitlab.com/ee/api/wikis.html
 type WikiFormatValue string
 
 // The available wiki formats.
@@ -750,42 +910,42 @@ const (
 
 // WikiFormat is a helper routine that allocates a new WikiFormatValue
 // to store v and returns a pointer to it.
+//
+// Deprecated: Please use Ptr instead.
 func WikiFormat(v WikiFormatValue) *WikiFormatValue {
-	p := new(WikiFormatValue)
-	*p = v
-	return p
+	return Ptr(v)
 }
 
 // Bool is a helper routine that allocates a new bool value
 // to store v and returns a pointer to it.
+//
+// Deprecated: Please use Ptr instead.
 func Bool(v bool) *bool {
-	p := new(bool)
-	*p = v
-	return p
+	return Ptr(v)
 }
 
 // Int is a helper routine that allocates a new int value
 // to store v and returns a pointer to it.
+//
+// Deprecated: Please use Ptr instead.
 func Int(v int) *int {
-	p := new(int)
-	*p = v
-	return p
+	return Ptr(v)
 }
 
 // String is a helper routine that allocates a new string value
 // to store v and returns a pointer to it.
+//
+// Deprecated: Please use Ptr instead.
 func String(v string) *string {
-	p := new(string)
-	*p = v
-	return p
+	return Ptr(v)
 }
 
 // Time is a helper routine that allocates a new time.Time value
 // to store v and returns a pointer to it.
+//
+// Deprecated: Please use Ptr instead.
 func Time(v time.Time) *time.Time {
-	p := new(time.Time)
-	*p = v
-	return p
+	return Ptr(v)
 }
 
 // BoolValue is a boolean value with advanced json unmarshaling features.

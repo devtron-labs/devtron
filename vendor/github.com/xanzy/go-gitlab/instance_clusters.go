@@ -71,7 +71,7 @@ func (s *InstanceClustersService) ListClusters(options ...RequestOptionFunc) ([]
 		return nil, resp, err
 	}
 
-	return ics, resp, err
+	return ics, resp, nil
 }
 
 // GetCluster gets an instance cluster.
@@ -92,7 +92,7 @@ func (s *InstanceClustersService) GetCluster(cluster int, options ...RequestOpti
 		return nil, resp, err
 	}
 
-	return ic, resp, err
+	return ic, resp, nil
 }
 
 // AddCluster adds an existing cluster to the instance.
@@ -113,7 +113,7 @@ func (s *InstanceClustersService) AddCluster(opt *AddClusterOptions, options ...
 		return nil, resp, err
 	}
 
-	return ic, resp, err
+	return ic, resp, nil
 }
 
 // EditCluster updates an existing instance cluster.
@@ -134,7 +134,7 @@ func (s *InstanceClustersService) EditCluster(cluster int, opt *EditClusterOptio
 		return nil, resp, err
 	}
 
-	return ic, resp, err
+	return ic, resp, nil
 }
 
 // DeleteCluster deletes an existing instance cluster.

@@ -1,18 +1,17 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package cluster
@@ -22,7 +21,7 @@ import (
 	"errors"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/devtron-labs/devtron/client/argocdServer"
+	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"go.uber.org/zap"
 	"time"
 )
@@ -44,10 +43,10 @@ type ServiceClient interface {
 
 type ServiceClientImpl struct {
 	logger           *zap.SugaredLogger
-	argoCdConnection argocdServer.ArgoCDConnectionManager
+	argoCdConnection connection.ArgoCDConnectionManager
 }
 
-func NewServiceClientImpl(logger *zap.SugaredLogger, argoCdConnection argocdServer.ArgoCDConnectionManager) *ServiceClientImpl {
+func NewServiceClientImpl(logger *zap.SugaredLogger, argoCdConnection connection.ArgoCDConnectionManager) *ServiceClientImpl {
 	return &ServiceClientImpl{
 		logger:           logger,
 		argoCdConnection: argoCdConnection,

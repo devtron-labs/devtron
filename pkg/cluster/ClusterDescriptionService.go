@@ -1,37 +1,39 @@
 /*
- * Copyright (c) 2020 Devtron Labs
+ * Copyright (c) 2020-2024. Devtron Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package cluster
 
 import (
-	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"time"
 
+	apiBean "github.com/devtron-labs/devtron/api/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
 type ClusterDescriptionBean struct {
-	ClusterId        int                      `json:"clusterId" validate:"number"`
-	ClusterName      string                   `json:"clusterName" validate:"required"`
-	ClusterCreatedBy string                   `json:"clusterCreatedBy" validate:"number"`
-	ClusterCreatedOn time.Time                `json:"clusterCreatedOn" validate:"required"`
-	ClusterNote      *ClusterNoteResponseBean `json:"clusterNote,omitempty"`
+	ClusterId        int                              `json:"clusterId" validate:"number"`
+	ClusterName      string                           `json:"clusterName" validate:"required"`
+	Description      string                           `json:"description"`
+	ServerUrl        string                           `json:"serverUrl"`
+	ClusterCreatedBy string                           `json:"clusterCreatedBy" validate:"number"`
+	ClusterCreatedOn time.Time                        `json:"clusterCreatedOn" validate:"required"`
+	ClusterNote      *apiBean.GenericNoteResponseBean `json:"clusterNote,omitempty"`
 }
 
 type ClusterDescriptionService interface {
@@ -53,8 +55,8 @@ func NewClusterDescriptionServiceImpl(repository repository.ClusterDescriptionRe
 	return clusterDescriptionService
 }
 
-func (impl *ClusterDescriptionServiceImpl) FindByClusterIdWithClusterDetails(id int) (*ClusterDescriptionBean, error) {
-	model, err := impl.clusterDescriptionRepository.FindByClusterIdWithClusterDetails(id)
+func (impl *ClusterDescriptionServiceImpl) FindByClusterIdWithClusterDetails(clusterId int) (*ClusterDescriptionBean, error) {
+	model, err := impl.clusterDescriptionRepository.FindByClusterIdWithClusterDetails(clusterId)
 	if err != nil {
 		return nil, err
 	}
@@ -71,13 +73,15 @@ func (impl *ClusterDescriptionServiceImpl) FindByClusterIdWithClusterDetails(id 
 	bean := &ClusterDescriptionBean{
 		ClusterId:        model.ClusterId,
 		ClusterName:      model.ClusterName,
+		Description:      model.ClusterDescription,
+		ServerUrl:        model.ServerUrl,
 		ClusterCreatedBy: clusterCreatedByUser.EmailId,
 		ClusterCreatedOn: model.ClusterCreatedOn,
 	}
 	if model.NoteId > 0 {
-		clusterNote := &ClusterNoteResponseBean{
+		clusterNote := &apiBean.GenericNoteResponseBean{
 			Id:          model.NoteId,
-			Description: model.Description,
+			Description: model.Note,
 			UpdatedBy:   noteUpdatedByUser.EmailId,
 			UpdatedOn:   model.UpdatedOn,
 		}

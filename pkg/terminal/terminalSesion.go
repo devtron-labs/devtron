@@ -1,34 +1,46 @@
-// Copyright 2017 The Kubernetes Authors.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//	http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package terminal
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	errors2 "errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/caarlos0/env"
+	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/internal/middleware"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/read/config"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"io"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"gopkg.in/igm/sockjs-go.v3/sockjs"
 	v1 "k8s.io/api/core/v1"
@@ -39,6 +51,8 @@ import (
 )
 
 const END_OF_TRANSMISSION = "\u0004"
+const ProcessExitedMsg = "Process exited"
+const ProcessTimedOut = "Process timedOut"
 
 // PtyHandler is what remotecommand expects from a pty
 type PtyHandler interface {
@@ -49,11 +63,17 @@ type PtyHandler interface {
 
 // TerminalSession implements PtyHandler (using a SockJS connection)
 type TerminalSession struct {
-	id            string
-	bound         chan error
-	sockJSSession sockjs.Session
-	sizeChan      chan remotecommand.TerminalSize
-	doneChan      chan struct{}
+	id                string
+	bound             chan error
+	sockJSSession     sockjs.Session
+	sizeChan          chan remotecommand.TerminalSize
+	doneChan          chan struct{}
+	context           context.Context
+	contextCancelFunc context.CancelFunc
+	podName           string
+	namespace         string
+	clusterId         string
+	startedOn         time.Time
 }
 
 // TerminalMessage is the messaging protocol between ShellController and TerminalSession.
@@ -161,21 +181,72 @@ func (sm *SessionMap) Set(sessionId string, session TerminalSession) {
 	sm.Sessions[sessionId] = session
 }
 
+func (sm *SessionMap) SetTerminalSessionStartTime(sessionId string) {
+	sm.Lock.Lock()
+	defer sm.Lock.Unlock()
+	if session, ok := sm.Sessions[sessionId]; ok {
+		session.startedOn = time.Now()
+		sm.Sessions[sessionId] = session
+	}
+}
+
+func (sm *SessionMap) setAndSendSignal(sessionId string, session sockjs.Session) {
+	sm.Lock.Lock()
+	defer sm.Lock.Unlock()
+	terminalSession, ok := sm.Sessions[sessionId]
+	if ok && terminalSession.id == "" {
+		log.Printf("handleTerminalSession: can't find session '%s'", sessionId)
+		session.Close(http.StatusGone, fmt.Sprintf("handleTerminalSession: can't find session '%s'", sessionId))
+		return
+	} else if ok {
+		terminalSession.sockJSSession = session
+		sm.Sessions[sessionId] = terminalSession
+
+		select {
+		case terminalSession.bound <- nil:
+			log.Printf("message sent on bound channel for sessionId : %s", sessionId)
+		default:
+			// if a request from the front end is not received within a particular time frame, and no one is reading from the bound channel, we will ignore sending on the bound channel.
+			log.Printf("skipping send on bound, channel receiver possibly timed out. sessionId: %s", sessionId)
+		}
+
+	}
+}
+
 // Close shuts down the SockJS connection and sends the status code and reason to the client
 // Can happen if the process exits or if there is an error starting up the process
 // For now the status code is unused and reason is shown to the user (unless "")
 func (sm *SessionMap) Close(sessionId string, status uint32, reason string) {
+
 	sm.Lock.Lock()
 	defer sm.Lock.Unlock()
+
 	terminalSession := sm.Sessions[sessionId]
+
 	if terminalSession.sockJSSession != nil {
+
 		err := terminalSession.sockJSSession.Close(status, reason)
 		if err != nil {
 			log.Println(err)
 		}
+
+		close(terminalSession.doneChan)
+
+		isErroredConnectionTermination := isConnectionClosedByError(status)
+		middleware.IncTerminalSessionRequestCounter(SessionTerminated, strconv.FormatBool(isErroredConnectionTermination))
+		middleware.RecordTerminalSessionDurationMetrics(terminalSession.podName, terminalSession.namespace, terminalSession.clusterId, time.Since(terminalSession.startedOn).Seconds())
+		terminalSession.contextCancelFunc()
+		close(terminalSession.bound)
 		delete(sm.Sessions, sessionId)
 	}
 
+}
+
+func isConnectionClosedByError(status uint32) bool {
+	if status == 2 {
+		return true
+	}
+	return false
 }
 
 var terminalSessions = SessionMap{Sessions: make(map[string]TerminalSession)}
@@ -183,10 +254,9 @@ var terminalSessions = SessionMap{Sessions: make(map[string]TerminalSession)}
 // handleTerminalSession is Called by net/http for any new /api/sockjs connections
 func handleTerminalSession(session sockjs.Session) {
 	var (
-		buf             string
-		err             error
-		msg             TerminalMessage
-		terminalSession TerminalSession
+		buf string
+		err error
+		msg TerminalMessage
 	)
 
 	if buf, err = session.Recv(); err != nil {
@@ -205,25 +275,33 @@ func handleTerminalSession(session sockjs.Session) {
 		return
 	}
 
-	if terminalSession = terminalSessions.Get(msg.SessionID); terminalSession.id == "" {
-		log.Printf("handleTerminalSession: can't find session '%s'", msg.SessionID)
-		session.Close(http.StatusGone, fmt.Sprintf("handleTerminalSession: can't find session '%s'", msg.SessionID))
-		return
-	}
+	terminalSessions.setAndSendSignal(msg.SessionID, session)
 
-	terminalSession.sockJSSession = session
-	terminalSessions.Set(msg.SessionID, terminalSession)
-	terminalSession.bound <- nil
 }
+
+type SocketConfig struct {
+	SocketHeartbeatSeconds int `env:"SOCKET_HEARTBEAT_SECONDS" envDefault:"25"`
+	SocketDisconnectDelay  int `env:"SOCKET_DISCONNECT_DELAY_SECONDS" envDefault:"5"`
+}
+
+var cfg *SocketConfig
 
 // CreateAttachHandler is called from main for /api/sockjs
 func CreateAttachHandler(path string) http.Handler {
-	return sockjs.NewHandler(path, sockjs.DefaultOptions, handleTerminalSession)
+	if cfg == nil {
+		cfg = &SocketConfig{}
+		env.Parse(cfg)
+	}
+
+	opts := sockjs.DefaultOptions
+	opts.HeartbeatDelay = time.Duration(cfg.SocketHeartbeatSeconds) * time.Second
+	opts.DisconnectDelay = time.Duration(cfg.SocketDisconnectDelay) * time.Second
+	return sockjs.NewHandler(path, opts, handleTerminalSession)
 }
 
 // startProcess is called by handleAttach
 // Executed cmd in the container specified in request and connects it up with the ptyHandler (a session)
-func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config,
+func startProcess(ctx context.Context, k8sClient kubernetes.Interface, cfg *rest.Config,
 	cmd []string, ptyHandler PtyHandler, sessionRequest *TerminalSessionRequest) error {
 	namespace := sessionRequest.Namespace
 	podName := sessionRequest.PodName
@@ -232,6 +310,7 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config,
 	exec, err := getExecutor(k8sClient, cfg, podName, namespace, containerName, cmd, true, true)
 
 	if err != nil {
+		log.Println("error in getting terminal executor ", "err: ", err)
 		return err
 	}
 
@@ -242,17 +321,19 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config,
 		TerminalSizeQueue: ptyHandler,
 		Tty:               true,
 	}
-
-	err = execWithStreamOptions(exec, streamOptions)
+	isErroredConnectionTermination := false
+	middleware.IncTerminalSessionRequestCounter(SessionInitiating, strconv.FormatBool(isErroredConnectionTermination))
+	terminalSessions.SetTerminalSessionStartTime(sessionRequest.SessionId)
+	err = execWithStreamOptions(ctx, exec, streamOptions)
 	if err != nil {
+		log.Println("error in terminal exec with stream opts: ", "err: ", err)
 		return err
 	}
-
 	return nil
 }
 
-func execWithStreamOptions(exec remotecommand.Executor, streamOptions remotecommand.StreamOptions) error {
-	return exec.Stream(streamOptions)
+func execWithStreamOptions(ctx context.Context, exec remotecommand.Executor, streamOptions remotecommand.StreamOptions) error {
+	return exec.StreamWithContext(ctx, streamOptions)
 }
 
 func getExecutor(k8sClient kubernetes.Interface, cfg *rest.Config, podName, namespace, containerName string, cmd []string, stdin bool, tty bool) (remotecommand.Executor, error) {
@@ -310,7 +391,9 @@ type TerminalSessionRequest struct {
 	EnvironmentId int
 	AppId         int
 	//ClusterId is optional
-	ClusterId int
+	ClusterId                   int
+	UserId                      int32
+	ExternalArgoApplicationName string
 }
 
 const CommandExecutionFailed = "Failed to Execute Command"
@@ -322,32 +405,37 @@ var validShells = []string{"bash", "sh", "powershell", "cmd"}
 // Waits for the SockJS connection to be opened by the client the session to be bound in handleTerminalSession
 func WaitForTerminal(k8sClient kubernetes.Interface, cfg *rest.Config, request *TerminalSessionRequest) {
 
+	session := terminalSessions.Get(request.SessionId)
+	sessionCtx := session.context
+	timedCtx, _ := context.WithTimeout(sessionCtx, 60*time.Second)
 	select {
-	case <-terminalSessions.Get(request.SessionId).bound:
-		close(terminalSessions.Get(request.SessionId).bound)
+	case <-session.bound:
 
 		var err error
 		if isValidShell(validShells, request.Shell) {
 			cmd := []string{request.Shell}
 
-			err = startProcess(k8sClient, cfg, cmd, terminalSessions.Get(request.SessionId), request)
+			err = startProcess(sessionCtx, k8sClient, cfg, cmd, terminalSessions.Get(request.SessionId), request)
 		} else {
 			// No Shell given or it was not valid: try some shells until one succeeds or all fail
 			// FIXME: if the first Shell fails then the first keyboard event is lost
 			for _, testShell := range validShells {
 				cmd := []string{testShell}
-				if err = startProcess(k8sClient, cfg, cmd, terminalSessions.Get(request.SessionId), request); err == nil {
+				if err = startProcess(sessionCtx, k8sClient, cfg, cmd, terminalSessions.Get(request.SessionId), request); err == nil || errors2.Is(err, context.Canceled) {
 					break
 				}
 			}
 		}
 
-		if err != nil {
+		if err != nil && !errors2.Is(err, context.Canceled) {
 			terminalSessions.Close(request.SessionId, 2, err.Error())
 			return
 		}
 
-		terminalSessions.Close(request.SessionId, 1, "Process exited")
+		terminalSessions.Close(request.SessionId, 1, ProcessExitedMsg)
+	case <-timedCtx.Done():
+		// handle case when connection has not been initiated from FE side within particular time
+		terminalSessions.Close(request.SessionId, 1, ProcessTimedOut)
 	}
 }
 
@@ -357,20 +445,28 @@ type TerminalSessionHandler interface {
 	ValidateSession(sessionId string) bool
 	ValidateShell(req *TerminalSessionRequest) (bool, error)
 	AutoSelectShell(req *TerminalSessionRequest) (string, error)
+	RunCmdInRemotePod(req *TerminalSessionRequest, cmds []string) (*bytes.Buffer, *bytes.Buffer, error)
 }
 
 type TerminalSessionHandlerImpl struct {
-	environmentService cluster.EnvironmentService
-	clusterService     cluster.ClusterService
-	logger             *zap.SugaredLogger
+	environmentService           environment.EnvironmentService
+	clusterService               cluster.ClusterService
+	logger                       *zap.SugaredLogger
+	k8sUtil                      *k8s.K8sServiceImpl
+	ephemeralContainerService    cluster.EphemeralContainerService
+	argoApplicationConfigService config.ArgoApplicationConfigService
 }
 
-func NewTerminalSessionHandlerImpl(environmentService cluster.EnvironmentService, clusterService cluster.ClusterService,
-	logger *zap.SugaredLogger) *TerminalSessionHandlerImpl {
+func NewTerminalSessionHandlerImpl(environmentService environment.EnvironmentService, clusterService cluster.ClusterService,
+	logger *zap.SugaredLogger, k8sUtil *k8s.K8sServiceImpl, ephemeralContainerService cluster.EphemeralContainerService,
+	argoApplicationConfigService config.ArgoApplicationConfigService) *TerminalSessionHandlerImpl {
 	return &TerminalSessionHandlerImpl{
-		environmentService: environmentService,
-		clusterService:     clusterService,
-		logger:             logger,
+		environmentService:           environmentService,
+		clusterService:               clusterService,
+		logger:                       logger,
+		k8sUtil:                      k8sUtil,
+		ephemeralContainerService:    ephemeralContainerService,
+		argoApplicationConfigService: argoApplicationConfigService,
 	}
 }
 
@@ -402,12 +498,27 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 		return statusCode, nil, err
 	}
 	req.SessionId = sessionID
+	sessionCtx, cancelFunc := context.WithCancel(context.Background())
 	terminalSessions.Set(sessionID, TerminalSession{
-		id:       sessionID,
-		bound:    make(chan error),
-		sizeChan: make(chan remotecommand.TerminalSize),
+		id:                sessionID,
+		bound:             make(chan error),
+		sizeChan:          make(chan remotecommand.TerminalSize),
+		doneChan:          make(chan struct{}),
+		context:           sessionCtx,
+		contextCancelFunc: cancelFunc,
+		podName:           req.PodName,
+		namespace:         req.Namespace,
+		clusterId:         strconv.Itoa(req.ClusterId),
 	})
-	config, client, err := impl.getClientConfig(req)
+	config, client, err := impl.getClientSetAndRestConfigForTerminalConn(req)
+
+	go func() {
+		err := impl.saveEphemeralContainerTerminalAccessAudit(req)
+		if err != nil {
+			impl.logger.Errorw("error in saving ephemeral container terminal access audit,so skipping auditing", "err", err)
+		}
+	}()
+
 	if err != nil {
 		impl.logger.Errorw("error in fetching config", "err", err)
 		return http.StatusInternalServerError, nil, err
@@ -416,44 +527,63 @@ func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionR
 	return http.StatusOK, &TerminalMessage{SessionID: sessionID}, nil
 }
 
-func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequest) (*rest.Config, *kubernetes.Clientset, error) {
-	var clusterBean *cluster.ClusterBean
+func (impl *TerminalSessionHandlerImpl) getClientSetAndRestConfigForTerminalConn(req *TerminalSessionRequest) (*rest.Config, *kubernetes.Clientset, error) {
+	var clusterBean *bean.ClusterBean
+	var clusterConfig *k8s.ClusterConfig
+	var restConfig *rest.Config
 	var err error
-	if req.ClusterId != 0 {
-		clusterBean, err = impl.clusterService.FindById(req.ClusterId)
+	if len(req.ExternalArgoApplicationName) > 0 {
+		restConfig, err = impl.argoApplicationConfigService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoApplicationName)
 		if err != nil {
-			impl.logger.Errorw("error in fetching cluster detail", "envId", req.EnvironmentId, "err", err)
+			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)
 			return nil, nil, err
 		}
-	} else if req.EnvironmentId != 0 {
-		clusterBean, err = impl.environmentService.FindClusterByEnvId(req.EnvironmentId)
+
+		_, clientSet, err := impl.k8sUtil.GetK8sConfigAndClientsByRestConfig(restConfig)
 		if err != nil {
-			impl.logger.Errorw("error in fetching cluster detail", "envId", req.EnvironmentId, "err", err)
+			impl.logger.Errorw("error in clientSet", "err", err)
 			return nil, nil, err
 		}
+		return restConfig, clientSet, nil
 	} else {
-		return nil, nil, fmt.Errorf("not able to find cluster-config")
+		if req.ClusterId != 0 {
+			clusterBean, err = impl.clusterService.FindById(req.ClusterId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching cluster detail", "err", err, "clusterId", req.ClusterId)
+				return nil, nil, err
+			}
+		} else if req.EnvironmentId != 0 {
+			clusterBean, err = impl.environmentService.FindClusterByEnvId(req.EnvironmentId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching cluster detail", "envId", req.EnvironmentId, "err", err)
+				return nil, nil, err
+			}
+		} else {
+			return nil, nil, fmt.Errorf("not able to find cluster-config")
+		}
+
+		clusterConfig = clusterBean.GetClusterConfig()
+		restConfig, err = impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
+		if err != nil {
+			impl.logger.Errorw("error in getting rest config by cluster", "err", err, "clusterName", clusterConfig.ClusterName)
+			return nil, nil, err
+		}
+
+		_, clientSet, err := impl.k8sUtil.GetK8sConfigAndClientsByRestConfig(restConfig)
+		if err != nil {
+			impl.logger.Errorw("error in clientSet", "err", err)
+			return nil, nil, err
+		}
+
+		// we have to get the clientSet before setting the custom transport to nil
+		// we need re populate the tls config in the restConfig.
+		// rest config with custom transport will break spdy client
+		clusterConfig.PopulateTlsConfigurationsInto(restConfig)
+		restConfig.Transport = nil
+		return restConfig, clientSet, nil
 	}
-	config, err := impl.clusterService.GetClusterConfig(clusterBean)
-	if err != nil {
-		impl.logger.Errorw("error in config", "err", err)
-		return nil, nil, err
-	}
-	cfg := &rest.Config{}
-	cfg.Host = config.Host
-	cfg.BearerToken = config.BearerToken
-	cfg.Insecure = true
-	k8sHttpClient, err := util.OverrideK8sHttpClientWithTracer(cfg)
-	if err != nil {
-		return nil, nil, err
-	}
-	clientSet, err := kubernetes.NewForConfigAndClient(cfg, k8sHttpClient)
-	if err != nil {
-		impl.logger.Errorw("error in clientSet", "err", err)
-		return nil, nil, err
-	}
-	return cfg, clientSet, nil
 }
+
 func (impl *TerminalSessionHandlerImpl) AutoSelectShell(req *TerminalSessionRequest) (string, error) {
 	var err1 error
 	for _, testShell := range validShells {
@@ -473,26 +603,11 @@ func (impl *TerminalSessionHandlerImpl) AutoSelectShell(req *TerminalSessionRequ
 }
 func (impl *TerminalSessionHandlerImpl) ValidateShell(req *TerminalSessionRequest) (bool, error) {
 	impl.logger.Infow("Inside ValidateShell method in TerminalSessionHandlerImpl", "shellName", req.Shell, "podName", req.PodName, "nameSpace", req.Namespace)
-	config, client, err := impl.getClientConfig(req)
-	if err != nil {
-		impl.logger.Errorw("error in fetching config", "err", err, "clusterId", req.ClusterId)
-		return false, err
-	}
+
 	cmd := fmt.Sprintf("/bin/%s", req.Shell)
 	cmdArray := []string{cmd}
-	impl.logger.Infow("reached getExecutor method call")
-	exec, err := getExecutor(client, config, req.PodName, req.Namespace, req.ContainerName, cmdArray, false, false)
-	if err != nil {
-		impl.logger.Errorw("error occurred in getting remoteCommand executor", "err", err, "config", config, "request", req)
-		return false, err
-	}
-	buf := &bytes.Buffer{}
-	errBuf := &bytes.Buffer{}
 
-	err = execWithStreamOptions(exec, remotecommand.StreamOptions{
-		Stdout: buf,
-		Stderr: errBuf,
-	})
+	buf, errBuf, err := impl.RunCmdInRemotePod(req, cmdArray)
 	if err != nil {
 		impl.logger.Errorw("failed to execute commands ", "err", err, "commands", cmdArray, "podName", req.PodName, "namespace", req.Namespace)
 		return false, getErrorMsg(err.Error())
@@ -511,4 +626,96 @@ func getErrorMsg(err string) error {
 		return errors1.New(PodNotFound)
 	}
 	return errors1.New(CommandExecutionFailed)
+}
+
+func (impl *TerminalSessionHandlerImpl) RunCmdInRemotePod(req *TerminalSessionRequest, cmds []string) (*bytes.Buffer, *bytes.Buffer, error) {
+	config, client, err := impl.getClientSetAndRestConfigForTerminalConn(req)
+	if err != nil {
+		impl.logger.Errorw("error in fetching config", "err", err)
+		return nil, nil, err
+	}
+	impl.logger.Debug("reached getExecutor method call")
+	exec, err := getExecutor(client, config, req.PodName, req.Namespace, req.ContainerName, cmds, false, false)
+	if err != nil {
+		impl.logger.Errorw("error occurred in getting remoteCommand executor", "err", err)
+		return nil, nil, err
+	}
+	buf := &bytes.Buffer{}
+	errBuf := &bytes.Buffer{}
+	impl.logger.Debug("reached execWithStreamOptions method call")
+	err = execWithStreamOptions(context.Background(), exec, remotecommand.StreamOptions{
+		Stdout: buf,
+		Stderr: errBuf,
+	})
+	return buf, errBuf, err
+}
+
+func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudit(req *TerminalSessionRequest) error {
+	var restConfig *rest.Config
+	var err error
+	if len(req.ExternalArgoApplicationName) > 0 {
+		restConfig, err = impl.argoApplicationConfigService.GetRestConfigForExternalArgo(context.Background(), req.ClusterId, req.ExternalArgoApplicationName)
+		if err != nil {
+			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)
+			return err
+		}
+	} else {
+		clusterBean, err := impl.clusterService.FindById(req.ClusterId)
+		if err != nil {
+			impl.logger.Errorw("error occurred in finding clusterBean by Id", "clusterId", req.ClusterId, "err", err)
+			return err
+		}
+		clusterConfig := clusterBean.GetClusterConfig()
+		restConfig, err = impl.k8sUtil.GetRestConfigByCluster(clusterConfig)
+		if err != nil {
+			impl.logger.Errorw("error in getting rest config", "err", err, "clusterId", req.ClusterId, "externalArgoApplicationName", req.ExternalArgoApplicationName)
+			return err
+		}
+	}
+
+	v1Client, err := impl.k8sUtil.GetCoreV1ClientByRestConfig(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error, GetCoreV1ClientByRestConfig", "err", err)
+		return err
+	}
+	pod, err := impl.k8sUtil.GetPodByName(req.Namespace, req.PodName, v1Client)
+	if err != nil {
+		impl.logger.Errorw("error in getting pod", "clusterId", req.ClusterId, "namespace", req.Namespace, "podName", req.PodName, "err", err)
+		return err
+	}
+	var ephemeralContainer *v1.EphemeralContainer
+	for _, ec := range pod.Spec.EphemeralContainers {
+		if ec.Name == req.ContainerName {
+			ephemeralContainer = &ec
+			break
+		}
+	}
+	if ephemeralContainer == nil {
+		impl.logger.Infow("terminal session requested for non ephemeral container,so not auditing the terminal access", "clusterId", req.ClusterId, "namespace", req.Namespace, "podName", req.PodName)
+		return nil
+	}
+	ephemeralContainerJson, err := json.Marshal(ephemeralContainer)
+	if err != nil {
+		impl.logger.Errorw("error occurred while marshaling ephemeralContainer object", "err", err, "ephemeralContainer", ephemeralContainer)
+		return err
+	}
+	ephemeralReq := cluster.EphemeralContainerRequest{
+		PodName:   req.PodName,
+		Namespace: req.Namespace,
+		ClusterId: req.ClusterId,
+		BasicData: &cluster.EphemeralContainerBasicData{
+			ContainerName:       req.ContainerName,
+			TargetContainerName: ephemeralContainer.TargetContainerName,
+			Image:               ephemeralContainer.Image,
+		},
+		AdvancedData: &cluster.EphemeralContainerAdvancedData{
+			Manifest: string(ephemeralContainerJson),
+		},
+		UserId: req.UserId,
+	}
+	err = impl.ephemeralContainerService.AuditEphemeralContainerAction(ephemeralReq, repository.ActionAccessed)
+	if err != nil {
+		impl.logger.Errorw("error occurred while requesting ephemeral container terminal access audit", "err", err, "clusterId", req.ClusterId, "namespace", req.Namespace, "podName", req.PodName)
+	}
+	return err
 }

@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package chartRepoRepository
 
 import (
@@ -15,13 +31,13 @@ type Chart struct {
 	ChartVersion            string                      `sql:"chart_version"`
 	ChartRepo               string                      `sql:"chart_repo"`
 	ChartRepoUrl            string                      `sql:"chart_repo_url"`
-	Values                  string                      `sql:"values_yaml"`       //json format // used at for release. this should be always updated
-	GlobalOverride          string                      `sql:"global_override"`   //json format    // global overrides visible to user only
-	ReleaseOverride         string                      `sql:"release_override"`  //json format   //image descriptor template used for injecting tigger metadata injection
-	PipelineOverride        string                      `sql:"pipeline_override"` //json format  // pipeline values -> strategy values
-	Status                  models.ChartStatus          `sql:"status"`            //(new , deployment-in-progress, deployed-To-production, error )
+	Values                  string                      `sql:"values_yaml"`              //json format // used at for release. this should be always updated
+	GlobalOverride          string                      `sql:"global_override"`          //json format    // global overrides visible to user only
+	ReleaseOverride         string                      `sql:"release_override,notnull"` //json format   //image descriptor template used for injecting tigger metadata injection
+	PipelineOverride        string                      `sql:"pipeline_override"`        //json format  // pipeline values -> strategy values
+	Status                  models.ChartStatus          `sql:"status"`                   //(new , deployment-in-progress, deployed-To-production, error )
 	Active                  bool                        `sql:"active"`
-	GitRepoUrl              string                      `sql:"git_repo_url"`   //git repository where chart is stored
+	GitRepoUrl              string                      `sql:"git_repo_url"`   // Deprecated;  use deployment_config table instead   //git repository where chart is stored
 	ChartLocation           string                      `sql:"chart_location"` //location within git repo where current chart is pointing
 	ReferenceTemplate       string                      `sql:"reference_template"`
 	ImageDescriptorTemplate string                      `sql:"image_descriptor_template"`
@@ -31,6 +47,8 @@ type Chart struct {
 	ReferenceChart          []byte                      `sql:"reference_chart"`
 	IsBasicViewLocked       bool                        `sql:"is_basic_view_locked,notnull"`
 	CurrentViewEditor       models.ChartsViewEditorType `sql:"current_view_editor"`
+	IsCustomGitRepository   bool                        `sql:"is_custom_repository"` // Deprecated;  use deployment_config table instead
+	ResolvedGlobalOverride  string                      `sql:"-"`
 	sql.AuditLog
 }
 
@@ -43,23 +61,30 @@ type ChartRepository interface {
 	FindLatestByAppId(appId int) (chart *Chart, err error)
 	FindById(id int) (chart *Chart, err error)
 	Update(chart *Chart) error
+	UpdateAllInTx(tx *pg.Tx, charts []*Chart) error
 
 	FindActiveChartsByAppId(appId int) (charts []*Chart, err error)
 	FindLatestChartForAppByAppId(appId int) (chart *Chart, err error)
+	FindLatestChartByAppIds(appId []int) (chart []*Chart, err error)
 	FindChartRefIdForLatestChartForAppByAppId(appId int) (int, error)
 	FindChartByAppIdAndRefId(appId int, chartRefId int) (chart *Chart, err error)
 	FindNoLatestChartForAppByAppId(appId int) ([]*Chart, error)
 	FindPreviousChartByAppId(appId int) (chart *Chart, err error)
 	FindNumberOfAppsWithDeploymentTemplate(appIds []int) (int, error)
 	FindChartByGitRepoUrl(gitRepoUrl string) (*Chart, error)
+	sql.TransactionWrapper
 }
 
-func NewChartRepository(dbConnection *pg.DB) *ChartRepositoryImpl {
-	return &ChartRepositoryImpl{dbConnection: dbConnection}
+func NewChartRepository(dbConnection *pg.DB, TransactionUtilImpl *sql.TransactionUtilImpl) *ChartRepositoryImpl {
+	return &ChartRepositoryImpl{
+		dbConnection:        dbConnection,
+		TransactionUtilImpl: TransactionUtilImpl,
+	}
 }
 
 type ChartRepositoryImpl struct {
 	dbConnection *pg.DB
+	*sql.TransactionUtilImpl
 }
 
 func (repositoryImpl ChartRepositoryImpl) FindOne(chartRepo, chartName, chartVersion string) (*Chart, error) {
@@ -125,6 +150,18 @@ func (repositoryImpl ChartRepositoryImpl) FindLatestChartForAppByAppId(appId int
 		Select()
 	return chart, err
 }
+func (repositoryImpl ChartRepositoryImpl) FindLatestChartByAppIds(appIds []int) ([]*Chart, error) {
+	var chart []*Chart
+	if len(appIds) == 0 {
+		return nil, nil
+	}
+	err := repositoryImpl.dbConnection.
+		Model(&chart).
+		Where("app_id in (?)", pg.In(appIds)).
+		Where("latest= ?", true).
+		Select()
+	return chart, err
+}
 
 func (repositoryImpl ChartRepositoryImpl) FindChartRefIdForLatestChartForAppByAppId(appId int) (int, error) {
 	chart := &Chart{}
@@ -186,6 +223,16 @@ func (repositoryImpl ChartRepositoryImpl) Update(chart *Chart) error {
 	return err
 }
 
+func (repositoryImpl ChartRepositoryImpl) UpdateAllInTx(tx *pg.Tx, charts []*Chart) error {
+	for _, chart := range charts {
+		_, err := tx.Model(chart).WherePK().UpdateNotNull()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (repositoryImpl ChartRepositoryImpl) FindById(id int) (chart *Chart, err error) {
 	chart = &Chart{}
 	err = repositoryImpl.dbConnection.Model(chart).
@@ -197,8 +244,9 @@ func (repositoryImpl ChartRepositoryImpl) FindChartByGitRepoUrl(gitRepoUrl strin
 	var chart Chart
 	err := repositoryImpl.dbConnection.Model(&chart).
 		Join("INNER JOIN app ON app.id=app_id").
+		Join("LEFT JOIN deployment_config dc on dc.active=true and dc.app_id = chart.app_id and dc.environment_id is null").
 		Where("app.active = ?", true).
-		Where("chart.git_repo_url = ?", gitRepoUrl).
+		Where("(chart.git_repo_url = ? or dc.repo_url = ?)", gitRepoUrl, gitRepoUrl).
 		Where("chart.active = ?", true).
 		Limit(1).
 		Select()

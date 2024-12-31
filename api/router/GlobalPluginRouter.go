@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package router
 
 import (
@@ -23,12 +39,37 @@ type GlobalPluginRouterImpl struct {
 }
 
 func (impl *GlobalPluginRouterImpl) initGlobalPluginRouter(globalPluginRouter *mux.Router) {
-	globalPluginRouter.Path("/global/list/global-variable").
+	globalPluginRouter.Path("/migrate").
+		HandlerFunc(impl.globalPluginRestHandler.MigratePluginData).Methods("PUT")
+	globalPluginRouter.Path("/create").
+		HandlerFunc(impl.globalPluginRestHandler.CreatePlugin).Methods("POST")
+	globalPluginRouter.Path("/detail/all").
+		HandlerFunc(impl.globalPluginRestHandler.GetAllDetailedPluginInfo).Methods("GET")
+	globalPluginRouter.Path("/detail/{pluginId}").
+		HandlerFunc(impl.globalPluginRestHandler.GetDetailedPluginInfoByPluginId).Methods("GET")
+
+	globalPluginRouter.Path("/list/global-variable").
 		HandlerFunc(impl.globalPluginRestHandler.GetAllGlobalVariables).Methods("GET")
 
-	globalPluginRouter.Path("/global/list").
+	//TODO to deprecate this api
+	globalPluginRouter.Path("/list").
 		HandlerFunc(impl.globalPluginRestHandler.ListAllPlugins).Methods("GET")
-
-	globalPluginRouter.Path("/global/{pluginId}").
+	//TODO to deprecate this api
+	globalPluginRouter.Path("/{pluginId}").
 		HandlerFunc(impl.globalPluginRestHandler.GetPluginDetailById).Methods("GET")
+
+	globalPluginRouter.Path("/list/v2").
+		HandlerFunc(impl.globalPluginRestHandler.ListAllPluginsV2).Methods("GET")
+
+	// /list/detail/v2 - get plugin details; method: GET / POST
+	globalPluginRouter.Path("/list/detail/v2").
+		HandlerFunc(impl.globalPluginRestHandler.GetPluginDetailByIds).Methods("GET") // Deprecated; use POST method
+	globalPluginRouter.Path("/list/detail/v2").
+		HandlerFunc(impl.globalPluginRestHandler.GetPluginDetailByIds).Methods("POST")
+
+	globalPluginRouter.Path("/list/tags").
+		HandlerFunc(impl.globalPluginRestHandler.GetAllUniqueTags).Methods("GET")
+	globalPluginRouter.Path("/list/v2/min").
+		HandlerFunc(impl.globalPluginRestHandler.GetAllPluginMinData).Methods("GET")
+
 }

@@ -25,7 +25,7 @@ import (
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	cliflag "k8s.io/component-base/cli/flag"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
@@ -46,7 +46,7 @@ var (
 		kubectl create clusterrole pod-reader --verb=get --resource=pods --resource-name=readablepod --resource-name=anotherpod
 
 		# Create a cluster role named "foo" with API Group specified
-		kubectl create clusterrole foo --verb=get,list,watch --resource=rs.extensions
+		kubectl create clusterrole foo --verb=get,list,watch --resource=rs.apps
 
 		# Create a cluster role named "foo" with SubResource specified
 		kubectl create clusterrole foo --verb=get,list,watch --resource=pods,pods/status
@@ -70,7 +70,7 @@ type CreateClusterRoleOptions struct {
 }
 
 // NewCmdCreateClusterRole initializes and returns new ClusterRoles command
-func NewCmdCreateClusterRole(f cmdutil.Factory, ioStreams genericclioptions.IOStreams) *cobra.Command {
+func NewCmdCreateClusterRole(f cmdutil.Factory, ioStreams genericiooptions.IOStreams) *cobra.Command {
 	c := &CreateClusterRoleOptions{
 		CreateRoleOptions: NewCreateRoleOptions(ioStreams),
 		AggregationRule:   map[string]string{},
@@ -215,9 +215,6 @@ func (c *CreateClusterRoleOptions) RunCreateRole() error {
 		}
 		createOptions.FieldValidation = c.ValidationDirective
 		if c.DryRunStrategy == cmdutil.DryRunServer {
-			if err := c.DryRunVerifier.HasSupport(clusterRole.GroupVersionKind()); err != nil {
-				return err
-			}
 			createOptions.DryRun = []string{metav1.DryRunAll}
 		}
 		clusterRole, err = c.Client.ClusterRoles().Create(context.TODO(), clusterRole, createOptions)

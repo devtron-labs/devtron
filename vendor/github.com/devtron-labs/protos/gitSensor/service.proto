@@ -20,6 +20,10 @@ message GitProvider {
   string accessToken = 7;
   string authMode = 8;
   bool active = 9;
+  string TlsCert =10;
+  string TlsKey  =11;
+  string CaCert  =12;
+  bool EnableTLSVerification = 13;
 }
 
 message GitMaterial {
@@ -33,6 +37,7 @@ message GitMaterial {
   string checkoutMsgAny = 8;
   bool deleted = 9;
   repeated string filterPattern = 10;
+  string cloningMode = 11;
 }
 
 message SavePipelineMaterialRequest {
@@ -47,10 +52,11 @@ message CiPipelineMaterial {
   bool active = 5;
   string lastSeenHash = 6;
   string commitAuthor = 7;
-  google.protobuf.Timestamp commitDate = 8;
-  string commitHistory = 9;
-  bool errored = 10;
-  string errorMsg = 11;
+  string commitMessage = 8;
+  google.protobuf.Timestamp commitDate = 9;
+  string commitHistory = 10;
+  bool errored = 11;
+  string errorMsg = 12;
 }
 
 message FetchScmChangesRequest {
@@ -132,6 +138,15 @@ message ReloadMaterialRequest {
   int64 materialId = 1;
 }
 
+message ReloadMaterialsRequest{
+repeated ReloadMaterial reloadMaterials = 1;
+}
+
+message ReloadMaterial{
+  int64 materialId = 1;
+  string cloningMode = 2;
+}
+
 message GenericResponse {
   string message = 1;
 }
@@ -200,6 +215,7 @@ message WebhookAndCiData {
 message WebhookEventConfigRequest {
   int64 gitHostId = 1;
   int64 eventId = 2;
+  string gitHostName = 3;
 }
 
 message WebhookEventSelectors {
@@ -304,6 +320,9 @@ service GitSensorService {
 
   // Reload all material
   rpc ReloadAllMaterial(Empty) returns (Empty);
+
+  // Reload list of materials
+  rpc ReloadMaterials(ReloadMaterialsRequest) returns (GenericResponse);
 
   // Reload a specific material
   rpc ReloadMaterial(ReloadMaterialRequest) returns (GenericResponse);

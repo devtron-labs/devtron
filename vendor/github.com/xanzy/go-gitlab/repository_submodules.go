@@ -89,5 +89,5 @@ func (s *RepositorySubmodulesService) UpdateSubmodule(pid interface{}, submodule
 		return nil, resp, err
 	}
 
-	return sc, resp, err
+	return sc, resp, nil
 }

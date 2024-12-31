@@ -89,7 +89,7 @@ func (s *ResourceLabelEventsService) ListIssueLabelEvents(pid interface{}, issue
 		return nil, resp, err
 	}
 
-	return ls, resp, err
+	return ls, resp, nil
 }
 
 // GetIssueLabelEvent gets a single issue-label-event.
@@ -114,7 +114,7 @@ func (s *ResourceLabelEventsService) GetIssueLabelEvent(pid interface{}, issue i
 		return nil, resp, err
 	}
 
-	return l, resp, err
+	return l, resp, nil
 }
 
 // ListGroupEpicLabelEvents retrieves resource label events for the specified
@@ -140,7 +140,7 @@ func (s *ResourceLabelEventsService) ListGroupEpicLabelEvents(gid interface{}, e
 		return nil, resp, err
 	}
 
-	return ls, resp, err
+	return ls, resp, nil
 }
 
 // GetGroupEpicLabelEvent gets a single group epic label event.
@@ -165,7 +165,7 @@ func (s *ResourceLabelEventsService) GetGroupEpicLabelEvent(gid interface{}, epi
 		return nil, resp, err
 	}
 
-	return l, resp, err
+	return l, resp, nil
 }
 
 // ListMergeRequestsLabelEvents retrieves resource label events for the specified
@@ -191,7 +191,7 @@ func (s *ResourceLabelEventsService) ListMergeRequestsLabelEvents(pid interface{
 		return nil, resp, err
 	}
 
-	return ls, resp, err
+	return ls, resp, nil
 }
 
 // GetMergeRequestLabelEvent gets a single merge request label event.
@@ -216,5 +216,5 @@ func (s *ResourceLabelEventsService) GetMergeRequestLabelEvent(pid interface{}, 
 		return nil, resp, err
 	}
 
-	return l, resp, err
+	return l, resp, nil
 }

@@ -1,34 +1,52 @@
+/*
+ * Copyright (c) 2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package clusterTerminalAccess
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/devtron-labs/authenticator/client"
-	application2 "github.com/devtron-labs/devtron/client/k8s/application"
-	"github.com/devtron-labs/devtron/client/k8s/informer"
+	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
+	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	"testing"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"
+	repository4 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/k8s"
+	"github.com/devtron-labs/devtron/pkg/k8s/informer"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository10 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/terminal"
-	repository3 "github.com/devtron-labs/devtron/pkg/user/repository"
-	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/kubernetes/pkg/api/legacyscheme"
-	"testing"
-	"time"
 )
 
 func TestNewUserTerminalAccessServiceIT(t *testing.T) {
-	t.SkipNow()
+	//t.SkipNow()
 	terminalAccessServiceImpl := initTerminalAccessService(t)
 	t.Run("wrongImage", func(t *testing.T) {
+		//t.SkipNow()
 		baseImage := "devtron/randomimage"
 		//baseImage = "trstringer/internal-kubectl"
 		clusterId := 1
@@ -60,6 +78,7 @@ func TestNewUserTerminalAccessServiceIT(t *testing.T) {
 	})
 
 	t.Run("ClusterTerminalJourneyForSingleUserSingleSession", func(t *testing.T) {
+		//t.SkipNow()
 		baseImage := "trstringer/internal-kubectl:latest"
 		updateTerminalSession := createAndUpdateSessionForUser(t, terminalAccessServiceImpl, 1, 2, baseImage)
 
@@ -73,6 +92,7 @@ func TestNewUserTerminalAccessServiceIT(t *testing.T) {
 	})
 
 	t.Run("ClusterTerminalJourneyForSingleUserMultiSession", func(t *testing.T) {
+		//t.SkipNow()
 		clusterId := 1
 		userId := int32(2)
 		baseImage := "trstringer/internal-kubectl:latest"
@@ -104,6 +124,7 @@ func TestNewUserTerminalAccessServiceIT(t *testing.T) {
 	})
 
 	t.Run("convert to k8s structure", func(t *testing.T) {
+		//t.SkipNow()
 		podJson := "{\"apiVersion\":\"rbac.authorization.k8s.io/v1\",\"kind\":\"ClusterRoleBinding\",\"metadata\":{\"name\":\"${pod_name}-crb\"},\"subjects\":[{\"kind\":\"ServiceAccount\",\"name\":\"${pod_name}-sa\",\"namespace\":\"${default_namespace}\"}],\"roleRef\":{\"kind\":\"ClusterRole\",\"name\":\"cluster-admin\",\"apiGroup\":\"rbac.authorization.k8s.io\"}}"
 		_, groupVersionKind, err := legacyscheme.Codecs.UniversalDeserializer().Decode([]byte(podJson), nil, nil)
 		assert.Nil(t, err)
@@ -118,37 +139,39 @@ func TestNewUserTerminalAccessServiceIT(t *testing.T) {
 		assert.Equal(t, groupVersionKind.Version, "v1")
 		assert.Equal(t, groupVersionKind.Kind, "Pod")
 	})
+
 }
 
 func initTerminalAccessService(t *testing.T) *UserTerminalAccessServiceImpl {
 	sugaredLogger, _ := util.InitLogger()
 	config, _ := sql.GetConfig()
 	db, _ := sql.NewDbConnection(config, sugaredLogger)
-	runtimeConfig, err := client.GetRuntimeConfig()
+	runtimeConfig, err := k8s2.GetRuntimeConfig()
 	assert.Nil(t, err)
 	v := informer.NewGlobalMapClusterNamespace()
-	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, v, runtimeConfig)
+	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, v, runtimeConfig, nil)
 	terminalAccessRepositoryImpl := repository.NewTerminalAccessRepositoryImpl(db, sugaredLogger)
 	clusterRepositoryImpl := repository2.NewClusterRepositoryImpl(db, sugaredLogger)
-	k8sClientServiceImpl := application2.NewK8sClientServiceImpl(sugaredLogger, clusterRepositoryImpl)
-	defaultAuthPolicyRepositoryImpl := repository3.NewDefaultAuthPolicyRepositoryImpl(db, sugaredLogger)
-	defaultAuthRoleRepositoryImpl := repository3.NewDefaultAuthRoleRepositoryImpl(db, sugaredLogger)
-	userAuthRepositoryImpl := repository3.NewUserAuthRepositoryImpl(db, sugaredLogger, defaultAuthPolicyRepositoryImpl, defaultAuthRoleRepositoryImpl)
-	userRepositoryImpl := repository3.NewUserRepositoryImpl(db, sugaredLogger)
-	roleGroupRepositoryImpl := repository3.NewRoleGroupRepositoryImpl(db, sugaredLogger)
+	defaultAuthPolicyRepositoryImpl := repository4.NewDefaultAuthPolicyRepositoryImpl(db, sugaredLogger)
+	defaultAuthRoleRepositoryImpl := repository4.NewDefaultAuthRoleRepositoryImpl(db, sugaredLogger)
+	userAuthRepositoryImpl := repository4.NewUserAuthRepositoryImpl(db, sugaredLogger, defaultAuthPolicyRepositoryImpl, defaultAuthRoleRepositoryImpl)
+	userRepositoryImpl := repository4.NewUserRepositoryImpl(db, sugaredLogger)
+	roleGroupRepositoryImpl := repository4.NewRoleGroupRepositoryImpl(db, sugaredLogger)
 	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryImpl, sugaredLogger, nil, k8sInformerFactoryImpl, userAuthRepositoryImpl, userRepositoryImpl, roleGroupRepositoryImpl)
+	//k8sClientServiceImpl := application2.NewK8sClientServiceImpl(sugaredLogger, clusterServiceImpl, nil)
 	//clusterServiceImpl := cluster2.NewClusterServiceImplExtended(clusterRepositoryImpl, nil, nil, sugaredLogger, nil, nil, nil, nil, nil)
 	k8sResourceHistoryRepositoryImpl := repository10.NewK8sResourceHistoryRepositoryImpl(db, sugaredLogger)
 	appRepositoryImpl := app.NewAppRepositoryImpl(db, sugaredLogger)
-	environmentRepositoryImpl := repository2.NewEnvironmentRepositoryImpl(db)
+	environmentRepositoryImpl := repository3.NewEnvironmentRepositoryImpl(db, sugaredLogger, nil)
 	k8sResourceHistoryServiceImpl := kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl(k8sResourceHistoryRepositoryImpl, sugaredLogger, appRepositoryImpl, environmentRepositoryImpl)
-	k8sApplicationService := k8s.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, nil, k8sClientServiceImpl, nil, nil, nil, k8sResourceHistoryServiceImpl)
-	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(nil, clusterServiceImpl, sugaredLogger)
+	//k8sApplicationService := application.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, nil, nil, nil, nil, k8sResourceHistoryServiceImpl, nil)
+	K8sCommonService := k8s.NewK8sCommonServiceImpl(sugaredLogger, nil, nil, k8sResourceHistoryServiceImpl, clusterServiceImpl, nil)
+	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(nil, clusterServiceImpl, sugaredLogger, nil, nil)
 	userTerminalSessionConfig, err := GetTerminalAccessConfig()
 	assert.Nil(t, err)
 	userTerminalSessionConfig.TerminalPodStatusSyncTimeInSecs = 30
 	userTerminalSessionConfig.TerminalPodInActiveDurationInMins = 1
-	terminalAccessServiceImpl, err := NewUserTerminalAccessServiceImpl(sugaredLogger, terminalAccessRepositoryImpl, userTerminalSessionConfig, k8sApplicationService, k8sClientServiceImpl, terminalSessionHandlerImpl)
+	terminalAccessServiceImpl, err := NewUserTerminalAccessServiceImpl(sugaredLogger, terminalAccessRepositoryImpl, userTerminalSessionConfig, K8sCommonService, terminalSessionHandlerImpl, nil, nil)
 	assert.Nil(t, err)
 	return terminalAccessServiceImpl
 }
@@ -196,7 +219,7 @@ func createAndUpdateSessionForUser(t *testing.T, terminalAccessServiceImpl *User
 func fetchSessionId(terminalAccessServiceImpl *UserTerminalAccessServiceImpl, terminalAccessId int) (string, error) {
 	sessionId := ""
 	for sessionId == "" {
-		fetchTerminalStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(context.Background(), terminalAccessId)
+		fetchTerminalStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(context.Background(), terminalAccessId, "default", "internal-kubectl", "sh")
 		if err != nil {
 			return sessionId, err
 		}

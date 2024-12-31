@@ -41,6 +41,8 @@ type InstanceVariable struct {
 	VariableType VariableTypeValue `json:"variable_type"`
 	Protected    bool              `json:"protected"`
 	Masked       bool              `json:"masked"`
+	Raw          bool              `json:"raw"`
+	Description  string            `json:"description"`
 }
 
 func (v InstanceVariable) String() string {
@@ -72,7 +74,7 @@ func (s *InstanceVariablesService) ListVariables(opt *ListInstanceVariablesOptio
 		return nil, resp, err
 	}
 
-	return vs, resp, err
+	return vs, resp, nil
 }
 
 // GetVariable gets a variable.
@@ -93,7 +95,7 @@ func (s *InstanceVariablesService) GetVariable(key string, options ...RequestOpt
 		return nil, resp, err
 	}
 
-	return v, resp, err
+	return v, resp, nil
 }
 
 // CreateInstanceVariableOptions represents the available CreateVariable()
@@ -104,9 +106,11 @@ func (s *InstanceVariablesService) GetVariable(key string, options ...RequestOpt
 type CreateInstanceVariableOptions struct {
 	Key          *string            `url:"key,omitempty" json:"key,omitempty"`
 	Value        *string            `url:"value,omitempty" json:"value,omitempty"`
-	VariableType *VariableTypeValue `url:"variable_type,omitempty" json:"variable_type,omitempty"`
-	Protected    *bool              `url:"protected,omitempty" json:"protected,omitempty"`
+	Description  *string            `url:"description,omitempty" json:"description,omitempty"`
 	Masked       *bool              `url:"masked,omitempty" json:"masked,omitempty"`
+	Protected    *bool              `url:"protected,omitempty" json:"protected,omitempty"`
+	Raw          *bool              `url:"raw,omitempty" json:"raw,omitempty"`
+	VariableType *VariableTypeValue `url:"variable_type,omitempty" json:"variable_type,omitempty"`
 }
 
 // CreateVariable creates a new instance level CI variable.
@@ -127,7 +131,7 @@ func (s *InstanceVariablesService) CreateVariable(opt *CreateInstanceVariableOpt
 		return nil, resp, err
 	}
 
-	return v, resp, err
+	return v, resp, nil
 }
 
 // UpdateInstanceVariableOptions represents the available UpdateVariable()
@@ -137,9 +141,11 @@ func (s *InstanceVariablesService) CreateVariable(opt *CreateInstanceVariableOpt
 // https://docs.gitlab.com/ee/api/instance_level_ci_variables.html#update-instance-variable
 type UpdateInstanceVariableOptions struct {
 	Value        *string            `url:"value,omitempty" json:"value,omitempty"`
-	VariableType *VariableTypeValue `url:"variable_type,omitempty" json:"variable_type,omitempty"`
-	Protected    *bool              `url:"protected,omitempty" json:"protected,omitempty"`
+	Description  *string            `url:"description,omitempty" json:"description,omitempty"`
 	Masked       *bool              `url:"masked,omitempty" json:"masked,omitempty"`
+	Protected    *bool              `url:"protected,omitempty" json:"protected,omitempty"`
+	Raw          *bool              `url:"raw,omitempty" json:"raw,omitempty"`
+	VariableType *VariableTypeValue `url:"variable_type,omitempty" json:"variable_type,omitempty"`
 }
 
 // UpdateVariable updates the position of an existing
@@ -161,7 +167,7 @@ func (s *InstanceVariablesService) UpdateVariable(key string, opt *UpdateInstanc
 		return nil, resp, err
 	}
 
-	return v, resp, err
+	return v, resp, nil
 }
 
 // RemoveVariable removes an instance level CI variable.
