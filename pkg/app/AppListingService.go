@@ -25,11 +25,13 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	userrepository "github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	ciConfig "github.com/devtron-labs/devtron/pkg/build/pipeline/read"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	util2 "github.com/devtron-labs/devtron/util"
 	errors2 "github.com/juju/errors"
 	"go.opentelemetry.io/otel"
@@ -143,6 +145,7 @@ type AppListingServiceImpl struct {
 	deployedAppMetricsService      deployedAppMetrics.DeployedAppMetricsService
 	ciArtifactRepository           repository.CiArtifactRepository
 	envConfigOverrideReadService   read.EnvConfigOverrideService
+	ciPipelineConfigReadService    ciConfig.CiPipelineConfigReadService
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
@@ -153,7 +156,8 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 	chartRepository chartRepoRepository.ChartRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService, userRepository userrepository.UserRepository,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService, ciArtifactRepository repository.CiArtifactRepository,
-	envConfigOverrideReadService read.EnvConfigOverrideService) *AppListingServiceImpl {
+	envConfigOverrideReadService read.EnvConfigOverrideService,
+	ciPipelineConfigReadService ciConfig.CiPipelineConfigReadService) *AppListingServiceImpl {
 	serviceImpl := &AppListingServiceImpl{
 		Logger:                         Logger,
 		appListingRepository:           appListingRepository,
@@ -172,6 +176,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		deployedAppMetricsService:      deployedAppMetricsService,
 		ciArtifactRepository:           ciArtifactRepository,
 		envConfigOverrideReadService:   envConfigOverrideReadService,
+		ciPipelineConfigReadService:    ciPipelineConfigReadService,
 	}
 	return serviceImpl
 }
@@ -776,11 +781,28 @@ func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, a
 		}
 
 		if ciPipeline != nil && ciPipeline.CiTemplate != nil && len(*ciPipeline.CiTemplate.DockerRegistryId) > 0 {
-			dockerRegistryId := ciPipeline.CiTemplate.DockerRegistryId
-			appDetailContainer.DockerRegistryId = *dockerRegistryId
-			if !ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0 {
+			if !ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0 && ciPipeline.PipelineType != string(constants.LINKED_CD) {
 				appDetailContainer.IsExternalCi = false
 			}
+			// get dockerRegistryId starts
+			artifact, err := impl.ciArtifactRepository.Get(appDetailContainer.CiArtifactId)
+			if err != nil {
+				impl.Logger.Errorw("error in fetching ci artifact", "ciArtifactId", appDetailContainer.CiArtifactId, "error", err)
+				return bean.AppDetailContainer{}, err
+			}
+			dockerRegistryId, err := impl.ciPipelineConfigReadService.GetDockerRegistryIdForCiPipeline(ciPipelineId, artifact)
+			if err != nil {
+				impl.Logger.Errorw("error in fetching docker registry id", "ciPipelineId", ciPipelineId, "error", err)
+				return bean.AppDetailContainer{}, err
+			}
+
+			if dockerRegistryId == nil {
+				impl.Logger.Errorw("docker registry id not found", "ciPipelineId", ciPipelineId)
+				return appDetailContainer, nil
+			}
+			// get dockerRegistryId ends
+			appDetailContainer.DockerRegistryId = *dockerRegistryId
+
 			_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided")
 			// check ips access provided to this docker registry for that cluster
 			ipsAccessProvided, err := impl.dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided(*dockerRegistryId, clusterId, isVirtualEnv)
