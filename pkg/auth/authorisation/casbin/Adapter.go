@@ -83,12 +83,8 @@ func Create() (*casbin.SyncedEnforcer, error) {
 		log.Println(err)
 		return nil, err
 	}
-	dbSpecified := true
-	if config.CasbinDatabase == CasbinDefaultDatabase {
-		dbSpecified = false
-	}
 	dataSource := fmt.Sprintf("dbname=%s user=%s password=%s host=%s port=%s sslmode=disable", config.CasbinDatabase, config.User, config.Password, config.Addr, config.Port)
-	a, err := xormadapter.NewAdapter("postgres", dataSource, dbSpecified) // Your driver and data source.
+	a, err := xormadapter.NewAdapter("postgres", dataSource, true) // Your driver and data source.
 	if err != nil {
 		log.Println(err)
 		return nil, err

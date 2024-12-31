@@ -300,7 +300,7 @@ func (impl *CdWorkflowRepositoryImpl) FindLatestCdWorkflowRunnerByEnvironmentIdA
 	var wfr CdWorkflowRunner
 	err := impl.dbConnection.
 		Model(&wfr).
-		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline").
+		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
 		Where("p.environment_id = ?", environmentId).
 		Where("p.app_id = ?", appId).
 		Where("cd_workflow_runner.workflow_type = ?", runnerType).
