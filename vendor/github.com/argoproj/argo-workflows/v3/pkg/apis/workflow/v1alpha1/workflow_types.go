@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -131,6 +132,13 @@ type VolumeClaimGCStrategy string
 const (
 	VolumeClaimGCOnCompletion VolumeClaimGCStrategy = "OnWorkflowCompletion"
 	VolumeClaimGCOnSuccess    VolumeClaimGCStrategy = "OnWorkflowSuccess"
+)
+
+type HoldingNameVersion int
+
+const (
+	HoldingNameV1 HoldingNameVersion = 1
+	HoldingNameV2 HoldingNameVersion = 2
 )
 
 // Workflow is the definition of a workflow resource
@@ -992,6 +1000,11 @@ func (a *Artifact) CleanPath() error {
 	// Any resolved path should always be within the /tmp/safe/ directory.
 	safeDir := ""
 	slashDotDotRe := regexp.MustCompile(fmt.Sprintf(`%c..$`, os.PathSeparator))
+	if runtime.GOOS == "windows" {
+		// windows PathSeparator is \ and needs escaping
+		slashDotDotRe = regexp.MustCompile(fmt.Sprintf(`\%c..$`, os.PathSeparator))
+	}
+
 	slashDotDotSlash := fmt.Sprintf(`%c..%c`, os.PathSeparator, os.PathSeparator)
 	if strings.Contains(a.Path, slashDotDotSlash) {
 		safeDir = a.Path[:strings.Index(a.Path, slashDotDotSlash)]
@@ -1014,7 +1027,7 @@ type PodGC struct {
 	// LabelSelector is the label selector to check if the pods match the labels before being added to the pod GC queue.
 	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty" protobuf:"bytes,2,opt,name=labelSelector"`
 	// DeleteDelayDuration specifies the duration before pods in the GC queue get deleted.
-	DeleteDelayDuration *metav1.Duration `json:"deleteDelayDuration,omitempty" protobuf:"bytes,3,opt,name=deleteDelayDuration"`
+	DeleteDelayDuration string `json:"deleteDelayDuration,omitempty" protobuf:"bytes,3,opt,name=deleteDelayDuration"`
 }
 
 // GetLabelSelector gets the label selector from podGC.
@@ -1033,6 +1046,13 @@ func (podGC *PodGC) GetStrategy() PodGCStrategy {
 		return podGC.Strategy
 	}
 	return PodGCOnPodNone
+}
+
+func (podGC *PodGC) GetDeleteDelayDuration() (time.Duration, error) {
+	if podGC == nil || podGC.DeleteDelayDuration == "" {
+		return -1, nil // negative return means the field was omitted
+	}
+	return ParseStringToDuration(podGC.DeleteDelayDuration)
 }
 
 // WorkflowLevelArtifactGC describes how to delete artifacts from completed Workflows - this spec is used on the Workflow level
@@ -2377,9 +2397,25 @@ func (n NodeStatus) IsDaemoned() bool {
 	return true
 }
 
+// IsPartOfExitHandler returns whether node is part of exit handler.
+func (n *NodeStatus) IsPartOfExitHandler(nodes Nodes) bool {
+	currentNode := n
+	for !currentNode.IsExitNode() {
+		if currentNode.BoundaryID == "" {
+			return false
+		}
+		boundaryNode, err := nodes.Get(currentNode.BoundaryID)
+		if err != nil {
+			log.Panicf("was unable to obtain node for %s", currentNode.BoundaryID)
+		}
+		currentNode = boundaryNode
+	}
+	return true
+}
+
 // IsExitNode returns whether or not node run as exit handler.
-func (ws NodeStatus) IsExitNode() bool {
-	return strings.HasSuffix(ws.DisplayName, ".onExit")
+func (n NodeStatus) IsExitNode() bool {
+	return strings.HasSuffix(n.DisplayName, ".onExit")
 }
 
 func (n NodeStatus) Succeeded() bool {
@@ -2446,6 +2482,11 @@ func (n *NodeStatus) GetOutputs() *Outputs {
 // IsActiveSuspendNode returns whether this node is an active suspend node
 func (n *NodeStatus) IsActiveSuspendNode() bool {
 	return n.Type == NodeTypeSuspend && n.Phase == NodeRunning
+}
+
+// IsTaskSetNode returns whether this node uses the taskset
+func (n *NodeStatus) IsTaskSetNode() bool {
+	return n.Type == NodeTypeHTTP || n.Type == NodeTypePlugin
 }
 
 func (n NodeStatus) GetDuration() time.Duration {
@@ -3738,11 +3779,7 @@ func (ss *SemaphoreStatus) LockWaiting(holderKey, lockKey string, currentHolders
 
 func (ss *SemaphoreStatus) LockAcquired(holderKey, lockKey string, currentHolders []string) bool {
 	i, semaphoreHolding := ss.GetHolding(lockKey)
-	items := strings.Split(holderKey, "/")
-	if len(items) == 0 {
-		return false
-	}
-	holdingName := items[len(items)-1]
+	holdingName := holderKey
 	if i < 0 {
 		ss.Holding = append(ss.Holding, SemaphoreHolding{Semaphore: lockKey, Holders: []string{holdingName}})
 		return true
@@ -3756,11 +3793,8 @@ func (ss *SemaphoreStatus) LockAcquired(holderKey, lockKey string, currentHolder
 
 func (ss *SemaphoreStatus) LockReleased(holderKey, lockKey string) bool {
 	i, semaphoreHolding := ss.GetHolding(lockKey)
-	items := strings.Split(holderKey, "/")
-	if len(items) == 0 {
-		return false
-	}
-	holdingName := items[len(items)-1]
+	holdingName := holderKey
+
 	if i >= 0 {
 		semaphoreHolding.Holders = slice.RemoveString(semaphoreHolding.Holders, holdingName)
 		ss.Holding[i] = semaphoreHolding
@@ -3831,13 +3865,17 @@ func (ms *MutexStatus) LockWaiting(holderKey, lockKey string, currentHolders []s
 	return false
 }
 
+func CheckHolderKeyVersion(holderKey string) HoldingNameVersion {
+	items := strings.Split(holderKey, "/")
+	if len(items) == 2 || len(items) == 3 {
+		return HoldingNameV2
+	}
+	return HoldingNameV1
+}
+
 func (ms *MutexStatus) LockAcquired(holderKey, lockKey string, currentHolders []string) bool {
 	i, mutexHolding := ms.GetHolding(lockKey)
-	items := strings.Split(holderKey, "/")
-	if len(items) == 0 {
-		return false
-	}
-	holdingName := items[len(items)-1]
+	holdingName := holderKey
 	if i < 0 {
 		ms.Holding = append(ms.Holding, MutexHolding{Mutex: lockKey, Holder: holdingName})
 		return true
@@ -3851,11 +3889,7 @@ func (ms *MutexStatus) LockAcquired(holderKey, lockKey string, currentHolders []
 
 func (ms *MutexStatus) LockReleased(holderKey, lockKey string) bool {
 	i, holder := ms.GetHolding(lockKey)
-	items := strings.Split(holderKey, "/")
-	if len(items) == 0 {
-		return false
-	}
-	holdingName := items[len(items)-1]
+	holdingName := holderKey
 	if i >= 0 && holder.Holder == holdingName {
 		ms.Holding = append(ms.Holding[:i], ms.Holding[i+1:]...)
 		return true

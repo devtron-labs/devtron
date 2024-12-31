@@ -337,6 +337,7 @@ func (impl *K8sServiceImpl) GetNsIfExists(namespace string, client *v12.CoreV1Cl
 	//ns, err := impl.k8sClient.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
 	impl.logger.Debugw("ns fetch", "name", namespace, "res", ns)
 	if errors.IsNotFound(err) {
+		impl.logger.Debugw("namespace not found", "name", namespace, "err", err)
 		return nil, false, nil
 	} else if err != nil {
 		impl.logger.Errorw("error in checking if ns exist", "err", err)
