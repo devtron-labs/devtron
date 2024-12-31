@@ -330,7 +330,7 @@
           },
           "successfulJobsHistoryLimit": {
             "type": "integer",
-            "description": "    The number of successful finished jobs to retain. Value must be non-negative integer. Defaults to 3.",
+            "description": "The number of successful finished jobs to retain. Value must be non-negative integer. Defaults to 3.",
             "title": "Successful  Jobs History Limit"
           },
           "suspend":{
@@ -351,7 +351,7 @@
           },
           "backoffLimit":{
             "type":"integer",
-            "description": "    Specifies the number of retries before marking this job failed. Defaults is 5"
+            "description": "Specifies the number of retries before marking this job failed. Defaults is 5"
           },
           "completions":{
             "type":"integer",
@@ -366,7 +366,7 @@
           "description": "This flag tells the controller to suspend subsequent executions, it does not apply to already started executions.  Defaults is false."
         }
       }
-    },
+       },
       "kind":{
         "type": "string",
         "description": "Kind is a string value representing the object type.",
@@ -707,7 +707,9 @@
             "title": "Name"
           },
           "create": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "If set to true, a service account will be created, ensuring that no roles or role bindings are created in the process."
+
           }
         }
       },
