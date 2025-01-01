@@ -549,6 +549,7 @@ func (impl *ClusterServiceImpl) FindAllForAutoComplete() ([]bean.ClusterBean, er
 			ErrorInConnecting: m.ErrorInConnecting,
 			IsCdArgoSetup:     m.CdArgoSetup,
 			IsVirtualCluster:  m.IsVirtualCluster,
+			IsProd:            m.IsProd,
 		})
 	}
 	return beans, nil
