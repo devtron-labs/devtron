@@ -13,7 +13,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
-	"github.com/devtron-labs/devtron/util/argo"
 	"go.uber.org/zap"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -29,7 +28,6 @@ type ArgoApplicationReadServiceImpl struct {
 	logger            *zap.SugaredLogger
 	clusterRepository clusterRepository.ClusterRepository
 	k8sUtil           *k8s.K8sServiceImpl
-	argoUserService   argo.ArgoUserService
 	helmAppClient     gRPC.HelmAppClient
 	helmAppService    service.HelmAppService
 }
@@ -37,13 +35,12 @@ type ArgoApplicationReadServiceImpl struct {
 func NewArgoApplicationReadServiceImpl(logger *zap.SugaredLogger,
 	clusterRepository clusterRepository.ClusterRepository,
 	k8sUtil *k8s.K8sServiceImpl,
-	argoUserService argo.ArgoUserService, helmAppClient gRPC.HelmAppClient,
+	helmAppClient gRPC.HelmAppClient,
 	helmAppService service.HelmAppService) *ArgoApplicationReadServiceImpl {
 	return &ArgoApplicationReadServiceImpl{
 		logger:            logger,
 		clusterRepository: clusterRepository,
 		k8sUtil:           k8sUtil,
-		argoUserService:   argoUserService,
 		helmAppService:    helmAppService,
 		helmAppClient:     helmAppClient,
 	}

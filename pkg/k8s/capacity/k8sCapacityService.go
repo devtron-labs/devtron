@@ -26,6 +26,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
+	bean3 "github.com/devtron-labs/devtron/pkg/k8s/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s/capacity/bean"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
@@ -488,7 +489,7 @@ func (impl *K8sCapacityServiceImpl) updateManifestData(ctx context.Context, node
 			},
 		},
 	}
-	request := &k8s.ResourceRequestBean{
+	request := &bean3.ResourceRequestBean{
 		K8sRequest: manifestRequest,
 		ClusterId:  clusterId,
 	}
@@ -565,7 +566,7 @@ func (impl *K8sCapacityServiceImpl) UpdateNodeManifest(ctx context.Context, requ
 		},
 		Patch: request.ManifestPatch,
 	}
-	requestResourceBean := &k8s.ResourceRequestBean{K8sRequest: manifestUpdateReq, ClusterId: request.ClusterId}
+	requestResourceBean := &bean3.ResourceRequestBean{K8sRequest: manifestUpdateReq, ClusterId: request.ClusterId}
 	manifestResponse, err := impl.k8sCommonService.UpdateResource(ctx, requestResourceBean)
 	if err != nil {
 		impl.logger.Errorw("error in updating node manifest", "err", err)
@@ -585,7 +586,7 @@ func (impl *K8sCapacityServiceImpl) DeleteNode(ctx context.Context, request *bea
 			},
 		},
 	}
-	resourceRequest := &k8s.ResourceRequestBean{K8sRequest: deleteReq, ClusterId: request.ClusterId}
+	resourceRequest := &bean3.ResourceRequestBean{K8sRequest: deleteReq, ClusterId: request.ClusterId}
 	// Here Sending userId as 0 as appIdentifier is being sent nil so user id is not used in method. Update userid if appIdentifier is used
 	manifestResponse, err := impl.k8sCommonService.DeleteResource(ctx, resourceRequest)
 	if err != nil {
@@ -593,7 +594,7 @@ func (impl *K8sCapacityServiceImpl) DeleteNode(ctx context.Context, request *bea
 			return nil, &utils.ApiError{Code: "404",
 				HttpStatusCode:  http.StatusNotFound,
 				InternalMessage: err.Error(),
-				UserMessage:     k8s.ResourceNotFoundErr}
+				UserMessage:     bean3.ResourceNotFoundErr}
 		}
 		impl.logger.Errorw("error in deleting node", "err", err)
 		return nil, err

@@ -86,6 +86,7 @@ import (
 	repocreds "github.com/devtron-labs/devtron/client/argocdServer/repocreds"
 	repository2 "github.com/devtron-labs/devtron/client/argocdServer/repository"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
+	"github.com/devtron-labs/devtron/client/argocdServer/version"
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	eClient "github.com/devtron-labs/devtron/client/events"
@@ -167,7 +168,6 @@ import (
 	workflow3 "github.com/devtron-labs/devtron/pkg/workflow"
 	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	util2 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	cron2 "github.com/devtron-labs/devtron/util/cron"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/google/wire"
@@ -449,8 +449,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository8.ImageTaggingRepository), new(*repository8.ImageTaggingRepositoryImpl)),
 		imageTagging.NewImageTaggingServiceImpl,
 		wire.Bind(new(imageTagging.ImageTaggingService), new(*imageTagging.ImageTaggingServiceImpl)),
-		argocdServer.NewVersionServiceImpl,
-		wire.Bind(new(argocdServer.VersionService), new(*argocdServer.VersionServiceImpl)),
+		version.NewVersionServiceImpl,
+		wire.Bind(new(version.VersionService), new(*version.VersionServiceImpl)),
 
 		router.NewGitProviderRouterImpl,
 		wire.Bind(new(router.GitProviderRouter), new(*router.GitProviderRouterImpl)),
@@ -801,9 +801,9 @@ func InitializeApp() (*App, error) {
 
 		connection.NewArgoCDConnectionManagerImpl,
 		wire.Bind(new(connection.ArgoCDConnectionManager), new(*connection.ArgoCDConnectionManagerImpl)),
-		argo.NewArgoUserServiceImpl,
-		wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
-		//util2.GetEnvironmentVariables,
+		//argo.NewArgoUserServiceImpl,
+		//wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
+		////util2.GetEnvironmentVariables,
 		//	AuthWireSet,
 
 		cron.NewCdApplicationStatusUpdateHandlerImpl,

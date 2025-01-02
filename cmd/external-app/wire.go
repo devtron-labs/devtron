@@ -82,7 +82,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/cron"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/google/wire"
@@ -201,8 +200,8 @@ func InitializeApp() (*App, error) {
 			new(*dashboardEvent.DashboardTelemetryRouterImpl)),
 
 		//binding argoUserService to helm via dummy implementation(HelmUserServiceImpl)
-		argo.NewHelmUserServiceImpl,
-		wire.Bind(new(argo.ArgoUserService), new(*argo.HelmUserServiceImpl)),
+		//argo.NewHelmUserServiceImpl,
+		//wire.Bind(new(argo.ArgoUserService), new(*argo.HelmUserServiceImpl)),
 
 		router.NewUserAttributesRouterImpl,
 		wire.Bind(new(router.UserAttributesRouter), new(*router.UserAttributesRouterImpl)),
