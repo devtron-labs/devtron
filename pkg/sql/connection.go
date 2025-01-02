@@ -17,7 +17,8 @@
 package sql
 
 import (
-	"github.com/devtron-labs/devtron/internal/middleware"
+	"github.com/devtron-labs/common-lib/utils"
+	"github.com/devtron-labs/common-lib/utils/bean"
 	"go.uber.org/zap"
 	"reflect"
 	"time"
@@ -33,9 +34,10 @@ type Config struct {
 	Password               string `env:"PG_PASSWORD" envDefault:"" secretData:"-"`
 	Database               string `env:"PG_DATABASE" envDefault:"orchestrator"`
 	CasbinDatabase         string `env:"CASBIN_DATABASE" envDefault:"casbin"`
-	ApplicationName string `env:"APP" envDefault:"orchestrator" envDescription:"Application name"`
+	ApplicationName        string `env:"APP" envDefault:"orchestrator" envDescription:"Application name"`
 	LogQuery               bool   `env:"PG_LOG_QUERY" envDefault:"true"`
 	LogAllQuery            bool   `env:"PG_LOG_ALL_QUERY" envDefault:"false"`
+	LogAllFailureQueries   bool   `env:"PG_LOG_ALL_FAILURE_QUERIES" envDefault:"true"`
 	ExportPromMetrics      bool   `env:"PG_EXPORT_PROM_METRICS" envDefault:"false"`
 	QueryDurationThreshold int64  `env:"PG_QUERY_DUR_THRESHOLD" envDefault:"5000"`
 	ReadTimeout            int64  `env:"PG_READ_TIMEOUT" envDefault:"30"`
@@ -71,29 +73,19 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 	}
 
 	// --------------
-	dbConnection.OnQueryProcessed(func(event *pg.QueryProcessedEvent) {
-		queryDuration := time.Since(event.StartTime)
-
-		// Expose prom metrics
-		if cfg.ExportPromMetrics {
-			middleware.PgQueryDuration.WithLabelValues("value").Observe(queryDuration.Seconds())
-		}
-
-		query, err := event.FormattedQuery()
-		if err != nil {
-			logger.Errorw("Error formatting query",
-				"err", err)
-			return
-		}
-
-		// Log pg query if enabled
-		if cfg.LogAllQuery || (cfg.LogQuery && queryDuration.Milliseconds() > cfg.QueryDurationThreshold) {
-			logger.Debugw("query time",
-				"duration", queryDuration.Seconds(),
-				"query", query)
-		}
-	})
+	dbConnection.OnQueryProcessed(utils.GetQueryProcessedFunction(getPgQueryConfig(cfg)))
 	return dbConnection, err
+}
+
+func getPgQueryConfig(cfg *Config) bean.PgQueryConfig {
+	return bean.PgQueryConfig{
+		LogQuery:               cfg.LogQuery,
+		LogAllQuery:            cfg.LogAllQuery,
+		LogAllFailureQueries:   cfg.LogAllFailureQueries,
+		ExportPromMetrics:      cfg.ExportPromMetrics,
+		QueryDurationThreshold: cfg.QueryDurationThreshold,
+		ServiceName:            cfg.ApplicationName,
+	}
 }
 
 func obfuscateSecretTags(cfg interface{}) interface{} {
