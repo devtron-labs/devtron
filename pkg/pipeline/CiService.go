@@ -824,7 +824,11 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		workflowRequest.AppName = pipeline.App.DisplayName
 	}
 	//in oss, there is no pipeline level workflow cache config, so we pass inherit to get the app level config
-	workflowCacheConfig := impl.ciCdPipelineOrchestrator.GetWorkflowCacheConfig(pipeline.App.AppType, trigger.PipelineType, common.WorkflowCacheConfigInherit)
+	workflowCacheConfig, err := impl.ciCdPipelineOrchestrator.GetWorkflowCacheConfig(pipeline.App.AppType, trigger.PipelineType, common.WorkflowCacheConfigInherit)
+	if err != nil {
+		impl.Logger.Errorw("error in getting workflow cache config", "appType", pipeline.App.AppType, "pipelineType", trigger.PipelineType, "err", err)
+		return nil, err
+	}
 	workflowRequest.IgnoreDockerCachePush = !workflowCacheConfig.Value
 	workflowRequest.IgnoreDockerCachePull = !workflowCacheConfig.Value
 	impl.Logger.Debugw("Ignore Cache values", "IgnoreDockerCachePush", workflowRequest.IgnoreDockerCachePush, "IgnoreDockerCachePull", workflowRequest.IgnoreDockerCachePull)
