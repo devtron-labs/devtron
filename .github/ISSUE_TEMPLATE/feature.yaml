@@ -1,7 +1,7 @@
 name: 🚀 Feature
 description: "Submit a proposal for a new feature"
 title: "Feature: "
-labels: ["enhancement"]
+labels: ["enhancement", "needs-triage"]
 assignees: ["prakarsh-dt","nishant-d","abhibhaw"]
 projects: ["Devtron Features Prioritization"]
 body:
