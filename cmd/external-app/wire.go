@@ -52,6 +52,7 @@ import (
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/terminal"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
+	"github.com/devtron-labs/devtron/client/argocdServer/repoCredsK8sClient"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/telemetry"
@@ -67,7 +68,6 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/chartGroup/repository"
 	deployment2 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/EAMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
-	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
@@ -255,8 +255,8 @@ func InitializeApp() (*App, error) {
 
 		wire.Bind(new(util4.K8sService), new(*util4.K8sServiceImpl)),
 
-		argoRepositoryCreds.NewRepositorySecret,
-		wire.Bind(new(argoRepositoryCreds.RepositorySecret), new(*argoRepositoryCreds.RepositorySecretImpl)),
+		repoCredsK8sClient.NewRepositorySecret,
+		wire.Bind(new(repoCredsK8sClient.RepositoryCreds), new(*repoCredsK8sClient.RepositorySecretImpl)),
 
 		dbMigration.NewDbMigrationServiceImpl,
 		wire.Bind(new(dbMigration.DbMigration), new(*dbMigration.DbMigrationServiceImpl)),

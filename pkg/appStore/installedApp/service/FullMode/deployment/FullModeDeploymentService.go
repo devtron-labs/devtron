@@ -23,9 +23,9 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/client/argocdServer/repoCredsK8sClient"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
-	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
@@ -97,7 +97,7 @@ type FullModeDeploymentServiceImpl struct {
 	environmentRepository                repository5.EnvironmentRepository
 	deploymentConfigService              common.DeploymentConfigService
 	chartTemplateService                 util.ChartTemplateService
-	RepositorySecretService              argoRepositoryCreds.RepositorySecret
+	RepositorySecretService              repoCredsK8sClient.RepositoryCreds
 }
 
 func NewFullModeDeploymentServiceImpl(
@@ -123,7 +123,7 @@ func NewFullModeDeploymentServiceImpl(
 	environmentRepository repository5.EnvironmentRepository,
 	deploymentConfigService common.DeploymentConfigService,
 	chartTemplateService util.ChartTemplateService,
-	RepositorySecretService argoRepositoryCreds.RepositorySecret) *FullModeDeploymentServiceImpl {
+	RepositorySecretService repoCredsK8sClient.RepositoryCreds) *FullModeDeploymentServiceImpl {
 	return &FullModeDeploymentServiceImpl{
 		Logger:                               logger,
 		acdClient:                            acdClient,
