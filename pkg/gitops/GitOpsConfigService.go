@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/client/argocdServer/certificate"
+	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	repocreds "github.com/devtron-labs/devtron/client/argocdServer/repocreds"
 	repository2 "github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -45,7 +46,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -67,7 +67,6 @@ type GitOpsConfigServiceImpl struct {
 	K8sUtil                 *util4.K8sServiceImpl
 	aCDAuthConfig           *util3.ACDAuthConfig
 	clusterService          cluster.ClusterService
-	argoUserService         argo.ArgoUserService
 	clusterServiceCD        cluster2.ServiceClient
 	gitOpsConfigReadService config.GitOpsConfigReadService
 	gitOperationService     git.GitOperationService
@@ -75,27 +74,29 @@ type GitOpsConfigServiceImpl struct {
 	argoCertificateClient   certificate.Client
 	argoRepoService         repository2.ServiceClient
 	repocreds               repocreds.ServiceClient
+	devtronSecretConfig     *util2.DevtronSecretConfig
+	argoCDConnectionManager connection.ArgoCDConnectionManager
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
 	gitOpsRepository repository.GitOpsConfigRepository,
 	K8sUtil *util4.K8sServiceImpl, aCDAuthConfig *util3.ACDAuthConfig,
 	clusterService cluster.ClusterService,
-	argoUserService argo.ArgoUserService,
 	clusterServiceCD cluster2.ServiceClient,
 	gitOperationService git.GitOperationService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitOpsValidationService validation.GitOpsValidationService,
 	argoCertificateClient certificate.Client,
 	argoRepoService repository2.ServiceClient,
-	repocreds repocreds.ServiceClient) *GitOpsConfigServiceImpl {
+	repocreds repocreds.ServiceClient,
+	environmentVariables *util2.EnvironmentVariables,
+	argoCDConnectionManager connection.ArgoCDConnectionManager) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
 		logger:                  Logger,
 		gitOpsRepository:        gitOpsRepository,
 		K8sUtil:                 K8sUtil,
 		aCDAuthConfig:           aCDAuthConfig,
 		clusterService:          clusterService,
-		argoUserService:         argoUserService,
 		clusterServiceCD:        clusterServiceCD,
 		gitOpsConfigReadService: gitOpsConfigReadService,
 		gitOperationService:     gitOperationService,
@@ -103,6 +104,8 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
 		argoCertificateClient:   argoCertificateClient,
 		argoRepoService:         argoRepoService,
 		repocreds:               repocreds,
+		devtronSecretConfig:     environmentVariables.DevtronSecretConfig,
+		argoCDConnectionManager: argoCDConnectionManager,
 	}
 }
 
@@ -110,9 +113,8 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *apiBe
 	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
 		//create argo-cd user, if not created, here argo-cd integration has to be installed
-		token := impl.argoUserService.GetOrUpdateArgoCdUserDetail()
-		ctx := context.WithValue(context.Background(), "token", token)
-		_, err := impl.createGitOpsConfig(ctx, config)
+		_ = impl.argoCDConnectionManager.GetOrUpdateArgoCdUserDetail()
+		_, err := impl.createGitOpsConfig(context.Background(), config)
 		if err != nil {
 			impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", config)
 			return detailedErrorGitOpsConfigResponse, err
@@ -164,6 +166,7 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *apiBe
 			}
 		}
 	}
+	_ = impl.argoCDConnectionManager.GetOrUpdateArgoCdUserDetail()
 	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
 		err := impl.updateGitOpsConfig(config)
@@ -560,19 +563,12 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 
 	if model.EnableTLSVerification {
 
-		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			impl.logger.Errorw("error in getting acd token", "err", err)
-			return err
-		}
-		ctx := context.WithValue(context.Background(), "token", acdToken)
-
 		err = impl.gitOperationService.UpdateGitHostUrlByProvider(request)
 		if err != nil {
 			return err
 		}
 
-		_, err = impl.repocreds.CreateRepoCreds(ctx, &repocreds2.RepoCredsCreateRequest{
+		_, err = impl.repocreds.CreateRepoCreds(context.Background(), &repocreds2.RepoCredsCreateRequest{
 			Creds: &v1alpha1.RepoCreds{
 				URL:               request.Host,
 				Username:          model.Username,
@@ -587,7 +583,7 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 			return err
 		}
 
-		err = impl.addCACertInArgoIfPresent(ctx, model)
+		err = impl.addCACertInArgoIfPresent(context.Background(), model)
 		if err != nil {
 			impl.logger.Errorw("error in adding ca cert to argo", "err", err)
 			return err

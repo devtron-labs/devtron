@@ -3,13 +3,13 @@ package read
 import (
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
-	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster/read"
 	"go.uber.org/zap"
 )
 
 type HelmAppReadServiceImpl struct {
-	logger         *zap.SugaredLogger
-	clusterService cluster.ClusterService
+	logger             *zap.SugaredLogger
+	clusterReadService read.ClusterReadService
 }
 
 type HelmAppReadService interface {
@@ -17,16 +17,16 @@ type HelmAppReadService interface {
 }
 
 func NewHelmAppReadServiceImpl(logger *zap.SugaredLogger,
-	clusterService cluster.ClusterService,
+	clusterReadService read.ClusterReadService,
 ) *HelmAppReadServiceImpl {
 	return &HelmAppReadServiceImpl{
-		clusterService: clusterService,
-		logger:         logger,
+		logger:             logger,
+		clusterReadService: clusterReadService,
 	}
 }
 
 func (impl *HelmAppReadServiceImpl) GetClusterConf(clusterId int) (*gRPC.ClusterConfig, error) {
-	cluster, err := impl.clusterService.FindById(clusterId)
+	cluster, err := impl.clusterReadService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err

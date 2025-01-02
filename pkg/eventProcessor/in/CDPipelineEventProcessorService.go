@@ -29,7 +29,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	"github.com/devtron-labs/devtron/pkg/workflow/status"
-	"github.com/devtron-labs/devtron/util/argo"
 	"go.uber.org/zap"
 	"k8s.io/utils/pointer"
 )
@@ -40,7 +39,6 @@ type CDPipelineEventProcessorImpl struct {
 	cdWorkflowCommonService cd.CdWorkflowCommonService
 	workflowStatusService   status.WorkflowStatusService
 	cdTriggerService        devtronApps.TriggerService
-	argoUserService         argo.ArgoUserService
 	pipelineRepository      pipelineConfig.PipelineRepository
 	installedAppReadService installedAppReader.InstalledAppReadService
 }
@@ -50,7 +48,6 @@ func NewCDPipelineEventProcessorImpl(logger *zap.SugaredLogger,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
 	workflowStatusService status.WorkflowStatusService,
 	cdTriggerService devtronApps.TriggerService,
-	argoUserService argo.ArgoUserService,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	installedAppReadService installedAppReader.InstalledAppReadService) *CDPipelineEventProcessorImpl {
 	cdPipelineEventProcessorImpl := &CDPipelineEventProcessorImpl{
@@ -59,7 +56,6 @@ func NewCDPipelineEventProcessorImpl(logger *zap.SugaredLogger,
 		cdWorkflowCommonService: cdWorkflowCommonService,
 		workflowStatusService:   workflowStatusService,
 		cdTriggerService:        cdTriggerService,
-		argoUserService:         argoUserService,
 		pipelineRepository:      pipelineRepository,
 		installedAppReadService: installedAppReadService,
 	}
@@ -77,14 +73,10 @@ func (impl *CDPipelineEventProcessorImpl) SubscribeCDBulkTriggerTopic() error {
 		}
 		event.ValuesOverrideRequest.UserId = event.UserId
 		// trigger
-		ctx, err := impl.argoUserService.GetACDContext(context2.Background())
-		if err != nil {
-			impl.logger.Errorw("error in creating acd context", "err", err)
-			return
-		}
+
 		triggerContext := bean2.TriggerContext{
 			ReferenceId: pointer.String(msg.MsgId),
-			Context:     ctx,
+			Context:     context2.Background(),
 		}
 		_, _, _, err = impl.cdTriggerService.ManualCdTrigger(triggerContext, event.ValuesOverrideRequest)
 		if err != nil {
