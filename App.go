@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/common-lib/middlewares"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
@@ -137,7 +138,7 @@ func (app *App) Start() {
 		err = server.ListenAndServe()
 	}
 	//err := http.ListenAndServe(fmt.Sprintf(":%d", port), auth.Authorizer(app.Enforcer, app.sessionManager)(app.MuxRouter.Router))
-	if err != nil {
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		app.Logger.Errorw("error in startup", "err", err)
 		os.Exit(2)
 	}
