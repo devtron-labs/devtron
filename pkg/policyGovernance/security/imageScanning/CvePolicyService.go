@@ -74,6 +74,7 @@ type PolicyServiceImpl struct {
 	cveStoreRepository            repository3.CveStoreRepository
 	ciTemplateRepository          pipelineConfig.CiTemplateRepository
 	ClusterReadService            read2.ClusterReadService
+	transactionManager            sql.TransactionWrapper
 }
 
 func NewPolicyServiceImpl(environmentService environment.EnvironmentService,
@@ -90,7 +91,8 @@ func NewPolicyServiceImpl(environmentService environment.EnvironmentService,
 	imageScanHistoryReadService read.ImageScanHistoryReadService,
 	cveStoreRepository repository3.CveStoreRepository,
 	ciTemplateRepository pipelineConfig.CiTemplateRepository,
-	ClusterReadService read2.ClusterReadService) *PolicyServiceImpl {
+	ClusterReadService read2.ClusterReadService,
+	transactionManager sql.TransactionWrapper) *PolicyServiceImpl {
 	return &PolicyServiceImpl{
 		environmentService:            environmentService,
 		logger:                        logger,
@@ -109,6 +111,7 @@ func NewPolicyServiceImpl(environmentService environment.EnvironmentService,
 		cveStoreRepository:            cveStoreRepository,
 		ciTemplateRepository:          ciTemplateRepository,
 		ClusterReadService:            ClusterReadService,
+		transactionManager:            transactionManager,
 	}
 }
 
@@ -434,6 +437,19 @@ func (impl *PolicyServiceImpl) parsePolicyAction(action string) (securityBean.Po
 }
 
 func (impl *PolicyServiceImpl) SavePolicy(request bean.CreateVulnerabilityPolicyRequest, userId int32) (*bean.IdVulnerabilityPolicyResult, error) {
+	// before performing any action check if this cveId is already active and saved
+	tx, err := impl.transactionManager.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in creating transaction", "request", request, "err", err)
+		return nil, err
+	}
+	defer func() {
+		err = impl.transactionManager.RollbackTx(tx)
+		if err != nil {
+			impl.logger.Infow("error in rolling back transaction", "request", request, "err", err)
+		}
+	}()
+
 	action, err := impl.parsePolicyAction(string(*request.Action))
 	if err != nil {
 		impl.logger.Errorw("error in parsing policy action", "action", request.Action, "err", err)
@@ -456,9 +472,14 @@ func (impl *PolicyServiceImpl) SavePolicy(request bean.CreateVulnerabilityPolicy
 		}
 		severity = cveStore.GetSeverity()
 	}
-	policy, err := impl.cvePolicyRepository.SavePolicy(adapter.BuildCvePolicy(request, action, severity, time.Now(), userId))
+	policy, err := impl.cvePolicyRepository.SavePolicy(tx, adapter.BuildCvePolicy(request, action, severity, time.Now(), userId))
 	if err != nil {
 		impl.logger.Errorw("error in saving policy", "request", request, "err", err)
+		return nil, err
+	}
+	err = impl.transactionManager.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing tx Create material", "request", request, "err", err)
 		return nil, err
 	}
 	return &bean.IdVulnerabilityPolicyResult{Id: policy.Id}, nil

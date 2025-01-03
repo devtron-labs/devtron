@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
+	"go.uber.org/zap"
 	"time"
 )
 
@@ -59,17 +60,19 @@ type CvePolicyRepository interface {
 	GetClusterPolicies(clusterId int) (policies []*CvePolicy, err error)
 	GetEnvPolicies(clusterId int, environmentId int) (policies []*CvePolicy, err error)
 	GetAppEnvPolicies(clusterId int, environmentId int, appId int) (policies []*CvePolicy, err error)
-	SavePolicy(policy *CvePolicy) (*CvePolicy, error)
+	SavePolicy(tx *pg.Tx, policy *CvePolicy) (*CvePolicy, error)
 	UpdatePolicy(policy *CvePolicy) (*CvePolicy, error)
 	GetById(id int) (*CvePolicy, error)
 	GetBlockedCVEList(cves []*CveStore, clusterId, envId, appId int, isAppstore bool) ([]*CveStore, error)
+	GetActiveByCveId(cveId string, envId, appId, clusterId int) (policies []*CvePolicy, err error)
 }
 type CvePolicyRepositoryImpl struct {
 	dbConnection *pg.DB
+	logger       *zap.SugaredLogger
 }
 
-func NewPolicyRepositoryImpl(dbConnection *pg.DB) *CvePolicyRepositoryImpl {
-	return &CvePolicyRepositoryImpl{dbConnection: dbConnection}
+func NewPolicyRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *CvePolicyRepositoryImpl {
+	return &CvePolicyRepositoryImpl{dbConnection: dbConnection, logger: logger}
 }
 func (impl *CvePolicyRepositoryImpl) GetGlobalPolicies() (policies []*CvePolicy, err error) {
 	err = impl.dbConnection.Model(&policies).
@@ -126,6 +129,10 @@ func (impl *CvePolicyRepositoryImpl) GetAppEnvPolicies(clusterId int, environmen
 				WhereOrGroup(func(sq *orm.Query) (*orm.Query, error) {
 					sq = sq.Where("app_id = ?", appId).Where("env_id = ?", environmentId)
 					return sq, nil
+				}).
+				WhereOrGroup(func(sq *orm.Query) (*orm.Query, error) {
+					sq = sq.Where("app_id = ?", appId).Where("env_id is null")
+					return sq, nil
 				})
 			//WhereOr("app_id = ?", appId)
 			return q, nil
@@ -135,7 +142,7 @@ func (impl *CvePolicyRepositoryImpl) GetAppEnvPolicies(clusterId int, environmen
 	return policies, err
 }
 
-func (impl *CvePolicyRepositoryImpl) SavePolicy(policy *CvePolicy) (*CvePolicy, error) {
+func (impl *CvePolicyRepositoryImpl) SavePolicy(tx *pg.Tx, policy *CvePolicy) (*CvePolicy, error) {
 	var policies []*CvePolicy
 	err := impl.dbConnection.Model(&policies).
 		Column("cve_policy.*").
@@ -301,4 +308,26 @@ func (impl *CvePolicyRepositoryImpl) getHighestPolicyS(allPolicies map[securityB
 		applicablePolicies[key] = applicablePolicy
 	}
 	return applicablePolicies
+}
+
+func (impl *CvePolicyRepositoryImpl) GetActiveByCveId(cveId string, envId, appId, clusterId int) (policies []*CvePolicy, err error) {
+	query := impl.dbConnection.Model(&policies).
+		Column("cve_policy.*").
+		Where("deleted = ?", false).
+		Where("cve_store_id = ?", cveId)
+	if envId > 0 {
+		query = query.Where("envId = ?", envId)
+	}
+	if appId > 0 {
+		query = query.Where("appId = ?", appId)
+	}
+	if clusterId > 0 {
+		query = query.Where("clusterId = ?", clusterId)
+	}
+	err = query.Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting active cvePolicies by cveId", "cveId", cveId, "err", err)
+		return nil, err
+	}
+	return policies, nil
 }
