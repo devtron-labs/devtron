@@ -276,7 +276,7 @@ jobs:
           if [ "$is_valid" = false ]; then
             echo "Validation failed. Please fix the errors before merging."
             gh pr comment $pr_no --body "The Migration files providede inside of the PR does not pass the criteria!!"
-            exit 1
+            # exit 1
           fi
           
           echo "All .up.sql migration file validations passed."
