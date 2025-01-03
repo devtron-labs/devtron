@@ -17,7 +17,6 @@
 package repository
 
 import (
-	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
@@ -69,7 +68,7 @@ type ExecutionData struct {
 	SourceType    SourceType
 	SourceSubType SourceSubType
 	Types         []int `sql:"types" pg:",array"`
-	Status        serverBean.ScanExecutionProcessState
+	Status        ScanExecutionProcessState
 }
 
 // multiple history rows for one source event
@@ -97,6 +96,7 @@ type ImageScanHistoryRepository interface {
 	FindByIds(ids []int) ([]*ImageScanExecutionHistory, error)
 	Update(model *ImageScanExecutionHistory) error
 	FindByImage(image string) (*ImageScanExecutionHistory, error)
+	FindByImageAndDigestWithHistoryMapping(imageDigest string, image string) (*ImageScanExecutionHistory, error)
 }
 
 type ImageScanHistoryRepositoryImpl struct {
@@ -161,5 +161,15 @@ func (impl ImageScanHistoryRepositoryImpl) FindByImage(image string) (*ImageScan
 	var model ImageScanExecutionHistory
 	err := impl.dbConnection.Model(&model).
 		Where("image = ?", image).Order("execution_time desc").Limit(1).Select()
+	return &model, err
+}
+
+func (impl ImageScanHistoryRepositoryImpl) FindByImageAndDigestWithHistoryMapping(imageDigest string, image string) (*ImageScanExecutionHistory, error) {
+	var model ImageScanExecutionHistory
+	err := impl.dbConnection.Model(&model).
+		Column("image_scan_execution_history.*", "ScanToolExecutionHistoryMapping").
+		Where("image_hash = ?", imageDigest).
+		Where("image = ?", image).
+		Order("execution_time desc").Limit(1).Select()
 	return &model, err
 }

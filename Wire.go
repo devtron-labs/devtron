@@ -46,6 +46,7 @@ import (
 	"github.com/devtron-labs/devtron/api/infraConfig"
 	"github.com/devtron-labs/devtron/api/k8s"
 	"github.com/devtron-labs/devtron/api/module"
+	"github.com/devtron-labs/devtron/api/resourceScan"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/devtron-labs/devtron/api/restHandler/app/appInfo"
 	appList2 "github.com/devtron-labs/devtron/api/restHandler/app/appList"
@@ -141,7 +142,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
-	infraConfigService "github.com/devtron-labs/devtron/pkg/infraConfig"
+	repository11 "github.com/devtron-labs/devtron/pkg/infraConfig/repository"
+	infraConfigService "github.com/devtron-labs/devtron/pkg/infraConfig/service"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository7 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
@@ -210,6 +212,7 @@ func InitializeApp() (*App, error) {
 		imageTagging.WireSet,
 		devtronResource.DevtronResourceWireSet,
 		policyGovernance.PolicyGovernanceWireSet,
+		resourceScan.ScanningResultWireSet,
 
 		// -------wireset end ----------
 		// -------
@@ -275,8 +278,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(dashboardEvent.DashboardTelemetryRouter),
 			new(*dashboardEvent.DashboardTelemetryRouterImpl)),
 
-		infraConfigService.NewInfraProfileRepositoryImpl,
-		wire.Bind(new(infraConfigService.InfraConfigRepository), new(*infraConfigService.InfraConfigRepositoryImpl)),
+		repository11.NewInfraProfileRepositoryImpl,
+		wire.Bind(new(repository11.InfraConfigRepository), new(*repository11.InfraConfigRepositoryImpl)),
 
 		units.NewUnits,
 		infraConfigService.NewInfraConfigServiceImpl,
