@@ -30,6 +30,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/read"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
@@ -450,23 +452,24 @@ type TerminalSessionHandler interface {
 
 type TerminalSessionHandlerImpl struct {
 	environmentService           environment.EnvironmentService
-	clusterService               cluster.ClusterService
 	logger                       *zap.SugaredLogger
 	k8sUtil                      *k8s.K8sServiceImpl
 	ephemeralContainerService    cluster.EphemeralContainerService
 	argoApplicationConfigService config.ArgoApplicationConfigService
+	ClusterReadService           read.ClusterReadService
 }
 
-func NewTerminalSessionHandlerImpl(environmentService environment.EnvironmentService, clusterService cluster.ClusterService,
+func NewTerminalSessionHandlerImpl(environmentService environment.EnvironmentService,
 	logger *zap.SugaredLogger, k8sUtil *k8s.K8sServiceImpl, ephemeralContainerService cluster.EphemeralContainerService,
-	argoApplicationConfigService config.ArgoApplicationConfigService) *TerminalSessionHandlerImpl {
+	argoApplicationConfigService config.ArgoApplicationConfigService,
+	ClusterReadService read.ClusterReadService) *TerminalSessionHandlerImpl {
 	return &TerminalSessionHandlerImpl{
 		environmentService:           environmentService,
-		clusterService:               clusterService,
 		logger:                       logger,
 		k8sUtil:                      k8sUtil,
 		ephemeralContainerService:    ephemeralContainerService,
 		argoApplicationConfigService: argoApplicationConfigService,
+		ClusterReadService:           ClusterReadService,
 	}
 }
 
@@ -547,7 +550,7 @@ func (impl *TerminalSessionHandlerImpl) getClientSetAndRestConfigForTerminalConn
 		return restConfig, clientSet, nil
 	} else {
 		if req.ClusterId != 0 {
-			clusterBean, err = impl.clusterService.FindById(req.ClusterId)
+			clusterBean, err = impl.ClusterReadService.FindById(req.ClusterId)
 			if err != nil {
 				impl.logger.Errorw("error in fetching cluster detail", "err", err, "clusterId", req.ClusterId)
 				return nil, nil, err
@@ -660,7 +663,7 @@ func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudi
 			return err
 		}
 	} else {
-		clusterBean, err := impl.clusterService.FindById(req.ClusterId)
+		clusterBean, err := impl.ClusterReadService.FindById(req.ClusterId)
 		if err != nil {
 			impl.logger.Errorw("error occurred in finding clusterBean by Id", "clusterId", req.ClusterId, "err", err)
 			return err
@@ -699,16 +702,16 @@ func (impl *TerminalSessionHandlerImpl) saveEphemeralContainerTerminalAccessAudi
 		impl.logger.Errorw("error occurred while marshaling ephemeralContainer object", "err", err, "ephemeralContainer", ephemeralContainer)
 		return err
 	}
-	ephemeralReq := cluster.EphemeralContainerRequest{
+	ephemeralReq := bean2.EphemeralContainerRequest{
 		PodName:   req.PodName,
 		Namespace: req.Namespace,
 		ClusterId: req.ClusterId,
-		BasicData: &cluster.EphemeralContainerBasicData{
+		BasicData: &bean2.EphemeralContainerBasicData{
 			ContainerName:       req.ContainerName,
 			TargetContainerName: ephemeralContainer.TargetContainerName,
 			Image:               ephemeralContainer.Image,
 		},
-		AdvancedData: &cluster.EphemeralContainerAdvancedData{
+		AdvancedData: &bean2.EphemeralContainerAdvancedData{
 			Manifest: string(ephemeralContainerJson),
 		},
 		UserId: req.UserId,

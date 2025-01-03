@@ -37,7 +37,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	util2 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel"
@@ -61,7 +60,6 @@ type CommonDeploymentRestHandlerImpl struct {
 	installedAppService       EAMode.InstalledAppDBService
 	validator                 *validator.Validate
 	helmAppService            service2.HelmAppService
-	argoUserService           argo.ArgoUserService
 	attributesService         attributes.AttributesService
 }
 
@@ -69,7 +67,7 @@ func NewCommonDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthServi
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm,
 	appStoreDeploymentService service.AppStoreDeploymentService, installedAppService EAMode.InstalledAppDBService,
 	validator *validator.Validate, helmAppService service2.HelmAppService,
-	argoUserService argo.ArgoUserService, attributesService attributes.AttributesService) *CommonDeploymentRestHandlerImpl {
+	attributesService attributes.AttributesService) *CommonDeploymentRestHandlerImpl {
 	return &CommonDeploymentRestHandlerImpl{
 		Logger:                    Logger,
 		userAuthService:           userAuthService,
@@ -80,7 +78,6 @@ func NewCommonDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthServi
 		installedAppService:       installedAppService,
 		validator:                 validator,
 		helmAppService:            helmAppService,
-		argoUserService:           argoUserService,
 		attributesService:         attributesService,
 	}
 }
@@ -305,14 +302,6 @@ func (handler *CommonDeploymentRestHandlerImpl) RollbackApplication(w http.Respo
 	}
 	if util2.IsBaseStack() || util2.IsHelmApp(appOfferingMode) {
 		ctx = context.WithValue(r.Context(), "token", token)
-	} else {
-		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			handler.Logger.Errorw("error in getting acd token", "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		ctx = context.WithValue(r.Context(), "token", acdToken)
 	}
 
 	defer cancel()

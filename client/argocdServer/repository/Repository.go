@@ -18,7 +18,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	repository2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
@@ -55,11 +54,8 @@ func NewServiceClientImpl(logger *zap.SugaredLogger, argoCDConnectionManager con
 }
 
 func (r ServiceClientImpl) getService(ctx context.Context) (repository2.RepositoryServiceClient, error) {
-	token, ok := ctx.Value("token").(string)
-	if !ok {
-		return nil, errors.New("Unauthorized")
-	}
-	conn := r.argoCDConnectionManager.GetConnection(token)
+
+	conn := r.argoCDConnectionManager.GetConnection()
 	//defer conn.Close()
 	return repository2.NewRepositoryServiceClient(conn), nil
 }

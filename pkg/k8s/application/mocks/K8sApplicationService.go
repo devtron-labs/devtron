@@ -7,8 +7,8 @@ import (
 	bean "github.com/devtron-labs/devtron/api/bean"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
-	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean2 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
+	k8s2 "github.com/devtron-labs/devtron/pkg/k8s/bean"
 
 	cluster "github.com/devtron-labs/devtron/pkg/cluster"
 

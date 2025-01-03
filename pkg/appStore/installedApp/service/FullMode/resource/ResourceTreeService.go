@@ -43,7 +43,6 @@ import (
 	application3 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	util2 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
 	"net/http"
@@ -67,7 +66,6 @@ type InstalledAppResourceServiceImpl struct {
 	acdClient                            application2.ServiceClient
 	aCDAuthConfig                        *util3.ACDAuthConfig
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
-	argoUserService                      argo.ArgoUserService
 	helmAppClient                        gRPC.HelmAppClient
 	helmAppService                       service.HelmAppService
 	helmAppReadService                   read.HelmAppReadService
@@ -86,7 +84,7 @@ func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
 	acdClient application2.ServiceClient,
 	aCDAuthConfig *util3.ACDAuthConfig,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
-	argoUserService argo.ArgoUserService, helmAppClient gRPC.HelmAppClient, helmAppService service.HelmAppService,
+	helmAppClient gRPC.HelmAppClient, helmAppService service.HelmAppService,
 	helmAppReadService read.HelmAppReadService,
 	appStatusService appStatus.AppStatusService,
 	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService, K8sUtil k8s2.K8sService,
@@ -100,7 +98,6 @@ func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
 		acdClient:                            acdClient,
 		aCDAuthConfig:                        aCDAuthConfig,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
-		argoUserService:                      argoUserService,
 		helmAppClient:                        helmAppClient,
 		helmAppService:                       helmAppService,
 		helmAppReadService:                   helmAppReadService,
@@ -202,12 +199,6 @@ func (impl *InstalledAppResourceServiceImpl) FetchResourceTreeWithHibernateForAC
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		impl.logger.Errorw("error in getting acd token", "err", err)
-		return *appDetail
-	}
-	ctx = context.WithValue(ctx, "token", acdToken)
 	defer cancel()
 	deploymentAppName := util2.BuildDeployedAppName(appDetail.AppName, appDetail.EnvironmentName)
 	resourceTree, err := impl.fetchResourceTreeForACD(rctx, cn, appDetail.InstalledAppId, appDetail.EnvironmentId, appDetail.ClusterId, deploymentAppName, appDetail.Namespace)
@@ -237,12 +228,6 @@ func (impl *InstalledAppResourceServiceImpl) fetchResourceTreeForACD(rctx contex
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		impl.logger.Errorw("error in getting acd token", "err", err)
-		return resourceTree, err
-	}
-	ctx = context.WithValue(ctx, "token", acdToken)
 	defer cancel()
 	start := time.Now()
 	resp, err := impl.argoApplicationService.ResourceTree(ctx, query)

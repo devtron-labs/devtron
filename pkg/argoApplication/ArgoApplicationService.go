@@ -31,10 +31,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/argoApplication/read/config"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/k8s/application"
+	k8s2 "github.com/devtron-labs/devtron/pkg/k8s/bean"
 	"github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
@@ -54,7 +53,6 @@ type ArgoApplicationServiceImpl struct {
 	logger                       *zap.SugaredLogger
 	clusterRepository            clusterRepository.ClusterRepository
 	k8sUtil                      *k8s.K8sServiceImpl
-	argoUserService              argo.ArgoUserService
 	helmAppClient                gRPC.HelmAppClient
 	helmAppService               service.HelmAppService
 	k8sApplicationService        application.K8sApplicationService
@@ -64,7 +62,7 @@ type ArgoApplicationServiceImpl struct {
 func NewArgoApplicationServiceImpl(logger *zap.SugaredLogger,
 	clusterRepository clusterRepository.ClusterRepository,
 	k8sUtil *k8s.K8sServiceImpl,
-	argoUserService argo.ArgoUserService, helmAppClient gRPC.HelmAppClient,
+	helmAppClient gRPC.HelmAppClient,
 	helmAppService service.HelmAppService,
 	k8sApplicationService application.K8sApplicationService,
 	argoApplicationConfigService config.ArgoApplicationConfigService) *ArgoApplicationServiceImpl {
@@ -72,7 +70,6 @@ func NewArgoApplicationServiceImpl(logger *zap.SugaredLogger,
 		logger:                       logger,
 		clusterRepository:            clusterRepository,
 		k8sUtil:                      k8sUtil,
-		argoUserService:              argoUserService,
 		helmAppService:               helmAppService,
 		helmAppClient:                helmAppClient,
 		k8sApplicationService:        k8sApplicationService,

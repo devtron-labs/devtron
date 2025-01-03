@@ -33,7 +33,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	util2 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
@@ -64,7 +63,6 @@ type AppStoreDeploymentRestHandlerImpl struct {
 	appStoreDeploymentDBService service.AppStoreDeploymentDBService
 	validator                   *validator.Validate
 	helmAppService              service2.HelmAppService
-	argoUserService             argo.ArgoUserService
 	installAppService           EAMode.InstalledAppDBService
 	attributesService           attributes.AttributesService
 }
@@ -73,8 +71,8 @@ func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthSer
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm,
 	appStoreDeploymentService service.AppStoreDeploymentService,
 	appStoreDeploymentDBService service.AppStoreDeploymentDBService,
-	validator *validator.Validate, helmAppService service2.HelmAppService,
-	argoUserService argo.ArgoUserService,
+	validator *validator.Validate,
+	helmAppService service2.HelmAppService,
 	installAppService EAMode.InstalledAppDBService, attributesService attributes.AttributesService) *AppStoreDeploymentRestHandlerImpl {
 	return &AppStoreDeploymentRestHandlerImpl{
 		Logger:                      Logger,
@@ -86,7 +84,6 @@ func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthSer
 		appStoreDeploymentDBService: appStoreDeploymentDBService,
 		validator:                   validator,
 		helmAppService:              helmAppService,
-		argoUserService:             argoUserService,
 		installAppService:           installAppService,
 		attributesService:           attributesService,
 	}
@@ -165,16 +162,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) InstallApp(w http.ResponseWrite
 	}
 	if util2.IsBaseStack() || util2.IsHelmApp(request.AppOfferingMode) {
 		ctx = context.WithValue(r.Context(), "token", token)
-	} else {
-		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			handler.Logger.Errorw("error in getting acd token", "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		ctx = context.WithValue(r.Context(), "token", acdToken)
 	}
-
 	defer cancel()
 	res, err := handler.appStoreDeploymentService.InstallApp(&request, ctx)
 	if err != nil {
@@ -348,14 +336,6 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 	}
 	if util2.IsBaseStack() || util2.IsHelmApp(request.AppOfferingMode) {
 		ctx = context.WithValue(r.Context(), "token", token)
-	} else {
-		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			handler.Logger.Errorw("error in getting acd token", "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		ctx = context.WithValue(r.Context(), "token", acdToken)
 	}
 
 	request, err = handler.appStoreDeploymentService.DeleteInstalledApp(ctx, request)
@@ -476,14 +456,6 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 	}
 	if util2.IsBaseStack() || util2.IsHelmApp(request.AppOfferingMode) {
 		ctx = context.WithValue(r.Context(), "token", token)
-	} else {
-		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			handler.Logger.Errorw("error in getting acd token", "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		ctx = context.WithValue(r.Context(), "token", acdToken)
 	}
 	res, err := handler.appStoreDeploymentService.UpdateInstalledApp(ctx, &request)
 	if err != nil {

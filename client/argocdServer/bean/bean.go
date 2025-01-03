@@ -99,3 +99,11 @@ func NewErrUnauthorized(message string) *ErrUnauthorized {
 func (e *ErrUnauthorized) Error() string {
 	return e.message
 }
+
+type AcdAuthConfig struct {
+	ClusterId                 int
+	DevtronSecretName         string
+	DevtronDexSecretNamespace string
+	UserName                  string
+	Password                  string
+}
