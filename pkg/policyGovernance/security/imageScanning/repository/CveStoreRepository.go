@@ -20,6 +20,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -149,8 +150,8 @@ func (impl CveStoreRepositoryImpl) VulnerabilityExposure(request *VulnerabilityR
 			  WHERE (p.deleted=? OR ia.active = ?) and env.active=? `
 	queryParams = append(queryParams, false, true, true)
 	if len(request.AppName) > 0 {
-		query = query + " AND (a.app_name like ? ) "
-		queryParams = append(queryParams, request.AppName)
+		query = query + " AND (a.app_name ilike ? ) "
+		queryParams = append(queryParams, util.GetLIKEClauseQueryParam(request.AppName))
 	}
 	if len(request.EnvIds) > 0 {
 		query = query + " AND (env.id IN (?) )"
