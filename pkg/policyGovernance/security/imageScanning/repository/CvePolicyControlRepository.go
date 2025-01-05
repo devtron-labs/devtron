@@ -53,6 +53,19 @@ func (policy *CvePolicy) PolicyLevel() securityBean.PolicyLevel {
 	}
 }
 
+func (policy *CvePolicy) UpdateDeleted(deleted bool) *CvePolicy {
+	policy.Deleted = deleted
+	return policy
+}
+
+func (policy *CvePolicy) UpdateAuditLog(userId int32, time time.Time) *CvePolicy {
+	policy.UpdatedOn = time
+	policy.CreatedOn = time
+	policy.UpdatedBy = userId
+	policy.CreatedBy = userId
+	return policy
+}
+
 //------------------
 
 type CvePolicyRepository interface {
@@ -61,11 +74,13 @@ type CvePolicyRepository interface {
 	GetEnvPolicies(clusterId int, environmentId int) (policies []*CvePolicy, err error)
 	GetAppEnvPolicies(clusterId int, environmentId int, appId int) (policies []*CvePolicy, err error)
 	SavePolicy(tx *pg.Tx, policy *CvePolicy) (*CvePolicy, error)
-	UpdatePolicy(policy *CvePolicy) (*CvePolicy, error)
+	UpdatePolicy(tx *pg.Tx, policy *CvePolicy) (*CvePolicy, error)
 	GetById(id int) (*CvePolicy, error)
 	GetBlockedCVEList(cves []*CveStore, clusterId, envId, appId int, isAppstore bool) ([]*CveStore, error)
-	GetActiveByCveId(cveId string, envId, appId, clusterId int) (policies []*CvePolicy, err error)
+	GetActiveByCveIdAndScope(cveId string, envId, appId, clusterId int) (policies []*CvePolicy, err error)
+	UpdatePoliciesInBulk(tx *pg.Tx, policies []*CvePolicy) error
 }
+
 type CvePolicyRepositoryImpl struct {
 	dbConnection *pg.DB
 	logger       *zap.SugaredLogger
@@ -143,42 +158,41 @@ func (impl *CvePolicyRepositoryImpl) GetAppEnvPolicies(clusterId int, environmen
 }
 
 func (impl *CvePolicyRepositoryImpl) SavePolicy(tx *pg.Tx, policy *CvePolicy) (*CvePolicy, error) {
-	var policies []*CvePolicy
-	err := impl.dbConnection.Model(&policies).
-		Column("cve_policy.*").
-		Relation("CveStore").
-		Where("deleted = false").
-		Where("app_id = ?", policy.AppId).
-		Where("env_id = ?", policy.EnvironmentId).
-		Where("cve_policy.severity = ?", policy.Severity).
-		Select()
-	if err != nil && err == pg.ErrNoRows {
+	var err error
+	if tx == nil {
 		err = impl.dbConnection.Insert(policy)
-		return policy, err
-	} else if err == nil {
-		maxId := 0
-		var cvePolicyToUpdate *CvePolicy
-		for _, cvePolicy := range policies {
-			if cvePolicy.Id > maxId {
-				maxId = cvePolicy.Id
-				cvePolicyToUpdate = cvePolicy
-			}
+		if err != nil {
+			impl.logger.Errorw("error in inserting policy", "policy", policy, "err", err)
+			return nil, err
 		}
-		if maxId != 0 {
-			cvePolicyToUpdate.UpdatedOn = time.Now()
-			cvePolicyToUpdate.UpdatedBy = policy.UpdatedBy
-			cvePolicyToUpdate.Action = policy.Action
-			policy, err = impl.UpdatePolicy(cvePolicyToUpdate)
-		} else {
-			err = impl.dbConnection.Insert(policy)
+	} else {
+		err = tx.Insert(policy)
+		if err != nil {
+			impl.logger.Errorw("error in inserting policy in transaction", "policy", policy, "err", err)
+			return nil, err
 		}
 	}
-	return policy, err
+	return policy, nil
 }
-func (impl *CvePolicyRepositoryImpl) UpdatePolicy(policy *CvePolicy) (*CvePolicy, error) {
-	_, err := impl.dbConnection.Model(policy).WherePK().UpdateNotNull()
-	return policy, err
+
+func (impl *CvePolicyRepositoryImpl) UpdatePolicy(tx *pg.Tx, policy *CvePolicy) (*CvePolicy, error) {
+	var err error
+	if tx != nil {
+		err = tx.Update(policy)
+		if err != nil {
+			impl.logger.Errorw("error in updating cvePolicy in transaction", "policy", policy, "err", err)
+			return nil, err
+		}
+	} else {
+		_, err = impl.dbConnection.Model(policy).WherePK().UpdateNotNull()
+		if err != nil {
+			impl.logger.Errorw("error in updating cvePolicy", "policy", policy, "err", err)
+			return nil, err
+		}
+	}
+	return policy, nil
 }
+
 func (impl *CvePolicyRepositoryImpl) GetById(id int) (*CvePolicy, error) {
 	cvePolicy := &CvePolicy{Id: id}
 	err := impl.dbConnection.Model(cvePolicy).WherePK().Select()
@@ -310,19 +324,19 @@ func (impl *CvePolicyRepositoryImpl) getHighestPolicyS(allPolicies map[securityB
 	return applicablePolicies
 }
 
-func (impl *CvePolicyRepositoryImpl) GetActiveByCveId(cveId string, envId, appId, clusterId int) (policies []*CvePolicy, err error) {
+func (impl *CvePolicyRepositoryImpl) GetActiveByCveIdAndScope(cveId string, envId, appId, clusterId int) (policies []*CvePolicy, err error) {
 	query := impl.dbConnection.Model(&policies).
 		Column("cve_policy.*").
 		Where("deleted = ?", false).
 		Where("cve_store_id = ?", cveId)
 	if envId > 0 {
-		query = query.Where("envId = ?", envId)
+		query = query.Where("env_id = ?", envId)
 	}
 	if appId > 0 {
-		query = query.Where("appId = ?", appId)
+		query = query.Where("app_id = ?", appId)
 	}
 	if clusterId > 0 {
-		query = query.Where("clusterId = ?", clusterId)
+		query = query.Where("cluster_id = ?", clusterId)
 	}
 	err = query.Select()
 	if err != nil {
@@ -330,4 +344,24 @@ func (impl *CvePolicyRepositoryImpl) GetActiveByCveId(cveId string, envId, appId
 		return nil, err
 	}
 	return policies, nil
+}
+
+func (impl *CvePolicyRepositoryImpl) UpdatePoliciesInBulk(tx *pg.Tx, policies []*CvePolicy) error {
+	for _, policy := range policies {
+		if tx != nil {
+			err := tx.Update(policy)
+			if err != nil {
+				impl.logger.Errorw("error in updating policies in transaction", "err", err)
+				return err
+			}
+		} else {
+			err := impl.dbConnection.Update(policy)
+			if err != nil {
+				impl.logger.Errorw("error in updating policies", "err", err)
+				return err
+			}
+		}
+	}
+
+	return nil
 }
