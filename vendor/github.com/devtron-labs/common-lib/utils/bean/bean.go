@@ -20,6 +20,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"github.com/docker/cli/cli/config/types"
+	"time"
 )
 
 const (
@@ -63,10 +64,16 @@ type DockerRegistryInfo struct {
 }
 
 type PgQueryConfig struct {
-	LogQuery               bool
+	LogSlowQuery           bool
 	LogAllQuery            bool
 	LogAllFailureQueries   bool
 	ExportPromMetrics      bool
 	QueryDurationThreshold int64
 	ServiceName            string
+}
+
+type PgQueryEvent struct {
+	StartTime time.Time
+	Error     error
+	Query     string
 }

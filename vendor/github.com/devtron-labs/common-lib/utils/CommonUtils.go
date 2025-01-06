@@ -92,41 +92,48 @@ func BuildDockerImagePath(dockerInfo bean.DockerRegistryInfo) (string, error) {
 	return dest, nil
 }
 
-func GetQueryProcessedFunction(cfg bean.PgQueryConfig) func(event *pg.QueryProcessedEvent) {
+func GetPGPostQueryProcessor(cfg bean.PgQueryConfig) func(event *pg.QueryProcessedEvent) {
 	return func(event *pg.QueryProcessedEvent) {
-		queryDuration := time.Since(event.StartTime)
-		var queryError bool
-		pgError := event.Error
-		if pgError != nil && !errors.Is(pgError, pg.ErrNoRows) {
-			queryError = true
+		query, err := event.FormattedQuery()
+		if err != nil {
+			logger.Errorw("Error formatting query", "err", err)
+			return
 		}
-		// Expose prom metrics
-		if cfg.ExportPromMetrics {
-			var status string
-			if queryError {
-				status = "FAIL"
-			} else {
-				status = "SUCCESS"
-			}
-			PgQueryDuration.WithLabelValues(status, cfg.ServiceName).Observe(queryDuration.Seconds())
-		}
+		ExecutePGQueryProcessor(cfg, bean.PgQueryEvent{
+			StartTime: event.StartTime,
+			Error:     event.Error,
+			Query:     query,
+		})
+	}
+}
 
-		// Log pg query if enabled
-		logAllOrThresholdQueries := cfg.LogAllQuery || (cfg.LogQuery && queryDuration.Milliseconds() > cfg.QueryDurationThreshold)
-		logFailureQuery := queryError && cfg.LogAllFailureQueries
-		if logAllOrThresholdQueries || logFailureQuery { //if both true, then preference will be for failed query else normal query will be printed. In all other cases simply show the query corresponding the condition.
-			query, err := event.FormattedQuery()
-			if err != nil {
-				logger.Errorw("Error formatting query", "err", err)
-				return
-			}
-			if logFailureQuery {
-				logger.Errorw("PG_QUERY_FAIL - query time", "duration", queryDuration.Seconds(), "query", query, "pgError", pgError)
-			} else if logAllOrThresholdQueries {
-				logger.Debugw("query time", "duration", queryDuration.Seconds(), "query", query)
-			}
-
+func ExecutePGQueryProcessor(cfg bean.PgQueryConfig, event bean.PgQueryEvent) {
+	queryDuration := time.Since(event.StartTime)
+	var queryError bool
+	pgError := event.Error
+	if pgError != nil && !errors.Is(pgError, pg.ErrNoRows) {
+		queryError = true
+	}
+	// Expose prom metrics
+	if cfg.ExportPromMetrics {
+		var status string
+		if queryError {
+			status = "FAIL"
+		} else {
+			status = "SUCCESS"
 		}
+		PgQueryDuration.WithLabelValues(status, cfg.ServiceName).Observe(queryDuration.Seconds())
+	}
+
+	// Log pg query if enabled
+	logThresholdQueries := cfg.LogSlowQuery && queryDuration.Milliseconds() > cfg.QueryDurationThreshold
+	logFailureQuery := queryError && cfg.LogAllFailureQueries
+	if logFailureQuery {
+		logger.Errorw("PG_QUERY_FAIL - query time", "duration", queryDuration.Seconds(), "query", event.Query, "pgError", pgError)
+	} else if logThresholdQueries {
+		logger.Debugw("PG_QUERY_SLOW - query time", "duration", queryDuration.Seconds(), "query", event.Query)
+	} else if cfg.LogAllQuery {
+		logger.Debugw("query time", "duration", queryDuration.Seconds(), "query", event.Query)
 	}
 }
 
