@@ -766,7 +766,7 @@ affinity:
         topologyKey: topology.kubernetes.io/zone
 
 secondaryWorkload:
-  enabled: true
+  enabled: false
   postfix: "od"
   replicaCount: 1
   affinity: {}
