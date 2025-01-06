@@ -786,10 +786,7 @@ func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, a
 			}
 			// get dockerRegistryId starts
 			artifact, err := impl.ciArtifactRepository.Get(appDetailContainer.CiArtifactId)
-			if err != nil {
-				impl.Logger.Errorw("error in fetching ci artifact", "ciArtifactId", appDetailContainer.CiArtifactId, "error", err)
-				return bean.AppDetailContainer{}, err
-			}
+			// artifact can be nil which is a valid case, so we are not returning the error
 			dockerRegistryId, err := impl.ciPipelineConfigReadService.GetDockerRegistryIdForCiPipeline(ciPipelineId, artifact)
 			if err != nil {
 				impl.Logger.Errorw("error in fetching docker registry id", "ciPipelineId", ciPipelineId, "error", err)

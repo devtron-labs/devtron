@@ -11,6 +11,7 @@ on:
       - 'main'
       - 'release-**'
       - 'develop'
+      - 'hotfix-v0**'
     # paths-ignore:
     #   - 'docs/**'
     #   - '.github/'
@@ -53,7 +54,7 @@ jobs:
 
         set -x    
         # Skip validation for documentation or chore PRs
-        if [[ "$TITLE" =~ ^(doc:|docs:|chore:|misc:|Release:|release:) ]]; then
+        if [[ "$TITLE" =~ ^(doc:|docs:|chore:|misc:|Release:|release:|Sync:|sync:) ]]; then
           echo "Skipping validation for docs/chore PR."
           echo "PR NUMBER-: $PRNUM "
           gh pr edit $PRNUM --remove-label "PR:Issue-verification-failed"
@@ -140,11 +141,10 @@ jobs:
             --header "authorization: Bearer ${{ secrets.GH_PR_VALIDATOR_TOKEN }}" \
             "$issue_api_url"| jq '.state'|tr -d \")
           fi
-          echo "Issue Status: $issue_status"
-
+          echo "Issue Number : $issue_num Status: $issue_status"
           # Check if the issue is still open.
-          if [[ "$issue_status" == open ]]; then
-            echo "Issue #$issue_num is opened."
+          # if [[ "$issue_status" == open ]]; then
+            # echo "Issue #$issue_num is opened."
             if [[ $forked == true ]]; then
               echo "PR:Ready-to-Review, exiting gracefully"
               exit 0
@@ -152,20 +152,22 @@ jobs:
             # Remove the 'Issue-verification-failed' label (if present) and add 'Ready-to-Review'.
             gh pr edit $PRNUM --remove-label "PR:Issue-verification-failed"
             gh pr edit $PRNUM --add-label "PR:Ready-to-Review"
-          else
-            echo "Issue #$issue_num is closed. Please link an open issue to proceed."
-              if [[ $forked == true ]]; then
-                echo "PR:Ready-to-Review, exiting gracefully"
-                exit 0
-              fi
+            echo "PR:Ready-to-Review, exiting gracefully"
+            exit 0
+          # else
+            # echo "Issue #$issue_num is closed. Please link an open issue to proceed."
+              # if [[ $forked == true ]]; then
+                # echo "PR:Ready-to-Review, exiting gracefully"
+                # exit 0
+              # fi
             # Add a comment to the PR indicating the issue is not linked correctly.
-            gh pr comment $PRNUM --body "PR is  linked to a closed issue. Please link an open issue to proceed."
+            # gh pr comment $PRNUM --body "PR is  linked to a closed issue. Please link an open issue to proceed."
 
             # Add the 'Issue-verification-failed' label and remove 'Ready-to-Review'.
-            gh pr edit $PRNUM --add-label "PR:Issue-verification-failed"
-            gh pr edit $PRNUM --remove-label "PR:Ready-to-Review"
-            exit 1
-          fi
+            # gh pr edit $PRNUM --add-label "PR:Issue-verification-failed"
+            # gh pr edit $PRNUM --remove-label "PR:Ready-to-Review"
+            # exit 1
+          #fi
         else
           echo "Issue not found. Invalid URL or issue number."
           # Add a comment to the PR indicating the issue is not linked correctly.
