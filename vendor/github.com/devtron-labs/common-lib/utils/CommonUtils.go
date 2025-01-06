@@ -149,4 +149,4 @@ func GetSelfK8sPodName() string {
 var PgQueryDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name: "pg_query_duration_seconds",
 	Help: "Duration of PG queries",
-}, []string{"status"})
+}, []string{"status", "serviceName"})
