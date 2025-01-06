@@ -1,12 +1,14 @@
 package read
 
 import (
+	bean4 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"go.uber.org/zap"
 )
 
 type CdWorkflowReadService interface {
 	CheckIfLatestWf(pipelineId, cdWfId int) (latest bool, err error)
+	FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId int, environmentId int, runnerType bean4.WorkflowType) (pipelineConfig.CdWorkflowRunner, error)
 }
 
 type CdWorkflowReadServiceImpl struct {
@@ -29,4 +31,8 @@ func (impl *CdWorkflowReadServiceImpl) CheckIfLatestWf(pipelineId, cdWfId int) (
 		return false, err
 	}
 	return latest, nil
+}
+
+func (impl *CdWorkflowReadServiceImpl) FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId int, environmentId int, runnerType bean4.WorkflowType) (pipelineConfig.CdWorkflowRunner, error) {
+	return impl.cdWorkflowRepository.FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId, environmentId, runnerType)
 }
