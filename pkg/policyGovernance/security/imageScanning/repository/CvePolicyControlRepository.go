@@ -29,14 +29,14 @@ import (
 type CvePolicy struct {
 	tableName     struct{}                  `sql:"cve_policy_control" pg:",discard_unknown_columns"`
 	Id            int                       `sql:"id,pk"`
-	Global        bool                      `sql:"global,notnull"`
-	ClusterId     int                       `sql:"cluster_id"`
-	EnvironmentId int                       `sql:"env_id"`
-	AppId         int                       `sql:"app_id"`
-	CVEStoreId    string                    `sql:"cve_store_id"`
-	Action        securityBean.PolicyAction `sql:"action, notnull"`
-	Severity      *securityBean.Severity    `sql:"severity, notnull "`
-	Deleted       bool                      `sql:"deleted, notnull"`
+	Global        bool                      `sql:"global,notnull,type:boolean"`
+	ClusterId     int                       `sql:"cluster_id,type:integer"`
+	EnvironmentId int                       `sql:"env_id,type:integer"`
+	AppId         int                       `sql:"app_id,type:integer"`
+	CVEStoreId    string                    `sql:"cve_store_id,type:text"`
+	Action        securityBean.PolicyAction `sql:"action, notnull,type:integer"`
+	Severity      *securityBean.Severity    `sql:"severity, notnull,type:integer"`
+	Deleted       bool                      `sql:"deleted, notnull,type:boolean"`
 	sql.AuditLog
 	CveStore *CveStore
 }
@@ -347,21 +347,18 @@ func (impl *CvePolicyRepositoryImpl) GetActiveByCveIdAndScope(cveId string, envI
 }
 
 func (impl *CvePolicyRepositoryImpl) UpdatePoliciesInBulk(tx *pg.Tx, policies []*CvePolicy) error {
-	for _, policy := range policies {
-		if tx != nil {
-			err := tx.Update(policy)
-			if err != nil {
-				impl.logger.Errorw("error in updating policies in transaction", "err", err)
-				return err
-			}
-		} else {
-			err := impl.dbConnection.Update(policy)
-			if err != nil {
-				impl.logger.Errorw("error in updating policies", "err", err)
-				return err
-			}
+	if tx != nil {
+		_, err := tx.Model(&policies).Update()
+		if err != nil {
+			impl.logger.Errorw("error in updating policies in transaction", "err", err)
+			return err
+		}
+	} else {
+		_, err := impl.dbConnection.Model(&policies).Update()
+		if err != nil {
+			impl.logger.Errorw("error in updating policies", "err", err)
+			return err
 		}
 	}
-
 	return nil
 }

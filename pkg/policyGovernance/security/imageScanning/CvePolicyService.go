@@ -437,7 +437,6 @@ func (impl *PolicyServiceImpl) parsePolicyAction(action string) (securityBean.Po
 }
 
 func (impl *PolicyServiceImpl) SavePolicy(request bean.CreateVulnerabilityPolicyRequest, userId int32) (*bean.IdVulnerabilityPolicyResult, error) {
-	// before performing any action check if this cveId is already active and saved
 	tx, err := impl.transactionManager.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in creating transaction", "request", request, "err", err)
@@ -459,7 +458,8 @@ func (impl *PolicyServiceImpl) SavePolicy(request bean.CreateVulnerabilityPolicy
 	if len(request.Severity) > 0 {
 		severity, err = securityBean.SeverityStringToEnumWithError(request.Severity)
 		if err != nil {
-			return nil, fmt.Errorf("unsupported Severity %s", request.Severity)
+			impl.logger.Errorw("error in converting string severity to enum", "severity", request.Severity, "err", err)
+			return nil, err
 		}
 	} else {
 		cveStore, err := impl.cveStoreRepository.FindByName(request.CveId)
@@ -474,7 +474,7 @@ func (impl *PolicyServiceImpl) SavePolicy(request bean.CreateVulnerabilityPolicy
 	}
 	// mark all previous policy on cveIds deleted before saving new one
 	if len(request.CveId) > 0 {
-		err = impl.softDeletePoliciesIfExists(tx, request, userId)
+		err = impl.softDeleteOldPoliciesIfExists(tx, request, userId)
 		if err != nil {
 			impl.logger.Errorw("error in soft deleting policies if exists", "request", request, "err", err)
 			return nil, err
@@ -493,7 +493,7 @@ func (impl *PolicyServiceImpl) SavePolicy(request bean.CreateVulnerabilityPolicy
 	return &bean.IdVulnerabilityPolicyResult{Id: policy.Id}, nil
 }
 
-func (impl *PolicyServiceImpl) softDeletePoliciesIfExists(tx *pg.Tx, request bean.CreateVulnerabilityPolicyRequest, userId int32) error {
+func (impl *PolicyServiceImpl) softDeleteOldPoliciesIfExists(tx *pg.Tx, request bean.CreateVulnerabilityPolicyRequest, userId int32) error {
 	policiesToDelete, err := impl.cvePolicyRepository.GetActiveByCveIdAndScope(request.CveId, request.EnvId, request.AppId, request.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting active policies by cveId and scope", "request", request, "err", err)
