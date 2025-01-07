@@ -730,22 +730,63 @@ func (impl ImageScanServiceImpl) GetScanResults(resourceScanQueryParams *bean3.R
 
 func (impl ImageScanServiceImpl) FilterDeployInfoByScannedArtifactsDeployedInEnv(deployInfoList []*repository3.ImageScanDeployInfo) ([]*repository3.ImageScanDeployInfo, error) {
 	filteredDeployInfoList := make([]*repository3.ImageScanDeployInfo, 0, len(deployInfoList))
+	appVsEnvIdMap := make(map[int][]int, len(deployInfoList))
 	for _, imageScanDeployInfo := range deployInfoList {
 		if imageScanDeployInfo.IsObjectTypeApp() {
-			liveArtifactId, err := impl.fetchLatestArtifactIdForAppAndEnv(imageScanDeployInfo.ScanObjectMetaId, imageScanDeployInfo.EnvId)
-			if err != nil {
-				impl.Logger.Errorw("error while fetching latest artifact using app and env id", "appId", imageScanDeployInfo.ScanObjectMetaId, "envId", imageScanDeployInfo.EnvId, "err", err)
-				return nil, err
-			}
-			ciArtifact, err := impl.ciArtifactRepository.Get(liveArtifactId)
-			if err != nil {
-				impl.Logger.Errorw("error while fetching artifact using artifactId", "artifactId", liveArtifactId, "appId", imageScanDeployInfo.ScanObjectMetaId, "envId", imageScanDeployInfo.EnvId, "err", err)
-				return nil, err
-			}
-			if ciArtifact.Scanned {
-				filteredDeployInfoList = append(filteredDeployInfoList, imageScanDeployInfo)
+			if _, ok := appVsEnvIdMap[imageScanDeployInfo.ScanObjectMetaId]; ok {
+				appVsEnvIdMap[imageScanDeployInfo.ScanObjectMetaId] = append(appVsEnvIdMap[imageScanDeployInfo.ScanObjectMetaId], imageScanDeployInfo.EnvId)
+			} else {
+				appVsEnvIdMap[imageScanDeployInfo.ScanObjectMetaId] = make([]int, 0, len(deployInfoList))
+				appVsEnvIdMap[imageScanDeployInfo.ScanObjectMetaId] = append(appVsEnvIdMap[imageScanDeployInfo.ScanObjectMetaId], imageScanDeployInfo.EnvId)
 			}
 		}
 	}
+	appEnvToCiArtifactMap, ciArtifactIdToScannedMap, err := impl.fetchLatestArtifactMetadataDeployedOnAllEnvsAcrossApps(appVsEnvIdMap)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching latest artifacts metadata for deployed on all envs and apps", "appVsEnvIdMap", appVsEnvIdMap, "err", err)
+		return nil, err
+	}
+	for _, imageScanDeployInfo := range deployInfoList {
+		if imageScanDeployInfo.IsObjectTypeApp() {
+			if ciArtifactId, ok := appEnvToCiArtifactMap[bean3.NewAppEnvMetadata(imageScanDeployInfo.ScanObjectMetaId, imageScanDeployInfo.EnvId)]; ok {
+				if ciArtifactIdToScannedMap[ciArtifactId] {
+					// if this ci artifact is scanned then append in final resp
+					filteredDeployInfoList = append(filteredDeployInfoList, imageScanDeployInfo)
+				}
+			}
+		}
+
+	}
 	return filteredDeployInfoList, nil
+}
+
+func (impl ImageScanServiceImpl) fetchLatestArtifactMetadataDeployedOnAllEnvsAcrossApps(appVsEnvIdMap map[int][]int) (map[bean3.AppEnvMetadata]int, map[int]bool, error) {
+	appEnvToCiArtifactMap := make(map[bean3.AppEnvMetadata]int)
+	ciArtifactIdToScannedMap := make(map[int]bool)
+	parentCiArtifactIds := make([]int, 0)
+	cdwfArtifactsMetadata, err := impl.cdWorkflowReadService.FindLatestCdWorkflowRunnerArtifactMetadataForAppAndEnvIds(appVsEnvIdMap, bean4.CD_WORKFLOW_TYPE_DEPLOY)
+	if err != nil {
+		impl.Logger.Errorw("error in FindLatestCdWorkflowRunnersByAppAndEnvIds", "appVsEnvIdMap", appVsEnvIdMap, "err", err)
+		return nil, nil, err
+	}
+	for _, item := range cdwfArtifactsMetadata {
+		ciArtifactId := item.CiArtifactId
+		if item.ParentCiArtifact > 0 {
+			parentCiArtifactIds = append(parentCiArtifactIds, item.ParentCiArtifact)
+			ciArtifactId = item.ParentCiArtifact
+		} else {
+			ciArtifactIdToScannedMap[ciArtifactId] = item.Scanned
+		}
+		appEnvToCiArtifactMap[bean3.NewAppEnvMetadata(item.AppId, item.EnvId)] = ciArtifactId
+	}
+	parentCiArtifacts, err := impl.ciArtifactRepository.GetByIds(parentCiArtifactIds)
+	if err != nil {
+		impl.Logger.Errorw("error in getting artifacts by ids", "ids", parentCiArtifactIds, "err", err)
+		return nil, nil, err
+	}
+	for _, parentCiArtifact := range parentCiArtifacts {
+		// for linked ci case
+		ciArtifactIdToScannedMap[parentCiArtifact.Id] = parentCiArtifact.Scanned
+	}
+	return appEnvToCiArtifactMap, ciArtifactIdToScannedMap, nil
 }

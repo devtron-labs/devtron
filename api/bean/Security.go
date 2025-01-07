@@ -27,7 +27,7 @@ type CreateVulnerabilityPolicyRequest struct {
 	Severity  string               `json:"severity,omitempty"`
 }
 
-func (r CreateVulnerabilityPolicyRequest) IsRequestGlobal() bool {
+func (r *CreateVulnerabilityPolicyRequest) IsRequestGlobal() bool {
 	if r.ClusterId == 0 && r.EnvId == 0 && r.AppId == 0 {
 		return true
 	}

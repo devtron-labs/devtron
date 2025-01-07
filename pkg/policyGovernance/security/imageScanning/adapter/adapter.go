@@ -66,15 +66,10 @@ func ExecutionDetailsToResourceScanResponseDto(respFromExecutionDetail *bean.Ima
 	return resp
 }
 
-func BuildCvePolicy(request bean2.CreateVulnerabilityPolicyRequest, action bean3.PolicyAction, severity bean3.Severity, time time.Time, userId int32) *repository.CvePolicy {
-	return &repository.CvePolicy{
-		Global:        request.IsRequestGlobal(),
-		ClusterId:     request.ClusterId,
-		EnvironmentId: request.EnvId,
-		AppId:         request.AppId,
-		CVEStoreId:    request.CveId,
-		Action:        action,
-		Severity:      &severity,
+func BuildCvePolicy(request *bean2.CreateVulnerabilityPolicyRequest, action bean3.PolicyAction, severity bean3.Severity, time time.Time, userId int32) *repository.CvePolicy {
+	cvePolicy := &repository.CvePolicy{
+		Action:   action,
+		Severity: &severity,
 		AuditLog: sql.AuditLog{
 			CreatedOn: time,
 			CreatedBy: userId,
@@ -82,4 +77,12 @@ func BuildCvePolicy(request bean2.CreateVulnerabilityPolicyRequest, action bean3
 			UpdatedBy: userId,
 		},
 	}
+	if request != nil {
+		cvePolicy.Global = request.IsRequestGlobal()
+		cvePolicy.ClusterId = request.ClusterId
+		cvePolicy.EnvironmentId = request.EnvId
+		cvePolicy.AppId = request.AppId
+		cvePolicy.CVEStoreId = request.CveId
+	}
+	return cvePolicy
 }

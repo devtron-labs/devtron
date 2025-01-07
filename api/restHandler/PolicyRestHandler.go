@@ -121,9 +121,9 @@ func (impl PolicyRestHandlerImpl) SavePolicy(w http.ResponseWriter, r *http.Requ
 	}
 	//AUTH
 
-	res, err := impl.policyService.SavePolicy(req, userId)
+	res, err := impl.policyService.SavePolicy(&req, userId)
 	if err != nil {
-		impl.logger.Errorw("service err, SavePolicy", "err", err, "payload", req)
+		impl.logger.Errorw("service err, SavePolicy", "payload", req, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

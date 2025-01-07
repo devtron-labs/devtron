@@ -23,7 +23,6 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
-	"time"
 )
 
 type CvePolicy struct {
@@ -53,17 +52,8 @@ func (policy *CvePolicy) PolicyLevel() securityBean.PolicyLevel {
 	}
 }
 
-func (policy *CvePolicy) UpdateDeleted(deleted bool) *CvePolicy {
+func (policy *CvePolicy) UpdateDeleted(deleted bool) {
 	policy.Deleted = deleted
-	return policy
-}
-
-func (policy *CvePolicy) UpdateAuditLog(userId int32, time time.Time) *CvePolicy {
-	policy.UpdatedOn = time
-	policy.CreatedOn = time
-	policy.UpdatedBy = userId
-	policy.CreatedBy = userId
-	return policy
 }
 
 //------------------
@@ -324,6 +314,7 @@ func (impl *CvePolicyRepositoryImpl) getHighestPolicyS(allPolicies map[securityB
 	return applicablePolicies
 }
 
+// GetActiveByCveIdAndScope returns cvePolicy slice, based on scope, if all scopes are 0 or null then global cvePolicies are returned
 func (impl *CvePolicyRepositoryImpl) GetActiveByCveIdAndScope(cveId string, envId, appId, clusterId int) (policies []*CvePolicy, err error) {
 	query := impl.dbConnection.Model(&policies).
 		Column("cve_policy.*").

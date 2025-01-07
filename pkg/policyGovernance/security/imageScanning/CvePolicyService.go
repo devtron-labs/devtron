@@ -46,7 +46,7 @@ import (
 )
 
 type PolicyService interface {
-	SavePolicy(request bean.CreateVulnerabilityPolicyRequest, userId int32) (*bean.IdVulnerabilityPolicyResult, error)
+	SavePolicy(request *bean.CreateVulnerabilityPolicyRequest, userId int32) (*bean.IdVulnerabilityPolicyResult, error)
 	UpdatePolicy(updatePolicyParams bean.UpdatePolicyParams, userId int32) (*bean.IdVulnerabilityPolicyResult, error)
 	DeletePolicy(id int, userId int32) (*bean.IdVulnerabilityPolicyResult, error)
 	GetPolicies(policyLevel securityBean.PolicyLevel, clusterId, environmentId, appId int) (*bean.GetVulnerabilityPolicyResult, error)
@@ -436,7 +436,7 @@ func (impl *PolicyServiceImpl) parsePolicyAction(action string) (securityBean.Po
 	return policyAction, nil
 }
 
-func (impl *PolicyServiceImpl) SavePolicy(request bean.CreateVulnerabilityPolicyRequest, userId int32) (*bean.IdVulnerabilityPolicyResult, error) {
+func (impl *PolicyServiceImpl) SavePolicy(request *bean.CreateVulnerabilityPolicyRequest, userId int32) (*bean.IdVulnerabilityPolicyResult, error) {
 	tx, err := impl.transactionManager.StartTx()
 	if err != nil {
 		impl.logger.Errorw("error in creating transaction", "request", request, "err", err)
@@ -493,14 +493,15 @@ func (impl *PolicyServiceImpl) SavePolicy(request bean.CreateVulnerabilityPolicy
 	return &bean.IdVulnerabilityPolicyResult{Id: policy.Id}, nil
 }
 
-func (impl *PolicyServiceImpl) softDeleteOldPoliciesIfExists(tx *pg.Tx, request bean.CreateVulnerabilityPolicyRequest, userId int32) error {
+func (impl *PolicyServiceImpl) softDeleteOldPoliciesIfExists(tx *pg.Tx, request *bean.CreateVulnerabilityPolicyRequest, userId int32) error {
 	policiesToDelete, err := impl.cvePolicyRepository.GetActiveByCveIdAndScope(request.CveId, request.EnvId, request.AppId, request.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting active policies by cveId and scope", "request", request, "err", err)
 		return err
 	}
 	for _, policy := range policiesToDelete {
-		policy.UpdateDeleted(true).UpdateAuditLog(userId, time.Now())
+		policy.UpdateDeleted(true)
+		policy.AuditLog.UpdateAuditLog(userId)
 	}
 	err = impl.cvePolicyRepository.UpdatePoliciesInBulk(tx, policiesToDelete)
 	if err != nil {
