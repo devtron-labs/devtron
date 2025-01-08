@@ -24,24 +24,18 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/bean/AppView"
-	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
-	"github.com/devtron-labs/devtron/api/helm-app/service/read"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	util3 "github.com/devtron-labs/devtron/api/util"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
-	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
-	"github.com/devtron-labs/devtron/pkg/appStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
-	argoApplication2 "github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean5 "github.com/devtron-labs/devtron/pkg/cluster/bean"
@@ -51,8 +45,6 @@ import (
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp/status/resourceTree"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
-	"github.com/devtron-labs/devtron/pkg/generateManifest"
-	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application3 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -85,30 +77,20 @@ type AppListingRestHandler interface {
 }
 
 type AppListingRestHandlerImpl struct {
-	application            application.ServiceClient
-	appListingService      app.AppListingService
-	enforcer               casbin.Enforcer
-	pipeline               pipeline.PipelineBuilder
-	logger                 *zap.SugaredLogger
-	enforcerUtil           rbac.EnforcerUtil
-	deploymentGroupService deploymentGroup.DeploymentGroupService
-	userService            user.UserService
-	// TODO fix me next
-	helmAppClient                    gRPC.HelmAppClient // TODO refactoring: use HelmAppService
-	helmAppReadService               read.HelmAppReadService
-	k8sCommonService                 k8s.K8sCommonService
-	installedAppService              FullMode.InstalledAppDBExtendedService
-	installedAppResourceService      resource.InstalledAppResourceService
-	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler
-	pipelineRepository               pipelineConfig.PipelineRepository
-	appStatusService                 appStatus.AppStatusService
-	installedAppRepository           repository.InstalledAppRepository
-	genericNoteService               genericNotes.GenericNoteService
-	k8sApplicationService            application3.K8sApplicationService
-	deploymentTemplateService        generateManifest.DeploymentTemplateService
-	deploymentConfigService          common2.DeploymentConfigService
-	argoApplicationService           argoApplication2.ArgoApplicationService
-	resourceTreeService              resourceTree.Service
+	appListingService           app.AppListingService
+	enforcer                    casbin.Enforcer
+	pipeline                    pipeline.PipelineBuilder
+	logger                      *zap.SugaredLogger
+	enforcerUtil                rbac.EnforcerUtil
+	deploymentGroupService      deploymentGroup.DeploymentGroupService
+	userService                 user.UserService
+	k8sCommonService            k8s.K8sCommonService
+	installedAppService         FullMode.InstalledAppDBExtendedService
+	installedAppResourceService resource.InstalledAppResourceService
+	pipelineRepository          pipelineConfig.PipelineRepository
+	k8sApplicationService       application3.K8sApplicationService
+	deploymentConfigService     common2.DeploymentConfigService
+	resourceTreeService         resourceTree.Service
 }
 
 type AppStatus struct {
@@ -125,49 +107,33 @@ type AppAutocomplete struct {
 	Clusters     []bean5.ClusterBean
 }
 
-func NewAppListingRestHandlerImpl(application application.ServiceClient,
-	appListingService app.AppListingService,
+func NewAppListingRestHandlerImpl(appListingService app.AppListingService,
 	enforcer casbin.Enforcer,
 	pipeline pipeline.PipelineBuilder,
 	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
 	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService,
-	helmAppClient gRPC.HelmAppClient, helmAppReadService read.HelmAppReadService,
 	k8sCommonService k8s.K8sCommonService,
 	installedAppService FullMode.InstalledAppDBExtendedService,
 	installedAppResourceService resource.InstalledAppResourceService,
-	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	appStatusService appStatus.AppStatusService, installedAppRepository repository.InstalledAppRepository,
-	genericNoteService genericNotes.GenericNoteService,
 	k8sApplicationService application3.K8sApplicationService,
-	deploymentTemplateService generateManifest.DeploymentTemplateService,
 	deploymentConfigService common2.DeploymentConfigService,
-	argoApplicationService argoApplication2.ArgoApplicationService,
 	resourceTreeService resourceTree.Service) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
-		application:                      application,
-		appListingService:                appListingService,
-		logger:                           logger,
-		pipeline:                         pipeline,
-		enforcer:                         enforcer,
-		enforcerUtil:                     enforcerUtil,
-		deploymentGroupService:           deploymentGroupService,
-		userService:                      userService,
-		helmAppClient:                    helmAppClient,
-		helmAppReadService:               helmAppReadService,
-		k8sCommonService:                 k8sCommonService,
-		installedAppService:              installedAppService,
-		installedAppResourceService:      installedAppResourceService,
-		cdApplicationStatusUpdateHandler: cdApplicationStatusUpdateHandler,
-		pipelineRepository:               pipelineRepository,
-		appStatusService:                 appStatusService,
-		installedAppRepository:           installedAppRepository,
-		genericNoteService:               genericNoteService,
-		k8sApplicationService:            k8sApplicationService,
-		deploymentTemplateService:        deploymentTemplateService,
-		deploymentConfigService:          deploymentConfigService,
-		argoApplicationService:           argoApplicationService,
-		resourceTreeService:              resourceTreeService,
+		appListingService:           appListingService,
+		logger:                      logger,
+		pipeline:                    pipeline,
+		enforcer:                    enforcer,
+		enforcerUtil:                enforcerUtil,
+		deploymentGroupService:      deploymentGroupService,
+		userService:                 userService,
+		k8sCommonService:            k8sCommonService,
+		installedAppService:         installedAppService,
+		installedAppResourceService: installedAppResourceService,
+		pipelineRepository:          pipelineRepository,
+		k8sApplicationService:       k8sApplicationService,
+		deploymentConfigService:     deploymentConfigService,
+		resourceTreeService:         resourceTreeService,
 	}
 	return appListingHandler
 }
