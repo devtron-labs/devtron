@@ -245,7 +245,6 @@ func (impl EnvironmentServiceImpl) validateEnvUpdateRequest(mappings *bean2.Envi
 		return nil
 	}
 	if model.Id > 0 {
-		impl.logger.Warnw("environment already exists for this cluster and namespace", "model", model)
 		return util.NewApiError(http.StatusBadRequest, bean2.EnvironmentAlreadyExistsErr, bean2.EnvironmentAlreadyExistsErr)
 	}
 	return nil
