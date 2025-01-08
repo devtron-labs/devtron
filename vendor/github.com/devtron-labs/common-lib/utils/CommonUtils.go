@@ -130,9 +130,11 @@ func ExecutePGQueryProcessor(cfg bean.PgQueryConfig, event bean.PgQueryEvent) {
 	logFailureQuery := queryError && cfg.LogAllFailureQueries
 	if logFailureQuery {
 		logger.Errorw("PG_QUERY_FAIL - query time", "duration", queryDuration.Seconds(), "query", event.Query, "pgError", pgError)
-	} else if logThresholdQueries {
+	}
+	if logThresholdQueries {
 		logger.Debugw("PG_QUERY_SLOW - query time", "duration", queryDuration.Seconds(), "query", event.Query)
-	} else if cfg.LogAllQuery {
+	}
+	if cfg.LogAllQuery {
 		logger.Debugw("query time", "duration", queryDuration.Seconds(), "query", event.Query)
 	}
 }
