@@ -80,7 +80,6 @@ type DeploymentConfigurationServiceImpl struct {
 	k8sUtil                              k8sUtil.K8sService
 	mergeUtil                            util.MergeUtil
 	HelmAppReadService                   read3.HelmAppReadService
-
 }
 
 func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,
@@ -176,7 +175,7 @@ func (impl *DeploymentConfigurationServiceImpl) GetAllConfigData(ctx context.Con
 		AppName: configDataQueryParams.AppName,
 	}
 	if configDataQueryParams.IsEnvNameProvided() {
-		env, err := impl.environmentRepository.FindEnvByNameWithClusterDetails(configDataQueryParams.EnvName)
+		env, err := impl.environmentRepository.FindEnvByNameAndClusterIdWithClusterDetails(configDataQueryParams.EnvName, configDataQueryParams.ClusterId)
 		if err != nil {
 			impl.logger.Errorw("GetAllConfigData, error in getting environment model by envName", "envName", configDataQueryParams.EnvName, "err", err)
 			return nil, err
@@ -1387,7 +1386,7 @@ func (impl *DeploymentConfigurationServiceImpl) getAppEnvClusterAndSystemMetadat
 		AppName: comparisonItem.AppName,
 	}
 	if len(comparisonItem.EnvName) > 0 {
-		env, err := impl.environmentRepository.FindEnvByNameWithClusterDetails(comparisonItem.EnvName)
+		env, err := impl.environmentRepository.FindEnvByNameAndClusterIdWithClusterDetails(comparisonItem.EnvName, comparisonItem.ClusterId)
 		if err != nil {
 			impl.logger.Errorw("error in getting environment model by envName", "envName", comparisonItem.EnvName, "err", err)
 			return nil, nil, err

@@ -185,6 +185,7 @@ type ConfigDataQueryParams struct {
 	UserId       int32  `schema:"-"`
 	WfrId        int    `schema:"wfrId" json:"wfrId"`
 	ConfigArea   string `schema:"configArea" json:"configArea"`
+	ClusterId    int    `schema:"clusterId" json:"clusterId"`
 }
 
 type ManifestRequest struct {
