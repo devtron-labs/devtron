@@ -160,6 +160,25 @@ func (impl ServiceImpl) FetchResourceTree(ctx context.Context, appId int, envId 
 				impl.logger.Warnw("error in updating app status", "err", err, "appId", cdPipeline.AppId, "envId", cdPipeline.EnvironmentId)
 			}
 		}()
+		k8sAppDetail := AppView.AppDetailContainer{
+			DeploymentDetailContainer: AppView.DeploymentDetailContainer{
+				ClusterId: cdPipeline.Environment.ClusterId,
+				Namespace: cdPipeline.Environment.Namespace,
+			},
+		}
+
+		clusterIdString := strconv.Itoa(cdPipeline.Environment.ClusterId)
+		validRequest := impl.k8sCommonService.FilterK8sResources(ctx, resourceTree, k8sAppDetail, clusterIdString, []string{k8sCommonBean.ServiceKind, k8sCommonBean.EndpointsKind, k8sCommonBean.IngressKind}, "")
+		respManifest, err := impl.k8sCommonService.GetManifestsByBatch(ctx, validRequest)
+		if err != nil {
+			impl.logger.Errorw("error in getting manifest by batch", "err", err, "clusterId", clusterIdString)
+			httpStatus, ok := util.IsErrorContextCancelledOrDeadlineExceeded(err)
+			if ok {
+				return nil, &util.ApiError{HttpStatusCode: httpStatus, Code: strconv.Itoa(httpStatus), InternalMessage: err.Error()}
+			}
+			return nil, err
+		}
+		resourceTree = impl.k8sCommonService.PortNumberExtraction(respManifest, resourceTree)
 
 	} else if len(cdPipeline.DeploymentAppName) > 0 && cdPipeline.EnvironmentId > 0 && util.IsHelmApp(deploymentConfig.DeploymentAppType) {
 		config, err := impl.helmAppReadService.GetClusterConf(cdPipeline.Environment.ClusterId)
@@ -202,23 +221,5 @@ func (impl ServiceImpl) FetchResourceTree(ctx context.Context, appId int, envId 
 			resourceTree["serverVersion"] = version.String()
 		}
 	}
-	k8sAppDetail := AppView.AppDetailContainer{
-		DeploymentDetailContainer: AppView.DeploymentDetailContainer{
-			ClusterId: cdPipeline.Environment.ClusterId,
-			Namespace: cdPipeline.Environment.Namespace,
-		},
-	}
-	clusterIdString := strconv.Itoa(cdPipeline.Environment.ClusterId)
-	validRequest := impl.k8sCommonService.FilterK8sResources(ctx, resourceTree, k8sAppDetail, clusterIdString, []string{k8sCommonBean.ServiceKind, k8sCommonBean.EndpointsKind, k8sCommonBean.IngressKind}, "")
-	resp, err := impl.k8sCommonService.GetManifestsByBatch(ctx, validRequest)
-	if err != nil {
-		impl.logger.Errorw("error in getting manifest by batch", "err", err, "clusterId", clusterIdString)
-		httpStatus, ok := util.IsErrorContextCancelledOrDeadlineExceeded(err)
-		if ok {
-			return nil, &util.ApiError{HttpStatusCode: httpStatus, Code: strconv.Itoa(httpStatus), InternalMessage: err.Error()}
-		}
-		return nil, err
-	}
-	newResourceTree := impl.k8sCommonService.PortNumberExtraction(resp, resourceTree)
-	return newResourceTree, nil
+	return resourceTree, nil
 }
