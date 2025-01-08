@@ -187,7 +187,7 @@ func (impl ServiceImpl) FetchResourceTree(ctx context.Context, appId int, envId 
 			Namespace:   cdPipeline.Environment.Namespace,
 			ReleaseName: cdPipeline.DeploymentAppName,
 		}
-		detail, err := impl.helmAppService.GetApplicationDetail(context.Background(), req)
+		detail, err := impl.helmAppService.GetApplicationDetail(ctx, req)
 		if err != nil {
 			impl.logger.Errorw("error in fetching app detail", "err", err)
 		}

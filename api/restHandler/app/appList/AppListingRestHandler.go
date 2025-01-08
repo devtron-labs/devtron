@@ -46,7 +46,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp/status/resourceTree"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/k8s"
-	application3 "github.com/devtron-labs/devtron/pkg/k8s/application"
+	k8sApplication "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	bean6 "github.com/devtron-labs/devtron/pkg/team/bean"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -93,7 +93,7 @@ type AppListingRestHandlerImpl struct {
 	installedAppService         FullMode.InstalledAppDBExtendedService
 	installedAppResourceService resource.InstalledAppResourceService
 	pipelineRepository          pipelineConfig.PipelineRepository
-	k8sApplicationService       application3.K8sApplicationService
+	k8sApplicationService       k8sApplication.K8sApplicationService
 	deploymentConfigService     common2.DeploymentConfigService
 	resourceTreeService         resourceTree.Service
 }
@@ -121,7 +121,7 @@ func NewAppListingRestHandlerImpl(appListingService app.AppListingService,
 	installedAppService FullMode.InstalledAppDBExtendedService,
 	installedAppResourceService resource.InstalledAppResourceService,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	k8sApplicationService application3.K8sApplicationService,
+	k8sApplicationService k8sApplication.K8sApplicationService,
 	deploymentConfigService common2.DeploymentConfigService,
 	resourceTreeService resourceTree.Service) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
