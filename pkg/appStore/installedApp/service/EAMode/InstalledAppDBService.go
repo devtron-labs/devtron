@@ -17,6 +17,7 @@
 package EAMode
 
 import (
+	bean2 "github.com/devtron-labs/devtron/api/bean/AppView"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
@@ -29,7 +30,6 @@ import (
 	"time"
 
 	"github.com/Pallinder/go-randomdata"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/util"

@@ -26,7 +26,7 @@ import (
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	k8sObjectUtils "github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
-	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/api/bean/AppView"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/api/helm-app/service/read"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -225,7 +225,7 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 
 		if len(validAppIds) == 0 {
 			handler.logger.Infow("user doesn't have access to any app", "userId", userId)
-			common.WriteJsonResp(w, err, bean.JobContainerResponse{}, http.StatusOK)
+			common.WriteJsonResp(w, err, AppView.JobContainerResponse{}, http.StatusOK)
 			return
 		}
 	}
@@ -258,7 +258,7 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 			jobs = jobs[offset:]
 		}
 	}
-	jobContainerResponse := bean.JobContainerResponse{
+	jobContainerResponse := AppView.JobContainerResponse{
 		JobContainers: jobs,
 		JobCount:      jobsCount,
 	}
@@ -347,7 +347,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 
 		if len(validAppIds) == 0 {
 			handler.logger.Infow("user doesn't have access to any app", "userId", userId)
-			common.WriteJsonResp(w, err, bean.AppContainerResponse{}, http.StatusOK)
+			common.WriteJsonResp(w, err, AppView.AppContainerResponse{}, http.StatusOK)
 			return
 		}
 	}
@@ -402,20 +402,20 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 	}
 
-	appContainerResponse := bean.AppContainerResponse{
+	appContainerResponse := AppView.AppContainerResponse{
 		AppContainers: apps,
 		AppCount:      appsCount,
 	}
 	if fetchAppListingRequest.DeploymentGroupId > 0 {
-		var ciMaterialDTOs []bean.CiMaterialDTO
+		var ciMaterialDTOs []AppView.CiMaterialDTO
 		for _, ci := range dg.CiMaterialDTOs {
-			ciMaterialDTOs = append(ciMaterialDTOs, bean.CiMaterialDTO{
+			ciMaterialDTOs = append(ciMaterialDTOs, AppView.CiMaterialDTO{
 				Name:        ci.Name,
 				SourceValue: ci.SourceValue,
 				SourceType:  ci.SourceType,
 			})
 		}
-		appContainerResponse.DeploymentGroupDTO = bean.DeploymentGroupDTO{
+		appContainerResponse.DeploymentGroupDTO = AppView.DeploymentGroupDTO{
 			Id:             dg.Id,
 			Name:           dg.Name,
 			AppCount:       dg.AppCount,
@@ -487,7 +487,7 @@ func (handler AppListingRestHandlerImpl) FetchOverviewAppsByEnvironment(w http.R
 	// enforce rbac in batch
 	rbacResult := handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
 	// filter out rbac passed apps
-	resp.Apps = make([]*bean.AppEnvironmentContainer, 0)
+	resp.Apps = make([]*AppView.AppEnvironmentContainer, 0)
 	for _, appBean := range appContainers {
 		rbacObject := rbacObjectsWithAppId[appBean.AppId]
 		if rbacResult[rbacObject] {
@@ -767,7 +767,7 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 	}
 	http.Redirect(w, r, link, http.StatusOK)
 }
-func (handler AppListingRestHandlerImpl) fetchResourceTreeFromInstallAppService(w http.ResponseWriter, r *http.Request, resourceTreeAndNotesContainer bean.AppDetailsContainer, installedApps repository.InstalledApps, deploymentConfig *bean4.DeploymentConfig) (bean.AppDetailsContainer, error) {
+func (handler AppListingRestHandlerImpl) fetchResourceTreeFromInstallAppService(w http.ResponseWriter, r *http.Request, resourceTreeAndNotesContainer AppView.AppDetailsContainer, installedApps repository.InstalledApps, deploymentConfig *bean4.DeploymentConfig) (AppView.AppDetailsContainer, error) {
 	rctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
 	err := handler.installedAppResourceService.FetchResourceTree(rctx, cn, &resourceTreeAndNotesContainer, installedApps, deploymentConfig, "", "")
@@ -798,7 +798,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			return
 		}
 	}
-	var appDetail bean.AppDetailContainer
+	var appDetail AppView.AppDetailContainer
 	var appId, envId int
 	envId, err := strconv.Atoi(envIdParam)
 	if err != nil {
@@ -846,7 +846,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			//this is external app case where app_name is a unique identifier, and we want to fetch resource based on display_name
 			handler.installedAppService.ChangeAppNameToDisplayNameForInstalledApp(installedApp)
 		}
-		resourceTreeAndNotesContainer := bean.AppDetailsContainer{}
+		resourceTreeAndNotesContainer := AppView.AppDetailsContainer{}
 		resourceTreeAndNotesContainer, err = handler.fetchResourceTreeFromInstallAppService(w, r, resourceTreeAndNotesContainer, *installedApp, appDetail.DeploymentConfig)
 		if err != nil {
 			common.WriteJsonResp(w, fmt.Errorf("error in fetching resource tree"), nil, http.StatusInternalServerError)
@@ -903,8 +903,8 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 	common.WriteJsonResp(w, nil, result, http.StatusOK)
 }
 
-func (handler AppListingRestHandlerImpl) getAppDetails(ctx context.Context, appIdParam, installedAppIdParam string, envId int) (bean.AppDetailContainer, error, int) {
-	var appDetail bean.AppDetailContainer
+func (handler AppListingRestHandlerImpl) getAppDetails(ctx context.Context, appIdParam, installedAppIdParam string, envId int) (AppView.AppDetailContainer, error, int) {
+	var appDetail AppView.AppDetailContainer
 	if appIdParam != "" {
 		appId, err := strconv.Atoi(appIdParam)
 		if err != nil {
@@ -1050,8 +1050,8 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			resourceTree["serverVersion"] = version.String()
 		}
 	}
-	k8sAppDetail := bean.AppDetailContainer{
-		DeploymentDetailContainer: bean.DeploymentDetailContainer{
+	k8sAppDetail := AppView.AppDetailContainer{
+		DeploymentDetailContainer: AppView.DeploymentDetailContainer{
 			ClusterId: cdPipeline.Environment.ClusterId,
 			Namespace: cdPipeline.Environment.Namespace,
 		},

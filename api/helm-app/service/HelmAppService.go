@@ -94,6 +94,8 @@ type HelmAppService interface {
 	GetRevisionHistoryMaxValue(appType bean.SourceAppType) int32
 	GetResourceTreeForExternalResources(ctx context.Context, clusterId int, clusterConfig *gRPC.ClusterConfig, resources []*gRPC.ExternalResourceDetail) (*gRPC.ResourceTreeResponse, error)
 	CheckIfNsExistsForClusterIds(clusterIdToNsMap map[int]string) error
+
+	GetAppStatusV2(ctx context.Context, req *gRPC.AppDetailRequest, clusterId int) (*gRPC.AppStatus, error)
 }
 
 type HelmAppServiceImpl struct {
@@ -175,7 +177,7 @@ func (impl *HelmAppServiceImpl) ListHelmApplications(ctx context.Context, cluste
 			http.StatusInternalServerError)
 		return
 	}
-	
+
 	// get helm apps which are created using cd_pipelines
 	newCtx, span := otel.Tracer("pipelineRepository").Start(ctx, "GetAppAndEnvDetailsForDeploymentAppTypePipeline")
 	start = time.Now()

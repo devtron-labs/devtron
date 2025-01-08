@@ -24,7 +24,7 @@ import (
 	k8s2 "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
-	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/api/bean/AppView"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/api/helm-app/service/read"
@@ -54,8 +54,8 @@ import (
 )
 
 type InstalledAppResourceService interface {
-	FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean.AppDetailContainer) bean.AppDetailContainer
-	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetailsContainer *bean.AppDetailsContainer, installedApp repository.InstalledApps, deploymentConfig *bean2.DeploymentConfig, helmReleaseInstallStatus string, status string) error
+	FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *AppView.AppDetailContainer) AppView.AppDetailContainer
+	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetailsContainer *AppView.AppDetailsContainer, installedApp repository.InstalledApps, deploymentConfig *bean2.DeploymentConfig, helmReleaseInstallStatus string, status string) error
 	FetchChartNotes(installedAppId int, envId int, token string, checkNotesAuth func(token string, appName string, envId int) bool) (string, error)
 }
 
@@ -111,7 +111,7 @@ func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *InstalledAppResourceServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetailsContainer *bean.AppDetailsContainer, installedApp repository.InstalledApps, deploymentConfig *bean2.DeploymentConfig, helmReleaseInstallStatus string, status string) error {
+func (impl *InstalledAppResourceServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetailsContainer *AppView.AppDetailsContainer, installedApp repository.InstalledApps, deploymentConfig *bean2.DeploymentConfig, helmReleaseInstallStatus string, status string) error {
 	var err error
 	var resourceTree map[string]interface{}
 	deploymentAppName := util2.BuildDeployedAppName(installedApp.App.AppName, installedApp.Environment.Name)
@@ -188,7 +188,7 @@ func (impl *InstalledAppResourceServiceImpl) FetchResourceTree(rctx context.Cont
 	return err
 }
 
-func (impl *InstalledAppResourceServiceImpl) FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *bean.AppDetailContainer) bean.AppDetailContainer {
+func (impl *InstalledAppResourceServiceImpl) FetchResourceTreeWithHibernateForACD(rctx context.Context, cn http.CloseNotifier, appDetail *AppView.AppDetailContainer) AppView.AppDetailContainer {
 	ctx, cancel := context.WithCancel(rctx)
 	if cn != nil {
 		go func(done <-chan struct{}, closed <-chan bool) {
@@ -270,8 +270,8 @@ func (impl *InstalledAppResourceServiceImpl) fetchResourceTreeForACD(rctx contex
 		}
 	}()
 	impl.logger.Debugf("application %s in environment %s had status %+v\n", appId, envId, resp)
-	k8sAppDetail := bean.AppDetailContainer{
-		DeploymentDetailContainer: bean.DeploymentDetailContainer{
+	k8sAppDetail := AppView.AppDetailContainer{
+		DeploymentDetailContainer: AppView.DeploymentDetailContainer{
 			ClusterId: clusterId,
 			Namespace: namespace,
 		},
