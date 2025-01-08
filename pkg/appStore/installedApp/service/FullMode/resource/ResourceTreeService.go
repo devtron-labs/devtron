@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean/AppView"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/service/read"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -66,7 +67,6 @@ type InstalledAppResourceServiceImpl struct {
 	acdClient                            application2.ServiceClient
 	aCDAuthConfig                        *util3.ACDAuthConfig
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
-	helmAppClient                        gRPC.HelmAppClient
 	helmAppService                       service.HelmAppService
 	helmAppReadService                   read.HelmAppReadService
 	appStatusService                     appStatus.AppStatusService
@@ -84,7 +84,7 @@ func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
 	acdClient application2.ServiceClient,
 	aCDAuthConfig *util3.ACDAuthConfig,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
-	helmAppClient gRPC.HelmAppClient, helmAppService service.HelmAppService,
+	helmAppService service.HelmAppService,
 	helmAppReadService read.HelmAppReadService,
 	appStatusService appStatus.AppStatusService,
 	k8sCommonService k8s.K8sCommonService, k8sApplicationService application3.K8sApplicationService, K8sUtil k8s2.K8sService,
@@ -98,7 +98,6 @@ func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
 		acdClient:                            acdClient,
 		aCDAuthConfig:                        aCDAuthConfig,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
-		helmAppClient:                        helmAppClient,
 		helmAppService:                       helmAppService,
 		helmAppReadService:                   helmAppReadService,
 		appStatusService:                     appStatusService,
@@ -118,16 +117,12 @@ func (impl *InstalledAppResourceServiceImpl) FetchResourceTree(rctx context.Cont
 	if util.IsAcdApp(deploymentConfig.DeploymentAppType) {
 		resourceTree, err = impl.fetchResourceTreeForACD(rctx, cn, installedApp.App.Id, installedApp.EnvironmentId, installedApp.Environment.ClusterId, deploymentAppName, installedApp.Environment.Namespace)
 	} else if util.IsHelmApp(deploymentConfig.DeploymentAppType) {
-		config, err := impl.helmAppReadService.GetClusterConf(installedApp.Environment.ClusterId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching cluster detail", "err", err)
+		req := &bean.AppIdentifier{
+			ClusterId:   installedApp.Environment.ClusterId,
+			Namespace:   installedApp.Environment.Namespace,
+			ReleaseName: installedApp.App.AppName,
 		}
-		req := &gRPC.AppDetailRequest{
-			ClusterConfig: config,
-			Namespace:     installedApp.Environment.Namespace,
-			ReleaseName:   installedApp.App.AppName,
-		}
-		detail, err := impl.helmAppClient.GetAppDetail(rctx, req)
+		detail, err := impl.helmAppService.GetApplicationDetail(rctx, req)
 		if err != nil {
 			impl.logger.Errorw("error in fetching app detail", "err", err)
 		}

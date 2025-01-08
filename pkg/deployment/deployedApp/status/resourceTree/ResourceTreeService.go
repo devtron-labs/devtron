@@ -24,7 +24,8 @@ import (
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	k8sObjectUtils "github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/api/bean/AppView"
-	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
+	"github.com/devtron-labs/devtron/api/helm-app/service"
+	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/service/read"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/cron"
@@ -58,8 +59,8 @@ type ServiceImpl struct {
 	appStatusService                 appStatus.AppStatusService
 	argoApplicationService           argoApplication2.ArgoApplicationService
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler
-	helmAppClient                    gRPC.HelmAppClient
 	helmAppReadService               read.HelmAppReadService
+	helmAppService                   service.HelmAppService
 	k8sApplicationService            application2.K8sApplicationService
 	k8sCommonService                 k8s.K8sCommonService
 }
@@ -69,8 +70,8 @@ func NewServiceImpl(logger *zap.SugaredLogger,
 	appStatusService appStatus.AppStatusService,
 	argoApplicationService argoApplication2.ArgoApplicationService,
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
-	helmAppClient gRPC.HelmAppClient,
 	helmAppReadService read.HelmAppReadService,
+	helmAppService service.HelmAppService,
 	k8sApplicationService application2.K8sApplicationService,
 	k8sCommonService k8s.K8sCommonService) *ServiceImpl {
 	serviceImpl := &ServiceImpl{
@@ -79,8 +80,8 @@ func NewServiceImpl(logger *zap.SugaredLogger,
 		appStatusService:                 appStatusService,
 		argoApplicationService:           argoApplicationService,
 		cdApplicationStatusUpdateHandler: cdApplicationStatusUpdateHandler,
-		helmAppClient:                    helmAppClient,
 		helmAppReadService:               helmAppReadService,
+		helmAppService:                   helmAppService,
 		k8sApplicationService:            k8sApplicationService,
 		k8sCommonService:                 k8sCommonService,
 	}
@@ -181,16 +182,12 @@ func (impl ServiceImpl) FetchResourceTree(ctx context.Context, appId int, envId 
 		resourceTree = impl.k8sCommonService.PortNumberExtraction(respManifest, resourceTree)
 
 	} else if len(cdPipeline.DeploymentAppName) > 0 && cdPipeline.EnvironmentId > 0 && util.IsHelmApp(deploymentConfig.DeploymentAppType) {
-		config, err := impl.helmAppReadService.GetClusterConf(cdPipeline.Environment.ClusterId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching cluster detail", "err", err)
+		req := &bean.AppIdentifier{
+			ClusterId:   cdPipeline.Environment.ClusterId,
+			Namespace:   cdPipeline.Environment.Namespace,
+			ReleaseName: cdPipeline.DeploymentAppName,
 		}
-		req := &gRPC.AppDetailRequest{
-			ClusterConfig: config,
-			Namespace:     cdPipeline.Environment.Namespace,
-			ReleaseName:   cdPipeline.DeploymentAppName,
-		}
-		detail, err := impl.helmAppClient.GetAppDetail(context.Background(), req)
+		detail, err := impl.helmAppService.GetApplicationDetail(context.Background(), req)
 		if err != nil {
 			impl.logger.Errorw("error in fetching app detail", "err", err)
 		}

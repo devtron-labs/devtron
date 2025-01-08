@@ -550,17 +550,6 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 		common.WriteJsonResp(w, fmt.Errorf("error in getting deployment config for env"), nil, http.StatusInternalServerError)
 		return
 	}
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	defer cancel()
 	resourceTree, err := handler.resourceTreeService.FetchResourceTree(ctx, appId, envId, cdPipeline, envDeploymentConfig)
 	if err != nil {
 		handler.logger.Errorw("error in fetching resource tree", "err", err, "appId", appId, "envId", envId)
