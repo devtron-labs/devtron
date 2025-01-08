@@ -74,6 +74,11 @@ type AppListingRestHandler interface {
 
 	FetchAppsByEnvironmentV2(w http.ResponseWriter, r *http.Request)
 	FetchOverviewAppsByEnvironment(w http.ResponseWriter, r *http.Request)
+
+	//ent
+	FetchAppPolicyConsequences(w http.ResponseWriter, r *http.Request)
+	FetchAutocompleteJobCiPipelines(w http.ResponseWriter, r *http.Request)
+	GetAllAppEnvsFromResourceNames(w http.ResponseWriter, r *http.Request)
 }
 
 type AppListingRestHandlerImpl struct {
