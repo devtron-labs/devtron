@@ -18,7 +18,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appStatus"
 	argoApplication2 "github.com/devtron-labs/devtron/pkg/argoApplication"
-	bean3 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
+	commonBean "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -29,7 +29,11 @@ import (
 
 type Service interface {
 	FetchResourceTree(ctx context.Context, appId int, envId int, cdPipeline *pipelineConfig.Pipeline,
-		deploymentConfig *bean3.DeploymentConfig) (map[string]interface{}, error)
+		deploymentConfig *commonBean.DeploymentConfig) (map[string]interface{}, error)
+
+	//ent
+	FetchResourceTreeWithDrift(ctx context.Context, appId int, envId int, cdPipeline *pipelineConfig.Pipeline,
+		deploymentConfig *commonBean.DeploymentConfig) (map[string]interface{}, error)
 }
 
 type ServiceImpl struct {
@@ -68,7 +72,7 @@ func NewServiceImpl(logger *zap.SugaredLogger,
 }
 
 func (impl ServiceImpl) FetchResourceTree(ctx context.Context, appId int, envId int, cdPipeline *pipelineConfig.Pipeline,
-	deploymentConfig *bean3.DeploymentConfig) (map[string]interface{}, error) {
+	deploymentConfig *commonBean.DeploymentConfig) (map[string]interface{}, error) {
 	var resourceTree map[string]interface{}
 	if !cdPipeline.DeploymentAppCreated {
 		impl.logger.Infow("deployment for this pipeline does not exist", "pipelineId", cdPipeline.Id)
