@@ -189,7 +189,7 @@ func (impl ServiceImpl) FetchResourceTree(ctx context.Context, appId int, envId 
 		}
 		detail, err := impl.helmAppService.GetApplicationDetail(ctx, req)
 		if err != nil {
-			impl.logger.Errorw("error in fetching app detail", "err", err)
+			impl.logger.Errorw("error in fetching app detail", "payload", req, "err", err)
 		}
 		if detail != nil && detail.ReleaseExist {
 			resourceTree = util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
