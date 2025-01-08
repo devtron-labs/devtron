@@ -503,10 +503,12 @@ func (impl *PolicyServiceImpl) softDeleteOldPoliciesIfExists(tx *pg.Tx, request 
 		policy.UpdateDeleted(true)
 		policy.AuditLog.UpdateAuditLog(userId)
 	}
-	err = impl.cvePolicyRepository.UpdatePoliciesInBulk(tx, policiesToDelete)
-	if err != nil {
-		impl.logger.Errorw("error in deleting policies", "request", request, "err", err)
-		return err
+	if len(policiesToDelete) > 0 {
+		err = impl.cvePolicyRepository.UpdatePoliciesInBulk(tx, policiesToDelete)
+		if err != nil {
+			impl.logger.Errorw("error in deleting policies", "request", request, "err", err)
+			return err
+		}
 	}
 	return nil
 }
