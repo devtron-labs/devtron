@@ -34,7 +34,6 @@ import (
 	certificate2 "github.com/devtron-labs/devtron/client/argocdServer/certificate"
 	"github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	config2 "github.com/devtron-labs/devtron/client/argocdServer/config"
-	"github.com/devtron-labs/devtron/client/argocdServer/repoCredsK8sClient"
 	bean2 "github.com/devtron-labs/devtron/client/argocdServer/repoCredsK8sClient/bean"
 	repocreds2 "github.com/devtron-labs/devtron/client/argocdServer/repocreds"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
@@ -144,7 +143,6 @@ type ArgoClientWrapperServiceImpl struct {
 	repositoryService       repository.ServiceClient
 	clusterClient           cluster.ServiceClient
 	repoCredsClient         repocreds2.ServiceClient
-	repoCredsK8sClient      repoCredsK8sClient.RepositoryCredsK8sClient
 	CertificateClient       certificate2.ServiceClient
 	logger                  *zap.SugaredLogger
 	ACDConfig               *ACDConfig
@@ -152,6 +150,7 @@ type ArgoClientWrapperServiceImpl struct {
 	gitOperationService     git.GitOperationService
 	asyncRunnable           *async.Runnable
 	acdConfigGetter         config2.ArgoCDConfigGetter
+	*ArgoClientWrapperServiceEAImpl
 }
 
 func NewArgoClientWrapperServiceImpl(
@@ -164,20 +163,21 @@ func NewArgoClientWrapperServiceImpl(
 	ACDConfig *ACDConfig, gitOpsConfigReadService config.GitOpsConfigReadService,
 	gitOperationService git.GitOperationService, asyncRunnable *async.Runnable,
 	acdConfigGetter config2.ArgoCDConfigGetter,
-	repoCredsK8sClient repoCredsK8sClient.RepositoryCredsK8sClient) *ArgoClientWrapperServiceImpl {
+	ArgoClientWrapperServiceEAImpl *ArgoClientWrapperServiceEAImpl,
+) *ArgoClientWrapperServiceImpl {
 	return &ArgoClientWrapperServiceImpl{
-		acdApplicationClient:    acdClient,
-		repositoryService:       repositoryService,
-		clusterClient:           clusterClient,
-		repoCredsClient:         repocredsClient,
-		repoCredsK8sClient:      repoCredsK8sClient,
-		CertificateClient:       CertificateClient,
-		logger:                  logger,
-		ACDConfig:               ACDConfig,
-		gitOpsConfigReadService: gitOpsConfigReadService,
-		gitOperationService:     gitOperationService,
-		asyncRunnable:           asyncRunnable,
-		acdConfigGetter:         acdConfigGetter,
+		acdApplicationClient:           acdClient,
+		repositoryService:              repositoryService,
+		clusterClient:                  clusterClient,
+		repoCredsClient:                repocredsClient,
+		CertificateClient:              CertificateClient,
+		logger:                         logger,
+		ACDConfig:                      ACDConfig,
+		gitOpsConfigReadService:        gitOpsConfigReadService,
+		gitOperationService:            gitOperationService,
+		asyncRunnable:                  asyncRunnable,
+		acdConfigGetter:                acdConfigGetter,
+		ArgoClientWrapperServiceEAImpl: ArgoClientWrapperServiceEAImpl,
 	}
 }
 
@@ -368,43 +368,23 @@ func (impl *ArgoClientWrapperServiceImpl) CreateRepoCreds(ctx context.Context, q
 }
 
 func (impl *ArgoClientWrapperServiceImpl) AddOrUpdateOCIRegistry(username, password string, uniqueId int, registryUrl, repo string, isPublic bool) error {
-	argoK8sConfig, err := impl.acdConfigGetter.GetK8sConfig()
-	if err != nil {
-		impl.logger.Errorw("error in getting k8s config", "err", err)
-	}
-	return impl.repoCredsK8sClient.AddOrUpdateOCIRegistry(argoK8sConfig, username, password, uniqueId, registryUrl, repo, isPublic)
+	return impl.ArgoClientWrapperServiceEAImpl.AddOrUpdateOCIRegistry(username, password, uniqueId, registryUrl, repo, isPublic)
 }
 
 func (impl *ArgoClientWrapperServiceImpl) DeleteOCIRegistry(registryURL, repo string, ociRegistryId int) error {
-	argoK8sConfig, err := impl.acdConfigGetter.GetK8sConfig()
-	if err != nil {
-		impl.logger.Errorw("error in getting k8s config", "err", err)
-	}
-	return impl.repoCredsK8sClient.DeleteOCIRegistry(argoK8sConfig, registryURL, repo, ociRegistryId)
+	return impl.ArgoClientWrapperServiceEAImpl.DeleteOCIRegistry(registryURL, repo, ociRegistryId)
 }
 
 func (impl *ArgoClientWrapperServiceImpl) AddChartRepository(request bean2.ChartRepositoryAddRequest) error {
-	argoK8sConfig, err := impl.acdConfigGetter.GetK8sConfig()
-	if err != nil {
-		impl.logger.Errorw("error in getting k8s config", "err", err)
-	}
-	return impl.repoCredsK8sClient.AddChartRepository(argoK8sConfig, request)
+	return impl.ArgoClientWrapperServiceEAImpl.AddChartRepository(request)
 }
 
 func (impl *ArgoClientWrapperServiceImpl) UpdateChartRepository(request bean2.ChartRepositoryUpdateRequest) error {
-	argoK8sConfig, err := impl.acdConfigGetter.GetK8sConfig()
-	if err != nil {
-		return err
-	}
-	return impl.repoCredsK8sClient.UpdateChartRepository(argoK8sConfig, request)
+	return impl.ArgoClientWrapperServiceEAImpl.UpdateChartRepository(request)
 }
 
 func (impl *ArgoClientWrapperServiceImpl) DeleteChartRepository(name, url string) error {
-	argoK8sConfig, err := impl.acdConfigGetter.GetK8sConfig()
-	if err != nil {
-		return err
-	}
-	return impl.repoCredsK8sClient.DeleteChartRepository(argoK8sConfig, name, url)
+	return impl.ArgoClientWrapperServiceEAImpl.DeleteChartRepository(name, url)
 }
 
 func (impl *ArgoClientWrapperServiceImpl) GetArgoAppByName(ctx context.Context, appName string) (*v1alpha1.Application, error) {
