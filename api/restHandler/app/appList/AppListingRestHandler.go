@@ -358,6 +358,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		return
 	}
 
 	t2 := time.Now()
