@@ -53,6 +53,7 @@ import (
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp/status/resourceTree"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/genericNotes"
@@ -112,6 +113,7 @@ type AppListingRestHandlerImpl struct {
 	deploymentTemplateService        generateManifest.DeploymentTemplateService
 	deploymentConfigService          common2.DeploymentConfigService
 	argoApplicationService           argoApplication2.ArgoApplicationService
+	resourceTreeService              resourceTree.Service
 }
 
 type AppStatus struct {
@@ -146,7 +148,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	deploymentTemplateService generateManifest.DeploymentTemplateService,
 	deploymentConfigService common2.DeploymentConfigService,
 	argoApplicationService argoApplication2.ArgoApplicationService,
-) *AppListingRestHandlerImpl {
+	resourceTreeService resourceTree.Service) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
 		application:                      application,
 		appListingService:                appListingService,
@@ -170,6 +172,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		deploymentTemplateService:        deploymentTemplateService,
 		deploymentConfigService:          deploymentConfigService,
 		argoApplicationService:           argoApplicationService,
+		resourceTreeService:              resourceTreeService,
 	}
 	return appListingHandler
 }
@@ -568,7 +571,18 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 		common.WriteJsonResp(w, fmt.Errorf("error in getting deployment config for env"), nil, http.StatusInternalServerError)
 		return
 	}
-	resourceTree, err := handler.fetchResourceTree(w, r, appId, envId, cdPipeline, envDeploymentConfig)
+	ctx, cancel := context.WithCancel(r.Context())
+	if cn, ok := w.(http.CloseNotifier); ok {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	defer cancel()
+	resourceTree, err := handler.resourceTreeService.FetchResourceTree(ctx, appId, envId, cdPipeline, envDeploymentConfig)
 	if err != nil {
 		handler.logger.Errorw("error in fetching resource tree", "err", err, "appId", appId, "envId", envId)
 		handler.handleResourceTreeErrAndDeletePipelineIfNeeded(w, err, cdPipeline, envDeploymentConfig)
@@ -877,7 +891,18 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			common.WriteJsonResp(w, fmt.Errorf("error in getting deployment config for env"), nil, http.StatusInternalServerError)
 			return
 		}
-		resourceTree, err = handler.fetchResourceTree(w, r, appId, envId, cdPipeline, envDeploymentConfig)
+		ctx, cancel := context.WithCancel(r.Context())
+		if cn, ok := w.(http.CloseNotifier); ok {
+			go func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		}
+		defer cancel()
+		resourceTree, err = handler.resourceTreeService.FetchResourceTree(ctx, appId, envId, cdPipeline, envDeploymentConfig)
 	}
 	_, ok := resourceTree["nodes"]
 	if !ok {

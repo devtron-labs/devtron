@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	argoApplication2 "github.com/devtron-labs/devtron/pkg/argoApplication"
 	userrepository "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	ciConfig "github.com/devtron-labs/devtron/pkg/build/pipeline/read"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -32,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	util2 "github.com/devtron-labs/devtron/util"
 	errors2 "github.com/juju/errors"
@@ -147,6 +149,9 @@ type AppListingServiceImpl struct {
 	ciArtifactRepository           repository.CiArtifactRepository
 	envConfigOverrideReadService   read.EnvConfigOverrideService
 	ciPipelineConfigReadService    ciConfig.CiPipelineConfigReadService
+
+	argoApplicationService argoApplication2.ArgoApplicationService
+	k8sCommonService       k8s.K8sCommonService
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
@@ -158,7 +163,9 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService, userRepository userrepository.UserRepository,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService, ciArtifactRepository repository.CiArtifactRepository,
 	envConfigOverrideReadService read.EnvConfigOverrideService,
-	ciPipelineConfigReadService ciConfig.CiPipelineConfigReadService) *AppListingServiceImpl {
+	ciPipelineConfigReadService ciConfig.CiPipelineConfigReadService,
+	argoApplicationService argoApplication2.ArgoApplicationService,
+	k8sCommonService k8s.K8sCommonService) *AppListingServiceImpl {
 	serviceImpl := &AppListingServiceImpl{
 		Logger:                         Logger,
 		appListingRepository:           appListingRepository,
@@ -178,6 +185,8 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		ciArtifactRepository:           ciArtifactRepository,
 		envConfigOverrideReadService:   envConfigOverrideReadService,
 		ciPipelineConfigReadService:    ciPipelineConfigReadService,
+		argoApplicationService:         argoApplicationService,
+		k8sCommonService:               k8sCommonService,
 	}
 	return serviceImpl
 }
