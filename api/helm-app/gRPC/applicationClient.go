@@ -170,7 +170,7 @@ func (impl *HelmAppClientImpl) GetAppStatusV2(ctx context.Context, in *AppDetail
 	if err != nil {
 		return nil, err
 	}
-	appStatus, err := applicationClient.GetAppStatus(ctx, in)
+	appStatus, err := applicationClient.GetAppStatusV2(ctx, in)
 	if err != nil {
 		return nil, err
 	}
