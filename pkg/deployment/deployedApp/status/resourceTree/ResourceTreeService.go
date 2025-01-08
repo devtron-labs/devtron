@@ -88,7 +88,7 @@ func NewServiceImpl(logger *zap.SugaredLogger,
 	return serviceImpl
 }
 
-func (impl ServiceImpl) FetchResourceTree(ctx context.Context, appId int, envId int, cdPipeline *pipelineConfig.Pipeline,
+func (impl *ServiceImpl) FetchResourceTree(ctx context.Context, appId int, envId int, cdPipeline *pipelineConfig.Pipeline,
 	deploymentConfig *commonBean.DeploymentConfig) (map[string]interface{}, error) {
 	var resourceTree map[string]interface{}
 	if !cdPipeline.DeploymentAppCreated {
