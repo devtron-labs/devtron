@@ -239,7 +239,7 @@ func (impl EnvironmentServiceImpl) FindById(id int) (*bean2.EnvironmentBean, err
 func (impl EnvironmentServiceImpl) validateEnvUpdateRequest(mappings *bean2.EnvironmentBean, userId int32) error {
 	model, err := impl.environmentRepository.FindByEnvNameOrIdentifierOrNamespace(mappings.ClusterId, mappings.Environment, "", mappings.Namespace)
 	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Errorw("error in finding environment for update", "err", err)
+		impl.logger.Errorw("error in finding environment for update", "request", mappings, "err", err)
 		return err
 	} else if util.IsErrNoRows(err) {
 		return nil
