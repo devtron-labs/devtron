@@ -26,6 +26,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/read"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -235,16 +236,32 @@ func (impl EnvironmentServiceImpl) FindById(id int) (*bean2.EnvironmentBean, err
 	return bean, nil
 }
 
+func (impl EnvironmentServiceImpl) validateEnvUpdateRequest(mappings *bean2.EnvironmentBean, userId int32) error {
+	model, err := impl.environmentRepository.FindByEnvNameOrIdentifierOrNamespace(mappings.ClusterId, mappings.Environment, "", mappings.Namespace)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in finding environment for update", "err", err)
+		return err
+	} else if util.IsErrNoRows(err) {
+		return nil
+	}
+	if model.Id > 0 {
+		impl.logger.Warnw("environment already exists for this cluster and namespace", "model", model)
+		return util.NewApiError(http.StatusBadRequest, bean2.EnvironmentAlreadyExistsErr, bean2.EnvironmentAlreadyExistsErr)
+	}
+	return nil
+}
+
 func (impl EnvironmentServiceImpl) Update(mappings *bean2.EnvironmentBean, userId int32) (*bean2.EnvironmentBean, error) {
+	err := impl.validateEnvUpdateRequest(mappings, userId)
+	if err != nil {
+		impl.logger.Errorw("error in validating env update request", "mappings", mappings, "err", err)
+		return nil, err
+	}
 	model, err := impl.environmentRepository.FindById(mappings.Id)
 	if err != nil {
 		impl.logger.Errorw("error in finding environment for update", "err", err)
 		return mappings, err
 	}
-	/*isNamespaceChange := false
-	if model.Namespace != mappings.Namespace {
-		isNamespaceChange = true
-	}*/
 
 	clusterBean, err := impl.clusterReadService.FindById(mappings.ClusterId)
 	if err != nil {
@@ -266,24 +283,6 @@ func (impl EnvironmentServiceImpl) Update(mappings *bean2.EnvironmentBean, userI
 			impl.logger.Errorw("error in creating ns", "ns", model.Namespace, "err", err)
 		}
 	}
-	//namespace changed, update it on chart env override config as well
-	/*if isNamespaceChange == true {
-		impl.logger.Debug("namespace has modified in request, it will update related config")
-		envPropertiesList, err := impl.propertiesConfigService.GetEnvironmentPropertiesById(mappings.Id)
-		if err != nil {
-			impl.logger.Error("failed to fetch chart environment override config", "err", err)
-			//TODO - atomic operation breaks, throw internal error codes
-
-		} else {
-			for _, envProperties := range envPropertiesList {
-				_, err := impl.propertiesConfigService.UpdateEnvironmentProperties(0, &pipeline.EnvironmentProperties{Id: envProperties.Id, Namespace: mappings.Namespace}, userId)
-				if err != nil {
-					impl.logger.Error("failed to update chart environment override config", "err", err)
-					//TODO - atomic operation breaks, throw internal error codes
-				}
-			}
-		}
-	}*/
 	grafanaDatasourceId := model.GrafanaDatasourceId
 	//grafana datasource create if not exist
 	if len(clusterBean.PrometheusUrl) > 0 && grafanaDatasourceId == 0 {

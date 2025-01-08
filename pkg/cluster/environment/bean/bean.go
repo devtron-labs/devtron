@@ -60,3 +60,7 @@ const (
 	PIPELINE_DEPLOYMENT_TYPE_HELM = "helm"
 	PIPELINE_DEPLOYMENT_TYPE_ACD  = "argo_cd"
 )
+
+const (
+	EnvironmentAlreadyExistsErr = "environment already exists"
+)
