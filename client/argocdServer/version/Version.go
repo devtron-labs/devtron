@@ -14,32 +14,30 @@
  * limitations under the License.
  */
 
-package argocdServer
+package version
 
 import (
 	"context"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
-	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"github.com/golang/protobuf/ptypes/empty"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 )
 
 type VersionService interface {
-	CheckVersion() (err error)
-	GetVersion() (apiVersion string, err error)
+	CheckVersion(conn *grpc.ClientConn) (err error)
+	GetVersion(conn *grpc.ClientConn) (apiVersion string, err error)
 }
 
 type VersionServiceImpl struct {
-	logger                  *zap.SugaredLogger
-	argoCDConnectionManager connection.ArgoCDConnectionManager
+	logger *zap.SugaredLogger
 }
 
-func NewVersionServiceImpl(logger *zap.SugaredLogger, argoCDConnectionManager connection.ArgoCDConnectionManager) *VersionServiceImpl {
-	return &VersionServiceImpl{logger: logger, argoCDConnectionManager: argoCDConnectionManager}
+func NewVersionServiceImpl(logger *zap.SugaredLogger) *VersionServiceImpl {
+	return &VersionServiceImpl{logger: logger}
 }
 
-func (service VersionServiceImpl) CheckVersion() (err error) {
-	conn := service.argoCDConnectionManager.GetConnection("")
+func (service VersionServiceImpl) CheckVersion(conn *grpc.ClientConn) (err error) {
 	version, err := version.NewVersionServiceClient(conn).Version(context.Background(), &empty.Empty{})
 	if err != nil {
 		return err
@@ -49,8 +47,7 @@ func (service VersionServiceImpl) CheckVersion() (err error) {
 }
 
 // GetVersion deprecated
-func (service VersionServiceImpl) GetVersion() (apiVersion string, err error) {
-	conn := service.argoCDConnectionManager.GetConnection("")
+func (service VersionServiceImpl) GetVersion(conn *grpc.ClientConn) (apiVersion string, err error) {
 	version, err := version.NewVersionServiceClient(conn).Version(context.Background(), &empty.Empty{})
 	if err != nil {
 		return "", err

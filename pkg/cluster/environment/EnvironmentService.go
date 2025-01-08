@@ -25,6 +25,7 @@ import (
 	adapter2 "github.com/devtron-labs/devtron/pkg/cluster/environment/adapter"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster/read"
 	"strconv"
 	"strings"
 	"sync"
@@ -78,13 +79,15 @@ type EnvironmentServiceImpl struct {
 	//propertiesConfigService pipeline.PropertiesConfigService
 	userAuthService      user.UserAuthService
 	attributesRepository repository2.AttributesRepository
+	clusterReadService   read.ClusterReadService
 }
 
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService cluster.ClusterService, logger *zap.SugaredLogger,
 	K8sUtil *util2.K8sServiceImpl, k8sInformerFactory informer.K8sInformerFactory,
 	//  propertiesConfigService pipeline.PropertiesConfigService,
-	userAuthService user.UserAuthService, attributesRepository repository2.AttributesRepository) *EnvironmentServiceImpl {
+	userAuthService user.UserAuthService, attributesRepository repository2.AttributesRepository,
+	clusterReadService read.ClusterReadService) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
 		environmentRepository: environmentRepository,
 		logger:                logger,
@@ -94,6 +97,7 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 		//propertiesConfigService: propertiesConfigService,
 		userAuthService:      userAuthService,
 		attributesRepository: attributesRepository,
+		clusterReadService:   clusterReadService,
 	}
 }
 
@@ -108,7 +112,7 @@ func (impl EnvironmentServiceImpl) Create(mappings *bean2.EnvironmentBean, userI
 		return nil, err
 	}
 
-	clusterBean, err := impl.clusterService.FindById(mappings.ClusterId)
+	clusterBean, err := impl.clusterReadService.FindById(mappings.ClusterId)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +246,7 @@ func (impl EnvironmentServiceImpl) Update(mappings *bean2.EnvironmentBean, userI
 		isNamespaceChange = true
 	}*/
 
-	clusterBean, err := impl.clusterService.FindById(mappings.ClusterId)
+	clusterBean, err := impl.clusterReadService.FindById(mappings.ClusterId)
 	if err != nil {
 		return nil, err
 	}

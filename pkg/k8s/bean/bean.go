@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package k8s
+package bean
 
 import (
 	"github.com/devtron-labs/common-lib/utils/k8s"

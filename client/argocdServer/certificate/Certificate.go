@@ -2,11 +2,9 @@ package certificate
 
 import (
 	"context"
-	"errors"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/client/argocdServer/connection"
-	"github.com/devtron-labs/devtron/util/argo"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"time"
@@ -21,26 +19,20 @@ type Client interface {
 type ServiceClientImpl struct {
 	logger                  *zap.SugaredLogger
 	argoCDConnectionManager connection.ArgoCDConnectionManager
-	argoUserService         argo.ArgoUserService
 }
 
 func NewServiceClientImpl(
 	logger *zap.SugaredLogger,
-	argoCDConnectionManager connection.ArgoCDConnectionManager,
-	argoUserService argo.ArgoUserService) *ServiceClientImpl {
+	argoCDConnectionManager connection.ArgoCDConnectionManager) *ServiceClientImpl {
 	return &ServiceClientImpl{
 		logger:                  logger,
 		argoCDConnectionManager: argoCDConnectionManager,
-		argoUserService:         argoUserService,
 	}
 }
 
 func (c *ServiceClientImpl) getService(ctx context.Context) (certificate.CertificateServiceClient, error) {
-	token, ok := ctx.Value("token").(string)
-	if !ok {
-		return nil, errors.New("Unauthorized")
-	}
-	conn := c.argoCDConnectionManager.GetConnection(token)
+
+	conn := c.argoCDConnectionManager.GetConnection()
 	//defer conn.Close()
 	return certificate.NewCertificateServiceClient(conn), nil
 }

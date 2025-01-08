@@ -2,7 +2,7 @@ name: "📚 Documentation"
 description: "Report an issue related to documentation"
 assignees: ["ashokdevtron","prakarsh-dt"]
 title: "Doc: "
-labels: [documentation]
+labels: ["documentation", "needs-triage"]
 projects: ["Devtron Features Prioritization"]
 body:
   - type: markdown

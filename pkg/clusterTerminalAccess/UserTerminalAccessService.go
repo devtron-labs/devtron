@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	utils1 "github.com/devtron-labs/devtron/pkg/clusterTerminalAccess/clusterTerminalUtils"
 	"github.com/devtron-labs/devtron/pkg/k8s"
+	bean2 "github.com/devtron-labs/devtron/pkg/k8s/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s/capacity"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util"
@@ -742,7 +743,7 @@ func (impl *UserTerminalAccessServiceImpl) DeleteTerminalResource(ctx context.Co
 			},
 		},
 	}
-	resourceRequest := &k8s.ResourceRequestBean{
+	resourceRequest := &bean2.ResourceRequestBean{
 		K8sRequest: k8sRequest,
 		ClusterId:  clusterId,
 	}
@@ -776,7 +777,7 @@ func (impl *UserTerminalAccessServiceImpl) applyTemplate(ctx context.Context, cl
 			},
 		},
 	}
-	request := &k8s.ResourceRequestBean{
+	request := &bean2.ResourceRequestBean{
 		K8sRequest: k8sRequest,
 		ClusterId:  clusterId,
 	}
@@ -846,7 +847,7 @@ func (impl *UserTerminalAccessServiceImpl) getPodManifest(ctx context.Context, c
 	return response.ManifestResponse, nil
 }
 
-func (impl *UserTerminalAccessServiceImpl) getPodRequestBean(clusterId int, podName string, namespace string) (*k8s.ResourceRequestBean, error) {
+func (impl *UserTerminalAccessServiceImpl) getPodRequestBean(clusterId int, podName string, namespace string) (*bean2.ResourceRequestBean, error) {
 	terminalAccessPodTemplate, err := impl.TerminalAccessRepository.FetchTerminalAccessTemplate(models.TerminalAccessPodTemplateName)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while fetching template", "template", models.TerminalAccessPodTemplateName, "err", err)
@@ -858,7 +859,7 @@ func (impl *UserTerminalAccessServiceImpl) getPodRequestBean(clusterId int, podN
 		impl.Logger.Errorw("error occurred while extracting data for gvk", "gvkDataString", gvkDataString, "err", err)
 		return nil, err
 	}
-	request := &k8s.ResourceRequestBean{
+	request := &bean2.ResourceRequestBean{
 		ClusterId: clusterId,
 		AppIdentifier: &bean.AppIdentifier{
 			ClusterId: clusterId,
