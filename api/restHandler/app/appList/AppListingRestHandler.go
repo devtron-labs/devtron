@@ -31,7 +31,6 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/service/read"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	util3 "github.com/devtron-labs/devtron/api/util"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -89,7 +88,6 @@ type AppListingRestHandler interface {
 }
 
 type AppListingRestHandlerImpl struct {
-	application            application.ServiceClient
 	appListingService      app.AppListingService
 	enforcer               casbin.Enforcer
 	pipeline               pipeline.PipelineBuilder
@@ -128,7 +126,7 @@ type AppAutocomplete struct {
 	Clusters     []bean5.ClusterBean
 }
 
-func NewAppListingRestHandlerImpl(application application.ServiceClient,
+func NewAppListingRestHandlerImpl(
 	appListingService app.AppListingService,
 	enforcer casbin.Enforcer,
 	pipeline pipeline.PipelineBuilder,
@@ -148,7 +146,6 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	argoApplicationService argoApplication2.ArgoApplicationService,
 ) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
-		application:                      application,
 		appListingService:                appListingService,
 		logger:                           logger,
 		pipeline:                         pipeline,

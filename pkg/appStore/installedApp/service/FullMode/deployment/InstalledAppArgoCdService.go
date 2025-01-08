@@ -18,11 +18,10 @@ package deployment
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/client/argocdServer"
+	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
@@ -53,7 +52,7 @@ type InstalledAppArgoCdService interface {
 func (impl *FullModeDeploymentServiceImpl) GetAcdAppGitOpsRepoName(appName string, environmentName string) (string, error) {
 	//this method should only call in case of argo-integration and gitops configured
 	acdAppName := util2.BuildDeployedAppName(appName, environmentName)
-	return impl.argoClientWrapperService.GetGitOpsRepoName(context.Background(), acdAppName)
+	return impl.argoClientWrapperService.GetGitOpsRepoNameForApplication(context.Background(), acdAppName)
 }
 
 func (impl *FullModeDeploymentServiceImpl) DeleteACDAppObject(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
@@ -84,7 +83,7 @@ func (impl *FullModeDeploymentServiceImpl) DeleteACDAppObject(ctx context.Contex
 }
 
 func (impl *FullModeDeploymentServiceImpl) CheckIfArgoAppExists(acdAppName string) (isFound bool, err error) {
-	_, acdAppGetErr := impl.acdClient.Get(context.Background(), &application.ApplicationQuery{Name: &acdAppName})
+	_, acdAppGetErr := impl.argoClientWrapperService.GetArgoAppByName(context.Background(), acdAppName)
 	isFound = acdAppGetErr == nil
 	return isFound, nil
 }
@@ -98,7 +97,7 @@ func isArgoCdGitOpsRepoUrlOutOfSync(argoApplication *v1alpha1.Application, gitOp
 
 func (impl *FullModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ChartGitAttribute *commonBean.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error {
 	acdAppName := installAppVersionRequest.ACDAppName
-	argoApplication, err := impl.acdClient.Get(ctx, &application.ApplicationQuery{Name: &acdAppName})
+	argoApplication, err := impl.argoClientWrapperService.GetArgoAppByName(ctx, acdAppName)
 	if err != nil {
 		impl.Logger.Errorw("Service err:UpdateAndSyncACDApps - error in acd app by name", "acdAppName", acdAppName, "err", err)
 		return err
@@ -152,15 +151,12 @@ func (impl *FullModeDeploymentServiceImpl) UpgradeDeployment(installAppVersionRe
 }
 
 func (impl *FullModeDeploymentServiceImpl) DeleteACD(acdAppName string, ctx context.Context, isNonCascade bool) error {
-	req := new(application.ApplicationDeleteRequest)
-	req.Name = &acdAppName
 	cascadeDelete := !isNonCascade
-	req.Cascade = &cascadeDelete
 	if ctx == nil {
 		impl.Logger.Errorw("err in delete ACD for AppStore, ctx is NULL", "acdAppName", acdAppName)
 		return fmt.Errorf("context is null")
 	}
-	if _, err := impl.acdClient.Delete(ctx, req); err != nil {
+	if _, err := impl.argoClientWrapperService.DeleteArgoApp(ctx, acdAppName, cascadeDelete); err != nil {
 		impl.Logger.Errorw("err in delete ACD for AppStore", "acdAppName", acdAppName, "err", err)
 		return err
 	}
@@ -202,16 +198,17 @@ func (impl *FullModeDeploymentServiceImpl) patchAcdApp(ctx context.Context, inst
 		return err
 	}
 	// update acd app
-	patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{Path: chartGitAttr.ChartLocation, RepoURL: chartGitAttr.RepoUrl, TargetRevision: "master"}}}
-	reqbyte, err := json.Marshal(patchReq)
-	if err != nil {
-		impl.Logger.Errorw("error in creating patch", "err", err)
+
+	patchReq := &argoApplication.ArgoCdAppPatchReqDto{
+		ArgoAppName:    installAppVersionRequest.ACDAppName,
+		ChartLocation:  chartGitAttr.ChartLocation,
+		GitRepoUrl:     chartGitAttr.RepoUrl,
+		TargetRevision: "master",
+		PatchType:      "merge",
 	}
-	reqString := string(reqbyte)
-	patchType := "merge"
-	_, err = impl.acdClient.Patch(ctx, &application.ApplicationPatchRequest{Patch: &reqString, Name: &installAppVersionRequest.ACDAppName, PatchType: &patchType})
+	err = impl.argoClientWrapperService.PatchArgoCdApp(ctx, patchReq)
 	if err != nil {
-		impl.Logger.Errorw("error in creating argo app ", "name", installAppVersionRequest.ACDAppName, "patch", string(reqbyte), "err", err)
+		impl.Logger.Errorw("error in patching acd app ", "appName", installAppVersionRequest.ACDAppName, "err", err)
 		return err
 	}
 	return nil
@@ -220,5 +217,5 @@ func (impl *FullModeDeploymentServiceImpl) patchAcdApp(ctx context.Context, inst
 func (impl *FullModeDeploymentServiceImpl) GetAcdAppGitOpsRepoURL(appName string, environmentName string) (string, error) {
 	ctx := context.Background()
 	acdAppName := util2.BuildDeployedAppName(appName, environmentName)
-	return impl.argoClientWrapperService.GetGitOpsRepoURL(ctx, acdAppName)
+	return impl.argoClientWrapperService.GetGitOpsRepoURLForApplication(ctx, acdAppName)
 }

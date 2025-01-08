@@ -42,7 +42,6 @@ import (
 	"time"
 
 	"github.com/devtron-labs/devtron/api/bean"
-	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -129,7 +128,6 @@ func (req FetchAppListingRequest) GetNamespaceClusterMapping() (namespaceCluster
 
 type AppListingServiceImpl struct {
 	Logger                         *zap.SugaredLogger
-	application                    application2.ServiceClient
 	appRepository                  app.AppRepository
 	appListingRepository           repository.AppListingRepository
 	appListingViewBuilder          AppListingViewBuilder
@@ -149,7 +147,7 @@ type AppListingServiceImpl struct {
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
-	application application2.ServiceClient, appRepository app.AppRepository,
+	appRepository app.AppRepository,
 	appListingViewBuilder AppListingViewBuilder, pipelineRepository pipelineConfig.PipelineRepository,
 	linkoutsRepository repository.LinkoutsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository repository2.EnvironmentRepository,
@@ -161,7 +159,6 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 	serviceImpl := &AppListingServiceImpl{
 		Logger:                         Logger,
 		appListingRepository:           appListingRepository,
-		application:                    application,
 		appRepository:                  appRepository,
 		appListingViewBuilder:          appListingViewBuilder,
 		pipelineRepository:             pipelineRepository,

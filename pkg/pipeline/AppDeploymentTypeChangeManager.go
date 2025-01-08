@@ -19,12 +19,11 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	bean5 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
-	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -67,19 +66,18 @@ type AppDeploymentTypeChangeManager interface {
 }
 
 type AppDeploymentTypeChangeManagerImpl struct {
-	logger              *zap.SugaredLogger
-	pipelineRepository  pipelineConfig.PipelineRepository
-	appService          app2.AppService
-	appStatusRepository appStatus.AppStatusRepository
-	helmAppService      service.HelmAppService
-	application         application2.ServiceClient
-
+	logger                      *zap.SugaredLogger
+	pipelineRepository          pipelineConfig.PipelineRepository
+	appService                  app2.AppService
+	appStatusRepository         appStatus.AppStatusRepository
+	helmAppService              service.HelmAppService
 	appArtifactManager          AppArtifactManager
 	cdPipelineConfigService     CdPipelineConfigService
 	gitOpsConfigReadService     config.GitOpsConfigReadService
 	chartService                chartService.ChartService
 	workflowEventPublishService out.WorkflowEventPublishService
 	deploymentConfigService     common.DeploymentConfigService
+	ArgoClientWrapperService    argocdServer.ArgoClientWrapperService
 }
 
 func NewAppDeploymentTypeChangeManagerImpl(
@@ -88,7 +86,6 @@ func NewAppDeploymentTypeChangeManagerImpl(
 	appService app2.AppService,
 	appStatusRepository appStatus.AppStatusRepository,
 	helmAppService service.HelmAppService,
-	application application2.ServiceClient,
 	appArtifactManager AppArtifactManager,
 	cdPipelineConfigService CdPipelineConfigService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
@@ -101,7 +98,6 @@ func NewAppDeploymentTypeChangeManagerImpl(
 		appService:                  appService,
 		appStatusRepository:         appStatusRepository,
 		helmAppService:              helmAppService,
-		application:                 application,
 		appArtifactManager:          appArtifactManager,
 		cdPipelineConfigService:     cdPipelineConfigService,
 		gitOpsConfigReadService:     gitOpsConfigReadService,
@@ -745,10 +741,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) fetchDeletedApp(ctx context.Cont
 			}
 			_, err = impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
 		} else {
-			req := &application.ApplicationQuery{
-				Name: &pipeline.DeploymentAppName,
-			}
-			_, err = impl.application.Get(ctx, req)
+			_, err = impl.ArgoClientWrapperService.GetArgoAppByName(ctx, pipeline.DeploymentAppName)
 		}
 		if err != nil {
 			impl.logger.Errorw("error in getting application detail", "err", err, "deploymentAppName", pipeline.DeploymentAppName)
@@ -779,19 +772,10 @@ func (impl *AppDeploymentTypeChangeManagerImpl) fetchDeletedApp(ctx context.Cont
 // the application in argo cd.
 func (impl *AppDeploymentTypeChangeManagerImpl) deleteArgoCdApp(ctx context.Context, pipeline *pipelineConfig.Pipeline, deploymentAppName string,
 	cascadeDelete bool) error {
-
 	if !pipeline.DeploymentAppCreated {
 		return nil
 	}
-
-	// building the argocd application delete request
-	req := &application.ApplicationDeleteRequest{
-		Name:    &deploymentAppName,
-		Cascade: &cascadeDelete,
-	}
-
-	_, err := impl.application.Delete(ctx, req)
-
+	_, err := impl.ArgoClientWrapperService.DeleteArgoApp(ctx, deploymentAppName, cascadeDelete)
 	if err != nil {
 		impl.logger.Errorw("error in deleting argocd application", "err", err)
 		// Possible that argocd app got deleted but db updation failed

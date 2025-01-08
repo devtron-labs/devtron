@@ -37,7 +37,6 @@ import (
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/middleware"
@@ -84,7 +83,6 @@ type InstalledAppRestHandlerImpl struct {
 	chartGroupService                       chartGroup.ChartGroupService
 	validator                               *validator.Validate
 	clusterService                          cluster.ClusterService
-	acdServiceClient                        application.ServiceClient
 	appStoreDeploymentService               service.AppStoreDeploymentService
 	appStoreDeploymentDBService             service.AppStoreDeploymentDBService
 	helmAppClient                           client.HelmAppClient
@@ -100,7 +98,7 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 	installedAppService FullMode.InstalledAppDBExtendedService,
 	installedAppResourceService resource.InstalledAppResourceService,
 	chartGroupService chartGroup.ChartGroupService, validator *validator.Validate, clusterService cluster.ClusterService,
-	acdServiceClient application.ServiceClient, appStoreDeploymentService service.AppStoreDeploymentService,
+	appStoreDeploymentService service.AppStoreDeploymentService,
 	appStoreDeploymentDBService service.AppStoreDeploymentDBService,
 	helmAppClient client.HelmAppClient,
 
@@ -120,7 +118,6 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 		chartGroupService:                       chartGroupService,
 		validator:                               validator,
 		clusterService:                          clusterService,
-		acdServiceClient:                        acdServiceClient,
 		appStoreDeploymentService:               appStoreDeploymentService,
 		appStoreDeploymentDBService:             appStoreDeploymentDBService,
 		helmAppClient:                           helmAppClient,
