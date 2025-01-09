@@ -30,7 +30,6 @@ import (
 
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -50,7 +49,6 @@ type ClusterServiceImplExtended struct {
 
 func NewClusterServiceImplExtended(environmentRepository repository.EnvironmentRepository,
 	grafanaClient grafana.GrafanaClient, installedAppRepository repository2.InstalledAppRepository,
-	clusterServiceCD cluster2.ServiceClient,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	clusterServiceImpl *ClusterServiceImpl,
 	argoCDClientWrapper argocdServer.ArgoClientWrapperService) *ClusterServiceImplExtended {

@@ -63,11 +63,6 @@ func (impl *ArgoClientWrapperServiceEAImpl) SyncArgoCDApplicationIfNeededAndRefr
 	return nil
 }
 
-func (impl *ArgoClientWrapperServiceEAImpl) GetArgoAppWithNormalRefresh(ctx context.Context, grpcConfig *bean.ArgoGRPCConfig, argoAppName string) error {
-	impl.logger.Info("not implemented")
-	return nil
-}
-
 func (impl *ArgoClientWrapperServiceEAImpl) UpdateArgoCDSyncModeIfNeeded(ctx context.Context, argoApplication *v1alpha1.Application) (err error) {
 	impl.logger.Info("not implemented")
 	return nil
