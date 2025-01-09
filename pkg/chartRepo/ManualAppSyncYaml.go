@@ -18,16 +18,17 @@ package chartRepo
 
 import (
 	"bytes"
-	"github.com/devtron-labs/devtron/pkg/sql"
 	"text/template"
+
+	"github.com/devtron-labs/devtron/pkg/sql"
 )
 
 type AppSyncConfig struct {
-	DbConfig               sql.Config
-	DockerImage            string
-	AppSyncJobResourcesObj string
-	ChartProviderConfig    *ChartProviderConfig
-	AppSyncServiceAccount  string
+	DbConfig                         sql.Config
+	DockerImage                      string
+	AppSyncJobResourcesObj           string
+	ChartProviderConfig              *ChartProviderConfig
+	AppSyncServiceAccount            string
 	ParallelismLimitForTagProcessing int
 }
 
@@ -39,22 +40,32 @@ type ChartProviderConfig struct {
 func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, appSyncServiceAccount string, chartProviderConfig *ChartProviderConfig, ParallelismLimitForTagProcessing int) []byte {
 	cfg, _ := sql.GetConfig()
 	configValues := AppSyncConfig{
-		DbConfig:               sql.Config{Addr: cfg.Addr, Database: cfg.Database, User: cfg.User, Password: cfg.Password},
-		DockerImage:            dockerImage,
-		AppSyncJobResourcesObj: appSyncJobResourcesObj,
-		ChartProviderConfig:    chartProviderConfig,
-		AppSyncServiceAccount:  appSyncServiceAccount,
+		DbConfig:                         sql.Config{Addr: cfg.Addr, Database: cfg.Database, User: cfg.User, Password: cfg.Password},
+		DockerImage:                      dockerImage,
+		AppSyncJobResourcesObj:           appSyncJobResourcesObj,
+		ChartProviderConfig:              chartProviderConfig,
+		AppSyncServiceAccount:            appSyncServiceAccount,
 		ParallelismLimitForTagProcessing: ParallelismLimitForTagProcessing,
 	}
 	temp := template.New("manualAppSyncJobByteArr")
 	temp, _ = temp.Parse(`{"apiVersion": "batch/v1",
   "kind": "Job",
   "metadata": {
+    "labels": {
+       "app": "app-manual-sync-job",
+       "component": "devtron"
+    },
     "name": "app-manual-sync-job",
     "namespace": "devtroncd"
   },
   "spec": {
     "template": {
+      "metadata": {
+        "labels": {
+          "app": "app-manual-sync-job",
+          "component": "devtron"
+        }
+      }, 
       "spec": {
 		"serviceAccount": "{{.AppSyncServiceAccount}}",
         "containers": [
