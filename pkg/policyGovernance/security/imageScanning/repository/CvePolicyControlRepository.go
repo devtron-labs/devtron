@@ -129,7 +129,6 @@ func (impl *CvePolicyRepositoryImpl) GetAppEnvPolicies(clusterId int, environmen
 					sq = sq.Where("env_id = ?", environmentId).Where("app_id is null")
 					return sq, nil
 				}).
-				//WhereOr("env_id = ?", environmentId).
 				WhereOr("global = true").
 				WhereOrGroup(func(sq *orm.Query) (*orm.Query, error) {
 					sq = sq.Where("app_id = ?", appId).Where("env_id = ?", environmentId)
@@ -139,7 +138,6 @@ func (impl *CvePolicyRepositoryImpl) GetAppEnvPolicies(clusterId int, environmen
 					sq = sq.Where("app_id = ?", appId).Where("env_id is null")
 					return sq, nil
 				})
-			//WhereOr("app_id = ?", appId)
 			return q, nil
 		}).
 		Where("deleted = false").
@@ -320,14 +318,26 @@ func (impl *CvePolicyRepositoryImpl) GetActiveByCveIdAndScope(cveId string, envI
 		Column("cve_policy.*").
 		Where("deleted = ?", false).
 		Where("cve_store_id = ?", cveId)
-	if envId > 0 {
+	if appId == 0 && envId > 0 {
 		query = query.Where("env_id = ?", envId)
-	}
-	if appId > 0 {
-		query = query.Where("app_id = ?", appId)
 	}
 	if clusterId > 0 {
 		query = query.Where("cluster_id = ?", clusterId)
+	}
+	if appId > 0 && envId > 0 {
+		query.WhereGroup(func(q *orm.Query) (*orm.Query, error) {
+			q = q.WhereOrGroup(func(sq *orm.Query) (*orm.Query, error) {
+				sq = sq.Where("app_id = ?", appId).Where("env_id = ?", envId)
+				return sq, nil
+			}).
+				WhereOrGroup(func(sq *orm.Query) (*orm.Query, error) {
+					sq = sq.Where("app_id = ?", appId).Where("env_id is null")
+					return sq, nil
+				})
+			return q, nil
+		})
+	} else if appId > 0 && envId == 0 {
+		query = query.Where("app_id = ?", appId)
 	}
 	err = query.Select()
 	if err != nil {
