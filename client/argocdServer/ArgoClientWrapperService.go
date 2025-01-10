@@ -101,6 +101,7 @@ type ApplicationClientWrapper interface {
 	// IsArgoAppPatchRequired decides weather the v1alpha1.ApplicationSource requires to be updated
 	IsArgoAppPatchRequired(argoAppSpec *v1alpha1.ApplicationSource, currentGitRepoUrl, currentChartPath string) bool
 
+	// GetGitOpsRepoName returns the GitOps repository name, configured for the argoCd app
 	GetGitOpsRepoNameForApplication(ctx context.Context, appName string) (gitOpsRepoName string, err error)
 
 	GetGitOpsRepoURLForApplication(ctx context.Context, appName string) (gitOpsRepoURL string, err error)
@@ -130,7 +131,6 @@ type ClusterClientWrapper interface {
 }
 
 type ArgoClientWrapperService interface {
-	// GetGitOpsRepoName returns the GitOps repository name, configured for the argoCd app
 	ClusterClientWrapper
 	ApplicationClientWrapper
 	RepositoryClientWrapper
