@@ -4,7 +4,7 @@ package mocks
 
 import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
-	bean "github.com/devtron-labs/devtron/api/bean"
+	bean "github.com/devtron-labs/devtron/api/bean/AppView"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"

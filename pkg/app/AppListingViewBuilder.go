@@ -18,7 +18,7 @@ package app
 
 import (
 	"errors"
-	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/api/bean/AppView"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"go.uber.org/zap"
 	"sort"
@@ -27,7 +27,7 @@ import (
 )
 
 type AppListingViewBuilder interface {
-	BuildView(fetchAppListingRequest FetchAppListingRequest, appEnvMap map[string][]*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error)
+	BuildView(fetchAppListingRequest FetchAppListingRequest, appEnvMap map[string][]*AppView.AppEnvironmentContainer) ([]*AppView.AppContainer, error)
 }
 
 type AppListingViewBuilderImpl struct {
@@ -40,9 +40,9 @@ func NewAppListingViewBuilderImpl(Logger *zap.SugaredLogger) *AppListingViewBuil
 	}
 }
 
-func (impl *AppListingViewBuilderImpl) BuildView(fetchAppListingRequest FetchAppListingRequest, appEnvMap map[string][]*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error) {
+func (impl *AppListingViewBuilderImpl) BuildView(fetchAppListingRequest FetchAppListingRequest, appEnvMap map[string][]*AppView.AppEnvironmentContainer) ([]*AppView.AppContainer, error) {
 	// filter status
-	filteredAppEnvMap := map[string][]*bean.AppEnvironmentContainer{}
+	filteredAppEnvMap := map[string][]*AppView.AppEnvironmentContainer{}
 	for k, v := range appEnvMap {
 		for _, e := range v {
 			if e.Deleted {
@@ -51,7 +51,7 @@ func (impl *AppListingViewBuilderImpl) BuildView(fetchAppListingRequest FetchApp
 			}
 			if !impl.filterStatus(fetchAppListingRequest, e.Status) {
 				if _, ok := filteredAppEnvMap[k]; !ok {
-					var envs []*bean.AppEnvironmentContainer
+					var envs []*AppView.AppEnvironmentContainer
 					filteredAppEnvMap[k] = envs
 				}
 				filteredAppEnvMap[k] = append(filteredAppEnvMap[k], e)
@@ -59,19 +59,19 @@ func (impl *AppListingViewBuilderImpl) BuildView(fetchAppListingRequest FetchApp
 		}
 	}
 
-	var appContainersResponses []*bean.AppContainer
+	var appContainersResponses []*AppView.AppContainer
 	for k, v := range filteredAppEnvMap {
 		appIdAndName := strings.Split(k, "_")
 		if len(appIdAndName) != 2 {
-			return []*bean.AppContainer{}, errors.New("invalid format for app id and name. It should be in format <appId>_<appName>")
+			return []*AppView.AppContainer{}, errors.New("invalid format for app id and name. It should be in format <appId>_<appName>")
 		}
 		appId, err := strconv.Atoi(appIdAndName[0])
 		if err != nil {
 			impl.Logger.Error("err", err)
-			return []*bean.AppContainer{}, nil
+			return []*AppView.AppContainer{}, nil
 		}
 		appName := appIdAndName[1]
-		defaultEnv := bean.AppEnvironmentContainer{}
+		defaultEnv := AppView.AppEnvironmentContainer{}
 		projectId := 0
 		for _, env := range v {
 			projectId = env.TeamId
@@ -85,7 +85,7 @@ func (impl *AppListingViewBuilderImpl) BuildView(fetchAppListingRequest FetchApp
 			return v[i].LastDeployedTime >= v[j].LastDeployedTime
 		})
 
-		appContainerResponse := &bean.AppContainer{
+		appContainerResponse := &AppView.AppContainer{
 			AppId:                   appId,
 			AppName:                 appName,
 			AppEnvironmentContainer: v,

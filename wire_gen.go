@@ -75,7 +75,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/certificate"
-	"github.com/devtron-labs/devtron/client/argocdServer/cluster"
+	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	config3 "github.com/devtron-labs/devtron/client/argocdServer/config"
 	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"github.com/devtron-labs/devtron/client/argocdServer/repoCredsK8sClient"
@@ -130,14 +130,14 @@ import (
 	appWorkflow2 "github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	read15 "github.com/devtron-labs/devtron/pkg/argoApplication/read"
-	"github.com/devtron-labs/devtron/pkg/argoApplication/read/config"
+	config2 "github.com/devtron-labs/devtron/pkg/argoApplication/read/config"
 	"github.com/devtron-labs/devtron/pkg/asyncProvider"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/authentication"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/sso"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
-	repository5 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	repository4 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	read11 "github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging/read"
@@ -158,20 +158,21 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	read2 "github.com/devtron-labs/devtron/pkg/cluster/environment/read"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	rbac2 "github.com/devtron-labs/devtron/pkg/cluster/rbac"
 	"github.com/devtron-labs/devtron/pkg/cluster/read"
-	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/clusterTerminalAccess"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	"github.com/devtron-labs/devtron/pkg/configDiff"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp"
-	config2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp/status/resourceTree"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
@@ -285,40 +286,17 @@ func InitializeApp() (*App, error) {
 	attributesServiceImpl := attributes.NewAttributesServiceImpl(sugaredLogger, attributesRepositoryImpl)
 	grafanaClientImpl := grafana.NewGrafanaClientImpl(sugaredLogger, httpClient, grafanaClientConfig, attributesServiceImpl)
 	installedAppRepositoryImpl := repository3.NewInstalledAppRepositoryImpl(sugaredLogger, db)
-	beanConfig, err := bean.GetConfig()
-	if err != nil {
-		return nil, err
-	}
-	settingsManager, err := connection.SettingsManager(beanConfig)
-	if err != nil {
-		return nil, err
-	}
-	moduleRepositoryImpl := moduleRepo.NewModuleRepositoryImpl(db)
-	environmentVariables, err := util2.GetEnvironmentVariables()
-	if err != nil {
-		return nil, err
-	}
-	runtimeConfig, err := k8s.GetRuntimeConfig()
-	if err != nil {
-		return nil, err
-	}
-	k8sServiceImpl := k8s.NewK8sUtil(sugaredLogger, runtimeConfig)
-	clusterRepositoryImpl := repository4.NewClusterRepositoryImpl(db, sugaredLogger)
-	argoApplicationConfigServiceImpl := config.NewArgoApplicationConfigServiceImpl(sugaredLogger, k8sServiceImpl, clusterRepositoryImpl)
-	clusterReadServiceImpl := read.NewClusterReadServiceImpl(sugaredLogger, clusterRepositoryImpl)
-	k8sCommonServiceImpl := k8s2.NewK8sCommonServiceImpl(sugaredLogger, k8sServiceImpl, argoApplicationConfigServiceImpl, clusterReadServiceImpl)
-	versionServiceImpl := version.NewVersionServiceImpl(sugaredLogger)
 	gitOpsConfigRepositoryImpl := repository2.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
-	defaultAuthPolicyRepositoryImpl := repository5.NewDefaultAuthPolicyRepositoryImpl(db, sugaredLogger)
-	defaultAuthRoleRepositoryImpl := repository5.NewDefaultAuthRoleRepositoryImpl(db, sugaredLogger)
-	userAuthRepositoryImpl := repository5.NewUserAuthRepositoryImpl(db, sugaredLogger, defaultAuthPolicyRepositoryImpl, defaultAuthRoleRepositoryImpl)
-	userRepositoryImpl := repository5.NewUserRepositoryImpl(db, sugaredLogger)
-	roleGroupRepositoryImpl := repository5.NewRoleGroupRepositoryImpl(db, sugaredLogger)
-	clientRuntimeConfig, err := client.GetRuntimeConfig()
+	defaultAuthPolicyRepositoryImpl := repository4.NewDefaultAuthPolicyRepositoryImpl(db, sugaredLogger)
+	defaultAuthRoleRepositoryImpl := repository4.NewDefaultAuthRoleRepositoryImpl(db, sugaredLogger)
+	userAuthRepositoryImpl := repository4.NewUserAuthRepositoryImpl(db, sugaredLogger, defaultAuthPolicyRepositoryImpl, defaultAuthRoleRepositoryImpl)
+	userRepositoryImpl := repository4.NewUserRepositoryImpl(db, sugaredLogger)
+	roleGroupRepositoryImpl := repository4.NewRoleGroupRepositoryImpl(db, sugaredLogger)
+	runtimeConfig, err := client.GetRuntimeConfig()
 	if err != nil {
 		return nil, err
 	}
-	k8sClient, err := client.NewK8sClient(clientRuntimeConfig)
+	k8sClient, err := client.NewK8sClient(runtimeConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -332,36 +310,59 @@ func InitializeApp() (*App, error) {
 	}
 	apiTokenSecretStore := apiTokenAuth.InitApiTokenSecretStore()
 	sessionManager := middleware.NewSessionManager(settings, dexConfig, apiTokenSecretStore)
-	rbacPolicyDataRepositoryImpl := repository5.NewRbacPolicyDataRepositoryImpl(sugaredLogger, db)
-	rbacRoleDataRepositoryImpl := repository5.NewRbacRoleDataRepositoryImpl(sugaredLogger, db)
-	rbacDataCacheFactoryImpl := repository5.NewRbacDataCacheFactoryImpl(sugaredLogger, rbacPolicyDataRepositoryImpl, rbacRoleDataRepositoryImpl)
+	rbacPolicyDataRepositoryImpl := repository4.NewRbacPolicyDataRepositoryImpl(sugaredLogger, db)
+	rbacRoleDataRepositoryImpl := repository4.NewRbacRoleDataRepositoryImpl(sugaredLogger, db)
+	rbacDataCacheFactoryImpl := repository4.NewRbacDataCacheFactoryImpl(sugaredLogger, rbacPolicyDataRepositoryImpl, rbacRoleDataRepositoryImpl)
 	userCommonServiceImpl, err := user.NewUserCommonServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, rbacDataCacheFactoryImpl)
 	if err != nil {
 		return nil, err
 	}
-	userAuditRepositoryImpl := repository5.NewUserAuditRepositoryImpl(db)
+	userAuditRepositoryImpl := repository4.NewUserAuditRepositoryImpl(db)
 	userAuditServiceImpl := user.NewUserAuditServiceImpl(sugaredLogger, userAuditRepositoryImpl)
 	userServiceImpl := user.NewUserServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, sessionManager, userCommonServiceImpl, userAuditServiceImpl)
-	gitOpsConfigReadServiceImpl := config2.NewGitOpsConfigReadServiceImpl(sugaredLogger, gitOpsConfigRepositoryImpl, userServiceImpl, environmentVariables)
+	environmentVariables, err := util2.GetEnvironmentVariables()
+	if err != nil {
+		return nil, err
+	}
+	gitOpsConfigReadServiceImpl := config.NewGitOpsConfigReadServiceImpl(sugaredLogger, gitOpsConfigRepositoryImpl, userServiceImpl, environmentVariables)
+	clusterRepositoryImpl := repository5.NewClusterRepositoryImpl(db, sugaredLogger)
+	k8sRuntimeConfig, err := k8s.GetRuntimeConfig()
+	if err != nil {
+		return nil, err
+	}
+	k8sServiceImpl := k8s.NewK8sUtil(sugaredLogger, k8sRuntimeConfig)
+	syncMap := informer.NewGlobalMapClusterNamespace()
+	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, syncMap, k8sServiceImpl)
+	cronLoggerImpl := cron.NewCronLoggerImpl(sugaredLogger)
+	clusterReadServiceImpl := read.NewClusterReadServiceImpl(sugaredLogger, clusterRepositoryImpl)
+	clusterServiceImpl, err := cluster.NewClusterServiceImpl(clusterRepositoryImpl, sugaredLogger, k8sServiceImpl, k8sInformerFactoryImpl, userAuthRepositoryImpl, userRepositoryImpl, roleGroupRepositoryImpl, environmentVariables, cronLoggerImpl, clusterReadServiceImpl)
+	if err != nil {
+		return nil, err
+	}
+	beanConfig, err := bean.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+	settingsManager, err := connection.SettingsManager(beanConfig)
+	if err != nil {
+		return nil, err
+	}
+	moduleRepositoryImpl := moduleRepo.NewModuleRepositoryImpl(db)
+	argoApplicationConfigServiceImpl := config2.NewArgoApplicationConfigServiceImpl(sugaredLogger, k8sServiceImpl, clusterRepositoryImpl)
+	k8sCommonServiceImpl := k8s2.NewK8sCommonServiceImpl(sugaredLogger, k8sServiceImpl, argoApplicationConfigServiceImpl, clusterReadServiceImpl)
+	versionServiceImpl := version.NewVersionServiceImpl(sugaredLogger)
 	acdAuthConfig, err := util3.GetACDAuthConfig()
 	if err != nil {
 		return nil, err
 	}
 	argoCDConfigGetterImpl := config3.NewArgoCDConfigGetter(beanConfig, environmentVariables, acdAuthConfig, clusterReadServiceImpl, sugaredLogger, k8sServiceImpl)
-	argoCDConnectionManagerImpl, err := connection.NewArgoCDConnectionManagerImpl(sugaredLogger, settingsManager, moduleRepositoryImpl, environmentVariables, k8sServiceImpl, k8sCommonServiceImpl, versionServiceImpl, gitOpsConfigReadServiceImpl, runtimeConfig, argoCDConfigGetterImpl)
+	argoCDConnectionManagerImpl, err := connection.NewArgoCDConnectionManagerImpl(sugaredLogger, settingsManager, moduleRepositoryImpl, environmentVariables, k8sServiceImpl, k8sCommonServiceImpl, versionServiceImpl, gitOpsConfigReadServiceImpl, k8sRuntimeConfig, argoCDConfigGetterImpl)
 	if err != nil {
 		return nil, err
 	}
-	serviceClientImpl := cluster.NewServiceClientImpl(sugaredLogger, argoCDConnectionManagerImpl)
-	syncMap := informer.NewGlobalMapClusterNamespace()
-	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, syncMap, k8sServiceImpl)
-	cronLoggerImpl := cron.NewCronLoggerImpl(sugaredLogger)
-	clusterServiceImpl, err := cluster2.NewClusterServiceImpl(clusterRepositoryImpl, sugaredLogger, k8sServiceImpl, k8sInformerFactoryImpl, userAuthRepositoryImpl, userRepositoryImpl, roleGroupRepositoryImpl, environmentVariables, cronLoggerImpl, clusterReadServiceImpl)
-	if err != nil {
-		return nil, err
-	}
-	applicationServiceClientImpl := application.NewApplicationClientImpl(sugaredLogger, argoCDConnectionManagerImpl)
+	serviceClientImpl := application.NewApplicationClientImpl(sugaredLogger, argoCDConnectionManagerImpl)
 	repositoryServiceClientImpl := repository6.NewServiceClientImpl(sugaredLogger, argoCDConnectionManagerImpl)
+	clusterServiceClientImpl := cluster2.NewServiceClientImpl(sugaredLogger, argoCDConnectionManagerImpl)
 	serviceClientImpl2 := repository7.NewServiceClientImpl(sugaredLogger, argoCDConnectionManagerImpl)
 	certificateServiceClientImpl := certificate.NewServiceClientImpl(sugaredLogger, argoCDConnectionManagerImpl)
 	acdConfig, err := argocdServer.GetACDDeploymentConfig()
@@ -377,8 +378,8 @@ func InitializeApp() (*App, error) {
 	runnable := asyncProvider.NewAsyncRunnable(sugaredLogger)
 	repositoryCredsK8sClientImpl := repoCredsK8sClient.NewRepositoryCredsK8sClientImpl(sugaredLogger, k8sServiceImpl)
 	argoClientWrapperServiceEAImpl := argocdServer.NewArgoClientWrapperServiceEAImpl(sugaredLogger, repositoryCredsK8sClientImpl, argoCDConfigGetterImpl)
-	argoClientWrapperServiceImpl := argocdServer.NewArgoClientWrapperServiceImpl(applicationServiceClientImpl, repositoryServiceClientImpl, serviceClientImpl, serviceClientImpl2, certificateServiceClientImpl, sugaredLogger, acdConfig, gitOpsConfigReadServiceImpl, gitOperationServiceImpl, runnable, argoCDConfigGetterImpl, argoClientWrapperServiceEAImpl)
-	clusterServiceImplExtended := cluster2.NewClusterServiceImplExtended(environmentRepositoryImpl, grafanaClientImpl, installedAppRepositoryImpl, serviceClientImpl, gitOpsConfigReadServiceImpl, clusterServiceImpl, argoClientWrapperServiceImpl)
+	argoClientWrapperServiceImpl := argocdServer.NewArgoClientWrapperServiceImpl(serviceClientImpl, repositoryServiceClientImpl, clusterServiceClientImpl, serviceClientImpl2, certificateServiceClientImpl, sugaredLogger, acdConfig, gitOpsConfigReadServiceImpl, gitOperationServiceImpl, runnable, argoCDConfigGetterImpl, argoClientWrapperServiceEAImpl)
+	clusterServiceImplExtended := cluster.NewClusterServiceImplExtended(environmentRepositoryImpl, grafanaClientImpl, installedAppRepositoryImpl, gitOpsConfigReadServiceImpl, clusterServiceImpl, argoClientWrapperServiceImpl)
 	loginService := middleware.NewUserLogin(sessionManager, k8sClient)
 	userAuthServiceImpl := user.NewUserAuthServiceImpl(userAuthRepositoryImpl, sessionManager, loginService, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, userServiceImpl)
 	environmentServiceImpl := environment.NewEnvironmentServiceImpl(environmentRepositoryImpl, clusterServiceImplExtended, sugaredLogger, k8sServiceImpl, k8sInformerFactoryImpl, userAuthServiceImpl, attributesRepositoryImpl, clusterReadServiceImpl)
@@ -443,8 +444,8 @@ func InitializeApp() (*App, error) {
 	genericNoteHistoryRepositoryImpl := repository10.NewGenericNoteHistoryRepositoryImpl(db, transactionUtilImpl)
 	genericNoteHistoryServiceImpl := genericNotes.NewGenericNoteHistoryServiceImpl(genericNoteHistoryRepositoryImpl, sugaredLogger)
 	genericNoteServiceImpl := genericNotes.NewGenericNoteServiceImpl(genericNoteRepositoryImpl, genericNoteHistoryServiceImpl, userRepositoryImpl, sugaredLogger)
-	clusterDescriptionRepositoryImpl := repository4.NewClusterDescriptionRepositoryImpl(db, sugaredLogger)
-	clusterDescriptionServiceImpl := cluster2.NewClusterDescriptionServiceImpl(clusterDescriptionRepositoryImpl, userRepositoryImpl, sugaredLogger)
+	clusterDescriptionRepositoryImpl := repository5.NewClusterDescriptionRepositoryImpl(db, sugaredLogger)
+	clusterDescriptionServiceImpl := cluster.NewClusterDescriptionServiceImpl(clusterDescriptionRepositoryImpl, userRepositoryImpl, sugaredLogger)
 	ciPipelineRepositoryImpl := pipelineConfig.NewCiPipelineRepositoryImpl(db, sugaredLogger, transactionUtilImpl)
 	enforcerUtilImpl := rbac.NewEnforcerUtilImpl(sugaredLogger, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, clusterRepositoryImpl, enforcerImpl, dbMigrationServiceImpl, teamReadServiceImpl)
 	clusterRbacServiceImpl := rbac2.NewClusterRbacServiceImpl(environmentServiceImpl, enforcerImpl, enforcerUtilImpl, clusterServiceImplExtended, sugaredLogger, userServiceImpl, clusterReadServiceImpl)
@@ -729,7 +730,7 @@ func InitializeApp() (*App, error) {
 	pubSubClientRestHandlerImpl := restHandler.NewPubSubClientRestHandlerImpl(pubSubClientServiceImpl, sugaredLogger, ciCdConfig)
 	webhookRouterImpl := router.NewWebhookRouterImpl(gitWebhookRestHandlerImpl, pipelineConfigRestHandlerImpl, externalCiRestHandlerImpl, pubSubClientRestHandlerImpl)
 	userAuthHandlerImpl := user2.NewUserAuthHandlerImpl(userAuthServiceImpl, validate, sugaredLogger, enforcerImpl)
-	selfRegistrationRolesRepositoryImpl := repository5.NewSelfRegistrationRolesRepositoryImpl(db, sugaredLogger)
+	selfRegistrationRolesRepositoryImpl := repository4.NewSelfRegistrationRolesRepositoryImpl(db, sugaredLogger)
 	userSelfRegistrationServiceImpl := user.NewUserSelfRegistrationServiceImpl(sugaredLogger, selfRegistrationRolesRepositoryImpl, userServiceImpl)
 	userAuthOidcHelperImpl, err := authentication.NewUserAuthOidcHelperImpl(sugaredLogger, userSelfRegistrationServiceImpl, dexConfig, settings, sessionManager)
 	if err != nil {
@@ -772,8 +773,8 @@ func InitializeApp() (*App, error) {
 	configMapRouterImpl := router.NewConfigMapRouterImpl(configMapRestHandlerImpl)
 	k8sResourceHistoryRepositoryImpl := repository25.NewK8sResourceHistoryRepositoryImpl(db, sugaredLogger)
 	k8sResourceHistoryServiceImpl := kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl(k8sResourceHistoryRepositoryImpl, sugaredLogger, appRepositoryImpl, environmentRepositoryImpl)
-	ephemeralContainersRepositoryImpl := repository4.NewEphemeralContainersRepositoryImpl(db, transactionUtilImpl)
-	ephemeralContainerServiceImpl := cluster2.NewEphemeralContainerServiceImpl(ephemeralContainersRepositoryImpl, sugaredLogger)
+	ephemeralContainersRepositoryImpl := repository5.NewEphemeralContainersRepositoryImpl(db, transactionUtilImpl)
+	ephemeralContainerServiceImpl := cluster.NewEphemeralContainerServiceImpl(ephemeralContainersRepositoryImpl, sugaredLogger)
 	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(environmentServiceImpl, sugaredLogger, k8sServiceImpl, ephemeralContainerServiceImpl, argoApplicationConfigServiceImpl, clusterReadServiceImpl)
 	fluxApplicationServiceImpl := fluxApplication.NewFluxApplicationServiceImpl(sugaredLogger, helmAppReadServiceImpl, clusterServiceImplExtended, helmAppClientImpl, pumpImpl)
 	k8sApplicationServiceImpl, err := application2.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImplExtended, pumpImpl, helmAppServiceImpl, k8sServiceImpl, acdAuthConfig, k8sResourceHistoryServiceImpl, k8sCommonServiceImpl, terminalSessionHandlerImpl, ephemeralContainerServiceImpl, ephemeralContainersRepositoryImpl, fluxApplicationServiceImpl, clusterReadServiceImpl)
@@ -781,7 +782,7 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	argoApplicationServiceExtendedImpl := argoApplication.NewArgoApplicationServiceExtendedServiceImpl(sugaredLogger, clusterRepositoryImpl, k8sServiceImpl, helmAppClientImpl, helmAppServiceImpl, k8sApplicationServiceImpl, argoApplicationConfigServiceImpl, argoClientWrapperServiceImpl)
-	installedAppResourceServiceImpl := resource.NewInstalledAppResourceServiceImpl(sugaredLogger, installedAppRepositoryImpl, appStoreApplicationVersionRepositoryImpl, argoClientWrapperServiceImpl, acdAuthConfig, installedAppVersionHistoryRepositoryImpl, helmAppClientImpl, helmAppServiceImpl, helmAppReadServiceImpl, appStatusServiceImpl, k8sCommonServiceImpl, k8sApplicationServiceImpl, k8sServiceImpl, deploymentConfigServiceImpl, ociRegistryConfigRepositoryImpl, argoApplicationServiceExtendedImpl)
+	installedAppResourceServiceImpl := resource.NewInstalledAppResourceServiceImpl(sugaredLogger, installedAppRepositoryImpl, appStoreApplicationVersionRepositoryImpl, argoClientWrapperServiceImpl, acdAuthConfig, installedAppVersionHistoryRepositoryImpl, helmAppServiceImpl, helmAppReadServiceImpl, appStatusServiceImpl, k8sCommonServiceImpl, k8sApplicationServiceImpl, k8sServiceImpl, deploymentConfigServiceImpl, ociRegistryConfigRepositoryImpl, argoApplicationServiceExtendedImpl)
 	chartGroupEntriesRepositoryImpl := repository26.NewChartGroupEntriesRepositoryImpl(db, sugaredLogger)
 	chartGroupReposotoryImpl := repository26.NewChartGroupReposotoryImpl(db, sugaredLogger)
 	chartGroupDeploymentRepositoryImpl := repository26.NewChartGroupDeploymentRepositoryImpl(db, sugaredLogger)
@@ -905,7 +906,8 @@ func InitializeApp() (*App, error) {
 	webhookListenerRouterImpl := router.NewWebhookListenerRouterImpl(webhookEventHandlerImpl)
 	appFilteringRestHandlerImpl := appList.NewAppFilteringRestHandlerImpl(sugaredLogger, teamServiceImpl, enforcerImpl, userServiceImpl, clusterServiceImplExtended, environmentServiceImpl, teamReadServiceImpl)
 	appFilteringRouterImpl := appList2.NewAppFilteringRouterImpl(appFilteringRestHandlerImpl)
-	appListingRestHandlerImpl := appList.NewAppListingRestHandlerImpl(appListingServiceImpl, enforcerImpl, pipelineBuilderImpl, sugaredLogger, enforcerUtilImpl, deploymentGroupServiceImpl, userServiceImpl, helmAppClientImpl, helmAppReadServiceImpl, k8sCommonServiceImpl, installedAppDBExtendedServiceImpl, installedAppResourceServiceImpl, cdApplicationStatusUpdateHandlerImpl, pipelineRepositoryImpl, appStatusServiceImpl, installedAppRepositoryImpl, genericNoteServiceImpl, k8sApplicationServiceImpl, generateManifestDeploymentTemplateServiceImpl, deploymentConfigServiceImpl, argoApplicationServiceExtendedImpl)
+	serviceImpl := resourceTree.NewServiceImpl(sugaredLogger, appListingServiceImpl, appStatusServiceImpl, argoApplicationServiceExtendedImpl, cdApplicationStatusUpdateHandlerImpl, helmAppReadServiceImpl, helmAppServiceImpl, k8sApplicationServiceImpl, k8sCommonServiceImpl)
+	appListingRestHandlerImpl := appList.NewAppListingRestHandlerImpl(appListingServiceImpl, enforcerImpl, pipelineBuilderImpl, sugaredLogger, enforcerUtilImpl, deploymentGroupServiceImpl, userServiceImpl, k8sCommonServiceImpl, installedAppDBExtendedServiceImpl, installedAppResourceServiceImpl, pipelineRepositoryImpl, k8sApplicationServiceImpl, deploymentConfigServiceImpl, serviceImpl)
 	appListingRouterImpl := appList2.NewAppListingRouterImpl(appListingRestHandlerImpl)
 	appInfoRestHandlerImpl := appInfo.NewAppInfoRestHandlerImpl(sugaredLogger, appCrudOperationServiceImpl, userServiceImpl, validate, enforcerUtilImpl, enforcerImpl, helmAppServiceImpl, enforcerUtilHelmImpl, genericNoteServiceImpl)
 	appInfoRouterImpl := appInfo2.NewAppInfoRouterImpl(sugaredLogger, appInfoRestHandlerImpl)

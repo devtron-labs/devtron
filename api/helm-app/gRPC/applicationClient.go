@@ -34,6 +34,7 @@ type HelmAppClient interface {
 	GetAppDetail(ctx context.Context, in *AppDetailRequest) (*AppDetail, error)
 	GetResourceTreeForExternalResources(ctx context.Context, in *ExternalResourceTreeRequest) (*ResourceTreeResponse, error)
 	GetAppStatus(ctx context.Context, in *AppDetailRequest) (*AppStatus, error)
+	GetAppStatusV2(ctx context.Context, in *AppDetailRequest) (*AppStatus, error)
 	Hibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error)
 	UnHibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error)
 	GetDeploymentHistory(ctx context.Context, in *AppDetailRequest) (*HelmAppDeploymentHistory, error)
@@ -158,6 +159,18 @@ func (impl *HelmAppClientImpl) GetAppStatus(ctx context.Context, in *AppDetailRe
 		return nil, err
 	}
 	appStatus, err := applicationClient.GetAppStatus(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return appStatus, nil
+}
+
+func (impl *HelmAppClientImpl) GetAppStatusV2(ctx context.Context, in *AppDetailRequest) (*AppStatus, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	appStatus, err := applicationClient.GetAppStatusV2(ctx, in)
 	if err != nil {
 		return nil, err
 	}
