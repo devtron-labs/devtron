@@ -169,7 +169,7 @@ func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit
 		queryParams = append(queryParams, offset)
 	}
 	var envContainers []*AppView.AppEnvironmentContainer
-	_, err := impl.dbConnection.Query(&envContainers, query, envId, envId)
+	_, err := impl.dbConnection.Query(&envContainers, query, queryParams...)
 	return envContainers, err
 }
 
