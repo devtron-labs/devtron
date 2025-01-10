@@ -14,15 +14,11 @@
  * limitations under the License.
  */
 
-package deployedApp
+package resourceTree
 
-import (
-	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp/status"
-	"github.com/google/wire"
-)
+import "github.com/google/wire"
 
-var DeployedAppWireSet = wire.NewSet(
-	status.WireSet,
-	NewDeployedAppServiceImpl,
-	wire.Bind(new(DeployedAppService), new(*DeployedAppServiceImpl)),
+var WireSet = wire.NewSet(
+	NewServiceImpl,
+	wire.Bind(new(Service), new(*ServiceImpl)),
 )

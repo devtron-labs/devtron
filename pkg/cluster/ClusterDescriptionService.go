@@ -17,9 +17,9 @@
 package cluster
 
 import (
+	apiBean "github.com/devtron-labs/devtron/api/bean/AppView"
 	"time"
 
-	apiBean "github.com/devtron-labs/devtron/api/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/go-pg/pg"

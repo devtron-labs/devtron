@@ -22,7 +22,7 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
-	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/api/bean/AppView"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	internalUtil "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/read/config"
@@ -57,7 +57,7 @@ type K8sCommonService interface {
 	ListEvents(ctx context.Context, request *bean5.ResourceRequestBean) (*k8s.EventsResponse, error)
 	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error, *bean2.ClusterBean)
 	GetManifestsByBatch(ctx context.Context, request []bean5.ResourceRequestBean) ([]bean5.BatchResourceResponse, error)
-	FilterK8sResources(ctx context.Context, resourceTreeInf map[string]interface{}, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string, externalArgoAppName string) []bean5.ResourceRequestBean
+	FilterK8sResources(ctx context.Context, resourceTreeInf map[string]interface{}, appDetail AppView.AppDetailContainer, appId string, kindsToBeFiltered []string, externalArgoAppName string) []bean5.ResourceRequestBean
 	RotatePods(ctx context.Context, request *bean5.RotatePodRequest) (*bean5.RotatePodResponse, error)
 	GetCoreClientByClusterId(clusterId int) (*kubernetes.Clientset, *clientV1.CoreV1Client, error)
 	GetCoreClientByClusterIdForExternalArgoApps(req *bean4.EphemeralContainerRequest) (*kubernetes.Clientset, *clientV1.CoreV1Client, error)
@@ -243,7 +243,7 @@ func (impl *K8sCommonServiceImpl) ListEvents(ctx context.Context, request *bean5
 
 }
 
-func (impl *K8sCommonServiceImpl) FilterK8sResources(ctx context.Context, resourceTree map[string]interface{}, appDetail bean.AppDetailContainer, appId string, kindsToBeFiltered []string, externalArgoAppName string) []bean5.ResourceRequestBean {
+func (impl *K8sCommonServiceImpl) FilterK8sResources(ctx context.Context, resourceTree map[string]interface{}, appDetail AppView.AppDetailContainer, appId string, kindsToBeFiltered []string, externalArgoAppName string) []bean5.ResourceRequestBean {
 	validRequests := make([]bean5.ResourceRequestBean, 0)
 	kindsToBeFilteredMap := util.ConvertStringSliceToMap(kindsToBeFiltered)
 	resourceTreeNodes, ok := resourceTree["nodes"]
