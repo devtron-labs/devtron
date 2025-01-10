@@ -96,7 +96,7 @@ func GetPGPostQueryProcessor(cfg bean.PgQueryConfig) func(event *pg.QueryProcess
 	return func(event *pg.QueryProcessedEvent) {
 		query, err := event.FormattedQuery()
 		if err != nil {
-			logger.Errorw("Error formatting query", "err", err)
+			log.Println("Error formatting query", "err", err)
 			return
 		}
 		ExecutePGQueryProcessor(cfg, bean.PgQueryEvent{
@@ -129,13 +129,13 @@ func ExecutePGQueryProcessor(cfg bean.PgQueryConfig, event bean.PgQueryEvent) {
 	logThresholdQueries := cfg.LogSlowQuery && queryDuration.Milliseconds() > cfg.QueryDurationThreshold
 	logFailureQuery := queryError && cfg.LogAllFailureQueries
 	if logFailureQuery {
-		logger.Errorw("PG_QUERY_FAIL - query time", "duration", queryDuration.Seconds(), "query", event.Query, "pgError", pgError)
+		log.Println("PG_QUERY_FAIL - query time", "duration", queryDuration.Seconds(), "query", event.Query, "pgError", pgError)
 	}
 	if logThresholdQueries {
-		logger.Debugw("PG_QUERY_SLOW - query time", "duration", queryDuration.Seconds(), "query", event.Query)
+		log.Println("PG_QUERY_SLOW - query time", "duration", queryDuration.Seconds(), "query", event.Query)
 	}
 	if cfg.LogAllQuery {
-		logger.Debugw("query time", "duration", queryDuration.Seconds(), "query", event.Query)
+		log.Println("query time", "duration", queryDuration.Seconds(), "query", event.Query)
 	}
 }
 
