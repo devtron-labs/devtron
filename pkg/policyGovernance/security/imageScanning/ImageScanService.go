@@ -18,13 +18,15 @@ package imageScanning
 
 import (
 	"context"
+	bean4 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/adapter"
 	bean3 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/bean"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/helper/parser"
 	repository3 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
-	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	"go.opentelemetry.io/otel"
 	"time"
 
@@ -45,6 +47,8 @@ type ImageScanService interface {
 	VulnerabilityExposure(request *repository3.VulnerabilityRequest) (*repository3.VulnerabilityExposureListingResponse, error)
 	GetArtifactVulnerabilityStatus(ctx context.Context, request *bean2.VulnerabilityCheckRequest) (bool, error)
 	IsImageScanExecutionCompleted(image, imageDigest string) (bool, error)
+	// resource scanning functions below
+	GetScanResults(resourceScanQueryParams *bean3.ResourceScanQueryParams) (parser.ResourceScanResponseDto, error)
 }
 
 type ImageScanServiceImpl struct {
@@ -64,6 +68,7 @@ type ImageScanServiceImpl struct {
 	scanToolMetaDataRepository                repository3.ScanToolMetadataRepository
 	scanToolExecutionHistoryMappingRepository repository3.ScanToolExecutionHistoryMappingRepository
 	cvePolicyRepository                       repository3.CvePolicyRepository
+	cdWorkflowRepo                            pipelineConfig.CdWorkflowRepository
 }
 
 func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository repository3.ImageScanHistoryRepository,
@@ -73,7 +78,8 @@ func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository re
 	appRepository repository1.AppRepository,
 	envService environment.EnvironmentService, ciArtifactRepository repository.CiArtifactRepository, policyService PolicyService,
 	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository, scanToolMetaDataRepository repository3.ScanToolMetadataRepository, scanToolExecutionHistoryMappingRepository repository3.ScanToolExecutionHistoryMappingRepository,
-	cvePolicyRepository repository3.CvePolicyRepository) *ImageScanServiceImpl {
+	cvePolicyRepository repository3.CvePolicyRepository,
+	cdWorkflowRepo pipelineConfig.CdWorkflowRepository) *ImageScanServiceImpl {
 	return &ImageScanServiceImpl{Logger: Logger, scanHistoryRepository: scanHistoryRepository, scanResultRepository: scanResultRepository,
 		scanObjectMetaRepository: scanObjectMetaRepository, cveStoreRepository: cveStoreRepository,
 		imageScanDeployInfoRepository:             imageScanDeployInfoRepository,
@@ -87,6 +93,7 @@ func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository re
 		scanToolMetaDataRepository:                scanToolMetaDataRepository,
 		scanToolExecutionHistoryMappingRepository: scanToolExecutionHistoryMappingRepository,
 		cvePolicyRepository:                       cvePolicyRepository,
+		cdWorkflowRepo:                            cdWorkflowRepo,
 	}
 }
 
@@ -249,6 +256,24 @@ func (impl ImageScanServiceImpl) fetchImageExecutionHistoryMapByIds(historyIds [
 	}
 	return mapOfExecutionHistoryIdVsExecutionTime, nil
 }
+func (impl ImageScanServiceImpl) fetchLatestArtifactIdForAppAndEnv(appId, envId int) (int, error) {
+	cdWfRunner, err := impl.cdWorkflowRepo.FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId, envId, bean4.CD_WORKFLOW_TYPE_DEPLOY)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching latest cd workflow runner of type DEPLOY for appId and envId", "appId", appId, "envId", envId, "err", err)
+		return 0, err
+	}
+	var ciArtifactId int
+	if cdWfRunner.CdWorkflow != nil && cdWfRunner.CdWorkflow.CiArtifact != nil {
+		// for images built by us or provided in external ci case.
+		ciArtifactId = cdWfRunner.CdWorkflow.CiArtifactId
+		if cdWfRunner.CdWorkflow.CiArtifact.ParentCiArtifact > 0 {
+			//linked ci case, parent ci artifact already scanned
+			ciArtifactId = cdWfRunner.CdWorkflow.CiArtifact.ParentCiArtifact
+		}
+	}
+
+	return ciArtifactId, nil
+}
 
 func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *bean3.ImageScanRequest) (*bean3.ImageScanExecutionDetail, error) {
 	//var scanExecution *security.ImageScanExecutionHistory
@@ -256,7 +281,17 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *bean3.Image
 	var executionTime time.Time
 	imageScanResponse := &bean3.ImageScanExecutionDetail{}
 	isRegularApp := false
+	if request.AppId > 0 && request.EnvId > 0 {
+		artifactId, err := impl.fetchLatestArtifactIdForAppAndEnv(request.AppId, request.EnvId)
+		if err != nil {
+			impl.Logger.Errorw("error while fetching scan execution result", "appId", request.AppId, "envId", request.EnvId, "err", err)
+			return nil, err
+		}
+		// setting latest artifact deploy on app and env
+		request.ArtifactId = artifactId
+	}
 	if request.ImageScanDeployInfoId > 0 {
+		// TODO: this flow is to be removed after sometime as not in use from now (23rd dec)
 		// scan detail for deployed images
 		scanDeployInfo, err := impl.imageScanDeployInfoRepository.FindOne(request.ImageScanDeployInfoId)
 		if err != nil {
@@ -288,7 +323,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *bean3.Image
 			return nil, err
 		}
 		imageScanResponse.Image = ciArtifact.Image
-		scanExecution, err := impl.scanHistoryRepository.FindByImageAndDigest(ciArtifact.ImageDigest, ciArtifact.Image)
+		scanExecution, err := impl.scanHistoryRepository.FindByImageAndDigestWithHistoryMapping(ciArtifact.ImageDigest, ciArtifact.Image)
 		if err != nil {
 			impl.Logger.Errorw("error while fetching scan execution result", "err", err)
 			return nil, err
@@ -304,6 +339,9 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *bean3.Image
 		executionTime = scanExecution.ExecutionTime
 		imageScanResponse.ScanEnabled = ciArtifact.ScanEnabled
 		imageScanResponse.Scanned = ciArtifact.Scanned
+		if scanExecution.ScanToolExecutionHistoryMapping != nil {
+			imageScanResponse.Status = scanExecution.ScanToolExecutionHistoryMapping.State
+		}
 		if ciArtifact.ScanEnabled == false {
 			impl.Logger.Debugw("returning without result as scan disabled for this artifact", "ciArtifact", ciArtifact)
 			return imageScanResponse, nil
@@ -437,6 +475,15 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *bean3.Image
 				vulnerability.Permission = bean3.WHITELISTED
 			}
 		}
+	}
+	// setting scan tool name if scan tool id is present
+	if imageScanResponse.ScanToolId > 0 {
+		scanToolName, err := impl.scanToolMetaDataRepository.FindNameById(imageScanResponse.ScanToolId)
+		if err != nil {
+			impl.Logger.Errorw("error in getting scan tool name by id", "scanToolId", imageScanResponse.ScanToolId, "err", err)
+			return nil, err
+		}
+		imageScanResponse.ScanToolName = scanToolName
 	}
 	return imageScanResponse, nil
 }
@@ -656,9 +703,25 @@ func (impl ImageScanServiceImpl) IsImageScanExecutionCompleted(image, imageDiges
 	}
 
 	for _, scanHistoryMapping := range allScanHistoryMappings {
-		if scanHistoryMapping.State == serverBean.ScanExecutionProcessStateCompleted {
+		if scanHistoryMapping.State == repository3.ScanExecutionProcessStateCompleted {
 			isScanningCompleted = true
 		}
 	}
 	return isScanningCompleted, nil
+}
+
+func (impl ImageScanServiceImpl) GetScanResults(resourceScanQueryParams *bean3.ResourceScanQueryParams) (resp parser.ResourceScanResponseDto, err error) {
+	request := &bean3.ImageScanRequest{
+		ArtifactId: resourceScanQueryParams.ArtifactId,
+		AppId:      resourceScanQueryParams.AppId,
+		EnvId:      resourceScanQueryParams.EnvId,
+	}
+	respFromExecutionDetail, err := impl.FetchExecutionDetailResult(request)
+	if err != nil {
+		impl.Logger.Errorw("error encountered in GetScanResults", "req", request, "err", err)
+		return resp, err
+	}
+	// build an adapter to convert the respFromExecutionDetail to the required ResourceScanResponseDto format
+	return adapter.ExecutionDetailsToResourceScanResponseDto(respFromExecutionDetail), nil
+
 }

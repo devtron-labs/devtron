@@ -166,7 +166,7 @@
  | INSTALLER_CRD_OBJECT_RESOURCE | installers |  | 
  | INSTALLER_CRD_OBJECT_VERSION | v1alpha1 |  | 
  | IN_APP_LOGGING_ENABLED | false |  | 
- | IS_INTERNAL_USE | false |  | 
+ | IS_INTERNAL_USE | true |  | 
  | JwtExpirationTime | 120 |  | 
  | K8s_CLIENT_MAX_IDLE_CONNS_PER_HOST | 25 |  | 
  | K8s_TCP_IDLE_CONN_TIMEOUT | 300 |  | 
@@ -180,7 +180,7 @@
  | LIMIT_CI_CPU | 0.5 |  | 
  | LIMIT_CI_MEM | 3G |  | 
  | LOGGER_DEV_MODE | false |  | 
- | LOG_LEVEL | 0 |  | 
+ | LOG_LEVEL | -1 |  | 
  | MAX_CD_WORKFLOW_RUNNER_RETRIES | 0 |  | 
  | MAX_CI_WORKFLOW_RETRIES | 0 |  | 
  | MAX_SESSION_PER_USER | 5 |  | 
@@ -192,7 +192,7 @@
  | NATS_MSG_MAX_AGE | 86400 |  | 
  | NATS_MSG_PROCESSING_BATCH_SIZE | 1 |  | 
  | NATS_MSG_REPLICAS | 0 |  | 
- | NATS_SERVER_HOST | nats://devtron-nats.devtroncd:4222 |  | 
+ | NATS_SERVER_HOST | localhost:4222 |  | 
  | NOTIFICATION_MEDIUM | rest |  | 
  | ORCH_HOST | http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats |  | 
  | ORCH_TOKEN |  |  | 
@@ -204,11 +204,11 @@
  | PG_LOG_ALL_FAILURE_QUERIES | true |  | 
  | PG_LOG_ALL_QUERY | false |  | 
  | PG_LOG_SLOW_QUERY | true |  | 
- | PG_PASSWORD |  |  | 
+ | PG_PASSWORD | {password} |  | 
  | PG_PORT | 5432 |  | 
  | PG_QUERY_DUR_THRESHOLD | 5000 |  | 
  | PG_READ_TIMEOUT | 30 |  | 
- | PG_USER |  |  | 
+ | PG_USER | postgres |  | 
  | PG_WRITE_TIMEOUT | 30 |  | 
  | PIPELINE_DEGRADED_TIME | 10 |  | 
  | PLUGIN_NAME | Pull images from container repository |  | 
@@ -223,7 +223,7 @@
  | REVISION_HISTORY_LIMIT_DEVTRON_APP | 1 |  | 
  | REVISION_HISTORY_LIMIT_EXTERNAL_HELM_APP | 0 |  | 
  | REVISION_HISTORY_LIMIT_HELM_APP | 1 |  | 
- | RUNTIME_CONFIG_LOCAL_DEV | false |  | 
+ | RUNTIME_CONFIG_LOCAL_DEV | true |  | 
  | RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS | false |  | 
  | SCOPED_VARIABLE_ENABLED | false |  | 
  | SCOPED_VARIABLE_FORMAT | @{{%s}} |  | 
@@ -255,7 +255,7 @@
  | USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW | true |  | 
  | USE_BLOB_STORAGE_CONFIG_IN_CI_WORKFLOW | true |  | 
  | USE_BUILDX | false |  | 
- | USE_CASBIN_V2 | false |  | 
+ | USE_CASBIN_V2 | true |  | 
  | USE_CUSTOM_HTTP_TRANSPORT | false |  | 
  | USE_DEPLOYMENT_CONFIG_DATA | false |  | 
  | USE_DOCKER_API_TO_GET_DIGEST | false |  | 

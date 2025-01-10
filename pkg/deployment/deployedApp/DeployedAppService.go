@@ -30,13 +30,14 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s"
+	bean4 "github.com/devtron-labs/devtron/pkg/k8s/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
 type DeployedAppService interface {
 	StopStartApp(ctx context.Context, stopRequest *bean.StopAppRequest) (int, error)
-	RotatePods(ctx context.Context, podRotateRequest *bean.PodRotateRequest) (*k8s.RotatePodResponse, error)
+	RotatePods(ctx context.Context, podRotateRequest *bean.PodRotateRequest) (*bean4.RotatePodResponse, error)
 }
 
 type DeployedAppServiceImpl struct {
@@ -118,7 +119,7 @@ func (impl *DeployedAppServiceImpl) StopStartApp(ctx context.Context, stopReques
 	return id, err
 }
 
-func (impl *DeployedAppServiceImpl) RotatePods(ctx context.Context, podRotateRequest *bean.PodRotateRequest) (*k8s.RotatePodResponse, error) {
+func (impl *DeployedAppServiceImpl) RotatePods(ctx context.Context, podRotateRequest *bean.PodRotateRequest) (*bean4.RotatePodResponse, error) {
 	impl.logger.Infow("rotate pod request", "payload", podRotateRequest)
 	//extract cluster id and namespace from env id
 	environmentId := podRotateRequest.EnvironmentId
@@ -132,7 +133,7 @@ func (impl *DeployedAppServiceImpl) RotatePods(ctx context.Context, podRotateReq
 		resourceIdentifier.Namespace = environment.Namespace
 		resourceIdentifiers = append(resourceIdentifiers, resourceIdentifier)
 	}
-	rotatePodRequest := &k8s.RotatePodRequest{
+	rotatePodRequest := &bean4.RotatePodRequest{
 		ClusterId: environment.ClusterId,
 		Resources: resourceIdentifiers,
 	}

@@ -52,15 +52,8 @@ type InstalledAppArgoCdService interface {
 
 func (impl *FullModeDeploymentServiceImpl) GetAcdAppGitOpsRepoName(appName string, environmentName string) (string, error) {
 	//this method should only call in case of argo-integration and gitops configured
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		impl.Logger.Errorw("error in getting acd token", "err", err)
-		return "", err
-	}
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "token", acdToken)
 	acdAppName := util2.BuildDeployedAppName(appName, environmentName)
-	return impl.argoClientWrapperService.GetGitOpsRepoName(ctx, acdAppName)
+	return impl.argoClientWrapperService.GetGitOpsRepoName(context.Background(), acdAppName)
 }
 
 func (impl *FullModeDeploymentServiceImpl) DeleteACDAppObject(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
@@ -91,16 +84,7 @@ func (impl *FullModeDeploymentServiceImpl) DeleteACDAppObject(ctx context.Contex
 }
 
 func (impl *FullModeDeploymentServiceImpl) CheckIfArgoAppExists(acdAppName string) (isFound bool, err error) {
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		impl.Logger.Errorw("error in getting acd token", "err", err)
-		return isFound, fmt.Errorf("error in getting acd token")
-	}
-
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "token", acdToken)
-
-	_, acdAppGetErr := impl.acdClient.Get(ctx, &application.ApplicationQuery{Name: &acdAppName})
+	_, acdAppGetErr := impl.acdClient.Get(context.Background(), &application.ApplicationQuery{Name: &acdAppName})
 	isFound = acdAppGetErr == nil
 	return isFound, nil
 }
@@ -234,13 +218,7 @@ func (impl *FullModeDeploymentServiceImpl) patchAcdApp(ctx context.Context, inst
 }
 
 func (impl *FullModeDeploymentServiceImpl) GetAcdAppGitOpsRepoURL(appName string, environmentName string) (string, error) {
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		impl.Logger.Errorw("error in getting acd token", "err", err)
-		return "", err
-	}
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "token", acdToken)
 	acdAppName := util2.BuildDeployedAppName(appName, environmentName)
 	return impl.argoClientWrapperService.GetGitOpsRepoURL(ctx, acdAppName)
 }

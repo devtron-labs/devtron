@@ -19,26 +19,28 @@ package app
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils/k8s/health"
+	"github.com/devtron-labs/devtron/api/bean/AppView"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/internal/middleware"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	userrepository "github.com/devtron-labs/devtron/pkg/auth/user/repository"
+	ciConfig "github.com/devtron-labs/devtron/pkg/build/pipeline/read"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
+	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	util2 "github.com/devtron-labs/devtron/util"
+	errors2 "github.com/juju/errors"
+	"go.opentelemetry.io/otel"
+	"golang.org/x/exp/slices"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
-	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
-	"github.com/devtron-labs/common-lib/utils/k8s/health"
-	"github.com/devtron-labs/devtron/internal/middleware"
-	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	userrepository "github.com/devtron-labs/devtron/pkg/auth/user/repository"
-	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
-	"github.com/devtron-labs/devtron/util/argo"
-	errors2 "github.com/juju/errors"
-	"go.opentelemetry.io/otel"
-	"golang.org/x/exp/slices"
 
 	"github.com/devtron-labs/devtron/api/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -53,25 +55,25 @@ import (
 )
 
 type AppListingService interface {
-	FetchJobs(fetchJobListingRequest FetchAppListingRequest) ([]*bean.JobContainer, error)
-	FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error)
-	BuildAppListingResponseV2(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error)
+	FetchJobs(fetchJobListingRequest FetchAppListingRequest) ([]*AppView.JobContainer, error)
+	FetchOverviewCiPipelines(jobId int) ([]*AppView.JobListingContainer, error)
+	BuildAppListingResponseV2(fetchAppListingRequest FetchAppListingRequest, envContainers []*AppView.AppEnvironmentContainer) ([]*AppView.AppContainer, error)
 	FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error)
-	FetchAppDetails(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error)
+	FetchAppDetails(ctx context.Context, appId int, envId int) (AppView.AppDetailContainer, error)
 
 	//------------------
 
-	FetchAppTriggerView(appId int) ([]bean.TriggerView, error)
-	FetchAppStageStatus(appId int, appType int) ([]bean.AppStageStatus, error)
+	FetchAppTriggerView(appId int) ([]AppView.TriggerView, error)
+	FetchAppStageStatus(appId int, appType int) ([]AppView.AppStageStatus, error)
 
-	FetchOtherEnvironment(ctx context.Context, appId int) ([]*bean.Environment, error)
-	FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error)
+	FetchOtherEnvironment(ctx context.Context, appId int) ([]*AppView.Environment, error)
+	FetchMinDetailOtherEnvironment(appId int) ([]*AppView.Environment, error)
 	RedirectToLinkouts(Id int, appId int, envId int, podName string, containerName string) (string, error)
 	ISLastReleaseStopType(appId, envId int) (bool, error)
 	ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error)
 	GetReleaseCount(appId, envId int) (int, error)
 
-	FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, int, error)
+	FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*AppView.AppEnvironmentContainer, int, error)
 	FetchOverviewAppsByEnvironment(envId, limit, offset int) (*OverviewAppsByEnvironmentBean, error)
 }
 
@@ -137,7 +139,6 @@ type AppListingServiceImpl struct {
 	linkoutsRepository             repository.LinkoutsRepository
 	pipelineOverrideRepository     chartConfig.PipelineOverrideRepository
 	environmentRepository          repository2.EnvironmentRepository
-	argoUserService                argo.ArgoUserService
 	chartRepository                chartRepoRepository.ChartRepository
 	ciPipelineRepository           pipelineConfig.CiPipelineRepository
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService
@@ -145,6 +146,7 @@ type AppListingServiceImpl struct {
 	deployedAppMetricsService      deployedAppMetrics.DeployedAppMetricsService
 	ciArtifactRepository           repository.CiArtifactRepository
 	envConfigOverrideReadService   read.EnvConfigOverrideService
+	ciPipelineConfigReadService    ciConfig.CiPipelineConfigReadService
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
@@ -152,11 +154,11 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 	appListingViewBuilder AppListingViewBuilder, pipelineRepository pipelineConfig.PipelineRepository,
 	linkoutsRepository repository.LinkoutsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository repository2.EnvironmentRepository,
-	argoUserService argo.ArgoUserService,
 	chartRepository chartRepoRepository.ChartRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService, userRepository userrepository.UserRepository,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService, ciArtifactRepository repository.CiArtifactRepository,
-	envConfigOverrideReadService read.EnvConfigOverrideService) *AppListingServiceImpl {
+	envConfigOverrideReadService read.EnvConfigOverrideService,
+	ciPipelineConfigReadService ciConfig.CiPipelineConfigReadService) *AppListingServiceImpl {
 	serviceImpl := &AppListingServiceImpl{
 		Logger:                         Logger,
 		appListingRepository:           appListingRepository,
@@ -168,7 +170,6 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		cdWorkflowRepository:           cdWorkflowRepository,
 		pipelineOverrideRepository:     pipelineOverrideRepository,
 		environmentRepository:          environmentRepository,
-		argoUserService:                argoUserService,
 		chartRepository:                chartRepository,
 		ciPipelineRepository:           ciPipelineRepository,
 		dockerRegistryIpsConfigService: dockerRegistryIpsConfigService,
@@ -176,6 +177,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		deployedAppMetricsService:      deployedAppMetricsService,
 		ciArtifactRepository:           ciArtifactRepository,
 		envConfigOverrideReadService:   envConfigOverrideReadService,
+		ciPipelineConfigReadService:    ciPipelineConfigReadService,
 	}
 	return serviceImpl
 }
@@ -184,17 +186,17 @@ const AcdInvalidAppErr = "invalid acd app name and env"
 const NotDeployed = "Not Deployed"
 
 type OverviewAppsByEnvironmentBean struct {
-	EnvironmentId   int                             `json:"environmentId"`
-	EnvironmentName string                          `json:"environmentName"`
-	Namespace       string                          `json:"namespace"`
-	ClusterName     string                          `json:"clusterName"`
-	ClusterId       int                             `json:"clusterId"`
-	Type            string                          `json:"environmentType"`
-	Description     string                          `json:"description"`
-	AppCount        int                             `json:"appCount"`
-	Apps            []*bean.AppEnvironmentContainer `json:"apps"`
-	CreatedOn       string                          `json:"createdOn"`
-	CreatedBy       string                          `json:"createdBy"`
+	EnvironmentId   int                                `json:"environmentId"`
+	EnvironmentName string                             `json:"environmentName"`
+	Namespace       string                             `json:"namespace"`
+	ClusterName     string                             `json:"clusterName"`
+	ClusterId       int                                `json:"clusterId"`
+	Type            string                             `json:"environmentType"`
+	Description     string                             `json:"description"`
+	AppCount        int                                `json:"appCount"`
+	Apps            []*AppView.AppEnvironmentContainer `json:"apps"`
+	CreatedOn       string                             `json:"createdOn"`
+	CreatedBy       string                             `json:"createdBy"`
 }
 
 const (
@@ -236,6 +238,12 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 	envContainers, err := impl.appListingRepository.FetchOverviewAppsByEnvironment(envId, limit, offset)
 	if err != nil {
 		impl.Logger.Errorw("failed to fetch environment containers", "err", err, "envId", envId)
+		return resp, err
+	}
+
+	err = impl.updateAppStatusForHelmTypePipelines(envContainers)
+	if err != nil {
+		impl.Logger.Errorw("err, updateAppStatusForHelmTypePipelines", "envId", envId, "err", err)
 		return resp, err
 	}
 
@@ -318,7 +326,8 @@ func (impl AppListingServiceImpl) FetchAllDevtronManagedApps() ([]AppNameTypeIdC
 	}
 	return apps, nil
 }
-func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListingRequest) ([]*bean.JobContainer, error) {
+
+func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListingRequest) ([]*AppView.JobContainer, error) {
 
 	jobListingFilter := helper.AppListingFilter{
 		Teams:         fetchJobListingRequest.Teams,
@@ -334,12 +343,12 @@ func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListi
 	appIds, err := impl.appRepository.FetchAppIdsWithFilter(jobListingFilter)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app ids list", "error", err, jobListingFilter)
-		return []*bean.JobContainer{}, err
+		return []*AppView.JobContainer{}, err
 	}
 	jobListingContainers, err := impl.appListingRepository.FetchJobs(appIds, jobListingFilter.AppStatuses, jobListingFilter.Environments, string(jobListingFilter.SortOrder))
 	if err != nil {
 		impl.Logger.Errorw("error in fetching job list", "error", err, jobListingFilter)
-		return []*bean.JobContainer{}, err
+		return []*AppView.JobContainer{}, err
 	}
 	CiPipelineIDs := GetCIPipelineIDs(jobListingContainers)
 	JobsLastSucceededOnTime, err := impl.appListingRepository.FetchJobsLastSucceededOn(CiPipelineIDs)
@@ -347,19 +356,19 @@ func (impl AppListingServiceImpl) FetchJobs(fetchJobListingRequest FetchAppListi
 	return jobContainers, nil
 }
 
-func (impl AppListingServiceImpl) FetchOverviewCiPipelines(jobId int) ([]*bean.JobListingContainer, error) {
+func (impl AppListingServiceImpl) FetchOverviewCiPipelines(jobId int) ([]*AppView.JobListingContainer, error) {
 	jobCiContainers, err := impl.appListingRepository.FetchOverviewCiPipelines(jobId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching job container", "error", err, jobId)
-		return []*bean.JobListingContainer{}, err
+		return []*AppView.JobListingContainer{}, err
 	}
 	return jobCiContainers, nil
 }
 
-func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, int, error) {
+func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*AppView.AppEnvironmentContainer, int, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
 	if len(fetchAppListingRequest.Namespaces) != 0 && len(fetchAppListingRequest.Environments) == 0 {
-		return []*bean.AppEnvironmentContainer{}, 0, nil
+		return []*AppView.AppEnvironmentContainer{}, 0, nil
 	}
 	appListingFilter := helper.AppListingFilter{
 		Environments:      fetchAppListingRequest.Environments,
@@ -379,17 +388,17 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 	span.End()
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app list", "error", err, "filter", appListingFilter)
-		return []*bean.AppEnvironmentContainer{}, appSize, err
+		return []*AppView.AppEnvironmentContainer{}, appSize, err
 	}
 
-	envContainersMap := make(map[int][]*bean.AppEnvironmentContainer)
+	envContainersMap := make(map[int][]*AppView.AppEnvironmentContainer)
 	envIds := make([]int, 0)
 	envsSet := make(map[int]bool)
 
 	for _, container := range envContainers {
 		if container.EnvironmentId != 0 {
 			if _, ok := envContainersMap[container.EnvironmentId]; !ok {
-				envContainersMap[container.EnvironmentId] = make([]*bean.AppEnvironmentContainer, 0)
+				envContainersMap[container.EnvironmentId] = make([]*AppView.AppEnvironmentContainer, 0)
 			}
 			envContainersMap[container.EnvironmentId] = append(envContainersMap[container.EnvironmentId], container)
 			if _, ok := envsSet[container.EnvironmentId]; !ok {
@@ -401,7 +410,7 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 	envClusterInfos, err := impl.environmentRepository.FindEnvClusterInfosByIds(envIds)
 	if err != nil {
 		impl.Logger.Errorw("error in envClusterInfos list", "error", err, "envIds", envIds)
-		return []*bean.AppEnvironmentContainer{}, appSize, err
+		return []*AppView.AppEnvironmentContainer{}, appSize, err
 	}
 	for _, info := range envClusterInfos {
 		for _, container := range envContainersMap[info.Id] {
@@ -409,6 +418,10 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 			container.ClusterName = info.ClusterName
 			container.EnvironmentName = info.Name
 		}
+	}
+	err = impl.updateAppStatusForHelmTypePipelines(envContainers)
+	if err != nil {
+		impl.Logger.Errorw("error, UpdateAppStatusForHelmTypePipelines", "envIds", envIds, "err", err)
 	}
 	return envContainers, appSize, nil
 }
@@ -476,20 +489,20 @@ func (impl AppListingServiceImpl) GetReleaseCount(appId, envId int) (int, error)
 	}
 }
 
-func (impl AppListingServiceImpl) BuildAppListingResponseV2(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error) {
+func (impl AppListingServiceImpl) BuildAppListingResponseV2(fetchAppListingRequest FetchAppListingRequest, envContainers []*AppView.AppEnvironmentContainer) ([]*AppView.AppContainer, error) {
 	start := time.Now()
 	appEnvMapping, err := impl.fetchACDAppStatusV2(fetchAppListingRequest, envContainers)
 	middleware.AppListingDuration.WithLabelValues("fetchACDAppStatus", "devtron").Observe(time.Since(start).Seconds())
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app statuses", "error", err)
-		return []*bean.AppContainer{}, err
+		return []*AppView.AppContainer{}, err
 	}
 	start = time.Now()
 	appContainerResponses, err := impl.appListingViewBuilder.BuildView(fetchAppListingRequest, appEnvMapping)
 	middleware.AppListingDuration.WithLabelValues("buildView", "devtron").Observe(time.Since(start).Seconds())
 	return appContainerResponses, err
 }
-func GetCIPipelineIDs(jobContainers []*bean.JobListingContainer) []int {
+func GetCIPipelineIDs(jobContainers []*AppView.JobListingContainer) []int {
 
 	var ciPipelineIDs []int
 	for _, jobContainer := range jobContainers {
@@ -497,8 +510,8 @@ func GetCIPipelineIDs(jobContainers []*bean.JobListingContainer) []int {
 	}
 	return ciPipelineIDs
 }
-func BuildJobListingResponse(jobContainers []*bean.JobListingContainer, JobsLastSucceededOnTime []*bean.CiPipelineLastSucceededTime) []*bean.JobContainer {
-	jobContainersMapping := make(map[int]bean.JobContainer)
+func BuildJobListingResponse(jobContainers []*AppView.JobListingContainer, JobsLastSucceededOnTime []*AppView.CiPipelineLastSucceededTime) []*AppView.JobContainer {
+	jobContainersMapping := make(map[int]AppView.JobContainer)
 	var appIds []int
 
 	lastSucceededTimeMapping := make(map[int]time.Time)
@@ -511,7 +524,7 @@ func BuildJobListingResponse(jobContainers []*bean.JobListingContainer, JobsLast
 		val, ok := jobContainersMapping[jobContainer.JobId]
 		if !ok {
 			appIds = append(appIds, jobContainer.JobId)
-			val = bean.JobContainer{}
+			val = AppView.JobContainer{}
 			val.JobId = jobContainer.JobId
 			val.JobName = jobContainer.JobName
 			val.JobActualName = jobContainer.JobActualName
@@ -519,11 +532,11 @@ func BuildJobListingResponse(jobContainers []*bean.JobListingContainer, JobsLast
 		}
 
 		if len(val.JobCiPipelines) == 0 {
-			val.JobCiPipelines = make([]bean.JobCIPipeline, 0)
+			val.JobCiPipelines = make([]AppView.JobCIPipeline, 0)
 		}
 
 		if jobContainer.CiPipelineID != 0 {
-			ciPipelineObj := bean.JobCIPipeline{
+			ciPipelineObj := AppView.JobCIPipeline{
 				CiPipelineId:                 jobContainer.CiPipelineID,
 				CiPipelineName:               jobContainer.CiPipelineName,
 				Status:                       jobContainer.Status,
@@ -543,7 +556,7 @@ func BuildJobListingResponse(jobContainers []*bean.JobListingContainer, JobsLast
 
 	}
 
-	result := make([]*bean.JobContainer, 0)
+	result := make([]*AppView.JobContainer, 0)
 	for _, appId := range appIds {
 		val := jobContainersMapping[appId]
 		result = append(result, &val)
@@ -552,8 +565,8 @@ func BuildJobListingResponse(jobContainers []*bean.JobListingContainer, JobsLast
 	return result
 }
 
-func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest FetchAppListingRequest, existingAppEnvContainers []*bean.AppEnvironmentContainer) (map[string][]*bean.AppEnvironmentContainer, error) {
-	appEnvMapping := make(map[string][]*bean.AppEnvironmentContainer)
+func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest FetchAppListingRequest, existingAppEnvContainers []*AppView.AppEnvironmentContainer) (map[string][]*AppView.AppEnvironmentContainer, error) {
+	appEnvMapping := make(map[string][]*AppView.AppEnvironmentContainer)
 	var appNames []string
 	var appIds []int
 	var pipelineIds []int
@@ -639,7 +652,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 	for _, env := range existingAppEnvContainers {
 		appKey := strconv.Itoa(env.AppId) + "_" + env.AppName
 		if _, ok := appEnvMapping[appKey]; !ok {
-			var appEnvContainers []*bean.AppEnvironmentContainer
+			var appEnvContainers []*AppView.AppEnvironmentContainer
 			appEnvMapping[appKey] = appEnvContainers
 		}
 
@@ -736,8 +749,8 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 	return appEnvMapping, nil
 }
 
-func (impl AppListingServiceImpl) fetchACDAppStatusV2(fetchAppListingRequest FetchAppListingRequest, existingAppEnvContainers []*bean.AppEnvironmentContainer) (map[string][]*bean.AppEnvironmentContainer, error) {
-	appEnvMapping := make(map[string][]*bean.AppEnvironmentContainer)
+func (impl AppListingServiceImpl) fetchACDAppStatusV2(fetchAppListingRequest FetchAppListingRequest, existingAppEnvContainers []*AppView.AppEnvironmentContainer) (map[string][]*AppView.AppEnvironmentContainer, error) {
+	appEnvMapping := make(map[string][]*AppView.AppEnvironmentContainer)
 	for _, env := range existingAppEnvContainers {
 		appKey := strconv.Itoa(env.AppId) + "_" + env.AppName
 		appEnvMapping[appKey] = append(appEnvMapping[appKey], env)
@@ -745,11 +758,11 @@ func (impl AppListingServiceImpl) fetchACDAppStatusV2(fetchAppListingRequest Fet
 	return appEnvMapping, nil
 }
 
-func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int, envId int) (bean.AppDetailContainer, error) {
+func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int, envId int) (AppView.AppDetailContainer, error) {
 	appDetailContainer, err := impl.appListingRepository.FetchAppDetail(ctx, appId, envId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app detail", "error", err)
-		return bean.AppDetailContainer{}, err
+		return AppView.AppDetailContainer{}, err
 	}
 	appDetailContainer.AppId = appId
 
@@ -758,7 +771,7 @@ func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int
 	environment, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching env details, FetchAppDetails service", "error", err)
-		return bean.AppDetailContainer{}, err
+		return AppView.AppDetailContainer{}, err
 	}
 	appDetailContainer, err = impl.setIpAccessProvidedData(ctx, appDetailContainer, appDetailContainer.ClusterId, environment.IsVirtualEnvironment)
 	if err != nil {
@@ -768,7 +781,7 @@ func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int
 	return appDetailContainer, nil
 }
 
-func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, appDetailContainer bean.AppDetailContainer, clusterId int, isVirtualEnv bool) (bean.AppDetailContainer, error) {
+func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, appDetailContainer AppView.AppDetailContainer, clusterId int, isVirtualEnv bool) (AppView.AppDetailContainer, error) {
 	ciPipelineId := appDetailContainer.CiPipelineId
 	if ciPipelineId > 0 {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "ciPipelineRepository.FindWithMinDataByCiPipelineId")
@@ -776,22 +789,36 @@ func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, a
 		span.End()
 		if err != nil && err != pg.ErrNoRows {
 			impl.Logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipelineId, "error", err)
-			return bean.AppDetailContainer{}, err
+			return AppView.AppDetailContainer{}, err
 		}
 
 		if ciPipeline != nil && ciPipeline.CiTemplate != nil && len(*ciPipeline.CiTemplate.DockerRegistryId) > 0 {
-			dockerRegistryId := ciPipeline.CiTemplate.DockerRegistryId
-			appDetailContainer.DockerRegistryId = *dockerRegistryId
-			if !ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0 {
+			if !ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0 && ciPipeline.PipelineType != string(constants.LINKED_CD) {
 				appDetailContainer.IsExternalCi = false
 			}
+			// get dockerRegistryId starts
+			artifact, err := impl.ciArtifactRepository.Get(appDetailContainer.CiArtifactId)
+			// artifact can be nil which is a valid case, so we are not returning the error
+			dockerRegistryId, err := impl.ciPipelineConfigReadService.GetDockerRegistryIdForCiPipeline(ciPipelineId, artifact)
+			if err != nil {
+				impl.Logger.Errorw("error in fetching docker registry id", "ciPipelineId", ciPipelineId, "error", err)
+				return AppView.AppDetailContainer{}, err
+			}
+
+			if dockerRegistryId == nil {
+				impl.Logger.Errorw("docker registry id not found", "ciPipelineId", ciPipelineId)
+				return appDetailContainer, nil
+			}
+			// get dockerRegistryId ends
+			appDetailContainer.DockerRegistryId = *dockerRegistryId
+
 			_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided")
 			// check ips access provided to this docker registry for that cluster
 			ipsAccessProvided, err := impl.dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided(*dockerRegistryId, clusterId, isVirtualEnv)
 			span.End()
 			if err != nil {
 				impl.Logger.Errorw("error in checking if docker registry ips access provided", "dockerRegistryId", dockerRegistryId, "clusterId", clusterId, "error", err)
-				return bean.AppDetailContainer{}, err
+				return AppView.AppDetailContainer{}, err
 			}
 			appDetailContainer.IpsAccessProvided = ipsAccessProvided
 		}
@@ -799,11 +826,11 @@ func (impl AppListingServiceImpl) setIpAccessProvidedData(ctx context.Context, a
 	return appDetailContainer, nil
 }
 
-func (impl AppListingServiceImpl) FetchAppTriggerView(appId int) ([]bean.TriggerView, error) {
+func (impl AppListingServiceImpl) FetchAppTriggerView(appId int) ([]AppView.TriggerView, error) {
 	return impl.appListingRepository.FetchAppTriggerView(appId)
 }
 
-func (impl AppListingServiceImpl) FetchAppStageStatus(appId int, appType int) ([]bean.AppStageStatus, error) {
+func (impl AppListingServiceImpl) FetchAppStageStatus(appId int, appType int) ([]AppView.AppStageStatus, error) {
 	appStageStatuses, err := impl.appListingRepository.FetchAppStageStatus(appId, appType)
 	return appStageStatuses, err
 }
@@ -851,7 +878,7 @@ func (impl AppListingServiceImpl) generateArtifactIDCommitMap(artifactIds []int)
 	return ciArtifactAndGitCommitsMap, nil
 }
 
-func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, appId int) ([]*bean.Environment, error) {
+func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, appId int) ([]*AppView.Environment, error) {
 	newCtx, span := otel.Tracer("appListingRepository").Start(ctx, "FetchOtherEnvironment")
 	envs, err := impl.appListingRepository.FetchOtherEnvironment(appId)
 	span.End()
@@ -914,7 +941,7 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, app
 	return envs, nil
 }
 
-func (impl AppListingServiceImpl) FetchMinDetailOtherEnvironment(appId int) ([]*bean.Environment, error) {
+func (impl AppListingServiceImpl) FetchMinDetailOtherEnvironment(appId int) ([]*AppView.Environment, error) {
 	envs, err := impl.appListingRepository.FetchMinDetailOtherEnvironment(appId)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("err", err)

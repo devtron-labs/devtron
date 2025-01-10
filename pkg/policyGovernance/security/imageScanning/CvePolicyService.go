@@ -20,9 +20,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	bean2 "github.com/devtron-labs/common-lib/imageScan/bean"
 	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	read2 "github.com/devtron-labs/devtron/pkg/cluster/read"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/read"
 	repository3 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
@@ -69,6 +71,7 @@ type PolicyServiceImpl struct {
 	imageScanHistoryReadService   read.ImageScanHistoryReadService
 	cveStoreRepository            repository3.CveStoreRepository
 	ciTemplateRepository          pipelineConfig.CiTemplateRepository
+	ClusterReadService            read2.ClusterReadService
 }
 
 func NewPolicyServiceImpl(environmentService environment.EnvironmentService,
@@ -84,7 +87,8 @@ func NewPolicyServiceImpl(environmentService environment.EnvironmentService,
 	ciArtifactRepository repository.CiArtifactRepository, ciConfig *types.CiCdConfig,
 	imageScanHistoryReadService read.ImageScanHistoryReadService,
 	cveStoreRepository repository3.CveStoreRepository,
-	ciTemplateRepository pipelineConfig.CiTemplateRepository) *PolicyServiceImpl {
+	ciTemplateRepository pipelineConfig.CiTemplateRepository,
+	ClusterReadService read2.ClusterReadService) *PolicyServiceImpl {
 	return &PolicyServiceImpl{
 		environmentService:            environmentService,
 		logger:                        logger,
@@ -102,6 +106,7 @@ func NewPolicyServiceImpl(environmentService environment.EnvironmentService,
 		imageScanHistoryReadService:   imageScanHistoryReadService,
 		cveStoreRepository:            cveStoreRepository,
 		ciTemplateRepository:          ciTemplateRepository,
+		ClusterReadService:            ClusterReadService,
 	}
 }
 
@@ -133,22 +138,7 @@ type VerifyImageResponse struct {
 	FixedVersion string
 }
 
-type ScanEvent struct {
-	Image            string `json:"image"`
-	ImageDigest      string `json:"imageDigest"`
-	AppId            int    `json:"appId"`
-	EnvId            int    `json:"envId"`
-	PipelineId       int    `json:"pipelineId"`
-	CiArtifactId     int    `json:"ciArtifactId"`
-	UserId           int    `json:"userId"`
-	AccessKey        string `json:"accessKey"`
-	SecretKey        string `json:"secretKey"`
-	Token            string `json:"token"`
-	AwsRegion        string `json:"awsRegion"`
-	DockerRegistryId string `json:"dockerRegistryId"`
-}
-
-func (impl *PolicyServiceImpl) SendEventToClairUtility(event *ScanEvent) error {
+func (impl *PolicyServiceImpl) SendEventToClairUtility(event *bean2.ImageScanEvent) error {
 	reqBody, err := json.Marshal(event)
 	if err != nil {
 		return err
@@ -228,7 +218,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 			return nil, err
 		}
 		if scanHistory != nil && scanHistory.Id == 0 && objectType != repository3.ScanObjectType_APP {
-			scanEvent := &ScanEvent{Image: image, ImageDigest: "", PipelineId: 0, UserId: 1}
+			scanEvent := &bean2.ImageScanEvent{Image: image, ImageDigest: "", PipelineId: 0, UserId: 1}
 			dockerReg, err := impl.ciTemplateRepository.FindByAppId(app.Id)
 			if err != nil {
 				impl.logger.Errorw("error in fetching docker reg ", "err", err)
@@ -573,7 +563,7 @@ func (impl *PolicyServiceImpl) GetPolicies(policyLevel securityBean.PolicyLevel,
 			return nil, fmt.Errorf("cluster id is missing")
 		}
 		// get cluster name
-		cluster, err := impl.clusterService.FindById(clusterId)
+		cluster, err := impl.ClusterReadService.FindById(clusterId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching cluster details", "id", clusterId, "err", err)
 			return nil, err
