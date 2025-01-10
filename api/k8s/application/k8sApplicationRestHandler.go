@@ -27,7 +27,7 @@ import (
 	util3 "github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
-	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/api/bean/AppView"
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
@@ -253,7 +253,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 	}
 
 	token := r.Header.Get("token")
-	var k8sAppDetail bean.AppDetailContainer
+	var k8sAppDetail AppView.AppDetailContainer
 	var resourceTreeResponse *gRPC.ResourceTreeResponse
 	var clusterId int
 	var namespace string
@@ -344,8 +344,8 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 		resourceTreeResponse = appDetail.ResourceTreeResponse
 	}
 
-	k8sAppDetail = bean.AppDetailContainer{
-		DeploymentDetailContainer: bean.DeploymentDetailContainer{
+	k8sAppDetail = AppView.AppDetailContainer{
+		DeploymentDetailContainer: AppView.DeploymentDetailContainer{
 			ClusterId: clusterId,
 			Namespace: namespace,
 		},

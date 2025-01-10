@@ -24,6 +24,7 @@ service ApplicationService {
   rpc ListFluxApplications(AppListRequest) returns (stream FluxApplicationList){}
   rpc GetAppDetail(AppDetailRequest) returns (AppDetail){}
   rpc GetAppStatus(AppDetailRequest) returns (AppStatus){}
+  rpc GetAppStatusV2(AppDetailRequest) returns (AppStatus){}
   rpc Hibernate(HibernateRequest) returns (HibernateResponse){}
   rpc UnHibernate(HibernateRequest) returns (HibernateResponse){}
   rpc GetDeploymentHistory(AppDetailRequest) returns (HelmAppDeploymentHistory){}

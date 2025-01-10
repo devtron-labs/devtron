@@ -18,7 +18,7 @@ package bean
 
 import (
 	"encoding/json"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
+	bean2 "github.com/devtron-labs/devtron/api/bean/AppView"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"

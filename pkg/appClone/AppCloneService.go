@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/api/bean/AppView"
 	"github.com/devtron-labs/devtron/internal/constants"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
@@ -95,12 +96,12 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 }
 
 type CloneRequest struct {
-	RefAppId    int                            `json:"refAppId"`
-	Name        string                         `json:"name"`
-	ProjectId   int                            `json:"projectId"`
-	AppLabels   []*bean.Label                  `json:"labels,omitempty" validate:"dive"`
-	Description *bean2.GenericNoteResponseBean `json:"description"`
-	AppType     helper.AppType                 `json:"appType"`
+	RefAppId    int                              `json:"refAppId"`
+	Name        string                           `json:"name"`
+	ProjectId   int                              `json:"projectId"`
+	AppLabels   []*bean.Label                    `json:"labels,omitempty" validate:"dive"`
+	Description *AppView.GenericNoteResponseBean `json:"description"`
+	AppType     helper.AppType                   `json:"appType"`
 }
 
 type CreateWorkflowMappingDto struct {
