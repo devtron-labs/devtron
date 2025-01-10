@@ -422,7 +422,6 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 	err = impl.updateAppStatusForHelmTypePipelines(envContainers)
 	if err != nil {
 		impl.Logger.Errorw("error, UpdateAppStatusForHelmTypePipelines", "envIds", envIds, "err", err)
-		return []*AppView.AppEnvironmentContainer{}, appSize, err
 	}
 	return envContainers, appSize, nil
 }
