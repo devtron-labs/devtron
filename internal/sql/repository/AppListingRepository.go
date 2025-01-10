@@ -159,11 +159,14 @@ func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit
 		 GROUP BY pco.pipeline_id) ld ON ld.pipeline_id = p.id 
 		 WHERE a.active = true 
 		 ORDER BY a.app_name `
+	queryParams := []interface{}{envId, envId}
 	if limit > 0 {
 		query += fmt.Sprintf("LIMIT %v", limit)
+		queryParams = append(queryParams, limit)
 	}
 	if offset > 0 {
 		query += fmt.Sprintf("OFFSET %v", offset)
+		queryParams = append(queryParams, offset)
 	}
 	var envContainers []*AppView.AppEnvironmentContainer
 	_, err := impl.dbConnection.Query(&envContainers, query, envId, envId)

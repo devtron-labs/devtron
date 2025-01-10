@@ -275,7 +275,7 @@ func (impl *InstalledAppResourceServiceImpl) fetchResourceTreeForACD(rctx contex
 	validRequest := impl.k8sCommonService.FilterK8sResources(rctx, resourceTree, k8sAppDetail, clusterIdString, []string{commonBean.ServiceKind, commonBean.EndpointsKind, commonBean.IngressKind}, "")
 	response, err := impl.k8sCommonService.GetManifestsByBatch(rctx, validRequest)
 	if err != nil {
-		impl.logger.Errorw("error in getting manifest by batch", "err", err, "clusterId", clusterIdString)
+		impl.logger.Errorw("error in getting manifest by batch", "clusterId", clusterIdString, "err", err)
 		return nil, err
 	}
 	newResourceTree := impl.k8sCommonService.PortNumberExtraction(response, resourceTree)

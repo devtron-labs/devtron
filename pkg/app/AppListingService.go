@@ -243,7 +243,7 @@ func (impl AppListingServiceImpl) FetchOverviewAppsByEnvironment(envId, limit, o
 
 	err = impl.updateAppStatusForHelmTypePipelines(envContainers)
 	if err != nil {
-		impl.Logger.Errorw("err, updateAppStatusForHelmTypePipelines", "err", err)
+		impl.Logger.Errorw("err, updateAppStatusForHelmTypePipelines", "envId", envId, "err", err)
 		return resp, err
 	}
 
@@ -421,7 +421,7 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironmentV2(fetchAppListingReques
 	}
 	err = impl.updateAppStatusForHelmTypePipelines(envContainers)
 	if err != nil {
-		impl.Logger.Errorw("error, UpdateAppStatusForHelmTypePipelines", "err", err)
+		impl.Logger.Errorw("error, UpdateAppStatusForHelmTypePipelines", "envIds", envIds, "err", err)
 		return []*AppView.AppEnvironmentContainer{}, appSize, err
 	}
 	return envContainers, appSize, nil
