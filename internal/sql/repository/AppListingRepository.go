@@ -161,11 +161,11 @@ func (impl AppListingRepositoryImpl) FetchOverviewAppsByEnvironment(envId, limit
 		 ORDER BY a.app_name `
 	queryParams := []interface{}{envId, envId}
 	if limit > 0 {
-		query += fmt.Sprintf("LIMIT %v", limit)
+		query += fmt.Sprintf("LIMIT ?")
 		queryParams = append(queryParams, limit)
 	}
 	if offset > 0 {
-		query += fmt.Sprintf("OFFSET %v", offset)
+		query += fmt.Sprintf("OFFSET ?")
 		queryParams = append(queryParams, offset)
 	}
 	var envContainers []*AppView.AppEnvironmentContainer
