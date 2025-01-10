@@ -787,6 +787,7 @@ WITH RankedData AS (
     SELECT 
         p.app_id AS "app_id",
         p.environment_id AS "env_id",
+		p.deleted AS "deleted",
         wf.ci_artifact_id AS "ci_artifact_id",
         ci_artifact.parent_ci_artifact AS "parent_ci_artifact",
         ci_artifact.scanned AS "scanned",
@@ -795,7 +796,7 @@ WITH RankedData AS (
     INNER JOIN pipeline p ON p.id = wf.pipeline_id
     INNER JOIN ci_artifact ON ci_artifact.id = wf.ci_artifact_id
     WHERE cd_workflow_runner.workflow_type = ? AND p.app_id = ? AND p.environment_id IN (?))
-SELECT "app_id","env_id","ci_artifact_id","parent_ci_artifact","scanned" FROM RankedData WHERE rn = 1;
+SELECT "app_id","env_id","ci_artifact_id","parent_ci_artifact","scanned" FROM RankedData WHERE rn = 1 and deleted= false;
 `
 	for appId, envIds := range appVsEnvIdMap {
 		var runners []*cdWorkflow.CdWorkflowRunnerArtifactMetadata
