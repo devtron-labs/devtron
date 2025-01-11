@@ -200,7 +200,7 @@
  | PARALLELISM_LIMIT_FOR_TAG_PROCESSING |  |  | 
  | PG_ADDR | 127.0.0.1 |  | 
  | PG_DATABASE | orchestrator |  | 
- | PG_EXPORT_PROM_METRICS | false |  | 
+ | PG_EXPORT_PROM_METRICS | true |  | 
  | PG_LOG_ALL_FAILURE_QUERIES | true |  | 
  | PG_LOG_ALL_QUERY | false |  | 
  | PG_LOG_SLOW_QUERY | true |  | 
