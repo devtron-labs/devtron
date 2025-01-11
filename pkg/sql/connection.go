@@ -28,25 +28,29 @@ import (
 )
 
 type Config struct {
-	Addr                   string `env:"PG_ADDR" envDefault:"127.0.0.1"`
-	Port                   string `env:"PG_PORT" envDefault:"5432"`
-	User                   string `env:"PG_USER" envDefault:""`
-	Password               string `env:"PG_PASSWORD" envDefault:"" secretData:"-"`
-	Database               string `env:"PG_DATABASE" envDefault:"orchestrator"`
-	CasbinDatabase         string `env:"CASBIN_DATABASE" envDefault:"casbin"`
-	ApplicationName        string `env:"APP" envDefault:"orchestrator" envDescription:"Application name"`
-	LogSlowQuery           bool   `env:"PG_LOG_SLOW_QUERY" envDefault:"true"`
-	LogAllQuery            bool   `env:"PG_LOG_ALL_QUERY" envDefault:"false"`
-	LogAllFailureQueries   bool   `env:"PG_LOG_ALL_FAILURE_QUERIES" envDefault:"true"`
-	ExportPromMetrics      bool   `env:"PG_EXPORT_PROM_METRICS" envDefault:"false"`
-	QueryDurationThreshold int64  `env:"PG_QUERY_DUR_THRESHOLD" envDefault:"5000"`
-	ReadTimeout            int64  `env:"PG_READ_TIMEOUT" envDefault:"30"`
-	WriteTimeout           int64  `env:"PG_WRITE_TIMEOUT" envDefault:"30"`
+	Addr            string `env:"PG_ADDR" envDefault:"127.0.0.1"`
+	Port            string `env:"PG_PORT" envDefault:"5432"`
+	User            string `env:"PG_USER" envDefault:""`
+	Password        string `env:"PG_PASSWORD" envDefault:"" secretData:"-"`
+	Database        string `env:"PG_DATABASE" envDefault:"orchestrator"`
+	CasbinDatabase  string `env:"CASBIN_DATABASE" envDefault:"casbin"`
+	ApplicationName string `env:"APP" envDefault:"orchestrator" envDescription:"Application name"`
+	ReadTimeout     int64  `env:"PG_READ_TIMEOUT" envDefault:"30"`
+	WriteTimeout    int64  `env:"PG_WRITE_TIMEOUT" envDefault:"30"`
+	bean.PgQueryMonitoringConfig
 }
 
 func GetConfig() (*Config, error) {
 	cfg := &Config{}
 	err := env.Parse(cfg)
+	if err != nil {
+		return cfg, err
+	}
+	monitoringCfg, err := bean.GetPgQueryMonitoringConfig(cfg.ApplicationName)
+	if err != nil {
+		return cfg, err
+	}
+	cfg.PgQueryMonitoringConfig = monitoringCfg
 	return cfg, err
 }
 
@@ -73,19 +77,8 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 	}
 
 	// --------------
-	dbConnection.OnQueryProcessed(utils.GetPGPostQueryProcessor(getPgQueryConfig(cfg)))
+	dbConnection.OnQueryProcessed(utils.GetPGPostQueryProcessor(cfg.PgQueryMonitoringConfig))
 	return dbConnection, err
-}
-
-func getPgQueryConfig(cfg *Config) bean.PgQueryConfig {
-	return bean.PgQueryConfig{
-		LogSlowQuery:           cfg.LogSlowQuery,
-		LogAllQuery:            cfg.LogAllQuery,
-		LogAllFailureQueries:   cfg.LogAllFailureQueries,
-		ExportPromMetrics:      cfg.ExportPromMetrics,
-		QueryDurationThreshold: cfg.QueryDurationThreshold,
-		ServiceName:            cfg.ApplicationName,
-	}
 }
 
 func obfuscateSecretTags(cfg interface{}) interface{} {

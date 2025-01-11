@@ -92,7 +92,7 @@ func BuildDockerImagePath(dockerInfo bean.DockerRegistryInfo) (string, error) {
 	return dest, nil
 }
 
-func GetPGPostQueryProcessor(cfg bean.PgQueryConfig) func(event *pg.QueryProcessedEvent) {
+func GetPGPostQueryProcessor(cfg bean.PgQueryMonitoringConfig) func(event *pg.QueryProcessedEvent) {
 	return func(event *pg.QueryProcessedEvent) {
 		query, err := event.FormattedQuery()
 		if err != nil {
@@ -107,7 +107,7 @@ func GetPGPostQueryProcessor(cfg bean.PgQueryConfig) func(event *pg.QueryProcess
 	}
 }
 
-func ExecutePGQueryProcessor(cfg bean.PgQueryConfig, event bean.PgQueryEvent) {
+func ExecutePGQueryProcessor(cfg bean.PgQueryMonitoringConfig, event bean.PgQueryEvent) {
 	queryDuration := time.Since(event.StartTime)
 	var queryError bool
 	pgError := event.Error
