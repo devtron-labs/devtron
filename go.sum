@@ -792,10 +792,10 @@ github.com/denisenkom/go-mssqldb v0.0.0-20200428022330-06a60b6afbbc h1:VRRKCwnzq
 github.com/denisenkom/go-mssqldb v0.0.0-20200428022330-06a60b6afbbc/go.mod h1:xbL0rPBG9cCiLr28tMa8zpbdarY27NDyej4t/EjAShU=
 github.com/devtron-labs/argo-workflows/v3 v3.5.13 h1:3pINq0gXOSeTw2z/vYe+j80lRpSN5Rp/8mfQORh8SmU=
 github.com/devtron-labs/argo-workflows/v3 v3.5.13/go.mod h1:/vqxcovDPT4zqr4DjR5v7CF8ggpY1l3TSa2CIG3jmjA=
-github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250112055157-530d04c0fa7f h1:pfkMQaE/kVmwlwkZn2uuwrT1L38pKbRtCFe1o6kpWGc=
-github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250112055157-530d04c0fa7f/go.mod h1:5lv4Wfj5ERhhvDGXe2IeES6qxjvUVCcohaRwKnWBMNo=
-github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250112055157-530d04c0fa7f h1:RJIe01Ll1OfU1ALYRwPjVzOo/woO9itt7AmznLhodxg=
-github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250112055157-530d04c0fa7f/go.mod h1:GXADr0W94UqtDJe6/3possrPj6fD/3IUNISfYfevWqg=
+github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250112200056-845051338090 h1:lI6d8R9KQyhRJzDg/fbEPaARGUbKI26LCrehs0WwCUY=
+github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250112200056-845051338090/go.mod h1:5lv4Wfj5ERhhvDGXe2IeES6qxjvUVCcohaRwKnWBMNo=
+github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250112200056-845051338090 h1:horIi+CbNgL7/MYIC+LYqSvPgPwceiF+yUIzqqlWiF8=
+github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250112200056-845051338090/go.mod h1:1QJJLpgJSkb5Jm9xPeKAk+kXb0QgBOOOgJj0cgYhAVA=
 github.com/devtron-labs/go-bitbucket v0.9.60-beta h1:VEx1jvDgdtDPS6A1uUFoaEi0l1/oLhbr+90xOwr6sDU=
 github.com/devtron-labs/go-bitbucket v0.9.60-beta/go.mod h1:GnuiCesvh8xyHeMCb+twm8lBR/kQzJYSKL28ZfObp1Y=
 github.com/devtron-labs/protos v0.0.3-0.20240802105333-92ee9bb85d80 h1:xwbTeijNTf4/j1v+tSfwVqwLVnReas/NqEKeQHvSTys=
@@ -2493,8 +2493,8 @@ launchpad.net/gocheck v0.0.0-20140225173054-000000000087/go.mod h1:hj7XX3B/0A+80
 launchpad.net/xmlpath v0.0.0-20130614043138-000000000004/go.mod h1:vqyExLOM3qBx7mvYRkoxjSCF945s0mbe7YynlKYXtsA=
 lukechampine.com/uint128 v1.1.1/go.mod h1:c4eWIwlEGaxC/+H1VguhU4PHXNWDCDMUlWdIWl2j1gk=
 lukechampine.com/uint128 v1.2.0/go.mod h1:c4eWIwlEGaxC/+H1VguhU4PHXNWDCDMUlWdIWl2j1gk=
-mellium.im/sasl v0.3.1 h1:wE0LW6g7U83vhvxjC1IY8DnXM+EU095yeo8XClvCdfo=
-mellium.im/sasl v0.3.1/go.mod h1:xm59PUYpZHhgQ9ZqoJ5QaCqzWMi8IeS49dhp6plPCzw=
+mellium.im/sasl v0.3.2 h1:PT6Xp7ccn9XaXAnJ03FcEjmAn7kK1x7aoXV6F+Vmrl0=
+mellium.im/sasl v0.3.2/go.mod h1:NKXDi1zkr+BlMHLQjY3ofYuU4KSPFxknb8mfEu6SveY=
 modernc.org/cc/v3 v3.36.0/go.mod h1:NFUHyPn4ekoC/JHeZFfZurN6ixxawE1BnVonP/oahEI=
 modernc.org/cc/v3 v3.36.2/go.mod h1:NFUHyPn4ekoC/JHeZFfZurN6ixxawE1BnVonP/oahEI=
 modernc.org/cc/v3 v3.36.3/go.mod h1:NFUHyPn4ekoC/JHeZFfZurN6ixxawE1BnVonP/oahEI=
