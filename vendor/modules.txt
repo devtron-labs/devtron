@@ -144,7 +144,7 @@ github.com/argoproj/argo-cd/v2/util/proxy
 github.com/argoproj/argo-cd/v2/util/security
 github.com/argoproj/argo-cd/v2/util/settings
 github.com/argoproj/argo-cd/v2/util/tls
-# github.com/argoproj/argo-workflows/v3 v3.5.10 => github.com/devtron-labs/argo-workflows/v3 v3.5.10
+# github.com/argoproj/argo-workflows/v3 v3.5.10 => github.com/devtron-labs/argo-workflows/v3 v3.5.13
 ## explicit; go 1.21
 github.com/argoproj/argo-workflows/v3/errors
 github.com/argoproj/argo-workflows/v3/pkg/apis/workflow
@@ -2073,8 +2073,8 @@ k8s.io/utils/pointer
 k8s.io/utils/ptr
 k8s.io/utils/strings/slices
 k8s.io/utils/trace
-# mellium.im/sasl v0.3.2
-## explicit; go 1.20
+# mellium.im/sasl v0.3.1
+## explicit; go 1.18
 mellium.im/sasl
 # oras.land/oras-go/v2 v2.3.0
 ## explicit; go 1.19
