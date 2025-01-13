@@ -70,7 +70,7 @@ type InfraProfileConfigurationEntity struct {
 type InfraConfigRepository interface {
 	GetProfileByName(name string) (*InfraProfileEntity, error)
 	GetConfigurationsByProfileName(profileName string) ([]*InfraProfileConfigurationEntity, error)
-	GetConfigurationsByProfileId(profileIds []int) ([]*InfraProfileConfigurationEntity, error)
+	GetConfigurationsByProfileIds(profileIds []int) ([]*InfraProfileConfigurationEntity, error)
 
 	GetPlatformListByProfileName(profileName string) ([]string, error)
 	CreatePlatformProfileMapping(tx *pg.Tx, platformMapping []*ProfilePlatformMapping) error
@@ -142,11 +142,11 @@ func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileName(profileNam
 	return configurations, err
 }
 
-func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileId []int) ([]*InfraProfileConfigurationEntity, error) {
+func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileIds(profileIds []int) ([]*InfraProfileConfigurationEntity, error) {
 	var configurations []*InfraProfileConfigurationEntity
 	err := impl.dbConnection.Model(&configurations).
 		Column("infra_profile_configuration_entity.*", "ProfilePlatformMapping").
-		Where("profile_platform_mapping.profile_id IN (?)", pg.In(profileId)).
+		Where("profile_platform_mapping.profile_id IN (?)", pg.In(profileIds)).
 		Where("profile_platform_mapping.active = ?", true).
 		Where("infra_profile_configuration_entity.active = ?", true).
 		Select()

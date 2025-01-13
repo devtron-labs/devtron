@@ -116,6 +116,7 @@ func getInfraProfileEntity(configurationBean *bean.ConfigurationBean, profileBea
 		},
 		AuditLog: sql.NewDefaultAuditLog(userId),
 	}
+	setProfilePlatformMappingId(profileBean, infraProfile)
 	if profileBean.Name == bean.GLOBAL_PROFILE_NAME {
 		infraProfile.Active = true
 	}
@@ -408,18 +409,13 @@ func LoadInfraConfigInEntities(infraConfig *bean.InfraConfig, nodeSelectorLabel 
 	defaultConfigurations := []*repository.InfraProfileConfigurationEntity{cpuLimit, memLimit, cpuReq, memReq, timeout}
 	return defaultConfigurations, nil
 }
-func SetProfilePlatform(defaultProfile *bean.ProfileBeanDto, infraConfigurations []*repository.InfraProfileConfigurationEntity) {
+func setProfilePlatformMappingId(defaultProfile *bean.ProfileBeanDto, infraConfiguration *repository.InfraProfileConfigurationEntity) {
 
 	runnerPlatformConfig := defaultProfile.Configurations[bean.RUNNER_PLATFORM]
 	for _, runnerConfig := range runnerPlatformConfig {
-		for _, infraConfiguration := range infraConfigurations {
-			if runnerConfig.Key == utils.GetConfigKeyStr(infraConfiguration.Key) {
-				//setting hte ppm id and Profile Id
-				infraConfiguration.ProfilePlatformMappingId = runnerConfig.ProfilePlatformMappingId
-				infraConfiguration.ProfilePlatformMapping = &repository.ProfilePlatformMapping{
-					ProfileId: runnerConfig.Id,
-				}
-			}
+		if runnerConfig.Key == utils.GetConfigKeyStr(infraConfiguration.Key) {
+			//setting hte ppm id and Profile Id
+			infraConfiguration.ProfilePlatformMappingId = runnerConfig.ProfilePlatformMappingId
 		}
 	}
 }

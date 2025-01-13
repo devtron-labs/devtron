@@ -81,7 +81,7 @@ func (impl *InfraConfigServiceImpl) GetProfileByName(name string) (*bean.Profile
 	}
 
 	profileBean := adapter.ConvertToProfileBean(infraProfile)
-	infraConfigurations, err := impl.infraProfileRepo.GetConfigurationsByProfileId([]int{infraProfile.Id})
+	infraConfigurations, err := impl.infraProfileRepo.GetConfigurationsByProfileIds([]int{infraProfile.Id})
 	if err != nil {
 		impl.logger.Errorw("error in fetching default configurations", "error", err)
 		return nil, err
@@ -149,7 +149,6 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 		impl.logger.Errorw("error in updating profile", "error", "profileName", profileName, "profileCreateRequest", profileToUpdate, err)
 		return err
 	}
-	adapter.SetProfilePlatform(defaultProfile, infraConfigurations)
 	err = impl.infraProfileRepo.UpdateConfigurations(tx, infraConfigurations)
 	if err != nil {
 		impl.logger.Errorw("error in creating configurations", "error", "profileName", profileName, "profileCreateRequest", profileToUpdate, err)
