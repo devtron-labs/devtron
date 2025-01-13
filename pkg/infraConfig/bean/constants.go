@@ -57,3 +57,4 @@ const RUNNER_PLATFORM = "runner"
 const QualifiedProfileMaxLength = 253
 const QualifiedDescriptionMaxLength = 350
 const QualifiedPlatformMaxLength = 50
+const ConfigurationMissingInGlobalPlatform = "configuration missing in the global Platform"

@@ -13,6 +13,35 @@ func (impl *InfraConfigServiceImpl) validateInfraConfig(profileBean *bean.Profil
 	if err != nil {
 		return err
 	}
+	if profileBean.Name == bean.GLOBAL_PROFILE_NAME || profileBean.Name == bean.DEFAULT_PROFILE_NAME {
+		for platform, configurations := range profileBean.Configurations {
+			// Create a copy of the defaultConfigKeysMap to track missing keys
+			missingKeysMap := utils.GetDefaultConfigKeysMap()
+			// Mark the keys that are present
+			for _, config := range configurations {
+				if _, exists := missingKeysMap[config.Key]; exists && config.Active {
+					missingKeysMap[config.Key] = false
+				}
+			}
+
+			// Check if any default keys are still true (missing)
+			var missingKeys []bean.ConfigKeyStr
+			for key, isMissing := range missingKeysMap {
+				if isMissing && platform != bean.RUNNER_PLATFORM && key != bean.TIME_OUT {
+					missingKeys = append(missingKeys, key)
+				}
+				if isMissing && platform == bean.RUNNER_PLATFORM {
+					missingKeys = append(missingKeys, key)
+				}
+			}
+
+			if len(missingKeys) > 0 {
+				impl.logger.Errorw("Missing default configuration keys for platform", "platform", platform, "missingKeys", missingKeys, "profileName", profileBean.Name)
+				err = errors.New(bean.ConfigurationMissingInGlobalPlatform)
+				return err
+			}
+		}
+	}
 	// currently validating cpu and memory limits and reqs only
 	var (
 		cpuLimit *bean.ConfigurationBean

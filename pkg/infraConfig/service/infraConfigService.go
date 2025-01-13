@@ -105,6 +105,12 @@ func (impl *InfraConfigServiceImpl) GetProfileByName(name string) (*bean.Profile
 
 func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName string, profileToUpdate *bean.ProfileBeanDto) error {
 	// validation
+
+	//here we are setting as it will get validate later.. //for  maintaining the backward compatibility
+	if !profileToUpdate.BuildxDriverType.IsValid() && profileToUpdate.BuildxDriverType == "" {
+		profileToUpdate.BuildxDriverType = bean.BuildxK8sDriver
+	}
+
 	defaultProfile, err := impl.GetProfileByName(profileName)
 	if err != nil {
 		impl.logger.Errorw("error in fetching default profile", "profileName", profileName, "profileCreateRequest", profileToUpdate, "error", err)
