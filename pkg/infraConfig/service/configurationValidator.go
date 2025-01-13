@@ -67,7 +67,7 @@ func (impl *InfraConfigServiceImpl) validateCPU(cpuLimit, cpuReq *bean.Configura
 		return errors.New(fmt.Sprintf(bean.InvalidUnit, cpuReq.Unit, cpuReq.Key))
 	}
 
-	cpuLimitInterfaceVal, err := util.GetTypedValue(cpuLimit.Key, cpuLimit.Value)
+	cpuLimitInterfaceVal, err := utils.GetTypedValue(cpuLimit.Key, cpuLimit.Value)
 	if err != nil {
 		return errors.New(fmt.Sprintf(bean.InvalidTypeValue, cpuLimit.Key, cpuLimit.Value))
 	}
@@ -76,7 +76,7 @@ func (impl *InfraConfigServiceImpl) validateCPU(cpuLimit, cpuReq *bean.Configura
 		return errors.New(fmt.Sprintf(bean.InvalidTypeValue, cpuLimit.Key, cpuLimit.Value))
 	}
 
-	cpuReqInterfaceVal, err := util.GetTypedValue(cpuReq.Key, cpuReq.Value)
+	cpuReqInterfaceVal, err := utils.GetTypedValue(cpuReq.Key, cpuReq.Value)
 	if err != nil {
 		return errors.New(fmt.Sprintf(bean.InvalidTypeValue, cpuReq.Key, cpuReq.Value))
 	}
@@ -99,7 +99,7 @@ func (impl *InfraConfigServiceImpl) validateTimeOut(timeOut *bean.ConfigurationB
 	if !ok {
 		return errors.New(fmt.Sprintf(bean.InvalidUnit, timeOut.Unit, timeOut.Key))
 	}
-	timeout, err := util.GetTypedValue(timeOut.Key, timeOut.Value)
+	timeout, err := utils.GetTypedValue(timeOut.Key, timeOut.Value)
 	if err != nil {
 		return errors.New(fmt.Sprintf(bean.InvalidTypeValue, timeOut.Key, timeOut.Value))
 	}
@@ -123,7 +123,7 @@ func (impl *InfraConfigServiceImpl) validateMEM(memLimit, memReq *bean.Configura
 	}
 
 	// Use getTypedValue to retrieve appropriate types
-	memLimitInterfaceVal, err := util.GetTypedValue(memLimit.Key, memLimit.Value)
+	memLimitInterfaceVal, err := utils.GetTypedValue(memLimit.Key, memLimit.Value)
 	if err != nil {
 		return errors.New(fmt.Sprintf(bean.InvalidTypeValue, memLimit.Key, memLimit.Value))
 	}
@@ -132,7 +132,7 @@ func (impl *InfraConfigServiceImpl) validateMEM(memLimit, memReq *bean.Configura
 		return errors.New(fmt.Sprintf(bean.InvalidTypeValue, memLimit.Key, memLimit.Value))
 	}
 
-	memReqInterfaceVal, err := util.GetTypedValue(memReq.Key, memReq.Value)
+	memReqInterfaceVal, err := utils.GetTypedValue(memReq.Key, memReq.Value)
 	if err != nil {
 		return errors.New(fmt.Sprintf(bean.InvalidTypeValue, memReq.Key, memReq.Value))
 	}

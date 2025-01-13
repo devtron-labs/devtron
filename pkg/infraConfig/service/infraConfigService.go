@@ -197,7 +197,7 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 		profile = defaultProfile
 	}
 	var nodeselector []string
-	defaultConfigurationsFromEnv, err := adapter.LoadInfraConfigInEntities(impl.infraConfig, nodeselector)
+	defaultConfigurationsFromEnv, err := adapter.LoadInfraConfigInEntities(impl.infraConfig, nodeselector, "", "")
 	if err != nil {
 		impl.logger.Errorw("error in loading default configurations from environment", "error", err)
 		return err
