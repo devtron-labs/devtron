@@ -223,12 +223,6 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 
 	creatableConfigurations := make([]*repository.InfraProfileConfigurationEntity, 0, len(defaultConfigurationsFromEnv))
 	creatableProfilePlatformMapping := make([]*repository.ProfilePlatformMapping, 0)
-
-	platformsFromDb, err := impl.infraProfileRepo.GetPlatformListByProfileName(bean.GLOBAL_PROFILE_NAME)
-	if err != nil && !errors.Is(err, pg.ErrNoRows) {
-		impl.logger.Errorw("error in fetching platforms from db", "error", err)
-		return err
-	}
 	runnerPlatFormMapping := &repository.ProfilePlatformMapping{
 		Platform:  bean.RUNNER_PLATFORM,
 		ProfileId: profile.Id,
@@ -236,6 +230,15 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 		AuditLog:  sql.NewDefaultAuditLog(1),
 	}
 
+	platformsFromDb, err := impl.infraProfileRepo.GetPlatformsByProfileName(bean.GLOBAL_PROFILE_NAME)
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in fetching platforms from db", "error", err)
+		return err
+	}
+	//one platform is expected
+	if len(platformsFromDb) > 0 {
+		runnerPlatFormMapping.Id = platformsFromDb[0].Id
+	}
 	//creating default platform if not found in db
 	if len(platformsFromDb) == 0 {
 		creatableProfilePlatformMapping = append(creatableProfilePlatformMapping, runnerPlatFormMapping)
