@@ -54,7 +54,6 @@ const TIME_OUT ConfigKeyStr = "timeout"
 
 // internal-platforms
 const RUNNER_PLATFORM = "runner"
-const CI_RUNNER_PLATFORM = "ci-runner"
 const QualifiedProfileMaxLength = 253
 const QualifiedDescriptionMaxLength = 350
 const QualifiedPlatformMaxLength = 50
