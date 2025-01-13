@@ -70,7 +70,7 @@ type InfraProfileConfigurationEntity struct {
 type InfraConfigRepository interface {
 	GetProfileByName(name string) (*InfraProfileEntity, error)
 	GetConfigurationsByProfileName(profileName string) ([]*InfraProfileConfigurationEntity, error)
-	GetConfigurationsByProfileId(profileId int) ([]*InfraProfileConfigurationEntity, error)
+	GetConfigurationsByProfileId(profileIds []int) ([]*InfraProfileConfigurationEntity, error)
 
 	GetPlatformListByProfileName(profileName string) ([]string, error)
 	CreatePlatformProfileMapping(tx *pg.Tx, platformMapping []*ProfilePlatformMapping) error
@@ -142,7 +142,7 @@ func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileName(profileNam
 	return configurations, err
 }
 
-func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileId int) ([]*InfraProfileConfigurationEntity, error) {
+func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileId []int) ([]*InfraProfileConfigurationEntity, error) {
 	var configurations []*InfraProfileConfigurationEntity
 	err := impl.dbConnection.Model(&configurations).
 		Column("infra_profile_configuration_entity.*", "ProfilePlatformMapping").
