@@ -186,7 +186,7 @@ func GetV0ProfileBean(profileBean *bean.ProfileBeanDto) *bean.ProfileBeanV0 {
 			UpdatedBy:        profileBean.UpdatedBy,
 			UpdatedOn:        profileBean.UpdatedOn,
 		},
-		Configurations: GetV0ConfigurationBeans(ciRunnerConfig),
+		Configurations: GetV0ConfigurationBeans(ciRunnerConfig, bean.GLOBAL_PROFILE_NAME),
 	}
 
 }
@@ -200,8 +200,8 @@ func GetV1ProfileBean(profileBean *bean.ProfileBeanV0) *bean.ProfileBeanDto {
 		profileName = bean.GLOBAL_PROFILE_NAME
 	}
 	profileType := profileBean.Type
-	if profileType == bean.GLOBAL {
-		profileType = bean.DEFAULT
+	if profileType == bean.DEFAULT {
+		profileType = bean.GLOBAL
 	}
 	return &bean.ProfileBeanDto{
 		ProfileBeanAbstract: bean.ProfileBeanAbstract{

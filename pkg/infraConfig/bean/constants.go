@@ -30,6 +30,7 @@ const DEFAULT_PROFILE_NAME = "default"
 const DEFAULT_PROFILE_EXISTS = "default profile exists"
 const NO_PROPERTIES_FOUND = "no properties found"
 const DEFAULT ProfileType = "DEFAULT"
+const GLOBAL ProfileType = "GLOBAL"
 const InvalidProfileName = "profile name is invalid"
 const PayloadValidationError = "payload validation failed"
 const CPULimReqErrorCompErr = "cpu limit should not be less than cpu request"
@@ -54,3 +55,6 @@ const TIME_OUT ConfigKeyStr = "timeout"
 // internal-platforms
 const RUNNER_PLATFORM = "runner"
 const CI_RUNNER_PLATFORM = "ci-runner"
+const QualifiedProfileMaxLength = 253
+const QualifiedDescriptionMaxLength = 350
+const QualifiedPlatformMaxLength = 50

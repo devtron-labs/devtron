@@ -190,7 +190,7 @@ func IsValidProfileNameRequestedV0(profileName, payloadProfileName string) bool 
 	return false
 }
 
-func validatePlatformName(platform string, buildxDriverType bean3.BuildxDriver) error {
+func validatePlatformName(platform string, buildxDriverType bean.BuildxDriver) error {
 	if len(platform) == 0 {
 		return errors.New("platform cannot be empty")
 	}
