@@ -9,7 +9,10 @@ import (
 )
 
 func (impl *InfraConfigServiceImpl) validateInfraConfig(profileBean *bean.ProfileBeanDto, defaultProfile *bean.ProfileBeanDto) error {
-
+	err := utils.ValidatePayloadConfig(profileBean)
+	if err != nil {
+		return err
+	}
 	// currently validating cpu and memory limits and reqs only
 	var (
 		cpuLimit *bean.ConfigurationBean
@@ -38,7 +41,7 @@ func (impl *InfraConfigServiceImpl) validateInfraConfig(profileBean *bean.Profil
 	}
 
 	// validate cpu
-	err := impl.validateCPU(cpuLimit, cpuReq)
+	err = impl.validateCPU(cpuLimit, cpuReq)
 	if err != nil {
 		return err
 	}
