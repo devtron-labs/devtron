@@ -474,7 +474,9 @@ func (impl *ManifestCreationServiceImpl) getEnvOverrideForLastSavedConfigTrigger
 				return nil, err
 			}
 		}
-		envOverride.Chart = chart
+		if envOverride != nil {
+			envOverride.Chart = chart
+		}
 	} else if envOverride.Id > 0 && !envOverride.IsOverride {
 		_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindLatestChartForAppByAppId")
 		chart, err = impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
