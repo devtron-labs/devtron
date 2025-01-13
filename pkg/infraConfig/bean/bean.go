@@ -24,17 +24,49 @@ import (
 // service layer structs
 
 type ProfileBeanAbstract struct {
-	Id          int         `json:"id"`
-	Name        string      `json:"name" validate:"required,min=1,max=50"`
-	Description string      `json:"description" validate:"max=300"`
-	Active      bool        `json:"active"`
-	Type        ProfileType `json:"type"`
-	AppCount    int         `json:"appCount"`
-	CreatedBy   int32       `json:"createdBy"`
-	CreatedOn   time.Time   `json:"createdOn"`
-	UpdatedBy   int32       `json:"updatedBy"`
-	UpdatedOn   time.Time   `json:"updatedOn"`
+	Id               int          `json:"id"`
+	Name             string       `json:"name" validate:"required,min=1,max=50"`
+	Description      string       `json:"description" validate:"max=350"`
+	BuildxDriverType BuildxDriver `json:"buildxDriverType" default:"kubernetes"`
+	Active           bool         `json:"active"`
+	Type             ProfileType  `json:"type"`
+	AppCount         int          `json:"appCount"`
+	CreatedBy        int32        `json:"createdBy"`
+	CreatedOn        time.Time    `json:"createdOn"`
+	UpdatedBy        int32        `json:"updatedBy"`
+	UpdatedOn        time.Time    `json:"updatedOn"`
 }
+
+type BuildxDriver string
+
+func (b BuildxDriver) String() string {
+	return string(b)
+}
+
+func (b BuildxDriver) IsKubernetes() bool {
+	return b == BuildxK8sDriver
+}
+
+func (b BuildxDriver) IsDockerContainer() bool {
+	return b == BuildxDockerContainerDriver
+}
+
+func (b BuildxDriver) IsPlatformSupported(platform string) bool {
+	return platform == RUNNER_PLATFORM
+}
+
+func (b BuildxDriver) IsValid() bool {
+	return b.IsKubernetes() || b.IsDockerContainer()
+}
+
+const (
+	// BuildxK8sDriver is the default driver for buildx
+	BuildxK8sDriver BuildxDriver = "kubernetes"
+	// BuildxDockerContainerDriver is the driver for docker container
+	BuildxDockerContainerDriver BuildxDriver = "docker-container"
+)
+
+const BuildxK8sDriverMigrated string = "build-infra-migrated"
 
 type ProfileBeanDto struct {
 	ProfileBeanAbstract
@@ -85,12 +117,13 @@ type Scope struct {
 }
 
 type ConfigurationBeanAbstract struct {
-	Id          int          `json:"id"`
-	Key         ConfigKeyStr `json:"key"`
-	Unit        string       `json:"unit" validate:"required,gt=0"`
-	ProfileName string       `json:"profileName"`
-	ProfileId   int          `json:"profileId"`
-	Active      bool         `json:"active"`
+	Id                       int          `json:"id"`
+	Key                      ConfigKeyStr `json:"key"`
+	Unit                     string       `json:"unit"`
+	ProfilePlatformMappingId int          `json:"profilePlatformMappingId"`
+	Active                   bool         `json:"active"`
+	ProfileName              string       `json:"profileName"`
+	ProfileId                int          `json:"profileId"`
 }
 
 // InfraConfig is used for read only purpose outside this package
@@ -141,4 +174,10 @@ func (infraConfig InfraConfig) GetCiDefaultTimeout() int64 {
 
 func (infraConfig *InfraConfig) SetCiDefaultTimeout(timeout int64) {
 	infraConfig.CiDefaultTimeout = timeout
+}
+
+type ProfileAndConfig struct {
+	GlobalProfile  *ProfileBeanDto `json:"-"`
+	AppliedProfile *ProfileBeanDto `json:"-"`
+	Platforms      []string        `json:"-"`
 }
