@@ -43,6 +43,10 @@ var (
 	// ScramSha1 is a Mechanism that implements the SCRAM-SHA-1 authentication
 	// mechanism defined in RFC 5802.
 	ScramSha1 Mechanism = scram("SCRAM-SHA-1", sha1.New)
+
+	// Anonymous is a Mechanism that implements the ANONYMOUS
+	// authentication mechanism as defined by RFC 4505.
+	Anonymous Mechanism = anonymous
 )
 
 // Mechanism represents a SASL mechanism that can be used by a Client or Server

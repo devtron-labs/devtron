@@ -43,6 +43,10 @@ type ImageScanDeployInfo struct {
 	sql.AuditLog
 }
 
+func (r *ImageScanDeployInfo) IsObjectTypeApp() bool {
+	return r.ObjectType == ScanObjectType_APP
+}
+
 const (
 	ScanObjectType_APP   string = "app"
 	ScanObjectType_CHART string = "chart"

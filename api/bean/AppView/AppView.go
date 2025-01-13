@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package bean
+package AppView
 
 import (
 	"encoding/json"
