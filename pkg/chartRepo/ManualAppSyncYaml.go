@@ -50,11 +50,21 @@ func manualAppSyncJobByteArr(dockerImage string, appSyncJobResourcesObj string, 
 	temp, _ = temp.Parse(`{"apiVersion": "batch/v1",
   "kind": "Job",
   "metadata": {
+    "labels": {
+       "app": "app-manual-sync-job",
+       "component": "devtron"
+    },
     "name": "app-manual-sync-job",
     "namespace": "devtroncd"
   },
   "spec": {
     "template": {
+      "metadata": {
+        "labels": {
+          "app": "app-manual-sync-job",
+          "component": "devtron"
+        }
+      },
       "spec": {
 		"serviceAccount": "{{.AppSyncServiceAccount}}",
         "containers": [

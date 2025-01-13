@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.3.2 — 2024-09-11
+
+### Added
+
+- Support for SASL ANONYMOUS
+- Support for the server side of SCRAM
+
+### Fixed
+
+- Support for fast XOR removed from the repo and now uses the upstream version
+  shipped with the Go tool chain (which supports more architectures)
+
 
 ##  v0.3.1 — 2022-12-28
 

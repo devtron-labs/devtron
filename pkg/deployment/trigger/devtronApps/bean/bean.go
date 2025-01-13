@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"time"
 )
 
@@ -102,3 +103,16 @@ const (
 	CHILD_CD_COUNT               = "CHILD_CD_COUNT"
 	APP_NAME                     = "APP_NAME"
 )
+
+type ValidateDeploymentTriggerObj struct {
+	Runner               *pipelineConfig.CdWorkflowRunner
+	CdPipeline           *pipelineConfig.Pipeline
+	ImageDigest          string
+	DeploymentConfig     *bean2.DeploymentConfig
+	TriggeredBy          int32
+	IsRollbackDeployment bool
+}
+
+func (r *ValidateDeploymentTriggerObj) IsDeploymentTypeRollback() bool {
+	return r.IsRollbackDeployment
+}
