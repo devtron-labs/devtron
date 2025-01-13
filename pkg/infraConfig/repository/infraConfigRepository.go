@@ -71,8 +71,8 @@ type InfraConfigRepository interface {
 	GetProfileByName(name string) (*InfraProfileEntity, error)
 	GetConfigurationsByProfileName(profileName string) ([]*InfraProfileConfigurationEntity, error)
 	GetConfigurationsByProfileIds(profileIds []int) ([]*InfraProfileConfigurationEntity, error)
+	GetPlatformsByProfileName(profileName string) ([]*ProfilePlatformMapping, error)
 
-	GetPlatformListByProfileName(profileName string) ([]string, error)
 	CreatePlatformProfileMapping(tx *pg.Tx, platformMapping []*ProfilePlatformMapping) error
 
 	CreateProfile(tx *pg.Tx, infraProfile *InfraProfileEntity) error
@@ -179,16 +179,16 @@ func (impl *InfraConfigRepositoryImpl) UpdateBuildxDriverTypeInAllProfiles(tx *p
 	return err
 }
 
-func (impl *InfraConfigRepositoryImpl) GetPlatformListByProfileName(profileName string) ([]string, error) {
-	var platforms []string
-	err := impl.dbConnection.Model(&ProfilePlatformMapping{}).
-		ColumnExpr("platform").
+func (impl *InfraConfigRepositoryImpl) GetPlatformsByProfileName(profileName string) ([]*ProfilePlatformMapping, error) {
+	var profilePlatformMappings []*ProfilePlatformMapping
+	err := impl.dbConnection.Model(&profilePlatformMappings).
+		Column("profile_platform_mapping.*").
 		Join("INNER JOIN infra_profile ip ON profile_platform_mapping.profile_id = ip.id").
 		Where("ip.name = ?", profileName).
 		Where("ip.active = ?", true).
 		Where("profile_platform_mapping.active = ?", true).
-		Select(&platforms)
-	return platforms, err
+		Select()
+	return profilePlatformMappings, err
 }
 func (impl *InfraConfigRepositoryImpl) CreatePlatformProfileMapping(tx *pg.Tx, platformMapping []*ProfilePlatformMapping) error {
 	err := tx.Insert(&platformMapping)
