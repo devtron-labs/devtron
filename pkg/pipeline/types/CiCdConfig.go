@@ -193,7 +193,9 @@ func GetCiConfig() (*CiConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	ciConfig := CiConfig{ciCdConfig}
+	ciConfig := CiConfig{
+		CiCdConfig: ciCdConfig,
+	}
 	ciConfig.Type = CiConfigType
 	return &ciConfig, nil
 }

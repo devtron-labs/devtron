@@ -20,15 +20,17 @@ type ConfigKey int
 type ConfigKeyStr string
 type ProfileType string
 
-const GLOBAL ProfileType = "GLOBAL"
 const NORMAL ProfileType = "NORMAL"
 const InvalidUnit = "invalid %s unit found in %s "
 const InvalidTypeValue = "invalid value found in %s with value %s "
 const GLOBAL_PROFILE_NAME = "global"
+
+// TODO Asutosh: Backward compatibility for default profile is compromised. revisit this.
 const DEFAULT_PROFILE_NAME = "default"
 const DEFAULT_PROFILE_EXISTS = "default profile exists"
 const NO_PROPERTIES_FOUND = "no properties found"
 const DEFAULT ProfileType = "DEFAULT"
+const GLOBAL ProfileType = "GLOBAL"
 const InvalidProfileName = "profile name is invalid"
 const PayloadValidationError = "payload validation failed"
 const CPULimReqErrorCompErr = "cpu limit should not be less than cpu request"
@@ -52,4 +54,7 @@ const TIME_OUT ConfigKeyStr = "timeout"
 
 // internal-platforms
 const RUNNER_PLATFORM = "runner"
-const CI_RUNNER_PLATFORM = "ci-runner"
+const QualifiedProfileMaxLength = 253
+const QualifiedDescriptionMaxLength = 350
+const QualifiedPlatformMaxLength = 50
+const ConfigurationMissingInGlobalPlatform = "configuration missing in the global Platform"
