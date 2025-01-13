@@ -61,3 +61,15 @@ func NewAppIdentifierFromOverrideRequest(overrideRequest *apiBean.ValuesOverride
 		ReleaseName: overrideRequest.ReleaseName,
 	}
 }
+
+func NewValidateDeploymentTriggerObj(runner *pipelineConfig.CdWorkflowRunner, cdPipeline *pipelineConfig.Pipeline, imageDigest string,
+	deploymentConfig *bean2.DeploymentConfig, userId int32, isRollbackDeployment bool) *bean.ValidateDeploymentTriggerObj {
+	return &bean.ValidateDeploymentTriggerObj{
+		Runner:               runner,
+		CdPipeline:           cdPipeline,
+		ImageDigest:          imageDigest,
+		DeploymentConfig:     deploymentConfig,
+		TriggeredBy:          userId,
+		IsRollbackDeployment: isRollbackDeployment,
+	}
+}

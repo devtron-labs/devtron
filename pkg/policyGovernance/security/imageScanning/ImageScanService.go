@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/helper/parser"
 	repository3 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
+	"github.com/devtron-labs/devtron/pkg/workflow/cd/read"
 	"go.opentelemetry.io/otel"
 	"time"
 
@@ -49,6 +50,7 @@ type ImageScanService interface {
 	IsImageScanExecutionCompleted(image, imageDigest string) (bool, error)
 	// resource scanning functions below
 	GetScanResults(resourceScanQueryParams *bean3.ResourceScanQueryParams) (parser.ResourceScanResponseDto, error)
+	FilterDeployInfoByScannedArtifactsDeployedInEnv(deployInfoList []*repository3.ImageScanDeployInfo) ([]*repository3.ImageScanDeployInfo, error)
 }
 
 type ImageScanServiceImpl struct {
@@ -68,7 +70,7 @@ type ImageScanServiceImpl struct {
 	scanToolMetaDataRepository                repository3.ScanToolMetadataRepository
 	scanToolExecutionHistoryMappingRepository repository3.ScanToolExecutionHistoryMappingRepository
 	cvePolicyRepository                       repository3.CvePolicyRepository
-	cdWorkflowRepo                            pipelineConfig.CdWorkflowRepository
+	cdWorkflowReadService                     read.CdWorkflowReadService
 }
 
 func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository repository3.ImageScanHistoryRepository,
@@ -79,7 +81,7 @@ func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository re
 	envService environment.EnvironmentService, ciArtifactRepository repository.CiArtifactRepository, policyService PolicyService,
 	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository, scanToolMetaDataRepository repository3.ScanToolMetadataRepository, scanToolExecutionHistoryMappingRepository repository3.ScanToolExecutionHistoryMappingRepository,
 	cvePolicyRepository repository3.CvePolicyRepository,
-	cdWorkflowRepo pipelineConfig.CdWorkflowRepository) *ImageScanServiceImpl {
+	cdWorkflowReadService read.CdWorkflowReadService) *ImageScanServiceImpl {
 	return &ImageScanServiceImpl{Logger: Logger, scanHistoryRepository: scanHistoryRepository, scanResultRepository: scanResultRepository,
 		scanObjectMetaRepository: scanObjectMetaRepository, cveStoreRepository: cveStoreRepository,
 		imageScanDeployInfoRepository:             imageScanDeployInfoRepository,
@@ -93,7 +95,7 @@ func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository re
 		scanToolMetaDataRepository:                scanToolMetaDataRepository,
 		scanToolExecutionHistoryMappingRepository: scanToolExecutionHistoryMappingRepository,
 		cvePolicyRepository:                       cvePolicyRepository,
-		cdWorkflowRepo:                            cdWorkflowRepo,
+		cdWorkflowReadService:                     cdWorkflowReadService,
 	}
 }
 
@@ -257,7 +259,7 @@ func (impl ImageScanServiceImpl) fetchImageExecutionHistoryMapByIds(historyIds [
 	return mapOfExecutionHistoryIdVsExecutionTime, nil
 }
 func (impl ImageScanServiceImpl) fetchLatestArtifactIdForAppAndEnv(appId, envId int) (int, error) {
-	cdWfRunner, err := impl.cdWorkflowRepo.FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId, envId, bean4.CD_WORKFLOW_TYPE_DEPLOY)
+	cdWfRunner, err := impl.cdWorkflowReadService.FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId, envId, bean4.CD_WORKFLOW_TYPE_DEPLOY)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching latest cd workflow runner of type DEPLOY for appId and envId", "appId", appId, "envId", envId, "err", err)
 		return 0, err
@@ -284,7 +286,7 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *bean3.Image
 	if request.AppId > 0 && request.EnvId > 0 {
 		artifactId, err := impl.fetchLatestArtifactIdForAppAndEnv(request.AppId, request.EnvId)
 		if err != nil {
-			impl.Logger.Errorw("error while fetching scan execution result", "appId", request.AppId, "envId", request.EnvId, "err", err)
+			impl.Logger.Errorw("error while fetching latest artifact for app and env", "appId", request.AppId, "envId", request.EnvId, "err", err)
 			return nil, err
 		}
 		// setting latest artifact deploy on app and env
@@ -724,4 +726,67 @@ func (impl ImageScanServiceImpl) GetScanResults(resourceScanQueryParams *bean3.R
 	// build an adapter to convert the respFromExecutionDetail to the required ResourceScanResponseDto format
 	return adapter.ExecutionDetailsToResourceScanResponseDto(respFromExecutionDetail), nil
 
+}
+
+func (impl ImageScanServiceImpl) FilterDeployInfoByScannedArtifactsDeployedInEnv(deployInfoList []*repository3.ImageScanDeployInfo) ([]*repository3.ImageScanDeployInfo, error) {
+	filteredDeployInfoList := make([]*repository3.ImageScanDeployInfo, 0, len(deployInfoList))
+	appVsEnvIdMap := make(map[int][]int, len(deployInfoList))
+	for _, imageScanDeployInfo := range deployInfoList {
+		if imageScanDeployInfo.IsObjectTypeApp() {
+			if _, ok := appVsEnvIdMap[imageScanDeployInfo.ScanObjectMetaId]; ok {
+				appVsEnvIdMap[imageScanDeployInfo.ScanObjectMetaId] = append(appVsEnvIdMap[imageScanDeployInfo.ScanObjectMetaId], imageScanDeployInfo.EnvId)
+			} else {
+				appVsEnvIdMap[imageScanDeployInfo.ScanObjectMetaId] = make([]int, 0, len(deployInfoList))
+				appVsEnvIdMap[imageScanDeployInfo.ScanObjectMetaId] = append(appVsEnvIdMap[imageScanDeployInfo.ScanObjectMetaId], imageScanDeployInfo.EnvId)
+			}
+		}
+	}
+	appEnvToCiArtifactMap, ciArtifactIdToScannedMap, err := impl.fetchLatestArtifactMetadataDeployedOnAllEnvsAcrossApps(appVsEnvIdMap)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching latest artifacts metadata for deployed on all envs and apps", "appVsEnvIdMap", appVsEnvIdMap, "err", err)
+		return nil, err
+	}
+	for _, imageScanDeployInfo := range deployInfoList {
+		if imageScanDeployInfo.IsObjectTypeApp() {
+			if ciArtifactId, ok := appEnvToCiArtifactMap[bean3.NewAppEnvMetadata(imageScanDeployInfo.ScanObjectMetaId, imageScanDeployInfo.EnvId)]; ok {
+				if ciArtifactIdToScannedMap[ciArtifactId] {
+					// if this ci artifact is scanned then append in final resp
+					filteredDeployInfoList = append(filteredDeployInfoList, imageScanDeployInfo)
+				}
+			}
+		}
+
+	}
+	return filteredDeployInfoList, nil
+}
+
+func (impl ImageScanServiceImpl) fetchLatestArtifactMetadataDeployedOnAllEnvsAcrossApps(appVsEnvIdMap map[int][]int) (map[bean3.AppEnvMetadata]int, map[int]bool, error) {
+	appEnvToCiArtifactMap := make(map[bean3.AppEnvMetadata]int)
+	ciArtifactIdToScannedMap := make(map[int]bool)
+	parentCiArtifactIds := make([]int, 0)
+	cdwfArtifactsMetadata, err := impl.cdWorkflowReadService.FindLatestCdWorkflowRunnerArtifactMetadataForAppAndEnvIds(appVsEnvIdMap, bean4.CD_WORKFLOW_TYPE_DEPLOY)
+	if err != nil {
+		impl.Logger.Errorw("error in FindLatestCdWorkflowRunnersByAppAndEnvIds", "appVsEnvIdMap", appVsEnvIdMap, "err", err)
+		return nil, nil, err
+	}
+	for _, item := range cdwfArtifactsMetadata {
+		ciArtifactId := item.CiArtifactId
+		if item.ParentCiArtifact > 0 {
+			parentCiArtifactIds = append(parentCiArtifactIds, item.ParentCiArtifact)
+			ciArtifactId = item.ParentCiArtifact
+		} else {
+			ciArtifactIdToScannedMap[ciArtifactId] = item.Scanned
+		}
+		appEnvToCiArtifactMap[bean3.NewAppEnvMetadata(item.AppId, item.EnvId)] = ciArtifactId
+	}
+	parentCiArtifacts, err := impl.ciArtifactRepository.GetByIds(parentCiArtifactIds)
+	if err != nil {
+		impl.Logger.Errorw("error in getting artifacts by ids", "ids", parentCiArtifactIds, "err", err)
+		return nil, nil, err
+	}
+	for _, parentCiArtifact := range parentCiArtifacts {
+		// for linked ci case
+		ciArtifactIdToScannedMap[parentCiArtifact.Id] = parentCiArtifact.Scanned
+	}
+	return appEnvToCiArtifactMap, ciArtifactIdToScannedMap, nil
 }
