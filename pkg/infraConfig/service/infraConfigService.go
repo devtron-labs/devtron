@@ -222,22 +222,31 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 
 	creatableConfigurations := make([]*repository.InfraProfileConfigurationEntity, 0, len(defaultConfigurationsFromEnv))
 	creatableProfilePlatformMapping := make([]*repository.ProfilePlatformMapping, 0)
-	runnerPlatFormMapping := &repository.ProfilePlatformMapping{
-		Platform:  bean.RUNNER_PLATFORM,
-		ProfileId: profile.Id,
-		Active:    true,
-		AuditLog:  sql.NewDefaultAuditLog(1),
-	}
 
 	platformsFromDb, err := impl.infraProfileRepo.GetPlatformsByProfileName(bean.GLOBAL_PROFILE_NAME)
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in fetching platforms from db", "error", err)
 		return err
 	}
+	
+	runnerPlatFormMapping := &repository.ProfilePlatformMapping{}
 	//one platform is expected
 	if len(platformsFromDb) > 0 {
-		runnerPlatFormMapping.Id = platformsFromDb[0].Id
+		for _, platform := range platformsFromDb {
+			if platform.Platform == bean.RUNNER_PLATFORM {
+				runnerPlatFormMapping = platform
+				break
+			}
+		}
+	} else {
+		runnerPlatFormMapping = &repository.ProfilePlatformMapping{
+			Platform:  bean.RUNNER_PLATFORM,
+			ProfileId: profile.Id,
+			Active:    true,
+			AuditLog:  sql.NewDefaultAuditLog(1),
+		}
 	}
+
 	//creating default platform if not found in db
 	if len(platformsFromDb) == 0 {
 		creatableProfilePlatformMapping = append(creatableProfilePlatformMapping, runnerPlatFormMapping)
