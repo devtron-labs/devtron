@@ -116,6 +116,7 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 	}
 	// validations end
 
+	profileToUpdate.Id = defaultProfile.Id
 	infraProfileEntity := adapter.ConvertToInfraProfileEntity(profileToUpdate)
 	// user couldn't delete the profile, always set this to active
 	infraProfileEntity.Active = true
@@ -149,9 +150,10 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 	}
 	err = impl.infraProfileRepo.CommitTx(tx)
 	if err != nil {
-		impl.logger.Errorw("error in committing transaction to update profile", "profileName", profileName, "profileCreateRequest", profileToUpdate, "error", err)
+		impl.logger.Errorw("error in committing transaction to update profile", "profileCreateRequest", profileToUpdate, "error", err)
+		return err
 	}
-	return err
+	return nil
 }
 
 // loadDefaultProfile loads default configurations from environment and save them in db.
@@ -194,8 +196,8 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 		}
 		profile = defaultProfile
 	}
-
-	defaultConfigurationsFromEnv, err := adapter.LoadInfraConfigInEntities(impl.infraConfig)
+	var nodeselector []string
+	defaultConfigurationsFromEnv, err := adapter.LoadInfraConfigInEntities(impl.infraConfig, nodeselector)
 	if err != nil {
 		impl.logger.Errorw("error in loading default configurations from environment", "error", err)
 		return err
@@ -218,7 +220,7 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 		if ok, exist := defaultConfigurationsFromDBMap[configurationFromEnv.Key]; !exist || !ok {
 			configurationFromEnv.ProfileId = profile.Id
 			configurationFromEnv.Active = true
-			configurationFromEnv.Platform = bean.RUNNER_PLATFORM
+			configurationFromEnv.ProfilePlatformMapping.Platform = bean.RUNNER_PLATFORM
 			configurationFromEnv.AuditLog = sql.NewDefaultAuditLog(1)
 			creatableConfigurations = append(creatableConfigurations, configurationFromEnv)
 		}
@@ -346,12 +348,7 @@ func (impl *InfraConfigServiceImpl) GetConfigurationUnits() map[bean.ConfigKeySt
 }
 
 func (impl *InfraConfigServiceImpl) validate(profileToUpdate *bean.ProfileBeanDto, defaultProfile *bean.ProfileBeanDto) error {
-	err := util2.ValidatePayloadConfig(profileToUpdate)
-	if err != nil {
-		return err
-	}
-
-	err = impl.validateInfraConfig(profileToUpdate, defaultProfile)
+	err := impl.validateInfraConfig(profileToUpdate, defaultProfile)
 	if err != nil {
 		err = errors.Wrap(err, bean.PayloadValidationError)
 		return err

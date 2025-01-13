@@ -20,11 +20,12 @@ type ConfigKey int
 type ConfigKeyStr string
 type ProfileType string
 
-const GLOBAL ProfileType = "GLOBAL"
 const NORMAL ProfileType = "NORMAL"
 const InvalidUnit = "invalid %s unit found in %s "
 const InvalidTypeValue = "invalid value found in %s with value %s "
 const GLOBAL_PROFILE_NAME = "global"
+
+// TODO Asutosh: Backward compatibility for default profile is compromised. revisit this.
 const DEFAULT_PROFILE_NAME = "default"
 const DEFAULT_PROFILE_EXISTS = "default profile exists"
 const NO_PROPERTIES_FOUND = "no properties found"

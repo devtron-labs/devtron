@@ -17,31 +17,22 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/pkg/infraConfig/bean"
+	"fmt"
+	infraBean "github.com/devtron-labs/devtron/pkg/infraConfig/bean"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
+	"time"
 )
 
 type InfraProfileEntity struct {
-	tableName   struct{} `sql:"infra_profile" pg:",discard_unknown_columns"`
-	Id          int      `sql:"id"`
-	Name        string   `sql:"name"`
-	Description string   `sql:"description"`
-	Active      bool     `sql:"active"`
-	sql.AuditLog
-}
-type InfraProfileConfigurationEntity struct {
-	tableName   struct{}         `sql:"infra_profile_configuration" pg:",discard_unknown_columns"`
-	Id          int              `sql:"id"`
-	Key         bean.ConfigKey   `sql:"key"`
-	Value       float64          `sql:"value"`
-	ValueString string           `sql:"value_string"`
-	Unit        units.UnitSuffix `sql:"unit"`
-	ProfileId   int              `sql:"profile_id"`
-	Platform    string           `sql:"platform"`
-	Active      bool             `sql:"active"`
+	tableName        struct{}               `sql:"infra_profile" pg:",discard_unknown_columns"`
+	Id               int                    `sql:"id"`
+	Name             string                 `sql:"name"`
+	Description      string                 `sql:"description"`
+	BuildxDriverType infraBean.BuildxDriver `sql:"buildx_driver_type,notnull"`
+	Active           bool                   `sql:"active"`
 	sql.AuditLog
 }
 
@@ -51,6 +42,28 @@ type ProfilePlatformMapping struct {
 	ProfileId int      `sql:"profile_id"`
 	Platform  string   `sql:"platform"`
 	Active    bool     `sql:"active"`
+	UniqueId  string   `sql:"-"`
+	sql.AuditLog
+}
+
+func GetUniqueId(profileId int, platform string) string {
+	return fmt.Sprintf("%d-%s", profileId, platform)
+}
+
+type InfraProfileConfigurationEntity struct {
+	tableName                struct{}            `sql:"infra_profile_configuration" pg:",discard_unknown_columns"`
+	Id                       int                 `sql:"id,pk"`
+	Key                      infraBean.ConfigKey `sql:"key,notnull"`
+	Value                    float64             `sql:"value"`
+	ValueString              string              `sql:"value_string,notnull"`
+	Unit                     units.UnitSuffix    `sql:"unit,notnull"`
+	ProfilePlatformMappingId int                 `sql:"profile_platform_mapping_id"`
+	Active                   bool                `sql:"active,notnull"`
+	UniqueId                 string              `sql:"-"`
+	// Deprecated; use ProfilePlatformMappingId
+	ProfileId int `sql:"profile_id"`
+
+	ProfilePlatformMapping *ProfilePlatformMapping
 	sql.AuditLog
 }
 
@@ -99,32 +112,32 @@ func (impl *InfraConfigRepositoryImpl) GetProfileByName(name string) (*InfraProf
 }
 
 func (impl *InfraConfigRepositoryImpl) CreateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfigurationEntity) error {
+	if len(configurations) == 0 {
+		return nil
+	}
 	err := tx.Insert(&configurations)
 	return err
 }
 
 func (impl *InfraConfigRepositoryImpl) UpdateConfigurations(tx *pg.Tx, configurations []*InfraProfileConfigurationEntity) error {
-	var err error
-	for _, configuration := range configurations {
-		_, err = tx.Model(configuration).
-			Set("value_string = ?", configuration.ValueString).
-			Set("unit = ?", configuration.Unit).
-			Set("updated_by = ?", configuration.UpdatedBy).
-			Set("updated_on = ?", configuration.UpdatedOn).
-			Where("id = ?", configuration.Id).
-			Update()
-	}
+	_, err := tx.Model(&configurations).
+		Column("value_string", "profile_platform_mapping_id", "unit", "active", "updated_by", "updated_on").
+		Update()
 	return err
 }
 
 func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileName(profileName string) ([]*InfraProfileConfigurationEntity, error) {
 	var configurations []*InfraProfileConfigurationEntity
 	err := impl.dbConnection.Model(&configurations).
-		Where("profile_id IN (SELECT id FROM infra_profile WHERE name = ? AND active = true)", profileName).
-		Where("active = ?", true).
+		Column("infra_profile_configuration_entity.*", "ProfilePlatformMapping").
+		Join("INNER JOIN infra_profile").
+		JoinOn("infra_profile_configuration_entity.profile_id = infra_profile.id").
+		Where("infra_profile.name = ?", profileName).
+		Where("infra_profile.active = ?", true).
+		Where("infra_profile_configuration_entity.active = ?", true).
 		Select()
 	if errors.Is(err, pg.ErrNoRows) {
-		return nil, errors.New(bean.NO_PROPERTIES_FOUND)
+		return nil, errors.New(infraBean.NO_PROPERTIES_FOUND)
 	}
 	return configurations, err
 }
@@ -132,25 +145,40 @@ func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileName(profileNam
 func (impl *InfraConfigRepositoryImpl) GetConfigurationsByProfileId(profileId int) ([]*InfraProfileConfigurationEntity, error) {
 	var configurations []*InfraProfileConfigurationEntity
 	err := impl.dbConnection.Model(&configurations).
-		Where("profile_id = ?", profileId).
-		Where("active = ?", true).
+		Column("infra_profile_configuration_entity.*", "ProfilePlatformMapping").
+		Where("profile_platform_mapping.profile_id IN (?)", pg.In(profileId)).
+		Where("profile_platform_mapping.active = ?", true).
+		Where("infra_profile_configuration_entity.active = ?", true).
 		Select()
 	if errors.Is(err, pg.ErrNoRows) {
-		return nil, errors.New(bean.NO_PROPERTIES_FOUND)
+		return nil, errors.New(infraBean.NO_PROPERTIES_FOUND)
 	}
 	return configurations, err
 }
 
 func (impl *InfraConfigRepositoryImpl) UpdateProfile(tx *pg.Tx, profileName string, profile *InfraProfileEntity) error {
 	_, err := tx.Model(profile).
-		Set("description=?", profile.Description).
-		Set("updated_by=?", profile.UpdatedBy).
-		Set("updated_on=?", profile.UpdatedOn).
+		Set("name = ?", profile.Name).
+		Set("description = ?", profile.Description).
+		Set("buildx_driver_type = ?", profile.BuildxDriverType).
+		Set("updated_by = ?", profile.UpdatedBy).
+		Set("updated_on = ?", profile.UpdatedOn).
 		Where("name = ?", profileName).
 		Where("active = ?", true).
 		Update()
 	return err
 }
+
+func (impl *InfraConfigRepositoryImpl) UpdateBuildxDriverTypeInAllProfiles(tx *pg.Tx, buildxDriverType infraBean.BuildxDriver) error {
+	_, err := tx.Model((*InfraProfileEntity)(nil)).
+		Set("buildx_driver_type = ?", buildxDriverType).
+		Set("updated_by = ?", 1).
+		Set("updated_on = ?", time.Now()).
+		Where("active = ?", true).
+		Update()
+	return err
+}
+
 func (impl *InfraConfigRepositoryImpl) GetPlatformListByProfileName(profileName string) ([]string, error) {
 	var platforms []string
 	err := impl.dbConnection.Model(&ProfilePlatformMapping{}).
