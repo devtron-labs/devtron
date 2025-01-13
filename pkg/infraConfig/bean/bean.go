@@ -52,13 +52,7 @@ func (b BuildxDriver) IsDockerContainer() bool {
 }
 
 func (b BuildxDriver) IsPlatformSupported(platform string) bool {
-	if b.IsKubernetes() {
-		// k8s supports all platforms
-		return true
-	} else {
-		// docker container supports only runner platform
-		return platform == RUNNER_PLATFORM
-	}
+	return platform == RUNNER_PLATFORM
 }
 
 func (b BuildxDriver) IsValid() bool {

@@ -186,7 +186,7 @@ func GetV0ProfileBean(profileBean *bean.ProfileBeanDto) *bean.ProfileBeanV0 {
 			UpdatedBy:        profileBean.UpdatedBy,
 			UpdatedOn:        profileBean.UpdatedOn,
 		},
-		Configurations: GetV0ConfigurationBeans(ciRunnerConfig, bean.GLOBAL_PROFILE_NAME),
+		Configurations: GetV0ConfigurationBeans(ciRunnerConfig),
 	}
 
 }
@@ -246,7 +246,7 @@ func GetV1ConfigurationBeans(configBeans []bean.ConfigurationBeanV0, profileName
 	return resp
 }
 
-func GetV0ConfigurationBeans(configBeans []*bean.ConfigurationBean, profileName string) []bean.ConfigurationBeanV0 {
+func GetV0ConfigurationBeans(configBeans []*bean.ConfigurationBean) []bean.ConfigurationBeanV0 {
 	if len(configBeans) == 0 {
 		return []bean.ConfigurationBeanV0{}
 	}
