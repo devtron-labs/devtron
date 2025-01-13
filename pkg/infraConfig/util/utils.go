@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package util
+package utils
 
 import (
 	"errors"
@@ -98,9 +98,17 @@ func ValidatePayloadConfig(profileToUpdate *bean.ProfileBeanDto) error {
 	if len(profileToUpdate.Name) == 0 {
 		return errors.New("profile name is required")
 	}
+	err := validateProfileAttributes(profileToUpdate.ProfileBeanAbstract)
+	if err != nil {
+		return err
+	}
 	defaultKeyMap := GetDefaultConfigKeysMap()
-	for _, config := range profileToUpdate.Configurations {
-		err := validateConfigItems(config, defaultKeyMap)
+	for platform, config := range profileToUpdate.Configurations {
+		err = validatePlatformName(platform, profileToUpdate.BuildxDriverType)
+		if err != nil {
+			return err
+		}
+		err = validateConfigItems(config, defaultKeyMap)
 		if err != nil {
 			return err
 		}
@@ -180,4 +188,33 @@ func IsValidProfileNameRequestedV0(profileName, payloadProfileName string) bool 
 		return true
 	}
 	return false
+}
+
+func validatePlatformName(platform string, buildxDriverType bean.BuildxDriver) error {
+	if len(platform) == 0 {
+		return errors.New("platform cannot be empty")
+	}
+	if len(platform) > bean.QualifiedPlatformMaxLength {
+		return errors.New("platform cannot be longer than 50 characters")
+	}
+	if !buildxDriverType.IsPlatformSupported(platform) {
+		return fmt.Errorf("invalid platform name: %q. not supported with driver type: %q", platform, buildxDriverType)
+	}
+	return nil
+}
+
+func validateProfileAttributes(profileAbstract bean.ProfileBeanAbstract) error {
+	if len(profileAbstract.Name) > bean.QualifiedProfileMaxLength {
+		return errors.New("profile name is too long")
+	}
+	if len(profileAbstract.Name) == 0 {
+		return errors.New("profile name is empty")
+	}
+	if len(profileAbstract.Description) > bean.QualifiedDescriptionMaxLength {
+		return errors.New("profile description is too long")
+	}
+	if !profileAbstract.BuildxDriverType.IsValid() {
+		return fmt.Errorf("invalid buildx driver type: %q", profileAbstract.BuildxDriverType)
+	}
+	return nil
 }
