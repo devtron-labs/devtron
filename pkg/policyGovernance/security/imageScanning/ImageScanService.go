@@ -19,6 +19,7 @@ package imageScanning
 import (
 	"context"
 	bean4 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
@@ -326,9 +327,13 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *bean3.Image
 		}
 		imageScanResponse.Image = ciArtifact.Image
 		scanExecution, err := impl.scanHistoryRepository.FindByImageAndDigestWithHistoryMapping(ciArtifact.ImageDigest, ciArtifact.Image)
-		if err != nil {
+		if err != nil && !util.IsErrNoRows(err) {
 			impl.Logger.Errorw("error while fetching scan execution result", "err", err)
 			return nil, err
+		} else if util.IsErrNoRows(err) {
+			// image not scanned
+			imageScanResponse.Scanned = false
+			return imageScanResponse, nil
 		}
 		ciPipeline, err := impl.ciPipelineRepository.FindByIdIncludingInActive(ciArtifact.PipelineId)
 		if err != nil {
