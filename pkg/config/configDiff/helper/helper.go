@@ -3,8 +3,8 @@ package helper
 import (
 	"encoding/json"
 	bean3 "github.com/devtron-labs/devtron/pkg/bean"
-	bean2 "github.com/devtron-labs/devtron/pkg/configDiff/bean"
-	"github.com/devtron-labs/devtron/pkg/configDiff/utils"
+	bean2 "github.com/devtron-labs/devtron/pkg/config/configDiff/bean"
+	"github.com/devtron-labs/devtron/pkg/config/configDiff/utils"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 )
 

@@ -3,7 +3,7 @@ package configDiff
 import (
 	"context"
 	"github.com/devtron-labs/devtron/internal/util"
-	bean2 "github.com/devtron-labs/devtron/pkg/configDiff/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/config/configDiff/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"net/http"
 )

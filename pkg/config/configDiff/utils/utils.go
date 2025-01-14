@@ -2,7 +2,7 @@ package utils
 
 import (
 	"encoding/json"
-	bean2 "github.com/devtron-labs/devtron/pkg/configDiff/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/config/configDiff/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"strings"
 )

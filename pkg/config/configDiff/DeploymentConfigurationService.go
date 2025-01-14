@@ -19,10 +19,10 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/bean"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
-	"github.com/devtron-labs/devtron/pkg/configDiff/adaptor"
-	bean2 "github.com/devtron-labs/devtron/pkg/configDiff/bean"
-	"github.com/devtron-labs/devtron/pkg/configDiff/helper"
-	"github.com/devtron-labs/devtron/pkg/configDiff/utils"
+	"github.com/devtron-labs/devtron/pkg/config/configDiff/adaptor"
+	bean2 "github.com/devtron-labs/devtron/pkg/config/configDiff/bean"
+	"github.com/devtron-labs/devtron/pkg/config/configDiff/helper"
+	"github.com/devtron-labs/devtron/pkg/config/configDiff/utils"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret"
 	read2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
@@ -80,7 +80,6 @@ type DeploymentConfigurationServiceImpl struct {
 	k8sUtil                              k8sUtil.K8sService
 	mergeUtil                            util.MergeUtil
 	HelmAppReadService                   read3.HelmAppReadService
-
 }
 
 func NewDeploymentConfigurationServiceImpl(logger *zap.SugaredLogger,

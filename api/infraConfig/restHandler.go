@@ -1,31 +1,23 @@
 /*
  * Copyright (c) 2024. Devtron Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 package infraConfig
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/adapter"
-	"github.com/devtron-labs/devtron/pkg/infraConfig/bean"
+	"github.com/devtron-labs/devtron/pkg/infraConfig/bean/v0"
+	"github.com/devtron-labs/devtron/pkg/infraConfig/bean/v1"
+	errors2 "github.com/devtron-labs/devtron/pkg/infraConfig/errors"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/service"
-	util2 "github.com/devtron-labs/devtron/pkg/infraConfig/util"
+	"github.com/devtron-labs/devtron/pkg/infraConfig/util"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -42,13 +34,15 @@ type InfraConfigRestHandler interface {
 	GetProfileV0(w http.ResponseWriter, r *http.Request)
 	// Deprecated: UpdateInfraProfileV0 is deprecated in favour of UpdateInfraProfile
 	UpdateInfraProfileV0(w http.ResponseWriter, r *http.Request)
+
+	InfraConfigRestHandlerEnt
 }
+
 type InfraConfigRestHandlerImpl struct {
 	logger              *zap.SugaredLogger
 	infraProfileService service.InfraConfigService
 	userService         user.UserService
 	enforcer            casbin.Enforcer
-	enforcerUtil        rbac.EnforcerUtil
 	validator           *validator.Validate
 }
 
@@ -58,7 +52,6 @@ func NewInfraConfigRestHandlerImpl(logger *zap.SugaredLogger, infraProfileServic
 		infraProfileService: infraProfileService,
 		userService:         userService,
 		enforcer:            enforcer,
-		enforcerUtil:        enforcerUtil,
 		validator:           validator,
 	}
 }
@@ -76,29 +69,48 @@ func (handler *InfraConfigRestHandlerImpl) GetProfile(w http.ResponseWriter, r *
 	}
 
 	identifier := r.URL.Query().Get("name")
-
 	if len(identifier) == 0 {
-		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New(errors2.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
 	profileName := strings.ToLower(identifier)
-	var profile *bean.ProfileBeanDto
-	if profileName != bean.GLOBAL_PROFILE_NAME {
-		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
-		return
+	var profile *v1.ProfileBeanDto
+	if profileName != v1.GLOBAL_PROFILE_NAME {
+		profile, err = handler.infraProfileService.GetProfileByName(profileName)
+		if err != nil {
+			statusCode := http.StatusInternalServerError
+			if errors.Is(err, pg.ErrNoRows) {
+				err = errors.New(fmt.Sprintf("profile %s not found", profileName))
+				statusCode = http.StatusNotFound
+			}
+			common.WriteJsonResp(w, err, nil, statusCode)
+			return
+		}
 	}
-	defaultProfile, err := handler.infraProfileService.GetProfileByName(profileName)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	profile = defaultProfile
 
-	resp := bean.ProfileResponse{
+	defaultProfile, err := handler.infraProfileService.GetProfileByName(v1.GLOBAL_PROFILE_NAME)
+	if err != nil {
+		statusCode := http.StatusInternalServerError
+		if errors.Is(err, pg.ErrNoRows) {
+			err = errors.New(fmt.Sprintf("profile %s not found", v1.GLOBAL_PROFILE_NAME))
+			statusCode = http.StatusNotFound
+		}
+		common.WriteJsonResp(w, err, nil, statusCode)
+		return
+	}
+	if profileName == v1.GLOBAL_PROFILE_NAME {
+		profile = defaultProfile
+	}
+	resp := v1.ProfileResponse{
 		Profile: *profile,
 	}
-	resp.ConfigurationUnits = handler.infraProfileService.GetConfigurationUnits()
-	resp.DefaultConfigurations = defaultProfile.Configurations
+	resp.ConfigurationUnits, err = handler.infraProfileService.GetConfigurationUnits()
+	if err != nil {
+		handler.logger.Errorw("error in getting configuration units", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	resp.DefaultConfigurations = defaultProfile.GetConfigurations()
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
@@ -117,12 +129,15 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWri
 	//vars := mux.Vars(r)
 	val := r.URL.Query().Get("name")
 	if len(val) == 0 {
-		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New("name is required"), nil, http.StatusBadRequest)
 		return
 	}
 	profileName := strings.ToLower(val)
-
-	payload := &bean.ProfileBeanDto{}
+	if profileName == "" {
+		common.WriteJsonResp(w, errors.New(errors2.InvalidProfileName), nil, http.StatusBadRequest)
+		return
+	}
+	payload := &v1.ProfileBeanDto{}
 	decoder := json.NewDecoder(r.Body)
 	err = decoder.Decode(payload)
 	if err != nil {
@@ -130,15 +145,10 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	//handler.validator.RegisterValidation("validateValue", ValidateValue)
-	payload.Name = strings.ToLower(payload.Name)
 	err = handler.validator.Struct(payload)
 	if err != nil {
-		err = errors.Wrap(err, bean.PayloadValidationError)
+		err = errors.Wrap(err, errors2.PayloadValidationError)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-	}
-	if !util2.IsValidProfileNameRequested(profileName, payload.Name) {
-		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
 	err = handler.infraProfileService.UpdateProfile(userId, profileName, payload)
@@ -150,7 +160,7 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfile(w http.ResponseWri
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
 }
 
-// Deprecated
+// Deprecated: GetProfileV0 is deprecated in favour of GetProfile
 func (handler *InfraConfigRestHandlerImpl) GetProfileV0(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -166,34 +176,53 @@ func (handler *InfraConfigRestHandlerImpl) GetProfileV0(w http.ResponseWriter, r
 	vars := mux.Vars(r)
 	profileName := strings.ToLower(vars["name"])
 	if profileName == "" {
-		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New(errors2.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
 
-	if profileName != bean.DEFAULT_PROFILE_NAME {
-		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
-		return
+	var profileV0 *v0.ProfileBeanV0
+	if profileName != v1.DEFAULT_PROFILE_NAME {
+		profileV1, err := handler.infraProfileService.GetProfileByName(profileName)
+		profileV0 = adapter.GetV0ProfileBean(profileV1)
+		if err != nil {
+			statusCode := http.StatusInternalServerError
+			if errors.Is(err, pg.ErrNoRows) {
+				err = errors.New(fmt.Sprintf("profile %s not found", profileName))
+				statusCode = http.StatusNotFound
+			}
+			common.WriteJsonResp(w, err, nil, statusCode)
+			return
+		}
 	}
 
-	profileName = bean.GLOBAL_PROFILE_NAME
-
-	var profile *bean.ProfileBeanV0
-	defaultProfileV1, err := handler.infraProfileService.GetProfileByName(profileName)
-	defaultProfileV0 := adapter.GetV0ProfileBean(defaultProfileV1)
+	defaultProfileV1, err := handler.infraProfileService.GetProfileByName(v1.GLOBAL_PROFILE_NAME)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		statusCode := http.StatusInternalServerError
+		if errors.Is(err, pg.ErrNoRows) {
+			err = errors.New(fmt.Sprintf("profile %s not found", v1.GLOBAL_PROFILE_NAME))
+			statusCode = http.StatusNotFound
+		}
+		common.WriteJsonResp(w, err, nil, statusCode)
 		return
 	}
-	profile = defaultProfileV0
-	resp := bean.ProfileResponseV0{
-		Profile: *profile,
+	defaultProfileV0 := adapter.GetV0ProfileBean(defaultProfileV1)
+	if profileName == v1.DEFAULT_PROFILE_NAME {
+		profileV0 = defaultProfileV0
 	}
-	resp.ConfigurationUnits = handler.infraProfileService.GetConfigurationUnits()
+	resp := v0.ProfileResponseV0{
+		Profile: *profileV0,
+	}
+	resp.ConfigurationUnits, err = handler.infraProfileService.GetConfigurationUnits()
+	if err != nil {
+		handler.logger.Errorw("error in getting configuration units", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	//returning the default configuration for UI inheriting purpose
 	resp.DefaultConfigurations = defaultProfileV0.Configurations
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
-// Deprecated
 func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfileV0(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -209,10 +238,10 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfileV0(w http.ResponseW
 	vars := mux.Vars(r)
 	profileName := strings.ToLower(vars["name"])
 	if profileName == "" {
-		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New(errors2.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
-	payload := &bean.ProfileBeanV0{}
+	payload := &v0.ProfileBeanV0{}
 	decoder := json.NewDecoder(r.Body)
 	err = decoder.Decode(payload)
 	if err != nil {
@@ -220,27 +249,25 @@ func (handler *InfraConfigRestHandlerImpl) UpdateInfraProfileV0(w http.ResponseW
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	payload.Name = strings.ToLower(payload.Name)
 	err = handler.validator.Struct(payload)
 	if err != nil {
-		err = errors.Wrap(err, bean.PayloadValidationError)
+		err = errors.Wrap(err, errors2.PayloadValidationError)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-	}
-	if !util2.IsValidProfileNameRequestedV0(profileName, payload.Name) {
-		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
-	if payload.Name != bean.DEFAULT_PROFILE_NAME {
-		common.WriteJsonResp(w, errors.New(bean.InvalidProfileName), nil, http.StatusBadRequest)
+	if !util.IsValidProfileNameRequestedV0(profileName, payload.GetName()) {
+		common.WriteJsonResp(w, errors.New(errors2.InvalidProfileName), nil, http.StatusBadRequest)
 		return
 	}
-
-	profileName = bean.GLOBAL_PROFILE_NAME
-	payloadV1 := adapter.GetV1ProfileBean(payload)
-	err = handler.infraProfileService.UpdateProfile(userId, profileName, payloadV1)
+	if profileName == v1.DEFAULT_PROFILE_NAME && payload.GetName() != v1.DEFAULT_PROFILE_NAME {
+		common.WriteJsonResp(w, errors.New(errors2.InvalidProfileName), nil, http.StatusBadRequest)
+		return
+	}
+	payloadV1 := adapter.ConvertToV1ProfileBean(payload)
+	err = handler.infraProfileService.UpdateProfileV0(userId, profileName, payloadV1)
 	if err != nil {
 		handler.logger.Errorw("error in updating profile and configurations", "profileName", profileName, "payLoad", payload, "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)

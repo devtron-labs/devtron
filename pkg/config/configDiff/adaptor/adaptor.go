@@ -2,7 +2,7 @@ package adaptor
 
 import (
 	bean3 "github.com/devtron-labs/devtron/pkg/bean"
-	bean2 "github.com/devtron-labs/devtron/pkg/configDiff/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/config/configDiff/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 )

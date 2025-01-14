@@ -14,207 +14,282 @@
  * limitations under the License.
  */
 
-package utils
+package util
 
 import (
-	"errors"
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/infraConfig/bean"
-	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
-	util2 "github.com/devtron-labs/devtron/util"
-	"math"
-	"reflect"
-	"strconv"
+	globalUtil "github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/infraConfig/bean/v1"
+	"github.com/devtron-labs/devtron/pkg/infraConfig/repository"
+	unitsBean "github.com/devtron-labs/devtron/pkg/infraConfig/units/bean"
+	"net/http"
+	"slices"
 	"strings"
 )
 
-// GetUnitSuffix loosely typed method to get the unit suffix using the unitKey type
-func GetUnitSuffix(unitKey bean.ConfigKeyStr, unitStr string) units.UnitSuffix {
-	switch unitKey {
-	case bean.CPU_LIMIT, bean.CPU_REQUEST:
-		return units.CPUUnitStr(unitStr).GetCPUUnit()
-	case bean.MEMORY_LIMIT, bean.MEMORY_REQUEST:
-		return units.MemoryUnitStr(unitStr).GetMemoryUnit()
+func CreateConfigKeyPlatformMap(configs []*repository.InfraProfileConfigurationEntity) map[v1.ConfigKeyPlatformKey]bool {
+	configMap := make(map[v1.ConfigKeyPlatformKey]bool, len(configs))
+	for _, config := range configs {
+		platform := config.ProfilePlatformMapping.Platform
+		if platform == "" {
+			platform = v1.RUNNER_PLATFORM
+		}
+		configMap[v1.ConfigKeyPlatformKey{Key: config.Key, Platform: platform}] = true
 	}
-	return units.TimeUnitStr(unitStr).GetTimeUnit()
+	return configMap
+}
+
+// GetUnitSuffix loosely typed method to get the unit suffix using the unitKey type
+func GetUnitSuffix(unitKey v1.ConfigKeyStr, unitStr string) unitsBean.UnitType {
+	switch unitKey {
+	case v1.CPU_LIMIT, v1.CPU_REQUEST:
+		return unitsBean.CPUUnitStr(unitStr).GetUnitSuffix()
+	case v1.MEMORY_LIMIT, v1.MEMORY_REQUEST:
+		return unitsBean.MemoryUnitStr(unitStr).GetUnitSuffix()
+	case v1.TIME_OUT:
+		return unitsBean.TimeUnitStr(unitStr).GetUnitSuffix()
+	case v1.TOLERATIONS, v1.NODE_SELECTOR, v1.SECRET, v1.CONFIG_MAP:
+		return unitsBean.NoUnitStr(unitStr).GetUnitSuffix()
+	default:
+		return unitsBean.NoUnitStr(unitStr).GetUnitSuffix()
+	}
 }
 
 // GetUnitSuffixStr loosely typed method to get the unit suffix using the unitKey type
-func GetUnitSuffixStr(unitKey bean.ConfigKey, unit units.UnitSuffix) string {
+func GetUnitSuffixStr(unitKey v1.ConfigKey, unit unitsBean.UnitType) string {
 	switch unitKey {
-	case bean.CPULimitKey, bean.CPURequestKey:
-		return string(unit.GetCPUUnitStr())
-	case bean.MemoryLimitKey, bean.MemoryRequestKey:
-		return string(unit.GetMemoryUnitStr())
+	case v1.CPULimitKey, v1.CPURequestKey:
+		return unit.GetCPUUnitStr().String()
+	case v1.MemoryLimitKey, v1.MemoryRequestKey:
+		return unit.GetMemoryUnitStr().String()
+	case v1.TimeOutKey:
+		return unit.GetTimeUnitStr().String()
+	case v1.TolerationsKey, v1.NodeSelectorKey, v1.SecretKey, v1.ConfigMapKey:
+		return unit.GetNoUnitStr().String()
 	}
-	return string(unit.GetTimeUnitStr())
+	return unit.GetNoUnitStr().String()
 }
 
-// GetDefaultConfigKeysMap returns a map of default config keys
-func GetDefaultConfigKeysMap() map[bean.ConfigKeyStr]bool {
-	return map[bean.ConfigKeyStr]bool{
-		bean.CPU_LIMIT:      true,
-		bean.CPU_REQUEST:    true,
-		bean.MEMORY_LIMIT:   true,
-		bean.MEMORY_REQUEST: true,
-		bean.TIME_OUT:       true,
+// GetDefaultConfigKeysMapV0 returns a map of default config keys
+func GetDefaultConfigKeysMapV0() map[v1.ConfigKeyStr]bool {
+	return map[v1.ConfigKeyStr]bool{
+		v1.CPU_LIMIT:      true,
+		v1.CPU_REQUEST:    true,
+		v1.MEMORY_LIMIT:   true,
+		v1.MEMORY_REQUEST: true,
+		v1.TIME_OUT:       true,
+		// bean.NODE_SELECTOR is added in V1, but maintained for backward compatibility
+		v1.NODE_SELECTOR: true,
+		// bean.TOLERATIONS is added in V1, but maintained for backward compatibility
+		v1.TOLERATIONS: true,
 	}
 }
 
-func GetConfigKeyStr(configKey bean.ConfigKey) bean.ConfigKeyStr {
+// GetConfigKeysMapForPlatform returns a map of config keys supported for a given platform
+func GetConfigKeysMapForPlatform(platform string) v1.InfraConfigKeys {
+	defaultConfigKeys := map[v1.ConfigKeyStr]bool{
+		v1.CPU_LIMIT:      true,
+		v1.CPU_REQUEST:    true,
+		v1.MEMORY_LIMIT:   true,
+		v1.MEMORY_REQUEST: true,
+		v1.NODE_SELECTOR:  true,
+		v1.TOLERATIONS:    true,
+	}
+	if platform == v1.RUNNER_PLATFORM {
+		defaultConfigKeys[v1.TIME_OUT] = true
+		defaultConfigKeys[v1.CONFIG_MAP] = true
+		defaultConfigKeys[v1.SECRET] = true
+	}
+	return defaultConfigKeys
+}
+
+func GetMandatoryConfigKeys(profileName, platformName string) []v1.ConfigKeyStr {
+	if profileName == v1.GLOBAL_PROFILE_NAME {
+		mandatoryConfigs := []v1.ConfigKeyStr{
+			v1.CPU_LIMIT,
+			v1.CPU_REQUEST,
+			v1.MEMORY_LIMIT,
+			v1.MEMORY_REQUEST,
+		}
+		if platformName == v1.RUNNER_PLATFORM {
+			mandatoryConfigs = append(mandatoryConfigs, v1.TIME_OUT)
+		}
+	}
+	return make([]v1.ConfigKeyStr, 0)
+}
+
+func IsAnyRequiredConfigMissing(profileName, platformName string, configuredKeys v1.InfraConfigKeys) bool {
+	mandatoryKeys := GetMandatoryConfigKeys(profileName, platformName)
+	for _, missingKey := range configuredKeys.GetUnConfiguredKeys() {
+		if slices.Contains(mandatoryKeys, missingKey) {
+			return true
+		}
+	}
+	return false
+}
+
+func IsConfigValueRequiredInListing(configKey v1.ConfigKeyStr) bool {
 	switch configKey {
-	case bean.CPULimitKey:
-		return bean.CPU_LIMIT
-	case bean.CPURequestKey:
-		return bean.CPU_REQUEST
-	case bean.MemoryLimitKey:
-		return bean.MEMORY_LIMIT
-	case bean.MemoryRequestKey:
-		return bean.MEMORY_REQUEST
-	case bean.TimeOutKey:
-		return bean.TIME_OUT
+	case v1.CPU_LIMIT,
+		v1.CPU_REQUEST,
+		v1.MEMORY_LIMIT,
+		v1.MEMORY_REQUEST,
+		v1.TIME_OUT:
+		return true
+	case v1.NODE_SELECTOR,
+		v1.TOLERATIONS:
+		// maintained for backward compatibility
+		return true
+	}
+	return false
+}
+
+func GetConfigKeyStr(configKey v1.ConfigKey) v1.ConfigKeyStr {
+	switch configKey {
+	case v1.CPULimitKey:
+		return v1.CPU_LIMIT
+	case v1.CPURequestKey:
+		return v1.CPU_REQUEST
+	case v1.MemoryLimitKey:
+		return v1.MEMORY_LIMIT
+	case v1.MemoryRequestKey:
+		return v1.MEMORY_REQUEST
+	case v1.TimeOutKey:
+		return v1.TIME_OUT
+	case v1.NodeSelectorKey:
+		return v1.NODE_SELECTOR
+	case v1.TolerationsKey:
+		return v1.TOLERATIONS
+	case v1.ConfigMapKey:
+		return v1.CONFIG_MAP
+	case v1.SecretKey:
+		return v1.SECRET
 	}
 	return ""
 }
 
-func GetConfigKey(configKeyStr bean.ConfigKeyStr) bean.ConfigKey {
+func GetConfigKey(configKeyStr v1.ConfigKeyStr) v1.ConfigKey {
 	switch configKeyStr {
-	case bean.CPU_LIMIT:
-		return bean.CPULimitKey
-	case bean.CPU_REQUEST:
-		return bean.CPURequestKey
-	case bean.MEMORY_LIMIT:
-		return bean.MemoryLimitKey
-	case bean.MEMORY_REQUEST:
-		return bean.MemoryRequestKey
-	case bean.TIME_OUT:
-		return bean.TimeOutKey
+	case v1.CPU_LIMIT:
+		return v1.CPULimitKey
+	case v1.CPU_REQUEST:
+		return v1.CPURequestKey
+	case v1.MEMORY_LIMIT:
+		return v1.MemoryLimitKey
+	case v1.MEMORY_REQUEST:
+		return v1.MemoryRequestKey
+	case v1.TIME_OUT:
+		return v1.TimeOutKey
+	case v1.NODE_SELECTOR:
+		return v1.NodeSelectorKey
+	case v1.TOLERATIONS:
+		return v1.TolerationsKey
+	case v1.CONFIG_MAP:
+		return v1.ConfigMapKey
+	case v1.SECRET:
+		return v1.SecretKey
 	}
 	return 0
 }
 
-// todo remove this validation, as it is written additionally due to validator v9.30.0 constraint for map[string]*struct is not handled
-func ValidatePayloadConfig(profileToUpdate *bean.ProfileBeanDto) error {
-	if len(profileToUpdate.Name) == 0 {
-		return errors.New("profile name is required")
+// ValidatePayloadConfig - validates the payload configuration
+func ValidatePayloadConfig(profileToUpdate *v1.ProfileBeanDto) error {
+	if len(profileToUpdate.GetName()) == 0 {
+		errMsg := "profile name is required"
+		return globalUtil.NewApiError(http.StatusBadRequest, errMsg, errMsg)
 	}
 	err := validateProfileAttributes(profileToUpdate.ProfileBeanAbstract)
 	if err != nil {
 		return err
 	}
-	defaultKeyMap := GetDefaultConfigKeysMap()
-	for platform, config := range profileToUpdate.Configurations {
-		err = validatePlatformName(platform, profileToUpdate.BuildxDriverType)
+	for platform, config := range profileToUpdate.GetConfigurations() {
+		supportedConfigKeys := GetConfigKeysMapForPlatform(platform)
+		err = validatePlatformName(platform, profileToUpdate.GetBuildxDriverType())
 		if err != nil {
 			return err
 		}
-		err = validateConfigItems(config, defaultKeyMap)
+		err = validateConfigItems(config, supportedConfigKeys)
 		if err != nil {
 			return err
 		}
-	}
-	return nil
-}
-func validateConfigItems(propertyConfigs []*bean.ConfigurationBean, defaultKeyMap map[bean.ConfigKeyStr]bool) error {
-	var validationErrors []string
-	for _, config := range propertyConfigs {
-		if _, isValidKey := defaultKeyMap[config.Key]; !isValidKey {
-			validationErrors = append(validationErrors, fmt.Sprintf("invalid configuration property \"%s\"", config.Key))
-			continue
-		}
-		//_, err := GetTypedValue(config.Key, config.Value)
-		//if err != nil {
-		//	validationErrors = append(validationErrors, fmt.Sprintf("error in parsing value for key \"%s\": %v", config.Key, err))
-		//	continue
-		//}
-	}
-	// If any validation errors were found, return them as a single error
-	if len(validationErrors) > 0 {
-		return fmt.Errorf("validation errors: %s", strings.Join(validationErrors, "; "))
 	}
 	return nil
 }
 
-func GetTypedValue(configKey bean.ConfigKeyStr, value interface{}) (interface{}, error) {
-	switch configKey {
-	case bean.CPU_LIMIT, bean.CPU_REQUEST, bean.MEMORY_LIMIT, bean.MEMORY_REQUEST:
-		//value is float64 or convertible to it
-		switch v := value.(type) {
-		case string:
-			valueFloat, err := strconv.ParseFloat(v, 64)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse string to float for %s: %w", configKey, err)
-			}
-			return util2.TruncateFloat(valueFloat, 2), nil
-		case float64:
-			return util2.TruncateFloat(v, 2), nil
-		default:
-			return nil, fmt.Errorf("unsupported type for %s: %v", configKey, reflect.TypeOf(value))
+func validateConfigItems(propertyConfigs []*v1.ConfigurationBean, supportedConfigKeys v1.InfraConfigKeys) error {
+	var validationErrors []string
+	for _, config := range propertyConfigs {
+		if !supportedConfigKeys.IsSupported(config.Key) {
+			validationErrors = append(validationErrors, fmt.Sprintf("invalid configuration property %q", config.Key))
+			continue
 		}
-	case bean.TIME_OUT:
-		switch v := value.(type) {
-		case string:
-			valueFloat, err := strconv.ParseFloat(v, 64)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse string to float for %s: %w", configKey, err)
-			}
-			return math.Min(math.Floor(valueFloat), math.MaxInt64), nil
-		case float64:
-			return math.Min(math.Floor(v), math.MaxInt64), nil
-		default:
-			return nil, fmt.Errorf("unsupported type for %s: %v", configKey, reflect.TypeOf(value))
-		}
-	// Default case
-	default:
-		return nil, fmt.Errorf("unsupported config key: %s", configKey)
 	}
+	// If any validation errors were found, return them as a single error
+	if len(validationErrors) > 0 {
+		errMsg := fmt.Sprintf("validation errors: %s", strings.Join(validationErrors, "; "))
+		return globalUtil.NewApiError(http.StatusBadRequest, errMsg, errMsg)
+	}
+	return nil
 }
 
 func IsValidProfileNameRequested(profileName, payloadProfileName string) bool {
 	if len(payloadProfileName) == 0 || len(profileName) == 0 {
 		return false
 	}
-	if profileName == bean.GLOBAL_PROFILE_NAME && payloadProfileName == bean.GLOBAL_PROFILE_NAME {
-		return true
+	if profileName != v1.GLOBAL_PROFILE_NAME && payloadProfileName == v1.GLOBAL_PROFILE_NAME {
+		return false
 	}
-	return false
+	if profileName == v1.GLOBAL_PROFILE_NAME && payloadProfileName != v1.GLOBAL_PROFILE_NAME {
+		return false
+	}
+	return true
 }
 
 func IsValidProfileNameRequestedV0(profileName, payloadProfileName string) bool {
 	if len(payloadProfileName) == 0 || len(profileName) == 0 {
 		return false
 	}
-	if profileName == bean.DEFAULT_PROFILE_NAME && payloadProfileName == bean.DEFAULT_PROFILE_NAME {
-		return true
+	if profileName != v1.DEFAULT_PROFILE_NAME && payloadProfileName == v1.DEFAULT_PROFILE_NAME {
+		return false
 	}
-	return false
+	if profileName == v1.DEFAULT_PROFILE_NAME && payloadProfileName != v1.DEFAULT_PROFILE_NAME {
+		return false
+	}
+	return true
 }
 
-func validatePlatformName(platform string, buildxDriverType bean.BuildxDriver) error {
+func validatePlatformName(platform string, buildxDriverType v1.BuildxDriver) error {
 	if len(platform) == 0 {
-		return errors.New("platform cannot be empty")
+		errMsg := "platform cannot be empty"
+		return globalUtil.NewApiError(http.StatusBadRequest, errMsg, errMsg)
 	}
-	if len(platform) > bean.QualifiedPlatformMaxLength {
-		return errors.New("platform cannot be longer than 50 characters")
+	if len(platform) > v1.QualifiedPlatformMaxLength {
+		errMsg := "platform cannot be longer than 50 characters"
+		return globalUtil.NewApiError(http.StatusBadRequest, errMsg, errMsg)
 	}
 	if !buildxDriverType.IsPlatformSupported(platform) {
-		return fmt.Errorf("invalid platform name: %q. not supported with driver type: %q", platform, buildxDriverType)
+		errMsg := fmt.Sprintf("invalid platform name: %q. not supported with driver type: %q", platform, buildxDriverType)
+		return globalUtil.NewApiError(http.StatusBadRequest, errMsg, errMsg)
 	}
 	return nil
 }
 
-func validateProfileAttributes(profileAbstract bean.ProfileBeanAbstract) error {
-	if len(profileAbstract.Name) > bean.QualifiedProfileMaxLength {
-		return errors.New("profile name is too long")
+func validateProfileAttributes(profileAbstract v1.ProfileBeanAbstract) error {
+	if len(profileAbstract.GetName()) > v1.QualifiedProfileMaxLength {
+		errMsg := "profile name is too long"
+		return globalUtil.NewApiError(http.StatusBadRequest, errMsg, errMsg)
 	}
-	if len(profileAbstract.Name) == 0 {
-		return errors.New("profile name is empty")
+	if len(profileAbstract.GetName()) == 0 {
+		errMsg := "profile name is empty"
+		return globalUtil.NewApiError(http.StatusBadRequest, errMsg, errMsg)
 	}
-	if len(profileAbstract.Description) > bean.QualifiedDescriptionMaxLength {
-		return errors.New("profile description is too long")
+	if len(profileAbstract.GetDescription()) > v1.QualifiedDescriptionMaxLength {
+		errMsg := "profile description is too long"
+		return globalUtil.NewApiError(http.StatusBadRequest, errMsg, errMsg)
 	}
-	if !profileAbstract.BuildxDriverType.IsValid() {
-		return fmt.Errorf("invalid buildx driver type: %q", profileAbstract.BuildxDriverType)
+	if !profileAbstract.GetBuildxDriverType().IsValid() {
+		errMsg := fmt.Sprintf("invalid buildx driver type: %q", profileAbstract.GetBuildxDriverType())
+		return globalUtil.NewApiError(http.StatusBadRequest, errMsg, errMsg)
 	}
 	return nil
 }
