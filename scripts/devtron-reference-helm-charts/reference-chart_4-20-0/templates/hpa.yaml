@@ -22,6 +22,9 @@ metadata:
   {{- if .Values.autoscaling.labels }}
 {{ toYaml .Values.autoscaling.labels | indent 4 }}
   {{- end }}
+{{- if $.Values.appLabels }}
+{{ toYaml $.Values.appLabels | indent 4 }}
+{{- end }}  
 spec:
   scaleTargetRef:
     apiVersion: argoproj.io/v1alpha1
