@@ -779,14 +779,16 @@ func (impl ImageScanServiceImpl) fetchLatestArtifactMetadataDeployedOnAllEnvsAcr
 		}
 		appEnvToCiArtifactMap[bean3.NewAppEnvMetadata(item.AppId, item.EnvId)] = ciArtifactId
 	}
-	parentCiArtifacts, err := impl.ciArtifactRepository.GetByIds(parentCiArtifactIds)
-	if err != nil {
-		impl.Logger.Errorw("error in getting artifacts by ids", "ids", parentCiArtifactIds, "err", err)
-		return nil, nil, err
-	}
-	for _, parentCiArtifact := range parentCiArtifacts {
-		// for linked ci case
-		ciArtifactIdToScannedMap[parentCiArtifact.Id] = parentCiArtifact.Scanned
+	if len(parentCiArtifactIds) > 0 {
+		parentCiArtifacts, err := impl.ciArtifactRepository.GetByIds(parentCiArtifactIds)
+		if err != nil {
+			impl.Logger.Errorw("error in getting artifacts by ids", "ids", parentCiArtifactIds, "err", err)
+			return nil, nil, err
+		}
+		for _, parentCiArtifact := range parentCiArtifacts {
+			// for linked ci case
+			ciArtifactIdToScannedMap[parentCiArtifact.Id] = parentCiArtifact.Scanned
+		}
 	}
 	return appEnvToCiArtifactMap, ciArtifactIdToScannedMap, nil
 }
