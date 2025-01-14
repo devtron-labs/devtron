@@ -559,7 +559,9 @@ ConfigSecrets:
  enabled: false
  secrets: []
  enabled: false
- secrets:  []
+ secrets: []
+ enabled: false
+ secrets: []
   #  data:
   #   key1: key1value-1
   #   key2: key2value-1
