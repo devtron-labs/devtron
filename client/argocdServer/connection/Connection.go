@@ -75,6 +75,7 @@ func (impl *ArgoCDConnectionManagerImpl) GetConnection(token string) *grpc.Clien
 	}
 	option = append(option, grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor, otelgrpc.UnaryClientInterceptor()), grpc.WithChainStreamInterceptor(grpc_prometheus.StreamClientInterceptor, otelgrpc.StreamClientInterceptor()))
 	conn, err := grpc.Dial(fmt.Sprintf("%s:%s", conf.Host, conf.Port), option...)
+	impl.logger.Infow("ACD conf", "conf", conf, "options", option)
 	if err != nil {
 		return nil
 	}
