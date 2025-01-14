@@ -39,8 +39,8 @@ import (
 )
 
 const (
-	DEVTRON_USER                     = "devtron"
-	DEVTRONCD_NAMESPACE              = "devtroncd"
+	DEVTRON_USER                     = "ajay"
+	DEVTRONCD_NAMESPACE              = "ajay"
 	ARGOCD_CM                        = "argocd-cm"
 	ARGOCD_SECRET                    = "argocd-secret"
 	ARGO_USER_APIKEY_CAPABILITY      = "apiKey"
