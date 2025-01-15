@@ -667,16 +667,16 @@ func (impl *InfraConfigServiceImpl) sanitizeCreatableConfigurations(userId int32
 	// Create a map with composite keys (Key|Platform) for existing configurations
 	existingConfigMap := make(map[string]*repository.InfraProfileConfigurationEntity, len(existingConfigurations))
 	for _, existingConfig := range existingConfigurations {
-		compositeKey := fmt.Sprintf("%s|%s", util.GetConfigKeyStr(existingConfig.Key), existingConfig.UniqueId)
+		compositeKey := util.GetConfigCompositeKey(existingConfig)
 		existingConfigMap[compositeKey] = existingConfig
 	}
 
 	// Collect duplicate configurations
 	var duplicateConfigs []string
-	for _, config := range creatableInfraConfigurations {
-		compositeKey := fmt.Sprintf("%s|%s", util.GetConfigKeyStr(config.Key), config.UniqueId)
+	for _, creatableConfig := range creatableInfraConfigurations {
+		compositeKey := util.GetConfigCompositeKey(creatableConfig)
 		if _, exists := existingConfigMap[compositeKey]; exists {
-			duplicateConfigs = append(duplicateConfigs, fmt.Sprintf("Key: %s, UniqueId: %s", util.GetConfigKeyStr(config.Key), config.UniqueId))
+			duplicateConfigs = append(duplicateConfigs, fmt.Sprintf("Key: %s, UniqueId: %s", util.GetConfigKeyStr(creatableConfig.Key), creatableConfig.UniqueId))
 		}
 	}
 	// If duplicates are found, log and return an error

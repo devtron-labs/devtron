@@ -23,6 +23,44 @@ import (
 	"net/http"
 )
 
+func getEntConfigKeyStr(configKey v1.ConfigKey) v1.ConfigKeyStr {
+	switch configKey {
+	case v1.NodeSelectorKey:
+		return v1.NODE_SELECTOR
+	case v1.TolerationsKey:
+		return v1.TOLERATIONS
+	case v1.ConfigMapKey:
+		return v1.CONFIG_MAP
+	case v1.SecretKey:
+		return v1.SECRET
+	}
+	return ""
+}
+
+func getEntConfigKey(configKeyStr v1.ConfigKeyStr) v1.ConfigKey {
+	switch configKeyStr {
+	case v1.NODE_SELECTOR:
+		return v1.NodeSelectorKey
+	case v1.TOLERATIONS:
+		return v1.TolerationsKey
+	case v1.CONFIG_MAP:
+		return v1.ConfigMapKey
+	case v1.SECRET:
+		return v1.SecretKey
+	}
+	return 0
+}
+
+func getConfigKeysMapForPlatformEnt(defaultConfigKeys v1.InfraConfigKeys, platform string) v1.InfraConfigKeys {
+	defaultConfigKeys[v1.NODE_SELECTOR] = true
+	defaultConfigKeys[v1.TOLERATIONS] = true
+	if platform == v1.RUNNER_PLATFORM {
+		defaultConfigKeys[v1.CONFIG_MAP] = true
+		defaultConfigKeys[v1.SECRET] = true
+	}
+	return defaultConfigKeys
+}
+
 func IsValidProfileNameRequested(profileName, payloadProfileName string) bool {
 	if len(payloadProfileName) == 0 || len(profileName) == 0 {
 		return false

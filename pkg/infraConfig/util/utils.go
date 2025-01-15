@@ -78,9 +78,9 @@ func GetDefaultConfigKeysMapV0() map[v1.ConfigKeyStr]bool {
 		v1.MEMORY_LIMIT:   true,
 		v1.MEMORY_REQUEST: true,
 		v1.TIME_OUT:       true,
-		// bean.NODE_SELECTOR is added in V1, but maintained for backward compatibility
+		// v1.NODE_SELECTOR is added in V1, but maintained for backward compatibility
 		v1.NODE_SELECTOR: true,
-		// bean.TOLERATIONS is added in V1, but maintained for backward compatibility
+		// v1.TOLERATIONS is added in V1, but maintained for backward compatibility
 		v1.TOLERATIONS: true,
 	}
 }
@@ -92,15 +92,11 @@ func GetConfigKeysMapForPlatform(platform string) v1.InfraConfigKeys {
 		v1.CPU_REQUEST:    true,
 		v1.MEMORY_LIMIT:   true,
 		v1.MEMORY_REQUEST: true,
-		v1.NODE_SELECTOR:  true,
-		v1.TOLERATIONS:    true,
 	}
 	if platform == v1.RUNNER_PLATFORM {
 		defaultConfigKeys[v1.TIME_OUT] = true
-		defaultConfigKeys[v1.CONFIG_MAP] = true
-		defaultConfigKeys[v1.SECRET] = true
 	}
-	return defaultConfigKeys
+	return getConfigKeysMapForPlatformEnt(defaultConfigKeys, platform)
 }
 
 func GetMandatoryConfigKeys(profileName, platformName string) []v1.ConfigKeyStr {
@@ -128,20 +124,8 @@ func IsAnyRequiredConfigMissing(profileName, platformName string, configuredKeys
 	return false
 }
 
-func IsConfigValueRequiredInListing(configKey v1.ConfigKeyStr) bool {
-	switch configKey {
-	case v1.CPU_LIMIT,
-		v1.CPU_REQUEST,
-		v1.MEMORY_LIMIT,
-		v1.MEMORY_REQUEST,
-		v1.TIME_OUT:
-		return true
-	case v1.NODE_SELECTOR,
-		v1.TOLERATIONS:
-		// maintained for backward compatibility
-		return true
-	}
-	return false
+func GetConfigCompositeKey(config *repository.InfraProfileConfigurationEntity) string {
+	return fmt.Sprintf("%s|%s", GetConfigKeyStr(config.Key), config.UniqueId)
 }
 
 func GetConfigKeyStr(configKey v1.ConfigKey) v1.ConfigKeyStr {
@@ -156,16 +140,8 @@ func GetConfigKeyStr(configKey v1.ConfigKey) v1.ConfigKeyStr {
 		return v1.MEMORY_REQUEST
 	case v1.TimeOutKey:
 		return v1.TIME_OUT
-	case v1.NodeSelectorKey:
-		return v1.NODE_SELECTOR
-	case v1.TolerationsKey:
-		return v1.TOLERATIONS
-	case v1.ConfigMapKey:
-		return v1.CONFIG_MAP
-	case v1.SecretKey:
-		return v1.SECRET
 	}
-	return ""
+	return getEntConfigKeyStr(configKey)
 }
 
 func GetConfigKey(configKeyStr v1.ConfigKeyStr) v1.ConfigKey {
@@ -180,16 +156,8 @@ func GetConfigKey(configKeyStr v1.ConfigKeyStr) v1.ConfigKey {
 		return v1.MemoryRequestKey
 	case v1.TIME_OUT:
 		return v1.TimeOutKey
-	case v1.NODE_SELECTOR:
-		return v1.NodeSelectorKey
-	case v1.TOLERATIONS:
-		return v1.TolerationsKey
-	case v1.CONFIG_MAP:
-		return v1.ConfigMapKey
-	case v1.SECRET:
-		return v1.SecretKey
 	}
-	return 0
+	return getEntConfigKey(configKeyStr)
 }
 
 // ValidatePayloadConfig - validates the payload configuration
