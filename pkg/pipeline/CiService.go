@@ -829,7 +829,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		workflowRequest.AppName = pipeline.App.DisplayName
 	}
 	if pipeline.ScanEnabled {
-		scanToolMetadata, scanVia, err := impl.fetchScanVia()
+		scanToolMetadata, scanVia, err := impl.fetchImageScanExecutionMedium()
 		if err != nil {
 			impl.Logger.Errorw("error occurred getting scanned via", "err", err)
 			return nil, err
