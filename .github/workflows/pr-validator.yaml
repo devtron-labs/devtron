@@ -116,6 +116,10 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GH_TOKEN }}
       run: |
+        # Get the target (base) and source (head) branches
+        BASE_BRANCH="${{ github.event.pull_request.base.ref }}"
+        HEAD_BRANCH="${{ github.event.pull_request.head.ref }}"
+
         # Fetch the latest changes from the base and target branches
         git fetch origin "$BASE_BRANCH"
         git fetch origin "$HEAD_BRANCH"
