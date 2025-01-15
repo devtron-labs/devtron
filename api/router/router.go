@@ -41,6 +41,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/router/app"
 	"github.com/devtron-labs/devtron/api/router/app/configDiff"
+	"github.com/devtron-labs/devtron/api/scanTool"
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/team"
 	terminal2 "github.com/devtron-labs/devtron/api/terminal"
@@ -122,6 +123,7 @@ type MuxRouter struct {
 	fluxApplicationRouter              fluxApplication2.FluxApplicationRouter
 	devtronResourceRouter              devtronResource.DevtronResourceRouter
 	scanningResultRouter               resourceScan.ScanningResultRouter
+	scanToolMetadataRouter             scanTool.ScanToolRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger,
@@ -156,6 +158,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 	devtronResourceRouter devtronResource.DevtronResourceRouter,
 	fluxApplicationRouter fluxApplication2.FluxApplicationRouter,
 	scanningResultRouter resourceScan.ScanningResultRouter,
+	scanToolMetadataRouter scanTool.ScanToolRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
@@ -222,6 +225,7 @@ func NewMuxRouter(logger *zap.SugaredLogger,
 		devtronResourceRouter:              devtronResourceRouter,
 		fluxApplicationRouter:              fluxApplicationRouter,
 		scanningResultRouter:               scanningResultRouter,
+		scanToolMetadataRouter:             scanToolMetadataRouter,
 	}
 	return r
 }
@@ -324,6 +328,7 @@ func (r MuxRouter) Init() {
 
 	imageScanRouter := r.Router.PathPrefix("/orchestrator/security/scan").Subrouter()
 	r.imageScanRouter.InitImageScanRouter(imageScanRouter)
+	r.scanToolMetadataRouter.InitScanToolMetadataRouter(imageScanRouter)
 
 	scanResultRouter := r.Router.PathPrefix("/orchestrator/scan-result").Subrouter()
 	r.scanningResultRouter.InitScanningResultRouter(scanResultRouter)

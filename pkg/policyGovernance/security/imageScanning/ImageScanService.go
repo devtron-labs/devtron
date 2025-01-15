@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/helper/parser"
 	repository3 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool/repository"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/read"
 	"go.opentelemetry.io/otel"
 	"time"
@@ -67,7 +68,7 @@ type ImageScanServiceImpl struct {
 	policyService                             PolicyService
 	pipelineRepository                        pipelineConfig.PipelineRepository
 	ciPipelineRepository                      pipelineConfig.CiPipelineRepository
-	scanToolMetaDataRepository                repository3.ScanToolMetadataRepository
+	scanToolMetaDataRepository                repository2.ScanToolMetadataRepository
 	scanToolExecutionHistoryMappingRepository repository3.ScanToolExecutionHistoryMappingRepository
 	cvePolicyRepository                       repository3.CvePolicyRepository
 	cdWorkflowReadService                     read.CdWorkflowReadService
@@ -79,7 +80,7 @@ func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository re
 	userService user.UserService,
 	appRepository repository1.AppRepository,
 	envService environment.EnvironmentService, ciArtifactRepository repository.CiArtifactRepository, policyService PolicyService,
-	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository, scanToolMetaDataRepository repository3.ScanToolMetadataRepository, scanToolExecutionHistoryMappingRepository repository3.ScanToolExecutionHistoryMappingRepository,
+	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository, scanToolMetaDataRepository repository2.ScanToolMetadataRepository, scanToolExecutionHistoryMappingRepository repository3.ScanToolExecutionHistoryMappingRepository,
 	cvePolicyRepository repository3.CvePolicyRepository,
 	cdWorkflowReadService read.CdWorkflowReadService) *ImageScanServiceImpl {
 	return &ImageScanServiceImpl{Logger: Logger, scanHistoryRepository: scanHistoryRepository, scanResultRepository: scanResultRepository,

@@ -1,7 +1,7 @@
-package imageScanning
+package scanTool
 
 import (
-	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -9,6 +9,7 @@ import (
 type ScanToolMetadataService interface {
 	MarkToolAsActive(toolName, version string, tx *pg.Tx) error
 	MarkOtherToolsInActive(toolName string, tx *pg.Tx, version string) error
+	MartToolActiveOrInActiveByNameAndVersion(toolName, version string, isActive bool) error
 }
 
 type ScanToolMetadataServiceImpl struct {
@@ -29,4 +30,8 @@ func (impl *ScanToolMetadataServiceImpl) MarkToolAsActive(toolName, version stri
 
 func (impl *ScanToolMetadataServiceImpl) MarkOtherToolsInActive(toolName string, tx *pg.Tx, version string) error {
 	return impl.scanToolMetadataRepository.MarkOtherToolsInActive(toolName, tx, version)
+}
+
+func (impl *ScanToolMetadataServiceImpl) MartToolActiveOrInActiveByNameAndVersion(toolName, version string, isActive bool) error {
+	return impl.scanToolMetadataRepository.MartToolActiveOrInActiveByNameAndVersion(toolName, version, isActive)
 }
