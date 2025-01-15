@@ -126,9 +126,11 @@ jobs:
 
         MIGRATION_DIR="scripts/sql"
 
+        echo "starting to get changes"
         # Get changed .up.sql files between the base and head branches
         changed_files=$(git diff origin/"$BASE_BRANCH"...origin/"$HEAD_BRANCH" --name-only | grep "$MIGRATION_DIR" | grep ".up.sql")
 
+        echo "got changed files"
         if [[ -z "$changed_files" ]]; then
           echo "No .up.sql migration files found."
           exit 0
