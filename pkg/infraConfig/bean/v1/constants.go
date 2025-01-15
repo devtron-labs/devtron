@@ -26,6 +26,3 @@ const QualifiedProfileMaxLength int = 50
 
 // QualifiedDescriptionMaxLength is the maximum length of an infra profile description
 const QualifiedDescriptionMaxLength int = 350
-
-// QualifiedPlatformMaxLength is the maximum length of an infra profile platform name
-const QualifiedPlatformMaxLength int = 50
