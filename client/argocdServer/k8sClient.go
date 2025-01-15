@@ -72,7 +72,7 @@ func NewArgoK8sClientImpl(logger *zap.SugaredLogger,
 	}
 }
 
-const DevtronInstalationNs = "devtroncd"
+const DevtronInstalationNs = "ajay"
 
 // Tprintf passed template string is formatted usign its operands and returns the resulting string.
 // Spaces are added between operands when neither is a string.
