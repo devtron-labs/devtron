@@ -81,6 +81,7 @@ jobs:
         # Fetch issue details with curl
         fetch_issue_status() {
           local url="$1"
+          echo "url -> url"
           if [[ "$repo" == "devtron-labs/devtron" || "$repo" == "devtron-labs/devtron-services" || "$repo" == "devtron-labs/dashboard" ]]; then
             curl -s "$url"
           else
@@ -90,6 +91,8 @@ jobs:
 
         # Get the issue response
         response=$(fetch_issue_status "$ISSUE_API_URL")
+
+        echo "response : $response "
         status_code=$(echo "$response" | jq -r '.status_code')
 
         # Handle response based on status code
