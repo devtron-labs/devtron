@@ -221,21 +221,6 @@ func NewInfraProfileConfigEntity(key v1.ConfigKeyStr, profileId int, platform st
 	}
 }
 
-// NewInheritedEntityForPlatform creates a new instance of repository.InfraProfileConfigurationEntity from existing entity, but for a different platform.
-// Used for creating missing configuration entities for migration flow.
-func NewInheritedEntityForPlatform(entity *repository.InfraProfileConfigurationEntity, platform string, userId int32) *repository.InfraProfileConfigurationEntity {
-	return &repository.InfraProfileConfigurationEntity{
-		Key:         entity.Key,
-		Unit:        entity.Unit,
-		Value:       entity.Value, // maintained for backward compatibility
-		ValueString: entity.ValueString,
-		ProfileId:   entity.ProfilePlatformMapping.ProfileId, // maintained for backward compatibility
-		UniqueId:    repository.GetUniqueId(entity.ProfilePlatformMapping.ProfileId, platform),
-		Active:      entity.Active,
-		AuditLog:    sql.NewDefaultAuditLog(userId),
-	}
-}
-
 // UpdatePlatformMappingInConfigEntities
 //   - updates the ProfilePlatformMappingId in the repository.InfraProfileConfigurationEntity
 func UpdatePlatformMappingInConfigEntities(infraConfigurations []*repository.InfraProfileConfigurationEntity,
