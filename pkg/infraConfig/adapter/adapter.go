@@ -144,7 +144,7 @@ func ConvertToV0ConfigBeans(configBeans []*v1.ConfigurationBean) []v0.Configurat
 	}
 	resp := make([]v0.ConfigurationBeanV0, 0)
 	for _, configBean := range configBeans {
-		if !slices.Contains(v1.V0ConfigKeys, configBean.Key) {
+		if !slices.Contains(v1.AllConfigKeysV0, configBean.Key) {
 			// here skipping the value for the NodeSelectors and TolerationsKey
 			continue
 		}

@@ -110,11 +110,11 @@ const (
 	SECRET        ConfigKeyStr = "cs"
 )
 
-// V0ConfigKeys contains the list of supported configuration keys in V0
-var V0ConfigKeys = []ConfigKeyStr{CPU_LIMIT, CPU_REQUEST, MEMORY_LIMIT, MEMORY_REQUEST, TIME_OUT}
+// AllConfigKeysV0 contains the list of supported configuration keys in V0
+var AllConfigKeysV0 = []ConfigKeyStr{CPU_LIMIT, CPU_REQUEST, MEMORY_LIMIT, MEMORY_REQUEST, TIME_OUT}
 
-// V1ConfigKeys contains the list of supported configuration keys in V1
-var V1ConfigKeys = append(V0ConfigKeys, []ConfigKeyStr{NODE_SELECTOR, TOLERATIONS, CONFIG_MAP, SECRET}...)
+// AllConfigKeysV1 contains the list of supported configuration keys in V1
+var AllConfigKeysV1 = append(AllConfigKeysV0, []ConfigKeyStr{NODE_SELECTOR, TOLERATIONS, CONFIG_MAP, SECRET}...)
 
 type InfraConfigKeys map[ConfigKeyStr]bool
 
@@ -128,6 +128,16 @@ func (s InfraConfigKeys) IsSupported(key ConfigKeyStr) bool {
 
 func (s InfraConfigKeys) IsConfigured(key ConfigKeyStr) bool {
 	return s.IsSupported(key) && !s[key]
+}
+
+func (s InfraConfigKeys) GetAllSupportedKeys() []ConfigKeyStr {
+	keys := make([]ConfigKeyStr, 0)
+	for key := range s {
+		if s.IsSupported(key) {
+			keys = append(keys, key)
+		}
+	}
+	return keys
 }
 
 func (s InfraConfigKeys) GetUnConfiguredKeys() []ConfigKeyStr {

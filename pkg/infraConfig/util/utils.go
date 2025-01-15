@@ -101,15 +101,7 @@ func GetConfigKeysMapForPlatform(platform string) v1.InfraConfigKeys {
 
 func GetMandatoryConfigKeys(profileName, platformName string) []v1.ConfigKeyStr {
 	if profileName == v1.GLOBAL_PROFILE_NAME {
-		mandatoryConfigs := []v1.ConfigKeyStr{
-			v1.CPU_LIMIT,
-			v1.CPU_REQUEST,
-			v1.MEMORY_LIMIT,
-			v1.MEMORY_REQUEST,
-		}
-		if platformName == v1.RUNNER_PLATFORM {
-			mandatoryConfigs = append(mandatoryConfigs, v1.TIME_OUT)
-		}
+		return GetConfigKeysMapForPlatform(platformName).GetAllSupportedKeys()
 	}
 	return make([]v1.ConfigKeyStr, 0)
 }
