@@ -800,6 +800,7 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		TriggeredBy:        workflow.TriggeredBy,
 		TriggeredByEmail:   triggeredByUserEmailId,
 		Artifact:           ciArtifact.Image,
+		TargetPlatforms:    adapter2.GetTargetPlatformObjectFromString(ciArtifact.TargetPlatforms),
 		ArtifactId:         ciArtifact.Id,
 		IsArtifactUploaded: isArtifactUploaded,
 		EnvironmentId:      workflow.EnvironmentId,
