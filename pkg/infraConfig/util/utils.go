@@ -232,32 +232,6 @@ func validateConfigItems(propertyConfigs []*v1.ConfigurationBean, supportedConfi
 	return nil
 }
 
-func IsValidProfileNameRequested(profileName, payloadProfileName string) bool {
-	if len(payloadProfileName) == 0 || len(profileName) == 0 {
-		return false
-	}
-	if profileName != v1.GLOBAL_PROFILE_NAME && payloadProfileName == v1.GLOBAL_PROFILE_NAME {
-		return false
-	}
-	if profileName == v1.GLOBAL_PROFILE_NAME && payloadProfileName != v1.GLOBAL_PROFILE_NAME {
-		return false
-	}
-	return true
-}
-
-func IsValidProfileNameRequestedV0(profileName, payloadProfileName string) bool {
-	if len(payloadProfileName) == 0 || len(profileName) == 0 {
-		return false
-	}
-	if profileName != v1.DEFAULT_PROFILE_NAME && payloadProfileName == v1.DEFAULT_PROFILE_NAME {
-		return false
-	}
-	if profileName == v1.DEFAULT_PROFILE_NAME && payloadProfileName != v1.DEFAULT_PROFILE_NAME {
-		return false
-	}
-	return true
-}
-
 func validatePlatformName(platform string, buildxDriverType v1.BuildxDriver) error {
 	if len(platform) == 0 {
 		errMsg := "platform cannot be empty"

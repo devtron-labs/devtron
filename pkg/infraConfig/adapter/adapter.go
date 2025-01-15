@@ -53,19 +53,20 @@ func GetV0ProfileBean(profileBean *v1.ProfileBeanDto) *v0.ProfileBeanV0 {
 	}
 
 	ciRunnerConfig := profileBean.GetConfigurations()[v1.RUNNER_PLATFORM]
-	return &v0.ProfileBeanV0{
+	profileV0Bean := &v0.ProfileBeanV0{
 		ProfileBeanAbstract: v1.ProfileBeanAbstract{
-			Id:               profileBean.Id,
-			Name:             profileName,
-			Description:      profileBean.GetDescription(),
-			BuildxDriverType: profileBean.GetBuildxDriverType(),
-			Active:           profileBean.Active,
-			Type:             profileType,
-			AppCount:         profileBean.AppCount,
+			Id:          profileBean.Id,
+			Name:        profileName,
+			Description: profileBean.GetDescription(),
+			Active:      profileBean.Active,
+			Type:        profileType,
+			AppCount:    profileBean.AppCount,
 		},
+
 		Configurations: ConvertToV0ConfigBeans(ciRunnerConfig),
 	}
-
+	profileV0Bean.BuildxDriverType = profileBean.GetBuildxDriverType()
+	return profileV0Bean
 }
 
 // ConvertToV1ProfileBean converts V0 ProfileBean to V1 ProfileBean
@@ -82,18 +83,19 @@ func ConvertToV1ProfileBean(profileBean *v0.ProfileBeanV0) *v1.ProfileBeanDto {
 	if profileType == v1.GLOBAL {
 		profileType = v1.DEFAULT
 	}
-	return &v1.ProfileBeanDto{
+	newProfileBean := &v1.ProfileBeanDto{
 		ProfileBeanAbstract: v1.ProfileBeanAbstract{
-			Id:               profileBean.Id,
-			Name:             profileName,
-			Description:      profileBean.GetDescription(),
-			BuildxDriverType: profileBean.GetBuildxDriverType(),
-			Active:           profileBean.Active,
-			Type:             profileType,
-			AppCount:         profileBean.AppCount,
+			Id:          profileBean.Id,
+			Name:        profileName,
+			Description: profileBean.GetDescription(),
+			Active:      profileBean.Active,
+			Type:        profileType,
+			AppCount:    profileBean.AppCount,
 		},
 		Configurations: map[string][]*v1.ConfigurationBean{v1.RUNNER_PLATFORM: getV1ConfigBeans(profileBean.Configurations)},
 	}
+	newProfileBean.BuildxDriverType = profileBean.GetBuildxDriverType()
+	return newProfileBean
 }
 
 func getV1ConfigBeans(configBeans []v0.ConfigurationBeanV0) []*v1.ConfigurationBean {
@@ -168,16 +170,17 @@ func ConvertToProfileBean(infraProfile *repository.InfraProfileEntity) *v1.Profi
 	if infraProfile.Name != v1.GLOBAL_PROFILE_NAME {
 		profileType = v1.NORMAL
 	}
-	return &v1.ProfileBeanDto{
+	newProfileBean := &v1.ProfileBeanDto{
 		ProfileBeanAbstract: v1.ProfileBeanAbstract{
-			Id:               infraProfile.Id,
-			Name:             infraProfile.Name,
-			Type:             profileType,
-			BuildxDriverType: infraProfile.BuildxDriverType,
-			Description:      infraProfile.Description,
-			Active:           infraProfile.Active,
+			Id:          infraProfile.Id,
+			Name:        infraProfile.Name,
+			Type:        profileType,
+			Description: infraProfile.Description,
+			Active:      infraProfile.Active,
 		},
 	}
+	newProfileBean.BuildxDriverType = infraProfile.BuildxDriverType
+	return newProfileBean
 }
 
 // ConvertToInfraProfileEntity converts *bean.ProfileBeanDto to *repository.InfraProfileEntity

@@ -12,13 +12,6 @@ type ProfileBeanDto struct {
 	Configurations map[string][]*ConfigurationBean `json:"configurations"`
 }
 
-func (profileBean *ProfileBeanDto) GetBuildxDriverType() BuildxDriver {
-	if profileBean == nil {
-		return ""
-	}
-	return profileBean.ProfileBeanAbstract.GetBuildxDriverType()
-}
-
 func (profileBean *ProfileBeanDto) GetDescription() string {
 	if profileBean == nil {
 		return ""
@@ -66,24 +59,13 @@ func (profileBean *ProfileBeanDto) SetPlatformConfigurations(platform string, co
 }
 
 type ProfileBeanAbstract struct {
-	Id               int          `json:"id"`
-	Name             string       `json:"name" validate:"required,min=1,max=50"`
-	Description      string       `json:"description" validate:"max=350"`
-	BuildxDriverType BuildxDriver `json:"buildxDriverType" default:"kubernetes"`
-	Active           bool         `json:"active"`
-	Type             ProfileType  `json:"type"`
-	AppCount         int          `json:"appCount"`
-}
-
-func (p *ProfileBeanAbstract) GetBuildxDriverType() BuildxDriver {
-	if p == nil {
-		return ""
-	}
-	if len(p.BuildxDriverType) == 0 {
-		// the default driver is k8s for new profiles
-		return BuildxK8sDriver
-	}
-	return p.BuildxDriverType
+	Id          int         `json:"id"`
+	Name        string      `json:"name" validate:"required,min=1,max=50"`
+	Description string      `json:"description" validate:"max=350"`
+	Active      bool        `json:"active"`
+	Type        ProfileType `json:"type"`
+	AppCount    int         `json:"appCount"`
+	ProfileBeanAbstractEnt
 }
 
 func (p *ProfileBeanAbstract) GetDescription() string {
