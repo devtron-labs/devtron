@@ -579,7 +579,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	infraConfigClientImpl := config3.NewInfraConfigClient(sugaredLogger, scopedVariableManagerImpl)
+	infraConfigClientImpl := config3.NewInfraConfigClient(sugaredLogger, scopedVariableManagerImpl, configReadServiceImpl)
 	infraConfigServiceImpl, err := service2.NewInfraConfigServiceImpl(sugaredLogger, infraConfigRepositoryImpl, appServiceImpl, devtronResourceSearchableKeyServiceImpl, qualifierMappingServiceImpl, attributesServiceImpl, infraConfigClientImpl, environmentVariables)
 	if err != nil {
 		return nil, err
