@@ -10,16 +10,18 @@ type ImageScanningSteps struct {
 	ScanToolId int                `json:"scanToolId"`
 }
 
-func NewImageScanningSteps() *ImageScanningSteps {
+func NewImageScanningStepsDto() *ImageScanningSteps {
 	return &ImageScanningSteps{}
 }
 
-func (r *ImageScanningSteps) WithSteps(steps []*bean.StepObject) {
+func (r *ImageScanningSteps) WithSteps(steps []*bean.StepObject) *ImageScanningSteps {
 	r.Steps = steps
+	return r
 }
 
-func (r *ImageScanningSteps) WithScanToolId(scanToolId int) {
+func (r *ImageScanningSteps) WithScanToolId(scanToolId int) *ImageScanningSteps {
 	r.ScanToolId = scanToolId
+	return r
 }
 
 func (workflowRequest *WorkflowRequest) SetExecuteImageScanningVia(scanVia bean2.ExecutionMedium) {
