@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	globalUtil "github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/config/read"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/adapter"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/bean/v1"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/repository"
@@ -38,10 +39,11 @@ type InfraConfigClientImpl struct {
 }
 
 func NewInfraConfigClient(logger *zap.SugaredLogger,
-	scopedVariableManager variables.ScopedVariableManager) *InfraConfigClientImpl {
+	scopedVariableManager variables.ScopedVariableManager,
+	configReadService read.ConfigReadService) *InfraConfigClientImpl {
 	return &InfraConfigClientImpl{
 		logger:          logger,
-		configFactories: getConfigFactory(logger, scopedVariableManager),
+		configFactories: getConfigFactory(logger, scopedVariableManager, configReadService),
 		unitFactoryMap:  getUnitFactoryMap(logger),
 	}
 }

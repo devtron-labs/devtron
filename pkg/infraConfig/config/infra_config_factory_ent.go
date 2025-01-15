@@ -1,15 +1,15 @@
 package config
 
 import (
+	"github.com/devtron-labs/devtron/pkg/config/read"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"go.uber.org/zap"
 )
 
-// TODO: Add read.ConfigReadService to the function signature after creating one.
-
 func getConfigFactory(logger *zap.SugaredLogger,
-	scopedVariableManager variables.ScopedVariableManager) *configFactories {
+	scopedVariableManager variables.ScopedVariableManager,
+	configReadService read.ConfigReadService) *configFactories {
 	return &configFactories{
 		cpuConfigFactory:     newCPUClientImpl(logger),
 		memConfigFactory:     newMemClientImpl(logger),
