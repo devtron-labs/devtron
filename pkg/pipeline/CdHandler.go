@@ -612,7 +612,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		triggeredByUserEmailId = "anonymous"
 	}
 	ciArtifactId := workflow.CiArtifactId
-	targetPlatforms := []pipelineBean.TargetPlatform{}
+	targetPlatforms := []*pipelineBean.TargetPlatform{}
 	if ciArtifactId > 0 {
 		ciArtifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
 		if err != nil {

@@ -557,7 +557,7 @@ type GitTriggerInfoResponse struct {
 	Default          bool                                        `json:"default,omitempty"`
 	ImageTaggingData ImageTaggingResponseDTO                     `json:"imageTaggingData"`
 	Image            string                                      `json:"image"`
-	TargetPlatforms  []bean.TargetPlatform                       `json:"targetPlatforms"`
+	TargetPlatforms  []*bean.TargetPlatform                      `json:"targetPlatforms"`
 }
 
 type Trigger struct {
