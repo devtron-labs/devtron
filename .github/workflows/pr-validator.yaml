@@ -116,11 +116,18 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GH_TOKEN }}
       run: |
-        TARGET_BRANCH="${{ github.event.pull_request.base.ref }}"
-        git fetch origin "$TARGET_BRANCH"
+        # Get the target (base) and source (head) branches
+        BASE_BRANCH="${{ github.event.pull_request.base.ref }}"
+        HEAD_BRANCH="${{ github.event.pull_request.head.ref }}"
+
+        # Fetch both base and head branches
+        git fetch origin "$BASE_BRANCH"
+        git fetch origin "$HEAD_BRANCH"
 
         MIGRATION_DIR="scripts/sql"
-        changed_files=$(git diff origin/"$TARGET_BRANCH"...HEAD --name-only | grep "$MIGRATION_DIR" | grep ".up.sql")
+
+        # Get changed .up.sql files between the base and head branches
+        changed_files=$(git diff origin/"$BASE_BRANCH"...origin/"$HEAD_BRANCH" --name-only | grep "$MIGRATION_DIR" | grep ".up.sql")
 
         if [[ -z "$changed_files" ]]; then
           echo "No .up.sql migration files found."
