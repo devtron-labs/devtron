@@ -359,3 +359,146 @@ func (impl *InfraConfigClientImpl) getConfigurationBean(infraProfileConfiguratio
 		Value: valueInterface,
 	}, nil
 }
+
+func (impl *InfraConfigClientImpl) formatTypedValueAsString(configKey v1.ConfigKeyStr, configValue any) (string, error) {
+	switch configKey {
+	case v1.CPU_LIMIT, v1.CPU_REQUEST:
+		return impl.getCPUConfigFactory().formatTypedValueAsString(configValue)
+	case v1.MEMORY_LIMIT, v1.MEMORY_REQUEST:
+		return impl.getMemoryConfigFactory().formatTypedValueAsString(configValue)
+	case v1.TIME_OUT:
+		return impl.getTimeoutConfigFactory().formatTypedValueAsString(configValue)
+	default:
+		return impl.formatTypedValueAsStringEnt(configKey, configValue)
+	}
+}
+
+// convertValueStringToInterface converts valueString to interface{} based on key
+func (impl *InfraConfigClientImpl) convertValueStringToInterface(configKey v1.ConfigKeyStr, valueString string) (any, int, error) {
+	switch configKey {
+	case v1.CPU_LIMIT, v1.CPU_REQUEST:
+		return impl.getCPUConfigFactory().getValueFromString(valueString)
+	case v1.MEMORY_LIMIT, v1.MEMORY_REQUEST:
+		return impl.getMemoryConfigFactory().getValueFromString(valueString)
+	case v1.TIME_OUT:
+		return impl.getTimeoutConfigFactory().getValueFromString(valueString)
+	// Add more cases as needed for different config keys
+	default:
+		return impl.convertValueStringToInterfaceEnt(configKey, valueString)
+	}
+}
+
+// isConfigActive checks if the config is active based on the value count and repository. flag
+func (impl *InfraConfigClientImpl) isConfigActive(configKey v1.ConfigKeyStr, valueCount int, configActive bool) bool {
+	switch configKey {
+	case v1.CPU_LIMIT, v1.CPU_REQUEST:
+		return impl.getCPUConfigFactory().isConfigActive(valueCount, configActive)
+	case v1.MEMORY_LIMIT, v1.MEMORY_REQUEST:
+		return impl.getMemoryConfigFactory().isConfigActive(valueCount, configActive)
+	case v1.TIME_OUT:
+		return impl.getTimeoutConfigFactory().isConfigActive(valueCount, configActive)
+	// Add more cases as needed for different config keys
+	default:
+		return impl.isConfigActiveEnt(configKey, valueCount, configActive)
+	}
+}
+
+func (impl *InfraConfigClientImpl) HandlePostUpdateOperations(tx *pg.Tx, updatedInfraConfigs []*repository.InfraProfileConfigurationEntity) error {
+	for _, updatedInfraConfig := range updatedInfraConfigs {
+		switch util.GetConfigKeyStr(updatedInfraConfig.Key) {
+		case v1.CPU_LIMIT, v1.CPU_REQUEST:
+			if err := impl.getCPUConfigFactory().handlePostUpdateOperations(tx, updatedInfraConfig); err != nil {
+				return err
+			}
+		case v1.MEMORY_LIMIT, v1.MEMORY_REQUEST:
+			if err := impl.getMemoryConfigFactory().handlePostUpdateOperations(tx, updatedInfraConfig); err != nil {
+				return err
+			}
+		case v1.TIME_OUT:
+			if err := impl.getTimeoutConfigFactory().handlePostUpdateOperations(tx, updatedInfraConfig); err != nil {
+				return err
+			}
+		default:
+			if err := impl.handlePostUpdateOperationEnt(tx, updatedInfraConfig); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (impl *InfraConfigClientImpl) HandlePostCreateOperations(tx *pg.Tx, createdInfraConfigs []*repository.InfraProfileConfigurationEntity) error {
+	for _, createdInfraConfig := range createdInfraConfigs {
+		switch util.GetConfigKeyStr(createdInfraConfig.Key) {
+		case v1.CPU_LIMIT, v1.CPU_REQUEST:
+			if err := impl.getCPUConfigFactory().handlePostCreateOperations(tx, createdInfraConfig); err != nil {
+				return err
+			}
+		case v1.MEMORY_LIMIT, v1.MEMORY_REQUEST:
+			if err := impl.getMemoryConfigFactory().handlePostCreateOperations(tx, createdInfraConfig); err != nil {
+				return err
+			}
+		case v1.TIME_OUT:
+			if err := impl.getTimeoutConfigFactory().handlePostCreateOperations(tx, createdInfraConfig); err != nil {
+				return err
+			}
+		default:
+			if err := impl.handlePostCreateOperationEnt(tx, createdInfraConfig); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (impl *InfraConfigClientImpl) OverrideInfraConfig(infraConfiguration *v1.InfraConfig, configurationBean *v1.ConfigurationBean) (*v1.InfraConfig, error) {
+	switch configurationBean.Key {
+	case v1.CPU_LIMIT, v1.CPU_REQUEST:
+		return impl.getCPUConfigFactory().overrideInfraConfig(infraConfiguration, configurationBean)
+	case v1.MEMORY_LIMIT, v1.MEMORY_REQUEST:
+		return impl.getMemoryConfigFactory().overrideInfraConfig(infraConfiguration, configurationBean)
+	case v1.TIME_OUT:
+		return impl.getTimeoutConfigFactory().overrideInfraConfig(infraConfiguration, configurationBean)
+	default:
+		return impl.overrideInfraConfigEnt(infraConfiguration, configurationBean)
+	}
+}
+
+func (impl *InfraConfigClientImpl) MergeInfraConfigurations(supportedConfigKey v1.ConfigKeyStr, profileConfiguration *v1.ConfigurationBean, defaultConfigurations []*v1.ConfigurationBean) (*v1.ConfigurationBean, error) {
+	switch supportedConfigKey {
+	case v1.CPU_LIMIT:
+		return impl.getCPUConfigFactory().getAppliedConfiguration(v1.CPU_LIMIT, profileConfiguration, defaultConfigurations)
+	case v1.CPU_REQUEST:
+		return impl.getCPUConfigFactory().getAppliedConfiguration(v1.CPU_REQUEST, profileConfiguration, defaultConfigurations)
+	case v1.MEMORY_LIMIT:
+		return impl.getMemoryConfigFactory().getAppliedConfiguration(v1.MEMORY_LIMIT, profileConfiguration, defaultConfigurations)
+	case v1.MEMORY_REQUEST:
+		return impl.getMemoryConfigFactory().getAppliedConfiguration(v1.MEMORY_REQUEST, profileConfiguration, defaultConfigurations)
+	case v1.TIME_OUT:
+		return impl.getTimeoutConfigFactory().getAppliedConfiguration(v1.TIME_OUT, profileConfiguration, defaultConfigurations)
+	default:
+		return impl.mergeInfraConfigurationsEnt(supportedConfigKey, profileConfiguration, defaultConfigurations)
+	}
+}
+
+func (impl *InfraConfigClientImpl) handleInfraConfigTriggerAudit(supportedConfigKeys v1.InfraConfigKeys, workflowId int, triggeredBy int32, infraConfig *v1.InfraConfig) error {
+	if supportedConfigKeys.IsSupported(v1.CPU_LIMIT) && supportedConfigKeys.IsSupported(v1.CPU_REQUEST) {
+		err := impl.getCPUConfigFactory().handleInfraConfigTriggerAudit(workflowId, triggeredBy, infraConfig)
+		if err != nil {
+			return err
+		}
+	}
+	if supportedConfigKeys.IsSupported(v1.MEMORY_LIMIT) && supportedConfigKeys.IsSupported(v1.MEMORY_REQUEST) {
+		err := impl.getMemoryConfigFactory().handleInfraConfigTriggerAudit(workflowId, triggeredBy, infraConfig)
+		if err != nil {
+			return err
+		}
+	}
+	if supportedConfigKeys.IsSupported(v1.TIME_OUT) {
+		err := impl.getTimeoutConfigFactory().handleInfraConfigTriggerAudit(workflowId, triggeredBy, infraConfig)
+		if err != nil {
+			return err
+		}
+	}
+	return impl.handleInfraConfigTriggerAuditEnt(supportedConfigKeys, workflowId, triggeredBy, infraConfig)
+}

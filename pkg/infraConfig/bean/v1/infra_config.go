@@ -18,6 +18,7 @@
 package v1
 
 import (
+	"github.com/devtron-labs/devtron/api/bean"
 	"math"
 )
 
@@ -31,6 +32,10 @@ type InfraConfig struct {
 	// CiDefaultTimeout is the default timeout for CI jobs in seconds
 	// Earlier it was in int64, but now it is in float64
 	CiDefaultTimeout float64 `env:"DEFAULT_TIMEOUT" envDefault:"3600"`
+
+	// cm and cs
+	ConfigMaps []bean.ConfigSecretMap `env:"-"`
+	Secrets    []bean.ConfigSecretMap `env:"-"`
 	InfraConfigEnt
 }
 

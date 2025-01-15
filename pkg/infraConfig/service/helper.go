@@ -17,9 +17,11 @@
 package service
 
 import (
+	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/bean/v1"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/repository"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/util"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"slices"
@@ -119,4 +121,17 @@ func getConfiguredInfraConfigKeys(platform string, configurations []*v1.Configur
 		}
 	}
 	return supportedConfigKeys
+}
+
+func getDefaultInfraConfigFromEnv(envConfig *types.CiConfig) (*v1.InfraConfig, error) {
+	infraConfiguration := &v1.InfraConfig{}
+	err := env.Parse(infraConfiguration)
+	if err != nil {
+		return infraConfiguration, err
+	}
+	infraConfiguration, err = updateEntInfraConfigFromEnv(infraConfiguration, envConfig)
+	if err != nil {
+		return infraConfiguration, err
+	}
+	return infraConfiguration, nil
 }

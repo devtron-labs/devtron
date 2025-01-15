@@ -17,10 +17,14 @@
 package config
 
 import (
+	"github.com/devtron-labs/devtron/pkg/config/read"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/bean/v1"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/repository"
+	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
+	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/go-pg/pg"
+	"go.uber.org/zap"
 )
 
 type configFactory[T any] interface {
@@ -40,4 +44,42 @@ type configFactory[T any] interface {
 	handlePostDeleteOperations(tx *pg.Tx, deletedInfraConfig *repository.InfraProfileConfigurationEntity) error
 	handleInfraConfigTriggerAudit(workflowId int, triggeredBy int32, infraConfig *v1.InfraConfig) error
 	resolveScopeVariablesForAppliedConfiguration(scope resourceQualifiers.Scope, configuration *v1.ConfigurationBean) (*v1.ConfigurationBean, map[string]string, error)
+}
+
+type configFactories struct {
+	cpuConfigFactory     configFactory[float64]
+	memConfigFactory     configFactory[float64]
+	timeoutConfigFactory configFactory[float64]
+	configEntFactories
+}
+
+type unitFactories struct {
+	cpuUnitFactory  units.UnitService[float64]
+	memUnitFactory  units.UnitService[float64]
+	timeUnitFactory units.UnitService[float64]
+	unitEntFactories
+}
+
+func getConfigFactory(logger *zap.SugaredLogger,
+	scopedVariableManager variables.ScopedVariableManager,
+	configReadService read.ConfigReadService) *configFactories {
+	return &configFactories{
+		cpuConfigFactory:     newCPUClientImpl(logger),
+		memConfigFactory:     newMemClientImpl(logger),
+		timeoutConfigFactory: newTimeoutClientImpl(logger),
+		configEntFactories:   newConfigEntFactories(logger, scopedVariableManager, configReadService),
+	}
+}
+
+func getUnitFactoryMap(logger *zap.SugaredLogger) *unitFactories {
+	cpuUnitFactory := units.NewCPUUnitFactory(logger)
+	memUnitFactory := units.NewMemoryUnitFactory(logger)
+	timeUnitFactory := units.NewTimeUnitFactory(logger)
+	unitFactoryMap := &unitFactories{
+		cpuUnitFactory:   cpuUnitFactory,
+		memUnitFactory:   memUnitFactory,
+		timeUnitFactory:  timeUnitFactory,
+		unitEntFactories: newUnitEntFactories(logger),
+	}
+	return unitFactoryMap
 }

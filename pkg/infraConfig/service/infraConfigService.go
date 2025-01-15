@@ -948,3 +948,17 @@ func (impl *InfraConfigServiceImpl) createGlobalProfile(tx *pg.Tx) (*repository.
 	}
 	return defaultProfile, nil
 }
+
+func (impl *InfraConfigServiceImpl) getInfraProfilesByScope(scope *v1.Scope, includeDefault bool) ([]*repository.InfraProfileEntity, []int, error) {
+	profileIds, err := impl.getInfraProfileIdsByScope(scope)
+	if err != nil {
+		impl.logger.Errorw("error in fetching profile ids by scope", "scope", scope, "error", err)
+		return nil, profileIds, err
+	}
+	infraProfilesEntities, err := impl.infraProfileRepo.GetProfileListByIds(profileIds, includeDefault)
+	if err != nil {
+		impl.logger.Errorw("error in fetching profile entities by ids", "scope", scope, "profileIds", profileIds, "error", err)
+		return nil, profileIds, err
+	}
+	return infraProfilesEntities, profileIds, err
+}

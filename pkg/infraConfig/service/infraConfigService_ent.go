@@ -50,13 +50,7 @@ func (impl *InfraConfigServiceImpl) getDefaultBuildxDriverType() v1.BuildxDriver
 	return v1.BuildxDockerContainerDriver
 }
 
-func (impl *InfraConfigServiceImpl) getInfraProfilesByScope(scope *v1.Scope, includeDefault bool) ([]*repository.InfraProfileEntity, []int, error) {
+func (impl *InfraConfigServiceImpl) getInfraProfileIdsByScope(scope *v1.Scope) ([]int, error) {
 	// for OSS, user can't create infra profiles so no need to fetch infra profiles
-	profileIds := make([]int, 0)
-	infraProfilesEntities, err := impl.infraProfileRepo.GetProfileListByIds(profileIds, includeDefault)
-	if err != nil {
-		impl.logger.Errorw("error in fetching profile entities by ids", "scope", scope, "profileIds", profileIds, "error", err)
-		return nil, profileIds, err
-	}
-	return infraProfilesEntities, profileIds, err
+	return make([]int, 0), nil
 }

@@ -18,29 +18,22 @@ package config
 
 import (
 	"github.com/devtron-labs/devtron/pkg/config/read"
-	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"go.uber.org/zap"
 )
 
-func getConfigFactory(logger *zap.SugaredLogger,
-	scopedVariableManager variables.ScopedVariableManager,
-	configReadService read.ConfigReadService) *configFactories {
-	return &configFactories{
-		cpuConfigFactory:     newCPUClientImpl(logger),
-		memConfigFactory:     newMemClientImpl(logger),
-		timeoutConfigFactory: newTimeoutClientImpl(logger),
-	}
+type configEntFactories struct {
 }
 
-func getUnitFactoryMap(logger *zap.SugaredLogger) *unitFactories {
-	cpuUnitFactory := units.NewCPUUnitFactory(logger)
-	memUnitFactory := units.NewMemoryUnitFactory(logger)
-	timeUnitFactory := units.NewTimeUnitFactory(logger)
-	unitFactoryMap := &unitFactories{
-		cpuUnitFactory:  cpuUnitFactory,
-		memUnitFactory:  memUnitFactory,
-		timeUnitFactory: timeUnitFactory,
-	}
-	return unitFactoryMap
+type unitEntFactories struct {
+}
+
+func newConfigEntFactories(logger *zap.SugaredLogger,
+	scopedVariableManager variables.ScopedVariableManager,
+	configReadService read.ConfigReadService) configEntFactories {
+	return configEntFactories{}
+}
+
+func newUnitEntFactories(logger *zap.SugaredLogger) unitEntFactories {
+	return unitEntFactories{}
 }
