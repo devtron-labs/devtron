@@ -232,22 +232,6 @@ func validateConfigItems(propertyConfigs []*v1.ConfigurationBean, supportedConfi
 	return nil
 }
 
-func validatePlatformName(platform string, buildxDriverType v1.BuildxDriver) error {
-	if len(platform) == 0 {
-		errMsg := "platform cannot be empty"
-		return globalUtil.NewApiError(http.StatusBadRequest, errMsg, errMsg)
-	}
-	if len(platform) > v1.QualifiedPlatformMaxLength {
-		errMsg := "platform cannot be longer than 50 characters"
-		return globalUtil.NewApiError(http.StatusBadRequest, errMsg, errMsg)
-	}
-	if !buildxDriverType.IsPlatformSupported(platform) {
-		errMsg := fmt.Sprintf("invalid platform name: %q. not supported with driver type: %q", platform, buildxDriverType)
-		return globalUtil.NewApiError(http.StatusBadRequest, errMsg, errMsg)
-	}
-	return nil
-}
-
 func validateProfileAttributes(profileAbstract v1.ProfileBeanAbstract) error {
 	if len(profileAbstract.GetName()) > v1.QualifiedProfileMaxLength {
 		errMsg := "profile name is too long"
