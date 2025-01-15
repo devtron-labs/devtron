@@ -2,7 +2,7 @@ name: PR Validation (Test)
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, edited]
     branches:
       - fix/pr-validator  # This ensures the workflow runs only for PRs targeting your branch
 
