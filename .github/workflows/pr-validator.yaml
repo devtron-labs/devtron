@@ -83,18 +83,16 @@ jobs:
           local url="$1"
           echo "url -> url"
           if [[ "$repo" == "devtron-labs/devtron" || "$repo" == "devtron-labs/devtron-services" || "$repo" == "devtron-labs/dashboard" ]]; then
-            curl -s "$url"
+            status_code=$(curl -s -o /dev/null -w "%{http_code}" "$url")
           else
-            curl -s --header "Authorization: Bearer ${{ secrets.GH_PR_VALIDATOR_TOKEN }}" "$url"
+            status_code=$(curl -s -o /dev/null -w "%{http_code}" --header "Authorization: Bearer ${{ secrets.GH_PR_VALIDATOR_TOKEN }}" "$url")
           fi
         }
 
-        # Get the issue response
-        response=$(fetch_issue_status "$ISSUE_API_URL")
+        # Get the issue response code
+        fetch_issue_status "$ISSUE_API_URL"
 
-        echo "response : $response "
-        status_code=$(echo "$response" | jq -r '.status_code')
-
+        echo "STATUS CODE: $status_code"
         # Handle response based on status code
         if [[ "$status_code" -eq 200 ]]; then
           echo "Issue #$issue_num exists in $repo."
