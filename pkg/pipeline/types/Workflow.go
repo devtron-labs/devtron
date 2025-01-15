@@ -660,6 +660,7 @@ type WorkflowResponse struct {
 	CustomTag            *bean3.CustomTagErrorResponse               `json:"customTag,omitempty"`
 	PipelineType         string                                      `json:"pipelineType"`
 	ReferenceWorkflowId  int                                         `json:"referenceWorkflowId"`
+	TargetPlatforms      []bean.TargetPlatform                       `json:"targetPlatforms"`
 }
 
 type ConfigMapSecretDto struct {

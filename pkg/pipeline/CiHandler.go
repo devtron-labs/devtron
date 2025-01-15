@@ -31,6 +31,7 @@ import (
 	bean5 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	adapter2 "github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	util3 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"io/ioutil"
 	"net/http"
@@ -571,6 +572,7 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 			EnvironmentName:     w.EnvironmentName,
 			ReferenceWorkflowId: w.RefCiWorkflowId,
 			PodName:             w.PodName,
+			TargetPlatforms:     adapter2.GetTargetPlatformObjectFromString(w.TargetPlatforms),
 		}
 
 		if w.Message == bean3.ImageTagUnavailableMessage {
@@ -1597,6 +1599,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 		Default:          deployDetail.Default,
 		ImageTaggingData: *imageTaggingData,
 		Image:            ciArtifact.Image,
+		TargetPlatforms:  adapter2.GetTargetPlatformObjectFromString(ciArtifact.TargetPlatforms),
 	}
 	return gitTriggerInfoResponse, nil
 }

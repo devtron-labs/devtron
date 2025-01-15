@@ -827,6 +827,7 @@ type CiArtifactBean struct {
 	CiWorkflowId                  int                       `json:"-"`
 	RegistryType                  string                    `json:"registryType"`
 	RegistryName                  string                    `json:"registryName"`
+	TargetPlatforms               []bean.TargetPlatform     `json:"targetPlatforms"`
 	CiPipelineId                  int                       `json:"-"`
 	CredentialsSourceType         string                    `json:"-"`
 	CredentialsSourceValue        string                    `json:"-"`

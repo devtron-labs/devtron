@@ -20,6 +20,7 @@ import (
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"sort"
 	"strings"
@@ -402,6 +403,7 @@ func (impl *AppArtifactManagerImpl) BuildRollbackArtifactsList(artifactListingFi
 		deployedCiArtifacts = append(deployedCiArtifacts, bean2.CiArtifactBean{
 			Id:                     ciArtifact.Id,
 			Image:                  ciArtifact.Image,
+			TargetPlatforms:        adapter.GetTargetPlatformObjectFromString(ciArtifact.TargetPlatforms),
 			MaterialInfo:           mInfo,
 			DeployedTime:           formatDate(ciArtifact.StartedOn, bean2.LayoutRFC3339),
 			WfrId:                  ciArtifact.CdWorkflowRunnerId,
@@ -656,6 +658,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 		currentRunningArtifactBean = &bean2.CiArtifactBean{
 			Id:                     currentRunningArtifact.Id,
 			Image:                  currentRunningArtifact.Image,
+			TargetPlatforms:        adapter.GetTargetPlatformObjectFromString(currentRunningArtifact.TargetPlatforms),
 			ImageDigest:            currentRunningArtifact.ImageDigest,
 			MaterialInfo:           mInfo,
 			ScanEnabled:            currentRunningArtifact.ScanEnabled,

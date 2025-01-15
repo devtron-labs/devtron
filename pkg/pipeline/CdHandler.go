@@ -27,6 +27,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
+	adapter2 "github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	util2 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"os"
 	"path/filepath"
@@ -611,12 +612,15 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		triggeredByUserEmailId = "anonymous"
 	}
 	ciArtifactId := workflow.CiArtifactId
+	targetPlatforms := []pipelineBean.TargetPlatform{}
 	if ciArtifactId > 0 {
 		ciArtifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
 		if err != nil {
 			impl.Logger.Errorw("error fetching artifact data", "err", err)
 			return types.WorkflowResponse{}, err
 		}
+
+		targetPlatforms = adapter2.GetTargetPlatformObjectFromString(ciArtifact.TargetPlatforms)
 
 		// handling linked ci pipeline
 		if ciArtifact.ParentCiArtifact > 0 && ciArtifact.WorkflowId == nil {
@@ -673,6 +677,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		ArtifactId:           workflow.CiArtifactId,
 		IsArtifactUploaded:   workflow.IsArtifactUploaded,
 		CiPipelineId:         ciWf.CiPipelineId,
+		TargetPlatforms:      targetPlatforms,
 	}
 	return workflowResponse, nil
 
@@ -776,6 +781,7 @@ func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pip
 		workflow.WorkflowType = string(wfr.WorkflowType)
 		workflow.CdWorkflowId = wfr.CdWorkflowId
 		workflow.Image = wfr.CdWorkflow.CiArtifact.Image
+		workflow.TargetPlatforms = adapter2.GetTargetPlatformObjectFromString(wfr.CdWorkflow.CiArtifact.TargetPlatforms)
 		workflow.PipelineId = wfr.CdWorkflow.PipelineId
 		workflow.CiArtifactId = wfr.CdWorkflow.CiArtifactId
 		isArtifactUploaded, isMigrationRequired := wfr.GetIsArtifactUploaded()

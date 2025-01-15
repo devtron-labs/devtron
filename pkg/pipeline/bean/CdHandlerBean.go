@@ -21,6 +21,7 @@ type CdWorkflowWithArtifact struct {
 	TriggeredBy           int32                                       `json:"triggered_by"`
 	EmailId               string                                      `json:"email_id"`
 	Image                 string                                      `json:"image"`
+	TargetPlatforms       []TargetPlatform                            `json:"target_platforms"`
 	MaterialInfo          string                                      `json:"material_info,omitempty"`
 	DataSource            string                                      `json:"data_source,omitempty"`
 	CiArtifactId          int                                         `json:"ci_artifact_id,omitempty"`
