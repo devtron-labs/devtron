@@ -70,7 +70,6 @@ import (
 	status3 "github.com/devtron-labs/devtron/api/router/app/pipeline/status"
 	trigger2 "github.com/devtron-labs/devtron/api/router/app/pipeline/trigger"
 	workflow2 "github.com/devtron-labs/devtron/api/router/app/workflow"
-	"github.com/devtron-labs/devtron/api/scanTool"
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/api/team"
@@ -214,7 +213,6 @@ func InitializeApp() (*App, error) {
 		devtronResource.DevtronResourceWireSet,
 		policyGovernance.PolicyGovernanceWireSet,
 		resourceScan.ScanningResultWireSet,
-		scanTool.ScanToolMetadataWireSet,
 
 		// -------wireset end ----------
 		// -------
