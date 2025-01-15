@@ -382,9 +382,9 @@ func GetStepVariableDto(variable *repository.PipelineStageStepVariable) (*pipeli
 
 func GetTargetPlatformObjectFromString(targetPlatformString string) []*pipelineConfigBean.TargetPlatform {
 	targetPlatforms := GetTargetPlatformListFromString(targetPlatformString)
-	var targetPlatformObject []*pipelineConfigBean.TargetPlatform
+	targetPlatformObject := []*pipelineConfigBean.TargetPlatform{}
 	for _, targetPlatform := range targetPlatforms {
-		if len(targetPlatform) == 0 {
+		if len(targetPlatform) > 0 {
 			targetPlatformObject = append(targetPlatformObject, &pipelineConfigBean.TargetPlatform{Name: targetPlatform})
 		}
 	}
