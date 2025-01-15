@@ -10,6 +10,6 @@ func (impl *CiServiceImpl) fetchImageScanExecutionMedium() (*repository.ScanTool
 	return &repository.ScanToolMetadata{}, "", nil
 }
 
-func (impl *CiServiceImpl) fetchImageScanExecutionSteps(scanToolMetadata *repository.ScanToolMetadata) ([]*types.ImageScanningSteps, error) {
+func (impl *CiServiceImpl) fetchImageScanExecutionStepsForWfRequest(scanToolMetadata *repository.ScanToolMetadata) ([]*types.ImageScanningSteps, error) {
 	return nil, nil
 }
