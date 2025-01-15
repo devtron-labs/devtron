@@ -105,11 +105,11 @@ func NewArgoCDConnectionManagerImpl(Logger *zap.SugaredLogger,
 		argoCDConfigGetter:      argoCDConfigGetter,
 	}
 	if !runTimeConfig.LocalDevMode {
-		grpcConfigs, err := argoCDConfigGetter.GetAllGRPCConfigs()
+		grpcConfig, err := argoCDConfigGetter.GetGRPCConfig()
 		if err != nil {
 			Logger.Errorw("error in GetAllGRPCConfigs", "error", err)
 		}
-		go argoUserServiceImpl.ValidateGitOpsAndGetOrUpdateArgoCdUserDetail(grpcConfigs)
+		go argoUserServiceImpl.ValidateGitOpsAndGetOrUpdateArgoCdUserDetail(grpcConfig)
 	}
 	return argoUserServiceImpl, nil
 }
@@ -119,14 +119,12 @@ const (
 	ModuleStatusInstalled string = "installed"
 )
 
-func (impl *ArgoCDConnectionManagerImpl) ValidateGitOpsAndGetOrUpdateArgoCdUserDetail(grpcConfigs []*bean.ArgoGRPCConfig) string {
+func (impl *ArgoCDConnectionManagerImpl) ValidateGitOpsAndGetOrUpdateArgoCdUserDetail(grpcConfig *bean.ArgoGRPCConfig) string {
 	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil || !gitOpsConfigurationStatus.IsGitOpsConfigured {
 		return ""
 	}
-	for _, grpcConfig := range grpcConfigs {
-		_ = impl.GetOrUpdateArgoCdUserDetail(grpcConfig)
-	}
+	_ = impl.GetOrUpdateArgoCdUserDetail(grpcConfig)
 	return ""
 }
 

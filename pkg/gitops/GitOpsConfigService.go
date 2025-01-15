@@ -118,14 +118,12 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *apiBe
 	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
 		//create argo-cd user, if not created, here argo-cd integration has to be installed
-		gRPCConfigs, err := impl.argoCDConfigGetter.GetAllGRPCConfigs()
+		gRPCConfig, err := impl.argoCDConfigGetter.GetGRPCConfig()
 		if err != nil {
 			impl.logger.Errorw("error in getting all grpc configs", "error", err)
 			return detailedErrorGitOpsConfigResponse, err
 		}
-		for _, gRPCConfig := range gRPCConfigs {
-			_ = impl.argoCDConnectionManager.GetOrUpdateArgoCdUserDetail(gRPCConfig)
-		}
+		_ = impl.argoCDConnectionManager.GetOrUpdateArgoCdUserDetail(gRPCConfig)
 		_, err = impl.createGitOpsConfig(context.Background(), config)
 		if err != nil {
 			impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", config)
@@ -178,14 +176,13 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *apiBe
 			}
 		}
 	}
-	gRPCConfigs, err := impl.argoCDConfigGetter.GetAllGRPCConfigs()
+	gRPCConfig, err := impl.argoCDConfigGetter.GetGRPCConfig()
 	if err != nil {
 		impl.logger.Errorw("error in getting all grpc configs", "error", err)
 		return apiBean.DetailedErrorGitOpsConfigResponse{}, err
 	}
-	for _, gRPCConfig := range gRPCConfigs {
-		_ = impl.argoCDConnectionManager.GetOrUpdateArgoCdUserDetail(gRPCConfig)
-	}
+	_ = impl.argoCDConnectionManager.GetOrUpdateArgoCdUserDetail(gRPCConfig)
+
 	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
 		err := impl.updateGitOpsConfig(config)

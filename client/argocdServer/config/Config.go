@@ -28,7 +28,6 @@ import (
 
 type ArgoCDConfigGetter interface {
 	GetGRPCConfig() (*bean.ArgoGRPCConfig, error)
-	GetAllGRPCConfigs() ([]*bean.ArgoGRPCConfig, error)
 	GetK8sConfig() (*bean.ArgoK8sConfig, error)
 }
 
@@ -68,17 +67,6 @@ func (impl *ArgoCDConfigGetterImpl) GetGRPCConfig() (*bean.ArgoGRPCConfig, error
 			DevtronDexSecretNamespace: impl.devtronSecretConfig.DevtronDexSecretNamespace,
 		},
 	}, nil
-}
-
-func (impl *ArgoCDConfigGetterImpl) GetAllGRPCConfigs() ([]*bean.ArgoGRPCConfig, error) {
-	return []*bean.ArgoGRPCConfig{{
-		ConnectionConfig: impl.config,
-		AuthConfig: &bean.AcdAuthConfig{
-			ClusterId:                 bean2.DefaultClusterId,
-			DevtronSecretName:         impl.devtronSecretConfig.DevtronSecretName,
-			DevtronDexSecretNamespace: impl.devtronSecretConfig.DevtronDexSecretNamespace,
-		},
-	}}, nil
 }
 
 func (impl *ArgoCDConfigGetterImpl) GetK8sConfig() (*bean.ArgoK8sConfig, error) {
