@@ -10,6 +10,10 @@ type ImageScanningSteps struct {
 	ScanToolId int                `json:"scanToolId"`
 }
 
+func NewImageScanningSteps() *ImageScanningSteps {
+	return &ImageScanningSteps{}
+}
+
 func (r *ImageScanningSteps) WithSteps(steps []*bean.StepObject) {
 	r.Steps = steps
 }
