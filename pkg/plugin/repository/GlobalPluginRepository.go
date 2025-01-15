@@ -112,6 +112,7 @@ type PluginParentMetadata struct {
 	Type        PluginType `sql:"type"`
 	Icon        string     `sql:"icon"`
 	Deleted     bool       `sql:"deleted, notnull"`
+	IsExposed   bool       `sql:"is_exposed, notnull"` // it's not user driven, used internally to make decision weather to show plugin or not in plugin list
 	sql.AuditLog
 }
 
@@ -170,6 +171,7 @@ type PluginMetadata struct {
 	IsDeprecated           bool       `sql:"is_deprecated, notnull"`
 	DocLink                string     `sql:"doc_link"`
 	IsLatest               bool       `sql:"is_latest, notnull"`
+	IsExposed              bool       `sql:"is_exposed, notnull"` // it's not user driven, used internally to make decision weather to show plugin or not in plugin list
 	sql.AuditLog
 }
 
@@ -429,6 +431,7 @@ func (impl *GlobalPluginRepositoryImpl) GetMetaDataForAllPlugins(excludeDeprecat
 	var plugins []*PluginMetadata
 	query := impl.dbConnection.Model(&plugins).
 		Where("deleted = ?", false).
+		Where("is_exposed = ?", true).
 		Order("id")
 	if excludeDeprecated {
 		query = query.Where("is_deprecated = ?", false)
@@ -886,7 +889,7 @@ func (impl *GlobalPluginRepositoryImpl) GetAllFilteredPluginParentMetadata(searc
 	var plugins []*PluginParentMetadata
 	query := "select ppm.id, ppm.identifier,ppm.name,ppm.description,ppm.type,ppm.icon,ppm.deleted,ppm.created_by, ppm.created_on,ppm.updated_by,ppm.updated_on from plugin_parent_metadata ppm" +
 		" inner join plugin_metadata pm on pm.plugin_parent_metadata_id=ppm.id"
-	whereCondition := fmt.Sprintf(" where ppm.deleted=false AND pm.deleted=false AND pm.is_latest=true and pm.is_deprecated=false")
+	whereCondition := fmt.Sprintf(" where ppm.deleted=false AND pm.deleted=false AND pm.is_latest=true AND pm.is_deprecated=false AND pm.is_exposed=true AND ppm.is_exposed=true")
 	if len(tags) > 0 {
 		tagFilterSubQuery := fmt.Sprintf("select ptr.plugin_id from plugin_tag_relation ptr inner join plugin_tag pt on ptr.tag_id =pt.id where pt.deleted =false and  pt.name in (%s) group by ptr.plugin_id having count(ptr.plugin_id )=%d", helper.GetCommaSepratedStringWithComma(tags), len(tags))
 		whereCondition += fmt.Sprintf(" AND pm.id in (%s)", tagFilterSubQuery)
@@ -926,7 +929,8 @@ func (impl *GlobalPluginRepositoryImpl) GetAllPluginMinDataByType(pluginType str
 	var plugins []*PluginParentMetadata
 	query := impl.dbConnection.Model(&plugins).
 		Column("plugin_parent_metadata.id", "plugin_parent_metadata.name", "plugin_parent_metadata.type", "plugin_parent_metadata.icon", "plugin_parent_metadata.identifier").
-		Where("deleted = ?", false)
+		Where("deleted = ?", false).
+		Where("is_exposed = ?", true)
 	if len(pluginType) != 0 {
 		query.Where("type = ?", pluginType)
 	}
