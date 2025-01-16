@@ -18,7 +18,6 @@ package application
 
 import (
 	"context"
-	"errors"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
@@ -70,11 +69,7 @@ func NewApplicationClientImpl(
 }
 
 func (c *ServiceClientImpl) GetArgoClient(ctxt context.Context) (application.ApplicationServiceClient, *grpc.ClientConn, error) {
-	token, ok := ctxt.Value("token").(string)
-	if !ok {
-		return nil, nil, errors.New("unauthorized")
-	}
-	conn := c.argoCDConnectionManager.GetConnection(token)
+	conn := c.argoCDConnectionManager.GetConnection()
 	asc := application.NewApplicationServiceClient(conn)
 	return asc, conn, nil
 }
@@ -98,27 +93,26 @@ func (c *ServiceClientImpl) ResourceTree(ctxt context.Context, query *applicatio
 func (c ServiceClientImpl) Patch(ctxt context.Context, query *application.ApplicationPatchRequest) (*v1alpha1.Application, error) {
 	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutLazy)
 	defer cancel()
-	token, ok := ctxt.Value("token").(string)
-	if !ok {
-		return nil, errors.New("Unauthorized")
+	asc, conn, err := c.GetArgoClient(ctxt)
+	if err != nil {
+		c.logger.Errorw("error getting ArgoCD client", "error", err)
+		return nil, err
 	}
-	conn := c.argoCDConnectionManager.GetConnection(token)
 	defer util.Close(conn, c.logger)
-	asc := application.NewApplicationServiceClient(conn)
 	resp, err := asc.Patch(ctx, query)
 	return resp, err
 }
 
 func (c ServiceClientImpl) Get(ctx context.Context, query *application.ApplicationQuery) (*v1alpha1.Application, error) {
-	token, ok := ctx.Value("token").(string)
-	if !ok {
-		return nil, errors.New("Unauthorized")
-	}
+
 	newCtx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutFast)
 	defer cancel()
-	conn := c.argoCDConnectionManager.GetConnection(token)
+	asc, conn, err := c.GetArgoClient(ctx)
+	if err != nil {
+		c.logger.Errorw("error getting ArgoCD client", "error", err)
+		return nil, err
+	}
 	defer util.Close(conn, c.logger)
-	asc := application.NewApplicationServiceClient(conn)
 	resp, err := asc.Get(newCtx, query)
 	return resp, err
 }
@@ -126,13 +120,12 @@ func (c ServiceClientImpl) Get(ctx context.Context, query *application.Applicati
 func (c ServiceClientImpl) Update(ctxt context.Context, query *application.ApplicationUpdateRequest) (*v1alpha1.Application, error) {
 	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutFast)
 	defer cancel()
-	token, ok := ctxt.Value("token").(string)
-	if !ok {
-		return nil, errors.New("Unauthorized")
+	asc, conn, err := c.GetArgoClient(ctx)
+	if err != nil {
+		c.logger.Errorw("error getting ArgoCD client", "error", err)
+		return nil, err
 	}
-	conn := c.argoCDConnectionManager.GetConnection(token)
 	defer util.Close(conn, c.logger)
-	asc := application.NewApplicationServiceClient(conn)
 	resp, err := asc.Update(ctx, query)
 	return resp, err
 }
@@ -140,13 +133,12 @@ func (c ServiceClientImpl) Update(ctxt context.Context, query *application.Appli
 func (c ServiceClientImpl) Sync(ctxt context.Context, query *application.ApplicationSyncRequest) (*v1alpha1.Application, error) {
 	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutFast)
 	defer cancel()
-	token, ok := ctxt.Value("token").(string)
-	if !ok {
-		return nil, argoApplication.NewErrUnauthorized("Unauthorized")
+	asc, conn, err := c.GetArgoClient(ctx)
+	if err != nil {
+		c.logger.Errorw("error getting ArgoCD client", "error", err)
+		return nil, err
 	}
-	conn := c.argoCDConnectionManager.GetConnection(token)
 	defer util.Close(conn, c.logger)
-	asc := application.NewApplicationServiceClient(conn)
 	resp, err := asc.Sync(ctx, query)
 	return resp, err
 }
@@ -154,38 +146,35 @@ func (c ServiceClientImpl) Sync(ctxt context.Context, query *application.Applica
 func (c ServiceClientImpl) GetResource(ctxt context.Context, query *application.ApplicationResourceRequest) (*application.ApplicationResourceResponse, error) {
 	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutFast)
 	defer cancel()
-	token, ok := ctxt.Value("token").(string)
-	if !ok {
-		return nil, errors.New("Unauthorized")
+	asc, conn, err := c.GetArgoClient(ctx)
+	if err != nil {
+		c.logger.Errorw("error getting ArgoCD client", "error", err)
+		return nil, err
 	}
-	conn := c.argoCDConnectionManager.GetConnection(token)
 	defer util.Close(conn, c.logger)
-	asc := application.NewApplicationServiceClient(conn)
 	return asc.GetResource(ctx, query)
 }
 
 func (c ServiceClientImpl) Delete(ctxt context.Context, query *application.ApplicationDeleteRequest) (*application.ApplicationResponse, error) {
 	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutSlow)
 	defer cancel()
-	token, ok := ctxt.Value("token").(string)
-	if !ok {
-		return nil, errors.New("Unauthorized")
+	asc, conn, err := c.GetArgoClient(ctx)
+	if err != nil {
+		c.logger.Errorw("error getting ArgoCD client", "error", err)
+		return nil, err
 	}
-	conn := c.argoCDConnectionManager.GetConnection(token)
 	defer util.Close(conn, c.logger)
-	asc := application.NewApplicationServiceClient(conn)
 	return asc.Delete(ctx, query)
 }
 func (c ServiceClientImpl) TerminateOperation(ctxt context.Context, query *application.OperationTerminateRequest) (*application.OperationTerminateResponse, error) {
 	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutFast)
 	defer cancel()
-	token, ok := ctxt.Value("token").(string)
-	if !ok {
-		return nil, argoApplication.NewErrUnauthorized("Unauthorized")
+	asc, conn, err := c.GetArgoClient(ctx)
+	if err != nil {
+		c.logger.Errorw("error getting ArgoCD client", "error", err)
+		return nil, err
 	}
-	conn := c.argoCDConnectionManager.GetConnection(token)
 	defer util.Close(conn, c.logger)
-	asc := application.NewApplicationServiceClient(conn)
 	resp, err := asc.TerminateOperation(ctx, query)
 	return resp, err
 }

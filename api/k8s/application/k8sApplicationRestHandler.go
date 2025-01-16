@@ -27,7 +27,7 @@ import (
 	util3 "github.com/devtron-labs/common-lib/utils/k8s"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
-	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/api/bean/AppView"
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
@@ -37,12 +37,13 @@ import (
 	"github.com/devtron-labs/devtron/pkg/argoApplication/read"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
-	"github.com/devtron-labs/devtron/pkg/cluster"
+	bean4 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/fluxApplication"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	application2 "github.com/devtron-labs/devtron/pkg/k8s/application"
 	bean2 "github.com/devtron-labs/devtron/pkg/k8s/application/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/k8s/bean"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -126,7 +127,7 @@ func (handler *K8sApplicationRestHandlerImpl) RotatePod(w http.ResponseWriter, r
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	podRotateRequest := &k8s.RotatePodRequest{}
+	podRotateRequest := &bean3.RotatePodRequest{}
 	err := decoder.Decode(podRotateRequest)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -148,7 +149,7 @@ func (handler *K8sApplicationRestHandlerImpl) RotatePod(w http.ResponseWriter, r
 	}
 	//RBAC enforcer Ends
 	handler.logger.Infow("rotate pod request", "payload", podRotateRequest)
-	rotatePodRequest := &k8s.RotatePodRequest{
+	rotatePodRequest := &bean3.RotatePodRequest{
 		ClusterId: appIdentifier.ClusterId,
 		Resources: podRotateRequest.Resources,
 	}
@@ -162,7 +163,7 @@ func (handler *K8sApplicationRestHandlerImpl) RotatePod(w http.ResponseWriter, r
 
 func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	var request k8s.ResourceRequestBean
+	var request bean3.ResourceRequestBean
 	err := decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err)
@@ -252,7 +253,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 	}
 
 	token := r.Header.Get("token")
-	var k8sAppDetail bean.AppDetailContainer
+	var k8sAppDetail AppView.AppDetailContainer
 	var resourceTreeResponse *gRPC.ResourceTreeResponse
 	var clusterId int
 	var namespace string
@@ -343,8 +344,8 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 		resourceTreeResponse = appDetail.ResourceTreeResponse
 	}
 
-	k8sAppDetail = bean.AppDetailContainer{
-		DeploymentDetailContainer: bean.DeploymentDetailContainer{
+	k8sAppDetail = AppView.AppDetailContainer{
+		DeploymentDetailContainer: AppView.DeploymentDetailContainer{
 			ClusterId: clusterId,
 			Namespace: namespace,
 		},
@@ -376,7 +377,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 }
 func (handler *K8sApplicationRestHandlerImpl) CreateResource(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	var request k8s.ResourceRequestBean
+	var request bean3.ResourceRequestBean
 	err := decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err)
@@ -410,7 +411,7 @@ func (handler *K8sApplicationRestHandlerImpl) CreateResource(w http.ResponseWrit
 }
 func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	var request k8s.ResourceRequestBean
+	var request bean3.ResourceRequestBean
 	token := r.Header.Get("token")
 	err := decoder.Decode(&request)
 	if err != nil {
@@ -448,7 +449,7 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 	}
 	common.WriteJsonResp(w, nil, resource, http.StatusOK)
 }
-func (handler *K8sApplicationRestHandlerImpl) handleRbac(r *http.Request, w http.ResponseWriter, request k8s.ResourceRequestBean, token string, casbinAction string) bool {
+func (handler *K8sApplicationRestHandlerImpl) handleRbac(r *http.Request, w http.ResponseWriter, request bean3.ResourceRequestBean, token string, casbinAction string) bool {
 	// assume direct update in cluster
 	allowed, err := handler.k8sApplicationService.ValidateClusterResourceRequest(r.Context(), &request, handler.getRbacCallbackForResource(token, casbinAction))
 	if err != nil {
@@ -466,7 +467,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var request k8s.ResourceRequestBean
+	var request bean3.ResourceRequestBean
 	err = json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err)
@@ -505,7 +506,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 			errCode = apiErr.HttpStatusCode
 			switch errCode {
 			case http.StatusNotFound:
-				errorMessage := k8s.ResourceNotFoundErr
+				errorMessage := bean3.ResourceNotFoundErr
 				err = fmt.Errorf("%s: %w", errorMessage, err)
 			}
 		}
@@ -518,7 +519,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	token := r.Header.Get("token")
-	var request k8s.ResourceRequestBean
+	var request bean3.ResourceRequestBean
 	err := decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err)
@@ -676,7 +677,7 @@ func generatePodLogsFilename(filename string) string {
 	return fmt.Sprintf("podlogs-%s-%s.log", filename, uuid.New().String())
 }
 
-func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.ResponseWriter, r *http.Request, token string, request *k8s.ResourceRequestBean) {
+func (handler *K8sApplicationRestHandlerImpl) requestValidationAndRBAC(w http.ResponseWriter, r *http.Request, token string, request *bean3.ResourceRequestBean) {
 	if request.AppType == bean2.HelmAppType && request.AppIdentifier != nil {
 		if request.DeploymentType == bean2.HelmInstalledType {
 			if err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest); err != nil {
@@ -918,7 +919,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetAllApiResources(w http.Response
 func (handler *K8sApplicationRestHandlerImpl) GetResourceList(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	token := r.Header.Get("token")
-	var request k8s.ResourceRequestBean
+	var request bean3.ResourceRequestBean
 	err := decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err)
@@ -931,7 +932,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceList(w http.ResponseWri
 	}
 	clusterRbacFunc := handler.verifyRbacForCluster
 	if isSuperAdmin {
-		clusterRbacFunc = func(token, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool {
+		clusterRbacFunc = func(token, clusterName string, request bean3.ResourceRequestBean, casbinAction string) bool {
 			return true
 		}
 	}
@@ -978,7 +979,7 @@ func (handler *K8sApplicationRestHandlerImpl) verifyRbacForResource(token string
 	return handler.enforcer.Enforce(token, strings.ToLower(resourceName), casbinAction, objectName)
 }
 
-func (handler *K8sApplicationRestHandlerImpl) verifyRbacForCluster(token string, clusterName string, request k8s.ResourceRequestBean, casbinAction string) bool {
+func (handler *K8sApplicationRestHandlerImpl) verifyRbacForCluster(token string, clusterName string, request bean3.ResourceRequestBean, casbinAction string) bool {
 	k8sRequest := request.K8sRequest
 	return handler.verifyRbacForResource(token, clusterName, k8sRequest.ResourceIdentifier, casbinAction)
 }
@@ -991,7 +992,7 @@ func (handler *K8sApplicationRestHandlerImpl) CreateEphemeralContainer(w http.Re
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var request cluster.EphemeralContainerRequest
+	var request bean4.EphemeralContainerRequest
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err)
@@ -1039,7 +1040,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.Re
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var request cluster.EphemeralContainerRequest
+	var request bean4.EphemeralContainerRequest
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err)
@@ -1080,7 +1081,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteEphemeralContainer(w http.Re
 
 }
 
-func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(podName, namespace string, w http.ResponseWriter, r *http.Request) *k8s.ResourceRequestBean {
+func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(podName, namespace string, w http.ResponseWriter, r *http.Request) *bean3.ResourceRequestBean {
 	token := r.Header.Get("token")
 	_, resourceRequestBean, err := handler.k8sApplicationService.ValidateTerminalRequestQuery(r)
 	if err != nil {
@@ -1141,7 +1142,7 @@ func (handler *K8sApplicationRestHandlerImpl) handleEphemeralRBAC(podName, names
 		false and err !=nil --> during the validation of resources, we got an error, resulting the StatusBadRequest
 		false and err == nil --> denotes that user is not authorized, resulting in Unauthorized
 */
-func (handler *K8sApplicationRestHandlerImpl) verifyRbacForAppRequests(token string, request *k8s.ResourceRequestBean, r *http.Request, actionType string) (bool, error) {
+func (handler *K8sApplicationRestHandlerImpl) verifyRbacForAppRequests(token string, request *bean3.ResourceRequestBean, r *http.Request, actionType string) (bool, error) {
 	rbacObject := ""
 	rbacObject2 := ""
 	envObject := ""

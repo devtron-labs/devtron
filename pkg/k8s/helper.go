@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"github.com/Masterminds/semver"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/fluxApplication"
+	"github.com/devtron-labs/devtron/pkg/k8s/bean"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"strings"
 )
@@ -78,15 +78,7 @@ func StripPrereleaseFromK8sVersion(k8sVersion string) string {
 	return k8sVersion
 }
 
-func NewCmCsRequestBean(clusterId int, namespace string) *CmCsRequestBean {
-	req := &CmCsRequestBean{}
+func NewCmCsRequestBean(clusterId int, namespace string) *bean.CmCsRequestBean {
+	req := &bean.CmCsRequestBean{}
 	return req.SetClusterId(clusterId).SetNamespace(namespace)
-}
-
-func IsClusterStringContainsFluxField(str string) bool {
-	_, err := fluxApplication.DecodeFluxExternalAppId(str)
-	if err != nil {
-		return false
-	}
-	return true
 }

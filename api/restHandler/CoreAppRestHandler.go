@@ -55,7 +55,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
@@ -99,7 +98,6 @@ type CoreAppRestHandlerImpl struct {
 	environmentRepository   repository.EnvironmentRepository
 	configMapRepository     chartConfig.ConfigMapRepository
 	chartRepo               chartRepoRepository.ChartRepository
-	argoUserService         argo.ArgoUserService
 	pipelineStageService    pipeline.PipelineStageService
 	ciPipelineRepository    pipelineConfig.CiPipelineRepository
 	teamReadService         read3.TeamReadService
@@ -111,7 +109,7 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 	propertiesConfigService pipeline.PropertiesConfigService, appWorkflowService appWorkflow.AppWorkflowService,
 	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository repository.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository,
 	chartRepo chartRepoRepository.ChartRepository, teamService team.TeamService,
-	argoUserService argo.ArgoUserService, pipelineStageService pipeline.PipelineStageService, ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	pipelineStageService pipeline.PipelineStageService, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	gitProviderReadService read.GitProviderReadService,
 	gitMaterialReadService read2.GitMaterialReadService,
 	teamReadService read3.TeamReadService) *CoreAppRestHandlerImpl {
@@ -135,7 +133,6 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 		environmentRepository:   environmentRepository,
 		configMapRepository:     configMapRepository,
 		chartRepo:               chartRepo,
-		argoUserService:         argoUserService,
 		pipelineStageService:    pipelineStageService,
 		ciPipelineRepository:    ciPipelineRepository,
 		teamReadService:         teamReadService,
@@ -261,13 +258,8 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 		return
 	}
 	token := r.Header.Get("token")
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
+
+	ctx := r.Context()
 	var createAppRequest appBean.AppDetail
 	err = decoder.Decode(&createAppRequest)
 	if err != nil {
@@ -2249,13 +2241,8 @@ func (handler CoreAppRestHandlerImpl) CreateAppWorkflow(w http.ResponseWriter, r
 		return
 	}
 	token := r.Header.Get("token")
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
+
+	ctx := r.Context()
 	var createAppRequest appBean.AppWorkflowCloneDto
 	err = decoder.Decode(&createAppRequest)
 	if err != nil {
