@@ -738,10 +738,11 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts
 			impl.logger.Errorw("Error in parsing artifact material info", "err", err)
 		}
 		ciArtifact := &bean2.CiArtifactBean{
-			Id:           artifact.Id,
-			Image:        artifact.Image,
-			ImageDigest:  artifact.ImageDigest,
-			MaterialInfo: mInfo,
+			Id:              artifact.Id,
+			Image:           artifact.Image,
+			TargetPlatforms: adapter.GetTargetPlatformObjectFromString(artifact.TargetPlatforms),
+			ImageDigest:     artifact.ImageDigest,
+			MaterialInfo:    mInfo,
 			//TODO:LastSuccessfulTriggerOnParent
 			Scanned:                artifact.Scanned,
 			ScanEnabled:            artifact.ScanEnabled,
@@ -784,6 +785,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCIParentV2(listingFilterOpt
 		ciArtifact := &bean2.CiArtifactBean{
 			Id:                     artifact.Id,
 			Image:                  artifact.Image,
+			TargetPlatforms:        adapter.GetTargetPlatformObjectFromString(artifact.TargetPlatforms),
 			ImageDigest:            artifact.ImageDigest,
 			MaterialInfo:           mInfo,
 			ScanEnabled:            artifact.ScanEnabled,
