@@ -17,10 +17,12 @@
 package deployedApp
 
 import (
+	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp/status"
 	"github.com/google/wire"
 )
 
 var DeployedAppWireSet = wire.NewSet(
+	status.WireSet,
 	NewDeployedAppServiceImpl,
 	wire.Bind(new(DeployedAppService), new(*DeployedAppServiceImpl)),
 )

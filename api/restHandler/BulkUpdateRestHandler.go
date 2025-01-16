@@ -17,7 +17,6 @@
 package restHandler
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
@@ -40,7 +39,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -82,7 +80,6 @@ type BulkUpdateRestHandlerImpl struct {
 	cdHandelr               pipeline.CdHandler
 	appCloneService         appClone.AppCloneService
 	materialRepository      repository.MaterialRepository
-	argoUserService         argo.ArgoUserService
 }
 
 func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logger *zap.SugaredLogger,
@@ -103,7 +100,7 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 	appCloneService appClone.AppCloneService,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository repository.MaterialRepository,
-	argoUserService argo.ArgoUserService) *BulkUpdateRestHandlerImpl {
+) *BulkUpdateRestHandlerImpl {
 	return &BulkUpdateRestHandlerImpl{
 		pipelineBuilder:         pipelineBuilder,
 		logger:                  logger,
@@ -127,7 +124,6 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 		appCloneService:         appCloneService,
 		appWorkflowService:      appWorkflowService,
 		materialRepository:      materialRepository,
-		argoUserService:         argoUserService,
 	}
 }
 
@@ -283,15 +279,8 @@ func (handler BulkUpdateRestHandlerImpl) BulkHibernate(w http.ResponseWriter, r 
 		return
 	}
 
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
 	token := r.Header.Get("token")
-	response, err := handler.bulkUpdateService.BulkHibernate(&request, ctx, w, token, handler.checkAuthForBulkHibernateAndUnhibernate)
+	response, err := handler.bulkUpdateService.BulkHibernate(&request, r.Context(), w, token, handler.checkAuthForBulkHibernateAndUnhibernate)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -320,15 +309,8 @@ func (handler BulkUpdateRestHandlerImpl) BulkUnHibernate(w http.ResponseWriter, 
 		return
 	}
 
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
 	token := r.Header.Get("token")
-	response, err := handler.bulkUpdateService.BulkUnHibernate(&request, ctx, w, token, handler.checkAuthForBulkHibernateAndUnhibernate)
+	response, err := handler.bulkUpdateService.BulkUnHibernate(&request, r.Context(), w, token, handler.checkAuthForBulkHibernateAndUnhibernate)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -385,15 +367,8 @@ func (handler BulkUpdateRestHandlerImpl) BulkBuildTrigger(w http.ResponseWriter,
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
 	token := r.Header.Get("token")
-	response, err := handler.bulkUpdateService.BulkBuildTrigger(&request, ctx, w, token, handler.checkAuthForBulkActions)
+	response, err := handler.bulkUpdateService.BulkBuildTrigger(&request, r.Context(), w, token, handler.checkAuthForBulkActions)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -479,14 +454,8 @@ func (handler BulkUpdateRestHandlerImpl) HandleCdPipelineBulkAction(w http.Respo
 			return
 		}
 	}
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
-	resp, err := handler.bulkUpdateService.PerformBulkActionOnCdPipelines(&cdPipelineBulkActionReq, impactedPipelines, ctx, dryRun, impactedAppWfIds, impactedCiPipelineIds)
+
+	resp, err := handler.bulkUpdateService.PerformBulkActionOnCdPipelines(&cdPipelineBulkActionReq, impactedPipelines, r.Context(), dryRun, impactedAppWfIds, impactedCiPipelineIds)
 	if err != nil {
 		handler.logger.Errorw("service err, HandleCdPipelineBulkAction", "err", err, "payload", cdPipelineBulkActionReq)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

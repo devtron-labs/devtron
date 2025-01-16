@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	bean "github.com/devtron-labs/devtron/api/bean"
+	bean "github.com/devtron-labs/devtron/api/bean/AppView"
 	app "github.com/devtron-labs/devtron/pkg/app"
 
 	context "context"

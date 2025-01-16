@@ -513,7 +513,7 @@ spec:
               protocol: TCP
               name: envoy-admin
               {{- range $index, $element := .Values.ContainerPort }}
-            - name: {{ $element.name}}
+            - name: envoy-{{ $element.name}}
               containerPort: {{ $element.envoyPort | default (add 8790 $index) }}
               protocol: TCP
               {{- end }}
@@ -1123,7 +1123,7 @@ spec:
               protocol: TCP
               name: envoy-admin
               {{- range $index, $element := .Values.ContainerPort }}
-            - name: {{ $element.name}}
+            - name: envoy-{{ $element.name}}
               containerPort: {{ $element.envoyPort | default (add 8790 $index) }}
               protocol: TCP
               {{- end }}

@@ -81,6 +81,7 @@ type ValuesOverrideRequest struct {
 	PipelineOverrideId                    int                         `json:"pipelineOverrideId"` // required for async install/upgrade event;
 	DeploymentType                        models.DeploymentType       `json:"deploymentType"`     // required for async install/upgrade handling; previously if was used internally
 	ForceSyncDeployment                   bool                        `json:"forceSyncDeployment,notnull"`
+	IsRollbackDeployment                  bool                        `json:"isRollbackDeployment"`
 	UserId                                int32                       `json:"-"`
 	EnvId                                 int                         `json:"-"`
 	EnvName                               string                      `json:"-"`

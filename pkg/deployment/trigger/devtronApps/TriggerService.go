@@ -82,7 +82,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	globalUtil "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
@@ -130,7 +129,6 @@ type TriggerServiceImpl struct {
 	workflowEventPublishService         out.WorkflowEventPublishService
 	manifestCreationService             manifest.ManifestCreationService
 	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService
-	argoUserService                     argo.ArgoUserService
 	pipelineStageService                pipeline.PipelineStageService
 	globalPluginService                 plugin.GlobalPluginService
 	customTagService                    pipeline.CustomTagService
@@ -188,7 +186,6 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 	workflowEventPublishService out.WorkflowEventPublishService,
 	manifestCreationService manifest.ManifestCreationService,
 	deployedConfigurationHistoryService history.DeployedConfigurationHistoryService,
-	argoUserService argo.ArgoUserService,
 	pipelineStageService pipeline.PipelineStageService,
 	globalPluginService plugin.GlobalPluginService,
 	customTagService pipeline.CustomTagService,
@@ -247,7 +244,6 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 		workflowEventPublishService:         workflowEventPublishService,
 		manifestCreationService:             manifestCreationService,
 		deployedConfigurationHistoryService: deployedConfigurationHistoryService,
-		argoUserService:                     argoUserService,
 		pipelineStageService:                pipelineStageService,
 		globalPluginService:                 globalPluginService,
 		customTagService:                    customTagService,
@@ -362,32 +358,34 @@ func (impl *TriggerServiceImpl) getCdPipelineForManualCdTrigger(ctx context.Cont
 	return cdPipeline, nil
 }
 
-func (impl *TriggerServiceImpl) validateDeploymentTriggerRequest(ctx context.Context, runner *pipelineConfig.CdWorkflowRunner,
-	cdPipeline *pipelineConfig.Pipeline, imageDigest string, envDeploymentConfig *bean9.DeploymentConfig, triggeredBy int32) error {
+func (impl *TriggerServiceImpl) validateDeploymentTriggerRequest(ctx context.Context, validateDeploymentTriggerObj *bean.ValidateDeploymentTriggerObj) error {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.validateDeploymentTriggerRequest")
 	defer span.End()
 	// custom GitOps repo url validation --> Start
-	err := impl.handleCustomGitOpsRepoValidation(runner, cdPipeline, envDeploymentConfig, triggeredBy)
+	err := impl.handleCustomGitOpsRepoValidation(validateDeploymentTriggerObj.Runner, validateDeploymentTriggerObj.CdPipeline, validateDeploymentTriggerObj.DeploymentConfig, validateDeploymentTriggerObj.TriggeredBy)
 	if err != nil {
 		impl.logger.Errorw("custom GitOps repository validation error, TriggerStage", "err", err)
 		return err
 	}
 	// custom GitOps repo url validation --> Ends
-
-	// checking vulnerability for deploying image
-	vulnerabilityCheckRequest := adapter.GetVulnerabilityCheckRequest(cdPipeline, imageDigest)
-	isVulnerable, err := impl.imageScanService.GetArtifactVulnerabilityStatus(newCtx, vulnerabilityCheckRequest)
-	if err != nil {
-		impl.logger.Errorw("error in getting Artifact vulnerability status, ManualCdTrigger", "err", err)
-		return err
+	var isVulnerable bool
+	// if request is for rollback then bypass vulnerability validation
+	if !validateDeploymentTriggerObj.IsDeploymentTypeRollback() {
+		// checking vulnerability for deploying image
+		vulnerabilityCheckRequest := adapter.GetVulnerabilityCheckRequest(validateDeploymentTriggerObj.CdPipeline, validateDeploymentTriggerObj.ImageDigest)
+		isVulnerable, err = impl.imageScanService.GetArtifactVulnerabilityStatus(newCtx, vulnerabilityCheckRequest)
+		if err != nil {
+			impl.logger.Errorw("error in getting Artifact vulnerability status, ManualCdTrigger", "err", err)
+			return err
+		}
 	}
 
 	if isVulnerable == true {
 		// if image vulnerable, update timeline status and return
-		if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(cdWorkflow.FOUND_VULNERABILITY), triggeredBy); err != nil {
-			impl.logger.Errorw("error while updating current runner status to failed, TriggerDeployment", "wfrId", runner.Id, "err", err)
+		if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(validateDeploymentTriggerObj.Runner, errors.New(cdWorkflow.FOUND_VULNERABILITY), validateDeploymentTriggerObj.TriggeredBy); err != nil {
+			impl.logger.Errorw("error while updating current runner status to failed, TriggerDeployment", "wfrId", validateDeploymentTriggerObj.Runner.Id, "err", err)
 		}
-		return fmt.Errorf("found vulnerability for image digest %s", imageDigest)
+		return fmt.Errorf("found vulnerability for image digest %s", validateDeploymentTriggerObj.ImageDigest)
 	}
 	return nil
 }
@@ -540,7 +538,8 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			impl.logger.Errorw("error in creating timeline status for deployment initiation, ManualCdTrigger", "err", err, "timeline", timeline)
 		}
 		if isNotHibernateRequest(overrideRequest.DeploymentType) {
-			validationErr := impl.validateDeploymentTriggerRequest(ctx, runner, cdPipeline, artifact.ImageDigest, envDeploymentConfig, overrideRequest.UserId)
+			validateReqObj := adapter.NewValidateDeploymentTriggerObj(runner, cdPipeline, artifact.ImageDigest, envDeploymentConfig, overrideRequest.UserId, overrideRequest.IsRollbackDeployment)
+			validationErr := impl.validateDeploymentTriggerRequest(ctx, validateReqObj)
 			if validationErr != nil {
 				impl.logger.Errorw("validation error deployment request", "cdWfr", runner.Id, "err", validationErr)
 				return 0, "", nil, validationErr
@@ -675,7 +674,7 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		return err
 	}
 	// setting triggeredBy as 1(system user) since case of auto trigger
-	validationErr := impl.validateDeploymentTriggerRequest(ctx, runner, pipeline, artifact.ImageDigest, envDeploymentConfig, 1)
+	validationErr := impl.validateDeploymentTriggerRequest(ctx, adapter.NewValidateDeploymentTriggerObj(runner, pipeline, artifact.ImageDigest, envDeploymentConfig, 1, false))
 	if validationErr != nil {
 		impl.logger.Errorw("validation error deployment request", "cdWfr", runner.Id, "err", validationErr)
 		return validationErr
@@ -748,13 +747,8 @@ func (impl *TriggerServiceImpl) releasePipeline(ctx context.Context, pipeline *p
 
 	adapter.SetPipelineFieldsInOverrideRequest(request, pipeline, envDeploymentConfig)
 
-	releaseCtx, err := impl.argoUserService.GetACDContext(ctx)
-	if err != nil {
-		impl.logger.Errorw("error in creating acd sync context", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
-		return err
-	}
 	// setting deployedBy as 1(system user) since case of auto trigger
-	id, _, err := impl.handleCDTriggerRelease(releaseCtx, request, envDeploymentConfig, triggeredAt, 1)
+	id, _, err := impl.handleCDTriggerRelease(ctx, request, envDeploymentConfig, triggeredAt, 1)
 	if err != nil {
 		impl.logger.Errorw("error in auto  cd pipeline trigger", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
 	} else {

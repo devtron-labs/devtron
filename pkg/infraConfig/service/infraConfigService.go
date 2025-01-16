@@ -81,7 +81,7 @@ func (impl *InfraConfigServiceImpl) GetProfileByName(name string) (*bean.Profile
 	}
 
 	profileBean := adapter.ConvertToProfileBean(infraProfile)
-	infraConfigurations, err := impl.infraProfileRepo.GetConfigurationsByProfileId(infraProfile.Id)
+	infraConfigurations, err := impl.infraProfileRepo.GetConfigurationsByProfileIds([]int{infraProfile.Id})
 	if err != nil {
 		impl.logger.Errorw("error in fetching default configurations", "error", err)
 		return nil, err
@@ -105,6 +105,12 @@ func (impl *InfraConfigServiceImpl) GetProfileByName(name string) (*bean.Profile
 
 func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName string, profileToUpdate *bean.ProfileBeanDto) error {
 	// validation
+
+	//here we are setting as it will get validate later.. //for  maintaining the backward compatibility
+	if !profileToUpdate.BuildxDriverType.IsValid() && profileToUpdate.BuildxDriverType == "" {
+		profileToUpdate.BuildxDriverType = bean.BuildxK8sDriver
+	}
+
 	defaultProfile, err := impl.GetProfileByName(profileName)
 	if err != nil {
 		impl.logger.Errorw("error in fetching default profile", "profileName", profileName, "profileCreateRequest", profileToUpdate, "error", err)
@@ -116,9 +122,11 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 	}
 	// validations end
 
+	profileToUpdate.Id = defaultProfile.Id
 	infraProfileEntity := adapter.ConvertToInfraProfileEntity(profileToUpdate)
 	// user couldn't delete the profile, always set this to active
 	infraProfileEntity.Active = true
+	//todo make it compatible with ent
 
 	infraConfigurations := adapter.ConvertFromPlatformMap(profileToUpdate.Configurations, defaultProfile, userId)
 
@@ -141,7 +149,6 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 		impl.logger.Errorw("error in updating profile", "error", "profileName", profileName, "profileCreateRequest", profileToUpdate, err)
 		return err
 	}
-
 	err = impl.infraProfileRepo.UpdateConfigurations(tx, infraConfigurations)
 	if err != nil {
 		impl.logger.Errorw("error in creating configurations", "error", "profileName", profileName, "profileCreateRequest", profileToUpdate, err)
@@ -149,9 +156,10 @@ func (impl *InfraConfigServiceImpl) UpdateProfile(userId int32, profileName stri
 	}
 	err = impl.infraProfileRepo.CommitTx(tx)
 	if err != nil {
-		impl.logger.Errorw("error in committing transaction to update profile", "profileName", profileName, "profileCreateRequest", profileToUpdate, "error", err)
+		impl.logger.Errorw("error in committing transaction to update profile", "profileCreateRequest", profileToUpdate, "error", err)
+		return err
 	}
-	return err
+	return nil
 }
 
 // loadDefaultProfile loads default configurations from environment and save them in db.
@@ -194,8 +202,8 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 		}
 		profile = defaultProfile
 	}
-
-	defaultConfigurationsFromEnv, err := adapter.LoadInfraConfigInEntities(impl.infraConfig)
+	var nodeselector []string
+	defaultConfigurationsFromEnv, err := adapter.LoadInfraConfigInEntities(impl.infraConfig, nodeselector, "", "")
 	if err != nil {
 		impl.logger.Errorw("error in loading default configurations from environment", "error", err)
 		return err
@@ -214,42 +222,58 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 
 	creatableConfigurations := make([]*repository.InfraProfileConfigurationEntity, 0, len(defaultConfigurationsFromEnv))
 	creatableProfilePlatformMapping := make([]*repository.ProfilePlatformMapping, 0)
-	for _, configurationFromEnv := range defaultConfigurationsFromEnv {
-		if ok, exist := defaultConfigurationsFromDBMap[configurationFromEnv.Key]; !exist || !ok {
-			configurationFromEnv.ProfileId = profile.Id
-			configurationFromEnv.Active = true
-			configurationFromEnv.Platform = bean.RUNNER_PLATFORM
-			configurationFromEnv.AuditLog = sql.NewDefaultAuditLog(1)
-			creatableConfigurations = append(creatableConfigurations, configurationFromEnv)
-		}
-	}
 
-	_, err = impl.infraProfileRepo.GetPlatformListByProfileName(bean.GLOBAL_PROFILE_NAME)
+	platformsFromDb, err := impl.infraProfileRepo.GetPlatformsByProfileName(bean.GLOBAL_PROFILE_NAME)
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in fetching platforms from db", "error", err)
 		return err
 	}
-	//creating default platform if not found in db
-	if errors.Is(err, pg.ErrNoRows) {
-		creatableProfilePlatformMapping = append(creatableProfilePlatformMapping, &repository.ProfilePlatformMapping{
+
+	runnerPlatFormMapping := &repository.ProfilePlatformMapping{}
+	//one platform is expected
+	if len(platformsFromDb) > 0 {
+		for _, platform := range platformsFromDb {
+			if platform.Platform == bean.RUNNER_PLATFORM {
+				runnerPlatFormMapping = platform
+				break
+			}
+		}
+	} else {
+		runnerPlatFormMapping = &repository.ProfilePlatformMapping{
 			Platform:  bean.RUNNER_PLATFORM,
 			ProfileId: profile.Id,
 			Active:    true,
-		})
+			AuditLog:  sql.NewDefaultAuditLog(1),
+		}
+	}
+
+	//creating default platform if not found in db
+	if len(platformsFromDb) == 0 {
+		creatableProfilePlatformMapping = append(creatableProfilePlatformMapping, runnerPlatFormMapping)
+	}
+	if len(creatableProfilePlatformMapping) > 0 {
+		err = impl.infraProfileRepo.CreatePlatformProfileMapping(tx, creatableProfilePlatformMapping)
+		if err != nil {
+			impl.logger.Errorw("error in saving default configurations", "error", err)
+			return err
+		}
+	}
+
+	for _, configurationFromEnv := range defaultConfigurationsFromEnv {
+		if ok, exist := defaultConfigurationsFromDBMap[configurationFromEnv.Key]; !exist || !ok {
+			configurationFromEnv.ProfileId = profile.Id
+			configurationFromEnv.Active = true
+			configurationFromEnv.ProfilePlatformMappingId = runnerPlatFormMapping.Id
+			configurationFromEnv.ProfilePlatformMapping.Platform = bean.RUNNER_PLATFORM
+			configurationFromEnv.AuditLog = sql.NewDefaultAuditLog(1)
+			creatableConfigurations = append(creatableConfigurations, configurationFromEnv)
+		}
 	}
 
 	if len(creatableConfigurations) > 0 {
 		err = impl.infraProfileRepo.CreateConfigurations(tx, creatableConfigurations)
 		if err != nil {
 			impl.logger.Errorw("error in saving default configurations", "configurations", creatableConfigurations, "error", err)
-			return err
-		}
-	}
-
-	if len(creatableProfilePlatformMapping) > 0 {
-		err = impl.infraProfileRepo.CreatePlatformProfileMapping(tx, creatableProfilePlatformMapping)
-		if err != nil {
-			impl.logger.Errorw("error in saving default configurations", "error", err)
 			return err
 		}
 	}
@@ -346,12 +370,8 @@ func (impl *InfraConfigServiceImpl) GetConfigurationUnits() map[bean.ConfigKeySt
 }
 
 func (impl *InfraConfigServiceImpl) validate(profileToUpdate *bean.ProfileBeanDto, defaultProfile *bean.ProfileBeanDto) error {
-	err := util2.ValidatePayloadConfig(profileToUpdate)
-	if err != nil {
-		return err
-	}
 
-	err = impl.validateInfraConfig(profileToUpdate, defaultProfile)
+	err := impl.validateInfraConfig(profileToUpdate, defaultProfile)
 	if err != nil {
 		err = errors.Wrap(err, bean.PayloadValidationError)
 		return err

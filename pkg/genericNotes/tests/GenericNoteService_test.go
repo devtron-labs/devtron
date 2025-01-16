@@ -18,9 +18,9 @@ package tests
 
 import (
 	"errors"
+	bean2 "github.com/devtron-labs/devtron/api/bean/AppView"
 	"testing"
 
-	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	mocks2 "github.com/devtron-labs/devtron/pkg/auth/user/repository/mocks"
