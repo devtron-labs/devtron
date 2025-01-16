@@ -20,10 +20,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	bean2 "github.com/devtron-labs/common-lib/imageScan/bean"
 	repository1 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	read2 "github.com/devtron-labs/devtron/pkg/cluster/read"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/adapter"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/read"
 	repository3 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
@@ -42,7 +46,7 @@ import (
 )
 
 type PolicyService interface {
-	SavePolicy(request bean.CreateVulnerabilityPolicyRequest, userId int32) (*bean.IdVulnerabilityPolicyResult, error)
+	SavePolicy(request *bean.CreateVulnerabilityPolicyRequest, userId int32) (*bean.IdVulnerabilityPolicyResult, error)
 	UpdatePolicy(updatePolicyParams bean.UpdatePolicyParams, userId int32) (*bean.IdVulnerabilityPolicyResult, error)
 	DeletePolicy(id int, userId int32) (*bean.IdVulnerabilityPolicyResult, error)
 	GetPolicies(policyLevel securityBean.PolicyLevel, clusterId, environmentId, appId int) (*bean.GetVulnerabilityPolicyResult, error)
@@ -69,6 +73,8 @@ type PolicyServiceImpl struct {
 	imageScanHistoryReadService   read.ImageScanHistoryReadService
 	cveStoreRepository            repository3.CveStoreRepository
 	ciTemplateRepository          pipelineConfig.CiTemplateRepository
+	ClusterReadService            read2.ClusterReadService
+	transactionManager            sql.TransactionWrapper
 }
 
 func NewPolicyServiceImpl(environmentService environment.EnvironmentService,
@@ -84,7 +90,9 @@ func NewPolicyServiceImpl(environmentService environment.EnvironmentService,
 	ciArtifactRepository repository.CiArtifactRepository, ciConfig *types.CiCdConfig,
 	imageScanHistoryReadService read.ImageScanHistoryReadService,
 	cveStoreRepository repository3.CveStoreRepository,
-	ciTemplateRepository pipelineConfig.CiTemplateRepository) *PolicyServiceImpl {
+	ciTemplateRepository pipelineConfig.CiTemplateRepository,
+	ClusterReadService read2.ClusterReadService,
+	transactionManager sql.TransactionWrapper) *PolicyServiceImpl {
 	return &PolicyServiceImpl{
 		environmentService:            environmentService,
 		logger:                        logger,
@@ -102,6 +110,8 @@ func NewPolicyServiceImpl(environmentService environment.EnvironmentService,
 		imageScanHistoryReadService:   imageScanHistoryReadService,
 		cveStoreRepository:            cveStoreRepository,
 		ciTemplateRepository:          ciTemplateRepository,
+		ClusterReadService:            ClusterReadService,
+		transactionManager:            transactionManager,
 	}
 }
 
@@ -133,22 +143,7 @@ type VerifyImageResponse struct {
 	FixedVersion string
 }
 
-type ScanEvent struct {
-	Image            string `json:"image"`
-	ImageDigest      string `json:"imageDigest"`
-	AppId            int    `json:"appId"`
-	EnvId            int    `json:"envId"`
-	PipelineId       int    `json:"pipelineId"`
-	CiArtifactId     int    `json:"ciArtifactId"`
-	UserId           int    `json:"userId"`
-	AccessKey        string `json:"accessKey"`
-	SecretKey        string `json:"secretKey"`
-	Token            string `json:"token"`
-	AwsRegion        string `json:"awsRegion"`
-	DockerRegistryId string `json:"dockerRegistryId"`
-}
-
-func (impl *PolicyServiceImpl) SendEventToClairUtility(event *ScanEvent) error {
+func (impl *PolicyServiceImpl) SendEventToClairUtility(event *bean2.ImageScanEvent) error {
 	reqBody, err := json.Marshal(event)
 	if err != nil {
 		return err
@@ -228,7 +223,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 			return nil, err
 		}
 		if scanHistory != nil && scanHistory.Id == 0 && objectType != repository3.ScanObjectType_APP {
-			scanEvent := &ScanEvent{Image: image, ImageDigest: "", PipelineId: 0, UserId: 1}
+			scanEvent := &bean2.ImageScanEvent{Image: image, ImageDigest: "", PipelineId: 0, UserId: 1}
 			dockerReg, err := impl.ciTemplateRepository.FindByAppId(app.Id)
 			if err != nil {
 				impl.logger.Errorw("error in fetching docker reg ", "err", err)
@@ -441,58 +436,81 @@ func (impl *PolicyServiceImpl) parsePolicyAction(action string) (securityBean.Po
 	return policyAction, nil
 }
 
-func (impl *PolicyServiceImpl) SavePolicy(request bean.CreateVulnerabilityPolicyRequest, userId int32) (*bean.IdVulnerabilityPolicyResult, error) {
-	isGlobal := false
-	if request.ClusterId == 0 && request.EnvId == 0 && request.AppId == 0 {
-		isGlobal = true
+func (impl *PolicyServiceImpl) SavePolicy(request *bean.CreateVulnerabilityPolicyRequest, userId int32) (*bean.IdVulnerabilityPolicyResult, error) {
+	tx, err := impl.transactionManager.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in creating transaction", "request", request, "err", err)
+		return nil, err
 	}
+	defer func() {
+		err = impl.transactionManager.RollbackTx(tx)
+		if err != nil {
+			impl.logger.Infow("error in rolling back transaction", "request", request, "err", err)
+		}
+	}()
+
 	action, err := impl.parsePolicyAction(string(*request.Action))
 	if err != nil {
+		impl.logger.Errorw("error in parsing policy action", "action", request.Action, "err", err)
 		return nil, err
 	}
 	var severity securityBean.Severity
 	if len(request.Severity) > 0 {
-		if request.Severity == securityBean.CRITICAL {
-			severity = securityBean.Critical
-		} else if request.Severity == securityBean.HIGH {
-			severity = securityBean.High
-		} else if request.Severity == securityBean.MODERATE || request.Severity == securityBean.MEDIUM {
-			severity = securityBean.Medium
-		} else if request.Severity == securityBean.LOW {
-			severity = securityBean.Low
-		} else if request.Severity == securityBean.UNKNOWN {
-			severity = securityBean.Unknown
-		} else {
-			return nil, fmt.Errorf("unsupported Severity %s", request.Severity)
+		severity, err = securityBean.SeverityStringToEnumWithError(request.Severity)
+		if err != nil {
+			impl.logger.Errorw("error in converting string severity to enum", "severity", request.Severity, "err", err)
+			return nil, err
 		}
 	} else {
 		cveStore, err := impl.cveStoreRepository.FindByName(request.CveId)
-		if err != nil {
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.logger.Errorw("error in finding cveStore by cveId", "cveId", request.CveId, "err", err)
 			return nil, err
+		} else if util.IsErrNoRows(err) {
+			errMessage := fmt.Sprintf("cve %s not found in our database", request.CveId)
+			return nil, util.NewApiError(http.StatusNotFound, errMessage, errMessage)
 		}
 		severity = cveStore.GetSeverity()
 	}
-	policy := &repository3.CvePolicy{
-		Global:        isGlobal,
-		ClusterId:     request.ClusterId,
-		EnvironmentId: request.EnvId,
-		AppId:         request.AppId,
-		CVEStoreId:    request.CveId,
-		Action:        action,
-		Severity:      &severity,
-		AuditLog: sql.AuditLog{
-			CreatedOn: time.Now(),
-			CreatedBy: userId,
-			UpdatedOn: time.Now(),
-			UpdatedBy: userId,
-		},
+	// mark all previous policy on cveIds deleted before saving new one
+	if len(request.CveId) > 0 {
+		err = impl.softDeleteOldPoliciesIfExists(tx, request, userId)
+		if err != nil {
+			impl.logger.Errorw("error in soft deleting policies if exists", "request", request, "err", err)
+			return nil, err
+		}
 	}
-	policy, err = impl.cvePolicyRepository.SavePolicy(policy)
+	policy, err := impl.cvePolicyRepository.SavePolicy(tx, adapter.BuildCvePolicy(request, action, severity, time.Now(), userId))
 	if err != nil {
-		impl.logger.Errorw("error in saving policy", "err", err)
-		return nil, fmt.Errorf("error in saving policy")
+		impl.logger.Errorw("error in saving policy", "request", request, "err", err)
+		return nil, err
+	}
+	err = impl.transactionManager.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing tx Create material", "request", request, "err", err)
+		return nil, err
 	}
 	return &bean.IdVulnerabilityPolicyResult{Id: policy.Id}, nil
+}
+
+func (impl *PolicyServiceImpl) softDeleteOldPoliciesIfExists(tx *pg.Tx, request *bean.CreateVulnerabilityPolicyRequest, userId int32) error {
+	policiesToDelete, err := impl.cvePolicyRepository.GetActiveByCveIdAndScope(request.CveId, request.EnvId, request.AppId, request.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting active policies by cveId and scope", "request", request, "err", err)
+		return err
+	}
+	for _, policy := range policiesToDelete {
+		policy.UpdateDeleted(true)
+		policy.AuditLog.UpdateAuditLog(userId)
+	}
+	if len(policiesToDelete) > 0 {
+		err = impl.cvePolicyRepository.UpdatePoliciesInBulk(tx, policiesToDelete)
+		if err != nil {
+			impl.logger.Errorw("error in deleting policies", "request", request, "err", err)
+			return err
+		}
+	}
+	return nil
 }
 
 /*
@@ -515,7 +533,7 @@ func (impl *PolicyServiceImpl) UpdatePolicy(updatePolicyParams bean.UpdatePolicy
 		policy.Action = policyAction
 		policy.UpdatedOn = time.Now()
 		policy.UpdatedBy = userId
-		policy, err = impl.cvePolicyRepository.UpdatePolicy(policy)
+		policy, err = impl.cvePolicyRepository.UpdatePolicy(nil, policy)
 		if err != nil {
 			return nil, err
 		} else {
@@ -540,7 +558,7 @@ func (impl *PolicyServiceImpl) DeletePolicy(id int, userId int32) (*bean.IdVulne
 	policy.Deleted = true
 	policy.UpdatedOn = time.Now()
 	policy.UpdatedBy = userId
-	policy, err = impl.cvePolicyRepository.UpdatePolicy(policy)
+	policy, err = impl.cvePolicyRepository.UpdatePolicy(nil, policy)
 	if err != nil {
 		return nil, err
 	} else {
@@ -573,7 +591,7 @@ func (impl *PolicyServiceImpl) GetPolicies(policyLevel securityBean.PolicyLevel,
 			return nil, fmt.Errorf("cluster id is missing")
 		}
 		// get cluster name
-		cluster, err := impl.clusterService.FindById(clusterId)
+		cluster, err := impl.ClusterReadService.FindById(clusterId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching cluster details", "id", clusterId, "err", err)
 			return nil, err

@@ -17,7 +17,6 @@
 package trigger
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	util2 "github.com/devtron-labs/devtron/internal/util"
@@ -42,7 +41,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/team"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -66,7 +64,6 @@ type PipelineTriggerRestHandlerImpl struct {
 	logger                      *zap.SugaredLogger
 	enforcerUtil                rbac.EnforcerUtil
 	deploymentGroupService      deploymentGroup.DeploymentGroupService
-	argoUserService             argo.ArgoUserService
 	deploymentConfigService     pipeline.PipelineDeploymentConfigService
 	deployedAppService          deployedApp.DeployedAppService
 	cdTriggerService            devtronApps.TriggerService
@@ -76,7 +73,7 @@ type PipelineTriggerRestHandlerImpl struct {
 func NewPipelineRestHandler(appService app.AppService, userAuthService user.UserService, validator *validator.Validate,
 	enforcer casbin.Enforcer, teamService team.TeamService, logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
 	deploymentGroupService deploymentGroup.DeploymentGroupService,
-	argoUserService argo.ArgoUserService, deploymentConfigService pipeline.PipelineDeploymentConfigService,
+	deploymentConfigService pipeline.PipelineDeploymentConfigService,
 	deployedAppService deployedApp.DeployedAppService,
 	cdTriggerService devtronApps.TriggerService,
 	workflowEventPublishService out.WorkflowEventPublishService) *PipelineTriggerRestHandlerImpl {
@@ -89,7 +86,6 @@ func NewPipelineRestHandler(appService app.AppService, userAuthService user.User
 		logger:                      logger,
 		enforcerUtil:                enforcerUtil,
 		deploymentGroupService:      deploymentGroupService,
-		argoUserService:             argoUserService,
 		deploymentConfigService:     deploymentConfigService,
 		deployedAppService:          deployedAppService,
 		cdTriggerService:            cdTriggerService,
@@ -139,18 +135,12 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 		common.WriteJsonResp(w, rbacErr, nil, http.StatusForbidden)
 		return
 	}
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
+	ctx := r.Context()
 	_, span := otel.Tracer("orchestrator").Start(ctx, "workflowDagExecutor.ManualCdTrigger")
 	triggerContext := bean3.TriggerContext{
 		Context: ctx,
 	}
-	mergeResp, helmPackageName, err := handler.cdTriggerService.ManualCdTrigger(triggerContext, &overrideRequest)
+	mergeResp, helmPackageName, _, err := handler.cdTriggerService.ManualCdTrigger(triggerContext, &overrideRequest)
 	span.End()
 	if err != nil {
 		handler.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)
@@ -238,13 +228,7 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopApp(w http.ResponseWriter
 		return
 	}
 	//rback block ends here
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
+	ctx := r.Context()
 	mergeResp, err := handler.deployedAppService.StopStartApp(ctx, &overrideRequest)
 	if err != nil {
 		handler.logger.Errorw("service err, StartStopApp", "err", err, "payload", overrideRequest)

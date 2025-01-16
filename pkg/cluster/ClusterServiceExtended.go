@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -29,7 +30,6 @@ import (
 
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -42,21 +42,21 @@ type ClusterServiceImplExtended struct {
 	environmentRepository   repository.EnvironmentRepository
 	grafanaClient           grafana.GrafanaClient
 	installedAppRepository  repository2.InstalledAppRepository
-	clusterServiceCD        cluster2.ServiceClient
+	argoCDClientWrapper     argocdServer.ArgoClientWrapperService
 	gitOpsConfigReadService config.GitOpsConfigReadService
 	*ClusterServiceImpl
 }
 
 func NewClusterServiceImplExtended(environmentRepository repository.EnvironmentRepository,
 	grafanaClient grafana.GrafanaClient, installedAppRepository repository2.InstalledAppRepository,
-	clusterServiceCD cluster2.ServiceClient,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	clusterServiceImpl *ClusterServiceImpl) *ClusterServiceImplExtended {
+	clusterServiceImpl *ClusterServiceImpl,
+	argoCDClientWrapper argocdServer.ArgoClientWrapperService) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
 		environmentRepository:   environmentRepository,
 		grafanaClient:           grafanaClient,
 		installedAppRepository:  installedAppRepository,
-		clusterServiceCD:        clusterServiceCD,
+		argoCDClientWrapper:     argoCDClientWrapper,
 		gitOpsConfigReadService: gitOpsConfigReadService,
 		ClusterServiceImpl:      clusterServiceImpl,
 	}
@@ -265,7 +265,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *bean.C
 			Config: cdClusterConfig,
 		}
 
-		_, err = impl.clusterServiceCD.Update(ctx, &cluster3.ClusterUpdateRequest{Cluster: cl})
+		_, err = impl.argoCDClientWrapper.UpdateCluster(ctx, &cluster3.ClusterUpdateRequest{Cluster: cl})
 
 		if err != nil {
 			impl.logger.Errorw("service err, Update", "error", err, "payload", cl)
@@ -354,7 +354,7 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *bean.Clu
 		//create it into argo cd as well
 		cl := impl.ConvertClusterBeanObjectToCluster(bean)
 
-		_, err = impl.clusterServiceCD.Create(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
+		_, err = impl.argoCDClientWrapper.CreateCluster(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
 		if err != nil {
 			impl.logger.Errorw("service err, Save", "err", err, "payload", cl)
 			err1 := impl.ClusterServiceImpl.Delete(bean, userId) //FIXME nishant call local

@@ -24,7 +24,8 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/cluster/rbac"
-	"github.com/devtron-labs/devtron/pkg/k8s"
+	"github.com/devtron-labs/devtron/pkg/cluster/read"
+	bean3 "github.com/devtron-labs/devtron/pkg/k8s/bean"
 	"net/http"
 	"strconv"
 
@@ -58,6 +59,7 @@ type K8sCapacityRestHandlerImpl struct {
 	clusterService     cluster.ClusterService
 	environmentService environment.EnvironmentService
 	clusterRbacService rbac.ClusterRbacService
+	clusterReadService read.ClusterReadService
 }
 
 func NewK8sCapacityRestHandlerImpl(logger *zap.SugaredLogger,
@@ -65,7 +67,8 @@ func NewK8sCapacityRestHandlerImpl(logger *zap.SugaredLogger,
 	enforcer casbin.Enforcer,
 	clusterService cluster.ClusterService,
 	environmentService environment.EnvironmentService,
-	clusterRbacService rbac.ClusterRbacService) *K8sCapacityRestHandlerImpl {
+	clusterRbacService rbac.ClusterRbacService,
+	clusterReadService read.ClusterReadService) *K8sCapacityRestHandlerImpl {
 	return &K8sCapacityRestHandlerImpl{
 		logger:             logger,
 		k8sCapacityService: k8sCapacityService,
@@ -74,6 +77,7 @@ func NewK8sCapacityRestHandlerImpl(logger *zap.SugaredLogger,
 		clusterService:     clusterService,
 		environmentService: environmentService,
 		clusterRbacService: clusterRbacService,
+		clusterReadService: clusterReadService,
 	}
 }
 
@@ -173,7 +177,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterDetail(w http.ResponseWrite
 	}
 	token := r.Header.Get("token")
 	// RBAC enforcer applying
-	cluster, err := handler.clusterService.FindById(clusterId)
+	cluster, err := handler.clusterReadService.FindById(clusterId)
 	if err != nil {
 		handler.logger.Errorw("error in getting cluster by id", "err", err, "clusterId", clusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -213,7 +217,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetNodeList(w http.ResponseWriter, r 
 	}
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	cluster, err := handler.clusterService.FindById(clusterId)
+	cluster, err := handler.clusterReadService.FindById(clusterId)
 	if err != nil {
 		handler.logger.Errorw("error in getting cluster by id", "err", err, "clusterId", clusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -254,7 +258,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetNodeDetail(w http.ResponseWriter, 
 	}
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	cluster, err := handler.clusterService.FindById(clusterId)
+	cluster, err := handler.clusterReadService.FindById(clusterId)
 	if err != nil {
 		handler.logger.Errorw("error in getting cluster by id", "err", err, "clusterId", clusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -342,7 +346,7 @@ func (handler *K8sCapacityRestHandlerImpl) DeleteNode(w http.ResponseWriter, r *
 			errCode = apiErr.HttpStatusCode
 			switch errCode {
 			case http.StatusNotFound:
-				errorMessage := k8s.ResourceNotFoundErr
+				errorMessage := bean3.ResourceNotFoundErr
 				err = fmt.Errorf("%s: %w", errorMessage, err)
 			}
 		}

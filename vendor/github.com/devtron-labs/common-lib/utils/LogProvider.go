@@ -61,3 +61,15 @@ func InitLogger() (*zap.SugaredLogger, error) {
 func NewSugardLogger() (*zap.SugaredLogger, error) {
 	return InitLogger()
 }
+
+// FlushOutMessages flushes all messages from the logger
+func FlushOutMessages(logger *zap.SugaredLogger) {
+	if logger != nil {
+		logger.Infow("flushing all messages")
+		if err := logger.Sync(); err != nil {
+			logger.Errorw("error in flushing messages", "err", err)
+			return
+		}
+		logger.Infow("flushed all messages")
+	}
+}

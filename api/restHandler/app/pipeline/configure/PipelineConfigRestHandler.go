@@ -32,6 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/read"
+	read3 "github.com/devtron-labs/devtron/pkg/team/read"
 	"io"
 	"net/http"
 	"strconv"
@@ -46,7 +47,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 
@@ -125,7 +125,6 @@ type PipelineConfigRestHandlerImpl struct {
 	policyService                       security2.PolicyService
 	imageScanResultReadService          read.ImageScanResultReadService
 	gitProviderReadService              gitProviderRead.GitProviderReadService
-	argoUserService                     argo.ArgoUserService
 	imageTaggingReadService             imageTaggingRead.ImageTaggingReadService
 	imageTaggingService                 imageTagging.ImageTaggingService
 	deploymentTemplateService           generateManifest.DeploymentTemplateService
@@ -134,6 +133,7 @@ type PipelineConfigRestHandlerImpl struct {
 	deployedAppMetricsService           deployedAppMetrics.DeployedAppMetricsService
 	chartRefService                     chartRef.ChartRefService
 	ciCdPipelineOrchestrator            pipeline.CiCdPipelineOrchestrator
+	teamReadService                     read3.TeamReadService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -157,14 +157,15 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	appWorkflowService appWorkflow.AppWorkflowService,
 	gitMaterialReadService read2.GitMaterialReadService, policyService security2.PolicyService,
 	imageScanResultReadService read.ImageScanResultReadService,
-	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	imageTaggingReadService imageTaggingRead.ImageTaggingReadService,
 	imageTaggingService imageTagging.ImageTaggingService,
 	ciArtifactRepository repository.CiArtifactRepository,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	chartRefService chartRef.ChartRefService,
 	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator,
-	gitProviderReadService gitProviderRead.GitProviderReadService) *PipelineConfigRestHandlerImpl {
+	gitProviderReadService gitProviderRead.GitProviderReadService,
+	teamReadService read3.TeamReadService) *PipelineConfigRestHandlerImpl {
 	envConfig := &PipelineRestHandlerEnvConfig{}
 	err := env.Parse(envConfig)
 	if err != nil {
@@ -193,7 +194,6 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		gitMaterialReadService:              gitMaterialReadService,
 		policyService:                       policyService,
 		imageScanResultReadService:          imageScanResultReadService,
-		argoUserService:                     argoUserService,
 		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
 		imageTaggingReadService:             imageTaggingReadService,
 		imageTaggingService:                 imageTaggingService,
@@ -204,6 +204,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		chartRefService:                     chartRefService,
 		ciCdPipelineOrchestrator:            ciCdPipelineOrchestrator,
 		gitProviderReadService:              gitProviderReadService,
+		teamReadService:                     teamReadService,
 	}
 }
 
@@ -307,13 +308,7 @@ func (handler *PipelineConfigRestHandlerImpl) DeleteACDAppWithNonCascade(w http.
 		return
 	}
 	// rbac enforcer ends
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.Logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
+
 	pipelines, err := handler.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
 	if err != nil && err != pg.ErrNoRows {
 		handler.Logger.Errorw("error in fetching pipelines from db", "appId", appId, "envId", envId)
@@ -327,7 +322,7 @@ func (handler *PipelineConfigRestHandlerImpl) DeleteACDAppWithNonCascade(w http.
 		return
 	}
 	cdPipeline := pipelines[0]
-	err = handler.pipelineBuilder.DeleteACDAppCdPipelineWithNonCascade(cdPipeline, ctx, forceDelete, userId)
+	err = handler.pipelineBuilder.DeleteACDAppCdPipelineWithNonCascade(cdPipeline, r.Context(), forceDelete, userId)
 	if err != nil {
 		handler.Logger.Errorw("service err, NonCascadeDeleteCdPipeline", "err", err, "payload", cdPipeline)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -360,7 +355,7 @@ func (handler *PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r
 		return
 	}
 
-	project, err := handler.teamService.FetchOne(createRequest.TeamId)
+	project, err := handler.teamReadService.FindOne(createRequest.TeamId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -394,14 +389,6 @@ func (handler *PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r
 				}
 			}(ctx.Done(), cn.CloseNotify())
 		}
-		var acdToken string
-		acdToken, err = handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			handler.Logger.Errorw("error in getting acd token", "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		ctx = context.WithValue(r.Context(), "token", acdToken)
 		createResp, err = handler.appCloneService.CloneApp(&createRequest, ctx)
 	}
 	if err != nil {

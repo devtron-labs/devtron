@@ -57,3 +57,19 @@ const (
 	TOPIC      = "topic"
 	STATUS     = "status"
 )
+
+// multiple history rows for one source event
+type SourceType int
+
+const (
+	SourceTypeImage SourceType = 1
+	SourceTypeCode  SourceType = 2
+	SourceTypeSbom  SourceType = 3 // can be used in future for direct sbom scanning
+)
+
+type SourceSubType int
+
+const (
+	SourceSubTypeCi       SourceSubType = 1 // relevant for ci code(2,1) or ci built image(1,1)
+	SourceSubTypeManifest SourceSubType = 2 // relevant for devtron app deployment manifest/helm app manifest(2,2) or images retrieved from manifest(1,2))
+)

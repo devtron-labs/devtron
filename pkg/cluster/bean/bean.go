@@ -5,6 +5,11 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 )
 
+const (
+	DefaultClusterId = 1
+	DEFAULT_CLUSTER  = "default_cluster"
+)
+
 type PrometheusAuth struct {
 	UserName      string `json:"userName,omitempty"`
 	Password      string `json:"password,omitempty"`

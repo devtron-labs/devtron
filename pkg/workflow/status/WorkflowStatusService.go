@@ -19,11 +19,9 @@ package status
 import (
 	"context"
 	"fmt"
-	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -44,7 +42,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	util3 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"k8s.io/utils/strings/slices"
@@ -74,7 +71,6 @@ type WorkflowStatusServiceImpl struct {
 	appStatusService                app_status.AppStatusService
 	acdConfig                       *argocdServer.ACDConfig
 	AppConfig                       *app.AppServiceConfig
-	argoUserService                 argo.ArgoUserService
 	pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService
 	argocdClientWrapperService      argocdServer.ArgoClientWrapperService
 	cdPipelineEventPublishService   out.CDPipelineEventPublishService
@@ -89,9 +85,7 @@ type WorkflowStatusServiceImpl struct {
 	pipelineStatusTimelineRepository     pipelineConfig.PipelineStatusTimelineRepository
 	pipelineRepository                   pipelineConfig.PipelineRepository
 	appListingService                    app.AppListingService
-
-	application             application.ServiceClient
-	deploymentConfigService common2.DeploymentConfigService
+	deploymentConfigService              common2.DeploymentConfigService
 }
 
 func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
@@ -99,7 +93,6 @@ func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	appService app.AppService, appStatusService app_status.AppStatusService,
 	acdConfig *argocdServer.ACDConfig, AppConfig *app.AppServiceConfig,
-	argoUserService argo.ArgoUserService,
 	pipelineStatusSyncDetailService status.PipelineStatusSyncDetailService,
 	argocdClientWrapperService argocdServer.ArgoClientWrapperService,
 	cdPipelineEventPublishService out.CDPipelineEventPublishService,
@@ -112,7 +105,6 @@ func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
 	installedAppReadService installedAppReader.InstalledAppReadService,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	application application.ServiceClient,
 	appListingService app.AppListingService,
 	deploymentConfigService common2.DeploymentConfigService,
 ) (*WorkflowStatusServiceImpl, error) {
@@ -124,7 +116,6 @@ func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
 		appStatusService:                     appStatusService,
 		acdConfig:                            acdConfig,
 		AppConfig:                            AppConfig,
-		argoUserService:                      argoUserService,
 		pipelineStatusSyncDetailService:      pipelineStatusSyncDetailService,
 		argocdClientWrapperService:           argocdClientWrapperService,
 		cdPipelineEventPublishService:        cdPipelineEventPublishService,
@@ -137,7 +128,6 @@ func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
 		installedAppReadService:              installedAppReadService,
 		pipelineStatusTimelineRepository:     pipelineStatusTimelineRepository,
 		pipelineRepository:                   pipelineRepository,
-		application:                          application,
 		appListingService:                    appListingService,
 		deploymentConfigService:              deploymentConfigService,
 	}
@@ -240,15 +230,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 		}
 		// this should only be called when we have git-ops configured
 		// try fetching status from argo cd
-		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			impl.logger.Errorw("error in getting acd token", "err", err)
-		}
-		ctx := context.WithValue(context.Background(), "token", acdToken)
-		query := &application2.ApplicationQuery{
-			Name: &pipeline.DeploymentAppName,
-		}
-		app, err := impl.application.Get(ctx, query)
+		app, err := impl.argocdClientWrapperService.GetArgoAppByName(context.Background(), pipeline.DeploymentAppName)
 		if err != nil {
 			impl.logger.Errorw("error in getting acd application", "err", err, "argoAppName", pipeline)
 			// updating cdWfr status
@@ -343,16 +325,8 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 
 		// this should only be called when we have git-ops configured
 		// try fetching status from argo cd
-		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			impl.logger.Errorw("error in getting acd token", "err", err)
-		}
 
-		ctx := context.WithValue(context.Background(), "token", acdToken)
-		query := &application2.ApplicationQuery{
-			Name: &acdAppName,
-		}
-		app, err := impl.application.Get(ctx, query)
+		app, err := impl.argocdClientWrapperService.GetArgoAppByName(context.Background(), acdAppName)
 		if err != nil {
 			impl.logger.Errorw("error in getting acd application", "err", err, "installedApp", installedApp)
 			// updating cdWfr status
@@ -556,13 +530,7 @@ func (impl *WorkflowStatusServiceImpl) syncACDHelmApps(deployedBeforeMinutes int
 			impl.logger.Errorw("error in fetching environment by envId", "err", err)
 		}
 		argoAppName := util3.BuildDeployedAppName(appDetails.AppName, envDetails.Name)
-		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			impl.logger.Errorw("error in getting acd token", "err", err)
-			return err
-		}
 		ctx := context.Background()
-		ctx = context.WithValue(ctx, "token", acdToken)
 		syncTime := time.Now()
 		syncErr := impl.argocdClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, argoAppName)
 		if syncErr != nil {

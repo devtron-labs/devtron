@@ -20,7 +20,7 @@ import (
 	"context"
 	"errors"
 	"github.com/devtron-labs/common-lib/utils/k8s"
-	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/api/bean/AppView"
 	client "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	mocks4 "github.com/devtron-labs/devtron/api/helm-app/mocks"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -70,7 +70,7 @@ func TestDeploymentTemplateServiceImpl_FetchDeploymentsWithChartRefs(t *testing.
 		LatestAppChartRef: 2,
 		LatestEnvChartRef: 2,
 	}
-	publishedOnEnvs := []*bean.Environment{
+	publishedOnEnvs := []*AppView.Environment{
 		{
 			ChartRefId:      2,
 			EnvironmentId:   1,

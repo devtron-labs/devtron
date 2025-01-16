@@ -21,14 +21,12 @@ import (
 	"encoding/json"
 	errors3 "errors"
 	"fmt"
-	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	models2 "github.com/devtron-labs/devtron/api/helm-app/models"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -118,7 +116,7 @@ type CdPipelineConfigService interface {
 	GetBulkActionImpactedPipelines(dto *bean.CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, error) //no usage
 	// IsGitOpsRequiredForCD : Determine if GitOps is required for CD based on the provided pipeline creation request
 	IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool
-	MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(acdToken string, pipeline *pipelineConfig.Pipeline) (bool, error)
+	MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(pipeline *pipelineConfig.Pipeline) (bool, error)
 	// GetEnvironmentListForAutocompleteFilter : lists environment for given configuration
 	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*clutserBean.ResourceGroupingResponse, error)
 	RegisterInACD(ctx context.Context, chartGitAttr *commonBean.ChartGitAttribute, userId int32) error
@@ -150,7 +148,6 @@ type CdPipelineConfigServiceImpl struct {
 	deploymentTemplateHistoryService  deploymentTemplate.DeploymentTemplateHistoryService
 	scopedVariableManager             variables.ScopedVariableManager
 	deploymentConfig                  *util2.DeploymentServiceTypeConfig
-	application                       application.ServiceClient
 	customTagService                  CustomTagService
 	ciPipelineConfigService           CiPipelineConfigService
 	buildPipelineSwitchService        BuildPipelineSwitchService
@@ -177,7 +174,7 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 	propertiesConfigService PropertiesConfigService,
 	deploymentTemplateHistoryService deploymentTemplate.DeploymentTemplateHistoryService,
 	scopedVariableManager variables.ScopedVariableManager, envVariables *util2.EnvironmentVariables,
-	application application.ServiceClient, customTagService CustomTagService,
+	customTagService CustomTagService,
 	ciPipelineConfigService CiPipelineConfigService, buildPipelineSwitchService BuildPipelineSwitchService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
@@ -212,7 +209,6 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 		deploymentTemplateHistoryService:  deploymentTemplateHistoryService,
 		scopedVariableManager:             scopedVariableManager,
 		deploymentConfig:                  envVariables.DeploymentServiceTypeConfig,
-		application:                       application,
 		chartService:                      chartService,
 		customTagService:                  customTagService,
 		ciPipelineConfigService:           ciPipelineConfigService,
@@ -875,11 +871,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 			}
 			impl.logger.Debugw("acd app is already deleted for this pipeline", "pipeline", pipeline)
 			if deleteFromAcd {
-				req := &application2.ApplicationDeleteRequest{
-					Name:    &deploymentAppName,
-					Cascade: &cascadeDelete,
-				}
-				if _, err := impl.application.Delete(ctx, req); err != nil {
+				if _, err := impl.argoClientWrapperService.DeleteArgoApp(ctx, deploymentAppName, cascadeDelete); err != nil {
 					impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
 
 					if forceDelete {
@@ -961,12 +953,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteACDAppCdPipelineWithNonCascade(pi
 	if pipeline.DeploymentAppCreated && util.IsAcdApp(envDeploymentConfig.DeploymentAppType) {
 		deploymentAppName := pipeline.DeploymentAppName
 		impl.logger.Debugw("acd app is already deleted for this pipeline", "pipeline", pipeline)
-		cascadeDelete := false
-		req := &application2.ApplicationDeleteRequest{
-			Name:    &deploymentAppName,
-			Cascade: &cascadeDelete,
-		}
-		if _, err = impl.application.Delete(ctx, req); err != nil {
+		if _, err = impl.argoClientWrapperService.DeleteArgoApp(ctx, deploymentAppName, false); err != nil {
 			impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
 			//statusError, _ := err.(*errors2.StatusError)
 			if !strings.Contains(err.Error(), "code = NotFound") {
@@ -1407,7 +1394,7 @@ func (impl *CdPipelineConfigServiceImpl) RetrieveParentDetails(pipelineId int) (
 	if workflow.ParentType == appWorkflow.CDPIPELINE {
 		// workflow is of type CD, check for stage
 		// for older apps post cd script was stored in post_stage_config_yaml, for newer apps new stage is created in pipeline_stage
-		parentPostStage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(workflow.ParentId, repository5.PIPELINE_STAGE_TYPE_POST_CD)
+		parentPostStage, err := impl.pipelineStageService.GetCdStageByCdPipelineIdAndStageType(workflow.ParentId, repository5.PIPELINE_STAGE_TYPE_POST_CD, false)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in fetching post stage by pipeline id", "err", err, "cd-pipeline-id", parentId)
 			return workflow.ParentId, bean2.CD_WORKFLOW_TYPE_DEPLOY, err
@@ -1496,13 +1483,12 @@ func (impl *CdPipelineConfigServiceImpl) IsGitOpsRequiredForCD(pipelineCreateReq
 	return haveAtLeastOneGitOps
 }
 
-func (impl *CdPipelineConfigServiceImpl) MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(acdToken string, pipeline *pipelineConfig.Pipeline) (bool, error) {
+func (impl *CdPipelineConfigServiceImpl) MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(pipeline *pipelineConfig.Pipeline) (bool, error) {
 
 	acdAppFound := false
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "token", acdToken)
+
 	acdAppName := pipeline.DeploymentAppName
-	_, err := impl.application.Get(ctx, &application2.ApplicationQuery{Name: &acdAppName})
+	_, err := impl.argoClientWrapperService.GetArgoAppByName(context.Background(), acdAppName)
 	if err == nil {
 		// acd app is not yet deleted so return
 		acdAppFound = true
@@ -2069,11 +2055,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipelinePartial(pipeline *pipel
 				}
 			}
 			impl.logger.Debugw("acd app is already deleted for this pipeline", "pipeline", pipeline)
-			req := &application2.ApplicationDeleteRequest{
-				Name:    &deploymentAppName,
-				Cascade: &cascadeDelete,
-			}
-			if _, err := impl.application.Delete(ctx, req); err != nil {
+			if _, err := impl.argoClientWrapperService.DeleteArgoApp(ctx, deploymentAppName, cascadeDelete); err != nil {
 				impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
 
 				if forceDelete {

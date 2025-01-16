@@ -71,6 +71,10 @@ func (workflowTemplate *WorkflowTemplate) GetEntrypoint() string {
 	}
 }
 
+func (workflowTemplate *WorkflowTemplate) SetActiveDeadlineSeconds(timeout int64) {
+	workflowTemplate.ActiveDeadlineSeconds = &timeout
+}
+
 func (workflowTemplate *WorkflowTemplate) CreateObjectMetadata() *v12.ObjectMeta {
 
 	workflowLabels := map[string]string{WorkflowGenerateNamePrefix: workflowTemplate.WorkflowNamePrefix}

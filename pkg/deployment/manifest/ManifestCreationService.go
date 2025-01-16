@@ -24,7 +24,7 @@ import (
 	application3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	k8sUtil "github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/api/bean"
-	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -45,6 +45,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/k8s"
+	bean4 "github.com/devtron-labs/devtron/pkg/k8s/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
@@ -83,7 +84,7 @@ type ManifestCreationServiceImpl struct {
 	appCrudOperationService        app.AppCrudOperationService
 	deploymentTemplateService      deploymentTemplate.DeploymentTemplateService
 
-	acdClient application2.ServiceClient //TODO: replace with argoClientWrapperService
+	acdClientWrapper argocdServer.ArgoClientWrapperService
 
 	configMapHistoryRepository          repository3.ConfigMapHistoryRepository
 	configMapRepository                 chartConfig.ConfigMapRepository
@@ -110,7 +111,7 @@ func NewManifestCreationServiceImpl(logger *zap.SugaredLogger,
 	mergeUtil *util.MergeUtil,
 	appCrudOperationService app.AppCrudOperationService,
 	deploymentTemplateService deploymentTemplate.DeploymentTemplateService,
-	acdClient application2.ServiceClient,
+	acdClientWrapper argocdServer.ArgoClientWrapperService,
 	configMapHistoryRepository repository3.ConfigMapHistoryRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
 	chartRepository chartRepoRepository.ChartRepository,
@@ -136,7 +137,7 @@ func NewManifestCreationServiceImpl(logger *zap.SugaredLogger,
 		appCrudOperationService:             appCrudOperationService,
 		deploymentTemplateService:           deploymentTemplateService,
 		configMapRepository:                 configMapRepository,
-		acdClient:                           acdClient,
+		acdClientWrapper:                    acdClientWrapper,
 		configMapHistoryRepository:          configMapHistoryRepository,
 		chartRepository:                     chartRepository,
 		environmentConfigRepository:         environmentConfigRepository,
@@ -473,7 +474,9 @@ func (impl *ManifestCreationServiceImpl) getEnvOverrideForLastSavedConfigTrigger
 				return nil, err
 			}
 		}
-		envOverride.Chart = chart
+		if envOverride != nil {
+			envOverride.Chart = chart
+		}
 	} else if envOverride.Id > 0 && !envOverride.IsOverride {
 		_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindLatestChartForAppByAppId")
 		chart, err = impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
@@ -841,7 +844,7 @@ func (impl *ManifestCreationServiceImpl) getK8sHPAResourceManifest(ctx context.C
 			WithInternalMessage("unable to find preferred version for hpa resource").
 			WithUserDetailMessage("unable to find preferred version for hpa resource")
 	}
-	k8sReq := &k8s.ResourceRequestBean{
+	k8sReq := &bean4.ResourceRequestBean{
 		ClusterId: clusterId,
 		K8sRequest: k8sUtil.NewK8sRequestBean().
 			WithResourceIdentifier(
@@ -891,7 +894,7 @@ func (impl *ManifestCreationServiceImpl) getArgoCdHPAResourceManifest(ctx contex
 		Namespace:    &namespace,
 	}
 
-	recv, argoErr := impl.acdClient.GetResource(newCtx, query)
+	recv, argoErr := impl.acdClientWrapper.GetApplicationResource(newCtx, query)
 	if argoErr != nil {
 		grpcCode, errMsg := util.GetClientDetailedError(argoErr)
 		if grpcCode.IsInvalidArgumentCode() || grpcCode.IsNotFoundCode() {

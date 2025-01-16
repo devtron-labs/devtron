@@ -27,8 +27,9 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	cdWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
-	"github.com/devtron-labs/devtron/pkg/argoApplication/helper"
+	bean3 "github.com/devtron-labs/devtron/pkg/app/bean"
 	installedAppReader "github.com/devtron-labs/devtron/pkg/appStore/installedApp/read"
+	"github.com/devtron-labs/devtron/pkg/argoApplication/helper"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
@@ -51,7 +52,6 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -68,7 +68,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables"
 	_ "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util2 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -105,14 +104,12 @@ type AppServiceImpl struct {
 	pipelineRepository                     pipelineConfig.PipelineRepository
 	eventClient                            client.EventClient
 	eventFactory                           client.EventFactory
-	acdClient                              application.ServiceClient
 	appRepository                          app.AppRepository
 	configMapRepository                    chartConfig.ConfigMapRepository
 	chartRepository                        chartRepoRepository.ChartRepository
 	cdWorkflowRepository                   pipelineConfig.CdWorkflowRepository
 	commonService                          commonService.CommonService
 	chartTemplateService                   ChartTemplateService
-	argoUserService                        argo.ArgoUserService
 	pipelineStatusTimelineRepository       pipelineConfig.PipelineStatusTimelineRepository
 	pipelineStatusTimelineResourcesService status2.PipelineStatusTimelineResourcesService
 	pipelineStatusSyncDetailService        status2.PipelineStatusSyncDetailService
@@ -151,12 +148,12 @@ func NewAppService(
 	mergeUtil *MergeUtil, logger *zap.SugaredLogger,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	eventClient client.EventClient, eventFactory client.EventFactory,
-	acdClient application.ServiceClient, appRepository app.AppRepository,
+	appRepository app.AppRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
 	chartRepository chartRepoRepository.ChartRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	commonService commonService.CommonService,
-	chartTemplateService ChartTemplateService, argoUserService argo.ArgoUserService,
+	chartTemplateService ChartTemplateService,
 	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
 	pipelineStatusTimelineResourcesService status2.PipelineStatusTimelineResourcesService,
 	pipelineStatusSyncDetailService status2.PipelineStatusSyncDetailService,
@@ -177,14 +174,12 @@ func NewAppService(
 		pipelineRepository:                     pipelineRepository,
 		eventClient:                            eventClient,
 		eventFactory:                           eventFactory,
-		acdClient:                              acdClient,
 		appRepository:                          appRepository,
 		configMapRepository:                    configMapRepository,
 		chartRepository:                        chartRepository,
 		cdWorkflowRepository:                   cdWorkflowRepository,
 		commonService:                          commonService,
 		chartTemplateService:                   chartTemplateService,
-		argoUserService:                        argoUserService,
 		pipelineStatusTimelineRepository:       cdPipelineStatusTimelineRepo,
 		pipelineStatusTimelineResourcesService: pipelineStatusTimelineResourcesService,
 		pipelineStatusSyncDetailService:        pipelineStatusSyncDetailService,
@@ -775,26 +770,15 @@ func (impl *AppServiceImpl) BuildCDSuccessPayload(appName string, environmentNam
 }
 
 type ValuesOverrideResponse struct {
-	MergedValues        string
-	ReleaseOverrideJSON string
-	EnvOverride         *bean6.EnvConfigOverride
-	PipelineStrategy    *chartConfig.PipelineStrategy
-	PipelineOverride    *chartConfig.PipelineOverride
-	Artifact            *repository.CiArtifact
-	Pipeline            *pipelineConfig.Pipeline
-	DeploymentConfig    *bean2.DeploymentConfig
-}
-
-func (impl *AppServiceImpl) buildACDContext() (acdContext context.Context, err error) {
-	// this method should only call in case of argo-integration and gitops configured
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		impl.logger.Errorw("error in getting acd token", "err", err)
-		return nil, err
-	}
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "token", acdToken)
-	return ctx, nil
+	MergedValues         string
+	ReleaseOverrideJSON  string
+	EnvOverride          *bean6.EnvConfigOverride
+	PipelineStrategy     *chartConfig.PipelineStrategy
+	PipelineOverride     *chartConfig.PipelineOverride
+	Artifact             *repository.CiArtifact
+	Pipeline             *pipelineConfig.Pipeline
+	DeploymentConfig     *bean2.DeploymentConfig
+	ManifestPushTemplate *bean3.ManifestPushTemplate
 }
 
 func (impl *AppServiceImpl) GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error) {

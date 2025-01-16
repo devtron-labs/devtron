@@ -21,31 +21,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	k8sCommonBean "github.com/devtron-labs/common-lib/utils/k8s/commonBean"
-	"github.com/devtron-labs/common-lib/utils/k8s/health"
-	k8sObjectUtils "github.com/devtron-labs/common-lib/utils/k8sObjectsUtil"
-	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
-	"github.com/devtron-labs/devtron/api/helm-app/service/read"
+	"github.com/devtron-labs/devtron/api/bean/AppView"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	util3 "github.com/devtron-labs/devtron/api/util"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
-	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
-	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
-	"github.com/devtron-labs/devtron/pkg/appStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
-	argoApplication2 "github.com/devtron-labs/devtron/pkg/argoApplication"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	bean5 "github.com/devtron-labs/devtron/pkg/cluster/bean"
@@ -53,15 +43,12 @@ import (
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp/status/resourceTree"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
-	"github.com/devtron-labs/devtron/pkg/generateManifest"
-	"github.com/devtron-labs/devtron/pkg/genericNotes"
 	"github.com/devtron-labs/devtron/pkg/k8s"
-	application3 "github.com/devtron-labs/devtron/pkg/k8s/application"
+	k8sApplication "github.com/devtron-labs/devtron/pkg/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/team"
-	util2 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
+	bean6 "github.com/devtron-labs/devtron/pkg/team/bean"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
@@ -87,33 +74,28 @@ type AppListingRestHandler interface {
 
 	FetchAppsByEnvironmentV2(w http.ResponseWriter, r *http.Request)
 	FetchOverviewAppsByEnvironment(w http.ResponseWriter, r *http.Request)
+
+	//ent
+	FetchAppPolicyConsequences(w http.ResponseWriter, r *http.Request)
+	FetchAutocompleteJobCiPipelines(w http.ResponseWriter, r *http.Request)
+	GetAllAppEnvsFromResourceNames(w http.ResponseWriter, r *http.Request)
 }
 
 type AppListingRestHandlerImpl struct {
-	application            application.ServiceClient
-	appListingService      app.AppListingService
-	enforcer               casbin.Enforcer
-	pipeline               pipeline.PipelineBuilder
-	logger                 *zap.SugaredLogger
-	enforcerUtil           rbac.EnforcerUtil
-	deploymentGroupService deploymentGroup.DeploymentGroupService
-	userService            user.UserService
-	// TODO fix me next
-	helmAppClient                    gRPC.HelmAppClient // TODO refactoring: use HelmAppService
-	helmAppReadService               read.HelmAppReadService
-	argoUserService                  argo.ArgoUserService
-	k8sCommonService                 k8s.K8sCommonService
-	installedAppService              FullMode.InstalledAppDBExtendedService
-	installedAppResourceService      resource.InstalledAppResourceService
-	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler
-	pipelineRepository               pipelineConfig.PipelineRepository
-	appStatusService                 appStatus.AppStatusService
-	installedAppRepository           repository.InstalledAppRepository
-	genericNoteService               genericNotes.GenericNoteService
-	k8sApplicationService            application3.K8sApplicationService
-	deploymentTemplateService        generateManifest.DeploymentTemplateService
-	deploymentConfigService          common2.DeploymentConfigService
-	argoApplicationService           argoApplication2.ArgoApplicationService
+	appListingService           app.AppListingService
+	enforcer                    casbin.Enforcer
+	pipeline                    pipeline.PipelineBuilder
+	logger                      *zap.SugaredLogger
+	enforcerUtil                rbac.EnforcerUtil
+	deploymentGroupService      deploymentGroup.DeploymentGroupService
+	userService                 user.UserService
+	k8sCommonService            k8s.K8sCommonService
+	installedAppService         FullMode.InstalledAppDBExtendedService
+	installedAppResourceService resource.InstalledAppResourceService
+	pipelineRepository          pipelineConfig.PipelineRepository
+	k8sApplicationService       k8sApplication.K8sApplicationService
+	deploymentConfigService     common2.DeploymentConfigService
+	resourceTreeService         resourceTree.Service
 }
 
 type AppStatus struct {
@@ -125,54 +107,38 @@ type AppStatus struct {
 }
 
 type AppAutocomplete struct {
-	Teams        []team.TeamRequest
+	Teams        []bean6.TeamRequest
 	Environments []bean2.EnvironmentBean
 	Clusters     []bean5.ClusterBean
 }
 
-func NewAppListingRestHandlerImpl(application application.ServiceClient,
-	appListingService app.AppListingService,
+func NewAppListingRestHandlerImpl(appListingService app.AppListingService,
 	enforcer casbin.Enforcer,
 	pipeline pipeline.PipelineBuilder,
 	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
 	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService,
-	helmAppClient gRPC.HelmAppClient, helmAppReadService read.HelmAppReadService,
-	argoUserService argo.ArgoUserService, k8sCommonService k8s.K8sCommonService,
+	k8sCommonService k8s.K8sCommonService,
 	installedAppService FullMode.InstalledAppDBExtendedService,
 	installedAppResourceService resource.InstalledAppResourceService,
-	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	appStatusService appStatus.AppStatusService, installedAppRepository repository.InstalledAppRepository,
-	genericNoteService genericNotes.GenericNoteService,
-	k8sApplicationService application3.K8sApplicationService,
-	deploymentTemplateService generateManifest.DeploymentTemplateService,
+	k8sApplicationService k8sApplication.K8sApplicationService,
 	deploymentConfigService common2.DeploymentConfigService,
-	argoApplicationService argoApplication2.ArgoApplicationService,
-) *AppListingRestHandlerImpl {
+	resourceTreeService resourceTree.Service) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
-		application:                      application,
-		appListingService:                appListingService,
-		logger:                           logger,
-		pipeline:                         pipeline,
-		enforcer:                         enforcer,
-		enforcerUtil:                     enforcerUtil,
-		deploymentGroupService:           deploymentGroupService,
-		userService:                      userService,
-		helmAppClient:                    helmAppClient,
-		helmAppReadService:               helmAppReadService,
-		argoUserService:                  argoUserService,
-		k8sCommonService:                 k8sCommonService,
-		installedAppService:              installedAppService,
-		installedAppResourceService:      installedAppResourceService,
-		cdApplicationStatusUpdateHandler: cdApplicationStatusUpdateHandler,
-		pipelineRepository:               pipelineRepository,
-		appStatusService:                 appStatusService,
-		installedAppRepository:           installedAppRepository,
-		genericNoteService:               genericNoteService,
-		k8sApplicationService:            k8sApplicationService,
-		deploymentTemplateService:        deploymentTemplateService,
-		deploymentConfigService:          deploymentConfigService,
-		argoApplicationService:           argoApplicationService,
+		appListingService:           appListingService,
+		logger:                      logger,
+		pipeline:                    pipeline,
+		enforcer:                    enforcer,
+		enforcerUtil:                enforcerUtil,
+		deploymentGroupService:      deploymentGroupService,
+		userService:                 userService,
+		k8sCommonService:            k8sCommonService,
+		installedAppService:         installedAppService,
+		installedAppResourceService: installedAppResourceService,
+		pipelineRepository:          pipelineRepository,
+		k8sApplicationService:       k8sApplicationService,
+		deploymentConfigService:     deploymentConfigService,
+		resourceTreeService:         resourceTreeService,
 	}
 	return appListingHandler
 }
@@ -228,7 +194,7 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 
 		if len(validAppIds) == 0 {
 			handler.logger.Infow("user doesn't have access to any app", "userId", userId)
-			common.WriteJsonResp(w, err, bean.JobContainerResponse{}, http.StatusOK)
+			common.WriteJsonResp(w, err, AppView.JobContainerResponse{}, http.StatusOK)
 			return
 		}
 	}
@@ -261,7 +227,7 @@ func (handler AppListingRestHandlerImpl) FetchJobs(w http.ResponseWriter, r *htt
 			jobs = jobs[offset:]
 		}
 	}
-	jobContainerResponse := bean.JobContainerResponse{
+	jobContainerResponse := AppView.JobContainerResponse{
 		JobContainers: jobs,
 		JobCount:      jobsCount,
 	}
@@ -350,7 +316,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 
 		if len(validAppIds) == 0 {
 			handler.logger.Infow("user doesn't have access to any app", "userId", userId)
-			common.WriteJsonResp(w, err, bean.AppContainerResponse{}, http.StatusOK)
+			common.WriteJsonResp(w, err, AppView.AppContainerResponse{}, http.StatusOK)
 			return
 		}
 	}
@@ -392,6 +358,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		return
 	}
 
 	t2 := time.Now()
@@ -405,20 +372,20 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironmentV2(w http.Respons
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 	}
 
-	appContainerResponse := bean.AppContainerResponse{
+	appContainerResponse := AppView.AppContainerResponse{
 		AppContainers: apps,
 		AppCount:      appsCount,
 	}
 	if fetchAppListingRequest.DeploymentGroupId > 0 {
-		var ciMaterialDTOs []bean.CiMaterialDTO
+		var ciMaterialDTOs []AppView.CiMaterialDTO
 		for _, ci := range dg.CiMaterialDTOs {
-			ciMaterialDTOs = append(ciMaterialDTOs, bean.CiMaterialDTO{
+			ciMaterialDTOs = append(ciMaterialDTOs, AppView.CiMaterialDTO{
 				Name:        ci.Name,
 				SourceValue: ci.SourceValue,
 				SourceType:  ci.SourceType,
 			})
 		}
-		appContainerResponse.DeploymentGroupDTO = bean.DeploymentGroupDTO{
+		appContainerResponse.DeploymentGroupDTO = AppView.DeploymentGroupDTO{
 			Id:             dg.Id,
 			Name:           dg.Name,
 			AppCount:       dg.AppCount,
@@ -490,7 +457,7 @@ func (handler AppListingRestHandlerImpl) FetchOverviewAppsByEnvironment(w http.R
 	// enforce rbac in batch
 	rbacResult := handler.enforcer.EnforceInBatch(token, casbin.ResourceApplications, casbin.ActionGet, rbacObjects)
 	// filter out rbac passed apps
-	resp.Apps = make([]*bean.AppEnvironmentContainer, 0)
+	resp.Apps = make([]*AppView.AppEnvironmentContainer, 0)
 	for _, appBean := range appContainers {
 		rbacObject := rbacObjectsWithAppId[appBean.AppId]
 		if rbacResult[rbacObject] {
@@ -525,6 +492,12 @@ func (handler AppListingRestHandlerImpl) FetchAppDetailsV2(w http.ResponseWriter
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
+	err = handler.updateApprovalConfigDataInAppDetailResp(appDetail, appId, envId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
 }
 
@@ -536,6 +509,19 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	ctx, cancel := context.WithCancel(r.Context())
+	if cn, ok := w.(http.CloseNotifier); ok {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	defer cancel()
+	ctx = context.WithValue(ctx, "token", token)
+
 	envId, err := strconv.Atoi(vars["env-id"])
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -565,34 +551,29 @@ func (handler AppListingRestHandlerImpl) FetchResourceTree(w http.ResponseWriter
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		common.WriteJsonResp(w, fmt.Errorf("error in getting acd token"), nil, http.StatusInternalServerError)
-		return
-	}
 	envDeploymentConfig, err := handler.deploymentConfigService.GetConfigForDevtronApps(appId, envId)
 	if err != nil {
 		handler.logger.Errorw("error in fetching deployment config", "appId", appId, "envId", envId, "err", err)
 		common.WriteJsonResp(w, fmt.Errorf("error in getting deployment config for env"), nil, http.StatusInternalServerError)
 		return
 	}
-	resourceTree, err := handler.fetchResourceTree(w, r, appId, envId, acdToken, cdPipeline, envDeploymentConfig)
+	resourceTree, err := handler.resourceTreeService.FetchResourceTree(ctx, appId, envId, cdPipeline, envDeploymentConfig)
 	if err != nil {
 		handler.logger.Errorw("error in fetching resource tree", "err", err, "appId", appId, "envId", envId)
-		handler.handleResourceTreeErrAndDeletePipelineIfNeeded(w, err, acdToken, cdPipeline, envDeploymentConfig)
+		handler.handleResourceTreeErrAndDeletePipelineIfNeeded(w, err, cdPipeline, envDeploymentConfig)
 		return
 	}
 	common.WriteJsonResp(w, err, resourceTree, http.StatusOK)
 }
 
 func (handler AppListingRestHandlerImpl) handleResourceTreeErrAndDeletePipelineIfNeeded(w http.ResponseWriter, err error,
-	acdToken string, cdPipeline *pipelineConfig.Pipeline, deploymentConfig *bean3.DeploymentConfig) {
+	cdPipeline *pipelineConfig.Pipeline, deploymentConfig *bean3.DeploymentConfig) {
 	var apiError *util.ApiError
 	ok := errors.As(err, &apiError)
 	if deploymentConfig.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		if ok && apiError != nil {
 			if apiError.Code == constants.AppDetailResourceTreeNotFound && cdPipeline.DeploymentAppDeleteRequest == true && cdPipeline.DeploymentAppCreated == true {
-				acdAppFound, appDeleteErr := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(acdToken, cdPipeline)
+				acdAppFound, appDeleteErr := handler.pipeline.MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(cdPipeline)
 				if appDeleteErr != nil {
 					apiError.UserMessage = constants.ErrorDeletingPipelineForDeletedArgoAppMsg
 					common.WriteJsonResp(w, apiError, nil, http.StatusInternalServerError)
@@ -775,7 +756,7 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 	}
 	http.Redirect(w, r, link, http.StatusOK)
 }
-func (handler AppListingRestHandlerImpl) fetchResourceTreeFromInstallAppService(w http.ResponseWriter, r *http.Request, resourceTreeAndNotesContainer bean.AppDetailsContainer, installedApps repository.InstalledApps, deploymentConfig *bean4.DeploymentConfig) (bean.AppDetailsContainer, error) {
+func (handler AppListingRestHandlerImpl) fetchResourceTreeFromInstallAppService(w http.ResponseWriter, r *http.Request, resourceTreeAndNotesContainer AppView.AppDetailsContainer, installedApps repository.InstalledApps, deploymentConfig *bean4.DeploymentConfig) (AppView.AppDetailsContainer, error) {
 	rctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
 	err := handler.installedAppResourceService.FetchResourceTree(rctx, cn, &resourceTreeAndNotesContainer, installedApps, deploymentConfig, "", "")
@@ -787,6 +768,17 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 	installedAppIdParam := vars.Get("installedAppId")
 	envIdParam := vars.Get("envId")
 
+	ctx, cancel := context.WithCancel(r.Context())
+	if cn, ok := w.(http.CloseNotifier); ok {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	defer cancel()
 	if (appIdParam == "" && installedAppIdParam == "") || (appIdParam != "" && installedAppIdParam != "") {
 		handler.logger.Error("error in decoding batch request body", "appId", appIdParam, "installedAppId", installedAppIdParam)
 		common.WriteJsonResp(w, fmt.Errorf("only one of the appId or installedAppId should be valid appId: %s installedAppId: %s", appIdParam, installedAppIdParam), nil, http.StatusBadRequest)
@@ -806,7 +798,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			return
 		}
 	}
-	var appDetail bean.AppDetailContainer
+	var appDetail AppView.AppDetailContainer
 	var appId, envId int
 	envId, err := strconv.Atoi(envIdParam)
 	if err != nil {
@@ -854,7 +846,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			//this is external app case where app_name is a unique identifier, and we want to fetch resource based on display_name
 			handler.installedAppService.ChangeAppNameToDisplayNameForInstalledApp(installedApp)
 		}
-		resourceTreeAndNotesContainer := bean.AppDetailsContainer{}
+		resourceTreeAndNotesContainer := AppView.AppDetailsContainer{}
 		resourceTreeAndNotesContainer, err = handler.fetchResourceTreeFromInstallAppService(w, r, resourceTreeAndNotesContainer, *installedApp, appDetail.DeploymentConfig)
 		if err != nil {
 			common.WriteJsonResp(w, fmt.Errorf("error in fetching resource tree"), nil, http.StatusInternalServerError)
@@ -863,11 +855,6 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		resourceTree = resourceTreeAndNotesContainer.ResourceTree
 
 	} else {
-		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			common.WriteJsonResp(w, fmt.Errorf("error in getting acd token"), nil, http.StatusInternalServerError)
-			return
-		}
 		pipelines, err := handler.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
 		if err != nil && err != pg.ErrNoRows {
 			handler.logger.Errorw("error in fetching pipelines from db", "appId", appId, "envId", envId)
@@ -890,7 +877,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			common.WriteJsonResp(w, fmt.Errorf("error in getting deployment config for env"), nil, http.StatusInternalServerError)
 			return
 		}
-		resourceTree, err = handler.fetchResourceTree(w, r, appId, envId, acdToken, cdPipeline, envDeploymentConfig)
+		resourceTree, err = handler.resourceTreeService.FetchResourceTree(ctx, appId, envId, cdPipeline, envDeploymentConfig)
 	}
 	_, ok := resourceTree["nodes"]
 	if !ok {
@@ -916,8 +903,8 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 	common.WriteJsonResp(w, nil, result, http.StatusOK)
 }
 
-func (handler AppListingRestHandlerImpl) getAppDetails(ctx context.Context, appIdParam, installedAppIdParam string, envId int) (bean.AppDetailContainer, error, int) {
-	var appDetail bean.AppDetailContainer
+func (handler AppListingRestHandlerImpl) getAppDetails(ctx context.Context, appIdParam, installedAppIdParam string, envId int) (AppView.AppDetailContainer, error, int) {
+	var appDetail AppView.AppDetailContainer
 	if appIdParam != "" {
 		appId, err := strconv.Atoi(appIdParam)
 		if err != nil {
@@ -935,152 +922,4 @@ func (handler AppListingRestHandlerImpl) getAppDetails(ctx context.Context, appI
 	}
 	appDetail, err = handler.installedAppService.FindAppDetailsForAppstoreApplication(appId, envId)
 	return appDetail, err, appId
-}
-
-// TODO: move this to service
-func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appId int, envId int, acdToken string, cdPipeline *pipelineConfig.Pipeline, deploymentConfig *bean3.DeploymentConfig) (map[string]interface{}, error) {
-	var resourceTree map[string]interface{}
-	if !cdPipeline.DeploymentAppCreated {
-		handler.logger.Infow("deployment for this pipeline does not exist", "pipelineId", cdPipeline.Id)
-		return resourceTree, nil
-	}
-
-	if len(cdPipeline.DeploymentAppName) > 0 && cdPipeline.EnvironmentId > 0 && util.IsAcdApp(deploymentConfig.DeploymentAppType) {
-		// RBAC enforcer Ends
-		query := &application2.ResourcesQuery{
-			ApplicationName: &cdPipeline.DeploymentAppName,
-		}
-		ctx, cancel := context.WithCancel(r.Context())
-		if cn, ok := w.(http.CloseNotifier); ok {
-			go func(done <-chan struct{}, closed <-chan bool) {
-				select {
-				case <-done:
-				case <-closed:
-					cancel()
-				}
-			}(ctx.Done(), cn.CloseNotify())
-		}
-		defer cancel()
-		ctx = context.WithValue(ctx, "token", acdToken)
-		start := time.Now()
-		resp, err := handler.argoApplicationService.ResourceTree(ctx, query)
-		elapsed := time.Since(start)
-		handler.logger.Debugw("FetchAppDetailsV2, time elapsed in fetching application for environment ", "elapsed", elapsed, "appId", appId, "envId", envId)
-		if err != nil {
-			handler.logger.Errorw("service err, FetchAppDetailsV2, resource tree", "err", err, "app", appId, "env", envId)
-			internalMsg := fmt.Sprintf("%s, err:- %s", constants.UnableToFetchResourceTreeForAcdErrMsg, err.Error())
-			clientCode, _ := util.GetClientDetailedError(err)
-			httpStatusCode := clientCode.GetHttpStatusCodeForGivenGrpcCode()
-			err = &util.ApiError{
-				HttpStatusCode:  httpStatusCode,
-				Code:            constants.AppDetailResourceTreeNotFound,
-				InternalMessage: internalMsg,
-				UserMessage:     "Error fetching detail, if you have recently created this deployment pipeline please try after sometime.",
-			}
-			return resourceTree, err
-		}
-
-		// we currently add appId and envId as labels for devtron apps deployed via acd
-		label := fmt.Sprintf("appId=%v,envId=%v", cdPipeline.AppId, cdPipeline.EnvironmentId)
-		pods, err := handler.k8sApplicationService.GetPodListByLabel(cdPipeline.Environment.ClusterId, cdPipeline.Environment.Namespace, label)
-		if err != nil {
-			handler.logger.Errorw("error in getting pods by label", "err", err, "clusterId", cdPipeline.Environment.ClusterId, "namespace", cdPipeline.Environment.Namespace, "label", label)
-			return resourceTree, err
-		}
-		ephemeralContainersMap := k8sObjectUtils.ExtractEphemeralContainers(pods)
-		for _, metaData := range resp.PodMetadata {
-			metaData.EphemeralContainers = ephemeralContainersMap[metaData.Name]
-		}
-
-		if resp.Status == string(health.HealthStatusHealthy) {
-			status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
-			if err != nil {
-				handler.logger.Errorw("service err, FetchAppDetailsV2", "err", err, "app", appId, "env", envId)
-			} else if status {
-				resp.Status = argoApplication.HIBERNATING
-			}
-		}
-		if resp.Status == string(health.HealthStatusDegraded) {
-			count, err := handler.appListingService.GetReleaseCount(appId, envId)
-			if err != nil {
-				handler.logger.Errorw("service err, FetchAppDetailsV2, release count", "err", err, "app", appId, "env", envId)
-			} else if count == 0 {
-				resp.Status = app.NotDeployed
-			}
-		}
-		resourceTree = util2.InterfaceToMapAdapter(resp)
-		go func() {
-			if resp.Status == string(health.HealthStatusHealthy) {
-				err = handler.cdApplicationStatusUpdateHandler.SyncPipelineStatusForResourceTreeCall(cdPipeline)
-				if err != nil {
-					handler.logger.Errorw("error in syncing pipeline status", "err", err)
-				}
-			}
-			// updating app_status table here
-			err = handler.appStatusService.UpdateStatusWithAppIdEnvId(appId, envId, resp.Status)
-			if err != nil {
-				handler.logger.Warnw("error in updating app status", "err", err, "appId", cdPipeline.AppId, "envId", cdPipeline.EnvironmentId)
-			}
-		}()
-
-	} else if len(cdPipeline.DeploymentAppName) > 0 && cdPipeline.EnvironmentId > 0 && util.IsHelmApp(deploymentConfig.DeploymentAppType) {
-		config, err := handler.helmAppReadService.GetClusterConf(cdPipeline.Environment.ClusterId)
-		if err != nil {
-			handler.logger.Errorw("error in fetching cluster detail", "err", err)
-		}
-		req := &gRPC.AppDetailRequest{
-			ClusterConfig: config,
-			Namespace:     cdPipeline.Environment.Namespace,
-			ReleaseName:   cdPipeline.DeploymentAppName,
-		}
-		detail, err := handler.helmAppClient.GetAppDetail(context.Background(), req)
-		if err != nil {
-			handler.logger.Errorw("error in fetching app detail", "err", err)
-		}
-		if detail != nil && detail.ReleaseExist {
-			resourceTree = util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
-			releaseStatus := util2.InterfaceToMapAdapter(detail.ReleaseStatus)
-			applicationStatus := detail.ApplicationStatus
-			resourceTree["releaseStatus"] = releaseStatus
-			resourceTree["status"] = applicationStatus
-			if applicationStatus == argoApplication.Healthy {
-				status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
-				if err != nil {
-					handler.logger.Errorw("service err, FetchAppDetailsV2", "err", err, "app", appId, "env", envId)
-				} else if status {
-					resourceTree["status"] = argoApplication.HIBERNATING
-				}
-			}
-			handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", cdPipeline.DeploymentAppName, "env", cdPipeline.Environment.Name)
-		}
-	} else {
-		handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", cdPipeline.DeploymentAppName, "env", cdPipeline.Environment.Name)
-	}
-	if resourceTree != nil {
-		version, err := handler.k8sCommonService.GetK8sServerVersion(cdPipeline.Environment.ClusterId)
-		if err != nil {
-			handler.logger.Errorw("error in fetching k8s version in resource tree call fetching", "clusterId", cdPipeline.Environment.ClusterId, "err", err)
-		} else {
-			resourceTree["serverVersion"] = version.String()
-		}
-	}
-	k8sAppDetail := bean.AppDetailContainer{
-		DeploymentDetailContainer: bean.DeploymentDetailContainer{
-			ClusterId: cdPipeline.Environment.ClusterId,
-			Namespace: cdPipeline.Environment.Namespace,
-		},
-	}
-	clusterIdString := strconv.Itoa(cdPipeline.Environment.ClusterId)
-	validRequest := handler.k8sCommonService.FilterK8sResources(r.Context(), resourceTree, k8sAppDetail, clusterIdString, []string{k8sCommonBean.ServiceKind, k8sCommonBean.EndpointsKind, k8sCommonBean.IngressKind}, "")
-	resp, err := handler.k8sCommonService.GetManifestsByBatch(r.Context(), validRequest)
-	if err != nil {
-		handler.logger.Errorw("error in getting manifest by batch", "err", err, "clusterId", clusterIdString)
-		httpStatus, ok := util.IsErrorContextCancelledOrDeadlineExceeded(err)
-		if ok {
-			return nil, &util.ApiError{HttpStatusCode: httpStatus, Code: strconv.Itoa(httpStatus), InternalMessage: err.Error()}
-		}
-		return nil, err
-	}
-	newResourceTree := handler.k8sCommonService.PortNumberExtraction(resp, resourceTree)
-	return newResourceTree, nil
 }

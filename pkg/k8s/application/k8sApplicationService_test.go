@@ -24,8 +24,8 @@ import (
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
-	"github.com/devtron-labs/devtron/pkg/k8s"
 	"github.com/devtron-labs/devtron/pkg/k8s/application/bean"
+	bean3 "github.com/devtron-labs/devtron/pkg/k8s/bean"
 	"github.com/stretchr/testify/mock"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -240,8 +240,8 @@ func (n NewK8sClientServiceImplMock) ListEvents(restConfig *rest.Config, request
 //		})
 //
 // }
-func generateTestResourceRequest(kind string) k8s.ResourceRequestBean {
-	return k8s.ResourceRequestBean{
+func generateTestResourceRequest(kind string) bean3.ResourceRequestBean {
+	return bean3.ResourceRequestBean{
 		AppIdentifier: &helmBean.AppIdentifier{},
 		K8sRequest: &k8s2.K8sRequestBean{
 			ResourceIdentifier: k8s2.ResourceIdentifier{

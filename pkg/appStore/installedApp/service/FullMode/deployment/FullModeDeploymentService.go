@@ -25,7 +25,6 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
-	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
@@ -37,7 +36,6 @@ import (
 
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app/status"
@@ -48,7 +46,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -77,13 +74,11 @@ type FullModeDeploymentService interface {
 
 type FullModeDeploymentServiceImpl struct {
 	Logger                               *zap.SugaredLogger
-	acdClient                            application2.ServiceClient
 	argoK8sClient                        argocdServer.ArgoK8sClient
 	aCDAuthConfig                        *util2.ACDAuthConfig
 	chartGroupDeploymentRepository       repository2.ChartGroupDeploymentRepository
 	installedAppRepository               repository.InstalledAppRepository
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
-	argoUserService                      argo.ArgoUserService
 	appStoreDeploymentCommonService      appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	helmAppService                       client.HelmAppService
 	appStatusService                     appStatus.AppStatusService
@@ -99,18 +94,15 @@ type FullModeDeploymentServiceImpl struct {
 	environmentRepository                repository5.EnvironmentRepository
 	deploymentConfigService              common.DeploymentConfigService
 	chartTemplateService                 util.ChartTemplateService
-	RepositorySecretService              argoRepositoryCreds.RepositorySecret
 }
 
 func NewFullModeDeploymentServiceImpl(
 	logger *zap.SugaredLogger,
-	acdClient application2.ServiceClient,
 	argoK8sClient argocdServer.ArgoK8sClient,
 	aCDAuthConfig *util2.ACDAuthConfig,
 	chartGroupDeploymentRepository repository2.ChartGroupDeploymentRepository,
 	installedAppRepository repository.InstalledAppRepository,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
-	argoUserService argo.ArgoUserService,
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	helmAppService client.HelmAppService,
 	appStatusService appStatus.AppStatusService,
@@ -125,17 +117,14 @@ func NewFullModeDeploymentServiceImpl(
 	gitOpsValidationService validation.GitOpsValidationService,
 	environmentRepository repository5.EnvironmentRepository,
 	deploymentConfigService common.DeploymentConfigService,
-	chartTemplateService util.ChartTemplateService,
-	RepositorySecretService argoRepositoryCreds.RepositorySecret) *FullModeDeploymentServiceImpl {
+	chartTemplateService util.ChartTemplateService) *FullModeDeploymentServiceImpl {
 	return &FullModeDeploymentServiceImpl{
 		Logger:                               logger,
-		acdClient:                            acdClient,
 		argoK8sClient:                        argoK8sClient,
 		aCDAuthConfig:                        aCDAuthConfig,
 		chartGroupDeploymentRepository:       chartGroupDeploymentRepository,
 		installedAppRepository:               installedAppRepository,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
-		argoUserService:                      argoUserService,
 		appStoreDeploymentCommonService:      appStoreDeploymentCommonService,
 		helmAppService:                       helmAppService,
 		appStatusService:                     appStatusService,
@@ -151,7 +140,6 @@ func NewFullModeDeploymentServiceImpl(
 		environmentRepository:                environmentRepository,
 		deploymentConfigService:              deploymentConfigService,
 		chartTemplateService:                 chartTemplateService,
-		RepositorySecretService:              RepositorySecretService,
 	}
 }
 

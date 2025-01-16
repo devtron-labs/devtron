@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
 	"github.com/devtron-labs/devtron/pkg/cluster/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster/read"
 	cronUtil "github.com/devtron-labs/devtron/util/cron"
 	"github.com/robfig/cron/v3"
 	"log"
@@ -48,6 +49,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -106,6 +108,7 @@ type ClusterServiceImpl struct {
 	userAuthRepository  repository3.UserAuthRepository
 	userRepository      repository3.UserRepository
 	roleGroupRepository repository3.RoleGroupRepository
+	clusterReadService  read.ClusterReadService
 }
 
 func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.SugaredLogger,
@@ -113,7 +116,8 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 	userAuthRepository repository3.UserAuthRepository, userRepository repository3.UserRepository,
 	roleGroupRepository repository3.RoleGroupRepository,
 	envVariables *globalUtil.EnvironmentVariables,
-	cronLogger *cronUtil.CronLoggerImpl) (*ClusterServiceImpl, error) {
+	cronLogger *cronUtil.CronLoggerImpl,
+	clusterReadService read.ClusterReadService) (*ClusterServiceImpl, error) {
 	clusterService := &ClusterServiceImpl{
 		clusterRepository:   repository,
 		logger:              logger,
@@ -122,6 +126,7 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 		userAuthRepository:  userAuthRepository,
 		userRepository:      userRepository,
 		roleGroupRepository: roleGroupRepository,
+		clusterReadService:  clusterReadService,
 	}
 	// initialise cron
 	newCron := cron.New(cron.WithChain(cron.Recover(cronLogger)))
@@ -345,7 +350,7 @@ func (impl *ClusterServiceImpl) FindById(id int) (*bean.ClusterBean, error) {
 }
 
 func (impl *ClusterServiceImpl) FindByIdWithoutConfig(id int) (*bean.ClusterBean, error) {
-	model, err := impl.FindById(id)
+	model, err := impl.clusterReadService.FindById(id)
 	if err != nil {
 		return nil, err
 	}
@@ -410,7 +415,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *bean.ClusterBe
 	}
 
 	if bean.ServerUrl != model.ServerUrl || bean.InsecureSkipTLSVerify != model.InsecureSkipTlsVerify || dbConfigBearerToken != requestConfigBearerToken || dbConfigTlsKey != requestConfigTlsKey || dbConfigCertData != requestConfigCertData || dbConfigCAData != requestConfigCAData {
-		if bean.ClusterName == DEFAULT_CLUSTER {
+		if bean.ClusterName == clusterBean.DEFAULT_CLUSTER {
 			impl.logger.Errorw("default_cluster is reserved by the system and cannot be updated, default_cluster", "name", bean.ClusterName)
 			return nil, fmt.Errorf("default_cluster is reserved by the system and cannot be updated")
 		}
@@ -549,6 +554,7 @@ func (impl *ClusterServiceImpl) FindAllForAutoComplete() ([]bean.ClusterBean, er
 			ErrorInConnecting: m.ErrorInConnecting,
 			IsCdArgoSetup:     m.CdArgoSetup,
 			IsVirtualCluster:  m.IsVirtualCluster,
+			IsProd:            m.IsProd,
 		})
 	}
 	return beans, nil
@@ -654,7 +660,7 @@ func (impl *ClusterServiceImpl) GetAllClusterNamespaces() map[string][]string {
 
 func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool) ([]string, error) {
 	result := make([]string, 0)
-	clusterBean, err := impl.FindById(clusterId)
+	clusterBean, err := impl.clusterReadService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("failed to find cluster for id", "error", err, "clusterId", clusterId)
 		return nil, err
@@ -903,7 +909,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 			clusterBeanObject.ErrorInConnecting = "cluster name missing from kubeconfig"
 		}
 
-		if clusterBeanObject.ClusterName == DEFAULT_CLUSTER {
+		if clusterBeanObject.ClusterName == clusterBean.DEFAULT_CLUSTER {
 			clusterBeanObject.ErrorInConnecting = "default_cluster is reserved by the system and cannot be updated"
 		}
 
@@ -1061,7 +1067,7 @@ func (impl *ClusterServiceImpl) ConvertClusterBeanObjectToCluster(bean *bean.Clu
 }
 
 func (impl *ClusterServiceImpl) GetClusterConfigByClusterId(clusterId int) (*k8s.ClusterConfig, error) {
-	clusterBean, err := impl.FindById(clusterId)
+	clusterBean, err := impl.clusterReadService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting clusterBean by cluster id", "err", err, "clusterId", clusterId)
 		return nil, err
