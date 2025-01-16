@@ -27,7 +27,6 @@ import (
 	"strings"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -65,7 +64,6 @@ type BulkUpdateRestHandlerImpl struct {
 	bulkUpdateService       bulkAction.BulkUpdateService
 	chartService            chart.ChartService
 	propertiesConfigService pipeline.PropertiesConfigService
-	application             application.ServiceClient
 	userAuthService         user.UserService
 	validator               *validator.Validate
 	teamService             team.TeamService
@@ -86,7 +84,6 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 	bulkUpdateService bulkAction.BulkUpdateService,
 	chartService chart.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService,
-	application application.ServiceClient,
 	userAuthService user.UserService,
 	teamService team.TeamService,
 	enforcer casbin.Enforcer,
@@ -107,7 +104,6 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 		bulkUpdateService:       bulkUpdateService,
 		chartService:            chartService,
 		propertiesConfigService: propertiesConfigService,
-		application:             application,
 		userAuthService:         userAuthService,
 		validator:               validator,
 		teamService:             teamService,

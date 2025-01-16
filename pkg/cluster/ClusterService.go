@@ -49,6 +49,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
+	clusterBean "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -414,7 +415,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *bean.ClusterBe
 	}
 
 	if bean.ServerUrl != model.ServerUrl || bean.InsecureSkipTLSVerify != model.InsecureSkipTlsVerify || dbConfigBearerToken != requestConfigBearerToken || dbConfigTlsKey != requestConfigTlsKey || dbConfigCertData != requestConfigCertData || dbConfigCAData != requestConfigCAData {
-		if bean.ClusterName == DEFAULT_CLUSTER {
+		if bean.ClusterName == clusterBean.DEFAULT_CLUSTER {
 			impl.logger.Errorw("default_cluster is reserved by the system and cannot be updated, default_cluster", "name", bean.ClusterName)
 			return nil, fmt.Errorf("default_cluster is reserved by the system and cannot be updated")
 		}
@@ -908,7 +909,7 @@ func (impl *ClusterServiceImpl) ValidateKubeconfig(kubeConfig string) (map[strin
 			clusterBeanObject.ErrorInConnecting = "cluster name missing from kubeconfig"
 		}
 
-		if clusterBeanObject.ClusterName == DEFAULT_CLUSTER {
+		if clusterBeanObject.ClusterName == clusterBean.DEFAULT_CLUSTER {
 			clusterBeanObject.ErrorInConnecting = "default_cluster is reserved by the system and cannot be updated"
 		}
 

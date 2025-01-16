@@ -28,30 +28,30 @@ import (
 )
 
 type ServiceClient interface {
-	ResourceTree(ctxt context.Context, query *application.ResourcesQuery) (*v1alpha1.ApplicationTree, error)
+	ResourceTree(ctxt context.Context, grpcConfig *argoApplication.ArgoGRPCConfig, query *application.ResourcesQuery) (*v1alpha1.ApplicationTree, error)
 
 	// GetArgoClient return argo connection client
-	GetArgoClient(ctxt context.Context) (application.ApplicationServiceClient, *grpc.ClientConn, error)
+	GetArgoClient(ctxt context.Context, grpcConfig *argoApplication.ArgoGRPCConfig) (application.ApplicationServiceClient, *grpc.ClientConn, error)
 
 	// Patch an ArgoCd application
-	Patch(ctx context.Context, query *application.ApplicationPatchRequest) (*v1alpha1.Application, error)
+	Patch(ctx context.Context, grpcConfig *argoApplication.ArgoGRPCConfig, query *application.ApplicationPatchRequest) (*v1alpha1.Application, error)
 
 	// GetResource returns single application resource
-	GetResource(ctxt context.Context, query *application.ApplicationResourceRequest) (*application.ApplicationResourceResponse, error)
+	GetResource(ctxt context.Context, grpcConfig *argoApplication.ArgoGRPCConfig, query *application.ApplicationResourceRequest) (*application.ApplicationResourceResponse, error)
 
 	// Get returns an application by name
-	Get(ctx context.Context, query *application.ApplicationQuery) (*v1alpha1.Application, error)
+	Get(ctx context.Context, grpcConfig *argoApplication.ArgoGRPCConfig, query *application.ApplicationQuery) (*v1alpha1.Application, error)
 
 	// Update updates an application
-	Update(ctx context.Context, query *application.ApplicationUpdateRequest) (*v1alpha1.Application, error)
+	Update(ctx context.Context, grpcConfig *argoApplication.ArgoGRPCConfig, query *application.ApplicationUpdateRequest) (*v1alpha1.Application, error)
 
 	// Sync syncs an application to its target state
-	Sync(ctx context.Context, query *application.ApplicationSyncRequest) (*v1alpha1.Application, error)
+	Sync(ctx context.Context, grpcConfig *argoApplication.ArgoGRPCConfig, query *application.ApplicationSyncRequest) (*v1alpha1.Application, error)
 
 	// Delete deletes an application
-	Delete(ctx context.Context, query *application.ApplicationDeleteRequest) (*application.ApplicationResponse, error)
+	Delete(ctx context.Context, grpcConfig *argoApplication.ArgoGRPCConfig, query *application.ApplicationDeleteRequest) (*application.ApplicationResponse, error)
 
-	TerminateOperation(ctx context.Context, query *application.OperationTerminateRequest) (*application.OperationTerminateResponse, error)
+	TerminateOperation(ctx context.Context, grpcConfig *argoApplication.ArgoGRPCConfig, query *application.OperationTerminateRequest) (*application.OperationTerminateResponse, error)
 }
 
 type ServiceClientImpl struct {
@@ -68,14 +68,18 @@ func NewApplicationClientImpl(
 	}
 }
 
-func (c *ServiceClientImpl) GetArgoClient(ctxt context.Context) (application.ApplicationServiceClient, *grpc.ClientConn, error) {
-	conn := c.argoCDConnectionManager.GetConnection()
-	asc := application.NewApplicationServiceClient(conn)
-	return asc, conn, nil
+func (c ServiceClientImpl) getService(connectionConfig *argoApplication.ArgoGRPCConfig) (application.ApplicationServiceClient, *grpc.ClientConn, error) {
+	conn := c.argoCDConnectionManager.GetGrpcClientConnection(connectionConfig)
+	//defer conn.Close()
+	return application.NewApplicationServiceClient(conn), conn, nil
 }
 
-func (c *ServiceClientImpl) ResourceTree(ctxt context.Context, query *application.ResourcesQuery) (*v1alpha1.ApplicationTree, error) {
-	asc, conn, err := c.GetArgoClient(ctxt)
+func (c *ServiceClientImpl) GetArgoClient(ctxt context.Context, grpcConfig *argoApplication.ArgoGRPCConfig) (application.ApplicationServiceClient, *grpc.ClientConn, error) {
+	return c.getService(grpcConfig)
+}
+
+func (c *ServiceClientImpl) ResourceTree(ctxt context.Context, grpcConfig *argoApplication.ArgoGRPCConfig, query *application.ResourcesQuery) (*v1alpha1.ApplicationTree, error) {
+	asc, conn, err := c.GetArgoClient(ctxt, grpcConfig)
 	if err != nil {
 		c.logger.Errorw("error getting ArgoCD client", "error", err)
 		return nil, err
@@ -90,10 +94,10 @@ func (c *ServiceClientImpl) ResourceTree(ctxt context.Context, query *applicatio
 	return resp, nil
 }
 
-func (c ServiceClientImpl) Patch(ctxt context.Context, query *application.ApplicationPatchRequest) (*v1alpha1.Application, error) {
-	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutLazy)
+func (c ServiceClientImpl) Patch(ctx context.Context, grpcConfig *argoApplication.ArgoGRPCConfig, query *application.ApplicationPatchRequest) (*v1alpha1.Application, error) {
+	ctx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutLazy)
 	defer cancel()
-	asc, conn, err := c.GetArgoClient(ctxt)
+	asc, conn, err := c.GetArgoClient(ctx, grpcConfig)
 	if err != nil {
 		c.logger.Errorw("error getting ArgoCD client", "error", err)
 		return nil, err
@@ -103,11 +107,11 @@ func (c ServiceClientImpl) Patch(ctxt context.Context, query *application.Applic
 	return resp, err
 }
 
-func (c ServiceClientImpl) Get(ctx context.Context, query *application.ApplicationQuery) (*v1alpha1.Application, error) {
+func (c ServiceClientImpl) Get(ctx context.Context, grpcConfig *argoApplication.ArgoGRPCConfig, query *application.ApplicationQuery) (*v1alpha1.Application, error) {
 
 	newCtx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutFast)
 	defer cancel()
-	asc, conn, err := c.GetArgoClient(ctx)
+	asc, conn, err := c.GetArgoClient(ctx, grpcConfig)
 	if err != nil {
 		c.logger.Errorw("error getting ArgoCD client", "error", err)
 		return nil, err
@@ -117,10 +121,10 @@ func (c ServiceClientImpl) Get(ctx context.Context, query *application.Applicati
 	return resp, err
 }
 
-func (c ServiceClientImpl) Update(ctxt context.Context, query *application.ApplicationUpdateRequest) (*v1alpha1.Application, error) {
-	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutFast)
+func (c ServiceClientImpl) Update(ctx context.Context, grpcConfig *argoApplication.ArgoGRPCConfig, query *application.ApplicationUpdateRequest) (*v1alpha1.Application, error) {
+	ctx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutFast)
 	defer cancel()
-	asc, conn, err := c.GetArgoClient(ctx)
+	asc, conn, err := c.GetArgoClient(ctx, grpcConfig)
 	if err != nil {
 		c.logger.Errorw("error getting ArgoCD client", "error", err)
 		return nil, err
@@ -130,10 +134,10 @@ func (c ServiceClientImpl) Update(ctxt context.Context, query *application.Appli
 	return resp, err
 }
 
-func (c ServiceClientImpl) Sync(ctxt context.Context, query *application.ApplicationSyncRequest) (*v1alpha1.Application, error) {
-	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutFast)
+func (c ServiceClientImpl) Sync(ctx context.Context, grpcConfig *argoApplication.ArgoGRPCConfig, query *application.ApplicationSyncRequest) (*v1alpha1.Application, error) {
+	ctx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutFast)
 	defer cancel()
-	asc, conn, err := c.GetArgoClient(ctx)
+	asc, conn, err := c.GetArgoClient(ctx, grpcConfig)
 	if err != nil {
 		c.logger.Errorw("error getting ArgoCD client", "error", err)
 		return nil, err
@@ -143,10 +147,10 @@ func (c ServiceClientImpl) Sync(ctxt context.Context, query *application.Applica
 	return resp, err
 }
 
-func (c ServiceClientImpl) GetResource(ctxt context.Context, query *application.ApplicationResourceRequest) (*application.ApplicationResourceResponse, error) {
+func (c ServiceClientImpl) GetResource(ctxt context.Context, grpcConfig *argoApplication.ArgoGRPCConfig, query *application.ApplicationResourceRequest) (*application.ApplicationResourceResponse, error) {
 	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutFast)
 	defer cancel()
-	asc, conn, err := c.GetArgoClient(ctx)
+	asc, conn, err := c.GetArgoClient(ctx, grpcConfig)
 	if err != nil {
 		c.logger.Errorw("error getting ArgoCD client", "error", err)
 		return nil, err
@@ -155,10 +159,10 @@ func (c ServiceClientImpl) GetResource(ctxt context.Context, query *application.
 	return asc.GetResource(ctx, query)
 }
 
-func (c ServiceClientImpl) Delete(ctxt context.Context, query *application.ApplicationDeleteRequest) (*application.ApplicationResponse, error) {
-	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutSlow)
+func (c ServiceClientImpl) Delete(ctx context.Context, grpcConfig *argoApplication.ArgoGRPCConfig, query *application.ApplicationDeleteRequest) (*application.ApplicationResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutSlow)
 	defer cancel()
-	asc, conn, err := c.GetArgoClient(ctx)
+	asc, conn, err := c.GetArgoClient(ctx, grpcConfig)
 	if err != nil {
 		c.logger.Errorw("error getting ArgoCD client", "error", err)
 		return nil, err
@@ -166,10 +170,10 @@ func (c ServiceClientImpl) Delete(ctxt context.Context, query *application.Appli
 	defer util.Close(conn, c.logger)
 	return asc.Delete(ctx, query)
 }
-func (c ServiceClientImpl) TerminateOperation(ctxt context.Context, query *application.OperationTerminateRequest) (*application.OperationTerminateResponse, error) {
-	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutFast)
+func (c ServiceClientImpl) TerminateOperation(ctx context.Context, grpcConfig *argoApplication.ArgoGRPCConfig, query *application.OperationTerminateRequest) (*application.OperationTerminateResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, argoApplication.TimeoutFast)
 	defer cancel()
-	asc, conn, err := c.GetArgoClient(ctx)
+	asc, conn, err := c.GetArgoClient(ctx, grpcConfig)
 	if err != nil {
 		c.logger.Errorw("error getting ArgoCD client", "error", err)
 		return nil, err

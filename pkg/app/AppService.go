@@ -51,7 +51,6 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -103,7 +102,6 @@ type AppServiceImpl struct {
 	pipelineRepository                     pipelineConfig.PipelineRepository
 	eventClient                            client.EventClient
 	eventFactory                           client.EventFactory
-	acdClient                              application.ServiceClient
 	appRepository                          app.AppRepository
 	configMapRepository                    chartConfig.ConfigMapRepository
 	chartRepository                        chartRepoRepository.ChartRepository
@@ -147,7 +145,7 @@ func NewAppService(
 	mergeUtil *MergeUtil, logger *zap.SugaredLogger,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	eventClient client.EventClient, eventFactory client.EventFactory,
-	acdClient application.ServiceClient, appRepository app.AppRepository,
+	appRepository app.AppRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
 	chartRepository chartRepoRepository.ChartRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
@@ -173,7 +171,6 @@ func NewAppService(
 		pipelineRepository:                     pipelineRepository,
 		eventClient:                            eventClient,
 		eventFactory:                           eventFactory,
-		acdClient:                              acdClient,
 		appRepository:                          appRepository,
 		configMapRepository:                    configMapRepository,
 		chartRepository:                        chartRepository,
