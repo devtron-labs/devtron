@@ -28,12 +28,12 @@ import (
 )
 
 type Config struct {
-	Addr            string `env:"PG_ADDR" envDefault:"127.0.0.1"`
-	Port            string `env:"PG_PORT" envDefault:"5432"`
-	User            string `env:"PG_USER" envDefault:""`
-	Password        string `env:"PG_PASSWORD" envDefault:"" secretData:"-"`
-	Database        string `env:"PG_DATABASE" envDefault:"orchestrator"`
-	CasbinDatabase  string `env:"CASBIN_DATABASE" envDefault:"casbin"`
+	Addr            string `env:"PG_ADDR" envDefault:"127.0.0.1"  envDescription:"address of postgres service" possibleValues:"postgresql-postgresql.devtroncd"`
+	Port            string `env:"PG_PORT" envDefault:"5432" envDescription:"port of postgresql service" possibleValues:"5432"`
+	User            string `env:"PG_USER" envDefault:""  envDescription:"user for postgres" possibleValues:"postgres"`
+	Password        string `env:"PG_PASSWORD" envDefault:"" secretData:"-"  envDescription:"password for postgres, associated with PG_USER" possibleValues:"confidential ;)"`
+	Database        string `env:"PG_DATABASE" envDefault:"orchestrator"  envDescription:"postgres database to be made connection with" possibleValues:"orchestrator, casbin, git_sensor, lens"`
+	CasbinDatabase  string `env:"CASBIN_DATABASE" envDefault:"casbin""`
 	ApplicationName string `env:"APP" envDefault:"orchestrator" envDescription:"Application name"`
 	ReadTimeout     int64  `env:"PG_READ_TIMEOUT" envDefault:"30"`
 	WriteTimeout    int64  `env:"PG_WRITE_TIMEOUT" envDefault:"30"`

@@ -30,23 +30,25 @@ import (
 )
 
 type EnvField struct {
-	Env            string
-	EnvValue       string
-	EnvDescription string
+	Env               string
+	EnvValue          string
+	EnvDescription    string
+	EnvPossibleValues string
 }
 
 const (
-	envFieldTypeTag            = "env"
-	envDefaultFieldTypeTag     = "envDefault"
-	envDescriptionFieldTypeTag = "envDescription"
-	MARKDOWN_FILENAME          = "env_gen.md"
+	envFieldTypeTag               = "env"
+	envDefaultFieldTypeTag        = "envDefault"
+	envDescriptionFieldTypeTag    = "envDescription"
+	envPossibleValuesFieldTypeTag = "possibleValues"
+	MARKDOWN_FILENAME             = "env_gen.md"
 )
 
 const MarkdownTemplate = `
 ## Devtron Environment Variables
-| Key   | Value        | Description       |
-|-------|--------------|-------------------|
-{{range .}} | {{ .Env }} | {{ .EnvValue }} | {{ .EnvDescription }} | 
+| Key   | Value        | Description       | Possible values       |
+|-------|--------------|-------------------|-----------------------|
+{{range .}} | {{ .Env }} | {{ .EnvValue }} | {{ .EnvDescription }} | {{ .EnvPossibleValues }} | 
 {{end}}`
 
 func writeToFile(allFields []EnvField) {
@@ -98,15 +100,25 @@ func convertTagToStructTag(tag string) reflect.StructTag {
 	return reflect.StructTag(strings.Split(tag, "`")[1])
 }
 
-func getEnvKeyAndValue(tag reflect.StructTag) (string, string, string) {
-	envKey := tag.Get(envFieldTypeTag)
-	envValue := tag.Get(envDefaultFieldTypeTag)
-	envDescription := tag.Get(envDescriptionFieldTypeTag)
+func getEnvKeyAndValue(tag reflect.StructTag) EnvField {
+	envKey := addReadmeTableDelimiterEscapeChar(tag.Get(envFieldTypeTag))
+	envValue := addReadmeTableDelimiterEscapeChar(tag.Get(envDefaultFieldTypeTag))
+	envDescription := addReadmeTableDelimiterEscapeChar(tag.Get(envDescriptionFieldTypeTag))
+	envPossibleValues := addReadmeTableDelimiterEscapeChar(tag.Get(envPossibleValuesFieldTypeTag))
 	// check if there exist any value provided in env for this field
 	if value, ok := os.LookupEnv(envKey); ok {
 		envValue = value
 	}
-	return envKey, envValue, envDescription
+	return EnvField{
+		Env:               envKey,
+		EnvValue:          envValue,
+		EnvDescription:    envDescription,
+		EnvPossibleValues: envPossibleValues,
+	}
+}
+
+func addReadmeTableDelimiterEscapeChar(s string) string {
+	return strings.ReplaceAll(s, "|", `\|`)
 }
 
 func processGoFile(filePath string, allFields *[]EnvField, uniqueKeys *map[string]bool) error {
@@ -124,15 +136,12 @@ func processGoFile(filePath string, allFields *[]EnvField, uniqueKeys *map[strin
 				for _, field := range structType.Fields.List {
 					if field.Tag != nil {
 						strippedTags := convertTagToStructTag(field.Tag.Value)
-						envKey, envValue, envDescription := getEnvKeyAndValue(strippedTags)
+						envField := getEnvKeyAndValue(strippedTags)
+						envKey := envField.Env
 						if len(envKey) == 0 || (*uniqueKeys)[envKey] {
 							continue
 						}
-						*allFields = append(*allFields, EnvField{
-							Env:            envKey,
-							EnvValue:       envValue,
-							EnvDescription: envDescription,
-						})
+						*allFields = append(*allFields, envField)
 						(*uniqueKeys)[envKey] = true
 					}
 				}
