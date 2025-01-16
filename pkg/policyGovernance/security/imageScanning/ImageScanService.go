@@ -481,12 +481,13 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *bean3.Image
 	}
 	// setting scan tool name if scan tool id is present
 	if imageScanResponse.ScanToolId > 0 {
-		scanToolName, err := impl.scanToolMetaDataRepository.FindNameById(imageScanResponse.ScanToolId)
+		scanToolName, scanToolUrl, err := impl.scanToolMetaDataRepository.FindNameAndUrlById(imageScanResponse.ScanToolId)
 		if err != nil {
 			impl.Logger.Errorw("error in getting scan tool name by id", "scanToolId", imageScanResponse.ScanToolId, "err", err)
 			return nil, err
 		}
 		imageScanResponse.ScanToolName = scanToolName
+		imageScanResponse.ScanToolUrl = scanToolUrl
 	}
 	return imageScanResponse, nil
 }

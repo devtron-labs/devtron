@@ -37,6 +37,7 @@ type ScanToolMetadata struct {
 	ToolMetaData             string         `sql:"tool_metadata"`
 	PluginId                 int            `sql:"plugin_id"`
 	IsPreset                 bool           `sql:"is_preset"`
+	Url                      string         `sql:"url"`
 	sql.AuditLog
 }
 
@@ -51,7 +52,7 @@ type ScanToolMetadataRepository interface {
 	MarkToolAsActive(toolName, version string, tx *pg.Tx) error
 	MarkOtherToolsInActive(toolName string, tx *pg.Tx, version string) error
 	FindActiveTool() (*ScanToolMetadata, error)
-	FindNameById(id int) (string, error)
+	FindNameAndUrlById(id int) (string, string, error)
 }
 
 type ScanToolMetadataRepositoryImpl struct {
@@ -174,12 +175,12 @@ func (repo *ScanToolMetadataRepositoryImpl) FindActiveTool() (*ScanToolMetadata,
 
 }
 
-func (repo *ScanToolMetadataRepositoryImpl) FindNameById(id int) (string, error) {
+func (repo *ScanToolMetadataRepositoryImpl) FindNameAndUrlById(id int) (string, string, error) {
 	model := &ScanToolMetadata{}
 	err := repo.dbConnection.Model(model).Column("name").Where("id = ?", id).Select()
 	if err != nil {
 		repo.logger.Errorw("error in getting tool name by id", "err", err, "id", id)
-		return "", err
+		return "", "", err
 	}
-	return model.Name, nil
+	return model.Name, model.Url, nil
 }
