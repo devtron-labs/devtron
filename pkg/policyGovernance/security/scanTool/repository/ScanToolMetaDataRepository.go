@@ -163,8 +163,8 @@ func (repo *ScanToolMetadataRepositoryImpl) MarkOtherToolsInActive(toolName stri
 	return nil
 }
 func (repo *ScanToolMetadataRepositoryImpl) FindActiveTool() (*ScanToolMetadata, error) {
-	var model *ScanToolMetadata
-	err := repo.dbConnection.Model(&model).Where("active = ?", true).
+	model := &ScanToolMetadata{}
+	err := repo.dbConnection.Model(model).Where("active = ?", true).
 		Where("deleted = ?", false).Select()
 	if err != nil {
 		repo.logger.Errorw("error in getting active tool for scan target", "err", err)
