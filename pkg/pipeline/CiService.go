@@ -836,12 +836,13 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		}
 		workflowRequest.SetExecuteImageScanningVia(scanVia)
 		if scanVia.IsExecutionMediumSteps() {
-			imageScanExecutionSteps, err := impl.fetchImageScanExecutionStepsForWfRequest(scanToolMetadata)
+			imageScanExecutionSteps, refPlugins, err := impl.fetchImageScanExecutionStepsForWfRequest(scanToolMetadata)
 			if err != nil {
 				impl.Logger.Errorw("error occurred, fetchImageScanExecutionStepsForWfRequest", "scanToolMetadata", scanToolMetadata, "err", err)
 				return nil, err
 			}
 			workflowRequest.SetImageScanningSteps(imageScanExecutionSteps)
+			workflowRequest.RefPlugins = append(workflowRequest.RefPlugins, refPlugins...)
 		}
 	}
 
