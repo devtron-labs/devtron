@@ -77,12 +77,6 @@ func (impl *memClientImpl) getAppliedConfiguration(key v1.ConfigKeyStr, profileC
 		impl.logger.Errorw("error in getting memory config data", "error", err, "memoryConfig", defaultConfigurations)
 		return profileConfigBean, err
 	}
-	if profileConfigBean != nil {
-		profileConfigBean.Active = impl.isConfigActive(impl.getValueCount(profileData), profileConfigBean.Active)
-	}
-	if defaultConfigBean != nil {
-		defaultConfigBean.Active = impl.isConfigActive(impl.getValueCount(defaultData), defaultConfigBean.Active)
-	}
 	return impl.getInheritedConfigurations(key, profileData, defaultData, profileConfigBean, defaultConfigBean)
 }
 
@@ -284,10 +278,6 @@ func (impl *memClientImpl) getValueCount(value float64) int {
 		return 0
 	}
 	return 1
-}
-
-func (impl *memClientImpl) isConfigActive(valueCount int, isConfigActive bool) bool {
-	return isConfigActive
 }
 
 func (impl *memClientImpl) handlePostCreateOperations(tx *pg.Tx, createdInfraConfig *repository.InfraProfileConfigurationEntity) error {

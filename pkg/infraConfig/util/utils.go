@@ -106,14 +106,15 @@ func GetMandatoryConfigKeys(profileName, platformName string) []v1.ConfigKeyStr 
 	return make([]v1.ConfigKeyStr, 0)
 }
 
-func IsAnyRequiredConfigMissing(profileName, platformName string, configuredKeys v1.InfraConfigKeys) bool {
+func GetMissingRequiredConfigKeys(profileName, platformName string, configuredKeys v1.InfraConfigKeys) []v1.ConfigKeyStr {
+	missingKeys := make([]v1.ConfigKeyStr, 0)
 	mandatoryKeys := GetMandatoryConfigKeys(profileName, platformName)
 	for _, missingKey := range configuredKeys.GetUnConfiguredKeys() {
 		if slices.Contains(mandatoryKeys, missingKey) {
-			return true
+			missingKeys = append(missingKeys, missingKey)
 		}
 	}
-	return false
+	return missingKeys
 }
 
 func GetConfigCompositeKey(config *repository.InfraProfileConfigurationEntity) string {

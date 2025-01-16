@@ -75,12 +75,6 @@ func (impl *timeoutClientImpl) getAppliedConfiguration(key v1.ConfigKeyStr, prof
 		impl.logger.Errorw("error in getting timeout config data", "error", err, "timeoutConfig", defaultConfigurations)
 		return profileConfigBean, err
 	}
-	if profileConfigBean != nil {
-		profileConfigBean.Active = impl.isConfigActive(impl.getValueCount(profileData), profileConfigBean.Active)
-	}
-	if defaultConfigBean != nil {
-		defaultConfigBean.Active = impl.isConfigActive(impl.getValueCount(defaultData), defaultConfigBean.Active)
-	}
 	return impl.getInheritedConfigurations(key, profileData, defaultData, profileConfigBean, defaultConfigBean)
 }
 
@@ -231,10 +225,6 @@ func (impl *timeoutClientImpl) getValueCount(value float64) int {
 		return 0
 	}
 	return 1
-}
-
-func (impl *timeoutClientImpl) isConfigActive(valueCount int, isConfigActive bool) bool {
-	return isConfigActive
 }
 
 func (impl *timeoutClientImpl) handlePostCreateOperations(tx *pg.Tx, createdInfraConfig *repository.InfraProfileConfigurationEntity) error {

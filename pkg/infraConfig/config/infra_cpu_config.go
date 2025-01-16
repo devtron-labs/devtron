@@ -75,12 +75,6 @@ func (impl *cpuClientImpl) getAppliedConfiguration(key v1.ConfigKeyStr, profileC
 		impl.logger.Errorw("error in getting cpu default config data", "error", err, "cpuConfig", defaultConfigBean)
 		return profileConfigBean, err
 	}
-	if profileConfigBean != nil {
-		profileConfigBean.Active = impl.isConfigActive(impl.getValueCount(profileData), profileConfigBean.Active)
-	}
-	if defaultConfigBean != nil {
-		defaultConfigBean.Active = impl.isConfigActive(impl.getValueCount(defaultData), defaultConfigBean.Active)
-	}
 	return impl.getInheritedConfigurations(key, profileData, defaultData, profileConfigBean, defaultConfigBean)
 }
 
@@ -281,10 +275,6 @@ func (impl *cpuClientImpl) getValueCount(value float64) int {
 		return 0
 	}
 	return 1
-}
-
-func (impl *cpuClientImpl) isConfigActive(valueCount int, isConfigActive bool) bool {
-	return isConfigActive
 }
 
 func (impl *cpuClientImpl) handlePostCreateOperations(tx *pg.Tx, createdInfraConfig *repository.InfraProfileConfigurationEntity) error {

@@ -518,17 +518,6 @@ func (impl *InfraConfigServiceImpl) getCreatableAndUpdatableProfilePlatforms(use
 			globalUtil.NewApiError(http.StatusBadRequest, infraErrors.DeletionBlockedForDefaultPlatform, infraErrors.DeletionBlockedForDefaultPlatform)
 	}
 
-	// mandatory config validations for profile
-	for platform, configurations := range profileToUpdate.GetConfigurations() {
-		configuredInfraConfigKeys := getConfiguredInfraConfigKeys(platform, configurations)
-		// Check if any default keys are still true (missing)
-		if util.IsAnyRequiredConfigMissing(profileName, platform, configuredInfraConfigKeys) {
-			impl.logger.Errorw("missing default configuration keys for platform", "platform", platform, "profileName", profileName)
-			return nil, nil,
-				globalUtil.NewApiError(http.StatusBadRequest, infraErrors.ConfigurationMissingInGlobalPlatform, infraErrors.ConfigurationMissingInGlobalPlatform)
-		}
-	}
-
 	infraProfileEntity, err := impl.infraProfileRepo.GetProfileByName(profileName)
 	if err != nil {
 		impl.logger.Errorw("error in fetching list of the platforms for the profile,")
@@ -584,6 +573,28 @@ func (impl *InfraConfigServiceImpl) sanitizeAndGetUpdatableAndCreatableConfigura
 	if err != nil && !errors.Is(err, infraErrors.NoPropertiesFoundError) {
 		impl.logger.Errorw("error in fetching existing configuration ids", "profileName", profileName, "error", err)
 		return updatableInfraConfigurations, creatableInfraConfigurations, err
+	}
+	// mandatory config validations for profile
+	for platform, configurations := range profileToUpdate.GetConfigurations() {
+		configuredInfraConfigKeys := getConfiguredInfraConfigKeys(platform, configurations)
+		// Check if any default keys are still true (missing)
+		missingKeys := util.GetMissingRequiredConfigKeys(profileName, platform, configuredInfraConfigKeys)
+		for _, missingKey := range missingKeys {
+			index, found := sliceUtil.Find(existingConfigurations, func(entity *repository.InfraProfileConfigurationEntity) bool {
+				if entity == nil || entity.ProfilePlatformMapping == nil {
+					return false
+				}
+				return entity.Key == util.GetConfigKey(missingKey) && entity.ProfilePlatformMapping.Platform == platform
+			})
+			if found {
+				infraConfigurationEntities = append(infraConfigurationEntities, existingConfigurations[index])
+			} else {
+				impl.logger.Errorw("missing default configuration keys for platform", "platform", platform, "profileName", profileName, "missingKey", missingKey)
+				errMsg := infraErrors.ConfigurationMissingError(missingKey, profileName, platform)
+				return nil, nil,
+					globalUtil.NewApiError(http.StatusBadRequest, errMsg, errMsg)
+			}
+		}
 	}
 	// Separate creatable and updatable configurations
 	creatableInfraConfigurations = make([]*repository.InfraProfileConfigurationEntity, 0, len(infraConfigurationEntities))

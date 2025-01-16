@@ -44,3 +44,7 @@ const (
 func InvalidUnitFound(unit string, key v1.ConfigKeyStr) string {
 	return fmt.Sprintf("invalid %q unit found for %q", unit, key)
 }
+
+func ConfigurationMissingError(missingKey v1.ConfigKeyStr, profileName, platformName string) string {
+	return fmt.Sprintf("%q configuration missing in the %q profile %q platform", missingKey, profileName, platformName)
+}

@@ -43,11 +43,6 @@ func (impl *InfraConfigClientImpl) convertValueStringToInterfaceEnt(configKey v1
 	return nil, 0, fmt.Errorf("config key %q not supported", configKey)
 }
 
-func (impl *InfraConfigClientImpl) isConfigActiveEnt(configKey v1.ConfigKeyStr, valueCount int, configActive bool) bool {
-	// Default case, return the flag configActive as is
-	return configActive
-}
-
 func (impl *InfraConfigClientImpl) handlePostUpdateOperationEnt(tx *pg.Tx, updatedInfraConfig *repository.InfraProfileConfigurationEntity) error {
 	// Default case, return error for an unsupported key
 	return fmt.Errorf("config key %q not supported", updatedInfraConfig.Key)

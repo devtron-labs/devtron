@@ -343,7 +343,7 @@ func (impl *InfraConfigClientImpl) getConfigurationBean(infraProfileConfiguratio
 	if len(valueString) == 0 && infraProfileConfiguration.Unit > 0 {
 		valueString = strconv.FormatFloat(infraProfileConfiguration.Value, 'f', -1, 64)
 	}
-	valueInterface, valueCount, err := impl.convertValueStringToInterface(util.GetConfigKeyStr(infraProfileConfiguration.Key), valueString)
+	valueInterface, _, err := impl.convertValueStringToInterface(util.GetConfigKeyStr(infraProfileConfiguration.Key), valueString)
 	if err != nil {
 		return &v1.ConfigurationBean{}, err
 	}
@@ -353,7 +353,7 @@ func (impl *InfraConfigClientImpl) getConfigurationBean(infraProfileConfiguratio
 			Key:         util.GetConfigKeyStr(infraProfileConfiguration.Key),
 			Unit:        util.GetUnitSuffixStr(infraProfileConfiguration.Key, infraProfileConfiguration.Unit),
 			ProfileId:   infraProfileConfiguration.ProfilePlatformMapping.ProfileId,
-			Active:      impl.isConfigActive(util.GetConfigKeyStr(infraProfileConfiguration.Key), valueCount, infraProfileConfiguration.Active),
+			Active:      infraProfileConfiguration.Active,
 			ProfileName: profileName,
 		},
 		Value: valueInterface,
@@ -385,21 +385,6 @@ func (impl *InfraConfigClientImpl) convertValueStringToInterface(configKey v1.Co
 	// Add more cases as needed for different config keys
 	default:
 		return impl.convertValueStringToInterfaceEnt(configKey, valueString)
-	}
-}
-
-// isConfigActive checks if the config is active based on the value count and repository. flag
-func (impl *InfraConfigClientImpl) isConfigActive(configKey v1.ConfigKeyStr, valueCount int, configActive bool) bool {
-	switch configKey {
-	case v1.CPU_LIMIT, v1.CPU_REQUEST:
-		return impl.getCPUConfigFactory().isConfigActive(valueCount, configActive)
-	case v1.MEMORY_LIMIT, v1.MEMORY_REQUEST:
-		return impl.getMemoryConfigFactory().isConfigActive(valueCount, configActive)
-	case v1.TIME_OUT:
-		return impl.getTimeoutConfigFactory().isConfigActive(valueCount, configActive)
-	// Add more cases as needed for different config keys
-	default:
-		return impl.isConfigActiveEnt(configKey, valueCount, configActive)
 	}
 }
 

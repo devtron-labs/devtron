@@ -34,7 +34,6 @@ type configFactory[T any] interface {
 
 	getInfraConfigEntities(infraConfig *v1.InfraConfig, profileId int, platformName string) ([]*repository.InfraProfileConfigurationEntity, error)
 	getValueFromString(valueString string) (T, int, error)
-	isConfigActive(valueCount int, configActive bool) bool
 	getValueFromBean(configurationBean *v1.ConfigurationBean) (T, error)
 	formatTypedValueAsString(configValue any) (string, error)
 	overrideInfraConfig(infraConfiguration *v1.InfraConfig, configurationBean *v1.ConfigurationBean) (*v1.InfraConfig, error)
