@@ -31,14 +31,13 @@ var NoPropertiesFoundError = errors.New("no properties found")
 var ProfileIdsRequired = errors.New("profile ids cannot be empty")
 
 const (
-	PayloadValidationError               = "payload validation failed"
-	InvalidProfileName                   = "profile name is invalid"
-	ProfileDoNotExists                   = "profile does not exist"
-	InvalidProfileNameChangeRequested    = "invalid profile name change requested"
-	ProfileAlreadyExistsErr              = "profile already exists"
-	DeletionBlockedForDefaultPlatform    = "cannot delete default platform configuration"
-	ConfigurationMissingInGlobalPlatform = "configuration missing in the global Platform"
-	UpdatableConfigurationFoundErr       = "updatable configuration not belongs to platform"
+	PayloadValidationError            = "payload validation failed"
+	InvalidProfileName                = "profile name is invalid"
+	ProfileDoNotExists                = "profile does not exist"
+	InvalidProfileNameChangeRequested = "invalid profile name change requested"
+	ProfileAlreadyExistsErr           = "profile already exists"
+	DeletionBlockedForDefaultPlatform = "cannot delete default platform configuration"
+	UpdatableConfigurationFoundErr    = "updatable configuration not belongs to platform"
 )
 
 func InvalidUnitFound(unit string, key v1.ConfigKeyStr) string {
