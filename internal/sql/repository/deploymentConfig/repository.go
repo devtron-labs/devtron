@@ -46,6 +46,7 @@ type Repository interface {
 	GetAppAndEnvLevelConfigsInBulk(appIdToEnvIdsMap map[int][]int) ([]*DeploymentConfig, error)
 	GetByAppIdAndEnvIdEvenIfInactive(appId, envId int) (*DeploymentConfig, error)
 	UpdateRepoUrlByAppIdAndEnvId(repoUrl string, appId, envId int) error
+	GetConfigByAppIds(appIds []int) ([]*DeploymentConfig, error)
 }
 
 type RepositoryImpl struct {
@@ -171,4 +172,13 @@ func (impl *RepositoryImpl) UpdateRepoUrlByAppIdAndEnvId(repoUrl string, appId, 
 		Where("app_id = ? and environment_id = ? ", appId, envId).
 		Update()
 	return err
+}
+
+func (impl *RepositoryImpl) GetConfigByAppIds(appIds []int) ([]*DeploymentConfig, error) {
+	var results []*DeploymentConfig
+	err := impl.dbConnection.Model(&results).
+		Where("app_id in (?) ", pg.In(appIds)).
+		Where("active = ?", true).
+		Select()
+	return results, err
 }
