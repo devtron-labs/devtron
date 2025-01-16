@@ -106,3 +106,12 @@ type ImageScanExecutionDetail struct {
 	ScanToolName          string                               `json:"scanToolName,omitempty"`
 	Status                repository.ScanExecutionProcessState `json:"status,omitempty"`
 }
+
+type AppEnvMetadata struct {
+	AppId int
+	EnvId int
+}
+
+func NewAppEnvMetadata(appId, envId int) AppEnvMetadata {
+	return AppEnvMetadata{AppId: appId, EnvId: envId}
+}

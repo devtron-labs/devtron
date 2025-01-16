@@ -128,6 +128,10 @@ func (impl *VariableTemplateParserImpl) handlePrimitivesForJson(parserRequest Va
 func (impl *VariableTemplateParserImpl) ExtractVariables(template string, templateType VariableTemplateType) ([]string, error) {
 	var variables []string
 
+	if template == "" {
+		return variables, nil
+	}
+
 	if !impl.variableTemplateParserConfig.ScopedVariableEnabled {
 		return variables, nil
 	}

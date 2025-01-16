@@ -41,7 +41,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/team/read"
 	repository3 "github.com/devtron-labs/devtron/pkg/team/repository"
-	"github.com/devtron-labs/devtron/util/argo"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -75,7 +74,6 @@ type ChartGroupServiceImpl struct {
 	appStoreValuesService                service.AppStoreValuesService
 	appStoreDeploymentService            service2.AppStoreDeploymentService
 	appStoreDeploymentDBService          service2.AppStoreDeploymentDBService
-	argoUserService                      argo.ArgoUserService
 	pipelineStatusTimelineService        status.PipelineStatusTimelineService
 	acdConfig                            *argocdServer.ACDConfig
 	fullModeDeploymentService            deployment.FullModeDeploymentService
@@ -100,7 +98,6 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 	appStoreValuesService service.AppStoreValuesService,
 	appStoreDeploymentService service2.AppStoreDeploymentService,
 	appStoreDeploymentDBService service2.AppStoreDeploymentDBService,
-	argoUserService argo.ArgoUserService,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	acdConfig *argocdServer.ACDConfig,
 	fullModeDeploymentService deployment.FullModeDeploymentService,
@@ -123,7 +120,6 @@ func NewChartGroupServiceImpl(logger *zap.SugaredLogger,
 		appStoreValuesService:                appStoreValuesService,
 		appStoreDeploymentService:            appStoreDeploymentService,
 		appStoreDeploymentDBService:          appStoreDeploymentDBService,
-		argoUserService:                      argoUserService,
 		pipelineStatusTimelineService:        pipelineStatusTimelineService,
 		acdConfig:                            acdConfig,
 		fullModeDeploymentService:            fullModeDeploymentService,
@@ -908,12 +904,7 @@ func (impl *ChartGroupServiceImpl) PerformDeployStage(installedAppVersionId int,
 	installedAppVersion.InstalledAppVersionHistoryId = installedAppVersionHistoryId
 	if util.IsAcdApp(installedAppVersion.DeploymentAppType) {
 		//this method should only call in case of argo-integration installed and git-ops has configured
-		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			impl.logger.Errorw("error in getting acd token", "err", err)
-			return nil, err
-		}
-		ctx = context.WithValue(ctx, "token", acdToken)
+
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			InstalledAppVersionHistoryId: installedAppVersion.InstalledAppVersionHistoryId,
 			Status:                       timelineStatus.TIMELINE_STATUS_DEPLOYMENT_INITIATED,

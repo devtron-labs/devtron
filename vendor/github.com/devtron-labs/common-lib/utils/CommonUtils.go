@@ -17,9 +17,13 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/common-lib/git-manager/util"
 	"github.com/devtron-labs/common-lib/utils/bean"
+	"github.com/go-pg/pg"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"log"
 	"math/rand"
 	"os"
@@ -88,6 +92,53 @@ func BuildDockerImagePath(dockerInfo bean.DockerRegistryInfo) (string, error) {
 	return dest, nil
 }
 
+func GetPGPostQueryProcessor(cfg bean.PgQueryMonitoringConfig) func(event *pg.QueryProcessedEvent) {
+	return func(event *pg.QueryProcessedEvent) {
+		query, err := event.FormattedQuery()
+		if err != nil {
+			log.Println("Error formatting query", "err", err)
+			return
+		}
+		ExecutePGQueryProcessor(cfg, bean.PgQueryEvent{
+			StartTime: event.StartTime,
+			Error:     event.Error,
+			Query:     query,
+		})
+	}
+}
+
+func ExecutePGQueryProcessor(cfg bean.PgQueryMonitoringConfig, event bean.PgQueryEvent) {
+	queryDuration := time.Since(event.StartTime)
+	var queryError bool
+	pgError := event.Error
+	if pgError != nil && !errors.Is(pgError, pg.ErrNoRows) {
+		queryError = true
+	}
+	// Expose prom metrics
+	if cfg.ExportPromMetrics {
+		var status string
+		if queryError {
+			status = "FAIL"
+		} else {
+			status = "SUCCESS"
+		}
+		PgQueryDuration.WithLabelValues(status, cfg.ServiceName).Observe(queryDuration.Seconds())
+	}
+
+	// Log pg query if enabled
+	logThresholdQueries := cfg.LogSlowQuery && queryDuration.Milliseconds() > cfg.QueryDurationThreshold
+	logFailureQuery := queryError && cfg.LogAllFailureQueries
+	if logFailureQuery {
+		log.Println("PG_QUERY_FAIL - query time", "duration", queryDuration.Seconds(), "query", event.Query, "pgError", pgError)
+	}
+	if logThresholdQueries {
+		log.Println("PG_QUERY_SLOW - query time", "duration", queryDuration.Seconds(), "query", event.Query)
+	}
+	if cfg.LogAllQuery {
+		log.Println("query time", "duration", queryDuration.Seconds(), "query", event.Query)
+	}
+}
+
 func GetSelfK8sUID() string {
 	return os.Getenv(DEVTRON_SELF_POD_UID)
 }
@@ -95,3 +146,8 @@ func GetSelfK8sUID() string {
 func GetSelfK8sPodName() string {
 	return os.Getenv(DEVTRON_SELF_POD_NAME)
 }
+
+var PgQueryDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+	Name: "pg_query_duration_seconds",
+	Help: "Duration of PG queries",
+}, []string{"status", "serviceName"})

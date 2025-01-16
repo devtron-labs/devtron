@@ -11,6 +11,7 @@ on:
       - 'main'
       - 'release-**'
       - 'develop'
+      - 'hotfix-v0**'
     # paths-ignore:
     #   - 'docs/**'
     #   - '.github/'

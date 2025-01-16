@@ -173,14 +173,8 @@ func (handler *PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.Logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx = context.WithValue(r.Context(), "token", acdToken)
-	createResp, err := handler.chartService.Create(templateRequest, ctx)
+
+	createResp, err := handler.chartService.Create(templateRequest, r.Context())
 	if err != nil {
 		handler.Logger.Errorw("service err, ConfigureDeploymentTemplateForApp", "err", err, "payload", templateRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -260,14 +254,8 @@ func (handler *PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWr
 		}
 	}
 	//RBAC
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.Logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
-	createResp, err := handler.pipelineBuilder.CreateCdPipelines(&cdPipeline, ctx)
+
+	createResp, err := handler.pipelineBuilder.CreateCdPipelines(&cdPipeline, r.Context())
 
 	if err != nil {
 		handler.Logger.Errorw("service err, CreateCdPipeline", "err", err, "payload", cdPipeline)
@@ -353,13 +341,7 @@ func (handler *PipelineConfigRestHandlerImpl) PatchCdPipeline(w http.ResponseWri
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.Logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
+	ctx := r.Context()
 	createResp, err := handler.pipelineBuilder.PatchCdPipelines(&cdPipeline, ctx)
 	if err != nil {
 		handler.Logger.Errorw("service err, PatchCdPipeline", "err", err, "payload", cdPipeline)
@@ -415,13 +397,8 @@ func (handler *PipelineConfigRestHandlerImpl) HandleChangeDeploymentRequest(w ht
 	}
 
 	// Retrieve argocd token
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.Logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
+
+	ctx := r.Context()
 
 	resp, err := handler.pipelineBuilder.ChangeDeploymentType(ctx, deploymentAppTypeChangeRequest)
 
@@ -473,14 +450,7 @@ func (handler *PipelineConfigRestHandlerImpl) HandleChangeDeploymentTypeRequest(
 		return
 	}
 
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.Logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
-
+	ctx := r.Context()
 	resp, err := handler.pipelineBuilder.ChangePipelineDeploymentType(ctx, deploymentTypeChangeRequest)
 
 	if err != nil {
@@ -529,16 +499,7 @@ func (handler *PipelineConfigRestHandlerImpl) HandleTriggerDeploymentAfterTypeCh
 		return
 	}
 
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-
-	if err != nil {
-		handler.Logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	ctx := context.WithValue(r.Context(), "token", acdToken)
-
+	ctx := r.Context()
 	resp, err := handler.pipelineBuilder.TriggerDeploymentAfterTypeChange(ctx, deploymentAppTriggerRequest)
 
 	if err != nil {
@@ -661,13 +622,6 @@ func (handler *PipelineConfigRestHandlerImpl) ChangeChartRef(w http.ResponseWrit
 					}
 				}(ctx.Done(), cn.CloseNotify())
 			}
-			acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-			if err != nil {
-				handler.Logger.Errorw("error in getting acd token", "err", err)
-				common.WriteJsonResp(w, err, "error in getting acd token", http.StatusInternalServerError)
-				return
-			}
-			ctx = context.WithValue(r.Context(), "token", acdToken)
 			appMetrics := false
 			if envConfigProperties.AppMetrics != nil {
 				appMetrics = envMetrics
@@ -770,13 +724,6 @@ func (handler *PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Res
 					}
 				}(ctx.Done(), cn.CloseNotify())
 			}
-			acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-			if err != nil {
-				handler.Logger.Errorw("error in getting acd token", "err", err)
-				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-				return
-			}
-			ctx = context.WithValue(r.Context(), "token", acdToken)
 			appMetrics := false
 			if envConfigProperties.AppMetrics != nil {
 				appMetrics = *envConfigProperties.AppMetrics
@@ -2311,13 +2258,6 @@ func (handler *PipelineConfigRestHandlerImpl) UpgradeForAllApps(w http.ResponseW
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.Logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx = context.WithValue(r.Context(), "token", acdToken)
 
 	var appIds []int
 	if chartUpgradeRequest.All || len(chartUpgradeRequest.AppIds) == 0 {
@@ -2534,13 +2474,7 @@ func (handler *PipelineConfigRestHandlerImpl) SaveGitOpsConfiguration(w http.Res
 		return
 	}
 
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.Logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
+	ctx := r.Context()
 
 	_, span := otel.Tracer("orchestrator").Start(ctx, "chartService.SaveAppLevelGitOpsConfiguration")
 	err = handler.devtronAppGitOpConfigService.SaveAppLevelGitOpsConfiguration(&appGitOpsConfigRequest, app.AppName, ctx)

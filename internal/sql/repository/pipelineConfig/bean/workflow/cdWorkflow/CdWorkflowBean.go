@@ -52,3 +52,11 @@ const (
 )
 
 type WorkflowExecutorType string
+
+type CdWorkflowRunnerArtifactMetadata struct {
+	AppId            int  `pg:"app_id"`
+	EnvId            int  `pg:"env_id"`
+	CiArtifactId     int  `pg:"ci_artifact_id"`
+	ParentCiArtifact int  `pg:"parent_ci_artifact"`
+	Scanned          bool `pg:"scanned"`
+}

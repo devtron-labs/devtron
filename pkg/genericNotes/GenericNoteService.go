@@ -18,9 +18,9 @@ package genericNotes
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/api/bean/AppView"
 	"time"
 
-	"github.com/devtron-labs/devtron/api/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"github.com/devtron-labs/devtron/pkg/genericNotes/repository"
 	"github.com/go-pg/pg"
@@ -28,9 +28,9 @@ import (
 )
 
 type GenericNoteService interface {
-	Save(tx *pg.Tx, bean *repository.GenericNote, userId int32) (*bean.GenericNoteResponseBean, error)
-	Update(bean *repository.GenericNote, userId int32) (*bean.GenericNoteResponseBean, error)
-	GetGenericNotesForAppIds(appIds []int) (map[int]*bean.GenericNoteResponseBean, error)
+	Save(tx *pg.Tx, bean *repository.GenericNote, userId int32) (*AppView.GenericNoteResponseBean, error)
+	Update(bean *repository.GenericNote, userId int32) (*AppView.GenericNoteResponseBean, error)
+	GetGenericNotesForAppIds(appIds []int) (map[int]*AppView.GenericNoteResponseBean, error)
 }
 
 type GenericNoteServiceImpl struct {
@@ -50,7 +50,7 @@ func NewGenericNoteServiceImpl(genericNoteRepository repository.GenericNoteRepos
 	return genericNoteService
 }
 
-func (impl *GenericNoteServiceImpl) Save(tx *pg.Tx, req *repository.GenericNote, userId int32) (*bean.GenericNoteResponseBean, error) {
+func (impl *GenericNoteServiceImpl) Save(tx *pg.Tx, req *repository.GenericNote, userId int32) (*AppView.GenericNoteResponseBean, error) {
 	existingModel, err := impl.genericNoteRepository.FindByIdentifier(req.Identifier, req.IdentifierType)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Error("error in finding generic note by identifier and identifier type", "err", err, "identifier", req.Identifier, "identifierType", req.IdentifierType)
@@ -88,7 +88,7 @@ func (impl *GenericNoteServiceImpl) Save(tx *pg.Tx, req *repository.GenericNote,
 		return nil, err
 	}
 
-	return &bean.GenericNoteResponseBean{
+	return &AppView.GenericNoteResponseBean{
 		Id:          req.Id,
 		Description: req.Description,
 		UpdatedBy:   user.EmailId,
@@ -96,7 +96,7 @@ func (impl *GenericNoteServiceImpl) Save(tx *pg.Tx, req *repository.GenericNote,
 	}, err
 }
 
-func (impl *GenericNoteServiceImpl) Update(req *repository.GenericNote, userId int32) (*bean.GenericNoteResponseBean, error) {
+func (impl *GenericNoteServiceImpl) Update(req *repository.GenericNote, userId int32) (*AppView.GenericNoteResponseBean, error) {
 	tx, err := impl.genericNoteRepository.StartTx()
 	defer func() {
 		err = impl.genericNoteRepository.RollbackTx(tx)
@@ -161,7 +161,7 @@ func (impl *GenericNoteServiceImpl) Update(req *repository.GenericNote, userId i
 		impl.logger.Errorw("error in committing db transaction in genericNote service", "err", err)
 		return nil, err
 	}
-	return &bean.GenericNoteResponseBean{
+	return &AppView.GenericNoteResponseBean{
 		Id:          model.Id,
 		Description: model.Description,
 		UpdatedBy:   user.EmailId,
@@ -169,8 +169,8 @@ func (impl *GenericNoteServiceImpl) Update(req *repository.GenericNote, userId i
 	}, err
 }
 
-func (impl *GenericNoteServiceImpl) GetGenericNotesForAppIds(appIds []int) (map[int]*bean.GenericNoteResponseBean, error) {
-	appIdsToNoteMap := make(map[int]*bean.GenericNoteResponseBean)
+func (impl *GenericNoteServiceImpl) GetGenericNotesForAppIds(appIds []int) (map[int]*AppView.GenericNoteResponseBean, error) {
+	appIdsToNoteMap := make(map[int]*AppView.GenericNoteResponseBean)
 	//get notes saved in generic note table
 	notes, err := impl.genericNoteRepository.GetGenericNotesForAppIds(appIds)
 	if err != nil {
@@ -179,7 +179,7 @@ func (impl *GenericNoteServiceImpl) GetGenericNotesForAppIds(appIds []int) (map[
 	}
 
 	for _, note := range notes {
-		appIdsToNoteMap[note.Identifier] = &bean.GenericNoteResponseBean{
+		appIdsToNoteMap[note.Identifier] = &AppView.GenericNoteResponseBean{
 			Id:          note.Id,
 			Description: note.Description,
 			UpdatedOn:   note.UpdatedOn,
@@ -224,7 +224,7 @@ func (impl *GenericNoteServiceImpl) GetGenericNotesForAppIds(appIds []int) (map[
 
 	//set the email ids in the response objects
 	for _, desc := range descriptions {
-		appIdsToNoteMap[desc.Identifier] = &bean.GenericNoteResponseBean{
+		appIdsToNoteMap[desc.Identifier] = &AppView.GenericNoteResponseBean{
 			Id:          desc.Id,
 			Description: desc.Description,
 			UpdatedBy:   usersMap[desc.UpdatedBy],

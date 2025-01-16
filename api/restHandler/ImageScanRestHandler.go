@@ -97,6 +97,12 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 		return
 	}
 
+	filteredDeployInfoList, err := impl.imageScanService.FilterDeployInfoByScannedArtifactsDeployedInEnv(deployInfoList)
+	if err != nil {
+		impl.logger.Errorw("request err, FilterDeployInfoListForScannedArtifacts", "payload", request, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	token := r.Header.Get("token")
 	var ids []int
 	var appRBACObjects []string
@@ -105,7 +111,7 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 	podRBACMap := make(map[string]int)
 
 	IdToAppEnvPairs := make(map[int][2]int)
-	for _, item := range deployInfoList {
+	for _, item := range filteredDeployInfoList {
 		if item.ScanObjectMetaId > 0 && (item.ObjectType == ObjectTypeApp || item.ObjectType == ObjectTypeChart) {
 			IdToAppEnvPairs[item.Id] = [2]int{item.ScanObjectMetaId, item.EnvId}
 		}
@@ -117,7 +123,7 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 		return
 	}
 
-	for _, item := range deployInfoList {
+	for _, item := range filteredDeployInfoList {
 		if item.ScanObjectMetaId > 0 && (item.ObjectType == ObjectTypeApp || item.ObjectType == ObjectTypeChart) {
 			appObject := appObjects[item.Id]
 			envObject := envObjects[item.Id]
@@ -145,7 +151,7 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 	envResults := impl.enforcer.EnforceInBatch(token, casbin.ResourceEnvironment, casbin.ActionGet, envRBACObjects)
 	podResults := impl.enforcer.EnforceInBatch(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, podRBACObjects)
 
-	for _, item := range deployInfoList {
+	for _, item := range filteredDeployInfoList {
 		if impl.enforcerUtil.IsAuthorizedForAppInAppResults(item.ScanObjectMetaId, appResults, appIdtoApp) && impl.enforcerUtil.IsAuthorizedForEnvInEnvResults(item.ScanObjectMetaId, item.EnvId, envResults, appIdtoApp, envIdToEnv) {
 			ids = append(ids, item.Id)
 		}

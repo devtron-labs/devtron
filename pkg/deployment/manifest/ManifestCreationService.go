@@ -45,6 +45,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
 	"github.com/devtron-labs/devtron/pkg/k8s"
+	bean4 "github.com/devtron-labs/devtron/pkg/k8s/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
@@ -473,7 +474,9 @@ func (impl *ManifestCreationServiceImpl) getEnvOverrideForLastSavedConfigTrigger
 				return nil, err
 			}
 		}
-		envOverride.Chart = chart
+		if envOverride != nil {
+			envOverride.Chart = chart
+		}
 	} else if envOverride.Id > 0 && !envOverride.IsOverride {
 		_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindLatestChartForAppByAppId")
 		chart, err = impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
@@ -841,7 +844,7 @@ func (impl *ManifestCreationServiceImpl) getK8sHPAResourceManifest(ctx context.C
 			WithInternalMessage("unable to find preferred version for hpa resource").
 			WithUserDetailMessage("unable to find preferred version for hpa resource")
 	}
-	k8sReq := &k8s.ResourceRequestBean{
+	k8sReq := &bean4.ResourceRequestBean{
 		ClusterId: clusterId,
 		K8sRequest: k8sUtil.NewK8sRequestBean().
 			WithResourceIdentifier(
