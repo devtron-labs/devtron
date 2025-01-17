@@ -155,17 +155,11 @@ func (impl *ArgoCDConnectionManagerImpl) getConnectionWithToken(connectionConfig
 }
 
 func (impl *ArgoCDConnectionManagerImpl) getLatestDevtronArgoCdUserToken(grpcConfig *bean.ArgoGRPCConfig) (string, error) {
-	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
-	if err != nil {
-		impl.logger.Errorw("error while checking if gitOps is configured", "err", err)
-		return "", err
-	}
-	if !gitOpsConfigurationStatus.IsGitOpsConfigured {
-		//here acd token only required in context for argo cd calls
-		return "", nil
-	}
+	var (
+		k8sClient *v1.CoreV1Client
+		err       error
+	)
 	authConfig := grpcConfig.AuthConfig
-	var k8sClient *v1.CoreV1Client
 	if authConfig.ClusterId == bean2.DefaultClusterId {
 		k8sClient, err = impl.k8sUtil.GetCoreV1ClientInCluster()
 		if err != nil {
