@@ -34,6 +34,7 @@ type EnvField struct {
 	EnvValue          string
 	EnvDescription    string
 	EnvPossibleValues string
+	EnvDeprecated     string
 }
 
 const (
@@ -41,14 +42,15 @@ const (
 	envDefaultFieldTypeTag        = "envDefault"
 	envDescriptionFieldTypeTag    = "envDescription"
 	envPossibleValuesFieldTypeTag = "possibleValues"
+	envDeprecatedFieldTypeTag     = "deprecated"
 	MARKDOWN_FILENAME             = "env_gen.md"
 )
 
 const MarkdownTemplate = `
 ## Devtron Environment Variables
-| Key   | Value        | Description       | Possible values       |
-|-------|--------------|-------------------|-----------------------|
-{{range .}} | {{ .Env }} | {{ .EnvValue }} | {{ .EnvDescription }} | {{ .EnvPossibleValues }} | 
+| Key   | Value        | Description       | Possible values       | Deprecated       |
+|-------|--------------|-------------------|-----------------------|------------------|
+{{range .}} | {{ .Env }} | {{ .EnvValue }} | {{ .EnvDescription }} | {{ .EnvPossibleValues }} | {{ .EnvDeprecated }} |
 {{end}}`
 
 func writeToFile(allFields []EnvField) {
@@ -105,6 +107,7 @@ func getEnvKeyAndValue(tag reflect.StructTag) EnvField {
 	envValue := addReadmeTableDelimiterEscapeChar(tag.Get(envDefaultFieldTypeTag))
 	envDescription := addReadmeTableDelimiterEscapeChar(tag.Get(envDescriptionFieldTypeTag))
 	envPossibleValues := addReadmeTableDelimiterEscapeChar(tag.Get(envPossibleValuesFieldTypeTag))
+	envDeprecated := addReadmeTableDelimiterEscapeChar(tag.Get(envDeprecatedFieldTypeTag))
 	// check if there exist any value provided in env for this field
 	if value, ok := os.LookupEnv(envKey); ok {
 		envValue = value
@@ -114,6 +117,7 @@ func getEnvKeyAndValue(tag reflect.StructTag) EnvField {
 		EnvValue:          envValue,
 		EnvDescription:    envDescription,
 		EnvPossibleValues: envPossibleValues,
+		EnvDeprecated:     envDeprecated,
 	}
 }
 

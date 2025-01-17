@@ -28,7 +28,7 @@ import (
 )
 
 type Config struct {
-	Addr            string `env:"PG_ADDR" envDefault:"127.0.0.1"  envDescription:"address of postgres service" possibleValues:"postgresql-postgresql.devtroncd"`
+	Addr            string `env:"PG_ADDR" envDefault:"127.0.0.1"  envDescription:"address of postgres service" possibleValues:"postgresql-postgresql.devtroncd" deprecated:"false"`
 	Port            string `env:"PG_PORT" envDefault:"5432" envDescription:"port of postgresql service" possibleValues:"5432"`
 	User            string `env:"PG_USER" envDefault:""  envDescription:"user for postgres" possibleValues:"postgres"`
 	Password        string `env:"PG_PASSWORD" envDefault:"" secretData:"-"  envDescription:"password for postgres, associated with PG_USER" possibleValues:"confidential ;)"`
