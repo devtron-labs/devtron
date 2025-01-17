@@ -45,7 +45,7 @@ type ScanToolMetadataRepository interface {
 	FindActiveToolByScanTarget(scanTarget ScanTargetType) (*ScanToolMetadata, error)
 	FindByNameAndVersion(name, version string) (*ScanToolMetadata, error)
 	FindActiveById(id int) (*ScanToolMetadata, error)
-	Save(model *ScanToolMetadata) (*ScanToolMetadata, error)
+	Save(tx *pg.Tx, model *ScanToolMetadata)
 	Update(model *ScanToolMetadata) (*ScanToolMetadata, error)
 	MarkToolDeletedById(id int) error
 	FindAllActiveTools() ([]*ScanToolMetadata, error)
@@ -104,12 +104,21 @@ func (repo *ScanToolMetadataRepositoryImpl) FindActiveById(id int) (*ScanToolMet
 	return model, nil
 }
 
-func (repo *ScanToolMetadataRepositoryImpl) Save(model *ScanToolMetadata) (*ScanToolMetadata, error) {
-	err := repo.dbConnection.Insert(model)
-	if err != nil {
-		repo.logger.Errorw("error in saving scan tool metadata", "err", err, "model", model)
-		return nil, err
+func (repo *ScanToolMetadataRepositoryImpl) Save(tx *pg.Tx, model *ScanToolMetadata) (*ScanToolMetadata, error) {
+	if tx != nil {
+		err := tx.Insert(model)
+		if err != nil {
+			repo.logger.Errorw("error in saving scan tool metadata using transaction", "model", model, "err", err)
+			return nil, err
+		}
+	} else {
+		err := repo.dbConnection.Insert(model)
+		if err != nil {
+			repo.logger.Errorw("error in saving scan tool metadata", "model", model, "err", err)
+			return nil, err
+		}
 	}
+
 	return model, nil
 }
 

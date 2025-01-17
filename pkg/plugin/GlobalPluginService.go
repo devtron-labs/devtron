@@ -74,6 +74,7 @@ type GlobalPluginService interface {
 	PatchPlugin(pluginDto *bean2.PluginMetadataDto, userId int32) (*bean2.PluginMetadataDto, error)
 	GetDetailedPluginInfoByPluginId(pluginId int) (*bean2.PluginMetadataDto, error)
 	GetAllDetailedPluginInfo() ([]*bean2.PluginMetadataDto, error)
+	GetPluginStepsDtoByIdentifier(identifier string) ([]*bean2.PluginStepsDto, error)
 
 	CreatePluginOrVersions(pluginDto *bean2.PluginParentMetadataDto, userId int32) (int, error)
 	ListAllPluginsV2(filter *bean2.PluginsListFilter) (*bean2.PluginsDto, error)
@@ -2328,4 +2329,13 @@ func validatePluginVariable(variable *bean2.PluginVariableDto) error {
 		}
 	}
 	return nil
+}
+
+func (impl *GlobalPluginServiceImpl) GetPluginStepsDtoByIdentifier(identifier string) ([]*bean2.PluginStepsDto, error) {
+	pluginStepsDbObj, err := impl.globalPluginRepository.GetPluginStepsByPluginIdentifier(identifier)
+	if err != nil {
+		impl.logger.Errorw("error in getting plugin steps by plugin identifier", "identifier", identifier, "err", err)
+		return nil, err
+	}
+
 }

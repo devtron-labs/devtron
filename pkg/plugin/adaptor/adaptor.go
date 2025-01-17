@@ -79,3 +79,24 @@ func GetPluginStepConditionDbObject(stepDataId, pluginStepVariableId int, plugin
 		AuditLog:            sql.NewDefaultAuditLog(userId),
 	}
 }
+
+func GetPluginStepDtoFromDbObject(pluginStepsDbObj *repository.PluginStep) *pluginBean.PluginStepsDto {
+	return &pluginBean.PluginStepsDto{
+		Id:                  pluginStepsDbObj.Id,
+		Name:                pluginStepsDbObj.Name,
+		Description:         pluginStepsDbObj.Description,
+		Index:               pluginStepsDbObj.Index,
+		StepType:            pluginStepsDbObj.StepType,
+		RefPluginId:         pluginStepsDbObj.RefPluginId,
+		OutputDirectoryPath: pluginStepsDbObj.OutputDirectoryPath,
+		DependentOnStep:     pluginStepsDbObj.DependentOnStep,
+	}
+}
+
+func GetPluginStepsDtoFromDbObject(pluginStepsDbObj []*repository.PluginStep) []*pluginBean.PluginStepsDto {
+	pluginStepsDto := make([]*pluginBean.PluginStepsDto, 0, len(pluginStepsDbObj))
+	for _, pluginStep := range pluginStepsDbObj {
+		pluginStepsDto = append(pluginStepsDto, GetPluginStepDtoFromDbObject(pluginStep))
+	}
+	return pluginStepsDto
+}
