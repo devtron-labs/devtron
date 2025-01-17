@@ -37,6 +37,9 @@ type ReleaseConfiguration struct {
 }
 
 func (r *ReleaseConfiguration) JSON() []byte {
+	if r == nil {
+		return nil
+	}
 	releaseConfigJson, err := json.Marshal(r)
 	if err != nil {
 		log.Print("error in marshaling releaseConfiguration", "err")
@@ -59,6 +62,10 @@ type DeploymentConfig struct {
 
 func (c *DeploymentConfig) GetRepoURL() string {
 	return c.ReleaseConfiguration.ArgoCDSpec.Source.RepoURL
+}
+
+func (c *DeploymentConfig) GetChartLocation() string {
+	return c.ReleaseConfiguration.ArgoCDSpec.Source.ChartPath
 }
 
 func (c *DeploymentConfig) SetRepoURL(repoURL string) {

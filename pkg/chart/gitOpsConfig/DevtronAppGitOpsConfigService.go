@@ -201,5 +201,5 @@ func (impl *DevtronAppGitOpConfigServiceImpl) isGitRepoUrlPresent(appId int) boo
 		impl.logger.Errorw("error fetching git repo url from deploymentConfig for latest chart")
 		return false
 	}
-	return !apiGitOpsBean.IsGitOpsRepoNotConfigured(deploymentConfig.RepoURL)
+	return !apiGitOpsBean.IsGitOpsRepoNotConfigured(deploymentConfig.GetRepoURL())
 }

@@ -332,7 +332,7 @@ func (impl *FullModeDeploymentServiceImpl) getGitCommitConfig(installAppVersionR
 			return nil, apiErr
 		}
 		//installAppVersionRequest.GitOpsRepoURL = InstalledApp.GitOpsRepoUrl
-		installAppVersionRequest.GitOpsRepoURL = deploymentConfig.RepoURL
+		installAppVersionRequest.GitOpsRepoURL = deploymentConfig.GetRepoURL()
 	}
 	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(installAppVersionRequest.GitOpsRepoURL)
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)

@@ -919,7 +919,7 @@ func (impl *TriggerServiceImpl) performGitOps(ctx context.Context,
 	}
 	if manifestPushResponse.IsNewGitRepoConfigured() {
 		// Update GitOps repo url after repo new repo created
-		valuesOverrideResponse.DeploymentConfig.RepoURL = manifestPushResponse.NewGitRepoUrl
+		valuesOverrideResponse.DeploymentConfig.SetRepoURL(manifestPushResponse.NewGitRepoUrl)
 	}
 	valuesOverrideResponse.ManifestPushTemplate = manifestPushTemplate
 	return nil
@@ -1034,7 +1034,7 @@ func (impl *TriggerServiceImpl) buildManifestPushTemplate(overrideRequest *bean3
 		manifestPushTemplate.ChartName = valuesOverrideResponse.EnvOverride.Chart.ChartName
 		manifestPushTemplate.ChartVersion = valuesOverrideResponse.EnvOverride.Chart.ChartVersion
 		manifestPushTemplate.ChartLocation = valuesOverrideResponse.EnvOverride.Chart.ChartLocation
-		manifestPushTemplate.RepoUrl = valuesOverrideResponse.DeploymentConfig.RepoURL
+		manifestPushTemplate.RepoUrl = valuesOverrideResponse.DeploymentConfig.GetRepoURL()
 		manifestPushTemplate.IsCustomGitRepository = common.IsCustomGitOpsRepo(valuesOverrideResponse.DeploymentConfig.ConfigType)
 	}
 	return manifestPushTemplate, nil
@@ -1231,15 +1231,15 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(ctx context.Context, pipeline
 	appStatus, _ := status2.FromError(err)
 	if appStatus.Code() == codes.OK {
 		impl.logger.Debugw("argo app exists", "app", argoAppName, "pipeline", pipeline.Name)
-		if impl.argoClientWrapperService.IsArgoAppPatchRequired(argoApplication.Spec.Source, deploymentConfig.RepoURL, envOverride.Chart.ChartLocation) {
+		if impl.argoClientWrapperService.IsArgoAppPatchRequired(argoApplication.Spec.Source, deploymentConfig.GetRepoURL(), envOverride.Chart.ChartLocation) {
 			patchRequestDto := &bean7.ArgoCdAppPatchReqDto{
 				ArgoAppName:    argoAppName,
 				ChartLocation:  envOverride.Chart.ChartLocation,
-				GitRepoUrl:     deploymentConfig.RepoURL,
+				GitRepoUrl:     deploymentConfig.GetRepoURL(),
 				TargetRevision: bean7.TargetRevisionMaster,
 				PatchType:      bean7.PatchTypeMerge,
 			}
-			url, err := impl.gitOperationService.GetRepoUrlWithUserName(deploymentConfig.RepoURL)
+			url, err := impl.gitOperationService.GetRepoUrlWithUserName(deploymentConfig.GetRepoURL())
 			if err != nil {
 				return false, err
 			}
@@ -1249,7 +1249,7 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(ctx context.Context, pipeline
 				impl.logger.Errorw("error in patching argo pipeline", "err", err, "req", patchRequestDto)
 				return false, err
 			}
-			if deploymentConfig.RepoURL != argoApplication.Spec.Source.RepoURL {
+			if deploymentConfig.GetRepoURL() != argoApplication.Spec.Source.RepoURL {
 				impl.logger.Infow("patching argo application's repo url", "argoAppName", argoAppName)
 			}
 			impl.logger.Debugw("pipeline update req", "res", patchRequestDto)
@@ -1514,7 +1514,7 @@ func (impl *TriggerServiceImpl) handleCustomGitOpsRepoValidation(runner *pipelin
 		//	impl.logger.Errorw("error in fetching latest chart for app by appId", "err", err, "appId", pipeline.AppId)
 		//	return err
 		//}
-		if gitOps.IsGitOpsRepoNotConfigured(envDeploymentConfig.RepoURL) {
+		if gitOps.IsGitOpsRepoNotConfigured(envDeploymentConfig.GetRepoURL()) {
 			if err = impl.cdWorkflowCommonService.MarkCurrentDeploymentFailed(runner, errors.New(cdWorkflow.GITOPS_REPO_NOT_CONFIGURED), triggeredBy); err != nil {
 				impl.logger.Errorw("error while updating current runner status to failed, TriggerDeployment", "wfrId", runner.Id, "err", err)
 			}

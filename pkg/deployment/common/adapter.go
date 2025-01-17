@@ -12,6 +12,7 @@ func ConvertDeploymentConfigDTOToDbObj(config *bean.DeploymentConfig) (*deployme
 		AppId:             config.AppId,
 		EnvironmentId:     config.EnvironmentId,
 		DeploymentAppType: config.DeploymentAppType,
+		RepoUrl:           config.RepoURL,
 		ConfigType:        config.ConfigType,
 		Active:            config.Active,
 		ReleaseMode:       config.ReleaseMode,

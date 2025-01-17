@@ -16,7 +16,6 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
-	"github.com/devtron-labs/devtron/pkg/commonService"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/util"
@@ -44,7 +43,6 @@ type DeploymentConfigServiceImpl struct {
 	installedAppReadService     installedAppReader.InstalledAppReadServiceEA
 	deploymentServiceTypeConfig *util.DeploymentServiceTypeConfig
 	EnvConfigOverrideService    read.EnvConfigOverrideService
-	CommonService               commonService.CommonService
 	environmentRepository       repository.EnvironmentRepository
 }
 
@@ -57,7 +55,6 @@ func NewDeploymentConfigServiceImpl(
 	installedAppReadService installedAppReader.InstalledAppReadServiceEA,
 	envVariables *util.EnvironmentVariables,
 	EnvConfigOverrideService read.EnvConfigOverrideService,
-	CommonService commonService.CommonService,
 	environmentRepository repository.EnvironmentRepository,
 ) *DeploymentConfigServiceImpl {
 
@@ -70,7 +67,6 @@ func NewDeploymentConfigServiceImpl(
 		installedAppReadService:     installedAppReadService,
 		deploymentServiceTypeConfig: envVariables.DeploymentServiceTypeConfig,
 		EnvConfigOverrideService:    EnvConfigOverrideService,
-		CommonService:               CommonService,
 		environmentRepository:       environmentRepository,
 	}
 }
@@ -78,7 +74,7 @@ func NewDeploymentConfigServiceImpl(
 func (impl *DeploymentConfigServiceImpl) CreateOrUpdateConfig(tx *pg.Tx, config *bean.DeploymentConfig, userId int32) (*bean.DeploymentConfig, error) {
 
 	configDbObj, err := impl.GetConfigDBObj(config.AppId, config.EnvironmentId)
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in fetching deployment config from DB by appId and envId",
 			"appId", config.AppId, "envId", config.EnvironmentId, "err", err)
 	}
