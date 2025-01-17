@@ -278,10 +278,6 @@ type PluginPipelineScript struct {
 	sql.AuditLog
 }
 
-func (r *PluginPipelineScript) ID() int {
-	return r.Id
-}
-
 type ScriptPathArgPortMapping struct {
 	tableName           struct{}          `sql:"script_path_arg_port_mapping" pg:",discard_unknown_columns"`
 	Id                  int               `sql:"id,pk"`
@@ -310,10 +306,6 @@ type PluginStep struct {
 	DependentOnStep     string         `sql:"dependent_on_step"`
 	Deleted             bool           `sql:"deleted,notnull"`
 	sql.AuditLog
-}
-
-func (r *PluginStep) ID() int {
-	return r.Id
 }
 
 type PluginStepVariable struct {
@@ -367,8 +359,11 @@ type GlobalPluginRepository interface {
 	GetPluginTagByNames(tagNames []string) ([]*PluginTag, error)
 	GetAllPluginTagRelations() ([]*PluginTagRelation, error)
 	GetScriptDetailById(id int) (*PluginPipelineScript, error)
+	GetScriptDetailByIds(ids []int) ([]*PluginPipelineScript, error)
 	GetScriptMappingDetailByScriptId(scriptId int) ([]*ScriptPathArgPortMapping, error)
+	GetScriptMappingDetailByScriptIds(scriptIds []int) ([]*ScriptPathArgPortMapping, error)
 	GetVariablesByStepId(stepId int) ([]*PluginStepVariable, error)
+	GetVariablesByStepIds(stepIds []int) ([]*PluginStepVariable, error)
 	GetStepsByPluginIds(pluginIds []int) ([]*PluginStep, error)
 	GetExposedVariablesByPluginIdAndVariableType(pluginId int, variableType PluginStepVariableType) ([]*PluginStepVariable, error)
 	GetExposedVariablesByPluginId(pluginId int) ([]*PluginStepVariable, error)
@@ -550,6 +545,18 @@ func (impl *GlobalPluginRepositoryImpl) GetScriptDetailById(id int) (*PluginPipe
 	return &scriptDetail, nil
 }
 
+func (impl *GlobalPluginRepositoryImpl) GetScriptDetailByIds(ids []int) ([]*PluginPipelineScript, error) {
+	var scriptDetail []*PluginPipelineScript
+	err := impl.dbConnection.Model(&scriptDetail).
+		Where("id in (?)", pg.In(ids)).
+		Where("deleted = ?", false).Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting script detail by ids", "ids", ids, "err", err)
+		return nil, err
+	}
+	return scriptDetail, nil
+}
+
 func (impl *GlobalPluginRepositoryImpl) GetScriptMappingDetailByScriptId(scriptId int) ([]*ScriptPathArgPortMapping, error) {
 	var scriptMappingDetail []*ScriptPathArgPortMapping
 	err := impl.dbConnection.Model(&scriptMappingDetail).
@@ -562,6 +569,18 @@ func (impl *GlobalPluginRepositoryImpl) GetScriptMappingDetailByScriptId(scriptI
 	return scriptMappingDetail, nil
 }
 
+func (impl *GlobalPluginRepositoryImpl) GetScriptMappingDetailByScriptIds(scriptIds []int) ([]*ScriptPathArgPortMapping, error) {
+	var scriptMappingDetail []*ScriptPathArgPortMapping
+	err := impl.dbConnection.Model(&scriptMappingDetail).
+		Where("script_id in (?)", pg.In(scriptIds)).
+		Where("deleted = ?", false).Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting script mapping detail by id", "scriptIds", scriptIds, "err", err)
+		return nil, err
+	}
+	return scriptMappingDetail, nil
+}
+
 func (impl *GlobalPluginRepositoryImpl) GetVariablesByStepId(stepId int) ([]*PluginStepVariable, error) {
 	var variables []*PluginStepVariable
 	err := impl.dbConnection.Model(&variables).
@@ -569,6 +588,18 @@ func (impl *GlobalPluginRepositoryImpl) GetVariablesByStepId(stepId int) ([]*Plu
 		Where("deleted = ?", false).Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting variables by stepId", "err", err, "stepId", stepId)
+		return nil, err
+	}
+	return variables, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetVariablesByStepIds(stepIds []int) ([]*PluginStepVariable, error) {
+	var variables []*PluginStepVariable
+	err := impl.dbConnection.Model(&variables).
+		Where("plugin_step_id in (?)", pg.In(stepIds)).
+		Where("deleted = ?", false).Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting variables by stepIds", "stepIds", stepIds, "err", err)
 		return nil, err
 	}
 	return variables, nil

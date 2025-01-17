@@ -299,6 +299,11 @@ type PluginStepsDto struct {
 	DependentOnStep      string                    `json:"dependentOnStep"`
 	PluginStepVariable   []*PluginVariableDto      `json:"pluginStepVariable,omitempty"`
 	PluginPipelineScript *PluginPipelineScript     `json:"pluginPipelineScript,omitempty"`
+	ScriptId             int                       `json:"-"`
+}
+
+func (r *PluginStepsDto) ID() int {
+	return r.Id
 }
 
 type PluginVariableDto struct {
@@ -317,6 +322,7 @@ type PluginVariableDto struct {
 	VariableStepIndexInPlugin int                                     `json:"variableStepIndexInPlugin"`
 	ReferenceVariableName     string                                  `json:"referenceVariableName,omitempty"`
 	PluginStepCondition       []*PluginStepCondition                  `json:"pluginStepCondition,omitempty"`
+	PluginStepId              int                                     `json:"-"`
 }
 
 func (s *PluginVariableDto) GetValue() string {

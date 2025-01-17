@@ -2337,5 +2337,68 @@ func (impl *GlobalPluginServiceImpl) GetPluginStepsDtoByIdentifier(identifier st
 		impl.logger.Errorw("error in getting plugin steps by plugin identifier", "identifier", identifier, "err", err)
 		return nil, err
 	}
+	pluginStepsDtoObject := adaptor.GetPluginStepsDtoFromDbObjects(pluginStepsDbObj)
+	err = impl.populateVariableDetailsInStepsDto(pluginStepsDtoObject)
+	if err != nil {
+		impl.logger.Errorw("error in populating variable details in steps dto", "stepsOfIdentifier", identifier, "err", err)
+		return nil, err
+	}
+	err = impl.populatePluginPipelineScriptInStepsDto(pluginStepsDtoObject)
+	if err != nil {
+		impl.logger.Errorw("error in populating variable details in steps dto", "stepsOfIdentifier", identifier, "err", err)
+		return nil, err
+	}
 
+	return nil, nil
+}
+
+func (impl *GlobalPluginServiceImpl) populatePluginPipelineScriptInStepsDto(pluginStepsDtoObject []*bean2.PluginStepsDto) error {
+	scriptIds := helper2.GetScriptIdList(pluginStepsDtoObject)
+	pluginScriptsDbObj, err := impl.globalPluginRepository.GetScriptDetailByIds(scriptIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting plugin pipeline script by ids", "scriptIds", scriptIds, "err", err)
+		return err
+	}
+	pluginScriptsDto := adaptor.GetPluginPipelineScriptsDtoFromDbObjects(pluginScriptsDbObj)
+	err = impl.populateScriptArgDetailsInPluginScriptDto(pluginScriptsDto, scriptIds)
+	if err != nil {
+		impl.logger.Errorw("error in populating script arg details in plugin script dtos for script Ids", "scriptIds", scriptIds, "err", err)
+		return err
+	}
+	scriptIdVsScript := helper2.GetScriptIdVsPluginScript(pluginScriptsDto)
+	for _, pluginStepDto := range pluginStepsDtoObject {
+		if _, ok := scriptIdVsScript[pluginStepDto.ScriptId]; ok {
+			pluginStepDto.PluginPipelineScript = scriptIdVsScript[pluginStepDto.ScriptId]
+		}
+	}
+	return nil
+}
+
+func (impl *GlobalPluginServiceImpl) populateVariableDetailsInStepsDto(pluginStepsDtoObject []*bean2.PluginStepsDto) error {
+	pluginStepIds := helper2.GetIDs(pluginStepsDtoObject)
+	pluginVariables, err := impl.globalPluginRepository.GetVariablesByStepIds(pluginStepIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting plugin step variables by pluginStepIds", "pluginStepIds", pluginStepIds, "err", err)
+		return err
+	}
+	pluginVariablesDto := adaptor.GetPluginStepVariablesDtoFromDbObjects(pluginVariables)
+	stepIdVsVariablesDtos := helper2.GetPluginStepIdVsPluginStepVariablesMap(pluginVariablesDto)
+	for _, stepDto := range pluginStepsDtoObject {
+		stepDto.PluginStepVariable = stepIdVsVariablesDtos[stepDto.Id]
+	}
+	return nil
+}
+
+func (impl *GlobalPluginServiceImpl) populateScriptArgDetailsInPluginScriptDto(pluginScriptsDto []*bean2.PluginPipelineScript, scriptIds []int) error {
+	scriptArgPathPortMappingsDbObj, err := impl.globalPluginRepository.GetScriptMappingDetailByScriptIds(scriptIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting script mapping details by script ids ", "scriptIds", scriptIds, "err", err)
+		return err
+	}
+	scriptArgPathPortMappingsDto := adaptor.GetScripPathArgPortMappingsDtoFromDbObjects(scriptArgPathPortMappingsDbObj)
+	scriptIdVsScriptArgDetails := helper2.GetScriptIdVsScriptArgsDetailsMap(scriptArgPathPortMappingsDto)
+	for _, pluginScript := range pluginScriptsDto {
+		pluginScript.PathArgPortMapping = scriptIdVsScriptArgDetails[pluginScript.Id]
+	}
+	return nil
 }

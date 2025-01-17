@@ -45,7 +45,7 @@ type ScanToolMetadataRepository interface {
 	FindActiveToolByScanTarget(scanTarget ScanTargetType) (*ScanToolMetadata, error)
 	FindByNameAndVersion(name, version string) (*ScanToolMetadata, error)
 	FindActiveById(id int) (*ScanToolMetadata, error)
-	Save(tx *pg.Tx, model *ScanToolMetadata)
+	Save(tx *pg.Tx, model *ScanToolMetadata) (*ScanToolMetadata, error)
 	Update(model *ScanToolMetadata) (*ScanToolMetadata, error)
 	MarkToolDeletedById(id int) error
 	FindAllActiveTools() ([]*ScanToolMetadata, error)
