@@ -29,3 +29,7 @@ func (workflowRequest *WorkflowRequest) SetExecuteImageScanningVia(scanVia bean2
 func (workflowRequest *WorkflowRequest) SetImageScanningSteps(imageScanningSteps []*ImageScanningSteps) {
 	return
 }
+
+func (workflowRequest *WorkflowRequest) SetAwsInspectorConfig(awsInspectorConfig string) {
+	return
+}

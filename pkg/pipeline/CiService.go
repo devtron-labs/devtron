@@ -820,6 +820,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ImageScanRetryDelay:         impl.config.ImageScanRetryDelay,
 		UseDockerApiToGetDigest:     impl.config.UseDockerApiToGetDigest,
 	}
+	workflowRequest.SetAwsInspectorConfig("")
 	//in oss, there is no pipeline level workflow cache config, so we pass inherit to get the app level config
 	workflowCacheConfig := impl.ciCdPipelineOrchestrator.GetWorkflowCacheConfig(pipeline.App.AppType, trigger.PipelineType, common.WorkflowCacheConfigInherit)
 	workflowRequest.IgnoreDockerCachePush = !workflowCacheConfig.Value
