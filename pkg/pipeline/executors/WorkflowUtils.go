@@ -68,15 +68,15 @@ func createDownwardAPIVolume() v12.Volume {
 			DownwardAPI: &v12.DownwardAPIVolumeSource{
 				Items: []v12.DownwardAPIVolumeFile{
 					{
-						Path: "labels",
+						Path: utils.POD_LABELS,
 						FieldRef: &v12.ObjectFieldSelector{
-							FieldPath: "metadata.labels",
+							FieldPath: "metadata." + utils.POD_LABELS,
 						},
 					},
 					{
-						Path: "annotations",
+						Path: utils.POD_ANNOTATIONS,
 						FieldRef: &v12.ObjectFieldSelector{
-							FieldPath: "metadata.annotations",
+							FieldPath: "metadata." + utils.POD_ANNOTATIONS,
 						},
 					},
 				},
