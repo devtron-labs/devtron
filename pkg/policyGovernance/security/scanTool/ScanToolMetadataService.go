@@ -9,6 +9,7 @@ import (
 type ScanToolMetadataService interface {
 	MarkToolAsActive(toolName, version string, tx *pg.Tx) error
 	MarkOtherToolsInActive(toolName string, tx *pg.Tx, version string) error
+	GetActiveTool() (*repository.ScanToolMetadata, error)
 	ScanToolMetadataService_ent
 }
 
@@ -30,4 +31,8 @@ func (impl *ScanToolMetadataServiceImpl) MarkToolAsActive(toolName, version stri
 
 func (impl *ScanToolMetadataServiceImpl) MarkOtherToolsInActive(toolName string, tx *pg.Tx, version string) error {
 	return impl.scanToolMetadataRepository.MarkOtherToolsInActive(toolName, tx, version)
+}
+
+func (impl *ScanToolMetadataServiceImpl) GetActiveTool() (*repository.ScanToolMetadata, error) {
+	return impl.scanToolMetadataRepository.FindActiveTool()
 }
