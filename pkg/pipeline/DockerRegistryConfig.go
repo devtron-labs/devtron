@@ -21,7 +21,7 @@ import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
-	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -65,19 +65,20 @@ type DockerRegistryConfigImpl struct {
 	dockerArtifactStoreRepository     repository.DockerArtifactStoreRepository
 	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository
 	ociRegistryConfigRepository       repository.OCIRegistryConfigRepository
-	RepositorySecret                  argoRepositoryCreds.RepositorySecret
+	argoClientWrapperService          argocdServer.ArgoClientWrapperService
 }
 
 func NewDockerRegistryConfigImpl(logger *zap.SugaredLogger, helmAppService client.HelmAppService, dockerArtifactStoreRepository repository.DockerArtifactStoreRepository,
 	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository, ociRegistryConfigRepository repository.OCIRegistryConfigRepository,
-	RepositorySecret argoRepositoryCreds.RepositorySecret) *DockerRegistryConfigImpl {
+	argoClientWrapperService argocdServer.ArgoClientWrapperService,
+) *DockerRegistryConfigImpl {
 	return &DockerRegistryConfigImpl{
 		logger:                            logger,
 		helmAppService:                    helmAppService,
 		dockerArtifactStoreRepository:     dockerArtifactStoreRepository,
 		dockerRegistryIpsConfigRepository: dockerRegistryIpsConfigRepository,
 		ociRegistryConfigRepository:       ociRegistryConfigRepository,
-		RepositorySecret:                  RepositorySecret,
+		argoClientWrapperService:          argoClientWrapperService,
 	}
 }
 
@@ -298,7 +299,7 @@ func (impl DockerRegistryConfigImpl) ConfigureOCIRegistry(bean *types.DockerArti
 func (impl DockerRegistryConfigImpl) CreateArgoRepositorySecretForRepositories(artifactStore *types.DockerArtifactStoreBean, ociRegistryConfig *repository.OCIRegistryConfig) error {
 	for _, repo := range artifactStore.RepositoryList {
 
-		err := impl.RepositorySecret.CreateArgoRepositorySecret(artifactStore.Username,
+		err := impl.argoClientWrapperService.AddOrUpdateOCIRegistry(artifactStore.Username,
 			artifactStore.Password,
 			ociRegistryConfig.Id,
 			artifactStore.RegistryURL,
@@ -852,6 +853,18 @@ func (impl DockerRegistryConfigImpl) DeleteReg(bean *types.DockerArtifactStoreBe
 				impl.logger.Errorw("err in deleting OCI configs for registry", "registryId", bean.Id, "err", err)
 				return err
 			}
+			if ociRegistryConfig.RepositoryType == repository.OCI_REGISRTY_REPO_TYPE_CHART {
+				repositoryList := strings.Split(ociRegistryConfig.RepositoryList, ",")
+				for _, repo := range repositoryList {
+					err = impl.argoClientWrapperService.DeleteOCIRegistry(dockerReg.RegistryURL, repo, ociRegistryConfig.Id)
+					if err != nil {
+						impl.logger.Errorw("error in deleting OCI registry secret", "err", err)
+						//intentionally ignoring error
+					}
+
+				}
+			}
+
 		}
 	}
 

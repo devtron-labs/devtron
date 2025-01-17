@@ -130,7 +130,7 @@ func (s *StepVariableDto) IsEmptyValueAllowed(isTriggerStage bool) bool {
 type ConditionDetailDto struct {
 	Id                  int                                       `json:"id"`
 	ConditionOnVariable string                                    `json:"conditionOnVariable"` //name of variable on which condition is written
-	ConditionType       repository.PipelineStageStepConditionType `json:"conditionType" validate:"oneof=SKIP TRIGGER SUCCESS FAIL"`
+	ConditionType       repository.PipelineStageStepConditionType `json:"conditionType" validate:"oneof=SKIP TRIGGER FAIL PASS"`
 	ConditionalOperator string                                    `json:"conditionOperator"`
 	ConditionalValue    string                                    `json:"conditionalValue"`
 }

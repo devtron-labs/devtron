@@ -17,7 +17,7 @@
 package infraProviders
 
 import (
-	"github.com/devtron-labs/devtron/pkg/infraConfig"
+	"github.com/devtron-labs/devtron/pkg/infraConfig/service"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders/infraGetters"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders/infraGetters/ciPipeline"
@@ -36,7 +36,7 @@ type InfraProviderImpl struct {
 	jobInfraGetter infraGetters.InfraGetter
 }
 
-func NewInfraProviderImpl(logger *zap.SugaredLogger, service infraConfig.InfraConfigService) *InfraProviderImpl {
+func NewInfraProviderImpl(logger *zap.SugaredLogger, service service.InfraConfigService) *InfraProviderImpl {
 	return &InfraProviderImpl{
 		logger:         logger,
 		ciInfraGetter:  ciPipeline.NewCiInfraGetter(service),

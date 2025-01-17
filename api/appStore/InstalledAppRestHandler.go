@@ -21,12 +21,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/api/bean/AppView"
 	client "github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deploymentTypeChange"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/resource"
 	util3 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/read"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"reflect"
@@ -34,9 +36,7 @@ import (
 	"strings"
 	"time"
 
-	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/middleware"
@@ -50,7 +50,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/response"
 	"github.com/go-pg/pg"
@@ -84,15 +83,14 @@ type InstalledAppRestHandlerImpl struct {
 	chartGroupService                       chartGroup.ChartGroupService
 	validator                               *validator.Validate
 	clusterService                          cluster.ClusterService
-	acdServiceClient                        application.ServiceClient
 	appStoreDeploymentService               service.AppStoreDeploymentService
 	appStoreDeploymentDBService             service.AppStoreDeploymentDBService
 	helmAppClient                           client.HelmAppClient
-	argoUserService                         argo.ArgoUserService
 	cdApplicationStatusUpdateHandler        cron.CdApplicationStatusUpdateHandler
 	installedAppRepository                  repository.InstalledAppRepository
 	appCrudOperationService                 app2.AppCrudOperationService
 	installedAppDeploymentTypeChangeService deploymentTypeChange.InstalledAppDeploymentTypeChangeService
+	clusterReadService                      read.ClusterReadService
 }
 
 func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
@@ -100,13 +98,15 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 	installedAppService FullMode.InstalledAppDBExtendedService,
 	installedAppResourceService resource.InstalledAppResourceService,
 	chartGroupService chartGroup.ChartGroupService, validator *validator.Validate, clusterService cluster.ClusterService,
-	acdServiceClient application.ServiceClient, appStoreDeploymentService service.AppStoreDeploymentService,
+	appStoreDeploymentService service.AppStoreDeploymentService,
 	appStoreDeploymentDBService service.AppStoreDeploymentDBService,
-	helmAppClient client.HelmAppClient, argoUserService argo.ArgoUserService,
+	helmAppClient client.HelmAppClient,
+
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
 	installedAppRepository repository.InstalledAppRepository,
 	appCrudOperationService app2.AppCrudOperationService,
-	installedAppDeploymentTypeChangeService deploymentTypeChange.InstalledAppDeploymentTypeChangeService) *InstalledAppRestHandlerImpl {
+	installedAppDeploymentTypeChangeService deploymentTypeChange.InstalledAppDeploymentTypeChangeService,
+	clusterReadService read.ClusterReadService) *InstalledAppRestHandlerImpl {
 	return &InstalledAppRestHandlerImpl{
 		Logger:                                  Logger,
 		userAuthService:                         userAuthService,
@@ -118,15 +118,14 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 		chartGroupService:                       chartGroupService,
 		validator:                               validator,
 		clusterService:                          clusterService,
-		acdServiceClient:                        acdServiceClient,
 		appStoreDeploymentService:               appStoreDeploymentService,
 		appStoreDeploymentDBService:             appStoreDeploymentDBService,
 		helmAppClient:                           helmAppClient,
-		argoUserService:                         argoUserService,
 		cdApplicationStatusUpdateHandler:        cdApplicationStatusUpdateHandler,
 		installedAppRepository:                  installedAppRepository,
 		appCrudOperationService:                 appCrudOperationService,
 		installedAppDeploymentTypeChangeService: installedAppDeploymentTypeChangeService,
+		clusterReadService:                      clusterReadService,
 	}
 }
 func (handler *InstalledAppRestHandlerImpl) FetchAppOverview(w http.ResponseWriter, r *http.Request) {
@@ -550,7 +549,7 @@ func (impl *InstalledAppRestHandlerImpl) DefaultComponentInstallation(w http.Res
 		return
 	}
 	impl.Logger.Errorw("request payload, DefaultComponentInstallation", "clusterId", clusterId)
-	cluster, err := impl.clusterService.FindById(clusterId)
+	cluster, err := impl.clusterReadService.FindById(clusterId)
 	if err != nil {
 		impl.Logger.Errorw("service err, DefaultComponentInstallation", "error", err, "clusterId", clusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -648,13 +647,6 @@ func (handler *InstalledAppRestHandlerImpl) DeleteArgoInstalledAppWithNonCascade
 		return
 	}
 	//rback block ends here
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.Logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
 	request := &appStoreBean.InstallAppVersionDTO{}
 	request.InstalledAppId = installedAppId
 	request.AppName = installedApp.AppName
@@ -668,7 +660,7 @@ func (handler *InstalledAppRestHandlerImpl) DeleteArgoInstalledAppWithNonCascade
 	request.Namespace = installedApp.Namespace
 	request.AcdPartialDelete = true
 
-	request, err = handler.appStoreDeploymentService.DeleteInstalledApp(ctx, request)
+	request, err = handler.appStoreDeploymentService.DeleteInstalledApp(r.Context(), request)
 	if err != nil {
 		handler.Logger.Errorw("service err, DeleteInstalledApp", "err", err, "installAppId", installedAppId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

@@ -30,7 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/notifier/beans"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/devtron-labs/devtron/pkg/team/read"
 	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/response"
@@ -80,10 +80,10 @@ type NotificationRestHandlerImpl struct {
 	sesService           notifier.SESNotificationService
 	smtpService          notifier.SMTPNotificationService
 	enforcer             casbin.Enforcer
-	teamService          team.TeamService
 	environmentService   environment.EnvironmentService
 	pipelineBuilder      pipeline.PipelineBuilder
 	enforcerUtil         rbac.EnforcerUtil
+	teamReadService      read.TeamReadService
 }
 
 type ChannelDto struct {
@@ -95,8 +95,9 @@ func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistry
 	userAuthService user.UserService,
 	validator *validator.Validate, notificationService notifier.NotificationConfigService,
 	slackService notifier.SlackNotificationService, webhookService notifier.WebhookNotificationService, sesService notifier.SESNotificationService, smtpService notifier.SMTPNotificationService,
-	enforcer casbin.Enforcer, teamService team.TeamService, environmentService environment.EnvironmentService, pipelineBuilder pipeline.PipelineBuilder,
-	enforcerUtil rbac.EnforcerUtil) *NotificationRestHandlerImpl {
+	enforcer casbin.Enforcer, environmentService environment.EnvironmentService, pipelineBuilder pipeline.PipelineBuilder,
+	enforcerUtil rbac.EnforcerUtil,
+	teamReadService read.TeamReadService) *NotificationRestHandlerImpl {
 	return &NotificationRestHandlerImpl{
 		dockerRegistryConfig: dockerRegistryConfig,
 		logger:               logger,
@@ -109,10 +110,10 @@ func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistry
 		sesService:           sesService,
 		smtpService:          smtpService,
 		enforcer:             enforcer,
-		teamService:          teamService,
 		environmentService:   environmentService,
 		pipelineBuilder:      pipelineBuilder,
 		enforcerUtil:         enforcerUtil,
+		teamReadService:      teamReadService,
 	}
 }
 
@@ -299,7 +300,7 @@ func (impl NotificationRestHandlerImpl) SaveNotificationChannelConfig(w http.Res
 		for _, item := range slackReq.SlackConfigDtos {
 			teamIds = append(teamIds, &item.TeamId)
 		}
-		teams, err := impl.teamService.FindByIds(teamIds)
+		teams, err := impl.teamReadService.FindByIds(teamIds)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
@@ -454,7 +455,7 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.Respons
 		for _, item := range slackConfigs {
 			teamIds = append(teamIds, &item.TeamId)
 		}
-		teams, err := impl.teamService.FindByIds(teamIds)
+		teams, err := impl.teamReadService.FindByIds(teamIds)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
@@ -692,7 +693,7 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfigAutocomplete(w 
 			return
 		}
 		for _, item := range channelsResponseAll {
-			team, err := impl.teamService.FetchOne(item.TeamId)
+			team, err := impl.teamReadService.FindOne(item.TeamId)
 			if err != nil {
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return

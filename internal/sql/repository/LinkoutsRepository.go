@@ -17,7 +17,7 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/api/bean/AppView"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -29,7 +29,7 @@ type LinkoutsRepository interface {
 	GetAll() ([]LinkoutsModel, error)
 	Update(model *LinkoutsModel) (*LinkoutsModel, error)
 	FetchLinkoutsByAppIdAndEnvId(appId int, envId int) ([]LinkoutsModel, error)
-	FetchLinkoutById(Id int) (bean.LinkOuts, error)
+	FetchLinkoutById(Id int) (AppView.LinkOuts, error)
 }
 
 type LinkoutsRepositoryImpl struct {
@@ -89,8 +89,8 @@ func (impl LinkoutsRepositoryImpl) FetchLinkoutsByAppIdAndEnvId(appId int, envId
 	return models, err
 }
 
-func (impl LinkoutsRepositoryImpl) FetchLinkoutById(Id int) (bean.LinkOuts, error) {
-	var linkout bean.LinkOuts
+func (impl LinkoutsRepositoryImpl) FetchLinkoutById(Id int) (AppView.LinkOuts, error) {
+	var linkout AppView.LinkOuts
 	query := "" +
 		" SELECT l.id, l.name , l.link, a.app_name, e.environment_name as env_name" +
 		" from app_env_linkouts l" +

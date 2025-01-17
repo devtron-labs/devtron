@@ -53,7 +53,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	wrokflowDagBean "github.com/devtron-labs/devtron/pkg/workflow/dag/bean"
 	globalUtil "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	error2 "github.com/devtron-labs/devtron/util/error"
 	eventUtil "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
@@ -75,7 +74,6 @@ type WorkflowEventProcessorImpl struct {
 	cdWorkflowRunnerService      cd.CdWorkflowRunnerService
 	cdWorkflowRunnerReadService  read.CdWorkflowRunnerReadService
 	workflowDagExecutor          dag.WorkflowDagExecutor
-	argoUserService              argo.ArgoUserService
 	ciHandler                    pipeline.CiHandler
 	cdHandler                    pipeline.CdHandler
 	eventFactory                 client.EventFactory
@@ -107,7 +105,6 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 	cdWorkflowRunnerService cd.CdWorkflowRunnerService,
 	cdWorkflowRunnerReadService read.CdWorkflowRunnerReadService,
 	workflowDagExecutor dag.WorkflowDagExecutor,
-	argoUserService argo.ArgoUserService,
 	ciHandler pipeline.CiHandler, cdHandler pipeline.CdHandler,
 	eventFactory client.EventFactory, eventClient client.EventClient,
 	cdTriggerService devtronApps.TriggerService,
@@ -129,7 +126,6 @@ func NewWorkflowEventProcessorImpl(logger *zap.SugaredLogger,
 		cdWorkflowReadService:           cdWorkflowReadService,
 		cdWorkflowRunnerService:         cdWorkflowRunnerService,
 		cdWorkflowRunnerReadService:     cdWorkflowRunnerReadService,
-		argoUserService:                 argoUserService,
 		ciHandler:                       ciHandler,
 		cdHandler:                       cdHandler,
 		eventFactory:                    eventFactory,
@@ -351,11 +347,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeHibernateBulkAction() error {
 			RequestType:   deploymentGroupAppWithEnv.RequestType,
 			ReferenceId:   pointer.String(msg.MsgId),
 		}
-		ctx, err := impl.argoUserService.GetACDContext(context.Background())
-		if err != nil {
-			impl.logger.Errorw("error in creating acd sync context", "err", err)
-			return
-		}
+		ctx := context.Background()
 		_, err = impl.deployedAppService.StopStartApp(ctx, stopAppRequest)
 		if err != nil {
 			impl.logger.Errorw("error in stop app request", "err", err)
@@ -773,7 +765,6 @@ func (impl *WorkflowEventProcessorImpl) extractAsyncCdDeployRequestFromEventMsg(
 		impl.logger.Errorw("error in unmarshalling CD async install request nats message", "err", err)
 		return nil, err
 	}
-	impl.logger.Infow("received async cd pipeline deployment request", "appId", cdAsyncInstallReq.ValuesOverrideRequest.AppId, "envId", cdAsyncInstallReq.ValuesOverrideRequest.EnvId)
 	if cdAsyncInstallReq.Id == 0 && cdAsyncInstallReq.ValuesOverrideRequest == nil {
 		impl.logger.Errorw("invalid async cd pipeline deployment request", "msg", msg.Data)
 		return nil, fmt.Errorf("invalid async cd pipeline deployment request")
@@ -795,6 +786,7 @@ func (impl *WorkflowEventProcessorImpl) extractAsyncCdDeployRequestFromEventMsg(
 		impl.logger.Errorw("error in setting additional data to UserDeploymentRequest", "err", err)
 		return nil, err
 	}
+	impl.logger.Infow("received async cd pipeline deployment request", "appId", cdAsyncInstallReq.ValuesOverrideRequest.AppId, "envId", cdAsyncInstallReq.ValuesOverrideRequest.EnvId)
 	return cdAsyncInstallReq, nil
 }
 
@@ -938,12 +930,8 @@ func (impl *WorkflowEventProcessorImpl) ProcessConcurrentAsyncDeploymentReq(ctx 
 		return err
 	}
 	impl.logger.Debugw("currently in ProcessConcurrentAsyncDeploymentReq", "pipelineId", pipelineId, "cdWfrId", cdWfrId)
-	acdCtx, err := impl.argoUserService.GetACDContext(newCtx)
-	if err != nil {
-		impl.logger.Errorw("error in creating ArgoCd context", "err", err)
-		return err
-	}
-	releaseContext, skipRequest, err := impl.getDevtronAppReleaseContextWithLock(acdCtx, cdAsyncInstallReq, cdWfr)
+
+	releaseContext, skipRequest, err := impl.getDevtronAppReleaseContextWithLock(newCtx, cdAsyncInstallReq, cdWfr)
 	if err != nil {
 		impl.logger.Errorw("error, getDevtronAppReleaseContextWithLock", "err", err, "cdWfrId", cdWfrId, "cdWfrStatus", cdWfr.Status, "pipelineId", pipelineId)
 		return err

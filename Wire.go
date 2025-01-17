@@ -46,6 +46,7 @@ import (
 	"github.com/devtron-labs/devtron/api/infraConfig"
 	"github.com/devtron-labs/devtron/api/k8s"
 	"github.com/devtron-labs/devtron/api/module"
+	"github.com/devtron-labs/devtron/api/resourceScan"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/devtron-labs/devtron/api/restHandler/app/appInfo"
 	appList2 "github.com/devtron-labs/devtron/api/restHandler/app/appList"
@@ -78,12 +79,16 @@ import (
 	"github.com/devtron-labs/devtron/cel"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
+	"github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/certificate"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
+	"github.com/devtron-labs/devtron/client/argocdServer/config"
 	"github.com/devtron-labs/devtron/client/argocdServer/connection"
+	"github.com/devtron-labs/devtron/client/argocdServer/repoCredsK8sClient"
 	repocreds "github.com/devtron-labs/devtron/client/argocdServer/repocreds"
 	repository2 "github.com/devtron-labs/devtron/client/argocdServer/repository"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
+	"github.com/devtron-labs/devtron/client/argocdServer/version"
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	eClient "github.com/devtron-labs/devtron/client/events"
@@ -116,7 +121,6 @@ import (
 	repository9 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	deployment3 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
-	"github.com/devtron-labs/devtron/pkg/argoRepositoryCreds"
 	"github.com/devtron-labs/devtron/pkg/asyncProvider"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/build"
@@ -141,7 +145,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
-	infraConfigService "github.com/devtron-labs/devtron/pkg/infraConfig"
+	repository11 "github.com/devtron-labs/devtron/pkg/infraConfig/repository"
+	infraConfigService "github.com/devtron-labs/devtron/pkg/infraConfig/service"
 	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository7 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
@@ -165,7 +170,6 @@ import (
 	workflow3 "github.com/devtron-labs/devtron/pkg/workflow"
 	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	util2 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	cron2 "github.com/devtron-labs/devtron/util/cron"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/google/wire"
@@ -210,6 +214,7 @@ func InitializeApp() (*App, error) {
 		imageTagging.WireSet,
 		devtronResource.DevtronResourceWireSet,
 		policyGovernance.PolicyGovernanceWireSet,
+		resourceScan.ScanningResultWireSet,
 
 		// -------wireset end ----------
 		// -------
@@ -226,7 +231,7 @@ func InitializeApp() (*App, error) {
 		connection.SettingsManager,
 		// auth.GetConfigForDevtronApps,
 
-		connection.GetConfig,
+		bean.GetConfig,
 		wire.Bind(new(session2.ServiceClient), new(*middleware.LoginService)),
 
 		sse.NewSSE,
@@ -275,8 +280,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(dashboardEvent.DashboardTelemetryRouter),
 			new(*dashboardEvent.DashboardTelemetryRouterImpl)),
 
-		infraConfigService.NewInfraProfileRepositoryImpl,
-		wire.Bind(new(infraConfigService.InfraConfigRepository), new(*infraConfigService.InfraConfigRepositoryImpl)),
+		repository11.NewInfraProfileRepositoryImpl,
+		wire.Bind(new(repository11.InfraConfigRepository), new(*repository11.InfraConfigRepositoryImpl)),
 
 		units.NewUnits,
 		infraConfigService.NewInfraConfigServiceImpl,
@@ -446,8 +451,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository8.ImageTaggingRepository), new(*repository8.ImageTaggingRepositoryImpl)),
 		imageTagging.NewImageTaggingServiceImpl,
 		wire.Bind(new(imageTagging.ImageTaggingService), new(*imageTagging.ImageTaggingServiceImpl)),
-		argocdServer.NewVersionServiceImpl,
-		wire.Bind(new(argocdServer.VersionService), new(*argocdServer.VersionServiceImpl)),
+		version.NewVersionServiceImpl,
+		wire.Bind(new(version.VersionService), new(*version.VersionServiceImpl)),
 
 		router.NewGitProviderRouterImpl,
 		wire.Bind(new(router.GitProviderRouter), new(*router.GitProviderRouterImpl)),
@@ -798,9 +803,9 @@ func InitializeApp() (*App, error) {
 
 		connection.NewArgoCDConnectionManagerImpl,
 		wire.Bind(new(connection.ArgoCDConnectionManager), new(*connection.ArgoCDConnectionManagerImpl)),
-		argo.NewArgoUserServiceImpl,
-		wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
-		//util2.GetEnvironmentVariables,
+		//argo.NewArgoUserServiceImpl,
+		//wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
+		////util2.GetEnvironmentVariables,
 		//	AuthWireSet,
 
 		cron.NewCdApplicationStatusUpdateHandlerImpl,
@@ -923,6 +928,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(resourceQualifiers.QualifierMappingService), new(*resourceQualifiers.QualifierMappingServiceImpl)),
 
 		argocdServer.NewArgoClientWrapperServiceImpl,
+		argocdServer.NewArgoClientWrapperServiceEAImpl,
 		wire.Bind(new(argocdServer.ArgoClientWrapperService), new(*argocdServer.ArgoClientWrapperServiceImpl)),
 
 		pipeline.NewPluginInputVariableParserImpl,
@@ -934,7 +940,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(imageDigestPolicy.ImageDigestPolicyService), new(*imageDigestPolicy.ImageDigestPolicyServiceImpl)),
 
 		certificate.NewServiceClientImpl,
-		wire.Bind(new(certificate.Client), new(*certificate.ServiceClientImpl)),
+		wire.Bind(new(certificate.ServiceClient), new(*certificate.ServiceClientImpl)),
 
 		appStoreRestHandler.FullModeWireSet,
 
@@ -947,14 +953,17 @@ func InitializeApp() (*App, error) {
 		common.NewDeploymentConfigServiceImpl,
 		wire.Bind(new(common.DeploymentConfigService), new(*common.DeploymentConfigServiceImpl)),
 
-		argoRepositoryCreds.NewRepositorySecret,
-		wire.Bind(new(argoRepositoryCreds.RepositorySecret), new(*argoRepositoryCreds.RepositorySecretImpl)),
+		repoCredsK8sClient.NewRepositoryCredsK8sClientImpl,
+		wire.Bind(new(repoCredsK8sClient.RepositoryCredsK8sClient), new(*repoCredsK8sClient.RepositoryCredsK8sClientImpl)),
 
 		repocreds.NewServiceClientImpl,
 		wire.Bind(new(repocreds.ServiceClient), new(*repocreds.ServiceClientImpl)),
 
 		dbMigration.NewDbMigrationServiceImpl,
 		wire.Bind(new(dbMigration.DbMigration), new(*dbMigration.DbMigrationServiceImpl)),
+
+		config.NewArgoCDConfigGetter,
+		wire.Bind(new(config.ArgoCDConfigGetter), new(*config.ArgoCDConfigGetterImpl)),
 	)
 	return &App{}, nil
 }

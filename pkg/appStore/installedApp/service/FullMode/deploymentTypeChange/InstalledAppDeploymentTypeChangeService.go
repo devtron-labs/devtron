@@ -27,7 +27,6 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appStatus2 "github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
@@ -50,7 +49,6 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	util3 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -74,7 +72,6 @@ type InstalledAppDeploymentTypeChangeServiceImpl struct {
 	appRepository                 appRepository.AppRepository
 	gitOpsConfigReadService       config.GitOpsConfigReadService
 	environmentRepository         repository.EnvironmentRepository
-	acdClient                     application2.ServiceClient
 	k8sCommonService              k8s.K8sCommonService
 	k8sUtil                       k8s2.K8sService
 	fullModeDeploymentService     deployment.FullModeDeploymentService
@@ -82,7 +79,6 @@ type InstalledAppDeploymentTypeChangeServiceImpl struct {
 	argoClientWrapperService      argocdServer.ArgoClientWrapperService
 	chartGroupService             chartGroup.ChartGroupService
 	helmAppService                client.HelmAppService
-	argoUserService               argo.ArgoUserService
 	clusterService                cluster.ClusterService
 	clusterReadService            read.ClusterReadService
 	deploymentConfigService       common.DeploymentConfigService
@@ -95,12 +91,12 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 	appStatusRepository appStatus2.AppStatusRepository,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	environmentRepository repository.EnvironmentRepository,
-	acdClient application2.ServiceClient, k8sCommonService k8s.K8sCommonService,
+	k8sCommonService k8s.K8sCommonService,
 	k8sUtil k8s2.K8sService, fullModeDeploymentService deployment.FullModeDeploymentService,
 	eaModeDeploymentService deployment2.EAModeDeploymentService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	chartGroupService chartGroup.ChartGroupService, helmAppService client.HelmAppService,
-	argoUserService argo.ArgoUserService, clusterService cluster.ClusterService,
+	clusterService cluster.ClusterService,
 	clusterReadService read.ClusterReadService,
 	appRepository appRepository.AppRepository,
 	deploymentConfigService common.DeploymentConfigService,
@@ -112,7 +108,6 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 		appStatusRepository:           appStatusRepository,
 		gitOpsConfigReadService:       gitOpsConfigReadService,
 		environmentRepository:         environmentRepository,
-		acdClient:                     acdClient,
 		k8sCommonService:              k8sCommonService,
 		k8sUtil:                       k8sUtil,
 		fullModeDeploymentService:     fullModeDeploymentService,
@@ -120,7 +115,6 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 		argoClientWrapperService:      argoClientWrapperService,
 		chartGroupService:             chartGroupService,
 		helmAppService:                helmAppService,
-		argoUserService:               argoUserService,
 		clusterService:                clusterService,
 		clusterReadService:            clusterReadService,
 		appRepository:                 appRepository,
@@ -135,11 +129,6 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) MigrateDeploymentType(c
 		DesiredDeploymentType: request.DesiredDeploymentType,
 	}
 	var err error
-	ctx, err = impl.argoUserService.SetAcdTokenInContext(ctx)
-	if err != nil {
-		impl.logger.Errorw("error in setting acd token in context", "err", err)
-		return response, err
-	}
 
 	var deleteDeploymentType bean2.DeploymentType
 	var deployStatus appStoreBean.AppstoreDeploymentStatus
@@ -444,11 +433,6 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) TriggerAfterMigration(c
 		DesiredDeploymentType: request.DesiredDeploymentType,
 	}
 	var err error
-	ctx, err = impl.argoUserService.SetAcdTokenInContext(ctx)
-	if err != nil {
-		impl.logger.Errorw("error in setting acd token in context", "err", err)
-		return response, err
-	}
 
 	installedApps, err := impl.installedAppRepository.GetActiveInstalledAppByEnvIdAndDeploymentType(request.EnvId, request.DesiredDeploymentType,
 		util2.ConvertIntArrayToStringArray(request.ExcludeApps), util2.ConvertIntArrayToStringArray(request.IncludeApps))
@@ -642,10 +626,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) fetchDeletedInstalledAp
 			}
 			_, err = impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
 		} else {
-			req := &application.ApplicationQuery{
-				Name: &deploymentAppName,
-			}
-			_, err = impl.acdClient.Get(ctx, req)
+			_, err = impl.argoClientWrapperService.GetArgoAppByName(ctx, deploymentAppName)
 		}
 		if err != nil {
 			impl.logger.Errorw("error in getting application detail", "deploymentAppName", deploymentAppName, "err", err)

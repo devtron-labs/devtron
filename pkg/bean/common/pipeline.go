@@ -99,3 +99,9 @@ const (
 	// SystemVariableScope is used to define the global variable scope.
 	SystemVariableScope VariableStepScope = "SYSTEM"
 )
+
+type WorkflowCacheConfigType string
+
+const (
+	WorkflowCacheConfigInherit WorkflowCacheConfigType = "INHERIT"
+)

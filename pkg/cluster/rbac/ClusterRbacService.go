@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
+	"github.com/devtron-labs/devtron/pkg/cluster/read"
 	"github.com/devtron-labs/devtron/pkg/k8s/application/bean"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -45,6 +46,7 @@ type ClusterRbacServiceImpl struct {
 	enforcerUtil       rbac.EnforcerUtil
 	clusterService     cluster.ClusterService
 	userService        user.UserService
+	clusterReadService read.ClusterReadService
 }
 
 func NewClusterRbacServiceImpl(environmentService environment.EnvironmentService,
@@ -52,7 +54,9 @@ func NewClusterRbacServiceImpl(environmentService environment.EnvironmentService
 	enforcerUtil rbac.EnforcerUtil,
 	clusterService cluster.ClusterService,
 	logger *zap.SugaredLogger,
-	userService user.UserService) *ClusterRbacServiceImpl {
+	userService user.UserService,
+	clusterReadService read.ClusterReadService,
+) *ClusterRbacServiceImpl {
 	clusterRbacService := &ClusterRbacServiceImpl{
 		logger:             logger,
 		environmentService: environmentService,
@@ -60,13 +64,14 @@ func NewClusterRbacServiceImpl(environmentService environment.EnvironmentService
 		enforcerUtil:       enforcerUtil,
 		clusterService:     clusterService,
 		userService:        userService,
+		clusterReadService: clusterReadService,
 	}
 
 	return clusterRbacService
 }
 
 func (impl *ClusterRbacServiceImpl) CheckAuthorisationForNodeWithClusterId(token string, clusterId int, nodeName string, action string) (authenticated bool, err error) {
-	cluster, err := impl.clusterService.FindById(clusterId)
+	cluster, err := impl.clusterReadService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error encountered in CheckAuthorisationForNodeWithClusterId", "clusterId", clusterId, "err", err)
 		return false, err

@@ -1,0 +1,1 @@
+DELETE from devtron_resource_searchable_key drsk where drsk."name" in ('APP_NAME', 'ENV_NAME', 'CLUSTER_NAME');

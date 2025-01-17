@@ -4,8 +4,7 @@ package mocks
 
 import (
 	context "context"
-
-	bean "github.com/devtron-labs/devtron/api/bean"
+	bean "github.com/devtron-labs/devtron/api/bean/AppView"
 
 	helper "github.com/devtron-labs/devtron/internal/sql/repository/helper"
 

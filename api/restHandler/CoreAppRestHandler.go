@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/build/git/gitProvider/read"
 	pipelineBean "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	read3 "github.com/devtron-labs/devtron/pkg/team/read"
 	"net/http"
 	"strconv"
 	"strings"
@@ -54,7 +55,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
@@ -98,10 +98,9 @@ type CoreAppRestHandlerImpl struct {
 	environmentRepository   repository.EnvironmentRepository
 	configMapRepository     chartConfig.ConfigMapRepository
 	chartRepo               chartRepoRepository.ChartRepository
-	teamService             team.TeamService
-	argoUserService         argo.ArgoUserService
 	pipelineStageService    pipeline.PipelineStageService
 	ciPipelineRepository    pipelineConfig.CiPipelineRepository
+	teamReadService         read3.TeamReadService
 }
 
 func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
@@ -110,9 +109,10 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 	propertiesConfigService pipeline.PropertiesConfigService, appWorkflowService appWorkflow.AppWorkflowService,
 	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository repository.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository,
 	chartRepo chartRepoRepository.ChartRepository, teamService team.TeamService,
-	argoUserService argo.ArgoUserService, pipelineStageService pipeline.PipelineStageService, ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	pipelineStageService pipeline.PipelineStageService, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	gitProviderReadService read.GitProviderReadService,
-	gitMaterialReadService read2.GitMaterialReadService) *CoreAppRestHandlerImpl {
+	gitMaterialReadService read2.GitMaterialReadService,
+	teamReadService read3.TeamReadService) *CoreAppRestHandlerImpl {
 	handler := &CoreAppRestHandlerImpl{
 		logger:                  logger,
 		userAuthService:         userAuthService,
@@ -133,10 +133,9 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 		environmentRepository:   environmentRepository,
 		configMapRepository:     configMapRepository,
 		chartRepo:               chartRepo,
-		teamService:             teamService,
-		argoUserService:         argoUserService,
 		pipelineStageService:    pipelineStageService,
 		ciPipelineRepository:    ciPipelineRepository,
+		teamReadService:         teamReadService,
 	}
 	return handler
 }
@@ -259,13 +258,8 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 		return
 	}
 	token := r.Header.Get("token")
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
+
+	ctx := r.Context()
 	var createAppRequest appBean.AppDetail
 	err = decoder.Decode(&createAppRequest)
 	if err != nil {
@@ -284,7 +278,7 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 	}
 
 	//rbac starts
-	team, err := handler.teamService.FindByTeamName(createAppRequest.Metadata.ProjectName)
+	team, err := handler.teamReadService.FindByTeamName(createAppRequest.Metadata.ProjectName)
 	if err != nil {
 		handler.logger.Errorw("Error in getting team", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -1148,7 +1142,7 @@ func (handler CoreAppRestHandlerImpl) createBlankApp(appMetadata *appBean.AppMet
 		return nil, err, http.StatusBadRequest
 	}
 
-	team, err := handler.teamService.FindByTeamName(appMetadata.ProjectName)
+	team, err := handler.teamReadService.FindByTeamName(appMetadata.ProjectName)
 	if err != nil {
 		handler.logger.Infow("no project found by name in CreateApp request by API")
 		return nil, err, http.StatusBadRequest
@@ -2247,13 +2241,8 @@ func (handler CoreAppRestHandlerImpl) CreateAppWorkflow(w http.ResponseWriter, r
 		return
 	}
 	token := r.Header.Get("token")
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		handler.logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
+
+	ctx := r.Context()
 	var createAppRequest appBean.AppWorkflowCloneDto
 	err = decoder.Decode(&createAppRequest)
 	if err != nil {
