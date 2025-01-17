@@ -2,7 +2,6 @@ package bean
 
 import (
 	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
-	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool/repository"
 )
 
 type RegisterScanToolsDto struct {
@@ -11,13 +10,13 @@ type RegisterScanToolsDto struct {
 }
 
 type ScanToolsMetadataDto struct {
-	Name                     string                    `json:"name" validate:"required"`
-	Version                  string                    `json:"version" validate:"required"`
-	ServerBaseUrl            string                    `json:"serverBaseUrl,omitempty"`
-	ResultDescriptorTemplate string                    `json:"resultDescriptorTemplate,omitempty"`
-	ScanTarget               repository.ScanTargetType `json:"scanTarget"`
-	ToolMetaData             string                    `json:"toolMetadata,omitempty"`
-	ScanToolUrl              string                    `json:"scanToolUrl"`
+	Name                     string         `json:"name" validate:"required"`
+	Version                  string         `json:"version" validate:"required"`
+	ServerBaseUrl            string         `json:"serverBaseUrl,omitempty"`
+	ResultDescriptorTemplate string         `json:"resultDescriptorTemplate,omitempty"`
+	ScanTarget               ScanTargetType `json:"scanTarget"`
+	ToolMetaData             string         `json:"toolMetadata,omitempty"`
+	ScanToolUrl              string         `json:"scanToolUrl"`
 }
 
 type ScanToolPluginMetadataDto struct {
@@ -29,4 +28,10 @@ type ScanToolPluginMetadataDto struct {
 
 const (
 	DevtronImageScanningIntegratorPluginIdentifier = "devtron-image-scanning-integrator"
+)
+
+type ScanTargetType string
+
+const (
+	ScanTargetTypeImage ScanTargetType = "IMAGE"
 )

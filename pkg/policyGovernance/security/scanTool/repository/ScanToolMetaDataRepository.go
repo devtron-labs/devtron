@@ -17,32 +17,31 @@
 package repository
 
 import (
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
-type ScanTargetType string
-
 type ScanToolMetadata struct {
-	tableName                struct{}       `sql:"scan_tool_metadata" pg:",discard_unknown_columns"`
-	Id                       int            `sql:"id,pk"`
-	Name                     string         `sql:"name"`
-	Version                  string         `sql:"version"`
-	ServerBaseUrl            string         `sql:"server_base_url"`
-	ResultDescriptorTemplate string         `sql:"result_descriptor_template"`
-	ScanTarget               ScanTargetType `sql:"scan_target"`
-	Active                   bool           `sql:"active,notnull"`
-	Deleted                  bool           `sql:"deleted,notnull"`
-	ToolMetaData             string         `sql:"tool_metadata"`
-	PluginId                 int            `sql:"plugin_id"`
-	IsPreset                 bool           `sql:"is_preset"`
-	Url                      string         `sql:"url"`
+	tableName                struct{}            `sql:"scan_tool_metadata" pg:",discard_unknown_columns"`
+	Id                       int                 `sql:"id,pk"`
+	Name                     string              `sql:"name"`
+	Version                  string              `sql:"version"`
+	ServerBaseUrl            string              `sql:"server_base_url"`
+	ResultDescriptorTemplate string              `sql:"result_descriptor_template"`
+	ScanTarget               bean.ScanTargetType `sql:"scan_target"`
+	Active                   bool                `sql:"active,notnull"`
+	Deleted                  bool                `sql:"deleted,notnull"`
+	ToolMetaData             string              `sql:"tool_metadata"`
+	PluginId                 int                 `sql:"plugin_id"`
+	IsPreset                 bool                `sql:"is_preset"`
+	Url                      string              `sql:"url"`
 	sql.AuditLog
 }
 
 type ScanToolMetadataRepository interface {
-	FindActiveToolByScanTarget(scanTarget ScanTargetType) (*ScanToolMetadata, error)
+	FindActiveToolByScanTarget(scanTarget bean.ScanTargetType) (*ScanToolMetadata, error)
 	FindByNameAndVersion(name, version string) (*ScanToolMetadata, error)
 	FindActiveById(id int) (*ScanToolMetadata, error)
 	Save(tx *pg.Tx, model *ScanToolMetadata) (*ScanToolMetadata, error)
@@ -68,7 +67,7 @@ func NewScanToolMetadataRepositoryImpl(dbConnection *pg.DB,
 	}
 }
 
-func (repo *ScanToolMetadataRepositoryImpl) FindActiveToolByScanTarget(scanTargetType ScanTargetType) (*ScanToolMetadata, error) {
+func (repo *ScanToolMetadataRepositoryImpl) FindActiveToolByScanTarget(scanTargetType bean.ScanTargetType) (*ScanToolMetadata, error) {
 	var model ScanToolMetadata
 	err := repo.dbConnection.Model(&model).Where("active = ?", true).
 		Where("scan_target = ?", scanTargetType).
