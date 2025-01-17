@@ -9,6 +9,7 @@ import (
 type ScanToolMetadataService interface {
 	MarkToolAsActive(toolName, version string, tx *pg.Tx) error
 	MarkOtherToolsInActive(toolName string, tx *pg.Tx, version string) error
+	ScanToolMetadataService_ent
 }
 
 type ScanToolMetadataServiceImpl struct {

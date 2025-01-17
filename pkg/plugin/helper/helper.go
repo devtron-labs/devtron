@@ -116,3 +116,17 @@ func GetPluginVersionsMetadataByVersionAndParentPluginIds(pluginVersionsMetadata
 	}
 	return filteredPluginVersionMetadata
 }
+
+type IdGetter interface {
+	// ID gets id field from struct wherever this interface is  implemented, see PluginStep sql object for example
+	ID() int
+}
+
+// GetIDs is a generic function to get IDs
+func GetIDs[T IdGetter](items []T) []int {
+	ids := make([]int, len(items))
+	for i, item := range items {
+		ids[i] = item.ID()
+	}
+	return ids
+}

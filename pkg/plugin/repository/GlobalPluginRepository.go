@@ -278,6 +278,10 @@ type PluginPipelineScript struct {
 	sql.AuditLog
 }
 
+func (r *PluginPipelineScript) ID() int {
+	return r.Id
+}
+
 type ScriptPathArgPortMapping struct {
 	tableName           struct{}          `sql:"script_path_arg_port_mapping" pg:",discard_unknown_columns"`
 	Id                  int               `sql:"id,pk"`
@@ -306,6 +310,10 @@ type PluginStep struct {
 	DependentOnStep     string         `sql:"dependent_on_step"`
 	Deleted             bool           `sql:"deleted,notnull"`
 	sql.AuditLog
+}
+
+func (r *PluginStep) ID() int {
+	return r.Id
 }
 
 type PluginStepVariable struct {
