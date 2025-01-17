@@ -15,12 +15,10 @@ func NewImageScanningStepsDto() *ImageScanningSteps {
 }
 
 func (r *ImageScanningSteps) WithSteps(steps []*bean.StepObject) *ImageScanningSteps {
-	r.Steps = steps
 	return r
 }
 
 func (r *ImageScanningSteps) WithScanToolId(scanToolId int) *ImageScanningSteps {
-	r.ScanToolId = scanToolId
 	return r
 }
 
