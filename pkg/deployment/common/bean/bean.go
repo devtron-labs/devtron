@@ -56,6 +56,7 @@ type DeploymentConfig struct {
 	DeploymentAppType    string
 	ReleaseMode          string
 	RepoURL              string // DEPRECATED;
+	RepoName             string
 	Active               bool
 	ReleaseConfiguration *ReleaseConfiguration
 }
