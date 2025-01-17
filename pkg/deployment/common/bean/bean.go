@@ -9,8 +9,8 @@ import (
 )
 
 type Destination struct {
-	Namespace string `json:"namespace,omitempty"`
-	Server    string `json:"server,omitempty"`
+	Namespace string `json:"namespace,omitempty"` // deployed application namespace
+	Server    string `json:"server,omitempty"`    // deployed application cluster url
 }
 
 type Source struct {
@@ -25,8 +25,8 @@ type SyncPolicy struct {
 }
 
 type ArgoCDSpec struct {
-	ClusterId   int          `json:"clusterId,omitempty"`
-	Namespace   string       `json:"namespace,omitempty"`
+	ClusterId   int          `json:"clusterId,omitempty"` // Application object cluster
+	Namespace   string       `json:"namespace,omitempty"` // Application object namespace
 	Destination *Destination `json:"destination,omitempty"`
 	Source      *Source      `json:"source,omitempty"`
 	SyncPolicy  *SyncPolicy  `json:"syncPolicy,omitempty"`
