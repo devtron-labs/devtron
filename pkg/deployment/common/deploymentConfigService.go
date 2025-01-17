@@ -207,6 +207,7 @@ func (impl *DeploymentConfigServiceImpl) getEnvLevelDataForDevtronApps(appId, en
 		impl.logger.Errorw("error in getting deployment config db object by appId and envId", "appId", appId, "envId", envId, "err", err)
 		return nil, err
 	} else if errors.Is(err, pg.ErrNoRows) {
+		// case: deployment config data is not yet migrated
 		appAndEnvLevelConfig, err = impl.parseEnvLevelMigrationDataForDevtronApps(appLevelConfig, appId, envId)
 		if err != nil {
 			impl.logger.Errorw("error in parsing env level config to deployment config", "appId", appId, "envId", envId, "err", err)
@@ -220,6 +221,7 @@ func (impl *DeploymentConfigServiceImpl) getEnvLevelDataForDevtronApps(appId, en
 			}
 		}
 	} else {
+		// case: deployment config is migrated but release config is absent
 		appAndEnvLevelConfig, err = ConvertDeploymentConfigDbObjToDTO(appAndEnvLevelConfigDBObj)
 		if err != nil {
 			impl.logger.Errorw("error in converting deployment config db object", "appId", appId, "envId", envId, "err", err)
