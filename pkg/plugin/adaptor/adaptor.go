@@ -148,6 +148,7 @@ func GetPluginPipelineScriptDtoFromDbObject(pluginPipelineScript *repository.Plu
 		return &pluginBean.PluginPipelineScript{}
 	}
 	return &pluginBean.PluginPipelineScript{
+		Id:                       pluginPipelineScript.Id,
 		Script:                   pluginPipelineScript.Script,
 		StoreScriptAt:            pluginPipelineScript.StoreScriptAt,
 		Type:                     pluginPipelineScript.Type,

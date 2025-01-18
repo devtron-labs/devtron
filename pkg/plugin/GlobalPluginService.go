@@ -2349,7 +2349,7 @@ func (impl *GlobalPluginServiceImpl) GetPluginStepsDtoByIdentifier(identifier st
 		return nil, err
 	}
 
-	return nil, nil
+	return pluginStepsDtoObject, nil
 }
 
 func (impl *GlobalPluginServiceImpl) populatePluginPipelineScriptInStepsDto(pluginStepsDtoObject []*bean2.PluginStepsDto) error {

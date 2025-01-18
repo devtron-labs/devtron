@@ -20,7 +20,7 @@ type ScanToolsMetadataDto struct {
 }
 
 type ScanToolPluginMetadataDto struct {
-	Name             string                  `json:"name" validate:"required,min=3,max=100,global-entity-name"`
+	Name             string                  `json:"name" validate:"required,min=3,max=100"`
 	PluginIdentifier string                  `json:"pluginIdentifier" validate:"required,min=3,max=100,global-entity-name"`
 	Description      string                  `json:"description" validate:"max=300"`
 	PluginSteps      []*bean2.PluginStepsDto `json:"pluginSteps,omitempty"`
