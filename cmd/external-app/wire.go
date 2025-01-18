@@ -127,6 +127,7 @@ func InitializeApp() (*App, error) {
 		telemetry.NewPosthogClient,
 		delete2.NewDeleteServiceImpl,
 		gitMaterial.GitMaterialWireSet,
+		scanTool.ScanToolWireSet,
 
 		sql.NewTransactionUtilImpl,
 
@@ -217,9 +218,6 @@ func InitializeApp() (*App, error) {
 
 		kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl,
 		wire.Bind(new(kubernetesResourceAuditLogs.K8sResourceHistoryService), new(*kubernetesResourceAuditLogs.K8sResourceHistoryServiceImpl)),
-
-		scanTool.NewScanToolMetadataServiceImpl,
-		wire.Bind(new(scanTool.ScanToolMetadataService), new(*scanTool.ScanToolMetadataServiceImpl)),
 
 		security2.NewScanToolMetadataRepositoryImpl,
 		wire.Bind(new(security2.ScanToolMetadataRepository), new(*security2.ScanToolMetadataRepositoryImpl)),
