@@ -11,13 +11,13 @@ type RegisterScanToolsDto struct {
 
 type ScanToolsMetadataDto struct {
 	Id                       int            `json:"id,omitempty"`
-	Name                     string         `json:"name" validate:"required"`
-	Version                  string         `json:"version" validate:"required"`
+	Name                     string         `json:"name,omitempty" validate:"required"`
+	Version                  string         `json:"version,omitempty" validate:"required"`
 	ServerBaseUrl            string         `json:"serverBaseUrl,omitempty"`
 	ResultDescriptorTemplate string         `json:"resultDescriptorTemplate,omitempty"`
-	ScanTarget               ScanTargetType `json:"scanTarget"`
+	ScanTarget               ScanTargetType `json:"scanTarget,omitempty"`
 	ToolMetaData             string         `json:"toolMetadata,omitempty"`
-	ScanToolUrl              string         `json:"scanToolUrl"`
+	ScanToolUrl              string         `json:"scanToolUrl,omitempty"`
 }
 
 type ScanToolPluginMetadataDto struct {
