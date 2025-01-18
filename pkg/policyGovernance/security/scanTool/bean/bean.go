@@ -10,7 +10,7 @@ type RegisterScanToolsDto struct {
 }
 
 type ScanToolsMetadataDto struct {
-	Id                       string         `json:"id,omitempty"`
+	Id                       int            `json:"id,omitempty"`
 	Name                     string         `json:"name" validate:"required"`
 	Version                  string         `json:"version" validate:"required"`
 	ServerBaseUrl            string         `json:"serverBaseUrl,omitempty"`
