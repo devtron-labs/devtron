@@ -40,6 +40,10 @@ type ScanToolMetadata struct {
 	sql.AuditLog
 }
 
+func (r *ScanToolMetadata) IsPluginIdPresent() bool {
+	return r.PluginId > 0
+}
+
 type ScanToolMetadataRepository interface {
 	FindActiveToolByScanTarget(scanTarget bean.ScanTargetType) (*ScanToolMetadata, error)
 	FindByNameAndVersion(name, version string) (*ScanToolMetadata, error)
@@ -156,7 +160,7 @@ func (repo *ScanToolMetadataRepositoryImpl) MarkToolAsActive(toolName, version s
 	_, err := tx.Model(model).Set("active = ?", true).Where("name = ?", toolName).Where("version = ?", version).Update()
 
 	if err != nil {
-		repo.logger.Errorw("error in marking tool active for scan target", "err", err)
+		repo.logger.Errorw("error in marking tool active for scan target", "toolName", toolName, "err", err)
 		return err
 	}
 	return nil
@@ -166,7 +170,7 @@ func (repo *ScanToolMetadataRepositoryImpl) MarkOtherToolsInActive(toolName stri
 	_, err := tx.Model(model).Set("active = ?", false).Where("name != ?", toolName).Where("version != ?", version).Update()
 
 	if err != nil {
-		repo.logger.Errorw("error in marking tool active for scan target", "err", err)
+		repo.logger.Errorw("error in marking tool active for scan target", "toolName", toolName, "err", err)
 		return err
 	}
 	return nil
