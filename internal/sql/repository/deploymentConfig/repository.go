@@ -30,7 +30,7 @@ type DeploymentConfig struct {
 	RepoUrl           string   `sql:"repo_url"`
 	RepoName          string   `sql:"repo_name"`
 	ReleaseMode       string   `sql:"release_mode"`
-	ReleaseConfig     string   `sql:"release_config"`
+	ReleaseConfig     []byte   `sql:"release_config"`
 	Active            bool     `sql:"active,notnull"`
 	sql.AuditLog
 }
@@ -47,7 +47,6 @@ type Repository interface {
 	GetAppAndEnvLevelConfigsInBulk(appIdToEnvIdsMap map[int][]int) ([]*DeploymentConfig, error)
 	GetByAppIdAndEnvIdEvenIfInactive(appId, envId int) (*DeploymentConfig, error)
 	UpdateRepoUrlByAppIdAndEnvId(repoUrl string, appId, envId int) error
-	GetAllWithEmptyReleaseConfig() ([]*DeploymentConfig, error)
 }
 
 type RepositoryImpl struct {
@@ -173,13 +172,4 @@ func (impl *RepositoryImpl) UpdateRepoUrlByAppIdAndEnvId(repoUrl string, appId, 
 		Where("app_id = ? and environment_id = ? ", appId, envId).
 		Update()
 	return err
-}
-
-func (impl *RepositoryImpl) GetAllWithEmptyReleaseConfig() ([]*DeploymentConfig, error) {
-	result := make([]*DeploymentConfig, 0)
-	err := impl.dbConnection.Model(&result).Where("length(release_config)=0 ").Select()
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
 }

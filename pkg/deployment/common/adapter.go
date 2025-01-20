@@ -16,14 +16,14 @@ func ConvertDeploymentConfigDTOToDbObj(config *bean.DeploymentConfig) (*deployme
 		ConfigType:        config.ConfigType,
 		Active:            config.Active,
 		ReleaseMode:       config.ReleaseMode,
-		ReleaseConfig:     string(config.ReleaseConfiguration.JSON()),
+		ReleaseConfig:     config.ReleaseConfiguration.JSON(),
 	}, nil
 }
-
 func ConvertDeploymentConfigDbObjToDTO(dbObj *deploymentConfig.DeploymentConfig) (*bean.DeploymentConfig, error) {
 
 	var releaseConfig bean.ReleaseConfiguration
-	err := json.Unmarshal([]byte(dbObj.ReleaseConfig), &releaseConfig)
+
+	err := json.Unmarshal(dbObj.ReleaseConfig, &releaseConfig)
 	if err != nil {
 		return nil, err
 	}

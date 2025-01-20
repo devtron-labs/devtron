@@ -222,18 +222,26 @@ func (chart *InstallAppVersionDTO) GetDeploymentConfig() *bean2.DeploymentConfig
 		DeploymentAppType: chart.DeploymentAppType,
 		ReleaseMode:       util2.PIPELINE_RELEASE_MODE_CREATE,
 		ReleaseConfiguration: &bean2.ReleaseConfiguration{
+			Version: bean2.Version,
 			ArgoCDSpec: bean2.ArgoCDSpec{
-				ClusterId: DEFAULT_CLUSTER_ID,
-				Namespace: argocdServer.DevtronInstalationNs,
-				Destination: &bean2.Destination{
-					Namespace: chart.Namespace,
-					Server:    commonBean.DefaultClusterUrl,
+				Metadata: bean2.ApplicationMetadata{
+					ClusterId: DEFAULT_CLUSTER_ID,
+					Namespace: argocdServer.DevtronInstalationNs,
 				},
-				Source: &bean2.Source{
-					RepoURL:        chart.GitOpsRepoURL,
-					ChartPath:      util.BuildDeployedAppName(chart.AppName, chart.EnvironmentName),
-					ValuesFilePath: "values.yaml",
-					TargetRevision: "master",
+				Spec: bean2.ApplicationSpec{
+					Destination: &bean2.Destination{
+						Namespace: chart.Namespace,
+						Server:    commonBean.DefaultClusterUrl,
+					},
+					Source: &bean2.ApplicationSource{
+						RepoURL: chart.GitOpsRepoURL,
+						Path:    util.BuildDeployedAppName(chart.AppName, chart.EnvironmentName),
+						Helm: &bean2.ApplicationSourceHelm{
+							ValueFiles: []string{"values.yaml"},
+						},
+						TargetRevision: "master",
+					},
+					SyncPolicy: nil,
 				},
 			},
 		},

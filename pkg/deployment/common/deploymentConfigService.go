@@ -139,23 +139,21 @@ func (impl *DeploymentConfigServiceImpl) GetConfigForDevtronApps(appId, envId in
 }
 
 func (impl *DeploymentConfigServiceImpl) getAppLevelConfigForDevtronApps(appId int, envId int, migrateDataIfAbsent bool) (*bean.DeploymentConfig, error) {
-	var appLevelConfig *bean.DeploymentConfig
+
+	var (
+		appLevelConfig    *bean.DeploymentConfig
+		isMigrationNeeded bool
+	)
 	appLevelConfigDbObj, err := impl.deploymentConfigRepository.GetAppLevelConfigForDevtronApps(appId)
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in getting deployment config db object by appId", "appId", appId, "err", err)
 		return nil, err
 	} else if errors.Is(err, pg.ErrNoRows) {
+		isMigrationNeeded = true
 		appLevelConfig, err = impl.parseAppLevelMigrationDataForDevtronApps(appId)
 		if err != nil {
 			impl.logger.Errorw("error in migrating app level config to deployment config", "appId", appId, "err", err)
 			return nil, err
-		}
-		if migrateDataIfAbsent {
-			_, err := impl.CreateOrUpdateConfig(nil, appLevelConfig, bean3.SYSTEM_USER_ID)
-			if err != nil {
-				impl.logger.Errorw("error in migrating app level config to deployment config", "appId", appId, "err", err)
-				return nil, err
-			}
 		}
 	} else {
 		appLevelConfig, err = ConvertDeploymentConfigDbObjToDTO(appLevelConfigDbObj)
@@ -164,24 +162,24 @@ func (impl *DeploymentConfigServiceImpl) getAppLevelConfigForDevtronApps(appId i
 			return nil, err
 		}
 		if appLevelConfig.ReleaseConfiguration == nil {
+			isMigrationNeeded = true
 			releaseConfig, err := impl.parseAppLevelReleaseConfigForDevtronApp(appId, appLevelConfig)
 			if err != nil {
 				impl.logger.Errorw("error in parsing release configuration for app", "appId", appId, "err", err)
 				return nil, err
 			}
 			appLevelConfig.ReleaseConfiguration = releaseConfig
-
-			if migrateDataIfAbsent {
-				_, err := impl.CreateOrUpdateConfig(nil, appLevelConfig, bean3.SYSTEM_USER_ID)
-				if err != nil {
-					impl.logger.Errorw("error in migrating app level config to deployment config", "appId", appId, "err", err)
-					return nil, err
-				}
-			}
-
+		}
+	}
+	if migrateDataIfAbsent && isMigrationNeeded {
+		_, err := impl.CreateOrUpdateConfig(nil, appLevelConfig, bean3.SYSTEM_USER_ID)
+		if err != nil {
+			impl.logger.Errorw("error in migrating app level config to deployment config", "appId", appId, "err", err)
+			return nil, err
 		}
 	}
 	return appLevelConfig, nil
+
 }
 
 func (impl *DeploymentConfigServiceImpl) parseAppLevelReleaseConfigForDevtronApp(appId int, appLevelConfig *bean.DeploymentConfig) (*bean.ReleaseConfiguration, error) {
@@ -192,7 +190,7 @@ func (impl *DeploymentConfigServiceImpl) parseAppLevelReleaseConfigForDevtronApp
 	}
 
 	repoURL := chart.GitRepoUrl
-	if impl.deploymentServiceTypeConfig.UseDeploymentConfigData {
+	if len(appLevelConfig.RepoURL) > 0 {
 		repoURL = appLevelConfig.RepoURL
 	}
 
@@ -201,7 +199,10 @@ func (impl *DeploymentConfigServiceImpl) parseAppLevelReleaseConfigForDevtronApp
 }
 
 func (impl *DeploymentConfigServiceImpl) getEnvLevelDataForDevtronApps(appId, envId int, appLevelConfig *bean.DeploymentConfig, migrateDataIfAbsent bool) (*bean.DeploymentConfig, error) {
-	var appAndEnvLevelConfig *bean.DeploymentConfig
+	var (
+		appAndEnvLevelConfig *bean.DeploymentConfig
+		isMigrationNeeded    bool
+	)
 	appAndEnvLevelConfigDBObj, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(appId, envId)
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in getting deployment config db object by appId and envId", "appId", appId, "envId", envId, "err", err)
@@ -213,13 +214,8 @@ func (impl *DeploymentConfigServiceImpl) getEnvLevelDataForDevtronApps(appId, en
 			impl.logger.Errorw("error in parsing env level config to deployment config", "appId", appId, "envId", envId, "err", err)
 			return nil, err
 		}
-		if migrateDataIfAbsent {
-			_, err := impl.CreateOrUpdateConfig(nil, appAndEnvLevelConfig, bean3.SYSTEM_USER_ID)
-			if err != nil {
-				impl.logger.Errorw("error in migrating env level config to deployment config", "appId", appId, "envId", envId, "err", err)
-				return nil, err
-			}
-		}
+		isMigrationNeeded = true
+
 	} else {
 		// case: deployment config is migrated but release config is absent
 		appAndEnvLevelConfig, err = ConvertDeploymentConfigDbObjToDTO(appAndEnvLevelConfigDBObj)
@@ -227,20 +223,22 @@ func (impl *DeploymentConfigServiceImpl) getEnvLevelDataForDevtronApps(appId, en
 			impl.logger.Errorw("error in converting deployment config db object", "appId", appId, "envId", envId, "err", err)
 			return nil, err
 		}
+
 		if appAndEnvLevelConfig.ReleaseConfiguration == nil {
+			isMigrationNeeded = true
 			releaseConfig, err := impl.parseEnvLevelReleaseConfigForDevtronApp(appAndEnvLevelConfig, appId, envId)
 			if err != nil {
 				impl.logger.Errorw("error in parsing env level release config", "appId", appId, "envId", envId, "err", err)
 				return nil, err
 			}
 			appAndEnvLevelConfig.ReleaseConfiguration = releaseConfig
-			if migrateDataIfAbsent {
-				_, err := impl.CreateOrUpdateConfig(nil, appAndEnvLevelConfig, bean3.SYSTEM_USER_ID)
-				if err != nil {
-					impl.logger.Errorw("error in migrating app level config to deployment config", "appId", appId, "err", err)
-					return nil, err
-				}
-			}
+		}
+	}
+	if migrateDataIfAbsent && isMigrationNeeded {
+		_, err := impl.CreateOrUpdateConfig(nil, appAndEnvLevelConfig, bean3.SYSTEM_USER_ID)
+		if err != nil {
+			impl.logger.Errorw("error in migrating env level config to deployment config", "appId", appId, "envId", envId, "err", err)
+			return nil, err
 		}
 	}
 	return appAndEnvLevelConfig, nil
@@ -273,7 +271,9 @@ func (impl *DeploymentConfigServiceImpl) ConfigureEnvURLByAppURLIfNotConfigured(
 
 func (impl *DeploymentConfigServiceImpl) GetAndMigrateConfigIfAbsentForDevtronApps(appId, envId int) (*bean.DeploymentConfig, error) {
 
-	appLevelConfig, err := impl.getAppLevelConfigForDevtronApps(appId, envId, true)
+	migrateDeploymentConfigData := impl.deploymentServiceTypeConfig.MigrateDeploymentConfigData
+
+	appLevelConfig, err := impl.getAppLevelConfigForDevtronApps(appId, envId, migrateDeploymentConfigData)
 	if err != nil {
 		impl.logger.Errorw("error in getting app level Config for devtron apps", "appId", appId, "envId", envId, "err", err)
 		return nil, err
@@ -281,12 +281,12 @@ func (impl *DeploymentConfigServiceImpl) GetAndMigrateConfigIfAbsentForDevtronAp
 
 	var envLevelConfig *bean.DeploymentConfig
 	if envId > 0 {
-		envLevelConfig, err = impl.getEnvLevelDataForDevtronApps(appId, envId, appLevelConfig, true)
+		envLevelConfig, err = impl.getEnvLevelDataForDevtronApps(appId, envId, appLevelConfig, migrateDeploymentConfigData)
 		if err != nil {
 			impl.logger.Errorw("error in getting env level data for devtron apps", "appId", appId, "envId", envId, "err", err)
 			return nil, err
 		}
-		envLevelConfig, err = impl.ConfigureEnvURLByAppURLIfNotConfigured(envLevelConfig, appLevelConfig.GetRepoURL(), true)
+		envLevelConfig, err = impl.ConfigureEnvURLByAppURLIfNotConfigured(envLevelConfig, appLevelConfig.GetRepoURL(), migrateDeploymentConfigData)
 		if err != nil {
 			impl.logger.Errorw("error in getting env level data for devtron apps", "appId", appId, "envId", envId, "err", err)
 			return nil, err
@@ -298,10 +298,13 @@ func (impl *DeploymentConfigServiceImpl) GetAndMigrateConfigIfAbsentForDevtronAp
 
 func newAppLevelReleaseConfigFromChart(gitRepoURL, chartLocation string) *bean.ReleaseConfiguration {
 	return &bean.ReleaseConfiguration{
+		Version: bean.Version,
 		ArgoCDSpec: bean.ArgoCDSpec{
-			Source: &bean.Source{
-				RepoURL:   gitRepoURL,
-				ChartPath: chartLocation,
+			Spec: bean.ApplicationSpec{
+				Source: &bean.ApplicationSource{
+					RepoURL: gitRepoURL,
+					Path:    chartLocation,
+				},
 			},
 		}}
 }
@@ -363,6 +366,9 @@ func (impl *DeploymentConfigServiceImpl) parseEnvLevelMigrationDataForDevtronApp
 func (impl *DeploymentConfigServiceImpl) parseEnvLevelReleaseConfigForDevtronApp(config *bean.DeploymentConfig, appId int, envId int) (*bean.ReleaseConfiguration, error) {
 	var releaseConfig *bean.ReleaseConfiguration
 	if config.DeploymentAppType == util2.PIPELINE_DEPLOYMENT_TYPE_ACD {
+
+		releaseConfig.Version = bean.Version
+
 		envOverride, err := impl.EnvConfigOverrideService.ActiveEnvConfigOverride(appId, envId)
 		if err != nil {
 			return nil, err
@@ -389,23 +395,26 @@ func (impl *DeploymentConfigServiceImpl) parseEnvLevelReleaseConfigForDevtronApp
 		if len(config.RepoURL) > 0 {
 			gitRepoUrl = config.RepoURL
 		}
-		releaseConfig = &bean.ReleaseConfiguration{
-			ArgoCDSpec: bean.ArgoCDSpec{
+		releaseConfig.ArgoCDSpec = bean.ArgoCDSpec{
+			Metadata: bean.ApplicationMetadata{
 				ClusterId: bean2.DefaultClusterId,
 				Namespace: argocdServer.DevtronInstalationNs,
+			},
+			Spec: bean.ApplicationSpec{
+				Source: &bean.ApplicationSource{
+					RepoURL: gitRepoUrl,
+					Path:    latestChart.ChartLocation,
+					Helm: &bean.ApplicationSourceHelm{
+						ValueFiles: []string{fmt.Sprintf("_%d-values.yaml", env.Namespace)},
+					},
+					TargetRevision: "master",
+				},
 				Destination: &bean.Destination{
 					Namespace: env.Namespace,
 					Server:    commonBean.DefaultClusterUrl,
 				},
-				Source: &bean.Source{
-					RepoURL:        gitRepoUrl,
-					ChartPath:      latestChart.ChartLocation,
-					ValuesFilePath: fmt.Sprintf("_%d-values.yaml", env.Namespace),
-					TargetRevision: "master",
-				},
 			},
 		}
-		config.ReleaseConfiguration = releaseConfig
 	}
 	return releaseConfig, nil
 }
@@ -439,23 +448,20 @@ func (impl *DeploymentConfigServiceImpl) GetConfigForHelmApps(appId, envId int) 
 }
 
 func (impl *DeploymentConfigServiceImpl) getConfigForHelmApps(appId int, envId int, migrateIfAbsent bool) (*bean.DeploymentConfig, error) {
-	var helmDeploymentConfig *bean.DeploymentConfig
+	var (
+		helmDeploymentConfig *bean.DeploymentConfig
+		isMigrationNeeded    bool
+	)
 	config, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(appId, envId)
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in fetching deployment config by by appId and envId", "appId", appId, "envId", envId, "err", err)
 		return nil, err
 	} else if errors.Is(err, pg.ErrNoRows) {
+		isMigrationNeeded = true
 		helmDeploymentConfig, err = impl.parseDeploymentConfigForHelmApps(appId, envId)
 		if err != nil {
 			impl.logger.Errorw("error in parsing helm deployment config", "appId", appId, "envId", envId, "err", err)
 			return nil, err
-		}
-		if migrateIfAbsent {
-			_, err = impl.CreateOrUpdateConfig(nil, helmDeploymentConfig, bean3.SYSTEM_USER_ID)
-			if err != nil {
-				impl.logger.Errorw("error in creating helm deployment config ", "appId", appId, "envId", envId, "err", err)
-				return nil, err
-			}
 		}
 	} else {
 		helmDeploymentConfig, err = ConvertDeploymentConfigDbObjToDTO(config)
@@ -464,19 +470,20 @@ func (impl *DeploymentConfigServiceImpl) getConfigForHelmApps(appId int, envId i
 			return nil, err
 		}
 		if helmDeploymentConfig.ReleaseConfiguration == nil {
+			isMigrationNeeded = true
 			releaseConfig, err := impl.parseReleaseConfigForHelmApps(appId, envId, helmDeploymentConfig)
 			if err != nil {
 				impl.logger.Errorw("error in parsing release config", "appId", appId, "envId", envId, "err", err)
 				return nil, err
 			}
 			helmDeploymentConfig.ReleaseConfiguration = releaseConfig
-			if migrateIfAbsent {
-				_, err = impl.CreateOrUpdateConfig(nil, helmDeploymentConfig, bean3.SYSTEM_USER_ID)
-				if err != nil {
-					impl.logger.Errorw("error in creating helm deployment config ", "appId", appId, "envId", envId, "err", err)
-					return nil, err
-				}
-			}
+		}
+	}
+	if migrateIfAbsent && isMigrationNeeded {
+		_, err = impl.CreateOrUpdateConfig(nil, helmDeploymentConfig, bean3.SYSTEM_USER_ID)
+		if err != nil {
+			impl.logger.Errorw("error in creating helm deployment config ", "appId", appId, "envId", envId, "err", err)
+			return nil, err
 		}
 	}
 	return helmDeploymentConfig, err
@@ -497,7 +504,8 @@ func (impl *DeploymentConfigServiceImpl) GetConfigEvenIfInactive(appId, envId in
 }
 
 func (impl *DeploymentConfigServiceImpl) GetAndMigrateConfigIfAbsentForHelmApp(appId, envId int) (*bean.DeploymentConfig, error) {
-	helmDeploymentConfig, err := impl.getConfigForHelmApps(appId, envId, true)
+	migrateDataIfAbsent := impl.deploymentServiceTypeConfig.MigrateDeploymentConfigData
+	helmDeploymentConfig, err := impl.getConfigForHelmApps(appId, envId, migrateDataIfAbsent)
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment config for helm app", "appId", appId, "envId", envId, "err", err)
 		return nil, err
@@ -533,6 +541,7 @@ func (impl *DeploymentConfigServiceImpl) parseDeploymentConfigForHelmApps(appId 
 func (impl *DeploymentConfigServiceImpl) parseReleaseConfigForHelmApps(appId int, envId int, config *bean.DeploymentConfig) (*bean.ReleaseConfiguration, error) {
 	var releaseConfig *bean.ReleaseConfiguration
 	if config.DeploymentAppType == bean4.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		releaseConfig.Version = bean.Version
 		app, err := impl.appRepository.FindById(appId)
 		if err != nil {
 			impl.logger.Errorw("error in getting app by id", "appId", appId, "err", err)
@@ -557,18 +566,25 @@ func (impl *DeploymentConfigServiceImpl) parseReleaseConfigForHelmApps(appId int
 		}
 
 		releaseConfig = &bean.ReleaseConfiguration{
+			Version: bean.Version,
 			ArgoCDSpec: bean.ArgoCDSpec{
-				ClusterId: bean2.DefaultClusterId,
-				Namespace: argocdServer.DevtronInstalationNs,
-				Destination: &bean.Destination{
-					Namespace: env.Namespace,
-					Server:    commonBean.DefaultClusterUrl,
+				Metadata: bean.ApplicationMetadata{
+					ClusterId: bean2.DefaultClusterId,
+					Namespace: argocdServer.DevtronInstalationNs,
 				},
-				Source: &bean.Source{
-					RepoURL:        gitRepoURL,
-					ChartPath:      util.BuildDeployedAppName(app.AppName, env.Name),
-					ValuesFilePath: "values.yaml",
-					TargetRevision: "master",
+				Spec: bean.ApplicationSpec{
+					Destination: &bean.Destination{
+						Namespace: env.Namespace,
+						Server:    commonBean.DefaultClusterUrl,
+					},
+					Source: &bean.ApplicationSource{
+						RepoURL: gitRepoURL,
+						Path:    util.BuildDeployedAppName(app.AppName, env.Name),
+						Helm: &bean.ApplicationSourceHelm{
+							ValueFiles: []string{"values.yaml"},
+						},
+						TargetRevision: "master",
+					},
 				},
 			},
 		}
