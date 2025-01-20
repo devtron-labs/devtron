@@ -406,7 +406,7 @@ func (impl *DeploymentConfigServiceImpl) parseEnvLevelReleaseConfigForDevtronApp
 					RepoURL: gitRepoUrl,
 					Path:    latestChart.ChartLocation,
 					Helm: &bean.ApplicationSourceHelm{
-						ValueFiles: []string{fmt.Sprintf("_%d-values.yaml", env.Namespace)},
+						ValueFiles: []string{fmt.Sprintf("_%d-values.yaml", env.Id)},
 					},
 					TargetRevision: "master",
 				},
