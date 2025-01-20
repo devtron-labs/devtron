@@ -364,7 +364,7 @@ func (impl *DeploymentConfigServiceImpl) parseEnvLevelMigrationDataForDevtronApp
 }
 
 func (impl *DeploymentConfigServiceImpl) parseEnvLevelReleaseConfigForDevtronApp(config *bean.DeploymentConfig, appId int, envId int) (*bean.ReleaseConfiguration, error) {
-	var releaseConfig *bean.ReleaseConfiguration
+	releaseConfig := &bean.ReleaseConfiguration{}
 	if config.DeploymentAppType == util2.PIPELINE_DEPLOYMENT_TYPE_ACD {
 
 		releaseConfig.Version = bean.Version
@@ -539,7 +539,7 @@ func (impl *DeploymentConfigServiceImpl) parseDeploymentConfigForHelmApps(appId 
 }
 
 func (impl *DeploymentConfigServiceImpl) parseReleaseConfigForHelmApps(appId int, envId int, config *bean.DeploymentConfig) (*bean.ReleaseConfiguration, error) {
-	var releaseConfig *bean.ReleaseConfiguration
+	releaseConfig := &bean.ReleaseConfiguration{}
 	if config.DeploymentAppType == bean4.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		releaseConfig.Version = bean.Version
 		app, err := impl.appRepository.FindById(appId)
