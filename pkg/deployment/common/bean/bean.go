@@ -164,7 +164,10 @@ type DeploymentConfig struct {
 }
 
 func (c *DeploymentConfig) GetRepoURL() string {
-	return c.ReleaseConfiguration.ArgoCDSpec.Spec.Source.RepoURL
+	if c.ReleaseConfiguration != nil {
+		return c.ReleaseConfiguration.ArgoCDSpec.Spec.Source.RepoURL
+	}
+	return ""
 }
 
 func (c *DeploymentConfig) GetChartLocation() string {

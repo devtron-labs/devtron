@@ -32,6 +32,7 @@ type DeploymentConfigService interface {
 	GetAndMigrateConfigIfAbsentForHelmApp(appId, envId int) (*bean.DeploymentConfig, error)
 	UpdateRepoUrlForAppAndEnvId(repoURL string, appId, envId int) error
 	GetDeploymentAppTypeForCDInBulk(pipelines []*pipelineConfig.Pipeline) (map[int]string, error)
+	GetAllConfigsWithCustomGitOpsURL() ([]*bean.DeploymentConfig, error)
 }
 
 type DeploymentConfigServiceImpl struct {
@@ -643,4 +644,22 @@ func (impl *DeploymentConfigServiceImpl) GetDeploymentAppTypeForCDInBulk(pipelin
 		}
 	}
 	return resp, nil
+}
+
+func (impl *DeploymentConfigServiceImpl) GetAllConfigsWithCustomGitOpsURL() ([]*bean.DeploymentConfig, error) {
+	dbConfigs, err := impl.deploymentConfigRepository.GetAllConfigsWithCustomGitOpsURL()
+	if err != nil {
+		impl.logger.Errorw("error in getting all configs with custom gitops url", "err", err)
+		return nil, err
+	}
+	var configs []*bean.DeploymentConfig
+	for _, dbConfig := range dbConfigs {
+		config, err := ConvertDeploymentConfigDbObjToDTO(dbConfig)
+		if err != nil {
+			impl.logger.Error("error in converting dbObj to dto", "err", err)
+			return nil, err
+		}
+		configs = append(configs, config)
+	}
+	return configs, nil
 }

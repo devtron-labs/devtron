@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"go.opentelemetry.io/otel"
 	"strings"
 	"time"
@@ -624,7 +625,22 @@ func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int, appType int)
 	if model != nil && model.Id > 0 && model.AllowCustomRepository {
 		isCustomGitopsRepoUrl = true
 	}
-	if (gitOps.IsGitOpsRepoNotConfigured(stages.ChartGitRepoUrl) && gitOps.IsGitOpsRepoNotConfigured(stages.DeploymentConfigRepoURL)) && stages.CiPipelineId == 0 {
+
+	deploymentConfigDB, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(appId, 0)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error while getting deploymentConfig", "appId", appId, "err", err)
+		return appStageStatus, err
+	}
+
+	dc, err := common.ConvertDeploymentConfigDbObjToDTO(deploymentConfigDB)
+	if err != nil {
+		impl.Logger.Errorw("error while converting DeploymentConfigDbObjToDTO", "err", err)
+		return nil, err
+	}
+
+	if (gitOps.IsGitOpsRepoNotConfigured(stages.ChartGitRepoUrl) &&
+		gitOps.IsGitOpsRepoNotConfigured(stages.DeploymentConfigRepoURL) &&
+		(dc != nil && gitOps.IsGitOpsRepoNotConfigured(dc.GetRepoURL()))) && stages.CiPipelineId == 0 {
 		stages.ChartGitRepoUrl = ""
 		stages.DeploymentConfigRepoURL = ""
 	}

@@ -92,6 +92,15 @@ func (impl *InstalledAppDBExtendedServiceImpl) UpdateInstalledAppVersionStatus(a
 }
 
 func (impl *InstalledAppDBExtendedServiceImpl) IsGitOpsRepoAlreadyRegistered(repoUrl string) (bool, error) {
+
+	deploymentConfig, err := impl.InstalledAppDBServiceImpl.DeploymentConfigService.GetAllConfigsWithCustomGitOpsURL()
+	for _, dc := range deploymentConfig {
+		if dc.GetRepoURL() == repoUrl {
+			impl.Logger.Warnw("repository is already in use for helm app", "repoUrl", repoUrl)
+			return true, nil
+		}
+	}
+
 	repoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(repoUrl)
 	installedAppModel, err := impl.InstalledAppRepository.GetInstalledAppByGitRepoUrl(repoName, repoUrl)
 	if err != nil && !util.IsErrNoRows(err) {
