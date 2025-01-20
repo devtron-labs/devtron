@@ -520,7 +520,7 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 										impl.logger.Errorw("error in updating git repo url in charts", "err", RepoURLUpdateErr)
 									}
 									envDeploymentConfig.ConfigType = common.GetDeploymentConfigType(chart.IsCustomGitRepository)
-									envDeploymentConfig.RepoURL = chartGitAttr.RepoUrl
+									envDeploymentConfig.SetRepoURL(chartGitAttr.RepoUrl)
 
 									envDeploymentConfig, RepoURLUpdateErr = impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, userId)
 									if RepoURLUpdateErr != nil {

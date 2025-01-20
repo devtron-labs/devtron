@@ -62,6 +62,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
 	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -76,6 +77,7 @@ import (
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
@@ -271,6 +273,12 @@ func InitializeApp() (*App, error) {
 
 		dbMigration.NewDbMigrationServiceImpl,
 		wire.Bind(new(dbMigration.DbMigration), new(*dbMigration.DbMigrationServiceImpl)),
+
+		read.NewEnvConfigOverrideReadServiceImpl,
+		wire.Bind(new(read.EnvConfigOverrideService), new(*read.EnvConfigOverrideReadServiceImpl)),
+
+		chartConfig.NewEnvConfigOverrideRepository,
+		wire.Bind(new(chartConfig.EnvConfigOverrideRepository), new(*chartConfig.EnvConfigOverrideRepositoryImpl)),
 	)
 	return &App{}, nil
 }

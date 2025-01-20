@@ -54,6 +54,7 @@ import (
 	repository5 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
 	repository7 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -74,7 +75,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/values/repository"
 	service4 "github.com/devtron-labs/devtron/pkg/appStore/values/service"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
-	read6 "github.com/devtron-labs/devtron/pkg/argoApplication/read"
+	read7 "github.com/devtron-labs/devtron/pkg/argoApplication/read"
 	config3 "github.com/devtron-labs/devtron/pkg/argoApplication/read/config"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/authentication"
@@ -82,13 +83,13 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/sso"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
-	read7 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
+	read8 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/read"
 	repository12 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
-	read5 "github.com/devtron-labs/devtron/pkg/cluster/environment/read"
+	read6 "github.com/devtron-labs/devtron/pkg/cluster/environment/read"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	rbac2 "github.com/devtron-labs/devtron/pkg/cluster/rbac"
 	read2 "github.com/devtron-labs/devtron/pkg/cluster/read"
@@ -97,6 +98,7 @@ import (
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	config2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	read5 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
 	"github.com/devtron-labs/devtron/pkg/externalLink"
 	"github.com/devtron-labs/devtron/pkg/fluxApplication"
@@ -307,7 +309,9 @@ func InitializeApp() (*App, error) {
 	installedAppVersionHistoryRepositoryImpl := repository6.NewInstalledAppVersionHistoryRepositoryImpl(sugaredLogger, db)
 	repositoryImpl := deploymentConfig.NewRepositoryImpl(db)
 	chartRepositoryImpl := chartRepoRepository.NewChartRepository(db, transactionUtilImpl)
-	deploymentConfigServiceImpl := common.NewDeploymentConfigServiceImpl(repositoryImpl, sugaredLogger, chartRepositoryImpl, pipelineRepositoryImpl, appRepositoryImpl, installedAppReadServiceEAImpl, environmentVariables)
+	envConfigOverrideRepositoryImpl := chartConfig.NewEnvConfigOverrideRepository(db)
+	envConfigOverrideReadServiceImpl := read5.NewEnvConfigOverrideReadServiceImpl(envConfigOverrideRepositoryImpl, sugaredLogger)
+	deploymentConfigServiceImpl := common.NewDeploymentConfigServiceImpl(repositoryImpl, sugaredLogger, chartRepositoryImpl, pipelineRepositoryImpl, appRepositoryImpl, installedAppReadServiceEAImpl, environmentVariables, envConfigOverrideReadServiceImpl, environmentRepositoryImpl)
 	installedAppDBServiceImpl := EAMode.NewInstalledAppDBServiceImpl(sugaredLogger, installedAppRepositoryImpl, appRepositoryImpl, userServiceImpl, environmentServiceImpl, installedAppVersionHistoryRepositoryImpl, deploymentConfigServiceImpl)
 	gitOpsConfigRepositoryImpl := repository5.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
 	gitOpsConfigReadServiceImpl := config2.NewGitOpsConfigReadServiceImpl(sugaredLogger, gitOpsConfigRepositoryImpl, userServiceImpl, environmentVariables)
@@ -340,10 +344,10 @@ func InitializeApp() (*App, error) {
 	argoApplicationServiceImpl := argoApplication.NewArgoApplicationServiceImpl(sugaredLogger, clusterRepositoryImpl, k8sServiceImpl, helmAppClientImpl, helmAppServiceImpl, k8sApplicationServiceImpl, argoApplicationConfigServiceImpl)
 	helmAppRestHandlerImpl := client2.NewHelmAppRestHandlerImpl(sugaredLogger, helmAppServiceImpl, enforcerImpl, clusterServiceImpl, enforcerUtilHelmImpl, appStoreDeploymentServiceImpl, installedAppDBServiceImpl, userServiceImpl, attributesServiceImpl, serverEnvConfigServerEnvConfig, fluxApplicationServiceImpl, argoApplicationServiceImpl)
 	helmAppRouterImpl := client2.NewHelmAppRouterImpl(helmAppRestHandlerImpl)
-	environmentReadServiceImpl := read5.NewEnvironmentReadServiceImpl(sugaredLogger, environmentRepositoryImpl)
+	environmentReadServiceImpl := read6.NewEnvironmentReadServiceImpl(sugaredLogger, environmentRepositoryImpl)
 	environmentRestHandlerImpl := cluster2.NewEnvironmentRestHandlerImpl(environmentServiceImpl, environmentReadServiceImpl, sugaredLogger, userServiceImpl, validate, enforcerImpl, deleteServiceImpl, k8sServiceImpl, k8sCommonServiceImpl)
 	environmentRouterImpl := cluster2.NewEnvironmentRouterImpl(environmentRestHandlerImpl)
-	argoApplicationReadServiceImpl := read6.NewArgoApplicationReadServiceImpl(sugaredLogger, clusterRepositoryImpl, k8sServiceImpl, helmAppClientImpl, helmAppServiceImpl)
+	argoApplicationReadServiceImpl := read7.NewArgoApplicationReadServiceImpl(sugaredLogger, clusterRepositoryImpl, k8sServiceImpl, helmAppClientImpl, helmAppServiceImpl)
 	k8sApplicationRestHandlerImpl := application2.NewK8sApplicationRestHandlerImpl(sugaredLogger, k8sApplicationServiceImpl, pumpImpl, terminalSessionHandlerImpl, enforcerImpl, enforcerUtilHelmImpl, enforcerUtilImpl, helmAppServiceImpl, userServiceImpl, k8sCommonServiceImpl, validate, environmentVariables, fluxApplicationServiceImpl, argoApplicationReadServiceImpl)
 	k8sApplicationRouterImpl := application2.NewK8sApplicationRouterImpl(k8sApplicationRestHandlerImpl)
 	chartRepositoryRestHandlerImpl := chartRepo2.NewChartRepositoryRestHandlerImpl(sugaredLogger, userServiceImpl, chartRepositoryServiceImpl, enforcerImpl, validate, deleteServiceImpl, attributesServiceImpl)
@@ -450,7 +454,7 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	materialRepositoryImpl := repository12.NewMaterialRepositoryImpl(db)
-	gitMaterialReadServiceImpl := read7.NewGitMaterialReadServiceImpl(sugaredLogger, materialRepositoryImpl)
+	gitMaterialReadServiceImpl := read8.NewGitMaterialReadServiceImpl(sugaredLogger, materialRepositoryImpl)
 	appCrudOperationServiceImpl := app2.NewAppCrudOperationServiceImpl(appLabelRepositoryImpl, sugaredLogger, appRepositoryImpl, userRepositoryImpl, installedAppRepositoryImpl, genericNoteServiceImpl, installedAppDBServiceImpl, crudOperationServiceConfig, dbMigrationServiceImpl, gitMaterialReadServiceImpl)
 	appInfoRestHandlerImpl := appInfo.NewAppInfoRestHandlerImpl(sugaredLogger, appCrudOperationServiceImpl, userServiceImpl, validate, enforcerUtilImpl, enforcerImpl, helmAppServiceImpl, enforcerUtilHelmImpl, genericNoteServiceImpl)
 	appInfoRouterImpl := appInfo2.NewAppInfoRouterImpl(sugaredLogger, appInfoRestHandlerImpl)

@@ -19,14 +19,16 @@ package appStoreBean
 import (
 	"encoding/json"
 	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	bean3 "github.com/devtron-labs/devtron/api/helm-app/service/bean"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/gitUtil"
 	"slices"
 	"time"
 )
@@ -218,9 +220,24 @@ func (chart *InstallAppVersionDTO) GetDeploymentConfig() *bean2.DeploymentConfig
 		EnvironmentId:     chart.EnvironmentId,
 		ConfigType:        configType,
 		DeploymentAppType: chart.DeploymentAppType,
-		RepoURL:           chart.GitOpsRepoURL,
-		RepoName:          gitUtil.GetGitRepoNameFromGitRepoUrl(chart.GitOpsRepoURL),
-		Active:            true,
+		ReleaseMode:       util2.PIPELINE_RELEASE_MODE_CREATE,
+		ReleaseConfiguration: &bean2.ReleaseConfiguration{
+			ArgoCDSpec: bean2.ArgoCDSpec{
+				ClusterId: DEFAULT_CLUSTER_ID,
+				Namespace: argocdServer.DevtronInstalationNs,
+				Destination: &bean2.Destination{
+					Namespace: chart.Namespace,
+					Server:    commonBean.DefaultClusterUrl,
+				},
+				Source: &bean2.Source{
+					RepoURL:        chart.GitOpsRepoURL,
+					ChartPath:      util.BuildDeployedAppName(chart.AppName, chart.EnvironmentName),
+					ValuesFilePath: "values.yaml",
+					TargetRevision: "master",
+				},
+			},
+		},
+		Active: true,
 	}
 }
 
