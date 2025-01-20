@@ -388,6 +388,7 @@ type GlobalPluginRepository interface {
 	GetPluginParentMinDataById(id int) (*PluginParentMetadata, error)
 	MarkPreviousPluginVersionLatestFalse(pluginParentId int) error
 	GetPluginStepsByPluginIdentifier(identifier string) ([]*PluginStep, error)
+	GetPluginMetadataPluginIdentifier(identifier string) (*PluginMetadata, error)
 
 	SavePluginMetadata(pluginMetadata *PluginMetadata, tx *pg.Tx) (*PluginMetadata, error)
 	SavePluginStageMapping(pluginStageMapping *PluginStageMapping, tx *pg.Tx) (*PluginStageMapping, error)
@@ -1014,4 +1015,20 @@ func (impl *GlobalPluginRepositoryImpl) GetPluginStepsByPluginIdentifier(identif
 		return nil, err
 	}
 	return pluginSteps, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetPluginMetadataPluginIdentifier(identifier string) (*PluginMetadata, error) {
+	pluginMetadata := &PluginMetadata{}
+	err := impl.dbConnection.Model(pluginMetadata).
+		Join("INNER JOIN plugin_parent_metadata ppm").
+		JoinOn("pm.plugin_parent_metadata_id = ppm.id").
+		Where("ppm.deleted = ?", false).
+		Where("pm.deleted = ?", false).
+		Where("ppm.identifier = ?", identifier).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting plugin metadata by plugin identifier", "identifier", identifier, "err", err)
+		return nil, err
+	}
+	return pluginMetadata, nil
 }

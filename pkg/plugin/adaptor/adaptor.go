@@ -197,3 +197,15 @@ func GetScripPathArgPortMappingsDtoFromDbObjects(scripPathArgPortMappingsDbObj [
 	}
 	return scripPathArgPortMappingsDto
 }
+
+func GetNewPluginStepDtoFromRefPluginMetadata(refPluginMetadata *repository.PluginMetadata) *pluginBean.PluginStepsDto {
+	if refPluginMetadata == nil {
+		return &pluginBean.PluginStepsDto{}
+	}
+	return &pluginBean.PluginStepsDto{
+		Name:        refPluginMetadata.Name,
+		Description: refPluginMetadata.Description,
+		StepType:    repository.PLUGIN_STEP_TYPE_REF_PLUGIN,
+		RefPluginId: refPluginMetadata.Id,
+	}
+}
