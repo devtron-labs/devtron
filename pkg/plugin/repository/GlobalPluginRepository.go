@@ -387,8 +387,7 @@ type GlobalPluginRepository interface {
 	GetAllPluginMinDataByType(pluginType string) ([]*PluginParentMetadata, error)
 	GetPluginParentMinDataById(id int) (*PluginParentMetadata, error)
 	MarkPreviousPluginVersionLatestFalse(pluginParentId int) error
-	GetPluginStepsByPluginIdentifier(identifier string) ([]*PluginStep, error)
-	GetPluginMetadataPluginIdentifier(identifier string) (*PluginMetadata, error)
+	GetPluginMetadataByPluginIdentifier(identifier string) (*PluginMetadata, error)
 
 	SavePluginMetadata(pluginMetadata *PluginMetadata, tx *pg.Tx) (*PluginMetadata, error)
 	SavePluginStageMapping(pluginStageMapping *PluginStageMapping, tx *pg.Tx) (*PluginStageMapping, error)
@@ -998,26 +997,7 @@ func (impl *GlobalPluginRepositoryImpl) MarkPreviousPluginVersionLatestFalse(plu
 	return nil
 }
 
-func (impl *GlobalPluginRepositoryImpl) GetPluginStepsByPluginIdentifier(identifier string) ([]*PluginStep, error) {
-	var pluginSteps []*PluginStep
-	err := impl.dbConnection.Model(&pluginSteps).
-		Join("INNER JOIN plugin_metadata pm").
-		JoinOn("plugin_step.plugin_id = pm.id").
-		Join("INNER JOIN plugin_parent_metadata ppm").
-		JoinOn("pm.plugin_parent_metadata_id = ppm.id").
-		Where("ppm.deleted = ?", false).
-		Where("pm.deleted = ?", false).
-		Where("plugin_step.deleted = ?", false).
-		Where("ppm.identifier = ?", identifier).
-		Select()
-	if err != nil {
-		impl.logger.Errorw("err in getting plugin steps by plugin identifier", "identifier", identifier, "err", err)
-		return nil, err
-	}
-	return pluginSteps, nil
-}
-
-func (impl *GlobalPluginRepositoryImpl) GetPluginMetadataPluginIdentifier(identifier string) (*PluginMetadata, error) {
+func (impl *GlobalPluginRepositoryImpl) GetPluginMetadataByPluginIdentifier(identifier string) (*PluginMetadata, error) {
 	pluginMetadata := &PluginMetadata{}
 	err := impl.dbConnection.Model(pluginMetadata).
 		Join("INNER JOIN plugin_parent_metadata ppm").
