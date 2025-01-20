@@ -594,11 +594,27 @@ func (impl *DeploymentConfigServiceImpl) parseReleaseConfigForHelmApps(appId int
 }
 
 func (impl *DeploymentConfigServiceImpl) UpdateRepoUrlForAppAndEnvId(repoURL string, appId, envId int) error {
-	err := impl.deploymentConfigRepository.UpdateRepoUrlByAppIdAndEnvId(repoURL, appId, envId)
+
+	dbObj, err := impl.deploymentConfigRepository.GetByAppIdAndEnvId(appId, envId)
 	if err != nil {
-		impl.logger.Errorw("error in updating repoUrl by app-id and env-id", "appId", appId, "envId", envId, "err", err)
+		impl.logger.Errorw("error in getting deployment config by appId", "appId", appId, "envId", envId, "err", err)
 		return err
 	}
+
+	config, err := ConvertDeploymentConfigDbObjToDTO(dbObj)
+	if err != nil {
+		impl.logger.Errorw("error in converting deployment config to DTO", "appId", appId, "envId", envId, "err", err)
+		return err
+	}
+
+	config.SetRepoURL(repoURL)
+
+	dbObj, err = impl.deploymentConfigRepository.Update(nil, dbObj)
+	if err != nil {
+		impl.logger.Errorw("error in updating deployment config", appId, "envId", envId, "err", err)
+		return err
+	}
+
 	return nil
 }
 
