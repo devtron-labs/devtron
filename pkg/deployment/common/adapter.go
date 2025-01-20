@@ -23,9 +23,11 @@ func ConvertDeploymentConfigDbObjToDTO(dbObj *deploymentConfig.DeploymentConfig)
 
 	var releaseConfig bean.ReleaseConfiguration
 
-	err := json.Unmarshal(dbObj.ReleaseConfig, &releaseConfig)
-	if err != nil {
-		return nil, err
+	if dbObj.ReleaseConfig != nil {
+		err := json.Unmarshal(dbObj.ReleaseConfig, &releaseConfig)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &bean.DeploymentConfig{
