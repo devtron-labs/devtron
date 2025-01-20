@@ -310,6 +310,14 @@ type PluginStepsDto struct {
 	ScriptId             int                       `json:"-"`
 }
 
+// GetStepType returns stepType if present in PluginStepsDto else returns PLUGIN_STEP_TYPE_INLINE as default stepType
+func (r *PluginStepsDto) GetStepType() repository.PluginStepType {
+	if len(r.StepType) > 0 {
+		return r.StepType
+	}
+	return repository.PLUGIN_STEP_TYPE_INLINE
+}
+
 func (r *PluginStepsDto) ID() int {
 	return r.Id
 }
