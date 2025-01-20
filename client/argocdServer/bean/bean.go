@@ -24,9 +24,10 @@ import (
 )
 
 const (
-	RefreshTypeNormal    = "normal"
-	TargetRevisionMaster = "master"
-	PatchTypeMerge       = "merge"
+	RefreshTypeNormal          = "normal"
+	TargetRevisionMaster       = "master"
+	TargetRevisionOriginMaster = "origin/master"
+	PatchTypeMerge             = "merge"
 )
 
 type ArgoCdAppPatchReqDto struct {

@@ -44,6 +44,7 @@ type TemplateRequest struct {
 	IsBasicViewLocked       bool                        `json:"isBasicViewLocked"`
 	CurrentViewEditor       models.ChartsViewEditorType `json:"currentViewEditor"` //default "UNDEFINED" in db
 	GitRepoUrl              string                      `json:"-"`
+	TargetRevision          string                      `json:"-"`
 	IsCustomGitRepository   bool                        `json:"-"`
 	UserId                  int32                       `json:"-"`
 	LatestChartVersion      string                      `json:"-"`

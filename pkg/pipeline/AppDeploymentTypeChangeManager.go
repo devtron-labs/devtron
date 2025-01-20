@@ -508,7 +508,8 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 						if gitOpsConfigurationStatus.AllowCustomRepository || chart.IsCustomGitRepository {
 							gitOpsRepoNotFound = fmt.Errorf(cdWorkflow.GITOPS_REPO_NOT_CONFIGURED)
 						} else {
-							_, chartGitAttr, createGitRepoErr = impl.appService.CreateGitOpsRepo(&app.App{Id: pipeline.AppId, AppName: pipeline.App.AppName}, userId)
+							targetRevision := chart.TargetRevision
+							_, chartGitAttr, createGitRepoErr = impl.appService.CreateGitOpsRepo(&app.App{Id: pipeline.AppId, AppName: pipeline.App.AppName}, targetRevision, userId)
 							if createGitRepoErr == nil {
 								AcdRegisterErr = impl.cdPipelineConfigService.RegisterInACD(ctx, chartGitAttr, userId)
 								if AcdRegisterErr != nil {
@@ -532,7 +533,8 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 					} else {
 						// in this case user has already created an empty git repository and provided us gitRepoUrl
 						chartGitAttr = &commonBean.ChartGitAttribute{
-							RepoUrl: chart.GitRepoUrl,
+							RepoUrl:        chart.GitRepoUrl,
+							TargetRevision: chart.TargetRevision,
 						}
 					}
 				}

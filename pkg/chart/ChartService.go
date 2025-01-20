@@ -463,9 +463,10 @@ func (impl *ChartServiceImpl) chartAdaptor(chart *chartRepoRepository.Chart, isA
 	if chart == nil || chart.Id == 0 {
 		return &TemplateRequest{}, &util.ApiError{UserMessage: "no chart found"}
 	}
-	gitRepoUrl := ""
+	var gitRepoUrl, targetRevision string
 	if !apiGitOpsBean.IsGitOpsRepoNotConfigured(deploymentConfig.GetRepoURL()) {
 		gitRepoUrl = deploymentConfig.GetRepoURL()
+		targetRevision = deploymentConfig.GetTargetRevision()
 	}
 	templateRequest := &TemplateRequest{
 		RefChartTemplate:        chart.ReferenceTemplate,
@@ -480,6 +481,7 @@ func (impl *ChartServiceImpl) chartAdaptor(chart *chartRepoRepository.Chart, isA
 		IsBasicViewLocked:       chart.IsBasicViewLocked,
 		CurrentViewEditor:       chart.CurrentViewEditor,
 		GitRepoUrl:              gitRepoUrl,
+		TargetRevision:          targetRevision,
 		IsCustomGitRepository:   deploymentConfig.ConfigType == bean2.CUSTOM.String(),
 		ImageDescriptorTemplate: chart.ImageDescriptorTemplate,
 	}

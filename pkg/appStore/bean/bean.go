@@ -110,6 +110,7 @@ type InstallAppVersionDTO struct {
 	IsVirtualEnvironment         bool                           `json:"isVirtualEnvironment"`
 	HelmPackageName              string                         `json:"helmPackageName"`
 	GitOpsRepoURL                string                         `json:"gitRepoURL"`
+	TargetRevision               string                         `json:"-"`
 	IsCustomRepository           bool                           `json:"-"`
 	IsNewGitOpsRepo              bool                           `json:"-"`
 	ACDAppName                   string                         `json:"-"`
@@ -233,7 +234,7 @@ func (chart *InstallAppVersionDTO) GetDeploymentConfig() *bean2.DeploymentConfig
 					RepoURL:        chart.GitOpsRepoURL,
 					ChartPath:      util.BuildDeployedAppName(chart.AppName, chart.EnvironmentName),
 					ValuesFilePath: "values.yaml",
-					TargetRevision: "master",
+					TargetRevision: util.GetDefaultTargetRevision(),
 				},
 			},
 		},

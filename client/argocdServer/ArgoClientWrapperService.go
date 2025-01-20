@@ -87,19 +87,19 @@ type ApplicationClientWrapper interface {
 	GetArgoAppByName(ctx context.Context, appName string) (*v1alpha1.Application, error)
 
 	// SyncArgoCDApplicationIfNeededAndRefresh - if ARGO_AUTO_SYNC_ENABLED=true, app will be refreshed to initiate refresh at argoCD side or else it will be synced and refreshed
-	SyncArgoCDApplicationIfNeededAndRefresh(context context.Context, argoAppName string) error
+	SyncArgoCDApplicationIfNeededAndRefresh(ctx context.Context, argoAppName, targetRevision string) error
 
 	// UpdateArgoCDSyncModeIfNeeded - if ARGO_AUTO_SYNC_ENABLED=true and app is in manual sync mode or vice versa update app
 	UpdateArgoCDSyncModeIfNeeded(ctx context.Context, argoApplication *v1alpha1.Application) (err error)
 
 	// RegisterGitOpsRepoInArgoWithRetry - register a repository in argo-cd with retry mechanism
-	RegisterGitOpsRepoInArgoWithRetry(ctx context.Context, gitOpsRepoUrl string, userId int32) error
+	RegisterGitOpsRepoInArgoWithRetry(ctx context.Context, gitOpsRepoUrl, targetRevision string, userId int32) error
 
 	// PatchArgoCdApp performs a patch operation on an argoCd app
 	PatchArgoCdApp(ctx context.Context, dto *bean.ArgoCdAppPatchReqDto) error
 
 	// IsArgoAppPatchRequired decides weather the v1alpha1.ApplicationSource requires to be updated
-	IsArgoAppPatchRequired(argoAppSpec *v1alpha1.ApplicationSource, currentGitRepoUrl, currentChartPath string) bool
+	IsArgoAppPatchRequired(argoAppSpec *v1alpha1.ApplicationSource, currentGitRepoUrl, currentTargetRevision, currentChartPath string) bool
 
 	// GetGitOpsRepoName returns the GitOps repository name, configured for the argoCd app
 	GetGitOpsRepoNameForApplication(ctx context.Context, appName string) (gitOpsRepoName string, err error)
@@ -108,7 +108,7 @@ type ApplicationClientWrapper interface {
 }
 
 type RepositoryClientWrapper interface {
-	RegisterGitOpsRepoInArgoWithRetry(ctx context.Context, gitOpsRepoUrl string, userId int32) error
+	RegisterGitOpsRepoInArgoWithRetry(ctx context.Context, gitOpsRepoUrl, targetRevision string, userId int32) error
 }
 
 type RepoCredsClientWrapper interface {
@@ -235,7 +235,7 @@ func (impl *ArgoClientWrapperServiceImpl) DeleteArgoApp(ctx context.Context, app
 	return impl.acdApplicationClient.Delete(ctx, grpcConfig, req)
 }
 
-func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefresh(ctx context.Context, argoAppName string) error {
+func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefresh(ctx context.Context, argoAppName, targetRevision string) error {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ArgoClientWrapperServiceImpl.SyncArgoCDApplicationIfNeededAndRefresh")
 	defer span.End()
 	impl.logger.Info("ArgoCd manual sync for app started", "argoAppName", argoAppName)
@@ -249,10 +249,9 @@ func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefres
 	if impl.ACDConfig.IsManualSyncEnabled() {
 
 		impl.logger.Debugw("syncing ArgoCd app as manual sync is enabled", "argoAppName", argoAppName)
-		revision := "master"
 		pruneResources := true
 		_, syncErr := impl.acdApplicationClient.Sync(newCtx, grpcConfig, &application2.ApplicationSyncRequest{Name: &argoAppName,
-			Revision: &revision,
+			Revision: &targetRevision,
 			Prune:    &pruneResources,
 		})
 		if syncErr != nil {
@@ -268,7 +267,7 @@ func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefres
 					return fmt.Errorf("error in terminating existing sync, err: %w", terminationErr)
 				}
 				_, syncErr = impl.acdApplicationClient.Sync(newCtx, grpcConfig, &application2.ApplicationSyncRequest{Name: &argoAppName,
-					Revision: &revision,
+					Revision: &targetRevision,
 					Prune:    &pruneResources,
 					RetryStrategy: &v1alpha1.RetryStrategy{
 						Limit: 1,
@@ -334,8 +333,7 @@ func (impl *ArgoClientWrapperServiceImpl) UpdateArgoCDSyncModeIfNeeded(ctx conte
 	return nil
 }
 
-func (impl *ArgoClientWrapperServiceImpl) RegisterGitOpsRepoInArgoWithRetry(ctx context.Context, gitOpsRepoUrl string, userId int32) error {
-
+func (impl *ArgoClientWrapperServiceImpl) RegisterGitOpsRepoInArgoWithRetry(ctx context.Context, gitOpsRepoUrl, targetRevision string, userId int32) error {
 	grpcConfig, err := impl.acdConfigGetter.GetGRPCConfig()
 	if err != nil {
 		impl.logger.Errorw("error in getting grpc config", "err", err)
@@ -352,7 +350,7 @@ func (impl *ArgoClientWrapperServiceImpl) RegisterGitOpsRepoInArgoWithRetry(ctx 
 		impl.logger)
 	if argoCdErr != nil {
 		impl.logger.Errorw("error in registering GitOps repository", "repoName", gitOpsRepoUrl, "err", argoCdErr)
-		return impl.handleArgoRepoCreationError(ctx, argoCdErr, grpcConfig, gitOpsRepoUrl, userId)
+		return impl.handleArgoRepoCreationError(ctx, argoCdErr, grpcConfig, gitOpsRepoUrl, targetRevision, userId)
 	}
 	impl.logger.Infow("gitOps repo registered in argo", "repoName", gitOpsRepoUrl)
 	return nil
@@ -401,10 +399,10 @@ func (impl *ArgoClientWrapperServiceImpl) GetArgoAppByName(ctx context.Context, 
 	return argoApplication, nil
 }
 
-func (impl *ArgoClientWrapperServiceImpl) IsArgoAppPatchRequired(argoAppSpec *v1alpha1.ApplicationSource, currentGitRepoUrl, currentChartPath string) bool {
+func (impl *ArgoClientWrapperServiceImpl) IsArgoAppPatchRequired(argoAppSpec *v1alpha1.ApplicationSource, currentGitRepoUrl, currentTargetRevision, currentChartPath string) bool {
 	return (len(currentGitRepoUrl) != 0 && argoAppSpec.RepoURL != currentGitRepoUrl) ||
 		argoAppSpec.Path != currentChartPath ||
-		argoAppSpec.TargetRevision != bean.TargetRevisionMaster
+		argoAppSpec.TargetRevision != currentTargetRevision
 }
 
 func (impl *ArgoClientWrapperServiceImpl) PatchArgoCdApp(ctx context.Context, dto *bean.ArgoCdAppPatchReqDto) error {
@@ -489,7 +487,7 @@ func (impl *ArgoClientWrapperServiceImpl) isRetryableArgoRepoCreationError(argoC
 }
 
 // handleArgoRepoCreationError - manages the error thrown while performing createRepoInArgoCd
-func (impl *ArgoClientWrapperServiceImpl) handleArgoRepoCreationError(ctx context.Context, argoCdErr error, grpcConfig *bean.ArgoGRPCConfig, gitOpsRepoUrl string, userId int32) error {
+func (impl *ArgoClientWrapperServiceImpl) handleArgoRepoCreationError(ctx context.Context, argoCdErr error, grpcConfig *bean.ArgoGRPCConfig, gitOpsRepoUrl string, targetRevision string, userId int32) error {
 	emptyRepoErrorMessages := bean.EmptyRepoErrorList
 	isEmptyRepoError := false
 	for _, errMsg := range emptyRepoErrorMessages {
@@ -500,7 +498,7 @@ func (impl *ArgoClientWrapperServiceImpl) handleArgoRepoCreationError(ctx contex
 	if isEmptyRepoError {
 		// - found empty repository, create some file in repository
 		gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(gitOpsRepoUrl)
-		err := impl.gitOperationService.CreateReadmeInGitRepo(ctx, gitOpsRepoName, userId)
+		err := impl.gitOperationService.CreateReadmeInGitRepo(ctx, gitOpsRepoName, targetRevision, userId)
 		if err != nil {
 			impl.logger.Errorw("error in creating file in git repo", "err", err)
 			return err

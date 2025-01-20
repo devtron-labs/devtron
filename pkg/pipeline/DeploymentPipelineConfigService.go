@@ -62,7 +62,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	repository3 "github.com/devtron-labs/devtron/pkg/variables/repository"
-	util2 "github.com/devtron-labs/devtron/util"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	errors2 "github.com/juju/errors"
@@ -147,7 +147,7 @@ type CdPipelineConfigServiceImpl struct {
 	propertiesConfigService           PropertiesConfigService
 	deploymentTemplateHistoryService  deploymentTemplate.DeploymentTemplateHistoryService
 	scopedVariableManager             variables.ScopedVariableManager
-	deploymentConfig                  *util2.DeploymentServiceTypeConfig
+	deploymentConfig                  *globalUtil.DeploymentServiceTypeConfig
 	customTagService                  CustomTagService
 	ciPipelineConfigService           CiPipelineConfigService
 	buildPipelineSwitchService        BuildPipelineSwitchService
@@ -173,7 +173,7 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 	chartRepository chartRepoRepository.ChartRepository, resourceGroupService resourceGroup2.ResourceGroupService,
 	propertiesConfigService PropertiesConfigService,
 	deploymentTemplateHistoryService deploymentTemplate.DeploymentTemplateHistoryService,
-	scopedVariableManager variables.ScopedVariableManager, envVariables *util2.EnvironmentVariables,
+	scopedVariableManager variables.ScopedVariableManager, envVariables *globalUtil.EnvironmentVariables,
 	customTagService CustomTagService,
 	ciPipelineConfigService CiPipelineConfigService, buildPipelineSwitchService BuildPipelineSwitchService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
@@ -420,7 +420,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		return nil, err
 	}
 
-	AppDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(app.Id, 0)
+	appDeploymentConfig, err := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(app.Id, 0)
 	if err != nil {
 		impl.logger.Errorw("error in fetching deployment config by appId", "appId", app.Id, "err", err)
 		return nil, err
@@ -429,8 +429,8 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 	// TODO: creating git repo for all apps irrespective of acd or helm
 	if gitOpsConfigurationStatus.IsGitOpsConfigured && isGitOpsRequiredForCD && !pipelineCreateRequest.IsCloneAppReq {
 
-		if gitOps.IsGitOpsRepoNotConfigured(AppDeploymentConfig.GetRepoURL()) {
-			if gitOpsConfigurationStatus.AllowCustomRepository || AppDeploymentConfig.ConfigType == bean4.CUSTOM.String() {
+		if gitOps.IsGitOpsRepoNotConfigured(appDeploymentConfig.GetRepoURL()) {
+			if gitOpsConfigurationStatus.AllowCustomRepository || appDeploymentConfig.ConfigType == bean4.CUSTOM.String() {
 				apiErr := &util.ApiError{
 					HttpStatusCode:  http.StatusConflict,
 					UserMessage:     cdWorkflow.GITOPS_REPO_NOT_CONFIGURED,
@@ -438,7 +438,11 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				}
 				return nil, apiErr
 			}
-			_, chartGitAttr, err := impl.appService.CreateGitOpsRepo(app, pipelineCreateRequest.UserId)
+			targetRevision := globalUtil.GetDefaultTargetRevision()
+			if len(appDeploymentConfig.GetTargetRevision()) != 0 {
+				targetRevision = appDeploymentConfig.GetTargetRevision()
+			}
+			_, chartGitAttr, err := impl.appService.CreateGitOpsRepo(app, targetRevision, pipelineCreateRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("error in creating git repo", "err", err)
 				return nil, fmt.Errorf("Create GitOps repository error: %s", err.Error())
@@ -449,7 +453,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 				return nil, err
 			}
 			// below function will update gitRepoUrl for charts if user has not already provided gitOps repoURL
-			AppDeploymentConfig, err = impl.chartService.ConfigureGitOpsRepoUrlForApp(pipelineCreateRequest.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, false, pipelineCreateRequest.UserId)
+			appDeploymentConfig, err = impl.chartService.ConfigureGitOpsRepoUrlForApp(pipelineCreateRequest.AppId, chartGitAttr.RepoUrl, chartGitAttr.ChartLocation, false, pipelineCreateRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("error in updating git repo url in charts", "err", err)
 				return nil, err
@@ -464,9 +468,9 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 			envDeploymentConfig := &bean4.DeploymentConfig{
 				AppId:             app.Id,
 				EnvironmentId:     pipeline.EnvironmentId,
-				ConfigType:        AppDeploymentConfig.ConfigType,
+				ConfigType:        appDeploymentConfig.ConfigType,
 				DeploymentAppType: pipeline.DeploymentAppType,
-				RepoURL:           AppDeploymentConfig.RepoURL,
+				RepoURL:           appDeploymentConfig.RepoURL,
 				ReleaseMode:       pipeline.ReleaseMode,
 				Active:            true,
 			}
@@ -1654,7 +1658,7 @@ func (impl *CdPipelineConfigServiceImpl) validateCDPipelineRequest(pipelineCreat
 }
 
 func (impl *CdPipelineConfigServiceImpl) RegisterInACD(ctx context.Context, chartGitAttr *commonBean.ChartGitAttribute, userId int32) error {
-	err := impl.argoClientWrapperService.RegisterGitOpsRepoInArgoWithRetry(ctx, chartGitAttr.RepoUrl, userId)
+	err := impl.argoClientWrapperService.RegisterGitOpsRepoInArgoWithRetry(ctx, chartGitAttr.RepoUrl, chartGitAttr.TargetRevision, userId)
 	if err != nil {
 		impl.logger.Errorw("error while register git repo in argo", "err", err)
 		return err
@@ -1673,7 +1677,7 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 	if (pipeline.AppWorkflowId == 0 || pipeline.IsSwitchCiPipelineRequest()) && pipeline.ParentPipelineType == "WEBHOOK" {
 		if pipeline.AppWorkflowId == 0 {
 			wf := &appWorkflow.AppWorkflow{
-				Name:     fmt.Sprintf("wf-%d-%s", app.Id, util2.Generate(4)),
+				Name:     fmt.Sprintf("wf-%d-%s", app.Id, globalUtil.Generate(4)),
 				AppId:    app.Id,
 				Active:   true,
 				AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},

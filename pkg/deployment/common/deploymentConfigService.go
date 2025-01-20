@@ -400,8 +400,8 @@ func (impl *DeploymentConfigServiceImpl) parseEnvLevelReleaseConfigForDevtronApp
 				Source: &bean.Source{
 					RepoURL:        gitRepoUrl,
 					ChartPath:      latestChart.ChartLocation,
-					ValuesFilePath: fmt.Sprintf("_%d-values.yaml", env.Namespace),
-					TargetRevision: "master",
+					ValuesFilePath: fmt.Sprintf("_%d-values.yaml", env.Id),
+					TargetRevision: util.GetDefaultTargetRevision(),
 				},
 			},
 		}
@@ -568,7 +568,7 @@ func (impl *DeploymentConfigServiceImpl) parseReleaseConfigForHelmApps(appId int
 					RepoURL:        gitRepoURL,
 					ChartPath:      util.BuildDeployedAppName(app.AppName, env.Name),
 					ValuesFilePath: "values.yaml",
-					TargetRevision: "master",
+					TargetRevision: util.GetDefaultTargetRevision(),
 				},
 			},
 		}

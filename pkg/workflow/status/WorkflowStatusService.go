@@ -532,7 +532,13 @@ func (impl *WorkflowStatusServiceImpl) syncACDHelmApps(deployedBeforeMinutes int
 		argoAppName := util3.BuildDeployedAppName(appDetails.AppName, envDetails.Name)
 		ctx := context.Background()
 		syncTime := time.Now()
-		syncErr := impl.argocdClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, argoAppName)
+		deploymentConfig, err := impl.deploymentConfigService.GetConfigForHelmApps(appDetails.Id, envDetails.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting deployment config db object by appId and envId", "appId", appDetails.Id, "envId", envDetails.Id, "err", err)
+			return err
+		}
+		targetRevision := deploymentConfig.GetTargetRevision()
+		syncErr := impl.argocdClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(ctx, argoAppName, targetRevision)
 		if syncErr != nil {
 			impl.logger.Errorw("error in syncing argoCD app", "err", syncErr)
 			timelineObject := impl.pipelineStatusTimelineService.NewHelmAppDeploymentStatusTimelineDbObject(installedAppVersionHistoryId, timelineStatus.TIMELINE_STATUS_DEPLOYMENT_FAILED, fmt.Sprintf("error occured in syncing argocd application. err: %s", syncErr.Error()), 1)

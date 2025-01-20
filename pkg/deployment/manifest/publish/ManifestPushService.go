@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"time"
@@ -96,13 +97,17 @@ func (impl *GitOpsManifestPushServiceImpl) createRepoForGitOperation(manifestPus
 		return manifestPushTemplate.RepoUrl, nil
 	}
 	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(manifestPushTemplate.AppName)
-	chartGitAttr, err := impl.gitOperationService.CreateGitRepositoryForDevtronApp(ctx, gitOpsRepoName, manifestPushTemplate.UserId)
+	targetRevision := globalUtil.GetDefaultTargetRevision()
+	if len(manifestPushTemplate.TargetRevision) != 0 {
+		targetRevision = manifestPushTemplate.TargetRevision
+	}
+	chartGitAttr, err := impl.gitOperationService.CreateGitRepositoryForDevtronApp(ctx, gitOpsRepoName, targetRevision, manifestPushTemplate.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git ", "gitOpsRepoName", gitOpsRepoName, "err", err)
 		return "", fmt.Errorf("No repository configured for Gitops! Error while creating git repository: '%s'", gitOpsRepoName)
 	}
 	chartGitAttr.ChartLocation = manifestPushTemplate.ChartLocation
-	err = impl.argoClientWrapperService.RegisterGitOpsRepoInArgoWithRetry(ctx, chartGitAttr.RepoUrl, manifestPushTemplate.UserId)
+	err = impl.argoClientWrapperService.RegisterGitOpsRepoInArgoWithRetry(ctx, chartGitAttr.RepoUrl, chartGitAttr.TargetRevision, manifestPushTemplate.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in registering app in acd", "err", err)
 		return "", fmt.Errorf("Error in registering repository '%s' in ArgoCd", gitOpsRepoName)
@@ -235,7 +240,7 @@ func (impl *GitOpsManifestPushServiceImpl) pushChartToGitRepo(ctx context.Contex
 		impl.logger.Errorw("err in getting chart info", "err", err)
 		return err
 	}
-	err = impl.gitOperationService.PushChartToGitRepo(newCtx, gitOpsRepoName, manifestPushTemplate.ChartReferenceTemplate, manifestPushTemplate.ChartVersion, manifestPushTemplate.BuiltChartPath, manifestPushTemplate.RepoUrl, manifestPushTemplate.UserId)
+	err = impl.gitOperationService.PushChartToGitRepo(newCtx, gitOpsRepoName, manifestPushTemplate.ChartReferenceTemplate, manifestPushTemplate.ChartVersion, manifestPushTemplate.BuiltChartPath, manifestPushTemplate.RepoUrl, manifestPushTemplate.TargetRevision, manifestPushTemplate.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git", "err", err)
 		return err
@@ -259,6 +264,7 @@ func (impl *GitOpsManifestPushServiceImpl) commitValuesToGit(ctx context.Context
 		ChartName:      manifestPushTemplate.ChartName,
 		ChartLocation:  manifestPushTemplate.ChartLocation,
 		ChartRepoName:  chartRepoName,
+		TargetRevision: manifestPushTemplate.TargetRevision,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", manifestPushTemplate.PipelineOverrideId, manifestPushTemplate.TargetEnvironmentName),
 		UserName:       userName,
 		UserEmailId:    userEmailId,

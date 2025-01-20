@@ -752,7 +752,7 @@ func (impl *AppStoreDeploymentServiceImpl) updateInstalledApp(ctx context.Contex
 	installedApp.UpdateStatus(appStoreBean.DEPLOY_SUCCESS)
 	installedApp.UpdateAuditLog(upgradeAppRequest.UserId)
 	if monoRepoMigrationRequired {
-		//if monorepo case is true then repoUrl is changed then also update repo url in database
+		//if mono repo case is true then repoUrl is changed then also update repo url in database
 		installedApp.UpdateGitOpsRepository(gitOpsResponse.ChartGitAttribute.RepoUrl, installedApp.IsCustomRepository)
 		deploymentConfig.SetRepoURL(gitOpsResponse.ChartGitAttribute.RepoUrl)
 	}

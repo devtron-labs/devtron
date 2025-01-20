@@ -42,10 +42,11 @@ type GitOpsConfigDto struct {
 	IsTLSKeyDataPresent  bool `json:"isTLSKeyDataPresent"`
 
 	// TODO refactoring: create different struct for internal fields
-	GitRepoName string `json:"-"`
-	UserEmailId string `json:"-"`
-	Description string `json:"-"`
-	UserId      int32  `json:"-"`
+	GitRepoName    string `json:"-"`
+	TargetRevision string `json:"-"`
+	UserEmailId    string `json:"-"`
+	Description    string `json:"-"`
+	UserId         int32  `json:"-"`
 }
 
 type GitRepoRequestDto struct {

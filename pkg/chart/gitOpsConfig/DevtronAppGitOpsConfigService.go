@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"net/http"
 	"path/filepath"
 
@@ -133,10 +134,11 @@ func (impl *DevtronAppGitOpConfigServiceImpl) SaveAppLevelGitOpsConfiguration(ap
 	// ValidateCustomGitRepoURL returns sanitized repo url after validation
 	appGitOpsRequest.GitOpsRepoURL = repoUrl
 	chartGitAttr := &commonBean.ChartGitAttribute{
-		RepoUrl:       repoUrl,
-		ChartLocation: filepath.Join(appDeploymentTemplate.RefChartTemplate, appDeploymentTemplate.LatestChartVersion),
+		RepoUrl:        repoUrl,
+		TargetRevision: globalUtil.GetDefaultTargetRevision(),
+		ChartLocation:  filepath.Join(appDeploymentTemplate.RefChartTemplate, appDeploymentTemplate.LatestChartVersion),
 	}
-	err = impl.argoClientWrapperService.RegisterGitOpsRepoInArgoWithRetry(ctx, chartGitAttr.RepoUrl, appGitOpsRequest.UserId)
+	err = impl.argoClientWrapperService.RegisterGitOpsRepoInArgoWithRetry(ctx, chartGitAttr.RepoUrl, chartGitAttr.TargetRevision, appGitOpsRequest.UserId)
 	if err != nil {
 		impl.logger.Errorw("error while register git repo in argo", "err", err)
 		return err

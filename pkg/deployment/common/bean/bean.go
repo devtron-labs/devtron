@@ -65,6 +65,10 @@ func (c *DeploymentConfig) GetRepoURL() string {
 	return c.ReleaseConfiguration.ArgoCDSpec.Source.RepoURL
 }
 
+func (c *DeploymentConfig) GetTargetRevision() string {
+	return c.ReleaseConfiguration.ArgoCDSpec.Source.TargetRevision
+}
+
 func (c *DeploymentConfig) GetChartLocation() string {
 	return c.ReleaseConfiguration.ArgoCDSpec.Source.ChartPath
 }

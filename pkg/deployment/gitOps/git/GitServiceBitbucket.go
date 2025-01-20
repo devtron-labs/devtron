@@ -169,7 +169,7 @@ func (impl GitBitbucketClient) CreateRepository(ctx context.Context, config *bea
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
 
-	validated, err = impl.ensureProjectAvailabilityOnSsh(repoOptions)
+	validated, err = impl.ensureProjectAvailabilityOnSsh(repoOptions, config.TargetRevision)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability bitbucket", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
@@ -237,6 +237,7 @@ func (impl GitBitbucketClient) CreateReadme(ctx context.Context, config *bean2.G
 		FileContent:    "@devtron",
 		ReleaseMessage: "pushing readme",
 		ChartRepoName:  config.GitRepoName,
+		TargetRevision: config.TargetRevision,
 		UserName:       config.Username,
 		UserEmailId:    config.UserEmailId,
 	}
@@ -248,10 +249,10 @@ func (impl GitBitbucketClient) CreateReadme(ctx context.Context, config *bean2.G
 	return hash, err
 }
 
-func (impl GitBitbucketClient) ensureProjectAvailabilityOnSsh(repoOptions *bitbucket.RepositoryOptions) (bool, error) {
+func (impl GitBitbucketClient) ensureProjectAvailabilityOnSsh(repoOptions *bitbucket.RepositoryOptions, targetRevision string) (bool, error) {
 	repoUrl := fmt.Sprintf(BITBUCKET_CLONE_BASE_URL+"%s/%s.git", repoOptions.Owner, repoOptions.RepoSlug)
 	for count := 0; count < 5; count++ {
-		_, err := impl.gitOpsHelper.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", repoOptions.RepoSlug))
+		_, err := impl.gitOpsHelper.Clone(repoUrl, fmt.Sprintf("/ensure-clone/%s", repoOptions.RepoSlug), targetRevision)
 		if err == nil {
 			impl.logger.Infow("ensureProjectAvailability clone passed Bitbucket", "try count", count, "repoUrl", repoUrl)
 			return true, nil
@@ -306,7 +307,7 @@ func (impl GitBitbucketClient) CommitValues(ctx context.Context, config *ChartCo
 		FilePath: bitbucketCommitFilePath,
 		FileName: fileName,
 		Message:  config.ReleaseMessage,
-		Branch:   "master",
+		Branch:   config.TargetRevision,
 		Author:   authorBitbucket,
 	}
 	repoWriteOptions.WithContext(ctx)
@@ -321,7 +322,7 @@ func (impl GitBitbucketClient) CommitValues(ctx context.Context, config *ChartCo
 	commitOptions := &bitbucket.CommitsOptions{
 		RepoSlug:    config.ChartRepoName,
 		Owner:       gitOpsConfig.BitBucketWorkspaceId,
-		Branchortag: "master",
+		Branchortag: config.TargetRevision,
 	}
 	commits, err := impl.client.Repositories.Commits.GetCommits(commitOptions)
 	if err != nil {
