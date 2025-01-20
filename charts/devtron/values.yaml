@@ -8,6 +8,8 @@ global:
     runAsUser: 1000
     runAsNonRoot: true
   containerRegistry: "quay.io/devtron"
+  # storageclass: "" #if empty uses the default storageclass
+  storageClass: "" 
   # The below values can be specified both at global as well as component level
   # nodeSelector:
   #   key: value
@@ -369,6 +371,9 @@ security:
   enabled: false
   imageScanner:
     image: "image-scanner:33965457-141-27892"
+    configs:
+      TRIVY_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-db
+      TRIVY_JAVA_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-java-db
   # Values for trivy
   trivy:
     enabled: false

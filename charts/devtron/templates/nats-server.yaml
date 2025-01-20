@@ -253,6 +253,10 @@ spec:
       name: data
     spec:
       accessModes: [ "ReadWriteOnce" ]
+      {{- if eq $.Values.global.storageClass "" }}
+      {{- else }}
+      storageClassName: {{ $.Values.global.storageClass }}
+      {{- end }}
       resources:
         requests:
           storage: {{ .persistence.storage }}
