@@ -189,7 +189,7 @@ func (repo *ScanToolMetadataRepositoryImpl) FindActiveTool() (*ScanToolMetadata,
 
 func (repo *ScanToolMetadataRepositoryImpl) FindNameAndUrlById(id int) (string, string, error) {
 	model := &ScanToolMetadata{}
-	err := repo.dbConnection.Model(model).Column("name").Where("id = ?", id).Select()
+	err := repo.dbConnection.Model(model).Column("name", "url").Where("id = ?", id).Select()
 	if err != nil {
 		repo.logger.Errorw("error in getting tool name by id", "err", err, "id", id)
 		return "", "", err
