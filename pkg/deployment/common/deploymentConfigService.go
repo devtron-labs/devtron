@@ -161,7 +161,7 @@ func (impl *DeploymentConfigServiceImpl) getAppLevelConfigForDevtronApps(appId i
 			impl.logger.Errorw("error in converting deployment config db object", "appId", appId, "envId", envId, "err", err)
 			return nil, err
 		}
-		if appLevelConfig.ReleaseConfiguration == nil {
+		if appLevelConfig.ReleaseConfiguration == nil || len(appLevelConfig.ReleaseConfiguration.Version) == 0 {
 			isMigrationNeeded = true
 			releaseConfig, err := impl.parseAppLevelReleaseConfigForDevtronApp(appId, appLevelConfig)
 			if err != nil {
