@@ -2332,7 +2332,7 @@ func validatePluginVariable(variable *bean2.PluginVariableDto) error {
 }
 
 func (impl *GlobalPluginServiceImpl) GetNewPluginStepsDtoByRefPluginIdentifier(identifier string) (*bean2.PluginStepsDto, error) {
-	pluginMetadata, err := impl.globalPluginRepository.GetPluginMetadataPluginIdentifier(identifier)
+	pluginMetadata, err := impl.globalPluginRepository.GetPluginMetadataByPluginIdentifier(identifier)
 	if err != nil {
 		impl.logger.Errorw("error in getting plugin steps by plugin identifier", "identifier", identifier, "err", err)
 		return nil, err
