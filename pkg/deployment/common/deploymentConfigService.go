@@ -224,7 +224,7 @@ func (impl *DeploymentConfigServiceImpl) getEnvLevelDataForDevtronApps(appId, en
 			return nil, err
 		}
 
-		if appAndEnvLevelConfig.ReleaseConfiguration == nil {
+		if appAndEnvLevelConfig.ReleaseConfiguration == nil || len(appAndEnvLevelConfig.ReleaseConfiguration.Version) == 0 {
 			isMigrationNeeded = true
 			releaseConfig, err := impl.parseEnvLevelReleaseConfigForDevtronApp(appAndEnvLevelConfig, appId, envId)
 			if err != nil {
@@ -291,6 +291,7 @@ func (impl *DeploymentConfigServiceImpl) GetAndMigrateConfigIfAbsentForDevtronAp
 			impl.logger.Errorw("error in getting env level data for devtron apps", "appId", appId, "envId", envId, "err", err)
 			return nil, err
 		}
+		return envLevelConfig, nil
 	}
 
 	return envLevelConfig, nil
@@ -469,7 +470,7 @@ func (impl *DeploymentConfigServiceImpl) getConfigForHelmApps(appId int, envId i
 			impl.logger.Errorw("error in converting helm deployment config dbObj to DTO", "appId", appId, "envId", envId, "err", err)
 			return nil, err
 		}
-		if helmDeploymentConfig.ReleaseConfiguration == nil {
+		if helmDeploymentConfig.ReleaseConfiguration == nil || len(helmDeploymentConfig.ReleaseConfiguration.Version) == 0 {
 			isMigrationNeeded = true
 			releaseConfig, err := impl.parseReleaseConfigForHelmApps(appId, envId, helmDeploymentConfig)
 			if err != nil {
