@@ -1001,9 +1001,9 @@ func (impl *GlobalPluginRepositoryImpl) GetPluginMetadataByPluginIdentifier(iden
 	pluginMetadata := &PluginMetadata{}
 	err := impl.dbConnection.Model(pluginMetadata).
 		Join("INNER JOIN plugin_parent_metadata ppm").
-		JoinOn("pm.plugin_parent_metadata_id = ppm.id").
+		JoinOn("plugin_metadata.plugin_parent_metadata_id = ppm.id").
 		Where("ppm.deleted = ?", false).
-		Where("pm.deleted = ?", false).
+		Where("plugin_metadata.deleted = ?", false).
 		Where("ppm.identifier = ?", identifier).
 		Select()
 	if err != nil {
