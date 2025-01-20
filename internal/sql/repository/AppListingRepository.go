@@ -30,7 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
-	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	"github.com/devtron-labs/devtron/pkg/deployment/common/adapter"
 	"go.opentelemetry.io/otel"
 	"strings"
 	"time"
@@ -632,7 +632,7 @@ func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int, appType int)
 		return appStageStatus, err
 	}
 
-	dc, err := common.ConvertDeploymentConfigDbObjToDTO(deploymentConfigDB)
+	dc, err := adapter.ConvertDeploymentConfigDbObjToDTO(deploymentConfigDB)
 	if err != nil {
 		impl.Logger.Errorw("error while converting DeploymentConfigDbObjToDTO", "err", err)
 		return nil, err

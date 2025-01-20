@@ -16,6 +16,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/common/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/util"
@@ -80,7 +81,7 @@ func (impl *DeploymentConfigServiceImpl) CreateOrUpdateConfig(tx *pg.Tx, config 
 			"appId", config.AppId, "envId", config.EnvironmentId, "err", err)
 	}
 
-	newDBObj, err := ConvertDeploymentConfigDTOToDbObj(config)
+	newDBObj, err := adapter.ConvertDeploymentConfigDTOToDbObj(config)
 	if err != nil {
 		impl.logger.Errorw("error in converting deployment config DTO to db object", "appId", config.AppId, "envId", config.EnvironmentId)
 		return nil, err
@@ -103,7 +104,7 @@ func (impl *DeploymentConfigServiceImpl) CreateOrUpdateConfig(tx *pg.Tx, config 
 			return nil, err
 		}
 	}
-	newObj, err := ConvertDeploymentConfigDbObjToDTO(newDBObj)
+	newObj, err := adapter.ConvertDeploymentConfigDbObjToDTO(newDBObj)
 	if err != nil {
 		impl.logger.Errorw("error in converting deployment config DTO to db object", "appId", config.AppId, "envId", config.EnvironmentId)
 		return nil, err
@@ -157,7 +158,7 @@ func (impl *DeploymentConfigServiceImpl) getAppLevelConfigForDevtronApps(appId i
 			return nil, err
 		}
 	} else {
-		appLevelConfig, err = ConvertDeploymentConfigDbObjToDTO(appLevelConfigDbObj)
+		appLevelConfig, err = adapter.ConvertDeploymentConfigDbObjToDTO(appLevelConfigDbObj)
 		if err != nil {
 			impl.logger.Errorw("error in converting deployment config db object", "appId", appId, "envId", envId, "err", err)
 			return nil, err
@@ -219,7 +220,7 @@ func (impl *DeploymentConfigServiceImpl) getEnvLevelDataForDevtronApps(appId, en
 
 	} else {
 		// case: deployment config is migrated but release config is absent
-		appAndEnvLevelConfig, err = ConvertDeploymentConfigDbObjToDTO(appAndEnvLevelConfigDBObj)
+		appAndEnvLevelConfig, err = adapter.ConvertDeploymentConfigDbObjToDTO(appAndEnvLevelConfigDBObj)
 		if err != nil {
 			impl.logger.Errorw("error in converting deployment config db object", "appId", appId, "envId", envId, "err", err)
 			return nil, err
@@ -466,7 +467,7 @@ func (impl *DeploymentConfigServiceImpl) getConfigForHelmApps(appId int, envId i
 			return nil, err
 		}
 	} else {
-		helmDeploymentConfig, err = ConvertDeploymentConfigDbObjToDTO(config)
+		helmDeploymentConfig, err = adapter.ConvertDeploymentConfigDbObjToDTO(config)
 		if err != nil {
 			impl.logger.Errorw("error in converting helm deployment config dbObj to DTO", "appId", appId, "envId", envId, "err", err)
 			return nil, err
@@ -497,7 +498,7 @@ func (impl *DeploymentConfigServiceImpl) GetConfigEvenIfInactive(appId, envId in
 		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
 		return nil, err
 	}
-	config, err := ConvertDeploymentConfigDbObjToDTO(dbConfig)
+	config, err := adapter.ConvertDeploymentConfigDbObjToDTO(dbConfig)
 	if err != nil {
 		impl.logger.Errorw("error in converting deployment config db obj to dto", "appId", appId, "envId", envId, "err", err)
 		return nil, err
@@ -602,7 +603,7 @@ func (impl *DeploymentConfigServiceImpl) UpdateRepoUrlForAppAndEnvId(repoURL str
 		return err
 	}
 
-	config, err := ConvertDeploymentConfigDbObjToDTO(dbObj)
+	config, err := adapter.ConvertDeploymentConfigDbObjToDTO(dbObj)
 	if err != nil {
 		impl.logger.Errorw("error in converting deployment config to DTO", "appId", appId, "envId", envId, "err", err)
 		return err
@@ -654,7 +655,7 @@ func (impl *DeploymentConfigServiceImpl) GetAllConfigsWithCustomGitOpsURL() ([]*
 	}
 	var configs []*bean.DeploymentConfig
 	for _, dbConfig := range dbConfigs {
-		config, err := ConvertDeploymentConfigDbObjToDTO(dbConfig)
+		config, err := adapter.ConvertDeploymentConfigDbObjToDTO(dbConfig)
 		if err != nil {
 			impl.logger.Error("error in converting dbObj to dto", "err", err)
 			return nil, err
