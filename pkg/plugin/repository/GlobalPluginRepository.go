@@ -93,14 +93,16 @@ const (
 )
 
 const (
-	CI                = 1
-	CD                = 2
-	CI_CD             = 3
-	CD_STAGE_TYPE     = "cd"
-	CI_STAGE_TYPE     = "ci"
-	CI_CD_STAGE_TYPE  = "ci_cd"
-	EXISTING_TAG_TYPE = "existing_tags"
-	NEW_TAG_TYPE      = "new_tags"
+	CI                 = 1
+	CD                 = 2
+	CI_CD              = 3
+	SCANNER            = 4
+	CD_STAGE_TYPE      = "cd"
+	CI_STAGE_TYPE      = "ci"
+	CI_CD_STAGE_TYPE   = "ci_cd"
+	SCANNER_STAGE_TYPE = "scanner"
+	EXISTING_TAG_TYPE  = "existing_tags"
+	NEW_TAG_TYPE       = "new_tags"
 )
 
 type PluginParentMetadata struct {

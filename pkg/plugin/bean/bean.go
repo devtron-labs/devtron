@@ -125,11 +125,19 @@ type PluginParentMetadataDto struct {
 	Description      string          `json:"description" validate:"max=300"`
 	Type             string          `json:"type,omitempty" validate:"oneof=SHARED PRESET"`
 	Icon             string          `json:"icon,omitempty"`
+	PluginStageType  string          `json:"pluginStageType,omitempty"`
 	Versions         *PluginVersions `json:"pluginVersions"`
 }
 
 func NewPluginParentMetadataDto() *PluginParentMetadataDto {
 	return &PluginParentMetadataDto{}
+}
+
+func (r *PluginParentMetadataDto) GetPluginStageType() int {
+	if r.PluginStageType == repository.SCANNER_STAGE_TYPE {
+		return repository.SCANNER
+	}
+	return repository.CI_CD
 }
 
 func (r *PluginParentMetadataDto) WithNameAndId(name string, id int) *PluginParentMetadataDto {

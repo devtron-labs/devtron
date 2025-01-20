@@ -2135,7 +2135,7 @@ func (impl *GlobalPluginServiceImpl) createNewPlugin(tx *pg.Tx, pluginDto *bean2
 
 	pluginStageMapping := &repository.PluginStageMapping{
 		PluginId:  pluginParentMetadata.Id,
-		StageType: repository.CI_CD,
+		StageType: pluginDto.GetPluginStageType(),
 		AuditLog:  sql.NewDefaultAuditLog(userId),
 	}
 	_, err = impl.globalPluginRepository.SavePluginStageMapping(pluginStageMapping, tx)
