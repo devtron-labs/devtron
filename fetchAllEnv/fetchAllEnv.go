@@ -31,12 +31,12 @@ import (
 )
 
 type EnvField struct {
-	Env               string
-	EnvType           string
-	EnvValue          string
-	EnvDescription    string
-	EnvPossibleValues string
-	EnvDeprecated     string
+	Env            string
+	EnvType        string
+	EnvValue       string
+	EnvDescription string
+	Example        string
+	Deprecated     string
 }
 
 type CategoryField struct {
@@ -51,8 +51,8 @@ const (
 
 	envFieldTypeTag               = "env"
 	envDefaultFieldTypeTag        = "envDefault"
-	envDescriptionFieldTypeTag    = "envDescription"
-	envPossibleValuesFieldTypeTag = "possibleValues"
+	envDescriptionFieldTypeTag    = "description"
+	envPossibleValuesFieldTypeTag = "example"
 	envDeprecatedFieldTypeTag     = "deprecated"
 	MARKDOWN_FILENAME             = "env_gen.md"
 )
@@ -60,9 +60,9 @@ const (
 const MarkdownTemplate = `
 {{range . }}
 ## {{ .Category }} Related Environment Variables
-| Key   | Value        | Description       | Possible values       | Deprecated       |
-|-------|--------------|-------------------|-----------------------|------------------|
-{{range .Fields }} | {{ .Env }} | {{ .EnvValue }} | {{ .EnvDescription }} | {{ .EnvPossibleValues }} | {{ .EnvDeprecated }} |
+| Key   | Value        | Type        | Description       | Example       | Deprecated       |
+|-------|--------------|-------------|-------------------|-----------------------|------------------|
+{{range .Fields }} | {{ .Env }} | {{ .EnvType }} |{{ .EnvValue }} | {{ .EnvDescription }} | {{ .Example }} | {{ .Deprecated }} |
 {{end}}
 {{end}}`
 
@@ -147,17 +147,17 @@ func getEnvKeyAndValue(field *ast.Field) EnvField {
 		envValue = value
 	}
 	env := EnvField{
-		Env:               envKey,
-		EnvValue:          envValue,
-		EnvDescription:    envDescription,
-		EnvPossibleValues: envPossibleValues,
-		EnvDeprecated:     envDeprecated,
+		Env:            envKey,
+		EnvValue:       envValue,
+		EnvDescription: envDescription,
+		Example:        envPossibleValues,
+		Deprecated:     envDeprecated,
 	}
 	if indent, ok := field.Type.(*ast.Ident); ok && indent != nil {
 		env.EnvType = indent.Name
 	}
 	if len(envDeprecated) == 0 {
-		env.EnvDeprecated = deprecatedDefaultValue
+		env.Deprecated = deprecatedDefaultValue
 	}
 	return env
 }
