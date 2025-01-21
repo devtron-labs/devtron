@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/workflow/util"
 	"github.com/devtron-labs/common-lib/utils"
@@ -293,7 +294,7 @@ func (impl *WorkflowServiceImpl) prepareCmCsForWorkflowTemplate(workflowRequest 
 		// HERE we are allowing all existingSecrets in case of JOB/ BUILD Infra
 		if _, ok := pipelineLevelConfigMaps[cm.Name]; ok || allowAll {
 			if !cm.External {
-				cm.Name = cm.Name + "-" + namePrefix
+				cm.Name = fmt.Sprintf("%s-cm-%s", cm.Name, namePrefix)
 			}
 			modifiedWorkflowConfigMaps = append(modifiedWorkflowConfigMaps, cm)
 		}
@@ -302,7 +303,7 @@ func (impl *WorkflowServiceImpl) prepareCmCsForWorkflowTemplate(workflowRequest 
 		// HERE we are allowing all existingSecrets in case of JOB/ BUILD Infra
 		if _, ok := pipelineLevelSecrets[secret.Name]; ok || allowAll {
 			if !secret.External {
-				secret.Name = secret.Name + "-" + namePrefix
+				secret.Name = fmt.Sprintf("%s-cs-%s", secret.Name, namePrefix)
 			}
 			modifiedWorkflowSecrets = append(modifiedWorkflowSecrets, secret)
 		}
