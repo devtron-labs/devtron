@@ -17,6 +17,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"go/ast"
 	"go/parser"
@@ -55,6 +56,7 @@ const (
 	envPossibleValuesFieldTypeTag = "example"
 	envDeprecatedFieldTypeTag     = "deprecated"
 	MARKDOWN_FILENAME             = "env_gen.md"
+	MARKDOWN_JSON_FILENAME        = "env_gen.json"
 )
 
 const MarkdownTemplate = `
@@ -209,6 +211,15 @@ func writeToFile(categoryFieldsMap map[string][]EnvField) {
 		panic(err)
 	}
 	err = tmpl.Execute(file, cfs)
+	if err != nil {
+		panic(err)
+	}
+	cfsMarshaled, err := json.Marshal(cfs)
+	if err != nil {
+		log.Println("error marshalling category fields:", err)
+		panic(err)
+	}
+	err = os.WriteFile(MARKDOWN_JSON_FILENAME, cfsMarshaled, 0644)
 	if err != nil {
 		panic(err)
 	}
