@@ -72,7 +72,7 @@ func (profileBean *ProfileBeanDto) SetPlatformConfigurations(platform string, co
 
 type ProfileBeanAbstract struct {
 	Id          int         `json:"id"`
-	Name        string      `json:"name" validate:"required,min=1,max=50"`
+	Name        string      `json:"name" validate:"required,min=1,max=50,global-entity-name"`
 	Description string      `json:"description" validate:"max=350"`
 	Active      bool        `json:"active"`
 	Type        ProfileType `json:"type"`
