@@ -52,6 +52,9 @@ import (
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/terminal"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
+	"github.com/devtron-labs/devtron/client/argocdServer"
+	"github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/client/argocdServer/config"
 	"github.com/devtron-labs/devtron/client/argocdServer/repoCredsK8sClient"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/dashboard"
@@ -253,8 +256,16 @@ func InitializeApp() (*App, error) {
 
 		wire.Bind(new(util4.K8sService), new(*util4.K8sServiceImpl)),
 
-		repoCredsK8sClient.NewRepositorySecret,
-		wire.Bind(new(repoCredsK8sClient.RepositoryCreds), new(*repoCredsK8sClient.RepositorySecretImpl)),
+		repoCredsK8sClient.NewRepositoryCredsK8sClientImpl,
+		wire.Bind(new(repoCredsK8sClient.RepositoryCredsK8sClient), new(*repoCredsK8sClient.RepositoryCredsK8sClientImpl)),
+
+		bean.GetConfig,
+
+		config.NewArgoCDConfigGetter,
+		wire.Bind(new(config.ArgoCDConfigGetter), new(*config.ArgoCDConfigGetterImpl)),
+
+		argocdServer.NewArgoClientWrapperServiceEAImpl,
+		wire.Bind(new(argocdServer.ArgoClientWrapperService), new(*argocdServer.ArgoClientWrapperServiceEAImpl)),
 
 		dbMigration.NewDbMigrationServiceImpl,
 		wire.Bind(new(dbMigration.DbMigration), new(*dbMigration.DbMigrationServiceImpl)),

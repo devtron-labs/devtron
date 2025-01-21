@@ -33,6 +33,8 @@ spec:
        {{- end }}
       {{- if .targetPort }}
       targetPort: {{ .targetPort }}
+      {{- else if $.Values.appMetrics }}
+      targetPort: envoy-{{ .name }}
       {{- else }}
       targetPort: {{ .name }}
       {{- end }}
@@ -83,7 +85,13 @@ spec:
         {{- else }}
       - port: {{ .port }}
         {{- end }}
+        {{- if .targetPort }}
+        targetPort: {{ .targetPort }}
+        {{- else if $.Values.appMetrics }}
+        targetPort: envoy-{{ .name }}
+        {{- else }}
         targetPort: {{ .name }}
+        {{- end }}
         protocol: TCP
         name: {{ .name }}
       {{- end }}

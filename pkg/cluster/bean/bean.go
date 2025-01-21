@@ -7,6 +7,7 @@ import (
 
 const (
 	DefaultClusterId = 1
+	DEFAULT_CLUSTER  = "default_cluster"
 )
 
 type PrometheusAuth struct {

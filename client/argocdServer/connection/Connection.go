@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/devtron-labs/common-lib/utils/k8s"
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
+	config2 "github.com/devtron-labs/devtron/client/argocdServer/config"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/argocdServer/version"
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
@@ -63,8 +64,8 @@ const (
 )
 
 type ArgoCDConnectionManager interface {
-	GetConnection() *grpc.ClientConn
-	GetOrUpdateArgoCdUserDetail() string
+	GetGrpcClientConnection(grpcConfig *bean.ArgoGRPCConfig) *grpc.ClientConn
+	GetOrUpdateArgoCdUserDetail(grpcConfig *bean.ArgoGRPCConfig) string
 }
 type ArgoCDConnectionManagerImpl struct {
 	logger                  *zap.SugaredLogger
@@ -77,16 +78,19 @@ type ArgoCDConnectionManagerImpl struct {
 	versionService          version.VersionService
 	gitOpsConfigReadService config.GitOpsConfigReadService
 	runTimeConfig           *k8s.RuntimeConfig
+	argoCDConfigGetter      config2.ArgoCDConfigGetter
 }
 
-func NewArgoCDConnectionManagerImpl(Logger *zap.SugaredLogger, settingsManager *settings.SettingsManager,
+func NewArgoCDConnectionManagerImpl(Logger *zap.SugaredLogger,
+	settingsManager *settings.SettingsManager,
 	moduleRepository moduleRepo.ModuleRepository,
 	environmentVariables *util2.EnvironmentVariables,
 	k8sUtil *k8s.K8sServiceImpl,
 	k8sCommonService k8s2.K8sCommonService,
 	versionService version.VersionService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	runTimeConfig *k8s.RuntimeConfig) (*ArgoCDConnectionManagerImpl, error) {
+	runTimeConfig *k8s.RuntimeConfig,
+	argoCDConfigGetter config2.ArgoCDConfigGetter) (*ArgoCDConnectionManagerImpl, error) {
 	argoUserServiceImpl := &ArgoCDConnectionManagerImpl{
 		logger:                  Logger,
 		settingsManager:         settingsManager,
@@ -98,9 +102,14 @@ func NewArgoCDConnectionManagerImpl(Logger *zap.SugaredLogger, settingsManager *
 		versionService:          versionService,
 		gitOpsConfigReadService: gitOpsConfigReadService,
 		runTimeConfig:           runTimeConfig,
+		argoCDConfigGetter:      argoCDConfigGetter,
 	}
 	if !runTimeConfig.LocalDevMode {
-		go argoUserServiceImpl.ValidateGitOpsAndGetOrUpdateArgoCdUserDetail()
+		grpcConfig, err := argoCDConfigGetter.GetGRPCConfig()
+		if err != nil {
+			Logger.Errorw("error in GetAllGRPCConfigs", "error", err)
+		}
+		go argoUserServiceImpl.ValidateGitOpsAndGetOrUpdateArgoCdUserDetail(grpcConfig)
 	}
 	return argoUserServiceImpl, nil
 }
@@ -110,36 +119,27 @@ const (
 	ModuleStatusInstalled string = "installed"
 )
 
-func (impl *ArgoCDConnectionManagerImpl) ValidateGitOpsAndGetOrUpdateArgoCdUserDetail() string {
+func (impl *ArgoCDConnectionManagerImpl) ValidateGitOpsAndGetOrUpdateArgoCdUserDetail(grpcConfig *bean.ArgoGRPCConfig) string {
 	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil || !gitOpsConfigurationStatus.IsGitOpsConfigured {
 		return ""
 	}
-	return impl.GetOrUpdateArgoCdUserDetail()
+	_ = impl.GetOrUpdateArgoCdUserDetail(grpcConfig)
+	return ""
 }
 
 // GetConnection - this function will call only for acd connection
-func (impl *ArgoCDConnectionManagerImpl) GetConnection() *grpc.ClientConn {
+func (impl *ArgoCDConnectionManagerImpl) GetGrpcClientConnection(grpcConfig *bean.ArgoGRPCConfig) *grpc.ClientConn {
 	//TODO: acdAuthConfig should be passed as arg in function
-	acdAuthConfig := &bean.AcdAuthConfig{
-		ClusterId:                 bean2.DefaultClusterId,
-		DevtronSecretName:         impl.devtronSecretConfig.DevtronSecretName,
-		DevtronDexSecretNamespace: impl.devtronSecretConfig.DevtronDexSecretNamespace,
-	}
-	token, err := impl.GetLatestDevtronArgoCdUserToken(acdAuthConfig)
+	token, err := impl.getLatestDevtronArgoCdUserToken(grpcConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting latest devtron argocd user token", "err", err)
 	}
-	return impl.getConnectionWithToken(token)
+	return impl.getConnectionWithToken(grpcConfig.ConnectionConfig, token)
 }
 
-func (impl *ArgoCDConnectionManagerImpl) getConnectionWithToken(token string) *grpc.ClientConn {
+func (impl *ArgoCDConnectionManagerImpl) getConnectionWithToken(connectionConfig *bean.Config, token string) *grpc.ClientConn {
 	//TODO: config should be passed to this function as argument
-	conf, err := GetConfig()
-	if err != nil {
-		impl.logger.Errorw("error on get acd config while creating connection", "err", err)
-		return nil
-	}
 	settings := impl.getArgoCdSettings()
 	var option []grpc.DialOption
 	option = append(option, grpc.WithTransportCredentials(GetTLS(settings.Certificate)))
@@ -147,24 +147,19 @@ func (impl *ArgoCDConnectionManagerImpl) getConnectionWithToken(token string) *g
 		option = append(option, grpc.WithPerRPCCredentials(TokenAuth{token: token}))
 	}
 	option = append(option, grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor, otelgrpc.UnaryClientInterceptor()), grpc.WithChainStreamInterceptor(grpc_prometheus.StreamClientInterceptor, otelgrpc.StreamClientInterceptor()))
-	conn, err := grpc.Dial(fmt.Sprintf("%s:%s", conf.Host, conf.Port), option...)
+	conn, err := grpc.Dial(fmt.Sprintf("%s:%s", connectionConfig.Host, connectionConfig.Port), option...)
 	if err != nil {
 		return nil
 	}
 	return conn
 }
 
-func (impl *ArgoCDConnectionManagerImpl) GetLatestDevtronArgoCdUserToken(authConfig *bean.AcdAuthConfig) (string, error) {
-	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
-	if err != nil {
-		impl.logger.Errorw("error while checking if gitOps is configured", "err", err)
-		return "", err
-	}
-	if !gitOpsConfigurationStatus.IsGitOpsConfigured {
-		//here acd token only required in context for argo cd calls
-		return "", nil
-	}
-	var k8sClient *v1.CoreV1Client
+func (impl *ArgoCDConnectionManagerImpl) getLatestDevtronArgoCdUserToken(grpcConfig *bean.ArgoGRPCConfig) (string, error) {
+	var (
+		k8sClient *v1.CoreV1Client
+		err       error
+	)
+	authConfig := grpcConfig.AuthConfig
 	if authConfig.ClusterId == bean2.DefaultClusterId {
 		k8sClient, err = impl.k8sUtil.GetCoreV1ClientInCluster()
 		if err != nil {
@@ -205,7 +200,7 @@ func (impl *ArgoCDConnectionManagerImpl) GetLatestDevtronArgoCdUserToken(authCon
 
 	if len(token) == 0 {
 		newTokenNo := latestTokenNo + 1
-		token, err = impl.createNewArgoCdTokenForDevtron(string(username), string(password), newTokenNo, k8sClient)
+		token, err = impl.createNewArgoCdTokenForDevtron(grpcConfig.ConnectionConfig, string(username), string(password), newTokenNo, k8sClient)
 		if err != nil {
 			impl.logger.Errorw("error in creating new argo cd token for devtron", "err", err)
 			return "", err
@@ -214,14 +209,7 @@ func (impl *ArgoCDConnectionManagerImpl) GetLatestDevtronArgoCdUserToken(authCon
 	return token, nil
 }
 
-func (impl *ArgoCDConnectionManagerImpl) GetOrUpdateArgoCdUserDetail() string {
-
-	//TODO: authConfig should be passed as argument to this function
-	authConfig := &bean.AcdAuthConfig{
-		ClusterId:                 bean2.DefaultClusterId,
-		DevtronSecretName:         impl.devtronSecretConfig.DevtronSecretName,
-		DevtronDexSecretNamespace: impl.devtronSecretConfig.DevtronDexSecretNamespace,
-	}
+func (impl *ArgoCDConnectionManagerImpl) GetOrUpdateArgoCdUserDetail(grpcConfig *bean.ArgoGRPCConfig) string {
 
 	token := ""
 	var (
@@ -229,6 +217,7 @@ func (impl *ArgoCDConnectionManagerImpl) GetOrUpdateArgoCdUserDetail() string {
 		err       error
 	)
 
+	authConfig := grpcConfig.AuthConfig
 	if authConfig.ClusterId == bean2.DefaultClusterId {
 		k8sClient, err = impl.k8sUtil.GetCoreV1ClientInCluster()
 		if err != nil {
@@ -267,7 +256,7 @@ func (impl *ArgoCDConnectionManagerImpl) GetOrUpdateArgoCdUserDetail() string {
 		}
 	}
 	if !isTokenAvailable {
-		token, err = impl.createNewArgoCdTokenForDevtron(userNameStr, PasswordStr, 1, k8sClient)
+		token, err = impl.createNewArgoCdTokenForDevtron(grpcConfig.ConnectionConfig, userNameStr, PasswordStr, 1, k8sClient)
 		if err != nil {
 			impl.logger.Errorw("error in creating new argo cd token for devtron", "err", err)
 		}
@@ -298,9 +287,9 @@ func (impl *ArgoCDConnectionManagerImpl) createNewArgoCdUserForDevtron(k8sClient
 	return username, password, nil
 }
 
-func (impl *ArgoCDConnectionManagerImpl) createNewArgoCdTokenForDevtron(username, password string, tokenNo int, k8sClient *v1.CoreV1Client) (string, error) {
+func (impl *ArgoCDConnectionManagerImpl) createNewArgoCdTokenForDevtron(connectionConfig *bean.Config, username, password string, tokenNo int, k8sClient *v1.CoreV1Client) (string, error) {
 	//create new user at argo cd side
-	token, err := impl.createTokenForArgoCdUser(username, password)
+	token, err := impl.createTokenForArgoCdUser(connectionConfig, username, password)
 	if err != nil {
 		impl.logger.Errorw("error in creating new argocd user", "err", err)
 		return "", err
@@ -396,15 +385,15 @@ func (impl *ArgoCDConnectionManagerImpl) createNewArgoCdUser(username, password 
 	return nil
 }
 
-func (impl *ArgoCDConnectionManagerImpl) createTokenForArgoCdUser(username, password string) (string, error) {
-	token, err := impl.passwordLogin(username, password)
+func (impl *ArgoCDConnectionManagerImpl) createTokenForArgoCdUser(connectionConfig *bean.Config, username, password string) (string, error) {
+	token, err := impl.passwordLogin(connectionConfig, username, password)
 	if err != nil {
 		impl.logger.Errorw("error in getting jwt token with username & password", "err", err)
 		return "", err
 	}
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "token", token)
-	clientConn := impl.getConnectionWithToken(token)
+	clientConn := impl.getConnectionWithToken(connectionConfig, token)
 	accountServiceClient := account.NewAccountServiceClient(clientConn)
 	acdToken, err := accountServiceClient.CreateToken(ctx, &account.CreateTokenRequest{
 		Name: username,
@@ -423,8 +412,8 @@ func (impl *ArgoCDConnectionManagerImpl) createTokenForArgoCdUser(username, pass
 	return acdToken.Token, nil
 }
 
-func (impl *ArgoCDConnectionManagerImpl) passwordLogin(username, password string) (string, error) {
-	conn := impl.getConnectionWithToken("")
+func (impl *ArgoCDConnectionManagerImpl) passwordLogin(connectionConfig *bean.Config, username, password string) (string, error) {
+	conn := impl.getConnectionWithToken(connectionConfig, "")
 	serviceClient := session.NewSessionServiceClient(conn)
 	jwtToken, err := serviceClient.Create(context.Background(), username, password)
 	return jwtToken, err
@@ -476,7 +465,7 @@ func updateConfigMap(namespace string, cm *apiv1.ConfigMap, client *v1.CoreV1Cli
 	}
 }
 
-func SettingsManager(cfg *Config) (*settings.SettingsManager, error) {
+func SettingsManager(cfg *bean.Config) (*settings.SettingsManager, error) {
 	clientSet, kubeConfig := getK8sClient()
 	namespace, _, err := kubeConfig.Namespace()
 	if err != nil {

@@ -79,8 +79,10 @@ import (
 	"github.com/devtron-labs/devtron/cel"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
+	"github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/certificate"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
+	"github.com/devtron-labs/devtron/client/argocdServer/config"
 	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"github.com/devtron-labs/devtron/client/argocdServer/repoCredsK8sClient"
 	repocreds "github.com/devtron-labs/devtron/client/argocdServer/repocreds"
@@ -229,7 +231,7 @@ func InitializeApp() (*App, error) {
 		connection.SettingsManager,
 		// auth.GetConfigForDevtronApps,
 
-		connection.GetConfig,
+		bean.GetConfig,
 		wire.Bind(new(session2.ServiceClient), new(*middleware.LoginService)),
 
 		sse.NewSSE,
@@ -926,6 +928,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(resourceQualifiers.QualifierMappingService), new(*resourceQualifiers.QualifierMappingServiceImpl)),
 
 		argocdServer.NewArgoClientWrapperServiceImpl,
+		argocdServer.NewArgoClientWrapperServiceEAImpl,
 		wire.Bind(new(argocdServer.ArgoClientWrapperService), new(*argocdServer.ArgoClientWrapperServiceImpl)),
 
 		pipeline.NewPluginInputVariableParserImpl,
@@ -937,7 +940,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(imageDigestPolicy.ImageDigestPolicyService), new(*imageDigestPolicy.ImageDigestPolicyServiceImpl)),
 
 		certificate.NewServiceClientImpl,
-		wire.Bind(new(certificate.Client), new(*certificate.ServiceClientImpl)),
+		wire.Bind(new(certificate.ServiceClient), new(*certificate.ServiceClientImpl)),
 
 		appStoreRestHandler.FullModeWireSet,
 
@@ -950,14 +953,17 @@ func InitializeApp() (*App, error) {
 		common.NewDeploymentConfigServiceImpl,
 		wire.Bind(new(common.DeploymentConfigService), new(*common.DeploymentConfigServiceImpl)),
 
-		repoCredsK8sClient.NewRepositorySecret,
-		wire.Bind(new(repoCredsK8sClient.RepositoryCreds), new(*repoCredsK8sClient.RepositorySecretImpl)),
+		repoCredsK8sClient.NewRepositoryCredsK8sClientImpl,
+		wire.Bind(new(repoCredsK8sClient.RepositoryCredsK8sClient), new(*repoCredsK8sClient.RepositoryCredsK8sClientImpl)),
 
 		repocreds.NewServiceClientImpl,
 		wire.Bind(new(repocreds.ServiceClient), new(*repocreds.ServiceClientImpl)),
 
 		dbMigration.NewDbMigrationServiceImpl,
 		wire.Bind(new(dbMigration.DbMigration), new(*dbMigration.DbMigrationServiceImpl)),
+
+		config.NewArgoCDConfigGetter,
+		wire.Bind(new(config.ArgoCDConfigGetter), new(*config.ArgoCDConfigGetterImpl)),
 	)
 	return &App{}, nil
 }

@@ -21,14 +21,12 @@ import (
 	"encoding/json"
 	errors3 "errors"
 	"fmt"
-	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	models2 "github.com/devtron-labs/devtron/api/helm-app/models"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -150,7 +148,6 @@ type CdPipelineConfigServiceImpl struct {
 	deploymentTemplateHistoryService  deploymentTemplate.DeploymentTemplateHistoryService
 	scopedVariableManager             variables.ScopedVariableManager
 	deploymentConfig                  *util2.DeploymentServiceTypeConfig
-	application                       application.ServiceClient
 	customTagService                  CustomTagService
 	ciPipelineConfigService           CiPipelineConfigService
 	buildPipelineSwitchService        BuildPipelineSwitchService
@@ -177,7 +174,7 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 	propertiesConfigService PropertiesConfigService,
 	deploymentTemplateHistoryService deploymentTemplate.DeploymentTemplateHistoryService,
 	scopedVariableManager variables.ScopedVariableManager, envVariables *util2.EnvironmentVariables,
-	application application.ServiceClient, customTagService CustomTagService,
+	customTagService CustomTagService,
 	ciPipelineConfigService CiPipelineConfigService, buildPipelineSwitchService BuildPipelineSwitchService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
@@ -212,7 +209,6 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 		deploymentTemplateHistoryService:  deploymentTemplateHistoryService,
 		scopedVariableManager:             scopedVariableManager,
 		deploymentConfig:                  envVariables.DeploymentServiceTypeConfig,
-		application:                       application,
 		chartService:                      chartService,
 		customTagService:                  customTagService,
 		ciPipelineConfigService:           ciPipelineConfigService,
@@ -875,11 +871,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 			}
 			impl.logger.Debugw("acd app is already deleted for this pipeline", "pipeline", pipeline)
 			if deleteFromAcd {
-				req := &application2.ApplicationDeleteRequest{
-					Name:    &deploymentAppName,
-					Cascade: &cascadeDelete,
-				}
-				if _, err := impl.application.Delete(ctx, req); err != nil {
+				if _, err := impl.argoClientWrapperService.DeleteArgoApp(ctx, deploymentAppName, cascadeDelete); err != nil {
 					impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
 
 					if forceDelete {
@@ -961,12 +953,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteACDAppCdPipelineWithNonCascade(pi
 	if pipeline.DeploymentAppCreated && util.IsAcdApp(envDeploymentConfig.DeploymentAppType) {
 		deploymentAppName := pipeline.DeploymentAppName
 		impl.logger.Debugw("acd app is already deleted for this pipeline", "pipeline", pipeline)
-		cascadeDelete := false
-		req := &application2.ApplicationDeleteRequest{
-			Name:    &deploymentAppName,
-			Cascade: &cascadeDelete,
-		}
-		if _, err = impl.application.Delete(ctx, req); err != nil {
+		if _, err = impl.argoClientWrapperService.DeleteArgoApp(ctx, deploymentAppName, false); err != nil {
 			impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
 			//statusError, _ := err.(*errors2.StatusError)
 			if !strings.Contains(err.Error(), "code = NotFound") {
@@ -1501,7 +1488,7 @@ func (impl *CdPipelineConfigServiceImpl) MarkGitOpsDevtronAppsDeletedWhereArgoAp
 	acdAppFound := false
 
 	acdAppName := pipeline.DeploymentAppName
-	_, err := impl.application.Get(context.Background(), &application2.ApplicationQuery{Name: &acdAppName})
+	_, err := impl.argoClientWrapperService.GetArgoAppByName(context.Background(), acdAppName)
 	if err == nil {
 		// acd app is not yet deleted so return
 		acdAppFound = true
@@ -2068,11 +2055,7 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipelinePartial(pipeline *pipel
 				}
 			}
 			impl.logger.Debugw("acd app is already deleted for this pipeline", "pipeline", pipeline)
-			req := &application2.ApplicationDeleteRequest{
-				Name:    &deploymentAppName,
-				Cascade: &cascadeDelete,
-			}
-			if _, err := impl.application.Delete(ctx, req); err != nil {
+			if _, err := impl.argoClientWrapperService.DeleteArgoApp(ctx, deploymentAppName, cascadeDelete); err != nil {
 				impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
 
 				if forceDelete {

@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
-	"github.com/devtron-labs/devtron/client/argocdServer/repoCredsK8sClient"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/timelineStatus"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/common"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
@@ -37,7 +36,6 @@ import (
 
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app/status"
@@ -76,7 +74,6 @@ type FullModeDeploymentService interface {
 
 type FullModeDeploymentServiceImpl struct {
 	Logger                               *zap.SugaredLogger
-	acdClient                            application2.ServiceClient
 	argoK8sClient                        argocdServer.ArgoK8sClient
 	aCDAuthConfig                        *util2.ACDAuthConfig
 	chartGroupDeploymentRepository       repository2.ChartGroupDeploymentRepository
@@ -97,12 +94,10 @@ type FullModeDeploymentServiceImpl struct {
 	environmentRepository                repository5.EnvironmentRepository
 	deploymentConfigService              common.DeploymentConfigService
 	chartTemplateService                 util.ChartTemplateService
-	RepositorySecretService              repoCredsK8sClient.RepositoryCreds
 }
 
 func NewFullModeDeploymentServiceImpl(
 	logger *zap.SugaredLogger,
-	acdClient application2.ServiceClient,
 	argoK8sClient argocdServer.ArgoK8sClient,
 	aCDAuthConfig *util2.ACDAuthConfig,
 	chartGroupDeploymentRepository repository2.ChartGroupDeploymentRepository,
@@ -122,11 +117,9 @@ func NewFullModeDeploymentServiceImpl(
 	gitOpsValidationService validation.GitOpsValidationService,
 	environmentRepository repository5.EnvironmentRepository,
 	deploymentConfigService common.DeploymentConfigService,
-	chartTemplateService util.ChartTemplateService,
-	RepositorySecretService repoCredsK8sClient.RepositoryCreds) *FullModeDeploymentServiceImpl {
+	chartTemplateService util.ChartTemplateService) *FullModeDeploymentServiceImpl {
 	return &FullModeDeploymentServiceImpl{
 		Logger:                               logger,
-		acdClient:                            acdClient,
 		argoK8sClient:                        argoK8sClient,
 		aCDAuthConfig:                        aCDAuthConfig,
 		chartGroupDeploymentRepository:       chartGroupDeploymentRepository,
@@ -147,7 +140,6 @@ func NewFullModeDeploymentServiceImpl(
 		environmentRepository:                environmentRepository,
 		deploymentConfigService:              deploymentConfigService,
 		chartTemplateService:                 chartTemplateService,
-		RepositorySecretService:              RepositorySecretService,
 	}
 }
 
