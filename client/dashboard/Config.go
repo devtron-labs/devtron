@@ -20,6 +20,7 @@ import (
 	"github.com/caarlos0/env"
 )
 
+// CATEGORY=INFRA_SETUP
 type Config struct {
 	Host      string `env:"DASHBOARD_HOST" envDefault:"localhost"`
 	Port      string `env:"DASHBOARD_PORT" envDefault:"3000"`

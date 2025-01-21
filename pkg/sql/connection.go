@@ -27,6 +27,7 @@ import (
 	"github.com/go-pg/pg"
 )
 
+// CATEGORY=POSTGRES
 type Config struct {
 	Addr            string `env:"PG_ADDR" envDefault:"127.0.0.1"  envDescription:"address of postgres service" possibleValues:"postgresql-postgresql.devtroncd" deprecated:"false"`
 	Port            string `env:"PG_PORT" envDefault:"5432" envDescription:"port of postgresql service" possibleValues:"5432"`
