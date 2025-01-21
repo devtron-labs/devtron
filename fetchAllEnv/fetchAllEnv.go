@@ -60,8 +60,8 @@ const (
 const MarkdownTemplate = `
 {{range . }}
 ## {{ .Category }} Related Environment Variables
-| Key   | Type     | Value        | Description       | Example       | Deprecated       |
-|-------|----------|--------------|-------------------|-----------------------|------------------|
+| Key   | Type     | Default Value     | Description       | Example       | Deprecated       |
+|-------|----------|-------------------|-------------------|-----------------------|------------------|
 {{range .Fields }} | {{ .Env }} | {{ .EnvType }} |{{ .EnvValue }} | {{ .EnvDescription }} | {{ .Example }} | {{ .Deprecated }} |
 {{end}}
 {{end}}`
