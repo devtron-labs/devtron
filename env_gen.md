@@ -1,8 +1,8 @@
 
 
 ## CD Related Environment Variables
-| Key   | Type     | Value        | Description       | Example       | Deprecated       |
-|-------|----------|--------------|-------------------|-----------------------|------------------|
+| Key   | Type     | Default Value     | Description       | Example       | Deprecated       |
+|-------|----------|-------------------|-------------------|-----------------------|------------------|
  | ARGO_APP_MANUAL_SYNC_TIME | int |3 |  |  | false |
  | CD_HELM_PIPELINE_STATUS_CRON_TIME | string |*/2 * * * * |  |  | false |
  | CD_PIPELINE_STATUS_CRON_TIME | string |*/2 * * * * |  |  | false |
@@ -19,8 +19,8 @@
 
 
 ## CI_RUNNER Related Environment Variables
-| Key   | Type     | Value        | Description       | Example       | Deprecated       |
-|-------|----------|--------------|-------------------|-----------------------|------------------|
+| Key   | Type     | Default Value     | Description       | Example       | Deprecated       |
+|-------|----------|-------------------|-------------------|-----------------------|------------------|
  | AZURE_ACCOUNT_KEY | string | |  |  | false |
  | AZURE_ACCOUNT_NAME | string | |  |  | false |
  | AZURE_BLOB_CONTAINER_CI_CACHE | string | |  |  | false |
@@ -115,8 +115,8 @@
 
 
 ## DEVTRON Related Environment Variables
-| Key   | Type     | Value        | Description       | Example       | Deprecated       |
-|-------|----------|--------------|-------------------|-----------------------|------------------|
+| Key   | Type     | Default Value     | Description       | Example       | Deprecated       |
+|-------|----------|-------------------|-------------------|-----------------------|------------------|
  | APP_SYNC_IMAGE | string |quay.io/devtron/chart-sync:1227622d-132-3775 |  |  | false |
  | APP_SYNC_JOB_RESOURCES_OBJ | string | |  |  | false |
  | APP_SYNC_SERVICE_ACCOUNT | string |chart-sync |  |  | false |
@@ -254,8 +254,8 @@
 
 
 ## GITOPS Related Environment Variables
-| Key   | Type     | Value        | Description       | Example       | Deprecated       |
-|-------|----------|--------------|-------------------|-----------------------|------------------|
+| Key   | Type     | Default Value     | Description       | Example       | Deprecated       |
+|-------|----------|-------------------|-------------------|-----------------------|------------------|
  | ACD_CM | string |argocd-cm |  |  | false |
  | ACD_NAMESPACE | string |devtroncd |  |  | false |
  | ACD_PASSWORD | string | |  |  | false |
@@ -266,8 +266,8 @@
 
 
 ## INFRA_SETUP Related Environment Variables
-| Key   | Type     | Value        | Description       | Example       | Deprecated       |
-|-------|----------|--------------|-------------------|-----------------------|------------------|
+| Key   | Type     | Default Value     | Description       | Example       | Deprecated       |
+|-------|----------|-------------------|-------------------|-----------------------|------------------|
  | DASHBOARD_HOST | string |localhost |  |  | false |
  | DASHBOARD_NAMESPACE | string |devtroncd |  |  | false |
  | DASHBOARD_PORT | string |3000 |  |  | false |
@@ -280,8 +280,8 @@
 
 
 ## POSTGRES Related Environment Variables
-| Key   | Type     | Value        | Description       | Example       | Deprecated       |
-|-------|----------|--------------|-------------------|-----------------------|------------------|
+| Key   | Type     | Default Value     | Description       | Example       | Deprecated       |
+|-------|----------|-------------------|-------------------|-----------------------|------------------|
  | APP | string |orchestrator | Application name |  | false |
  | CASBIN_DATABASE | string |casbin |  |  | false |
  | PG_ADDR | string |127.0.0.1 | address of postgres service | postgresql-postgresql.devtroncd | false |
@@ -294,8 +294,8 @@
 
 
 ## RBAC Related Environment Variables
-| Key   | Type     | Value        | Description       | Example       | Deprecated       |
-|-------|----------|--------------|-------------------|-----------------------|------------------|
+| Key   | Type     | Default Value     | Description       | Example       | Deprecated       |
+|-------|----------|-------------------|-------------------|-----------------------|------------------|
  | ENFORCER_CACHE | bool |false |  |  | false |
  | ENFORCER_CACHE_EXPIRATION_IN_SEC | int |86400 |  |  | false |
  | ENFORCER_MAX_BATCH_SIZE | int |1 |  |  | false |
