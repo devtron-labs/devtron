@@ -259,13 +259,13 @@ func (impl *GitOpsManifestPushServiceImpl) commitValuesToGit(ctx context.Context
 	userEmailId, userName := impl.gitOpsConfigReadService.GetUserEmailIdAndNameForGitOpsCommit(manifestPushTemplate.UserId)
 	span.End()
 	chartGitAttr := &git.ChartConfig{
-		FileName:       fmt.Sprintf("_%d-values.yaml", manifestPushTemplate.TargetEnvironmentName),
+		FileName:       manifestPushTemplate.ValuesFilePath,
 		FileContent:    manifestPushTemplate.MergedValues,
 		ChartName:      manifestPushTemplate.ChartName,
 		ChartLocation:  manifestPushTemplate.ChartLocation,
 		ChartRepoName:  chartRepoName,
 		TargetRevision: manifestPushTemplate.TargetRevision,
-		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", manifestPushTemplate.PipelineOverrideId, manifestPushTemplate.TargetEnvironmentName),
+		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", manifestPushTemplate.PipelineOverrideId, manifestPushTemplate.TargetEnvironmentId),
 		UserName:       userName,
 		UserEmailId:    userEmailId,
 	}

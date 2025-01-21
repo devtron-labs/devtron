@@ -69,6 +69,10 @@ func (c *DeploymentConfig) GetTargetRevision() string {
 	return c.ReleaseConfiguration.ArgoCDSpec.Source.TargetRevision
 }
 
+func (c *DeploymentConfig) GetValuesFilePath() string {
+	return c.ReleaseConfiguration.ArgoCDSpec.Source.ValuesFilePath
+}
+
 func (c *DeploymentConfig) GetChartLocation() string {
 	return c.ReleaseConfiguration.ArgoCDSpec.Source.ChartPath
 }

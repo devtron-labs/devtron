@@ -1000,17 +1000,17 @@ func (impl *TriggerServiceImpl) triggerPipeline(overrideRequest *bean3.ValuesOve
 func (impl *TriggerServiceImpl) buildManifestPushTemplate(overrideRequest *bean3.ValuesOverrideRequest, valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string) (*bean4.ManifestPushTemplate, error) {
 
 	manifestPushTemplate := &bean4.ManifestPushTemplate{
-		WorkflowRunnerId:      overrideRequest.WfrId,
-		AppId:                 overrideRequest.AppId,
-		ChartRefId:            valuesOverrideResponse.EnvOverride.Chart.ChartRefId,
-		EnvironmentId:         valuesOverrideResponse.EnvOverride.Environment.Id,
-		EnvironmentName:       valuesOverrideResponse.EnvOverride.Environment.Namespace,
-		UserId:                overrideRequest.UserId,
-		PipelineOverrideId:    valuesOverrideResponse.PipelineOverride.Id,
-		AppName:               overrideRequest.AppName,
-		TargetEnvironmentName: valuesOverrideResponse.EnvOverride.TargetEnvironment,
-		BuiltChartPath:        builtChartPath,
-		MergedValues:          valuesOverrideResponse.MergedValues,
+		WorkflowRunnerId:    overrideRequest.WfrId,
+		AppId:               overrideRequest.AppId,
+		ChartRefId:          valuesOverrideResponse.EnvOverride.Chart.ChartRefId,
+		EnvironmentId:       valuesOverrideResponse.EnvOverride.Environment.Id,
+		EnvironmentName:     valuesOverrideResponse.EnvOverride.Environment.Namespace,
+		UserId:              overrideRequest.UserId,
+		PipelineOverrideId:  valuesOverrideResponse.PipelineOverride.Id,
+		AppName:             overrideRequest.AppName,
+		TargetEnvironmentId: valuesOverrideResponse.EnvOverride.TargetEnvironment,
+		BuiltChartPath:      builtChartPath,
+		MergedValues:        valuesOverrideResponse.MergedValues,
 	}
 
 	manifestPushConfig, err := impl.manifestPushConfigRepository.GetManifestPushConfigByAppIdAndEnvId(overrideRequest.AppId, overrideRequest.EnvId)
@@ -1033,9 +1033,10 @@ func (impl *TriggerServiceImpl) buildManifestPushTemplate(overrideRequest *bean3
 		manifestPushTemplate.ChartReferenceTemplate = valuesOverrideResponse.EnvOverride.Chart.ReferenceTemplate
 		manifestPushTemplate.ChartName = valuesOverrideResponse.EnvOverride.Chart.ChartName
 		manifestPushTemplate.ChartVersion = valuesOverrideResponse.EnvOverride.Chart.ChartVersion
-		manifestPushTemplate.ChartLocation = valuesOverrideResponse.EnvOverride.Chart.ChartLocation
+		manifestPushTemplate.ChartLocation = valuesOverrideResponse.DeploymentConfig.GetChartLocation()
 		manifestPushTemplate.RepoUrl = valuesOverrideResponse.DeploymentConfig.GetRepoURL()
 		manifestPushTemplate.TargetRevision = valuesOverrideResponse.DeploymentConfig.GetTargetRevision()
+		manifestPushTemplate.ValuesFilePath = valuesOverrideResponse.DeploymentConfig.GetValuesFilePath()
 		manifestPushTemplate.IsCustomGitRepository = common.IsCustomGitOpsRepo(valuesOverrideResponse.DeploymentConfig.ConfigType)
 	}
 	return manifestPushTemplate, nil
