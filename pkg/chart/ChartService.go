@@ -382,28 +382,21 @@ func (impl *ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Templat
 	if err != nil && pg.ErrNoRows != err {
 		return nil, err
 	}
+
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(templateRequest.AppId, 0)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment config by appId", "appId", templateRequest.AppId, "err", err)
+		return nil, err
+	}
+
 	chartLocation := filepath.Join(templateName, version)
 	gitRepoUrl := apiGitOpsBean.GIT_REPO_NOT_CONFIGURED
-	if currentLatestChart.Id > 0 && currentLatestChart.GitRepoUrl != "" {
+	if currentLatestChart.Id > 0 && deploymentConfig.GetRepoURL() != "" {
 		gitRepoUrl = currentLatestChart.GitRepoUrl
 	}
 
-	deploymentConfig := &bean2.DeploymentConfig{
-		AppId:      templateRequest.AppId,
-		ConfigType: common.GetDeploymentConfigType(templateRequest.IsCustomGitRepository),
-		ReleaseConfiguration: &bean2.ReleaseConfiguration{
-			Version: bean2.Version,
-			ArgoCDSpec: bean2.ArgoCDSpec{
-				Spec: bean2.ApplicationSpec{
-					Source: &bean2.ApplicationSource{
-						RepoURL: gitRepoUrl,
-						Path:    chartLocation,
-					},
-				},
-			},
-		},
-		Active: true,
-	}
+	deploymentConfig.SetRepoURL(gitRepoUrl)
+	deploymentConfig.SetChartLocation(chartLocation)
 
 	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, templateRequest.UserId)
 	if err != nil {
