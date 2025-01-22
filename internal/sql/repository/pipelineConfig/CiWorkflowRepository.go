@@ -120,6 +120,7 @@ type WorkflowWithArtifact struct {
 	TriggeredBy             int32                           `sql:"triggered_by"`
 	EmailId                 string                          `sql:"email_id"`
 	Image                   string                          `sql:"image"`
+	TargetPlatforms         string                          `sql:"target_platforms"`
 	CiArtifactLocation      string                          `sql:"ci_artifact_location"`
 	CiArtifactId            int                             `sql:"ci_artifact_id"`
 	BlobStorageEnabled      bool                            `sql:"blob_storage_enabled"`
@@ -193,6 +194,7 @@ func (impl *CiWorkflowRepositoryImpl) FindByPipelineId(pipelineId int, offset in
 		ColumnExpr("cia.id AS ci_artifact_id").
 		ColumnExpr("env.environment_name").
 		ColumnExpr("cia.image").
+		ColumnExpr("cia.target_platforms").
 		ColumnExpr("cia.is_artifact_uploaded AS old_is_artifact_uploaded").
 		ColumnExpr("wf.*").
 		ColumnExpr("u.email_id").
