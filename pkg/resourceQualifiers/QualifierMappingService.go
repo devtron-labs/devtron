@@ -87,28 +87,8 @@ func (impl *QualifierMappingServiceImpl) DeleteAllByIds(qualifierMappingIds []in
 
 func (impl *QualifierMappingServiceImpl) CreateMappingsForSelections(tx *pg.Tx, userId int32, resourceMappingSelections []*ResourceMappingSelection) ([]*ResourceMappingSelection, error) {
 
-	resourceKeyMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
-
-	parentMappings := make([]*QualifierMapping, 0)
-	childrenMappings := make([]*QualifierMapping, 0)
-	parentMappingsMap := make(map[string]*QualifierMapping)
-
-	mappingsToSelection := make(map[*QualifierMapping]*ResourceMappingSelection)
-	for _, selection := range resourceMappingSelections {
-
-		var parent *QualifierMapping
-		children := make([]*QualifierMapping, 0)
-		if selection.QualifierSelector.isCompound() {
-			parent, children = GetQualifierMappingsForCompoundQualifier(selection, resourceKeyMap, userId)
-			parentMappingsMap[parent.CompositeKey] = parent
-		} else {
-			intValue, stringValue := GetValuesFromSelectionIdentifier(selection.QualifierSelector, selection.SelectionIdentifier)
-			parent = selection.toResourceMapping(selection.QualifierSelector, resourceKeyMap, intValue, stringValue, "", userId)
-		}
-		mappingsToSelection[parent] = selection
-		parentMappings = append(parentMappings, parent)
-		childrenMappings = append(childrenMappings, children...)
-	}
+	parentMappings, childrenMappings, mappingsToSelection, parentMappingsMap := getParentAndChildrenMappingForCreation(resourceMappingSelections,
+		impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap(), userId)
 
 	if len(parentMappings) > 0 {
 		_, err := impl.qualifierMappingRepository.CreateQualifierMappings(parentMappings, tx)
@@ -139,6 +119,32 @@ func (impl *QualifierMappingServiceImpl) CreateMappingsForSelections(tx *pg.Tx, 
 	}
 
 	return maps.Values(mappingsToSelection), nil
+}
+
+func getParentAndChildrenMappingForCreation(resourceMappingSelections []*ResourceMappingSelection, resourceKeyMap map[bean.DevtronResourceSearchableKeyName]int,
+	userId int32) ([]*QualifierMapping, []*QualifierMapping, map[*QualifierMapping]*ResourceMappingSelection, map[string]*QualifierMapping) {
+
+	parentMappings := make([]*QualifierMapping, 0)
+	childrenMappings := make([]*QualifierMapping, 0)
+	parentMappingsMap := make(map[string]*QualifierMapping)
+
+	mappingsToSelection := make(map[*QualifierMapping]*ResourceMappingSelection)
+	for _, selection := range resourceMappingSelections {
+
+		var parent *QualifierMapping
+		children := make([]*QualifierMapping, 0)
+		if selection.QualifierSelector.isCompound() {
+			parent, children = GetQualifierMappingsForCompoundQualifier(selection, resourceKeyMap, userId)
+			parentMappingsMap[parent.CompositeKey] = parent
+		} else {
+			intValue, stringValue := GetValuesFromSelectionIdentifier(selection.QualifierSelector, selection.SelectionIdentifier)
+			parent = selection.toResourceMapping(selection.QualifierSelector, resourceKeyMap, intValue, stringValue, "", userId)
+		}
+		mappingsToSelection[parent] = selection
+		parentMappings = append(parentMappings, parent)
+		childrenMappings = append(childrenMappings, children...)
+	}
+	return parentMappings, childrenMappings, mappingsToSelection, parentMappingsMap
 }
 
 func (impl *QualifierMappingServiceImpl) CreateMappings(tx *pg.Tx, userId int32, resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector, selectionIdentifiers []*SelectionIdentifier) error {
