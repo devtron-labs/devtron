@@ -35,6 +35,7 @@ func (a *ArgoCDSpec) GetApplicationObjectClusterId() int {
 type ApplicationMetadata struct {
 	ClusterId int    `json:"clusterId"`
 	Namespace string `json:"namespace"`
+	Name      string `json:"name"`
 }
 
 type ApplicationSpec struct {
