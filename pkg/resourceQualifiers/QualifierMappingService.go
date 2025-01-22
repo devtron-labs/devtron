@@ -158,7 +158,7 @@ func (impl *QualifierMappingServiceImpl) CreateMappings(tx *pg.Tx, userId int32,
 	return err
 }
 
-func (impl *QualifierMappingServiceImpl) filterAndGroupMappings(mappings []*QualifierMapping, selector QualifierSelector, composites mapset.Set) [][]*QualifierMapping {
+func filterAndGroupMappings(mappings []*QualifierMapping, selector QualifierSelector, composites mapset.Set) [][]*QualifierMapping {
 
 	numQualifiers := GetNumOfChildQualifiers(selector.toQualifier())
 	parentIdToChildMappings := make(map[int][]*QualifierMapping)
@@ -289,7 +289,7 @@ func (impl *QualifierMappingServiceImpl) GetResourceMappingsForResources(resourc
 }
 
 func (impl *QualifierMappingServiceImpl) processMappings(resourceType ResourceType, mappings []*QualifierMapping, qualifierSelector QualifierSelector, composites mapset.Set) ([]ResourceQualifierMappings, error) {
-	groups := impl.filterAndGroupMappings(mappings, qualifierSelector, composites)
+	groups := filterAndGroupMappings(mappings, qualifierSelector, composites)
 	if qualifierSelector != ApplicationEnvironmentSelector {
 		return nil, fmt.Errorf("selector currently not implemented")
 	}
