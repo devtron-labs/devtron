@@ -2,6 +2,7 @@
 ## Devtron Environment Variables
 | Key   | Value        | Description       |
 |-------|--------------|-------------------|
+ | - |  |  | 
  | ACD_CM | argocd-cm |  | 
  | ACD_NAMESPACE | devtroncd |  | 
  | ACD_PASSWORD |  |  | 
@@ -144,6 +145,7 @@
  | GIT_SENSOR_PROTOCOL | REST |  | 
  | GIT_SENSOR_TIMEOUT | 0 |  | 
  | GIT_SENSOR_URL | 127.0.0.1:7070 |  | 
+ | GO_RUNTIME_ENV | production |  | 
  | GRAFANA_HOST | localhost |  | 
  | GRAFANA_NAMESPACE | devtroncd |  | 
  | GRAFANA_ORG_ID | 2 |  | 

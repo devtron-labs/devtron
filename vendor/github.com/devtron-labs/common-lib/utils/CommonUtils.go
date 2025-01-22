@@ -147,7 +147,6 @@ func GetSelfK8sPodName() string {
 	return os.Getenv(DEVTRON_SELF_POD_NAME)
 }
 
-// TODO: how to separate this service-wise ?
 var PgQueryDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name: "pg_query_duration_seconds",
 	Help: "Duration of PG queries",

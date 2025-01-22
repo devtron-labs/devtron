@@ -32,7 +32,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	bean5 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
-	bean6 "github.com/devtron-labs/devtron/pkg/infraConfig/bean"
+	infraBean "github.com/devtron-labs/devtron/pkg/infraConfig/bean/v1"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/plugin/bean"
 	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
@@ -161,7 +161,7 @@ func (workflowRequest *WorkflowRequest) updateExternalRunMetadata() {
 		workflowRequest.IsExtRun = true
 	}
 	// Check for external in case of JOB
-	if env != nil && env.Id != 0 && workflowRequest.CheckForJob() {
+	if env != nil && env.Id != 0 && workflowRequest.IsDevtronJob() {
 		workflowRequest.EnvironmentId = env.Id
 		workflowRequest.IsExtRun = true
 	}
@@ -352,6 +352,11 @@ func (workflowRequest *WorkflowRequest) AddNodeConstraintsFromConfig(workflowTem
 
 }
 
+func (workflowRequest *WorkflowRequest) AddInfraConfigurations(workflowTemplate *bean.WorkflowTemplate, infraConfiguration *infraBean.InfraConfig) {
+	timeout := infraConfiguration.GetCiTimeoutInt()
+	workflowTemplate.SetActiveDeadlineSeconds(timeout)
+}
+
 func (workflowRequest *WorkflowRequest) GetGlobalCmCsNamePrefix() string {
 	switch workflowRequest.Type {
 	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE:
@@ -412,8 +417,12 @@ func (workflowRequest *WorkflowRequest) GetExistingCmCsNamePrefix() string {
 	}
 }
 
-func (workflowRequest *WorkflowRequest) CheckForJob() bool {
+func (workflowRequest *WorkflowRequest) IsDevtronJob() bool {
 	return workflowRequest.Type == bean.JOB_WORKFLOW_PIPELINE_TYPE
+}
+
+func (workflowRequest *WorkflowRequest) IsDevtronCI() bool {
+	return workflowRequest.Type == bean.CI_WORKFLOW_PIPELINE_TYPE
 }
 
 func (workflowRequest *WorkflowRequest) GetNodeConstraints(config *CiCdConfig) *bean.NodeConstraints {
@@ -443,7 +452,7 @@ func (workflowRequest *WorkflowRequest) GetNodeConstraints(config *CiCdConfig) *
 	}
 }
 
-func (workflowRequest *WorkflowRequest) GetLimitReqCpuMem(config *CiCdConfig, infraConfigurations *bean6.InfraConfig) v1.ResourceRequirements {
+func (workflowRequest *WorkflowRequest) GetLimitReqCpuMem(config *CiCdConfig, infraConfigurations *infraBean.InfraConfig) v1.ResourceRequirements {
 	limitReqCpuMem := &bean.LimitReqCpuMem{}
 	switch workflowRequest.Type {
 	case bean.CI_WORKFLOW_PIPELINE_TYPE, bean.JOB_WORKFLOW_PIPELINE_TYPE:
@@ -484,7 +493,7 @@ func (workflowRequest *WorkflowRequest) getWorkflowImage() string {
 	}
 }
 
-func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdConfig, infraConfigurations *bean6.InfraConfig, workflowJson []byte, workflowTemplate *bean.WorkflowTemplate, workflowConfigMaps []bean3.ConfigSecretMap, workflowSecrets []bean3.ConfigSecretMap) (v1.Container, error) {
+func (workflowRequest *WorkflowRequest) GetWorkflowMainContainer(config *CiCdConfig, infraConfigurations *infraBean.InfraConfig, workflowJson []byte, workflowTemplate *bean.WorkflowTemplate, workflowConfigMaps []bean3.ConfigSecretMap, workflowSecrets []bean3.ConfigSecretMap) (v1.Container, error) {
 	privileged := true
 	pvc := workflowRequest.getPVCForWorkflowRequest()
 	containerEnvVariables := workflowRequest.getContainerEnvVariables(config, workflowJson)
