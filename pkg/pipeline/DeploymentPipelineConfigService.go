@@ -405,7 +405,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 	envIds := make([]*int, 0)
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		// skip creation of pipeline if envId is not set
-		if pipeline.EnvironmentId <= 0 {
+		if pipeline.EnvironmentId <= 0 || pipeline.IsExternalArgoAppLinkRequest() {
 			continue
 		}
 		//making environment array for fetching the clusterIds
