@@ -7,7 +7,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool/repository"
 )
 
-func (impl *CiServiceImpl) fetchImageScanExecutionMedium() (*repository.ScanToolMetadata, bean.ExecutionMedium, error) {
+func (impl *CiServiceImpl) fetchImageScanExecutionMedium() (*repository.ScanToolMetadata, bean.ScanExecutionMedium, error) {
 	return &repository.ScanToolMetadata{}, "", nil
 }
 

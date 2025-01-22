@@ -1,16 +1,16 @@
 package bean
 
-type ExecutionMedium string
+type ScanExecutionMedium string
 
 const (
-	Rest  ExecutionMedium = "rest"
-	Steps ExecutionMedium = "steps"
+	InHouse  ScanExecutionMedium = "in-house" // this contains all methods of hitting image scanner directly via rest or rpc
+	External ScanExecutionMedium = "external" // if a scan tool is registered via api and execution is via plugin steps
 )
 
-func (e ExecutionMedium) IsExecutionMediumRest() bool {
-	return e == Rest
+func (e ScanExecutionMedium) IsScanExecutionMediumInHouse() bool {
+	return e == InHouse
 }
 
-func (e ExecutionMedium) IsExecutionMediumSteps() bool {
-	return e == Steps
+func (e ScanExecutionMedium) IsScanMediumExternal() bool {
+	return e == External
 }

@@ -40,10 +40,6 @@ type ScanToolMetadata struct {
 	sql.AuditLog
 }
 
-func (r *ScanToolMetadata) IsPluginIdPresent() bool {
-	return r.PluginId > 0
-}
-
 type ScanToolMetadataRepository interface {
 	FindActiveToolByScanTarget(scanTarget bean.ScanTargetType) (*ScanToolMetadata, error)
 	FindByNameAndVersion(name, version string) (*ScanToolMetadata, error)

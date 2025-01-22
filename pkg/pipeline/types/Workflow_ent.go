@@ -22,7 +22,7 @@ func (r *ImageScanningSteps) WithScanToolId(scanToolId int) *ImageScanningSteps 
 	return r
 }
 
-func (workflowRequest *WorkflowRequest) SetExecuteImageScanningVia(scanVia bean2.ExecutionMedium) {
+func (workflowRequest *WorkflowRequest) SetExecuteImageScanningVia(scanVia bean2.ScanExecutionMedium) {
 	return
 }
 
