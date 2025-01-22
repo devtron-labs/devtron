@@ -33,6 +33,7 @@ type DeploymentServiceTypeConfig struct {
 	ExternallyManagedDeploymentType bool `env:"IS_INTERNAL_USE" envDefault:"false"`
 	HelmInstallASyncMode            bool `env:"RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS" envDefault:"false"`
 	UseDeploymentConfigData         bool `env:"USE_DEPLOYMENT_CONFIG_DATA" envDefault:"false"`
+	ShouldCheckNamespaceOnClone     bool `env:"SHOULD_CHECK_NAMESPACE_ON_CLONE" envDefault:"false"  description:"should we check if namespace exists or not while cloning app" deprecated:"false"`
 }
 
 type GlobalEnvVariables struct {
