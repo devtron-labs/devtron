@@ -341,7 +341,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) deleteInstalledApps(ctx
 			err = impl.fullModeDeploymentService.DeleteACD(deploymentAppName, ctx, false)
 		} else if deploymentConfig.DeploymentAppType == bean2.Helm {
 			// For converting from Helm to ArgoCD, GitOps should be configured
-			if gitOpsConfigErr != nil || !gitOpsConfigStatus.IsGitOpsConfigured {
+			if gitOpsConfigErr != nil || !gitOpsConfigStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
 				err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, Code: "200", UserMessage: errors.New("GitOps not configured or unable to fetch GitOps configuration")}
 			}
 			if err != nil {

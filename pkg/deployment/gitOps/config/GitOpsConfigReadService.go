@@ -24,6 +24,9 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
+	moduleBean "github.com/devtron-labs/devtron/pkg/module/bean"
+	moduleRead "github.com/devtron-labs/devtron/pkg/module/read"
+	moduleErr "github.com/devtron-labs/devtron/pkg/module/read/error"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/gitUtil"
 	"github.com/go-pg/pg"
@@ -50,22 +53,31 @@ type GitOpsConfigReadServiceImpl struct {
 	gitOpsRepository   repository.GitOpsConfigRepository
 	userService        user.UserService
 	globalEnvVariables *util.GlobalEnvVariables
+	moduleReadService  moduleRead.ModuleReadService
 }
 
 func NewGitOpsConfigReadServiceImpl(logger *zap.SugaredLogger,
 	gitOpsRepository repository.GitOpsConfigRepository,
 	userService user.UserService,
-	envVariables *util.EnvironmentVariables) *GitOpsConfigReadServiceImpl {
+	envVariables *util.EnvironmentVariables,
+	moduleReadService moduleRead.ModuleReadService) *GitOpsConfigReadServiceImpl {
 	return &GitOpsConfigReadServiceImpl{
 		logger:             logger,
 		gitOpsRepository:   gitOpsRepository,
 		userService:        userService,
 		globalEnvVariables: envVariables.GlobalEnvVariables,
+		moduleReadService:  moduleReadService,
 	}
 }
 
 func (impl *GitOpsConfigReadServiceImpl) IsGitOpsConfigured() (*bean.GitOpsConfigurationStatus, error) {
 	gitOpsConfigurationStatus := &bean.GitOpsConfigurationStatus{}
+	argoModule, err := impl.moduleReadService.GetModuleInfoByName(moduleBean.ModuleNameArgoCd)
+	if err != nil && !errors.Is(err, moduleErr.ModuleNotFoundError) {
+		impl.logger.Errorw("error in getting argo module", "error", err)
+		return nil, err
+	}
+	gitOpsConfigurationStatus.IsArgoCdInstalled = argoModule.IsInstalled()
 	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
 	if err != nil && !errors.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)

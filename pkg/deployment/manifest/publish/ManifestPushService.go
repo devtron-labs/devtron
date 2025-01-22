@@ -115,13 +115,20 @@ func (impl *GitOpsManifestPushServiceImpl) createRepoForGitOperation(manifestPus
 	return chartGitAttr.RepoUrl, nil
 }
 
-func (impl *GitOpsManifestPushServiceImpl) validateManifestPushRequest(globalGitOpsConfigStatus gitOpsBean.GitOpsConfigurationStatus, manifestPushTemplate bean.ManifestPushTemplate) error {
-	if !globalGitOpsConfigStatus.IsGitOpsConfigured {
-		return fmt.Errorf("Gitops integration is not installed/configured. Please install/configure gitops.")
-	}
-	if gitOps.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) {
-		if globalGitOpsConfigStatus.AllowCustomRepository {
-			return fmt.Errorf("GitOps repository is not configured! Please configure gitops repository for application first.")
+func (impl *GitOpsManifestPushServiceImpl) validateManifestPushRequest(globalGitOpsConfigStatus *gitOpsBean.GitOpsConfigurationStatus, manifestPushTemplate *bean.ManifestPushTemplate) error {
+	if manifestPushTemplate.ReleaseMode == util.PIPELINE_RELEASE_MODE_LINK {
+		// TODO Asutosh: skip with no error for clone mode
+		if gitOps.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) {
+			return fmt.Errorf("Could not push chart to git. GitOps repository is not found for the pipeline.")
+		}
+	} else {
+		if !globalGitOpsConfigStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
+			return fmt.Errorf("Gitops integration is not installed/configured. Please install/configure gitops.")
+		}
+		if gitOps.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) {
+			if globalGitOpsConfigStatus.AllowCustomRepository {
+				return fmt.Errorf("GitOps repository is not configured! Please configure gitops repository for application first.")
+			}
 		}
 	}
 	return nil
@@ -140,7 +147,7 @@ func (impl *GitOpsManifestPushServiceImpl) PushChart(ctx context.Context, manife
 		return manifestPushResponse
 	}
 	// 2. Validate Repository for Git Operation
-	errMsg := impl.validateManifestPushRequest(*globalGitOpsConfigStatus, *manifestPushTemplate)
+	errMsg := impl.validateManifestPushRequest(globalGitOpsConfigStatus, manifestPushTemplate)
 	if errMsg != nil {
 		manifestPushResponse.Error = errMsg
 		impl.SaveTimelineForError(manifestPushTemplate, errMsg)

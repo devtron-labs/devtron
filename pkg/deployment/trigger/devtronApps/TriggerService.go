@@ -1037,6 +1037,7 @@ func (impl *TriggerServiceImpl) buildManifestPushTemplate(overrideRequest *bean3
 		manifestPushTemplate.RepoUrl = valuesOverrideResponse.DeploymentConfig.GetRepoURL()
 		manifestPushTemplate.TargetRevision = valuesOverrideResponse.DeploymentConfig.GetTargetRevision()
 		manifestPushTemplate.ValuesFilePath = valuesOverrideResponse.DeploymentConfig.GetValuesFilePath()
+		manifestPushTemplate.ReleaseMode = valuesOverrideResponse.DeploymentConfig.ReleaseMode
 		manifestPushTemplate.IsCustomGitRepository = common.IsCustomGitOpsRepo(valuesOverrideResponse.DeploymentConfig.ConfigType)
 	}
 	return manifestPushTemplate, nil

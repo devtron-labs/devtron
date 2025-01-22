@@ -555,7 +555,7 @@ func (impl *ChartServiceImpl) IsGitOpsRepoConfiguredForDevtronApp(appId int) (bo
 	if err != nil {
 		impl.logger.Errorw("error in fetching latest chart for app by appId")
 		return false, err
-	} else if !gitOpsConfigStatus.IsGitOpsConfigured {
+	} else if !gitOpsConfigStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
 		return false, nil
 	} else if !gitOpsConfigStatus.AllowCustomRepository {
 		return true, nil
@@ -576,7 +576,7 @@ func (impl *ChartServiceImpl) IsGitOpsRepoConfiguredForDevtronApps(appIds []int)
 	}
 	appIdRepoConfiguredMap := make(map[int]bool, len(appIds))
 	for _, appId := range appIds {
-		if !gitOpsConfigStatus.IsGitOpsConfigured {
+		if !gitOpsConfigStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
 			appIdRepoConfiguredMap[appId] = false
 		} else if !gitOpsConfigStatus.AllowCustomRepository {
 			appIdRepoConfiguredMap[appId] = true

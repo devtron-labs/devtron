@@ -326,28 +326,34 @@ func (impl *GitOpsConfigServiceImpl) registerGitOpsClientConfig(ctx context.Cont
 			return nil, fmt.Errorf("resouce version not matched with config map attempted 3 times")
 		}
 	}
+	if err := impl.registerClustersInArgoCd(ctx); err != nil {
+		return nil, err
+	}
+	return request, nil
+}
 
+func (impl *GitOpsConfigServiceImpl) registerClustersInArgoCd(ctx context.Context) error {
 	// if git-ops config is created/saved successfully (just before transaction commit) and this was first git-ops config, then upsert clusters in acd
 	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if !gitOpsConfigurationStatus.IsGitOpsConfigured {
+	if !gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
 		clusters, err := impl.clusterService.FindAllActive()
 		if err != nil {
 			impl.logger.Errorw("Error while fetching all the clusters", "err", err)
-			return nil, err
+			return err
 		}
 		for _, clusterBean := range clusters {
 			cl := impl.clusterService.ConvertClusterBeanObjectToCluster(&clusterBean)
 			_, err = impl.argoClientWrapperService.CreateCluster(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
 			if err != nil {
 				impl.logger.Errorw("Error while upserting cluster in acd", "clusterName", clusterBean.ClusterName, "err", err)
-				return nil, err
+				return err
 			}
 		}
 	}
-	return request, nil
+	return nil
 }
 
 // step-1: save data in DB
@@ -598,15 +604,16 @@ func (impl *GitOpsConfigServiceImpl) patchGitOpsClientConfig(model *repository.G
 			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 			if err != nil {
 				continue
-			}
-			if err == nil {
+			} else {
 				operationComplete = true
 			}
 		}
 		if !operationComplete {
 			return fmt.Errorf("resouce version not matched with config map attempted 3 times")
 		}
-
+	}
+	if err := impl.registerClustersInArgoCd(context.Background()); err != nil {
+		return err
 	}
 	return nil
 }

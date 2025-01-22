@@ -715,7 +715,7 @@ func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []bean4.AppWork
 				sourceToNewPipelineId: sourceToNewPipelineIdMapping,
 				externalCiPipelineId:  createWorkflowMappingDto.externalCiPipelineId,
 			}
-			pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
+			pipeline, err := impl.createClonedCdPipeline(cdCloneReq, ctx)
 			impl.logger.Debugw("cd pipeline created", "pipeline", pipeline)
 			if err != nil {
 				impl.logger.Errorw("error in getting cd-pipeline", "refAppId", createWorkflowMappingDto.oldAppId, "newAppId", createWorkflowMappingDto.newAppId, "err", err)
@@ -769,7 +769,7 @@ func (impl *AppCloneServiceImpl) createWfInstances(refWfMappings []bean4.AppWork
 			refAppName:            refApp.AppName,
 			sourceToNewPipelineId: sourceToNewPipelineIdMapping,
 		}
-		pipeline, err := impl.CreateCdPipeline(cdCloneReq, ctx)
+		pipeline, err := impl.createClonedCdPipeline(cdCloneReq, ctx)
 		if err != nil {
 			impl.logger.Errorw("error in creating cd pipeline, app clone", "err", err)
 			return createWorkflowMappingDto, err
@@ -961,7 +961,7 @@ type cloneCdPipelineRequest struct {
 	externalCiPipelineId  int
 }
 
-func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, ctx context.Context) (*bean.CdPipelines, error) {
+func (impl *AppCloneServiceImpl) createClonedCdPipeline(req *cloneCdPipelineRequest, ctx context.Context) (*bean.CdPipelines, error) {
 	refPipelines, err := impl.pipelineBuilder.GetCdPipelinesForApp(req.refAppId)
 	if err != nil {
 		return nil, err
@@ -1001,7 +1001,9 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 	var deploymentAppType string
 	if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] && AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 		deploymentAppType = refCdPipeline.DeploymentAppType
-	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] && gitOpsConfigurationStatus.IsGitOpsConfigured {
+	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] && gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
+		// if GitOps is configured and ArgoCD is installed, then the deployment type should be ACD
+		// if GitOps is configured and ArgoCD is not installed, then the deployment type should be Helm
 		deploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 	} else if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 		deploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM

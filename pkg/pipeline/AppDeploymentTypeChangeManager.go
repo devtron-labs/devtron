@@ -489,8 +489,8 @@ func (impl *AppDeploymentTypeChangeManagerImpl) DeleteDeploymentApps(ctx context
 		} else {
 
 			// For converting from Helm to ArgoCD, GitOps should be configured
-			if gitOpsConfigErr != nil || !gitOpsConfigurationStatus.IsGitOpsConfigured {
-				err = errors.New("GitOps not configured or unable to fetch GitOps configuration")
+			if gitOpsConfigErr != nil || !gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
+				err = errors.New("GitOps integration is not installed/configured. Please install/configure GitOps.")
 
 			} else {
 				// Register app in ACD

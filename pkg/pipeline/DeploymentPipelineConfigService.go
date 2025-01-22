@@ -390,8 +390,11 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		if pipeline.EnvironmentId <= 0 {
 			continue
 		}
-		//making environment array for fetching the clusterIds
+		// making environment array for fetching the clusterIds
 		envIds = append(envIds, &pipeline.EnvironmentId)
+		// validate and override deployment app type
+		// NOTE: using gitOpsConfigurationStatus.IsGitOpsConfigured instead of gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled()
+		// as we need to allow the user to create pipeline with linked acd app, even if argo cd is not installed
 		overrideDeploymentType, err := impl.deploymentTypeOverrideService.ValidateAndOverrideDeploymentAppType(pipeline.DeploymentAppType, gitOpsConfigurationStatus.IsGitOpsConfigured, pipeline.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("validation error in creating pipeline", "name", pipeline.Name, "err", err)
@@ -427,7 +430,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 	}
 
 	// TODO: creating git repo for all apps irrespective of acd or helm
-	if gitOpsConfigurationStatus.IsGitOpsConfigured && isGitOpsRequiredForCD && !pipelineCreateRequest.IsCloneAppReq {
+	if gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() && isGitOpsRequiredForCD && !pipelineCreateRequest.IsCloneAppReq {
 
 		if gitOps.IsGitOpsRepoNotConfigured(appDeploymentConfig.GetRepoURL()) {
 			if gitOpsConfigurationStatus.AllowCustomRepository || appDeploymentConfig.ConfigType == bean4.CUSTOM.String() {
@@ -1234,7 +1237,7 @@ func (impl *CdPipelineConfigServiceImpl) GetCdPipelinesByEnvironment(request res
 		impl.logger.Errorw("error in fetching global GitOps configuration")
 		return nil, err
 	}
-	if gitOpsConfigStatus.IsGitOpsConfigured && !gitOpsConfigStatus.AllowCustomRepository {
+	if gitOpsConfigStatus.IsGitOpsConfiguredAndArgoCdInstalled() && !gitOpsConfigStatus.AllowCustomRepository {
 		isAppLevelGitOpsConfigured = true
 	}
 	var strPipelineIds []string

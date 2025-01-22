@@ -160,8 +160,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) AppStoreDeployOperationDB(installRe
 		return nil, err
 	}
 
-	// Stage 2:  validate deployment app type and override if ExternallyManagedDeploymentType
-	overrideDeploymentType, err := impl.validateAndGetOverrideDeploymentAppType(installRequest, gitOpsConfigStatus.IsGitOpsConfigured)
+	overrideDeploymentType, err := impl.validateAndGetOverrideDeploymentAppType(installRequest, gitOpsConfigStatus.IsGitOpsConfiguredAndArgoCdInstalled())
 	if err != nil {
 		impl.logger.Errorw("error in validating deployment app type", "error", err)
 		return nil, err

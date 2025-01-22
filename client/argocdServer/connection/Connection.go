@@ -68,6 +68,7 @@ type ArgoCDConnectionManager interface {
 	GetGrpcClientConnection(grpcConfig *bean.ArgoGRPCConfig) *grpc.ClientConn
 	GetOrUpdateArgoCdUserDetail(grpcConfig *bean.ArgoGRPCConfig) string
 }
+
 type ArgoCDConnectionManagerImpl struct {
 	logger                  *zap.SugaredLogger
 	settingsManager         *settings.SettingsManager
@@ -117,7 +118,7 @@ func NewArgoCDConnectionManagerImpl(Logger *zap.SugaredLogger,
 
 func (impl *ArgoCDConnectionManagerImpl) ValidateGitOpsAndGetOrUpdateArgoCdUserDetail(grpcConfig *bean.ArgoGRPCConfig) string {
 	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
-	if err != nil || !gitOpsConfigurationStatus.IsGitOpsConfigured {
+	if err != nil || !gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
 		return ""
 	}
 	_ = impl.GetOrUpdateArgoCdUserDetail(grpcConfig)

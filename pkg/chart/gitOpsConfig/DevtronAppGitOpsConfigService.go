@@ -77,7 +77,7 @@ func (impl *DevtronAppGitOpConfigServiceImpl) SaveAppLevelGitOpsConfiguration(ap
 		impl.logger.Errorw("error in fetching active gitOps config", "err", err)
 		return err
 	}
-	if !gitOpsConfigurationStatus.IsGitOpsConfigured {
+	if !gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
 		apiErr := &util.ApiError{
 			HttpStatusCode:  http.StatusPreconditionFailed,
 			UserMessage:     "GitOps integration is not installed/configured. Please install/configure GitOps.",
@@ -157,7 +157,7 @@ func (impl *DevtronAppGitOpConfigServiceImpl) GetAppLevelGitOpsConfiguration(app
 	if err != nil {
 		impl.logger.Errorw("error in fetching active gitOps config", "err", err)
 		return nil, err
-	} else if !gitOpsConfigurationStatus.IsGitOpsConfigured {
+	} else if !gitOpsConfigurationStatus.IsGitOpsConfiguredAndArgoCdInstalled() {
 		apiErr := &util.ApiError{
 			HttpStatusCode:  http.StatusPreconditionFailed,
 			UserMessage:     "GitOps integration is not installed/configured. Please install/configure GitOps.",

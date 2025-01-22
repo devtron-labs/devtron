@@ -38,6 +38,7 @@ type ManifestPushTemplate struct {
 	RepoUrl                string
 	TargetRevision         string
 	ValuesFilePath         string
+	ReleaseMode            string
 	IsCustomGitRepository  bool
 	BuiltChartPath         string
 	BuiltChartBytes        *[]byte
