@@ -34,13 +34,14 @@ type QualifierMappingService interface {
 	CreateQualifierMappings(qualifierMappings []*QualifierMapping, tx *pg.Tx) ([]*QualifierMapping, error)
 	GetQualifierMappings(resourceType ResourceType, scope *Scope, resourceIds []int) ([]*QualifierMapping, error)
 	DeleteAllQualifierMappings(resourceType ResourceType, auditLog sql.AuditLog, tx *pg.Tx) error
-	DeleteByIdentifierKeyValue(resourceType ResourceType, identifierKey int, identifierValue int, auditLog sql.AuditLog, tx *pg.Tx) error
+	DeleteByIdentifierKeyAndValue(resourceType ResourceType, identifierKey int, identifierValue int, qualifierId int, auditLog sql.AuditLog, tx *pg.Tx) error
 	DeleteAllByIds(qualifierMappingIds []int, userId int32, tx *pg.Tx) error
 	DeleteResourceMappingsForScopes(tx *pg.Tx, userId int32, resourceType ResourceType, qualifierSelector QualifierSelector, scopes []*SelectionIdentifier) error
 	CreateMappingsForSelections(tx *pg.Tx, userId int32, resourceMappingSelections []*ResourceMappingSelection) ([]*ResourceMappingSelection, error)
 	CreateMappings(tx *pg.Tx, userId int32, resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector, selectionIdentifiers []*SelectionIdentifier) error
 	GetResourceMappingsForSelections(resourceType ResourceType, qualifierSelector QualifierSelector, selectionIdentifiers []*SelectionIdentifier) ([]ResourceQualifierMappings, error)
 	GetResourceMappingsForResources(resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector) ([]ResourceQualifierMappings, error)
+	QualifierMappingServiceEnt
 }
 
 type QualifierMappingServiceImpl struct {
@@ -57,24 +58,24 @@ func NewQualifierMappingServiceImpl(logger *zap.SugaredLogger, qualifierMappingR
 	}, nil
 }
 
-func (impl QualifierMappingServiceImpl) CreateQualifierMappings(qualifierMappings []*QualifierMapping, tx *pg.Tx) ([]*QualifierMapping, error) {
+func (impl *QualifierMappingServiceImpl) CreateQualifierMappings(qualifierMappings []*QualifierMapping, tx *pg.Tx) ([]*QualifierMapping, error) {
 	return impl.qualifierMappingRepository.CreateQualifierMappings(qualifierMappings, tx)
 }
 
-func (impl QualifierMappingServiceImpl) GetQualifierMappings(resourceType ResourceType, scope *Scope, resourceIds []int) ([]*QualifierMapping, error) {
+func (impl *QualifierMappingServiceImpl) GetQualifierMappings(resourceType ResourceType, scope *Scope, resourceIds []int) ([]*QualifierMapping, error) {
 	searchableKeyNameIdMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 	return impl.qualifierMappingRepository.GetQualifierMappings(resourceType, scope, searchableKeyNameIdMap, resourceIds)
 }
 
-func (impl QualifierMappingServiceImpl) DeleteAllQualifierMappings(resourceType ResourceType, auditLog sql.AuditLog, tx *pg.Tx) error {
+func (impl *QualifierMappingServiceImpl) DeleteAllQualifierMappings(resourceType ResourceType, auditLog sql.AuditLog, tx *pg.Tx) error {
 	return impl.qualifierMappingRepository.DeleteAllQualifierMappings(resourceType, auditLog, tx)
 }
 
-func (impl QualifierMappingServiceImpl) DeleteByIdentifierKeyValue(resourceType ResourceType, identifierKey int, identifierValue int, auditLog sql.AuditLog, tx *pg.Tx) error {
+func (impl *QualifierMappingServiceImpl) DeleteByIdentifierKeyAndValue(resourceType ResourceType, identifierKey int, identifierValue int, qualifierId int, auditLog sql.AuditLog, tx *pg.Tx) error {
 	return impl.qualifierMappingRepository.DeleteByResourceTypeIdentifierKeyAndValue(resourceType, identifierKey, identifierValue, auditLog, tx)
 }
 
-func (impl QualifierMappingServiceImpl) DeleteAllByIds(qualifierMappingIds []int, userId int32, tx *pg.Tx) error {
+func (impl *QualifierMappingServiceImpl) DeleteAllByIds(qualifierMappingIds []int, userId int32, tx *pg.Tx) error {
 	auditLog := sql.AuditLog{
 		CreatedOn: time.Now(),
 		CreatedBy: userId,
@@ -84,7 +85,7 @@ func (impl QualifierMappingServiceImpl) DeleteAllByIds(qualifierMappingIds []int
 	return impl.qualifierMappingRepository.DeleteAllByIds(qualifierMappingIds, auditLog, tx)
 }
 
-func (impl QualifierMappingServiceImpl) CreateMappingsForSelections(tx *pg.Tx, userId int32, resourceMappingSelections []*ResourceMappingSelection) ([]*ResourceMappingSelection, error) {
+func (impl *QualifierMappingServiceImpl) CreateMappingsForSelections(tx *pg.Tx, userId int32, resourceMappingSelections []*ResourceMappingSelection) ([]*ResourceMappingSelection, error) {
 
 	resourceKeyMap := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyNameIdMap()
 
@@ -140,7 +141,7 @@ func (impl QualifierMappingServiceImpl) CreateMappingsForSelections(tx *pg.Tx, u
 	return maps.Values(mappingsToSelection), nil
 }
 
-func (impl QualifierMappingServiceImpl) CreateMappings(tx *pg.Tx, userId int32, resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector, selectionIdentifiers []*SelectionIdentifier) error {
+func (impl *QualifierMappingServiceImpl) CreateMappings(tx *pg.Tx, userId int32, resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector, selectionIdentifiers []*SelectionIdentifier) error {
 	mappings := make([]*ResourceMappingSelection, 0)
 	for _, id := range resourceIds {
 		for _, selectionIdentifier := range selectionIdentifiers {
@@ -197,7 +198,7 @@ func (impl *QualifierMappingServiceImpl) filterAndGroupMappings(mappings []*Qual
 	return groupedMappings
 }
 
-func (impl QualifierMappingServiceImpl) getAppEnvIdentifierFromGroup(group []*QualifierMapping) *SelectionIdentifier {
+func (impl *QualifierMappingServiceImpl) getAppEnvIdentifierFromGroup(group []*QualifierMapping) *SelectionIdentifier {
 	resourceKeyToName := impl.devtronResourceSearchableKeyService.GetAllSearchableKeyIdNameMap()
 	var appId, envId int
 	var appName, envName string
@@ -213,7 +214,7 @@ func (impl QualifierMappingServiceImpl) getAppEnvIdentifierFromGroup(group []*Qu
 	return getSelectionIdentifierForAppEnv(appId, envId, getIdentifierNamesForAppEnv(envName, appName))
 }
 
-func (impl QualifierMappingServiceImpl) getSelectionIdentifierForAppEnvSelector(mappingGroups [][]*QualifierMapping) map[int][]*SelectionIdentifier {
+func (impl *QualifierMappingServiceImpl) getSelectionIdentifierForAppEnvSelector(mappingGroups [][]*QualifierMapping) map[int][]*SelectionIdentifier {
 
 	resourceIdToIdentifier := make(map[int][]*SelectionIdentifier)
 	for _, group := range mappingGroups {
@@ -229,7 +230,7 @@ func (impl QualifierMappingServiceImpl) getSelectionIdentifierForAppEnvSelector(
 	return resourceIdToIdentifier
 }
 
-func (impl QualifierMappingServiceImpl) DeleteResourceMappingsForScopes(tx *pg.Tx, userId int32, resourceType ResourceType, qualifierSelector QualifierSelector, scopes []*SelectionIdentifier) error {
+func (impl *QualifierMappingServiceImpl) DeleteResourceMappingsForScopes(tx *pg.Tx, userId int32, resourceType ResourceType, qualifierSelector QualifierSelector, scopes []*SelectionIdentifier) error {
 	if qualifierSelector != ApplicationEnvironmentSelector {
 		return fmt.Errorf("selector currently not implemented")
 	}
@@ -256,7 +257,7 @@ func (impl QualifierMappingServiceImpl) DeleteResourceMappingsForScopes(tx *pg.T
 
 }
 
-func (impl QualifierMappingServiceImpl) GetResourceMappingsForSelections(resourceType ResourceType, qualifierSelector QualifierSelector, selectionIdentifiers []*SelectionIdentifier) ([]ResourceQualifierMappings, error) {
+func (impl *QualifierMappingServiceImpl) GetResourceMappingsForSelections(resourceType ResourceType, qualifierSelector QualifierSelector, selectionIdentifiers []*SelectionIdentifier) ([]ResourceQualifierMappings, error) {
 	if qualifierSelector != ApplicationEnvironmentSelector {
 		return nil, fmt.Errorf("selector currently not implemented")
 	}
@@ -278,7 +279,7 @@ func (impl QualifierMappingServiceImpl) GetResourceMappingsForSelections(resourc
 
 	return impl.processMappings(resourceType, mappings, qualifierSelector, getCompositeStringsAppEnvSelection(selectionIdentifiers))
 }
-func (impl QualifierMappingServiceImpl) GetResourceMappingsForResources(resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector) ([]ResourceQualifierMappings, error) {
+func (impl *QualifierMappingServiceImpl) GetResourceMappingsForResources(resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector) ([]ResourceQualifierMappings, error) {
 	mappings, err := impl.qualifierMappingRepository.GetMappingsByResourceTypeAndIdsAndQualifierId(resourceType, resourceIds, int(qualifierSelector.toQualifier()))
 	if err != nil {
 		return nil, err
@@ -287,7 +288,7 @@ func (impl QualifierMappingServiceImpl) GetResourceMappingsForResources(resource
 	return impl.processMappings(resourceType, mappings, qualifierSelector, mapset.NewSet())
 }
 
-func (impl QualifierMappingServiceImpl) processMappings(resourceType ResourceType, mappings []*QualifierMapping, qualifierSelector QualifierSelector, composites mapset.Set) ([]ResourceQualifierMappings, error) {
+func (impl *QualifierMappingServiceImpl) processMappings(resourceType ResourceType, mappings []*QualifierMapping, qualifierSelector QualifierSelector, composites mapset.Set) ([]ResourceQualifierMappings, error) {
 	groups := impl.filterAndGroupMappings(mappings, qualifierSelector, composites)
 	if qualifierSelector != ApplicationEnvironmentSelector {
 		return nil, fmt.Errorf("selector currently not implemented")
