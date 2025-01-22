@@ -228,7 +228,7 @@ func (impl *InfraConfigServiceImpl) loadDefaultProfile() error {
 		impl.logger.Errorw("error in fetching platforms from db", "error", err)
 		return err
 	}
-	
+
 	runnerPlatFormMapping := &repository.ProfilePlatformMapping{}
 	//one platform is expected
 	if len(platformsFromDb) > 0 {
