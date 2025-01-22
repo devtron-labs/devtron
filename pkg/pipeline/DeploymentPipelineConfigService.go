@@ -51,6 +51,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
+	bean5 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	config2 "github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
@@ -70,6 +71,7 @@ import (
 	errors2 "github.com/juju/errors"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+	chart2 "helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
@@ -167,7 +169,7 @@ type CdPipelineConfigServiceImpl struct {
 	envConfigOverrideService          read.EnvConfigOverrideService
 	chartRefRepository                chartRepoRepository.ChartRefRepository
 	chartTemplateService              util.ChartTemplateService
-	gitFactory                        git.GitFactory
+	gitFactory                        *git.GitFactory
 }
 
 func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
@@ -196,7 +198,7 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 	envConfigOverrideService read.EnvConfigOverrideService,
 	chartRefRepository chartRepoRepository.ChartRefRepository,
 	chartTemplateService util.ChartTemplateService,
-	gitFactory git.GitFactory) *CdPipelineConfigServiceImpl {
+	gitFactory *git.GitFactory) *CdPipelineConfigServiceImpl {
 	return &CdPipelineConfigServiceImpl{
 		logger:                            logger,
 		pipelineRepository:                pipelineRepository,
@@ -443,7 +445,10 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 	}
 
 	// TODO: creating git repo for all apps irrespective of acd or helm
-	if gitOpsConfigurationStatus.IsGitOpsConfigured && isGitOpsRequiredForCD && !pipelineCreateRequest.IsCloneAppReq {
+	if gitOpsConfigurationStatus.IsGitOpsConfigured &&
+		isGitOpsRequiredForCD &&
+		!pipelineCreateRequest.IsCloneAppReq &&
+		!pipelineCreateRequest.Pipelines[0].IsExternalArgoAppLinkRequest() {
 
 		if gitOps.IsGitOpsRepoNotConfigured(AppDeploymentConfig.GetRepoURL()) {
 			if gitOpsConfigurationStatus.AllowCustomRepository || AppDeploymentConfig.ConfigType == bean4.CUSTOM.String() {
@@ -477,9 +482,38 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		// skip creation of DeploymentConfig if envId is not set
 		var envDeploymentConfig *bean4.DeploymentConfig
 		if pipeline.EnvironmentId > 0 {
-			envDeploymentConfig, err = impl.saveEnvLevelDeploymentConfig(pipeline, app, AppDeploymentConfig, pipelineCreateRequest.UserId)
+			env, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
 			if err != nil {
-				impl.logger.Errorw("error in saving env level deployment config", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+				impl.logger.Errorw("error in fetching environment", "environmentId", pipeline.EnvironmentId, "err", err)
+				return nil, err
+			}
+			envDeploymentConfig = &bean4.DeploymentConfig{
+				AppId:             app.Id,
+				EnvironmentId:     pipeline.EnvironmentId,
+				ConfigType:        AppDeploymentConfig.ConfigType,
+				DeploymentAppType: pipeline.DeploymentAppType,
+				RepoURL:           AppDeploymentConfig.RepoURL,
+				ReleaseMode:       pipeline.ReleaseMode,
+				Active:            true,
+			}
+			var releaseConfig *bean4.ReleaseConfiguration
+			if pipeline.IsExternalArgoAppLinkRequest() {
+				releaseConfig, err = impl.parseReleaseConfigForExternalAcdApp(pipeline, env)
+				if err != nil {
+					impl.logger.Errorw("error in parsing deployment config for external acd app", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+					return nil, err
+				}
+			} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+				releaseConfig, err = impl.parseReleaseConfigForACDApp(app, AppDeploymentConfig, env)
+				if err != nil {
+					impl.logger.Errorw("error in parsing deployment config for acd app", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+					return nil, err
+				}
+			}
+			envDeploymentConfig.ReleaseConfiguration = releaseConfig
+			envDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, pipelineCreateRequest.UserId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching creating env config", "appId", app.Id, "envId", pipeline.EnvironmentId, "err", err)
 				return nil, err
 			}
 		}
@@ -512,62 +546,20 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 	return pipelineCreateRequest, nil
 }
 
-func (impl *CdPipelineConfigServiceImpl) saveEnvLevelDeploymentConfig(pipeline *bean.CDPipelineConfigObject, app *app2.App, AppDeploymentConfig *bean4.DeploymentConfig, userId int32) (*bean4.DeploymentConfig, error) {
-	env, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching environment", "environmentId", pipeline.EnvironmentId, "err", err)
-		return nil, err
-	}
-	envDeploymentConfig := &bean4.DeploymentConfig{
-		AppId:             app.Id,
-		EnvironmentId:     pipeline.EnvironmentId,
-		ConfigType:        AppDeploymentConfig.ConfigType,
-		DeploymentAppType: pipeline.DeploymentAppType,
-		RepoURL:           AppDeploymentConfig.RepoURL,
-		ReleaseMode:       pipeline.ReleaseMode,
-		Active:            true,
-	}
-	var releaseConfig *bean4.ReleaseConfiguration
-	if pipeline.IsExternalArgoAppLinkRequest() {
-		releaseConfig, err = impl.parseEnvDeploymentConfigForExternalAcdApp(pipeline, env)
-		if err != nil {
-			impl.logger.Errorw("error in parsing deployment config for external acd app", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
-			return envDeploymentConfig, err
-		}
-	} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-		releaseConfig, err = impl.parseEnvDeploymentConfigForACDApp(app, AppDeploymentConfig, env)
-		if err != nil {
-			impl.logger.Errorw("error in parsing deployment config for acd app", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
-			return envDeploymentConfig, err
-		}
-	}
-	envDeploymentConfig.ReleaseConfiguration = releaseConfig
-	envDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, userId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching creating env config", "appId", app.Id, "envId", pipeline.EnvironmentId, "err", err)
-		return nil, err
-	}
-	return envDeploymentConfig, nil
-}
-
-func (impl *CdPipelineConfigServiceImpl) parseEnvDeploymentConfigForACDApp(app *app2.App, AppDeploymentConfig *bean4.DeploymentConfig, env *repository6.Environment) (*bean4.ReleaseConfiguration, error) {
+func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForACDApp(app *app2.App, AppDeploymentConfig *bean4.DeploymentConfig, env *repository6.Environment) (*bean4.ReleaseConfiguration, error) {
 	envConfigOverride, err := impl.envConfigOverrideService.ActiveEnvConfigOverride(app.Id, env.Id)
 	if err != nil {
 		impl.logger.Errorw("error in fetching environment override", "environmentId", env.Id, "err", err)
 		return nil, err
 	}
-	//TODO: common function for finding chart_ref_id,
-	var chartRefId int
-	if envConfigOverride.IsOverride {
-		chartRefId = envConfigOverride.ChartId
-	} else {
-		chart, err := impl.chartRepository.FindById(app.Id)
-		if err != nil {
-			impl.logger.Errorw("error in fetching chart", "appID", app.Id, "err", err)
-			return nil, err
-		}
-		chartRefId = chart.ChartRefId
+
+	eco, err := impl.envConfigOverrideService.FindLatestChartForAppByAppIdAndEnvId(app.Id, env.Id)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment override", "appId", app.Id, "environmentId", env.Id, "err", err)
+		return nil, err
 	}
+
+	chartRefId := eco.Chart.ChartRefId
 
 	chartRef, err := impl.chartRefRepository.FindById(chartRefId)
 	if err != nil {
@@ -601,8 +593,8 @@ func (impl *CdPipelineConfigServiceImpl) parseEnvDeploymentConfigForACDApp(app *
 	}, nil
 }
 
-func (impl *CdPipelineConfigServiceImpl) parseEnvDeploymentConfigForExternalAcdApp(pipeline *bean.CDPipelineConfigObject, env *repository6.Environment) (*bean4.ReleaseConfiguration, error) {
-	application, err := impl.argoClientWrapperService.GetArgoAppByNameWithK8s(context.Background(), env.ClusterId, env.Namespace, pipeline.DeploymentAppName)
+func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForExternalAcdApp(pipeline *bean.CDPipelineConfigObject, env *repository6.Environment) (*bean4.ReleaseConfiguration, error) {
+	application, err := impl.argoClientWrapperService.GetArgoAppByNameWithK8sClient(context.Background(), env.ClusterId, env.Namespace, pipeline.DeploymentAppName)
 	if err != nil {
 		impl.logger.Errorw("error in fetching application", "deploymentAppName", pipeline.DeploymentAppName, "err", err)
 		return nil, err
@@ -1824,7 +1816,7 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 	// do not create the pipeline if environment is not set
 	pipelineId := 0
 	if pipeline.EnvironmentId > 0 {
-		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
+		latestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
 		if err != nil {
 			return 0, err
 		}
@@ -1838,40 +1830,36 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 		appLevelAppMetricsEnabled = isAppLevelMetricsEnabled
 
 		var (
-			isOverride    bool
-			values        []byte
-			mergeStrategy models.MergeStrategy
+			envOverride       *bean5.EnvConfigOverride
+			updatedAppMetrics bool
 		)
-
-		if pipeline.ReleaseMode == util.PIPELINE_RELEASE_MODE_LINK {
-			isOverride = true
-			mergeStrategy = models.MERGE_STRATEGY_REPLACE
-			values, err = impl.GetValuesForExternalArgoCDApp(deploymentConfig.ReleaseConfiguration.ArgoCDSpec)
+		if pipeline.IsExternalArgoAppLinkRequest() {
+			overrideCreateRequest, err := impl.parseEnvOverrideCreateRequestForExternalAcdApp(deploymentConfig, latestChart, app, userId, pipeline, appLevelAppMetricsEnabled)
+			envOverride, updatedAppMetrics, err = impl.propertiesConfigService.CreateIfRequired(overrideCreateRequest, tx)
 			if err != nil {
-				impl.logger.Errorw("error in reading values for external argocd app", "acdAppName", deploymentConfig.ReleaseConfiguration.ArgoCDSpec.Metadata.Name, "err", err)
 				return 0, err
 			}
-			chart.GlobalOverride = string(values) // create if required function below is reading values from this file
+		} else {
+			overrideCreateRequest := &pipelineConfigBean.EnvironmentOverrideCreateInternalDTO{
+				Chart:               latestChart,
+				EnvironmentId:       pipeline.EnvironmentId,
+				UserId:              userId,
+				ManualReviewed:      false,
+				ChartStatus:         models.CHARTSTATUS_NEW,
+				IsOverride:          false,
+				IsAppMetricsEnabled: appLevelAppMetricsEnabled,
+				IsBasicViewLocked:   false,
+				Namespace:           pipeline.Namespace,
+				CurrentViewEditor:   latestChart.CurrentViewEditor,
+				MergeStrategy:       "",
+			}
+			envOverride, updatedAppMetrics, err = impl.propertiesConfigService.CreateIfRequired(overrideCreateRequest, tx)
+			if err != nil {
+				return 0, err
+			}
+			appLevelAppMetricsEnabled = updatedAppMetrics
 		}
 
-		overrideCreateRequest := &pipelineConfigBean.EnvironmentOverrideCreateInternalDTO{
-			Chart:               chart,
-			EnvironmentId:       pipeline.EnvironmentId,
-			UserId:              userId,
-			ManualReviewed:      false,
-			ChartStatus:         models.CHARTSTATUS_NEW,
-			IsOverride:          isOverride,
-			IsAppMetricsEnabled: appLevelAppMetricsEnabled,
-			IsBasicViewLocked:   false,
-			Namespace:           pipeline.Namespace,
-			CurrentViewEditor:   chart.CurrentViewEditor,
-			MergeStrategy:       mergeStrategy,
-		}
-
-		envOverride, updatedAppMetrics, err := impl.propertiesConfigService.CreateIfRequired(overrideCreateRequest, tx)
-		if err != nil {
-			return 0, err
-		}
 		appLevelAppMetricsEnabled = updatedAppMetrics
 		// Get pipeline override based on Deployment strategy
 		//TODO: mark as created in our db
@@ -1996,7 +1984,75 @@ func (impl *CdPipelineConfigServiceImpl) createCdPipeline(ctx context.Context, a
 	return pipelineId, nil
 }
 
-func (impl *CdPipelineConfigServiceImpl) GetValuesForExternalArgoCDApp(spec bean4.ArgoCDSpec) (json.RawMessage, error) {
+func (impl *CdPipelineConfigServiceImpl) parseEnvOverrideCreateRequestForExternalAcdApp(deploymentConfig *bean4.DeploymentConfig, latestChart *chartRepoRepository.Chart, app *app2.App, userId int32, pipeline *bean.CDPipelineConfigObject, appLevelAppMetricsEnabled bool) (*pipelineConfigBean.EnvironmentOverrideCreateInternalDTO, error) {
+	values, chartMetadata, err := impl.GetValuesAndChartMetadataForExternalArgoCDApp(deploymentConfig.ReleaseConfiguration.ArgoCDSpec)
+	if err != nil {
+		impl.logger.Errorw("error in reading values for external argocd app", "acdAppName", deploymentConfig.ReleaseConfiguration.ArgoCDSpec.Metadata.Name, "err", err)
+		return nil, err
+	}
+
+	chartName, chartVersion := chartMetadata.Name, chartMetadata.Version
+
+	chartRef, err := impl.chartRefRepository.FindByVersionAndName(chartVersion, chartName)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting chart ref by name and version", "chartName", chartName, "chartVersion", chartVersion, "err", err)
+		return nil, err
+	}
+	if errors3.Is(err, pg.ErrNoRows) {
+		return nil, util.NewApiError(http.StatusPreconditionFailed, "invalid chart configured", "invalid chart configured")
+	}
+
+	configuredChartRef, err := impl.chartRefRepository.FindById(latestChart.ChartRefId)
+	if err != nil {
+		impl.logger.Errorw("error in getting chart ref by id", "ChartRefId", latestChart.ChartRefId, "err", err)
+		return nil, err
+	}
+	if chartRef.Name != configuredChartRef.Name {
+		return nil, util.NewApiError(http.StatusPreconditionFailed, "invalid chart configured", "invalid chart configured")
+	}
+	chartForOverride, err := impl.chartRepository.FindChartByAppIdAndRefId(app.Id, chartRef.Id)
+	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in finding chart for this app and chart_ref_id", "appId", app.Id, "chartRefId", chartRef.Id, "err", err)
+		return nil, err
+	}
+	if errors3.Is(err, pg.ErrNoRows) {
+		chartCreateRequest := chart.TemplateRequest{
+			AppId:               app.Id,
+			ChartRefId:          chartRef.Id,
+			ValuesOverride:      []byte("{}"),
+			UserId:              userId,
+			IsAppMetricsEnabled: false,
+		}
+		_, err = impl.chartService.CreateChartFromEnvOverride(chartCreateRequest, context.Background())
+		if err != nil {
+			impl.logger.Errorw("error in creating chart from env override", "appId", app.Id, "chartRefId", chartRef.Id, "err", err)
+			return nil, err
+		}
+		chartForOverride, err = impl.chartRepository.FindChartByAppIdAndRefId(app.Id, chartRef.Id)
+		if err != nil && !errors3.Is(err, pg.ErrNoRows) {
+			impl.logger.Errorw("error in finding chart for this app and chart_ref_id", "appId", app.Id, "chartRefId", chartRef.Id, "err", err)
+			return nil, err
+		}
+	}
+	chartForOverride.GlobalOverride = string(values)
+
+	overrideCreateRequest := &pipelineConfigBean.EnvironmentOverrideCreateInternalDTO{
+		Chart:               chartForOverride,
+		EnvironmentId:       pipeline.EnvironmentId,
+		UserId:              userId,
+		ManualReviewed:      false,
+		ChartStatus:         models.CHARTSTATUS_NEW,
+		IsOverride:          false,
+		IsAppMetricsEnabled: appLevelAppMetricsEnabled,
+		IsBasicViewLocked:   false,
+		Namespace:           pipeline.Namespace,
+		CurrentViewEditor:   latestChart.CurrentViewEditor,
+		MergeStrategy:       "",
+	}
+	return overrideCreateRequest, err
+}
+
+func (impl *CdPipelineConfigServiceImpl) GetValuesAndChartMetadataForExternalArgoCDApp(spec bean4.ArgoCDSpec) (json.RawMessage, *chart2.Metadata, error) {
 	repoURL := spec.Spec.Source.RepoURL
 	chartPath := spec.Spec.Source.Path
 	//validation is performed before this step, so assuming ValueFiles array has one and only one entry
@@ -2012,7 +2068,7 @@ func (impl *CdPipelineConfigServiceImpl) GetValuesForExternalArgoCDApp(spec bean
 	_, err := impl.gitOperationService.CloneInDir(repoURL, clonedDir)
 	if err != nil {
 		impl.logger.Errorw("error in cloning in dir for external argo app", "argoAppName", spec.Metadata.Name, "err", err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	chartFullPath := filepath.Join(clonedDir, chartPath)
@@ -2020,15 +2076,15 @@ func (impl *CdPipelineConfigServiceImpl) GetValuesForExternalArgoCDApp(spec bean
 	helmChart, err := loader.Load(chartFullPath)
 	if err != nil {
 		impl.logger.Errorw("error in loading helm chart", "applicationName", spec.Metadata.Name, "chartPath", chartFullPath, "err", err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	for _, file := range helmChart.Files {
 		if file.Name == valuesFileName {
-			return file.Data, nil
+			return file.Data, helmChart.Metadata, nil
 		}
 	}
-	return nil, errors2.New(fmt.Sprintf("values file with name %s not found in chart", valuesFileName))
+	return nil, nil, errors2.New(fmt.Sprintf("values file with name %s not found in chart", valuesFileName))
 }
 
 func (impl *CdPipelineConfigServiceImpl) updateCdPipeline(ctx context.Context, pipeline *bean.CDPipelineConfigObject, userID int32) (err error) {

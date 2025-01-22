@@ -86,7 +86,7 @@ type ApplicationClientWrapper interface {
 	// GetArgoAppByName fetches an argoCd app by its name
 	GetArgoAppByName(ctx context.Context, appName string) (*v1alpha1.Application, error)
 
-	GetArgoAppByNameWithK8s(ctx context.Context, clusterId int, namespace, appName string) (map[string]interface{}, error)
+	GetArgoAppByNameWithK8sClient(ctx context.Context, clusterId int, namespace, appName string) (map[string]interface{}, error)
 
 	// SyncArgoCDApplicationIfNeededAndRefresh - if ARGO_AUTO_SYNC_ENABLED=true, app will be refreshed to initiate refresh at argoCD side or else it will be synced and refreshed
 	SyncArgoCDApplicationIfNeededAndRefresh(context context.Context, argoAppName string) error
@@ -406,7 +406,7 @@ func (impl *ArgoClientWrapperServiceImpl) GetArgoAppByName(ctx context.Context, 
 	return argoApplication, nil
 }
 
-func (impl *ArgoClientWrapperServiceImpl) GetArgoAppByNameWithK8s(ctx context.Context, clusterId int, namespace, appName string) (map[string]interface{}, error) {
+func (impl *ArgoClientWrapperServiceImpl) GetArgoAppByNameWithK8sClient(ctx context.Context, clusterId int, namespace, appName string) (map[string]interface{}, error) {
 	k8sConfig, err := impl.acdConfigGetter.GetK8sConfigWithClusterIdAndNamespace(clusterId, namespace)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s config", "err", err)

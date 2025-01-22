@@ -40,7 +40,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"net/url"
-	"path/filepath"
 	"strconv"
 	"time"
 
@@ -779,8 +778,10 @@ type ValuesOverrideResponse struct {
 }
 
 func (impl *AppServiceImpl) CreateGitOpsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *commonBean.ChartGitAttribute, err error) {
-	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
-	if err != nil && pg.ErrNoRows != err {
+
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(app.Id, 0)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment config for devtron apps", "appId", app.Id, "err", err)
 		return "", nil, err
 	}
 	gitOpsRepoName := impl.gitOpsConfigReadService.GetGitOpsRepoName(app.AppName)
@@ -789,7 +790,7 @@ func (impl *AppServiceImpl) CreateGitOpsRepo(app *app.App, userId int32) (gitops
 		impl.logger.Errorw("error in pushing chart to git ", "gitOpsRepoName", gitOpsRepoName, "err", err)
 		return "", nil, err
 	}
-	chartGitAttr.ChartLocation = filepath.Join(chart.ReferenceTemplate, chart.ChartVersion)
+	chartGitAttr.ChartLocation = deploymentConfig.GetChartLocation()
 	return gitOpsRepoName, chartGitAttr, nil
 }
 

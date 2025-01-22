@@ -123,7 +123,7 @@ func (impl *ArgoClientWrapperServiceEAImpl) GetArgoAppByName(ctx context.Context
 	return nil, nil
 }
 
-func (impl *ArgoClientWrapperServiceEAImpl) GetArgoAppByNameWithK8s(ctx context.Context, clusterId int, namespace, appName string) (map[string]interface{}, error) {
+func (impl *ArgoClientWrapperServiceEAImpl) GetArgoAppByNameWithK8sClient(ctx context.Context, clusterId int, namespace, appName string) (map[string]interface{}, error) {
 	impl.logger.Info("not implemented for EA mode")
 	return nil, nil
 }

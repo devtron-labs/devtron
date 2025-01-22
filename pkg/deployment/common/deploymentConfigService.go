@@ -200,8 +200,8 @@ func (impl *DeploymentConfigServiceImpl) parseAppLevelReleaseConfigForDevtronApp
 	if len(appLevelConfig.RepoURL) > 0 {
 		repoURL = appLevelConfig.RepoURL
 	}
-
-	releaseConfig := newAppLevelReleaseConfigFromChart(repoURL, chart.ChartLocation)
+	chartLocation := filepath.Join(chart.ReferenceTemplate, chart.ChartVersion)
+	releaseConfig := newAppLevelReleaseConfigFromChart(repoURL, chartLocation)
 	return releaseConfig, nil
 }
 
@@ -322,7 +322,9 @@ func (impl *DeploymentConfigServiceImpl) parseAppLevelMigrationDataForDevtronApp
 	if err != nil {
 		return nil, err
 	}
-	releaseConfig := newAppLevelReleaseConfigFromChart(chart.GitRepoUrl, chart.ChartLocation)
+
+	chartLocation := filepath.Join(chart.ReferenceTemplate, chart.ChartVersion)
+	releaseConfig := newAppLevelReleaseConfigFromChart(chart.GitRepoUrl, chartLocation)
 	config := &bean.DeploymentConfig{
 		AppId:                appId,
 		ConfigType:           GetDeploymentConfigType(chart.IsCustomGitRepository),
@@ -377,11 +379,11 @@ func (impl *DeploymentConfigServiceImpl) parseEnvLevelReleaseConfigForDevtronApp
 
 		releaseConfig.Version = bean.Version
 
-		envOverride, err := impl.EnvConfigOverrideService.ActiveEnvConfigOverride(appId, envId)
-		if err != nil {
+		envOverride, err := impl.EnvConfigOverrideService.FindLatestChartForAppByAppIdAndEnvId(appId, envId)
+		if err != nil && !errors.Is(err, pg.ErrNoRows) {
+			impl.logger.Errorw("error in fetch")
 			return nil, err
 		}
-
 		var latestChart *chartRepoRepository.Chart
 		if (envOverride.Id == 0) || (envOverride.Id > 0 && !envOverride.IsOverride) {
 			latestChart, err = impl.chartRepository.FindLatestChartForAppByAppId(appId)
