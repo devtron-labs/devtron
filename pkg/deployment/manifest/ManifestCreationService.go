@@ -38,6 +38,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/adapter"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
@@ -473,10 +474,9 @@ func (impl *ManifestCreationServiceImpl) getEnvOverrideForLastSavedConfigTrigger
 				impl.logger.Errorw("error in creating envConfig", "data", envOverride, "error", err)
 				return nil, err
 			}
+			envOverride = adapter.EnvOverrideDBToDTO(envOverrideDBObj)
 		}
-		if envOverride != nil {
-			envOverride.Chart = chart
-		}
+		envOverride.Chart = chart
 	} else if envOverride.Id > 0 && !envOverride.IsOverride {
 		_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindLatestChartForAppByAppId")
 		chart, err = impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
