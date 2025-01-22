@@ -268,8 +268,6 @@ func (impl *ChartServiceImpl) Create(templateRequest TemplateRequest, ctx contex
 		ChartVersion:            chartMeta.Version,
 		Status:                  models.CHARTSTATUS_NEW,
 		Active:                  true,
-		ChartLocation:           chartLocation,
-		GitRepoUrl:              gitRepoUrl,
 		ReferenceTemplate:       templateName,
 		ChartRefId:              templateRequest.ChartRefId,
 		Latest:                  true,
@@ -289,8 +287,18 @@ func (impl *ChartServiceImpl) Create(templateRequest TemplateRequest, ctx contex
 	deploymentConfig := &bean2.DeploymentConfig{
 		AppId:      templateRequest.AppId,
 		ConfigType: common.GetDeploymentConfigType(templateRequest.IsCustomGitRepository),
-		RepoURL:    gitRepoUrl,
-		Active:     true,
+		ReleaseConfiguration: &bean2.ReleaseConfiguration{
+			Version: bean2.Version,
+			ArgoCDSpec: bean2.ArgoCDSpec{
+				Spec: bean2.ApplicationSpec{
+					Source: &bean2.ApplicationSource{
+						RepoURL: gitRepoUrl,
+						Path:    chartLocation,
+					},
+				},
+			},
+		},
+		Active: true,
 	}
 	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, templateRequest.UserId)
 	if err != nil {
@@ -383,9 +391,20 @@ func (impl *ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Templat
 	deploymentConfig := &bean2.DeploymentConfig{
 		AppId:      templateRequest.AppId,
 		ConfigType: common.GetDeploymentConfigType(templateRequest.IsCustomGitRepository),
-		RepoURL:    gitRepoUrl,
-		Active:     true,
+		ReleaseConfiguration: &bean2.ReleaseConfiguration{
+			Version: bean2.Version,
+			ArgoCDSpec: bean2.ArgoCDSpec{
+				Spec: bean2.ApplicationSpec{
+					Source: &bean2.ApplicationSource{
+						RepoURL: gitRepoUrl,
+						Path:    chartLocation,
+					},
+				},
+			},
+		},
+		Active: true,
 	}
+
 	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, templateRequest.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in saving deployment config", "appId", templateRequest.AppId, "err", err)
@@ -734,11 +753,29 @@ func (impl *ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateReq
 		return nil, err
 	}
 
+	//TODO: ayush test and revisit
+	config, err := impl.deploymentConfigService.GetConfigForDevtronApps(template.AppId, 0)
+	if err != nil {
+		impl.logger.Errorw("error in fetching config", "appId", template.AppId, "err", err)
+		return nil, err
+	}
+
 	deploymentConfig := &bean2.DeploymentConfig{
 		AppId:      template.AppId,
 		ConfigType: common.GetDeploymentConfigType(template.IsCustomGitRepository),
-		RepoURL:    template.GitRepoUrl,
-		Active:     true,
+		RepoURL:    config.GetRepoURL(),
+		ReleaseConfiguration: &bean2.ReleaseConfiguration{
+			Version: bean2.Version,
+			ArgoCDSpec: bean2.ArgoCDSpec{
+				Spec: bean2.ApplicationSpec{
+					Source: &bean2.ApplicationSource{
+						RepoURL: config.GetRepoURL(),
+						Path:    config.GetChartLocation(),
+					},
+				},
+			},
+		},
+		Active: true,
 	}
 
 	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, templateRequest.UserId)
@@ -985,49 +1022,53 @@ func (impl *ChartServiceImpl) CheckIfChartRefUserUploadedByAppId(id int) (bool, 
 
 func (impl *ChartServiceImpl) ConfigureGitOpsRepoUrlForApp(appId int, repoUrl, chartLocation string, isCustomRepo bool, userId int32) (*bean2.DeploymentConfig, error) {
 
-	//update in both charts and deployment config
+	//TODO: revisit
+	////update in both charts and deployment config
+	//charts, err := impl.chartRepository.FindActiveChartsByAppId(appId)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//tx, err := impl.chartRepository.StartTx()
+	//if err != nil {
+	//	impl.logger.Errorw("error in starting transaction to update charts", "error", err)
+	//	return nil, err
+	//}
+	//defer impl.chartRepository.RollbackTx(tx)
+	//var updatedCharts []*chartRepoRepository.Chart
+	//var isCustom bool
+	//for _, ch := range charts {
+	//	if !ch.IsCustomGitRepository {
+	//		isCustom = ch.IsCustomGitRepository
+	//		ch.GitRepoUrl = repoUrl
+	//		ch.UpdateAuditLog(userId)
+	//		updatedCharts = append(updatedCharts, ch)
+	//	}
+	//}
+	//err = impl.chartRepository.UpdateAllInTx(tx, updatedCharts)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//err = impl.chartRepository.CommitTx(tx)
+	//if err != nil {
+	//	impl.logger.Errorw("error in committing transaction to update charts", "error", err)
+	//	return nil, err
+	//}
 
-	charts, err := impl.chartRepository.FindActiveChartsByAppId(appId)
+	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, 0)
 	if err != nil {
-		return nil, err
-	}
-	tx, err := impl.chartRepository.StartTx()
-	if err != nil {
-		impl.logger.Errorw("error in starting transaction to update charts", "error", err)
-		return nil, err
-	}
-	defer impl.chartRepository.RollbackTx(tx)
-	var updatedCharts []*chartRepoRepository.Chart
-	var isCustom bool
-	for _, ch := range charts {
-		if !ch.IsCustomGitRepository {
-			isCustom = ch.IsCustomGitRepository
-			ch.GitRepoUrl = repoUrl
-			ch.UpdateAuditLog(userId)
-			updatedCharts = append(updatedCharts, ch)
-		}
-	}
-	err = impl.chartRepository.UpdateAllInTx(tx, updatedCharts)
-	if err != nil {
-		return nil, err
-	}
-	err = impl.chartRepository.CommitTx(tx)
-	if err != nil {
-		impl.logger.Errorw("error in committing transaction to update charts", "error", err)
+		impl.logger.Errorw("error in getting deployment config", "appId", appId, "error", err)
 		return nil, err
 	}
 
-	deploymentConfig := &bean2.DeploymentConfig{
-		AppId:      appId,
-		ConfigType: common.GetDeploymentConfigType(isCustom),
-		RepoURL:    repoUrl,
-		Active:     true,
-	}
+	deploymentConfig.SetRepoURL(repoUrl)
+	deploymentConfig.SetChartLocation(chartLocation)
+
 	deploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, deploymentConfig, userId)
 	if err != nil {
 		impl.logger.Errorw("error in saving deployment config for app", "appId", appId, "err", err)
 		return nil, err
 	}
+
 	return deploymentConfig, nil
 }
 

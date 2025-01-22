@@ -20,7 +20,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/util"
+	bean2 "github.com/devtron-labs/devtron/pkg/auth/user/bean"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	bean9 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/bean"
@@ -34,7 +37,7 @@ import (
 )
 
 type DeploymentTemplateService interface {
-	BuildChartAndGetPath(appName string, envOverride *bean.EnvConfigOverride, ctx context.Context) (string, error)
+	BuildChartAndGetPath(appName string, envOverride *bean.EnvConfigOverride, envDeploymentConfig *bean9.DeploymentConfig, ctx context.Context) (string, error)
 }
 
 type DeploymentTemplateServiceImpl struct {
@@ -42,25 +45,28 @@ type DeploymentTemplateServiceImpl struct {
 	chartRefService      chartRef.ChartRefService
 	chartTemplateService util.ChartTemplateService
 
-	chartRepository chartRepoRepository.ChartRepository
+	chartRepository         chartRepoRepository.ChartRepository
+	deploymentConfigService common.DeploymentConfigService
 }
 
 func NewDeploymentTemplateServiceImpl(logger *zap.SugaredLogger,
 	chartRefService chartRef.ChartRefService,
 	chartTemplateService util.ChartTemplateService,
-	chartRepository chartRepoRepository.ChartRepository) *DeploymentTemplateServiceImpl {
+	chartRepository chartRepoRepository.ChartRepository,
+	deploymentConfigService common.DeploymentConfigService) *DeploymentTemplateServiceImpl {
 	return &DeploymentTemplateServiceImpl{
-		logger:               logger,
-		chartRefService:      chartRefService,
-		chartTemplateService: chartTemplateService,
-		chartRepository:      chartRepository,
+		logger:                  logger,
+		chartRefService:         chartRefService,
+		chartTemplateService:    chartTemplateService,
+		chartRepository:         chartRepository,
+		deploymentConfigService: deploymentConfigService,
 	}
 }
 
-func (impl *DeploymentTemplateServiceImpl) BuildChartAndGetPath(appName string, envOverride *bean.EnvConfigOverride, ctx context.Context) (string, error) {
+func (impl *DeploymentTemplateServiceImpl) BuildChartAndGetPath(appName string, envOverride *bean.EnvConfigOverride, envDeploymentConfig *bean9.DeploymentConfig, ctx context.Context) (string, error) {
 	if !strings.HasSuffix(envOverride.Chart.ChartLocation, fmt.Sprintf("%s%s", "/", envOverride.Chart.ChartVersion)) {
 		_, span := otel.Tracer("orchestrator").Start(ctx, "autoHealChartLocationInChart")
-		err := impl.autoHealChartLocationInChart(ctx, envOverride)
+		err := impl.autoHealChartLocationInChart(ctx, envOverride, envDeploymentConfig)
 		span.End()
 		if err != nil {
 			return "", err
@@ -98,7 +104,7 @@ func (impl *DeploymentTemplateServiceImpl) BuildChartAndGetPath(appName string, 
 	return tempReferenceTemplateDir, nil
 }
 
-func (impl *DeploymentTemplateServiceImpl) autoHealChartLocationInChart(ctx context.Context, envOverride *bean.EnvConfigOverride) error {
+func (impl *DeploymentTemplateServiceImpl) autoHealChartLocationInChart(ctx context.Context, envOverride *bean.EnvConfigOverride, envDeploymentConfig *bean9.DeploymentConfig) error {
 	chartId := envOverride.Chart.Id
 	impl.logger.Infow("auto-healing: Chart location in chart not correct. modifying ", "chartId", chartId,
 		"current chartLocation", envOverride.Chart.ChartLocation, "current chartVersion", envOverride.Chart.ChartVersion)
@@ -138,5 +144,14 @@ func (impl *DeploymentTemplateServiceImpl) autoHealChartLocationInChart(ctx cont
 
 	// update newChartLocation in model
 	envOverride.Chart.ChartLocation = newChartLocation
+
+	//TODO: Ayush review
+	envDeploymentConfig.SetChartLocation(newChartLocation)
+	envDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, bean2.SystemUserId)
+	if err != nil {
+		impl.logger.Errorw("error occurred while creating or updating config", "appId", chart.AppId, "err", err)
+		return err
+	}
+
 	return nil
 }

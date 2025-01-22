@@ -24,6 +24,14 @@ type ArgoCDSpec struct {
 	Spec     ApplicationSpec     `json:"spec"`
 }
 
+func (a *ArgoCDSpec) SetApplicationObjectClusterId(clusterId int) {
+	a.Metadata.ClusterId = clusterId
+}
+
+func (a *ArgoCDSpec) GetApplicationObjectClusterId() int {
+	return a.Metadata.ClusterId
+}
+
 type ApplicationMetadata struct {
 	ClusterId int    `json:"clusterId"`
 	Namespace string `json:"namespace"`
@@ -164,7 +172,7 @@ type DeploymentConfig struct {
 }
 
 func (c *DeploymentConfig) GetRepoURL() string {
-	if c.ReleaseConfiguration != nil {
+	if c.ReleaseConfiguration != nil && c.ReleaseConfiguration.ArgoCDSpec.Spec.Source != nil {
 		return c.ReleaseConfiguration.ArgoCDSpec.Spec.Source.RepoURL
 	}
 	return ""
@@ -176,6 +184,10 @@ func (c *DeploymentConfig) GetChartLocation() string {
 
 func (c *DeploymentConfig) SetRepoURL(repoURL string) {
 	c.ReleaseConfiguration.ArgoCDSpec.Spec.Source.RepoURL = repoURL
+}
+
+func (c *DeploymentConfig) SetChartLocation(chartLocation string) {
+	c.ReleaseConfiguration.ArgoCDSpec.Spec.Source.Path = chartLocation
 }
 
 func (c *DeploymentConfig) GetRevision() string {

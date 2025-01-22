@@ -846,17 +846,11 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 		return releaseNo, manifestPushTemplate, nil
 	}
 	// build merged values and save PCO history for the release
-	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(overrideRequest, triggeredAt, newCtx)
-
-	if envDeploymentConfig == nil || (envDeploymentConfig != nil && envDeploymentConfig.Id == 0) {
-		envDeploymentConfig, err1 := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(overrideRequest.AppId, overrideRequest.EnvId)
-		if err1 != nil {
-			impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "err", err1)
-			return releaseNo, manifestPushTemplate, err1
-		}
-		valuesOverrideResponse.DeploymentConfig = envDeploymentConfig
+	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(overrideRequest, envDeploymentConfig, triggeredAt, newCtx)
+	if err != nil {
+		impl.logger.Errorw("error in building manifest for trigger", "appId", overrideRequest.AppId, "pipelineId", overrideRequest.PipelineId, "err", err)
+		return releaseNo, manifestPushTemplate, err
 	}
-	valuesOverrideResponse.DeploymentConfig = envDeploymentConfig
 
 	// auditDeploymentTriggerHistory is performed irrespective of BuildManifestForTrigger error - for auditing purposes
 	historyErr := impl.auditDeploymentTriggerHistory(overrideRequest.WfrId, valuesOverrideResponse, newCtx, triggeredAt, triggeredBy)

@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"path/filepath"
 )
 
 type DeploymentConfigService interface {
@@ -34,6 +35,7 @@ type DeploymentConfigService interface {
 	UpdateRepoUrlForAppAndEnvId(repoURL string, appId, envId int) error
 	GetDeploymentAppTypeForCDInBulk(pipelines []*pipelineConfig.Pipeline) (map[int]string, error)
 	GetAllConfigsWithCustomGitOpsURL() ([]*bean.DeploymentConfig, error)
+	UpdateChartLocationInDeploymentConfig(appId, envId, chartRefId int, userId int32, chartVersion string) error
 }
 
 type DeploymentConfigServiceImpl struct {
@@ -46,6 +48,7 @@ type DeploymentConfigServiceImpl struct {
 	deploymentServiceTypeConfig *util.DeploymentServiceTypeConfig
 	EnvConfigOverrideService    read.EnvConfigOverrideService
 	environmentRepository       repository.EnvironmentRepository
+	chartRefRepository          chartRepoRepository.ChartRefRepository
 }
 
 func NewDeploymentConfigServiceImpl(
@@ -58,6 +61,7 @@ func NewDeploymentConfigServiceImpl(
 	envVariables *util.EnvironmentVariables,
 	EnvConfigOverrideService read.EnvConfigOverrideService,
 	environmentRepository repository.EnvironmentRepository,
+	chartRefRepository chartRepoRepository.ChartRefRepository,
 ) *DeploymentConfigServiceImpl {
 
 	return &DeploymentConfigServiceImpl{
@@ -70,6 +74,7 @@ func NewDeploymentConfigServiceImpl(
 		deploymentServiceTypeConfig: envVariables.DeploymentServiceTypeConfig,
 		EnvConfigOverrideService:    EnvConfigOverrideService,
 		environmentRepository:       environmentRepository,
+		chartRefRepository:          chartRefRepository,
 	}
 }
 
@@ -663,4 +668,28 @@ func (impl *DeploymentConfigServiceImpl) GetAllConfigsWithCustomGitOpsURL() ([]*
 		configs = append(configs, config)
 	}
 	return configs, nil
+}
+
+func (impl *DeploymentConfigServiceImpl) UpdateChartLocationInDeploymentConfig(appId, envId, chartRefId int, userId int32, chartVersion string) error {
+	config, err := impl.GetConfigForDevtronApps(appId, envId)
+	if err != nil {
+		impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", appId, "envId", envId, "err", err)
+		return err
+	}
+	if config.ReleaseMode == util2.PIPELINE_RELEASE_MODE_CREATE {
+		chartRef, err := impl.chartRefRepository.FindById(chartRefId)
+		if err != nil {
+			impl.logger.Errorw("error in ChartRefRepository.FindById", "chartRefId", chartRefId, "err", err)
+			return err
+		}
+		//TODO: ayush common function for chart location
+		chartLocation := filepath.Join(chartRef.Location, chartVersion)
+		config.SetChartLocation(chartLocation)
+		config, err = impl.CreateOrUpdateConfig(nil, config, userId)
+		if err != nil {
+			impl.logger.Errorw("error in CreateOrUpdateConfig", "appId", appId, "envId", envId, "err", err)
+			return err
+		}
+	}
+	return nil
 }

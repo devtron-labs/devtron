@@ -86,6 +86,8 @@ type ApplicationClientWrapper interface {
 	// GetArgoAppByName fetches an argoCd app by its name
 	GetArgoAppByName(ctx context.Context, appName string) (*v1alpha1.Application, error)
 
+	GetArgoAppByNameWithK8s(ctx context.Context, clusterId int, namespace, appName string) (map[string]interface{}, error)
+
 	// SyncArgoCDApplicationIfNeededAndRefresh - if ARGO_AUTO_SYNC_ENABLED=true, app will be refreshed to initiate refresh at argoCD side or else it will be synced and refreshed
 	SyncArgoCDApplicationIfNeededAndRefresh(context context.Context, argoAppName string) error
 
@@ -150,6 +152,7 @@ type ArgoClientWrapperServiceImpl struct {
 	gitOperationService     git.GitOperationService
 	asyncRunnable           *async.Runnable
 	acdConfigGetter         config2.ArgoCDConfigGetter
+	argoK8sClient           ArgoK8sClient
 	*ArgoClientWrapperServiceEAImpl
 }
 
@@ -164,6 +167,7 @@ func NewArgoClientWrapperServiceImpl(
 	gitOperationService git.GitOperationService, asyncRunnable *async.Runnable,
 	acdConfigGetter config2.ArgoCDConfigGetter,
 	ArgoClientWrapperServiceEAImpl *ArgoClientWrapperServiceEAImpl,
+	argoK8sClient ArgoK8sClient,
 ) *ArgoClientWrapperServiceImpl {
 	return &ArgoClientWrapperServiceImpl{
 		acdApplicationClient:           acdClient,
@@ -178,6 +182,7 @@ func NewArgoClientWrapperServiceImpl(
 		asyncRunnable:                  asyncRunnable,
 		acdConfigGetter:                acdConfigGetter,
 		ArgoClientWrapperServiceEAImpl: ArgoClientWrapperServiceEAImpl,
+		argoK8sClient:                  argoK8sClient,
 	}
 }
 
@@ -394,6 +399,20 @@ func (impl *ArgoClientWrapperServiceImpl) GetArgoAppByName(ctx context.Context, 
 		return nil, err
 	}
 	argoApplication, err := impl.acdApplicationClient.Get(ctx, grpcConfig, &application2.ApplicationQuery{Name: &appName})
+	if err != nil {
+		impl.logger.Errorw("err in getting argo app by name", "app", appName)
+		return nil, err
+	}
+	return argoApplication, nil
+}
+
+func (impl *ArgoClientWrapperServiceImpl) GetArgoAppByNameWithK8s(ctx context.Context, clusterId int, namespace, appName string) (map[string]interface{}, error) {
+	k8sConfig, err := impl.acdConfigGetter.GetK8sConfigWithClusterIdAndNamespace(clusterId, namespace)
+	if err != nil {
+		impl.logger.Errorw("error in getting k8s config", "err", err)
+		return nil, err
+	}
+	argoApplication, err := impl.argoK8sClient.GetArgoApplication(k8sConfig, appName)
 	if err != nil {
 		impl.logger.Errorw("err in getting argo app by name", "app", appName)
 		return nil, err

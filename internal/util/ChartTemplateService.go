@@ -48,6 +48,7 @@ const (
 
 const (
 	PIPELINE_RELEASE_MODE_CREATE = "create"
+	PIPELINE_RELEASE_MODE_LINK   = "link"
 )
 
 type ChartCreateRequest struct {

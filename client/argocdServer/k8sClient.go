@@ -23,8 +23,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s"
+	"github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.uber.org/zap"
 	"io/ioutil"
 	k8sError "k8s.io/apimachinery/pkg/api/errors"
@@ -56,7 +56,7 @@ const (
 
 type ArgoK8sClient interface {
 	CreateAcdApp(ctx context.Context, appRequest *AppTemplate, applicationTemplatePath string) (string, error)
-	GetArgoApplication(namespace string, appName string, cluster *repository.Cluster) (map[string]interface{}, error)
+	GetArgoApplication(k8sConfig *bean.ArgoK8sConfig, appName string) (map[string]interface{}, error)
 }
 type ArgoK8sClientImpl struct {
 	logger  *zap.SugaredLogger
@@ -171,13 +171,9 @@ func (impl ArgoK8sClientImpl) handleArgoAppCreationError(res []byte, err error) 
 	return apiError
 }
 
-func (impl ArgoK8sClientImpl) GetArgoApplication(namespace string, appName string, cluster *repository.Cluster) (map[string]interface{}, error) {
+func (impl ArgoK8sClientImpl) GetArgoApplication(k8sConfig *bean.ArgoK8sConfig, appName string) (map[string]interface{}, error) {
 
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		impl.logger.Errorw("error in cluster config", "err", err)
-		return nil, err
-	}
+	config := k8sConfig.RestConfig
 	config.GroupVersion = &schema.GroupVersion{Group: "argoproj.io", Version: "v1alpha1"}
 	config.NegotiatedSerializer = serializer.NewCodecFactory(runtime.NewScheme())
 	config.APIPath = "/apis"
@@ -191,7 +187,7 @@ func (impl ArgoK8sClientImpl) GetArgoApplication(namespace string, appName strin
 	//opts := metav1.GetOptions{}
 	res, err := client.
 		Get().
-		Namespace(namespace).
+		Namespace(k8sConfig.AcdNamespace).
 		Resource("applications").
 		Name(appName).
 		//VersionedParams(&opts, metav1.ParameterCodec).

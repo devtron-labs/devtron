@@ -39,9 +39,7 @@ import (
 	bean6 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
-	"io/ioutil"
 	"net/url"
-	"path"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -136,7 +134,6 @@ type AppService interface {
 	UpdateDeploymentStatusForGitOpsPipelines(app *v1alpha1.Application, statusTime time.Time, isAppStore bool) (bool, bool, *chartConfig.PipelineOverride, error)
 	WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride)
 	CreateGitOpsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *commonBean.ChartGitAttribute, err error)
-	GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error)
 
 	// TODO: move inside reader service
 	GetActiveCiCdAppsCount() (int, error)
@@ -779,51 +776,6 @@ type ValuesOverrideResponse struct {
 	Pipeline             *pipelineConfig.Pipeline
 	DeploymentConfig     *bean2.DeploymentConfig
 	ManifestPushTemplate *bean3.ManifestPushTemplate
-}
-
-func (impl *AppServiceImpl) GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error) {
-
-	manifestByteArray := make([]byte, 0)
-
-	pipeline, err := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching pipeline by appId and envId", "appId", appId, "envId", envId, "err", err)
-		return manifestByteArray, err
-	}
-
-	pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByCdWorkflowId(cdWorkflowId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching latest release by appId and envId", "appId", appId, "envId", envId, "err", err)
-		return manifestByteArray, err
-	}
-
-	envConfigOverride, err := impl.envConfigOverrideReadService.GetByIdIncludingInactive(pipelineOverride.EnvConfigOverrideId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching env config repository by appId and envId", "appId", appId, "envId", envId, "err", err)
-	}
-
-	appName := pipeline[0].App.AppName
-	builtChartPath, err := impl.deploymentTemplateService.BuildChartAndGetPath(appName, envConfigOverride, ctx)
-	if err != nil {
-		impl.logger.Errorw("error in parsing reference chart", "err", err)
-		return manifestByteArray, err
-	}
-
-	// create values file in built chart path
-	valuesFilePath := path.Join(builtChartPath, "valuesOverride.yaml")
-	err = ioutil.WriteFile(valuesFilePath, []byte(pipelineOverride.PipelineMergedValues), 0600)
-	if err != nil {
-		return manifestByteArray, nil
-	}
-
-	manifestByteArray, err = impl.chartTemplateService.LoadChartInBytes(builtChartPath, true)
-	if err != nil {
-		impl.logger.Errorw("error in converting chart to bytes", "err", err)
-		return manifestByteArray, err
-	}
-
-	return manifestByteArray, nil
-
 }
 
 func (impl *AppServiceImpl) CreateGitOpsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *commonBean.ChartGitAttribute, err error) {

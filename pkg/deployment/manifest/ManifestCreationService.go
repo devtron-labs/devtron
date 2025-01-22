@@ -35,6 +35,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	bean9 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/manifest/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
@@ -66,7 +67,7 @@ import (
 )
 
 type ManifestCreationService interface {
-	BuildManifestForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time,
+	BuildManifestForTrigger(overrideRequest *bean.ValuesOverrideRequest, envDeploymentConfig *bean9.DeploymentConfig, triggeredAt time.Time,
 		ctx context.Context) (valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, err error)
 
 	//TODO: remove below method
@@ -154,7 +155,7 @@ func NewManifestCreationServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl *ManifestCreationServiceImpl) BuildManifestForTrigger(overrideRequest *bean.ValuesOverrideRequest, triggeredAt time.Time,
+func (impl *ManifestCreationServiceImpl) BuildManifestForTrigger(overrideRequest *bean.ValuesOverrideRequest, envDeploymentConfig *bean9.DeploymentConfig, triggeredAt time.Time,
 	ctx context.Context) (valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, err error) {
 	valuesOverrideResponse = &app.ValuesOverrideResponse{}
 	valuesOverrideResponse, err = impl.GetValuesOverrideForTrigger(overrideRequest, triggeredAt, ctx)
@@ -162,7 +163,16 @@ func (impl *ManifestCreationServiceImpl) BuildManifestForTrigger(overrideRequest
 		impl.logger.Errorw("error in fetching values for trigger", "err", err)
 		return valuesOverrideResponse, "", err
 	}
-	builtChartPath, err = impl.deploymentTemplateService.BuildChartAndGetPath(overrideRequest.AppName, valuesOverrideResponse.EnvOverride, ctx)
+	if envDeploymentConfig == nil || envDeploymentConfig.Id == 0 {
+		envDeploymentConfig, err1 := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(overrideRequest.AppId, overrideRequest.EnvId)
+		if err1 != nil {
+			impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "err", err1)
+			return valuesOverrideResponse, "", err
+		}
+		valuesOverrideResponse.DeploymentConfig = envDeploymentConfig
+	}
+	valuesOverrideResponse.DeploymentConfig = envDeploymentConfig
+	builtChartPath, err = impl.deploymentTemplateService.BuildChartAndGetPath(overrideRequest.AppName, valuesOverrideResponse.EnvOverride, valuesOverrideResponse.DeploymentConfig, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in parsing reference chart", "err", err)
 		return valuesOverrideResponse, "", err
