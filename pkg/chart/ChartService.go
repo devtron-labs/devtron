@@ -1065,6 +1065,15 @@ func (impl *ChartServiceImpl) ConfigureGitOpsRepoUrlForApp(appId int, repoUrl, c
 //}
 
 func (impl *ChartServiceImpl) IsGitOpsRepoAlreadyRegistered(gitOpsRepoUrl string) (bool, error) {
+
+	deploymentConfig, err := impl.deploymentConfigService.GetAllConfigsWithCustomGitOpsURL()
+	for _, dc := range deploymentConfig {
+		if dc.GetRepoURL() == gitOpsRepoUrl {
+			impl.logger.Warnw("repository is already in use for helm app", "repoUrl", gitOpsRepoUrl)
+			return true, nil
+		}
+	}
+
 	chartModel, err := impl.chartRepository.FindChartByGitRepoUrl(gitOpsRepoUrl)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error in fetching chartModel", "repoUrl", gitOpsRepoUrl, "err", err)
