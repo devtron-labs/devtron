@@ -110,14 +110,14 @@ func (impl *DeploymentConfigServiceImpl) CreateOrUpdateConfig(tx *pg.Tx, config 
 
 func (impl *DeploymentConfigServiceImpl) CreateOrUpdateConfigInBulk(tx *pg.Tx, configToBeCreated, configToBeUpdated []*bean.DeploymentConfig, userId int32) error {
 
-	dbObjCreate := make([]*deploymentConfig.DeploymentConfig, len(configToBeCreated))
+	dbObjCreate := make([]*deploymentConfig.DeploymentConfig, 0, len(configToBeCreated))
 	for i := range configToBeCreated {
 		dbObj := ConvertDeploymentConfigDTOToDbObj(configToBeCreated[i])
 		dbObj.AuditLog.CreateAuditLog(userId)
 		dbObjCreate = append(dbObjCreate, dbObj)
 	}
 
-	dbObjUpdate := make([]*deploymentConfig.DeploymentConfig, len(configToBeUpdated))
+	dbObjUpdate := make([]*deploymentConfig.DeploymentConfig, 0, len(configToBeUpdated))
 	for i := range configToBeUpdated {
 		dbObj := ConvertDeploymentConfigDTOToDbObj(configToBeUpdated[i])
 		dbObj.AuditLog.UpdateAuditLog(userId)
