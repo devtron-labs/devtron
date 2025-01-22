@@ -18,7 +18,6 @@ package cluster
 
 import (
 	"context"
-	"errors"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/client/argocdServer/connection"
@@ -54,11 +53,7 @@ func NewServiceClientImpl(logger *zap.SugaredLogger, argoCdConnection connection
 }
 
 func (c ServiceClientImpl) getService(ctx context.Context) (cluster.ClusterServiceClient, error) {
-	token, ok := ctx.Value("token").(string)
-	if !ok {
-		return nil, errors.New("Unauthorized")
-	}
-	conn := c.argoCdConnection.GetConnection(token)
+	conn := c.argoCdConnection.GetConnection()
 	//defer conn.Close()
 	return cluster.NewClusterServiceClient(conn), nil
 }

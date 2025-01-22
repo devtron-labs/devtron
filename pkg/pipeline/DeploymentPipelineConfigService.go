@@ -118,7 +118,7 @@ type CdPipelineConfigService interface {
 	GetBulkActionImpactedPipelines(dto *bean.CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, error) //no usage
 	// IsGitOpsRequiredForCD : Determine if GitOps is required for CD based on the provided pipeline creation request
 	IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool
-	MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(acdToken string, pipeline *pipelineConfig.Pipeline) (bool, error)
+	MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(pipeline *pipelineConfig.Pipeline) (bool, error)
 	// GetEnvironmentListForAutocompleteFilter : lists environment for given configuration
 	GetEnvironmentListForAutocompleteFilter(envName string, clusterIds []int, offset int, size int, token string, checkAuthBatch func(token string, appObject []string, envObject []string) (map[string]bool, map[string]bool), ctx context.Context) (*clutserBean.ResourceGroupingResponse, error)
 	RegisterInACD(ctx context.Context, chartGitAttr *commonBean.ChartGitAttribute, userId int32) error
@@ -1496,13 +1496,12 @@ func (impl *CdPipelineConfigServiceImpl) IsGitOpsRequiredForCD(pipelineCreateReq
 	return haveAtLeastOneGitOps
 }
 
-func (impl *CdPipelineConfigServiceImpl) MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(acdToken string, pipeline *pipelineConfig.Pipeline) (bool, error) {
+func (impl *CdPipelineConfigServiceImpl) MarkGitOpsDevtronAppsDeletedWhereArgoAppIsDeleted(pipeline *pipelineConfig.Pipeline) (bool, error) {
 
 	acdAppFound := false
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "token", acdToken)
+
 	acdAppName := pipeline.DeploymentAppName
-	_, err := impl.application.Get(ctx, &application2.ApplicationQuery{Name: &acdAppName})
+	_, err := impl.application.Get(context.Background(), &application2.ApplicationQuery{Name: &acdAppName})
 	if err == nil {
 		// acd app is not yet deleted so return
 		acdAppFound = true

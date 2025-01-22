@@ -24,8 +24,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	ciConfig "github.com/devtron-labs/devtron/pkg/build/pipeline/read"
-	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	"github.com/devtron-labs/devtron/pkg/cluster/read"
 	"github.com/go-pg/pg"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -45,21 +45,22 @@ type DockerRegistryIpsConfigServiceImpl struct {
 	logger                            *zap.SugaredLogger
 	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository
 	k8sUtil                           *k8s.K8sServiceImpl
-	clusterService                    cluster.ClusterService
 	dockerArtifactStoreRepository     repository.DockerArtifactStoreRepository
+	clusterReadService                read.ClusterReadService
 	ciPipelineConfigReadService       ciConfig.CiPipelineConfigReadService
 }
 
 func NewDockerRegistryIpsConfigServiceImpl(logger *zap.SugaredLogger, dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository,
-	k8sUtil *k8s.K8sServiceImpl, clusterService cluster.ClusterService,
+	k8sUtil *k8s.K8sServiceImpl,
 	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository,
+	clusterReadService read.ClusterReadService,
 	ciPipelineConfigReadService ciConfig.CiPipelineConfigReadService) *DockerRegistryIpsConfigServiceImpl {
 	return &DockerRegistryIpsConfigServiceImpl{
 		logger:                            logger,
 		dockerRegistryIpsConfigRepository: dockerRegistryIpsConfigRepository,
 		k8sUtil:                           k8sUtil,
-		clusterService:                    clusterService,
 		dockerArtifactStoreRepository:     dockerArtifactStoreRepository,
+		clusterReadService:                clusterReadService,
 		ciPipelineConfigReadService:       ciPipelineConfigReadService,
 	}
 }
@@ -205,7 +206,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) createOrUpdateDockerRegistryImage
 		}
 	}
 
-	clusterBean, err := impl.clusterService.FindById(clusterId)
+	clusterBean, err := impl.clusterReadService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster", "clusterId", clusterId, "error", err)
 		return err

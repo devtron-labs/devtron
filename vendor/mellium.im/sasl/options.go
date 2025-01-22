@@ -59,3 +59,11 @@ func Credentials(f func() (Username, Password, Identity []byte)) Option {
 		n.credentials = f
 	}
 }
+
+// SaltedCredentials provides the negotiator with a SaltedCredentialsFetcher
+// that used to fetch user information from storage.
+func SaltedCredentials(f SaltedCredentialsFetcher) Option {
+	return func(n *Negotiator) {
+		n.saltedCredentials = f
+	}
+}

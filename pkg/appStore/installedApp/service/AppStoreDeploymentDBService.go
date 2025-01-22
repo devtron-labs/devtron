@@ -33,9 +33,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode/deployment"
 	util4 "github.com/devtron-labs/devtron/pkg/appStore/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
-	clusterService "github.com/devtron-labs/devtron/pkg/cluster"
 	environment2 "github.com/devtron-labs/devtron/pkg/cluster/environment"
 	clutserBean "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
@@ -77,7 +77,6 @@ type AppStoreDeploymentDBServiceImpl struct {
 	appStoreApplicationVersionRepository discoverRepository.AppStoreApplicationVersionRepository
 	appRepository                        app.AppRepository
 	environmentService                   environment2.EnvironmentService
-	clusterService                       clusterService.ClusterService
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
 	deploymentTypeConfig                 *globalUtil.DeploymentServiceTypeConfig
 	gitOpsConfigReadService              config.GitOpsConfigReadService
@@ -86,6 +85,7 @@ type AppStoreDeploymentDBServiceImpl struct {
 	appStoreValidator                    AppStoreValidator
 	installedAppDbService                EAMode.InstalledAppDBService
 	deploymentConfigService              common.DeploymentConfigService
+	clusterReadService                   read.ClusterReadService
 }
 
 func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
@@ -93,21 +93,20 @@ func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
 	appStoreApplicationVersionRepository discoverRepository.AppStoreApplicationVersionRepository,
 	appRepository app.AppRepository,
 	environmentService environment2.EnvironmentService,
-	clusterService clusterService.ClusterService,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
 	envVariables *globalUtil.EnvironmentVariables,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	deploymentTypeOverrideService providerConfig.DeploymentTypeOverrideService,
 	fullModeDeploymentService deployment.FullModeDeploymentService, appStoreValidator AppStoreValidator,
 	installedAppDbService EAMode.InstalledAppDBService,
-	deploymentConfigService common.DeploymentConfigService) *AppStoreDeploymentDBServiceImpl {
+	deploymentConfigService common.DeploymentConfigService,
+	clusterReadService read.ClusterReadService) *AppStoreDeploymentDBServiceImpl {
 	return &AppStoreDeploymentDBServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 		appRepository:                        appRepository,
 		environmentService:                   environmentService,
-		clusterService:                       clusterService,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 		deploymentTypeConfig:                 envVariables.DeploymentServiceTypeConfig,
 		gitOpsConfigReadService:              gitOpsConfigReadService,
@@ -116,6 +115,7 @@ func NewAppStoreDeploymentDBServiceImpl(logger *zap.SugaredLogger,
 		appStoreValidator:                    appStoreValidator,
 		installedAppDbService:                installedAppDbService,
 		deploymentConfigService:              deploymentConfigService,
+		clusterReadService:                   clusterReadService,
 	}
 }
 
@@ -641,7 +641,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) createEnvironmentIfNotExists(instal
 		return env, nil
 	} else {
 		// create env
-		cluster, err := impl.clusterService.FindById(clusterId)
+		cluster, err := impl.clusterReadService.FindById(clusterId)
 		if err != nil {
 			impl.logger.Errorw("error in getting cluster details", "clusterId", clusterId)
 			return nil, &util.ApiError{

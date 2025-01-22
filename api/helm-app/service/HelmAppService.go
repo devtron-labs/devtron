@@ -94,6 +94,8 @@ type HelmAppService interface {
 	GetRevisionHistoryMaxValue(appType bean.SourceAppType) int32
 	GetResourceTreeForExternalResources(ctx context.Context, clusterId int, clusterConfig *gRPC.ClusterConfig, resources []*gRPC.ExternalResourceDetail) (*gRPC.ResourceTreeResponse, error)
 	CheckIfNsExistsForClusterIds(clusterIdToNsMap map[int]string) error
+
+	GetAppStatusV2(ctx context.Context, req *gRPC.AppDetailRequest, clusterId int) (*gRPC.AppStatus, error)
 }
 
 type HelmAppServiceImpl struct {
@@ -144,6 +146,7 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger, clusterService cluster.Clu
 	}
 }
 
+// CATEGORY=CD
 type HelmReleaseConfig struct {
 	RevisionHistoryLimitDevtronApp      int `env:"REVISION_HISTORY_LIMIT_DEVTRON_APP" envDefault:"1"`
 	RevisionHistoryLimitHelmApp         int `env:"REVISION_HISTORY_LIMIT_HELM_APP" envDefault:"1"`
@@ -175,7 +178,7 @@ func (impl *HelmAppServiceImpl) ListHelmApplications(ctx context.Context, cluste
 			http.StatusInternalServerError)
 		return
 	}
-	
+
 	// get helm apps which are created using cd_pipelines
 	newCtx, span := otel.Tracer("pipelineRepository").Start(ctx, "GetAppAndEnvDetailsForDeploymentAppTypePipeline")
 	start = time.Now()
@@ -244,7 +247,7 @@ func (impl *HelmAppServiceImpl) UnHibernateApplication(ctx context.Context, app 
 }
 
 func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *helmBean.AppIdentifier) (*gRPC.AppDetail, error) {
-	return impl.getApplicationDetail(ctx, app, nil)
+	return impl.getApplicationDetailWithInstallerStatus(ctx, app, nil)
 }
 
 func (impl *HelmAppServiceImpl) GetApplicationAndReleaseStatus(ctx context.Context, app *helmBean.AppIdentifier) (*gRPC.AppStatus, error) {
@@ -252,10 +255,10 @@ func (impl *HelmAppServiceImpl) GetApplicationAndReleaseStatus(ctx context.Conte
 }
 
 func (impl *HelmAppServiceImpl) GetApplicationDetailWithFilter(ctx context.Context, app *helmBean.AppIdentifier, resourceTreeFilter *gRPC.ResourceTreeFilter) (*gRPC.AppDetail, error) {
-	return impl.getApplicationDetail(ctx, app, resourceTreeFilter)
+	return impl.getApplicationDetailWithInstallerStatus(ctx, app, resourceTreeFilter)
 }
 
-func (impl *HelmAppServiceImpl) getApplicationDetail(ctx context.Context, app *helmBean.AppIdentifier, resourceTreeFilter *gRPC.ResourceTreeFilter) (*gRPC.AppDetail, error) {
+func (impl *HelmAppServiceImpl) getApplicationDetailWithInstallerStatus(ctx context.Context, app *helmBean.AppIdentifier, resourceTreeFilter *gRPC.ResourceTreeFilter) (*gRPC.AppDetail, error) {
 	config, err := impl.helmAppReadService.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
@@ -267,7 +270,7 @@ func (impl *HelmAppServiceImpl) getApplicationDetail(ctx context.Context, app *h
 		ReleaseName:        app.ReleaseName,
 		ResourceTreeFilter: resourceTreeFilter,
 	}
-	appdetail, err := impl.helmAppClient.GetAppDetail(ctx, req)
+	appDetail, err := impl.getAppDetail(ctx, req)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app detail", "err", err)
 		return nil, err
@@ -281,14 +284,24 @@ func (impl *HelmAppServiceImpl) getApplicationDetail(ctx context.Context, app *h
 		impl.serverDataStore.InstallerCrdObjectExists {
 		if impl.serverDataStore.InstallerCrdObjectStatus != serverBean.InstallerCrdObjectStatusApplied {
 			// if timeout
-			if time.Now().After(appdetail.GetLastDeployed().AsTime().Add(1 * time.Hour)) {
-				appdetail.ApplicationStatus = serverBean.AppHealthStatusDegraded
+			if time.Now().After(appDetail.GetLastDeployed().AsTime().Add(1 * time.Hour)) {
+				appDetail.ApplicationStatus = serverBean.AppHealthStatusDegraded
 			} else {
-				appdetail.ApplicationStatus = serverBean.AppHealthStatusProgressing
+				appDetail.ApplicationStatus = serverBean.AppHealthStatusProgressing
 			}
 		}
 	}
-	return appdetail, err
+	return appDetail, err
+}
+
+func (impl *HelmAppServiceImpl) getAppDetail(ctx context.Context, req *gRPC.AppDetailRequest) (*gRPC.AppDetail, error) {
+	impl.updateAppDetailRequestWithCacheConfig(req)
+	appDetail, err := impl.helmAppClient.GetAppDetail(ctx, req)
+	if err != nil {
+		impl.logger.Errorw("error in fetching app detail", "payload", req, "err", err)
+		return nil, err
+	}
+	return appDetail, nil
 }
 
 func (impl *HelmAppServiceImpl) GetResourceTreeForExternalResources(ctx context.Context, clusterId int,
@@ -308,6 +321,7 @@ func (impl *HelmAppServiceImpl) GetResourceTreeForExternalResources(ctx context.
 		ClusterConfig:          config,
 		ExternalResourceDetail: resources,
 	}
+	impl.updateExternalResTreeRequestWithCacheConfig(clusterId, req)
 	return impl.helmAppClient.GetResourceTreeForExternalResources(ctx, req)
 }
 
