@@ -18,6 +18,7 @@ package dex
 
 import "github.com/caarlos0/env"
 
+// CATEGORY=INFRA_SETUP
 type Config struct {
 	Host string `env:"DEX_HOST" envDefault:"http://localhost"`
 	Port string `env:"DEX_PORT" envDefault:"5556"`
