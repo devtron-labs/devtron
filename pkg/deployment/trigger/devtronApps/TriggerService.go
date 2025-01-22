@@ -110,7 +110,7 @@ type TriggerService interface {
 	ManualCdTrigger(triggerContext bean.TriggerContext, overrideRequest *bean3.ValuesOverrideRequest) (int, string, *bean4.ManifestPushTemplate, error)
 	TriggerAutomaticDeployment(request bean.TriggerRequest) error
 
-	TriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, envDeploymentConfig *bean9.DeploymentConfig, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifestPushTemplate *bean4.ManifestPushTemplate, err error)
+	TriggerRelease(ctx context.Context, overrideRequest *bean3.ValuesOverrideRequest, envDeploymentConfig *bean9.DeploymentConfig, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifestPushTemplate *bean4.ManifestPushTemplate, err error)
 }
 
 type TriggerServiceImpl struct {
@@ -757,11 +757,12 @@ func (impl *TriggerServiceImpl) releasePipeline(ctx context.Context, pipeline *p
 	return err
 }
 
-func (impl *TriggerServiceImpl) triggerAsyncRelease(userDeploymentRequestId int, overrideRequest *bean3.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifestPushTemplate *bean4.ManifestPushTemplate, err error) {
+func (impl *TriggerServiceImpl) triggerAsyncRelease(ctx context.Context, overrideRequest *bean3.ValuesOverrideRequest,
+	envDeploymentConfig *bean9.DeploymentConfig, userDeploymentRequestId int, triggeredAt time.Time, deployedBy int32) (releaseNo int, manifestPushTemplate *bean4.ManifestPushTemplate, err error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.triggerAsyncRelease")
 	defer span.End()
 	// build merged values and save PCO history for the release
-	valuesOverrideResponse, err := impl.manifestCreationService.GetValuesOverrideForTrigger(overrideRequest, triggeredAt, newCtx)
+	valuesOverrideResponse, err := impl.manifestCreationService.GetValuesOverrideForTrigger(newCtx, overrideRequest, envDeploymentConfig, triggeredAt)
 	// auditDeploymentTriggerHistory is performed irrespective of GetValuesOverrideForTrigger error - for auditing purposes
 	historyErr := impl.auditDeploymentTriggerHistory(overrideRequest.WfrId, valuesOverrideResponse, newCtx, triggeredAt, deployedBy)
 	if historyErr != nil {
@@ -811,11 +812,19 @@ func (impl *TriggerServiceImpl) handleCDTriggerRelease(ctx context.Context, over
 			"forceSyncDeployment", overrideRequest.ForceSyncDeployment, "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId)
 		return userDeploymentRequestId, manifestPushTemplate, err
 	}
+	if envDeploymentConfig.IsEmpty() {
+		deploymentConfig, dbErr := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(overrideRequest.AppId, overrideRequest.EnvId)
+		if dbErr != nil {
+			impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "err", dbErr)
+			return releaseNo, manifestPushTemplate, dbErr
+		}
+		envDeploymentConfig = deploymentConfig
+	}
 	if isAsyncMode {
-		return impl.triggerAsyncRelease(userDeploymentRequestId, overrideRequest, newCtx, triggeredAt, deployedBy)
+		return impl.triggerAsyncRelease(newCtx, overrideRequest, envDeploymentConfig, userDeploymentRequestId, triggeredAt, deployedBy)
 	}
 	// synchronous mode of installation starts
-	return impl.TriggerRelease(overrideRequest, envDeploymentConfig, newCtx, triggeredAt, deployedBy)
+	return impl.TriggerRelease(newCtx, overrideRequest, envDeploymentConfig, triggeredAt, deployedBy)
 }
 
 func (impl *TriggerServiceImpl) auditDeploymentTriggerHistory(cdWfrId int, valuesOverrideResponse *app.ValuesOverrideResponse, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (err error) {
@@ -832,7 +841,8 @@ func (impl *TriggerServiceImpl) auditDeploymentTriggerHistory(cdWfrId int, value
 }
 
 // TriggerRelease will trigger Install/Upgrade request for Devtron App releases synchronously
-func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOverrideRequest, envDeploymentConfig *bean9.DeploymentConfig, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifestPushTemplate *bean4.ManifestPushTemplate, err error) {
+func (impl *TriggerServiceImpl) TriggerRelease(ctx context.Context, overrideRequest *bean3.ValuesOverrideRequest,
+	envDeploymentConfig *bean9.DeploymentConfig, triggeredAt time.Time, triggeredBy int32) (releaseNo int, manifestPushTemplate *bean4.ManifestPushTemplate, err error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.TriggerRelease")
 	defer span.End()
 	triggerEvent, skipRequest, err := impl.buildTriggerEventForOverrideRequest(overrideRequest, triggeredAt)
@@ -846,17 +856,7 @@ func (impl *TriggerServiceImpl) TriggerRelease(overrideRequest *bean3.ValuesOver
 		return releaseNo, manifestPushTemplate, nil
 	}
 	// build merged values and save PCO history for the release
-	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(overrideRequest, triggeredAt, newCtx)
-
-	if envDeploymentConfig == nil || (envDeploymentConfig != nil && envDeploymentConfig.Id == 0) {
-		envDeploymentConfig, err1 := impl.deploymentConfigService.GetAndMigrateConfigIfAbsentForDevtronApps(overrideRequest.AppId, overrideRequest.EnvId)
-		if err1 != nil {
-			impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", overrideRequest.AppId, "envId", overrideRequest.EnvId, "err", err1)
-			return releaseNo, manifestPushTemplate, err1
-		}
-		valuesOverrideResponse.DeploymentConfig = envDeploymentConfig
-	}
-	valuesOverrideResponse.DeploymentConfig = envDeploymentConfig
+	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(newCtx, overrideRequest, nil, triggeredAt)
 
 	// auditDeploymentTriggerHistory is performed irrespective of BuildManifestForTrigger error - for auditing purposes
 	historyErr := impl.auditDeploymentTriggerHistory(overrideRequest.WfrId, valuesOverrideResponse, newCtx, triggeredAt, triggeredBy)
@@ -1175,8 +1175,7 @@ func (impl *TriggerServiceImpl) deployArgoCdApp(ctx context.Context, overrideReq
 	valuesOverrideResponse *app.ValuesOverrideResponse) error {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.deployArgoCdApp")
 	defer span.End()
-	impl.logger.Debugw("new pipeline found", "pipeline", valuesOverrideResponse.Pipeline)
-	name, err := impl.createArgoApplicationIfRequired(newCtx, overrideRequest.AppId, valuesOverrideResponse.EnvOverride, valuesOverrideResponse.Pipeline, overrideRequest.UserId)
+	name, err := impl.createArgoApplicationIfRequired(newCtx, valuesOverrideResponse.EnvOverride, valuesOverrideResponse.Pipeline, valuesOverrideResponse.DeploymentConfig, overrideRequest.UserId)
 	if err != nil {
 		impl.logger.Errorw("acd application create error on cd trigger", "err", err, "req", overrideRequest)
 		return err
@@ -1187,24 +1186,26 @@ func (impl *TriggerServiceImpl) deployArgoCdApp(ctx context.Context, overrideReq
 		impl.logger.Errorw("error in updating argocd app ", "err", err)
 		return err
 	}
-	syncTime := time.Now()
-	targetRevision := valuesOverrideResponse.DeploymentConfig.GetTargetRevision()
-	err = impl.argoClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(newCtx, valuesOverrideResponse.Pipeline.DeploymentAppName, targetRevision)
-	if err != nil {
-		impl.logger.Errorw("error in getting argo application with normal refresh", "argoAppName", valuesOverrideResponse.Pipeline.DeploymentAppName)
-		return fmt.Errorf("%s. err: %s", bean.ARGOCD_SYNC_ERROR, util.GetClientErrorDetailedMessage(err))
-	}
-	if impl.ACDConfig.IsManualSyncEnabled() {
-		timeline := &pipelineConfig.PipelineStatusTimeline{
-			CdWorkflowRunnerId: overrideRequest.WfrId,
-			StatusTime:         syncTime,
-			Status:             timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
-			StatusDetail:       timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_COMPLETED,
-		}
-		timeline.CreateAuditLog(overrideRequest.UserId)
-		_, err = impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
+	if valuesOverrideResponse.DeploymentConfig.IsArgoAppSyncAndRefreshSupported() {
+		syncTime := time.Now()
+		targetRevision := valuesOverrideResponse.DeploymentConfig.GetTargetRevision()
+		err = impl.argoClientWrapperService.SyncArgoCDApplicationIfNeededAndRefresh(newCtx, valuesOverrideResponse.Pipeline.DeploymentAppName, targetRevision)
 		if err != nil {
-			impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
+			impl.logger.Errorw("error in getting argo application with normal refresh", "argoAppName", valuesOverrideResponse.Pipeline.DeploymentAppName)
+			return fmt.Errorf("%s. err: %s", bean.ARGOCD_SYNC_ERROR, util.GetClientErrorDetailedMessage(err))
+		}
+		if impl.ACDConfig.IsManualSyncEnabled() {
+			timeline := &pipelineConfig.PipelineStatusTimeline{
+				CdWorkflowRunnerId: overrideRequest.WfrId,
+				StatusTime:         syncTime,
+				Status:             timelineStatus.TIMELINE_STATUS_ARGOCD_SYNC_COMPLETED,
+				StatusDetail:       timelineStatus.TIMELINE_DESCRIPTION_ARGOCD_SYNC_COMPLETED,
+			}
+			timeline.CreateAuditLog(overrideRequest.UserId)
+			_, err = impl.pipelineStatusTimelineService.SaveTimelineIfNotAlreadyPresent(timeline, nil)
+			if err != nil {
+				impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
+			}
 		}
 	}
 	if updateAppInArgoCd {
@@ -1217,8 +1218,12 @@ func (impl *TriggerServiceImpl) deployArgoCdApp(ctx context.Context, overrideReq
 
 // update repoUrl, revision and argo app sync mode (auto/manual) if needed
 func (impl *TriggerServiceImpl) updateArgoPipeline(ctx context.Context, pipeline *pipelineConfig.Pipeline, envOverride *bean10.EnvConfigOverride, deploymentConfig *bean9.DeploymentConfig) (bool, error) {
+	if !deploymentConfig.IsArgoAppPatchSupported() {
+		impl.logger.Debugw("argo app patch not supported", "pipelineId", pipeline.Id, "pipelineName", pipeline.Name)
+		return false, nil
+	}
 	if ctx == nil {
-		impl.logger.Errorw("err in syncing ACD, ctx is NULL", "pipelineName", pipeline.Name)
+		impl.logger.Errorw("err in syncing ACD, ctx is NULL", "pipelineId", pipeline.Id, "pipelineName", pipeline.Name)
 		return false, nil
 	}
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.updateArgoPipeline")
@@ -1277,23 +1282,19 @@ func (impl *TriggerServiceImpl) updateArgoPipeline(ctx context.Context, pipeline
 	}
 }
 
-func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(ctx context.Context, appId int, envConfigOverride *bean10.EnvConfigOverride, pipeline *pipelineConfig.Pipeline, userId int32) (string, error) {
+func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(ctx context.Context, envConfigOverride *bean10.EnvConfigOverride,
+	pipeline *pipelineConfig.Pipeline, deploymentConfig *bean9.DeploymentConfig, userId int32) (string, error) {
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "TriggerServiceImpl.createArgoApplicationIfRequired")
 	defer span.End()
-	// repo has been registered while helm create
-	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
-	if err != nil {
-		impl.logger.Errorw("no chart found ", "app", appId)
-		return "", err
-	}
 	envModel, err := impl.envRepository.FindById(envConfigOverride.TargetEnvironment)
 	if err != nil {
 		return "", err
 	}
 	argoAppName := pipeline.DeploymentAppName
-	if pipeline.DeploymentAppCreated {
+	if deploymentConfig.IsArgoAppCreationRequired(pipeline.DeploymentAppCreated) {
 		return argoAppName, nil
 	} else {
+		impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
 		// create
 		appNamespace := envConfigOverride.Namespace
 		if appNamespace == "" {
@@ -1308,15 +1309,15 @@ func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(ctx context.Cont
 			TargetServer:    envModel.Cluster.ServerUrl,
 			Project:         "default",
 			ValuesFile:      helper.GetValuesFileForEnv(envModel.Id),
-			RepoPath:        chart.ChartLocation,
-			RepoUrl:         chart.GitRepoUrl,
+			RepoPath:        deploymentConfig.GetChartLocation(),
+			RepoUrl:         deploymentConfig.GetRepoURL(),
 			AutoSyncEnabled: impl.ACDConfig.ArgoCDAutoSyncEnabled,
 		}
 		appRequest.RepoUrl, err = impl.gitOperationService.GetRepoUrlWithUserName(appRequest.RepoUrl)
 		if err != nil {
 			return "", err
 		}
-		argoAppName, err := impl.argoK8sClient.CreateAcdApp(newCtx, appRequest, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
+		createdArgoAppName, err := impl.argoK8sClient.CreateAcdApp(newCtx, appRequest, argocdServer.ARGOCD_APPLICATION_TEMPLATE)
 		if err != nil {
 			return "", err
 		}
@@ -1326,7 +1327,7 @@ func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(ctx context.Cont
 			impl.logger.Errorw("error in update cd pipeline for deployment app created or not", "err", err)
 			return "", err
 		}
-		return argoAppName, nil
+		return createdArgoAppName, nil
 	}
 }
 

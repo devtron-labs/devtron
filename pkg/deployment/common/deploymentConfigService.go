@@ -18,6 +18,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
+	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/helper"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -400,7 +401,7 @@ func (impl *DeploymentConfigServiceImpl) parseEnvLevelReleaseConfigForDevtronApp
 				Source: &bean.Source{
 					RepoURL:        gitRepoUrl,
 					ChartPath:      latestChart.ChartLocation,
-					ValuesFilePath: fmt.Sprintf("_%d-values.yaml", env.Id),
+					ValuesFilePath: helper.GetValuesFileForEnv(env.Id),
 					TargetRevision: util.GetDefaultTargetRevision(),
 				},
 			},

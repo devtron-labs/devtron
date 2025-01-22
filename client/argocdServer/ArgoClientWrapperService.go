@@ -236,6 +236,7 @@ func (impl *ArgoClientWrapperServiceImpl) DeleteArgoApp(ctx context.Context, app
 }
 
 func (impl *ArgoClientWrapperServiceImpl) SyncArgoCDApplicationIfNeededAndRefresh(ctx context.Context, argoAppName, targetRevision string) error {
+
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "ArgoClientWrapperServiceImpl.SyncArgoCDApplicationIfNeededAndRefresh")
 	defer span.End()
 	impl.logger.Info("ArgoCd manual sync for app started", "argoAppName", argoAppName)

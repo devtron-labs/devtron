@@ -3,6 +3,7 @@ package bean
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/util"
 	"log"
 	"strconv"
 	"strings"
@@ -61,24 +62,53 @@ type DeploymentConfig struct {
 	ReleaseConfiguration *ReleaseConfiguration
 }
 
-func (c *DeploymentConfig) GetRepoURL() string {
-	return c.ReleaseConfiguration.ArgoCDSpec.Source.RepoURL
+func (d *DeploymentConfig) IsArgoCdClientSupported() bool {
+	return d.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD && d.ReleaseMode != util.PIPELINE_RELEASE_MODE_LINK
 }
 
-func (c *DeploymentConfig) GetTargetRevision() string {
-	return c.ReleaseConfiguration.ArgoCDSpec.Source.TargetRevision
+func (d *DeploymentConfig) IsArgoAppSyncAndRefreshSupported() bool {
+	return d.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD && d.ReleaseMode != util.PIPELINE_RELEASE_MODE_LINK
 }
 
-func (c *DeploymentConfig) GetValuesFilePath() string {
-	return c.ReleaseConfiguration.ArgoCDSpec.Source.ValuesFilePath
+func (d *DeploymentConfig) IsArgoAppPatchSupported() bool {
+	return d.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD && d.ReleaseMode != util.PIPELINE_RELEASE_MODE_LINK
 }
 
-func (c *DeploymentConfig) GetChartLocation() string {
-	return c.ReleaseConfiguration.ArgoCDSpec.Source.ChartPath
+func (d *DeploymentConfig) IsArgoAppCreationRequired(deploymentAppCreated bool) bool {
+	if d.DeploymentAppType != util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		return false
+	}
+	if deploymentAppCreated {
+		return false
+	}
+	if d.ReleaseMode == util.PIPELINE_RELEASE_MODE_LINK {
+		return false
+	}
+	return true
 }
 
-func (c *DeploymentConfig) SetRepoURL(repoURL string) {
-	c.ReleaseConfiguration.ArgoCDSpec.Source.RepoURL = repoURL
+func (d *DeploymentConfig) IsEmpty() bool {
+	return d == nil || d.Id == 0
+}
+
+func (d *DeploymentConfig) GetRepoURL() string {
+	return d.ReleaseConfiguration.ArgoCDSpec.Source.RepoURL
+}
+
+func (d *DeploymentConfig) GetTargetRevision() string {
+	return d.ReleaseConfiguration.ArgoCDSpec.Source.TargetRevision
+}
+
+func (d *DeploymentConfig) GetValuesFilePath() string {
+	return d.ReleaseConfiguration.ArgoCDSpec.Source.ValuesFilePath
+}
+
+func (d *DeploymentConfig) GetChartLocation() string {
+	return d.ReleaseConfiguration.ArgoCDSpec.Source.ChartPath
+}
+
+func (d *DeploymentConfig) SetRepoURL(repoURL string) {
+	d.ReleaseConfiguration.ArgoCDSpec.Source.RepoURL = repoURL
 }
 
 type UniqueDeploymentConfigIdentifier string
