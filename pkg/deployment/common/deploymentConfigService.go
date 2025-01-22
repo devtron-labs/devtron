@@ -120,7 +120,7 @@ func (impl *DeploymentConfigServiceImpl) CreateOrUpdateConfigInBulk(tx *pg.Tx, c
 	dbObjUpdate := make([]*deploymentConfig.DeploymentConfig, len(configToBeUpdated))
 	for i := range configToBeUpdated {
 		dbObj := ConvertDeploymentConfigDTOToDbObj(configToBeUpdated[i])
-		dbObj.AuditLog.CreateAuditLog(userId)
+		dbObj.AuditLog.UpdateAuditLog(userId)
 		dbObjUpdate = append(dbObjUpdate, dbObj)
 	}
 
