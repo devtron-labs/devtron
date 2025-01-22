@@ -266,6 +266,8 @@ func (impl *ChartServiceImpl) Create(templateRequest TemplateRequest, ctx contex
 		ChartRepo:               charRepository.Name,
 		ChartRepoUrl:            charRepository.Url,
 		ChartVersion:            chartMeta.Version,
+		GitRepoUrl:              gitRepoUrl,
+		ChartLocation:           chartLocation,
 		Status:                  models.CHARTSTATUS_NEW,
 		Active:                  true,
 		ReferenceTemplate:       templateName,
@@ -1015,37 +1017,36 @@ func (impl *ChartServiceImpl) CheckIfChartRefUserUploadedByAppId(id int) (bool, 
 
 func (impl *ChartServiceImpl) ConfigureGitOpsRepoUrlForApp(appId int, repoUrl, chartLocation string, isCustomRepo bool, userId int32) (*bean2.DeploymentConfig, error) {
 
-	//TODO: revisit
 	////update in both charts and deployment config
-	//charts, err := impl.chartRepository.FindActiveChartsByAppId(appId)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//tx, err := impl.chartRepository.StartTx()
-	//if err != nil {
-	//	impl.logger.Errorw("error in starting transaction to update charts", "error", err)
-	//	return nil, err
-	//}
-	//defer impl.chartRepository.RollbackTx(tx)
-	//var updatedCharts []*chartRepoRepository.Chart
-	//var isCustom bool
-	//for _, ch := range charts {
-	//	if !ch.IsCustomGitRepository {
-	//		isCustom = ch.IsCustomGitRepository
-	//		ch.GitRepoUrl = repoUrl
-	//		ch.UpdateAuditLog(userId)
-	//		updatedCharts = append(updatedCharts, ch)
-	//	}
-	//}
-	//err = impl.chartRepository.UpdateAllInTx(tx, updatedCharts)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//err = impl.chartRepository.CommitTx(tx)
-	//if err != nil {
-	//	impl.logger.Errorw("error in committing transaction to update charts", "error", err)
-	//	return nil, err
-	//}
+	charts, err := impl.chartRepository.FindActiveChartsByAppId(appId)
+	if err != nil {
+		return nil, err
+	}
+	tx, err := impl.chartRepository.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting transaction to update charts", "error", err)
+		return nil, err
+	}
+	defer impl.chartRepository.RollbackTx(tx)
+	var updatedCharts []*chartRepoRepository.Chart
+	var isCustom bool
+	for _, ch := range charts {
+		if !ch.IsCustomGitRepository {
+			isCustom = ch.IsCustomGitRepository
+			ch.GitRepoUrl = repoUrl
+			ch.UpdateAuditLog(userId)
+			updatedCharts = append(updatedCharts, ch)
+		}
+	}
+	err = impl.chartRepository.UpdateAllInTx(tx, updatedCharts)
+	if err != nil {
+		return nil, err
+	}
+	err = impl.chartRepository.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction to update charts", "error", err)
+		return nil, err
+	}
 
 	deploymentConfig, err := impl.deploymentConfigService.GetConfigForDevtronApps(appId, 0)
 	if err != nil {
@@ -1053,6 +1054,7 @@ func (impl *ChartServiceImpl) ConfigureGitOpsRepoUrlForApp(appId int, repoUrl, c
 		return nil, err
 	}
 
+	deploymentConfig.ConfigType = common.GetDeploymentConfigType(isCustom)
 	deploymentConfig.SetRepoURL(repoUrl)
 	deploymentConfig.SetChartLocation(chartLocation)
 
