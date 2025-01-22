@@ -62,26 +62,34 @@ type DeploymentConfig struct {
 	ReleaseConfiguration *ReleaseConfiguration
 }
 
+func (d *DeploymentConfig) IsAcdRelease() bool {
+	return d.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD
+}
+
+func (d *DeploymentConfig) isArgoCdLinkedRelease() bool {
+	return d.ReleaseMode == util.PIPELINE_RELEASE_MODE_LINK
+}
+
 func (d *DeploymentConfig) IsArgoCdClientSupported() bool {
-	return d.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD && d.ReleaseMode != util.PIPELINE_RELEASE_MODE_LINK
+	return d.IsAcdRelease() && !d.isArgoCdLinkedRelease()
 }
 
 func (d *DeploymentConfig) IsArgoAppSyncAndRefreshSupported() bool {
-	return d.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD && d.ReleaseMode != util.PIPELINE_RELEASE_MODE_LINK
+	return d.IsAcdRelease() && !d.isArgoCdLinkedRelease()
 }
 
 func (d *DeploymentConfig) IsArgoAppPatchSupported() bool {
-	return d.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD && d.ReleaseMode != util.PIPELINE_RELEASE_MODE_LINK
+	return d.IsAcdRelease() && !d.isArgoCdLinkedRelease()
 }
 
 func (d *DeploymentConfig) IsArgoAppCreationRequired(deploymentAppCreated bool) bool {
-	if d.DeploymentAppType != util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+	if !d.IsAcdRelease() {
 		return false
 	}
 	if deploymentAppCreated {
 		return false
 	}
-	if d.ReleaseMode == util.PIPELINE_RELEASE_MODE_LINK {
+	if d.isArgoCdLinkedRelease() {
 		return false
 	}
 	return true

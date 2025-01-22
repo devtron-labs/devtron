@@ -111,6 +111,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository10 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/module"
+	bean2 "github.com/devtron-labs/devtron/pkg/module/bean"
 	"github.com/devtron-labs/devtron/pkg/module/repo"
 	"github.com/devtron-labs/devtron/pkg/module/store"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -391,7 +392,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	moduleEnvConfig, err := module.ParseModuleEnvConfig()
+	moduleEnvConfig, err := bean2.ParseModuleEnvConfig()
 	if err != nil {
 		return nil, err
 	}

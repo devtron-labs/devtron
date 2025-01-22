@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package module
+package bean
 
 import (
 	"fmt"
