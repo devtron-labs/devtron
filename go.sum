@@ -794,8 +794,8 @@ github.com/devtron-labs/argo-workflows/v3 v3.5.13 h1:3pINq0gXOSeTw2z/vYe+j80lRpS
 github.com/devtron-labs/argo-workflows/v3 v3.5.13/go.mod h1:/vqxcovDPT4zqr4DjR5v7CF8ggpY1l3TSa2CIG3jmjA=
 github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250116083207-90a2b2acbc2a h1:ianVrrotjgDSBLHiExJiqCzNq5WY7uvIvLZqzbuR+B8=
 github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250116083207-90a2b2acbc2a/go.mod h1:5lv4Wfj5ERhhvDGXe2IeES6qxjvUVCcohaRwKnWBMNo=
-github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250116083207-90a2b2acbc2a h1:Hw1jUtS1s2PEZ9DPdwJOB2U0l4pHm9UEGEEInDOGDQM=
-github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250116083207-90a2b2acbc2a/go.mod h1:1QJJLpgJSkb5Jm9xPeKAk+kXb0QgBOOOgJj0cgYhAVA=
+github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250122101700-365a00c472ed h1:a1BGyrf1+skQEEMcNLZJOWj9edUgF3OtGZN8Y/xUt+8=
+github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250122101700-365a00c472ed/go.mod h1:1QJJLpgJSkb5Jm9xPeKAk+kXb0QgBOOOgJj0cgYhAVA=
 github.com/devtron-labs/go-bitbucket v0.9.60-beta h1:VEx1jvDgdtDPS6A1uUFoaEi0l1/oLhbr+90xOwr6sDU=
 github.com/devtron-labs/go-bitbucket v0.9.60-beta/go.mod h1:GnuiCesvh8xyHeMCb+twm8lBR/kQzJYSKL28ZfObp1Y=
 github.com/devtron-labs/protos v0.0.3-0.20240802105333-92ee9bb85d80 h1:xwbTeijNTf4/j1v+tSfwVqwLVnReas/NqEKeQHvSTys=

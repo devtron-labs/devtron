@@ -94,7 +94,7 @@
  | MAX_CD_WORKFLOW_RUNNER_RETRIES | int |0 |  |  | false |
  | MAX_CI_WORKFLOW_RETRIES | int |0 |  |  | false |
  | MODE | string |DEV |  |  | false |
- | NATS_SERVER_HOST | string |nats://devtron-nats.devtroncd:4222 |  |  | false |
+ | NATS_SERVER_HOST | string |localhost:4222 |  |  | false |
  | ORCH_HOST | string |http://devtroncd-orchestrator-service-prod.devtroncd/webhook/msg/nats |  |  | false |
  | ORCH_TOKEN | string | |  |  | false |
  | PRE_CI_CACHE_PATH | string |/devtroncd-cache |  |  | false |
@@ -183,7 +183,7 @@
  | INSTALLER_CRD_OBJECT_GROUP_NAME | string |installer.devtron.ai |  |  | false |
  | INSTALLER_CRD_OBJECT_RESOURCE | string |installers |  |  | false |
  | INSTALLER_CRD_OBJECT_VERSION | string |v1alpha1 |  |  | false |
- | IS_INTERNAL_USE | bool |false |  |  | false |
+ | IS_INTERNAL_USE | bool |true |  |  | false |
  | JwtExpirationTime | int |120 |  |  | false |
  | K8s_CLIENT_MAX_IDLE_CONNS_PER_HOST | int |25 |  |  | false |
  | K8s_TCP_IDLE_CONN_TIMEOUT | int |300 |  |  | false |
@@ -197,7 +197,7 @@
  | LIMIT_CI_CPU | string |0.5 |  |  | false |
  | LIMIT_CI_MEM | string |3G |  |  | false |
  | LOGGER_DEV_MODE | bool |false |  |  | false |
- | LOG_LEVEL | int |0 |  |  | false |
+ | LOG_LEVEL | int |-1 |  |  | false |
  | MAX_SESSION_PER_USER | int |5 |  |  | false |
  | MODULE_METADATA_API_URL | string |https://api.devtron.ai/module?name=%s |  |  | false |
  | MODULE_STATUS_HANDLING_CRON_DURATION_MIN | int |3 |  |  | false |
@@ -220,7 +220,7 @@
  | REQ_CI_CPU | string |0.5 |  |  | false |
  | REQ_CI_MEM | string |3G |  |  | false |
  | RESTRICT_TERMINAL_ACCESS_FOR_NON_SUPER_USER | bool |false |  |  | false |
- | RUNTIME_CONFIG_LOCAL_DEV | LocalDevMode |false |  |  | false |
+ | RUNTIME_CONFIG_LOCAL_DEV | LocalDevMode |true |  |  | false |
  | RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS | bool |false |  |  | false |
  | SCOPED_VARIABLE_ENABLED | bool |false |  |  | false |
  | SCOPED_VARIABLE_FORMAT | string |@{{%s}} |  |  | false |
@@ -286,10 +286,10 @@
  | CASBIN_DATABASE | string |casbin |  |  | false |
  | PG_ADDR | string |127.0.0.1 | address of postgres service | postgresql-postgresql.devtroncd | false |
  | PG_DATABASE | string |orchestrator | postgres database to be made connection with | orchestrator, casbin, git_sensor, lens | false |
- | PG_PASSWORD | string | | password for postgres, associated with PG_USER | confidential ;) | false |
+ | PG_PASSWORD | string |{password} | password for postgres, associated with PG_USER | confidential ;) | false |
  | PG_PORT | string |5432 | port of postgresql service | 5432 | false |
  | PG_READ_TIMEOUT | int64 |30 |  |  | false |
- | PG_USER | string | | user for postgres | postgres | false |
+ | PG_USER | string |postgres | user for postgres | postgres | false |
  | PG_WRITE_TIMEOUT | int64 |30 |  |  | false |
 
 
@@ -299,5 +299,5 @@
  | ENFORCER_CACHE | bool |false |  |  | false |
  | ENFORCER_CACHE_EXPIRATION_IN_SEC | int |86400 |  |  | false |
  | ENFORCER_MAX_BATCH_SIZE | int |1 |  |  | false |
- | USE_CASBIN_V2 | bool |false |  |  | false |
+ | USE_CASBIN_V2 | bool |true |  |  | false |
 
