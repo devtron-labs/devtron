@@ -648,6 +648,8 @@ type CDPipelineConfigObject struct {
 	ChildPipelineId               int                                    `json:"childPipelineId"`
 	IsDigestEnforcedForPipeline   bool                                   `json:"isDigestEnforcedForPipeline"`
 	IsDigestEnforcedForEnv        bool                                   `json:"isDigestEnforcedForEnv"`
+	DeploymentAppClusterId        int                                    `json:"deploymentAppClusterId"`
+	DeploymentAppNamespace        string                                 `json:"deploymentAppNamespace"`
 	DeploymentAppName             string                                 `json:"deploymentAppName"`
 	ReleaseMode                   string                                 `json:"releaseMode" validate:"oneof=create"`
 }

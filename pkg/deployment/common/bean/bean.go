@@ -32,6 +32,10 @@ func (a *ArgoCDSpec) GetApplicationObjectClusterId() int {
 	return a.Metadata.ClusterId
 }
 
+func (a *ArgoCDSpec) GetApplicationObjectClusterURL() string {
+	return a.Spec.Destination.Server
+}
+
 type ApplicationMetadata struct {
 	ClusterId int    `json:"clusterId"`
 	Namespace string `json:"namespace"`
@@ -193,6 +197,15 @@ func (c *DeploymentConfig) SetChartLocation(chartLocation string) {
 
 func (c *DeploymentConfig) GetRevision() string {
 	return c.ReleaseConfiguration.ArgoCDSpec.Spec.Source.TargetRevision
+}
+
+func (c *DeploymentConfig) GetAcdAppName() string {
+	return c.ReleaseConfiguration.ArgoCDSpec.Metadata.Name
+}
+
+func (c *DeploymentConfig) GetValuesFileName() string {
+	return c.ReleaseConfiguration.ArgoCDSpec.Spec.Source.Helm.ValueFiles[0]
+
 }
 
 type UniqueDeploymentConfigIdentifier string

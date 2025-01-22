@@ -1029,10 +1029,8 @@ func (impl *ChartServiceImpl) ConfigureGitOpsRepoUrlForApp(appId int, repoUrl, c
 	}
 	defer impl.chartRepository.RollbackTx(tx)
 	var updatedCharts []*chartRepoRepository.Chart
-	var isCustom bool
 	for _, ch := range charts {
 		if !ch.IsCustomGitRepository {
-			isCustom = ch.IsCustomGitRepository
 			ch.GitRepoUrl = repoUrl
 			ch.UpdateAuditLog(userId)
 			updatedCharts = append(updatedCharts, ch)
@@ -1054,7 +1052,6 @@ func (impl *ChartServiceImpl) ConfigureGitOpsRepoUrlForApp(appId int, repoUrl, c
 		return nil, err
 	}
 
-	deploymentConfig.ConfigType = common.GetDeploymentConfigType(isCustom)
 	deploymentConfig.SetRepoURL(repoUrl)
 	deploymentConfig.SetChartLocation(chartLocation)
 
