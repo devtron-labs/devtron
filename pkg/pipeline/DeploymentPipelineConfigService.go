@@ -477,100 +477,9 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		// skip creation of DeploymentConfig if envId is not set
 		var envDeploymentConfig *bean4.DeploymentConfig
 		if pipeline.EnvironmentId > 0 {
-			env, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
+			envDeploymentConfig, err = impl.saveEnvLevelDeploymentConfig(pipeline, app, AppDeploymentConfig, pipelineCreateRequest.UserId)
 			if err != nil {
-				impl.logger.Errorw("error in fetching environment", "environmentId", pipeline.EnvironmentId, "err", err)
-				return nil, err
-			}
-			if pipeline.IsExternalArgoAppLinkRequest() {
-				application, err := impl.argoClientWrapperService.GetArgoAppByNameWithK8s(context.Background(), env.ClusterId, env.Namespace, pipeline.DeploymentAppName)
-				if err != nil {
-					impl.logger.Errorw("error in fetching application", "deploymentAppName", pipeline.DeploymentAppName, "err", err)
-					return nil, err
-				}
-				applicationJSON, err := json.Marshal(application)
-				if err != nil {
-					impl.logger.Errorw("error in marshalling application", "applicationName", pipeline.DeploymentAppName, "err", err)
-					return nil, err
-				}
-				var argoApplicationSpec bean4.ArgoCDSpec
-				err = json.Unmarshal(applicationJSON, &argoApplicationSpec)
-				if err != nil {
-					impl.logger.Errorw("error in unmarshalling application", "applicationName", pipeline.DeploymentAppName, "err", err)
-					return nil, err
-				}
-				argoApplicationSpec.SetApplicationObjectClusterId(env.ClusterId)
-				envDeploymentConfig = &bean4.DeploymentConfig{
-					AppId:             app.Id,
-					EnvironmentId:     pipeline.EnvironmentId,
-					ConfigType:        bean4.SYSTEM_GENERATED.String(),
-					DeploymentAppType: pipeline.DeploymentAppType,
-					ReleaseMode:       pipeline.ReleaseMode,
-					ReleaseConfiguration: &bean4.ReleaseConfiguration{
-						Version:    bean4.Version,
-						ArgoCDSpec: argoApplicationSpec,
-					},
-					Active: true,
-				}
-			} else {
-				envConfigOverride, err := impl.envConfigOverrideService.ActiveEnvConfigOverride(app.Id, env.Id)
-				if err != nil {
-					impl.logger.Errorw("error in fetching environment override", "environmentId", env.Id, "err", err)
-					return nil, err
-				}
-				var chartRefId int
-				if envConfigOverride.IsOverride {
-					chartRefId = envConfigOverride.ChartId
-				} else {
-					chart, err := impl.chartRepository.FindById(app.Id)
-					if err != nil {
-						impl.logger.Errorw("error in fetching chart", "appID", app.Id, "err", err)
-						return nil, err
-					}
-					chartRefId = chart.ChartRefId
-				}
-
-				chartRef, err := impl.chartRefRepository.FindById(chartRefId)
-				if err != nil {
-					impl.logger.Errorw("error in fetching chart", "chartRefId", chartRefId, "err", err)
-					return nil, err
-				}
-				chartLocation := filepath.Join(chartRef.Location, envConfigOverride.Chart.ChartVersion)
-				envDeploymentConfig = &bean4.DeploymentConfig{
-					AppId:             app.Id,
-					EnvironmentId:     pipeline.EnvironmentId,
-					ConfigType:        AppDeploymentConfig.ConfigType,
-					DeploymentAppType: pipeline.DeploymentAppType,
-					ReleaseMode:       pipeline.ReleaseMode,
-					ReleaseConfiguration: &bean4.ReleaseConfiguration{
-						Version: bean4.Version,
-						ArgoCDSpec: bean4.ArgoCDSpec{
-							Metadata: bean4.ApplicationMetadata{
-								ClusterId: bean3.DefaultClusterId,
-								Namespace: argocdServer.DevtronInstalationNs,
-							},
-							Spec: bean4.ApplicationSpec{
-								Destination: &bean4.Destination{
-									Namespace: env.Namespace,
-									Server:    env.Cluster.ServerUrl,
-								},
-								Source: &bean4.ApplicationSource{
-									RepoURL:        AppDeploymentConfig.GetRepoURL(),
-									Path:           chartLocation,
-									TargetRevision: "master",
-									Helm: &bean4.ApplicationSourceHelm{
-										ValueFiles: []string{fmt.Sprintf("_%d-values.yaml", env.Id)},
-									},
-								},
-							},
-						},
-					},
-					Active: true,
-				}
-			}
-			envDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, pipelineCreateRequest.UserId)
-			if err != nil {
-				impl.logger.Errorw("error in fetching creating env config", "appId", app.Id, "envId", pipeline.EnvironmentId, "err", err)
+				impl.logger.Errorw("error in saving env level deployment config", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
 				return nil, err
 			}
 		}
@@ -601,6 +510,120 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		}
 	}
 	return pipelineCreateRequest, nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) saveEnvLevelDeploymentConfig(pipeline *bean.CDPipelineConfigObject, app *app2.App, AppDeploymentConfig *bean4.DeploymentConfig, userId int32) (*bean4.DeploymentConfig, error) {
+	env, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment", "environmentId", pipeline.EnvironmentId, "err", err)
+		return nil, err
+	}
+	envDeploymentConfig := &bean4.DeploymentConfig{
+		AppId:             app.Id,
+		EnvironmentId:     pipeline.EnvironmentId,
+		ConfigType:        AppDeploymentConfig.ConfigType,
+		DeploymentAppType: pipeline.DeploymentAppType,
+		RepoURL:           AppDeploymentConfig.RepoURL,
+		ReleaseMode:       pipeline.ReleaseMode,
+		Active:            true,
+	}
+	var releaseConfig *bean4.ReleaseConfiguration
+	if pipeline.IsExternalArgoAppLinkRequest() {
+		releaseConfig, err = impl.parseEnvDeploymentConfigForExternalAcdApp(pipeline, env)
+		if err != nil {
+			impl.logger.Errorw("error in parsing deployment config for external acd app", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+			return envDeploymentConfig, err
+		}
+	} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		releaseConfig, err = impl.parseEnvDeploymentConfigForACDApp(app, AppDeploymentConfig, env)
+		if err != nil {
+			impl.logger.Errorw("error in parsing deployment config for acd app", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+			return envDeploymentConfig, err
+		}
+	}
+	envDeploymentConfig.ReleaseConfiguration = releaseConfig
+	envDeploymentConfig, err = impl.deploymentConfigService.CreateOrUpdateConfig(nil, envDeploymentConfig, userId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching creating env config", "appId", app.Id, "envId", pipeline.EnvironmentId, "err", err)
+		return nil, err
+	}
+	return envDeploymentConfig, nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) parseEnvDeploymentConfigForACDApp(app *app2.App, AppDeploymentConfig *bean4.DeploymentConfig, env *repository6.Environment) (*bean4.ReleaseConfiguration, error) {
+	envConfigOverride, err := impl.envConfigOverrideService.ActiveEnvConfigOverride(app.Id, env.Id)
+	if err != nil {
+		impl.logger.Errorw("error in fetching environment override", "environmentId", env.Id, "err", err)
+		return nil, err
+	}
+	//TODO: common function for finding chart_ref_id,
+	var chartRefId int
+	if envConfigOverride.IsOverride {
+		chartRefId = envConfigOverride.ChartId
+	} else {
+		chart, err := impl.chartRepository.FindById(app.Id)
+		if err != nil {
+			impl.logger.Errorw("error in fetching chart", "appID", app.Id, "err", err)
+			return nil, err
+		}
+		chartRefId = chart.ChartRefId
+	}
+
+	chartRef, err := impl.chartRefRepository.FindById(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching chart", "chartRefId", chartRefId, "err", err)
+		return nil, err
+	}
+	chartLocation := filepath.Join(chartRef.Location, envConfigOverride.Chart.ChartVersion)
+
+	return &bean4.ReleaseConfiguration{
+		Version: bean4.Version,
+		ArgoCDSpec: bean4.ArgoCDSpec{
+			Metadata: bean4.ApplicationMetadata{
+				ClusterId: bean3.DefaultClusterId,
+				Namespace: argocdServer.DevtronInstalationNs,
+			},
+			Spec: bean4.ApplicationSpec{
+				Destination: &bean4.Destination{
+					Namespace: env.Namespace,
+					Server:    env.Cluster.ServerUrl,
+				},
+				Source: &bean4.ApplicationSource{
+					RepoURL:        AppDeploymentConfig.GetRepoURL(),
+					Path:           chartLocation,
+					TargetRevision: "master",
+					Helm: &bean4.ApplicationSourceHelm{
+						ValueFiles: []string{fmt.Sprintf("_%d-values.yaml", env.Id)},
+					},
+				},
+			},
+		},
+	}, nil
+}
+
+func (impl *CdPipelineConfigServiceImpl) parseEnvDeploymentConfigForExternalAcdApp(pipeline *bean.CDPipelineConfigObject, env *repository6.Environment) (*bean4.ReleaseConfiguration, error) {
+	application, err := impl.argoClientWrapperService.GetArgoAppByNameWithK8s(context.Background(), env.ClusterId, env.Namespace, pipeline.DeploymentAppName)
+	if err != nil {
+		impl.logger.Errorw("error in fetching application", "deploymentAppName", pipeline.DeploymentAppName, "err", err)
+		return nil, err
+	}
+	applicationJSON, err := json.Marshal(application)
+	if err != nil {
+		impl.logger.Errorw("error in marshalling application", "applicationName", pipeline.DeploymentAppName, "err", err)
+		return nil, err
+	}
+	var argoApplicationSpec bean4.ArgoCDSpec
+	err = json.Unmarshal(applicationJSON, &argoApplicationSpec)
+	if err != nil {
+		impl.logger.Errorw("error in unmarshalling application", "applicationName", pipeline.DeploymentAppName, "err", err)
+		return nil, err
+	}
+	argoApplicationSpec.SetApplicationObjectClusterId(env.ClusterId)
+
+	return &bean4.ReleaseConfiguration{
+		Version:    bean4.Version,
+		ArgoCDSpec: argoApplicationSpec,
+	}, nil
 }
 
 func (impl *CdPipelineConfigServiceImpl) CDPipelineCustomTagDBOperations(pipeline *bean.CDPipelineConfigObject) error {
