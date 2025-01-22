@@ -402,7 +402,11 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	workflowRequest.CiPipelineType = trigger.PipelineType
 	err = impl.executeCiPipeline(workflowRequest)
 	if err != nil {
-		impl.Logger.Errorw("workflow error", "err", err)
+		impl.Logger.Errorw("error in executing ci pipeline", "err", err)
+		dbErr := impl.markCurrentCiWorkflowFailed(savedCiWf, err)
+		if dbErr != nil {
+			impl.Logger.Errorw("update ci workflow error", "err", dbErr)
+		}
 		return 0, err
 	}
 	impl.Logger.Debugw("ci triggered", " pipeline ", trigger.PipelineId)
