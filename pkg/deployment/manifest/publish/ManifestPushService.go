@@ -117,7 +117,6 @@ func (impl *GitOpsManifestPushServiceImpl) createRepoForGitOperation(manifestPus
 
 func (impl *GitOpsManifestPushServiceImpl) validateManifestPushRequest(globalGitOpsConfigStatus *gitOpsBean.GitOpsConfigurationStatus, manifestPushTemplate *bean.ManifestPushTemplate) error {
 	if manifestPushTemplate.ReleaseMode == util.PIPELINE_RELEASE_MODE_LINK {
-		// TODO Asutosh: skip with no error for clone mode
 		if gitOps.IsGitOpsRepoNotConfigured(manifestPushTemplate.RepoUrl) {
 			return fmt.Errorf("Could not push chart to git. GitOps repository is not found for the pipeline.")
 		}

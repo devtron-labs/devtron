@@ -49,6 +49,11 @@ func (r *ReleaseConfiguration) JSON() []byte {
 	return releaseConfigJson
 }
 
+type DeploymentConfigMin struct {
+	DeploymentAppType string
+	ReleaseMode       string
+}
+
 type DeploymentConfig struct {
 	Id                   int
 	AppId                int

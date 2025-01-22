@@ -1,10 +1,17 @@
-package common
+package adapter
 
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/deploymentConfig"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 )
+
+func NewDeploymentConfigMin(deploymentAppType, releaseMode string) *bean.DeploymentConfigMin {
+	return &bean.DeploymentConfigMin{
+		DeploymentAppType: deploymentAppType,
+		ReleaseMode:       releaseMode,
+	}
+}
 
 func ConvertDeploymentConfigDTOToDbObj(config *bean.DeploymentConfig) (*deploymentConfig.DeploymentConfig, error) {
 	return &deploymentConfig.DeploymentConfig{

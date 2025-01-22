@@ -33,6 +33,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
+	"github.com/devtron-labs/devtron/pkg/deployment/common/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	constants3 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	util4 "github.com/devtron-labs/devtron/pkg/pipeline/util"
@@ -146,6 +147,7 @@ type CiCdPipelineOrchestratorImpl struct {
 	transactionManager            sql.TransactionWrapper
 	gitOpsConfigReadService       config.GitOpsConfigReadService
 	deploymentConfigService       common.DeploymentConfigService
+	deploymentConfigReadService   read.DeploymentConfigReadService
 	workflowCacheConfig           types.WorkflowCacheConfig
 }
 
@@ -176,7 +178,8 @@ func NewCiCdPipelineOrchestrator(
 	genericNoteService genericNotes.GenericNoteService,
 	chartService chart.ChartService, transactionManager sql.TransactionWrapper,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
-	deploymentConfigService common.DeploymentConfigService) *CiCdPipelineOrchestratorImpl {
+	deploymentConfigService common.DeploymentConfigService,
+	deploymentConfigReadService read.DeploymentConfigReadService) *CiCdPipelineOrchestratorImpl {
 	_, workflowCacheConfig, err := types.GetCiConfigWithWorkflowCacheConfig()
 	if err != nil {
 		logger.Errorw("Error in getting workflow cache config, continuing with default values", "err", err)
@@ -211,6 +214,7 @@ func NewCiCdPipelineOrchestrator(
 		transactionManager:            transactionManager,
 		gitOpsConfigReadService:       gitOpsConfigReadService,
 		deploymentConfigService:       deploymentConfigService,
+		deploymentConfigReadService:   deploymentConfigReadService,
 		workflowCacheConfig:           workflowCacheConfig,
 	}
 }
@@ -1940,6 +1944,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipe
 			PreStageConfigMapSecretNames:  preStageConfigmapSecrets,
 			PostStageConfigMapSecretNames: postStageConfigmapSecrets,
 			DeploymentAppType:             envDeploymentConfig.DeploymentAppType,
+			ReleaseMode:                   envDeploymentConfig.ReleaseMode,
 			DeploymentAppCreated:          dbPipeline.DeploymentAppCreated,
 			DeploymentAppDeleteRequest:    dbPipeline.DeploymentAppDeleteRequest,
 			IsVirtualEnvironment:          dbPipeline.Environment.IsVirtualEnvironment,
@@ -1998,12 +2003,21 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 		return nil, err
 	}
 	pipelines := make([]*bean.CDPipelineConfigObject, 0, len(dbPipelines))
-	pipelineIdDeploymentTypeMap, err := impl.deploymentConfigService.GetDeploymentAppTypeForCDInBulk(dbPipelines)
+	pipelineIdDeploymentTypeMap, err := impl.deploymentConfigReadService.GetDeploymentAppTypeForCDInBulk(dbPipelines)
 	if err != nil {
 		impl.logger.Errorw("error, GetDeploymentAppTypeForCDInBulk", "pipelines", dbPipelines, "err", err)
 		return nil, err
 	}
 	for _, dbPipeline := range dbPipelines {
+		var deploymentAppType, releaseMode string
+		if envDeploymentConfigMin, ok := pipelineIdDeploymentTypeMap[dbPipeline.Id]; ok {
+			deploymentAppType = envDeploymentConfigMin.DeploymentAppType
+			releaseMode = envDeploymentConfigMin.ReleaseMode
+		} else {
+			// error handling if data is not found; as it is a required field
+			impl.logger.Errorw("error in fetching deploymentAppType and release mode for pipeline", "pipelineId", dbPipeline.Id, "pipelineIdDeploymentTypeMap", pipelineIdDeploymentTypeMap)
+			return nil, fmt.Errorf("error in fetching deploymentAppType and release mode for pipeline")
+		}
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                        dbPipeline.Id,
 			Name:                      dbPipeline.Name,
@@ -2013,7 +2027,8 @@ func (impl CiCdPipelineOrchestratorImpl) GetCdPipelinesForEnv(envId int, request
 			TriggerType:               dbPipeline.TriggerType,
 			RunPreStageInEnv:          dbPipeline.RunPreStageInEnv,
 			RunPostStageInEnv:         dbPipeline.RunPostStageInEnv,
-			DeploymentAppType:         pipelineIdDeploymentTypeMap[dbPipeline.Id],
+			DeploymentAppType:         deploymentAppType,
+			ReleaseMode:               releaseMode,
 			AppName:                   dbPipeline.App.AppName,
 			AppId:                     dbPipeline.AppId,
 			TeamId:                    dbPipeline.App.TeamId,

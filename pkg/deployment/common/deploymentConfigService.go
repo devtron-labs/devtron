@@ -2,7 +2,6 @@ package common
 
 import (
 	"errors"
-	"fmt"
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/bean/gitOps"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -16,6 +15,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	"github.com/devtron-labs/devtron/pkg/deployment/common/adapter"
 	"github.com/devtron-labs/devtron/pkg/deployment/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/helper"
@@ -32,7 +32,6 @@ type DeploymentConfigService interface {
 	GetConfigEvenIfInactive(appId, envId int) (*bean.DeploymentConfig, error)
 	GetAndMigrateConfigIfAbsentForHelmApp(appId, envId int) (*bean.DeploymentConfig, error)
 	UpdateRepoUrlForAppAndEnvId(repoURL string, appId, envId int) error
-	GetDeploymentAppTypeForCDInBulk(pipelines []*pipelineConfig.Pipeline) (map[int]string, error)
 }
 
 type DeploymentConfigServiceImpl struct {
@@ -43,7 +42,7 @@ type DeploymentConfigServiceImpl struct {
 	appRepository               appRepository.AppRepository
 	installedAppReadService     installedAppReader.InstalledAppReadServiceEA
 	deploymentServiceTypeConfig *util.DeploymentServiceTypeConfig
-	EnvConfigOverrideService    read.EnvConfigOverrideService
+	envConfigOverrideService    read.EnvConfigOverrideService
 	environmentRepository       repository.EnvironmentRepository
 }
 
@@ -55,7 +54,7 @@ func NewDeploymentConfigServiceImpl(
 	appRepository appRepository.AppRepository,
 	installedAppReadService installedAppReader.InstalledAppReadServiceEA,
 	envVariables *util.EnvironmentVariables,
-	EnvConfigOverrideService read.EnvConfigOverrideService,
+	envConfigOverrideService read.EnvConfigOverrideService,
 	environmentRepository repository.EnvironmentRepository,
 ) *DeploymentConfigServiceImpl {
 
@@ -67,7 +66,7 @@ func NewDeploymentConfigServiceImpl(
 		appRepository:               appRepository,
 		installedAppReadService:     installedAppReadService,
 		deploymentServiceTypeConfig: envVariables.DeploymentServiceTypeConfig,
-		EnvConfigOverrideService:    EnvConfigOverrideService,
+		envConfigOverrideService:    envConfigOverrideService,
 		environmentRepository:       environmentRepository,
 	}
 }
@@ -80,7 +79,7 @@ func (impl *DeploymentConfigServiceImpl) CreateOrUpdateConfig(tx *pg.Tx, config 
 			"appId", config.AppId, "envId", config.EnvironmentId, "err", err)
 	}
 
-	newDBObj, err := ConvertDeploymentConfigDTOToDbObj(config)
+	newDBObj, err := adapter.ConvertDeploymentConfigDTOToDbObj(config)
 	if err != nil {
 		impl.logger.Errorw("error in converting deployment config DTO to db object", "appId", config.AppId, "envId", config.EnvironmentId)
 		return nil, err
@@ -103,7 +102,7 @@ func (impl *DeploymentConfigServiceImpl) CreateOrUpdateConfig(tx *pg.Tx, config 
 			return nil, err
 		}
 	}
-	newObj, err := ConvertDeploymentConfigDbObjToDTO(newDBObj)
+	newObj, err := adapter.ConvertDeploymentConfigDbObjToDTO(newDBObj)
 	if err != nil {
 		impl.logger.Errorw("error in converting deployment config DTO to db object", "appId", config.AppId, "envId", config.EnvironmentId)
 		return nil, err
@@ -159,7 +158,7 @@ func (impl *DeploymentConfigServiceImpl) getAppLevelConfigForDevtronApps(appId i
 			}
 		}
 	} else {
-		appLevelConfig, err = ConvertDeploymentConfigDbObjToDTO(appLevelConfigDbObj)
+		appLevelConfig, err = adapter.ConvertDeploymentConfigDbObjToDTO(appLevelConfigDbObj)
 		if err != nil {
 			impl.logger.Errorw("error in converting deployment config db object", "appId", appId, "envId", envId, "err", err)
 			return nil, err
@@ -223,7 +222,7 @@ func (impl *DeploymentConfigServiceImpl) getEnvLevelDataForDevtronApps(appId, en
 		}
 	} else {
 		// case: deployment config is migrated but release config is absent
-		appAndEnvLevelConfig, err = ConvertDeploymentConfigDbObjToDTO(appAndEnvLevelConfigDBObj)
+		appAndEnvLevelConfig, err = adapter.ConvertDeploymentConfigDbObjToDTO(appAndEnvLevelConfigDBObj)
 		if err != nil {
 			impl.logger.Errorw("error in converting deployment config db object", "appId", appId, "envId", envId, "err", err)
 			return nil, err
@@ -364,7 +363,7 @@ func (impl *DeploymentConfigServiceImpl) parseEnvLevelMigrationDataForDevtronApp
 func (impl *DeploymentConfigServiceImpl) parseEnvLevelReleaseConfigForDevtronApp(config *bean.DeploymentConfig, appId int, envId int) (*bean.ReleaseConfiguration, error) {
 	var releaseConfig *bean.ReleaseConfiguration
 	if config.DeploymentAppType == util2.PIPELINE_DEPLOYMENT_TYPE_ACD {
-		envOverride, err := impl.EnvConfigOverrideService.ActiveEnvConfigOverride(appId, envId)
+		envOverride, err := impl.envConfigOverrideService.ActiveEnvConfigOverride(appId, envId)
 		if err != nil {
 			return nil, err
 		}
@@ -459,7 +458,7 @@ func (impl *DeploymentConfigServiceImpl) getConfigForHelmApps(appId int, envId i
 			}
 		}
 	} else {
-		helmDeploymentConfig, err = ConvertDeploymentConfigDbObjToDTO(config)
+		helmDeploymentConfig, err = adapter.ConvertDeploymentConfigDbObjToDTO(config)
 		if err != nil {
 			impl.logger.Errorw("error in converting helm deployment config dbObj to DTO", "appId", appId, "envId", envId, "err", err)
 			return nil, err
@@ -489,7 +488,7 @@ func (impl *DeploymentConfigServiceImpl) GetConfigEvenIfInactive(appId, envId in
 		impl.logger.Errorw("error in getting deployment config by appId and envId", "appId", appId, "envId", envId, "err", err)
 		return nil, err
 	}
-	config, err := ConvertDeploymentConfigDbObjToDTO(dbConfig)
+	config, err := adapter.ConvertDeploymentConfigDbObjToDTO(dbConfig)
 	if err != nil {
 		impl.logger.Errorw("error in converting deployment config db obj to dto", "appId", appId, "envId", envId, "err", err)
 		return nil, err
@@ -584,31 +583,4 @@ func (impl *DeploymentConfigServiceImpl) UpdateRepoUrlForAppAndEnvId(repoURL str
 		return err
 	}
 	return nil
-}
-
-func (impl *DeploymentConfigServiceImpl) GetDeploymentAppTypeForCDInBulk(pipelines []*pipelineConfig.Pipeline) (map[int]string, error) {
-	resp := make(map[int]string, len(pipelines)) //map of pipelineId and deploymentAppType
-	if impl.deploymentServiceTypeConfig.UseDeploymentConfigData {
-		appIdEnvIdMapping := make(map[int][]int, len(pipelines))
-		appIdEnvIdKeyPipelineIdMap := make(map[string]int, len(pipelines))
-		for _, pipeline := range pipelines {
-			appIdEnvIdMapping[pipeline.AppId] = append(appIdEnvIdMapping[pipeline.AppId], pipeline.EnvironmentId)
-			appIdEnvIdKeyPipelineIdMap[fmt.Sprintf("%d-%d", pipeline.AppId, pipeline.EnvironmentId)] = pipeline.Id
-		}
-		configs, err := impl.deploymentConfigRepository.GetAppAndEnvLevelConfigsInBulk(appIdEnvIdMapping)
-		if err != nil {
-			impl.logger.Errorw("error, GetAppAndEnvLevelConfigsInBulk", "appIdEnvIdMapping", appIdEnvIdMapping, "err", err)
-			return nil, err
-		}
-		for _, config := range configs {
-			pipelineId := appIdEnvIdKeyPipelineIdMap[fmt.Sprintf("%d-%d", config.AppId, config.EnvironmentId)]
-			resp[pipelineId] = config.DeploymentAppType
-		}
-	}
-	for _, pipeline := range pipelines {
-		if _, ok := resp[pipeline.Id]; !ok { //not found in map, either flag is disabled or config not migrated yet. Getting from old data
-			resp[pipeline.Id] = pipeline.DeploymentAppType
-		}
-	}
-	return resp, nil
 }

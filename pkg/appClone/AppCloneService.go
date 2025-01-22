@@ -986,11 +986,11 @@ func (impl *AppCloneServiceImpl) createClonedCdPipeline(req *cloneCdPipelineRequ
 		util.PIPELINE_DEPLOYMENT_TYPE_ACD:  true,
 		util.PIPELINE_DEPLOYMENT_TYPE_HELM: true,
 	}
-	DeploymentAppConfigForEnvironment, err := impl.attributesService.GetDeploymentEnforcementConfig(refCdPipeline.EnvironmentId)
+	deploymentAppConfigForEnvironment, err := impl.attributesService.GetDeploymentEnforcementConfig(refCdPipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching deployment config for environment", "err", err)
 	}
-	for deploymentType, allowed := range DeploymentAppConfigForEnvironment {
+	for deploymentType, allowed := range deploymentAppConfigForEnvironment {
 		AllowedDeploymentAppTypes[deploymentType] = allowed
 	}
 	gitOpsConfigurationStatus, err := impl.gitOpsConfigReadService.IsGitOpsConfigured()
@@ -998,6 +998,12 @@ func (impl *AppCloneServiceImpl) createClonedCdPipeline(req *cloneCdPipelineRequ
 		impl.logger.Errorw("error in checking if gitOps configured", "err", err)
 		return nil, err
 	}
+
+	if refCdPipeline.ReleaseMode == util.PIPELINE_RELEASE_MODE_LINK && !gitOpsConfigurationStatus.IsArgoCdInstalled {
+		impl.logger.Warnw("argo cd is not installed, skipping creation of linked cd pipeline", "cdPipelineId", refCdPipeline.Id)
+		// TODO Asutosh: skip pipeline and it's children
+	}
+
 	var deploymentAppType string
 	if AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_ACD] && AllowedDeploymentAppTypes[util.PIPELINE_DEPLOYMENT_TYPE_HELM] {
 		deploymentAppType = refCdPipeline.DeploymentAppType
@@ -1026,6 +1032,7 @@ func (impl *AppCloneServiceImpl) createClonedCdPipeline(req *cloneCdPipelineRequ
 		RunPostStageInEnv:             refCdPipeline.RunPostStageInEnv,
 		RunPreStageInEnv:              refCdPipeline.RunPreStageInEnv,
 		DeploymentAppType:             deploymentAppType,
+		ReleaseMode:                   util.PIPELINE_RELEASE_MODE_CREATE,
 		PreDeployStage:                refCdPipeline.PreDeployStage,
 		PostDeployStage:               refCdPipeline.PostDeployStage,
 		SourceToNewPipelineId:         refCdPipeline.SourceToNewPipelineId,

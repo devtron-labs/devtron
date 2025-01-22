@@ -802,6 +802,7 @@ func (impl AppWorkflowServiceImpl) FindCdPipelinesByAppId(appId int) (*bean.CdPi
 			TriggerType:               pipeline.TriggerType,
 			Name:                      pipeline.Name,
 			DeploymentAppType:         envDeploymentConfig.DeploymentAppType,
+			ReleaseMode:               envDeploymentConfig.ReleaseMode,
 			AppName:                   pipeline.DeploymentAppName,
 			AppId:                     pipeline.AppId,
 			IsGitOpsRepoNotConfigured: !isAppLevelGitOpsConfigured,
