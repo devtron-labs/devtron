@@ -1,6 +1,7 @@
 package bean
 
 import (
+	"github.com/devtron-labs/common-lib/utils/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"time"
@@ -21,7 +22,7 @@ type CdWorkflowWithArtifact struct {
 	TriggeredBy           int32                                       `json:"triggered_by"`
 	EmailId               string                                      `json:"email_id"`
 	Image                 string                                      `json:"image"`
-	TargetPlatforms       []*TargetPlatform                           `json:"targetPlatforms"`
+	TargetPlatforms       []*bean.TargetPlatform                      `json:"targetPlatforms"`
 	MaterialInfo          string                                      `json:"material_info,omitempty"`
 	DataSource            string                                      `json:"data_source,omitempty"`
 	CiArtifactId          int                                         `json:"ci_artifact_id,omitempty"`

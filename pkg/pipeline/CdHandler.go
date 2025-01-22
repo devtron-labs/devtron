@@ -20,6 +20,8 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils"
+	bean4 "github.com/devtron-labs/common-lib/utils/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
@@ -27,7 +29,6 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
-	adapter2 "github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	util2 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"os"
 	"path/filepath"
@@ -612,7 +613,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		triggeredByUserEmailId = "anonymous"
 	}
 	ciArtifactId := workflow.CiArtifactId
-	targetPlatforms := []*pipelineBean.TargetPlatform{}
+	targetPlatforms := []*bean4.TargetPlatform{}
 	if ciArtifactId > 0 {
 		ciArtifact, err := impl.ciArtifactRepository.Get(ciArtifactId)
 		if err != nil {
@@ -620,7 +621,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 			return types.WorkflowResponse{}, err
 		}
 
-		targetPlatforms = adapter2.GetTargetPlatformObjectFromString(ciArtifact.TargetPlatforms)
+		targetPlatforms = utils.ConvertTargetPlatformStringToObject(ciArtifact.TargetPlatforms)
 
 		// handling linked ci pipeline
 		if ciArtifact.ParentCiArtifact > 0 && ciArtifact.WorkflowId == nil {
@@ -781,7 +782,7 @@ func (impl *CdHandlerImpl) converterWFR(wfr pipelineConfig.CdWorkflowRunner) pip
 		workflow.WorkflowType = string(wfr.WorkflowType)
 		workflow.CdWorkflowId = wfr.CdWorkflowId
 		workflow.Image = wfr.CdWorkflow.CiArtifact.Image
-		workflow.TargetPlatforms = adapter2.GetTargetPlatformObjectFromString(wfr.CdWorkflow.CiArtifact.TargetPlatforms)
+		workflow.TargetPlatforms = utils.ConvertTargetPlatformStringToObject(wfr.CdWorkflow.CiArtifact.TargetPlatforms)
 		workflow.PipelineId = wfr.CdWorkflow.PipelineId
 		workflow.CiArtifactId = wfr.CdWorkflow.CiArtifactId
 		isArtifactUploaded, isMigrationRequired := wfr.GetIsArtifactUploaded()

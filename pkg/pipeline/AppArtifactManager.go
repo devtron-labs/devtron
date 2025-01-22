@@ -17,10 +17,10 @@
 package pipeline
 
 import (
+	"github.com/devtron-labs/common-lib/utils"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
-	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"sort"
 	"strings"
@@ -403,7 +403,7 @@ func (impl *AppArtifactManagerImpl) BuildRollbackArtifactsList(artifactListingFi
 		deployedCiArtifacts = append(deployedCiArtifacts, bean2.CiArtifactBean{
 			Id:                     ciArtifact.Id,
 			Image:                  ciArtifact.Image,
-			TargetPlatforms:        adapter.GetTargetPlatformObjectFromString(ciArtifact.TargetPlatforms),
+			TargetPlatforms:        utils.ConvertTargetPlatformStringToObject(ciArtifact.TargetPlatforms),
 			MaterialInfo:           mInfo,
 			DeployedTime:           formatDate(ciArtifact.StartedOn, bean2.LayoutRFC3339),
 			WfrId:                  ciArtifact.CdWorkflowRunnerId,
@@ -658,7 +658,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 		currentRunningArtifactBean = &bean2.CiArtifactBean{
 			Id:                     currentRunningArtifact.Id,
 			Image:                  currentRunningArtifact.Image,
-			TargetPlatforms:        adapter.GetTargetPlatformObjectFromString(currentRunningArtifact.TargetPlatforms),
+			TargetPlatforms:        utils.ConvertTargetPlatformStringToObject(currentRunningArtifact.TargetPlatforms),
 			ImageDigest:            currentRunningArtifact.ImageDigest,
 			MaterialInfo:           mInfo,
 			ScanEnabled:            currentRunningArtifact.ScanEnabled,
@@ -740,7 +740,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts
 		ciArtifact := &bean2.CiArtifactBean{
 			Id:              artifact.Id,
 			Image:           artifact.Image,
-			TargetPlatforms: adapter.GetTargetPlatformObjectFromString(artifact.TargetPlatforms),
+			TargetPlatforms: utils.ConvertTargetPlatformStringToObject(artifact.TargetPlatforms),
 			ImageDigest:     artifact.ImageDigest,
 			MaterialInfo:    mInfo,
 			//TODO:LastSuccessfulTriggerOnParent
@@ -785,7 +785,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCIParentV2(listingFilterOpt
 		ciArtifact := &bean2.CiArtifactBean{
 			Id:                     artifact.Id,
 			Image:                  artifact.Image,
-			TargetPlatforms:        adapter.GetTargetPlatformObjectFromString(artifact.TargetPlatforms),
+			TargetPlatforms:        utils.ConvertTargetPlatformStringToObject(artifact.TargetPlatforms),
 			ImageDigest:            artifact.ImageDigest,
 			MaterialInfo:           mInfo,
 			ScanEnabled:            artifact.ScanEnabled,

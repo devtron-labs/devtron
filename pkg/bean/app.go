@@ -18,6 +18,7 @@ package bean
 
 import (
 	"encoding/json"
+	bean4 "github.com/devtron-labs/common-lib/utils/bean"
 	bean2 "github.com/devtron-labs/devtron/api/bean/AppView"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -827,7 +828,7 @@ type CiArtifactBean struct {
 	CiWorkflowId                  int                       `json:"-"`
 	RegistryType                  string                    `json:"registryType"`
 	RegistryName                  string                    `json:"registryName"`
-	TargetPlatforms               []*bean.TargetPlatform    `json:"targetPlatforms"`
+	TargetPlatforms               []*bean4.TargetPlatform   `json:"targetPlatforms"`
 	CiPipelineId                  int                       `json:"-"`
 	CredentialsSourceType         string                    `json:"-"`
 	CredentialsSourceValue        string                    `json:"-"`

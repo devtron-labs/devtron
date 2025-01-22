@@ -27,7 +27,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"strings"
 	"time"
 )
 
@@ -378,19 +377,4 @@ func GetStepVariableDto(variable *repository.PipelineStageStepVariable) (*pipeli
 		VariableStepIndexInPlugin: variable.VariableStepIndexInPlugin,
 	}
 	return variableDto, nil
-}
-
-func GetTargetPlatformObjectFromString(targetPlatformString string) []*pipelineConfigBean.TargetPlatform {
-	targetPlatforms := GetTargetPlatformListFromString(targetPlatformString)
-	targetPlatformObject := []*pipelineConfigBean.TargetPlatform{}
-	for _, targetPlatform := range targetPlatforms {
-		if len(targetPlatform) > 0 {
-			targetPlatformObject = append(targetPlatformObject, &pipelineConfigBean.TargetPlatform{Name: targetPlatform})
-		}
-	}
-	return targetPlatformObject
-}
-
-func GetTargetPlatformListFromString(targetPlatform string) []string {
-	return strings.Split(targetPlatform, ",")
 }

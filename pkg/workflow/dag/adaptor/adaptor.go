@@ -1,10 +1,10 @@
 package adaptor
 
 import (
+	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	bean2 "github.com/devtron-labs/devtron/pkg/workflow/dag/bean"
-	"strings"
 	"time"
 )
 
@@ -19,11 +19,7 @@ func GetBuildArtifact(request *bean2.CiArtifactWebhookRequest, ciPipelineId int,
 		ScanEnabled:        request.IsScanEnabled,
 		IsArtifactUploaded: request.IsArtifactUploaded, // for backward compatibility
 		Scanned:            false,
-		TargetPlatforms:    GetTargetPlatformStringFromList(request.TargetPlatforms),
+		TargetPlatforms:    utils.ConvertTargetPlatformListToString(request.TargetPlatforms),
 		AuditLog:           sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: createdOn, UpdatedOn: updatedOn},
 	}
-}
-
-func GetTargetPlatformStringFromList(targetPlatforms []string) string {
-	return strings.Join(targetPlatforms, ",")
 }
