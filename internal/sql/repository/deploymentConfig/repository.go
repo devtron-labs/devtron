@@ -45,7 +45,7 @@ type DeploymentConfig struct {
 	ConfigType        string   `sql:"config_type"`
 	RepoUrl           string   `sql:"repo_url"`
 	RepoName          string   `sql:"repo_name"`
-	ReleaseMode       string   `json:"release_mode"`
+	ReleaseMode       string   `sql:"release_mode"`
 	Active            bool     `sql:"active,notnull"`
 	sql.AuditLog
 }
@@ -103,14 +103,19 @@ func (impl *RepositoryImpl) Update(tx *pg.Tx, config *DeploymentConfig) (*Deploy
 	return config, err
 }
 
-func (impl *RepositoryImpl) UpdateAll(tx *pg.Tx, config []*DeploymentConfig) ([]*DeploymentConfig, error) {
+func (impl *RepositoryImpl) UpdateAll(tx *pg.Tx, configs []*DeploymentConfig) ([]*DeploymentConfig, error) {
 	var err error
-	if tx != nil {
-		err = tx.Update(config)
-	} else {
-		err = impl.dbConnection.Update(config)
+	for _, config := range configs {
+		if tx != nil {
+			_, err = tx.Model(config).WherePK().UpdateNotNull()
+		} else {
+			_, err = impl.dbConnection.Model(&config).UpdateNotNull()
+		}
+		if err != nil {
+			return nil, err
+		}
 	}
-	return config, err
+	return configs, err
 }
 
 func (impl *RepositoryImpl) GetById(id int) (*DeploymentConfig, error) {
