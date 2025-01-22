@@ -72,6 +72,7 @@ func NewHelmAppClientImpl(logger *zap.SugaredLogger,
 	}
 }
 
+// CATEGORY=INFRA_SETUP
 type HelmClientConfig struct {
 	Url string `env:"HELM_CLIENT_URL" envDefault:"127.0.0.1:50051"`
 }

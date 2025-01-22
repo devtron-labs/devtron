@@ -52,6 +52,7 @@ type CancelWfRequestDto struct {
 
 // build infra configurations like ciTimeout,ciCpuLimit,ciMemLimit,ciCpuReq,ciMemReq are being managed by infraConfig service
 
+// CATEGORY=CI_RUNNER
 type CiCdConfig struct {
 	// from ciConfig
 	DefaultCacheBucket           string   `env:"DEFAULT_CACHE_BUCKET" envDefault:"ci-caching"`
