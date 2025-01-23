@@ -289,6 +289,7 @@ func (impl *ChartServiceImpl) Create(templateRequest TemplateRequest, ctx contex
 	deploymentConfig := &bean2.DeploymentConfig{
 		AppId:      templateRequest.AppId,
 		ConfigType: common.GetDeploymentConfigType(templateRequest.IsCustomGitRepository),
+		RepoURL:    gitRepoUrl,
 		ReleaseConfiguration: &bean2.ReleaseConfiguration{
 			Version: bean2.Version,
 			ArgoCDSpec: bean2.ArgoCDSpec{
@@ -397,6 +398,7 @@ func (impl *ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Templat
 		gitRepoUrl = currentLatestChart.GitRepoUrl
 	}
 
+	deploymentConfig.RepoURL = gitRepoUrl
 	deploymentConfig.SetRepoURL(gitRepoUrl)
 	deploymentConfig.SetChartLocation(chartLocation)
 
@@ -1051,7 +1053,7 @@ func (impl *ChartServiceImpl) ConfigureGitOpsRepoUrlForApp(appId int, repoUrl, c
 		impl.logger.Errorw("error in getting deployment config", "appId", appId, "error", err)
 		return nil, err
 	}
-
+	deploymentConfig.RepoURL = repoUrl
 	deploymentConfig.SetRepoURL(repoUrl)
 	deploymentConfig.SetChartLocation(chartLocation)
 

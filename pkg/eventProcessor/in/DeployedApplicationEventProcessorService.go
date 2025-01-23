@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	v1alpha12 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/common-lib/pubsub-lib/model"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -31,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	bean3 "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
@@ -55,6 +55,7 @@ type DeployedApplicationEventProcessorImpl struct {
 	appStoreDeploymentService service.AppStoreDeploymentService
 	pipelineRepository        pipelineConfig.PipelineRepository // TODO: should use cdPipelineReadService instead
 	installedAppReadService   installedAppReader.InstalledAppReadService
+	DeploymentConfigService   common.DeploymentConfigService
 }
 
 func NewDeployedApplicationEventProcessorImpl(logger *zap.SugaredLogger,
@@ -67,7 +68,8 @@ func NewDeployedApplicationEventProcessorImpl(logger *zap.SugaredLogger,
 	pipelineBuilder pipeline.PipelineBuilder,
 	appStoreDeploymentService service.AppStoreDeploymentService,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	installedAppReadService installedAppReader.InstalledAppReadService) *DeployedApplicationEventProcessorImpl {
+	installedAppReadService installedAppReader.InstalledAppReadService,
+	DeploymentConfigService common.DeploymentConfigService) *DeployedApplicationEventProcessorImpl {
 	deployedApplicationEventProcessorImpl := &DeployedApplicationEventProcessorImpl{
 		logger:                    logger,
 		pubSubClient:              pubSubClient,
@@ -80,6 +82,7 @@ func NewDeployedApplicationEventProcessorImpl(logger *zap.SugaredLogger,
 		appStoreDeploymentService: appStoreDeploymentService,
 		pipelineRepository:        pipelineRepository,
 		installedAppReadService:   installedAppReadService,
+		DeploymentConfigService:   DeploymentConfigService,
 	}
 	return deployedApplicationEventProcessorImpl
 }
@@ -122,7 +125,7 @@ func (impl *DeployedApplicationEventProcessorImpl) SubscribeArgoAppUpdate() erro
 				return
 			}
 		}
-		isSucceeded, _, pipelineOverride, err := impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, applicationDetail.StatusTime, isAppStoreApplication)
+		isSucceeded, _, pipelineOverride, err := impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, applicationDetail.ClusterId, applicationDetail.StatusTime, isAppStoreApplication)
 		if err != nil {
 			impl.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
 			// TODO - check update for charts - fix this call
@@ -182,7 +185,7 @@ func (impl *DeployedApplicationEventProcessorImpl) SubscribeArgoAppDeleteStatus(
 		}
 		impl.logger.Infow("argo delete event received", "appName", app.Name, "namespace", app.Namespace, "deleteTimestamp", app.DeletionTimestamp)
 
-		err = impl.updateArgoAppDeleteStatus(app)
+		err = impl.updateArgoAppDeleteStatus(applicationDetail)
 		if err != nil {
 			impl.logger.Errorw("error in updating pipeline delete status", "err", err, "appName", app.Name)
 		}
@@ -206,12 +209,28 @@ func (impl *DeployedApplicationEventProcessorImpl) SubscribeArgoAppDeleteStatus(
 	return nil
 }
 
-func (impl *DeployedApplicationEventProcessorImpl) updateArgoAppDeleteStatus(app *v1alpha12.Application) error {
-	pipeline, err := impl.pipelineRepository.GetArgoPipelineByArgoAppName(app.ObjectMeta.Name)
+func (impl *DeployedApplicationEventProcessorImpl) updateArgoAppDeleteStatus(applicationDetail bean3.ApplicationDetail) error {
+	app := applicationDetail.Application
+	pipelines, err := impl.pipelineRepository.GetArgoPipelineByArgoAppName(app.ObjectMeta.Name)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching pipeline from Pipeline Repository", "err", err)
 		return err
 	}
+	var pipeline pipelineConfig.Pipeline
+	//TODO: verify/test this logic
+	for _, p := range pipelines {
+		dc, err := impl.DeploymentConfigService.GetConfigForDevtronApps(p.AppId, p.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", p.AppId, "environmentId", p.EnvironmentId, "err", err)
+			return err
+		}
+		if dc.ReleaseConfiguration.ArgoCDSpec.GetApplicationObjectClusterId() == applicationDetail.ClusterId &&
+			dc.ReleaseConfiguration.ArgoCDSpec.GetApplicationObjectNamespace() == app.Namespace {
+			pipeline = p
+			break
+		}
+	}
+
 	if pipeline.Deleted == true {
 		impl.logger.Errorw("invalid nats message, pipeline already deleted")
 		return errors.New("invalid nats message, pipeline already deleted")

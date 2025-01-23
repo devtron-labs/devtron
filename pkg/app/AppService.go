@@ -130,7 +130,7 @@ type AppService interface {
 	GetConfigMapAndSecretJson(appId int, envId int, pipelineId int) ([]byte, error)
 	UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Application, cdWfrId int, updateTimedOutStatus bool) error
 	GetCmSecretNew(appId int, envId int, isJob bool, scope resourceQualifiers.Scope) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
-	UpdateDeploymentStatusForGitOpsPipelines(app *v1alpha1.Application, statusTime time.Time, isAppStore bool) (bool, bool, *chartConfig.PipelineOverride, error)
+	UpdateDeploymentStatusForGitOpsPipelines(app *v1alpha1.Application, applicationClusterId int, statusTime time.Time, isAppStore bool) (bool, bool, *chartConfig.PipelineOverride, error)
 	WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride)
 	CreateGitOpsRepo(app *app.App, userId int32) (gitopsRepoName string, chartGitAttr *commonBean.ChartGitAttribute, err error)
 
@@ -241,7 +241,7 @@ func (impl *AppServiceImpl) ComputeAppstatus(appId, envId int, status health2.He
 	return appStatusInternal, nil
 }
 
-func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alpha1.Application, statusTime time.Time, isAppStore bool) (bool, bool, *chartConfig.PipelineOverride, error) {
+func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alpha1.Application, applicationClusterId int, statusTime time.Time, isAppStore bool) (bool, bool, *chartConfig.PipelineOverride, error) {
 	isSucceeded := false
 	isTimelineUpdated := false
 	isTimelineTimedOut := false
@@ -255,7 +255,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsPipelines(app *v1alph
 		var isValid bool
 		var cdPipeline pipelineConfig.Pipeline
 		var cdWfr pipelineConfig.CdWorkflowRunner
-		isValid, cdPipeline, cdWfr, pipelineOverride, err = impl.CheckIfPipelineUpdateEventIsValid(app.Name, gitHash)
+		isValid, cdPipeline, cdWfr, pipelineOverride, err = impl.CheckIfPipelineUpdateEventIsValid(app, applicationClusterId, gitHash)
 		if err != nil {
 			impl.logger.Errorw("service err, CheckIfPipelineUpdateEventIsValid", "err", err)
 			return isSucceeded, isTimelineUpdated, pipelineOverride, err
@@ -435,17 +435,30 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValidForAppStore(gitOpsA
 	return isValid, installedAppVersionHistory, appId, envId, err
 }
 
-func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(argoAppName, gitHash string) (bool, pipelineConfig.Pipeline, pipelineConfig.CdWorkflowRunner, *chartConfig.PipelineOverride, error) {
+func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(app *v1alpha1.Application, applicationClusterId int, gitHash string) (bool, pipelineConfig.Pipeline, pipelineConfig.CdWorkflowRunner, *chartConfig.PipelineOverride, error) {
 	isValid := false
 	var err error
 	// var deploymentStatus repository.DeploymentStatus
 	var pipeline pipelineConfig.Pipeline
 	var pipelineOverride *chartConfig.PipelineOverride
 	var cdWfr pipelineConfig.CdWorkflowRunner
-	pipeline, err = impl.pipelineRepository.GetArgoPipelineByArgoAppName(argoAppName)
+	argoAppName := app.Name
+	pipelines, err := impl.pipelineRepository.GetArgoPipelineByArgoAppName(argoAppName)
 	if err != nil {
 		impl.logger.Errorw("error in getting cd pipeline by argoAppName", "err", err, "argoAppName", argoAppName)
 		return isValid, pipeline, cdWfr, pipelineOverride, err
+	}
+	for _, p := range pipelines {
+		dc, err := impl.deploymentConfigService.GetConfigForDevtronApps(p.AppId, p.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", p.AppId, "environmentId", p.EnvironmentId, "err", err)
+			return isValid, pipeline, cdWfr, pipelineOverride, err
+		}
+		if dc.ReleaseConfiguration.ArgoCDSpec.GetApplicationObjectClusterId() == applicationClusterId &&
+			dc.ReleaseConfiguration.ArgoCDSpec.GetApplicationObjectNamespace() == app.Namespace {
+			pipeline = p
+			break
+		}
 	}
 	// getting latest pipelineOverride for app (by appId and envId)
 	pipelineOverride, err = impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId, bean4.ArgoCd)
