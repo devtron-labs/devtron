@@ -289,7 +289,7 @@ require gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 replace (
 	github.com/argoproj/argo-workflows/v3 v3.5.10 => github.com/devtron-labs/argo-workflows/v3 v3.5.13
 	github.com/devtron-labs/authenticator => github.com/devtron-labs/devtron-services/authenticator v0.0.0-20250117064214-73c2e66ce2d7
-	github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250117064214-73c2e66ce2d7
+	github.com/devtron-labs/common-lib => github.com/devtron-labs/devtron-services/common-lib v0.0.0-20250122110043-4d939279c70a
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.5.5
 	k8s.io/api => k8s.io/api v0.29.7

@@ -428,10 +428,12 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 		pipeline.DeploymentAppType = overrideDeploymentType
 	}
 
-	err = impl.checkIfNsExistsForEnvIds(envIds)
-	if err != nil {
-		impl.logger.Errorw("error in checking existence of namespace for env's", "envIds", envIds, "err", err)
-		return nil, err
+	if impl.deploymentConfig.ShouldCheckNamespaceOnClone {
+		err = impl.checkIfNsExistsForEnvIds(envIds)
+		if err != nil {
+			impl.logger.Errorw("error in checking existence of namespace for env's", "envIds", envIds, "err", err)
+			return nil, err
+		}
 	}
 
 	isGitOpsRequiredForCD := impl.IsGitOpsRequiredForCD(pipelineCreateRequest)

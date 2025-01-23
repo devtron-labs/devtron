@@ -34,7 +34,7 @@ import (
 )
 
 type CommonService interface {
-	FetchLatestChart(appId int, envId int) (*chartRepoRepository.Chart, error)
+	FetchLatestChartVersion(appId int, envId int) (string, error)
 	GlobalChecklist() (*GlobalChecklist, error)
 }
 
@@ -102,18 +102,18 @@ type AppChecklist struct {
 	//ChartChecklist *ChartChecklist `json:",inline"`
 }
 
-func (impl *CommonServiceImpl) FetchLatestChart(appId int, envId int) (*chartRepoRepository.Chart, error) {
+func (impl *CommonServiceImpl) FetchLatestChartVersion(appId int, envId int) (string, error) {
 	var chart *chartRepoRepository.Chart
 	if appId > 0 && envId > 0 {
 		envOverride, err := impl.envConfigOverrideReadService.ActiveEnvConfigOverride(appId, envId)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 		//if chart is overrides in env, and not mark as overrides in db, it means it was not completed and refer to latest to the app.
 		if (envOverride.Id == 0) || (envOverride.Id > 0 && !envOverride.IsOverride) {
 			chart, err = impl.chartRepository.FindLatestChartForAppByAppId(appId)
 			if err != nil {
-				return nil, err
+				return "", err
 			}
 		} else {
 			//if chart is overrides in env, it means it may have different version than app level.
@@ -122,14 +122,17 @@ func (impl *CommonServiceImpl) FetchLatestChart(appId int, envId int) (*chartRep
 	} else if appId > 0 {
 		chartG, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 		chart = chartG
 
 		//TODO - note if secret create/update from global with property (new style).
 		// there may be older chart version in env overrides (and in that case it will be ignore, property and isBinary)
 	}
-	return chart, nil
+	if chart == nil {
+		return "", nil
+	}
+	return chart.ChartVersion, nil
 }
 
 func (impl *CommonServiceImpl) GlobalChecklist() (*GlobalChecklist, error) {

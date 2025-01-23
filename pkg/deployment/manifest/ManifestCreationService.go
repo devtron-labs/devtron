@@ -643,12 +643,7 @@ func (impl *ManifestCreationServiceImpl) getConfigMapAndSecretJsonV2(ctx context
 	if err != nil {
 		return cmAndCsJsonV2Response, err
 	}
-	chartMajorVersion, chartMinorVersion, err := globalUtil.ExtractChartVersion(request.ChartVersion)
-	if err != nil {
-		impl.logger.Errorw("chart version parsing", "err", err)
-		return cmAndCsJsonV2Response, err
-	}
-	secretDataJson, err = impl.mergeUtil.ConfigSecretMerge(secretDataJsonApp, secretDataJsonEnv, chartMajorVersion, chartMinorVersion, false)
+	secretDataJson, err = impl.mergeUtil.ConfigSecretMergeForCDStages(secretDataJsonApp, secretDataJsonEnv, request.ChartVersion)
 	if err != nil {
 		return cmAndCsJsonV2Response, err
 	}

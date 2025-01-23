@@ -18,7 +18,6 @@ package app
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	health2 "github.com/argoproj/gitops-engine/pkg/health"
@@ -60,7 +59,6 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/installedApp/repository"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
-	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/variables"
 	_ "github.com/devtron-labs/devtron/pkg/variables/repository"
@@ -71,6 +69,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// CATEGORY=CD
 type AppServiceConfig struct {
 	CdPipelineStatusCronTime                   string `env:"CD_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
 	CdHelmPipelineStatusCronTime               string `env:"CD_HELM_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
@@ -805,81 +804,6 @@ func (impl *AppServiceImpl) CreateGitOpsRepo(app *app.App, userId int32) (gitops
 	}
 	chartGitAttr.ChartLocation = deploymentConfig.GetChartLocation()
 	return gitOpsRepoName, chartGitAttr, nil
-}
-
-// FIXME tmp workaround
-func (impl *AppServiceImpl) GetCmSecretNew(appId int, envId int, isJob bool, scope resourceQualifiers.Scope) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error) {
-	var configMapJson string
-	var secretDataJson string
-	var configMapJsonApp string
-	var secretDataJsonApp string
-	var configMapJsonEnv string
-	var secretDataJsonEnv string
-	// var configMapJsonPipeline string
-	// var secretDataJsonPipeline string
-
-	configMapA, err := impl.configMapRepository.GetByAppIdAppLevel(appId)
-	if err != nil && pg.ErrNoRows != err {
-		return nil, nil, err
-	}
-	if configMapA != nil && configMapA.Id > 0 {
-		configMapJsonApp = configMapA.ConfigMapData
-		secretDataJsonApp = configMapA.SecretData
-	}
-
-	configMapE, err := impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(appId, envId)
-	if err != nil && pg.ErrNoRows != err {
-		return nil, nil, err
-	}
-	if configMapE != nil && configMapE.Id > 0 {
-		configMapJsonEnv = configMapE.ConfigMapData
-		secretDataJsonEnv = configMapE.SecretData
-	}
-
-	configMapJson, err = impl.mergeUtil.ConfigMapMerge(configMapJsonApp, configMapJsonEnv)
-	if err != nil {
-		return nil, nil, err
-	}
-	var chartMajorVersion int
-	var chartMinorVersion int
-	if !isJob {
-		chart, err := impl.commonService.FetchLatestChart(appId, envId)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		chartVersion := chart.ChartVersion
-		chartMajorVersion, chartMinorVersion, err = util2.ExtractChartVersion(chartVersion)
-		if err != nil {
-			impl.logger.Errorw("chart version parsing", "err", err)
-			return nil, nil, err
-		}
-	}
-	secretDataJson, err = impl.mergeUtil.ConfigSecretMerge(secretDataJsonApp, secretDataJsonEnv, chartMajorVersion, chartMinorVersion, isJob)
-	if err != nil {
-		return nil, nil, err
-	}
-	configResponse := bean.ConfigMapJson{}
-	if configMapJson != "" {
-		err = json.Unmarshal([]byte(configMapJson), &configResponse)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-	secretResponse := bean.ConfigSecretJson{}
-	if configMapJson != "" {
-		err = json.Unmarshal([]byte(secretDataJson), &secretResponse)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
-	resolvedConfigResponse, resolvedSecretResponse, err := impl.scopedVariableManager.ResolveForPrePostStageTrigger(scope, configResponse, secretResponse, configMapA.Id, configMapE.Id)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return resolvedConfigResponse, resolvedSecretResponse, nil
 }
 
 // depricated
