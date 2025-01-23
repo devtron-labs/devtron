@@ -15,6 +15,16 @@ metadata:
     envId: {{ $.Values.env | quote }}
     chart: {{ template ".Chart.Name .chart" . }}
     release: {{ .Values.prometheus.release }}
+    {{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels | indent 4 }}
+    {{- end }}  
+    {{- if $.Values.verticalPodScaling.labels }}
+{{ toYaml $.Values.verticalPodScaling.labels | indent 4 }}
+    {{- end }}
+    {{- if $.Values.verticalPodScaling.annotations }}
+  annotations:
+{{ toYaml $.Values.verticalPodScaling.annotations | indent 4 }}
+    {{- end }}      
 spec:
 {{- if .Values.verticalPodScaling.resourcePolicy }}
   resourcePolicy:
@@ -25,7 +35,7 @@ spec:
 {{ toYaml .Values.verticalPodScaling.updatePolicy}}  
 {{- end }}
   targetRef:
-    apiVersion: apps/v1
-    kind: StatefulSet
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
     name: {{ include ".Chart.Name .fullname" $ }}
 {{- end }}    
