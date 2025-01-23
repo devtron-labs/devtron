@@ -35,7 +35,7 @@ type ScanToolMetadata struct {
 	Deleted                  bool                `sql:"deleted,notnull"`
 	ToolMetaData             string              `sql:"tool_metadata"`
 	PluginId                 int                 `sql:"plugin_id"`
-	IsPreset                 bool                `sql:"is_preset"`
+	IsPreset                 bool                `sql:"is_preset,notnull"`
 	Url                      string              `sql:"url"`
 	sql.AuditLog
 }
