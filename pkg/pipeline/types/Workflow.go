@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/argo-workflows/v3/workflow/common"
 	"github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/common-lib/utils"
+	bean7 "github.com/devtron-labs/common-lib/utils/bean"
 	"github.com/devtron-labs/common-lib/utils/workFlow"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -669,6 +670,7 @@ type WorkflowResponse struct {
 	CustomTag            *bean3.CustomTagErrorResponse               `json:"customTag,omitempty"`
 	PipelineType         string                                      `json:"pipelineType"`
 	ReferenceWorkflowId  int                                         `json:"referenceWorkflowId"`
+	TargetPlatforms      []*bean7.TargetPlatform                     `json:"targetPlatforms"`
 }
 
 type ConfigMapSecretDto struct {
