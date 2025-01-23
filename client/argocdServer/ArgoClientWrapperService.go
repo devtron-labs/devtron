@@ -88,6 +88,8 @@ type ApplicationClientWrapper interface {
 
 	GetArgoAppByNameWithK8sClient(ctx context.Context, clusterId int, namespace, appName string) (map[string]interface{}, error)
 
+	DeleteArgoAppWithK8sClient(ctx context.Context, clusterId int, namespace, appName string, cascadeDelete bool) error
+
 	// SyncArgoCDApplicationIfNeededAndRefresh - if ARGO_AUTO_SYNC_ENABLED=true, app will be refreshed to initiate refresh at argoCD side or else it will be synced and refreshed
 	SyncArgoCDApplicationIfNeededAndRefresh(context context.Context, argoAppName string) error
 
@@ -418,6 +420,20 @@ func (impl *ArgoClientWrapperServiceImpl) GetArgoAppByNameWithK8sClient(ctx cont
 		return nil, err
 	}
 	return argoApplication, nil
+}
+
+func (impl *ArgoClientWrapperServiceImpl) DeleteArgoAppWithK8sClient(ctx context.Context, clusterId int, namespace, appName string, cascadeDelete bool) error {
+	k8sConfig, err := impl.acdConfigGetter.GetK8sConfigWithClusterIdAndNamespace(clusterId, namespace)
+	if err != nil {
+		impl.logger.Errorw("error in getting k8s config", "err", err)
+		return err
+	}
+	err = impl.argoK8sClient.DeleteArgoApplication(ctx, k8sConfig, appName, cascadeDelete)
+	if err != nil {
+		impl.logger.Errorw("err in getting argo app by name", "app", appName)
+		return err
+	}
+	return nil
 }
 
 func (impl *ArgoClientWrapperServiceImpl) IsArgoAppPatchRequired(argoAppSpec *v1alpha1.ApplicationSource, currentGitRepoUrl, currentChartPath string) bool {

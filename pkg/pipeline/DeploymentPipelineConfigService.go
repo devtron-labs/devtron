@@ -1154,14 +1154,18 @@ func (impl *CdPipelineConfigServiceImpl) DeleteCdPipeline(pipeline *pipelineConf
 			}
 			impl.logger.Debugw("acd app is already deleted for this pipeline", "pipeline", pipeline)
 			if deleteFromAcd {
-				if _, err := impl.argoClientWrapperService.DeleteArgoApp(ctx, deploymentAppName, cascadeDelete); err != nil {
+				//TODO: ayush test
+				applicationObjectClusterId := envDeploymentConfig.GetApplicationObjectClusterId()
+				applicationNamespace := envDeploymentConfig.GetDestinationNamespace()
+
+				if err := impl.argoClientWrapperService.DeleteArgoAppWithK8sClient(ctx, applicationObjectClusterId, applicationNamespace, deploymentAppName, cascadeDelete); err != nil {
 					impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
 
 					if forceDelete {
 						impl.logger.Warnw("error while deletion of app in acd, continue to delete in db as this operation is force delete", "error", err)
 					} else {
 						//statusError, _ := err.(*errors2.StatusError)
-						if cascadeDelete && strings.Contains(err.Error(), "code = NotFound") {
+						if cascadeDelete && errors.IsNotFound(err) {
 							err = &util.ApiError{
 								UserMessage:     "Could not delete as application not found in argocd",
 								InternalMessage: err.Error(),
@@ -1232,14 +1236,16 @@ func (impl *CdPipelineConfigServiceImpl) DeleteACDAppCdPipelineWithNonCascade(pi
 		impl.logger.Errorw("error in fetching environment deployment config by appId and envId", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
 		return err
 	}
+	applicationObjectClusterId := envDeploymentConfig.GetApplicationObjectClusterId()
+	applicationObjectNamespace := envDeploymentConfig.GetDestinationNamespace()
 	//delete app from argo cd with non-cascade, if created
 	if pipeline.DeploymentAppCreated && util.IsAcdApp(envDeploymentConfig.DeploymentAppType) {
 		deploymentAppName := pipeline.DeploymentAppName
 		impl.logger.Debugw("acd app is already deleted for this pipeline", "pipeline", pipeline)
-		if _, err = impl.argoClientWrapperService.DeleteArgoApp(ctx, deploymentAppName, false); err != nil {
+		if err = impl.argoClientWrapperService.DeleteArgoAppWithK8sClient(ctx, applicationObjectClusterId, applicationObjectNamespace, deploymentAppName, false); err != nil {
 			impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
 			//statusError, _ := err.(*errors2.StatusError)
-			if !strings.Contains(err.Error(), "code = NotFound") {
+			if errors.IsNotFound(err) {
 				err = &util.ApiError{
 					UserMessage:     "Could not delete application",
 					InternalMessage: err.Error(),
