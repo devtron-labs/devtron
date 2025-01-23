@@ -3,7 +3,11 @@
 apiVersion: networking.istio.io/v1beta1
 kind: DestinationRule
 metadata:
+  {{- if .destinationRule.name }}
+  name: {{ .destinationRule.name }}
+  {{- else }}
   name: {{  template ".Chart.Name .fullname" $ }}-destinationrule
+  {{- end }}
   labels:
     app: {{ template ".Chart.Name .name" $ }}
     appId: {{ $.Values.app | quote }}
