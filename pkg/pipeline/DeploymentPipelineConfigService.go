@@ -649,9 +649,6 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		return response.SetUnknownErrorDetail(err)
 	}
 
-	response.ApplicationMetadata.TargetCluster = argoApplicationSpec.Spec.Destination.Server
-	response.ApplicationMetadata.TargetNamespace = argoApplicationSpec.Spec.Destination.Namespace
-
 	if argoApplicationSpec.Spec.HasMultipleSources() {
 		return response.SetErrorDetail(pipelineConfigBean.UnsupportedApplicationSpec, "application with multiple sources not supported")
 	}
@@ -659,49 +656,6 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		return response.SetErrorDetail(pipelineConfigBean.UnsupportedApplicationSpec, "application with multiple helm value files are not supported")
 	}
 
-	repoURL := argoApplicationSpec.Spec.Source.RepoURL
-	_, err = impl.gitOpsConfigReadService.GetGitOpsProviderByRepoURL(repoURL)
-	if err != nil {
-		if strings.Contains(err.Error(), "no gitops config found in DB for given repoURL") {
-			return response.SetErrorDetail(pipelineConfigBean.GitOpsNotFound, err.Error())
-		}
-		return response.SetUnknownErrorDetail(err)
-	}
-
-	repoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(repoURL)
-	repoURLFromConfiguredGitOpsClient, err := impl.gitOperationService.GetRepoUrlByRepoName(repoName)
-	if err != nil {
-		impl.logger.Errorw("error in fetching repo url by repoName", "repoName", repoName, "err", err)
-		return response.SetErrorDetail(pipelineConfigBean.GitOpsNotFound, fmt.Sprintf("please configure valid GitOps credential for repo %s", repoURL))
-	}
-
-	if repoURLFromConfiguredGitOpsClient != repoURL {
-		return response.SetErrorDetail(pipelineConfigBean.GitOpsNotFound, fmt.Sprintf("please configure valid GitOps credential for repo %s", repoURL))
-	}
-
-	targetClusterURL := argoApplicationSpec.Spec.Destination.Server
-	targetClusterNamespace := argoApplicationSpec.Spec.Destination.Namespace
-	targetCluster, err := impl.clusterReadService.FindByClusterURL(targetClusterURL)
-	if err != nil {
-		impl.logger.Errorw("error in getting targetCluster by url", "clusterURL", targetClusterURL, "err", err)
-		if errors3.Is(err, pg.ErrNoRows) {
-			response.ApplicationMetadata.TargetCluster = targetClusterURL
-			return response.SetErrorDetail(pipelineConfigBean.ClusterNotFound, "targetCluster not added in global configuration")
-		}
-		return response.SetUnknownErrorDetail(err)
-	}
-	response.ApplicationMetadata.TargetCluster = targetCluster.ClusterName
-
-	targetEnv, err := impl.environmentRepository.FindOneByNamespaceAndClusterId(targetClusterNamespace, targetCluster.Id)
-	if err != nil {
-		if errors3.Is(err, pg.ErrNoRows) {
-			return response.SetErrorDetail(pipelineConfigBean.EnvironmentNotFound, "environment not added in global configuration")
-		}
-		return response.SetUnknownErrorDetail(err)
-	}
-	response.ApplicationMetadata.TargetEnvironment = targetEnv.Name
-
-	//TODO: ayush review below validations
 	pipelines, err := impl.pipelineRepository.GetArgoPipelineByArgoAppName(acdAppName)
 	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
 		return response.SetUnknownErrorDetail(err)
@@ -727,6 +681,52 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 			}
 		}
 		return response.SetUnknownErrorDetail(err)
+	}
+
+	targetClusterURL := argoApplicationSpec.Spec.Destination.Server
+	targetClusterNamespace := argoApplicationSpec.Spec.Destination.Namespace
+
+	response.ApplicationMetadata.TargetCluster = targetClusterURL
+	response.ApplicationMetadata.TargetNamespace = targetClusterNamespace
+
+	targetCluster, err := impl.clusterReadService.FindByClusterURL(targetClusterURL)
+	if err != nil {
+		impl.logger.Errorw("error in getting targetCluster by url", "clusterURL", targetClusterURL, "err", err)
+		if errors3.Is(err, pg.ErrNoRows) {
+			response.ApplicationMetadata.TargetCluster = targetClusterURL
+			return response.SetErrorDetail(pipelineConfigBean.ClusterNotFound, "targetCluster not added in global configuration")
+		}
+		return response.SetUnknownErrorDetail(err)
+	}
+	response.ApplicationMetadata.TargetCluster = targetCluster.ClusterName
+
+	targetEnv, err := impl.environmentRepository.FindOneByNamespaceAndClusterId(targetClusterNamespace, targetCluster.Id)
+	if err != nil {
+		if errors3.Is(err, pg.ErrNoRows) {
+			return response.SetErrorDetail(pipelineConfigBean.EnvironmentNotFound, "environment not added in global configuration")
+		}
+		return response.SetUnknownErrorDetail(err)
+	}
+	response.ApplicationMetadata.TargetEnvironment = targetEnv.Name
+
+	repoURL := argoApplicationSpec.Spec.Source.RepoURL
+	_, err = impl.gitOpsConfigReadService.GetGitOpsProviderByRepoURL(repoURL)
+	if err != nil {
+		if strings.Contains(err.Error(), "no gitops config found in DB for given repoURL") {
+			return response.SetErrorDetail(pipelineConfigBean.GitOpsNotFound, err.Error())
+		}
+		return response.SetUnknownErrorDetail(err)
+	}
+
+	repoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(repoURL)
+	repoURLFromConfiguredGitOpsClient, err := impl.gitOperationService.GetRepoUrlByRepoName(repoName)
+	if err != nil {
+		impl.logger.Errorw("error in fetching repo url by repoName", "repoName", repoName, "err", err)
+		return response.SetErrorDetail(pipelineConfigBean.GitOpsNotFound, fmt.Sprintf("please configure valid GitOps credential for repo %s", repoURL))
+	}
+
+	if repoURLFromConfiguredGitOpsClient != repoURL {
+		return response.SetErrorDetail(pipelineConfigBean.GitOpsNotFound, fmt.Sprintf("please configure valid GitOps credential for repo %s", repoURL))
 	}
 
 	chartPath := argoApplicationSpec.Spec.Source.Path
