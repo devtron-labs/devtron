@@ -719,15 +719,14 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 	}
 
 	_, err = impl.installedAppReadService.GetInstalledAppByGitOpsAppName(acdAppName)
-	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
-		//if errors3.Is(err, pg.ErrNoRows) {
-		//	return response.SetErrorDetail(pipelineConfigBean.ApplicationAlreadyPresent, pipelineConfigBean.PipelineAlreadyPresentMsg)
-		//}
+	if err != nil {
+		if !errors3.Is(err, pg.ErrNoRows) {
+			// installed app found
+			if bean3.DefaultClusterId == applicationObjectClusterId && argocdServer.DevtronInstalationNs == applicationObjectNamespace {
+				return response.SetErrorDetail(pipelineConfigBean.ApplicationAlreadyPresent, pipelineConfigBean.HelmAppAlreadyPresentMsg)
+			}
+		}
 		return response.SetUnknownErrorDetail(err)
-	}
-	if bean3.DefaultClusterId == applicationObjectClusterId && argocdServer.DevtronInstalationNs == applicationObjectNamespace {
-		return response.SetErrorDetail(pipelineConfigBean.ApplicationAlreadyPresent, pipelineConfigBean.HelmAppAlreadyPresentMsg)
-
 	}
 
 	chartPath := argoApplicationSpec.Spec.Source.Path
