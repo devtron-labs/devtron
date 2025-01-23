@@ -79,6 +79,7 @@ func NewGitSensorClient(logger *zap.SugaredLogger, config *ClientConfig) (*Clien
 	return client, nil
 }
 
+// CATEGORY=INFRA_SETUP
 type ClientConfig struct {
 	Url      string `env:"GIT_SENSOR_URL" envDefault:"127.0.0.1:7070"`
 	Protocol string `env:"GIT_SENSOR_PROTOCOL" envDefault:"REST"`

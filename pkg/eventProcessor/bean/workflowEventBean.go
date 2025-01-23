@@ -83,6 +83,7 @@ type CiCompleteEvent struct {
 	PluginRegistryArtifactDetails map[string][]string      `json:"PluginRegistryArtifactDetails"`
 	PluginArtifactStage           string                   `json:"pluginArtifactStage"`
 	IsScanEnabled                 bool                     `json:"isScanEnabled"`
+	TargetPlatforms               []string                 `json:"targetPlatforms"`
 	pluginImageDetails            *registry.ImageDetailsFromCR
 	PluginArtifacts               *PluginArtifacts `json:"pluginArtifacts"`
 }

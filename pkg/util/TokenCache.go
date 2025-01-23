@@ -60,6 +60,7 @@ func (impl *TokenCache) BuildACDSynchContext() (acdContext context.Context, err 
 	return ctx, nil
 }
 
+// CATEGORY=GITOPS
 type ACDAuthConfig struct {
 	ACDUsername                      string `env:"ACD_USERNAME" envDefault:"admin"`
 	ACDPassword                      string `env:"ACD_PASSWORD" `
