@@ -1775,11 +1775,10 @@ func (impl ConfigMapServiceImpl) validateExternalSecretChartCompatibility(appId 
 	if configData.ExternalSecret != nil && len(configData.ExternalSecret) > 0 {
 		for _, es := range configData.ExternalSecret {
 			if len(es.Property) > 0 || es.IsBinary == true {
-				chart, err := impl.commonService.FetchLatestChart(appId, envId)
+				chartVersion, err := impl.commonService.FetchLatestChartVersion(appId, envId)
 				if err != nil {
 					return false, err
 				}
-				chartVersion := chart.ChartVersion
 				chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chartVersion)
 				if err != nil {
 					impl.logger.Errorw("chart version parsing", "err", err)

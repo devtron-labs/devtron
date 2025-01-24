@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/common-lib/utils/workFlow"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
@@ -571,6 +572,7 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 			EnvironmentName:     w.EnvironmentName,
 			ReferenceWorkflowId: w.RefCiWorkflowId,
 			PodName:             w.PodName,
+			TargetPlatforms:     utils.ConvertTargetPlatformStringToObject(w.TargetPlatforms),
 		}
 
 		if w.Message == bean3.ImageTagUnavailableMessage {
@@ -798,6 +800,7 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		TriggeredBy:        workflow.TriggeredBy,
 		TriggeredByEmail:   triggeredByUserEmailId,
 		Artifact:           ciArtifact.Image,
+		TargetPlatforms:    utils.ConvertTargetPlatformStringToObject(ciArtifact.TargetPlatforms),
 		ArtifactId:         ciArtifact.Id,
 		IsArtifactUploaded: isArtifactUploaded,
 		EnvironmentId:      workflow.EnvironmentId,
@@ -1597,6 +1600,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 		Default:          deployDetail.Default,
 		ImageTaggingData: *imageTaggingData,
 		Image:            ciArtifact.Image,
+		TargetPlatforms:  utils.ConvertTargetPlatformStringToObject(ciArtifact.TargetPlatforms),
 	}
 	return gitTriggerInfoResponse, nil
 }

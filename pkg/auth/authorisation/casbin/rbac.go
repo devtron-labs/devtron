@@ -72,6 +72,7 @@ type CacheData struct {
 	enforceReqCounter int64
 }
 
+// CATEGORY=RBAC
 type EnforcerConfig struct {
 	CacheEnabled          bool `env:"ENFORCER_CACHE" envDefault:"false"`
 	CacheExpirationInSecs int  `env:"ENFORCER_CACHE_EXPIRATION_IN_SEC" envDefault:"86400"`
