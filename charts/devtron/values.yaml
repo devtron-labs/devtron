@@ -368,7 +368,7 @@ argo-cd:
 security:
   enabled: false
   imageScanner:
-    image: "image-scanner:33965457-141-27892"
+    image: "image-scanner:0a3d5e84-141-28953"
   # Values for trivy
   trivy:
     enabled: false
