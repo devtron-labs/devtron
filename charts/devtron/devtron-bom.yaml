@@ -10,7 +10,7 @@ global:
   containerRegistry: "quay.io/devtron"
 extraManifests: []
 installer:
-  release: "v1.2.0"
+  release: ""
   registry: ""
   image: "inception"
   tag: "473deaa4-185-21582"
@@ -91,7 +91,7 @@ components:
       armImage: postgres_exporter:v0.10.1
   gitsensor:
     registry: ""
-    image: "git-sensor:6c0c7082-200-27863"
+    image: "git-sensor:0a3d5e84-200-28960"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
