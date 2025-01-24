@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
+	errors2 "github.com/juju/errors"
 	"go.uber.org/zap"
 	"path/filepath"
 )
@@ -380,12 +381,12 @@ func (impl *DeploymentConfigServiceImpl) parseEnvLevelReleaseConfigForDevtronApp
 		releaseConfig.Version = bean.Version
 
 		envOverride, err := impl.EnvConfigOverrideService.FindLatestChartForAppByAppIdAndEnvId(appId, envId)
-		if err != nil && !errors.Is(err, pg.ErrNoRows) {
+		if err != nil && !errors2.IsNotFound(err) {
 			impl.logger.Errorw("error in fetch")
 			return nil, err
 		}
 		var latestChart *chartRepoRepository.Chart
-		if (envOverride.Id == 0) || (envOverride.Id > 0 && !envOverride.IsOverride) {
+		if envOverride == nil || envOverride.Id == 0 || (envOverride.Id > 0 && !envOverride.IsOverride) {
 			latestChart, err = impl.chartRepository.FindLatestChartForAppByAppId(appId)
 			if err != nil {
 				return nil, err

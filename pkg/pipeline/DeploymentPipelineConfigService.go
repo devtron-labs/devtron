@@ -575,26 +575,30 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 }
 
 func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForACDApp(app *app2.App, AppDeploymentConfig *bean4.DeploymentConfig, env *repository6.Environment) (*bean4.ReleaseConfiguration, error) {
-	envConfigOverride, err := impl.envConfigOverrideService.ActiveEnvConfigOverride(app.Id, env.Id)
-	if err != nil {
-		impl.logger.Errorw("error in fetching environment override", "environmentId", env.Id, "err", err)
+
+	envOverride, err := impl.envConfigOverrideService.FindLatestChartForAppByAppIdAndEnvId(app.Id, env.Id)
+	if err != nil && !errors2.IsNotFound(err) {
+		impl.logger.Errorw("error in fetch")
 		return nil, err
 	}
-
-	eco, err := impl.envConfigOverrideService.FindLatestChartForAppByAppIdAndEnvId(app.Id, env.Id)
-	if err != nil {
-		impl.logger.Errorw("error in fetching environment override", "appId", app.Id, "environmentId", env.Id, "err", err)
-		return nil, err
+	var latestChart *chartRepoRepository.Chart
+	if envOverride == nil || envOverride.Id == 0 || (envOverride.Id > 0 && !envOverride.IsOverride) {
+		latestChart, err = impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		//if chart is overrides in env, it means it may have different version than app level.
+		latestChart = envOverride.Chart
 	}
-
-	chartRefId := eco.Chart.ChartRefId
+	chartRefId := latestChart.ChartRefId
 
 	chartRef, err := impl.chartRefRepository.FindById(chartRefId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart", "chartRefId", chartRefId, "err", err)
 		return nil, err
 	}
-	chartLocation := filepath.Join(chartRef.Location, envConfigOverride.Chart.ChartVersion)
+	chartLocation := filepath.Join(chartRef.Location, latestChart.ChartVersion)
 
 	return &bean4.ReleaseConfiguration{
 		Version: bean4.Version,
