@@ -10,7 +10,6 @@
 - feat: Build infra support (#6151)
 - feat: Helm type pipeline app status (#6262)
 - feat: Added labels to manual sync job (#6269)
-- feat: Support for target platforms (#6289)
 ## Others
 - chore: Changes in CD trigger plugin condition v1.3.0 (#6233)
 - misc: GetDockerRegistryIdForCiPipeline (#6231)
