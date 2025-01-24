@@ -30,7 +30,7 @@ type DeploymentConfig struct {
 	RepoUrl           string   `sql:"repo_url"`
 	RepoName          string   `sql:"repo_name"`
 	ReleaseMode       string   `sql:"release_mode"`
-	ReleaseConfig     []byte   `sql:"release_config"`
+	ReleaseConfig     string   `sql:"release_config"`
 	Active            bool     `sql:"active,notnull"`
 	sql.AuditLog
 }

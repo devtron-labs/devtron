@@ -1,9 +1,7 @@
 package bean
 
 import (
-	"encoding/json"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 )
@@ -149,18 +147,6 @@ type Backoff struct {
 type ManagedNamespaceMetadata struct {
 	Labels      map[string]string `json:"labels,omitempty"`
 	Annotations map[string]string `json:"annotations,omitempty"`
-}
-
-func (r *ReleaseConfiguration) JSON() []byte {
-	if r == nil {
-		return nil
-	}
-	releaseConfigJson, err := json.Marshal(r)
-	if err != nil {
-		log.Print("error in marshaling releaseConfiguration", "err")
-		return nil
-	}
-	return releaseConfigJson
 }
 
 type DeploymentConfig struct {
