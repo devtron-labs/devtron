@@ -10,7 +10,7 @@ global:
   containerRegistry: "quay.io/devtron"
 extraManifests: []
 installer:
-  release: ""
+  release: "v1.2.0"
   registry: ""
   image: "inception"
   tag: "473deaa4-185-21582"
@@ -154,7 +154,7 @@ components:
         DB_NAME: "lens"
   chartSync:
     registry: ""
-    image: chart-sync:6c0c7082-836-27893
+    image: chart-sync:0a3d5e84-836-28959
     schedule: "0 19 * * *"
     extraConfigs: {}
 # values for argocd integration
