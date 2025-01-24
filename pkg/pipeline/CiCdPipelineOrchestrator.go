@@ -1726,6 +1726,23 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean
 		DeploymentAppName:             fmt.Sprintf("%s-%s", appName, env.Name),
 		AuditLog:                      sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
+
+	if pipelineRequest.ReleaseMode == util.PIPELINE_RELEASE_MODE_LINK {
+		if len(pipelineRequest.DeploymentAppName) == 0 {
+			return 0, util.DefaultApiError().
+				WithHttpStatusCode(http.StatusUnprocessableEntity).
+				WithInternalMessage("deploymentAppName is required for releaseMode: link").
+				WithUserMessage("deploymentAppName is required for releaseMode: link")
+		}
+		//Here we are linking an external helm release so deployment_app_name = <external-release-name> and deployment_app_created = true as release already exist
+		// external release name is sent from FE in pipelineRequest.DeploymentAppName field
+		pipeline.DeploymentAppName = pipelineRequest.DeploymentAppName
+		pipeline.DeploymentAppCreated = true
+	}
+	if len(pipeline.DeploymentAppName) == 0 {
+		pipeline.DeploymentAppName = util2.BuildDeployedAppName(appName, env.Name)
+	}
+
 	err = impl.pipelineRepository.Save([]*pipelineConfig.Pipeline{pipeline}, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving cd pipeline", "err", err, "pipeline", pipeline)
