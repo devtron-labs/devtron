@@ -47,6 +47,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
+	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
 	repository3 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
@@ -119,6 +120,7 @@ type WorkflowDagExecutorImpl struct {
 	eventFactory                  client.EventFactory
 	customTagService              pipeline.CustomTagService
 	pipelineStatusTimelineService status.PipelineStatusTimelineService
+	workFlowStageStatusService    workflowStatus.WorkFlowStageStatusService
 
 	helmAppService client2.HelmAppService
 
@@ -148,6 +150,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	eventFactory client.EventFactory,
 	customTagService pipeline.CustomTagService,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
+	workFlowStageStatusService workflowStatus.WorkFlowStageStatusService,
 	helmAppService client2.HelmAppService,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
 	cdTriggerService devtronApps.TriggerService,
@@ -184,6 +187,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		asyncRunnable:                 asyncRunnable,
 		scanHistoryRepository:         scanHistoryRepository,
 		imageScanService:              imageScanService,
+		workFlowStageStatusService:    workFlowStageStatusService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -332,7 +336,7 @@ func (impl *WorkflowDagExecutorImpl) handleAsyncTriggerReleaseError(ctx context.
 			}
 			cdWfr.UpdatedBy = 1
 			cdWfr.UpdatedOn = time.Now()
-			err := impl.cdWorkflowRepository.UpdateWorkFlowRunner(cdWfr)
+			err := impl.workFlowStageStatusService.UpdateCdWorkflowRunnerWithStage(cdWfr)
 			if err != nil {
 				impl.logger.Errorw("error on update cd workflow runner", "wfr", cdWfr, "err", err)
 				return
@@ -748,7 +752,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateCiWorkflowForCiSuccess(request *bean2
 	savedWorkflow.Status = string(v1alpha1.NodeSucceeded)
 	savedWorkflow.IsArtifactUploaded = workflow.GetArtifactUploadedType(request.IsArtifactUploaded)
 	impl.logger.Debugw("updating workflow ", "savedWorkflow", savedWorkflow)
-	err = impl.ciWorkflowRepository.UpdateWorkFlow(savedWorkflow)
+	err = impl.workFlowStageStatusService.UpdateCiWorkflowWithStage(savedWorkflow)
 	if err != nil {
 		impl.logger.Errorw("update wf failed for id ", "err", err)
 		return err

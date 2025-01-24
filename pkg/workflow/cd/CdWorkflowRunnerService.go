@@ -19,6 +19,7 @@ package cd
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow"
+	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
 	"go.uber.org/zap"
@@ -32,20 +33,23 @@ type CdWorkflowRunnerService interface {
 type CdWorkflowRunnerServiceImpl struct {
 	logger               *zap.SugaredLogger
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
+	workflowStageService workflowStatus.WorkFlowStageStatusService
 }
 
 func NewCdWorkflowRunnerServiceImpl(logger *zap.SugaredLogger,
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository) *CdWorkflowRunnerServiceImpl {
+	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
+	workflowStageService workflowStatus.WorkFlowStageStatusService) *CdWorkflowRunnerServiceImpl {
 	return &CdWorkflowRunnerServiceImpl{
 		logger:               logger,
 		cdWorkflowRepository: cdWorkflowRepository,
+		workflowStageService: workflowStageService,
 	}
 }
 
 func (impl *CdWorkflowRunnerServiceImpl) UpdateWfr(dto *bean.CdWorkflowRunnerDto, updatedBy int) error {
 	runnerDbObj := adapter.ConvertCdWorkflowRunnerDtoToDbObj(dto)
 	runnerDbObj.UpdateAuditLog(int32(updatedBy))
-	err := impl.cdWorkflowRepository.UpdateWorkFlowRunner(runnerDbObj)
+	err := impl.workflowStageService.UpdateCdWorkflowRunnerWithStage(runnerDbObj)
 	if err != nil {
 		impl.logger.Errorw("error in updating runner status in db", "runnerId", runnerDbObj.Id, "err", err)
 		return err

@@ -41,8 +41,8 @@ type CdWorkflowRepository interface {
 	FindCdWorkflowMetaByEnvironmentId(appId int, environmentId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindCdWorkflowMetaByPipelineId(pipelineId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType apiBean.WorkflowType, limit int, runnerStatuses []string) ([]CdWorkflowRunner, error)
-	SaveWorkFlowRunner(wfr *CdWorkflowRunner) (*CdWorkflowRunner, error)
-	UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error
+	SaveWorkFlowRunnerWithTx(wfr *CdWorkflowRunner, tx *pg.Tx) (*CdWorkflowRunner, error)
+	UpdateWorkFlowRunnerWithTx(wfr *CdWorkflowRunner, tx *pg.Tx) error
 	UpdateIsArtifactUploaded(wfrId int, isArtifactUploaded workflow.ArtifactUploadedType) error
 	GetPreviousQueuedRunners(cdWfrId, pipelineId int) ([]*CdWorkflowRunner, error)
 	UpdateRunnerStatusToFailedForIds(errMsg string, triggeredBy int32, cdWfrIds ...int) error
@@ -452,14 +452,14 @@ func (impl *CdWorkflowRepositoryImpl) FindLastPreOrPostTriggeredByEnvironmentId(
 	return wfr, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) SaveWorkFlowRunner(wfr *CdWorkflowRunner) (*CdWorkflowRunner, error) {
-	err := impl.dbConnection.Insert(wfr)
+func (impl *CdWorkflowRepositoryImpl) SaveWorkFlowRunnerWithTx(wfr *CdWorkflowRunner, tx *pg.Tx) (*CdWorkflowRunner, error) {
+	err := tx.Insert(wfr)
 	return wfr, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error {
+func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunnerWithTx(wfr *CdWorkflowRunner, tx *pg.Tx) error {
 	wfr.Message = util.GetTruncatedMessage(wfr.Message, 1000)
-	err := impl.dbConnection.Update(wfr)
+	err := tx.Update(wfr)
 	return err
 }
 

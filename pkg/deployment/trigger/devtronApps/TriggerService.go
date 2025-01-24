@@ -74,6 +74,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
+	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
 	read2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/read"
@@ -172,6 +173,7 @@ type TriggerServiceImpl struct {
 	gitOperationService                 git.GitOperationService
 	attributeService                    attributes.AttributesService
 	clusterRepository                   repository5.ClusterRepository
+	workflowStageService                workflowStatus.WorkFlowStageStatusService
 }
 
 func NewTriggerServiceImpl(logger *zap.SugaredLogger,
@@ -230,6 +232,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 	gitOperationService git.GitOperationService,
 	attributeService attributes.AttributesService,
 	clusterRepository repository5.ClusterRepository,
+	workflowStageService workflowStatus.WorkFlowStageStatusService,
 ) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
@@ -292,6 +295,7 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 		ciCdPipelineOrchestrator:    ciCdPipelineOrchestrator,
 		gitOperationService:         gitOperationService,
 		attributeService:            attributeService,
+		workflowStageService:        workflowStageService,
 
 		clusterRepository: clusterRepository,
 	}
@@ -518,7 +522,7 @@ func (impl *TriggerServiceImpl) ManualCdTrigger(triggerContext bean.TriggerConte
 			AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 			ReferenceId:  triggerContext.ReferenceId,
 		}
-		savedWfr, err := impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+		savedWfr, err := impl.workflowStageService.SaveCDWorkflowRunnerWithStage(runner)
 		if err != nil {
 			impl.logger.Errorw("err in creating cdWorkflowRunner, ManualCdTrigger", "cdWorkflowId", cdWorkflowId, "err", err)
 			return 0, "", nil, err
@@ -649,7 +653,7 @@ func (impl *TriggerServiceImpl) TriggerAutomaticDeployment(request bean.TriggerR
 		AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: triggeredBy, UpdatedOn: triggeredAt, UpdatedBy: triggeredBy},
 		ReferenceId:  request.TriggerContext.ReferenceId,
 	}
-	savedWfr, err := impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+	savedWfr, err := impl.workflowStageService.SaveCDWorkflowRunnerWithStage(runner)
 	if err != nil {
 		return err
 	}

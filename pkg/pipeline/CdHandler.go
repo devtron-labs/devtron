@@ -29,7 +29,11 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
+	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	util2 "github.com/devtron-labs/devtron/pkg/pipeline/util"
+	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
+	adapter2 "github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/adapter"
+	bean5 "github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/bean"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -97,6 +101,7 @@ type CdHandlerImpl struct {
 	blobConfigStorageService     BlobStorageConfigService
 	customTagService             CustomTagService
 	deploymentConfigService      common2.DeploymentConfigService
+	workflowStageStatusService   workflowStatus.WorkFlowStageStatusService
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
@@ -110,6 +115,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
 	workflowService WorkflowService, clusterService cluster.ClusterService,
 	blobConfigStorageService BlobStorageConfigService, customTagService CustomTagService,
 	deploymentConfigService common2.DeploymentConfigService,
+	workflowStageStatusService workflowStatus.WorkFlowStageStatusService,
 ) *CdHandlerImpl {
 	cdh := &CdHandlerImpl{
 		Logger:                       Logger,
@@ -130,6 +136,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
 		blobConfigStorageService:     blobConfigStorageService,
 		customTagService:             customTagService,
 		deploymentConfigService:      deploymentConfigService,
+		workflowStageStatusService:   workflowStageStatusService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -216,7 +223,7 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, forceAbort bool, us
 	workflowRunner.Status = executors.WorkflowCancel
 	workflowRunner.UpdatedOn = time.Now()
 	workflowRunner.UpdatedBy = userId
-	err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(workflowRunner)
+	err = impl.workflowStageStatusService.UpdateCdWorkflowRunnerWithStage(workflowRunner)
 	if err != nil {
 		impl.Logger.Error("cannot update deleted workflow runner status, but wf deleted", "err", err)
 		return 0, err
@@ -227,8 +234,8 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, forceAbort bool, us
 func (impl *CdHandlerImpl) updateWorkflowRunnerForForceAbort(workflowRunner *pipelineConfig.CdWorkflowRunner) error {
 	workflowRunner.Status = executors.WorkflowCancel
 	workflowRunner.PodStatus = string(bean2.Failed)
-	workflowRunner.Message = FORCE_ABORT_MESSAGE_AFTER_STARTING_STAGE
-	err := impl.cdWorkflowRepository.UpdateWorkFlowRunner(workflowRunner)
+	workflowRunner.Message = constants.FORCE_ABORT_MESSAGE_AFTER_STARTING_STAGE
+	err := impl.workflowStageStatusService.UpdateCdWorkflowRunnerWithStage(workflowRunner)
 	if err != nil {
 		impl.Logger.Errorw("error in updating workflow status in cd workflow runner in force abort case", "err", err)
 		return err
@@ -286,7 +293,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		savedWorkflow.PodName = podName
 		savedWorkflow.UpdateAuditLog(1)
 		impl.Logger.Debugw("updating workflow ", "workflow", savedWorkflow)
-		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(savedWorkflow)
+		err = impl.workflowStageStatusService.UpdateCdWorkflowRunnerWithStage(savedWorkflow)
 		if err != nil {
 			impl.Logger.Error("update wf failed for id " + strconv.Itoa(savedWorkflow.Id))
 			return 0, "", err
@@ -475,6 +482,29 @@ func (impl *CdHandlerImpl) GetCdBuildHistory(appId int, environmentId int, pipel
 		}
 		cdWorkflowArtifact[i] = item
 	}
+
+	//process pre/post cd stage data
+	//prepare a map of wfId and wf type to pass to next function
+	wfIdToWfTypeMap := make(map[int]pipelineBean.CdWorkflowWithArtifact)
+	for _, item := range cdWorkflowArtifact {
+		if item.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE.String() || item.WorkflowType == bean.CD_WORKFLOW_TYPE_POST.String() {
+			wfIdToWfTypeMap[item.Id] = item
+		}
+	}
+	wfRunnerIdToStageDetailMap, err := impl.workflowStageStatusService.GetPrePostWorkflowStagesByWorkflowRunnerIdsList(wfIdToWfTypeMap)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching pre/post stage data", "err", err)
+		return cdWorkflowArtifact, err
+	}
+
+	//now for each cdWorkflowArtifact, set the workflowStage Data from wfRunnerIdToStageDetailMap using workflowId as key wfRunnerIdToStageDetailMap
+	if len(wfRunnerIdToStageDetailMap) > 0 {
+		for i, item := range cdWorkflowArtifact {
+			if val, ok := wfRunnerIdToStageDetailMap[item.Id]; ok {
+				cdWorkflowArtifact[i].WorkflowExecutionStage = val
+			}
+		}
+	}
 	return cdWorkflowArtifact, nil
 }
 
@@ -604,6 +634,19 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	}
 	workflow := impl.converterWFR(*workflowR)
 
+	if workflowR.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE || workflowR.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
+		//get execution stage data
+		impl.Logger.Infow("fetching pre/post workflow stages", "workflowId", workflowR.Id, "workflowType", workflowR.WorkflowType)
+		workflowStageData, err := impl.workflowStageStatusService.GetPrePostWorkflowStagesByWorkflowIdAndType(workflowR.Id, workflowR.WorkflowType.String())
+		if err != nil {
+			impl.Logger.Errorw("error in fetching pre/post workflow stages", "err", err)
+			return types.WorkflowResponse{}, err
+		}
+		workflow.WorkflowExecutionStage = adapter2.ConvertDBWorkflowStageToMap(workflowStageData, workflow.Id, workflow.Status, workflow.PodStatus, workflow.Message, workflow.WorkflowType, workflow.StartedOn, workflow.FinishedOn)
+	} else {
+		workflow.WorkflowExecutionStage = map[string][]*bean5.WorkflowStageDto{}
+	}
+
 	triggeredByUserEmailId, err := impl.userService.GetActiveEmailById(workflow.TriggeredBy)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("err", "err", err)
@@ -658,27 +701,28 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 	}
 
 	workflowResponse := types.WorkflowResponse{
-		Id:                   workflow.Id,
-		Name:                 workflow.Name,
-		Status:               workflow.Status,
-		PodStatus:            workflow.PodStatus,
-		Message:              workflow.Message,
-		StartedOn:            workflow.StartedOn,
-		FinishedOn:           workflow.FinishedOn,
-		Namespace:            workflow.Namespace,
-		CiMaterials:          ciMaterialsArr,
-		TriggeredBy:          workflow.TriggeredBy,
-		TriggeredByEmail:     triggeredByUserEmailId,
-		Artifact:             workflow.Image,
-		Stage:                workflow.WorkflowType,
-		GitTriggers:          gitTriggers,
-		BlobStorageEnabled:   workflow.BlobStorageEnabled,
-		IsVirtualEnvironment: workflowR.CdWorkflow.Pipeline.Environment.IsVirtualEnvironment,
-		PodName:              workflowR.PodName,
-		ArtifactId:           workflow.CiArtifactId,
-		IsArtifactUploaded:   workflow.IsArtifactUploaded,
-		CiPipelineId:         ciWf.CiPipelineId,
-		TargetPlatforms:      targetPlatforms,
+		Id:                     workflow.Id,
+		Name:                   workflow.Name,
+		Status:                 workflow.Status,
+		PodStatus:              workflow.PodStatus,
+		Message:                workflow.Message,
+		StartedOn:              workflow.StartedOn,
+		FinishedOn:             workflow.FinishedOn,
+		Namespace:              workflow.Namespace,
+		CiMaterials:            ciMaterialsArr,
+		TriggeredBy:            workflow.TriggeredBy,
+		TriggeredByEmail:       triggeredByUserEmailId,
+		Artifact:               workflow.Image,
+		Stage:                  workflow.WorkflowType,
+		GitTriggers:            gitTriggers,
+		BlobStorageEnabled:     workflow.BlobStorageEnabled,
+		IsVirtualEnvironment:   workflowR.CdWorkflow.Pipeline.Environment.IsVirtualEnvironment,
+		PodName:                workflowR.PodName,
+		ArtifactId:             workflow.CiArtifactId,
+		IsArtifactUploaded:     workflow.IsArtifactUploaded,
+		CiPipelineId:           ciWf.CiPipelineId,
+		TargetPlatforms:        targetPlatforms,
+		WorkflowExecutionStage: workflow.WorkflowExecutionStage,
 	}
 	return workflowResponse, nil
 

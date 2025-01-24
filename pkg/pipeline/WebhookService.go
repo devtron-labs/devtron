@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	types2 "github.com/devtron-labs/devtron/pkg/pipeline/types"
+	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	util3 "github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
@@ -76,24 +77,27 @@ type WebhookService interface {
 }
 
 type WebhookServiceImpl struct {
-	ciArtifactRepository    repository.CiArtifactRepository
-	ciConfig                *types2.CiConfig
-	logger                  *zap.SugaredLogger
-	ciPipelineRepository    pipelineConfig.CiPipelineRepository
-	ciWorkflowRepository    pipelineConfig.CiWorkflowRepository
-	cdWorkflowCommonService cd.CdWorkflowCommonService
+	ciArtifactRepository       repository.CiArtifactRepository
+	ciConfig                   *types2.CiConfig
+	logger                     *zap.SugaredLogger
+	ciPipelineRepository       pipelineConfig.CiPipelineRepository
+	ciWorkflowRepository       pipelineConfig.CiWorkflowRepository
+	cdWorkflowCommonService    cd.CdWorkflowCommonService
+	workFlowStageStatusService workflowStatus.WorkFlowStageStatusService
 }
 
 func NewWebhookServiceImpl(ciArtifactRepository repository.CiArtifactRepository,
 	logger *zap.SugaredLogger, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
-	cdWorkflowCommonService cd.CdWorkflowCommonService) *WebhookServiceImpl {
+	cdWorkflowCommonService cd.CdWorkflowCommonService,
+	workFlowStageStatusService workflowStatus.WorkFlowStageStatusService) *WebhookServiceImpl {
 	webhookHandler := &WebhookServiceImpl{
-		ciArtifactRepository:    ciArtifactRepository,
-		logger:                  logger,
-		ciPipelineRepository:    ciPipelineRepository,
-		ciWorkflowRepository:    ciWorkflowRepository,
-		cdWorkflowCommonService: cdWorkflowCommonService,
+		ciArtifactRepository:       ciArtifactRepository,
+		logger:                     logger,
+		ciPipelineRepository:       ciPipelineRepository,
+		ciWorkflowRepository:       ciWorkflowRepository,
+		cdWorkflowCommonService:    cdWorkflowCommonService,
+		workFlowStageStatusService: workFlowStageStatusService,
 	}
 	config, err := types2.GetCiConfig()
 	if err != nil {
@@ -161,7 +165,7 @@ func (impl *WebhookServiceImpl) HandleMultipleImagesFromEvent(imageDetails []*re
 			GitTriggers:        ciWorkflow.GitTriggers,
 			Message:            ciWorkflow.Message,
 		}
-		err = impl.ciWorkflowRepository.SaveWorkFlow(workflow)
+		err = impl.workFlowStageStatusService.SaveCiWorkflowWithStage(workflow)
 		if err != nil {
 			impl.logger.Errorw("error in saving workflow for child workflow", "err", err, "parentCiWorkflowId", ciWorkflowId)
 			return nil, err

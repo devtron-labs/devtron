@@ -38,6 +38,7 @@ import (
 	bean6 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
 	"io/ioutil"
 	"net/url"
 	"path"
@@ -125,6 +126,7 @@ type AppServiceImpl struct {
 	appListingService                      AppListingService
 	deploymentConfigService                common2.DeploymentConfigService
 	envConfigOverrideReadService           read.EnvConfigOverrideService
+	workflowStageService                   workflowStatus.WorkFlowStageStatusService
 }
 
 type AppService interface {
@@ -164,7 +166,8 @@ func NewAppService(
 	deploymentTemplateService deploymentTemplate.DeploymentTemplateService,
 	appListingService AppListingService,
 	deploymentConfigService common2.DeploymentConfigService,
-	envConfigOverrideReadService read.EnvConfigOverrideService) *AppServiceImpl {
+	envConfigOverrideReadService read.EnvConfigOverrideService,
+	workflowStageService workflowStatus.WorkFlowStageStatusService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		mergeUtil:                              mergeUtil,
 		pipelineOverrideRepository:             pipelineOverrideRepository,
@@ -194,6 +197,7 @@ func NewAppService(
 		appListingService:                      appListingService,
 		deploymentConfigService:                deploymentConfigService,
 		envConfigOverrideReadService:           envConfigOverrideReadService,
+		workflowStageService:                   workflowStageService,
 	}
 	return appServiceImpl
 }
@@ -1005,7 +1009,7 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 	}
 	wfr.UpdatedBy = 1
 	wfr.UpdatedOn = time.Now()
-	err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(wfr)
+	err = impl.workflowStageService.UpdateCdWorkflowRunnerWithStage(wfr)
 	if err != nil {
 		impl.logger.Errorw("error on update cd workflow runner", "wfr", wfr, "app", app, "err", err)
 		return err

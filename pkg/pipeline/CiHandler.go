@@ -32,7 +32,10 @@ import (
 	bean5 "github.com/devtron-labs/devtron/pkg/cluster/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
+	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	util3 "github.com/devtron-labs/devtron/pkg/pipeline/util"
+	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
+	adapter2 "github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/adapter"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -123,13 +126,15 @@ type CiHandlerImpl struct {
 	clusterService               cluster.ClusterService
 	blobConfigStorageService     BlobStorageConfigService
 	envService                   environment.EnvironmentService
+	workFlowStageStatusService   workflowStatus.WorkFlowStageStatusService
 }
 
 func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository, gitSensorClient gitSensor.Client, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService,
 	ciLogService CiLogService, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient, eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	appListingRepository repository.AppListingRepository, K8sUtil *k8s.K8sServiceImpl, cdPipelineRepository pipelineConfig.PipelineRepository, enforcerUtil rbac.EnforcerUtil, resourceGroupService resourceGroup.ResourceGroupService, envRepository repository2.EnvironmentRepository,
 	imageTaggingService imageTagging.ImageTaggingService, k8sCommonService k8s2.K8sCommonService, clusterService cluster.ClusterService, blobConfigStorageService BlobStorageConfigService, appWorkflowRepository appWorkflow.AppWorkflowRepository, customTagService CustomTagService,
-	envService environment.EnvironmentService) *CiHandlerImpl {
+	envService environment.EnvironmentService,
+	workFlowStageStatusService workflowStatus.WorkFlowStageStatusService) *CiHandlerImpl {
 	cih := &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -156,6 +161,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		clusterService:               clusterService,
 		blobConfigStorageService:     blobConfigStorageService,
 		envService:                   envService,
+		workFlowStageStatusService:   workFlowStageStatusService,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -165,13 +171,6 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 
 	return cih
 }
-
-const DefaultCiWorkflowNamespace = "devtron-ci"
-const Running = "Running"
-const Starting = "Starting"
-const POD_DELETED_MESSAGE = "pod deleted"
-const TERMINATE_MESSAGE = "workflow shutdown with strategy: Terminate"
-const FORCE_ABORT_MESSAGE_AFTER_STARTING_STAGE = "workflow shutdown with strategy: Force Abort"
 
 func (impl *CiHandlerImpl) CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowStatus) error {
 
@@ -530,10 +529,19 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 		impl.Logger.Errorw("err", "err", err)
 		return nil, err
 	}
+	var workflowIds []int
 	var artifactIds []int
 	for _, w := range workFlows {
 		artifactIds = append(artifactIds, w.CiArtifactId)
+		workflowIds = append(workflowIds, w.Id)
 	}
+
+	allWfStagesDetail, err := impl.workFlowStageStatusService.GetCiWorkflowStagesByWorkflowIds(workflowIds)
+	if err != nil {
+		impl.Logger.Errorw("error in fetching allWfStagesDetail", "err", err, "workflowIds", workflowIds)
+		return nil, err
+	}
+
 	//this map contains artifactId -> imageComment of that artifact
 	imageCommetnsDataMap, err := impl.imageTaggingService.GetImageCommentsDataMapByArtifactIds(artifactIds)
 	if err != nil {
@@ -550,29 +558,30 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 			isArtifactUploaded = w.IsArtifactUploaded
 		}
 		wfResponse := types.WorkflowResponse{
-			Id:                  w.Id,
-			Name:                w.Name,
-			Status:              w.Status,
-			PodStatus:           w.PodStatus,
-			Message:             w.Message,
-			StartedOn:           w.StartedOn,
-			FinishedOn:          w.FinishedOn,
-			CiPipelineId:        w.CiPipelineId,
-			Namespace:           w.Namespace,
-			LogLocation:         w.LogFilePath,
-			GitTriggers:         w.GitTriggers,
-			CiMaterials:         ciPipelineMaterialResponses,
-			Artifact:            w.Image,
-			TriggeredBy:         w.TriggeredBy,
-			TriggeredByEmail:    w.EmailId,
-			ArtifactId:          w.CiArtifactId,
-			BlobStorageEnabled:  w.BlobStorageEnabled,
-			IsArtifactUploaded:  isArtifactUploaded,
-			EnvironmentId:       w.EnvironmentId,
-			EnvironmentName:     w.EnvironmentName,
-			ReferenceWorkflowId: w.RefCiWorkflowId,
-			PodName:             w.PodName,
-			TargetPlatforms:     utils.ConvertTargetPlatformStringToObject(w.TargetPlatforms),
+			Id:                     w.Id,
+			Name:                   w.Name,
+			Status:                 w.Status,
+			PodStatus:              w.PodStatus,
+			Message:                w.Message,
+			StartedOn:              w.StartedOn,
+			FinishedOn:             w.FinishedOn,
+			CiPipelineId:           w.CiPipelineId,
+			Namespace:              w.Namespace,
+			LogLocation:            w.LogFilePath,
+			GitTriggers:            w.GitTriggers,
+			CiMaterials:            ciPipelineMaterialResponses,
+			Artifact:               w.Image,
+			TriggeredBy:            w.TriggeredBy,
+			TriggeredByEmail:       w.EmailId,
+			ArtifactId:             w.CiArtifactId,
+			BlobStorageEnabled:     w.BlobStorageEnabled,
+			IsArtifactUploaded:     isArtifactUploaded,
+			EnvironmentId:          w.EnvironmentId,
+			EnvironmentName:        w.EnvironmentName,
+			ReferenceWorkflowId:    w.RefCiWorkflowId,
+			PodName:                w.PodName,
+			TargetPlatforms:        utils.ConvertTargetPlatformStringToObject(w.TargetPlatforms),
+			WorkflowExecutionStage: adapter2.ConvertDBWorkflowStageToMap(allWfStagesDetail, w.Id, w.Status, w.PodStatus, w.Message, bean2.CI_WORKFLOW_TYPE.String(), w.StartedOn, w.FinishedOn),
 		}
 
 		if w.Message == bean3.ImageTagUnavailableMessage {
@@ -609,7 +618,7 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, er
 		impl.Logger.Errorw("error in finding ci-workflow by workflow id", "ciWorkflowId", workflowId, "err", err)
 		return 0, err
 	}
-	isExt := workflow.Namespace != DefaultCiWorkflowNamespace
+	isExt := workflow.Namespace != constants2.DefaultCiWorkflowNamespace
 	var env *repository2.Environment
 	var restConfig *rest.Config
 	if isExt {
@@ -656,9 +665,9 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, er
 	workflow.Status = executors.WorkflowCancel
 	if workflow.ExecutorType == cdWorkflow.WORKFLOW_EXECUTOR_TYPE_SYSTEM {
 		workflow.PodStatus = "Failed"
-		workflow.Message = TERMINATE_MESSAGE
+		workflow.Message = constants2.TERMINATE_MESSAGE
 	}
-	err = impl.ciWorkflowRepository.UpdateWorkFlow(workflow)
+	err = impl.workFlowStageStatusService.UpdateCiWorkflowWithStage(workflow)
 	if err != nil {
 		impl.Logger.Errorw("cannot update deleted workflow status, but wf deleted", "err", err)
 		return 0, err
@@ -699,8 +708,8 @@ func (impl *CiHandlerImpl) handleForceAbortCaseForCi(workflow *pipelineConfig.Ci
 func (impl *CiHandlerImpl) updateWorkflowForForceAbort(workflow *pipelineConfig.CiWorkflow) error {
 	workflow.Status = executors.WorkflowCancel
 	workflow.PodStatus = string(bean.Failed)
-	workflow.Message = FORCE_ABORT_MESSAGE_AFTER_STARTING_STAGE
-	err := impl.ciWorkflowRepository.UpdateWorkFlow(workflow)
+	workflow.Message = constants2.FORCE_ABORT_MESSAGE_AFTER_STARTING_STAGE
+	err := impl.workFlowStageStatusService.UpdateCiWorkflowWithStage(workflow)
 	if err != nil {
 		impl.Logger.Errorw("error in updating workflow status", "err", err)
 		return err
@@ -783,30 +792,37 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		impl.ciWorkflowRepository.MigrateIsArtifactUploaded(workflow.Id, ciArtifact.IsArtifactUploaded)
 		isArtifactUploaded = ciArtifact.IsArtifactUploaded
 	}
+	wfStagesDetail, err := impl.workFlowStageStatusService.GetCiWorkflowStagesByWorkflowIds([]int{workflow.Id})
+	if err != nil {
+		impl.Logger.Errorw("error in fetching allWfStagesDetail", "err", err, "workflowId", workflow.Id)
+		return types.WorkflowResponse{}, err
+	}
+
 	workflowResponse := types.WorkflowResponse{
-		Id:                 workflow.Id,
-		Name:               workflow.Name,
-		Status:             workflow.Status,
-		PodStatus:          workflow.PodStatus,
-		Message:            workflow.Message,
-		StartedOn:          workflow.StartedOn,
-		FinishedOn:         workflow.FinishedOn,
-		CiPipelineId:       workflow.CiPipelineId,
-		Namespace:          workflow.Namespace,
-		LogLocation:        workflow.LogLocation,
-		BlobStorageEnabled: workflow.BlobStorageEnabled, //TODO default value if value not found in db
-		GitTriggers:        workflow.GitTriggers,
-		CiMaterials:        ciMaterialsArr,
-		TriggeredBy:        workflow.TriggeredBy,
-		TriggeredByEmail:   triggeredByUserEmailId,
-		Artifact:           ciArtifact.Image,
-		TargetPlatforms:    utils.ConvertTargetPlatformStringToObject(ciArtifact.TargetPlatforms),
-		ArtifactId:         ciArtifact.Id,
-		IsArtifactUploaded: isArtifactUploaded,
-		EnvironmentId:      workflow.EnvironmentId,
-		EnvironmentName:    environmentName,
-		PipelineType:       workflow.CiPipeline.PipelineType,
-		PodName:            workflow.PodName,
+		Id:                     workflow.Id,
+		Name:                   workflow.Name,
+		Status:                 workflow.Status,
+		PodStatus:              workflow.PodStatus,
+		Message:                workflow.Message,
+		StartedOn:              workflow.StartedOn,
+		FinishedOn:             workflow.FinishedOn,
+		CiPipelineId:           workflow.CiPipelineId,
+		Namespace:              workflow.Namespace,
+		LogLocation:            workflow.LogLocation,
+		BlobStorageEnabled:     workflow.BlobStorageEnabled, //TODO default value if value not found in db
+		GitTriggers:            workflow.GitTriggers,
+		CiMaterials:            ciMaterialsArr,
+		TriggeredBy:            workflow.TriggeredBy,
+		TriggeredByEmail:       triggeredByUserEmailId,
+		Artifact:               ciArtifact.Image,
+		TargetPlatforms:        utils.ConvertTargetPlatformStringToObject(ciArtifact.TargetPlatforms),
+		ArtifactId:             ciArtifact.Id,
+		IsArtifactUploaded:     isArtifactUploaded,
+		EnvironmentId:          workflow.EnvironmentId,
+		EnvironmentName:        environmentName,
+		PipelineType:           workflow.CiPipeline.PipelineType,
+		PodName:                workflow.PodName,
+		WorkflowExecutionStage: adapter2.ConvertDBWorkflowStageToMap(wfStagesDetail, workflow.Id, workflow.Status, workflow.PodStatus, workflow.Message, bean2.CI_WORKFLOW_TYPE.String(), workflow.StartedOn, workflow.FinishedOn),
 	}
 	return workflowResponse, nil
 }
@@ -1192,7 +1208,7 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		}
 		if savedWorkflow.ExecutorType == cdWorkflow.WORKFLOW_EXECUTOR_TYPE_SYSTEM && savedWorkflow.Status == executors.WorkflowCancel {
 			savedWorkflow.PodStatus = "Failed"
-			savedWorkflow.Message = TERMINATE_MESSAGE
+			savedWorkflow.Message = constants2.TERMINATE_MESSAGE
 		}
 		savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
 		savedWorkflow.Name = workflowName
@@ -1201,7 +1217,7 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		savedWorkflow.CiArtifactLocation = ciArtifactLocation
 		savedWorkflow.PodName = podName
 		impl.Logger.Debugw("updating workflow ", "workflow", savedWorkflow)
-		err = impl.ciWorkflowRepository.UpdateWorkFlow(savedWorkflow)
+		err = impl.workFlowStageStatusService.SaveCiWorkflowWithStage(savedWorkflow)
 		if err != nil {
 			impl.Logger.Error("update wf failed for id " + strconv.Itoa(savedWorkflow.Id))
 			return 0, err
@@ -1606,7 +1622,7 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int, envId
 }
 
 func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error {
-	ciWorkflows, err := impl.ciWorkflowRepository.FindByStatusesIn([]string{Starting, Running})
+	ciWorkflows, err := impl.ciWorkflowRepository.FindByStatusesIn([]string{constants2.Starting, constants2.Running})
 	if err != nil {
 		impl.Logger.Errorw("error on fetching ci workflows", "err", err)
 		return err
@@ -1621,7 +1637,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 		var isExt bool
 		var env *repository2.Environment
 		var restConfig *rest.Config
-		if ciWorkflow.Namespace != DefaultCiWorkflowNamespace {
+		if ciWorkflow.Namespace != constants2.DefaultCiWorkflowNamespace {
 			isExt = true
 			env, err = impl.envRepository.FindById(ciWorkflow.EnvironmentId)
 			if err != nil {
@@ -1654,7 +1670,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 
 			//if ci workflow is exists, check its pod
 			if !isEligibleToMarkFailed {
-				ns := DefaultCiWorkflowNamespace
+				ns := constants2.DefaultCiWorkflowNamespace
 				if isExt {
 					_, client, err = impl.k8sCommonService.GetCoreClientByClusterId(env.ClusterId)
 					if err != nil {
@@ -1681,7 +1697,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 					}
 				} else {
 					//check workflow status,get the status
-					if wf.Status == string(v1alpha1.WorkflowFailed) && wf.Message == POD_DELETED_MESSAGE {
+					if wf.Status == string(v1alpha1.WorkflowFailed) && wf.Message == constants2.POD_DELETED_MESSAGE {
 						isPodDeleted = true
 					}
 				}
@@ -1697,7 +1713,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 			} else {
 				ciWorkflow.Message = "marked failed by job"
 			}
-			err := impl.ciWorkflowRepository.UpdateWorkFlow(ciWorkflow)
+			err := impl.workFlowStageStatusService.UpdateCiWorkflowWithStage(ciWorkflow)
 			if err != nil {
 				impl.Logger.Errorw("unable to update ci workflow, its eligible to mark failed", "err", err)
 				// skip this and process for next ci workflow

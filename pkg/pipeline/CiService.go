@@ -35,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	pipelineConst "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
+	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
 	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
 	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"path"
@@ -84,7 +85,7 @@ type CiServiceImpl struct {
 	Logger                       *zap.SugaredLogger
 	workflowService              WorkflowService
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
-	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
+	workflowStageStatusService   workflowStatus.WorkFlowStageStatusService
 	eventClient                  client.EventClient
 	eventFactory                 client.EventFactory
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
@@ -108,7 +109,7 @@ type CiServiceImpl struct {
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, eventClient client.EventClient,
+	workflowStageStatusService workflowStatus.WorkFlowStageStatusService, eventClient client.EventClient,
 	eventFactory client.EventFactory,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	ciArtifactRepository repository5.CiArtifactRepository,
@@ -131,7 +132,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		Logger:                       Logger,
 		workflowService:              workflowService,
 		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
-		ciWorkflowRepository:         ciWorkflowRepository,
+		workflowStageStatusService:   workflowStageStatusService,
 		eventClient:                  eventClient,
 		eventFactory:                 eventFactory,
 		ciPipelineRepository:         ciPipelineRepository,
@@ -257,9 +258,9 @@ func (impl *CiServiceImpl) markCurrentCiWorkflowFailed(savedCiWf *pipelineConfig
 
 	var dbErr error
 	if savedCiWf.Id == 0 {
-		dbErr = impl.ciWorkflowRepository.SaveWorkFlow(savedCiWf)
+		dbErr = impl.workflowStageStatusService.SaveCiWorkflowWithStage(savedCiWf)
 	} else {
-		dbErr = impl.ciWorkflowRepository.UpdateWorkFlow(savedCiWf)
+		dbErr = impl.workflowStageStatusService.UpdateCiWorkflowWithStage(savedCiWf)
 	}
 
 	if dbErr != nil {
@@ -364,7 +365,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	if err != nil {
 		savedCiWf.Status = cdWorkflow.WorkflowAborted
 		savedCiWf.Message = err.Error()
-		err1 := impl.ciWorkflowRepository.UpdateWorkFlow(savedCiWf)
+		err1 := impl.workflowStageStatusService.UpdateCiWorkflowWithStage(savedCiWf)
 		if err1 != nil {
 			impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
 		}
@@ -519,7 +520,7 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 		ciWorkflow.Namespace = ciWorkflowConfigNamespace
 		ciWorkflow.EnvironmentId = EnvironmentId
 	}
-	err := impl.ciWorkflowRepository.SaveWorkFlow(ciWorkflow)
+	err := impl.workflowStageStatusService.SaveCiWorkflowWithStage(ciWorkflow)
 	if err != nil {
 		impl.Logger.Errorw("saving workflow error", "err", err)
 		return &pipelineConfig.CiWorkflow{}, err
@@ -1086,7 +1087,7 @@ func (impl *CiServiceImpl) updateCiWorkflow(request *types.WorkflowRequest, save
 	ciBuildConfig := request.CiBuildConfig
 	ciBuildType := string(ciBuildConfig.CiBuildType)
 	savedWf.CiBuildType = ciBuildType
-	return impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
+	return impl.workflowStageStatusService.UpdateCiWorkflowWithStage(savedWf)
 }
 
 func _getTruncatedImageTag(imageTag string) string {
