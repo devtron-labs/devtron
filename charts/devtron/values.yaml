@@ -24,7 +24,7 @@ global:
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
-  release: "v1.1.0"
+  release: ""
   registry: ""
   image: inception
   tag: 473deaa4-185-21582
@@ -117,7 +117,7 @@ components:
       authenticator: "authenticator:e414faff-393-13273"
   kubelink:
     registry: ""
-    image: "kubelink:6c0c7082-564-27862"
+    image: "kubelink:0a3d5e84-564-28948"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
@@ -210,7 +210,7 @@ components:
     registry: ""
     image: "migrator:v4.16.2"
     kubectlImage: "kubectl:latest"
-    duplicateChartImage: devtron-utils:dup-chart-repo-v1.1.0
+    duplicateChartImage: devtron-utils:dup-chart-repo-
     envVars:
       devtron:
         DB_NAME: "orchestrator"
