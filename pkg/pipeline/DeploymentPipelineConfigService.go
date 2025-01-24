@@ -630,7 +630,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 
 	response := pipelineConfigBean.ArgoCdAppLinkValidationResponse{
 		IsLinkable:          false,
-		ApplicationMetadata: pipelineConfigBean.ApplicationMetadata{},
+		ApplicationMetadata: pipelineConfigBean.NewEmptyApplicationMetadata(),
 	}
 
 	application, err := impl.argoClientWrapperService.GetArgoAppByNameWithK8sClient(context.Background(), applicationObjectClusterId, applicationObjectNamespace, acdAppName)
@@ -657,6 +657,10 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 	if argoApplicationSpec.Spec.Source != nil && argoApplicationSpec.Spec.Source.Helm != nil && len(argoApplicationSpec.Spec.Source.Helm.ValueFiles) > 0 {
 		return response.SetErrorDetail(pipelineConfigBean.UnsupportedApplicationSpec, "application with multiple helm value files are not supported")
 	}
+
+	response.ApplicationMetadata.Source.RepoURL = argoApplicationSpec.Spec.Source.RepoURL
+	response.ApplicationMetadata.Source.ChartPath = argoApplicationSpec.Spec.Source.Chart
+	response.ApplicationMetadata.Status = string(argoApplicationSpec.Status.Health.Status)
 
 	pipelines, err := impl.pipelineRepository.GetArgoPipelineByArgoAppName(acdAppName)
 	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
@@ -688,19 +692,18 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 	targetClusterURL := argoApplicationSpec.Spec.Destination.Server
 	targetClusterNamespace := argoApplicationSpec.Spec.Destination.Namespace
 
-	response.ApplicationMetadata.TargetCluster = targetClusterURL
-	response.ApplicationMetadata.TargetNamespace = targetClusterNamespace
+	response.ApplicationMetadata.Destination.ClusterServerURL = targetClusterURL
+	response.ApplicationMetadata.Destination.Namespace = targetClusterNamespace
 
 	targetCluster, err := impl.clusterReadService.FindByClusterURL(targetClusterURL)
 	if err != nil {
 		impl.logger.Errorw("error in getting targetCluster by url", "clusterURL", targetClusterURL, "err", err)
 		if errors3.Is(err, pg.ErrNoRows) {
-			response.ApplicationMetadata.TargetCluster = targetClusterURL
 			return response.SetErrorDetail(pipelineConfigBean.ClusterNotFound, "targetCluster not added in global configuration")
 		}
 		return response.SetUnknownErrorDetail(err)
 	}
-	response.ApplicationMetadata.TargetCluster = targetCluster.ClusterName
+	response.ApplicationMetadata.Destination.ClusterName = targetCluster.ClusterName
 
 	targetEnv, err := impl.environmentRepository.FindOneByNamespaceAndClusterId(targetClusterNamespace, targetCluster.Id)
 	if err != nil {
@@ -709,7 +712,8 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		}
 		return response.SetUnknownErrorDetail(err)
 	}
-	response.ApplicationMetadata.TargetEnvironment = targetEnv.Name
+	response.ApplicationMetadata.Destination.EnvironmentName = targetEnv.Name
+	response.ApplicationMetadata.Destination.EnvironmentId = targetEnv.Id
 
 	repoURL := argoApplicationSpec.Spec.Source.RepoURL
 	_, err = impl.gitOpsConfigReadService.GetGitOpsProviderByRepoURL(repoURL)
@@ -750,6 +754,13 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		impl.logger.Errorw("error in finding chart ref by chartRefId", "chartRefId", latestChart.ChartRefId, "err", err)
 		return response.SetUnknownErrorDetail(err)
 	}
+	response.ApplicationMetadata.Source.ChartMetadata = pipelineConfigBean.ChartMetadata{
+		ChartVersion:      applicationChartVersion,
+		SavedChartName:    chartRef.Name,
+		ValuesFilename:    argoApplicationSpec.Spec.Source.Helm.ValueFiles[0],
+		RequiredChartName: applicationChartName,
+	}
+
 	if chartRef.Name != applicationChartName {
 		return response.SetErrorDetail(pipelineConfigBean.ChartTypeMismatch, fmt.Sprintf(pipelineConfigBean.ChartTypeMismatchErrorMsg, applicationChartName, applicationChartVersion))
 	}

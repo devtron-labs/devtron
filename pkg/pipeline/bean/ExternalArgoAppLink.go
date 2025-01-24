@@ -14,9 +14,48 @@ type ArgoCdAppLinkValidationResponse struct {
 }
 
 type ApplicationMetadata struct {
-	TargetCluster     string `json:"targetCluster"`
-	TargetEnvironment string `json:"targetEnvironment"`
-	TargetNamespace   string `json:"targetNamespace"`
+	Source      Source      `json:"source"`
+	Destination Destination `json:"destination"`
+	Status      string      `json:"status"`
+}
+
+func NewEmptyApplicationMetadata() ApplicationMetadata {
+	return ApplicationMetadata{
+		Source: Source{
+			RepoURL:       "",
+			ChartPath:     "",
+			ChartMetadata: ChartMetadata{},
+		},
+		Destination: Destination{
+			ClusterName:      "",
+			ClusterServerURL: "",
+			Namespace:        "",
+			EnvironmentName:  "",
+			EnvironmentId:    0,
+		},
+		Status: "",
+	}
+}
+
+type Source struct {
+	RepoURL       string        `json:"repoURL"`
+	ChartPath     string        `json:"chartPath"`
+	ChartMetadata ChartMetadata `json:"chartMetadata"`
+}
+
+type ChartMetadata struct {
+	ChartVersion      string `json:"chartVersion"`
+	SavedChartName    string `json:"savedChartName"`
+	ValuesFilename    string `json:"valuesFilename"`
+	RequiredChartName string `json:"requiredChartName"`
+}
+
+type Destination struct {
+	ClusterName      string `json:"clusterName"`
+	ClusterServerURL string `json:"clusterServerURL"`
+	Namespace        string `json:"namespace"`
+	EnvironmentName  string `json:"environmentName"`
+	EnvironmentId    int    `json:"environmentId"`
 }
 
 func (a *ArgoCdAppLinkValidationResponse) SetErrorDetail(ValidationFailedReason LinkFailedReason, ValidationFailedMessage string) ArgoCdAppLinkValidationResponse {
