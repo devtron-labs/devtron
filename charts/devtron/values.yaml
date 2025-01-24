@@ -81,7 +81,7 @@ components:
     imagePullPolicy: IfNotPresent
   devtron:
     registry: ""
-    image: "hyperion:018e7cba-280-28967"
+    image: "hyperion:564fe991-280-28985"
     cicdImage: "devtron:018e7cba-434-28946"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
@@ -210,7 +210,7 @@ components:
     registry: ""
     image: "migrator:v4.16.2"
     kubectlImage: "kubectl:latest"
-    duplicateChartImage: devtron-utils:dup-chart-repo-v1.1.0
+    duplicateChartImage: devtron-utils:dup-chart-repo-v1.2.0
     envVars:
       devtron:
         DB_NAME: "orchestrator"
