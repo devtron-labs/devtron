@@ -183,7 +183,7 @@ security:
       tag: 4.3.6
 # Values for notifier integration
 notifier:
-  image: "notifier:2f9166d1-372-27880"
+  image: "notifier:9aa5e510-372-28961"
 minio:
   image: "minio:RELEASE.2021-02-14T04-01-33Z"
   mbImage: "minio-mc:RELEASE.2021-02-14T04-28-06Z"
