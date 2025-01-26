@@ -78,14 +78,21 @@ type WorkflowServiceImpl struct {
 
 // TODO: Move to bean
 
-func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository2.EnvironmentRepository, ciCdConfig *types.CiCdConfig,
-	appService app.AppService, globalCMCSService GlobalCMCSService, argoWorkflowExecutor executors.ArgoWorkflowExecutor,
+func NewWorkflowServiceImpl(Logger *zap.SugaredLogger,
+	envRepository repository2.EnvironmentRepository,
+	ciCdConfig *types.CiCdConfig,
+	configMapService read.ConfigReadService,
+	appService app.AppService,
+	globalCMCSService GlobalCMCSService,
+	argoWorkflowExecutor executors.ArgoWorkflowExecutor,
 	k8sUtil *k8s.K8sServiceImpl,
-	systemWorkflowExecutor executors.SystemWorkflowExecutor, k8sCommonService k8s2.K8sCommonService,
+	systemWorkflowExecutor executors.SystemWorkflowExecutor,
+	k8sCommonService k8s2.K8sCommonService,
 	infraProvider infraProviders.InfraProvider) (*WorkflowServiceImpl, error) {
 	commonWorkflowService := &WorkflowServiceImpl{
 		Logger:                 Logger,
 		ciCdConfig:             ciCdConfig,
+		configMapService:       configMapService,
 		appService:             appService,
 		envRepository:          envRepository,
 		globalCMCSService:      globalCMCSService,
@@ -277,6 +284,19 @@ func (impl *WorkflowServiceImpl) addExistingCmCsInWorkflowForCDStage(workflowReq
 		return nil, nil, err
 	}
 	impl.Logger.Debugw("existing cm", "cm", existingConfigMap, "secrets", existingSecrets)
+	if existingConfigMap != nil {
+		for i := range existingConfigMap.Maps {
+			workflowConfigMaps = append(workflowConfigMaps, existingConfigMap.Maps[i])
+		}
+	}
+	if existingSecrets != nil {
+		for i := range existingSecrets.Secrets {
+			if existingSecrets.Secrets[i] == nil {
+				continue
+			}
+			workflowSecrets = append(workflowSecrets, *existingSecrets.Secrets[i])
+		}
+	}
 	return workflowConfigMaps, workflowSecrets, nil
 }
 
