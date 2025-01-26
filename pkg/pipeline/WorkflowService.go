@@ -28,7 +28,6 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
-	"github.com/devtron-labs/devtron/pkg/app"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/config/read"
@@ -66,7 +65,6 @@ type WorkflowServiceImpl struct {
 	config                 *rest.Config
 	ciCdConfig             *types.CiCdConfig
 	configMapService       read.ConfigReadService
-	appService             app.AppService
 	envRepository          repository2.EnvironmentRepository
 	globalCMCSService      GlobalCMCSService
 	argoWorkflowExecutor   executors.ArgoWorkflowExecutor
@@ -82,7 +80,6 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger,
 	envRepository repository2.EnvironmentRepository,
 	ciCdConfig *types.CiCdConfig,
 	configMapService read.ConfigReadService,
-	appService app.AppService,
 	globalCMCSService GlobalCMCSService,
 	argoWorkflowExecutor executors.ArgoWorkflowExecutor,
 	k8sUtil *k8s.K8sServiceImpl,
@@ -93,7 +90,6 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger,
 		Logger:                 Logger,
 		ciCdConfig:             ciCdConfig,
 		configMapService:       configMapService,
-		appService:             appService,
 		envRepository:          envRepository,
 		globalCMCSService:      globalCMCSService,
 		argoWorkflowExecutor:   argoWorkflowExecutor,
