@@ -19,6 +19,7 @@ package bean
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/pkg/auth/user/bean"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"time"
 )
 
@@ -167,4 +168,10 @@ type BulkDeleteRequest struct {
 
 type UserRoleGroup struct {
 	RoleGroup *RoleGroup `json:"roleGroup"`
+}
+
+type PermissionsAudit struct {
+	UserInfo      *UserInfo    `json:"userInfo,omitempty"`
+	RoleGroupInfo *RoleGroup   `json:"roleGroupInfo,omitempty"`
+	EntityAudit   sql.AuditLog `json:"entityAudit,omitempty"`
 }
