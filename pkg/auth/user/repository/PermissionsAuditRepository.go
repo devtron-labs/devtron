@@ -37,13 +37,21 @@ const (
 	RoleGroupEntity EntityType = "role-group" // this is similar to permissions group
 )
 
+type SchemaFor string
+
+const (
+	UserSchema      SchemaFor = "user/v1"
+	RoleGroupSchema SchemaFor = "role-group/v1"
+)
+
 type PermissionsAudit struct {
 	TableName       struct{}      `sql:"permissions_audit" pg:",discard_unknown_columns"`
 	Id              int           `sql:"id,pk"`
-	EntityId        int32         `sql:"entity_id,notnull"`        // User Id or Role Group Id
-	EntityType      EntityType    `sql:"entity_type,notnull"`      // user or role-group
+	EntityId        int32         `sql:"entity_id,notnull"`        // User Id or Role Group Id or any entity id
+	EntityType      EntityType    `sql:"entity_type,notnull"`      // user or role-group or etc
 	OperationType   OperationType `sql:"operation_type,notnull"`   // create,update,delete
 	PermissionsJson string        `sql:"permissions_json,notnull"` // create - permissions to be created with user, update - we will keep final updated permissions and delete will have operation as delete with existing permissions captured
+	SchemaFor       SchemaFor     `sql:"schema_for,notnull"`       // refer SchemaFor
 	sql.AuditLog
 }
 
