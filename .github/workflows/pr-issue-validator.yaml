@@ -10,4 +10,4 @@ jobs:
   pr-validation:
     uses: devtron-labs/utilities/.github/workflows/pr-validator.yaml@feat/central-pr-validator
     with:
-      validate_sql: true  # Enable/disable SQL validation
+      validate_sql: 'true'  # Enable/disable SQL validation
