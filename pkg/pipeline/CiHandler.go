@@ -191,6 +191,8 @@ func (impl *CiHandlerImpl) CheckAndReTriggerCI(workflowStatus v1alpha1.WorkflowS
 		return nil
 	}
 
+	impl.Logger.Debugw("re-triggering ci", "status", status, "message", message, "ciWorkflowStatus", ciWorkFlow.Status, "ciWorkFlowId", ciWorkFlow.Id)
+
 	retryCount, refCiWorkflow, err := impl.getRefWorkflowAndCiRetryCount(ciWorkFlow)
 	if err != nil {
 		impl.Logger.Errorw("error while getting retry count value for a ciWorkflow", "ciWorkFlowId", ciWorkFlow.Id)

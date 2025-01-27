@@ -23,6 +23,7 @@ import (
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/util"
@@ -250,7 +251,7 @@ func GetClientInstance(config *rest.Config, namespace string) (v1alpha12.Workflo
 
 func CheckIfReTriggerRequired(status, message, workflowRunnerStatus string) bool {
 	return ((status == string(v1alpha1.NodeError) || status == string(v1alpha1.NodeFailed)) &&
-		message == POD_DELETED_MESSAGE) && workflowRunnerStatus != WorkflowCancel
+		message == POD_DELETED_MESSAGE) && (workflowRunnerStatus != WorkflowCancel && workflowRunnerStatus != cdWorkflow.WorkflowAborted)
 
 }
 

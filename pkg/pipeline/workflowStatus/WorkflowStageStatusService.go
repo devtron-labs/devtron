@@ -101,11 +101,7 @@ func (impl *WorkFlowStageStatusServiceImpl) UpdateCiWorkflowWithStage(wf *pipeli
 		}
 	}()
 
-	if checkIfWorkflowIsWaitingToStart(wf.Status, wf.PodStatus) {
-		wf.Status = cdWorkflow.WorkflowWaitingToStart
-	}
-
-	pipelineStageStatus, updatedWfStatus := impl.getUpdatedPipelineStagesForWorkflow(wf.Id, bean.CI_WORKFLOW_TYPE.String(), wf.Status, wf.PodStatus, wf.Message, wf.PodName)
+	pipelineStageStatus, updatedWfStatus, updatedPodStatus := impl.getUpdatedPipelineStagesForWorkflow(wf.Id, bean.CI_WORKFLOW_TYPE.String(), wf.Status, wf.PodStatus, wf.Message, wf.PodName)
 	pipelineStageStatus, err = impl.workflowStatusRepository.UpdateWorkflowStages(pipelineStageStatus, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving workflow stages", "workflowName", wf.Name, "error", err)
@@ -114,6 +110,7 @@ func (impl *WorkFlowStageStatusServiceImpl) UpdateCiWorkflowWithStage(wf *pipeli
 
 	// update workflow with updated wf status
 	wf.Status = updatedWfStatus
+	wf.PodStatus = updatedPodStatus
 	err = impl.ciWorkflowRepository.UpdateWorkFlowWithTx(wf, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving workflow", "payload", wf, "error", err)
@@ -129,37 +126,52 @@ func (impl *WorkFlowStageStatusServiceImpl) UpdateCiWorkflowWithStage(wf *pipeli
 
 }
 
-func (impl *WorkFlowStageStatusServiceImpl) getUpdatedPipelineStagesForWorkflow(wfId int, wfType string, wfStatus string, podStatus string, message string, podName string) ([]*repository.WorkflowExecutionStage, string) {
+func (impl *WorkFlowStageStatusServiceImpl) getUpdatedPipelineStagesForWorkflow(wfId int, wfType string, wfStatus string, podStatus string, message string, podName string) ([]*repository.WorkflowExecutionStage, string, string) {
 	// implementation
-	updatedWfStatus := wfStatus
 	currentWorkflowStages, err := impl.workflowStatusRepository.GetWorkflowStagesByWorkflowIdAndType(wfId, wfType)
 	if err != nil {
 		impl.logger.Errorw("error in getting workflow stages", "workflowId", wfId, "error", err)
-		return nil, updatedWfStatus
+		return nil, wfStatus, podStatus
 	}
 	if len(currentWorkflowStages) == 0 {
-		return []*repository.WorkflowExecutionStage{}, updatedWfStatus
+		return []*repository.WorkflowExecutionStage{}, wfStatus, podStatus
 	}
-	impl.logger.Infow("step-1", "wfId", wfId, "wfType", wfType, "wfStatus", wfStatus, "podStatus", podStatus, "message", message)
-	currentWorkflowStages = impl.updatePodStages(currentWorkflowStages, podStatus, message, podName)
-	impl.logger.Infow("step-2", "updated pod stages", currentWorkflowStages)
-	currentWorkflowStages, updatedWfStatus = impl.updateWorkflowStagesToDevtronStatus(currentWorkflowStages, wfStatus, message, podStatus)
-	impl.logger.Infow("step-3", "updated workflow stages", currentWorkflowStages)
 
-	if len(updatedWfStatus) == 0 {
-		//case when current wfStatus and received wfStatus both are terminal, then keep the status as it is in DB
+	var currentWfDBstatus, currentPodStatus string
+
+	if wfType == bean.CI_WORKFLOW_TYPE.String() {
+		//get current status from db
+		dbWf, err := impl.ciWorkflowRepository.FindById(wfId)
+		if err != nil {
+			impl.logger.Errorw("error in getting workflow", "wfId", wfId, "error", err)
+			return nil, wfStatus, podStatus
+		}
+		currentWfDBstatus = dbWf.Status
+		currentPodStatus = dbWf.PodStatus
+	} else {
 		dbWfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(wfId)
 		if err != nil {
 			impl.logger.Errorw("error in getting workflow runner", "wfId", wfId, "error", err)
-			return nil, updatedWfStatus
+			return nil, wfStatus, podStatus
 		}
-		updatedWfStatus = dbWfr.Status
+		currentWfDBstatus = dbWfr.Status
+		currentPodStatus = dbWfr.PodStatus
 	}
 
-	return currentWorkflowStages, updatedWfStatus
+	impl.logger.Infow("step-1", "wfId", wfId, "wfType", wfType, "wfStatus", wfStatus, "currentWfDBstatus", currentWfDBstatus, "podStatus", podStatus, "currentPodStatus", currentPodStatus, "message", message)
+	currentWorkflowStages, updatedPodStatus := impl.updatePodStages(currentWorkflowStages, podStatus, currentPodStatus, message, podName)
+	impl.logger.Infow("step-2", "updatedPodStatus", updatedPodStatus, "updated pod stages", currentWorkflowStages)
+	currentWorkflowStages, updatedWfStatus := impl.updateWorkflowStagesToDevtronStatus(currentWorkflowStages, wfStatus, currentWfDBstatus, message, podStatus)
+	impl.logger.Infow("step-3", "updatedWfStatus", updatedWfStatus, "updatedPodStatus", updatedPodStatus, "updated workflow stages", currentWorkflowStages)
+
+	return currentWorkflowStages, updatedWfStatus, updatedPodStatus
 }
 
-func (impl *WorkFlowStageStatusServiceImpl) updatePodStages(currentWorkflowStages []*repository.WorkflowExecutionStage, podStatus string, message string, podName string) []*repository.WorkflowExecutionStage {
+func (impl *WorkFlowStageStatusServiceImpl) updatePodStages(currentWorkflowStages []*repository.WorkflowExecutionStage, podStatus string, currentPodStatus string, message string, podName string) ([]*repository.WorkflowExecutionStage, string) {
+	updatedPodStatus := currentPodStatus
+	if !slices.Contains(cdWorkflow.WfrTerminalStatusList, currentPodStatus) {
+		updatedPodStatus = podStatus
+	}
 	//update pod stage status by using convertPodStatusToDevtronStatus
 	for _, stage := range currentWorkflowStages {
 		if stage.StatusType == bean2.WORKFLOW_STAGE_STATUS_TYPE_POD {
@@ -170,49 +182,61 @@ func (impl *WorkFlowStageStatusServiceImpl) updatePodStages(currentWorkflowStage
 			}
 			switch podStatus {
 			case "Pending":
-				//only update message as we create this entry when pod is created
-				stage.Message = message
+				if !stage.Status.IsTerminal() {
+					stage.Message = message
+					stage.Status = bean2.WORKFLOW_STAGE_STATUS_NOT_STARTED
+				}
 			case "Running":
-				if stage.Status == bean2.WORKFLOW_STAGE_STATUS_NOT_STARTED {
+				if stage.Status == bean2.WORKFLOW_STAGE_STATUS_NOT_STARTED ||
+					stage.Status == bean2.WORKFLOW_STAGE_STATUS_UNKNOWN {
 					stage.Message = message
 					stage.Status = bean2.WORKFLOW_STAGE_STATUS_RUNNING
 					stage.StartTime = time.Now().Format(bean3.LayoutRFC3339)
 				}
 			case "Succeeded":
-				if stage.Status == bean2.WORKFLOW_STAGE_STATUS_RUNNING {
+				if stage.Status == bean2.WORKFLOW_STAGE_STATUS_RUNNING ||
+					stage.Status == bean2.WORKFLOW_STAGE_STATUS_UNKNOWN {
 					stage.Message = message
 					stage.Status = bean2.WORKFLOW_STAGE_STATUS_SUCCEEDED
 					stage.EndTime = time.Now().Format(bean3.LayoutRFC3339)
 				}
 			case "Failed", "Error":
-				if stage.Status == bean2.WORKFLOW_STAGE_STATUS_RUNNING {
-
+				if stage.Status == bean2.WORKFLOW_STAGE_STATUS_RUNNING ||
+					stage.Status == bean2.WORKFLOW_STAGE_STATUS_NOT_STARTED ||
+					stage.Status == bean2.WORKFLOW_STAGE_STATUS_UNKNOWN {
 					stage.Message = message
 					stage.Status = bean2.WORKFLOW_STAGE_STATUS_FAILED
 					stage.EndTime = time.Now().Format(bean3.LayoutRFC3339)
+					if stage.Status == bean2.WORKFLOW_STAGE_STATUS_NOT_STARTED {
+						stage.StartTime = time.Now().Format(bean3.LayoutRFC3339)
+					}
 				}
 			default:
-				impl.logger.Errorw("unknown pod status", "podStatus", podStatus)
+				impl.logger.Errorw("unknown pod status", "podStatus", podStatus, "message", message)
 				stage.Message = message
 				stage.Status = bean2.WORKFLOW_STAGE_STATUS_UNKNOWN
 				stage.EndTime = time.Now().Format(bean3.LayoutRFC3339)
 			}
 		}
 	}
-	return currentWorkflowStages
+	return currentWorkflowStages, updatedPodStatus
 }
 
 // Each case has 2 steps to do
 // step-1: update latest status field if its not terminal already
 // step-2: accordingly update stage status
-func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(currentWorkflowStages []*repository.WorkflowExecutionStage, wfStatus string, wfMessage string, podStatus string) ([]*repository.WorkflowExecutionStage, string) {
+func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(currentWorkflowStages []*repository.WorkflowExecutionStage, wfStatus string, currentWfDBstatus, wfMessage string, podStatus string) ([]*repository.WorkflowExecutionStage, string) {
 	// implementation
-	updatedWfStatus := ""
+	updatedWfStatus := currentWfDBstatus
 	//todo for switch case use enums
 	switch strings.ToLower(podStatus) {
 	case "pending":
-		if !slices.Contains(cdWorkflow.WfrTerminalStatusList, wfStatus) {
-			updatedWfStatus = cdWorkflow.WorkflowWaitingToStart
+		if !slices.Contains(cdWorkflow.WfrTerminalStatusList, currentWfDBstatus) {
+			if !slices.Contains(cdWorkflow.WfrTerminalStatusList, wfStatus) {
+				updatedWfStatus = cdWorkflow.WorkflowWaitingToStart
+			} else {
+				updatedWfStatus = wfStatus
+			}
 		}
 
 		// update workflow preparation stage and pod status if terminal
@@ -231,9 +255,14 @@ func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(
 			}
 		}
 	case "running":
-		if !slices.Contains(cdWorkflow.WfrTerminalStatusList, wfStatus) {
-			updatedWfStatus = constants.Running
+		if !slices.Contains(cdWorkflow.WfrTerminalStatusList, currentWfDBstatus) {
+			if !slices.Contains(cdWorkflow.WfrTerminalStatusList, wfStatus) {
+				updatedWfStatus = constants.Running
+			} else {
+				updatedWfStatus = wfStatus
+			}
 		}
+
 		//if pod is running, update preparation and execution stages
 		for _, stage := range currentWorkflowStages {
 			if stage.StatusType == bean2.WORKFLOW_STAGE_STATUS_TYPE_WORKFLOW {
@@ -261,9 +290,14 @@ func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(
 			}
 		}
 	case "succeeded":
-		if !slices.Contains(cdWorkflow.WfrTerminalStatusList, wfStatus) {
-			updatedWfStatus = cdWorkflow.WorkflowSucceeded
+		if !slices.Contains(cdWorkflow.WfrTerminalStatusList, currentWfDBstatus) {
+			if !slices.Contains(cdWorkflow.WfrTerminalStatusList, wfStatus) {
+				updatedWfStatus = cdWorkflow.WorkflowSucceeded
+			} else {
+				updatedWfStatus = wfStatus
+			}
 		}
+
 		//if pod is succeeded, update execution stage
 		for _, stage := range currentWorkflowStages {
 			if stage.StatusType == bean2.WORKFLOW_STAGE_STATUS_TYPE_WORKFLOW {
@@ -277,8 +311,12 @@ func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(
 			}
 		}
 	case "failed", "error":
-		if !slices.Contains(cdWorkflow.WfrTerminalStatusList, wfStatus) {
-			updatedWfStatus = cdWorkflow.WorkflowFailed
+		if !slices.Contains(cdWorkflow.WfrTerminalStatusList, currentWfDBstatus) {
+			if !slices.Contains(cdWorkflow.WfrTerminalStatusList, wfStatus) {
+				updatedWfStatus = cdWorkflow.WorkflowFailed
+			} else {
+				updatedWfStatus = wfStatus
+			}
 		}
 
 		//if pod is failed, update execution stage
@@ -294,6 +332,9 @@ func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(
 							if extractedStatus == bean2.WORKFLOW_STAGE_STATUS_TIMEOUT {
 								updatedWfStatus = cdWorkflow.WorkflowTimedOut
 							}
+							if extractedStatus == bean2.WORKFLOW_STAGE_STATUS_ABORTED {
+								updatedWfStatus = cdWorkflow.WorkflowAborted
+							}
 						}
 					}
 				} else if stage.StageName == bean2.WORKFLOW_PREPARATION && !stage.Status.IsTerminal() {
@@ -301,20 +342,26 @@ func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(
 					if extractedStatus.IsTerminal() {
 						stage.Status = extractedStatus
 						stage.EndTime = time.Now().Format(bean3.LayoutRFC3339)
+						if extractedStatus == bean2.WORKFLOW_STAGE_STATUS_TIMEOUT {
+							updatedWfStatus = cdWorkflow.WorkflowTimedOut
+						}
+						if extractedStatus == bean2.WORKFLOW_STAGE_STATUS_ABORTED {
+							updatedWfStatus = cdWorkflow.WorkflowAborted
+						}
 					}
 				}
 			}
 		}
 	default:
 		impl.logger.Errorw("unknown pod status", "podStatus", podStatus)
-		//mark workflow stage status as unknown and end it
+		//mark workflow stage status as unknown
 		for _, stage := range currentWorkflowStages {
 			if stage.StatusType == bean2.WORKFLOW_STAGE_STATUS_TYPE_WORKFLOW {
 				//mark execution stage as completed
 				if stage.StageName == bean2.WORKFLOW_EXECUTION {
 					if stage.Status == bean2.WORKFLOW_STAGE_STATUS_RUNNING {
 						stage.Status = bean2.WORKFLOW_STAGE_STATUS_UNKNOWN
-						stage.EndTime = time.Now().Format(bean3.LayoutRFC3339)
+						updatedWfStatus = bean2.WORKFLOW_STAGE_STATUS_UNKNOWN.ToString()
 					}
 				}
 			}
@@ -442,18 +489,15 @@ func (impl *WorkFlowStageStatusServiceImpl) UpdateCdWorkflowRunnerWithStage(wfr 
 		}
 	}()
 
-	if (wfr.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE || wfr.WorkflowType == bean.CD_WORKFLOW_TYPE_POST) && checkIfWorkflowIsWaitingToStart(wfr.Status, wfr.PodStatus) {
-		wfr.Status = cdWorkflow.WorkflowWaitingToStart
-	}
-
 	if wfr.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE || wfr.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
-		pipelineStageStatus, updatedWfStatus := impl.getUpdatedPipelineStagesForWorkflow(wfr.Id, wfr.WorkflowType.String(), wfr.Status, wfr.PodStatus, wfr.Message, wfr.PodName)
+		pipelineStageStatus, updatedWfStatus, updatedPodStatus := impl.getUpdatedPipelineStagesForWorkflow(wfr.Id, wfr.WorkflowType.String(), wfr.Status, wfr.PodStatus, wfr.Message, wfr.PodName)
 		pipelineStageStatus, err = impl.workflowStatusRepository.UpdateWorkflowStages(pipelineStageStatus, tx)
 		if err != nil {
 			impl.logger.Errorw("error in saving workflow stages", "workflowName", wfr.Name, "error", err)
 			return err
 		}
 		wfr.Status = updatedWfStatus
+		wfr.PodStatus = updatedPodStatus
 	} else {
 		impl.logger.Infow("workflow type not supported to update stage data", "workflowName", wfr.Name, "workflowType", wfr.WorkflowType)
 	}
@@ -472,9 +516,4 @@ func (impl *WorkFlowStageStatusServiceImpl) UpdateCdWorkflowRunnerWithStage(wfr 
 	}
 	return nil
 
-}
-
-func checkIfWorkflowIsWaitingToStart(wfStatus string, podStatus string) bool {
-	// implementation
-	return strings.ToLower(podStatus) == "pending" && (strings.ToLower(wfStatus) == strings.ToLower(cdWorkflow.WorkflowWaitingToStart) || strings.ToLower(wfStatus) == "running" || strings.ToLower(wfStatus) == "starting")
 }
