@@ -170,7 +170,7 @@ type UserRoleGroup struct {
 	RoleGroup *RoleGroup `json:"roleGroup"`
 }
 
-type PermissionsAudit struct {
+type PermissionsAuditDto struct {
 	UserInfo      *UserInfo    `json:"userInfo,omitempty"`
 	RoleGroupInfo *RoleGroup   `json:"roleGroupInfo,omitempty"`
 	EntityAudit   sql.AuditLog `json:"entityAudit,omitempty"`

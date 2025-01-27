@@ -40,7 +40,7 @@ const (
 type PermissionsAudit struct {
 	TableName       struct{}      `sql:"permissions_audit" pg:",discard_unknown_columns"`
 	Id              int           `sql:"id,pk"`
-	EntityId        int           `sql:"entity_id,notnull"`        // User Id or Role Group Id
+	EntityId        int32         `sql:"entity_id,notnull"`        // User Id or Role Group Id
 	EntityType      EntityType    `sql:"entity_type,notnull"`      // user or role-group
 	OperationType   OperationType `sql:"operation_type,notnull"`   // create,update,delete
 	PermissionsJson string        `sql:"permissions_json,notnull"` // create - permissions to be created with user, update - we will keep final updated permissions and delete will have operation as delete with existing permissions captured

@@ -1,11 +1,15 @@
 package user
 
 import (
+	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/pkg/auth/user/adapter"
 	"github.com/devtron-labs/devtron/pkg/auth/user/repository"
 	"go.uber.org/zap"
 )
 
 type PermissionsAuditService interface {
+	SaveAudit(entityId int32, entityType repository.EntityType,
+		operationType repository.OperationType, permissionsAuditDto *bean.PermissionsAuditDto, userIdForAuditLog int32) error
 }
 
 type PermissionsAuditServiceImpl struct {
@@ -19,10 +23,17 @@ func NewPermissionsAuditServiceImpl(logger *zap.SugaredLogger, PermissionsAuditR
 		PermissionsAuditRepository: PermissionsAuditRepository,
 	}
 }
-func (impl *PermissionsAuditServiceImpl) SaveAudit(audit *repository.PermissionsAudit) error {
-	err := impl.PermissionsAuditRepository.SaveAudit(audit)
+
+func (impl *PermissionsAuditServiceImpl) SaveAudit(entityId int32, entityType repository.EntityType,
+	operationType repository.OperationType, permissionsAuditDto *bean.PermissionsAuditDto, userIdForAuditLog int32) error {
+	model, err := adapter.BuildPermissionAuditModel(entityId, entityType, operationType, permissionsAuditDto, userIdForAuditLog)
 	if err != nil {
-		impl.logger.Errorw("error in saving audit", "audit", audit, "err", err)
+		impl.logger.Errorw("error in BuildPermissionAuditModel", "entityId", entityId, "operationType", operationType, "permissionsAuditDto", permissionsAuditDto, "err", err)
+		return err
+	}
+	err = impl.PermissionsAuditRepository.SaveAudit(model)
+	if err != nil {
+		impl.logger.Errorw("error in saving audit", "entityId", entityId, "operationType", operationType, "permissionsAuditDto", permissionsAuditDto, "err", err)
 		return err
 	}
 	return nil
