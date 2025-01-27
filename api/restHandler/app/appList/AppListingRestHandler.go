@@ -493,7 +493,7 @@ func (handler AppListingRestHandlerImpl) FetchAppDetailsV2(w http.ResponseWriter
 		return
 	}
 
-	err = handler.updateApprovalConfigDataInAppDetailResp(appDetail, appId, envId)
+	appDetail, err = handler.updateApprovalConfigDataInAppDetailResp(appDetail, appId, envId)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return

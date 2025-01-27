@@ -116,3 +116,49 @@ func GetPluginVersionsMetadataByVersionAndParentPluginIds(pluginVersionsMetadata
 	}
 	return filteredPluginVersionMetadata
 }
+
+type IdGetter interface {
+	// ID gets id field from struct wherever this interface is  implemented, see PluginStep sql object for example
+	ID() int
+}
+
+// GetIDs is a generic function to get IDs
+func GetIDs[T IdGetter](items []T) []int {
+	ids := make([]int, len(items))
+	for i, item := range items {
+		ids[i] = item.ID()
+	}
+	return ids
+}
+
+func GetPluginStepIdVsPluginStepVariablesMap(pluginStepVariables []*bean.PluginVariableDto) map[int][]*bean.PluginVariableDto {
+	pluginStepIdVsPluginStepVariablesMap := make(map[int][]*bean.PluginVariableDto, len(pluginStepVariables))
+	for _, stepVar := range pluginStepVariables {
+		pluginStepIdVsPluginStepVariablesMap[stepVar.PluginStepId] = append(pluginStepIdVsPluginStepVariablesMap[stepVar.PluginStepId], stepVar)
+	}
+	return pluginStepIdVsPluginStepVariablesMap
+}
+
+func GetScriptIdVsScriptArgsDetailsMap(scriptArgDetails []*bean.ScriptPathArgPortMapping) map[int][]*bean.ScriptPathArgPortMapping {
+	scriptIdVsScriptArgsDetailsMap := make(map[int][]*bean.ScriptPathArgPortMapping, len(scriptArgDetails))
+	for _, scriptArgDetail := range scriptArgDetails {
+		scriptIdVsScriptArgsDetailsMap[scriptArgDetail.ScriptId] = append(scriptIdVsScriptArgsDetailsMap[scriptArgDetail.ScriptId], scriptArgDetail)
+	}
+	return scriptIdVsScriptArgsDetailsMap
+}
+
+func GetScriptIdList(stepsDto []*bean.PluginStepsDto) []int {
+	scriptIds := make([]int, 0, len(stepsDto))
+	for _, step := range stepsDto {
+		scriptIds = append(scriptIds, step.ScriptId)
+	}
+	return scriptIds
+}
+
+func GetScriptIdVsPluginScript(pluginScripts []*bean.PluginPipelineScript) map[int]*bean.PluginPipelineScript {
+	scriptIdVsPluginScript := make(map[int]*bean.PluginPipelineScript, len(pluginScripts))
+	for _, pluginScript := range pluginScripts {
+		scriptIdVsPluginScript[pluginScript.Id] = pluginScript
+	}
+	return scriptIdVsPluginScript
+}
