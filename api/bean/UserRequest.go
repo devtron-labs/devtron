@@ -175,3 +175,21 @@ type PermissionsAuditDto struct {
 	RoleGroupInfo *RoleGroup   `json:"roleGroupInfo,omitempty"`
 	EntityAudit   sql.AuditLog `json:"entityAudit,omitempty"`
 }
+
+func NewPermissionsAuditDto() *PermissionsAuditDto {
+	return &PermissionsAuditDto{}
+}
+
+func (pa *PermissionsAuditDto) WithUserInfo(userInfo *UserInfo) *PermissionsAuditDto {
+	pa.UserInfo = userInfo
+	return pa
+}
+
+func (pa *PermissionsAuditDto) WithRoleGroupInfo(roleGroupInfo *RoleGroup) *PermissionsAuditDto {
+	pa.RoleGroupInfo = roleGroupInfo
+	return pa
+}
+func (pa *PermissionsAuditDto) WithEntityAudit(entityAudit sql.AuditLog) *PermissionsAuditDto {
+	pa.EntityAudit = entityAudit
+	return pa
+}
