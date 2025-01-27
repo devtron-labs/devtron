@@ -24,7 +24,7 @@ global:
 extraManifests: []
 installer:
   repo: "devtron-labs/devtron"
-  release: "v1.1.0"
+  release: "v1.2.0"
   registry: ""
   image: inception
   tag: 473deaa4-185-21582
@@ -77,12 +77,12 @@ components:
         FEATURE_USER_DEFINED_GITOPS_REPO_ENABLE: "true"
         ENABLE_RESOURCE_SCAN: "true"
     registry: ""
-    image: "dashboard:a88790b2-690-27891"
+    image: "dashboard:4eb1a17a-690-28956"
     imagePullPolicy: IfNotPresent
   devtron:
     registry: ""
-    image: "hyperion:a109b8be-280-27896"
-    cicdImage: "devtron:a109b8be-434-27906"
+    image: "hyperion:564fe991-280-28985"
+    cicdImage: "devtron:564fe991-434-28986"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
@@ -108,7 +108,7 @@ components:
       #      - devtron.example.com
   ciRunner:
     registry: ""
-    image: "ci-runner:54595cec-138-27894"
+    image: "ci-runner:0a3d5e84-138-28964"
   argocdDexServer:
     registry: ""
     image: "dex:v2.30.2"
@@ -117,7 +117,7 @@ components:
       authenticator: "authenticator:e414faff-393-13273"
   kubelink:
     registry: ""
-    image: "kubelink:6c0c7082-564-27862"
+    image: "kubelink:0a3d5e84-564-28948"
     imagePullPolicy: IfNotPresent
     configs:
       ENABLE_HELM_RELEASE_CACHE: "true"
@@ -135,7 +135,7 @@ components:
       keyName: postgresql-password
   kubewatch:
     registry: ""
-    image: "kubewatch:33965457-419-27887"
+    image: "kubewatch:0a3d5e84-419-28949"
     imagePullPolicy: IfNotPresent
     configs:
       devtroncd_NAMESPACE: "devtron-ci"
@@ -157,7 +157,7 @@ components:
       volumeSize: "20Gi"
   gitsensor:
     registry: ""
-    image: "git-sensor:6c0c7082-200-27863"
+    image: "git-sensor:0a3d5e84-200-28960"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
@@ -175,7 +175,7 @@ components:
   # Values for lens
   lens:
     registry: ""
-    image: "lens:6c0c7082-333-27872"
+    image: "lens:0a3d5e84-333-28951"
     imagePullPolicy: IfNotPresent
     secrets: {}
     resources: {}
@@ -222,7 +222,7 @@ components:
         DB_NAME: "lens"
   chartSync:
     registry: ""
-    image: chart-sync:6c0c7082-836-27893
+    image: chart-sync:0a3d5e84-836-28979
     schedule: "0 19 * * *"
     extraConfigs: {}
 # values for argocd integration
@@ -368,7 +368,10 @@ argo-cd:
 security:
   enabled: false
   imageScanner:
-    image: "image-scanner:33965457-141-27892"
+    image: "image-scanner:0a3d5e84-141-28953"
+    configs:
+      TRIVY_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-db
+      TRIVY_JAVA_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-java-db
   # Values for trivy
   trivy:
     enabled: false
@@ -383,7 +386,7 @@ security:
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
-  image: "notifier:2f9166d1-372-27880"
+  image: "notifier:9aa5e510-372-28961"
   configs:
     CD_ENVIRONMENT: PROD
     DB: orchestrator
