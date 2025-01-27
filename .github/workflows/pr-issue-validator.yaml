@@ -12,4 +12,4 @@ jobs:
     with:
       validate_sql: true  # Enable/disable SQL validation
     secrets:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GH_PR_VALIDATOR_TOKEN }}

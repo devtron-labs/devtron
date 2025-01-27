@@ -220,3 +220,4 @@ jobs:
 
         echo "All .up.sql migration file validations passed."
         gh pr comment "$pr_no" --body "The migration files have successfully passed the criteria!!"
+        exit 0
