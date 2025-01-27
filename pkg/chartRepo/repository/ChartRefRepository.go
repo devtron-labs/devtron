@@ -37,6 +37,7 @@ type ChartRef struct {
 	IsAppMetricsSupported  bool     `sql:"is_app_metrics_supported,notnull"`
 	DeploymentStrategyPath string   `sql:"deployment_strategy_path"`
 	JsonPathForStrategy    string   `sql:"json_path_for_strategy"`
+	EmailId                string   `sql:"email_id"`
 	sql.AuditLog
 }
 
@@ -58,6 +59,7 @@ type ChartRefRepository interface {
 	FetchChart(name string) ([]*ChartRef, error)
 	FetchInfoOfChartConfiguredInApp(appId int) (*ChartRef, error)
 	FetchAllNonUserUploadedChartInfo() ([]*ChartRef, error)
+	GetAllWithUserEmail() ([]*ChartRef, error)
 }
 type ChartRefRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -169,6 +171,17 @@ func (impl ChartRefRepositoryImpl) FetchInfoOfChartConfiguredInApp(appId int) (*
 		return &repo, err
 	}
 	return &repo, nil
+}
+
+func (impl ChartRefRepositoryImpl) GetAllWithUserEmail() ([]*ChartRef, error) {
+	var chartRefs []*ChartRef
+	err := impl.dbConnection.
+		Model(&chartRefs).
+		Column("chart_ref.id", "chart_ref.name", "chart_ref.chart_description", "chart_ref.version", "chart_ref.user_uploaded", "users.email_id"). // Include user email in the query
+		Join("JOIN users ON users.id = chart_ref.created_by"). // Join with users table
+		Where("chart_ref.active = ?", true). // Filter by active charts
+		Select()
+	return chartRefs, err
 }
 
 // pipeline strategy metadata repository starts here

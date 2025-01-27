@@ -27,10 +27,12 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/deployedApp/bean"
+	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartResourceConfig"
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/k8s"
 	bean4 "github.com/devtron-labs/devtron/pkg/k8s/bean"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
@@ -91,7 +93,15 @@ func (impl *DeployedAppServiceImpl) StopStartApp(ctx context.Context, stopReques
 		impl.logger.Errorw("error in fetching latest release", "err", err)
 		return 0, err
 	}
-	stopTemplate := `{"replicaCount":0,"autoscaling":{"MinReplicas":0,"MaxReplicas":0 ,"enabled": false},"kedaAutoscaling":{"minReplicaCount":0,"maxReplicaCount":0 ,"enabled": false}}`
+	scope := &resourceQualifiers.Scope{
+		AppId: stopRequest.AppId,
+		EnvId: stopRequest.EnvironmentId,
+	}
+	stopTemplate, err := chartResourceConfig.GetStopTemplate(scope)
+	if err != nil {
+		impl.logger.Errorw("error in fetching stop template", "err", err)
+		return 0, err
+	}
 	overrideRequest := &bean2.ValuesOverrideRequest{
 		PipelineId:     pipeline.Id,
 		AppId:          stopRequest.AppId,
