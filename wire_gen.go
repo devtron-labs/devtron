@@ -178,7 +178,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret"
-	read14 "github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret/read"
+	read13 "github.com/devtron-labs/devtron/pkg/deployment/manifest/configMapAndSecret/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	repository16 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
@@ -233,7 +233,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository18 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
-	read13 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/read"
+	read14 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/read"
 	repository23 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool"
 	repository15 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool/repository"
@@ -708,7 +708,8 @@ func InitializeApp() (*App, error) {
 	appWorkflowServiceImpl := appWorkflow2.NewAppWorkflowServiceImpl(sugaredLogger, appWorkflowRepositoryImpl, ciCdPipelineOrchestratorImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, enforcerUtilImpl, resourceGroupServiceImpl, appRepositoryImpl, userAuthServiceImpl, chartServiceImpl, deploymentConfigServiceImpl)
 	appCloneServiceImpl := appClone.NewAppCloneServiceImpl(sugaredLogger, pipelineBuilderImpl, attributesServiceImpl, chartServiceImpl, configMapServiceImpl, appWorkflowServiceImpl, appListingServiceImpl, propertiesConfigServiceImpl, pipelineStageServiceImpl, ciTemplateReadServiceImpl, appRepositoryImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, ciPipelineConfigServiceImpl, gitOpsConfigReadServiceImpl)
 	deploymentTemplateRepositoryImpl := repository2.NewDeploymentTemplateRepositoryImpl(db, sugaredLogger)
-	deploymentTemplateHistoryReadServiceImpl := read7.NewDeploymentTemplateHistoryReadServiceImpl(sugaredLogger, deploymentTemplateHistoryRepositoryImpl, scopedVariableManagerImpl)
+	configMapHistoryReadServiceImpl := read13.NewConfigMapHistoryReadService(sugaredLogger, configMapHistoryRepositoryImpl, scopedVariableCMCSManagerImpl)
+	deploymentTemplateHistoryReadServiceImpl := read7.NewDeploymentTemplateHistoryReadServiceImpl(sugaredLogger, deploymentTemplateHistoryRepositoryImpl, scopedVariableManagerImpl, pipelineStrategyHistoryServiceImpl, cdWorkflowRepositoryImpl, configMapHistoryReadServiceImpl)
 	generateManifestDeploymentTemplateServiceImpl, err := generateManifest.NewDeploymentTemplateServiceImpl(sugaredLogger, chartServiceImpl, appListingServiceImpl, deploymentTemplateRepositoryImpl, helmAppReadServiceImpl, chartTemplateServiceImpl, helmAppClientImpl, k8sServiceImpl, propertiesConfigServiceImpl, environmentRepositoryImpl, appRepositoryImpl, scopedVariableManagerImpl, chartRefServiceImpl, pipelineOverrideRepositoryImpl, chartRepositoryImpl, pipelineRepositoryImpl, utilMergeUtil, deploymentTemplateHistoryReadServiceImpl)
 	if err != nil {
 		return nil, err
@@ -718,25 +719,23 @@ func InitializeApp() (*App, error) {
 	imageScanDeployInfoRepositoryImpl := repository23.NewImageScanDeployInfoRepositoryImpl(db, sugaredLogger)
 	imageScanObjectMetaRepositoryImpl := repository23.NewImageScanObjectMetaRepositoryImpl(db, sugaredLogger)
 	imageScanHistoryRepositoryImpl := repository23.NewImageScanHistoryRepositoryImpl(db, sugaredLogger)
-	imageScanHistoryReadServiceImpl := read13.NewImageScanHistoryReadService(sugaredLogger, imageScanHistoryRepositoryImpl)
+	imageScanHistoryReadServiceImpl := read14.NewImageScanHistoryReadService(sugaredLogger, imageScanHistoryRepositoryImpl)
 	cveStoreRepositoryImpl := repository23.NewCveStoreRepositoryImpl(db, sugaredLogger)
 	policyServiceImpl := imageScanning.NewPolicyServiceImpl(environmentServiceImpl, sugaredLogger, appRepositoryImpl, pipelineOverrideRepositoryImpl, cvePolicyRepositoryImpl, clusterServiceImplExtended, pipelineRepositoryImpl, imageScanResultRepositoryImpl, imageScanDeployInfoRepositoryImpl, imageScanObjectMetaRepositoryImpl, httpClient, ciArtifactRepositoryImpl, ciCdConfig, imageScanHistoryReadServiceImpl, cveStoreRepositoryImpl, ciTemplateRepositoryImpl, clusterReadServiceImpl, transactionUtilImpl)
-	imageScanResultReadServiceImpl := read13.NewImageScanResultReadServiceImpl(sugaredLogger, imageScanResultRepositoryImpl)
+	imageScanResultReadServiceImpl := read14.NewImageScanResultReadServiceImpl(sugaredLogger, imageScanResultRepositoryImpl)
 	pipelineConfigRestHandlerImpl := configure.NewPipelineRestHandlerImpl(pipelineBuilderImpl, sugaredLogger, deploymentTemplateValidationServiceImpl, chartServiceImpl, devtronAppGitOpConfigServiceImpl, propertiesConfigServiceImpl, userServiceImpl, teamServiceImpl, enforcerImpl, ciHandlerImpl, validate, clientImpl, ciPipelineRepositoryImpl, pipelineRepositoryImpl, enforcerUtilImpl, dockerRegistryConfigImpl, cdHandlerImpl, appCloneServiceImpl, generateManifestDeploymentTemplateServiceImpl, appWorkflowServiceImpl, gitMaterialReadServiceImpl, policyServiceImpl, imageScanResultReadServiceImpl, ciPipelineMaterialRepositoryImpl, imageTaggingReadServiceImpl, imageTaggingServiceImpl, ciArtifactRepositoryImpl, deployedAppMetricsServiceImpl, chartRefServiceImpl, ciCdPipelineOrchestratorImpl, gitProviderReadServiceImpl, teamReadServiceImpl)
 	gitOpsManifestPushServiceImpl := publish.NewGitOpsManifestPushServiceImpl(sugaredLogger, pipelineStatusTimelineServiceImpl, pipelineOverrideRepositoryImpl, acdConfig, chartRefServiceImpl, gitOpsConfigReadServiceImpl, chartServiceImpl, gitOperationServiceImpl, argoClientWrapperServiceImpl, transactionUtilImpl, deploymentConfigServiceImpl, chartTemplateServiceImpl)
 	argoK8sClientImpl := argocdServer.NewArgoK8sClientImpl(sugaredLogger, k8sServiceImpl)
 	manifestCreationServiceImpl := manifest.NewManifestCreationServiceImpl(sugaredLogger, dockerRegistryIpsConfigServiceImpl, chartRefServiceImpl, scopedVariableCMCSManagerImpl, k8sCommonServiceImpl, deployedAppMetricsServiceImpl, imageDigestPolicyServiceImpl, utilMergeUtil, appCrudOperationServiceImpl, deploymentTemplateServiceImpl, argoClientWrapperServiceImpl, configMapHistoryRepositoryImpl, configMapRepositoryImpl, chartRepositoryImpl, envConfigOverrideRepositoryImpl, environmentRepositoryImpl, pipelineRepositoryImpl, ciArtifactRepositoryImpl, pipelineOverrideRepositoryImpl, pipelineStrategyHistoryRepositoryImpl, pipelineConfigRepositoryImpl, deploymentTemplateHistoryRepositoryImpl, deploymentConfigServiceImpl, envConfigOverrideReadServiceImpl)
-	configMapHistoryReadServiceImpl := read14.NewConfigMapHistoryReadService(sugaredLogger, configMapHistoryRepositoryImpl, scopedVariableCMCSManagerImpl)
-	deployedConfigurationHistoryServiceImpl := history.NewDeployedConfigurationHistoryServiceImpl(sugaredLogger, userServiceImpl, deploymentTemplateHistoryServiceImpl, pipelineStrategyHistoryServiceImpl, configMapHistoryServiceImpl, cdWorkflowRepositoryImpl, scopedVariableCMCSManagerImpl, deploymentTemplateHistoryReadServiceImpl, configMapHistoryReadServiceImpl)
 	userDeploymentRequestRepositoryImpl := repository24.NewUserDeploymentRequestRepositoryImpl(db, transactionUtilImpl)
 	userDeploymentRequestServiceImpl := service3.NewUserDeploymentRequestServiceImpl(sugaredLogger, userDeploymentRequestRepositoryImpl)
-	imageScanDeployInfoReadServiceImpl := read13.NewImageScanDeployInfoReadService(sugaredLogger, imageScanDeployInfoRepositoryImpl)
+	imageScanDeployInfoReadServiceImpl := read14.NewImageScanDeployInfoReadService(sugaredLogger, imageScanDeployInfoRepositoryImpl)
 	imageScanDeployInfoServiceImpl := imageScanning.NewImageScanDeployInfoService(sugaredLogger, imageScanDeployInfoRepositoryImpl)
 	manifestPushConfigRepositoryImpl := repository17.NewManifestPushConfigRepository(sugaredLogger, db)
 	scanToolExecutionHistoryMappingRepositoryImpl := repository23.NewScanToolExecutionHistoryMappingRepositoryImpl(db, sugaredLogger)
 	cdWorkflowReadServiceImpl := read15.NewCdWorkflowReadServiceImpl(sugaredLogger, cdWorkflowRepositoryImpl)
 	imageScanServiceImpl := imageScanning.NewImageScanServiceImpl(sugaredLogger, imageScanHistoryRepositoryImpl, imageScanResultRepositoryImpl, imageScanObjectMetaRepositoryImpl, cveStoreRepositoryImpl, imageScanDeployInfoRepositoryImpl, userServiceImpl, appRepositoryImpl, environmentServiceImpl, ciArtifactRepositoryImpl, policyServiceImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, scanToolMetadataRepositoryImpl, scanToolExecutionHistoryMappingRepositoryImpl, cvePolicyRepositoryImpl, cdWorkflowReadServiceImpl)
-	triggerServiceImpl, err := devtronApps.NewTriggerServiceImpl(sugaredLogger, cdWorkflowCommonServiceImpl, gitOpsManifestPushServiceImpl, gitOpsConfigReadServiceImpl, argoK8sClientImpl, acdConfig, argoClientWrapperServiceImpl, pipelineStatusTimelineServiceImpl, chartTemplateServiceImpl, workflowEventPublishServiceImpl, manifestCreationServiceImpl, deployedConfigurationHistoryServiceImpl, pipelineStageServiceImpl, globalPluginServiceImpl, customTagServiceImpl, pluginInputVariableParserImpl, prePostCdScriptHistoryServiceImpl, scopedVariableCMCSManagerImpl, workflowServiceImpl, imageDigestPolicyServiceImpl, userServiceImpl, clientImpl, helmAppServiceImpl, enforcerUtilImpl, userDeploymentRequestServiceImpl, helmAppClientImpl, eventSimpleFactoryImpl, eventRESTClientImpl, environmentVariables, appRepositoryImpl, ciPipelineMaterialRepositoryImpl, imageScanHistoryReadServiceImpl, imageScanDeployInfoReadServiceImpl, imageScanDeployInfoServiceImpl, pipelineRepositoryImpl, pipelineOverrideRepositoryImpl, manifestPushConfigRepositoryImpl, chartRepositoryImpl, environmentRepositoryImpl, cdWorkflowRepositoryImpl, ciWorkflowRepositoryImpl, ciArtifactRepositoryImpl, ciTemplateReadServiceImpl, gitMaterialReadServiceImpl, appLabelRepositoryImpl, ciPipelineRepositoryImpl, appWorkflowRepositoryImpl, dockerArtifactStoreRepositoryImpl, imageScanServiceImpl, k8sServiceImpl, transactionUtilImpl, deploymentConfigServiceImpl, ciCdPipelineOrchestratorImpl, gitOperationServiceImpl, attributesServiceImpl, clusterRepositoryImpl)
+	triggerServiceImpl, err := devtronApps.NewTriggerServiceImpl(sugaredLogger, cdWorkflowCommonServiceImpl, gitOpsManifestPushServiceImpl, gitOpsConfigReadServiceImpl, argoK8sClientImpl, acdConfig, argoClientWrapperServiceImpl, pipelineStatusTimelineServiceImpl, chartTemplateServiceImpl, workflowEventPublishServiceImpl, manifestCreationServiceImpl, pipelineStageServiceImpl, globalPluginServiceImpl, customTagServiceImpl, pluginInputVariableParserImpl, prePostCdScriptHistoryServiceImpl, scopedVariableCMCSManagerImpl, workflowServiceImpl, imageDigestPolicyServiceImpl, userServiceImpl, clientImpl, helmAppServiceImpl, enforcerUtilImpl, userDeploymentRequestServiceImpl, helmAppClientImpl, eventSimpleFactoryImpl, eventRESTClientImpl, environmentVariables, appRepositoryImpl, ciPipelineMaterialRepositoryImpl, imageScanHistoryReadServiceImpl, imageScanDeployInfoReadServiceImpl, imageScanDeployInfoServiceImpl, pipelineRepositoryImpl, pipelineOverrideRepositoryImpl, manifestPushConfigRepositoryImpl, chartRepositoryImpl, environmentRepositoryImpl, cdWorkflowRepositoryImpl, ciWorkflowRepositoryImpl, ciArtifactRepositoryImpl, ciTemplateReadServiceImpl, gitMaterialReadServiceImpl, appLabelRepositoryImpl, ciPipelineRepositoryImpl, appWorkflowRepositoryImpl, dockerArtifactStoreRepositoryImpl, imageScanServiceImpl, k8sServiceImpl, transactionUtilImpl, deploymentConfigServiceImpl, ciCdPipelineOrchestratorImpl, gitOperationServiceImpl, attributesServiceImpl, clusterRepositoryImpl, deploymentTemplateHistoryServiceImpl)
 	if err != nil {
 		return nil, err
 	}
@@ -935,7 +934,7 @@ func InitializeApp() (*App, error) {
 	pipelineConfigRouterImpl := configure2.NewPipelineRouterImpl(pipelineConfigRestHandlerImpl, webhookDataRestHandlerImpl)
 	prePostCiScriptHistoryRepositoryImpl := repository20.NewPrePostCiScriptHistoryRepositoryImpl(sugaredLogger, db)
 	prePostCiScriptHistoryServiceImpl := history.NewPrePostCiScriptHistoryServiceImpl(sugaredLogger, prePostCiScriptHistoryRepositoryImpl)
-	pipelineHistoryRestHandlerImpl := history2.NewPipelineHistoryRestHandlerImpl(sugaredLogger, userServiceImpl, enforcerImpl, pipelineStrategyHistoryServiceImpl, deploymentTemplateHistoryServiceImpl, configMapHistoryServiceImpl, prePostCiScriptHistoryServiceImpl, prePostCdScriptHistoryServiceImpl, enforcerUtilImpl, deployedConfigurationHistoryServiceImpl)
+	pipelineHistoryRestHandlerImpl := history2.NewPipelineHistoryRestHandlerImpl(sugaredLogger, userServiceImpl, enforcerImpl, pipelineStrategyHistoryServiceImpl, configMapHistoryServiceImpl, prePostCiScriptHistoryServiceImpl, prePostCdScriptHistoryServiceImpl, enforcerUtilImpl, deploymentTemplateHistoryReadServiceImpl)
 	pipelineHistoryRouterImpl := history3.NewPipelineHistoryRouterImpl(pipelineHistoryRestHandlerImpl)
 	pipelineStatusTimelineRestHandlerImpl := status3.NewPipelineStatusTimelineRestHandlerImpl(sugaredLogger, userServiceImpl, pipelineStatusTimelineServiceImpl, enforcerUtilImpl, enforcerImpl, cdApplicationStatusUpdateHandlerImpl, pipelineBuilderImpl)
 	pipelineStatusRouterImpl := status4.NewPipelineStatusRouterImpl(pipelineStatusTimelineRestHandlerImpl)
@@ -1036,7 +1035,7 @@ func InitializeApp() (*App, error) {
 	infraConfigRouterImpl := infraConfig.NewInfraProfileRouterImpl(infraConfigRestHandlerImpl)
 	argoApplicationRestHandlerImpl := argoApplication2.NewArgoApplicationRestHandlerImpl(argoApplicationServiceExtendedImpl, argoApplicationReadServiceImpl, sugaredLogger, enforcerImpl)
 	argoApplicationRouterImpl := argoApplication2.NewArgoApplicationRouterImpl(argoApplicationRestHandlerImpl)
-	deploymentHistoryServiceImpl := cdPipeline.NewDeploymentHistoryServiceImpl(sugaredLogger, cdHandlerImpl, imageTaggingReadServiceImpl, imageTaggingServiceImpl, pipelineRepositoryImpl, deployedConfigurationHistoryServiceImpl)
+	deploymentHistoryServiceImpl := cdPipeline.NewDeploymentHistoryServiceImpl(sugaredLogger, cdHandlerImpl, imageTaggingReadServiceImpl, imageTaggingServiceImpl, deploymentTemplateHistoryReadServiceImpl)
 	apiReqDecoderServiceImpl := devtronResource.NewAPIReqDecoderServiceImpl(sugaredLogger, pipelineRepositoryImpl)
 	historyRestHandlerImpl := devtronResource2.NewHistoryRestHandlerImpl(sugaredLogger, enforcerImpl, deploymentHistoryServiceImpl, apiReqDecoderServiceImpl, enforcerUtilImpl)
 	historyRouterImpl := devtronResource2.NewHistoryRouterImpl(historyRestHandlerImpl)
