@@ -138,7 +138,7 @@ func (impl ImageDigestPolicyServiceImpl) DeletePolicyForPipeline(tx *pg.Tx, pipe
 		UpdatedBy: userId,
 	}
 	devtronResourceSearchableKeyMap := impl.devtronResourceSearchableKey.GetAllSearchableKeyNameIdMap()
-	err := impl.qualifierMappingService.DeleteByIdentifierKeyValue(resourceQualifiers.ImageDigest, devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_PIPELINE_ID], pipelineId, auditLog, tx)
+	err := impl.qualifierMappingService.DeleteByIdentifierKeyAndValue(resourceQualifiers.ImageDigest, devtronResourceSearchableKeyMap[bean.DEVTRON_RESOURCE_SEARCHABLE_KEY_PIPELINE_ID], pipelineId, 0, auditLog, tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting image digest policy for pipeline", "err", err, "pipelineId", pipelineId)
 		return pipelineId, err

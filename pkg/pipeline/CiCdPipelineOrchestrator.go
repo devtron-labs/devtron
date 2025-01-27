@@ -27,12 +27,15 @@ import (
 	"fmt"
 	constants2 "github.com/devtron-labs/devtron/internal/sql/constants"
 	attributesBean "github.com/devtron-labs/devtron/pkg/attributes/bean"
+	common2 "github.com/devtron-labs/devtron/pkg/bean/common"
 	repository6 "github.com/devtron-labs/devtron/pkg/build/git/gitMaterial/repository"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	constants3 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
+	util4 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	"golang.org/x/exp/slices"
 	"net/http"
@@ -110,6 +113,7 @@ type CiCdPipelineOrchestrator interface {
 	GetSourceCiDownStreamInfo(ctx context.Context, sourceCIPipeline int, req *bean2.SourceCiDownStreamFilters) (pagination.PaginatedResponse[bean2.SourceCiDownStreamResponse], error)
 	GetSourceCiPipelineForArtifact(ciPipeline pipelineConfig.CiPipeline) (*pipelineConfig.CiPipeline, error)
 	GetGitCommitEnvVarDataForCICDStage(gitTriggers map[int]pipelineConfig.GitCommit) (map[string]string, *gitSensor.WebhookAndCiData, error)
+	GetWorkflowCacheConfig(appType helper.AppType, pipelineType string, pipelineWorkflowCacheConfig common2.WorkflowCacheConfigType) bean.WorkflowCacheConfig
 }
 
 type CiCdPipelineOrchestratorImpl struct {
@@ -142,6 +146,7 @@ type CiCdPipelineOrchestratorImpl struct {
 	transactionManager            sql.TransactionWrapper
 	gitOpsConfigReadService       config.GitOpsConfigReadService
 	deploymentConfigService       common.DeploymentConfigService
+	workflowCacheConfig           types.WorkflowCacheConfig
 }
 
 func NewCiCdPipelineOrchestrator(
@@ -172,6 +177,10 @@ func NewCiCdPipelineOrchestrator(
 	chartService chart.ChartService, transactionManager sql.TransactionWrapper,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	deploymentConfigService common.DeploymentConfigService) *CiCdPipelineOrchestratorImpl {
+	_, workflowCacheConfig, err := types.GetCiConfigWithWorkflowCacheConfig()
+	if err != nil {
+		logger.Errorw("Error in getting workflow cache config, continuing with default values", "err", err)
+	}
 	return &CiCdPipelineOrchestratorImpl{
 		appRepository:                 pipelineGroupRepository,
 		logger:                        logger,
@@ -202,6 +211,7 @@ func NewCiCdPipelineOrchestrator(
 		transactionManager:            transactionManager,
 		gitOpsConfigReadService:       gitOpsConfigReadService,
 		deploymentConfigService:       deploymentConfigService,
+		workflowCacheConfig:           workflowCacheConfig,
 	}
 }
 
@@ -2418,4 +2428,16 @@ func (impl *CiCdPipelineOrchestratorImpl) GetGitCommitEnvVarDataForCICDStage(git
 	}
 
 	return extraEnvVariables, webhookAndCiData, nil
+}
+
+func (impl *CiCdPipelineOrchestratorImpl) GetWorkflowCacheConfig(appType helper.AppType, pipelineType string, pipelineWorkflowCacheConfig common2.WorkflowCacheConfigType) bean.WorkflowCacheConfig {
+	if appType == helper.Job {
+		return util4.GetWorkflowCacheConfig(pipelineWorkflowCacheConfig, impl.workflowCacheConfig.IgnoreJob)
+	} else {
+		if pipelineType == string(constants3.CI_JOB) {
+			return util4.GetWorkflowCacheConfigWithBackwardCompatibility(pipelineWorkflowCacheConfig, impl.ciConfig.WorkflowCacheConfig, impl.workflowCacheConfig.IgnoreCIJob, impl.ciConfig.SkipCiJobBuildCachePushPull)
+		} else {
+			return util4.GetWorkflowCacheConfigWithBackwardCompatibility(pipelineWorkflowCacheConfig, impl.ciConfig.WorkflowCacheConfig, impl.workflowCacheConfig.IgnoreCI, impl.ciConfig.IgnoreDockerCacheForCI)
+		}
+	}
 }

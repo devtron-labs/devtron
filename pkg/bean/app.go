@@ -18,13 +18,14 @@ package bean
 
 import (
 	"encoding/json"
-	bean2 "github.com/devtron-labs/devtron/api/bean"
+	bean2 "github.com/devtron-labs/devtron/api/bean/AppView"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/bean/common"
 	CiPipeline2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
@@ -59,6 +60,12 @@ type CreateAppDTO struct {
 	GenericNote *bean2.GenericNoteResponseBean `json:"genericNote,omitempty"`
 	AppType     helper.AppType                 `json:"appType" validate:"gt=-1,lt=3"` //TODO: Change Validation if new AppType is introduced
 	DisplayName string                         `json:"-"`                             //not exposed to UI
+}
+
+type WorkflowCacheConfig struct {
+	Type        common.WorkflowCacheConfigType `json:"type"`
+	Value       bool                           `json:"value"`
+	GlobalValue bool                           `json:"globalValue"`
 }
 
 type CreateMaterialDTO struct {

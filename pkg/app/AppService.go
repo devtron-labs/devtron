@@ -69,13 +69,13 @@ import (
 	"github.com/devtron-labs/devtron/pkg/variables"
 	_ "github.com/devtron-labs/devtron/pkg/variables/repository"
 	util2 "github.com/devtron-labs/devtron/util"
-	"github.com/devtron-labs/devtron/util/argo"
 	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// CATEGORY=CD
 type AppServiceConfig struct {
 	CdPipelineStatusCronTime                   string `env:"CD_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
 	CdHelmPipelineStatusCronTime               string `env:"CD_HELM_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
@@ -113,7 +113,6 @@ type AppServiceImpl struct {
 	cdWorkflowRepository                   pipelineConfig.CdWorkflowRepository
 	commonService                          commonService.CommonService
 	chartTemplateService                   ChartTemplateService
-	argoUserService                        argo.ArgoUserService
 	pipelineStatusTimelineRepository       pipelineConfig.PipelineStatusTimelineRepository
 	pipelineStatusTimelineResourcesService status2.PipelineStatusTimelineResourcesService
 	pipelineStatusSyncDetailService        status2.PipelineStatusSyncDetailService
@@ -157,7 +156,7 @@ func NewAppService(
 	chartRepository chartRepoRepository.ChartRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	commonService commonService.CommonService,
-	chartTemplateService ChartTemplateService, argoUserService argo.ArgoUserService,
+	chartTemplateService ChartTemplateService,
 	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
 	pipelineStatusTimelineResourcesService status2.PipelineStatusTimelineResourcesService,
 	pipelineStatusSyncDetailService status2.PipelineStatusSyncDetailService,
@@ -185,7 +184,6 @@ func NewAppService(
 		cdWorkflowRepository:                   cdWorkflowRepository,
 		commonService:                          commonService,
 		chartTemplateService:                   chartTemplateService,
-		argoUserService:                        argoUserService,
 		pipelineStatusTimelineRepository:       cdPipelineStatusTimelineRepo,
 		pipelineStatusTimelineResourcesService: pipelineStatusTimelineResourcesService,
 		pipelineStatusSyncDetailService:        pipelineStatusSyncDetailService,
@@ -785,18 +783,6 @@ type ValuesOverrideResponse struct {
 	Pipeline             *pipelineConfig.Pipeline
 	DeploymentConfig     *bean2.DeploymentConfig
 	ManifestPushTemplate *bean3.ManifestPushTemplate
-}
-
-func (impl *AppServiceImpl) buildACDContext() (acdContext context.Context, err error) {
-	// this method should only call in case of argo-integration and gitops configured
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		impl.logger.Errorw("error in getting acd token", "err", err)
-		return nil, err
-	}
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "token", acdToken)
-	return ctx, nil
 }
 
 func (impl *AppServiceImpl) GetDeployedManifestByPipelineIdAndCDWorkflowId(appId int, envId int, cdWorkflowId int, ctx context.Context) ([]byte, error) {

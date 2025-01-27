@@ -140,3 +140,11 @@ Create chart name and version as used by the chart label.
     {{ default "default" .Values.serviceAccount.name }}
 {{- end -}}
 {{- end -}}
+
+{{- define "VerticalPodAutoScalingEnabled" -}}
+   {{- $SMenabled := false -}}
+        {{- if and .Values.verticalPodScaling.enabled }}
+            {{- $SMenabled = true -}}
+        {{- end }}
+   {{- $SMenabled -}}
+{{- end -}}

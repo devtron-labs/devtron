@@ -55,10 +55,10 @@ spec:
     matchLabels:
 {{- if .Values.customMatchLabels  }}
 {{ toYaml .Values.customMatchLabels | indent 6 }}  
- {{- else }}                  
+{{- else }}
       app: {{ template ".Chart.Name .name" $ }}
       release: {{ $.Release.Name }}
-{{- end }}      
+{{- end }}
   replicas: {{ $.Values.replicaCount }}
   minReadySeconds: {{ $.Values.MinReadySeconds }}
   template:
@@ -70,20 +70,19 @@ spec:
       {{- end }}
     {{- end }}
       labels:
+        app: {{ template ".Chart.Name .name" $ }}
         appId: {{ $.Values.app | quote }}
         envId: {{ $.Values.env | quote }}
- {{- if .Values.appLabels }}
-{{ toYaml .Values.appLabels | indent 8 }}
-{{- end }}             
+        release: {{ $.Release.Name }}
 {{- if .Values.customPodLabels  }}
-{{ toYaml .Values.customPodLabels | indent 8 }}
- {{- else }}        
-        app: {{ template ".Chart.Name .name" $ }}
-        release: {{ $.Release.Name }}      
+{{ toYaml .Values.customPodLabels | indent 8 }}  
+{{- end }}                
+{{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels | indent 8 }}
+{{- end }}
 {{- if .Values.podLabels }}
 {{ toYaml .Values.podLabels | indent 8 }}
 {{- end }}
-{{- end }}   
     spec:
 {{- if $.Values.podExtraSpecs }}	
 {{ toYaml .Values.podExtraSpecs | indent 6 }}	
@@ -487,7 +486,7 @@ spec:
               protocol: TCP
               name: envoy-admin
               {{- range $index, $element := .Values.ContainerPort }}
-            - name: {{ $element.name}}
+            - name: envoy-{{ $element.name}}
               containerPort: {{ $element.envoyPort | default (add 8790 $index) }}
               protocol: TCP
               {{- end }}
