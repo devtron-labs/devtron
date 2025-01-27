@@ -49,6 +49,8 @@ jobs:
             "((Fixes|Resolves) #[0-9]+)"
             "((Fixes|Resolves) https://github.com/devtron-labs/devtron/issues/[0-9]+)"
             "((Fixes|Resolves) devtron-labs/devtron#[0-9]+)"
+            "((Fixes|Resolves) devtron-labs/sprint-tasks#[0-9]+)"
+            "((Fixes|Resolves) devtron-labs/devops-sprint#[0-9]+)"
             "(Fixes|Resolves):?\\s+\\[#([0-9]+)\\]"
             "((Fixes|Resolves):? #devtron-labs/devops-sprint/issues/[0-9]+)"
             "((Fixes|Resolves):? #devtron-labs/sprint-tasks/issues/[0-9]+)"
