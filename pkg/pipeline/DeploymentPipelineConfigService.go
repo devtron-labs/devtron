@@ -476,7 +476,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 	if gitOpsConfigurationStatus.IsGitOpsConfigured &&
 		isGitOpsRequiredForCD &&
 		!pipelineCreateRequest.IsCloneAppReq &&
-		!pipelineCreateRequest.Pipelines[0].IsExternalArgoAppLinkRequest() { //TODO: revisit in review
+		!pipelineCreateRequest.Pipelines[0].IsExternalArgoAppLinkRequest() { //TODO: ayush revisit
 
 		if gitOps.IsGitOpsRepoNotConfigured(AppDeploymentConfig.GetRepoURL()) {
 			if gitOpsConfigurationStatus.AllowCustomRepository || AppDeploymentConfig.ConfigType == bean4.CUSTOM.String() {
@@ -682,15 +682,15 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		}
 	}
 
-	_, err = impl.installedAppReadService.GetInstalledAppByGitOpsAppName(acdAppName)
-	if err != nil {
-		if !errors3.Is(err, pg.ErrNoRows) {
-			// installed app found
-			if bean3.DefaultClusterId == applicationObjectClusterId && argocdServer.DevtronInstalationNs == applicationObjectNamespace {
-				return response.SetErrorDetail(pipelineConfigBean.ApplicationAlreadyPresent, pipelineConfigBean.HelmAppAlreadyPresentMsg)
-			}
-		}
+	installedApp, err := impl.installedAppReadService.GetInstalledAppByGitOpsAppName(acdAppName)
+	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
 		return response.SetUnknownErrorDetail(err)
+	}
+	if installedApp != nil {
+		// installed app found
+		if bean3.DefaultClusterId == applicationObjectClusterId && argocdServer.DevtronInstalationNs == applicationObjectNamespace {
+			return response.SetErrorDetail(pipelineConfigBean.ApplicationAlreadyPresent, pipelineConfigBean.HelmAppAlreadyPresentMsg)
+		}
 	}
 
 	targetClusterURL := argoApplicationSpec.Spec.Destination.Server
