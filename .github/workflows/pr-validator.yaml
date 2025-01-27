@@ -83,7 +83,7 @@ jobs:
         # Fetch issue details with curl
         fetch_issue_status() {
           local url="$1"
-          echo "url -> url"
+          echo "url -> $url"
           if [[ "$repo" == "devtron-labs/devtron" || "$repo" == "devtron-labs/devtron-services" || "$repo" == "devtron-labs/dashboard" ]]; then
             status_code=$(curl -s -o /dev/null -w "%{http_code}" "$url")
           else
