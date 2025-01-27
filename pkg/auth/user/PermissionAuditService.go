@@ -8,8 +8,10 @@ import (
 )
 
 type PermissionsAuditService interface {
-	SaveAudit(entityId int32, entityType repository.EntityType,
-		operationType repository.OperationType, permissionsAuditDto *bean.PermissionsAuditDto, userIdForAuditLog int32) error
+	SaveAuditForUser(entityId int32, operationType repository.OperationType,
+		permissionsAuditDto *bean.PermissionsAuditDto, userIdForAuditLog int32) error
+	SaveAuditForRoleGroup(entityId int32, operationType repository.OperationType,
+		permissionsAuditDto *bean.PermissionsAuditDto, userIdForAuditLog int32) error
 }
 
 type PermissionsAuditServiceImpl struct {
@@ -24,7 +26,7 @@ func NewPermissionsAuditServiceImpl(logger *zap.SugaredLogger, PermissionsAuditR
 	}
 }
 
-func (impl *PermissionsAuditServiceImpl) SaveAudit(entityId int32, entityType repository.EntityType,
+func (impl *PermissionsAuditServiceImpl) saveAudit(entityId int32, entityType repository.EntityType,
 	operationType repository.OperationType, permissionsAuditDto *bean.PermissionsAuditDto, userIdForAuditLog int32) error {
 	model, err := adapter.BuildPermissionAuditModel(entityId, entityType, operationType, permissionsAuditDto, userIdForAuditLog)
 	if err != nil {
@@ -34,6 +36,26 @@ func (impl *PermissionsAuditServiceImpl) SaveAudit(entityId int32, entityType re
 	err = impl.PermissionsAuditRepository.SaveAudit(model)
 	if err != nil {
 		impl.logger.Errorw("error in saving audit", "entityId", entityId, "operationType", operationType, "permissionsAuditDto", permissionsAuditDto, "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *PermissionsAuditServiceImpl) SaveAuditForUser(entityId int32, operationType repository.OperationType,
+	permissionsAuditDto *bean.PermissionsAuditDto, userIdForAuditLog int32) error {
+	err := impl.saveAudit(entityId, repository.UserEntity, operationType, permissionsAuditDto, userIdForAuditLog)
+	if err != nil {
+		impl.logger.Errorw("error in SaveAuditForUser", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *PermissionsAuditServiceImpl) SaveAuditForRoleGroup(entityId int32, operationType repository.OperationType,
+	permissionsAuditDto *bean.PermissionsAuditDto, userIdForAuditLog int32) error {
+	err := impl.saveAudit(entityId, repository.RoleGroupEntity, operationType, permissionsAuditDto, userIdForAuditLog)
+	if err != nil {
+		impl.logger.Errorw("error in SaveAuditForRoleGroup", "err", err)
 		return err
 	}
 	return nil
