@@ -196,7 +196,7 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 	}
 	workflowTemplate.ConfigMaps = workflowConfigMaps
 	workflowTemplate.Secrets = workflowSecrets
-	workflowTemplate.Volumes = executors.ExtractVolumesFromCmCs(workflowConfigMaps, workflowSecrets)
+	workflowTemplate.Volumes = executors.ExtractVolumes(workflowConfigMaps, workflowSecrets)
 
 	workflowMainContainer, err := workflowRequest.GetWorkflowMainContainer(impl.ciCdConfig, infraConfiguration, workflowJson, &workflowTemplate, workflowConfigMaps, workflowSecrets)
 	if err != nil {
