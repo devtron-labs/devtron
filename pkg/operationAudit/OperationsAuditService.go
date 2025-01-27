@@ -20,7 +20,7 @@ type OperationAuditServiceImpl struct {
 	PermissionsAuditRepository repository.OperationAuditRepository
 }
 
-func NewPermissionsAuditServiceImpl(logger *zap.SugaredLogger, PermissionsAuditRepository repository.OperationAuditRepository) *OperationAuditServiceImpl {
+func NewOperationAuditServiceImpl(logger *zap.SugaredLogger, PermissionsAuditRepository repository.OperationAuditRepository) *OperationAuditServiceImpl {
 	return &OperationAuditServiceImpl{
 		logger:                     logger,
 		PermissionsAuditRepository: PermissionsAuditRepository,
