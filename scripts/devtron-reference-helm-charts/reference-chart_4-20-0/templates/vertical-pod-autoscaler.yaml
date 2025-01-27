@@ -3,7 +3,11 @@
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
 metadata:
+  {{- if .Values.verticalPodScaling.name }}
+  name: {{ .Values.verticalPodScaling.name }}
+  {{- else }}
   name: {{ template ".Chart.Name .fullname" . }}-vpa
+  {{- end }}
   labels:
     kind: Prometheus
     app: {{ template ".Chart.Name .name" . }}
