@@ -63,6 +63,7 @@ type Metadata struct {
 	Status       string    `json:"status"`
 	StartedOn    time.Time `json:"StartedOn"`
 	ScanToolName string    `json:"scanToolName"`
+	ScanToolUrl  string    `json:"scanToolUrl"`
 }
 
 type VulnerabilityResponse struct {
