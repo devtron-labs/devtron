@@ -1,4 +1,4 @@
-name: PR Validation (Test)
+name: PR Validation
 
 on:
   pull_request:
@@ -8,8 +8,6 @@ on:
 
 jobs:
   pr-validation:
-    uses: devtron-labs/devtron-utilities/.github/workflows/pr-validator.yaml@central-pr-validator
+    uses: devtron-labs/utilities/.github/workflows/pr-validator.yaml@feat/central-pr-validator
     with:
       validate_sql: true  # Enable/disable SQL validation
-    secrets:
-      GH_TOKEN: ${{ secrets.GH_PR_VALIDATOR_TOKEN }}
