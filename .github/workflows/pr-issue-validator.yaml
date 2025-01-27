@@ -8,7 +8,7 @@ on:
 
 jobs:
   pr-validation:
-    uses: devtron-labs/devtron/.github/workflows/pr-validator.yaml@fix/pr-validator
+    uses: devtron-labs/devtron-utilities/.github/workflows/pr-validator.yaml@central-pr-validator
     with:
       validate_sql: true  # Enable/disable SQL validation
     secrets:
