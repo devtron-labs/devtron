@@ -177,6 +177,9 @@ workflowController:
 security:
   imageScanner:
     image: "image-scanner:0a3d5e84-141-28953"
+    configs:
+      TRIVY_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-db
+      TRIVY_JAVA_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-java-db
   clair:
     image:
       repository: clair
