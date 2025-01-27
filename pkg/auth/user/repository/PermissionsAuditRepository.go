@@ -46,3 +46,11 @@ type PermissionsAudit struct {
 	PermissionsJson string        `sql:"permissions_json,notnull"` // create - permissions to be created with user, update - we will keep final updated permissions and delete will have operation as delete with existing permissions captured
 	sql.AuditLog
 }
+
+func (repo *PermissionsAuditRepositoryImpl) SaveAudit(audit *PermissionsAudit) error {
+	err := repo.dbConnection.Insert(audit)
+	if err != nil {
+		repo.logger.Errorw("error in saving audit", "audit", audit, "err", err)
+	}
+	return err
+}
