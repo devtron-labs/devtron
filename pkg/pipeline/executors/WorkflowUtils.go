@@ -251,12 +251,9 @@ func GetClientInstance(config *rest.Config, namespace string) (v1alpha12.Workflo
 
 func CheckIfReTriggerRequired(status, message, workflowRunnerStatus string) bool {
 	return ((status == string(v1alpha1.NodeError) || status == string(v1alpha1.NodeFailed)) &&
-		message == POD_DELETED_MESSAGE) && (workflowRunnerStatus != WorkflowCancel && workflowRunnerStatus != cdWorkflow.WorkflowAborted)
+		message == cdWorkflow.POD_DELETED_MESSAGE) && (workflowRunnerStatus != cdWorkflow.WorkflowCancel && workflowRunnerStatus != cdWorkflow.WorkflowAborted)
 
 }
-
-const WorkflowCancel = "CANCELLED"
-const POD_DELETED_MESSAGE = "pod deleted"
 
 func GetWorkflowLabelsForSystemExecutor(workflowTemplate bean.WorkflowTemplate) map[string]string {
 	return map[string]string{

@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils"
 	bean4 "github.com/devtron-labs/common-lib/utils/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/adapter/cdWorkflow"
+	cdWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	"github.com/devtron-labs/devtron/pkg/cluster/adapter"
@@ -49,7 +50,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	pipelineBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	resourceGroup2 "github.com/devtron-labs/devtron/pkg/resourceGroup"
 	util3 "github.com/devtron-labs/devtron/util"
@@ -219,7 +219,7 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, forceAbort bool, us
 			return 0, err
 		}
 	}
-	workflowRunner.Status = executors.WorkflowCancel
+	workflowRunner.Status = cdWorkflow2.WorkflowCancel
 	workflowRunner.UpdatedOn = time.Now()
 	workflowRunner.UpdatedBy = userId
 	err = impl.workflowStageStatusService.UpdateCdWorkflowRunnerWithStage(workflowRunner)
@@ -231,7 +231,7 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, forceAbort bool, us
 }
 
 func (impl *CdHandlerImpl) updateWorkflowRunnerForForceAbort(workflowRunner *pipelineConfig.CdWorkflowRunner) error {
-	workflowRunner.Status = executors.WorkflowCancel
+	workflowRunner.Status = cdWorkflow2.WorkflowCancel
 	workflowRunner.PodStatus = string(bean2.Failed)
 	workflowRunner.Message = constants.FORCE_ABORT_MESSAGE_AFTER_STARTING_STAGE
 	err := impl.workflowStageStatusService.UpdateCdWorkflowRunnerWithStage(workflowRunner)
@@ -280,7 +280,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 	cdArtifactLocationFormat := impl.config.GetArtifactLocationFormat()
 	cdArtifactLocation := fmt.Sprintf(cdArtifactLocationFormat, savedWorkflow.CdWorkflowId, savedWorkflow.Id)
 	if impl.stateChanged(status, podStatus, message, workflowStatus.FinishedAt.Time, savedWorkflow) {
-		if savedWorkflow.Status != executors.WorkflowCancel {
+		if savedWorkflow.Status != cdWorkflow2.WorkflowCancel {
 			savedWorkflow.Status = status
 		}
 		savedWorkflow.CdArtifactLocation = cdArtifactLocation
@@ -549,7 +549,7 @@ func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineC
 	if logStream == nil || err != nil {
 		if !cdWorkflow.BlobStorageEnabled {
 			return nil, nil, errors.New("logs-not-stored-in-repository")
-		} else if string(v1alpha1.NodeSucceeded) == cdWorkflow.Status || string(v1alpha1.NodeError) == cdWorkflow.Status || string(v1alpha1.NodeFailed) == cdWorkflow.Status || cdWorkflow.Status == executors.WorkflowCancel {
+		} else if string(v1alpha1.NodeSucceeded) == cdWorkflow.Status || string(v1alpha1.NodeError) == cdWorkflow.Status || string(v1alpha1.NodeFailed) == cdWorkflow.Status || cdWorkflow.Status == cdWorkflow2.WorkflowCancel {
 			impl.Logger.Debugw("pod is not live", "podName", cdWorkflow.PodName, "err", err)
 			return impl.getLogsFromRepository(pipelineId, cdWorkflow, clusterConfig, runStageInEnv)
 		}

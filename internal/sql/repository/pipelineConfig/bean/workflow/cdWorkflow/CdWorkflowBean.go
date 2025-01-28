@@ -4,10 +4,9 @@ import (
 	"errors"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 )
 
-var WfrTerminalStatusList = []string{WorkflowAborted, WorkflowFailed, WorkflowSucceeded, bean.HIBERNATING, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded), WorkflowTimedOut, executors.WorkflowCancel}
+var WfrTerminalStatusList = []string{WorkflowAborted, WorkflowFailed, WorkflowSucceeded, bean.HIBERNATING, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded), WorkflowTimedOut, WorkflowCancel}
 
 type WorkflowStatus int
 
@@ -62,3 +61,6 @@ type CdWorkflowRunnerArtifactMetadata struct {
 	ParentCiArtifact int  `pg:"parent_ci_artifact"`
 	Scanned          bool `pg:"scanned"`
 }
+
+const WorkflowCancel = "CANCELLED"
+const POD_DELETED_MESSAGE = "pod deleted"

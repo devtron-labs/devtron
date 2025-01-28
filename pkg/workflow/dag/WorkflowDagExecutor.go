@@ -46,7 +46,6 @@ import (
 	eventProcessorBean "github.com/devtron-labs/devtron/pkg/eventProcessor/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
-	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
@@ -746,7 +745,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateCiWorkflowForCiSuccess(request *bean2
 		return err
 	}
 	// if workflow already cancelled then return, this state arises when user force aborts a ci
-	if savedWorkflow.Status == executors.WorkflowCancel {
+	if savedWorkflow.Status == cdWorkflow2.WorkflowCancel {
 		return err
 	}
 	savedWorkflow.Status = string(v1alpha1.NodeSucceeded)
