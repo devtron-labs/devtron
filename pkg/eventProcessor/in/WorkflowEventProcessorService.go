@@ -422,51 +422,55 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 			return
 		}
 
-		wfrId, wfrStatus, err := impl.cdHandler.UpdateWorkflow(wfStatus)
+		wfrId, wfrStatus, stateChanged, err := impl.cdHandler.UpdateWorkflow(wfStatus)
 		impl.logger.Debugw("UpdateWorkflow", "wfrId", wfrId, "wfrStatus", wfrStatus)
 		if err != nil {
 			impl.logger.Error("err", err)
 			return
 		}
 
-		wfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(wfrId)
-		if err != nil {
-			impl.logger.Errorw("could not get wf runner", "err", err)
-			return
-		}
-		if wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
-			if len(wfr.ImagePathReservationIds) > 0 {
-				err := impl.cdHandler.DeactivateImageReservationPathsOnFailure(wfr.ImagePathReservationIds)
-				if err != nil {
-					impl.logger.Errorw("error in removing image path reservation ")
+		if stateChanged {
+			wfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(wfrId)
+			if err != nil {
+				impl.logger.Errorw("could not get wf runner", "err", err)
+				return
+			}
+			if wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
+				if len(wfr.ImagePathReservationIds) > 0 {
+					err := impl.cdHandler.DeactivateImageReservationPathsOnFailure(wfr.ImagePathReservationIds)
+					if err != nil {
+						impl.logger.Errorw("error in removing image path reservation ")
+					}
 				}
 			}
-		}
-		if wfrStatus == string(v1alpha1.NodeSucceeded) || wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
-			eventType := eventUtil.EventType(0)
-			if wfrStatus == string(v1alpha1.NodeSucceeded) {
-				eventType = eventUtil.Success
-			} else if wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
-				eventType = eventUtil.Fail
-			}
+			if wfrStatus == string(v1alpha1.NodeSucceeded) || wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
+				eventType := eventUtil.EventType(0)
+				if wfrStatus == string(v1alpha1.NodeSucceeded) {
+					eventType = eventUtil.Success
+				} else if wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
+					eventType = eventUtil.Fail
+				}
 
-			if wfr != nil && executors.CheckIfReTriggerRequired(wfrStatus, wfStatus.Message, wfr.Status) {
-				err = impl.workflowDagExecutor.HandleCdStageReTrigger(wfr)
-				if err != nil {
-					//check if this log required or not
-					impl.logger.Errorw("error in HandleCdStageReTrigger", "error", err)
+				if wfr != nil && executors.CheckIfReTriggerRequired(wfrStatus, wfStatus.Message, wfr.Status) {
+					err = impl.workflowDagExecutor.HandleCdStageReTrigger(wfr)
+					if err != nil {
+						// check if this log required or not
+						impl.logger.Errorw("error in HandleCdStageReTrigger", "error", err)
+					}
 				}
-			}
 
-			if wfr.WorkflowType == apiBean.CD_WORKFLOW_TYPE_PRE || wfr.WorkflowType == apiBean.CD_WORKFLOW_TYPE_POST {
-				event, _ := impl.eventFactory.Build(eventType, &wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, &wfr.CdWorkflow.Pipeline.EnvironmentId, eventUtil.CD)
-				impl.logger.Debugw("event pre stage", "event", event)
-				event = impl.eventFactory.BuildExtraCDData(event, wfr, 0, wfr.WorkflowType)
-				_, evtErr := impl.eventClient.WriteNotificationEvent(event)
-				if evtErr != nil {
-					impl.logger.Errorw("CD stage post fail or success event unable to sent", "error", evtErr)
+				if wfr.WorkflowType == apiBean.CD_WORKFLOW_TYPE_PRE || wfr.WorkflowType == apiBean.CD_WORKFLOW_TYPE_POST {
+					event, _ := impl.eventFactory.Build(eventType, &wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, &wfr.CdWorkflow.Pipeline.EnvironmentId, eventUtil.CD)
+					impl.logger.Debugw("event pre stage", "event", event)
+					event = impl.eventFactory.BuildExtraCDData(event, wfr, 0, wfr.WorkflowType)
+					_, evtErr := impl.eventClient.WriteNotificationEvent(event)
+					if evtErr != nil {
+						impl.logger.Errorw("CD stage post fail or success event unable to sent", "error", evtErr)
+					}
 				}
 			}
+		} else {
+			impl.logger.Debugw("no state change detected for the cd workflow status update, ignoring this event", "wfrId", wfrId, "wfrStatus", wfrStatus)
 		}
 	}
 
