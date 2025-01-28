@@ -261,7 +261,7 @@ func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(
 		// update workflow preparation stage and pod status if terminal
 		for _, stage := range currentWorkflowStages {
 			if stage.StageName == bean2.WORKFLOW_PREPARATION && !stage.Status.IsTerminal() {
-				extractedStatus := adapter.ConvertStatusToDevtronStatus(wfStatus, wfMessage, true)
+				extractedStatus := adapter.ConvertStatusToDevtronStatus(wfStatus, wfMessage)
 				if extractedStatus != bean2.WORKFLOW_STAGE_STATUS_NOT_STARTED {
 					stage.Status = extractedStatus
 				}
@@ -269,7 +269,7 @@ func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(
 
 			//also mark pod status as terminal if wfstatus is terminal
 			if stage.StageName == bean2.POD_EXECUTION && slices.Contains(cdWorkflow.WfrTerminalStatusList, wfStatus) {
-				stage.Status = adapter.ConvertStatusToDevtronStatus(wfStatus, wfMessage, false)
+				stage.Status = adapter.ConvertStatusToDevtronStatus(wfStatus, wfMessage)
 				stage.EndTime = time.Now().Format(bean3.LayoutRFC3339)
 			}
 		}
@@ -299,7 +299,7 @@ func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(
 						stage.Status = bean2.WORKFLOW_STAGE_STATUS_RUNNING
 						stage.StartTime = time.Now().Format(bean3.LayoutRFC3339)
 					} else if stage.Status == bean2.WORKFLOW_STAGE_STATUS_RUNNING {
-						extractedStatus := adapter.ConvertStatusToDevtronStatus(wfStatus, wfMessage, true)
+						extractedStatus := adapter.ConvertStatusToDevtronStatus(wfStatus, wfMessage)
 						if extractedStatus.IsTerminal() {
 							stage.Status = extractedStatus
 							stage.EndTime = time.Now().Format(bean3.LayoutRFC3339)
@@ -344,30 +344,28 @@ func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(
 				//mark execution stage as completed
 				if stage.StageName == bean2.WORKFLOW_EXECUTION {
 					if stage.Status == bean2.WORKFLOW_STAGE_STATUS_RUNNING {
-						extractedStatus := adapter.ConvertStatusToDevtronStatus(wfStatus, wfMessage, true)
+						extractedStatus := adapter.ConvertStatusToDevtronStatus(wfStatus, wfMessage)
 						if extractedStatus.IsTerminal() {
 							stage.Status = extractedStatus
 							stage.EndTime = time.Now().Format(bean3.LayoutRFC3339)
 							if extractedStatus == bean2.WORKFLOW_STAGE_STATUS_TIMEOUT {
 								updatedWfStatus = cdWorkflow.WorkflowTimedOut
 							}
-							if extractedStatus == bean2.WORKFLOW_STAGE_STATUS_ABORTED ||
-								extractedStatus == bean2.WORKFLOW_STAGE_STATUS_CANCELLED {
-								updatedWfStatus = bean2.WORKFLOW_STAGE_STATUS_CANCELLED.ToString()
+							if extractedStatus == bean2.WORKFLOW_STAGE_STATUS_ABORTED {
+								updatedWfStatus = cdWorkflow.WorkflowCancel
 							}
 						}
 					}
 				} else if stage.StageName == bean2.WORKFLOW_PREPARATION && !stage.Status.IsTerminal() {
-					extractedStatus := adapter.ConvertStatusToDevtronStatus(wfStatus, wfMessage, true)
+					extractedStatus := adapter.ConvertStatusToDevtronStatus(wfStatus, wfMessage)
 					if extractedStatus.IsTerminal() {
 						stage.Status = extractedStatus
 						stage.EndTime = time.Now().Format(bean3.LayoutRFC3339)
 						if extractedStatus == bean2.WORKFLOW_STAGE_STATUS_TIMEOUT {
 							updatedWfStatus = cdWorkflow.WorkflowTimedOut
 						}
-						if extractedStatus == bean2.WORKFLOW_STAGE_STATUS_ABORTED ||
-							extractedStatus == bean2.WORKFLOW_STAGE_STATUS_CANCELLED {
-							updatedWfStatus = bean2.WORKFLOW_STAGE_STATUS_CANCELLED.ToString()
+						if extractedStatus == bean2.WORKFLOW_STAGE_STATUS_ABORTED {
+							updatedWfStatus = cdWorkflow.WorkflowCancel
 						}
 					}
 				}

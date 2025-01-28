@@ -41,7 +41,7 @@ func getMetadataJson(metadata string) map[string]interface{} {
 }
 
 // for workflow there can be other status map than for pod status like in aborted case
-func ConvertStatusToDevtronStatus(wfStatus string, wfMessage string, isWorkflow bool) bean.WorkflowStageStatus {
+func ConvertStatusToDevtronStatus(wfStatus string, wfMessage string) bean.WorkflowStageStatus {
 	// implementation
 	switch strings.ToLower(wfStatus) {
 	case "pending", strings.ToLower(cdWorkflow.WorkflowWaitingToStart):
@@ -57,11 +57,7 @@ func ConvertStatusToDevtronStatus(wfStatus string, wfMessage string, isWorkflow 
 			return bean.WORKFLOW_STAGE_STATUS_FAILED
 		}
 	case "aborted", "cancelled":
-		if isWorkflow {
-			return bean.WORKFLOW_STAGE_STATUS_CANCELLED
-		} else {
-			return bean.WORKFLOW_STAGE_STATUS_ABORTED
-		}
+		return bean.WORKFLOW_STAGE_STATUS_ABORTED
 	default:
 		log.Println("unknown wf status", "wf", wfStatus)
 		return bean.WORKFLOW_STAGE_STATUS_UNKNOWN

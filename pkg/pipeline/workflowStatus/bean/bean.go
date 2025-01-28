@@ -32,7 +32,6 @@ const (
 	WORKFLOW_STAGE_STATUS_SUCCEEDED   WorkflowStageStatus = "SUCCEEDED"
 	WORKFLOW_STAGE_STATUS_FAILED      WorkflowStageStatus = "FAILED"
 	WORKFLOW_STAGE_STATUS_ABORTED     WorkflowStageStatus = "ABORTED"
-	WORKFLOW_STAGE_STATUS_CANCELLED   WorkflowStageStatus = "CANCELLED"
 	WORKFLOW_STAGE_STATUS_TIMEOUT     WorkflowStageStatus = "TIMEOUT"
 	//don't forget to add new status in IsTerminal() method if it is terminal status
 )
@@ -43,7 +42,7 @@ func (n WorkflowStageStatus) ToString() string {
 
 func (n WorkflowStageStatus) IsTerminal() bool {
 	switch n {
-	case WORKFLOW_STAGE_STATUS_SUCCEEDED, WORKFLOW_STAGE_STATUS_FAILED, WORKFLOW_STAGE_STATUS_ABORTED, WORKFLOW_STAGE_STATUS_TIMEOUT, WORKFLOW_STAGE_STATUS_CANCELLED:
+	case WORKFLOW_STAGE_STATUS_SUCCEEDED, WORKFLOW_STAGE_STATUS_FAILED, WORKFLOW_STAGE_STATUS_ABORTED, WORKFLOW_STAGE_STATUS_TIMEOUT:
 		return true
 	default:
 		return false
