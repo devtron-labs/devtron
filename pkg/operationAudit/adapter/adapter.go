@@ -10,7 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 )
 
-func BuildPermissionAuditModel(entityId int32, entityType bean2.EntityType, operationType bean2.OperationType,
+func BuildOperationAuditModel(entityId int32, entityType bean2.EntityType, operationType bean2.OperationType,
 	permissionsAuditDto *bean.PermissionsAuditDto, userIdForAuditLog int32, schemaFor bean2.SchemaFor) (*repository.OperationAudit, error) {
 	permissionsJson, err := json.Marshal(permissionsAuditDto)
 	if err != nil {

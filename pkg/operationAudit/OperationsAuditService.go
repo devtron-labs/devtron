@@ -29,9 +29,9 @@ func NewOperationAuditServiceImpl(logger *zap.SugaredLogger, PermissionsAuditRep
 
 func (impl *OperationAuditServiceImpl) saveAudit(entityId int32, entityType bean2.EntityType, operationType bean2.OperationType,
 	permissionsAuditDto *bean.PermissionsAuditDto, userIdForAuditLog int32, schemaFor bean2.SchemaFor) error {
-	model, err := adapter2.BuildPermissionAuditModel(entityId, entityType, operationType, permissionsAuditDto, userIdForAuditLog, schemaFor)
+	model, err := adapter2.BuildOperationAuditModel(entityId, entityType, operationType, permissionsAuditDto, userIdForAuditLog, schemaFor)
 	if err != nil {
-		impl.logger.Errorw("error in BuildPermissionAuditModel", "entityId", entityId, "operationType", operationType, "permissionsAuditDto", permissionsAuditDto, "err", err)
+		impl.logger.Errorw("error in BuildOperationAuditModel", "entityId", entityId, "operationType", operationType, "permissionsAuditDto", permissionsAuditDto, "err", err)
 		return err
 	}
 	err = impl.PermissionsAuditRepository.SaveAudit(model)
