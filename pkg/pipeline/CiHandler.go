@@ -1218,7 +1218,7 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		savedWorkflow.CiArtifactLocation = ciArtifactLocation
 		savedWorkflow.PodName = podName
 		impl.Logger.Debugw("updating workflow ", "workflow", savedWorkflow)
-		err = impl.workFlowStageStatusService.SaveCiWorkflowWithStage(savedWorkflow)
+		err = impl.workFlowStageStatusService.UpdateCiWorkflowWithStage(savedWorkflow)
 		if err != nil {
 			impl.Logger.Error("update wf failed for id " + strconv.Itoa(savedWorkflow.Id))
 			return 0, err
