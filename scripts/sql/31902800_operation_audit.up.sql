@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS "public"."operation_audit" (
     "entity_type"           VARCHAR(50) NOT NULL ,
     "operation_type"        VARCHAR(20) NOT NULL,
     "entity_value_json"     jsonb       NOT NULL,
-    "schema_for"            VARCHAR(20) NOT NULL
+    "schema_for"            VARCHAR(20) NOT NULL,
     "created_on"            timestamptz NOT NULL,
     "created_by"            int4        NOT NULL,
     "updated_on"            timestamptz NOT NULL,
