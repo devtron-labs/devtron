@@ -10,9 +10,9 @@ import (
 
 type OperationAuditService interface {
 	SaveAuditForUser(entityId int32, operationType bean2.OperationType,
-		permissionsAuditDto *bean.PermissionsAuditDto, userIdForAuditLog int32) error
+		permissionsAuditDto *bean.UserPermissionsAuditDto, userIdForAuditLog int32) error
 	SaveAuditForRoleGroup(entityId int32, operationType bean2.OperationType,
-		permissionsAuditDto *bean.PermissionsAuditDto, userIdForAuditLog int32) error
+		permissionsAuditDto *bean.GroupPermissionsAuditDto, userIdForAuditLog int32) error
 	SaveAudit(entityId int32, entityType bean2.EntityType,
 		operationType bean2.OperationType, entityValueDto interface{}, userIdForAuditLog int32, schemaFor bean2.SchemaFor) error
 }
@@ -46,7 +46,7 @@ func (impl *OperationAuditServiceImpl) SaveAudit(entityId int32, entityType bean
 }
 
 func (impl *OperationAuditServiceImpl) SaveAuditForUser(entityId int32, operationType bean2.OperationType,
-	permissionsAuditDto *bean.PermissionsAuditDto, userIdForAuditLog int32) error {
+	permissionsAuditDto *bean.UserPermissionsAuditDto, userIdForAuditLog int32) error {
 	// by default v1 schema for now, when new schema are added this can be changed
 	schemaFor := bean2.UserSchema
 	err := impl.SaveAudit(entityId, bean2.UserEntity, operationType, permissionsAuditDto, userIdForAuditLog, schemaFor)
@@ -58,7 +58,7 @@ func (impl *OperationAuditServiceImpl) SaveAuditForUser(entityId int32, operatio
 }
 
 func (impl *OperationAuditServiceImpl) SaveAuditForRoleGroup(entityId int32, operationType bean2.OperationType,
-	permissionsAuditDto *bean.PermissionsAuditDto, userIdForAuditLog int32) error {
+	permissionsAuditDto *bean.GroupPermissionsAuditDto, userIdForAuditLog int32) error {
 	// by default v1 schema for now, when new schema are added this can be changed
 	schemaFor := bean2.RoleGroupSchema
 	err := impl.SaveAudit(entityId, bean2.RoleGroupEntity, operationType, permissionsAuditDto, userIdForAuditLog, schemaFor)

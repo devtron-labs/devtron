@@ -176,20 +176,39 @@ type PermissionsAuditDto struct {
 	EntityAudit   sql.AuditLog `json:"entityAudit,omitempty"`
 }
 
-func NewPermissionsAuditDto() *PermissionsAuditDto {
-	return &PermissionsAuditDto{}
+type GroupPermissionsAuditDto struct {
+	RoleGroupInfo *RoleGroup   `json:"roleGroupInfo,omitempty"`
+	EntityAudit   sql.AuditLog `json:"entityAudit,omitempty"`
 }
 
-func (pa *PermissionsAuditDto) WithUserInfo(userInfo *UserInfo) *PermissionsAuditDto {
+func NewGroupPermissionsAuditDto() *GroupPermissionsAuditDto {
+	return &GroupPermissionsAuditDto{}
+}
+
+func (pa *GroupPermissionsAuditDto) WithRoleGroupInfo(roleGroupInfo *RoleGroup) *GroupPermissionsAuditDto {
+	pa.RoleGroupInfo = roleGroupInfo
+	return pa
+}
+func (pa *GroupPermissionsAuditDto) WithEntityAudit(entityAudit sql.AuditLog) *GroupPermissionsAuditDto {
+	pa.EntityAudit = entityAudit
+	return pa
+}
+
+type UserPermissionsAuditDto struct {
+	UserInfo    *UserInfo    `json:"userInfo,omitempty"`
+	EntityAudit sql.AuditLog `json:"entityAudit,omitempty"`
+}
+
+func NewUserPermissionsAuditDto() *UserPermissionsAuditDto {
+	return &UserPermissionsAuditDto{}
+}
+
+func (pa *UserPermissionsAuditDto) WithUserInfo(userInfo *UserInfo) *UserPermissionsAuditDto {
 	pa.UserInfo = userInfo
 	return pa
 }
 
-func (pa *PermissionsAuditDto) WithRoleGroupInfo(roleGroupInfo *RoleGroup) *PermissionsAuditDto {
-	pa.RoleGroupInfo = roleGroupInfo
-	return pa
-}
-func (pa *PermissionsAuditDto) WithEntityAudit(entityAudit sql.AuditLog) *PermissionsAuditDto {
+func (pa *UserPermissionsAuditDto) WithEntityAudit(entityAudit sql.AuditLog) *UserPermissionsAuditDto {
 	pa.EntityAudit = entityAudit
 	return pa
 }
