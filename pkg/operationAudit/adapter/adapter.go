@@ -10,8 +10,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 )
 
-func BuildPermissionAuditModel(entityId int32, entityType bean2.EntityType,
-	operationType bean2.OperationType, permissionsAuditDto *bean.PermissionsAuditDto, userIdForAuditLog int32) (*repository.OperationAudit, error) {
+func BuildPermissionAuditModel(entityId int32, entityType bean2.EntityType, operationType bean2.OperationType,
+	permissionsAuditDto *bean.PermissionsAuditDto, userIdForAuditLog int32, schemaFor bean2.SchemaFor) (*repository.OperationAudit, error) {
 	permissionsJson, err := json.Marshal(permissionsAuditDto)
 	if err != nil {
 		errToReturn := fmt.Sprintf("error in marshalling permissions audit dto :%s", err.Error())
@@ -22,6 +22,7 @@ func BuildPermissionAuditModel(entityId int32, entityType bean2.EntityType,
 		EntityType:      entityType,
 		OperationType:   operationType,
 		PermissionsJson: string(permissionsJson),
+		SchemaFor:       schemaFor,
 		AuditLog:        sql.NewDefaultAuditLog(userIdForAuditLog),
 	}, nil
 

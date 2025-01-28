@@ -27,9 +27,9 @@ func NewOperationAuditServiceImpl(logger *zap.SugaredLogger, PermissionsAuditRep
 	}
 }
 
-func (impl *OperationAuditServiceImpl) saveAudit(entityId int32, entityType bean2.EntityType,
-	operationType bean2.OperationType, permissionsAuditDto *bean.PermissionsAuditDto, userIdForAuditLog int32) error {
-	model, err := adapter2.BuildPermissionAuditModel(entityId, entityType, operationType, permissionsAuditDto, userIdForAuditLog)
+func (impl *OperationAuditServiceImpl) saveAudit(entityId int32, entityType bean2.EntityType, operationType bean2.OperationType,
+	permissionsAuditDto *bean.PermissionsAuditDto, userIdForAuditLog int32, schemaFor bean2.SchemaFor) error {
+	model, err := adapter2.BuildPermissionAuditModel(entityId, entityType, operationType, permissionsAuditDto, userIdForAuditLog, schemaFor)
 	if err != nil {
 		impl.logger.Errorw("error in BuildPermissionAuditModel", "entityId", entityId, "operationType", operationType, "permissionsAuditDto", permissionsAuditDto, "err", err)
 		return err
@@ -44,7 +44,9 @@ func (impl *OperationAuditServiceImpl) saveAudit(entityId int32, entityType bean
 
 func (impl *OperationAuditServiceImpl) SaveAuditForUser(entityId int32, operationType bean2.OperationType,
 	permissionsAuditDto *bean.PermissionsAuditDto, userIdForAuditLog int32) error {
-	err := impl.saveAudit(entityId, bean2.UserEntity, operationType, permissionsAuditDto, userIdForAuditLog)
+	// by default v1 schema for now, when new schema are added this can be changed
+	schemaFor := bean2.UserSchema
+	err := impl.saveAudit(entityId, bean2.UserEntity, operationType, permissionsAuditDto, userIdForAuditLog, schemaFor)
 	if err != nil {
 		impl.logger.Errorw("error in SaveAuditForUser", "err", err)
 		return err
@@ -54,7 +56,9 @@ func (impl *OperationAuditServiceImpl) SaveAuditForUser(entityId int32, operatio
 
 func (impl *OperationAuditServiceImpl) SaveAuditForRoleGroup(entityId int32, operationType bean2.OperationType,
 	permissionsAuditDto *bean.PermissionsAuditDto, userIdForAuditLog int32) error {
-	err := impl.saveAudit(entityId, bean2.RoleGroupEntity, operationType, permissionsAuditDto, userIdForAuditLog)
+	// by default v1 schema for now, when new schema are added this can be changed
+	schemaFor := bean2.RoleGroupSchema
+	err := impl.saveAudit(entityId, bean2.RoleGroupEntity, operationType, permissionsAuditDto, userIdForAuditLog, schemaFor)
 	if err != nil {
 		impl.logger.Errorw("error in SaveAuditForRoleGroup", "err", err)
 		return err
