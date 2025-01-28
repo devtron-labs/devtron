@@ -69,17 +69,26 @@ func NewDeploymentTemplateHistoryServiceImpl(logger *zap.SugaredLogger, deployme
 	pipelineRepository pipelineConfig.PipelineRepository, chartRepository chartRepoRepository.ChartRepository,
 	userService user.UserService, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	scopedVariableManager variables.ScopedVariableManager, deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
-	chartRefService chartRef.ChartRefService) *DeploymentTemplateHistoryServiceImpl {
+	chartRefService chartRef.ChartRefService,
+	strategyHistoryService history.PipelineStrategyHistoryService,
+	configMapHistoryService configMapAndSecret.ConfigMapHistoryService,
+	deploymentTemplateHistoryReadService read.DeploymentTemplateHistoryReadService,
+	configMapHistoryReadService read2.ConfigMapHistoryReadService,
+) *DeploymentTemplateHistoryServiceImpl {
 	return &DeploymentTemplateHistoryServiceImpl{
-		logger:                              logger,
-		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
-		pipelineRepository:                  pipelineRepository,
-		chartRepository:                     chartRepository,
-		userService:                         userService,
-		cdWorkflowRepository:                cdWorkflowRepository,
-		scopedVariableManager:               scopedVariableManager,
-		deployedAppMetricsService:           deployedAppMetricsService,
-		chartRefService:                     chartRefService,
+		logger:                               logger,
+		deploymentTemplateHistoryRepository:  deploymentTemplateHistoryRepository,
+		pipelineRepository:                   pipelineRepository,
+		chartRepository:                      chartRepository,
+		userService:                          userService,
+		cdWorkflowRepository:                 cdWorkflowRepository,
+		scopedVariableManager:                scopedVariableManager,
+		deployedAppMetricsService:            deployedAppMetricsService,
+		chartRefService:                      chartRefService,
+		strategyHistoryService:               strategyHistoryService,
+		configMapHistoryService:              configMapHistoryService,
+		deploymentTemplateHistoryReadService: deploymentTemplateHistoryReadService,
+		configMapHistoryReadService:          configMapHistoryReadService,
 	}
 }
 
