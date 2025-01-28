@@ -114,7 +114,7 @@ type PluginParentMetadata struct {
 	Type        PluginType `sql:"type"`
 	Icon        string     `sql:"icon"`
 	Deleted     bool       `sql:"deleted, notnull"`
-	IsExposed   bool       `sql:"is_exposed, notnull"` // it's not user driven, used internally to make decision weather to show plugin or not in plugin list
+	IsExposed   bool       `sql:"is_exposed,notnull,default:true"` // it's not user driven, used internally to make decision weather to show plugin or not in plugin list
 	sql.AuditLog
 }
 
@@ -173,7 +173,7 @@ type PluginMetadata struct {
 	IsDeprecated           bool       `sql:"is_deprecated, notnull"`
 	DocLink                string     `sql:"doc_link"`
 	IsLatest               bool       `sql:"is_latest, notnull"`
-	IsExposed              bool       `sql:"is_exposed, notnull"` // it's not user driven, used internally to make decision weather to show plugin or not in plugin list
+	IsExposed              bool       `sql:"is_exposed, notnull,default:true"` // it's not user driven, used internally to make decision weather to show plugin or not in plugin list
 	sql.AuditLog
 }
 
