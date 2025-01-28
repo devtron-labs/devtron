@@ -4,9 +4,10 @@ import (
 	"errors"
 	"github.com/devtron-labs/common-lib/utils/k8s/health"
 	"github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 )
 
-var WfrTerminalStatusList = []string{WorkflowAborted, WorkflowFailed, WorkflowSucceeded, bean.HIBERNATING, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded), WorkflowTimedOut}
+var WfrTerminalStatusList = []string{WorkflowAborted, WorkflowFailed, WorkflowSucceeded, bean.HIBERNATING, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded), WorkflowTimedOut, executors.WorkflowCancel}
 
 type WorkflowStatus int
 
