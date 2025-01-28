@@ -40,7 +40,8 @@ func getMetadataJson(metadata string) map[string]interface{} {
 	return response
 }
 
-func ConvertWfStatusToDevtronStatus(wfStatus string, wfMessage string) bean.WorkflowStageStatus {
+// for workflow there can be other status map than for pod status like in aborted case
+func ConvertStatusToDevtronStatus(wfStatus string, wfMessage string, isWorkflow bool) bean.WorkflowStageStatus {
 	// implementation
 	switch strings.ToLower(wfStatus) {
 	case "pending", strings.ToLower(cdWorkflow.WorkflowWaitingToStart):
@@ -56,33 +57,15 @@ func ConvertWfStatusToDevtronStatus(wfStatus string, wfMessage string) bean.Work
 			return bean.WORKFLOW_STAGE_STATUS_FAILED
 		}
 	case "aborted", "cancelled":
-		return bean.WORKFLOW_STAGE_STATUS_ABORTED
+		if isWorkflow {
+			return bean.WORKFLOW_STAGE_STATUS_CANCELLED
+		} else {
+			return bean.WORKFLOW_STAGE_STATUS_ABORTED
+		}
 	default:
 		log.Println("unknown wf status", "wf", wfStatus)
 		return bean.WORKFLOW_STAGE_STATUS_UNKNOWN
 	}
-}
-
-func GetWfStageDataForOldRunners(wfId int, wfStatus, wfMessage, podStatus, wfType string, startTime, endTime time.Time) map[string][]*bean.WorkflowStageDto {
-	// implementation
-	resp := make(map[string][]*bean.WorkflowStageDto)
-
-	executionStage := GetDefaultWorkflowExecutionStage(wfId, wfType)
-	executionStage.Status = ConvertWfStatusToDevtronStatus(wfStatus, wfMessage)
-	executionStage.StartTime = startTime.Format(bean3.LayoutRFC3339)
-	executionStage.EndTime = endTime.Format(bean3.LayoutRFC3339)
-	executionStage.Message = wfMessage
-
-	resp[bean.WORKFLOW_STAGE_STATUS_TYPE_WORKFLOW.ToString()] = append(resp[bean.WORKFLOW_STAGE_STATUS_TYPE_WORKFLOW.ToString()], ConvertDBWorkflowStageToDto(executionStage))
-
-	podStage := GetDefaultPodExecutionStage(wfId, wfType)
-	podStage.Status = ConvertWfStatusToDevtronStatus(podStatus, wfMessage)
-	podStage.StartTime = startTime.Format(bean3.LayoutRFC3339)
-	podStage.EndTime = endTime.Format(bean3.LayoutRFC3339)
-	podStage.Message = wfMessage
-	resp[bean.WORKFLOW_STAGE_STATUS_TYPE_POD.ToString()] = append(resp[bean.WORKFLOW_STAGE_STATUS_TYPE_POD.ToString()], ConvertDBWorkflowStageToDto(executionStage))
-
-	return resp
 }
 
 func GetDefaultPipelineStatusForWorkflow(wfId int, wfType string) []*repository.WorkflowExecutionStage {
