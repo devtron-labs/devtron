@@ -40,6 +40,8 @@ ContainerPort:
     useHTTP2: false
     supportStreaming: false
     idleTimeout: 1800s
+    protocol: TCP
+    resizePolicy: []
 #    servicemonitor:
 #      enabled: true
 #      path: /abc
@@ -223,6 +225,10 @@ Spec:
     #  Key: kops.k8s.io/instancegroup
     Values:
 
+affinity:
+  enabled: false
+  values: {} 
+
 ambassadorMapping:
   enabled: false
   labels: {}
@@ -247,6 +253,10 @@ autoscaling:
   annotations: {}
   labels: {}
   behavior: {}
+  containerResource:
+    enabled: false
+    TargetCPUUtilizationPercentage: 90
+    TargetMemoryUtilizationPercentage: 80  
 #    scaleDown:
 #      stabilizationWindowSeconds: 300
 #      policies:
@@ -299,7 +309,7 @@ servicemonitor:
   additionalLabels: {}
 
 envoyproxy:
-  image: docker.io/envoyproxy/envoy:v1.16.0
+  image: quay.io/devtron/envoy:v1.16.0
   configMapName: ""
   lifecycle: {}
   resources:
@@ -425,3 +435,8 @@ hostAliases: []
 #     hostnames:
 #     - "foo.remote"
 #     - "bar.remote"
+peristentVolumeClaim: {}
+
+
+verticalPodScaling:
+  enabled: false

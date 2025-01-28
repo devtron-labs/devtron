@@ -69,7 +69,9 @@ metadata:
     release: {{ $.Release.Name }}
     appId: {{ $.Values.app | quote }}
     envId: {{ $.Values.env | quote }}
-
+    {{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels | indent 4 }}
+    {{- end }}
 spec:
 {{ toYaml $.Values.kedaAutoscaling.triggerAuthentication.spec | indent 2 }}
 {{- end }}

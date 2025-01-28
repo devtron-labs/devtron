@@ -35,11 +35,12 @@ GracePeriod: 30
 ContainerPort:
   - name: app
     port: 8080
-    servicePort: 80
+    servicePort: 8000
     envoyTimeout: 15
     targetPort: 8080
     envoyPort: 8799
     useHTTP2: false
+    protocol: UDP
     supportStreaming: false
     idleTimeout: 1800s
     servicemonitor:
@@ -87,6 +88,10 @@ autoscaling:
   TargetCPUUtilizationPercentage: 90
   TargetMemoryUtilizationPercentage: 80
   behavior: {}
+  containerResource:
+    enable: false
+    TargetCPUUtilizationPercentage: 90
+    TargetMemoryUtilizationPercentage: 80    
 #    scaleDown:
 #      stabilizationWindowSeconds: 300
 #      policies:
@@ -123,6 +128,9 @@ service:
   annotations: {}
     # test1: test2
   # test3: test4
+  sessionAffinity:
+    enabled: false
+  sessionAffinityConfig: {}
 
 server:
   deployment:
@@ -163,7 +171,11 @@ deployment:
       maxSurge: "25%"
       maxUnavailable: 1
       # stableService: pro-rollout-manual-service
-      trafficRouting: {}
+      trafficRouting: 
+        
+        alb:
+          rootService: kamal
+          ingresses: []
       steps:
         - setWeight: 25
         - pause:
@@ -586,6 +598,10 @@ envoyproxy:
     requests:
       cpu: 50m
       memory: 50Mi
+  readinessProbe:
+    path: /
+  livenessProbe:
+    path: /      
 
 podDisruptionBudget: {}
   #  minAvailable: 1
@@ -601,7 +617,7 @@ tolerations: []
   #    value: "value"
 #    effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
 
-appMetrics: false
+appMetrics: true
 serviceAccount:
   ## @param serviceAccount.create Enable creation of ServiceAccount for pods
   ##
@@ -622,3 +638,7 @@ hostAliases: []
 #    hostnames:
 #    - "foo.local"
 
+
+
+verticalPodScaling:
+  enabled: false

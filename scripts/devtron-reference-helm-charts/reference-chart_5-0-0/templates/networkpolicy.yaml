@@ -1,9 +1,12 @@
 {{- if .Values.networkPolicy.enabled -}}
-{{- with .Values.networkPolicy }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  {{- if .Values.networkPolicy.name }}
+  name: {{ .Values.networkPolicy.name }}
+  {{- else }}
   name: {{ template ".Chart.Name .fullname" $ }}-networkpolicy
+  {{- end }}
   labels:
     app: {{ template ".Chart.Name .name" $ }}
     appId: {{ $.Values.app | quote }}
@@ -45,6 +48,5 @@ spec:
 {{- if .egress }}
   egress:
 {{ toYaml $.Values.networkPolicy.ingress | indent 4}}
-{{- end }}
 {{- end }}
 {{- end }}
