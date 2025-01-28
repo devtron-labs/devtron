@@ -39,6 +39,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"net/http"
 	"strings"
 )
 
@@ -999,9 +1000,15 @@ func (impl *AppCloneServiceImpl) createClonedCdPipeline(req *cloneCdPipelineRequ
 		return nil, err
 	}
 
+	// TODO Asutosh: skip pipeline and it's children
 	if refCdPipeline.ReleaseMode == util.PIPELINE_RELEASE_MODE_LINK && !gitOpsConfigurationStatus.IsArgoCdInstalled {
 		impl.logger.Warnw("argo cd is not installed, skipping creation of linked cd pipeline", "cdPipelineId", refCdPipeline.Id)
-		// TODO Asutosh: skip pipeline and it's children
+		apiErr := &util.ApiError{
+			HttpStatusCode:  http.StatusPreconditionFailed,
+			UserMessage:     "GitOps integration is not installed/configured. Please install/configure GitOps.",
+			InternalMessage: "GitOps integration is not installed/configured. Please install/configure GitOps.",
+		}
+		return nil, apiErr
 	}
 
 	var deploymentAppType string

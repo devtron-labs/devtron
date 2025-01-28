@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/common-lib/async"
+	"github.com/devtron-labs/common-lib/utils"
 	"github.com/devtron-labs/common-lib/utils/workFlow"
 	bean6 "github.com/devtron-labs/devtron/api/helm-app/bean"
 	client2 "github.com/devtron-labs/devtron/api/helm-app/service"
@@ -869,6 +870,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(triggerContext trigger
 			IsArtifactUploaded: request.IsArtifactUploaded, // for backward compatibility
 			ScanEnabled:        buildArtifact.ScanEnabled,
 			Scanned:            false,
+			TargetPlatforms:    utils.ConvertTargetPlatformListToString(request.TargetPlatforms),
 			AuditLog:           sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
 		}
 		if buildArtifact.ScanEnabled {
