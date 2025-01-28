@@ -1,0 +1,28 @@
+#Markdown files
+**/*.md
+
+#Docker files
+docker-compose.yml
+Dockerfile
+DockerfileEA
+
+#certificates and license
+localhost.key
+localhost.crt
+DCO
+LICENSE
+
+#git files
+. gitattributes
+.gitignore
+.gitbook.yaml
+
+#Folders
+assets/
+CHANGELOG/
+contrib-chart/
+charts/
+docs/
+developers-guide/
+manifests/
+specs/
