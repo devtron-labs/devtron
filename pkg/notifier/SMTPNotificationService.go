@@ -175,6 +175,10 @@ func (impl *SMTPNotificationServiceImpl) DeleteNotificationConfig(deleteReq *bea
 		impl.logger.Errorw("found notifications using this config, cannot delete", "config", deleteReq)
 		return fmt.Errorf(" Please delete all notifications using this config before deleting")
 	}
+	// check if default then dont delete
+	if existingConfig.Default {
+		return fmt.Errorf("default configuration cannot be deleted")
+	}
 	existingConfig.UpdatedOn = time.Now()
 	existingConfig.UpdatedBy = userId
 	//deleting smtp config
