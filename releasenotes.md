@@ -1,7 +1,5 @@
 ## v1.2.0
 
-
-
 ## Bugs
 - fix: Application listing panic handling (#6199)
 - fix: Copy image plugin panic handling (#6220)
