@@ -77,19 +77,20 @@ func (impl *WorkFlowStageStatusServiceImpl) SaveCiWorkflowWithStage(wf *pipeline
 	}()
 	if impl.config.EnableWorkflowExecutionStage {
 		wf.Status = cdWorkflow.WorkflowWaitingToStart
+	}
+	err = impl.ciWorkflowRepository.SaveWorkFlowWithTx(wf, tx)
+	if err != nil {
+		impl.logger.Errorw("error in saving workflow", "payload", wf, "error", err)
+		return err
+	}
 
+	if impl.config.EnableWorkflowExecutionStage {
 		pipelineStageStatus := adapter.GetDefaultPipelineStatusForWorkflow(wf.Id, bean.CI_WORKFLOW_TYPE.String())
 		pipelineStageStatus, err = impl.workflowStatusRepository.SaveWorkflowStages(pipelineStageStatus, tx)
 		if err != nil {
 			impl.logger.Errorw("error in saving workflow stages", "workflowName", wf.Name, "error", err)
 			return err
 		}
-	}
-
-	err = impl.ciWorkflowRepository.SaveWorkFlowWithTx(wf, tx)
-	if err != nil {
-		impl.logger.Errorw("error in saving workflow", "payload", wf, "error", err)
-		return err
 	}
 
 	err = impl.transactionManager.CommitTx(tx)
@@ -473,18 +474,20 @@ func (impl *WorkFlowStageStatusServiceImpl) SaveCDWorkflowRunnerWithStage(wfr *p
 	}()
 	if impl.config.EnableWorkflowExecutionStage {
 		wfr.Status = cdWorkflow.WorkflowWaitingToStart
-
+	}
+	wfr, err = impl.cdWorkflowRepository.SaveWorkFlowRunnerWithTx(wfr, tx)
+	if err != nil {
+		impl.logger.Errorw("error in saving workflow", "payload", wfr, "error", err)
+		return wfr, err
+	}
+	
+	if impl.config.EnableWorkflowExecutionStage {
 		pipelineStageStatus := adapter.GetDefaultPipelineStatusForWorkflow(wfr.Id, wfr.WorkflowType.String())
 		pipelineStageStatus, err = impl.workflowStatusRepository.SaveWorkflowStages(pipelineStageStatus, tx)
 		if err != nil {
 			impl.logger.Errorw("error in saving workflow stages", "workflowName", wfr.Name, "error", err)
 			return wfr, err
 		}
-	}
-	wfr, err = impl.cdWorkflowRepository.SaveWorkFlowRunnerWithTx(wfr, tx)
-	if err != nil {
-		impl.logger.Errorw("error in saving workflow", "payload", wfr, "error", err)
-		return wfr, err
 	}
 
 	err = impl.transactionManager.CommitTx(tx)
