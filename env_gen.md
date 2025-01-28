@@ -76,6 +76,7 @@
  | DEFAULT_TARGET_PLATFORM | string | |  |  | false |
  | DOCKER_BUILD_CACHE_PATH | string |/var/lib/docker |  |  | false |
  | ENABLE_BUILD_CONTEXT | bool |false |  |  | false |
+ | ENABLE_WORKFLOW_EXECUTION_STAGE | bool |false |  |  | false |
  | EXTERNAL_BLOB_STORAGE_CM_NAME | string |blob-storage-cm |  |  | false |
  | EXTERNAL_BLOB_STORAGE_SECRET_NAME | string |blob-storage-secret |  |  | false |
  | EXTERNAL_CD_NODE_LABEL_SELECTOR |  | |  |  | false |

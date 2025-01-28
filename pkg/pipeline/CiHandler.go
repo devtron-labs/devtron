@@ -35,7 +35,6 @@ import (
 	constants2 "github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	util3 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
-	adapter2 "github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/adapter"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -583,7 +582,7 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, appId int, offset int
 			ReferenceWorkflowId:    w.RefCiWorkflowId,
 			PodName:                w.PodName,
 			TargetPlatforms:        utils.ConvertTargetPlatformStringToObject(w.TargetPlatforms),
-			WorkflowExecutionStage: adapter2.ConvertDBWorkflowStageToMap(allWfStagesDetail, w.Id, w.Status, w.PodStatus, w.Message, bean2.CI_WORKFLOW_TYPE.String(), w.StartedOn, w.FinishedOn),
+			WorkflowExecutionStage: impl.workFlowStageStatusService.ConvertDBWorkflowStageToMap(allWfStagesDetail, w.Id, w.Status, w.PodStatus, w.Message, bean2.CI_WORKFLOW_TYPE.String(), w.StartedOn, w.FinishedOn),
 		}
 
 		if w.Message == bean3.ImageTagUnavailableMessage {
@@ -824,7 +823,7 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		EnvironmentName:        environmentName,
 		PipelineType:           workflow.CiPipeline.PipelineType,
 		PodName:                workflow.PodName,
-		WorkflowExecutionStage: adapter2.ConvertDBWorkflowStageToMap(wfStagesDetail, workflow.Id, workflow.Status, workflow.PodStatus, workflow.Message, bean2.CI_WORKFLOW_TYPE.String(), workflow.StartedOn, workflow.FinishedOn),
+		WorkflowExecutionStage: impl.workFlowStageStatusService.ConvertDBWorkflowStageToMap(wfStagesDetail, workflow.Id, workflow.Status, workflow.PodStatus, workflow.Message, bean2.CI_WORKFLOW_TYPE.String(), workflow.StartedOn, workflow.FinishedOn),
 	}
 	return workflowResponse, nil
 }

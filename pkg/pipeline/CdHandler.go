@@ -32,7 +32,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
 	util2 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
-	adapter2 "github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/adapter"
 	bean5 "github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/bean"
 	"os"
 	"path/filepath"
@@ -642,7 +641,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 			impl.Logger.Errorw("error in fetching pre/post workflow stages", "err", err)
 			return types.WorkflowResponse{}, err
 		}
-		workflow.WorkflowExecutionStage = adapter2.ConvertDBWorkflowStageToMap(workflowStageData, workflow.Id, workflow.Status, workflow.PodStatus, workflow.Message, workflow.WorkflowType, workflow.StartedOn, workflow.FinishedOn)
+		workflow.WorkflowExecutionStage = impl.workflowStageStatusService.ConvertDBWorkflowStageToMap(workflowStageData, workflow.Id, workflow.Status, workflow.PodStatus, workflow.Message, workflow.WorkflowType, workflow.StartedOn, workflow.FinishedOn)
 	} else {
 		workflow.WorkflowExecutionStage = map[string][]*bean5.WorkflowStageDto{}
 	}

@@ -8,6 +8,7 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/bean"
 	bean4 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/constants"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/adapter"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/repository"
@@ -26,6 +27,7 @@ type WorkFlowStageStatusService interface {
 	GetCiWorkflowStagesByWorkflowIds(wfIds []int) ([]*repository.WorkflowExecutionStage, error)
 	GetPrePostWorkflowStagesByWorkflowIdAndType(wfId int, wfType string) ([]*repository.WorkflowExecutionStage, error)
 	GetPrePostWorkflowStagesByWorkflowRunnerIdsList(wfIdWfTypeMap map[int]bean4.CdWorkflowWithArtifact) (map[int]map[string][]*bean2.WorkflowStageDto, error)
+	ConvertDBWorkflowStageToMap(workflowStages []*repository.WorkflowExecutionStage, wfId int, status, podStatus, message, wfType string, startTime, endTime time.Time) map[string][]*bean2.WorkflowStageDto
 }
 
 type WorkFlowStageStatusServiceImpl struct {
@@ -34,20 +36,29 @@ type WorkFlowStageStatusServiceImpl struct {
 	ciWorkflowRepository     pipelineConfig.CiWorkflowRepository
 	cdWorkflowRepository     pipelineConfig.CdWorkflowRepository
 	transactionManager       sql.TransactionWrapper
+	config                   *types.CiCdConfig
 }
 
 func NewWorkflowStageFlowStatusServiceImpl(logger *zap.SugaredLogger,
 	workflowStatusRepository repository.WorkflowStageRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
-	transactionManager sql.TransactionWrapper) *WorkFlowStageStatusServiceImpl {
-	return &WorkFlowStageStatusServiceImpl{
+	transactionManager sql.TransactionWrapper,
+	config *types.CiCdConfig,
+) *WorkFlowStageStatusServiceImpl {
+	wfStageServiceImpl := &WorkFlowStageStatusServiceImpl{
 		logger:                   logger,
 		workflowStatusRepository: workflowStatusRepository,
 		ciWorkflowRepository:     ciWorkflowRepository,
 		cdWorkflowRepository:     cdWorkflowRepository,
 		transactionManager:       transactionManager,
 	}
+	ciCdConfig, err := types.GetCiCdConfig()
+	if err != nil {
+		return nil
+	}
+	wfStageServiceImpl.config = ciCdConfig
+	return wfStageServiceImpl
 }
 
 func (impl *WorkFlowStageStatusServiceImpl) SaveCiWorkflowWithStage(wf *pipelineConfig.CiWorkflow) error {
@@ -64,16 +75,20 @@ func (impl *WorkFlowStageStatusServiceImpl) SaveCiWorkflowWithStage(wf *pipeline
 			impl.logger.Errorw("error in rolling back transaction", "workflowName", wf.Name, "error", dbErr)
 		}
 	}()
-	wf.Status = cdWorkflow.WorkflowWaitingToStart
+	if impl.config.EnableWorkflowExecutionStage {
+		wf.Status = cdWorkflow.WorkflowWaitingToStart
+
+		pipelineStageStatus := adapter.GetDefaultPipelineStatusForWorkflow(wf.Id, bean.CI_WORKFLOW_TYPE.String())
+		pipelineStageStatus, err = impl.workflowStatusRepository.SaveWorkflowStages(pipelineStageStatus, tx)
+		if err != nil {
+			impl.logger.Errorw("error in saving workflow stages", "workflowName", wf.Name, "error", err)
+			return err
+		}
+	}
+
 	err = impl.ciWorkflowRepository.SaveWorkFlowWithTx(wf, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving workflow", "payload", wf, "error", err)
-		return err
-	}
-	pipelineStageStatus := adapter.GetDefaultPipelineStatusForWorkflow(wf.Id, bean.CI_WORKFLOW_TYPE.String())
-	pipelineStageStatus, err = impl.workflowStatusRepository.SaveWorkflowStages(pipelineStageStatus, tx)
-	if err != nil {
-		impl.logger.Errorw("error in saving workflow stages", "workflowName", wf.Name, "error", err)
 		return err
 	}
 
@@ -101,16 +116,19 @@ func (impl *WorkFlowStageStatusServiceImpl) UpdateCiWorkflowWithStage(wf *pipeli
 		}
 	}()
 
-	pipelineStageStatus, updatedWfStatus, updatedPodStatus := impl.getUpdatedPipelineStagesForWorkflow(wf.Id, bean.CI_WORKFLOW_TYPE.String(), wf.Status, wf.PodStatus, wf.Message, wf.PodName)
-	pipelineStageStatus, err = impl.workflowStatusRepository.UpdateWorkflowStages(pipelineStageStatus, tx)
-	if err != nil {
-		impl.logger.Errorw("error in saving workflow stages", "workflowName", wf.Name, "error", err)
-		return err
+	if impl.config.EnableWorkflowExecutionStage {
+		pipelineStageStatus, updatedWfStatus, updatedPodStatus := impl.getUpdatedPipelineStagesForWorkflow(wf.Id, bean.CI_WORKFLOW_TYPE.String(), wf.Status, wf.PodStatus, wf.Message, wf.PodName)
+		pipelineStageStatus, err = impl.workflowStatusRepository.UpdateWorkflowStages(pipelineStageStatus, tx)
+		if err != nil {
+			impl.logger.Errorw("error in saving workflow stages", "workflowName", wf.Name, "error", err)
+			return err
+		}
+
+		// update workflow with updated wf status
+		wf.Status = updatedWfStatus
+		wf.PodStatus = updatedPodStatus
 	}
 
-	// update workflow with updated wf status
-	wf.Status = updatedWfStatus
-	wf.PodStatus = updatedPodStatus
 	err = impl.ciWorkflowRepository.UpdateWorkFlowWithTx(wf, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving workflow", "payload", wf, "error", err)
@@ -431,9 +449,9 @@ func (impl *WorkFlowStageStatusServiceImpl) GetPrePostWorkflowStagesByWorkflowRu
 	//iterate over prePostRunnerIds and create response structure using ConvertDBWorkflowStageToMap function
 	for wfId, wf := range wfIdWfTypeMap {
 		if wf.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE.String() {
-			resp[wfId] = adapter.ConvertDBWorkflowStageToMap(preCdDbData, wfId, wf.Status, wf.PodStatus, wf.Message, wf.WorkflowType, wf.StartedOn, wf.FinishedOn)
+			resp[wfId] = impl.ConvertDBWorkflowStageToMap(preCdDbData, wfId, wf.Status, wf.PodStatus, wf.Message, wf.WorkflowType, wf.StartedOn, wf.FinishedOn)
 		} else if wf.WorkflowType == bean.CD_WORKFLOW_TYPE_POST.String() {
-			resp[wfId] = adapter.ConvertDBWorkflowStageToMap(postCdDbData, wfId, wf.Status, wf.PodStatus, wf.Message, wf.WorkflowType, wf.StartedOn, wf.FinishedOn)
+			resp[wfId] = impl.ConvertDBWorkflowStageToMap(postCdDbData, wfId, wf.Status, wf.PodStatus, wf.Message, wf.WorkflowType, wf.StartedOn, wf.FinishedOn)
 		}
 	}
 	return resp, nil
@@ -453,16 +471,19 @@ func (impl *WorkFlowStageStatusServiceImpl) SaveCDWorkflowRunnerWithStage(wfr *p
 			impl.logger.Errorw("error in rolling back transaction", "workflowName", wfr.Name, "error", dbErr)
 		}
 	}()
-	wfr.Status = cdWorkflow.WorkflowWaitingToStart
+	if impl.config.EnableWorkflowExecutionStage {
+		wfr.Status = cdWorkflow.WorkflowWaitingToStart
+
+		pipelineStageStatus := adapter.GetDefaultPipelineStatusForWorkflow(wfr.Id, wfr.WorkflowType.String())
+		pipelineStageStatus, err = impl.workflowStatusRepository.SaveWorkflowStages(pipelineStageStatus, tx)
+		if err != nil {
+			impl.logger.Errorw("error in saving workflow stages", "workflowName", wfr.Name, "error", err)
+			return wfr, err
+		}
+	}
 	wfr, err = impl.cdWorkflowRepository.SaveWorkFlowRunnerWithTx(wfr, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving workflow", "payload", wfr, "error", err)
-		return wfr, err
-	}
-	pipelineStageStatus := adapter.GetDefaultPipelineStatusForWorkflow(wfr.Id, wfr.WorkflowType.String())
-	pipelineStageStatus, err = impl.workflowStatusRepository.SaveWorkflowStages(pipelineStageStatus, tx)
-	if err != nil {
-		impl.logger.Errorw("error in saving workflow stages", "workflowName", wfr.Name, "error", err)
 		return wfr, err
 	}
 
@@ -489,17 +510,19 @@ func (impl *WorkFlowStageStatusServiceImpl) UpdateCdWorkflowRunnerWithStage(wfr 
 		}
 	}()
 
-	if wfr.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE || wfr.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
-		pipelineStageStatus, updatedWfStatus, updatedPodStatus := impl.getUpdatedPipelineStagesForWorkflow(wfr.Id, wfr.WorkflowType.String(), wfr.Status, wfr.PodStatus, wfr.Message, wfr.PodName)
-		pipelineStageStatus, err = impl.workflowStatusRepository.UpdateWorkflowStages(pipelineStageStatus, tx)
-		if err != nil {
-			impl.logger.Errorw("error in saving workflow stages", "workflowName", wfr.Name, "error", err)
-			return err
+	if impl.config.EnableWorkflowExecutionStage {
+		if wfr.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE || wfr.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
+			pipelineStageStatus, updatedWfStatus, updatedPodStatus := impl.getUpdatedPipelineStagesForWorkflow(wfr.Id, wfr.WorkflowType.String(), wfr.Status, wfr.PodStatus, wfr.Message, wfr.PodName)
+			pipelineStageStatus, err = impl.workflowStatusRepository.UpdateWorkflowStages(pipelineStageStatus, tx)
+			if err != nil {
+				impl.logger.Errorw("error in saving workflow stages", "workflowName", wfr.Name, "error", err)
+				return err
+			}
+			wfr.Status = updatedWfStatus
+			wfr.PodStatus = updatedPodStatus
+		} else {
+			impl.logger.Infow("workflow type not supported to update stage data", "workflowName", wfr.Name, "workflowType", wfr.WorkflowType)
 		}
-		wfr.Status = updatedWfStatus
-		wfr.PodStatus = updatedPodStatus
-	} else {
-		impl.logger.Infow("workflow type not supported to update stage data", "workflowName", wfr.Name, "workflowType", wfr.WorkflowType)
 	}
 
 	//update workflow runner now with updatedWfStatus if applicable
@@ -515,5 +538,28 @@ func (impl *WorkFlowStageStatusServiceImpl) UpdateCdWorkflowRunnerWithStage(wfr 
 		return err
 	}
 	return nil
+
+}
+
+func (impl *WorkFlowStageStatusServiceImpl) ConvertDBWorkflowStageToMap(workflowStages []*repository.WorkflowExecutionStage, wfId int, status, podStatus, message, wfType string, startTime, endTime time.Time) map[string][]*bean2.WorkflowStageDto {
+	wfMap := make(map[string][]*bean2.WorkflowStageDto)
+	foundInDb := false
+	if !impl.config.EnableWorkflowExecutionStage {
+		// if flag is not enabled then return empty map
+		return map[string][]*bean2.WorkflowStageDto{}
+	}
+	for _, wfStage := range workflowStages {
+		if wfStage.WorkflowId == wfId {
+			wfMap[wfStage.StatusType.ToString()] = append(wfMap[wfStage.StatusType.ToString()], adapter.ConvertDBWorkflowStageToDto(wfStage))
+			foundInDb = true
+		}
+	}
+
+	if !foundInDb {
+		//for old data where stages are not saved in db return empty map
+		return map[string][]*bean2.WorkflowStageDto{}
+	}
+
+	return wfMap
 
 }

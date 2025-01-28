@@ -13,25 +13,7 @@ import (
 	"time"
 )
 
-func ConvertDBWorkflowStageToMap(workflowStages []*repository.WorkflowExecutionStage, wfId int, status, podStatus, message, wfType string, startTime, endTime time.Time) map[string][]*bean.WorkflowStageDto {
-	wfMap := make(map[string][]*bean.WorkflowStageDto)
-	foundInDb := false
-	for _, wfStage := range workflowStages {
-		if wfStage.WorkflowId == wfId {
-			wfMap[wfStage.StatusType.ToString()] = append(wfMap[wfStage.StatusType.ToString()], convertDBWorkflowStageToDto(wfStage))
-			foundInDb = true
-		}
-	}
-
-	if !foundInDb {
-		return GetWfStageDataForOldRunners(wfId, status, message, podStatus, wfType, startTime, endTime)
-	}
-
-	return wfMap
-
-}
-
-func convertDBWorkflowStageToDto(stage *repository.WorkflowExecutionStage) *bean.WorkflowStageDto {
+func ConvertDBWorkflowStageToDto(stage *repository.WorkflowExecutionStage) *bean.WorkflowStageDto {
 	if stage == nil {
 		return &bean.WorkflowStageDto{}
 	}
@@ -91,14 +73,14 @@ func GetWfStageDataForOldRunners(wfId int, wfStatus, wfMessage, podStatus, wfTyp
 	executionStage.EndTime = endTime.Format(bean3.LayoutRFC3339)
 	executionStage.Message = wfMessage
 
-	resp[bean.WORKFLOW_STAGE_STATUS_TYPE_WORKFLOW.ToString()] = append(resp[bean.WORKFLOW_STAGE_STATUS_TYPE_WORKFLOW.ToString()], convertDBWorkflowStageToDto(executionStage))
+	resp[bean.WORKFLOW_STAGE_STATUS_TYPE_WORKFLOW.ToString()] = append(resp[bean.WORKFLOW_STAGE_STATUS_TYPE_WORKFLOW.ToString()], ConvertDBWorkflowStageToDto(executionStage))
 
 	podStage := GetDefaultPodExecutionStage(wfId, wfType)
 	podStage.Status = ConvertWfStatusToDevtronStatus(podStatus, wfMessage)
 	podStage.StartTime = startTime.Format(bean3.LayoutRFC3339)
 	podStage.EndTime = endTime.Format(bean3.LayoutRFC3339)
 	podStage.Message = wfMessage
-	resp[bean.WORKFLOW_STAGE_STATUS_TYPE_POD.ToString()] = append(resp[bean.WORKFLOW_STAGE_STATUS_TYPE_POD.ToString()], convertDBWorkflowStageToDto(executionStage))
+	resp[bean.WORKFLOW_STAGE_STATUS_TYPE_POD.ToString()] = append(resp[bean.WORKFLOW_STAGE_STATUS_TYPE_POD.ToString()], ConvertDBWorkflowStageToDto(executionStage))
 
 	return resp
 }

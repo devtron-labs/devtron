@@ -160,6 +160,7 @@ type CiCdConfig struct {
 	UseArtifactListingQueryV2                  bool                         `env:"USE_ARTIFACT_LISTING_QUERY_V2" envDefault:"true"`
 	UseImageTagFromGitProviderForTagBasedBuild bool                         `env:"USE_IMAGE_TAG_FROM_GIT_PROVIDER_FOR_TAG_BASED_BUILD" envDefault:"false"` // this is being done for https://github.com/devtron-labs/devtron/issues/4263
 	UseDockerApiToGetDigest                    bool                         `env:"USE_DOCKER_API_TO_GET_DIGEST" envDefault:"false"`
+	EnableWorkflowExecutionStage               bool                         `env:"ENABLE_WORKFLOW_EXECUTION_STAGE" envDefault:"false"`
 }
 
 type CiConfig struct {
