@@ -54,6 +54,7 @@ type PluginMetadataDto struct {
 	PluginStage       string            `json:"pluginStage,omitempty"`
 	PluginSteps       []*PluginStepsDto `json:"pluginSteps,omitempty"`
 	AreNewTagsPresent bool              `json:"areNewTagsPresent,omitempty"`
+	IsExposed         bool              `json:"-" default:"true"`
 }
 
 type PluginMinDto struct {
@@ -127,6 +128,7 @@ type PluginParentMetadataDto struct {
 	Icon             string          `json:"icon,omitempty"`
 	PluginStageType  string          `json:"pluginStageType,omitempty"`
 	Versions         *PluginVersions `json:"pluginVersions"`
+	IsExposed        bool            `json:"-" default:"true"`
 }
 
 func NewPluginParentMetadataDto() *PluginParentMetadataDto {
