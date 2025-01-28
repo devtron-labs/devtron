@@ -351,8 +351,9 @@ func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(
 							if extractedStatus == bean2.WORKFLOW_STAGE_STATUS_TIMEOUT {
 								updatedWfStatus = cdWorkflow.WorkflowTimedOut
 							}
-							if extractedStatus == bean2.WORKFLOW_STAGE_STATUS_ABORTED {
-								updatedWfStatus = cdWorkflow.WorkflowAborted
+							if extractedStatus == bean2.WORKFLOW_STAGE_STATUS_ABORTED ||
+								extractedStatus == bean2.WORKFLOW_STAGE_STATUS_CANCELLED {
+								updatedWfStatus = bean2.WORKFLOW_STAGE_STATUS_CANCELLED.ToString()
 							}
 						}
 					}
@@ -364,8 +365,9 @@ func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(
 						if extractedStatus == bean2.WORKFLOW_STAGE_STATUS_TIMEOUT {
 							updatedWfStatus = cdWorkflow.WorkflowTimedOut
 						}
-						if extractedStatus == bean2.WORKFLOW_STAGE_STATUS_ABORTED {
-							updatedWfStatus = cdWorkflow.WorkflowAborted
+						if extractedStatus == bean2.WORKFLOW_STAGE_STATUS_ABORTED ||
+							extractedStatus == bean2.WORKFLOW_STAGE_STATUS_CANCELLED {
+							updatedWfStatus = bean2.WORKFLOW_STAGE_STATUS_CANCELLED.ToString()
 						}
 					}
 				}
