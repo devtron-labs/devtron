@@ -25,6 +25,6 @@ const (
 )
 
 var MapOfAuditSchemaForVsSchema = map[SchemaFor]interface{}{
-	UserSchema:      bean.PermissionsAuditDto{},
-	RoleGroupSchema: bean.PermissionsAuditDto{},
+	UserSchema:      bean.UserPermissionsAuditDto{},
+	RoleGroupSchema: bean.GroupPermissionsAuditDto{},
 }
