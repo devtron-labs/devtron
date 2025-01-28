@@ -34,6 +34,7 @@ const (
 	WORKFLOW_STAGE_STATUS_ABORTED     WorkflowStageStatus = "ABORTED"
 	WORKFLOW_STAGE_STATUS_CANCELLED   WorkflowStageStatus = "CANCELLED"
 	WORKFLOW_STAGE_STATUS_TIMEOUT     WorkflowStageStatus = "TIMEOUT"
+	//don't forget to add new status in IsTerminal() method if it is terminal status
 )
 
 func (n WorkflowStageStatus) ToString() string {
