@@ -130,7 +130,7 @@ func (impl *ModuleCronServiceImpl) handleModuleStatus(moduleNameInput string) {
 			impl.updateModuleStatus(module, bean2.ModuleStatusTimeout)
 		} else if !util.IsBaseStack() {
 			// if module is cicd then insert as installed
-			if module.Name == bean2.ModuleNameCicd {
+			if module.Name == bean2.ModuleNameCiCd {
 				impl.updateModuleStatus(module, bean2.ModuleStatusInstalled)
 			} else {
 				resourceTreeFilter, err := impl.buildResourceTreeFilter(module.Name)

@@ -235,7 +235,7 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (bea
 	releaseValues := releaseInfo.MergedValues
 
 	// if check non-cicd module status
-	if moduleName != bean.ModuleNameCicd {
+	if moduleName != bean.ModuleNameCiCd {
 		isEnabled := gjson.Get(releaseValues, moduleUtil.BuildModuleEnableKey(moduleName)).Bool()
 		if isEnabled {
 			status, err := impl.saveModuleAsInstalled(moduleName, moduleType, flagForEnablingState)

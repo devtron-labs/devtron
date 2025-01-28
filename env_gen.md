@@ -163,6 +163,7 @@
  | ECR_REPO_NAME_PREFIX | string |test/ |  |  | false |
  | ENABLE_ASYNC_ARGO_CD_INSTALL_DEVTRON_CHART | bool |false |  |  | false |
  | ENABLE_ASYNC_INSTALL_DEVTRON_CHART | bool |false |  |  | false |
+ | ENABLE_MIGRATE_ARGOCD_APPLICATION | bool |false | enable migration of external argocd application to devtron pipeline |  | false |
  | EPHEMERAL_SERVER_VERSION_REGEX | string |v[1-9]\.\b(2[3-9]\|[3-9][0-9])\b.* |  |  | false |
  | EVENT_URL | string |http://localhost:3000/notify |  |  | false |
  | EXECUTE_WIRE_NIL_CHECKER | bool |false |  |  | false |

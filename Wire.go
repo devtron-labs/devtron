@@ -616,6 +616,7 @@ func InitializeApp() (*App, error) {
 		repository9.NewClusterInstalledAppsRepositoryImpl,
 		wire.Bind(new(repository9.ClusterInstalledAppsRepository), new(*repository9.ClusterInstalledAppsRepositoryImpl)),
 
+		commonService.NewCommonBaseServiceImpl,
 		commonService.NewCommonServiceImpl,
 		wire.Bind(new(commonService.CommonService), new(*commonService.CommonServiceImpl)),
 
@@ -653,8 +654,8 @@ func InitializeApp() (*App, error) {
 
 		router.NewCommonRouterImpl,
 		wire.Bind(new(router.CommonRouter), new(*router.CommonRouterImpl)),
-		restHandler.NewCommonRestHanlderImpl,
-		wire.Bind(new(restHandler.CommonRestHanlder), new(*restHandler.CommonRestHanlderImpl)),
+		restHandler.NewCommonRestHandlerImpl,
+		wire.Bind(new(restHandler.CommonRestHandler), new(*restHandler.CommonRestHandlerImpl)),
 
 		router.NewScopedVariableRouterImpl,
 		wire.Bind(new(router.ScopedVariableRouter), new(*router.ScopedVariableRouterImpl)),

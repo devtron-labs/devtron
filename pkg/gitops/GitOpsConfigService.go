@@ -19,7 +19,7 @@ package gitops
 import (
 	"context"
 	"encoding/json"
-	errors2 "errors"
+	"errors"
 	"fmt"
 	certificate2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
 	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
@@ -40,6 +40,7 @@ import (
 	gitOpsBean "github.com/devtron-labs/devtron/pkg/gitops/bean"
 	moduleBean "github.com/devtron-labs/devtron/pkg/module/bean"
 	moduleRead "github.com/devtron-labs/devtron/pkg/module/read"
+	moduleReadBean "github.com/devtron-labs/devtron/pkg/module/read/bean"
 	moduleErr "github.com/devtron-labs/devtron/pkg/module/read/error"
 	util2 "github.com/devtron-labs/devtron/util"
 	"net/http"
@@ -54,14 +55,14 @@ import (
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8sError "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/yaml"
 )
 
 type GitOpsConfigService interface {
 	ValidateAndCreateGitOpsConfig(config *apiBean.GitOpsConfigDto) (apiBean.DetailedErrorGitOpsConfigResponse, error)
 	ValidateAndUpdateGitOpsConfig(config *apiBean.GitOpsConfigDto) (apiBean.DetailedErrorGitOpsConfigResponse, error)
-	GitOpsValidateDryRun(config *apiBean.GitOpsConfigDto) apiBean.DetailedErrorGitOpsConfigResponse
+	GitOpsValidateDryRun(argoModule *moduleReadBean.ModuleInfoMin, config *apiBean.GitOpsConfigDto) apiBean.DetailedErrorGitOpsConfigResponse
 	GetGitOpsConfigById(id int) (*apiBean.GitOpsConfigDto, error)
 	GetAllGitOpsConfig() ([]*apiBean.GitOpsConfigDto, error)
 	GetGitOpsConfigByProvider(provider string) (*apiBean.GitOpsConfigDto, error)
@@ -122,9 +123,14 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger,
 }
 
 func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *apiBean.GitOpsConfigDto) (apiBean.DetailedErrorGitOpsConfigResponse, error) {
-	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
+	argoModule, err := impl.moduleReadService.GetModuleInfoByName(moduleBean.ModuleNameArgoCd)
+	if err != nil && !errors.Is(err, moduleErr.ModuleNotFoundError) {
+		impl.logger.Errorw("error in getting argo module", "error", err)
+		return apiBean.DetailedErrorGitOpsConfigResponse{}, err
+	}
+	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(argoModule, config)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
-		err := impl.updateArgoCdUserDetailIfNotPresent()
+		err = impl.updateArgoCdUserDetailIfNotPresent(argoModule)
 		if err != nil {
 			return detailedErrorGitOpsConfigResponse, err
 		}
@@ -137,13 +143,8 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *apiBe
 	return detailedErrorGitOpsConfigResponse, nil
 }
 
-func (impl *GitOpsConfigServiceImpl) updateArgoCdUserDetailIfNotPresent() error {
+func (impl *GitOpsConfigServiceImpl) updateArgoCdUserDetailIfNotPresent(argoModule *moduleReadBean.ModuleInfoMin) error {
 	// create argo-cd user, if not created, here argo-cd integration has to be installed
-	argoModule, err := impl.moduleReadService.GetModuleInfoByName(moduleBean.ModuleNameArgoCd)
-	if err != nil && !errors2.Is(err, moduleErr.ModuleNotFoundError) {
-		impl.logger.Errorw("error in getting argo module", "error", err)
-		return err
-	}
 	if argoModule.IsInstalled() {
 		gRPCConfig, err := impl.argoCDConfigGetter.GetGRPCConfig()
 		if err != nil {
@@ -198,9 +199,14 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndUpdateGitOpsConfig(config *apiBe
 			}
 		}
 	}
-	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
+	argoModule, err := impl.moduleReadService.GetModuleInfoByName(moduleBean.ModuleNameArgoCd)
+	if err != nil && !errors.Is(err, moduleErr.ModuleNotFoundError) {
+		impl.logger.Errorw("error in getting argo module", "error", err)
+		return apiBean.DetailedErrorGitOpsConfigResponse{}, err
+	}
+	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(argoModule, config)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
-		err := impl.updateArgoCdUserDetailIfNotPresent()
+		err = impl.updateArgoCdUserDetailIfNotPresent(argoModule)
 		if err != nil {
 			return detailedErrorGitOpsConfigResponse, err
 		}
@@ -256,7 +262,7 @@ func (impl *GitOpsConfigServiceImpl) registerGitOpsClientConfig(ctx context.Cont
 			return nil, err
 		}
 		secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
-		statusError, _ := err.(*errors.StatusError)
+		statusError, _ := err.(*k8sError.StatusError)
 		if err != nil && statusError.Status().Code != http.StatusNotFound {
 			impl.logger.Errorw("secret not found", "err", err)
 			return nil, err
@@ -453,7 +459,7 @@ func (impl *GitOpsConfigServiceImpl) createGitOpsConfig(ctx context.Context, req
 	}
 
 	argoModule, err := impl.moduleReadService.GetModuleInfoByName(moduleBean.ModuleNameArgoCd)
-	if err != nil && !errors2.Is(err, moduleErr.ModuleNotFoundError) {
+	if err != nil && !errors.Is(err, moduleErr.ModuleNotFoundError) {
 		impl.logger.Errorw("error in getting argo module", "error", err)
 		return nil, err
 	}
@@ -544,7 +550,7 @@ func (impl *GitOpsConfigServiceImpl) patchGitOpsClientConfig(model *repository.G
 		}
 
 		secret, err := impl.K8sUtil.GetSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.GitOpsSecretName, client)
-		statusError, _ := err.(*errors.StatusError)
+		statusError, _ := err.(*k8sError.StatusError)
 		if err != nil && statusError.Status().Code != http.StatusNotFound {
 			impl.logger.Errorw("secret not found", "err", err)
 			return err
@@ -731,7 +737,7 @@ func (impl *GitOpsConfigServiceImpl) updateGitOpsConfig(request *apiBean.GitOpsC
 	}
 	request.Id = model.Id
 	argoModule, err := impl.moduleReadService.GetModuleInfoByName(moduleBean.ModuleNameArgoCd)
-	if err != nil && !errors2.Is(err, moduleErr.ModuleNotFoundError) {
+	if err != nil && !errors.Is(err, moduleErr.ModuleNotFoundError) {
 		impl.logger.Errorw("error in getting argo module", "error", err)
 		return err
 	}
@@ -857,7 +863,7 @@ func (impl *GitOpsConfigServiceImpl) GetGitOpsConfigByProvider(provider string) 
 	return config, err
 }
 
-func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *apiBean.GitOpsConfigDto) apiBean.DetailedErrorGitOpsConfigResponse {
+func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(argoModule *moduleReadBean.ModuleInfoMin, config *apiBean.GitOpsConfigDto) apiBean.DetailedErrorGitOpsConfigResponse {
 
 	isTokenEmpty := config.Token == ""
 	isTlsDetailsEmpty := config.EnableTLSVerification && (len(config.TLSConfig.CaData) == 0 && len(config.TLSConfig.TLSCertData) == 0 && len(config.TLSConfig.TLSKeyData) == 0)
@@ -899,7 +905,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *apiBean.GitOps
 		}
 	}
 
-	return impl.gitOpsValidationService.GitOpsValidateDryRun(config)
+	return impl.gitOpsValidationService.GitOpsValidateDryRun(argoModule, config)
 }
 
 func (impl *GitOpsConfigServiceImpl) updateData(data map[string]string, request *apiBean.GitOpsConfigDto, secretName string, currentHost string) map[string]string {

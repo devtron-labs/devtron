@@ -33,7 +33,8 @@ type DeploymentServiceTypeConfig struct {
 	ExternallyManagedDeploymentType bool `env:"IS_INTERNAL_USE" envDefault:"false"`
 	HelmInstallASyncMode            bool `env:"RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS" envDefault:"false"`
 	UseDeploymentConfigData         bool `env:"USE_DEPLOYMENT_CONFIG_DATA" envDefault:"false"`
-	MigrateDeploymentConfigData     bool `json:"MIGRATE_DEPLOYMENT_CONFIG_DATA" envDefault:"false"`
+	MigrateDeploymentConfigData     bool `json:"MIGRATE_DEPLOYMENT_CONFIG_DATA" envDefault:"false" description:"migrate deployment config data from charts table to deployment_config table" deprecated:"false"`
+	EnableMigrateArgoCdApplication  bool `env:"ENABLE_MIGRATE_ARGOCD_APPLICATION" envDefault:"false" description:"enable migration of external argocd application to devtron pipeline" deprecated:"false"`
 	ShouldCheckNamespaceOnClone     bool `env:"SHOULD_CHECK_NAMESPACE_ON_CLONE" envDefault:"false"  description:"should we check if namespace exists or not while cloning app" deprecated:"false"`
 }
 

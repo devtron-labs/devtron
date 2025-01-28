@@ -95,7 +95,7 @@ const (
 )
 
 const (
-	ModuleNameCicd              ModuleName = "cicd"
+	ModuleNameCiCd              ModuleName = "cicd"
 	ModuleNameArgoCd            ModuleName = "argo-cd"
 	ModuleNameSecurityClair     ModuleName = "security.clair"
 	ModuleNameNotification      ModuleName = "notifier"

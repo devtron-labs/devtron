@@ -73,7 +73,7 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *k8s.K8sServic
 		}
 		if !exists {
 			// insert cicd module entry
-			err = impl.updateModuleToInstalled(bean.ModuleNameCicd)
+			err = impl.updateModuleToInstalled(bean.ModuleNameCiCd)
 			if err != nil {
 				return nil, err
 			}
