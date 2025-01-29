@@ -29,8 +29,14 @@ type ChartChecklist struct {
 	Environment int `json:"environment"`
 }
 
+type FeatureGitOpsVariables struct {
+	IsFeatureGitOpsEnabled            bool `json:"isFeatureGitOpsEnabled"`
+	IsFeatureUserDefinedGitOpsEnabled bool `json:"isFeatureUserDefinedGitOpsEnabled"`
+	IsFeatureArgoCdMigrationEnabled   bool `json:"isFeatureArgoCdMigrationEnabled"`
+}
+
 type EnvironmentVariableList struct {
-	IsGitOpsEnabled bool `json:"isGitOpsEnabled"`
+	FeatureGitOpsFlags *FeatureGitOpsVariables `json:"featureGitOpsFlags"`
 	EnvironmentVariableListEnt
 }
 

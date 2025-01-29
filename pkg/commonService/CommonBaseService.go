@@ -42,31 +42,39 @@ func NewCommonBaseServiceImpl(logger *zap.SugaredLogger, envVariables *util.Envi
 	}
 }
 
-func (impl *CommonBaseServiceImpl) isGitOpsEnable() (bool, error) {
-	if !impl.globalEnvVariables.DeploymentServiceTypeConfig.EnableMigrateArgoCdApplication {
-		argoModule, err := impl.moduleReadService.GetModuleInfoByName(bean.ModuleNameArgoCd)
-		if err != nil && !errors.Is(err, moduleErr.ModuleNotFoundError) {
-			impl.logger.Errorw("error in getting argo module", "error", err)
-			return false, err
-		}
-		return argoModule.IsInstalled(), nil
+func (impl *CommonBaseServiceImpl) isGitOpsEnable() (*FeatureGitOpsVariables, error) {
+	featureGitOpsFlags := &FeatureGitOpsVariables{
+		IsFeatureArgoCdMigrationEnabled: impl.globalEnvVariables.DeploymentServiceTypeConfig.EnableMigrateArgoCdApplication,
 	}
-	ciCdModule, err := impl.moduleReadService.GetModuleInfoByName(bean.ModuleNameCiCd)
+	argoModule, err := impl.moduleReadService.GetModuleInfoByName(bean.ModuleNameArgoCd)
 	if err != nil && !errors.Is(err, moduleErr.ModuleNotFoundError) {
-		impl.logger.Errorw("error in getting ci cd module", "error", err)
-		return false, err
+		impl.logger.Errorw("error in getting argo module", "error", err)
+		return featureGitOpsFlags, err
 	}
-	return ciCdModule.IsInstalled(), nil
+	if !impl.globalEnvVariables.DeploymentServiceTypeConfig.EnableMigrateArgoCdApplication {
+		featureGitOpsFlags.IsFeatureGitOpsEnabled = argoModule.IsInstalled()
+		featureGitOpsFlags.IsFeatureUserDefinedGitOpsEnabled = argoModule.IsInstalled()
+		return featureGitOpsFlags, nil
+	} else {
+		ciCdModule, err := impl.moduleReadService.GetModuleInfoByName(bean.ModuleNameCiCd)
+		if err != nil && !errors.Is(err, moduleErr.ModuleNotFoundError) {
+			impl.logger.Errorw("error in getting ci cd module", "error", err)
+			return featureGitOpsFlags, err
+		}
+		featureGitOpsFlags.IsFeatureGitOpsEnabled = ciCdModule.IsInstalled()
+		featureGitOpsFlags.IsFeatureUserDefinedGitOpsEnabled = argoModule.IsInstalled()
+	}
+	return featureGitOpsFlags, nil
 }
 
 func (impl *CommonBaseServiceImpl) EnvironmentVariableList() (*EnvironmentVariableList, error) {
 	environmentVariableList := &EnvironmentVariableList{}
-	isGitOpsEnabled, err := impl.isGitOpsEnable()
+	featureGitOpsFlags, err := impl.isGitOpsEnable()
 	if err != nil {
 		impl.logger.Errorw("error in getting gitops enabled", "error", err)
 		return environmentVariableList, err
 	}
-	environmentVariableList.IsGitOpsEnabled = isGitOpsEnabled
+	environmentVariableList.FeatureGitOpsFlags = featureGitOpsFlags
 	return environmentVariableList, nil
 }
 
