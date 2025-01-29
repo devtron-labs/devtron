@@ -129,6 +129,10 @@ func (r *PluginParentMetadata) CreateAuditLog(userId int32) *PluginParentMetadat
 	r.UpdatedOn = time.Now()
 	return r
 }
+func (r *PluginParentMetadata) WithIsExposed(isExposed bool) *PluginParentMetadata {
+	r.IsExposed = isExposed
+	return r
+}
 
 func (r *PluginParentMetadata) WithBasicMetadata(name, identifier, description, icon string, pluginType PluginType, isExposed *bool) *PluginParentMetadata {
 	r.Name = name
