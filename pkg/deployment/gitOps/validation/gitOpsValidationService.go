@@ -20,10 +20,10 @@ import (
 	"context"
 	"fmt"
 	apiBean "github.com/devtron-labs/devtron/api/bean/gitOps"
+	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
-	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
@@ -33,6 +33,7 @@ import (
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -43,10 +44,14 @@ type GitOpsValidationService interface {
 	// "Get Repo URL", "Create Repo (if it doesn't exist)", "Create Readme", "Clone Http", "Clone Ssh", "Commit On Rest", "Push", "Delete Repo"
 	// And returns: gitOps.DetailedErrorGitOpsConfigResponse
 	GitOpsValidateDryRun(argoModule *moduleReadBean.ModuleInfoMin, config *apiBean.GitOpsConfigDto) apiBean.DetailedErrorGitOpsConfigResponse
-	// ValidateCustomGitRepoURL performs the following validations:
+	// ValidateGitOpsRepoUrl performs the following validations:
+	// "Organisational URL Validation", "Unique GitOps Repo"
+	// And returns: SanitisedRepoUrl and error
+	ValidateGitOpsRepoUrl(request *gitOpsBean.ValidateGitOpsRepoUrlRequest) (string, error)
+	// ValidateCustomGitOpsConfig performs the following validations:
 	// "Get Repo URL", "Create Repo (if it doesn't exist)", "Organisational URL Validation", "Unique GitOps Repo"
 	// And returns: RepoUrl and isNew Repository url and error
-	ValidateCustomGitRepoURL(request gitOpsBean.ValidateGitOpsRepoRequest) (string, bool, error)
+	ValidateCustomGitOpsConfig(request gitOpsBean.ValidateGitOpsRepoRequest) (string, bool, error)
 }
 
 type GitOpsValidationServiceImpl struct {
@@ -165,52 +170,28 @@ func (impl *GitOpsValidationServiceImpl) GitOpsValidateDryRun(argoModule *module
 	return detailedErrorGitOpsConfigResponse
 }
 
-func (impl *GitOpsValidationServiceImpl) validateForOrgGitOps(request gitOpsBean.ValidateGitOpsRepoRequest, chartGitAttribute *commonBean.ChartGitAttribute) (activeGitOpsErr error) {
-	activeGitOpsConfig, err := impl.gitOpsConfigReadService.GetAllGitOpsConfig()
-	if err != nil {
-		impl.logger.Errorw("error in fetching active gitOps config", "err", err)
-		return err
-	}
-	for _, gitOpsConfig := range activeGitOpsConfig {
-		if gitOpsConfig == nil {
-			continue
-		}
-		repoUrl := git.SanitiseCustomGitRepoURL(*gitOpsConfig, request.GitRepoURL)
-		orgRepoUrl := strings.TrimSuffix(chartGitAttribute.RepoUrl, ".git")
-		if !strings.Contains(strings.ToLower(repoUrl), strings.ToLower(orgRepoUrl)) {
-			// If the repo is non-organizational, then we need to check for other active gitOps config
-			impl.logger.Debugw("non-organisational custom gitops repo", "expected repo", chartGitAttribute.RepoUrl, "user given repo", repoUrl)
-			if gitOpsConfig.Active {
-				// If the active gitOps config is non-organizational, then we need to throw an error for the active gitOps config
-				activeGitOpsErr = impl.getValidationErrorForNonOrganisationalURL(*gitOpsConfig)
-			}
-		} else {
-			// If the repo is organizational, then we don't need to check for other active gitOps config
-			return nil
-		}
-	}
-	return activeGitOpsErr
-}
-
-func (impl *GitOpsValidationServiceImpl) validateForGitOps(request gitOpsBean.ValidateGitOpsRepoRequest, chartGitAttribute *commonBean.ChartGitAttribute) error {
+func (impl *GitOpsValidationServiceImpl) ValidateGitOpsRepoUrl(request *gitOpsBean.ValidateGitOpsRepoUrlRequest) (string, error) {
 	// Validate: Organisational URL starts
-	if err := impl.validateForOrgGitOps(request, chartGitAttribute); err != nil {
+	sanitiseGitRepoUrl, err := impl.validateForGitOpsOrg(request)
+	if err != nil {
 		impl.logger.Errorw("non-organisational custom gitops repo validation error", "err", err)
-		return err
+		return sanitiseGitRepoUrl, err
 	}
 	// Validate: Organisational URL ends
 
 	// Validate: Unique GitOps repository URL starts
-	isValid := impl.validateUniqueGitOpsRepo(chartGitAttribute.RepoUrl)
+	isValid := impl.validateUniqueGitOpsRepo(sanitiseGitRepoUrl)
 	if !isValid {
-		impl.logger.Errorw("git repo url already exists", "repo url", chartGitAttribute.RepoUrl)
-		return fmt.Errorf("invalid git repository! '%s' is already in use by another application! Use a different repository", chartGitAttribute.RepoUrl)
+		impl.logger.Errorw("git repo url already exists", "repo url", request.RequestedGitUrl)
+		errMsg := fmt.Sprintf("invalid git repository! '%s' is already in use by another application! Use a different repository", request.RequestedGitUrl)
+		return sanitiseGitRepoUrl, util.NewApiError(http.StatusBadRequest, errMsg, errMsg).
+			WithCode(constants.InvalidGitOpsRepoUrlForPipeline)
 	}
 	// Validate: Unique GitOps repository URL ends
-	return nil
+	return sanitiseGitRepoUrl, nil
 }
 
-func (impl *GitOpsValidationServiceImpl) ValidateCustomGitRepoURL(request gitOpsBean.ValidateGitOpsRepoRequest) (string, bool, error) {
+func (impl *GitOpsValidationServiceImpl) ValidateCustomGitOpsConfig(request gitOpsBean.ValidateGitOpsRepoRequest) (string, bool, error) {
 	gitOpsRepoName := ""
 	if request.GitRepoURL == apiBean.GIT_REPO_DEFAULT || len(request.GitRepoURL) == 0 {
 		gitOpsRepoName = impl.gitOpsConfigReadService.GetGitOpsRepoName(request.AppName)
@@ -230,8 +211,57 @@ func (impl *GitOpsValidationServiceImpl) ValidateCustomGitRepoURL(request gitOps
 	if request.GitRepoURL != apiBean.GIT_REPO_DEFAULT && len(request.GitRepoURL) != 0 {
 		// For custom git repo; we expect the chart is not present hence setting isNew flag to be true.
 		chartGitAttribute.IsNewRepo = true
+		validateGitRepoRequest := &gitOpsBean.ValidateGitOpsRepoUrlRequest{
+			RequestedGitUrl: request.GitRepoURL,
+			DesiredGitUrl:   chartGitAttribute.RepoUrl,
+		}
+		_, validationErr := impl.ValidateGitOpsRepoUrl(validateGitRepoRequest)
+		if validationErr != nil {
+			impl.logger.Errorw("error in validating gitops repo url", "err", validationErr)
+			return "", false, validationErr
+		}
 	}
 	return chartGitAttribute.RepoUrl, chartGitAttribute.IsNewRepo, nil
+}
+
+func (impl *GitOpsValidationServiceImpl) getDesiredGitRepoUrl(request *gitOpsBean.ValidateGitOpsRepoUrlRequest, gitOpsConfig *apiBean.GitOpsConfigDto) (string, error) {
+	if len(request.DesiredGitUrl) != 0 {
+		return request.DesiredGitUrl, nil
+	}
+	client, _, clientErr := impl.gitFactory.NewClientForValidation(gitOpsConfig)
+	if clientErr != nil {
+		impl.logger.Errorw("error in creating new client for validation", "clientErr", clientErr, "request", request)
+		return "", clientErr
+	}
+	gitOpsConfig.GitRepoName = impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(request.RequestedGitUrl)
+	// TODO Asutosh: skip SSH providers in enterprise edition
+	desiredRepoUrl, err := client.GetRepoUrl(gitOpsConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting repo url", "err", err, "request", request)
+		return "", err
+	}
+	return desiredRepoUrl, nil
+}
+
+func (impl *GitOpsValidationServiceImpl) validateForGitOpsOrg(request *gitOpsBean.ValidateGitOpsRepoUrlRequest) (string, error) {
+	matchedGitopsConfig, err := impl.gitOpsConfigReadService.GetGitOpsProviderByRepoURL(request.RequestedGitUrl)
+	if err != nil {
+		impl.logger.Errorw("error in fetching gitOps provider by repo url", "err", err)
+		return "", err
+	}
+	desiredRepoUrl, gitErr := impl.getDesiredGitRepoUrl(request, matchedGitopsConfig)
+	if gitErr != nil {
+		impl.logger.Errorw("error in getting desired git repo url", "err", gitErr)
+		return "", gitErr
+	}
+	sanitiseGitRepoUrl := git.SanitiseCustomGitRepoURL(matchedGitopsConfig, request.RequestedGitUrl)
+	orgRepoUrl := strings.TrimSuffix(desiredRepoUrl, ".git")
+	if !strings.Contains(strings.ToLower(sanitiseGitRepoUrl), strings.ToLower(orgRepoUrl)) {
+		// If the repo is non-organizational, then return error
+		impl.logger.Debugw("non-organisational custom gitops repo", "expected repo", desiredRepoUrl, "user given repo", sanitiseGitRepoUrl)
+		return "", impl.getValidationErrorForNonOrganisationalURL(matchedGitopsConfig)
+	}
+	return desiredRepoUrl, nil
 }
 
 func (impl *GitOpsValidationServiceImpl) extractErrorMessageByProvider(err error, provider string) error {
@@ -271,7 +301,7 @@ func (impl *GitOpsValidationServiceImpl) convertDetailedErrorToResponse(detailed
 	return detailedErrorResponse
 }
 
-func (impl *GitOpsValidationServiceImpl) getValidationErrorForNonOrganisationalURL(activeGitOpsConfig apiBean.GitOpsConfigDto) error {
+func (impl *GitOpsValidationServiceImpl) getValidationErrorForNonOrganisationalURL(activeGitOpsConfig *apiBean.GitOpsConfigDto) error {
 	var errorMessageKey, errorMessage string
 	switch strings.ToUpper(activeGitOpsConfig.Provider) {
 	case git.GITHUB_PROVIDER:
@@ -290,10 +320,13 @@ func (impl *GitOpsValidationServiceImpl) getValidationErrorForNonOrganisationalU
 		errorMessageKey = "The repository must belong to Azure DevOps Project"
 		errorMessage = fmt.Sprintf("%s as configured in global configurations > GitOps", activeGitOpsConfig.AzureProjectName)
 	}
-	return fmt.Errorf("%s: %s", errorMessageKey, errorMessage)
+	apiErrorMsg := fmt.Sprintf("%s: %s", errorMessageKey, errorMessage)
+	return util.NewApiError(http.StatusBadRequest, apiErrorMsg, apiErrorMsg).
+		WithCode(constants.InvalidGitOpsRepoUrlForPipeline)
 }
 
 func (impl *GitOpsValidationServiceImpl) validateUniqueGitOpsRepo(repoUrl string) (isValid bool) {
+	// TODO Asutosh: multiple formats of repo url can be present, need to handle them
 	isDevtronAppRegistered, err := impl.chartService.IsGitOpsRepoAlreadyRegistered(repoUrl)
 	if err != nil || isDevtronAppRegistered {
 		return isValid

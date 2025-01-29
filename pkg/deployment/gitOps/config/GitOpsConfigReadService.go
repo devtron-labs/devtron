@@ -21,7 +21,9 @@ import (
 	"fmt"
 	bean3 "github.com/devtron-labs/devtron/api/bean"
 	bean2 "github.com/devtron-labs/devtron/api/bean/gitOps"
+	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	internalUtil "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/auth/user"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
 	moduleBean "github.com/devtron-labs/devtron/pkg/module/bean"
@@ -31,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/util/gitUtil"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"net/http"
 	"regexp"
 	"strings"
 )
@@ -42,7 +45,6 @@ type GitOpsConfigReadService interface {
 	GetGitOpsRepoNameFromUrl(gitRepoUrl string) string
 	GetBitbucketMetadata() (*bean.BitbucketProviderMetadata, error)
 	GetGitOpsConfigActive() (*bean2.GitOpsConfigDto, error)
-	GetAllGitOpsConfig() ([]*bean2.GitOpsConfigDto, error)
 	GetConfiguredGitOpsCount() (int, error)
 	GetGitOpsProviderByRepoURL(gitRepoUrl string) (*bean2.GitOpsConfigDto, error)
 	GetGitOpsProviderMapByRepoURL(allGitRepoUrls []string) (map[string]*bean2.GitOpsConfigDto, error)
@@ -178,39 +180,6 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsC
 	return config, err
 }
 
-func (impl *GitOpsConfigReadServiceImpl) GetAllGitOpsConfig() ([]*bean2.GitOpsConfigDto, error) {
-	models, err := impl.gitOpsRepository.GetAllGitOpsConfig()
-	if err != nil {
-		impl.logger.Errorw("error, GetGitOpsConfigActive", "err", err)
-		return nil, err
-	}
-	configs := make([]*bean2.GitOpsConfigDto, 0, len(models))
-	for _, model := range models {
-		configs = append(configs, &bean2.GitOpsConfigDto{
-			Id:                    model.Id,
-			Provider:              model.Provider,
-			GitHubOrgId:           model.GitHubOrgId,
-			GitLabGroupId:         model.GitLabGroupId,
-			Active:                model.Active,
-			Token:                 model.Token,
-			Host:                  model.Host,
-			Username:              model.Username,
-			UserId:                model.CreatedBy,
-			AzureProjectName:      model.AzureProject,
-			BitBucketWorkspaceId:  model.BitBucketWorkspaceId,
-			BitBucketProjectKey:   model.BitBucketProjectKey,
-			AllowCustomRepository: model.AllowCustomRepository,
-			TLSConfig: &bean3.TLSConfig{
-				CaData:      model.CaCert,
-				TLSCertData: model.TlsCert,
-				TLSKeyData:  model.TlsKey,
-			},
-			EnableTLSVerification: model.EnableTLSVerification,
-		})
-	}
-	return configs, err
-}
-
 func (impl *GitOpsConfigReadServiceImpl) GetConfiguredGitOpsCount() (int, error) {
 	count, err := impl.gitOpsRepository.GetAllGitOpsConfigCount()
 	return count, err
@@ -266,7 +235,9 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsProviderByRepoURL(gitRepoUrl s
 		}
 	}
 	if gitOpsConfig == nil {
-		return nil, fmt.Errorf("no gitops config found in DB for given repoURL: %s", gitRepoUrl)
+		errMsg := fmt.Sprintf("no gitops config found in DB for given repository: %q", gitRepoUrl)
+		return nil, internalUtil.NewApiError(http.StatusBadRequest, errMsg, errMsg).
+			WithCode(constants.InvalidGitOpsRepoUrlForPipeline)
 	}
 
 	return gitOpsConfig, nil

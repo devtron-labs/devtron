@@ -177,21 +177,21 @@ func (impl *AppStoreDeploymentDBServiceImpl) AppStoreDeployOperationDB(installRe
 			impl.logger.Errorw("GitOps request validation error", "allowCustomRepository", gitOpsConfigStatus.AllowCustomRepository, "gitOpsRepoURL", installRequest.GitOpsRepoURL, "err", validationErr)
 			return nil, validationErr
 		}
-		// This should be set before to validateCustomGitOpsRepoURL,
-		// as validateCustomGitOpsRepoURL will override installRequest.GitOpsRepoURL
+		// This should be set before to validateCustomGitOpsConfig,
+		// as validateCustomGitOpsConfig will override installRequest.GitOpsRepoURL
 		if !apiGitOpsBean.IsGitOpsRepoNotConfigured(installRequest.GitOpsRepoURL) &&
 			installRequest.GitOpsRepoURL != apiGitOpsBean.GIT_REPO_DEFAULT {
 			// If GitOps repo is configured and not configured to bean.GIT_REPO_DEFAULT
 			installRequest.IsCustomRepository = true
 		}
 		// validating the git repository configured for GitOps deployments
-		gitOpsRepoURL, isNew, gitRepoErr := impl.validateCustomGitOpsRepoURL(gitOpsConfigStatus, installRequest)
+		gitOpsRepoURL, isNew, gitRepoErr := impl.validateCustomGitOpsConfig(gitOpsConfigStatus, installRequest)
 		if gitRepoErr != nil {
 			// Found validation err
 			impl.logger.Errorw("validation failed for GitOps repository", "repo url", installRequest.GitOpsRepoURL, "err", gitRepoErr)
 			return nil, gitRepoErr
 		}
-		// validateCustomGitOpsRepoURL returns sanitized repo url after validation
+		// validateCustomGitOpsConfig returns sanitized repo url after validation
 		installRequest.GitOpsRepoURL = gitOpsRepoURL
 		installRequest.IsNewGitOpsRepo = isNew
 	} else {
@@ -697,14 +697,14 @@ func (impl *AppStoreDeploymentDBServiceImpl) validateGitOpsRequest(allowCustomRe
 	return nil
 }
 
-func (impl *AppStoreDeploymentDBServiceImpl) validateCustomGitOpsRepoURL(gitOpsConfigurationStatus *gitOpsBean.GitOpsConfigurationStatus, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, bool, error) {
+func (impl *AppStoreDeploymentDBServiceImpl) validateCustomGitOpsConfig(gitOpsConfigurationStatus *gitOpsBean.GitOpsConfigurationStatus, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, bool, error) {
 	validateCustomGitRepoURLRequest := validationBean.ValidateGitOpsRepoRequest{
 		GitRepoURL:     installAppVersionRequest.GitOpsRepoURL,
 		AppName:        installAppVersionRequest.AppName,
 		UserId:         installAppVersionRequest.UserId,
 		GitOpsProvider: gitOpsConfigurationStatus.Provider,
 	}
-	gitopsRepoURL, isNew, gitRepoErr := impl.fullModeDeploymentService.ValidateCustomGitRepoURL(validateCustomGitRepoURLRequest)
+	gitopsRepoURL, isNew, gitRepoErr := impl.fullModeDeploymentService.ValidateCustomGitOpsConfig(validateCustomGitRepoURLRequest)
 	if gitRepoErr != nil {
 		// Found validation err
 		impl.logger.Errorw("found validation error in custom GitOps repo", "repo url", installAppVersionRequest.GitOpsRepoURL, "err", gitRepoErr)

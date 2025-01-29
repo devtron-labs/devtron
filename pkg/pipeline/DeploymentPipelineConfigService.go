@@ -28,6 +28,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
+	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -52,6 +53,8 @@ import (
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
+	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation"
+	validationBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/bean"
@@ -164,6 +167,7 @@ type CdPipelineConfigServiceImpl struct {
 	argoClientWrapperService          argocdServer.ArgoClientWrapperService
 	deployedAppMetricsService         deployedAppMetrics.DeployedAppMetricsService
 	gitOpsConfigReadService           config.GitOpsConfigReadService
+	gitOpsValidationService           validation.GitOpsValidationService
 	gitOperationService               git.GitOperationService
 	chartService                      chart.ChartService
 	imageDigestPolicyService          imageDigestPolicy.ImageDigestPolicyService
@@ -195,6 +199,7 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
+	gitOpsValidationService validation.GitOpsValidationService,
 	gitOperationService git.GitOperationService,
 	chartService chart.ChartService,
 	imageDigestPolicyService imageDigestPolicy.ImageDigestPolicyService,
@@ -238,6 +243,7 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 		argoClientWrapperService:          argoClientWrapperService,
 		deployedAppMetricsService:         deployedAppMetricsService,
 		gitOpsConfigReadService:           gitOpsConfigReadService,
+		gitOpsValidationService:           gitOpsValidationService,
 		gitOperationService:               gitOperationService,
 		imageDigestPolicyService:          imageDigestPolicyService,
 		pipelineConfigEventPublishService: pipelineConfigEventPublishService,
@@ -666,8 +672,8 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 	if argoApplicationSpec.Spec.HasMultipleSources() {
 		return response.SetErrorDetail(pipelineConfigBean.UnsupportedApplicationSpec, "application with multiple sources not supported")
 	}
-	if argoApplicationSpec.Spec.Source != nil && argoApplicationSpec.Spec.Source.Helm != nil && len(argoApplicationSpec.Spec.Source.Helm.ValueFiles) > 1 {
-		return response.SetErrorDetail(pipelineConfigBean.UnsupportedApplicationSpec, "application with multiple helm value files are not supported")
+	if argoApplicationSpec.Spec.Source != nil && argoApplicationSpec.Spec.Source.Helm != nil && len(argoApplicationSpec.Spec.Source.Helm.ValueFiles) != 1 {
+		return response.SetErrorDetail(pipelineConfigBean.UnsupportedApplicationSpec, "application with multiple/ empty helm value files are not supported")
 	}
 
 	response.ApplicationMetadata.Source.RepoURL = argoApplicationSpec.Spec.Source.RepoURL
@@ -727,29 +733,20 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 	response.ApplicationMetadata.Destination.EnvironmentName = targetEnv.Name
 	response.ApplicationMetadata.Destination.EnvironmentId = targetEnv.Id
 
-	repoURL := argoApplicationSpec.Spec.Source.RepoURL
-	_, err = impl.gitOpsConfigReadService.GetGitOpsProviderByRepoURL(repoURL)
+	validateRequest := &validationBean.ValidateGitOpsRepoUrlRequest{
+		RequestedGitUrl: argoApplicationSpec.Spec.Source.RepoURL,
+	}
+	sanitisedRepoUrl, err := impl.gitOpsValidationService.ValidateGitOpsRepoUrl(validateRequest)
 	if err != nil {
-		if strings.Contains(err.Error(), "no gitops config found in DB for given repoURL") {
-			return response.SetErrorDetail(pipelineConfigBean.GitOpsNotFound, err.Error())
+		if apiError, ok := err.(*util.ApiError); ok && apiError.Code == constants.InvalidGitOpsRepoUrlForPipeline {
+			return response.SetErrorDetail(pipelineConfigBean.GitOpsNotFound, apiError.UserDetailMessage)
 		}
 		return response.SetUnknownErrorDetail(err)
 	}
 
-	repoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(repoURL)
-	repoURLFromConfiguredGitOpsClient, err := impl.gitOperationService.GetRepoUrlByRepoName(repoName)
-	if err != nil {
-		impl.logger.Errorw("error in fetching repo url by repoName", "repoName", repoName, "err", err)
-		return response.SetErrorDetail(pipelineConfigBean.GitOpsNotFound, fmt.Sprintf("please configure valid GitOps credential for repo %s", repoURL))
-	}
-
-	if repoURLFromConfiguredGitOpsClient != repoURL {
-		return response.SetErrorDetail(pipelineConfigBean.GitOpsNotFound, fmt.Sprintf("please configure valid GitOps credential for repo %s", repoURL))
-	}
-
 	chartPath := argoApplicationSpec.Spec.Source.Path
 	targetRevision := argoApplicationSpec.Spec.Source.TargetRevision
-	helmChart, err := impl.extractHelmChartForExternalArgoApp(repoURL, targetRevision, chartPath)
+	helmChart, err := impl.extractHelmChartForExternalArgoApp(sanitisedRepoUrl, targetRevision, chartPath)
 	if err != nil {
 		impl.logger.Errorw("error in extracting helm chart from application spec", "acdAppName", acdAppName, "err", err)
 		return response.SetUnknownErrorDetail(err)

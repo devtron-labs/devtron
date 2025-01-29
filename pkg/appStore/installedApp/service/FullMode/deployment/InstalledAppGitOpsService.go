@@ -53,7 +53,7 @@ type InstalledAppGitOpsService interface {
 	// git.GitOperationService.CommitValues (If repo exists and Repo migration is not needed)
 	// functions to perform GitOps during upgrade deployments (GitOps based Helm Apps)
 	UpdateAppGitOpsOperations(manifest *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, monoRepoMigrationRequired bool, commitRequirements bool) (*bean.AppStoreGitOpsResponse, error)
-	ValidateCustomGitRepoURL(request validationBean.ValidateGitOpsRepoRequest) (string, bool, error)
+	ValidateCustomGitOpsConfig(request validationBean.ValidateGitOpsRepoRequest) (string, bool, error)
 	CreateArgoRepoSecretIfNeeded(appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
 }
 
@@ -393,9 +393,9 @@ func (impl *FullModeDeploymentServiceImpl) getValuesAndRequirementForGitConfig(i
 	return valuesConfig, RequirementConfig, nil
 }
 
-func (impl *FullModeDeploymentServiceImpl) ValidateCustomGitRepoURL(request validationBean.ValidateGitOpsRepoRequest) (string, bool, error) {
+func (impl *FullModeDeploymentServiceImpl) ValidateCustomGitOpsConfig(request validationBean.ValidateGitOpsRepoRequest) (string, bool, error) {
 	request.TargetRevision = globalUtil.GetDefaultTargetRevision()
-	return impl.gitOpsValidationService.ValidateCustomGitRepoURL(request)
+	return impl.gitOpsValidationService.ValidateCustomGitOpsConfig(request)
 }
 
 func (impl *FullModeDeploymentServiceImpl) CreateArgoRepoSecretIfNeeded(appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error {

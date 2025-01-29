@@ -426,7 +426,7 @@ func (impl *EAModeDeploymentServiceImpl) UpdateInstalledAppAndPipelineStatusForF
 func (impl *EAModeDeploymentServiceImpl) UpdateAndSyncACDApps(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttribute *commonBean.ChartGitAttribute, isMonoRepoMigrationRequired bool, ctx context.Context, tx *pg.Tx) error {
 	return errors.New("this is not implemented")
 }
-func (impl *EAModeDeploymentServiceImpl) ValidateCustomGitRepoURL(request validationBean.ValidateGitOpsRepoRequest) (string, bool, error) {
+func (impl *EAModeDeploymentServiceImpl) ValidateCustomGitOpsConfig(request validationBean.ValidateGitOpsRepoRequest) (string, bool, error) {
 	return "", false, errors.New("this is not implemented")
 }
 

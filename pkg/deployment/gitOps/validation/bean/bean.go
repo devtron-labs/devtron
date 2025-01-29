@@ -18,6 +18,11 @@ package bean
 
 type ExtraValidationStageType int
 
+type ValidateGitOpsRepoUrlRequest struct {
+	RequestedGitUrl string
+	DesiredGitUrl   string
+}
+
 type ValidateGitOpsRepoRequest struct {
 	GitRepoURL     string
 	TargetRevision string

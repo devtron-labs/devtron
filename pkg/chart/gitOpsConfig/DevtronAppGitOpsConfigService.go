@@ -123,7 +123,7 @@ func (impl *DevtronAppGitOpConfigServiceImpl) SaveAppLevelGitOpsConfiguration(ap
 		GitOpsProvider: gitOpsConfigurationStatus.Provider,
 		TargetRevision: globalUtil.GetDefaultTargetRevision(),
 	}
-	repoUrl, _, validationErr := impl.gitOpsValidationService.ValidateCustomGitRepoURL(validateCustomGitRepoURLRequest)
+	repoUrl, _, validationErr := impl.gitOpsValidationService.ValidateCustomGitOpsConfig(validateCustomGitRepoURLRequest)
 	if validationErr != nil {
 		apiErr := &util.ApiError{
 			HttpStatusCode:  http.StatusBadRequest,
@@ -132,7 +132,7 @@ func (impl *DevtronAppGitOpConfigServiceImpl) SaveAppLevelGitOpsConfiguration(ap
 		}
 		return apiErr
 	}
-	// ValidateCustomGitRepoURL returns sanitized repo url after validation
+	// ValidateCustomGitOpsConfig returns sanitized repo url after validation
 	appGitOpsRequest.GitOpsRepoURL = repoUrl
 	chartGitAttr := &commonBean.ChartGitAttribute{
 		RepoUrl:        repoUrl,
