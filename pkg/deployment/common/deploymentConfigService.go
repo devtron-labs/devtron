@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2020-2024. Devtron Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package common
 
 import (
@@ -26,12 +42,14 @@ import (
 
 type DeploymentConfigService interface {
 	CreateOrUpdateConfig(tx *pg.Tx, config *bean.DeploymentConfig, userId int32) (*bean.DeploymentConfig, error)
+	CreateOrUpdateConfigInBulk(tx *pg.Tx, configToBeCreated, configToBeUpdated []*bean.DeploymentConfig, userId int32) error
 	GetConfigForDevtronApps(appId, envId int) (*bean.DeploymentConfig, error)
 	GetAndMigrateConfigIfAbsentForDevtronApps(appId, envId int) (*bean.DeploymentConfig, error)
 	GetConfigForHelmApps(appId, envId int) (*bean.DeploymentConfig, error)
 	GetConfigEvenIfInactive(appId, envId int) (*bean.DeploymentConfig, error)
 	GetAndMigrateConfigIfAbsentForHelmApp(appId, envId int) (*bean.DeploymentConfig, error)
 	UpdateRepoUrlForAppAndEnvId(repoURL string, appId, envId int) error
+	GetConfigsByAppIds(appIds []int) ([]*bean.DeploymentConfig, error)
 	GetAllConfigsWithCustomGitOpsURL() ([]*bean.DeploymentConfig, error)
 }
 
@@ -109,6 +127,49 @@ func (impl *DeploymentConfigServiceImpl) CreateOrUpdateConfig(tx *pg.Tx, config 
 		return nil, err
 	}
 	return newObj, nil
+}
+
+func (impl *DeploymentConfigServiceImpl) CreateOrUpdateConfigInBulk(tx *pg.Tx, configToBeCreated, configToBeUpdated []*bean.DeploymentConfig, userId int32) error {
+
+	dbObjCreate := make([]*deploymentConfig.DeploymentConfig, 0, len(configToBeCreated))
+	for i := range configToBeCreated {
+		dbObj, err := adapter.ConvertDeploymentConfigDTOToDbObj(configToBeCreated[i])
+		if err != nil {
+			impl.logger.Errorw("error in converting deployment config DTO to db object", "appId", configToBeCreated[i].AppId, "envId", configToBeCreated[i].EnvironmentId)
+			return err
+		}
+		dbObj.AuditLog.CreateAuditLog(userId)
+		dbObjCreate = append(dbObjCreate, dbObj)
+	}
+
+	dbObjUpdate := make([]*deploymentConfig.DeploymentConfig, 0, len(configToBeUpdated))
+	for i := range configToBeUpdated {
+		dbObj, err := adapter.ConvertDeploymentConfigDTOToDbObj(configToBeUpdated[i])
+		if err != nil {
+			impl.logger.Errorw("error in converting deployment config DTO to db object", "appId", configToBeUpdated[i].AppId, "envId", configToBeUpdated[i].EnvironmentId)
+			return err
+		}
+		dbObj.AuditLog.UpdateAuditLog(userId)
+		dbObjUpdate = append(dbObjUpdate, dbObj)
+	}
+
+	if len(dbObjCreate) > 0 {
+		_, err := impl.deploymentConfigRepository.SaveAll(tx, dbObjCreate)
+		if err != nil {
+			impl.logger.Errorw("error in saving deploymentConfig", "dbObjCreate", dbObjCreate, "err", err)
+			return err
+		}
+	}
+
+	if len(dbObjUpdate) > 0 {
+		_, err := impl.deploymentConfigRepository.UpdateAll(tx, dbObjUpdate)
+		if err != nil {
+			impl.logger.Errorw("error in updating deploymentConfig", "dbObjUpdate", dbObjUpdate, "err", err)
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (impl *DeploymentConfigServiceImpl) GetConfigForDevtronApps(appId, envId int) (*bean.DeploymentConfig, error) {
@@ -617,6 +678,27 @@ func (impl *DeploymentConfigServiceImpl) UpdateRepoUrlForAppAndEnvId(repoURL str
 	}
 
 	return nil
+}
+
+func (impl *DeploymentConfigServiceImpl) GetConfigsByAppIds(appIds []int) ([]*bean.DeploymentConfig, error) {
+	if len(appIds) == 0 {
+		return nil, nil
+	}
+	configs, err := impl.deploymentConfigRepository.GetConfigByAppIds(appIds)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment config db object by appIds", "appIds", appIds, "err", err)
+		return nil, err
+	}
+	resp := make([]*bean.DeploymentConfig, 0, len(configs))
+	for _, config := range configs {
+		newObj, err := adapter.ConvertDeploymentConfigDbObjToDTO(config)
+		if err != nil {
+			impl.logger.Errorw("error in converting deployment config DTO to db object", "appId", config.AppId, "envId", config.EnvironmentId)
+			return nil, err
+		}
+		resp = append(resp, newObj)
+	}
+	return resp, nil
 }
 
 func (impl *DeploymentConfigServiceImpl) GetAllConfigsWithCustomGitOpsURL() ([]*bean.DeploymentConfig, error) {

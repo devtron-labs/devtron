@@ -26,7 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/module/bean"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	moduleUtil "github.com/devtron-labs/devtron/pkg/module/util"
-	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool"
 	"github.com/devtron-labs/devtron/pkg/server"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
@@ -62,13 +62,13 @@ type ModuleServiceImpl struct {
 	moduleCronService              ModuleCronService
 	moduleServiceHelper            ModuleServiceHelper
 	moduleResourceStatusRepository moduleRepo.ModuleResourceStatusRepository
-	scanToolMetadataService        imageScanning.ScanToolMetadataService
+	scanToolMetadataService        scanTool.ScanToolMetadataService
 }
 
 func NewModuleServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serverEnvConfig.ServerEnvConfig, moduleRepository moduleRepo.ModuleRepository,
 	moduleActionAuditLogRepository ModuleActionAuditLogRepository, helmAppService client.HelmAppService, serverDataStore *serverDataStore.ServerDataStore, serverCacheService server.ServerCacheService, moduleCacheService ModuleCacheService, moduleCronService ModuleCronService,
 	moduleServiceHelper ModuleServiceHelper, moduleResourceStatusRepository moduleRepo.ModuleResourceStatusRepository,
-	scanToolMetadataService imageScanning.ScanToolMetadataService) *ModuleServiceImpl {
+	scanToolMetadataService scanTool.ScanToolMetadataService) *ModuleServiceImpl {
 	return &ModuleServiceImpl{
 		logger:                         logger,
 		serverEnvConfig:                serverEnvConfig,
