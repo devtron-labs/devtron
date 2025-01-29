@@ -170,7 +170,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDStageCompleteEvent() error {
 			return
 		}
 		wfr.IsArtifactUploaded = cdStageCompleteEvent.IsArtifactUploaded
-		if wfr.Status != string(v1alpha1.NodeSucceeded) && wfr.Status != string(v1alpha1.NodeFailed) {
+		if slices.Contains(cdWorkflowModelBean.WfrTerminalStatusList, wfr.Status) {
 			impl.logger.Debugw("event received from ci runner, updating workflow runner status as succeeded", "savedWorkflowRunnerId", wfr.Id, "oldStatus", wfr.Status, "podStatus", wfr.PodStatus)
 			if cdStageCompleteEvent.IsSuccess {
 				wfr.Status = string(v1alpha1.NodeSucceeded)
