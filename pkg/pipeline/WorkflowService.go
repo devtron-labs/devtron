@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/workflow/util"
 	"github.com/devtron-labs/common-lib/utils"
@@ -27,14 +28,15 @@ import (
 	"github.com/devtron-labs/common-lib/utils/k8s/commonBean"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
-	"github.com/devtron-labs/devtron/pkg/app"
 	bean2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/environment/repository"
-	bean4 "github.com/devtron-labs/devtron/pkg/infraConfig/bean"
+	"github.com/devtron-labs/devtron/pkg/config/read"
+	v1 "github.com/devtron-labs/devtron/pkg/infraConfig/bean/v1"
 	k8s2 "github.com/devtron-labs/devtron/pkg/k8s"
 	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
+	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders/infraGetters"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"go.uber.org/zap"
 	v12 "k8s.io/api/core/v1"
@@ -62,7 +64,7 @@ type WorkflowServiceImpl struct {
 	Logger                 *zap.SugaredLogger
 	config                 *rest.Config
 	ciCdConfig             *types.CiCdConfig
-	appService             app.AppService
+	configMapService       read.ConfigReadService
 	envRepository          repository2.EnvironmentRepository
 	globalCMCSService      GlobalCMCSService
 	argoWorkflowExecutor   executors.ArgoWorkflowExecutor
@@ -74,15 +76,20 @@ type WorkflowServiceImpl struct {
 
 // TODO: Move to bean
 
-func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repository2.EnvironmentRepository, ciCdConfig *types.CiCdConfig,
-	appService app.AppService, globalCMCSService GlobalCMCSService, argoWorkflowExecutor executors.ArgoWorkflowExecutor,
+func NewWorkflowServiceImpl(Logger *zap.SugaredLogger,
+	envRepository repository2.EnvironmentRepository,
+	ciCdConfig *types.CiCdConfig,
+	configMapService read.ConfigReadService,
+	globalCMCSService GlobalCMCSService,
+	argoWorkflowExecutor executors.ArgoWorkflowExecutor,
 	k8sUtil *k8s.K8sServiceImpl,
-	systemWorkflowExecutor executors.SystemWorkflowExecutor, k8sCommonService k8s2.K8sCommonService,
+	systemWorkflowExecutor executors.SystemWorkflowExecutor,
+	k8sCommonService k8s2.K8sCommonService,
 	infraProvider infraProviders.InfraProvider) (*WorkflowServiceImpl, error) {
 	commonWorkflowService := &WorkflowServiceImpl{
 		Logger:                 Logger,
 		ciCdConfig:             ciCdConfig,
-		appService:             appService,
+		configMapService:       configMapService,
 		envRepository:          envRepository,
 		globalCMCSService:      globalCMCSService,
 		argoWorkflowExecutor:   argoWorkflowExecutor,
@@ -134,37 +141,62 @@ func (impl *WorkflowServiceImpl) createWorkflowTemplate(workflowRequest *types.W
 		return bean3.WorkflowTemplate{}, err
 	}
 
-	shouldAddExistingCmCsInWorkflow := impl.shouldAddExistingCmCsInWorkflow(workflowRequest)
-	if shouldAddExistingCmCsInWorkflow {
-		workflowConfigMaps, workflowSecrets, err = impl.addExistingCmCsInWorkflow(workflowRequest, workflowConfigMaps, workflowSecrets)
-		if err != nil {
-			impl.Logger.Errorw("error occurred while adding existing CmCs", "err", err)
-			return bean3.WorkflowTemplate{}, err
-		}
-	}
-
-	workflowTemplate.ConfigMaps = workflowConfigMaps
-	workflowTemplate.Secrets = workflowSecrets
-	workflowTemplate.Volumes = executors.ExtractVolumesFromCmCs(workflowConfigMaps, workflowSecrets)
-
 	workflowRequest.AddNodeConstraintsFromConfig(&workflowTemplate, impl.ciCdConfig)
-	infraConfiguration := &bean4.InfraConfig{}
+	infraConfiguration := &v1.InfraConfig{}
+	shouldAddExistingCmCsInWorkflow := impl.shouldAddExistingCmCsInWorkflow(workflowRequest)
 	if workflowRequest.Type == bean3.CI_WORKFLOW_PIPELINE_TYPE || workflowRequest.Type == bean3.JOB_WORKFLOW_PIPELINE_TYPE {
 		nodeSelector := impl.getAppLabelNodeSelector(workflowRequest)
 		if nodeSelector != nil {
 			workflowTemplate.NodeSelector = nodeSelector
 		}
-		infraConfigScope := &bean4.Scope{
-			AppId: workflowRequest.AppId,
-		}
+		infraGetterRequest := infraGetters.NewInfraRequest(workflowRequest.Scope).
+			WithAppId(workflowRequest.AppId).
+			WithEnvId(workflowRequest.EnvironmentId).
+			WithPlatform(v1.RUNNER_PLATFORM)
 		infraGetter, _ := impl.infraProvider.GetInfraProvider(workflowRequest.Type)
-		infraConfiguration, err = infraGetter.GetInfraConfigurationsByScopeAndPlatform(infraConfigScope, bean4.RUNNER_PLATFORM)
+		infraConfigurations, err := infraGetter.GetConfigurationsByScopeAndTargetPlatforms(infraGetterRequest)
 		if err != nil {
-			impl.Logger.Errorw("error occurred while getting infra config", "infraConfigScope", infraConfigScope, "err", err)
+			impl.Logger.Errorw("error occurred while getting infra config", "infraGetterRequest", infraGetterRequest, "err", err)
 			return bean3.WorkflowTemplate{}, err
 		}
-		workflowTemplate.SetActiveDeadlineSeconds(infraConfiguration.GetCiDefaultTimeout())
+		impl.Logger.Debugw("infra config for workflow", "infraConfigurations", infraConfigurations, "infraGetterRequest", infraGetterRequest)
+		infraConfiguration = infraConfigurations[v1.RUNNER_PLATFORM]
+		infraConfigMaps, infraSecrets, err := impl.prepareCmCsForWorkflowTemplate(workflowRequest, infraConfiguration.ConfigMaps, infraConfiguration.Secrets)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while preparing build infra cm/ cs for workflow template", "err", err)
+			return bean3.WorkflowTemplate{}, err
+		}
+		workflowConfigMaps = append(workflowConfigMaps, infraConfigMaps...)
+		workflowSecrets = append(workflowSecrets, infraSecrets...)
+		workflowRequest.AddInfraConfigurations(&workflowTemplate, infraConfiguration)
+		err = infraGetter.SaveInfraConfigHistorySnapshot(workflowRequest.WorkflowId, workflowRequest.TriggeredBy, infraConfigurations)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while saving infra config history snapshot", "err", err, "infraConfigurations", infraConfigurations, "workflowId", workflowRequest.WorkflowId)
+		}
+	} else {
+		if shouldAddExistingCmCsInWorkflow {
+			workflowConfigMaps, workflowSecrets, err = impl.addExistingCmCsInWorkflowForCDStage(workflowRequest, workflowConfigMaps, workflowSecrets)
+			if err != nil {
+				impl.Logger.Errorw("error occurred while adding existing cm/ cs", "err", err)
+				return bean3.WorkflowTemplate{}, err
+			}
+			cdStageConfigMaps, cdStageSecrets, err := impl.prepareCmCsForWorkflowTemplate(workflowRequest, workflowConfigMaps, workflowSecrets)
+			if err != nil {
+				impl.Logger.Errorw("error occurred while preparing cd stage cm/ cs for workflow template", "err", err)
+				return bean3.WorkflowTemplate{}, err
+			}
+			workflowConfigMaps = append(workflowConfigMaps, cdStageConfigMaps...)
+			workflowSecrets = append(workflowSecrets, cdStageSecrets...)
+		}
 	}
+	// internally inducing BlobStorageCmName and BlobStorageSecretName for getting logs, caches and artifacts from
+	// in-cluster configured blob storage, if USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW = false and isExt = true
+	if shouldAddExistingCmCsInWorkflow && workflowRequest.UseExternalClusterBlob {
+		workflowConfigMaps, workflowSecrets = impl.addExtBlobStorageCmCsInResponse(workflowConfigMaps, workflowSecrets)
+	}
+	workflowTemplate.ConfigMaps = workflowConfigMaps
+	workflowTemplate.Secrets = workflowSecrets
+	workflowTemplate.Volumes = executors.ExtractVolumes(workflowConfigMaps, workflowSecrets)
 
 	workflowMainContainer, err := workflowRequest.GetWorkflowMainContainer(impl.ciCdConfig, infraConfiguration, workflowJson, &workflowTemplate, workflowConfigMaps, workflowSecrets)
 	if err != nil {
@@ -241,50 +273,60 @@ func (impl *WorkflowServiceImpl) appendGlobalCMCS(workflowRequest *types.Workflo
 	return workflowConfigMaps, workflowSecrets, nil
 }
 
-func (impl *WorkflowServiceImpl) addExistingCmCsInWorkflow(workflowRequest *types.WorkflowRequest, workflowConfigMaps []bean.ConfigSecretMap, workflowSecrets []bean.ConfigSecretMap) ([]bean.ConfigSecretMap, []bean.ConfigSecretMap, error) {
-
-	pipelineLevelConfigMaps, pipelineLevelSecrets, err := workflowRequest.GetConfiguredCmCs()
-	if err != nil {
-		impl.Logger.Errorw("error occurred while fetching pipeline configured cm and cs", "pipelineId", workflowRequest.Pipeline.Id, "err", err)
-		return nil, nil, err
-	}
-	isJob := workflowRequest.CheckForJob()
-	allowAll := isJob
-	namePrefix := workflowRequest.GetExistingCmCsNamePrefix()
-	existingConfigMap, existingSecrets, err := impl.appService.GetCmSecretNew(workflowRequest.AppId, workflowRequest.EnvironmentId, isJob, workflowRequest.Scope)
+func (impl *WorkflowServiceImpl) addExistingCmCsInWorkflowForCDStage(workflowRequest *types.WorkflowRequest, workflowConfigMaps []bean.ConfigSecretMap, workflowSecrets []bean.ConfigSecretMap) ([]bean.ConfigSecretMap, []bean.ConfigSecretMap, error) {
+	existingConfigMap, existingSecrets, err := impl.configMapService.GetCmCsForPrePostStageTrigger(workflowRequest.Scope, workflowRequest.AppId, workflowRequest.EnvironmentId, false)
 	if err != nil {
 		impl.Logger.Errorw("failed to get configmap data", "err", err)
 		return nil, nil, err
 	}
 	impl.Logger.Debugw("existing cm", "cm", existingConfigMap, "secrets", existingSecrets)
-
-	for _, cm := range existingConfigMap.Maps {
-		// HERE we are allowing all existingSecrets in case of JOB
-		if _, ok := pipelineLevelConfigMaps[cm.Name]; ok || allowAll {
-			if !cm.External {
-				cm.Name = cm.Name + "-" + namePrefix
-			}
-			workflowConfigMaps = append(workflowConfigMaps, cm)
+	if existingConfigMap != nil {
+		for i := range existingConfigMap.Maps {
+			workflowConfigMaps = append(workflowConfigMaps, existingConfigMap.Maps[i])
 		}
 	}
-	for _, secret := range existingSecrets.Secrets {
-		// HERE we are allowing all existingSecrets in case of JOB
-		if _, ok := pipelineLevelSecrets[secret.Name]; ok || allowAll {
-			if !secret.External {
-				secret.Name = secret.Name + "-" + namePrefix
+	if existingSecrets != nil {
+		for i := range existingSecrets.Secrets {
+			if existingSecrets.Secrets[i] == nil {
+				continue
 			}
-			workflowSecrets = append(workflowSecrets, *secret)
+			workflowSecrets = append(workflowSecrets, *existingSecrets.Secrets[i])
 		}
 	}
-
-	// internally inducing BlobStorageCmName and BlobStorageSecretName for getting logs, caches and artifacts from
-	// in-cluster configured blob storage, if USE_BLOB_STORAGE_CONFIG_IN_CD_WORKFLOW = false and isExt = true
-	if workflowRequest.UseExternalClusterBlob {
-		workflowConfigMaps, workflowSecrets = impl.addExtBlobStorageCmCsInResponse(workflowConfigMaps, workflowSecrets)
-	}
-
 	return workflowConfigMaps, workflowSecrets, nil
 }
+
+func (impl *WorkflowServiceImpl) prepareCmCsForWorkflowTemplate(workflowRequest *types.WorkflowRequest, workflowConfigMaps []bean.ConfigSecretMap, workflowSecrets []bean.ConfigSecretMap) ([]bean.ConfigSecretMap, []bean.ConfigSecretMap, error) {
+	modifiedWorkflowConfigMaps := make([]bean.ConfigSecretMap, 0)
+	modifiedWorkflowSecrets := make([]bean.ConfigSecretMap, 0)
+	pipelineLevelConfigMaps, pipelineLevelSecrets, err := workflowRequest.GetConfiguredCmCs()
+	if err != nil {
+		impl.Logger.Errorw("error occurred while fetching pipeline configured cm and cs", "pipelineId", workflowRequest.Pipeline.Id, "err", err)
+		return nil, nil, err
+	}
+	allowAll := workflowRequest.IsDevtronJob() || workflowRequest.IsDevtronCI()
+	namePrefix := workflowRequest.GetExistingCmCsNamePrefix()
+	for _, cm := range workflowConfigMaps {
+		// HERE we are allowing all existingSecrets in case of JOB/ BUILD Infra
+		if _, ok := pipelineLevelConfigMaps[cm.Name]; ok || allowAll {
+			if !cm.External {
+				cm.Name = fmt.Sprintf("%s-cm-%s", cm.Name, namePrefix)
+			}
+			modifiedWorkflowConfigMaps = append(modifiedWorkflowConfigMaps, cm)
+		}
+	}
+	for _, secret := range workflowSecrets {
+		// HERE we are allowing all existingSecrets in case of JOB/ BUILD Infra
+		if _, ok := pipelineLevelSecrets[secret.Name]; ok || allowAll {
+			if !secret.External {
+				secret.Name = fmt.Sprintf("%s-cs-%s", secret.Name, namePrefix)
+			}
+			modifiedWorkflowSecrets = append(modifiedWorkflowSecrets, secret)
+		}
+	}
+	return modifiedWorkflowConfigMaps, modifiedWorkflowSecrets, nil
+}
+
 func (impl *WorkflowServiceImpl) addExtBlobStorageCmCsInResponse(workflowConfigMaps []bean.ConfigSecretMap, workflowSecrets []bean.ConfigSecretMap) ([]bean.ConfigSecretMap, []bean.ConfigSecretMap) {
 	blobDetailsConfigMap := bean.ConfigSecretMap{
 		Name:     impl.ciCdConfig.ExtBlobStorageCmName,
@@ -312,7 +354,7 @@ func (impl *WorkflowServiceImpl) updateBlobStorageConfig(workflowRequest *types.
 
 func (impl *WorkflowServiceImpl) getAppLabelNodeSelector(workflowRequest *types.WorkflowRequest) map[string]string {
 	// node selector
-	if val, ok := workflowRequest.AppLabels[CI_NODE_SELECTOR_APP_LABEL_KEY]; ok && !(workflowRequest.CheckForJob() && workflowRequest.IsExtRun) {
+	if val, ok := workflowRequest.AppLabels[CI_NODE_SELECTOR_APP_LABEL_KEY]; ok && !(workflowRequest.IsDevtronJob() && workflowRequest.IsExtRun) {
 		var nodeSelectors map[string]string
 		// Unmarshal or Decode the JSON to the interface.
 		err := json.Unmarshal([]byte(val), &nodeSelectors)

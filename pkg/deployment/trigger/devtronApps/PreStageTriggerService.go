@@ -134,6 +134,7 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*b
 	if err != nil {
 		runner.Status = cdWorkflow.WorkflowFailed
 		runner.Message = err.Error()
+		runner.FinishedOn = time.Now()
 		_ = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 		return nil, err
 	} else {
@@ -148,6 +149,10 @@ func (impl *TriggerServiceImpl) TriggerPreStage(request bean.TriggerRequest) (*b
 	_, jobHelmPackagePath, err := impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
 	span.End()
 	if err != nil {
+		runner.Status = cdWorkflow.WorkflowFailed
+		runner.Message = err.Error()
+		runner.FinishedOn = time.Now()
+		_ = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 		return nil, err
 	}
 	manifestPushTemplate, err := impl.getManifestPushTemplateForPreStage(ctx, envDeploymentConfig, pipeline, artifact, jobHelmPackagePath, cdWf, runner, triggeredBy, triggeredAt, request)

@@ -36,9 +36,13 @@ import (
 var chars = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
 
 const (
-	DOCKER_REGISTRY_TYPE_DOCKERHUB = "docker-hub"
-	DEVTRON_SELF_POD_UID           = "DEVTRON_SELF_POD_UID"
-	DEVTRON_SELF_POD_NAME          = "DEVTRON_SELF_POD_NAME"
+	DOCKER_REGISTRY_TYPE_DOCKERHUB        = "docker-hub"
+	DEVTRON_SELF_POD_UID                  = "DEVTRON_SELF_POD_UID"
+	DEVTRON_SELF_POD_NAME                 = "DEVTRON_SELF_POD_NAME"
+	DEVTRON_SELF_DOWNWARD_API_VOLUME      = "devtron-pod-info"
+	DEVTRON_SELF_DOWNWARD_API_VOLUME_PATH = "/etc/devtron-pod-info"
+	POD_LABELS                            = "labels"
+	POD_ANNOTATIONS                       = "annotations"
 )
 
 // Generates random string
@@ -151,3 +155,22 @@ var PgQueryDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 	Name: "pg_query_duration_seconds",
 	Help: "Duration of PG queries",
 }, []string{"status", "serviceName"})
+
+func ConvertTargetPlatformStringToObject(targetPlatformString string) []*bean.TargetPlatform {
+	targetPlatforms := ConvertTargetPlatformStringToList(targetPlatformString)
+	targetPlatformObject := []*bean.TargetPlatform{}
+	for _, targetPlatform := range targetPlatforms {
+		if len(targetPlatform) > 0 {
+			targetPlatformObject = append(targetPlatformObject, &bean.TargetPlatform{Name: targetPlatform})
+		}
+	}
+	return targetPlatformObject
+}
+
+func ConvertTargetPlatformStringToList(targetPlatform string) []string {
+	return strings.Split(targetPlatform, ",")
+}
+
+func ConvertTargetPlatformListToString(targetPlatforms []string) string {
+	return strings.Join(targetPlatforms, ",")
+}
