@@ -88,6 +88,10 @@ autoscaling:
   annotations: {}
   labels: {}
   behavior: {}
+  containerResource:
+    enable: false
+    TargetCPUUtilizationPercentage: 90
+    TargetMemoryUtilizationPercentage: 80  
 #    scaleDown:
 #      stabilizationWindowSeconds: 300
 #      policies:
@@ -152,6 +156,10 @@ service:
   annotations: {}
     # test1: test2
     # test3: test4
+  sessionAffinity:
+    enabled: false
+  sessionAffinityConfig: {}
+   
 
 server:
  deployment:
@@ -177,25 +185,27 @@ EnvVariablesFromConfigMapKeys: []
   #   keyName: CONFIG_MAP_KEY
 
 LivenessProbe:
-  Path: /
+  Path: ""
   port: 8080
   initialDelaySeconds: 20
   periodSeconds: 10
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
+  scheme: ""
   httpHeaders: []
 #    - name: Custom-Header
 #      value: abc
 
 ReadinessProbe:
-  Path: /
+  Path: ""
   port: 8080
   initialDelaySeconds: 20
   periodSeconds: 10
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
+  scheme: ""
   httpHeaders: []
 #    - name: Custom-Header
 #      value: abc
@@ -537,11 +547,8 @@ winterSoldier:
   # - AfterTime(AddTime(ParseTime({{metadata.creationTimestamp}}, '2006-01-02T15:04:05Z'), '5m'), Now())
 
 topologySpreadConstraints: []
-  # - maxSkew: 1
-  #   topologyKey: zone
-  #   whenUnsatisfiable: DoNotSchedule
-  #   autoLabelSelector: true
-  #   customLabelSelector: {}
+
+schedulerName: ""
 
 envoyproxy:
  image: docker.io/envoyproxy/envoy:v1.16.0
@@ -641,3 +648,13 @@ tolerations: []
 imagePullSecrets: []
   # - test1
   # - test2
+
+persistentVolumeClaim: {}
+
+
+affinity:
+  enabled: false
+  values: {}  
+
+verticalPodScaling:
+  enabled: false

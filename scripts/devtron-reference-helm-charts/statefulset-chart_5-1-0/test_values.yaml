@@ -9,6 +9,7 @@ istio:
   enabled: true
   gateway:
     enabled: true
+    host: example.com
 appLabels: 
       test: thyjhgfv
 containerSpec:
@@ -91,12 +92,18 @@ image:
   pullPolicy: IfNotPresent
 
 autoscaling:
-  enabled: true
+  enabled: false
   MinReplicas: 1
   MaxReplicas: 2
-  TargetCPUUtilizationPercentage: 90
+  TargetCPUUtilizationPercentage: 70
   TargetMemoryUtilizationPercentage: 80
+  annotations: {}
+  labels: {}
   behavior: {}
+  containerResource:
+    enabled: false
+    TargetCPUUtilizationPercentage: 90
+    TargetMemoryUtilizationPercentage: 80  
 #    scaleDown:
 #      stabilizationWindowSeconds: 300
 #      policies:

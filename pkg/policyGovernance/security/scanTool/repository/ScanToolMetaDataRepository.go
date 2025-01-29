@@ -17,39 +17,41 @@
 package repository
 
 import (
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
-type ScanTargetType string
-
 type ScanToolMetadata struct {
-	tableName                struct{}       `sql:"scan_tool_metadata" pg:",discard_unknown_columns"`
-	Id                       int            `sql:"id,pk"`
-	Name                     string         `sql:"name"`
-	Version                  string         `sql:"version"`
-	ServerBaseUrl            string         `sql:"server_base_url"`
-	ResultDescriptorTemplate string         `sql:"result_descriptor_template"`
-	ScanTarget               ScanTargetType `sql:"scan_target"`
-	Active                   bool           `sql:"active,notnull"`
-	Deleted                  bool           `sql:"deleted,notnull"`
-	ToolMetaData             string         `sql:"tool_metadata"`
+	tableName                struct{}            `sql:"scan_tool_metadata" pg:",discard_unknown_columns"`
+	Id                       int                 `sql:"id,pk"`
+	Name                     string              `sql:"name"`
+	Version                  string              `sql:"version"`
+	ServerBaseUrl            string              `sql:"server_base_url"`
+	ResultDescriptorTemplate string              `sql:"result_descriptor_template"`
+	ScanTarget               bean.ScanTargetType `sql:"scan_target"`
+	Active                   bool                `sql:"active,notnull"`
+	Deleted                  bool                `sql:"deleted,notnull"`
+	ToolMetaData             string              `sql:"tool_metadata"`
+	PluginId                 int                 `sql:"plugin_id"`
+	IsPreset                 bool                `sql:"is_preset,notnull"`
+	Url                      string              `sql:"url"`
 	sql.AuditLog
 }
 
 type ScanToolMetadataRepository interface {
-	FindActiveToolByScanTarget(scanTarget ScanTargetType) (*ScanToolMetadata, error)
+	FindActiveToolByScanTarget(scanTarget bean.ScanTargetType) (*ScanToolMetadata, error)
 	FindByNameAndVersion(name, version string) (*ScanToolMetadata, error)
 	FindActiveById(id int) (*ScanToolMetadata, error)
-	Save(model *ScanToolMetadata) (*ScanToolMetadata, error)
+	Save(tx *pg.Tx, model *ScanToolMetadata) (*ScanToolMetadata, error)
 	Update(model *ScanToolMetadata) (*ScanToolMetadata, error)
 	MarkToolDeletedById(id int) error
 	FindAllActiveTools() ([]*ScanToolMetadata, error)
 	MarkToolAsActive(toolName, version string, tx *pg.Tx) error
 	MarkOtherToolsInActive(toolName string, tx *pg.Tx, version string) error
 	FindActiveTool() (*ScanToolMetadata, error)
-	FindNameById(id int) (string, error)
+	FindNameAndUrlById(id int) (string, string, error)
 }
 
 type ScanToolMetadataRepositoryImpl struct {
@@ -65,7 +67,7 @@ func NewScanToolMetadataRepositoryImpl(dbConnection *pg.DB,
 	}
 }
 
-func (repo *ScanToolMetadataRepositoryImpl) FindActiveToolByScanTarget(scanTargetType ScanTargetType) (*ScanToolMetadata, error) {
+func (repo *ScanToolMetadataRepositoryImpl) FindActiveToolByScanTarget(scanTargetType bean.ScanTargetType) (*ScanToolMetadata, error) {
 	var model ScanToolMetadata
 	err := repo.dbConnection.Model(&model).Where("active = ?", true).
 		Where("scan_target = ?", scanTargetType).
@@ -101,12 +103,21 @@ func (repo *ScanToolMetadataRepositoryImpl) FindActiveById(id int) (*ScanToolMet
 	return model, nil
 }
 
-func (repo *ScanToolMetadataRepositoryImpl) Save(model *ScanToolMetadata) (*ScanToolMetadata, error) {
-	err := repo.dbConnection.Insert(model)
-	if err != nil {
-		repo.logger.Errorw("error in saving scan tool metadata", "err", err, "model", model)
-		return nil, err
+func (repo *ScanToolMetadataRepositoryImpl) Save(tx *pg.Tx, model *ScanToolMetadata) (*ScanToolMetadata, error) {
+	if tx != nil {
+		err := tx.Insert(model)
+		if err != nil {
+			repo.logger.Errorw("error in saving scan tool metadata using transaction", "model", model, "err", err)
+			return nil, err
+		}
+	} else {
+		err := repo.dbConnection.Insert(model)
+		if err != nil {
+			repo.logger.Errorw("error in saving scan tool metadata", "model", model, "err", err)
+			return nil, err
+		}
 	}
+
 	return model, nil
 }
 
@@ -145,7 +156,7 @@ func (repo *ScanToolMetadataRepositoryImpl) MarkToolAsActive(toolName, version s
 	_, err := tx.Model(model).Set("active = ?", true).Where("name = ?", toolName).Where("version = ?", version).Update()
 
 	if err != nil {
-		repo.logger.Errorw("error in marking tool active for scan target", "err", err)
+		repo.logger.Errorw("error in marking tool active for scan target", "toolName", toolName, "err", err)
 		return err
 	}
 	return nil
@@ -155,14 +166,14 @@ func (repo *ScanToolMetadataRepositoryImpl) MarkOtherToolsInActive(toolName stri
 	_, err := tx.Model(model).Set("active = ?", false).Where("name != ?", toolName).Where("version != ?", version).Update()
 
 	if err != nil {
-		repo.logger.Errorw("error in marking tool active for scan target", "err", err)
+		repo.logger.Errorw("error in marking tool active for scan target", "toolName", toolName, "err", err)
 		return err
 	}
 	return nil
 }
 func (repo *ScanToolMetadataRepositoryImpl) FindActiveTool() (*ScanToolMetadata, error) {
-	var model *ScanToolMetadata
-	err := repo.dbConnection.Model(&model).Where("active = ?", true).
+	model := &ScanToolMetadata{}
+	err := repo.dbConnection.Model(model).Where("active = ?", true).
 		Where("deleted = ?", false).Select()
 	if err != nil {
 		repo.logger.Errorw("error in getting active tool for scan target", "err", err)
@@ -172,12 +183,12 @@ func (repo *ScanToolMetadataRepositoryImpl) FindActiveTool() (*ScanToolMetadata,
 
 }
 
-func (repo *ScanToolMetadataRepositoryImpl) FindNameById(id int) (string, error) {
+func (repo *ScanToolMetadataRepositoryImpl) FindNameAndUrlById(id int) (string, string, error) {
 	model := &ScanToolMetadata{}
-	err := repo.dbConnection.Model(model).Column("name").Where("id = ?", id).Select()
+	err := repo.dbConnection.Model(model).Column("name", "url").Where("id = ?", id).Select()
 	if err != nil {
 		repo.logger.Errorw("error in getting tool name by id", "err", err, "id", id)
-		return "", err
+		return "", "", err
 	}
-	return model.Name, nil
+	return model.Name, model.Url, nil
 }
