@@ -44,11 +44,16 @@ func NewCommonBaseServiceImpl(logger *zap.SugaredLogger, envVariables *util.Envi
 
 func (impl *CommonBaseServiceImpl) isGitOpsEnable() (bool, error) {
 	if !impl.globalEnvVariables.DeploymentServiceTypeConfig.EnableMigrateArgoCdApplication {
-		return false, nil
+		argoModule, err := impl.moduleReadService.GetModuleInfoByName(bean.ModuleNameArgoCd)
+		if err != nil && !errors.Is(err, moduleErr.ModuleNotFoundError) {
+			impl.logger.Errorw("error in getting argo module", "error", err)
+			return false, err
+		}
+		return argoModule.IsInstalled(), nil
 	}
 	ciCdModule, err := impl.moduleReadService.GetModuleInfoByName(bean.ModuleNameCiCd)
 	if err != nil && !errors.Is(err, moduleErr.ModuleNotFoundError) {
-		impl.logger.Errorw("error in getting argo module", "error", err)
+		impl.logger.Errorw("error in getting ci cd module", "error", err)
 		return false, err
 	}
 	return ciCdModule.IsInstalled(), nil
