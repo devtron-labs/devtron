@@ -46,7 +46,7 @@ type DeploymentConfig struct {
 	RepoUrl           string   `sql:"repo_url"`
 	RepoName          string   `sql:"repo_name"`
 	ReleaseMode       string   `sql:"release_mode"`
-	ReleaseConfig     []byte   `sql:"release_config"`
+	ReleaseConfig     string   `sql:"release_config"`
 	Active            bool     `sql:"active,notnull"`
 	sql.AuditLog
 }
@@ -206,6 +206,7 @@ func (impl *RepositoryImpl) GetConfigByAppIds(appIds []int) ([]*DeploymentConfig
 	return results, err
 }
 
+// TODO Asutosh: why filter only Custom. Should be all !!!!
 func (impl *RepositoryImpl) GetAllConfigsWithCustomGitOpsURL() ([]*DeploymentConfig, error) {
 	result := make([]*DeploymentConfig, 0)
 	err := impl.dbConnection.Model(&result).

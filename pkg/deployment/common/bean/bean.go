@@ -1,10 +1,8 @@
 package bean
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/util"
-	"log"
 	"strconv"
 	"strings"
 )
@@ -25,9 +23,22 @@ type ArgoCDSpec struct {
 	Spec     ApplicationSpec     `json:"spec"`
 }
 
+func (a *ArgoCDSpec) SetApplicationObjectClusterId(clusterId int) {
+	a.Metadata.ClusterId = clusterId
+}
+
+func (a *ArgoCDSpec) GetApplicationObjectClusterId() int {
+	return a.Metadata.ClusterId
+}
+
+func (a *ArgoCDSpec) GetApplicationObjectNamespace() string {
+	return a.Metadata.Namespace
+}
+
 type ApplicationMetadata struct {
 	ClusterId int    `json:"clusterId"`
 	Namespace string `json:"namespace"`
+	Name      string `json:"name"`
 }
 
 type ApplicationSpec struct {
@@ -139,18 +150,6 @@ type ManagedNamespaceMetadata struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
-func (r *ReleaseConfiguration) JSON() []byte {
-	if r == nil {
-		return nil
-	}
-	releaseConfigJson, err := json.Marshal(r)
-	if err != nil {
-		log.Print("error in marshaling releaseConfiguration", "err")
-		return nil
-	}
-	return releaseConfigJson
-}
-
 type DeploymentConfigMin struct {
 	DeploymentAppType string
 	ReleaseMode       string
@@ -207,21 +206,21 @@ func (d *DeploymentConfig) IsEmpty() bool {
 }
 
 func (d *DeploymentConfig) GetRepoURL() string {
-	if d.ReleaseConfiguration == nil {
+	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil {
 		return ""
 	}
 	return d.ReleaseConfiguration.ArgoCDSpec.Spec.Source.RepoURL
 }
 
 func (d *DeploymentConfig) GetTargetRevision() string {
-	if d.ReleaseConfiguration == nil {
+	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil {
 		return ""
 	}
 	return d.ReleaseConfiguration.ArgoCDSpec.Spec.Source.TargetRevision
 }
 
 func (d *DeploymentConfig) GetValuesFilePath() string {
-	if d.ReleaseConfiguration == nil {
+	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil {
 		return ""
 	}
 	// currently we only support a single value file
@@ -233,25 +232,74 @@ func (d *DeploymentConfig) GetValuesFilePath() string {
 }
 
 func (d *DeploymentConfig) GetChartLocation() string {
-	if d.ReleaseConfiguration == nil {
+	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil {
 		return ""
 	}
 	return d.ReleaseConfiguration.ArgoCDSpec.Spec.Source.Path
 }
 
 func (d *DeploymentConfig) SetRepoURL(repoURL string) *DeploymentConfig {
-	if d.ReleaseConfiguration == nil {
+	if d.ReleaseConfiguration == nil || d.ReleaseConfiguration.ArgoCDSpec.Spec.Source == nil {
 		return d
 	}
 	d.ReleaseConfiguration.ArgoCDSpec.Spec.Source.RepoURL = repoURL
 	return d
 }
 
-func (d *DeploymentConfig) GetRevision() string {
-	if d.ReleaseConfiguration == nil {
-		return ""
+func (c *DeploymentConfig) SetChartLocation(chartLocation string) {
+	if c.ReleaseConfiguration != nil && c.ReleaseConfiguration.ArgoCDSpec.Spec.Source != nil {
+		c.ReleaseConfiguration.ArgoCDSpec.Spec.Source.Chart = chartLocation
 	}
-	return d.ReleaseConfiguration.ArgoCDSpec.Spec.Source.TargetRevision
+}
+
+func (c *DeploymentConfig) GetRevision() string {
+	if c.ReleaseConfiguration != nil && c.ReleaseConfiguration.ArgoCDSpec.Spec.Source != nil {
+		return c.ReleaseConfiguration.ArgoCDSpec.Spec.Source.TargetRevision
+	}
+	return ""
+}
+
+func (c *DeploymentConfig) GetAcdAppName() string {
+	if c.ReleaseConfiguration != nil {
+		return c.ReleaseConfiguration.ArgoCDSpec.Metadata.Name
+	}
+	return ""
+}
+
+func (c *DeploymentConfig) GetValuesFileName() string {
+	if c.ReleaseConfiguration != nil && c.ReleaseConfiguration.ArgoCDSpec.Spec.Source != nil &&
+		c.ReleaseConfiguration.ArgoCDSpec.Spec.Source.Helm != nil {
+		return c.ReleaseConfiguration.ArgoCDSpec.Spec.Source.Helm.ValueFiles[0]
+	}
+	return ""
+}
+
+func (c *DeploymentConfig) GetDestinationClusterURL() string {
+	if c.ReleaseConfiguration != nil && c.ReleaseConfiguration.ArgoCDSpec.Spec.Destination != nil {
+		return c.ReleaseConfiguration.ArgoCDSpec.Spec.Destination.Server
+	}
+	return ""
+}
+
+func (c *DeploymentConfig) GetDestinationNamespace() string {
+	if c.ReleaseConfiguration != nil && c.ReleaseConfiguration.ArgoCDSpec.Spec.Destination != nil {
+		return c.ReleaseConfiguration.ArgoCDSpec.Spec.Destination.Namespace
+	}
+	return ""
+}
+
+func (c *DeploymentConfig) GetApplicationObjectClusterId() int {
+	if c.ReleaseConfiguration != nil {
+		return c.ReleaseConfiguration.ArgoCDSpec.GetApplicationObjectClusterId()
+	}
+	return 0
+}
+
+func (c *DeploymentConfig) SetApplicationObjectClusterId(id int) {
+	if c.ReleaseConfiguration != nil {
+		c.ReleaseConfiguration.ArgoCDSpec.SetApplicationObjectClusterId(id)
+	}
+	return
 }
 
 type UniqueDeploymentConfigIdentifier string

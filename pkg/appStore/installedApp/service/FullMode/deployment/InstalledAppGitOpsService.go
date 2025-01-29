@@ -30,7 +30,7 @@ import (
 	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
 	validationBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/validation/bean"
-	util2 "github.com/devtron-labs/devtron/util"
+	globalUtil "github.com/devtron-labs/devtron/util"
 	"github.com/google/go-github/github"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/xanzy/go-gitlab"
@@ -53,7 +53,7 @@ type InstalledAppGitOpsService interface {
 	// git.GitOperationService.CommitValues (If repo exists and Repo migration is not needed)
 	// functions to perform GitOps during upgrade deployments (GitOps based Helm Apps)
 	UpdateAppGitOpsOperations(manifest *bean.AppStoreManifestResponse, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, monoRepoMigrationRequired bool, commitRequirements bool) (*bean.AppStoreGitOpsResponse, error)
-	ValidateCustomGitRepoURL(request validationBean.ValidateCustomGitRepoURLRequest) (string, bool, error)
+	ValidateCustomGitRepoURL(request validationBean.ValidateGitOpsRepoRequest) (string, bool, error)
 	CreateArgoRepoSecretIfNeeded(appStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
 }
 
@@ -314,7 +314,7 @@ func (impl *FullModeDeploymentServiceImpl) getGitCommitConfig(installAppVersionR
 		return nil, err
 	}
 
-	argoCdAppName := util2.BuildDeployedAppName(installAppVersionRequest.AppName, environment.Name)
+	argoCdAppName := globalUtil.BuildDeployedAppName(installAppVersionRequest.AppName, environment.Name)
 	if util.IsAcdApp(installAppVersionRequest.DeploymentAppType) &&
 		len(installAppVersionRequest.GitOpsRepoURL) == 0 &&
 		installAppVersionRequest.InstalledAppId != 0 {
@@ -393,7 +393,8 @@ func (impl *FullModeDeploymentServiceImpl) getValuesAndRequirementForGitConfig(i
 	return valuesConfig, RequirementConfig, nil
 }
 
-func (impl *FullModeDeploymentServiceImpl) ValidateCustomGitRepoURL(request validationBean.ValidateCustomGitRepoURLRequest) (string, bool, error) {
+func (impl *FullModeDeploymentServiceImpl) ValidateCustomGitRepoURL(request validationBean.ValidateGitOpsRepoRequest) (string, bool, error) {
+	request.TargetRevision = globalUtil.GetDefaultTargetRevision()
 	return impl.gitOpsValidationService.ValidateCustomGitRepoURL(request)
 }
 

@@ -856,7 +856,7 @@ func (impl *TriggerServiceImpl) TriggerRelease(ctx context.Context, overrideRequ
 		return releaseNo, manifestPushTemplate, nil
 	}
 	// build merged values and save PCO history for the release
-	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(newCtx, overrideRequest, nil, triggeredAt)
+	valuesOverrideResponse, builtChartPath, err := impl.manifestCreationService.BuildManifestForTrigger(newCtx, overrideRequest, envDeploymentConfig, triggeredAt)
 
 	// auditDeploymentTriggerHistory is performed irrespective of BuildManifestForTrigger error - for auditing purposes
 	historyErr := impl.auditDeploymentTriggerHistory(overrideRequest.WfrId, valuesOverrideResponse, newCtx, triggeredAt, triggeredBy)

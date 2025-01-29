@@ -37,7 +37,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/helper"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
+	errors2 "github.com/juju/errors"
 	"go.uber.org/zap"
+	"path/filepath"
 )
 
 type DeploymentConfigService interface {
@@ -51,6 +53,7 @@ type DeploymentConfigService interface {
 	UpdateRepoUrlForAppAndEnvId(repoURL string, appId, envId int) error
 	GetConfigsByAppIds(appIds []int) ([]*bean.DeploymentConfig, error)
 	GetAllConfigsWithCustomGitOpsURL() ([]*bean.DeploymentConfig, error)
+	UpdateChartLocationInDeploymentConfig(appId, envId, chartRefId int, userId int32, chartVersion string) error
 }
 
 type DeploymentConfigServiceImpl struct {
@@ -63,6 +66,7 @@ type DeploymentConfigServiceImpl struct {
 	deploymentServiceTypeConfig *util.DeploymentServiceTypeConfig
 	envConfigOverrideService    read.EnvConfigOverrideService
 	environmentRepository       repository.EnvironmentRepository
+	chartRefRepository          chartRepoRepository.ChartRefRepository
 }
 
 func NewDeploymentConfigServiceImpl(
@@ -75,6 +79,7 @@ func NewDeploymentConfigServiceImpl(
 	envVariables *util.EnvironmentVariables,
 	envConfigOverrideService read.EnvConfigOverrideService,
 	environmentRepository repository.EnvironmentRepository,
+	chartRefRepository chartRepoRepository.ChartRefRepository,
 ) *DeploymentConfigServiceImpl {
 
 	return &DeploymentConfigServiceImpl{
@@ -87,6 +92,7 @@ func NewDeploymentConfigServiceImpl(
 		deploymentServiceTypeConfig: envVariables.DeploymentServiceTypeConfig,
 		envConfigOverrideService:    envConfigOverrideService,
 		environmentRepository:       environmentRepository,
+		chartRefRepository:          chartRefRepository,
 	}
 }
 
@@ -255,8 +261,8 @@ func (impl *DeploymentConfigServiceImpl) parseAppLevelReleaseConfigForDevtronApp
 	if len(appLevelConfig.RepoURL) > 0 {
 		repoURL = appLevelConfig.RepoURL
 	}
-
-	releaseConfig := newAppLevelReleaseConfigFromChart(repoURL, chart.ChartLocation)
+	chartLocation := filepath.Join(chart.ReferenceTemplate, chart.ChartVersion)
+	releaseConfig := newAppLevelReleaseConfigFromChart(repoURL, chartLocation)
 	return releaseConfig, nil
 }
 
@@ -377,7 +383,9 @@ func (impl *DeploymentConfigServiceImpl) parseAppLevelMigrationDataForDevtronApp
 	if err != nil {
 		return nil, err
 	}
-	releaseConfig := newAppLevelReleaseConfigFromChart(chart.GitRepoUrl, chart.ChartLocation)
+
+	chartLocation := filepath.Join(chart.ReferenceTemplate, chart.ChartVersion)
+	releaseConfig := newAppLevelReleaseConfigFromChart(chart.GitRepoUrl, chartLocation)
 	config := &bean.DeploymentConfig{
 		AppId:                appId,
 		ConfigType:           GetDeploymentConfigType(chart.IsCustomGitRepository),
@@ -432,13 +440,13 @@ func (impl *DeploymentConfigServiceImpl) parseEnvLevelReleaseConfigForDevtronApp
 
 		releaseConfig.Version = bean.Version
 
-		envOverride, err := impl.envConfigOverrideService.ActiveEnvConfigOverride(appId, envId)
-		if err != nil {
+		envOverride, err := impl.envConfigOverrideService.FindLatestChartForAppByAppIdAndEnvId(appId, envId)
+		if err != nil && !errors2.IsNotFound(err) {
+			impl.logger.Errorw("error in fetch")
 			return nil, err
 		}
-
 		var latestChart *chartRepoRepository.Chart
-		if (envOverride.Id == 0) || (envOverride.Id > 0 && !envOverride.IsOverride) {
+		if envOverride == nil || envOverride.Id == 0 || (envOverride.Id > 0 && !envOverride.IsOverride) {
 			latestChart, err = impl.chartRepository.FindLatestChartForAppByAppId(appId)
 			if err != nil {
 				return nil, err
@@ -717,4 +725,28 @@ func (impl *DeploymentConfigServiceImpl) GetAllConfigsWithCustomGitOpsURL() ([]*
 		configs = append(configs, config)
 	}
 	return configs, nil
+}
+
+func (impl *DeploymentConfigServiceImpl) UpdateChartLocationInDeploymentConfig(appId, envId, chartRefId int, userId int32, chartVersion string) error {
+	config, err := impl.GetConfigForDevtronApps(appId, envId)
+	if err != nil {
+		impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", appId, "envId", envId, "err", err)
+		return err
+	}
+	if config.ReleaseMode == util2.PIPELINE_RELEASE_MODE_CREATE && config.DeploymentAppType == bean4.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		chartRef, err := impl.chartRefRepository.FindById(chartRefId)
+		if err != nil {
+			impl.logger.Errorw("error in ChartRefRepository.FindById", "chartRefId", chartRefId, "err", err)
+			return err
+		}
+		//TODO: ayush common function for chart location
+		chartLocation := filepath.Join(chartRef.Location, chartVersion)
+		config.SetChartLocation(chartLocation)
+		config, err = impl.CreateOrUpdateConfig(nil, config, userId)
+		if err != nil {
+			impl.logger.Errorw("error in CreateOrUpdateConfig", "appId", appId, "envId", envId, "err", err)
+			return err
+		}
+	}
+	return nil
 }

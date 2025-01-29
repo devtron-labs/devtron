@@ -86,6 +86,10 @@ type ApplicationClientWrapper interface {
 	// GetArgoAppByName fetches an argoCd app by its name
 	GetArgoAppByName(ctx context.Context, appName string) (*v1alpha1.Application, error)
 
+	GetArgoAppByNameWithK8sClient(ctx context.Context, clusterId int, namespace, appName string) (map[string]interface{}, error)
+
+	DeleteArgoAppWithK8sClient(ctx context.Context, clusterId int, namespace, appName string, cascadeDelete bool) error
+
 	// SyncArgoCDApplicationIfNeededAndRefresh - if ARGO_AUTO_SYNC_ENABLED=true, app will be refreshed to initiate refresh at argoCD side or else it will be synced and refreshed
 	SyncArgoCDApplicationIfNeededAndRefresh(ctx context.Context, argoAppName, targetRevision string) error
 
@@ -150,6 +154,7 @@ type ArgoClientWrapperServiceImpl struct {
 	gitOperationService     git.GitOperationService
 	asyncRunnable           *async.Runnable
 	acdConfigGetter         config2.ArgoCDConfigGetter
+	argoK8sClient           ArgoK8sClient
 	*ArgoClientWrapperServiceEAImpl
 }
 
@@ -164,6 +169,7 @@ func NewArgoClientWrapperServiceImpl(
 	gitOperationService git.GitOperationService, asyncRunnable *async.Runnable,
 	acdConfigGetter config2.ArgoCDConfigGetter,
 	ArgoClientWrapperServiceEAImpl *ArgoClientWrapperServiceEAImpl,
+	argoK8sClient ArgoK8sClient,
 ) *ArgoClientWrapperServiceImpl {
 	return &ArgoClientWrapperServiceImpl{
 		acdApplicationClient:           acdClient,
@@ -178,6 +184,7 @@ func NewArgoClientWrapperServiceImpl(
 		asyncRunnable:                  asyncRunnable,
 		acdConfigGetter:                acdConfigGetter,
 		ArgoClientWrapperServiceEAImpl: ArgoClientWrapperServiceEAImpl,
+		argoK8sClient:                  argoK8sClient,
 	}
 }
 
@@ -398,6 +405,34 @@ func (impl *ArgoClientWrapperServiceImpl) GetArgoAppByName(ctx context.Context, 
 		return nil, err
 	}
 	return argoApplication, nil
+}
+
+func (impl *ArgoClientWrapperServiceImpl) GetArgoAppByNameWithK8sClient(ctx context.Context, clusterId int, namespace, appName string) (map[string]interface{}, error) {
+	k8sConfig, err := impl.acdConfigGetter.GetK8sConfigWithClusterIdAndNamespace(clusterId, namespace)
+	if err != nil {
+		impl.logger.Errorw("error in getting k8s config", "err", err)
+		return nil, err
+	}
+	argoApplication, err := impl.argoK8sClient.GetArgoApplication(k8sConfig, appName)
+	if err != nil {
+		impl.logger.Errorw("err in getting argo app by name", "app", appName)
+		return nil, err
+	}
+	return argoApplication, nil
+}
+
+func (impl *ArgoClientWrapperServiceImpl) DeleteArgoAppWithK8sClient(ctx context.Context, clusterId int, namespace, appName string, cascadeDelete bool) error {
+	k8sConfig, err := impl.acdConfigGetter.GetK8sConfigWithClusterIdAndNamespace(clusterId, namespace)
+	if err != nil {
+		impl.logger.Errorw("error in getting k8s config", "err", err)
+		return err
+	}
+	err = impl.argoK8sClient.DeleteArgoApplication(ctx, k8sConfig, appName, cascadeDelete)
+	if err != nil {
+		impl.logger.Errorw("err in getting argo app by name", "app", appName)
+		return err
+	}
+	return nil
 }
 
 func (impl *ArgoClientWrapperServiceImpl) IsArgoAppPatchRequired(argoAppSpec *v1alpha1.ApplicationSource, currentGitRepoUrl, currentTargetRevision, currentChartPath string) bool {

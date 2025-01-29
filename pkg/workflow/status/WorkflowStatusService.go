@@ -230,7 +230,22 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 		}
 		// this should only be called when we have git-ops configured
 		// try fetching status from argo cd
-		app, err := impl.argocdClientWrapperService.GetArgoAppByName(context.Background(), pipeline.DeploymentAppName)
+		dc, err := impl.deploymentConfigService.GetConfigForDevtronApps(pipeline.AppId, pipeline.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", pipeline.AppId, "environmentId", pipeline.EnvironmentId, "err", err)
+			return nil, isTimelineUpdated
+		}
+		applicationObjectClusterId := dc.ReleaseConfiguration.ArgoCDSpec.GetApplicationObjectClusterId()
+		applicationObjectNamespace := dc.ReleaseConfiguration.ArgoCDSpec.GetApplicationObjectNamespace()
+
+		appMapObj, err := impl.argocdClientWrapperService.GetArgoAppByNameWithK8sClient(context.Background(), applicationObjectClusterId, applicationObjectNamespace, pipeline.DeploymentAppName)
+
+		app, err := argocdServer.GetAppObject(appMapObj)
+		if err != nil {
+			impl.logger.Errorw("error in getting app object by app name and id", "err", err)
+			return nil, isTimelineUpdated
+		}
+
 		if err != nil {
 			impl.logger.Errorw("error in getting acd application", "err", err, "argoAppName", pipeline)
 			// updating cdWfr status
@@ -265,7 +280,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 				impl.logger.Errorw("found empty argo application object", "appName", pipeline.DeploymentAppName)
 				return fmt.Errorf("found empty argo application object"), isTimelineUpdated
 			}
-			isSucceeded, isTimelineUpdated, pipelineOverride, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, time.Now(), isAppStore)
+			isSucceeded, isTimelineUpdated, pipelineOverride, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, applicationObjectClusterId, time.Now(), isAppStore)
 			if err != nil {
 				impl.logger.Errorw("error in updating deployment status for gitOps cd pipelines", "app", app, "err", err)
 				return err, isTimelineUpdated
@@ -298,6 +313,13 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 			impl.logger.Errorw("error in getting latest installedAppVersionHistory by installedAppId", "err", err, "installedAppId", installedApp.Id)
 			return nil, isTimelineUpdated
 		}
+		dc, err := impl.deploymentConfigService.GetConfigForDevtronApps(installedApp.AppId, installedApp.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("error, GetConfigForDevtronApps", "appId", pipeline.AppId, "environmentId", pipeline.EnvironmentId, "err", err)
+			return nil, isTimelineUpdated
+		}
+		applicationObjectClusterId := dc.ReleaseConfiguration.ArgoCDSpec.GetApplicationObjectClusterId()
+
 		impl.logger.Debugw("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "checkingDeploymentStatus", "installedApp", installedApp, "installedAppVersionHistory", installedAppVersionHistory)
 		if util3.IsTerminalRunnerStatus(installedAppVersionHistory.Status) {
 			// drop event
@@ -360,7 +382,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 				impl.logger.Errorw("found empty argo application object", "appName", acdAppName)
 				return fmt.Errorf("found empty argo application object"), isTimelineUpdated
 			}
-			isSucceeded, isTimelineUpdated, pipelineOverride, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, time.Now(), isAppStore)
+			isSucceeded, isTimelineUpdated, pipelineOverride, err = impl.appService.UpdateDeploymentStatusForGitOpsPipelines(app, applicationObjectClusterId, time.Now(), isAppStore)
 			if err != nil {
 				impl.logger.Errorw("error in updating deployment status for gitOps cd pipelines", "app", app)
 				return err, isTimelineUpdated

@@ -121,7 +121,7 @@ type PipelineRepository interface {
 	FindIdsByAppIdsAndEnvironmentIds(appIds, environmentIds []int) (ids []int, err error)
 	FindIdsByProjectIdsAndEnvironmentIds(projectIds, environmentIds []int) ([]int, error)
 
-	GetArgoPipelineByArgoAppName(argoAppName string) (Pipeline, error)
+	GetArgoPipelineByArgoAppName(argoAppName string) ([]Pipeline, error)
 	FindActiveByAppIds(appIds []int) (pipelines []*Pipeline, err error)
 	FindAppAndEnvironmentAndProjectByPipelineIds(pipelineIds []int) (pipelines []*Pipeline, err error)
 	FilterDeploymentDeleteRequestedPipelineIds(cdPipelineIds []int) (map[int]bool, error)
@@ -698,8 +698,8 @@ func (impl PipelineRepositoryImpl) FindIdsByProjectIdsAndEnvironmentIds(projectI
 	return pipelineIds, err
 }
 
-func (impl PipelineRepositoryImpl) GetArgoPipelineByArgoAppName(argoAppName string) (Pipeline, error) {
-	var pipeline Pipeline
+func (impl PipelineRepositoryImpl) GetArgoPipelineByArgoAppName(argoAppName string) ([]Pipeline, error) {
+	var pipeline []Pipeline
 	err := impl.dbConnection.Model(&pipeline).
 		Join("LEFT JOIN deployment_config dc on dc.app_id = pipeline.app_id and dc.environment_id=pipeline.environment_id and dc.active=true").
 		Column("pipeline.*", "Environment").

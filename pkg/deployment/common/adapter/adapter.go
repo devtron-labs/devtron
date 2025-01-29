@@ -14,6 +14,10 @@ func NewDeploymentConfigMin(deploymentAppType, releaseMode string) *bean.Deploym
 }
 
 func ConvertDeploymentConfigDTOToDbObj(config *bean.DeploymentConfig) (*deploymentConfig.DeploymentConfig, error) {
+	releaseConfigJson, err := json.Marshal(config.ReleaseConfiguration)
+	if err != nil {
+		return nil, err
+	}
 	return &deploymentConfig.DeploymentConfig{
 		Id:                config.Id,
 		AppId:             config.AppId,
@@ -23,15 +27,16 @@ func ConvertDeploymentConfigDTOToDbObj(config *bean.DeploymentConfig) (*deployme
 		ConfigType:        config.ConfigType,
 		Active:            config.Active,
 		ReleaseMode:       config.ReleaseMode,
-		ReleaseConfig:     config.ReleaseConfiguration.JSON(),
+		ReleaseConfig:     string(releaseConfigJson),
 	}, nil
 }
+
 func ConvertDeploymentConfigDbObjToDTO(dbObj *deploymentConfig.DeploymentConfig) (*bean.DeploymentConfig, error) {
 
 	var releaseConfig bean.ReleaseConfiguration
 
-	if dbObj.ReleaseConfig != nil {
-		err := json.Unmarshal(dbObj.ReleaseConfig, &releaseConfig)
+	if len(dbObj.ReleaseConfig) != 0 {
+		err := json.Unmarshal([]byte(dbObj.ReleaseConfig), &releaseConfig)
 		if err != nil {
 			return nil, err
 		}

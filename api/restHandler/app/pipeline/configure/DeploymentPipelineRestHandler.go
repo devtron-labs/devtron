@@ -80,6 +80,7 @@ type DevtronAppDeploymentRestHandler interface {
 	GetCdPipelinesByEnvironmentMin(w http.ResponseWriter, r *http.Request)
 
 	ChangeChartRef(w http.ResponseWriter, r *http.Request)
+	ValidateArgoCDAppLinkRequest(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppDeploymentConfigRestHandler interface {
@@ -2544,4 +2545,50 @@ func (handler *PipelineConfigRestHandlerImpl) getCdPipelinesForCdPatchRbac(deplo
 		cdPipelineIds = append(cdPipelineIds, cdWfMapping.ComponentId)
 	}
 	return handler.pipelineRepository.FindByIdsIn(cdPipelineIds)
+}
+
+func (handler *PipelineConfigRestHandlerImpl) ValidateArgoCDAppLinkRequest(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	var request pipelineBean.ArgoCDAppLinkValidationRequest
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.Logger.Errorw("request err, request", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	app, err := handler.pipelineBuilder.GetApp(request.AppId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	env, err := handler.EnvironmentRepository.FindOneByNamespaceAndClusterId(request.Namespace, request.ClusterId)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("error in getting environment for given clusterId and namespace"), nil, http.StatusBadRequest)
+		return
+	}
+
+	envObject := handler.enforcerUtil.GetEnvRBACNameByAppId(app.Id, env.Id)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	response := handler.pipelineBuilder.ValidateLinkExternalArgoCDRequest(request)
+
+	common.WriteJsonResp(w, err, response, http.StatusOK)
 }

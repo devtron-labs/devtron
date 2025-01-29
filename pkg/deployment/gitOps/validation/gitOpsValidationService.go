@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/installedApp/service/FullMode"
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
+	commonBean "github.com/devtron-labs/devtron/pkg/deployment/gitOps/common/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/git"
@@ -45,7 +46,7 @@ type GitOpsValidationService interface {
 	// ValidateCustomGitRepoURL performs the following validations:
 	// "Get Repo URL", "Create Repo (if it doesn't exist)", "Organisational URL Validation", "Unique GitOps Repo"
 	// And returns: RepoUrl and isNew Repository url and error
-	ValidateCustomGitRepoURL(request gitOpsBean.ValidateCustomGitRepoURLRequest) (string, bool, error)
+	ValidateCustomGitRepoURL(request gitOpsBean.ValidateGitOpsRepoRequest) (string, bool, error)
 }
 
 type GitOpsValidationServiceImpl struct {
@@ -164,17 +165,63 @@ func (impl *GitOpsValidationServiceImpl) GitOpsValidateDryRun(argoModule *module
 	return detailedErrorGitOpsConfigResponse
 }
 
-func (impl *GitOpsValidationServiceImpl) ValidateCustomGitRepoURL(request gitOpsBean.ValidateCustomGitRepoURLRequest) (string, bool, error) {
+func (impl *GitOpsValidationServiceImpl) validateForOrgGitOps(request gitOpsBean.ValidateGitOpsRepoRequest, chartGitAttribute *commonBean.ChartGitAttribute) (activeGitOpsErr error) {
+	activeGitOpsConfig, err := impl.gitOpsConfigReadService.GetAllGitOpsConfig()
+	if err != nil {
+		impl.logger.Errorw("error in fetching active gitOps config", "err", err)
+		return err
+	}
+	for _, gitOpsConfig := range activeGitOpsConfig {
+		if gitOpsConfig == nil {
+			continue
+		}
+		repoUrl := git.SanitiseCustomGitRepoURL(*gitOpsConfig, request.GitRepoURL)
+		orgRepoUrl := strings.TrimSuffix(chartGitAttribute.RepoUrl, ".git")
+		if !strings.Contains(strings.ToLower(repoUrl), strings.ToLower(orgRepoUrl)) {
+			// If the repo is non-organizational, then we need to check for other active gitOps config
+			impl.logger.Debugw("non-organisational custom gitops repo", "expected repo", chartGitAttribute.RepoUrl, "user given repo", repoUrl)
+			if gitOpsConfig.Active {
+				// If the active gitOps config is non-organizational, then we need to throw an error for the active gitOps config
+				activeGitOpsErr = impl.getValidationErrorForNonOrganisationalURL(*gitOpsConfig)
+			}
+		} else {
+			// If the repo is organizational, then we don't need to check for other active gitOps config
+			return nil
+		}
+	}
+	return activeGitOpsErr
+}
+
+func (impl *GitOpsValidationServiceImpl) validateForGitOps(request gitOpsBean.ValidateGitOpsRepoRequest, chartGitAttribute *commonBean.ChartGitAttribute) error {
+	// Validate: Organisational URL starts
+	if err := impl.validateForOrgGitOps(request, chartGitAttribute); err != nil {
+		impl.logger.Errorw("non-organisational custom gitops repo validation error", "err", err)
+		return err
+	}
+	// Validate: Organisational URL ends
+
+	// Validate: Unique GitOps repository URL starts
+	isValid := impl.validateUniqueGitOpsRepo(chartGitAttribute.RepoUrl)
+	if !isValid {
+		impl.logger.Errorw("git repo url already exists", "repo url", chartGitAttribute.RepoUrl)
+		return fmt.Errorf("invalid git repository! '%s' is already in use by another application! Use a different repository", chartGitAttribute.RepoUrl)
+	}
+	// Validate: Unique GitOps repository URL ends
+	return nil
+}
+
+func (impl *GitOpsValidationServiceImpl) ValidateCustomGitRepoURL(request gitOpsBean.ValidateGitOpsRepoRequest) (string, bool, error) {
 	gitOpsRepoName := ""
 	if request.GitRepoURL == apiBean.GIT_REPO_DEFAULT || len(request.GitRepoURL) == 0 {
 		gitOpsRepoName = impl.gitOpsConfigReadService.GetGitOpsRepoName(request.AppName)
 	} else {
 		gitOpsRepoName = impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(request.GitRepoURL)
 	}
-
+	if len(request.TargetRevision) == 0 {
+		request.TargetRevision = globalUtil.GetDefaultTargetRevision()
+	}
 	// CreateGitRepositoryForDevtronApp will try to create repository if not present, and returns a sanitized repo url, use this repo url to maintain uniformity
-	targetRevision := globalUtil.GetDefaultTargetRevision()
-	chartGitAttribute, err := impl.gitOperationService.CreateGitRepositoryForDevtronApp(context.Background(), gitOpsRepoName, targetRevision, request.UserId)
+	chartGitAttribute, err := impl.gitOperationService.CreateGitRepositoryForDevtronApp(context.Background(), gitOpsRepoName, request.TargetRevision, request.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in validating custom gitops repo", "err", err)
 		return "", false, impl.extractErrorMessageByProvider(err, request.GitOpsProvider)
@@ -183,34 +230,7 @@ func (impl *GitOpsValidationServiceImpl) ValidateCustomGitRepoURL(request gitOps
 	if request.GitRepoURL != apiBean.GIT_REPO_DEFAULT && len(request.GitRepoURL) != 0 {
 		// For custom git repo; we expect the chart is not present hence setting isNew flag to be true.
 		chartGitAttribute.IsNewRepo = true
-
-		// Validate: Organisational URL starts
-		activeGitOpsConfig, err := impl.gitOpsConfigReadService.GetGitOpsConfigActive()
-		if err != nil {
-			impl.logger.Errorw("error in fetching active gitOps config", "err", err)
-			return "", false, err
-		}
-		repoUrl := git.SanitiseCustomGitRepoURL(*activeGitOpsConfig, request.GitRepoURL)
-		orgRepoUrl := strings.TrimSuffix(chartGitAttribute.RepoUrl, ".git")
-		if !strings.Contains(strings.ToLower(repoUrl), strings.ToLower(orgRepoUrl)) {
-			impl.logger.Errorw("non-organisational custom gitops repo", "expected repo", chartGitAttribute.RepoUrl, "user given repo", repoUrl)
-			nonOrgErr := impl.getValidationErrorForNonOrganisationalURL(*activeGitOpsConfig)
-			if nonOrgErr != nil {
-				impl.logger.Errorw("non-organisational custom gitops repo validation error", "err", err)
-				return "", false, nonOrgErr
-			}
-		}
-		// Validate: Organisational URL ends
 	}
-
-	// Validate: Unique GitOps repository URL starts
-	isValid := impl.validateUniqueGitOpsRepo(chartGitAttribute.RepoUrl)
-	if !isValid {
-		impl.logger.Errorw("git repo url already exists", "repo url", chartGitAttribute.RepoUrl)
-		return "", false, fmt.Errorf("invalid git repository! '%s' is already in use by another application! Use a different repository", chartGitAttribute.RepoUrl)
-	}
-	// Validate: Unique GitOps repository URL ends
-
 	return chartGitAttribute.RepoUrl, chartGitAttribute.IsNewRepo, nil
 }
 

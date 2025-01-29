@@ -42,6 +42,7 @@ type GitOpsConfigReadService interface {
 	GetGitOpsRepoNameFromUrl(gitRepoUrl string) string
 	GetBitbucketMetadata() (*bean.BitbucketProviderMetadata, error)
 	GetGitOpsConfigActive() (*bean2.GitOpsConfigDto, error)
+	GetAllGitOpsConfig() ([]*bean2.GitOpsConfigDto, error)
 	GetConfiguredGitOpsCount() (int, error)
 	GetGitOpsProviderByRepoURL(gitRepoUrl string) (*bean2.GitOpsConfigDto, error)
 	GetGitOpsProviderMapByRepoURL(allGitRepoUrls []string) (map[string]*bean2.GitOpsConfigDto, error)
@@ -175,6 +176,39 @@ func (impl *GitOpsConfigReadServiceImpl) GetGitOpsConfigActive() (*bean2.GitOpsC
 		},
 	}
 	return config, err
+}
+
+func (impl *GitOpsConfigReadServiceImpl) GetAllGitOpsConfig() ([]*bean2.GitOpsConfigDto, error) {
+	models, err := impl.gitOpsRepository.GetAllGitOpsConfig()
+	if err != nil {
+		impl.logger.Errorw("error, GetGitOpsConfigActive", "err", err)
+		return nil, err
+	}
+	configs := make([]*bean2.GitOpsConfigDto, 0, len(models))
+	for _, model := range models {
+		configs = append(configs, &bean2.GitOpsConfigDto{
+			Id:                    model.Id,
+			Provider:              model.Provider,
+			GitHubOrgId:           model.GitHubOrgId,
+			GitLabGroupId:         model.GitLabGroupId,
+			Active:                model.Active,
+			Token:                 model.Token,
+			Host:                  model.Host,
+			Username:              model.Username,
+			UserId:                model.CreatedBy,
+			AzureProjectName:      model.AzureProject,
+			BitBucketWorkspaceId:  model.BitBucketWorkspaceId,
+			BitBucketProjectKey:   model.BitBucketProjectKey,
+			AllowCustomRepository: model.AllowCustomRepository,
+			TLSConfig: &bean3.TLSConfig{
+				CaData:      model.CaCert,
+				TLSCertData: model.TlsCert,
+				TLSKeyData:  model.TlsKey,
+			},
+			EnableTLSVerification: model.EnableTLSVerification,
+		})
+	}
+	return configs, err
 }
 
 func (impl *GitOpsConfigReadServiceImpl) GetConfiguredGitOpsCount() (int, error) {

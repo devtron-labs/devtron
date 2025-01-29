@@ -58,6 +58,10 @@ func (impl *ArgoClientWrapperServiceEAImpl) DeleteArgoApp(ctx context.Context, a
 	return nil, nil
 }
 
+func (impl *ArgoClientWrapperServiceEAImpl) DeleteArgoAppWithK8sClient(ctx context.Context, clusterId int, namespace, appName string, cascadeDelete bool) error {
+	return nil
+}
+
 func (impl *ArgoClientWrapperServiceEAImpl) SyncArgoCDApplicationIfNeededAndRefresh(ctx context.Context, argoAppName, targetRevision string) error {
 	impl.logger.Info("not implemented")
 	return nil
@@ -119,6 +123,11 @@ func (impl *ArgoClientWrapperServiceEAImpl) DeleteChartRepository(name, url stri
 }
 
 func (impl *ArgoClientWrapperServiceEAImpl) GetArgoAppByName(ctx context.Context, appName string) (*v1alpha1.Application, error) {
+	impl.logger.Info("not implemented for EA mode")
+	return nil, nil
+}
+
+func (impl *ArgoClientWrapperServiceEAImpl) GetArgoAppByNameWithK8sClient(ctx context.Context, clusterId int, namespace, appName string) (map[string]interface{}, error) {
 	impl.logger.Info("not implemented for EA mode")
 	return nil, nil
 }

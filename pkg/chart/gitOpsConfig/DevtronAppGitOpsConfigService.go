@@ -116,11 +116,12 @@ func (impl *DevtronAppGitOpConfigServiceImpl) SaveAppLevelGitOpsConfiguration(ap
 		impl.logger.Errorw("error in fetching latest chart for app by appId", "appId", appGitOpsRequest.AppId, "err", err)
 		return err
 	}
-	validateCustomGitRepoURLRequest := bean3.ValidateCustomGitRepoURLRequest{
+	validateCustomGitRepoURLRequest := bean3.ValidateGitOpsRepoRequest{
 		GitRepoURL:     appGitOpsRequest.GitOpsRepoURL,
 		UserId:         appGitOpsRequest.UserId,
 		AppName:        appName,
 		GitOpsProvider: gitOpsConfigurationStatus.Provider,
+		TargetRevision: globalUtil.GetDefaultTargetRevision(),
 	}
 	repoUrl, _, validationErr := impl.gitOpsValidationService.ValidateCustomGitRepoURL(validateCustomGitRepoURLRequest)
 	if validationErr != nil {

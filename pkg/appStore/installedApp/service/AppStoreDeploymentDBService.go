@@ -698,7 +698,7 @@ func (impl *AppStoreDeploymentDBServiceImpl) validateGitOpsRequest(allowCustomRe
 }
 
 func (impl *AppStoreDeploymentDBServiceImpl) validateCustomGitOpsRepoURL(gitOpsConfigurationStatus *gitOpsBean.GitOpsConfigurationStatus, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, bool, error) {
-	validateCustomGitRepoURLRequest := validationBean.ValidateCustomGitRepoURLRequest{
+	validateCustomGitRepoURLRequest := validationBean.ValidateGitOpsRepoRequest{
 		GitRepoURL:     installAppVersionRequest.GitOpsRepoURL,
 		AppName:        installAppVersionRequest.AppName,
 		UserId:         installAppVersionRequest.UserId,

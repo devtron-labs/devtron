@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/imageTagging"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean/common"
 	CiPipeline2 "github.com/devtron-labs/devtron/pkg/build/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -648,6 +649,9 @@ type CDPipelineConfigObject struct {
 	ChildPipelineId               int                                    `json:"childPipelineId"`
 	IsDigestEnforcedForPipeline   bool                                   `json:"isDigestEnforcedForPipeline"`
 	IsDigestEnforcedForEnv        bool                                   `json:"isDigestEnforcedForEnv"`
+	ApplicationObjectClusterId    int                                    `json:"applicationObjectClusterId"` //ACDAppClusterId
+	ApplicationObjectNamespace    string                                 `json:"applicationObjectNamespace"` //ACDAppNamespace
+	DeploymentAppName             string                                 `json:"deploymentAppName"`
 	// TODO Asutosh: default tag does not work. Need to check
 	ReleaseMode string `json:"releaseMode" default:"create" validate:"oneof=link create"`
 }
@@ -666,6 +670,11 @@ func (cdPipelineConfig *CDPipelineConfigObject) IsSwitchCiPipelineRequest() bool
 func (cdPipelineConfig *CDPipelineConfigObject) PatchSourceInfo() (int, string) {
 	//as the source will be always CI_PIPELINE in case of external-ci change request
 	return cdPipelineConfig.SwitchFromCiPipelineId, appWorkflow.CIPIPELINE
+}
+
+func (cdPipelineConfig *CDPipelineConfigObject) IsExternalArgoAppLinkRequest() bool {
+	return cdPipelineConfig.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD &&
+		cdPipelineConfig.ReleaseMode == util.PIPELINE_RELEASE_MODE_LINK
 }
 
 type PreStageConfigMapSecretNames struct {
