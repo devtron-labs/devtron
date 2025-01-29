@@ -362,8 +362,8 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV3(listingFilterOpt
 	artifactsResp := make([]*CiArtifactWithExtraData, 0, listingFilterOpts.Limit)
 	var artifacts []*CiArtifact
 	totalCount := 0
-	finalQuery := BuildQueryForParentTypeCIOrWebhook(*listingFilterOpts)
-	_, err := impl.dbConnection.Query(&artifactsResp, finalQuery)
+	finalQuery, finalQueryParams := BuildQueryForParentTypeCIOrWebhook(*listingFilterOpts)
+	_, err := impl.dbConnection.Query(&artifactsResp, finalQuery, finalQueryParams...)
 	if err != nil {
 		return nil, totalCount, err
 	}
