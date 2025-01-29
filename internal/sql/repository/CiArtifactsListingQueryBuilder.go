@@ -25,8 +25,8 @@ import (
 
 const EmptyLikeRegex = "%%"
 
-func BuildQueryForParentTypeCIOrWebhook(listingFilterOpts bean.ArtifactsListFilterOptions) string {
-	commonPaginatedQueryPart, commonPaginatedQueryParams := " cia.image LIKE '?'", []interface{}{listingFilterOpts.SearchString}
+func BuildQueryForParentTypeCIOrWebhook(listingFilterOpts bean.ArtifactsListFilterOptions) (string, []interface{}) {
+	commonPaginatedQueryPart, commonPaginatedQueryParams := " cia.image LIKE ?", []interface{}{listingFilterOpts.SearchString}
 	orderByClause := " ORDER BY cia.id DESC"
 	limitOffsetQueryPart, limitOffsetQueryParams := fmt.Sprintf(" LIMIT ? OFFSET ?"), []interface{}{listingFilterOpts.Limit, listingFilterOpts.Offset}
 	finalQuery := ""
@@ -68,7 +68,7 @@ func BuildQueryForParentTypeCIOrWebhook(listingFilterOpts bean.ArtifactsListFilt
 	finalQueryParams = append(finalQueryParams, remainingQueryParams...)
 	finalQueryParams = append(finalQueryParams, commonPaginatedQueryParams...)
 	finalQueryParams = append(finalQueryParams, limitOffsetQueryParams...)
-	return finalQuery
+	return finalQuery, finalQueryParams
 }
 
 func BuildQueryForArtifactsForCdStage(listingFilterOptions bean.ArtifactsListFilterOptions) string {
