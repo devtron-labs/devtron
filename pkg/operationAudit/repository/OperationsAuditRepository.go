@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"github.com/devtron-labs/devtron/pkg/operationAudit/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -9,6 +10,7 @@ import (
 
 type OperationAuditRepository interface {
 	SaveAudit(audit *OperationAudit) error
+	GetAllAuditsForEntityAndEntityIds(entityType bean.EntityType, entityIds []int, operationType bean.OperationType, schemaFor bean.SchemaFor) ([]*OperationAudit, error)
 }
 type OperationAuditRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -40,4 +42,18 @@ func (repo *OperationAuditRepositoryImpl) SaveAudit(audit *OperationAudit) error
 		repo.logger.Errorw("error in saving audit", "audit", audit, "err", err)
 	}
 	return err
+}
+
+func (repo *OperationAuditRepositoryImpl) GetAllAuditsForEntityAndEntityIds(entityType bean.EntityType, entityIds []int, operationType bean.OperationType, schemaFor bean.SchemaFor) ([]*OperationAudit, error) {
+	if len(entityIds) == 0 {
+		return nil, errors.New("no entity ids found")
+	}
+	var audits []*OperationAudit
+	err := repo.dbConnection.Model(&audits).
+		Where("entity_type = ?", entityType).
+		Where("entity_id in (?)", pg.In(entityIds)).
+		Where("operation_type = ?", operationType).
+		Where("schema_for = ?", schemaFor).
+		Select()
+	return audits, err
 }
