@@ -40,6 +40,7 @@ type CdStageCompleteEvent struct {
 	PluginRegistryArtifactDetails map[string][]string          `json:"PluginRegistryArtifactDetails"`
 	PluginArtifacts               *PluginArtifacts             `json:"pluginArtifacts"`
 	IsArtifactUploaded            bool                         `json:"isArtifactUploaded"`
+	IsSuccess                     bool                         `json:"isSuccess"`
 }
 
 type UserDeploymentRequest struct {
