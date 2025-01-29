@@ -439,7 +439,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 				if len(wfr.ImagePathReservationIds) > 0 {
 					err := impl.cdHandler.DeactivateImageReservationPathsOnFailure(wfr.ImagePathReservationIds)
 					if err != nil {
-						impl.logger.Errorw("error in removing image path reservation ")
+						impl.logger.Errorw("error in removing image path reservation ", "imagePathReservationIds", wfr.ImagePathReservationIds, "err", err)
 					}
 				}
 			}
@@ -455,7 +455,7 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 					err = impl.workflowDagExecutor.HandleCdStageReTrigger(wfr)
 					if err != nil {
 						// check if this log required or not
-						impl.logger.Errorw("error in HandleCdStageReTrigger", "error", err)
+						impl.logger.Errorw("error in HandleCdStageReTrigger", "workflowRunnerId", wfr.Id, "workflowStatus", wfrStatus, "workflowStatusMessage", wfStatus.Message, "error", err)
 					}
 				}
 
@@ -465,12 +465,12 @@ func (impl *WorkflowEventProcessorImpl) SubscribeCDWorkflowStatusUpdate() error 
 					event = impl.eventFactory.BuildExtraCDData(event, wfr, 0, wfr.WorkflowType)
 					_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 					if evtErr != nil {
-						impl.logger.Errorw("CD stage post fail or success event unable to sent", "error", evtErr)
+						impl.logger.Errorw("CD stage post fail or success event unable to sent", "workflowRunnerId", wfr.Id, "error", evtErr)
 					}
 				}
 			}
 		} else {
-			impl.logger.Debugw("no state change detected for the cd workflow status update, ignoring this event", "wfrId", wfrId, "wfrStatus", wfrStatus)
+			impl.logger.Debugw("no state change detected for the cd workflow status update, ignoring this event", "workflowRunnerId", wfrId, "wfrStatus", wfrStatus)
 		}
 	}
 
