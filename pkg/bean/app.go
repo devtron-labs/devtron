@@ -648,7 +648,8 @@ type CDPipelineConfigObject struct {
 	ChildPipelineId               int                                    `json:"childPipelineId"`
 	IsDigestEnforcedForPipeline   bool                                   `json:"isDigestEnforcedForPipeline"`
 	IsDigestEnforcedForEnv        bool                                   `json:"isDigestEnforcedForEnv"`
-	ReleaseMode                   string                                 `json:"releaseMode" default:"create" validate:"oneof=create"`
+	// TODO Asutosh: default tag does not work. Need to check
+	ReleaseMode string `json:"releaseMode" default:"create" validate:"oneof=link create"`
 }
 
 type CDPipelineAddType string
