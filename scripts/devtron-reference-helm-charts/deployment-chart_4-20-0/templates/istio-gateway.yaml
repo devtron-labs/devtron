@@ -2,7 +2,11 @@
 apiVersion: networking.istio.io/v1beta1
 kind: Gateway
 metadata:
+  {{- if .Values.istio.gateway.name }}
+  name: {{ .Values.istio.gateway.name }}
+  {{- else }}
   name: {{ template ".Chart.Name .fullname" $ }}-istio-gateway
+  {{- end }}
   labels:
     app: {{ template ".Chart.Name .name" $ }}
     appId: {{ $.Values.app | quote }}
@@ -28,7 +32,13 @@ spec:
       name: http
       protocol: HTTP
     hosts: 
+{{- if .Values.istio.gateway.host }}    
       - {{ .Values.istio.gateway.host | quote -}}
+{{- else if .Values.istio.gateway.hosts }}      
+{{- range .Values.istio.gateway.hosts }}
+      - {{ . | quote }}
+{{- end }} 
+{{- end }}           
 {{ with .Values.istio.gateway }}
 {{- if .tls.enabled }}
     tls:
@@ -38,7 +48,13 @@ spec:
       name: https
       protocol: HTTPS
     hosts:
+{{- if .host }}    
       - {{ .host | quote }}
+{{- else if .hosts }}      
+{{- range .hosts }}
+      - {{ . | quote }}
+{{- end }}  
+{{- end }}       
     tls:
       mode: SIMPLE
       credentialName: {{ .tls.secretName }}  

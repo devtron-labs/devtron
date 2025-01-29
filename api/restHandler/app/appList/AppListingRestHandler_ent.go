@@ -15,5 +15,5 @@ func (handler AppListingRestHandlerImpl) GetAllAppEnvsFromResourceNames(w http.R
 }
 
 func (handler AppListingRestHandlerImpl) updateApprovalConfigDataInAppDetailResp(appDetail AppView.AppDetailContainer, appId, envId int) (AppView.AppDetailContainer, error) {
-	return AppView.AppDetailContainer{}, nil
+	return appDetail, nil
 }

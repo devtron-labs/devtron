@@ -82,8 +82,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
-	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool"
+	security2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
@@ -132,6 +132,7 @@ func InitializeApp() (*App, error) {
 		telemetry.NewPosthogClient,
 		delete2.NewDeleteServiceImpl,
 		gitMaterial.GitMaterialWireSet,
+		scanTool.ScanToolWireSet,
 
 		sql.NewTransactionUtilImpl,
 
@@ -222,9 +223,6 @@ func InitializeApp() (*App, error) {
 
 		kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl,
 		wire.Bind(new(kubernetesResourceAuditLogs.K8sResourceHistoryService), new(*kubernetesResourceAuditLogs.K8sResourceHistoryServiceImpl)),
-
-		imageScanning.NewScanToolMetadataServiceImpl,
-		wire.Bind(new(imageScanning.ScanToolMetadataService), new(*imageScanning.ScanToolMetadataServiceImpl)),
 
 		security2.NewScanToolMetadataRepositoryImpl,
 		wire.Bind(new(security2.ScanToolMetadataRepository), new(*security2.ScanToolMetadataRepositoryImpl)),
