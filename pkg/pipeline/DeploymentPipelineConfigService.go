@@ -461,18 +461,20 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 	}
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
-		linkCDValidationResponse := impl.ValidateLinkExternalArgoCDRequest(pipelineConfigBean.ArgoCDAppLinkValidationRequest{
-			AppId:         pipeline.AppId,
-			ClusterId:     pipeline.ApplicationObjectClusterId,
-			Namespace:     pipeline.ApplicationObjectNamespace,
-			ArgoCDAppName: pipeline.DeploymentAppName,
-		})
+		if pipeline.IsExternalArgoAppLinkRequest() {
+			linkCDValidationResponse := impl.ValidateLinkExternalArgoCDRequest(pipelineConfigBean.ArgoCDAppLinkValidationRequest{
+				AppId:         pipeline.AppId,
+				ClusterId:     pipeline.ApplicationObjectClusterId,
+				Namespace:     pipeline.ApplicationObjectNamespace,
+				ArgoCDAppName: pipeline.DeploymentAppName,
+			})
 
-		if !linkCDValidationResponse.IsLinkable {
-			return nil,
-				util.NewApiError(http.StatusPreconditionFailed,
-					linkCDValidationResponse.ErrorDetail.ValidationFailedMessage,
-					string(linkCDValidationResponse.ErrorDetail.ValidationFailedReason))
+			if !linkCDValidationResponse.IsLinkable {
+				return nil,
+					util.NewApiError(http.StatusPreconditionFailed,
+						linkCDValidationResponse.ErrorDetail.ValidationFailedMessage,
+						string(linkCDValidationResponse.ErrorDetail.ValidationFailedReason))
+			}
 		}
 	}
 
