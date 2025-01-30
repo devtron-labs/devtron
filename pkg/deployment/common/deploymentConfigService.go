@@ -362,7 +362,7 @@ func (impl *DeploymentConfigServiceImpl) GetAndMigrateConfigIfAbsentForDevtronAp
 		return envLevelConfig, nil
 	}
 
-	return envLevelConfig, nil
+	return appLevelConfig, nil
 }
 
 func newAppLevelReleaseConfigFromChart(gitRepoURL, chartLocation string) *bean.ReleaseConfiguration {
@@ -736,7 +736,7 @@ func (impl *DeploymentConfigServiceImpl) UpdateChartLocationInDeploymentConfig(a
 	if config.ReleaseMode == util2.PIPELINE_RELEASE_MODE_CREATE && config.DeploymentAppType == bean4.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		chartRef, err := impl.chartRefRepository.FindById(chartRefId)
 		if err != nil {
-			impl.logger.Errorw("error in ChartRefRepository.FindById", "chartRefId", chartRefId, "err", err)
+			impl.logger.Errorw("error in chartRefRepository.FindById", "chartRefId", chartRefId, "err", err)
 			return err
 		}
 		//TODO: ayush common function for chart location

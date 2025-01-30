@@ -67,8 +67,8 @@ type PropertiesConfigServiceImpl struct {
 	scopedVariableManager            variables.ScopedVariableManager
 	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
 	envConfigOverrideReadService     read.EnvConfigOverrideService
-	DeploymentConfigService          common.DeploymentConfigService
-	ChartRefRepository               chartRepoRepository.ChartRefRepository
+	chartRefRepository               chartRepoRepository.ChartRefRepository
+	deploymentConfigService          common.DeploymentConfigService
 }
 
 func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
@@ -79,8 +79,8 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 	scopedVariableManager variables.ScopedVariableManager,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	envConfigOverrideReadService read.EnvConfigOverrideService,
-	DeploymentConfigService common.DeploymentConfigService,
-	ChartRefRepository chartRepoRepository.ChartRefRepository) *PropertiesConfigServiceImpl {
+	chartRefRepository chartRepoRepository.ChartRefRepository,
+	deploymentConfigService common.DeploymentConfigService) *PropertiesConfigServiceImpl {
 	return &PropertiesConfigServiceImpl{
 		logger:                           logger,
 		envConfigRepo:                    envConfigRepo,
@@ -90,8 +90,8 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 		scopedVariableManager:            scopedVariableManager,
 		deployedAppMetricsService:        deployedAppMetricsService,
 		envConfigOverrideReadService:     envConfigOverrideReadService,
-		DeploymentConfigService:          DeploymentConfigService,
-		ChartRefRepository:               ChartRefRepository,
+		deploymentConfigService:          deploymentConfigService,
+		chartRefRepository:               chartRefRepository,
 	}
 
 }
@@ -335,10 +335,10 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 
 	chart, err := impl.chartRepo.FindById(overrideDbObj.ChartId)
 	if err != nil {
-		impl.logger.Errorw("error in ChartRefRepository.FindById", "chartRefId", chart.ChartRefId, "err", err)
+		impl.logger.Errorw("error in chartRefRepository.FindById", "chartRefId", chart.ChartRefId, "err", err)
 		return nil, err
 	}
-	err = impl.DeploymentConfigService.UpdateChartLocationInDeploymentConfig(appId, overrideDbObj.TargetEnvironment, chart.ChartRefId, userId, chart.ChartVersion)
+	err = impl.deploymentConfigService.UpdateChartLocationInDeploymentConfig(appId, overrideDbObj.TargetEnvironment, chart.ChartRefId, userId, chart.ChartVersion)
 	if err != nil {
 		impl.logger.Errorw("error in UpdateChartLocationInDeploymentConfig", "appId", appId, "envId", overrideDbObj.TargetEnvironment, "err", err)
 		return nil, err
@@ -478,9 +478,10 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(request *bean.Environme
 			impl.logger.Errorw("error in creating envconfig", "data", envOverride, "error", err)
 			return nil, isAppMetricsEnabled, err
 		}
+		envOverrideDBObj.Chart = chart
 		envOverride = adapter.EnvOverrideDBToDTO(envOverrideDBObj)
 
-		err = impl.DeploymentConfigService.UpdateChartLocationInDeploymentConfig(chart.AppId, envOverride.TargetEnvironment, chart.ChartRefId, userId, envOverride.Chart.ChartVersion)
+		err = impl.deploymentConfigService.UpdateChartLocationInDeploymentConfig(chart.AppId, envOverride.TargetEnvironment, chart.ChartRefId, userId, envOverride.Chart.ChartVersion)
 		if err != nil {
 			impl.logger.Errorw("error in UpdateChartLocationInDeploymentConfig", "appId", chart.AppId, "envId", envOverride.TargetEnvironment, "err", err)
 			return nil, isAppMetricsEnabled, err
