@@ -168,3 +168,28 @@ func GetMapValuesPtr[T any](valueMap map[string]*T) []*T {
 	}
 	return values
 }
+
+// Filter appends to d each element e of s for which keep(e) returns true.
+// It returns the modified d. d may be s[:0], in which case the kept
+// elements will be stored in the same slice.
+// if the slices overlap in some other way, the results are unspecified.
+// To create a new slice with the filtered results, pass nil for d.
+func Filter[T any](d, s []T, keep func(T) bool) []T {
+	for _, n := range s {
+		if keep(n) {
+			d = append(d, n)
+		}
+	}
+	return d
+}
+
+// Find returns the index of the first element in s that satisfies the predicate func find.
+// If no element satisfies the predicate, the function returns -1 and false.
+func Find[T any](s []T, find func(T) bool) (int, bool) {
+	for i := range s {
+		if find(s[i]) {
+			return i, true
+		}
+	}
+	return -1, false
+}

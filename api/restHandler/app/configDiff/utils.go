@@ -2,7 +2,7 @@ package configDiff
 
 import (
 	"errors"
-	"github.com/devtron-labs/devtron/pkg/configDiff/bean"
+	"github.com/devtron-labs/devtron/pkg/config/configDiff/bean"
 )
 
 var validConfigCategories = map[string]bool{bean.Secret.ToString(): true, bean.ConfigMap.ToString(): true, bean.DeploymentTemplate.ToString(): true, bean.PipelineStrategy.ToString(): true}

@@ -29,7 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/service"
 	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/service/read"
-	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/constants"
 	repository2 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -64,7 +64,7 @@ type InstalledAppResourceServiceImpl struct {
 	logger                               *zap.SugaredLogger
 	installedAppRepository               repository.InstalledAppRepository
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
-	acdClient                            application2.ServiceClient
+	acdClientWrapper                     argocdServer.ArgoClientWrapperService
 	aCDAuthConfig                        *util3.ACDAuthConfig
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
 	helmAppService                       service.HelmAppService
@@ -81,7 +81,7 @@ type InstalledAppResourceServiceImpl struct {
 func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
 	installedAppRepository repository.InstalledAppRepository,
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
-	acdClient application2.ServiceClient,
+	acdClientWrapper argocdServer.ArgoClientWrapperService,
 	aCDAuthConfig *util3.ACDAuthConfig,
 	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository,
 	helmAppService service.HelmAppService,
@@ -95,7 +95,7 @@ func NewInstalledAppResourceServiceImpl(logger *zap.SugaredLogger,
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
-		acdClient:                            acdClient,
+		acdClientWrapper:                     acdClientWrapper,
 		aCDAuthConfig:                        aCDAuthConfig,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 		helmAppService:                       helmAppService,
@@ -362,7 +362,7 @@ func (impl *InstalledAppResourceServiceImpl) checkForHibernation(ctx context.Con
 	canBeHibernated := false
 	alreadyHibernated := false
 	ctx, _ = context.WithTimeout(ctx, 60*time.Second)
-	res, err := impl.acdClient.GetResource(ctx, rQuery)
+	res, err := impl.acdClientWrapper.GetApplicationResource(ctx, rQuery)
 	if err != nil {
 		impl.logger.Errorw("error getting response from acdClient", "request", rQuery, "data", res, "timeTaken", time.Since(t0), "err", err)
 		return canBeHibernated, alreadyHibernated

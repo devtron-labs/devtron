@@ -46,6 +46,8 @@ import (
 	terminal2 "github.com/devtron-labs/devtron/api/terminal"
 	webhookHelm2 "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/argocdServer"
+	"github.com/devtron-labs/devtron/client/argocdServer/bean"
+	"github.com/devtron-labs/devtron/client/argocdServer/config"
 	"github.com/devtron-labs/devtron/client/argocdServer/repoCredsK8sClient"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/telemetry"
@@ -73,7 +75,7 @@ import (
 	service4 "github.com/devtron-labs/devtron/pkg/appStore/values/service"
 	"github.com/devtron-labs/devtron/pkg/argoApplication"
 	read6 "github.com/devtron-labs/devtron/pkg/argoApplication/read"
-	config2 "github.com/devtron-labs/devtron/pkg/argoApplication/read/config"
+	config3 "github.com/devtron-labs/devtron/pkg/argoApplication/read/config"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/auth/authentication"
 	"github.com/devtron-labs/devtron/pkg/auth/authorisation/casbin"
@@ -94,7 +96,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/clusterTerminalAccess"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
-	"github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
+	config2 "github.com/devtron-labs/devtron/pkg/deployment/gitOps/config"
 	"github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
 	"github.com/devtron-labs/devtron/pkg/externalLink"
 	"github.com/devtron-labs/devtron/pkg/fluxApplication"
@@ -110,8 +112,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/module/repo"
 	"github.com/devtron-labs/devtron/pkg/module/store"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning"
-	repository11 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
+	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool"
+	repository11 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool/repository"
 	"github.com/devtron-labs/devtron/pkg/server"
 	"github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/devtron-labs/devtron/pkg/server/store"
@@ -238,8 +240,14 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	repositorySecretImpl := repoCredsK8sClient.NewRepositorySecret(sugaredLogger, k8sServiceImpl, clusterServiceImpl, acdAuthConfig)
-	chartRepositoryServiceImpl := chartRepo.NewChartRepositoryServiceImpl(sugaredLogger, chartRepoRepositoryImpl, k8sServiceImpl, clusterServiceImpl, acdAuthConfig, httpClient, serverEnvConfigServerEnvConfig, repositorySecretImpl)
+	repositoryCredsK8sClientImpl := repoCredsK8sClient.NewRepositoryCredsK8sClientImpl(sugaredLogger, k8sServiceImpl)
+	beanConfig, err := bean.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+	argoCDConfigGetterImpl := config.NewArgoCDConfigGetter(beanConfig, environmentVariables, acdAuthConfig, clusterReadServiceImpl, sugaredLogger, k8sServiceImpl)
+	argoClientWrapperServiceEAImpl := argocdServer.NewArgoClientWrapperServiceEAImpl(sugaredLogger, repositoryCredsK8sClientImpl, argoCDConfigGetterImpl)
+	chartRepositoryServiceImpl := chartRepo.NewChartRepositoryServiceImpl(sugaredLogger, chartRepoRepositoryImpl, k8sServiceImpl, acdAuthConfig, httpClient, serverEnvConfigServerEnvConfig, argoClientWrapperServiceEAImpl, clusterReadServiceImpl)
 	installedAppRepositoryImpl := repository6.NewInstalledAppRepositoryImpl(sugaredLogger, db)
 	helmClientConfig, err := gRPC.GetConfig()
 	if err != nil {
@@ -267,7 +275,7 @@ func InitializeApp() (*App, error) {
 	dockerArtifactStoreRepositoryImpl := repository7.NewDockerArtifactStoreRepositoryImpl(db)
 	dockerRegistryIpsConfigRepositoryImpl := repository7.NewDockerRegistryIpsConfigRepositoryImpl(db)
 	ociRegistryConfigRepositoryImpl := repository7.NewOCIRegistryConfigRepositoryImpl(db)
-	dockerRegistryConfigImpl := pipeline.NewDockerRegistryConfigImpl(sugaredLogger, helmAppServiceImpl, dockerArtifactStoreRepositoryImpl, dockerRegistryIpsConfigRepositoryImpl, ociRegistryConfigRepositoryImpl, repositorySecretImpl)
+	dockerRegistryConfigImpl := pipeline.NewDockerRegistryConfigImpl(sugaredLogger, helmAppServiceImpl, dockerArtifactStoreRepositoryImpl, dockerRegistryIpsConfigRepositoryImpl, ociRegistryConfigRepositoryImpl, argoClientWrapperServiceEAImpl)
 	deleteServiceImpl := delete2.NewDeleteServiceImpl(sugaredLogger, teamServiceImpl, clusterServiceImpl, environmentServiceImpl, chartRepositoryServiceImpl, installedAppRepositoryImpl, dockerRegistryConfigImpl, dockerArtifactStoreRepositoryImpl, k8sInformerFactoryImpl, k8sServiceImpl)
 	teamRestHandlerImpl := team2.NewTeamRestHandlerImpl(sugaredLogger, teamServiceImpl, userServiceImpl, enforcerImpl, validate, userAuthServiceImpl, deleteServiceImpl)
 	teamRouterImpl := team2.NewTeamRouterImpl(teamRestHandlerImpl)
@@ -302,7 +310,7 @@ func InitializeApp() (*App, error) {
 	deploymentConfigServiceImpl := common.NewDeploymentConfigServiceImpl(repositoryImpl, sugaredLogger, chartRepositoryImpl, pipelineRepositoryImpl, appRepositoryImpl, installedAppReadServiceEAImpl, environmentVariables)
 	installedAppDBServiceImpl := EAMode.NewInstalledAppDBServiceImpl(sugaredLogger, installedAppRepositoryImpl, appRepositoryImpl, userServiceImpl, environmentServiceImpl, installedAppVersionHistoryRepositoryImpl, deploymentConfigServiceImpl)
 	gitOpsConfigRepositoryImpl := repository5.NewGitOpsConfigRepositoryImpl(sugaredLogger, db)
-	gitOpsConfigReadServiceImpl := config.NewGitOpsConfigReadServiceImpl(sugaredLogger, gitOpsConfigRepositoryImpl, userServiceImpl, environmentVariables)
+	gitOpsConfigReadServiceImpl := config2.NewGitOpsConfigReadServiceImpl(sugaredLogger, gitOpsConfigRepositoryImpl, userServiceImpl, environmentVariables)
 	attributesServiceImpl := attributes.NewAttributesServiceImpl(sugaredLogger, attributesRepositoryImpl)
 	deploymentTypeOverrideServiceImpl := providerConfig.NewDeploymentTypeOverrideServiceImpl(sugaredLogger, environmentVariables, attributesServiceImpl)
 	chartTemplateServiceImpl := util.NewChartTemplateServiceImpl(sugaredLogger)
@@ -320,7 +328,7 @@ func InitializeApp() (*App, error) {
 	fluxApplicationServiceImpl := fluxApplication.NewFluxApplicationServiceImpl(sugaredLogger, helmAppReadServiceImpl, clusterServiceImpl, helmAppClientImpl, pumpImpl)
 	k8sResourceHistoryRepositoryImpl := repository10.NewK8sResourceHistoryRepositoryImpl(db, sugaredLogger)
 	k8sResourceHistoryServiceImpl := kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl(k8sResourceHistoryRepositoryImpl, sugaredLogger, appRepositoryImpl, environmentRepositoryImpl)
-	argoApplicationConfigServiceImpl := config2.NewArgoApplicationConfigServiceImpl(sugaredLogger, k8sServiceImpl, clusterRepositoryImpl)
+	argoApplicationConfigServiceImpl := config3.NewArgoApplicationConfigServiceImpl(sugaredLogger, k8sServiceImpl, clusterRepositoryImpl)
 	k8sCommonServiceImpl := k8s2.NewK8sCommonServiceImpl(sugaredLogger, k8sServiceImpl, argoApplicationConfigServiceImpl, clusterReadServiceImpl)
 	ephemeralContainersRepositoryImpl := repository3.NewEphemeralContainersRepositoryImpl(db, transactionUtilImpl)
 	ephemeralContainerServiceImpl := cluster.NewEphemeralContainerServiceImpl(ephemeralContainersRepositoryImpl, sugaredLogger)
@@ -395,7 +403,7 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	scanToolMetadataRepositoryImpl := repository11.NewScanToolMetadataRepositoryImpl(db, sugaredLogger)
-	scanToolMetadataServiceImpl := imageScanning.NewScanToolMetadataServiceImpl(sugaredLogger, scanToolMetadataRepositoryImpl)
+	scanToolMetadataServiceImpl := scanTool.NewScanToolMetadataServiceImpl(sugaredLogger, scanToolMetadataRepositoryImpl)
 	moduleServiceImpl := module.NewModuleServiceImpl(sugaredLogger, serverEnvConfigServerEnvConfig, moduleRepositoryImpl, moduleActionAuditLogRepositoryImpl, helmAppServiceImpl, serverDataStoreServerDataStore, serverCacheServiceImpl, moduleCacheServiceImpl, moduleCronServiceImpl, moduleServiceHelperImpl, moduleResourceStatusRepositoryImpl, scanToolMetadataServiceImpl)
 	moduleRestHandlerImpl := module2.NewModuleRestHandlerImpl(sugaredLogger, moduleServiceImpl, userServiceImpl, enforcerImpl, validate)
 	moduleRouterImpl := module2.NewModuleRouterImpl(moduleRestHandlerImpl)

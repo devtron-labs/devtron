@@ -41,11 +41,12 @@ func BuildImageVulnerabilityResponse(image string, vulnerabilities parser.Vulner
 	return &parser.ImageVulnerability{Image: image, Vulnerabilities: vulnerabilities, Metadata: metadata}
 }
 
-func BuildMetadata(status string, startedOn time.Time, scanToolName string) *parser.Metadata {
+func BuildMetadata(status string, startedOn time.Time, scanToolName string, scanToolUrl string) *parser.Metadata {
 	return &parser.Metadata{
 		Status:       status,
 		StartedOn:    startedOn,
 		ScanToolName: scanToolName,
+		ScanToolUrl:  scanToolUrl,
 	}
 }
 
@@ -60,7 +61,7 @@ func ExecutionDetailsToResourceScanResponseDto(respFromExecutionDetail *bean.Ima
 	}
 	vulnerabilityResponse := &parser.VulnerabilityResponse{}
 	vulnerabilities := BuildVulnerabilitiesWrapperWithSummary(respFromExecutionDetail.Vulnerabilities)
-	imageVulResp := BuildImageVulnerabilityResponse(respFromExecutionDetail.Image, *vulnerabilities, BuildMetadata(respFromExecutionDetail.Status.String(), respFromExecutionDetail.ExecutionTime, respFromExecutionDetail.ScanToolName))
+	imageVulResp := BuildImageVulnerabilityResponse(respFromExecutionDetail.Image, *vulnerabilities, BuildMetadata(respFromExecutionDetail.Status.String(), respFromExecutionDetail.ExecutionTime, respFromExecutionDetail.ScanToolName, respFromExecutionDetail.ScanToolUrl))
 	vulnerabilityResponse.Append(*imageVulResp)
 	resp.ImageScan = &parser.ImageScanResponse{Vulnerability: vulnerabilityResponse}
 	return resp

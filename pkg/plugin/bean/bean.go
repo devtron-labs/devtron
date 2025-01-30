@@ -54,6 +54,7 @@ type PluginMetadataDto struct {
 	PluginStage       string            `json:"pluginStage,omitempty"`
 	PluginSteps       []*PluginStepsDto `json:"pluginSteps,omitempty"`
 	AreNewTagsPresent bool              `json:"areNewTagsPresent,omitempty"`
+	IsExposed         *bool             `json:"-"`
 }
 
 type PluginMinDto struct {
@@ -125,11 +126,20 @@ type PluginParentMetadataDto struct {
 	Description      string          `json:"description" validate:"max=300"`
 	Type             string          `json:"type,omitempty" validate:"oneof=SHARED PRESET"`
 	Icon             string          `json:"icon,omitempty"`
+	PluginStageType  string          `json:"pluginStageType,omitempty"`
 	Versions         *PluginVersions `json:"pluginVersions"`
+	IsExposed        *bool           `json:"-"`
 }
 
 func NewPluginParentMetadataDto() *PluginParentMetadataDto {
 	return &PluginParentMetadataDto{}
+}
+
+func (r *PluginParentMetadataDto) GetPluginStageType() int {
+	if r.PluginStageType == repository.SCANNER_STAGE_TYPE {
+		return repository.SCANNER
+	}
+	return repository.CI_CD
 }
 
 func (r *PluginParentMetadataDto) WithNameAndId(name string, id int) *PluginParentMetadataDto {
@@ -299,6 +309,19 @@ type PluginStepsDto struct {
 	DependentOnStep      string                    `json:"dependentOnStep"`
 	PluginStepVariable   []*PluginVariableDto      `json:"pluginStepVariable,omitempty"`
 	PluginPipelineScript *PluginPipelineScript     `json:"pluginPipelineScript,omitempty"`
+	ScriptId             int                       `json:"-"`
+}
+
+// GetStepType returns stepType if present in PluginStepsDto else returns PLUGIN_STEP_TYPE_INLINE as default stepType
+func (r *PluginStepsDto) GetStepType() repository.PluginStepType {
+	if len(r.StepType) > 0 {
+		return r.StepType
+	}
+	return repository.PLUGIN_STEP_TYPE_INLINE
+}
+
+func (r *PluginStepsDto) ID() int {
+	return r.Id
 }
 
 type PluginVariableDto struct {
@@ -317,6 +340,7 @@ type PluginVariableDto struct {
 	VariableStepIndexInPlugin int                                     `json:"variableStepIndexInPlugin"`
 	ReferenceVariableName     string                                  `json:"referenceVariableName,omitempty"`
 	PluginStepCondition       []*PluginStepCondition                  `json:"pluginStepCondition,omitempty"`
+	PluginStepId              int                                     `json:"-"`
 }
 
 func (s *PluginVariableDto) GetValue() string {

@@ -117,6 +117,7 @@
 ## DEVTRON Related Environment Variables
 | Key   | Type     | Default Value     | Description       | Example       | Deprecated       |
 |-------|----------|-------------------|-------------------|-----------------------|------------------|
+ | - |  | |  |  | false |
  | APP_SYNC_IMAGE | string |quay.io/devtron/chart-sync:1227622d-132-3775 |  |  | false |
  | APP_SYNC_JOB_RESOURCES_OBJ | string | |  |  | false |
  | APP_SYNC_SERVICE_ACCOUNT | string |chart-sync |  |  | false |
@@ -139,7 +140,7 @@
  | CLUSTER_STATUS_CRON_TIME | int |15 |  |  | false |
  | CONSUMER_CONFIG_JSON | string | |  |  | false |
  | DEFAULT_LOG_TIME_LIMIT | int64 |1 |  |  | false |
- | DEFAULT_TIMEOUT | int64 |3600 |  |  | false |
+ | DEFAULT_TIMEOUT | float64 |3600 |  |  | false |
  | DEVTRON_BOM_URL | string |https://raw.githubusercontent.com/devtron-labs/devtron/%s/charts/devtron/devtron-bom.yaml |  |  | false |
  | DEVTRON_DEFAULT_NAMESPACE | string |devtroncd |  |  | false |
  | DEVTRON_DEX_SECRET_NAMESPACE | string |devtroncd |  |  | false |
@@ -170,6 +171,7 @@
  | FEATURE_RESTART_WORKLOAD_WORKER_POOL_SIZE | int |5 |  |  | false |
  | FORCE_SECURITY_SCANNING | bool |false |  |  | false |
  | GITOPS_REPO_PREFIX | string | |  |  | false |
+ | GO_RUNTIME_ENV | string |production |  |  | false |
  | GRAFANA_HOST | string |localhost |  |  | false |
  | GRAFANA_NAMESPACE | string |devtroncd |  |  | false |
  | GRAFANA_ORG_ID | int |2 |  |  | false |
@@ -226,6 +228,7 @@
  | SCOPED_VARIABLE_FORMAT | string |@{{%s}} |  |  | false |
  | SCOPED_VARIABLE_HANDLE_PRIMITIVES | bool |false |  |  | false |
  | SCOPED_VARIABLE_NAME_REGEX | string |^[a-zA-Z][a-zA-Z0-9_-]{0,62}[a-zA-Z0-9]$ |  |  | false |
+ | SHOULD_CHECK_NAMESPACE_ON_CLONE | bool |false | should we check if namespace exists or not while cloning app |  | false |
  | SOCKET_DISCONNECT_DELAY_SECONDS | int |5 |  |  | false |
  | SOCKET_HEARTBEAT_SECONDS | int |25 |  |  | false |
  | STREAM_CONFIG_JSON | string | |  |  | false |

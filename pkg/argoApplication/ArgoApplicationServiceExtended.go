@@ -10,7 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/api/helm-app/gRPC"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/helm-app/service"
-	application3 "github.com/devtron-labs/devtron/client/argocdServer/application"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/bean"
 	"github.com/devtron-labs/devtron/pkg/argoApplication/read/config"
@@ -25,7 +25,7 @@ import (
 
 type ArgoApplicationServiceExtendedImpl struct {
 	*ArgoApplicationServiceImpl
-	acdClient application3.ServiceClient
+	acdClientWrapper argocdServer.ArgoClientWrapperService
 }
 
 func NewArgoApplicationServiceExtendedServiceImpl(logger *zap.SugaredLogger,
@@ -34,7 +34,8 @@ func NewArgoApplicationServiceExtendedServiceImpl(logger *zap.SugaredLogger,
 	helmAppClient gRPC.HelmAppClient,
 	helmAppService service.HelmAppService,
 	k8sApplicationService application.K8sApplicationService,
-	argoApplicationConfigService config.ArgoApplicationConfigService, acdClient application3.ServiceClient) *ArgoApplicationServiceExtendedImpl {
+	argoApplicationConfigService config.ArgoApplicationConfigService,
+	acdClientWrapper argocdServer.ArgoClientWrapperService) *ArgoApplicationServiceExtendedImpl {
 	return &ArgoApplicationServiceExtendedImpl{
 		ArgoApplicationServiceImpl: &ArgoApplicationServiceImpl{
 			logger:                       logger,
@@ -45,7 +46,7 @@ func NewArgoApplicationServiceExtendedServiceImpl(logger *zap.SugaredLogger,
 			k8sApplicationService:        k8sApplicationService,
 			argoApplicationConfigService: argoApplicationConfigService,
 		},
-		acdClient: acdClient,
+		acdClientWrapper: acdClientWrapper,
 	}
 }
 
@@ -64,7 +65,7 @@ func (impl *ArgoApplicationServiceExtendedImpl) ResourceTree(ctxt context.Contex
 	ctx, cancel := context.WithTimeout(ctxt, argoApplication.TimeoutSlow)
 	defer cancel()
 
-	asc, conn, err := impl.acdClient.GetArgoClient(ctxt)
+	asc, conn, err := impl.acdClientWrapper.GetArgoClient(ctxt)
 	if err != nil {
 		impl.logger.Errorw("Error in GetArgoClient", "err", err)
 		return nil, err

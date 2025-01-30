@@ -27,7 +27,6 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app/service"
 	helmBean "github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appStatus2 "github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
@@ -73,7 +72,6 @@ type InstalledAppDeploymentTypeChangeServiceImpl struct {
 	appRepository                 appRepository.AppRepository
 	gitOpsConfigReadService       config.GitOpsConfigReadService
 	environmentRepository         repository.EnvironmentRepository
-	acdClient                     application2.ServiceClient
 	k8sCommonService              k8s.K8sCommonService
 	k8sUtil                       k8s2.K8sService
 	fullModeDeploymentService     deployment.FullModeDeploymentService
@@ -93,7 +91,7 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 	appStatusRepository appStatus2.AppStatusRepository,
 	gitOpsConfigReadService config.GitOpsConfigReadService,
 	environmentRepository repository.EnvironmentRepository,
-	acdClient application2.ServiceClient, k8sCommonService k8s.K8sCommonService,
+	k8sCommonService k8s.K8sCommonService,
 	k8sUtil k8s2.K8sService, fullModeDeploymentService deployment.FullModeDeploymentService,
 	eaModeDeploymentService deployment2.EAModeDeploymentService,
 	argoClientWrapperService argocdServer.ArgoClientWrapperService,
@@ -110,7 +108,6 @@ func NewInstalledAppDeploymentTypeChangeServiceImpl(logger *zap.SugaredLogger,
 		appStatusRepository:           appStatusRepository,
 		gitOpsConfigReadService:       gitOpsConfigReadService,
 		environmentRepository:         environmentRepository,
-		acdClient:                     acdClient,
 		k8sCommonService:              k8sCommonService,
 		k8sUtil:                       k8sUtil,
 		fullModeDeploymentService:     fullModeDeploymentService,
@@ -629,10 +626,7 @@ func (impl *InstalledAppDeploymentTypeChangeServiceImpl) fetchDeletedInstalledAp
 			}
 			_, err = impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
 		} else {
-			req := &application.ApplicationQuery{
-				Name: &deploymentAppName,
-			}
-			_, err = impl.acdClient.Get(ctx, req)
+			_, err = impl.argoClientWrapperService.GetArgoAppByName(ctx, deploymentAppName)
 		}
 		if err != nil {
 			impl.logger.Errorw("error in getting application detail", "deploymentAppName", deploymentAppName, "err", err)

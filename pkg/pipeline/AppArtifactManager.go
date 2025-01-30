@@ -17,6 +17,7 @@
 package pipeline
 
 import (
+	"github.com/devtron-labs/common-lib/utils"
 	argoApplication "github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/pkg/build/artifacts/imageTagging"
 	"github.com/devtron-labs/devtron/pkg/build/pipeline"
@@ -402,6 +403,7 @@ func (impl *AppArtifactManagerImpl) BuildRollbackArtifactsList(artifactListingFi
 		deployedCiArtifacts = append(deployedCiArtifacts, bean2.CiArtifactBean{
 			Id:                     ciArtifact.Id,
 			Image:                  ciArtifact.Image,
+			TargetPlatforms:        utils.ConvertTargetPlatformStringToObject(ciArtifact.TargetPlatforms),
 			MaterialInfo:           mInfo,
 			DeployedTime:           formatDate(ciArtifact.StartedOn, bean2.LayoutRFC3339),
 			WfrId:                  ciArtifact.CdWorkflowRunnerId,
@@ -656,6 +658,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsList(listingFilterOpts *bean.A
 		currentRunningArtifactBean = &bean2.CiArtifactBean{
 			Id:                     currentRunningArtifact.Id,
 			Image:                  currentRunningArtifact.Image,
+			TargetPlatforms:        utils.ConvertTargetPlatformStringToObject(currentRunningArtifact.TargetPlatforms),
 			ImageDigest:            currentRunningArtifact.ImageDigest,
 			MaterialInfo:           mInfo,
 			ScanEnabled:            currentRunningArtifact.ScanEnabled,
@@ -735,10 +738,11 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCdStageV2(listingFilterOpts
 			impl.logger.Errorw("Error in parsing artifact material info", "err", err)
 		}
 		ciArtifact := &bean2.CiArtifactBean{
-			Id:           artifact.Id,
-			Image:        artifact.Image,
-			ImageDigest:  artifact.ImageDigest,
-			MaterialInfo: mInfo,
+			Id:              artifact.Id,
+			Image:           artifact.Image,
+			TargetPlatforms: utils.ConvertTargetPlatformStringToObject(artifact.TargetPlatforms),
+			ImageDigest:     artifact.ImageDigest,
+			MaterialInfo:    mInfo,
 			//TODO:LastSuccessfulTriggerOnParent
 			Scanned:                artifact.Scanned,
 			ScanEnabled:            artifact.ScanEnabled,
@@ -781,6 +785,7 @@ func (impl *AppArtifactManagerImpl) BuildArtifactsForCIParentV2(listingFilterOpt
 		ciArtifact := &bean2.CiArtifactBean{
 			Id:                     artifact.Id,
 			Image:                  artifact.Image,
+			TargetPlatforms:        utils.ConvertTargetPlatformStringToObject(artifact.TargetPlatforms),
 			ImageDigest:            artifact.ImageDigest,
 			MaterialInfo:           mInfo,
 			ScanEnabled:            artifact.ScanEnabled,

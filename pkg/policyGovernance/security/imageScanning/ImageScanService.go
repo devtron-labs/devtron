@@ -23,11 +23,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/environment"
 	"github.com/devtron-labs/devtron/pkg/cluster/environment/bean"
 	bean2 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
-	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/adapter"
 	bean3 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/bean"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/helper/parser"
 	repository3 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
 	securityBean "github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool/repository"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/read"
 	"go.opentelemetry.io/otel"
 	"time"
@@ -68,7 +68,7 @@ type ImageScanServiceImpl struct {
 	policyService                             PolicyService
 	pipelineRepository                        pipelineConfig.PipelineRepository
 	ciPipelineRepository                      pipelineConfig.CiPipelineRepository
-	scanToolMetaDataRepository                repository3.ScanToolMetadataRepository
+	scanToolMetaDataRepository                repository2.ScanToolMetadataRepository
 	scanToolExecutionHistoryMappingRepository repository3.ScanToolExecutionHistoryMappingRepository
 	cvePolicyRepository                       repository3.CvePolicyRepository
 	cdWorkflowReadService                     read.CdWorkflowReadService
@@ -80,7 +80,7 @@ func NewImageScanServiceImpl(Logger *zap.SugaredLogger, scanHistoryRepository re
 	userService user.UserService,
 	appRepository repository1.AppRepository,
 	envService environment.EnvironmentService, ciArtifactRepository repository.CiArtifactRepository, policyService PolicyService,
-	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository, scanToolMetaDataRepository repository3.ScanToolMetadataRepository, scanToolExecutionHistoryMappingRepository repository3.ScanToolExecutionHistoryMappingRepository,
+	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository, scanToolMetaDataRepository repository2.ScanToolMetadataRepository, scanToolExecutionHistoryMappingRepository repository3.ScanToolExecutionHistoryMappingRepository,
 	cvePolicyRepository repository3.CvePolicyRepository,
 	cdWorkflowReadService read.CdWorkflowReadService) *ImageScanServiceImpl {
 	return &ImageScanServiceImpl{Logger: Logger, scanHistoryRepository: scanHistoryRepository, scanResultRepository: scanResultRepository,
@@ -485,12 +485,13 @@ func (impl ImageScanServiceImpl) FetchExecutionDetailResult(request *bean3.Image
 	}
 	// setting scan tool name if scan tool id is present
 	if imageScanResponse.ScanToolId > 0 {
-		scanToolName, err := impl.scanToolMetaDataRepository.FindNameById(imageScanResponse.ScanToolId)
+		scanToolName, scanToolUrl, err := impl.scanToolMetaDataRepository.FindNameAndUrlById(imageScanResponse.ScanToolId)
 		if err != nil {
 			impl.Logger.Errorw("error in getting scan tool name by id", "scanToolId", imageScanResponse.ScanToolId, "err", err)
 			return nil, err
 		}
 		imageScanResponse.ScanToolName = scanToolName
+		imageScanResponse.ScanToolUrl = scanToolUrl
 	}
 	return imageScanResponse, nil
 }
@@ -715,22 +716,6 @@ func (impl ImageScanServiceImpl) IsImageScanExecutionCompleted(image, imageDiges
 		}
 	}
 	return isScanningCompleted, nil
-}
-
-func (impl ImageScanServiceImpl) GetScanResults(resourceScanQueryParams *bean3.ResourceScanQueryParams) (resp parser.ResourceScanResponseDto, err error) {
-	request := &bean3.ImageScanRequest{
-		ArtifactId: resourceScanQueryParams.ArtifactId,
-		AppId:      resourceScanQueryParams.AppId,
-		EnvId:      resourceScanQueryParams.EnvId,
-	}
-	respFromExecutionDetail, err := impl.FetchExecutionDetailResult(request)
-	if err != nil {
-		impl.Logger.Errorw("error encountered in GetScanResults", "req", request, "err", err)
-		return resp, err
-	}
-	// build an adapter to convert the respFromExecutionDetail to the required ResourceScanResponseDto format
-	return adapter.ExecutionDetailsToResourceScanResponseDto(respFromExecutionDetail), nil
-
 }
 
 func (impl ImageScanServiceImpl) FilterDeployInfoByScannedArtifactsDeployedInEnv(deployInfoList []*repository3.ImageScanDeployInfo) ([]*repository3.ImageScanDeployInfo, error) {

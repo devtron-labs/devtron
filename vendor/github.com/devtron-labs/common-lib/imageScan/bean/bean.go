@@ -62,3 +62,22 @@ func (r *ImageScanEvent) IsImageFromManifest() bool {
 func (r *ImageScanEvent) IsBuiltImage() bool {
 	return r.SourceType == constants.SourceTypeImage && r.SourceSubType == constants.SourceSubTypeCi
 }
+
+type ScanResultPayload struct {
+	ImageScanEvent       *ImageScanEvent
+	ScanToolId           int                      `json:"scanToolId"`
+	SourceScanningResult string                   `json:"sourceScanningResult"`
+	Sbom                 string                   `json:"sbom"`
+	ImageScanOutput      []*ImageScanOutputObject `json:"imageScanOutput"`
+}
+
+type ImageScanOutputObject struct {
+	TargetName     string `json:"targetName"`
+	Class          string `json:"class"`
+	Type           string `json:"type"`
+	Name           string `json:"name"`
+	Package        string `json:"package"`
+	PackageVersion string `json:"packageVersion"`
+	FixedInVersion string `json:"fixedInVersion"`
+	Severity       string `json:"severity"`
+}
