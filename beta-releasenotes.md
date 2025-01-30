@@ -4,4 +4,5 @@
 ## Enhancements
 ## Documentation
 ## Others
+- sync: Release candidate v0.28.0 (#6340)
 - misc: Fix typo: Cronjob → CronJob (#6335)
