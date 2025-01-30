@@ -67,7 +67,6 @@ type PropertiesConfigServiceImpl struct {
 	scopedVariableManager            variables.ScopedVariableManager
 	deployedAppMetricsService        deployedAppMetrics.DeployedAppMetricsService
 	envConfigOverrideReadService     read.EnvConfigOverrideService
-	chartRefRepository               chartRepoRepository.ChartRefRepository
 	deploymentConfigService          common.DeploymentConfigService
 }
 
@@ -79,7 +78,6 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 	scopedVariableManager variables.ScopedVariableManager,
 	deployedAppMetricsService deployedAppMetrics.DeployedAppMetricsService,
 	envConfigOverrideReadService read.EnvConfigOverrideService,
-	chartRefRepository chartRepoRepository.ChartRefRepository,
 	deploymentConfigService common.DeploymentConfigService) *PropertiesConfigServiceImpl {
 	return &PropertiesConfigServiceImpl{
 		logger:                           logger,
@@ -91,7 +89,6 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 		deployedAppMetricsService:        deployedAppMetricsService,
 		envConfigOverrideReadService:     envConfigOverrideReadService,
 		deploymentConfigService:          deploymentConfigService,
-		chartRefRepository:               chartRefRepository,
 	}
 
 }
