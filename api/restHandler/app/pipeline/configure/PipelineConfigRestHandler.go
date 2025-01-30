@@ -135,7 +135,7 @@ type PipelineConfigRestHandlerImpl struct {
 	chartRefService                     chartRef.ChartRefService
 	ciCdPipelineOrchestrator            pipeline.CiCdPipelineOrchestrator
 	teamReadService                     read3.TeamReadService
-	EnvironmentRepository               repository2.EnvironmentRepository
+	environmentRepository               repository2.EnvironmentRepository
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -208,7 +208,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		ciCdPipelineOrchestrator:            ciCdPipelineOrchestrator,
 		gitProviderReadService:              gitProviderReadService,
 		teamReadService:                     teamReadService,
-		EnvironmentRepository:               EnvironmentRepository,
+		environmentRepository:               EnvironmentRepository,
 	}
 }
 

@@ -2576,7 +2576,7 @@ func (handler *PipelineConfigRestHandlerImpl) ValidateArgoCDAppLinkRequest(w htt
 		return
 	}
 
-	env, err := handler.EnvironmentRepository.FindOneByNamespaceAndClusterId(request.Namespace, request.ClusterId)
+	env, err := handler.environmentRepository.FindOneByNamespaceAndClusterId(request.Namespace, request.ClusterId)
 	if err != nil {
 		common.WriteJsonResp(w, fmt.Errorf("error in getting environment for given clusterId and namespace"), nil, http.StatusBadRequest)
 		return
