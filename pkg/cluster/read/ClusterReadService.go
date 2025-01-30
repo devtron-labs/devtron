@@ -10,6 +10,7 @@ import (
 type ClusterReadService interface {
 	IsClusterReachable(clusterId int) (bool, error)
 	FindById(id int) (*bean.ClusterBean, error)
+	FindOne(clusterName string) (*bean.ClusterBean, error)
 }
 
 type ClusterReadServiceImpl struct {
@@ -40,6 +41,15 @@ func (impl *ClusterReadServiceImpl) IsClusterReachable(clusterId int) (bool, err
 
 func (impl *ClusterReadServiceImpl) FindById(id int) (*bean.ClusterBean, error) {
 	model, err := impl.clusterRepository.FindById(id)
+	if err != nil {
+		return nil, err
+	}
+	bean := adapter.GetClusterBean(*model)
+	return &bean, nil
+}
+
+func (impl *ClusterReadServiceImpl) FindOne(clusterName string) (*bean.ClusterBean, error) {
+	model, err := impl.clusterRepository.FindOne(clusterName)
 	if err != nil {
 		return nil, err
 	}

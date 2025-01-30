@@ -104,6 +104,7 @@ type ImageScanExecutionDetail struct {
 	ObjectType            string                               `json:"objectType,notnull"`
 	ScanToolId            int                                  `json:"scanToolId,omitempty"`
 	ScanToolName          string                               `json:"scanToolName,omitempty"`
+	ScanToolUrl           string                               `json:"scanToolUrl,omitempty"`
 	Status                repository.ScanExecutionProcessState `json:"status,omitempty"`
 }
 

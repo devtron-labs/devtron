@@ -21,8 +21,10 @@ import (
 	"errors"
 	"fmt"
 	util3 "github.com/devtron-labs/common-lib/utils/k8s"
-	"github.com/devtron-labs/devtron/client/argocdServer/repoCredsK8sClient"
+	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/repoCredsK8sClient/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/cluster/bean"
+	"github.com/devtron-labs/devtron/pkg/cluster/read"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -33,7 +35,6 @@ import (
 
 	"github.com/devtron-labs/devtron/internal/util"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	"github.com/devtron-labs/devtron/pkg/cluster"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
@@ -76,28 +77,29 @@ type ChartRepositoryService interface {
 }
 
 type ChartRepositoryServiceImpl struct {
-	logger                 *zap.SugaredLogger
-	repoRepository         chartRepoRepository.ChartRepoRepository
-	K8sUtil                *util3.K8sServiceImpl
-	clusterService         cluster.ClusterService
-	aCDAuthConfig          *util2.ACDAuthConfig
-	client                 *http.Client
-	serverEnvConfig        *serverEnvConfig.ServerEnvConfig
-	RepositoryCredsManager repoCredsK8sClient.RepositoryCreds
+	logger                   *zap.SugaredLogger
+	repoRepository           chartRepoRepository.ChartRepoRepository
+	K8sUtil                  *util3.K8sServiceImpl
+	aCDAuthConfig            *util2.ACDAuthConfig
+	client                   *http.Client
+	serverEnvConfig          *serverEnvConfig.ServerEnvConfig
+	argoClientWrapperService argocdServer.ArgoClientWrapperService
+	clusterReadService       read.ClusterReadService
 }
 
-func NewChartRepositoryServiceImpl(logger *zap.SugaredLogger, repoRepository chartRepoRepository.ChartRepoRepository, K8sUtil *util3.K8sServiceImpl, clusterService cluster.ClusterService,
+func NewChartRepositoryServiceImpl(logger *zap.SugaredLogger, repoRepository chartRepoRepository.ChartRepoRepository, K8sUtil *util3.K8sServiceImpl,
 	aCDAuthConfig *util2.ACDAuthConfig, client *http.Client, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
-	RepositoryCredsManager repoCredsK8sClient.RepositoryCreds) *ChartRepositoryServiceImpl {
+	argoClientWrapperService argocdServer.ArgoClientWrapperService,
+	clusterReadService read.ClusterReadService) *ChartRepositoryServiceImpl {
 	return &ChartRepositoryServiceImpl{
-		logger:                 logger,
-		repoRepository:         repoRepository,
-		K8sUtil:                K8sUtil,
-		clusterService:         clusterService,
-		aCDAuthConfig:          aCDAuthConfig,
-		client:                 client,
-		serverEnvConfig:        serverEnvConfig,
-		RepositoryCredsManager: RepositoryCredsManager,
+		logger:                   logger,
+		repoRepository:           repoRepository,
+		K8sUtil:                  K8sUtil,
+		aCDAuthConfig:            aCDAuthConfig,
+		client:                   client,
+		serverEnvConfig:          serverEnvConfig,
+		argoClientWrapperService: argoClientWrapperService,
+		clusterReadService:       clusterReadService,
 	}
 }
 
@@ -160,7 +162,7 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 		IsPrivateChart:          isPrivateChart,
 	}
 
-	err = impl.RepositoryCredsManager.AddChartRepository(argoServerAddRequest)
+	err = impl.argoClientWrapperService.AddChartRepository(argoServerAddRequest)
 	if err != nil {
 		impl.logger.Errorw("error in adding chart repository to argocd server", "name", request.Name, "err", err)
 		return nil, err
@@ -247,7 +249,7 @@ func (impl *ChartRepositoryServiceImpl) UpdateData(request *ChartRepoDto) (*char
 		IsPrivateChart:          isPrivateChart,
 	}
 	// modify configmap
-	err = impl.RepositoryCredsManager.UpdateChartRepository(argoServerUpdateRequest)
+	err = impl.argoClientWrapperService.UpdateChartRepository(argoServerUpdateRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +294,7 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) e
 	}
 
 	// modify configmap
-	err = impl.RepositoryCredsManager.DeleteChartRepository(request.Name, request.Url)
+	err = impl.argoClientWrapperService.DeleteChartRepository(request.Name, request.Url)
 	if err != nil {
 		impl.logger.Errorw("error in deleting chart repository from argocd", "name", request.Name, "err", err)
 		return err
@@ -499,7 +501,7 @@ func (impl *ChartRepositoryServiceImpl) ValidateAndUpdateChartRepo(request *Char
 }
 
 func (impl *ChartRepositoryServiceImpl) TriggerChartSyncManual(chartProviderConfig *ChartProviderConfig) error {
-	defaultClusterBean, err := impl.clusterService.FindOne(cluster.DEFAULT_CLUSTER)
+	defaultClusterBean, err := impl.clusterReadService.FindOne(bean2.DEFAULT_CLUSTER)
 	if err != nil {
 		impl.logger.Errorw("defaultClusterBean err, TriggerChartSyncManual", "err", err)
 		return err

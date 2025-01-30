@@ -77,6 +77,7 @@ type CiArtifact struct {
 	IsArtifactUploaded    bool      `sql:"is_artifact_uploaded"` // Deprecated; Use pipelineConfig.CiWorkflow instead.
 	CredentialsSourceType string    `sql:"credentials_source_type"`
 	CredentialSourceValue string    `sql:"credentials_source_value"`
+	TargetPlatforms       string    `sql:"target_platforms"`
 	ComponentId           int       `sql:"component_id"`
 	DeployedTime          time.Time `sql:"-"`
 	Deployed              bool      `sql:"-"`

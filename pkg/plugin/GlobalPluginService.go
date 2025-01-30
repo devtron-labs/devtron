@@ -74,6 +74,7 @@ type GlobalPluginService interface {
 	PatchPlugin(pluginDto *bean2.PluginMetadataDto, userId int32) (*bean2.PluginMetadataDto, error)
 	GetDetailedPluginInfoByPluginId(pluginId int) (*bean2.PluginMetadataDto, error)
 	GetAllDetailedPluginInfo() ([]*bean2.PluginMetadataDto, error)
+	GetNewPluginStepsDtoByRefPluginIdentifier(identifier string) (*bean2.PluginStepsDto, error)
 
 	CreatePluginOrVersions(pluginDto *bean2.PluginParentMetadataDto, userId int32) (int, error)
 	ListAllPluginsV2(filter *bean2.PluginsListFilter) (*bean2.PluginsDto, error)
@@ -1940,7 +1941,7 @@ func (impl *GlobalPluginServiceImpl) MigratePluginDataToParentPluginMetadata(plu
 				continue
 			}
 			parentMetadata := repository.NewPluginParentMetadata()
-			parentMetadata.SetParentPluginMetadata(pluginMetadata).CreateAuditLog(bean.SystemUserId)
+			parentMetadata.SetParentPluginMetadata(pluginMetadata).CreateAuditLog(bean.SystemUserId).WithIsExposed(true)
 			parentMetadata.Identifier = identifier
 			parentMetadata, err = impl.globalPluginRepository.SavePluginParentMetadata(tx, parentMetadata)
 			if err != nil {
@@ -2134,7 +2135,7 @@ func (impl *GlobalPluginServiceImpl) createNewPlugin(tx *pg.Tx, pluginDto *bean2
 
 	pluginStageMapping := &repository.PluginStageMapping{
 		PluginId:  pluginParentMetadata.Id,
-		StageType: repository.CI_CD,
+		StageType: pluginDto.GetPluginStageType(),
 		AuditLog:  sql.NewDefaultAuditLog(userId),
 	}
 	_, err = impl.globalPluginRepository.SavePluginStageMapping(pluginStageMapping, tx)
@@ -2328,4 +2329,14 @@ func validatePluginVariable(variable *bean2.PluginVariableDto) error {
 		}
 	}
 	return nil
+}
+
+func (impl *GlobalPluginServiceImpl) GetNewPluginStepsDtoByRefPluginIdentifier(identifier string) (*bean2.PluginStepsDto, error) {
+	pluginMetadata, err := impl.globalPluginRepository.GetPluginMetadataByPluginIdentifier(identifier)
+	if err != nil {
+		impl.logger.Errorw("error in getting plugin steps by plugin identifier", "identifier", identifier, "err", err)
+		return nil, err
+	}
+	pluginStepDto := adaptor.GetNewPluginStepDtoFromRefPluginMetadata(pluginMetadata)
+	return pluginStepDto, nil
 }

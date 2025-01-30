@@ -19,11 +19,9 @@ package status
 import (
 	"context"
 	"fmt"
-	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/helm-app/service/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	appRepository "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -87,9 +85,7 @@ type WorkflowStatusServiceImpl struct {
 	pipelineStatusTimelineRepository     pipelineConfig.PipelineStatusTimelineRepository
 	pipelineRepository                   pipelineConfig.PipelineRepository
 	appListingService                    app.AppListingService
-
-	application             application.ServiceClient
-	deploymentConfigService common2.DeploymentConfigService
+	deploymentConfigService              common2.DeploymentConfigService
 }
 
 func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
@@ -109,7 +105,6 @@ func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
 	installedAppReadService installedAppReader.InstalledAppReadService,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
-	application application.ServiceClient,
 	appListingService app.AppListingService,
 	deploymentConfigService common2.DeploymentConfigService,
 ) (*WorkflowStatusServiceImpl, error) {
@@ -133,7 +128,6 @@ func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
 		installedAppReadService:              installedAppReadService,
 		pipelineStatusTimelineRepository:     pipelineStatusTimelineRepository,
 		pipelineRepository:                   pipelineRepository,
-		application:                          application,
 		appListingService:                    appListingService,
 		deploymentConfigService:              deploymentConfigService,
 	}
@@ -236,10 +230,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 		}
 		// this should only be called when we have git-ops configured
 		// try fetching status from argo cd
-		query := &application2.ApplicationQuery{
-			Name: &pipeline.DeploymentAppName,
-		}
-		app, err := impl.application.Get(context.Background(), query)
+		app, err := impl.argocdClientWrapperService.GetArgoAppByName(context.Background(), pipeline.DeploymentAppName)
 		if err != nil {
 			impl.logger.Errorw("error in getting acd application", "err", err, "argoAppName", pipeline)
 			// updating cdWfr status
@@ -334,10 +325,8 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 
 		// this should only be called when we have git-ops configured
 		// try fetching status from argo cd
-		query := &application2.ApplicationQuery{
-			Name: &acdAppName,
-		}
-		app, err := impl.application.Get(context.Background(), query)
+
+		app, err := impl.argocdClientWrapperService.GetArgoAppByName(context.Background(), acdAppName)
 		if err != nil {
 			impl.logger.Errorw("error in getting acd application", "err", err, "installedApp", installedApp)
 			// updating cdWfr status

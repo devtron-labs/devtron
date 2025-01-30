@@ -43,7 +43,6 @@ import (
 	"github.com/devtron-labs/devtron/api/externalLink"
 	fluxApplication "github.com/devtron-labs/devtron/api/fluxApplication"
 	client "github.com/devtron-labs/devtron/api/helm-app"
-	"github.com/devtron-labs/devtron/api/infraConfig"
 	"github.com/devtron-labs/devtron/api/k8s"
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/resourceScan"
@@ -79,8 +78,10 @@ import (
 	"github.com/devtron-labs/devtron/cel"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
+	"github.com/devtron-labs/devtron/client/argocdServer/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/certificate"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
+	acdConfig "github.com/devtron-labs/devtron/client/argocdServer/config"
 	"github.com/devtron-labs/devtron/client/argocdServer/connection"
 	"github.com/devtron-labs/devtron/client/argocdServer/repoCredsK8sClient"
 	repocreds "github.com/devtron-labs/devtron/client/argocdServer/repocreds"
@@ -129,7 +130,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart/gitOpsConfig"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
-	"github.com/devtron-labs/devtron/pkg/configDiff"
+	"github.com/devtron-labs/devtron/pkg/config"
+	"github.com/devtron-labs/devtron/pkg/config/configDiff"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	deployment2 "github.com/devtron-labs/devtron/pkg/deployment"
 	"github.com/devtron-labs/devtron/pkg/deployment/common"
@@ -143,9 +145,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/generateManifest"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
-	repository11 "github.com/devtron-labs/devtron/pkg/infraConfig/repository"
-	infraConfigService "github.com/devtron-labs/devtron/pkg/infraConfig/service"
-	"github.com/devtron-labs/devtron/pkg/infraConfig/units"
+	"github.com/devtron-labs/devtron/pkg/infraConfig"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	repository7 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/notifier"
@@ -153,7 +153,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/executors"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
-	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/plugin"
@@ -229,7 +228,7 @@ func InitializeApp() (*App, error) {
 		connection.SettingsManager,
 		// auth.GetConfigForDevtronApps,
 
-		connection.GetConfig,
+		bean.GetConfig,
 		wire.Bind(new(session2.ServiceClient), new(*middleware.LoginService)),
 
 		sse.NewSSE,
@@ -277,20 +276,6 @@ func InitializeApp() (*App, error) {
 		dashboardEvent.NewDashboardTelemetryRouterImpl,
 		wire.Bind(new(dashboardEvent.DashboardTelemetryRouter),
 			new(*dashboardEvent.DashboardTelemetryRouterImpl)),
-
-		repository11.NewInfraProfileRepositoryImpl,
-		wire.Bind(new(repository11.InfraConfigRepository), new(*repository11.InfraConfigRepositoryImpl)),
-
-		units.NewUnits,
-		infraConfigService.NewInfraConfigServiceImpl,
-		wire.Bind(new(infraConfigService.InfraConfigService), new(*infraConfigService.InfraConfigServiceImpl)),
-		infraProviders.NewInfraProviderImpl,
-		wire.Bind(new(infraProviders.InfraProvider), new(*infraProviders.InfraProviderImpl)),
-		infraConfig.NewInfraConfigRestHandlerImpl,
-		wire.Bind(new(infraConfig.InfraConfigRestHandler), new(*infraConfig.InfraConfigRestHandlerImpl)),
-
-		infraConfig.NewInfraProfileRouterImpl,
-		wire.Bind(new(infraConfig.InfraConfigRouter), new(*infraConfig.InfraConfigRouterImpl)),
 
 		router.NewMuxRouter,
 
@@ -525,6 +510,10 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.ConfigMapService), new(*pipeline.ConfigMapServiceImpl)),
 		chartConfig.NewConfigMapRepositoryImpl,
 		wire.Bind(new(chartConfig.ConfigMapRepository), new(*chartConfig.ConfigMapRepositoryImpl)),
+
+		config.WireSet,
+
+		infraConfig.WireSet,
 
 		notifier.NewSESNotificationServiceImpl,
 		wire.Bind(new(notifier.SESNotificationService), new(*notifier.SESNotificationServiceImpl)),
@@ -926,6 +915,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(resourceQualifiers.QualifierMappingService), new(*resourceQualifiers.QualifierMappingServiceImpl)),
 
 		argocdServer.NewArgoClientWrapperServiceImpl,
+		argocdServer.NewArgoClientWrapperServiceEAImpl,
 		wire.Bind(new(argocdServer.ArgoClientWrapperService), new(*argocdServer.ArgoClientWrapperServiceImpl)),
 
 		pipeline.NewPluginInputVariableParserImpl,
@@ -937,7 +927,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(imageDigestPolicy.ImageDigestPolicyService), new(*imageDigestPolicy.ImageDigestPolicyServiceImpl)),
 
 		certificate.NewServiceClientImpl,
-		wire.Bind(new(certificate.Client), new(*certificate.ServiceClientImpl)),
+		wire.Bind(new(certificate.ServiceClient), new(*certificate.ServiceClientImpl)),
 
 		appStoreRestHandler.FullModeWireSet,
 
@@ -950,14 +940,17 @@ func InitializeApp() (*App, error) {
 		common.NewDeploymentConfigServiceImpl,
 		wire.Bind(new(common.DeploymentConfigService), new(*common.DeploymentConfigServiceImpl)),
 
-		repoCredsK8sClient.NewRepositorySecret,
-		wire.Bind(new(repoCredsK8sClient.RepositoryCreds), new(*repoCredsK8sClient.RepositorySecretImpl)),
+		repoCredsK8sClient.NewRepositoryCredsK8sClientImpl,
+		wire.Bind(new(repoCredsK8sClient.RepositoryCredsK8sClient), new(*repoCredsK8sClient.RepositoryCredsK8sClientImpl)),
 
 		repocreds.NewServiceClientImpl,
 		wire.Bind(new(repocreds.ServiceClient), new(*repocreds.ServiceClientImpl)),
 
 		dbMigration.NewDbMigrationServiceImpl,
 		wire.Bind(new(dbMigration.DbMigration), new(*dbMigration.DbMigrationServiceImpl)),
+
+		acdConfig.NewArgoCDConfigGetter,
+		wire.Bind(new(acdConfig.ArgoCDConfigGetter), new(*acdConfig.ArgoCDConfigGetterImpl)),
 	)
 	return &App{}, nil
 }

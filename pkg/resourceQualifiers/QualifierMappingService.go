@@ -285,6 +285,7 @@ func (impl *QualifierMappingServiceImpl) GetResourceMappingsForSelections(resour
 
 	return impl.processMappings(resourceType, mappings, qualifierSelector, getCompositeStringsAppEnvSelection(selectionIdentifiers))
 }
+
 func (impl *QualifierMappingServiceImpl) GetResourceMappingsForResources(resourceType ResourceType, resourceIds []int, qualifierSelector QualifierSelector) ([]ResourceQualifierMappings, error) {
 	mappings, err := impl.qualifierMappingRepository.GetMappingsByResourceTypeAndIdsAndQualifierId(resourceType, resourceIds, int(qualifierSelector.toQualifier()))
 	if err != nil {

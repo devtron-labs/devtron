@@ -692,6 +692,7 @@ func (impl *WorkflowEventProcessorImpl) BuildCiArtifactRequest(event bean.CiComp
 		PluginRegistryArtifactDetails: pluginArtifacts,
 		PluginArtifactStage:           event.PluginArtifactStage,
 		IsScanEnabled:                 event.IsScanEnabled,
+		TargetPlatforms:               event.TargetPlatforms,
 	}
 	// if DataSource is empty, repository.WEBHOOK is considered as default
 	if request.DataSource == "" {

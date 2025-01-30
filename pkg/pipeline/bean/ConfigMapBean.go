@@ -19,6 +19,7 @@ package bean
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/models"
+	"github.com/devtron-labs/devtron/pkg/resourceQualifiers"
 	"strings"
 )
 
@@ -144,4 +145,32 @@ const (
 
 func (r ResourceType) ToString() string {
 	return string(r)
+}
+
+type ResolvedCmCsRequest struct {
+	Scope resourceQualifiers.Scope
+	AppId int
+	EnvId int
+	IsJob bool
+}
+
+func NewResolvedCmCsRequest(scope resourceQualifiers.Scope) *ResolvedCmCsRequest {
+	return &ResolvedCmCsRequest{
+		Scope: scope,
+	}
+}
+
+func (r *ResolvedCmCsRequest) WithAppId(appId int) *ResolvedCmCsRequest {
+	r.AppId = appId
+	return r
+}
+
+func (r *ResolvedCmCsRequest) WithEnvId(envId int) *ResolvedCmCsRequest {
+	r.EnvId = envId
+	return r
+}
+
+func (r *ResolvedCmCsRequest) ForJob(isJob bool) *ResolvedCmCsRequest {
+	r.IsJob = isJob
+	return r
 }

@@ -118,6 +118,7 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) (*
 	if err != nil {
 		runner.Status = cdWorkflow.WorkflowFailed
 		runner.Message = err.Error()
+		runner.FinishedOn = time.Now()
 		_ = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 		return nil, err
 	}
@@ -125,6 +126,10 @@ func (impl *TriggerServiceImpl) TriggerPostStage(request bean.TriggerRequest) (*
 	_, jobHelmPackagePath, err := impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest)
 	if err != nil {
 		impl.logger.Errorw("error in submitting workflow", "err", err, "workflowId", cdStageWorkflowRequest.WorkflowId, "pipeline", pipeline, "env", env)
+		runner.Status = cdWorkflow.WorkflowFailed
+		runner.Message = err.Error()
+		runner.FinishedOn = time.Now()
+		_ = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
 		return nil, err
 	}
 	manifestPushTempate, err := impl.getManifestPushTemplateForPostStage(request, envDevploymentConfig, jobHelmPackagePath, cdStageWorkflowRequest, cdWf, runner, pipeline, triggeredBy, triggeredAt)

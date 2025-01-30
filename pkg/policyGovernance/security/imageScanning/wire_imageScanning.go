@@ -3,6 +3,7 @@ package imageScanning
 import (
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/read"
 	"github.com/devtron-labs/devtron/pkg/policyGovernance/security/imageScanning/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/policyGovernance/security/scanTool/repository"
 	"github.com/google/wire"
 )
 
@@ -25,9 +26,6 @@ var ImageScanningWireSet = wire.NewSet(
 	read.NewImageScanResultReadServiceImpl,
 	wire.Bind(new(read.ImageScanResultReadService), new(*read.ImageScanResultReadServiceImpl)),
 
-	NewScanToolMetadataServiceImpl,
-	wire.Bind(new(ScanToolMetadataService), new(*ScanToolMetadataServiceImpl)),
-
 	repository.NewImageScanHistoryRepositoryImpl,
 	wire.Bind(new(repository.ImageScanHistoryRepository), new(*repository.ImageScanHistoryRepositoryImpl)),
 	repository.NewImageScanResultRepositoryImpl,
@@ -38,8 +36,8 @@ var ImageScanningWireSet = wire.NewSet(
 	wire.Bind(new(repository.CveStoreRepository), new(*repository.CveStoreRepositoryImpl)),
 	repository.NewImageScanDeployInfoRepositoryImpl,
 	wire.Bind(new(repository.ImageScanDeployInfoRepository), new(*repository.ImageScanDeployInfoRepositoryImpl)),
-	repository.NewScanToolMetadataRepositoryImpl,
-	wire.Bind(new(repository.ScanToolMetadataRepository), new(*repository.ScanToolMetadataRepositoryImpl)),
+	repository2.NewScanToolMetadataRepositoryImpl,
+	wire.Bind(new(repository2.ScanToolMetadataRepository), new(*repository2.ScanToolMetadataRepositoryImpl)),
 
 	repository.NewPolicyRepositoryImpl,
 	wire.Bind(new(repository.CvePolicyRepository), new(*repository.CvePolicyRepositoryImpl)),

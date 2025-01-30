@@ -26,12 +26,14 @@ type EnvironmentVariables struct {
 	DeploymentServiceTypeConfig *DeploymentServiceTypeConfig
 	TerminalEnvVariables        *TerminalEnvVariables
 	GlobalClusterConfig         *GlobalClusterConfig
+	InternalEnvVariables        *InternalEnvVariables
 }
 
 type DeploymentServiceTypeConfig struct {
 	ExternallyManagedDeploymentType bool `env:"IS_INTERNAL_USE" envDefault:"false"`
 	HelmInstallASyncMode            bool `env:"RUN_HELM_INSTALL_IN_ASYNC_MODE_HELM_APPS" envDefault:"false"`
 	UseDeploymentConfigData         bool `env:"USE_DEPLOYMENT_CONFIG_DATA" envDefault:"false"`
+	ShouldCheckNamespaceOnClone     bool `env:"SHOULD_CHECK_NAMESPACE_ON_CLONE" envDefault:"false"  description:"should we check if namespace exists or not while cloning app" deprecated:"false"`
 }
 
 type GlobalEnvVariables struct {
@@ -57,6 +59,28 @@ type TerminalEnvVariables struct {
 	RestrictTerminalAccessForNonSuperUser bool `env:"RESTRICT_TERMINAL_ACCESS_FOR_NON_SUPER_USER" envDefault:"false"`
 }
 
+type InternalEnvVariables struct {
+	// GoRuntimeEnv specifies the runtime environment of the application,
+	//	- enum:
+	//		"development"
+	//		"production"
+	//	- default: "production"
+	//	- use cases: test cases to set the runtime environment
+	GoRuntimeEnv string `env:"GO_RUNTIME_ENV" envDefault:"production"`
+}
+
+func (i *InternalEnvVariables) IsDevelopmentEnv() bool {
+	if i == nil {
+		return false
+	}
+	return i.GoRuntimeEnv == "development"
+}
+
+func (i *InternalEnvVariables) SetDevelopmentEnv() *InternalEnvVariables {
+	i.GoRuntimeEnv = "development"
+	return i
+}
+
 func GetEnvironmentVariables() (*EnvironmentVariables, error) {
 	cfg := &EnvironmentVariables{
 		GlobalEnvVariables:          &GlobalEnvVariables{},
@@ -64,6 +88,7 @@ func GetEnvironmentVariables() (*EnvironmentVariables, error) {
 		DeploymentServiceTypeConfig: &DeploymentServiceTypeConfig{},
 		TerminalEnvVariables:        &TerminalEnvVariables{},
 		GlobalClusterConfig:         &GlobalClusterConfig{},
+		InternalEnvVariables:        &InternalEnvVariables{},
 	}
 	err := env.Parse(cfg)
 	if err != nil {
