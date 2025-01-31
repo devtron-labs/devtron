@@ -63,6 +63,7 @@ import (
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/imageDigestPolicy"
+	"github.com/devtron-labs/devtron/pkg/pipeline/adapter"
 	pipelineConfigBean "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
@@ -96,7 +97,7 @@ type CdPipelineConfigService interface {
 	CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error)
 	// PatchCdPipelines : Handle CD pipeline patch requests, making necessary changes to the configuration and returning the updated version.
 	// Performs Create ,Update and Delete operation.
-	ValidateLinkExternalArgoCDRequest(request pipelineConfigBean.ArgoCDAppLinkValidationRequest) pipelineConfigBean.ArgoCdAppLinkValidationResponse
+	ValidateLinkExternalArgoCDRequest(request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ArgoCdAppLinkValidationResponse
 	PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error)
 	DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, deleteAction int, acdDelete bool, userId int32) (*bean.AppDeleteResponseDTO, error)
 	DeleteACDAppCdPipelineWithNonCascade(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool, userId int32) (err error)
@@ -462,12 +463,7 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		if pipeline.IsExternalArgoAppLinkRequest() {
-			linkCDValidationResponse := impl.ValidateLinkExternalArgoCDRequest(pipelineConfigBean.ArgoCDAppLinkValidationRequest{
-				AppId:         pipeline.AppId,
-				ClusterId:     pipeline.ApplicationObjectClusterId,
-				Namespace:     pipeline.ApplicationObjectNamespace,
-				ArgoCDAppName: pipeline.DeploymentAppName,
-			})
+			linkCDValidationResponse := impl.ValidateLinkExternalArgoCDRequest(adapter.NewMigrateReleaseValidationRequest(pipeline))
 
 			if !linkCDValidationResponse.IsLinkable {
 				return nil,
@@ -641,12 +637,12 @@ func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForACDApp(app *app2.A
 	}, nil
 }
 
-func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(request pipelineConfigBean.ArgoCDAppLinkValidationRequest) pipelineConfigBean.ArgoCdAppLinkValidationResponse {
+func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(request *pipelineConfigBean.MigrateReleaseValidationRequest) pipelineConfigBean.ArgoCdAppLinkValidationResponse {
 
 	appId := request.AppId
-	applicationObjectClusterId := request.ClusterId
-	applicationObjectNamespace := request.Namespace
-	acdAppName := request.ArgoCDAppName
+	applicationObjectClusterId := request.ApplicationObjectClusterId
+	applicationObjectNamespace := request.ApplicationObjectNamespace
+	acdAppName := request.DeploymentAppName
 
 	response := pipelineConfigBean.ArgoCdAppLinkValidationResponse{
 		IsLinkable:          false,
@@ -767,10 +763,10 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		return response.SetUnknownErrorDetail(err)
 	}
 	response.ApplicationMetadata.Source.ChartMetadata = pipelineConfigBean.ChartMetadata{
-		ChartVersion:      applicationChartVersion,
-		SavedChartName:    chartRef.Name,
-		ValuesFilename:    argoApplicationSpec.Spec.Source.Helm.ValueFiles[0],
-		RequiredChartName: applicationChartName,
+		RequiredChartVersion: applicationChartVersion,
+		SavedChartName:       chartRef.Name,
+		ValuesFilename:       argoApplicationSpec.Spec.Source.Helm.ValueFiles[0],
+		RequiredChartName:    applicationChartName,
 	}
 
 	if chartRef.Name != applicationChartName {

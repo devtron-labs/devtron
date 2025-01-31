@@ -1,10 +1,15 @@
 package bean
 
-type ArgoCDAppLinkValidationRequest struct {
-	AppId         int    `json:"appId"`
-	ClusterId     int    `json:"clusterId"`
-	Namespace     string `json:"namespace"`
-	ArgoCDAppName string `json:"argoCDAppName"`
+type MigrateReleaseValidationRequest struct {
+	AppId             int    `json:"appId"`
+	DeploymentAppName string `json:"deploymentAppName"`
+	DeploymentAppType string `json:"deploymentAppType"`
+	ArgoCdApplicationDetails
+}
+
+type ArgoCdApplicationDetails struct {
+	ApplicationObjectClusterId int    `json:"applicationObjectClusterId"`
+	ApplicationObjectNamespace string `json:"applicationObjectNamespace"`
 }
 
 type ArgoCdAppLinkValidationResponse struct {
@@ -44,10 +49,10 @@ type Source struct {
 }
 
 type ChartMetadata struct {
-	ChartVersion      string `json:"chartVersion"`
-	SavedChartName    string `json:"savedChartName"`
-	ValuesFilename    string `json:"valuesFilename"`
-	RequiredChartName string `json:"requiredChartName"`
+	RequiredChartVersion string `json:"requiredChartVersion"`
+	SavedChartName       string `json:"savedChartName"`
+	ValuesFilename       string `json:"valuesFilename"`
+	RequiredChartName    string `json:"requiredChartName"`
 }
 
 type Destination struct {

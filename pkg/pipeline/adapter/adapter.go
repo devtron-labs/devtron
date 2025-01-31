@@ -378,3 +378,13 @@ func GetStepVariableDto(variable *repository.PipelineStageStepVariable) (*pipeli
 	}
 	return variableDto, nil
 }
+
+func NewMigrateReleaseValidationRequest(pipeline *bean.CDPipelineConfigObject) *pipelineConfigBean.MigrateReleaseValidationRequest {
+	request := &pipelineConfigBean.MigrateReleaseValidationRequest{
+		AppId:             pipeline.AppId,
+		DeploymentAppName: pipeline.DeploymentAppName,
+	}
+	request.ApplicationObjectClusterId = pipeline.ApplicationObjectClusterId
+	request.ApplicationObjectNamespace = pipeline.ApplicationObjectNamespace
+	return request
+}
