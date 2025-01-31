@@ -33,7 +33,7 @@ func NewEmptyApplicationMetadata() ApplicationMetadata {
 		},
 		Destination: Destination{
 			ClusterName:      "",
-			ClusterServerURL: "",
+			ClusterServerUrl: "",
 			Namespace:        "",
 			EnvironmentName:  "",
 			EnvironmentId:    0,
@@ -57,7 +57,7 @@ type ChartMetadata struct {
 
 type Destination struct {
 	ClusterName      string `json:"clusterName"`
-	ClusterServerURL string `json:"clusterServerURL"`
+	ClusterServerUrl string `json:"clusterServerUrl"`
 	Namespace        string `json:"namespace"`
 	EnvironmentName  string `json:"environmentName"`
 	EnvironmentId    int    `json:"environmentId"`

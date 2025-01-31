@@ -708,7 +708,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 	targetClusterURL := argoApplicationSpec.Spec.Destination.Server
 	targetClusterNamespace := argoApplicationSpec.Spec.Destination.Namespace
 
-	response.ApplicationMetadata.Destination.ClusterServerURL = targetClusterURL
+	response.ApplicationMetadata.Destination.ClusterServerUrl = targetClusterURL
 	response.ApplicationMetadata.Destination.Namespace = targetClusterNamespace
 
 	targetCluster, err := impl.clusterReadService.FindByClusterURL(targetClusterURL)
