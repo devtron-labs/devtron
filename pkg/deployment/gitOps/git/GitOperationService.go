@@ -52,7 +52,7 @@ type GitOperationService interface {
 
 	CreateRepository(ctx context.Context, dto *apiBean.GitOpsConfigDto, userId int32) (string, bool, error)
 
-	CloneInDir(repoUrl, chartDir, targetRevision string) (string, error)
+	GetClonedDir(ctx context.Context, chartDir, repoUrl, targetRevision string) (string, error)
 	ReloadGitOpsProvider() error
 	UpdateGitHostUrlByProvider(request *apiBean.GitOpsConfigDto) error
 	GetRepoUrlWithUserName(url string) (string, error)
@@ -118,7 +118,7 @@ func (impl *GitOperationServiceImpl) PushChartToGitRepo(ctx context.Context, git
 	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "GitOperationServiceImpl.PushChartToGitRepo")
 	defer span.End()
 	chartDir := fmt.Sprintf("%s-%s", gitOpsRepoName, impl.chartTemplateService.GetDir())
-	clonedDir, err := impl.getClonedDir(newCtx, chartDir, repoUrl, targetRevision)
+	clonedDir, err := impl.GetClonedDir(newCtx, chartDir, repoUrl, targetRevision)
 	defer impl.chartTemplateService.CleanDir(clonedDir)
 	if err != nil {
 		impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
@@ -366,12 +366,12 @@ func (impl *GitOperationServiceImpl) PushChartToGitOpsRepoForHelmApp(ctx context
 	return &commonBean.ChartGitAttribute{RepoUrl: pushChartToGitRequest.RepoURL, ChartLocation: acdAppName}, commit, err
 }
 
-func (impl *GitOperationServiceImpl) getClonedDir(ctx context.Context, chartDir, repoUrl, targetRevision string) (string, error) {
-	_, span := otel.Tracer("orchestrator").Start(ctx, "GitOperationServiceImpl.getClonedDir")
+func (impl *GitOperationServiceImpl) GetClonedDir(ctx context.Context, chartDir, repoUrl, targetRevision string) (string, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "GitOperationServiceImpl.GetClonedDir")
 	defer span.End()
 	clonedDir := impl.gitFactory.GitOpsHelper.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
-		return impl.CloneInDir(repoUrl, chartDir, targetRevision)
+		return impl.cloneInDir(repoUrl, chartDir, targetRevision)
 	} else if err != nil {
 		impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
 		return "", err
@@ -379,7 +379,7 @@ func (impl *GitOperationServiceImpl) getClonedDir(ctx context.Context, chartDir,
 	return clonedDir, nil
 }
 
-func (impl *GitOperationServiceImpl) CloneInDir(repoUrl, chartDir, targetRevision string) (string, error) {
+func (impl *GitOperationServiceImpl) cloneInDir(repoUrl, chartDir, targetRevision string) (string, error) {
 	clonedDir, err := impl.gitFactory.GitOpsHelper.Clone(repoUrl, chartDir, targetRevision)
 	if err != nil {
 		impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)

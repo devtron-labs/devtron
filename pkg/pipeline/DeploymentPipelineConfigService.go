@@ -2264,9 +2264,8 @@ func (impl *CdPipelineConfigServiceImpl) GetValuesAndChartMetadataForExternalArg
 func (impl *CdPipelineConfigServiceImpl) extractHelmChartForExternalArgoApp(repoURL, targetRevision, chartPath string) (*chart2.Chart, error) {
 	repoName := impl.gitOpsConfigReadService.GetGitOpsRepoNameFromUrl(repoURL)
 	chartDir := fmt.Sprintf("%s-%s", repoName, impl.chartTemplateService.GetDir())
-	clonedDir := impl.gitFactory.GitOpsHelper.GetCloneDirectory(chartDir)
+	clonedDir, err := impl.gitOperationService.GetClonedDir(context.Background(), chartDir, repoURL, targetRevision)
 	defer impl.chartTemplateService.CleanDir(clonedDir)
-	_, err := impl.gitOperationService.CloneInDir(repoURL, clonedDir, targetRevision)
 	if err != nil {
 		impl.logger.Errorw("error in cloning in dir for external argo app", "repoURL", repoURL, "err", err)
 		return nil, err
