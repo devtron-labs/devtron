@@ -156,14 +156,12 @@ func NewManifestCreationServiceImpl(logger *zap.SugaredLogger,
 
 func (impl *ManifestCreationServiceImpl) BuildManifestForTrigger(ctx context.Context, overrideRequest *bean.ValuesOverrideRequest,
 	envDeploymentConfig *deploymentBean.DeploymentConfig, triggeredAt time.Time) (valuesOverrideResponse *app.ValuesOverrideResponse, builtChartPath string, err error) {
-	valuesOverrideResponse = &app.ValuesOverrideResponse{
-		DeploymentConfig: envDeploymentConfig,
-	}
 	valuesOverrideResponse, err = impl.GetValuesOverrideForTrigger(ctx, overrideRequest, envDeploymentConfig, triggeredAt)
 	if err != nil {
 		impl.logger.Errorw("error in fetching values for trigger", "err", err)
 		return valuesOverrideResponse, "", err
 	}
+	valuesOverrideResponse.DeploymentConfig = envDeploymentConfig
 	builtChartPath, err = impl.deploymentTemplateService.BuildChartAndGetPath(overrideRequest.AppName, valuesOverrideResponse.EnvOverride, envDeploymentConfig, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in parsing reference chart", "err", err)
