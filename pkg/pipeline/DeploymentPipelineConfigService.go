@@ -649,7 +649,14 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		IsLinkable:          false,
 		ApplicationMetadata: pipelineConfigBean.NewEmptyApplicationMetadata(),
 	}
-
+	appModel, err := impl.appRepo.FindById(appId)
+	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("error in fetching app", "error", err, "appId", appId)
+		response.SetUnknownErrorDetail(err)
+	} else if errors3.Is(err, pg.ErrNoRows) {
+		impl.logger.Errorw("app not found", "appId", appId)
+		response.SetUnknownErrorDetail(util.NewApiError(http.StatusBadRequest, "app not found", "app not found"))
+	}
 	application, err := impl.argoClientWrapperService.GetArgoAppByNameWithK8sClient(context.Background(), applicationObjectClusterId, applicationObjectNamespace, acdAppName)
 	if err != nil {
 		impl.logger.Errorw("error in fetching application", "deploymentAppName", acdAppName, "err", err)
@@ -769,10 +776,15 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		RequiredChartName:    applicationChartName,
 	}
 
-	if chartRef.GetChartName() != applicationChartName {
-		return response.SetErrorDetail(pipelineConfigBean.ChartTypeMismatch, fmt.Sprintf(pipelineConfigBean.ChartTypeMismatchErrorMsg, applicationChartName, applicationChartVersion))
+	if chartRef.UserUploaded {
+		if chartRef.GetChartName() != applicationChartName {
+			return response.SetErrorDetail(pipelineConfigBean.ChartTypeMismatch, fmt.Sprintf(pipelineConfigBean.ChartTypeMismatchErrorMsg, applicationChartName, applicationChartVersion))
+		}
+	} else {
+		if appModel.AppName != applicationChartName {
+			return response.SetErrorDetail(pipelineConfigBean.ChartTypeMismatch, fmt.Sprintf(pipelineConfigBean.ChartTypeMismatchErrorMsg, applicationChartName, applicationChartVersion))
+		}
 	}
-
 	_, err = impl.chartRefReadService.FindByVersionAndName(applicationChartName, applicationChartVersion)
 	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in finding chart ref by chart name and version", "chartName", applicationChartName, "chartVersion", applicationChartVersion, "err", err)
