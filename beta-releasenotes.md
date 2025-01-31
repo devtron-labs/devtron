@@ -1,4 +1,5 @@
 ## Bugs
+- fix: role group listing fix (#6343)
 - fix: sql injection fixes (#6334)
 - fix: role group k8s permissions duplication (#6336)
 ## Enhancements
