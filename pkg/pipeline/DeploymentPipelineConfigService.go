@@ -778,20 +778,22 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 
 	if chartRef.UserUploaded {
 		if chartRef.GetChartName() != applicationChartName {
-			return response.SetErrorDetail(pipelineConfigBean.ChartTypeMismatch, fmt.Sprintf(pipelineConfigBean.ChartTypeMismatchErrorMsg, applicationChartName, applicationChartVersion))
+			return response.SetErrorDetail(pipelineConfigBean.ChartTypeMismatch, fmt.Sprintf(pipelineConfigBean.ChartTypeMismatchErrorMsg, applicationChartName, chartRef.Name))
 		}
 	} else {
 		if appModel.AppName != applicationChartName {
-			return response.SetErrorDetail(pipelineConfigBean.ChartTypeMismatch, fmt.Sprintf(pipelineConfigBean.ChartTypeMismatchErrorMsg, applicationChartName, applicationChartVersion))
+			return response.SetErrorDetail(pipelineConfigBean.ChartTypeMismatch, fmt.Sprintf(pipelineConfigBean.ChartTypeMismatchErrorMsg, applicationChartName, chartRef.Name))
 		}
 	}
-	_, err = impl.chartRefReadService.FindByVersionAndName(applicationChartName, applicationChartVersion)
+	_, err = impl.chartRefReadService.FindByVersionAndName(applicationChartVersion, chartRef.Name)
 	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in finding chart ref by chart name and version", "chartName", applicationChartName, "chartVersion", applicationChartVersion, "err", err)
 		return response.SetUnknownErrorDetail(err)
 	} else if errors3.Is(err, pg.ErrNoRows) {
-		return response.SetErrorDetail(pipelineConfigBean.ChartVersionNotFound, fmt.Sprintf(pipelineConfigBean.ChartVersionNotFoundErrorMsg, applicationChartVersion, applicationChartName))
+		return response.SetErrorDetail(pipelineConfigBean.ChartVersionNotFound, fmt.Sprintf(pipelineConfigBean.ChartVersionNotFoundErrorMsg, applicationChartVersion, chartRef.Name))
 	}
+	response.IsLinkable = true
+	response.ApplicationMetadata.Status = string(argoApplicationSpec.Status.Health.Status)
 	return response
 }
 
