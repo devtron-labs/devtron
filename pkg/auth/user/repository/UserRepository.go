@@ -181,9 +181,10 @@ func (impl UserRepositoryImpl) GetAllExecutingQuery(query string, queryParams []
 func (impl UserRepositoryImpl) FetchActiveUserByEmail(email string) (bean.UserInfo, error) {
 	var users bean.UserInfo
 
+	emailSearchQuery, queryParams := helper.GetEmailSearchQuery("u", email)
 	query := fmt.Sprintf("SELECT u.id, u.email_id, u.access_token, u.user_type FROM users u"+
-		" WHERE u.active = true and %s order by u.updated_on desc", helper.GetEmailSearchQuery("u", email))
-	_, err := impl.dbConnection.Query(&users, query, email)
+		" WHERE u.active = true and %s order by u.updated_on desc", emailSearchQuery)
+	_, err := impl.dbConnection.Query(&users, query, queryParams...)
 	if err != nil {
 		impl.Logger.Errorw("Exception caught:", "err", err)
 		return users, err
@@ -197,12 +198,13 @@ func (impl UserRepositoryImpl) FetchUserDetailByEmail(email string) (bean.UserIn
 	var users []bean.UserRole
 	var userFinal bean.UserInfo
 
+	emailSearchQuery, queryParams := helper.GetEmailSearchQuery("u", email)
 	query := fmt.Sprintf("SELECT u.id, u.email_id, u.user_type, r.role FROM users u"+
 		" INNER JOIN user_roles ur ON ur.user_id=u.id"+
 		" INNER JOIN roles r ON r.id=ur.role_id"+
 		" WHERE %s and u.active = true"+
-		" ORDER BY u.updated_on desc;", helper.GetEmailSearchQuery("u", email))
-	_, err := impl.dbConnection.Query(&users, query, email)
+		" ORDER BY u.updated_on desc;", emailSearchQuery)
+	_, err := impl.dbConnection.Query(&users, query, queryParams...)
 	if err != nil {
 		return userFinal, err
 	}
