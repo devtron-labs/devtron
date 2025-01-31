@@ -301,12 +301,12 @@ func (impl *K8sServiceImpl) CreateNsIfNotExists(namespace string, clusterConfig 
 	}
 	ns, exists, err := impl.GetNsIfExists(namespace, v12Client)
 	if err != nil {
-		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
+		impl.logger.Errorw("error", "error", err)
 		return ns, false, err
 	}
 	if exists {
 		nsCreated = false
-		impl.logger.Infow("namesapce already exist")
+		impl.logger.Infow("namespace already exist", "namespace", namespace)
 		return ns, nsCreated, nil
 	}
 	impl.logger.Infow("ns not exists creating", "ns", namespace)
@@ -327,12 +327,12 @@ func (impl *K8sServiceImpl) CreateNsWithLabelsIfNotExists(namespace string, labe
 	}
 	ns, exists, err := impl.GetNsIfExists(namespace, v12Client)
 	if err != nil {
-		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
+		impl.logger.Errorw("error", "error", err)
 		return ns, false, err
 	}
 	if exists {
 		nsCreated = false
-		impl.logger.Infow("namesapce already exist")
+		impl.logger.Infow("namespace already exist", "namespace", namespace)
 		return ns, nsCreated, nil
 	}
 	impl.logger.Infow("ns not exists creating", "ns", namespace)
