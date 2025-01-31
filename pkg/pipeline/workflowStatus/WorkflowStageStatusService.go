@@ -2,6 +2,7 @@ package workflowStatus
 
 import (
 	"encoding/json"
+	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
@@ -12,6 +13,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/adapter"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"go.uber.org/zap"
 	"slices"
@@ -200,26 +202,26 @@ func (impl *WorkFlowStageStatusServiceImpl) updatePodStages(currentWorkflowStage
 				stage.Metadata = string(marshalledMetadata)
 			}
 			switch podStatus {
-			case "Pending":
+			case string(v1alpha1.NodePending):
 				if !stage.Status.IsTerminal() {
 					stage.Message = message
 					stage.Status = bean2.WORKFLOW_STAGE_STATUS_NOT_STARTED
 				}
-			case "Running":
+			case string(v1alpha1.NodeRunning):
 				if stage.Status == bean2.WORKFLOW_STAGE_STATUS_NOT_STARTED ||
 					stage.Status == bean2.WORKFLOW_STAGE_STATUS_UNKNOWN {
 					stage.Message = message
 					stage.Status = bean2.WORKFLOW_STAGE_STATUS_RUNNING
 					stage.StartTime = time.Now().Format(bean3.LayoutRFC3339)
 				}
-			case "Succeeded":
+			case string(v1alpha1.NodeSucceeded):
 				if stage.Status == bean2.WORKFLOW_STAGE_STATUS_RUNNING ||
 					stage.Status == bean2.WORKFLOW_STAGE_STATUS_UNKNOWN {
 					stage.Message = message
 					stage.Status = bean2.WORKFLOW_STAGE_STATUS_SUCCEEDED
 					stage.EndTime = time.Now().Format(bean3.LayoutRFC3339)
 				}
-			case "Failed", "Error":
+			case string(v1alpha1.NodeFailed), string(v1alpha1.NodeError):
 				if stage.Status == bean2.WORKFLOW_STAGE_STATUS_RUNNING ||
 					stage.Status == bean2.WORKFLOW_STAGE_STATUS_NOT_STARTED ||
 					stage.Status == bean2.WORKFLOW_STAGE_STATUS_UNKNOWN {
@@ -249,14 +251,8 @@ func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(
 	updatedWfStatus := currentWfDBstatus
 	//todo for switch case use enums
 	switch strings.ToLower(podStatus) {
-	case "pending":
-		if !slices.Contains(cdWorkflow.WfrTerminalStatusList, currentWfDBstatus) {
-			if !slices.Contains(cdWorkflow.WfrTerminalStatusList, wfStatus) {
-				updatedWfStatus = cdWorkflow.WorkflowWaitingToStart
-			} else {
-				updatedWfStatus = wfStatus
-			}
-		}
+	case strings.ToLower(string(v1alpha1.NodePending)):
+		updatedWfStatus = util.ComputeWorkflowStatus(currentWfDBstatus, wfStatus, cdWorkflow.WorkflowWaitingToStart)
 
 		// update workflow preparation stage and pod status if terminal
 		for _, stage := range currentWorkflowStages {
@@ -273,14 +269,8 @@ func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(
 				stage.EndTime = time.Now().Format(bean3.LayoutRFC3339)
 			}
 		}
-	case "running":
-		if !slices.Contains(cdWorkflow.WfrTerminalStatusList, currentWfDBstatus) {
-			if !slices.Contains(cdWorkflow.WfrTerminalStatusList, wfStatus) {
-				updatedWfStatus = constants.Running
-			} else {
-				updatedWfStatus = wfStatus
-			}
-		}
+	case strings.ToLower(string(v1alpha1.NodeRunning)):
+		updatedWfStatus = util.ComputeWorkflowStatus(currentWfDBstatus, wfStatus, constants.Running)
 
 		//if pod is running, update preparation and execution stages
 		for _, stage := range currentWorkflowStages {
@@ -308,14 +298,8 @@ func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(
 				}
 			}
 		}
-	case "succeeded":
-		if !slices.Contains(cdWorkflow.WfrTerminalStatusList, currentWfDBstatus) {
-			if !slices.Contains(cdWorkflow.WfrTerminalStatusList, wfStatus) {
-				updatedWfStatus = cdWorkflow.WorkflowSucceeded
-			} else {
-				updatedWfStatus = wfStatus
-			}
-		}
+	case strings.ToLower(string(v1alpha1.NodeSucceeded)):
+		updatedWfStatus = util.ComputeWorkflowStatus(currentWfDBstatus, wfStatus, cdWorkflow.WorkflowSucceeded)
 
 		//if pod is succeeded, update execution stage
 		for _, stage := range currentWorkflowStages {
@@ -329,14 +313,8 @@ func (impl *WorkFlowStageStatusServiceImpl) updateWorkflowStagesToDevtronStatus(
 				}
 			}
 		}
-	case "failed", "error":
-		if !slices.Contains(cdWorkflow.WfrTerminalStatusList, currentWfDBstatus) {
-			if !slices.Contains(cdWorkflow.WfrTerminalStatusList, wfStatus) {
-				updatedWfStatus = cdWorkflow.WorkflowFailed
-			} else {
-				updatedWfStatus = wfStatus
-			}
-		}
+	case strings.ToLower(string(v1alpha1.NodeFailed)), strings.ToLower(string(v1alpha1.NodeError)):
+		updatedWfStatus = util.ComputeWorkflowStatus(currentWfDBstatus, wfStatus, cdWorkflow.WorkflowFailed)
 
 		//if pod is failed, update execution stage
 		for _, stage := range currentWorkflowStages {

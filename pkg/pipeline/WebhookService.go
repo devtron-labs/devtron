@@ -84,13 +84,15 @@ type WebhookServiceImpl struct {
 	ciWorkflowRepository       pipelineConfig.CiWorkflowRepository
 	cdWorkflowCommonService    cd.CdWorkflowCommonService
 	workFlowStageStatusService workflowStatus.WorkFlowStageStatusService
+	ciService                  CiService
 }
 
 func NewWebhookServiceImpl(ciArtifactRepository repository.CiArtifactRepository,
 	logger *zap.SugaredLogger, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
-	workFlowStageStatusService workflowStatus.WorkFlowStageStatusService) *WebhookServiceImpl {
+	workFlowStageStatusService workflowStatus.WorkFlowStageStatusService,
+	ciService CiService) *WebhookServiceImpl {
 	webhookHandler := &WebhookServiceImpl{
 		ciArtifactRepository:       ciArtifactRepository,
 		logger:                     logger,
@@ -98,6 +100,7 @@ func NewWebhookServiceImpl(ciArtifactRepository repository.CiArtifactRepository,
 		ciWorkflowRepository:       ciWorkflowRepository,
 		cdWorkflowCommonService:    cdWorkflowCommonService,
 		workFlowStageStatusService: workFlowStageStatusService,
+		ciService:                  ciService,
 	}
 	config, err := types2.GetCiConfig()
 	if err != nil {

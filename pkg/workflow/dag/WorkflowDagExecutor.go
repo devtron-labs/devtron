@@ -120,6 +120,7 @@ type WorkflowDagExecutorImpl struct {
 	customTagService              pipeline.CustomTagService
 	pipelineStatusTimelineService status.PipelineStatusTimelineService
 	workFlowStageStatusService    workflowStatus.WorkFlowStageStatusService
+	ciService                     pipeline.CiService
 
 	helmAppService client2.HelmAppService
 
@@ -150,6 +151,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	customTagService pipeline.CustomTagService,
 	pipelineStatusTimelineService status.PipelineStatusTimelineService,
 	workFlowStageStatusService workflowStatus.WorkFlowStageStatusService,
+	ciService pipeline.CiService,
 	helmAppService client2.HelmAppService,
 	cdWorkflowCommonService cd.CdWorkflowCommonService,
 	cdTriggerService devtronApps.TriggerService,
@@ -187,6 +189,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		scanHistoryRepository:         scanHistoryRepository,
 		imageScanService:              imageScanService,
 		workFlowStageStatusService:    workFlowStageStatusService,
+		ciService:                     ciService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
