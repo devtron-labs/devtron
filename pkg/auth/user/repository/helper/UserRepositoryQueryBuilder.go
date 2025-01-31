@@ -84,11 +84,11 @@ func GetQueryForGroupListingWithFilters(req *bean.ListingRequest) (string, []int
 
 	orderCondition := ""
 	if len(req.SortBy) > 0 && !req.CountCheck {
-		orderCondition += " order by ? "
-		queryParams = append(queryParams, req.SortBy)
+		orderCondition += " order by  "
 		if req.SortOrder == bean2.Desc {
-			orderCondition += " ? "
-			queryParams = append(queryParams, bean2.Desc)
+			orderCondition += fmt.Sprintf(" %s %s ", req.SortBy, bean2.Desc)
+		} else {
+			orderCondition += fmt.Sprintf(" %s ", req.SortBy)
 		}
 	}
 	if req.Size > 0 && !req.CountCheck && !req.ShowAll {
