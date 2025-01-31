@@ -21,6 +21,7 @@ type ExtraValidationStageType int
 type ValidateGitOpsRepoUrlRequest struct {
 	RequestedGitUrl string
 	DesiredGitUrl   string
+	UseActiveGitOps bool
 }
 
 type ValidateGitOpsRepoRequest struct {

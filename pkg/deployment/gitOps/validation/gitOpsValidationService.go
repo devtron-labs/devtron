@@ -214,6 +214,7 @@ func (impl *GitOpsValidationServiceImpl) ValidateCustomGitOpsConfig(request gitO
 		validateGitRepoRequest := &gitOpsBean.ValidateGitOpsRepoUrlRequest{
 			RequestedGitUrl: request.GitRepoURL,
 			DesiredGitUrl:   chartGitAttribute.RepoUrl,
+			UseActiveGitOps: true,
 		}
 		_, validationErr := impl.ValidateGitOpsRepoUrl(validateGitRepoRequest)
 		if validationErr != nil {
@@ -243,22 +244,39 @@ func (impl *GitOpsValidationServiceImpl) getDesiredGitRepoUrl(request *gitOpsBea
 	return desiredRepoUrl, nil
 }
 
-func (impl *GitOpsValidationServiceImpl) validateForGitOpsOrg(request *gitOpsBean.ValidateGitOpsRepoUrlRequest) (string, error) {
+func (impl *GitOpsValidationServiceImpl) getMatchedGitopsConfig(request *gitOpsBean.ValidateGitOpsRepoUrlRequest) (*apiBean.GitOpsConfigDto, error) {
+	if request.UseActiveGitOps {
+		matchedGitopsConfig, err := impl.gitOpsConfigReadService.GetGitOpsConfigActive()
+		if err != nil {
+			impl.logger.Errorw("error in fetching active gitOps provider", "err", err)
+			return nil, err
+		}
+		return matchedGitopsConfig, err
+	}
 	matchedGitopsConfig, err := impl.gitOpsConfigReadService.GetGitOpsProviderByRepoURL(request.RequestedGitUrl)
 	if err != nil {
 		impl.logger.Errorw("error in fetching gitOps provider by repo url", "err", err)
+		return nil, err
+	}
+	return matchedGitopsConfig, err
+}
+
+func (impl *GitOpsValidationServiceImpl) validateForGitOpsOrg(request *gitOpsBean.ValidateGitOpsRepoUrlRequest) (string, error) {
+	matchedGitopsConfig, err := impl.getMatchedGitopsConfig(request)
+	if err != nil {
+		impl.logger.Errorw("error in getting matched gitops config", "err", err, "request", request)
 		return "", err
 	}
 	desiredRepoUrl, gitErr := impl.getDesiredGitRepoUrl(request, matchedGitopsConfig)
 	if gitErr != nil {
-		impl.logger.Errorw("error in getting desired git repo url", "err", gitErr)
+		impl.logger.Errorw("error in getting desired git repo url", "err", gitErr, "request", request)
 		return "", gitErr
 	}
 	sanitiseGitRepoUrl := git.SanitiseCustomGitRepoURL(matchedGitopsConfig, request.RequestedGitUrl)
 	orgRepoUrl := strings.TrimSuffix(desiredRepoUrl, ".git")
 	if !strings.Contains(strings.ToLower(sanitiseGitRepoUrl), strings.ToLower(orgRepoUrl)) {
 		// If the repo is non-organizational, then return error
-		impl.logger.Debugw("non-organisational custom gitops repo", "expected repo", desiredRepoUrl, "user given repo", sanitiseGitRepoUrl)
+		impl.logger.Debugw("non-organisational custom gitops repo", "expected repo", desiredRepoUrl, "user given repo", sanitiseGitRepoUrl, "request", request)
 		return "", impl.getValidationErrorForNonOrganisationalURL(matchedGitopsConfig)
 	}
 	return desiredRepoUrl, nil
