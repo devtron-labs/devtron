@@ -58,6 +58,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deployedAppMetrics"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate"
 	bean5 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/bean"
+	chartRefRead "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/chartRef/read"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	config2 "github.com/devtron-labs/devtron/pkg/deployment/providerConfig"
 	clientErrors "github.com/devtron-labs/devtron/pkg/errors"
@@ -176,7 +177,7 @@ type CdPipelineConfigServiceImpl struct {
 	deploymentTypeOverrideService     config2.DeploymentTypeOverrideService
 	deploymentConfigService           common.DeploymentConfigService
 	envConfigOverrideService          read.EnvConfigOverrideService
-	chartRefRepository                chartRepoRepository.ChartRefRepository
+	chartRefReadService               chartRefRead.ChartRefReadService
 	chartTemplateService              util.ChartTemplateService
 	gitFactory                        *git.GitFactory
 	clusterReadService                read2.ClusterReadService
@@ -208,7 +209,7 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 	deploymentTypeOverrideService config2.DeploymentTypeOverrideService,
 	deploymentConfigService common.DeploymentConfigService,
 	envConfigOverrideService read.EnvConfigOverrideService,
-	chartRefRepository chartRepoRepository.ChartRefRepository,
+	chartRefReadService chartRefRead.ChartRefReadService,
 	chartTemplateService util.ChartTemplateService,
 	gitFactory *git.GitFactory,
 	clusterReadService read2.ClusterReadService,
@@ -251,7 +252,7 @@ func NewCdPipelineConfigServiceImpl(logger *zap.SugaredLogger, pipelineRepositor
 		deploymentTypeOverrideService:     deploymentTypeOverrideService,
 		deploymentConfigService:           deploymentConfigService,
 		envConfigOverrideService:          envConfigOverrideService,
-		chartRefRepository:                chartRefRepository,
+		chartRefReadService:               chartRefReadService,
 		chartTemplateService:              chartTemplateService,
 		gitFactory:                        gitFactory,
 		clusterReadService:                clusterReadService,
@@ -605,7 +606,7 @@ func (impl *CdPipelineConfigServiceImpl) parseReleaseConfigForACDApp(app *app2.A
 	}
 	chartRefId := latestChart.ChartRefId
 
-	chartRef, err := impl.chartRefRepository.FindById(chartRefId)
+	chartRef, err := impl.chartRefReadService.FindById(chartRefId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart", "chartRefId", chartRefId, "err", err)
 		return nil, err
@@ -756,32 +757,29 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 		impl.logger.Errorw("error in finding latest chart by appId", "appId", appId, "err", err)
 		return response.SetUnknownErrorDetail(err)
 	}
-
-	chartRef, err := impl.chartRefRepository.FindById(latestChart.ChartRefId)
+	chartRef, err := impl.chartRefReadService.FindById(latestChart.ChartRefId)
 	if err != nil {
 		impl.logger.Errorw("error in finding chart ref by chartRefId", "chartRefId", latestChart.ChartRefId, "err", err)
 		return response.SetUnknownErrorDetail(err)
 	}
 	response.ApplicationMetadata.Source.ChartMetadata = pipelineConfigBean.ChartMetadata{
 		RequiredChartVersion: applicationChartVersion,
-		SavedChartName:       chartRef.Name,
+		SavedChartName:       chartRef.GetChartName(),
 		ValuesFilename:       argoApplicationSpec.Spec.Source.Helm.ValueFiles[0],
 		RequiredChartName:    applicationChartName,
 	}
 
-	if chartRef.Name != applicationChartName {
+	if chartRef.GetChartName() != applicationChartName {
 		return response.SetErrorDetail(pipelineConfigBean.ChartTypeMismatch, fmt.Sprintf(pipelineConfigBean.ChartTypeMismatchErrorMsg, applicationChartName, applicationChartVersion))
 	}
 
-	_, err = impl.chartRefRepository.FindByVersionAndName(applicationChartName, applicationChartVersion)
+	_, err = impl.chartRefReadService.FindByVersionAndName(applicationChartName, applicationChartVersion)
 	if err != nil && !errors3.Is(err, pg.ErrNoRows) {
 		impl.logger.Errorw("error in finding chart ref by chart name and version", "chartName", applicationChartName, "chartVersion", applicationChartVersion, "err", err)
 		return response.SetUnknownErrorDetail(err)
-	}
-	if errors3.Is(err, pg.ErrNoRows) {
+	} else if errors3.Is(err, pg.ErrNoRows) {
 		return response.SetErrorDetail(pipelineConfigBean.ChartVersionNotFound, fmt.Sprintf(pipelineConfigBean.ChartVersionNotFoundErrorMsg, applicationChartVersion, applicationChartName))
 	}
-
 	return response
 }
 
@@ -2195,7 +2193,7 @@ func (impl *CdPipelineConfigServiceImpl) parseEnvOverrideCreateRequestForExterna
 
 	chartName, chartVersion := chartMetadata.Name, chartMetadata.Version
 
-	chartRef, err := impl.chartRefRepository.FindByVersionAndName(chartVersion, chartName)
+	chartRef, err := impl.chartRefReadService.FindByVersionAndName(chartVersion, chartName)
 	if err != nil {
 		impl.logger.Errorw("error in getting chart ref by name and version", "chartName", chartName, "chartVersion", chartVersion, "err", err)
 		return nil, err
