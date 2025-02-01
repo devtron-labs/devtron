@@ -464,8 +464,9 @@ func (impl *CdPipelineConfigServiceImpl) CreateCdPipelines(pipelineCreateRequest
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		if pipeline.IsExternalArgoAppLinkRequest() {
-			linkCDValidationResponse := impl.ValidateLinkExternalArgoCDRequest(adapter.NewMigrateReleaseValidationRequest(pipeline))
-
+			migrationReq := adapter.NewMigrateReleaseValidationRequest(pipeline)
+			migrationReq.AppId = app.Id
+			linkCDValidationResponse := impl.ValidateLinkExternalArgoCDRequest(migrationReq)
 			if !linkCDValidationResponse.IsLinkable {
 				return nil,
 					util.NewApiError(http.StatusPreconditionFailed,
@@ -781,6 +782,7 @@ func (impl *CdPipelineConfigServiceImpl) ValidateLinkExternalArgoCDRequest(reque
 			return response.SetErrorDetail(pipelineConfigBean.ChartTypeMismatch, fmt.Sprintf(pipelineConfigBean.ChartTypeMismatchErrorMsg, applicationChartName, chartRef.Name))
 		}
 	} else {
+		// TODO Asutosh: remove this logic
 		if appModel.AppName != applicationChartName {
 			return response.SetErrorDetail(pipelineConfigBean.ChartTypeMismatch, fmt.Sprintf(pipelineConfigBean.ChartTypeMismatchErrorMsg, applicationChartName, chartRef.Name))
 		}

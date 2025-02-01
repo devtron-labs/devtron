@@ -93,6 +93,8 @@ type ChartRefDto struct {
 //	'workflow-chart' -> 'workflow-chart_<version>'
 //	'Rollout Deployment' -> 'reference-chart_<version>'
 //	'Job & CronJob' -> 'cronjob-chart_<version>'
+//
+// TODO Asutosh: remove this logic
 func (c *ChartRefDto) GetChartName() string {
 	if c.UserUploaded {
 		return c.Name
