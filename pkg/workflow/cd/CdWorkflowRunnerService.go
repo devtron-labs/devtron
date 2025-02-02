@@ -17,9 +17,13 @@
 package cd
 
 import (
+	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
+	"github.com/devtron-labs/devtron/pkg/pipeline/types"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/adapter"
 	"github.com/devtron-labs/devtron/pkg/workflow/cd/bean"
 	"go.uber.org/zap"
@@ -28,28 +32,40 @@ import (
 type CdWorkflowRunnerService interface {
 	UpdateWfr(dto *bean.CdWorkflowRunnerDto, updatedBy int) error
 	UpdateIsArtifactUploaded(wfrId int, isArtifactUploaded bool) error
+	SaveCDWorkflowRunnerWithStage(wfr *pipelineConfig.CdWorkflowRunner) (*pipelineConfig.CdWorkflowRunner, error)
+	UpdateCdWorkflowRunnerWithStage(wfr *pipelineConfig.CdWorkflowRunner) error
 }
 
 type CdWorkflowRunnerServiceImpl struct {
 	logger               *zap.SugaredLogger
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
 	workflowStageService workflowStatus.WorkFlowStageStatusService
+	transactionManager   sql.TransactionWrapper
+	config               *types.CiCdConfig
 }
 
 func NewCdWorkflowRunnerServiceImpl(logger *zap.SugaredLogger,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
-	workflowStageService workflowStatus.WorkFlowStageStatusService) *CdWorkflowRunnerServiceImpl {
-	return &CdWorkflowRunnerServiceImpl{
+	workflowStageService workflowStatus.WorkFlowStageStatusService,
+	transactionManager sql.TransactionWrapper) *CdWorkflowRunnerServiceImpl {
+	impl := &CdWorkflowRunnerServiceImpl{
 		logger:               logger,
 		cdWorkflowRepository: cdWorkflowRepository,
 		workflowStageService: workflowStageService,
+		transactionManager:   transactionManager,
 	}
+	ciCdConfig, err := types.GetCiCdConfig()
+	if err != nil {
+		return nil
+	}
+	impl.config = ciCdConfig
+	return impl
 }
 
 func (impl *CdWorkflowRunnerServiceImpl) UpdateWfr(dto *bean.CdWorkflowRunnerDto, updatedBy int) error {
 	runnerDbObj := adapter.ConvertCdWorkflowRunnerDtoToDbObj(dto)
 	runnerDbObj.UpdateAuditLog(int32(updatedBy))
-	err := impl.workflowStageService.UpdateCdWorkflowRunnerWithStage(runnerDbObj)
+	err := impl.UpdateCdWorkflowRunnerWithStage(runnerDbObj)
 	if err != nil {
 		impl.logger.Errorw("error in updating runner status in db", "runnerId", runnerDbObj.Id, "err", err)
 		return err
@@ -64,4 +80,79 @@ func (impl *CdWorkflowRunnerServiceImpl) UpdateIsArtifactUploaded(wfrId int, isA
 		return err
 	}
 	return nil
+}
+
+func (impl *CdWorkflowRunnerServiceImpl) SaveCDWorkflowRunnerWithStage(wfr *pipelineConfig.CdWorkflowRunner) (*pipelineConfig.CdWorkflowRunner, error) {
+	// implementation
+	tx, err := impl.transactionManager.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting transaction to save default configurations", "workflowName", wfr.Name, "error", err)
+		return wfr, err
+	}
+
+	defer func() {
+		dbErr := impl.transactionManager.RollbackTx(tx)
+		if dbErr != nil {
+			impl.logger.Errorw("error in rolling back transaction", "workflowName", wfr.Name, "error", dbErr)
+		}
+	}()
+	if impl.config.EnableWorkflowExecutionStage {
+		wfr.Status = cdWorkflow.WorkflowWaitingToStart
+	}
+	wfr, err = impl.cdWorkflowRepository.SaveWorkFlowRunnerWithTx(wfr, tx)
+	if err != nil {
+		impl.logger.Errorw("error in saving workflow", "payload", wfr, "error", err)
+		return wfr, err
+	}
+
+	err = impl.workflowStageService.SaveWorkflowStages(wfr.Id, wfr.WorkflowType.String(), wfr.Name, tx)
+	if err != nil {
+		impl.logger.Errorw("error in saving workflow stages", "workflowName", wfr.Name, "error", err)
+		return wfr, err
+	}
+
+	err = impl.transactionManager.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction", "workflowName", wfr.Name, "error", err)
+		return wfr, err
+	}
+	return wfr, nil
+}
+
+func (impl *CdWorkflowRunnerServiceImpl) UpdateCdWorkflowRunnerWithStage(wfr *pipelineConfig.CdWorkflowRunner) error {
+	// implementation
+	tx, err := impl.transactionManager.StartTx()
+	if err != nil {
+		impl.logger.Errorw("error in starting transaction to save default configurations", "workflowName", wfr.Name, "error", err)
+		return err
+	}
+
+	defer func() {
+		dbErr := impl.transactionManager.RollbackTx(tx)
+		if dbErr != nil {
+			impl.logger.Errorw("error in rolling back transaction", "workflowName", wfr.Name, "error", dbErr)
+		}
+	}()
+	if wfr.WorkflowType == bean2.CD_WORKFLOW_TYPE_PRE || wfr.WorkflowType == bean2.CD_WORKFLOW_TYPE_POST {
+		wfr.Status, wfr.PodStatus, err = impl.workflowStageService.UpdateWorkflowStages(wfr.Id, wfr.WorkflowType.String(), wfr.Name, wfr.Status, wfr.PodStatus, wfr.Message, wfr.PodName, tx)
+		if err != nil {
+			impl.logger.Errorw("error in updating workflow stages", "workflowName", wfr.Name, "error", err)
+			return err
+		}
+	}
+
+	//update workflow runner now with updatedWfStatus if applicable
+	err = impl.cdWorkflowRepository.UpdateWorkFlowRunnerWithTx(wfr, tx)
+	if err != nil {
+		impl.logger.Errorw("error in saving workflow", "payload", wfr, "error", err)
+		return err
+	}
+
+	err = impl.transactionManager.CommitTx(tx)
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction", "workflowName", wfr.Name, "error", err)
+		return err
+	}
+	return nil
+
 }

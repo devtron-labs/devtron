@@ -39,8 +39,8 @@ import (
 	bean3 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
 	"github.com/devtron-labs/devtron/pkg/eventProcessor/out"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
-	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	"github.com/devtron-labs/devtron/pkg/workflow/dag"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -87,7 +87,7 @@ type WorkflowStatusServiceImpl struct {
 	pipelineRepository                   pipelineConfig.PipelineRepository
 	appListingService                    app.AppListingService
 	deploymentConfigService              common2.DeploymentConfigService
-	workflowStageStatusService           workflowStatus.WorkFlowStageStatusService
+	cdWorkflowRunnerService              cd.CdWorkflowRunnerService
 }
 
 func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
@@ -109,7 +109,7 @@ func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	appListingService app.AppListingService,
 	deploymentConfigService common2.DeploymentConfigService,
-	workflowStageStatusService workflowStatus.WorkFlowStageStatusService,
+	cdWorkflowRunnerService cd.CdWorkflowRunnerService,
 ) (*WorkflowStatusServiceImpl, error) {
 	impl := &WorkflowStatusServiceImpl{
 		logger:                               logger,
@@ -133,7 +133,7 @@ func NewWorkflowStatusServiceImpl(logger *zap.SugaredLogger,
 		pipelineRepository:                   pipelineRepository,
 		appListingService:                    appListingService,
 		deploymentConfigService:              deploymentConfigService,
-		workflowStageStatusService:           workflowStageStatusService,
+		cdWorkflowRunnerService:              cdWorkflowRunnerService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -173,7 +173,7 @@ func (impl *WorkflowStatusServiceImpl) CheckHelmAppStatusPeriodicallyAndUpdateIn
 				return err
 			}
 		}
-		err = impl.workflowStageStatusService.UpdateCdWorkflowRunnerWithStage(wfr)
+		err = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(wfr)
 		if err != nil {
 			impl.logger.Errorw("error on update cd workflow runner", "wfr", wfr, "err", err)
 			return err
@@ -241,7 +241,7 @@ func (impl *WorkflowStatusServiceImpl) UpdatePipelineTimelineAndStatusByLiveAppl
 			cdWfr.Status = cdWorkflow2.WorkflowUnableToFetchState
 			cdWfr.UpdatedOn = time.Now()
 			cdWfr.UpdatedBy = 1
-			err = impl.workflowStageStatusService.UpdateCdWorkflowRunnerWithStage(&cdWfr)
+			err = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(&cdWfr)
 			if err != nil {
 				impl.logger.Errorw("error on update cd workflow runner", "cdWfr", cdWfr, "err", err)
 				return err, isTimelineUpdated

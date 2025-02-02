@@ -31,7 +31,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app/status"
 	common2 "github.com/devtron-labs/devtron/pkg/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/pipeline/types"
-	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
 	globalUtil "github.com/devtron-labs/devtron/util"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
@@ -59,7 +58,7 @@ type CdWorkflowCommonServiceImpl struct {
 	pipelineRepository               pipelineConfig.PipelineRepository
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository
 	deploymentConfigService          common2.DeploymentConfigService
-	workflowStageService             workflowStatus.WorkFlowStageStatusService
+	cdWorkflowRunnerService          CdWorkflowRunnerService
 }
 
 func NewCdWorkflowCommonServiceImpl(logger *zap.SugaredLogger,
@@ -68,7 +67,7 @@ func NewCdWorkflowCommonServiceImpl(logger *zap.SugaredLogger,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	deploymentConfigService common2.DeploymentConfigService,
-	workflowStageService workflowStatus.WorkFlowStageStatusService) (*CdWorkflowCommonServiceImpl, error) {
+	cdWorkflowRunnerService CdWorkflowRunnerService) (*CdWorkflowCommonServiceImpl, error) {
 	config, err := types.GetCdConfig()
 	if err != nil {
 		return nil, err
@@ -81,7 +80,7 @@ func NewCdWorkflowCommonServiceImpl(logger *zap.SugaredLogger,
 		pipelineRepository:               pipelineRepository,
 		pipelineStatusTimelineRepository: pipelineStatusTimelineRepository,
 		deploymentConfigService:          deploymentConfigService,
-		workflowStageService:             workflowStageService,
+		cdWorkflowRunnerService:          cdWorkflowRunnerService,
 	}, nil
 }
 
@@ -175,7 +174,7 @@ func (impl *CdWorkflowCommonServiceImpl) MarkCurrentDeploymentFailed(runner *pip
 	runner.Message = util.GetClientErrorDetailedMessage(releaseErr)
 	runner.FinishedOn = time.Now()
 	runner.UpdateAuditLog(triggeredBy)
-	err1 := impl.workflowStageService.UpdateCdWorkflowRunnerWithStage(runner)
+	err1 := impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(runner)
 	if err1 != nil {
 		impl.logger.Errorw("error updating cd wf runner status", "err", releaseErr, "currentRunner", runner)
 		return err1
@@ -227,7 +226,7 @@ func (impl *CdWorkflowCommonServiceImpl) UpdateNonTerminalStatusInRunner(ctx con
 	}
 	cdWfr.Status = status
 	cdWfr.UpdateAuditLog(userId)
-	err = impl.workflowStageService.UpdateCdWorkflowRunnerWithStage(cdWfr)
+	err = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(cdWfr)
 	if err != nil {
 		impl.logger.Errorw("error on update cd workflow runner, UpdateNonTerminalStatusInRunner", "cdWfr", cdWfr, "err", err)
 		return err

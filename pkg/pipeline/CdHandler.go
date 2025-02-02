@@ -34,6 +34,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/pkg/pipeline/util"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
 	bean5 "github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus/bean"
+	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -101,6 +102,7 @@ type CdHandlerImpl struct {
 	customTagService             CustomTagService
 	deploymentConfigService      common2.DeploymentConfigService
 	workflowStageStatusService   workflowStatus.WorkFlowStageStatusService
+	cdWorkflowRunnerService      cd.CdWorkflowRunnerService
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
@@ -115,6 +117,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
 	blobConfigStorageService BlobStorageConfigService, customTagService CustomTagService,
 	deploymentConfigService common2.DeploymentConfigService,
 	workflowStageStatusService workflowStatus.WorkFlowStageStatusService,
+	cdWorkflowRunnerService cd.CdWorkflowRunnerService,
 ) *CdHandlerImpl {
 	cdh := &CdHandlerImpl{
 		Logger:                       Logger,
@@ -136,6 +139,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, userService user.UserService,
 		customTagService:             customTagService,
 		deploymentConfigService:      deploymentConfigService,
 		workflowStageStatusService:   workflowStageStatusService,
+		cdWorkflowRunnerService:      cdWorkflowRunnerService,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {
@@ -222,7 +226,7 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int, forceAbort bool, us
 	workflowRunner.Status = cdWorkflow2.WorkflowCancel
 	workflowRunner.UpdatedOn = time.Now()
 	workflowRunner.UpdatedBy = userId
-	err = impl.workflowStageStatusService.UpdateCdWorkflowRunnerWithStage(workflowRunner)
+	err = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(workflowRunner)
 	if err != nil {
 		impl.Logger.Error("cannot update deleted workflow runner status, but wf deleted", "err", err)
 		return 0, err
@@ -234,7 +238,7 @@ func (impl *CdHandlerImpl) updateWorkflowRunnerForForceAbort(workflowRunner *pip
 	workflowRunner.Status = cdWorkflow2.WorkflowCancel
 	workflowRunner.PodStatus = string(bean2.Failed)
 	workflowRunner.Message = constants.FORCE_ABORT_MESSAGE_AFTER_STARTING_STAGE
-	err := impl.workflowStageStatusService.UpdateCdWorkflowRunnerWithStage(workflowRunner)
+	err := impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(workflowRunner)
 	if err != nil {
 		impl.Logger.Errorw("error in updating workflow status in cd workflow runner in force abort case", "err", err)
 		return err
@@ -292,7 +296,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		savedWorkflow.PodName = podName
 		savedWorkflow.UpdateAuditLog(1)
 		impl.Logger.Debugw("updating workflow ", "workflow", savedWorkflow)
-		err = impl.workflowStageStatusService.UpdateCdWorkflowRunnerWithStage(savedWorkflow)
+		err = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(savedWorkflow)
 		if err != nil {
 			impl.Logger.Error("update wf failed for id " + strconv.Itoa(savedWorkflow.Id))
 			return 0, "", err

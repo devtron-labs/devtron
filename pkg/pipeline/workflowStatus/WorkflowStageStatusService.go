@@ -23,11 +23,11 @@ import (
 )
 
 type WorkFlowStageStatusService interface {
-	SaveCDWorkflowRunnerWithStage(wfr *pipelineConfig.CdWorkflowRunner) (*pipelineConfig.CdWorkflowRunner, error)
-	UpdateCdWorkflowRunnerWithStage(wfr *pipelineConfig.CdWorkflowRunner) error
+	//todo move read functions for ci and cd from here to their respective services. CiService and CdWorkflowRunnerService
 	GetCiWorkflowStagesByWorkflowIds(wfIds []int) ([]*repository.WorkflowExecutionStage, error)
 	GetPrePostWorkflowStagesByWorkflowIdAndType(wfId int, wfType string) ([]*repository.WorkflowExecutionStage, error)
 	GetPrePostWorkflowStagesByWorkflowRunnerIdsList(wfIdWfTypeMap map[int]bean4.CdWorkflowWithArtifact) (map[int]map[string][]*bean2.WorkflowStageDto, error)
+
 	SaveWorkflowStages(wfId int, wfType, wfName string, tx *pg.Tx) error
 	UpdateWorkflowStages(wfId int, wfType, wfName, wfStatus, podStatus, message, podName string, tx *pg.Tx) (string, string, error)
 	ConvertDBWorkflowStageToMap(workflowStages []*repository.WorkflowExecutionStage, wfId int, status, podStatus, message, wfType string, startTime, endTime time.Time) map[string][]*bean2.WorkflowStageDto
@@ -47,7 +47,6 @@ func NewWorkflowStageFlowStatusServiceImpl(logger *zap.SugaredLogger,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	transactionManager sql.TransactionWrapper,
-	config *types.CiCdConfig,
 ) *WorkFlowStageStatusServiceImpl {
 	wfStageServiceImpl := &WorkFlowStageStatusServiceImpl{
 		logger:                   logger,
@@ -351,92 +350,6 @@ func (impl *WorkFlowStageStatusServiceImpl) GetPrePostWorkflowStagesByWorkflowRu
 		}
 	}
 	return resp, nil
-}
-
-func (impl *WorkFlowStageStatusServiceImpl) SaveCDWorkflowRunnerWithStage(wfr *pipelineConfig.CdWorkflowRunner) (*pipelineConfig.CdWorkflowRunner, error) {
-	// implementation
-	tx, err := impl.transactionManager.StartTx()
-	if err != nil {
-		impl.logger.Errorw("error in starting transaction to save default configurations", "workflowName", wfr.Name, "error", err)
-		return wfr, err
-	}
-
-	defer func() {
-		dbErr := impl.transactionManager.RollbackTx(tx)
-		if dbErr != nil {
-			impl.logger.Errorw("error in rolling back transaction", "workflowName", wfr.Name, "error", dbErr)
-		}
-	}()
-	if impl.config.EnableWorkflowExecutionStage {
-		wfr.Status = cdWorkflow.WorkflowWaitingToStart
-	}
-	wfr, err = impl.cdWorkflowRepository.SaveWorkFlowRunnerWithTx(wfr, tx)
-	if err != nil {
-		impl.logger.Errorw("error in saving workflow", "payload", wfr, "error", err)
-		return wfr, err
-	}
-
-	if impl.config.EnableWorkflowExecutionStage {
-		pipelineStageStatus := adapter.GetDefaultPipelineStatusForWorkflow(wfr.Id, wfr.WorkflowType.String())
-		pipelineStageStatus, err = impl.workflowStatusRepository.SaveWorkflowStages(pipelineStageStatus, tx)
-		if err != nil {
-			impl.logger.Errorw("error in saving workflow stages", "workflowName", wfr.Name, "error", err)
-			return wfr, err
-		}
-	}
-
-	err = impl.transactionManager.CommitTx(tx)
-	if err != nil {
-		impl.logger.Errorw("error in committing transaction", "workflowName", wfr.Name, "error", err)
-		return wfr, err
-	}
-	return wfr, nil
-}
-
-func (impl *WorkFlowStageStatusServiceImpl) UpdateCdWorkflowRunnerWithStage(wfr *pipelineConfig.CdWorkflowRunner) error {
-	// implementation
-	tx, err := impl.transactionManager.StartTx()
-	if err != nil {
-		impl.logger.Errorw("error in starting transaction to save default configurations", "workflowName", wfr.Name, "error", err)
-		return err
-	}
-
-	defer func() {
-		dbErr := impl.transactionManager.RollbackTx(tx)
-		if dbErr != nil {
-			impl.logger.Errorw("error in rolling back transaction", "workflowName", wfr.Name, "error", dbErr)
-		}
-	}()
-
-	if impl.config.EnableWorkflowExecutionStage {
-		if wfr.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE || wfr.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
-			pipelineStageStatus, updatedWfStatus, updatedPodStatus := impl.getUpdatedPipelineStagesForWorkflow(wfr.Id, wfr.WorkflowType.String(), wfr.Status, wfr.PodStatus, wfr.Message, wfr.PodName)
-			pipelineStageStatus, err = impl.workflowStatusRepository.UpdateWorkflowStages(pipelineStageStatus, tx)
-			if err != nil {
-				impl.logger.Errorw("error in saving workflow stages", "workflowName", wfr.Name, "error", err)
-				return err
-			}
-			wfr.Status = updatedWfStatus
-			wfr.PodStatus = updatedPodStatus
-		} else {
-			impl.logger.Infow("workflow type not supported to update stage data", "workflowName", wfr.Name, "workflowType", wfr.WorkflowType)
-		}
-	}
-
-	//update workflow runner now with updatedWfStatus if applicable
-	err = impl.cdWorkflowRepository.UpdateWorkFlowRunnerWithTx(wfr, tx)
-	if err != nil {
-		impl.logger.Errorw("error in saving workflow", "payload", wfr, "error", err)
-		return err
-	}
-
-	err = impl.transactionManager.CommitTx(tx)
-	if err != nil {
-		impl.logger.Errorw("error in committing transaction", "workflowName", wfr.Name, "error", err)
-		return err
-	}
-	return nil
-
 }
 
 func (impl *WorkFlowStageStatusServiceImpl) ConvertDBWorkflowStageToMap(workflowStages []*repository.WorkflowExecutionStage, wfId int, status, podStatus, message, wfType string, startTime, endTime time.Time) map[string][]*bean2.WorkflowStageDto {

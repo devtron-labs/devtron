@@ -38,7 +38,7 @@ import (
 	bean6 "github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/bean"
 	"github.com/devtron-labs/devtron/pkg/deployment/manifest/deploymentTemplate/read"
 	bean4 "github.com/devtron-labs/devtron/pkg/deployment/trigger/devtronApps/bean"
-	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
+	"github.com/devtron-labs/devtron/pkg/workflow/cd"
 	"io/ioutil"
 	"net/url"
 	"path"
@@ -126,7 +126,7 @@ type AppServiceImpl struct {
 	appListingService                      AppListingService
 	deploymentConfigService                common2.DeploymentConfigService
 	envConfigOverrideReadService           read.EnvConfigOverrideService
-	workflowStageService                   workflowStatus.WorkFlowStageStatusService
+	cdWorkflowRunnerService                cd.CdWorkflowRunnerService
 }
 
 type AppService interface {
@@ -167,7 +167,7 @@ func NewAppService(
 	appListingService AppListingService,
 	deploymentConfigService common2.DeploymentConfigService,
 	envConfigOverrideReadService read.EnvConfigOverrideService,
-	workflowStageService workflowStatus.WorkFlowStageStatusService) *AppServiceImpl {
+	cdWorkflowRunnerService cd.CdWorkflowRunnerService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		mergeUtil:                              mergeUtil,
 		pipelineOverrideRepository:             pipelineOverrideRepository,
@@ -197,7 +197,7 @@ func NewAppService(
 		appListingService:                      appListingService,
 		deploymentConfigService:                deploymentConfigService,
 		envConfigOverrideReadService:           envConfigOverrideReadService,
-		workflowStageService:                   workflowStageService,
+		cdWorkflowRunnerService:                cdWorkflowRunnerService,
 	}
 	return appServiceImpl
 }
@@ -1009,7 +1009,7 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 	}
 	wfr.UpdatedBy = 1
 	wfr.UpdatedOn = time.Now()
-	err = impl.workflowStageService.UpdateCdWorkflowRunnerWithStage(wfr)
+	err = impl.cdWorkflowRunnerService.UpdateCdWorkflowRunnerWithStage(wfr)
 	if err != nil {
 		impl.logger.Errorw("error on update cd workflow runner", "wfr", wfr, "app", app, "err", err)
 		return err
