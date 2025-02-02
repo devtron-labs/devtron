@@ -754,7 +754,7 @@ func (impl *WorkflowDagExecutorImpl) UpdateCiWorkflowForCiSuccess(request *bean2
 	savedWorkflow.Status = string(v1alpha1.NodeSucceeded)
 	savedWorkflow.IsArtifactUploaded = workflow.GetArtifactUploadedType(request.IsArtifactUploaded)
 	impl.logger.Debugw("updating workflow ", "savedWorkflow", savedWorkflow)
-	err = impl.workFlowStageStatusService.UpdateCiWorkflowWithStage(savedWorkflow)
+	err = impl.ciService.UpdateCiWorkflowWithStage(savedWorkflow)
 	if err != nil {
 		impl.logger.Errorw("update wf failed for id ", "err", err)
 		return err

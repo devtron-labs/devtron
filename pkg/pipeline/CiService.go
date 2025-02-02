@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils"
 	bean3 "github.com/devtron-labs/common-lib/utils/bean"
 	commonBean "github.com/devtron-labs/common-lib/workflow"
+	bean5 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig/bean/workflow/cdWorkflow"
 	"github.com/devtron-labs/devtron/pkg/attributes"
@@ -37,6 +38,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/infraProviders"
 	"github.com/devtron-labs/devtron/pkg/pipeline/workflowStatus"
 	bean2 "github.com/devtron-labs/devtron/pkg/plugin/bean"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util/sliceUtil"
 	"path"
 	"path/filepath"
@@ -75,6 +77,8 @@ import (
 type CiService interface {
 	TriggerCiPipeline(trigger types.Trigger) (int, error)
 	GetCiMaterials(pipelineId int, ciMaterials []*pipelineConfig.CiPipelineMaterial) ([]*pipelineConfig.CiPipelineMaterial, error)
+	SaveCiWorkflowWithStage(wf *pipelineConfig.CiWorkflow) error
+	UpdateCiWorkflowWithStage(wf *pipelineConfig.CiWorkflow) error
 }
 type BuildxCacheFlags struct {
 	BuildxCacheModeMin     bool `env:"BUILDX_CACHE_MODE_MIN" envDefault:"false"`
@@ -105,6 +109,8 @@ type CiServiceImpl struct {
 	ciCdPipelineOrchestrator     CiCdPipelineOrchestrator
 	buildxCacheFlags             *BuildxCacheFlags
 	attributeService             attributes.AttributesService
+	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
+	transactionManager           sql.TransactionWrapper
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -122,6 +128,8 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	globalPluginService plugin.GlobalPluginService,
 	infraProvider infraProviders.InfraProvider,
 	ciCdPipelineOrchestrator CiCdPipelineOrchestrator, attributeService attributes.AttributesService,
+	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
+	transactionManager sql.TransactionWrapper,
 ) *CiServiceImpl {
 	buildxCacheFlags := &BuildxCacheFlags{}
 	err := env.Parse(buildxCacheFlags)
@@ -151,6 +159,8 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		ciCdPipelineOrchestrator:     ciCdPipelineOrchestrator,
 		buildxCacheFlags:             buildxCacheFlags,
 		attributeService:             attributeService,
+		ciWorkflowRepository:         ciWorkflowRepository,
+		transactionManager:           transactionManager,
 	}
 	config, err := types.GetCiConfig()
 	if err != nil {
@@ -258,9 +268,9 @@ func (impl *CiServiceImpl) markCurrentCiWorkflowFailed(savedCiWf *pipelineConfig
 
 	var dbErr error
 	if savedCiWf.Id == 0 {
-		dbErr = impl.workflowStageStatusService.SaveCiWorkflowWithStage(savedCiWf)
+		dbErr = impl.SaveCiWorkflowWithStage(savedCiWf)
 	} else {
-		dbErr = impl.workflowStageStatusService.UpdateCiWorkflowWithStage(savedCiWf)
+		dbErr = impl.UpdateCiWorkflowWithStage(savedCiWf)
 	}
 
 	if dbErr != nil {
@@ -365,7 +375,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger types.Trigger) (int, error)
 	if err != nil {
 		savedCiWf.Status = cdWorkflow.WorkflowAborted
 		savedCiWf.Message = err.Error()
-		err1 := impl.workflowStageStatusService.UpdateCiWorkflowWithStage(savedCiWf)
+		err1 := impl.UpdateCiWorkflowWithStage(savedCiWf)
 		if err1 != nil {
 			impl.Logger.Errorw("could not save workflow, after failing due to conflicting image tag")
 		}
@@ -520,7 +530,7 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 		ciWorkflow.Namespace = ciWorkflowConfigNamespace
 		ciWorkflow.EnvironmentId = EnvironmentId
 	}
-	err := impl.workflowStageStatusService.SaveCiWorkflowWithStage(ciWorkflow)
+	err := impl.SaveCiWorkflowWithStage(ciWorkflow)
 	if err != nil {
 		impl.Logger.Errorw("saving workflow error", "err", err)
 		return &pipelineConfig.CiWorkflow{}, err
@@ -1087,7 +1097,7 @@ func (impl *CiServiceImpl) updateCiWorkflow(request *types.WorkflowRequest, save
 	ciBuildConfig := request.CiBuildConfig
 	ciBuildType := string(ciBuildConfig.CiBuildType)
 	savedWf.CiBuildType = ciBuildType
-	return impl.workflowStageStatusService.UpdateCiWorkflowWithStage(savedWf)
+	return impl.UpdateCiWorkflowWithStage(savedWf)
 }
 
 func _getTruncatedImageTag(imageTag string) string {
@@ -1103,4 +1113,78 @@ func _getTruncatedImageTag(imageTag string) string {
 	} else {
 		return imageTag[:_truncatedLength]
 	}
+}
+
+func (impl *CiServiceImpl) SaveCiWorkflowWithStage(wf *pipelineConfig.CiWorkflow) error {
+	// implementation
+	tx, err := impl.transactionManager.StartTx()
+	if err != nil {
+		impl.Logger.Errorw("error in starting transaction to save default configurations", "workflowName", wf.Name, "error", err)
+		return err
+	}
+
+	defer func() {
+		dbErr := impl.transactionManager.RollbackTx(tx)
+		if dbErr != nil {
+			impl.Logger.Errorw("error in rolling back transaction", "workflowName", wf.Name, "error", dbErr)
+		}
+	}()
+	if impl.config.EnableWorkflowExecutionStage {
+		wf.Status = cdWorkflow.WorkflowWaitingToStart
+	}
+	err = impl.ciWorkflowRepository.SaveWorkFlowWithTx(wf, tx)
+	if err != nil {
+		impl.Logger.Errorw("error in saving workflow", "payload", wf, "error", err)
+		return err
+	}
+
+	err = impl.workflowStageStatusService.SaveWorkflowStages(wf.Id, bean5.CI_WORKFLOW_TYPE.String(), wf.Name, tx)
+	if err != nil {
+		impl.Logger.Errorw("error in saving workflow stages", "workflowName", wf.Name, "error", err)
+		return err
+	}
+
+	err = impl.transactionManager.CommitTx(tx)
+	if err != nil {
+		impl.Logger.Errorw("error in committing transaction", "workflowName", wf.Name, "error", err)
+		return err
+	}
+	return nil
+
+}
+
+func (impl *CiServiceImpl) UpdateCiWorkflowWithStage(wf *pipelineConfig.CiWorkflow) error {
+	// implementation
+	tx, err := impl.transactionManager.StartTx()
+	if err != nil {
+		impl.Logger.Errorw("error in starting transaction to save default configurations", "workflowName", wf.Name, "error", err)
+		return err
+	}
+
+	defer func() {
+		dbErr := impl.transactionManager.RollbackTx(tx)
+		if dbErr != nil {
+			impl.Logger.Errorw("error in rolling back transaction", "workflowName", wf.Name, "error", dbErr)
+		}
+	}()
+
+	wf.Status, wf.PodStatus, err = impl.workflowStageStatusService.UpdateWorkflowStages(wf.Id, bean5.CI_WORKFLOW_TYPE.String(), wf.Name, wf.Status, wf.PodStatus, wf.Message, wf.PodName, tx)
+	if err != nil {
+		impl.Logger.Errorw("error in updating workflow stages", "workflowName", wf.Name, "error", err)
+		return err
+	}
+
+	err = impl.ciWorkflowRepository.UpdateWorkFlowWithTx(wf, tx)
+	if err != nil {
+		impl.Logger.Errorw("error in saving workflow", "payload", wf, "error", err)
+		return err
+	}
+
+	err = impl.transactionManager.CommitTx(tx)
+	if err != nil {
+		impl.Logger.Errorw("error in committing transaction", "workflowName", wf.Name, "error", err)
+		return err
+	}
+	return nil
+
 }

@@ -174,7 +174,6 @@ type TriggerServiceImpl struct {
 	attributeService                    attributes.AttributesService
 	clusterRepository                   repository5.ClusterRepository
 	workflowStageService                workflowStatus.WorkFlowStageStatusService
-	cdHandler                           pipeline.CdHandler
 }
 
 func NewTriggerServiceImpl(logger *zap.SugaredLogger,
@@ -234,7 +233,6 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 	attributeService attributes.AttributesService,
 	clusterRepository repository5.ClusterRepository,
 	workflowStageService workflowStatus.WorkFlowStageStatusService,
-	cdHandler pipeline.CdHandler,
 ) (*TriggerServiceImpl, error) {
 	impl := &TriggerServiceImpl{
 		logger:                              logger,
@@ -300,7 +298,6 @@ func NewTriggerServiceImpl(logger *zap.SugaredLogger,
 		workflowStageService:        workflowStageService,
 
 		clusterRepository: clusterRepository,
-		cdHandler:         cdHandler,
 	}
 	config, err := types.GetCdConfig()
 	if err != nil {

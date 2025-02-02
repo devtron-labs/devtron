@@ -168,7 +168,7 @@ func (impl *WebhookServiceImpl) HandleMultipleImagesFromEvent(imageDetails []*re
 			GitTriggers:        ciWorkflow.GitTriggers,
 			Message:            ciWorkflow.Message,
 		}
-		err = impl.workFlowStageStatusService.SaveCiWorkflowWithStage(workflow)
+		err = impl.ciService.SaveCiWorkflowWithStage(workflow)
 		if err != nil {
 			impl.logger.Errorw("error in saving workflow for child workflow", "err", err, "parentCiWorkflowId", ciWorkflowId)
 			return nil, err

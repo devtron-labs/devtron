@@ -668,7 +668,7 @@ func (impl *CiHandlerImpl) CancelBuild(workflowId int, forceAbort bool) (int, er
 		workflow.PodStatus = "Failed"
 		workflow.Message = constants2.TERMINATE_MESSAGE
 	}
-	err = impl.workFlowStageStatusService.UpdateCiWorkflowWithStage(workflow)
+	err = impl.ciService.UpdateCiWorkflowWithStage(workflow)
 	if err != nil {
 		impl.Logger.Errorw("cannot update deleted workflow status, but wf deleted", "err", err)
 		return 0, err
@@ -710,7 +710,7 @@ func (impl *CiHandlerImpl) updateWorkflowForForceAbort(workflow *pipelineConfig.
 	workflow.Status = cdWorkflow.WorkflowCancel
 	workflow.PodStatus = string(bean.Failed)
 	workflow.Message = constants2.FORCE_ABORT_MESSAGE_AFTER_STARTING_STAGE
-	err := impl.workFlowStageStatusService.UpdateCiWorkflowWithStage(workflow)
+	err := impl.ciService.UpdateCiWorkflowWithStage(workflow)
 	if err != nil {
 		impl.Logger.Errorw("error in updating workflow status", "err", err)
 		return err
@@ -1218,7 +1218,7 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		savedWorkflow.CiArtifactLocation = ciArtifactLocation
 		savedWorkflow.PodName = podName
 		impl.Logger.Debugw("updating workflow ", "workflow", savedWorkflow)
-		err = impl.workFlowStageStatusService.UpdateCiWorkflowWithStage(savedWorkflow)
+		err = impl.ciService.UpdateCiWorkflowWithStage(savedWorkflow)
 		if err != nil {
 			impl.Logger.Error("update wf failed for id " + strconv.Itoa(savedWorkflow.Id))
 			return 0, err
@@ -1714,7 +1714,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 			} else {
 				ciWorkflow.Message = "marked failed by job"
 			}
-			err := impl.workFlowStageStatusService.UpdateCiWorkflowWithStage(ciWorkflow)
+			err := impl.ciService.UpdateCiWorkflowWithStage(ciWorkflow)
 			if err != nil {
 				impl.Logger.Errorw("unable to update ci workflow, its eligible to mark failed", "err", err)
 				// skip this and process for next ci workflow
