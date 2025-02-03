@@ -1292,7 +1292,7 @@ func (impl *TriggerServiceImpl) createArgoApplicationIfRequired(ctx context.Cont
 		return "", err
 	}
 	argoAppName := pipeline.DeploymentAppName
-	if deploymentConfig.IsArgoAppCreationRequired(pipeline.DeploymentAppCreated) {
+	if !deploymentConfig.IsArgoAppCreationRequired(pipeline.DeploymentAppCreated) {
 		return argoAppName, nil
 	} else {
 		impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
